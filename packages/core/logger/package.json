@@ -1,10 +1,14 @@
 {
   "name": "@parcel/logger",
-  "version": "2.0.0-alpha.3.1",
+  "version": "2.0.0-beta.1",
   "description": "Blazing fast, zero configuration web application bundler",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
+  },
+  "funding": {
+    "type": "opencollective",
+    "url": "https://opencollective.com/parcel"
   },
   "repository": {
     "type": "git",
@@ -16,7 +20,7 @@
     "node": ">= 10.0.0"
   },
   "dependencies": {
-    "@parcel/diagnostic": "^2.0.0-alpha.3.1",
-    "@parcel/events": "^2.0.0-alpha.3.1"
+    "@parcel/diagnostic": "2.0.0-beta.1",
+    "@parcel/events": "2.0.0-beta.1"
   }
 }

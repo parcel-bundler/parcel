@@ -10,7 +10,7 @@ const HMR_RUNTIME = fs.readFileSync(
   'utf8',
 );
 
-export default new Runtime({
+export default (new Runtime({
   apply({bundle, options}) {
     if (bundle.type !== 'js' || !options.hot) {
       return;
@@ -20,16 +20,12 @@ export default new Runtime({
     return {
       filePath: __filename,
       code:
-        `var __PARCEL_HMR_HOST = ${JSON.stringify(
-          host != null ? host : null,
-        )};` +
-        `var __PARCEL_HMR_PORT = ${JSON.stringify(
-          port != null ? port : null,
-        )};` +
-        `var __PARCEL_BUNDLE_ID = ${JSON.stringify(bundle.id)};` +
-        `var __PARCEL_HMR_ENV_HASH = "${md5FromObject(bundle.env)}";` +
+        `var HMR_HOST = ${JSON.stringify(host != null ? host : null)};` +
+        `var HMR_PORT = ${JSON.stringify(port != null ? port : null)};` +
+        `var HMR_ENV_HASH = "${md5FromObject(bundle.env)}";` +
+        `module.bundle.HMR_BUNDLE_ID = ${JSON.stringify(bundle.id)};` +
         HMR_RUNTIME,
       isEntry: true,
     };
   },
-});
+}): Runtime);

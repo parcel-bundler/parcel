@@ -1,4 +1,4 @@
-// @flow
+// @flow strict-local
 
 import {MemoryFS, NodeFS, OverlayFS} from '@parcel/fs';
 import assert from 'assert';
@@ -11,11 +11,14 @@ import {MockPackageInstaller, NodePackageManager} from '../';
 
 const FIXTURES_DIR = path.join(__dirname, 'fixtures');
 
-describe('NodePackageManager', () => {
+describe('NodePackageManager', function() {
   let fs;
   let packageManager;
   let packageInstaller;
   let workerFarm;
+
+  // These can sometimes take a lil while
+  this.timeout(20000);
 
   beforeEach(() => {
     workerFarm = new WorkerFarm({
@@ -62,6 +65,7 @@ describe('NodePackageManager', () => {
       await packageManager.resolve(
         'a',
         path.join(FIXTURES_DIR, 'has-foo/index.js'),
+        {autoinstall: true},
       ),
       {
         pkg: {
@@ -81,6 +85,7 @@ describe('NodePackageManager', () => {
         packageManager.resolve(
           'a',
           path.join(FIXTURES_DIR, 'has-a-not-yet-installed/index.js'),
+          {autoinstall: true},
         ),
       err => {
         invariant(err instanceof ThrowableDiagnostic);
@@ -101,6 +106,7 @@ describe('NodePackageManager', () => {
     await packageManager.resolve(
       'peers',
       path.join(FIXTURES_DIR, 'has-foo/index.js'),
+      {autoinstall: true},
     );
     assert.deepEqual(spy.args, [
       [
@@ -131,6 +137,7 @@ describe('NodePackageManager', () => {
     await packageManager.resolve(
       'peers',
       path.join(FIXTURES_DIR, 'empty/index.js'),
+      {autoinstall: true},
     );
     assert.deepEqual(spy.args, [
       [
@@ -191,6 +198,7 @@ describe('NodePackageManager', () => {
           path.join(FIXTURES_DIR, 'has-foo/subpackage/index.js'),
           {
             range: '^2.0.0',
+            autoinstall: true,
           },
         ),
         {
@@ -241,6 +249,7 @@ describe('NodePackageManager', () => {
             path.join(FIXTURES_DIR, 'has-foo/index.js'),
             {
               range: '^2.0.0',
+              autoinstall: true,
             },
           ),
         err => {

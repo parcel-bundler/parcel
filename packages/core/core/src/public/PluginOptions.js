@@ -18,9 +18,9 @@ let parcelOptionsToPluginOptions: WeakMap<
 > = new WeakMap();
 
 export default class PluginOptions implements IPluginOptions {
-  #options; // ParcelOptions
+  #options /*: ParcelOptions */;
 
-  constructor(options: ParcelOptions) {
+  constructor(options: ParcelOptions): PluginOptions {
     let existing = parcelOptionsToPluginOptions.get(options);
     if (existing != null) {
       return existing;
@@ -28,6 +28,7 @@ export default class PluginOptions implements IPluginOptions {
 
     this.#options = options;
     parcelOptionsToPluginOptions.set(options, this);
+    return this;
   }
 
   get instanceId(): string {
@@ -36,10 +37,6 @@ export default class PluginOptions implements IPluginOptions {
 
   get mode(): BuildMode {
     return this.#options.mode;
-  }
-
-  get sourceMaps(): boolean {
-    return this.#options.sourceMaps;
   }
 
   get env(): EnvMap {
@@ -62,8 +59,8 @@ export default class PluginOptions implements IPluginOptions {
     return this.#options.logLevel;
   }
 
-  get rootDir(): FilePath {
-    return this.#options.rootDir;
+  get entryRoot(): FilePath {
+    return this.#options.entryRoot;
   }
 
   get cacheDir(): FilePath {
@@ -86,5 +83,9 @@ export default class PluginOptions implements IPluginOptions {
 
   get packageManager(): PackageManager {
     return this.#options.packageManager;
+  }
+
+  get detailedReport(): number {
+    return this.#options.detailedReport || 0;
   }
 }

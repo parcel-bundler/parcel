@@ -14,8 +14,9 @@ import {registerSerializableClass} from '@parcel/core';
 import packageJSON from '../package.json';
 import WorkerFarm, {Handle} from '@parcel/workers';
 import nullthrows from 'nullthrows';
+import EventEmitter from 'events';
 
-const instances = new Map();
+const instances: Map<number, MemoryFS> = new Map();
 let id = 0;
 
 type HandleFunction = (...args: Array<any>) => any;
@@ -35,6 +36,8 @@ type WorkerEvent = {|
   target?: FilePath,
 |};
 
+type ResolveFunction = () => mixed;
+
 export class MemoryFS implements FileSystem {
   dirs: Map<FilePath, Directory>;
   files: Map<FilePath, File>;
@@ -47,7 +50,10 @@ export class MemoryFS implements FileSystem {
   _cwd: FilePath;
   _eventQueue: Array<Event>;
   _watcherTimer: TimeoutID;
-  workers: Array<(WorkerEvent) => Promise<mixed>>;
+  _numWorkerInstances: number = 0;
+  _workerHandles: Array<Handle>;
+  _workerRegisterResolves: Array<ResolveFunction> = [];
+  _emitter: EventEmitter = new EventEmitter();
 
   constructor(workerFarm: WorkerFarm) {
     this.farm = workerFarm;
@@ -58,14 +64,26 @@ export class MemoryFS implements FileSystem {
     this.events = [];
     this.id = id++;
     this._cwd = '/';
-    this.workers = [];
+    this._workerHandles = [];
     this._eventQueue = [];
     instances.set(this.id, this);
+    this._emitter.on('allWorkersRegistered', () => {
+      for (let resolve of this._workerRegisterResolves) {
+        resolve();
+      }
+      this._workerRegisterResolves = [];
+    });
   }
 
-  static deserialize(opts: SerializedMemoryFS) {
-    if (instances.has(opts.id)) {
-      return instances.get(opts.id);
+  static deserialize(opts: SerializedMemoryFS): MemoryFS | WorkerFS {
+    let existing = instances.get(opts.id);
+    if (existing != null) {
+      // Correct the count of worker instances since serialization assumes a new instance is created
+      WorkerFarm.getWorkerApi().runHandle(opts.handle, [
+        'decrementWorkerInstance',
+        [],
+      ]);
+      return existing;
     }
 
     let fs = new WorkerFS(opts.id, nullthrows(opts.handle));
@@ -85,6 +103,9 @@ export class MemoryFS implements FileSystem {
       );
     }
 
+    // If a worker instance already exists, it will decrement this number
+    this._numWorkerInstances++;
+
     return {
       $$raw: false,
       id: this.id,
@@ -95,7 +116,14 @@ export class MemoryFS implements FileSystem {
     };
   }
 
-  cwd() {
+  decrementWorkerInstance() {
+    this._numWorkerInstances--;
+    if (this._numWorkerInstances === this._workerHandles.length) {
+      this._emitter.emit('allWorkersRegistered');
+    }
+  }
+
+  cwd(): FilePath {
     return this._cwd;
   }
 
@@ -190,7 +218,7 @@ export class MemoryFS implements FileSystem {
     await this.writeFile(destination, contents);
   }
 
-  statSync(filePath: FilePath) {
+  statSync(filePath: FilePath): Stat {
     filePath = this._normalizePath(filePath);
 
     let dir = this.dirs.get(filePath);
@@ -207,7 +235,7 @@ export class MemoryFS implements FileSystem {
   }
 
   // eslint-disable-next-line require-await
-  async stat(filePath: FilePath) {
+  async stat(filePath: FilePath): Promise<Stat> {
     return this.statSync(filePath);
   }
 
@@ -248,6 +276,17 @@ export class MemoryFS implements FileSystem {
       }
     }
 
+    for (let [from] of this.symlinks) {
+      if (from.startsWith(dir) && from.indexOf(path.sep, dir.length) === -1) {
+        let name = from.slice(dir.length);
+        if (opts?.withFileTypes) {
+          res.push(new Dirent(name, {mode: S_IFLNK}));
+        } else {
+          res.push(name);
+        }
+      }
+    }
+
     return res;
   }
 
@@ -256,7 +295,7 @@ export class MemoryFS implements FileSystem {
     return this.readdirSync(dir, opts);
   }
 
-  async unlink(filePath: FilePath) {
+  async unlink(filePath: FilePath): Promise<void> {
     filePath = this._normalizePath(filePath);
     if (!this.files.has(filePath) && !this.dirs.has(filePath)) {
       throw new FSError('ENOENT', filePath, 'does not exist');
@@ -279,7 +318,7 @@ export class MemoryFS implements FileSystem {
     return Promise.resolve();
   }
 
-  async mkdirp(dir: FilePath) {
+  async mkdirp(dir: FilePath): Promise<void> {
     dir = this._normalizePath(dir);
     if (this.dirs.has(dir)) {
       return Promise.resolve();
@@ -312,7 +351,7 @@ export class MemoryFS implements FileSystem {
     return Promise.resolve();
   }
 
-  async rimraf(filePath: FilePath) {
+  async rimraf(filePath: FilePath): Promise<void> {
     filePath = this._normalizePath(filePath);
 
     if (this.dirs.has(filePath)) {
@@ -441,20 +480,20 @@ export class MemoryFS implements FileSystem {
     }
   }
 
-  createReadStream(filePath: FilePath) {
+  createReadStream(filePath: FilePath): ReadStream {
     return new ReadStream(this, filePath);
   }
 
-  createWriteStream(filePath: FilePath, options: ?FileOptions) {
+  createWriteStream(filePath: FilePath, options: ?FileOptions): WriteStream {
     return new WriteStream(this, filePath, options);
   }
 
-  realpathSync(filePath: FilePath) {
+  realpathSync(filePath: FilePath): FilePath {
     return this._normalizePath(filePath);
   }
 
   // eslint-disable-next-line require-await
-  async realpath(filePath: FilePath) {
+  async realpath(filePath: FilePath): Promise<FilePath> {
     return this.realpathSync(filePath);
   }
 
@@ -469,13 +508,13 @@ export class MemoryFS implements FileSystem {
     });
   }
 
-  existsSync(filePath: FilePath) {
+  existsSync(filePath: FilePath): boolean {
     filePath = this._normalizePath(filePath);
     return this.files.has(filePath) || this.dirs.has(filePath);
   }
 
   // eslint-disable-next-line require-await
-  async exists(filePath: FilePath) {
+  async exists(filePath: FilePath): Promise<boolean> {
     return this.existsSync(filePath);
   }
 
@@ -507,14 +546,24 @@ export class MemoryFS implements FileSystem {
     }, 50);
   }
 
-  _registerWorker(fn: WorkerEvent => Promise<mixed>) {
-    this.workers.push(fn);
+  _registerWorker(handle: Handle) {
+    this._workerHandles.push(handle);
+    if (this._numWorkerInstances === this._workerHandles.length) {
+      this._emitter.emit('allWorkersRegistered');
+    }
   }
 
   async _sendWorkerEvent(event: WorkerEvent) {
-    for (let worker of this.workers) {
-      await worker(event);
+    // Wait for worker instances to register their handles
+    while (this._workerHandles.length < this._numWorkerInstances) {
+      await new Promise(resolve => this._workerRegisterResolves.push(resolve));
     }
+
+    await Promise.all(
+      this._workerHandles.map(workerHandle =>
+        this.farm.workerApi.runHandle(workerHandle, [event]),
+      ),
+    );
   }
 
   watch(
@@ -642,8 +691,9 @@ class WriteStream extends Writable {
   filePath: FilePath;
   options: ?FileOptions;
   buffer: Buffer;
+
   constructor(fs: FileSystem, filePath: FilePath, options: ?FileOptions) {
-    super();
+    super({emitClose: true, autoDestroy: true});
     this.fs = fs;
     this.filePath = filePath;
     this.options = options;
@@ -661,19 +711,16 @@ class WriteStream extends Writable {
   }
 
   _final(callback: (error?: Error) => void) {
-    this.fs.writeFile(this.filePath, this.buffer, this.options).then(
-      () => callback(),
-      err => callback(err),
-    );
-  }
-
-  get bytesWritten() {
-    return this.buffer.byteLength;
+    this.fs
+      .writeFile(this.filePath, this.buffer, this.options)
+      .then(callback)
+      .catch(callback);
   }
 }
 
 const S_IFREG = 0o100000;
 const S_IFDIR = 0o040000;
+const S_IFLNK = 0o120000;
 
 class Entry {
   mode: number;
@@ -703,26 +750,26 @@ class Entry {
     this.mode = mode;
   }
 
-  getSize() {
+  getSize(): number {
     return 0;
   }
 
-  stat() {
+  stat(): Stat {
     return new Stat(this);
   }
 }
 
 class Stat {
-  dev = 0;
-  ino = 0;
+  dev: number = 0;
+  ino: number = 0;
   mode: number;
-  nlink = 0;
-  uid = 0;
-  gid = 0;
-  rdev = 0;
+  nlink: number = 0;
+  uid: number = 0;
+  gid: number = 0;
+  rdev: number = 0;
   size: number;
-  blksize = 0;
-  blocks = 0;
+  blksize: number = 0;
+  blocks: number = 0;
   atimeMs: number;
   mtimeMs: number;
   ctimeMs: number;
@@ -745,31 +792,31 @@ class Stat {
     this.birthtime = new Date(entry.birthtime);
   }
 
-  isFile() {
+  isFile(): boolean {
     return Boolean(this.mode & S_IFREG);
   }
 
-  isDirectory() {
+  isDirectory(): boolean {
     return Boolean(this.mode & S_IFDIR);
   }
 
-  isBlockDevice() {
+  isBlockDevice(): boolean {
     return false;
   }
 
-  isCharacterDevice() {
+  isCharacterDevice(): boolean {
     return false;
   }
 
-  isSymbolicLink() {
+  isSymbolicLink(): boolean {
     return false;
   }
 
-  isFIFO() {
+  isFIFO(): boolean {
     return false;
   }
 
-  isSocket() {
+  isSocket(): boolean {
     return false;
   }
 }
@@ -778,36 +825,36 @@ class Dirent {
   name: string;
   #mode: number;
 
-  constructor(name: string, entry: Entry) {
+  constructor(name: string, entry: {mode: number, ...}) {
     this.name = name;
     this.#mode = entry.mode;
   }
 
-  isFile() {
+  isFile(): boolean {
     return Boolean(this.#mode & S_IFREG);
   }
 
-  isDirectory() {
+  isDirectory(): boolean {
     return Boolean(this.#mode & S_IFDIR);
   }
 
-  isBlockDevice() {
+  isBlockDevice(): boolean {
     return false;
   }
 
-  isCharacterDevice() {
+  isCharacterDevice(): boolean {
     return false;
   }
 
-  isSymbolicLink() {
+  isSymbolicLink(): boolean {
+    return Boolean(this.#mode & S_IFLNK);
+  }
+
+  isFIFO(): boolean {
     return false;
   }
 
-  isFIFO() {
-    return false;
-  }
-
-  isSocket() {
+  isSocket(): boolean {
     return false;
   }
 }
@@ -829,7 +876,7 @@ class File extends Entry {
     this.buffer = buffer;
   }
 
-  getSize() {
+  getSize(): number {
     return this.buffer.byteLength;
   }
 }
@@ -864,14 +911,15 @@ class WorkerFS extends MemoryFS {
   id: number;
   handleFn: HandleFunction;
 
-  constructor(id: number, handleFn: HandleFunction) {
+  constructor(id: number, handle: Handle) {
     // TODO Make this not a subclass
     // $FlowFixMe
     super();
     this.id = id;
-    this.handleFn = handleFn;
+    this.handleFn = (methodName, args) =>
+      WorkerFarm.getWorkerApi().runHandle(handle, [methodName, args]);
 
-    handleFn('_registerWorker', [
+    this.handleFn('_registerWorker', [
       WorkerFarm.getWorkerApi().createReverseHandle(event => {
         switch (event.type) {
           case 'writeFile':
@@ -893,8 +941,8 @@ class WorkerFS extends MemoryFS {
     ]);
   }
 
-  static deserialize(opts: SerializedMemoryFS) {
-    return instances.get(opts.id);
+  static deserialize(opts: SerializedMemoryFS): MemoryFS {
+    return nullthrows(instances.get(opts.id));
   }
 
   serialize(): SerializedMemoryFS {
@@ -908,33 +956,33 @@ class WorkerFS extends MemoryFS {
     filePath: FilePath,
     contents: Buffer | string,
     options: ?FileOptions,
-  ) {
+  ): Promise<void> {
     super.writeFile(filePath, contents, options);
     let buffer = makeShared(contents);
     return this.handleFn('writeFile', [filePath, buffer, options]);
   }
 
-  unlink(filePath: FilePath) {
+  unlink(filePath: FilePath): Promise<void> {
     super.unlink(filePath);
     return this.handleFn('unlink', [filePath]);
   }
 
-  mkdirp(dir: FilePath) {
+  mkdirp(dir: FilePath): Promise<void> {
     super.mkdirp(dir);
     return this.handleFn('mkdirp', [dir]);
   }
 
-  rimraf(filePath: FilePath) {
+  rimraf(filePath: FilePath): Promise<void> {
     super.rimraf(filePath);
     return this.handleFn('rimraf', [filePath]);
   }
 
-  ncp(source: FilePath, destination: FilePath) {
+  ncp(source: FilePath, destination: FilePath): Promise<void> {
     super.ncp(source, destination);
     return this.handleFn('ncp', [source, destination]);
   }
 
-  symlink(target: FilePath, path: FilePath) {
+  symlink(target: FilePath, path: FilePath): Promise<void> {
     super.symlink(target, path);
     return this.handleFn('symlink', [target, path]);
   }

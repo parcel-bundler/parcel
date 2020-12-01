@@ -1,5 +1,6 @@
 // @flow
-import type {WriteStream} from 'fs';
+import type {ReadStream, Stats} from 'fs';
+import type {Writable} from 'stream';
 import type {FileOptions, FileSystem} from './types';
 import type {FilePath} from '@parcel/types';
 import type {
@@ -8,12 +9,13 @@ import type {
   AsyncSubscription,
 } from '@parcel/watcher';
 
-import fs from 'fs';
+import fs from 'graceful-fs';
 import ncp from 'ncp';
 import mkdirp from 'mkdirp';
 import rimraf from 'rimraf';
 import {promisify} from '@parcel/utils';
 import {registerSerializableClass} from '@parcel/core';
+import fsWriteStreamAtomic from '@parcel/fs-write-stream-atomic';
 import watcher from '@parcel/watcher';
 import packageJSON from '../package.json';
 
@@ -23,29 +25,27 @@ import packageJSON from '../package.json';
 const realpath = promisify(fs.realpath);
 
 export class NodeFS implements FileSystem {
-  readFile = promisify(fs.readFile);
-  copyFile = promisify(fs.copyFile);
-  stat = promisify(fs.stat);
-  readdir = promisify(fs.readdir);
-  unlink = promisify(fs.unlink);
-  utimes = promisify(fs.utimes);
-  mkdirp = promisify(mkdirp);
-  rimraf = promisify(rimraf);
-  ncp = promisify(ncp);
-  createReadStream = fs.createReadStream;
-  cwd = process.cwd;
-  chdir = process.chdir;
+  readFile: any = promisify(fs.readFile);
+  copyFile: any = promisify(fs.copyFile);
+  stat: any = promisify(fs.stat);
+  readdir: any = promisify(fs.readdir);
+  unlink: any = promisify(fs.unlink);
+  utimes: any = promisify(fs.utimes);
+  mkdirp: any = promisify(mkdirp);
+  rimraf: any = promisify(rimraf);
+  ncp: any = promisify(ncp);
+  createReadStream: (path: string, options?: any) => ReadStream =
+    fs.createReadStream;
+  cwd: () => string = process.cwd;
+  chdir: (directory: string) => void = process.chdir;
 
-  statSync = fs.statSync;
-  realpathSync = fs.realpathSync;
-  existsSync = fs.existsSync;
-  readdirSync = (fs.readdirSync: any);
+  statSync: (path: string) => Stats = fs.statSync;
+  realpathSync: (path: string, cache?: any) => string = fs.realpathSync;
+  existsSync: (path: string) => boolean = fs.existsSync;
+  readdirSync: any = (fs.readdirSync: any);
 
-  createWriteStream(filePath: string, options: any): WriteStream {
-    let tmpFilePath = getTempFilePath(filePath);
-    let stream = fs.createWriteStream(tmpFilePath, options);
-    stream.on('close', () => fs.renameSync(tmpFilePath, filePath));
-    return stream;
+  createWriteStream(filePath: string, options: any): Writable {
+    return fsWriteStreamAtomic(filePath, options);
   }
 
   async writeFile(
@@ -110,11 +110,11 @@ export class NodeFS implements FileSystem {
     await watcher.writeSnapshot(dir, snapshot, opts);
   }
 
-  static deserialize() {
+  static deserialize(): NodeFS {
     return new NodeFS();
   }
 
-  serialize() {
+  serialize(): null {
     return null;
   }
 }

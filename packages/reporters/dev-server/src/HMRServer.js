@@ -1,12 +1,17 @@
 // @flow
 
-import type {BuildSuccessEvent} from '@parcel/types';
+import type {BuildSuccessEvent, PluginOptions} from '@parcel/types';
 import type {Diagnostic} from '@parcel/diagnostic';
 import type {AnsiDiagnosticResult} from '@parcel/utils';
 import type {ServerError, HMRServerOptions} from './types.js.flow';
 
 import WebSocket from 'ws';
-import {md5FromObject, prettyDiagnostic, ansiHtml} from '@parcel/utils';
+import {
+  ansiHtml,
+  md5FromObject,
+  prettyDiagnostic,
+  PromiseQueue,
+} from '@parcel/utils';
 
 type HMRAsset = {|
   id: string,
@@ -29,8 +34,10 @@ type HMRMessage =
       |},
     |};
 
+const FS_CONCURRENCY = 64;
+
 export default class HMRServer {
-  wss: WebSocket.Server;
+  wss: typeof WebSocket.Server;
   unresolvedError: HMRMessage | null = null;
   options: HMRServerOptions;
 
@@ -38,7 +45,7 @@ export default class HMRServer {
     this.options = options;
   }
 
-  start() {
+  start(): any {
     let websocketOptions = {
       /*verifyClient: info => {
           if (!this.options.host) return true;
@@ -71,8 +78,10 @@ export default class HMRServer {
     this.wss.close();
   }
 
-  emitError(diagnostics: Array<Diagnostic>) {
-    let renderedDiagnostics = diagnostics.map(d => prettyDiagnostic(d));
+  async emitError(options: PluginOptions, diagnostics: Array<Diagnostic>) {
+    let renderedDiagnostics = await Promise.all(
+      diagnostics.map(d => prettyDiagnostic(d, options)),
+    );
 
     // store the most recent error so we can notify new connections
     // and so we can broadcast when the error is resolved
@@ -100,8 +109,9 @@ export default class HMRServer {
     let changedAssets = Array.from(event.changedAssets.values());
     if (changedAssets.length === 0) return;
 
-    let assets = await Promise.all(
-      changedAssets.map(async asset => {
+    let queue = new PromiseQueue({maxConcurrent: FS_CONCURRENCY});
+    for (let asset of changedAssets) {
+      queue.add(async () => {
         let dependencies = event.bundleGraph.getDependencies(asset);
         let depsByBundle = {};
         for (let bundle of event.bundleGraph.findBundlesWithAsset(asset)) {
@@ -112,22 +122,25 @@ export default class HMRServer {
               bundle,
             );
             if (resolved) {
-              deps[dep.moduleSpecifier] = resolved.id;
+              deps[dep.moduleSpecifier] = event.bundleGraph.getAssetPublicId(
+                resolved,
+              );
             }
           }
           depsByBundle[bundle.id] = deps;
         }
 
         return {
-          id: asset.id,
+          id: event.bundleGraph.getAssetPublicId(asset),
           type: asset.type,
           output: await asset.getCode(),
           envHash: md5FromObject(asset.env),
           depsByBundle,
         };
-      }),
-    );
+      });
+    }
 
+    let assets = await queue.run();
     this.broadcast({
       type: 'update',
       assets: assets,

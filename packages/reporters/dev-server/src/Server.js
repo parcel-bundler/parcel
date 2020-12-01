@@ -1,9 +1,15 @@
 // @flow
 
-import type {Request, Response, DevServerOptions} from './types.js.flow';
-import type {BundleGraph, FilePath} from '@parcel/types';
+import type {DevServerOptions, Request, Response} from './types.js.flow';
+import type {
+  BundleGraph,
+  FilePath,
+  PluginOptions,
+  NamedBundle,
+} from '@parcel/types';
 import type {Diagnostic} from '@parcel/diagnostic';
 import type {FileSystem} from '@parcel/fs';
+import type {HTTPServer} from '@parcel/utils';
 
 import invariant from 'assert';
 import EventEmitter from 'events';
@@ -11,18 +17,18 @@ import nullthrows from 'nullthrows';
 import path from 'path';
 import url from 'url';
 import {
-  loadConfig,
-  createHTTPServer,
-  prettyDiagnostic,
   ansiHtml,
+  createHTTPServer,
+  loadConfig,
+  prettyDiagnostic,
 } from '@parcel/utils';
 import serverErrors from './serverErrors';
 import fs from 'fs';
 import ejs from 'ejs';
 import connect from 'connect';
-import httpProxyMiddleware from 'http-proxy-middleware';
+import serveHandler from 'serve-handler';
+import {createProxyMiddleware} from 'http-proxy-middleware';
 import {URL} from 'url';
-import mime from 'mime';
 
 function setHeaders(res: Response) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -52,7 +58,7 @@ export default class Server extends EventEmitter {
   pending: boolean;
   options: DevServerOptions;
   rootPath: string;
-  bundleGraph: BundleGraph | null;
+  bundleGraph: BundleGraph<NamedBundle> | null;
   errors: Array<{|
     message: string,
     stack: string,
@@ -78,7 +84,7 @@ export default class Server extends EventEmitter {
     this.pending = true;
   }
 
-  buildSuccess(bundleGraph: BundleGraph) {
+  buildSuccess(bundleGraph: BundleGraph<NamedBundle>) {
     this.bundleGraph = bundleGraph;
     this.errors = null;
     this.pending = false;
@@ -86,27 +92,33 @@ export default class Server extends EventEmitter {
     this.emit('bundled');
   }
 
-  buildError(diagnostics: Array<Diagnostic>) {
+  async buildError(options: PluginOptions, diagnostics: Array<Diagnostic>) {
     this.pending = false;
-    this.errors = diagnostics.map(d => {
-      let ansiDiagnostic = prettyDiagnostic(d);
+    this.errors = await Promise.all(
+      diagnostics.map(async d => {
+        let ansiDiagnostic = await prettyDiagnostic(d, options);
 
-      return {
-        message: ansiHtml(ansiDiagnostic.message),
-        stack: ansiDiagnostic.codeframe
-          ? ansiHtml(ansiDiagnostic.codeframe)
-          : ansiHtml(ansiDiagnostic.stack),
-        hints: ansiDiagnostic.hints.map(hint => ansiHtml(hint)),
-      };
-    });
+        return {
+          message: ansiHtml(ansiDiagnostic.message),
+          stack: ansiDiagnostic.codeframe
+            ? ansiHtml(ansiDiagnostic.codeframe)
+            : ansiHtml(ansiDiagnostic.stack),
+          hints: ansiDiagnostic.hints.map(hint => ansiHtml(hint)),
+        };
+      }),
+    );
   }
 
-  respond(req: Request, res: Response) {
+  respond(req: Request, res: Response): mixed {
     let {pathname} = url.parse(req.originalUrl || req.url);
+
+    if (pathname == null) {
+      pathname = '/';
+    }
 
     if (this.errors) {
       return this.send500(req, res);
-    } else if (!pathname || path.extname(pathname) === '') {
+    } else if (path.extname(pathname) === '') {
       // If the URL doesn't start with the public path, or the URL doesn't
       // have a file extension, send the main HTML bundle.
       return this.sendIndex(req, res);
@@ -166,7 +178,11 @@ export default class Server extends EventEmitter {
     }
   }
 
-  serveDist(req: Request, res: Response, next: NextFunction) {
+  serveDist(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> | Promise<mixed> {
     return this.serve(
       this.options.outputFS,
       this.options.distDir,
@@ -182,7 +198,7 @@ export default class Server extends EventEmitter {
     req: Request,
     res: Response,
     next: NextFunction,
-  ) {
+  ): Promise<mixed> {
     if (req.method !== 'GET' && req.method !== 'HEAD') {
       // method not allowed
       res.statusCode = 405;
@@ -199,9 +215,7 @@ export default class Server extends EventEmitter {
       return this.sendError(res, 400);
     }
 
-    if (filePath) {
-      filePath = path.normalize('.' + path.sep + filePath);
-    }
+    filePath = path.normalize('.' + path.sep + filePath);
 
     // malicious path
     if (filePath.includes(path.sep + '..' + path.sep)) {
@@ -209,7 +223,9 @@ export default class Server extends EventEmitter {
     }
 
     // join / normalize from the root dir
-    filePath = path.normalize(path.join(root, filePath));
+    if (!path.isAbsolute(filePath)) {
+      filePath = path.normalize(path.join(root, filePath));
+    }
 
     try {
       var stat = await fs.stat(filePath);
@@ -226,23 +242,27 @@ export default class Server extends EventEmitter {
       return next(req, res);
     }
 
-    setHeaders(res);
-    res.setHeader('Content-Length', '' + stat.size);
-    let mimeType = mime.getType(filePath);
-    if (mimeType != null) {
-      res.setHeader('Content-Type', mimeType + '; charset=utf-8');
-    }
     if (req.method === 'HEAD') {
       res.end();
       return;
     }
 
-    return new Promise((resolve, reject) => {
-      fs.createReadStream(filePath)
-        .pipe(res)
-        .on('finish', resolve)
-        .on('error', reject);
-    });
+    setHeaders(res);
+
+    return serveHandler(
+      req,
+      res,
+      {
+        public: root,
+        cleanUrls: false,
+      },
+      {
+        lstat: path => fs.stat(path),
+        realpath: path => fs.realpath(path),
+        createReadStream: (path, options) => fs.createReadStream(path, options),
+        readdir: path => fs.readdir(path),
+      },
+    );
   }
 
   sendError(res: Response, statusCode: number) {
@@ -257,7 +277,7 @@ export default class Server extends EventEmitter {
     res.end(TEMPLATE_404);
   }
 
-  send500(req: Request, res: Response) {
+  send500(req: Request, res: Response): void | Response {
     setHeaders(res);
 
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
@@ -281,13 +301,14 @@ export default class Server extends EventEmitter {
   /**
    * Load proxy table from package.json and apply them.
    */
-  async applyProxyTable(app: any) {
+  async applyProxyTable(app: any): Promise<Server> {
     // avoid skipping project root
     const fileInRoot: string = path.join(this.options.projectRoot, '_');
 
     const pkg = await loadConfig(this.options.inputFS, fileInRoot, [
       '.proxyrc.js',
       '.proxyrc',
+      '.proxyrc.json',
     ]);
 
     if (!pkg || !pkg.config || !pkg.files) {
@@ -306,7 +327,7 @@ export default class Server extends EventEmitter {
         return this;
       }
       cfg(app);
-    } else if (filename === '.proxyrc') {
+    } else if (filename === '.proxyrc' || filename === '.proxyrc.json') {
       if (typeof cfg !== 'object') {
         this.options.logger.warn({
           message:
@@ -316,14 +337,14 @@ export default class Server extends EventEmitter {
       }
       for (const [context, options] of Object.entries(cfg)) {
         // each key is interpreted as context, and value as middleware options
-        app.use(httpProxyMiddleware(context, options));
+        app.use(createProxyMiddleware(context, options));
       }
     }
 
     return this;
   }
 
-  async start() {
+  async start(): Promise<HTTPServer> {
     const finalHandler = (req: Request, res: Response) => {
       this.logAccessIfVerbose(req);
 

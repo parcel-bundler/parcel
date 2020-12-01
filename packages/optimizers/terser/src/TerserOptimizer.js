@@ -9,7 +9,7 @@ import ThrowableDiagnostic from '@parcel/diagnostic';
 
 import path from 'path';
 
-export default new Optimizer({
+export default (new Optimizer({
   async optimize({contents, map, bundle, options, getSourceMapReference}) {
     if (!bundle.env.minify) {
       return {contents, map};
@@ -19,41 +19,39 @@ export default new Optimizer({
 
     let userConfig = await loadConfig(
       options.inputFS,
-      path.join(options.projectRoot, 'index'),
+      path.join(options.entryRoot, 'index'),
       ['.terserrc', '.uglifyrc', '.uglifyrc.js', '.terserrc.js'],
     );
 
     let originalMap = map ? await map.stringify({}) : null;
     let config = {
       ...userConfig?.config,
-      compress: {
-        ...userConfig?.config?.compress,
-        toplevel:
-          bundle.env.outputFormat === 'esmodule' ||
-          bundle.env.outputFormat === 'commonjs',
-      },
-      sourceMap: options.sourceMaps
+      sourceMap: bundle.env.sourceMap
         ? {
             filename: path.relative(options.projectRoot, bundle.filePath),
             asObject: true,
             content: originalMap,
           }
         : false,
+      toplevel:
+        bundle.env.outputFormat === 'esmodule' ||
+        bundle.env.outputFormat === 'commonjs',
       module: bundle.env.outputFormat === 'esmodule',
     };
 
-    let result = minify(code, config);
-
-    if (result.error) {
+    let result;
+    try {
+      result = await minify(code, config);
+    } catch (error) {
       // $FlowFixMe
-      let {message, line, col} = result.error;
+      let {message, line, col} = error;
       if (line != null && col != null) {
-        let diagnostic = [];
+        let diagnostics = [];
         let mapping = map?.findClosestMapping(line, col);
         if (mapping && mapping.original && mapping.source) {
           let {source, original} = mapping;
           let filePath = path.resolve(options.projectRoot, source);
-          diagnostic.push({
+          diagnostics.push({
             message,
             origin: '@parcel/optimizer-terser',
             language: 'js',
@@ -66,12 +64,12 @@ export default new Optimizer({
           });
         }
 
-        if (diagnostic.length === 0 || options.logLevel === 'verbose') {
+        if (diagnostics.length === 0 || options.logLevel === 'verbose') {
           let loc = {
             line: line,
             column: col,
           };
-          diagnostic.push({
+          diagnostics.push({
             message,
             origin: '@parcel/optimizer-terser',
             language: 'js',
@@ -83,21 +81,17 @@ export default new Optimizer({
             hints: ["It's likely that Terser doesn't support this syntax yet."],
           });
         }
-        throw new ThrowableDiagnostic({diagnostic});
+        throw new ThrowableDiagnostic({diagnostic: diagnostics});
       } else {
-        throw result.error;
+        throw error;
       }
     }
 
     let sourceMap = null;
     let minifiedContents: string = nullthrows(result.code);
     if (result.map && typeof result.map !== 'string') {
-      sourceMap = new SourceMap();
-      sourceMap.addRawMappings(
-        result.map.mappings,
-        result.map.sources,
-        result.map.names || [],
-      );
+      sourceMap = new SourceMap(options.projectRoot);
+      sourceMap.addRawMappings(result.map);
       let sourcemapReference = await getSourceMapReference(sourceMap);
       if (sourcemapReference) {
         minifiedContents += `\n//# sourceMappingURL=${sourcemapReference}\n`;
@@ -106,4 +100,4 @@ export default new Optimizer({
 
     return {contents: minifiedContents, map: sourceMap};
   },
-});
+}): Optimizer);

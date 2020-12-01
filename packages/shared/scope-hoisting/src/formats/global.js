@@ -1,6 +1,13 @@
 // @flow
 
-import type {Asset, Bundle, BundleGraph, Symbol} from '@parcel/types';
+import type {
+  Asset,
+  Bundle,
+  BundleGraph,
+  NamedBundle,
+  PluginOptions,
+  Symbol,
+} from '@parcel/types';
 import type {NodePath} from '@babel/traverse';
 import type {
   ExpressionStatement,
@@ -11,13 +18,20 @@ import type {
   StringLiteral,
   CallExpression,
 } from '@babel/types';
+import type {ExternalBundle, ExternalModule} from '../types';
 
 import invariant from 'assert';
 import * as t from '@babel/types';
 import template from '@babel/template';
 import {relativeBundlePath} from '@parcel/utils';
-import {assertString, getName, isEntry, isReferenced} from '../utils';
 import nullthrows from 'nullthrows';
+import {
+  assertString,
+  getName,
+  getThrowableDiagnosticForNode,
+  isEntry,
+  isReferenced,
+} from '../utils';
 
 const IMPORT_TEMPLATE = template.expression<
   {|ASSET_ID: StringLiteral|},
@@ -37,10 +51,10 @@ const IMPORTSCRIPTS_TEMPLATE = template.statement<
 >('importScripts(BUNDLE);');
 
 export function generateBundleImports(
-  from: Bundle,
-  bundle: Bundle,
-  assets: Set<Asset>,
+  from: NamedBundle,
+  {bundle, assets}: ExternalBundle,
   path: NodePath<Program>,
+  bundleGraph: BundleGraph<NamedBundle>,
 ) {
   let statements = [];
   if (from.env.isWorker()) {
@@ -54,24 +68,46 @@ export function generateBundleImports(
 
   for (let asset of assets) {
     // `var ${id};` was inserted already, add RHS
-    nullthrows(path.scope.getBinding(getName(asset, 'init')))
+    let res: NodePath<CallExpression>[] = nullthrows(
+      path.scope.getBinding(getName(asset, 'init')),
+    )
       .path.get('init')
-      .replaceWith(IMPORT_TEMPLATE({ASSET_ID: t.stringLiteral(asset.id)}));
+      .replaceWith(
+        IMPORT_TEMPLATE({
+          ASSET_ID: t.stringLiteral(bundleGraph.getAssetPublicId(asset)),
+        }),
+      );
+
+    path.scope.getBinding('parcelRequire')?.reference(res[0].get('callee'));
   }
 }
 
-export function generateExternalImport() {
-  throw new Error(
+export function generateExternalImport(
+  // eslint-disable-next-line no-unused-vars
+  bundle: Bundle,
+  {loc}: ExternalModule,
+  // eslint-disable-next-line no-unused-vars
+  path: NodePath<Program>,
+) {
+  throw getThrowableDiagnosticForNode(
     'External modules are not supported when building for browser',
+    loc?.filePath,
+    loc,
   );
 }
 
 export function generateExports(
-  bundleGraph: BundleGraph,
-  bundle: Bundle,
+  bundleGraph: BundleGraph<NamedBundle>,
+  bundle: NamedBundle,
   referencedAssets: Set<Asset>,
   path: NodePath<Program>,
-) {
+  // eslint-disable-next-line no-unused-vars
+  replacements: Map<Symbol, Symbol>,
+  // eslint-disable-next-line no-unused-vars
+  options: PluginOptions,
+  // eslint-disable-next-line no-unused-vars
+  maybeReplaceIdentifier: (NodePath<Identifier>) => void,
+): Set<Symbol> {
   let exported = new Set<Symbol>();
   let statements: Array<ExpressionStatement> = [];
 
@@ -81,7 +117,7 @@ export function generateExports(
 
     statements.push(
       EXPORT_TEMPLATE({
-        ASSET_ID: t.stringLiteral(asset.id),
+        ASSET_ID: t.stringLiteral(bundleGraph.getAssetPublicId(asset)),
         IDENTIFIER: t.identifier(exportsId),
       }),
     );
@@ -90,6 +126,7 @@ export function generateExports(
   let entry = bundle.getMainEntry();
   if (
     entry &&
+    !referencedAssets.has(entry) &&
     (!isEntry(bundle, bundleGraph) || isReferenced(bundle, bundleGraph))
   ) {
     let exportsId = assertString(entry.meta.exportsIdentifier);
@@ -99,7 +136,7 @@ export function generateExports(
       // Export a function returning the exports, as other cases of global output
       // register init functions.
       EXPORT_FN_TEMPLATE({
-        ASSET_ID: t.stringLiteral(entry.id),
+        ASSET_ID: t.stringLiteral(bundleGraph.getAssetPublicId(entry)),
         IDENTIFIER: t.identifier(assertString(entry.meta.exportsIdentifier)),
       }),
     );
@@ -107,6 +144,13 @@ export function generateExports(
 
   let decls = path.pushContainer('body', statements);
   for (let decl of decls) {
+    let callee = decl.get('expression.callee');
+    if (callee.isMemberExpression()) {
+      callee = callee.get('object');
+    }
+
+    path.scope.getBinding(callee.node.name)?.reference(callee);
+
     let arg = decl.get<NodePath<Node>>('expression.arguments.1');
     if (!arg.isIdentifier()) {
       // anonymous init function expression

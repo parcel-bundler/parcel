@@ -1,12 +1,17 @@
 // @flow strict-local
-import invariant from 'assert';
-import type {Bundle, ParcelOptions, ProcessedParcelConfig} from './types';
-import BundleGraph from './BundleGraph';
-import type {WorkerApi} from '@parcel/workers';
 
-import Transformation, {type TransformationOpts} from './Transformation';
+import type {Bundle, ParcelOptions, ProcessedParcelConfig} from './types';
+import type {SharedReference, WorkerApi} from '@parcel/workers';
+
+import invariant from 'assert';
+import nullthrows from 'nullthrows';
+import BundleGraph from './BundleGraph';
+import Transformation, {
+  type TransformationOpts,
+  type TransformationResult,
+} from './Transformation';
 import {reportWorker} from './ReporterRunner';
-import PackagerRunner from './PackagerRunner';
+import PackagerRunner, {type BundleInfo} from './PackagerRunner';
 import Validation, {type ValidationOpts} from './Validation';
 import ParcelConfig from './ParcelConfig';
 import {registerCoreWithSerializer} from './utils';
@@ -21,33 +26,49 @@ registerCoreWithSerializer();
 // https://github.com/facebook/flow/issues/2835
 type WorkerTransformationOpts = {|
   ...$Diff<TransformationOpts, {|workerApi: mixed, options: ParcelOptions|}>,
-  optionsRef: number,
-  configRef: number,
+  optionsRef: SharedReference,
+  configCachePath: string,
 |};
 type WorkerValidationOpts = {|
   ...$Diff<ValidationOpts, {|workerApi: mixed, options: ParcelOptions|}>,
-  optionsRef: number,
-  configRef: number,
+  optionsRef: SharedReference,
+  configCachePath: string,
 |};
 
-export function runTransform(
-  workerApi: WorkerApi,
-  opts: WorkerTransformationOpts,
-) {
-  let {optionsRef, configRef, ...rest} = opts;
-  let options = ((workerApi.getSharedReference(
-    optionsRef,
-    // $FlowFixMe
-  ): any): ParcelOptions);
-  let processedConfig = ((workerApi.getSharedReference(
-    configRef,
-    // $FlowFixMe
-  ): any): ProcessedParcelConfig);
+// TODO: this should eventually be replaced by an in memory cache layer
+let parcelConfigCache = new Map();
+
+function loadOptions(ref, workerApi) {
+  return nullthrows(
+    ((workerApi.getSharedReference(
+      ref,
+      // $FlowFixMe
+    ): any): ParcelOptions),
+  );
+}
+
+async function loadConfig(cachePath, options) {
+  let processedConfig =
+    parcelConfigCache.get(cachePath) ??
+    nullthrows(await options.cache.get(cachePath));
   let config = new ParcelConfig(
-    processedConfig,
+    // $FlowFixMe
+    ((processedConfig: any): ProcessedParcelConfig),
     options.packageManager,
+    options.inputFS,
     options.autoinstall,
   );
+  parcelConfigCache.set(cachePath, config);
+  return config;
+}
+
+export async function runTransform(
+  workerApi: WorkerApi,
+  opts: WorkerTransformationOpts,
+): Promise<TransformationResult> {
+  let {optionsRef, configCachePath, ...rest} = opts;
+  let options = loadOptions(optionsRef, workerApi);
+  let config = await loadConfig(configCachePath, options);
 
   return new Transformation({
     workerApi,
@@ -58,21 +79,13 @@ export function runTransform(
   }).run();
 }
 
-export function runValidate(workerApi: WorkerApi, opts: WorkerValidationOpts) {
-  let {optionsRef, configRef, ...rest} = opts;
-  let options = ((workerApi.getSharedReference(
-    optionsRef,
-    // $FlowFixMe
-  ): any): ParcelOptions);
-  let processedConfig = ((workerApi.getSharedReference(
-    configRef,
-    // $FlowFixMe
-  ): any): ProcessedParcelConfig);
-  let config = new ParcelConfig(
-    processedConfig,
-    options.packageManager,
-    options.autoinstall,
-  );
+export async function runValidate(
+  workerApi: WorkerApi,
+  opts: WorkerValidationOpts,
+): Promise<void> {
+  let {optionsRef, configCachePath, ...rest} = opts;
+  let options = loadOptions(optionsRef, workerApi);
+  let config = await loadConfig(configCachePath, options);
 
   return new Validation({
     workerApi,
@@ -83,45 +96,78 @@ export function runValidate(workerApi: WorkerApi, opts: WorkerValidationOpts) {
   }).run();
 }
 
-export function runPackage(
+export async function runPackage(
   workerApi: WorkerApi,
   {
     bundle,
     bundleGraphReference,
     configRef,
-    cacheKeys,
     optionsRef,
   }: {|
     bundle: Bundle,
-    bundleGraphReference: number,
-    configRef: number,
+    bundleGraphReference: SharedReference,
+    configRef: SharedReference,
     cacheKeys: {|
       content: string,
       map: string,
       info: string,
     |},
-    optionsRef: number,
+    optionsRef: SharedReference,
   |},
-) {
+): Promise<BundleInfo> {
   let bundleGraph = workerApi.getSharedReference(bundleGraphReference);
   invariant(bundleGraph instanceof BundleGraph);
-  let options = ((workerApi.getSharedReference(
-    optionsRef,
-    // $FlowFixMe
-  ): any): ParcelOptions);
+  let options = loadOptions(optionsRef, workerApi);
   let processedConfig = ((workerApi.getSharedReference(
     configRef,
     // $FlowFixMe
   ): any): ProcessedParcelConfig);
-  let config = new ParcelConfig(
+  let parcelConfig = new ParcelConfig(
     processedConfig,
     options.packageManager,
+    options.inputFS,
     options.autoinstall,
   );
 
-  return new PackagerRunner({
-    config,
+  let runner = new PackagerRunner({
+    config: parcelConfig,
     options,
     report: reportWorker.bind(null, workerApi),
-  }).getBundleInfo(bundle, bundleGraph, cacheKeys);
+  });
+
+  let configs = await runner.loadConfigs(bundleGraph, bundle);
+  // TODO: add invalidations in `config?.files` once packaging is a request
+
+  let cacheKey = await runner.getCacheKey(bundle, bundleGraph, configs);
+  let cacheKeys = {
+    content: PackagerRunner.getContentKey(cacheKey),
+    map: PackagerRunner.getMapKey(cacheKey),
+    info: PackagerRunner.getInfoKey(cacheKey),
+  };
+
+  return (
+    (await runner.getBundleInfoFromCache(cacheKeys.info)) ??
+    runner.getBundleInfo(bundle, bundleGraph, cacheKeys, configs)
+  );
+}
+
+const PKG_RE = /node_modules[/\\]((?:@[^/\\]+\/[^/\\]+)|[^/\\]+)(?!.*[/\\]node_modules[/\\])/;
+export function invalidateRequireCache(workerApi: WorkerApi, file: string) {
+  if (process.env.PARCEL_BUILD_ENV === 'test') {
+    // Delete this module and all children in the same node_modules folder
+    let module = require.cache[file];
+    if (module) {
+      delete require.cache[file];
+
+      let pkg = file.match(PKG_RE)?.[1];
+      for (let child of module.children) {
+        if (pkg === child.id.match(PKG_RE)?.[1]) {
+          invalidateRequireCache(workerApi, child.id);
+        }
+      }
+    }
+    return;
+  }
+
+  throw new Error('invalidateRequireCache is only for tests');
 }

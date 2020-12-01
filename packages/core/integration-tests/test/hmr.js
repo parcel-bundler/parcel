@@ -1,28 +1,33 @@
-// @flow
+// @flow strict-local
 import assert from 'assert';
 import path from 'path';
 import {
   bundler,
-  defaultConfig,
   getNextBuild,
-  overlayFS,
-  outputFS,
   ncp,
+  outputFS,
+  overlayFS,
+  sleep,
 } from '@parcel/test-utils';
+// flowlint-next-line untyped-import:off
 import WebSocket from 'ws';
+// flowlint-next-line untyped-import:off
 import json5 from 'json5';
+// flowlint-next-line untyped-import:off
 import getPort from 'get-port';
+// flowlint-next-line untyped-import:off
+import JSDOM from 'jsdom';
 
-const config = {
-  ...defaultConfig,
-  reporters: ['@parcel/reporter-dev-server'],
-};
+const config = path.join(
+  __dirname,
+  './integration/custom-configs/.parcelrc-dev-server',
+);
 
-async function closeSocket(ws: WebSocket) {
+async function closeSocket(ws: typeof WebSocket) {
   ws.close();
   await new Promise(resolve => (ws.onclose = resolve));
 }
-
+// flowlint-next-line unclear-type:off
 async function openSocket(uri: string, opts: any) {
   let ws = new WebSocket(uri, opts);
 
@@ -34,31 +39,33 @@ async function openSocket(uri: string, opts: any) {
   return ws;
 }
 
-async function nextWSMessage(ws: WebSocket) {
+async function nextWSMessage(ws: typeof WebSocket) {
   return json5.parse(await new Promise(resolve => ws.once('message', resolve)));
 }
 
 describe('hmr', function() {
   let subscription;
-  let ws;
-
-  beforeEach(async function() {
-    await outputFS.rimraf(path.join(__dirname, '/input'));
-    await ncp(
-      path.join(__dirname, '/integration/commonjs'),
-      path.join(__dirname, '/input'),
-    );
-  });
-
   afterEach(async () => {
     if (subscription) {
       await subscription.unsubscribe();
     }
     subscription = null;
-    await closeSocket(ws);
   });
 
   describe('hmr server', () => {
+    let ws;
+    beforeEach(async function() {
+      await outputFS.rimraf(path.join(__dirname, '/input'));
+      await ncp(
+        path.join(__dirname, '/integration/commonjs'),
+        path.join(__dirname, '/input'),
+      );
+    });
+
+    afterEach(async () => {
+      await closeSocket(ws);
+    });
+
     it('should emit an HMR update for the file that changed', async function() {
       let port = await getPort();
       let b = bundler(path.join(__dirname, '/input/index.js'), {
@@ -259,6 +266,7 @@ describe('hmr', function() {
   });
 
   // TODO: Update these...
+  // TODO: add test for 4532 (`require` call in modified asset in child bundle where HMR runtime runs in parent bundle)
   describe('hmr runtime', () => {
     /*it('should work with circular dependencies', async function() {
       let port = await getPort();
@@ -632,5 +640,67 @@ describe('hmr', function() {
       assert(logs[0].trim().startsWith('[parcel] 🚨'));
       assert(logs[1].trim().startsWith('[parcel] ✨'));
     });*/
+
+    it('should update CSS link tags when a CSS asset is changed', async () => {
+      let testDir = path.join(__dirname, '/input');
+      await overlayFS.rimraf(testDir);
+      await overlayFS.mkdirp(testDir);
+      await ncp(path.join(__dirname, '/integration/hmr-css'), testDir);
+
+      let port = await getPort();
+      let b = bundler(path.join(testDir, 'index.html'), {
+        inputFS: overlayFS,
+        outputFS: overlayFS,
+        serve: {
+          https: false,
+          port,
+          host: '127.0.0.1',
+        },
+        hot: {port},
+        config,
+      });
+
+      subscription = await b.watch();
+      let bundleEvent = await getNextBuild(b);
+      assert.equal(bundleEvent.type, 'buildSuccess');
+
+      let window;
+      try {
+        let dom = await JSDOM.JSDOM.fromURL(
+          'http://127.0.0.1:' + port + '/index.html',
+          {
+            runScripts: 'dangerously',
+            resources: 'usable',
+            pretendToBeVisual: true,
+          },
+        );
+        window = dom.window;
+        window.WebSocket = WebSocket;
+        await new Promise(res =>
+          dom.window.document.addEventListener('load', () => {
+            res();
+          }),
+        );
+        window.console.clear = () => {};
+        window.console.warn = () => {};
+
+        let initialHref = window.document.querySelector('link').href;
+
+        await overlayFS.copyFile(
+          path.join(testDir, 'index.2.css'),
+          path.join(testDir, 'index.css'),
+        );
+        assert.equal((await getNextBuild(b)).type, 'buildSuccess');
+        await sleep(200);
+
+        let newHref = window.document.querySelector('link').href;
+
+        assert.notStrictEqual(initialHref, newHref);
+      } finally {
+        if (window) {
+          window.close();
+        }
+      }
+    });
   });
 });

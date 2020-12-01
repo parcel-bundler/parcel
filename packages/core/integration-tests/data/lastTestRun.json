@@ -2559,13 +2559,13 @@
     {
       "fileName": "sourcemaps",
       "link": "https://github.com/parcel-bundler/parcel/tree/v2/packages/core/integration-tests/test/sourcemaps.js",
-      "title": "should create a valid sourcemap for a SASS asset",
+      "title": "should create a valid sourcemap for a Sass asset",
       "status": "pending"
     },
     {
       "fileName": "sourcemaps",
       "link": "https://github.com/parcel-bundler/parcel/tree/v2/packages/core/integration-tests/test/sourcemaps.js",
-      "title": "should create a valid sourcemap when for a CSS asset importing SASS",
+      "title": "should create a valid sourcemap when for a CSS asset importing Sass",
       "status": "pending"
     },
     {

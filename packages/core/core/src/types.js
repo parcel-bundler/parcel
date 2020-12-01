@@ -7,7 +7,6 @@ import type {
   Engines,
   EnvironmentContext,
   EnvMap,
-  File,
   FilePath,
   Glob,
   JSONObject,
@@ -17,7 +16,6 @@ import type {
   PackageName,
   PackageJSON,
   ReporterEvent,
-  ResolvedParcelConfigFile,
   Semver,
   ServerOptions,
   SourceLocation,
@@ -28,8 +26,9 @@ import type {
   OutputFormat,
   TargetDescriptor,
   HMROptions,
+  QueryParameters,
 } from '@parcel/types';
-
+import type {SharedReference} from '@parcel/workers';
 import type {FileSystem} from '@parcel/fs';
 import type Cache from '@parcel/cache';
 import type {PackageManager} from '@parcel/package-manager';
@@ -37,10 +36,13 @@ import type {PackageManager} from '@parcel/package-manager';
 export type ParcelPluginNode = {|
   packageName: PackageName,
   resolveFrom: FilePath,
+  keyPath: string,
 |};
 
-export type PureParcelConfigPipeline = Array<ParcelPluginNode>;
-export type ExtendableParcelConfigPipeline = Array<ParcelPluginNode | '...'>;
+export type PureParcelConfigPipeline = $ReadOnlyArray<ParcelPluginNode>;
+export type ExtendableParcelConfigPipeline = $ReadOnlyArray<
+  ParcelPluginNode | '...',
+>;
 
 export type ProcessedParcelConfig = {|
   extends?: PackageName | FilePath | Array<PackageName | FilePath>,
@@ -68,34 +70,37 @@ export type Environment = {|
   isLibrary: boolean,
   minify: boolean,
   scopeHoist: boolean,
+  sourceMap: ?TargetSourceMapOptions,
 |};
 
 export type Target = {|
   distEntry?: ?FilePath,
   distDir: FilePath,
   env: Environment,
-  sourceMap?: TargetSourceMapOptions,
   name: string,
   publicUrl: string,
   loc?: ?SourceLocation,
+  pipeline?: string,
 |};
 
 export type Dependency = {|
   id: string,
   moduleSpecifier: ModuleSpecifier,
   isAsync: boolean,
-  isEntry: boolean,
+  isEntry: ?boolean,
   isOptional: boolean,
   isURL: boolean,
-  isWeak: ?boolean,
-  isDeferred: boolean,
+  isIsolated: boolean,
   loc: ?SourceLocation,
   env: Environment,
   meta: Meta,
   target: ?Target,
   sourceAssetId: ?string,
   sourcePath: ?string,
-  symbols: Map<Symbol, Symbol>,
+  symbols: ?Map<
+    Symbol,
+    {|local: Symbol, loc: ?SourceLocation, isWeak: boolean|},
+  >,
   pipeline?: ?string,
 |};
 
@@ -104,9 +109,9 @@ export type Asset = {|
   committed: boolean,
   hash: ?string,
   filePath: FilePath,
+  query: QueryParameters,
   type: string,
   dependencies: Map<string, Dependency>,
-  includedFiles: Map<FilePath, File>,
   isIsolated: boolean,
   isInline: boolean,
   isSplittable: ?boolean,
@@ -120,18 +125,39 @@ export type Asset = {|
   pipeline: ?string,
   astKey: ?string,
   astGenerator: ?ASTGenerator,
-  symbols: Map<Symbol, Symbol>,
+  symbols: ?Map<Symbol, {|local: Symbol, loc: ?SourceLocation|}>,
   sideEffects: boolean,
   uniqueKey: ?string,
   configPath?: FilePath,
   plugin: ?PackageName,
+  configKeyPath?: string,
 |};
+
+export type FileInvalidation = {|
+  type: 'file',
+  filePath: FilePath,
+|};
+
+export type EnvInvalidation = {|
+  type: 'env',
+  key: string,
+|};
+
+export type OptionInvalidation = {|
+  type: 'option',
+  key: string,
+|};
+
+export type RequestInvalidation =
+  | FileInvalidation
+  | EnvInvalidation
+  | OptionInvalidation;
 
 export type ParcelOptions = {|
   entries: Array<FilePath>,
-  rootDir: FilePath,
-  config?: ResolvedParcelConfigFile,
-  defaultConfig?: ResolvedParcelConfigFile,
+  entryRoot: FilePath,
+  config?: ModuleSpecifier,
+  defaultConfig?: ModuleSpecifier,
   env: EnvMap,
   targets: ?(Array<string> | {+[string]: TargetDescriptor, ...}),
   defaultEngines?: Engines,
@@ -146,6 +172,7 @@ export type ParcelOptions = {|
   publicUrl: string,
   distDir: ?FilePath,
   hot: ?HMROptions,
+  contentHash: boolean,
   serve: ServerOptions | false,
   autoinstall: boolean,
   logLevel: LogLevel,
@@ -153,6 +180,7 @@ export type ParcelOptions = {|
   lockFile: ?FilePath,
   profile: boolean,
   patchConsole: boolean,
+  detailedReport?: number,
 
   inputFS: FileSystem,
   outputFS: FileSystem,
@@ -177,37 +205,67 @@ export interface Node {
   value: any;
 }
 
-export type AssetNode = {|id: string, +type: 'asset', value: Asset|};
+export type AssetNode = {|
+  id: string,
+  +type: 'asset',
+  value: Asset,
+  usedSymbols: Set<Symbol>,
+  hasDeferred?: boolean,
+  usedSymbolsDownDirty: boolean,
+  usedSymbolsUpDirty: boolean,
+|};
 
 export type DependencyNode = {|
   id: string,
   type: 'dependency',
   value: Dependency,
   complete?: boolean,
+  correspondingRequest?: string,
+  deferred: boolean,
+  /** dependency was deferred (= no used symbols (in immediate parents) & side-effect free) */
+  hasDeferred?: boolean,
+  usedSymbolsDown: Set<Symbol>,
+  usedSymbolsUp: Set<Symbol>,
+  usedSymbolsDownDirty: boolean,
+  /** for the "up" pass, the parent asset needs to be updated */
+  usedSymbolsUpDirtyUp: boolean,
+  /** for the "up" pass, the dependency resolution asset needs to be updated */
+  usedSymbolsUpDirtyDown: boolean,
+  /** dependency was excluded (= no used symbols (globally) & side-effect free) */
+  excluded: boolean,
 |};
 
 export type RootNode = {|id: string, +type: 'root', value: string | null|};
 
-export type AssetRequestDesc = {|
+export type AssetRequestInput = {|
   filePath: FilePath,
   env: Environment,
+  isSource?: boolean,
+  canDefer?: boolean,
   sideEffects?: boolean,
   code?: string,
   pipeline?: ?string,
+  optionsRef: SharedReference,
+  isURL?: boolean,
+  query: QueryParameters,
+  invalidations?: Array<RequestInvalidation>,
 |};
 
-export type AssetRequestResult = {|
-  assets: Array<Asset>,
-  configRequests: Array<{|request: ConfigRequestDesc, result: Config|}>,
-|};
+export type AssetRequestResult = Array<Asset>;
 // Asset group nodes are essentially used as placeholders for the results of an asset request
-export type AssetGroup = AssetRequestDesc;
+export type AssetGroup = $Rest<
+  AssetRequestInput,
+  {|optionsRef: SharedReference|},
+>;
 export type AssetGroupNode = {|
   id: string,
   +type: 'asset_group',
-  // An asset group node is used to
   value: AssetGroup,
-  deferred: boolean,
+  correspondingRequest?: string,
+  /** this node was deferred (= no used symbols (in immediate parents) & side-effect free) */
+  deferred?: boolean,
+  hasDeferred?: boolean,
+  usedSymbolsDownDirty: boolean,
 |};
 
 export type DepPathRequestNode = {|
@@ -219,24 +277,26 @@ export type DepPathRequestNode = {|
 export type AssetRequestNode = {|
   id: string,
   +type: 'asset_request',
-  value: AssetRequestDesc,
+  value: AssetRequestInput,
 |};
 
 export type EntrySpecifierNode = {|
   id: string,
   +type: 'entry_specifier',
   value: ModuleSpecifier,
+  correspondingRequest?: string,
 |};
 
 export type Entry = {|
   filePath: FilePath,
-  packagePath?: FilePath,
+  packagePath: FilePath,
 |};
 
 export type EntryFileNode = {|
   id: string,
   +type: 'entry_file',
   value: Entry,
+  correspondingRequest?: string,
 |};
 
 export type AssetGraphNode =
@@ -266,11 +326,11 @@ export type Config = {|
   isSource: boolean,
   searchPath: FilePath,
   env: Environment,
-  resolvedPath: ?FilePath,
   resultHash: ?string,
   result: ConfigResult,
   includedFiles: Set<FilePath>,
   pkg: ?PackageJSON,
+  pkgFilePath: ?FilePath,
   watchGlob: ?Glob,
   devDeps: Map<PackageName, ?string>,
   shouldRehydrate: boolean,
@@ -283,6 +343,7 @@ export type ConfigRequestDesc = {|
   env: Environment,
   isSource: boolean,
   pipeline?: ?string,
+  isURL?: boolean,
   plugin?: PackageName,
   meta: JSONObject,
 |};
@@ -327,10 +388,12 @@ export type CacheEntry = {|
 
 export type Bundle = {|
   id: string,
+  publicId: ?string,
   hashReference: string,
   type: string,
   env: Environment,
   entryAssetIds: Array<string>,
+  mainEntryId: ?string,
   isEntry: ?boolean,
   isInline: ?boolean,
   isSplittable: ?boolean,
@@ -355,15 +418,15 @@ export type BundleGroupNode = {|
 |};
 
 export type TransformationOpts = {|
-  request: AssetRequestDesc,
-  optionsRef: number,
-  configRef: number,
+  request: AssetGroup,
+  optionsRef: SharedReference,
+  configCachePath: string,
 |};
 
 export type ValidationOpts = {|
-  requests: AssetRequestDesc[],
-  optionsRef: number,
-  configRef: number,
+  requests: AssetGroup[],
+  optionsRef: SharedReference,
+  configCachePath: string,
 |};
 
 export type ReportFn = (event: ReporterEvent) => void;

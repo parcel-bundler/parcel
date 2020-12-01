@@ -2,15 +2,16 @@
 
 import type {WorkerApi} from '@parcel/workers';
 import type {
-  AssetRequestDesc,
+  AssetGroup,
   ConfigRequestDesc,
   ParcelOptions,
   ReportFn,
 } from './types';
 import type {Validator, ValidateResult} from '@parcel/types';
+import type {Diagnostic} from '@parcel/diagnostic';
 
 import path from 'path';
-import {resolveConfig} from '@parcel/utils';
+import {resolveConfig, normalizeSeparators} from '@parcel/utils';
 import logger, {PluginLogger} from '@parcel/logger';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import ParcelConfig from './ParcelConfig';
@@ -29,7 +30,7 @@ export type ValidationOpts = {|
    */
   dedicatedThread?: boolean,
   options: ParcelOptions,
-  requests: AssetRequestDesc[],
+  requests: AssetGroup[],
   report: ReportFn,
   workerApi?: WorkerApi,
 |};
@@ -44,7 +45,7 @@ export default class Validation {
   options: ParcelOptions;
   parcelConfig: ParcelConfig;
   report: ReportFn;
-  requests: AssetRequestDesc[];
+  requests: AssetGroup[];
   workerApi: ?WorkerApi;
 
   constructor({
@@ -73,10 +74,11 @@ export default class Validation {
         if (assets) {
           let plugin = this.allValidators[validatorName];
           let validatorLogger = new PluginLogger({origin: validatorName});
+          let validatorResults: Array<?ValidateResult> = [];
           try {
             // If the plugin supports the single-threading validateAll method, pass all assets to it.
             if (plugin.validateAll && this.dedicatedThread) {
-              let validatorResults = await plugin.validateAll({
+              validatorResults = await plugin.validateAll({
                 assets: assets.map(asset => new Asset(asset)),
                 options: pluginOptions,
                 logger: validatorLogger,
@@ -90,9 +92,6 @@ export default class Validation {
                     configNames,
                   ),
               });
-              for (let validatorResult of validatorResults) {
-                this.handleResult(validatorResult);
-              }
             }
 
             // Otherwise, pass the assets one-at-a-time
@@ -120,10 +119,11 @@ export default class Validation {
                     config,
                     logger: validatorLogger,
                   });
-                  this.handleResult(validatorResult);
+                  validatorResults.push(validatorResult);
                 }),
               );
             }
+            this.handleResults(validatorResults);
           } catch (e) {
             throw new ThrowableDiagnostic({
               diagnostic: errorToDiagnostic(e, validatorName),
@@ -161,27 +161,32 @@ export default class Validation {
     );
   }
 
-  handleResult(validatorResult: ?ValidateResult) {
-    if (validatorResult) {
-      let {warnings, errors} = validatorResult;
-
-      if (errors.length > 0) {
-        throw new ThrowableDiagnostic({
-          diagnostic: errors,
-        });
+  handleResults(validatorResults: Array<?ValidateResult>) {
+    let warnings: Array<Diagnostic> = [];
+    let errors: Array<Diagnostic> = [];
+    validatorResults.forEach(result => {
+      if (result) {
+        warnings.push(...result.warnings);
+        errors.push(...result.errors);
       }
+    });
 
-      if (warnings.length > 0) {
-        logger.warn(warnings);
-      }
+    if (errors.length > 0) {
+      throw new ThrowableDiagnostic({
+        diagnostic: errors,
+      });
+    }
+
+    if (warnings.length > 0) {
+      logger.warn(warnings);
     }
   }
 
-  async loadAsset(request: AssetRequestDesc): Promise<UncommittedAsset> {
-    let {filePath, env, code, sideEffects} = request;
+  async loadAsset(request: AssetGroup): Promise<UncommittedAsset> {
+    let {filePath, env, code, sideEffects, query} = request;
     let {content, size, hash, isSource} = await summarizeRequest(
       this.options.inputFS,
-      request,
+      {filePath: request.filePath},
     );
 
     // If the transformer request passed code rather than a filename,
@@ -189,9 +194,9 @@ export default class Validation {
     let idBase =
       code != null
         ? hash
-        : path
-            .relative(this.options.projectRoot, filePath)
-            .replace(/[\\/]+/g, '/');
+        : normalizeSeparators(
+            path.relative(this.options.projectRoot, filePath),
+          );
     return new UncommittedAsset({
       idBase,
       value: createAsset({
@@ -200,6 +205,7 @@ export default class Validation {
         isSource,
         type: path.extname(filePath).slice(1),
         hash,
+        query,
         env: env,
         stats: {
           time: 0,

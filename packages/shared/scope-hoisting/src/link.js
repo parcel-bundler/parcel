@@ -2,10 +2,11 @@
 
 import type {
   Asset,
-  Bundle,
   BundleGraph,
+  NamedBundle,
   PluginOptions,
   Symbol,
+  SourceLocation,
 } from '@parcel/types';
 import type {ExternalModule, ExternalBundle} from './types';
 import type {
@@ -14,6 +15,7 @@ import type {
   FunctionDeclaration,
   Identifier,
   LVal,
+  Node,
   ObjectProperty,
   Statement,
   StringLiteral,
@@ -27,15 +29,28 @@ import {relative} from 'path';
 import template from '@babel/template';
 import * as t from '@babel/types';
 import {
+  isAssignmentExpression,
+  isCallExpression,
   isExpressionStatement,
   isIdentifier,
+  isMemberExpression,
+  isObjectExpression,
   isObjectPattern,
   isSequenceExpression,
   isStringLiteral,
 } from '@babel/types';
+import {convertBabelLoc} from '@parcel/babel-ast-utils';
 import traverse from '@babel/traverse';
 import treeShake from './shake';
-import {assertString, getName, getIdentifier, verifyScopeState} from './utils';
+import {
+  assertString,
+  getName,
+  getIdentifier,
+  dereferenceIdentifier,
+  pathRemove,
+  getThrowableDiagnosticForNode,
+  verifyScopeState,
+} from './utils';
 import OutputFormats from './formats/index.js';
 
 const ESMODULE_TEMPLATE = template.statement<
@@ -63,25 +78,31 @@ const FAKE_INIT_TEMPLATE = template.statement<
   return EXPORTS;
 }`);
 
+type LinkResult = {|ast: File, referencedAssets: Set<Asset>|};
+
 export function link({
   bundle,
   bundleGraph,
   ast,
   options,
+  wrappedAssets,
 }: {|
-  bundle: Bundle,
-  bundleGraph: BundleGraph,
+  bundle: NamedBundle,
+  bundleGraph: BundleGraph<NamedBundle>,
   ast: File,
   options: PluginOptions,
-|}): {|ast: File, referencedAssets: Set<Asset>|} {
+  wrappedAssets: Set<string>,
+|}): LinkResult {
   let format = OutputFormats[bundle.env.outputFormat];
   let replacements: Map<Symbol, Symbol> = new Map();
-  let imports: Map<Symbol, ?[Asset, Symbol]> = new Map();
+  let imports: Map<Symbol, null | [Asset, Symbol, ?SourceLocation]> = new Map();
   let assets: Map<string, Asset> = new Map();
   let exportsMap: Map<Symbol, Asset> = new Map();
 
   let importedFiles = new Map<string, ExternalModule | ExternalBundle>();
   let referencedAssets = new Set();
+
+  // return {ast, referencedAssets};
 
   // If building a library, the target is actually another bundler rather
   // than the final output that could be loaded in a browser. So, loader
@@ -105,12 +126,16 @@ export function link({
 
     for (let dep of bundleGraph.getDependencies(asset)) {
       let resolved = bundleGraph.getDependencyResolution(dep, bundle);
+      let skipped = bundleGraph.isDependencySkipped(dep);
 
-      // If the dependency was deferred, the `...$import$..` identifier needs to be removed.
+      // If the dependency was skipped, the `...$import$..` identifier needs to be removed.
       // If the dependency was excluded, it will be replaced by the output format at the very end.
-      if (resolved || dep.isDeferred) {
-        for (let [imported, local] of dep.symbols) {
-          imports.set(local, resolved ? [resolved, imported] : null);
+      if (resolved || skipped) {
+        for (let [imported, {local, loc}] of dep.symbols) {
+          imports.set(
+            local,
+            resolved && !skipped ? [resolved, imported, loc] : null,
+          );
         }
       }
     }
@@ -121,7 +146,7 @@ export function link({
   });
 
   function resolveSymbol(inputAsset, inputSymbol: Symbol, bundle) {
-    let {asset, exportSymbol, symbol} = bundleGraph.resolveSymbol(
+    let {asset, exportSymbol, symbol, loc} = bundleGraph.resolveSymbol(
       inputAsset,
       inputSymbol,
       bundle,
@@ -130,11 +155,22 @@ export function link({
       return {
         asset: asset,
         symbol: exportSymbol,
-        identifier: undefined,
+        identifier: null,
+        loc,
       };
     }
 
     let identifier = symbol;
+
+    if (identifier && imports.get(identifier) === null) {
+      // a deferred import
+      return {
+        asset: asset,
+        symbol: exportSymbol,
+        identifier: null,
+        loc,
+      };
+    }
 
     // If this is a wildcard import, resolve to the exports object.
     if (asset && exportSymbol === '*') {
@@ -145,7 +181,69 @@ export function link({
       identifier = replacements.get(identifier);
     }
 
-    return {asset: asset, symbol: exportSymbol, identifier};
+    return {asset: asset, symbol: exportSymbol, identifier, loc};
+  }
+
+  function maybeReplaceIdentifier(path: NodePath<Identifier>) {
+    let {name} = path.node;
+    if (typeof name !== 'string') {
+      return;
+    }
+
+    let replacement = replacements.get(name);
+    if (replacement) {
+      path.node.name = replacement;
+    }
+
+    if (imports.has(name)) {
+      let node;
+      let imported = imports.get(name);
+      if (imported == null) {
+        // import was deferred
+        node = t.objectExpression([]);
+      } else {
+        let [asset, symbol] = imported;
+        node = replaceImportNode(asset, symbol, path);
+
+        // If the export does not exist, replace with an empty object.
+        if (!node) {
+          node = t.objectExpression([]);
+        }
+      }
+      path.replaceWith(node);
+      if (isObjectExpression(node)) {
+        invariant(node.properties.length === 0);
+      } else if (isIdentifier(node)) {
+        nullthrows(path.scope.getBinding(node.name)).reference(path);
+      } else {
+        if (isCallExpression(node)) {
+          // $id$init()
+          invariant(isIdentifier(node.callee));
+          nullthrows(path.scope.getBinding(node.callee.name)).reference(
+            path.get<NodePath<Identifier>>('callee'),
+          );
+        } else {
+          invariant(isMemberExpression(node));
+          if (isIdentifier(node.object)) {
+            nullthrows(path.scope.getBinding(node.object.name)).reference(
+              path.get<NodePath<Identifier>>('object'),
+            );
+          } else {
+            // $id$init().prop
+            invariant(isCallExpression(node.object));
+            let {callee} = node.object;
+            invariant(isIdentifier(callee));
+            nullthrows(path.scope.getBinding(callee.name)).reference(
+              path.get<NodePath<Identifier>>('object.callee'),
+            );
+          }
+        }
+      }
+    } else if (exportsMap.has(name) && !path.scope.hasBinding(name)) {
+      // If it's an undefined $id$exports identifier.
+      dereferenceIdentifier(path.node, path.scope);
+      path.replaceWith(t.objectExpression([]));
+    }
   }
 
   // path is an Identifier like $id$import$foo that directly imports originalName from originalModule
@@ -155,32 +253,35 @@ export function link({
       originalName,
       bundle,
     );
-
-    let node;
-    if (identifier) {
-      node = findSymbol(path, identifier);
-    }
+    let node = identifier ? findSymbol(path, identifier) : identifier;
 
     // If the module is not in this bundle, create a `require` call for it.
     if (!node && (!mod.meta.id || !assets.has(assertString(mod.meta.id)))) {
+      if (node === false) {
+        // Asset was skipped
+        return null;
+      }
+
       node = addBundleImport(mod, path);
       return node ? interop(mod, symbol, path, node) : null;
     }
 
-    // If this is an ES6 module, throw an error if we cannot resolve the module
-    if (!node && !mod.meta.isCommonJS && mod.meta.isES6Module) {
-      let relativePath = relative(options.inputFS.cwd(), mod.filePath);
-      throw new Error(`${relativePath} does not export '${symbol}'`);
-    }
+    // The ESM 'does not export' case was already handled by core's symbol proapgation.
 
-    // If it is CommonJS, look for an exports object.
-    if (!node && mod.meta.isCommonJS) {
-      node = findSymbol(path, assertString(mod.meta.exportsIdentifier));
-      if (!node) {
-        return null;
+    // Look for an exports object if we bailed out.
+    // TODO remove the first part of the condition once bundleGraph.resolveSymbol().identifier === null covers this
+    if ((node === undefined && mod.meta.isCommonJS) || node === null) {
+      if (wrappedAssets.has(mod.id)) {
+        node = t.callExpression(getIdentifier(mod, 'init'), []);
+      } else {
+        node = findSymbol(path, assertString(mod.meta.exportsIdentifier));
+        if (!node) {
+          return null;
+        }
       }
 
-      return interop(mod, symbol, path, node);
+      node = interop(mod, symbol, path, node);
+      return node;
     }
 
     return node;
@@ -204,21 +305,23 @@ export function link({
     if (mod.meta.isCommonJS && originalName === 'default') {
       let name = getName(mod, '$interop$default');
       if (!path.scope.getBinding(name)) {
-        // Hoist to the nearest path with the same scope as the exports is declared in
-        let binding = path.scope.getBinding(
-          assertString(mod.meta.exportsIdentifier),
+        let binding = nullthrows(
+          path.scope.getBinding(
+            bundle.hasAsset(mod) && !wrappedAssets.has(mod.id)
+              ? assertString(mod.meta.exportsIdentifier)
+              : // If this bundle doesn't have the asset, use the binding for
+                // the `parcelRequire`d init function.
+                getName(mod, 'init'),
+          ),
         );
-        let parent;
-        if (binding) {
-          parent = path.findParent(
-            p => getScopeBefore(p) === binding.scope && p.isStatement(),
-          );
-        }
 
-        if (!parent) {
-          parent = path.getStatementParent();
-        }
+        invariant(
+          binding.path.getStatementParent().parentPath.isProgram(),
+          "Expected binding declaration's parent to be the program",
+        );
 
+        // Hoist to the nearest path with the same scope as the exports is declared in.
+        let parent = nullthrows(path.findParent(p => t.isProgram(p.parent)));
         let [decl] = parent.insertBefore(
           DEFAULT_INTEROP_TEMPLATE({
             NAME: t.identifier(name),
@@ -226,11 +329,9 @@ export function link({
           }),
         );
 
-        if (binding) {
-          binding.reference(
-            decl.get<NodePath<Identifier>>('declarations.0.init'),
-          );
-        }
+        binding.reference(
+          decl.get<NodePath<Identifier>>('declarations.0.init'),
+        );
 
         getScopeBefore(parent).registerDeclaration(decl);
       }
@@ -250,17 +351,6 @@ export function link({
     return path.isScope() ? path.parentPath.scope : path.scope;
   }
 
-  function isUnusedValue(path) {
-    let {parent} = path;
-    return (
-      isExpressionStatement(parent) ||
-      (isSequenceExpression(parent) &&
-        ((Array.isArray(path.container) &&
-          path.key !== path.container.length - 1) ||
-          isUnusedValue(path.parentPath)))
-    );
-  }
-
   function addExternalModule(path, dep) {
     // Find an existing import for this specifier, or create a new one.
     let importedFile = importedFiles.get(dep.moduleSpecifier);
@@ -269,6 +359,7 @@ export function link({
         source: dep.moduleSpecifier,
         specifiers: new Map(),
         isCommonJS: !!dep.meta.isCommonJS,
+        loc: convertBabelLoc(path.node.loc),
       };
 
       importedFiles.set(dep.moduleSpecifier, importedFile);
@@ -280,15 +371,15 @@ export function link({
     let specifiers = importedFile.specifiers;
 
     // For each of the imported symbols, add to the list of imported specifiers.
-    for (let [imported, symbol] of dep.symbols) {
+    for (let [imported, {local}] of dep.symbols) {
       // If already imported, just add the already renamed variable to the mapping.
       let renamed = specifiers.get(imported);
       if (renamed) {
-        replacements.set(symbol, renamed);
+        replacements.set(local, renamed);
         continue;
       }
 
-      renamed = replacements.get(symbol);
+      renamed = replacements.get(local);
       if (!renamed) {
         // Rename the specifier to something nicer. Try to use the imported
         // name, except for default and namespace imports, and if the name is
@@ -304,7 +395,7 @@ export function link({
         }
 
         programScope.references[renamed] = true;
-        replacements.set(symbol, renamed);
+        replacements.set(local, renamed);
       }
 
       specifiers.set(imported, renamed);
@@ -325,18 +416,25 @@ export function link({
   }
 
   function addBundleImport(mod, path) {
-    // Find the first bundle containing this asset, and create an import for it if needed.
-    // An asset may be duplicated in multiple bundles, so try to find one that matches
-    // the current environment if possible and fall back to the first one.
-    let bundles = bundleGraph.findBundlesWithAsset(mod);
-    let importedBundle =
-      bundles.find(b => b.env.context === bundle.env.context) || bundles[0];
+    // Find a bundle that's reachable from the current bundle (sibling or ancestor)
+    // containing this asset, and create an import for it if needed.
+    let importedBundle = bundleGraph.findReachableBundleWithAsset(bundle, mod);
+    if (!importedBundle) {
+      throw new Error(
+        `No reachable bundle found containing ${relative(
+          options.inputFS.cwd(),
+          mod.filePath,
+        )}`,
+      );
+    }
+
     let filePath = nullthrows(importedBundle.filePath);
     let imported = importedFiles.get(filePath);
     if (!imported) {
       imported = {
         bundle: importedBundle,
         assets: new Set(),
+        loc: convertBabelLoc(path.node.loc),
       };
       importedFiles.set(filePath, imported);
     }
@@ -351,9 +449,20 @@ export function link({
       let program = path.scope.getProgramParent().path;
       if (!program.scope.hasOwnBinding(initIdentifier.name)) {
         // add binding so we can track the scope
-        let [decl] = program.unshiftContainer('body', [
-          t.variableDeclaration('var', [t.variableDeclarator(initIdentifier)]),
+        // If parcelRequire exists in scope, be sure to insert after that so the global outputFormat
+        // can add the rhs later and reference it properly.
+        let declNode = t.variableDeclaration('var', [
+          t.variableDeclarator(initIdentifier),
         ]);
+        let parcelRequire = program.scope.getBinding('parcelRequire');
+        let decl;
+        if (parcelRequire) {
+          [decl] = parcelRequire.path
+            .getStatementParent()
+            .insertAfter(declNode);
+        } else {
+          [decl] = program.unshiftContainer('body', [declNode]);
+        }
         program.scope.registerDeclaration(decl);
       }
 
@@ -391,78 +500,48 @@ export function link({
         let mod = bundleGraph.getDependencyResolution(dep, bundle);
         let node;
 
-        if (!mod) {
-          if (dep.isOptional) {
-            path.replaceWith(
-              THROW_TEMPLATE({MODULE: t.stringLiteral(source.value)}),
-            );
-          } else if (dep.isWeak && dep.isDeferred) {
-            path.remove();
-          } else {
-            let name = addExternalModule(path, dep);
-            if (isUnusedValue(path) || !name) {
-              path.remove();
+        if (!bundleGraph.isDependencySkipped(dep)) {
+          if (!mod) {
+            if (dep.isOptional) {
+              node = THROW_TEMPLATE({MODULE: t.stringLiteral(source.value)});
             } else {
-              path.replaceWith(t.identifier(name));
-            }
-          }
-        } else {
-          if (mod.meta.id && assets.get(assertString(mod.meta.id))) {
-            let name = assertString(mod.meta.exportsIdentifier);
-
-            let isReferenced = bundleGraph.isAssetReferencedByDependant(
-              bundle,
-              mod,
-            );
-            let isValueUsed = !isUnusedValue(path);
-            if (isValueUsed || isReferenced) {
-              // Insert __esModule interop flag if the required module is an ES6 module with a default export.
-              // This ensures that code generated by Babel and other tools works properly.
-              const hasESModuleDefaultExport =
-                mod.meta.isES6Module && mod.symbols.has('default');
-              const isUsed = asset.meta.isCommonJS && hasESModuleDefaultExport;
-              // TODO If referenced it might be used in another bundle, even though we don't know for sure. If not included but required, the code would throw so we insert it always for now. We should find out when it is required and exclude it if now.
-              const mightBeUsed = isReferenced && hasESModuleDefaultExport;
-              if (isUsed || mightBeUsed) {
-                let binding = path.scope.getBinding(name);
-                if (binding && !binding.path.getData('hasESModuleFlag')) {
-                  if (binding.path.node.init) {
-                    binding.path
-                      .getStatementParent()
-                      .insertAfter(
-                        ESMODULE_TEMPLATE({EXPORTS: t.identifier(name)}),
-                      );
-                  }
-
-                  for (let path of binding.constantViolations) {
-                    path.insertAfter(
-                      ESMODULE_TEMPLATE({EXPORTS: t.identifier(name)}),
-                    );
-                  }
-
-                  binding.path.setData('hasESModuleFlag', true);
-                }
+              let name = addExternalModule(path, dep);
+              if (!isUnusedValue(path) && name) {
+                node = t.identifier(name);
               }
             }
-
-            // We need to wrap the module in a function when a require
-            // call happens inside a non top-level scope, e.g. in a
-            // function, if statement, or conditional expression.
-            if (mod.meta.shouldWrap) {
-              node = t.callExpression(getIdentifier(mod, 'init'), []);
-            }
-            // Replace with nothing if the require call's result is not used.
-            else if (isValueUsed) {
-              node = t.identifier(replacements.get(name) || name);
-            }
-          } else if (mod.type === 'js') {
-            node = addBundleImport(mod, path);
-          }
-
-          if (node) {
-            path.replaceWith(node);
           } else {
-            path.remove();
+            if (mod.meta.id && assets.has(assertString(mod.meta.id))) {
+              let name = assertString(mod.meta.exportsIdentifier);
+
+              let isValueUsed = !isUnusedValue(path);
+              if (asset.meta.isCommonJS && isValueUsed) {
+                maybeAddEsModuleFlag(path.scope, mod);
+              }
+              // We need to wrap the module in a function when a require
+              // call happens inside a non top-level scope, e.g. in a
+              // function, if statement, or conditional expression.
+              if (wrappedAssets.has(mod.id)) {
+                node = t.callExpression(getIdentifier(mod, 'init'), []);
+              }
+              // Replace with nothing if the require call's result is not used.
+              else if (isValueUsed) {
+                node = t.identifier(replacements.get(name) || name);
+              }
+            } else if (mod.type === 'js') {
+              node = addBundleImport(mod, path);
+            }
+          }
+        }
+
+        if (node) {
+          path.replaceWith(node);
+        } else {
+          if (path.parentPath.isExpressionStatement()) {
+            path.parentPath.remove();
+          } else {
+            // e.g. $parcel$exportWildcard;
+            path.replaceWith(t.objectExpression([]));
           }
         }
       } else if (callee.name === '$parcel$require$resolve') {
@@ -485,11 +564,11 @@ export function link({
         );
         if (!bundleGraph.getDependencyResolution(dep, bundle)) {
           // was excluded from bundling (e.g. includeNodeModules = false)
-
           if (bundle.env.outputFormat !== 'commonjs') {
-            // TODO add loc information once available
-            throw new Error(
-              "`require.resolve` calls for excluded assets are only supported with outputFormat = 'commonjs'",
+            throw getThrowableDiagnosticForNode(
+              "`require.resolve` calls for excluded assets are only supported with outputFormat: 'commonjs'",
+              mapped.filePath,
+              convertBabelLoc(path.node.loc),
             );
           }
 
@@ -497,10 +576,32 @@ export function link({
             REQUIRE_RESOLVE_CALL_TEMPLATE({ID: t.stringLiteral(source.value)}),
           );
         } else {
-          // TODO add loc information once available
-          throw new Error(
+          throw getThrowableDiagnosticForNode(
             "`require.resolve` calls for bundled modules or bundled assets aren't supported with scope hoisting",
+            mapped.filePath,
+            convertBabelLoc(path.node.loc),
           );
+        }
+      } else if (callee.name === '$parcel$export') {
+        let [obj, symbol] = args;
+        invariant(isIdentifier(obj));
+        invariant(isStringLiteral(symbol));
+        let objName = obj.name;
+        let symbolName = symbol.value;
+
+        if (objName === 'exports') {
+          // Assignment inside a wrapped asset
+          return;
+        }
+
+        let asset = nullthrows(exportsMap.get(objName));
+        let incomingDeps = bundleGraph.getIncomingDependencies(asset);
+        let unused = incomingDeps.every(d => {
+          let symbols = bundleGraph.getUsedSymbols(d);
+          return !symbols.has(symbolName) && !symbols.has('*');
+        });
+        if (unused) {
+          pathRemove(path);
         }
       }
     },
@@ -567,10 +668,6 @@ export function link({
     },
     MemberExpression: {
       exit(path) {
-        if (!path.isReferenced()) {
-          return;
-        }
-
         let {object, property, computed} = path.node;
         if (
           !(
@@ -588,48 +685,53 @@ export function link({
 
         // If it's a $id$exports.name expression.
         let name = isIdentifier(property) ? property.name : property.value;
-        let {identifier} = resolveSymbol(asset, name);
+        let {identifier} = resolveSymbol(asset, name, bundle);
 
-        // Check if $id$export$name exists and if so, replace the node by it.
-        if (identifier) {
+        if (
+          identifier == null ||
+          identifier === false ||
+          !path.scope.hasBinding(identifier)
+        ) {
+          return;
+        }
+
+        let {parent, parentPath} = path;
+        // If inside an expression, update the actual export binding as well
+        // (This is needed so that `require()`d CJS namespace objects can be mutatated.)
+        if (isAssignmentExpression(parent, {left: path.node})) {
+          if (isIdentifier(parent.right)) {
+            maybeReplaceIdentifier(
+              parentPath.get<NodePath<Identifier>>('right'),
+            );
+
+            // do not modify `$id$exports.foo = $id$export$foo` statements
+            if (isIdentifier(parent.right, {name: identifier})) {
+              return;
+            }
+
+            // If the right side was imported from a different bundle, there is no $id$export$foo binding in this bundle
+            if (!path.scope.hasBinding(identifier)) {
+              return;
+            }
+          }
+
+          // turn `$id$exports.foo = ...` into `$id$exports.foo = $id$export$foo = ...`
+          parentPath
+            .get<NodePath<Node>>('right')
+            .replaceWith(
+              t.assignmentExpression(
+                '=',
+                t.identifier(identifier),
+                parent.right,
+              ),
+            );
+        } else {
           path.replaceWith(t.identifier(identifier));
         }
       },
     },
     ReferencedIdentifier(path) {
-      let {name} = path.node;
-      if (typeof name !== 'string') {
-        return;
-      }
-
-      let replacement = replacements.get(name);
-      if (replacement) {
-        path.node.name = replacement;
-      }
-
-      if (imports.has(name)) {
-        let node;
-        let imported = imports.get(name);
-        if (!imported) {
-          // import was deferred
-          node = t.objectExpression([]);
-        } else {
-          let [asset, symbol] = imported;
-          node = replaceImportNode(asset, symbol, path);
-
-          // If the export does not exist, replace with an empty object.
-          if (!node) {
-            node = t.objectExpression([]);
-          }
-        }
-        path.replaceWith(node);
-        return;
-      }
-
-      // If it's an undefined $id$exports identifier.
-      if (exportsMap.has(name) && !path.scope.hasBinding(name)) {
-        path.replaceWith(t.objectExpression([]));
-      }
+      maybeReplaceIdentifier(path);
     },
     Program: {
       exit(path) {
@@ -638,12 +740,7 @@ export function link({
 
         for (let file of importedFiles.values()) {
           if (file.bundle) {
-            format.generateBundleImports(
-              bundle,
-              file.bundle,
-              file.assets,
-              path,
-            );
+            format.generateBundleImports(bundle, file, path, bundleGraph);
           } else {
             format.generateExternalImport(bundle, file, path);
           }
@@ -657,10 +754,14 @@ export function link({
           // Insert fake init functions that will be imported in other bundles,
           // because `asset.meta.shouldWrap` isn't set in a packager if `asset` is
           // not in the current bundle.
+          for (let asset of referencedAssets) {
+            maybeAddEsModuleFlag(path.scope, asset);
+          }
+
           let decls = path.pushContainer(
             'body',
             ([...referencedAssets]: Array<Asset>)
-              .filter(a => !a.meta.shouldWrap)
+              .filter(a => !wrappedAssets.has(a.id))
               .map(a => {
                 return FAKE_INIT_TEMPLATE({
                   INIT: getIdentifier(a, 'init'),
@@ -674,11 +775,15 @@ export function link({
               'body.body.0.argument',
             );
 
-            // TODO Somehow deferred/excluded assets are referenced, causing this function to
+            // TODO Sometimes deferred/excluded assets are referenced, causing this function to
             // become `function $id$init() { return {}; }` (because of the ReferencedIdentifier visitor).
             // But a asset that isn't here should never be referenced in the first place.
             path.scope.getBinding(returnId.node.name)?.reference(returnId);
           }
+        }
+
+        if (process.env.PARCEL_BUILD_ENV !== 'production') {
+          verifyScopeState(path.scope);
         }
 
         // Generate exports
@@ -689,16 +794,60 @@ export function link({
           path,
           replacements,
           options,
+          maybeReplaceIdentifier,
         );
 
         if (process.env.PARCEL_BUILD_ENV !== 'production') {
           verifyScopeState(path.scope);
         }
 
-        treeShake(path.scope, exported);
+        treeShake(path.scope, exported, exportsMap);
       },
     },
   });
 
   return {ast, referencedAssets};
+}
+
+function maybeAddEsModuleFlag(scope, mod) {
+  // Insert __esModule interop flag if the required module is an ES6 module with a default export.
+  // This ensures that code generated by Babel and other tools works properly.
+
+  if (mod.meta.isES6Module && mod.symbols.hasExportSymbol('default')) {
+    let name = assertString(mod.meta.exportsIdentifier);
+    let binding = scope.getBinding(name);
+    if (binding && !binding.path.getData('hasESModuleFlag')) {
+      let f = nullthrows(
+        scope.getProgramParent().getBinding('$parcel$defineInteropFlag'),
+      );
+
+      let paths = [...binding.constantViolations];
+      if (binding.path.node.init) {
+        paths.push(binding.path);
+      }
+
+      for (let path of paths) {
+        let [stmt] = path
+          .getStatementParent()
+          .insertAfter(ESMODULE_TEMPLATE({EXPORTS: t.identifier(name)}));
+        f.reference(stmt.get<NodePath<Identifier>>('expression.callee'));
+        binding.reference(
+          stmt.get<NodePath<Identifier>>('expression.arguments.0'),
+        );
+      }
+
+      binding.path.setData('hasESModuleFlag', true);
+    }
+  }
+}
+
+function isUnusedValue(path: NodePath<Node>): boolean {
+  let {parent} = path;
+  return (
+    isExpressionStatement(parent) ||
+    (isSequenceExpression(parent) &&
+      ((Array.isArray(path.container) &&
+        path.key !== path.container.length - 1) ||
+        isUnusedValue(path.parentPath)))
+  );
 }

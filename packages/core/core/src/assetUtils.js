@@ -2,19 +2,27 @@
 
 import type {
   ASTGenerator,
-  ConfigResult,
-  File,
   FilePath,
   GenerateOutput,
   Meta,
   PackageName,
   Stats,
   Symbol,
+  SourceLocation,
   Transformer,
+  QueryParameters,
 } from '@parcel/types';
-import type {Asset, Dependency, Environment} from './types';
+import type {
+  Asset,
+  RequestInvalidation,
+  Dependency,
+  Environment,
+  ParcelOptions,
+} from './types';
+import type {ConfigOutput} from '@parcel/utils';
 
 import {Readable} from 'stream';
+import crypto from 'crypto';
 import {PluginLogger} from '@parcel/logger';
 import nullthrows from 'nullthrows';
 import CommittedAsset from './CommittedAsset';
@@ -22,8 +30,14 @@ import UncommittedAsset from './UncommittedAsset';
 import loadPlugin from './loadParcelPlugin';
 import {Asset as PublicAsset} from './public/Asset';
 import PluginOptions from './public/PluginOptions';
-import {blobToStream, loadConfig, md5FromString} from '@parcel/utils';
+import {
+  blobToStream,
+  loadConfig,
+  md5FromString,
+  md5FromFilePath,
+} from '@parcel/utils';
 import {getEnvironmentHash} from './Environment';
+import {hashFromOption} from './utils';
 
 type AssetOptions = {|
   id?: string,
@@ -31,13 +45,13 @@ type AssetOptions = {|
   hash?: ?string,
   idBase?: ?string,
   filePath: FilePath,
+  query?: QueryParameters,
   type: string,
   contentKey?: ?string,
   mapKey?: ?string,
   astKey?: ?string,
   astGenerator?: ?ASTGenerator,
   dependencies?: Map<string, Dependency>,
-  includedFiles?: Map<FilePath, File>,
   isIsolated?: boolean,
   isInline?: boolean,
   isSplittable?: ?boolean,
@@ -47,11 +61,12 @@ type AssetOptions = {|
   outputHash?: ?string,
   pipeline?: ?string,
   stats: Stats,
-  symbols?: Map<Symbol, Symbol>,
+  symbols?: ?Map<Symbol, {|local: Symbol, loc: ?SourceLocation|}>,
   sideEffects?: boolean,
   uniqueKey?: ?string,
   plugin?: PackageName,
   configPath?: FilePath,
+  configKeyPath?: string,
 |};
 
 export function createAsset(options: AssetOptions): Asset {
@@ -62,13 +77,18 @@ export function createAsset(options: AssetOptions): Asset {
       options.id != null
         ? options.id
         : md5FromString(
-            idBase + options.type + getEnvironmentHash(options.env) + uniqueKey,
+            idBase +
+              options.type +
+              getEnvironmentHash(options.env) +
+              uniqueKey +
+              (options.pipeline ?? ''),
           ),
     committed: options.committed ?? false,
     hash: options.hash,
     filePath: options.filePath,
-    isIsolated: options.isIsolated == null ? false : options.isIsolated,
-    isInline: options.isInline == null ? false : options.isInline,
+    query: options.query || {},
+    isIsolated: options.isIsolated ?? false,
+    isInline: options.isInline ?? false,
     isSplittable: options.isSplittable,
     type: options.type,
     contentKey: options.contentKey,
@@ -76,18 +96,18 @@ export function createAsset(options: AssetOptions): Asset {
     astKey: options.astKey,
     astGenerator: options.astGenerator,
     dependencies: options.dependencies || new Map(),
-    includedFiles: options.includedFiles || new Map(),
     isSource: options.isSource,
     outputHash: options.outputHash,
     pipeline: options.pipeline,
     env: options.env,
     meta: options.meta || {},
     stats: options.stats,
-    symbols: options.symbols || new Map(),
-    sideEffects: options.sideEffects != null ? options.sideEffects : true,
+    symbols: options.symbols,
+    sideEffects: options.sideEffects ?? true,
     uniqueKey: uniqueKey,
     plugin: options.plugin,
     configPath: options.configPath,
+    configKeyPath: options.configKeyPath,
   };
 }
 
@@ -112,9 +132,11 @@ async function _generateFromAST(asset: CommittedAsset | UncommittedAsset) {
 
   let pluginName = nullthrows(asset.value.plugin);
   let {plugin} = await loadPlugin<Transformer>(
+    asset.options.inputFS,
     asset.options.packageManager,
     pluginName,
     nullthrows(asset.value.configPath),
+    nullthrows(asset.value.configKeyPath),
     asset.options.autoinstall,
   );
   if (!plugin.generate) {
@@ -155,14 +177,18 @@ export async function getConfig(
     packageKey?: string,
     parse?: boolean,
   |},
-): Promise<ConfigResult | null> {
+): Promise<ConfigOutput | null> {
   let packageKey = options?.packageKey;
   let parse = options && options.parse;
 
   if (packageKey != null) {
     let pkg = await asset.getPackage();
     if (pkg && pkg[packageKey]) {
-      return pkg[packageKey];
+      return {
+        config: pkg[packageKey],
+        // The package.json file was already registered by asset.getPackage() -> asset.getConfig()
+        files: [],
+      };
     }
   }
 
@@ -177,4 +203,51 @@ export async function getConfig(
   }
 
   return conf;
+}
+
+export function getInvalidationId(invalidation: RequestInvalidation): string {
+  switch (invalidation.type) {
+    case 'file':
+      return 'file:' + invalidation.filePath;
+    case 'env':
+      return 'env:' + invalidation.key;
+    case 'option':
+      return 'option:' + invalidation.key;
+    default:
+      throw new Error('Unknown invalidation type: ' + invalidation.type);
+  }
+}
+
+export async function getInvalidationHash(
+  invalidations: Array<RequestInvalidation>,
+  options: ParcelOptions,
+): Promise<string> {
+  let sortedInvalidations = invalidations
+    .slice()
+    .sort((a, b) => (getInvalidationId(a) < getInvalidationId(b) ? -1 : 1));
+
+  let hash = crypto.createHash('md5');
+  for (let invalidation of sortedInvalidations) {
+    switch (invalidation.type) {
+      case 'file':
+        hash.update(
+          await md5FromFilePath(options.inputFS, invalidation.filePath),
+        );
+        break;
+      case 'env':
+        hash.update(
+          invalidation.key + ':' + (options.env[invalidation.key] || ''),
+        );
+        break;
+      case 'option':
+        hash.update(
+          invalidation.key + ':' + hashFromOption(options[invalidation.key]),
+        );
+        break;
+      default:
+        throw new Error('Unknown invalidation type: ' + invalidation.type);
+    }
+  }
+
+  return hash.digest('hex');
 }

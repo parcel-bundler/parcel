@@ -8,7 +8,10 @@
 .*/.parcel-cache/.*
 <PROJECT_ROOT>/packages/core/integration-tests/dist/**
 <PROJECT_ROOT>/packages/core/integration-tests/test/input/**
-<PROJECT_ROOT>/packages/core/integration-tests/test/integration/**
+<PROJECT_ROOT>/packages/core/integration-tests/test/integration/babel-strip-flow-types/**
+
+[untyped]
+.*/node_modules/graphql/error/GraphQLError.js.flow
 
 [include]
 
@@ -25,6 +28,8 @@ esproposal.nullish_coalescing=enable
 esproposal.optional_chaining=enable
 module.system.node.main_field=source
 module.system.node.main_field=main
+types_first=true
+well_formed_exports=true
 
 [strict]
 nonstrict-import
@@ -32,9 +37,8 @@ sketchy-null-number
 sketchy-null-string
 sketchy-null-mixed
 unclear-type
-unsafe-getters-setters
 untyped-import
 untyped-type-import
 
 [version]
-0.122.0
+0.137.0

@@ -1,10 +1,14 @@
 {
   "name": "@parcel/utils",
-  "version": "2.0.0-alpha.3.1",
+  "version": "2.0.0-beta.1",
   "description": "Blazing fast, zero configuration web application bundler",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
+  },
+  "funding": {
+    "type": "opencollective",
+    "url": "https://opencollective.com/parcel"
   },
   "repository": {
     "type": "git",
@@ -17,24 +21,24 @@
   },
   "dependencies": {
     "@iarna/toml": "^2.2.0",
-    "@parcel/codeframe": "^2.0.0-alpha.3.1",
-    "@parcel/diagnostic": "^2.0.0-alpha.3.1",
-    "@parcel/logger": "^2.0.0-alpha.3.1",
-    "@parcel/markdown-ansi": "^2.0.0-alpha.3.1",
+    "@parcel/codeframe": "2.0.0-beta.1",
+    "@parcel/diagnostic": "2.0.0-beta.1",
+    "@parcel/logger": "2.0.0-beta.1",
+    "@parcel/markdown-ansi": "2.0.0-beta.1",
+    "@parcel/source-map": "2.0.0-alpha.4.16",
     "ansi-html": "^0.0.7",
+    "chalk": "^2.4.2",
     "clone": "^2.1.1",
     "fast-glob": "3.1.1",
+    "fastest-levenshtein": "^1.0.8",
     "is-glob": "^4.0.0",
     "is-url": "^1.2.2",
-    "js-levenshtein": "^1.1.6",
     "json5": "^1.0.1",
     "micromatch": "^4.0.2",
-    "node-forge": "^0.8.1",
+    "node-forge": "^0.10.0",
     "nullthrows": "^1.1.1",
-    "resolve": "^1.12.0",
-    "serialize-to-js": "^3.0.1",
-    "terser": "^3.7.3",
-    "chalk": "^2.4.2"
+    "open": "^7.0.3",
+    "resolve": "^1.12.0"
   },
   "devDependencies": {
     "@babel/plugin-transform-flow-strip-types": "^7.2.0",

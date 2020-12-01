@@ -7,71 +7,65 @@ import {Transformer} from '@parcel/plugin';
 import FileSystemLoader from 'css-modules-loader-core/lib/file-system-loader';
 import nullthrows from 'nullthrows';
 import path from 'path';
-import postcss from 'postcss';
 import semver from 'semver';
 import valueParser from 'postcss-value-parser';
 
-import loadPlugins from './loadPlugins';
+import {load, preSerialize, postDeserialize} from './loadConfig';
 
 const COMPOSES_RE = /composes:.+from\s*("|').*("|')\s*;?/;
 const FROM_IMPORT_RE = /.+from\s*(?:"|')(.*)(?:"|')\s*;?/;
-const MODULE_BY_NAME_RE = /\.module\./;
 
-type ParcelPostCSSConfig = {
-  plugins: Array<mixed>,
-  from: FilePath,
-  to: FilePath,
-  ...
-};
+export default (new Transformer({
+  loadConfig({config, options, logger}) {
+    return load({config, options, logger});
+  },
 
-export default new Transformer({
-  async getConfig({asset, resolve, options}): Promise<?ParcelPostCSSConfig> {
-    let configFile: mixed = await asset.getConfig(
-      ['.postcssrc', '.postcssrc.json', '.postcssrc.js', 'postcss.config.js'],
-      {packageKey: 'postcss'},
-    );
+  preSerializeConfig({config}) {
+    return preSerialize(config);
+  },
 
-    // Use a basic, modules-only PostCSS config if the file opts in by a name
-    // like foo.module.css
-    if (configFile == null && asset.filePath.match(MODULE_BY_NAME_RE)) {
-      configFile = {
-        plugins: {
-          'postcss-modules': {},
-        },
-      };
-    }
+  postDeserializeConfig({config, options}) {
+    return postDeserialize(config, options);
+  },
 
-    if (configFile == null) {
+  canReuseAST({ast}) {
+    return ast.type === 'postcss' && semver.satisfies(ast.version, '^8.0.0');
+  },
+
+  async parse({asset, config, options}) {
+    if (!config) {
       return;
     }
 
-    if (typeof configFile !== 'object') {
-      throw new Error('PostCSS config should be an object.');
+    let postcss = await options.packageManager.require(
+      'postcss',
+      asset.filePath,
+      {autoinstall: options.autoinstall, range: '^8.0.0'},
+    );
+
+    return {
+      type: 'postcss',
+      version: '8.0.0',
+      program: postcss.parse(await asset.getCode(), {
+        from: asset.filePath,
+      }),
+    };
+  },
+
+  async transform({asset, config, options, resolve}) {
+    asset.type = 'css';
+    if (!config) {
+      return [asset];
     }
 
-    if (
-      configFile.plugins == null ||
-      typeof configFile.plugins !== 'object' ||
-      Object.keys(configFile.plugins) === 0
-    ) {
-      throw new Error('PostCSS config must have plugins');
-    }
+    let postcss = await options.packageManager.require(
+      'postcss',
+      asset.filePath,
+      {autoinstall: options.autoinstall, range: '^8.0.0'},
+    );
 
-    let originalModulesConfig;
-    let configFilePlugins = configFile.plugins;
-    if (
-      configFilePlugins != null &&
-      typeof configFilePlugins === 'object' &&
-      configFilePlugins['postcss-modules'] != null
-    ) {
-      originalModulesConfig = configFilePlugins['postcss-modules'];
-      // $FlowFixMe
-      delete configFilePlugins['postcss-modules'];
-    }
-
-    let plugins = await loadPlugins(configFilePlugins, asset.filePath, options);
-
-    if (originalModulesConfig || configFile.modules) {
+    let plugins = [...config.hydrated.plugins];
+    if (config.hydrated.modules) {
       let postcssModules = await options.packageManager.require(
         'postcss-modules',
         asset.filePath,
@@ -84,39 +78,9 @@ export default new Transformer({
           Loader: createLoader(asset, resolve),
           generateScopedName: (name, filename, css) =>
             `_${name}_${md5FromString(filename + css).substr(0, 5)}`,
-          ...originalModulesConfig,
+          ...config.hydrated.modules,
         }),
       );
-    }
-
-    return {
-      plugins,
-      from: asset.filePath,
-      to: asset.filePath,
-    };
-  },
-
-  canReuseAST({ast}) {
-    return ast.type === 'postcss' && semver.satisfies(ast.version, '^7.0.0');
-  },
-
-  async parse({asset, config}) {
-    if (!config) {
-      return;
-    }
-
-    return {
-      type: 'postcss',
-      version: '7.0.0',
-      program: postcss.parse(await asset.getCode(), {
-        from: asset.filePath,
-      }),
-    };
-  },
-
-  async transform({asset, config}) {
-    if (!config) {
-      return [asset];
     }
 
     let ast = nullthrows(await asset.getAST());
@@ -132,7 +96,7 @@ export default new Transformer({
               asset.addDependency({
                 moduleSpecifier: importPath,
                 loc: {
-                  filePath: importPath,
+                  filePath: asset.filePath,
                   start: decl.source.start,
                   end: {
                     line: decl.source.start.line,
@@ -147,28 +111,19 @@ export default new Transformer({
     }
 
     // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
-    let {messages, root} = await postcss(config.plugins).process(
+    let {messages, root} = await postcss(plugins).process(
       ast.program,
-      config,
+      config.hydrated,
     );
     ast.program = root;
     asset.setAST({
       type: 'postcss',
-      version: '7.0.0',
+      version: '8.0.0',
       program: root,
     });
     for (let msg of messages) {
       if (msg.type === 'dependency') {
-        msg = (msg: {|
-          type: 'dependency',
-          plugin: string,
-          file: string,
-          parent: string,
-        |});
-
-        asset.addIncludedFile({
-          filePath: msg.file,
-        });
+        asset.addIncludedFile(msg.file);
       }
     }
 
@@ -195,7 +150,13 @@ export default new Transformer({
     return assets;
   },
 
-  generate({ast}) {
+  async generate({ast, asset, options}) {
+    let postcss = await options.packageManager.require(
+      'postcss',
+      asset.filePath,
+      {autoinstall: options.autoinstall, range: '^8.0.0'},
+    );
+
     let code = '';
     postcss.stringify(ast.program, c => {
       code += c;
@@ -205,7 +166,7 @@ export default new Transformer({
       content: code,
     };
   },
-});
+}): Transformer);
 
 function createLoader(
   asset: MutableAsset,

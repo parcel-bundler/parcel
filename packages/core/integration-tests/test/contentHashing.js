@@ -2,14 +2,15 @@ import assert from 'assert';
 import path from 'path';
 import {bundle as _bundle, overlayFS, outputFS, ncp} from '@parcel/test-utils';
 
+const distDir = path.join(__dirname, './dist');
+
 function bundle(path) {
   return _bundle(path, {
     inputFS: overlayFS,
     disableCache: false,
+    distDir,
   });
 }
-
-const distDir = '/dist';
 
 describe('content hashing', function() {
   beforeEach(async () => {
@@ -30,7 +31,7 @@ describe('content hashing', function() {
       'utf8',
     );
     let filename = html.match(
-      /<link rel="stylesheet" href="[/\\]{1}(input\.[a-f0-9]+\.css)">/,
+      /<link rel="stylesheet" href="[/\\]{1}(index\.[a-f0-9]+\.css)">/,
     )[1];
     assert(await outputFS.exists(path.join(distDir, filename)));
 
@@ -42,7 +43,7 @@ describe('content hashing', function() {
 
     html = await outputFS.readFile(path.join(distDir, 'index.html'), 'utf8');
     let newFilename = html.match(
-      /<link rel="stylesheet" href="[/\\]{1}(input\.[a-f0-9]+\.css)">/,
+      /<link rel="stylesheet" href="[/\\]{1}(index\.[a-f0-9]+\.css)">/,
     )[1];
     assert(await outputFS.exists(path.join(distDir, newFilename)));
 
@@ -82,5 +83,27 @@ describe('content hashing', function() {
         'integration/same-contents-different-filepaths/index.js',
       ),
     );
+  });
+
+  it('should generate the same hash for the same distDir inside separate projects', async () => {
+    let a = await _bundle(
+      path.join(__dirname, 'integration/hash-distDir/a/index.html'),
+      {sourceMaps: true},
+    );
+    let b = await _bundle(
+      path.join(__dirname, 'integration/hash-distDir/b/index.html'),
+      {sourceMaps: true},
+    );
+
+    let aBundles = a.getBundles();
+    let bBundles = b.getBundles();
+
+    assert.equal(aBundles.length, 2);
+    assert.equal(bBundles.length, 2);
+
+    let aJS = aBundles.find(bundle => bundle.type === 'js');
+    let bJS = bBundles.find(bundle => bundle.type === 'js');
+    assert(/index\.[a-f0-9]*\.js/.test(aJS.name));
+    assert.equal(aJS.name, bJS.name);
   });
 });

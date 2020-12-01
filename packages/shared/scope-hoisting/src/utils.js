@@ -1,5 +1,10 @@
 // @flow
-import type {Asset, MutableAsset, Bundle, BundleGraph} from '@parcel/types';
+import type {
+  Asset,
+  BundleGraph,
+  MutableAsset,
+  NamedBundle,
+} from '@parcel/types';
 import type {NodePath, Scope, VariableDeclarationKind} from '@babel/traverse';
 import type {
   ClassDeclaration,
@@ -11,29 +16,32 @@ import type {
   Node,
   VariableDeclarator,
 } from '@babel/types';
+import type {Diagnostic} from '@parcel/diagnostic';
 
 import {simple as walkSimple} from '@parcel/babylon-walk';
+import ThrowableDiagnostic from '@parcel/diagnostic';
 import * as t from '@babel/types';
 import {isVariableDeclarator, isVariableDeclaration} from '@babel/types';
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
+import path from 'path';
 
 export function getName(
   asset: Asset | MutableAsset,
   type: string,
   ...rest: Array<string>
-) {
-  return (
+): string {
+  return t.toIdentifier(
     '$' +
-    t.toIdentifier(asset.id) +
-    '$' +
-    type +
-    (rest.length
-      ? '$' +
-        rest
-          .map(name => (name === 'default' ? name : t.toIdentifier(name)))
-          .join('$')
-      : '')
+      asset.id +
+      '$' +
+      type +
+      (rest.length
+        ? '$' +
+          rest
+            .map(name => (name === 'default' ? name : t.toIdentifier(name)))
+            .join('$')
+        : ''),
   );
 }
 
@@ -41,15 +49,21 @@ export function getIdentifier(
   asset: Asset | MutableAsset,
   type: string,
   ...rest: Array<string>
-) {
+): BabelNodeIdentifier {
   return t.identifier(getName(asset, type, ...rest));
 }
 
-export function getExportIdentifier(asset: Asset | MutableAsset, name: string) {
+export function getExportIdentifier(
+  asset: Asset | MutableAsset,
+  name: string,
+): BabelNodeIdentifier {
   return getIdentifier(asset, 'export', name);
 }
 
-export function needsPrelude(bundle: Bundle, bundleGraph: BundleGraph) {
+export function needsPrelude(
+  bundle: NamedBundle,
+  bundleGraph: BundleGraph<NamedBundle>,
+): boolean {
   if (bundle.env.outputFormat !== 'global') {
     return false;
   }
@@ -69,15 +83,23 @@ export function needsPrelude(bundle: Bundle, bundleGraph: BundleGraph) {
   );
 }
 
-export function isEntry(bundle: Bundle, bundleGraph: BundleGraph) {
+export function isEntry(
+  bundle: NamedBundle,
+  bundleGraph: BundleGraph<NamedBundle>,
+): boolean {
   // If there is no parent JS bundle (e.g. in an HTML page), or environment is isolated (e.g. worker)
   // then this bundle is an "entry"
   return (
-    !bundleGraph.hasParentBundleOfType(bundle, 'js') || bundle.env.isIsolated()
+    !bundleGraph.hasParentBundleOfType(bundle, 'js') ||
+    bundle.env.isIsolated() ||
+    !!bundle.getMainEntry()?.isIsolated
   );
 }
 
-export function isReferenced(bundle: Bundle, bundleGraph: BundleGraph) {
+export function isReferenced(
+  bundle: NamedBundle,
+  bundleGraph: BundleGraph<NamedBundle>,
+): boolean {
   let isReferenced = false;
   bundle.traverseAssets((asset, _, actions) => {
     // A bundle is potentially referenced if any of its assets is referenced
@@ -94,8 +116,8 @@ export function isReferenced(bundle: Bundle, bundleGraph: BundleGraph) {
 }
 
 export function hasAsyncDescendant(
-  bundle: Bundle,
-  bundleGraph: BundleGraph,
+  bundle: NamedBundle,
+  bundleGraph: BundleGraph<NamedBundle>,
 ): boolean {
   let _hasAsyncDescendant = false;
   bundleGraph.traverseBundles((b, _, actions) => {
@@ -140,14 +162,13 @@ export function pathRemove(path: NodePath<Node>) {
   path.remove();
 }
 
-function dereferenceIdentifier(node, scope) {
+export function dereferenceIdentifier(node: Identifier, scope: Scope) {
   let binding = scope.getBinding(node.name);
   if (binding) {
     let i = binding.referencePaths.findIndex(v => v.node === node);
     if (i >= 0) {
       binding.dereference();
       binding.referencePaths.splice(i, 1);
-      return;
     }
 
     let j = binding.constantViolations.findIndex(v =>
@@ -158,7 +179,6 @@ function dereferenceIdentifier(node, scope) {
       if (binding.constantViolations.length == 0) {
         binding.constant = true;
       }
-      return;
     }
   }
 }
@@ -238,4 +258,42 @@ export function verifyScopeState(scope: Scope) {
       invariant(aReferencePaths.indexOf(p) >= 0, name);
     }
   }
+}
+
+export function getThrowableDiagnosticForNode(
+  message: string,
+  filePath: ?string,
+  loc: ?{
+    +start: {|
+      +line: number,
+      +column: number,
+    |},
+    +end: {|
+      +line: number,
+      +column: number,
+    |},
+    ...
+  },
+): ThrowableDiagnostic {
+  let diagnostic: Diagnostic = {
+    message,
+    language: 'js',
+  };
+
+  if (filePath) {
+    diagnostic.filePath = path.normalize(filePath);
+  }
+  if (loc) {
+    diagnostic.codeFrame = {
+      codeHighlights: [
+        {
+          start: loc.start,
+          end: loc.end,
+        },
+      ],
+    };
+  }
+  return new ThrowableDiagnostic({
+    diagnostic,
+  });
 }

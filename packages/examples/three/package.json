@@ -1,0 +1,32 @@
+{
+  "name": "@parcel/three-js-stresstest",
+  "version": "2.0.0-beta.1",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "setup": "make src",
+    "build": "parcel build src/entry.js"
+  },
+  "devDependencies": {
+    "@parcel/config-default": "2.0.0-beta.1",
+    "parcel": "2.0.0-beta.1"
+  },
+  "browser": "dist/legacy/index.js",
+  "browserModern": "dist/modern/index.js",
+  "targets": {
+    "browserModern": {
+      "engines": {
+        "browsers": [
+          "last 1 Chrome version"
+        ]
+      }
+    },
+    "browser": {
+      "engines": {
+        "browsers": [
+          "> 0.25%"
+        ]
+      }
+    }
+  }
+}

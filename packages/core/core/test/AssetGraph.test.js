@@ -1,31 +1,17 @@
 // @flow
 
 import assert from 'assert';
+import invariant from 'assert';
+import nullthrows from 'nullthrows';
 import AssetGraph, {
   nodeFromAssetGroup,
   nodeFromDep,
   nodeFromEntryFile,
+  nodeFromAsset,
 } from '../src/AssetGraph';
 import {createDependency} from '../src/Dependency';
 import {createAsset} from '../src/assetUtils';
-import {createEnvironment} from '../src/Environment';
-
-const DEFAULT_ENV = createEnvironment({
-  context: 'browser',
-  engines: {
-    browsers: ['> 1%'],
-  },
-});
-
-const TARGETS = [
-  {
-    name: 'test',
-    distDir: 'dist',
-    distEntry: 'out.js',
-    env: DEFAULT_ENV,
-    publicUrl: '/',
-  },
-];
+import {DEFAULT_ENV, DEFAULT_TARGETS} from './test-utils';
 
 const stats = {size: 0, time: 0};
 
@@ -47,19 +33,32 @@ describe('AssetGraph', () => {
       entries: ['/path/to/index1', '/path/to/index2'],
     });
 
-    graph.resolveEntry('/path/to/index1', [
-      {filePath: '/path/to/index1/src/main.js'},
-    ]);
+    graph.resolveEntry(
+      '/path/to/index1',
+      [
+        {
+          filePath: '/path/to/index1/src/main.js',
+          packagePath: '/path/to/index1',
+        },
+      ],
+      '123',
+    );
 
     assert(
       graph.nodes.has(
-        nodeFromEntryFile({filePath: '/path/to/index1/src/main.js'}).id,
+        nodeFromEntryFile({
+          filePath: '/path/to/index1/src/main.js',
+          packagePath: '/path/to/index1',
+        }).id,
       ),
     );
     assert(
       graph.hasEdge(
         'entry_specifier:/path/to/index1',
-        nodeFromEntryFile({filePath: '/path/to/index1/src/main.js'}).id,
+        nodeFromEntryFile({
+          filePath: '/path/to/index1/src/main.js',
+          packagePath: '/path/to/index1',
+        }).id,
       ),
     );
   });
@@ -70,22 +69,43 @@ describe('AssetGraph', () => {
       entries: ['/path/to/index1', '/path/to/index2'],
     });
 
-    graph.resolveEntry('/path/to/index1', [
-      {filePath: '/path/to/index1/src/main.js'},
-    ]);
-    graph.resolveEntry('/path/to/index2', [
-      {filePath: '/path/to/index2/src/main.js'},
-    ]);
+    graph.resolveEntry(
+      '/path/to/index1',
+      [
+        {
+          filePath: '/path/to/index1/src/main.js',
+          packagePath: '/path/to/index1',
+        },
+      ],
+      '1',
+    );
+    graph.resolveEntry(
+      '/path/to/index2',
+      [
+        {
+          filePath: '/path/to/index2/src/main.js',
+          packagePath: '/path/to/index2',
+        },
+      ],
+      '2',
+    );
 
-    graph.resolveTargets({filePath: '/path/to/index1/src/main.js'}, TARGETS);
-    graph.resolveTargets({filePath: '/path/to/index2/src/main.js'}, TARGETS);
+    graph.resolveTargets(
+      {filePath: '/path/to/index1/src/main.js', packagePath: '/path/to/index1'},
+      DEFAULT_TARGETS,
+      '3',
+    );
+    graph.resolveTargets(
+      {filePath: '/path/to/index2/src/main.js', packagePath: '/path/to/index2'},
+      DEFAULT_TARGETS,
+      '4',
+    );
 
     assert(
       graph.nodes.has(
         createDependency({
           moduleSpecifier: '/path/to/index1/src/main.js',
-          pipeline: 'test',
-          target: TARGETS[0],
+          target: DEFAULT_TARGETS[0],
           env: DEFAULT_ENV,
         }).id,
       ),
@@ -94,8 +114,7 @@ describe('AssetGraph', () => {
       graph.nodes.has(
         createDependency({
           moduleSpecifier: '/path/to/index2/src/main.js',
-          pipeline: 'test',
-          target: TARGETS[0],
+          target: DEFAULT_TARGETS[0],
           env: DEFAULT_ENV,
         }).id,
       ),
@@ -113,30 +132,40 @@ describe('AssetGraph', () => {
       },
       {
         from: 'entry_specifier:/path/to/index1',
-        to: nodeFromEntryFile({filePath: '/path/to/index1/src/main.js'}).id,
+        to: nodeFromEntryFile({
+          filePath: '/path/to/index1/src/main.js',
+          packagePath: '/path/to/index1',
+        }).id,
         type: null,
       },
       {
         from: 'entry_specifier:/path/to/index2',
-        to: nodeFromEntryFile({filePath: '/path/to/index2/src/main.js'}).id,
+        to: nodeFromEntryFile({
+          filePath: '/path/to/index2/src/main.js',
+          packagePath: '/path/to/index2',
+        }).id,
         type: null,
       },
       {
-        from: nodeFromEntryFile({filePath: '/path/to/index1/src/main.js'}).id,
+        from: nodeFromEntryFile({
+          filePath: '/path/to/index1/src/main.js',
+          packagePath: '/path/to/index1',
+        }).id,
         to: createDependency({
           moduleSpecifier: '/path/to/index1/src/main.js',
-          pipeline: 'test',
-          target: TARGETS[0],
+          target: DEFAULT_TARGETS[0],
           env: DEFAULT_ENV,
         }).id,
         type: null,
       },
       {
-        from: nodeFromEntryFile({filePath: '/path/to/index2/src/main.js'}).id,
+        from: nodeFromEntryFile({
+          filePath: '/path/to/index2/src/main.js',
+          packagePath: '/path/to/index2',
+        }).id,
         to: createDependency({
           moduleSpecifier: '/path/to/index2/src/main.js',
-          pipeline: 'test',
-          target: TARGETS[0],
+          target: DEFAULT_TARGETS[0],
           env: DEFAULT_ENV,
         }).id,
         type: null,
@@ -147,35 +176,40 @@ describe('AssetGraph', () => {
   it('resolveDependency should update the file a dependency is connected to', () => {
     let graph = new AssetGraph();
     graph.initialize({
-      targets: TARGETS,
+      targets: DEFAULT_TARGETS,
       entries: ['/path/to/index'],
     });
 
-    graph.resolveEntry('/path/to/index', [
-      {filePath: '/path/to/index/src/main.js'},
-    ]);
-    graph.resolveTargets({filePath: '/path/to/index/src/main.js'}, TARGETS);
+    graph.resolveEntry(
+      '/path/to/index',
+      [{filePath: '/path/to/index/src/main.js', packagePath: '/path/to/index'}],
+      '1',
+    );
+    graph.resolveTargets(
+      {filePath: '/path/to/index/src/main.js', packagePath: '/path/to/index'},
+      DEFAULT_TARGETS,
+      '2',
+    );
 
     let dep = createDependency({
       moduleSpecifier: '/path/to/index/src/main.js',
-      pipeline: 'test',
-      target: TARGETS[0],
+      target: DEFAULT_TARGETS[0],
       env: DEFAULT_ENV,
     });
-    let req = {filePath: '/index.js', env: DEFAULT_ENV};
+    let req = {filePath: '/index.js', env: DEFAULT_ENV, query: {}};
 
-    graph.resolveDependency(dep, nodeFromAssetGroup(req));
+    graph.resolveDependency(dep, req, '3');
     assert(graph.nodes.has(nodeFromAssetGroup(req).id));
     assert(graph.hasEdge(dep.id, nodeFromAssetGroup(req).id));
 
-    let req2 = {filePath: '/index.jsx', env: DEFAULT_ENV};
-    graph.resolveDependency(dep, nodeFromAssetGroup(req2));
+    let req2 = {filePath: '/index.jsx', env: DEFAULT_ENV, query: {}};
+    graph.resolveDependency(dep, req2, '4');
     assert(!graph.nodes.has(nodeFromAssetGroup(req).id));
     assert(graph.nodes.has(nodeFromAssetGroup(req2).id));
     assert(graph.hasEdge(dep.id, nodeFromAssetGroup(req2).id));
     assert(!graph.hasEdge(dep.id, nodeFromAssetGroup(req).id));
 
-    graph.resolveDependency(dep, nodeFromAssetGroup(req2));
+    graph.resolveDependency(dep, req2, '5');
     assert(graph.nodes.has(nodeFromAssetGroup(req2).id));
     assert(graph.hasEdge(dep.id, nodeFromAssetGroup(req2).id));
   });
@@ -183,25 +217,30 @@ describe('AssetGraph', () => {
   it('resolveAssetGroup should update the asset and dep nodes a file is connected to', () => {
     let graph = new AssetGraph();
     graph.initialize({
-      targets: TARGETS,
+      targets: DEFAULT_TARGETS,
       entries: ['/path/to/index'],
     });
 
-    graph.resolveEntry('/path/to/index', [
-      {filePath: '/path/to/index/src/main.js'},
-    ]);
-    graph.resolveTargets({filePath: '/path/to/index/src/main.js'}, TARGETS);
+    graph.resolveEntry(
+      '/path/to/index',
+      [{filePath: '/path/to/index/src/main.js', packagePath: '/path/to/index'}],
+      '1',
+    );
+    graph.resolveTargets(
+      {filePath: '/path/to/index/src/main.js', packagePath: '/path/to/index'},
+      DEFAULT_TARGETS,
+      '2',
+    );
 
     let dep = createDependency({
       moduleSpecifier: '/path/to/index/src/main.js',
-      pipeline: 'test',
-      target: TARGETS[0],
+      target: DEFAULT_TARGETS[0],
       env: DEFAULT_ENV,
       sourcePath: '',
     });
     let filePath = '/index.js';
-    let req = {filePath, env: DEFAULT_ENV};
-    graph.resolveDependency(dep, nodeFromAssetGroup(req));
+    let req = {filePath, env: DEFAULT_ENV, query: {}};
+    graph.resolveDependency(dep, req, '3');
     let sourcePath = filePath;
     let assets = [
       createAsset({
@@ -222,7 +261,6 @@ describe('AssetGraph', () => {
           ],
         ]),
         env: DEFAULT_ENV,
-        includedFiles: new Map(),
       }),
       createAsset({
         id: '2',
@@ -242,7 +280,6 @@ describe('AssetGraph', () => {
           ],
         ]),
         env: DEFAULT_ENV,
-        includedFiles: new Map(),
       }),
       createAsset({
         id: '3',
@@ -253,11 +290,10 @@ describe('AssetGraph', () => {
         dependencies: new Map(),
         env: DEFAULT_ENV,
         stats,
-        includedFiles: new Map(),
       }),
     ];
 
-    graph.resolveAssetGroup(req, assets);
+    graph.resolveAssetGroup(req, assets, '4');
     assert(graph.nodes.has('1'));
     assert(graph.nodes.has('2'));
     assert(graph.nodes.has('3'));
@@ -288,7 +324,6 @@ describe('AssetGraph', () => {
           ],
         ]),
         env: DEFAULT_ENV,
-        includedFiles: new Map(),
       }),
       createAsset({
         id: '2',
@@ -299,11 +334,10 @@ describe('AssetGraph', () => {
         stats,
         dependencies: new Map(),
         env: DEFAULT_ENV,
-        includedFiles: new Map(),
       }),
     ];
 
-    graph.resolveAssetGroup(req, assets2);
+    graph.resolveAssetGroup(req, assets2, '5');
     assert(graph.nodes.has('1'));
     assert(graph.nodes.has('2'));
     assert(!graph.nodes.has('3'));
@@ -321,20 +355,27 @@ describe('AssetGraph', () => {
   // to the asset's dependency instead of the asset group.
   it('resolveAssetGroup should handle dependent assets in asset groups', () => {
     let graph = new AssetGraph();
-    graph.initialize({targets: TARGETS, entries: ['./index']});
+    graph.initialize({targets: DEFAULT_TARGETS, entries: ['./index']});
 
-    graph.resolveEntry('./index', [{filePath: '/path/to/index/src/main.js'}]);
-    graph.resolveTargets({filePath: '/path/to/index/src/main.js'}, TARGETS);
+    graph.resolveEntry(
+      './index',
+      [{filePath: '/path/to/index/src/main.js', packagePath: '/path/to/index'}],
+      '1',
+    );
+    graph.resolveTargets(
+      {filePath: '/path/to/index/src/main.js', packagePath: '/path/to/index'},
+      DEFAULT_TARGETS,
+      '2',
+    );
 
     let dep = createDependency({
       moduleSpecifier: '/path/to/index/src/main.js',
-      pipeline: 'test',
       env: DEFAULT_ENV,
-      target: TARGETS[0],
+      target: DEFAULT_TARGETS[0],
     });
     let filePath = '/index.js';
-    let req = {filePath, env: DEFAULT_ENV};
-    graph.resolveDependency(dep, nodeFromAssetGroup(req));
+    let req = {filePath, env: DEFAULT_ENV, query: {}};
+    graph.resolveDependency(dep, req, '123');
     let sourcePath = filePath;
     let dep1 = createDependency({
       moduleSpecifier: 'dependent-asset-1',
@@ -380,7 +421,7 @@ describe('AssetGraph', () => {
       }),
     ];
 
-    graph.resolveAssetGroup(req, assets);
+    graph.resolveAssetGroup(req, assets, '3');
     assert(graph.nodes.has('1'));
     assert(graph.nodes.has('2'));
     assert(graph.nodes.has('3'));
@@ -391,5 +432,116 @@ describe('AssetGraph', () => {
     assert(graph.hasEdge(nodeFromDep(dep1).id, '2'));
     assert(graph.hasEdge('2', nodeFromDep(dep2).id));
     assert(graph.hasEdge(nodeFromDep(dep2).id, '3'));
+  });
+
+  it('should support marking and unmarking all parents with hasDeferred', () => {
+    let graph = new AssetGraph();
+
+    // index
+    let indexAssetGroup = {filePath: '/index.js', env: DEFAULT_ENV, query: {}};
+    graph.initialize({assetGroups: [indexAssetGroup]});
+    let indexFooDep = createDependency({
+      moduleSpecifier: './foo',
+      env: DEFAULT_ENV,
+      sourcePath: '/index.js',
+    });
+    let indexBarDep = createDependency({
+      moduleSpecifier: './bar',
+      env: DEFAULT_ENV,
+      sourcePath: '/index.js',
+    });
+    let indexAsset = createAsset({
+      id: 'assetIndex',
+      filePath: '/index.js',
+      type: 'js',
+      isSource: true,
+      hash: '#4',
+      stats,
+      dependencies: new Map([
+        ['./foo', indexFooDep],
+        ['./bar', indexBarDep],
+      ]),
+      env: DEFAULT_ENV,
+    });
+    graph.resolveAssetGroup(indexAssetGroup, [indexAsset], '0');
+
+    // index imports foo
+    let fooAssetGroup = {filePath: '/foo.js', env: DEFAULT_ENV, query: {}};
+    graph.resolveDependency(indexFooDep, fooAssetGroup, '0');
+    let fooAssetGroupNode = nodeFromAssetGroup(fooAssetGroup);
+    let fooUtilsDep = createDependency({
+      moduleSpecifier: './utils',
+      env: DEFAULT_ENV,
+      sourcePath: '/foo.js',
+    });
+    let fooUtilsDepNode = nodeFromDep(fooUtilsDep);
+    let fooAsset = createAsset({
+      id: 'assetFoo',
+      filePath: '/foo.js',
+      type: 'js',
+      isSource: true,
+      hash: '#1',
+      stats,
+      dependencies: new Map([['./utils', fooUtilsDep]]),
+      env: DEFAULT_ENV,
+    });
+    let fooAssetNode = nodeFromAsset(fooAsset);
+    graph.resolveAssetGroup(fooAssetGroup, [fooAsset], '0');
+    let utilsAssetGroup = {filePath: '/utils.js', env: DEFAULT_ENV, query: {}};
+    let utilsAssetGroupNode = nodeFromAssetGroup(utilsAssetGroup);
+    graph.resolveDependency(fooUtilsDep, utilsAssetGroup, '0');
+
+    // foo's dependency is deferred
+    graph.markParentsWithHasDeferred(fooUtilsDepNode);
+    let node = nullthrows(graph.getNode(fooAssetNode.id));
+    invariant(node.type === 'asset');
+    assert(node.hasDeferred);
+    node = nullthrows(graph.getNode(fooAssetGroupNode.id));
+    invariant(node.type === 'asset_group');
+    assert(node.hasDeferred);
+
+    // index also imports bar
+    let barAssetGroup = {filePath: '/bar.js', env: DEFAULT_ENV, query: {}};
+    graph.resolveDependency(indexBarDep, barAssetGroup, '0');
+    let barAssetGroupNode = nodeFromAssetGroup(barAssetGroup);
+    let barUtilsDep = createDependency({
+      moduleSpecifier: './utils',
+      env: DEFAULT_ENV,
+      sourcePath: '/bar.js',
+    });
+    let barAsset = createAsset({
+      id: 'assetBar',
+      filePath: '/bar.js',
+      type: 'js',
+      isSource: true,
+      hash: '#2',
+      stats,
+      dependencies: new Map([['./utils', barUtilsDep]]),
+      env: DEFAULT_ENV,
+    });
+    let barAssetNode = nodeFromAsset(barAsset);
+    graph.resolveAssetGroup(barAssetGroup, [barAsset], '3');
+    graph.resolveDependency(barUtilsDep, utilsAssetGroup, '4');
+
+    // bar undeferres utils
+    graph.unmarkParentsWithHasDeferred(utilsAssetGroupNode);
+    node = nullthrows(graph.getNode(fooUtilsDep.id));
+    invariant(node.type === 'dependency');
+    assert(!node.hasDeferred);
+    node = nullthrows(graph.getNode(fooAssetNode.id));
+    invariant(node.type === 'asset');
+    assert(!node.hasDeferred);
+    node = nullthrows(graph.getNode(fooAssetGroupNode.id));
+    invariant(node.type === 'asset_group');
+    assert(!node.hasDeferred);
+    node = nullthrows(graph.getNode(barUtilsDep.id));
+    invariant(node.type === 'dependency');
+    assert(!node.hasDeferred);
+    node = nullthrows(graph.getNode(barAssetNode.id));
+    invariant(node.type === 'asset');
+    assert(!node.hasDeferred);
+    node = nullthrows(graph.getNode(barAssetGroupNode.id));
+    invariant(node.type === 'asset_group');
+    assert(!node.hasDeferred);
   });
 });

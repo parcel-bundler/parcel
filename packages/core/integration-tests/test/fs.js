@@ -1,10 +1,14 @@
+// @flow strict-local
+
 import assert from 'assert';
+import invariant from 'assert';
 import path from 'path';
 import {
   assertBundles,
   bundle,
   removeDistDirectory,
   run,
+  overlayFS,
   outputFS,
   distDir,
 } from '@parcel/test-utils';
@@ -15,6 +19,36 @@ describe('fs', function() {
   });
 
   describe('browser environment', function() {
+    it('should not inline a file if disabled via config', async function() {
+      let b = await bundle(
+        path.join(__dirname, '/integration/fs-disabled/index.js'),
+        {
+          inputFS: overlayFS,
+        },
+      );
+
+      // $FlowFixMe
+      await assert.rejects(() => run(b), {
+        message: `ENOENT: no such file or directory, open '...'`,
+        code: 'ENOENT',
+      });
+    });
+
+    it('should not inline a file outside of the project root', async function() {
+      let b = await bundle(
+        path.join(__dirname, '/integration/fs-outside-root/index.js'),
+        {
+          inputFS: overlayFS,
+        },
+      );
+
+      // $FlowFixMe
+      await assert.rejects(() => run(b), {
+        message: `ENOENT: no such file or directory, open '...'`,
+        code: 'ENOENT',
+      });
+    });
+
     it('should inline a file as a string', async function() {
       let b = await bundle(path.join(__dirname, '/integration/fs/index.js'));
       let output = await run(b);
@@ -26,6 +60,7 @@ describe('fs', function() {
         path.join(__dirname, '/integration/fs-buffer/index.js'),
       );
       let output = await run(b);
+      invariant(typeof output === 'object' && output != null);
       assert(output.constructor.name.includes('Buffer'));
       assert.equal(output.length, 5);
     });
@@ -83,6 +118,7 @@ describe('fs', function() {
         path.join(__dirname, '/integration/fs-import/index.js'),
       );
       let output = await run(b);
+      invariant(typeof output === 'object' && output != null);
       assert.equal(output.default, 'hello');
     });
 
@@ -91,6 +127,7 @@ describe('fs', function() {
         path.join(__dirname, '/integration/fs-import-path-join/index.js'),
       );
       let output = await run(b);
+      invariant(typeof output === 'object' && output != null);
       assert.equal(output.default, 'hello');
     });
 
@@ -106,7 +143,7 @@ describe('fs', function() {
           assets: ['_empty.js', 'helpers.js', 'ignore-fs.js', 'index.js'],
         },
       ]);
-
+      // $FlowFixMe[incompatible-call]
       let output = await run(b);
 
       assert.equal(typeof output.test, 'function');
@@ -198,7 +235,7 @@ describe('fs', function() {
   describe.skip('electron environment', function() {
     it('should not inline a file in an Electron environment', async function() {
       let b = await bundle(path.join(__dirname, '/integration/fs/index.js'), {
-        target: 'electron',
+        targets: ['electron'],
       });
 
       assertBundles(b, [

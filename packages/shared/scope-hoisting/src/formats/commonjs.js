@@ -2,9 +2,9 @@
 
 import type {
   Asset,
-  Bundle,
   BundleGraph,
   PluginOptions,
+  NamedBundle,
   Symbol,
 } from '@parcel/types';
 import type {
@@ -18,7 +18,7 @@ import type {
   VariableDeclarator,
 } from '@babel/types';
 import type {NodePath} from '@babel/traverse';
-import type {ExternalModule} from '../types';
+import type {ExternalBundle, ExternalModule} from '../types';
 
 import * as t from '@babel/types';
 import {
@@ -34,12 +34,12 @@ import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import {relative} from 'path';
 import {relativeBundlePath} from '@parcel/utils';
-import ThrowableDiagnostic from '@parcel/diagnostic';
 import rename from '../renamer';
 import {
   assertString,
   getIdentifier,
   getName,
+  getThrowableDiagnosticForNode,
   removeReplaceBinding,
 } from '../utils';
 
@@ -139,10 +139,12 @@ function generateDestructuringAssignment(
 }
 
 export function generateBundleImports(
-  from: Bundle,
-  bundle: Bundle,
-  assets: Set<Asset>,
+  from: NamedBundle,
+  {bundle, assets}: ExternalBundle,
   path: NodePath<Program>,
+  // Implement an interface consistent with other formats
+  // eslint-disable-next-line no-unused-vars
+  bundleGraph: BundleGraph<NamedBundle>,
 ) {
   let specifiers: Array<ObjectProperty> = [...assets].map(asset => {
     let id = getName(asset, 'init');
@@ -184,7 +186,7 @@ export function generateBundleImports(
 }
 
 export function generateExternalImport(
-  bundle: Bundle,
+  bundle: NamedBundle,
   external: ExternalModule,
   path: NodePath<Program>,
 ) {
@@ -369,13 +371,14 @@ export function generateExternalImport(
 }
 
 export function generateExports(
-  bundleGraph: BundleGraph,
-  bundle: Bundle,
+  bundleGraph: BundleGraph<NamedBundle>,
+  bundle: NamedBundle,
   referencedAssets: Set<Asset>,
   path: NodePath<Program>,
   replacements: Map<Symbol, Symbol>,
   options: PluginOptions,
-) {
+  maybeReplaceIdentifier: (NodePath<Identifier>) => void,
+): Set<Symbol> {
   let exported = new Set<Symbol>();
   let statements: Array<ExpressionStatement> = [];
 
@@ -422,65 +425,78 @@ export function generateExports(
         }
       }
     } else {
-      for (let {exportSymbol, symbol, asset} of bundleGraph.getExportedSymbols(
-        entry,
+      for (let {exportAs, exportSymbol, symbol, asset, loc} of nullthrows(
+        bundleGraph.getExportedSymbols(entry, bundle),
       )) {
-        if (!symbol) {
-          let relativePath = relative(options.inputFS.cwd(), asset.filePath);
-          throw new ThrowableDiagnostic({
-            diagnostic: {
-              message: `${relativePath} does not export '${exportSymbol}'`,
-              filePath: entry.filePath,
-              // TODO: add codeFrames (actual and reexporting asset) when AST from transformers is reused
-            },
-          });
-        }
-
-        let hasReplacement = replacements.get(symbol);
-        symbol = hasReplacement ?? symbol;
-
-        // If there is an existing binding with the exported name (e.g. an import),
-        // rename it so we can use the name for the export instead.
-        if (path.scope.hasBinding(exportSymbol) && exportSymbol !== symbol) {
-          rename(
-            path.scope,
-            exportSymbol,
-            path.scope.generateUid(exportSymbol),
+        if (symbol === false) {
+          // skipped
+        } else if (symbol === null) {
+          // TODO `meta.exportsIdentifier[exportSymbol]` should be exported
+          let relativePath = relative(options.projectRoot, asset.filePath);
+          throw getThrowableDiagnosticForNode(
+            `${relativePath} couldn't be statically analyzed when importing '${exportSymbol}'`,
+            entry.filePath,
+            loc,
           );
-        }
+        } else if (symbol != null && symbol !== false) {
+          let hasReplacement = replacements.get(symbol);
+          symbol = hasReplacement ?? symbol;
 
-        let binding = nullthrows(path.scope.getBinding(symbol));
-        if (!hasReplacement) {
-          let id = !t.isValidIdentifier(exportSymbol)
-            ? path.scope.generateUid(exportSymbol)
-            : exportSymbol;
-          // rename only once, avoid having to update `replacements` transitively
-          rename(path.scope, symbol, id);
-          replacements.set(symbol, id);
-          symbol = id;
-        }
+          // If there is an existing binding with the exported name (e.g. an import),
+          // rename it so we can use the name for the export instead.
+          if (path.scope.hasBinding(exportAs, true) && exportAs !== symbol) {
+            rename(path.scope, exportAs, path.scope.generateUid(exportAs));
+          }
 
-        let [stmt] = binding.path.getStatementParent().insertAfter(
-          EXPORT_TEMPLATE({
-            NAME: t.identifier(exportSymbol),
-            IDENTIFIER: t.identifier(symbol),
-          }),
-        );
-        binding.reference(stmt.get<NodePath<Identifier>>('expression.right'));
+          let binding = path.scope.getBinding(symbol);
+          if (binding) {
+            if (!hasReplacement) {
+              let id =
+                // We cannot use the name if it's already used as global (e.g. `Map`).
+                !t.isValidIdentifier(exportAs) || path.scope.hasGlobal(exportAs)
+                  ? path.scope.generateUid(exportAs)
+                  : exportAs;
+              // rename only once, avoid having to update `replacements` transitively
+              rename(path.scope, symbol, id);
+              replacements.set(symbol, id);
+              symbol = id;
+            }
 
-        // Exports other than the default export are live bindings. Insert an assignment
-        // after each constant violation so this remains true.
-        if (exportSymbol !== 'default') {
-          for (let path of binding.constantViolations) {
-            let [stmt] = path.insertAfter(
+            let [stmt] = binding.path.getStatementParent().insertAfter(
               EXPORT_TEMPLATE({
-                NAME: t.identifier(exportSymbol),
+                NAME: t.identifier(exportAs),
                 IDENTIFIER: t.identifier(symbol),
               }),
             );
             binding.reference(
               stmt.get<NodePath<Identifier>>('expression.right'),
             );
+
+            // Exports other than the default export are live bindings. Insert an assignment
+            // after each constant violation so this remains true.
+            if (exportAs !== 'default') {
+              for (let path of binding.constantViolations) {
+                let [stmt] = path.insertAfter(
+                  EXPORT_TEMPLATE({
+                    NAME: t.identifier(exportAs),
+                    IDENTIFIER: t.identifier(symbol),
+                  }),
+                );
+                binding.reference(
+                  stmt.get<NodePath<Identifier>>('expression.right'),
+                );
+              }
+            }
+          } else {
+            // `getExportedSymbols` can return `$id$import$foo` symbols so that cross-bundle imports
+            // are resolved correctly. There is no binding in that case.
+            let [decl] = path.pushContainer('body', [
+              EXPORT_TEMPLATE({
+                NAME: t.identifier(exportAs),
+                IDENTIFIER: t.identifier(symbol),
+              }),
+            ]);
+            maybeReplaceIdentifier(decl.get('expression.right'));
           }
         }
       }

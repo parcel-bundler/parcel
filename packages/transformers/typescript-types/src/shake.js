@@ -10,7 +10,7 @@ export function shake(
   moduleGraph: TSModuleGraph,
   context: any,
   sourceFile: any,
-) {
+): any {
   // We traverse things out of order which messes with typescript's internal state.
   // We don't rely on the lexical environment, so just overwrite with noops to avoid errors.
   context.suspendLexicalEnvironment = () => {};
@@ -81,6 +81,14 @@ export function shake(
       }
     }
 
+    // Remove export assignment if unused.
+    if (ts.isExportAssignment(node)) {
+      let name = currentModule.getName('default');
+      if (exportedNames.get(name) !== currentModule) {
+        return null;
+      }
+    }
+
     if (isDeclaration(ts, node)) {
       let name = getExportedName(ts, node) || node.name.text;
 
@@ -130,7 +138,9 @@ export function shake(
 
       // Remove original export modifiers
       node.modifiers = (node.modifiers || []).filter(
-        m => m.kind !== ts.SyntaxKind.ExportKeyword,
+        m =>
+          m.kind !== ts.SyntaxKind.ExportKeyword &&
+          m.kind !== ts.SyntaxKind.DeclareKeyword,
       );
 
       // Add export modifier if all declarations are exported.
@@ -139,6 +149,9 @@ export function shake(
       );
       if (isExported) {
         node.modifiers.unshift(ts.createModifier(ts.SyntaxKind.ExportKeyword));
+      } else {
+        // Otherwise, add `declare` modifier (required for top-level declarations in d.ts files).
+        node.modifiers.unshift(ts.createModifier(ts.SyntaxKind.DeclareKeyword));
       }
 
       return node;
@@ -153,7 +166,10 @@ export function shake(
 
     // Rename references
     if (ts.isIdentifier(node) && currentModule.names.has(node.text)) {
-      return ts.createIdentifier(nullthrows(currentModule.getName(node.text)));
+      let newName = nullthrows(currentModule.getName(node.text));
+      if (newName !== 'default') {
+        return ts.createIdentifier(newName);
+      }
     }
 
     // Replace namespace references with final names
@@ -233,7 +249,9 @@ function generateImports(ts: TypeScriptModule, moduleGraph: TSModuleGraph) {
     if (defaultSpecifier || namedSpecifiers.length > 0) {
       let importClause = ts.createImportClause(
         defaultSpecifier,
-        ts.createNamedImports(namedSpecifiers),
+        namedSpecifiers.length > 0
+          ? ts.createNamedImports(namedSpecifiers)
+          : undefined,
       );
       importStatements.push(
         ts.createImportDeclaration(

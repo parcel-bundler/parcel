@@ -66,7 +66,6 @@ describe('sass', function() {
       {
         name: 'index.css',
         assets: ['index.scss'],
-        includedFiles: {'index.cscc': ['bar.scss', 'foo.scss']},
       },
     ]);
 
@@ -101,7 +100,7 @@ describe('sass', function() {
     assert.equal(output(), 2);
 
     let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
-    assert.equal(css, '');
+    assert.equal(css.trim(), '/*# sourceMappingURL=index.css.map */');
   });
 
   it('should support linking to assets with url() from scss', async function() {
@@ -121,7 +120,6 @@ describe('sass', function() {
       {
         name: 'index.css',
         assets: ['index.scss'],
-        includedFiles: {'index.scss': ['package.json']},
       },
       {
         type: 'woff2',
@@ -179,9 +177,6 @@ describe('sass', function() {
       {
         name: 'index.css',
         assets: ['index.sass'],
-        includedFiles: {
-          'index.sass': ['package.json', 'foo.sass', 'bar.sass'],
-        },
       },
     ]);
 
@@ -201,7 +196,6 @@ describe('sass', function() {
       {
         name: 'style.css',
         assets: ['style.scss'],
-        includedFiles: {'style.cscc': ['b.scss']},
       },
     ]);
 
@@ -219,7 +213,6 @@ describe('sass', function() {
       {
         name: 'index.css',
         assets: ['index.scss'],
-        includedFiles: {'index.scss': ['.sassrc.js', 'package.json']},
       },
     ]);
 
@@ -266,7 +259,6 @@ To @import files from node_modules, use "library/style.sass"
       {
         name: 'index.css',
         assets: ['index.sass'],
-        includedFiles: {'index.sass': ['package.json', 'style.sass']},
       },
     ]);
 
@@ -283,9 +275,6 @@ To @import files from node_modules, use "library/style.sass"
       {
         name: 'index.css',
         assets: ['index.sass'],
-        includedFiles: {
-          'index.sass': ['.sassrc.js', 'package.json', 'style.sass'],
-        },
       },
     ]);
 

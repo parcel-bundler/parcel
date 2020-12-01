@@ -3,6 +3,7 @@
 import type {FilePath} from '@parcel/types';
 import type {Container, Node} from 'postcss';
 
+import SourceMap from '@parcel/source-map';
 import {Transformer} from '@parcel/plugin';
 import {createDependencyLocation, isURL} from '@parcel/utils';
 import postcss from 'postcss';
@@ -16,9 +17,9 @@ function canHaveDependencies(filePath: FilePath, code: string) {
   return !/\.css$/.test(filePath) || IMPORT_RE.test(code) || URL_RE.test(code);
 }
 
-export default new Transformer({
+export default (new Transformer({
   canReuseAST({ast}) {
-    return ast.type === 'postcss' && semver.satisfies(ast.version, '^7.0.0');
+    return ast.type === 'postcss' && semver.satisfies(ast.version, '^8.0.0');
   },
 
   async parse({asset}) {
@@ -39,7 +40,7 @@ export default new Transformer({
 
     return {
       type: 'postcss',
-      version: '7.0.0',
+      version: '8.0.0',
       program: postcss.parse(code, {
         from: asset.filePath,
       }),
@@ -55,6 +56,7 @@ export default new Transformer({
         browsers: asset.env.engines.browsers,
       },
       minify: asset.env.minify,
+      sourceMap: asset.env.sourceMap,
     });
 
     // When this asset is an bundle entry, allow that bundle to be split to load shared assets separately.
@@ -94,7 +96,7 @@ export default new Transformer({
         name.value = asset.addURLDependency(moduleSpecifier, {
           loc: createDependencyLocation(
             rule.source.start,
-            moduleSpecifier,
+            asset.filePath,
             0,
             8,
           ),
@@ -166,7 +168,7 @@ export default new Transformer({
     return [asset];
   },
 
-  generate({ast}) {
+  async generate({ast, options}) {
     let root = ast.program;
 
     // $FlowFixMe
@@ -192,13 +194,27 @@ export default new Transformer({
       root.each((node, index) => convert(root, node, index));
     }
 
-    let code = '';
-    postcss.stringify(root, c => {
-      code += c;
+    let result = await postcss().process(root, {
+      from: undefined,
+      to: options.projectRoot + '/index',
+      map: {
+        annotation: false,
+        inline: false,
+      },
+      // Pass postcss's own stringifier to it to silence its warning
+      // as we don't want to perform any transformations -- only generate
+      stringifier: postcss.stringify,
     });
 
+    let map;
+    if (result.map != null) {
+      map = new SourceMap(options.projectRoot);
+      map.addRawMappings(result.map.toJSON());
+    }
+
     return {
-      content: code,
+      content: result.css,
+      map,
     };
   },
-});
+}): Transformer);

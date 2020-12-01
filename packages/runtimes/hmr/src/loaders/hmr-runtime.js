@@ -1,4 +1,4 @@
-/* global __PARCEL_HMR_HOST, __PARCEL_HMR_PORT, __PARCEL_BUNDLE_ID, __PARCEL_HMR_ENV_HASH */
+/* global HMR_HOST, HMR_PORT, HMR_ENV_HASH */
 
 var OVERLAY_ID = '__parcel__error__overlay__';
 
@@ -24,11 +24,22 @@ function Module(moduleName) {
 module.bundle.Module = Module;
 var checkedAssets, assetsToAccept, acceptedAssets;
 
+function getHostname() {
+  return (
+    HMR_HOST ||
+    (location.protocol.indexOf('http') === 0 ? location.hostname : 'localhost')
+  );
+}
+
+function getPort() {
+  return HMR_PORT || location.port;
+}
+
 // eslint-disable-next-line no-redeclare
 var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
-  var hostname = __PARCEL_HMR_HOST || location.hostname;
-  var port = __PARCEL_HMR_PORT || location.port;
+  var hostname = getHostname();
+  var port = getPort();
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
   var ws = new WebSocket(
     protocol + '://' + hostname + (port ? ':' + port : '') + '/',
@@ -44,14 +55,13 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
       // Remove error overlay if there is one
       removeErrorOverlay();
 
-      let assets = data.assets.filter(
-        asset => asset.envHash === __PARCEL_HMR_ENV_HASH,
-      );
+      let assets = data.assets.filter(asset => asset.envHash === HMR_ENV_HASH);
 
       // Handle HMR Update
       var handled = false;
       assets.forEach(asset => {
-        var didAccept = hmrAcceptCheck(global.parcelRequire, asset.id);
+        var didAccept =
+          asset.type === 'css' || hmrAcceptCheck(module.bundle.root, asset.id);
         if (didAccept) {
           handled = true;
         }
@@ -61,7 +71,7 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
         console.clear();
 
         assets.forEach(function(asset) {
-          hmrApply(global.parcelRequire, asset);
+          hmrApply(module.bundle.root, asset);
         });
 
         for (var i = 0; i < assetsToAccept.length; i++) {
@@ -172,6 +182,50 @@ function getParents(bundle, id) {
   return parents;
 }
 
+function updateLink(link) {
+  var newLink = link.cloneNode();
+  newLink.onload = function() {
+    if (link.parentNode !== null) {
+      link.parentNode.removeChild(link);
+    }
+  };
+  newLink.setAttribute(
+    'href',
+    link.getAttribute('href').split('?')[0] + '?' + Date.now(),
+  );
+  link.parentNode.insertBefore(newLink, link.nextSibling);
+}
+
+var cssTimeout = null;
+function reloadCSS() {
+  if (cssTimeout) {
+    return;
+  }
+
+  cssTimeout = setTimeout(function() {
+    var links = document.querySelectorAll('link[rel="stylesheet"]');
+    for (var i = 0; i < links.length; i++) {
+      var href = links[i].getAttribute('href');
+      var hostname = getHostname();
+      var servedFromHMRServer =
+        hostname === 'localhost'
+          ? new RegExp(
+              '^(https?:\\/\\/(0.0.0.0|127.0.0.1)|localhost):' + getPort(),
+            ).test(href)
+          : href.indexOf(hostname + ':' + getPort());
+      var absolute =
+        /^https?:\/\//i.test(href) &&
+        href.indexOf(window.location.origin) !== 0 &&
+        !servedFromHMRServer;
+      if (!absolute) {
+        updateLink(links[i]);
+      }
+    }
+
+    cssTimeout = null;
+  }, 50);
+}
+
 function hmrApply(bundle, asset) {
   var modules = bundle.modules;
   if (!modules) {
@@ -179,8 +233,12 @@ function hmrApply(bundle, asset) {
   }
 
   if (modules[asset.id] || !bundle.parent) {
-    var fn = new Function('require', 'module', 'exports', asset.output);
-    modules[asset.id] = [fn, asset.depsByBundle[__PARCEL_BUNDLE_ID]];
+    if (asset.type === 'css') {
+      reloadCSS();
+    } else {
+      var fn = new Function('require', 'module', 'exports', asset.output);
+      modules[asset.id] = [fn, asset.depsByBundle[bundle.HMR_BUNDLE_ID]];
+    }
   } else if (bundle.parent) {
     hmrApply(bundle.parent, asset);
   }
@@ -211,7 +269,7 @@ function hmrAcceptCheck(bundle, id) {
     return true;
   }
 
-  return getParents(global.parcelRequire, id).some(function(v) {
+  return getParents(module.bundle.root, id).some(function(v) {
     return hmrAcceptCheck(v[0], v[1]);
   });
 }
@@ -236,7 +294,7 @@ function hmrAcceptRun(bundle, id) {
   if (cached && cached.hot && cached.hot._acceptCallbacks.length) {
     cached.hot._acceptCallbacks.forEach(function(cb) {
       var assetsToAlsoAccept = cb(function() {
-        return getParents(global.parcelRequire, id);
+        return getParents(module.bundle.root, id);
       });
       if (assetsToAlsoAccept && assetsToAccept.length) {
         assetsToAccept.push.apply(assetsToAccept, assetsToAlsoAccept);

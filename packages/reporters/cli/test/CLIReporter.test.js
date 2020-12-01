@@ -12,9 +12,10 @@ const EMPTY_OPTIONS = {
   cacheDir: '.parcel-cache',
   entries: [],
   logLevel: 'info',
-  rootDir: __dirname,
+  entryRoot: __dirname,
   targets: [],
   projectRoot: '',
+  distDir: 'dist',
   lockFile: undefined,
   autoinstall: false,
   hot: undefined,
@@ -29,6 +30,7 @@ const EMPTY_OPTIONS = {
   outputFS,
   instanceId: 'test',
   packageManager: new NodePackageManager(inputFS),
+  detailedReport: 10,
 };
 
 describe('CLIReporter', () => {
@@ -37,7 +39,7 @@ describe('CLIReporter', () => {
   let stdoutOutput;
   let stderrOutput;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     // Stub these out to avoid writing noise to real stdio and to read from these
     // otherwise only writable streams
     originalStdout = process.stdout;
@@ -51,19 +53,26 @@ describe('CLIReporter', () => {
     let mockStderr = new PassThrough();
     mockStderr.on('data', d => (stderrOutput += stripAnsi(d.toString())));
     _setStdio(mockStdout, mockStderr);
+
+    await _report(
+      {
+        type: 'buildStart',
+      },
+      EMPTY_OPTIONS,
+    );
   });
 
   afterEach(() => {
     _setStdio(originalStdout, originalStderr);
   });
 
-  it('writes log, info, success, and verbose log messages to stdout', () => {
+  it('writes log, info, success, and verbose log messages to stdout', async () => {
     let options = {
       ...EMPTY_OPTIONS,
       logLevel: 'verbose',
     };
 
-    _report(
+    await _report(
       {
         type: 'log',
         level: 'info',
@@ -76,8 +85,8 @@ describe('CLIReporter', () => {
       },
       options,
     );
-    _report({type: 'log', level: 'success', message: 'success'}, options);
-    _report(
+    await _report({type: 'log', level: 'success', message: 'success'}, options);
+    await _report(
       {
         type: 'log',
         level: 'verbose',
@@ -94,8 +103,8 @@ describe('CLIReporter', () => {
     assert.equal(stdoutOutput, 'test: info\nsuccess\ntest: verbose\n');
   });
 
-  it('writes errors and warnings to stderr', () => {
-    _report(
+  it('writes errors and warnings to stderr', async () => {
+    await _report(
       {
         type: 'log',
         level: 'error',
@@ -108,7 +117,7 @@ describe('CLIReporter', () => {
       },
       EMPTY_OPTIONS,
     );
-    _report(
+    await _report(
       {
         type: 'log',
         level: 'warn',
@@ -126,8 +135,8 @@ describe('CLIReporter', () => {
     assert.equal(stderrOutput, 'test: error\ntest: warn\n');
   });
 
-  it('prints errors nicely', () => {
-    _report(
+  it('prints errors nicely', async () => {
+    await _report(
       {
         type: 'log',
         level: 'error',
@@ -140,7 +149,7 @@ describe('CLIReporter', () => {
       },
       EMPTY_OPTIONS,
     );
-    _report(
+    await _report(
       {
         type: 'log',
         level: 'warn',
@@ -159,13 +168,13 @@ describe('CLIReporter', () => {
     assert(stderrOutput.includes('test: warn\n'));
   });
 
-  it('writes buildProgress messages to stdout on the default loglevel', () => {
-    _report({type: 'buildProgress', phase: 'bundling'}, EMPTY_OPTIONS);
+  it('writes buildProgress messages to stdout on the default loglevel', async () => {
+    await _report({type: 'buildProgress', phase: 'bundling'}, EMPTY_OPTIONS);
     assert.equal(stdoutOutput, 'Bundling...\n');
   });
 
-  it('writes buildSuccess messages to stdout on the default loglevel', () => {
-    _report({type: 'buildProgress', phase: 'bundling'}, EMPTY_OPTIONS);
+  it('writes buildSuccess messages to stdout on the default loglevel', async () => {
+    await _report({type: 'buildProgress', phase: 'bundling'}, EMPTY_OPTIONS);
     assert.equal(stdoutOutput, 'Bundling...\n');
   });
 });

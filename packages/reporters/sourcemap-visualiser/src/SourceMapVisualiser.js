@@ -2,9 +2,9 @@
 import path from 'path';
 import nullthrows from 'nullthrows';
 import {Reporter} from '@parcel/plugin';
-import {relatifyPath} from '@parcel/utils';
+import {relativePath} from '@parcel/utils';
 
-export default new Reporter({
+export default (new Reporter({
   async report({event, options, logger}) {
     if (event.type === 'buildSuccess') {
       let bundles = [];
@@ -39,9 +39,9 @@ export default new Reporter({
               }),
             );
 
-            let relativePath = relatifyPath(options.projectRoot, p);
+            let fileName = relativePath(options.projectRoot, p);
             bundles.push({
-              name: relativePath,
+              name: fileName,
               mappings: map.mappings,
               names: map.names,
               sources: mappedSources,
@@ -64,4 +64,4 @@ export default new Reporter({
       });
     }
   },
-});
+}): Reporter);

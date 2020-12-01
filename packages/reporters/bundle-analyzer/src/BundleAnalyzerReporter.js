@@ -1,28 +1,32 @@
 // @flow strict-local
 
-import type {Bundle, FilePath, PluginOptions, Stats} from '@parcel/types';
+import type {FilePath, NamedBundle, PluginOptions} from '@parcel/types';
 
 import invariant from 'assert';
 import {Reporter} from '@parcel/plugin';
-import {DefaultMap} from '@parcel/utils';
+import {DefaultMap, generateBuildMetrics} from '@parcel/utils';
 import path from 'path';
 import nullthrows from 'nullthrows';
 
-export default new Reporter({
+export default (new Reporter({
   async report({event, options}) {
     if (
       event.type !== 'buildSuccess' ||
-      process.env.PARCEL_BUNDLE_ANALYZER == null
+      process.env.PARCEL_BUNDLE_ANALYZER == null ||
+      // $FlowFixMe
+      process.env.PARCEL_BUNDLE_ANALYZER == false
     ) {
       return;
     }
 
     let bundlesByTarget: DefaultMap<
       string /* target name */,
-      Array<Bundle>,
+      Array<NamedBundle>,
     > = new DefaultMap(() => []);
     for (let bundle of event.bundleGraph.getBundles()) {
-      bundlesByTarget.get(bundle.target.name).push(bundle);
+      if (!bundle.isInline) {
+        bundlesByTarget.get(bundle.target.name).push(bundle);
+      }
     }
 
     let reportsDir = path.join(options.projectRoot, 'parcel-bundle-reports');
@@ -74,7 +78,7 @@ export default new Reporter({
                 )}
               </script>
               <script id="bundle-data" type="application/json">
-                ${JSON.stringify(getBundleData(bundles, options))}
+                ${JSON.stringify(await getBundleData(bundles, options))}
               </script>
             </head>
             <body>
@@ -91,37 +95,41 @@ export default new Reporter({
       }),
     );
   },
-});
+}): Reporter);
 
 type BundleData = {|
   groups: Array<Group>,
 |};
 
-function getBundleData(
-  bundles: Array<Bundle>,
+async function getBundleData(
+  bundles: Array<NamedBundle>,
   options: PluginOptions,
-): BundleData {
+): Promise<BundleData> {
+  let groups = await Promise.all(
+    bundles.map(bundle => getBundleNode(bundle, options)),
+  );
   return {
-    groups: bundles.map(bundle => getBundleNode(bundle, options)),
+    groups,
   };
 }
 
 type File = {|
   basename: string,
-  stats: Stats,
+  size: number,
 |};
 type DirMapValue = File | DirMap;
 type DirMap = DefaultMap<FilePath, DirMapValue>;
 let createMap: () => DirMap = () => new DefaultMap(() => createMap());
 
-function getBundleNode(bundle: Bundle, options: PluginOptions) {
-  let assets = [];
-  bundle.traverseAssets(asset => {
-    assets.push(asset);
-  });
-
+async function getBundleNode(bundle: NamedBundle, options: PluginOptions) {
+  let buildMetrics = await generateBuildMetrics(
+    [bundle],
+    options.outputFS,
+    options.projectRoot,
+  );
+  let bundleData = buildMetrics.bundles[0];
   let dirMap = createMap();
-  for (let asset of assets) {
+  for (let asset of bundleData.assets) {
     let relativePath = path.relative(options.projectRoot, asset.filePath);
     let parts = relativePath.split(path.sep);
     let dirs = parts.slice(0, parts.length - 1);
@@ -136,7 +144,7 @@ function getBundleNode(bundle: Bundle, options: PluginOptions) {
     invariant(map instanceof DefaultMap);
     map.set(basename, {
       basename: path.basename(asset.filePath),
-      stats: asset.stats,
+      size: asset.size,
     });
   }
 
@@ -179,7 +187,7 @@ function generateGroups(dirMap: DirMap): Array<Group> {
       // file
       groups.push({
         label: contents.basename,
-        weight: contents.stats.size,
+        weight: contents.size,
       });
     }
   }

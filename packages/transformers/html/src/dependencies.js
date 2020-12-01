@@ -15,6 +15,7 @@ const ATTRS = {
     'track',
     'iframe',
     'embed',
+    'amp-img',
   ],
   // Using href with <script> is described here: https://developer.mozilla.org/en-US/docs/Web/SVG/Element/script
   href: ['link', 'a', 'use', 'script'],
@@ -62,7 +63,7 @@ const META = {
   ],
 };
 
-// Options to be passed to `addURLDependency` for certain tags + attributes
+// Options to be passed to `addDependency` for certain tags + attributes
 const OPTIONS = {
   a: {
     href: {isEntry: true},
@@ -70,8 +71,22 @@ const OPTIONS = {
   iframe: {
     src: {isEntry: true},
   },
+  link(attrs) {
+    if (attrs.rel === 'stylesheet') {
+      return {
+        // Keep in the same bundle group as the HTML.
+        isAsync: false,
+        isEntry: false,
+        isIsolated: true,
+      };
+    }
+  },
   script(attrs, env: Environment) {
     return {
+      // Keep in the same bundle group as the HTML.
+      isAsync: false,
+      isEntry: false,
+      isIsolated: true,
       env: {
         outputFormat:
           attrs.type === 'module' && env.scopeHoist ? 'esmodule' : undefined,
@@ -115,8 +130,12 @@ export default function collectDependencies(asset: MutableAsset, ast: AST) {
       if (
         !Object.keys(attrs).some(attr => {
           let values = META[attr];
-
-          return values && values.includes(attrs[attr]) && attrs.content !== '';
+          return (
+            values &&
+            values.includes(attrs[attr]) &&
+            attrs.content !== '' &&
+            !(attrs.name === 'msapplication-config' && attrs.content === 'none')
+          );
         })
       ) {
         return node;
@@ -138,6 +157,11 @@ export default function collectDependencies(asset: MutableAsset, ast: AST) {
     for (let attr in attrs) {
       // Check for virtual paths
       if (tag === 'a' && attrs[attr].lastIndexOf('.') < 1) {
+        continue;
+      }
+
+      // Check for id references
+      if (attrs[attr][0] === '#') {
         continue;
       }
 

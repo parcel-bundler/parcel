@@ -1,5 +1,4 @@
 // @flow strict-local
-// flowlint unsafe-getters-setters:off
 
 import type SourceMap from '@parcel/source-map';
 import type {Readable} from 'stream';
@@ -14,22 +13,26 @@ import type {
   DependencyOptions,
   Environment as IEnvironment,
   EnvironmentOpts,
-  File,
   FilePath,
   Meta,
   MutableAsset as IMutableAsset,
   PackageJSON,
   Stats,
-  Symbol,
+  MutableAssetSymbols as IMutableAssetSymbols,
+  AssetSymbols as IAssetSymbols,
+  QueryParameters,
 } from '@parcel/types';
 import type {Asset as AssetValue, ParcelOptions} from '../types';
 
 import nullthrows from 'nullthrows';
 import Environment from './Environment';
 import Dependency from './Dependency';
+import {AssetSymbols, MutableAssetSymbols} from './Symbols';
 import UncommittedAsset from '../UncommittedAsset';
 import CommittedAsset from '../CommittedAsset';
 import {createEnvironment} from '../Environment';
+
+const inspect = Symbol.for('nodejs.util.inspect.custom');
 
 const assetValueToAsset: WeakMap<AssetValue, Asset> = new WeakMap();
 const assetValueToMutableAsset: WeakMap<
@@ -57,7 +60,10 @@ export function mutableAssetToUncommittedAsset(
   return nullthrows(_mutableAssetToUncommittedAsset.get(mutableAsset));
 }
 
-export function assetFromValue(value: AssetValue, options: ParcelOptions) {
+export function assetFromValue(
+  value: AssetValue,
+  options: ParcelOptions,
+): Asset {
   return new Asset(
     value.committed
       ? new CommittedAsset(value, options)
@@ -69,11 +75,16 @@ export function assetFromValue(value: AssetValue, options: ParcelOptions) {
 }
 
 class BaseAsset {
-  #asset; // CommittedAsset | UncommittedAsset
+  #asset: CommittedAsset | UncommittedAsset;
 
   constructor(asset: CommittedAsset | UncommittedAsset) {
     this.#asset = asset;
     _assetToAssetValue.set(this, asset.value);
+  }
+
+  // $FlowFixMe
+  [inspect](): string {
+    return `Asset(${this.filePath})`;
   }
 
   get id(): string {
@@ -94,6 +105,10 @@ class BaseAsset {
 
   get filePath(): FilePath {
     return this.#asset.value.filePath;
+  }
+
+  get query(): QueryParameters {
+    return this.#asset.value.query;
   }
 
   get meta(): Meta {
@@ -120,8 +135,8 @@ class BaseAsset {
     return this.#asset.value.sideEffects;
   }
 
-  get symbols(): Map<Symbol, Symbol> {
-    return this.#asset.value.symbols;
+  get symbols(): IAssetSymbols {
+    return new AssetSymbols(this.#asset.value);
   }
 
   get uniqueKey(): ?string {
@@ -132,6 +147,10 @@ class BaseAsset {
     return this.#asset.value.astGenerator;
   }
 
+  get pipeline(): ?string {
+    return this.#asset.value.pipeline;
+  }
+
   getConfig(
     filePaths: Array<FilePath>,
     options: ?{|
@@ -140,10 +159,6 @@ class BaseAsset {
     |},
   ): Promise<ConfigResult | null> {
     return this.#asset.getConfig(filePaths, options);
-  }
-
-  getIncludedFiles(): $ReadOnlyArray<File> {
-    return this.#asset.getIncludedFiles();
   }
 
   getDependencies(): $ReadOnlyArray<IDependency> {
@@ -180,9 +195,9 @@ class BaseAsset {
 }
 
 export class Asset extends BaseAsset implements IAsset {
-  #asset; // InternalAsset
+  #asset /*: CommittedAsset | UncommittedAsset */;
 
-  constructor(asset: CommittedAsset | UncommittedAsset) {
+  constructor(asset: CommittedAsset | UncommittedAsset): Asset {
     let existing = assetValueToAsset.get(asset.value);
     if (existing != null) {
       return existing;
@@ -191,6 +206,7 @@ export class Asset extends BaseAsset implements IAsset {
     super(asset);
     this.#asset = asset;
     assetValueToAsset.set(asset.value, this);
+    return this;
   }
 
   get stats(): Stats {
@@ -199,9 +215,9 @@ export class Asset extends BaseAsset implements IAsset {
 }
 
 export class MutableAsset extends BaseAsset implements IMutableAsset {
-  #asset; // InternalAsset
+  #asset /*: UncommittedAsset */;
 
-  constructor(asset: UncommittedAsset) {
+  constructor(asset: UncommittedAsset): MutableAsset {
     let existing = assetValueToMutableAsset.get(asset.value);
     if (existing != null) {
       return existing;
@@ -211,6 +227,7 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
     this.#asset = asset;
     assetValueToMutableAsset.set(asset.value, this);
     _mutableAssetToUncommittedAsset.set(this, asset);
+    return this;
   }
 
   setMap(map: ?SourceMap): void {
@@ -249,12 +266,20 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
     this.#asset.value.isSplittable = isSplittable;
   }
 
+  get symbols(): IMutableAssetSymbols {
+    return new MutableAssetSymbols(this.#asset.value);
+  }
+
   addDependency(dep: DependencyOptions): string {
     return this.#asset.addDependency(dep);
   }
 
-  addIncludedFile(file: File): void {
-    this.#asset.addIncludedFile(file);
+  addIncludedFile(filePath: FilePath): void {
+    this.#asset.addIncludedFile(filePath);
+  }
+
+  invalidateOnEnvChange(env: string): void {
+    this.#asset.invalidateOnEnvChange(env);
   }
 
   isASTDirty(): boolean {

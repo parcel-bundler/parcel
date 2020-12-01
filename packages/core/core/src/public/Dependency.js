@@ -4,12 +4,16 @@ import type {
   Environment as IEnvironment,
   SourceLocation,
   Meta,
-  Symbol,
+  MutableDependencySymbols as IMutableDependencySymbols,
 } from '@parcel/types';
 import type {Dependency as InternalDependency} from '../types';
+
 import Environment from './Environment';
 import Target from './Target';
+import {MutableDependencySymbols} from './Symbols';
 import nullthrows from 'nullthrows';
+
+const inspect = Symbol.for('nodejs.util.inspect.custom');
 
 const internalDependencyToDependency: WeakMap<
   InternalDependency,
@@ -26,9 +30,9 @@ export function dependencyToInternalDependency(
 }
 
 export default class Dependency implements IDependency {
-  #dep; // InternalDependency
+  #dep /*: InternalDependency */;
 
-  constructor(dep: InternalDependency) {
+  constructor(dep: InternalDependency): Dependency {
     let existing = internalDependencyToDependency.get(dep);
     if (existing != null) {
       return existing;
@@ -37,6 +41,12 @@ export default class Dependency implements IDependency {
     this.#dep = dep;
     _dependencyToInternalDependency.set(this, dep);
     internalDependencyToDependency.set(dep, this);
+    return this;
+  }
+
+  // $FlowFixMe
+  [inspect](): string {
+    return `Dependency(${String(this.sourcePath)} -> ${this.moduleSpecifier})`;
   }
 
   get id(): string {
@@ -51,8 +61,8 @@ export default class Dependency implements IDependency {
     return !!this.#dep.isAsync;
   }
 
-  get isEntry(): boolean {
-    return !!this.#dep.isEntry;
+  get isEntry(): ?boolean {
+    return this.#dep.isEntry;
   }
 
   get isOptional(): boolean {
@@ -63,12 +73,8 @@ export default class Dependency implements IDependency {
     return !!this.#dep.isURL;
   }
 
-  get isWeak(): boolean {
-    return !!this.#dep.isWeak;
-  }
-
-  get isDeferred(): boolean {
-    return this.#dep.isDeferred;
+  get isIsolated(): boolean {
+    return !!this.#dep.isIsolated;
   }
 
   get loc(): ?SourceLocation {
@@ -81,6 +87,10 @@ export default class Dependency implements IDependency {
 
   get meta(): Meta {
     return this.#dep.meta;
+  }
+
+  get symbols(): IMutableDependencySymbols {
+    return new MutableDependencySymbols(this.#dep);
   }
 
   get target(): ?Target {
@@ -96,10 +106,6 @@ export default class Dependency implements IDependency {
   get sourcePath(): ?string {
     // TODO: does this need to be public?
     return this.#dep.sourcePath;
-  }
-
-  get symbols(): Map<Symbol, Symbol> {
-    return this.#dep.symbols;
   }
 
   get pipeline(): ?string {

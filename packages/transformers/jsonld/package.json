@@ -1,0 +1,29 @@
+{
+  "name": "@parcel/transformer-jsonld",
+  "version": "2.0.0-beta.1",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "funding": {
+    "type": "opencollective",
+    "url": "https://opencollective.com/parcel"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  },
+  "main": "lib/JSONLDTransformer.js",
+  "source": "src/JSONLDTransformer.js",
+  "engines": {
+    "parcel": "^2.0.0-alpha.1.1"
+  },
+  "scripts": {
+    "test": "yarn workspace @parcel/integration-tests test -g jsonld"
+  },
+  "dependencies": {
+    "@parcel/plugin": "2.0.0-beta.1",
+    "@parcel/types": "2.0.0-beta.1",
+    "json5": "^2.1.2"
+  }
+}

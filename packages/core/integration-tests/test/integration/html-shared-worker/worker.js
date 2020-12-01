@@ -1,2 +1,3 @@
 import _ from 'lodash';
-console.log('worker', _);
+
+output("worker", _.add(1, 2));

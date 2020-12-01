@@ -1,9 +1,13 @@
 {
   "name": "@parcel/optimizer-terser",
-  "version": "2.0.0-alpha.3.1",
+  "version": "2.0.0-beta.1",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
+  },
+  "funding": {
+    "type": "opencollective",
+    "url": "https://opencollective.com/parcel"
   },
   "repository": {
     "type": "git",
@@ -16,12 +20,12 @@
     "parcel": "^2.0.0-alpha.1.1"
   },
   "dependencies": {
-    "@parcel/diagnostic": "^2.0.0-alpha.3.1",
-    "@parcel/plugin": "^2.0.0-alpha.3.1",
-    "@parcel/source-map": "^2.0.0-alpha.4.9",
-    "@parcel/utils": "^2.0.0-alpha.3.1",
+    "@parcel/diagnostic": "2.0.0-beta.1",
+    "@parcel/plugin": "2.0.0-beta.1",
+    "@parcel/source-map": "2.0.0-alpha.4.16",
+    "@parcel/utils": "2.0.0-beta.1",
     "nullthrows": "^1.1.1",
-    "terser": "^4.3.0"
+    "terser": "^5.2.0"
   },
   "peerDependencies": {
     "@parcel/core": "^2.0.0-alpha.3.1"

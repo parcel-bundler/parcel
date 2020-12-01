@@ -1,17 +1,14 @@
 import assert from 'assert';
 import path from 'path';
-import {bundle, run, distDir, outputFS} from '@parcel/test-utils';
-import {readFileSync} from 'fs';
+import {
+  assertBundles,
+  bundle,
+  run,
+  distDir,
+  outputFS,
+} from '@parcel/test-utils';
 
-const configPath = path.join(
-  __dirname,
-  '/integration/typescript-config/.parcelrc',
-);
-
-const config = {
-  ...JSON.parse(readFileSync(configPath)),
-  filePath: configPath,
-};
+const config = path.join(__dirname, '/integration/typescript-config/.parcelrc');
 
 describe('typescript tsc', function() {
   it('should support loading tsconfig.json', async () => {
@@ -38,5 +35,25 @@ describe('typescript tsc', function() {
 
     let js = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
     assert(!js.includes('/* test comment */'));
+  });
+
+  it('should produce a type declaration file when overriding the ts pipeline', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/typescript-types-parcelrc/index.ts'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.ts'],
+      },
+      {
+        name: 'index.d.ts',
+        assets: ['index.ts'],
+      },
+    ]);
+
+    let output = await run(b);
+    assert.equal(new output.Foo().run(), 'bar');
   });
 });

@@ -1,20 +1,16 @@
-// @flow
-
-import type {WorkerApi} from './';
-
+// @flow strict-local
 import {registerSerializableClass} from '@parcel/core';
-
-import {child} from './childState';
+// $FlowFixMe
 import packageJson from '../package.json';
 
 let HANDLE_ID = 0;
-
+// $FlowFixMe
 export type HandleFunction = (...args: Array<any>) => any;
 
 type HandleOpts = {|
-  fn: HandleFunction,
+  fn?: HandleFunction,
   childId?: ?number,
-  workerApi: WorkerApi,
+  id?: number,
 |};
 
 const handleById: Map<number, Handle> = new Map();
@@ -22,14 +18,12 @@ const handleById: Map<number, Handle> = new Map();
 export default class Handle {
   id: number;
   childId: ?number;
-  fn: HandleFunction;
-  workerApi: WorkerApi;
+  fn: ?HandleFunction;
 
   constructor(opts: HandleOpts) {
-    this.id = ++HANDLE_ID;
+    this.id = opts.id ?? ++HANDLE_ID;
     this.fn = opts.fn;
     this.childId = opts.childId;
-    this.workerApi = opts.workerApi;
     handleById.set(this.id, this);
   }
 
@@ -37,38 +31,15 @@ export default class Handle {
     handleById.delete(this.id);
   }
 
-  serialize() {
+  serialize(): {|childId: ?number, id: number|} {
     return {
       id: this.id,
       childId: this.childId,
     };
   }
 
-  static deserialize(opts: {|id: number, childId?: number|}) {
-    return function(...args: Array<mixed>) {
-      let workerApi;
-      if (child) {
-        workerApi = child.workerApi;
-      } else {
-        let handle = handleById.get(opts.id);
-        if (!handle) {
-          throw new Error(
-            'Corresponding Handle was not found. It may have been disposed.',
-          );
-        }
-        workerApi = handle.workerApi;
-      }
-
-      if (opts.childId != null && child) {
-        throw new Error('Cannot call another child from a child');
-      }
-
-      if (opts.childId != null && workerApi.callChild) {
-        return workerApi.callChild(opts.childId, {handle: opts.id, args});
-      }
-
-      return workerApi.callMaster({handle: opts.id, args}, true);
-    };
+  static deserialize(opts: HandleOpts): Handle {
+    return new Handle(opts);
   }
 }
 

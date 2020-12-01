@@ -2,7 +2,7 @@
 import path from 'path';
 
 import {Reporter} from '@parcel/plugin';
-import {generateBundleReport} from '@parcel/utils';
+import {generateBuildMetrics} from '@parcel/utils';
 
 type TimingValue = {|
   timings: {[key: string]: number, ...},
@@ -22,7 +22,7 @@ const getValue = (instanceId: string): TimingValue => {
   return timingsMap.get(instanceId);
 };
 
-export default new Reporter({
+export default (new Reporter({
   async report({event, options}) {
     if (event.type === 'buildProgress') {
       let value = getValue(options.instanceId);
@@ -43,12 +43,24 @@ export default new Reporter({
         'parcel-metrics.json',
       );
 
+      let {bundles} = await generateBuildMetrics(
+        event.bundleGraph.getBundles(),
+        options.outputFS,
+        options.projectRoot,
+      );
+
       let metrics = {
         phaseTimings: value.timings,
         buildTime: event.buildTime,
-        bundles: event.bundleGraph
-          ? generateBundleReport(event.bundleGraph).bundles
-          : undefined,
+        bundles: bundles.map(b => {
+          return {
+            filePath: b.filePath,
+            size: b.size,
+            time: b.time,
+            largestAssets: b.assets.slice(0, 10),
+            totalAssets: b.assets.length,
+          };
+        }),
       };
 
       await options.outputFS.writeFile(
@@ -57,4 +69,4 @@ export default new Reporter({
       );
     }
   },
-});
+}): Reporter);

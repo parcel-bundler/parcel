@@ -24,11 +24,11 @@ export class TSModuleGraph {
     }
   }
 
-  getModule(name: string) {
+  getModule(name: string): ?TSModule {
     return this.modules.get(name);
   }
 
-  markUsed(module: TSModule, name: string, context: any) {
+  markUsed(module: TSModule, name: string, context: any): void {
     let {ts} = this;
 
     // If name is imported, mark used in the original module
@@ -73,7 +73,10 @@ export class TSModuleGraph {
     }
   }
 
-  getExport(m: TSModule, e: Export) {
+  getExport(
+    m: TSModule,
+    e: Export,
+  ): ?{|imported: string, module: TSModule, name: string|} {
     invariant(e.name != null);
     let exportName = e.name;
 
@@ -89,7 +92,11 @@ export class TSModuleGraph {
         return null;
       }
 
-      return {module: exp.module, imported: exp.name, name: exportName};
+      return {
+        module: exp.module,
+        imported: exp.imported || exp.name,
+        name: exportName,
+      };
     }
 
     // Import and then export
@@ -110,7 +117,11 @@ export class TSModuleGraph {
     };
   }
 
-  resolveImport(module: TSModule, local: string, imported?: string) {
+  resolveImport(
+    module: TSModule,
+    local: string,
+    imported?: string,
+  ): ?{|imported: string, module: TSModule, name: string|} {
     let i = module.imports.get(local);
     if (!i) {
       return null;
@@ -125,7 +136,10 @@ export class TSModuleGraph {
     return this.resolveExport(m, imported || i.imported);
   }
 
-  resolveExport(module: TSModule, name: string) {
+  resolveExport(
+    module: TSModule,
+    name: string,
+  ): ?{|imported: string, module: TSModule, name: string|} {
     for (let e of module.exports) {
       if (e.name === name) {
         return this.getExport(module, e);
@@ -141,7 +155,7 @@ export class TSModuleGraph {
   getAllExports(
     module: TSModule = nullthrows(this.mainModule),
     excludeDefault: boolean = false,
-  ) {
+  ): Array<{|imported: string, module: TSModule, name: string|}> {
     let res = [];
     for (let e of module.exports) {
       if (e.name && (!excludeDefault || e.name !== 'default')) {
@@ -159,7 +173,7 @@ export class TSModuleGraph {
     return res;
   }
 
-  getAllImports() {
+  getAllImports(): Map<string, Map<string, string>> {
     // Build a map of all imports for external modules
     let importsBySpecifier: Map<string, Map<string, string>> = new Map();
     for (let module of this.modules.values()) {
@@ -180,7 +194,7 @@ export class TSModuleGraph {
     return importsBySpecifier;
   }
 
-  propagate(context: any) {
+  propagate(context: any): Map<string, TSModule> {
     // Resolve all exported values, and mark them as used.
     let names = Object.create(null);
     let exportedNames = new Map<string, TSModule>();

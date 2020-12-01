@@ -9,8 +9,8 @@ import type {
   WorkerResponse,
   ChildImpl,
 } from './types';
-import type {IDisposable} from '@parcel/types';
-import type {WorkerApi} from './WorkerFarm';
+import type {Async, IDisposable} from '@parcel/types';
+import type {SharedReference, WorkerApi} from './WorkerFarm';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
@@ -18,7 +18,10 @@ import Logger, {patchConsole, unpatchConsole} from '@parcel/logger';
 import ThrowableDiagnostic, {anyToDiagnostic} from '@parcel/diagnostic';
 import bus from './bus';
 import Profiler from './Profiler';
-import Handle from './Handle';
+import _Handle from './Handle';
+
+// The import of './Handle' should really be imported eagerly (with @babel/plugin-transform-modules-commonjs's lazy mode).
+const Handle = _Handle;
 
 type ChildCall = WorkerRequest & {|
   resolve: (result: Promise<any> | any) => void,
@@ -30,15 +33,15 @@ export class Child {
   childId: ?number;
   maxConcurrentCalls: number = 10;
   module: ?any;
-  responseId = 0;
+  responseId: number = 0;
   responseQueue: Map<number, ChildCall> = new Map();
   loggerDisposable: IDisposable;
   child: ChildImpl;
   profiler: ?Profiler;
   workerApi: WorkerApi;
   handles: Map<number, Handle> = new Map();
-  sharedReferences: Map<number, mixed> = new Map();
-  sharedReferencesByValue: Map<mixed, number> = new Map();
+  sharedReferences: Map<SharedReference, mixed> = new Map();
+  sharedReferencesByValue: Map<mixed, SharedReference> = new Map();
 
   constructor(ChildBackend: Class<ChildImpl>) {
     this.child = new ChildBackend(
@@ -53,19 +56,31 @@ export class Child {
     });
   }
 
-  workerApi = {
+  workerApi: {|
+    callMaster: (
+      request: CallRequest,
+      awaitResponse?: ?boolean,
+    ) => Promise<mixed>,
+    createReverseHandle: (fn: (...args: Array<any>) => mixed) => Handle,
+    getSharedReference: (ref: SharedReference) => mixed,
+    resolveSharedReference: (value: mixed) => void | SharedReference,
+    runHandle: (handle: Handle, args: Array<any>) => Promise<mixed>,
+  |} = {
     callMaster: (
       request: CallRequest,
       awaitResponse: ?boolean = true,
     ): Promise<mixed> => this.addCall(request, awaitResponse),
     createReverseHandle: (fn: (...args: Array<any>) => mixed): Handle =>
       this.createReverseHandle(fn),
-    getSharedReference: (ref: number) => this.sharedReferences.get(ref),
+    runHandle: (handle: Handle, args: Array<any>): Promise<mixed> =>
+      this.workerApi.callMaster({handle: handle.id, args}, true),
+    getSharedReference: (ref: SharedReference) =>
+      this.sharedReferences.get(ref),
     resolveSharedReference: (value: mixed) =>
       this.sharedReferencesByValue.get(value),
   };
 
-  messageListener(message: WorkerMessage): void | Promise<void> {
+  messageListener(message: WorkerMessage): Async<void> {
     if (message.type === 'response') {
       return this.handleResponse(message);
     } else if (message.type === 'request') {
@@ -106,7 +121,7 @@ export class Child {
     let result;
     if (handleId != null) {
       try {
-        let fn = nullthrows(this.handles.get(handleId)).fn;
+        let fn = nullthrows(this.handles.get(handleId)?.fn);
         result = responseFromContent(fn(...args));
       } catch (e) {
         result = errorResponseFromError(e);
@@ -138,13 +153,32 @@ export class Child {
       } catch (e) {
         result = errorResponseFromError(e);
       }
+    } else if (method === 'takeHeapSnapshot') {
+      try {
+        let v8 = require('v8');
+        result = responseFromContent(
+          // $FlowFixMe
+          v8.writeHeapSnapshot(
+            'heap-' +
+              args[0] +
+              '-' +
+              (this.childId ? 'worker' + this.childId : 'main') +
+              '.heapsnapshot',
+          ),
+        );
+      } catch (e) {
+        result = errorResponseFromError(e);
+      }
     } else if (method === 'createSharedReference') {
       let [ref, value] = args;
       this.sharedReferences.set(ref, value);
       this.sharedReferencesByValue.set(value, ref);
       result = responseFromContent(null);
     } else if (method === 'deleteSharedReference') {
-      this.sharedReferences.delete(args[0]);
+      let ref = args[0];
+      let value = this.sharedReferences.get(ref);
+      this.sharedReferencesByValue.delete(value);
+      this.sharedReferences.delete(ref);
       result = responseFromContent(null);
     } else {
       try {
@@ -242,10 +276,9 @@ export class Child {
     this.loggerDisposable.dispose();
   }
 
-  createReverseHandle(fn: (...args: Array<any>) => mixed) {
+  createReverseHandle(fn: (...args: Array<any>) => mixed): Handle {
     let handle = new Handle({
       fn,
-      workerApi: this.workerApi,
       childId: this.childId,
     });
     this.handles.set(handle.id, handle);

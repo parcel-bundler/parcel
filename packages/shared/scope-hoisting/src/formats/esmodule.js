@@ -4,6 +4,7 @@ import type {
   Asset,
   Bundle,
   BundleGraph,
+  NamedBundle,
   PluginOptions,
   Symbol,
 } from '@parcel/types';
@@ -12,14 +13,17 @@ import type {
   ClassDeclaration,
   FunctionDeclaration,
   Identifier,
+  ExportSpecifier,
   ImportDeclaration,
   Program,
+  VariableDeclarator,
 } from '@babel/types';
-import type {ExternalModule} from '../types';
+import type {ExternalBundle, ExternalModule} from '../types';
 
 import * as t from '@babel/types';
 import {
   isClassDeclaration,
+  isExportNamedDeclaration,
   isFunctionDeclaration,
   isImportDeclaration,
   isVariableDeclaration,
@@ -28,15 +32,21 @@ import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import {relative} from 'path';
 import {relativeBundlePath} from '@parcel/utils';
-import ThrowableDiagnostic from '@parcel/diagnostic';
 import rename from '../renamer';
-import {getName, removeReplaceBinding, verifyScopeState} from '../utils';
+import {
+  getName,
+  removeReplaceBinding,
+  getThrowableDiagnosticForNode,
+  verifyScopeState,
+} from '../utils';
 
 export function generateBundleImports(
-  from: Bundle,
-  bundle: Bundle,
-  assets: Set<Asset>,
+  from: NamedBundle,
+  {bundle, assets}: ExternalBundle,
   path: NodePath<Program>,
+  // Implement an interface consistent with other formats
+  // eslint-disable-next-line no-unused-vars
+  bundleGraph: BundleGraph<NamedBundle>,
 ) {
   let specifiers = [...assets].map(asset => {
     let id = getName(asset, 'init');
@@ -117,52 +127,73 @@ export function generateExternalImport(
 }
 
 export function generateExports(
-  bundleGraph: BundleGraph,
+  bundleGraph: BundleGraph<NamedBundle>,
   bundle: Bundle,
   referencedAssets: Set<Asset>,
   programPath: NodePath<Program>,
   replacements: Map<Symbol, Symbol>,
   options: PluginOptions,
-) {
+  maybeReplaceIdentifier: (NodePath<Identifier>) => void,
+): Set<Symbol> {
   // maps the bundles's export symbols to the bindings
   let exportedIdentifiers = new Map<Symbol, Symbol>();
+  // let exportedIdentifiersBailout = new Map<Symbol, [Asset, Symbol]>();
   let entry = bundle.getMainEntry();
   if (entry) {
-    for (let {exportSymbol, symbol, asset} of bundleGraph.getExportedSymbols(
-      entry,
+    // Get all used symbols for this bundle (= entry + subgraph)
+    let usedSymbols = new Set<Symbol>();
+    for (let d of bundleGraph.getIncomingDependencies(entry)) {
+      let used = bundleGraph.getUsedSymbols(d);
+      if (d.symbols.isCleared || used.has('*')) {
+        usedSymbols = null;
+        break;
+      }
+      used.forEach(s => nullthrows(usedSymbols).add(s));
+    }
+
+    for (let {exportAs, exportSymbol, symbol, asset, loc} of nullthrows(
+      bundleGraph.getExportedSymbols(entry, bundle),
     )) {
-      if (symbol == null) {
-        let relativePath = relative(options.inputFS.cwd(), asset.filePath);
-        throw new ThrowableDiagnostic({
-          diagnostic: {
-            message: `${relativePath} does not export '${exportSymbol}'`,
-            filePath: entry.filePath,
-            // TODO: add codeFrame when AST from transformers is reused
-          },
-        });
+      if (usedSymbols && !usedSymbols.has(exportAs)) {
+        // an unused symbol
+        continue;
       }
 
-      symbol = replacements.get(symbol) || symbol;
-
-      // Map CommonJS module.exports assignments to default ESM exports for interop
-      if (exportSymbol === '*') {
-        exportSymbol = 'default';
-      }
-
-      // If there is an existing binding with the exported name (e.g. an import),
-      // rename it so we can use the name for the export instead.
-      if (
-        programPath.scope.hasBinding(exportSymbol) &&
-        exportSymbol !== symbol
-      ) {
-        rename(
-          programPath.scope,
-          exportSymbol,
-          programPath.scope.generateUid(exportSymbol),
+      if (symbol === false) {
+        // skipped
+      } else if (symbol === null) {
+        // TODO `asset.meta.exportsIdentifier[exportSymbol]` should be exported
+        let relativePath = relative(options.projectRoot, asset.filePath);
+        throw getThrowableDiagnosticForNode(
+          `${relativePath} couldn't be statically analyzed when importing '${exportSymbol}'`,
+          entry.filePath,
+          loc,
         );
-      }
+        // exportedIdentifiersBailout.set(exportAs, [asset, exportSymbol]);
+      } else {
+        invariant(symbol != null);
+        symbol = replacements.get(symbol) || symbol;
 
-      exportedIdentifiers.set(exportSymbol, symbol);
+        // Map CommonJS module.exports assignments to default ESM exports for interop
+        if (exportAs === '*') {
+          exportAs = 'default';
+        }
+
+        // If there is an existing binding with the exported name (e.g. an import),
+        // rename it so we can use the name for the export instead.
+        if (
+          programPath.scope.hasBinding(exportAs, true) &&
+          exportAs !== symbol
+        ) {
+          rename(
+            programPath.scope,
+            exportAs,
+            programPath.scope.generateUid(exportAs),
+          );
+        }
+
+        exportedIdentifiers.set(exportAs, symbol);
+      }
     }
   }
 
@@ -206,11 +237,14 @@ export function generateExports(
       let defaultExport = exportedIdentifiers.get('default');
       if (!ids.includes(defaultExport)) {
         defaultExport = null;
+      } else {
+        exportedIdentifiers.delete('default');
       }
 
       // If all exports in the binding are named exports, export the entire declaration.
       // Also rename all of the identifiers to their exported name.
       if (
+        exportedSymbols.every(s => !path.scope.hasGlobal(s)) &&
         areArraysStrictlyEqual(ids, exportedSymbolsBindings) &&
         !path.isImportDeclaration()
       ) {
@@ -298,21 +332,104 @@ export function generateExports(
           for (let sym of exportedSymbols) {
             let id = nullthrows(exportedIdentifiers.get(sym));
             id = replacements.get(id) || id;
-            rename(path.scope, id, sym);
-            replacements.set(id, sym);
 
-            exported.add(sym);
+            let symLocal = path.scope.hasGlobal(sym)
+              ? path.scope.generateUid(sym)
+              : sym;
+            rename(path.scope, id, symLocal);
+            replacements.set(id, symLocal);
+
+            exported.add(symLocal);
             let [spec] = decl.unshiftContainer('specifiers', [
-              t.exportSpecifier(t.identifier(sym), t.identifier(sym)),
+              t.exportSpecifier(t.identifier(symLocal), t.identifier(sym)),
             ]);
             path.scope
-              .getBinding(sym)
+              .getBinding(symLocal)
               ?.reference(spec.get<NodePath<Identifier>>('local'));
           }
         }
       }
+      exportedSymbols.forEach(s => exportedIdentifiers.delete(s));
     },
   });
+
+  if (exportedIdentifiers.size > 0) {
+    let declarations = [];
+    let exportedIdentifiersSpecifiers = [];
+    // `export { $id$init().foo as foo};` is not valid, so instead do:
+    // ```
+    // let syntheticExport$foo = $id$init().foo;
+    // export { syntheticExport$foo as foo};
+    // ```
+    for (let [exportAs, symbol] of exportedIdentifiers) {
+      declarations.push(
+        t.variableDeclarator(
+          t.identifier('syntheticExport$' + exportAs),
+          t.identifier(symbol),
+        ),
+      );
+      exportedIdentifiersSpecifiers.push(
+        t.exportSpecifier(
+          t.identifier('syntheticExport$' + exportAs),
+          t.identifier(exportAs),
+        ),
+      );
+    }
+    let [decl, exports] = programPath.pushContainer('body', [
+      t.variableDeclaration('var', declarations),
+      t.exportNamedDeclaration(null, exportedIdentifiersSpecifiers),
+    ]);
+    invariant(isVariableDeclaration(decl.node));
+    programPath.scope.registerDeclaration(decl);
+    for (let d of decl.get<Array<NodePath<VariableDeclarator>>>(
+      'declarations',
+    )) {
+      maybeReplaceIdentifier(d.get<NodePath<Identifier>>('init'));
+    }
+    invariant(isExportNamedDeclaration(exports.node));
+    programPath.scope.registerDeclaration(exports);
+    for (let e of exports.get<Array<NodePath<ExportSpecifier>>>('specifiers')) {
+      nullthrows(programPath.scope.getBinding(e.node.local.name)).reference(
+        e.get<NodePath<Identifier>>('local'),
+      );
+    }
+  }
+
+  // This would be needed if we want to export symbols from different bundles,
+  // but it's currently not possible to actually trigger this.
+  //
+  // if (exportedIdentifiersBailout.size > 0) {
+  //   let declarations = [];
+  //   let exportedIdentifiersBailoutSpecifiers = [];
+  //   for (let [exportAs, [asset, exportSymbol]] of exportedIdentifiersBailout) {
+  //     invariant(
+  //       !programPath.scope.hasBinding(
+  //         getExportIdentifier(asset, exportSymbol).name,
+  //       ),
+  //     );
+  //     invariant(programPath.scope.hasBinding(getName(asset, 'init')));
+  //     declarations.push(
+  //       t.variableDeclarator(
+  //         getExportIdentifier(asset, exportSymbol),
+  //         t.memberExpression(
+  //           t.callExpression(t.identifier(getName(asset, 'init')), []), // it isn't in this bundle, TODO import if not already there
+  //           t.identifier(exportSymbol),
+  //         ),
+  //       ),
+  //     );
+  //     exportedIdentifiersBailoutSpecifiers.push(
+  //       t.exportSpecifier(
+  //         getExportIdentifier(asset, exportSymbol),
+  //         t.identifier(exportAs),
+  //       ),
+  //     );
+  //   }
+  //   programPath.pushContainer('body', [
+  //     t.variableDeclaration('var', declarations),
+  //     t.exportNamedDeclaration(null, exportedIdentifiersBailoutSpecifiers),
+  //   ]);
+  //   programPath.scope.crawl();
+  // }
 
   return exported;
 }

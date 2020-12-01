@@ -1,13 +1,12 @@
 // @flow
 
 import {Reporter} from '@parcel/plugin';
-import path from 'path';
 import HMRServer from './HMRServer';
 import Server from './Server';
 
 let servers: Map<number, Server> = new Map();
 let hmrServers: Map<number, HMRServer> = new Map();
-export default new Reporter({
+export default (new Reporter({
   async report({event, options, logger}) {
     let {serve, hot: hmr} = options;
     let server = serve ? servers.get(serve.port) : undefined;
@@ -28,7 +27,6 @@ export default new Reporter({
             ...serve,
             projectRoot: options.projectRoot,
             cacheDir: options.cacheDir,
-            distDir: path.join(options.cacheDir, 'dist'),
             // Override the target's publicUrl as that is likely meant for production.
             // This could be configurable in the future.
             publicUrl: serve.publicUrl ?? '/',
@@ -41,7 +39,7 @@ export default new Reporter({
           servers.set(serve.port, server);
           const devServer = await server.start();
 
-          if (hmr && (hmr.port === serve.port || hmr === true)) {
+          if (hmr && hmr.port === serve.port) {
             let hmrServerOptions = {
               port: serve.port,
               devServer,
@@ -105,12 +103,12 @@ export default new Reporter({
         // On buildFailure watchStart sometimes has not been called yet
         // do not throw an additional warning here
         if (server) {
-          server.buildError(event.diagnostics);
+          await server.buildError(options, event.diagnostics);
         }
         if (hmrServer) {
-          hmrServer.emitError(event.diagnostics);
+          await hmrServer.emitError(options, event.diagnostics);
         }
         break;
     }
   },
-});
+}): Reporter);

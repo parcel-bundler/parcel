@@ -1,7 +1,7 @@
 import assert from 'assert';
 import path from 'path';
 import nullthrows from 'nullthrows';
-import {bundle as _bundle, outputFS, run} from '@parcel/test-utils';
+import {bundle as _bundle, outputFS, run, runBundle} from '@parcel/test-utils';
 
 const bundle = (name, opts = {}) =>
   _bundle(name, Object.assign({scopeHoist: true}, opts));
@@ -42,7 +42,36 @@ describe('output formats', function() {
       assert.equal((await run(b)).bar, 5);
     });
 
-    it('should support commonjs output from esmodule input', async function() {
+    it('should support commonjs output from esmodule input (re-export rename)', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/formats/esm-commonjs/re-export-rename.js',
+        ),
+      );
+
+      let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+      assert(!dist.includes('function')); // no iife
+      assert(dist.includes('exports.default'));
+      assert.equal((await run(b)).default, 2);
+    });
+
+    it.skip('should support commonjs output from esmodule input (re-export namespace as)', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/formats/esm-commonjs/re-export-namespace-as.js',
+        ),
+      );
+
+      let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+      assert(dist.includes('exports.ns'));
+      let output = await run(b);
+      assert.equal(output.ns.default, 4);
+      assert.equal(output.ns.bar, 5);
+    });
+
+    it('should support commonjs output from esmodule input (same binding multiple exports)', async function() {
       let b = await bundle(
         path.join(
           __dirname,
@@ -56,6 +85,19 @@ describe('output formats', function() {
         other: 1,
         foo: 2,
       });
+    });
+
+    it('should support commonjs output from esmodule input (skipped exports)', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/formats/esm-commonjs-isLibrary-false/skipped.js',
+        ),
+      );
+
+      let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+      assert(!dist.includes('foo')); // no iife
+      assert.deepEqual(await run(b), {});
     });
 
     it('should support commonjs output with external modules (require)', async function() {
@@ -367,19 +409,42 @@ describe('output formats', function() {
     });
 
     it('should throw an error on missing export with esmodule input and sideEffects: false', async function() {
+      let message = "other.js does not export 'a'";
+      let source = 'missing-export.js';
       await assert.rejects(
         () =>
           bundle(
             path.join(
               __dirname,
-              '/integration/formats/commonjs-sideeffects/missing-export.js',
+              '/integration/formats/commonjs-sideeffects',
+              source,
             ),
           ),
         {
           name: 'BuildError',
-          message: path.normalize(
-            "test/integration/formats/commonjs-sideeffects/other.js does not export 'a'",
-          ),
+          message,
+          diagnostics: [
+            {
+              message,
+              origin: '@parcel/core',
+              filePath: source,
+              language: 'js',
+              codeFrame: {
+                codeHighlights: [
+                  {
+                    start: {
+                      line: 1,
+                      column: 10,
+                    },
+                    end: {
+                      line: 1,
+                      column: 15,
+                    },
+                  },
+                ],
+              },
+            },
+          ],
         },
       );
     });
@@ -417,8 +482,8 @@ describe('output formats', function() {
 
       let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
       assert(!dist.includes('function')); // no iife
-      assert(dist.includes('export const foo'));
-      assert(dist.includes('export const bar = foo + 3'));
+      assert(dist.includes('export const foo = 2'));
+      assert(/export const bar = .+ \+ 3/.test(dist));
     });
 
     it('should support esmodule output (default identifier)', async function() {
@@ -467,6 +532,28 @@ describe('output formats', function() {
 
       let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
       assert(dist.includes('export { a, c }'));
+      assert(!dist.includes('export default'));
+    });
+
+    it.skip('should support esmodule output (re-export namespace as)', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/formats/esm/re-export-namespace-as.js',
+        ),
+      );
+
+      let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+      assert(dist.includes('export var ns'));
+    });
+
+    it('should support esmodule output (renaming re-export)', async function() {
+      let b = await bundle(
+        path.join(__dirname, '/integration/formats/esm/re-export-rename.js'),
+      );
+
+      let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+      assert(dist.includes('export var foo'));
       assert(!dist.includes('export default'));
     });
 
@@ -556,6 +643,21 @@ describe('output formats', function() {
       assert(dist.includes('import "./index.css"'));
     });
 
+    it('should support esmodule output (skipped exports)', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/formats/esm-isLibrary-false/skipped.js',
+        ),
+      );
+
+      let dist = await outputFS.readFile(
+        b.getBundles().find(b => b.type === 'js').filePath,
+        'utf8',
+      );
+      assert(!dist.includes('foo'));
+    });
+
     it('should rename imports that conflict with exports', async function() {
       let b = await bundle(
         path.join(__dirname, '/integration/formats/esm-conflict/a.js'),
@@ -584,20 +686,71 @@ describe('output formats', function() {
       assert(async.includes('export const foo'));
     });
 
+    // This is currently not possible, it would have to do something like this:
+    // export { $id$init().foo as foo };
+    it.skip('should support dynamic imports with chained reexports', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/formats/esm-async-chained-reexport/index.js',
+        ),
+      );
+
+      let async = await outputFS.readFile(
+        b.getBundles().find(b => b.name.startsWith('c')).filePath,
+        'utf8',
+      );
+      assert(!/\$export\$default\s+=/.test(async));
+    });
+
+    it('should support dynamic imports with chained reexports II', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/formats/esm-async-chained-reexport2/index.js',
+        ),
+      );
+
+      let async = await outputFS.readFile(
+        b.getChildBundles(b.getBundles().find(b => b.isEntry))[0].filePath,
+        'utf8',
+      );
+      assert(!async.includes('$import$'));
+    });
+
     it('should throw an error on missing export with esmodule output and sideEffects: false', async function() {
+      let message = "b.js does not export 'a'";
+      let source = 'missing-export.js';
       await assert.rejects(
         () =>
           bundle(
-            path.join(
-              __dirname,
-              '/integration/formats/esm-sideeffects/missing-export.js',
-            ),
+            path.join(__dirname, 'integration/formats/esm-sideeffects', source),
           ),
         {
           name: 'BuildError',
-          message: path.normalize(
-            "test/integration/formats/esm-sideeffects/b.js does not export 'a'",
-          ),
+          message,
+          diagnostics: [
+            {
+              message,
+              origin: '@parcel/core',
+              filePath: source,
+              language: 'js',
+              codeFrame: {
+                codeHighlights: [
+                  {
+                    start: {
+                      line: 1,
+                      column: 10,
+                    },
+                    end: {
+                      line: 1,
+                      column: 15,
+                    },
+                  },
+                ],
+              },
+            },
+          ],
         },
       );
     });
@@ -679,13 +832,7 @@ describe('output formats', function() {
       );
 
       let workerBundle = nullthrows(
-        b.getChildBundles(
-          nullthrows(
-            b.getChildBundles(
-              nullthrows(b.getBundles().find(b => b.type === 'html')),
-            )[0],
-          ),
-        )[0],
+        b.getBundles().find(b => b.env.context === 'web-worker'),
       );
       let workerBundleContents = await outputFS.readFile(
         workerBundle.filePath,
@@ -720,10 +867,11 @@ describe('output formats', function() {
         'utf8',
       );
 
-      assert(html.includes('<script type="module" src="/esm-browser'));
+      assert(html.includes('<script type="module" src="/index'));
 
       let entry = await outputFS.readFile(
-        b.getBundles().find(b => b.name.startsWith('esm-browser')).filePath,
+        b.getBundles().find(b => b.name === html.match(/src="\/(.*?)"/)[1])
+          .filePath,
         'utf8',
       );
 
@@ -742,7 +890,14 @@ describe('output formats', function() {
     it('should support use an import polyfill for older browsers', async function() {
       let b = await bundle(
         path.join(__dirname, '/integration/formats/esm-browser/index.html'),
-        {defaultEngines: null},
+        {
+          defaultEngines: {
+            browsers: [
+              // Implements es modules but not dynamic imports
+              'Chrome 61',
+            ],
+          },
+        },
       );
 
       let html = await outputFS.readFile(
@@ -750,10 +905,11 @@ describe('output formats', function() {
         'utf8',
       );
 
-      assert(html.includes('<script type="module" src="/esm-browser'));
+      assert(html.includes('<script type="module" src="/index'));
 
       let entry = await outputFS.readFile(
-        b.getBundles().find(b => b.name.startsWith('esm-browser')).filePath,
+        b.getBundles().find(b => b.name === html.match(/src="\/(.*?)"/)[1])
+          .filePath,
         'utf8',
       );
       assert(entry.includes('function importModule'));
@@ -780,13 +936,11 @@ describe('output formats', function() {
         'utf8',
       );
 
-      assert(html.includes('<script type="module" src="/esm-browser-css'));
-      assert(html.includes('<link rel="stylesheet" href="/esm-browser-css'));
+      assert(html.includes('<script type="module" src="/index'));
+      assert(html.includes('<link rel="stylesheet" href="/index'));
 
       let entry = await outputFS.readFile(
-        b
-          .getBundles()
-          .find(b => b.type === 'js' && b.name.startsWith('esm-browser-css'))
+        b.getBundles().find(b => b.name === html.match(/src="\/(.*?)"/)[1])
           .filePath,
         'utf8',
       );
@@ -830,14 +984,11 @@ describe('output formats', function() {
         'utf8',
       );
 
-      assert(
-        html.includes('<script type="module" src="/esm-browser-split-bundle'),
-      );
+      assert(html.includes('<script type="module" src="/index'));
 
       let bundles = b.getBundles();
       let entry = await outputFS.readFile(
-        bundles.find(b => b.name.startsWith('esm-browser-split-bundle'))
-          .filePath,
+        bundles.find(b => b.name === html.match(/src="\/(.*?)"/)[1]).filePath,
         'utf8',
       );
 
@@ -934,6 +1085,73 @@ describe('output formats', function() {
         lines[lines.length - 2].startsWith('export default'),
       );
     });
+
+    it("doesn't support require.resolve calls for excluded assets without commonjs", async function() {
+      let message =
+        "`require.resolve` calls for excluded assets are only supported with outputFormat: 'commonjs'";
+      let source = path.join(
+        __dirname,
+        '/integration/formats/commonjs-esm/require-resolve.js',
+      );
+      await assert.rejects(() => bundle(source), {
+        name: 'BuildError',
+        message,
+        diagnostics: [
+          {
+            message,
+            origin: '@parcel/packager-js',
+            filePath: source,
+            language: 'js',
+            codeFrame: {
+              codeHighlights: [
+                {
+                  start: {
+                    line: 1,
+                    column: 16,
+                  },
+                  end: {
+                    line: 1,
+                    column: 40,
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      });
+    });
+  });
+
+  it("doesn't overwrite used global variables", async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/formats/conflict-global/index.js'),
+    );
+
+    let cjs = b
+      .getBundles()
+      .find(b => b.type === 'js' && b.env.outputFormat === 'commonjs');
+
+    let calls = [];
+    assert.deepEqual(
+      await runBundle(b, cjs, {
+        foo(v) {
+          calls.push(v);
+        },
+      }),
+      {Map: 2},
+    );
+    assert.deepEqual(calls, [[['a', 10]]]);
+
+    let esmContents = await outputFS.readFile(
+      b
+        .getBundles()
+        .find(b => b.type === 'js' && b.env.outputFormat === 'esmodule')
+        .filePath,
+      'utf8',
+    );
+    assert(esmContents.includes('const _Map'));
+    assert(esmContents.includes('_Map as Map'));
+    assert(esmContents.includes('new Map'));
   });
 
   describe('global', function() {
@@ -943,6 +1161,44 @@ describe('output formats', function() {
           __dirname,
           '/integration/formats/global-split-worker/index.html',
         ),
+      );
+    });
+
+    it('should throw with external modules', async function() {
+      let message =
+        'External modules are not supported when building for browser';
+      let source = 'index.js';
+      await assert.rejects(
+        () =>
+          bundle(
+            path.join(__dirname, 'integration/formats/global-external', source),
+          ),
+        {
+          name: 'BuildError',
+          message,
+          diagnostics: [
+            {
+              message,
+              origin: '@parcel/packager-js',
+              filePath: source,
+              language: 'js',
+              codeFrame: {
+                codeHighlights: [
+                  {
+                    start: {
+                      line: 1,
+                      column: 1,
+                    },
+                    end: {
+                      line: 1,
+                      column: 29,
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        },
       );
     });
   });

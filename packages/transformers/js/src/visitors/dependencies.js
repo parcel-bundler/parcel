@@ -3,26 +3,26 @@
 import type {
   AST,
   DependencyOptions,
+  JSONObject,
+  Meta,
   MutableAsset,
   PluginOptions,
 } from '@parcel/types';
-import type {Expression, Node} from '@babel/types';
+import type {Node, ObjectExpression} from '@babel/types';
 import type {Visitors} from '@parcel/babylon-walk';
 
 import * as types from '@babel/types';
 import {
   isArrowFunctionExpression,
   isCallExpression,
-  isIfStatement,
   isMemberExpression,
   isReturnStatement,
   isIdentifier,
   isNewExpression,
   isFunction,
 } from '@babel/types';
-import traverse from '@babel/traverse';
 import {isURL, md5FromString, createDependencyLocation} from '@parcel/utils';
-import {hasBinding, morph} from './utils';
+import {isInFalsyBranch, hasBinding, morph} from './utils';
 
 const serviceWorkerPattern = ['navigator', 'serviceWorker', 'register'];
 
@@ -85,7 +85,7 @@ export default ({
 
       let isDynamicImport =
         callee.type === 'Import' &&
-        args.length === 1 &&
+        args.length > 0 &&
         types.isStringLiteral(args[0]);
 
       if (isDynamicImport) {
@@ -94,7 +94,25 @@ export default ({
           return;
         }
 
-        addDependency(asset, args[0], {isAsync: true});
+        let meta;
+        let importAttributesNode = args[1];
+        if (importAttributesNode != null) {
+          if (importAttributesNode.type !== 'ObjectExpression') {
+            throw new Error(
+              'Second argument to import() must be an object expression',
+            );
+          }
+          meta = {
+            importAttributes: objectExpressionNodeToJSONObject(
+              importAttributesNode,
+            ),
+          };
+
+          // Remove the attributes argument from the import() call
+          args.splice(1, 1);
+        }
+
+        addDependency(asset, args[0], {isAsync: true, meta});
 
         node.callee = types.identifier('require');
         asset.setAST(ast);
@@ -182,37 +200,6 @@ export default ({
     Array<Node>,
   ) => void,
 >);
-
-function isInFalsyBranch(ancestors) {
-  // Check if any ancestors are if statements
-  return ancestors.some((node, index) => {
-    if (isIfStatement(node)) {
-      let res = evaluateExpression(node.test);
-      if (res && res.confident) {
-        // If the test is truthy, exclude the dep if it is in the alternate branch.
-        // If the test if falsy, exclude the dep if it is in the consequent branch.
-        let child = ancestors[index + 1];
-        return res.value ? child === node.alternate : child === node.consequent;
-      }
-    }
-  });
-}
-
-function evaluateExpression(node: Expression) {
-  // Wrap the node in a standalone program so we can traverse it
-  let file = types.file(types.program([types.expressionStatement(node)]));
-
-  // Find the first expression and evaluate it.
-  let res = null;
-  traverse(file, {
-    Expression(path) {
-      res = path.evaluate();
-      path.stop();
-    },
-  });
-
-  return res;
-}
 
 // TypeScript, Rollup, and Parcel itself generate these patterns for async imports in CommonJS
 //   1. TypeScript - Promise.resolve().then(function () { return require(...) })
@@ -325,14 +312,20 @@ function getFunctionParent(ancestors) {
 function addDependency(
   asset,
   node,
-  opts: ?{|isAsync?: boolean, isOptional?: boolean|},
+  opts: ?{|isAsync?: boolean, isOptional?: boolean, meta?: ?Meta|},
 ) {
-  asset.addDependency({
+  let dependencyOptions: DependencyOptions = {
     moduleSpecifier: node.value,
     loc: node.loc && createDependencyLocation(node.loc.start, node.value, 0, 1),
     isAsync: opts ? opts.isAsync : false,
     isOptional: opts ? opts.isOptional : false,
-  });
+  };
+
+  if (opts?.meta != null) {
+    dependencyOptions = {...dependencyOptions, meta: opts.meta};
+  }
+
+  asset.addDependency(dependencyOptions);
 }
 
 function addURLDependency(
@@ -354,4 +347,27 @@ function addURLDependency(
     ]),
   );
   asset.setAST(ast);
+}
+
+// TODO: Implement support for non-boolean values.
+function objectExpressionNodeToJSONObject(
+  objectExpressionNode: ObjectExpression,
+): JSONObject {
+  let object = {};
+  for (let property of objectExpressionNode.properties) {
+    if (property.type !== 'ObjectProperty') {
+      continue;
+    }
+    let {key, value} = property;
+
+    if (key.type !== 'Identifier') {
+      continue;
+    }
+
+    if (value.type === 'BooleanLiteral') {
+      object[key.name] = value.value;
+    }
+  }
+
+  return object;
 }

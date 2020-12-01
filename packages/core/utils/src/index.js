@@ -1,42 +1,78 @@
 // @flow strict-local
-export type * from './generateBundleReport';
+export type * from './config';
+export type * from './generateBuildMetrics';
 export type * from './prettyDiagnostic';
+export type * from './schema';
+export type * from './http-server';
+export type * from './resolve';
 
 export {default as countLines} from './countLines';
-export {default as generateBundleReport} from './generateBundleReport';
+export {default as generateBuildMetrics} from './generateBuildMetrics';
 export {default as generateCertificate} from './generateCertificate';
 export {default as getCertificate} from './getCertificate';
 export {default as getRootDir} from './getRootDir';
+export {default as isDirectoryInside} from './isDirectoryInside';
 export {default as isURL} from './is-url';
 export {default as objectHash} from './objectHash';
 export {default as prettifyTime} from './prettifyTime';
 export {default as prettyDiagnostic} from './prettyDiagnostic';
 export {default as PromiseQueue} from './PromiseQueue';
-// $FlowFixMe this is untyped
+// flowlint-next-line untyped-import:off
 export {default as promisify} from './promisify';
 export {default as validateSchema} from './schema';
 export {default as TapStream} from './TapStream';
 export {default as urlJoin} from './urlJoin';
-export {default as loadSourceMapUrl} from './loadSourceMapUrl';
 export {default as relativeUrl} from './relativeUrl';
 export {default as createDependencyLocation} from './dependency-location';
 export {default as debounce} from './debounce';
 export {default as throttle} from './throttle';
+export {default as openInBrowser} from './openInBrowser';
 
-export * from './blob';
-export * from './collection';
-export * from './config';
-export * from './DefaultMap';
-export * from './Deferred';
-export * from './glob';
-export * from './md5';
-export * from './schema';
-export * from './http-server';
-export * from './path';
-export * from './replaceBundleReferences';
-export * from './stream';
-export * from './resolve';
-export * from './relativeBundlePath';
-export * from './ansi-html';
-export * from './escape-html';
-export * from './escape-markdown';
+// Explicit re-exports instead of export * for lazy require performance
+export {findAlternativeNodeModules, findAlternativeFiles} from './alternatives';
+export {blobToBuffer, blobToString} from './blob';
+export {
+  unique,
+  flat,
+  flatMap,
+  objectSortedEntries,
+  objectSortedEntriesDeep,
+  setDifference,
+} from './collection';
+export {resolveConfig, resolveConfigSync, loadConfig} from './config';
+export {DefaultMap, DefaultWeakMap} from './DefaultMap';
+export {makeDeferredWithPromise} from './Deferred';
+export {isGlob, isGlobMatch, globSync, glob} from './glob';
+export {
+  md5FromString,
+  md5FromReadableStream,
+  md5FromObject,
+  md5FromFilePath,
+} from './md5';
+export {fuzzySearch} from './schema';
+export {createHTTPServer} from './http-server';
+export {normalizeSeparators, normalizePath, relativePath} from './path';
+export {
+  replaceURLReferences,
+  replaceInlineReferences,
+} from './replaceBundleReferences';
+export {
+  measureStreamLength,
+  readableFromStringOrBuffer,
+  bufferStream,
+  blobToStream,
+  streamFromPromise,
+  fallbackStream,
+} from './stream';
+export {resolve, resolveSync} from './resolve';
+export {relativeBundlePath} from './relativeBundlePath';
+export {ansiHtml} from './ansi-html';
+export {escapeHTML} from './escape-html';
+export {escapeMarkdown} from './escape-markdown';
+export {
+  SOURCEMAP_RE,
+  SOURCEMAP_EXTENSIONS,
+  matchSourceMappingURL,
+  loadSourceMapUrl,
+  loadSourceMap,
+} from './sourcemap';

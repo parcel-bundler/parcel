@@ -1,9 +1,9 @@
 // @flow strict-local
 import type {BuildProgressEvent, LogEvent} from '@parcel/types';
-import type {BundleReport} from '@parcel/utils';
+import type {BuildMetrics} from '@parcel/utils';
 
 import {Reporter} from '@parcel/plugin';
-import {generateBundleReport} from '@parcel/utils';
+import {generateBuildMetrics} from '@parcel/utils';
 
 /* eslint-disable no-console */
 const writeToStdout = makeWriter(console.log);
@@ -20,8 +20,8 @@ const LOG_LEVELS = {
   verbose: 4,
 };
 
-export default new Reporter({
-  report({event, options}) {
+export default (new Reporter({
+  async report({event, options}) {
     let logLevelFilter = options.logLevel || 'info';
 
     switch (event.type) {
@@ -48,13 +48,17 @@ export default new Reporter({
         break;
       case 'buildSuccess':
         if (LOG_LEVELS[logLevelFilter] >= LOG_LEVELS.success) {
+          let {bundles} = await generateBuildMetrics(
+            event.bundleGraph.getBundles(),
+            options.outputFS,
+            options.projectRoot,
+          );
+
           writeToStdout(
             {
               type: 'buildSuccess',
               buildTime: event.buildTime,
-              bundles: event.bundleGraph
-                ? generateBundleReport(event.bundleGraph).bundles
-                : undefined,
+              bundles: bundles,
             },
             logLevelFilter,
           );
@@ -64,7 +68,7 @@ export default new Reporter({
         writeLogEvent(event, logLevelFilter);
     }
   },
-});
+}): Reporter);
 
 function makeWriter(
   write: string => mixed,
@@ -154,7 +158,7 @@ type JSONReportEvent =
   | {|
       +type: 'buildSuccess',
       buildTime: number,
-      bundles?: $PropertyType<BundleReport, 'bundles'>,
+      bundles?: $PropertyType<BuildMetrics, 'bundles'>,
     |}
   | JSONProgressEvent;
 

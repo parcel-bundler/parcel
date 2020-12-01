@@ -4,7 +4,7 @@ import type {DiagnosticCodeFrame} from '@parcel/diagnostic';
 
 let cliEngine = null;
 
-export default new Validator({
+export default (new Validator({
   async validate({asset, options}) {
     let eslint = await options.packageManager.require(
       'eslint',
@@ -29,15 +29,20 @@ export default new Validator({
         let codeframe: DiagnosticCodeFrame = {
           code: result.source,
           codeHighlights: result.messages.map(message => {
+            let start = {
+              line: message.line,
+              column: message.column,
+            };
             return {
-              start: {
-                line: message.line,
-                column: message.column,
-              },
-              end: {
-                line: message.endLine,
-                column: message.endColumn,
-              },
+              start,
+              // Parse errors have no ending
+              end:
+                message.endLine != null
+                  ? {
+                      line: message.endLine,
+                      column: message.endColumn,
+                    }
+                  : start,
               message: message.message,
             };
           }),
@@ -60,4 +65,4 @@ export default new Validator({
 
     return validatorResult;
   },
-});
+}): Validator);

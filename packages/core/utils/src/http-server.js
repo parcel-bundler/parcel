@@ -34,19 +34,17 @@ export async function createHTTPServer(
   if (!options.https) {
     server = http.createServer(options.listener);
   } else if (options.https === true) {
-    server = https.createServer(
-      await generateCertificate(
-        options.outputFS,
-        options.cacheDir,
-        options.host,
-      ),
-      options.listener,
+    let {cert, key} = await generateCertificate(
+      options.outputFS,
+      options.cacheDir,
+      options.host,
     );
+
+    server = https.createServer({cert, key}, options.listener);
   } else {
-    server = https.createServer(
-      await getCertificate(options.inputFS, options.https),
-      options.listener,
-    );
+    let {cert, key} = await getCertificate(options.inputFS, options.https);
+
+    server = https.createServer({cert, key}, options.listener);
   }
 
   // HTTPServer#close only stops accepting new connections, and does not close existing ones.

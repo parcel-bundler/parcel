@@ -21,6 +21,7 @@ import {
   serialize,
 } from '@parcel/core';
 import ThrowableDiagnostic, {anyToDiagnostic} from '@parcel/diagnostic';
+import {escapeMarkdown} from '@parcel/utils';
 import Worker, {type WorkerCall} from './Worker';
 import cpuCount from './cpuCount';
 import Handle from './Handle';
@@ -31,8 +32,9 @@ import Trace from './Trace';
 import fs from 'fs';
 import logger from '@parcel/logger';
 
-let profileId = 1;
 let referenceId = 1;
+
+export opaque type SharedReference = number;
 
 export type FarmOptions = {|
   maxConcurrentWorkers: number,
@@ -52,8 +54,8 @@ type WorkerModule = {|
 export type WorkerApi = {|
   callMaster(CallRequest, ?boolean): Promise<mixed>,
   createReverseHandle(fn: HandleFunction): Handle,
-  getSharedReference(ref: number): mixed,
-  resolveSharedReference(value: mixed): ?number,
+  getSharedReference(ref: SharedReference): mixed,
+  resolveSharedReference(value: mixed): ?SharedReference,
   callChild?: (childId: number, request: HandleCallRequest) => Promise<mixed>,
 |};
 
@@ -72,8 +74,8 @@ export default class WorkerFarm extends EventEmitter {
   warmWorkers: number = 0;
   workers: Map<number, Worker> = new Map();
   handles: Map<number, Handle> = new Map();
-  sharedReferences: Map<number, mixed> = new Map();
-  sharedReferencesByValue: Map<mixed, number> = new Map();
+  sharedReferences: Map<SharedReference, mixed> = new Map();
+  sharedReferencesByValue: Map<mixed, SharedReference> = new Map();
   profiler: ?Profiler;
 
   constructor(farmOptions: $Shape<FarmOptions> = {}) {
@@ -99,7 +101,17 @@ export default class WorkerFarm extends EventEmitter {
     this.startMaxWorkers();
   }
 
-  workerApi = {
+  workerApi: {|
+    callChild: (childId: number, request: HandleCallRequest) => Promise<mixed>,
+    callMaster: (
+      request: CallRequest,
+      awaitResponse?: ?boolean,
+    ) => Promise<mixed>,
+    createReverseHandle: (fn: HandleFunction) => Handle,
+    getSharedReference: (ref: SharedReference) => mixed,
+    resolveSharedReference: (value: mixed) => void | SharedReference,
+    runHandle: (handle: Handle, args: Array<any>) => Promise<mixed>,
+  |} = {
     callMaster: async (
       request: CallRequest,
       awaitResponse: ?boolean = true,
@@ -122,7 +134,13 @@ export default class WorkerFarm extends EventEmitter {
           retries: 0,
         });
       }),
-    getSharedReference: (ref: number) => this.sharedReferences.get(ref),
+    runHandle: (handle: Handle, args: Array<any>): Promise<mixed> =>
+      this.workerApi.callChild(nullthrows(handle.childId), {
+        handle: handle.id,
+        args,
+      }),
+    getSharedReference: (ref: SharedReference) =>
+      this.sharedReferences.get(ref),
     resolveSharedReference: (value: mixed) =>
       this.sharedReferencesByValue.get(value),
   };
@@ -175,7 +193,7 @@ export default class WorkerFarm extends EventEmitter {
     };
   }
 
-  onError(error: ErrorWithCode, worker: Worker) {
+  onError(error: ErrorWithCode, worker: Worker): void | Promise<void> {
     // Handle ipc errors
     if (error.code === 'ERR_IPC_CHANNEL_CLOSED') {
       return this.stopWorker(worker);
@@ -258,7 +276,7 @@ export default class WorkerFarm extends EventEmitter {
     let {method, args, location, awaitResponse, idx, handle: handleId} = data;
     let mod;
     if (handleId != null) {
-      mod = nullthrows(this.handles.get(handleId)).fn;
+      mod = nullthrows(this.handles.get(handleId)?.fn);
     } else if (location) {
       // $FlowFixMe this must be dynamic
       mod = require(location);
@@ -333,6 +351,10 @@ export default class WorkerFarm extends EventEmitter {
   async end(): Promise<void> {
     this.ending = true;
 
+    await Promise.all(
+      Array.from(this.workers.values()).map(worker => this.stopWorker(worker)),
+    );
+
     for (let handle of this.handles.values()) {
       handle.dispose();
     }
@@ -340,9 +362,6 @@ export default class WorkerFarm extends EventEmitter {
     this.sharedReferences = new Map();
     this.sharedReferencesByValue = new Map();
 
-    await Promise.all(
-      Array.from(this.workers.values()).map(worker => this.stopWorker(worker)),
-    );
     this.ending = false;
   }
 
@@ -364,13 +383,15 @@ export default class WorkerFarm extends EventEmitter {
     );
   }
 
-  createReverseHandle(fn: HandleFunction) {
-    let handle = new Handle({fn, workerApi: this.workerApi});
+  createReverseHandle(fn: HandleFunction): Handle {
+    let handle = new Handle({fn});
     this.handles.set(handle.id, handle);
     return handle;
   }
 
-  async createSharedReference(value: mixed) {
+  async createSharedReference(
+    value: mixed,
+  ): Promise<{|ref: SharedReference, dispose(): Promise<mixed>|}> {
     let ref = referenceId++;
     this.sharedReferences.set(ref, value);
     this.sharedReferencesByValue.set(value, ref);
@@ -454,7 +475,7 @@ export default class WorkerFarm extends EventEmitter {
 
     var profiles = await Promise.all(promises);
     let trace = new Trace();
-    let filename = `profile-${profileId++}.trace`;
+    let filename = `profile-${getTimeId()}.trace`;
     let stream = trace.pipe(fs.createWriteStream(filename));
 
     for (let profile of profiles) {
@@ -468,21 +489,84 @@ export default class WorkerFarm extends EventEmitter {
 
     logger.info({
       origin: '@parcel/workers',
-      message: `Wrote profile to ${filename}`,
+      message: escapeMarkdown(`Wrote profile to ${filename}`),
     });
   }
 
-  static getNumWorkers() {
+  async callAllWorkers(method: string, args: Array<any>) {
+    let promises = [];
+    for (let worker of this.workers.values()) {
+      promises.push(
+        new Promise((resolve, reject) => {
+          worker.call({
+            method,
+            args,
+            resolve,
+            reject,
+            retries: 0,
+          });
+        }),
+      );
+    }
+
+    promises.push(this.localWorker[method](this.workerApi, ...args));
+    await Promise.all(promises);
+  }
+
+  async takeHeapSnapshot() {
+    let snapshotId = getTimeId();
+
+    try {
+      let snapshotPaths = await Promise.all(
+        [...this.workers.values()].map(
+          worker =>
+            new Promise((resolve, reject) => {
+              worker.call({
+                method: 'takeHeapSnapshot',
+                args: [snapshotId],
+                resolve,
+                reject,
+                retries: 0,
+              });
+            }),
+        ),
+      );
+
+      logger.info({
+        origin: '@parcel/workers',
+        message: escapeMarkdown(
+          'Wrote heap snapshots to the following paths:\n' +
+            snapshotPaths.join('\n'),
+        ),
+      });
+    } catch {
+      logger.error({
+        origin: '@parcel/workers',
+        message: 'Unable to take heap snapshots. Note: requires Node 11.13.0+',
+      });
+    }
+  }
+
+  static getNumWorkers(): number {
     return process.env.PARCEL_WORKERS
       ? parseInt(process.env.PARCEL_WORKERS, 10)
       : cpuCount();
   }
 
-  static isWorker() {
+  static isWorker(): boolean {
     return !!child;
   }
 
-  static getWorkerApi() {
+  static getWorkerApi(): {|
+    callMaster: (
+      request: CallRequest,
+      awaitResponse?: ?boolean,
+    ) => Promise<mixed>,
+    createReverseHandle: (fn: (...args: Array<any>) => mixed) => Handle,
+    getSharedReference: (ref: SharedReference) => mixed,
+    resolveSharedReference: (value: mixed) => void | SharedReference,
+    runHandle: (handle: Handle, args: Array<any>) => Promise<mixed>,
+  |} {
     invariant(
       child != null,
       'WorkerFarm.getWorkerApi can only be called within workers',
@@ -490,7 +574,20 @@ export default class WorkerFarm extends EventEmitter {
     return child.workerApi;
   }
 
-  static getConcurrentCallsPerWorker() {
+  static getConcurrentCallsPerWorker(): number {
     return parseInt(process.env.PARCEL_MAX_CONCURRENT_CALLS, 10) || 5;
   }
+}
+
+function getTimeId() {
+  let now = new Date();
+  return (
+    String(now.getFullYear()) +
+    String(now.getMonth() + 1).padStart(2, '0') +
+    String(now.getDate()).padStart(2, '0') +
+    '-' +
+    String(now.getHours()).padStart(2, '0') +
+    String(now.getMinutes()).padStart(2, '0') +
+    String(now.getSeconds()).padStart(2, '0')
+  );
 }

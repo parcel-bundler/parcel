@@ -40,13 +40,13 @@ export default async function resolveOptions(
   let packageManager =
     initialOptions.packageManager || new NodePackageManager(inputFS);
 
-  let rootDir =
-    initialOptions.rootDir != null
-      ? path.resolve(initialOptions.rootDir)
+  let entryRoot =
+    initialOptions.entryRoot != null
+      ? path.resolve(initialOptions.entryRoot)
       : getRootDir(entries);
 
   let projectRootFile =
-    (await resolveConfig(inputFS, path.join(rootDir, 'index'), [
+    (await resolveConfig(inputFS, path.join(entryRoot, 'index'), [
       ...LOCK_FILE_NAMES,
       '.git',
       '.hg',
@@ -59,7 +59,9 @@ export default async function resolveOptions(
   }
   let projectRoot = path.dirname(projectRootFile);
 
+  let inputCwd = inputFS.cwd();
   let outputCwd = outputFS.cwd();
+
   let cacheDir =
     // If a cacheDir is provided, resolve it relative to cwd. Otherwise,
     // use a default directory resolved relative to the project root.
@@ -72,12 +74,27 @@ export default async function resolveOptions(
   let mode = initialOptions.mode ?? 'development';
   let minify = initialOptions.minify ?? mode === 'production';
 
+  let detailedReport: number = 0;
+  if (initialOptions.detailedReport != null) {
+    detailedReport =
+      initialOptions.detailedReport === true
+        ? 10
+        : parseInt(initialOptions.detailedReport, 10);
+  }
+
+  let publicUrl = initialOptions.publicUrl ?? '/';
+  let distDir =
+    initialOptions.distDir != null
+      ? path.resolve(inputCwd, initialOptions.distDir)
+      : undefined;
+
   return {
     config: initialOptions.config,
     defaultConfig: initialOptions.defaultConfig,
     patchConsole:
       initialOptions.patchConsole ?? process.env.NODE_ENV !== 'test',
     env: {
+      ...process.env,
       ...initialOptions.env,
       ...(await loadDotEnv(
         initialOptions.env ?? {},
@@ -87,25 +104,29 @@ export default async function resolveOptions(
     },
     mode,
     minify,
-    autoinstall: initialOptions.autoinstall ?? true,
+    autoinstall: initialOptions.autoinstall ?? false,
     hot: initialOptions.hot ?? null,
-    serve: initialOptions.serve ?? false,
+    contentHash:
+      initialOptions.contentHash ?? initialOptions.mode === 'production',
+    serve: initialOptions.serve
+      ? {
+          ...initialOptions.serve,
+          distDir: distDir ?? path.join(outputCwd, 'dist'),
+        }
+      : false,
     disableCache: initialOptions.disableCache ?? false,
     killWorkers: initialOptions.killWorkers ?? true,
     profile: initialOptions.profile ?? false,
     cacheDir,
     entries,
-    rootDir,
+    entryRoot,
     defaultEngines: initialOptions.defaultEngines,
     targets: initialOptions.targets,
     sourceMaps: initialOptions.sourceMaps ?? true,
     scopeHoist:
       initialOptions.scopeHoist ?? initialOptions.mode === 'production',
-    publicUrl: initialOptions.publicUrl ?? '/',
-    distDir:
-      initialOptions.distDir != null
-        ? path.resolve(initialOptions.distDir)
-        : null,
+    publicUrl,
+    distDir,
     logLevel: initialOptions.logLevel ?? 'info',
     projectRoot,
     lockFile,
@@ -114,5 +135,6 @@ export default async function resolveOptions(
     cache,
     packageManager,
     instanceId: generateInstanceId(entries),
+    detailedReport,
   };
 }

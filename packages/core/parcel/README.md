@@ -8,8 +8,8 @@
 [![Build Status](https://dev.azure.com/devongovett/devongovett/_apis/build/status/parcel-bundler.parcel?branchName=master)](https://dev.azure.com/devongovett/devongovett/_build/latest?definitionId=1)
 [![Coverage](https://img.shields.io/codecov/c/github/parcel-bundler/parcel/master.svg)](https://codecov.io/github/parcel-bundler/parcel/)
 [![David Dependency Status](https://david-dm.org/parcel-bundler/parcel.svg)](https://david-dm.org/parcel-bundler/parcel)
-[![npm package](https://img.shields.io/npm/v/parcel-bundler.svg)](https://www.npmjs.com/package/parcel-bundler)
-[![npm package](https://img.shields.io/npm/dm/parcel-bundler.svg)](https://www.npmjs.com/package/parcel-bundler)
+[![npm package](https://img.shields.io/npm/v/parcel.svg)](https://www.npmjs.com/package/parcel)
+[![npm package](https://img.shields.io/npm/dm/parcel.svg)](https://www.npmjs.com/package/parcel)
 [![Join the community on Spectrum](https://withspectrum.github.io/badge/badge.svg)](https://spectrum.chat/parcel)
 [![Twitter Follow](https://img.shields.io/twitter/follow/parceljs.svg?style=social)](https://twitter.com/parceljs)
 
@@ -21,6 +21,14 @@
 - ✂️ Zero configuration **code splitting** using dynamic `import()` statements.
 - 🔥 Built in support for **hot module replacement**
 - 🚨 Friendly error logging experience - syntax highlighted code frames help pinpoint the problem.
+
+
+---
+
+**Below is the design document that was created before work on the implementation of Parcel 2 started and some sections are outdated. The actual (somewhat complete) documentation for Parcel 2 is available here: https://v2.parceljs.org/.**
+
+
+----
 
 ## Getting Started
 
@@ -59,7 +67,7 @@ Now if you just run:
 yarn parcel index.html
 ```
 
-You should get a URL that looks something like: `http://localhost:1234/`
+You should get a URL that looks something like: `http://localhost:1234/`.
 
 Next you can start adding dependencies by specifying them in your code (however
 your language specifies other assets). So for HTML we could create a
@@ -131,6 +139,7 @@ console.log("Hello World");
     - [`--https`](#--https)
       - [`--cert <path>`](#--cert-path)
       - [`--key <path>`](#--key-path)
+    - [`--dist-dir <dir>`](#--dist-dir-dir)
     - [`--cache-dir <dir>`, `--no-cache`](#--cache-dir-dir---no-cache)
     - [`--hot`, `--no-hot`](#--hot---no-hot)
       - [`--hot-host <hostname>`](#--hot-host-hostname)
@@ -268,7 +277,7 @@ $ parcel [command] [...entries] [...flags]
 
 #### `parcel serve`
 
-Serve assets on a local server
+Serve assets on a local server.
 
 #### `parcel watch`
 
@@ -315,6 +324,10 @@ Specify the filepath to your SSL certificate when using `--https`.
 ##### `--key <path>`
 
 Specify the filepath to your SSL key when using `--https`.
+
+#### `--dist-dir <dir>`
+
+Configure the directory where compiled assets are output. Default is `./dist`.
 
 #### `--cache-dir <dir>`, `--no-cache`
 
@@ -398,13 +411,19 @@ When you do need to configure Parcel, it will be in one of 3 places.
   "source": "src/index.js",
   "targets": {
     "main": {
-      "node": ["^4.0.0"]
+      "engines": {
+        "node": ">=4.x"
+      }
     },
     "module": {
-      "node": ["^8.0.0"]
+      "engines": {
+        "node": ">=8.x"
+      }
     },
     "browser": {
-      "browsers": ["> 1%", "not dead"]
+      "engines": {
+        "browsers": ["> 1%", "not dead"]
+      }
     }
   },
   "alias": {
@@ -668,7 +687,7 @@ See [Bundlers](#bundlers)
 
 #### `.parcelrc#namers`
 
-`bundler` is an array of Parcel namer packages.
+`namers` is an array of Parcel namer packages.
 
 ```json
 {
@@ -894,7 +913,7 @@ targets = {
     isLibrary: true
   },
   browser: {
-      engines: {
+    engines: {
       browsers: value("package.json#browserslist")
     },
     isLibrary: true
@@ -1081,6 +1100,7 @@ asset graph. They mostly call out to different compilers and preprocessors.
 
 - `@parcel/transformer-babel`
 - `@parcel/transformer-coffeescript`
+- `@parcel/transformer-glsl`
 - `@parcel/transformer-graphql`
 - `@parcel/transformer-json`
 - `@parcel/transformer-json5`
@@ -1384,11 +1404,6 @@ asset graph. They mostly call out to different compilers and preprocessors.
 import {Transform} from '@parcel/plugin';
 
 export default new Transform({
-  async getConfig({asset}) {
-    // ...
-    return config;
-  },
-
   async parse({asset}) {
     // ...
     return ast;
@@ -1530,3 +1545,7 @@ export default new Validator({
 ```
 
 If your plugin implements `validateAll`, Parcel will make sure to always invoke this method on the same thread (so that your cache state is accessible).
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE.md](https://github.com/parcel-bundler/parcel/blob/v2/LICENSE) file for details

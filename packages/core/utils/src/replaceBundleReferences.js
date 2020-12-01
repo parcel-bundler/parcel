@@ -1,9 +1,15 @@
 // @flow strict-local
 
 import type SourceMap from '@parcel/source-map';
-import type {Async, Blob, Bundle, BundleGraph, Dependency} from '@parcel/types';
+import type {
+  Async,
+  Blob,
+  Bundle,
+  BundleGraph,
+  Dependency,
+  NamedBundle,
+} from '@parcel/types';
 
-import invariant from 'assert';
 import {Readable} from 'stream';
 import nullthrows from 'nullthrows';
 import URL from 'url';
@@ -28,8 +34,8 @@ export function replaceURLReferences({
   map,
   relative = true,
 }: {|
-  bundle: Bundle,
-  bundleGraph: BundleGraph,
+  bundle: NamedBundle,
+  bundleGraph: BundleGraph<NamedBundle>,
   contents: string,
   relative?: boolean,
   map?: ?SourceMap,
@@ -47,7 +53,7 @@ export function replaceURLReferences({
       continue;
     }
 
-    let resolved = bundleGraph.resolveExternalDependency(dependency, bundle);
+    let resolved = bundleGraph.getReferencedBundle(dependency, bundle);
     if (resolved == null) {
       replacements.set(dependency.id, {
         from: dependency.id,
@@ -56,9 +62,7 @@ export function replaceURLReferences({
       continue;
     }
 
-    invariant(resolved.type === 'bundle_group');
-    let [entryBundle] = bundleGraph.getBundlesInBundleGroup(resolved.value);
-    if (entryBundle.isInline) {
+    if (!resolved || resolved.isInline) {
       // If a bundle is inline, it should be replaced with inline contents,
       // not a URL.
       continue;
@@ -69,7 +73,7 @@ export function replaceURLReferences({
       getURLReplacement({
         dependency,
         fromBundle: bundle,
-        toBundle: entryBundle,
+        toBundle: resolved,
         relative,
       }),
     );
@@ -91,14 +95,17 @@ export async function replaceInlineReferences({
   getInlineBundleContents,
 }: {|
   bundle: Bundle,
-  bundleGraph: BundleGraph,
+  bundleGraph: BundleGraph<NamedBundle>,
   contents: string,
   getInlineReplacement: (
     Dependency,
     ?'string',
     string,
   ) => {|from: string, to: string|},
-  getInlineBundleContents: (Bundle, BundleGraph) => Async<{|contents: Blob|}>,
+  getInlineBundleContents: (
+    Bundle,
+    BundleGraph<NamedBundle>,
+  ) => Async<{|contents: Blob|}>,
   map?: ?SourceMap,
 |}): Promise<{|+contents: string, +map: ?SourceMap|}> {
   let replacements = new Map();
@@ -111,13 +118,8 @@ export async function replaceInlineReferences({
   });
 
   for (let dependency of dependencies) {
-    let resolved = bundleGraph.resolveExternalDependency(dependency, bundle);
-    if (resolved == null || resolved.type === 'asset') {
-      continue;
-    }
-
-    let [entryBundle] = bundleGraph.getBundlesInBundleGroup(resolved.value);
-    if (!entryBundle.isInline) {
+    let entryBundle = bundleGraph.getReferencedBundle(dependency, bundle);
+    if (!entryBundle?.isInline) {
       continue;
     }
 
@@ -130,7 +132,8 @@ export async function replaceInlineReferences({
       : packagedBundle.contents
     ).toString();
 
-    let inlineType = nullthrows(entryBundle.getMainEntry()).meta.inlineType;
+    let inlineType = nullthrows(entryBundle.getEntryAssets()[0]).meta
+      .inlineType;
     if (inlineType == null || inlineType === 'string') {
       replacements.set(
         dependency.id,
@@ -142,27 +145,32 @@ export async function replaceInlineReferences({
   return performReplacement(replacements, contents, map);
 }
 
-function getURLReplacement({
+export function getURLReplacement({
   dependency,
   fromBundle,
   toBundle,
   relative,
 }: {|
   dependency: Dependency,
-  fromBundle: Bundle,
-  toBundle: Bundle,
+  fromBundle: NamedBundle,
+  toBundle: NamedBundle,
   relative: boolean,
-|}) {
-  let url = URL.parse(dependency.moduleSpecifier);
+|}): {|from: string, to: string|} {
   let to;
+
   if (relative) {
-    url.pathname = relativeBundlePath(fromBundle, toBundle, {
-      leadingDotSlash: false,
-    });
-    to = URL.format(url);
+    to = URL.format(
+      URL.parse(
+        relativeBundlePath(fromBundle, toBundle, {
+          leadingDotSlash: false,
+        }),
+      ),
+    );
   } else {
-    url.pathname = nullthrows(toBundle.name);
-    to = urlJoin(toBundle.target.publicUrl, URL.format(url));
+    to = urlJoin(
+      toBundle.target.publicUrl,
+      URL.format(URL.parse(nullthrows(toBundle.name))),
+    );
   }
 
   return {

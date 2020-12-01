@@ -9,7 +9,7 @@ export function collect(
   moduleGraph: TSModuleGraph,
   context: any,
   sourceFile: any,
-) {
+): any {
   let currentModule: ?TSModule;
   let visit = (node: any): any => {
     if (ts.isBundle(node)) {
@@ -42,9 +42,11 @@ export function collect(
             '*',
           );
         }
-      } else if (node.importClause.name) {
+      }
+
+      if (node.importClause.name) {
         currentModule.addImport(
-          node.importClause.name,
+          node.importClause.name.text,
           node.moduleSpecifier.text,
           'default',
         );
@@ -72,6 +74,11 @@ export function collect(
       }
     }
 
+    // Handle `export default name;`
+    if (ts.isExportAssignment(node) && ts.isIdentifier(node.expression)) {
+      currentModule.addExport('default', node.expression.text);
+    }
+
     if (isDeclaration(ts, node)) {
       if (node.name) {
         currentModule.addLocal(node.name.text, node);
@@ -84,7 +91,7 @@ export function collect(
       }
     }
 
-    if (ts.isVariableStatement(node)) {
+    if (ts.isVariableStatement(node) && node.modifiers) {
       let isExported = node.modifiers.some(
         m => m.kind === ts.SyntaxKind.ExportKeyword,
       );

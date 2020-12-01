@@ -1,16 +1,16 @@
 // @flow strict-local
 
 import type {
-  Bundle,
   BundleGraph,
   BundleGroup,
   Dependency,
   Environment,
+  NamedBundle,
   RuntimeAsset,
 } from '@parcel/types';
 
 import {Runtime} from '@parcel/plugin';
-import {relativeBundlePath} from '@parcel/utils';
+import {flatMap, relativeBundlePath} from '@parcel/utils';
 import path from 'path';
 import nullthrows from 'nullthrows';
 
@@ -23,6 +23,15 @@ const DYNAMIC_IMPORT_BROWSERS = {
   safari: '11.1',
   opera: '50',
 };
+
+// Used for as="" in preload/prefetch
+const TYPE_TO_RESOURCE_PRIORITY = {
+  css: 'style',
+  js: 'script',
+};
+
+const BROWSER_PRELOAD_LOADER = './loaders/browser/preload-loader';
+const BROWSER_PREFETCH_LOADER = './loaders/browser/prefetch-loader';
 
 const LOADERS = {
   browser: {
@@ -45,6 +54,7 @@ const LOADERS = {
     IMPORT_POLYFILL: null,
   },
 };
+
 function getLoaders(
   ctx: Environment,
 ): ?{[string]: string, IMPORT_POLYFILL: null | false | string, ...} {
@@ -54,7 +64,7 @@ function getLoaders(
   return null;
 }
 
-export default new Runtime({
+export default (new Runtime({
   apply({bundle, bundleGraph, options}) {
     // Dependency ids in code replaced with referenced bundle names
     // Loader runtime added for bundle groups that don't have a native loader (e.g. HTML/CSS/Worker - isURL?),
@@ -84,7 +94,7 @@ export default new Runtime({
 
     let assets = [];
     for (let dependency of asyncDependencies) {
-      let resolved = bundleGraph.resolveExternalDependency(dependency, bundle);
+      let resolved = bundleGraph.resolveAsyncDependency(dependency, bundle);
       if (resolved == null) {
         continue;
       }
@@ -102,19 +112,38 @@ export default new Runtime({
           dependency,
         });
       } else {
-        assets.push(
-          ...getLoaderRuntimes({
-            bundle,
-            dependency,
-            bundleGraph,
-            bundleGroup: resolved.value,
-          }),
-        );
+        let loaderRuntime = getLoaderRuntime({
+          bundle,
+          dependency,
+          bundleGraph,
+          bundleGroup: resolved.value,
+        });
+
+        if (loaderRuntime != null) {
+          assets.push(loaderRuntime);
+        }
       }
     }
 
     for (let dependency of otherDependencies) {
-      let resolved = bundleGraph.resolveExternalDependency(dependency, bundle);
+      // Resolve the dependency to a bundle. If inline, export the dependency id,
+      // which will be replaced with the contents of that bundle later.
+      let referencedBundle = bundleGraph.getReferencedBundle(
+        dependency,
+        bundle,
+      );
+      if (referencedBundle?.isInline) {
+        assets.push({
+          filePath: path.join(__dirname, `/bundles/${referencedBundle.id}.js`),
+          code: `module.exports = ${JSON.stringify(dependency.id)};`,
+          dependency,
+        });
+        continue;
+      }
+
+      // Otherwise, try to resolve the dependency to an external bundle group
+      // and insert a URL to that bundle.
+      let resolved = bundleGraph.resolveAsyncDependency(dependency, bundle);
       if (dependency.isURL && resolved == null) {
         // If a URL dependency was not able to be resolved, add a runtime that
         // exports the original moduleSpecifier.
@@ -133,20 +162,27 @@ export default new Runtime({
       }
 
       let bundleGroup = resolved.value;
-      let bundlesInGroup = bundleGraph.getBundlesInBundleGroup(bundleGroup);
+      let mainBundle = nullthrows(
+        bundleGraph.getBundlesInBundleGroup(bundleGroup).find(b => {
+          let entries = b.getEntryAssets();
+          return entries.some(e => bundleGroup.entryAssetId === e.id);
+        }),
+      );
 
-      let [firstBundle] = bundlesInGroup;
-      if (firstBundle.isInline) {
+      if (bundle.env.outputFormat === 'commonjs' && mainBundle.type === 'js') {
         assets.push({
-          filePath: path.join(__dirname, `/bundles/${firstBundle.id}.js`),
-          code: `module.exports = ${JSON.stringify(dependency.id)};`,
+          filePath: __filename,
           dependency,
+          code: `module.exports = require("./" + ${getRelativePathExpr(
+            bundle,
+            mainBundle,
+          )})`,
         });
         continue;
       }
 
       // URL dependency or not, fall back to including a runtime that exports the url
-      assets.push(getURLRuntime(dependency, bundle, firstBundle));
+      assets.push(getURLRuntime(dependency, bundle, mainBundle));
     }
 
     if (
@@ -163,20 +199,24 @@ export default new Runtime({
 
     return assets;
   },
-});
+}): Runtime);
 
-function getLoaderRuntimes({
+function getLoaderRuntime({
   bundle,
   dependency,
   bundleGroup,
   bundleGraph,
 }: {|
-  bundle: Bundle,
+  bundle: NamedBundle,
   dependency: Dependency,
   bundleGroup: BundleGroup,
-  bundleGraph: BundleGraph,
-|}) {
-  let assets = [];
+  bundleGraph: BundleGraph<NamedBundle>,
+|}): ?RuntimeAsset {
+  let loaders = getLoaders(bundle.env);
+  if (loaders == null) {
+    return;
+  }
+
   // Sort so the bundles containing the entry asset appear last
   let externalBundles = bundleGraph
     .getBundlesInBundleGroup(bundleGroup)
@@ -198,8 +238,6 @@ function getLoaderRuntimes({
     externalBundles = externalBundles.slice(-1);
   }
 
-  let loaders = getLoaders(bundle.env);
-
   // Determine if we need to add a dynamic import() polyfill, or if all target browsers support it natively.
   let needsDynamicImportPolyfill = false;
   if (bundle.env.isBrowser() && bundle.env.outputFormat === 'esmodule') {
@@ -208,86 +246,183 @@ function getLoaderRuntimes({
     );
   }
 
-  let loaderModules = loaders
-    ? externalBundles
-        .map(to => {
-          let loader = loaders[to.type];
-          if (!loader) {
-            return;
-          }
-
-          let relativePathExpr = getRelativePathExpr(bundle, to);
-
-          // Use esmodule loader if possible
-          if (to.type === 'js' && to.env.outputFormat === 'esmodule') {
-            if (!needsDynamicImportPolyfill) {
-              return `import("./" + ${relativePathExpr})`;
-            }
-
-            loader = nullthrows(
-              loaders.IMPORT_POLYFILL,
-              `No import() polyfill available for context '${bundle.env.context}'`,
-            );
-          } else if (to.type === 'js' && to.env.outputFormat === 'commonjs') {
-            return `Promise.resolve(require("./" + ${relativePathExpr}))`;
-          }
-
-          return `require(${JSON.stringify(
-            loader,
-          )})(require('./bundle-url').getBundleURL() + ${relativePathExpr})`;
-        })
-        .filter(Boolean)
-    : [];
-
-  if (loaderModules.length > 0) {
-    let loaders = loaderModules.join(', ');
-    if (
-      loaderModules.length > 1 &&
-      (bundle.env.outputFormat === 'global' ||
-        !externalBundles.every(b => b.type === 'js'))
-    ) {
-      loaders = `Promise.all([${loaders}])`;
-      if (bundle.env.outputFormat !== 'global') {
-        loaders += `.then(r => r[r.length - 1])`;
+  let loaderModules = externalBundles
+    .map(to => {
+      let loader = loaders[to.type];
+      if (!loader) {
+        return;
       }
-    } else {
-      loaders = `(${loaders})`;
-    }
 
-    if (bundle.env.outputFormat === 'global') {
-      loaders += `.then(() => parcelRequire('${bundleGroup.entryAssetId}')${
-        // In global output with scope hoisting, functions return exports are
-        // always returned. Otherwise, the exports are returned.
-        bundle.env.scopeHoist ? '()' : ''
-      })`;
-    }
+      let relativePathExpr = getRelativePathExpr(bundle, to);
 
-    assets.push({
-      filePath: __filename,
-      code: `module.exports = ${loaders};`,
-      dependency,
-    });
+      // Use esmodule loader if possible
+      if (to.type === 'js' && to.env.outputFormat === 'esmodule') {
+        if (!needsDynamicImportPolyfill) {
+          return `import("./" + ${relativePathExpr})`;
+        }
+
+        loader = nullthrows(
+          loaders.IMPORT_POLYFILL,
+          `No import() polyfill available for context '${bundle.env.context}'`,
+        );
+      } else if (to.type === 'js' && to.env.outputFormat === 'commonjs') {
+        return `Promise.resolve(require("./" + ${relativePathExpr}))`;
+      }
+
+      return `require(${JSON.stringify(
+        loader,
+      )})(require('./bundle-url').getBundleURL() + ${relativePathExpr})`;
+    })
+    .filter(Boolean);
+
+  if (bundle.env.context === 'browser') {
+    loaderModules.push(
+      ...flatMap(
+        // TODO: Allow css to preload resources as well
+        externalBundles.filter(to => to.type === 'js'),
+        from => {
+          let {preload, prefetch} = getHintedBundleGroups(bundleGraph, from);
+
+          return [
+            ...getHintLoaders(
+              bundleGraph,
+              bundle,
+              preload,
+              BROWSER_PRELOAD_LOADER,
+            ),
+            ...getHintLoaders(
+              bundleGraph,
+              bundle,
+              prefetch,
+              BROWSER_PREFETCH_LOADER,
+            ),
+          ];
+        },
+      ),
+    );
   }
 
-  return assets;
+  if (loaderModules.length === 0) {
+    return;
+  }
+
+  let loaderCode = loaderModules.join(', ');
+  if (
+    loaderModules.length > 1 &&
+    (bundle.env.outputFormat === 'global' ||
+      !externalBundles.every(b => b.type === 'js'))
+  ) {
+    loaderCode = `Promise.all([${loaderCode}])`;
+    if (bundle.env.outputFormat !== 'global') {
+      loaderCode += `.then(r => r[r.length - 1])`;
+    }
+  } else {
+    loaderCode = `(${loaderCode})`;
+  }
+
+  if (bundle.env.outputFormat === 'global') {
+    loaderCode += `.then(() => module.bundle.root('${bundleGraph.getAssetPublicId(
+      bundleGraph.getAssetById(bundleGroup.entryAssetId),
+    )}')${
+      // In global output with scope hoisting, functions return exports are
+      // always returned. Otherwise, the exports are returned.
+      bundle.env.scopeHoist ? '()' : ''
+    })`;
+  }
+
+  return {
+    filePath: __filename,
+    code: `module.exports = ${loaderCode};`,
+    dependency,
+  };
 }
 
-function isNewContext(bundle: Bundle, bundleGraph: BundleGraph): boolean {
+function getHintedBundleGroups(
+  bundleGraph: BundleGraph<NamedBundle>,
+  bundle: NamedBundle,
+): {|preload: Array<BundleGroup>, prefetch: Array<BundleGroup>|} {
+  let preload = [];
+  let prefetch = [];
+  bundle.traverse(node => {
+    if (node.type !== 'dependency') {
+      return;
+    }
+
+    let dependency = node.value;
+    // $FlowFixMe
+    let attributes = dependency.meta?.importAttributes;
+    if (
+      dependency.isAsync &&
+      !dependency.isURL &&
+      typeof attributes === 'object' &&
+      attributes != null &&
+      // $FlowFixMe
+      (attributes.preload || attributes.prefetch)
+    ) {
+      let resolved = bundleGraph.resolveAsyncDependency(dependency, bundle);
+      if (resolved?.type === 'bundle_group') {
+        // === true for flow
+        if (attributes.preload === true) {
+          preload.push(resolved.value);
+        }
+        if (attributes.prefetch === true) {
+          prefetch.push(resolved.value);
+        }
+      }
+    }
+  });
+
+  return {preload, prefetch};
+}
+
+function getHintLoaders(
+  bundleGraph: BundleGraph<NamedBundle>,
+  from: NamedBundle,
+  bundleGroups: Array<BundleGroup>,
+  loader: string,
+): Array<string> {
+  let hintLoaders = [];
+  for (let bundleGroupToPreload of bundleGroups) {
+    let bundlesToPreload = bundleGraph.getBundlesInBundleGroup(
+      bundleGroupToPreload,
+    );
+    for (let bundleToPreload of bundlesToPreload) {
+      let relativePathExpr = getRelativePathExpr(from, bundleToPreload);
+      let priority = TYPE_TO_RESOURCE_PRIORITY[bundleToPreload.type];
+      hintLoaders.push(
+        `require(${JSON.stringify(
+          loader,
+        )})(require('./bundle-url').getBundleURL() + ${relativePathExpr}, ${
+          priority ? JSON.stringify(priority) : 'null'
+        }, ${JSON.stringify(
+          bundleToPreload.target.env.outputFormat === 'esmodule',
+        )})`,
+      );
+    }
+  }
+
+  return hintLoaders;
+}
+
+function isNewContext(
+  bundle: NamedBundle,
+  bundleGraph: BundleGraph<NamedBundle>,
+): boolean {
+  let parents = bundleGraph.getParentBundles(bundle);
   return (
     bundle.isEntry ||
-    bundleGraph
-      .getParentBundles(bundle)
-      .some(
-        parent =>
-          parent.env.context !== bundle.env.context || parent.type !== 'js',
-      )
+    parents.length === 0 ||
+    parents.some(
+      parent =>
+        parent.env.context !== bundle.env.context || parent.type !== 'js',
+    )
   );
 }
 
 function getURLRuntime(
   dependency: Dependency,
-  from: Bundle,
-  to: Bundle,
+  from: NamedBundle,
+  to: NamedBundle,
 ): RuntimeAsset {
   let relativePathExpr = getRelativePathExpr(from, to);
   if (dependency.meta.webworker === true) {
@@ -306,8 +441,8 @@ function getURLRuntime(
 }
 
 function getRegisterCode(
-  entryBundle: Bundle,
-  bundleGraph: BundleGraph,
+  entryBundle: NamedBundle,
+  bundleGraph: BundleGraph<NamedBundle>,
 ): string {
   let idToName = {};
   bundleGraph.traverseBundles((bundle, _, actions) => {
@@ -315,7 +450,7 @@ function getRegisterCode(
       return;
     }
 
-    idToName[getPublicBundleId(bundle)] = nullthrows(bundle.name);
+    idToName[bundle.publicId] = nullthrows(bundle.name);
 
     if (bundle !== entryBundle && isNewContext(bundle, bundleGraph)) {
       // New contexts have their own manifests, so there's no need to continue.
@@ -330,21 +465,17 @@ function getRegisterCode(
   );
 }
 
-function getRelativePathExpr(from: Bundle, to: Bundle): string {
+function getRelativePathExpr(from: NamedBundle, to: NamedBundle): string {
   if (shouldUseRuntimeManifest(from)) {
     return `require('./relative-path')(${JSON.stringify(
-      getPublicBundleId(from),
-    )}, ${JSON.stringify(getPublicBundleId(to))})`;
+      from.publicId,
+    )}, ${JSON.stringify(to.publicId)})`;
   }
 
   return JSON.stringify(relativeBundlePath(from, to, {leadingDotSlash: false}));
 }
 
-function shouldUseRuntimeManifest(bundle: Bundle): boolean {
+function shouldUseRuntimeManifest(bundle: NamedBundle): boolean {
   let env = bundle.env;
   return !env.isLibrary && env.outputFormat === 'global' && env.isBrowser();
-}
-
-function getPublicBundleId(bundle: Bundle): string {
-  return bundle.id.slice(-16);
 }

@@ -6,7 +6,6 @@ import {
   inputFS,
   outputFS,
   overlayFS,
-  defaultConfig,
   ncp,
 } from '@parcel/test-utils';
 import http from 'http';
@@ -14,10 +13,10 @@ import https from 'https';
 import getPort from 'get-port';
 
 const distDir = path.resolve(__dirname, '.parcel-cache/dist');
-const config = {
-  ...defaultConfig,
-  reporters: ['@parcel/reporter-dev-server'],
-};
+const config = path.join(
+  __dirname,
+  './integration/custom-configs/.parcelrc-dev-server',
+);
 
 function get(file, port, client = http) {
   return new Promise((resolve, reject) => {
@@ -58,6 +57,7 @@ describe('server', function() {
     let port = await getPort();
     let b = bundler(path.join(__dirname, '/integration/commonjs/index.js'), {
       config,
+      distDir,
       serve: {
         https: false,
         port: port,
@@ -82,6 +82,7 @@ describe('server', function() {
     let inputPath = path.join(__dirname, '/integration/commonjs/index.js');
     let b = bundler(inputPath, {
       config,
+      distDir,
       serve: {
         https: false,
         port: port,
@@ -106,6 +107,7 @@ describe('server', function() {
     let inputPath = path.join(__dirname, '/integration/html/index.html');
     let b = bundler(inputPath, {
       config,
+      distDir,
       serve: {
         https: false,
         port: port,
@@ -133,6 +135,7 @@ describe('server', function() {
     let inputPath = path.join(__dirname, '/integration/html-pkg-source/');
     let b = bundler(inputPath, {
       config,
+      distDir,
       serve: {
         https: false,
         port: port,
@@ -189,6 +192,7 @@ describe('server', function() {
     let b = bundler(entry, {
       inputFS: overlayFS,
       config,
+      distDir,
       serve: {
         https: false,
         port: port,
@@ -219,6 +223,7 @@ describe('server', function() {
     let port = await getPort();
     let b = bundler(path.join(__dirname, '/integration/commonjs/index.js'), {
       config,
+      distDir,
       serve: {
         https: true,
         port: port,
@@ -240,6 +245,7 @@ describe('server', function() {
     let port = await getPort();
     let b = bundler(path.join(__dirname, '/integration/commonjs/index.js'), {
       config,
+      distDir,
       serve: {
         https: {
           key: path.join(__dirname, '/integration/https/private.pem'),
@@ -264,6 +270,7 @@ describe('server', function() {
     let port = await getPort();
     let b = bundler(path.join(__dirname, '/integration/commonjs/index.js'), {
       config,
+      distDir,
       serve: {
         https: false,
         port: port,
@@ -286,6 +293,7 @@ describe('server', function() {
     let port = await getPort();
     let b = bundler(path.join(__dirname, '/integration/commonjs/index.js'), {
       config,
+      distDir,
       serve: {
         https: false,
         port: port,
@@ -307,6 +315,7 @@ describe('server', function() {
     let port = await getPort();
     let b = bundler(path.join(__dirname, '/integration/html/index.html'), {
       config,
+      distDir,
       serve: {
         https: false,
         port: port,

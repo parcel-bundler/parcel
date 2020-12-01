@@ -1,11 +1,16 @@
 // @flow strict-local
-import type {Bundle, BundleGraph} from '@parcel/types';
+import type {Bundle, BundleGraph, NamedBundle} from '@parcel/types';
 
 import assert from 'assert';
-import invariant from 'assert';
+import {Readable} from 'stream';
 import {Packager} from '@parcel/plugin';
 import posthtml from 'posthtml';
-import {replaceURLReferences, urlJoin} from '@parcel/utils';
+import {
+  bufferStream,
+  replaceInlineReferences,
+  replaceURLReferences,
+  urlJoin,
+} from '@parcel/utils';
 import nullthrows from 'nullthrows';
 
 // https://www.w3.org/TR/html5/dom.html#metadata-content-2
@@ -20,7 +25,7 @@ const metadataContent = new Set([
   'title',
 ]);
 
-export default new Packager({
+export default (new Packager({
   async package({bundle, bundleGraph, getInlineBundleContents}) {
     let assets = [];
     bundle.traverseAssets(asset => {
@@ -39,35 +44,22 @@ export default new Packager({
       }
     });
 
-    // Insert references to sibling bundles. For example, a <script> tag in the original HTML
-    // may import CSS files. This will result in a sibling bundle in the same bundle group as the
-    // JS. This will be inserted as a <link> element into the HTML here.
-    let bundleGroups = dependencies
-      .map(dependency =>
-        bundleGraph.resolveExternalDependency(dependency, bundle),
-      )
-      .filter(resolved => resolved != null && resolved.type === 'bundle_group')
-      .map(resolved => {
-        invariant(resolved != null && resolved.type === 'bundle_group');
-        return resolved.value;
-      });
-    let bundles = bundleGroups.reduce((p, bundleGroup) => {
-      let bundles = bundleGraph
-        .getBundlesInBundleGroup(bundleGroup)
-        .filter(
-          bundle =>
-            !bundle
-              .getEntryAssets()
-              .some(asset => asset.id === bundleGroup.entryAssetId),
-        );
-      return p.concat(bundles);
-    }, []);
-
     // Add bundles in the same bundle group that are not inline. For example, if two inline
     // bundles refer to the same library that is extracted into a shared bundle.
-    bundles = bundles.concat(
-      bundleGraph.getSiblingBundles(bundle).filter(b => !b.isInline),
+    let referenced = new Set(
+      bundleGraph.getReferencedBundles(bundle).map(b => b.id),
     );
+    let bundles = bundleGraph
+      .getSiblingBundles(bundle)
+      .filter(b => !b.isInline && !referenced.has(b.id));
+
+    let posthtmlConfig = await asset.getConfig(
+      ['.posthtmlrc', '.posthtmlrc.js', 'posthtml.config.js'],
+      {
+        packageKey: 'posthtml',
+      },
+    );
+    let renderConfig = posthtmlConfig?.render;
 
     let {html} = await posthtml([
       insertBundleReferences.bind(this, bundles),
@@ -76,26 +68,38 @@ export default new Packager({
         bundleGraph,
         getInlineBundleContents,
       ),
-    ]).process(code);
+    ]).process(code, renderConfig);
 
-    return replaceURLReferences({
+    let {contents, map} = replaceURLReferences({
       bundle,
       bundleGraph,
       contents: html,
       relative: false,
     });
+
+    return replaceInlineReferences({
+      bundle,
+      bundleGraph,
+      contents,
+      getInlineBundleContents,
+      getInlineReplacement: (dep, inlineType, contents) => ({
+        from: dep.id,
+        to: contents,
+      }),
+      map,
+    });
   },
-});
+}): Packager);
 
 async function getAssetContent(
-  bundleGraph: BundleGraph,
+  bundleGraph: BundleGraph<NamedBundle>,
   getInlineBundleContents,
   assetId,
 ) {
   let inlineBundle: ?Bundle;
   bundleGraph.traverseBundles((bundle, context, {stop}) => {
-    let mainAsset = bundle.getMainEntry();
-    if (mainAsset && mainAsset.uniqueKey === assetId) {
+    let entryAssets = bundle.getEntryAssets();
+    if (entryAssets.some(a => a.uniqueKey === assetId)) {
       inlineBundle = bundle;
       stop();
     }
@@ -114,7 +118,7 @@ async function getAssetContent(
 }
 
 async function replaceInlineAssetContent(
-  bundleGraph: BundleGraph,
+  bundleGraph: BundleGraph<NamedBundle>,
   getInlineBundleContents,
   tree,
 ) {
@@ -135,7 +139,10 @@ async function replaceInlineAssetContent(
 
     if (newContent != null) {
       let {contents, bundle} = newContent;
-      node.content = contents;
+      node.content = (contents instanceof Readable
+        ? await bufferStream(contents)
+        : contents
+      ).toString();
 
       if (bundle.env.outputFormat === 'esmodule') {
         node.attrs.type = 'module';

@@ -4,12 +4,11 @@ import type {IDisposable, InitialParcelOptions} from '@parcel/types';
 
 import {NodePackageManager} from '@parcel/package-manager';
 import {NodeFS} from '@parcel/fs';
-// $FlowFixMe this is untyped
+// flowlint-next-line untyped-import:off
 import defaultConfigContents from '@parcel/config-default';
-// $FlowFixMe this is untyped
+// $FlowFixMe Flow can't resolve this
 import Module from 'module';
 import path from 'path';
-// $FlowFixMe this is untyped
 import {addHook} from 'pirates';
 import Parcel, {INTERNAL_RESOLVE, INTERNAL_TRANSFORM} from '@parcel/core';
 
@@ -47,7 +46,7 @@ function register(inputOpts?: InitialParcelOptions): IDisposable {
     },
   };
 
-  syncPromise(parcel.init());
+  syncPromise(parcel._init());
 
   let isProcessing = false;
 
@@ -148,10 +147,10 @@ function register(inputOpts?: InitialParcelOptions): IDisposable {
   return disposable;
 }
 
-let disposable = register();
+let disposable: IDisposable = register();
 register.dispose = disposable.dispose;
 
 // Support both commonjs and ES6 modules
-exports = module.exports = register;
+module.exports = register;
 exports.default = register;
 exports.__esModule = true;

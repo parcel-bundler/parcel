@@ -1,11 +1,15 @@
 {
   "name": "@parcel/node-libs-browser",
-  "version": "2.0.0-alpha.3.1",
+  "version": "2.0.0-beta.1",
   "author": "Tobias Koppers @sokra",
   "description": "The node core libs for in browser usage.",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
+  },
+  "funding": {
+    "type": "opencollective",
+    "url": "https://opencollective.com/parcel"
   },
   "repository": {
     "type": "git",
@@ -28,7 +32,7 @@
     "os-browserify": "^0.3.0",
     "path-browserify": "^1.0.0",
     "process": "^0.11.10",
-    "punycode": "^2.1.1",
+    "punycode": "^1.4.1",
     "querystring-es3": "^0.2.1",
     "readable-stream": "^3.6.0",
     "stream-http": "^3.1.0",
@@ -36,7 +40,7 @@
     "timers-browserify": "^2.0.11",
     "tty-browserify": "^0.0.1",
     "url": "^0.11.0",
-    "util": "^0.12.2",
+    "util": "^0.12.3",
     "vm-browserify": "^1.1.2"
   }
 }

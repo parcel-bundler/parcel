@@ -108,7 +108,7 @@ describe('less', function() {
     assert.equal(output(), 2);
 
     let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
-    assert.equal(css, '');
+    assert.equal(css.trim(), '/*# sourceMappingURL=index.css.map */');
   });
 
   it('should support linking to assets with url() from less', async function() {
@@ -145,6 +145,39 @@ describe('less', function() {
         path.join(distDir, css.match(/url\("(test\.[0-9a-f]+\.woff2)"\)/)[1]),
       ),
     );
+  });
+
+  it('should support less url rewrites', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/less-url-rewrite/index.js'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js'],
+      },
+      {
+        name: 'index.css',
+        assets: ['index.less'],
+      },
+      {
+        type: 'woff2',
+        assets: ['a.woff2'],
+      },
+      {
+        type: 'woff2',
+        assets: ['b.woff2'],
+      },
+    ]);
+
+    let output = await run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(output(), 2);
+
+    let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
+    assert(css.includes('.a'));
+    assert(css.includes('.b'));
   });
 
   it('should support transforming less with postcss', async function() {
@@ -215,5 +248,22 @@ describe('less', function() {
     let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
     assert(css.includes('.a'));
     assert(css.includes('.b'));
+  });
+
+  it('should ignore url() with IE behavior specifiers', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/less-url-behavior/index.less'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.css',
+        assets: ['index.less'],
+      },
+    ]);
+
+    let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
+
+    assert(css.includes('url(#default#VML)'));
   });
 });

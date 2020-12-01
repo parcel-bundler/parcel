@@ -1,12 +1,12 @@
 // @flow strict-local
-// flowlint unsafe-getters-setters:off
 import type {
   Config as IConfig,
+  ConfigResult,
   FilePath,
   Glob,
   PackageJSON,
   PackageName,
-  ConfigResult,
+  ConfigResultWithFilePath,
 } from '@parcel/types';
 import type {Config, ParcelOptions} from '../types';
 
@@ -20,10 +20,10 @@ const internalConfigToConfig: DefaultWeakMap<
 > = new DefaultWeakMap(() => new WeakMap());
 
 export default class PublicConfig implements IConfig {
-  #config; // Config;
-  #options; // ParcelOptions
+  #config /*: Config */;
+  #options /*: ParcelOptions */;
 
-  constructor(config: Config, options: ParcelOptions) {
+  constructor(config: Config, options: ParcelOptions): PublicConfig {
     let existing = internalConfigToConfig.get(options).get(config);
     if (existing != null) {
       return existing;
@@ -32,34 +32,31 @@ export default class PublicConfig implements IConfig {
     this.#config = config;
     this.#options = options;
     internalConfigToConfig.get(options).set(config, this);
+    return this;
   }
 
-  get env() {
+  get env(): Environment {
     return new Environment(this.#config.env);
   }
 
-  get searchPath() {
+  get searchPath(): FilePath {
     return this.#config.searchPath;
   }
 
-  get result() {
+  get result(): ConfigResult {
     return this.#config.result;
   }
 
-  get isSource() {
+  get isSource(): boolean {
     return this.#config.isSource;
   }
 
-  get resolvedPath() {
-    return this.#config.resolvedPath;
-  }
-
-  setResolvedPath(filePath: FilePath) {
-    this.#config.resolvedPath = filePath;
+  get includedFiles(): Set<FilePath> {
+    return this.#config.includedFiles;
   }
 
   // $FlowFixMe
-  setResult(result: any) {
+  setResult(result: any): void {
     this.#config.result = result;
   }
 
@@ -99,7 +96,19 @@ export default class PublicConfig implements IConfig {
       parse?: boolean,
       exclude?: boolean,
     |},
-  ): Promise<ConfigResult | null> {
+  ): Promise<ConfigResultWithFilePath | null> {
+    let packageKey = options && options.packageKey;
+    if (packageKey != null) {
+      let pkg = await this.getPackage();
+      if (pkg && pkg[packageKey]) {
+        return {
+          contents: pkg[packageKey],
+          // This should be fine as pkgFilePath should be defined by getPackage()
+          filePath: this.#config.pkgFilePath || '',
+        };
+      }
+    }
+
     let parse = options && options.parse;
     let conf = await loadConfig(
       this.#options.inputFS,
@@ -111,15 +120,15 @@ export default class PublicConfig implements IConfig {
       return null;
     }
 
+    let configFilePath = conf.files[0].filePath;
     if (!options || !options.exclude) {
-      if (this.#config.resolvedPath == null) {
-        this.setResolvedPath(conf.files[0].filePath);
-      } else {
-        this.addIncludedFile(conf.files[0].filePath);
-      }
+      this.addIncludedFile(configFilePath);
     }
 
-    return conf.config;
+    return {
+      contents: conf.config,
+      filePath: configFilePath,
+    };
   }
 
   getConfig(
@@ -129,7 +138,7 @@ export default class PublicConfig implements IConfig {
       parse?: boolean,
       exclude?: boolean,
     |},
-  ): Promise<ConfigResult | null> {
+  ): Promise<ConfigResultWithFilePath | null> {
     return this.getConfigFrom(this.searchPath, filePaths, options);
   }
 
@@ -138,7 +147,14 @@ export default class PublicConfig implements IConfig {
       return this.#config.pkg;
     }
 
-    this.#config.pkg = await this.getConfig(['package.json']);
+    let pkgConfig = await this.getConfig(['package.json']);
+    if (!pkgConfig) {
+      return null;
+    }
+
+    this.#config.pkg = pkgConfig.contents;
+    this.#config.pkgFilePath = pkgConfig.filePath;
+
     return this.#config.pkg;
   }
 }
