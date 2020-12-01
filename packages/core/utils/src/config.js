@@ -7,6 +7,7 @@ import clone from 'clone';
 import {parse as json5} from 'json5';
 import {parse as toml} from '@iarna/toml';
 
+let configCache = new Map<FilePath, ConfigOutput>();
 export type ConfigOutput = {|
   config: ConfigResult,
   files: Array<File>,
@@ -76,6 +77,10 @@ export async function loadConfig(
 ): Promise<ConfigOutput | null> {
   let configFile = await resolveConfig(fs, filepath, filenames, opts);
   if (configFile) {
+    let cachedOutput = configCache.get(configFile);
+    if (cachedOutput) {
+      return cachedOutput;
+    }
     try {
       let extname = path.extname(configFile).slice(1);
       if (extname === 'js') {
@@ -98,11 +103,13 @@ export async function loadConfig(
         let parse = getParser(extname);
         config = parse(configContent);
       }
-
-      return {
+      let output = {
         config: config,
         files: [{filePath: configFile}],
       };
+      configCache.set(configFile, output);
+
+      return output;
     } catch (err) {
       if (err.code === 'MODULE_NOT_FOUND' || err.code === 'ENOENT') {
         return null;
