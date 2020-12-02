@@ -6,8 +6,9 @@ import path from 'path';
 import clone from 'clone';
 import {parse as json5} from 'json5';
 import {parse as toml} from '@iarna/toml';
+import LRU from 'lru-cache';
 
-let configCache = new Map<FilePath, ConfigOutput>();
+let configCache = new LRU<FilePath, ConfigOutput>();
 export type ConfigOutput = {|
   config: ConfigResult,
   files: Array<File>,
@@ -75,7 +76,7 @@ export function resolveConfigSync(
 }
 
 export function clearCache() {
-  configCache.clear();
+  configCache.reset();
 }
 
 export async function loadConfig(
