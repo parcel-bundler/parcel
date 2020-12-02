@@ -242,6 +242,7 @@ export function link({
     }
 
     // Look for an exports object if we bailed out.
+    // TODO remove the first part of the condition once bundleGraph.resolveSymbol().identifier === null covers this
     if ((node === undefined && mod.meta.isCommonJS) || node === null) {
       if (wrappedAssets.has(mod.id)) {
         node = t.callExpression(getIdentifier(mod, 'init'), []);
