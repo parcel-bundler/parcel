@@ -10,7 +10,6 @@ import {
   sleep,
 } from '@parcel/test-utils';
 import WebSocket from 'ws';
-// flowlint-next-line untyped-import:off
 import json5 from 'json5';
 // flowlint-next-line untyped-import:off
 import getPort from 'get-port';
