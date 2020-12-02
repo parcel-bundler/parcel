@@ -26,7 +26,7 @@ import nullthrows from 'nullthrows';
 import {flatMap, objectSortedEntriesDeep, unique} from '@parcel/utils';
 
 import {getBundleGroupId, getPublicId} from './utils';
-import Graph, {mapVisitor, type GraphOpts} from './Graph';
+import Graph, {ALL_EDGE_TYPES, mapVisitor, type GraphOpts} from './Graph';
 
 type BundleGraphEdgeTypes =
   // A lack of an edge type indicates to follow the edge while traversing
@@ -46,7 +46,7 @@ type BundleGraphEdgeTypes =
 type InternalSymbolResolution = {|
   asset: Asset,
   exportSymbol: string,
-  symbol: ?Symbol,
+  symbol: ?Symbol | false,
   loc: ?SourceLocation,
 |};
 
@@ -61,6 +61,20 @@ type SerializedBundleGraph = {|
   assetPublicIds: Set<string>,
   publicIdByAssetId: Map<string, string>,
 |};
+
+function makeReadOnlySet<T>(set: Set<T>): $ReadOnlySet<T> {
+  return new Proxy(set, {
+    get(target, property) {
+      if (property === 'delete' || property === 'add' || property === 'clear') {
+        return undefined;
+      } else {
+        // $FlowFixMe
+        let value = target[property];
+        return typeof value === 'function' ? value.bind(target) : value;
+      }
+    },
+  });
+}
 
 export default class BundleGraph {
   _assetPublicIds: Set<string>;
@@ -169,12 +183,22 @@ export default class BundleGraph {
     });
   }
 
-  addAssetGraphToBundle(asset: Asset, bundle: Bundle) {
+  addAssetGraphToBundle(
+    asset: Asset,
+    bundle: Bundle,
+    shouldSkipDependency: Dependency => boolean = d =>
+      this.isDependencySkipped(d),
+  ) {
     // The root asset should be reached directly from the bundle in traversal.
     // Its children will be traversed from there.
     this._graph.addEdge(bundle.id, asset.id);
     this._graph.traverse((node, _, actions) => {
       if (node.type === 'bundle_group') {
+        actions.skipChildren();
+        return;
+      }
+
+      if (node.type === 'dependency' && shouldSkipDependency(node.value)) {
         actions.skipChildren();
         return;
       }
@@ -199,8 +223,12 @@ export default class BundleGraph {
     this._bundleContentHashes.delete(bundle.id);
   }
 
-  addEntryToBundle(asset: Asset, bundle: Bundle) {
-    this.addAssetGraphToBundle(asset, bundle);
+  addEntryToBundle(
+    asset: Asset,
+    bundle: Bundle,
+    shouldSkipDependency?: Dependency => boolean,
+  ) {
+    this.addAssetGraphToBundle(asset, bundle, shouldSkipDependency);
     if (!bundle.entryAssetIds.includes(asset.id)) {
       bundle.entryAssetIds.push(asset.id);
     }
@@ -215,10 +243,10 @@ export default class BundleGraph {
     this.removeExternalDependency(bundle, dependency);
   }
 
-  isDependencyDeferred(dependency: Dependency): boolean {
+  isDependencySkipped(dependency: Dependency): boolean {
     let node = this._graph.getNode(dependency.id);
     invariant(node && node.type === 'dependency');
-    return !!node.hasDeferred;
+    return !!node.hasDeferred || node.excluded;
   }
 
   getParentBundlesOfBundleGroup(bundleGroup: BundleGroup): Array<Bundle> {
@@ -931,12 +959,18 @@ export default class BundleGraph {
       return [];
     }
 
-    return this._graph
-      .findAncestors(node, node => node.type === 'dependency')
-      .map(node => {
-        invariant(node.type === 'dependency');
-        return node.value;
-      });
+    // Dependencies can be a a parent node via an untyped edge (like in the AssetGraph but without AssetGroups)
+    // or they can be parent nodes via a 'references' edge
+    return (
+      this._graph
+        // $FlowFixMe
+        .getNodesConnectedTo(node, ALL_EDGE_TYPES)
+        .filter(n => n.type === 'dependency')
+        .map(n => {
+          invariant(n.type === 'dependency');
+          return n.value;
+        })
+    );
   }
 
   bundleHasAsset(bundle: Bundle, asset: Asset): boolean {
@@ -976,26 +1010,42 @@ export default class BundleGraph {
       };
     }
 
-    let bailout = !asset.symbols;
+    let found = false;
+    let skipped = false;
     let deps = this.getDependencies(asset).reverse();
     let potentialResults = [];
     for (let dep of deps) {
+      let depSymbols = dep.symbols;
+      if (!depSymbols) {
+        found = true;
+        continue;
+      }
       // If this is a re-export, find the original module.
       let symbolLookup = new Map(
-        [...dep.symbols].map(([key, val]) => [val.local, key]),
+        [...depSymbols].map(([key, val]) => [val.local, key]),
       );
       let depSymbol = symbolLookup.get(identifier);
       if (depSymbol != null) {
         let resolved = this.getDependencyResolution(dep);
         if (!resolved) {
           // External module
-          bailout = true;
-          break;
+          return {
+            asset,
+            exportSymbol: symbol,
+            symbol: identifier,
+            loc: asset.symbols?.get(symbol)?.loc,
+          };
         }
 
         if (assetOutside) {
           // We found the symbol, but `asset` is outside, return `asset` and the original symbol
-          bailout = true;
+          found = true;
+          break;
+        }
+
+        if (this.isDependencySkipped(dep)) {
+          // We found the symbol and `dep` was skipped
+          skipped = true;
           break;
         }
 
@@ -1021,16 +1071,28 @@ export default class BundleGraph {
 
       // If this module exports wildcards, resolve the original module.
       // Default exports are excluded from wildcard exports.
-      if (dep.symbols.get('*')?.local === '*' && symbol !== 'default') {
+      // Wildcard reexports are never listed in the reexporting asset's symbols.
+      if (
+        identifier == null &&
+        depSymbols.get('*')?.local === '*' &&
+        symbol !== 'default'
+      ) {
         let resolved = this.getDependencyResolution(dep);
-        if (!resolved) continue;
+        if (!resolved) {
+          continue;
+        }
         let result = this.resolveSymbol(resolved, symbol, boundary);
 
         // We found the symbol
         if (result.symbol != undefined) {
           if (assetOutside) {
             // ..., but `asset` is outside, return `asset` and the original symbol
-            bailout = true;
+            found = true;
+            break;
+          }
+          if (this.isDependencySkipped(dep)) {
+            // We found the symbol and `dep` was skipped
+            skipped = true;
             break;
           }
 
@@ -1041,37 +1103,54 @@ export default class BundleGraph {
             loc: resolved.symbols?.get(symbol)?.loc,
           };
         }
-        if (!result.asset.symbols || result.symbol === null) {
-          // We didn't find it in this dependency, but it might still be there: bailout.
-          // Continue searching though, with the assumption that there are no conficting reexports
-          // and there might be a another (re)export (where we might statically find the symbol).
-          potentialResults.push({
-            asset: result.asset,
-            symbol: result.symbol,
-            exportSymbol: result.exportSymbol,
-            loc: resolved.symbols?.get(symbol)?.loc,
-          });
-          bailout = true;
+        if (result.symbol === null) {
+          found = true;
+          if (boundary && !this.bundleHasAsset(boundary, result.asset)) {
+            // If the returned asset is outside (and it's the first asset that is outside), return it.
+            if (!assetOutside) {
+              return {
+                asset: result.asset,
+                symbol: result.symbol,
+                exportSymbol: result.exportSymbol,
+                loc: resolved.symbols?.get(symbol)?.loc,
+              };
+            } else {
+              // Otherwise the original asset will be returned at the end.
+              break;
+            }
+          } else {
+            // We didn't find it in this dependency, but it might still be there: bailout.
+            // Continue searching though, with the assumption that there are no conficting reexports
+            // and there might be a another (re)export (where we might statically find the symbol).
+            potentialResults.push({
+              asset: result.asset,
+              symbol: result.symbol,
+              exportSymbol: result.exportSymbol,
+              loc: resolved.symbols?.get(symbol)?.loc,
+            });
+          }
         }
       }
     }
 
     // We didn't find the exact symbol...
     if (potentialResults.length == 1) {
-      // ..., but if it does exist, it's has to be behind this one reexport.
+      // ..., but if it does exist, it has to be behind this one reexport.
       return potentialResults[0];
     } else {
       // ... and there is no single reexport, but `bailout` tells us if it might still be exported.
       return {
         asset,
         exportSymbol: symbol,
-        symbol:
-          identifier ?? (bailout || asset.symbols?.has('*') ? null : undefined),
+        symbol: skipped
+          ? false
+          : found
+          ? null
+          : identifier ?? (asset.symbols?.has('*') ? null : undefined),
         loc: asset.symbols?.get(symbol)?.loc,
       };
     }
   }
-
   getAssetById(id: string): Asset {
     let node = this._graph.getNode(id);
     if (node == null) {
@@ -1092,7 +1171,10 @@ export default class BundleGraph {
     return publicId;
   }
 
-  getExportedSymbols(asset: Asset): Array<InternalExportSymbolResolution> {
+  getExportedSymbols(
+    asset: Asset,
+    boundary: ?Bundle,
+  ): Array<InternalExportSymbolResolution> {
     if (!asset.symbols) {
       return [];
     }
@@ -1100,15 +1182,21 @@ export default class BundleGraph {
     let symbols = [];
 
     for (let symbol of asset.symbols.keys()) {
-      symbols.push({...this.resolveSymbol(asset, symbol), exportAs: symbol});
+      symbols.push({
+        ...this.resolveSymbol(asset, symbol, boundary),
+        exportAs: symbol,
+      });
     }
 
     let deps = this.getDependencies(asset);
     for (let dep of deps) {
-      if (dep.symbols.get('*')?.local === '*') {
+      let depSymbols = dep.symbols;
+      if (!depSymbols) continue;
+
+      if (depSymbols.get('*')?.local === '*') {
         let resolved = this.getDependencyResolution(dep);
         if (!resolved) continue;
-        let exported = this.getExportedSymbols(resolved)
+        let exported = this.getExportedSymbols(resolved, boundary)
           .filter(s => s.exportSymbol !== 'default')
           .map(s => ({...s, exportAs: s.exportSymbol}));
         symbols.push(...exported);
@@ -1194,5 +1282,54 @@ export default class BundleGraph {
 
     hash.update(JSON.stringify(objectSortedEntriesDeep(bundle.env)));
     return hash.digest('hex');
+  }
+
+  getUsedSymbolsAsset(asset: Asset): $ReadOnlySet<Symbol> {
+    let node = this._graph.getNode(asset.id);
+    invariant(node && node.type === 'asset');
+    return makeReadOnlySet(node.usedSymbols);
+  }
+
+  getUsedSymbolsDependency(dep: Dependency): $ReadOnlySet<Symbol> {
+    let node = this._graph.getNode(dep.id);
+    invariant(node && node.type === 'dependency');
+    return makeReadOnlySet(node.usedSymbolsUp);
+  }
+
+  merge(other: BundleGraph) {
+    for (let [, node] of other._graph.nodes) {
+      let existingNode = this._graph.getNode(node.id);
+      if (existingNode != null) {
+        // Merge symbols, recompute dep.exluded based on that
+        if (existingNode.type === 'asset') {
+          invariant(node.type === 'asset');
+          existingNode.usedSymbols = new Set([
+            ...existingNode.usedSymbols,
+            ...node.usedSymbols,
+          ]);
+        } else if (existingNode.type === 'dependency') {
+          invariant(node.type === 'dependency');
+          existingNode.usedSymbolsDown = new Set([
+            ...existingNode.usedSymbolsDown,
+            ...node.usedSymbolsDown,
+          ]);
+          existingNode.usedSymbolsUp = new Set([
+            ...existingNode.usedSymbolsUp,
+            ...node.usedSymbolsUp,
+          ]);
+
+          existingNode.excluded = existingNode.excluded && node.excluded;
+          existingNode.deferred = existingNode.deferred && node.deferred;
+          existingNode.hasDeferred =
+            existingNode.hasDeferred && node.hasDeferred;
+        }
+      } else {
+        this._graph.addNode(node);
+      }
+    }
+
+    for (let edge of other._graph.getAllEdges()) {
+      this._graph.addEdge(edge.from, edge.to, edge.type);
+    }
   }
 }

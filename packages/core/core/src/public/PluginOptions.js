@@ -43,10 +43,6 @@ export default class PluginOptions implements IPluginOptions {
     return this.#options.mode;
   }
 
-  get sourceMaps(): boolean {
-    return this.#options.sourceMaps;
-  }
-
   get env(): EnvMap {
     return this.#options.env;
   }
@@ -69,10 +65,6 @@ export default class PluginOptions implements IPluginOptions {
 
   get entryRoot(): FilePath {
     return this.#options.entryRoot;
-  }
-
-  get distDir(): ?FilePath {
-    return this.#options.distDir;
   }
 
   get cacheDir(): FilePath {

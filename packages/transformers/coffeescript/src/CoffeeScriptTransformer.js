@@ -14,11 +14,11 @@ export default (new Transformer({
     asset.type = 'js';
     let output = coffee.compile(await asset.getCode(), {
       filename: sourceFileName,
-      sourceMap: options.sourceMaps,
+      sourceMap: !!asset.env.sourceMap,
     });
 
-    // return from compile is based on sourceMaps option
-    if (options.sourceMaps) {
+    // return from compile is based on sourceMap option
+    if (asset.env.sourceMap) {
       let map = null;
       if (output.v3SourceMap) {
         map = new SourceMap(options.projectRoot);

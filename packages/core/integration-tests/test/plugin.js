@@ -1,12 +1,14 @@
 // @flow
-import type {Dependency} from '@parcel/types';
 
 import assert from 'assert';
 import path from 'path';
 import nullthrows from 'nullthrows';
 import {
+  assertBundles,
   bundle,
   distDir,
+  findAsset,
+  findDependency,
   outputFS as fs,
   overlayFS,
   run,
@@ -45,30 +47,12 @@ parcel-transformer-b`,
       {mode: 'production'},
     );
 
-    let calls = [];
-    let output = await run(b, {
-      sideEffect(v) {
-        calls.push(v);
+    assertBundles(b, [
+      {
+        type: 'js',
+        assets: ['index.js', 'index.js', 'a.js', 'b.js'],
       },
-    });
-
-    assert.strictEqual(output, 'A');
-    assert.deepStrictEqual(calls, ['a', 'b']);
-
-    let depB: ?Dependency;
-    let depC: ?Dependency;
-    nullthrows(b.getBundles()[0]).traverse(node => {
-      if (node.type === 'dependency') {
-        if (node.value.moduleSpecifier === './c.js') {
-          depC = node.value;
-        } else if (node.value.moduleSpecifier === './b.js') {
-          depB = node.value;
-        }
-      }
-    });
-
-    assert(!b.isDependencyDeferred(nullthrows(depB)));
-    assert(b.isDependencyDeferred(nullthrows(depC)));
+    ]);
   });
 
   it('should allow resolvers to return changes for dependency.meta', async function() {
@@ -131,5 +115,41 @@ parcel-transformer-b`,
       await overlayFS.readFile(b.getBundles()[0].filePath, 'utf8'),
       'xyz',
     );
+  });
+
+  it('merges symbol information when applying runtime assets', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/runtime-symbol-merging/entry.js'),
+      {scopeHoist: true},
+    );
+
+    assert.deepStrictEqual(
+      new Set(b.getUsedSymbols(nullthrows(findAsset(b, 'index.js')))),
+      new Set([]),
+    );
+    assert.deepStrictEqual(
+      new Set(b.getUsedSymbols(nullthrows(findAsset(b, 'a.js')))),
+      new Set(['a']),
+    );
+    assert.deepStrictEqual(
+      new Set(b.getUsedSymbols(nullthrows(findAsset(b, 'b.js')))),
+      new Set(['b']),
+    );
+    assert.deepStrictEqual(
+      new Set(b.getUsedSymbols(findDependency(b, 'index.js', './a.js'))),
+      new Set(['a']),
+    );
+    assert.deepStrictEqual(
+      new Set(b.getUsedSymbols(findDependency(b, 'index.js', './b.js'))),
+      new Set(['b']),
+    );
+
+    let calls = [];
+    await run(b, {
+      call(v) {
+        calls.push(v);
+      },
+    });
+    assert.deepStrictEqual(calls, [789, 123]);
   });
 });

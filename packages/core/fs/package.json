@@ -28,7 +28,7 @@
     "mkdirp": "^0.5.1",
     "ncp": "^2.0.0",
     "nullthrows": "^1.1.1",
-    "rimraf": "^2.6.2"
+    "rimraf": "^3.0.2"
   },
   "peerDependencies": {
     "@parcel/core": "^2.0.0-alpha.3.1"

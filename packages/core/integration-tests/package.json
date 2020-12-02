@@ -12,7 +12,7 @@
     "test-ci": "yarn test --reporter mocha-multi-reporters --reporter-options configFile=./test/mochareporters.json"
   },
   "devDependencies": {
-    "@babel/core": "^7.4.4",
+    "@babel/core": "^7.12.0",
     "@babel/plugin-syntax-export-default-from": "^7.2.0",
     "@babel/plugin-syntax-export-namespace-from": "^7.2.0",
     "@babel/plugin-syntax-module-attributes": "^7.10.4",
@@ -42,7 +42,6 @@
     "react": "^16.11.0",
     "react-dom": "^16.11.0",
     "rimraf": "^2.6.1",
-    "sinon": "^5.0.1",
     "tempy": "^0.3.0",
     "ws": "^5.1.1"
   }

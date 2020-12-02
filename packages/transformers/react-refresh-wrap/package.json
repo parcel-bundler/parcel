@@ -27,7 +27,7 @@
     "@parcel/babel-ast-utils": "^2.0.0-frontbucket.12",
     "@parcel/plugin": "^2.0.0-frontbucket.32",
     "@parcel/utils": "^2.0.0-frontbucket.28",
-    "react-refresh": "^0.6.0",
+    "react-refresh": "^0.9.0",
     "semver": "^5.4.1"
   },
   "peerDependencies": {

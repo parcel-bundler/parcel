@@ -139,7 +139,6 @@ function getAdditionalProperties(event: ReporterEvent, options: PluginOptions) {
       event.type === 'buildStart' ? null : process.cpuUsage(buildStartCpuUsage),
     disableCache: options.disableCache,
     mode: options.mode,
-    sourceMaps: options.sourceMaps,
     serve: Boolean(options.serve),
   };
 }
