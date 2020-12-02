@@ -16,6 +16,8 @@ export type ConfigOptions = {|
   parse?: boolean,
 |};
 
+let configCache = new Map<FilePath, ConfigOutput>();
+
 export async function resolveConfig(
   fs: FileSystem,
   filepath: FilePath,
@@ -68,6 +70,10 @@ export function resolveConfigSync(
   return resolveConfigSync(fs, filepath, filenames, opts);
 }
 
+export function clearCache() {
+  configCache.clear();
+}
+
 export async function loadConfig(
   fs: FileSystem,
   filepath: FilePath,
@@ -76,6 +82,11 @@ export async function loadConfig(
 ): Promise<ConfigOutput | null> {
   let configFile = await resolveConfig(fs, filepath, filenames, opts);
   if (configFile) {
+    let cachedOutput = configCache.get(configFile);
+    if (cachedOutput) {
+      return cachedOutput;
+    }
+
     try {
       let extname = path.extname(configFile).slice(1);
       if (extname === 'js') {
@@ -99,10 +110,14 @@ export async function loadConfig(
         config = parse(configContent);
       }
 
-      return {
-        config: config,
+      let output = {
+        config,
         files: [{filePath: configFile}],
       };
+
+      configCache.set(configFile, output);
+
+      return output;
     } catch (err) {
       if (err.code === 'MODULE_NOT_FOUND' || err.code === 'ENOENT') {
         return null;

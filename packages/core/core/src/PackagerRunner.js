@@ -16,6 +16,7 @@ import type {Bundle as InternalBundle, ParcelOptions, ReportFn} from './types';
 import type ParcelConfig from './ParcelConfig';
 import type InternalBundleGraph from './BundleGraph';
 import type {FileSystem, FileOptions} from '@parcel/fs';
+import {clearCache} from '@parcel/utils';
 
 import invariant from 'assert';
 import {
@@ -153,6 +154,8 @@ export default class PackagerRunner {
           }),
       ),
     );
+
+    clearCache();
     await dispose();
   }
 
