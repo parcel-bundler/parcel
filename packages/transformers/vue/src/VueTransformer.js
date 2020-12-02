@@ -38,7 +38,7 @@ export default (new Transformer({
     });
   },
   canReuseAST({ast}) {
-    return ast.type === 'vue' && semver.satisfies(ast.version, '3.0.0-beta.20');
+    return ast.type === 'vue' && semver.satisfies(ast.version, '^3.0.0');
   },
   async parse({asset, options}) {
     // TODO: This parses the vue component multiple times. Fix?
@@ -62,7 +62,7 @@ export default (new Transformer({
 
     return {
       type: 'vue',
-      version: '3.0.0-beta.20',
+      version: '3.0.0',
       program: parsed.descriptor,
     };
   },
@@ -76,9 +76,6 @@ export default (new Transformer({
     let {template, script, styles, customBlocks} = nullthrows(
       await asset.getAST(),
     ).program;
-    if (styles.every(s => !s.scoped)) {
-      scopeId = undefined;
-    }
     if (asset.pipeline != null) {
       return processPipeline({
         asset,
@@ -122,7 +119,7 @@ let initialize = () => {
       ? `require('custom:./${basePath}').default(script);`
       : ''
   }
-  ${scopeId != null ? `script.__scopeId = '${scopeId}';` : ''}
+  script.__scopeId = '${scopeId}';
   script.__file = ${JSON.stringify(
     options.mode === 'production' ? basePath : asset.filePath,
   )};
