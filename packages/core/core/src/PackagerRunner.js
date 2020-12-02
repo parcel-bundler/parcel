@@ -25,6 +25,7 @@ import {
   TapStream,
 } from '@parcel/utils';
 import {PluginLogger} from '@parcel/logger';
+import {clearCache} from '@parcel/utils';
 import {init as initSourcemaps} from '@parcel/source-map';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import {Readable, Transform} from 'stream';
@@ -121,26 +122,31 @@ export default class PackagerRunner {
     let hashRefToNameHash = new Map();
     // skip inline bundles, they will be processed via the parent bundle
     let bundles = bundleGraph.getBundles().filter(bundle => !bundle.isInline);
-    await Promise.all(
-      bundles.map(async bundle => {
-        let info = await this.processBundle(bundle, bundleGraph, ref);
-        bundleInfoMap[bundle.id] = info;
-        if (!info.hashReferences.length) {
-          hashRefToNameHash.set(
-            bundle.hashReference,
-            this.options.contentHash
-              ? info.hash.slice(-8)
-              : bundle.id.slice(-8),
-          );
-          writeEarlyPromises[bundle.id] = this.writeToDist({
-            bundle,
-            info,
-            hashRefToNameHash,
-            bundleGraph,
-          });
-        }
-      }),
-    );
+    try {
+      await Promise.all(
+        bundles.map(async bundle => {
+          let info = await this.processBundle(bundle, bundleGraph, ref);
+          bundleInfoMap[bundle.id] = info;
+          if (!info.hashReferences.length) {
+            hashRefToNameHash.set(
+              bundle.hashReference,
+              this.options.contentHash
+                ? info.hash.slice(-8)
+                : bundle.id.slice(-8),
+            );
+            writeEarlyPromises[bundle.id] = this.writeToDist({
+              bundle,
+              info,
+              hashRefToNameHash,
+              bundleGraph,
+            });
+          }
+        }),
+      );
+    } finally {
+      clearCache();
+      await dispose();
+    }
     assignComplexNameHashes(
       hashRefToNameHash,
       bundles,
@@ -159,7 +165,6 @@ export default class PackagerRunner {
           }),
       ),
     );
-    await dispose();
   }
 
   async processBundle(

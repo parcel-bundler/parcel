@@ -33,8 +33,13 @@ export async function resolveConfig(
 
   for (const filename of filenames) {
     let file = path.join(filepath, filename);
-    if ((await fs.exists(file)) && (await fs.stat(file)).isFile()) {
-      return file;
+
+    try {
+      if ((await fs.stat(file)).isFile()) {
+        return file;
+      }
+    } catch {
+      // empty
     }
   }
 
@@ -67,6 +72,10 @@ export function resolveConfigSync(
   }
 
   return resolveConfigSync(fs, filepath, filenames, opts);
+}
+
+export function clearCache() {
+  configCache.clear();
 }
 
 export async function loadConfig(
