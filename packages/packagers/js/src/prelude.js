@@ -24,6 +24,8 @@
   var previousRequire =
     typeof globalObject[parcelRequireName] === 'function' &&
     globalObject[parcelRequireName];
+
+  cache = previousRequire.cache || cache;
   // Do not use `require` to prevent Webpack from trying to bundle this call
   var nodeRequire =
     typeof module !== 'undefined' &&
