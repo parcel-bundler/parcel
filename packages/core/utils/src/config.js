@@ -6,6 +6,7 @@ import path from 'path';
 import clone from 'clone';
 import {parse as json5} from 'json5';
 import {parse as toml} from '@iarna/toml';
+import LRU from 'lru-cache';
 
 export type ConfigOutput = {|
   config: ConfigResult,
@@ -16,7 +17,7 @@ export type ConfigOptions = {|
   parse?: boolean,
 |};
 
-let configCache = new Map<FilePath, ConfigOutput>();
+let configCache = new LRU<FilePath, ConfigOutput>({max: 500});
 
 export async function resolveConfig(
   fs: FileSystem,
@@ -34,8 +35,12 @@ export async function resolveConfig(
 
   for (const filename of filenames) {
     let file = path.join(filepath, filename);
-    if ((await fs.exists(file)) && (await fs.stat(file)).isFile()) {
-      return file;
+    try {
+      if ((await fs.exists(file)) && (await fs.stat(file)).isFile()) {
+        return file;
+      }
+    } catch (err) {
+      console.log('err:', err);
     }
   }
 
@@ -71,7 +76,7 @@ export function resolveConfigSync(
 }
 
 export function clearCache() {
-  configCache.clear();
+  configCache.reset();
 }
 
 export async function loadConfig(
@@ -84,6 +89,7 @@ export async function loadConfig(
   if (configFile) {
     let cachedOutput = configCache.get(configFile);
     if (cachedOutput) {
+      console.log('returning cachedOutput:', cachedOutput);
       return cachedOutput;
     }
 
@@ -116,6 +122,7 @@ export async function loadConfig(
       };
 
       configCache.set(configFile, output);
+      console.log('adding cache entry. cache is now: ', configCache);
 
       return output;
     } catch (err) {
