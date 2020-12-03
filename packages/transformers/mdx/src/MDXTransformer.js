@@ -7,7 +7,7 @@ export default (new Transformer({
       ['.mdxrc', 'mdx.config.js'],
       {packageKey: 'mdx'},
     );
-  }
+  },
   
   async transform({asset, options, config }) {
     let [mdx, code] = await Promise.all([
