@@ -1,10 +1,9 @@
 // @flow strict-local
 
 import type {Readable} from 'stream';
-
 import type {FilePath} from '@parcel/types';
-
 import type {FileSystem} from '@parcel/fs';
+
 import path from 'path';
 import logger from '@parcel/logger';
 import {serialize, deserialize, registerSerializableClass} from '@parcel/core';
