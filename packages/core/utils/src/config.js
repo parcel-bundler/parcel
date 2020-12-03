@@ -85,12 +85,12 @@ export async function loadConfig(
   filenames: Array<FilePath>,
   opts: ?ConfigOptions,
 ): Promise<ConfigOutput | null> {
-  let cachedOutput = configCache.get(filepath);
-  if (cachedOutput) {
-    return cachedOutput;
-  }
   let configFile = await resolveConfig(fs, filepath, filenames, opts);
   if (configFile) {
+    let cachedOutput = configCache.get(configFile);
+    if (cachedOutput) {
+      return cachedOutput;
+    }
     try {
       let extname = path.extname(configFile).slice(1);
       if (extname === 'js') {
