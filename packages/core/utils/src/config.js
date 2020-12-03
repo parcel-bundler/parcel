@@ -87,22 +87,27 @@ export async function loadConfig(
 ): Promise<ConfigOutput | null> {
   let configFile = await resolveConfig(fs, filepath, filenames, opts);
   if (configFile) {
-    let cachedOutput = configCache.get(configFile);
-    if (cachedOutput) {
-      return cachedOutput;
-    }
     try {
+      let cachedOutput = configCache.get(configFile);
+      if (cachedOutput) {
+        return cachedOutput;
+      }
+      let output;
+
       let extname = path.extname(configFile).slice(1);
       if (extname === 'js') {
-        return {
+        output = {
           // $FlowFixMe
           config: clone(require(configFile)),
           files: [{filePath: configFile}],
         };
+        configCache.set(configFile, output);
+        return output;
       }
 
       let configContent = await fs.readFile(configFile, 'utf8');
       if (!configContent) {
+        clearCache();
         return null;
       }
 
@@ -113,7 +118,7 @@ export async function loadConfig(
         let parse = getParser(extname);
         config = parse(configContent);
       }
-      let output = {
+      output = {
         config: config,
         files: [{filePath: configFile}],
       };

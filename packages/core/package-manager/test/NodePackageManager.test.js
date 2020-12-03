@@ -7,6 +7,7 @@ import path from 'path';
 import sinon from 'sinon';
 import ThrowableDiagnostic from '@parcel/diagnostic';
 import WorkerFarm from '@parcel/workers';
+import {clearCache} from '@parcel/utils';
 import {MockPackageInstaller, NodePackageManager} from '../';
 
 const FIXTURES_DIR = path.join(__dirname, 'fixtures');
@@ -30,6 +31,7 @@ describe('NodePackageManager', function() {
   });
 
   afterEach(async () => {
+    clearCache();
     await workerFarm.end();
   });
 
