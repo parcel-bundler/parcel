@@ -9,7 +9,6 @@ import {
   overlayFS,
   sleep,
 } from '@parcel/test-utils';
-// flowlint-next-line untyped-import:off
 import WebSocket from 'ws';
 import json5 from 'json5';
 // flowlint-next-line untyped-import:off
@@ -22,9 +21,11 @@ const config = path.join(
   './integration/custom-configs/.parcelrc-dev-server',
 );
 
-async function closeSocket(ws: typeof WebSocket) {
+async function closeSocket(ws: WebSocket) {
   ws.close();
-  await new Promise(resolve => (ws.onclose = resolve));
+  await new Promise(resolve => {
+    ws.once('close', resolve);
+  });
 }
 // flowlint-next-line unclear-type:off
 async function openSocket(uri: string, opts: any) {
@@ -38,7 +39,7 @@ async function openSocket(uri: string, opts: any) {
   return ws;
 }
 
-async function nextWSMessage(ws: typeof WebSocket) {
+async function nextWSMessage(ws: WebSocket) {
   return json5.parse(await new Promise(resolve => ws.once('message', resolve)));
 }
 

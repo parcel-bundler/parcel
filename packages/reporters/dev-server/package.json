@@ -28,7 +28,7 @@
     "ejs": "^2.6.1",
     "http-proxy-middleware": "^1.0.0",
     "nullthrows": "^1.1.1",
-    "ws": "^6.2.0"
+    "ws": "^7.0.0"
   },
   "devDependencies": {
     "@parcel/babel-preset": "2.0.0-beta.1",
