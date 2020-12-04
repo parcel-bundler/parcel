@@ -16,7 +16,6 @@ import type {Bundle as InternalBundle, ParcelOptions, ReportFn} from './types';
 import type ParcelConfig from './ParcelConfig';
 import type InternalBundleGraph from './BundleGraph';
 import type {FileSystem, FileOptions} from '@parcel/fs';
-import {clearCache} from '@parcel/utils';
 
 import invariant from 'assert';
 import {
@@ -24,6 +23,7 @@ import {
   md5FromString,
   blobToStream,
   TapStream,
+  clearCache,
 } from '@parcel/utils';
 import {PluginLogger} from '@parcel/logger';
 import {init as initSourcemaps} from '@parcel/source-map';
@@ -143,28 +143,28 @@ export default class PackagerRunner {
           }
         }),
       );
+      assignComplexNameHashes(
+        hashRefToNameHash,
+        bundles,
+        bundleInfoMap,
+        this.options,
+      );
+      await Promise.all(
+        bundles.map(
+          bundle =>
+            writeEarlyPromises[bundle.id] ??
+            this.writeToDist({
+              bundle,
+              info: bundleInfoMap[bundle.id],
+              hashRefToNameHash,
+              bundleGraph,
+            }),
+        ),
+      );
     } finally {
       clearCache();
       await dispose();
     }
-    assignComplexNameHashes(
-      hashRefToNameHash,
-      bundles,
-      bundleInfoMap,
-      this.options,
-    );
-    await Promise.all(
-      bundles.map(
-        bundle =>
-          writeEarlyPromises[bundle.id] ??
-          this.writeToDist({
-            bundle,
-            info: bundleInfoMap[bundle.id],
-            hashRefToNameHash,
-            bundleGraph,
-          }),
-      ),
-    );
   }
 
   async processBundle(
@@ -345,6 +345,8 @@ export default class PackagerRunner {
       throw new ThrowableDiagnostic({
         diagnostic: errorToDiagnostic(e, name),
       });
+    } finally {
+      clearCache();
     }
   }
 

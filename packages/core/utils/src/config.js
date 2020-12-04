@@ -35,19 +35,14 @@ export async function resolveConfig(
 
   for (const filename of filenames) {
     let file = path.join(filepath, filename);
-    try {
-      if ((await fs.exists(file)) && (await fs.stat(file)).isFile()) {
-        return file;
-      }
-    } catch (err) {
-      console.log('err:', err);
+    if ((await fs.exists(file)) && (await fs.stat(file)).isFile()) {
+      return file;
     }
   }
 
   if (filepath === root) {
     return null;
   }
-
   return resolveConfig(fs, filepath, filenames, opts);
 }
 
@@ -89,7 +84,6 @@ export async function loadConfig(
   if (configFile) {
     let cachedOutput = configCache.get(configFile);
     if (cachedOutput) {
-      console.log('returning cachedOutput:', cachedOutput);
       return cachedOutput;
     }
 
@@ -122,7 +116,6 @@ export async function loadConfig(
       };
 
       configCache.set(configFile, output);
-      console.log('adding cache entry. cache is now: ', configCache);
 
       return output;
     } catch (err) {
