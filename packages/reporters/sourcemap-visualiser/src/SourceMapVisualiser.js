@@ -19,21 +19,25 @@ export default (new Reporter({
             );
 
             let mappedSources = await Promise.all(
-              map.sources.map(async s => {
-                let sourceContent = '';
-                try {
-                  sourceContent = await options.inputFS.readFile(
-                    path.resolve(options.projectRoot, s),
-                    'utf-8',
-                  );
-                } catch (e) {
-                  logger.warn({
-                    message: `Error while loading content of ${s}, ${e.message}`,
-                  });
+              map.sources.map(async (sourceName, index) => {
+                let sourceContent =
+                  (map.sourcesContent && map.sourcesContent[index]) || '';
+
+                if (!sourceContent) {
+                  try {
+                    sourceContent = await options.inputFS.readFile(
+                      path.resolve(options.projectRoot, sourceName),
+                      'utf-8',
+                    );
+                  } catch (e) {
+                    logger.warn({
+                      message: `Error while loading content of ${sourceName}, ${e.message}`,
+                    });
+                  }
                 }
 
                 return {
-                  name: s,
+                  name: sourceName,
                   content: sourceContent,
                 };
               }),
