@@ -8,6 +8,14 @@ import {minify} from 'terser';
 import nullthrows from 'nullthrows';
 import ThrowableDiagnostic from '@parcel/diagnostic';
 
+let isWorker;
+try {
+  let worker_threads = require('worker_threads');
+  isWorker = worker_threads.threadId > 0;
+} catch (_) {
+  isWorker = false;
+}
+
 export default (new Transformer({
   async loadConfig({config, options}) {
     const elmConfig = await config.getConfig(['elm.json']);
@@ -49,6 +57,10 @@ export default (new Transformer({
       asset.addIncludedFile(filePath);
     }
 
+    // Workaround for `chdir` not working in workers
+    // this can be removed after https://github.com/isaacs/node-graceful-fs/pull/200 was mergend and used in parcel
+    process.chdir.disabled = isWorker;
+    
     let code = await compileToString(elm, elmBinary, asset, compilerConfig);
     if (options.hot) {
       code = await injectHotModuleReloadRuntime(code, asset.filePath, options);
