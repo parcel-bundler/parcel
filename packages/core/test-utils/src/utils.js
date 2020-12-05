@@ -322,7 +322,8 @@ export function run(
   bundleGraph: BundleGraph<NamedBundle>,
   globals: mixed,
   opts: RunOpts = {},
-): Promise<mixed> {
+  // $FlowFixMe[unclear-type]
+): Promise<any> {
   let bundle = nullthrows(
     bundleGraph.getBundles().find(b => b.type === 'js' || b.type === 'html'),
   );
