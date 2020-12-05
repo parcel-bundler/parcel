@@ -66,7 +66,7 @@ async function testCache(update: UpdateFn | TestConfig, integration) {
   return b;
 }
 
-describe('cache', function() {
+describe.only('cache', function() {
   before(async () => {
     await inputFS.rimraf(path.join(__dirname, 'input'));
   });
@@ -2448,7 +2448,7 @@ describe('cache', function() {
           await overlayFS.writeFile(
             path.join(inputDir, 'src/index.js'),
             `import React from 'react';
-            
+
             export function Component() {
               return <h1>Hello world</h1>;
             }`,
@@ -2580,7 +2580,7 @@ describe('cache', function() {
     it('should support removing sideEffects config', function() {});
   });
 
-  describe('runtime', () => {
+  describe.only('runtime', () => {
     it('should support updating files added by runtimes', async function() {
       let b = await testCache(async b => {
         let contents = await overlayFS.readFile(

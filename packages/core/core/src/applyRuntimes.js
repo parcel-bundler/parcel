@@ -23,6 +23,7 @@ import {setDifference, md5FromString} from '@parcel/utils';
 import {PluginLogger} from '@parcel/logger';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import {dependencyToInternalDependency} from './public/Dependency';
+import SourceMap from '@parcel/source-map';
 
 type RuntimeConnection = {|
   bundle: InternalBundle,
@@ -69,12 +70,22 @@ export default async function applyRuntimes({
             resolveFromDir,
             isEntry,
           } of runtimeAssets) {
+            let filePath = path.join(
+              resolveFromDir,
+              `runtime-${md5FromString(code)}.${bundle.type}`,
+            );
+
+            let sourcemap = SourceMap.generateEmptyMap({
+              projectRoot: pluginOptions.projectRoot,
+              sourceName: filePath,
+              sourceContent: code,
+            });
+            sourcemap.setSourceContent(filePath, code);
+
             let assetGroup = {
               code,
-              filePath: path.join(
-                resolveFromDir,
-                `runtime-${md5FromString(code)}.${bundle.type}`,
-              ),
+              mapBuffer: await sourcemap.toBuffer(),
+              filePath,
               env: bundle.env,
               // Runtime assets should be considered source, as they should be
               // e.g. compiled to run in the target environment

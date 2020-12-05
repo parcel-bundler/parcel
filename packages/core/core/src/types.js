@@ -244,6 +244,7 @@ export type AssetRequestInput = {|
   canDefer?: boolean,
   sideEffects?: boolean,
   code?: string,
+  mapBuffer?: Buffer,
   pipeline?: ?string,
   optionsRef: SharedReference,
   isURL?: boolean,

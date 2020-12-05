@@ -27,7 +27,7 @@ import {
   normalizeSeparators,
 } from '@parcel/utils';
 import logger, {PluginLogger} from '@parcel/logger';
-import {init as initSourcemaps} from '@parcel/source-map';
+import SourceMap, {init as initSourcemaps} from '@parcel/source-map';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import {SOURCEMAP_EXTENSIONS, flatMap} from '@parcel/utils';
 
@@ -205,6 +205,7 @@ export default class Transformation {
       isSource: isSourceOverride,
       sideEffects,
       query,
+      mapBuffer,
     } = this.request;
     let {
       content,
@@ -212,6 +213,11 @@ export default class Transformation {
       hash,
       isSource: summarizedIsSource,
     } = await summarizeRequest(this.options.inputFS, {filePath, code});
+
+    if (mapBuffer) {
+      let map = new SourceMap(this.options.projectRoot);
+      map.addBufferMappings(mapBuffer);
+    }
 
     // Prefer `isSource` originating from the AssetRequest.
     let isSource = isSourceOverride ?? summarizedIsSource;
@@ -244,6 +250,7 @@ export default class Transformation {
       options: this.options,
       content,
       invalidations: this.invalidations,
+      mapBuffer,
     });
   }
 

@@ -14,7 +14,7 @@ import {
 } from '@parcel/test-utils';
 import path from 'path';
 
-describe('html', function() {
+describe.only('html', function() {
   beforeEach(async () => {
     await removeDistDirectory();
   });
@@ -1027,7 +1027,7 @@ describe('html', function() {
     assert(html.includes('document.write("Hello world")'));
   });
 
-  it('should correctly bundle loaders for nested dynamic imports', async function() {
+  it.only('should correctly bundle loaders for nested dynamic imports', async function() {
     let b = await bundle(
       path.join(
         __dirname,
@@ -1047,9 +1047,9 @@ describe('html', function() {
           'index.js',
           'index.js',
           'js-loader.js',
-          'JSRuntime.js',
-          'JSRuntime.js',
-          'JSRuntime.js',
+          'runtime-24bdb7077b6954608a449bedcc590764.js',
+          'runtime-5eec480192351a62d46b18954116063d.js',
+          'runtime-d9e1c8c6116a9d0faf6b39b34da94243.js',
           'relative-path.js',
         ],
       },
