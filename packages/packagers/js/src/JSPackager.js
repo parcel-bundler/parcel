@@ -93,6 +93,7 @@ export default (new Packager({
         parcelRequireName,
         options,
       });
+
       return replaceReferences({
         contents:
           contents +
@@ -205,6 +206,14 @@ export default (new Packager({
       // as there might be dependencies in a sibling bundle that hasn't loaded yet.
       entries = entries.filter(a => a.id !== mainEntry?.id);
       mainEntry = null;
+    }
+
+    if (map) {
+      let vlqMappings = map.toVLQ();
+      console.log({
+        sources: vlqMappings.sources,
+        sourcesContent: vlqMappings.sourcesContent,
+      });
     }
 
     return replaceReferences({

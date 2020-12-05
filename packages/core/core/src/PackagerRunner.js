@@ -440,6 +440,12 @@ export default class PackagerRunner {
     let mapFilename = filePath + '.map';
     let isInlineMap = bundle.env.sourceMap && bundle.env.sourceMap.inline;
 
+    /*let vlqMappings = map.toVLQ();
+    console.log({
+      sources: vlqMappings.sources,
+      sourcesContent: vlqMappings.sourcesContent,
+    });*/
+
     let stringified = await map.stringify({
       file: path.basename(mapFilename),
       // $FlowFixMe
