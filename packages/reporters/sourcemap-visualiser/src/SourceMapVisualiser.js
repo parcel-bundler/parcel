@@ -20,10 +20,8 @@ export default (new Reporter({
 
             let mappedSources = await Promise.all(
               map.sources.map(async (sourceName, index) => {
-                let sourceContent =
-                  (map.sourcesContent && map.sourcesContent[index]) || '';
-
-                if (!sourceContent) {
+                let sourceContent = map.sourcesContent?.[index];
+                if (sourceContent != null) {
                   try {
                     sourceContent = await options.inputFS.readFile(
                       path.resolve(options.projectRoot, sourceName),
@@ -38,7 +36,7 @@ export default (new Reporter({
 
                 return {
                   name: sourceName,
-                  content: sourceContent,
+                  content: sourceContent ?? '',
                 };
               }),
             );
