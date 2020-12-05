@@ -173,8 +173,7 @@ async function collectDependencies(
           filePath,
           ...getJSONSourceLocation(ptrs[location], 'value'),
         },
-        // TODO: not this, for sure
-        ...(extname(obj) == '.json' && {pipeline: 'url'}),
+        pipeline: extname(obj) == '.json' ? 'url' : undefined,
       });
     else {
       for (const k of Object.keys(obj)) {
@@ -184,7 +183,7 @@ async function collectDependencies(
             filePath,
             ...getJSONSourceLocation(ptrs[location + '/' + k], 'value'),
           },
-          ...(extname(obj[k]) == '.json' && {pipeline: 'url'}),
+          pipeline: extname(obj[k]) == '.json' ? 'url' : undefined,
         });
       }
     }
