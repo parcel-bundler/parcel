@@ -22,7 +22,6 @@ const ATTRS = {
   // Using href with <script> is described here: https://developer.mozilla.org/en-US/docs/Web/SVG/Element/script
   href: ['link', 'a', 'use', 'script'],
   srcset: ['img', 'source'],
-  imagesrcset: ['link'],
   poster: ['video'],
   'xlink:href': ['use', 'image', 'script'],
   content: ['meta'],
@@ -117,7 +116,7 @@ class HTMLAsset extends Asset {
   }
 
   getAttrDepHandler(attr) {
-    if (attr === 'srcset' || attr === 'imagesrcset') {
+    if (attr === 'srcset') {
       return this.collectSrcSetDependencies;
     }
     return this.processSingleDependency;
