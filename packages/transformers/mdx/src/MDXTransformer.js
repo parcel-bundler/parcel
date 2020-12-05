@@ -1,15 +1,29 @@
 // @flow
 import {Transformer} from '@parcel/plugin';
+import {serialize, deserialize} from '@parcel/core';
 
 export default (new Transformer({
-  async loadConfig({ config }) {
-    return await config.getConfig(
-      ['.mdxrc', 'mdx.config.js'],
-      {packageKey: 'mdx'},
-    );
+  async loadConfig({config}) {
+    const result = await config.getConfig(['.mdxrc', 'mdx.config.js'], {
+      packageKey: 'mdx',
+    });
+
+    if (!result) {
+      return;
+    }
+
+    config.setResult(result);
   },
-  
-  async transform({asset, options, config }) {
+
+  async preSerializeConfig({config}) {
+    serialize(config);
+  },
+
+  async postSerializeConfig({config}) {
+    deserialize(config);
+  },
+
+  async transform({asset, options, config}) {
     let [mdx, code] = await Promise.all([
       options.packageManager.require('@mdx-js/mdx', asset.filePath, {
         autoinstall: options.autoinstall,
@@ -21,7 +35,7 @@ export default (new Transformer({
       }),
     ]);
 
-    const compiled = await mdx(code, config);
+    const compiled = await mdx(code, config.contents);
 
     asset.type = 'js';
     asset.setCode(`/* @jsx mdx */
