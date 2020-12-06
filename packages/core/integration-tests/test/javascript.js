@@ -402,8 +402,8 @@ describe('javascript', function() {
       mainBundle.filePath,
       'utf8',
     );
-    assert(mainBundleContent.includes("require('./async')"));
-    assert(mainBundleContent.includes(`require('./async2')`));
+    assert(mainBundleContent.includes('require("./async")'));
+    assert(mainBundleContent.includes(`require("./async2")`));
   });
 
   it('should split bundles when a dynamic import is used with a node environment', async function() {

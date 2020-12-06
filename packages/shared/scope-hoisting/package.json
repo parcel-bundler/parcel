@@ -20,7 +20,6 @@
     "node": ">= 10.0.0"
   },
   "dependencies": {
-    "@babel/generator": "^7.3.3",
     "@babel/parser": "^7.0.0",
     "@babel/template": "^7.4.0",
     "@babel/traverse": "^7.2.3",
