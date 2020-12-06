@@ -4,6 +4,6 @@
     "manifest.json": ["@parcel/transformer-webext"]
   },
   "packagers": {
-    "manifest.json": ["@parcel/packager-raw-url"]
+    "manifest.json": "@parcel/packager-raw-url"
   }
 }
