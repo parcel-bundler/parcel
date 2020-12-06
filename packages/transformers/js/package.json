@@ -31,6 +31,7 @@
     "@parcel/diagnostic": "2.0.0-beta.1",
     "@parcel/plugin": "2.0.0-beta.1",
     "@parcel/scope-hoisting": "2.0.0-beta.1",
+    "@parcel/types": "2.0.0-beta.1",
     "@parcel/utils": "2.0.0-beta.1",
     "micromatch": "^4.0.2",
     "nullthrows": "^1.1.1",

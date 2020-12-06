@@ -10,13 +10,13 @@ import collectDependencies from './visitors/dependencies';
 import processVisitor from './visitors/process';
 import fsVisitor from './visitors/fs';
 import insertGlobals from './visitors/globals';
-import modulesVisitor from './visitors/modules';
 import traverse from '@babel/traverse';
 import {ancestor as walkAncestor} from '@parcel/babylon-walk';
 import {hoist} from '@parcel/scope-hoisting';
 import {generate, parse} from '@parcel/babel-ast-utils';
 import {validateSchema} from '@parcel/utils';
 import {encodeJSONKeyComponent} from '@parcel/diagnostic';
+import {esm2cjs} from './visitors/modules2';
 
 const CONFIG_SCHEMA: SchemaEntity = {
   type: 'object',
@@ -131,7 +131,6 @@ export default (new Transformer({
     let {inlineEnvironment = true, inlineFS = true, ignoreFS} = config || {};
 
     let code = asset.isASTDirty() ? null : await asset.getCode();
-    let wasDirty = asset.isASTDirty();
 
     // Inline process/environment variables
     if (
@@ -198,7 +197,7 @@ export default (new Transformer({
       hoist(asset, ast);
     } else if (asset.meta.isES6Module) {
       // Convert ES6 modules to CommonJS
-      traverse(ast.program, modulesVisitor, null, {asset});
+      esm2cjs(ast.program, asset);
       isASTDirty = true;
     }
 

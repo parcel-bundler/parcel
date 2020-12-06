@@ -34,7 +34,7 @@ describe('typescript', function() {
       assertBundles(b, [
         {
           type: 'js',
-          assets: ['index.ts', 'Local.ts', 'helpers.js'],
+          assets: ['index.ts', 'Local.ts', 'esmodule-helpers.js'],
         },
       ]);
 
@@ -52,7 +52,7 @@ describe('typescript', function() {
       assertBundles(b, [
         {
           type: 'js',
-          assets: ['index.ts', 'Local.ts', 'helpers.js'],
+          assets: ['index.ts', 'Local.ts', 'esmodule-helpers.js'],
         },
       ]);
 
@@ -83,7 +83,7 @@ describe('typescript', function() {
       assertBundles(b, [
         {
           type: 'js',
-          assets: ['index.ts', 'helpers.js'],
+          assets: ['index.ts', 'esmodule-helpers.js'],
         },
       ]);
 
@@ -106,7 +106,7 @@ describe('typescript', function() {
             'JSRuntime.js',
             'bundle-url.js',
             'bundle-manifest.js',
-            'helpers.js',
+            'esmodule-helpers.js',
             'JSRuntime.js',
             'relative-path.js',
           ],
@@ -139,7 +139,7 @@ describe('typescript', function() {
       assertBundles(b, [
         {
           type: 'js',
-          assets: ['index.ts', 'Local.ts', 'helpers.js'],
+          assets: ['index.ts', 'Local.ts', 'esmodule-helpers.js'],
         },
       ]);
 
@@ -173,7 +173,7 @@ describe('typescript', function() {
       assertBundles(b, [
         {
           name: 'index.js',
-          assets: ['helpers.js', 'index.ts', 'commonjs-module.js'],
+          assets: ['esmodule-helpers.js', 'index.ts', 'commonjs-module.js'],
         },
       ]);
 

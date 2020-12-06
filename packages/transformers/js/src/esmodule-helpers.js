@@ -1,12 +1,12 @@
-export function interopDefault(a) {
+exports.interopDefault = function(a) {
   return a && a.__esModule ? a.default : a;
-}
+};
 
-export function defineInteropFlag(a) {
+exports.defineInteropFlag = function(a) {
   Object.defineProperty(a, '__esModule', {value: true});
-}
+};
 
-export function namespace(source, dest = {}) {
+exports.namespace = function(source, dest = {}) {
   Object.keys(source).forEach(function(key) {
     if (key === 'default' || key === '__esModule') {
       return;
@@ -21,17 +21,11 @@ export function namespace(source, dest = {}) {
   });
 
   return dest;
-}
+};
 
-export function reexport(dest, destName, source, sourceName) {
+exports.export = function(dest, destName, get) {
   Object.defineProperty(dest, destName, {
     enumerable: true,
-    get() {
-      if (sourceName === 'default') {
-        return interopDefault(source);
-      }
-
-      return source[sourceName];
-    },
+    get,
   });
-}
+};
