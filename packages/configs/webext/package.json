@@ -16,6 +16,7 @@
   "main": "index.json",
   "dependencies": {
     "@parcel/config-default": "2.0.0-beta.1",
-    "@parcel/transformer-webext": "2.0.0-beta.1"
+    "@parcel/transformer-webext": "2.0.0-beta.1",
+    "@parcel/packager-raw-url": "2.0.0-beta.1"
   }
 }
