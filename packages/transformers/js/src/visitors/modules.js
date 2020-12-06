@@ -1,421 +1,376 @@
 // @flow
-import type {Visitor, NodePath} from '@babel/traverse';
-import type {MutableAsset} from '@parcel/types';
+import type {ScopeState, Visitors} from '@parcel/babylon-walk';
+import type {
+  ImportDeclaration,
+  ExportAllDeclaration,
+  ExportNamedDeclaration,
+  Identifier,
+  Expression,
+} from '@babel/types';
+import {MutableAsset} from '@parcel/types';
 import * as t from '@babel/types';
+import {
+  isIdentifier,
+  isImportDeclaration,
+  isImportSpecifier,
+  isImportDefaultSpecifier,
+  isImportNamespaceSpecifier,
+  isExportAllDeclaration,
+} from '@babel/types';
+import {
+  traverse2,
+  REMOVE,
+  mergeVisitors,
+  Scope,
+  scopeVisitor,
+} from '@parcel/babylon-walk';
 import invariant from 'assert';
-import nullthrows from 'nullthrows';
-import Path from 'path';
+import path from 'path';
+import {relativePath} from '@parcel/utils';
 
-type Opts = {|
-  asset: MutableAsset,
-  helpersId?: ?string,
-  addedInteropFlag?: boolean,
-|};
+type State = {
+  ...ScopeState,
+  imports: Array<
+    ImportDeclaration | ExportAllDeclaration | ExportNamedDeclaration,
+  >,
+  importNames: Map<
+    string,
+    {|name: string, default: string, namespace: string|},
+  >,
+  exports: Array<{|local: Expression, exported: Identifier|}>,
+  needsInteropFlag: boolean,
+  ...
+};
 
-export default ({
-  Program(path, opts) {
-    // If the AST is dirty from prior Babel transforms, crawl to ensure the scope is up to date
-    if (opts.asset.isASTDirty()) {
-      path.scope.crawl();
+let modulesVisitor: Visitors<State> = {
+  Identifier(node, state, ancestors) {
+    let parent = ancestors[ancestors.length - 2];
+    if (!t.isReferenced(node, parent, ancestors[ancestors.length - 3])) {
+      return;
     }
-  },
+    let {scope} = state;
 
-  ImportDeclaration(path, opts) {
-    // Hoist require call to the top of the file
-    let name = path.scope.generateUid(path.node.source.value);
-    path.scope.push({
-      id: t.identifier(name),
-      init: t.callExpression(t.identifier('require'), [path.node.source]),
-    });
-
-    let namespaceName;
-    let defaultName;
-
-    for (let specifier of path.node.specifiers) {
-      if (t.isImportDefaultSpecifier(specifier)) {
-        invariant(specifier.type === 'ImportDefaultSpecifier');
-        let binding = path.scope.getBinding(specifier.local.name);
-        if (binding) {
-          // Generate name for interop default variable if needed
-          if (!defaultName) {
-            defaultName = path.scope.generateUid(name + 'Default');
-          }
-
-          for (let reference of binding.referencePaths) {
-            reference.replaceWith(t.identifier(defaultName));
-          }
-        }
-      } else if (t.isImportNamespaceSpecifier(specifier)) {
-        invariant(specifier.type === 'ImportNamespaceSpecifier');
-        let binding = path.scope.getBinding(specifier.local.name);
-        if (binding) {
-          // Generate name for interop namespace variable if needed
-          if (!namespaceName) {
-            namespaceName = path.scope.generateUid(name + 'Namespace');
-          }
-
-          for (let reference of binding.referencePaths) {
-            reference.replaceWith(t.identifier(namespaceName));
-          }
-        }
-      } else if (t.isImportSpecifier(specifier)) {
-        invariant(specifier.type === 'ImportSpecifier');
-        let binding = path.scope.getBinding(specifier.local.name);
-        if (binding) {
-          for (let reference of binding.referencePaths) {
-            // If the reference is inside an export specifier, treat it like a re-export
-            if (t.isExportSpecifier(reference.parent)) {
-              let exportSpecifier = ((reference.parent: any): BabelNodeExportSpecifier);
-
-              addHelpers(path, opts);
-              reference.parentPath.parentPath.insertAfter(
-                t.expressionStatement(
-                  t.callExpression(
-                    t.memberExpression(
-                      t.identifier(nullthrows(opts.helpersId)),
-                      t.identifier('reexport'),
-                    ),
-                    [
-                      t.identifier('exports'),
-                      t.stringLiteral(exportSpecifier.exported.name),
-                      t.identifier(name),
-                      t.stringLiteral(specifier.imported.name),
-                    ],
-                  ),
-                ),
-              );
-
-              reference.parentPath.remove();
-            } else {
-              // Otherwise, replace the reference with a member expression of the required exports object
-              reference.replaceWith(
-                t.memberExpression(
-                  t.identifier(name),
-                  t.identifier(specifier.imported.name),
-                ),
-              );
-            }
-          }
-        }
-      }
-    }
-
-    // Add helpers if needed
-    if (namespaceName || defaultName) {
-      addHelpers(path, opts);
-    }
-
-    // Create interop namespace variable if needed
-    if (namespaceName) {
-      path.scope.push({
-        id: t.identifier(namespaceName),
-        init: t.callExpression(
-          t.memberExpression(
-            t.identifier(nullthrows(opts.helpersId)),
-            t.identifier('namespace'),
-          ),
-          [t.identifier(name)],
-        ),
-      });
-    }
-
-    // Create interop default variable if needed
-    if (defaultName) {
-      path.scope.push({
-        id: t.identifier(defaultName),
-        init: t.callExpression(
-          t.memberExpression(
-            t.identifier(nullthrows(opts.helpersId)),
-            t.identifier('interopDefault'),
-          ),
-          [t.identifier(name)],
-        ),
-      });
-    }
-
-    path.remove();
-  },
-
-  ExportNamedDeclaration(path, opts) {
-    let {declaration, source, specifiers} = path.node;
-    let bindings = new Map();
-
-    if (source) {
-      // Hoist require call to the top of the file
-      let name = path.scope.generateUid(source.value);
-      path.scope.push({
-        id: t.identifier(name),
-        init: t.callExpression(t.identifier('require'), [source]),
-      });
-
-      addHelpers(path, opts);
-
-      let statements = [];
-      for (let specifier of specifiers) {
-        if (t.isExportDefaultSpecifier(specifier)) {
-          invariant(specifier.type === 'ExportDefaultSpecifier');
-          throw new Error('TODO: export extensions are not implemented');
-        } else if (t.isExportNamespaceSpecifier(specifier)) {
-          invariant(specifier.type === 'ExportNamespaceSpecifier');
-          throw new Error('TODO: export extensions are not implemented');
-        } else if (t.isExportSpecifier(specifier)) {
-          // Add call to reexport helper to generate a getter
-          invariant(specifier.type === 'ExportSpecifier');
-          statements.push(
-            t.expressionStatement(
-              t.callExpression(
-                t.memberExpression(
-                  t.identifier(nullthrows(opts.helpersId)),
-                  t.identifier('reexport'),
-                ),
-                [
-                  t.identifier('exports'),
-                  t.stringLiteral(specifier.exported.name),
-                  t.identifier(name),
-                  t.stringLiteral(specifier.local.name),
-                ],
-              ),
-            ),
-          );
-        }
+    return () => {
+      let binding = scope.getBinding(node.name);
+      if (!binding || !isImportDeclaration(binding)) {
+        return;
       }
 
-      path.replaceWithMultiple(statements);
-    } else if (declaration) {
-      if (t.isIdentifier(declaration.id)) {
-        // Insert an assignment to `export` after the declaration
-        path.insertAfter(
-          t.expressionStatement(
-            t.assignmentExpression(
-              '=',
-              t.memberExpression(
-                t.identifier('exports'),
-                t.identifier(declaration.id.name),
-              ),
-              t.identifier(declaration.id.name),
-            ),
-          ),
-        );
+      let specifier = binding.specifiers.find(
+        specifier => specifier.local.name === node.name,
+      );
+      if (isImportSpecifier(specifier)) {
+        return getSpecifier(state, binding.source, specifier.imported.name);
+      } else if (isImportNamespaceSpecifier(specifier)) {
+        return getNamespace(state, binding.source);
+      } else if (isImportDefaultSpecifier(specifier)) {
+        return getDefault(state, binding.source);
+      }
+    };
+  },
+  ImportDeclaration: {
+    exit(node, {imports}) {
+      imports.push(node);
+      return REMOVE;
+    },
+  },
+  ExportNamedDeclaration: {
+    exit(node, state) {
+      let {exports, imports} = state;
+      let {declaration, source, specifiers} = node;
 
-        path.replaceWith(declaration);
+      state.needsInteropFlag = true;
 
-        let binding = path.scope.getBinding(declaration.id);
-        if (binding) {
-          bindings.set(declaration.id, binding);
-        }
-      } else {
+      if (source) {
+        imports.push(node);
+        return () => {
+          for (let specifier of specifiers) {
+            invariant(specifier.type === 'ExportSpecifier');
+
+            let local =
+              specifier.local.name === 'default'
+                ? getDefault(state, source)
+                : getSpecifier(state, source, specifier.local.name);
+
+            exports.push({exported: specifier.exported, local});
+          }
+
+          return REMOVE;
+        };
+      } else if (declaration) {
         // Find all binding identifiers, and insert assignments to `exports`
         let identifiers = t.getBindingIdentifiers(declaration);
-        let statements = [];
         for (let id of Object.keys(identifiers)) {
-          statements.push(
+          exports.push({local: t.identifier(id), exported: t.identifier(id)});
+        }
+
+        return declaration;
+      } else if (specifiers.length > 0) {
+        // Add assignments to `exports` for each specifier
+        for (let specifier of specifiers) {
+          invariant(specifier.type === 'ExportSpecifier');
+          exports.push({local: specifier.local, exported: specifier.exported});
+        }
+      }
+
+      return REMOVE;
+    },
+  },
+  ExportAllDeclaration(node, state) {
+    state.imports.push(node);
+    state.needsInteropFlag = true;
+    return REMOVE;
+  },
+  ExportDefaultDeclaration: {
+    exit(node, state) {
+      // This has to happen AFTER any referenced identifiers are replaced.
+      return () => {
+        let {declaration} = node;
+        state.needsInteropFlag = true;
+
+        // If the declaration has a name, insert an assignment to `exports` afterward.
+        if (declaration.id != null && isIdentifier(declaration.id)) {
+          let id = t.identifier(declaration.id.name);
+          state.scope.addReference(id);
+
+          return [
+            declaration,
             t.expressionStatement(
               t.assignmentExpression(
                 '=',
-                t.memberExpression(t.identifier('exports'), t.identifier(id)),
-                t.identifier(id),
+                t.memberExpression(
+                  t.identifier('exports'),
+                  t.identifier('default'),
+                ),
+                id,
               ),
             ),
-          );
-
-          let binding = path.scope.getBinding(id);
-          if (binding) {
-            bindings.set(id, binding);
-          }
-        }
-
-        path.insertAfter(statements);
-        path.replaceWith(declaration);
-      }
-    } else if (specifiers.length > 0) {
-      // Add assignments to `exports` for each specifier
-      let statements = [];
-      for (let specifier of specifiers) {
-        invariant(specifier.type === 'ExportSpecifier');
-        statements.push(
-          t.expressionStatement(
+          ];
+        } else if (declaration.type !== 'TSDeclareFunction') {
+          // Replace with an assignment to `exports`.
+          return t.expressionStatement(
             t.assignmentExpression(
               '=',
               t.memberExpression(
                 t.identifier('exports'),
-                t.identifier(specifier.exported.name),
+                t.identifier('default'),
               ),
-              t.identifier(specifier.local.name),
-            ),
-          ),
-        );
-
-        let binding = path.scope.getBinding(specifier.local.name);
-        if (binding) {
-          bindings.set(specifier.local.name, binding);
-        }
-      }
-
-      path.replaceWithMultiple(statements);
-
-      // ES modules export live bindings. For each constant violation, add an assignment to `exports`.
-      for (let [name, binding] of bindings) {
-        for (let violation of binding.constantViolations) {
-          violation.insertAfter(
-            t.assignmentExpression(
-              '=',
-              t.memberExpression(t.identifier('exports'), t.identifier(name)),
-              t.identifier(name),
+              t.toExpression(declaration),
             ),
           );
+        } else {
+          return REMOVE;
         }
+      };
+    },
+  },
+  ThisExpression(node, {scope}) {
+    while (scope) {
+      if (scope.type === 'function') {
+        return;
       }
-    } else {
-      path.remove();
+
+      scope = scope.parent;
     }
 
-    // Add __esModule interop flag at the top of the file if needed
-    addInteropFlag(path, opts);
+    return t.identifier('undefined');
   },
+};
 
-  ExportAllDeclaration(path, opts) {
-    // Hoist require call to the top of the file
-    let name = path.scope.generateUid(path.node.source.value);
-    path.scope.push({
-      id: t.identifier(name),
-      init: t.callExpression(t.identifier('require'), [path.node.source]),
-    });
-
-    // Call namespace helper to copy all exports from the source module to exports
-    addHelpers(path, opts);
-    path.replaceWith(
-      t.expressionStatement(
-        t.callExpression(
-          t.memberExpression(
-            t.identifier(nullthrows(opts.helpersId)),
-            t.identifier('namespace'),
-          ),
-          [t.identifier(name), t.identifier('exports')],
-        ),
-      ),
-    );
-
-    // Add __esModule interop flag at the top of the file if needed
-    addInteropFlag(path, opts);
-  },
-
-  ExportDefaultDeclaration(path, opts) {
-    let {declaration} = path.node;
-
-    // If the declaration has a name, insert an assignment to `exports` afterward.
-    if (declaration.id != null && t.isIdentifier(declaration.id)) {
-      // Appease flow
-      let id = ((declaration.id: any): BabelNodeIdentifier);
-
-      path.insertAfter(
-        t.expressionStatement(
-          t.assignmentExpression(
-            '=',
-            t.memberExpression(
-              t.identifier('exports'),
-              t.identifier('default'),
-            ),
-            t.identifier(id.name),
-          ),
-        ),
-      );
-
-      path.replaceWith(declaration);
-    } else if (declaration.type !== 'TSDeclareFunction') {
-      // Replace with an assignment to `exports`.
-      path.replaceWith(
-        t.expressionStatement(
-          t.assignmentExpression(
-            '=',
-            t.memberExpression(
-              t.identifier('exports'),
-              t.identifier('default'),
-            ),
-            t.toExpression(declaration),
-          ),
-        ),
-      );
-    } else {
-      path.remove();
-    }
-
-    // Add __esModule interop flag at the top of the file if needed
-    addInteropFlag(path, opts);
-  },
-
-  // We don't need to traverse any deeper than the top-level statement list, so skip everything else for performance.
-  Statement(path) {
-    path.skip();
-  },
-
-  Expression(path) {
-    path.skip();
-  },
-
-  Declaration(path) {
-    path.skip();
-  },
-}: Visitor<Opts>);
-
-function addHelpers(path: NodePath<any>, opts: Opts) {
-  if (opts.helpersId) {
-    return;
+function getNames(state, source) {
+  let names = state.importNames.get(source.value);
+  if (!names) {
+    let name = state.scope.generateUid(source.value);
+    names = {name, namespace: '', default: ''};
+    state.importNames.set(source.value, names);
   }
 
-  // Don't add the helpers to the helpers file itself
-  let helperPath = Path.join(__dirname, '..', 'helpers.js');
-  if (opts.asset.filePath === helperPath) {
-    return null;
-  }
-
-  // Add a dependency so Parcel includes the helpers
-  let helperSpecifier = Path.relative(
-    Path.dirname(opts.asset.filePath),
-    helperPath,
-  );
-  opts.asset.addDependency({
-    moduleSpecifier: helperSpecifier,
-  });
-
-  // Add a require for the helpers in the top-level scope
-  opts.helpersId = path.scope.generateUid('parcelHelpers');
-  path.scope.getProgramParent().push({
-    id: t.identifier(nullthrows(opts.helpersId)),
-    init: t.callExpression(t.identifier('require'), [
-      t.stringLiteral(helperSpecifier),
-    ]),
-  });
+  return names;
 }
 
-function addInteropFlag(path: NodePath<any>, opts: Opts) {
-  if (opts.addedInteropFlag) {
-    return;
-  }
+function getSpecifier(state, source, name) {
+  let names = getNames(state, source);
+  return t.memberExpression(t.identifier(names.name), t.identifier(name));
+}
 
-  addHelpers(path, opts);
-  if (!opts.helpersId) {
-    return;
+function getDefault(state, source) {
+  let names = getNames(state, source);
+  if (!names.default) {
+    names.default = state.scope.generateUid(names.name + 'Default');
   }
+  return t.identifier(names.default);
+}
 
-  let binding = path.scope.getBinding(opts.helpersId);
-  if (!binding) {
-    return;
+function getNamespace(state, source) {
+  let names = getNames(state, source);
+  if (!names.namespace) {
+    names.namespace = state.scope.generateUid(names.name + 'Namespace');
   }
+  return t.identifier(names.namespace);
+}
 
-  // Call the helper to define the __esModule interop flag
-  binding.path
-    .getStatementParent()
-    .insertAfter(
+const visitor = mergeVisitors(scopeVisitor, modulesVisitor);
+
+export function esm2cjs(ast: BabelNodeFile, asset?: MutableAsset) {
+  let imports = [];
+  let importNames = new Map();
+  let scope = new Scope('program');
+  let exports = [];
+  let state: State = {
+    imports,
+    importNames,
+    exports,
+    needsInteropFlag: false,
+    scope,
+  };
+
+  traverse2(ast, visitor, state);
+
+  let body = ast.program.body;
+  let prepend = [];
+  let helpersId;
+  let addHelpers = () => {
+    if (helpersId) {
+      return helpersId;
+    }
+
+    // Add a dependency so Parcel includes the helpers
+    let helperPath = path.join(__dirname, '..', 'esmodule-helpers.js');
+    let helperSpecifier = asset
+      ? relativePath(path.dirname(asset.filePath), helperPath)
+      : helperPath;
+    asset?.addDependency({
+      moduleSpecifier: helperSpecifier,
+    });
+
+    helpersId = scope.generateUid('parcelHelpers');
+    prepend.push(
+      t.variableDeclaration('var', [
+        t.variableDeclarator(
+          t.identifier(helpersId),
+          t.callExpression(t.identifier('require'), [
+            t.stringLiteral(helperSpecifier),
+          ]),
+        ),
+      ]),
+    );
+
+    return helpersId;
+  };
+
+  if (state.needsInteropFlag) {
+    prepend.push(
       t.expressionStatement(
         t.callExpression(
           t.memberExpression(
-            t.identifier(nullthrows(opts.helpersId)),
+            t.identifier(addHelpers()),
             t.identifier('defineInteropFlag'),
           ),
           [t.identifier('exports')],
         ),
       ),
     );
+  }
 
-  opts.addedInteropFlag = true;
+  for (let {local, exported} of exports) {
+    prepend.push(
+      t.expressionStatement(
+        t.callExpression(
+          t.memberExpression(
+            t.identifier(addHelpers()),
+            t.identifier('export'),
+          ),
+          [
+            t.identifier('exports'),
+            t.stringLiteral(exported.name),
+            t.functionExpression(
+              null,
+              [],
+              t.blockStatement([t.returnStatement(local)]),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  for (let imp of imports) {
+    invariant(imp.source != null);
+    let source = imp.source;
+
+    if (isExportAllDeclaration(imp)) {
+      let names = getNames(state, source);
+      prepend.push(
+        t.expressionStatement(
+          t.callExpression(
+            t.memberExpression(
+              t.identifier(addHelpers()),
+              t.identifier('namespace'),
+            ),
+            [t.identifier(names.name), t.identifier('exports')],
+          ),
+        ),
+      );
+    }
+
+    // If the result of the import is unused, simply insert a require call.
+    if (!state.importNames.has(source.value)) {
+      prepend.push(
+        t.expressionStatement(
+          t.callExpression(t.identifier('require'), [source]),
+        ),
+      );
+      continue;
+    }
+
+    let names = getNames(state, source);
+
+    if (!scope.bindings.has(names.name)) {
+      let decl = t.variableDeclaration('var', [
+        t.variableDeclarator(
+          t.identifier(names.name),
+          t.callExpression(t.identifier('require'), [source]),
+        ),
+      ]);
+
+      prepend.push(decl);
+      scope.addBinding(names.name, decl);
+    }
+
+    if (names.default) {
+      prepend.push(
+        t.variableDeclaration('var', [
+          t.variableDeclarator(
+            t.identifier(names.default),
+            t.callExpression(
+              t.memberExpression(
+                t.identifier(addHelpers()),
+                t.identifier('interopDefault'),
+              ),
+              [t.identifier(names.name)],
+            ),
+          ),
+        ]),
+      );
+    }
+
+    if (names.namespace) {
+      prepend.push(
+        t.variableDeclaration('var', [
+          t.variableDeclarator(
+            t.identifier(names.namespace),
+            t.callExpression(
+              t.memberExpression(
+                t.identifier(addHelpers()),
+                t.identifier('namespace'),
+              ),
+              [t.identifier(names.name)],
+            ),
+          ),
+        ]),
+      );
+    }
+  }
+
+  body.unshift(...prepend);
 }

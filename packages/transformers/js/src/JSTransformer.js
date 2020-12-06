@@ -16,7 +16,7 @@ import {hoist} from '@parcel/scope-hoisting';
 import {generate, parse} from '@parcel/babel-ast-utils';
 import {validateSchema} from '@parcel/utils';
 import {encodeJSONKeyComponent} from '@parcel/diagnostic';
-import {esm2cjs} from './visitors/modules2';
+import {esm2cjs} from './visitors/modules';
 
 const CONFIG_SCHEMA: SchemaEntity = {
   type: 'object',
