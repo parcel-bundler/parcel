@@ -17,7 +17,7 @@ export type ConfigOptions = {|
   parse?: boolean,
 |};
 
-let configCache = new LRU<FilePath, ConfigOutput>({max: 500});
+const configCache = new LRU<FilePath, ConfigOutput>({max: 500});
 
 export async function resolveConfig(
   fs: FileSystem,
