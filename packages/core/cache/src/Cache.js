@@ -7,24 +7,33 @@ import type {FileSystem} from '@parcel/fs';
 import path from 'path';
 import logger from '@parcel/logger';
 import {serialize, deserialize, registerSerializableClass} from '@parcel/core';
+import {glob} from '@parcel/utils';
 // flowlint-next-line untyped-import:off
 import packageJson from '../package.json';
+
+type CacheOptions = {|
+  fs: FileSystem,
+  cacheDir: FilePath,
+  optionsHash: string,
+|};
 
 export default class Cache {
   fs: FileSystem;
   dir: FilePath;
+  optionsHash: string;
+  accessedFiles: Set<string>;
 
-  constructor(fs: FileSystem, cacheDir: FilePath) {
-    this.fs = fs;
-    this.dir = cacheDir;
+  constructor(options: CacheOptions) {
+    this.fs = options.fs;
+    this.dir = options.cacheDir;
+    this.optionsHash = options.optionsHash;
+    this.accessedFiles = new Set();
   }
 
   _getCachePath(cacheId: string, extension: string = '.v8'): FilePath {
-    return path.join(
-      this.dir,
-      cacheId.slice(0, 2),
-      cacheId.slice(2) + extension,
-    );
+    let cacheFile = `${cacheId.slice(0, 2)}/${cacheId.slice(2) + extension}`;
+    this.accessedFiles.add(cacheFile);
+    return path.join(this.dir, cacheFile);
   }
 
   getStream(key: string): Readable {
@@ -78,6 +87,55 @@ export default class Cache {
       logger.error(err, '@parcel/cache');
     }
   }
+
+  // Persist the cache to disk and/or write a manifest of all accessed files for cleaning...
+  async persist() {
+    let manifestPath = path.join(this.dir, 'manifest', `${Date.now()}.txt`);
+    await this.fs.writeFile(
+      manifestPath,
+      Array.from(this.accessedFiles).join('\n'),
+      'utf-8',
+    );
+  }
+
+  // Persist the cache to disk and/or write a manifest of all accessed files for cleaning...
+  async clean(maxAge: number = 604800000) {
+    let manifestFiles = await glob(
+      path.join(this.dir, 'manifest/*.txt'),
+      this.fs,
+      {
+        absolute: true,
+        onlyFiles: true,
+      },
+    );
+
+    let removeManifestsModifiedBefore = Date.now() - maxAge;
+    let filesToKeep = new Set();
+    for (let manifestFile of manifestFiles) {
+      let manifestStats = await this.fs.stat(manifestFile);
+
+      if (manifestStats.mtimeMs > removeManifestsModifiedBefore) {
+        let fileContent = await this.fs.readFile(manifestFile, 'utf-8');
+        for (let fileEntry of fileContent.split('\n')) {
+          filesToKeep.add(path.join(this.dir, fileEntry));
+        }
+        filesToKeep.add(manifestFile);
+      } else {
+        await this.fs.unlink(manifestFile);
+      }
+    }
+
+    let cacheFiles = await glob(path.join(this.dir, '**/**'), this.fs, {
+      absolute: true,
+      onlyFiles: true,
+    });
+    for (let cacheFile of cacheFiles) {
+      if (!filesToKeep.has(cacheFile)) {
+        await this.fs.unlink(cacheFile);
+        console.log('remove', cacheFile);
+      }
+    }
+  }
 }
 
 export async function createCacheDir(
@@ -86,6 +144,8 @@ export async function createCacheDir(
 ): Promise<void> {
   // First, create the main cache directory if necessary.
   await fs.mkdirp(dir);
+
+  await fs.mkdirp(path.join(dir, 'manifest'));
 
   // In parallel, create sub-directories for every possible hex value
   // This speeds up large caches on many file systems since there are fewer files in a single directory.

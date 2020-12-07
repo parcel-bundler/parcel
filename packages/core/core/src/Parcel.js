@@ -341,6 +341,17 @@ export default class Parcel {
       if (this.isProfiling) {
         await this.stopProfiling();
       }
+
+      if (!options.disableCache) {
+        if (options.cache.persist != null) {
+          await options.cache.persist();
+        }
+
+        // Cleanup Cache?
+        if (options.cache.clean != null) {
+          await options.cache.clean();
+        }
+      }
     }
   }
 

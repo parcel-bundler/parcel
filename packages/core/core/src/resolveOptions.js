@@ -6,7 +6,7 @@ import type {ParcelOptions} from './types';
 import {getRootDir} from '@parcel/utils';
 import loadDotEnv from './loadDotEnv';
 import path from 'path';
-import {resolveConfig, md5FromString} from '@parcel/utils';
+import {resolveConfig, md5FromString, md5FromObject} from '@parcel/utils';
 import {NodeFS} from '@parcel/fs';
 import Cache from '@parcel/cache';
 import {NodePackageManager} from '@parcel/package-manager';
@@ -20,6 +20,30 @@ function generateInstanceId(entries: Array<FilePath>): string {
   return md5FromString(
     `${entries.join(',')}-${Date.now()}-${Math.round(Math.random() * 100)}`,
   );
+}
+
+// Options hash used for storing cache manifests
+function createOptionsHash(options) {
+  let importantOptions = {
+    // env changes too quickly to be included in this...
+    // env: options.env,
+    mode: options.mode,
+    minify: options.minify,
+    hot: options.hot,
+    contentHash: options.contentHash,
+    profile: options.profile,
+    entries: options.entries,
+    entryRoot: options.entryRoot,
+    defaultEngines: options.defaultEngines,
+    targets: options.targets,
+    sourceMaps: options.sourceMaps,
+    scopeHoist: options.scopeHoist,
+    publicUrl: options.publicUrl,
+  };
+
+  console.log(importantOptions);
+
+  return md5FromObject(importantOptions);
 }
 
 export default async function resolveOptions(
@@ -69,8 +93,6 @@ export default async function resolveOptions(
       ? path.resolve(outputCwd, initialOptions.cacheDir)
       : path.resolve(projectRoot, DEFAULT_CACHE_DIRNAME);
 
-  let cache = new Cache(outputFS, cacheDir);
-
   let mode = initialOptions.mode ?? 'development';
   let minify = initialOptions.minify ?? mode === 'production';
 
@@ -88,7 +110,7 @@ export default async function resolveOptions(
       ? path.resolve(inputCwd, initialOptions.distDir)
       : undefined;
 
-  return {
+  let options = {
     config: initialOptions.config,
     defaultConfig: initialOptions.defaultConfig,
     patchConsole:
@@ -132,9 +154,20 @@ export default async function resolveOptions(
     lockFile,
     inputFS,
     outputFS,
-    cache,
     packageManager,
     instanceId: generateInstanceId(entries),
     detailedReport,
+  };
+
+  let optionsHash = createOptionsHash(options);
+  let cache = new Cache({
+    fs: outputFS,
+    cacheDir,
+    optionsHash,
+  });
+
+  return {
+    ...options,
+    cache,
   };
 }
