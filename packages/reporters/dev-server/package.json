@@ -28,7 +28,7 @@
     "http-proxy-middleware": "^1.0.0",
     "nullthrows": "^1.1.1",
     "serve-handler": "^6.0.0",
-    "ws": "^6.2.0"
+    "ws": "^7.0.0"
   },
   "devDependencies": {
     "@parcel/babel-preset": "^2.0.0-frontbucket.14",

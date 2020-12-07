@@ -1318,10 +1318,9 @@ export default class BundleGraph {
             ...node.usedSymbolsUp,
           ]);
 
-          existingNode.excluded = existingNode.excluded && node.excluded;
-          existingNode.deferred = existingNode.deferred && node.deferred;
-          existingNode.hasDeferred =
-            existingNode.hasDeferred && node.hasDeferred;
+          existingNode.excluded =
+            (existingNode.excluded || Boolean(existingNode.hasDeferred)) &&
+            (node.excluded || Boolean(node.hasDeferred));
         }
       } else {
         this._graph.addNode(node);
