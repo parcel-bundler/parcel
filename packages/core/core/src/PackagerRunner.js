@@ -19,13 +19,13 @@ import type {FileSystem, FileOptions} from '@parcel/fs';
 
 import invariant from 'assert';
 import {
+  clearCache,
   md5FromObject,
   md5FromString,
   blobToStream,
   TapStream,
 } from '@parcel/utils';
 import {PluginLogger} from '@parcel/logger';
-import {clearCache} from '@parcel/utils';
 import {init as initSourcemaps} from '@parcel/source-map';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import {Readable, Transform} from 'stream';
@@ -299,6 +299,7 @@ export default class PackagerRunner {
     bundleGraph: InternalBundleGraph,
     configs: Map<string, ?ConfigOutput>,
   ): Promise<BundleResult> {
+    clearCache();
     let bundle = NamedBundle.get(internalBundle, bundleGraph, this.options);
     this.report({
       type: 'buildProgress',
