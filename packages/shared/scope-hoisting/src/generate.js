@@ -99,20 +99,20 @@ export function generate({
     ),
   );
 
-  let generateResult = babelGenerate(ast, {
+  let {code, rawMappings} = babelGenerate(ast, {
     sourceMaps: !!bundle.env.sourceMap,
     minified: bundle.env.minify,
     comments: true, // retain /*@__PURE__*/ comments for terser
   });
 
   let map = null;
-  if (bundle.env.sourceMap && generateResult.map != null) {
+  if (bundle.env.sourceMap && rawMappings != null) {
     map = new SourceMap(options.projectRoot);
-    map.addRawMappings(generateResult.map);
+    map.addIndexedMappings(rawMappings);
   }
 
   return {
-    contents: generateResult.code,
+    contents: code,
     map,
   };
 }
