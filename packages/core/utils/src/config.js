@@ -35,8 +35,14 @@ export async function resolveConfig(
 
   for (const filename of filenames) {
     let file = path.join(filepath, filename);
-    if ((await fs.exists(file)) && (await fs.stat(file)).isFile()) {
-      return file;
+    try {
+      if ((await fs.stat(file)).isFile()) {
+        return file;
+      }
+    } catch (err) {
+      if (err.code === 'MODULE_NOT_FOUND' || err.code === 'ENOENT') {
+        return null;
+      }
     }
   }
 
@@ -90,11 +96,14 @@ export async function loadConfig(
     try {
       let extname = path.extname(configFile).slice(1);
       if (extname === 'js') {
-        return {
+        let output = {
           // $FlowFixMe
           config: clone(require(configFile)),
           files: [{filePath: configFile}],
         };
+
+        configCache.set(configFile, output);
+        return output;
       }
 
       let configContent = await fs.readFile(configFile, 'utf8');
@@ -116,7 +125,6 @@ export async function loadConfig(
       };
 
       configCache.set(configFile, output);
-
       return output;
     } catch (err) {
       if (err.code === 'MODULE_NOT_FOUND' || err.code === 'ENOENT') {
