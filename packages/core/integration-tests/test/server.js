@@ -154,7 +154,7 @@ describe('server', function() {
     let bundleGraph = event.bundleGraph;
 
     let outputFile = await outputFS.readFile(
-      nullthrows(bundleGraph).getBundles()[0].filePath,
+      bundleGraph.getBundles()[0].filePath,
       'utf8',
     );
 

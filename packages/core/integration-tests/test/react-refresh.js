@@ -208,17 +208,13 @@ async function setup(entry) {
   window.MessageChannel = MessageChannel;
   root = window.document.getElementById('root');
 
-  let bundle = nullthrows(
-    nullthrows(bundleGraph)
-      .getBundles()
-      .find(b => b.type === 'js'),
-  );
+  let bundle = nullthrows(bundleGraph.getBundles().find(b => b.type === 'js'));
   let parcelRequire = Object.keys(window).find(k =>
     k.startsWith('parcelRequire'),
   );
   // ReactDOM.render
   await window[parcelRequire](
-    nullthrows(bundleGraph).getAssetPublicId(bundle.getEntryAssets().pop()),
+    bundleGraph.getAssetPublicId(bundle.getEntryAssets().pop()),
   ).default();
   await sleep(100);
 
