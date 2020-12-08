@@ -12,6 +12,8 @@ import {
 import http from 'http';
 import https from 'https';
 import getPort from 'get-port';
+import nullthrows from 'nullthrows';
+import type {BuildEvent} from '@parcel/types';
 
 const distDir = path.resolve(__dirname, '.parcel-cache/dist');
 const config = path.join(
@@ -21,6 +23,7 @@ const config = path.join(
 
 function get(file, port, client = http) {
   return new Promise((resolve, reject) => {
+    // $FlowFixMe
     client.get(
       {
         hostname: 'localhost',
@@ -145,11 +148,15 @@ describe('server', function() {
     });
 
     subscription = await b.watch();
-    let event = await getNextBuild(b);
-    assert.equal(event.type, 'buildSuccess');
+    let event: BuildEvent = await getNextBuild(b);
+    let bundleGraph;
+    if (event.type === 'buildSuccess') {
+      bundleGraph = event.bundleGraph;
+      assert.equal(event.type, 'buildSuccess');
+    }
 
     let outputFile = await outputFS.readFile(
-      event.bundleGraph.getBundles()[0].filePath,
+      nullthrows(bundleGraph).getBundles()[0].filePath,
       'utf8',
     );
 
