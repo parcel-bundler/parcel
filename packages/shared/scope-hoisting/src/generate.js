@@ -17,6 +17,7 @@ import type {
 import babelGenerate from '@babel/generator';
 import invariant from 'assert';
 import {isEntry} from './utils';
+import {PromiseQueue} from '@parcel/utils';
 import SourceMap from '@parcel/source-map';
 import * as t from '@babel/types';
 import template from '@babel/template';
@@ -44,7 +45,7 @@ const WRAPPER_TEMPLATE = template.statement<
   ExpressionStatement,
 >('(function () { STATEMENTS; })()');
 
-export function generate({
+export async function generate({
   bundleGraph,
   bundle,
   ast,
@@ -58,7 +59,7 @@ export function generate({
   options: PluginOptions,
   referencedAssets: Set<Asset>,
   parcelRequireName: string,
-|}): {|contents: string, map: ?SourceMap|} {
+|}): Promise<{|contents: string, map: ?SourceMap|}> {
   let interpreter;
   let mainEntry = bundle.getMainEntry();
   if (mainEntry && !bundle.target.env.isBrowser()) {
@@ -109,6 +110,33 @@ export function generate({
   if (bundle.env.sourceMap && rawMappings != null) {
     map = new SourceMap(options.projectRoot);
     map.addIndexedMappings(rawMappings);
+
+    // Traverse the bundle to get the sourcecontents
+    // this is hella slow but is currently the only way to ensure correct source contents
+    let promiseQueue = new PromiseQueue({maxConcurrent: 50});
+    bundle.traverseAssets(asset => {
+      promiseQueue.add(async () => {
+        // Why is map always undefined?
+        let map = await asset.getMap();
+        if (map) {
+          // TODO: Add a faster way to get all sourceContents and their sourcePath in the sourcemaps library?
+          let vlqEncodedMap = map.toVLQ();
+          if (vlqEncodedMap.sourcesContent) {
+            for (let i = 0; i < vlqEncodedMap.sourcesContent.length; i++) {
+              let sourceContent = vlqEncodedMap.sourcesContent[i];
+
+              // null = empty string in this case as converting was too slow for it's use-case
+              if (sourceContent) {
+                let sourceFilePath = vlqEncodedMap.sources[i];
+                map.setSourceContent(sourceFilePath, sourceContent);
+                console.log('setSourceContent', sourceFilePath);
+              }
+            }
+          }
+        }
+      });
+    });
+    await promiseQueue.run();
   }
 
   return {
