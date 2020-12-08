@@ -1,5 +1,6 @@
 // @flow strict-local
 import assert from 'assert';
+import invariant from 'assert';
 import path from 'path';
 import {
   bundler,
@@ -187,11 +188,8 @@ async function setup(entry) {
 
   subscription = await b.watch();
   let bundleEvent: BuildEvent = await getNextBuild(b);
-  let bundleGraph;
-  if (bundleEvent.type === 'buildSuccess') {
-    bundleGraph = bundleEvent.bundleGraph;
-  }
-  assert.equal(bundleEvent.type, 'buildSuccess');
+  invariant(bundleEvent.type === 'buildSuccess');
+  let bundleGraph = bundleEvent.bundleGraph;
   let dom = await JSDOM.JSDOM.fromURL(
     'http://127.0.0.1:' + port + '/index.html',
     {

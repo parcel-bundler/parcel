@@ -1,5 +1,6 @@
 // @flow strict-local
 import assert from 'assert';
+import invariant from 'assert';
 import path from 'path';
 import {
   bundler,
@@ -149,11 +150,8 @@ describe('server', function() {
 
     subscription = await b.watch();
     let event: BuildEvent = await getNextBuild(b);
-    let bundleGraph;
-    if (event.type === 'buildSuccess') {
-      bundleGraph = event.bundleGraph;
-    }
-    assert.equal(event.type, 'buildSuccess');
+    invariant(event.type === 'buildSuccess');
+    let bundleGraph = event.bundleGraph;
 
     let outputFile = await outputFS.readFile(
       nullthrows(bundleGraph).getBundles()[0].filePath,
