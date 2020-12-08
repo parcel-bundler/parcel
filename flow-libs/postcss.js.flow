@@ -8,25 +8,53 @@
 import typeof {SourceMapGenerator} from 'source-map';
 
 declare module 'postcss' {
-  declare type NodeCallback = (Node, number) => false | void;
-  declare type RuleCallback = (Rule, number) => false | void;
+  declare type Callback<T> = (T, number) => false | void;
+
+  declare interface Input {
+    file?: string;
+  }
+
+  declare interface Position {
+    offset: number;
+    column: number;
+    line: number;
+  }
+
+  declare interface Source {
+    input: Input;
+    start?: Position;
+    end?: Position;
+  }
 
   declare interface Node {
     parent: Container;
-    type: 'atrule' | 'comment' | 'decl' | 'root' | 'rule';
+    source: Source;
+    +type: 'atrule' | 'comment' | 'decl' | 'root' | 'rule';
+    toJSON(): mixed;
   }
 
-  declare interface Rule {
+  declare interface Rule extends Container {
     selector: string;
-    type: 'atrule' | 'comment' | 'decl' | 'root' | 'rule';
-    remove(): void
+    type: 'rule';
+    remove(): void;
+  }
+
+  declare interface AtRule extends Container {
+    name: string;
+    params: string;
+    type: 'atrule';
+    remove(): void;
   }
 
   declare interface Container extends Node {
-    each(callback: NodeCallback): false | void;
+    each(callback: Callback<Node>): false | void;
     nodes: Array<Node>;
-    walk(callback: NodeCallback): false | void;
-    walkRules(callback: RuleCallback): false | void;
+    walk(callback: Callback<Node>): false | void;
+    walkRules(callback: Callback<Rule>): false | void;
+    walkDecls(nameFilter: string | RegExp, callback: Callback<Decl>): void;
+    walkDecls(callback: Callback<Decl>): void;
+    walkAtRules(nameFilter: string | RegExp, callback: Callback<AtRule>): void;
+    walkAtRules(callback: Callback<AtRule>): void;
   }
 
   declare interface Root extends Container {}
@@ -103,6 +131,7 @@ declare module 'postcss' {
     comment: ($Shape<Node>) => Node,
     decl: ($Shape<Node>) => Node,
     rule: ($Shape<Node>) => Container,
+    fromJSON: <T: Node>(mixed) => T,
     ...
   };
 }

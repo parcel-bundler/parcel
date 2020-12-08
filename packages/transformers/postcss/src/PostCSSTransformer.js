@@ -29,7 +29,7 @@ export default (new Transformer({
   },
 
   canReuseAST({ast}) {
-    return ast.type === 'postcss' && semver.satisfies(ast.version, '^8.0.0');
+    return ast.type === 'postcss' && semver.satisfies(ast.version, '^8.2.1');
   },
 
   async parse({asset, config, options}) {
@@ -40,15 +40,17 @@ export default (new Transformer({
     let postcss = await options.packageManager.require(
       'postcss',
       asset.filePath,
-      {autoinstall: options.autoinstall, range: '^8.0.0'},
+      {autoinstall: options.autoinstall, range: '^8.2.1'},
     );
 
     return {
       type: 'postcss',
-      version: '8.0.0',
-      program: postcss.parse(await asset.getCode(), {
-        from: asset.filePath,
-      }),
+      version: '8.2.1',
+      program: postcss
+        .parse(await asset.getCode(), {
+          from: asset.filePath,
+        })
+        .toJSON(),
     };
   },
 
@@ -61,7 +63,7 @@ export default (new Transformer({
     let postcss = await options.packageManager.require(
       'postcss',
       asset.filePath,
-      {autoinstall: options.autoinstall, range: '^8.0.0'},
+      {autoinstall: options.autoinstall, range: '^8.2.1'},
     );
 
     let plugins = [...config.hydrated.plugins];
@@ -87,9 +89,10 @@ export default (new Transformer({
     }
 
     let ast = nullthrows(await asset.getAST());
+    let program = postcss.fromJSON(ast.program);
     let code = asset.isASTDirty() ? null : await asset.getCode();
     if (code == null || COMPOSES_RE.test(code)) {
-      ast.program.walkDecls(decl => {
+      program.walkDecls(decl => {
         let [, importPath] = FROM_IMPORT_RE.exec(decl.value) || [];
         if (decl.prop === 'composes' && importPath != null) {
           let parsed = valueParser(decl.value);
@@ -115,14 +118,13 @@ export default (new Transformer({
 
     // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
     let {messages, root} = await postcss(plugins).process(
-      ast.program,
+      program,
       config.hydrated,
     );
-    ast.program = root;
     asset.setAST({
       type: 'postcss',
-      version: '8.0.0',
-      program: root,
+      version: '8.2.1',
+      program: root.toJSON(),
     });
     for (let msg of messages) {
       if (msg.type === 'dependency') {
@@ -175,11 +177,11 @@ export default (new Transformer({
     let postcss = await options.packageManager.require(
       'postcss',
       asset.filePath,
-      {autoinstall: options.autoinstall, range: '^8.0.0'},
+      {autoinstall: options.autoinstall, range: '^8.2.1'},
     );
 
     let code = '';
-    postcss.stringify(ast.program, c => {
+    postcss.stringify(postcss.fromJSON(ast.program), c => {
       code += c;
     });
 
