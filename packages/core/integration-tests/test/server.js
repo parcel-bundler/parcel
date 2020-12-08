@@ -152,8 +152,8 @@ describe('server', function() {
     let bundleGraph;
     if (event.type === 'buildSuccess') {
       bundleGraph = event.bundleGraph;
-      assert.equal(event.type, 'buildSuccess');
     }
+    assert.equal(event.type, 'buildSuccess');
 
     let outputFile = await outputFS.readFile(
       nullthrows(bundleGraph).getBundles()[0].filePath,

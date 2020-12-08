@@ -190,8 +190,8 @@ async function setup(entry) {
   let bundleGraph;
   if (bundleEvent.type === 'buildSuccess') {
     bundleGraph = bundleEvent.bundleGraph;
-    assert.equal(bundleEvent.type, 'buildSuccess');
   }
+  assert.equal(bundleEvent.type, 'buildSuccess');
   let dom = await JSDOM.JSDOM.fromURL(
     'http://127.0.0.1:' + port + '/index.html',
     {
