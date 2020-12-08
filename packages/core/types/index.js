@@ -243,6 +243,7 @@ export type PackageJSON = {
   devDependencies?: PackageDependencies,
   peerDependencies?: PackageDependencies,
   sideEffects?: boolean | FilePath | Array<FilePath>,
+  bin?: string | {|[string]: FilePath|},
   ...
 };
 

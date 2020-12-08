@@ -56,6 +56,7 @@ type InternalExportSymbolResolution = {|
 |};
 
 type SerializedBundleGraph = {|
+  $$raw: true,
   graph: GraphOpts<BundleGraphNode, BundleGraphEdgeTypes>,
   bundleContentHashes: Map<string, string>,
   assetPublicIds: Set<string>,
@@ -167,6 +168,7 @@ export default class BundleGraph {
 
   serialize(): SerializedBundleGraph {
     return {
+      $$raw: true,
       graph: this._graph.serialize(),
       assetPublicIds: this._assetPublicIds,
       bundleContentHashes: this._bundleContentHashes,
