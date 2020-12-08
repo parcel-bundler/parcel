@@ -1,3 +1,4 @@
+// @flow strict-local
 import assert from 'assert';
 import path from 'path';
 import {
@@ -7,6 +8,8 @@ import {
   sleep,
 } from '@parcel/test-utils';
 import getPort from 'get-port';
+import type {BuildEvent, BuildSuccessEvent} from '@parcel/types';
+// flowlint-next-line untyped-import:off
 import JSDOM from 'jsdom';
 import nullthrows from 'nullthrows';
 
@@ -183,9 +186,8 @@ async function setup(entry) {
   });
 
   subscription = await b.watch();
-  let bundleEvent = await getNextBuild(b);
+  let bundleEvent: BuildEvent = await getNextBuild(b);
   assert.equal(bundleEvent.type, 'buildSuccess');
-
   let dom = await JSDOM.JSDOM.fromURL(
     'http://127.0.0.1:' + port + '/index.html',
     {
