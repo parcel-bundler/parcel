@@ -13,7 +13,6 @@ import {
 import http from 'http';
 import https from 'https';
 import getPort from 'get-port';
-import nullthrows from 'nullthrows';
 import type {BuildEvent} from '@parcel/types';
 
 const distDir = path.resolve(__dirname, '.parcel-cache/dist');
