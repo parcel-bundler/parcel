@@ -321,9 +321,13 @@ export function generateExports(
               binding.constantViolations[binding.constantViolations.length - 1];
           }
 
-          let [decl] = insertPath.insertAfter(
-            t.exportDefaultDeclaration(t.identifier(defaultExport)),
-          );
+          let node = t.exportDefaultDeclaration(t.identifier(defaultExport));
+          let decl;
+          if (insertPath.parentPath.isProgram()) {
+            [decl] = insertPath.insertAfter(node);
+          } else {
+            [decl] = programPath.pushContainer('body', node);
+          }
           binding?.reference(decl.get<NodePath<Identifier>>('declaration'));
         }
 

@@ -39,10 +39,8 @@ export async function resolveConfig(
       if ((await fs.stat(file)).isFile()) {
         return file;
       }
-    } catch (err) {
-      if (err.code === 'MODULE_NOT_FOUND' || err.code === 'ENOENT') {
-        return null;
-      }
+    } catch {
+      // empty
     }
   }
 
