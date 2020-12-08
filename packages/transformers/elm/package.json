@@ -1,5 +1,5 @@
 {
-  "name": "@parcel/transformer-vue",
+  "name": "@parcel/transformer-elm",
   "version": "2.0.0-beta.1",
   "license": "MIT",
   "publishConfig": {
@@ -13,22 +13,18 @@
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
-  "main": "lib/VueTransformer.js",
-  "source": "src/VueTransformer.js",
+  "main": "lib/ElmTransformer.js",
+  "source": "src/ElmTransformer.js",
   "engines": {
     "node": ">= 10.0.0",
-    "parcel": "^2.0.0-alpha.1.1"
+    "parcel": "^2.0.0-alpha.3.1"
   },
   "dependencies": {
     "@parcel/diagnostic": "^2.0.0-beta.1",
-    "@parcel/plugin": "2.0.0-beta.1",
-    "@parcel/source-map": "2.0.0-alpha.4.18",
-    "@parcel/utils": "^2.0.0-beta.1",
+    "@parcel/plugin": "^2.0.0-beta.1",
+    "command-exists": "^1.2.8",
+    "cross-spawn": "^7.0.3",
     "nullthrows": "^1.1.1",
-    "semver": "^5.4.1"
-  },
-  "devDependencies": {
-    "@vue/compiler-sfc": "^3.0.0",
-    "vue": "^3.0.0"
+    "terser": "^5.2.1"
   }
 }

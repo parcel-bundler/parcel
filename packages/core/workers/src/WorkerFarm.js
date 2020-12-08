@@ -391,14 +391,19 @@ export default class WorkerFarm extends EventEmitter {
 
   async createSharedReference(
     value: mixed,
+    // An optional, pre-serialized representation of the value to be used
+    // in its place.
+    buffer?: Buffer,
   ): Promise<{|ref: SharedReference, dispose(): Promise<mixed>|}> {
     let ref = referenceId++;
     this.sharedReferences.set(ref, value);
     this.sharedReferencesByValue.set(value, ref);
+
+    let toSend = buffer ? buffer.buffer : value;
     let promises = [];
     for (let worker of this.workers.values()) {
       if (worker.ready) {
-        promises.push(worker.sendSharedReference(ref, value));
+        promises.push(worker.sendSharedReference(ref, toSend));
       }
     }
 

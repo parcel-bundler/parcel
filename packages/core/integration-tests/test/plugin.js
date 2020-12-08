@@ -148,4 +148,25 @@ parcel-transformer-b`,
     });
     assert.deepStrictEqual(calls, [789, 123]);
   });
+
+  it('properly excludes assets that are excluded and deferred by both app code and runtimes', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/runtime-deferred-excluded/index.js'),
+      {scopeHoist: true},
+    );
+
+    let calls = [];
+    let output = await run(b, {
+      f(v) {
+        calls.push(v);
+      },
+    });
+
+    assert.deepStrictEqual(
+      // `output` is from the vm and so is not deepStrictEqual
+      [...output],
+      ['index', 'used'],
+    );
+    assert.deepStrictEqual(calls, ['used']);
+  });
 });

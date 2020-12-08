@@ -101,9 +101,15 @@ export default class PackagerRunner {
         };
   }
 
-  async writeBundles(bundleGraph: InternalBundleGraph) {
+  async writeBundles(
+    bundleGraph: InternalBundleGraph,
+    serializedBundleGraph: Buffer,
+  ) {
     let farm = nullthrows(this.farm);
-    let {ref, dispose} = await farm.createSharedReference(bundleGraph);
+    let {ref, dispose} = await farm.createSharedReference(
+      bundleGraph,
+      serializedBundleGraph,
+    );
 
     let bundleInfoMap: {|
       [string]: {|

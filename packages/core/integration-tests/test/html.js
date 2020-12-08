@@ -639,6 +639,31 @@ describe.only('html', function() {
     ]);
   });
 
+  it('should detect imagesrcset attribute', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-imagesrcset/index.html'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.html',
+        assets: ['index.html'],
+      },
+      {
+        type: 'png',
+        assets: ['100x100.png'],
+      },
+      {
+        type: 'png',
+        assets: ['200x200.png'],
+      },
+      {
+        type: 'png',
+        assets: ['300x300.png'],
+      },
+    ]);
+  });
+
   it.skip('should support webmanifest', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/webmanifest/index.html'),
