@@ -1,8 +1,8 @@
 {
   "name": "@parcel/eslint-config-browser",
   "private": true,
-  "version": "2.0.0-frontbucket.12",
+  "version": "2.0.0-frontbucket.13",
   "dependencies": {
-    "@parcel/eslint-config": "^2.0.0-frontbucket.12"
+    "@parcel/eslint-config": "^2.0.0-frontbucket.13"
   }
 }

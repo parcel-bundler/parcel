@@ -1,6 +1,6 @@
 {
   "name": "@parcel/reporter-cli",
-  "version": "2.0.0-frontbucket.36",
+  "version": "2.0.0-frontbucket.37",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -20,9 +20,9 @@
     "parcel": "^2.0.0-alpha.1.1"
   },
   "dependencies": {
-    "@parcel/plugin": "^2.0.0-frontbucket.32",
-    "@parcel/types": "^2.0.0-frontbucket.32",
-    "@parcel/utils": "^2.0.0-frontbucket.28",
+    "@parcel/plugin": "^2.0.0-frontbucket.33",
+    "@parcel/types": "^2.0.0-frontbucket.33",
+    "@parcel/utils": "^2.0.0-frontbucket.29",
     "chalk": "^3.0.0",
     "filesize": "^3.6.0",
     "nullthrows": "^1.1.1",

@@ -1,10 +1,10 @@
 {
   "name": "@parcel/eslint-config",
   "private": true,
-  "version": "2.0.0-frontbucket.12",
+  "version": "2.0.0-frontbucket.13",
   "dependencies": {
-    "@parcel/eslint-plugin": "^2.0.0-frontbucket.11",
     "@babel/eslint-parser": "^7.12.1",
+    "@parcel/eslint-plugin": "^2.0.0-frontbucket.12",
     "eslint-config-prettier": "^4.1.0",
     "eslint-plugin-flowtype": "^3.1.1",
     "eslint-plugin-import": "^2.16.0",

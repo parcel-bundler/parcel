@@ -1,6 +1,6 @@
 {
   "name": "@parcel/transformer-svgo",
-  "version": "2.0.0-frontbucket.20",
+  "version": "2.0.0-frontbucket.21",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -19,7 +19,7 @@
     "parcel": "^2.0.0-alpha.1.1"
   },
   "dependencies": {
-    "@parcel/plugin": "^2.0.0-frontbucket.32",
+    "@parcel/plugin": "^2.0.0-frontbucket.33",
     "svgo": "^1.3.2"
   }
 }

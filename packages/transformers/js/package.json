@@ -1,6 +1,6 @@
 {
   "name": "@parcel/transformer-js",
-  "version": "2.0.0-frontbucket.38",
+  "version": "2.0.0-frontbucket.39",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -27,12 +27,12 @@
     "@babel/template": "^7.4.0",
     "@babel/traverse": "^7.0.0",
     "@babel/types": "^7.0.0",
-    "@parcel/babel-ast-utils": "^2.0.0-frontbucket.12",
+    "@parcel/babel-ast-utils": "^2.0.0-frontbucket.13",
     "@parcel/babylon-walk": "^2.0.0-frontbucket.3",
-    "@parcel/diagnostic": "^2.0.0-frontbucket.16",
-    "@parcel/plugin": "^2.0.0-frontbucket.32",
-    "@parcel/scope-hoisting": "^2.0.0-frontbucket.34",
-    "@parcel/utils": "^2.0.0-frontbucket.28",
+    "@parcel/diagnostic": "^2.0.0-frontbucket.17",
+    "@parcel/plugin": "^2.0.0-frontbucket.33",
+    "@parcel/scope-hoisting": "^2.0.0-frontbucket.35",
+    "@parcel/utils": "^2.0.0-frontbucket.29",
     "micromatch": "^4.0.2",
     "nullthrows": "^1.1.1",
     "semver": "^5.4.1"
