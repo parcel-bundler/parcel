@@ -1,7 +1,7 @@
-// @flow
+// @flow strict-local
 
 import type {Config} from '@parcel/types';
-import type {BabelTargets} from './types';
+import type {Targets as BabelTargets} from '@babel/preset-env';
 
 import browserslist from 'browserslist';
 import semver from 'semver';
@@ -66,11 +66,11 @@ export default async function getBabelTargets(
       browsers != null &&
       !Array.isArray(browsers)
     ) {
-      let env = process.env.NODE_ENV || 'development';
+      let env = process.env.NODE_ENV ?? 'development';
       browsers = browsers[env] || browsers.defaults;
     }
 
-    if (browsers) {
+    if (browsers != null) {
       targets.browsers = browserslist(browsers).sort();
     }
   }

@@ -123,13 +123,6 @@ export default (new Transformer({
     });
     for (let msg of messages) {
       if (msg.type === 'dependency') {
-        msg = (msg: {|
-          type: 'dependency',
-          plugin: string,
-          file: string,
-          parent: string,
-        |});
-
         asset.addIncludedFile(msg.file);
       }
     }

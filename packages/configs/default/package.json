@@ -65,6 +65,7 @@
     "@parcel/transformer-sugarss": "^2.0.0-frontbucket.32",
     "@parcel/transformer-toml": "^2.0.0-frontbucket.32",
     "@parcel/transformer-typescript-types": "^2.0.0-frontbucket.35",
+    "@parcel/transformer-elm": "^2.0.0-alpha.3.1",
     "@parcel/transformer-vue": "^2.0.0-frontbucket.2",
     "@parcel/transformer-workerize": "^2.0.0-frontbucket.38",
     "@parcel/transformer-yaml": "^2.0.0-frontbucket.32"

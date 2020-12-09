@@ -96,7 +96,6 @@ export interface Target {
   /** The output folder */
   +distDir: FilePath;
   +env: Environment;
-  +sourceMap: ?TargetSourceMapOptions;
   +stableEntries: boolean;
   +name: string;
   +publicUrl: string;
@@ -162,6 +161,7 @@ export type EnvironmentOpts = {|
   +isLibrary?: boolean,
   +minify?: boolean,
   +scopeHoist?: boolean,
+  +sourceMap?: ?TargetSourceMapOptions,
 |};
 
 /**
@@ -202,6 +202,7 @@ export interface Environment {
   +minify: boolean;
   /** Whether scope hoisting is enabled. */
   +scopeHoist: boolean;
+  +sourceMap: ?TargetSourceMapOptions;
 
   /** Whether <code>context</code> specifies a browser context. */
   isBrowser(): boolean;
@@ -242,6 +243,7 @@ export type PackageJSON = {
   devDependencies?: PackageDependencies,
   peerDependencies?: PackageDependencies,
   sideEffects?: boolean | FilePath | Array<FilePath>,
+  bin?: string | {|[string]: FilePath|},
   ...
 };
 
@@ -295,7 +297,6 @@ export type InitialServerOptions = {|
 export interface PluginOptions {
   +disableCache: boolean;
   +mode: BuildMode;
-  +sourceMaps: boolean;
   +env: EnvMap;
   +hot: ?HMROptions;
   +serve: ServerOptions | false;
@@ -350,18 +351,59 @@ export type Meta = JSONObject;
  * An identifier in an asset (likely imported/exported).
  */
 export type Symbol = string;
-export interface Symbols // eslint-disable-next-line no-undef
+
+/**
+ * A map from extert names to the corespinding asset's lcoal variable name.
+ */
+export interface AssetSymbols // eslint-disable-next-line no-undef
   extends Iterable<[Symbol, {|local: Symbol, loc: ?SourceLocation|}]> {
+  /**
+   * The exports of the asset are unknown, rather than just empty.
+   * This is the default state.
+   */
+  +isCleared: boolean;
   get(exportSymbol: Symbol): ?{|local: Symbol, loc: ?SourceLocation|};
   hasExportSymbol(exportSymbol: Symbol): boolean;
   hasLocalSymbol(local: Symbol): boolean;
-  // Whether static analysis bailed out
-  +isCleared: boolean;
+  exportSymbols(): Iterable<Symbol>;
 }
-export interface MutableSymbols extends Symbols {
-  // Static analysis bailed out
-  clear(): void;
+export interface MutableAssetSymbols extends AssetSymbols {
+  /**
+   * Initilizes the map, sets isCleared to false.
+   */
+  ensure(): void;
   set(exportSymbol: Symbol, local: Symbol, loc: ?SourceLocation): void;
+  delete(exportSymbol: Symbol): void;
+}
+/**
+ * isWeak means: the symbol is not used by the parent asset itself and is merely reexported
+ */
+export interface MutableDependencySymbols // eslint-disable-next-line no-undef
+  extends Iterable<
+    [Symbol, {|local: Symbol, loc: ?SourceLocation, isWeak: boolean|}],
+  > {
+  /**
+   * Initilizes the map, sets isCleared to false.
+   */
+  ensure(): void;
+  /**
+   * The symbols taht are imports are unknown, rather than just empty.
+   * This is the default state.
+   */
+  +isCleared: boolean;
+  get(
+    exportSymbol: Symbol,
+  ): ?{|local: Symbol, loc: ?SourceLocation, isWeak: boolean|};
+  hasExportSymbol(exportSymbol: Symbol): boolean;
+  hasLocalSymbol(local: Symbol): boolean;
+  exportSymbols(): Iterable<Symbol>;
+  set(
+    exportSymbol: Symbol,
+    local: Symbol,
+    loc: ?SourceLocation,
+    isWeak: ?boolean,
+  ): void;
+  delete(exportSymbol: Symbol): void;
 }
 
 /**
@@ -375,13 +417,15 @@ export type DependencyOptions = {|
   +isEntry?: boolean,
   +isOptional?: boolean,
   +isURL?: boolean,
-  +isWeak?: ?boolean,
   +isIsolated?: boolean,
   +loc?: SourceLocation,
   +env?: EnvironmentOpts,
   +meta?: Meta,
   +target?: Target,
-  +symbols?: $ReadOnlyMap<Symbol, {|local: Symbol, loc: ?SourceLocation|}>,
+  +symbols?: $ReadOnlyMap<
+    Symbol,
+    {|local: Symbol, loc: ?SourceLocation, isWeak: boolean|},
+  >,
 |};
 
 /**
@@ -401,8 +445,6 @@ export interface Dependency {
   +isOptional: boolean;
   /** Whether an URL is expected (rather than the language-specific behaviour). */
   +isURL: boolean;
-  /** Whether this dependency does not provide any values for the importer itself. */
-  +isWeak: ?boolean;
   +isIsolated: boolean;
   /** Used for error messages, the code location that caused this dependency. */
   +loc: ?SourceLocation;
@@ -418,7 +460,7 @@ export interface Dependency {
 
   // TODO make immutable
   /** a <code>Map&lt;export name of importee, placeholder in importer&gt;</code>. */
-  +symbols: MutableSymbols;
+  +symbols: MutableDependencySymbols;
 }
 
 export type File = {|
@@ -467,7 +509,7 @@ export interface BaseAsset {
   +pipeline: ?string;
 
   /** a <code>Map&lt;export name, name of binding&gt;</code> */
-  +symbols: Symbols;
+  +symbols: AssetSymbols;
 
   /** Returns to current AST. See notes in subclasses (Asset, MutableAsset).*/
   getAST(): Promise<?AST>;
@@ -511,7 +553,7 @@ export interface MutableAsset extends BaseAsset {
   addURLDependency(url: string, opts: $Shape<DependencyOptions>): string;
   invalidateOnEnvChange(env: string): void;
 
-  +symbols: MutableSymbols;
+  +symbols: MutableAssetSymbols;
 
   isASTDirty(): boolean;
   /** Returns <code>null</code> if there is no AST. */
@@ -609,7 +651,6 @@ export type TransformerResult = {|
   +pipeline?: ?string,
   +sideEffects?: boolean,
   +symbols?: $ReadOnlyMap<Symbol, {|local: Symbol, loc: ?SourceLocation|}>,
-  +symbolsConfident?: boolean,
   +type: string,
   +uniqueKey?: ?string,
 |};
@@ -834,8 +875,8 @@ export type SymbolResolution = {|
   /** under which name the symbol is exported */
   +exportSymbol: Symbol | string,
   /** The identifier under which the symbol can be referenced. */
-  +symbol: void | null | Symbol,
-  /** The location of the last specifier that lead to this result. */
+  +symbol: void | null | false | Symbol,
+  /** The location of the specifier that lead to this result. */
   +loc: ?SourceLocation,
 |};
 
@@ -910,8 +951,16 @@ export type BundleGroup = {|
  */
 export interface MutableBundleGraph extends BundleGraph<Bundle> {
   /** Add asset and all child nodes to the bundle. */
-  addAssetGraphToBundle(Asset, Bundle): void;
-  addEntryToBundle(Asset, Bundle): void;
+  addAssetGraphToBundle(
+    Asset,
+    Bundle,
+    shouldSkipDependency?: (Dependency) => boolean,
+  ): void;
+  addEntryToBundle(
+    Asset,
+    Bundle,
+    shouldSkipDependency?: (Dependency) => boolean,
+  ): void;
   addBundleToBundleGroup(Bundle, BundleGroup): void;
   createAssetReference(Dependency, Asset): void;
   createBundleReference(Bundle, Bundle): void;
@@ -951,7 +1000,7 @@ export interface BundleGraph<TBundle: Bundle> {
   getSiblingBundles(bundle: Bundle): Array<TBundle>;
   /** Bundles that are referenced (by filename) */
   getReferencedBundles(bundle: Bundle): Array<TBundle>;
-  /** Get the dependencies that require the asset */
+  /** Get the dependencies that the asset requires */
   getDependencies(asset: Asset): Array<Dependency>;
   /** Get the dependencies that require the asset */
   getIncomingDependencies(asset: Asset): Array<Dependency>;
@@ -966,7 +1015,8 @@ export interface BundleGraph<TBundle: Bundle> {
     | {|type: 'bundle_group', value: BundleGroup|}
     | {|type: 'asset', value: Asset|}
   );
-  isDependencyDeferred(dependency: Dependency): boolean;
+  /** If a dependency was excluded since it's unused based on symbol data. */
+  isDependencySkipped(dependency: Dependency): boolean;
   /** Find out which asset the dependency resolved to. */
   getDependencyResolution(dependency: Dependency, bundle: ?Bundle): ?Asset;
   getReferencedBundle(dependency: Dependency, bundle: Bundle): ?TBundle;
@@ -983,6 +1033,7 @@ export interface BundleGraph<TBundle: Bundle> {
    * stopping at the first asset after leaving `bundle`.
    * `symbol === null`: bailout (== caller should do `asset.exports[exportsSymbol]`)
    * `symbol === undefined`: symbol not found
+   * `symbol === false`: skipped
    *
    * <code>asset</code> exports <code>symbol</code>, try to find the asset where the \
    * corresponding variable lives (resolves re-exports). Stop resolving transitively once \
@@ -994,11 +1045,15 @@ export interface BundleGraph<TBundle: Bundle> {
     boundary: ?Bundle,
   ): SymbolResolution;
   /** Gets the symbols that are (transivitely) exported by the asset */
-  getExportedSymbols(asset: Asset): Array<ExportSymbolResolution>;
+  getExportedSymbols(
+    asset: Asset,
+    boundary: ?Bundle,
+  ): ?Array<ExportSymbolResolution>;
   traverseBundles<TContext>(
     visit: GraphVisitor<TBundle, TContext>,
     startBundle: ?Bundle,
   ): ?TContext;
+  getUsedSymbols(Asset | Dependency): $ReadOnlySet<Symbol>;
 }
 
 /**

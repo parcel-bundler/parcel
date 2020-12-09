@@ -1,0 +1,5 @@
+{
+  "name": "esm-async-chained-reexport",
+  "private": true,
+  "module": "dist/index.js"
+}

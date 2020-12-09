@@ -33,6 +33,7 @@
     ],
     "*.pug": ["@parcel/transformer-pug"],
     "*.coffee": ["@parcel/transformer-coffeescript"],
+    "*.elm": ["@parcel/transformer-elm"],
     "*.mdx": ["@parcel/transformer-mdx"],
     "*.{eot,gif,jpg,jpeg,ico,mp4,png,svg,ttf,woff}": [
       "@parcel/transformer-image",
@@ -43,7 +44,7 @@
     "script:*.vue": ["@parcel/transformer-vue"],
     "style:*.vue": ["@parcel/transformer-vue"],
     "custom:*.vue": ["@parcel/transformer-vue"],
-    "url:*.{png,jpg,jpeg,webp}": ["@parcel/transformer-image", "..."],
+    "url:*.{png,jpg,jpeg,webp}": ["@parcel/transformer-image"],
     "url:*": ["@parcel/transformer-raw"]
   },
   "namers": ["@parcel/namer-default"],

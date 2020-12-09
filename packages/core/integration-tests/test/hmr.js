@@ -1,4 +1,4 @@
-// @flow
+// @flow strict-local
 import assert from 'assert';
 import path from 'path';
 import {
@@ -11,7 +11,9 @@ import {
 } from '@parcel/test-utils';
 import WebSocket from 'ws';
 import json5 from 'json5';
+// flowlint-next-line untyped-import:off
 import getPort from 'get-port';
+// flowlint-next-line untyped-import:off
 import JSDOM from 'jsdom';
 
 const config = path.join(
@@ -19,11 +21,13 @@ const config = path.join(
   './integration/custom-configs/.parcelrc-dev-server',
 );
 
-async function closeSocket(ws: typeof WebSocket) {
+async function closeSocket(ws: WebSocket) {
   ws.close();
-  await new Promise(resolve => (ws.onclose = resolve));
+  await new Promise(resolve => {
+    ws.once('close', resolve);
+  });
 }
-
+// flowlint-next-line unclear-type:off
 async function openSocket(uri: string, opts: any) {
   let ws = new WebSocket(uri, opts);
 
@@ -35,7 +39,7 @@ async function openSocket(uri: string, opts: any) {
   return ws;
 }
 
-async function nextWSMessage(ws: typeof WebSocket) {
+async function nextWSMessage(ws: WebSocket) {
   return json5.parse(await new Promise(resolve => ws.once('message', resolve)));
 }
 
