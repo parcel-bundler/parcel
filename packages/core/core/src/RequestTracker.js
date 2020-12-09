@@ -643,7 +643,7 @@ export default class RequestTracker {
       }
 
       let resultCacheKey = node.value.resultCacheKey;
-      if (resultCacheKey != null) {
+      if (resultCacheKey != null && node.value.result != null) {
         promises.push(
           this.options.cache.set(resultCacheKey, node.value.result),
         );

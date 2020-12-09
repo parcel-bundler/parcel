@@ -210,13 +210,17 @@ export class AssetGraphBuilder {
 
   async runEntryRequest(input: ModuleSpecifier) {
     let request = createEntryRequest(input);
-    let result = await this.api.runRequest<FilePath, EntryResult>(request);
+    let result = await this.api.runRequest<FilePath, EntryResult>(request, {
+      force: true,
+    });
     this.assetGraph.resolveEntry(request.input, result.entries, request.id);
   }
 
   async runTargetRequest(input: Entry) {
     let request = createTargetRequest(input);
-    let targets = await this.api.runRequest<Entry, Array<Target>>(request);
+    let targets = await this.api.runRequest<Entry, Array<Target>>(request, {
+      force: true,
+    });
     this.assetGraph.resolveTargets(request.input, targets, request.id);
   }
 
@@ -224,6 +228,7 @@ export class AssetGraphBuilder {
     let request = createPathRequest({dependency: input, name: this.name});
     let result = await this.api.runRequest<PathRequestInput, ?AssetGroup>(
       request,
+      {force: true},
     );
     this.assetGraph.resolveDependency(input, result, request.id);
   }
@@ -237,6 +242,7 @@ export class AssetGraphBuilder {
     });
     let assets = await this.api.runRequest<AssetRequestInput, Array<Asset>>(
       request,
+      {force: true},
     );
 
     if (assets != null) {
