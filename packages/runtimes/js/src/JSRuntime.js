@@ -55,6 +55,11 @@ const LOADERS = {
   },
 };
 
+let bundleAsyncDependenciesCache = new WeakMap<
+  NamedBundle,
+  Array<Dependency>,
+>();
+
 function getLoaders(
   ctx: Environment,
 ): ?{[string]: string, IMPORT_POLYFILL: null | false | string, ...} {
@@ -91,6 +96,7 @@ export default (new Runtime({
         otherDependencies.push(dependency);
       }
     });
+    bundleAsyncDependenciesCache.set(bundle, asyncDependencies);
 
     let assets = [];
     for (let dependency of asyncDependencies) {
@@ -343,34 +349,60 @@ function getHintedBundleGroups(
 ): {|preload: Array<BundleGroup>, prefetch: Array<BundleGroup>|} {
   let preload = [];
   let prefetch = [];
-  bundle.traverse(node => {
-    if (node.type !== 'dependency') {
-      return;
-    }
-
-    let dependency = node.value;
-    // $FlowFixMe
-    let attributes = dependency.meta?.importAttributes;
-    if (
-      dependency.isAsync &&
-      !dependency.isURL &&
-      typeof attributes === 'object' &&
-      attributes != null &&
-      // $FlowFixMe
-      (attributes.preload || attributes.prefetch)
-    ) {
-      let resolved = bundleGraph.resolveAsyncDependency(dependency, bundle);
-      if (resolved?.type === 'bundle_group') {
-        // === true for flow
-        if (attributes.preload === true) {
-          preload.push(resolved.value);
-        }
-        if (attributes.prefetch === true) {
-          prefetch.push(resolved.value);
+  let asyncDependencies = bundleAsyncDependenciesCache.get(bundle);
+  if (Array.isArray(asyncDependencies)) {
+    for (let asyncDependency of asyncDependencies) {
+      let attributes = asyncDependency.meta?.importAttributes;
+      let resolved = bundleGraph.resolveAsyncDependency(
+        asyncDependency,
+        bundle,
+      );
+      if (
+        !asyncDependency.isURL &&
+        typeof attributes === 'object' &&
+        attributes != null &&
+        // $FlowFixMe
+        (attributes.preload || attributes.prefetch)
+      ) {
+        if (resolved?.type === 'bundle_group') {
+          if (attributes.preload === true) {
+            preload.push(resolved.value);
+          }
+          if (attributes.prefetch === true) {
+            prefetch.push(resolved.value);
+          }
         }
       }
     }
-  });
+  }
+  // bundle.traverse(node => {
+  //   if (node.type !== 'dependency') {
+  //     return;
+  //   }
+
+  //   let dependency = node.value;
+  //   // $FlowFixMe
+  //   let attributes = dependency.meta?.importAttributes;
+  //   if (
+  //     dependency.isAsync &&
+  //     !dependency.isURL &&
+  //     typeof attributes === 'object' &&
+  //     attributes != null &&
+  //     // $FlowFixMe
+  //     (attributes.preload || attributes.prefetch)
+  //   ) {
+  //     let resolved = bundleGraph.resolveAsyncDependency(dependency, bundle);
+  //     if (resolved?.type === 'bundle_group') {
+  //       // === true for flow
+  //       if (attributes.preload === true) {
+  //         preload.push(resolved.value);
+  //       }
+  //       if (attributes.prefetch === true) {
+  //         prefetch.push(resolved.value);
+  //       }
+  //     }
+  //   }
+  // });
 
   return {preload, prefetch};
 }
