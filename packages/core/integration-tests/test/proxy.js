@@ -1,3 +1,4 @@
+// @flow strict-local
 import assert from 'assert';
 import path from 'path';
 import {bundler, getNextBuild, inputFS} from '@parcel/test-utils';
