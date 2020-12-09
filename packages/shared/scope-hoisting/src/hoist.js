@@ -359,6 +359,11 @@ const VISITOR: Visitor<MutableAsset> = {
     if (path.node.name === 'global' && !path.scope.hasBinding('global')) {
       path.replaceWith(t.identifier('$parcel$global'));
     }
+
+    if (path.node.name === 'require' && !path.scope.hasBinding('require')) {
+      // All require() calls that have any chance on working with scope-hoisting were already replaced.
+      path.replaceWith(t.identifier('undefined'));
+    }
   },
 
   ThisExpression(path, asset) {
