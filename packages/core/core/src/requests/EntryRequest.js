@@ -113,6 +113,40 @@ class EntryResolver {
           entries: [{filePath: source, packagePath: entry}],
           files: [{filePath: pkg.filePath}],
         };
+      } else if (pkg && Array.isArray(pkg.source)) {
+        let source;
+        const entries = [];
+        const files = [];
+        for (var i = 0; i < pkg.source.length; i++) {
+          const sourceIndex = pkg.source[i];
+          if (typeof sourceIndex === 'string') {
+            source = path.join(path.dirname(pkg.filePath), sourceIndex);
+            try {
+              stat = await this.options.inputFS.stat(source);
+            } catch (error) {
+              throw new Error(
+                `${sourceIndex} in ${path.relative(
+                  this.options.inputFS.cwd(),
+                  pkg.filePath,
+                )}#source does not exist`,
+              );
+            }
+            if (!stat.isFile()) {
+              throw new Error(
+                `${sourceIndex} in ${path.relative(
+                  this.options.inputFS.cwd(),
+                  pkg.filePath,
+                )}#source is not a file`,
+              );
+            }
+            entries.push({filePath: source, packagePath: entry});
+            files.push({filePath: pkg.filePath});
+          }
+        }
+        return {
+          entries,
+          files,
+        };
       }
 
       throw new Error(`Could not find entry: ${entry}`);
