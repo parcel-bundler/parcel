@@ -1,4 +1,4 @@
-* Don't just simply copy package.json, insert the name of the package (probably path.basename(packagePath))
+* [x] Don't just simply copy package.json, insert the name of the package (probably path.basename(packagePath))
 * Make initial commit
 * Make log messages nice (e.g. colors)
 * Write more thorough instructions

@@ -14,6 +14,8 @@ import commandExists from 'command-exists';
 // flowlint-next-line untyped-import:off
 import spawn from '@npmcli/promise-spawn';
 
+const TEMPLATES_DIR = path.resolve(__dirname, '../templates');
+
 const ncp = promisify(_ncp);
 
 // flowlint-next-line untyped-import:off
@@ -52,7 +54,30 @@ async function run(packagePath: string) {
 
   // Copy templates
   log('Copying templates...');
-  await ncp(path.resolve(__dirname, '../templates'), packagePath);
+  async function writePackageJson() {
+    const packageJson = JSON.parse(
+      await fs.promises.readFile(
+        path.join(TEMPLATES_DIR, 'package.json'),
+        'utf8',
+      ),
+    );
+    await fs.promises.writeFile(
+      path.join(packagePath, 'package.json'),
+      JSON.stringify(
+        {
+          name: path.basename(packagePath),
+          ...packageJson,
+        },
+        null,
+        2,
+      ),
+    );
+  }
+
+  await Promise.all([
+    writePackageJson(),
+    ncp(path.join(TEMPLATES_DIR, 'default'), packagePath),
+  ]);
 
   // Install packages
   log('Installing packages...');
