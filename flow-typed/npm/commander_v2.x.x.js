@@ -253,6 +253,7 @@ declare module "commander" {
      * @api public
      */
     name(): string;
+    name(name: string): this;
 
     /**
      * Output help information for this command
