@@ -2,6 +2,6 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "start": "parcel index.html"
+    "start": "parcel src/index.html"
   }
 }
