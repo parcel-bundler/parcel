@@ -70,13 +70,13 @@ export type Environment = {|
   isLibrary: boolean,
   minify: boolean,
   scopeHoist: boolean,
+  sourceMap: ?TargetSourceMapOptions,
 |};
 
 export type Target = {|
   distEntry?: ?FilePath,
   distDir: FilePath,
   env: Environment,
-  sourceMap?: TargetSourceMapOptions,
   name: string,
   publicUrl: string,
   loc?: ?SourceLocation,
@@ -143,7 +143,15 @@ export type EnvInvalidation = {|
   key: string,
 |};
 
-export type RequestInvalidation = FileInvalidation | EnvInvalidation;
+export type OptionInvalidation = {|
+  type: 'option',
+  key: string,
+|};
+
+export type RequestInvalidation =
+  | FileInvalidation
+  | EnvInvalidation
+  | OptionInvalidation;
 
 export type ParcelOptions = {|
   entries: Array<FilePath>,

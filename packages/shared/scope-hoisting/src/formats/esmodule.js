@@ -140,9 +140,25 @@ export function generateExports(
   // let exportedIdentifiersBailout = new Map<Symbol, [Asset, Symbol]>();
   let entry = bundle.getMainEntry();
   if (entry) {
+    // Get all used symbols for this bundle (= entry + subgraph)
+    let usedSymbols = new Set<Symbol>();
+    for (let d of bundleGraph.getIncomingDependencies(entry)) {
+      let used = bundleGraph.getUsedSymbols(d);
+      if (d.symbols.isCleared || used.has('*')) {
+        usedSymbols = null;
+        break;
+      }
+      used.forEach(s => nullthrows(usedSymbols).add(s));
+    }
+
     for (let {exportAs, exportSymbol, symbol, asset, loc} of nullthrows(
       bundleGraph.getExportedSymbols(entry, bundle),
     )) {
+      if (usedSymbols && !usedSymbols.has(exportAs)) {
+        // an unused symbol
+        continue;
+      }
+
       if (symbol === false) {
         // skipped
       } else if (symbol === null) {
@@ -305,9 +321,13 @@ export function generateExports(
               binding.constantViolations[binding.constantViolations.length - 1];
           }
 
-          let [decl] = insertPath.insertAfter(
-            t.exportDefaultDeclaration(t.identifier(defaultExport)),
-          );
+          let node = t.exportDefaultDeclaration(t.identifier(defaultExport));
+          let decl;
+          if (insertPath.parentPath.isProgram()) {
+            [decl] = insertPath.insertAfter(node);
+          } else {
+            [decl] = programPath.pushContainer('body', node);
+          }
           binding?.reference(decl.get<NodePath<Identifier>>('declaration'));
         }
 

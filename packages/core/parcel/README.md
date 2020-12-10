@@ -1118,6 +1118,7 @@ asset graph. They mostly call out to different compilers and preprocessors.
 - `@parcel/transformer-wasm`
 - `@parcel/transformer-webmanifest`
 - `@parcel/transformer-yaml`
+- `@parcel/transformer-elm`
 - ...
 
 ### Bundlers

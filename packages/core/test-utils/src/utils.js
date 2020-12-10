@@ -9,6 +9,7 @@ import type {
   InitialParcelOptions,
   NamedBundle,
 } from '@parcel/types';
+import type WorkerFarm from '@parcel/workers';
 
 import invariant from 'assert';
 import util from 'util';
@@ -18,7 +19,6 @@ import vm from 'vm';
 import {NodeFS, MemoryFS, OverlayFS, ncp as _ncp} from '@parcel/fs';
 import path from 'path';
 import url from 'url';
-// flowlint-next-line untyped-import:off
 import WebSocket from 'ws';
 import nullthrows from 'nullthrows';
 import postHtmlParse from 'posthtml-parser';
@@ -29,7 +29,7 @@ import _chalk from 'chalk';
 import resolve from 'resolve';
 import {NodePackageManager} from '@parcel/package-manager';
 
-const workerFarm = createWorkerFarm();
+export const workerFarm = (createWorkerFarm(): WorkerFarm);
 export const inputFS: NodeFS = new NodeFS();
 export let outputFS: MemoryFS = new MemoryFS(workerFarm);
 export let overlayFS: OverlayFS = new OverlayFS(outputFS, inputFS);
@@ -322,7 +322,8 @@ export function run(
   bundleGraph: BundleGraph<NamedBundle>,
   globals: mixed,
   opts: RunOpts = {},
-): Promise<mixed> {
+  // $FlowFixMe[unclear-type]
+): Promise<any> {
   let bundle = nullthrows(
     bundleGraph.getBundles().find(b => b.type === 'js' || b.type === 'html'),
   );

@@ -391,14 +391,19 @@ export default class WorkerFarm extends EventEmitter {
 
   async createSharedReference(
     value: mixed,
+    // An optional, pre-serialized representation of the value to be used
+    // in its place.
+    buffer?: Buffer,
   ): Promise<{|ref: SharedReference, dispose(): Promise<mixed>|}> {
     let ref = referenceId++;
     this.sharedReferences.set(ref, value);
     this.sharedReferencesByValue.set(value, ref);
+
+    let toSend = buffer ? buffer.buffer : value;
     let promises = [];
     for (let worker of this.workers.values()) {
       if (worker.ready) {
-        promises.push(worker.sendSharedReference(ref, value));
+        promises.push(worker.sendSharedReference(ref, toSend));
       }
     }
 
@@ -491,6 +496,26 @@ export default class WorkerFarm extends EventEmitter {
       origin: '@parcel/workers',
       message: escapeMarkdown(`Wrote profile to ${filename}`),
     });
+  }
+
+  async callAllWorkers(method: string, args: Array<any>) {
+    let promises = [];
+    for (let worker of this.workers.values()) {
+      promises.push(
+        new Promise((resolve, reject) => {
+          worker.call({
+            method,
+            args,
+            resolve,
+            reject,
+            retries: 0,
+          });
+        }),
+      );
+    }
+
+    promises.push(this.localWorker[method](this.workerApi, ...args));
+    await Promise.all(promises);
   }
 
   async takeHeapSnapshot() {
