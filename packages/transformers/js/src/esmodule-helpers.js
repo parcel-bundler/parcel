@@ -6,7 +6,7 @@ exports.defineInteropFlag = function(a) {
   Object.defineProperty(a, '__esModule', {value: true});
 };
 
-exports.namespace = function(source, dest = {}) {
+exports.exportAll = function(source, dest) {
   Object.keys(source).forEach(function(key) {
     if (key === 'default' || key === '__esModule') {
       return;
@@ -26,6 +26,12 @@ exports.namespace = function(source, dest = {}) {
   });
 
   return dest;
+};
+
+exports.namespace = function(source) {
+  let namespace = exports.exportAll(source, {});
+  namespace.default = source.default;
+  return namespace;
 };
 
 exports.export = function(dest, destName, get) {

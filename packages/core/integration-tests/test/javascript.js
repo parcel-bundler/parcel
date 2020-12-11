@@ -2960,4 +2960,20 @@ describe('javascript', function() {
     assert.equal(res.b, 'b');
     assert.equal(typeof res.c, 'function');
   });
+
+  it('should exclude default from export all declaration', async function() {
+    let b = await bundle(
+      path.join(__dirname, 'integration/js-export-all/index.js'),
+    );
+    let res = await run(b);
+    assert.deepEqual(res, {a: 4});
+  });
+
+  it('should include default from import namespace declarations', async function() {
+    let b = await bundle(
+      path.join(__dirname, 'integration/js-import-namespace/index.js'),
+    );
+    let res = await run(b);
+    assert.deepEqual(res, {a: 4, default: 1});
+  });
 });

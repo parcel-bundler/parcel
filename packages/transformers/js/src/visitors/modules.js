@@ -334,7 +334,7 @@ export function esm2cjs(ast: BabelNodeFile, asset?: MutableAsset) {
           t.callExpression(
             t.memberExpression(
               t.identifier(addHelpers()),
-              t.identifier('namespace'),
+              t.identifier('exportAll'),
             ),
             [t.identifier(names.name), t.identifier('exports')],
           ),
