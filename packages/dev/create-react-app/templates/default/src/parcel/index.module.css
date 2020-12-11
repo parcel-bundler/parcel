@@ -1,0 +1,27 @@
+.container {
+  height: 100vh;
+  width: 100vw;
+  display: flex;
+}
+
+.parcel {
+  font-family: system-ui;
+  color: #e6daca;
+  margin: auto;
+}
+
+.logo {
+  margin-bottom: 60px;
+}
+
+.boxContainer {
+  position: relative;
+  height: 474px;
+  width: 600px;
+}
+
+.front {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
