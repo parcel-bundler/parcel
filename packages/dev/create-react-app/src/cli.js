@@ -15,6 +15,7 @@ import commandExists from 'command-exists';
 import spawn from '@npmcli/promise-spawn';
 import _rimraf from 'rimraf';
 import chalk from 'chalk';
+import * as emoji from './emoji';
 
 const TEMPLATES_DIR = path.resolve(__dirname, '../templates');
 
@@ -56,16 +57,16 @@ async function run(packagePath: string) {
 
 async function createApp(packagePath: string) {
   // Create directory
-  log('Creating package directory...');
+  log(chalk.bold(emoji.process + ' Creating package directory...'));
   await mkdirp(packagePath);
 
   // Initialize repo
   const git = simpleGit({baseDir: packagePath});
-  log('Initializing git repository...');
+  log(chalk.bold(emoji.process + ' Initializing git repository...'));
   await git.init();
 
   // Copy templates
-  log('Copying templates...');
+  log(chalk.bold(emoji.process + ' Copying templates...'));
   async function writePackageJson() {
     const packageJson = JSON.parse(
       await fs.promises.readFile(
@@ -92,7 +93,7 @@ async function createApp(packagePath: string) {
   ]);
 
   // Install packages
-  log('Installing packages...');
+  log(chalk.bold(emoji.process + ' Installing packages...'));
   await installPackages(['parcel@nightly'], {
     cwd: packagePath,
     isDevDependency: true,
@@ -100,12 +101,12 @@ async function createApp(packagePath: string) {
   await installPackages(['react', 'react-dom'], {cwd: packagePath});
 
   // Initial commit
-  log('Creating initial commit...');
+  log(chalk.bold(emoji.process + ' Creating initial commit...'));
   await git.add('.');
   await git.commit('Initial commit created with @parcel/create-react-app');
 
   // Print instructions
-  log(`Run ${usesYarn ? 'yarn' : 'npm run'} start`);
+  log(chalk`Run {bold ${usesYarn ? 'yarn' : 'npm run'} start} `);
 }
 
 async function fsExists(filePath: string): Promise<boolean> {
