@@ -13,6 +13,7 @@
     "command-exists": "^1.2.6",
     "commander": "^2.19.0",
     "ncp": "^2.0.0",
+    "rimraf": "^3.0.2",
     "simple-git": "^2.26.0",
     "v8-compile-cache": "^2.0.0"
   },

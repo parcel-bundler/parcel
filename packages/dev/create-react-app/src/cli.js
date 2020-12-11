@@ -13,10 +13,12 @@ import {promisify} from 'util';
 import commandExists from 'command-exists';
 // flowlint-next-line untyped-import:off
 import spawn from '@npmcli/promise-spawn';
+import _rimraf from 'rimraf';
 
 const TEMPLATES_DIR = path.resolve(__dirname, '../templates');
 
 const ncp = promisify(_ncp);
+const rimraf = promisify(_rimraf);
 
 // flowlint-next-line untyped-import:off
 require('v8-compile-cache');
@@ -43,6 +45,15 @@ async function run(packagePath: string) {
     throw new Error(`Package at ${packagePath} already exists`);
   }
 
+  try {
+    await createApp(packagePath);
+  } catch (e) {
+    // await rimraf(packagePath);
+    throw e;
+  }
+}
+
+async function createApp(packagePath: string) {
   // Create directory
   log('Creating package directory...');
   await mkdirp(packagePath);
@@ -85,10 +96,12 @@ async function run(packagePath: string) {
     cwd: packagePath,
     isDevDependency: true,
   });
-  log('INSTALLING REACT');
   await installPackages(['react', 'react-dom'], {cwd: packagePath});
 
   // Initial commit
+  log('Creating initial commit...');
+  await git.add('.');
+  await git.commit('Initial commit created with @parcel/create-react-app');
 
   // Print instructions
   log(`Run ${usesYarn ? 'yarn' : 'npm run'} start`);
