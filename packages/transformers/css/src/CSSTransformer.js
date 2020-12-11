@@ -168,7 +168,7 @@ export default (new Transformer({
     return [asset];
   },
 
-  async generate({ast, options}) {
+  async generate({asset, ast, options}) {
     let root = ast.program;
 
     // $FlowFixMe
@@ -200,16 +200,23 @@ export default (new Transformer({
       map: {
         annotation: false,
         inline: false,
+        sourcesContent: false,
       },
       // Pass postcss's own stringifier to it to silence its warning
       // as we don't want to perform any transformations -- only generate
       stringifier: postcss.stringify,
     });
 
-    let map;
+    let map = null;
+    let originalSourceMap = await asset.getMap();
     if (result.map != null) {
       map = new SourceMap(options.projectRoot);
       map.addRawMappings(result.map.toJSON());
+      if (originalSourceMap) {
+        map.extends(originalSourceMap.toBuffer());
+      }
+    } else {
+      map = originalSourceMap;
     }
 
     return {

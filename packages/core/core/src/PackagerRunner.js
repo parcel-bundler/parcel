@@ -23,7 +23,7 @@ import {
   md5FromString,
   blobToStream,
   TapStream,
-  clearCache,
+  loadConfig,
 } from '@parcel/utils';
 import {PluginLogger} from '@parcel/logger';
 import {init as initSourcemaps} from '@parcel/source-map';
@@ -162,7 +162,7 @@ export default class PackagerRunner {
         ),
       );
     } finally {
-      clearCache();
+      loadConfig.clear();
       await dispose();
     }
   }
@@ -346,7 +346,7 @@ export default class PackagerRunner {
         diagnostic: errorToDiagnostic(e, name),
       });
     } finally {
-      clearCache();
+      loadConfig.clear();
     }
   }
 

@@ -6,7 +6,7 @@ import invariant from 'assert';
 import path from 'path';
 import sinon from 'sinon';
 import ThrowableDiagnostic from '@parcel/diagnostic';
-import {clearCache} from '@parcel/utils';
+import {loadConfig} from '@parcel/utils';
 import WorkerFarm from '@parcel/workers';
 import {MockPackageInstaller, NodePackageManager} from '../';
 
@@ -31,7 +31,7 @@ describe('NodePackageManager', function() {
   });
 
   afterEach(async () => {
-    clearCache();
+    loadConfig.clear();
     await workerFarm.end();
   });
 

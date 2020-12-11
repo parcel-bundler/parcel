@@ -74,10 +74,6 @@ export function resolveConfigSync(
   return resolveConfigSync(fs, filepath, filenames, opts);
 }
 
-export function clearCache() {
-  configCache.reset();
-}
-
 export async function loadConfig(
   fs: FileSystem,
   filepath: FilePath,
@@ -135,6 +131,10 @@ export async function loadConfig(
 
   return null;
 }
+
+loadConfig.clear = () => {
+  configCache.reset();
+};
 
 function getParser(extname) {
   switch (extname) {
