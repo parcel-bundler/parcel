@@ -99,7 +99,7 @@ export function mergeEnvironments(
   b: ?EnvironmentOpts,
 ): Environment {
   // If merging the same object, avoid copying.
-  if (a === b) {
+  if (a === b || !b) {
     return a;
   }
 
