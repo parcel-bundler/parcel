@@ -3,7 +3,6 @@
 import program from 'commander';
 // flowlint-next-line untyped-import:off
 import {name, version} from '../package.json';
-import mkdirp from 'mkdirp';
 // flowlint-next-line untyped-import:off
 import simpleGit from 'simple-git';
 import fs from 'fs';
@@ -14,11 +13,14 @@ import commandExists from 'command-exists';
 // flowlint-next-line untyped-import:off
 import spawn from '@npmcli/promise-spawn';
 import _rimraf from 'rimraf';
+import tempy from 'tempy';
 
 const TEMPLATES_DIR = path.resolve(__dirname, '../templates');
 
 const ncp = promisify(_ncp);
 const rimraf = promisify(_rimraf);
+// eslint-disable-next-line no-console
+const log = console.log;
 
 // flowlint-next-line untyped-import:off
 require('v8-compile-cache');
@@ -45,21 +47,23 @@ async function run(packagePath: string) {
     throw new Error(`Package at ${packagePath} already exists`);
   }
 
+  let tempPath = tempy.directory();
   try {
-    await createApp(packagePath);
+    await createApp(path.basename(packagePath), tempPath);
   } catch (e) {
-    // await rimraf(packagePath);
+    await rimraf(tempPath);
     throw e;
   }
+
+  await fs.promises.rename(tempPath, packagePath);
+
+  // Print instructions
+  log(`Run ${usesYarn ? 'yarn' : 'npm run'} start`);
 }
 
-async function createApp(packagePath: string) {
-  // Create directory
-  log('Creating package directory...');
-  await mkdirp(packagePath);
-
+async function createApp(packageName: string, tempPath: string) {
   // Initialize repo
-  const git = simpleGit({baseDir: packagePath});
+  const git = simpleGit({baseDir: tempPath});
   log('Initializing git repository...');
   await git.init();
 
@@ -73,10 +77,10 @@ async function createApp(packagePath: string) {
       ),
     );
     await fs.promises.writeFile(
-      path.join(packagePath, 'package.json'),
+      path.join(tempPath, 'package.json'),
       JSON.stringify(
         {
-          name: path.basename(packagePath),
+          name: path.basename(tempPath),
           ...packageJson,
         },
         null,
@@ -87,24 +91,21 @@ async function createApp(packagePath: string) {
 
   await Promise.all([
     writePackageJson(),
-    ncp(path.join(TEMPLATES_DIR, 'default'), packagePath),
+    ncp(path.join(TEMPLATES_DIR, 'default'), tempPath),
   ]);
 
   // Install packages
   log('Installing packages...');
   await installPackages(['parcel@nightly'], {
-    cwd: packagePath,
+    cwd: tempPath,
     isDevDependency: true,
   });
-  await installPackages(['react', 'react-dom'], {cwd: packagePath});
+  await installPackages(['react', 'react-dom'], {cwd: tempPath});
 
   // Initial commit
   log('Creating initial commit...');
   await git.add('.');
   await git.commit('Initial commit created with @parcel/create-react-app');
-
-  // Print instructions
-  log(`Run ${usesYarn ? 'yarn' : 'npm run'} start`);
 }
 
 async function fsExists(filePath: string): Promise<boolean> {
@@ -113,11 +114,6 @@ async function fsExists(filePath: string): Promise<boolean> {
   } catch {
     return false;
   }
-}
-
-function log(...args: Array<mixed>): void {
-  // eslint-disable-next-line no-console
-  console.log(...args);
 }
 
 let usesYarn;
