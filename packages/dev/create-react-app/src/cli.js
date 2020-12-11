@@ -34,7 +34,7 @@ program.action((command: string | typeof program) => {
 
   run(command).catch(reason => {
     // eslint-disable-next-line no-console
-    console.error(chalk `${emoji.error} {red ${reason.message}}`);
+    console.error(chalk`${emoji.error} {red ${reason.message}}`);
     process.exit(1);
   });
 });
@@ -42,9 +42,12 @@ program.action((command: string | typeof program) => {
 program.parse(process.argv);
 
 async function run(packagePath: string) {
-  log(chalk `${emoji.progress} {green Creating Parcel app at}`, chalk.bold.underline(packagePath));
+  log(
+    chalk`${emoji.progress} {green Creating Parcel app at}`,
+    chalk.bold.underline(packagePath),
+  );
   if (await fsExists(packagePath)) {
-    throw new Error(chalk `${emoji.error} {red File or directory at {bold.underline ${packagePath}} already exists}`);
+    throw new Error(`File or directory at ${packagePath} already exists`);
   }
 
   let tempPath = tempy.directory();
@@ -57,22 +60,25 @@ async function run(packagePath: string) {
 
   await fs.promises.rename(tempPath, packagePath);
 
-  // Print instructions
-  log(chalk `{green ${emoji.success} Successfully created a new Parcel app at {bold.underline ${packagePath}.} }`);
   log(
-    chalk `${emoji.info}  {dim Run} {bold.underline \`cd ${packagePath}\`} {dim and then} {bold \`${
+    chalk`{green ${emoji.success} Successfully created a new Parcel app at {bold.underline ${packagePath}}.}`,
+  );
+  log(
+    chalk`${
+      emoji.info
+    }  {dim Run} {bold cd ${packagePath}} {dim and then} {bold ${
       usesYarn ? 'yarn' : 'npm run'
-    } start\`} {dim to start developing with Parcel.}`,
+    } start} {dim to start developing with Parcel.}`,
   );
 }
 
 async function createApp(packageName: string, tempPath: string) {
-  log(emoji.progress + ' Creating package directory...');
+  log(emoji.progress, 'Creating package directory...');
   const git = simpleGit({baseDir: tempPath});
-  log(emoji.progress + ' Initializing git repository...');
+  log(emoji.progress, 'Initializing git repository...');
   await git.init();
 
-  log(emoji.progress + ' Adding templates...');
+  log(emoji.progress, 'Adding templates...');
   async function writePackageJson() {
     const packageJson = JSON.parse(
       await fs.promises.readFile(
@@ -98,17 +104,16 @@ async function createApp(packageName: string, tempPath: string) {
     ncp(path.join(TEMPLATES_DIR, 'default'), tempPath),
   ]);
 
-  log(emoji.progress + ' Installing packages...');
+  log(emoji.progress, 'Installing packages...');
   await installPackages(['parcel@nightly'], {
     cwd: tempPath,
     isDevDependency: true,
   });
   await installPackages(['react', 'react-dom'], {cwd: tempPath});
 
-  // Initial commit
-  log(chalk.green(emoji.progress + ' Creating initial commit...'));
+  log(chalk.green(emoji.progress, 'Creating initial commit...'));
   await git.add('.');
-  await git.commit(chalk.magenta(emoji.info + '  Initial commit created with @parcel/create-react-app'));
+  await git.commit('Initial commit created with @parcel/create-react-app');
 }
 
 async function fsExists(filePath: string): Promise<boolean> {
@@ -127,11 +132,16 @@ async function installPackages(
     isDevDependency?: boolean,
   |},
 ): Promise<void> {
-  log(emoji.progress + chalk `{dim Installing}'`, chalk.bold(...packageExpressions));
+  log(
+    emoji.progress,
+    chalk`{dim Installing}`,
+    chalk.bold(...packageExpressions),
+  );
+
   if (usesYarn == null) {
     usesYarn = await commandExists('yarn');
-    if (!(await commandExists('npm'))) {
-      throw new Error(emoji.error + chalk.red(' Neither npm nor yarn found on system'));
+    if (!usesYarn && !(await commandExists('npm'))) {
+      throw new Error('Neither npm nor yarn found on system');
     }
   }
 
