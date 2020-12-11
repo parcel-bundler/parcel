@@ -3,5 +3,8 @@
   "private": true,
   "scripts": {
     "start": "parcel src/index.html"
+  },
+  "devDependencies": {
+    "postcss": "^8.0.0"
   }
 }
