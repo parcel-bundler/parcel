@@ -171,14 +171,12 @@ export let scopeVisitor: Visitors<ScopeState> = {
           let ids = t.getBindingIdentifiers(node);
           for (let id in ids) {
             scope.addBinding(id, decl);
-            scope.addReference(ids[id]);
           }
         }
       } else {
         let ids = t.getBindingIdentifiers(node);
         for (let id in ids) {
           scope.addBinding(id, node);
-          scope.addReference(ids[id]);
         }
       }
     },
@@ -187,10 +185,8 @@ export let scopeVisitor: Visitors<ScopeState> = {
     // Add function name to outer scope
     let name;
     if (isFunctionDeclaration(node) && isIdentifier(node.id)) {
-      let id = node.id;
-      name = id.name;
+      name = node.id.name;
       state.scope.addBinding(name, node);
-      state.scope.addReference(id);
     }
 
     // Create new scope
@@ -204,7 +200,6 @@ export let scopeVisitor: Visitors<ScopeState> = {
     for (let id in inner) {
       if (id !== name) {
         state.scope.addBinding(id, inner[id]);
-        state.scope.addReference(inner[id]);
       }
     }
   },
