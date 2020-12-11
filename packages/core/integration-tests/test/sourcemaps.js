@@ -745,6 +745,58 @@ describe('sourcemaps', function() {
     await test(true);
   });
 
+  it('should create a valid sourcemap for a Sass asset w/ imports', async function() {
+    let inputFilePath = path.join(
+      __dirname,
+      '/integration/scss-sourcemap-imports/style.scss',
+    );
+
+    await bundle(inputFilePath);
+    let distDir = path.join(__dirname, '../dist/');
+    let filename = path.join(distDir, 'style.css');
+    let raw = await outputFS.readFile(filename, 'utf8');
+    let mapUrlData = await loadSourceMapUrl(outputFS, filename, raw);
+    if (!mapUrlData) {
+      throw new Error('Could not load map');
+    }
+    let map = mapUrlData.map;
+
+    assert.equal(map.file, 'style.css.map');
+    assert(raw.includes('/*# sourceMappingURL=style.css.map */'));
+
+    let sourceMap = new SourceMap('/');
+    sourceMap.addRawMappings(map);
+
+    let mapData = sourceMap.getMap();
+    // This should actually just be `./integration/scss-sourcemap-imports/with_url.scss`
+    // but this is a small bug in the extend utility of the source-map library
+    assert.deepEqual(mapData.sources, [
+      './integration/scss-sourcemap-imports/style.scss',
+      './integration/scss-sourcemap-imports/with_url.scss',
+    ]);
+
+    let input = await inputFS.readFile(
+      path.join(path.dirname(filename), map.sourceRoot, map.sources[1]),
+      'utf-8',
+    );
+
+    checkSourceMapping({
+      map: sourceMap,
+      source: input,
+      generated: raw,
+      str: 'body',
+      sourcePath: './integration/scss-sourcemap-imports/with_url.scss',
+    });
+
+    checkSourceMapping({
+      map: sourceMap,
+      source: input,
+      generated: raw,
+      str: 'background-color',
+      sourcePath: './integration/scss-sourcemap-imports/with_url.scss',
+    });
+  });
+
   it('should create a valid sourcemap when for a CSS asset importing Sass', async function() {
     async function test(minify) {
       let inputFilePath = path.join(
