@@ -2969,12 +2969,28 @@ describe('javascript', function() {
     assert.deepEqual(res, {a: 4});
   });
 
-  it('should include default from import namespace declarations', async function() {
+  it('should support import namespace declarations of other ES modules', async function() {
     let b = await bundle(
-      path.join(__dirname, 'integration/js-import-namespace/index.js'),
+      path.join(__dirname, 'integration/js-import-namespace/a.js'),
     );
     let res = await run(b);
     assert.deepEqual(res, {a: 4, default: 1});
+  });
+
+  it('should support import namespace declarations of class from CJS', async function() {
+    let b = await bundle(
+      path.join(__dirname, 'integration/js-import-namespace/b.js'),
+    );
+    let res = await run(b);
+    assert.equal(typeof res, 'function');
+  });
+
+  it('should support import namespace declarations of object from CJS', async function() {
+    let b = await bundle(
+      path.join(__dirname, 'integration/js-import-namespace/c.js'),
+    );
+    let res = await run(b);
+    assert.deepEqual(res, {foo: 2, default: 3});
   });
 
   it('should support export namespace declarations', async function() {

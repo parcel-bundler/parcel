@@ -211,11 +211,17 @@ function getDefault(state, source) {
 }
 
 function getNamespace(state, source) {
+  // Interop between import namespace declarations and CJS is very inconsistent.
+  // Node always returns {default: module.exports}.
+  // Babel does the same for functions and primative values, but for objects returns
+  // {...module.exports, default: module.exports}.
+  // Parcel currently just returns the original module.exports in scope hoisting.
+  // Doing the same here to match for now, but we should revisit this.
   let names = getNames(state, source);
-  if (!names.namespace) {
-    names.namespace = state.scope.generateUid(names.name + 'Namespace');
-  }
-  return t.identifier(names.namespace);
+  // if (!names.namespace) {
+  //   names.namespace = state.scope.generateUid(names.name + 'Namespace');
+  // }
+  return t.identifier(names.name);
 }
 
 const visitor = mergeVisitors(scopeVisitor, modulesVisitor);
@@ -369,22 +375,22 @@ export function esm2cjs(ast: BabelNodeFile, asset?: MutableAsset) {
       );
     }
 
-    if (names.namespace) {
-      prepend.push(
-        t.variableDeclaration('var', [
-          t.variableDeclarator(
-            t.identifier(names.namespace),
-            t.callExpression(
-              t.memberExpression(
-                t.identifier(addHelpers()),
-                t.identifier('namespace'),
-              ),
-              [t.identifier(names.name)],
-            ),
-          ),
-        ]),
-      );
-    }
+    // if (names.namespace) {
+    //   prepend.push(
+    //     t.variableDeclaration('var', [
+    //       t.variableDeclarator(
+    //         t.identifier(names.namespace),
+    //         t.callExpression(
+    //           t.memberExpression(
+    //             t.identifier(addHelpers()),
+    //             t.identifier('namespace'),
+    //           ),
+    //           [t.identifier(names.name)],
+    //         ),
+    //       ),
+    //     ]),
+    //   );
+    // }
   }
 
   body.unshift(...prepend);

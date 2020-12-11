@@ -28,12 +28,6 @@ exports.exportAll = function(source, dest) {
   return dest;
 };
 
-exports.namespace = function(source) {
-  let namespace = exports.exportAll(source, {});
-  namespace.default = source.default;
-  return namespace;
-};
-
 exports.export = function(dest, destName, get) {
   Object.defineProperty(dest, destName, {
     enumerable: true,
