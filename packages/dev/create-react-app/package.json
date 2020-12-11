@@ -4,6 +4,10 @@
   "bin": "src/bin.js",
   "main": "lib/bin.js",
   "source": "src/bin.js",
+  "files": [
+    "templates",
+    "lib"
+  ],
   "license": "MIT",
   "publishConfig": {
     "access": "public"
