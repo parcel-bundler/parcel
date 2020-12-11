@@ -42,9 +42,9 @@ program.action((command: string | typeof program) => {
 program.parse(process.argv);
 
 async function run(packagePath: string) {
-  log('running path', packagePath);
+  log(chalk.dim('running path'), chalk.bold("packagePath"));
   if (await fsExists(packagePath)) {
-    throw new Error(`Package at ${packagePath} already exists`);
+    throw new Error(chalk `${emoji.error} {red Package at {bold.underline ${packagePath}} already exists}`);
   }
 
   try {
@@ -57,16 +57,16 @@ async function run(packagePath: string) {
 
 async function createApp(packagePath: string) {
   // Create directory
-  log(chalk.bold(emoji.process + ' Creating package directory...'));
+  log(emoji.progress + ' Creating package directory...');
   await mkdirp(packagePath);
 
   // Initialize repo
   const git = simpleGit({baseDir: packagePath});
-  log(chalk.bold(emoji.process + ' Initializing git repository...'));
+  log(emoji.progress + ' Initializing git repository...');
   await git.init();
 
   // Copy templates
-  log(chalk.bold(emoji.process + ' Copying templates...'));
+  log(emoji.progress + ' Copying templates...');
   async function writePackageJson() {
     const packageJson = JSON.parse(
       await fs.promises.readFile(
@@ -93,7 +93,7 @@ async function createApp(packagePath: string) {
   ]);
 
   // Install packages
-  log(chalk.bold(emoji.process + ' Installing packages...'));
+  log(emoji.progress + ' Installing packages...');
   await installPackages(['parcel@nightly'], {
     cwd: packagePath,
     isDevDependency: true,
@@ -101,12 +101,12 @@ async function createApp(packagePath: string) {
   await installPackages(['react', 'react-dom'], {cwd: packagePath});
 
   // Initial commit
-  log(chalk.bold(emoji.process + ' Creating initial commit...'));
+  log(chalk.green(emoji.progress + ' Creating initial commit...'));
   await git.add('.');
-  await git.commit('Initial commit created with @parcel/create-react-app');
+  await git.commit(chalk.magenta(emoji.info + ' Initial commit created with @parcel/create-react-app'));
 
   // Print instructions
-  log(chalk`Run {bold ${usesYarn ? 'yarn' : 'npm run'} start} `);
+  log(chalk`${emoji.success} {dim Run} {bold ${usesYarn ? 'yarn' : 'npm run'} start} `);
 }
 
 async function fsExists(filePath: string): Promise<boolean> {
@@ -133,7 +133,7 @@ async function installPackages(
   if (usesYarn == null) {
     usesYarn = await commandExists('yarn');
     if (!(await commandExists('npm'))) {
-      throw new Error('Neither npm nor yarn found on system');
+      throw new Error(emoji.error + ' Neither npm nor yarn found on system');
     }
   }
 
