@@ -2976,4 +2976,20 @@ describe('javascript', function() {
     let res = await run(b);
     assert.deepEqual(res, {a: 4, default: 1});
   });
+
+  it('should support export namespace declarations', async function() {
+    let b = await bundle(
+      path.join(__dirname, 'integration/js-export-namespace/index.js'),
+    );
+    let res = await run(b);
+    assert.deepEqual(res, {ns: {a: 4, default: 1}});
+  });
+
+  it('should support export default declarations', async function() {
+    let b = await bundle(
+      path.join(__dirname, 'integration/js-export-default/index.js'),
+    );
+    let res = await run(b);
+    assert.deepEqual(res, {other: 1});
+  });
 });

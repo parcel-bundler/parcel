@@ -16,6 +16,9 @@ import {
   isImportDefaultSpecifier,
   isImportNamespaceSpecifier,
   isExportAllDeclaration,
+  isExportNamespaceSpecifier,
+  isExportDefaultSpecifier,
+  isExportSpecifier,
 } from '@babel/types';
 import {
   traverse2,
@@ -84,12 +87,19 @@ let modulesVisitor: Visitors<State> = {
         imports.push(node);
         return () => {
           for (let specifier of specifiers) {
-            invariant(specifier.type === 'ExportSpecifier');
-
-            let local =
-              specifier.local.name === 'default'
-                ? getDefault(state, source)
-                : getSpecifier(state, source, specifier.local.name);
+            let local;
+            if (isExportNamespaceSpecifier(specifier)) {
+              local = getNamespace(state, source);
+            } else if (isExportDefaultSpecifier(specifier)) {
+              local = getDefault(state, source);
+            } else if (isExportSpecifier(specifier)) {
+              local =
+                specifier.local.name === 'default'
+                  ? getDefault(state, source)
+                  : getSpecifier(state, source, specifier.local.name);
+            } else {
+              throw new Error('Unknown specifier type: ' + specifier.type);
+            }
 
             exports.push({exported: specifier.exported, local});
           }
