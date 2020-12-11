@@ -43,7 +43,7 @@ export default (new Bundler({
     return loadBundlerConfig(options);
   },
 
-  bundle({bundleGraph}) {
+  bundle({bundleGraph, config}) {
     let bundleRoots: Map<Bundle, Array<Asset>> = new Map();
     let bundlesByEntryAsset: Map<Asset, Bundle> = new Map();
     let siblingBundlesByAsset: Map<string, Array<Bundle>> = new Map();
@@ -228,8 +228,6 @@ export default (new Bundler({
         bundleGraph.addEntryToBundle(asset, bundle);
       }
     }
-  },
-  optimize({bundleGraph, config, options}) {
     invariant(config != null);
 
     // Step 2: Remove asset graphs that begin with entries to other bundles.
@@ -288,12 +286,146 @@ export default (new Bundler({
 
     // Step 3: Remove assets that are duplicated in a parent bundle.
     deduplicate(bundleGraph);
-    const isProduction = options.mode === 'production';
-    if (isProduction) {
-      // Step 4: Find duplicated assets in different bundle groups, and separate them into their own parallel bundles.
-      // If multiple assets are always seen together in the same bundles, combine them together.
-      shareBundles({bundleGraph, config});
+  },
+  optimize({bundleGraph, config}) {
+    // Step 4: Find duplicated assets in different bundle groups, and separate them into their own parallel bundles.
+    // If multiple assets are always seen together in the same bundles, combine them together.
+    let candidateBundles: Map<
+      string,
+      {|
+        assets: Array<Asset>,
+        sourceBundles: Set<Bundle>,
+        size: number,
+      |},
+    > = new Map();
+
+    bundleGraph.traverseContents((node, ctx, actions) => {
+      if (node.type !== 'asset') {
+        return;
+      }
+
+      let asset = node.value;
+      let containingBundles = bundleGraph
+        .findBundlesWithAsset(asset)
+        // Don't create shared bundles from entry bundles, as that would require
+        // another entry bundle depending on these conditions, making it difficult
+        // to predict and reference.
+        .filter(b => {
+          let entries = b.getEntryAssets();
+
+          return (
+            !b.isEntry &&
+            b.isSplittable &&
+            entries.every(entry => entry.id !== asset.id)
+          );
+        });
+
+      if (containingBundles.length > config.minBundles) {
+        let id = containingBundles
+          .map(b => b.id)
+          .sort()
+          .join(':');
+
+        let candidate = candidateBundles.get(id);
+        if (candidate) {
+          candidate.assets.push(asset);
+          for (let bundle of containingBundles) {
+            candidate.sourceBundles.add(bundle);
+          }
+          candidate.size += bundleGraph.getTotalSize(asset);
+        } else {
+          candidateBundles.set(id, {
+            assets: [asset],
+            sourceBundles: new Set(containingBundles),
+            size: bundleGraph.getTotalSize(asset),
+          });
+        }
+
+        // Skip children from consideration since we added a parent already.
+        actions.skipChildren();
+      }
+    });
+
+    // Sort candidates by size (consider larger bundles first), and ensure they meet the size threshold
+    let sortedCandidates: Array<{|
+      assets: Array<Asset>,
+      sourceBundles: Set<Bundle>,
+      size: number,
+    |}> = Array.from(candidateBundles.values())
+      .filter(bundle => bundle.size >= config.minBundleSize)
+      .sort((a, b) => b.size - a.size);
+
+    for (let {assets, sourceBundles} of sortedCandidates) {
+      // Find all bundle groups connected to the original bundles
+      let bundleGroups = new Set();
+
+      for (let bundle of sourceBundles) {
+        for (let bundleGroup of bundleGraph.getBundleGroupsContainingBundle(
+          bundle,
+        )) {
+          bundleGroups.add(bundleGroup);
+        }
+      }
+
+      // If all bundle groups have already met the max parallel request limit, then they cannot be split.
+      if (
+        Array.from(bundleGroups).every(
+          group =>
+            bundleGraph.getBundlesInBundleGroup(group).filter(b => !b.isInline)
+              .length >= config.maxParallelRequests,
+        )
+      ) {
+        continue;
+      }
+
+      let [firstBundle] = [...sourceBundles];
+      let sharedBundle = bundleGraph.createBundle({
+        uniqueKey: md5FromString([...sourceBundles].map(b => b.id).join(':')),
+        // Allow this bundle to be deduplicated. It shouldn't be further split.
+        // TODO: Reconsider bundle/asset flags.
+        isSplittable: true,
+        env: firstBundle.env,
+        target: firstBundle.target,
+        type: firstBundle.type,
+      });
+      // Create new bundle node and connect it to all of the original bundle groups
+      for (let bundleGroup of bundleGroups) {
+        // If the bundle group is within the parallel request limit, then add the shared bundle.
+        if (
+          bundleGraph
+            .getBundlesInBundleGroup(bundleGroup)
+            .filter(b => !b.isInline).length < config.maxParallelRequests
+        ) {
+          bundleGraph.addBundleToBundleGroup(sharedBundle, bundleGroup);
+        }
+      }
+
+      // Remove all of the root assets from each of the original bundles
+      for (let asset of assets) {
+        bundleGraph.addAssetGraphToBundle(asset, sharedBundle);
+
+        for (let bundle of sourceBundles) {
+          // Remove the asset graph from the bundle if all bundle groups are
+          // within the parallel request limit and will include the shared bundle.
+          let bundleGroups = bundleGraph.getBundleGroupsContainingBundle(
+            bundle,
+          );
+          if (
+            bundleGroups.every(
+              bundleGroup =>
+                bundleGraph
+                  .getBundlesInBundleGroup(bundleGroup)
+                  .filter(b => !b.isInline).length < config.maxParallelRequests,
+            )
+          ) {
+            bundleGraph.removeAssetGraphFromBundle(asset, bundle);
+          }
+        }
+      }
     }
+
+    // Remove assets that are duplicated between shared bundles.
+    deduplicate(bundleGraph);
     // Step 5: Mark async dependencies on assets that are already available in
     // the bundle as internally resolvable. This removes the dependency between
     // the bundle and the bundle group providing that asset. If all connections
@@ -431,141 +563,4 @@ async function loadBundlerConfig(options: PluginOptions) {
     },
     files: result.files,
   };
-}
-
-function shareBundles({bundleGraph, config}) {
-  let candidateBundles: Map<
-    string,
-    {|
-      assets: Array<Asset>,
-      sourceBundles: Set<Bundle>,
-      size: number,
-    |},
-  > = new Map();
-
-  bundleGraph.traverseContents((node, ctx, actions) => {
-    if (node.type !== 'asset') {
-      return;
-    }
-
-    let asset = node.value;
-    let containingBundles = bundleGraph
-      .findBundlesWithAsset(asset)
-      // Don't create shared bundles from entry bundles, as that would require
-      // another entry bundle depending on these conditions, making it difficult
-      // to predict and reference.
-      .filter(b => {
-        let entries = b.getEntryAssets();
-
-        return (
-          !b.isEntry &&
-          b.isSplittable &&
-          entries.every(entry => entry.id !== asset.id)
-        );
-      });
-
-    if (containingBundles.length > config.minBundles) {
-      let id = containingBundles
-        .map(b => b.id)
-        .sort()
-        .join(':');
-
-      let candidate = candidateBundles.get(id);
-      if (candidate) {
-        candidate.assets.push(asset);
-        for (let bundle of containingBundles) {
-          candidate.sourceBundles.add(bundle);
-        }
-        candidate.size += bundleGraph.getTotalSize(asset);
-      } else {
-        candidateBundles.set(id, {
-          assets: [asset],
-          sourceBundles: new Set(containingBundles),
-          size: bundleGraph.getTotalSize(asset),
-        });
-      }
-
-      // Skip children from consideration since we added a parent already.
-      actions.skipChildren();
-    }
-  });
-
-  // Sort candidates by size (consider larger bundles first), and ensure they meet the size threshold
-  let sortedCandidates: Array<{|
-    assets: Array<Asset>,
-    sourceBundles: Set<Bundle>,
-    size: number,
-  |}> = Array.from(candidateBundles.values())
-    .filter(bundle => bundle.size >= config.minBundleSize)
-    .sort((a, b) => b.size - a.size);
-
-  for (let {assets, sourceBundles} of sortedCandidates) {
-    // Find all bundle groups connected to the original bundles
-    let bundleGroups = new Set();
-
-    for (let bundle of sourceBundles) {
-      for (let bundleGroup of bundleGraph.getBundleGroupsContainingBundle(
-        bundle,
-      )) {
-        bundleGroups.add(bundleGroup);
-      }
-    }
-
-    // If all bundle groups have already met the max parallel request limit, then they cannot be split.
-    if (
-      Array.from(bundleGroups).every(
-        group =>
-          bundleGraph.getBundlesInBundleGroup(group).filter(b => !b.isInline)
-            .length >= config.maxParallelRequests,
-      )
-    ) {
-      continue;
-    }
-
-    let [firstBundle] = [...sourceBundles];
-    let sharedBundle = bundleGraph.createBundle({
-      uniqueKey: md5FromString([...sourceBundles].map(b => b.id).join(':')),
-      // Allow this bundle to be deduplicated. It shouldn't be further split.
-      // TODO: Reconsider bundle/asset flags.
-      isSplittable: true,
-      env: firstBundle.env,
-      target: firstBundle.target,
-      type: firstBundle.type,
-    });
-    // Create new bundle node and connect it to all of the original bundle groups
-    for (let bundleGroup of bundleGroups) {
-      // If the bundle group is within the parallel request limit, then add the shared bundle.
-      if (
-        bundleGraph
-          .getBundlesInBundleGroup(bundleGroup)
-          .filter(b => !b.isInline).length < config.maxParallelRequests
-      ) {
-        bundleGraph.addBundleToBundleGroup(sharedBundle, bundleGroup);
-      }
-    }
-
-    // Remove all of the root assets from each of the original bundles
-    for (let asset of assets) {
-      bundleGraph.addAssetGraphToBundle(asset, sharedBundle);
-
-      for (let bundle of sourceBundles) {
-        // Remove the asset graph from the bundle if all bundle groups are
-        // within the parallel request limit and will include the shared bundle.
-        let bundleGroups = bundleGraph.getBundleGroupsContainingBundle(bundle);
-        if (
-          bundleGroups.every(
-            bundleGroup =>
-              bundleGraph
-                .getBundlesInBundleGroup(bundleGroup)
-                .filter(b => !b.isInline).length < config.maxParallelRequests,
-          )
-        ) {
-          bundleGraph.removeAssetGraphFromBundle(asset, bundle);
-        }
-      }
-    }
-  }
-
-  // Remove assets that are duplicated between shared bundles.
-  deduplicate(bundleGraph);
 }

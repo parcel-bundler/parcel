@@ -125,12 +125,14 @@ export default class BundlerRunner {
     // $FlowFixMe
     await dumpGraphToGraphViz(internalBundleGraph._graph, 'after_bundle');
     try {
-      await bundler.optimize({
-        bundleGraph: mutableBundleGraph,
-        config: configResult?.config,
-        options: this.pluginOptions,
-        logger: new PluginLogger({origin: this.config.getBundlerName()}),
-      });
+      if (this.pluginOptions.mode === 'production') {
+        await bundler.optimize({
+          bundleGraph: mutableBundleGraph,
+          config: configResult?.config,
+          options: this.pluginOptions,
+          logger: new PluginLogger({origin: this.config.getBundlerName()}),
+        });
+      }
     } catch (e) {
       throw new ThrowableDiagnostic({
         diagnostic: errorToDiagnostic(e, this.config.getBundlerName()),
