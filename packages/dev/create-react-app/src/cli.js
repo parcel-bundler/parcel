@@ -37,7 +37,7 @@ program.action((command: string | typeof program) => {
 
   run(command).catch(reason => {
     // eslint-disable-next-line no-console
-    console.error(reason.message);
+    console.error(chalk `${emoji.error} {red ${reason.message}}`);
     process.exit(1);
   });
 });
@@ -45,9 +45,9 @@ program.action((command: string | typeof program) => {
 program.parse(process.argv);
 
 async function run(packagePath: string) {
-  log(chalk.dim('Creating Parcel app at', chalk.bold(packagePath));
+  log(chalk `${emoji.progress} {green Creating Parcel app at}`, chalk.bold.underline(packagePath));
   if (await fsExists(packagePath)) {
-    throw new Error(chalk `${emoji.error} {red File or directory at {bold.underline  ${packagePath}} already exists}`);
+    throw new Error(chalk `${emoji.error} {red File or directory at {bold.underline ${packagePath}} already exists}`);
   }
 
   let tempPath = tempy.directory();
@@ -61,11 +61,11 @@ async function run(packagePath: string) {
   await fs.promises.rename(tempPath, packagePath);
 
   // Print instructions
-  log(`Successfully created a new Parcel app at ${packagePath}.`);
+  log(chalk `{green ${emoji.success} Successfully created a new Parcel app at {bold.underline ${packagePath}.} }`);
   log(
-    `Run \`cd ${packagePath}\` and then \`${
+    chalk `${emoji.info}  {dim Run} {bold.underline \`cd ${packagePath}\`} {dim and then} {bold \`${
       usesYarn ? 'yarn' : 'npm run'
-    } start\` to start developing with Parcel.`,
+    } start\`} {dim to start developing with Parcel.}`,
   );
 }
 
@@ -130,11 +130,11 @@ async function installPackages(
     isDevDependency?: boolean,
   |},
 ): Promise<void> {
-  log('Installing', ...packageExpressions);
+  log(emoji.progress + chalk `{dim Installing}'`, chalk.bold(...packageExpressions));
   if (usesYarn == null) {
     usesYarn = await commandExists('yarn');
     if (!(await commandExists('npm'))) {
-      throw new Error(emoji.error + ' Neither npm nor yarn found on system');
+      throw new Error(emoji.error + chalk.red(' Neither npm nor yarn found on system'));
     }
   }
 
