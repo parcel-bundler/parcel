@@ -103,7 +103,7 @@ async function createApp(packagePath: string) {
   // Initial commit
   log(chalk.green(emoji.progress + ' Creating initial commit...'));
   await git.add('.');
-  await git.commit(chalk.magenta(emoji.info + ' Initial commit created with @parcel/create-react-app'));
+  await git.commit(chalk.magenta(emoji.info + '  Initial commit created with @parcel/create-react-app'));
 
   // Print instructions
   log(chalk`${emoji.success} {dim Run} {bold ${usesYarn ? 'yarn' : 'npm run'} start} `);
