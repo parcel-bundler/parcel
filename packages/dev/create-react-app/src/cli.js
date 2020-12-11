@@ -14,6 +14,7 @@ import commandExists from 'command-exists';
 // flowlint-next-line untyped-import:off
 import spawn from '@npmcli/promise-spawn';
 import _rimraf from 'rimraf';
+import chalk from 'chalk';
 
 const TEMPLATES_DIR = path.resolve(__dirname, '../templates');
 

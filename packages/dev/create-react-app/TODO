@@ -1,6 +1,10 @@
 * [x] Don't just simply copy package.json, insert the name of the package (probably path.basename(packagePath))
 * [x] Make initial commit
 * Make log messages nice (e.g. colors)
+ - Color package names
+ - Color paths
+ - Color commands
+ - Add emojis
 * Write more thorough instructions
 * Make react app in template
 * Test with npm
