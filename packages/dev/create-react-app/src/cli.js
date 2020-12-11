@@ -42,9 +42,9 @@ program.action((command: string | typeof program) => {
 program.parse(process.argv);
 
 async function run(packagePath: string) {
-  log('running path', packagePath);
+  log('Creating Parcel app at', packagePath);
   if (await fsExists(packagePath)) {
-    throw new Error(`Package at ${packagePath} already exists`);
+    throw new Error(`File or directory at ${packagePath} already exists`);
   }
 
   let tempPath = tempy.directory();
@@ -58,17 +58,20 @@ async function run(packagePath: string) {
   await fs.promises.rename(tempPath, packagePath);
 
   // Print instructions
-  log(`Run ${usesYarn ? 'yarn' : 'npm run'} start`);
+  log(`Successfully created a new Parcel app at ${packagePath}.`);
+  log(
+    `Run \`cd ${packagePath}\` and then \`${
+      usesYarn ? 'yarn' : 'npm run'
+    } start\` to start developing with Parcel.`,
+  );
 }
 
 async function createApp(packageName: string, tempPath: string) {
-  // Initialize repo
-  const git = simpleGit({baseDir: tempPath});
   log('Initializing git repository...');
+  const git = simpleGit({baseDir: tempPath});
   await git.init();
 
-  // Copy templates
-  log('Copying templates...');
+  log('Adding templates...');
   async function writePackageJson() {
     const packageJson = JSON.parse(
       await fs.promises.readFile(
@@ -80,7 +83,7 @@ async function createApp(packageName: string, tempPath: string) {
       path.join(tempPath, 'package.json'),
       JSON.stringify(
         {
-          name: path.basename(tempPath),
+          name: packageName,
           ...packageJson,
         },
         null,
@@ -94,7 +97,6 @@ async function createApp(packageName: string, tempPath: string) {
     ncp(path.join(TEMPLATES_DIR, 'default'), tempPath),
   ]);
 
-  // Install packages
   log('Installing packages...');
   await installPackages(['parcel@nightly'], {
     cwd: tempPath,
