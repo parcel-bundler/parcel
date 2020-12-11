@@ -1,7 +1,9 @@
 * [x] Don't just simply copy package.json, insert the name of the package (probably path.basename(packagePath))
-* Make initial commit
+* [x] Make initial commit
 * Make log messages nice (e.g. colors)
 * Write more thorough instructions
+* Make react app in template
 * Test with npm
+* Test with Windows
 * Add flowtypes
 * Contribute change to commander to flow-typed
