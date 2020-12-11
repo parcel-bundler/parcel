@@ -26,6 +26,7 @@ import {
 } from '@parcel/babylon-walk';
 import invariant from 'assert';
 import path from 'path';
+import {normalizeSeparators} from '@parcel/utils';
 
 type State = {|
   ...ScopeState,
@@ -235,9 +236,8 @@ export function esm2cjs(ast: BabelNodeFile, asset?: MutableAsset) {
     // Add a dependency so Parcel includes the helpers
     let moduleRoot = path.resolve(__dirname, '..', '..');
     let helpersPath = path.resolve(__dirname, '..', 'esmodule-helpers.js');
-    let helperSpecifier = `@parcel/transformer-js/${path.posix.relative(
-      moduleRoot,
-      helpersPath,
+    let helperSpecifier = `@parcel/transformer-js/${normalizeSeparators(
+      path.relative(moduleRoot, helpersPath),
     )}`;
     asset?.addDependency({
       moduleSpecifier: helperSpecifier,
