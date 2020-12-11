@@ -60,6 +60,7 @@ export type ProcessedParcelConfig = {|
 |};
 
 export type Environment = {|
+  id: string,
   context: EnvironmentContext,
   engines: Engines,
   includeNodeModules:

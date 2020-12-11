@@ -36,7 +36,6 @@ import {
   md5FromString,
   md5FromFilePath,
 } from '@parcel/utils';
-import {getEnvironmentHash} from './Environment';
 import {hashFromOption} from './utils';
 
 type AssetOptions = {|
@@ -79,7 +78,7 @@ export function createAsset(options: AssetOptions): Asset {
         : md5FromString(
             idBase +
               options.type +
-              getEnvironmentHash(options.env) +
+              options.env.id +
               uniqueKey +
               (options.pipeline ?? ''),
           ),
