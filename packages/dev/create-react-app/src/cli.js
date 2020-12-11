@@ -22,9 +22,6 @@ const rimraf = promisify(_rimraf);
 // eslint-disable-next-line no-console
 const log = console.log;
 
-// flowlint-next-line untyped-import:off
-require('v8-compile-cache');
-
 // $FlowFixMe[incompatible-call]
 program.name(name).version(version);
 program.action((command: string | typeof program) => {
