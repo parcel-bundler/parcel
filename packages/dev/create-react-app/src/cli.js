@@ -11,7 +11,7 @@ import _ncp from 'ncp';
 import {promisify} from 'util';
 import commandExists from 'command-exists';
 // flowlint-next-line untyped-import:off
-import spawn from '@npmcli/promise-spawn';
+import _spawn from '@npmcli/promise-spawn';
 import _rimraf from 'rimraf';
 import tempy from 'tempy';
 
@@ -142,7 +142,7 @@ async function installPackages(
         opts.isDevDependency ? '--dev' : null,
         ...packageExpressions,
       ].filter(Boolean),
-      {cwd: opts.cwd, stdio: 'inherit'},
+      opts.cwd,
     );
   }
 
@@ -153,6 +153,14 @@ async function installPackages(
       opts.isDevDependency ? '--save-dev' : null,
       ...packageExpressions,
     ].filter(Boolean),
-    {cwd: opts.cwd, stdio: 'inherit'},
+    opts.cwd,
   );
+}
+
+function spawn(command: string, args: Array<mixed>, cwd: string) {
+  return _spawn(command, args, {
+    cwd,
+    shell: process.platform === 'win32',
+    stdio: 'inherit',
+  });
 }
