@@ -56,7 +56,8 @@ function getId(input: AssetRequestInput) {
 }
 
 async function run({input, api, options, farm}: RunInput) {
-  api.invalidateOnFileUpdate(await options.inputFS.realpath(input.filePath));
+  let realpath = await options.inputFS.realpath(input.filePath);
+  api.invalidateOnFileUpdate(realpath);
   let start = Date.now();
   let {optionsRef, ...request} = input;
   let {cachePath} = nullthrows(
@@ -68,7 +69,7 @@ async function run({input, api, options, farm}: RunInput) {
   request.invalidations = api.getInvalidations().filter(invalidation => {
     // Filter out invalidation node for the input file itself.
     return (
-      invalidation.type !== 'file' || invalidation.filePath !== input.filePath
+      invalidation.type !== 'file' || invalidation.filePath !== realpath
     );
   });
 

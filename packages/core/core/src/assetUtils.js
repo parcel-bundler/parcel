@@ -221,6 +221,10 @@ export async function getInvalidationHash(
   invalidations: Array<RequestInvalidation>,
   options: ParcelOptions,
 ): Promise<string> {
+  if (invalidations.length === 0) {
+    return '';
+  }
+  
   let sortedInvalidations = invalidations
     .slice()
     .sort((a, b) => (getInvalidationId(a) < getInvalidationId(b) ? -1 : 1));
