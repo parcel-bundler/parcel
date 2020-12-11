@@ -127,6 +127,7 @@ async function installPackages(
     isDevDependency?: boolean,
   |},
 ): Promise<void> {
+  log('Installing', ...packageExpressions);
   if (usesYarn == null) {
     usesYarn = await commandExists('yarn');
     if (!(await commandExists('npm'))) {
