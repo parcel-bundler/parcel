@@ -26,9 +26,8 @@ import {
 } from '@parcel/babylon-walk';
 import invariant from 'assert';
 import path from 'path';
-import {relativePath} from '@parcel/utils';
 
-type State = {
+type State = {|
   ...ScopeState,
   imports: Array<
     ImportDeclaration | ExportAllDeclaration | ExportNamedDeclaration,
@@ -39,8 +38,7 @@ type State = {
   >,
   exports: Array<{|local: Expression, exported: Identifier|}>,
   needsInteropFlag: boolean,
-  ...
-};
+|};
 
 let modulesVisitor: Visitors<State> = {
   Identifier(node, state, ancestors) {
@@ -235,12 +233,20 @@ export function esm2cjs(ast: BabelNodeFile, asset?: MutableAsset) {
     }
 
     // Add a dependency so Parcel includes the helpers
-    let helperPath = path.join(__dirname, '..', 'esmodule-helpers.js');
-    let helperSpecifier = asset
-      ? relativePath(path.dirname(asset.filePath), helperPath)
-      : helperPath;
+    let moduleRoot = path.resolve(__dirname, '..', '..');
+    let helpersPath = path.resolve(__dirname, '..', 'esmodule-helpers.js');
+    let helperSpecifier = `@parcel/transformer-js/${path.posix.relative(
+      moduleRoot,
+      helpersPath,
+    )}`;
     asset?.addDependency({
       moduleSpecifier: helperSpecifier,
+      resolveFrom: __filename,
+      env: {
+        includeNodeModules: {
+          '@parcel/transformer-js': true,
+        },
+      },
     });
 
     helpersId = scope.generateUid('parcelHelpers');
@@ -298,23 +304,8 @@ export function esm2cjs(ast: BabelNodeFile, asset?: MutableAsset) {
     invariant(imp.source != null);
     let source = imp.source;
 
-    if (isExportAllDeclaration(imp)) {
-      let names = getNames(state, source);
-      prepend.push(
-        t.expressionStatement(
-          t.callExpression(
-            t.memberExpression(
-              t.identifier(addHelpers()),
-              t.identifier('namespace'),
-            ),
-            [t.identifier(names.name), t.identifier('exports')],
-          ),
-        ),
-      );
-    }
-
     // If the result of the import is unused, simply insert a require call.
-    if (!state.importNames.has(source.value)) {
+    if (!state.importNames.has(source.value) && !isExportAllDeclaration(imp)) {
       prepend.push(
         t.expressionStatement(
           t.callExpression(t.identifier('require'), [source]),
@@ -335,6 +326,20 @@ export function esm2cjs(ast: BabelNodeFile, asset?: MutableAsset) {
 
       prepend.push(decl);
       scope.addBinding(names.name, decl);
+    }
+
+    if (isExportAllDeclaration(imp)) {
+      prepend.push(
+        t.expressionStatement(
+          t.callExpression(
+            t.memberExpression(
+              t.identifier(addHelpers()),
+              t.identifier('namespace'),
+            ),
+            [t.identifier(names.name), t.identifier('exports')],
+          ),
+        ),
+      );
     }
 
     if (names.default) {

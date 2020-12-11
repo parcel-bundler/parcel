@@ -417,6 +417,7 @@ export type DependencyOptions = {|
   +loc?: SourceLocation,
   +env?: EnvironmentOpts,
   +meta?: Meta,
+  +resolveFrom?: FilePath,
   +target?: Target,
   +symbols?: $ReadOnlyMap<
     Symbol,
@@ -451,6 +452,7 @@ export interface Dependency {
   +sourceAssetId: ?string;
   /** Used for error messages, the importer. */
   +sourcePath: ?string;
+  +resolveFrom: ?string;
   /** a named pipeline (if the <code>moduleSpecifier</code> didn't specify one). */
   +pipeline: ?string;
 

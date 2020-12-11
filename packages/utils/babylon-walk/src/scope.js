@@ -126,10 +126,9 @@ export class Scope {
   }
 }
 
-export type ScopeState = {
+export type ScopeState = {|
   scope: Scope,
-  ...
-};
+|};
 
 export let scopeVisitor: Visitors<ScopeState> = {
   Program(node, state) {

@@ -12,6 +12,11 @@ exports.namespace = function(source, dest = {}) {
       return;
     }
 
+    // Skip duplicate re-exports when they have the same value.
+    if (key in dest && dest[key] === source[key]) {
+      return;
+    }
+
     Object.defineProperty(dest, key, {
       enumerable: true,
       get() {

@@ -2950,4 +2950,14 @@ describe('javascript', function() {
 
     assert.deepEqual(await (await run(b)).default, 43);
   });
+
+  it('should support duplicate re-exports without scope hoisting', async function() {
+    let b = await bundle(
+      path.join(__dirname, 'integration/js-duplicate-re-exports/index.js'),
+    );
+    let res = await run(b);
+    assert.equal(res.a, 'a');
+    assert.equal(res.b, 'b');
+    assert.equal(typeof res.c, 'function');
+  });
 });
