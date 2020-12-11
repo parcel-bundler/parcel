@@ -19,6 +19,6 @@
   },
   "devDependencies": {
     "@parcel/babel-register": "2.0.0-beta.1",
-    "mkdirp": "^1.0.4"
+    "tempy": "^0.2.1"
   }
 }
