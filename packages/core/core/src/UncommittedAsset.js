@@ -105,13 +105,8 @@ export default class UncommittedAsset {
     // and hash while it's being written to the cache.
     await Promise.all([
       contentKey != null &&
-        this.options.cache.setStream(
+        this.commitContent(
           contentKey,
-          this.getStream().pipe(
-            new TapStream(buf => {
-              size += buf.length;
-            }),
-          ),
         ),
       this.mapBuffer != null &&
         mapKey != null &&
@@ -139,6 +134,36 @@ export default class UncommittedAsset {
     }
 
     this.value.committed = true;
+  }
+
+  async commitContent(contentKey: string): number {
+    let content = await this.content;
+    if (content == null) {
+      return 0;
+    }
+
+    let size = 0;
+    if (content instanceof Readable) {
+      await this.options.cache.setStream(
+        contentKey,
+        content.pipe(
+          new TapStream(buf => {
+            size += buf.length;
+          }),
+        ),
+      );
+
+      return size;
+    }
+
+    if (typeof content === 'string') {
+      size = Buffer.byteLength(content);
+    } else {
+      size = content.length;
+    }
+
+    await this.options.cache.setBlob(contentKey, content);
+    return size;
   }
 
   async getCode(): Promise<string> {
