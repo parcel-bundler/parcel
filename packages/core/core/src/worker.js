@@ -52,7 +52,7 @@ async function loadConfig(cachePath, options) {
   if (config) {
     return config;
   }
-  
+
   let processedConfig = nullthrows(await options.cache.get(cachePath));
   config = new ParcelConfig(
     // $FlowFixMe

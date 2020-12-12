@@ -104,10 +104,7 @@ export default class UncommittedAsset {
     // Since we can only read from the stream once, compute the content length
     // and hash while it's being written to the cache.
     await Promise.all([
-      contentKey != null &&
-        this.commitContent(
-          contentKey,
-        ),
+      contentKey != null && this.commitContent(contentKey),
       this.mapBuffer != null &&
         mapKey != null &&
         this.options.cache.setBlob(mapKey, this.mapBuffer),

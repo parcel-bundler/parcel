@@ -63,7 +63,7 @@ export function nodeFromAssetGroup(assetGroup: AssetGroup): AssetGroupNode {
       code: assetGroup.code,
       pipeline: assetGroup.pipeline,
       query: assetGroup.query,
-      invalidations: assetGroup.invalidations
+      invalidations: assetGroup.invalidations,
     }),
     type: 'asset_group',
     value: assetGroup,

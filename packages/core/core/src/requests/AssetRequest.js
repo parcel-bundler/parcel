@@ -51,7 +51,7 @@ function getId(input: AssetRequestInput) {
     code: input.code,
     pipeline: input.pipeline,
     query: input.query,
-    invalidations: input.invalidations
+    invalidations: input.invalidations,
   });
 }
 
@@ -68,9 +68,7 @@ async function run({input, api, options, farm}: RunInput) {
   // These are used to compute the cache key for assets during transformation.
   request.invalidations = api.getInvalidations().filter(invalidation => {
     // Filter out invalidation node for the input file itself.
-    return (
-      invalidation.type !== 'file' || invalidation.filePath !== realpath
-    );
+    return invalidation.type !== 'file' || invalidation.filePath !== realpath;
   });
 
   let {assets, configRequests, invalidations} = (await farm.createHandle(
