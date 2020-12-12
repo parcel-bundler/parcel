@@ -33,7 +33,7 @@ export default (new Runtime({
           (pkg.devDependencies && pkg.devDependencies['react']))
       ) {
         return {
-          resolveFromDir: __dirname,
+          filePath: __filename,
           code: CODE,
           isEntry: true,
         };

@@ -64,26 +64,27 @@ export default async function applyRuntimes({
 
         if (applied) {
           let runtimeAssets = Array.isArray(applied) ? applied : [applied];
-          for (let {
-            code,
-            dependency,
-            resolveFromDir,
-            isEntry,
-          } of runtimeAssets) {
-            let filePath = path.join(
-              resolveFromDir,
+          for (let {code, dependency, filePath, isEntry} of runtimeAssets) {
+            let sourceName = path.join(
+              path.dirname(filePath),
               `runtime-${md5FromString(code)}.${bundle.type}`,
             );
 
             let sourcemap = SourceMap.generateEmptyMap({
               projectRoot: pluginOptions.projectRoot,
-              sourceName: filePath,
+              sourceName,
               sourceContent: code,
             });
-            sourcemap.setSourceContent(filePath, code);
+
+            // Don't duplicate the sourcecontent, it's already contained in the asset
+            // sourcemap.setSourceContent(sourceName, code);
 
             let assetGroup = {
               code,
+              // This sets the real source for the sourcemap
+              sourcesContent: {
+                [sourceName]: code,
+              },
               mapBuffer: await sourcemap.toBuffer(),
               filePath,
               env: bundle.env,

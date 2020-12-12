@@ -18,7 +18,7 @@ export default (new Runtime({
 
     const {host, port} = options.hot;
     return {
-      resolveFromDir: __dirname,
+      filePath: __filename,
       code:
         `var HMR_HOST = ${JSON.stringify(host != null ? host : null)};` +
         `var HMR_PORT = ${JSON.stringify(port != null ? port : null)};` +

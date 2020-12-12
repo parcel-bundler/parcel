@@ -237,6 +237,8 @@ export type DependencyNode = {|
 
 export type RootNode = {|id: string, +type: 'root', value: string | null|};
 
+export type SourcesContentDictionary = {[sourceName: string]: string, ...};
+
 export type AssetRequestInput = {|
   filePath: FilePath,
   env: Environment,
@@ -245,6 +247,7 @@ export type AssetRequestInput = {|
   sideEffects?: boolean,
   code?: string,
   mapBuffer?: Buffer,
+  sourcesContent?: SourcesContentDictionary,
   pipeline?: ?string,
   optionsRef: SharedReference,
   isURL?: boolean,

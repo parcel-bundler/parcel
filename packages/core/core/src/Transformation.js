@@ -214,6 +214,8 @@ export default class Transformation {
       isSource: summarizedIsSource,
     } = await summarizeRequest(this.options.inputFS, {filePath, code});
 
+    // Maybe try and read existing sourcemaps if this returns falsey?
+    // This might be better than implementing this logic in the Asset?
     if (mapBuffer) {
       let map = new SourceMap(this.options.projectRoot);
       map.addBufferMappings(mapBuffer);

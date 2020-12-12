@@ -1126,7 +1126,7 @@ export type Namer = {|
  * @section runtime
  */
 export type RuntimeAsset = {|
-  +resolveFromDir: FilePath,
+  +filePath: FilePath,
   +code: string,
   +dependency?: Dependency,
   +isEntry?: boolean,
