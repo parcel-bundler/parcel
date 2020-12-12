@@ -39,7 +39,7 @@ async function summarizeDiskRequest(
     // Get the filesize. If greater than BUFFER_LIMIT, use a stream to
     // compute the hash. In the common case, it's faster to just read the entire
     // file first and do the hash all at once without the overhead of streams.
-    let size = await fs.stat(req.filePath).size;
+    size = (await fs.stat(req.filePath)).size;
     if (size > BUFFER_LIMIT) {
       return new Promise((resolve, reject) => {
         let stream = fs.createReadStream(req.filePath);
