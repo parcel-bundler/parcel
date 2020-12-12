@@ -88,6 +88,7 @@ describe('TargetResolver', () => {
         },
         customB: {
           distDir: 'customB',
+          distEntry: 'b.js',
           engines: {
             node: '>= 8.0.0',
           },
@@ -118,6 +119,7 @@ describe('TargetResolver', () => {
         {
           name: 'customB',
           publicUrl: '/',
+          distEntry: 'b.js',
           distDir: path.resolve('customB'),
           env: {
             context: 'node',

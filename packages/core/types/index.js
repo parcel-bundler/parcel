@@ -143,6 +143,7 @@ export type PackageTargetDescriptor = {|
 export type TargetDescriptor = {|
   ...PackageTargetDescriptor,
   +distDir: FilePath,
+  +distEntry?: FilePath,
 |};
 
 /**
@@ -159,7 +160,7 @@ export type EnvironmentOpts = {|
   +isLibrary?: boolean,
   +minify?: boolean,
   +scopeHoist?: boolean,
-  +sourceMap?: ?TargetSourceMapOptions
+  +sourceMap?: ?TargetSourceMapOptions,
 |};
 
 /**
