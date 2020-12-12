@@ -1,4 +1,4 @@
-var resolve = require('./bundle-manifest').resolve;
+var resolve = require('@parcel/runtime-js/src/bundle-manifest').resolve;
 
 module.exports = function getRelativePath(fromId, toId) {
   return relative(dirname(resolve(fromId)), resolve(toId));

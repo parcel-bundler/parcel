@@ -243,6 +243,17 @@ document.body.append(document.createTextNode(func()))`,
       content: JSON.stringify({sideEffects: ['index.js']}, null, 2),
     },
   ],
+  'Dynamic Import': [
+    {
+      name: 'src/index.js',
+      content: `import("./async.js").then(({a}) => console.log(a))`,
+      isEntry: true,
+    },
+    {
+      name: 'src/async.js',
+      content: 'export const a = 1;\nexport const b = 2;',
+    },
+  ],
   Envfile: [
     {
       name: 'src/index.js',

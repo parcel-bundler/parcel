@@ -1,5 +1,5 @@
 const fs = require('fs');
-const cacheLoader = require('../../cacheLoader');
+const cacheLoader = require('@parcel/runtime-js/src/cacheLoader');
 
 module.exports = cacheLoader(function loadJSBundle(bundle) {
   return new Promise(function(resolve, reject) {

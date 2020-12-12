@@ -30,7 +30,7 @@
     "*.js": "@parcel/packager-js",
     "*": "@parcel/packager-raw"
   },
-  "resolvers": ["@parcel/resolver-default"],
+  "resolvers": ["@parcel/resolver-repl-runtimes", "@parcel/resolver-default"],
   "reporters": [
     "@parcel/reporter-json",
     "@parcel/reporter-sourcemap-visualiser"

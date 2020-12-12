@@ -1,6 +1,6 @@
 /* global self, Blob */
 
-var bundleUrl = require('./bundle-url');
+var bundleUrl = require('@parcel/runtime-js/src/bundle-url');
 
 module.exports = function loadWorker(relativePath) {
   var workerUrl = bundleUrl.getBundleURL() + relativePath;

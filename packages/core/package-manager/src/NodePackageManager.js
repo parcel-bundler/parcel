@@ -34,6 +34,7 @@ import packagerJs from '@parcel/packager-js';
 import packagerRaw from '@parcel/packager-raw';
 import reporterJson from '@parcel/reporter-json';
 import resolverDefault from '@parcel/resolver-default';
+import resolverREPLRuntimes from '@parcel/resolver-repl-runtimes';
 import resolverSourcemapVisualizser from '@parcel/reporter-sourcemap-visualiser';
 import runtimeJs from '@parcel/runtime-js';
 import transformerBabel from '@parcel/transformer-babel';
@@ -57,6 +58,7 @@ const BUILTINS = {
   '@parcel/reporter-json': reporterJson,
   '@parcel/reporter-sourcemap-visualiser': resolverSourcemapVisualizser,
   '@parcel/resolver-default': resolverDefault,
+  '@parcel/resolver-repl-runtimes': resolverREPLRuntimes,
   '@parcel/runtime-js': runtimeJs,
   '@parcel/transformer-babel': transformerBabel,
   '@parcel/transformer-css': transformerCss,

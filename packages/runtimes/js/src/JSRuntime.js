@@ -30,27 +30,34 @@ const TYPE_TO_RESOURCE_PRIORITY = {
   js: 'script',
 };
 
-const BROWSER_PRELOAD_LOADER = './loaders/browser/preload-loader';
-const BROWSER_PREFETCH_LOADER = './loaders/browser/prefetch-loader';
+// $FlowFixMe
+const DIRNAME = process.browser ? '/VIRTUAL/@parcel/runtime-js/src' : __dirname;
+// $FlowFixMe
+const FILENAME = path.join(DIRNAME, 'JSRuntime.js');
+
+const BROWSER_PRELOAD_LOADER =
+  '@parcel/runtime-js/src/loaders/browser/preload-loader';
+const BROWSER_PREFETCH_LOADER =
+  '@parcel/runtime-js/src/loaders/browser/prefetch-loader';
 
 const LOADERS = {
   browser: {
-    css: './loaders/browser/css-loader',
-    html: './loaders/browser/html-loader',
-    js: './loaders/browser/js-loader',
-    wasm: './loaders/browser/wasm-loader',
-    IMPORT_POLYFILL: './loaders/browser/import-polyfill',
+    css: '@parcel/runtime-js/src/loaders/browser/css-loader',
+    html: '@parcel/runtime-js/src/loaders/browser/html-loader',
+    js: '@parcel/runtime-js/src/loaders/browser/js-loader',
+    wasm: '@parcel/runtime-js/src/loaders/browser/wasm-loader',
+    IMPORT_POLYFILL: '@parcel/runtime-js/src/loaders/browser/import-polyfill',
   },
   worker: {
-    js: './loaders/worker/js-loader',
-    wasm: './loaders/worker/wasm-loader',
+    js: '@parcel/runtime-js/src/loaders/worker/js-loader',
+    wasm: '@parcel/runtime-js/src/loaders/worker/wasm-loader',
     IMPORT_POLYFILL: false,
   },
   node: {
-    css: './loaders/node/css-loader',
-    html: './loaders/node/html-loader',
-    js: './loaders/node/js-loader',
-    wasm: './loaders/node/wasm-loader',
+    css: '@parcel/runtime-js/src/loaders/node/css-loader',
+    html: '@parcel/runtime-js/src/loaders/node/html-loader',
+    js: '@parcel/runtime-js/src/loaders/node/js-loader',
+    wasm: '@parcel/runtime-js/src/loaders/node/wasm-loader',
     IMPORT_POLYFILL: null,
   },
 };
@@ -135,7 +142,7 @@ export default (new Runtime({
       );
       if (referencedBundle?.isInline) {
         assets.push({
-          filePath: path.join(__dirname, `/bundles/${referencedBundle.id}.js`),
+          filePath: path.join(DIRNAME, `/bundles/${referencedBundle.id}.js`),
           code: `module.exports = ${JSON.stringify(dependency.id)};`,
           dependency,
         });
@@ -149,7 +156,7 @@ export default (new Runtime({
         // If a URL dependency was not able to be resolved, add a runtime that
         // exports the original moduleSpecifier.
         assets.push({
-          filePath: __filename,
+          filePath: FILENAME,
           code: `module.exports = ${JSON.stringify(
             dependency.moduleSpecifier,
           )}`,
@@ -172,7 +179,7 @@ export default (new Runtime({
 
       if (bundle.env.outputFormat === 'commonjs' && mainBundle.type === 'js') {
         assets.push({
-          filePath: __filename,
+          filePath: FILENAME,
           dependency,
           code: `module.exports = require("./" + ${getRelativePathExpr(
             bundle,
@@ -192,7 +199,7 @@ export default (new Runtime({
       isNewContext(bundle, bundleGraph)
     ) {
       assets.push({
-        filePath: __filename,
+        filePath: FILENAME,
         code: getRegisterCode(bundle, bundleGraph),
         isEntry: true,
       });
@@ -273,7 +280,7 @@ function getLoaderRuntime({
 
       return `require(${JSON.stringify(
         loader,
-      )})(require('./bundle-url').getBundleURL() + ${relativePathExpr})`;
+      )})(require('@parcel/runtime-js/src/bundle-url.js').getBundleURL() + ${relativePathExpr})`;
     })
     .filter(Boolean);
 
@@ -333,7 +340,7 @@ function getLoaderRuntime({
   }
 
   return {
-    filePath: __filename,
+    filePath: FILENAME,
     code: `module.exports = ${loaderCode};`,
     dependency,
   };
@@ -395,7 +402,7 @@ function getHintLoaders(
       hintLoaders.push(
         `require(${JSON.stringify(
           loader,
-        )})(require('./bundle-url').getBundleURL() + ${relativePathExpr}, ${
+        )})(require('@parcel/runtime-js/src/bundle-url.s').getBundleURL() + ${relativePathExpr}, ${
           priority ? JSON.stringify(priority) : 'null'
         }, ${JSON.stringify(
           bundleToPreload.target.env.outputFormat === 'esmodule',
@@ -430,15 +437,15 @@ function getURLRuntime(
   let relativePathExpr = getRelativePathExpr(from, to);
   if (dependency.meta.webworker === true) {
     return {
-      filePath: __filename,
-      code: `module.exports = require('./get-worker-url')(${relativePathExpr});`,
+      filePath: FILENAME,
+      code: `module.exports = require('@parcel/runtime-js/src/get-worker-url.js')(${relativePathExpr});`,
       dependency,
     };
   }
 
   return {
-    filePath: __filename,
-    code: `module.exports = require('./bundle-url').getBundleURL() + ${relativePathExpr}`,
+    filePath: FILENAME,
+    code: `module.exports = require('@parcel/runtime-js/src/bundle-url.js').getBundleURL() + ${relativePathExpr}`,
     dependency,
   };
 }
@@ -462,7 +469,7 @@ function getRegisterCode(
   }, entryBundle);
 
   return (
-    "require('./bundle-manifest').register(JSON.parse(" +
+    "require('@parcel/runtime-js/src/bundle-manifest.js').register(JSON.parse(" +
     JSON.stringify(JSON.stringify(idToName)) +
     '));'
   );
@@ -470,7 +477,7 @@ function getRegisterCode(
 
 function getRelativePathExpr(from: NamedBundle, to: NamedBundle): string {
   if (shouldUseRuntimeManifest(from)) {
-    return `require('./relative-path')(${JSON.stringify(
+    return `require('@parcel/runtime-js/src/relative-path.js')(${JSON.stringify(
       from.publicId,
     )}, ${JSON.stringify(to.publicId)})`;
   }
