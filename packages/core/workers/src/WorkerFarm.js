@@ -515,6 +515,7 @@ export default class WorkerFarm extends EventEmitter {
     }
 
     promises.push(this.localWorker[method](this.workerApi, ...args));
+    //clear config cache
     await Promise.all(promises);
   }
 
