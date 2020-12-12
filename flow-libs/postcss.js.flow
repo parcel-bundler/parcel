@@ -33,6 +33,13 @@ declare module 'postcss' {
     toJSON(): mixed;
   }
 
+  declare interface Decl extends Container {
+    type: 'decl';
+    prop: string;
+    value: string;
+    source: Source;
+  }
+
   declare interface Rule extends Container {
     selector: string;
     type: 'rule';

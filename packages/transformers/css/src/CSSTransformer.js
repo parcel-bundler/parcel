@@ -2,7 +2,6 @@
 
 import type {Root} from 'postcss';
 import type {FilePath} from '@parcel/types';
-import type {Container, Node} from 'postcss';
 
 import SourceMap from '@parcel/source-map';
 import {Transformer} from '@parcel/plugin';
@@ -151,7 +150,7 @@ export default (new Transformer({
           ) {
             let url = asset.addURLDependency(node.nodes[0].value, {
               loc: createDependencyLocation(
-                decl.source.start,
+                nullthrows(decl.source.start),
                 node.nodes[0].value,
               ),
             });
