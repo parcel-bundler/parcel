@@ -200,6 +200,7 @@ export default class Parcel {
       this.#assetGraphBuilder.writeToCache(),
       this.#runtimesAssetGraphBuilder.writeToCache(),
     ]);
+    this.#reporterRunner.destroy();
   }
 
   async _startNextBuild() {
