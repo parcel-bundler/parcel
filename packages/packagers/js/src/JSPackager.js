@@ -208,14 +208,6 @@ export default (new Packager({
       mainEntry = null;
     }
 
-    if (map) {
-      let vlqMappings = map.toVLQ();
-      console.log({
-        sources: vlqMappings.sources,
-        sourcesContent: vlqMappings.sourcesContent,
-      });
-    }
-
     return replaceReferences({
       contents:
         prefix +

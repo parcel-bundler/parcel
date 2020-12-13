@@ -112,32 +112,19 @@ export async function generate({
     map.addIndexedMappings(rawMappings);
 
     // Traverse the bundle to get the sourcecontents
-    // this is hella slow but is currently the only way to ensure correct source contents
-    let promiseQueue = new PromiseQueue({maxConcurrent: 50});
     bundle.traverseAssets(asset => {
-      promiseQueue.add(async () => {
-        // Why is map always undefined?
-        let map = await asset.getMap();
-        console.log({sourcesContent: asset.sourcesContent});
-        if (map) {
-          // TODO: Add a faster way to get all sourceContents and their sourcePath in the sourcemaps library?
-          let vlqEncodedMap = map.toVLQ();
-          if (vlqEncodedMap.sourcesContent) {
-            for (let i = 0; i < vlqEncodedMap.sourcesContent.length; i++) {
-              let sourceContent = vlqEncodedMap.sourcesContent[i];
+      // TODO: sourcesContent will probably be an async fetch from cache?
+      let sourcesContent = asset.sourcesContent;
 
-              // null = empty string in this case as converting was too slow for it's use-case
-              if (sourceContent) {
-                let sourceFilePath = vlqEncodedMap.sources[i];
-                map.setSourceContent(sourceFilePath, sourceContent);
-                console.log('setSourceContent', sourceFilePath);
-              }
-            }
-          }
+      if (sourcesContent) {
+        for (let sourcesContentFileName of Object.keys(sourcesContent)) {
+          map?.setSourceContent(
+            sourcesContentFileName,
+            sourcesContent[sourcesContentFileName],
+          );
         }
-      });
+      }
     });
-    await promiseQueue.run();
   }
 
   return {

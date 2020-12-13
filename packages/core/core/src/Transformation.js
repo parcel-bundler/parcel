@@ -765,6 +765,7 @@ function normalizeAssets(
         symbols: internalAsset.value.symbols,
         type: result.type,
         uniqueKey: internalAsset.value.uniqueKey,
+        sourcesContent: result.sourcesContent || {},
       };
     }),
   );

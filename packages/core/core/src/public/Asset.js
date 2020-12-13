@@ -21,6 +21,7 @@ import type {
   MutableAssetSymbols as IMutableAssetSymbols,
   AssetSymbols as IAssetSymbols,
   QueryParameters,
+  SourcesContentDictionary,
 } from '@parcel/types';
 import type {Asset as AssetValue, ParcelOptions} from '../types';
 
@@ -149,6 +150,10 @@ class BaseAsset {
 
   get pipeline(): ?string {
     return this.#asset.value.pipeline;
+  }
+
+  get sourcesContent(): ?SourcesContentDictionary {
+    return this.#asset.value.sourcesContent;
   }
 
   getConfig(

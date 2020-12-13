@@ -507,7 +507,7 @@ export interface BaseAsset {
   +astGenerator: ?ASTGenerator;
   +pipeline: ?string;
 
-  +sourcesContent: SourcesContentDictionary;
+  +sourcesContent: ?SourcesContentDictionary;
 
   /** a <code>Map&lt;export name, name of binding&gt;</code> */
   +symbols: AssetSymbols;
@@ -654,6 +654,7 @@ export type TransformerResult = {|
   +symbols?: $ReadOnlyMap<Symbol, {|local: Symbol, loc: ?SourceLocation|}>,
   +type: string,
   +uniqueKey?: ?string,
+  +sourcesContent: SourcesContentDictionary,
 |};
 
 export type Async<T> = T | Promise<T>;
