@@ -134,7 +134,7 @@ export default class UncommittedAsset {
     this.value.committed = true;
   }
 
-  async commitContent(contentKey: string): number {
+  async commitContent(contentKey: string): Promise<number> {
     let content = await this.content;
     if (content == null) {
       return 0;
