@@ -15,6 +15,7 @@ import type {
   RequestInvalidation,
   Dependency,
   ParcelOptions,
+  SourcesContentDictionary,
 } from './types';
 
 import v8 from 'v8';

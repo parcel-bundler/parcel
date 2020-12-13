@@ -135,7 +135,7 @@ export default class Transformation {
     let asset = await this.loadAsset();
 
     // Load existing sourcemaps
-    if (SOURCEMAP_EXTENSIONS.has(asset.value.type)) {
+    if (!asset.mapBuffer && SOURCEMAP_EXTENSIONS.has(asset.value.type)) {
       try {
         await asset.loadExistingSourcemap();
       } catch (err) {
@@ -161,6 +161,9 @@ export default class Transformation {
       asset.value.isSource,
       asset.value.pipeline,
     );
+    console.log({
+      sourcesContent: asset.value.sourcesContent,
+    });
     let results = await this.runPipelines(pipeline, asset);
     let assets = results.map(a => a.value);
 
@@ -189,6 +192,8 @@ export default class Transformation {
       }
     }
 
+    console.log(assets.map(a => a.sourcesContent));
+
     return {
       assets,
       configRequests: this.configRequests,
@@ -206,6 +211,7 @@ export default class Transformation {
       sideEffects,
       query,
       mapBuffer,
+      sourcesContent,
     } = this.request;
     let {
       content,
@@ -213,13 +219,6 @@ export default class Transformation {
       hash,
       isSource: summarizedIsSource,
     } = await summarizeRequest(this.options.inputFS, {filePath, code});
-
-    // Maybe try and read existing sourcemaps if this returns falsey?
-    // This might be better than implementing this logic in the Asset?
-    if (mapBuffer) {
-      let map = new SourceMap(this.options.projectRoot);
-      map.addBufferMappings(mapBuffer);
-    }
 
     // Prefer `isSource` originating from the AssetRequest.
     let isSource = isSourceOverride ?? summarizedIsSource;
@@ -238,6 +237,7 @@ export default class Transformation {
         idBase,
         filePath,
         isSource,
+        sourcesContent,
         type: path.extname(filePath).slice(1),
         hash,
         pipeline,

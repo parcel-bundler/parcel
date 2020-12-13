@@ -79,12 +79,14 @@ export default async function applyRuntimes({
             // Don't duplicate the sourcecontent, it's already contained in the asset
             // sourcemap.setSourceContent(sourceName, code);
 
+            let sourcesContent = {
+              [sourceName]: code,
+            };
+
             let assetGroup = {
               code,
               // This sets the real source for the sourcemap
-              sourcesContent: {
-                [sourceName]: code,
-              },
+              sourcesContent,
               mapBuffer: await sourcemap.toBuffer(),
               filePath,
               env: bundle.env,

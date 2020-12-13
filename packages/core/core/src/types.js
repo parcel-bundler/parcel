@@ -27,6 +27,7 @@ import type {
   TargetDescriptor,
   HMROptions,
   QueryParameters,
+  SourcesContentDictionary,
 } from '@parcel/types';
 import type {SharedReference} from '@parcel/workers';
 import type {FileSystem} from '@parcel/fs';
@@ -110,6 +111,7 @@ export type Asset = {|
   hash: ?string,
   filePath: FilePath,
   query: QueryParameters,
+  sourcesContent?: SourcesContentDictionary,
   type: string,
   dependencies: Map<string, Dependency>,
   isIsolated: boolean,
@@ -236,8 +238,6 @@ export type DependencyNode = {|
 |};
 
 export type RootNode = {|id: string, +type: 'root', value: string | null|};
-
-export type SourcesContentDictionary = {[sourceName: string]: string, ...};
 
 export type AssetRequestInput = {|
   filePath: FilePath,

@@ -118,6 +118,7 @@ export async function generate({
       promiseQueue.add(async () => {
         // Why is map always undefined?
         let map = await asset.getMap();
+        console.log({sourcesContent: asset.sourcesContent});
         if (map) {
           // TODO: Add a faster way to get all sourceContents and their sourcePath in the sourcemaps library?
           let vlqEncodedMap = map.toVLQ();

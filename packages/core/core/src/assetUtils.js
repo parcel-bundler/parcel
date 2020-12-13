@@ -11,6 +11,7 @@ import type {
   SourceLocation,
   Transformer,
   QueryParameters,
+  SourcesContentDictionary,
 } from '@parcel/types';
 import type {
   Asset,
@@ -46,6 +47,7 @@ type AssetOptions = {|
   idBase?: ?string,
   filePath: FilePath,
   query?: QueryParameters,
+  sourcesContent?: SourcesContentDictionary,
   type: string,
   contentKey?: ?string,
   mapKey?: ?string,
@@ -108,6 +110,7 @@ export function createAsset(options: AssetOptions): Asset {
     plugin: options.plugin,
     configPath: options.configPath,
     configKeyPath: options.configKeyPath,
+    sourcesContent: options.sourcesContent || {},
   };
 }
 

@@ -23,6 +23,8 @@ export type EnvMap = typeof process.env;
 
 export type QueryParameters = {[key: string]: string, ...};
 
+export type SourcesContentDictionary = {[sourceName: string]: string, ...};
+
 export type JSONValue =
   | null
   | void // ? Is this okay?
@@ -504,6 +506,8 @@ export interface BaseAsset {
   /** The type of the AST. */
   +astGenerator: ?ASTGenerator;
   +pipeline: ?string;
+
+  +sourcesContent: SourcesContentDictionary;
 
   /** a <code>Map&lt;export name, name of binding&gt;</code> */
   +symbols: AssetSymbols;
