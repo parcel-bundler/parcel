@@ -334,6 +334,7 @@ export default class UncommittedAsset {
         isSplittable: result.isSplittable ?? this.value.isSplittable,
         isSource: result.isSource ?? this.value.isSource,
         env: mergeEnvironments(this.value.env, result.env),
+        sourcesContent: this.value.sourcesContent,
         dependencies:
           this.value.type === result.type
             ? new Map(this.value.dependencies)

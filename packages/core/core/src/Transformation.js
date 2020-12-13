@@ -161,9 +161,6 @@ export default class Transformation {
       asset.value.isSource,
       asset.value.pipeline,
     );
-    console.log({
-      sourcesContent: asset.value.sourcesContent,
-    });
     let results = await this.runPipelines(pipeline, asset);
     let assets = results.map(a => a.value);
 
@@ -191,8 +188,6 @@ export default class Transformation {
         }
       }
     }
-
-    console.log(assets.map(a => a.sourcesContent));
 
     return {
       assets,
