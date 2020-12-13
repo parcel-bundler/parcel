@@ -94,7 +94,7 @@ export default class ReporterRunner {
     }
   }
 
-  destroy() {
+  dispose() {
     bus.off('reporterEvent', this.eventHandler);
   }
 }
