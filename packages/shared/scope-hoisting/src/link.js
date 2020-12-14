@@ -603,6 +603,18 @@ export function link({
         if (unused) {
           pathRemove(path);
         }
+      } else if (callee.name === '$parcel$parcelRequire') {
+        let [idLiteral] = args;
+        invariant(isStringLiteral(idLiteral));
+        let id = idLiteral.value;
+        let mod = bundleGraph.getAssetById(id);
+
+        if (wrappedAssets.has(id)) {
+          path.replaceWith(t.callExpression(getIdentifier(mod, 'init'), []));
+        } else {
+          let name = assertString(mod.meta.exportsIdentifier);
+          path.replaceWith(t.identifier(replacements.get(name) || name));
+        }
       }
     },
     VariableDeclarator: {
