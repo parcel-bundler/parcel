@@ -2924,7 +2924,7 @@ describe('javascript', function() {
     assert.deepEqual(await (await run(b)).default, 43);
   });
 
-  it.only('should throw a diagnostic for unkown pipelines', async function() {
+  it('should throw a diagnostic for unkown pipelines', async function() {
     let fixture = path.join(__dirname, 'integration/pipeline-unknown/a.js');
     let code = await inputFS.readFileSync(fixture, 'utf8');
     await assert.rejects(() => bundle(fixture), {
