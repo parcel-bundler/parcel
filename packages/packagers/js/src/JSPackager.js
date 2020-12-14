@@ -170,7 +170,7 @@ export default (new Packager({
         let output = code || '';
         wrapped +=
           JSON.stringify(bundleGraph.getAssetPublicId(asset)) +
-          ':[function(require,module,exports) {\n' +
+          ':[function(require,module,exports,$parcel$parcelRequire) {\n' +
           output +
           '\n},';
         wrapped += JSON.stringify(deps);

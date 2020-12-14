@@ -71,6 +71,7 @@
         localRequire,
         module,
         module.exports,
+        newRequire,
         this
       );
     }
