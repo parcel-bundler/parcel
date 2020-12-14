@@ -15,6 +15,7 @@ import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import EventEmitter from 'events';
 import {
+  clearConfigCache,
   deserialize,
   prepareForSerialization,
   restoreDeserializedObject,
@@ -515,8 +516,8 @@ export default class WorkerFarm extends EventEmitter {
     }
 
     promises.push(this.localWorker[method](this.workerApi, ...args));
-    //clear config cache
     await Promise.all(promises);
+    clearConfigCache();
   }
 
   async takeHeapSnapshot() {

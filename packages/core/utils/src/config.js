@@ -18,6 +18,7 @@ export type ConfigOptions = {|
 |};
 
 const configCache = new LRU<FilePath, ConfigOutput>({max: 500});
+const existingFiles = new Set<FilePath>();
 
 export async function resolveConfig(
   fs: FileSystem,
@@ -36,7 +37,10 @@ export async function resolveConfig(
   for (const filename of filenames) {
     let file = path.join(filepath, filename);
     try {
+      if (existingFiles.has(file)) return file;
+
       if ((await fs.stat(file)).isFile()) {
+        existingFiles.add(file);
         return file;
       }
     } catch {

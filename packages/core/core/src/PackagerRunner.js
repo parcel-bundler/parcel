@@ -162,7 +162,6 @@ export default class PackagerRunner {
         ),
       );
     } finally {
-      loadConfig.clear();
       await dispose();
     }
   }

@@ -17,3 +17,5 @@ export {
   INTERNAL_RESOLVE,
   INTERNAL_TRANSFORM,
 } from './Parcel';
+
+export {clearConfigCache} from './worker';
