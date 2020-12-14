@@ -36,6 +36,7 @@ export default class ReporterRunner {
   constructor(opts: Opts) {
     this.config = opts.config;
     this.options = opts.options;
+    this.workerFarm = opts.workerFarm;
     this.pluginOptions = new PluginOptions(this.options);
 
     logger.onLog(event => this.report(event));
