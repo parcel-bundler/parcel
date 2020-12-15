@@ -6,43 +6,32 @@ use std::convert::TryInto;
 use napi::{CallContext, JsNumber, JsString, JsNull, Either, JsObject, Result};
 use std::path::Path;
 
-#[js_function(3)]
-fn find_file(ctx: CallContext) -> Result<Either<JsNull, JsString>> {
-  let f = ctx.get::<JsString>(0)?.into_utf8()?;
-  let from = Path::new(f.as_str()?);
-  let names = ctx.get::<JsObject>(1)?;
+#[js_function(2)]
+fn find_ancestor_file(ctx: CallContext) -> Result<Either<JsNull, JsString>> {
+  let names = ctx.get::<JsObject>(0)?;
   let length: u32 = names.get_named_property::<JsNumber>("length")?.try_into()?;
   let mut filenames = Vec::new();
   for i in 0..length {
     filenames.push(names.get_element::<JsString>(i)?.into_utf8()?);
   }
 
-  let r = ctx.get::<JsString>(2)?.into_utf8()?;
-  let root = Path::new(r.as_str()?);
+  let f = ctx.get::<JsString>(1)?.into_utf8()?;
+  let from = Path::new(f.as_str()?);
 
-  let mut path = Some(from);
-  while let Some(p) = path {
-    if let Some(filename) = p.file_name() {
+  for dir in from.ancestors() {
+    // Break if we hit a node_modules directory
+    if let Some(filename) = dir.file_name() {
       if filename == "node_modules" {
         break;
       }
     }
 
     for name in &filenames {
-      let fullpath = p.with_file_name(name.as_str()?);
-      let fp = fullpath.as_path();
-      let meta = fp.metadata();
-
-      if meta.is_ok() && meta.unwrap().is_file() {
-        return ctx.env.create_string(fp.to_str().unwrap()).map(Either::B);
+      let fullpath = dir.join(name.as_str()?);
+      if fullpath.is_file() {
+        return ctx.env.create_string(fullpath.to_str().unwrap()).map(Either::B);
       }
     }
-
-    if p == root {
-      break;
-    }
-
-    path = p.parent()
   }
 
   return ctx.env.get_null().map(Either::A)
@@ -55,45 +44,34 @@ fn find_first_file(ctx: CallContext) -> Result<Either<JsNull, JsString>> {
   for i in 0..length {
     let n = names.get_element::<JsString>(i)?.into_utf8()?;
     let path = Path::new(n.as_str()?);
-    let meta = path.metadata();
 
-    if meta.is_ok() && meta.unwrap().is_file() {
-      return ctx.env.create_string(n.as_str().unwrap()).map(Either::B);
+    if path.is_file() {
+      return ctx.env.create_string(path.to_str().unwrap()).map(Either::B);
     }
   }
 
   return ctx.env.get_null().map(Either::A)
 }
 
-#[js_function(3)]
+#[js_function(2)]
 fn find_node_module(ctx: CallContext) -> Result<Either<JsNull, JsString>> {
   let m = ctx.get::<JsString>(0)?.into_utf8()?;
   let module = Path::new(m.as_str()?);
   let f = ctx.get::<JsString>(1)?.into_utf8()?;
   let from = Path::new(f.as_str()?);
-  let r = ctx.get::<JsString>(2)?.into_utf8()?;
-  let root = Path::new(r.as_str()?);
 
-  let mut path = from.parent();
-  while let Some(p) = path {
-    if p.file_name().unwrap() == "node_modules" {
-      path = p.parent();
-      continue;
+  for dir in from.ancestors() {
+    // Skip over node_modules directories
+    if let Some(filename) = dir.file_name() {
+      if filename == "node_modules" {
+        continue;
+      }
     }
 
-    let fullpath = p.join("node_modules").join(module);
-    let fp = fullpath.as_path();
-    let meta = fp.metadata();
-
-    if meta.is_ok() && meta.unwrap().is_dir() {
-      return ctx.env.create_string(fp.to_str().unwrap()).map(Either::B);
+    let fullpath = dir.join("node_modules").join(module);
+    if fullpath.is_dir() {
+      return ctx.env.create_string(fullpath.to_str().unwrap()).map(Either::B);
     }
-
-    if p == root {
-      break;
-    }
-
-    path = p.parent()
   }
 
   return ctx.env.get_null().map(Either::A)
@@ -101,9 +79,9 @@ fn find_node_module(ctx: CallContext) -> Result<Either<JsNull, JsString>> {
 
 #[module_exports]
 fn init(mut exports: JsObject) -> Result<()> {
-  exports.create_named_method("find_file", find_file)?;
-  exports.create_named_method("find_first_file", find_first_file)?;
-  exports.create_named_method("find_node_module", find_node_module)?;
+  exports.create_named_method("findAncestorFile", find_ancestor_file)?;
+  exports.create_named_method("findFirstFile", find_first_file)?;
+  exports.create_named_method("findNodeModule", find_node_module)?;
 
   Ok(())
 }

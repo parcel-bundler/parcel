@@ -24,12 +24,6 @@ import builtins from './builtins';
 import nullthrows from 'nullthrows';
 // $FlowFixMe this is untyped
 import _Module from 'module';
-import {
-  find_file,
-  find_file_async,
-  find_first_file,
-  find_node_module,
-} from '@parcel/fs-search';
 import {NodeFS} from '@parcel/fs';
 
 const NODE_MODULES = path.sep + 'node_modules' + path.sep;
@@ -425,8 +419,7 @@ export default class NodeResolver {
 
   async findNodeModulePath(filename: string, dir: string): Promise<?Module> {
     let [moduleName, subPath] = this.getModuleParts(filename);
-    let root = path.parse(dir).root;
-    let moduleDir = find_node_module(this.fs, moduleName, dir + '/index', root);
+    let moduleDir = this.fs.findNodeModule(moduleName, dir);
     if (moduleDir) {
       return {
         moduleName,
@@ -649,7 +642,7 @@ export default class NodeResolver {
   |}): Promise<?ResolvedFile> {
     // Try all supported extensions
     let files = await this.expandFile(file, extensions, env, pkg);
-    let found = find_first_file(this.fs, files);
+    let found = this.fs.findFirstFile(files);
     if (found) {
       return {path: found, pkg};
     }
@@ -810,9 +803,7 @@ export default class NodeResolver {
 
   findPackage(dir: string): Promise<InternalPackageJSON | null> {
     // Find the nearest package.json file within the current node_modules folder
-    let index = dir.lastIndexOf(NODE_MODULES);
-    let root = index >= 0 ? dir.slice(0, index + NODE_MODULES.length - 1) : '/';
-    let pkgFile = find_file(this.fs, dir + '/index', ['package.json'], root);
+    let pkgFile = this.fs.findAncestorFile(['package.json'], dir);
     if (pkgFile) {
       return this.readPackage(path.dirname(pkgFile));
     }

@@ -17,6 +17,7 @@ import {promisify} from '@parcel/utils';
 import {registerSerializableClass} from '@parcel/core';
 import fsWriteStreamAtomic from '@parcel/fs-write-stream-atomic';
 import watcher from '@parcel/watcher';
+import {findAncestorFile, findNodeModule, findFirstFile} from '@parcel/fs-search';
 import packageJSON from '../package.json';
 
 // Most of this can go away once we only support Node 10+, which includes
@@ -44,6 +45,9 @@ export class NodeFS implements FileSystem {
     process.platform === 'win32' ? fs.realpathSync : fs.realpathSync.native;
   existsSync: (path: string) => boolean = fs.existsSync;
   readdirSync: any = (fs.readdirSync: any);
+  findAncestorFile = findAncestorFile;
+  findNodeModule = findNodeModule;
+  findFirstFile = findFirstFile;
 
   createWriteStream(filePath: string, options: any): Writable {
     return fsWriteStreamAtomic(filePath, options);

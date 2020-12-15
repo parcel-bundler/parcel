@@ -5,13 +5,12 @@ import type {ResolveResult, InternalPackageJSON} from './NodeResolverBase';
 import type {FileSystem} from '@parcel/fs';
 import path from 'path';
 import {NodeResolverBase} from './NodeResolverBase';
-import {find_file, find_first_file, find_node_module} from '@parcel/fs-search';
 import {NodeFS} from '@parcel/fs';
 
 const NODE_MODULES = path.sep + 'node_modules' + path.sep;
 
 export class NodeResolverSync extends NodeResolverBase<ResolveResult> {
-  resolveUncached(id: ModuleSpecifier, from: FilePath): ResolveResult {
+  resolve(id: ModuleSpecifier, from: FilePath): ResolveResult {
     if (id[0] === '.') {
       id = path.resolve(from, id);
     }
@@ -24,7 +23,9 @@ export class NodeResolverSync extends NodeResolverBase<ResolveResult> {
     }
 
     if (!res) {
-      throw new Error(`Could not resolve module "${id}" from "${from}"`);
+      let e = new Error(`Could not resolve module "${id}" from "${from}"`);
+      e.code = 'MODULE_NOT_FOUND';
+      throw e
     }
 
     return res;
@@ -42,9 +43,7 @@ export class NodeResolverSync extends NodeResolverBase<ResolveResult> {
 
   findPackage(dir: FilePath) {
     // Find the nearest package.json file within the current node_modules folder
-    let index = dir.lastIndexOf(NODE_MODULES);
-    let root = index >= 0 ? dir.slice(0, index + NODE_MODULES.length - 1) : '/';
-    let pkgFile = find_file(this.fs, dir + '/index', ['package.json'], root);
+    let pkgFile = this.fs.findAncestorFile(['package.json'], dir);
     return this.readPackage(pkgFile);
   }
 
@@ -59,16 +58,13 @@ export class NodeResolverSync extends NodeResolverBase<ResolveResult> {
     let json = this.fs.readFileSync(file, 'utf8');
     let pkg = JSON.parse(json);
 
-    pkg.pkgfile = file;
-    pkg.pkgdir = path.dirname(file);
-
     this.packageCache.set(file, pkg);
     return pkg;
   }
 
   loadAsFile(file: FilePath, pkg: ?InternalPackageJSON) {
     // Try all supported extensions
-    let found = find_first_file(this.fs, this.expandFile(file));
+    let found = this.fs.findFirstFile(this.expandFile(file));
     if (found) {
       return {resolved: found, pkg};
     }
@@ -130,8 +126,7 @@ export class NodeResolverSync extends NodeResolverBase<ResolveResult> {
     }
 
     let parts = this.getModuleParts(id);
-    let root = path.parse(dir).root;
-    let moduleDir = find_node_module(this.fs, parts[0], dir + '/index', root);
+    let moduleDir = this.fs.findNodeModule(parts[0], dir);
     if (moduleDir) {
       return {
         moduleName: parts[0],
