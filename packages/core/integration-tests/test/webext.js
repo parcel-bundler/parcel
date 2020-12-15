@@ -35,5 +35,4 @@ describe('webext', function() {
     ]);
   });
   // TODO: Test error-checking
-  // TODO: Test certain types of plugins fully rather than just one with everything
 });

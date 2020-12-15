@@ -83,7 +83,7 @@ async function collectDependencies(
       });
     }
   }
-  let needRuntimeBG = true;
+  let needRuntimeBG = false;
   if (program.content_scripts) {
     for (let i = 0; i < program.content_scripts.length; ++i) {
       const sc = program.content_scripts[i];
