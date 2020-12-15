@@ -347,7 +347,7 @@ export default class ParcelConfig {
 
     let re = this.regexCache.get(patternGlob);
     if (!re) {
-      re = makeRe(patternGlob);
+      re = makeRe(patternGlob, {dot: true});
       this.regexCache.set(patternGlob, re);
     }
 
