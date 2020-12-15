@@ -2,13 +2,16 @@
 
 import type {MutableAsset} from '@parcel/types';
 import {Transformer} from '@parcel/plugin';
-import {posix, join, extname, dirname, relative} from 'path';
+import {posix, join, extname, dirname, relative, resolve} from 'path';
 import jsm from 'json-source-map';
 import parseCSP from 'content-security-policy-parser';
 import {validateSchema} from '@parcel/utils';
 import ThrowableDiagnostic, {getJSONSourceLocation} from '@parcel/diagnostic';
 import {glob} from '@parcel/utils';
 import WebExtSchema from './schema';
+
+const RUNTIME = resolve(__dirname, 'runtime', 'autoreload.js');
+const RUNTIME_BG = resolve(__dirname, 'runtime', 'autoreload-bg.js');
 
 const BASE_KEYS = ['manifest_version', 'name', 'version'];
 
@@ -36,6 +39,7 @@ async function collectDependencies(
   asset: MutableAsset,
   program: any,
   ptrs: {[key: string]: any, ...},
+  hot: boolean,
 ) {
   // isEntry used whenever strictly necessary to preserve filename
   // also for globs because it's wasteful to write out every file name
@@ -79,6 +83,7 @@ async function collectDependencies(
       });
     }
   }
+  let needRuntimeBG = true;
   if (program.content_scripts) {
     for (let i = 0; i < program.content_scripts.length; ++i) {
       const sc = program.content_scripts[i];
@@ -96,6 +101,15 @@ async function collectDependencies(
             },
           });
         }
+      }
+      if (hot && sc.js && sc.js.length) {
+        needRuntimeBG = ptrs[`/content_scripts/${i}/js/${sc.js.length - 1}`];
+        sc.js.push(
+          asset.addURLDependency(
+            relative(dirname(asset.filePath), RUNTIME),
+            {},
+          ),
+        );
       }
     }
   }
@@ -188,6 +202,17 @@ async function collectDependencies(
       }
     }
   }
+  if (needRuntimeBG) {
+    if (!program.background) {
+      program.background = {};
+    }
+    if (!program.background.scripts) {
+      program.background.scripts = [];
+    }
+    program.background.scripts.push(
+      asset.addURLDependency(relative(dirname(asset.filePath), RUNTIME_BG), {}),
+    );
+  }
 }
 
 function cspPatchHMR(policy: ?string) {
@@ -231,7 +256,12 @@ export default (new Transformer({
       '@parcel/transformer-webext',
       'Invalid Web Extension manifest',
     );
-    await collectDependencies(asset, data, parsed.pointers);
+    await collectDependencies(
+      asset,
+      data,
+      parsed.pointers,
+      Boolean(options.hot),
+    );
     if (options.hot) {
       // To enable HMR, we must override the CSP to allow 'unsafe-eval'
       data.content_security_policy = cspPatchHMR(data.content_security_policy);
