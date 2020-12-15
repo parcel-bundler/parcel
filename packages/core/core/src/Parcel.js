@@ -163,6 +163,7 @@ export default class Parcel {
       options: resolvedOptions,
       workerFarm: this.#farm,
     });
+    this.#disposable.add(this.#reporterRunner);
 
     this.#packagerRunner = new PackagerRunner({
       config: this.#config,
