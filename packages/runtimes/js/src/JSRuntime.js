@@ -5,6 +5,7 @@ import type {
   BundleGroup,
   Dependency,
   Environment,
+  JSONValue,
   NamedBundle,
   RuntimeAsset,
 } from '@parcel/types';
@@ -64,7 +65,13 @@ function getLoaders(
   return null;
 }
 
-let bundleAsyncDependencies = new WeakMap<NamedBundle, Array<Dependency>>();
+let bundleAsyncDependencies = new WeakMap<
+  NamedBundle,
+  Array<{|
+    resolved: {|type: 'bundle_group', value: BundleGroup|},
+    attributes: JSONValue,
+  |}>,
+>();
 
 export default (new Runtime({
   apply({bundle, bundleGraph, options}) {
@@ -343,38 +350,18 @@ function getHintedBundleGroups(
   bundleGraph: BundleGraph<NamedBundle>,
   bundle: NamedBundle,
 ): {|preload: Array<BundleGroup>, prefetch: Array<BundleGroup>|} {
-  function resolvePreloadPrefetch(
-    bundle: NamedBundle,
-    bundleGraph: BundleGraph<NamedBundle>,
-    dependency: Dependency,
-  ): void {
-    let attributes = dependency.meta?.importAttributes;
-    if (
-      dependency.isAsync &&
-      !dependency.isURL &&
-      typeof attributes === 'object' &&
-      attributes != null &&
-      // $FlowFixMe
-      (attributes.preload || attributes.prefetch)
-    ) {
-      let resolved = bundleGraph.resolveAsyncDependency(dependency, bundle);
-      if (resolved?.type === 'bundle_group') {
-        // === true for flow
-        if (attributes.preload === true) {
-          preload.push(resolved.value);
-        }
-        if (attributes.prefetch === true) {
-          prefetch.push(resolved.value);
-        }
-      }
-    }
-  }
   let preload = [];
   let prefetch = [];
   let asyncDependencies = bundleAsyncDependencies.get(bundle);
-  if (asyncDependencies) {
+  if (Array.isArray(asyncDependencies)) {
     for (let dependency of asyncDependencies) {
-      resolvePreloadPrefetch(bundle, bundleGraph, dependency);
+      // === true for flow
+      if (dependency.attributes?.preload === true) {
+        preload.push(dependency.resolved?.value);
+      }
+      if (dependency.attributes?.prefetch === true) {
+        prefetch.push(dependency.resolved?.value);
+      }
     }
   } else {
     let asyncDependencies = [];
@@ -384,7 +371,27 @@ function getHintedBundleGroups(
       }
 
       let dependency = node.value;
-      resolvePreloadPrefetch(bundle, bundleGraph, dependency);
+      let attributes = dependency.meta?.importAttributes;
+      if (
+        dependency.isAsync &&
+        !dependency.isURL &&
+        typeof attributes === 'object' &&
+        attributes != null &&
+        // $FlowFixMe
+        (attributes.preload || attributes.prefetch)
+      ) {
+        let resolved = bundleGraph.resolveAsyncDependency(dependency, bundle);
+        if (resolved?.type === 'bundle_group') {
+          asyncDependencies.push({resolved, attributes});
+          // === true for flow
+          if (attributes.preload === true) {
+            preload.push(resolved.value);
+          }
+          if (attributes.prefetch === true) {
+            prefetch.push(resolved.value);
+          }
+        }
+      }
     });
     bundleAsyncDependencies.set(bundle, asyncDependencies);
   }
