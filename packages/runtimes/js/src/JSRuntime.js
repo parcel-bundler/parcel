@@ -100,15 +100,18 @@ export default (new Runtime({
       }
 
       if (resolved.type === 'asset') {
-        // If this bundle already has the asset this dependency references,
-        // return a simple runtime of `Promise.resolve(require("path/to/asset"))`.
-        assets.push({
-          filePath: path.join(options.projectRoot, 'JSRuntime.js'),
-          code: `module.exports = Promise.resolve(module.bundle.root(${JSON.stringify(
-            bundleGraph.getAssetPublicId(resolved.value),
-          )}))`,
-          dependency,
-        });
+        if (!bundle.env.scopeHoist) {
+          // If this bundle already has the asset this dependency references,
+          // return a simple runtime of `Promise.resolve(internalRequire(assetId))`.
+          // The linker handles this for scope-hoisting.
+          assets.push({
+            filePath: path.join(options.projectRoot, 'JSRuntime.js'),
+            code: `module.exports = Promise.resolve(module.bundle.root(${JSON.stringify(
+              bundleGraph.getAssetPublicId(resolved.value),
+            )}))`,
+            dependency,
+          });
+        }
       } else {
         let loaderRuntime = getLoaderRuntime({
           bundle,
