@@ -24,6 +24,15 @@ import builtins from './builtins';
 import nullthrows from 'nullthrows';
 // $FlowFixMe this is untyped
 import _Module from 'module';
+import {
+  find_file,
+  find_file_async,
+  find_first_file,
+  find_node_module,
+} from '@parcel/fs-search';
+import {NodeFS} from '@parcel/fs';
+
+const NODE_MODULES = path.sep + 'node_modules' + path.sep;
 
 const EMPTY_SHIM = require.resolve('./_empty');
 
@@ -417,31 +426,14 @@ export default class NodeResolver {
   async findNodeModulePath(filename: string, dir: string): Promise<?Module> {
     let [moduleName, subPath] = this.getModuleParts(filename);
     let root = path.parse(dir).root;
-
-    while (dir !== root) {
-      // Skip node_modules directories
-      if (path.basename(dir) === 'node_modules') {
-        dir = path.dirname(dir);
-      }
-
-      try {
-        // First, check if the module directory exists. This prevents a lot of unnecessary checks later.
-        let moduleDir = path.join(dir, 'node_modules', moduleName);
-        let stats = await this.fs.stat(moduleDir);
-        if (stats.isDirectory()) {
-          return {
-            moduleName: moduleName,
-            subPath: subPath,
-            moduleDir: moduleDir,
-            filePath: path.join(dir, 'node_modules', filename),
-          };
-        }
-      } catch (err) {
-        // ignore
-      }
-
-      // Move up a directory
-      dir = path.dirname(dir);
+    let moduleDir = find_node_module(this.fs, moduleName, dir + '/index', root);
+    if (moduleDir) {
+      return {
+        moduleName,
+        subPath,
+        moduleDir,
+        filePath: subPath ? path.join(moduleDir, subPath) : moduleDir,
+      };
     }
 
     return undefined;
@@ -473,15 +465,6 @@ export default class NodeResolver {
       extensions,
       env,
     });
-  }
-
-  async isFile(file: FilePath): Promise<boolean> {
-    try {
-      let stat = await this.fs.stat(file);
-      return stat.isFile() || stat.isFIFO();
-    } catch (err) {
-      return false;
-    }
   }
 
   async loadDirectory({
@@ -665,11 +648,13 @@ export default class NodeResolver {
     pkg: InternalPackageJSON | null,
   |}): Promise<?ResolvedFile> {
     // Try all supported extensions
-    for (let f of await this.expandFile(file, extensions, env, pkg)) {
-      if (await this.isFile(f)) {
-        return {path: f, pkg};
-      }
+    let files = await this.expandFile(file, extensions, env, pkg);
+    let found = find_first_file(this.fs, files);
+    if (found) {
+      return {path: found, pkg};
     }
+
+    return null;
   }
 
   async expandFile(
@@ -753,14 +738,14 @@ export default class NodeResolver {
     // If filename is an absolute path, get one relative to the package.json directory.
     if (path.isAbsolute(filename)) {
       filename = relativePath(dir, filename);
-      alias = await this.lookupAlias(aliases, filename);
+      alias = this.lookupAlias(aliases, filename);
     } else {
       // It is a node_module. First try the entire filename as a key.
-      alias = await this.lookupAlias(aliases, normalizeSeparators(filename));
+      alias = this.lookupAlias(aliases, normalizeSeparators(filename));
       if (alias == null) {
         // If it didn't match, try only the module name.
         let [moduleName, subPath] = this.getModuleParts(filename);
-        alias = await this.lookupAlias(aliases, moduleName);
+        alias = this.lookupAlias(aliases, moduleName);
         if (typeof alias === 'string' && subPath) {
           let isRelative = alias.startsWith('./');
           // Append the filename back onto the aliased module.
@@ -823,17 +808,13 @@ export default class NodeResolver {
     return alias;
   }
 
-  async findPackage(dir: string): Promise<InternalPackageJSON | null> {
+  findPackage(dir: string): Promise<InternalPackageJSON | null> {
     // Find the nearest package.json file within the current node_modules folder
-    let root = path.parse(dir).root;
-    while (dir !== root && path.basename(dir) !== 'node_modules') {
-      try {
-        return await this.readPackage(dir);
-      } catch (err) {
-        // ignore
-      }
-
-      dir = path.dirname(dir);
+    let index = dir.lastIndexOf(NODE_MODULES);
+    let root = index >= 0 ? dir.slice(0, index + NODE_MODULES.length - 1) : '/';
+    let pkgFile = find_file(this.fs, dir + '/index', ['package.json'], root);
+    if (pkgFile) {
+      return this.readPackage(path.dirname(pkgFile));
     }
 
     return null;

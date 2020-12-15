@@ -40,7 +40,8 @@ export class NodeFS implements FileSystem {
   chdir: (directory: string) => void = process.chdir;
 
   statSync: (path: string) => Stats = fs.statSync;
-  realpathSync: (path: string, cache?: any) => string = fs.realpathSync;
+  realpathSync: (path: string, cache?: any) => string =
+    process.platform === 'win32' ? fs.realpathSync : fs.realpathSync.native;
   existsSync: (path: string) => boolean = fs.existsSync;
   readdirSync: any = (fs.readdirSync: any);
 

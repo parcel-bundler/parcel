@@ -6,6 +6,8 @@ import path from 'path';
 import clone from 'clone';
 import {parse as json5} from 'json5';
 import {parse as toml} from '@iarna/toml';
+import {find_file, find_file_async} from '@parcel/fs-search';
+import {NodeFS} from '@parcel/fs';
 
 export type ConfigOutput = {|
   config: ConfigResult,
@@ -23,25 +25,8 @@ export async function resolveConfig(
   opts: ?ConfigOptions,
   root: FilePath = path.parse(filepath).root,
 ): Promise<FilePath | null> {
-  filepath = await fs.realpath(path.dirname(filepath));
-
-  // Don't traverse above the module root
-  if (path.basename(filepath) === 'node_modules') {
-    return null;
-  }
-
-  for (const filename of filenames) {
-    let file = path.join(filepath, filename);
-    if ((await fs.exists(file)) && (await fs.stat(file)).isFile()) {
-      return file;
-    }
-  }
-
-  if (filepath === root) {
-    return null;
-  }
-
-  return resolveConfig(fs, filepath, filenames, opts);
+  // TODO: realpath
+  return find_file(fs, filepath, filenames, root);
 }
 
 export function resolveConfigSync(

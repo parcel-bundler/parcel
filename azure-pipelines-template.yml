@@ -39,6 +39,9 @@ jobs:
               echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p;
             displayName: Bump max inotify watches
 
+      - script: node scripts/link-native.js
+        displayName: 'Link native dependencies'
+      
       # use `--frozen-lockfile` to fail immediately if the committed yarn.lock needs updates
       # https://yarnpkg.com/lang/en/docs/cli/install/#toc-yarn-install-frozen-lockfile
       - script: yarn --frozen-lockfile

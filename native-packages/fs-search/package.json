@@ -1,0 +1,13 @@
+{
+  "name": "@parcel/fs-search",
+  "version": "2.0.0-beta.1",
+  "devDependencies": {
+    "napi-rs": "^0.3.10",
+    "tiny-benchy": "^1.0.1"
+  },
+  "scripts": {
+    "build": "cargo build && napi build --platform",
+    "build-release": "cargo build --release && napi build --platform --release",
+    "native-build": "yarn build"
+  }
+}
