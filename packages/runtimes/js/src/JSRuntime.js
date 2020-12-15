@@ -106,7 +106,7 @@ export default (new Runtime({
           filePath: path.join(options.projectRoot, 'JSRuntime.js'),
           // Using Promise['resolve'] to prevent Parcel from inferring this is an async dependency.
           // TODO: Find a better way of doing this.
-          code: `module.exports = Promise['resolve']($parcel$parcelRequire(${JSON.stringify(
+          code: `module.exports = Promise.resolve($parcel$parcelRequire(${JSON.stringify(
             dependency.env.scopeHoist
               ? resolved.value.id
               : bundleGraph.getAssetPublicId(resolved.value),
