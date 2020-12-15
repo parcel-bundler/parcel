@@ -65,6 +65,9 @@ export default class BundleGraph<TBundle: IBundle>
   getAssetById(id: string): Asset {
     return assetFromValue(this.#graph.getAssetById(id), this.#options);
   }
+  getAssetByPublicId(id: string): Asset {
+    return assetFromValue(this.#graph.getAssetByPublicId(id), this.#options);
+  }
 
   getAssetPublicId(asset: IAsset): string {
     return this.#graph.getAssetPublicId(assetToAssetValue(asset));

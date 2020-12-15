@@ -104,12 +104,8 @@ export default (new Runtime({
         // return a simple runtime of `Promise.resolve(require("path/to/asset"))`.
         assets.push({
           filePath: path.join(options.projectRoot, 'JSRuntime.js'),
-          // Using Promise['resolve'] to prevent Parcel from inferring this is an async dependency.
-          // TODO: Find a better way of doing this.
-          code: `module.exports = Promise.resolve($parcel$parcelRequire(${JSON.stringify(
-            dependency.env.scopeHoist
-              ? resolved.value.id
-              : bundleGraph.getAssetPublicId(resolved.value),
+          code: `module.exports = Promise.resolve(module.bundle.root(${JSON.stringify(
+            bundleGraph.getAssetPublicId(resolved.value),
           )}))`,
           dependency,
         });
@@ -323,7 +319,10 @@ function getLoaderRuntime({
   }
 
   if (bundle.env.outputFormat === 'global') {
-    loaderCode += `.then(() => module.bundle.root('${bundleGraph.getAssetPublicId(
+    let requireFunction = bundle.env.scopeHoist
+      ? `parcelRequire`
+      : `module.bundle.root`;
+    loaderCode += `.then(() => ${requireFunction}('${bundleGraph.getAssetPublicId(
       bundleGraph.getAssetById(bundleGroup.entryAssetId),
     )}')${
       // In global output with scope hoisting, functions return exports are

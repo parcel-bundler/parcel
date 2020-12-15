@@ -606,7 +606,7 @@ export function link({
       } else if (callee.name === '$parcel$parcelRequire') {
         let [id] = args;
         invariant(isStringLiteral(id));
-        let mod = bundleGraph.getAssetById(id.value);
+        let mod = bundleGraph.getAssetByPublicId(id.value);
 
         /* --- just copied from above ---- */
         let node;

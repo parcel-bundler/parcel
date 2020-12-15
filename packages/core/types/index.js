@@ -159,7 +159,7 @@ export type EnvironmentOpts = {|
   +isLibrary?: boolean,
   +minify?: boolean,
   +scopeHoist?: boolean,
-  +sourceMap?: ?TargetSourceMapOptions
+  +sourceMap?: ?TargetSourceMapOptions,
 |};
 
 /**
@@ -983,6 +983,7 @@ export interface MutableBundleGraph extends BundleGraph<Bundle> {
  */
 export interface BundleGraph<TBundle: Bundle> {
   getAssetById(id: string): Asset;
+  getAssetByPublicId(id: string): Asset;
   getAssetPublicId(asset: Asset): string;
   getBundles(): Array<TBundle>;
   getBundleGroupsContainingBundle(bundle: Bundle): Array<BundleGroup>;
