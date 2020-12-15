@@ -343,7 +343,11 @@ function getHintedBundleGroups(
   bundleGraph: BundleGraph<NamedBundle>,
   bundle: NamedBundle,
 ): {|preload: Array<BundleGroup>, prefetch: Array<BundleGroup>|} {
-  function resolvePreloadPrefetch(bundle, bundleGraph, dependency) {
+  function resolvePreloadPrefetch(
+    bundle: NamedBundle,
+    bundleGraph: BundleGraph<NamedBundle>,
+    dependency: Dependency,
+  ): void {
     let attributes = dependency.meta?.importAttributes;
     if (
       dependency.isAsync &&
@@ -364,7 +368,6 @@ function getHintedBundleGroups(
         }
       }
     }
-    return {preload, prefetch};
   }
   let preload = [];
   let prefetch = [];
