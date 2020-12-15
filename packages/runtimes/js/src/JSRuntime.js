@@ -98,7 +98,6 @@ export default (new Runtime({
         otherDependencies.push(dependency);
       }
     });
-    bundleAsyncDependenciesCache.set(bundle, asyncDependencies);
 
     let assets = [];
     for (let dependency of asyncDependencies) {
