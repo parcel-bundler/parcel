@@ -2953,4 +2953,17 @@ describe('javascript', function() {
       ],
     });
   });
+
+  it('can create a bundle starting with a dot', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/dotfile-bundle/index.js'),
+    );
+
+    assertBundles(b, [
+      {
+        name: '.output.js',
+        assets: ['index.js'],
+      },
+    ]);
+  });
 });
