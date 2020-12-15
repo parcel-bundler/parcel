@@ -48,7 +48,17 @@ export class NodeResolverBase<T> {
   }
 
   getPackageEntries(dir: FilePath, pkg: PackageJSON) {
-    return [pkg.main]
+    let main = pkg.main;
+    if (
+      process.env.PARCEL_BUILD_ENV !== 'production' &&
+      typeof pkg.name === 'string' &&
+      pkg.name.startsWith('@parcel/') &&
+      pkg.name !== '@parcel/watcher'
+    ) {
+      main = pkg.source;
+    }
+
+    return [main]
       .filter(entry => typeof entry === 'string')
       .map(main => {
         // Default to index file if no main field find

@@ -1,7 +1,7 @@
 // @flow
 
-import type {FilePath, ModuleSpecifier} from '@parcel/types';
-import type {ResolveResult, InternalPackageJSON} from './NodeResolverBase';
+import type {FilePath, ModuleSpecifier, PackageJSON} from '@parcel/types';
+import type {ResolveResult} from './NodeResolverBase';
 import type {FileSystem} from '@parcel/fs';
 import path from 'path';
 import {NodeResolverBase} from './NodeResolverBase';
@@ -10,10 +10,7 @@ import {NodeFS} from '@parcel/fs';
 const NODE_MODULES = path.sep + 'node_modules' + path.sep;
 
 export class NodeResolver extends NodeResolverBase<Promise<ResolveResult>> {
-  async resolve(
-    id: ModuleSpecifier,
-    from: FilePath,
-  ): Promise<ResolveResult> {
+  async resolve(id: ModuleSpecifier, from: FilePath): Promise<ResolveResult> {
     if (id[0] === '.') {
       id = path.resolve(from, id);
     }
@@ -28,7 +25,7 @@ export class NodeResolver extends NodeResolverBase<Promise<ResolveResult>> {
     if (!res) {
       let e = new Error(`Could not resolve module "${id}" from "${from}"`);
       e.code = 'MODULE_NOT_FOUND';
-      throw e
+      throw e;
     }
 
     return res;
@@ -49,7 +46,7 @@ export class NodeResolver extends NodeResolverBase<Promise<ResolveResult>> {
     return this.readPackage(pkgFile);
   }
 
-  async readPackage(file: FilePath): Promise<InternalPackageJSON> {
+  async readPackage(file: FilePath): Promise<PackageJSON> {
     let cached = this.packageCache.get(file);
 
     if (cached) {
@@ -63,7 +60,7 @@ export class NodeResolver extends NodeResolverBase<Promise<ResolveResult>> {
     return pkg;
   }
 
-  async loadAsFile(file: FilePath, pkg: ?InternalPackageJSON) {
+  async loadAsFile(file: FilePath, pkg: ?PackageJSON) {
     // Try all supported extensions
     let found = this.fs.findFirstFile(this.expandFile(file));
     if (found) {
@@ -73,7 +70,7 @@ export class NodeResolver extends NodeResolverBase<Promise<ResolveResult>> {
     return null;
   }
 
-  async loadDirectory(dir: FilePath, pkg: ?InternalPackageJSON = null) {
+  async loadDirectory(dir: FilePath, pkg: ?PackageJSON = null) {
     try {
       pkg = await this.readPackage(dir + '/package.json');
 
@@ -90,6 +87,7 @@ export class NodeResolver extends NodeResolverBase<Promise<ResolveResult>> {
         }
       }
     } catch (err) {
+      console.log(err);
       // ignore
     }
 
