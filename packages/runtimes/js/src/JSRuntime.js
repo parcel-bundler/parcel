@@ -55,11 +55,6 @@ const LOADERS = {
   },
 };
 
-let bundleAsyncDependenciesCache = new WeakMap<
-  NamedBundle,
-  Array<Dependency>,
->();
-
 function getLoaders(
   ctx: Environment,
 ): ?{[string]: string, IMPORT_POLYFILL: null | false | string, ...} {
