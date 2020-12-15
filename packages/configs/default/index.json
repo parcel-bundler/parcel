@@ -10,7 +10,6 @@
       "@parcel/transformer-js",
       "@parcel/transformer-react-refresh-wrap"
     ],
-    "manifest.json": ["@parcel/transformer-webext"],
     "*.{json,json5}": ["@parcel/transformer-json"],
     "*.jsonld": ["@parcel/transformer-jsonld"],
     "*.toml": ["@parcel/transformer-toml"],
@@ -28,6 +27,7 @@
     ],
     "*.pug": ["@parcel/transformer-pug"],
     "*.coffee": ["@parcel/transformer-coffeescript"],
+    "*.elm": ["@parcel/transformer-elm"],
     "*.mdx": ["@parcel/transformer-mdx"],
     "*.vue": ["@parcel/transformer-vue"],
     "template:*.vue": ["@parcel/transformer-vue"],
@@ -61,7 +61,7 @@
     "*.css": "@parcel/packager-css",
     "*.js": "@parcel/packager-js",
     "*.ts": "@parcel/packager-ts",
-    "*.{json,jsonld}": "@parcel/packager-raw-url",
+    "*.jsonld": "@parcel/packager-raw-url",
     "*": "@parcel/packager-raw"
   },
   "resolvers": ["@parcel/resolver-default"],
