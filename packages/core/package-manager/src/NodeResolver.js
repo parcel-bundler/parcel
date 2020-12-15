@@ -78,7 +78,7 @@ export class NodeResolver extends NodeResolverBase<Promise<ResolveResult>> {
       pkg = await this.readPackage(dir + '/package.json');
 
       // Get a list of possible package entry points.
-      let entries = this.getPackageEntries(pkg);
+      let entries = this.getPackageEntries(dir, pkg);
 
       for (let file of entries) {
         // First try loading package.main as a file, then try as a directory.

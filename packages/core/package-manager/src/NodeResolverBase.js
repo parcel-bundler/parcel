@@ -10,7 +10,6 @@ for (let builtin of Module.builtinModules) {
   builtins[builtin] = true;
 }
 
-export type InternalPackageJSON = PackageJSON & {pkgdir: string, ...};
 export type ResolveResult = {|
   resolved: FilePath | ModuleSpecifier,
   pkg?: ?PackageJSON,
@@ -19,7 +18,7 @@ export type ResolveResult = {|
 export class NodeResolverBase<T> {
   fs: FileSystem;
   extensions: Array<string>;
-  packageCache: Map<string, InternalPackageJSON>;
+  packageCache: Map<string, PackageJSON>;
 
   constructor(fs: FileSystem, extensions?: Array<string>) {
     this.fs = fs;
@@ -48,7 +47,7 @@ export class NodeResolverBase<T> {
     return res;
   }
 
-  getPackageEntries(pkg: InternalPackageJSON) {
+  getPackageEntries(dir: FilePath, pkg: PackageJSON) {
     return [pkg.main]
       .filter(entry => typeof entry === 'string')
       .map(main => {
@@ -61,7 +60,7 @@ export class NodeResolverBase<T> {
           throw new Error('invariant: expected string');
         }
 
-        return path.resolve(pkg.pkgdir, main);
+        return path.resolve(dir, main);
       });
   }
 
