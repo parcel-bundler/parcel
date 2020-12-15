@@ -55,6 +55,11 @@ const LOADERS = {
   },
 };
 
+let bundleAsyncDependenciesCache = new WeakMap<
+  NamedBundle,
+  Array<Dependency>,
+>();
+
 function getLoaders(
   ctx: Environment,
 ): ?{[string]: string, IMPORT_POLYFILL: null | false | string, ...} {
@@ -93,6 +98,7 @@ export default (new Runtime({
         otherDependencies.push(dependency);
       }
     });
+    bundleAsyncDependenciesCache.set(bundle, asyncDependencies);
 
     let assets = [];
     for (let dependency of asyncDependencies) {
