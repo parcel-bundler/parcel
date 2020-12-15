@@ -64,6 +64,8 @@ function getLoaders(
   return null;
 }
 
+let bundleAsyncDependencies = new WeakMap<NamedBundle, Array<Dependency>>();
+
 export default (new Runtime({
   apply({bundle, bundleGraph, options}) {
     // Dependency ids in code replaced with referenced bundle names
@@ -341,15 +343,7 @@ function getHintedBundleGroups(
   bundleGraph: BundleGraph<NamedBundle>,
   bundle: NamedBundle,
 ): {|preload: Array<BundleGroup>, prefetch: Array<BundleGroup>|} {
-  let preload = [];
-  let prefetch = [];
-  bundle.traverse(node => {
-    if (node.type !== 'dependency') {
-      return;
-    }
-
-    let dependency = node.value;
-    // $FlowFixMe
+  function resolvePreloadPrefetch(bundle, bundleGraph, dependency) {
     let attributes = dependency.meta?.importAttributes;
     if (
       dependency.isAsync &&
@@ -370,7 +364,27 @@ function getHintedBundleGroups(
         }
       }
     }
-  });
+    return {preload, prefetch};
+  }
+  let preload = [];
+  let prefetch = [];
+  let asyncDependencies = bundleAsyncDependencies.get(bundle);
+  if (asyncDependencies) {
+    for (let dependency of asyncDependencies) {
+      resolvePreloadPrefetch(bundle, bundleGraph, dependency);
+    }
+  } else {
+    let asyncDependencies = [];
+    bundle.traverse(node => {
+      if (node.type !== 'dependency') {
+        return;
+      }
+
+      let dependency = node.value;
+      resolvePreloadPrefetch(bundle, bundleGraph, dependency);
+    });
+    bundleAsyncDependencies.set(bundle, asyncDependencies);
+  }
 
   return {preload, prefetch};
 }
