@@ -2,7 +2,7 @@
 
 import type {ReporterEvent} from '@parcel/types';
 import type {WorkerApi} from '@parcel/workers';
-import type {ParcelOptions} from './types';
+import type {Bundle as InternalBundle, ParcelOptions} from './types';
 
 import invariant from 'assert';
 import {
@@ -28,6 +28,7 @@ type Opts = {|
 |};
 
 export default class ReporterRunner {
+  workerFarm: WorkerFarm;
   config: ParcelConfig;
   options: ParcelOptions;
   pluginOptions: PluginOptions;
@@ -35,31 +36,12 @@ export default class ReporterRunner {
   constructor(opts: Opts) {
     this.config = opts.config;
     this.options = opts.options;
+    this.workerFarm = opts.workerFarm;
     this.pluginOptions = new PluginOptions(this.options);
 
     logger.onLog(event => this.report(event));
 
-    bus.on('reporterEvent', event => {
-      if (
-        event.type === 'buildProgress' &&
-        (event.phase === 'optimizing' || event.phase === 'packaging') &&
-        !(event.bundle instanceof NamedBundle)
-      ) {
-        // Convert any internal bundles back to their public equivalents as reporting
-        // is public api
-        let bundleGraph = opts.workerFarm.workerApi.getSharedReference(
-          event.bundleGraphRef,
-        );
-        invariant(bundleGraph instanceof BundleGraph);
-        this.report({
-          ...event,
-          bundle: NamedBundle.get(event.bundle, bundleGraph, this.options),
-        });
-        return;
-      }
-
-      this.report(event);
-    });
+    bus.on('reporterEvent', this.eventHandler);
 
     if (this.options.patchConsole) {
       patchConsole();
@@ -67,6 +49,34 @@ export default class ReporterRunner {
       unpatchConsole();
     }
   }
+
+  eventHandler: ReporterEvent => void = (event): void => {
+    if (
+      event.type === 'buildProgress' &&
+      (event.phase === 'optimizing' || event.phase === 'packaging') &&
+      !(event.bundle instanceof NamedBundle)
+    ) {
+      // $FlowFixMe[prop-missing]
+      let bundleGraphRef = event.bundleGraphRef;
+      // $FlowFixMe[incompatible-exact]
+      let bundle: InternalBundle = event.bundle;
+      // Convert any internal bundles back to their public equivalents as reporting
+      // is public api
+      let bundleGraph = this.workerFarm.workerApi.getSharedReference(
+        // $FlowFixMe
+        bundleGraphRef,
+      );
+      invariant(bundleGraph instanceof BundleGraph);
+      // $FlowFixMe[incompatible-call]
+      this.report({
+        ...event,
+        bundle: NamedBundle.get(bundle, bundleGraph, this.options),
+      });
+      return;
+    }
+
+    this.report(event);
+  };
 
   async report(event: ReporterEvent) {
     let reporters = await this.config.getReporters();
@@ -83,6 +93,10 @@ export default class ReporterRunner {
         INTERNAL_ORIGINAL_CONSOLE.error(e);
       }
     }
+  }
+
+  dispose() {
+    bus.off('reporterEvent', this.eventHandler);
   }
 }
 

@@ -2923,4 +2923,47 @@ describe('javascript', function() {
 
     assert.deepEqual(await (await run(b)).default, 43);
   });
+
+  it('should throw a diagnostic for unkown pipelines', async function() {
+    let fixture = path.join(__dirname, 'integration/pipeline-unknown/a.js');
+    let code = await inputFS.readFileSync(fixture, 'utf8');
+    await assert.rejects(() => bundle(fixture), {
+      name: 'BuildError',
+      diagnostics: [
+        {
+          message: 'Unknown pipeline: strange-pipeline.',
+          origin: '@parcel/core',
+          filePath: fixture,
+          codeFrame: {
+            code,
+            codeHighlights: [
+              {
+                start: {
+                  column: 19,
+                  line: 1,
+                },
+                end: {
+                  column: 43,
+                  line: 1,
+                },
+              },
+            ],
+          },
+        },
+      ],
+    });
+  });
+
+  it('can create a bundle starting with a dot', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/dotfile-bundle/index.js'),
+    );
+
+    assertBundles(b, [
+      {
+        name: '.output.js',
+        assets: ['index.js'],
+      },
+    ]);
+  });
 });
