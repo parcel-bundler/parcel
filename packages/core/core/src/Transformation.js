@@ -748,6 +748,7 @@ function normalizeAssets(
       return {
         ast: internalAsset.ast,
         content: await internalAsset.content,
+        query: internalAsset.value.query,
         // $FlowFixMe
         dependencies: [...internalAsset.value.dependencies.values()],
         env: internalAsset.value.env,
