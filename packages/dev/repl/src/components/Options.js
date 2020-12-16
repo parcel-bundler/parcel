@@ -22,9 +22,11 @@ export const DEFAULT_OPTIONS: REPLOptions = {
 export default function Options({
   values,
   onChange,
+  disabled = false,
 }: {|
   values: REPLOptions,
   onChange: ($Keys<REPLOptions>, mixed) => void,
+  disabled: ?boolean,
 |}): any {
   return (
     <div class="options file">
@@ -34,6 +36,7 @@ export default function Options({
           type="checkbox"
           checked={values.minify}
           onChange={e => onChange('minify', e.target.checked)}
+          disabled={disabled}
         />
       </label>
       <label title="Corresponds to `--no-scope-hoist`">
@@ -42,6 +45,7 @@ export default function Options({
           type="checkbox"
           checked={values.scopeHoist}
           onChange={e => onChange('scopeHoist', e.target.checked)}
+          disabled={disabled}
         />
       </label>
       <label title="Corresponds to `--no-source-maps`">
@@ -49,7 +53,7 @@ export default function Options({
         <input
           type="checkbox"
           checked={values.sourceMaps}
-          disabled={values.viewSourcemaps}
+          disabled={values.viewSourcemaps || disabled}
           onChange={e => onChange('sourceMaps', e.target.checked)}
         />
       </label>
@@ -60,6 +64,7 @@ export default function Options({
           value={values.publicUrl}
           placeholder="/"
           onInput={e => onChange('publicUrl', e.target.value)}
+          disabled={disabled}
         />
       </label>
       <label>
@@ -67,6 +72,7 @@ export default function Options({
         <select
           onChange={e => onChange('outputFormat', e.target.value || null)}
           value={values.outputFormat}
+          disabled={disabled}
         >
           <option value=""></option>
           <option value="esmodule">esmodule</option>
@@ -84,6 +90,7 @@ export default function Options({
             }}
             value={values.targetType}
             style={{marginRight: '0.5rem'}}
+            disabled={disabled}
           >
             <option value="browsers">Browsers</option>
             <option value="node">Node</option>
@@ -93,6 +100,7 @@ export default function Options({
             value={values.targetEnv}
             onInput={e => onChange('targetEnv', e.target.value)}
             placeholder={getDefaultTargetEnv(values.targetType)}
+            disabled={disabled}
           />
         </div>
       </label>
@@ -102,6 +110,7 @@ export default function Options({
         <select
           onChange={e => onChange('renderGraphs', e.target.value || null)}
           value={values.renderGraphs}
+          disabled={disabled}
         >
           <option value="">disabled</option>
           <option value="true">enabled</option>
@@ -119,6 +128,7 @@ export default function Options({
               onChange('sourceMaps', true);
             }
           }}
+          disabled={disabled}
         />
       </label>
     </div>

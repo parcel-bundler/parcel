@@ -2,7 +2,7 @@
 import type {Assets, REPLOptions} from '../utils';
 import type {BundleOutput} from './ParcelWorker';
 
-import {wrap} from 'comlink';
+import {proxy, wrap} from 'comlink';
 
 const worker = wrap(
   new Worker('./ParcelWorker.js', {name: 'Parcel Worker Main'}),
@@ -44,4 +44,15 @@ export function bundle(
   options: REPLOptions,
 ): Promise<BundleOutput> {
   return worker.bundle(assets, options);
+}
+
+export function watch(
+  assets: Assets,
+  options: REPLOptions,
+  onBuild: BundleOutput => void,
+): Promise<{|
+  unsubscribe: () => Promise<mixed>,
+  writeAssets: Assets => Promise<mixed>,
+|}> {
+  return worker.watch(assets, options, proxy(onBuild));
 }

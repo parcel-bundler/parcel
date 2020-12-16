@@ -3,8 +3,9 @@ type Asset = {|
   name: string,
   content: string,
   isEntry?: boolean,
-  diagnostics?: ?Array<CodeMirrorDiagnostic>,
 |};
+export type AssetDiagnostics = Map<string, CodeMirrorDiagnostic>;
+
 export type Assets = Array<Asset>;
 
 export type CodeMirrorDiagnostic = {|
@@ -25,12 +26,6 @@ export type AssetAction =
   | {|
       type: 'updateAsset',
       name: string,
-      prop: 'diagnostics',
-      value: $PropertyType<Asset, 'diagnostics'>,
-    |}
-  | {|
-      type: 'updateAsset',
-      name: string,
       prop: string,
       value: string,
     |}
@@ -44,9 +39,6 @@ export type AssetAction =
     |}
   | {|
       type: 'addAsset',
-    |}
-  | {|
-      type: 'clearDiagnostics',
     |};
 
 export function updateAssets(
@@ -67,7 +59,6 @@ export function assetsReducer(assets: Assets, action: AssetAction): Assets {
     } else {
       if (prop === 'content') {
         assets = updateAssets(assets, name, 'time', Date.now());
-        assets = updateAssets(assets, name, 'diagnostics', null);
       }
       return updateAssets(assets, name, prop, value);
     }
@@ -92,8 +83,6 @@ export function assetsReducer(assets: Assets, action: AssetAction): Assets {
         isEntry: false,
       },
     ];
-  } else if (action.type === 'clearDiagnostics') {
-    return assets.map(a => ({...a, diagnostics: undefined}));
   }
 
   throw new Error('Unknown action');
@@ -119,18 +108,6 @@ assetsReducer.changeEntry = (name: string, isEntry: boolean): AssetAction => ({
   name,
   prop: 'isEntry',
   value: isEntry,
-});
-assetsReducer.changeDiagnostics = (
-  name: string,
-  diagnostics: Array<CodeMirrorDiagnostic>,
-): AssetAction => ({
-  type: 'updateAsset',
-  name,
-  prop: 'diagnostics',
-  value: diagnostics,
-});
-assetsReducer.clearDiagnostics = (): AssetAction => ({
-  type: 'clearDiagnostics',
 });
 assetsReducer.remove = (name: string): AssetAction => ({
   type: 'removeAsset',

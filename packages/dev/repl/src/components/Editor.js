@@ -30,11 +30,13 @@ import {commentKeymap} from '@codemirror/next/comment';
 import {rectangularSelection} from '@codemirror/next/rectangular-selection';
 import {gotoLineKeymap} from '@codemirror/next/goto-line';
 import {
-  highlightActiveLine,
+  // highlightActiveLine,
   highlightSelectionMatches,
 } from '@codemirror/next/highlight-selection';
 import {defaultHighlightStyle} from '@codemirror/next/highlight';
 import {lintKeymap} from '@codemirror/next/lint';
+
+// import {oneDark} from '@codemirror/next/theme-one-dark';
 
 import {html} from '@codemirror/next/lang-html';
 import {javascript} from '@codemirror/next/lang-javascript';
@@ -88,6 +90,7 @@ const Editor: any = memo(function Editor({
             run: indentLess,
           },
         ]),
+        // oneDark,
         extension.includes('js') || extension.includes('ts')
           ? javascript()
           : extension === 'html'

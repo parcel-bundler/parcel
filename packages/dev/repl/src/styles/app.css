@@ -195,6 +195,9 @@ select {
 .column > .loadState.ready {
   background-color: #5cb35f;
 }
+.column > .loadState.watching {
+  background-color: #50a0e5;
+}
 
 .column > .output {
   width: 50%;

@@ -2,19 +2,16 @@
 import type {Diagnostic} from '@parcel/diagnostic';
 import type {Assets, CodeMirrorDiagnostic, REPLOptions} from '../utils';
 
-import {expose} from 'comlink';
+import {expose, proxy} from 'comlink';
 import Parcel, {createWorkerFarm} from '@parcel/core';
 import {MemoryFS} from '@parcel/fs';
 // import SimplePackageInstaller from './SimplePackageInstaller';
 // import {NodePackageManager} from '@parcel/package-manager';
-// import {prettifyTime} from '@parcel/utils';
 import configRepl from '@parcel/config-repl';
-
 import {generatePackageJson, nthIndex} from '../utils/';
+import path from 'path';
 
 const workerFarm = createWorkerFarm();
-
-import path from 'path';
 
 export type BundleOutput =
   | {|
@@ -37,6 +34,7 @@ export type BundleOutput =
 
 expose({
   bundle,
+  watch,
   ready: new Promise(res => workerFarm.once('ready', () => res())),
 });
 
@@ -70,19 +68,20 @@ async function convertDiagnostics(inputFS, diagnostics: Array<Diagnostic>) {
     }
 
     if (codeFrame) {
-      let {start, end} = codeFrame.codeHighlights[0];
-      let code = codeFrame.code ?? (await inputFS.readFile(filePath, 'utf8'));
+      for (let {start, end, message} of codeFrame.codeHighlights) {
+        let code = codeFrame.code ?? (await inputFS.readFile(filePath, 'utf8'));
 
-      let from = nthIndex(code, '\n', start.line - 1) + start.column;
-      let to = nthIndex(code, '\n', end.line - 1) + end.column;
+        let from = nthIndex(code, '\n', start.line - 1) + start.column;
+        let to = nthIndex(code, '\n', end.line - 1) + end.column;
 
-      list.push({
-        from,
-        to,
-        severity: 'error',
-        source: origin || 'info',
-        message: codeFrame.codeHighlights[0].message || diagnostic.message,
-      });
+        list.push({
+          from,
+          to,
+          severity: 'error',
+          source: origin || 'info',
+          message: message || diagnostic.message,
+        });
+      }
     } else {
       list.push({
         from: 0,
@@ -96,10 +95,7 @@ async function convertDiagnostics(inputFS, diagnostics: Array<Diagnostic>) {
   return parsedDiagnostics;
 }
 
-async function bundle(
-  assets: Assets,
-  options: REPLOptions,
-): Promise<BundleOutput> {
+function setup(assets, options) {
   let graphs = options.renderGraphs ? [] : null;
   if (graphs && options.renderGraphs) {
     // $FlowFixMe
@@ -107,55 +103,6 @@ async function bundle(
       graphs.push({name, content});
     globalThis.PARCEL_DUMP_GRAPHVIZ.mode = options.renderGraphs;
   }
-
-  const resultFromReporter = Promise.all([
-    new Promise(res => {
-      // $FlowFixMe
-      globalThis.PARCEL_JSON_LOGGER_STDOUT = d => {
-        switch (d.type) {
-          // case 'buildStart':
-          //   console.log('📦 Started');
-          //   break;
-          // case 'buildProgress': {
-          //   let phase = d.phase.charAt(0).toUpperCase() + d.phase.slice(1);
-          //   let filePath = d.filePath || d.bundleFilePath;
-          //   console.log(`🕓 ${phase} ${filePath ? filePath : ''}`);
-          //   break;
-          // }
-          case 'buildSuccess':
-            // console.log(`✅ Succeded in ${/* prettifyTime */ d.buildTime}`);
-            // console.group('Output');
-            // for (let {filePath} of d.bundles) {
-            //   console.log(
-            //     '%c%s:\n%c%s',
-            //     'font-weight: bold',
-            //     filePath,
-            //     'font-family: monospace',
-            //     await memFS.readFile(filePath, 'utf8'),
-            //   );
-            // }
-            // console.groupEnd();
-            res({success: d});
-            break;
-          case 'buildFailure': {
-            // console.log(`❗️`, d);
-            res({failure: d.message});
-            break;
-          }
-        }
-      };
-      globalThis.PARCEL_JSON_LOGGER_STDERR =
-        globalThis.PARCEL_JSON_LOGGER_STDOUT;
-    }),
-    options.viewSourcemaps
-      ? new Promise(res => {
-          // $FlowFixMe
-          globalThis.PARCEL_SOURCEMAP_VISUALIZER = v => {
-            res(v);
-          };
-        })
-      : null,
-  ]);
 
   const fs = new MemoryFS(workerFarm);
 
@@ -166,7 +113,7 @@ async function bundle(
   let entries = assets
     .filter(a => a.isEntry)
     .map(a => PathUtils.fromAssetPath(a.name));
-  const b = new Parcel({
+  const bundler = new Parcel({
     entries,
     disableCache: true,
     cacheDir: PathUtils.CACHE_DIR,
@@ -189,6 +136,70 @@ async function bundle(
     // ),
   });
 
+  return {bundler, fs, graphs};
+}
+
+async function collectResult(result, graphs, fs) {
+  let [output, sourcemaps] = result;
+  if (output.success) {
+    let bundleContents = [];
+    for (let {filePath, size, time} of output.success.bundles) {
+      bundleContents.push({
+        name: PathUtils.toAssetPath(filePath),
+        content: removeTrailingNewline(await fs.readFile(filePath, 'utf8')),
+        size,
+        time,
+      });
+    }
+
+    return {
+      type: 'success',
+      bundles: bundleContents,
+      buildTime: output.success.buildTime,
+      graphs,
+      sourcemaps,
+    };
+  } else {
+    return {
+      type: 'failure',
+      diagnostics: await convertDiagnostics(fs, output.failure),
+    };
+  }
+}
+
+async function bundle(
+  assets: Assets,
+  options: REPLOptions,
+): Promise<BundleOutput> {
+  const resultFromReporter = Promise.all([
+    new Promise(res => {
+      // $FlowFixMe
+      globalThis.PARCEL_JSON_LOGGER_STDOUT = d => {
+        switch (d.type) {
+          case 'buildSuccess':
+            res({success: d});
+            break;
+          case 'buildFailure': {
+            res({failure: d.message});
+            break;
+          }
+        }
+      };
+      globalThis.PARCEL_JSON_LOGGER_STDERR =
+        globalThis.PARCEL_JSON_LOGGER_STDOUT;
+    }),
+    options.viewSourcemaps
+      ? new Promise(res => {
+          // $FlowFixMe
+          globalThis.PARCEL_SOURCEMAP_VISUALIZER = v => {
+            res(v);
+          };
+        })
+      : null,
+  ]);
+
+  const {bundler, fs, graphs} = setup(assets, options);
+
   await fs.writeFile('/package.json', generatePackageJson(options));
   await fs.writeFile('/.parcelrc', JSON.stringify(configRepl, null, 2));
   await fs.writeFile('/yarn.lock', '');
@@ -203,7 +214,7 @@ async function bundle(
   try {
     let error;
     try {
-      await b.run();
+      await bundler.run();
     } catch (e) {
       error = e;
     }
@@ -213,31 +224,7 @@ async function bundle(
       new Promise(res => setTimeout(() => res(null), 100)),
     ]);
     if (result) {
-      let [output, sourcemaps] = result;
-      if (output.success) {
-        let bundleContents = [];
-        for (let {filePath, size, time} of output.success.bundles) {
-          bundleContents.push({
-            name: PathUtils.toAssetPath(filePath),
-            content: removeTrailingNewline(await fs.readFile(filePath, 'utf8')),
-            size,
-            time,
-          });
-        }
-
-        return {
-          type: 'success',
-          bundles: bundleContents,
-          buildTime: output.success.buildTime,
-          graphs,
-          sourcemaps,
-        };
-      } else {
-        return {
-          type: 'failure',
-          diagnostics: await convertDiagnostics(fs, output.failure),
-        };
-      }
+      return await collectResult(result, graphs, fs);
     } else {
       throw error;
     }
@@ -250,4 +237,64 @@ async function bundle(
         error.diagnostics && (await convertDiagnostics(fs, error.diagnostics)),
     };
   }
+}
+
+async function watch(
+  assets: Assets,
+  options: REPLOptions,
+  onBuild: BundleOutput => void,
+): Promise<{|
+  unsubscribe: () => Promise<mixed>,
+  writeAssets: Assets => Promise<mixed>,
+|}> {
+  const reporterEvents = new EventTarget();
+  // $FlowFixMe
+  globalThis.PARCEL_JSON_LOGGER_STDOUT = d => {
+    switch (d.type) {
+      case 'buildSuccess':
+        Promise.resolve().then(() =>
+          reporterEvents.dispatchEvent(
+            new CustomEvent('build', {detail: {success: d}}),
+          ),
+        );
+        break;
+      case 'buildFailure': {
+        Promise.resolve().then(() =>
+          reporterEvents.dispatchEvent(
+            new CustomEvent('build', {detail: {failure: d.message}}),
+          ),
+        );
+        break;
+      }
+    }
+  };
+  globalThis.PARCEL_JSON_LOGGER_STDERR = globalThis.PARCEL_JSON_LOGGER_STDOUT;
+
+  let {bundler, fs, graphs} = setup(assets, options);
+
+  async function writeAssets(assets) {
+    await fs.writeFile('/package.json', generatePackageJson(options));
+    await fs.writeFile('/.parcelrc', JSON.stringify(configRepl, null, 2));
+    await fs.writeFile('/yarn.lock', '');
+    await fs.mkdirp('/src');
+    for (let {name, content} of assets) {
+      let p = PathUtils.fromAssetPath(name);
+      await fs.mkdirp(path.dirname(p));
+      await fs.writeFile(p, content);
+    }
+  }
+
+  writeAssets(assets);
+
+  reporterEvents.addEventListener('build', async (e: Event) => {
+    // $FlowFixMe
+    let {detail} = e;
+    let result = await collectResult([detail], graphs, fs);
+    onBuild(result);
+  });
+
+  return proxy({
+    unsubscribe: (await bundler.watch()).unsubscribe,
+    writeAssets,
+  });
 }

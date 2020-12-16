@@ -6,7 +6,6 @@ import {memo} from 'preact/compat';
 import {useCallback} from 'preact/hooks';
 import Editor from './Editor';
 import {Box} from './helper';
-import nullthrows from 'nullthrows';
 
 function SeverityToNumber(s: 'info' | 'warning' | 'error'): number {
   switch (s) {

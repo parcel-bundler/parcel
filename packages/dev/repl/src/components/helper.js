@@ -140,10 +140,8 @@ const removeBodyClass = className => document.body.classList.remove(className);
 export function useBodyClass(className) {
   let classNames = Array.isArray(className) ? className : [className];
   useEffect(() => {
-    // Set up
     classNames.forEach(addBodyClass);
 
-    // Clean up
     return () => {
       classNames.forEach(removeBodyClass);
     };
