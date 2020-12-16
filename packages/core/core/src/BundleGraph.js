@@ -1184,13 +1184,6 @@ export default class BundleGraph {
     return publicId;
   }
 
-  getAssetByPublicId(publicId: string): Asset {
-    let id = nullthrows(
-      [...this._publicIdByAssetId].find(([, p]) => p === publicId),
-    )[0];
-    return this.getAssetById(id);
-  }
-
   getExportedSymbols(
     asset: Asset,
     boundary: ?Bundle,

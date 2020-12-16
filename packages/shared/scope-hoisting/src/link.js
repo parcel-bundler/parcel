@@ -532,7 +532,7 @@ export function link({
               node = addBundleImport(mod, path);
             }
 
-            // assync dependency that was internalized
+            // async dependency that was internalized
             if (
               bundleGraph.resolveAsyncDependency(dep, bundle)?.type === 'asset'
             ) {
@@ -617,41 +617,6 @@ export function link({
         if (unused) {
           pathRemove(path);
         }
-      } else if (callee.name === '$parcel$parcelRequire') {
-        let [id] = args;
-        invariant(isStringLiteral(id));
-        let mod = bundleGraph.getAssetByPublicId(id.value);
-
-        /* --- just copied from above ---- */
-        let node;
-        if (mod.meta.id && assets.has(assertString(mod.meta.id))) {
-          let name = assertString(mod.meta.exportsIdentifier);
-
-          let isValueUsed = !isUnusedValue(path);
-          // We need to wrap the module in a function when a require
-          // call happens inside a non top-level scope, e.g. in a
-          // function, if statement, or conditional expression.
-          if (wrappedAssets.has(mod.id)) {
-            node = t.callExpression(getIdentifier(mod, 'init'), []);
-          }
-          // Replace with nothing if the require call's result is not used.
-          else if (isValueUsed) {
-            node = t.identifier(replacements.get(name) || name);
-          }
-        } else if (mod.type === 'js') {
-          node = addBundleImport(mod, path);
-        }
-        if (node) {
-          path.replaceWith(node);
-        } else {
-          if (path.parentPath.isExpressionStatement()) {
-            path.parentPath.remove();
-          } else {
-            // e.g. $parcel$exportWildcard;
-            path.replaceWith(t.objectExpression([]));
-          }
-        }
-        /* ----------------------- */
       }
     },
     VariableDeclarator: {

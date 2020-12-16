@@ -342,7 +342,7 @@ const VISITOR: Visitor<MutableAsset> = {
       t.matchesPattern(path.node, 'module.bundle.root') ||
       t.matchesPattern(path.node, 'module.bundle')
     ) {
-      path.replaceWith(t.identifier('$parcel$parcelRequire'));
+      path.replaceWith(t.identifier('parcelRequire'));
     }
   },
 
