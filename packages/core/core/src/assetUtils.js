@@ -19,6 +19,7 @@ import type {
   Environment,
   ParcelOptions,
 } from './types';
+import {objectSortedEntries} from '@parcel/utils';
 import type {ConfigOutput} from '@parcel/utils';
 
 import {Readable} from 'stream';
@@ -69,25 +70,30 @@ type AssetOptions = {|
   configKeyPath?: string,
 |};
 
-export function createAsset(options: AssetOptions): Asset {
+function createAssetIdFromOptions(options: AssetOptions): string {
+  let uniqueKey = options.uniqueKey ?? '';
   let idBase = options.idBase != null ? options.idBase : options.filePath;
-  let uniqueKey = options.uniqueKey || '';
+  let queryString = options.query
+    ? JSON.stringify(objectSortedEntries(options.query))
+    : '';
+
+  return md5FromString(
+    idBase +
+      options.type +
+      getEnvironmentHash(options.env) +
+      uniqueKey +
+      (options.pipeline ?? '') +
+      queryString,
+  );
+}
+
+export function createAsset(options: AssetOptions): Asset {
   return {
-    id:
-      options.id != null
-        ? options.id
-        : md5FromString(
-            idBase +
-              options.type +
-              getEnvironmentHash(options.env) +
-              uniqueKey +
-              (options.pipeline ?? '') +
-              JSON.stringify(options.query ?? {}),
-          ),
+    id: options.id != null ? options.id : createAssetIdFromOptions(options),
     committed: options.committed ?? false,
     hash: options.hash,
     filePath: options.filePath,
-    query: options.query || {},
+    query: options.query ?? {},
     isIsolated: options.isIsolated ?? false,
     isInline: options.isInline ?? false,
     isSplittable: options.isSplittable,
@@ -105,7 +111,7 @@ export function createAsset(options: AssetOptions): Asset {
     stats: options.stats,
     symbols: options.symbols,
     sideEffects: options.sideEffects ?? true,
-    uniqueKey: uniqueKey,
+    uniqueKey: options.uniqueKey ?? '',
     plugin: options.plugin,
     configPath: options.configPath,
     configKeyPath: options.configKeyPath,
