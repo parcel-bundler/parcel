@@ -105,7 +105,7 @@ export default (new Runtime({
           // return a simple runtime of `Promise.resolve(internalRequire(assetId))`.
           // The linker handles this for scope-hoisting.
           assets.push({
-            filePath: path.join(options.projectRoot, 'JSRuntime.js'),
+            filePath: __filename,
             code: `module.exports = Promise.resolve(module.bundle.root(${JSON.stringify(
               bundleGraph.getAssetPublicId(resolved.value),
             )}))`,
