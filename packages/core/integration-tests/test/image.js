@@ -1,9 +1,9 @@
 import assert from 'assert';
-import {bundle, distDir, inputFS, outputFS} from '@parcel/test-utils';
+import {bundle, distDir, outputFS} from '@parcel/test-utils';
 import path from 'path';
 import sharp from 'sharp';
 
-describe.only('image', function() {
+describe('image', function() {
   this.timeout(10000);
 
   it('Should be able to resize images', async () => {
@@ -29,7 +29,7 @@ describe.only('image', function() {
     assert.equal(image.width, 600);
   });
 
-  it.only('Should be able to import an image using multiple varying query parameters', async () => {
+  it('Should be able to import an image using multiple varying query parameters', async () => {
     await bundle(
       path.join(__dirname, '/integration/image-multiple-queries/index.html'),
     );
@@ -37,14 +37,11 @@ describe.only('image', function() {
     let dirContent = await outputFS.readdir(distDir);
     let foundExtensions = [];
     for (let filename of dirContent) {
-      console.log(filename);
       const foundExt = path.extname(filename);
       if (foundExt !== '.map') {
         foundExtensions.push(foundExt);
       }
     }
-
-    console.log(foundExtensions);
 
     assert.deepStrictEqual(
       foundExtensions.sort(),
