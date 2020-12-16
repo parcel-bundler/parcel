@@ -1,3 +1,3 @@
 const fs = require('fs');
 
-fs.symlinkSync('../native-packages', 'packages/native-packages');
+fs.symlinkSync('../native-packages', 'packages/native-packages', 'dir');
