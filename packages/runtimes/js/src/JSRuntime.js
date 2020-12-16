@@ -65,7 +65,7 @@ function getLoaders(
 }
 
 export default (new Runtime({
-  apply({bundle, bundleGraph, options}) {
+  apply({bundle, bundleGraph}) {
     // Dependency ids in code replaced with referenced bundle names
     // Loader runtime added for bundle groups that don't have a native loader (e.g. HTML/CSS/Worker - isURL?),
     // and which are not loaded by a parent bundle.
@@ -322,10 +322,7 @@ function getLoaderRuntime({
   }
 
   if (bundle.env.outputFormat === 'global') {
-    let requireFunction = bundle.env.scopeHoist
-      ? `parcelRequire`
-      : `module.bundle.root`;
-    loaderCode += `.then(() => ${requireFunction}('${bundleGraph.getAssetPublicId(
+    loaderCode += `.then(() => module.bundle.root('${bundleGraph.getAssetPublicId(
       bundleGraph.getAssetById(bundleGroup.entryAssetId),
     )}')${
       // In global output with scope hoisting, functions return exports are
