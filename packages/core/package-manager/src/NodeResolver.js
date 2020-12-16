@@ -2,12 +2,8 @@
 
 import type {FilePath, ModuleSpecifier, PackageJSON} from '@parcel/types';
 import type {ResolveResult, ModuleInfo} from './NodeResolverBase';
-import type {FileSystem} from '@parcel/fs';
 import path from 'path';
 import {NodeResolverBase} from './NodeResolverBase';
-import {NodeFS} from '@parcel/fs';
-
-const NODE_MODULES = path.sep + 'node_modules' + path.sep;
 
 export class NodeResolver extends NodeResolverBase<Promise<ResolveResult>> {
   async resolve(id: ModuleSpecifier, from: FilePath): Promise<ResolveResult> {
@@ -38,15 +34,17 @@ export class NodeResolver extends NodeResolverBase<Promise<ResolveResult>> {
 
     // First try as a file, then as a directory.
     return (
-      (await this.loadAsFile(id, pkg)) || (await this.loadDirectory(id, pkg)) // eslint-disable-line no-return-await
+      this.loadAsFile(id, pkg) || (await this.loadDirectory(id, pkg)) // eslint-disable-line no-return-await
     );
   }
 
-  async findPackage(dir: FilePath): Promise<?PackageJSON> {
+  findPackage(dir: FilePath): Promise<?PackageJSON> {
     let pkgFile = this.fs.findAncestorFile(['package.json'], dir);
     if (pkgFile != null) {
       return this.readPackage(pkgFile);
     }
+
+    return Promise.resolve(null);
   }
 
   async readPackage(file: FilePath): Promise<PackageJSON> {
@@ -63,7 +61,7 @@ export class NodeResolver extends NodeResolverBase<Promise<ResolveResult>> {
     return pkg;
   }
 
-  async loadAsFile(file: FilePath, pkg: ?PackageJSON): Promise<?ResolveResult> {
+  loadAsFile(file: FilePath, pkg: ?PackageJSON): ?ResolveResult {
     // Try all supported extensions
     let found = this.fs.findFirstFile(this.expandFile(file));
     if (found) {
@@ -73,7 +71,10 @@ export class NodeResolver extends NodeResolverBase<Promise<ResolveResult>> {
     return null;
   }
 
-  async loadDirectory(dir: FilePath, pkg: ?PackageJSON = null): Promise<?ResolveResult> {
+  async loadDirectory(
+    dir: FilePath,
+    pkg: ?PackageJSON = null,
+  ): Promise<?ResolveResult> {
     try {
       pkg = await this.readPackage(dir + '/package.json');
 
@@ -83,8 +84,7 @@ export class NodeResolver extends NodeResolverBase<Promise<ResolveResult>> {
       for (let file of entries) {
         // First try loading package.main as a file, then try as a directory.
         const res =
-          (await this.loadAsFile(file, pkg)) ||
-          (await this.loadDirectory(file, pkg));
+          this.loadAsFile(file, pkg) || (await this.loadDirectory(file, pkg));
         if (res) {
           return res;
         }
@@ -97,7 +97,10 @@ export class NodeResolver extends NodeResolverBase<Promise<ResolveResult>> {
     return this.loadAsFile(path.join(dir, 'index'), pkg);
   }
 
-  async loadNodeModules(id: ModuleSpecifier, from: FilePath): Promise<?ResolveResult> {
+  async loadNodeModules(
+    id: ModuleSpecifier,
+    from: FilePath,
+  ): Promise<?ResolveResult> {
     try {
       let module = this.findNodeModulePath(id, from);
       if (!module || module.resolved) {
@@ -108,7 +111,7 @@ export class NodeResolver extends NodeResolverBase<Promise<ResolveResult>> {
       // it is likely a file. Try loading it as a file first.
       if (module.subPath) {
         let pkg = await this.readPackage(module.moduleDir + '/package.json');
-        let res = await this.loadAsFile(module.filePath, pkg);
+        let res = this.loadAsFile(module.filePath, pkg);
         if (res) {
           return res;
         }
@@ -123,7 +126,10 @@ export class NodeResolver extends NodeResolverBase<Promise<ResolveResult>> {
     }
   }
 
-  findNodeModulePath(id: ModuleSpecifier, dir: FilePath): ?ResolveResult | ?ModuleInfo {
+  findNodeModulePath(
+    id: ModuleSpecifier,
+    dir: FilePath,
+  ): ?ResolveResult | ?ModuleInfo {
     if (this.isBuiltin(id)) {
       return {resolved: id};
     }

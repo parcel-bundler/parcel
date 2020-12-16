@@ -16,13 +16,15 @@ export type ConfigOptions = {|
   parse?: boolean,
 |};
 
-export async function resolveConfig(
+export function resolveConfig(
   fs: FileSystem,
   filepath: FilePath,
   filenames: Array<FilePath>,
 ): Promise<?FilePath> {
   // TODO: realpath
-  return fs.findAncestorFile(filenames, path.dirname(filepath));
+  return Promise.resolve(
+    fs.findAncestorFile(filenames, path.dirname(filepath)),
+  );
 }
 
 export function resolveConfigSync(

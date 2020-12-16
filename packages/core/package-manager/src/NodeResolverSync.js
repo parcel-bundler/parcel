@@ -2,12 +2,8 @@
 
 import type {FilePath, ModuleSpecifier, PackageJSON} from '@parcel/types';
 import type {ResolveResult, ModuleInfo} from './NodeResolverBase';
-import type {FileSystem} from '@parcel/fs';
 import path from 'path';
 import {NodeResolverBase} from './NodeResolverBase';
-import {NodeFS} from '@parcel/fs';
-
-const NODE_MODULES = path.sep + 'node_modules' + path.sep;
 
 export class NodeResolverSync extends NodeResolverBase<ResolveResult> {
   resolve(id: ModuleSpecifier, from: FilePath): ResolveResult {
@@ -26,7 +22,7 @@ export class NodeResolverSync extends NodeResolverBase<ResolveResult> {
       let e = new Error(`Could not resolve module "${id}" from "${from}"`);
       // $FlowFixMe
       e.code = 'MODULE_NOT_FOUND';
-      throw e
+      throw e;
     }
 
     return res;
@@ -123,7 +119,10 @@ export class NodeResolverSync extends NodeResolverBase<ResolveResult> {
     }
   }
 
-  findNodeModulePath(id: ModuleSpecifier, dir: FilePath): ?ResolveResult | ?ModuleInfo {
+  findNodeModulePath(
+    id: ModuleSpecifier,
+    dir: FilePath,
+  ): ?ResolveResult | ?ModuleInfo {
     if (this.isBuiltin(id)) {
       return {resolved: id};
     }

@@ -24,9 +24,6 @@ import builtins from './builtins';
 import nullthrows from 'nullthrows';
 // $FlowFixMe this is untyped
 import _Module from 'module';
-import {NodeFS} from '@parcel/fs';
-
-const NODE_MODULES = path.sep + 'node_modules' + path.sep;
 
 const EMPTY_SHIM = require.resolve('./_empty');
 
@@ -225,7 +222,7 @@ export default class NodeResolver {
     // Resolve the module in node_modules
     let resolved;
     try {
-      resolved = await this.findNodeModulePath(filename, dir);
+      resolved = this.findNodeModulePath(filename, dir);
     } catch (err) {
       // ignore
     }
@@ -417,7 +414,7 @@ export default class NodeResolver {
     }
   }
 
-  async findNodeModulePath(filename: string, dir: string): Promise<?Module> {
+  findNodeModulePath(filename: string, dir: string): ?Module {
     let [moduleName, subPath] = this.getModuleParts(filename);
     let moduleDir = this.fs.findNodeModule(moduleName, dir);
     if (moduleDir) {
@@ -801,14 +798,14 @@ export default class NodeResolver {
     return alias;
   }
 
-  async findPackage(dir: string): Promise<InternalPackageJSON | null> {
+  findPackage(dir: string): Promise<InternalPackageJSON | null> {
     // Find the nearest package.json file within the current node_modules folder
     let pkgFile = this.fs.findAncestorFile(['package.json'], dir);
     if (pkgFile) {
       return this.readPackage(path.dirname(pkgFile));
     }
 
-    return null;
+    return Promise.resolve(null);
   }
 
   async loadAlias(

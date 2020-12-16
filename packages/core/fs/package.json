@@ -20,6 +20,7 @@
     "node": ">= 10.0.0"
   },
   "dependencies": {
+    "@parcel/fs-search": "2.0.0-beta.1",
     "@parcel/fs-write-stream-atomic": "2.0.0-beta.1",
     "@parcel/utils": "2.0.0-beta.1",
     "@parcel/watcher": "2.0.0-alpha.8",

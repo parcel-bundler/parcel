@@ -3,7 +3,11 @@ import type {FilePath} from '@parcel/types';
 import type {FileSystem} from './types';
 import path from 'path';
 
-export function findNodeModule(fs: FileSystem, moduleName: string, dir: FilePath): ?FilePath { 
+export function findNodeModule(
+  fs: FileSystem,
+  moduleName: string,
+  dir: FilePath,
+): ?FilePath {
   let {root} = path.parse(dir);
   while (dir !== root) {
     // Skip node_modules directories
@@ -28,7 +32,11 @@ export function findNodeModule(fs: FileSystem, moduleName: string, dir: FilePath
   return null;
 }
 
-export function findAncestorFile(fs: FileSystem, fileNames: Array<string>, dir: FilePath): ?FilePath {
+export function findAncestorFile(
+  fs: FileSystem,
+  fileNames: Array<string>,
+  dir: FilePath,
+): ?FilePath {
   let {root} = path.parse(dir);
   while (dir !== root) {
     if (path.basename(dir) === 'node_modules') {
@@ -41,7 +49,9 @@ export function findAncestorFile(fs: FileSystem, fileNames: Array<string>, dir: 
         if (fs.statSync(filePath).isFile()) {
           return filePath;
         }
-      } catch (err) {}
+      } catch (err) {
+        // ignore
+      }
     }
 
     dir = path.dirname(dir);
@@ -50,12 +60,17 @@ export function findAncestorFile(fs: FileSystem, fileNames: Array<string>, dir: 
   return null;
 }
 
-export function findFirstFile(fs: FileSystem, filePaths: Array<FilePath>): ?FilePath {
+export function findFirstFile(
+  fs: FileSystem,
+  filePaths: Array<FilePath>,
+): ?FilePath {
   for (let filePath of filePaths) {
     try {
       if (fs.statSync(filePath).isFile()) {
         return filePath;
       }
-    } catch (err) {}
+    } catch (err) {
+      // ignore
+    }
   }
 }

@@ -17,7 +17,11 @@ import {promisify} from '@parcel/utils';
 import {registerSerializableClass} from '@parcel/core';
 import fsWriteStreamAtomic from '@parcel/fs-write-stream-atomic';
 import watcher from '@parcel/watcher';
-import {findAncestorFile, findNodeModule, findFirstFile} from '@parcel/fs-search';
+import {
+  findAncestorFile,
+  findNodeModule,
+  findFirstFile,
+} from '@parcel/fs-search';
 import packageJSON from '../package.json';
 
 // Most of this can go away once we only support Node 10+, which includes
