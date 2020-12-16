@@ -81,7 +81,8 @@ export function createAsset(options: AssetOptions): Asset {
               options.type +
               getEnvironmentHash(options.env) +
               uniqueKey +
-              (options.pipeline ?? ''),
+              (options.pipeline ?? '') +
+              JSON.stringify(options.query ?? {}),
           ),
     committed: options.committed ?? false,
     hash: options.hash,

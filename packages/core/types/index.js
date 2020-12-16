@@ -159,7 +159,7 @@ export type EnvironmentOpts = {|
   +isLibrary?: boolean,
   +minify?: boolean,
   +scopeHoist?: boolean,
-  +sourceMap?: ?TargetSourceMapOptions
+  +sourceMap?: ?TargetSourceMapOptions,
 |};
 
 /**
@@ -638,6 +638,7 @@ export type TransformerResult = {|
   +dependencies?: $ReadOnlyArray<DependencyOptions>,
   +env?: EnvironmentOpts,
   +filePath?: FilePath,
+  +query?: QueryParameters,
   +includedFiles?: $ReadOnlyArray<File>,
   +isInline?: boolean,
   +isIsolated?: boolean,
