@@ -470,6 +470,7 @@ export default class Transformation {
       pipeline: a.value.pipeline,
       hash: a.value.hash,
       uniqueKey: a.value.uniqueKey,
+      query: a.value.query,
     }));
 
     return md5FromObject({
