@@ -43,7 +43,9 @@ export class NodeResolver extends NodeResolverBase<Promise<ResolveResult>> {
 
   findPackage(dir: FilePath) {
     let pkgFile = this.fs.findAncestorFile(['package.json'], dir);
-    return this.readPackage(pkgFile);
+    if (pkgFile != null) {
+      return this.readPackage(pkgFile);
+    }
   }
 
   async readPackage(file: FilePath): Promise<PackageJSON> {
@@ -87,7 +89,6 @@ export class NodeResolver extends NodeResolverBase<Promise<ResolveResult>> {
         }
       }
     } catch (err) {
-      console.log(err);
       // ignore
     }
 

@@ -197,7 +197,7 @@ export default class NodeResolver {
     if (Array.isArray(alias)) {
       if (alias[0] === 'global') {
         return {
-          filePath: `${alias[1]}.js`,
+          filePath: path.join(this.projectRoot, `${alias[1]}.js`),
           code: `module.exports=${alias[1]};`,
         };
       }
