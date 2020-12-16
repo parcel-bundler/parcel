@@ -45,9 +45,9 @@ export class NodeFS implements FileSystem {
     process.platform === 'win32' ? fs.realpathSync : fs.realpathSync.native;
   existsSync: (path: string) => boolean = fs.existsSync;
   readdirSync: any = (fs.readdirSync: any);
-  findAncestorFile = findAncestorFile;
-  findNodeModule = findNodeModule;
-  findFirstFile = findFirstFile;
+  findAncestorFile: any = findAncestorFile;
+  findNodeModule: any = findNodeModule;
+  findFirstFile: any = findFirstFile;
 
   createWriteStream(filePath: string, options: any): Writable {
     return fsWriteStreamAtomic(filePath, options);

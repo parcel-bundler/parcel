@@ -1,7 +1,7 @@
 // @flow
 
 import type {FilePath, ModuleSpecifier, PackageJSON} from '@parcel/types';
-import type {ResolveResult} from './NodeResolverBase';
+import type {ResolveResult, ModuleInfo} from './NodeResolverBase';
 import type {FileSystem} from '@parcel/fs';
 import path from 'path';
 import {NodeResolverBase} from './NodeResolverBase';
@@ -24,6 +24,7 @@ export class NodeResolver extends NodeResolverBase<Promise<ResolveResult>> {
 
     if (!res) {
       let e = new Error(`Could not resolve module "${id}" from "${from}"`);
+      // $FlowFixMe
       e.code = 'MODULE_NOT_FOUND';
       throw e;
     }
@@ -31,7 +32,7 @@ export class NodeResolver extends NodeResolverBase<Promise<ResolveResult>> {
     return res;
   }
 
-  async loadRelative(id: FilePath) {
+  async loadRelative(id: FilePath): Promise<?ResolveResult> {
     // Find a package.json file in the current package.
     let pkg = await this.findPackage(path.dirname(id));
 
@@ -41,7 +42,7 @@ export class NodeResolver extends NodeResolverBase<Promise<ResolveResult>> {
     );
   }
 
-  findPackage(dir: FilePath) {
+  async findPackage(dir: FilePath): Promise<?PackageJSON> {
     let pkgFile = this.fs.findAncestorFile(['package.json'], dir);
     if (pkgFile != null) {
       return this.readPackage(pkgFile);
@@ -62,7 +63,7 @@ export class NodeResolver extends NodeResolverBase<Promise<ResolveResult>> {
     return pkg;
   }
 
-  async loadAsFile(file: FilePath, pkg: ?PackageJSON) {
+  async loadAsFile(file: FilePath, pkg: ?PackageJSON): Promise<?ResolveResult> {
     // Try all supported extensions
     let found = this.fs.findFirstFile(this.expandFile(file));
     if (found) {
@@ -72,7 +73,7 @@ export class NodeResolver extends NodeResolverBase<Promise<ResolveResult>> {
     return null;
   }
 
-  async loadDirectory(dir: FilePath, pkg: ?PackageJSON = null) {
+  async loadDirectory(dir: FilePath, pkg: ?PackageJSON = null): Promise<?ResolveResult> {
     try {
       pkg = await this.readPackage(dir + '/package.json');
 
@@ -96,9 +97,9 @@ export class NodeResolver extends NodeResolverBase<Promise<ResolveResult>> {
     return this.loadAsFile(path.join(dir, 'index'), pkg);
   }
 
-  async loadNodeModules(id: ModuleSpecifier, from: FilePath) {
+  async loadNodeModules(id: ModuleSpecifier, from: FilePath): Promise<?ResolveResult> {
     try {
-      let module = await this.findNodeModulePath(id, from);
+      let module = this.findNodeModulePath(id, from);
       if (!module || module.resolved) {
         return module;
       }
@@ -122,7 +123,7 @@ export class NodeResolver extends NodeResolverBase<Promise<ResolveResult>> {
     }
   }
 
-  findNodeModulePath(id: ModuleSpecifier, dir: FilePath) {
+  findNodeModulePath(id: ModuleSpecifier, dir: FilePath): ?ResolveResult | ?ModuleInfo {
     if (this.isBuiltin(id)) {
       return {resolved: id};
     }

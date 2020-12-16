@@ -20,7 +20,7 @@ export async function resolveConfig(
   fs: FileSystem,
   filepath: FilePath,
   filenames: Array<FilePath>,
-): Promise<FilePath | null> {
+): Promise<?FilePath> {
   // TODO: realpath
   return fs.findAncestorFile(filenames, path.dirname(filepath));
 }
@@ -29,7 +29,7 @@ export function resolveConfigSync(
   fs: FileSystem,
   filepath: FilePath,
   filenames: Array<FilePath>,
-): FilePath | null {
+): ?FilePath {
   // TODO: realpath
   return fs.findAncestorFile(filenames, path.dirname(filepath));
 }
@@ -40,7 +40,7 @@ export async function loadConfig(
   filenames: Array<FilePath>,
   opts: ?ConfigOptions,
 ): Promise<ConfigOutput | null> {
-  let configFile = await resolveConfig(fs, filepath, filenames, opts);
+  let configFile = await resolveConfig(fs, filepath, filenames);
   if (configFile) {
     try {
       let extname = path.extname(configFile).slice(1);

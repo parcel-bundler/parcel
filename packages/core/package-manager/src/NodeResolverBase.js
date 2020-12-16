@@ -2,6 +2,7 @@
 
 import type {PackageJSON, FilePath, ModuleSpecifier} from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
+// $FlowFixMe
 import Module from 'module';
 import path from 'path';
 
@@ -13,6 +14,14 @@ for (let builtin of Module.builtinModules) {
 export type ResolveResult = {|
   resolved: FilePath | ModuleSpecifier,
   pkg?: ?PackageJSON,
+|};
+
+export type ModuleInfo = {|
+  moduleName: string,
+  subPath: ?string,
+  moduleDir: FilePath,
+  filePath: FilePath,
+  code?: string,
 |};
 
 export class NodeResolverBase<T> {
@@ -30,7 +39,7 @@ export class NodeResolverBase<T> {
     throw new Error(`Could not resolve "${id}" from "${from}"`);
   }
 
-  expandFile(file: FilePath) {
+  expandFile(file: FilePath): Array<FilePath> {
     // Expand extensions and aliases
     let res = [];
     for (let ext of this.extensions) {
@@ -47,7 +56,7 @@ export class NodeResolverBase<T> {
     return res;
   }
 
-  getPackageEntries(dir: FilePath, pkg: PackageJSON) {
+  getPackageEntries(dir: FilePath, pkg: PackageJSON): Array<string> {
     let main = pkg.main;
     if (
       process.env.PARCEL_BUILD_ENV !== 'production' &&
@@ -74,7 +83,7 @@ export class NodeResolverBase<T> {
       });
   }
 
-  getModuleParts(name: ModuleSpecifier) {
+  getModuleParts(name: ModuleSpecifier): Array<string> {
     let parts = path.normalize(name).split(path.sep);
     if (parts[0].charAt(0) === '@') {
       // Scoped module (e.g. @scope/module). Merge the first two parts back together.
@@ -84,7 +93,7 @@ export class NodeResolverBase<T> {
     return parts;
   }
 
-  isBuiltin(name: ModuleSpecifier) {
+  isBuiltin(name: ModuleSpecifier): boolean {
     return !!builtins[name];
   }
 }

@@ -801,7 +801,7 @@ export default class NodeResolver {
     return alias;
   }
 
-  findPackage(dir: string): Promise<InternalPackageJSON | null> {
+  async findPackage(dir: string): Promise<InternalPackageJSON | null> {
     // Find the nearest package.json file within the current node_modules folder
     let pkgFile = this.fs.findAncestorFile(['package.json'], dir);
     if (pkgFile) {

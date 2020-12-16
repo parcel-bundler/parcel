@@ -1,7 +1,7 @@
 // @flow
 
-import type {FilePath, ModuleSpecifier} from '@parcel/types';
-import type {ResolveResult, InternalPackageJSON} from './NodeResolverBase';
+import type {FilePath, ModuleSpecifier, PackageJSON} from '@parcel/types';
+import type {ResolveResult, ModuleInfo} from './NodeResolverBase';
 import type {FileSystem} from '@parcel/fs';
 import path from 'path';
 import {NodeResolverBase} from './NodeResolverBase';
@@ -24,6 +24,7 @@ export class NodeResolverSync extends NodeResolverBase<ResolveResult> {
 
     if (!res) {
       let e = new Error(`Could not resolve module "${id}" from "${from}"`);
+      // $FlowFixMe
       e.code = 'MODULE_NOT_FOUND';
       throw e
     }
@@ -31,7 +32,7 @@ export class NodeResolverSync extends NodeResolverBase<ResolveResult> {
     return res;
   }
 
-  loadRelative(id: FilePath) {
+  loadRelative(id: FilePath): ?ResolveResult {
     // Find a package.json file in the current package.
     let pkg = this.findPackage(path.dirname(id));
 
@@ -41,7 +42,7 @@ export class NodeResolverSync extends NodeResolverBase<ResolveResult> {
     );
   }
 
-  findPackage(dir: FilePath) {
+  findPackage(dir: FilePath): ?PackageJSON {
     // Find the nearest package.json file within the current node_modules folder
     let pkgFile = this.fs.findAncestorFile(['package.json'], dir);
     if (pkgFile != null) {
@@ -49,7 +50,7 @@ export class NodeResolverSync extends NodeResolverBase<ResolveResult> {
     }
   }
 
-  readPackage(file: FilePath): Promise<InternalPackageJSON> {
+  readPackage(file: FilePath): PackageJSON {
     // let file = path.join(dir, 'package.json');
     let cached = this.packageCache.get(file);
 
@@ -64,7 +65,7 @@ export class NodeResolverSync extends NodeResolverBase<ResolveResult> {
     return pkg;
   }
 
-  loadAsFile(file: FilePath, pkg: ?InternalPackageJSON) {
+  loadAsFile(file: FilePath, pkg: ?PackageJSON): ?ResolveResult {
     // Try all supported extensions
     let found = this.fs.findFirstFile(this.expandFile(file));
     if (found) {
@@ -74,7 +75,7 @@ export class NodeResolverSync extends NodeResolverBase<ResolveResult> {
     return null;
   }
 
-  loadDirectory(dir: FilePath, pkg: ?InternalPackageJSON = null) {
+  loadDirectory(dir: FilePath, pkg: ?PackageJSON = null): ?ResolveResult {
     try {
       pkg = this.readPackage(dir + '/package.json');
 
@@ -96,7 +97,7 @@ export class NodeResolverSync extends NodeResolverBase<ResolveResult> {
     return this.loadAsFile(path.join(dir, 'index'), pkg);
   }
 
-  loadNodeModules(id: ModuleSpecifier, from: FilePath) {
+  loadNodeModules(id: ModuleSpecifier, from: FilePath): ?ResolveResult {
     try {
       let module = this.findNodeModulePath(id, from);
       if (!module || module.resolved) {
@@ -122,7 +123,7 @@ export class NodeResolverSync extends NodeResolverBase<ResolveResult> {
     }
   }
 
-  findNodeModulePath(id: ModuleSpecifier, dir: FilePath) {
+  findNodeModulePath(id: ModuleSpecifier, dir: FilePath): ?ResolveResult | ?ModuleInfo {
     if (this.isBuiltin(id)) {
       return {resolved: id};
     }
