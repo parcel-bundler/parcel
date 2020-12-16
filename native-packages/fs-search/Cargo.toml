@@ -12,3 +12,7 @@ napi-derive = { git = "https://github.com/napi-rs/napi-rs" }
 
 [build-dependencies]
 napi-build = { git = "https://github.com/napi-rs/napi-rs" }
+
+[profile.release]
+lto = true
+opt-level = 3
