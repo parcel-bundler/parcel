@@ -140,7 +140,10 @@ export class ResolverRunner {
           // `url('http://example.com/foo.png')`
           return null;
         } else {
-          throw new Error(`Unknown pipeline ${pipeline}.`);
+          throw await this.getThrowableDiagnostic(
+            dependency,
+            `Unknown pipeline: ${pipeline}.`,
+          );
         }
       }
     } else {
@@ -155,7 +158,10 @@ export class ResolverRunner {
     if (dependency.isURL) {
       let parsed = URL.parse(filePath);
       if (typeof parsed.pathname !== 'string') {
-        throw new Error(`Received URL without a pathname ${filePath}.`);
+        throw await this.getThrowableDiagnostic(
+          dependency,
+          `Received URL without a pathname ${filePath}.`,
+        );
       }
       filePath = decodeURIComponent(parsed.pathname);
       if (parsed.query != null) {
