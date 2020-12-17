@@ -356,6 +356,33 @@ function getLoaderRuntime({
   };
 }
 
+function resolvePreloadAndPrefetch(
+  bundle: NamedBundle,
+  bundleGraph: BundleGraph<NamedBundle>,
+  dependency: Dependency,
+  preload: Array<BundleGroup> = [],
+  prefetch: Array<BundleGroup> = [],
+): void {
+  let attributes = dependency.meta?.importAttributes;
+  if (
+    typeof attributes === 'object' &&
+    attributes != null &&
+    // $FlowFixMe
+    (attributes.preload || attributes.prefetch)
+  ) {
+    let resolved = bundleGraph.resolveAsyncDependency(dependency, bundle);
+    if (resolved?.type === 'bundle_group') {
+      // === true for flow
+      if (attributes.preload === true) {
+        preload.push(resolved.value);
+      }
+      if (attributes.prefetch === true) {
+        prefetch.push(resolved.value);
+      }
+    }
+  }
+}
+
 function getHintedBundleGroups(
   bundleGraph: BundleGraph<NamedBundle>,
   bundle: NamedBundle,
@@ -365,26 +392,13 @@ function getHintedBundleGroups(
   let asyncDependencies = bundleDependencies.get(bundle)?.asyncDependencies;
   if (Array.isArray(asyncDependencies)) {
     for (let dependency of asyncDependencies) {
-      let attributes = dependency.meta?.importAttributes;
-      if (
-        dependency.isAsync &&
-        !dependency.isURL &&
-        typeof attributes === 'object' &&
-        attributes != null &&
-        // $FlowFixMe
-        (attributes.preload || attributes.prefetch)
-      ) {
-        let resolved = bundleGraph.resolveAsyncDependency(dependency, bundle);
-        if (resolved?.type === 'bundle_group') {
-          // === true for flow
-          if (attributes.preload === true) {
-            preload.push(resolved.value);
-          }
-          if (attributes.prefetch === true) {
-            prefetch.push(resolved.value);
-          }
-        }
-      }
+      resolvePreloadAndPrefetch(
+        bundle,
+        bundleGraph,
+        dependency,
+        preload,
+        prefetch,
+      );
     }
   } else {
     let asyncDependencies = [];
@@ -400,26 +414,13 @@ function getHintedBundleGroups(
       } else {
         otherDependencies.push(dependency);
       }
-      let attributes = dependency.meta?.importAttributes;
-      if (
-        dependency.isAsync &&
-        !dependency.isURL &&
-        typeof attributes === 'object' &&
-        attributes != null &&
-        // $FlowFixMe
-        (attributes.preload || attributes.prefetch)
-      ) {
-        let resolved = bundleGraph.resolveAsyncDependency(dependency, bundle);
-        if (resolved?.type === 'bundle_group') {
-          // === true for flow
-          if (attributes.preload === true) {
-            preload.push(resolved.value);
-          }
-          if (attributes.prefetch === true) {
-            prefetch.push(resolved.value);
-          }
-        }
-      }
+      resolvePreloadAndPrefetch(
+        bundle,
+        bundleGraph,
+        dependency,
+        preload,
+        prefetch,
+      );
     });
     bundleDependencies.set(bundle, {asyncDependencies, otherDependencies});
   }
