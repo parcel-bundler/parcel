@@ -1,7 +1,6 @@
 // @flow strict-local
 
 import type {Bundle, ParcelOptions, ProcessedParcelConfig} from './types';
-import {loadConfig as configCache} from '@parcel/utils';
 import type {SharedReference, WorkerApi} from '@parcel/workers';
 
 import invariant from 'assert';
@@ -46,10 +45,6 @@ function loadOptions(ref, workerApi) {
       // $FlowFixMe
     ): any): ParcelOptions),
   );
-}
-
-export function clearConfigCache() {
-  configCache.clear();
 }
 
 async function loadConfig(cachePath, options) {

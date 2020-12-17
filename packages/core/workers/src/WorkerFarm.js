@@ -15,14 +15,13 @@ import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import EventEmitter from 'events';
 import {
-  clearConfigCache,
   deserialize,
   prepareForSerialization,
   restoreDeserializedObject,
   serialize,
 } from '@parcel/core';
 import ThrowableDiagnostic, {anyToDiagnostic} from '@parcel/diagnostic';
-import {escapeMarkdown} from '@parcel/utils';
+import {escapeMarkdown, loadConfig} from '@parcel/utils';
 import Worker, {type WorkerCall} from './Worker';
 import cpuCount from './cpuCount';
 import Handle from './Handle';
@@ -390,6 +389,10 @@ export default class WorkerFarm extends EventEmitter {
     return handle;
   }
 
+  clearConfigCache(): void {
+    loadConfig.clear();
+  }
+
   async createSharedReference(
     value: mixed,
     // An optional, pre-serialized representation of the value to be used
@@ -517,7 +520,6 @@ export default class WorkerFarm extends EventEmitter {
 
     promises.push(this.localWorker[method](this.workerApi, ...args));
     await Promise.all(promises);
-    clearConfigCache();
   }
 
   async takeHeapSnapshot() {

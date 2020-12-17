@@ -138,6 +138,7 @@ export async function loadConfig(
 
 loadConfig.clear = () => {
   configCache.reset();
+  existingFiles.clear();
 };
 
 function getParser(extname) {
