@@ -26,7 +26,6 @@ import {
 import ThrowableDiagnostic, {
   generateJSONCodeHighlights,
 } from '@parcel/diagnostic';
-// $FlowFixMe
 import {parse} from 'json5';
 import path from 'path';
 import assert from 'assert';
