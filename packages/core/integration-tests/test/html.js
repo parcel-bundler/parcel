@@ -1074,7 +1074,6 @@ describe('html', function() {
           'js-loader.js',
           'JSRuntime.js',
           'JSRuntime.js',
-          'JSRuntime.js',
           'relative-path.js',
         ],
       },

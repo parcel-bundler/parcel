@@ -531,6 +531,20 @@ export function link({
             } else if (mod.type === 'js') {
               node = addBundleImport(mod, path);
             }
+
+            // async dependency that was internalized
+            if (
+              bundleGraph.resolveAsyncDependency(dep, bundle)?.type === 'asset'
+            ) {
+              node = t.callExpression(
+                t.memberExpression(
+                  t.identifier('Promise'),
+                  t.identifier('resolve'),
+                ),
+                // $FlowFixMe[incompatible-call]
+                [node],
+              );
+            }
           }
         }
 

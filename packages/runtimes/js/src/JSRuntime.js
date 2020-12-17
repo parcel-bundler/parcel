@@ -65,7 +65,7 @@ function getLoaders(
 }
 
 export default (new Runtime({
-  apply({bundle, bundleGraph, options}) {
+  apply({bundle, bundleGraph}) {
     // Dependency ids in code replaced with referenced bundle names
     // Loader runtime added for bundle groups that don't have a native loader (e.g. HTML/CSS/Worker - isURL?),
     // and which are not loaded by a parent bundle.
@@ -100,17 +100,18 @@ export default (new Runtime({
       }
 
       if (resolved.type === 'asset') {
-        // If this bundle already has the asset this dependency references,
-        // return a simple runtime of `Promise.resolve(require("path/to/asset"))`.
-        assets.push({
-          filePath: path.join(options.projectRoot, 'JSRuntime.js'),
-          // Using Promise['resolve'] to prevent Parcel from inferring this is an async dependency.
-          // TODO: Find a better way of doing this.
-          code: `module.exports = Promise['resolve'](require(${JSON.stringify(
-            './' + path.relative(options.projectRoot, resolved.value.filePath),
-          )}))`,
-          dependency,
-        });
+        if (!bundle.env.scopeHoist) {
+          // If this bundle already has the asset this dependency references,
+          // return a simple runtime of `Promise.resolve(internalRequire(assetId))`.
+          // The linker handles this for scope-hoisting.
+          assets.push({
+            filePath: __filename,
+            code: `module.exports = Promise.resolve(module.bundle.root(${JSON.stringify(
+              bundleGraph.getAssetPublicId(resolved.value),
+            )}))`,
+            dependency,
+          });
+        }
       } else {
         let loaderRuntime = getLoaderRuntime({
           bundle,
