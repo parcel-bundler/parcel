@@ -6,6 +6,7 @@ import {
   unregisterSerializableClass,
 } from '../src/serializer';
 import assert from 'assert';
+import sinon from 'sinon';
 
 describe('serializer', () => {
   it('should serialize a basic object', () => {
@@ -248,5 +249,54 @@ describe('serializer', () => {
     assert(res.values().next().value instanceof Test);
 
     unregisterSerializableClass('Test', Test);
+  });
+
+  describe('raw values', () => {
+    class Outer {
+      inner: Inner;
+
+      constructor(inner) {
+        this.inner = inner;
+      }
+
+      serialize() {
+        return {
+          $$raw: true,
+          inner: this.inner,
+        };
+      }
+    }
+
+    class Inner {
+      x: number;
+
+      constructor(x) {
+        this.x = x;
+      }
+
+      static deserialize = sinon.spy();
+    }
+
+    beforeEach(() => {
+      registerSerializableClass('Outer', Outer);
+      registerSerializableClass('Inner', Inner);
+    });
+
+    afterEach(() => {
+      unregisterSerializableClass('Outer', Outer);
+      unregisterSerializableClass('Inner', Inner);
+    });
+
+    it('should not recursively serialize raw values', () => {
+      let res = deserialize(serialize(new Outer(new Inner(42))));
+      assert(res instanceof Outer);
+      assert(!(res.inner instanceof Inner));
+      assert.equal(res.inner.x, 42);
+    });
+
+    it('should not recursively deserialize raw values', () => {
+      deserialize(serialize(new Outer(new Inner(42))));
+      assert(Inner.deserialize.notCalled);
+    });
   });
 });
