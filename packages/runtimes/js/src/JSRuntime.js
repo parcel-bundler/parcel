@@ -5,7 +5,6 @@ import type {
   BundleGroup,
   Dependency,
   Environment,
-  JSONValue,
   NamedBundle,
   RuntimeAsset,
 } from '@parcel/types';
@@ -65,12 +64,12 @@ function getLoaders(
   return null;
 }
 
-let bundleAsyncDependencies = new WeakMap<
+let bundleDependencies = new WeakMap<
   NamedBundle,
-  Array<{|
-    resolved: {|type: 'bundle_group', value: BundleGroup|},
-    attributes: JSONValue,
-  |}>,
+  {|
+    asyncDependencies: Array<Dependency>,
+    otherDependencies: Array<Dependency>,
+  |},
 >();
 
 export default (new Runtime({
@@ -88,18 +87,29 @@ export default (new Runtime({
 
     let asyncDependencies = [];
     let otherDependencies = [];
-    bundle.traverse(node => {
-      if (node.type !== 'dependency') {
-        return;
-      }
+    let cachedDependencies = bundleDependencies.get(bundle);
 
-      let dependency = node.value;
-      if (dependency.isAsync && !dependency.isURL) {
-        asyncDependencies.push(dependency);
-      } else {
-        otherDependencies.push(dependency);
-      }
-    });
+    if (
+      cachedDependencies?.asyncDependencies &&
+      cachedDependencies?.otherDependencies
+    ) {
+      asyncDependencies = cachedDependencies.asyncDependencies;
+      otherDependencies = cachedDependencies.otherDependencies;
+    } else {
+      bundle.traverse(node => {
+        if (node.type !== 'dependency') {
+          return;
+        }
+
+        let dependency = node.value;
+        if (dependency.isAsync && !dependency.isURL) {
+          asyncDependencies.push(dependency);
+        } else {
+          otherDependencies.push(dependency);
+        }
+      });
+      bundleDependencies.set(bundle, {asyncDependencies, otherDependencies});
+    }
 
     let assets = [];
     for (let dependency of asyncDependencies) {
@@ -352,25 +362,9 @@ function getHintedBundleGroups(
 ): {|preload: Array<BundleGroup>, prefetch: Array<BundleGroup>|} {
   let preload = [];
   let prefetch = [];
-  let asyncDependencies = bundleAsyncDependencies.get(bundle);
+  let asyncDependencies = bundleDependencies.get(bundle)?.asyncDependencies;
   if (Array.isArray(asyncDependencies)) {
     for (let dependency of asyncDependencies) {
-      // === true for flow
-      if (dependency.attributes?.preload === true) {
-        preload.push(dependency.resolved?.value);
-      }
-      if (dependency.attributes?.prefetch === true) {
-        prefetch.push(dependency.resolved?.value);
-      }
-    }
-  } else {
-    let asyncDependencies = [];
-    bundle.traverse(node => {
-      if (node.type !== 'dependency') {
-        return;
-      }
-
-      let dependency = node.value;
       let attributes = dependency.meta?.importAttributes;
       if (
         dependency.isAsync &&
@@ -382,7 +376,41 @@ function getHintedBundleGroups(
       ) {
         let resolved = bundleGraph.resolveAsyncDependency(dependency, bundle);
         if (resolved?.type === 'bundle_group') {
-          asyncDependencies.push({resolved, attributes});
+          // === true for flow
+          if (attributes.preload === true) {
+            preload.push(resolved.value);
+          }
+          if (attributes.prefetch === true) {
+            prefetch.push(resolved.value);
+          }
+        }
+      }
+    }
+  } else {
+    let asyncDependencies = [];
+    let otherDependencies = [];
+    bundle.traverse(node => {
+      if (node.type !== 'dependency') {
+        return;
+      }
+
+      let dependency = node.value;
+      if (dependency.isAsync && !dependency.isURL) {
+        asyncDependencies.push(dependency);
+      } else {
+        otherDependencies.push(dependency);
+      }
+      let attributes = dependency.meta?.importAttributes;
+      if (
+        dependency.isAsync &&
+        !dependency.isURL &&
+        typeof attributes === 'object' &&
+        attributes != null &&
+        // $FlowFixMe
+        (attributes.preload || attributes.prefetch)
+      ) {
+        let resolved = bundleGraph.resolveAsyncDependency(dependency, bundle);
+        if (resolved?.type === 'bundle_group') {
           // === true for flow
           if (attributes.preload === true) {
             preload.push(resolved.value);
@@ -393,7 +421,7 @@ function getHintedBundleGroups(
         }
       }
     });
-    bundleAsyncDependencies.set(bundle, asyncDependencies);
+    bundleDependencies.set(bundle, {asyncDependencies, otherDependencies});
   }
 
   return {preload, prefetch};
