@@ -22,7 +22,7 @@
   "dependencies": {
     "@babel/generator": "^7.0.0",
     "@babel/parser": "^7.0.0",
-    "@parcel/source-map": "2.0.0-alpha.4.18",
+    "@parcel/source-map": "2.0.0-alpha.4.19",
     "@parcel/utils": "2.0.0-beta.1"
   }
 }
