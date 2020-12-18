@@ -35,7 +35,6 @@ export async function parse({
         allowReturnOutsideFunction: true,
         strictMode: false,
         sourceType: 'module',
-        plugins: ['exportDefaultFrom', 'exportNamespaceFrom', 'dynamicImport'],
       }),
     };
   } catch (e) {
