@@ -24,7 +24,9 @@ const VARS = {
   global: asset =>
     asset.env.scopeHoist
       ? /* Scope hoisting replaces this on its own in hoist.js */ null
-      : {code: `var global = arguments[3];`},
+      : /* the global `this` is passed as an argument in position 3 in standard JSPackager */ {
+          code: `var global = arguments[3];`,
+        },
   __dirname: asset => ({
     code: `var __dirname = ${JSON.stringify(Path.dirname(asset.filePath))};`,
   }),

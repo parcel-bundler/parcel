@@ -851,7 +851,7 @@ describe('output formats', function() {
         .getChildBundles(workerBundle)
         .find(b => b.filePath.includes('async'));
       let syncBundle = b
-        .getChildBundles(workerBundle)
+        .getReferencedBundles(workerBundle)
         .find(b => !b.filePath.includes('async'));
 
       assert(

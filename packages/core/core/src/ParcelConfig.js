@@ -345,8 +345,8 @@ export default class ParcelConfig {
 
     return (
       (pipeline === patternPipeline || (!pipeline && !patternPipeline)) &&
-      (isMatch(filePath, patternGlob) ||
-        isMatch(basename(filePath), patternGlob))
+      (isMatch(filePath, patternGlob, {dot: true}) ||
+        isMatch(basename(filePath), patternGlob, {dot: true}))
     );
   }
 
