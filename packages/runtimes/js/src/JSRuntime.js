@@ -218,25 +218,26 @@ function getLoaderRuntime({
     return;
   }
 
-  // Sort so the bundles containing the entry asset appear last
   let externalBundles = bundleGraph
     .getBundlesInBundleGroup(bundleGroup)
-    .filter(bundle => !bundle.isInline)
-    .sort(bundle =>
-      bundle
-        .getEntryAssets()
-        .map(asset => asset.id)
-        .includes(bundleGroup.entryAssetId)
-        ? 1
-        : -1,
-    );
+    .filter(bundle => !bundle.isInline);
+
+  let mainBundle = nullthrows(
+    externalBundles.find(
+      bundle => bundle.getMainEntry()?.id === bundleGroup.entryAssetId,
+    ),
+  );
 
   // CommonJS is a synchronous module system, so there is no need to load bundles in parallel.
   // Importing of the other bundles will be handled by the bundle group entry.
   // Do the same thing in library mode for ES modules, as we are building for another bundler
   // and the imports for sibling bundles will be in the target bundle.
   if (bundle.env.outputFormat === 'commonjs' || bundle.env.isLibrary) {
-    externalBundles = externalBundles.slice(-1);
+    externalBundles = [mainBundle];
+  } else {
+    // Otherwise, load the bundle group entry after the others.
+    externalBundles.splice(externalBundles.indexOf(mainBundle), 1);
+    externalBundles.reverse().push(mainBundle);
   }
 
   // Determine if we need to add a dynamic import() polyfill, or if all target browsers support it natively.
@@ -387,6 +388,7 @@ function getHintLoaders(
     let bundlesToPreload = bundleGraph.getBundlesInBundleGroup(
       bundleGroupToPreload,
     );
+
     for (let bundleToPreload of bundlesToPreload) {
       let relativePathExpr = getRelativePathExpr(from, bundleToPreload);
       let priority = TYPE_TO_RESOURCE_PRIORITY[bundleToPreload.type];
