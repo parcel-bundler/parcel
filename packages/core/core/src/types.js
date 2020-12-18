@@ -201,7 +201,7 @@ export type Edge<TEdgeType: string | null> = {|
 
 export interface Node {
   id: string;
-  +type?: string;
+  +type: string;
   // $FlowFixMe
   value: any;
 }
