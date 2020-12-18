@@ -863,6 +863,45 @@ describe('javascript', function() {
     assert(contents.includes(`importScripts("./${sharedBundle.name}")`));
   });
 
+  it('should contain duplicate assets in workers when in development', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/worker-shared/index.js'),
+      {mode: 'development'},
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+
+        assets: [
+          'index.js',
+          'lodash.js',
+          'bundle-url.js',
+          'get-worker-url.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
+          'bundle-manifest.js',
+          'relative-path.js',
+        ],
+      },
+      {
+        assets: [
+          'worker-a.js',
+          'JSRuntime.js',
+          'bundle-url.js',
+          'get-worker-url.js',
+          'bundle-manifest.js',
+          'JSRuntime.js',
+          'lodash.js',
+          'relative-path.js',
+        ],
+      },
+      {
+        assets: ['worker-b.js', 'lodash.js'],
+      },
+    ]);
+  });
+
   it('should create a shared bundle between browser and worker contexts', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/html-shared-worker/index.html'),
