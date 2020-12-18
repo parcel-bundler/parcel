@@ -124,7 +124,7 @@ export class ResolverRunner {
 
     let pipeline;
     let filePath;
-    let query: QueryParameters = {};
+    let query: ?QueryParameters;
     let validPipelines = new Set(this.config.getNamedPipelines());
     if (
       // Don't consider absolute paths. Absolute paths are only supported for entries,

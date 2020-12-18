@@ -17,7 +17,7 @@ import type {
 
 import invariant from 'assert';
 import crypto from 'crypto';
-import {md5FromObject, md5FromOrderedObject} from '@parcel/utils';
+import {md5FromObject, md5FromOrderedObject, objectSortedEntries} from '@parcel/utils';
 import nullthrows from 'nullthrows';
 import Graph, {type GraphOpts} from './Graph';
 import {createDependency} from './Dependency';
@@ -62,7 +62,7 @@ export function nodeFromAssetGroup(assetGroup: AssetGroup): AssetGroupNode {
       sideEffects: assetGroup.sideEffects,
       code: assetGroup.code,
       pipeline: assetGroup.pipeline,
-      query: assetGroup.query,
+      query: assetGroup.query ? objectSortedEntries(assetGroup.query) : null,
       invalidations: assetGroup.invalidations,
     }),
     type: 'asset_group',

@@ -6,7 +6,7 @@ import type {AssetRequestInput, AssetRequestResult} from '../types';
 import type {ConfigAndCachePath} from './ParcelConfigRequest';
 import type {TransformationResult} from '../Transformation';
 
-import {md5FromOrderedObject} from '@parcel/utils';
+import {md5FromOrderedObject, objectSortedEntries} from '@parcel/utils';
 import nullthrows from 'nullthrows';
 import createParcelConfigRequest from './ParcelConfigRequest';
 
@@ -50,7 +50,7 @@ function getId(input: AssetRequestInput) {
     sideEffects: input.sideEffects,
     code: input.code,
     pipeline: input.pipeline,
-    query: input.query,
+    query: input.query ? objectSortedEntries(input.query) : null,
     invalidations: input.invalidations,
   });
 }
