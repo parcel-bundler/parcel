@@ -201,12 +201,12 @@ export default class Parcel {
       this.#assetGraphBuilder.writeToCache(),
       this.#runtimesAssetGraphBuilder.writeToCache(),
     ]);
-    this.#farm.clearConfigCache();
+    await this.#farm.callAllWorkers('clearConfigCache', []);
   }
 
   async _startNextBuild() {
     this.#watchAbortController = new AbortController();
-    this.#farm.clearConfigCache();
+    await this.#farm.callAllWorkers('clearConfigCache', []);
 
     try {
       this.#watchEvents.emit({

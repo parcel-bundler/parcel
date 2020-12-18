@@ -23,7 +23,6 @@ import {
   md5FromString,
   blobToStream,
   TapStream,
-  loadConfig,
 } from '@parcel/utils';
 import {PluginLogger} from '@parcel/logger';
 import {init as initSourcemaps} from '@parcel/source-map';
@@ -344,8 +343,6 @@ export default class PackagerRunner {
       throw new ThrowableDiagnostic({
         diagnostic: errorToDiagnostic(e, name),
       });
-    } finally {
-      loadConfig.clear();
     }
   }
 

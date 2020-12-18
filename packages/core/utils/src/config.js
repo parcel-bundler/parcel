@@ -18,7 +18,7 @@ export type ConfigOptions = {|
 |};
 
 const configCache = new LRU<FilePath, ConfigOutput>({max: 500});
-const existingFiles = new Set<FilePath>();
+const fileExistsMap = new Map<FilePath, boolean>();
 
 export async function resolveConfig(
   fs: FileSystem,
@@ -36,15 +36,14 @@ export async function resolveConfig(
 
   for (const filename of filenames) {
     let file = path.join(filepath, filename);
+    if (fileExistsMap.get(file)) return file;
     try {
-      if (existingFiles.has(file)) return file;
-
-      if ((await fs.stat(file)).isFile()) {
-        existingFiles.add(file);
+      if (!fileExistsMap.has(file) && (await fs.stat(file)).isFile()) {
+        fileExistsMap.set(file, true);
         return file;
       }
     } catch {
-      // empty
+      fileExistsMap.set(file, false);
     }
   }
 
@@ -138,7 +137,7 @@ export async function loadConfig(
 
 loadConfig.clear = () => {
   configCache.reset();
-  existingFiles.clear();
+  fileExistsMap.clear();
 };
 
 function getParser(extname) {
