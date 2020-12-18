@@ -17,7 +17,11 @@ import type {
 
 import invariant from 'assert';
 import crypto from 'crypto';
-import {md5FromObject, md5FromOrderedObject, objectSortedEntries} from '@parcel/utils';
+import {
+  md5FromObject,
+  md5FromOrderedObject,
+  objectSortedEntries,
+} from '@parcel/utils';
 import nullthrows from 'nullthrows';
 import Graph, {type GraphOpts} from './Graph';
 import {createDependency} from './Dependency';
