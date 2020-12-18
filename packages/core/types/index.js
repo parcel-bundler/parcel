@@ -934,9 +934,8 @@ export interface NamedBundle extends Bundle {
  * @section bundler
  */
 export type BundleGroup = {|
-  target: Target,
-  entryAssetId: string,
-  bundleIds: Array<string>,
+  +target: Target,
+  +entryAssetId: string,
 |};
 
 /**
@@ -956,7 +955,7 @@ export interface MutableBundleGraph extends BundleGraph<Bundle> {
     shouldSkipDependency?: (Dependency) => boolean,
   ): void;
   addBundleToBundleGroup(Bundle, BundleGroup): void;
-  createAssetReference(Dependency, Asset): void;
+  createAssetReference(Dependency, Asset, Bundle): void;
   createBundleReference(Bundle, Bundle): void;
   createBundle(CreateBundleOpts): Bundle;
   /** Turns an edge (Dependency -> Asset-s) into (Dependency -> BundleGroup -> Asset-s) */
@@ -990,10 +989,11 @@ export interface BundleGraph<TBundle: Bundle> {
   /** Child bundles are Bundles that might be loaded by an asset in the bundle */
   getChildBundles(bundle: Bundle): Array<TBundle>;
   getParentBundles(bundle: Bundle): Array<TBundle>;
-  /** See BundleGroup */
-  getSiblingBundles(bundle: Bundle): Array<TBundle>;
   /** Bundles that are referenced (by filename) */
-  getReferencedBundles(bundle: Bundle): Array<TBundle>;
+  getReferencedBundles(
+    bundle: Bundle,
+    opts?: {|recursive: boolean|},
+  ): Array<TBundle>;
   /** Get the dependencies that the asset requires */
   getDependencies(asset: Asset): Array<Dependency>;
   /** Get the dependencies that require the asset */
@@ -1019,7 +1019,6 @@ export interface BundleGraph<TBundle: Bundle> {
   /** Whether the asset is already included in a compatible (regarding EnvironmentContext) parent bundle. */
   isAssetReachableFromBundle(asset: Asset, bundle: Bundle): boolean;
   findReachableBundleWithAsset(bundle: Bundle, asset: Asset): ?TBundle;
-  isAssetReferenced(asset: Asset): boolean;
   isAssetReferencedByDependant(bundle: Bundle, asset: Asset): boolean;
   hasParentBundleOfType(bundle: Bundle, type: string): boolean;
   /**
