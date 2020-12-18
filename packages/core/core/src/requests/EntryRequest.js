@@ -124,10 +124,9 @@ class EntryResolver {
         };
       } else if (pkg && Array.isArray(pkg.source)) {
         let source;
-        const entries = [];
-        const files = [];
-        for (var i = 0; i < pkg.source.length; i++) {
-          const sourceIndex = pkg.source[i];
+        let entries = [];
+        let files = [];
+        for (let sourceIndex of pkg.source) {
           if (typeof sourceIndex === 'string') {
             source = path.join(path.dirname(pkg.filePath), sourceIndex);
             try {
