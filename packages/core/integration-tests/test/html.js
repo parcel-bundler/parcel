@@ -1058,7 +1058,7 @@ describe('html', function() {
         __dirname,
         '/integration/html-js-shared-dynamic-nested/index.html',
       ),
-      {production: true, scopeHoist: true},
+      {mode: 'production', production: true, scopeHoist: true},
     );
 
     await assertBundles(b, [
@@ -1095,7 +1095,7 @@ describe('html', function() {
   it('should support shared bundles between multiple inline scripts', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-inline-js-shared/index.html'),
-      {production: true, scopeHoist: true},
+      {mode: 'production', production: true, scopeHoist: true, minify: false},
     );
 
     await assertBundles(b, [
@@ -1130,7 +1130,7 @@ describe('html', function() {
   it('inserts sibling bundles into html in the correct order (no head)', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-js-shared/index.html'),
-      {production: true, scopeHoist: true},
+      {mode: 'production', production: true, scopeHoist: true},
     );
 
     await assertBundles(b, [
@@ -1191,7 +1191,7 @@ describe('html', function() {
   it('inserts sibling bundles into html in the correct order (head)', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-js-shared-head/index.html'),
-      {production: true, scopeHoist: true},
+      {mode: 'production', production: true, scopeHoist: true},
     );
 
     await assertBundles(b, [
@@ -1306,7 +1306,7 @@ describe('html', function() {
         __dirname,
         'integration/scope-hoisting/es6/interop-async/index.html',
       ),
-      {production: true, scopeHoist: true},
+      {mode: 'production', production: true, scopeHoist: true, minify: false},
     );
     let bundles = b.getBundles();
 
@@ -1391,7 +1391,9 @@ describe('html', function() {
   });
 
   it('should support split bundles with many pages', async function() {
-    await bundle(path.join(__dirname, '/integration/shared-many/*.html'));
+    await bundle(path.join(__dirname, '/integration/shared-many/*.html'), {
+      mode: 'production',
+    });
 
     let html = await outputFS.readFile(path.join(distDir, 'a.html'), 'utf8');
     assert.equal(html.match(/<script/g).length, 3);
@@ -1419,6 +1421,7 @@ describe('html', function() {
   it('should remove duplicate assets from sibling bundles', async function() {
     let bundleGraph = await bundle(
       path.join(__dirname, '/integration/shared-sibling-duplicate/*.html'),
+      {mode: 'production'},
     );
 
     bundleGraph.traverseBundles(bundle => {

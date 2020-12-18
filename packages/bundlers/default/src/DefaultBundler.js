@@ -228,6 +228,7 @@ export default (new Bundler({
         bundleGraph.addEntryToBundle(asset, bundle);
       }
     }
+    // Optimizations
     invariant(config != null);
 
     // Step 2: Remove asset graphs that begin with entries to other bundles.
