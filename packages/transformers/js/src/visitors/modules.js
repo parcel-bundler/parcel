@@ -19,6 +19,7 @@ import {
   isExportNamespaceSpecifier,
   isExportDefaultSpecifier,
   isExportSpecifier,
+  isFunctionDeclaration,
 } from '@babel/types';
 import {
   traverse2,
@@ -107,10 +108,21 @@ let modulesVisitor: Visitors<State> = {
           return REMOVE;
         };
       } else if (declaration) {
-        // Find all binding identifiers, and insert assignments to `exports`
-        let identifiers = t.getBindingIdentifiers(declaration);
-        for (let id of Object.keys(identifiers)) {
-          exports.push({local: t.identifier(id), exported: t.identifier(id)});
+        if (
+          isFunctionDeclaration(declaration) &&
+          isIdentifier(declaration.id)
+        ) {
+          let name = declaration.id.name;
+          exports.push({
+            local: t.identifier(name),
+            exported: t.identifier(name),
+          });
+        } else {
+          // Find all binding identifiers, and insert assignments to `exports`
+          let identifiers = t.getBindingIdentifiers(declaration);
+          for (let id of Object.keys(identifiers)) {
+            exports.push({local: t.identifier(id), exported: t.identifier(id)});
+          }
         }
 
         return declaration;

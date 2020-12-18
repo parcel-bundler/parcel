@@ -3024,4 +3024,14 @@ describe('javascript', function() {
       type2: 'type2',
     });
   });
+
+  it('should correctly export functions', async function() {
+    let b = await bundle(
+      path.join(__dirname, 'integration/js-export-functions/index.js'),
+    );
+    let res = await run(b);
+    assert.deepEqual(Object.keys(res), ['foo', 'bar']);
+    assert.equal(res.foo('test'), 'foo:test');
+    assert.equal(res.bar('test'), 'bar:test');
+  });
 });
