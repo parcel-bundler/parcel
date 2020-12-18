@@ -3034,4 +3034,12 @@ describe('javascript', function() {
     assert.equal(res.foo('test'), 'foo:test');
     assert.equal(res.bar('test'), 'bar:test');
   });
+
+  it('should handle exports of imports', async function() {
+    let b = await bundle(
+      path.join(__dirname, 'integration/js-export-import/index.js'),
+    );
+    let res = await run(b);
+    assert.deepEqual(res, {other: 2});
+  });
 });

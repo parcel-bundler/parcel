@@ -127,11 +127,20 @@ let modulesVisitor: Visitors<State> = {
 
         return declaration;
       } else if (specifiers.length > 0) {
-        // Add assignments to `exports` for each specifier
-        for (let specifier of specifiers) {
-          invariant(specifier.type === 'ExportSpecifier');
-          exports.push({local: specifier.local, exported: specifier.exported});
-        }
+        // This must happen AFTER the Identifier visitor above replaces the specifiers
+        // in the case of import foo from 'foo'; export {foo};
+        return () => {
+          // Add assignments to `exports` for each specifier
+          for (let specifier of specifiers) {
+            invariant(specifier.type === 'ExportSpecifier');
+            exports.push({
+              local: specifier.local,
+              exported: specifier.exported,
+            });
+          }
+
+          return REMOVE;
+        };
       }
 
       return REMOVE;
