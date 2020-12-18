@@ -63,7 +63,7 @@ function traverseWalk<T>(
             revisit.push(() => {
               let index = i + revisitDiff;
               let r = replaceArray(subNode, index, res());
-              revisitDiff = r - index;
+              revisitDiff += r - index;
             });
           } else {
             i = replaceArray(subNode, i, res);

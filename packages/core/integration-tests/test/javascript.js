@@ -3008,4 +3008,20 @@ describe('javascript', function() {
     let res = await run(b);
     assert.deepEqual(res, {other: 1});
   });
+
+  it('should work with many different types of exports', async function() {
+    let b = await bundle(
+      path.join(__dirname, 'integration/js-export-many/index.js'),
+    );
+    let res = await run(b);
+    assert.deepEqual(res, {
+      foo: 'foo',
+      bar: 'bar',
+      default: 'baz',
+      boo: 'boo',
+      foobar: 'foobar',
+      type1: 'type1',
+      type2: 'type2',
+    });
+  });
 });
