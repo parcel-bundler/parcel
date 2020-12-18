@@ -19,7 +19,7 @@ import type {FileSystem, FileOptions} from '@parcel/fs';
 
 import invariant from 'assert';
 import {
-  md5FromObject,
+  md5FromOrderedObject,
   md5FromString,
   blobToStream,
   TapStream,
@@ -484,7 +484,7 @@ export default class PackagerRunner {
 
     // TODO: add third party configs to the cache key
     let {publicUrl} = bundle.target;
-    return md5FromObject({
+    return md5FromOrderedObject({
       parcelVersion: PARCEL_VERSION,
       packager,
       optimizers,

@@ -49,10 +49,13 @@ function loadOptions(ref, workerApi) {
 }
 
 async function loadConfig(cachePath, options) {
-  let processedConfig =
-    parcelConfigCache.get(cachePath) ??
-    nullthrows(await options.cache.get(cachePath));
-  let config = new ParcelConfig(
+  let config = parcelConfigCache.get(cachePath);
+  if (config) {
+    return config;
+  }
+
+  let processedConfig = nullthrows(await options.cache.get(cachePath));
+  config = new ParcelConfig(
     // $FlowFixMe
     ((processedConfig: any): ProcessedParcelConfig),
     options.packageManager,
