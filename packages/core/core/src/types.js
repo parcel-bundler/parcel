@@ -60,6 +60,7 @@ export type ProcessedParcelConfig = {|
 |};
 
 export type Environment = {|
+  id: string,
   context: EnvironmentContext,
   engines: Engines,
   includeNodeModules:
@@ -109,7 +110,7 @@ export type Asset = {|
   committed: boolean,
   hash: ?string,
   filePath: FilePath,
-  query: QueryParameters,
+  query: ?QueryParameters,
   type: string,
   dependencies: Map<string, Dependency>,
   isIsolated: boolean,
@@ -247,7 +248,7 @@ export type AssetRequestInput = {|
   pipeline?: ?string,
   optionsRef: SharedReference,
   isURL?: boolean,
-  query: QueryParameters,
+  query?: ?QueryParameters,
   invalidations?: Array<RequestInvalidation>,
 |};
 
