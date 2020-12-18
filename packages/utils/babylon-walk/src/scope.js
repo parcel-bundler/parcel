@@ -16,12 +16,14 @@ export class Scope {
   bindings: Map<string, Node> = new Map();
   references: Map<string, Set<Identifier>> = new Map();
   parent: ?Scope;
+  program: Scope;
   renames: Map<string, string> = new Map();
   inverseRenames: Map<string, string> = new Map();
 
   constructor(type: ScopeType, parent: ?Scope) {
     this.type = type;
     this.parent = parent;
+    this.program = parent ? parent.program : this;
   }
 
   has(name: string): boolean {
@@ -51,22 +53,15 @@ export class Scope {
     do {
       uid = '_' + name + (i > 1 ? i : '');
       i++;
-    } while (this.names.has(uid));
+    } while (this.program.names.has(uid));
 
-    this.names.add(uid);
+    this.program.names.add(uid);
     return uid;
-  }
-
-  getRoot(): Scope {
-    if (this.parent) {
-      return this.parent.getRoot();
-    }
-
-    return this;
   }
 
   addBinding(name: string, decl: Node) {
     this.names.add(name);
+    this.program.names.add(name);
     this.bindings.set(name, decl);
   }
 

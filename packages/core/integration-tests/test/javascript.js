@@ -3042,4 +3042,12 @@ describe('javascript', function() {
     let res = await run(b);
     assert.deepEqual(res, {other: 2});
   });
+
+  it('should generate a unique variable name for imports', async function() {
+    let b = await bundle(
+      path.join(__dirname, 'integration/js-import-shadow/index.js'),
+    );
+    let res = await run(b);
+    assert.equal(res.baz(), 'foo');
+  });
 });
