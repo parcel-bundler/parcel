@@ -347,20 +347,20 @@ describe('javascript', function() {
     let output = await run(b);
     let headChildren = await output.default;
 
-    assert(headChildren.length === 3);
+    assert.equal(headChildren.length, 3);
 
     assert(headChildren[0].tag === 'script');
     assert(headChildren[0].src.match(/async\..*\.js/));
 
     assert(headChildren[1].tag === 'link');
     assert(headChildren[1].rel === 'prefetch');
-    assert(headChildren[1].as === 'style');
-    assert(headChildren[1].href.match(/prefetched\..*\.css/));
+    assert(headChildren[1].as === 'script');
+    assert(headChildren[1].href.match(/prefetched\..*\.js/));
 
     assert(headChildren[2].tag === 'link');
     assert(headChildren[2].rel === 'prefetch');
-    assert(headChildren[2].as === 'script');
-    assert(headChildren[2].href.match(/prefetched\..*\.js/));
+    assert(headChildren[2].as === 'style');
+    assert(headChildren[2].href.match(/prefetched\..*\.css/));
   });
 
   it('should preload bundles when declared as an import attribute statically', async function() {
@@ -378,13 +378,13 @@ describe('javascript', function() {
 
     assert(headChildren[1].tag === 'link');
     assert(headChildren[1].rel === 'preload');
-    assert(headChildren[1].as === 'style');
-    assert(headChildren[1].href.match(/preloaded\..*\.css/));
+    assert(headChildren[1].as === 'script');
+    assert(headChildren[1].href.match(/preloaded\..*\.js/));
 
     assert(headChildren[2].tag === 'link');
     assert(headChildren[2].rel === 'preload');
-    assert(headChildren[2].as === 'script');
-    assert(headChildren[2].href.match(/preloaded\..*\.js/));
+    assert(headChildren[2].as === 'style');
+    assert(headChildren[2].href.match(/preloaded\..*\.css/));
   });
 
   // TODO: Implement when we can evaluate bundles against esmodule targets
@@ -2922,5 +2922,69 @@ describe('javascript', function() {
     ]);
 
     assert.deepEqual(await (await run(b)).default, 43);
+  });
+
+  it('can share sibling bundles reachable from a common dependency', async () => {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/shared-sibling-common-dependency/index.js',
+      ),
+    );
+
+    let bundles = b.getBundles();
+    let asyncJsBundles = bundles.filter(b => !b.isEntry && b.type === 'js');
+    assert.equal(asyncJsBundles.length, 2);
+
+    // Every bundlegroup with an async js bundle should have the corresponding css
+    for (let bundle of asyncJsBundles) {
+      for (let bundleGroup of b.getBundleGroupsContainingBundle(bundle)) {
+        let bundlesInGroup = b.getBundlesInBundleGroup(bundleGroup);
+        assert(bundlesInGroup.find(s => s.type === 'css'));
+      }
+    }
+  });
+
+  it('should throw a diagnostic for unkown pipelines', async function() {
+    let fixture = path.join(__dirname, 'integration/pipeline-unknown/a.js');
+    let code = await inputFS.readFileSync(fixture, 'utf8');
+    await assert.rejects(() => bundle(fixture), {
+      name: 'BuildError',
+      diagnostics: [
+        {
+          message: 'Unknown pipeline: strange-pipeline.',
+          origin: '@parcel/core',
+          filePath: fixture,
+          codeFrame: {
+            code,
+            codeHighlights: [
+              {
+                start: {
+                  column: 19,
+                  line: 1,
+                },
+                end: {
+                  column: 43,
+                  line: 1,
+                },
+              },
+            ],
+          },
+        },
+      ],
+    });
+  });
+
+  it('can create a bundle starting with a dot', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/dotfile-bundle/index.js'),
+    );
+
+    assertBundles(b, [
+      {
+        name: '.output.js',
+        assets: ['index.js'],
+      },
+    ]);
   });
 });

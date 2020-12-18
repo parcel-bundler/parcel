@@ -116,7 +116,7 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
 
   getNodesConnectedTo(
     node: TNode,
-    type: TEdgeType | null = null,
+    type: TEdgeType | null | Array<TEdgeType | null> = null,
   ): Array<TNode> {
     assertHasNode(this, node);
 
@@ -133,6 +133,13 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
           nodes.add(node);
         }
       }
+    } else if (Array.isArray(type)) {
+      nodes = new Set();
+      for (let typeName of type) {
+        for (let node of inboundByType.get(typeName)?.values() ?? []) {
+          nodes.add(node);
+        }
+      }
     } else {
       nodes = inboundByType.get(type)?.values() ?? [];
     }
@@ -142,7 +149,7 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
 
   getNodesConnectedFrom(
     node: TNode,
-    type: TEdgeType | null = null,
+    type: TEdgeType | null | Array<TEdgeType | null> = null,
   ): Array<TNode> {
     assertHasNode(this, node);
 
@@ -156,6 +163,13 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
       nodes = new Set();
       for (let [, typeNodes] of outboundByType) {
         for (let node of typeNodes) {
+          nodes.add(node);
+        }
+      }
+    } else if (Array.isArray(type)) {
+      nodes = new Set();
+      for (let typeName of type) {
+        for (let node of outboundByType.get(typeName)?.values() ?? []) {
           nodes.add(node);
         }
       }
@@ -324,7 +338,7 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
   traverse<TContext>(
     visit: GraphVisitor<TNode, TContext>,
     startNode: ?TNode,
-    type: TEdgeType | null = null,
+    type: TEdgeType | null | Array<TEdgeType | null> = null,
   ): ?TContext {
     return this.dfs({
       visit,
@@ -337,7 +351,7 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
     filter: (TNode, TraversalActions) => ?TValue,
     visit: GraphVisitor<TValue, TContext>,
     startNode: ?TNode,
-    type?: TEdgeType | null,
+    type?: TEdgeType | null | Array<TEdgeType | null>,
   ): ?TContext {
     return this.traverse(mapVisitor(filter, visit), startNode, type);
   }
@@ -345,7 +359,7 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
   traverseAncestors<TContext>(
     startNode: TNode,
     visit: GraphVisitor<TNode, TContext>,
-    type: TEdgeType | null = null,
+    type: TEdgeType | null | Array<TEdgeType | null> = null,
   ): ?TContext {
     return this.dfs({
       visit,
