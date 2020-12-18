@@ -237,11 +237,10 @@ export class ResolverRunner {
       return null;
     }
 
+    let resolveFrom = dependency.resolveFrom ?? dependency.sourcePath;
     let dir =
-      dependency.sourcePath != null
-        ? escapeMarkdown(
-            relativePath(this.options.projectRoot, dependency.sourcePath),
-          )
+      resolveFrom != null
+        ? escapeMarkdown(relativePath(this.options.projectRoot, resolveFrom))
         : '';
 
     let specifier = escapeMarkdown(dependency.moduleSpecifier || '');
