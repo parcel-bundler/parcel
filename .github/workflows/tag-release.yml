@@ -30,6 +30,7 @@ jobs:
 
   build-linux-musl:
     name: Linux Musl
+    runs-on: ubuntu-latest
     container:
       image: ghcr.io/napi-rs/rust-nodejs-alpine:lts
       credentials:
