@@ -32,7 +32,7 @@ jobs:
     name: Linux Musl
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/napi-rs/rust-nodejs-alpine:lts
+      image: docker.pkg.github.com/napi-rs/napi-rs/rust-nodejs-alpine:lts
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GHCR_TOKEN }}
