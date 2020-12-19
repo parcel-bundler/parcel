@@ -13,7 +13,8 @@ async function build() {
     await new Promise((resolve, reject) => {
       let process = spawn('yarn', ['build-release'], {
         stdio: 'inherit',
-        cwd: path.join(dir, pkg)
+        cwd: path.join(dir, pkg),
+        shell: true
       });
 
       process.on('error', reject);
