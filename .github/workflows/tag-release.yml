@@ -41,7 +41,7 @@ jobs:
         with:
           path: artifacts
       - name: Move artifacts
-        run: cp --parents artifacts/*/*/*.node native-packages
+        run: for d in artifacts/*/*; do cp $d/*.node native-packages/$(basename $d); done
       - name: Debug
         run: ls -l native-packages/*/*
       # - run: echo //registry.npmjs.org/:_authToken=${NPM_TOKEN} > .npmrc
