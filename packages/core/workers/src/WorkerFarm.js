@@ -21,7 +21,7 @@ import {
   serialize,
 } from '@parcel/core';
 import ThrowableDiagnostic, {anyToDiagnostic} from '@parcel/diagnostic';
-import {escapeMarkdown, loadConfig} from '@parcel/utils';
+import {escapeMarkdown} from '@parcel/utils';
 import Worker, {type WorkerCall} from './Worker';
 import cpuCount from './cpuCount';
 import Handle from './Handle';
@@ -387,10 +387,6 @@ export default class WorkerFarm extends EventEmitter {
     let handle = new Handle({fn});
     this.handles.set(handle.id, handle);
     return handle;
-  }
-
-  clearConfigCache(): void {
-    loadConfig.clear();
   }
 
   async createSharedReference(
