@@ -34,7 +34,7 @@ import PluginOptions from './public/PluginOptions';
 import {
   blobToStream,
   loadConfig,
-  md5FromString,
+  md5FromOrderedObject,
   md5FromFilePath,
 } from '@parcel/utils';
 import {hashFromOption} from './utils';
@@ -72,18 +72,16 @@ type AssetOptions = {|
 function createAssetIdFromOptions(options: AssetOptions): string {
   let uniqueKey = options.uniqueKey ?? '';
   let idBase = options.idBase != null ? options.idBase : options.filePath;
-  let queryString = options.query
-    ? JSON.stringify(objectSortedEntries(options.query))
-    : '';
+  let queryString = options.query ? objectSortedEntries(options.query) : '';
 
-  return md5FromString(
-    idBase +
-      options.type +
-      options.env.id +
-      uniqueKey +
-      (options.pipeline ?? '') +
-      queryString,
-  );
+  return md5FromOrderedObject({
+    idBase,
+    type: options.type,
+    env: options.env.id,
+    uniqueKey,
+    pipeline: options.pipeline ?? '',
+    queryString,
+  });
 }
 
 export function createAsset(options: AssetOptions): Asset {
