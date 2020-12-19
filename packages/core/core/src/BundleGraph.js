@@ -544,6 +544,27 @@ export default class BundleGraph {
       return null;
     }
 
+    if (
+      dep.isAsync &&
+      dep.env.scopeHoist &&
+      bundle != null &&
+      this._graph.hasEdge(bundle.id, dep.id, 'internal_async')
+    ) {
+      // Internalized async dependencies used in scope-hoisted bundles should
+      // resolve to the original referenced asset. It's possible another bundle
+      // that has not internalized this dependency attached a runtime to this
+      // dependency.
+      let referencedAssetNode = this._graph.getNodesConnectedFrom(
+        depNode,
+        'references',
+      )[0];
+
+      invariant(
+        referencedAssetNode != null && referencedAssetNode.type === 'asset',
+      );
+      return referencedAssetNode.value;
+    }
+
     let assets = this.getDependencyAssets(dep);
     let firstAsset = assets[0];
     let resolved =
