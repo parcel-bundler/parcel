@@ -11,7 +11,12 @@ async function build() {
 
     console.log(`Building ${pkg}...`);
     await new Promise((resolve, reject) => {
-      let process = spawn('yarn', ['build-release'], {
+      let args = ['build-release'];
+      if (process.env.RUST_TARGET) {
+        args.push('--target', process.env.RUST_TARGET);
+      }
+
+      let process = spawn('yarn', args, {
         stdio: 'inherit',
         cwd: path.join(dir, pkg),
         shell: true
