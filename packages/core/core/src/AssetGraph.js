@@ -58,17 +58,22 @@ export function nodeFromDep(dep: Dependency): DependencyNode {
 }
 
 export function nodeFromAssetGroup(assetGroup: AssetGroup): AssetGroupNode {
+  console.log('assetgroup filepath:', assetGroup.filePath);
+  console.log('assetgroup env:', assetGroup.env);
+
+  const id = md5FromOrderedObject({
+    filePath: assetGroup.filePath,
+    env: assetGroup.env.id,
+    isSource: assetGroup.isSource,
+    sideEffects: assetGroup.sideEffects,
+    code: assetGroup.code,
+    pipeline: assetGroup.pipeline,
+    query: assetGroup.query ? objectSortedEntries(assetGroup.query) : null,
+    invalidations: assetGroup.invalidations,
+  });
+  console.log('assetgroupNode id:', id);
   return {
-    id: md5FromOrderedObject({
-      filePath: assetGroup.filePath,
-      env: assetGroup.env.id,
-      isSource: assetGroup.isSource,
-      sideEffects: assetGroup.sideEffects,
-      code: assetGroup.code,
-      pipeline: assetGroup.pipeline,
-      query: assetGroup.query ? objectSortedEntries(assetGroup.query) : null,
-      invalidations: assetGroup.invalidations,
-    }),
+    id,
     type: 'asset_group',
     value: assetGroup,
     usedSymbolsDownDirty: true,
