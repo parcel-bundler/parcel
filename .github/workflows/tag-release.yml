@@ -35,7 +35,7 @@ jobs:
       image: ghcr.io/napi-rs/rust-nodejs-alpine:lts
       credentials:
         username: ${{ github.actor }}
-        password: ${{ secrets.ghcr_token }}
+        password: ${{ secrets.GHCR_TOKEN }}
     steps:
       - uses: actions/checkout@v1
       - name: Install Rust
