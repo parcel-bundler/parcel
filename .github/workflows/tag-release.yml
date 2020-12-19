@@ -27,9 +27,11 @@ jobs:
           path: native-packages/*/*.node
       - name: debug
         run: ls -l native-packages/*/*.node
+      - name: Smoke test
+        run: node -e 'require("@parcel/fs-search")'
 
   build-linux-musl:
-    name: Linux Musl
+    name: linux-musl - node@14
     runs-on: ubuntu-latest
     container:
       image: docker.pkg.github.com/napi-rs/napi-rs/rust-nodejs-alpine:lts
@@ -54,6 +56,8 @@ jobs:
           path: native-packages/*/*.node
       - name: debug
         run: ls -l native-packages/*/*.node
+      - name: Smoke test
+        run: node -e 'require("@parcel/fs-search")'
 
   build-and-release:
     runs-on: ubuntu-latest
