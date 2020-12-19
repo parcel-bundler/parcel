@@ -7,7 +7,6 @@
   },
   "scripts": {
     "build": "cargo build && napi build --platform",
-    "build-release": "cargo build --release && napi build --platform --release",
-    "native-build": "yarn build"
+    "build-release": "cargo build --release && napi build --platform --release"
   }
 }

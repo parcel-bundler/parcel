@@ -19,7 +19,7 @@
     "unlink-all": "node scripts/unlink-all.js packages",
     "link-native": "node scripts/link-native.js && yarn",
     "unlink-native": "rimraf packages/native-packages",
-    "postinstall": "lerna run --stream native-build",
+    "postinstall": "node scripts/build-native.js",
     "check": "flow check",
     "lint": "eslint . && prettier \"./packages/*/*/{src,bin,test}/**/*.{js,json,md}\" --list-different",
     "lint:readme": "node scripts/validate-readme-toc.js",
