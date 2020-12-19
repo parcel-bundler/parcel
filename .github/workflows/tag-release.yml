@@ -6,7 +6,7 @@ jobs:
   build:
     strategy:
       matrix:
-        os: [macos-latest, windows-latest]
+        os: [ubuntu-latest, macos-latest, windows-latest]
     name: ${{ matrix.os }} - node@14
     runs-on: ${{ matrix.os }}
     steps:
@@ -25,8 +25,6 @@ jobs:
         with:
           name: bindings-${{ matrix.os }}
           path: native-packages/*/*.node
-      - name: debug
-        run: ls -l native-packages/*/*.node
       - name: Smoke test
         run: node -e 'require("@parcel/fs-search")'
 
@@ -59,11 +57,36 @@ jobs:
       - name: Smoke test
         run: node -e 'require("@parcel/fs-search")'
 
+  build-apple-silicon:
+    name: aarch64-apple-darwin - node@14
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v1
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+          target: aarch64-apple-darwin
+      - name: Link native packages
+        run: node scripts/link-native.js
+      - uses: bahmutov/npm-install@v1.1.0
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: bindings-apple-aarch64
+          path: native-packages/*/*.node
+      - name: debug
+        run: ls -l native-packages/*/*.node
+
   build-and-release:
     runs-on: ubuntu-latest
     name: Build and release the tagged version
     needs:
       - build
+      - build-linux-musl
+      - build-apple-silicon
     steps:
       - uses: actions/checkout@v1
       - name: Link native packages
