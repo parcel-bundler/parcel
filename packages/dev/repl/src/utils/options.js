@@ -11,6 +11,7 @@ export type REPLOptions = {|
   outputFormat: null | 'esmodule' | 'commonjs' | 'global',
   renderGraphs: boolean,
   viewSourcemaps: boolean,
+  dependencies: Array<[string, string]>,
 |};
 
 export function getDefaultTargetEnv(
@@ -42,6 +43,9 @@ export function generatePackageJson(options: REPLOptions): string {
     targets: {
       app,
     },
+    dependencies: Object.fromEntries(
+      options.dependencies.filter(([a, b]) => a && b),
+    ),
   };
 
   return JSON.stringify(pkg, null, 2);

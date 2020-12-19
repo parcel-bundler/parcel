@@ -17,6 +17,7 @@ export const DEFAULT_OPTIONS: REPLOptions = {
   outputFormat: null,
   renderGraphs: false,
   viewSourcemaps: false,
+  dependencies: [],
 };
 
 export default function Options({
@@ -74,7 +75,7 @@ export default function Options({
           value={values.outputFormat}
           disabled={disabled}
         >
-          <option value=""></option>
+          <option value="" />
           <option value="esmodule">esmodule</option>
           <option value="commonjs">commonjs</option>
           <option value="global">global</option>
@@ -131,6 +132,64 @@ export default function Options({
           disabled={disabled}
         />
       </label>
+      <hr />
+      <div class="dependencies">
+        Dependencies
+        <ul>
+          {values.dependencies?.map(([name, version], i) => (
+            <li key={i}>
+              <input
+                type="text"
+                value={name}
+                placeholder="pkg-name"
+                onInput={e =>
+                  onChange(
+                    'dependencies',
+                    values.dependencies.map((v, j) =>
+                      j === i ? [e.target.value, v[1]] : v,
+                    ),
+                  )
+                }
+                disabled={disabled}
+              />
+              @
+              <input
+                value={version}
+                placeholder="range"
+                onInput={e =>
+                  onChange(
+                    'dependencies',
+                    values.dependencies.map((v, j) =>
+                      j === i ? [v[0], e.target.value] : v,
+                    ),
+                  )
+                }
+              />
+              <button
+                class="remove"
+                onClick={() =>
+                  onChange(
+                    'dependencies',
+                    values.dependencies.filter((_, j) => j !== i),
+                  )
+                }
+              >
+                ✕
+              </button>
+            </li>
+          ))}
+          <li>
+            <button
+              class="add"
+              onClick={() =>
+                onChange('dependencies', [...values.dependencies, ['', '']])
+              }
+            >
+              Add
+            </button>
+          </li>
+        </ul>
+      </div>
     </div>
   );
 }

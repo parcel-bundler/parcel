@@ -1895,6 +1895,19 @@
   resolved "https://registry.yarnpkg.com/@mischnic/pako/-/pako-1.0.10.tgz#887f4df17450c15eae90cb35d9d2e787b19c6aaf"
   integrity sha512-KdC+M963ugqgV7VmMlckoszTpr5AQ+gXsdDP/wVRiU6TSG/ljPJmd5o0FF5STg4NQ+a5W1o5Q4x9pm511i364A==
 
+"@mischnic/yarn-browser@^0.0.2":
+  version "0.0.2"
+  resolved "https://registry.yarnpkg.com/@mischnic/yarn-browser/-/yarn-browser-0.0.2.tgz#6c3d89df324dd5de4ec70587585a8fad2baf63b5"
+  integrity sha512-nwB50gWILILkMKJ+YO/bQ1oK/C+dR12RjyJRNhKRSljT7dN7FAY0SU80+wHdmT8LmmxUwamcCtMHW9nOEajWAQ==
+  dependencies:
+    "@msgpack/msgpack" "^2.3.0"
+    assert "^2.0.0"
+    buffer "^5.5.0"
+    js-yaml "^3.13.1"
+    pako "~1.0.5"
+    readable-stream "^3.6.0"
+    semver "^7.3.4"
+
 "@mrmlnc/readdir-enhanced@^2.2.1":
   version "2.2.1"
   resolved "https://registry.yarnpkg.com/@mrmlnc/readdir-enhanced/-/readdir-enhanced-2.2.1.tgz#524af240d1a360527b730475ecfa1344aa540dde"
@@ -9296,6 +9309,13 @@ lru-cache@^5.1.1:
   dependencies:
     yallist "^3.0.2"
 
+lru-cache@^6.0.0:
+  version "6.0.0"
+  resolved "https://registry.yarnpkg.com/lru-cache/-/lru-cache-6.0.0.tgz#6d6fe6570ebd96aaf90fcad1dafa3b2566db3a94"
+  integrity sha512-Jo6dJ04CmSjuznwJSS3pUeWmd/H0ffTlkXXgwZi+eq1UCmqQwCh+eLsYOYCwY991i2Fah4h1BEMCx4qThGbsiA==
+  dependencies:
+    yallist "^4.0.0"
+
 macos-release@^2.2.0:
   version "2.3.0"
   resolved "https://registry.yarnpkg.com/macos-release/-/macos-release-2.3.0.tgz#eb1930b036c0800adebccd5f17bc4c12de8bb71f"
@@ -12825,6 +12845,13 @@ semver@^7.1.3, semver@^7.3.2:
   version "7.3.2"
   resolved "https://registry.yarnpkg.com/semver/-/semver-7.3.2.tgz#604962b052b81ed0786aae84389ffba70ffd3938"
   integrity sha512-OrOb32TeeambH6UrhtShmF7CRDqhL6/5XpPNp2DuRH6+9QLw/orhp72j87v8Qa1ScDkvrrBNpZcDejAirJmfXQ==
+
+semver@^7.3.4:
+  version "7.3.4"
+  resolved "https://registry.yarnpkg.com/semver/-/semver-7.3.4.tgz#27aaa7d2e4ca76452f98d3add093a72c943edc97"
+  integrity sha512-tCfb2WLjqFAtXn4KEdxIhalnRtoKFN7nAwj0B3ZXCbQloV2tq5eDbcTmT68JJD3nRJq24/XgxtQKFIpQdtvmVw==
+  dependencies:
+    lru-cache "^6.0.0"
 
 send@0.17.1:
   version "0.17.1"

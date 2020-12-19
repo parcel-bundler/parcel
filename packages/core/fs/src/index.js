@@ -6,6 +6,8 @@ import path from 'path';
 export type * from './types';
 export * from './NodeFS';
 export * from './MemoryFS';
+// $FlowFixMe
+export * from './ExtendedMemoryFs';
 export * from './OverlayFS';
 
 // Recursively copies a directory from the sourceFS to the destinationFS

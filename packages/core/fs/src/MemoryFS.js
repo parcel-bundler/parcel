@@ -658,7 +658,7 @@ class Watcher {
   }
 }
 
-class FSError extends Error {
+export class FSError extends Error {
   code: string;
   path: FilePath;
   constructor(code: string, path: FilePath, message: string) {
@@ -875,7 +875,7 @@ class Dirent {
   }
 }
 
-class File extends Entry {
+export class File extends Entry {
   buffer: Buffer;
   constructor(buffer: Buffer, mode: number) {
     super(S_IFREG | mode);
@@ -903,7 +903,7 @@ class Directory extends Entry {
   }
 }
 
-function makeShared(contents: Buffer | string): Buffer {
+export function makeShared(contents: Buffer | string): Buffer {
   if (typeof contents !== 'string' && contents.buffer instanceof SharedBuffer) {
     return contents;
   }

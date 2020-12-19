@@ -48,10 +48,10 @@ button {
   appearance: none;
   border: none;
   padding: 2px 8px;
+  border-radius: 3px;
 }
 button:enabled {
   background-color: #ddd;
-  cursor: pointer;
 }
 button:enabled:active {
   background-color: #bbb;
@@ -60,6 +60,7 @@ button:enabled:active {
 .file {
   border: 0.15em solid #ddd;
   transition: border-color 0.3s;
+  border-radius: 3px;
 }
 
 .file > hr {
@@ -157,7 +158,7 @@ select {
   display: flex;
   flex-direction: column;
 }
-.options > label {
+.options > *:not(hr) {
   padding: 0.3em;
   display: block;
 }
@@ -172,6 +173,25 @@ select {
 .options > label > select {
   width: 50%;
 }
+.options > .dependencies > ul {
+  margin: 0 auto;
+  padding: 0;
+  list-style: none;
+  max-width: 25em;
+}
+.options > .dependencies > ul > li {
+  margin: 0.3em 0;
+  display: flex;
+  justify-content: space-between;
+}
+.options > .dependencies button.remove {
+  margin-left: 0.3em;
+  padding: 0.2rem 0.4rem;
+}
+.options > .dependencies button.add {
+  width: 100%;
+}
+
 .notes {
   padding: 0.3em;
   padding-right: 0.2em;
@@ -185,6 +205,7 @@ select {
 }
 
 .column > .loadState {
+  border-radius: 3px;
   padding: 0.4em;
   text-align: center;
   transition: background-color 0.3s;

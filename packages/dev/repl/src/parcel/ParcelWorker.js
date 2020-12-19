@@ -4,7 +4,9 @@ import type {Assets, CodeMirrorDiagnostic, REPLOptions} from '../utils';
 
 import {expose, proxy} from 'comlink';
 import Parcel, {createWorkerFarm} from '@parcel/core';
-import {MemoryFS} from '@parcel/fs';
+// import {MemoryFS} from '@parcel/fs';
+// $FlowFixMe
+import {ExtendedMemoryFS} from '@parcel/fs';
 // import SimplePackageInstaller from './SimplePackageInstaller';
 // import {NodePackageManager} from '@parcel/package-manager';
 import configRepl from '@parcel/config-repl';
@@ -39,13 +41,13 @@ expose({
 });
 
 const PathUtils = {
-  DIST_DIR: '/dist',
-  CACHE_DIR: '/.parcel-cache',
+  DIST_DIR: '/app/dist',
+  CACHE_DIR: '/app/.parcel-cache',
   fromAssetPath(str) {
-    return '/' + str;
+    return '/app/' + str;
   },
   toAssetPath(str) {
-    return str[0] === '/' ? str.slice(1) : str;
+    return str.startsWith('/app/') ? str.slice(5) : str;
   },
 };
 
@@ -56,7 +58,6 @@ function removeTrailingNewline(text: string): string {
     return text;
   }
 }
-
 async function convertDiagnostics(inputFS, diagnostics: Array<Diagnostic>) {
   let parsedDiagnostics = new Map<string, Array<CodeMirrorDiagnostic>>();
   for (let diagnostic of diagnostics) {
@@ -95,6 +96,28 @@ async function convertDiagnostics(inputFS, diagnostics: Array<Diagnostic>) {
   return parsedDiagnostics;
 }
 
+// function shouldRunYarn(
+//   oldDeps: $PropertyType<REPLOptions, 'dependencies'>,
+//   newDeps: $PropertyType<REPLOptions, 'dependencies'>,
+// ) {
+//   if (oldDeps.length !== newDeps.length) return true;
+//   else if (newDeps.length === 0) return false;
+//   for (let i = 0; i < oldDeps.length; i++) {
+//     let [nameOld, versionOld] = oldDeps[i];
+//     let [nameNew, versionNew] = newDeps[i];
+//     if (nameOld !== nameNew || versionOld !== versionNew) {
+//       return true;
+//     }
+//   }
+//   return false;
+// }
+
+// async function runYarnInstall(fs) {
+// $FlowFixMe
+// const yarn = await import('@mischnic/yarn-browser');
+// console.log(yarn);
+// }
+
 function setup(assets, options) {
   let graphs = options.renderGraphs ? [] : null;
   if (graphs && options.renderGraphs) {
@@ -104,7 +127,7 @@ function setup(assets, options) {
     globalThis.PARCEL_DUMP_GRAPHVIZ.mode = options.renderGraphs;
   }
 
-  const fs = new MemoryFS(workerFarm);
+  const fs = new ExtendedMemoryFS(workerFarm);
 
   // $FlowFixMe
   globalThis.fs = fs;
@@ -200,11 +223,13 @@ async function bundle(
 
   const {bundler, fs, graphs} = setup(assets, options);
 
-  await fs.writeFile('/package.json', generatePackageJson(options));
+  await fs.mkdirp('/app');
+  await fs.writeFile('/app/package.json', generatePackageJson(options));
   await fs.writeFile('/.parcelrc', JSON.stringify(configRepl, null, 2));
-  await fs.writeFile('/yarn.lock', '');
 
-  await fs.mkdirp('/src');
+  // await runYarnInstall(fs);
+
+  await fs.mkdirp('/app/src');
   for (let {name, content} of assets) {
     let p = PathUtils.fromAssetPath(name);
     await fs.mkdirp(path.dirname(p));
@@ -271,12 +296,13 @@ async function watch(
   globalThis.PARCEL_JSON_LOGGER_STDERR = globalThis.PARCEL_JSON_LOGGER_STDOUT;
 
   let {bundler, fs, graphs} = setup(assets, options);
+  await fs.mkdirp('/app');
 
   async function writeAssets(assets) {
-    await fs.writeFile('/package.json', generatePackageJson(options));
+    await fs.writeFile('/app/package.json', generatePackageJson(options));
     await fs.writeFile('/.parcelrc', JSON.stringify(configRepl, null, 2));
-    await fs.writeFile('/yarn.lock', '');
-    await fs.mkdirp('/src');
+    await fs.writeFile('/app/yarn.lock', '');
+    await fs.mkdirp('/app/src');
     for (let {name, content} of assets) {
       let p = PathUtils.fromAssetPath(name);
       await fs.mkdirp(path.dirname(p));

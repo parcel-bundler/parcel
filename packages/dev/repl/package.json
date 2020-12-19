@@ -6,6 +6,7 @@
   "default": "dist/index.html",
   "source": "src/index.html",
   "scripts": {
+    "start": "yarn copy-wasm && parcel2 . --no-source-maps",
     "build": "parcel2 build . --no-source-maps && yarn copy-wasm",
     "copy-wasm": "cp $(node -p 'require.resolve(\"@parcel/source-map/wasm-browser/source-map.wasm\")') dist/",
     "serve": "serve dist/ -c ../serve.json",
@@ -16,6 +17,7 @@
     "@mischnic/codemirror-preact": "^0.0.7",
     "@mischnic/dot-svg": "^0.0.0",
     "@mischnic/pako": "^1.0.10",
+    "@mischnic/yarn-browser": "^0.0.2",
     "@parcel/config-repl": "^2.0.0-alpha.3",
     "@parcel/core": "^2.0.0-alpha.3.2",
     "@parcel/fs": "^2.0.0-alpha.3",
