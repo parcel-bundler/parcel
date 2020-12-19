@@ -1,15 +1,48 @@
 name: tag-release
-on:
-  release:
-    types: [published]
+on: push
+  # release:
+  #   types: [published]
 jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    name: stable - ${{ matrix.os }} - node@14
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v1
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+      - name: Link native packages
+        run: node scripts/link-native.js
+      - uses: bahmutov/npm-install@v1.1.0
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: bindings-${{ matrix.os }}
+          path: native-packages/*/*.node
+
   build-and-release:
     runs-on: ubuntu-latest
     name: Build and release the tagged version
+    needs:
+      - build
     steps:
       - uses: actions/checkout@v1
       - uses: bahmutov/npm-install@v1.1.0
-      - run: echo //registry.npmjs.org/:_authToken=${NPM_TOKEN} > .npmrc
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-      - run: yarn release
+      - name: Download artifacts
+        uses: actions/download-artifact@v2
+        with:
+          path: artifacts
+      - name: Move artifacts
+        run: cp --parents artifacts/*/*/*.node native-packages
+      - name: Debug
+        run: ls -l native-packages/*/*
+      # - run: echo //registry.npmjs.org/:_authToken=${NPM_TOKEN} > .npmrc
+      #   env:
+      #     NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      # - run: yarn release
