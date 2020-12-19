@@ -23,7 +23,7 @@ import path from 'path';
 import nullthrows from 'nullthrows';
 import {
   escapeMarkdown,
-  md5FromObject,
+  md5FromOrderedObject,
   normalizeSeparators,
 } from '@parcel/utils';
 import logger, {PluginLogger} from '@parcel/logger';
@@ -448,7 +448,7 @@ export default class Transformation {
     await Promise.all(
       assets.map(asset =>
         asset.commit(
-          md5FromObject({
+          md5FromOrderedObject({
             configs: getImpactfulConfigInfo(configs),
           }),
         ),
@@ -473,7 +473,7 @@ export default class Transformation {
       query: a.value.query,
     }));
 
-    return md5FromObject({
+    return md5FromOrderedObject({
       parcelVersion: PARCEL_VERSION,
       assets: assetsKeyInfo,
       configs: getImpactfulConfigInfo(configs),
@@ -746,6 +746,7 @@ function normalizeAssets(
       }
 
       let internalAsset = mutableAssetToUncommittedAsset(result);
+      // $FlowFixMe - ignore id already on env
       return {
         ast: internalAsset.ast,
         content: await internalAsset.content,

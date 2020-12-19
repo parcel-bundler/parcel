@@ -4334,7 +4334,6 @@ describe('scope hoisting', function() {
           'get-dep.js',
           'get-dep-2.js',
           'dep.js',
-          'JSRuntime.js',
         ],
       },
     ]);
@@ -4366,7 +4365,7 @@ describe('scope hoisting', function() {
         ],
       },
       {
-        assets: ['get-dep.js', 'JSRuntime.js'],
+        assets: ['get-dep.js'],
       },
     ]);
 
@@ -4392,7 +4391,6 @@ describe('scope hoisting', function() {
           'get-dep.js',
           'get-dep-2.js',
           'dep.js',
-          'JSRuntime.js',
         ],
       },
       {

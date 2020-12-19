@@ -37,7 +37,6 @@ import {
   md5FromString,
   md5FromFilePath,
 } from '@parcel/utils';
-import {getEnvironmentHash} from './Environment';
 import {hashFromOption} from './utils';
 
 type AssetOptions = {|
@@ -46,7 +45,7 @@ type AssetOptions = {|
   hash?: ?string,
   idBase?: ?string,
   filePath: FilePath,
-  query?: QueryParameters,
+  query?: ?QueryParameters,
   type: string,
   contentKey?: ?string,
   mapKey?: ?string,
@@ -80,7 +79,7 @@ function createAssetIdFromOptions(options: AssetOptions): string {
   return md5FromString(
     idBase +
       options.type +
-      getEnvironmentHash(options.env) +
+      options.env.id +
       uniqueKey +
       (options.pipeline ?? '') +
       queryString,
@@ -93,7 +92,7 @@ export function createAsset(options: AssetOptions): Asset {
     committed: options.committed ?? false,
     hash: options.hash,
     filePath: options.filePath,
-    query: options.query ?? {},
+    query: options.query,
     isIsolated: options.isIsolated ?? false,
     isInline: options.isInline ?? false,
     isSplittable: options.isSplittable,
@@ -229,6 +228,10 @@ export async function getInvalidationHash(
   invalidations: Array<RequestInvalidation>,
   options: ParcelOptions,
 ): Promise<string> {
+  if (invalidations.length === 0) {
+    return '';
+  }
+
   let sortedInvalidations = invalidations
     .slice()
     .sort((a, b) => (getInvalidationId(a) < getInvalidationId(b) ? -1 : 1));
