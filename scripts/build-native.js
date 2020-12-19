@@ -16,14 +16,14 @@ async function build() {
         args.push('--target', process.env.RUST_TARGET);
       }
 
-      let process = spawn('yarn', args, {
+      let yarn = spawn('yarn', args, {
         stdio: 'inherit',
         cwd: path.join(dir, pkg),
         shell: true
       });
 
-      process.on('error', reject);
-      process.on('close', resolve);
+      yarn.on('error', reject);
+      yarn.on('close', resolve);
     });
   }
 }
