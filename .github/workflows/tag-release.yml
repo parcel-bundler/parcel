@@ -102,8 +102,8 @@ jobs:
         run: |
           curl -O https://musl.cc/aarch64-linux-musl-cross.tgz
           tar xzf aarch64-linux-musl-cross.tgz
-          chmod +x aarch64-linux-musl-cross/bin/*
           cp aarch64-linux-musl-cross/bin/* /usr/local/bin
+          cp aarch64-linux-musl-cross/lib/* /usr/local/lib
       - name: Link native packages
         run: node scripts/link-native.js
       - uses: bahmutov/npm-install@v1.1.0
