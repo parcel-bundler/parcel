@@ -100,13 +100,14 @@ jobs:
       - name: Install cross compile toolchains
         if: ${{ matrix.target == 'aarch64-unknown-linux-musl' }}
         run: |
-          apk update
-          apk add gcc
+          curl -O https://musl.cc/aarch64-linux-musl-cross.tgz
+          tar xzf aarch64-linux-musl-cross.tgz
       - name: Link native packages
         run: node scripts/link-native.js
       - uses: bahmutov/npm-install@v1.1.0
         env:
           RUST_TARGET: ${{ matrix.target }}
+          PATH: ${{github.workspace}}/aarch64-linux-musl-cross/bin:$PATH
       - name: Upload artifacts
         uses: actions/upload-artifact@v2
         with:
