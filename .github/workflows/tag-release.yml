@@ -1,7 +1,7 @@
 name: tag-release
-on: push
-  # release:
-  #   types: [published]
+on:
+  release:
+    types: [published]
 jobs:
   build:
     strategy:
@@ -163,7 +163,7 @@ jobs:
         run: for d in artifacts/*/*; do cp $d/*.node native-packages/$(basename $d); done
       - name: Debug
         run: ls -l native-packages/*/*
-      # - run: echo //registry.npmjs.org/:_authToken=${NPM_TOKEN} > .npmrc
-      #   env:
-      #     NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-      # - run: yarn release
+      - run: echo //registry.npmjs.org/:_authToken=${NPM_TOKEN} > .npmrc
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - run: yarn release
