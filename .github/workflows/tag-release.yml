@@ -7,7 +7,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-    name: ${{ matrix.os }} - node@14
+    name: ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v1
@@ -28,8 +28,37 @@ jobs:
       - name: Smoke test
         run: node -e "require('@parcel/fs-search')"
 
+  build-linux-gnu-arm:
+    strategy:
+      target: [arm-unknown-linux-gnueabihf, armv7-unknown-linux-gnueabihf, aarch64-unknown-linux-gnu]
+    name: ${{ matrix.target }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+          target: ${{ matrix.target }}
+      - name: Link native packages
+        run: node scripts/link-native.js
+      - uses: bahmutov/npm-install@v1.1.0
+        env:
+          RUST_TARGET: ${{ matrix.target }}
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: bindings-${{ matrix.target }}
+          path: native-packages/*/*.node
+      - name: debug
+        run: ls -l native-packages/*/*.node
+
   build-linux-musl:
-    name: linux-musl - node@14
+    strategy:
+      target: [x86_64-unknown-linux-musl, aarch64-unknown-linux-musl]
+    name: ${{ matrix.target }}
     runs-on: ubuntu-latest
     container:
       image: docker.pkg.github.com/napi-rs/napi-rs/rust-nodejs-alpine:lts
@@ -44,9 +73,12 @@ jobs:
           toolchain: stable
           profile: minimal
           override: true
+          target: ${{ matrix.target }}
       - name: Link native packages
         run: node scripts/link-native.js
       - uses: bahmutov/npm-install@v1.1.0
+        env:
+          RUST_TARGET: ${{ matrix.target }}
       - name: Upload artifacts
         uses: actions/upload-artifact@v2
         with:
@@ -55,6 +87,7 @@ jobs:
       - name: debug
         run: ls -l native-packages/*/*.node
       - name: Smoke test
+        if: ${{ matrix.target == 'x86_64-unknown-linux-musl' }}
         run: node -e 'require("@parcel/fs-search")'
 
   build-apple-silicon:
@@ -88,6 +121,7 @@ jobs:
     needs:
       - build
       - build-linux-musl
+      - build-linux-gnu-arm
       - build-apple-silicon
     steps:
       - uses: actions/checkout@v1
