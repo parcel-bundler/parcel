@@ -70,13 +70,8 @@ jobs:
       - name: Smoke test
         uses: addnab/docker-run-action@v1
         with:
-          image: multiarch/ubuntu-core:${{ matrix.arch }}-focal
-          run: |
-            apt-get update
-            apt-get install -y ca-certificates gnupg2 curl
-            curl -sL https://deb.nodesource.com/setup_14.x | bash -
-            apt-get install -y nodejs
-            node -e "require('@parcel/fs-search')"
+          image: ghcr.io/devongovett/multiarch-node:node14-${{ matrix.arch }}-focal-focal
+          run: node -e "require('@parcel/fs-search')"
 
   build-linux-musl:
     strategy:
