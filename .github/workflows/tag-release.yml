@@ -36,8 +36,6 @@ jobs:
         include:
           - target: arm-unknown-linux-gnueabihf
             arch: armhf
-          - target: armv7-unknown-linux-gnueabihf
-            arch: armhf
           - target: aarch64-unknown-linux-gnu
             arch: arm64
     name: ${{ matrix.target }}
