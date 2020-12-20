@@ -21,7 +21,6 @@ export function resolveConfig(
   filepath: FilePath,
   filenames: Array<FilePath>,
 ): Promise<?FilePath> {
-  // TODO: realpath
   return Promise.resolve(
     fs.findAncestorFile(filenames, path.dirname(filepath)),
   );
@@ -32,7 +31,6 @@ export function resolveConfigSync(
   filepath: FilePath,
   filenames: Array<FilePath>,
 ): ?FilePath {
-  // TODO: realpath
   return fs.findAncestorFile(filenames, path.dirname(filepath));
 }
 
