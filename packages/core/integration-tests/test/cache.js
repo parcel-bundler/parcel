@@ -1260,11 +1260,11 @@ describe('cache', function() {
           assertBundles(b.bundleGraph, [
             {
               name: 'a.js',
-              assets: ['a.js'],
+              assets: ['a.js', 'esmodule-helpers.js'],
             },
             {
               name: 'b.js',
-              assets: ['b.js'],
+              assets: ['b.js', 'esmodule-helpers.js'],
             },
           ]);
 
@@ -1278,15 +1278,15 @@ describe('cache', function() {
       assertBundles(b.bundleGraph, [
         {
           name: 'a.js',
-          assets: ['a.js'],
+          assets: ['a.js', 'esmodule-helpers.js'],
         },
         {
           name: 'b.js',
-          assets: ['b.js'],
+          assets: ['b.js', 'esmodule-helpers.js'],
         },
         {
           name: 'c.js',
-          assets: ['c.js'],
+          assets: ['c.js', 'esmodule-helpers.js'],
         },
       ]);
     });
@@ -1298,11 +1298,11 @@ describe('cache', function() {
           assertBundles(b.bundleGraph, [
             {
               name: 'a.js',
-              assets: ['a.js'],
+              assets: ['a.js', 'esmodule-helpers.js'],
             },
             {
               name: 'b.js',
-              assets: ['b.js'],
+              assets: ['b.js', 'esmodule-helpers.js'],
             },
           ]);
 
@@ -1313,7 +1313,7 @@ describe('cache', function() {
       assertBundles(b.bundleGraph, [
         {
           name: 'a.js',
-          assets: ['a.js'],
+          assets: ['a.js', 'esmodule-helpers.js'],
         },
       ]);
     });

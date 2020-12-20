@@ -27,7 +27,9 @@ import packageJSON from '../package.json';
 // Most of this can go away once we only support Node 10+, which includes
 // require('fs').promises
 
-const realpath = promisify(fs.realpath);
+const realpath = promisify(
+  process.platform === 'win32' ? fs.realpath : fs.realpath.native,
+);
 
 export class NodeFS implements FileSystem {
   readFile: any = promisify(fs.readFile);

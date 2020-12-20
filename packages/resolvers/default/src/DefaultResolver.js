@@ -35,7 +35,7 @@ export default (new Resolver({
     return resolver.resolve({
       filename: filePath,
       isURL: dependency.isURL,
-      parent: dependency.sourcePath,
+      parent: dependency.resolveFrom,
       env: dependency.env,
     });
   },
