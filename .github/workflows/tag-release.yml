@@ -74,7 +74,7 @@ jobs:
         with:
           image: ghcr.io/devongovett/multiarch-node:node14-${{ matrix.arch }}-focal
           options: -v ${{github.workspace}}:/work
-          run: node -e "require('@parcel/fs-search')"
+          run: cd /work && node -e "require('@parcel/fs-search')"
 
   build-linux-musl:
     strategy:
@@ -97,6 +97,11 @@ jobs:
           profile: minimal
           override: true
           target: ${{ matrix.target }}
+      - name: Install cross compile toolchains
+        if: ${{ matrix.target == 'aarch64-unknown-linux-musl' }}
+        run: |
+          apk update
+          apk add gcc
       - name: Link native packages
         run: node scripts/link-native.js
       - uses: bahmutov/npm-install@v1.1.0
