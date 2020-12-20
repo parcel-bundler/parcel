@@ -72,10 +72,7 @@ jobs:
       - name: Smoke test
         uses: addnab/docker-run-action@v1
         with:
-          image: ghcr.io/devongovett/multiarch-node:node14-${{ matrix.arch }}-focal-focal
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GHCR_TOKEN }}
+          image: ghcr.io/devongovett/multiarch-node:node14-${{ matrix.arch }}-focal
           run: node -e "require('@parcel/fs-search')"
 
   build-linux-musl:
@@ -103,7 +100,7 @@ jobs:
         if: ${{ matrix.target == 'aarch64-unknown-linux-musl' }}
         run: |
           apk update
-          apk add gcc-arm-linux-gnueabihf gcc-aarch64-linux-gnu g++-aarch64-linux-gnu -y
+          apk add gcc-arm-linux-gnueabihf gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
       - name: Link native packages
         run: node scripts/link-native.js
       - uses: bahmutov/npm-install@v1.1.0
