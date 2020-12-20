@@ -108,6 +108,10 @@ export default class Dependency implements IDependency {
     return this.#dep.sourcePath;
   }
 
+  get resolveFrom(): ?string {
+    return this.#dep.resolveFrom ?? this.#dep.sourcePath;
+  }
+
   get pipeline(): ?string {
     return this.#dep.pipeline;
   }

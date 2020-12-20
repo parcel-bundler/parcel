@@ -65,7 +65,7 @@ function getLoaders(
 }
 
 export default (new Runtime({
-  apply({bundle, bundleGraph, options}) {
+  apply({bundle, bundleGraph}) {
     // Dependency ids in code replaced with referenced bundle names
     // Loader runtime added for bundle groups that don't have a native loader (e.g. HTML/CSS/Worker - isURL?),
     // and which are not loaded by a parent bundle.
@@ -100,17 +100,18 @@ export default (new Runtime({
       }
 
       if (resolved.type === 'asset') {
-        // If this bundle already has the asset this dependency references,
-        // return a simple runtime of `Promise.resolve(require("path/to/asset"))`.
-        assets.push({
-          filePath: path.join(options.projectRoot, 'JSRuntime.js'),
-          // Using Promise['resolve'] to prevent Parcel from inferring this is an async dependency.
-          // TODO: Find a better way of doing this.
-          code: `module.exports = Promise['resolve'](require(${JSON.stringify(
-            './' + path.relative(options.projectRoot, resolved.value.filePath),
-          )}))`,
-          dependency,
-        });
+        if (!bundle.env.scopeHoist) {
+          // If this bundle already has the asset this dependency references,
+          // return a simple runtime of `Promise.resolve(internalRequire(assetId))`.
+          // The linker handles this for scope-hoisting.
+          assets.push({
+            filePath: __filename,
+            code: `module.exports = Promise.resolve(module.bundle.root(${JSON.stringify(
+              bundleGraph.getAssetPublicId(resolved.value),
+            )}))`,
+            dependency,
+          });
+        }
       } else {
         let loaderRuntime = getLoaderRuntime({
           bundle,
@@ -217,25 +218,26 @@ function getLoaderRuntime({
     return;
   }
 
-  // Sort so the bundles containing the entry asset appear last
   let externalBundles = bundleGraph
     .getBundlesInBundleGroup(bundleGroup)
-    .filter(bundle => !bundle.isInline)
-    .sort(bundle =>
-      bundle
-        .getEntryAssets()
-        .map(asset => asset.id)
-        .includes(bundleGroup.entryAssetId)
-        ? 1
-        : -1,
-    );
+    .filter(bundle => !bundle.isInline);
+
+  let mainBundle = nullthrows(
+    externalBundles.find(
+      bundle => bundle.getMainEntry()?.id === bundleGroup.entryAssetId,
+    ),
+  );
 
   // CommonJS is a synchronous module system, so there is no need to load bundles in parallel.
   // Importing of the other bundles will be handled by the bundle group entry.
   // Do the same thing in library mode for ES modules, as we are building for another bundler
   // and the imports for sibling bundles will be in the target bundle.
   if (bundle.env.outputFormat === 'commonjs' || bundle.env.isLibrary) {
-    externalBundles = externalBundles.slice(-1);
+    externalBundles = [mainBundle];
+  } else {
+    // Otherwise, load the bundle group entry after the others.
+    externalBundles.splice(externalBundles.indexOf(mainBundle), 1);
+    externalBundles.reverse().push(mainBundle);
   }
 
   // Determine if we need to add a dynamic import() polyfill, or if all target browsers support it natively.
@@ -386,6 +388,7 @@ function getHintLoaders(
     let bundlesToPreload = bundleGraph.getBundlesInBundleGroup(
       bundleGroupToPreload,
     );
+
     for (let bundleToPreload of bundlesToPreload) {
       let relativePathExpr = getRelativePathExpr(from, bundleToPreload);
       let priority = TYPE_TO_RESOURCE_PRIORITY[bundleToPreload.type];

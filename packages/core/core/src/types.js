@@ -60,6 +60,7 @@ export type ProcessedParcelConfig = {|
 |};
 
 export type Environment = {|
+  id: string,
   context: EnvironmentContext,
   engines: Engines,
   includeNodeModules:
@@ -97,6 +98,7 @@ export type Dependency = {|
   target: ?Target,
   sourceAssetId: ?string,
   sourcePath: ?string,
+  resolveFrom: ?string,
   symbols: ?Map<
     Symbol,
     {|local: Symbol, loc: ?SourceLocation, isWeak: boolean|},
@@ -109,7 +111,7 @@ export type Asset = {|
   committed: boolean,
   hash: ?string,
   filePath: FilePath,
-  query: QueryParameters,
+  query: ?QueryParameters,
   type: string,
   dependencies: Map<string, Dependency>,
   isIsolated: boolean,
@@ -200,7 +202,7 @@ export type Edge<TEdgeType: string | null> = {|
 
 export interface Node {
   id: string;
-  +type?: string;
+  +type: string;
   // $FlowFixMe
   value: any;
 }
@@ -247,7 +249,7 @@ export type AssetRequestInput = {|
   pipeline?: ?string,
   optionsRef: SharedReference,
   isURL?: boolean,
-  query: QueryParameters,
+  query?: ?QueryParameters,
   invalidations?: Array<RequestInvalidation>,
 |};
 
