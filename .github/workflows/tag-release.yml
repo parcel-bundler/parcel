@@ -102,7 +102,7 @@ jobs:
         run: |
           curl -O https://musl.cc/aarch64-linux-musl-cross.tgz
           tar xzf aarch64-linux-musl-cross.tgz
-          echo "${{ github.workspace }}/aarch64-linux-musl-cross/bin" >> $GITHUB_PATH
+          cp aarch64-linux-musl-cross/bin/* /usr/local/bin
       - name: Link native packages
         run: node scripts/link-native.js
       - uses: bahmutov/npm-install@v1.1.0
