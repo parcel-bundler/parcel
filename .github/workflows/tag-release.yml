@@ -31,7 +31,6 @@ jobs:
   build-linux-gnu-arm:
     strategy:
       matrix:
-        target: [arm-unknown-linux-gnueabihf, armv7-unknown-linux-gnueabihf, aarch64-unknown-linux-gnu]
         include:
           - target: arm-unknown-linux-gnueabihf
             arch: armhf
@@ -69,9 +68,10 @@ jobs:
       - name: Configure binfmt-support
         run: docker run --rm --privileged multiarch/qemu-user-static:register --reset
       - name: Smoke test
-        uses: docker://multiarch/ubuntu-core:${{ matrix.arch }}-focal
+        uses: addnab/docker-run-action@v1
         with:
-          args: >
+          image: multiarch/ubuntu-core:${{ matrix.arch }}-focal
+          run: >
             sh -c "
               apt-get update && \
               apt-get install -y ca-certificates gnupg2 curl && \
