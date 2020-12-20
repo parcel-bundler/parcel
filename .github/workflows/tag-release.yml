@@ -31,7 +31,13 @@ jobs:
   build-linux-gnu-arm:
     strategy:
       matrix:
-        target: [arm-unknown-linux-gnueabihf, armv7-unknown-linux-gnueabihf, aarch64-unknown-linux-gnu]
+        include:
+          - target: arm-unknown-linux-gnueabihf
+            arch: armhf
+          - target: armv7-unknown-linux-gnueabihf
+            arch: armhf
+          - target: aarch64-unknown-linux-gnu
+            arch: arm64
     name: ${{ matrix.target }}
     runs-on: ubuntu-latest
     steps:
@@ -59,6 +65,19 @@ jobs:
           path: native-packages/*/*.node
       - name: debug
         run: ls -l native-packages/*/*.node
+      - name: Configure binfmt-support
+        run: docker run --rm --privileged multiarch/qemu-user-static:register --reset
+      - name: Smoke test
+        uses: docker://multiarch/ubuntu-core:${{ matrix.arch }}-focal
+        with:
+          args: >
+            sh -c "
+              apt-get update && \
+              apt-get install -y ca-certificates gnupg2 curl && \
+              curl -sL https://deb.nodesource.com/setup_14.x | bash - && \
+              apt-get install -y nodejs && \
+              node -e "require('@parcel/fs-search')"
+            "
 
   build-linux-musl:
     strategy:
@@ -83,8 +102,8 @@ jobs:
       - name: Install cross compile toolchains
         if: ${{ matrix.target == 'aarch64-unknown-linux-musl' }}
         run: |
-          sudo apt-get update
-          sudo apt-get install gcc-arm-linux-gnueabihf gcc-aarch64-linux-gnu g++-aarch64-linux-gnu -y
+          sudo apk update
+          sudo apk add gcc-arm-linux-gnueabihf gcc-aarch64-linux-gnu g++-aarch64-linux-gnu -y
       - name: Link native packages
         run: node scripts/link-native.js
       - uses: bahmutov/npm-install@v1.1.0
