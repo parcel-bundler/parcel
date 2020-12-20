@@ -54,11 +54,11 @@ describe('resolver', function() {
     );
     await outputFS.symlink(
       path.join(rootDir, 'bar.js'),
-      path.join(rootDir, 'baz.js')
+      path.join(rootDir, 'baz.js'),
     );
     await outputFS.symlink(
       path.join(rootDir, 'nested'),
-      path.join(rootDir, 'symlinked-nested')
+      path.join(rootDir, 'symlinked-nested'),
     );
 
     resolver = new NodeResolver({
@@ -757,8 +757,8 @@ describe('resolver', function() {
     });
   });
 
-  describe('symlinks', function () {
-    it('should resolve symlinked files to their realpath', async function () {
+  describe('symlinks', function() {
+    it('should resolve symlinked files to their realpath', async function() {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: './baz.js',
@@ -768,14 +768,17 @@ describe('resolver', function() {
       assert.equal(nullthrows(resolved).filePath, path.join(rootDir, 'bar.js'));
     });
 
-    it('should resolve symlinked directories to their realpath', async function () {
+    it('should resolve symlinked directories to their realpath', async function() {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: './symlinked-nested',
         isURL: false,
         parent: path.join(rootDir, 'foo.js'),
       });
-      assert.equal(nullthrows(resolved).filePath, path.join(rootDir, 'nested', 'index.js'));
+      assert.equal(
+        nullthrows(resolved).filePath,
+        path.join(rootDir, 'nested', 'index.js'),
+      );
     });
   });
 

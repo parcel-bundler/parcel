@@ -67,7 +67,9 @@ async function run({input, api, options, farm}: RunInput) {
   // These are used to compute the cache key for assets during transformation.
   request.invalidations = api.getInvalidations().filter(invalidation => {
     // Filter out invalidation node for the input file itself.
-    return invalidation.type !== 'file' || invalidation.filePath !== input.filePath;
+    return (
+      invalidation.type !== 'file' || invalidation.filePath !== input.filePath
+    );
   });
 
   let {assets, configRequests, invalidations} = (await farm.createHandle(
