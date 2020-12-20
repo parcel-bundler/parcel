@@ -3,13 +3,7 @@
   "version": "2.0.0-beta.1",
   "files": ["index.js", "*.node"],
   "napi": {
-    "name": "fs-search",
-    "triples": {
-      "defaults": true,
-      "additional": [
-        "x86_64-unknown-linux-musl"
-      ]
-    }
+    "name": "fs-search"
   },
   "devDependencies": {
     "@napi-rs/cli": "1.0.0-alpha.10",
