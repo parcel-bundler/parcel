@@ -5,6 +5,7 @@ on: push
 jobs:
   build:
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
     name: ${{ matrix.os }}
@@ -30,6 +31,7 @@ jobs:
 
   build-linux-gnu-arm:
     strategy:
+      fail-fast: false
       matrix:
         include:
           - target: arm-unknown-linux-gnueabihf
@@ -71,10 +73,14 @@ jobs:
         uses: addnab/docker-run-action@v1
         with:
           image: ghcr.io/devongovett/multiarch-node:node14-${{ matrix.arch }}-focal-focal
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GHCR_TOKEN }}
           run: node -e "require('@parcel/fs-search')"
 
   build-linux-musl:
     strategy:
+      fail-fast: false
       matrix:
         target: [x86_64-unknown-linux-musl, aarch64-unknown-linux-musl]
     name: ${{ matrix.target }}
@@ -96,8 +102,8 @@ jobs:
       - name: Install cross compile toolchains
         if: ${{ matrix.target == 'aarch64-unknown-linux-musl' }}
         run: |
-          sudo apk update
-          sudo apk add gcc-arm-linux-gnueabihf gcc-aarch64-linux-gnu g++-aarch64-linux-gnu -y
+          apk update
+          apk add gcc-arm-linux-gnueabihf gcc-aarch64-linux-gnu g++-aarch64-linux-gnu -y
       - name: Link native packages
         run: node scripts/link-native.js
       - uses: bahmutov/npm-install@v1.1.0
