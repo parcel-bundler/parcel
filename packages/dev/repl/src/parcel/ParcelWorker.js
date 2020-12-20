@@ -1,6 +1,7 @@
 // @flow
 import type {Diagnostic} from '@parcel/diagnostic';
 import type {Assets, CodeMirrorDiagnostic, REPLOptions} from '../utils';
+import type {MemoryFS} from '@parcel/fs';
 
 import {expose, proxy} from 'comlink';
 import Parcel, {createWorkerFarm} from '@parcel/core';
@@ -12,6 +13,7 @@ import {ExtendedMemoryFS} from '@parcel/fs';
 import configRepl from '@parcel/config-repl';
 import {generatePackageJson, nthIndex} from '../utils/';
 import path from 'path';
+import {yarnInstall} from './yarn.js';
 
 const workerFarm = createWorkerFarm();
 
@@ -41,6 +43,7 @@ expose({
 });
 
 const PathUtils = {
+  APP_DIR: '/app',
   DIST_DIR: '/app/dist',
   CACHE_DIR: '/app/.parcel-cache',
   fromAssetPath(str) {
@@ -70,7 +73,12 @@ async function convertDiagnostics(inputFS, diagnostics: Array<Diagnostic>) {
 
     if (codeFrame) {
       for (let {start, end, message} of codeFrame.codeHighlights) {
-        let code = codeFrame.code ?? (await inputFS.readFile(filePath, 'utf8'));
+        let code =
+          codeFrame.code ??
+          (await inputFS.readFile(
+            path.resolve(PathUtils.APP_DIR, filePath),
+            'utf8',
+          ));
 
         let from = nthIndex(code, '\n', start.line - 1) + start.column;
         let to = nthIndex(code, '\n', end.line - 1) + end.column;
@@ -96,29 +104,13 @@ async function convertDiagnostics(inputFS, diagnostics: Array<Diagnostic>) {
   return parsedDiagnostics;
 }
 
-// function shouldRunYarn(
-//   oldDeps: $PropertyType<REPLOptions, 'dependencies'>,
-//   newDeps: $PropertyType<REPLOptions, 'dependencies'>,
-// ) {
-//   if (oldDeps.length !== newDeps.length) return true;
-//   else if (newDeps.length === 0) return false;
-//   for (let i = 0; i < oldDeps.length; i++) {
-//     let [nameOld, versionOld] = oldDeps[i];
-//     let [nameNew, versionNew] = newDeps[i];
-//     if (nameOld !== nameNew || versionOld !== versionNew) {
-//       return true;
-//     }
-//   }
-//   return false;
-// }
-
-// async function runYarnInstall(fs) {
+const fs: MemoryFS = new ExtendedMemoryFS(workerFarm);
 // $FlowFixMe
-// const yarn = await import('@mischnic/yarn-browser');
-// console.log(yarn);
-// }
+globalThis.fs = fs;
 
-function setup(assets, options) {
+async function setup(assets, options) {
+  await fs.writeFile('/.parcelrc', JSON.stringify(configRepl, null, 2));
+
   let graphs = options.renderGraphs ? [] : null;
   if (graphs && options.renderGraphs) {
     // $FlowFixMe
@@ -126,11 +118,6 @@ function setup(assets, options) {
       graphs.push({name, content});
     globalThis.PARCEL_DUMP_GRAPHVIZ.mode = options.renderGraphs;
   }
-
-  const fs = new ExtendedMemoryFS(workerFarm);
-
-  // $FlowFixMe
-  globalThis.fs = fs;
 
   // TODO only create new instance if options/entries changed
   let entries = assets
@@ -159,7 +146,7 @@ function setup(assets, options) {
     // ),
   });
 
-  return {bundler, fs, graphs};
+  return {bundler, graphs};
 }
 
 async function collectResult(result, graphs, fs) {
@@ -193,6 +180,7 @@ async function collectResult(result, graphs, fs) {
 async function bundle(
   assets: Assets,
   options: REPLOptions,
+  progress: string => void,
 ): Promise<BundleOutput> {
   const resultFromReporter = Promise.all([
     new Promise(res => {
@@ -221,20 +209,53 @@ async function bundle(
       : null,
   ]);
 
-  const {bundler, fs, graphs} = setup(assets, options);
+  const {bundler, graphs} = await setup(assets, options);
 
   await fs.mkdirp('/app');
-  await fs.writeFile('/app/package.json', generatePackageJson(options));
-  await fs.writeFile('/.parcelrc', JSON.stringify(configRepl, null, 2));
 
-  // await runYarnInstall(fs);
+  for (let f of await fs.readdir('/app')) {
+    if (
+      f === '.yarn' ||
+      f === 'node_modules' ||
+      f === 'yarn.lock' ||
+      f === '.parcel-cache' ||
+      f === 'package.json'
+    ) {
+      continue;
+    }
+    await fs.rimraf('/app/' + f);
+  }
+
+  let oldPackageJson = (await fs.exists('/app/package.json'))
+    ? await fs.readFile('/app/package.json', 'utf8')
+    : null;
+  let newPackageJson =
+    assets.find(({name}) => name === 'package.json')?.content ??
+    generatePackageJson(options);
+
+  if (!oldPackageJson || oldPackageJson !== newPackageJson) {
+    await fs.writeFile('/app/package.json', newPackageJson);
+  }
 
   await fs.mkdirp('/app/src');
   for (let {name, content} of assets) {
+    if (name === 'package.json') continue;
     let p = PathUtils.fromAssetPath(name);
     await fs.mkdirp(path.dirname(p));
     await fs.writeFile(p, content);
   }
+
+  await yarnInstall(options, fs, PathUtils.APP_DIR, v => {
+    if (v.data.includes('Resolution step')) {
+      progress('Yarn: Resolving');
+    } else if (v.data.includes('Fetch step')) {
+      progress('Yarn: Fetching');
+    } else if (v.data.includes('Link step')) {
+      progress('Yarn: Linking');
+    }
+  });
+
+  progress('Bundling');
 
   try {
     let error;
@@ -295,7 +316,7 @@ async function watch(
   };
   globalThis.PARCEL_JSON_LOGGER_STDERR = globalThis.PARCEL_JSON_LOGGER_STDOUT;
 
-  let {bundler, fs, graphs} = setup(assets, options);
+  let {bundler, graphs} = await setup(assets, options);
   await fs.mkdirp('/app');
 
   async function writeAssets(assets) {

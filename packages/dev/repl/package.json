@@ -24,6 +24,7 @@
     "@parcel/package-manager": "^2.0.0-alpha.3",
     "comlink": "^4.3.0",
     "filesize": "^6.1.0",
+    "idb": "^5.0.8",
     "isomorphic-fetch": "^3.0.0",
     "preact": "^10.5.2",
     "semver": "^7.3.2",

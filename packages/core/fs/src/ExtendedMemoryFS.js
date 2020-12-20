@@ -145,8 +145,29 @@ export class ExtendedMemoryFS extends MemoryFS {
     return super.mkdirp(dir);
   }
 
+  async _rmdir(filePath, options = {}) {
+    let {recursive = false} = options;
+
+    if (!recursive) {
+      if (!this.dirs.has(filePath) && !this.files.has(filePath)) {
+        throw new FSError('ENOENT', filePath, 'is not a directory');
+      }
+      if (
+        this.dirs.has(filePath) &&
+        (await this.readdir(filePath)).length > 0
+      ) {
+        throw new FSError('ENOTEMPTY', filePath, "isn't empty");
+      }
+    }
+
+    return super.rimraf(filePath);
+  }
+
   // --------------------------------
 
+  rmdir(...args) {
+    return asyncToNode(args, 3, (...p) => this._rmdir(...p));
+  }
   mkdir(...args) {
     return asyncToNode(args, 3, (...p) => this._mkdir(...p));
   }

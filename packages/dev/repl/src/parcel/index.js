@@ -42,8 +42,9 @@ export const workerReady: Promise<void> = worker.ready;
 export function bundle(
   assets: Assets,
   options: REPLOptions,
+  progress: string => void,
 ): Promise<BundleOutput> {
-  return worker.bundle(assets, options);
+  return worker.bundle(assets, options, proxy(progress));
 }
 
 export function watch(

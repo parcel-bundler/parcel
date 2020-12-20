@@ -81,6 +81,7 @@ function App() {
   ] = useState(initialHashState.currentPreset || DEFAULT_PRESET);
 
   const [bundlingState, setBundlingState] = useState(READY);
+  const [bundlingStateInfo, setBundlingStateInfo] = useState(null);
   const [workerState, setWorkerState] = useState(WORKER_STATE_LOADING);
   useEffect(async () => {
     await workerReady;
@@ -148,9 +149,12 @@ function App() {
   const startBundling = useCallback(async () => {
     if (bundlingState === BUNDLING_RUNNING) return;
     setBundlingState(BUNDLING_RUNNING);
+    setBundlingStateInfo(null);
 
     try {
-      const bundleOutput = await bundle(assets, options);
+      const bundleOutput = await bundle(assets, options, v => {
+        setBundlingStateInfo(v);
+      });
 
       // await new Promise(async res => {
       //   window.addEventListener(
@@ -304,6 +308,7 @@ function App() {
       <div class="column">
         <StatusIndicator
           bundlingState={bundlingState}
+          bundlingStateInfo={bundlingStateInfo}
           workerState={workerState}
           buildDuration={output?.type === 'success' && output.buildTime}
         />
@@ -373,7 +378,12 @@ render(<App />, document.getElementById('root'));
 //   });
 // }
 
-function StatusIndicator({bundlingState, workerState, buildDuration}) {
+function StatusIndicator({
+  bundlingState,
+  bundlingStateInfo,
+  workerState,
+  buildDuration,
+}) {
   let text;
 
   buildDuration = Math.round(buildDuration / 10) / 100;
@@ -383,7 +393,7 @@ function StatusIndicator({bundlingState, workerState, buildDuration}) {
   } else {
     switch (bundlingState) {
       case BUNDLING_RUNNING:
-        text = 'Bundling ...';
+        text = `Running: ${bundlingStateInfo ?? ''}`;
         break;
       case BUNDLING_FINISHED:
         text = `Finished (took ${buildDuration}s)`;
@@ -392,7 +402,7 @@ function StatusIndicator({bundlingState, workerState, buildDuration}) {
         text = 'Watching';
         break;
       case WATCHING_RUNNING:
-        text = 'Watchting: building';
+        text = 'Watching: building';
         break;
       case WATCHING_FINISHED:
         text = `Watching (took ${buildDuration}s)`;
