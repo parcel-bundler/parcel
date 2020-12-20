@@ -693,7 +693,7 @@ describe('resolver', function() {
         parent: path.join(rootDir, 'foo.js'),
       });
       assert.deepEqual(resolved, {
-        filePath: path.join(rootDir, 'node_modules', 'source', 'source.js'),
+        filePath: path.join(rootDir, 'packages', 'source', 'source.js'),
         sideEffects: undefined,
       });
     });
@@ -724,12 +724,7 @@ describe('resolver', function() {
         parent: path.join(rootDir, 'foo.js'),
       });
       assert.deepEqual(resolved, {
-        filePath: path.join(
-          rootDir,
-          'node_modules',
-          'source-alias',
-          'source.js',
-        ),
+        filePath: path.join(rootDir, 'packages', 'source-alias', 'source.js'),
         sideEffects: undefined,
       });
     });
@@ -744,7 +739,7 @@ describe('resolver', function() {
       assert.deepEqual(resolved, {
         filePath: path.join(
           rootDir,
-          'node_modules',
+          'packages',
           'source-alias-glob',
           'src',
           'test.js',
