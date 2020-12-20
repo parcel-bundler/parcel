@@ -251,7 +251,11 @@ export class RequestGraph extends Graph<
     for (let nodeId of this.envNodeIds) {
       let node = nullthrows(this.getNode(nodeId));
       invariant(node.type === 'env');
-      if (env[node.value.key] !== node.value.value) {
+      if (
+        env[node.value.key] !== node.value.value &&
+        // workaround for https://github.com/msgpack/msgpack-javascript/issues/150
+        !(env[node.value.key] == null && node.value.value == null)
+      ) {
         let parentNodes = this.getNodesConnectedTo(
           node,
           'invalidated_by_update',

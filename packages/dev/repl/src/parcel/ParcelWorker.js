@@ -45,7 +45,7 @@ expose({
 const PathUtils = {
   APP_DIR: '/app',
   DIST_DIR: '/app/dist',
-  CACHE_DIR: '/app/.parcel-cache',
+  CACHE_DIR: '/.parcel-cache',
   fromAssetPath(str) {
     return '/app/' + str;
   },
@@ -109,7 +109,9 @@ const fs: MemoryFS = new ExtendedMemoryFS(workerFarm);
 globalThis.fs = fs;
 
 async function setup(assets, options) {
-  await fs.writeFile('/.parcelrc', JSON.stringify(configRepl, null, 2));
+  if (!(await fs.exists('/.parcelrc'))) {
+    await fs.writeFile('/.parcelrc', JSON.stringify(configRepl, null, 2));
+  }
 
   let graphs = options.renderGraphs ? [] : null;
   if (graphs && options.renderGraphs) {
@@ -125,6 +127,7 @@ async function setup(assets, options) {
     .map(a => PathUtils.fromAssetPath(a.name));
   const bundler = new Parcel({
     entries,
+    // https://github.com/parcel-bundler/parcel/pull/4290
     disableCache: true,
     cacheDir: PathUtils.CACHE_DIR,
     distDir: PathUtils.DIST_DIR,
@@ -177,6 +180,46 @@ async function collectResult(result, graphs, fs) {
   }
 }
 
+async function syncAssetsToFS(assets: Assets, options: REPLOptions) {
+  await fs.mkdirp('/app');
+
+  let filesToKeep = new Set([
+    '/app/.yarn',
+    '/app/node_modules',
+    '/app/yarn.lock',
+    '/app/package.json',
+    ...assets.map(({name}) => PathUtils.fromAssetPath(name)),
+  ]);
+
+  for (let {name, content} of assets) {
+    if (name === 'package.json') continue;
+    let p = PathUtils.fromAssetPath(name);
+    await fs.mkdirp(path.dirname(p));
+    if (!(await fs.exists(p)) || (await fs.readFile(p, 'utf8')) !== content) {
+      await fs.writeFile(p, content);
+    }
+  }
+
+  let oldPackageJson = (await fs.exists('/app/package.json'))
+    ? await fs.readFile('/app/package.json', 'utf8')
+    : null;
+  let newPackageJson =
+    assets.find(({name}) => name === 'package.json')?.content ??
+    generatePackageJson(options);
+
+  if (!oldPackageJson || oldPackageJson.trim() !== newPackageJson.trim()) {
+    await fs.writeFile('/app/package.json', newPackageJson);
+  }
+
+  for (let f of await fs.readdir('/app')) {
+    f = '/app/' + f;
+    if (filesToKeep.has(f) || [...filesToKeep].some(k => k.startsWith(f))) {
+      continue;
+    }
+    await fs.rimraf('/app/' + f);
+  }
+}
+
 async function bundle(
   assets: Assets,
   options: REPLOptions,
@@ -211,39 +254,7 @@ async function bundle(
 
   const {bundler, graphs} = await setup(assets, options);
 
-  await fs.mkdirp('/app');
-
-  for (let f of await fs.readdir('/app')) {
-    if (
-      f === '.yarn' ||
-      f === 'node_modules' ||
-      f === 'yarn.lock' ||
-      f === '.parcel-cache' ||
-      f === 'package.json'
-    ) {
-      continue;
-    }
-    await fs.rimraf('/app/' + f);
-  }
-
-  let oldPackageJson = (await fs.exists('/app/package.json'))
-    ? await fs.readFile('/app/package.json', 'utf8')
-    : null;
-  let newPackageJson =
-    assets.find(({name}) => name === 'package.json')?.content ??
-    generatePackageJson(options);
-
-  if (!oldPackageJson || oldPackageJson !== newPackageJson) {
-    await fs.writeFile('/app/package.json', newPackageJson);
-  }
-
-  await fs.mkdirp('/app/src');
-  for (let {name, content} of assets) {
-    if (name === 'package.json') continue;
-    let p = PathUtils.fromAssetPath(name);
-    await fs.mkdirp(path.dirname(p));
-    await fs.writeFile(p, content);
-  }
+  await syncAssetsToFS(assets, options);
 
   await yarnInstall(options, fs, PathUtils.APP_DIR, v => {
     if (v.data.includes('Resolution step')) {
@@ -317,21 +328,8 @@ async function watch(
   globalThis.PARCEL_JSON_LOGGER_STDERR = globalThis.PARCEL_JSON_LOGGER_STDOUT;
 
   let {bundler, graphs} = await setup(assets, options);
-  await fs.mkdirp('/app');
 
-  async function writeAssets(assets) {
-    await fs.writeFile('/app/package.json', generatePackageJson(options));
-    await fs.writeFile('/.parcelrc', JSON.stringify(configRepl, null, 2));
-    await fs.writeFile('/app/yarn.lock', '');
-    await fs.mkdirp('/app/src');
-    for (let {name, content} of assets) {
-      let p = PathUtils.fromAssetPath(name);
-      await fs.mkdirp(path.dirname(p));
-      await fs.writeFile(p, content);
-    }
-  }
-
-  writeAssets(assets);
+  await syncAssetsToFS(assets, options);
 
   reporterEvents.addEventListener('build', async (e: Event) => {
     // $FlowFixMe
@@ -342,6 +340,6 @@ async function watch(
 
   return proxy({
     unsubscribe: (await bundler.watch()).unsubscribe,
-    writeAssets,
+    writeAssets: assets => syncAssetsToFS(assets, options),
   });
 }
