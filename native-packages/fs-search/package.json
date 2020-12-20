@@ -6,8 +6,7 @@
     "name": "fs-search"
   },
   "devDependencies": {
-    "@napi-rs/cli": "1.0.0-alpha.10",
-    "tiny-benchy": "^1.0.1"
+    "@napi-rs/cli": "1.0.0-alpha.10"
   },
   "scripts": {
     "build": "napi build --platform",

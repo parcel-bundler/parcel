@@ -13920,11 +13920,6 @@ timsort@^0.3.0:
   resolved "https://registry.yarnpkg.com/timsort/-/timsort-0.3.0.tgz#405411a8e7e6339fe64db9a234de11dc31e02bd4"
   integrity sha1-QFQRqOfmM5/mTbmiNN4R3DHgK9Q=
 
-tiny-benchy@^1.0.1:
-  version "1.0.1"
-  resolved "https://registry.yarnpkg.com/tiny-benchy/-/tiny-benchy-1.0.1.tgz#e1b9fdac15790cb017562b61e96d709d65857d1e"
-  integrity sha512-Q724Tnq/jzftUgkvAvzXG27NwAbFpxlAhsdZTqf6jsFO3j/KLBNRAn1nXoYekZYa0ZxLYhROgBEtYuJfrQ3pSQ==
-
 tiny-inflate@^1.0.0:
   version "1.0.3"
   resolved "https://registry.yarnpkg.com/tiny-inflate/-/tiny-inflate-1.0.3.tgz#122715494913a1805166aaf7c93467933eea26c4"
