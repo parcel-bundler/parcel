@@ -3107,6 +3107,14 @@ describe('javascript', function() {
     assert.deepEqual(res, {other: 2});
   });
 
+  it('should handle simultaneous import and reexports of the same identifier', async function() {
+    let b = await bundle(
+      path.join(__dirname, 'integration/js-export-import-same/index.js'),
+    );
+    let res = await run(b);
+    assert.deepEqual(res, {foo: '123', bar: '1234'});
+  });
+
   it('should generate a unique variable name for imports', async function() {
     let b = await bundle(
       path.join(__dirname, 'integration/js-import-shadow/index.js'),
