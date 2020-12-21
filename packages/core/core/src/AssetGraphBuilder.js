@@ -833,7 +833,7 @@ export default class AssetGraphBuilder extends EventEmitter {
       this.requestGraph = requestGraph;
 
       let opts = this.getWatcherOptions();
-      let snapshotPath = this.options.cache._getCachePath(snapshotKey, '.txt');
+      let snapshotPath = path.join(this.options.cacheDir, snapshotKey + '.txt');
       return this.options.inputFS.getEventsSince(
         this.options.projectRoot,
         snapshotPath,
@@ -854,7 +854,7 @@ export default class AssetGraphBuilder extends EventEmitter {
     await this.options.cache.set(requestGraphKey, this.requestGraph);
 
     let opts = this.getWatcherOptions();
-    let snapshotPath = this.options.cache._getCachePath(snapshotKey, '.txt');
+    let snapshotPath = path.join(this.options.cacheDir, snapshotKey + '.txt');
     await this.options.inputFS.writeSnapshot(
       this.options.projectRoot,
       snapshotPath,
