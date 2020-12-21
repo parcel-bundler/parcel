@@ -34,14 +34,11 @@ import dumpGraphToGraphViz from './dumpGraphToGraphViz';
 import resolveOptions from './resolveOptions';
 import {ValueEmitter} from '@parcel/events';
 import {registerCoreWithSerializer} from './utils';
-// import {createCacheDir} from '@parcel/cache';
 import {AbortController} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import {PromiseQueue} from '@parcel/utils';
 import ParcelConfig from './ParcelConfig';
 import logger from '@parcel/logger';
 import {Disposable} from '@parcel/events';
-import Cache from '@parcel/cache';
-import {LayeredFS, MemoryFS, NodeFS} from '@parcel/fs';
 
 registerCoreWithSerializer();
 
