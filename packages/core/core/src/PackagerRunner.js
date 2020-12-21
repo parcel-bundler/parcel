@@ -500,12 +500,12 @@ export default class PackagerRunner {
     let contentKey = PackagerRunner.getContentKey(cacheKey);
     let mapKey = PackagerRunner.getMapKey(cacheKey);
 
-    let contentExists = await this.options.cache.blobExists(contentKey);
+    let contentExists = await this.options.cache.has(contentKey);
     if (!contentExists) {
       return null;
     }
 
-    let mapExists = await this.options.cache.blobExists(mapKey);
+    let mapExists = await this.options.cache.has(mapKey);
 
     return {
       contents: this.options.cache.getStream(contentKey),
@@ -577,7 +577,7 @@ export default class PackagerRunner {
     if (
       bundle.env.sourceMap &&
       !bundle.env.sourceMap.inline &&
-      (await this.options.cache.blobExists(mapKey))
+      (await this.options.cache.has(mapKey))
     ) {
       let mapStream = this.options.cache.getStream(mapKey);
       await writeFileStream(
