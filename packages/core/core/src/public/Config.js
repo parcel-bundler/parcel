@@ -109,6 +109,10 @@ export default class PublicConfig implements IConfig {
       }
     }
 
+    if (filePaths.length === 0) {
+      return null;
+    }
+
     let parse = options && options.parse;
     let conf = await loadConfig(
       this.#options.inputFS,
