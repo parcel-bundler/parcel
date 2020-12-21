@@ -64,6 +64,8 @@ function getLoaders(
   return null;
 }
 
+// This cache should be invalidated if new dependencies get added to the bundle without the bundle objects changing
+// This can happen when we reuse the BundleGraph between subsequent builds
 let bundleDependencies = new WeakMap<
   NamedBundle,
   {|
