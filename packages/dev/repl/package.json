@@ -3,11 +3,9 @@
   "version": "2.0.0-alpha.3.2",
   "license": "MIT",
   "private": true,
-  "default": "dist/index.html",
-  "source": "src/index.html",
   "scripts": {
-    "start": "yarn copy-wasm && parcel2 . --no-source-maps",
-    "build": "parcel2 build . --no-source-maps && yarn copy-wasm",
+    "start": "yarn copy-wasm && parcel2 src/index.html --no-source-maps",
+    "build": "parcel2 build src/index.html --no-source-maps && yarn copy-wasm",
     "copy-wasm": "cp $(node -p 'require.resolve(\"@parcel/source-map/wasm-browser/source-map.wasm\")') dist/",
     "serve": "serve dist/ -c ../serve.json",
     "prebuild": "node write-commit.js"
@@ -33,8 +31,5 @@
   "alias": {
     "react": "preact/compat"
   },
-  "browserslist": "Chrome 75",
-  "targets": {
-    "default": {}
-  }
+  "browserslist": "Chrome 75"
 }
