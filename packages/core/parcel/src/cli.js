@@ -216,6 +216,9 @@ async function run(entries: Array<string>, command: any) {
     disposable.dispose();
     process.exit(exitCode);
   }
+  if (!options) {
+    await exit(-1);
+  }
 
   const isWatching = command.name() === 'watch' || command.name() === 'serve';
   if (process.stdin.isTTY) {
@@ -313,7 +316,9 @@ async function run(entries: Array<string>, command: any) {
   }
 }
 
-async function normalizeOptions(command): Promise<InitialParcelOptions> {
+async function normalizeOptions(
+  command,
+): Promise<InitialParcelOptions | boolean> {
   let nodeEnv;
   if (command.name() === 'build') {
     nodeEnv = initialNodeEnv || 'production';
@@ -332,6 +337,9 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
 
   let serve = false;
   let {port, host} = command;
+  let isCustomPort = command.parent.rawArgs.some(
+    arg => arg === '--port' || arg === '-p',
+  );
   if (command.name() === 'serve' || command.hmr) {
     port = await getPort({port, host});
 
@@ -340,6 +348,8 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
       INTERNAL_ORIGINAL_CONSOLE.warn(
         chalk.bold.yellowBright(`⚠️  Port ${command.port} could not be used.`),
       );
+      // If port was provided using -p or --port flag then return -1
+      if (isCustomPort) return false;
     }
   }
 
