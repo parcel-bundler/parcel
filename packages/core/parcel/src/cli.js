@@ -39,10 +39,18 @@ async function logUncaughtError(e: mixed) {
   await new Promise(resolve => setTimeout(resolve, 100));
 }
 
-process.on('unhandledRejection', async (reason: mixed) => {
-  await logUncaughtError(reason);
-  process.exit();
-});
+const handleUncaughtException = async exception => {
+  try {
+    await logUncaughtError(exception);
+  } catch (err) {
+    console.error(exception);
+    console.error(err);
+  }
+
+  process.exit(1);
+};
+
+process.on('unhandledRejection', handleUncaughtException);
 
 // Capture the NODE_ENV this process was launched with, so that it can be
 // used in Parcel (such as in process.env inlining).
@@ -119,7 +127,7 @@ let serve = program
     'automatically open in specified browser, defaults to default browser',
   )
   .option('--watch-for-stdin', 'exit when stdin closes')
-  .action(run);
+  .action(runCommand);
 
 applyOptions(serve, hmrOptions);
 applyOptions(serve, commonOptions);
@@ -129,7 +137,7 @@ let watch = program
   .description('starts the bundler in watch mode')
   .option('--public-url <url>', 'the path prefix for absolute urls')
   .option('--watch-for-stdin', 'exit when stdin closes')
-  .action(run);
+  .action(runCommand);
 
 applyOptions(watch, hmrOptions);
 applyOptions(watch, commonOptions);
@@ -140,7 +148,7 @@ let build = program
   .option('--no-minify', 'disable minification')
   .option('--no-scope-hoist', 'disable scope-hoisting')
   .option('--public-url <url>', 'the path prefix for absolute urls')
-  .action(run);
+  .action(runCommand);
 
 applyOptions(build, commonOptions);
 
@@ -170,6 +178,10 @@ if (!args[2] || !program.commands.some(c => c.name() === args[2])) {
 }
 
 program.parse(args);
+
+function runCommand(...args) {
+  run(...args).catch(handleUncaughtException);
+}
 
 async function run(entries: Array<string>, command: any) {
   entries = entries.map(entry => path.resolve(entry));
@@ -300,11 +312,11 @@ async function run(entries: Array<string>, command: any) {
   } else {
     try {
       await parcel.run();
-    } catch (e) {
+    } catch (err) {
       // If an exception is thrown during Parcel.build, it is given to reporters in a
       // buildFailure event, and has been shown to the user.
-      if (!(e instanceof BuildError)) {
-        await logUncaughtError(e);
+      if (!(err instanceof BuildError)) {
+        await logUncaughtError(err);
       }
       await exit(1);
     }
