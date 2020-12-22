@@ -179,7 +179,13 @@ async function run(entries: Array<string>, command: any) {
     return;
   }
   let Parcel = require('@parcel/core').default;
-  let options = await normalizeOptions(command);
+  let optionsError;
+  let options;
+  try {
+    options = await normalizeOptions(command);
+  } catch (e) {
+    optionsError = true;
+  }
   let fs = new NodeFS();
   let packageManager = new NodePackageManager(fs);
   let parcel = new Parcel({
@@ -216,7 +222,7 @@ async function run(entries: Array<string>, command: any) {
     disposable.dispose();
     process.exit(exitCode);
   }
-  if (!options) {
+  if (optionsError) {
     await exit(-1);
   }
 
@@ -316,9 +322,7 @@ async function run(entries: Array<string>, command: any) {
   }
 }
 
-async function normalizeOptions(
-  command,
-): Promise<InitialParcelOptions | boolean> {
+async function normalizeOptions(command): Promise<InitialParcelOptions> {
   let nodeEnv;
   if (command.name() === 'build') {
     nodeEnv = initialNodeEnv || 'production';
@@ -348,8 +352,8 @@ async function normalizeOptions(
       INTERNAL_ORIGINAL_CONSOLE.warn(
         chalk.bold.yellowBright(`⚠️  Port ${command.port} could not be used.`),
       );
-      // If port was provided using -p or --port flag then return -1
-      if (isCustomPort) return false;
+      // If port was provided using -p or --port flag then throw an Error
+      if (isCustomPort) throw new Error(`port ${command.port} taken`);
     }
   }
 
