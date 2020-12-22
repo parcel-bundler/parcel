@@ -349,8 +349,9 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
         chalk.bold.yellowBright(`⚠️  Port ${command.port} could not be used.`),
       );
       // If port was provided using -p or --port flag then throw an Error
-      if (isCustomPort && nodeEnv === 'development')
+      if (isCustomPort && nodeEnv === 'development') {
         throw new Error(`port ${command.port} taken`);
+      }
     }
   }
 
