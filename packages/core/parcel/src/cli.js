@@ -179,12 +179,11 @@ async function run(entries: Array<string>, command: any) {
     return;
   }
   let Parcel = require('@parcel/core').default;
-  let optionsError;
   let options;
   try {
     options = await normalizeOptions(command);
   } catch (e) {
-    optionsError = true;
+    process.exit(-1);
   }
   let fs = new NodeFS();
   let packageManager = new NodePackageManager(fs);
@@ -221,9 +220,6 @@ async function run(entries: Array<string>, command: any) {
 
     disposable.dispose();
     process.exit(exitCode);
-  }
-  if (optionsError) {
-    await exit(-1);
   }
 
   const isWatching = command.name() === 'watch' || command.name() === 'serve';
