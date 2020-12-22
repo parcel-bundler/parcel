@@ -1,6 +1,6 @@
 // eslint-disable-next-line no-unused-vars
 import {h} from 'preact';
-import {useState, useEffect} from 'preact/hooks';
+import {useState, useEffect, useRef} from 'preact/hooks';
 import {memo} from 'preact/compat';
 import {ctrlKey} from '../utils';
 import renderGraph from '../graphs/index.js';
@@ -38,9 +38,8 @@ export function Notes() {
       Hotkeys:
       <ul>
         <li> {ctrlKey} + (B or Enter): Bundle</li>
-        <li> {ctrlKey} + S: Download ZIP of input (& output)</li>
       </ul>
-      Note:
+      {/* Note:
       <ul>
         <li>
           PostHTML&apos;s <code>removeUnusedCss</code> is disabled for a smaller
@@ -63,7 +62,7 @@ export function Notes() {
           Currently patching <code>htmlnano</code> because its{' '}
           <code>require</code> calls aren&apos;t statically analyzeable
         </li>
-      </ul>
+      </ul> */}
       {/* <br />
       Based on commit:{' '}
       <a href={`https://github.com/parcel-bundler/parcel/tree/${commit}`}>
@@ -77,7 +76,7 @@ export function Notes() {
 //   return `data:${mime};charset=utf-8;base64,${btoa(data)}`;
 // }
 
-const Graphs = memo(function Graphs({graphs}) {
+export const Graphs = memo(function Graphs({graphs}) {
   let [rendered, setRendered] = useState();
 
   useEffect(async () => {
@@ -117,7 +116,30 @@ const Graphs = memo(function Graphs({graphs}) {
     </Box>
   );
 });
-export {Graphs};
+
+export function Tabs({names, children, selected, setSelected, ...props}) {
+  let [_selected, _setSelected] = useState(0);
+
+  selected = selected ?? _selected;
+  setSelected = setSelected ?? _setSelected;
+
+  return (
+    <div class="tabs" {...props}>
+      <div class="switcher">
+        {names.map((n, i) => (
+          <div
+            onClick={() => setSelected(i)}
+            key={i}
+            class={i === selected ? 'selected' : undefined}
+          >
+            {n}
+          </div>
+        ))}
+      </div>
+      {children.find((_, i) => i === selected)}
+    </div>
+  );
+}
 
 export function useDebounce(value, delay) {
   const [debouncedValue, setDebouncedValue] = useState(value);
@@ -133,6 +155,53 @@ export function useDebounce(value, delay) {
   }, [value, delay]);
 
   return debouncedValue;
+}
+
+export function useSessionStorage(key, initialValue) {
+  const [storedValue, setStoredValue] = useState(() => {
+    try {
+      const item = window.sessionStorage.getItem(key);
+      return item ? JSON.parse(item) : initialValue;
+    } catch (error) {
+      console.log(error);
+      return initialValue;
+    }
+  });
+
+  const setValue = value => {
+    try {
+      const valueToStore =
+        value instanceof Function ? value(storedValue) : value;
+      setStoredValue(valueToStore);
+      window.sessionStorage.setItem(key, JSON.stringify(valueToStore));
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  return [storedValue, setValue];
+}
+
+export function usePromise(promise) {
+  let [state, setState] = useState(null);
+  let mountedRef = useRef(false);
+
+  useEffect(() => {
+    mountedRef.current = true;
+
+    return () => {
+      mountedRef.current = false;
+    };
+  });
+
+  useEffect(() => {
+    promise.then(
+      v => mountedRef.current && setState({resolved: v}),
+      v => mountedRef.current && setState({rejected: v}),
+    );
+  }, [promise]);
+
+  return [state?.resolved, state?.rejected, state != null];
 }
 
 const addBodyClass = className => document.body.classList.add(className);

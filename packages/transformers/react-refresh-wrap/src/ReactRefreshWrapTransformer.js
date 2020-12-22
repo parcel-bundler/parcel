@@ -3,14 +3,14 @@
 import type {StringLiteral, Statement} from '@babel/types';
 
 import semver from 'semver';
-import path from 'path';
+// import path from 'path';
 import {generate, parse} from '@parcel/babel-ast-utils';
 import {Transformer} from '@parcel/plugin';
-import {relativePath} from '@parcel/utils';
+// import {relativePath} from '@parcel/utils';
 import template from '@babel/template';
 import * as t from '@babel/types';
 
-const WRAPPER = path.join(__dirname, 'helpers', 'helpers.js');
+// const WRAPPER = path.join(__dirname, 'helpers', 'helpers.js');
 
 const wrapper = template.statements<{|
   helper: StringLiteral,
@@ -63,10 +63,12 @@ export default (new Transformer({
       return [asset];
     }
 
-    let wrapperPath = relativePath(path.dirname(asset.filePath), WRAPPER);
-    if (!wrapperPath.startsWith('.')) {
-      wrapperPath = './' + wrapperPath;
-    }
+    // let wrapperPath = relativePath(path.dirname(asset.filePath), WRAPPER);
+    // if (!wrapperPath.startsWith('.')) {
+    //   wrapperPath = './' + wrapperPath;
+    // }
+    let wrapperPath =
+      '@parcel/transformer-react-refresh-wrap/src/helpers/helpers.js';
 
     ast.program.program.body = wrapper({
       helper: t.stringLiteral(wrapperPath),

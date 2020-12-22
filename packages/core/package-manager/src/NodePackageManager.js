@@ -33,10 +33,13 @@ import packagerHtml from '@parcel/packager-html';
 import packagerJs from '@parcel/packager-js';
 import packagerRaw from '@parcel/packager-raw';
 import reporterJson from '@parcel/reporter-json';
+import reporterServer from '@parcel/reporter-dev-server-sw';
+import reporterSourcemapVisualizser from '@parcel/reporter-sourcemap-visualiser';
 import resolverDefault from '@parcel/resolver-default';
 import resolverREPLRuntimes from '@parcel/resolver-repl-runtimes';
-import resolverSourcemapVisualizser from '@parcel/reporter-sourcemap-visualiser';
+import runtimeHMRSSE from '@parcel/runtime-browser-hmr-sse';
 import runtimeJs from '@parcel/runtime-js';
+import runtimeReactRefresh from '@parcel/runtime-react-refresh';
 import transformerBabel from '@parcel/transformer-babel';
 import transformerCss from '@parcel/transformer-css';
 import transformerHtml from '@parcel/transformer-html';
@@ -45,6 +48,8 @@ import transformerJs from '@parcel/transformer-js';
 import transformerJson from '@parcel/transformer-json';
 import transformerPostcss from '@parcel/transformer-postcss';
 import transformerPosthtml from '@parcel/transformer-posthtml';
+import transformerReactRefreshBabel from '@parcel/transformer-react-refresh-babel';
+import transformerReactRefreshWrap from '@parcel/transformer-react-refresh-wrap';
 import transformerRaw from '@parcel/transformer-raw';
 
 const BUILTINS = {
@@ -55,14 +60,19 @@ const BUILTINS = {
   '@parcel/packager-html': packagerHtml,
   '@parcel/packager-js': packagerJs,
   '@parcel/packager-raw': packagerRaw,
+  '@parcel/reporter-dev-server-sw': reporterServer,
   '@parcel/reporter-json': reporterJson,
-  '@parcel/reporter-sourcemap-visualiser': resolverSourcemapVisualizser,
+  '@parcel/reporter-sourcemap-visualiser': reporterSourcemapVisualizser,
   '@parcel/resolver-default': resolverDefault,
   '@parcel/resolver-repl-runtimes': resolverREPLRuntimes,
+  '@parcel/runtime-hmr-sse': runtimeHMRSSE,
   '@parcel/runtime-js': runtimeJs,
+  '@parcel/runtime-react-refresh': runtimeReactRefresh,
   '@parcel/transformer-babel': transformerBabel,
   '@parcel/transformer-css': transformerCss,
   '@parcel/transformer-html': transformerHtml,
+  '@parcel/transformer-react-refresh-babel': transformerReactRefreshBabel,
+  '@parcel/transformer-react-refresh-wrap': transformerReactRefreshWrap,
   '@parcel/transformer-inline-string': transformerInlineString,
   '@parcel/transformer-js': transformerJs,
   '@parcel/transformer-json': transformerJson,
@@ -70,28 +80,6 @@ const BUILTINS = {
   '@parcel/transformer-posthtml': transformerPosthtml,
   '@parcel/transformer-raw': transformerRaw,
 };
-
-// const BUILTINS = {
-//   '@parcel/bundler-default': import('@parcel/bundler-default'),
-//   '@parcel/namer-default': import('@parcel/namer-default'),
-//   '@parcel/optimizer-terser': import('@parcel/optimizer-terser'),
-//   '@parcel/packager-css': import('@parcel/packager-css'),
-//   '@parcel/packager-html': import('@parcel/packager-html'),
-//   '@parcel/packager-js': import('@parcel/packager-js'),
-//   '@parcel/packager-raw': import('@parcel/packager-raw'),
-//   '@parcel/reporter-json': import('@parcel/reporter-json'),
-//   '@parcel/resolver-default': import('@parcel/resolver-default'),
-//   '@parcel/runtime-js': import('@parcel/runtime-js'),
-//   '@parcel/transformer-babel': import('@parcel/transformer-babel'),
-//   '@parcel/transformer-css': import('@parcel/transformer-css'),
-//   '@parcel/transformer-html': import('@parcel/transformer-html'),
-//   '@parcel/transformer-inline-string': import('@parcel/transformer-inline-string'),
-//   '@parcel/transformer-js': import('@parcel/transformer-js'),
-//   '@parcel/transformer-json': import('@parcel/transformer-json'),
-//   '@parcel/transformer-postcss': import('@parcel/transformer-postcss'),
-//   '@parcel/transformer-posthtml': import('@parcel/transformer-posthtml'),
-//   '@parcel/transformer-raw': import('@parcel/transformer-raw'),
-// };
 
 // This implements a package manager for Node by monkey patching the Node require
 // algorithm so that it uses the specified FileSystem instead of the native one.

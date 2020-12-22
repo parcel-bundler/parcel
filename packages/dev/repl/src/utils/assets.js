@@ -69,7 +69,7 @@ export function assetsReducer(assets: Assets, action: AssetAction): Assets {
     let nameIndex = 0;
     while (
       assets.find(
-        v => v.name == 'new' + (nameIndex ? `-${nameIndex}` : '') + '.js',
+        v => v.name == 'src/new' + (nameIndex ? `-${nameIndex}` : '') + '.js',
       )
     ) {
       nameIndex++;
@@ -78,7 +78,7 @@ export function assetsReducer(assets: Assets, action: AssetAction): Assets {
     return [
       ...assets,
       {
-        name: 'new' + (nameIndex ? `-${nameIndex}` : '') + '.js',
+        name: 'src/new' + (nameIndex ? `-${nameIndex}` : '') + '.js',
         content: '',
         isEntry: false,
       },
@@ -217,7 +217,7 @@ document.body.append(document.createTextNode(func()))`,
     },
     {
       name: 'src/package.json',
-      content: JSON.stringify({sideEffects: ['index.js']}, null, 2),
+      content: JSON.stringify({sideEffects: ['index.js']}, null, 4),
     },
   ],
   'Dynamic Import': [
@@ -268,7 +268,163 @@ document.body.innerHTML = greeter(user);`,
           },
         },
         null,
-        2,
+        4,
+      ),
+    },
+  ],
+  HMR: [
+    {
+      name: 'src/index.html',
+      isEntry: true,
+      content: `<!DOCTYPE html>
+<main></main>
+<script src="./index.js"></script>`,
+    },
+    {
+      name: 'src/index.js',
+      content: `document.body.appendChild(document.createTextNode(Date.now()));
+
+module.hot.accept();`,
+    },
+  ],
+  'React (Fast Refresh)': [
+    {
+      name: 'src/index.html',
+      isEntry: true,
+      content: `<!DOCTYPE html>
+<main></main>
+<script src="./index.jsx"></script>`,
+    },
+    {
+      name: 'src/index.jsx',
+      content: `import * as React from "react";
+import {render} from "react-dom";
+import {App} from './App.jsx';
+
+render(<App/>, document.querySelector("main"));`,
+    },
+    {
+      name: 'src/App.jsx',
+      content: `import * as React from "react";
+
+export function App() {
+	let [counter, setCounter] = React.useState(0);
+	return (
+		<div>
+			<button onClick={() => setCounter(counter + 1)}>Increment {counter}</button>
+		</div>
+	);
+}`,
+    },
+    {
+      name: 'package.json',
+      content: JSON.stringify(
+        {
+          name: 'repl',
+          version: '0.0.0',
+          engines: {
+            browsers: 'since 2019',
+          },
+          targets: {
+            app: {},
+          },
+          dependencies: {
+            react: 'latest',
+            'react-dom': 'latest',
+            'react-refresh': 'latest',
+          },
+        },
+        null,
+        4,
+      ),
+    },
+  ],
+  'React Spectrum': [
+    {
+      name: 'src/index.html',
+      isEntry: true,
+      content: `<!DOCTYPE html>
+<main></main>
+<script src="./index.jsx"></script>`,
+    },
+    {
+      name: 'src/index.jsx',
+      content: `import * as React from "react";
+import {render} from "react-dom";
+import {App} from './App.jsx';
+
+render(<App/>, document.querySelector("main"));`,
+    },
+    {
+      name: 'src/App.jsx',
+      content: `import * as React from "react";
+import {
+  Provider,
+  Form,
+  TextField,
+  ActionButton,
+  AlertDialog,
+  DialogTrigger,
+  lightTheme
+} from "@adobe/react-spectrum";
+
+export function App() {
+  let [name, setName] = React.useState("");
+  let [email, setEmail] = React.useState("");
+
+  return (
+    <Provider theme={lightTheme}>
+      <Form maxWidth="size-3600">
+        <TextField
+          label="Name"
+          placeholder="John Doe"
+          value={name}
+          onChange={setName}
+        />
+        <TextField
+          label="Email"
+          placeholder="abc@gmail.com"
+          value={email}
+          onChange={setEmail}
+        />
+        <DialogTrigger>
+          <ActionButton>Save</ActionButton>
+          <AlertDialog
+            variant="confirmation"
+            title="Are you sure?"
+            primaryActionLabel="Yes"
+            cancelLabel="Cancel"
+          >
+            Hello {name}, is this really you're email address: {email}?
+          </AlertDialog>
+        </DialogTrigger>
+      </Form>
+    </Provider>
+  );
+}
+`,
+    },
+    {
+      name: 'package.json',
+      content: JSON.stringify(
+        {
+          name: 'repl',
+          version: '0.0.0',
+          engines: {
+            browsers: 'since 2019',
+          },
+          targets: {
+            app: {},
+          },
+          dependencies: {
+            react: 'latest',
+            'react-dom': 'latest',
+            'react-refresh': 'latest',
+            '@adobe/react-spectrum': 'latest',
+          },
+        },
+        null,
+        4,
       ),
     },
   ],

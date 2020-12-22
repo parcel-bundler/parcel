@@ -8,14 +8,13 @@ import Parcel, {createWorkerFarm} from '@parcel/core';
 // import {MemoryFS} from '@parcel/fs';
 // $FlowFixMe
 import {ExtendedMemoryFS} from '@parcel/fs';
+import {makeDeferredWithPromise} from '@parcel/utils';
 // import SimplePackageInstaller from './SimplePackageInstaller';
 // import {NodePackageManager} from '@parcel/package-manager';
 import configRepl from '@parcel/config-repl';
 import {generatePackageJson, nthIndex} from '../utils/';
 import path from 'path';
 import {yarnInstall} from './yarn.js';
-
-const workerFarm = createWorkerFarm();
 
 export type BundleOutput =
   | {|
@@ -36,10 +35,33 @@ export type BundleOutput =
       diagnostics: Map<string, Array<CodeMirrorDiagnostic>>,
     |};
 
+const workerFarm = createWorkerFarm();
+
+let swFSPromise, resolveSWFSPromise;
+function resetSWPromise() {
+  ({
+    promise: swFSPromise,
+    deferred: {resolve: resolveSWFSPromise},
+  } = makeDeferredWithPromise());
+}
+
+let sw: MessagePort;
+global.PARCEL_SERVICE_WORKER = async (type, data) => {
+  await sendMsg(sw, type, data);
+  if (type === 'setFS') {
+    resolveSWFSPromise();
+  }
+};
+
 expose({
   bundle,
   watch,
   ready: new Promise(res => workerFarm.once('ready', () => res())),
+  waitForFS: () => proxy(swFSPromise),
+  setServiceWorker: v => {
+    sw = v;
+    sw.start();
+  },
 });
 
 const PathUtils = {
@@ -105,12 +127,17 @@ async function convertDiagnostics(inputFS, diagnostics: Array<Diagnostic>) {
 }
 
 const fs: MemoryFS = new ExtendedMemoryFS(workerFarm);
+fs.chdir('/app');
 // $FlowFixMe
 globalThis.fs = fs;
 
 async function setup(assets, options) {
   if (!(await fs.exists('/.parcelrc'))) {
     await fs.writeFile('/.parcelrc', JSON.stringify(configRepl, null, 2));
+  }
+  // TODO for NodeResolver
+  if (!(await fs.exists('/_empty.js'))) {
+    await fs.writeFile('/_empty.js', '');
   }
 
   let graphs = options.renderGraphs ? [] : null;
@@ -131,8 +158,8 @@ async function setup(assets, options) {
     disableCache: true,
     cacheDir: PathUtils.CACHE_DIR,
     distDir: PathUtils.DIST_DIR,
-    mode: 'production',
-    hot: null,
+    mode: options.mode,
+    hot: options.hmr ? {} : null,
     logLevel: 'verbose',
     patchConsole: false,
     workerFarm,
@@ -216,7 +243,7 @@ async function syncAssetsToFS(assets: Assets, options: REPLOptions) {
     if (filesToKeep.has(f) || [...filesToKeep].some(k => k.startsWith(f))) {
       continue;
     }
-    await fs.rimraf('/app/' + f);
+    await fs.rimraf(f);
   }
 }
 
@@ -254,6 +281,7 @@ async function bundle(
 
   const {bundler, graphs} = await setup(assets, options);
 
+  resetSWPromise();
   await syncAssetsToFS(assets, options);
 
   await yarnInstall(options, fs, PathUtils.APP_DIR, v => {
@@ -300,6 +328,7 @@ async function watch(
   assets: Assets,
   options: REPLOptions,
   onBuild: BundleOutput => void,
+  progress: (?string) => void,
 ): Promise<{|
   unsubscribe: () => Promise<mixed>,
   writeAssets: Assets => Promise<mixed>,
@@ -329,7 +358,20 @@ async function watch(
 
   let {bundler, graphs} = await setup(assets, options);
 
+  resetSWPromise();
   await syncAssetsToFS(assets, options);
+
+  await yarnInstall(options, fs, PathUtils.APP_DIR, v => {
+    if (v.data.includes('Resolution step')) {
+      progress('Yarn: Resolving');
+    } else if (v.data.includes('Fetch step')) {
+      progress('Yarn: Fetching');
+    } else if (v.data.includes('Link step')) {
+      progress('Yarn: Linking');
+    }
+  });
+
+  progress('building');
 
   reporterEvents.addEventListener('build', async (e: Event) => {
     // $FlowFixMe
@@ -340,6 +382,38 @@ async function watch(
 
   return proxy({
     unsubscribe: (await bundler.watch()).unsubscribe,
-    writeAssets: assets => syncAssetsToFS(assets, options),
+    writeAssets: assets => {
+      resetSWPromise();
+      syncAssetsToFS(assets, options);
+    },
+  });
+}
+
+function uuidv4() {
+  return (String(1e7) + -1e3 + -4e3 + -8e3 + -1e11).replace(
+    /[018]/g,
+    // $FlowFixMe
+    (c: number) =>
+      (
+        c ^
+        // $FlowFixMe
+        (crypto.getRandomValues(new Uint8Array(1))[0] & (15 >> (c / 4)))
+      ).toString(16),
+  );
+}
+
+function sendMsg(target, type, data, transfer) {
+  let id = uuidv4();
+  return new Promise(res => {
+    let handler = (evt: MessageEvent) => {
+      // $FlowFixMe
+      if (evt.data.id === id) {
+        target.removeEventListener('message', handler);
+        // $FlowFixMe
+        res(evt.data.data);
+      }
+    };
+    target.addEventListener('message', handler);
+    target.postMessage({type, data, id}, transfer);
   });
 }

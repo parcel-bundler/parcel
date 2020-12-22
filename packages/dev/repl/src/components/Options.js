@@ -5,50 +5,37 @@ import type {REPLOptions} from '../utils';
 
 // eslint-disable-next-line no-unused-vars
 import {h} from 'preact';
+import {memo} from 'preact/compat';
 import {getDefaultTargetEnv} from '../utils';
 
 export const DEFAULT_OPTIONS: REPLOptions = {
   minify: false,
   scopeHoist: true,
   sourceMaps: false,
-  publicUrl: '',
+  publicUrl: '/__repl_dist',
   targetType: 'browsers',
   targetEnv: null,
   outputFormat: null,
+  hmr: false,
+  mode: 'production',
   renderGraphs: false,
   viewSourcemaps: false,
   dependencies: [],
 };
 
-export default function Options({
+function Options({
   values,
   onChange,
   disabled = false,
+  disablePackageJSON = false,
 }: {|
   values: REPLOptions,
   onChange: ($Keys<REPLOptions>, mixed) => void,
   disabled: ?boolean,
+  disablePackageJSON: ?boolean,
 |}): any {
   return (
     <div class="options file">
-      <label title="Sets `--no-minify`">
-        <span>Minify</span>
-        <input
-          type="checkbox"
-          checked={values.minify}
-          onChange={e => onChange('minify', e.target.checked)}
-          disabled={disabled}
-        />
-      </label>
-      <label title="Corresponds to `--no-scope-hoist`">
-        <span>Enable Scope Hoisting</span>
-        <input
-          type="checkbox"
-          checked={values.scopeHoist}
-          onChange={e => onChange('scopeHoist', e.target.checked)}
-          disabled={disabled}
-        />
-      </label>
       <label title="Corresponds to `--no-source-maps`">
         <span>Source Maps</span>
         <input
@@ -73,7 +60,7 @@ export default function Options({
         <select
           onChange={e => onChange('outputFormat', e.target.value || null)}
           value={values.outputFormat}
-          disabled={disabled}
+          disabled={disabled || disablePackageJSON}
         >
           <option value="" />
           <option value="esmodule">esmodule</option>
@@ -91,7 +78,7 @@ export default function Options({
             }}
             value={values.targetType}
             style={{marginRight: '0.5rem'}}
-            disabled={disabled}
+            disabled={disabled || disablePackageJSON}
           >
             <option value="browsers">Browsers</option>
             <option value="node">Node</option>
@@ -101,9 +88,55 @@ export default function Options({
             value={values.targetEnv}
             onInput={e => onChange('targetEnv', e.target.value)}
             placeholder={getDefaultTargetEnv(values.targetType)}
-            disabled={disabled}
+            disabled={disabled || disablePackageJSON}
           />
         </div>
+      </label>
+      <label>
+        <span>Mode</span>
+        <select
+          onChange={e => {
+            onChange('mode', e.target.value || null);
+            if (e.target.value === 'production') {
+              onChange('hmr', false);
+            } else {
+              onChange('scopeHoist', false);
+              onChange('minify', false);
+            }
+          }}
+          value={values.mode}
+          disabled={disabled}
+        >
+          <option value="production">production</option>
+          <option value="development">development</option>
+        </select>
+      </label>
+      <label>
+        <span>HMR</span>
+        <input
+          type="checkbox"
+          checked={values.hmr}
+          onChange={e => onChange('hmr', e.target.checked)}
+          disabled={disabled || values.mode === 'production'}
+        />
+      </label>
+      <label title="Sets `--no-minify`">
+        <span>Minify</span>
+        <input
+          type="checkbox"
+          checked={values.minify}
+          onChange={e => onChange('minify', e.target.checked)}
+          disabled={disabled || values.mode === 'development'}
+        />
+      </label>
+      <label title="Corresponds to `--no-scope-hoist`">
+        <span>Enable Scope Hoisting</span>
+        <input
+          type="checkbox"
+          checked={values.scopeHoist}
+          onChange={e => onChange('scopeHoist', e.target.checked)}
+          disabled={disabled || values.mode === 'development'}
+        />
       </label>
       <hr />
       <label title="env variable PARCEL_DUMP_GRAPHVIZ">
@@ -150,7 +183,7 @@ export default function Options({
                     ),
                   )
                 }
-                disabled={disabled}
+                disabled={disabled || disablePackageJSON}
               />
               @
               <input
@@ -164,6 +197,7 @@ export default function Options({
                     ),
                   )
                 }
+                disabled={disabled || disablePackageJSON}
               />
               <button
                 class="remove"
@@ -173,6 +207,7 @@ export default function Options({
                     values.dependencies.filter((_, j) => j !== i),
                   )
                 }
+                disabled={disabled || disablePackageJSON}
               >
                 ✕
               </button>
@@ -184,6 +219,7 @@ export default function Options({
               onClick={() =>
                 onChange('dependencies', [...values.dependencies, ['', '']])
               }
+              disabled={disabled || disablePackageJSON}
             >
               Add
             </button>
@@ -193,3 +229,10 @@ export default function Options({
     </div>
   );
 }
+
+export default (memo(Options, (prevProps, nextProps) => {
+  for (let p in nextProps) {
+    if (prevProps[p] !== nextProps[p]) return false;
+  }
+  return true;
+}): typeof Options);

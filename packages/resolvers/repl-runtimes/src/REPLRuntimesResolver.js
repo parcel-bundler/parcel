@@ -149,6 +149,14 @@ const FILES = new Map([
       'utf8',
     ),
   ],
+  [
+    '@parcel/transformer-react-refresh-wrap/src/helpers/helpers.js',
+    fs.readFileSync(
+      __dirname +
+        '/../../../@parcel/transformer-react-refresh-wrap/src/helpers/helpers.js',
+      'utf8',
+    ),
+  ],
 ]);
 
 function keyStartsWith<T>(map: Map<string, T>, s: string) {
@@ -164,7 +172,8 @@ export default (new Resolver({
     let key = keyStartsWith(FILES, dependency.moduleSpecifier);
     if (key != null) {
       return {
-        filePath: '/VIRTUAL/' + key,
+        filePath: '/app/VIRTUAL.js',
+        // filePath: '/VIRTUAL/' + key,
         code: nullthrows(FILES.get(key)),
       };
     }

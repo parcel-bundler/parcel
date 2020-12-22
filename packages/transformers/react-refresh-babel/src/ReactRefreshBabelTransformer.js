@@ -2,6 +2,7 @@
 
 import {Transformer} from '@parcel/plugin';
 import invariant from 'assert';
+import reactRefreshBabelPlugin from 'react-refresh/babel';
 
 async function shouldExclude(config, options) {
   if (
@@ -21,11 +22,12 @@ export default (new Transformer({
   async loadConfig({config, options}) {
     config.setResult(await shouldExclude(config, options));
   },
+  // eslint-disable-next-line
   async transform({asset, config, options}) {
     if (!config) {
-      let reactRefreshBabelPlugin = (
-        await options.packageManager.resolve('react-refresh/babel', __filename)
-      ).resolved;
+      // let reactRefreshBabelPlugin = (
+      //   await options.packageManager.resolve('react-refresh/babel', __filename)
+      // ).resolved;
 
       asset.meta.babelPlugins = asset.meta.babelPlugins || [];
       invariant(Array.isArray(asset.meta.babelPlugins));

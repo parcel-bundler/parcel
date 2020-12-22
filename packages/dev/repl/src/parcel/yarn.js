@@ -39,7 +39,17 @@ export async function yarnInstall(
     data: string,
   |}) => void,
 ) {
-  if (shouldRunYarn(previousDependencies, options.dependencies)) {
+  let dependencies = options.dependencies;
+  if (await fs.exists('/app/package.json')) {
+    let pkg = await fs.readFile('/app/package.json');
+    let deps = JSON.parse(pkg).dependencies;
+    if (deps) {
+      // $FlowFixMe
+      dependencies = (Object.entries(deps): Array<[string, string]>);
+    }
+  }
+
+  if (shouldRunYarn(previousDependencies, dependencies)) {
     // $FlowFixMe
     // const {run: yarnInstall} = await import('@mischnic/yarn-browser');
     await fs.mkdirp('/tmp');
@@ -66,7 +76,7 @@ export async function yarnInstall(
     await Cache.saveCache(fs);
   }
 
-  previousDependencies = options.dependencies;
+  previousDependencies = dependencies;
 }
 
 const IDB_DB_YARN = 'REPL-yarn-cache';

@@ -11,13 +11,13 @@
   height: 100%;
 }
 
-.column {
+#app > div {
   width: 50%;
 }
-.column:not(:first-child) {
+#app > div:not(:first-child) {
   padding-left: 0.4em;
 }
-.column:not(:last-child) {
+#app > div:not(:last-child) {
   padding-right: 0.4em;
 }
 .column > * {
@@ -47,14 +47,14 @@ button {
   -moz-appearance: none;
   appearance: none;
   border: none;
-  padding: 2px 8px;
+  padding: 0.4em;
   border-radius: 3px;
 }
 button:enabled {
   background-color: #ddd;
 }
 button:enabled:active {
-  background-color: #bbb;
+  background-color: #aaa;
 }
 
 .file {
@@ -90,6 +90,7 @@ button:enabled:active {
 }
 .file > .header > .remove {
   margin-left: 0.3em;
+  padding: 2px 8px;
 }
 .file > .header > .outputSize {
   margin-left: auto;
@@ -234,7 +235,22 @@ select {
   padding: 0.3em;
 }
 
-iframe.preview {
+.preview button {
+  width: 100%;
+  margin-bottom: 0.5em;
+}
+.preview button.reload {
+  margin: 0;
+  width: 100%;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.preview .file {
+  width: 100%;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+.preview iframe {
   width: 100%;
   height: 100%;
   border: none;
@@ -246,4 +262,28 @@ iframe.preview {
   text-decoration-color: red;
   text-decoration-style: dashed;
   text-decoration-thickness: 0.1em;
+}
+
+.tabs {
+  border: 0.15em solid #ddd;
+  padding: 0.3em;
+  border-radius: 3px;
+}
+
+.tabs .switcher {
+  display: flex;
+  justify-content: space-around;
+  padding-bottom: 0.5em;
+  gap: 0.4em;
+}
+
+.tabs .switcher div {
+  background-color: #ddd;
+  border-radius: 3px;
+  flex-grow: 1;
+  text-align: center;
+  padding: 0.4em 0em;
+}
+.tabs .switcher div.selected {
+  background-color: #aaa;
 }

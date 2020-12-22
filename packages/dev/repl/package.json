@@ -24,7 +24,7 @@
     "filesize": "^6.1.0",
     "idb": "^5.0.8",
     "isomorphic-fetch": "^3.0.0",
-    "preact": "^10.5.2",
+    "preact": "^10.5.7",
     "semver": "^7.3.2",
     "sourcemap-visualiser": "mischnic/sourcemap-visualiser#4de8310"
   },

@@ -9,6 +9,8 @@ export type REPLOptions = {|
   targetType: 'node' | 'browsers',
   targetEnv: null | string,
   outputFormat: null | 'esmodule' | 'commonjs' | 'global',
+  mode: 'production' | 'development',
+  hmr: boolean,
   renderGraphs: boolean,
   viewSourcemaps: boolean,
   dependencies: Array<[string, string]>,

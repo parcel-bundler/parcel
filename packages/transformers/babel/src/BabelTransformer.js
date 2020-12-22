@@ -36,6 +36,7 @@ export default (new Transformer({
           Array.isArray(asset.meta.babelPlugins)
         ) {
           await babel7(asset, options, config, asset.meta.babelPlugins);
+          asset.meta.babelPlugins = null;
         } else {
           await babel7(asset, options, config);
         }

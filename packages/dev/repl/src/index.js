@@ -16,11 +16,20 @@ import {
   useReducer,
   useRef,
 } from 'preact/hooks';
+import {memo} from 'preact/compat';
 import Asset from './components/Asset';
 import SourceMapVisualiser from './components/SourceMapVisualiser';
 import Options, {DEFAULT_OPTIONS} from './components/Options';
-import {ParcelError, Notes, Graphs, useDebounce} from './components/helper';
-// import Preview from './components/Preview';
+import {
+  Graphs,
+  Notes,
+  ParcelError,
+  Tabs,
+  useDebounce,
+  useSessionStorage,
+  usePromise,
+} from './components/helper';
+import Preview from './components/Preview';
 
 import filesize from 'filesize';
 import {
@@ -31,7 +40,13 @@ import {
   saveState,
   // downloadBuffer
 } from './utils';
-import {bundle, watch, workerReady} from './parcel/';
+import {
+  bundle,
+  watch,
+  workerReady,
+  waitForFS,
+  clientID as clientIDPromise,
+} from './parcel/';
 
 const READY = Symbol('READY');
 const BUNDLING_RUNNING = Symbol('BUNDLING_RUNNING');
@@ -128,6 +143,7 @@ function App() {
       watchSubscriptionRef.current = false;
       setBundlingState(READY);
     } else {
+      setBundlingState(WATCHING_RUNNING);
       let {unsubscribe, writeAssets} = await watch(
         assets,
         options,
@@ -140,11 +156,17 @@ function App() {
             setAssetDiagnostics(new Map());
           }
         },
+        v => {
+          setBundlingStateInfo(v);
+        },
       );
-      setBundlingState(WATCHING_READY);
       watchSubscriptionRef.current = {unsubscribe, writeAssets};
     }
   }, []);
+
+  let [clientID] = usePromise(clientIDPromise);
+
+  let [tabIndex, setTabIndex] = useSessionStorage('tabIndex', 0);
 
   const startBundling = useCallback(async () => {
     if (bundlingState === BUNDLING_RUNNING) return;
@@ -155,21 +177,6 @@ function App() {
       const bundleOutput = await bundle(assets, options, v => {
         setBundlingStateInfo(v);
       });
-
-      // await new Promise(async res => {
-      //   window.addEventListener(
-      //     'message',
-      //     e => {
-      //       console.log(e);
-      //       res();
-      //     },
-      //     {once: true}
-      //   );
-      // const sw = await navigator.serviceWorker.ready;
-      // if (sw.active) {
-      //   sw.active.postMessage(await getFS());
-      // }
-      // });
 
       setBundlingState(BUNDLING_FINISHED);
       setOutput(bundleOutput);
@@ -253,16 +260,10 @@ function App() {
   return (
     <div id="app">
       <div class="column">
-        <label class="presets">
-          <span>Preset:</span>
-          <select onChange={changePresetCb} value={currentPreset}>
-            {Object.keys(ASSET_PRESETS).map(v => (
-              <option key={v} value={v}>
-                {v}
-              </option>
-            ))}
-          </select>
-        </label>
+        <PresetSelector
+          currentPreset={currentPreset}
+          changePresetCb={changePresetCb}
+        />
         {assets.map(({name, content, isEntry}, i) => (
           <Asset
             key={i}
@@ -293,7 +294,7 @@ function App() {
           disabled={bundlingState === BUNDLING_RUNNING}
           onClick={startBundling}
         >
-          Bundle!
+          Bundle
         </button>
         <button class="start" onClick={toggleWatching}>
           {isWatching(bundlingState) ? 'Stop watching' : 'Watch'}
@@ -302,6 +303,7 @@ function App() {
           values={options}
           onChange={changeOptionsCb}
           disabled={isWatching(bundlingState)}
+          disablePackageJSON={assets.some(a => a.name === 'package.json')}
         />
         <Notes />
       </div>
@@ -316,29 +318,40 @@ function App() {
           if (output) {
             if (output.type === 'success') {
               return (
-                <Fragment>
-                  {output.bundles.map(({name, content, size}) => (
-                    <Asset
-                      key={name}
-                      name={name.trim()}
-                      content={content}
-                      additionalHeader={
-                        <div class="outputSize">{filesize(size)}</div>
-                      }
-                      readOnly
-                    />
-                  ))}
-                  {output.graphs && <Graphs graphs={output.graphs} />}
-                  {output.sourcemaps && (
-                    <SourceMapVisualiser maps={output.sourcemaps} />
-                  )}
-                  {/* <Preview output={output.assets} options={options} /> */}
-                  {/* <button disabled onClick={downloadZip}>
+                <Tabs
+                  names={['Output', 'Preview']}
+                  selected={tabIndex}
+                  setSelected={setTabIndex}
+                >
+                  <div class="column">
+                    {output.bundles.map(({name, content, size}) => (
+                      <Asset
+                        key={name}
+                        name={name.trim()}
+                        content={content}
+                        additionalHeader={
+                          <div class="outputSize">{filesize(size)}</div>
+                        }
+                        readOnly
+                      />
+                    ))}
+                    {output.graphs && <Graphs graphs={output.graphs} />}
+                    {output.sourcemaps && (
+                      <SourceMapVisualiser maps={output.sourcemaps} />
+                    )}
+                    {/* <button disabled onClick={downloadZip}>
                       Download ZIP
                     </button> */}
-                </Fragment>
+                  </div>
+                  <div>
+                    {clientID && (
+                      <Preview clientID={waitForFS().then(() => clientID)} />
+                    )}
+                  </div>
+                </Tabs>
               );
             } else {
+              // TODO always show preview, even with errors. this should only replace the bundle output.
               return <ParcelError error={output} />;
             }
           } else {
@@ -351,7 +364,7 @@ function App() {
                     disabled={bundlingState === BUNDLING_RUNNING}
                     onClick={startBundling}
                   >
-                    Bundle!
+                    Bundle
                   </button>{' '}
                   to get started!
                 </div>
@@ -368,15 +381,6 @@ function App() {
     </div>
   );
 }
-
-render(<App />, document.getElementById('root'));
-
-// if ('serviceWorker' in navigator) {
-//   navigator.serviceWorker.register('./sw.js').catch(error => {
-//     // eslint-disable-next-line no-console
-//     console.error('Service worker registration failed:', error);
-//   });
-// }
 
 function StatusIndicator({
   bundlingState,
@@ -402,7 +406,7 @@ function StatusIndicator({
         text = 'Watching';
         break;
       case WATCHING_RUNNING:
-        text = 'Watching: building';
+        text = `Watching: ${bundlingStateInfo ?? ''}`;
         break;
       case WATCHING_FINISHED:
         text = `Watching (took ${buildDuration}s)`;
@@ -423,4 +427,33 @@ function StatusIndicator({
   }
 
   return <div class={`loadState ${classState}`}>{text}</div>;
+}
+
+const PresetSelector = memo(
+  function PresetSelector({currentPreset, changePresetCb}) {
+    return (
+      <label class="presets">
+        <span>Preset:</span>
+        <select onChange={changePresetCb} value={currentPreset}>
+          {Object.keys(ASSET_PRESETS).map(v => (
+            <option key={v} value={v}>
+              {v}
+            </option>
+          ))}
+        </select>
+      </label>
+    );
+  },
+  (prevProps, nextProps) => {
+    return prevProps.currentPreset === nextProps.currentPreset;
+  },
+);
+
+render(<App />, document.getElementById('root'));
+
+if (navigator.serviceWorker) {
+  navigator.serviceWorker.register('./sw.js').catch(error => {
+    // eslint-disable-next-line no-console
+    console.error('Service worker registration failed:', error);
+  });
 }

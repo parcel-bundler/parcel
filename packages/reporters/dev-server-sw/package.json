@@ -1,0 +1,30 @@
+{
+  "name": "@parcel/reporter-dev-server-sw",
+  "version": "2.0.0-beta.1",
+  "description": "Blazing fast, zero configuration web application bundler",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "funding": {
+    "type": "opencollective",
+    "url": "https://opencollective.com/parcel"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  },
+  "main": "lib/ServerReporter.js",
+  "source": "src/ServerReporter.js",
+  "engines": {
+    "node": ">= 6.0.0",
+    "parcel": "^2.0.0-alpha.1.1"
+  },
+  "dependencies": {
+    "@parcel/plugin": "2.0.0-beta.1",
+    "@parcel/utils": "2.0.0-beta.1"
+  },
+  "devDependencies": {
+    "@parcel/types": "2.0.0-beta.1"
+  }
+}
