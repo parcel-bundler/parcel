@@ -183,7 +183,7 @@ async function run(entries: Array<string>, command: any) {
   try {
     options = await normalizeOptions(command);
   } catch (e) {
-    process.exit(-1);
+    return process.exit(-1);
   }
   let fs = new NodeFS();
   let packageManager = new NodePackageManager(fs);
