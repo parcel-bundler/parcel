@@ -183,7 +183,7 @@ async function run(entries: Array<string>, command: any) {
   try {
     options = await normalizeOptions(command);
   } catch (e) {
-    return process.exit(-1);
+    return process.exit(1);
   }
   let fs = new NodeFS();
   let packageManager = new NodePackageManager(fs);
@@ -349,8 +349,8 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
         chalk.bold.yellowBright(`⚠️  Port ${command.port} could not be used.`),
       );
       // If port was provided using -p or --port flag then throw an Error
-      if (isCustomPort && nodeEnv === 'development') {
-        throw new Error(`port ${command.port} taken`);
+      if (isCustomPort) {
+        throw new Error(`Port ${command.port} could not be used`);
       }
     }
   }
