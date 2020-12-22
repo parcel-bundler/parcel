@@ -12,11 +12,11 @@ import fsVisitor from './visitors/fs';
 import insertGlobals from './visitors/globals';
 import traverse from '@babel/traverse';
 import {ancestor as walkAncestor} from '@parcel/babylon-walk';
-import * as babelCore from '@babel/core';
 import {hoist} from '@parcel/scope-hoisting';
 import {generate, parse} from '@parcel/babel-ast-utils';
 import {validateSchema} from '@parcel/utils';
 import {encodeJSONKeyComponent} from '@parcel/diagnostic';
+import {esm2cjs} from './visitors/modules';
 
 const CONFIG_SCHEMA: SchemaEntity = {
   type: 'object',
@@ -193,32 +193,16 @@ export default (new Transformer({
       isASTDirty = true;
     }
 
-    if (isASTDirty) {
-      asset.setAST(ast);
-    }
-
     if (asset.env.scopeHoist) {
       hoist(asset, ast);
     } else if (asset.meta.isES6Module) {
       // Convert ES6 modules to CommonJS
-      let res = await babelCore.transformFromAstAsync(
-        ast.program,
-        code ?? undefined,
-        {
-          code: false,
-          ast: true,
-          filename: asset.filePath,
-          babelrc: false,
-          configFile: false,
-          plugins: [require('@babel/plugin-transform-modules-commonjs')],
-        },
-      );
+      esm2cjs(ast.program, asset);
+      isASTDirty = true;
+    }
 
-      asset.setAST({
-        type: 'babel',
-        version: '7.0.0',
-        program: res.ast,
-      });
+    if (isASTDirty) {
+      asset.setAST(ast);
     }
 
     return [asset];

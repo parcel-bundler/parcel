@@ -32,7 +32,7 @@ import nullthrows from 'nullthrows';
 import path from 'path';
 import {
   escapeMarkdown,
-  md5FromObject,
+  md5FromOrderedObject,
   md5FromString,
   PromiseQueue,
   flatMap,
@@ -105,7 +105,7 @@ export default class AssetGraphBuilder extends EventEmitter {
     this.workerFarm = workerFarm;
     this.assetRequests = [];
 
-    this.cacheKey = md5FromObject({
+    this.cacheKey = md5FromOrderedObject({
       parcelVersion: PARCEL_VERSION,
       name,
       entries,

@@ -81,8 +81,6 @@ describe('MutableBundleGraph', () => {
 
     mutableBundleGraph.addBundleToBundleGroup(bundle, bundleGroup);
     mutableBundleGraph.addBundleToBundleGroup(bundle, bundleGroup);
-
-    assert.deepEqual(bundleGroup.bundleIds, [bundle.id]);
   });
 });
 

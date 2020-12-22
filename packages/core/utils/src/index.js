@@ -47,6 +47,7 @@ export {
   md5FromString,
   md5FromReadableStream,
   md5FromObject,
+  md5FromOrderedObject,
   md5FromFilePath,
 } from './md5';
 export {fuzzySearch} from './schema';
