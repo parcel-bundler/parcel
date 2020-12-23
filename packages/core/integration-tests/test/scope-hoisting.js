@@ -2024,7 +2024,7 @@ describe('scope hoisting', function() {
         }
       });
 
-      it.only('add and remove dependency with inline asset', async function() {
+      it('add and remove dependency with inline asset', async function() {
         let testDir = path.join(
           __dirname,
           '/integration/scope-hoisting/es6/update-used-symbols-dependency-add-inline',
