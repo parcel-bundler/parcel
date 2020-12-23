@@ -191,12 +191,7 @@ async function run(entries: Array<string>, command: any) {
     return;
   }
   let Parcel = require('@parcel/core').default;
-  let options;
-  try {
-    options = await normalizeOptions(command);
-  } catch (e) {
-    return process.exit(1);
-  }
+  let options = await normalizeOptions(command);
   let fs = new NodeFS();
   let packageManager = new NodePackageManager(fs);
   let parcel = new Parcel({
