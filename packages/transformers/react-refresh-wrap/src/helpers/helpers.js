@@ -95,7 +95,7 @@ function isReactRefreshBoundary(exports) {
       continue;
     }
     var desc = Object.getOwnPropertyDescriptor(exports, key);
-    if (desc && desc.get && !isESM){
+    if (desc && desc.get && !isESM) {
       // Don't invoke getters for CJS as they may have side effects.
       return false;
     }
