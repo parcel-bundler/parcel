@@ -1,25 +1,26 @@
 // @flow strict-local
 import type {ScopeState, Visitors} from '@parcel/babylon-walk';
 import type {
-  ImportDeclaration,
   ExportAllDeclaration,
   ExportNamedDeclaration,
-  Identifier,
   Expression,
+  Identifier,
+  ImportDeclaration,
 } from '@babel/types';
 import {MutableAsset} from '@parcel/types';
 import * as t from '@babel/types';
 import {
   isIdentifier,
   isImportDeclaration,
-  isImportSpecifier,
-  isImportDefaultSpecifier,
-  isImportNamespaceSpecifier,
   isExportAllDeclaration,
-  isExportNamespaceSpecifier,
   isExportDefaultSpecifier,
+  isExportNamedDeclaration,
+  isExportNamespaceSpecifier,
   isExportSpecifier,
   isFunctionDeclaration,
+  isImportDefaultSpecifier,
+  isImportNamespaceSpecifier,
+  isImportSpecifier,
 } from '@babel/types';
 import {
   traverse2,
@@ -30,6 +31,7 @@ import {
 } from '@parcel/babylon-walk';
 import invariant from 'assert';
 import path from 'path';
+import nullthrows from 'nullthrows';
 import {normalizeSeparators} from '@parcel/utils';
 
 type State = {|
@@ -43,6 +45,7 @@ type State = {|
   >,
   exports: Array<{|local: Expression, exported: Identifier|}>,
   needsInteropFlag: boolean,
+  asset: ?MutableAsset,
 |};
 
 let modulesVisitor: Visitors<State> = {
@@ -68,6 +71,8 @@ let modulesVisitor: Visitors<State> = {
         return getNamespace(state, binding.source);
       } else if (isImportDefaultSpecifier(specifier)) {
         return getDefault(state, binding.source);
+      } else {
+        invariant(false);
       }
     };
   },
@@ -153,6 +158,8 @@ let modulesVisitor: Visitors<State> = {
   },
   ExportDefaultDeclaration: {
     exit(node, state) {
+      state.asset?.symbols.set('default', 'default');
+
       // This has to happen AFTER any referenced identifiers are replaced.
       return () => {
         let {declaration} = node;
@@ -266,9 +273,67 @@ export function esm2cjs(ast: BabelNodeFile, asset?: MutableAsset) {
     exports,
     needsInteropFlag: false,
     scope,
+    asset,
   };
 
+  asset?.symbols.ensure();
+
   traverse2(ast, visitor, state);
+
+  if (asset) {
+    for (let node of imports) {
+      let source = nullthrows(node.source).value;
+      let dep = asset
+        .getDependencies()
+        .find(dep => dep.moduleSpecifier === source);
+      if (dep) {
+        dep.symbols.ensure();
+        if (isImportDeclaration(node)) {
+          for (let specifier of node.specifiers) {
+            let symbol;
+            if (isImportSpecifier(specifier)) {
+              symbol = specifier.local.name;
+            } else if (isImportNamespaceSpecifier(specifier)) {
+              symbol = '*';
+            } else if (isImportDefaultSpecifier(specifier)) {
+              symbol = 'default';
+            } else {
+              invariant(false);
+            }
+            dep.symbols.set(symbol, dep.id + ':' + symbol);
+          }
+        } else if (isExportAllDeclaration(node)) {
+          dep.symbols.set('*', '*', null, true);
+        } else if (isExportNamedDeclaration(node)) {
+          for (let specifier of node.specifiers) {
+            let exported, local;
+            if (isExportSpecifier(specifier)) {
+              exported = specifier.exported.name;
+              local = specifier.local.name;
+            } else if (isExportDefaultSpecifier(specifier)) {
+              local = 'default';
+              exported = 'default';
+            } else if (isExportNamespaceSpecifier(specifier)) {
+              local = '*';
+              exported = specifier.exported.name;
+            } else {
+              invariant(false);
+            }
+
+            dep.symbols.set(local, dep.id + ':' + exported, null, true);
+            asset.symbols.set(exported, dep.id + ':' + exported);
+          }
+        }
+      }
+    }
+
+    for (let node of exports) {
+      // register all local exports that aren't handled already
+      if (!asset.symbols.hasExportSymbol(node.exported.name)) {
+        asset.symbols.set(node.exported.name, node.exported.name);
+      }
+    }
+  }
 
   let body = ast.program.body;
   let prepend = [];
