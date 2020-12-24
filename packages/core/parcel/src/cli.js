@@ -98,7 +98,7 @@ var hmrOptions = {
   '-p, --port <port>': [
     'set the port to serve on. defaults to $PORT or 1234',
     value => parseInt(value, 10),
-    parseInt(process.env.PORT, 10) || 1234,
+    process.env.PORT != null ? parseInt(process.env.PORT, 10) : undefined,
   ],
   '--host <host>':
     'set the host to listen on, defaults to listening on all interfaces',
@@ -343,15 +343,20 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
   }
 
   let serve = false;
-  let {port, host} = command;
+  let {port = 1234, host} = command;
+  let originalPort = port;
   if (command.name() === 'serve' || command.hmr) {
     port = await getPort({port, host});
 
-    if (command.port && port !== command.port) {
-      // Parcel logger is not set up at this point, so just use native INTERNAL_ORIGINAL_CONSOLE.
-      INTERNAL_ORIGINAL_CONSOLE.warn(
-        chalk.bold.yellowBright(`⚠️  Port ${command.port} could not be used.`),
-      );
+    if (port !== originalPort) {
+      let errorMessage = `Port ${originalPort} could not be used`;
+      if (command.port) {
+        // Throw the error if the user defined a custom port
+        throw new Error(errorMessage);
+      } else {
+        // Parcel logger is not set up at this point, so just use native INTERNAL_ORIGINAL_CONSOLE
+        INTERNAL_ORIGINAL_CONSOLE.warn(errorMessage);
+      }
     }
   }
 
