@@ -346,8 +346,8 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
   let {port = 1234, host} = command;
 
   // Throw an error if port value is invalid...
-  if (isNaN(port)) {
-    throw new Error(`Defined port is not a valid number`);
+  if (!Number.isInteger(port)) {
+    throw new Error(`Defined port is not a valid integer`);
   }
 
   // Ensure port is usable
