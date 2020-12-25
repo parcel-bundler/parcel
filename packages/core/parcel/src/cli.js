@@ -344,6 +344,13 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
 
   let serve = false;
   let {port = 1234, host} = command;
+
+  // Throw an error if port value is invalid...
+  if (isNaN(port)) {
+    throw new Error('Defined port is not a number');
+  }
+
+  // Ensure port is usable
   let originalPort = port;
   if (command.name() === 'serve' || command.hmr) {
     port = await getPort({port, host});
