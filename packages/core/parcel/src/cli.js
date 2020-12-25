@@ -347,7 +347,7 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
 
   // Throw an error if port value is invalid...
   if (isNaN(port)) {
-    throw new Error('Defined port is not a number');
+    throw new Error(`Defined port is not a valid number`);
   }
 
   // Ensure port is usable
@@ -356,8 +356,8 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
     port = await getPort({port, host});
 
     if (port !== originalPort) {
-      let errorMessage = `Port ${originalPort} could not be used`;
-      if (command.port) {
+      let errorMessage = `Port "${originalPort}" could not be used`;
+      if (command.port != null) {
         // Throw the error if the user defined a custom port
         throw new Error(errorMessage);
       } else {
