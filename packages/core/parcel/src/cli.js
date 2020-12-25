@@ -97,8 +97,7 @@ var hmrOptions = {
   '--no-hmr': 'disable hot module replacement',
   '-p, --port <port>': [
     'set the port to serve on. defaults to $PORT or 1234',
-    value => parseInt(value, 10),
-    process.env.PORT != null ? parseInt(process.env.PORT, 10) : undefined,
+    process.env.PORT,
   ],
   '--host <host>':
     'set the host to listen on, defaults to listening on all interfaces',
@@ -106,7 +105,7 @@ var hmrOptions = {
   '--cert <path>': 'path to certificate to use with HTTPS',
   '--key <path>': 'path to private key to use with HTTPS',
   '--no-autoinstall': 'disable autoinstall',
-  '--hmr-port <port>': 'hot module replacement port',
+  '--hmr-port <port>': ['hot module replacement port', process.env.HMR_PORT],
 };
 
 function applyOptions(cmd, options) {
@@ -325,6 +324,17 @@ async function run(entries: Array<string>, command: any) {
   }
 }
 
+function parsePort(portValue: string): number {
+  let parsedPort = Number(portValue);
+
+  // Throw an error if port value is invalid...
+  if (!Number.isInteger(parsedPort)) {
+    throw new Error(`Port ${portValue} is not a valid integer.`);
+  }
+
+  return parsedPort;
+}
+
 async function normalizeOptions(command): Promise<InitialParcelOptions> {
   let nodeEnv;
   if (command.name() === 'build') {
@@ -343,20 +353,16 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
   }
 
   let serve = false;
-  let {port = 1234, host} = command;
+  let {host} = command;
 
-  // Throw an error if port value is invalid...
-  if (!Number.isInteger(port)) {
-    throw new Error(`Defined port is not a valid integer`);
-  }
-
-  // Ensure port is usable
+  // Ensure port is valid and available
+  let port = parsePort(command.port || '1234');
   let originalPort = port;
   if (command.name() === 'serve' || command.hmr) {
     port = await getPort({port, host});
 
     if (port !== originalPort) {
-      let errorMessage = `Port "${originalPort}" could not be used`;
+      let errorMessage = `Port "${port}" could not be used`;
       if (command.port != null) {
         // Throw the error if the user defined a custom port
         throw new Error(errorMessage);
@@ -380,7 +386,8 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
 
   let hmr = null;
   if (command.name() !== 'build' && command.hmr !== false) {
-    let hmrport = command.hmrPort ? Number(command.hmrPort) : port;
+    let hmrport = command.hmrPort ? parsePort(command.hmrPort) : port;
+
     hmr = {port: hmrport, host};
   }
 
