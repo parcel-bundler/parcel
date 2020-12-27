@@ -14,7 +14,7 @@
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
-  "bin": "lib/bin.js",
+  "bin": "src/bin.js",
   "main": "lib/bin.js",
   "source": "src/bin.js",
   "engines": {
