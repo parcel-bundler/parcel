@@ -26,8 +26,9 @@ import {
   validateSchema,
 } from '@parcel/utils';
 import {createEnvironment} from '../Environment';
-import createParcelConfigRequest from './ParcelConfigRequest';
-import ParcelConfig from '../ParcelConfig';
+import createParcelConfigRequest, {
+  getCachedParcelConfig,
+} from './ParcelConfigRequest';
 // $FlowFixMe
 import browserslist from 'browserslist';
 import jsonMap from 'json-source-map';
@@ -74,16 +75,10 @@ async function run({input, api, options}: RunOpts) {
   );
   let targets = await targetResolver.resolve(input.packagePath);
 
-  let {config} = nullthrows(
+  let configResult = nullthrows(
     await api.runRequest<null, ConfigAndCachePath>(createParcelConfigRequest()),
   );
-
-  let parcelConfig = new ParcelConfig(
-    config,
-    options.packageManager,
-    options.inputFS,
-    options.autoinstall,
-  );
+  let parcelConfig = getCachedParcelConfig(configResult, options);
 
   // Find named pipelines for each target.
   let pipelineNames = new Set(parcelConfig.getNamedPipelines());

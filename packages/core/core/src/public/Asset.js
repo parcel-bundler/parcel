@@ -108,7 +108,7 @@ class BaseAsset {
   }
 
   get query(): QueryParameters {
-    return this.#asset.value.query;
+    return this.#asset.value.query ?? {};
   }
 
   get meta(): Meta {
