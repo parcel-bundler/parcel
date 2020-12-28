@@ -60,6 +60,10 @@ function canHaveDependencies(code) {
 
 export default (new Transformer({
   async loadConfig({options, config}) {
+    if (!config.env.scopeHoist) {
+      return;
+    }
+
     let result = await config.getConfig([], {
       packageKey: '@parcel/transformer-js',
     });
@@ -97,6 +101,10 @@ export default (new Transformer({
   },
 
   async parse({asset, options}) {
+    if (!asset.env.scopeHoist) {
+      return null;
+    }
+
     let code = await asset.getCode();
     if (
       !asset.env.scopeHoist &&
