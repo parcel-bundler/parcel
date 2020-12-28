@@ -879,7 +879,7 @@ describe('output formats', function() {
         .getChildBundles(workerBundle)
         .find(b => b.filePath.includes('async'));
       let syncBundle = b
-        .getChildBundles(workerBundle)
+        .getReferencedBundles(workerBundle)
         .find(b => !b.filePath.includes('async'));
 
       assert(
@@ -1156,6 +1156,21 @@ describe('output formats', function() {
         ],
       });
     });
+  });
+
+  it('should support generating ESM from universal module wrappers', async function() {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/formats/commonjs-esm/universal-library.js',
+      ),
+    );
+
+    let dist = (
+      await outputFS.readFile(b.getBundles()[0].filePath, 'utf8')
+    ).trim();
+    assert.strictEqual(dist.match(/export default/g).length, 1);
+    assert(/export default \$\w+\$\w+;(\n+\/\/.*)?$/.test(dist));
   });
 
   it("doesn't overwrite used global variables", async function() {
