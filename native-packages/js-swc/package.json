@@ -1,0 +1,17 @@
+{
+  "name": "@parcel/transformer-js-swc",
+  "version": "2.0.0-beta.1",
+  "main": "lib/SWCTransformer.js",
+  "source": "src/SWCTransformer.js",
+  "napi": {
+    "name": "parcel-swc"
+  },
+  "devDependencies": {
+    "napi-rs": "^0.3.10",
+    "tiny-benchy": "^1.0.1"
+  },
+  "scripts": {
+    "build": "rm -f parcel-swc.node && cargo build && napi build",
+    "build-release": "rm -f parcel-swc.node && cargo build --release && napi build --release"
+  }
+}

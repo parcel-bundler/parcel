@@ -173,7 +173,7 @@ export default (new Runtime({
         assets.push({
           filePath: __filename,
           dependency,
-          code: `module.exports = require("./" + ${getRelativePathExpr(
+          code: `module.exports = __parcel__require__("./" + ${getRelativePathExpr(
             bundle,
             mainBundle,
             options,
@@ -333,7 +333,7 @@ function getLoaderRuntime({
       // Use esmodule loader if possible
       if (to.type === 'js' && to.env.outputFormat === 'esmodule') {
         if (!needsDynamicImportPolyfill) {
-          return `import("./" + ${relativePathExpr})`;
+          return `__parcel__import__("./" + ${relativePathExpr})`;
         }
 
         loader = nullthrows(
@@ -341,7 +341,7 @@ function getLoaderRuntime({
           `No import() polyfill available for context '${bundle.env.context}'`,
         );
       } else if (to.type === 'js' && to.env.outputFormat === 'commonjs') {
-        return `Promise.resolve(require("./" + ${relativePathExpr}))`;
+        return `Promise.resolve(__parcel__require__("./" + ${relativePathExpr}))`;
       }
 
       let code = `require(${JSON.stringify(

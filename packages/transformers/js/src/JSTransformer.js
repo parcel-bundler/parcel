@@ -103,6 +103,10 @@ export default (new Transformer({
   },
 
   async parse({asset, options}) {
+    if (!asset.env.scopeHoist) {
+      return null;
+    }
+
     let code = await asset.getCode();
     if (
       !asset.env.shouldScopeHoist &&
