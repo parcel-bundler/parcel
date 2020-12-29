@@ -16,7 +16,7 @@
   "main": "lib/BundleBuddyReporter.js",
   "source": "src/BundleBuddyReporter.js",
   "engines": {
-    "node": ">= 10.0.0",
+    "node": ">= 12.0.0",
     "parcel": "^2.0.0-alpha.1.1"
   },
   "dependencies": {
