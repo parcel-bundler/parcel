@@ -228,7 +228,10 @@ function getDefault(state, source) {
   if (!names.default) {
     names.default = state.scope.generateUid(names.name + 'Default');
   }
-  return t.identifier(names.default);
+  return t.memberExpression(
+    t.identifier(names.default),
+    t.identifier('default'),
+  );
 }
 
 function getNamespace(state, source) {
