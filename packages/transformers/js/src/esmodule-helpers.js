@@ -1,5 +1,5 @@
 exports.interopDefault = function(a) {
-  return a && a.__esModule ? a.default : a;
+  return a && a.__esModule ? a : {default: a};
 };
 
 exports.defineInteropFlag = function(a) {
