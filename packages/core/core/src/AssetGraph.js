@@ -166,7 +166,7 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     if (this.isOrphanedNode(node) && node.type === 'dependency') {
       let children = this.getNodesConnectedFrom(node);
       for (let n of children) {
-        invariant(n.type === 'asset_group');
+        invariant(n.type === 'asset_group' || n.type === 'asset');
         n.usedSymbolsDownDirty = true;
       }
     }
