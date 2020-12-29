@@ -29,7 +29,7 @@ import {
 import logger, {PluginLogger} from '@parcel/logger';
 import {init as initSourcemaps} from '@parcel/source-map';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
-import {SOURCEMAP_EXTENSIONS, flatMap} from '@parcel/utils';
+import {SOURCEMAP_EXTENSIONS} from '@parcel/utils';
 
 import ConfigLoader from './ConfigLoader';
 import {createDependency} from './Dependency';
@@ -267,7 +267,7 @@ export default class Transformation {
         [initialAsset],
         pipeline.configs,
         await getInvalidationHash(
-          flatMap(assets, asset => asset.getInvalidations()),
+          assets.flatMap(asset => asset.getInvalidations()),
           this.options,
         ),
       );
@@ -304,7 +304,7 @@ export default class Transformation {
         finalAssets,
         pipeline.configs,
         await getInvalidationHash(
-          flatMap(finalAssets, asset => asset.getInvalidations()),
+          finalAssets.flatMap(asset => asset.getInvalidations()),
           this.options,
         ),
       ),
@@ -320,7 +320,7 @@ export default class Transformation {
           processedFinalAssets,
           pipeline.configs,
           await getInvalidationHash(
-            flatMap(processedFinalAssets, asset => asset.getInvalidations()),
+            processedFinalAssets.flatMap(asset => asset.getInvalidations()),
             this.options,
           ),
         ),
