@@ -1,5 +1,5 @@
 // @flow strict-local
-import type {SchemaEntity} from '@parcel/utils';
+import type {SchemaEntity, SchemaObject} from '@parcel/utils';
 
 export const ENGINES_SCHEMA: SchemaEntity = {
   type: 'object',
@@ -24,7 +24,7 @@ export const ENGINES_SCHEMA: SchemaEntity = {
   },
 };
 
-export const DESCRIPTOR_SCHEMA: SchemaEntity = {
+export const PACKAGE_DESCRIPTOR_SCHEMA: SchemaObject = {
   type: 'object',
   properties: {
     context: {
@@ -104,9 +104,19 @@ export const DESCRIPTOR_SCHEMA: SchemaEntity = {
   additionalProperties: false,
 };
 
+export const DESCRIPTOR_SCHEMA: SchemaEntity = {
+  ...PACKAGE_DESCRIPTOR_SCHEMA,
+  properties: {
+    ...PACKAGE_DESCRIPTOR_SCHEMA.properties,
+    distEntry: {
+      type: 'string',
+    },
+  },
+};
+
 export const COMMON_TARGET_DESCRIPTOR_SCHEMA: SchemaEntity = {
   oneOf: [
-    DESCRIPTOR_SCHEMA,
+    PACKAGE_DESCRIPTOR_SCHEMA,
     {
       enum: [false],
     },
