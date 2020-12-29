@@ -25,6 +25,7 @@ import {
   escapeMarkdown,
   md5FromOrderedObject,
   normalizeSeparators,
+  objectSortedEntries,
 } from '@parcel/utils';
 import logger, {PluginLogger} from '@parcel/logger';
 import {init as initSourcemaps} from '@parcel/source-map';
@@ -470,7 +471,7 @@ export default class Transformation {
       pipeline: a.value.pipeline,
       hash: a.value.hash,
       uniqueKey: a.value.uniqueKey,
-      query: a.value.query,
+      query: a.value.query ? objectSortedEntries(a.value.query) : '',
     }));
 
     return md5FromOrderedObject({
