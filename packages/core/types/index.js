@@ -143,6 +143,7 @@ export type PackageTargetDescriptor = {|
 export type TargetDescriptor = {|
   ...PackageTargetDescriptor,
   +distDir: FilePath,
+  +distEntry?: FilePath,
 |};
 
 /**

@@ -1033,7 +1033,7 @@ describe('html', function() {
       {production: true, scopeHoist: true},
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         type: 'js',
         assets: ['index.html'],
@@ -1061,7 +1061,7 @@ describe('html', function() {
       {production: true, scopeHoist: true},
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         type: 'js',
         assets: [
@@ -1097,7 +1097,7 @@ describe('html', function() {
       {production: true, scopeHoist: true},
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         type: 'js',
         assets: ['index.html'],
@@ -1132,7 +1132,7 @@ describe('html', function() {
       {production: true, scopeHoist: true},
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         type: 'js',
         assets: ['async.js'],
@@ -1193,7 +1193,7 @@ describe('html', function() {
       {production: true, scopeHoist: true},
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         type: 'js',
         assets: ['async.js'],
