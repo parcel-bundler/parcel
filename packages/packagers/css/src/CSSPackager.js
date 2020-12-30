@@ -21,8 +21,9 @@ export default (new Packager({
     bundle,
     bundleGraph,
     getInlineBundleContents,
-    options,
     getSourceMapReference,
+    logger,
+    options,
   }) {
     let queue = new PromiseQueue({
       maxConcurrent: 32,
@@ -42,9 +43,21 @@ export default (new Packager({
         }
 
         queue.add(() => {
-          if (!asset.symbols.isCleared && options.mode === 'production') {
+          let usedSymbols = bundleGraph.getUsedSymbols(asset);
+          if (
+            !asset.symbols.isCleared &&
+            options.mode === 'production' &&
+            !usedSymbols.has('*')
+          ) {
             // a CSS Modules asset
-            return processCSSModule(options, bundleGraph, bundle, asset, media);
+            return processCSSModule(
+              options,
+              logger,
+              bundleGraph,
+              bundle,
+              asset,
+              media,
+            );
           } else {
             return Promise.all([
               asset,
@@ -115,6 +128,7 @@ export default (new Packager({
 
 async function processCSSModule(
   options,
+  logger,
   bundleGraph,
   bundle,
   asset,
@@ -126,18 +140,36 @@ async function processCSSModule(
   let localSymbols = new Set(
     [...asset.symbols].map(([, {local}]) => `.${local}`),
   );
-  let usedLocalSymbols =
-    // we have to still support the more common default imports
-    usedSymbols.has('*') || usedSymbols.has('default')
-      ? null
-      : new Set(
-          [...usedSymbols].map(
-            exportSymbol =>
-              `.${nullthrows(asset.symbols.get(exportSymbol)).local}`,
-          ),
-        );
 
-  if (usedLocalSymbols) {
+  let defaultImport = null;
+  if (usedSymbols.has('default')) {
+    let incoming = bundleGraph.getIncomingDependencies(asset);
+    // `import * as ns from ""; ns.default` is fine.
+    defaultImport = incoming.find(d => d.meta.hasDefaultImport);
+    if (defaultImport) {
+      let loc = defaultImport.symbols.get('default')?.loc;
+      logger.warn({
+        message:
+          'CSS modules cannot be tree shaken when imported with a default specifier',
+        filePath: nullthrows(loc?.filePath ?? defaultImport.sourcePath),
+        ...(loc && {
+          codeFrame: {
+            codeHighlights: [{start: loc.start, end: loc.end}],
+          },
+        }),
+        hints: [
+          `Instead do: import * as style from "${defaultImport.moduleSpecifier}";`,
+        ],
+      });
+    }
+  }
+
+  if (!defaultImport) {
+    let usedLocalSymbols = new Set(
+      [...usedSymbols].map(
+        exportSymbol => `.${nullthrows(asset.symbols.get(exportSymbol)).local}`,
+      ),
+    );
     ast.walkRules(rule => {
       if (
         localSymbols.has(rule.selector) &&
