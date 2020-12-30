@@ -9,6 +9,7 @@ import type {
   InitialParcelOptions,
   NamedBundle,
 } from '@parcel/types';
+import type {FileSystem} from '@parcel/fs';
 import type WorkerFarm from '@parcel/workers';
 
 import invariant from 'assert';
@@ -201,6 +202,23 @@ export function getNextBuild(b: Parcel): Promise<BuildEvent> {
   });
 }
 
+export function shallowEqual(
+  a: $Shape<{|+[string]: mixed|}>,
+  b: $Shape<{|+[string]: mixed|}>,
+): boolean {
+  if (Object.keys(a).length !== Object.keys(b).length) {
+    return false;
+  }
+
+  for (let [key, value] of Object.entries(a)) {
+    if (!b.hasOwnProperty(key) || b[key] !== value) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 type RunOpts = {require?: boolean, ...};
 
 export async function runBundles(
@@ -216,7 +234,8 @@ export async function runBundles(
       .filter(Boolean)[0],
   );
   let env = entryAsset.env;
-  let target = entryAsset.env.context;
+  let target = env.context;
+  let outputFormat = env.outputFormat;
 
   let ctx, promises;
   switch (target) {
@@ -244,19 +263,29 @@ export async function runBundles(
   }
 
   vm.createContext(ctx);
-  for (let b of bundles) {
-    new vm.Script(await overlayFS.readFile(nullthrows(b.filePath), 'utf8'), {
-      filename: b.name,
-    }).runInContext(ctx);
+  let esmOutput;
+  if (outputFormat === 'esmodule') {
+    invariant(bundles.length === 1, 'currently there can only be one bundle');
+    [esmOutput] = await runESM(
+      [nullthrows(bundles[0].filePath)],
+      ctx,
+      overlayFS,
+    );
+  } else {
+    for (let b of bundles) {
+      // require, parcelRequire was set up in prepare*Context
+      new vm.Script(await overlayFS.readFile(nullthrows(b.filePath), 'utf8'), {
+        filename: b.name,
+      }).runInContext(ctx);
+    }
   }
-
   if (promises) {
     // await any ongoing dynamic imports during the run
     await Promise.all(promises);
   }
 
   if (opts.require !== false) {
-    switch (env.outputFormat) {
+    switch (outputFormat) {
       case 'global':
         if (env.scopeHoist) {
           return typeof ctx.output !== 'undefined' ? ctx.output : undefined;
@@ -272,6 +301,8 @@ export async function runBundles(
       case 'commonjs':
         invariant(typeof ctx.module === 'object' && ctx.module != null);
         return ctx.module.exports;
+      case 'esmodule':
+        return esmOutput;
       default:
         throw new Error(
           'Unable to run bundle with outputFormat ' + env.outputFormat,
@@ -610,19 +641,85 @@ function prepareNodeContext(filePath, globals) {
   return ctx;
 }
 
-export function shallowEqual(
-  a: $Shape<{|+[string]: mixed|}>,
-  b: $Shape<{|+[string]: mixed|}>,
-): boolean {
-  if (Object.keys(a).length !== Object.keys(b).length) {
-    return false;
-  }
+async function runESM(
+  entries: Array<string>,
+  context: vm$Context,
+  fs: FileSystem,
+  externalModules = {},
+) {
+  let cache = new Map();
+  function load(specifier, referrer) {
+    if (path.isAbsolute(specifier) || specifier.startsWith('.')) {
+      // if (!path.extname(specifier)) {
+      //   specifier = specifier + '.js';
+      // }
 
-  for (let [key, value] of Object.entries(a)) {
-    if (!b.hasOwnProperty(key) || b[key] !== value) {
-      return false;
+      let filename = path.resolve(path.dirname(referrer.identifier), specifier);
+
+      let m = cache.get(filename);
+      if (m) {
+        return m;
+      }
+
+      let source = fs.readFileSync(filename, 'utf8');
+      // $FlowFixMe Experimental
+      m = new vm.SourceTextModule(source, {
+        identifier: filename,
+        importModuleDynamically: entry,
+        context,
+      });
+      cache.set(filename, m);
+      return m;
+    } else {
+      if (!(specifier in externalModules)) {
+        throw new Error(
+          `Couldn't resolve ${specifier} from ${referrer.identifier}`,
+        );
+      }
+
+      let m = cache.get(specifier);
+      if (m) {
+        return m;
+      }
+
+      let ns = externalModules[specifier](context);
+
+      // $FlowFixMe Experimental
+      m = new vm.SyntheticModule(
+        Object.keys(ns),
+        function() {
+          for (let [k, v] of Object.entries(ns)) {
+            this.setExport(k, v);
+          }
+        },
+        {identifier: specifier, context},
+      );
+      cache.set(specifier, m);
+      return m;
     }
   }
 
-  return true;
+  async function entry(specifier, referrer) {
+    let m = load(specifier, referrer);
+    if (m.status === 'unlinked') {
+      await m.link(load);
+    }
+    if (m.status === 'linked') {
+      await m.evaluate();
+    }
+    return m;
+  }
+
+  let modules = [];
+  for (let f of entries) {
+    modules.push(await entry(f, {identifier: ''}));
+  }
+
+  for (let m of modules) {
+    if (m.status === 'errored') {
+      throw m.error;
+    }
+  }
+
+  return modules.map(m => m.namespace);
 }

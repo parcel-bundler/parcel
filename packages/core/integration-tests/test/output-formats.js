@@ -526,10 +526,7 @@ describe('output formats', function() {
         path.join(__dirname, '/integration/formats/esm/named.js'),
       );
 
-      let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
-      assert(!dist.includes('function')); // no iife
-      assert(dist.includes('export const foo = 2'));
-      assert(/export const bar = .+ \+ 3/.test(dist));
+      assert.deepEqual({...(await run(b))}, {bar: 5, foo: 2});
     });
 
     it('should support esmodule output (default identifier)', async function() {
