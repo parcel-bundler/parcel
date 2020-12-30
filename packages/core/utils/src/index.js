@@ -33,8 +33,6 @@ export {findAlternativeNodeModules, findAlternativeFiles} from './alternatives';
 export {blobToBuffer, blobToString} from './blob';
 export {
   unique,
-  flat,
-  flatMap,
   objectSortedEntries,
   objectSortedEntriesDeep,
   setDifference,
