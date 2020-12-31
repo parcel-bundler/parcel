@@ -2,7 +2,11 @@
 
 import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import type {BundleGroup} from '@parcel/types';
+import type {ParcelOptions} from './types';
 
+import assert from 'assert';
+import baseX from 'base-x';
+import {md5FromObject} from '@parcel/utils';
 import {registerSerializableClass} from './serializer';
 import AssetGraph from './AssetGraph';
 import BundleGraph from './BundleGraph';
@@ -12,6 +16,10 @@ import {RequestGraph} from './RequestTracker';
 import Config from './public/Config';
 // flowlint-next-line untyped-import:off
 import packageJson from '../package.json';
+
+const base62 = baseX(
+  '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ',
+);
 
 export function getBundleGroupId(bundleGroup: BundleGroup): string {
   return 'bundle_group:' + bundleGroup.entryAssetId;
@@ -24,7 +32,7 @@ export function assertSignalNotAborted(signal: ?AbortSignal): void {
 }
 
 export class BuildAbortError extends Error {
-  name = 'BuildAbortError';
+  name: string = 'BuildAbortError';
 }
 
 let coreRegistered;
@@ -51,4 +59,65 @@ export function registerCoreWithSerializer() {
   }
 
   coreRegistered = true;
+}
+
+export function getPublicId(
+  id: string,
+  alreadyExists: string => boolean,
+): string {
+  assert(
+    id.match(/^[0-9a-f]{32}$/),
+    `id ${id} must be a 32-character hexadecimal string`,
+  );
+
+  let encoded = base62.encode(Buffer.from(id, 'hex'));
+  for (let end = 5; end <= encoded.length; end++) {
+    let candidate = encoded.slice(0, end);
+    if (!alreadyExists(candidate)) {
+      return candidate;
+    }
+  }
+
+  throw new Error('Original id was not unique');
+}
+
+// These options don't affect compilation and should cause invalidations
+const ignoreOptions = new Set([
+  'env', // handled by separate invalidateOnEnvChange
+  'inputFS',
+  'outputFS',
+  'workerFarm',
+  'killWorkers',
+  'packageManager',
+  'detailedReport',
+  'disableCache',
+  'cacheDir',
+  'autoinstall',
+  'logLevel',
+  'profile',
+  'patchConsole',
+  'projectRoot',
+]);
+
+export function optionsProxy(
+  options: ParcelOptions,
+  invalidateOnOptionChange: string => void,
+): ParcelOptions {
+  return new Proxy(options, {
+    get(target, prop) {
+      if (!ignoreOptions.has(prop)) {
+        invalidateOnOptionChange(prop);
+      }
+
+      return target[prop];
+    },
+  });
+}
+
+export function hashFromOption(value: mixed): string {
+  if (typeof value === 'object' && value != null) {
+    return md5FromObject(value);
+  }
+
+  return String(value);
 }

@@ -10,7 +10,7 @@ import nullthrows from 'nullthrows';
 import semver from 'semver';
 import loadPlugins from './loadPlugins';
 
-export default new Transformer({
+export default (new Transformer({
   async loadConfig({config}) {
     let configFile = await config.getConfig(
       ['.posthtmlrc', '.posthtmlrc.js', 'posthtml.config.js'],
@@ -28,6 +28,7 @@ export default new Transformer({
 
       // tells posthtml that we have already called parse
       configFile.contents.skipParse = true;
+      delete configFile.contents.render;
 
       config.setResult({
         contents: configFile.contents,
@@ -86,7 +87,7 @@ export default new Transformer({
       await Promise.all(
         res.messages.map(({type, file: filePath}) => {
           if (type === 'dependency') {
-            return asset.addIncludedFile({filePath});
+            return asset.addIncludedFile(filePath);
           }
           return Promise.resolve();
         }),
@@ -107,4 +108,4 @@ export default new Transformer({
       content: render(ast.program),
     };
   },
-});
+}): Transformer);

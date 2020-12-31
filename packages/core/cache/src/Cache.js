@@ -1,10 +1,9 @@
 // @flow strict-local
 
 import type {Readable} from 'stream';
-
 import type {FilePath} from '@parcel/types';
-
 import type {FileSystem} from '@parcel/fs';
+
 import path from 'path';
 import logger from '@parcel/logger';
 import {serialize, deserialize, registerSerializableClass} from '@parcel/core';
@@ -45,16 +44,17 @@ export default class Cache {
     return this.fs.exists(this._getCachePath(key, '.blob'));
   }
 
-  getBlob(key: string, encoding?: buffer$Encoding) {
+  getBlob<T>(key: string, encoding?: buffer$Encoding): Promise<?T> {
+    // $FlowFixMe
     return this.fs.readFile(this._getCachePath(key, '.blob'), encoding);
   }
 
-  async setBlob(key: string, contents: Buffer | string) {
+  async setBlob(key: string, contents: Buffer | string): Promise<string> {
     await this.fs.writeFile(this._getCachePath(key, '.blob'), contents);
     return key;
   }
 
-  async get(key: string) {
+  async get<T>(key: string): Promise<?T> {
     try {
       let data = await this.fs.readFile(this._getCachePath(key));
       return deserialize(data);
@@ -67,7 +67,7 @@ export default class Cache {
     }
   }
 
-  async set(key: string, value: mixed) {
+  async set(key: string, value: mixed): Promise<?string> {
     try {
       let blobPath = this._getCachePath(key);
       let data = serialize(value);

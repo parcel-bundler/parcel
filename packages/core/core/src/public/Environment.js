@@ -1,4 +1,4 @@
-// @flow
+// @flow strict-local
 import type {
   Environment as IEnvironment,
   EnvironmentContext,
@@ -6,13 +6,14 @@ import type {
   OutputFormat,
   PackageName,
   VersionMap,
+  TargetSourceMapOptions,
 } from '@parcel/types';
 import type {Environment as InternalEnvironment} from '../types';
 import nullthrows from 'nullthrows';
 import browserslist from 'browserslist';
 import semver from 'semver';
 
-export const BROWSER_ENVS = new Set<string>([
+export const BROWSER_ENVS: Set<string> = new Set<string>([
   'browser',
   'web-worker',
   'service-worker',
@@ -72,9 +73,9 @@ export function environmentToInternalEnvironment(
 }
 
 export default class Environment implements IEnvironment {
-  #environment; // InternalEnvironment
+  #environment /*: InternalEnvironment */;
 
-  constructor(env: InternalEnvironment) {
+  constructor(env: InternalEnvironment): Environment {
     let existing = internalEnvironmentToEnvironment.get(env);
     if (existing != null) {
       return existing;
@@ -83,6 +84,7 @@ export default class Environment implements IEnvironment {
     this.#environment = env;
     _environmentToInternalEnvironment.set(this, env);
     internalEnvironmentToEnvironment.set(env, this);
+    return this;
   }
 
   get context(): EnvironmentContext {
@@ -116,27 +118,31 @@ export default class Environment implements IEnvironment {
     return this.#environment.scopeHoist;
   }
 
-  isBrowser() {
+  get sourceMap(): ?TargetSourceMapOptions {
+    return this.#environment.sourceMap;
+  }
+
+  isBrowser(): boolean {
     return BROWSER_ENVS.has(this.#environment.context);
   }
 
-  isNode() {
+  isNode(): boolean {
     return NODE_ENVS.has(this.#environment.context);
   }
 
-  isElectron() {
+  isElectron(): boolean {
     return ELECTRON_ENVS.has(this.#environment.context);
   }
 
-  isIsolated() {
+  isIsolated(): boolean {
     return ISOLATED_ENVS.has(this.#environment.context);
   }
 
-  isWorker() {
+  isWorker(): boolean {
     return WORKER_ENVS.has(this.#environment.context);
   }
 
-  matchesEngines(minVersions: VersionMap) {
+  matchesEngines(minVersions: VersionMap): boolean {
     // Determine if the environment matches some minimum version requirements.
     // For browsers, we run a browserslist query with and without the minimum
     // required browsers and compare the lists. For node, we just check semver.

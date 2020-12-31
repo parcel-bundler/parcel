@@ -25,10 +25,10 @@ export type ExternalBundle = {|
 
 export type OutputFormat = {|
   generateBundleImports(
-    bundleGraph: BundleGraph<NamedBundle>,
     from: NamedBundle,
     external: ExternalBundle,
     scope: Scope,
+    bundleGraph: BundleGraph<NamedBundle>,
   ): Array<Node>,
   generateExternalImport(
     bundle: NamedBundle,

@@ -71,15 +71,15 @@ export default function codeFrame(
   // Prefix lines with the line number
   const lineNumberPrefixer = (params: {|
     lineNumber?: string,
-    endLine: string,
+    lineNumberLength: number,
     isHighlighted: boolean,
   |}) => {
-    let {lineNumber, endLine, isHighlighted} = params;
+    let {lineNumber, lineNumberLength, isHighlighted} = params;
 
     return `${isHighlighted ? highlighter('>') : ' '} ${
       lineNumber
-        ? lineNumber.padEnd(endLine.length, ' ')
-        : ' '.repeat(endLine.length)
+        ? lineNumber.padStart(lineNumberLength, ' ')
+        : ' '.repeat(lineNumberLength)
     } | `;
   };
 
@@ -111,12 +111,13 @@ export default function codeFrame(
   // Calculate first and last line index of codeframe
   let startLine = firstHighlight.start.line - opts.padding.before;
   startLine = startLine < 0 ? 0 : startLine;
-  let endLine = lastHighlight.end.line + opts.padding.after;
-  endLine =
-    endLine - startLine > opts.maxLines
+  let endLineIndex = lastHighlight.end.line + opts.padding.after;
+  endLineIndex =
+    endLineIndex - startLine > opts.maxLines
       ? startLine + opts.maxLines - 1
-      : endLine;
-  let endLineString = endLine.toString(10);
+      : endLineIndex;
+
+  let lineNumberLength = (endLineIndex + 1).toString(10).length;
 
   // Split input into lines and highlight syntax
   let lines = code.split(NEWLINE);
@@ -134,7 +135,7 @@ export default function codeFrame(
     currentLineIndex < syntaxHighlightedLines.length;
     currentLineIndex++
   ) {
-    if (currentLineIndex > endLine) break;
+    if (currentLineIndex > endLineIndex) break;
     if (currentLineIndex > syntaxHighlightedLines.length - 1) break;
 
     // Find highlights that need to get rendered on the current line
@@ -158,8 +159,8 @@ export default function codeFrame(
       );
 
     let lineLengthLimit =
-      opts.terminalWidth > endLineString.length + 7
-        ? opts.terminalWidth - (endLineString.length + 5)
+      opts.terminalWidth > lineNumberLength + 7
+        ? opts.terminalWidth - (lineNumberLength + 5)
         : 10;
 
     // Split the line into line parts that will fit the provided terminal width
@@ -189,7 +190,7 @@ export default function codeFrame(
     resultLines.push(
       lineNumberPrefixer({
         lineNumber: (currentLineIndex + 1).toString(10),
-        endLine: endLineString,
+        lineNumberLength,
         isHighlighted: lineHighlights.length > 0,
       }) + syntaxHighlightedLine,
     );
@@ -274,7 +275,7 @@ export default function codeFrame(
     if (highlightLine) {
       resultLines.push(
         lineNumberPrefixer({
-          endLine: endLineString,
+          lineNumberLength,
           isHighlighted: true,
         }) + highlightLine,
       );

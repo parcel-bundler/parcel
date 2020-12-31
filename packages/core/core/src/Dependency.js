@@ -5,9 +5,8 @@ import type {
   ModuleSpecifier,
   Symbol,
 } from '@parcel/types';
-import {md5FromObject} from '@parcel/utils';
+import {md5FromOrderedObject} from '@parcel/utils';
 import type {Dependency, Environment, Target} from './types';
-import {getEnvironmentHash} from './Environment';
 
 type DependencyOpts = {|
   id?: string,
@@ -18,22 +17,26 @@ type DependencyOpts = {|
   isEntry?: boolean,
   isOptional?: boolean,
   isURL?: boolean,
-  isWeak?: ?boolean,
+  isIsolated?: boolean,
   loc?: SourceLocation,
   env: Environment,
   meta?: Meta,
+  resolveFrom?: string,
   target?: Target,
-  symbols?: Map<Symbol, {|local: Symbol, loc: ?SourceLocation, meta?: ?Meta|}>,
+  symbols?: Map<
+    Symbol,
+    {|local: Symbol, loc: ?SourceLocation, isWeak: boolean, meta?: ?Meta|},
+  >,
   pipeline?: ?string,
 |};
 
 export function createDependency(opts: DependencyOpts): Dependency {
   let id =
     opts.id ||
-    md5FromObject({
+    md5FromOrderedObject({
       sourceAssetId: opts.sourceAssetId,
       moduleSpecifier: opts.moduleSpecifier,
-      env: getEnvironmentHash(opts.env),
+      env: opts.env.id,
       target: opts.target,
       pipeline: opts.pipeline,
     });
@@ -42,20 +45,22 @@ export function createDependency(opts: DependencyOpts): Dependency {
     ...opts,
     id,
     isAsync: opts.isAsync ?? false,
-    isEntry: opts.isEntry ?? false,
+    isEntry: opts.isEntry,
     isOptional: opts.isOptional ?? false,
     isURL: opts.isURL ?? false,
+    isIsolated: opts.isIsolated ?? false,
     meta: opts.meta || {},
-    symbols: opts.symbols || new Map(),
+    symbols: opts.symbols,
   };
 }
 
 export function mergeDependencies(a: Dependency, b: Dependency): void {
-  let {meta, symbols, isWeak, ...other} = b;
+  let {meta, symbols, ...other} = b;
   Object.assign(a, other);
   Object.assign(a.meta, meta);
-  a.isWeak = a.isWeak === isWeak ? a.isWeak : a.isWeak ?? isWeak;
-  for (let [k, v] of symbols) {
-    a.symbols.set(k, v);
+  if (a.symbols && symbols) {
+    for (let [k, v] of symbols) {
+      a.symbols.set(k, v);
+    }
   }
 }

@@ -8,11 +8,13 @@ import {DefaultMap, generateBuildMetrics} from '@parcel/utils';
 import path from 'path';
 import nullthrows from 'nullthrows';
 
-export default new Reporter({
+export default (new Reporter({
   async report({event, options}) {
     if (
       event.type !== 'buildSuccess' ||
-      process.env.PARCEL_BUNDLE_ANALYZER == null
+      process.env.PARCEL_BUNDLE_ANALYZER == null ||
+      // $FlowFixMe
+      process.env.PARCEL_BUNDLE_ANALYZER == false
     ) {
       return;
     }
@@ -93,7 +95,7 @@ export default new Reporter({
       }),
     );
   },
-});
+}): Reporter);
 
 type BundleData = {|
   groups: Array<Group>,

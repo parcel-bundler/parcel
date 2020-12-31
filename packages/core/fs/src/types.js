@@ -15,9 +15,9 @@ export type ReaddirOptions =
 
 export interface FileSystem {
   readFile(filePath: FilePath): Promise<Buffer>;
-  readFile(filePath: FilePath, encoding?: buffer$Encoding): Promise<string>;
+  readFile(filePath: FilePath, encoding: buffer$Encoding): Promise<string>;
   readFileSync(filePath: FilePath): Buffer;
-  readFileSync(filePath: FilePath, encoding?: buffer$Encoding): string;
+  readFileSync(filePath: FilePath, encoding: buffer$Encoding): string;
   writeFile(
     filePath: FilePath,
     contents: Buffer | string,

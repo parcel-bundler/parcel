@@ -1,8 +1,9 @@
-// @flow
+// @flow strict-local
 
 import assert from 'assert';
 import sinon from 'sinon';
 
+// flowlint-next-line untyped-import:off
 import Graph from '../src/Graph';
 
 describe('Graph', () => {
@@ -14,7 +15,7 @@ describe('Graph', () => {
 
   it('addNode should add a node to the graph', () => {
     let graph = new Graph();
-    let node = {id: 'a', value: 'a'};
+    let node = {id: 'a', type: 'mynode', value: 'a'};
     graph.addNode(node);
     assert.equal(graph.nodes.get(node.id), node);
   });
@@ -22,7 +23,7 @@ describe('Graph', () => {
   it("errors when removeNode is called with a node that doesn't belong", () => {
     let graph = new Graph();
     assert.throws(() => {
-      graph.removeNode({id: 'dne', value: null});
+      graph.removeNode({id: 'dne', type: 'mynode', value: null});
     }, /Does not have node/);
   });
 
@@ -38,20 +39,23 @@ describe('Graph', () => {
     let graph = new Graph();
 
     assert.throws(() => {
-      graph.traverse(() => {}, {id: 'dne', value: null});
+      graph.traverse(() => {}, {id: 'dne', type: 'mynode', value: null});
     }, /Does not have node/);
   });
 
   it("errors if replaceNodesConnectedTo is called with a node that doesn't belong", () => {
     let graph = new Graph();
     assert.throws(() => {
-      graph.replaceNodesConnectedTo({id: 'dne', value: null}, []);
+      graph.replaceNodesConnectedTo(
+        {id: 'dne', type: 'mynode', value: null},
+        [],
+      );
     }, /Does not have node/);
   });
 
   it("errors when adding an edge to a node that doesn't exist", () => {
     let graph = new Graph();
-    graph.addNode({id: 'foo', value: null});
+    graph.addNode({id: 'foo', type: 'mynode', value: null});
     assert.throws(() => {
       graph.addEdge('foo', 'dne');
     }, /"to" node 'dne' not found/);
@@ -59,7 +63,7 @@ describe('Graph', () => {
 
   it("errors when adding an edge from a node that doesn't exist", () => {
     let graph = new Graph();
-    graph.addNode({id: 'foo', value: null});
+    graph.addNode({id: 'foo', type: 'mynode', value: null});
     assert.throws(() => {
       graph.addEdge('dne', 'foo');
     }, /"from" node 'dne' not found/);
@@ -67,7 +71,7 @@ describe('Graph', () => {
 
   it('hasNode should return a boolean based on whether the node exists in the graph', () => {
     let graph = new Graph();
-    let node = {id: 'a', value: 'a'};
+    let node = {id: 'a', type: 'mynode', value: 'a'};
     graph.addNode(node);
     assert(graph.hasNode(node.id));
     assert(!graph.hasNode('b'));
@@ -75,17 +79,17 @@ describe('Graph', () => {
 
   it('addEdge should add an edge to the graph', () => {
     let graph = new Graph();
-    graph.addNode({id: 'a', value: null});
-    graph.addNode({id: 'b', value: null});
+    graph.addNode({id: 'a', type: 'mynode', value: null});
+    graph.addNode({id: 'b', type: 'mynode', value: null});
     graph.addEdge('a', 'b');
     assert(graph.hasEdge('a', 'b'));
   });
 
   it('isOrphanedNode should return true or false if the node is orphaned or not', () => {
     let graph = new Graph();
-    let nodeA = {id: 'a', value: 'a'};
-    let nodeB = {id: 'b', value: 'b'};
-    let nodeC = {id: 'c', value: 'c'};
+    let nodeA = {id: 'a', type: 'mynode', value: 'a'};
+    let nodeB = {id: 'b', type: 'mynode', value: 'b'};
+    let nodeC = {id: 'c', type: 'mynode', value: 'c'};
     graph.addNode(nodeA);
     graph.addNode(nodeB);
     graph.addNode(nodeC);
@@ -103,10 +107,10 @@ describe('Graph', () => {
     //      /
     //     c
     let graph = new Graph();
-    graph.addNode({id: 'a', value: 'a'});
-    graph.addNode({id: 'b', value: 'b'});
-    graph.addNode({id: 'c', value: 'c'});
-    graph.addNode({id: 'd', value: 'd'});
+    graph.addNode({id: 'a', type: 'mynode', value: 'a'});
+    graph.addNode({id: 'b', type: 'mynode', value: 'b'});
+    graph.addNode({id: 'c', type: 'mynode', value: 'c'});
+    graph.addNode({id: 'd', type: 'mynode', value: 'd'});
     graph.addEdge('a', 'b');
     graph.addEdge('a', 'd');
     graph.addEdge('b', 'c');
@@ -139,13 +143,13 @@ describe('Graph', () => {
     //          f
 
     let graph = new Graph();
-    graph.addNode({id: 'a', value: 'a'});
-    graph.addNode({id: 'b', value: 'b'});
-    graph.addNode({id: 'c', value: 'c'});
-    graph.addNode({id: 'd', value: 'd'});
-    graph.addNode({id: 'e', value: 'e'});
-    graph.addNode({id: 'f', value: 'f'});
-    graph.addNode({id: 'g', value: 'g'});
+    graph.addNode({id: 'a', type: 'mynode', value: 'a'});
+    graph.addNode({id: 'b', type: 'mynode', value: 'b'});
+    graph.addNode({id: 'c', type: 'mynode', value: 'c'});
+    graph.addNode({id: 'd', type: 'mynode', value: 'd'});
+    graph.addNode({id: 'e', type: 'mynode', value: 'e'});
+    graph.addNode({id: 'f', type: 'mynode', value: 'f'});
+    graph.addNode({id: 'g', type: 'mynode', value: 'g'});
 
     graph.addEdge('a', 'b');
     graph.addEdge('a', 'c');
@@ -185,13 +189,13 @@ describe('Graph', () => {
     //          f
 
     let graph = new Graph();
-    graph.setRootNode({id: 'a', value: 'a'});
-    graph.addNode({id: 'b', value: 'b'});
-    graph.addNode({id: 'c', value: 'c'});
-    graph.addNode({id: 'd', value: 'd'});
-    graph.addNode({id: 'e', value: 'e'});
-    graph.addNode({id: 'f', value: 'f'});
-    graph.addNode({id: 'g', value: 'g'});
+    graph.setRootNode({id: 'a', type: 'mynode', value: 'a'});
+    graph.addNode({id: 'b', type: 'mynode', value: 'b'});
+    graph.addNode({id: 'c', type: 'mynode', value: 'c'});
+    graph.addNode({id: 'd', type: 'mynode', value: 'd'});
+    graph.addNode({id: 'e', type: 'mynode', value: 'e'});
+    graph.addNode({id: 'f', type: 'mynode', value: 'f'});
+    graph.addNode({id: 'g', type: 'mynode', value: 'g'});
 
     graph.addEdge('a', 'b');
     graph.addEdge('a', 'c');
@@ -222,11 +226,11 @@ describe('Graph', () => {
     //       \ /    |
     //        e -----
     let graph = new Graph();
-    graph.setRootNode({id: 'a', value: 'a'});
-    graph.addNode({id: 'b', value: 'b'});
-    graph.addNode({id: 'c', value: 'c'});
-    graph.addNode({id: 'd', value: 'd'});
-    graph.addNode({id: 'e', value: 'e'});
+    graph.setRootNode({id: 'a', type: 'mynode', value: 'a'});
+    graph.addNode({id: 'b', type: 'mynode', value: 'b'});
+    graph.addNode({id: 'c', type: 'mynode', value: 'c'});
+    graph.addNode({id: 'd', type: 'mynode', value: 'd'});
+    graph.addNode({id: 'e', type: 'mynode', value: 'e'});
 
     graph.addEdge('a', 'b');
     graph.addEdge('b', 'c');
@@ -253,15 +257,15 @@ describe('Graph', () => {
   it('removing a node with only one inbound edge does not cause it to be removed as an orphan', () => {
     let graph = new Graph();
 
-    graph.setRootNode({id: 'a', value: 'a'});
-    graph.addNode({id: 'b', value: 'b'});
+    graph.setRootNode({id: 'a', type: 'mynode', value: 'a'});
+    graph.addNode({id: 'b', type: 'mynode', value: 'b'});
     graph.addEdge('a', 'b');
 
     let spy = sinon.spy(graph, 'removeNode');
     try {
       graph.removeById('b');
 
-      assert(spy.calledOnceWithExactly({id: 'b', value: 'b'}));
+      assert(spy.calledOnceWithExactly({id: 'b', type: 'mynode', value: 'b'}));
     } finally {
       spy.restore();
     }
@@ -269,13 +273,13 @@ describe('Graph', () => {
 
   it("replaceNodesConnectedTo should update a node's downstream nodes", () => {
     let graph = new Graph();
-    let nodeA = graph.addNode({id: 'a', value: 'a'});
-    let nodeB = graph.addNode({id: 'b', value: 'b'});
-    graph.addNode({id: 'c', value: 'c'});
+    let nodeA = graph.addNode({id: 'a', type: 'mynode', value: 'a'});
+    let nodeB = graph.addNode({id: 'b', type: 'mynode', value: 'b'});
+    graph.addNode({id: 'c', type: 'mynode', value: 'c'});
     graph.addEdge('a', 'b');
     graph.addEdge('a', 'c');
 
-    let nodeD = {id: 'd', value: 'd'};
+    let nodeD = {id: 'd', type: 'mynode', value: 'd'};
     graph.replaceNodesConnectedTo(nodeA, [nodeB, nodeD]);
 
     assert(graph.nodes.has('a'));
@@ -290,10 +294,10 @@ describe('Graph', () => {
 
   it('traverses along edge types if a filter is given', () => {
     let graph = new Graph();
-    graph.addNode({id: 'a', value: 'a'});
-    graph.addNode({id: 'b', value: 'b'});
-    graph.addNode({id: 'c', value: 'c'});
-    graph.addNode({id: 'd', value: 'd'});
+    graph.addNode({id: 'a', type: 'mynode', value: 'a'});
+    graph.addNode({id: 'b', type: 'mynode', value: 'b'});
+    graph.addNode({id: 'c', type: 'mynode', value: 'c'});
+    graph.addNode({id: 'd', type: 'mynode', value: 'd'});
 
     graph.addEdge('a', 'b', 'edgetype');
     graph.addEdge('a', 'd');

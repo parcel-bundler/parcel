@@ -16,7 +16,7 @@ function getComponentName(filePath) {
   return `Svg${pascalCaseFileName}`;
 }
 
-export default new Transformer({
+export default (new Transformer({
   async transform({asset}) {
     let code = await asset.getCode();
     let componentName = getComponentName(asset.filePath);
@@ -33,4 +33,4 @@ export default new Transformer({
 
     return [asset];
   },
-});
+}): Transformer);

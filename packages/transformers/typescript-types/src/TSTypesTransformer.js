@@ -13,7 +13,7 @@ import nullthrows from 'nullthrows';
 import {collect} from './collect';
 import {shake} from './shake';
 
-export default new Transformer({
+export default (new Transformer({
   async loadConfig({config, options}) {
     await loadTSConfig(config, options);
   },
@@ -39,16 +39,20 @@ export default new Transformer({
       emitDeclarationOnly: true,
       outFile: 'index.d.ts',
       moduleResolution: ts.ModuleResolutionKind.NodeJs,
+      // createProgram doesn't support incremental mode
+      composite: false,
     };
 
-    let host = new CompilerHost(options.inputFS, ts);
+    let host = new CompilerHost(options.inputFS, ts, logger);
     // $FlowFixMe
     let program = ts.createProgram([asset.filePath], opts, host);
 
     let includedFiles = program
       .getSourceFiles()
       .filter(file => path.normalize(file.fileName) !== asset.filePath)
-      .map(file => ({filePath: file.fileName}));
+      .map(file => ({
+        filePath: host.redirectTypes.get(file.fileName) ?? file.fileName,
+      }));
 
     let mainModuleName = path
       .relative(program.getCommonSourceDirectory(), asset.filePath)
@@ -101,7 +105,10 @@ export default new Transformer({
               column: start.column + 1,
             };
 
-            if (typeof diagnostic.length === 'number') {
+            if (
+              typeof diagnostic.start === 'number' &&
+              typeof diagnostic.length === 'number'
+            ) {
               let endCharPosition = file.getLineAndCharacterOfPosition(
                 diagnostic.start + diagnostic.length,
               );
@@ -114,11 +121,13 @@ export default new Transformer({
 
             codeframe = {
               code: source,
-              codeHighlights: {
-                start,
-                end,
-                message: diagnosticMessage,
-              },
+              codeHighlights: [
+                {
+                  start,
+                  end,
+                  message: diagnosticMessage,
+                },
+              ],
             };
           }
         }
@@ -141,17 +150,19 @@ export default new Transformer({
 
     let sourceMap = null;
     if (map.mappings) {
-      sourceMap = new SourceMap();
+      sourceMap = new SourceMap(options.projectRoot);
       sourceMap.addRawMappings(map);
     }
 
     return [
       {
         type: 'ts',
+        // Stay on the types pipeline, even if the type changes
+        pipeline: asset.pipeline,
         content: code,
         map: sourceMap,
         includedFiles,
       },
     ];
   },
-});
+}): Transformer);

@@ -1,0 +1,5 @@
+{
+  "extends": "@parcel/config-default",
+  "resolvers": ["parcel-resolver-no-defer"],
+  "bundler": "parcel-bundler-no-defer"
+}

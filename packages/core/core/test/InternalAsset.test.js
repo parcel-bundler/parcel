@@ -4,7 +4,7 @@ import assert from 'assert';
 import UncommittedAsset from '../src/UncommittedAsset';
 import {createAsset} from '../src/assetUtils';
 import {createEnvironment} from '../src/Environment';
-import {DEFAULT_OPTIONS} from './utils';
+import {DEFAULT_OPTIONS} from './test-utils';
 
 const stats = {time: 0, size: 0};
 
@@ -20,12 +20,12 @@ describe('InternalAsset', () => {
       }),
       options: DEFAULT_OPTIONS,
     });
-    asset.addIncludedFile({filePath: '/foo/file', hash: 'abc'});
-    asset.addIncludedFile({filePath: '/foo/file', hash: 'bcd'});
-    assert.deepEqual(asset.getIncludedFiles(), [
+    asset.addIncludedFile('/foo/file');
+    asset.addIncludedFile('/foo/file');
+    assert.deepEqual(asset.getInvalidations(), [
       {
+        type: 'file',
         filePath: '/foo/file',
-        hash: 'bcd',
       },
     ]);
   });

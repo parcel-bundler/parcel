@@ -57,6 +57,10 @@ function isBuffer(object) {
   );
 }
 
+function shouldContinueMapping(value) {
+  return value && typeof value === 'object' && value.$$raw !== true;
+}
+
 function mapObject(object: any, fn: (val: any) => any, preOrder = false): any {
   let cache = new Map();
   let memo = new Map();
@@ -90,7 +94,13 @@ function mapObject(object: any, fn: (val: any) => any, preOrder = false): any {
       }
 
       // Recursively walk the children
-      if (newValue && typeof newValue === 'object' && newValue.$$raw !== true) {
+      if (
+        preOrder
+          ? shouldContinueMapping(newValue)
+          : newValue &&
+            typeof newValue === 'object' &&
+            shouldContinueMapping(object)
+      ) {
         newValue = walk(newValue, newValue === value);
       }
 
@@ -137,14 +147,18 @@ function mapObject(object: any, fn: (val: any) => any, preOrder = false): any {
   };
 
   let mapped = memoizedFn(object);
-  if (mapped && typeof mapped === 'object' && mapped.$$raw !== true) {
+  if (
+    preOrder
+      ? shouldContinueMapping(mapped)
+      : mapped && typeof mapped === 'object' && shouldContinueMapping(object)
+  ) {
     return walk(mapped, mapped === object);
   }
 
   return mapped;
 }
 
-export function prepareForSerialization(object: any) {
+export function prepareForSerialization(object: any): any {
   return mapObject(
     object,
     value => {
@@ -181,7 +195,7 @@ export function prepareForSerialization(object: any) {
   );
 }
 
-export function restoreDeserializedObject(object: any) {
+export function restoreDeserializedObject(object: any): any {
   return mapObject(object, value => {
     // If the value has a $$type property, use it to restore the object type
     if (value && value.$$type) {

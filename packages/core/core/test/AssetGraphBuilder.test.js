@@ -4,7 +4,7 @@ import invariant from 'assert';
 
 import {createWorkerFarm} from '../';
 import AssetGraphBuilder from '../src/AssetGraphBuilder';
-import {DEFAULT_OPTIONS} from './utils';
+import {DEFAULT_OPTIONS} from './test-utils';
 
 describe('AssetGraphBuilder', function() {
   // This depends on spinning up a WorkerFarm, which can take some time.
@@ -26,6 +26,7 @@ describe('AssetGraphBuilder', function() {
     await builder.init({
       name: 'test',
       options: DEFAULT_OPTIONS,
+      // $FlowFixMe opaque type
       optionsRef: 1,
       entries: ['./module-b'],
       workerFarm,

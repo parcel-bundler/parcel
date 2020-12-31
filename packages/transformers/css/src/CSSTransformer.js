@@ -17,9 +17,9 @@ function canHaveDependencies(filePath: FilePath, code: string) {
   return !/\.css$/.test(filePath) || IMPORT_RE.test(code) || URL_RE.test(code);
 }
 
-export default new Transformer({
+export default (new Transformer({
   canReuseAST({ast}) {
-    return ast.type === 'postcss' && semver.satisfies(ast.version, '^7.0.0');
+    return ast.type === 'postcss' && semver.satisfies(ast.version, '^8.0.0');
   },
 
   async parse({asset}) {
@@ -40,7 +40,7 @@ export default new Transformer({
 
     return {
       type: 'postcss',
-      version: '7.0.0',
+      version: '8.0.0',
       program: postcss.parse(code, {
         from: asset.filePath,
       }),
@@ -56,6 +56,7 @@ export default new Transformer({
         browsers: asset.env.engines.browsers,
       },
       minify: asset.env.minify,
+      sourceMap: asset.env.sourceMap,
     });
 
     // When this asset is an bundle entry, allow that bundle to be split to load shared assets separately.
@@ -167,7 +168,7 @@ export default new Transformer({
     return [asset];
   },
 
-  async generate({ast, options}) {
+  async generate({asset, ast, options}) {
     let root = ast.program;
 
     // $FlowFixMe
@@ -199,16 +200,23 @@ export default new Transformer({
       map: {
         annotation: false,
         inline: false,
+        sourcesContent: false,
       },
       // Pass postcss's own stringifier to it to silence its warning
       // as we don't want to perform any transformations -- only generate
       stringifier: postcss.stringify,
     });
 
-    let map;
+    let map = null;
+    let originalSourceMap = await asset.getMap();
     if (result.map != null) {
-      map = new SourceMap();
+      map = new SourceMap(options.projectRoot);
       map.addRawMappings(result.map.toJSON());
+      if (originalSourceMap) {
+        map.extends(originalSourceMap.toBuffer());
+      }
+    } else {
+      map = originalSourceMap;
     }
 
     return {
@@ -216,4 +224,4 @@ export default new Transformer({
       map,
     };
   },
-});
+}): Transformer);

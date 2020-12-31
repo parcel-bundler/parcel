@@ -9,7 +9,7 @@ export function collect(
   moduleGraph: TSModuleGraph,
   context: any,
   sourceFile: any,
-) {
+): any {
   let currentModule: ?TSModule;
   let visit = (node: any): any => {
     if (ts.isBundle(node)) {

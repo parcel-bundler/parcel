@@ -28,23 +28,22 @@ import {
   isExpressionStatement,
   isIdentifier,
   isMemberExpression,
-  isObjectPattern,
-  isObjectProperty,
   isSequenceExpression,
   isStringLiteral,
 } from '@babel/types';
-import {traverse, REMOVE} from '@parcel/babylon-walk';
+import {traverse2, REMOVE, Scope} from '@parcel/babylon-walk';
+import {convertBabelLoc} from '@parcel/babel-ast-utils';
+import globals from 'globals';
 import {
   assertString,
-  convertBabelLoc,
   getName,
   getHelpers,
   getIdentifier,
   getThrowableDiagnosticForNode,
   isEntry,
   isReferenced,
+  needsPrelude,
 } from './utils';
-import {Scope} from './scope';
 import OutputFormats from './formats/index.js';
 
 const THROW_TEMPLATE = template.statement<{|MODULE: StringLiteral|}, Statement>(
@@ -60,6 +59,28 @@ const FAKE_INIT_TEMPLATE = template.statement<
 >(`function INIT(){
   return EXPORTS;
 }`);
+const PARCEL_REQUIRE_TEMPLATE = template.statement<{|
+  PARCEL_REQUIRE_NAME: Identifier,
+|}>(`var parcelRequire = $parcel$global.PARCEL_REQUIRE_NAME`);
+
+type LinkResult = {|ast: File, referencedAssets: Set<Asset>|};
+
+const BUILTINS = Object.keys(globals.builtin);
+const GLOBALS_BY_CONTEXT = {
+  browser: new Set([...BUILTINS, ...Object.keys(globals.browser)]),
+  'web-worker': new Set([...BUILTINS, ...Object.keys(globals.worker)]),
+  'service-worker': new Set([
+    ...BUILTINS,
+    ...Object.keys(globals.serviceworker),
+  ]),
+  node: new Set([...BUILTINS, ...Object.keys(globals.node)]),
+  'electron-main': new Set([...BUILTINS, ...Object.keys(globals.node)]),
+  'electron-renderer': new Set([
+    ...BUILTINS,
+    ...Object.keys(globals.node),
+    ...Object.keys(globals.browser),
+  ]),
+};
 
 export function link({
   bundle,
@@ -67,20 +88,23 @@ export function link({
   ast,
   options,
   wrappedAssets,
+  parcelRequireName,
 }: {|
   bundle: NamedBundle,
   bundleGraph: BundleGraph<NamedBundle>,
   ast: File,
   options: PluginOptions,
   wrappedAssets: Set<string>,
-|}): {|ast: File, referencedAssets: Set<Asset>|} {
+  parcelRequireName: string,
+|}): LinkResult {
   let format = OutputFormats[bundle.env.outputFormat];
   let replacements: Map<Symbol, Symbol> = new Map();
   let imports: Map<Symbol, null | [Asset, Symbol, ?SourceLocation]> = new Map();
   let exports: Map<Symbol, [Asset, Symbol]> = new Map();
   let assets: Map<string, Asset> = new Map();
   let exportsMap: Map<Symbol, Asset> = new Map();
-  let scope = new Scope();
+  let scope = new Scope('program');
+  let globalNames = GLOBALS_BY_CONTEXT[bundle.env.context];
 
   let helpers = getHelpers();
 
@@ -94,7 +118,7 @@ export function link({
   // of each bundle group pointing at the sibling bundles. These can be
   // picked up by another bundler later at which point runtimes will be added.
   if (bundle.env.isLibrary) {
-    let bundles = bundleGraph.getSiblingBundles(bundle);
+    let bundles = bundleGraph.getReferencedBundles(bundle);
     for (let b of bundles) {
       importedFiles.set(nullthrows(b.filePath), {
         bundle: b,
@@ -110,12 +134,16 @@ export function link({
 
     for (let dep of bundleGraph.getDependencies(asset)) {
       let resolved = bundleGraph.getDependencyResolution(dep, bundle);
+      let skipped = bundleGraph.isDependencySkipped(dep);
 
-      // If the dependency was deferred, the `...$import$..` identifier needs to be removed.
+      // If the dependency was skipped, the `...$import$..` identifier needs to be removed.
       // If the dependency was excluded, it will be replaced by the output format at the very end.
-      if (resolved || bundleGraph.isDependencyDeferred(dep)) {
+      if (resolved || skipped) {
         for (let [imported, {local, loc}] of dep.symbols) {
-          imports.set(local, resolved ? [resolved, imported, loc] : null);
+          imports.set(
+            local,
+            resolved && !skipped ? [resolved, imported, loc] : null,
+          );
         }
       }
     }
@@ -158,7 +186,7 @@ export function link({
             symbols = [];
             exportedSymbols.set(symbol, symbols);
 
-            if (!t.isValidIdentifier(local)) {
+            if (!t.isValidIdentifier(local) || globalNames.has(local)) {
               local = scope.generateUid(local);
             } else {
               scope.add(local);
@@ -232,7 +260,7 @@ export function link({
       identifier = assertString(asset.meta.exportsIdentifier);
     }
 
-    if (replacements && identifier && replacements.has(identifier)) {
+    if (identifier && replacements.has(identifier)) {
       identifier = replacements.get(identifier);
     }
 
@@ -243,48 +271,69 @@ export function link({
 
   let needsExportsIdentifierCache = new Map();
   let bundleNeedsMainExportsIdentifier =
-    bundle.env.outputFormat === 'global' &&
-    (!isEntry(bundle, bundleGraph) || isReferenced(bundle, bundleGraph));
+    (bundle.env.outputFormat === 'global' &&
+      (!isEntry(bundle, bundleGraph) || isReferenced(bundle, bundleGraph))) ||
+    (bundle.env.outputFormat === 'esmodule' && entry?.meta.isCommonJS);
 
   function needsExportsIdentifier(name: string) {
     let asset = exportsMap.get(name);
+    if (asset) {
+      return needsExportsIdentifierForAsset(asset);
+    }
+
+    return true;
+  }
+
+  function needsExportsIdentifierForAsset(asset: Asset) {
     if (needsExportsIdentifierCache.has(asset)) {
       return needsExportsIdentifierCache.get(asset);
     }
 
     if (
-      !asset ||
       asset.meta.pureExports === false ||
-      wrappedAssets.has(asset.id)
+      wrappedAssets.has(asset.id) ||
+      referencedAssets.has(asset)
     ) {
       needsExportsIdentifierCache.set(asset, true);
       return true;
     }
 
-    if (
-      asset === bundle.getMainEntry() &&
-      (asset.meta.isCommonJS || bundleNeedsMainExportsIdentifier)
-    ) {
+    let isEntry = asset === bundle.getMainEntry();
+    if (isEntry && bundleNeedsMainExportsIdentifier) {
       needsExportsIdentifierCache.set(asset, true);
       return true;
     }
 
     let deps = bundleGraph.getIncomingDependencies(asset);
+    let usedSymbols = bundleGraph.getUsedSymbols(asset);
+    if (usedSymbols.has('*') && (!isEntry || asset.meta.isCommonJS)) {
+      needsExportsIdentifierCache.set(asset, true);
+      return true;
+    }
+
     let res = deps.some(
       dep =>
-        // If there's a dependency on the namespace, we need to keep the exports object.
-        // TODO: check used symbols on asset instead once symbol propagation lands.
-        dep.symbols.hasExportSymbol('*') ||
-        // If there's a dependency in another bundle, we need to expose the whole exports object.
-        (!bundle.hasDependency(dep) && dep.sourcePath != null) ||
-        // If the asset is CommonJS and there's a dependency on `default`, we need the
+        // Internalized async dependencies need the exports object for Promise.resolve($id$exports)
+        (dep.isAsync && bundle.hasDependency(dep)) ||
+        // If there's a dependency on the namespace, and the parent asset's exports object is used,
+        // we need to keep the exports object for $parcel$exportWildcard.
+        (!isEntry &&
+          dep.symbols.hasExportSymbol('*') &&
+          needsExportsIdentifierForAsset(
+            bundleGraph.getAssetWithDependency(dep),
+          )) ||
+        // If the asset is CommonJS and there's an ES6 dependency on `default`, we need the
         // exports identifier to call $parcel$interopDefault.
-        (asset.meta.isCommonJS && dep.symbols.hasExportSymbol('default')) ||
+        (asset.meta.isCommonJS &&
+          dep.meta.isES6Module &&
+          dep.symbols.hasExportSymbol('default')) ||
         // If the asset is an ES6 module with a default export, and there's a CommonJS dependency
         // on it, we need the exports identifier to call $parcel$defineInteropFlag.
         (asset.meta.isES6Module &&
           asset.symbols.hasExportSymbol('default') &&
-          dep.meta.isCommonJS) ||
+          dep.meta.isCommonJS &&
+          !dep.isAsync &&
+          dep.symbols.hasExportSymbol('*')) ||
         // If one of the symbols imported by the dependency doesn't resolve, then we need the
         // exports identifier to fall back to.
         [...dep.symbols].some(
@@ -300,17 +349,29 @@ export function link({
     let exp = exports.get(name);
     if (exp) {
       let [asset, local] = exp;
-      if (needsExportsIdentifier(assertString(asset.meta.exportsIdentifier))) {
-        return true;
-      }
-
       if (asset === bundle.getMainEntry() && bundle.env.isLibrary) {
         return true;
       }
 
+      if (asset.meta.pureExports === false) {
+        return true;
+      }
+
+      let usedSymbols = bundleGraph.getUsedSymbols(asset);
+
+      // If the asset is CommonJS, and "default" was used but not defined, this
+      // will resolve to the $id$exports object, so we need to retain all symbols.
+      if (
+        asset.meta.isCommonJS &&
+        usedSymbols.has('default') &&
+        !asset.symbols.hasExportSymbol('default')
+      ) {
+        return true;
+      }
+
+      // Otherwise, if the symbol is pure and unused, it is safe to remove.
       if (asset.symbols.get(local)?.meta?.isPure) {
-        let deps = bundleGraph.getIncomingDependencies(asset);
-        return deps.some(dep => dep.symbols.hasExportSymbol(local));
+        return usedSymbols.has(local) || usedSymbols.has('*');
       }
     }
 
@@ -348,43 +409,40 @@ export function link({
   }
 
   // node is an Identifier like $id$import$foo that directly imports originalName from originalModule
-  function replaceImportNode(
-    originalModule,
-    originalName,
-    node,
-    ancestors,
-    depLoc,
-  ) {
+  function replaceImportNode(originalModule, originalName, node, ancestors) {
     let {asset: mod, symbol, identifier} = resolveSymbol(
       originalModule,
       originalName,
       bundle,
     );
-
-    let res = identifier != null ? findSymbol(node, identifier) : identifier;
+    let res = identifier ? findSymbol(node, identifier) : identifier;
+    if (mod.meta.pureExports === false || wrappedAssets.has(mod.id)) {
+      res = null;
+    }
 
     // If the module is not in this bundle, create a `require` call for it.
     if (!mod.meta.id || !assets.has(assertString(mod.meta.id))) {
+      if (res === false) {
+        // Asset was skipped
+        return null;
+      }
+
       res = addBundleImport(mod, node, ancestors);
       return res ? interop(mod, symbol, node, res) : null;
     }
 
-    // If this is an ES6 module, throw an error if we cannot resolve the module
-    if (res === undefined && !mod.meta.isCommonJS && mod.meta.isES6Module) {
-      let relativePath = relative(options.projectRoot, mod.filePath);
-      throw getThrowableDiagnosticForNode(
-        `${relativePath} does not export '${symbol}'`,
-        depLoc?.filePath ?? node.loc?.filename,
-        depLoc,
-      );
-    }
+    // The ESM 'does not export' case was already handled by core's symbol proapgation.
 
     // Look for an exports object if we bailed out.
     // TODO remove the first part of the condition once bundleGraph.resolveSymbol().identifier === null covers this
     if ((res === undefined && mod.meta.isCommonJS) || res === null) {
-      res = findSymbol(node, assertString(mod.meta.exportsIdentifier));
-      if (!res) {
-        return null;
+      if (wrappedAssets.has(mod.id)) {
+        res = t.callExpression(getIdentifier(mod, 'init'), []);
+      } else {
+        res = findSymbol(node, assertString(mod.meta.exportsIdentifier));
+        if (!node) {
+          return null;
+        }
       }
 
       res = interop(mod, symbol, res, res);
@@ -421,21 +479,14 @@ export function link({
 
     // if there is a CommonJS export return $id$exports.name
     if (originalName !== '*') {
-      return t.memberExpression(node, t.identifier(originalName));
+      if (t.isValidIdentifier(originalName, false)) {
+        return t.memberExpression(node, t.identifier(originalName));
+      } else {
+        return t.memberExpression(node, t.stringLiteral(originalName), true);
+      }
     }
 
     return node;
-  }
-
-  function isUnusedValue(ancestors, i = 1) {
-    let node = ancestors[ancestors.length - i];
-    let parent = ancestors[ancestors.length - i - 1];
-    return (
-      isExpressionStatement(parent) ||
-      (isSequenceExpression(parent) &&
-        (node !== parent.expressions[parent.expressions.length - 1] ||
-          isUnusedValue(ancestors, i + 1)))
-    );
   }
 
   function addExternalModule(node, ancestors, dep) {
@@ -445,7 +496,7 @@ export function link({
       importedFile = {
         source: dep.moduleSpecifier,
         specifiers: new Map(),
-        isCommonJS: !!dep.meta.isCommonJS,
+        isCommonJS: !!dep.meta?.isCommonJS,
         loc: convertBabelLoc(node.loc),
       };
 
@@ -531,7 +582,9 @@ export function link({
     }
   }
 
-  traverse(ast, {
+  // return {ast, referencedAssets}
+
+  traverse2(ast, {
     CallExpression(node, state, ancestors) {
       let {arguments: args, callee} = node;
       if (!isIdentifier(callee)) {
@@ -561,42 +614,61 @@ export function link({
         let mod = bundleGraph.getDependencyResolution(dep, bundle);
         let newNode;
 
-        if (!mod) {
-          if (dep.isOptional) {
-            return THROW_TEMPLATE({MODULE: t.stringLiteral(source.value)});
-          } else if (dep.isWeak && bundleGraph.isDependencyDeferred(dep)) {
-            return REMOVE;
-          } else {
-            let name = addExternalModule(node, ancestors, dep);
-            if (isUnusedValue(ancestors) || !name) {
-              return REMOVE;
+        if (!bundleGraph.isDependencySkipped(dep)) {
+          if (!mod) {
+            if (dep.isOptional) {
+              newNode = THROW_TEMPLATE({MODULE: t.stringLiteral(source.value)});
+              scope.add('$parcel$missingModule');
             } else {
-              return t.identifier(name);
+              let name = addExternalModule(node, ancestors, dep);
+              if (!isUnusedValue(ancestors) && name) {
+                newNode = t.identifier(name);
+              }
             }
-          }
-        } else {
-          if (mod.meta.id && assets.get(assertString(mod.meta.id))) {
-            let name = assertString(mod.meta.exportsIdentifier);
-            let isValueUsed = !isUnusedValue(ancestors);
-
-            // We need to wrap the module in a function when a require
-            // call happens inside a non top-level scope, e.g. in a
-            // function, if statement, or conditional expression.
-            if (wrappedAssets.has(mod.id)) {
-              newNode = t.callExpression(getIdentifier(mod, 'init'), []);
-            }
-            // Replace with nothing if the require call's result is not used.
-            else if (isValueUsed) {
-              newNode = t.identifier(replacements.get(name) || name);
-            }
-          } else if (mod.type === 'js') {
-            newNode = addBundleImport(mod, node, ancestors);
-          }
-
-          if (newNode) {
-            return newNode;
           } else {
+            if (mod.meta.id && assets.has(assertString(mod.meta.id))) {
+              let name = assertString(mod.meta.exportsIdentifier);
+
+              let isValueUsed = !isUnusedValue(ancestors);
+
+              // We need to wrap the module in a function when a require
+              // call happens inside a non top-level scope, e.g. in a
+              // function, if statement, or conditional expression.
+              if (wrappedAssets.has(mod.id)) {
+                newNode = t.callExpression(getIdentifier(mod, 'init'), []);
+              }
+              // Replace with nothing if the require call's result is not used.
+              else if (isValueUsed) {
+                newNode = t.identifier(name);
+              }
+            } else if (mod.type === 'js') {
+              newNode = addBundleImport(mod, node, ancestors);
+            }
+
+            // async dependency that was internalized
+            if (
+              bundleGraph.resolveAsyncDependency(dep, bundle)?.type === 'asset'
+            ) {
+              newNode = t.callExpression(
+                t.memberExpression(
+                  t.identifier('Promise'),
+                  t.identifier('resolve'),
+                ),
+                // $FlowFixMe[incompatible-call]
+                [newNode],
+              );
+            }
+          }
+        }
+
+        if (newNode) {
+          return newNode;
+        } else {
+          if (isUnusedValue(ancestors)) {
             return REMOVE;
+          } else {
+            // e.g. $parcel$exportWildcard;
+            return t.objectExpression([]);
           }
         }
       } else if (callee.name === '$parcel$require$resolve') {
@@ -623,7 +695,7 @@ export function link({
             throw getThrowableDiagnosticForNode(
               "`require.resolve` calls for excluded assets are only supported with outputFormat: 'commonjs'",
               mapped.filePath,
-              node.loc,
+              convertBabelLoc(node.loc),
             );
           }
 
@@ -634,7 +706,7 @@ export function link({
           throw getThrowableDiagnosticForNode(
             "`require.resolve` calls for bundled modules or bundled assets aren't supported with scope hoisting",
             mapped.filePath,
-            node.loc,
+            convertBabelLoc(node.loc),
           );
         }
       } else if (callee.name === '$parcel$exportWildcard') {
@@ -645,11 +717,37 @@ export function link({
         if (!needsExportsIdentifier(args[0].name)) {
           return REMOVE;
         }
+      } else if (callee.name === '$parcel$export') {
+        let [obj, symbol] = args;
+        invariant(isIdentifier(obj));
+        invariant(isStringLiteral(symbol));
+        let objName = obj.name;
+        let symbolName = symbol.value;
+
+        // Remove if the $id$exports object is unused.
+        if (!needsExportsIdentifier(objName)) {
+          return REMOVE;
+        }
+
+        if (objName === 'exports') {
+          // Assignment inside a wrapped asset
+          return;
+        }
+
+        let asset = nullthrows(exportsMap.get(objName));
+        let incomingDeps = bundleGraph.getIncomingDependencies(asset);
+        let unused = incomingDeps.every(d => {
+          let symbols = bundleGraph.getUsedSymbols(d);
+          return !symbols.has(symbolName) && !symbols.has('*');
+        });
+        if (unused) {
+          return REMOVE;
+        }
       }
     },
     VariableDeclarator: {
-      exit(node, state, ancestors) {
-        let {id, init} = node;
+      exit(node) {
+        let {id} = node;
 
         if (isIdentifier(id)) {
           if (!needsExportsIdentifier(id.name)) {
@@ -657,66 +755,6 @@ export function link({
           }
 
           if (!needsDeclaration(id.name)) {
-            return REMOVE;
-          }
-        }
-
-        // Replace references to declarations like `var x = require('x')`
-        // with the final export identifier instead.
-        // This allows us to potentially replace accesses to e.g. `x.foo` with
-        // a variable like `$id$export$foo` later, avoiding the exports object altogether.
-        if (!isIdentifier(init)) {
-          return;
-        }
-
-        let module = exportsMap.get(init.name);
-        if (!module) {
-          return;
-        }
-
-        let isGlobal = true;
-        for (let i = ancestors.length - 1; i > 0; i--) {
-          if (
-            t.isScope(ancestors[i], ancestors[i - 1]) &&
-            !t.isProgram(ancestors[i])
-          ) {
-            isGlobal = false;
-            break;
-          }
-        }
-
-        // Replace patterns like `var {x} = require('y')` with e.g. `$id$export$x`.
-        if (isObjectPattern(id)) {
-          let properties = [];
-          for (let p of id.properties) {
-            if (!isObjectProperty(p)) {
-              continue;
-            }
-
-            let {computed, key, value} = p;
-            if (computed || !isIdentifier(key) || !isIdentifier(value)) {
-              continue;
-            }
-
-            let {identifier} = resolveSymbol(module, key.name, bundle);
-            if (identifier && isGlobal) {
-              replacements.set(value.name, identifier);
-            } else {
-              properties.push(p);
-            }
-          }
-
-          if (properties.length === 0) {
-            return REMOVE;
-          } else {
-            let res = t.cloneNode(node);
-            invariant(isObjectPattern(res.id));
-            res.id.properties = properties;
-            return res;
-          }
-        } else if (isIdentifier(id)) {
-          if (isGlobal) {
-            replacements.set(id.name, init.name);
             return REMOVE;
           }
         }
@@ -767,89 +805,66 @@ export function link({
         }
       },
     },
-    MemberExpression: {
-      exit(node, state, ancestors) {
-        let {object, property, computed} = node;
-        if (
-          !(
-            isIdentifier(object) &&
-            ((isIdentifier(property) && !computed) || isStringLiteral(property))
-          )
-        ) {
-          return;
+    AssignmentExpression(node, state, ancestors) {
+      if (isIdentifier(node.left)) {
+        let res = maybeReplaceIdentifier(node.left, ancestors);
+        if (res) {
+          node.left = res;
         }
 
-        let asset = exportsMap.get(object.name);
-        if (!asset) {
-          return;
-        }
+        return;
+      }
 
-        // If it's a $id$exports.name expression.
-        let name = isIdentifier(property) ? property.name : property.value;
-        let {identifier} = resolveSymbol(asset, name, bundle);
+      if (!isMemberExpression(node.left)) {
+        return;
+      }
 
-        if (identifier == null) {
-          return;
-        }
+      let {object, property, computed} = node.left;
+      if (
+        !(
+          isIdentifier(object) &&
+          ((isIdentifier(property) && !computed) || isStringLiteral(property))
+        )
+      ) {
+        return;
+      }
 
-        let parent = ancestors[ancestors.length - 2];
-        // // If inside an expression, update the actual export binding as well
-        if (!isAssignmentExpression(parent, {left: node})) {
-          return t.identifier(identifier);
-        }
-      },
-    },
-    AssignmentExpression: {
-      exit(node, state, ancestors) {
-        if (!isMemberExpression(node.left)) {
-          return;
-        }
+      let asset = exportsMap.get(object.name);
+      if (!asset) {
+        return;
+      }
 
-        let {object, property, computed} = node.left;
-        if (
-          !(
-            isIdentifier(object) &&
-            ((isIdentifier(property) && !computed) || isStringLiteral(property))
-          )
-        ) {
-          return;
-        }
+      if (!needsExportsIdentifier(object.name)) {
+        return REMOVE;
+      }
 
-        let asset = exportsMap.get(object.name);
-        if (!asset) {
-          return;
-        }
+      // If it's a $id$exports.name expression.
+      let name = isIdentifier(property) ? property.name : property.value;
+      let {identifier} = resolveSymbol(asset, name, bundle);
 
-        if (!needsExportsIdentifier(object.name)) {
+      if (identifier == null) {
+        return;
+      }
+
+      let {right} = node;
+      if (isIdentifier(right)) {
+        let res = maybeReplaceIdentifier(right, ancestors);
+        if (res) {
+          right = res;
+        }
+      }
+
+      if (isIdentifier(right, {name: identifier})) {
+        // If the original declaration is unused, no need to assign to $id$exports.
+        if (!needsDeclaration(identifier)) {
           return REMOVE;
         }
+      } else {
+        // turn `$id$exports.foo = ...` into `$id$exports.foo = $id$export$foo = ...`
+        right = t.assignmentExpression('=', t.identifier(identifier), right);
+      }
 
-        // If it's a $id$exports.name expression.
-        let name = isIdentifier(property) ? property.name : property.value;
-        let {identifier} = resolveSymbol(asset, name, bundle);
-
-        if (identifier == null) {
-          return;
-        }
-
-        let {right} = node;
-        if (isIdentifier(right)) {
-          let res = maybeReplaceIdentifier(right, ancestors);
-          if (res) {
-            right = res;
-          }
-        }
-
-        // do not modify `$id$exports.foo = $id$export$foo` statements
-        if (!isIdentifier(right, {name: identifier})) {
-          // turn `$exports.foo = ...` into `$exports.foo = $export$foo = ...`
-          right = t.assignmentExpression('=', t.identifier(identifier), right);
-        }
-
-        node = t.cloneNode(node);
-        node.right = right;
-        return node;
-      },
+      node.right = right;
     },
     Identifier(node, state, ancestors) {
       if (
@@ -887,6 +902,14 @@ export function link({
             left.name = exp[0].local;
             return format.generateMainExport(node, exp);
           }
+        }
+      },
+    },
+    SequenceExpression: {
+      exit(node) {
+        // This can happen if a $parcel$require result is unused.
+        if (node.expressions.length === 1) {
+          return node.expressions[0];
         }
       },
     },
@@ -931,17 +954,33 @@ export function link({
           bundleGraph,
           bundle,
           referencedAssets,
+          scope,
           reexports,
         );
 
         statements = statements.concat(exported);
 
+        // If the prelude is needed, ensure parcelRequire is available.
+        if (
+          !scope.names.has('parcelRequire') &&
+          needsPrelude(bundle, bundleGraph)
+        ) {
+          scope.add('parcelRequire');
+        }
+
+        let usedHelpers = [];
         for (let name of scope.names) {
           let helper = helpers.get(name);
           if (helper) {
-            statements.unshift(helper);
+            usedHelpers.push(helper);
+          } else if (name === 'parcelRequire') {
+            usedHelpers.push(
+              PARCEL_REQUIRE_TEMPLATE({PARCEL_REQUIRE_NAME: parcelRequireName}),
+            );
           }
         }
+
+        statements = usedHelpers.concat(statements);
 
         // $FlowFixMe
         return t.program(statements);
@@ -950,4 +989,15 @@ export function link({
   });
 
   return {ast, referencedAssets};
+}
+
+function isUnusedValue(ancestors, i = 1) {
+  let node = ancestors[ancestors.length - i];
+  let parent = ancestors[ancestors.length - i - 1];
+  return (
+    isExpressionStatement(parent) ||
+    (isSequenceExpression(parent) &&
+      (node !== parent.expressions[parent.expressions.length - 1] ||
+        isUnusedValue(ancestors, i + 1)))
+  );
 }

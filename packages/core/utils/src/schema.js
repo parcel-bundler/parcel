@@ -2,14 +2,14 @@
 import ThrowableDiagnostic, {
   generateJSONCodeHighlights,
 } from '@parcel/diagnostic';
-// flowlint-next-line untyped-import:off
-import levenshteinDistance from 'js-levenshtein';
+import levenshtein from 'fastest-levenshtein';
 
 export type SchemaEntity =
   | SchemaObject
   | SchemaArray
   | SchemaBoolean
   | SchemaString
+  | SchemaNumber
   | SchemaEnum
   | SchemaOneOf
   | SchemaAllOf
@@ -38,6 +38,11 @@ export type SchemaString = {|
   type: 'string',
   enum?: Array<string>,
   __validate?: (val: string) => ?string,
+  __type?: string,
+|};
+export type SchemaNumber = {|
+  type: 'number',
+  enum?: Array<number>,
   __type?: string,
 |};
 export type SchemaEnum = {|
@@ -166,6 +171,23 @@ function validateSchema(schema: SchemaEntity, data: mixed): Array<SchemaError> {
                   dataType: 'value',
                   dataPath,
                   message: validationError,
+                  actualValue: value,
+                  ancestors: schemaAncestors,
+                };
+              }
+            }
+            break;
+          }
+          case 'number': {
+            // $FlowFixMe type was already checked
+            let value: number = dataNode;
+            if (schemaNode.enum) {
+              if (!schemaNode.enum.includes(value)) {
+                return {
+                  type: 'enum',
+                  dataType: 'value',
+                  dataPath,
+                  expectedValues: schemaNode.enum,
                   actualValue: value,
                   ancestors: schemaAncestors,
                 };
@@ -344,7 +366,7 @@ export function fuzzySearch(
   actualValue: string,
 ): Array<string> {
   let result = expectedValues
-    .map(exp => [exp, levenshteinDistance(exp, actualValue)])
+    .map(exp => [exp, levenshtein.distance(exp, actualValue)])
     .filter(
       // Remove if more than half of the string would need to be changed
       ([, d]) => d * 2 < actualValue.length,
@@ -384,7 +406,7 @@ validateSchema.diagnostic = function(
             .map(v => JSON.stringify(v))
             .join(', ')}?`;
         } else if (expectedValues.length > 0) {
-          message = `Possible values: ${expectedValues
+          message = `Possible values: ${e.expectedValues
             .map(v => JSON.stringify(v))
             .join(', ')}`;
         } else {

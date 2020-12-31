@@ -9,13 +9,13 @@ import type {
 import type {
   ArrayExpression,
   ExpressionStatement,
+  Identifier,
   File,
   Statement,
 } from '@babel/types';
 
 import babelGenerate from '@babel/generator';
 import invariant from 'assert';
-import nullthrows from 'nullthrows';
 import {isEntry} from './utils';
 import SourceMap from '@parcel/source-map';
 import * as t from '@babel/types';
@@ -25,6 +25,7 @@ const REGISTER_TEMPLATE = template.statement<
   {|
     REFERENCED_IDS: ArrayExpression,
     STATEMENTS: Array<Statement>,
+    PARCEL_REQUIRE: Identifier,
   |},
   ExpressionStatement,
 >(`(function() {
@@ -35,7 +36,7 @@ const REGISTER_TEMPLATE = template.statement<
   }
   var $parcel$referencedAssets = REFERENCED_IDS;
   for (var $parcel$i = 0; $parcel$i < $parcel$referencedAssets.length; $parcel$i++) {
-    parcelRequire.registerBundle($parcel$referencedAssets[$parcel$i], $parcel$bundleWrapper);
+    PARCEL_REQUIRE.registerBundle($parcel$referencedAssets[$parcel$i], $parcel$bundleWrapper);
   }
 })()`);
 const WRAPPER_TEMPLATE = template.statement<
@@ -48,6 +49,7 @@ export function generate({
   bundle,
   ast,
   referencedAssets,
+  parcelRequireName,
   options,
 }: {|
   bundleGraph: BundleGraph<NamedBundle>,
@@ -55,10 +57,12 @@ export function generate({
   ast: File,
   options: PluginOptions,
   referencedAssets: Set<Asset>,
-|}) {
+  parcelRequireName: string,
+|}): {|contents: string, map: ?SourceMap|} {
   let interpreter;
-  if (!bundle.target.env.isBrowser()) {
-    let _interpreter = nullthrows(bundle.getMainEntry()).meta.interpreter;
+  let mainEntry = bundle.getMainEntry();
+  if (mainEntry && !bundle.target.env.isBrowser()) {
+    let _interpreter = mainEntry.meta.interpreter;
     invariant(_interpreter == null || typeof _interpreter === 'string');
     interpreter = _interpreter;
   }
@@ -74,10 +78,13 @@ export function generate({
           REGISTER_TEMPLATE({
             STATEMENTS: statements,
             REFERENCED_IDS: t.arrayExpression(
-              [bundle.getMainEntry(), ...referencedAssets]
+              [mainEntry, ...referencedAssets]
                 .filter(Boolean)
-                .map(asset => t.stringLiteral(asset.id)),
+                .map(asset =>
+                  t.stringLiteral(bundleGraph.getAssetPublicId(asset)),
+                ),
             ),
+            PARCEL_REQUIRE: t.identifier(parcelRequireName),
           }),
         ]
       : [WRAPPER_TEMPLATE({STATEMENTS: statements})];
@@ -93,14 +100,14 @@ export function generate({
   );
 
   let {code, rawMappings} = babelGenerate(ast, {
-    sourceMaps: options.sourceMaps,
+    sourceMaps: !!bundle.env.sourceMap,
     minified: bundle.env.minify,
     comments: true, // retain /*@__PURE__*/ comments for terser
   });
 
   let map = null;
-  if (options.sourceMaps && rawMappings != null) {
-    map = new SourceMap();
+  if (bundle.env.sourceMap && rawMappings != null) {
+    map = new SourceMap(options.projectRoot);
     map.addIndexedMappings(rawMappings);
   }
 

@@ -6,6 +6,10 @@ function $parcel$defineInteropFlag(a) {
   Object.defineProperty(a, '__esModule', {value: true});
 }
 
+function $parcel$export(e, n, v) {
+  Object.defineProperty(e, n, {get: v, enumerable: true});
+}
+
 function $parcel$exportWildcard(dest, source) {
   Object.keys(source).forEach(function(key) {
     if (key === 'default' || key === '__esModule') {

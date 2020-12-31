@@ -14,7 +14,7 @@ type DisposableLike = IDisposable | (() => mixed);
  */
 export default class Disposable implements IDisposable {
   disposed: boolean = false;
-  #disposables; // ?Set<DisposableLike>
+  #disposables /*: ?Set<DisposableLike> */;
 
   constructor(...disposables: Array<DisposableLike>) {
     this.#disposables = new Set(disposables);
@@ -33,21 +33,20 @@ export default class Disposable implements IDisposable {
     }
   }
 
-  dispose(): void {
+  async dispose(): Promise<void> {
     if (this.disposed) {
       return;
     }
 
+    this.disposed = true;
+
     invariant(this.#disposables != null);
-    for (let disposable of this.#disposables) {
-      if (typeof disposable === 'function') {
-        disposable();
-      } else {
-        disposable.dispose();
-      }
-    }
+    await Promise.all(
+      [...this.#disposables].map(disposable =>
+        typeof disposable === 'function' ? disposable() : disposable.dispose(),
+      ),
+    );
 
     this.#disposables = null;
-    this.disposed = true;
   }
 }

@@ -10,7 +10,7 @@ import {
   replaceURLReferences,
 } from '@parcel/utils';
 
-export default new Packager({
+export default (new Packager({
   async package({
     bundle,
     bundleGraph,
@@ -43,7 +43,7 @@ export default new Packager({
 
               return css;
             }),
-            options.sourceMaps && asset.getMapBuffer(),
+            bundle.env.sourceMap && asset.getMapBuffer(),
           ]),
         );
       },
@@ -51,11 +51,11 @@ export default new Packager({
 
     let outputs = await queue.run();
     let contents = '';
-    let map = new SourceMap();
+    let map = new SourceMap(options.projectRoot);
     let lineOffset = 0;
     for (let [asset, code, mapBuffer] of outputs) {
       contents += code + '\n';
-      if (options.sourceMaps) {
+      if (bundle.env.sourceMap) {
         if (mapBuffer) {
           map.addBufferMappings(mapBuffer, lineOffset);
         } else {
@@ -72,7 +72,7 @@ export default new Packager({
       }
     }
 
-    if (options.sourceMaps) {
+    if (bundle.env.sourceMap) {
       let reference = await getSourceMapReference(map);
       if (reference != null) {
         contents += '/*# sourceMappingURL=' + reference + ' */\n';
@@ -98,4 +98,4 @@ export default new Packager({
       map,
     });
   },
-});
+}): Packager);

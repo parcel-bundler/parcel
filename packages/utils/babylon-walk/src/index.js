@@ -1,9 +1,14 @@
 // @flow
 import type {Node} from '@babel/types';
+import type {SimpleVisitors, VisitorsExploded} from './types';
 
 import * as t from '@babel/types';
 import explode from './explode.js';
-import type {SimpleVisitors, VisitorsExploded} from './types';
+import traverse from './traverse';
+
+export * from './traverse2';
+export * from './scope';
+export * from './types';
 
 export function simple<T>(
   node: Node,
@@ -129,5 +134,4 @@ export function recursive<T>(
   })(node);
 }
 
-export * from './traverse';
-export * from './types';
+export {traverse};

@@ -12,7 +12,7 @@ import {inspect} from 'util';
 import {errorToDiagnostic, anyToDiagnostic} from '@parcel/diagnostic';
 
 class Logger {
-  #logEmitter = new ValueEmitter<LogEvent>();
+  #logEmitter /*: ValueEmitter<LogEvent> */ = new ValueEmitter();
 
   onLog(cb: (event: LogEvent) => mixed): IDisposable {
     return this.#logEmitter.addListener(cb);
@@ -75,20 +75,24 @@ class Logger {
   }
 }
 
-const logger = new Logger();
+const logger: Logger = new Logger();
 export default logger;
 
+/** @private */
 export type PluginLoggerOpts = {|
   origin: string,
 |};
 
 export class PluginLogger {
+  /** @private */
   origin: string;
 
+  /** @private */
   constructor(opts: PluginLoggerOpts) {
     this.origin = opts.origin;
   }
 
+  /** @private */
   updateOrigin(
     diagnostic: DiagnosticWithoutOrigin | Array<DiagnosticWithoutOrigin>,
   ): Diagnostic | Array<Diagnostic> {
@@ -132,16 +136,21 @@ export class PluginLogger {
     logger.error(input, this.origin);
   }
 
+  /** @private */
   progress(message: string): void {
     logger.progress(message);
   }
 }
 
-let consolePatched = false;
+/** @private */
 export const INTERNAL_ORIGINAL_CONSOLE = {...console};
+let consolePatched = false;
 
-// Patch `console` APIs within workers to forward their messages to the Logger
-// at the appropriate levels.
+/**
+ * Patch `console` APIs within workers to forward their messages to the Logger
+ * at the appropriate levels.
+ * @private
+ */
 export function patchConsole() {
   // Skip if console is already patched...
   if (consolePatched) return;
@@ -172,6 +181,7 @@ export function patchConsole() {
   consolePatched = true;
 }
 
+/** @private */
 export function unpatchConsole() {
   // Skip if console isn't patched...
   if (!consolePatched) return;

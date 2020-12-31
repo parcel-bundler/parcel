@@ -1,5 +1,6 @@
 // @flow strict-local
-import type {FilePath, File} from '@parcel/types';
+
+import type {Async, FilePath, File} from '@parcel/types';
 import type {StaticRunOpts} from '../RequestTracker';
 import type {Entry, ParcelOptions} from '../types';
 
@@ -14,7 +15,7 @@ type RunOpts = {|
 export type EntryRequest = {|
   id: string,
   +type: 'entry_request',
-  run: RunOpts => Promise<EntryResult>,
+  run: RunOpts => Async<EntryResult>,
   input: FilePath,
 |};
 
@@ -25,7 +26,7 @@ export type EntryResult = {|
 
 const type = 'entry_request';
 
-export default function createEntryRequest(input: FilePath) {
+export default function createEntryRequest(input: FilePath): EntryRequest {
   return {
     id: `${type}:${input}`,
     type,
@@ -51,6 +52,13 @@ async function run({input, api, options}: RunOpts): Promise<EntryResult> {
     api.invalidateOnFileCreate(input);
   }
 
+  // Invalidate whenever an entry is deleted.
+  // If the entry was a glob, we'll re-evaluate it, and otherwise
+  // a proper entry error will be thrown.
+  for (let entry of result.entries) {
+    api.invalidateOnFileDelete(entry.filePath);
+  }
+
   return result;
 }
 
@@ -67,7 +75,9 @@ class EntryResolver {
         absolute: true,
         onlyFiles: false,
       });
-      let results = await Promise.all(files.map(f => this.resolveEntry(f)));
+      let results = await Promise.all(
+        files.map(f => this.resolveEntry(path.normalize(f))),
+      );
       return results.reduce(
         (p, res) => ({
           entries: p.entries.concat(res.entries),

@@ -6,7 +6,7 @@
 // anything defined in a previous bundle is accessed via the
 // orig method which is the require for previous bundles
 
-(function(modules, cache, entry, globalName) {
+(function(modules, cache, entry, mainEntry, parcelRequireName, globalName) {
   /* eslint-disable no-undef */
   var globalObject =
     typeof globalThis !== 'undefined'
@@ -22,8 +22,8 @@
 
   // Save the require from previous bundle to this closure if any
   var previousRequire =
-    typeof globalObject.parcelRequire === 'function' &&
-    globalObject.parcelRequire;
+    typeof globalObject[parcelRequireName] === 'function' &&
+    globalObject[parcelRequireName];
   // Do not use `require` to prevent Webpack from trying to bundle this call
   var nodeRequire =
     typeof module !== 'undefined' &&
@@ -37,7 +37,8 @@
         // cache jump to the current global require ie. the last bundle
         // that was added to the page.
         var currentRequire =
-          typeof parcelRequire === 'function' && parcelRequire;
+          typeof globalObject[parcelRequireName] === 'function' &&
+          globalObject[parcelRequireName];
         if (!jumped && currentRequire) {
           return currentRequire(name, true);
         }
@@ -105,16 +106,22 @@
     ];
   };
 
-  globalObject.parcelRequire = newRequire;
+  Object.defineProperty(newRequire, 'root', {
+    get: function() {
+      return globalObject[parcelRequireName];
+    },
+  });
+
+  globalObject[parcelRequireName] = newRequire;
 
   for (var i = 0; i < entry.length; i++) {
     newRequire(entry[i]);
   }
 
-  if (entry.length) {
+  if (mainEntry) {
     // Expose entry point to Node, AMD or browser globals
     // Based on https://github.com/ForbesLindesay/umd/blob/master/template.js
-    var mainExports = newRequire(entry[entry.length - 1]);
+    var mainExports = newRequire(mainEntry);
 
     // CommonJS
     if (typeof exports === 'object' && typeof module !== 'undefined') {

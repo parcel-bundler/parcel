@@ -1,4 +1,5 @@
 // @flow
+import {typeof default as Less} from 'less';
 import path from 'path';
 import {Transformer} from '@parcel/plugin';
 import SourceMap from '@parcel/source-map';
@@ -15,7 +16,7 @@ type LessConfig = {
   ...
 };
 
-export default new Transformer({
+export default (new Transformer({
   loadConfig({config}) {
     return load({config});
   },
@@ -37,7 +38,7 @@ export default new Transformer({
     try {
       let lessConfig: LessConfig = config ? {...config.config} : {};
 
-      if (options.sourceMaps) {
+      if (asset.env.sourceMap) {
         lessConfig.sourceMap = {};
       }
 
@@ -60,7 +61,7 @@ export default new Transformer({
     }
 
     if (result.map != null) {
-      let map = new SourceMap();
+      let map = new SourceMap(options.projectRoot);
       let rawMap = JSON.parse(result.map);
       map.addRawMappings({
         ...rawMap,
@@ -73,20 +74,22 @@ export default new Transformer({
 
     return [asset];
   },
-});
+}): Transformer);
 
 function urlPlugin({asset}) {
   return {
-    install(less, pluginManager) {
+    install(less: Less, pluginManager) {
+      // This is a hack; no such interface exists, even conceptually, in Less.
+      type LessNodeWithValue = less.tree.Node & {value: any, ...};
+
       const visitor = new less.visitors.Visitor({
         visitUrl(node) {
+          const valueNode = ((node.value: any): LessNodeWithValue);
+          const stringValue = (valueNode.value: string);
           if (
-            !node.value.value.startsWith('#') // IE's `behavior: url(#default#VML)`)
+            !stringValue.startsWith('#') // IE's `behavior: url(#default#VML)`)
           ) {
-            node.value.value = asset.addURLDependency(
-              node.value.value,
-              node.currentFileInfo.filename,
-            );
+            valueNode.value = asset.addURLDependency(stringValue, {});
           }
           return node;
         },

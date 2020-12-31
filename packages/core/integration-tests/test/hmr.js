@@ -1,9 +1,8 @@
-// @flow
+// @flow strict-local
 import assert from 'assert';
 import path from 'path';
 import {
   bundler,
-  defaultConfig,
   getNextBuild,
   ncp,
   outputFS,
@@ -13,18 +12,21 @@ import {
 import WebSocket from 'ws';
 import json5 from 'json5';
 import getPort from 'get-port';
+// flowlint-next-line untyped-import:off
 import JSDOM from 'jsdom';
 
-const config = {
-  ...defaultConfig,
-  reporters: ['@parcel/reporter-dev-server'],
-};
+const config = path.join(
+  __dirname,
+  './integration/custom-configs/.parcelrc-dev-server',
+);
 
 async function closeSocket(ws: WebSocket) {
   ws.close();
-  await new Promise(resolve => (ws.onclose = resolve));
+  await new Promise(resolve => {
+    ws.once('close', resolve);
+  });
 }
-
+// flowlint-next-line unclear-type:off
 async function openSocket(uri: string, opts: any) {
   let ws = new WebSocket(uri, opts);
 
@@ -654,10 +656,7 @@ describe('hmr', function() {
           host: '127.0.0.1',
         },
         hot: {port},
-        defaultConfig: {
-          ...defaultConfig,
-          reporters: ['@parcel/reporter-dev-server'],
-        },
+        config,
       });
 
       subscription = await b.watch();

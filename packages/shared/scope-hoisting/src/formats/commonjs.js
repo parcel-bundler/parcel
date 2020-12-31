@@ -10,7 +10,7 @@ import type {
   VariableDeclaration,
 } from '@babel/types';
 import type {ExternalBundle, ExternalModule} from '../types';
-import type {Scope} from '../scope';
+import type {Scope} from '@parcel/babylon-walk';
 
 import * as t from '@babel/types';
 import {
@@ -296,6 +296,7 @@ export function generateBundleExports(
   bundleGraph: BundleGraph<NamedBundle>,
   bundle: NamedBundle,
   referencedAssets: Set<Asset>,
+  scope: Scope,
   reexports: Set<{|exportAs: string, local: string|}>,
 ) {
   let exported = new Set<Symbol>();

@@ -3,7 +3,6 @@
 import type {BundleGraph, NamedBundle, Async} from '@parcel/types';
 
 import invariant from 'assert';
-import nullthrows from 'nullthrows';
 import {Packager} from '@parcel/plugin';
 import fs from 'fs';
 import {concat, link, generate} from '@parcel/scope-hoisting';
@@ -14,20 +13,40 @@ import {
   PromiseQueue,
   relativeBundlePath,
   replaceInlineReferences,
+  md5FromString,
+  loadConfig,
 } from '@parcel/utils';
 import path from 'path';
+import nullthrows from 'nullthrows';
 
 const PRELUDE = fs
   .readFileSync(path.join(__dirname, 'prelude.js'), 'utf8')
   .trim()
   .replace(/;$/, '');
 
-export default new Packager({
+export default (new Packager({
+  async loadConfig({options}) {
+    // Generate a name for the global parcelRequire function that is unique to this project.
+    // This allows multiple parcel builds to coexist on the same page.
+    let pkg = await loadConfig(
+      options.inputFS,
+      path.join(options.entryRoot, 'index'),
+      ['package.json'],
+    );
+    let name = pkg?.config.name ?? '';
+    return {
+      config: {
+        parcelRequireName: 'parcelRequire' + md5FromString(name).slice(-4),
+      },
+      files: pkg?.files ?? [],
+    };
+  },
   async package({
     bundle,
     bundleGraph,
     getInlineBundleContents,
     getSourceMapReference,
+    config,
     options,
   }) {
     function replaceReferences({contents, map}) {
@@ -44,15 +63,24 @@ export default new Packager({
       });
     }
 
+    let parcelRequireName = nullthrows(config).parcelRequireName;
+
     // If scope hoisting is enabled, we use a different code path.
     if (bundle.env.scopeHoist) {
       let wrappedAssets = new Set<string>();
       let {ast, referencedAssets} = link({
         bundle,
         bundleGraph,
-        ast: await concat({bundle, bundleGraph, options, wrappedAssets}),
+        ast: await concat({
+          bundle,
+          bundleGraph,
+          options,
+          wrappedAssets,
+          parcelRequireName,
+        }),
         options,
         wrappedAssets,
+        parcelRequireName,
       });
 
       // Free up memory
@@ -63,6 +91,7 @@ export default new Packager({
         bundle,
         ast,
         referencedAssets,
+        parcelRequireName,
         options,
       });
       return replaceReferences({
@@ -88,7 +117,7 @@ export default new Packager({
         queue.add(async () => {
           let [code, mapBuffer] = await Promise.all([
             node.value.getCode(),
-            bundle.target.sourceMap && node.value.getMapBuffer(),
+            bundle.env.sourceMap && node.value.getMapBuffer(),
           ]);
           return {code, mapBuffer};
         });
@@ -100,26 +129,23 @@ export default new Packager({
     let assets = '';
     let i = 0;
     let first = true;
-    let map = new SourceMap();
+    let map = new SourceMap(options.projectRoot);
 
     let prefix = getPrefix(bundle, bundleGraph);
     let lineOffset = countLines(prefix);
 
-    let stubsWritten = new Set();
     bundle.traverse(node => {
       let wrapped = first ? '' : ',';
 
       if (node.type === 'dependency') {
         let resolved = bundleGraph.getDependencyResolution(node.value, bundle);
-        if (
-          resolved &&
-          resolved.type !== 'js' &&
-          !stubsWritten.has(resolved.id)
-        ) {
+        if (resolved && resolved.type !== 'js') {
           // if this is a reference to another javascript asset, we should not include
           // its output, as its contents should already be loaded.
           invariant(!bundle.hasAsset(resolved));
-          wrapped += JSON.stringify(resolved.id) + ':[function() {},{}]';
+          wrapped +=
+            JSON.stringify(bundleGraph.getAssetPublicId(resolved)) +
+            ':[function() {},{}]';
         } else {
           return;
         }
@@ -137,21 +163,21 @@ export default new Packager({
         for (let dep of dependencies) {
           let resolved = bundleGraph.getDependencyResolution(dep, bundle);
           if (resolved) {
-            deps[dep.moduleSpecifier] = resolved.id;
+            deps[dep.moduleSpecifier] = bundleGraph.getAssetPublicId(resolved);
           }
         }
 
         let {code, mapBuffer} = results[i];
         let output = code || '';
         wrapped +=
-          JSON.stringify(asset.id) +
+          JSON.stringify(bundleGraph.getAssetPublicId(asset)) +
           ':[function(require,module,exports) {\n' +
           output +
           '\n},';
         wrapped += JSON.stringify(deps);
         wrapped += ']';
 
-        if (options.sourceMaps) {
+        if (bundle.env.sourceMap) {
           if (mapBuffer) {
             map.addBufferMappings(mapBuffer, lineOffset);
           } else {
@@ -174,10 +200,12 @@ export default new Packager({
     });
 
     let entries = bundle.getEntryAssets();
+    let mainEntry = bundle.getMainEntry();
     if (!isEntry(bundle, bundleGraph) && bundle.env.outputFormat === 'global') {
-      // The last entry is the main entry, but in async bundles we don't want it to execute until we require it
+      // In async bundles we don't want the main entry to execute until we require it
       // as there might be dependencies in a sibling bundle that hasn't loaded yet.
-      entries.pop();
+      entries = entries.filter(a => a.id !== mainEntry?.id);
+      mainEntry = null;
     }
 
     return replaceReferences({
@@ -186,31 +214,42 @@ export default new Packager({
         '({' +
         assets +
         '},{},' +
-        JSON.stringify(entries.map(asset => asset.id)) +
+        JSON.stringify(
+          entries.map(asset => bundleGraph.getAssetPublicId(asset)),
+        ) +
         ', ' +
-        'null' +
+        JSON.stringify(
+          mainEntry ? bundleGraph.getAssetPublicId(mainEntry) : null,
+        ) +
+        ', ' +
+        JSON.stringify(parcelRequireName) +
         ')' +
         '\n\n' +
         (await getSourceMapSuffix(getSourceMapReference, map)),
       map,
     });
   },
-});
+}): Packager);
 
 function getPrefix(
   bundle: NamedBundle,
   bundleGraph: BundleGraph<NamedBundle>,
 ): string {
   let interpreter: ?string;
-  if (isEntry(bundle, bundleGraph) && !bundle.target.env.isBrowser()) {
-    let _interpreter = nullthrows(bundle.getMainEntry()).meta.interpreter;
+  let mainEntry = bundle.getMainEntry();
+  if (
+    mainEntry &&
+    isEntry(bundle, bundleGraph) &&
+    !bundle.target.env.isBrowser()
+  ) {
+    let _interpreter = mainEntry.meta.interpreter;
     invariant(_interpreter == null || typeof _interpreter === 'string');
     interpreter = _interpreter;
   }
 
   let importScripts = '';
   if (bundle.env.isWorker()) {
-    let bundles = bundleGraph.getSiblingBundles(bundle);
+    let bundles = bundleGraph.getReferencedBundles(bundle);
     for (let b of bundles) {
       importScripts += `importScripts("${relativeBundlePath(bundle, b)}");\n`;
     }
@@ -227,7 +266,9 @@ function isEntry(
   bundleGraph: BundleGraph<NamedBundle>,
 ): boolean {
   return (
-    !bundleGraph.hasParentBundleOfType(bundle, 'js') || bundle.env.isIsolated()
+    !bundleGraph.hasParentBundleOfType(bundle, 'js') ||
+    bundle.env.isIsolated() ||
+    !!bundle.getMainEntry()?.isIsolated
   );
 }
 

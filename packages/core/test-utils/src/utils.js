@@ -1,16 +1,19 @@
-// @flow
+// @flow strict-local
 
 import type {
+  Asset,
   BuildEvent,
   BundleGraph,
+  Dependency,
   FilePath,
   InitialParcelOptions,
   NamedBundle,
 } from '@parcel/types';
+import type WorkerFarm from '@parcel/workers';
 
 import invariant from 'assert';
+import util from 'util';
 import Parcel, {createWorkerFarm} from '@parcel/core';
-import defaultConfigContents from '@parcel/config-default';
 import assert from 'assert';
 import vm from 'vm';
 import {NodeFS, MemoryFS, OverlayFS, ncp as _ncp} from '@parcel/fs';
@@ -26,10 +29,10 @@ import _chalk from 'chalk';
 import resolve from 'resolve';
 import {NodePackageManager} from '@parcel/package-manager';
 
-const workerFarm = createWorkerFarm();
-export const inputFS = new NodeFS();
-export let outputFS = new MemoryFS(workerFarm);
-export let overlayFS = new OverlayFS(outputFS, inputFS);
+export const workerFarm = (createWorkerFarm(): WorkerFarm);
+export const inputFS: NodeFS = new NodeFS();
+export let outputFS: MemoryFS = new MemoryFS(workerFarm);
+export let overlayFS: OverlayFS = new OverlayFS(outputFS, inputFS);
 
 beforeEach(() => {
   outputFS = new MemoryFS(workerFarm);
@@ -50,12 +53,6 @@ export async function ncp(source: FilePath, destination: FilePath) {
 //   await workerFarm.end();
 // when https://github.com/nodejs/node/pull/28788 is resolved.
 
-export const defaultConfig = {
-  ...defaultConfigContents,
-  filePath: require.resolve('@parcel/config-default'),
-  reporters: [],
-};
-
 const chalk = new _chalk.constructor({enabled: true});
 const warning = chalk.keyword('orange');
 
@@ -71,11 +68,11 @@ export function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-export function normalizeFilePath(filePath: string) {
+export function normalizeFilePath(filePath: string): FilePath {
   return normalizeSeparators(filePath);
 }
 
-export const distDir = path.resolve(
+export const distDir: string = path.resolve(
   __dirname,
   '..',
   '..',
@@ -101,17 +98,17 @@ If you don't know how, check here: https://bit.ly/2UmWsbD
 export function bundler(
   entries: FilePath | Array<FilePath>,
   opts?: InitialParcelOptions,
-) {
+): Parcel {
   return new Parcel({
     entries,
     disableCache: true,
     logLevel: 'none',
-    defaultConfig,
+    defaultConfig: path.join(__dirname, '.parcelrc-no-reporters'),
     inputFS,
     outputFS,
     workerFarm,
     distDir,
-    packageManager: new NodePackageManager(inputFS),
+    packageManager: new NodePackageManager(opts?.inputFS || inputFS),
     defaultEngines: {
       browsers: ['last 1 Chrome version'],
       node: '8',
@@ -121,11 +118,61 @@ export function bundler(
   });
 }
 
+export function findAsset(
+  bundleGraph: BundleGraph<NamedBundle>,
+  assetFileName: string,
+): ?Asset {
+  return bundleGraph.traverseBundles((bundle, context, actions) => {
+    let asset = bundle.traverseAssets((asset, context, actions) => {
+      if (path.basename(asset.filePath) === assetFileName) {
+        actions.stop();
+        return asset;
+      }
+    });
+    if (asset) {
+      actions.stop();
+      return asset;
+    }
+  });
+}
+
+export function findDependency(
+  bundleGraph: BundleGraph<NamedBundle>,
+  assetFileName: string,
+  moduleSpecifier: string,
+): Dependency {
+  let asset = nullthrows(
+    findAsset(bundleGraph, assetFileName),
+    `Couldn't find asset ${assetFileName}`,
+  );
+
+  let dependency = bundleGraph
+    .getDependencies(asset)
+    .find(d => d.moduleSpecifier === moduleSpecifier);
+  invariant(
+    dependency != null,
+    `Couldn't find dependency ${assetFileName} -> ${moduleSpecifier}`,
+  );
+  return dependency;
+}
+
+export function assertDependencyWasDeferred(
+  bundleGraph: BundleGraph<NamedBundle>,
+  assetFileName: string,
+  moduleSpecifier: string,
+): void {
+  let dep = findDependency(bundleGraph, assetFileName, moduleSpecifier);
+  invariant(
+    bundleGraph.isDependencySkipped(dep),
+    util.inspect(dep) + " wasn't deferred",
+  );
+}
+
 export async function bundle(
   entries: FilePath | Array<FilePath>,
   opts?: InitialParcelOptions,
 ): Promise<BundleGraph<NamedBundle>> {
-  return nullthrows(await bundler(entries, opts).run());
+  return (await bundler(entries, opts).run()).bundleGraph;
 }
 
 export function getNextBuild(b: Parcel): Promise<BuildEvent> {
@@ -157,13 +204,16 @@ export function getNextBuild(b: Parcel): Promise<BuildEvent> {
 type RunOpts = {require?: boolean, ...};
 
 export async function runBundles(
+  bundleGraph: BundleGraph<NamedBundle>,
   parent: NamedBundle,
   bundles: Array<NamedBundle>,
   globals: mixed,
   opts: RunOpts = {},
 ): Promise<mixed> {
   let entryAsset = nullthrows(
-    bundles.map(b => b.getMainEntry()).filter(Boolean)[0],
+    bundles
+      .map(b => b.getMainEntry() || b.getEntryAssets()[0])
+      .filter(Boolean)[0],
   );
   let env = entryAsset.env;
   let target = entryAsset.env.context;
@@ -195,10 +245,9 @@ export async function runBundles(
 
   vm.createContext(ctx);
   for (let b of bundles) {
-    vm.runInContext(
-      await overlayFS.readFile(nullthrows(b.filePath), 'utf8'),
-      ctx,
-    );
+    new vm.Script(await overlayFS.readFile(nullthrows(b.filePath), 'utf8'), {
+      filename: b.name,
+    }).runInContext(ctx);
   }
 
   if (promises) {
@@ -211,9 +260,13 @@ export async function runBundles(
       case 'global':
         if (env.scopeHoist) {
           return typeof ctx.output !== 'undefined' ? ctx.output : undefined;
-        } else if (ctx.parcelRequire) {
-          // $FlowFixMe
-          return ctx.parcelRequire(entryAsset.id);
+        } else {
+          for (let key in ctx) {
+            if (key.startsWith('parcelRequire')) {
+              // $FlowFixMe
+              return ctx[key](bundleGraph.getAssetPublicId(entryAsset));
+            }
+          }
         }
         return;
       case 'commonjs':
@@ -229,23 +282,12 @@ export async function runBundles(
   return ctx;
 }
 
-export function runBundle(
+export async function runBundle(
+  bundleGraph: BundleGraph<NamedBundle>,
   bundle: NamedBundle,
   globals: mixed,
   opts: RunOpts = {},
 ): Promise<mixed> {
-  return runBundles(bundle, [bundle], globals, opts);
-}
-
-export async function run(
-  bundleGraph: BundleGraph<NamedBundle>,
-  globals: mixed,
-  opts: RunOpts = {},
-): Promise<mixed> {
-  let bundles = bundleGraph.getBundles();
-  let bundle = nullthrows(
-    bundles.find(b => b.type === 'js' || b.type === 'html'),
-  );
   if (bundle.type === 'html') {
     let code = await overlayFS.readFile(nullthrows(bundle.filePath));
     let ast = postHtmlParse(code, {
@@ -262,15 +304,30 @@ export async function run(
       }
       return node;
     });
+
+    let bundles = bundleGraph.getBundles();
     return runBundles(
+      bundleGraph,
       bundle,
       scripts.map(p => nullthrows(bundles.find(b => b.filePath === p))),
       globals,
       opts,
     );
   } else {
-    return runBundle(bundle, globals, opts);
+    return runBundles(bundleGraph, bundle, [bundle], globals, opts);
   }
+}
+
+export function run(
+  bundleGraph: BundleGraph<NamedBundle>,
+  globals: mixed,
+  opts: RunOpts = {},
+  // $FlowFixMe[unclear-type]
+): Promise<any> {
+  let bundle = nullthrows(
+    bundleGraph.getBundles().find(b => b.type === 'js' || b.type === 'html'),
+  );
+  return runBundle(bundleGraph, bundle, globals, opts);
 }
 
 export function assertBundles(
@@ -279,10 +336,6 @@ export function assertBundles(
     name?: string | RegExp,
     type?: string,
     assets: Array<string>,
-    includedFiles?: {
-      [key: string]: Array<string>,
-      ...,
-    },
   |}>,
 ) {
   let actualBundles = [];
@@ -290,15 +343,10 @@ export function assertBundles(
 
   bundleGraph.traverseBundles(bundle => {
     let assets = [];
-    const includedFiles = {};
 
     bundle.traverseAssets(asset => {
       const name = path.basename(asset.filePath);
       assets.push(name);
-      includedFiles[name] = asset
-        .getIncludedFiles()
-        .map(({filePath}) => path.basename(filePath))
-        .sort(byAlphabet);
     });
 
     assets.sort(byAlphabet);
@@ -306,7 +354,6 @@ export function assertBundles(
       name: path.basename(nullthrows(bundle.filePath)),
       type: bundle.type,
       assets,
-      includedFiles,
     });
   });
 
@@ -327,7 +374,8 @@ export function assertBundles(
     return 0;
   };
 
-  const byAssets = (a, b) => a.assets[0].localeCompare(b.assets[0]);
+  const byAssets = (a, b) =>
+    a.assets.join(',').localeCompare(b.assets.join(','));
   expectedBundles.sort(byName).sort(byAssets);
   actualBundles.sort(byName).sort(byAssets);
   assert.equal(
@@ -340,7 +388,7 @@ export function assertBundles(
   for (let bundle of expectedBundles) {
     let actualBundle = actualBundles[i++];
     let name = bundle.name;
-    if (name) {
+    if (name != null) {
       if (typeof name === 'string') {
         assert.equal(actualBundle.name, name);
       } else if (name instanceof RegExp) {
@@ -354,25 +402,12 @@ export function assertBundles(
       }
     }
 
-    if (bundle.type) {
+    if (bundle.type != null) {
       assert.equal(actualBundle.type, bundle.type);
     }
 
     if (bundle.assets) {
       assert.deepEqual(actualBundle.assets, bundle.assets);
-    }
-
-    if (bundle.includedFiles) {
-      for (let asset of actualBundle.assets) {
-        const files = bundle.includedFiles[asset];
-        if (!files) {
-          continue;
-        }
-        assert.deepEqual(
-          actualBundle.includedFiles[asset],
-          files.sort(byAlphabet),
-        );
-      }
     }
   }
 }
@@ -384,45 +419,56 @@ export function normaliseNewlines(text: string): string {
 function prepareBrowserContext(
   filePath: FilePath,
   globals: mixed,
-): {|ctx: vm$Context, promises: Array<Promise<mixed>>|} {
+): {|
+  ctx: vm$Context,
+  promises: Array<Promise<mixed>>,
+|} {
   // for testing dynamic imports
   const fakeElement = {
     remove() {},
   };
 
+  const head = {
+    children: [],
+    appendChild(el) {
+      head.children.push(el);
+
+      if (el.tag === 'script') {
+        let {deferred, promise} = makeDeferredWithPromise();
+        promises.push(promise);
+        setTimeout(function() {
+          vm.runInContext(
+            overlayFS.readFileSync(
+              path.join(path.dirname(filePath), url.parse(el.src).pathname),
+              'utf8',
+            ),
+            ctx,
+          );
+
+          el.onload();
+          deferred.resolve();
+        }, 0);
+      } else if (typeof el.onload === 'function') {
+        el.onload();
+      }
+    },
+  };
+
   let promises = [];
 
   const fakeDocument = {
+    head,
     createElement(tag) {
       return {tag};
     },
 
     getElementsByTagName() {
-      return [
-        {
-          appendChild(el) {
-            let {deferred, promise} = makeDeferredWithPromise();
-            promises.push(promise);
-            setTimeout(function() {
-              if (el.tag === 'script') {
-                vm.runInContext(
-                  overlayFS.readFileSync(
-                    path.join(
-                      path.dirname(filePath),
-                      url.parse(el.src).pathname,
-                    ),
-                    'utf8',
-                  ),
-                  ctx,
-                );
-              }
+      return [head];
+    },
 
-              el.onload();
-              deferred.resolve();
-            }, 0);
-          },
-        },
-      ];
+    createEvent() {
+      // For Vue
+      return {timeStamp: Date.now()};
     },
 
     getElementById() {
@@ -526,6 +572,7 @@ function prepareNodeContext(filePath, globals) {
     }
 
     if (res === specifier) {
+      // $FlowFixMe
       return require(specifier);
     }
 
@@ -537,7 +584,10 @@ function prepareNodeContext(filePath, globals) {
     nodeCache[res] = ctx;
 
     vm.createContext(ctx);
-    vm.runInContext(overlayFS.readFileSync(res, 'utf8'), ctx);
+    vm.runInContext(
+      '"use strict";\n' + overlayFS.readFileSync(res, 'utf8'),
+      ctx,
+    );
     return ctx.module.exports;
   };
 
@@ -563,7 +613,7 @@ function prepareNodeContext(filePath, globals) {
 export function shallowEqual(
   a: $Shape<{|+[string]: mixed|}>,
   b: $Shape<{|+[string]: mixed|}>,
-) {
+): boolean {
   if (Object.keys(a).length !== Object.keys(b).length) {
     return false;
   }

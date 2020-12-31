@@ -1,6 +1,7 @@
 // @flow strict-local
 
 import type {Asset, Bundle, BundleGraph, NamedBundle} from '@parcel/types';
+import type {Scope} from '@parcel/babylon-walk';
 import type {ExternalBundle, ExternalModule} from '../types';
 
 import * as t from '@babel/types';
@@ -71,8 +72,9 @@ export function generateExternalImport(
 
 export function generateBundleExports(
   bundleGraph: BundleGraph<NamedBundle>,
-  bundle: Bundle,
+  bundle: NamedBundle,
   referencedAssets: Set<Asset>,
+  scope: Scope,
   reexports: Set<{|exportAs: string, local: string|}>,
 ) {
   let statements = [];
@@ -100,7 +102,7 @@ export function generateBundleExports(
 
   // If the main entry is a CommonJS asset, export its `module.exports` property as the `default` export
   let entry = bundle.getMainEntry();
-  if (entry && entry.meta.isCommonJS === true) {
+  if (entry?.meta.isCommonJS) {
     statements.push(
       t.exportDefaultDeclaration(
         t.identifier(assertString(entry.meta.exportsIdentifier)),
@@ -126,20 +128,20 @@ export function generateMainExport(
   let defaultExport = exported.find(e => e.exportAs === 'default');
   let namedExports = exported.filter(e => e.exportAs !== 'default');
 
-  // If there's only a default export, then export the declaration directly.
   if (exported.length === 1 && defaultExport && !isVariableDeclaration(node)) {
+    // If there's only a default export, then export the declaration directly.
     // $FlowFixMe - we don't need to worry about type declarations here.
     statements.push(t.exportDefaultDeclaration(node));
-
-    // If there's only named exports, and all of the ids are exported, export the declaration directly.
   } else if (
     namedExports.length === exported.length &&
-    namedExports.length === ids.length
+    namedExports.length === ids.length &&
+    namedExports.every(({exportAs, local}) => exportAs === local)
   ) {
+    // If there's only named exports, all of the ids are exported,
+    // and none of them are renamed, export the declaration directly.
     statements.push(t.exportNamedDeclaration(node, []));
-
-    // Otherwise, add a default export and named export for the identifiers after the original declaration.
   } else {
+    // Otherwise, add a default export and named export for the identifiers after the original declaration.
     statements.push(node);
 
     if (defaultExport) {

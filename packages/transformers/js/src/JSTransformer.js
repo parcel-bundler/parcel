@@ -1,6 +1,7 @@
 // @flow
 
 import type {GlobalsMap} from './visitors/globals';
+import type {SchemaEntity} from '@parcel/utils';
 
 import template from '@babel/template';
 import semver from 'semver';
@@ -11,9 +12,34 @@ import fsVisitor from './visitors/fs';
 import insertGlobals from './visitors/globals';
 import traverse from '@babel/traverse';
 import {ancestor as walkAncestor} from '@parcel/babylon-walk';
-import * as babelCore from '@babel/core';
 import {hoist} from '@parcel/scope-hoisting';
 import {generate, parse} from '@parcel/babel-ast-utils';
+import {validateSchema} from '@parcel/utils';
+import {encodeJSONKeyComponent} from '@parcel/diagnostic';
+import {esm2cjs} from './visitors/modules';
+
+const CONFIG_SCHEMA: SchemaEntity = {
+  type: 'object',
+  properties: {
+    inlineFS: {
+      type: 'boolean',
+    },
+    inlineEnvironment: {
+      oneOf: [
+        {
+          type: 'boolean',
+        },
+        {
+          type: 'array',
+          items: {
+            type: 'string',
+          },
+        },
+      ],
+    },
+  },
+  additionalProperties: false,
+};
 
 const IMPORT_RE = /\b(?:import\b|export\b|require\s*\()/;
 const ENV_RE = /\b(?:process\.env)\b/;
@@ -22,10 +48,6 @@ const GLOBAL_RE = /\b(?:process|__dirname|__filename|global|Buffer|define)\b/;
 const FS_RE = /\breadFileSync\b/;
 const SW_RE = /\bnavigator\s*\.\s*serviceWorker\s*\.\s*register\s*\(/;
 const WORKER_RE = /\bnew\s*(?:Shared)?Worker\s*\(/;
-
-// Sourcemap extraction
-// const SOURCEMAP_RE = /\/\/\s*[@#]\s*sourceMappingURL\s*=\s*([^\s]+)/;
-// const DATA_URL_RE = /^data:[^;]+(?:;charset=[^;]+)?;base64,(.*)/;
 
 function canHaveDependencies(code) {
   return (
@@ -36,7 +58,40 @@ function canHaveDependencies(code) {
   );
 }
 
-export default new Transformer({
+export default (new Transformer({
+  async loadConfig({options, config}) {
+    let result = await config.getConfig([], {
+      packageKey: '@parcel/transformer-js',
+    });
+
+    if (result) {
+      validateSchema.diagnostic(
+        CONFIG_SCHEMA,
+        result.contents,
+        result.filePath,
+        // FIXME
+        await options.inputFS.readFile(result.filePath, 'utf8'),
+        '@parcel/transformer-js',
+        `/${encodeJSONKeyComponent('@parcel/transformer-js')}`,
+        'Invalid config for @parcel/transformer-js',
+      );
+    }
+
+    // Check if we should ignore fs calls
+    // See https://github.com/defunctzombie/node-browser-resolve#skip
+    let pkg = await config.getPackage();
+    let ignoreFS =
+      pkg &&
+      pkg.browser &&
+      typeof pkg.browser === 'object' &&
+      pkg.browser.fs === false;
+
+    config.setResult({
+      ...result?.contents,
+      ignoreFS,
+    });
+  },
+
   canReuseAST({ast}) {
     return ast.type === 'babel' && semver.satisfies(ast.version, '^7.0.0');
   },
@@ -60,7 +115,7 @@ export default new Transformer({
     });
   },
 
-  async transform({asset, options, logger}) {
+  async transform({asset, config, options, logger}) {
     // When this asset is an bundle entry, allow that bundle to be split to load shared assets separately.
     // Only set here if it is null to allow previous transformers to override this behavior.
     if (asset.isSplittable == null) {
@@ -72,6 +127,8 @@ export default new Transformer({
     if (!ast) {
       return [asset];
     }
+
+    let {inlineEnvironment = true, inlineFS = true, ignoreFS} = config || {};
 
     let code = asset.isASTDirty() ? null : await asset.getCode();
 
@@ -85,6 +142,7 @@ export default new Transformer({
         ast,
         env: options.env,
         isNode: asset.env.isNode(),
+        replaceEnv: inlineEnvironment,
         isBrowser: asset.env.isBrowser(),
       });
     }
@@ -93,18 +151,15 @@ export default new Transformer({
     if (!asset.env.isNode()) {
       // Inline fs calls, run before globals to also collect Buffer
       if (code == null || FS_RE.test(code)) {
-        // Check if we should ignore fs calls
-        // See https://github.com/defunctzombie/node-browser-resolve#skip
-        let pkg = await asset.getPackage();
-        let ignore =
-          pkg &&
-          pkg.browser &&
-          typeof pkg.browser === 'object' &&
-          pkg.browser.fs === false;
-
-        if (!ignore) {
+        if (!ignoreFS) {
           traverse.cache.clearScope();
-          traverse(ast.program, fsVisitor, null, {asset, logger, ast});
+          traverse(ast.program, fsVisitor, null, {
+            asset,
+            logger,
+            ast,
+            options,
+            inlineFS,
+          });
         }
       }
 
@@ -138,32 +193,16 @@ export default new Transformer({
       isASTDirty = true;
     }
 
-    if (isASTDirty) {
-      asset.setAST(ast);
-    }
-
     if (asset.env.scopeHoist) {
       hoist(asset, ast);
     } else if (asset.meta.isES6Module) {
       // Convert ES6 modules to CommonJS
-      let res = await babelCore.transformFromAstAsync(
-        ast.program,
-        code ?? undefined,
-        {
-          code: false,
-          ast: true,
-          filename: asset.filePath,
-          babelrc: false,
-          configFile: false,
-          plugins: [require('@babel/plugin-transform-modules-commonjs')],
-        },
-      );
+      esm2cjs(ast.program, asset);
+      isASTDirty = true;
+    }
 
-      asset.setAST({
-        type: 'babel',
-        version: '7.0.0',
-        program: res.ast,
-      });
+    if (isASTDirty) {
+      asset.setAST(ast);
     }
 
     return [asset];
@@ -172,4 +211,4 @@ export default new Transformer({
   generate({asset, ast, options}) {
     return generate({asset, ast, options});
   },
-});
+}): Transformer);

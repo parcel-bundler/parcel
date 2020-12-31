@@ -1,7 +1,8 @@
 // @flow
 
 import type {FilePath} from '@parcel/types';
-import type {WorkerMessage, WorkerImpl, BackendType} from './types';
+import type {BackendType, WorkerImpl, WorkerMessage} from './types';
+import type {SharedReference} from './WorkerFarm';
 
 import EventEmitter from 'events';
 import ThrowableDiagnostic from '@parcel/diagnostic';
@@ -20,7 +21,7 @@ type WorkerOpts = {|
   forcedKillTime: number,
   backend: BackendType,
   patchConsole?: boolean,
-  sharedReferences: Map<number, mixed>,
+  sharedReferences: $ReadOnlyMap<SharedReference, mixed>,
 |};
 
 let WORKER_ID = 0;
@@ -28,15 +29,15 @@ export default class Worker extends EventEmitter {
   +options: WorkerOpts;
   worker: WorkerImpl;
   id: number = WORKER_ID++;
-  sharedReferences: Map<number, mixed> = new Map();
+  sharedReferences: $ReadOnlyMap<SharedReference, mixed> = new Map();
 
   calls: Map<number, WorkerCall> = new Map();
-  exitCode = null;
-  callId = 0;
+  exitCode: ?number = null;
+  callId: number = 0;
 
-  ready = false;
-  stopped = false;
-  isStopping = false;
+  ready: boolean = false;
+  stopped: boolean = false;
+  isStopping: boolean = false;
 
   constructor(options: WorkerOpts) {
     super();
@@ -45,7 +46,7 @@ export default class Worker extends EventEmitter {
 
   async fork(forkModule: FilePath) {
     let filteredArgs = process.execArgv.filter(
-      v => !/^--(debug|inspect)/.test(v),
+      v => !/^--(debug|inspect|max-old-space-size=)/.test(v),
     );
 
     for (let i = 0; i < filteredArgs.length; i++) {
@@ -118,7 +119,7 @@ export default class Worker extends EventEmitter {
     this.emit('ready');
   }
 
-  sendSharedReference(ref: number, value: mixed) {
+  sendSharedReference(ref: SharedReference, value: mixed) {
     new Promise((resolve, reject) => {
       this.call({
         method: 'createSharedReference',

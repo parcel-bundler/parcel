@@ -7,7 +7,6 @@ import type {
   Engines,
   EnvironmentContext,
   EnvMap,
-  File,
   FilePath,
   Glob,
   JSONObject,
@@ -17,7 +16,6 @@ import type {
   PackageName,
   PackageJSON,
   ReporterEvent,
-  ResolvedParcelConfigFile,
   Semver,
   ServerOptions,
   SourceLocation,
@@ -28,8 +26,9 @@ import type {
   OutputFormat,
   TargetDescriptor,
   HMROptions,
+  QueryParameters,
 } from '@parcel/types';
-
+import type {SharedReference} from '@parcel/workers';
 import type {FileSystem} from '@parcel/fs';
 import type Cache from '@parcel/cache';
 import type {PackageManager} from '@parcel/package-manager';
@@ -37,6 +36,7 @@ import type {PackageManager} from '@parcel/package-manager';
 export type ParcelPluginNode = {|
   packageName: PackageName,
   resolveFrom: FilePath,
+  keyPath: string,
 |};
 
 export type PureParcelConfigPipeline = $ReadOnlyArray<ParcelPluginNode>;
@@ -60,6 +60,7 @@ export type ProcessedParcelConfig = {|
 |};
 
 export type Environment = {|
+  id: string,
   context: EnvironmentContext,
   engines: Engines,
   includeNodeModules:
@@ -70,26 +71,27 @@ export type Environment = {|
   isLibrary: boolean,
   minify: boolean,
   scopeHoist: boolean,
+  sourceMap: ?TargetSourceMapOptions,
 |};
 
 export type Target = {|
   distEntry?: ?FilePath,
   distDir: FilePath,
   env: Environment,
-  sourceMap?: TargetSourceMapOptions,
   name: string,
   publicUrl: string,
   loc?: ?SourceLocation,
+  pipeline?: string,
 |};
 
 export type Dependency = {|
   id: string,
   moduleSpecifier: ModuleSpecifier,
   isAsync: boolean,
-  isEntry: boolean,
+  isEntry: ?boolean,
   isOptional: boolean,
   isURL: boolean,
-  isWeak: ?boolean,
+  isIsolated: boolean,
   loc: ?SourceLocation,
   env: Environment,
   meta: Meta,
@@ -105,9 +107,9 @@ export type Asset = {|
   committed: boolean,
   hash: ?string,
   filePath: FilePath,
+  query: ?QueryParameters,
   type: string,
   dependencies: Map<string, Dependency>,
-  includedFiles: Map<FilePath, File>,
   isIsolated: boolean,
   isInline: boolean,
   isSplittable: ?boolean,
@@ -126,13 +128,34 @@ export type Asset = {|
   uniqueKey: ?string,
   configPath?: FilePath,
   plugin: ?PackageName,
+  configKeyPath?: string,
 |};
+
+export type FileInvalidation = {|
+  type: 'file',
+  filePath: FilePath,
+|};
+
+export type EnvInvalidation = {|
+  type: 'env',
+  key: string,
+|};
+
+export type OptionInvalidation = {|
+  type: 'option',
+  key: string,
+|};
+
+export type RequestInvalidation =
+  | FileInvalidation
+  | EnvInvalidation
+  | OptionInvalidation;
 
 export type ParcelOptions = {|
   entries: Array<FilePath>,
-  rootDir: FilePath,
-  config?: ResolvedParcelConfigFile,
-  defaultConfig?: ResolvedParcelConfigFile,
+  entryRoot: FilePath,
+  config?: ModuleSpecifier,
+  defaultConfig?: ModuleSpecifier,
   env: EnvMap,
   targets: ?(Array<string> | {+[string]: TargetDescriptor, ...}),
   defaultEngines?: Engines,
@@ -175,7 +198,7 @@ export type Edge<TEdgeType: string | null> = {|
 
 export interface Node {
   id: string;
-  +type?: string;
+  +type: string;
   // $FlowFixMe
   value: any;
 }
@@ -184,7 +207,10 @@ export type AssetNode = {|
   id: string,
   +type: 'asset',
   value: Asset,
+  usedSymbols: Set<Symbol>,
   hasDeferred?: boolean,
+  usedSymbolsDownDirty: boolean,
+  usedSymbolsUpDirty: boolean,
 |};
 
 export type DependencyNode = {|
@@ -193,7 +219,18 @@ export type DependencyNode = {|
   value: Dependency,
   complete?: boolean,
   correspondingRequest?: string,
+  deferred: boolean,
+  /** dependency was deferred (= no used symbols (in immediate parents) & side-effect free) */
   hasDeferred?: boolean,
+  usedSymbolsDown: Set<Symbol>,
+  usedSymbolsUp: Set<Symbol>,
+  usedSymbolsDownDirty: boolean,
+  /** for the "up" pass, the parent asset needs to be updated */
+  usedSymbolsUpDirtyUp: boolean,
+  /** for the "up" pass, the dependency resolution asset needs to be updated */
+  usedSymbolsUpDirtyDown: boolean,
+  /** dependency was excluded (= no used symbols (globally) & side-effect free) */
+  excluded: boolean,
 |};
 
 export type RootNode = {|id: string, +type: 'root', value: string | null|};
@@ -202,22 +239,31 @@ export type AssetRequestInput = {|
   filePath: FilePath,
   env: Environment,
   isSource?: boolean,
+  canDefer?: boolean,
   sideEffects?: boolean,
   code?: string,
   pipeline?: ?string,
-  optionsRef: number,
+  optionsRef: SharedReference,
+  isURL?: boolean,
+  query?: ?QueryParameters,
+  invalidations?: Array<RequestInvalidation>,
 |};
 
 export type AssetRequestResult = Array<Asset>;
 // Asset group nodes are essentially used as placeholders for the results of an asset request
-export type AssetGroup = $Rest<AssetRequestInput, {|optionsRef: number|}>;
+export type AssetGroup = $Rest<
+  AssetRequestInput,
+  {|optionsRef: SharedReference|},
+>;
 export type AssetGroupNode = {|
   id: string,
   +type: 'asset_group',
   value: AssetGroup,
-  deferred?: boolean,
   correspondingRequest?: string,
+  /** this node was deferred (= no used symbols (in immediate parents) & side-effect free) */
+  deferred?: boolean,
   hasDeferred?: boolean,
+  usedSymbolsDownDirty: boolean,
 |};
 
 export type DepPathRequestNode = {|
@@ -295,6 +341,7 @@ export type ConfigRequestDesc = {|
   env: Environment,
   isSource: boolean,
   pipeline?: ?string,
+  isURL?: boolean,
   plugin?: PackageName,
   meta: JSONObject,
 |};
@@ -339,10 +386,12 @@ export type CacheEntry = {|
 
 export type Bundle = {|
   id: string,
+  publicId: ?string,
   hashReference: string,
   type: string,
   env: Environment,
   entryAssetIds: Array<string>,
+  mainEntryId: ?string,
   isEntry: ?boolean,
   isInline: ?boolean,
   isSplittable: ?boolean,
@@ -368,13 +417,13 @@ export type BundleGroupNode = {|
 
 export type TransformationOpts = {|
   request: AssetGroup,
-  optionsRef: number,
+  optionsRef: SharedReference,
   configCachePath: string,
 |};
 
 export type ValidationOpts = {|
   requests: AssetGroup[],
-  optionsRef: number,
+  optionsRef: SharedReference,
   configCachePath: string,
 |};
 

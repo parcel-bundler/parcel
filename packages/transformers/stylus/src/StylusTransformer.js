@@ -1,12 +1,13 @@
 // @flow
 
+import {typeof default as Stylus} from 'stylus';
 import {Transformer} from '@parcel/plugin';
-import {isGlob, glob} from '@parcel/utils';
+import {createDependencyLocation, isGlob, glob} from '@parcel/utils';
 import path from 'path';
 
 const URL_RE = /^(?:url\s*\(\s*)?['"]?(?:[#/]|(?:https?:)?\/\/)/i;
 
-export default new Transformer({
+export default (new Transformer({
   async loadConfig({config}) {
     let configFile = await config.getConfig(['.stylusrc', '.stylusrc.js'], {
       packageKey: 'stylus',
@@ -38,19 +39,24 @@ export default new Transformer({
   async transform({asset, resolve, config, options}) {
     let stylusConfig = config ? config.contents : {};
     // stylus should be installed locally in the module that's being required
-    let stylus = await options.packageManager.require(
+    let stylus = (await options.packageManager.require(
       'stylus',
       asset.filePath,
       {autoinstall: options.autoinstall},
-    );
+    ): Stylus);
 
     let code = await asset.getCode();
     let style = stylus(code, stylusConfig);
     style.set('filename', asset.filePath);
     style.set('include css', true);
     // Setup a handler for the URL function so we add dependencies for linked assets.
-    style.define('url', node => {
-      let filename = asset.addURLDependency(node.val, node.filename);
+    style.define('url', (node: stylus.nodes.String | stylus.nodes.Literal) => {
+      let filename = asset.addURLDependency(node.val, {
+        loc: createDependencyLocation(
+          {line: node.lineno, column: node.column},
+          node.val,
+        ),
+      });
       return new stylus.nodes.Literal(`url(${JSON.stringify(filename)})`);
     });
     style.set(
@@ -63,7 +69,7 @@ export default new Transformer({
     asset.meta.hasDependencies = false;
     return [asset];
   },
-});
+}): Transformer);
 
 async function getDependencies(
   code,
@@ -161,7 +167,7 @@ async function getDependencies(
       // Recursively process resolved files as well to get nested deps
       for (let resolved of found) {
         if (!seen.has(resolved)) {
-          await asset.addIncludedFile({filePath: resolved});
+          await asset.addIncludedFile(resolved);
 
           let code = await asset.fs.readFile(resolved, 'utf8');
           for (let [path, resolvedPath] of await getDependencies(

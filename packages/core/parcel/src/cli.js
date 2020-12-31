@@ -1,14 +1,25 @@
 // @flow
 
-import type {RawParcelConfig, InitialParcelOptions} from '@parcel/types';
+import type {InitialParcelOptions} from '@parcel/types';
 import {BuildError} from '@parcel/core';
 import {NodePackageManager} from '@parcel/package-manager';
 import {NodeFS} from '@parcel/fs';
 import ThrowableDiagnostic from '@parcel/diagnostic';
 import {prettyDiagnostic, openInBrowser} from '@parcel/utils';
+import {Disposable} from '@parcel/events';
 import {INTERNAL_ORIGINAL_CONSOLE} from '@parcel/logger';
+import chalk from 'chalk';
+import program from 'commander';
+import path from 'path';
+import getPort from 'get-port';
+import {version} from '../package.json';
 
 require('v8-compile-cache');
+
+// Exit codes in response to signals are traditionally
+// 128 + signal value
+// https://tldp.org/LDP/abs/html/exitcodes.html
+const SIGINT_EXIT_CODE = 130;
 
 async function logUncaughtError(e: mixed) {
   if (e instanceof ThrowableDiagnostic) {
@@ -28,16 +39,18 @@ async function logUncaughtError(e: mixed) {
   await new Promise(resolve => setTimeout(resolve, 100));
 }
 
-process.on('unhandledRejection', async (reason: mixed) => {
-  await logUncaughtError(reason);
-  process.exit();
-});
+const handleUncaughtException = async exception => {
+  try {
+    await logUncaughtError(exception);
+  } catch (err) {
+    console.error(exception);
+    console.error(err);
+  }
 
-const chalk = require('chalk');
-const program = require('commander');
-const path = require('path');
-const getPort = require('get-port');
-const version = require('../package.json').version;
+  process.exit(1);
+};
+
+process.on('unhandledRejection', handleUncaughtException);
 
 // Capture the NODE_ENV this process was launched with, so that it can be
 // used in Parcel (such as in process.env inlining).
@@ -56,9 +69,10 @@ program.version(version);
 
 const commonOptions = {
   '--no-cache': 'disable the filesystem cache',
+  '--config <path>':
+    'specify which config to use. can be a path or a package name',
   '--cache-dir <path>': 'set the cache directory. defaults to ".parcel-cache"',
   '--no-source-maps': 'disable sourcemaps',
-  '--no-autoinstall': 'disable autoinstall',
   '--no-content-hash': 'disable content hashing',
   '--target [name]': [
     'only build given target(s)',
@@ -83,14 +97,15 @@ var hmrOptions = {
   '--no-hmr': 'disable hot module replacement',
   '-p, --port <port>': [
     'set the port to serve on. defaults to $PORT or 1234',
-    value => parseInt(value, 10),
-    process.env.PORT || 1234,
+    process.env.PORT,
   ],
   '--host <host>':
     'set the host to listen on, defaults to listening on all interfaces',
   '--https': 'serves files over HTTPS',
   '--cert <path>': 'path to certificate to use with HTTPS',
   '--key <path>': 'path to private key to use with HTTPS',
+  '--no-autoinstall': 'disable autoinstall',
+  '--hmr-port <port>': ['hot module replacement port', process.env.HMR_PORT],
 };
 
 function applyOptions(cmd, options) {
@@ -111,7 +126,7 @@ let serve = program
     'automatically open in specified browser, defaults to default browser',
   )
   .option('--watch-for-stdin', 'exit when stdin closes')
-  .action(run);
+  .action(runCommand);
 
 applyOptions(serve, hmrOptions);
 applyOptions(serve, commonOptions);
@@ -121,7 +136,7 @@ let watch = program
   .description('starts the bundler in watch mode')
   .option('--public-url <url>', 'the path prefix for absolute urls')
   .option('--watch-for-stdin', 'exit when stdin closes')
-  .action(run);
+  .action(runCommand);
 
 applyOptions(watch, hmrOptions);
 applyOptions(watch, commonOptions);
@@ -132,7 +147,7 @@ let build = program
   .option('--no-minify', 'disable minification')
   .option('--no-scope-hoist', 'disable scope-hoisting')
   .option('--public-url <url>', 'the path prefix for absolute urls')
-  .action(run);
+  .action(runCommand);
 
 applyOptions(build, commonOptions);
 
@@ -163,6 +178,10 @@ if (!args[2] || !program.commands.some(c => c.name() === args[2])) {
 
 program.parse(args);
 
+function runCommand(...args) {
+  run(...args).catch(handleUncaughtException);
+}
+
 async function run(entries: Array<string>, command: any) {
   entries = entries.map(entry => path.resolve(entry));
 
@@ -172,33 +191,101 @@ async function run(entries: Array<string>, command: any) {
   }
   let Parcel = require('@parcel/core').default;
   let options = await normalizeOptions(command);
-  let packageManager = new NodePackageManager(new NodeFS());
-  let defaultConfig: RawParcelConfig = await packageManager.require(
-    '@parcel/config-default',
-    __filename,
-    {autoinstall: options.autoinstall},
-  );
+  let fs = new NodeFS();
+  let packageManager = new NodePackageManager(fs);
   let parcel = new Parcel({
     entries,
     packageManager,
-    defaultConfig: {
-      ...defaultConfig,
-      filePath: (
-        await packageManager.resolve('@parcel/config-default', __filename, {
-          autoinstall: options.autoinstall,
-        })
-      ).resolved,
-    },
+    // $FlowFixMe - flow doesn't know about the `paths` option (added in Node v8.9.0)
+    defaultConfig: require.resolve('@parcel/config-default', {
+      paths: [fs.cwd(), __dirname],
+    }),
     patchConsole: true,
     ...options,
   });
 
-  if (command.name() === 'watch' || command.name() === 'serve') {
-    let {unsubscribe} = await parcel.watch(err => {
+  let disposable = new Disposable();
+  let unsubscribe: () => Promise<mixed>;
+  let isExiting;
+  async function exit(exitCode: number = 0) {
+    if (isExiting) {
+      return;
+    }
+
+    isExiting = true;
+    if (unsubscribe != null) {
+      await unsubscribe();
+    } else if (parcel.isProfiling) {
+      await parcel.stopProfiling();
+    }
+
+    if (process.stdin.isTTY && process.stdin.isRaw) {
+      // $FlowFixMe
+      process.stdin.setRawMode(false);
+    }
+
+    disposable.dispose();
+    process.exit(exitCode);
+  }
+
+  const isWatching = command.name() === 'watch' || command.name() === 'serve';
+  if (process.stdin.isTTY) {
+    // $FlowFixMe
+    process.stdin.setRawMode(true);
+    require('readline').emitKeypressEvents(process.stdin);
+
+    let stream = process.stdin.on('keypress', async (char, key) => {
+      if (!key.ctrl) {
+        return;
+      }
+
+      switch (key.name) {
+        case 'c':
+          // Detect the ctrl+c key, and gracefully exit after writing the asset graph to the cache.
+          // This is mostly for tools that wrap Parcel as a child process like yarn and npm.
+          //
+          // Setting raw mode prevents SIGINT from being sent in response to ctrl-c:
+          // https://nodejs.org/api/tty.html#tty_readstream_setrawmode_mode
+          //
+          // We don't use the SIGINT event for this because when run inside yarn, the parent
+          // yarn process ends before Parcel and it appears that Parcel has ended while it may still
+          // be cleaning up. Handling events from stdin prevents this impression.
+
+          // Enqueue a busy message to be shown if Parcel doesn't shut down
+          // within the timeout.
+          setTimeout(
+            () =>
+              INTERNAL_ORIGINAL_CONSOLE.log(
+                chalk.bold.yellowBright('Parcel is shutting down...'),
+              ),
+            500,
+          );
+          // When watching, a 0 success code is acceptable when Parcel is interrupted with ctrl-c.
+          // When building, fail with a code as if we received a SIGINT.
+          await exit(isWatching ? 0 : SIGINT_EXIT_CODE);
+          break;
+        case 'e':
+          await (parcel.isProfiling
+            ? parcel.stopProfiling()
+            : parcel.startProfiling());
+          break;
+        case 'y':
+          await parcel.takeHeapSnapshot();
+          break;
+      }
+    });
+
+    disposable.add(() => {
+      stream.destroy();
+    });
+  }
+
+  if (isWatching) {
+    ({unsubscribe} = await parcel.watch(err => {
       if (err) {
         throw err;
       }
-    });
+    }));
 
     if (command.open && options.serve) {
       await openInBrowser(
@@ -207,17 +294,6 @@ async function run(entries: Array<string>, command: any) {
         command.open,
       );
     }
-
-    let isExiting;
-    const exit = async () => {
-      if (isExiting) {
-        return;
-      }
-
-      isExiting = true;
-      await unsubscribe();
-      process.exit();
-    };
 
     if (command.watchForStdin) {
       process.stdin.on('end', async () => {
@@ -228,48 +304,42 @@ async function run(entries: Array<string>, command: any) {
       process.stdin.resume();
     }
 
-    // Detect the ctrl+c key, and gracefully exit after writing the asset graph to the cache.
-    // This is mostly for tools that wrap Parcel as a child process like yarn and npm.
-    //
-    // Setting raw mode prevents SIGINT from being sent in response to ctrl-c:
-    // https://nodejs.org/api/tty.html#tty_readstream_setrawmode_mode
-    //
-    // We don't use the SIGINT event for this because when run inside yarn, the parent
-    // yarn process ends before Parcel and it appears that Parcel has ended while it may still
-    // be cleaning up. Handling events from stdin prevents this impression.
-    if (process.stdin.isTTY) {
-      // $FlowFixMe
-      process.stdin.setRawMode(true);
-      require('readline').emitKeypressEvents(process.stdin);
-
-      process.stdin.on('keypress', async (char, key) => {
-        if (key.ctrl && key.name === 'c') {
-          await exit();
-        }
-      });
-    }
-
-    // In non-tty cases, respond to SIGINT by cleaning up.
+    // In non-tty cases, respond to SIGINT by cleaning up. Since we're watching,
+    // a 0 success code is acceptable.
     process.on('SIGINT', exit);
     process.on('SIGTERM', exit);
   } else {
     try {
       await parcel.run();
-    } catch (e) {
+    } catch (err) {
       // If an exception is thrown during Parcel.build, it is given to reporters in a
       // buildFailure event, and has been shown to the user.
-      if (!(e instanceof BuildError)) {
-        await logUncaughtError(e);
+      if (!(err instanceof BuildError)) {
+        await logUncaughtError(err);
       }
-      process.exit(1);
+      await exit(1);
     }
+
+    await exit();
   }
+}
+
+function parsePort(portValue: string): number {
+  let parsedPort = Number(portValue);
+
+  // Throw an error if port value is invalid...
+  if (!Number.isInteger(parsedPort)) {
+    throw new Error(`Port ${portValue} is not a valid integer.`);
+  }
+
+  return parsedPort;
 }
 
 async function normalizeOptions(command): Promise<InitialParcelOptions> {
   let nodeEnv;
   if (command.name() === 'build') {
     nodeEnv = initialNodeEnv || 'production';
+    command.autoinstall = false;
   } else {
     nodeEnv = initialNodeEnv || 'development';
   }
@@ -283,15 +353,23 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
   }
 
   let serve = false;
-  let {port, host} = command;
+  let {host} = command;
+
+  // Ensure port is valid and available
+  let port = parsePort(command.port || '1234');
+  let originalPort = port;
   if (command.name() === 'serve' || command.hmr) {
     port = await getPort({port, host});
 
-    if (command.port && port !== command.port) {
-      // Parcel logger is not set up at this point, so just use native INTERNAL_ORIGINAL_CONSOLE.
-      INTERNAL_ORIGINAL_CONSOLE.warn(
-        chalk.bold.yellowBright(`⚠️  Port ${command.port} could not be used.`),
-      );
+    if (port !== originalPort) {
+      let errorMessage = `Port "${port}" could not be used`;
+      if (command.port != null) {
+        // Throw the error if the user defined a custom port
+        throw new Error(errorMessage);
+      } else {
+        // Parcel logger is not set up at this point, so just use native INTERNAL_ORIGINAL_CONSOLE
+        INTERNAL_ORIGINAL_CONSOLE.warn(errorMessage);
+      }
     }
   }
 
@@ -308,7 +386,9 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
 
   let hmr = null;
   if (command.name() !== 'build' && command.hmr !== false) {
-    hmr = {port, host};
+    let hmrport = command.hmrPort ? parsePort(command.hmrPort) : port;
+
+    hmr = {port: hmrport, host};
   }
 
   let mode = command.name() === 'build' ? 'production' : 'development';

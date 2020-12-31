@@ -50,7 +50,7 @@ const validatePluginName = (pluginType: string, key: string) => {
   };
 };
 
-const validateExtends = (val: string) => {
+const validateExtends = (val: string): void => {
   // allow relative paths...
   if (val.startsWith('.')) return;
 
@@ -110,16 +110,19 @@ export default {
     },
     bundler: {
       type: 'string',
-      __validate: validatePluginName('bundler', 'bundler'),
+      __validate: (validatePluginName('bundler', 'bundler'): string => void),
     },
-    resolvers: pipelineSchema('resolver', 'resolvers'),
-    transformers: mapPipelineSchema('transformer', 'transformers'),
-    validators: mapPipelineSchema('validator', 'validators'),
-    namers: pipelineSchema('namer', 'namers'),
-    packagers: mapStringSchema('packager', 'packagers'),
-    optimizers: mapPipelineSchema('optimizer', 'optimizers'),
-    reporters: pipelineSchema('reporter', 'reporters'),
-    runtimes: mapPipelineSchema('runtime', 'runtimes'),
+    resolvers: (pipelineSchema('resolver', 'resolvers'): SchemaEntity),
+    transformers: (mapPipelineSchema(
+      'transformer',
+      'transformers',
+    ): SchemaEntity),
+    validators: (mapPipelineSchema('validator', 'validators'): SchemaEntity),
+    namers: (pipelineSchema('namer', 'namers'): SchemaEntity),
+    packagers: (mapStringSchema('packager', 'packagers'): SchemaEntity),
+    optimizers: (mapPipelineSchema('optimizer', 'optimizers'): SchemaEntity),
+    reporters: (pipelineSchema('reporter', 'reporters'): SchemaEntity),
+    runtimes: (mapPipelineSchema('runtime', 'runtimes'): SchemaEntity),
     filePath: {
       type: 'string',
     },

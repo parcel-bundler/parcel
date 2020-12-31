@@ -7,17 +7,8 @@ import {
   distDir,
   outputFS,
 } from '@parcel/test-utils';
-import {readFileSync} from 'fs';
 
-const configPath = path.join(
-  __dirname,
-  '/integration/typescript-config/.parcelrc',
-);
-
-const config = {
-  ...JSON.parse(readFileSync(configPath)),
-  filePath: configPath,
-};
+const config = path.join(__dirname, '/integration/typescript-config/.parcelrc');
 
 describe('typescript tsc', function() {
   it('should support loading tsconfig.json', async () => {
@@ -54,7 +45,7 @@ describe('typescript tsc', function() {
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: ['index.ts'],
+        assets: ['index.ts', 'esmodule-helpers.js'],
       },
       {
         name: 'index.d.ts',

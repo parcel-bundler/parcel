@@ -4,7 +4,7 @@ import type {
   Environment as IEnvironment,
   SourceLocation,
   Meta,
-  MutableSymbols as IMutableSymbols,
+  MutableDependencySymbols as IMutableDependencySymbols,
 } from '@parcel/types';
 import type {Dependency as InternalDependency} from '../types';
 
@@ -30,9 +30,9 @@ export function dependencyToInternalDependency(
 }
 
 export default class Dependency implements IDependency {
-  #dep; // InternalDependency
+  #dep /*: InternalDependency */;
 
-  constructor(dep: InternalDependency) {
+  constructor(dep: InternalDependency): Dependency {
     let existing = internalDependencyToDependency.get(dep);
     if (existing != null) {
       return existing;
@@ -41,10 +41,11 @@ export default class Dependency implements IDependency {
     this.#dep = dep;
     _dependencyToInternalDependency.set(this, dep);
     internalDependencyToDependency.set(dep, this);
+    return this;
   }
 
   // $FlowFixMe
-  [inspect]() {
+  [inspect](): string {
     return `Dependency(${String(this.sourcePath)} -> ${this.moduleSpecifier})`;
   }
 
@@ -60,8 +61,8 @@ export default class Dependency implements IDependency {
     return !!this.#dep.isAsync;
   }
 
-  get isEntry(): boolean {
-    return !!this.#dep.isEntry;
+  get isEntry(): ?boolean {
+    return this.#dep.isEntry;
   }
 
   get isOptional(): boolean {
@@ -72,8 +73,8 @@ export default class Dependency implements IDependency {
     return !!this.#dep.isURL;
   }
 
-  get isWeak(): boolean {
-    return !!this.#dep.isWeak;
+  get isIsolated(): boolean {
+    return !!this.#dep.isIsolated;
   }
 
   get loc(): ?SourceLocation {
@@ -88,7 +89,7 @@ export default class Dependency implements IDependency {
     return this.#dep.meta;
   }
 
-  get symbols(): IMutableSymbols {
+  get symbols(): IMutableDependencySymbols {
     return new MutableDependencySymbols(this.#dep);
   }
 
@@ -105,6 +106,10 @@ export default class Dependency implements IDependency {
   get sourcePath(): ?string {
     // TODO: does this need to be public?
     return this.#dep.sourcePath;
+  }
+
+  get resolveFrom(): ?string {
+    return this.#dep.resolveFrom ?? this.#dep.sourcePath;
   }
 
   get pipeline(): ?string {

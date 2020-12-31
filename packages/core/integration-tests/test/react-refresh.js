@@ -1,13 +1,16 @@
+// @flow strict-local
 import assert from 'assert';
+import invariant from 'assert';
 import path from 'path';
 import {
   bundler,
-  defaultConfig,
   getNextBuild,
   overlayFS as fs,
   sleep,
 } from '@parcel/test-utils';
 import getPort from 'get-port';
+import type {BuildEvent} from '@parcel/types';
+// flowlint-next-line untyped-import:off
 import JSDOM from 'jsdom';
 import nullthrows from 'nullthrows';
 
@@ -177,16 +180,16 @@ async function setup(entry) {
     hot: {
       port,
     },
-    defaultConfig: {
-      ...defaultConfig,
-      reporters: ['@parcel/reporter-dev-server'],
-    },
+    defaultConfig: path.join(
+      __dirname,
+      'integration/custom-configs/.parcelrc-dev-server',
+    ),
   });
 
   subscription = await b.watch();
-  let bundleEvent = await getNextBuild(b);
-  assert.equal(bundleEvent.type, 'buildSuccess');
-
+  let bundleEvent: BuildEvent = await getNextBuild(b);
+  invariant(bundleEvent.type === 'buildSuccess');
+  let bundleGraph = bundleEvent.bundleGraph;
   let dom = await JSDOM.JSDOM.fromURL(
     'http://127.0.0.1:' + port + '/index.html',
     {
@@ -205,13 +208,14 @@ async function setup(entry) {
   window.MessageChannel = MessageChannel;
   root = window.document.getElementById('root');
 
-  let bundle = nullthrows(
-    bundleEvent.bundleGraph.getChildBundles(
-      bundleEvent.bundleGraph.getBundles().find(b => b.type === 'html'),
-    )[0],
+  let bundle = nullthrows(bundleGraph.getBundles().find(b => b.type === 'js'));
+  let parcelRequire = Object.keys(window).find(k =>
+    k.startsWith('parcelRequire'),
   );
   // ReactDOM.render
-  await window.parcelRequire(bundle.getMainEntry().id).default();
+  await window[parcelRequire](
+    bundleGraph.getAssetPublicId(bundle.getEntryAssets().pop()),
+  ).default();
   await sleep(100);
 
   let [, indexNum, appNum, fooText, fooNum] = root.textContent.match(

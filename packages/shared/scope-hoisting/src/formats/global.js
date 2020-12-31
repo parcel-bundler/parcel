@@ -1,8 +1,14 @@
 // @flow
 
-import type {Asset, Bundle, BundleGraph, NamedBundle} from '@parcel/types';
 import type {
+  Asset,
+  Bundle,
+  BundleGraph,
   Expression,
+  NamedBundle,
+} from '@parcel/types';
+import type {NodePath} from '@babel/traverse';
+import type {
   ExpressionStatement,
   Identifier,
   LVal,
@@ -11,7 +17,7 @@ import type {
   VariableDeclaration,
 } from '@babel/types';
 import type {ExternalBundle, ExternalModule} from '../types';
-import type {Scope} from '../scope';
+import type {Scope} from '@parcel/babylon-walk';
 
 import * as t from '@babel/types';
 import template from '@babel/template';
@@ -68,9 +74,12 @@ export function generateBundleImports(
     statements.push(
       IMPORT_TEMPLATE({
         NAME: getIdentifier(asset, 'init'),
-        ASSET_ID: t.stringLiteral(asset.id),
+        ASSET_ID: t.stringLiteral(bundleGraph.getAssetPublicId(asset)),
       }),
     );
+
+    scope.add('$parcel$global');
+    scope.add('parcelRequire');
 
     if (asset.meta.isCommonJS) {
       let deps = bundleGraph.getIncomingDependencies(asset);
@@ -93,7 +102,13 @@ export function generateBundleImports(
   return statements;
 }
 
-export function generateExternalImport(_: Bundle, {loc}: ExternalModule) {
+export function generateExternalImport(
+  // eslint-disable-next-line no-unused-vars
+  bundle: Bundle,
+  {loc}: ExternalModule,
+  // eslint-disable-next-line no-unused-vars
+  path: NodePath<Program>,
+) {
   throw getThrowableDiagnosticForNode(
     'External modules are not supported when building for browser',
     loc?.filePath,
@@ -105,6 +120,7 @@ export function generateBundleExports(
   bundleGraph: BundleGraph<NamedBundle>,
   bundle: NamedBundle,
   referencedAssets: Set<Asset>,
+  scope: Scope,
 ) {
   let statements: Array<BabelNode> = [];
 
@@ -113,10 +129,13 @@ export function generateBundleExports(
 
     statements.push(
       EXPORT_TEMPLATE({
-        ASSET_ID: t.stringLiteral(asset.id),
+        ASSET_ID: t.stringLiteral(bundleGraph.getAssetPublicId(asset)),
         IDENTIFIER: t.identifier(exportsId),
       }),
     );
+
+    scope.add('$parcel$global');
+    scope.add('parcelRequire');
   }
 
   let entry = bundle.getMainEntry();
@@ -129,10 +148,13 @@ export function generateBundleExports(
       // Export a function returning the exports, as other cases of global output
       // register init functions.
       EXPORT_FN_TEMPLATE({
-        ASSET_ID: t.stringLiteral(entry.id),
+        ASSET_ID: t.stringLiteral(bundleGraph.getAssetPublicId(entry)),
         IDENTIFIER: t.identifier(assertString(entry.meta.exportsIdentifier)),
       }),
     );
+
+    scope.add('$parcel$global');
+    scope.add('parcelRequire');
   }
 
   return statements;

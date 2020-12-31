@@ -1,7 +1,7 @@
 // @flow strict-local
-// flowlint unsafe-getters-setters:off
 import type {
   Config as IConfig,
+  ConfigResult,
   FilePath,
   Glob,
   PackageJSON,
@@ -20,10 +20,10 @@ const internalConfigToConfig: DefaultWeakMap<
 > = new DefaultWeakMap(() => new WeakMap());
 
 export default class PublicConfig implements IConfig {
-  #config; // Config;
-  #options; // ParcelOptions
+  #config /*: Config */;
+  #options /*: ParcelOptions */;
 
-  constructor(config: Config, options: ParcelOptions) {
+  constructor(config: Config, options: ParcelOptions): PublicConfig {
     let existing = internalConfigToConfig.get(options).get(config);
     if (existing != null) {
       return existing;
@@ -32,30 +32,31 @@ export default class PublicConfig implements IConfig {
     this.#config = config;
     this.#options = options;
     internalConfigToConfig.get(options).set(config, this);
+    return this;
   }
 
-  get env() {
+  get env(): Environment {
     return new Environment(this.#config.env);
   }
 
-  get searchPath() {
+  get searchPath(): FilePath {
     return this.#config.searchPath;
   }
 
-  get result() {
+  get result(): ConfigResult {
     return this.#config.result;
   }
 
-  get isSource() {
+  get isSource(): boolean {
     return this.#config.isSource;
   }
 
-  get includedFiles() {
+  get includedFiles(): Set<FilePath> {
     return this.#config.includedFiles;
   }
 
   // $FlowFixMe
-  setResult(result: any) {
+  setResult(result: any): void {
     this.#config.result = result;
   }
 
@@ -106,6 +107,10 @@ export default class PublicConfig implements IConfig {
           filePath: this.#config.pkgFilePath || '',
         };
       }
+    }
+
+    if (filePaths.length === 0) {
+      return null;
     }
 
     let parse = options && options.parse;

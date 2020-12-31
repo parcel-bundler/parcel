@@ -40,11 +40,15 @@ export class NodePackageManager implements PackageManager {
     this.installer = installer;
   }
 
-  static deserialize(opts: any) {
+  static deserialize(opts: any): NodePackageManager {
     return new NodePackageManager(opts.fs, opts.installer);
   }
 
-  serialize() {
+  serialize(): {|
+    $$raw: boolean,
+    fs: FileSystem,
+    installer: ?PackageInstaller,
+  |} {
     return {
       $$raw: false,
       fs: this.fs,
@@ -56,17 +60,17 @@ export class NodePackageManager implements PackageManager {
     name: ModuleSpecifier,
     from: FilePath,
     opts: ?{|range?: SemverRange, autoinstall?: boolean, saveDev?: boolean|},
-  ) {
+  ): Promise<any> {
     let {resolved} = await this.resolve(name, from, opts);
     return this.load(resolved, from);
   }
 
-  requireSync(name: ModuleSpecifier, from: FilePath) {
+  requireSync(name: ModuleSpecifier, from: FilePath): any {
     let {resolved} = this.resolveSync(name, from);
     return this.load(resolved, from);
   }
 
-  load(resolved: FilePath, from: FilePath) {
+  load(resolved: FilePath, from: FilePath): any {
     if (!path.isAbsolute(resolved)) {
       // Node builtin module
       // $FlowFixMe
@@ -110,7 +114,7 @@ export class NodePackageManager implements PackageManager {
     name: ModuleSpecifier,
     from: FilePath,
     options?: ?{|range?: string, autoinstall?: boolean, saveDev?: boolean|},
-  ) {
+  ): Promise<ResolveResult> {
     let basedir = path.dirname(from);
     let key = basedir + ':' + name;
     let resolved = this.cache.get(key);
@@ -121,7 +125,7 @@ export class NodePackageManager implements PackageManager {
           extensions: Object.keys(Module._extensions),
         });
       } catch (e) {
-        if (e.code !== 'MODULE_NOT_FOUND' || options?.autoinstall === false) {
+        if (e.code !== 'MODULE_NOT_FOUND' || options?.autoinstall !== true) {
           throw e;
         }
 
@@ -135,6 +139,7 @@ export class NodePackageManager implements PackageManager {
           await this.install([{name, range: options?.range}], from, {
             saveDev: options?.saveDev ?? true,
           });
+
           return this.resolve(name, from, {
             ...options,
             autoinstall: false,
@@ -171,7 +176,7 @@ export class NodePackageManager implements PackageManager {
             from,
           );
 
-          if (conflicts == null && options?.autoinstall !== false) {
+          if (conflicts == null && options?.autoinstall === true) {
             await this.install([{name, range}], from);
             return this.resolve(name, from, {
               ...options,
@@ -220,7 +225,7 @@ export class NodePackageManager implements PackageManager {
     return resolved;
   }
 
-  resolveSync(name: ModuleSpecifier, from: FilePath) {
+  resolveSync(name: ModuleSpecifier, from: FilePath): ResolveResult {
     let basedir = path.dirname(from);
     return resolveSync(this.fs, name, {
       basedir,
