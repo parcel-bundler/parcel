@@ -2448,7 +2448,7 @@ describe('cache', function() {
           await overlayFS.writeFile(
             path.join(inputDir, 'src/index.js'),
             `import React from 'react';
-            
+
             export function Component() {
               return <h1>Hello world</h1>;
             }`,
@@ -2599,6 +2599,41 @@ describe('cache', function() {
         'utf8',
       );
       assert(contents.includes('UPDATED CODE'));
+    });
+  });
+
+  describe('Query Parameters', () => {
+    it('Should create additional assets if multiple query parameter combinations are used', async function() {
+      let b = await testCache(
+        {
+          entries: ['reformat.html'],
+          update: async b => {
+            let bundles = b.bundleGraph.getBundles();
+            let contents = await overlayFS.readFile(
+              bundles[0].filePath,
+              'utf8',
+            );
+            assert(contents.includes('.webp" alt="test image">'));
+            assert.equal(bundles.length, 2);
+            await overlayFS.writeFile(
+              path.join(inputDir, 'reformat.html'),
+              `<picture>
+              <source src="url:./image.jpg?as=webp&width=400" type="image/webp" />
+              <source src="url:./image.jpg?as=jpg&width=400" type="image/jpeg" />
+              <img src="url:./image.jpg?as=jpg&width=800" alt="test image" />
+            </picture>`,
+            );
+          },
+        },
+        'image',
+      );
+
+      let bundles = b.bundleGraph.getBundles();
+      let contents = await overlayFS.readFile(bundles[0].filePath, 'utf8');
+      assert(contents.includes('.webp" type="image/webp">'));
+      assert(contents.includes('.jpg" type="image/jpeg">'));
+      assert(contents.includes('.jpg" alt="test image">'));
+      assert.equal(bundles.length, 4);
     });
   });
 });

@@ -143,6 +143,7 @@ export type PackageTargetDescriptor = {|
 export type TargetDescriptor = {|
   ...PackageTargetDescriptor,
   +distDir: FilePath,
+  +distEntry?: FilePath,
 |};
 
 /**
@@ -641,6 +642,7 @@ export type TransformerResult = {|
   +dependencies?: $ReadOnlyArray<DependencyOptions>,
   +env?: EnvironmentOpts,
   +filePath?: FilePath,
+  +query?: ?QueryParameters,
   +includedFiles?: $ReadOnlyArray<File>,
   +isInline?: boolean,
   +isIsolated?: boolean,
