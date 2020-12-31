@@ -25,6 +25,7 @@ import {
   escapeMarkdown,
   md5FromOrderedObject,
   normalizeSeparators,
+  objectSortedEntries,
 } from '@parcel/utils';
 import logger, {PluginLogger} from '@parcel/logger';
 import {init as initSourcemaps} from '@parcel/source-map';
@@ -470,6 +471,7 @@ export default class Transformation {
       pipeline: a.value.pipeline,
       hash: a.value.hash,
       uniqueKey: a.value.uniqueKey,
+      query: a.value.query ? objectSortedEntries(a.value.query) : '',
     }));
 
     return md5FromOrderedObject({
@@ -749,6 +751,7 @@ function normalizeAssets(
       return {
         ast: internalAsset.ast,
         content: await internalAsset.content,
+        query: internalAsset.value.query,
         // $FlowFixMe
         dependencies: [...internalAsset.value.dependencies.values()],
         env: internalAsset.value.env,
