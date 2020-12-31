@@ -23,13 +23,14 @@ import path from 'path';
 import nullthrows from 'nullthrows';
 import {
   escapeMarkdown,
-  md5FromObject,
+  md5FromOrderedObject,
   normalizeSeparators,
+  objectSortedEntries,
 } from '@parcel/utils';
 import logger, {PluginLogger} from '@parcel/logger';
 import {init as initSourcemaps} from '@parcel/source-map';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
-import {SOURCEMAP_EXTENSIONS, flatMap} from '@parcel/utils';
+import {SOURCEMAP_EXTENSIONS} from '@parcel/utils';
 
 import ConfigLoader from './ConfigLoader';
 import {createDependency} from './Dependency';
@@ -267,7 +268,7 @@ export default class Transformation {
         [initialAsset],
         pipeline.configs,
         await getInvalidationHash(
-          flatMap(assets, asset => asset.getInvalidations()),
+          assets.flatMap(asset => asset.getInvalidations()),
           this.options,
         ),
       );
@@ -304,7 +305,7 @@ export default class Transformation {
         finalAssets,
         pipeline.configs,
         await getInvalidationHash(
-          flatMap(finalAssets, asset => asset.getInvalidations()),
+          finalAssets.flatMap(asset => asset.getInvalidations()),
           this.options,
         ),
       ),
@@ -320,7 +321,7 @@ export default class Transformation {
           processedFinalAssets,
           pipeline.configs,
           await getInvalidationHash(
-            flatMap(processedFinalAssets, asset => asset.getInvalidations()),
+            processedFinalAssets.flatMap(asset => asset.getInvalidations()),
             this.options,
           ),
         ),
@@ -448,7 +449,7 @@ export default class Transformation {
     await Promise.all(
       assets.map(asset =>
         asset.commit(
-          md5FromObject({
+          md5FromOrderedObject({
             configs: getImpactfulConfigInfo(configs),
           }),
         ),
@@ -470,9 +471,10 @@ export default class Transformation {
       pipeline: a.value.pipeline,
       hash: a.value.hash,
       uniqueKey: a.value.uniqueKey,
+      query: a.value.query ? objectSortedEntries(a.value.query) : '',
     }));
 
-    return md5FromObject({
+    return md5FromOrderedObject({
       parcelVersion: PARCEL_VERSION,
       assets: assetsKeyInfo,
       configs: getImpactfulConfigInfo(configs),
@@ -745,9 +747,11 @@ function normalizeAssets(
       }
 
       let internalAsset = mutableAssetToUncommittedAsset(result);
+      // $FlowFixMe - ignore id already on env
       return {
         ast: internalAsset.ast,
         content: await internalAsset.content,
+        query: internalAsset.value.query,
         // $FlowFixMe
         dependencies: [...internalAsset.value.dependencies.values()],
         env: internalAsset.value.env,

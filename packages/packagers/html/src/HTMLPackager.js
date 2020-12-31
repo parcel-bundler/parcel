@@ -4,6 +4,7 @@ import type {Bundle, BundleGraph, NamedBundle} from '@parcel/types';
 import assert from 'assert';
 import {Readable} from 'stream';
 import {Packager} from '@parcel/plugin';
+import {setDifference} from '@parcel/utils';
 import posthtml from 'posthtml';
 import {
   bufferStream,
@@ -37,22 +38,14 @@ export default (new Packager({
     let asset = assets[0];
     let code = await asset.getCode();
 
-    let dependencies = [];
-    bundle.traverse(node => {
-      if (node.type === 'dependency') {
-        dependencies.push(node.value);
-      }
-    });
-
     // Add bundles in the same bundle group that are not inline. For example, if two inline
     // bundles refer to the same library that is extracted into a shared bundle.
-    let referenced = new Set(
-      bundleGraph.getReferencedBundles(bundle).map(b => b.id),
-    );
-    let bundles = bundleGraph
-      .getSiblingBundles(bundle)
-      .filter(b => !b.isInline && !referenced.has(b.id));
-
+    let referencedBundles = [
+      ...setDifference(
+        new Set(bundleGraph.getReferencedBundles(bundle)),
+        new Set(bundleGraph.getReferencedBundles(bundle, {recursive: false})),
+      ),
+    ].filter(b => !b.isInline);
     let posthtmlConfig = await asset.getConfig(
       ['.posthtmlrc', '.posthtmlrc.js', 'posthtml.config.js'],
       {
@@ -62,7 +55,7 @@ export default (new Packager({
     let renderConfig = posthtmlConfig?.render;
 
     let {html} = await posthtml([
-      insertBundleReferences.bind(this, bundles),
+      insertBundleReferences.bind(this, referencedBundles),
       replaceInlineAssetContent.bind(
         this,
         bundleGraph,
