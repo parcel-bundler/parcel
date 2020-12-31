@@ -21,7 +21,6 @@ import {
   validateSchema,
   findAlternativeNodeModules,
   findAlternativeFiles,
-  flatMap,
 } from '@parcel/utils';
 import ThrowableDiagnostic, {
   generateJSONCodeHighlights,
@@ -376,7 +375,7 @@ export async function processConfigChain(
 
     if (errors.length > 0) {
       throw new ThrowableDiagnostic({
-        diagnostic: flatMap(errors, e => e.diagnostics),
+        diagnostic: errors.flatMap(e => e.diagnostics),
       });
     }
   }
