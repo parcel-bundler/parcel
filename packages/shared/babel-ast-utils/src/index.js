@@ -71,7 +71,16 @@ export function generateAST({
       ? {
           file: sourceFileName,
           addMapping(mapping) {
-            mappings.push(mapping);
+            // Copy the object because astring mutates it
+            mappings.push({
+              original: mapping.original,
+              generated: {
+                line: mapping.generated.line,
+                column: mapping.generated.column,
+              },
+              name: mapping.name,
+              source: mapping.source,
+            });
           },
         }
       : null,
