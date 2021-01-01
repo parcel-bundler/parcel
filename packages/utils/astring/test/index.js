@@ -3,13 +3,15 @@ import path from 'path';
 import {parse} from 'acorn';
 import * as astravel from 'astravel';
 import assert from 'assert';
+import {parse as babelParse} from '@babel/parser';
+import {generateAST} from '@parcel/babel-ast-utils';
 
 import {generate} from '../';
 import {readFile} from './tools';
 
 const FIXTURES_FOLDER = path.join(__dirname, 'fixtures');
 
-const ecmaVersion = 10;
+const ecmaVersion = 12;
 
 const stripLocation = astravel.makeTraveler({
   go(node, state) {
@@ -41,6 +43,33 @@ describe('astring', () => {
       const ast = parse(code, options);
       assert.equal(
         generate(ast),
+        code,
+        filename.substring(0, filename.length - 3),
+        'Generates code with the expected format',
+      );
+    });
+  });
+
+  it('Babel AST check', () => {
+    const dirname = path.join(FIXTURES_FOLDER, 'syntax');
+    const files = fs.readdirSync(dirname).sort();
+    const options = {
+      allowReturnOutsideFunction: true,
+      strictMode: false,
+      sourceType: 'module',
+    };
+    files.forEach(filename => {
+      const code = readFile(path.join(dirname, filename));
+      const ast = babelParse(code, options);
+      let {content} = generateAST({
+        ast,
+        sourceFileName: '/foo/bar.js',
+        sourceMaps: false,
+        originalSourceMap: null,
+        options: {projectRoot: '/foo'},
+      });
+      assert.equal(
+        content,
         code,
         filename.substring(0, filename.length - 3),
         'Generates code with the expected format',

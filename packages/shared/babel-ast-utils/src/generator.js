@@ -27,10 +27,12 @@ export const generator = {
   },
   NumericLiteral(node, state) {
     node.type = 'Literal';
+    node.raw = getRaw(node);
     this.Literal(node, state);
   },
   StringLiteral(node, state) {
     node.type = 'Literal';
+    node.raw = getRaw(node);
     this.Literal(node, state);
   },
   BooleanLiteral(node, state) {
@@ -45,27 +47,33 @@ export const generator = {
   },
   RegExpLiteral(node, state) {
     node.type = 'Literal';
-    node.raw = node.extra.raw;
+    node.raw = getRaw(node);
     node.value = {};
     node.regex = {
       pattern: node.pattern,
       flags: node.flags,
     };
-    this.Literal(node, state);
+    baseGenerator.Literal(node, state);
   },
   BigIntLiteral(node, state) {
     node.type = 'Literal';
-    node.raw = node.extra.raw;
+    node.raw = getRaw(node);
     this.Literal(node, state);
   },
   ObjectProperty(node, state) {
     node.type = 'Property';
     node.kind = 'init';
-    if (
-      (node.shorthand && node.value.type !== 'Identifier') ||
-      node.value.name !== node.key.name
-    ) {
-      node.shorthand = false;
+    if (node.shorthand) {
+      let id =
+        node.value.type === 'Identifier'
+          ? node.value
+          : node.value.type === 'AssignmentPattern' &&
+            node.value.left.type === 'Identifier'
+          ? node.value.left
+          : null;
+      if (!id || id.name !== node.key.name) {
+        node.shorthand = false;
+      }
     }
     this.Property(node, state);
   },
@@ -155,7 +163,16 @@ export const generator = {
     // astring doesn't support ImportExpression yet
     state.write('import');
   },
-  // TODO: OptionalMemberExpression, OptionalCallExpression once astring supports ChainExpression
+  OptionalMemberExpression(node, state) {
+    node.optional = true;
+    node.type = 'MemberExpression';
+    this.MemberExpression(node, state);
+  },
+  OptionalCallExpression(node, state) {
+    node.optional = true;
+    node.type = 'CallExpression';
+    this.CallExpression(node, state);
+  },
 };
 
 // Make every node support comments. Important for preserving /*@__PURE__*/ comments for terser.
@@ -221,5 +238,17 @@ function reindent(state, text, indent, lineEnd) {
       state.write(indent + lines[i].trim() + lineEnd);
     }
     state.write(indent + lines[end].trim());
+  }
+}
+
+function getRaw(node) {
+  let extra = node.extra;
+  if (
+    extra &&
+    extra.raw != null &&
+    extra.rawValue != null &&
+    node.value === extra.rawValue
+  ) {
+    return extra.raw;
   }
 }

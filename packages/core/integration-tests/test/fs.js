@@ -228,7 +228,7 @@ describe('fs', function() {
         path.join(distDir, 'index.js'),
         'utf8',
       );
-      assert(contents.includes('require("fs")'));
+      assert(contents.includes("require('fs')"));
       assert(contents.includes('readFileSync'));
 
       await outputFS.writeFile(path.join(distDir, 'test.txt'), 'hey');
