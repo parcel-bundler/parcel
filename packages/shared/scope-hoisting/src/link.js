@@ -811,7 +811,7 @@ export function link({
     AssignmentExpression(node, state, ancestors) {
       if (isIdentifier(node.left)) {
         let res = maybeReplaceIdentifier(node.left, ancestors);
-        if (isIdentifier(res)) {
+        if (isIdentifier(res) || isMemberExpression(res)) {
           node.left = res;
         }
 
