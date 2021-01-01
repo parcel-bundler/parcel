@@ -96,7 +96,6 @@ export type Dependency = {|
   env: Environment,
   meta: Meta,
   target: ?Target,
-  sourceAssetId: ?string,
   sourcePath: ?string,
   resolveFrom: ?string,
   symbols: ?Map<
