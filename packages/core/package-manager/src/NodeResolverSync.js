@@ -33,9 +33,7 @@ export class NodeResolverSync extends NodeResolverBase<ResolveResult> {
     let pkg = this.findPackage(path.dirname(id));
 
     // First try as a file, then as a directory.
-    return (
-      this.loadAsFile(id, pkg) || this.loadDirectory(id, pkg)
-    );
+    return this.loadAsFile(id, pkg) || this.loadDirectory(id, pkg);
   }
 
   findPackage(dir: FilePath): ?PackageJSON {
