@@ -15,6 +15,7 @@ import type {
   ImportSpecifier,
   Node,
   VariableDeclarator,
+  Statement,
 } from '@babel/types';
 import {parse as babelParse} from '@babel/parser';
 import type {Diagnostic} from '@parcel/diagnostic';
@@ -305,7 +306,7 @@ export function getThrowableDiagnosticForNode(
   });
 }
 
-export function parse(code, sourceFilename) {
+export function parse(code: string, sourceFilename: string): Array<Statement> {
   let ast = babelParse(code, {
     sourceFilename,
     allowReturnOutsideFunction: true,

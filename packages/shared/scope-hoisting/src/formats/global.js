@@ -1,12 +1,6 @@
 // @flow
 
-import type {
-  Asset,
-  Bundle,
-  BundleGraph,
-  Expression,
-  NamedBundle,
-} from '@parcel/types';
+import type {Asset, Bundle, BundleGraph, NamedBundle} from '@parcel/types';
 import type {NodePath} from '@babel/traverse';
 import type {
   ExpressionStatement,
@@ -15,6 +9,8 @@ import type {
   Statement,
   StringLiteral,
   VariableDeclaration,
+  Expression,
+  Program,
 } from '@babel/types';
 import type {ExternalBundle, ExternalModule} from '../types';
 import type {Scope} from '@parcel/babylon-walk';
@@ -60,7 +56,7 @@ export function generateBundleImports(
   from: NamedBundle,
   {bundle, assets}: ExternalBundle,
   scope: Scope,
-) {
+): Array<BabelNode> {
   let statements = [];
   if (from.env.isWorker()) {
     statements.push(
@@ -104,11 +100,11 @@ export function generateBundleImports(
 
 export function generateExternalImport(
   // eslint-disable-next-line no-unused-vars
-  bundle: Bundle,
+  bundle: NamedBundle,
   {loc}: ExternalModule,
   // eslint-disable-next-line no-unused-vars
-  path: NodePath<Program>,
-) {
+  scope: Scope,
+): Array<BabelNode> {
   throw getThrowableDiagnosticForNode(
     'External modules are not supported when building for browser',
     loc?.filePath,
@@ -121,7 +117,9 @@ export function generateBundleExports(
   bundle: NamedBundle,
   referencedAssets: Set<Asset>,
   scope: Scope,
-) {
+  // eslint-disable-next-line no-unused-vars
+  reexports: Set<{|exportAs: string, local: string|}>,
+): Array<BabelNode> {
   let statements: Array<BabelNode> = [];
 
   for (let asset of referencedAssets) {
@@ -160,6 +158,10 @@ export function generateBundleExports(
   return statements;
 }
 
-export function generateMainExport(node: BabelNode) {
+export function generateMainExport(
+  node: BabelNode,
+  // eslint-disable-next-line no-unused-vars
+  exported: Array<{|exportAs: string, local: string|}>,
+): Array<BabelNode> {
   return [node];
 }

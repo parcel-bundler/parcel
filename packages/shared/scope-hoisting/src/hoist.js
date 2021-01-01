@@ -647,9 +647,11 @@ const VISITOR: Visitor<MutableAsset> = {
         }
       } else if (isStaticMemberExpression(parent, {object: path.node})) {
         // e.g. require('foo').bar
+        // $FlowFixMe
+        let name = parent.property.name ?? parent.property.value;
         memberAccesses = [
           {
-            name: parent.property.name,
+            name,
             loc: convertBabelLoc(parent.loc),
           },
         ];
@@ -659,9 +661,7 @@ const VISITOR: Visitor<MutableAsset> = {
         path.parentPath.replaceWith(
           t.sequenceExpression([
             replacement,
-            t.identifier(
-              getName(asset, 'importAsync', dep.id, parent.property.name),
-            ),
+            t.identifier(getName(asset, 'importAsync', dep.id, name)),
           ]),
         );
 
@@ -672,6 +672,7 @@ const VISITOR: Visitor<MutableAsset> = {
           properties = parent.id.properties;
           propertyScope = path.parentPath.parentPath.scope;
           removePath =
+            // $FlowFixMe
             path.parentPath.parent.declarations.length === 1
               ? path.parentPath.parentPath
               : null;
@@ -679,6 +680,7 @@ const VISITOR: Visitor<MutableAsset> = {
           // let ns = require("./b.js");
           binding = path.parentPath.parentPath.scope.getBinding(parent.id.name);
           removePath =
+            // $FlowFixMe
             path.parentPath.parent.declarations.length === 1
               ? path.parentPath.parentPath
               : null;
@@ -704,11 +706,14 @@ const VISITOR: Visitor<MutableAsset> = {
           invariant(isObjectProperty(p));
           invariant(isIdentifier(p.key));
           if (!dep.isAsync) {
-            let binding = propertyScope.getBinding(p.key.name);
-            for (let ref of binding.referencePaths) {
-              ref.replaceWith(
-                t.identifier(getName(asset, 'importAsync', dep.id, p.key.name)),
-              );
+            let name = p.key.name;
+            let binding = propertyScope.getBinding(name);
+            if (binding) {
+              for (let ref of binding.referencePaths) {
+                ref.replaceWith(
+                  t.identifier(getName(asset, 'importAsync', dep.id, name)),
+                );
+              }
             }
           }
 
@@ -726,6 +731,7 @@ const VISITOR: Visitor<MutableAsset> = {
         // properties of member expressions if all of them are static
         memberAccesses = binding.referencePaths.map(({parentPath, parent}) => {
           invariant(isMemberExpression(parent));
+          // $FlowFixMe
           let name = parent.property.name ?? parent.property.value;
           if (!dep.isAsync) {
             parentPath.replaceWith(
@@ -762,7 +768,7 @@ const VISITOR: Visitor<MutableAsset> = {
         dep.meta.isCommonJS = true;
       }
 
-      if (memberAccesses != null && removePath) {
+      if (memberAccesses != null && removePath && replacement) {
         removePath.replaceWith(replacement);
       } else if (replacement) {
         path.replaceWith(replacement);
@@ -1209,15 +1215,16 @@ function addSelfReference(
   // to track that the symbol is used, and replace the member expression with.
   if (
     isStaticMemberExpression(path.parent, {object: path.node}) &&
-    !path.parentPath.parentPath.isAssignmentExpression({left: path.parent})
+    !isAssignmentExpression(path.parentPath.parent, {left: path.parent})
   ) {
+    // $FlowFixMe
     let name = path.parent.property.name ?? path.parent.property.value;
     let local = getExportIdentifier(asset, name);
     asset.addDependency({
       moduleSpecifier: `./${basename(asset.filePath)}`,
       symbols: new Map([
         [
-          path.parent.property.name ?? path.parent.property.value,
+          name,
           {
             local: local.name,
             isWeak: false,
@@ -1231,7 +1238,7 @@ function addSelfReference(
   }
 }
 
-function isStaticMemberExpression(node: Node, opts: any) {
+function isStaticMemberExpression(node: Node, opts: any): boolean {
   return (
     isMemberExpression(node, opts) &&
     ((isIdentifier(node.property) && !node.computed) ||

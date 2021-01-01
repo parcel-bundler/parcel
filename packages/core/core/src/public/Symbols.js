@@ -5,6 +5,7 @@ import type {
   AssetSymbols as IAssetSymbols,
   MutableDependencySymbols as IMutableDependencySymbols,
   SourceLocation,
+  Meta,
 } from '@parcel/types';
 import type {Asset, Dependency} from '../types';
 
@@ -125,7 +126,9 @@ export class MutableAssetSymbols implements IMutableAssetSymbols {
     return false;
   }
 
-  get(exportSymbol: ISymbol): ?{|local: ISymbol, loc: ?SourceLocation|} {
+  get(
+    exportSymbol: ISymbol,
+  ): ?{|local: ISymbol, loc: ?SourceLocation, meta?: ?Meta|} {
     return nullthrows(this.#value.symbols).get(exportSymbol);
   }
 
@@ -163,7 +166,12 @@ export class MutableAssetSymbols implements IMutableAssetSymbols {
     }
   }
 
-  set(exportSymbol: ISymbol, local: ISymbol, loc: ?SourceLocation, meta) {
+  set(
+    exportSymbol: ISymbol,
+    local: ISymbol,
+    loc: ?SourceLocation,
+    meta: ?Meta,
+  ) {
     nullthrows(this.#value.symbols).set(exportSymbol, {local, loc, meta});
   }
 
@@ -178,7 +186,7 @@ let valueToMutableDependencySymbols: WeakMap<
 > = new WeakMap();
 export class MutableDependencySymbols implements IMutableDependencySymbols {
   /*::
-  @@iterator(): Iterator<[ISymbol, {|local: ISymbol, loc: ?SourceLocation, isWeak: boolean|}]> { return ({}: any); }
+  @@iterator(): Iterator<[ISymbol, {|local: ISymbol, loc: ?SourceLocation, isWeak: boolean, meta?: ?Meta|}]> { return ({}: any); }
   */
   #value: Dependency;
 
@@ -208,7 +216,7 @@ export class MutableDependencySymbols implements IMutableDependencySymbols {
 
   get(
     exportSymbol: ISymbol,
-  ): ?{|local: ISymbol, loc: ?SourceLocation, isWeak: boolean|} {
+  ): ?{|local: ISymbol, loc: ?SourceLocation, isWeak: boolean, meta?: ?Meta|} {
     return nullthrows(this.#value.symbols).get(exportSymbol);
   }
 

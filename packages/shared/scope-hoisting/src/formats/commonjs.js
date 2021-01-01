@@ -125,7 +125,7 @@ export function generateBundleImports(
   from: NamedBundle,
   {bundle, assets}: ExternalBundle,
   scope: Scope,
-) {
+): Array<BabelNode> {
   let specifiers: Array<ObjectProperty> = [...assets].map(asset => {
     let id = getName(asset, 'init');
     return t.objectProperty(t.identifier(id), t.identifier(id), false, true);
@@ -151,7 +151,7 @@ export function generateExternalImport(
   bundle: NamedBundle,
   external: ExternalModule,
   scope: Scope,
-) {
+): Array<BabelNode> {
   let {source, specifiers, isCommonJS} = external;
 
   let properties: Array<ObjectProperty> = [];
@@ -298,7 +298,7 @@ export function generateBundleExports(
   referencedAssets: Set<Asset>,
   scope: Scope,
   reexports: Set<{|exportAs: string, local: string|}>,
-) {
+): Array<BabelNode> {
   let exported = new Set<Symbol>();
   let statements: Array<BabelNode> = [];
 
@@ -328,7 +328,7 @@ export function generateBundleExports(
 export function generateMainExport(
   node: BabelNode,
   exported: Array<{|exportAs: string, local: string|}>,
-) {
+): Array<BabelNode> {
   let statements = [node];
 
   for (let {exportAs, local} of exported) {

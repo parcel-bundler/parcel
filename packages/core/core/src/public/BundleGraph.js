@@ -252,21 +252,18 @@ export default class BundleGraph<TBundle: IBundle>
   getExportedSymbols(
     asset: IAsset,
     boundary: ?IBundle,
-  ): ?Array<ExportSymbolResolution> {
+  ): Array<ExportSymbolResolution> {
     let res = this.#graph.getExportedSymbols(
       assetToAssetValue(asset),
       boundary ? bundleToInternalBundle(boundary) : null,
     );
-    return (
-      res &&
-      res.map(e => ({
-        asset: assetFromValue(e.asset, this.#options),
-        exportSymbol: e.exportSymbol,
-        symbol: e.symbol,
-        loc: e.loc,
-        exportAs: e.exportAs,
-      }))
-    );
+    return res.map(e => ({
+      asset: assetFromValue(e.asset, this.#options),
+      exportSymbol: e.exportSymbol,
+      symbol: e.symbol,
+      loc: e.loc,
+      exportAs: e.exportAs,
+    }));
   }
 
   traverseBundles<TContext>(

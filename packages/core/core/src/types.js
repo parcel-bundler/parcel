@@ -98,7 +98,11 @@ export type Dependency = {|
   target: ?Target,
   sourceAssetId: ?string,
   sourcePath: ?string,
-  symbols: Map<Symbol, {|local: Symbol, loc: ?SourceLocation, meta?: ?Meta|}>,
+  resolveFrom: ?string,
+  symbols: ?Map<
+    Symbol,
+    {|local: Symbol, loc: ?SourceLocation, isWeak: boolean, meta?: ?Meta|},
+  >,
   pipeline?: ?string,
 |};
 

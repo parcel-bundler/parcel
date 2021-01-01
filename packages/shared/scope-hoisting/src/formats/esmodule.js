@@ -13,7 +13,9 @@ export function generateBundleImports(
   bundleGraph: BundleGraph<NamedBundle>,
   from: NamedBundle,
   {bundle, assets}: ExternalBundle,
-) {
+  // eslint-disable-next-line no-unused-vars
+  scope: Scope,
+): Array<BabelNode> {
   let specifiers = [...assets].map(asset => {
     let id = getName(asset, 'init');
     return t.importSpecifier(t.identifier(id), t.identifier(id));
@@ -30,7 +32,9 @@ export function generateBundleImports(
 export function generateExternalImport(
   bundle: Bundle,
   external: ExternalModule,
-) {
+  // eslint-disable-next-line no-unused-vars
+  scope: Scope,
+): Array<BabelNode> {
   let {source, specifiers, isCommonJS} = external;
   let defaultSpecifier = null;
   let namespaceSpecifier = null;
@@ -76,7 +80,7 @@ export function generateBundleExports(
   referencedAssets: Set<Asset>,
   scope: Scope,
   reexports: Set<{|exportAs: string, local: string|}>,
-) {
+): Array<BabelNode> {
   let statements = [];
 
   if (referencedAssets.size > 0 || reexports.size > 0) {
@@ -102,7 +106,7 @@ export function generateBundleExports(
 
   // If the main entry is a CommonJS asset, export its `module.exports` property as the `default` export
   let entry = bundle.getMainEntry();
-  if (entry?.meta.isCommonJS) {
+  if (entry?.meta.isCommonJS === true) {
     statements.push(
       t.exportDefaultDeclaration(
         t.identifier(assertString(entry.meta.exportsIdentifier)),
@@ -116,7 +120,7 @@ export function generateBundleExports(
 export function generateMainExport(
   node: BabelNode,
   exported: Array<{|exportAs: string, local: string|}>,
-) {
+): Array<BabelNode> {
   if (isExpressionStatement(node)) {
     return [node];
   }

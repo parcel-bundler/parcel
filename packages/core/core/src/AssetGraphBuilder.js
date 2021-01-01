@@ -6,6 +6,7 @@ import type {
   ModuleSpecifier,
   Symbol,
   SourceLocation,
+  Meta,
 } from '@parcel/types';
 import type {Diagnostic} from '@parcel/diagnostic';
 import type WorkerFarm, {Handle, SharedReference} from '@parcel/workers';
@@ -225,7 +226,7 @@ export default class AssetGraphBuilder extends EventEmitter {
       // exportSymbol -> identifier
       let assetSymbols: $ReadOnlyMap<
         Symbol,
-        {|local: Symbol, loc: ?SourceLocation|},
+        {|local: Symbol, loc: ?SourceLocation, meta?: ?Meta|},
       > = assetNode.value.symbols;
       // identifier -> exportSymbol
       let assetSymbolsInverse;
@@ -367,7 +368,7 @@ export default class AssetGraphBuilder extends EventEmitter {
 
       let assetSymbols: $ReadOnlyMap<
         Symbol,
-        {|local: Symbol, loc: ?SourceLocation|},
+        {|local: Symbol, loc: ?SourceLocation, meta?: ?Meta|},
       > = assetNode.value.symbols;
 
       let assetSymbolsInverse = new Map<Symbol, Set<Symbol>>();

@@ -16,6 +16,7 @@ import type {
   Identifier,
   Statement,
   StringLiteral,
+  VariableDeclaration,
 } from '@babel/types';
 
 import nullthrows from 'nullthrows';
@@ -59,9 +60,10 @@ const FAKE_INIT_TEMPLATE = template.statement<
 >(`function INIT(){
   return EXPORTS;
 }`);
-const PARCEL_REQUIRE_TEMPLATE = template.statement<{|
-  PARCEL_REQUIRE_NAME: Identifier,
-|}>(`var parcelRequire = $parcel$global.PARCEL_REQUIRE_NAME`);
+const PARCEL_REQUIRE_TEMPLATE = template.statement<
+  {|PARCEL_REQUIRE_NAME: Identifier|},
+  VariableDeclaration,
+>(`var parcelRequire = $parcel$global.PARCEL_REQUIRE_NAME`);
 
 type LinkResult = {|ast: File, referencedAssets: Set<Asset>|};
 
@@ -177,7 +179,7 @@ export function link({
         asset,
         loc,
       } of bundleGraph.getExportedSymbols(entry)) {
-        if (symbol != null) {
+        if (typeof symbol === 'string') {
           let symbols = exportedSymbols.get(symbol);
           let local = exportAs;
           if (symbols) {
@@ -320,7 +322,7 @@ export function link({
         (!isEntry &&
           dep.symbols.hasExportSymbol('*') &&
           needsExportsIdentifierForAsset(
-            bundleGraph.getAssetWithDependency(dep),
+            nullthrows(bundleGraph.getAssetWithDependency(dep)),
           )) ||
         // If the asset is CommonJS and there's an ES6 dependency on `default`, we need the
         // exports identifier to call $parcel$interopDefault.
@@ -396,8 +398,8 @@ export function link({
         // import was deferred
         res = t.objectExpression([]);
       } else {
-        let [asset, symbol, loc] = imported;
-        res = replaceImportNode(asset, symbol, node, ancestors, loc);
+        let [asset, symbol] = imported;
+        res = replaceImportNode(asset, symbol, node, ancestors);
 
         // If the export does not exist, replace with an empty object.
         if (!res) {
@@ -415,7 +417,7 @@ export function link({
       originalName,
       bundle,
     );
-    let res = identifier ? findSymbol(node, identifier) : identifier;
+    let res = identifier != null ? findSymbol(node, identifier) : identifier;
     if (mod.meta.pureExports === false || wrappedAssets.has(mod.id)) {
       res = null;
     }
@@ -478,7 +480,8 @@ export function link({
     }
 
     // if there is a CommonJS export return $id$exports.name
-    if (originalName !== '*') {
+    if (originalName !== '*' && node != null) {
+      // $FlowFixMe
       if (t.isValidIdentifier(originalName, false)) {
         return t.memberExpression(node, t.identifier(originalName));
       } else {
@@ -808,7 +811,7 @@ export function link({
     AssignmentExpression(node, state, ancestors) {
       if (isIdentifier(node.left)) {
         let res = maybeReplaceIdentifier(node.left, ancestors);
-        if (res) {
+        if (isIdentifier(res)) {
           node.left = res;
         }
 
@@ -842,7 +845,7 @@ export function link({
       let name = isIdentifier(property) ? property.name : property.value;
       let {identifier} = resolveSymbol(asset, name, bundle);
 
-      if (identifier == null) {
+      if (!identifier) {
         return;
       }
 
@@ -968,14 +971,16 @@ export function link({
           scope.add('parcelRequire');
         }
 
-        let usedHelpers = [];
+        let usedHelpers: Array<BabelNode> = [];
         for (let name of scope.names) {
           let helper = helpers.get(name);
           if (helper) {
             usedHelpers.push(helper);
           } else if (name === 'parcelRequire') {
             usedHelpers.push(
-              PARCEL_REQUIRE_TEMPLATE({PARCEL_REQUIRE_NAME: parcelRequireName}),
+              PARCEL_REQUIRE_TEMPLATE({
+                PARCEL_REQUIRE_NAME: t.identifier(parcelRequireName),
+              }),
             );
           }
         }

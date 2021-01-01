@@ -142,7 +142,7 @@ export class Bundle implements IBundle {
     );
   }
 
-  hasDependency(dep: IDependency) {
+  hasDependency(dep: IDependency): boolean {
     return this.#bundleGraph.bundleHasDependency(
       this.#bundle,
       dependencyToInternalDependency(dep),

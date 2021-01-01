@@ -8,7 +8,7 @@ import type {
   SourceLocation,
 } from '@parcel/types';
 import type {Node} from '@babel/types';
-import type {Scope} from './scope';
+import type {Scope} from '@parcel/babylon-walk';
 
 export type ExternalModule = {|
   source: ModuleSpecifier,
@@ -25,10 +25,10 @@ export type ExternalBundle = {|
 
 export type OutputFormat = {|
   generateBundleImports(
+    bundleGraph: BundleGraph<NamedBundle>,
     from: NamedBundle,
     external: ExternalBundle,
     scope: Scope,
-    bundleGraph: BundleGraph<NamedBundle>,
   ): Array<Node>,
   generateExternalImport(
     bundle: NamedBundle,
@@ -39,6 +39,7 @@ export type OutputFormat = {|
     bundleGraph: BundleGraph<NamedBundle>,
     bundle: NamedBundle,
     referencedAssets: Set<Asset>,
+    scope: Scope,
     reexports: Set<{|exportAs: string, local: string|}>,
   ): Array<Node>,
   generateMainExport(
