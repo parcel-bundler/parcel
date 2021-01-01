@@ -75,10 +75,7 @@ export class NodeResolverBase<T> {
           main = 'index';
         }
 
-        if (typeof main !== 'string') {
-          throw new Error('invariant: expected string');
-        }
-
+        invariant(typeof main === 'string');
         return path.resolve(dir, main);
       });
   }

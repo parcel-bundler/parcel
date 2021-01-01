@@ -34,7 +34,7 @@ export class NodeResolverSync extends NodeResolverBase<ResolveResult> {
 
     // First try as a file, then as a directory.
     return (
-      this.loadAsFile(id, pkg) || this.loadDirectory(id, pkg) // eslint-disable-line no-return-await
+      this.loadAsFile(id, pkg) || this.loadDirectory(id, pkg)
     );
   }
 
@@ -47,7 +47,6 @@ export class NodeResolverSync extends NodeResolverBase<ResolveResult> {
   }
 
   readPackage(file: FilePath): PackageJSON {
-    // let file = path.join(dir, 'package.json');
     let cached = this.packageCache.get(file);
 
     if (cached) {
