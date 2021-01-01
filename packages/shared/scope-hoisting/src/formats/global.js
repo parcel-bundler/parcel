@@ -1,7 +1,6 @@
 // @flow
 
-import type {Asset, Bundle, BundleGraph, NamedBundle} from '@parcel/types';
-import type {NodePath} from '@babel/traverse';
+import type {Asset, BundleGraph, NamedBundle} from '@parcel/types';
 import type {
   ExpressionStatement,
   Identifier,
@@ -10,7 +9,6 @@ import type {
   StringLiteral,
   VariableDeclaration,
   Expression,
-  Program,
 } from '@babel/types';
 import type {ExternalBundle, ExternalModule} from '../types';
 import type {Scope} from '@parcel/babylon-walk';
