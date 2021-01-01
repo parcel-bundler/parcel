@@ -101,6 +101,56 @@ export const generator = {
     node.type = 'MethodDefinition';
     this.MethodDefinition(node, state);
   },
+  ClassPrivateMethod(node, state) {
+    node.value = {
+      type: 'FunctionExpression',
+      id: node.id,
+      params: node.params,
+      body: node.body,
+      async: node.async,
+      generator: node.generator,
+      expression: node.expression,
+    };
+
+    node.type = 'MethodDefinition';
+    this.MethodDefinition(node, state);
+  },
+  ClassProperty(node, state) {
+    if (node.static) {
+      state.write('static ');
+    }
+
+    if (node.computed) {
+      state.write('[');
+      this[node.key.type](node.key, state);
+      state.write(']');
+    } else {
+      this[node.key.type](node.key, state);
+    }
+
+    if (node.value) {
+      state.write(' = ');
+      this[node.value.type](node.value, state);
+    }
+
+    state.write(';');
+  },
+  ClassPrivateProperty(node, state) {
+    if (node.static) {
+      state.write('static ');
+    }
+
+    this[node.key.type](node.key, state);
+    if (node.value) {
+      state.write(' = ');
+      this[node.value.type](node.value, state);
+    }
+
+    state.write(';');
+  },
+  PrivateName(node, state) {
+    state.write('#' + node.name, node);
+  },
   Import(node, state) {
     // astring doesn't support ImportExpression yet
     state.write('import');
