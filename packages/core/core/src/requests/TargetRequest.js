@@ -602,14 +602,15 @@ function parsePackageDescriptor(
 ): PackageTargetDescriptor {
   validateSchema.diagnostic(
     PACKAGE_DESCRIPTOR_SCHEMA,
-    descriptor,
-    pkgPath,
-    pkgContents,
+    {
+      data: descriptor,
+      source: pkgContents,
+      filePath: pkgPath,
+      prependKey: `/targets/${targetName}`,
+    },
     '@parcel/core',
-    `/targets/${targetName}`,
     `Invalid target descriptor for target "${targetName}"`,
   );
-
   // $FlowFixMe we just verified this
   return descriptor;
 }
