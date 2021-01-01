@@ -7,14 +7,17 @@ import type {
   SourceLocation,
   FilePath,
 } from '@parcel/types';
-import type {SourceLocation as BabelSourceLocation, File as BabelNodeFile} from '@babel/types';
+import type {
+  SourceLocation as BabelSourceLocation,
+  File as BabelNodeFile,
+} from '@babel/types';
 
 import path from 'path';
 import {parse as babelParse} from '@babel/parser';
 import SourceMap from '@parcel/source-map';
 import {relativeUrl} from '@parcel/utils';
 import {babelErrorEnhancer} from './babelErrorUtils';
-import {generate as astringGenerate} from 'astring';
+import {generate as astringGenerate} from '@parcel/astring';
 import {generator} from './generator';
 
 export {babelErrorEnhancer};
@@ -60,6 +63,7 @@ export function generateAST({
   options: PluginOptions,
 |}): {|content: string, map: ?SourceMap|} {
   let map = new SourceMap(options.projectRoot);
+  let mappings = [];
   let generated = astringGenerate(ast.program, {
     generator,
     comments: true,
@@ -67,11 +71,13 @@ export function generateAST({
       ? {
           file: sourceFileName,
           addMapping(mapping) {
-            map.addIndexedMapping(mapping);
+            mappings.push(mapping);
           },
         }
       : null,
   });
+
+  map.addIndexedMappings(mappings);
 
   if (originalSourceMap) {
     map.extends(originalSourceMap.toBuffer());
@@ -79,7 +85,7 @@ export function generateAST({
 
   return {
     content: generated,
-    map
+    map,
   };
 }
 
@@ -98,7 +104,7 @@ export async function generate({
     sourceFileName,
     sourceMaps: !!asset.env.sourceMap,
     originalSourceMap: await asset.getMap(),
-    options
+    options,
   });
 }
 

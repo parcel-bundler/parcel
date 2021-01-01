@@ -1,4 +1,4 @@
-import {baseGenerator} from 'astring';
+import {baseGenerator} from '@parcel/astring';
 
 // Convert Babel's AST format to ESTree on the fly.
 // See https://babeljs.io/docs/en/babel-parser#output
@@ -61,7 +61,10 @@ export const generator = {
   ObjectProperty(node, state) {
     node.type = 'Property';
     node.kind = 'init';
-    if (node.shorthand && node.value.type !== 'Identifier' || node.value.name !== node.key.name) {
+    if (
+      (node.shorthand && node.value.type !== 'Identifier') ||
+      node.value.name !== node.key.name
+    ) {
       node.shorthand = false;
     }
     this.Property(node, state);
@@ -109,9 +112,9 @@ export const generator = {
 // TODO: contribute to astring.
 for (let key in generator) {
   let orig = generator[key];
-  generator[key] = function (node, state) {
+  generator[key] = function(node, state) {
     if (node.leadingComments && node.leadingComments.length > 0) {
-      formatComments(state, node.leadingComments)
+      formatComments(state, node.leadingComments);
     }
     orig.call(this, node, state);
   };
@@ -135,10 +138,10 @@ function formatComments(state, comments) {
   // Line comments will end with `"\n"` regardless of the value of `lineEnd`.
   // Expects to start on a new unindented line.
   const indent = state.indent.repeat(state.indentLevel);
-  const { length } = comments
+  const {length} = comments;
   for (let i = 0; i < length; i++) {
-    const comment = comments[i]
-    state.write(indent)
+    const comment = comments[i];
+    state.write(indent);
     if (comment.type === 'CommentLine') {
       // Line comment
       state.write('// ' + comment.value.trim() + state.lineEnd);
@@ -159,14 +162,14 @@ function formatComments(state, comments) {
 
 function reindent(state, text, indent, lineEnd) {
   // Writes into `state` the `text` string reindented with the provided `indent`.
-  const lines = text.split('\n')
-  const end = lines.length - 1
-  state.write(lines[0].trim())
+  const lines = text.split('\n');
+  const end = lines.length - 1;
+  state.write(lines[0].trim());
   if (end > 0) {
-    state.write(lineEnd)
+    state.write(lineEnd);
     for (let i = 1; i < end; i++) {
-      state.write(indent + lines[i].trim() + lineEnd)
+      state.write(indent + lines[i].trim() + lineEnd);
     }
-    state.write(indent + lines[end].trim())
+    state.write(indent + lines[end].trim());
   }
 }

@@ -102,11 +102,11 @@ export function generate({
   let {content, map} = generateAST({
     ast,
     sourceMaps: !!bundle.env.sourceMap,
-    options
+    options,
   });
 
   return {
     contents: content,
-    map
+    map,
   };
 }
