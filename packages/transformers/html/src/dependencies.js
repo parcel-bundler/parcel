@@ -119,8 +119,12 @@ function getAttrDepHandler(attr) {
   return (asset, src, opts) => asset.addURLDependency(src, opts);
 }
 
-export default function collectDependencies(asset: MutableAsset, ast: AST) {
+export default function collectDependencies(
+  asset: MutableAsset,
+  ast: AST,
+): boolean {
   let isDirty = false;
+  let hasScripts = false;
   PostHTML().walk.call(ast.program, node => {
     let {tag, attrs} = node;
     if (!attrs) {
@@ -176,6 +180,10 @@ export default function collectDependencies(asset: MutableAsset, ast: AST) {
             : depOptionsHandler && depOptionsHandler[attr];
         attrs[attr] = depHandler(asset, attrs[attr], depOptions);
         isDirty = true;
+
+        if (node.tag === 'script') {
+          hasScripts = true;
+        }
       }
     }
 
@@ -185,4 +193,6 @@ export default function collectDependencies(asset: MutableAsset, ast: AST) {
 
     return node;
   });
+
+  return hasScripts;
 }
