@@ -823,7 +823,8 @@ export const baseGenerator = {
       }
       if (
         EXPRESSIONS_PRECEDENCE[node.argument.type] <
-        EXPRESSIONS_PRECEDENCE.UnaryExpression
+        EXPRESSIONS_PRECEDENCE.UnaryExpression ||
+        node.argument.prefix
       ) {
         state.write('(');
         this[node.argument.type](node.argument, state);
