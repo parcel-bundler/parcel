@@ -5,6 +5,7 @@ import type {FileSystem} from '@parcel/fs';
 // $FlowFixMe
 import Module from 'module';
 import path from 'path';
+import invariant from 'assert';
 
 const builtins = {};
 for (let builtin of Module.builtinModules) {
