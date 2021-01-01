@@ -299,6 +299,7 @@ export default class UncommittedAsset {
       // $FlowFixMe "convert" the $ReadOnlyMaps to the interal mutable one
       symbols,
       env: mergeEnvironments(this.value.env, env),
+      sourceAssetId: this.value.id,
       sourcePath: this.value.filePath,
     });
     let existing = this.value.dependencies.get(dep.id);

@@ -98,6 +98,11 @@ export default class Dependency implements IDependency {
     return target ? new Target(target) : null;
   }
 
+  get sourceAssetId(): ?string {
+    // TODO: does this need to be public?
+    return this.#dep.sourceAssetId;
+  }
+
   get sourcePath(): ?string {
     // TODO: does this need to be public?
     return this.#dep.sourcePath;

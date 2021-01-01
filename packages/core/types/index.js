@@ -463,6 +463,8 @@ export interface Dependency {
   +meta: Meta;
   +target: ?Target;
   /** Used for error messages, the importer. */
+  +sourceAssetId: ?string;
+  /** Used for error messages, the importer. */
   +sourcePath: ?string;
   +resolveFrom: ?string;
   /** a named pipeline (if the <code>moduleSpecifier</code> didn't specify one). */

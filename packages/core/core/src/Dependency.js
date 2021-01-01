@@ -11,6 +11,7 @@ import type {Dependency, Environment, Target} from './types';
 type DependencyOpts = {|
   id?: string,
   sourcePath?: string,
+  sourceAssetId?: string,
   moduleSpecifier: ModuleSpecifier,
   isAsync?: boolean,
   isEntry?: boolean,
@@ -33,6 +34,7 @@ export function createDependency(opts: DependencyOpts): Dependency {
   let id =
     opts.id ||
     md5FromOrderedObject({
+      sourceAssetId: opts.sourceAssetId,
       moduleSpecifier: opts.moduleSpecifier,
       env: opts.env.id,
       target: opts.target,
