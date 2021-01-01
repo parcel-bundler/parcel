@@ -17,7 +17,9 @@ import {parse as babelParse} from '@babel/parser';
 import SourceMap from '@parcel/source-map';
 import {relativeUrl} from '@parcel/utils';
 import {babelErrorEnhancer} from './babelErrorUtils';
+// $FlowFixMe
 import {generate as astringGenerate} from '@parcel/astring';
+// $FlowFixMe
 import {generator} from './generator';
 
 export {babelErrorEnhancer};
