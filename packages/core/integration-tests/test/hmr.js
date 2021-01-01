@@ -11,7 +11,6 @@ import {
 } from '@parcel/test-utils';
 import WebSocket from 'ws';
 import json5 from 'json5';
-// flowlint-next-line untyped-import:off
 import getPort from 'get-port';
 // flowlint-next-line untyped-import:off
 import JSDOM from 'jsdom';

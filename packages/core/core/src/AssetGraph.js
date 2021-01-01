@@ -17,7 +17,11 @@ import type {
 
 import invariant from 'assert';
 import crypto from 'crypto';
-import {md5FromObject} from '@parcel/utils';
+import {
+  md5FromObject,
+  md5FromOrderedObject,
+  objectSortedEntries,
+} from '@parcel/utils';
 import nullthrows from 'nullthrows';
 import Graph, {type GraphOpts} from './Graph';
 import {createDependency} from './Dependency';
@@ -55,12 +59,15 @@ export function nodeFromDep(dep: Dependency): DependencyNode {
 
 export function nodeFromAssetGroup(assetGroup: AssetGroup): AssetGroupNode {
   return {
-    id: md5FromObject({
-      ...assetGroup,
-      // only influences building the asset graph
-      canDefer: undefined,
-      // if only the isURL property is different, no need to re-run transformation.
-      isURL: undefined,
+    id: md5FromOrderedObject({
+      filePath: assetGroup.filePath,
+      env: assetGroup.env.id,
+      isSource: assetGroup.isSource,
+      sideEffects: assetGroup.sideEffects,
+      code: assetGroup.code,
+      pipeline: assetGroup.pipeline,
+      query: assetGroup.query ? objectSortedEntries(assetGroup.query) : null,
+      invalidations: assetGroup.invalidations,
     }),
     type: 'asset_group',
     value: assetGroup,
@@ -159,7 +166,7 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     if (this.isOrphanedNode(node) && node.type === 'dependency') {
       let children = this.getNodesConnectedFrom(node);
       for (let n of children) {
-        invariant(n.type === 'asset_group');
+        invariant(n.type === 'asset_group' || n.type === 'asset');
         n.usedSymbolsDownDirty = true;
       }
     }

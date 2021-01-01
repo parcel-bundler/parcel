@@ -16,12 +16,12 @@
   "main": "lib/CSSTransformer.js",
   "source": "src/CSSTransformer.js",
   "engines": {
-    "node": ">= 10.0.0",
+    "node": ">= 12.0.0",
     "parcel": "^2.0.0-alpha.1.1"
   },
   "dependencies": {
     "@parcel/plugin": "2.0.0-beta.1",
-    "@parcel/source-map": "2.0.0-alpha.4.18",
+    "@parcel/source-map": "2.0.0-alpha.4.19",
     "@parcel/utils": "2.0.0-beta.1",
     "postcss": "^8.0.5",
     "postcss-value-parser": "^4.1.0",

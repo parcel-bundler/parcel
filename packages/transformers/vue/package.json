@@ -16,19 +16,19 @@
   "main": "lib/VueTransformer.js",
   "source": "src/VueTransformer.js",
   "engines": {
-    "node": ">= 10.0.0",
+    "node": ">= 12.0.0",
     "parcel": "^2.0.0-alpha.1.1"
   },
   "dependencies": {
     "@parcel/diagnostic": "^2.0.0-beta.1",
     "@parcel/plugin": "2.0.0-beta.1",
-    "@parcel/source-map": "2.0.0-alpha.4.18",
+    "@parcel/source-map": "2.0.0-alpha.4.19",
     "@parcel/utils": "^2.0.0-beta.1",
     "nullthrows": "^1.1.1",
     "semver": "^5.4.1"
   },
   "devDependencies": {
-    "@vue/compiler-sfc": "^3.0.0-beta.20",
-    "vue": "^3.0.0-beta.20"
+    "@vue/compiler-sfc": "^3.0.0",
+    "vue": "^3.0.0"
   }
 }
