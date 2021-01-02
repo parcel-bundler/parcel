@@ -143,6 +143,7 @@ export type PackageTargetDescriptor = {|
 export type TargetDescriptor = {|
   ...PackageTargetDescriptor,
   +distDir: FilePath,
+  +distEntry?: FilePath,
 |};
 
 /**
@@ -159,7 +160,7 @@ export type EnvironmentOpts = {|
   +isLibrary?: boolean,
   +minify?: boolean,
   +scopeHoist?: boolean,
-  +sourceMap?: ?TargetSourceMapOptions
+  +sourceMap?: ?TargetSourceMapOptions,
 |};
 
 /**
@@ -241,6 +242,7 @@ export type PackageJSON = {
   devDependencies?: PackageDependencies,
   peerDependencies?: PackageDependencies,
   sideEffects?: boolean | FilePath | Array<FilePath>,
+  bin?: string | {|[string]: FilePath|},
   ...
 };
 
@@ -417,6 +419,7 @@ export type DependencyOptions = {|
   +loc?: SourceLocation,
   +env?: EnvironmentOpts,
   +meta?: Meta,
+  +resolveFrom?: FilePath,
   +target?: Target,
   +symbols?: $ReadOnlyMap<
     Symbol,
@@ -451,6 +454,7 @@ export interface Dependency {
   +sourceAssetId: ?string;
   /** Used for error messages, the importer. */
   +sourcePath: ?string;
+  +resolveFrom: ?string;
   /** a named pipeline (if the <code>moduleSpecifier</code> didn't specify one). */
   +pipeline: ?string;
 
@@ -552,7 +556,6 @@ export interface MutableAsset extends BaseAsset {
   +symbols: MutableAssetSymbols;
 
   isASTDirty(): boolean;
-  /** Returns <code>null</code> if there is no AST. */
   getAST(): Promise<?AST>;
   setAST(AST): void;
   setBuffer(Buffer): void;
@@ -568,9 +571,6 @@ export interface MutableAsset extends BaseAsset {
  * @section transformer
  */
 export interface Asset extends BaseAsset {
-  /** Throws if there is no AST.*/
-  getAST(): Promise<?AST>;
-
   +stats: Stats;
 }
 
@@ -637,6 +637,7 @@ export type TransformerResult = {|
   +dependencies?: $ReadOnlyArray<DependencyOptions>,
   +env?: EnvironmentOpts,
   +filePath?: FilePath,
+  +query?: ?QueryParameters,
   +includedFiles?: $ReadOnlyArray<File>,
   +isInline?: boolean,
   +isIsolated?: boolean,
@@ -663,7 +664,7 @@ export type ResolveFn = (from: FilePath, to: string) => Promise<FilePath>;
  */
 type ResolveConfigFn = (
   configNames: Array<FilePath>,
-) => Promise<FilePath | null>;
+) => Promise<?FilePath>;
 
 /**
  * @section validator
@@ -671,7 +672,7 @@ type ResolveConfigFn = (
 type ResolveConfigWithPathFn = (
   configNames: Array<FilePath>,
   assetFilePath: string,
-) => Promise<FilePath | null>;
+) => Promise<?FilePath>;
 
 /**
  * @section validator
@@ -933,9 +934,8 @@ export interface NamedBundle extends Bundle {
  * @section bundler
  */
 export type BundleGroup = {|
-  target: Target,
-  entryAssetId: string,
-  bundleIds: Array<string>,
+  +target: Target,
+  +entryAssetId: string,
 |};
 
 /**
@@ -955,7 +955,7 @@ export interface MutableBundleGraph extends BundleGraph<Bundle> {
     shouldSkipDependency?: (Dependency) => boolean,
   ): void;
   addBundleToBundleGroup(Bundle, BundleGroup): void;
-  createAssetReference(Dependency, Asset): void;
+  createAssetReference(Dependency, Asset, Bundle): void;
   createBundleReference(Bundle, Bundle): void;
   createBundle(CreateBundleOpts): Bundle;
   /** Turns an edge (Dependency -> Asset-s) into (Dependency -> BundleGroup -> Asset-s) */
@@ -989,10 +989,11 @@ export interface BundleGraph<TBundle: Bundle> {
   /** Child bundles are Bundles that might be loaded by an asset in the bundle */
   getChildBundles(bundle: Bundle): Array<TBundle>;
   getParentBundles(bundle: Bundle): Array<TBundle>;
-  /** See BundleGroup */
-  getSiblingBundles(bundle: Bundle): Array<TBundle>;
   /** Bundles that are referenced (by filename) */
-  getReferencedBundles(bundle: Bundle): Array<TBundle>;
+  getReferencedBundles(
+    bundle: Bundle,
+    opts?: {|recursive: boolean|},
+  ): Array<TBundle>;
   /** Get the dependencies that the asset requires */
   getDependencies(asset: Asset): Array<Dependency>;
   /** Get the dependencies that require the asset */
@@ -1018,7 +1019,6 @@ export interface BundleGraph<TBundle: Bundle> {
   /** Whether the asset is already included in a compatible (regarding EnvironmentContext) parent bundle. */
   isAssetReachableFromBundle(asset: Asset, bundle: Bundle): boolean;
   findReachableBundleWithAsset(bundle: Bundle, asset: Asset): ?TBundle;
-  isAssetReferenced(asset: Asset): boolean;
   isAssetReferencedByDependant(bundle: Bundle, asset: Asset): boolean;
   hasParentBundleOfType(bundle: Bundle, type: string): boolean;
   /**

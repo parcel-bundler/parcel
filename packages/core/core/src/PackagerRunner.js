@@ -19,7 +19,7 @@ import type {FileSystem, FileOptions} from '@parcel/fs';
 
 import invariant from 'assert';
 import {
-  md5FromObject,
+  md5FromOrderedObject,
   md5FromString,
   blobToStream,
   TapStream,
@@ -101,9 +101,15 @@ export default class PackagerRunner {
         };
   }
 
-  async writeBundles(bundleGraph: InternalBundleGraph) {
+  async writeBundles(
+    bundleGraph: InternalBundleGraph,
+    serializedBundleGraph: Buffer,
+  ) {
     let farm = nullthrows(this.farm);
-    let {ref, dispose} = await farm.createSharedReference(bundleGraph);
+    let {ref, dispose} = await farm.createSharedReference(
+      bundleGraph,
+      serializedBundleGraph,
+    );
 
     let bundleInfoMap: {|
       [string]: {|
@@ -475,7 +481,7 @@ export default class PackagerRunner {
 
     // TODO: add third party configs to the cache key
     let {publicUrl} = bundle.target;
-    return md5FromObject({
+    return md5FromOrderedObject({
       parcelVersion: PARCEL_VERSION,
       packager,
       optimizers,

@@ -17,7 +17,7 @@
   "main": "lib/ServerReporter.js",
   "source": "src/ServerReporter.js",
   "engines": {
-    "node": ">= 6.0.0",
+    "node": ">= 12.0.0",
     "parcel": "^2.0.0-alpha.1.1"
   },
   "dependencies": {
@@ -28,7 +28,7 @@
     "ejs": "^2.6.1",
     "http-proxy-middleware": "^1.0.0",
     "nullthrows": "^1.1.1",
-    "ws": "^6.2.0"
+    "ws": "^7.0.0"
   },
   "devDependencies": {
     "@parcel/babel-preset": "2.0.0-beta.1",

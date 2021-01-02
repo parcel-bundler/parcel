@@ -76,6 +76,7 @@ export default (new Reporter({
         }
         if (hmr && hmrServer) {
           hmrServer.stop();
+          // $FlowFixMe[prop-missing]
           hmrServers.delete(hmrServer.wss.options.port);
         }
         break;

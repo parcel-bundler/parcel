@@ -110,7 +110,7 @@ export function link({
   // of each bundle group pointing at the sibling bundles. These can be
   // picked up by another bundler later at which point runtimes will be added.
   if (bundle.env.isLibrary) {
-    let bundles = bundleGraph.getSiblingBundles(bundle);
+    let bundles = bundleGraph.getReferencedBundles(bundle);
     for (let b of bundles) {
       importedFiles.set(nullthrows(b.filePath), {
         bundle: b,
@@ -530,6 +530,20 @@ export function link({
               }
             } else if (mod.type === 'js') {
               node = addBundleImport(mod, path);
+            }
+
+            // async dependency that was internalized
+            if (
+              bundleGraph.resolveAsyncDependency(dep, bundle)?.type === 'asset'
+            ) {
+              node = t.callExpression(
+                t.memberExpression(
+                  t.identifier('Promise'),
+                  t.identifier('resolve'),
+                ),
+                // $FlowFixMe[incompatible-call]
+                [node],
+              );
             }
           }
         }
