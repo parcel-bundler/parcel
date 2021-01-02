@@ -1,0 +1,5 @@
+{
+  "name": "library",
+  "main": "src/index.js",
+  "private": true
+}

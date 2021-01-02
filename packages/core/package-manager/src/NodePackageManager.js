@@ -9,7 +9,6 @@ import type {
 } from './types';
 import type {ResolveResult} from '@parcel/utils';
 
-import {resolve, resolveSync} from '@parcel/utils';
 import {registerSerializableClass} from '@parcel/core';
 import ThrowableDiagnostic, {
   encodeJSONKeyComponent,
@@ -24,6 +23,8 @@ import semver from 'semver';
 import {getConflictingLocalDependencies} from './utils';
 import {installPackage} from './installPackage';
 import pkg from '../package.json';
+import {NodeResolver} from './NodeResolver';
+import {NodeResolverSync} from './NodeResolverSync';
 
 // This implements a package manager for Node by monkey patching the Node require
 // algorithm so that it uses the specified FileSystem instead of the native one.
@@ -34,10 +35,14 @@ export class NodePackageManager implements PackageManager {
   fs: FileSystem;
   installer: ?PackageInstaller;
   cache: Map<ModuleSpecifier, ResolveResult> = new Map();
+  resolver: NodeResolver;
+  syncResolver: NodeResolverSync;
 
   constructor(fs: FileSystem, installer?: ?PackageInstaller) {
     this.fs = fs;
     this.installer = installer;
+    this.resolver = new NodeResolver(this.fs);
+    this.syncResolver = new NodeResolverSync(this.fs);
   }
 
   static deserialize(opts: any): NodePackageManager {
@@ -120,10 +125,7 @@ export class NodePackageManager implements PackageManager {
     let resolved = this.cache.get(key);
     if (!resolved) {
       try {
-        resolved = await resolve(this.fs, name, {
-          basedir,
-          extensions: Object.keys(Module._extensions),
-        });
+        resolved = await this.resolver.resolve(name, basedir);
       } catch (e) {
         if (e.code !== 'MODULE_NOT_FOUND' || options?.autoinstall !== true) {
           throw e;
@@ -227,10 +229,7 @@ export class NodePackageManager implements PackageManager {
 
   resolveSync(name: ModuleSpecifier, from: FilePath): ResolveResult {
     let basedir = path.dirname(from);
-    return resolveSync(this.fs, name, {
-      basedir,
-      extensions: Object.keys(Module._extensions),
-    });
+    return this.syncResolver.resolve(name, basedir);
   }
 
   async install(
