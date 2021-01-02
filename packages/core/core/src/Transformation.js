@@ -403,7 +403,7 @@ export default class Transformation {
           .filter(
             asset =>
               asset.ast != null &&
-              !(asset.value.type === 'js' && asset.value.env.scopeHoist),
+              !(asset.value.type === 'js' && asset.value.env.shouldScopeHoist),
           )
           .map(async asset => {
             if (asset.isASTDirty) {
@@ -421,7 +421,7 @@ export default class Transformation {
   }
 
   async readFromCache(cacheKey: string): Promise<?Array<UncommittedAsset>> {
-    if (this.options.disableCache || this.request.code != null) {
+    if (this.options.shouldDisableCache || this.request.code != null) {
       return null;
     }
 

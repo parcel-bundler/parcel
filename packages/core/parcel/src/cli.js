@@ -352,7 +352,7 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
     };
   }
 
-  let serve = false;
+  let serveOptions = false;
   let {host} = command;
 
   // Ensure port is valid and available
@@ -376,7 +376,7 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
   if (command.name() === 'serve') {
     let {publicUrl} = command;
 
-    serve = {
+    serveOptions = {
       https,
       port,
       host,
@@ -384,33 +384,36 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
     };
   }
 
-  let hmr = null;
+  let hmrOptions = null;
   if (command.name() !== 'build' && command.hmr !== false) {
     let hmrport = command.hmrPort ? parsePort(command.hmrPort) : port;
 
-    hmr = {port: hmrport, host};
+    hmrOptions = {port: hmrport, host};
   }
 
   let mode = command.name() === 'build' ? 'production' : 'development';
   return {
-    disableCache: command.cache === false,
+    shouldDisableCache: command.cache === false,
     cacheDir: command.cacheDir,
     mode,
-    minify: command.minify != null ? command.minify : mode === 'production',
-    sourceMaps: command.sourceMaps ?? true,
-    scopeHoist: command.scopeHoist,
-    publicUrl: command.publicUrl,
-    distDir: command.distDir,
-    hot: hmr,
-    contentHash: hmr ? false : command.contentHash,
-    serve,
+    hmrOptions: hmrOptions || false,
+    shouldContentHash: hmrOptions ? false : command.contentHash,
+    serveOptions,
     targets: command.target.length > 0 ? command.target : null,
-    autoinstall: command.autoinstall ?? true,
+    shouldAutoInstall: command.autoinstall ?? true,
     logLevel: command.logLevel,
-    profile: command.profile,
+    shouldProfile: command.profile,
     detailedReport: command.detailedReport,
     env: {
       NODE_ENV: nodeEnv,
+    },
+    defaultTargetOptions: {
+      shouldOptimize:
+        command.minify != null ? command.minify : mode === 'production',
+      shouldScopeHoist: command.scopeHoist,
+      sourceMaps: command.sourceMaps ?? true,
+      publicUrl: command.publicUrl,
+      distDir: command.distDir,
     },
   };
 }

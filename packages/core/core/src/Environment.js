@@ -1,5 +1,5 @@
 // @flow
-import type {EnvironmentOpts} from '@parcel/types';
+import type {EnvironmentOptions} from '@parcel/types';
 import type {Environment} from './types';
 import {md5FromOrderedObject} from '@parcel/utils';
 
@@ -13,11 +13,11 @@ export function createEnvironment({
   engines,
   includeNodeModules,
   outputFormat,
-  minify = false,
+  shouldOptimize = false,
   isLibrary = false,
-  scopeHoist = false,
+  shouldScopeHoist = false,
   sourceMap,
-}: EnvironmentOpts = {}): Environment {
+}: EnvironmentOptions = {}): Environment {
   if (context == null) {
     if (engines?.node) {
       context = 'node';
@@ -85,8 +85,8 @@ export function createEnvironment({
     includeNodeModules,
     outputFormat,
     isLibrary,
-    minify,
-    scopeHoist,
+    shouldOptimize,
+    shouldScopeHoist,
     sourceMap,
   };
 
@@ -96,7 +96,7 @@ export function createEnvironment({
 
 export function mergeEnvironments(
   a: Environment,
-  b: ?EnvironmentOpts,
+  b: ?EnvironmentOptions,
 ): Environment {
   // If merging the same object, avoid copying.
   if (a === b || !b) {
@@ -118,7 +118,8 @@ function getEnvironmentHash(env: Environment): string {
     includeNodeModules: env.includeNodeModules,
     outputFormat: env.outputFormat,
     isLibrary: env.isLibrary,
-    scopeHoist: env.scopeHoist,
+    shouldOptimize: env.shouldOptimize,
+    shouldScopeHoist: env.shouldScopeHoist,
     sourceMap: env.sourceMap,
   });
 }

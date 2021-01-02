@@ -4,7 +4,7 @@ import type {
   AsyncSubscription,
   BuildEvent,
   BuildSuccessEvent,
-  EnvironmentOpts,
+  EnvironmentOptions,
   FilePath,
   InitialParcelOptions,
   ModuleSpecifier,
@@ -96,7 +96,7 @@ export default class Parcel {
       config,
       resolvedOptions.packageManager,
       resolvedOptions.inputFS,
-      resolvedOptions.autoinstall,
+      resolvedOptions.shouldAutoInstall,
     );
 
     if (this.#initialOptions.workerFarm) {
@@ -106,7 +106,7 @@ export default class Parcel {
       this.#farm = this.#initialOptions.workerFarm;
     } else {
       this.#farm = createWorkerFarm({
-        patchConsole: resolvedOptions.patchConsole,
+        patchConsole: resolvedOptions.shouldPatchConsole,
       });
     }
 
@@ -283,7 +283,7 @@ export default class Parcel {
   |} = {}): Promise<BuildEvent> {
     let options = nullthrows(this.#resolvedOptions);
     try {
-      if (options.profile) {
+      if (options.shouldProfile) {
         await this.startProfiling();
       }
       this.#reporterRunner.report({
@@ -352,7 +352,7 @@ export default class Parcel {
     code,
   }: {|
     filePath: FilePath,
-    env: EnvironmentOpts,
+    env: EnvironmentOptions,
     code?: string,
   |}): Promise<AssetRequestResult> {
     let [result] = await Promise.all([
@@ -375,7 +375,7 @@ export default class Parcel {
   }: {|
     moduleSpecifier: ModuleSpecifier,
     sourcePath: FilePath,
-    env: EnvironmentOpts,
+    env: EnvironmentOptions,
   |}): Promise<FilePath> {
     let resolved = await this.#assetGraphBuilder.resolverRunner.resolve(
       createDependency({

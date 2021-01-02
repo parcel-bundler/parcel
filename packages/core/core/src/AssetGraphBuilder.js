@@ -205,7 +205,7 @@ export default class AssetGraphBuilder extends EventEmitter {
           return dep;
         }),
       );
-    if (entryDependencies.some(d => d.value.env.scopeHoist)) {
+    if (entryDependencies.some(d => d.value.env.shouldScopeHoist)) {
       this.propagateSymbols();
     }
     dumpToGraphViz(this.assetGraph, this.name);
@@ -682,7 +682,7 @@ export default class AssetGraphBuilder extends EventEmitter {
       processedConfig,
       this.options.packageManager,
       this.options.inputFS,
-      this.options.autoinstall,
+      this.options.shouldAutoInstall,
     );
     let trackedRequestsDesc = this.assetRequests.filter(request => {
       return config.getValidatorNames(request.filePath).length > 0;
@@ -818,7 +818,7 @@ export default class AssetGraphBuilder extends EventEmitter {
   }
 
   async readFromCache(): Promise<?Array<Event>> {
-    if (this.options.disableCache) {
+    if (this.options.shouldDisableCache) {
       return null;
     }
 
@@ -845,7 +845,7 @@ export default class AssetGraphBuilder extends EventEmitter {
   }
 
   async writeToCache() {
-    if (this.options.disableCache) {
+    if (this.options.shouldDisableCache) {
       return;
     }
 

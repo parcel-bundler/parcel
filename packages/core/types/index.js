@@ -14,8 +14,8 @@ import type {AST as _AST, ConfigResult as _ConfigResult} from './unsafe';
 export type AST = _AST;
 export type ConfigResult = _ConfigResult;
 /** Plugin-specific config result, <code>any</code> */
-export type ConfigResultWithFilePath = {|
-  contents: ConfigResult,
+export type ConfigResultWithFilePath<T> = {|
+  contents: T,
   filePath: FilePath,
 |};
 /** <code>process.env</code> */
@@ -131,8 +131,8 @@ export type PackageTargetDescriptor = {|
   +distDir?: FilePath,
   +sourceMap?: boolean | TargetSourceMapOptions,
   +isLibrary?: boolean,
-  +minify?: boolean,
-  +scopeHoist?: boolean,
+  +shouldOptimize?: boolean,
+  +shouldScopeHoist?: boolean,
 |};
 
 /**
@@ -149,7 +149,7 @@ export type TargetDescriptor = {|
 /**
  * This is used when creating an Environment (see that).
  */
-export type EnvironmentOpts = {|
+export type EnvironmentOptions = {|
   +context?: EnvironmentContext,
   +engines?: Engines,
   +includeNodeModules?:
@@ -158,8 +158,8 @@ export type EnvironmentOpts = {|
     | {[PackageName]: boolean, ...},
   +outputFormat?: OutputFormat,
   +isLibrary?: boolean,
-  +minify?: boolean,
-  +scopeHoist?: boolean,
+  +shouldOptimize?: boolean,
+  +shouldScopeHoist?: boolean,
   +sourceMap?: ?TargetSourceMapOptions,
 |};
 
@@ -197,10 +197,10 @@ export interface Environment {
   +outputFormat: OutputFormat;
   /** Whether this is a library build (e.g. less loaders) */
   +isLibrary: boolean;
-  /** Whether the output should be minified. */
-  +minify: boolean;
+  /** Whether the output should be optimized. */
+  +shouldOptimize: boolean;
   /** Whether scope hoisting is enabled. */
-  +scopeHoist: boolean;
+  +shouldScopeHoist: boolean;
   +sourceMap: ?TargetSourceMapOptions;
 
   /** Whether <code>context</code> specifies a browser context. */
@@ -250,36 +250,45 @@ export type LogLevel = 'none' | 'error' | 'warn' | 'info' | 'verbose';
 export type BuildMode = 'development' | 'production' | string;
 
 export type InitialParcelOptions = {|
-  +entries?: FilePath | Array<FilePath>,
+  // TODO: Remove entryRoot and config?
   +entryRoot?: FilePath,
   +config?: ModuleSpecifier,
+
+  +entries?: FilePath | Array<FilePath>,
+  +projectRoot?: FilePath,
   +defaultConfig?: ModuleSpecifier,
   +env?: EnvMap,
   +targets?: ?(Array<string> | {+[string]: TargetDescriptor, ...}),
 
-  +disableCache?: boolean,
+  +shouldDisableCache?: boolean,
   +cacheDir?: FilePath,
-  +killWorkers?: boolean,
   +mode?: BuildMode,
-  +minify?: boolean,
-  +scopeHoist?: boolean,
-  +sourceMaps?: boolean,
-  +publicUrl?: string,
-  +distDir?: FilePath,
-  +hot?: ?HMROptions,
-  +contentHash?: boolean,
-  +serve?: InitialServerOptions | false,
-  +autoinstall?: boolean,
+  +defaultTargetOptions?: {|
+    +shouldOptimize?: boolean,
+    +shouldScopeHoist?: boolean,
+    +sourceMaps?: boolean | TargetSourceMapOptions,
+    +publicUrl?: string,
+    +distDir?: FilePath,
+    +engines?: Engines,
+  |},
+  +hmrOptions?: ?HMROptions | false,
+  +shouldContentHash?: boolean,
+  +serveOptions?: InitialServerOptions | false,
+  +shouldAutoInstall?: boolean,
   +logLevel?: LogLevel,
-  +profile?: boolean,
-  +patchConsole?: boolean,
+  +shouldProfile?: boolean,
+  +shouldPatchConsole?: boolean,
 
   +inputFS?: FileSystem,
   +outputFS?: FileSystem,
   +workerFarm?: WorkerFarm,
   +packageManager?: PackageManager,
   +defaultEngines?: Engines,
-  +detailedReport?: number | boolean,
+  +detailedReport?:
+    | boolean
+    | {|
+        assetsPerBundle?: number,
+      |},
 
   // contentHash
   // throwErrors
@@ -417,7 +426,7 @@ export type DependencyOptions = {|
   +isURL?: boolean,
   +isIsolated?: boolean,
   +loc?: SourceLocation,
-  +env?: EnvironmentOpts,
+  +env?: EnvironmentOptions,
   +meta?: Meta,
   +resolveFrom?: FilePath,
   +target?: Target,
@@ -563,7 +572,7 @@ export interface MutableAsset extends BaseAsset {
   setCode(string): void;
   /** Throws if the AST is dirty (meaning: this won't implicity stringify the AST). */
   getCode(): Promise<string>;
-  setEnvironment(opts: EnvironmentOpts): void;
+  setEnvironment(opts: EnvironmentOptions): void;
   setMap(?SourceMap): void;
   setStream(Readable): void;
 }
@@ -639,7 +648,7 @@ export type TransformerResult = {|
   +ast?: ?AST,
   +content?: ?Blob,
   +dependencies?: $ReadOnlyArray<DependencyOptions>,
-  +env?: EnvironmentOpts,
+  +env?: EnvironmentOptions,
   +filePath?: FilePath,
   +query?: ?QueryParameters,
   +includedFiles?: $ReadOnlyArray<File>,
@@ -666,9 +675,7 @@ export type ResolveFn = (from: FilePath, to: string) => Promise<FilePath>;
 /**
  * @section validator
  */
-type ResolveConfigFn = (
-  configNames: Array<FilePath>,
-) => Promise<?FilePath>;
+type ResolveConfigFn = (configNames: Array<FilePath>) => Promise<?FilePath>;
 
 /**
  * @section validator
