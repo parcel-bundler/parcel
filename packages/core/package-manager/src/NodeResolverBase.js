@@ -5,6 +5,7 @@ import type {FileSystem} from '@parcel/fs';
 // $FlowFixMe
 import Module from 'module';
 import path from 'path';
+import invariant from 'assert';
 
 const builtins = {};
 for (let builtin of Module.builtinModules) {
@@ -75,10 +76,7 @@ export class NodeResolverBase<T> {
           main = 'index';
         }
 
-        if (typeof main !== 'string') {
-          throw new Error('invariant: expected string');
-        }
-
+        invariant(typeof main === 'string');
         return path.resolve(dir, main);
       });
   }

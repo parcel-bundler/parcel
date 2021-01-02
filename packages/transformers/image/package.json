@@ -12,7 +12,7 @@
   "main": "lib/ImageTransformer.js",
   "source": "src/ImageTransformer.js",
   "engines": {
-    "node": ">= 10.0.0",
+    "node": ">= 12.0.0",
     "parcel": "^2.0.0-beta.1"
   },
   "dependencies": {

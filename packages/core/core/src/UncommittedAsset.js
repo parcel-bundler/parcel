@@ -351,6 +351,7 @@ export default class UncommittedAsset {
         hash: this.value.hash,
         filePath: this.value.filePath,
         type: result.type,
+        query: result.query,
         isIsolated: result.isIsolated ?? this.value.isIsolated,
         isInline: result.isInline ?? this.value.isInline,
         isSplittable: result.isSplittable ?? this.value.isSplittable,

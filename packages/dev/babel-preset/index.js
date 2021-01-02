@@ -5,7 +5,7 @@ module.exports = () => ({
       {
         modules: false,
         targets: {
-          node: 10,
+          node: 12,
         },
       },
     ],

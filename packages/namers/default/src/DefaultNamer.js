@@ -129,6 +129,9 @@ function nameFromContent(
     while (COMMON_NAMES.has(name)) {
       entryFilePath = path.dirname(entryFilePath);
       name = path.basename(entryFilePath);
+      if (name.startsWith('.')) {
+        name = name.replace('.', '');
+      }
     }
 
     return name;
