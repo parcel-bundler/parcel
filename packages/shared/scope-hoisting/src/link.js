@@ -204,7 +204,7 @@ export function link({
             entry.filePath,
             loc,
           );
-        } else {
+        } else if (symbol !== false) {
           let relativePath = relative(options.projectRoot, asset.filePath);
           throw getThrowableDiagnosticForNode(
             `${relativePath} does not export '${exportSymbol}'`,
