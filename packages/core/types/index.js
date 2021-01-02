@@ -664,7 +664,7 @@ export type ResolveFn = (from: FilePath, to: string) => Promise<FilePath>;
  */
 type ResolveConfigFn = (
   configNames: Array<FilePath>,
-) => Promise<FilePath | null>;
+) => Promise<?FilePath>;
 
 /**
  * @section validator
@@ -672,7 +672,7 @@ type ResolveConfigFn = (
 type ResolveConfigWithPathFn = (
   configNames: Array<FilePath>,
   assetFilePath: string,
-) => Promise<FilePath | null>;
+) => Promise<?FilePath>;
 
 /**
  * @section validator
