@@ -136,7 +136,7 @@ export default class NodeResolver {
       } else if (module.filePath) {
         if (module.code != null) {
           return {
-            filePath: module.filePath,
+            filePath: await this.fs.realpath(module.filePath),
             code: module.code,
           };
         }
@@ -151,7 +151,7 @@ export default class NodeResolver {
 
       if (resolved) {
         return {
-          filePath: resolved.path,
+          filePath: await this.fs.realpath(resolved.path),
           sideEffects:
             resolved.pkg && !this.hasSideEffects(resolved.path, resolved.pkg)
               ? false
