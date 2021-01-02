@@ -8,7 +8,8 @@
   },
   "private": true,
   "workspaces": [
-    "packages/*/*"
+    "packages/*/*",
+    "native-packages/*"
   ],
   "scripts": {
     "build": "cross-env NODE_ENV=production PARCEL_BUILD_ENV=production gulp",
