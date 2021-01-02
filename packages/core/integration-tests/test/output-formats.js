@@ -508,6 +508,16 @@ describe('output formats', function() {
       );
       assert(dist.includes('= require("lodash")'));
     });
+
+    it('should support generating commonjs output with re-exports in entry', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/formats/commonjs-entry-re-export/a.js',
+        ),
+      );
+      assert.deepEqual(await run(b), {default: 'default'});
+    });
   });
 
   describe('esmodule', function() {
@@ -1158,6 +1168,22 @@ describe('output formats', function() {
           },
         ],
       });
+    });
+
+    it('should support generating commonjs output with re-exports in entry', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/formats/commonjs-esm-entry-re-export/a.js',
+        ),
+      );
+      let contents = await outputFS.readFile(
+        b.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert(contents.includes('var exports = {}'));
+      assert(contents.includes('export default exports'));
+      assert(contents.includes('exports.default ='));
     });
   });
 

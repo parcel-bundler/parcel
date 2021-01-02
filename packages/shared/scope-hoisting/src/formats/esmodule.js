@@ -129,8 +129,14 @@ export function generateMainExport(
 
   let bindingIdentifiers = t.getBindingIdentifiers(node);
   let ids: Array<string> = Object.keys(bindingIdentifiers);
-  let defaultExport = exported.find(e => e.exportAs === 'default');
-  let namedExports = exported.filter(e => e.exportAs !== 'default');
+
+  // Export '*' (re-exported CJS exports object) as default
+  let defaultExport = exported.find(
+    e => e.exportAs === 'default' || e.exportAs === '*',
+  );
+  let namedExports = exported.filter(
+    e => e.exportAs !== 'default' && e.exportAs !== '*',
+  );
 
   if (exported.length === 1 && defaultExport && !isVariableDeclaration(node)) {
     // If there's only a default export, then export the declaration directly.

@@ -180,7 +180,12 @@ export function link({
         loc,
       } of bundleGraph.getExportedSymbols(entry)) {
         if (typeof symbol === 'string') {
-          let symbols = exportedSymbols.get(symbol);
+          let symbols = exportedSymbols.get(
+            symbol === '*'
+              ? assertString(entry.meta.exportsIdentifier)
+              : symbol,
+          );
+
           let local = exportAs;
           if (symbols) {
             local = symbols[0].local;
@@ -188,7 +193,9 @@ export function link({
             symbols = [];
             exportedSymbols.set(symbol, symbols);
 
-            if (!t.isValidIdentifier(local) || globalNames.has(local)) {
+            if (local === '*') {
+              local = 'exports';
+            } else if (!t.isValidIdentifier(local) || globalNames.has(local)) {
               local = scope.generateUid(local);
             } else {
               scope.add(local);
