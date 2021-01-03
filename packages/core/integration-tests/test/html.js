@@ -93,6 +93,26 @@ describe('html', function() {
     ]);
   });
 
+  it('should insert empty script tag for HMR', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-no-js/index.html'),
+      {
+        hot: {},
+      },
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.html',
+        assets: ['index.html'],
+      },
+      {
+        type: 'js',
+        assets: ['HMRRuntime.js', 'index.html'],
+      },
+    ]);
+  });
+
   it('should support canonical links', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-canonical/index.html'),
@@ -1033,7 +1053,7 @@ describe('html', function() {
       {production: true, scopeHoist: true},
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         type: 'js',
         assets: ['index.html'],
@@ -1061,7 +1081,7 @@ describe('html', function() {
       {production: true, scopeHoist: true},
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         type: 'js',
         assets: [
@@ -1097,7 +1117,7 @@ describe('html', function() {
       {production: true, scopeHoist: true},
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         type: 'js',
         assets: ['index.html'],
@@ -1132,7 +1152,7 @@ describe('html', function() {
       {production: true, scopeHoist: true},
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         type: 'js',
         assets: ['async.js'],
@@ -1193,7 +1213,7 @@ describe('html', function() {
       {production: true, scopeHoist: true},
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         type: 'js',
         assets: ['async.js'],
