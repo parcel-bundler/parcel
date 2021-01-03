@@ -1,6 +1,12 @@
 // @flow strict-local
 
-import type {Async, FilePath, ModuleSpecifier} from '@parcel/types';
+import type {
+  Async,
+  FilePath,
+  ModuleSpecifier,
+  Symbol,
+  SourceLocation,
+} from '@parcel/types';
 import type {SharedReference} from '@parcel/workers';
 import type {Diagnostic} from '@parcel/diagnostic';
 import type {
@@ -13,8 +19,6 @@ import type {
   DependencyNode,
   Entry,
   ParcelOptions,
-  Symbol,
-  SourceLocation,
   Target,
 } from '../types';
 import type {StaticRunOpts, RunAPI} from '../RequestTracker';
