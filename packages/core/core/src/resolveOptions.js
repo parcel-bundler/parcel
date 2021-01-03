@@ -104,13 +104,13 @@ export default async function resolveOptions(
     },
     mode,
     minify,
-    autoinstall: initialOptions.autoinstall ?? false,
-    hot: initialOptions.hot ?? null,
+    shouldAutoInstall: initialOptions.shouldAutoInstall ?? false,
+    hmrOptions: initialOptions.hmrOptions ?? null,
     contentHash:
       initialOptions.contentHash ?? initialOptions.mode === 'production',
-    serve: initialOptions.serve
+    serveOptions: initialOptions.serveOptions
       ? {
-          ...initialOptions.serve,
+          ...initialOptions.serveOptions,
           distDir: distDir ?? path.join(outputCwd, 'dist'),
         }
       : false,

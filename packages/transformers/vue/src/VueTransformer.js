@@ -45,7 +45,7 @@ export default (new Transformer({
     let compiler = await options.packageManager.require(
       '@vue/compiler-sfc',
       asset.filePath,
-      {autoinstall: options.autoinstall},
+      {shouldAutoInstall: options.shouldAutoInstall},
     );
     let code = await asset.getCode();
     let parsed = compiler.parse(code, {
@@ -126,10 +126,10 @@ let initialize = () => {
 };
 initialize();
 ${
-  options.hot
-    ? `if (module.hot) {
+  options.hmrOptions
+    ? `if (module.hmrOptions) {
   script.__hmrId = '${hmrId}';
-  module.hot.accept(() => {
+  module.hmrOptions.accept(() => {
     setTimeout(() => {
       initialize();
       if (!__VUE_HMR_RUNTIME__.createRecord('${hmrId}', script)) {
@@ -196,12 +196,12 @@ async function processPipeline({
   let compiler = await options.packageManager.require(
     '@vue/compiler-sfc',
     asset.filePath,
-    {autoinstall: options.autoinstall},
+    {shouldAutoInstall: options.shouldAutoInstall},
   );
   let consolidate = await options.packageManager.require(
     'consolidate',
     asset.filePath,
-    {autoinstall: options.autoinstall},
+    {shouldAutoInstall: options.shouldAutoInstall},
   );
   switch (asset.pipeline) {
     case 'template': {
@@ -230,7 +230,7 @@ async function processPipeline({
         try {
           content = await preprocessor.render(content, {});
         } catch (e) {
-          if (e.code !== 'MODULE_NOT_FOUND' || !options.autoinstall) {
+          if (e.code !== 'MODULE_NOT_FOUND' || !options.shouldAutoInstall) {
             throw e;
           }
           let firstIndex = e.message.indexOf("'");
@@ -238,7 +238,7 @@ async function processPipeline({
           let toInstall = e.message.slice(firstIndex + 1, secondIndex);
 
           await options.packageManager.require(toInstall, asset.filePath, {
-            autoinstall: true,
+            shouldAutoInstall: true,
           });
 
           content = await preprocessor.render(content, {});
@@ -271,9 +271,9 @@ async function processPipeline({
           templateComp.code +
           `
 ${
-  options.hot
-    ? `if (module.hot) {
-  module.hot.accept(() => {
+  options.hmrOptions
+    ? `if (module.hmrOptions) {
+  module.hmrOptions.accept(() => {
     __VUE_HMR_RUNTIME__.rerender('${hmrId}', render);
   })
 }`
@@ -368,7 +368,7 @@ ${
           }
           if (toInstall) {
             await options.packageManager.require(toInstall, asset.filePath, {
-              autoinstall: options.autoinstall,
+              shouldAutoInstall: options.shouldAutoInstall,
             });
           }
           let styleComp = await compiler.compileStyleAsync({
@@ -415,9 +415,9 @@ ${
 import {render} from 'template:./${basePath}';
 let cssModules = ${JSON.stringify(cssModules)};
 ${
-  options.hot
-    ? `if (module.hot) {
-  module.hot.accept(() => {
+  options.hmrOptions
+    ? `if (module.hmrOptions) {
+  module.hmrOptions.accept(() => {
     __VUE_HMR_RUNTIME__.rerender('${hmrId}', render);
   });
 };`

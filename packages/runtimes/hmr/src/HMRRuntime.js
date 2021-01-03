@@ -12,11 +12,11 @@ const HMR_RUNTIME = fs.readFileSync(
 
 export default (new Runtime({
   apply({bundle, options}) {
-    if (bundle.type !== 'js' || !options.hot) {
+    if (bundle.type !== 'js' || !options.hmrOptions) {
       return;
     }
 
-    const {host, port} = options.hot;
+    const {host, port} = options.hmrOptions;
     return {
       filePath: __filename,
       code:

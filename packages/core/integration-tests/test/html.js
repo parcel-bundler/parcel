@@ -97,7 +97,7 @@ describe('html', function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-no-js/index.html'),
       {
-        hot: {},
+        hmrOptions: {},
       },
     );
 

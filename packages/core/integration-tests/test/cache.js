@@ -2389,7 +2389,7 @@ describe('cache', function() {
 
     it('should update when hot options change', async function() {
       let b = await testCache({
-        hot: {
+        hmrOptions: {
           host: 'localhost',
           port: 4321,
         },
@@ -2408,7 +2408,7 @@ describe('cache', function() {
           );
 
           return {
-            hot: {
+            hmrOptions: {
               host: 'example.com',
               port: 5678,
             },
@@ -2465,7 +2465,7 @@ describe('cache', function() {
           );
 
           return {
-            hot: {
+            hmrOptions: {
               host: 'example.com',
               port: 5678,
             },

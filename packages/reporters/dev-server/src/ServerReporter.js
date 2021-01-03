@@ -8,13 +8,14 @@ let servers: Map<number, Server> = new Map();
 let hmrServers: Map<number, HMRServer> = new Map();
 export default (new Reporter({
   async report({event, options, logger}) {
-    let {serve, hot: hmr} = options;
-    let server = serve ? servers.get(serve.port) : undefined;
-    let hmrPort = (hmr && hmr.port) || (serve && serve.port);
+    let {serveOptions, hmrOptions} = options;
+    let server = serveOptions ? servers.get(serveOptions.port) : undefined;
+    let hmrPort =
+      (hmrOptions && hmrOptions.port) || (serveOptions && serveOptions.port);
     let hmrServer = hmrPort ? hmrServers.get(hmrPort) : undefined;
     switch (event.type) {
       case 'watchStart': {
-        if (serve) {
+        if (serveOptions) {
           // If there's already a server when watching has just started, something
           // is wrong.
           if (server) {
@@ -24,47 +25,47 @@ export default (new Reporter({
           }
 
           let serverOptions = {
-            ...serve,
+            ...serveOptions,
             projectRoot: options.projectRoot,
             cacheDir: options.cacheDir,
             // Override the target's publicUrl as that is likely meant for production.
             // This could be configurable in the future.
-            publicUrl: serve.publicUrl ?? '/',
+            publicUrl: serveOptions.publicUrl ?? '/',
             inputFS: options.inputFS,
             outputFS: options.outputFS,
             logger,
           };
 
           server = new Server(serverOptions);
-          servers.set(serve.port, server);
+          servers.set(serveOptions.port, server);
           const devServer = await server.start();
 
-          if (hmr && hmr.port === serve.port) {
+          if (hmrOptions && hmrOptions.port === serveOptions.port) {
             let hmrServerOptions = {
-              port: serve.port,
+              port: serveOptions.port,
               devServer,
               logger,
             };
             hmrServer = new HMRServer(hmrServerOptions);
-            hmrServers.set(serve.port, hmrServer);
+            hmrServers.set(serveOptions.port, hmrServer);
             hmrServer.start();
             return;
           }
         }
 
-        if (hmr && typeof hmr.port === 'number') {
+        if (hmrOptions && typeof hmrOptions.port === 'number') {
           let hmrServerOptions = {
-            port: hmr.port,
+            port: hmrOptions.port,
             logger,
           };
           hmrServer = new HMRServer(hmrServerOptions);
-          hmrServers.set(hmr.port, hmrServer);
+          hmrServers.set(hmrOptions.port, hmrServer);
           hmrServer.start();
         }
         break;
       }
       case 'watchEnd':
-        if (serve) {
+        if (serveOptions) {
           if (!server) {
             return logger.warn({
               message:
@@ -74,7 +75,7 @@ export default (new Reporter({
           await server.stop();
           servers.delete(server.options.port);
         }
-        if (hmr && hmrServer) {
+        if (hmrOptions && hmrServer) {
           hmrServer.stop();
           // $FlowFixMe[prop-missing]
           hmrServers.delete(hmrServer.wss.options.port);
@@ -86,7 +87,7 @@ export default (new Reporter({
         }
         break;
       case 'buildSuccess':
-        if (serve) {
+        if (serveOptions) {
           if (!server) {
             return logger.warn({
               message:

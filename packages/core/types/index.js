@@ -265,10 +265,10 @@ export type InitialParcelOptions = {|
   +sourceMaps?: boolean,
   +publicUrl?: string,
   +distDir?: FilePath,
-  +hot?: ?HMROptions,
+  +hmrOptions?: ?HMROptions,
   +contentHash?: boolean,
-  +serve?: InitialServerOptions | false,
-  +autoinstall?: boolean,
+  +serveOptions?: InitialServerOptions | false,
+  +shouldAutoInstall?: boolean,
   +logLevel?: LogLevel,
   +profile?: boolean,
   +patchConsole?: boolean,
@@ -295,9 +295,9 @@ export type InitialServerOptions = {|
 export interface PluginOptions {
   +mode: BuildMode;
   +env: EnvMap;
-  +hot: ?HMROptions;
-  +serve: ServerOptions | false;
-  +autoinstall: boolean;
+  +hmrOptions: ?HMROptions;
+  +serveOptions: ServerOptions | false;
+  +shouldAutoInstall: boolean;
   +logLevel: LogLevel;
   +entryRoot: FilePath;
   +projectRoot: FilePath;

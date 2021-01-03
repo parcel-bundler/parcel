@@ -287,10 +287,10 @@ async function run(entries: Array<string>, command: any) {
       }
     }));
 
-    if (command.open && options.serve) {
+    if (command.open && options.serveOptions) {
       await openInBrowser(
-        `${options.serve.https ? 'https' : 'http'}://${options.serve.host ||
-          'localhost'}:${options.serve.port}`,
+        `${options.serveOptions.https ? 'https' : 'http'}://${options
+          .serveOptions.host || 'localhost'}:${options.serveOptions.port}`,
         command.open,
       );
     }
@@ -352,7 +352,7 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
     };
   }
 
-  let serve = false;
+  let serveOptions = false;
   let {host} = command;
 
   // Ensure port is valid and available
@@ -376,7 +376,7 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
   if (command.name() === 'serve') {
     let {publicUrl} = command;
 
-    serve = {
+    serveOptions = {
       https,
       port,
       host,
@@ -384,11 +384,11 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
     };
   }
 
-  let hmr = null;
+  let hmrOptions = null;
   if (command.name() !== 'build' && command.hmr !== false) {
     let hmrport = command.hmrPort ? parsePort(command.hmrPort) : port;
 
-    hmr = {port: hmrport, host};
+    hmrOptions = {port: hmrport, host};
   }
 
   let mode = command.name() === 'build' ? 'production' : 'development';
@@ -401,11 +401,11 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
     scopeHoist: command.scopeHoist,
     publicUrl: command.publicUrl,
     distDir: command.distDir,
-    hot: hmr,
-    contentHash: hmr ? false : command.contentHash,
-    serve,
+    hmrOptions,
+    contentHash: hmrOptions ? false : command.contentHash,
+    serveOptions,
     targets: command.target.length > 0 ? command.target : null,
-    autoinstall: command.autoinstall ?? true,
+    shouldAutoInstall: command.autoinstall ?? true,
     logLevel: command.logLevel,
     profile: command.profile,
     detailedReport: command.detailedReport,

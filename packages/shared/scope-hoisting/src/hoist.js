@@ -331,7 +331,7 @@ const VISITOR: Visitor<MutableAsset> = {
       }
     } else if (t.matchesPattern(path.node, 'module.id')) {
       path.replaceWith(t.stringLiteral(asset.id));
-    } else if (t.matchesPattern(path.node, 'module.hot')) {
+    } else if (t.matchesPattern(path.node, 'module.hmrOptions')) {
       path.replaceWith(t.identifier('null'));
     } else if (
       t.matchesPattern(path.node, 'module.require') &&

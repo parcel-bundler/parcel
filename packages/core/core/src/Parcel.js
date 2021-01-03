@@ -96,7 +96,7 @@ export default class Parcel {
       config,
       resolvedOptions.packageManager,
       resolvedOptions.inputFS,
-      resolvedOptions.autoinstall,
+      resolvedOptions.shouldAutoInstall,
     );
 
     if (this.#initialOptions.workerFarm) {

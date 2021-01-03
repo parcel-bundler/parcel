@@ -189,7 +189,7 @@ export class TargetResolver {
         });
       }
 
-      let serve = this.options.serve;
+      let serve = this.options.serveOptions;
       if (serve) {
         // In serve mode, we only support a single browser target. If the user
         // provided more than one, or the matching target is not a browser, throw.
@@ -214,13 +214,13 @@ export class TargetResolver {
     } else {
       // Explicit targets were not provided. Either use a modern target for server
       // mode, or simply use the package.json targets.
-      if (this.options.serve) {
+      if (this.options.serveOptions) {
         // In serve mode, we only support a single browser target. Since the user
         // hasn't specified a target, use one targeting modern browsers for development
         targets = [
           {
             name: 'default',
-            distDir: this.options.serve.distDir,
+            distDir: this.options.serveOptions.distDir,
             publicUrl: this.options.publicUrl ?? '/',
             env: createEnvironment({
               context: 'browser',

@@ -43,16 +43,16 @@ export default class PluginOptions implements IPluginOptions {
     return this.#options.env;
   }
 
-  get hot(): ?HMROptions {
-    return this.#options.hot;
+  get hmrOptions(): ?HMROptions {
+    return this.#options.hmrOptions;
   }
 
-  get serve(): ServerOptions | false {
-    return this.#options.serve;
+  get serveOptions(): ServerOptions | false {
+    return this.#options.serveOptions;
   }
 
-  get autoinstall(): boolean {
-    return this.#options.autoinstall;
+  get shouldAutoInstall(): boolean {
+    return this.#options.shouldAutoInstall;
   }
 
   get logLevel(): LogLevel {

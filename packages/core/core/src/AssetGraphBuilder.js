@@ -682,7 +682,7 @@ export default class AssetGraphBuilder extends EventEmitter {
       processedConfig,
       this.options.packageManager,
       this.options.inputFS,
-      this.options.autoinstall,
+      this.options.shouldAutoInstall,
     );
     let trackedRequestsDesc = this.assetRequests.filter(request => {
       return config.getValidatorNames(request.filePath).length > 0;

@@ -91,7 +91,7 @@ const ignoreOptions = new Set([
   'detailedReport',
   'disableCache',
   'cacheDir',
-  'autoinstall',
+  'shouldAutoInstall',
   'logLevel',
   'profile',
   'patchConsole',

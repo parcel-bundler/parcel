@@ -1,6 +1,6 @@
 output = {
   id: module.id,
-  hot: module.hot,
+  hmrOptions: module.hmrOptions,
   moduleRequire: module.require,
   type: typeof module,
   exports: exports,
