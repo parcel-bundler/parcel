@@ -16,7 +16,9 @@ import {report} from '../ReporterRunner';
 import PublicDependency from '../public/Dependency';
 import PluginOptions from '../public/PluginOptions';
 import ParcelConfig from '../ParcelConfig';
-import createParcelConfigRequest from './ParcelConfigRequest';
+import createParcelConfigRequest, {
+  getCachedParcelConfig,
+} from './ParcelConfigRequest';
 
 export type PathRequestResult = AssetGroup | null | void;
 
@@ -50,18 +52,15 @@ export default function createPathRequest(
     input,
   };
 }
+
 async function run({input, api, options}: RunOpts) {
-  let {config} = nullthrows(
+  let configResult = nullthrows(
     await api.runRequest<null, ConfigAndCachePath>(createParcelConfigRequest()),
   );
+  let config = getCachedParcelConfig(configResult, options);
   let resolverRunner = new ResolverRunner({
     options,
-    config: new ParcelConfig(
-      config,
-      options.packageManager,
-      options.inputFS,
-      options.autoinstall,
-    ),
+    config,
   });
   let assetGroup = await resolverRunner.resolve(input);
 
@@ -125,7 +124,7 @@ export class ResolverRunner {
 
     let pipeline;
     let filePath;
-    let query: QueryParameters = {};
+    let query: ?QueryParameters;
     let validPipelines = new Set(this.config.getNamedPipelines());
     if (
       // Don't consider absolute paths. Absolute paths are only supported for entries,
@@ -140,7 +139,10 @@ export class ResolverRunner {
           // `url('http://example.com/foo.png')`
           return null;
         } else {
-          throw new Error(`Unknown pipeline ${pipeline}.`);
+          throw await this.getThrowableDiagnostic(
+            dependency,
+            `Unknown pipeline: ${pipeline}.`,
+          );
         }
       }
     } else {
@@ -151,20 +153,28 @@ export class ResolverRunner {
       filePath = dependency.moduleSpecifier;
     }
 
+    let queryPart = null;
     if (dependency.isURL) {
       let parsed = URL.parse(filePath);
       if (typeof parsed.pathname !== 'string') {
-        throw new Error(`Received URL without a pathname ${filePath}.`);
+        throw await this.getThrowableDiagnostic(
+          dependency,
+          `Received URL without a pathname ${filePath}.`,
+        );
       }
       filePath = decodeURIComponent(parsed.pathname);
+      if (parsed.query != null) {
+        queryPart = parsed.query;
+      }
+    } else {
+      let matchesQuerystring = filePath.match(QUERY_PARAMS_REGEX);
+      if (matchesQuerystring && matchesQuerystring[2] != null) {
+        filePath = matchesQuerystring[1];
+        queryPart = matchesQuerystring[2].substr(1);
+      }
     }
-
-    let matchesQuerystring = filePath.match(QUERY_PARAMS_REGEX);
-    if (matchesQuerystring && matchesQuerystring.length > 2) {
-      filePath = matchesQuerystring[1];
-      query = matchesQuerystring[2]
-        ? querystring.parse(matchesQuerystring[2].substr(1))
-        : {};
+    if (queryPart != null) {
+      query = querystring.parse(queryPart);
     }
 
     let diagnostics: Array<Diagnostic> = [];
@@ -178,6 +188,13 @@ export class ResolverRunner {
         });
 
         if (result) {
+          if (result.meta) {
+            dependency.meta = {
+              ...dependency.meta,
+              ...result.meta,
+            };
+          }
+
           if (result.isExcluded) {
             return null;
           }
@@ -220,11 +237,10 @@ export class ResolverRunner {
       return null;
     }
 
+    let resolveFrom = dependency.resolveFrom ?? dependency.sourcePath;
     let dir =
-      dependency.sourcePath != null
-        ? escapeMarkdown(
-            relativePath(this.options.projectRoot, dependency.sourcePath),
-          )
+      resolveFrom != null
+        ? escapeMarkdown(relativePath(this.options.projectRoot, resolveFrom))
         : '';
 
     let specifier = escapeMarkdown(dependency.moduleSpecifier || '');

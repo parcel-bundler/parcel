@@ -1,5 +1,7 @@
 // @flow strict-local
 
 export interface IDisposable {
-  dispose(): void;
+  // This can return a Promise, as dispose() of all inner disposables are
+  // awaited in Disposable#dispose()
+  dispose(): mixed;
 }

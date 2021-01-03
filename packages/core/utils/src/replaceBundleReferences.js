@@ -145,7 +145,7 @@ export async function replaceInlineReferences({
   return performReplacement(replacements, contents, map);
 }
 
-function getURLReplacement({
+export function getURLReplacement({
   dependency,
   fromBundle,
   toBundle,
@@ -155,17 +155,22 @@ function getURLReplacement({
   fromBundle: NamedBundle,
   toBundle: NamedBundle,
   relative: boolean,
-|}) {
-  let url = URL.parse(dependency.moduleSpecifier);
+|}): {|from: string, to: string|} {
   let to;
+
   if (relative) {
-    url.pathname = relativeBundlePath(fromBundle, toBundle, {
-      leadingDotSlash: false,
-    });
-    to = URL.format(url);
+    to = URL.format(
+      URL.parse(
+        relativeBundlePath(fromBundle, toBundle, {
+          leadingDotSlash: false,
+        }),
+      ),
+    );
   } else {
-    url.pathname = nullthrows(toBundle.name);
-    to = urlJoin(toBundle.target.publicUrl, URL.format(url));
+    to = urlJoin(
+      toBundle.target.publicUrl,
+      URL.format(URL.parse(nullthrows(toBundle.name))),
+    );
   }
 
   return {

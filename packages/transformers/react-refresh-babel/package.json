@@ -16,11 +16,11 @@
   "main": "lib/ReactRefreshBabelTransformer.js",
   "source": "src/ReactRefreshBabelTransformer.js",
   "engines": {
-    "node": ">= 10.0.0",
+    "node": ">= 12.0.0",
     "parcel": "^2.0.0-alpha.1.1"
   },
   "dependencies": {
     "@parcel/plugin": "2.0.0-beta.1",
-    "react-refresh": "^0.6.0"
+    "react-refresh": "^0.9.0"
   }
 }

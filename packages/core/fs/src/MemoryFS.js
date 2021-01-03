@@ -15,8 +15,9 @@ import packageJSON from '../package.json';
 import WorkerFarm, {Handle} from '@parcel/workers';
 import nullthrows from 'nullthrows';
 import EventEmitter from 'events';
+import {findAncestorFile, findNodeModule, findFirstFile} from './find';
 
-const instances = new Map();
+const instances: Map<number, MemoryFS> = new Map();
 let id = 0;
 
 type HandleFunction = (...args: Array<any>) => any;
@@ -615,6 +616,18 @@ export class MemoryFS implements FileSystem {
 
   async writeSnapshot(dir: FilePath, snapshot: FilePath): Promise<void> {
     await this.writeFile(snapshot, '' + this.events.length);
+  }
+
+  findAncestorFile(fileNames: Array<string>, fromDir: FilePath): ?FilePath {
+    return findAncestorFile(this, fileNames, fromDir);
+  }
+
+  findNodeModule(moduleName: string, fromDir: FilePath): ?FilePath {
+    return findNodeModule(this, moduleName, fromDir);
+  }
+
+  findFirstFile(filePaths: Array<FilePath>): ?FilePath {
+    return findFirstFile(this, filePaths);
   }
 }
 

@@ -12,11 +12,11 @@ import fsVisitor from './visitors/fs';
 import insertGlobals from './visitors/globals';
 import traverse from '@babel/traverse';
 import {ancestor as walkAncestor} from '@parcel/babylon-walk';
-import * as babelCore from '@babel/core';
 import {hoist} from '@parcel/scope-hoisting';
 import {generate, parse} from '@parcel/babel-ast-utils';
 import {validateSchema} from '@parcel/utils';
 import {encodeJSONKeyComponent} from '@parcel/diagnostic';
+import {esm2cjs} from './visitors/modules';
 
 const CONFIG_SCHEMA: SchemaEntity = {
   type: 'object',
@@ -75,8 +75,21 @@ export default (new Transformer({
         `/${encodeJSONKeyComponent('@parcel/transformer-js')}`,
         'Invalid config for @parcel/transformer-js',
       );
-      config.setResult(result.contents);
     }
+
+    // Check if we should ignore fs calls
+    // See https://github.com/defunctzombie/node-browser-resolve#skip
+    let pkg = await config.getPackage();
+    let ignoreFS =
+      pkg &&
+      pkg.browser &&
+      typeof pkg.browser === 'object' &&
+      pkg.browser.fs === false;
+
+    config.setResult({
+      ...result?.contents,
+      ignoreFS,
+    });
   },
 
   canReuseAST({ast}) {
@@ -115,7 +128,7 @@ export default (new Transformer({
       return [asset];
     }
 
-    let {inlineEnvironment = true, inlineFS = true} = config || {};
+    let {inlineEnvironment = true, inlineFS = true, ignoreFS} = config || {};
 
     let code = asset.isASTDirty() ? null : await asset.getCode();
 
@@ -138,16 +151,7 @@ export default (new Transformer({
     if (!asset.env.isNode()) {
       // Inline fs calls, run before globals to also collect Buffer
       if (code == null || FS_RE.test(code)) {
-        // Check if we should ignore fs calls
-        // See https://github.com/defunctzombie/node-browser-resolve#skip
-        let pkg = await asset.getPackage();
-        let ignore =
-          pkg &&
-          pkg.browser &&
-          typeof pkg.browser === 'object' &&
-          pkg.browser.fs === false;
-
-        if (!ignore) {
+        if (!ignoreFS) {
           traverse.cache.clearScope();
           traverse(ast.program, fsVisitor, null, {
             asset,
@@ -189,32 +193,16 @@ export default (new Transformer({
       isASTDirty = true;
     }
 
-    if (isASTDirty) {
-      asset.setAST(ast);
-    }
-
     if (asset.env.scopeHoist) {
       hoist(asset, ast);
     } else if (asset.meta.isES6Module) {
       // Convert ES6 modules to CommonJS
-      let res = await babelCore.transformFromAstAsync(
-        ast.program,
-        code ?? undefined,
-        {
-          code: false,
-          ast: true,
-          filename: asset.filePath,
-          babelrc: false,
-          configFile: false,
-          plugins: [require('@babel/plugin-transform-modules-commonjs')],
-        },
-      );
+      esm2cjs(ast.program, asset);
+      isASTDirty = true;
+    }
 
-      asset.setAST({
-        type: 'babel',
-        version: '7.0.0',
-        program: res.ast,
-      });
+    if (isASTDirty) {
+      asset.setAST(ast);
     }
 
     return [asset];

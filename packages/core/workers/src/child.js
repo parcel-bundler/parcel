@@ -16,9 +16,13 @@ import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import Logger, {patchConsole, unpatchConsole} from '@parcel/logger';
 import ThrowableDiagnostic, {anyToDiagnostic} from '@parcel/diagnostic';
+import {deserialize} from '@parcel/core';
 import bus from './bus';
 import Profiler from './Profiler';
-import Handle from './Handle';
+import _Handle from './Handle';
+
+// The import of './Handle' should really be imported eagerly (with @babel/plugin-transform-modules-commonjs's lazy mode).
+const Handle = _Handle;
 
 type ChildCall = WorkerRequest & {|
   resolve: (result: Promise<any> | any) => void,
@@ -150,13 +154,38 @@ export class Child {
       } catch (e) {
         result = errorResponseFromError(e);
       }
+    } else if (method === 'takeHeapSnapshot') {
+      try {
+        let v8 = require('v8');
+        result = responseFromContent(
+          // $FlowFixMe
+          v8.writeHeapSnapshot(
+            'heap-' +
+              args[0] +
+              '-' +
+              (this.childId ? 'worker' + this.childId : 'main') +
+              '.heapsnapshot',
+          ),
+        );
+      } catch (e) {
+        result = errorResponseFromError(e);
+      }
     } else if (method === 'createSharedReference') {
-      let [ref, value] = args;
+      let [ref, _value] = args;
+      let value =
+        _value instanceof ArrayBuffer
+          ? // In the case the value is pre-serialized as a buffer,
+            // deserialize it.
+            deserialize(Buffer.from(_value))
+          : _value;
       this.sharedReferences.set(ref, value);
       this.sharedReferencesByValue.set(value, ref);
       result = responseFromContent(null);
     } else if (method === 'deleteSharedReference') {
-      this.sharedReferences.delete(args[0]);
+      let ref = args[0];
+      let value = this.sharedReferences.get(ref);
+      this.sharedReferencesByValue.delete(value);
+      this.sharedReferences.delete(ref);
       result = responseFromContent(null);
     } else {
       try {

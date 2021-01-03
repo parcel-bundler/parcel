@@ -9,7 +9,7 @@ import type {
   AsyncSubscription,
 } from '@parcel/watcher';
 
-import fs from 'fs';
+import fs from 'graceful-fs';
 import ncp from 'ncp';
 import mkdirp from 'mkdirp';
 import rimraf from 'rimraf';
@@ -17,12 +17,19 @@ import {promisify} from '@parcel/utils';
 import {registerSerializableClass} from '@parcel/core';
 import fsWriteStreamAtomic from '@parcel/fs-write-stream-atomic';
 import watcher from '@parcel/watcher';
+import {
+  findAncestorFile,
+  findNodeModule,
+  findFirstFile,
+} from '@parcel/fs-search';
 import packageJSON from '../package.json';
 
 // Most of this can go away once we only support Node 10+, which includes
 // require('fs').promises
 
-const realpath = promisify(fs.realpath);
+const realpath = promisify(
+  process.platform === 'win32' ? fs.realpath : fs.realpath.native,
+);
 
 export class NodeFS implements FileSystem {
   readFile: any = promisify(fs.readFile);
@@ -40,9 +47,13 @@ export class NodeFS implements FileSystem {
   chdir: (directory: string) => void = process.chdir;
 
   statSync: (path: string) => Stats = fs.statSync;
-  realpathSync: (path: string, cache?: any) => string = fs.realpathSync;
+  realpathSync: (path: string, cache?: any) => string =
+    process.platform === 'win32' ? fs.realpathSync : fs.realpathSync.native;
   existsSync: (path: string) => boolean = fs.existsSync;
   readdirSync: any = (fs.readdirSync: any);
+  findAncestorFile: any = findAncestorFile;
+  findNodeModule: any = findNodeModule;
+  findFirstFile: any = findFirstFile;
 
   createWriteStream(filePath: string, options: any): Writable {
     return fsWriteStreamAtomic(filePath, options);

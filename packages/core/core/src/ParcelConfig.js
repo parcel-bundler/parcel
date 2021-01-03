@@ -23,7 +23,7 @@ import type {
   PureParcelConfigPipeline,
   ExtendableParcelConfigPipeline,
 } from './types';
-import {isMatch} from 'micromatch';
+import {makeRe} from 'micromatch';
 import {basename} from 'path';
 import loadPlugin from './loadParcelPlugin';
 
@@ -59,6 +59,7 @@ export default class ParcelConfig {
   reporters: PureParcelConfigPipeline;
   pluginCache: Map<PackageName, any>;
   autoinstall: boolean;
+  regexCache: Map<string, RegExp>;
 
   constructor(
     config: ProcessedParcelConfig,
@@ -80,6 +81,7 @@ export default class ParcelConfig {
     this.validators = config.validators || {};
     this.pluginCache = new Map();
     this.autoinstall = autoinstall;
+    this.regexCache = new Map();
   }
 
   static deserialize(serialized: SerializedParcelConfig): ParcelConfig {
@@ -209,7 +211,11 @@ export default class ParcelConfig {
         return [];
       }
 
-      throw new Error(`No transformers found for "${filePath}".`);
+      throw new Error(
+        `No transformers found for ${filePath}` +
+          (pipeline != null ? ` with pipeline: '${pipeline}'` : '') +
+          '.',
+      );
     }
 
     return transformers;
@@ -333,10 +339,21 @@ export default class ParcelConfig {
   }
 
   isGlobMatch(filePath: FilePath, pattern: Glob, pipeline?: ?string): boolean {
-    let prefix = pipeline ? `${pipeline}:` : '';
+    let [patternPipeline, patternGlob] = pattern.split(':');
+    if (!patternGlob) {
+      patternGlob = patternPipeline;
+      patternPipeline = null;
+    }
+
+    let re = this.regexCache.get(patternGlob);
+    if (!re) {
+      re = makeRe(patternGlob, {dot: true});
+      this.regexCache.set(patternGlob, re);
+    }
+
     return (
-      isMatch(prefix + filePath, pattern) ||
-      isMatch(prefix + basename(filePath), pattern)
+      (pipeline === patternPipeline || (!pipeline && !patternPipeline)) &&
+      (re.test(filePath) || re.test(basename(filePath)))
     );
   }
 
@@ -356,8 +373,24 @@ export default class ParcelConfig {
     pipeline?: ?string,
   ): PureParcelConfigPipeline {
     let matches = [];
+    if (pipeline) {
+      // If a pipeline is requested, a the glob needs to match exactly
+      let exactMatch;
+      for (let pattern in globMap) {
+        if (this.isGlobMatch(filePath, pattern, pipeline)) {
+          exactMatch = globMap[pattern];
+          break;
+        }
+      }
+      if (!exactMatch) {
+        return [];
+      } else {
+        matches.push(exactMatch);
+      }
+    }
+
     for (let pattern in globMap) {
-      if (this.isGlobMatch(filePath, pattern, pipeline)) {
+      if (this.isGlobMatch(filePath, pattern)) {
         matches.push(globMap[pattern]);
       }
     }

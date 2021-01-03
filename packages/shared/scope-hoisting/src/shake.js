@@ -81,7 +81,10 @@ function getUnusedBinding(path, name, exportsMap) {
 
   // Is there any references which aren't simple assignments?
   let bailout = binding.referencePaths.some(
-    path => !isExportAssignment(path, exportsMap) && !isWildcardDest(path),
+    path =>
+      !isExportAssignment(path, exportsMap) &&
+      !isWildcardDest(path) &&
+      !isExportDest(path),
   );
 
   if (!bailout) {
@@ -101,7 +104,9 @@ function isPure(binding) {
       init.isIdentifier() ||
       init.isThisExpression() ||
       (isVariableDeclarator(node) &&
-        isIdentifier(node.id, {name: '$parcel$global'}))
+        isIdentifier(node.id, {name: '$parcel$global'})) ||
+      (isVariableDeclarator(node) &&
+        isIdentifier(node.id, {name: 'parcelRequire'}))
     );
   }
 
@@ -152,6 +157,17 @@ function isWildcardDest(path) {
   );
 }
 
+// check if the argument appears as $parcel$export(path, ...)
+function isExportDest(path) {
+  let parent: Node = path.parent;
+
+  return (
+    isCallExpression(parent) &&
+    isIdentifier(parent.callee, {name: '$parcel$export'}) &&
+    parent.arguments[0] === path.node
+  );
+}
+
 function remove(
   path: NodePath<Node>,
   scope: Scope,
@@ -198,6 +214,8 @@ function remove(
       );
       remove(path.parentPath, scope, exportsMap);
     }
+  } else if (isExportDest(path)) {
+    remove(path.parentPath, scope, exportsMap);
   } else if (!path.removed) {
     if (isSequenceExpression(parent) && parent.expressions.length === 1) {
       // TODO missing test coverage

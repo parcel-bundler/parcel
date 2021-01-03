@@ -40,17 +40,31 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
     this.#options = options;
   }
 
-  addAssetGraphToBundle(asset: IAsset, bundle: IBundle) {
+  addAssetGraphToBundle(
+    asset: IAsset,
+    bundle: IBundle,
+    shouldSkipDependency?: IDependency => boolean,
+  ) {
     this.#graph.addAssetGraphToBundle(
       assetToAssetValue(asset),
       bundleToInternalBundle(bundle),
+      shouldSkipDependency
+        ? d => shouldSkipDependency(new Dependency(d))
+        : undefined,
     );
   }
 
-  addEntryToBundle(asset: IAsset, bundle: IBundle) {
+  addEntryToBundle(
+    asset: IAsset,
+    bundle: IBundle,
+    shouldSkipDependency?: IDependency => boolean,
+  ) {
     this.#graph.addEntryToBundle(
       assetToAssetValue(asset),
       bundleToInternalBundle(bundle),
+      shouldSkipDependency
+        ? d => shouldSkipDependency(new Dependency(d))
+        : undefined,
     );
   }
 
@@ -72,7 +86,6 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
     let bundleGroup: BundleGroup = {
       target,
       entryAssetId: resolved.id,
-      bundleIds: [],
     };
 
     let bundleGroupNode = {
@@ -80,13 +93,6 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
       type: 'bundle_group',
       value: bundleGroup,
     };
-
-    // In recursive situations, merge the new bundle group with the old one
-    let existing = this.#graph._graph.getNode(bundleGroupNode.id);
-    if (existing) {
-      invariant(existing.type === 'bundle_group');
-      bundleGroup.bundleIds = existing.value.bundleIds;
-    }
 
     this.#graph._graph.addNode(bundleGroupNode);
     let assetNodes = this.#graph._graph.getNodesConnectedFrom(dependencyNode);
@@ -158,9 +164,7 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
       id: bundleId,
       value: {
         id: bundleId,
-        hashReference: this.#options.contentHash
-          ? HASH_REF_PREFIX + bundleId
-          : bundleId.slice(0, 8),
+        hashReference: HASH_REF_PREFIX + bundleId,
         type: opts.type ?? nullthrows(entryAsset).type,
         env: opts.env
           ? environmentToInternalEnvironment(opts.env)
@@ -189,27 +193,21 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
   }
 
   addBundleToBundleGroup(bundle: IBundle, bundleGroup: BundleGroup) {
-    let bundleGroupId = getBundleGroupId(bundleGroup);
-    if (this.#graph._graph.hasEdge(bundleGroupId, bundle.id, 'bundle')) {
-      // Bundle group already has bundle
-      return;
-    }
-
-    bundleGroup.bundleIds.push(bundle.id);
-    this.#graph._graph.addEdge(bundleGroupId, bundle.id);
-    this.#graph._graph.addEdge(bundleGroupId, bundle.id, 'bundle');
-
-    for (let entryAsset of bundle.getEntryAssets()) {
-      if (this.#graph._graph.hasEdge(bundleGroupId, entryAsset.id)) {
-        this.#graph._graph.removeEdge(bundleGroupId, entryAsset.id);
-      }
-    }
+    this.#graph.addBundleToBundleGroup(
+      bundleToInternalBundle(bundle),
+      bundleGroup,
+    );
   }
 
-  createAssetReference(dependency: IDependency, asset: IAsset): void {
+  createAssetReference(
+    dependency: IDependency,
+    asset: IAsset,
+    bundle: IBundle,
+  ): void {
     return this.#graph.createAssetReference(
       dependencyToInternalDependency(dependency),
       assetToAssetValue(asset),
+      bundleToInternalBundle(bundle),
     );
   }
 

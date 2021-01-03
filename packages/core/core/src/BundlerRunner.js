@@ -24,11 +24,12 @@ import MutableBundleGraph from './public/MutableBundleGraph';
 import {Bundle, NamedBundle} from './public/Bundle';
 import {report} from './ReporterRunner';
 import dumpGraphToGraphViz from './dumpGraphToGraphViz';
-import {normalizeSeparators, unique, md5FromObject} from '@parcel/utils';
+import {normalizeSeparators, unique, md5FromOrderedObject} from '@parcel/utils';
 import PluginOptions from './public/PluginOptions';
 import applyRuntimes from './applyRuntimes';
 import {PARCEL_VERSION} from './constants';
 import {assertSignalNotAborted} from './utils';
+import {deserialize, serialize} from './serializer';
 
 type Opts = {|
   options: ParcelOptions,
@@ -56,7 +57,7 @@ export default class BundlerRunner {
   async bundle(
     graph: AssetGraph,
     {signal}: {|signal: ?AbortSignal|},
-  ): Promise<InternalBundleGraph> {
+  ): Promise<[InternalBundleGraph, Buffer]> {
     report({
       type: 'buildProgress',
       phase: 'bundling',
@@ -86,13 +87,16 @@ export default class BundlerRunner {
       !this.runtimesBuilder.requestTracker.hasInvalidRequests()
     ) {
       cacheKey = await this.getCacheKey(graph, configResult);
-      let cachedBundleGraph = await this.options.cache.get<InternalBundleGraph>(
-        cacheKey,
-      );
+      let cachedBundleGraphBuffer;
+      try {
+        cachedBundleGraphBuffer = await this.options.cache.getBlob(cacheKey);
+      } catch {
+        // Cache miss
+      }
       assertSignalNotAborted(signal);
 
-      if (cachedBundleGraph) {
-        return cachedBundleGraph;
+      if (cachedBundleGraphBuffer) {
+        return [deserialize(cachedBundleGraphBuffer), cachedBundleGraphBuffer];
       }
     }
 
@@ -149,12 +153,13 @@ export default class BundlerRunner {
     // $FlowFixMe
     await dumpGraphToGraphViz(internalBundleGraph._graph, 'after_runtimes');
 
+    let serializedBundleGraph = serialize(internalBundleGraph);
     if (cacheKey != null) {
-      await this.options.cache.set(cacheKey, internalBundleGraph);
+      await this.options.cache.setBlob(cacheKey, serializedBundleGraph);
     }
     assertSignalNotAborted(signal);
 
-    return internalBundleGraph;
+    return [internalBundleGraph, serializedBundleGraph];
   }
 
   async getCacheKey(
@@ -164,12 +169,14 @@ export default class BundlerRunner {
     let name = this.config.getBundlerName();
     let {version} = await this.config.getBundler();
 
-    return md5FromObject({
+    return md5FromOrderedObject({
       parcelVersion: PARCEL_VERSION,
       name,
       version,
       hash: assetGraph.getHash(),
       config: configResult?.config,
+      // TODO: remove once bundling is a request and we track options as invalidations.
+      hot: this.options.hot,
     });
   }
 

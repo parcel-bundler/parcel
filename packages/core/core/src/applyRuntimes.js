@@ -70,7 +70,6 @@ export default async function applyRuntimes({
               // Runtime assets should be considered source, as they should be
               // e.g. compiled to run in the target environment
               isSource: true,
-              query: {},
             };
 
             connections.push({
@@ -101,9 +100,7 @@ export default async function applyRuntimes({
   );
 
   // Merge the runtimes graph into the main bundle graph.
-  // TODO: Implementing something like BundleGraph#merge could formalize this.
-  // $FlowFixMe
-  bundleGraph._graph.merge(runtimesGraph._graph);
+  bundleGraph.merge(runtimesGraph);
   for (let [assetId, publicId] of runtimesGraph._publicIdByAssetId) {
     bundleGraph._publicIdByAssetId.set(assetId, publicId);
     bundleGraph._assetPublicIds.add(publicId);

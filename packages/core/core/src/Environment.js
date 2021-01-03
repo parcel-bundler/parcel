@@ -1,7 +1,7 @@
 // @flow
 import type {EnvironmentOpts} from '@parcel/types';
 import type {Environment} from './types';
-import {md5FromObject} from '@parcel/utils';
+import {md5FromOrderedObject} from '@parcel/utils';
 
 const DEFAULT_ENGINES = {
   browsers: ['> 0.25%'],
@@ -16,6 +16,7 @@ export function createEnvironment({
   minify = false,
   isLibrary = false,
   scopeHoist = false,
+  sourceMap,
 }: EnvironmentOpts = {}): Environment {
   if (context == null) {
     if (engines?.node) {
@@ -77,7 +78,8 @@ export function createEnvironment({
     }
   }
 
-  return {
+  let res: Environment = {
+    id: '',
     context,
     engines,
     includeNodeModules,
@@ -85,7 +87,11 @@ export function createEnvironment({
     isLibrary,
     minify,
     scopeHoist,
+    sourceMap,
   };
+
+  res.id = getEnvironmentHash(res);
+  return res;
 }
 
 export function mergeEnvironments(
@@ -93,23 +99,26 @@ export function mergeEnvironments(
   b: ?EnvironmentOpts,
 ): Environment {
   // If merging the same object, avoid copying.
-  if (a === b) {
+  if (a === b || !b) {
     return a;
   }
 
+  // $FlowFixMe - ignore the `id` that is already on a
   return createEnvironment({
     ...a,
     ...b,
   });
 }
 
-export function getEnvironmentHash(env: Environment): string {
+function getEnvironmentHash(env: Environment): string {
   // context is excluded from hash so that assets can be shared between e.g. workers and browser.
   // Different engines should be sufficient to distinguish multi-target builds.
-  return md5FromObject({
+  return md5FromOrderedObject({
     engines: env.engines,
     includeNodeModules: env.includeNodeModules,
     outputFormat: env.outputFormat,
     isLibrary: env.isLibrary,
+    scopeHoist: env.scopeHoist,
+    sourceMap: env.sourceMap,
   });
 }

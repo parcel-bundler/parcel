@@ -1,5 +1,4 @@
 // @flow strict-local
-// flowlint unsafe-getters-setters:off
 import type {
   Config as IConfig,
   ConfigResult,
@@ -108,6 +107,10 @@ export default class PublicConfig implements IConfig {
           filePath: this.#config.pkgFilePath || '',
         };
       }
+    }
+
+    if (filePaths.length === 0) {
+      return null;
     }
 
     let parse = options && options.parse;

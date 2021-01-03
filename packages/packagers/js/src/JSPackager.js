@@ -13,8 +13,11 @@ import {
   PromiseQueue,
   relativeBundlePath,
   replaceInlineReferences,
+  md5FromString,
+  loadConfig,
 } from '@parcel/utils';
 import path from 'path';
+import nullthrows from 'nullthrows';
 
 const PRELUDE = fs
   .readFileSync(path.join(__dirname, 'prelude.js'), 'utf8')
@@ -22,11 +25,28 @@ const PRELUDE = fs
   .replace(/;$/, '');
 
 export default (new Packager({
+  async loadConfig({options}) {
+    // Generate a name for the global parcelRequire function that is unique to this project.
+    // This allows multiple parcel builds to coexist on the same page.
+    let pkg = await loadConfig(
+      options.inputFS,
+      path.join(options.entryRoot, 'index'),
+      ['package.json'],
+    );
+    let name = pkg?.config.name ?? '';
+    return {
+      config: {
+        parcelRequireName: 'parcelRequire' + md5FromString(name).slice(-4),
+      },
+      files: pkg?.files ?? [],
+    };
+  },
   async package({
     bundle,
     bundleGraph,
     getInlineBundleContents,
     getSourceMapReference,
+    config,
     options,
   }) {
     function replaceReferences({contents, map}) {
@@ -43,13 +63,21 @@ export default (new Packager({
       });
     }
 
+    let parcelRequireName = nullthrows(config).parcelRequireName;
+
     // If scope hoisting is enabled, we use a different code path.
     if (bundle.env.scopeHoist) {
       let wrappedAssets = new Set<string>();
       let {ast, referencedAssets} = link({
         bundle,
         bundleGraph,
-        ast: await concat({bundle, bundleGraph, options, wrappedAssets}),
+        ast: await concat({
+          bundle,
+          bundleGraph,
+          options,
+          wrappedAssets,
+          parcelRequireName,
+        }),
         options,
         wrappedAssets,
       });
@@ -62,6 +90,7 @@ export default (new Packager({
         bundle,
         ast,
         referencedAssets,
+        parcelRequireName,
         options,
       });
       return replaceReferences({
@@ -87,7 +116,7 @@ export default (new Packager({
         queue.add(async () => {
           let [code, mapBuffer] = await Promise.all([
             node.value.getCode(),
-            bundle.target.sourceMap && node.value.getMapBuffer(),
+            bundle.env.sourceMap && node.value.getMapBuffer(),
           ]);
           return {code, mapBuffer};
         });
@@ -147,7 +176,7 @@ export default (new Packager({
         wrapped += JSON.stringify(deps);
         wrapped += ']';
 
-        if (options.sourceMaps) {
+        if (bundle.env.sourceMap) {
           if (mapBuffer) {
             map.addBufferMappings(mapBuffer, lineOffset);
           } else {
@@ -192,7 +221,7 @@ export default (new Packager({
           mainEntry ? bundleGraph.getAssetPublicId(mainEntry) : null,
         ) +
         ', ' +
-        'null' +
+        JSON.stringify(parcelRequireName) +
         ')' +
         '\n\n' +
         (await getSourceMapSuffix(getSourceMapReference, map)),
@@ -219,7 +248,7 @@ function getPrefix(
 
   let importScripts = '';
   if (bundle.env.isWorker()) {
-    let bundles = bundleGraph.getSiblingBundles(bundle);
+    let bundles = bundleGraph.getReferencedBundles(bundle);
     for (let b of bundles) {
       importScripts += `importScripts("${relativeBundlePath(bundle, b)}");\n`;
     }
