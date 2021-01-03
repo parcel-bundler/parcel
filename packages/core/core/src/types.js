@@ -166,7 +166,6 @@ export type ParcelOptions = {|
 
   disableCache: boolean,
   cacheDir: FilePath,
-  killWorkers?: boolean,
   mode: BuildMode,
   minify: boolean,
   scopeHoist: boolean,

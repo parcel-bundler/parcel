@@ -115,7 +115,6 @@ export default async function resolveOptions(
         }
       : false,
     disableCache: initialOptions.disableCache ?? false,
-    killWorkers: initialOptions.killWorkers ?? true,
     profile: initialOptions.profile ?? false,
     cacheDir,
     entries,

@@ -87,7 +87,6 @@ const ignoreOptions = new Set([
   'inputFS',
   'outputFS',
   'workerFarm',
-  'killWorkers',
   'packageManager',
   'detailedReport',
   'disableCache',
