@@ -128,7 +128,7 @@ export default class PackagerRunner {
         if (!info.hashReferences.length) {
           hashRefToNameHash.set(
             bundle.hashReference,
-            this.options.contentHash
+            this.options.shouldContentHash
               ? info.hash.slice(-8)
               : bundle.id.slice(-8),
           );
@@ -710,7 +710,7 @@ function assignComplexNameHashes(
 
     hashRefToNameHash.set(
       bundle.hashReference,
-      options.contentHash
+      options.shouldContentHash
         ? md5FromString(
             includedBundles
               .map(bundleId => bundleInfoMap[bundleId].hash)

@@ -257,16 +257,11 @@ export type InitialParcelOptions = {|
   +env?: EnvMap,
   +targets?: ?(Array<string> | {+[string]: TargetDescriptor, ...}),
 
-  +disableCache?: boolean,
+  +disableCache?: boolean, // TODO: Change to shouldDisableCache or shouldEnableCache?
   +cacheDir?: FilePath,
   +mode?: BuildMode,
-  +minify?: boolean,
-  +scopeHoist?: boolean,
-  +sourceMaps?: boolean,
-  +publicUrl?: string,
-  +distDir?: FilePath,
   +hmrOptions?: ?HMROptions,
-  +contentHash?: boolean,
+  +shouldContentHash?: boolean,
   +serveOptions?: InitialServerOptions | false,
   +shouldAutoInstall?: boolean,
   +logLevel?: LogLevel,
@@ -277,10 +272,20 @@ export type InitialParcelOptions = {|
   +outputFS?: FileSystem,
   +workerFarm?: WorkerFarm,
   +packageManager?: PackageManager,
-  +defaultEngines?: Engines,
-  +detailedReport?: number | boolean,
+  +detailedReport?:
+    | boolean
+    | {|
+        assetsPerBundle?: number,
+      |},
 
-  // contentHash
+  // TODO: Refactor to defaultTargetOptions
+  +minify?: boolean,
+  +scopeHoist?: boolean,
+  +sourceMaps?: boolean,
+  +publicUrl?: string,
+  +distDir?: FilePath,
+  +defaultEngines?: Engines,
+
   // throwErrors
   // global?
 |};

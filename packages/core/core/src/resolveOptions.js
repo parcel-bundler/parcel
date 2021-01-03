@@ -106,8 +106,8 @@ export default async function resolveOptions(
     minify,
     shouldAutoInstall: initialOptions.shouldAutoInstall ?? false,
     hmrOptions: initialOptions.hmrOptions ?? null,
-    contentHash:
-      initialOptions.contentHash ?? initialOptions.mode === 'production',
+    shouldContentHash:
+      initialOptions.shouldContentHash ?? initialOptions.mode === 'production',
     serveOptions: initialOptions.serveOptions
       ? {
           ...initialOptions.serveOptions,

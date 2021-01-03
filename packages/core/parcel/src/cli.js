@@ -402,7 +402,7 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
     publicUrl: command.publicUrl,
     distDir: command.distDir,
     hmrOptions,
-    contentHash: hmrOptions ? false : command.contentHash,
+    shouldContentHash: hmrOptions ? false : command.shouldContentHash,
     serveOptions,
     targets: command.target.length > 0 ? command.target : null,
     shouldAutoInstall: command.autoinstall ?? true,

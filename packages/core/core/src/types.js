@@ -162,18 +162,12 @@ export type ParcelOptions = {|
   defaultConfig?: ModuleSpecifier,
   env: EnvMap,
   targets: ?(Array<string> | {+[string]: TargetDescriptor, ...}),
-  defaultEngines?: Engines,
 
   disableCache: boolean,
   cacheDir: FilePath,
   mode: BuildMode,
-  minify: boolean,
-  scopeHoist: boolean,
-  sourceMaps: boolean,
-  publicUrl: string,
-  distDir: ?FilePath,
   hmrOptions: ?HMROptions,
-  contentHash: boolean,
+  shouldContentHash: boolean,
   serveOptions: ServerOptions | false,
   shouldAutoInstall: boolean,
   logLevel: LogLevel,
@@ -189,6 +183,14 @@ export type ParcelOptions = {|
   packageManager: PackageManager,
 
   instanceId: string,
+
+  // TODO: Refactor to defaultTargetOptions
+  minify: boolean,
+  scopeHoist: boolean,
+  sourceMaps: boolean,
+  publicUrl: string,
+  distDir: ?FilePath,
+  defaultEngines?: Engines,
 |};
 
 export type NodeId = string;

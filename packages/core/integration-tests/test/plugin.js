@@ -54,7 +54,7 @@ parcel-transformer-b`,
   it('should allow resolvers to return changes for dependency.meta', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/resolver-dependency-meta/a.js'),
-      {disableCache: false, contentHash: false, inputFS: overlayFS},
+      {disableCache: false, shouldContentHash: false, inputFS: overlayFS},
     );
 
     let calls = [];
@@ -75,7 +75,7 @@ parcel-transformer-b`,
 
     b = await bundle(
       path.join(__dirname, '/integration/resolver-dependency-meta/a.js'),
-      {disableCache: false, contentHash: false, inputFS: overlayFS},
+      {disableCache: false, shouldContentHash: false, inputFS: overlayFS},
     );
 
     calls = [];

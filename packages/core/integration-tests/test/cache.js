@@ -2368,17 +2368,17 @@ describe('cache', function() {
       );
     });
 
-    it('should update when contentHash changes', async function() {
+    it('should update when shouldContentHash changes', async function() {
       let b = await testCache({
         entries: ['src/index.html'],
         scopeHoist: true,
-        contentHash: true,
+        shouldContentHash: true,
         update(b) {
           let bundle = b.bundleGraph.getBundles()[1];
           assert(!bundle.name.includes(bundle.id.slice(-8)));
 
           return {
-            contentHash: false,
+            shouldContentHash: false,
           };
         },
       });
