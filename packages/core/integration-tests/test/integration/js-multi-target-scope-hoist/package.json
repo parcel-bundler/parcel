@@ -3,12 +3,12 @@
     "a": {
       "outputFormat": "commonjs",
       "isLibrary": true,
-      "scopeHoist": true
+      "shouldScopeHoist": true
     },
     "b": {
       "outputFormat": "commonjs",
       "isLibrary": true,
-      "scopeHoist": false
+      "shouldScopeHoist": false
     }
   }
 }

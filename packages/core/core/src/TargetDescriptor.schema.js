@@ -94,10 +94,10 @@ export const PACKAGE_DESCRIPTOR_SCHEMA: SchemaObject = {
       ],
     },
     engines: ENGINES_SCHEMA,
-    minify: {
+    shouldOptimize: {
       type: 'boolean',
     },
-    scopeHoist: {
+    shouldScopeHoist: {
       type: 'boolean',
     },
   },

@@ -97,7 +97,7 @@ describe('html', function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-no-js/index.html'),
       {
-        hot: {},
+        hmrOptions: {},
       },
     );
 
@@ -905,7 +905,7 @@ describe('html', function() {
         __dirname,
         '/integration/html-inline-styles-element/index.html',
       ),
-      {disableCache: false},
+      {shouldDisableCache: false},
     );
 
     assertBundles(b, [
@@ -1050,7 +1050,7 @@ describe('html', function() {
   it('should support inline <script type="module">', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-inline-js-module/index.html'),
-      {production: true, scopeHoist: true},
+      {production: true, shouldScopeHoist: true},
     );
 
     assertBundles(b, [
@@ -1078,7 +1078,7 @@ describe('html', function() {
         __dirname,
         '/integration/html-js-shared-dynamic-nested/index.html',
       ),
-      {production: true, scopeHoist: true},
+      {production: true, shouldScopeHoist: true},
     );
 
     assertBundles(b, [
@@ -1114,7 +1114,7 @@ describe('html', function() {
   it('should support shared bundles between multiple inline scripts', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-inline-js-shared/index.html'),
-      {production: true, scopeHoist: true},
+      {production: true, shouldScopeHoist: true},
     );
 
     assertBundles(b, [
@@ -1149,7 +1149,7 @@ describe('html', function() {
   it('inserts sibling bundles into html in the correct order (no head)', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-js-shared/index.html'),
-      {production: true, scopeHoist: true},
+      {production: true, shouldScopeHoist: true},
     );
 
     assertBundles(b, [
@@ -1210,7 +1210,7 @@ describe('html', function() {
   it('inserts sibling bundles into html in the correct order (head)', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-js-shared-head/index.html'),
-      {production: true, scopeHoist: true},
+      {production: true, shouldScopeHoist: true},
     );
 
     assertBundles(b, [
@@ -1271,7 +1271,7 @@ describe('html', function() {
   it('should support multiple entries with shared sibling bundles', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/shared-sibling-entries/*.html'),
-      {production: true, scopeHoist: true},
+      {production: true, shouldScopeHoist: true},
     );
 
     assertBundles(b, [
@@ -1325,7 +1325,7 @@ describe('html', function() {
         __dirname,
         'integration/scope-hoisting/es6/interop-async/index.html',
       ),
-      {production: true, scopeHoist: true},
+      {production: true, shouldScopeHoist: true},
     );
     let bundles = b.getBundles();
 
@@ -1357,7 +1357,7 @@ describe('html', function() {
         __dirname,
         '/integration/shared-sibling-entries-multiple/*.html',
       ),
-      {production: true, scopeHoist: true},
+      {production: true, shouldScopeHoist: true},
     );
 
     // a.html should point to a CSS bundle containing a.css as well as
@@ -1557,7 +1557,7 @@ describe('html', function() {
 
   it('should support split bundles with many pages with esmodule output', async function() {
     await bundle(path.join(__dirname, '/integration/shared-many-esm/*.html'), {
-      scopeHoist: true,
+      shouldScopeHoist: true,
     });
 
     let checkHtml = async filename => {
@@ -1597,7 +1597,7 @@ describe('html', function() {
       path.join(__dirname, '/integration/html-multi-entry/*.html'),
       {
         production: true,
-        scopeHoist: true,
+        shouldScopeHoist: true,
       },
     );
 
@@ -1672,7 +1672,7 @@ describe('html', function() {
       path.join(__dirname, '/html-inline-js-require/index.html'),
       {
         inputFS: overlayFS,
-        disableCache: false,
+        shouldDisableCache: false,
         distDir,
       },
     );
@@ -1706,7 +1706,7 @@ describe('html', function() {
       path.join(__dirname, '/html-inline-js-nested/index.html'),
       {
         inputFS: overlayFS,
-        disableCache: false,
+        shouldDisableCache: false,
         distDir,
       },
     );

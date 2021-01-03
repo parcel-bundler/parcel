@@ -34,7 +34,7 @@ export default (new Transformer({
       );
     }
 
-    const generated = asset.env.minify
+    const generated = asset.env.shouldOptimize
       ? stripIgnoredCharacters(print(expandedDocument))
       : print(expandedDocument);
 

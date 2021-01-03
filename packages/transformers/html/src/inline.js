@@ -55,7 +55,7 @@ export default function extractInlineAssets(
             type = node.attrs.type.split('/')[1];
           }
 
-          if (node.attrs.type === 'module' && asset.env.scopeHoist) {
+          if (node.attrs.type === 'module' && asset.env.shouldScopeHoist) {
             env = {
               outputFormat: 'esmodule',
             };

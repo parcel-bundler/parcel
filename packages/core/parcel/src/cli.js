@@ -410,7 +410,7 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
     defaultTargetOptions: {
       shouldOptimize:
         command.minify != null ? command.minify : mode === 'production',
-      shouldScopeHoist: command.scopeHoist,
+      shouldScopeHoist: command.shouldScopeHoist,
       sourceMaps: command.sourceMaps ?? true,
       publicUrl: command.publicUrl,
       distDir: command.distDir,

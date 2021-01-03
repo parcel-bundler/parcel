@@ -15,7 +15,7 @@ describe('Environment', () => {
       outputFormat: 'global',
       isLibrary: false,
       minify: false,
-      scopeHoist: false,
+      shouldScopeHoist: false,
       sourceMap: undefined,
     });
   });
@@ -31,7 +31,7 @@ describe('Environment', () => {
       outputFormat: 'commonjs',
       isLibrary: false,
       minify: false,
-      scopeHoist: false,
+      shouldScopeHoist: false,
       sourceMap: undefined,
     });
   });
@@ -49,7 +49,7 @@ describe('Environment', () => {
         outputFormat: 'global',
         isLibrary: false,
         minify: false,
-        scopeHoist: false,
+        shouldScopeHoist: false,
         sourceMap: undefined,
       },
     );
@@ -66,7 +66,7 @@ describe('Environment', () => {
       outputFormat: 'commonjs',
       isLibrary: false,
       minify: false,
-      scopeHoist: false,
+      shouldScopeHoist: false,
       sourceMap: undefined,
     });
   });
@@ -82,7 +82,7 @@ describe('Environment', () => {
       outputFormat: 'global',
       isLibrary: false,
       minify: false,
-      scopeHoist: false,
+      shouldScopeHoist: false,
       sourceMap: undefined,
     });
   });

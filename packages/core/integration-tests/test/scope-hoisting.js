@@ -17,10 +17,11 @@ import {
   runBundle,
 } from '@parcel/test-utils';
 
-const bundle = (name, opts = {}) => _bundle(name, {scopeHoist: true, ...opts});
+const bundle = (name, opts = {}) =>
+  _bundle(name, {shouldScopeHoist: true, ...opts});
 
 const bundler = (name, opts = {}) =>
-  _bundler(name, {scopeHoist: true, ...opts});
+  _bundler(name, {shouldScopeHoist: true, ...opts});
 
 describe('scope hoisting', function() {
   describe('es6', function() {

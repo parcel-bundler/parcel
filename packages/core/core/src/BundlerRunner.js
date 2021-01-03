@@ -83,7 +83,7 @@ export default class BundlerRunner {
 
     let cacheKey;
     if (
-      !this.options.disableCache &&
+      !this.options.shouldDisableCache &&
       !this.runtimesBuilder.requestTracker.hasInvalidRequests()
     ) {
       cacheKey = await this.getCacheKey(graph, configResult);

@@ -101,19 +101,22 @@ export function bundler(
 ): Parcel {
   return new Parcel({
     entries,
-    disableCache: true,
+    shouldDisableCache: true,
     logLevel: 'none',
     defaultConfig: path.join(__dirname, '.parcelrc-no-reporters'),
     inputFS,
     outputFS,
     workerFarm,
-    distDir,
     packageManager: new NodePackageManager(opts?.inputFS || inputFS),
-    defaultEngines: {
-      browsers: ['last 1 Chrome version'],
-      node: '8',
+    shouldContentHash: true,
+    defaultTargetOptions: {
+      distDir,
+      engines: {
+        browsers: ['last 1 Chrome version'],
+        node: '8',
+      },
+      ...opts?.defaultTargetOptions,
     },
-    contentHash: true,
     ...opts,
   });
 }
@@ -258,7 +261,7 @@ export async function runBundles(
   if (opts.require !== false) {
     switch (env.outputFormat) {
       case 'global':
-        if (env.scopeHoist) {
+        if (env.shouldScopeHoist) {
           return typeof ctx.output !== 'undefined' ? ctx.output : undefined;
         } else {
           for (let key in ctx) {

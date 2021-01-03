@@ -217,7 +217,7 @@ describe('javascript', function() {
   it('should preserve hashbangs in scopehoisted bundles', async () => {
     let fixturePath = path.join(__dirname, '/integration/node_hashbang');
     await bundle(path.join(__dirname, '/integration/node_hashbang/main.js'), {
-      scopeHoist: true,
+      shouldScopeHoist: true,
     });
 
     let main = await outputFS.readFile(
@@ -547,7 +547,7 @@ describe('javascript', function() {
   it('should support bundling workers of type module', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/workers-module/index.js'),
-      {scopeHoist: true},
+      {shouldScopeHoist: true},
     );
 
     assertBundles(b, [
@@ -1201,7 +1201,7 @@ describe('javascript', function() {
   it('should support importing a URL to a raw asset', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/import-raw/index.js'),
-      {disableCache: false},
+      {shouldDisableCache: false},
     );
 
     assertBundles(b, [
@@ -1280,7 +1280,7 @@ describe('javascript', function() {
   it('should minify JS in production mode', async function() {
     let b = await bundle(path.join(__dirname, '/integration/uglify/index.js'), {
       minify: true,
-      scopeHoist: false,
+      shouldScopeHoist: false,
     });
 
     let output = await run(b);
@@ -1294,7 +1294,7 @@ describe('javascript', function() {
   it('should use uglify config', async function() {
     await bundle(path.join(__dirname, '/integration/uglify-config/index.js'), {
       minify: true,
-      scopeHoist: false,
+      shouldScopeHoist: false,
     });
 
     let js = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
@@ -1776,7 +1776,7 @@ describe('javascript', function() {
   it.skip('should resolve the module field before main if scope-hoisting is enabled', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/resolve-entries/module-field.js'),
-      {scopeHoist: true},
+      {shouldScopeHoist: true},
     );
 
     assertBundles(b, [
@@ -1795,7 +1795,7 @@ describe('javascript', function() {
   it.skip('should resolve the module field before main if scope-hoisting is enabled', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/resolve-entries/both-fields.js'),
-      {scopeHoist: true},
+      {shouldScopeHoist: true},
     );
 
     assertBundles(b, [
@@ -1834,7 +1834,7 @@ describe('javascript', function() {
       path.join(__dirname, '/integration/uglify-json/index.json'),
       {
         minify: true,
-        scopeHoist: false,
+        shouldScopeHoist: false,
       },
     );
 
@@ -1850,7 +1850,7 @@ describe('javascript', function() {
       path.join(__dirname, '/integration/uglify-json5/index.json5'),
       {
         minify: true,
-        scopeHoist: false,
+        shouldScopeHoist: false,
       },
     );
 
@@ -1864,7 +1864,7 @@ describe('javascript', function() {
   it.skip('should minify YAML for production', async function() {
     let b = await bundle(path.join(__dirname, '/integration/yaml/index.js'), {
       minify: true,
-      scopeHoist: false,
+      shouldScopeHoist: false,
     });
 
     let output = await run(b);
@@ -1878,7 +1878,7 @@ describe('javascript', function() {
   it('should minify TOML for production', async function() {
     let b = await bundle(path.join(__dirname, '/integration/toml/index.js'), {
       minify: true,
-      scopeHoist: false,
+      shouldScopeHoist: false,
     });
 
     let output = await run(b);
@@ -2060,7 +2060,7 @@ describe('javascript', function() {
     let b = await bundle(
       path.join(__dirname, `/integration/js-comment/index.js`),
       {
-        scopeHoist: true,
+        shouldScopeHoist: true,
       },
     );
 
@@ -2072,7 +2072,7 @@ describe('javascript', function() {
     let b = await bundle(
       path.join(__dirname, `/integration/js-comment/index.js`),
       {
-        scopeHoist: true,
+        shouldScopeHoist: true,
         minify: true,
       },
     );
@@ -2097,7 +2097,7 @@ describe('javascript', function() {
   it('should not replace toplevel this with undefined in CommonJS when scope-hoisting', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/js-this-commonjs/a.js'),
-      {scopeHoist: true},
+      {shouldScopeHoist: true},
     );
 
     let output;
@@ -2122,7 +2122,7 @@ describe('javascript', function() {
   it('should replace toplevel this with undefined in ESM when scope-hoisting', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/js-this-es6/a.js'),
-      {scopeHoist: true},
+      {shouldScopeHoist: true},
     );
 
     let output;
@@ -2133,10 +2133,10 @@ describe('javascript', function() {
     assert.deepEqual(output, [undefined, 1234]);
   });
 
-  it('support building with multiple target and varying scopeHoist setting', async function() {
+  it('support building with multiple target and varying shouldScopeHoist setting', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/js-multi-target-scope-hoist/index.js'),
-      {scopeHoist: true},
+      {shouldScopeHoist: true},
     );
 
     for (let bundle of b.getBundles()) {

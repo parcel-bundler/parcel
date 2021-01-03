@@ -38,7 +38,7 @@ describe('monorepos', function() {
           path.join(fixture, 'packages/pkg-a/src/index.js'),
           path.join(fixture, 'packages/pkg-b/src/index.js'),
         ],
-        {scopeHoist: true, distDir},
+        {shouldScopeHoist: true, distDir},
       );
 
       assertBundles(b, [
@@ -84,7 +84,7 @@ describe('monorepos', function() {
         path.join(__dirname, '/integration/monorepo/packages/pkg-a'),
         path.join(__dirname, '/integration/monorepo/packages/pkg-b'),
       ],
-      {scopeHoist: true},
+      {shouldScopeHoist: true},
     );
 
     assertBundles(b, [
@@ -163,7 +163,7 @@ describe('monorepos', function() {
 
     try {
       let b = await bundle(path.join(fixture, 'packages/*/src/index.js'), {
-        scopeHoist: true,
+        shouldScopeHoist: true,
         distDir,
       });
 
@@ -212,7 +212,7 @@ describe('monorepos', function() {
       let b = await bundle(
         path.join(__dirname, '/integration/monorepo/packages/*/src/index.js'),
         {
-          scopeHoist: true,
+          shouldScopeHoist: true,
           distDir,
         },
       );
@@ -261,7 +261,7 @@ describe('monorepos', function() {
 
     try {
       let b = await bundle(path.join(fixture, 'src/index.js'), {
-        scopeHoist: true,
+        shouldScopeHoist: true,
         distDir,
       });
 
@@ -308,7 +308,7 @@ describe('monorepos', function() {
 
     try {
       let b = await bundle(path.join(fixture, 'index.js'), {
-        scopeHoist: true,
+        shouldScopeHoist: true,
         distDir,
       });
 
@@ -349,7 +349,7 @@ describe('monorepos', function() {
     let b = await bundle(
       path.join(__dirname, '/integration/monorepo/packages/*'),
       {
-        scopeHoist: true,
+        shouldScopeHoist: true,
       },
     );
 
@@ -430,7 +430,7 @@ describe('monorepos', function() {
     );
 
     let b = await bundler(path.join(__dirname, '/monorepo/packages/*'), {
-      scopeHoist: true,
+      shouldScopeHoist: true,
       inputFS: overlayFS,
     });
 
@@ -486,7 +486,7 @@ describe('monorepos', function() {
     );
 
     let b = await bundler(path.join(__dirname, '/monorepo/packages/*'), {
-      scopeHoist: true,
+      shouldScopeHoist: true,
       inputFS: overlayFS,
     });
 
@@ -545,7 +545,7 @@ describe('monorepos', function() {
     );
 
     let b = await bundler(path.join(__dirname, '/monorepo/packages/*'), {
-      scopeHoist: true,
+      shouldScopeHoist: true,
       inputFS: overlayFS,
     });
 
@@ -605,7 +605,7 @@ describe('monorepos', function() {
         path.join(__dirname, '/integration/monorepo-shared/packages/pkg-a'),
         path.join(__dirname, '/integration/monorepo-shared/packages/pkg-b'),
       ],
-      {scopeHoist: true},
+      {shouldScopeHoist: true},
     );
 
     assertBundles(b, [

@@ -101,7 +101,7 @@ export function generate({
 
   let {code, rawMappings} = babelGenerate(ast, {
     sourceMaps: !!bundle.env.sourceMap,
-    minified: bundle.env.minify,
+    minified: bundle.env.shouldOptimize,
     comments: true, // retain /*@__PURE__*/ comments for terser
   });
 

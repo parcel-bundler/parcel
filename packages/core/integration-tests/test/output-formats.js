@@ -10,7 +10,7 @@ import {
 } from '@parcel/test-utils';
 
 const bundle = (name, opts = {}) =>
-  _bundle(name, Object.assign({scopeHoist: true}, opts));
+  _bundle(name, Object.assign({shouldScopeHoist: true}, opts));
 
 describe('output formats', function() {
   describe('commonjs', function() {
