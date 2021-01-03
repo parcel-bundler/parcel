@@ -254,7 +254,7 @@ export default (new Bundler({
       |},
     > = new Map();
 
-    bundleGraph.traverse((node, ctx, actions) => {
+    bundleGraph.traverseContents((node, ctx, actions) => {
       if (node.type !== 'asset') {
         return;
       }
