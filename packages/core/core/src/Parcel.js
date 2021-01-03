@@ -4,7 +4,7 @@ import type {
   AsyncSubscription,
   BuildEvent,
   BuildSuccessEvent,
-  EnvironmentOpts,
+  EnvironmentOptions,
   FilePath,
   InitialParcelOptions,
   ModuleSpecifier,
@@ -352,7 +352,7 @@ export default class Parcel {
     code,
   }: {|
     filePath: FilePath,
-    env: EnvironmentOpts,
+    env: EnvironmentOptions,
     code?: string,
   |}): Promise<AssetRequestResult> {
     let [result] = await Promise.all([
@@ -375,7 +375,7 @@ export default class Parcel {
   }: {|
     moduleSpecifier: ModuleSpecifier,
     sourcePath: FilePath,
-    env: EnvironmentOpts,
+    env: EnvironmentOptions,
   |}): Promise<FilePath> {
     let resolved = await this.#assetGraphBuilder.resolverRunner.resolve(
       createDependency({
