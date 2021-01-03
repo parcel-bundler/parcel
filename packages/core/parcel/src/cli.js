@@ -200,7 +200,7 @@ async function run(entries: Array<string>, command: any) {
     defaultConfig: require.resolve('@parcel/config-default', {
       paths: [fs.cwd(), __dirname],
     }),
-    patchConsole: true,
+    shouldPatchConsole: true,
     ...options,
   });
 
@@ -287,10 +287,10 @@ async function run(entries: Array<string>, command: any) {
       }
     }));
 
-    if (command.open && options.serve) {
+    if (command.open && options.serveOptions) {
       await openInBrowser(
-        `${options.serve.https ? 'https' : 'http'}://${options.serve.host ||
-          'localhost'}:${options.serve.port}`,
+        `${options.serveOptions.https ? 'https' : 'http'}://${options
+          .serveOptions.host || 'localhost'}:${options.serveOptions.port}`,
         command.open,
       );
     }

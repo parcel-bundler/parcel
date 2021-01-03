@@ -610,7 +610,7 @@ export interface Config {
       parse?: boolean,
       exclude?: boolean,
     |},
-  ): Promise<ConfigResultWithFilePath | null>;
+  ): Promise<ConfigResultWithFilePath<ConfigResult> | null>;
   getConfig(
     filePaths: Array<FilePath>,
     options: ?{|
@@ -618,7 +618,7 @@ export interface Config {
       parse?: boolean,
       exclude?: boolean,
     |},
-  ): Promise<ConfigResultWithFilePath | null>;
+  ): Promise<ConfigResultWithFilePath<ConfigResult> | null>;
   getPackage(): Promise<PackageJSON | null>;
   shouldRehydrate(): void;
   shouldReload(): void;
