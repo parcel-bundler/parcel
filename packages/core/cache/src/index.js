@@ -1,4 +1,4 @@
 // @flow
 export {Cache} from './types';
-export {LMDBCache} from './LMDBCache';
-export {FSCache} from './FSCache';
+export * from './LMDBCache';
+export * from './FSCache';
