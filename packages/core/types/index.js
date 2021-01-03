@@ -248,6 +248,9 @@ export type PackageJSON = {
 
 export type LogLevel = 'none' | 'error' | 'warn' | 'info' | 'verbose';
 export type BuildMode = 'development' | 'production' | string;
+export type DetailedReportOptions = {|
+  assetsPerBundle?: number,
+|};
 
 export type InitialParcelOptions = {|
   +entries?: FilePath | Array<FilePath>,
@@ -272,11 +275,7 @@ export type InitialParcelOptions = {|
   +outputFS?: FileSystem,
   +workerFarm?: WorkerFarm,
   +packageManager?: PackageManager,
-  +detailedReport?:
-    | boolean
-    | {|
-        assetsPerBundle?: number,
-      |},
+  +detailedReport?: ?DetailedReportOptions,
 
   // TODO: Refactor to defaultTargetOptions
   +minify?: boolean,
@@ -311,7 +310,7 @@ export interface PluginOptions {
   +outputFS: FileSystem;
   +packageManager: PackageManager;
   +instanceId: string;
-  +detailedReport: number;
+  +detailedReport: ?DetailedReportOptions;
 }
 
 export type ServerOptions = {|

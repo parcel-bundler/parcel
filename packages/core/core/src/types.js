@@ -27,6 +27,7 @@ import type {
   TargetDescriptor,
   HMROptions,
   QueryParameters,
+  DetailedReportOptions,
 } from '@parcel/types';
 import type {SharedReference} from '@parcel/workers';
 import type {FileSystem} from '@parcel/fs';
@@ -175,7 +176,7 @@ export type ParcelOptions = {|
   lockFile: ?FilePath,
   shouldProfile: boolean,
   shouldPatchConsole: boolean,
-  detailedReport?: number,
+  detailedReport?: ?DetailedReportOptions,
 
   inputFS: FileSystem,
   outputFS: FileSystem,

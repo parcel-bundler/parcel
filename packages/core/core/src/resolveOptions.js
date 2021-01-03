@@ -74,14 +74,6 @@ export default async function resolveOptions(
   let mode = initialOptions.mode ?? 'development';
   let minify = initialOptions.minify ?? mode === 'production';
 
-  let detailedReport: number = 0;
-  if (initialOptions.detailedReport != null) {
-    detailedReport =
-      initialOptions.detailedReport === true
-        ? 10
-        : parseInt(initialOptions.detailedReport, 10);
-  }
-
   let publicUrl = initialOptions.publicUrl ?? '/';
   let distDir =
     initialOptions.distDir != null
@@ -134,6 +126,6 @@ export default async function resolveOptions(
     cache,
     packageManager,
     instanceId: generateInstanceId(entries),
-    detailedReport,
+    detailedReport: initialOptions.detailedReport,
   };
 }

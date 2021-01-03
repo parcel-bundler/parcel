@@ -7,6 +7,7 @@ import type {
   PluginOptions as IPluginOptions,
   ServerOptions,
   HMROptions,
+  DetailedReportOptions,
 } from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
 import type {PackageManager} from '@parcel/package-manager';
@@ -85,7 +86,7 @@ export default class PluginOptions implements IPluginOptions {
     return this.#options.packageManager;
   }
 
-  get detailedReport(): number {
-    return this.#options.detailedReport || 0;
+  get detailedReport(): ?DetailedReportOptions {
+    return this.#options.detailedReport;
   }
 }

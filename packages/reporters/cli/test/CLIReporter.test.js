@@ -30,7 +30,9 @@ const EMPTY_OPTIONS = {
   outputFS,
   instanceId: 'test',
   packageManager: new NodePackageManager(inputFS),
-  detailedReport: 10,
+  detailedReport: {
+    assetsPerBundle: 10,
+  },
 };
 
 describe('CLIReporter', () => {

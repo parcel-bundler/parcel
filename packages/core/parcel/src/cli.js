@@ -90,6 +90,7 @@ const commonOptions = {
   '--detailed-report [depth]': [
     'Print the asset timings and sizes in the build report',
     /^([0-9]+)$/,
+    '10',
   ],
 };
 
@@ -408,7 +409,12 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
     shouldAutoInstall: command.autoinstall ?? true,
     logLevel: command.logLevel,
     shouldProfile: command.profile,
-    detailedReport: command.detailedReport,
+    detailedReport:
+      command.detailedReport != null
+        ? {
+            assetsPerBundle: parseInt(command.detailedReport, 10),
+          }
+        : false,
     env: {
       NODE_ENV: nodeEnv,
     },
