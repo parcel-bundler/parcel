@@ -10,7 +10,15 @@ import {
 } from '@parcel/test-utils';
 import {loadSourceMapUrl} from '@parcel/utils';
 
-const bundle = (name, opts = {}) => _bundle(name, {sourceMaps: true, ...opts});
+const bundle = (name, opts = {}) => {
+  return _bundle(name, {
+    defaultTargetOptions: {
+      sourceMaps: true,
+      ...opts?.defaultTargetOptions,
+    },
+    ...opts,
+  });
+};
 
 function indexToLineCol(str, index) {
   let beforeIndex = str.slice(0, index);
@@ -542,7 +550,11 @@ describe('sourcemaps', function() {
         '/integration/sourcemap-css/style.css',
       );
 
-      await bundle(inputFilePath, {minify});
+      await bundle(inputFilePath, {
+        defaultTargetOptions: {
+          shouldOptimize: minify,
+        },
+      });
       let distDir = path.join(__dirname, '../dist/');
       let filename = path.join(distDir, 'style.css');
       let raw = await outputFS.readFile(filename, 'utf8');
@@ -597,7 +609,11 @@ describe('sourcemaps', function() {
         '/integration/sourcemap-css-import/style.css',
       );
 
-      await bundle(inputFilePath, {minify});
+      await bundle(inputFilePath, {
+        defaultTargetOptions: {
+          shouldOptimize: minify,
+        },
+      });
       let distDir = path.join(__dirname, '../dist/');
       let filename = path.join(distDir, 'style.css');
       let raw = await outputFS.readFile(filename, 'utf8');
@@ -699,7 +715,11 @@ describe('sourcemaps', function() {
         '/integration/sourcemap-sass/style.scss',
       );
 
-      await bundle(inputFilePath, {minify});
+      await bundle(inputFilePath, {
+        defaultTargetOptions: {
+          shouldOptimize: minify,
+        },
+      });
       let distDir = path.join(__dirname, '../dist/');
       let filename = path.join(distDir, 'style.css');
       let raw = await outputFS.readFile(filename, 'utf8');
@@ -806,7 +826,11 @@ describe('sourcemaps', function() {
         '/integration/sourcemap-sass-imported/style.css',
       );
 
-      await bundle(inputFilePath, {minify});
+      await bundle(inputFilePath, {
+        defaultTargetOptions: {
+          shouldOptimize: minify,
+        },
+      });
       let distDir = path.join(__dirname, '../dist/');
       let filename = path.join(distDir, 'style.css');
       let raw = await outputFS.readFile(filename, 'utf8');
@@ -888,7 +912,11 @@ describe('sourcemaps', function() {
         '/integration/sourcemap-less/style.less',
       );
 
-      await bundle(inputFilePath, {minify});
+      await bundle(inputFilePath, {
+        defaultTargetOptions: {
+          shouldOptimize: minify,
+        },
+      });
       let distDir = path.join(__dirname, '../dist/');
       let filename = path.join(distDir, 'style.css');
       let raw = await outputFS.readFile(filename, 'utf8');
