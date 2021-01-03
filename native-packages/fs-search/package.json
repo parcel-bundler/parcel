@@ -1,7 +1,25 @@
 {
   "name": "@parcel/fs-search",
   "version": "2.0.0-beta.1",
-  "files": ["index.js", "*.node"],
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "funding": {
+    "type": "opencollective",
+    "url": "https://opencollective.com/parcel"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  },
+  "engines": {
+    "node": ">= 12.0.0"
+  },
+  "files": [
+    "index.js",
+    "*.node"
+  ],
   "napi": {
     "name": "fs-search"
   },
