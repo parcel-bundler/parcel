@@ -34,7 +34,7 @@ describe('BundleGraph', () => {
 
 function getAssets(bundleGraph) {
   let assets = [];
-  bundleGraph.traverse(node => {
+  bundleGraph.traverseContents(node => {
     if (node.type === 'asset') {
       assets.push(node.value);
     }
