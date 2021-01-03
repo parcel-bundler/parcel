@@ -1,14 +1,14 @@
 import * as React from 'react';
 import ReactDOM from 'react-dom';
 
-console.log({hmrOptions: module.hmrOptions});
+console.log({hmrOptions: module.hot});
 
-if (module.hmrOptions) {
-  module.hmrOptions.dispose(function() {
+if (module.hot) {
+  module.hot.dispose(function() {
     console.log('HOT DISPOSE');
   });
 
-  module.hmrOptions.accept(function() {
+  module.hot.accept(function() {
     console.log('HOT ACCEPT');
   });
 }

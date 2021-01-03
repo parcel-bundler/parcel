@@ -35,8 +35,8 @@ module.exports.postlude = function(module) {
   if (isReactRefreshBoundary(module.exports)) {
     registerExportsForReactRefresh(module);
 
-    if (module.hmrOptions) {
-      module.hmrOptions.dispose(function(data) {
+    if (module.hot) {
+      module.hot.dispose(function(data) {
         if (Refresh.hasUnrecoverableErrors()) {
           window.location.reload();
         }
@@ -44,8 +44,8 @@ module.exports.postlude = function(module) {
         data.prevExports = module.exports;
       });
 
-      module.hmrOptions.accept(function(getParents) {
-        var prevExports = module.hmrOptions.data.prevExports;
+      module.hot.accept(function(getParents) {
+        var prevExports = module.hot.data.prevExports;
         var nextExports = module.exports;
         // Since we just executed the code for it, it's possible
         // that the new exports make it ineligible for being a boundary.

@@ -4,7 +4,7 @@ function run() {
   output(local.a + local.b);
 }
 
-module.hmrOptions.accept();
+module.hot.accept();
 
 run();
 

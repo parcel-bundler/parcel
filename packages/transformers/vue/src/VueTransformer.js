@@ -127,9 +127,9 @@ let initialize = () => {
 initialize();
 ${
   options.hmrOptions
-    ? `if (module.hmrOptions) {
+    ? `if (module.hot) {
   script.__hmrId = '${hmrId}';
-  module.hmrOptions.accept(() => {
+  module.hot.accept(() => {
     setTimeout(() => {
       initialize();
       if (!__VUE_HMR_RUNTIME__.createRecord('${hmrId}', script)) {
@@ -272,8 +272,8 @@ async function processPipeline({
           `
 ${
   options.hmrOptions
-    ? `if (module.hmrOptions) {
-  module.hmrOptions.accept(() => {
+    ? `if (module.hot) {
+  module.hot.accept(() => {
     __VUE_HMR_RUNTIME__.rerender('${hmrId}', render);
   })
 }`
@@ -416,8 +416,8 @@ import {render} from 'template:./${basePath}';
 let cssModules = ${JSON.stringify(cssModules)};
 ${
   options.hmrOptions
-    ? `if (module.hmrOptions) {
-  module.hmrOptions.accept(() => {
+    ? `if (module.hot) {
+  module.hot.accept(() => {
     __VUE_HMR_RUNTIME__.rerender('${hmrId}', render);
   });
 };`

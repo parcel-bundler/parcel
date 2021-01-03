@@ -306,7 +306,7 @@ describe('hmr', function() {
       await fs.mkdirp(path.join(__dirname, '/input'));
       fs.writeFile(
         path.join(__dirname, '/input/index.js'),
-        'module.hmrOptions.accept();throw new Error("Something");\noutput(123);',
+        'module.hot.accept();throw new Error("Something");\noutput(123);',
       );
 
       let b = bundler(path.join(__dirname, '/input/index.js'), {

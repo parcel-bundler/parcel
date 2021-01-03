@@ -9,10 +9,10 @@ run();
 // eslint-disable-next-line no-undef
 reportModuleId(module.id);
 
-module.hmrOptions.dispose(function () {
+module.hot.dispose(function () {
   output('dispose-' + module.id);
 });
 
-module.hmrOptions.accept(function () {
+module.hot.accept(function () {
   output('accept-' + module.id);
 });

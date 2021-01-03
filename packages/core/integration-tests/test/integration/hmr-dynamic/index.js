@@ -6,6 +6,6 @@ function run() {
   });
 };
 
-module.hmrOptions.accept();
+module.hot.accept();
 
 run();
