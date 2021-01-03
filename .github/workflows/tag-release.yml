@@ -24,6 +24,9 @@ jobs:
       - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
         if: ${{ matrix.os == 'ubuntu-latest' }}
         run: strip native-packages/*/*.node
+      - name: Strip debug symbols
+        if: ${{ matrix.os == 'macos-latest' }}
+        run: strip -x native-packages/*/*.node # Must use -x on macOS. This produces larger results on linux.
       - name: Upload artifacts
         uses: actions/upload-artifact@v2
         with:
@@ -141,6 +144,8 @@ jobs:
       - uses: bahmutov/npm-install@v1.1.0
         env:
           RUST_TARGET: aarch64-apple-darwin
+      - name: Strip debug symbols
+        run: strip -x native-packages/*/*.node
       - name: Upload artifacts
         uses: actions/upload-artifact@v2
         with:
