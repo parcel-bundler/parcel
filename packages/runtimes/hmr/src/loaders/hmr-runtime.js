@@ -6,7 +6,7 @@ var OldModule = module.bundle.Module;
 
 function Module(moduleName) {
   OldModule.call(this, moduleName);
-  this.hmrOptions = {
+  this.hot = {
     data: module.bundle.hotData,
     _acceptCallbacks: [],
     _disposeCallbacks: [],
@@ -265,11 +265,7 @@ function hmrAcceptCheck(bundle, id) {
 
   assetsToAccept.push([bundle, id]);
 
-  if (
-    cached &&
-    cached.hmrOptions &&
-    cached.hmrOptions._acceptCallbacks.length
-  ) {
+  if (cached && cached.hot && cached.hot._acceptCallbacks.length) {
     return true;
   }
 
@@ -281,16 +277,12 @@ function hmrAcceptCheck(bundle, id) {
 function hmrAcceptRun(bundle, id) {
   var cached = bundle.cache[id];
   bundle.hotData = {};
-  if (cached && cached.hmrOptions) {
-    cached.hmrOptions.data = bundle.hotData;
+  if (cached && cached.hot) {
+    cached.hot.data = bundle.hotData;
   }
 
-  if (
-    cached &&
-    cached.hmrOptions &&
-    cached.hmrOptions._disposeCallbacks.length
-  ) {
-    cached.hmrOptions._disposeCallbacks.forEach(function(cb) {
+  if (cached && cached.hot && cached.hot._disposeCallbacks.length) {
+    cached.hot._disposeCallbacks.forEach(function(cb) {
       cb(bundle.hotData);
     });
   }
@@ -299,12 +291,8 @@ function hmrAcceptRun(bundle, id) {
   bundle(id);
 
   cached = bundle.cache[id];
-  if (
-    cached &&
-    cached.hmrOptions &&
-    cached.hmrOptions._acceptCallbacks.length
-  ) {
-    cached.hmrOptions._acceptCallbacks.forEach(function(cb) {
+  if (cached && cached.hot && cached.hot._acceptCallbacks.length) {
+    cached.hot._acceptCallbacks.forEach(function(cb) {
       var assetsToAlsoAccept = cb(function() {
         return getParents(module.bundle.root, id);
       });

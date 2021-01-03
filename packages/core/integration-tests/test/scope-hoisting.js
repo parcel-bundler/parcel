@@ -3706,7 +3706,7 @@ describe('scope hoisting', function() {
       // replaces the typeof calls before we can get to them.
       let output = await run(b);
       assert.equal(output.id, entryAsset.id);
-      assert.equal(output.hmrOptions, null);
+      assert.equal(output.hot, null);
       assert.equal(output.moduleRequire, null);
       assert.equal(output.type, 'object');
       assert.deepEqual(output.exports, {});

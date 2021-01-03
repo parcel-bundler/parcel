@@ -17,7 +17,7 @@ export default (new Runtime({
   async apply({bundle, options}) {
     if (
       bundle.type !== 'js' ||
-      !options.hmrOptions ||
+      !options.hot ||
       !bundle.env.isBrowser() ||
       options.mode !== 'development'
     ) {
