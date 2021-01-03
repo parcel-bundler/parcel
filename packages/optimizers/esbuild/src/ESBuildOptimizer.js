@@ -5,6 +5,7 @@ import {Optimizer} from '@parcel/plugin';
 import {blobToString, normalizePath} from '@parcel/utils';
 import SourceMap from '@parcel/source-map';
 import path from 'path';
+import invariant from 'assert';
 
 let service = null;
 export default (new Optimizer({
@@ -22,34 +23,25 @@ export default (new Optimizer({
       bundle.filePath,
     );
     let code = await blobToString(contents);
-    if (map && options.sourceMaps) {
-      let vlqMappings = map.toVLQ();
-      vlqMappings = {
-        ...vlqMappings,
-        sources: vlqMappings.sources.map(source => normalizePath(source)),
-        sourcesContent: vlqMappings.sourcesContent
-          ? vlqMappings.sourcesContent.map(content =>
-              content ? content : null,
-            )
-          : [],
-        version: 3,
+    if (map) {
+      let vlqMappings = await map.stringify({
         file: normalizePath(relativeBundlePath + '.map'),
-        sourceRoot: options.projectRoot,
-      };
-      code += `\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,${Buffer.from(
-        JSON.stringify(vlqMappings),
-      ).toString('base64')}`;
+        format: 'inline',
+      });
+      // Flow things...
+      invariant(typeof vlqMappings === 'string');
+      code += `\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,${vlqMappings}`;
     }
 
     let {code: js, map: jsSourceMap} = await service.transform(code, {
-      sourcemap: options.sourceMaps,
+      sourcemap: 'external',
       sourcefile: relativeBundlePath,
       minify: true,
     });
 
     let sourcemap = null;
-    if (jsSourceMap && options.sourceMaps) {
-      sourcemap = new SourceMap();
+    if (jsSourceMap) {
+      sourcemap = new SourceMap(options.projectRoot);
       let parsedMap = JSON.parse(jsSourceMap);
       sourcemap.addRawMappings(parsedMap);
 
@@ -59,6 +51,9 @@ export default (new Optimizer({
       }
     }
 
-    return {contents: js, map: sourcemap};
+    return {
+      contents: js,
+      map: sourcemap || map,
+    };
   },
 }): Optimizer);
