@@ -2636,4 +2636,69 @@ describe('cache', function() {
       assert.equal(bundles.length, 4);
     });
   });
+
+  it('should correctly read additional child assets from cache', async function() {
+    await ncp(
+      path.join(__dirname, '/integration/postcss-modules-cjs'),
+      path.join(inputDir),
+    );
+
+    let entries = 'index.js';
+
+    let b = await runBundle(entries, {minify: false});
+    let result1 = (await run(b.bundleGraph))();
+
+    b = await runBundle(entries, {minify: true});
+    let result2 = (await run(b.bundleGraph))();
+
+    b = await runBundle(entries, {minify: false});
+    let result3 = (await run(b.bundleGraph))();
+
+    assert(typeof result1 === 'string' && result1.includes('foo'));
+    assert.strictEqual(result1, result2);
+    assert.strictEqual(result1, result3);
+  });
+
+  it('should correctly read additional child assets from cache 2', async function() {
+    await ncp(
+      path.join(__dirname, '/integration/postcss-modules-cjs'),
+      path.join(inputDir),
+    );
+
+    let entries = 'index.js';
+
+    await overlayFS.writeFile(
+      path.join(inputDir, 'foo.module.css'),
+      `.foo {
+  color: red;
+}`,
+    );
+
+    let b = await runBundle(entries);
+    let result1 = (await run(b.bundleGraph))();
+
+    await overlayFS.writeFile(
+      path.join(inputDir, 'foo.module.css'),
+      `.foo {
+  color: blue;
+}`,
+    );
+
+    b = await runBundle(entries);
+    let result2 = (await run(b.bundleGraph))();
+
+    await overlayFS.writeFile(
+      path.join(inputDir, 'foo.module.css'),
+      `.foo {
+  color: red;
+}`,
+    );
+
+    b = await runBundle(entries);
+    let result3 = (await run(b.bundleGraph))();
+
+    assert(typeof result1 === 'string' && result1.includes('foo'));
+    assert.strictEqual(result1, result2);
+    assert.strictEqual(result1, result3);
+  });
 });
