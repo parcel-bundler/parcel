@@ -91,8 +91,8 @@ export default async function resolveOptions(
   return {
     config: initialOptions.config,
     defaultConfig: initialOptions.defaultConfig,
-    patchConsole:
-      initialOptions.patchConsole ?? process.env.NODE_ENV !== 'test',
+    shouldPatchConsole:
+      initialOptions.shouldPatchConsole ?? process.env.NODE_ENV !== 'test',
     env: {
       ...process.env,
       ...initialOptions.env,
@@ -115,7 +115,7 @@ export default async function resolveOptions(
         }
       : false,
     disableCache: initialOptions.disableCache ?? false,
-    profile: initialOptions.profile ?? false,
+    shouldProfile: initialOptions.shouldProfile ?? false,
     cacheDir,
     entries,
     entryRoot,

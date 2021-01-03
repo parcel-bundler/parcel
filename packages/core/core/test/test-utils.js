@@ -32,11 +32,11 @@ export const DEFAULT_OPTIONS: ParcelOptions = {
   env: {},
   disableCache: false,
   sourceMaps: false,
-  profile: false,
+  shouldProfile: false,
   inputFS,
   outputFS,
   cache,
-  patchConsole: false,
+  shouldPatchConsole: false,
   packageManager: new NodePackageManager(inputFS),
   instanceId: 'test',
 };

@@ -33,7 +33,7 @@ module.exports = async function({
       node: '14',
     },
     distDir: DIST_DIR,
-    patchConsole: false,
+    shouldPatchConsole: false,
     mode: 'production',
     minify: false,
     targets: {

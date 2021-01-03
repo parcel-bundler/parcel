@@ -200,7 +200,7 @@ async function run(entries: Array<string>, command: any) {
     defaultConfig: require.resolve('@parcel/config-default', {
       paths: [fs.cwd(), __dirname],
     }),
-    patchConsole: true,
+    shouldPatchConsole: true,
     ...options,
   });
 
@@ -407,7 +407,7 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
     targets: command.target.length > 0 ? command.target : null,
     shouldAutoInstall: command.autoinstall ?? true,
     logLevel: command.logLevel,
-    profile: command.profile,
+    shouldProfile: command.profile,
     detailedReport: command.detailedReport,
     env: {
       NODE_ENV: nodeEnv,

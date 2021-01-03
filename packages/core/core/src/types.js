@@ -179,8 +179,8 @@ export type ParcelOptions = {|
   logLevel: LogLevel,
   projectRoot: FilePath,
   lockFile: ?FilePath,
-  profile: boolean,
-  patchConsole: boolean,
+  shouldProfile: boolean,
+  shouldPatchConsole: boolean,
   detailedReport?: number,
 
   inputFS: FileSystem,

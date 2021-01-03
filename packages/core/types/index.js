@@ -270,8 +270,8 @@ export type InitialParcelOptions = {|
   +serveOptions?: InitialServerOptions | false,
   +shouldAutoInstall?: boolean,
   +logLevel?: LogLevel,
-  +profile?: boolean,
-  +patchConsole?: boolean,
+  +shouldProfile?: boolean,
+  +shouldPatchConsole?: boolean,
 
   +inputFS?: FileSystem,
   +outputFS?: FileSystem,

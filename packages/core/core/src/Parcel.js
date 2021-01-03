@@ -106,7 +106,7 @@ export default class Parcel {
       this.#farm = this.#initialOptions.workerFarm;
     } else {
       this.#farm = createWorkerFarm({
-        patchConsole: resolvedOptions.patchConsole,
+        shouldPatchConsole: resolvedOptions.shouldPatchConsole,
       });
     }
 
@@ -283,7 +283,7 @@ export default class Parcel {
   |} = {}): Promise<BuildEvent> {
     let options = nullthrows(this.#resolvedOptions);
     try {
-      if (options.profile) {
+      if (options.shouldProfile) {
         await this.startProfiling();
       }
       this.#reporterRunner.report({

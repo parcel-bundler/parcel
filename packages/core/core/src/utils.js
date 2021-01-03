@@ -93,8 +93,8 @@ const ignoreOptions = new Set([
   'cacheDir',
   'shouldAutoInstall',
   'logLevel',
-  'profile',
-  'patchConsole',
+  'shouldProfile',
+  'shouldPatchConsole',
   'projectRoot',
 ]);
 
