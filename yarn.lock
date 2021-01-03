@@ -5078,10 +5078,10 @@ es6-weak-map@^2.0.1:
     es6-iterator "^2.0.3"
     es6-symbol "^3.1.1"
 
-esbuild@^0.6.27:
-  version "0.6.27"
-  resolved "https://registry.yarnpkg.com/esbuild/-/esbuild-0.6.27.tgz#e8f4d6b3bb3b4156a5e5679b5b582561b075828d"
-  integrity sha512-oonxxg/ExZt9tYMPnEUDYAN7YefEPsC21pXez5rwKcCPAF6gzMuxLvAdbU4dCT8Tp0I2avODz61vrGyu5wR/uA==
+esbuild@^0.8.11:
+  version "0.8.29"
+  resolved "https://registry.yarnpkg.com/esbuild/-/esbuild-0.8.29.tgz#cc20fb752e0905a3546d68ae1be58f9b97044c39"
+  integrity sha512-UDsEoeXuctVgG2hEts1Hwq2jYDGqV7nksEHEZaiCy2v+lXF5ButX4ErPAJAFi5ZNKKW+6Pom93pArV7hki6HnQ==
 
 escape-html@~1.0.3:
   version "1.0.3"

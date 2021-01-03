@@ -41,7 +41,7 @@ export default (new Optimizer({
       ).toString('base64')}`;
     }
 
-    let {js, jsSourceMap} = await service.transform(code, {
+    let {code: js, map: jsSourceMap} = await service.transform(code, {
       sourcemap: options.sourceMaps,
       sourcefile: relativeBundlePath,
       minify: true,
