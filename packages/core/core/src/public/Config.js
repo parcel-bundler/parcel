@@ -96,7 +96,7 @@ export default class PublicConfig implements IConfig {
       parse?: boolean,
       exclude?: boolean,
     |},
-  ): Promise<ConfigResultWithFilePath | null> {
+  ): Promise<ConfigResultWithFilePath<ConfigResult> | null> {
     let packageKey = options && options.packageKey;
     if (packageKey != null) {
       let pkg = await this.getPackage();
@@ -142,7 +142,7 @@ export default class PublicConfig implements IConfig {
       parse?: boolean,
       exclude?: boolean,
     |},
-  ): Promise<ConfigResultWithFilePath | null> {
+  ): Promise<ConfigResultWithFilePath<ConfigResult> | null> {
     return this.getConfigFrom(this.searchPath, filePaths, options);
   }
 

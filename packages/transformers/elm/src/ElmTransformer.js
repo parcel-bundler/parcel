@@ -40,7 +40,7 @@ export default (new Transformer({
       'node-elm-compiler',
       asset.filePath,
       {
-        autoinstall: options.autoinstall,
+        shouldAutoInstall: options.shouldAutoInstall,
         saveDev: true,
       },
     );
@@ -62,7 +62,7 @@ export default (new Transformer({
     process.chdir.disabled = isWorker;
 
     let code = await compileToString(elm, elmBinary, asset, compilerConfig);
-    if (options.hot) {
+    if (options.hmrOptions) {
       code = await injectHotModuleReloadRuntime(code, asset.filePath, options);
     }
     if (compilerConfig.optimize) code = await minifyElmOutput(code);
@@ -97,7 +97,7 @@ async function resolveLocalElmBinary(searchPath, options) {
     let result = await options.packageManager.resolve(
       'elm/package.json',
       searchPath,
-      {autoinstall: false},
+      {shouldAutoInstall: false},
     );
 
     let bin = nullthrows(result.pkg?.bin);
@@ -119,7 +119,7 @@ function compileToString(elm, elmBinary, asset, config) {
 
 async function injectHotModuleReloadRuntime(code, filePath, options) {
   const elmHMR = await options.packageManager.require('elm-hot', filePath, {
-    autoinstall: options.autoinstall,
+    shouldAutoInstall: options.shouldAutoInstall,
     saveDev: true,
   });
   return elmHMR.inject(code);

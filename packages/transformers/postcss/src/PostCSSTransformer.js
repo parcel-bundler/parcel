@@ -40,7 +40,7 @@ export default (new Transformer({
     let postcss = await options.packageManager.require(
       'postcss',
       asset.filePath,
-      {autoinstall: options.autoinstall, range: '^8.0.0'},
+      {shouldAutoInstall: options.shouldAutoInstall, range: '^8.0.0'},
     );
 
     return {
@@ -61,7 +61,7 @@ export default (new Transformer({
     let postcss = await options.packageManager.require(
       'postcss',
       asset.filePath,
-      {autoinstall: options.autoinstall, range: '^8.0.0'},
+      {shouldAutoInstall: options.shouldAutoInstall, range: '^8.0.0'},
     );
 
     let plugins = [...config.hydrated.plugins];
@@ -69,7 +69,7 @@ export default (new Transformer({
       let postcssModules = await options.packageManager.require(
         'postcss-modules',
         asset.filePath,
-        {autoinstall: options.autoinstall},
+        {shouldAutoInstall: options.shouldAutoInstall},
       );
 
       plugins.push(
@@ -154,7 +154,7 @@ export default (new Transformer({
     let postcss = await options.packageManager.require(
       'postcss',
       asset.filePath,
-      {autoinstall: options.autoinstall, range: '^8.0.0'},
+      {shouldAutoInstall: options.shouldAutoInstall, range: '^8.0.0'},
     );
 
     let code = '';

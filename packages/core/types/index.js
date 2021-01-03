@@ -305,9 +305,9 @@ export type InitialServerOptions = {|
 export interface PluginOptions {
   +mode: BuildMode;
   +env: EnvMap;
-  +hot: ?HMROptions;
-  +serve: ServerOptions | false;
-  +autoinstall: boolean;
+  +hmrOptions: ?HMROptions;
+  +serveOptions: ServerOptions | false;
+  +shouldAutoInstall: boolean;
   +logLevel: LogLevel;
   +entryRoot: FilePath;
   +projectRoot: FilePath;

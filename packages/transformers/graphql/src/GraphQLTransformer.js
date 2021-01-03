@@ -9,14 +9,14 @@ export default (new Transformer({
       Source,
       stripIgnoredCharacters,
     } = await options.packageManager.require('graphql', asset.filePath, {
-      autoinstall: options.autoinstall,
+      shouldAutoInstall: options.shouldAutoInstall,
     });
 
     const {processDocumentImports} = await options.packageManager.require(
       'graphql-import-macro',
       asset.filePath,
       {
-        autoinstall: options.autoinstall,
+        shouldAutoInstall: options.shouldAutoInstall,
       },
     );
 

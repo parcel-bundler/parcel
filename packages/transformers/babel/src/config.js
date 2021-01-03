@@ -34,7 +34,7 @@ export async function load(
   let resolved = await options.packageManager.resolve(
     '@babel/core',
     config.searchPath,
-    {range: BABEL_RANGE, autoinstall: options.autoinstall},
+    {range: BABEL_RANGE, shouldAutoInstall: options.shouldAutoInstall},
   );
   let babelCore = await options.packageManager.require(
     resolved.resolved,
@@ -292,7 +292,7 @@ export async function postDeserialize(config: Config, options: PluginOptions) {
   let babelCore = config.result.internal
     ? bundledBabelCore
     : await options.packageManager.require('@babel/core', config.searchPath, {
-        autoinstall: options.autoinstall,
+        shouldAutoInstall: options.shouldAutoInstall,
       });
 
   config.result.config.presets = await Promise.all(
@@ -300,7 +300,7 @@ export async function postDeserialize(config: Config, options: PluginOptions) {
       let value = await options.packageManager.require(
         configItem.file.resolved,
         config.searchPath,
-        {autoinstall: options.autoinstall},
+        {shouldAutoInstall: options.shouldAutoInstall},
       );
       value = value.default ? value.default : value;
       return babelCore.createConfigItem([value, configItem.options], {
@@ -314,7 +314,7 @@ export async function postDeserialize(config: Config, options: PluginOptions) {
       let value = await options.packageManager.require(
         configItem.file.resolved,
         config.searchPath,
-        {autoinstall: options.autoinstall},
+        {shouldAutoInstall: options.shouldAutoInstall},
       );
       value = value.default ? value.default : value;
       return babelCore.createConfigItem([value, configItem.options], {

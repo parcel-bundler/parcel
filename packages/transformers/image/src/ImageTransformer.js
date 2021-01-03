@@ -29,7 +29,7 @@ export default (new Transformer({
         asset.filePath,
         {
           // Sharp takes too long to install for autoinstall option to make sense
-          autoinstall: false,
+          shouldAutoInstall: false,
         },
       );
 
