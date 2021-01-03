@@ -24,7 +24,7 @@ jobs:
       - uses: bahmutov/npm-install@v1.1.0
       - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
         if: ${{ matrix.os == 'ubuntu-latest' }}
-        run: strip *.node
+        run: strip native-packages/*/*.node
       - name: Upload artifacts
         uses: actions/upload-artifact@v2
         with:
@@ -63,7 +63,7 @@ jobs:
         env:
           RUST_TARGET: ${{ matrix.target }}
       - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
-        run: strip *.node
+        run: strip native-packages/*/*.node
       - name: Upload artifacts
         uses: actions/upload-artifact@v2
         with:
@@ -113,7 +113,7 @@ jobs:
         env:
           RUST_TARGET: ${{ matrix.target }}
       - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
-        run: strip *.node
+        run: strip native-packages/*/*.node
       - name: Upload artifacts
         uses: actions/upload-artifact@v2
         with:
