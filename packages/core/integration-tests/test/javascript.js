@@ -1279,8 +1279,10 @@ describe('javascript', function() {
 
   it('should minify JS in production mode', async function() {
     let b = await bundle(path.join(__dirname, '/integration/uglify/index.js'), {
-      minify: true,
-      shouldScopeHoist: false,
+      defaultTargetOptions: {
+        shouldOptimize: true,
+        shouldScopeHoist: false,
+      },
     });
 
     let output = await run(b);
@@ -1293,8 +1295,10 @@ describe('javascript', function() {
 
   it('should use uglify config', async function() {
     await bundle(path.join(__dirname, '/integration/uglify-config/index.js'), {
-      minify: true,
-      shouldScopeHoist: false,
+      defaultTargetOptions: {
+        shouldOptimize: true,
+        shouldScopeHoist: false,
+      },
     });
 
     let js = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
@@ -1833,8 +1837,10 @@ describe('javascript', function() {
     let b = await bundle(
       path.join(__dirname, '/integration/uglify-json/index.json'),
       {
-        minify: true,
-        shouldScopeHoist: false,
+        defaultTargetOptions: {
+          shouldOptimize: true,
+          shouldScopeHoist: false,
+        },
       },
     );
 
@@ -1849,8 +1855,10 @@ describe('javascript', function() {
     let b = await bundle(
       path.join(__dirname, '/integration/uglify-json5/index.json5'),
       {
-        minify: true,
-        shouldScopeHoist: false,
+        defaultTargetOptions: {
+          shouldOptimize: true,
+          shouldScopeHoist: false,
+        },
       },
     );
 
@@ -1863,8 +1871,10 @@ describe('javascript', function() {
 
   it.skip('should minify YAML for production', async function() {
     let b = await bundle(path.join(__dirname, '/integration/yaml/index.js'), {
-      minify: true,
-      shouldScopeHoist: false,
+      defaultTargetOptions: {
+        shouldOptimize: true,
+        shouldScopeHoist: false,
+      },
     });
 
     let output = await run(b);
@@ -1877,8 +1887,10 @@ describe('javascript', function() {
 
   it('should minify TOML for production', async function() {
     let b = await bundle(path.join(__dirname, '/integration/toml/index.js'), {
-      minify: true,
-      shouldScopeHoist: false,
+      defaultTargetOptions: {
+        shouldOptimize: true,
+        shouldScopeHoist: false,
+      },
     });
 
     let output = await run(b);
@@ -2060,7 +2072,9 @@ describe('javascript', function() {
     let b = await bundle(
       path.join(__dirname, `/integration/js-comment/index.js`),
       {
-        shouldScopeHoist: true,
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
       },
     );
 
@@ -2072,8 +2086,10 @@ describe('javascript', function() {
     let b = await bundle(
       path.join(__dirname, `/integration/js-comment/index.js`),
       {
-        shouldScopeHoist: true,
-        minify: true,
+        defaultTargetOptions: {
+          shouldOptimize: true,
+          shouldScopeHoist: true,
+        },
       },
     );
 
@@ -2872,7 +2888,9 @@ describe('javascript', function() {
     await assert.rejects(
       () =>
         bundle(fixture, {
-          minify: true,
+          defaultTargetOptions: {
+            shouldOptimize: true,
+          },
         }),
       {
         name: 'BuildError',

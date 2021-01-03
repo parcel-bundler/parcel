@@ -162,7 +162,9 @@ describe('css', () => {
     let b = await bundle(
       path.join(__dirname, '/integration/css-url/index.js'),
       {
-        minify: true,
+        defaultTargetOptions: {
+          shouldOptimize: false,
+        },
       },
     );
 
@@ -208,8 +210,10 @@ describe('css', () => {
         path.join(__dirname, '/integration/css-url-relative/src/b/style2.css'),
       ],
       {
-        minify: true,
-        sourceMaps: false,
+        defaultTargetOptions: {
+          shouldOptimize: false,
+          sourceMaps: false,
+        },
       },
     );
 
@@ -263,8 +267,10 @@ describe('css', () => {
     let b = await bundle(
       path.join(__dirname, '/integration/cssnano/index.js'),
       {
-        minify: true,
-        sourceMaps: false,
+        defaultTargetOptions: {
+          shouldOptimize: true,
+          sourceMaps: false,
+        },
       },
     );
 
@@ -281,7 +287,9 @@ describe('css', () => {
 
   it('should produce a sourcemap when sourceMaps are used', async function() {
     await bundle(path.join(__dirname, '/integration/cssnano/index.js'), {
-      minify: true,
+      defaultTargetOptions: {
+        shouldOptimize: true,
+      },
     });
 
     let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');

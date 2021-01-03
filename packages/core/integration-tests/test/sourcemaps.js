@@ -348,7 +348,9 @@ describe('sourcemaps', function() {
     );
     let sourceFilename = path.join(sourceDir, '/index.js');
     await bundle(sourceFilename, {
-      minify: true,
+      defaultTargetOptions: {
+        shouldOptimize: true,
+      },
     });
 
     let distDir = path.join(

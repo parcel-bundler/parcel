@@ -390,7 +390,9 @@ describe('html', function() {
   it('should minify HTML in production mode', async function() {
     let inputFile = path.join(__dirname, '/integration/htmlnano/index.html');
     await bundle(inputFile, {
-      minify: true,
+      defaultTargetOptions: {
+        shouldOptimize: true,
+      },
     });
 
     let inputSize = (await inputFS.stat(inputFile)).size;
@@ -407,7 +409,9 @@ describe('html', function() {
   it('should work with an empty html file', async function() {
     let inputFile = path.join(__dirname, '/integration/html-empty/index.html');
     await bundle(inputFile, {
-      minify: false,
+      defaultTargetOptions: {
+        shouldOptimize: false,
+      },
     });
 
     let outputFile = path.join(distDir, 'index.html');
@@ -419,7 +423,9 @@ describe('html', function() {
     await bundle(
       path.join(__dirname, '/integration/htmlnano-config/index.html'),
       {
-        minify: true,
+        defaultTargetOptions: {
+          shouldOptimize: true,
+        },
       },
     );
 
@@ -456,7 +462,9 @@ describe('html', function() {
       '/integration/htmlnano-defaults-form/index.html',
     );
     await bundle(inputFile, {
-      minify: true,
+      defaultTargetOptions: {
+        shouldOptimize: true,
+      },
     });
 
     let inputSize = (await inputFS.stat(inputFile)).size;
@@ -837,7 +845,11 @@ describe('html', function() {
   it('should process inline JS', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-inline-js/index.html'),
-      {minify: true},
+      {
+        defaultTargetOptions: {
+          shouldOptimize: true,
+        },
+      },
     );
 
     // inline bundles are not output, but are apart of the bundleGraph
@@ -864,7 +876,11 @@ describe('html', function() {
   it('should process inline styles', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-inline-styles/index.html'),
-      {minify: true},
+      {
+        defaultTargetOptions: {
+          shouldOptimize: true,
+        },
+      },
     );
 
     assertBundles(b, [
@@ -931,7 +947,11 @@ describe('html', function() {
   it('should process inline styles using lang', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-inline-sass/index.html'),
-      {minify: true},
+      {
+        defaultTargetOptions: {
+          shouldOptimize: true,
+        },
+      },
     );
 
     assertBundles(b, [
@@ -956,7 +976,11 @@ describe('html', function() {
   it('should process inline non-js scripts', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-inline-coffeescript/index.html'),
-      {minify: true},
+      {
+        defaultTargetOptions: {
+          shouldOptimize: true,
+        },
+      },
     );
 
     assertBundles(b, [
@@ -1004,7 +1028,11 @@ describe('html', function() {
   it('should allow imports and requires in inline <script> tags', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-inline-js-require/index.html'),
-      {minify: true},
+      {
+        defaultTargetOptions: {
+          shouldOptimize: true,
+        },
+      },
     );
 
     assertBundles(b, [
