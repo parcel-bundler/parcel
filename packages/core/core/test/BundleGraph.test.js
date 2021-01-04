@@ -45,7 +45,7 @@ function getAssets(bundleGraph) {
 const stats = {size: 0, time: 0};
 function createMockAssetGraph(ids: [string, string]) {
   let graph = new AssetGraph();
-  graph.initialize({targets: DEFAULT_TARGETS, entries: ['./index']});
+  graph.setRootConnections({entries: ['./index']});
 
   graph.resolveEntry(
     './index',

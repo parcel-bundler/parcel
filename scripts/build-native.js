@@ -19,7 +19,7 @@ async function build() {
       let yarn = spawn('yarn', args, {
         stdio: 'inherit',
         cwd: path.join(dir, pkg),
-        shell: true,
+        shell: true
       });
 
       yarn.on('error', reject);

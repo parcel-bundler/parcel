@@ -662,7 +662,9 @@ export type ResolveFn = (from: FilePath, to: string) => Promise<FilePath>;
 /**
  * @section validator
  */
-type ResolveConfigFn = (configNames: Array<FilePath>) => Promise<?FilePath>;
+type ResolveConfigFn = (
+  configNames: Array<FilePath>,
+) => Promise<?FilePath>;
 
 /**
  * @section validator

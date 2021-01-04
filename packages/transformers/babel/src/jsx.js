@@ -36,7 +36,7 @@ const JSX_PRAGMA = {
 export default async function getJSXOptions(
   options: PluginOptions,
   config: Config,
-): Promise<?BabelConfig> {
+): Promise<?{|config: BabelConfig, pragma: ?string, pragmaFrag: ?string|}> {
   if (!config.isSource) {
     return null;
   }
@@ -61,12 +61,16 @@ export default async function getJSXOptions(
 
   if (pragma || JSX_EXTENSIONS[path.extname(config.searchPath)]) {
     return {
-      presets: [
-        [
-          '@babel/preset-react',
-          {pragma, pragmaFrag, development: options.mode === 'development'},
+      config: {
+        presets: [
+          [
+            '@babel/preset-react',
+            {pragma, pragmaFrag, development: options.mode === 'development'},
+          ],
         ],
-      ],
+      },
+      pragma,
+      pragmaFrag,
     };
   }
 }
