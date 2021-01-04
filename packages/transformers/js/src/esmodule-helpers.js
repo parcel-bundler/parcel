@@ -19,7 +19,7 @@ exports.exportAll = function(source, dest) {
 
     Object.defineProperty(dest, key, {
       enumerable: true,
-      get() {
+      get: function() {
         return source[key];
       },
     });
@@ -31,6 +31,6 @@ exports.exportAll = function(source, dest) {
 exports.export = function(dest, destName, get) {
   Object.defineProperty(dest, destName, {
     enumerable: true,
-    get,
+    get: get,
   });
 };

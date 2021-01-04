@@ -4666,4 +4666,12 @@ describe('scope hoisting', function() {
 
     await subscription.unsubscribe();
   });
+
+  it('should not rewrite this in arrow function class properties', async function() {
+    let b = await bundle(
+      path.join(__dirname, 'integration/js-class-this-esm/a.js'),
+    );
+    let res = await run(b);
+    assert.deepEqual(res, 'x: 123');
+  });
 });

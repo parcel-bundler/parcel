@@ -363,20 +363,16 @@ const VISITOR: Visitor<MutableAsset> = {
 
   ThisExpression(path, asset) {
     if (!path.scope.getData('shouldWrap')) {
-      let retainThis = false;
       let scope = path.scope;
       while (scope?.parent) {
         if (
-          scope.path.isFunction() &&
-          !scope.path.isArrowFunctionExpression()
+          (scope.path.isFunction() &&
+            !scope.path.isArrowFunctionExpression()) ||
+          scope.path.isClassDeclaration()
         ) {
-          retainThis = true;
-          break;
+          return;
         }
-        scope = scope.parent.getFunctionParent();
-      }
-      if (retainThis) {
-        return;
+        scope = scope.parent;
       }
 
       if (asset.meta.isES6Module) {
@@ -756,6 +752,8 @@ const VISITOR: Visitor<MutableAsset> = {
           let imported: string;
           if (isImportDefaultSpecifier(specifier)) {
             imported = 'default';
+            // used in the CSS packager for CSS modules
+            dep.meta.hasDefaultImport = true;
           } else if (isImportSpecifier(specifier)) {
             imported = specifier.imported.name;
           } else {
