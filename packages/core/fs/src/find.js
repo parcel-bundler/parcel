@@ -64,7 +64,7 @@ export function findAncestorFile(
   return null;
 }
 
-export function clearFileExistsMap() {
+export function clearFileExistsMap(): void {
   fileExistsMap.clear();
 }
 
