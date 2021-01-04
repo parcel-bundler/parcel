@@ -1,4 +1,5 @@
 export * from "module";
+export * as m from "module";
 export {name} from "module";
 export {a as b, c as d} from "module";
 let e, g;

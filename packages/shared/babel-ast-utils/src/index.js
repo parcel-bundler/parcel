@@ -20,7 +20,7 @@ import {babelErrorEnhancer} from './babelErrorUtils';
 // $FlowFixMe
 import {generate as astringGenerate} from '@parcel/astring';
 // $FlowFixMe
-import {generator} from './generator';
+import {generator, expressionPrecedence} from './generator';
 
 export {babelErrorEnhancer};
 
@@ -68,6 +68,7 @@ export function generateAST({
   let mappings = [];
   let generated = astringGenerate(ast.program, {
     generator,
+    expressionPrecedence,
     comments: true,
     sourceMap: sourceMaps
       ? {

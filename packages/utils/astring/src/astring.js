@@ -56,25 +56,19 @@ const OPERATOR_PRECEDENCE = {
 // Enables parenthesis regardless of precedence
 const NEEDS_PARENTHESES = 17;
 
-const EXPRESSIONS_PRECEDENCE = {
+export const EXPRESSIONS_PRECEDENCE = {
   // Definitions
   ArrayExpression: 20,
   TaggedTemplateExpression: 20,
   ThisExpression: 20,
   Identifier: 20,
   Literal: 18,
-  // Babel extensions
-  NumericLiteral: 18,
-  StringLiteral: 18,
-  BooleanLiteral: 18,
-  NullLiteral: 18,
-  RegExpLiteral: 18,
-  BigIntLiteral: 18,
   TemplateLiteral: 20,
   Super: 20,
   SequenceExpression: 20,
   // Operations
   MemberExpression: 19,
+  ChainExpression: 19,
   CallExpression: 19,
   NewExpression: 19,
   // Other definitions
@@ -112,12 +106,12 @@ function formatSequence(state, nodes) {
   state.write(')');
 }
 
-function expressionNeedsParenthesis(node, parentNode, isRightHand) {
-  const nodePrecedence = EXPRESSIONS_PRECEDENCE[node.type];
+function expressionNeedsParenthesis(state, node, parentNode, isRightHand) {
+  const nodePrecedence = state.expressionPrecedence[node.type];
   if (nodePrecedence === NEEDS_PARENTHESES) {
     return true;
   }
-  const parentNodePrecedence = EXPRESSIONS_PRECEDENCE[parentNode.type];
+  const parentNodePrecedence = state.expressionPrecedence[parentNode.type];
   if (nodePrecedence !== parentNodePrecedence) {
     // Different node types
     return (
@@ -156,7 +150,7 @@ function formatBinaryExpressionPart(state, node, parentNode, isRightHand) {
   The `isRightHand` parameter should be `true` if the `node` is a right-hand argument.
   */
   const {generator} = state;
-  if (expressionNeedsParenthesis(node, parentNode, isRightHand)) {
+  if (expressionNeedsParenthesis(state, node, parentNode, isRightHand)) {
     state.write('(');
     generator[node.type](node, state);
     state.write(')');
@@ -193,7 +187,7 @@ function formatComments(state, comments, indent, lineEnd) {
     state.write(indent);
     if (comment.type[0] === 'L') {
       // Line comment
-      state.write('// ' + comment.value.trim() + '\n');
+      state.write('// ' + comment.value.trim() + '\n', comment);
     } else {
       // Block comment
       state.write('/*');
@@ -308,7 +302,7 @@ export const baseGenerator = {
     state.write(';');
   },
   ExpressionStatement(node, state) {
-    const precedence = EXPRESSIONS_PRECEDENCE[node.expression.type];
+    const precedence = state.expressionPrecedence[node.expression.type];
     if (
       precedence === NEEDS_PARENTHESES ||
       (precedence === 3 && node.expression.left.type[0] === 'O')
@@ -562,11 +556,16 @@ export const baseGenerator = {
     this.Literal(node.source, state);
     state.write(';');
   },
+  ImportExpression(node, state) {
+    state.write('import(');
+    this[node.source.type](node.source, state);
+    state.write(')');
+  },
   ExportDefaultDeclaration(node, state) {
     state.write('export default ');
     this[node.declaration.type](node.declaration, state);
     if (
-      EXPRESSIONS_PRECEDENCE[node.declaration.type] &&
+      state.expressionPrecedence[node.declaration.type] &&
       node.declaration.type[0] !== 'F'
     ) {
       // All expression nodes except `FunctionExpression`
@@ -605,7 +604,11 @@ export const baseGenerator = {
     }
   },
   ExportAllDeclaration(node, state) {
-    state.write('export * from ');
+    if (node.exported != null) {
+      state.write('export * as ' + node.exported.name + ' from ');
+    } else {
+      state.write('export * from ');
+    }
     this.Literal(node.source, state);
     state.write(';');
   },
@@ -682,9 +685,9 @@ export const baseGenerator = {
     state.write('await ', node);
     if (node.argument) {
       if (node.argument.type === 'ArrowFunctionExpression') {
-        state.write('(', null);
+        state.write('(');
         this[node.argument.type](node.argument, state);
-        state.write(')', null);
+        state.write(')');
       } else {
         this[node.argument.type](node.argument, state);
       }
@@ -696,16 +699,18 @@ export const baseGenerator = {
     const {length} = expressions;
     for (let i = 0; i < length; i++) {
       const expression = expressions[i];
-      this.TemplateElement(quasis[i], state);
+      const quasi = quasis[i];
+      state.write(quasi.value.raw, quasi);
       state.write('${');
       this[expression.type](expression, state);
       state.write('}');
     }
-    state.write(quasis[quasis.length - 1].value.raw);
+    const quasi = quasis[quasis.length - 1];
+    state.write(quasi.value.raw, quasi);
     state.write('`');
   },
   TemplateElement(node, state) {
-    state.write(node.value.raw);
+    state.write(node.value.raw, node);
   },
   TaggedTemplateExpression(node, state) {
     this[node.tag.type](node.tag, state);
@@ -829,7 +834,7 @@ export const baseGenerator = {
         state.write(' ');
       }
       if (
-        EXPRESSIONS_PRECEDENCE[node.argument.type] <
+        state.expressionPrecedence[node.argument.type] <
           EXPRESSIONS_PRECEDENCE.UnaryExpression ||
         node.argument.prefix
       ) {
@@ -881,7 +886,7 @@ export const baseGenerator = {
   LogicalExpression: BinaryExpression,
   ConditionalExpression(node, state) {
     if (
-      EXPRESSIONS_PRECEDENCE[node.test.type] >
+      state.expressionPrecedence[node.test.type] >
       EXPRESSIONS_PRECEDENCE.ConditionalExpression
     ) {
       this[node.test.type](node.test, state);
@@ -898,7 +903,7 @@ export const baseGenerator = {
   NewExpression(node, state) {
     state.write('new ');
     if (
-      EXPRESSIONS_PRECEDENCE[node.callee.type] <
+      state.expressionPrecedence[node.callee.type] <
         EXPRESSIONS_PRECEDENCE.CallExpression ||
       hasCallExpression(node.callee)
     ) {
@@ -912,7 +917,7 @@ export const baseGenerator = {
   },
   CallExpression(node, state) {
     if (
-      EXPRESSIONS_PRECEDENCE[node.callee.type] <
+      state.expressionPrecedence[node.callee.type] <
       EXPRESSIONS_PRECEDENCE.CallExpression
     ) {
       state.write('(');
@@ -931,7 +936,7 @@ export const baseGenerator = {
   },
   MemberExpression(node, state) {
     if (
-      EXPRESSIONS_PRECEDENCE[node.object.type] <
+      state.expressionPrecedence[node.object.type] <
       EXPRESSIONS_PRECEDENCE.MemberExpression
     ) {
       state.write('(');
@@ -949,9 +954,10 @@ export const baseGenerator = {
       state.write(']');
     } else {
       if (node.optional) {
-        state.write('?');
+        state.write('?.');
+      } else {
+        state.write('.');
       }
-      state.write('.');
       this[node.property.type](node.property, state);
     }
   },
@@ -963,9 +969,12 @@ export const baseGenerator = {
   },
   Literal(node, state) {
     if (node.raw != null) {
+      // Non-standard property
       state.write(node.raw, node);
     } else if (node.regex != null) {
       this.RegExpLiteral(node, state);
+    } else if (node.bigint != null) {
+      state.write(node.bigint + 'n', node);
     } else {
       state.write(stringify(node.value), node);
     }
@@ -990,6 +999,10 @@ class State {
       this.output = '';
     }
     this.generator = setup.generator != null ? setup.generator : baseGenerator;
+    this.expressionPrecedence =
+      setup.expressionPrecedence != null
+        ? setup.expressionPrecedence
+        : EXPRESSIONS_PRECEDENCE;
     // Formating setup
     this.indent = setup.indent != null ? setup.indent : '  ';
     this.lineEnd = setup.lineEnd != null ? setup.lineEnd : '\n';
@@ -1006,6 +1019,7 @@ class State {
       this.lineEndSize = this.lineEnd.split('\n').length - 1;
       this.mapping = {
         original: null,
+        // Uses the entire state to avoid generating ephemeral objects
         generated: this,
         name: undefined,
         source: setup.sourceMap.file || setup.sourceMap._file,
@@ -1032,19 +1046,53 @@ class State {
   }
 
   map(code, node) {
-    if (node != null && node.loc != null) {
-      const {mapping} = this;
-      mapping.original = node.loc.start;
-      mapping.name = node.name;
-      this.sourceMap.addMapping(mapping);
-    }
-
-    for (let char = 0; char < code.length; char++) {
-      if (code[char] === '\n') {
+    if (node != null) {
+      const {type} = node;
+      if (type[0] === 'L' && type[2] === 'n') {
+        // LineComment
         this.column = 0;
         this.line++;
+        return;
+      }
+      if (node.loc != null) {
+        const {mapping} = this;
+        mapping.original = node.loc.start;
+        mapping.name = node.name;
+        this.sourceMap.addMapping(mapping);
+      }
+      if (
+        (type[0] === 'T' && type[8] === 'E') ||
+        (type[0] === 'L' && type[1] === 'i' && typeof node.value === 'string')
+      ) {
+        // TemplateElement or Literal string node
+        const {length} = code;
+        let {column, line} = this;
+        for (let i = 0; i < length; i++) {
+          if (code[i] === '\n') {
+            column = 0;
+            line++;
+          } else {
+            column++;
+          }
+        }
+        this.column = column;
+        this.line = line;
+        return;
+      }
+    }
+    const {length} = code;
+    const {lineEnd} = this;
+    if (length > 0) {
+      if (
+        this.lineEndSize > 0 &&
+        (lineEnd.length === 1
+          ? code[length - 1] === lineEnd
+          : code.endsWith(lineEnd))
+      ) {
+        this.line += this.lineEndSize;
+        this.column = 0;
       } else {
-        this.column++;
+        this.column += length;
       }
     }
   }

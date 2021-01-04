@@ -1,6 +1,6 @@
 let a;
 let b = `this is a template`;
-let c = `this is a template
+let c = `this is a template\
 with multiple
 lines`;
 let d = f`template with function`;

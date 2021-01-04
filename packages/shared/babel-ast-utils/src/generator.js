@@ -1,4 +1,19 @@
-import {baseGenerator} from '@parcel/astring';
+import {baseGenerator, EXPRESSIONS_PRECEDENCE} from '@parcel/astring';
+
+export const expressionPrecedence = {
+  ...EXPRESSIONS_PRECEDENCE,
+  // Babel extensions
+  NumericLiteral: EXPRESSIONS_PRECEDENCE.Literal,
+  StringLiteral: EXPRESSIONS_PRECEDENCE.Literal,
+  BooleanLiteral: EXPRESSIONS_PRECEDENCE.Literal,
+  NullLiteral: EXPRESSIONS_PRECEDENCE.Literal,
+  RegExpLiteral: EXPRESSIONS_PRECEDENCE.Literal,
+  BigIntLiteral: EXPRESSIONS_PRECEDENCE.Literal,
+  OptionalMemberExpression: EXPRESSIONS_PRECEDENCE.MemberExpression,
+  OptionalCallExpression: EXPRESSIONS_PRECEDENCE.CallExpression,
+  Import: EXPRESSIONS_PRECEDENCE.Identifier,
+  PrivateName: EXPRESSIONS_PRECEDENCE.Identifier,
+};
 
 // Convert Babel's AST format to ESTree on the fly.
 // See https://babeljs.io/docs/en/babel-parser#output
@@ -172,6 +187,27 @@ export const generator = {
     node.optional = true;
     node.type = 'CallExpression';
     this.CallExpression(node, state);
+  },
+  ExportNamedDeclaration(node, state) {
+    if (node.source) {
+      let namespace = node.specifiers.find(
+        specifier => specifier.type === 'ExportNamespaceSpecifier',
+      );
+      if (namespace) {
+        // Babel parser allows combining namespace specifiers and named specifiers
+        // e.g. `export * as foo, {bar} from 'other'`, but this is not supported by the spec.
+        if (node.specifiers.length > 1) {
+          throw new Error(
+            'Namespace specifiers cannot be combined with named specifiers',
+          );
+        }
+
+        node.type = 'ExportAllDeclaration';
+        node.exported = namespace.exported;
+      }
+    }
+
+    baseGenerator[node.type].call(this, node, state);
   },
 };
 
