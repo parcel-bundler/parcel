@@ -7,7 +7,7 @@ import Module from 'module';
 import path from 'path';
 import invariant from 'assert';
 
-const builtins = {};
+const builtins = {pnpapi: true};
 for (let builtin of Module.builtinModules) {
   builtins[builtin] = true;
 }
@@ -93,5 +93,46 @@ export class NodeResolverBase<T> {
 
   isBuiltin(name: ModuleSpecifier): boolean {
     return !!builtins[name];
+  }
+
+  findNodeModulePath(
+    id: ModuleSpecifier,
+    dir: FilePath,
+  ): ?ResolveResult | ?ModuleInfo {
+    if (this.isBuiltin(id)) {
+      return {resolved: id};
+    }
+
+    let [moduleName, ...parts] = this.getModuleParts(id);
+    let moduleDir = this.fs.findNodeModule(moduleName, dir);
+    console.log(id, dir, moduleDir);
+
+    if (!moduleDir && process.versions.pnp != null) {
+      try {
+        let pnp = Module.findPnpApi(dir + '/');
+
+        moduleDir = pnp.resolveToUnqualified(
+          moduleName +
+            // retain slash in `require('assert/')` to force loading builtin from npm
+            (id[moduleName.length] === '/' ? '/' : ''),
+          dir + '/',
+        );
+      } catch (e) {
+        if (e.code !== 'MODULE_NOT_FOUND') {
+          throw e;
+        }
+      }
+    }
+
+    if (moduleDir) {
+      return {
+        moduleName,
+        subPath: path.join(...parts),
+        moduleDir: moduleDir,
+        filePath: parts.length > 0 ? path.join(moduleDir, ...parts) : moduleDir,
+      };
+    }
+
+    return null;
   }
 }
