@@ -26,11 +26,6 @@ import nullthrows from 'nullthrows';
 import Graph, {type GraphOpts} from './Graph';
 import {createDependency} from './Dependency';
 
-type AssetGraphOpts = {|
-  ...GraphOpts<AssetGraphNode>,
-  onNodeRemoved?: (node: AssetGraphNode) => mixed,
-|};
-
 type InitOpts = {|
   entries?: Array<string>,
   targets?: Array<Target>,
@@ -118,6 +113,8 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
       this.hash = hash;
     } else {
       super();
+      let rootNode = {id: '@@root', type: 'root', value: null};
+      this.setRootNode(rootNode);
     }
   }
 
@@ -135,14 +132,7 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     };
   }
 
-  initOptions({onNodeRemoved}: AssetGraphOpts = {}) {
-    this.onNodeRemoved = onNodeRemoved;
-  }
-
-  initialize({entries, assetGroups}: InitOpts) {
-    let rootNode = {id: '@@root', type: 'root', value: null};
-    this.setRootNode(rootNode);
-
+  setRootConnections({entries, assetGroups}: InitOpts) {
     let nodes = [];
     if (entries) {
       for (let entry of entries) {
@@ -154,7 +144,7 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
         ...assetGroups.map(assetGroup => nodeFromAssetGroup(assetGroup)),
       );
     }
-    this.replaceNodesConnectedTo(rootNode, nodes);
+    this.replaceNodesConnectedTo(nullthrows(this.getRootNode()), nodes);
   }
 
   addNode(node: AssetGraphNode): AssetGraphNode {
@@ -171,7 +161,7 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     if (this.isOrphanedNode(node) && node.type === 'dependency') {
       let children = this.getNodesConnectedFrom(node);
       for (let n of children) {
-        invariant(n.type === 'asset_group');
+        invariant(n.type === 'asset_group' || n.type === 'asset');
         n.usedSymbolsDownDirty = true;
       }
     }

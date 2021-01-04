@@ -1,4 +1,4 @@
-// @flow
+// @flow strict-local
 import type {ScopeState, Visitors} from '@parcel/babylon-walk';
 import type {
   ImportDeclaration,
@@ -194,13 +194,18 @@ let modulesVisitor: Visitors<State> = {
       };
     },
   },
-  ThisExpression(node, {scope}) {
-    while (scope) {
-      if (scope.type === 'function') {
+  ThisExpression(node, {scope}, ancestors) {
+    let s = scope;
+    while (s) {
+      if (s.type === 'function') {
         return;
       }
 
-      scope = scope.parent;
+      s = s.parent;
+    }
+
+    if (ancestors.some(a => t.isClassBody(a))) {
+      return;
     }
 
     return t.identifier('undefined');

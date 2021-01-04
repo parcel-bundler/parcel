@@ -23,7 +23,7 @@ let langServiceCache: {
 } = {};
 
 type TSValidatorConfig = {|
-  filepath: string | null,
+  filepath: ?string,
   baseDir: string,
   configHash: string,
   tsconfig: ConfigResult | null,
@@ -84,7 +84,7 @@ async function getConfig(
 ): Promise<TSValidatorConfig> {
   let configNames = ['tsconfig.json'];
   let tsconfig = await asset.getConfig(configNames);
-  let configPath: string | null = await resolveConfigWithPath(
+  let configPath: ?string = await resolveConfigWithPath(
     configNames,
     asset.filePath,
   );
