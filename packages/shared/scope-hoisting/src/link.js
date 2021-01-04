@@ -488,7 +488,6 @@ export function link({
 
     // if there is a CommonJS export return $id$exports.name
     if (originalName !== '*' && node != null) {
-      // $FlowFixMe
       if (t.isValidIdentifier(originalName, false)) {
         return t.memberExpression(node, t.identifier(originalName));
       } else {
