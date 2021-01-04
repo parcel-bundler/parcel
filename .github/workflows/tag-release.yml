@@ -42,8 +42,10 @@ jobs:
         include:
           - target: arm-unknown-linux-gnueabihf
             arch: armhf
+            strip: arm-linux-gnueabihf-strip
           - target: aarch64-unknown-linux-gnu
             arch: arm64
+            strip: aarch64-linux-gnu-strip
     name: ${{ matrix.target }}
     runs-on: ubuntu-latest
     steps:
@@ -65,7 +67,7 @@ jobs:
         env:
           RUST_TARGET: ${{ matrix.target }}
       - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
-        run: strip native-packages/*/*.node
+        run: ${{ matrix.strip }} native-packages/*/*.node
       - name: Upload artifacts
         uses: actions/upload-artifact@v2
         with:
@@ -86,7 +88,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target: [x86_64-unknown-linux-musl, aarch64-unknown-linux-musl]
+        include:
+          - target: x86_64-unknown-linux-musl
+            strip: strip
+          - target: aarch64-unknown-linux-musl
+            strip: aarch64-linux-musl-strip
     name: ${{ matrix.target }}
     runs-on: ubuntu-latest
     container:
@@ -115,7 +121,7 @@ jobs:
         env:
           RUST_TARGET: ${{ matrix.target }}
       - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
-        run: strip native-packages/*/*.node
+        run: ${{ matrix.strip }} native-packages/*/*.node
       - name: Upload artifacts
         uses: actions/upload-artifact@v2
         with:
