@@ -23,7 +23,7 @@ import assert from 'assert';
 import invariant from 'assert';
 import crypto from 'crypto';
 import nullthrows from 'nullthrows';
-import {flatMap, objectSortedEntriesDeep} from '@parcel/utils';
+import {objectSortedEntriesDeep} from '@parcel/utils';
 
 import {getBundleGroupId, getPublicId} from './utils';
 import Graph, {ALL_EDGE_TYPES, mapVisitor, type GraphOpts} from './Graph';
@@ -630,22 +630,21 @@ export default class BundleGraph {
     // asynchonously. If any of them appear in our traversal, this asset is
     // referenced.
     let asyncInternalReferencingBundles = new Set(
-      flatMap(
-        this._graph
-          .getNodesConnectedTo(assetNode, 'references')
-          .filter(node => node.type === 'dependency')
-          .map(node => {
-            invariant(node.type === 'dependency');
-            return node;
-          }),
-        dependencyNode =>
+      this._graph
+        .getNodesConnectedTo(assetNode, 'references')
+        .filter(node => node.type === 'dependency')
+        .map(node => {
+          invariant(node.type === 'dependency');
+          return node;
+        })
+        .flatMap(dependencyNode =>
           this._graph
             .getNodesConnectedTo(dependencyNode, 'internal_async')
             .map(node => {
               invariant(node.type === 'bundle');
               return node.value;
             }),
-      ),
+        ),
     );
 
     const bundleHasReference = (bundle: Bundle) => {

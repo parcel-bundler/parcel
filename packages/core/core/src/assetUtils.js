@@ -19,6 +19,7 @@ import type {
   Environment,
   ParcelOptions,
 } from './types';
+import {objectSortedEntries} from '@parcel/utils';
 import type {ConfigOutput} from '@parcel/utils';
 
 import {Readable} from 'stream';
@@ -33,7 +34,7 @@ import PluginOptions from './public/PluginOptions';
 import {
   blobToStream,
   loadConfig,
-  md5FromString,
+  md5FromOrderedObject,
   md5FromFilePath,
 } from '@parcel/utils';
 import {hashFromOption} from './utils';
@@ -68,20 +69,24 @@ type AssetOptions = {|
   configKeyPath?: string,
 |};
 
-export function createAsset(options: AssetOptions): Asset {
+function createAssetIdFromOptions(options: AssetOptions): string {
+  let uniqueKey = options.uniqueKey ?? '';
   let idBase = options.idBase != null ? options.idBase : options.filePath;
-  let uniqueKey = options.uniqueKey || '';
+  let queryString = options.query ? objectSortedEntries(options.query) : '';
+
+  return md5FromOrderedObject({
+    idBase,
+    type: options.type,
+    env: options.env.id,
+    uniqueKey,
+    pipeline: options.pipeline ?? '',
+    queryString,
+  });
+}
+
+export function createAsset(options: AssetOptions): Asset {
   return {
-    id:
-      options.id != null
-        ? options.id
-        : md5FromString(
-            idBase +
-              options.type +
-              options.env.id +
-              uniqueKey +
-              (options.pipeline ?? ''),
-          ),
+    id: options.id != null ? options.id : createAssetIdFromOptions(options),
     committed: options.committed ?? false,
     hash: options.hash,
     filePath: options.filePath,
@@ -103,7 +108,7 @@ export function createAsset(options: AssetOptions): Asset {
     stats: options.stats,
     symbols: options.symbols,
     sideEffects: options.sideEffects ?? true,
-    uniqueKey: uniqueKey,
+    uniqueKey: options.uniqueKey ?? '',
     plugin: options.plugin,
     configPath: options.configPath,
     configKeyPath: options.configKeyPath,
