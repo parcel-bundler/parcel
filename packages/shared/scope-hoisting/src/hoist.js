@@ -794,7 +794,7 @@ const VISITOR: Visitor<MutableAsset> = {
       name = declaration.name;
     }
 
-    if (name && (hasImport(asset, name) || hasExport(asset, name))) {
+    if (name && hasExport(asset, name)) {
       identifier = t.identifier(name);
     }
 
@@ -812,7 +812,7 @@ const VISITOR: Visitor<MutableAsset> = {
       safeRename(path, asset, declaration.name, identifier.name);
       path.remove();
     } else if (isExpression(declaration) || !declaration.id) {
-      // $FlowFixMe
+      // $FlowFixMe[incompatible-call]
       let declarationExpr = t.toExpression(declaration);
       // Declare a variable to hold the exported value.
       path.replaceWith(
@@ -993,7 +993,7 @@ function addExport(asset: MutableAsset, path, local, exported) {
   path.insertAfter(t.cloneDeep(assignNode));
 }
 
-function hasImport(asset: MutableAsset, id) {
+function hasImport(asset: MutableAsset, id: string) {
   for (let dep of asset.getDependencies()) {
     if (dep.symbols.hasLocalSymbol(id)) {
       return true;
