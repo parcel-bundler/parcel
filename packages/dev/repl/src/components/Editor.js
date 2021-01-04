@@ -12,36 +12,28 @@ import {
   keymap,
   highlightSpecialChars,
   drawSelection,
-} from '@codemirror/next/view';
-import {EditorState} from '@codemirror/next/state';
-import {history, historyKeymap} from '@codemirror/next/history';
-import {foldGutter, foldKeymap} from '@codemirror/next/fold';
-import {indentOnInput} from '@codemirror/next/language';
-import {lineNumbers} from '@codemirror/next/gutter';
-import {defaultKeymap, indentMore, indentLess} from '@codemirror/next/commands';
-import {bracketMatching} from '@codemirror/next/matchbrackets';
-import {
-  closeBrackets,
-  closeBracketsKeymap,
-} from '@codemirror/next/closebrackets';
-import {searchKeymap} from '@codemirror/next/search';
-import {autocompletion, completionKeymap} from '@codemirror/next/autocomplete';
-import {commentKeymap} from '@codemirror/next/comment';
-import {rectangularSelection} from '@codemirror/next/rectangular-selection';
-import {gotoLineKeymap} from '@codemirror/next/goto-line';
-import {
   // highlightActiveLine,
-  highlightSelectionMatches,
-} from '@codemirror/next/highlight-selection';
-import {defaultHighlightStyle} from '@codemirror/next/highlight';
-import {lintKeymap} from '@codemirror/next/lint';
+} from '@codemirror/view';
+import {EditorState} from '@codemirror/state';
+import {history, historyKeymap} from '@codemirror/history';
+import {foldGutter, foldKeymap} from '@codemirror/fold';
+import {indentOnInput} from '@codemirror/language';
+import {lineNumbers} from '@codemirror/gutter';
+import {defaultKeymap, indentMore, indentLess} from '@codemirror/commands';
+import {bracketMatching} from '@codemirror/matchbrackets';
+import {closeBrackets, closeBracketsKeymap} from '@codemirror/closebrackets';
+import {searchKeymap, highlightSelectionMatches} from '@codemirror/search';
+import {autocompletion, completionKeymap} from '@codemirror/autocomplete';
+import {commentKeymap} from '@codemirror/comment';
+import {rectangularSelection} from '@codemirror/rectangular-selection';
+// import {defaultHighlightStyle} from '@codemirror/highlight';
+import {lintKeymap} from '@codemirror/lint';
+import {oneDark} from '@codemirror/theme-one-dark';
 
-// import {oneDark} from '@codemirror/next/theme-one-dark';
-
-import {html} from '@codemirror/next/lang-html';
-import {javascript} from '@codemirror/next/lang-javascript';
-import {css} from '@codemirror/next/lang-css';
-import {json} from '@codemirror/next/lang-json';
+import {html} from '@codemirror/lang-html';
+import {javascript} from '@codemirror/lang-javascript';
+import {css} from '@codemirror/lang-css';
+import {json} from '@codemirror/lang-json';
 
 const Editor: any = memo(function Editor({
   filename,
@@ -62,21 +54,21 @@ const Editor: any = memo(function Editor({
         drawSelection(),
         EditorState.allowMultipleSelections.of(true),
         indentOnInput(),
-        defaultHighlightStyle,
+        // defaultHighlightStyle,
         bracketMatching(),
         closeBrackets(),
         autocompletion(),
         rectangularSelection(),
         // highlightActiveLine(),
         highlightSelectionMatches(),
-        keymap([
+        oneDark,
+        keymap.of([
           ...closeBracketsKeymap,
           ...defaultKeymap,
           ...searchKeymap,
           ...historyKeymap,
           ...foldKeymap,
           ...commentKeymap,
-          ...gotoLineKeymap,
           ...completionKeymap,
           ...lintKeymap,
           {
@@ -90,7 +82,6 @@ const Editor: any = memo(function Editor({
             run: indentLess,
           },
         ]),
-        // oneDark,
         extension.includes('js') || extension.includes('ts')
           ? javascript()
           : extension === 'html'
