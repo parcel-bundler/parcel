@@ -865,6 +865,8 @@ const VISITOR: Visitor<MutableAsset> = {
           let imported: string;
           if (isImportDefaultSpecifier(specifier)) {
             imported = 'default';
+            // used in the CSS packager for CSS modules
+            dep.meta.hasDefaultImport = true;
           } else if (isImportSpecifier(specifier)) {
             imported = specifier.imported.name;
           } else {

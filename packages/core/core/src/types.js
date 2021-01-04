@@ -240,6 +240,7 @@ export type DependencyNode = {|
 export type RootNode = {|id: string, +type: 'root', value: string | null|};
 
 export type AssetRequestInput = {|
+  name?: string, // AssetGraph name, needed so that different graphs can isolated requests since the results are not stored
   filePath: FilePath,
   env: Environment,
   isSource?: boolean,

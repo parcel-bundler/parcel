@@ -18,7 +18,7 @@ const stats = {size: 0, time: 0};
 describe('AssetGraph', () => {
   it('initialization should create one root node with edges to entry_specifier nodes for each entry', () => {
     let graph = new AssetGraph();
-    graph.initialize({
+    graph.setRootConnections({
       entries: ['/path/to/index1', '/path/to/index2'],
     });
 
@@ -29,7 +29,7 @@ describe('AssetGraph', () => {
 
   it('resolveEntry should connect an entry_specifier node to entry_file nodes', () => {
     let graph = new AssetGraph();
-    graph.initialize({
+    graph.setRootConnections({
       entries: ['/path/to/index1', '/path/to/index2'],
     });
 
@@ -65,7 +65,7 @@ describe('AssetGraph', () => {
 
   it('resolveTargets should connect an entry_file node to dependencies for each target', () => {
     let graph = new AssetGraph();
-    graph.initialize({
+    graph.setRootConnections({
       entries: ['/path/to/index1', '/path/to/index2'],
     });
 
@@ -175,7 +175,7 @@ describe('AssetGraph', () => {
 
   it('resolveDependency should update the file a dependency is connected to', () => {
     let graph = new AssetGraph();
-    graph.initialize({
+    graph.setRootConnections({
       targets: DEFAULT_TARGETS,
       entries: ['/path/to/index'],
     });
@@ -216,7 +216,7 @@ describe('AssetGraph', () => {
 
   it('resolveAssetGroup should update the asset and dep nodes a file is connected to', () => {
     let graph = new AssetGraph();
-    graph.initialize({
+    graph.setRootConnections({
       targets: DEFAULT_TARGETS,
       entries: ['/path/to/index'],
     });
@@ -355,7 +355,7 @@ describe('AssetGraph', () => {
   // to the asset's dependency instead of the asset group.
   it('resolveAssetGroup should handle dependent assets in asset groups', () => {
     let graph = new AssetGraph();
-    graph.initialize({targets: DEFAULT_TARGETS, entries: ['./index']});
+    graph.setRootConnections({targets: DEFAULT_TARGETS, entries: ['./index']});
 
     graph.resolveEntry(
       './index',
@@ -439,7 +439,7 @@ describe('AssetGraph', () => {
 
     // index
     let indexAssetGroup = {filePath: '/index.js', env: DEFAULT_ENV, query: {}};
-    graph.initialize({assetGroups: [indexAssetGroup]});
+    graph.setRootConnections({assetGroups: [indexAssetGroup]});
     let indexFooDep = createDependency({
       moduleSpecifier: './foo',
       env: DEFAULT_ENV,

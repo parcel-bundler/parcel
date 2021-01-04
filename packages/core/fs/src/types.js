@@ -64,6 +64,9 @@ export interface FileSystem {
     snapshot: FilePath,
     opts: WatcherOptions,
   ): Promise<void>;
+  findAncestorFile(fileNames: Array<string>, fromDir: FilePath): ?FilePath;
+  findNodeModule(moduleName: string, fromDir: FilePath): ?FilePath;
+  findFirstFile(filePaths: Array<FilePath>): ?FilePath;
 }
 
 // https://nodejs.org/api/fs.html#fs_class_fs_dirent
