@@ -15,15 +15,21 @@ const SCRIPT_TYPES = {
   module: 'js',
 };
 
+interface ExtractInlineAssetsResult {
+  hasScripts: boolean;
+  assets: Array<TransformerResult>;
+}
+
 export default function extractInlineAssets(
   asset: MutableAsset,
   ast: AST,
-): Array<TransformerResult> {
+): ExtractInlineAssetsResult {
   let program: PostHTMLNode = ast.program;
   let key = 0;
 
   // Extract inline <script> and <style> tags for processing.
   let parts = [];
+  let hasScripts = false;
   new PostHTML().walk.call(program, (node: PostHTMLNode) => {
     let parcelKey = md5FromString(`${asset.id}:${key++}`);
     if (node.tag === 'script' || node.tag === 'style') {
@@ -97,6 +103,10 @@ export default function extractInlineAssets(
             node,
           },
         });
+
+        if (type === 'js') {
+          hasScripts = true;
+        }
       }
     }
 
@@ -123,5 +133,8 @@ export default function extractInlineAssets(
   });
 
   // $FlowFixMe
-  return parts;
+  return {
+    assets: parts,
+    hasScripts,
+  };
 }

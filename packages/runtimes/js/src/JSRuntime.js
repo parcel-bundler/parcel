@@ -10,7 +10,7 @@ import type {
 } from '@parcel/types';
 
 import {Runtime} from '@parcel/plugin';
-import {flatMap, relativeBundlePath} from '@parcel/utils';
+import {relativeBundlePath} from '@parcel/utils';
 import path from 'path';
 import nullthrows from 'nullthrows';
 
@@ -300,10 +300,10 @@ function getLoaderRuntime({
 
   if (bundle.env.context === 'browser') {
     loaderModules.push(
-      ...flatMap(
+      ...externalBundles
         // TODO: Allow css to preload resources as well
-        externalBundles.filter(to => to.type === 'js'),
-        from => {
+        .filter(to => to.type === 'js')
+        .flatMap(from => {
           let {preload, prefetch} = getHintedBundleGroups(bundleGraph, from);
 
           return [
@@ -320,8 +320,7 @@ function getLoaderRuntime({
               BROWSER_PREFETCH_LOADER,
             ),
           ];
-        },
-      ),
+        }),
     );
   }
 

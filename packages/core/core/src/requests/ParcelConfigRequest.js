@@ -21,7 +21,6 @@ import {
   validateSchema,
   findAlternativeNodeModules,
   findAlternativeFiles,
-  flatMap,
 } from '@parcel/utils';
 import ThrowableDiagnostic, {
   generateJSONCodeHighlights,
@@ -43,7 +42,7 @@ export type ConfigAndCachePath = {|
 
 type RunOpts = {|
   input: null,
-  ...StaticRunOpts,
+  ...StaticRunOpts<ConfigAndCachePath>,
 |};
 
 export type ParcelConfigRequest = {|
@@ -376,7 +375,7 @@ export async function processConfigChain(
 
     if (errors.length > 0) {
       throw new ThrowableDiagnostic({
-        diagnostic: flatMap(errors, e => e.diagnostics),
+        diagnostic: errors.flatMap(e => e.diagnostics),
       });
     }
   }

@@ -1,5 +1,8 @@
 // @flow
 
+import type {Root} from 'postcss';
+import type {Asset} from '@parcel/types';
+
 import path from 'path';
 import SourceMap from '@parcel/source-map';
 import {Packager} from '@parcel/plugin';
@@ -10,15 +13,21 @@ import {
   replaceURLReferences,
 } from '@parcel/utils';
 
+import postcss from 'postcss';
+import nullthrows from 'nullthrows';
+
 export default (new Packager({
   async package({
     bundle,
     bundleGraph,
     getInlineBundleContents,
-    options,
     getSourceMapReference,
+    logger,
+    options,
   }) {
-    let queue = new PromiseQueue({maxConcurrent: 32});
+    let queue = new PromiseQueue({
+      maxConcurrent: 32,
+    });
     bundle.traverseAssets({
       exit: asset => {
         // Figure out which media types this asset was imported with.
@@ -33,19 +42,36 @@ export default (new Packager({
           media.push(dep.meta.media);
         }
 
-        queue.add(() =>
-          Promise.all([
-            asset,
-            asset.getCode().then((css: string) => {
-              if (media.length) {
-                return `@media ${media.join(', ')} {\n${css}\n}\n`;
-              }
+        queue.add(() => {
+          let usedSymbols = bundleGraph.getUsedSymbols(asset);
+          if (
+            !asset.symbols.isCleared &&
+            options.mode === 'production' &&
+            !usedSymbols.has('*')
+          ) {
+            // a CSS Modules asset
+            return processCSSModule(
+              options,
+              logger,
+              bundleGraph,
+              bundle,
+              asset,
+              media,
+            );
+          } else {
+            return Promise.all([
+              asset,
+              asset.getCode().then((css: string) => {
+                if (media.length) {
+                  return `@media ${media.join(', ')} {\n${css}\n}\n`;
+                }
 
-              return css;
-            }),
-            bundle.env.sourceMap && asset.getMapBuffer(),
-          ]),
-        );
+                return css;
+              }),
+              bundle.env.sourceMap && asset.getMapBuffer(),
+            ]);
+          }
+        });
       },
     });
 
@@ -99,3 +125,82 @@ export default (new Packager({
     });
   },
 }): Packager);
+
+async function processCSSModule(
+  options,
+  logger,
+  bundleGraph,
+  bundle,
+  asset,
+  media,
+): Promise<[Asset, string, ?Buffer]> {
+  let ast: Root = postcss.fromJSON(nullthrows((await asset.getAST())?.program));
+
+  let usedSymbols = bundleGraph.getUsedSymbols(asset);
+  let localSymbols = new Set(
+    [...asset.symbols].map(([, {local}]) => `.${local}`),
+  );
+
+  let defaultImport = null;
+  if (usedSymbols.has('default')) {
+    let incoming = bundleGraph.getIncomingDependencies(asset);
+    // `import * as ns from ""; ns.default` is fine.
+    defaultImport = incoming.find(d => d.meta.hasDefaultImport);
+    if (defaultImport) {
+      let loc = defaultImport.symbols.get('default')?.loc;
+      logger.warn({
+        message:
+          'CSS modules cannot be tree shaken when imported with a default specifier',
+        filePath: nullthrows(loc?.filePath ?? defaultImport.sourcePath),
+        ...(loc && {
+          codeFrame: {
+            codeHighlights: [{start: loc.start, end: loc.end}],
+          },
+        }),
+        hints: [
+          `Instead do: import * as style from "${defaultImport.moduleSpecifier}";`,
+        ],
+      });
+    }
+  }
+
+  if (!defaultImport) {
+    let usedLocalSymbols = new Set(
+      [...usedSymbols].map(
+        exportSymbol => `.${nullthrows(asset.symbols.get(exportSymbol)).local}`,
+      ),
+    );
+    ast.walkRules(rule => {
+      if (
+        localSymbols.has(rule.selector) &&
+        !usedLocalSymbols.has(rule.selector)
+      ) {
+        rule.remove();
+      }
+    });
+  }
+
+  let {content, map} = await postcss().process(ast, {
+    from: undefined,
+    to: options.projectRoot + '/index',
+    map: {
+      annotation: false,
+      inline: false,
+    },
+    // Pass postcss's own stringifier to it to silence its warning
+    // as we don't want to perform any transformations -- only generate
+    stringifier: postcss.stringify,
+  });
+
+  let sourceMap;
+  if (bundle.env.sourceMap && map != null) {
+    sourceMap = new SourceMap(options.projectRoot);
+    sourceMap.addRawMappings(map.toJSON());
+  }
+
+  if (media.length) {
+    content = `@media ${media.join(', ')} {\n${content}\n}\n`;
+  }
+
+  return [asset, content, sourceMap?.toBuffer()];
+}

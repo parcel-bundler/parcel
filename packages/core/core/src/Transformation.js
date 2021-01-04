@@ -25,11 +25,12 @@ import {
   escapeMarkdown,
   md5FromOrderedObject,
   normalizeSeparators,
+  objectSortedEntries,
 } from '@parcel/utils';
 import logger, {PluginLogger} from '@parcel/logger';
 import {init as initSourcemaps} from '@parcel/source-map';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
-import {SOURCEMAP_EXTENSIONS, flatMap} from '@parcel/utils';
+import {SOURCEMAP_EXTENSIONS} from '@parcel/utils';
 
 import ConfigLoader from './ConfigLoader';
 import {createDependency} from './Dependency';
@@ -267,7 +268,7 @@ export default class Transformation {
         [initialAsset],
         pipeline.configs,
         await getInvalidationHash(
-          flatMap(assets, asset => asset.getInvalidations()),
+          assets.flatMap(asset => asset.getInvalidations()),
           this.options,
         ),
       );
@@ -304,7 +305,7 @@ export default class Transformation {
         finalAssets,
         pipeline.configs,
         await getInvalidationHash(
-          flatMap(finalAssets, asset => asset.getInvalidations()),
+          finalAssets.flatMap(asset => asset.getInvalidations()),
           this.options,
         ),
       ),
@@ -320,7 +321,7 @@ export default class Transformation {
           processedFinalAssets,
           pipeline.configs,
           await getInvalidationHash(
-            flatMap(processedFinalAssets, asset => asset.getInvalidations()),
+            processedFinalAssets.flatMap(asset => asset.getInvalidations()),
             this.options,
           ),
         ),
@@ -392,9 +393,9 @@ export default class Transformation {
     }
 
     // Make assets with ASTs generate unless they are js assets and target uses
-    // scope hoisting. This parallelizes generation and distributes work more
-    // evenly across workers than if one worker needed to generate all assets in
-    // a large bundle during packaging.
+    // scope hoisting or we do CSS modules tree shaking. This parallelizes generation
+    // and distributes work more evenly across workers than if one worker needed to
+    // generate all assets in a large bundle during packaging.
     let generate = pipeline.generate;
     if (generate != null) {
       await Promise.all(
@@ -402,7 +403,12 @@ export default class Transformation {
           .filter(
             asset =>
               asset.ast != null &&
-              !(asset.value.type === 'js' && asset.value.env.scopeHoist),
+              !(
+                (asset.value.env.scopeHoist && asset.value.type === 'js') ||
+                (this.options.mode === 'production' &&
+                  asset.value.type === 'css' &&
+                  asset.value.symbols)
+              ),
           )
           .map(async asset => {
             if (asset.isASTDirty) {
@@ -470,6 +476,7 @@ export default class Transformation {
       pipeline: a.value.pipeline,
       hash: a.value.hash,
       uniqueKey: a.value.uniqueKey,
+      query: a.value.query ? objectSortedEntries(a.value.query) : '',
     }));
 
     return md5FromOrderedObject({
@@ -749,6 +756,7 @@ function normalizeAssets(
       return {
         ast: internalAsset.ast,
         content: await internalAsset.content,
+        query: internalAsset.value.query,
         // $FlowFixMe
         dependencies: [...internalAsset.value.dependencies.values()],
         env: internalAsset.value.env,
