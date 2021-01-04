@@ -108,6 +108,7 @@ const VISITOR: Visitor<MutableAsset> = {
       asset.symbols.ensure();
       asset.meta.id = asset.id;
       asset.meta.exportsIdentifier = getName(asset, 'exports');
+      asset.meta.staticExports = true;
 
       traverse.cache.clearScope();
       path.scope.crawl();
@@ -180,7 +181,7 @@ const VISITOR: Visitor<MutableAsset> = {
                 path.scope.getData('shouldWrap')
               )
             ) {
-              asset.meta.resolveExportsBailedOut = true;
+              asset.meta.staticExports = false;
               // The namespace object is used in the asset itself
               asset.addDependency({
                 moduleSpecifier: `./${basename(asset.filePath)}`,
@@ -217,7 +218,7 @@ const VISITOR: Visitor<MutableAsset> = {
                 path.scope.getData('shouldWrap')
               )
             ) {
-              asset.meta.resolveExportsBailedOut = true;
+              asset.meta.staticExports = false;
               // The namespace object is used in the asset itself
               asset.addDependency({
                 moduleSpecifier: `./${basename(asset.filePath)}`,
@@ -246,8 +247,9 @@ const VISITOR: Visitor<MutableAsset> = {
       path.scope.setData('shouldWrap', shouldWrap);
       path.scope.setData('cjsExportsReassigned', false);
 
-      asset.meta.pureExports =
-        !shouldWrap && !asset.meta.resolveExportsBailedOut;
+      if (shouldWrap) {
+        asset.meta.staticExports = false;
+      }
     },
 
     exit(path, asset) {
@@ -290,7 +292,7 @@ const VISITOR: Visitor<MutableAsset> = {
         }
 
         if (asset.meta.isCommonJS) {
-          if (asset.meta.resolveExportsBailedOut) {
+          if (asset.meta.staticExports === false) {
             for (let s of asset.symbols.exportSymbols()) {
               asset.symbols.delete(s);
             }
@@ -359,9 +361,9 @@ const VISITOR: Visitor<MutableAsset> = {
     ) {
       asset.meta.isCommonJS = true;
 
-      // Mark as non-pure if exports is accessed non-statically.
+      // Mark if exports is accessed non-statically.
       if (!isStaticMemberExpression(path.parent)) {
-        asset.meta.pureExports = false;
+        asset.meta.staticExports = false;
       }
 
       // Replace exports.foo with exported identifier if possible,
@@ -395,9 +397,9 @@ const VISITOR: Visitor<MutableAsset> = {
 
       asset.meta.isCommonJS = true;
 
-      // Mark as non-pure if exports is accessed non-statically.
+      // Mark if exports is accessed non-statically.
       if (!isStaticMemberExpression(path.parent)) {
-        asset.meta.pureExports = false;
+        asset.meta.staticExports = false;
       }
 
       if (asset.meta.isES6Module) {
@@ -460,7 +462,7 @@ const VISITOR: Visitor<MutableAsset> = {
         .get<NodePath<LVal>>('left')
         .replaceWith(getCJSExportsIdentifier(asset, path.scope));
       asset.meta.isCommonJS = true;
-      asset.meta.pureExports = false;
+      asset.meta.staticExports = false;
     }
 
     // If we can statically evaluate the name of a CommonJS export, create an ES6-style export for it.

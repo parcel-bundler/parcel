@@ -237,7 +237,7 @@ export function link({
       inputSymbol,
       bundle,
     );
-    if (asset.meta.resolveExportsBailedOut) {
+    if (asset.meta.staticExports === false) {
       let res = {
         asset: asset,
         symbol: exportSymbol,
@@ -299,7 +299,7 @@ export function link({
     }
 
     if (
-      asset.meta.pureExports === false ||
+      asset.meta.staticExports === false ||
       wrappedAssets.has(asset.id) ||
       referencedAssets.has(asset)
     ) {
@@ -362,7 +362,7 @@ export function link({
         return true;
       }
 
-      if (asset.meta.pureExports === false) {
+      if (asset.meta.staticExports === false) {
         return true;
       }
 
@@ -425,7 +425,7 @@ export function link({
       bundle,
     );
     let res = identifier != null ? findSymbol(node, identifier) : identifier;
-    if (mod.meta.pureExports === false || wrappedAssets.has(mod.id)) {
+    if (mod.meta.staticExports === false || wrappedAssets.has(mod.id)) {
       res = null;
     }
 
