@@ -1,9 +1,10 @@
 // @flow
 export default function createDependencyLocation(
-  start: {|
+  start: {
     line: number,
     column: number,
-  |},
+    ...
+  },
   moduleSpecifier: string,
   lineOffset: number = 0,
   columnOffset: number = 0,

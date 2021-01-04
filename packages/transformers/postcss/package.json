@@ -28,6 +28,6 @@
     "semver": "^5.4.1"
   },
   "devDependencies": {
-    "postcss": "^8.0.5"
+    "postcss": "^8.2.1"
   }
 }

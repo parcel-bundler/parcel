@@ -76,6 +76,9 @@ describe('TargetResolver', () => {
       throw new Error('Not implemented');
     },
     storeResult() {},
+    canSkipSubrequest() {
+      return false;
+    },
   };
 
   it('resolves exactly specified targets', async () => {
