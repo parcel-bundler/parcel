@@ -7,6 +7,7 @@ import clone from 'clone';
 import {parse as json5} from 'json5';
 import {parse as toml} from '@iarna/toml';
 import LRU from 'lru-cache';
+import {clearFileExistsMap} from '@parcel/fs';
 
 export type ConfigOutput = {|
   config: ConfigResult,
@@ -18,63 +19,23 @@ export type ConfigOptions = {|
 |};
 
 const configCache = new LRU<FilePath, ConfigOutput>({max: 500});
-const fileExistsMap = new Map<FilePath, boolean>();
 
-export async function resolveConfig(
+export function resolveConfig(
   fs: FileSystem,
   filepath: FilePath,
   filenames: Array<FilePath>,
-  opts: ?ConfigOptions,
-  root: FilePath = path.parse(filepath).root,
-): Promise<FilePath | null> {
-  filepath = await fs.realpath(path.dirname(filepath));
-
-  // Don't traverse above the module root
-  if (path.basename(filepath) === 'node_modules') {
-    return null;
-  }
-
-  for (const filename of filenames) {
-    let file = path.join(filepath, filename);
-    if (fileExistsMap.get(file)) return file;
-    try {
-      if (!fileExistsMap.has(file) && (await fs.stat(file)).isFile()) {
-        fileExistsMap.set(file, true);
-        return file;
-      }
-    } catch {
-      fileExistsMap.set(file, false);
-    }
-  }
-
-  if (filepath === root) {
-    return null;
-  }
-  return resolveConfig(fs, filepath, filenames, opts);
+): Promise<?FilePath> {
+  return Promise.resolve(
+    fs.findAncestorFile(filenames, path.dirname(filepath)),
+  );
 }
 
 export function resolveConfigSync(
   fs: FileSystem,
   filepath: FilePath,
   filenames: Array<FilePath>,
-  opts: ?ConfigOptions,
-  root: FilePath = path.parse(filepath).root,
-): FilePath | null {
-  filepath = fs.realpathSync(path.dirname(filepath));
-
-  // Don't traverse above the module root
-  if (filepath === root || path.basename(filepath) === 'node_modules') {
-    return null;
-  }
-
-  for (const filename of filenames) {
-    let file = path.join(filepath, filename);
-    if (fs.existsSync(file) && fs.statSync(file).isFile()) {
-      return file;
-    }
-  }
-
-  return resolveConfigSync(fs, filepath, filenames, opts);
+): ?FilePath {
+  return fs.findAncestorFile(filenames, path.dirname(filepath));
 }
 
 export async function loadConfig(
@@ -83,7 +44,7 @@ export async function loadConfig(
   filenames: Array<FilePath>,
   opts: ?ConfigOptions,
 ): Promise<ConfigOutput | null> {
-  let configFile = await resolveConfig(fs, filepath, filenames, opts);
+  let configFile = await resolveConfig(fs, filepath, filenames);
   if (configFile) {
     let cachedOutput = configCache.get(configFile);
     if (cachedOutput) {
@@ -137,7 +98,7 @@ export async function loadConfig(
 
 loadConfig.clear = () => {
   configCache.reset();
-  fileExistsMap.clear();
+  clearFileExistsMap();
 };
 
 function getParser(extname) {

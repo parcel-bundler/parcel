@@ -56,8 +56,7 @@ function getId(input: AssetRequestInput) {
 }
 
 async function run({input, api, options, farm}: RunInput) {
-  let realpath = await options.inputFS.realpath(input.filePath);
-  api.invalidateOnFileUpdate(realpath);
+  api.invalidateOnFileUpdate(input.filePath);
   let start = Date.now();
   let {optionsRef, ...request} = input;
   let {cachePath} = nullthrows(
@@ -68,7 +67,9 @@ async function run({input, api, options, farm}: RunInput) {
   // These are used to compute the cache key for assets during transformation.
   request.invalidations = api.getInvalidations().filter(invalidation => {
     // Filter out invalidation node for the input file itself.
-    return invalidation.type !== 'file' || invalidation.filePath !== realpath;
+    return (
+      invalidation.type !== 'file' || invalidation.filePath !== input.filePath
+    );
   });
 
   let {assets, configRequests, invalidations} = (await farm.createHandle(

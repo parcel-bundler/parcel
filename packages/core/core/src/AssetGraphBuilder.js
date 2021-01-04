@@ -35,7 +35,6 @@ import {
   md5FromOrderedObject,
   md5FromString,
   PromiseQueue,
-  flatMap,
 } from '@parcel/utils';
 import ThrowableDiagnostic from '@parcel/diagnostic';
 import AssetGraph from './AssetGraph';
@@ -195,16 +194,17 @@ export default class AssetGraphBuilder extends EventEmitter {
 
     // Skip symbol propagation if no target is using scope hoisting
     // (mainly for faster development builds)
-    let entryDependencies = flatMap(
-      flatMap(this.assetGraph.getNodesConnectedFrom(root), entrySpecifier =>
+    let entryDependencies = this.assetGraph
+      .getNodesConnectedFrom(root)
+      .flatMap(entrySpecifier =>
         this.assetGraph.getNodesConnectedFrom(entrySpecifier),
-      ),
-      entryFile =>
+      )
+      .flatMap(entryFile =>
         this.assetGraph.getNodesConnectedFrom(entryFile).map(dep => {
           invariant(dep.type === 'dependency');
           return dep;
         }),
-    );
+      );
     if (entryDependencies.some(d => d.value.env.scopeHoist)) {
       this.propagateSymbols();
     }

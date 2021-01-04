@@ -16,6 +16,7 @@
   "main": "lib/PostHTMLTransformer.js",
   "source": "src/PostHTMLTransformer.js",
   "engines": {
+    "node": ">= 12.0.0",
     "parcel": "^2.0.0-alpha.1.1"
   },
   "dependencies": {

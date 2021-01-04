@@ -119,9 +119,9 @@ export default class CommittedAsset {
     return this.map;
   }
 
-  getAST(): Promise<AST> {
+  getAST(): Promise<?AST> {
     if (this.value.astKey == null) {
-      throw new Error('Asset does not have an AST');
+      return Promise.resolve(null);
     }
 
     if (this.ast == null) {
