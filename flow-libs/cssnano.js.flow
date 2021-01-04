@@ -9,5 +9,5 @@ declare module 'cssnano' {
     configFile?: string;
     preset?: [string, object] | string;
   }
-  declare module.exports: ?CSSNanoOptions;
+  declare module.exports: (?CSSNanoOptions) => mixed;
 }
