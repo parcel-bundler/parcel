@@ -290,11 +290,26 @@ export default class BundleGraph {
     | {|type: 'bundle_group', value: BundleGroup|}
     | {|type: 'asset', value: Asset|}
   ) {
+    let depNode = nullthrows(this._graph.getNode(dependency.id));
+
     if (
       bundle != null &&
-      this._graph.hasEdge(bundle.id, dependency.id, 'internal_async')
+      this._graph.hasEdge(bundle.id, depNode.id, 'internal_async')
     ) {
-      let resolved = this.getDependencyResolution(dependency, bundle);
+      let referencedAssetNode = this._graph.getNodesConnectedFrom(
+        depNode,
+        'references',
+      )[0];
+
+      let resolved;
+      if (referencedAssetNode == null) {
+        resolved = this.getDependencyResolution(dependency, bundle);
+      } else {
+        // If a referenced asset already exists, resolve this dependency to it.
+        invariant(referencedAssetNode.type === 'asset');
+        resolved = referencedAssetNode.value;
+      }
+
       if (resolved == null) {
         return;
       } else {
@@ -542,27 +557,6 @@ export default class BundleGraph {
     let depNode = this._graph.getNode(dep.id);
     if (!depNode) {
       return null;
-    }
-
-    if (
-      dep.isAsync &&
-      dep.env.scopeHoist &&
-      bundle != null &&
-      this._graph.hasEdge(bundle.id, dep.id, 'internal_async')
-    ) {
-      // Internalized async dependencies used in scope-hoisted bundles should
-      // resolve to the original referenced asset. It's possible another bundle
-      // that has not internalized this dependency attached a runtime to this
-      // dependency.
-      let referencedAssetNode = this._graph.getNodesConnectedFrom(
-        depNode,
-        'references',
-      )[0];
-
-      invariant(
-        referencedAssetNode != null && referencedAssetNode.type === 'asset',
-      );
-      return referencedAssetNode.value;
     }
 
     let assets = this.getDependencyAssets(dep);
