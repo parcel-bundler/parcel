@@ -562,7 +562,6 @@ export interface MutableAsset extends BaseAsset {
   setCode(string): void;
   /** Throws if the AST is dirty (meaning: this won't implicity stringify the AST). */
   getCode(): Promise<string>;
-  setEnvironment(opts: EnvironmentOpts): void;
   setMap(?SourceMap): void;
   setStream(Readable): void;
 }
@@ -662,9 +661,7 @@ export type ResolveFn = (from: FilePath, to: string) => Promise<FilePath>;
 /**
  * @section validator
  */
-type ResolveConfigFn = (
-  configNames: Array<FilePath>,
-) => Promise<?FilePath>;
+type ResolveConfigFn = (configNames: Array<FilePath>) => Promise<?FilePath>;
 
 /**
  * @section validator
@@ -722,6 +719,9 @@ export type Validator = DedicatedThreadValidator | MultiThreadValidator;
  * @section transformer
  */
 export type Transformer = {|
+  getEnvironment?: ({|
+    env: Environment,
+  |}) => EnvironmentOpts,
   loadConfig?: ({|
     config: Config,
     options: PluginOptions,
