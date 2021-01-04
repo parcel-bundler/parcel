@@ -15,7 +15,12 @@ import packageJSON from '../package.json';
 import WorkerFarm, {Handle} from '@parcel/workers';
 import nullthrows from 'nullthrows';
 import EventEmitter from 'events';
-import {findAncestorFile, findNodeModule, findFirstFile} from './find';
+import {
+  findAncestorFile,
+  findNodeModule,
+  findFirstFile,
+  clearFileExistsMap,
+} from './find';
 
 const instances: Map<number, MemoryFS> = new Map();
 let id = 0;
@@ -628,6 +633,10 @@ export class MemoryFS implements FileSystem {
 
   findFirstFile(filePaths: Array<FilePath>): ?FilePath {
     return findFirstFile(this, filePaths);
+  }
+
+  clearFileExistsMap(): void {
+    clearFileExistsMap();
   }
 }
 

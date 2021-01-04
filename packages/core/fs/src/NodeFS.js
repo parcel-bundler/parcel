@@ -21,6 +21,7 @@ import {
   findAncestorFile,
   findNodeModule,
   findFirstFile,
+  clearFileExistsMap,
 } from '@parcel/fs-search';
 import packageJSON from '../package.json';
 
@@ -54,6 +55,7 @@ export class NodeFS implements FileSystem {
   findAncestorFile: any = findAncestorFile;
   findNodeModule: any = findNodeModule;
   findFirstFile: any = findFirstFile;
+  clearFileExistsMap: () => void = clearFileExistsMap;
 
   createWriteStream(filePath: string, options: any): Writable {
     return fsWriteStreamAtomic(filePath, options);
