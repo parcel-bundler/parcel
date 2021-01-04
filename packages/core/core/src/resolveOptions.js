@@ -70,7 +70,7 @@ export default async function resolveOptions(
       : path.resolve(projectRoot, DEFAULT_CACHE_DIRNAME);
 
   let cache =
-    outputFS instanceof NodeFS
+    initialOptions.cache ?? outputFS instanceof NodeFS
       ? new LMDBCache(cacheDir)
       : new FSCache(outputFS, cacheDir);
 

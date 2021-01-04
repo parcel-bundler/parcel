@@ -7,6 +7,7 @@ import type WorkerFarm from '@parcel/workers';
 import type {PackageManager} from '@parcel/package-manager';
 import type {Diagnostic} from '@parcel/diagnostic';
 import type {PluginLogger} from '@parcel/logger';
+import type {Cache} from '@parcel/cache';
 
 import type {AST as _AST, ConfigResult as _ConfigResult} from './unsafe';
 
@@ -276,6 +277,7 @@ export type InitialParcelOptions = {|
 
   +inputFS?: FileSystem,
   +outputFS?: FileSystem,
+  +cache?: Cache,
   +workerFarm?: WorkerFarm,
   +packageManager?: PackageManager,
   +defaultEngines?: Engines,
@@ -662,9 +664,7 @@ export type ResolveFn = (from: FilePath, to: string) => Promise<FilePath>;
 /**
  * @section validator
  */
-type ResolveConfigFn = (
-  configNames: Array<FilePath>,
-) => Promise<?FilePath>;
+type ResolveConfigFn = (configNames: Array<FilePath>) => Promise<?FilePath>;
 
 /**
  * @section validator
