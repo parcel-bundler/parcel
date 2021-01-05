@@ -5,7 +5,6 @@ extern crate napi_derive;
 use std::convert::TryInto;
 use napi::{CallContext, JsNumber, JsString, JsNull, Either, JsObject, Result};
 use std::path::Path;
-use std::collections::HashMap;
 
 #[js_function(2)]
 fn find_ancestor_file(ctx: CallContext) -> Result<Either<JsNull, JsString>> {
@@ -29,14 +28,8 @@ fn find_ancestor_file(ctx: CallContext) -> Result<Either<JsNull, JsString>> {
 
     for name in &filenames {
       let fullpath = dir.join(name.as_str()?);
-      if file_exists_map.contains_key(ctx.env.create_string(fullpath.to_str().unwrap()).map(Either::B)) {
-        return ctx.env.create_string(fullpath.to_str().unwrap()).map(Either::B);
-      }
       if fullpath.is_file() {
-        file_exists_map.insert(ctx.env.create_string(fullpath.to_str().unwrap()).map(Either::B), true);
         return ctx.env.create_string(fullpath.to_str().unwrap()).map(Either::B);
-      } else {
-        file_exists_map.insert(ctx.env.create_string(fullpath.to_str().unwrap()).map(Either::B), false);
       }
     }
   }
@@ -84,19 +77,11 @@ fn find_node_module(ctx: CallContext) -> Result<Either<JsNull, JsString>> {
   return ctx.env.get_null().map(Either::A)
 }
 
-let mut file_exists_map = HashMap::new();
-
-#[js_function(3)]
-fn clear_file_exists_map() -> Result<void> {
-  file_exists_map.clear();
-}
-
 #[module_exports]
 fn init(mut exports: JsObject) -> Result<()> {
   exports.create_named_method("findAncestorFile", find_ancestor_file)?;
   exports.create_named_method("findFirstFile", find_first_file)?;
   exports.create_named_method("findNodeModule", find_node_module)?;
-  exports.create_named_method("clearFileExistsMap", clear_file_exists_map)?;
 
   Ok(())
 }

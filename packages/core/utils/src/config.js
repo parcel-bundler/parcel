@@ -7,7 +7,6 @@ import clone from 'clone';
 import {parse as json5} from 'json5';
 import {parse as toml} from '@iarna/toml';
 import LRU from 'lru-cache';
-import {clearFileExistsMap} from '@parcel/fs';
 
 export type ConfigOutput = {|
   config: ConfigResult,
@@ -65,9 +64,7 @@ export async function loadConfig(
       }
 
       let configContent = await fs.readFile(configFile, 'utf8');
-      if (!configContent) {
-        return null;
-      }
+      if (!configContent) return null;
 
       let config;
       if (opts && opts.parse === false) {
@@ -98,7 +95,6 @@ export async function loadConfig(
 
 loadConfig.clear = () => {
   configCache.reset();
-  clearFileExistsMap();
 };
 
 function getParser(extname) {

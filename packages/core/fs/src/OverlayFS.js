@@ -11,12 +11,7 @@ import type {
 
 import {registerSerializableClass} from '@parcel/core';
 import packageJSON from '../package.json';
-import {
-  findAncestorFile,
-  findNodeModule,
-  findFirstFile,
-  clearFileExistsMap,
-} from './find';
+import {findAncestorFile, findNodeModule, findFirstFile} from './find';
 
 function read(method) {
   return async function(...args: Array<any>) {
@@ -211,10 +206,6 @@ export class OverlayFS implements FileSystem {
 
   findFirstFile(filePaths: Array<FilePath>): ?FilePath {
     return findFirstFile(this, filePaths);
-  }
-
-  clearFileExistsMap(): void {
-    clearFileExistsMap();
   }
 }
 

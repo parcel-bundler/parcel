@@ -67,7 +67,6 @@ export interface FileSystem {
   findAncestorFile(fileNames: Array<string>, fromDir: FilePath): ?FilePath;
   findNodeModule(moduleName: string, fromDir: FilePath): ?FilePath;
   findFirstFile(filePaths: Array<FilePath>): ?FilePath;
-  clearFileExistsMap(): void;
 }
 
 // https://nodejs.org/api/fs.html#fs_class_fs_dirent

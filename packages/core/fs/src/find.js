@@ -32,8 +32,6 @@ export function findNodeModule(
   return null;
 }
 
-const fileExistsMap = new Map<FilePath, boolean>();
-
 export function findAncestorFile(
   fs: FileSystem,
   fileNames: Array<string>,
@@ -47,14 +45,12 @@ export function findAncestorFile(
 
     for (const fileName of fileNames) {
       let filePath = path.join(dir, fileName);
-      if (fileExistsMap.get(filePath)) return filePath;
       try {
         if (fs.statSync(filePath).isFile()) {
-          fileExistsMap.set(filePath, true);
           return filePath;
         }
-      } catch {
-        fileExistsMap.set(filePath, false);
+      } catch (err) {
+        // ignore
       }
     }
 
@@ -62,10 +58,6 @@ export function findAncestorFile(
   }
 
   return null;
-}
-
-export function clearFileExistsMap(): void {
-  fileExistsMap.clear();
 }
 
 export function findFirstFile(

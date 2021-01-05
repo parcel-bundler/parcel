@@ -7,7 +7,6 @@ export type * from './types';
 export * from './NodeFS';
 export * from './MemoryFS';
 export * from './OverlayFS';
-export {clearFileExistsMap} from './find';
 
 // Recursively copies a directory from the sourceFS to the destinationFS
 export async function ncp(
