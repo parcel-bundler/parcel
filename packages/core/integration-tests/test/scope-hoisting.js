@@ -4230,6 +4230,18 @@ describe('scope hoisting', function() {
       let output = await run(b);
       assert.equal(output, 'hello');
     });
+
+    it('supports assigning to the result of a require', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/require-assign/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.equal(output, 4);
+    });
   });
 
   it('should not throw with JS included from HTML', async function() {

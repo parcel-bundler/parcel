@@ -660,12 +660,24 @@ const VISITOR: Visitor<MutableAsset> = {
 
         // Replace with a sequence expression so that the $parcel$require is still
         // in the correct position, but the expression resolves to the resolved value.
-        path.parentPath.replaceWith(
-          t.sequenceExpression([
-            replacement,
-            t.identifier(getName(asset, 'importAsync', dep.id, name)),
-          ]),
-        );
+        if (isAssignmentExpression(path.parentPath.parent, {left: parent})) {
+          // Sequence expressions can't be the lhs of an assignment. Hoist the $parcel$require before.
+          let assignment = t.cloneNode(path.parentPath.parent);
+          assignment.left = t.identifier(
+            getName(asset, 'importAsync', dep.id, name),
+          );
+
+          path.parentPath.parentPath.replaceWith(
+            t.sequenceExpression([replacement, assignment]),
+          );
+        } else {
+          path.parentPath.replaceWith(
+            t.sequenceExpression([
+              replacement,
+              t.identifier(getName(asset, 'importAsync', dep.id, name)),
+            ]),
+          );
+        }
 
         replacement = null;
       } else if (isVariableDeclarator(parent, {init: path.node})) {
