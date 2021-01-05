@@ -53,6 +53,7 @@ export function nodeFromDep(dep: Dependency): DependencyNode {
 }
 
 export function nodeFromAssetGroup(assetGroup: AssetGroup): AssetGroupNode {
+  console.log('**************************');
   console.log('assetgroup filepath:', assetGroup.filePath);
   console.log('assetgroup env:', assetGroup.env);
 

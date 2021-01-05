@@ -185,10 +185,13 @@ export default class Parcel {
       this.#disposable.dispose(),
       await this.#requestTracker.writeToCache(),
     ]);
+
+    this.#farm.callAllWorkers('clearEnvCache', []);
   }
 
   async _startNextBuild() {
     this.#watchAbortController = new AbortController();
+    this.#farm.callAllWorkers('clearEnvCache', []);
 
     try {
       this.#watchEvents.emit({
