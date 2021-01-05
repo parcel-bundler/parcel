@@ -1,0 +1,13 @@
+// @flow strict-local
+
+// Derived from the source of cssnano located at
+// https://github.com/cssnano/cssnano and its types at
+// https://github.com/DefinitelyTyped/DefinitelyTyped/blob/master/types/cssnano/index.d.ts
+
+declare module 'cssnano' {
+  declare interface CSSNanoOptions {
+    configFile?: string;
+    preset?: [string, object] | string;
+  }
+  declare module.exports: (?CSSNanoOptions) => mixed;
+}
