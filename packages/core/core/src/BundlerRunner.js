@@ -24,7 +24,7 @@ import MutableBundleGraph from './public/MutableBundleGraph';
 import {Bundle, NamedBundle} from './public/Bundle';
 import {report} from './ReporterRunner';
 import dumpGraphToGraphViz from './dumpGraphToGraphViz';
-import {normalizeSeparators, unique, md5FromObject} from '@parcel/utils';
+import {normalizeSeparators, unique, md5FromOrderedObject} from '@parcel/utils';
 import PluginOptions from './public/PluginOptions';
 import applyRuntimes from './applyRuntimes';
 import {PARCEL_VERSION} from './constants';
@@ -124,19 +124,19 @@ export default class BundlerRunner {
 
     // $FlowFixMe
     await dumpGraphToGraphViz(internalBundleGraph._graph, 'after_bundle');
-    try {
-      if (this.pluginOptions.mode === 'production') {
+    if (this.pluginOptions.mode === 'production') {
+      try {
         await bundler.optimize({
           bundleGraph: mutableBundleGraph,
           config: configResult?.config,
           options: this.pluginOptions,
           logger: new PluginLogger({origin: this.config.getBundlerName()}),
         });
+      } catch (e) {
+        throw new ThrowableDiagnostic({
+          diagnostic: errorToDiagnostic(e, this.config.getBundlerName()),
+        });
       }
-    } catch (e) {
-      throw new ThrowableDiagnostic({
-        diagnostic: errorToDiagnostic(e, this.config.getBundlerName()),
-      });
     }
     assertSignalNotAborted(signal);
 
@@ -171,7 +171,7 @@ export default class BundlerRunner {
     let name = this.config.getBundlerName();
     let {version} = await this.config.getBundler();
 
-    return md5FromObject({
+    return md5FromOrderedObject({
       parcelVersion: PARCEL_VERSION,
       name,
       version,
