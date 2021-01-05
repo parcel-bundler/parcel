@@ -497,7 +497,13 @@ export function link({
             .find(dep => dep.moduleSpecifier === source.value),
         );
 
-        let mod = bundleGraph.getDependencyResolution(dep, bundle);
+        let asyncResolution = bundleGraph.resolveAsyncDependency(dep, bundle);
+        let mod =
+          asyncResolution?.type === 'asset'
+            ? // Prefer the underlying asset over a runtime to load it. It will
+              // be wrapped in Promise.resolve() later.
+              asyncResolution.value
+            : bundleGraph.getDependencyResolution(dep, bundle);
         let node;
 
         if (!bundleGraph.isDependencySkipped(dep)) {
@@ -533,9 +539,7 @@ export function link({
             }
 
             // async dependency that was internalized
-            if (
-              bundleGraph.resolveAsyncDependency(dep, bundle)?.type === 'asset'
-            ) {
+            if (asyncResolution?.type === 'asset') {
               node = t.callExpression(
                 t.memberExpression(
                   t.identifier('Promise'),
