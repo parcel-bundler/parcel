@@ -3,7 +3,6 @@
 import SourceMap from '@parcel/source-map';
 import {Optimizer} from '@parcel/plugin';
 import postcss from 'postcss';
-// flowlint-next-line untyped-import:off
 import cssnano from 'cssnano';
 
 export default (new Optimizer({
