@@ -209,6 +209,17 @@ export const generator = {
 
     baseGenerator[node.type].call(this, node, state);
   },
+  ReturnStatement(node, state) {
+    // Add parentheses if there are leading comments
+    if (node.argument?.leadingComments?.length > 0) {
+      let indent = state.indent.repeat(state.indentLevel++);
+      state.write('return (' + state.lineEnd + indent + state.indent);
+      this[node.argument.type](node.argument, state);
+      state.write(state.lineEnd + indent + ');');
+    } else {
+      baseGenerator.ReturnStatement.call(this, node, state);
+    }
+  },
 };
 
 // Make every node support comments. Important for preserving /*@__PURE__*/ comments for terser.
@@ -244,10 +255,9 @@ function formatComments(state, comments) {
   const {length} = comments;
   for (let i = 0; i < length; i++) {
     const comment = comments[i];
-    state.write(indent);
     if (comment.type === 'CommentLine') {
       // Line comment
-      state.write('// ' + comment.value.trim() + state.lineEnd);
+      state.write('// ' + comment.value.trim() + state.lineEnd + indent);
     } else {
       // Block comment
       state.write('/*');
@@ -256,7 +266,9 @@ function formatComments(state, comments) {
 
       // Keep pure annotations on the same line
       let value = comment.value.trim();
-      if (value !== '#__PURE__' && value !== '@__PURE__') {
+      if (
+        !((value === '#__PURE__' || value === '@__PURE__') && i === length - 1)
+      ) {
         state.write(state.lineEnd + indent);
       }
     }
