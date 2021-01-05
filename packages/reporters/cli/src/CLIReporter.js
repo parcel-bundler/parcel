@@ -21,6 +21,7 @@ import * as emoji from './emoji';
 
 const THROTTLE_DELAY = 100;
 const seenWarnings = new Set();
+const seenPhases = new Set();
 
 let statusThrottle = throttle((message: string) => {
   updateSpinner(message);
@@ -36,6 +37,7 @@ export async function _report(
   switch (event.type) {
     case 'buildStart': {
       seenWarnings.clear();
+      seenPhases.clear();
       if (logLevelFilter < logLevels.info) {
         break;
       }
@@ -57,6 +59,23 @@ export async function _report(
     }
     case 'buildProgress': {
       if (logLevelFilter < logLevels.info) {
+        break;
+      }
+
+      if (!isTTY && logLevelFilter != logLevels.verbose) {
+        if (event.phase == 'transforming' && !seenPhases.has('transforming')) {
+          updateSpinner('Building...');
+        } else if (event.phase == 'bundling' && !seenPhases.has('bundling')) {
+          updateSpinner('Bundling...');
+        } else if (
+          (event.phase == 'packaging' || event.phase == 'optimizing') &&
+          !seenPhases.has('packaging') &&
+          !seenPhases.has('optimizing')
+        ) {
+          updateSpinner('Packaging & Optimizing...');
+        }
+        seenPhases.add(event.phase);
+
         break;
       }
 
