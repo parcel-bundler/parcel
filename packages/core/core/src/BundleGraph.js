@@ -290,11 +290,26 @@ export default class BundleGraph {
     | {|type: 'bundle_group', value: BundleGroup|}
     | {|type: 'asset', value: Asset|}
   ) {
+    let depNode = nullthrows(this._graph.getNode(dependency.id));
+
     if (
       bundle != null &&
-      this._graph.hasEdge(bundle.id, dependency.id, 'internal_async')
+      this._graph.hasEdge(bundle.id, depNode.id, 'internal_async')
     ) {
-      let resolved = this.getDependencyResolution(dependency, bundle);
+      let referencedAssetNode = this._graph.getNodesConnectedFrom(
+        depNode,
+        'references',
+      )[0];
+
+      let resolved;
+      if (referencedAssetNode == null) {
+        resolved = this.getDependencyResolution(dependency, bundle);
+      } else {
+        // If a referenced asset already exists, resolve this dependency to it.
+        invariant(referencedAssetNode.type === 'asset');
+        resolved = referencedAssetNode.value;
+      }
+
       if (resolved == null) {
         return;
       } else {
