@@ -848,12 +848,22 @@ export function link({
         return;
       }
 
+      // Rename references to exported symbols to the exported name.
+      let exp = exportedSymbols.get(object.name);
+      if (exp) {
+        object.name = exp[0].local;
+      }
+
       let asset = exportsMap.get(object.name);
       if (!asset) {
         return;
       }
 
       if (!needsExportsIdentifier(object.name)) {
+        return REMOVE;
+      }
+
+      if (isIdentifier(right) && !needsDeclaration(right.name)) {
         return REMOVE;
       }
 
@@ -865,35 +875,13 @@ export function link({
         bundle,
       );
 
-      if (!identifier) {
-        // If there is no identifier, and the symbol resolves to the same asset,
-        // this is a self-reference of non-pure exports. Return the original node
-        // to avoid the identifier visitor below from replacing it with a member
-        // expression pointing to itself (e.g. $id$exports.foo = $id$exports.foo).
-        if (isIdentifier(right) && asset === resolvedAsset) {
-          return node;
-        }
-        return;
+      // If there is no identifier, and the symbol resolves to the same asset,
+      // this is a self-reference of non-pure exports. Return the original node
+      // to avoid the identifier visitor below from replacing it with a member
+      // expression pointing to itself (e.g. $id$exports.foo = $id$exports.foo).
+      if (!identifier && isIdentifier(right) && asset === resolvedAsset) {
+        return node;
       }
-
-      if (isIdentifier(right)) {
-        let res = maybeReplaceIdentifier(right, ancestors);
-        if (res) {
-          right = res;
-        }
-      }
-
-      if (isIdentifier(right, {name: identifier})) {
-        // If the original declaration is unused, no need to assign to $id$exports.
-        if (!needsDeclaration(identifier)) {
-          return REMOVE;
-        }
-      } else {
-        // turn `$id$exports.foo = ...` into `$id$exports.foo = $id$export$foo = ...`
-        right = t.assignmentExpression('=', t.identifier(identifier), right);
-      }
-
-      node.right = right;
     },
     Identifier(node, state, ancestors) {
       if (
