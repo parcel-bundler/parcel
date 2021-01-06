@@ -38,6 +38,7 @@ import {
   isObjectProperty,
   isStringLiteral,
   isUnaryExpression,
+  isVariableDeclaration,
   isVariableDeclarator,
   isExpressionStatement,
   isSequenceExpression,
@@ -600,7 +601,7 @@ const VISITOR: Visitor<MutableAsset> = {
       let memberAccesses: ?Array<{|name: string, loc: ?SourceLocation|}>;
       let properties: ?Array<RestElement | ObjectProperty>;
       let propertyScope;
-      let removePath;
+      let replacePath;
       let binding;
       let {parent} = path;
 
@@ -685,20 +686,12 @@ const VISITOR: Visitor<MutableAsset> = {
           // let { x: y } = require("./b.js");
           properties = parent.id.properties;
           propertyScope = path.parentPath.parentPath.scope;
-          removePath =
-            // $FlowFixMe
-            path.parentPath.parent.declarations.length === 1
-              ? path.parentPath.parentPath
-              : null;
         } else if (isIdentifier(parent.id)) {
           // let ns = require("./b.js");
           binding = path.parentPath.parentPath.scope.getBinding(parent.id.name);
-          removePath =
-            // $FlowFixMe
-            path.parentPath.parent.declarations.length === 1
-              ? path.parentPath.parentPath
-              : null;
         }
+
+        replacePath = path.parentPath;
       } else if (
         // ({ x: y } = require("./b.js"));
         isAssignmentExpression(parent, {right: path.node}) &&
@@ -707,7 +700,7 @@ const VISITOR: Visitor<MutableAsset> = {
       ) {
         properties = parent.left.properties;
         propertyScope = path.parentPath.scope;
-        removePath = path.parentPath;
+        replacePath = path.parentPath;
       }
 
       if (
@@ -782,8 +775,37 @@ const VISITOR: Visitor<MutableAsset> = {
         dep.meta.isCommonJS = true;
       }
 
-      if (memberAccesses != null && removePath && replacement) {
-        removePath.replaceWith(replacement);
+      if (memberAccesses != null && replacePath && replacement) {
+        // Can't replace a variable declarator with a function call.
+        // Need to replace the whole declaration.
+        if (isVariableDeclarator(replacePath.node)) {
+          let declaration = replacePath.parent;
+          invariant(isVariableDeclaration(declaration));
+
+          // If there is only one declarator, it's safe to replace the whole declaration.
+          // Otherwise, split into multiple declarations so we can replace just one
+          // with an expression statement containing the $parcel$require call.
+          if (declaration.declarations.length === 1) {
+            replacePath.parentPath.replaceWith(replacement);
+          } else {
+            let declIndex = declaration.declarations.indexOf(replacePath.node);
+            replacePath.parentPath.insertBefore(
+              t.variableDeclaration(
+                declaration.kind,
+                declaration.declarations.slice(0, declIndex),
+              ),
+            );
+
+            replacePath.parentPath.insertBefore(
+              t.expressionStatement(replacement),
+            );
+            for (let i = declIndex; i >= 0; i--) {
+              replacePath.parentPath.get(`declarations.${i}`).remove();
+            }
+          }
+        } else {
+          replacePath.replaceWith(replacement);
+        }
       } else if (replacement) {
         path.replaceWith(replacement);
       }
