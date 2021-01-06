@@ -1,7 +1,13 @@
 import assert from 'assert';
 import path from 'path';
 import nullthrows from 'nullthrows';
-import {bundle as _bundle, outputFS, run, runBundle} from '@parcel/test-utils';
+import {
+  assertBundles,
+  bundle as _bundle,
+  outputFS,
+  run,
+  runBundle,
+} from '@parcel/test-utils';
 
 const bundle = (name, opts = {}) =>
   _bundle(name, Object.assign({scopeHoist: true}, opts));
@@ -355,6 +361,36 @@ describe('output formats', function() {
           `var {\\s*(.|\\n)+\\s*} = require\\("\\.\\/${sharedBundle.name}"\\)`,
         ).test(async2),
       );
+    });
+
+    it('should support async split bundles (reexport default)', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/formats/commonjs-split-reexport-default/index.js',
+        ),
+      );
+
+      assertBundles(b, [
+        {
+          name: 'index.js',
+          assets: ['index.js', 'JSRuntime.js', 'JSRuntime.js'],
+        },
+        {
+          type: 'js',
+          assets: ['shared.js'],
+        },
+        {
+          type: 'js',
+          assets: ['async1.js'],
+        },
+        {
+          type: 'js',
+          assets: ['async2.js'],
+        },
+      ]);
+
+      assert.strictEqual(await run(b), 20579 * 2);
     });
 
     it('should call init for wrapped modules when codesplitting to to commonjs', async function() {
@@ -844,7 +880,7 @@ describe('output formats', function() {
         .getChildBundles(workerBundle)
         .find(b => b.filePath.includes('async'));
       let syncBundle = b
-        .getChildBundles(workerBundle)
+        .getReferencedBundles(workerBundle)
         .find(b => !b.filePath.includes('async'));
 
       assert(

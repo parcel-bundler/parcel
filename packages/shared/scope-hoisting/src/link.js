@@ -110,7 +110,7 @@ export function link({
   // of each bundle group pointing at the sibling bundles. These can be
   // picked up by another bundler later at which point runtimes will be added.
   if (bundle.env.isLibrary) {
-    let bundles = bundleGraph.getSiblingBundles(bundle);
+    let bundles = bundleGraph.getReferencedBundles(bundle);
     for (let b of bundles) {
       importedFiles.set(nullthrows(b.filePath), {
         bundle: b,
@@ -505,7 +505,13 @@ export function link({
             .find(dep => dep.moduleSpecifier === source.value),
         );
 
-        let mod = bundleGraph.getDependencyResolution(dep, bundle);
+        let asyncResolution = bundleGraph.resolveAsyncDependency(dep, bundle);
+        let mod =
+          asyncResolution?.type === 'asset'
+            ? // Prefer the underlying asset over a runtime to load it. It will
+              // be wrapped in Promise.resolve() later.
+              asyncResolution.value
+            : bundleGraph.getDependencyResolution(dep, bundle);
         let node;
 
         if (!bundleGraph.isDependencySkipped(dep)) {
@@ -538,6 +544,18 @@ export function link({
               }
             } else if (mod.type === 'js') {
               node = addBundleImport(mod, path);
+            }
+
+            // async dependency that was internalized
+            if (asyncResolution?.type === 'asset') {
+              node = t.callExpression(
+                t.memberExpression(
+                  t.identifier('Promise'),
+                  t.identifier('resolve'),
+                ),
+                // $FlowFixMe[incompatible-call]
+                [node],
+              );
             }
           }
         }

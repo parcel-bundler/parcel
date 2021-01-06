@@ -26,8 +26,9 @@ import {
   validateSchema,
 } from '@parcel/utils';
 import {createEnvironment} from '../Environment';
-import createParcelConfigRequest from './ParcelConfigRequest';
-import ParcelConfig from '../ParcelConfig';
+import createParcelConfigRequest, {
+  getCachedParcelConfig,
+} from './ParcelConfigRequest';
 // $FlowFixMe
 import browserslist from 'browserslist';
 import jsonMap from 'json-source-map';
@@ -36,6 +37,7 @@ import nullthrows from 'nullthrows';
 import {
   COMMON_TARGET_DESCRIPTOR_SCHEMA,
   DESCRIPTOR_SCHEMA,
+  PACKAGE_DESCRIPTOR_SCHEMA,
   ENGINES_SCHEMA,
 } from '../TargetDescriptor.schema';
 import {BROWSER_ENVS} from '../public/Environment';
@@ -43,7 +45,7 @@ import {optionsProxy} from '../utils';
 
 type RunOpts = {|
   input: Entry,
-  ...StaticRunOpts,
+  ...StaticRunOpts<Array<Target>>,
 |};
 
 const DEFAULT_DIST_DIRNAME = 'dist';
@@ -74,16 +76,10 @@ async function run({input, api, options}: RunOpts) {
   );
   let targets = await targetResolver.resolve(input.packagePath);
 
-  let {config} = nullthrows(
+  let configResult = nullthrows(
     await api.runRequest<null, ConfigAndCachePath>(createParcelConfigRequest()),
   );
-
-  let parcelConfig = new ParcelConfig(
-    config,
-    options.packageManager,
-    options.inputFS,
-    options.autoinstall,
-  );
+  let parcelConfig = getCachedParcelConfig(configResult, options);
 
   // Find named pipelines for each target.
   let pipelineNames = new Set(parcelConfig.getNamedPipelines());
@@ -168,7 +164,7 @@ export class TargetResolver {
               },
             });
           }
-          return {
+          let target: Target = {
             name,
             distDir: path.resolve(this.fs.cwd(), distDir),
             publicUrl: descriptor.publicUrl ?? this.options.publicUrl,
@@ -184,6 +180,12 @@ export class TargetResolver {
               sourceMap: normalizeSourceMap(this.options, descriptor.sourceMap),
             }),
           };
+
+          if (descriptor.distEntry != null) {
+            target.distEntry = descriptor.distEntry;
+          }
+
+          return target;
         });
       }
 
@@ -495,7 +497,7 @@ export class TargetResolver {
       }
 
       if (targetName in pkgTargets) {
-        let descriptor = parseDescriptor(
+        let descriptor = parsePackageDescriptor(
           targetName,
           pkgTargets[targetName],
           pkgFilePath,
@@ -584,9 +586,29 @@ function parseDescriptor(
   descriptor: mixed,
   pkgPath: ?FilePath,
   pkgContents: string | mixed,
-): TargetDescriptor | PackageTargetDescriptor {
+): TargetDescriptor {
   validateSchema.diagnostic(
     DESCRIPTOR_SCHEMA,
+    descriptor,
+    pkgPath,
+    pkgContents,
+    '@parcel/core',
+    `/targets/${targetName}`,
+    `Invalid target descriptor for target "${targetName}"`,
+  );
+
+  // $FlowFixMe we just verified this
+  return descriptor;
+}
+
+function parsePackageDescriptor(
+  targetName: string,
+  descriptor: mixed,
+  pkgPath: ?FilePath,
+  pkgContents: string | mixed,
+): PackageTargetDescriptor {
+  validateSchema.diagnostic(
+    PACKAGE_DESCRIPTOR_SCHEMA,
     descriptor,
     pkgPath,
     pkgContents,
@@ -604,7 +626,7 @@ function parseCommonTargetDescriptor(
   descriptor: mixed,
   pkgPath: ?FilePath,
   pkgContents: string | mixed,
-): TargetDescriptor | PackageTargetDescriptor | false {
+): PackageTargetDescriptor | false {
   validateSchema.diagnostic(
     COMMON_TARGET_DESCRIPTOR_SCHEMA,
     descriptor,

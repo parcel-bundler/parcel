@@ -16,54 +16,51 @@ import {report} from '../ReporterRunner';
 import PublicDependency from '../public/Dependency';
 import PluginOptions from '../public/PluginOptions';
 import ParcelConfig from '../ParcelConfig';
-import createParcelConfigRequest from './ParcelConfigRequest';
-
-export type PathRequestResult = AssetGroup | null | void;
+import createParcelConfigRequest, {
+  getCachedParcelConfig,
+} from './ParcelConfigRequest';
 
 export type PathRequest = {|
   id: string,
   +type: 'path_request',
-  run: RunOpts => Promise<PathRequestResult>,
-  input: Dependency,
+  run: RunOpts => Async<?AssetGroup>,
+  input: PathRequestInput,
+|};
+
+export type PathRequestInput = {|
+  dependency: Dependency,
+  name: string,
 |};
 
 type RunOpts = {|
-  input: Dependency,
-  ...StaticRunOpts,
+  input: PathRequestInput,
+  ...StaticRunOpts<?AssetGroup>,
 |};
 
 const type = 'path_request';
 const QUERY_PARAMS_REGEX = /^([^\t\r\n\v\f?]*)(\?.*)?/;
 
 export default function createPathRequest(
-  input: Dependency,
-): {|
-  id: string,
-  input: Dependency,
-  run: ({|input: Dependency, ...StaticRunOpts|}) => Async<?AssetGroup>,
-  +type: string,
-|} {
+  input: PathRequestInput,
+): PathRequest {
   return {
-    id: input.id,
+    id: input.dependency.id + ':' + input.name,
     type,
     run,
     input,
   };
 }
+
 async function run({input, api, options}: RunOpts) {
-  let {config} = nullthrows(
+  let configResult = nullthrows(
     await api.runRequest<null, ConfigAndCachePath>(createParcelConfigRequest()),
   );
+  let config = getCachedParcelConfig(configResult, options);
   let resolverRunner = new ResolverRunner({
     options,
-    config: new ParcelConfig(
-      config,
-      options.packageManager,
-      options.inputFS,
-      options.autoinstall,
-    ),
+    config,
   });
-  let assetGroup = await resolverRunner.resolve(input);
+  let assetGroup = await resolverRunner.resolve(input.dependency);
 
   if (assetGroup != null) {
     api.invalidateOnFileDelete(assetGroup.filePath);
@@ -135,7 +132,7 @@ export class ResolverRunner {
 
     let pipeline;
     let filePath;
-    let query: QueryParameters = {};
+    let query: ?QueryParameters;
     let validPipelines = new Set(this.config.getNamedPipelines());
     if (
       // Don't consider absolute paths. Absolute paths are only supported for entries,
@@ -145,7 +142,16 @@ export class ResolverRunner {
     ) {
       [pipeline, filePath] = dependency.moduleSpecifier.split(':');
       if (!validPipelines.has(pipeline)) {
-        return null;
+        if (dep.isURL) {
+          // This may be a url protocol or scheme rather than a pipeline, such as
+          // `url('http://example.com/foo.png')`
+          return null;
+        } else {
+          throw await this.getThrowableDiagnostic(
+            dependency,
+            `Unknown pipeline: ${pipeline}.`,
+          );
+        }
       }
     } else {
       if (dependency.isURL && dependency.moduleSpecifier.startsWith('//')) {
@@ -159,7 +165,10 @@ export class ResolverRunner {
     if (dependency.isURL) {
       let parsed = URL.parse(filePath);
       if (typeof parsed.pathname !== 'string') {
-        throw new Error(`Received URL without a pathname ${filePath}.`);
+        throw await this.getThrowableDiagnostic(
+          dependency,
+          `Received URL without a pathname ${filePath}.`,
+        );
       }
       filePath = decodeURIComponent(parsed.pathname);
       if (parsed.query != null) {
@@ -236,11 +245,10 @@ export class ResolverRunner {
       return null;
     }
 
+    let resolveFrom = dependency.resolveFrom ?? dependency.sourcePath;
     let dir =
-      dependency.sourcePath != null
-        ? escapeMarkdown(
-            relativePath(this.options.projectRoot, dependency.sourcePath),
-          )
+      resolveFrom != null
+        ? escapeMarkdown(relativePath(this.options.projectRoot, resolveFrom))
         : '';
 
     let specifier = escapeMarkdown(dependency.moduleSpecifier || '');

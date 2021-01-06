@@ -31,7 +31,7 @@ import {
   isVariableDeclaration,
 } from '@babel/types';
 import {simple as walkSimple, traverse} from '@parcel/babylon-walk';
-import {PromiseQueue, relativeUrl, flat, relativePath} from '@parcel/utils';
+import {PromiseQueue, relativeUrl, relativePath} from '@parcel/utils';
 import invariant from 'assert';
 import fs from 'fs';
 import nullthrows from 'nullthrows';
@@ -153,15 +153,14 @@ export async function concat({
 
       if (shouldSkipAsset(bundleGraph, bundle, asset)) {
         // The order of imports of excluded assets has to be retained
-        statements = flat(
-          [...context.children]
-            .sort(
-              ([aId], [bId]) =>
-                nullthrows(statementIndices.get(aId)) -
-                nullthrows(statementIndices.get(bId)),
-            )
-            .map(([, ast]) => ast),
-        );
+        statements = [...context.children]
+          .sort(
+            ([aId], [bId]) =>
+              nullthrows(statementIndices.get(aId)) -
+              nullthrows(statementIndices.get(bId)),
+          )
+          .map(([, ast]) => ast)
+          .flat();
       } else {
         for (let [assetId, ast] of [...context.children].reverse()) {
           let index = statementIndices.get(assetId) ?? 0;
