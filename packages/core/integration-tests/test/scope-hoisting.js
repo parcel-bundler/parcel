@@ -4160,6 +4160,22 @@ describe('scope hoisting', function() {
       assert.equal(await run(b), 'bar:bar');
     });
 
+    it('should not insert interop default for commonjs modules with default export', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/interop-require-commonjs/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      let obj = {
+        test: 2,
+      };
+      obj.default = obj;
+      assert.deepEqual(output.default, obj);
+    });
+
     it('should support assigning to exports from inside a function', async function() {
       let b = await bundle(
         path.join(

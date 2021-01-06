@@ -47,6 +47,7 @@ import {
   getIdentifier,
   parse,
   needsPrelude,
+  needsDefaultInterop,
 } from './utils';
 
 const PRELUDE_PATH = path.join(__dirname, 'prelude.js');
@@ -209,27 +210,19 @@ async function processAsset(
 
   // If this is a CommonJS module, add an interop default declaration if there are any ES6 default
   // import dependencies in the same bundle for that module.
-  let deps = bundleGraph.getIncomingDependencies(asset);
-  if (asset.meta.isCommonJS) {
-    let hasDefault = deps.some(
-      dep =>
-        bundle.hasDependency(dep) &&
-        dep.meta.isES6Module &&
-        dep.symbols.hasExportSymbol('default'),
+  if (needsDefaultInterop(bundleGraph, bundle, asset)) {
+    statements.push(
+      DEFAULT_INTEROP_TEMPLATE({
+        NAME: getIdentifier(asset, '$interop$default'),
+        MODULE: t.identifier(assertString(asset.meta.exportsIdentifier)),
+      }),
     );
-    if (hasDefault) {
-      statements.push(
-        DEFAULT_INTEROP_TEMPLATE({
-          NAME: getIdentifier(asset, '$interop$default'),
-          MODULE: t.identifier(assertString(asset.meta.exportsIdentifier)),
-        }),
-      );
-    }
   }
 
   // If this is an ES6 module with a default export, and it's required by a
   // CommonJS module in the same bundle, then add an __esModule flag for interop with babel.
   if (asset.meta.isES6Module && asset.symbols.hasExportSymbol('default')) {
+    let deps = bundleGraph.getIncomingDependencies(asset);
     let hasCJSDep = deps.some(
       dep =>
         dep.meta.isCommonJS && !dep.isAsync && dep.symbols.hasExportSymbol('*'),

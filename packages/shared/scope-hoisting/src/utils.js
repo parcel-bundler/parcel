@@ -148,6 +148,24 @@ export function hasAsyncDescendant(
   return _hasAsyncDescendant;
 }
 
+export function needsDefaultInterop(
+  bundleGraph: BundleGraph<NamedBundle>,
+  bundle: NamedBundle,
+  asset: Asset,
+): boolean {
+  let deps = bundleGraph.getIncomingDependencies(asset);
+  if (asset.meta.isCommonJS) {
+    return deps.some(
+      dep =>
+        bundle.hasDependency(dep) &&
+        dep.meta.isES6Module &&
+        dep.symbols.hasExportSymbol('default'),
+    );
+  }
+
+  return false;
+}
+
 export function assertString(v: mixed): string {
   invariant(typeof v === 'string');
   return v;

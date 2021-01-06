@@ -44,6 +44,7 @@ import {
   isEntry,
   isReferenced,
   needsPrelude,
+  needsDefaultInterop,
 } from './utils';
 import OutputFormats from './formats/index.js';
 
@@ -481,7 +482,11 @@ export function link({
 
   function interop(mod, originalName, originalNode, node) {
     // Handle interop for default imports of CommonJS modules.
-    if (mod.meta.isCommonJS && originalName === 'default') {
+    if (
+      mod.meta.isCommonJS &&
+      originalName === 'default' &&
+      needsDefaultInterop(bundleGraph, bundle, mod)
+    ) {
       let name = getName(mod, '$interop$default');
       return t.identifier(name);
     }
