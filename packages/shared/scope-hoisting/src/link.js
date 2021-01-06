@@ -596,8 +596,6 @@ export function link({
     }
   }
 
-  // return {ast, referencedAssets}
-
   traverse2(ast, {
     CallExpression(node, state, ancestors) {
       let {arguments: args, callee} = node;
@@ -833,7 +831,10 @@ export function link({
         return;
       }
 
-      let {object, property, computed} = node.left;
+      let {
+        left: {object, property, computed},
+        right,
+      } = node;
       if (
         !(
           isIdentifier(object) &&
@@ -854,13 +855,23 @@ export function link({
 
       // If it's a $id$exports.name expression.
       let name = isIdentifier(property) ? property.name : property.value;
-      let {identifier} = resolveSymbol(asset, name, bundle);
+      let {asset: resolvedAsset, identifier} = resolveSymbol(
+        asset,
+        name,
+        bundle,
+      );
 
       if (!identifier) {
+        // If there is no identifier, and the symbol resolves to the same asset,
+        // this is a self-reference of non-pure exports. Return the original node
+        // to avoid the identifier visitor below from replacing it with a member
+        // expression pointing to itself (e.g. $id$exports.foo = $id$exports.foo).
+        if (isIdentifier(right) && asset === resolvedAsset) {
+          return node;
+        }
         return;
       }
 
-      let {right} = node;
       if (isIdentifier(right)) {
         let res = maybeReplaceIdentifier(right, ancestors);
         if (res) {

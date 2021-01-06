@@ -4270,6 +4270,22 @@ describe('scope hoisting', function() {
       let output = await run(b);
       assert.equal(output, 4);
     });
+
+    it('supports both static and non-static exports in the same module with self-reference', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/non-static-exports/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, {
+        foo: 2,
+        bar: 4,
+        baz: 6,
+      });
+    });
   });
 
   it('should not throw with JS included from HTML', async function() {
