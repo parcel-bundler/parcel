@@ -322,14 +322,6 @@ export function link({
 
         // Hoist to the nearest path with the same scope as the exports is declared in.
         let parent = nullthrows(path.findParent(p => t.isProgram(p.parent)));
-        if (wrappedAssets.has(mod.id)) {
-          parent.insertBefore(
-            t.expressionStatement(
-              t.callExpression(getIdentifier(mod, 'init'), []),
-            ),
-          );
-        }
-
         let [decl] = parent.insertBefore(
           DEFAULT_INTEROP_TEMPLATE({
             NAME: t.identifier(name),
