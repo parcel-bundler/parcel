@@ -86,7 +86,7 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
     let bundleGroup: BundleGroup = {
       target,
       entryAssetId: resolved.id,
-      bundleIds: new Set(),
+      bundleIds: [],
     };
 
     let bundleGroupNode = {
@@ -207,7 +207,7 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
       return;
     }
 
-    bundleGroup.bundleIds.add(bundle.id);
+    bundleGroup.bundleIds.push(bundle.id);
     this.#graph._graph.addEdge(bundleGroupId, bundle.id);
     this.#graph._graph.addEdge(bundleGroupId, bundle.id, 'bundle');
 

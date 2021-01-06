@@ -428,16 +428,11 @@ export function link({
     // containing this asset, and create an import for it if needed.
     let importedBundle = bundleGraph.findReachableBundleWithAsset(bundle, mod);
     if (!importedBundle) {
-      throw getThrowableDiagnosticForNode(
-        `${relative(
-          options.outputFS.cwd(),
-          bundle.filePath,
-        )} No reachable bundle found containing ${relative(
+      throw new Error(
+        `No reachable bundle found containing ${relative(
           options.inputFS.cwd(),
           mod.filePath,
         )}`,
-        path.node.loc?.filename,
-        path.node.loc,
       );
     }
 

@@ -339,7 +339,7 @@ describe('html', function() {
     );
   });
 
-  it.skip('should deduplicate shared code between script tags', async function() {
+  it('should deduplicate shared code between script tags', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-js-dedup/index.html'),
     );
@@ -351,11 +351,11 @@ describe('html', function() {
       },
       {
         type: 'js',
-        assets: ['component-2.js', 'obj.js'],
+        assets: ['component-1.js', 'obj.js'],
       },
       {
         type: 'js',
-        assets: ['component-1.js'],
+        assets: ['component-2.js'],
       },
     ]);
 
@@ -363,6 +363,7 @@ describe('html', function() {
     await run(b, {
       output: v => o.push(v),
     });
+
     assert.deepEqual(o, ['component-1', 'component-2']);
   });
 
@@ -1051,7 +1052,7 @@ describe('html', function() {
     assert(html.includes('document.write("Hello world")'));
   });
 
-  it.skip('should correctly bundle loaders for nested dynamic imports', async function() {
+  it('should correctly bundle loaders for nested dynamic imports', async function() {
     let b = await bundle(
       path.join(
         __dirname,
@@ -1069,21 +1070,9 @@ describe('html', function() {
           'cacheLoader.js',
           'index.js',
           'index.js',
-          'js-loader.js',
-          'JSRuntime.js',
-          'JSRuntime.js',
-          'JSRuntime.js',
-          'relative-path.js',
-        ],
-      },
-      {
-        type: 'js',
-        assets: [
-          'bundle-manifest.js',
-          'bundle-url.js',
-          'cacheLoader.js',
           'index.js',
           'js-loader.js',
+          'JSRuntime.js',
           'JSRuntime.js',
           'JSRuntime.js',
           'relative-path.js',
@@ -1446,7 +1435,7 @@ describe('html', function() {
     });
   });
 
-  it.skip('should support split bundles with many pages with esmodule output', async function() {
+  it('should support split bundles with many pages with esmodule output', async function() {
     await bundle(path.join(__dirname, '/integration/shared-many-esm/*.html'), {
       scopeHoist: true,
     });
