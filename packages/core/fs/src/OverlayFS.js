@@ -11,6 +11,7 @@ import type {
 
 import {registerSerializableClass} from '@parcel/core';
 import packageJSON from '../package.json';
+import {findAncestorFile, findNodeModule, findFirstFile} from './find';
 
 function read(method) {
   return async function(...args: Array<any>) {
@@ -193,6 +194,18 @@ export class OverlayFS implements FileSystem {
     opts: WatcherOptions,
   ): Promise<void> {
     await this.writable.writeSnapshot(dir, snapshot, opts);
+  }
+
+  findAncestorFile(fileNames: Array<string>, fromDir: FilePath): ?FilePath {
+    return findAncestorFile(this, fileNames, fromDir);
+  }
+
+  findNodeModule(moduleName: string, fromDir: FilePath): ?FilePath {
+    return findNodeModule(this, moduleName, fromDir);
+  }
+
+  findFirstFile(filePaths: Array<FilePath>): ?FilePath {
+    return findFirstFile(this, filePaths);
   }
 }
 
