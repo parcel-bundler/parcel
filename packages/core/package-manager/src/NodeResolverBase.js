@@ -105,7 +105,6 @@ export class NodeResolverBase<T> {
 
     let [moduleName, ...parts] = this.getModuleParts(id);
     let moduleDir = this.fs.findNodeModule(moduleName, dir);
-    console.log(id, dir, moduleDir);
 
     if (!moduleDir && process.versions.pnp != null) {
       try {
