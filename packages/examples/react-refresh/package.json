@@ -7,8 +7,8 @@
     "start": "parcel src/index.html"
   },
   "devDependencies": {
-    "@parcel/babel-register": "^2.0.0-frontbucket.16",
-    "@parcel/core": "^2.0.0-frontbucket.40"
+    "@parcel/babel-register": "2.0.0-frontbucket.16",
+    "@parcel/core": "2.0.0-frontbucket.40"
   },
   "dependencies": {
     "react": "^16.11.0",

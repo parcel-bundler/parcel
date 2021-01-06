@@ -23,10 +23,10 @@
     "clean": "rm -rf .parcel-cache"
   },
   "dependencies": {
-    "@parcel/config-default": "^2.0.0-frontbucket.52",
-    "@parcel/core": "^2.0.0-frontbucket.40",
-    "@parcel/fs": "^2.0.0-frontbucket.31",
-    "@parcel/package-manager": "^2.0.0-frontbucket.31",
+    "@parcel/config-default": "2.0.0-frontbucket.52",
+    "@parcel/core": "2.0.0-frontbucket.40",
+    "@parcel/fs": "2.0.0-frontbucket.31",
+    "@parcel/package-manager": "2.0.0-frontbucket.31",
     "deasync": "^0.1.14",
     "pirates": "^4.0.0"
   }

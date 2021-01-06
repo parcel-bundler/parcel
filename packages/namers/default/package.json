@@ -20,8 +20,8 @@
     "parcel": "^2.0.0-alpha.1.1"
   },
   "dependencies": {
-    "@parcel/diagnostic": "^2.0.0-frontbucket.17",
-    "@parcel/plugin": "^2.0.0-frontbucket.33",
+    "@parcel/diagnostic": "2.0.0-frontbucket.17",
+    "@parcel/plugin": "2.0.0-frontbucket.33",
     "nullthrows": "^1.1.1"
   }
 }

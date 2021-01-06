@@ -17,8 +17,8 @@
     }
   },
   "devDependencies": {
-    "@parcel/babel-register": "^2.0.0-frontbucket.16",
-    "@parcel/core": "^2.0.0-frontbucket.40",
-    "@parcel/validator-typescript": "^2.0.0-frontbucket.36"
+    "@parcel/babel-register": "2.0.0-frontbucket.16",
+    "@parcel/core": "2.0.0-frontbucket.40",
+    "@parcel/validator-typescript": "2.0.0-frontbucket.36"
   }
 }

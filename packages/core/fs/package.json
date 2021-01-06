@@ -22,9 +22,9 @@
   "dependencies": {
     "@parcel/fs-search": "2.0.0-beta.1",
     "@parcel/fs-write-stream-atomic": "2.0.0-frontbucket.0",
-    "@parcel/utils": "^2.0.0-frontbucket.29",
+    "@parcel/utils": "2.0.0-frontbucket.29",
     "@parcel/watcher": "2.0.0-alpha.8",
-    "@parcel/workers": "^2.0.0-frontbucket.30",
+    "@parcel/workers": "2.0.0-frontbucket.30",
     "graceful-fs": "^4.2.4",
     "mkdirp": "^0.5.1",
     "ncp": "^2.0.0",

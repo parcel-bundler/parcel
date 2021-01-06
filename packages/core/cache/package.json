@@ -19,10 +19,10 @@
     "node": ">= 12.0.0"
   },
   "dependencies": {
-    "@parcel/logger": "^2.0.0-frontbucket.19",
-    "@parcel/utils": "^2.0.0-frontbucket.29"
+    "@parcel/logger": "2.0.0-frontbucket.19",
+    "@parcel/utils": "2.0.0-frontbucket.29"
   },
   "peerDependencies": {
-    "@parcel/core": "^2.0.0-frontbucket.10"
+    "@parcel/core": "2.0.0-frontbucket.10"
   }
 }

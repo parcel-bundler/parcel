@@ -20,9 +20,9 @@
     "parcel": "^2.0.0-alpha.1.1"
   },
   "dependencies": {
-    "@parcel/plugin": "^2.0.0-frontbucket.33",
-    "@parcel/ts-utils": "^2.0.0-frontbucket.16",
-    "@parcel/types": "^2.0.0-frontbucket.33",
-    "@parcel/utils": "^2.0.0-frontbucket.29"
+    "@parcel/plugin": "2.0.0-frontbucket.33",
+    "@parcel/ts-utils": "2.0.0-frontbucket.16",
+    "@parcel/types": "2.0.0-frontbucket.33",
+    "@parcel/utils": "2.0.0-frontbucket.29"
   }
 }

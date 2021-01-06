@@ -23,6 +23,6 @@
   },
   "devDependencies": {
     "@babel/core": "^7.12.0",
-    "@parcel/babel-preset-env": "^2.0.0-frontbucket.13"
+    "@parcel/babel-preset-env": "2.0.0-frontbucket.13"
   }
 }

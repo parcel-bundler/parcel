@@ -7,7 +7,7 @@
     "demo": "parcel serve src/index.html --no-cache --https"
   },
   "devDependencies": {
-    "parcel": "^2.0.0-frontbucket.52"
+    "parcel": "2.0.0-frontbucket.52"
   },
   "browser": "dist/legacy/index.html",
   "browserModern": "dist/modern/index.html",

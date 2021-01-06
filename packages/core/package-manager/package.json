@@ -20,11 +20,11 @@
     "node": ">= 12.0.0"
   },
   "dependencies": {
-    "@parcel/diagnostic": "^2.0.0-frontbucket.17",
-    "@parcel/fs": "^2.0.0-frontbucket.31",
-    "@parcel/logger": "^2.0.0-frontbucket.19",
-    "@parcel/utils": "^2.0.0-frontbucket.29",
-    "@parcel/workers": "^2.0.0-frontbucket.30",
+    "@parcel/diagnostic": "2.0.0-frontbucket.17",
+    "@parcel/fs": "2.0.0-frontbucket.31",
+    "@parcel/logger": "2.0.0-frontbucket.19",
+    "@parcel/utils": "2.0.0-frontbucket.29",
+    "@parcel/workers": "2.0.0-frontbucket.30",
     "command-exists": "^1.2.6",
     "cross-spawn": "^6.0.4",
     "nullthrows": "^1.1.1",

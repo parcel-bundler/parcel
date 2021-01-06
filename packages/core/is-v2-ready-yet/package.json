@@ -13,7 +13,7 @@
     "build-app": "yarn parcel build index.html"
   },
   "dependencies": {
-    "@parcel/integration-tests": "^2.0.0-frontbucket.53",
+    "@parcel/integration-tests": "2.0.0-frontbucket.53",
     "react": "^16.6.3",
     "react-dom": "^16.6.3",
     "victory": "^31.0.1"

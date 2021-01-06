@@ -12,8 +12,8 @@
     "not firefox < 67"
   ],
   "devDependencies": {
-    "@parcel/babel-register": "^2.0.0-frontbucket.16",
-    "parcel": "^2.0.0-frontbucket.52"
+    "@parcel/babel-register": "2.0.0-frontbucket.16",
+    "parcel": "2.0.0-frontbucket.52"
   },
   "dependencies": {
     "lodash": "^4.17.11",

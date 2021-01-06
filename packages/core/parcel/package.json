@@ -21,20 +21,20 @@
     "node": ">= 12.0.0"
   },
   "dependencies": {
-    "@atlassian/internal-parcel-utils": "^2.0.0-frontbucket.33",
-    "@parcel/config-default": "^2.0.0-frontbucket.52",
-    "@parcel/core": "^2.0.0-frontbucket.40",
-    "@parcel/diagnostic": "^2.0.0-frontbucket.17",
-    "@parcel/fs": "^2.0.0-frontbucket.31",
-    "@parcel/logger": "^2.0.0-frontbucket.19",
-    "@parcel/package-manager": "^2.0.0-frontbucket.31",
-    "@parcel/utils": "^2.0.0-frontbucket.29",
+    "@atlassian/internal-parcel-utils": "2.0.0-frontbucket.33",
+    "@parcel/config-default": "2.0.0-frontbucket.52",
+    "@parcel/core": "2.0.0-frontbucket.40",
+    "@parcel/diagnostic": "2.0.0-frontbucket.17",
+    "@parcel/fs": "2.0.0-frontbucket.31",
+    "@parcel/logger": "2.0.0-frontbucket.19",
+    "@parcel/package-manager": "2.0.0-frontbucket.31",
+    "@parcel/utils": "2.0.0-frontbucket.29",
     "chalk": "^2.1.0",
     "commander": "^2.19.0",
     "get-port": "^4.2.0",
     "v8-compile-cache": "^2.0.0"
   },
   "devDependencies": {
-    "@parcel/babel-register": "^2.0.0-frontbucket.16"
+    "@parcel/babel-register": "2.0.0-frontbucket.16"
   }
 }

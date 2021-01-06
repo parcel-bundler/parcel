@@ -8,8 +8,8 @@
     "build": "parcel build src/entry.js"
   },
   "devDependencies": {
-    "@parcel/config-default": "^2.0.0-frontbucket.52",
-    "parcel": "^2.0.0-frontbucket.52"
+    "@parcel/config-default": "2.0.0-frontbucket.52",
+    "parcel": "2.0.0-frontbucket.52"
   },
   "browser": "dist/legacy/index.js",
   "browserModern": "dist/modern/index.js",

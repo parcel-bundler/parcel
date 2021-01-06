@@ -8,6 +8,6 @@
   "main": "lib/WorkerizeTransformer.js",
   "source": "src/WorkerizeTransformer.js",
   "dependencies": {
-    "@parcel/plugin": "^2.0.0-frontbucket.33"
+    "@parcel/plugin": "2.0.0-frontbucket.33"
   }
 }

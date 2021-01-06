@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@babel/register": "^7.4.4",
-    "@parcel/babel-preset": "^2.0.0-frontbucket.15",
+    "@parcel/babel-preset": "2.0.0-frontbucket.15",
     "resolve": "^1.12.0"
   }
 }

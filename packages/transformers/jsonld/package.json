@@ -23,8 +23,8 @@
     "test": "yarn workspace @parcel/integration-tests test -g jsonld"
   },
   "dependencies": {
-    "@parcel/plugin": "^2.0.0-frontbucket.33",
-    "@parcel/types": "^2.0.0-frontbucket.33",
+    "@parcel/plugin": "2.0.0-frontbucket.33",
+    "@parcel/types": "2.0.0-frontbucket.33",
     "json5": "^2.1.2"
   }
 }

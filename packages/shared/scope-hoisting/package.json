@@ -25,11 +25,11 @@
     "@babel/template": "^7.4.0",
     "@babel/traverse": "^7.2.3",
     "@babel/types": "^7.12.11",
-    "@parcel/babel-ast-utils": "^2.0.0-frontbucket.13",
-    "@parcel/babylon-walk": "^2.0.0-frontbucket.3",
-    "@parcel/diagnostic": "^2.0.0-frontbucket.17",
+    "@parcel/babel-ast-utils": "2.0.0-frontbucket.13",
+    "@parcel/babylon-walk": "2.0.0-frontbucket.3",
+    "@parcel/diagnostic": "2.0.0-frontbucket.17",
     "@parcel/source-map": "2.0.0-alpha.4.19",
-    "@parcel/utils": "^2.0.0-frontbucket.29",
+    "@parcel/utils": "2.0.0-frontbucket.29",
     "nullthrows": "^1.1.1"
   }
 }
