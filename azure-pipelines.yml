@@ -13,3 +13,8 @@ jobs:
   parameters:
    name: Windows
    vmImage: windows-latest
+
+- template: azure-pipelines-template.yml
+  parameters:
+   name: Windows-32bit
+   vmImage: vs2017-win2016

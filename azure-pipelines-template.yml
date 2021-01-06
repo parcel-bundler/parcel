@@ -17,6 +17,7 @@ jobs:
       - task: NodeTool@0
         inputs:
           versionSpec: $(node_version)
+          force32bit: ${{ eq(parameters.name, 'Windows-32bit') }}
         displayName: 'Install Node.js'
 
       # Install Rust
@@ -32,6 +33,15 @@ jobs:
           - script: |
               curl -sSf -o rustup-init.exe https://win.rustup.rs
               rustup-init.exe -y --default-toolchain stable --default-host x86_64-pc-windows-msvc
+              set PATH=%PATH%;%USERPROFILE%\.cargo\bin
+              echo "##vso[task.setvariable variable=PATH]%PATH%;%USERPROFILE%\.cargo\bin"
+              rustc -Vv
+              cargo -V
+            displayName: Install Rust
+
+      - ${{ if eq(parameters.name, 'Windows-32bit') }}:
+          - script: |
+              curl -sSf -o rustup-init.exe https://win.rustup.rs
               set PATH=%PATH%;%USERPROFILE%\.cargo\bin
               echo "##vso[task.setvariable variable=PATH]%PATH%;%USERPROFILE%\.cargo\bin"
               rustc -Vv
