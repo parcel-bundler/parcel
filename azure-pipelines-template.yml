@@ -39,15 +39,6 @@ jobs:
               cargo -V
             displayName: Install Rust
 
-      - ${{ if eq(parameters.name, 'Windows_32bit') }}:
-          - script: |
-              curl -sSf -o rustup-init.exe https://win.rustup.rs
-              set PATH=%PATH%;%USERPROFILE%\.cargo\bin
-              echo "##vso[task.setvariable variable=PATH]%PATH%;%USERPROFILE%\.cargo\bin"
-              rustc -Vv
-              cargo -V
-            displayName: Install Rust
-
       - ${{ if eq(parameters.name, 'Linux') }}:
           - script: |
               echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p;
