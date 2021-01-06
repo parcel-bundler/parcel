@@ -598,7 +598,7 @@ function parsePackageDescriptor(
   targetName: string,
   descriptor: mixed,
   pkgPath: ?FilePath,
-  pkgContents: string | mixed,
+  pkgContents: ?string,
 ): PackageTargetDescriptor {
   validateSchema.diagnostic(
     PACKAGE_DESCRIPTOR_SCHEMA,
