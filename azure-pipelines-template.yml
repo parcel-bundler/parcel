@@ -4,10 +4,10 @@ jobs:
       vmImage: ${{ parameters.vmImage }}
     strategy:
       matrix:
-        node_10_x:
-          node_version: 10.x
         node_12_x:
           node_version: 12.x
+        node_14_x:
+          node_version: 14.x
       maxParallel: 3
     steps:
       - task: NodeTool@0
@@ -39,6 +39,9 @@ jobs:
               echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p;
             displayName: Bump max inotify watches
 
+      - script: node scripts/link-native.js
+        displayName: 'Link native dependencies'
+
       # use `--frozen-lockfile` to fail immediately if the committed yarn.lock needs updates
       # https://yarnpkg.com/lang/en/docs/cli/install/#toc-yarn-install-frozen-lockfile
       - script: yarn --frozen-lockfile
@@ -57,10 +60,3 @@ jobs:
         inputs:
           testResultsFiles: '**/junit-*.xml'
           testRunTitle: TestRun ${{ parameters.name }} $(node_version)
-      - task: PublishCodeCoverageResults@1
-        displayName: 'Publish code coverage results'
-        condition: succeededOrFailed()
-        inputs:
-          codeCoverageTool: 'cobertura'
-          summaryFileLocation: '**/coverage/cobertura-coverage.xml'
-          reportDirectory: '**/parcel-bundler/coverage'

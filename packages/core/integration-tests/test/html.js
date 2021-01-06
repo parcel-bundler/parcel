@@ -93,6 +93,26 @@ describe('html', function() {
     ]);
   });
 
+  it('should insert empty script tag for HMR', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-no-js/index.html'),
+      {
+        hot: {},
+      },
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.html',
+        assets: ['index.html'],
+      },
+      {
+        type: 'js',
+        assets: ['HMRRuntime.js', 'index.html'],
+      },
+    ]);
+  });
+
   it('should support canonical links', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-canonical/index.html'),
@@ -339,7 +359,7 @@ describe('html', function() {
     );
   });
 
-  it.skip('should deduplicate shared code between script tags', async function() {
+  it('should deduplicate shared code between script tags', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-js-dedup/index.html'),
     );
@@ -351,11 +371,11 @@ describe('html', function() {
       },
       {
         type: 'js',
-        assets: ['component-2.js', 'obj.js'],
+        assets: ['component-1.js', 'obj.js', 'esmodule-helpers.js'],
       },
       {
         type: 'js',
-        assets: ['component-1.js'],
+        assets: ['component-2.js'],
       },
     ]);
 
@@ -363,6 +383,7 @@ describe('html', function() {
     await run(b, {
       output: v => o.push(v),
     });
+
     assert.deepEqual(o, ['component-1', 'component-2']);
   });
 
@@ -1032,7 +1053,7 @@ describe('html', function() {
       {production: true, scopeHoist: true},
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         type: 'js',
         assets: ['index.html'],
@@ -1051,7 +1072,7 @@ describe('html', function() {
     assert(html.includes('document.write("Hello world")'));
   });
 
-  it.skip('should correctly bundle loaders for nested dynamic imports', async function() {
+  it('should correctly bundle loaders for nested dynamic imports', async function() {
     let b = await bundle(
       path.join(
         __dirname,
@@ -1060,7 +1081,7 @@ describe('html', function() {
       {production: true, scopeHoist: true},
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         type: 'js',
         assets: [
@@ -1069,19 +1090,6 @@ describe('html', function() {
           'cacheLoader.js',
           'index.js',
           'index.js',
-          'js-loader.js',
-          'JSRuntime.js',
-          'JSRuntime.js',
-          'JSRuntime.js',
-          'relative-path.js',
-        ],
-      },
-      {
-        type: 'js',
-        assets: [
-          'bundle-manifest.js',
-          'bundle-url.js',
-          'cacheLoader.js',
           'index.js',
           'js-loader.js',
           'JSRuntime.js',
@@ -1109,7 +1117,7 @@ describe('html', function() {
       {production: true, scopeHoist: true},
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         type: 'js',
         assets: ['index.html'],
@@ -1145,7 +1153,7 @@ describe('html', function() {
       {production: true, scopeHoist: true},
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         type: 'js',
         assets: ['async.js'],
@@ -1207,7 +1215,7 @@ describe('html', function() {
       {production: true, scopeHoist: true},
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         type: 'js',
         assets: ['async.js'],
@@ -1429,6 +1437,109 @@ describe('html', function() {
     assert.equal(html.match(/<script/g).length, 2);
   });
 
+  it('should not add CSS to a worker bundle group', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/shared-sibling-worker-css/index.html'),
+    );
+
+    assertBundles(b, [
+      {
+        type: 'css',
+        assets: ['style.css'],
+      },
+      {
+        type: 'html',
+        assets: ['index.html'],
+      },
+      {
+        type: 'js',
+        assets: ['a.js', 'worker.js', 'esmodule-helpers.js'],
+      },
+      {
+        type: 'js',
+        assets: [
+          'a.js',
+          'bundle-manifest.js',
+          'bundle-url.js',
+          'esmodule-helpers.js',
+          'get-worker-url.js',
+          'index.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
+          'relative-path.js',
+        ],
+      },
+    ]);
+
+    let htmlBundle = b.getBundles().find(b => b.type === 'html');
+    let htmlSiblings = b.getReferencedBundles(htmlBundle);
+    assert.equal(htmlSiblings.length, 2);
+    assert(htmlSiblings.some(b => b.type === 'js'));
+    assert(htmlSiblings.some(b => b.type === 'css'));
+
+    let worker = b.getChildBundles(htmlSiblings.find(b => b.type === 'js'));
+    assert.equal(worker.length, 1);
+    let workerSiblings = b.getReferencedBundles(worker[0]);
+    assert.equal(workerSiblings.length, 0);
+  });
+
+  it('should correctly add sibling bundles to all using bundles', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/shared-sibling/*.html'),
+    );
+
+    assertBundles(b, [
+      {
+        type: 'html',
+        assets: ['form.html'],
+      },
+      {
+        type: 'js',
+        assets: ['form.js', 'a.js', 'a.module.css', 'esmodule-helpers.js'],
+      },
+      {
+        type: 'css',
+        assets: ['a.module.css'],
+      },
+      {
+        type: 'html',
+        assets: ['searchfield.html'],
+      },
+      {
+        type: 'js',
+        assets: [
+          'searchfield.js',
+          'a.js',
+          'a.module.css',
+          'b.js',
+          'esmodule-helpers.js',
+        ],
+      },
+      {
+        type: 'html',
+        assets: ['searchfield2.html'],
+      },
+      {
+        type: 'js',
+        assets: [
+          'searchfield2.js',
+          'a.js',
+          'a.module.css',
+          'b.js',
+          'esmodule-helpers.js',
+        ],
+      },
+    ]);
+
+    for (let htmlBundle of b.getBundles().filter(b => b.type === 'html')) {
+      let htmlSiblings = b
+        .getReferencedBundles(htmlBundle, true)
+        .map(b => b.type)
+        .sort();
+      assert.deepEqual(htmlSiblings, ['css', 'js']);
+    }
+  });
+
   it('should remove duplicate assets from sibling bundles', async function() {
     let bundleGraph = await bundle(
       path.join(__dirname, '/integration/shared-sibling-duplicate/*.html'),
@@ -1446,7 +1557,7 @@ describe('html', function() {
     });
   });
 
-  it.skip('should support split bundles with many pages with esmodule output', async function() {
+  it('should support split bundles with many pages with esmodule output', async function() {
     await bundle(path.join(__dirname, '/integration/shared-many-esm/*.html'), {
       scopeHoist: true,
     });
@@ -1478,13 +1589,9 @@ describe('html', function() {
       }
     };
 
-    checkHtml('a.html');
-    checkHtml('b.html');
-    checkHtml('c.html');
-    checkHtml('d.html');
-    checkHtml('e.html');
-    checkHtml('f.html');
-    checkHtml('g.html');
+    for (let letter of ['a', 'b', 'c', 'd', 'e', 'f', 'g']) {
+      await checkHtml(letter + '.html');
+    }
   });
 
   it('should include the correct paths when using multiple entries and referencing style from html and js', async function() {
@@ -1496,7 +1603,7 @@ describe('html', function() {
       },
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'a.html',
         type: 'html',

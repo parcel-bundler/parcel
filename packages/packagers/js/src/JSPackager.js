@@ -247,7 +247,7 @@ function getPrefix(
 
   let importScripts = '';
   if (bundle.env.isWorker()) {
-    let bundles = bundleGraph.getSiblingBundles(bundle);
+    let bundles = bundleGraph.getReferencedBundles(bundle);
     for (let b of bundles) {
       // ATLASSIAN: fork does support shared bundles in workers
       invariant(b.type !== 'js');

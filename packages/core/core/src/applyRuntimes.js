@@ -1,15 +1,16 @@
 // @flow strict-local
 
 import type {Dependency, NamedBundle as INamedBundle} from '@parcel/types';
+import type {SharedReference} from '@parcel/workers';
 import type {
   AssetGroup,
   Bundle as InternalBundle,
   NodeId,
   ParcelOptions,
 } from './types';
-import type AssetGraphBuilder from './AssetGraphBuilder';
 import type ParcelConfig from './ParcelConfig';
 import type PluginOptions from './public/PluginOptions';
+import type RequestTracker from './RequestTracker';
 
 import assert from 'assert';
 import invariant from 'assert';
@@ -18,10 +19,10 @@ import AssetGraph, {nodeFromAssetGroup} from './AssetGraph';
 import BundleGraph from './public/BundleGraph';
 import InternalBundleGraph from './BundleGraph';
 import {NamedBundle} from './public/Bundle';
-import {setDifference} from '@parcel/utils';
 import {PluginLogger} from '@parcel/logger';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import {dependencyToInternalDependency} from './public/Dependency';
+import createAssetGraphRequest from './requests/AssetGraphRequest';
 
 type RuntimeConnection = {|
   bundle: InternalBundle,
@@ -35,13 +36,15 @@ export default async function applyRuntimes({
   config,
   options,
   pluginOptions,
-  runtimesBuilder,
+  requestTracker,
+  optionsRef,
 }: {|
   bundleGraph: InternalBundleGraph,
   config: ParcelConfig,
   options: ParcelOptions,
+  optionsRef: SharedReference,
   pluginOptions: PluginOptions,
-  runtimesBuilder: AssetGraphBuilder,
+  requestTracker: RequestTracker,
 |}): Promise<void> {
   let connections: Array<RuntimeConnection> = [];
 
@@ -70,7 +73,6 @@ export default async function applyRuntimes({
               // Runtime assets should be considered source, as they should be
               // e.g. compiled to run in the target environment
               isSource: true,
-              query: {},
             };
 
             connections.push({
@@ -90,8 +92,9 @@ export default async function applyRuntimes({
   }
 
   let runtimesAssetGraph = await reconcileNewRuntimes(
-    runtimesBuilder,
+    requestTracker,
     connections,
+    optionsRef,
   );
 
   let runtimesGraph = InternalBundleGraph.fromAssetGraph(
@@ -178,35 +181,17 @@ export default async function applyRuntimes({
 }
 
 async function reconcileNewRuntimes(
-  runtimesBuilder: AssetGraphBuilder,
+  requestTracker: RequestTracker,
   connections: Array<RuntimeConnection>,
+  optionsRef: SharedReference,
 ): Promise<AssetGraph> {
-  let {assetGraph} = runtimesBuilder;
-
-  let assetRequestNodesById = new Map(
-    connections
-      .map(t => t.assetGroup)
-      .map(request => {
-        let node = nodeFromAssetGroup(request);
-        return [node.id, node];
-      }),
-  );
-  let newRequestIds = new Set(assetRequestNodesById.keys());
-  let oldRequestIds = new Set(
-    assetGraph.getEntryAssetGroupNodes().map(node => node.id),
-  );
-
-  let toAdd = setDifference(newRequestIds, oldRequestIds);
-  let toRemove = setDifference(oldRequestIds, newRequestIds);
-
-  assetGraph.replaceNodesConnectedTo(
-    nullthrows(assetGraph.getRootNode()),
-    [...toAdd].map(requestId =>
-      nullthrows(assetRequestNodesById.get(requestId)),
-    ),
-    node => toRemove.has(node.id),
-  );
+  let assetGroups = connections.map(t => t.assetGroup);
+  let request = createAssetGraphRequest({
+    name: 'Runtimes',
+    assetGroups,
+    optionsRef,
+  });
 
   // rebuild the graph
-  return (await runtimesBuilder.build()).assetGraph;
+  return (await requestTracker.runRequest(request, {force: true})).assetGraph;
 }

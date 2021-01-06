@@ -21,7 +21,6 @@ import {
   validateSchema,
   findAlternativeNodeModules,
   findAlternativeFiles,
-  flatMap,
 } from '@parcel/utils';
 import ThrowableDiagnostic, {
   generateJSONCodeHighlights,
@@ -32,6 +31,7 @@ import assert from 'assert';
 
 import ParcelConfigSchema from '../ParcelConfig.schema';
 import {optionsProxy} from '../utils';
+import ParcelConfig from '../ParcelConfig';
 
 type ConfigMap<K, V> = {[K]: V, ...};
 
@@ -42,7 +42,7 @@ export type ConfigAndCachePath = {|
 
 type RunOpts = {|
   input: null,
-  ...StaticRunOpts,
+  ...StaticRunOpts<ConfigAndCachePath>,
 |};
 
 export type ParcelConfigRequest = {|
@@ -89,6 +89,29 @@ export default function createParcelConfigRequest(): ParcelConfigRequest {
     },
     input: null,
   };
+}
+
+const parcelConfigCache = new Map();
+
+export function getCachedParcelConfig(
+  result: ConfigAndCachePath,
+  options: ParcelOptions,
+): ParcelConfig {
+  let {config: processedConfig, cachePath} = result;
+  let config = parcelConfigCache.get(cachePath);
+  if (config) {
+    return config;
+  }
+
+  config = new ParcelConfig(
+    processedConfig,
+    options.packageManager,
+    options.inputFS,
+    options.autoinstall,
+  );
+
+  parcelConfigCache.set(cachePath, config);
+  return config;
 }
 
 export async function loadParcelConfig(
@@ -352,7 +375,7 @@ export async function processConfigChain(
 
     if (errors.length > 0) {
       throw new ThrowableDiagnostic({
-        diagnostic: flatMap(errors, e => e.diagnostics),
+        diagnostic: errors.flatMap(e => e.diagnostics),
       });
     }
   }

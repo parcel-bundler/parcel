@@ -16,12 +16,14 @@
   "main": "lib/CSSPackager.js",
   "source": "src/CSSPackager.js",
   "engines": {
-    "node": ">= 10.0.0",
+    "node": ">= 12.0.0",
     "parcel": "^2.0.0-alpha.1.1"
   },
   "dependencies": {
     "@parcel/plugin": "^2.0.0-frontbucket.33",
-    "@parcel/source-map": "2.0.0-alpha.4.18",
-    "@parcel/utils": "^2.0.0-frontbucket.29"
+    "@parcel/source-map": "2.0.0-alpha.4.19",
+    "@parcel/utils": "^2.0.0-frontbucket.29",
+    "nullthrows": "^1.1.1",
+    "postcss": "^8.2.1"
   }
 }
