@@ -1,6 +1,6 @@
 {
   "name": "@parcel/transformer-vue",
-  "version": "2.0.0-frontbucket.4",
+  "version": "2.0.0-frontbucket.5",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -20,10 +20,10 @@
     "parcel": "^2.0.0-alpha.1.1"
   },
   "dependencies": {
-    "@parcel/diagnostic": "2.0.0-frontbucket.18",
-    "@parcel/plugin": "2.0.0-frontbucket.34",
+    "@parcel/diagnostic": "2.0.0-frontbucket.19",
+    "@parcel/plugin": "2.0.0-frontbucket.35",
     "@parcel/source-map": "2.0.0-alpha.4.19",
-    "@parcel/utils": "2.0.0-frontbucket.30",
+    "@parcel/utils": "2.0.0-frontbucket.31",
     "nullthrows": "^1.1.1",
     "semver": "^5.4.1"
   },
