@@ -1,7 +1,7 @@
 {
   "name": "@parcel/eslint-plugin",
   "private": true,
-  "version": "2.0.0-frontbucket.15",
+  "version": "2.0.0-frontbucket.16",
   "main": "index.js",
   "scripts": {},
   "dependencies": {

@@ -1,6 +1,6 @@
 {
   "name": "@parcel/namer-default",
-  "version": "2.0.0-frontbucket.36",
+  "version": "2.0.0-frontbucket.37",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -20,8 +20,8 @@
     "parcel": "^2.0.0-alpha.1.1"
   },
   "dependencies": {
-    "@parcel/diagnostic": "2.0.0-frontbucket.20",
-    "@parcel/plugin": "2.0.0-frontbucket.36",
+    "@parcel/diagnostic": "2.0.0-frontbucket.21",
+    "@parcel/plugin": "2.0.0-frontbucket.37",
     "nullthrows": "^1.1.1"
   }
 }

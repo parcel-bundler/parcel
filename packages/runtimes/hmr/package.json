@@ -1,6 +1,6 @@
 {
   "name": "@parcel/runtime-browser-hmr",
-  "version": "2.0.0-frontbucket.39",
+  "version": "2.0.0-frontbucket.40",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -20,7 +20,7 @@
     "parcel": "^2.0.0-alpha.1.1"
   },
   "dependencies": {
-    "@parcel/plugin": "2.0.0-frontbucket.36",
-    "@parcel/utils": "2.0.0-frontbucket.32"
+    "@parcel/plugin": "2.0.0-frontbucket.37",
+    "@parcel/utils": "2.0.0-frontbucket.33"
   }
 }
