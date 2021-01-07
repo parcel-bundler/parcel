@@ -259,6 +259,14 @@ describe('babel', function() {
     assert(file.includes('h("div"'));
   });
 
+  it('should support compiling JSX in TS files with Preact dependency', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/jsx-preact-ts/index.tsx'),
+    );
+
+    assert(typeof (await run(b)) === 'object');
+  });
+
   it('should support compiling JSX in JS files with Nerv dependency', async function() {
     await bundle(path.join(__dirname, '/integration/jsx-nervjs/index.js'));
 

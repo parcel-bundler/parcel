@@ -158,9 +158,15 @@ export async function load(
 }
 
 async function buildDefaultBabelConfig(options: PluginOptions, config: Config) {
+  let jsxOptions = await getJSXOptions(options, config);
+
   let babelOptions;
   if (path.extname(config.searchPath).match(TYPESCRIPT_EXTNAME_RE)) {
-    babelOptions = getTypescriptOptions(config);
+    babelOptions = getTypescriptOptions(
+      config,
+      jsxOptions?.pragma,
+      jsxOptions?.pragmaFrag,
+    );
   } else {
     babelOptions = await getFlowOptions(config, options);
   }
@@ -171,10 +177,7 @@ async function buildDefaultBabelConfig(options: PluginOptions, config: Config) {
     babelTargets = envOptions.targets;
     babelOptions = mergeOptions(babelOptions, {presets: envOptions.presets});
   }
-  babelOptions = mergeOptions(
-    babelOptions,
-    await getJSXOptions(options, config),
-  );
+  babelOptions = mergeOptions(babelOptions, jsxOptions?.config);
 
   if (babelOptions != null) {
     babelOptions.presets = (babelOptions.presets || []).map(preset =>

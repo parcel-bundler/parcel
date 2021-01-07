@@ -1,15 +1,14 @@
 // @flow strict-local
 
-import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import type {
+  Async,
   FilePath,
   ModuleSpecifier,
   Symbol,
   SourceLocation,
 } from '@parcel/types';
+import type {SharedReference} from '@parcel/workers';
 import type {Diagnostic} from '@parcel/diagnostic';
-import type WorkerFarm, {Handle, SharedReference} from '@parcel/workers';
-import type {Event, Options as WatcherOptions} from '@parcel/watcher';
 import type {
   Asset,
   AssetGraphNode,
@@ -20,47 +19,69 @@ import type {
   DependencyNode,
   Entry,
   ParcelOptions,
-  ValidationOpts,
   Target,
-} from './types';
-import type {ConfigAndCachePath} from './requests/ParcelConfigRequest';
-import type {EntryResult} from './requests/EntryRequest';
+} from '../types';
+import type {StaticRunOpts, RunAPI} from '../RequestTracker';
+import type {EntryResult} from './EntryRequest';
+import type {PathRequestInput} from './PathRequest';
 
-import EventEmitter from 'events';
 import invariant from 'assert';
-import nullthrows from 'nullthrows';
 import path from 'path';
 import {
   escapeMarkdown,
   md5FromOrderedObject,
-  md5FromString,
   PromiseQueue,
 } from '@parcel/utils';
 import ThrowableDiagnostic from '@parcel/diagnostic';
-import AssetGraph from './AssetGraph';
-import RequestTracker, {RequestGraph} from './RequestTracker';
-import {PARCEL_VERSION} from './constants';
-import ParcelConfig from './ParcelConfig';
+import AssetGraph from '../AssetGraph';
+import {PARCEL_VERSION} from '../constants';
+import createEntryRequest from './EntryRequest';
+import createTargetRequest from './TargetRequest';
+import createAssetRequest from './AssetRequest';
+import createPathRequest from './PathRequest';
 
-import createParcelConfigRequest from './requests/ParcelConfigRequest';
-import createEntryRequest from './requests/EntryRequest';
-import createTargetRequest from './requests/TargetRequest';
-import createAssetRequest from './requests/AssetRequest';
-import createPathRequest from './requests/PathRequest';
+import dumpToGraphViz from '../dumpGraphToGraphViz';
 
-import Validation from './Validation';
-import {report} from './ReporterRunner';
-
-import dumpToGraphViz from './dumpGraphToGraphViz';
-
-type Opts = {|
-  options: ParcelOptions,
-  optionsRef: SharedReference,
-  name: string,
+type AssetGraphRequestInput = {|
   entries?: Array<string>,
   assetGroups?: Array<AssetGroup>,
-  workerFarm: WorkerFarm,
+  optionsRef: SharedReference,
+  name: string,
 |};
+
+type RunInput = {|
+  input: AssetGraphRequestInput,
+  ...StaticRunOpts<{|
+    assetGraph: AssetGraph,
+    changedAssets: Map<string, Asset>,
+    assetRequests: Array<AssetGroup>,
+  |}>,
+|};
+
+type AssetGraphRequest = {|
+  id: string,
+  +type: 'asset_graph_request',
+  run: RunInput => Async<{|
+    assetGraph: AssetGraph,
+    changedAssets: Map<string, Asset>,
+    assetRequests: Array<AssetGroup>,
+  |}>,
+  input: AssetGraphRequestInput,
+|};
+
+export default function createAssetGraphRequest(
+  input: AssetGraphRequestInput,
+): AssetGraphRequest {
+  return {
+    type: 'asset_graph_request',
+    id: input.name,
+    run: input => {
+      let builder = new AssetGraphBuilder(input);
+      return builder.build();
+    },
+    input,
+  };
+}
 
 const typesWithRequests = new Set([
   'entry_specifier',
@@ -69,40 +90,30 @@ const typesWithRequests = new Set([
   'asset_group',
 ]);
 
-export default class AssetGraphBuilder extends EventEmitter {
+export class AssetGraphBuilder {
   assetGraph: AssetGraph;
-  requestGraph: RequestGraph;
-  requestTracker: RequestTracker;
   assetRequests: Array<AssetGroup>;
-  runValidate: ValidationOpts => Promise<void>;
   queue: PromiseQueue<mixed>;
-  name: string;
-
   changedAssets: Map<string, Asset> = new Map();
-  options: ParcelOptions;
   optionsRef: SharedReference;
-  workerFarm: WorkerFarm;
+  options: ParcelOptions;
+  api: RunAPI;
+  name: string;
+  assetRequests: Array<AssetGroup> = [];
   cacheKey: string;
-  entries: ?Array<string>;
-  initialAssetGroups: ?Array<AssetGroup>;
 
-  handle: Handle;
-
-  async init({
-    options,
-    optionsRef,
-    entries,
-    name,
-    assetGroups,
-    workerFarm,
-  }: Opts) {
-    this.name = name;
-    this.options = options;
+  constructor({input, prevResult, api, options}: RunInput) {
+    let {entries, assetGroups, optionsRef, name} = input;
+    let assetGraph = prevResult?.assetGraph ?? new AssetGraph();
+    assetGraph.setRootConnections({
+      entries,
+      assetGroups,
+    });
+    this.assetGraph = assetGraph;
     this.optionsRef = optionsRef;
-    this.entries = entries;
-    this.initialAssetGroups = assetGroups;
-    this.workerFarm = workerFarm;
-    this.assetRequests = [];
+    this.options = options;
+    this.api = api;
+    this.name = name;
 
     this.cacheKey = md5FromOrderedObject({
       parcelVersion: PARCEL_VERSION,
@@ -111,46 +122,13 @@ export default class AssetGraphBuilder extends EventEmitter {
     });
 
     this.queue = new PromiseQueue();
-
-    this.runValidate = workerFarm.createHandle('runValidate');
-
-    let changes = await this.readFromCache();
-    if (!changes) {
-      this.assetGraph = new AssetGraph();
-      this.requestGraph = new RequestGraph();
-    }
-
-    this.assetGraph.initOptions({
-      onNodeRemoved: node => this.handleNodeRemovedFromAssetGraph(node),
-    });
-
-    this.requestTracker = new RequestTracker({
-      graph: this.requestGraph,
-      farm: workerFarm,
-      options: this.options,
-    });
-
-    if (changes) {
-      this.requestGraph.invalidateUnpredictableNodes();
-      this.requestGraph.invalidateEnvNodes(options.env);
-      this.requestGraph.invalidateOptionNodes(options);
-      this.requestTracker.respondToFSEvents(changes);
-    } else {
-      this.assetGraph.initialize({
-        entries,
-        assetGroups,
-      });
-    }
   }
 
-  async build(
-    signal?: AbortSignal,
-  ): Promise<{|
+  async build(): Promise<{|
     assetGraph: AssetGraph,
     changedAssets: Map<string, Asset>,
+    assetRequests: Array<AssetGroup>,
   |}> {
-    this.requestTracker.setSignal(signal);
-
     let errors = [];
 
     let root = this.assetGraph.getRootNode();
@@ -167,9 +145,9 @@ export default class AssetGraphBuilder extends EventEmitter {
       if (this.shouldSkipRequest(node)) {
         visitChildren(node);
       } else {
-        this.queueCorrespondingRequest(node).then(
-          () => visitChildren(node),
-          error => errors.push(error),
+        // ? do we need to visit children inside of the promise that is queued?
+        this.queueCorrespondingRequest(node, errors).then(() =>
+          visitChildren(node),
         );
       }
     };
@@ -184,14 +162,22 @@ export default class AssetGraphBuilder extends EventEmitter {
         }
       }
     };
-    visit(root);
 
+    visit(root);
     await this.queue.run();
+
+    this.api.storeResult(
+      {
+        assetGraph: this.assetGraph,
+        changedAssets: new Map(),
+        assetRequests: [],
+      },
+      this.cacheKey,
+    );
 
     if (errors.length) {
       throw errors[0]; // TODO: eventually support multiple errors since requests could reject in parallel
     }
-
     // Skip symbol propagation if no target is using scope hoisting
     // (mainly for faster development builds)
     let entryDependencies = this.assetGraph
@@ -212,9 +198,13 @@ export default class AssetGraphBuilder extends EventEmitter {
     // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
     dumpToGraphViz(this.requestGraph, 'RequestGraph');
 
-    let changedAssets = this.changedAssets;
-    this.changedAssets = new Map();
-    return {assetGraph: this.assetGraph, changedAssets: changedAssets};
+    dumpToGraphViz(this.assetGraph, 'AssetGraph');
+
+    return {
+      assetGraph: this.assetGraph,
+      changedAssets: this.changedAssets,
+      assetRequests: this.assetRequests,
+    };
   }
 
   propagateSymbols() {
@@ -617,7 +607,6 @@ export default class AssetGraphBuilder extends EventEmitter {
       }
     };
     walk(root);
-
     // traverse circular dependencies if neccessary (anchestors of `dirtyDeps`)
     visited = new Set();
     let queue = [...dirtyDeps];
@@ -660,7 +649,6 @@ export default class AssetGraphBuilder extends EventEmitter {
         queue.push(...this.assetGraph.getNodesConnectedTo(node));
       }
     }
-
     // Just throw the first error. Since errors can bubble (e.g. reexporting a reexported symbol also fails),
     // determining which failing export is the root cause is nontrivial (because of circular dependencies).
     if (errors.size > 0) {
@@ -670,100 +658,64 @@ export default class AssetGraphBuilder extends EventEmitter {
     }
   }
 
-  // TODO: turn validation into a request
-  async validate(): Promise<void> {
-    let {config: processedConfig, cachePath} = nullthrows(
-      await this.requestTracker.runRequest<null, ConfigAndCachePath>(
-        createParcelConfigRequest(),
-      ),
-    );
-
-    let config = new ParcelConfig(
-      processedConfig,
-      this.options.packageManager,
-      this.options.inputFS,
-      this.options.shouldAutoInstall,
-    );
-    let trackedRequestsDesc = this.assetRequests.filter(request => {
-      return config.getValidatorNames(request.filePath).length > 0;
-    });
-
-    // Schedule validations on workers for all plugins that implement the one-asset-at-a-time "validate" method.
-    let promises = trackedRequestsDesc.map(request =>
-      this.runValidate({
-        requests: [request],
-        optionsRef: this.optionsRef,
-        configCachePath: cachePath,
-      }),
-    );
-
-    // Skip sending validation requests if no validators were configured
-    if (trackedRequestsDesc.length === 0) {
-      return;
-    }
-
-    // Schedule validations on the main thread for all validation plugins that implement "validateAll".
-    promises.push(
-      new Validation({
-        requests: trackedRequestsDesc,
-        options: this.options,
-        config,
-        report,
-        dedicatedThread: true,
-      }).run(),
-    );
-
-    this.assetRequests = [];
-    await Promise.all(promises);
-  }
-
   shouldSkipRequest(node: AssetGraphNode): boolean {
     return (
       node.complete === true ||
       !typesWithRequests.has(node.type) ||
       (node.correspondingRequest != null &&
-        this.requestGraph.getNode(node.correspondingRequest) != null &&
-        this.requestTracker.hasValidResult(node.correspondingRequest))
+        this.api.canSkipSubrequest(node.correspondingRequest))
     );
   }
 
-  queueCorrespondingRequest(node: AssetGraphNode): Promise<mixed> {
+  queueCorrespondingRequest(
+    node: AssetGraphNode,
+    errors: Array<Error>,
+  ): Promise<mixed> {
+    let promise;
     switch (node.type) {
       case 'entry_specifier':
-        return this.queue.add(() => this.runEntryRequest(node.value));
+        promise = this.runEntryRequest(node.value);
+        break;
       case 'entry_file':
-        return this.queue.add(() => this.runTargetRequest(node.value));
+        promise = this.runTargetRequest(node.value);
+        break;
       case 'dependency':
-        return this.queue.add(() => this.runPathRequest(node.value));
+        promise = this.runPathRequest(node.value);
+        break;
       case 'asset_group':
-        return this.queue.add(() => this.runAssetRequest(node.value));
+        promise = this.runAssetRequest(node.value);
+        break;
       default:
         throw new Error(
           `Can not queue corresponding request of node with type ${node.type}`,
         );
     }
+    return this.queue.add(() =>
+      promise.then(null, error => errors.push(error)),
+    );
   }
 
   async runEntryRequest(input: ModuleSpecifier) {
     let request = createEntryRequest(input);
-    let result = await this.requestTracker.runRequest<FilePath, EntryResult>(
-      request,
-    );
+    let result = await this.api.runRequest<FilePath, EntryResult>(request, {
+      force: true,
+    });
     this.assetGraph.resolveEntry(request.input, result.entries, request.id);
   }
 
   async runTargetRequest(input: Entry) {
     let request = createTargetRequest(input);
-    let targets = await this.requestTracker.runRequest<Entry, Array<Target>>(
-      request,
-    );
+    let targets = await this.api.runRequest<Entry, Array<Target>>(request, {
+      force: true,
+    });
     this.assetGraph.resolveTargets(request.input, targets, request.id);
   }
 
   async runPathRequest(input: Dependency) {
-    let request = createPathRequest(input);
-    let result = await this.requestTracker.runRequest<Dependency, ?AssetGroup>(
+    let request = createPathRequest({dependency: input, name: this.name});
+    let result = await this.api.runRequest<PathRequestInput, ?AssetGroup>(
       request,
+      {force: true},
     );
     this.assetGraph.resolveDependency(input, result, request.id);
   }
@@ -772,13 +724,13 @@ export default class AssetGraphBuilder extends EventEmitter {
     this.assetRequests.push(input);
     let request = createAssetRequest({
       ...input,
+      name: this.name,
       optionsRef: this.optionsRef,
     });
-
-    let assets = await this.requestTracker.runRequest<
-      AssetRequestInput,
-      Array<Asset>,
-    >(request);
+    let assets = await this.api.runRequest<AssetRequestInput, Array<Asset>>(
+      request,
+      {force: true},
+    );
 
     if (assets != null) {
       for (let asset of assets) {
@@ -786,80 +738,6 @@ export default class AssetGraphBuilder extends EventEmitter {
       }
       this.assetGraph.resolveAssetGroup(input, assets, request.id);
     }
-  }
-
-  handleNodeRemovedFromAssetGraph(node: AssetGraphNode) {
-    if (node.correspondingRequest != null) {
-      this.requestTracker.removeRequest(node.correspondingRequest);
-    }
-  }
-
-  respondToFSEvents(events: Array<Event>): boolean {
-    return this.requestGraph.respondToFSEvents(events);
-  }
-
-  getWatcherOptions(): WatcherOptions {
-    let vcsDirs = ['.git', '.hg'].map(dir =>
-      path.join(this.options.projectRoot, dir),
-    );
-    let ignore = [this.options.cacheDir, ...vcsDirs];
-    return {ignore};
-  }
-
-  getCacheKeys(): {|
-    assetGraphKey: string,
-    requestGraphKey: string,
-    snapshotKey: string,
-  |} {
-    let assetGraphKey = md5FromString(`${this.cacheKey}:assetGraph`);
-    let requestGraphKey = md5FromString(`${this.cacheKey}:requestGraph`);
-    let snapshotKey = md5FromString(`${this.cacheKey}:snapshot`);
-    return {assetGraphKey, requestGraphKey, snapshotKey};
-  }
-
-  async readFromCache(): Promise<?Array<Event>> {
-    if (this.options.disableCache) {
-      return null;
-    }
-
-    let {assetGraphKey, requestGraphKey, snapshotKey} = this.getCacheKeys();
-    let assetGraph = await this.options.cache.get<AssetGraph>(assetGraphKey);
-    let requestGraph = await this.options.cache.get<RequestGraph>(
-      requestGraphKey,
-    );
-
-    if (assetGraph && requestGraph) {
-      this.assetGraph = assetGraph;
-      this.requestGraph = requestGraph;
-
-      let opts = this.getWatcherOptions();
-      let snapshotPath = this.options.cache._getCachePath(snapshotKey, '.txt');
-      return this.options.inputFS.getEventsSince(
-        this.options.projectRoot,
-        snapshotPath,
-        opts,
-      );
-    }
-
-    return null;
-  }
-
-  async writeToCache() {
-    if (this.options.disableCache) {
-      return;
-    }
-
-    let {assetGraphKey, requestGraphKey, snapshotKey} = this.getCacheKeys();
-    await this.options.cache.set(assetGraphKey, this.assetGraph);
-    await this.options.cache.set(requestGraphKey, this.requestGraph);
-
-    let opts = this.getWatcherOptions();
-    let snapshotPath = this.options.cache._getCachePath(snapshotKey, '.txt');
-    await this.options.inputFS.writeSnapshot(
-      this.options.projectRoot,
-      snapshotPath,
-      opts,
-    );
   }
 }
 

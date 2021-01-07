@@ -363,7 +363,7 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
     port = await getPort({port, host});
 
     if (port !== originalPort) {
-      let errorMessage = `Port "${port}" could not be used`;
+      let errorMessage = `Port "${originalPort}" could not be used`;
       if (command.port != null) {
         // Throw the error if the user defined a custom port
         throw new Error(errorMessage);

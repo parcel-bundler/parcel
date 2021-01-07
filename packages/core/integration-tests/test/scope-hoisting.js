@@ -4446,6 +4446,34 @@ describe('scope hoisting', function() {
     assert.deepEqual(await run(b), [42, 42]);
   });
 
+  it('loads another bundle from a dynamic import with a shared dependency only when necessary', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/sync-async-when-needed/index.js'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: [
+          'index.js',
+          'bundle-manifest.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'js-loader.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
+          'relative-path.js',
+        ],
+      },
+      {assets: ['dep.js']},
+      {assets: ['async-has-dep.js', 'dep.js', 'get-dep.js']},
+      {assets: ['get-dep.js', 'JSRuntime.js']},
+    ]);
+
+    assert.deepEqual(await run(b), [42, 42]);
+  });
+
   it('can static import and dynamic import in the same bundle when another bundle requires async', async () => {
     let b = await bundle(
       [

@@ -2,6 +2,7 @@
 
 import type {Bundle, ParcelOptions, ProcessedParcelConfig} from './types';
 import type {SharedReference, WorkerApi} from '@parcel/workers';
+import {loadConfig as configCache} from '@parcel/utils';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
@@ -63,6 +64,10 @@ async function loadConfig(cachePath, options) {
   );
   parcelConfigCache.set(cachePath, config);
   return config;
+}
+
+export function clearConfigCache() {
+  configCache.clear();
 }
 
 export async function runTransform(
