@@ -43,7 +43,7 @@ export default class ReporterRunner {
 
     bus.on('reporterEvent', this.eventHandler);
 
-    if (this.options.patchConsole) {
+    if (this.options.shouldPatchConsole) {
       patchConsole();
     } else {
       unpatchConsole();

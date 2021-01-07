@@ -101,7 +101,7 @@ export function bundler(
 ): Parcel {
   return new Parcel({
     entries,
-    disableCache: true,
+    shouldDisableCache: true,
     logLevel: 'none',
     defaultConfig: path.join(__dirname, '.parcelrc-no-reporters'),
     inputFS,
@@ -113,7 +113,7 @@ export function bundler(
       browsers: ['last 1 Chrome version'],
       node: '8',
     },
-    contentHash: true,
+    shouldContentHash: true,
     ...opts,
   });
 }

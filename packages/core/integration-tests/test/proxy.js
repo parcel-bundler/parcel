@@ -74,7 +74,7 @@ describe('proxy', function() {
     let port = await getPort();
     let b = bundler(path.join(dir, 'index.js'), {
       config,
-      serve: {
+      serveOptions: {
         https: false,
         port: port,
         host: 'localhost',
@@ -100,7 +100,7 @@ describe('proxy', function() {
     let port = await getPort();
     let b = bundler(path.join(dir, 'index.js'), {
       config,
-      serve: {
+      serveOptions: {
         https: false,
         port: port,
         host: 'localhost',
@@ -126,7 +126,7 @@ describe('proxy', function() {
     let port = await getPort();
     let b = bundler(path.join(dir, 'index.js'), {
       config,
-      serve: {
+      serveOptions: {
         https: false,
         port: port,
         host: 'localhost',
