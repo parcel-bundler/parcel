@@ -106,7 +106,7 @@ export default async function resolveOptions(
           distDir: distDir ?? path.join(outputCwd, 'dist'),
         }
       : false,
-    disableCache: initialOptions.disableCache ?? false,
+    shouldDisableCache: initialOptions.shouldDisableCache ?? false,
     shouldProfile: initialOptions.shouldProfile ?? false,
     cacheDir,
     entries,

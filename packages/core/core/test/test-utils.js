@@ -30,7 +30,7 @@ export const DEFAULT_OPTIONS: ParcelOptions = {
   publicUrl: '/',
   distDir: undefined,
   env: {},
-  disableCache: false,
+  shouldDisableCache: false,
   sourceMaps: false,
   shouldProfile: false,
   inputFS,

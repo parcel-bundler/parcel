@@ -905,7 +905,7 @@ describe('html', function() {
         __dirname,
         '/integration/html-inline-styles-element/index.html',
       ),
-      {disableCache: false},
+      {shouldDisableCache: false},
     );
 
     assertBundles(b, [
@@ -1672,7 +1672,7 @@ describe('html', function() {
       path.join(__dirname, '/html-inline-js-require/index.html'),
       {
         inputFS: overlayFS,
-        disableCache: false,
+        shouldDisableCache: false,
         distDir,
       },
     );
@@ -1706,7 +1706,7 @@ describe('html', function() {
       path.join(__dirname, '/html-inline-js-nested/index.html'),
       {
         inputFS: overlayFS,
-        disableCache: false,
+        shouldDisableCache: false,
         distDir,
       },
     );

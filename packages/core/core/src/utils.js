@@ -89,7 +89,7 @@ const ignoreOptions = new Set([
   'workerFarm',
   'packageManager',
   'detailedReport',
-  'disableCache',
+  'shouldDisableCache',
   'cacheDir',
   'shouldAutoInstall',
   'logLevel',

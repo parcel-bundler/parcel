@@ -164,7 +164,7 @@ export type ParcelOptions = {|
   env: EnvMap,
   targets: ?(Array<string> | {+[string]: TargetDescriptor, ...}),
 
-  disableCache: boolean,
+  shouldDisableCache: boolean,
   cacheDir: FilePath,
   mode: BuildMode,
   hmrOptions: ?HMROptions,

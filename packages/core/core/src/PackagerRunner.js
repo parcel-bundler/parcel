@@ -228,7 +228,7 @@ export default class PackagerRunner {
   }
 
   getBundleInfoFromCache(infoKey: string): Async<?BundleInfo> {
-    if (this.options.disableCache) {
+    if (this.options.shouldDisableCache) {
       return;
     }
 

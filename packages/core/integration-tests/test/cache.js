@@ -22,7 +22,7 @@ function runBundle(entries = 'src/index.js', opts) {
 
   return bundler(entries, {
     inputFS: overlayFS,
-    disableCache: false,
+    shouldDisableCache: false,
     ...opts,
   }).run();
 }

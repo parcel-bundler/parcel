@@ -1201,7 +1201,7 @@ describe('javascript', function() {
   it('should support importing a URL to a raw asset', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/import-raw/index.js'),
-      {disableCache: false},
+      {shouldDisableCache: false},
     );
 
     assertBundles(b, [

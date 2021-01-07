@@ -260,7 +260,7 @@ export type InitialParcelOptions = {|
   +env?: EnvMap,
   +targets?: ?(Array<string> | {+[string]: TargetDescriptor, ...}),
 
-  +disableCache?: boolean, // TODO: Change to shouldDisableCache or shouldEnableCache?
+  +shouldDisableCache?: boolean,
   +cacheDir?: FilePath,
   +mode?: BuildMode,
   +hmrOptions?: ?HMROptions,

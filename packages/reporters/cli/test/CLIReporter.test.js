@@ -24,7 +24,7 @@ const EMPTY_OPTIONS = {
   scopeHoist: false,
   minify: false,
   env: {},
-  disableCache: false,
+  shouldDisableCache: false,
   sourceMaps: false,
   inputFS,
   outputFS,
