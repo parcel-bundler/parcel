@@ -19,6 +19,19 @@ function canHaveDependencies(filePath: FilePath, code: string) {
 }
 
 export default (new Transformer({
+  getEnvironment({env}) {
+    // Normalize the environment so that properties that only affect JS don't cause CSS to be duplicated.
+    // For example, with ESModule and CommonJS targets, only a single shared CSS bundle should be produced.
+    return {
+      context: 'browser',
+      engines: {
+        browsers: env.engines.browsers,
+      },
+      minify: env.minify,
+      sourceMap: env.sourceMap,
+    };
+  },
+
   canReuseAST({ast}) {
     return ast.type === 'postcss' && semver.satisfies(ast.version, '^8.2.1');
   },
@@ -51,17 +64,6 @@ export default (new Transformer({
   },
 
   async transform({asset}) {
-    // Normalize the asset's environment so that properties that only affect JS don't cause CSS to be duplicated.
-    // For example, with ESModule and CommonJS targets, only a single shared CSS bundle should be produced.
-    asset.setEnvironment({
-      context: 'browser',
-      engines: {
-        browsers: asset.env.engines.browsers,
-      },
-      minify: asset.env.minify,
-      sourceMap: asset.env.sourceMap,
-    });
-
     // When this asset is an bundle entry, allow that bundle to be split to load shared assets separately.
     // Only set here if it is null to allow previous transformers to override this behavior.
     if (asset.isSplittable == null) {

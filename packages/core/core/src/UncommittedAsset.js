@@ -14,6 +14,7 @@ import type {
   Asset,
   RequestInvalidation,
   Dependency,
+  Environment,
   ParcelOptions,
 } from './types';
 
@@ -342,6 +343,7 @@ export default class UncommittedAsset {
     plugin: PackageName,
     configPath: FilePath,
     configKeyPath: string,
+    env: Environment,
   ): UncommittedAsset {
     let content = result.content ?? null;
 
@@ -356,7 +358,7 @@ export default class UncommittedAsset {
         isInline: result.isInline ?? this.value.isInline,
         isSplittable: result.isSplittable ?? this.value.isSplittable,
         isSource: result.isSource ?? this.value.isSource,
-        env: mergeEnvironments(this.value.env, result.env),
+        env,
         dependencies:
           this.value.type === result.type
             ? new Map(this.value.dependencies)

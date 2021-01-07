@@ -12,7 +12,6 @@ import type {
   Dependency as IDependency,
   DependencyOptions,
   Environment as IEnvironment,
-  EnvironmentOpts,
   FilePath,
   Meta,
   MutableAsset as IMutableAsset,
@@ -30,7 +29,6 @@ import Dependency from './Dependency';
 import {AssetSymbols, MutableAssetSymbols} from './Symbols';
 import UncommittedAsset from '../UncommittedAsset';
 import CommittedAsset from '../CommittedAsset';
-import {createEnvironment} from '../Environment';
 
 const inspect = Symbol.for('nodejs.util.inspect.custom');
 
@@ -309,9 +307,5 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
       isAsync: true, // The browser has native loaders for url dependencies
       ...opts,
     });
-  }
-
-  setEnvironment(env: EnvironmentOpts): void {
-    this.#asset.value.env = createEnvironment(env);
   }
 }
