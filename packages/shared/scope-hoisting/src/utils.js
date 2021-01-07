@@ -154,7 +154,7 @@ export function needsDefaultInterop(
   asset: Asset,
 ): boolean {
   let deps = bundleGraph.getIncomingDependencies(asset);
-  if (asset.meta.isCommonJS) {
+  if (asset.meta.isCommonJS && !asset.symbols.hasExportSymbol('default')) {
     return deps.some(
       dep =>
         bundle.hasDependency(dep) &&
