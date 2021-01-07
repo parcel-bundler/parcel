@@ -4317,6 +4317,18 @@ describe('scope hoisting', function() {
         bar: 4,
       });
     });
+
+    it('does not create a self-referencing dependency for the default symbol without an __esModule flag', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/self-reference-default/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.equal(output, 2);
+    });
   });
 
   it('should not throw with JS included from HTML', async function() {

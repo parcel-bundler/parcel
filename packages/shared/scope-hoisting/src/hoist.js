@@ -1251,6 +1251,12 @@ function addSelfReference(
   ) {
     // $FlowFixMe
     let name = path.parent.property.name ?? path.parent.property.value;
+
+    // Do not create a self-reference for the `default` symbol unless we have seen an __esModule flag.
+    if (name === 'default' && !asset.symbols.hasExportSymbol('__esModule')) {
+      return;
+    }
+
     let local = getExportIdentifier(asset, name);
     asset.addDependency({
       moduleSpecifier: `./${basename(asset.filePath)}`,
