@@ -1,6 +1,6 @@
 {
   "name": "@parcel/transformer-typescript-types",
-  "version": "2.0.0-frontbucket.41",
+  "version": "2.0.0-frontbucket.42",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -20,9 +20,9 @@
     "parcel": "^2.0.0-alpha.1.1"
   },
   "dependencies": {
-    "@parcel/plugin": "2.0.0-frontbucket.38",
+    "@parcel/plugin": "2.0.0-frontbucket.39",
     "@parcel/source-map": "2.0.0-alpha.4.19",
-    "@parcel/ts-utils": "2.0.0-frontbucket.21",
+    "@parcel/ts-utils": "2.0.0-frontbucket.22",
     "nullthrows": "^1.1.1"
   },
   "devDependencies": {

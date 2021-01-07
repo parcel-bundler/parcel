@@ -1,6 +1,6 @@
 {
   "name": "@atlassian/rename-parcel-packages",
-  "version": "0.0.2-frontbucket.18",
+  "version": "0.0.2-frontbucket.19",
   "bin": "bin.js",
   "dependencies": {
     "@babel/core": "^7.7.0",
