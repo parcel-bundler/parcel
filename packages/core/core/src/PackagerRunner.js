@@ -121,45 +121,48 @@ export default class PackagerRunner {
     let hashRefToNameHash = new Map();
     // skip inline bundles, they will be processed via the parent bundle
     let bundles = bundleGraph.getBundles().filter(bundle => !bundle.isInline);
-    await Promise.all(
-      bundles.map(async bundle => {
-        let info = await this.processBundle(bundle, bundleGraph, ref);
-        bundleInfoMap[bundle.id] = info;
-        if (!info.hashReferences.length) {
-          hashRefToNameHash.set(
-            bundle.hashReference,
-            this.options.contentHash
-              ? info.hash.slice(-8)
-              : bundle.id.slice(-8),
-          );
-          writeEarlyPromises[bundle.id] = this.writeToDist({
-            bundle,
-            info,
-            hashRefToNameHash,
-            bundleGraph,
-          });
-        }
-      }),
-    );
-    assignComplexNameHashes(
-      hashRefToNameHash,
-      bundles,
-      bundleInfoMap,
-      this.options,
-    );
-    await Promise.all(
-      bundles.map(
-        bundle =>
-          writeEarlyPromises[bundle.id] ??
-          this.writeToDist({
-            bundle,
-            info: bundleInfoMap[bundle.id],
-            hashRefToNameHash,
-            bundleGraph,
-          }),
-      ),
-    );
-    await dispose();
+    try {
+      await Promise.all(
+        bundles.map(async bundle => {
+          let info = await this.processBundle(bundle, bundleGraph, ref);
+          bundleInfoMap[bundle.id] = info;
+          if (!info.hashReferences.length) {
+            hashRefToNameHash.set(
+              bundle.hashReference,
+              this.options.contentHash
+                ? info.hash.slice(-8)
+                : bundle.id.slice(-8),
+            );
+            writeEarlyPromises[bundle.id] = this.writeToDist({
+              bundle,
+              info,
+              hashRefToNameHash,
+              bundleGraph,
+            });
+          }
+        }),
+      );
+      assignComplexNameHashes(
+        hashRefToNameHash,
+        bundles,
+        bundleInfoMap,
+        this.options,
+      );
+      await Promise.all(
+        bundles.map(
+          bundle =>
+            writeEarlyPromises[bundle.id] ??
+            this.writeToDist({
+              bundle,
+              info: bundleInfoMap[bundle.id],
+              hashRefToNameHash,
+              bundleGraph,
+            }),
+        ),
+      );
+    } finally {
+      await dispose();
+    }
   }
 
   async processBundle(
