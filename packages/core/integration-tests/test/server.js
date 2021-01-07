@@ -62,7 +62,7 @@ describe('server', function() {
     let b = bundler(path.join(__dirname, '/integration/commonjs/index.js'), {
       config,
       distDir,
-      serve: {
+      serveOptions: {
         https: false,
         port: port,
         host: 'localhost',
@@ -87,7 +87,7 @@ describe('server', function() {
     let b = bundler(inputPath, {
       config,
       distDir,
-      serve: {
+      serveOptions: {
         https: false,
         port: port,
         host: 'localhost',
@@ -112,7 +112,7 @@ describe('server', function() {
     let b = bundler(inputPath, {
       config,
       distDir,
-      serve: {
+      serveOptions: {
         https: false,
         port: port,
         host: 'localhost',
@@ -140,7 +140,7 @@ describe('server', function() {
     let b = bundler(inputPath, {
       config,
       distDir,
-      serve: {
+      serveOptions: {
         https: false,
         port: port,
         host: 'localhost',
@@ -168,7 +168,7 @@ describe('server', function() {
     let port = await getPort();
     let b = bundler(path.join(__dirname, '/integration/commonjs/index.js'), {
       config,
-      serve: {
+      serveOptions: {
         https: false,
         port: port,
         host: 'localhost',
@@ -198,7 +198,7 @@ describe('server', function() {
       inputFS: overlayFS,
       config,
       distDir,
-      serve: {
+      serveOptions: {
         https: false,
         port: port,
         host: 'localhost',
@@ -229,7 +229,7 @@ describe('server', function() {
     let b = bundler(path.join(__dirname, '/integration/commonjs/index.js'), {
       config,
       distDir,
-      serve: {
+      serveOptions: {
         https: true,
         port: port,
         host: 'localhost',
@@ -251,7 +251,7 @@ describe('server', function() {
     let b = bundler(path.join(__dirname, '/integration/commonjs/index.js'), {
       config,
       distDir,
-      serve: {
+      serveOptions: {
         https: {
           key: path.join(__dirname, '/integration/https/private.pem'),
           cert: path.join(__dirname, '/integration/https/primary.crt'),
@@ -276,7 +276,7 @@ describe('server', function() {
     let b = bundler(path.join(__dirname, '/integration/commonjs/index.js'), {
       config,
       distDir,
-      serve: {
+      serveOptions: {
         https: false,
         port: port,
         host: 'localhost',
@@ -299,7 +299,7 @@ describe('server', function() {
     let b = bundler(path.join(__dirname, '/integration/commonjs/index.js'), {
       config,
       distDir,
-      serve: {
+      serveOptions: {
         https: false,
         port: port,
         host: 'localhost',
@@ -321,7 +321,7 @@ describe('server', function() {
     let b = bundler(path.join(__dirname, '/integration/html/index.html'), {
       config,
       distDir,
-      serve: {
+      serveOptions: {
         https: false,
         port: port,
         host: 'localhost',

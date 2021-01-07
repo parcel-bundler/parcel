@@ -86,7 +86,7 @@ export default class BundlerRunner {
 
     let cacheKey;
     if (
-      !this.options.disableCache &&
+      !this.options.shouldDisableCache &&
       !this.requestTracker.hasInvalidRequests()
     ) {
       cacheKey = await this.getCacheKey(graph, configResult);
@@ -180,7 +180,7 @@ export default class BundlerRunner {
       hash: assetGraph.getHash(),
       config: configResult?.config,
       // TODO: remove once bundling is a request and we track options as invalidations.
-      hot: this.options.hot,
+      hmrOptions: this.options.hmrOptions,
     });
   }
 
