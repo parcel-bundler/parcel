@@ -23,6 +23,6 @@
     "@parcel/utils": "2.0.0-frontbucket.32"
   },
   "peerDependencies": {
-    "@parcel/core": "2.0.0-frontbucket.10"
+    "@parcel/core": "^2.0.0-alpha.3.1"
   }
 }
