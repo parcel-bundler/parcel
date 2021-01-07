@@ -615,7 +615,7 @@ export function link({
       if (callee.name === '$parcel$require') {
         let [id, source] = args;
         if (
-          args.length !== 2 ||
+          args.length < 2 ||
           !isStringLiteral(id) ||
           !isStringLiteral(source)
         ) {
@@ -652,23 +652,29 @@ export function link({
               }
             }
           } else {
-            if (mod.meta.id && assets.has(assertString(mod.meta.id))) {
-              let name = assertString(mod.meta.exportsIdentifier);
+            // If there is a third arg, it is an identifier to replace the require with.
+            // This happens when `require('foo').bar` is detected in the hoister.
+            if (args.length > 2 && isIdentifier(args[2])) {
+              newNode = maybeReplaceIdentifier(args[2], ancestors);
+            } else {
+              if (mod.meta.id && assets.has(assertString(mod.meta.id))) {
+                let isValueUsed = !isUnusedValue(ancestors);
 
-              let isValueUsed = !isUnusedValue(ancestors);
-
-              // We need to wrap the module in a function when a require
-              // call happens inside a non top-level scope, e.g. in a
-              // function, if statement, or conditional expression.
-              if (wrappedAssets.has(mod.id)) {
-                newNode = t.callExpression(getIdentifier(mod, 'init'), []);
+                // We need to wrap the module in a function when a require
+                // call happens inside a non top-level scope, e.g. in a
+                // function, if statement, or conditional expression.
+                if (wrappedAssets.has(mod.id)) {
+                  newNode = t.callExpression(getIdentifier(mod, 'init'), []);
+                }
+                // Replace with nothing if the require call's result is not used.
+                else if (isValueUsed) {
+                  newNode = t.identifier(
+                    assertString(mod.meta.exportsIdentifier),
+                  );
+                }
+              } else if (mod.type === 'js') {
+                newNode = addBundleImport(mod, node, ancestors);
               }
-              // Replace with nothing if the require call's result is not used.
-              else if (isValueUsed) {
-                newNode = t.identifier(name);
-              }
-            } else if (mod.type === 'js') {
-              newNode = addBundleImport(mod, node, ancestors);
             }
 
             // async dependency that was internalized

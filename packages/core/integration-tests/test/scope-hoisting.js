@@ -4302,6 +4302,21 @@ describe('scope hoisting', function() {
         },
       });
     });
+
+    it('replaces static require member expressions with the correct `this` context', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/require-member-wrapped/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output(), {
+        foo: 2,
+        bar: 4,
+      });
+    });
   });
 
   it('should not throw with JS included from HTML', async function() {

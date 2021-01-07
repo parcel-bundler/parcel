@@ -653,10 +653,11 @@ const VISITOR: Visitor<MutableAsset> = {
           },
         ];
 
-        // Replace with a sequence expression so that the $parcel$require is still
-        // in the correct position, but the expression resolves to the resolved value.
+        // If in an assignment expression, replace with a sequence expression
+        // so that the $parcel$require is still in the correct position.
+        // Otherwise, add a third argument to the $parcel$require call set to
+        // the identifier to replace it with. This will be replaced in the linker.
         if (isAssignmentExpression(path.parentPath.parent, {left: parent})) {
-          // Sequence expressions can't be the lhs of an assignment. Hoist the $parcel$require before.
           let assignment = t.cloneNode(path.parentPath.parent);
           assignment.left = t.identifier(
             getName(asset, 'importAsync', dep.id, name),
@@ -665,16 +666,15 @@ const VISITOR: Visitor<MutableAsset> = {
           path.parentPath.parentPath.replaceWith(
             t.sequenceExpression([replacement, assignment]),
           );
-        } else {
-          path.parentPath.replaceWith(
-            t.sequenceExpression([
-              replacement,
-              t.identifier(getName(asset, 'importAsync', dep.id, name)),
-            ]),
-          );
-        }
 
-        replacement = null;
+          replacement = null;
+        } else {
+          replacement.arguments.push(
+            t.identifier(getName(asset, 'importAsync', dep.id, name)),
+          );
+
+          replacePath = path.parentPath;
+        }
       } else if (isVariableDeclarator(parent, {init: path.node})) {
         if (isObjectPattern(parent.id)) {
           // let { x: y } = require("./b.js");
