@@ -1,6 +1,6 @@
 {
   "name": "@parcel/types",
-  "version": "2.0.0-frontbucket.37",
+  "version": "2.0.0-frontbucket.38",
   "license": "MIT",
   "main": "src/index.js",
   "repository": {

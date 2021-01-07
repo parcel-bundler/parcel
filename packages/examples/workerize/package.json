@@ -1,6 +1,6 @@
 {
   "name": "@parcel/workerize-example",
-  "version": "2.0.0-frontbucket.36",
+  "version": "2.0.0-frontbucket.37",
   "license": "MIT",
   "private": true,
   "scripts": {
@@ -9,8 +9,8 @@
     "clean-demo": "rm -rf .parcel-cache dist && yarn demo"
   },
   "devDependencies": {
-    "@parcel/babel-register": "2.0.0-frontbucket.20",
-    "@parcel/core": "2.0.0-frontbucket.44"
+    "@parcel/babel-register": "2.0.0-frontbucket.21",
+    "@parcel/core": "2.0.0-frontbucket.45"
   },
   "main": "dist/index.js",
   "dependencies": {

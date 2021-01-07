@@ -1,6 +1,6 @@
 {
   "name": "@parcel/optimizer-htmlnano",
-  "version": "2.0.0-frontbucket.40",
+  "version": "2.0.0-frontbucket.41",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -20,8 +20,8 @@
     "parcel": "^2.0.0-alpha.1.1"
   },
   "dependencies": {
-    "@parcel/plugin": "2.0.0-frontbucket.37",
-    "@parcel/utils": "2.0.0-frontbucket.33",
+    "@parcel/plugin": "2.0.0-frontbucket.38",
+    "@parcel/utils": "2.0.0-frontbucket.34",
     "htmlnano": "^0.2.2",
     "nullthrows": "^1.1.1",
     "posthtml": "^0.11.3"
