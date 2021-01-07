@@ -1,6 +1,6 @@
 {
   "name": "@parcel/transformer-graphql",
-  "version": "2.0.0-frontbucket.33",
+  "version": "2.0.0-frontbucket.34",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -20,7 +20,7 @@
     "parcel": "^2.0.0-alpha.1.1"
   },
   "dependencies": {
-    "@parcel/plugin": "2.0.0-frontbucket.33"
+    "@parcel/plugin": "2.0.0-frontbucket.34"
   },
   "devDependencies": {
     "graphql": "^15.0.0",

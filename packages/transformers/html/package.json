@@ -1,6 +1,6 @@
 {
   "name": "@parcel/transformer-html",
-  "version": "2.0.0-frontbucket.36",
+  "version": "2.0.0-frontbucket.37",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -20,8 +20,8 @@
     "parcel": "^2.0.0-alpha.1.1"
   },
   "dependencies": {
-    "@parcel/plugin": "2.0.0-frontbucket.33",
-    "@parcel/utils": "2.0.0-frontbucket.29",
+    "@parcel/plugin": "2.0.0-frontbucket.34",
+    "@parcel/utils": "2.0.0-frontbucket.30",
     "nullthrows": "^1.1.1",
     "posthtml": "^0.11.3",
     "posthtml-parser": "^0.4.1",

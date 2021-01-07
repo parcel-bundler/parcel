@@ -1,6 +1,6 @@
 {
   "name": "@parcel/transformer-react-refresh-wrap",
-  "version": "2.0.0-frontbucket.37",
+  "version": "2.0.0-frontbucket.38",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -24,9 +24,9 @@
     "@babel/parser": "^7.0.0",
     "@babel/template": "^7.4.0",
     "@babel/types": "^7.12.11",
-    "@parcel/babel-ast-utils": "2.0.0-frontbucket.13",
-    "@parcel/plugin": "2.0.0-frontbucket.33",
-    "@parcel/utils": "2.0.0-frontbucket.29",
+    "@parcel/babel-ast-utils": "2.0.0-frontbucket.14",
+    "@parcel/plugin": "2.0.0-frontbucket.34",
+    "@parcel/utils": "2.0.0-frontbucket.30",
     "react-refresh": "^0.9.0",
     "semver": "^5.4.1"
   },
