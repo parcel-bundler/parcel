@@ -414,7 +414,7 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
         ? {
             assetsPerBundle: parseInt(command.detailedReport, 10),
           }
-        : false,
+        : null,
     env: {
       NODE_ENV: nodeEnv,
     },
