@@ -702,7 +702,7 @@ describe('scope hoisting', function() {
 
       assert.deepStrictEqual(
         new Set(nullthrows(findAsset(b, 'b3.js')).symbols.exportSymbols()),
-        new Set(['*']),
+        new Set(['*', 'foo']),
       );
 
       let output = await run(b);
@@ -4284,6 +4284,22 @@ describe('scope hoisting', function() {
         foo: 2,
         bar: 4,
         baz: 6,
+      });
+    });
+
+    it('does not replace assignments to the exports object in the same module', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/self-reference-assignment/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, {
+        foo: {
+          bar: 'bar',
+        },
       });
     });
   });

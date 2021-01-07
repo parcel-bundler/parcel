@@ -425,6 +425,14 @@ export function link({
       originalName,
       bundle,
     );
+
+    // If the symbol resolves to the original module where the export is defined,
+    // do not perform any replacements.
+    let exp = exports.get(node.name);
+    if (exp && exp[0] === mod) {
+      return node;
+    }
+
     let res = identifier != null ? findSymbol(node, identifier) : identifier;
     if (mod.meta.staticExports === false || wrappedAssets.has(mod.id)) {
       res = null;
@@ -865,22 +873,6 @@ export function link({
 
       if (isIdentifier(right) && !needsDeclaration(right.name)) {
         return REMOVE;
-      }
-
-      // If it's a $id$exports.name expression.
-      let name = isIdentifier(property) ? property.name : property.value;
-      let {asset: resolvedAsset, identifier} = resolveSymbol(
-        asset,
-        name,
-        bundle,
-      );
-
-      // If there is no identifier, and the symbol resolves to the same asset,
-      // this is a self-reference of non-pure exports. Return the original node
-      // to avoid the identifier visitor below from replacing it with a member
-      // expression pointing to itself (e.g. $id$exports.foo = $id$exports.foo).
-      if (!identifier && isIdentifier(right) && asset === resolvedAsset) {
-        return node;
       }
     },
     Identifier(node, state, ancestors) {

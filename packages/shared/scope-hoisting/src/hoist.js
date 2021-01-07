@@ -293,12 +293,6 @@ const VISITOR: Visitor<MutableAsset> = {
         }
 
         if (asset.meta.isCommonJS) {
-          if (asset.meta.staticExports === false) {
-            for (let s of asset.symbols.exportSymbols()) {
-              asset.symbols.delete(s);
-            }
-          }
-
           asset.symbols.set('*', exportsIdentifier.name);
         }
       }
