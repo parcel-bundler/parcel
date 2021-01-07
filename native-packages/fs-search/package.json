@@ -2,7 +2,6 @@
   "name": "@parcel/fs-search",
   "version": "2.0.0-beta.1",
   "license": "MIT",
-  "private": true,
   "funding": {
     "type": "opencollective",
     "url": "https://opencollective.com/parcel"
