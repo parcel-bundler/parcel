@@ -121,45 +121,48 @@ export default class PackagerRunner {
     let hashRefToNameHash = new Map();
     // skip inline bundles, they will be processed via the parent bundle
     let bundles = bundleGraph.getBundles().filter(bundle => !bundle.isInline);
-    await Promise.all(
-      bundles.map(async bundle => {
-        let info = await this.processBundle(bundle, bundleGraph, ref);
-        bundleInfoMap[bundle.id] = info;
-        if (!info.hashReferences.length) {
-          hashRefToNameHash.set(
-            bundle.hashReference,
-            this.options.contentHash
-              ? info.hash.slice(-8)
-              : bundle.id.slice(-8),
-          );
-          writeEarlyPromises[bundle.id] = this.writeToDist({
-            bundle,
-            info,
-            hashRefToNameHash,
-            bundleGraph,
-          });
-        }
-      }),
-    );
-    assignComplexNameHashes(
-      hashRefToNameHash,
-      bundles,
-      bundleInfoMap,
-      this.options,
-    );
-    await Promise.all(
-      bundles.map(
-        bundle =>
-          writeEarlyPromises[bundle.id] ??
-          this.writeToDist({
-            bundle,
-            info: bundleInfoMap[bundle.id],
-            hashRefToNameHash,
-            bundleGraph,
-          }),
-      ),
-    );
-    await dispose();
+    try {
+      await Promise.all(
+        bundles.map(async bundle => {
+          let info = await this.processBundle(bundle, bundleGraph, ref);
+          bundleInfoMap[bundle.id] = info;
+          if (!info.hashReferences.length) {
+            hashRefToNameHash.set(
+              bundle.hashReference,
+              this.options.shouldContentHash
+                ? info.hash.slice(-8)
+                : bundle.id.slice(-8),
+            );
+            writeEarlyPromises[bundle.id] = this.writeToDist({
+              bundle,
+              info,
+              hashRefToNameHash,
+              bundleGraph,
+            });
+          }
+        }),
+      );
+      assignComplexNameHashes(
+        hashRefToNameHash,
+        bundles,
+        bundleInfoMap,
+        this.options,
+      );
+      await Promise.all(
+        bundles.map(
+          bundle =>
+            writeEarlyPromises[bundle.id] ??
+            this.writeToDist({
+              bundle,
+              info: bundleInfoMap[bundle.id],
+              hashRefToNameHash,
+              bundleGraph,
+            }),
+        ),
+      );
+    } finally {
+      await dispose();
+    }
   }
 
   async processBundle(
@@ -225,7 +228,7 @@ export default class PackagerRunner {
   }
 
   getBundleInfoFromCache(infoKey: string): Async<?BundleInfo> {
-    if (this.options.disableCache) {
+    if (this.options.shouldDisableCache) {
       return;
     }
 
@@ -426,7 +429,7 @@ export default class PackagerRunner {
       ) {
         sourceRoot = bundle.env.sourceMap.sourceRoot;
       } else if (
-        this.options.serve &&
+        this.options.serveOptions &&
         bundle.target.env.context === 'browser'
       ) {
         sourceRoot = '/__parcel_source_root';
@@ -710,7 +713,7 @@ function assignComplexNameHashes(
 
     hashRefToNameHash.set(
       bundle.hashReference,
-      options.contentHash
+      options.shouldContentHash
         ? md5FromString(
             includedBundles
               .map(bundleId => bundleInfoMap[bundleId].hash)

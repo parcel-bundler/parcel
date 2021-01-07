@@ -17,20 +17,22 @@ const EMPTY_OPTIONS = {
   projectRoot: '',
   distDir: 'dist',
   lockFile: undefined,
-  autoinstall: false,
-  hot: undefined,
-  serve: false,
+  shouldAutoInstall: false,
+  hmrOptions: undefined,
+  serveOptions: false,
   mode: 'development',
   scopeHoist: false,
   minify: false,
   env: {},
-  disableCache: false,
+  shouldDisableCache: false,
   sourceMaps: false,
   inputFS,
   outputFS,
   instanceId: 'test',
   packageManager: new NodePackageManager(inputFS),
-  detailedReport: 10,
+  detailedReport: {
+    assetsPerBundle: 10,
+  },
 };
 
 describe('CLIReporter', () => {

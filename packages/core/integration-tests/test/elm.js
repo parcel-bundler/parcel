@@ -32,7 +32,7 @@ describe('elm', function() {
 
   it('should apply elm-hot if HMR is enabled', async function() {
     let b = await bundle(path.join(__dirname, '/integration/elm/index.js'), {
-      hot: true,
+      hmrOptions: true,
     });
 
     assertBundles(b, [

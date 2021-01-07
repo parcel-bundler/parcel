@@ -141,7 +141,7 @@ async function _generateFromAST(asset: CommittedAsset | UncommittedAsset) {
     pluginName,
     nullthrows(asset.value.configPath),
     nullthrows(asset.value.configKeyPath),
-    asset.options.autoinstall,
+    asset.options.shouldAutoInstall,
   );
   if (!plugin.generate) {
     throw new Error(`${pluginName} does not have a generate method`);

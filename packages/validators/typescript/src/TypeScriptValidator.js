@@ -109,7 +109,7 @@ async function tryCreateLanguageService(
     let ts = await options.packageManager.require(
       'typescript',
       asset.filePath,
-      {autoinstall: options.autoinstall},
+      {shouldAutoInstall: options.shouldAutoInstall},
     );
 
     // In order to prevent race conditions where we accidentally create two language services for the same config,

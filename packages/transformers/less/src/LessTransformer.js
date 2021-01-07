@@ -30,7 +30,7 @@ export default (new Transformer({
     asset.meta.hasDependencies = false;
 
     let less = await options.packageManager.require('less', asset.filePath, {
-      autoinstall: options.autoinstall,
+      shouldAutoInstall: options.shouldAutoInstall,
     });
 
     let code = await asset.getCode();

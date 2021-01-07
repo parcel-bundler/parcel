@@ -42,7 +42,7 @@ export default (new Transformer({
     let stylus = (await options.packageManager.require(
       'stylus',
       asset.filePath,
-      {autoinstall: options.autoinstall},
+      {shouldAutoInstall: options.shouldAutoInstall},
     ): Stylus);
 
     let code = await asset.getCode();
@@ -84,7 +84,7 @@ async function getDependencies(
   const [Parser, DepsResolver, nodes, utils] = await Promise.all(
     ['parser', 'visitor/deps-resolver', 'nodes', 'utils'].map(dep =>
       parcelOptions.packageManager.require('stylus/lib/' + dep, filepath, {
-        autoinstall: options.autoinstall,
+        shouldAutoInstall: options.shouldAutoInstall,
       }),
     ),
   );
