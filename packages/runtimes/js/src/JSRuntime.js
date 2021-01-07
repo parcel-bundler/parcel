@@ -87,31 +87,7 @@ export default (new Runtime({
       return;
     }
 
-    let asyncDependencies = [];
-    let otherDependencies = [];
-    let cachedDependencies = bundleDependencies.get(bundle);
-
-    if (
-      cachedDependencies?.asyncDependencies &&
-      cachedDependencies?.otherDependencies
-    ) {
-      asyncDependencies = cachedDependencies.asyncDependencies;
-      otherDependencies = cachedDependencies.otherDependencies;
-    } else {
-      bundle.traverse(node => {
-        if (node.type !== 'dependency') {
-          return;
-        }
-
-        let dependency = node.value;
-        if (dependency.isAsync && !dependency.isURL) {
-          asyncDependencies.push(dependency);
-        } else {
-          otherDependencies.push(dependency);
-        }
-      });
-      bundleDependencies.set(bundle, {asyncDependencies, otherDependencies});
-    }
+    let {asyncDependencies, otherDependencies} = getDependencies(bundle);
 
     let assets = [];
     for (let dependency of asyncDependencies) {
@@ -222,6 +198,36 @@ export default (new Runtime({
     return assets;
   },
 }): Runtime);
+
+function getDependencies(
+  bundle: NamedBundle,
+): {|
+  asyncDependencies: Array<Dependency>,
+  otherDependencies: Array<Dependency>,
+|} {
+  let cachedDependencies = bundleDependencies.get(bundle);
+
+  if (cachedDependencies) {
+    return cachedDependencies;
+  } else {
+    let asyncDependencies = [];
+    let otherDependencies = [];
+    bundle.traverse(node => {
+      if (node.type !== 'dependency') {
+        return;
+      }
+
+      let dependency = node.value;
+      if (dependency.isAsync && !dependency.isURL) {
+        asyncDependencies.push(dependency);
+      } else {
+        otherDependencies.push(dependency);
+      }
+    });
+    bundleDependencies.set(bundle, {asyncDependencies, otherDependencies});
+    return {asyncDependencies, otherDependencies};
+  }
+}
 
 function getLoaderRuntime({
   bundle,
@@ -359,73 +365,32 @@ function getLoaderRuntime({
   };
 }
 
-function resolvePreloadAndPrefetch(
-  bundle: NamedBundle,
-  bundleGraph: BundleGraph<NamedBundle>,
-  dependency: Dependency,
-  preload: Array<BundleGroup> = [],
-  prefetch: Array<BundleGroup> = [],
-): void {
-  let attributes = dependency.meta?.importAttributes;
-  if (
-    typeof attributes === 'object' &&
-    attributes != null &&
-    // $FlowFixMe
-    (attributes.preload || attributes.prefetch)
-  ) {
-    let resolved = bundleGraph.resolveAsyncDependency(dependency, bundle);
-    if (resolved?.type === 'bundle_group') {
-      // === true for flow
-      if (attributes.preload === true) {
-        preload.push(resolved.value);
-      }
-      if (attributes.prefetch === true) {
-        prefetch.push(resolved.value);
-      }
-    }
-  }
-}
-
 function getHintedBundleGroups(
   bundleGraph: BundleGraph<NamedBundle>,
   bundle: NamedBundle,
 ): {|preload: Array<BundleGroup>, prefetch: Array<BundleGroup>|} {
   let preload = [];
   let prefetch = [];
-  let asyncDependencies = bundleDependencies.get(bundle)?.asyncDependencies;
-  if (Array.isArray(asyncDependencies)) {
-    for (let dependency of asyncDependencies) {
-      resolvePreloadAndPrefetch(
-        bundle,
-        bundleGraph,
-        dependency,
-        preload,
-        prefetch,
-      );
+  let {asyncDependencies} = getDependencies(bundle);
+  for (let dependency of asyncDependencies) {
+    let attributes = dependency.meta?.importAttributes;
+    if (
+      typeof attributes === 'object' &&
+      attributes != null &&
+      // $FlowFixMe
+      (attributes.preload || attributes.prefetch)
+    ) {
+      let resolved = bundleGraph.resolveAsyncDependency(dependency, bundle);
+      if (resolved?.type === 'bundle_group') {
+        // === true for flow
+        if (attributes.preload === true) {
+          preload.push(resolved.value);
+        }
+        if (attributes.prefetch === true) {
+          prefetch.push(resolved.value);
+        }
+      }
     }
-  } else {
-    let asyncDependencies = [];
-    let otherDependencies = [];
-    bundle.traverse(node => {
-      if (node.type !== 'dependency') {
-        return;
-      }
-
-      let dependency = node.value;
-      if (dependency.isAsync && !dependency.isURL) {
-        asyncDependencies.push(dependency);
-      } else {
-        otherDependencies.push(dependency);
-      }
-      resolvePreloadAndPrefetch(
-        bundle,
-        bundleGraph,
-        dependency,
-        preload,
-        prefetch,
-      );
-    });
-    bundleDependencies.set(bundle, {asyncDependencies, otherDependencies});
   }
 
   return {preload, prefetch};
