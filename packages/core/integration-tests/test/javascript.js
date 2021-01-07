@@ -829,7 +829,7 @@ describe('javascript', function() {
   it('should create a shared bundle to deduplicate assets in workers', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/worker-shared/index.js'),
-      {mode: 'production'},
+      {mode: 'production', scopeHoist: false},
     );
 
     assertBundles(b, [
@@ -883,16 +883,15 @@ describe('javascript', function() {
     assertBundles(b, [
       {
         name: 'index.js',
-
         assets: [
           'index.js',
-          'lodash.js',
           'bundle-url.js',
           'get-worker-url.js',
           'JSRuntime.js',
           'JSRuntime.js',
           'bundle-manifest.js',
           'relative-path.js',
+          'lodash.js',
         ],
       },
       {
@@ -900,6 +899,7 @@ describe('javascript', function() {
           'worker-a.js',
           'JSRuntime.js',
           'bundle-url.js',
+          'esmodule-helpers.js',
           'get-worker-url.js',
           'bundle-manifest.js',
           'JSRuntime.js',
@@ -908,7 +908,7 @@ describe('javascript', function() {
         ],
       },
       {
-        assets: ['worker-b.js', 'lodash.js'],
+        assets: ['worker-b.js', 'lodash.js', 'esmodule-helpers.js'],
       },
     ]);
   });
