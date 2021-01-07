@@ -1,6 +1,6 @@
 {
   "name": "@parcel/logger",
-  "version": "2.0.0-frontbucket.21",
+  "version": "2.0.0-frontbucket.22",
   "description": "Blazing fast, zero configuration web application bundler",
   "license": "MIT",
   "publishConfig": {
@@ -20,7 +20,7 @@
     "node": ">= 12.0.0"
   },
   "dependencies": {
-    "@parcel/diagnostic": "2.0.0-frontbucket.19",
-    "@parcel/events": "2.0.0-frontbucket.15"
+    "@parcel/diagnostic": "2.0.0-frontbucket.20",
+    "@parcel/events": "2.0.0-frontbucket.16"
   }
 }
