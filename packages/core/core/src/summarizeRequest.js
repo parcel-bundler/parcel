@@ -13,18 +13,13 @@ export default async function summarizeRequest(
   fs: FileSystem,
   req: {|filePath: FilePath, code?: string|},
 ): Promise<{|content: Blob, hash: string, size: number, isSource: boolean|}> {
-  let [{content, hash, size}, isSource] = await Promise.all([
-    summarizeDiskRequest(fs, req),
-    isFilePathSource(fs, req.filePath),
-  ]);
+  let {content, hash, size} = await summarizeDiskRequest(fs, req);
+  let isSource = isFilePathSource(fs, req.filePath);
   return {content, hash, size, isSource};
 }
 
-async function isFilePathSource(fs: FileSystem, filePath: FilePath) {
-  return (
-    !filePath.includes(NODE_MODULES) ||
-    (await fs.realpath(filePath)) !== filePath
-  );
+function isFilePathSource(fs: FileSystem, filePath: FilePath) {
+  return !filePath.includes(NODE_MODULES);
 }
 
 async function summarizeDiskRequest(

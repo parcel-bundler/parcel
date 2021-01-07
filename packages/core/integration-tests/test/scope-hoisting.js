@@ -2027,6 +2027,80 @@ describe('scope hoisting', function() {
         }
       });
 
+      it('add and remove dependency with inline asset', async function() {
+        let testDir = path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/update-used-symbols-dependency-add-inline',
+        );
+
+        let b = bundler(path.join(testDir, 'index.js'), {
+          inputFS: overlayFS,
+          outputFS: overlayFS,
+        });
+
+        await overlayFS.mkdirp(testDir);
+        await overlayFS.copyFile(
+          path.join(testDir, 'other.1.js'),
+          path.join(testDir, 'other.js'),
+        );
+
+        let subscription = await b.watch();
+
+        try {
+          let bundleEvent = await getNextBuild(b);
+          assert(bundleEvent.type === 'buildSuccess');
+          let output = await run(bundleEvent.bundleGraph);
+          assert.deepEqual(output, 123);
+
+          let assetOther = nullthrows(
+            findAsset(bundleEvent.bundleGraph, 'other.js'),
+          );
+          assert.deepStrictEqual(
+            new Set(bundleEvent.bundleGraph.getUsedSymbols(assetOther)),
+            new Set([]),
+          );
+
+          await overlayFS.copyFile(
+            path.join(testDir, 'other.2.js'),
+            path.join(testDir, 'other.js'),
+          );
+
+          bundleEvent = await getNextBuild(b);
+          assert.strictEqual(bundleEvent.type, 'buildSuccess');
+          output = await run(bundleEvent.bundleGraph);
+          assert.deepEqual(output, 1);
+
+          assetOther = nullthrows(
+            findAsset(bundleEvent.bundleGraph, 'other.js'),
+          );
+          assert.deepStrictEqual(
+            new Set(bundleEvent.bundleGraph.getUsedSymbols(assetOther)),
+            new Set(['a']),
+          );
+
+          await overlayFS.copyFile(
+            path.join(testDir, 'other.1.js'),
+            path.join(testDir, 'other.js'),
+          );
+
+          bundleEvent = await getNextBuild(b);
+          assert.strictEqual(bundleEvent.type, 'buildSuccess');
+          output = await run(bundleEvent.bundleGraph);
+          assert.deepEqual(output, 123);
+
+          assetOther = nullthrows(
+            findAsset(bundleEvent.bundleGraph, 'other.js'),
+          );
+          assert.deepStrictEqual(
+            new Set(bundleEvent.bundleGraph.getUsedSymbols(assetOther)),
+            new Set([]),
+          );
+          assert(!findAsset(bundleEvent.bundleGraph, 'd2.js'));
+        } finally {
+          await subscription.unsubscribe();
+        }
+      });
+
       it('add and remove dependency with namespace', async function() {
         let testDir = path.join(
           __dirname,
@@ -4379,6 +4453,34 @@ describe('scope hoisting', function() {
     assert.deepEqual(await run(b), [42, 42]);
   });
 
+  it('loads another bundle from a dynamic import with a shared dependency only when necessary', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/sync-async-when-needed/index.js'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: [
+          'index.js',
+          'bundle-manifest.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'js-loader.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
+          'relative-path.js',
+        ],
+      },
+      {assets: ['dep.js']},
+      {assets: ['async-has-dep.js', 'dep.js', 'get-dep.js']},
+      {assets: ['get-dep.js', 'JSRuntime.js']},
+    ]);
+
+    assert.deepEqual(await run(b), [42, 42]);
+  });
+
   it('can static import and dynamic import in the same bundle when another bundle requires async', async () => {
     let b = await bundle(
       [
@@ -4600,5 +4702,13 @@ describe('scope hoisting', function() {
     assert.deepEqual(output, 'foobar');
 
     await subscription.unsubscribe();
+  });
+
+  it('should not rewrite this in arrow function class properties', async function() {
+    let b = await bundle(
+      path.join(__dirname, 'integration/js-class-this-esm/a.js'),
+    );
+    let res = await run(b);
+    assert.deepEqual(res, 'x: 123');
   });
 });

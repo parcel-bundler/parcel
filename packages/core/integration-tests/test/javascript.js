@@ -3061,6 +3061,21 @@ describe('javascript', function() {
     ]);
   });
 
+  it('should not automatically name bundle files starting with a dot', async function() {
+    await bundle(
+      path.join(__dirname, '/integration/bundle-naming/.invisible/index.js'),
+    );
+    let bundleFiles = await outputFS.readdir(distDir);
+    let renamedSomeFiles = bundleFiles.some(currFile =>
+      currFile.startsWith('invisible.'),
+    );
+    let namedWithDot = bundleFiles.some(currFile =>
+      currFile.startsWith('.invisible.'),
+    );
+    assert.equal(renamedSomeFiles, true);
+    assert.equal(namedWithDot, false);
+  });
+
   it('should support duplicate re-exports without scope hoisting', async function() {
     let b = await bundle(
       path.join(__dirname, 'integration/js-duplicate-re-exports/index.js'),
@@ -3141,8 +3156,8 @@ describe('javascript', function() {
     );
     let res = await run(b);
     assert.deepEqual(Object.keys(res), ['foo', 'bar']);
-    assert.equal(res.foo('test'), 'foo:test');
-    assert.equal(res.bar('test'), 'bar:test');
+    assert.strictEqual(res.foo('test'), 'foo:test');
+    assert.strictEqual(res.bar('test'), 'bar:test');
   });
 
   it('should handle exports of imports', async function() {
@@ -3166,6 +3181,22 @@ describe('javascript', function() {
       path.join(__dirname, 'integration/js-import-shadow/index.js'),
     );
     let res = await run(b);
-    assert.equal(res.baz(), 'foo');
+    assert.strictEqual(res.baz(), 'foo');
+  });
+
+  it('should not freeze live default imports', async function() {
+    let b = await bundle(
+      path.join(__dirname, 'integration/js-import-default-live/index.js'),
+    );
+    let res = await run(b);
+    assert.deepEqual(res.default, [123, 789]);
+  });
+
+  it('should not rewrite this in arrow function class properties', async function() {
+    let b = await bundle(
+      path.join(__dirname, 'integration/js-class-this-esm/a.js'),
+    );
+    let res = await run(b);
+    assert.deepEqual(res.default, 'x: 123');
   });
 });

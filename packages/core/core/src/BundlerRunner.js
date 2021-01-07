@@ -1,16 +1,16 @@
 // @flow strict-local
 
+import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import type {
   Bundle as IBundle,
   Namer,
   FilePath,
   ConfigOutput,
 } from '@parcel/types';
-import type {Bundle as InternalBundle, ParcelOptions} from './types';
+import type WorkerFarm, {SharedReference} from '@parcel/workers';
 import type ParcelConfig from './ParcelConfig';
-import type WorkerFarm from '@parcel/workers';
-import type AssetGraphBuilder from './AssetGraphBuilder';
-import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
+import type RequestTracker from './RequestTracker';
+import type {Bundle as InternalBundle, ParcelOptions} from './types';
 
 import assert from 'assert';
 import path from 'path';
@@ -33,25 +33,28 @@ import {deserialize, serialize} from './serializer';
 
 type Opts = {|
   options: ParcelOptions,
+  optionsRef: SharedReference,
   config: ParcelConfig,
-  runtimesBuilder: AssetGraphBuilder,
+  requestTracker: RequestTracker,
   workerFarm: WorkerFarm,
 |};
 
 export default class BundlerRunner {
   options: ParcelOptions;
+  optionsRef: SharedReference;
   config: ParcelConfig;
   pluginOptions: PluginOptions;
   farm: WorkerFarm;
-  runtimesBuilder: AssetGraphBuilder;
+  requestTracker: RequestTracker;
   isBundling: boolean = false;
 
   constructor(opts: Opts) {
     this.options = opts.options;
+    this.optionsRef = opts.optionsRef;
     this.config = opts.config;
     this.pluginOptions = new PluginOptions(this.options);
-    this.runtimesBuilder = opts.runtimesBuilder;
     this.farm = opts.workerFarm;
+    this.requestTracker = opts.requestTracker;
   }
 
   async bundle(
@@ -84,7 +87,7 @@ export default class BundlerRunner {
     let cacheKey;
     if (
       !this.options.disableCache &&
-      !this.runtimesBuilder.requestTracker.hasInvalidRequests()
+      !this.requestTracker.hasInvalidRequests()
     ) {
       cacheKey = await this.getCacheKey(graph, configResult);
       let cachedBundleGraphBuffer;
@@ -146,9 +149,10 @@ export default class BundlerRunner {
 
     await applyRuntimes({
       bundleGraph: internalBundleGraph,
-      runtimesBuilder: this.runtimesBuilder,
+      requestTracker: this.requestTracker,
       config: this.config,
       options: this.options,
+      optionsRef: this.optionsRef,
       pluginOptions: this.pluginOptions,
     });
     assertSignalNotAborted(signal);

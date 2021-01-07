@@ -16,56 +16,22 @@ export type ConfigOptions = {|
   parse?: boolean,
 |};
 
-export async function resolveConfig(
+export function resolveConfig(
   fs: FileSystem,
   filepath: FilePath,
   filenames: Array<FilePath>,
-  opts: ?ConfigOptions,
-  root: FilePath = path.parse(filepath).root,
-): Promise<FilePath | null> {
-  filepath = await fs.realpath(path.dirname(filepath));
-
-  // Don't traverse above the module root
-  if (path.basename(filepath) === 'node_modules') {
-    return null;
-  }
-
-  for (const filename of filenames) {
-    let file = path.join(filepath, filename);
-    if ((await fs.exists(file)) && (await fs.stat(file)).isFile()) {
-      return file;
-    }
-  }
-
-  if (filepath === root) {
-    return null;
-  }
-
-  return resolveConfig(fs, filepath, filenames, opts);
+): Promise<?FilePath> {
+  return Promise.resolve(
+    fs.findAncestorFile(filenames, path.dirname(filepath)),
+  );
 }
 
 export function resolveConfigSync(
   fs: FileSystem,
   filepath: FilePath,
   filenames: Array<FilePath>,
-  opts: ?ConfigOptions,
-  root: FilePath = path.parse(filepath).root,
-): FilePath | null {
-  filepath = fs.realpathSync(path.dirname(filepath));
-
-  // Don't traverse above the module root
-  if (filepath === root || path.basename(filepath) === 'node_modules') {
-    return null;
-  }
-
-  for (const filename of filenames) {
-    let file = path.join(filepath, filename);
-    if (fs.existsSync(file) && fs.statSync(file).isFile()) {
-      return file;
-    }
-  }
-
-  return resolveConfigSync(fs, filepath, filenames, opts);
+): ?FilePath {
+  return fs.findAncestorFile(filenames, path.dirname(filepath));
 }
 
 export async function loadConfig(
@@ -74,7 +40,7 @@ export async function loadConfig(
   filenames: Array<FilePath>,
   opts: ?ConfigOptions,
 ): Promise<ConfigOutput | null> {
-  let configFile = await resolveConfig(fs, filepath, filenames, opts);
+  let configFile = await resolveConfig(fs, filepath, filenames);
   if (configFile) {
     try {
       let extname = path.extname(configFile).slice(1);

@@ -143,6 +143,7 @@ export type PackageTargetDescriptor = {|
 export type TargetDescriptor = {|
   ...PackageTargetDescriptor,
   +distDir: FilePath,
+  +distEntry?: FilePath,
 |};
 
 /**
@@ -555,7 +556,6 @@ export interface MutableAsset extends BaseAsset {
   +symbols: MutableAssetSymbols;
 
   isASTDirty(): boolean;
-  /** Returns <code>null</code> if there is no AST. */
   getAST(): Promise<?AST>;
   setAST(AST): void;
   setBuffer(Buffer): void;
@@ -571,9 +571,6 @@ export interface MutableAsset extends BaseAsset {
  * @section transformer
  */
 export interface Asset extends BaseAsset {
-  /** Throws if there is no AST.*/
-  getAST(): Promise<?AST>;
-
   +stats: Stats;
 }
 
@@ -640,6 +637,7 @@ export type TransformerResult = {|
   +dependencies?: $ReadOnlyArray<DependencyOptions>,
   +env?: EnvironmentOpts,
   +filePath?: FilePath,
+  +query?: ?QueryParameters,
   +includedFiles?: $ReadOnlyArray<File>,
   +isInline?: boolean,
   +isIsolated?: boolean,
@@ -666,7 +664,7 @@ export type ResolveFn = (from: FilePath, to: string) => Promise<FilePath>;
  */
 type ResolveConfigFn = (
   configNames: Array<FilePath>,
-) => Promise<FilePath | null>;
+) => Promise<?FilePath>;
 
 /**
  * @section validator
@@ -674,7 +672,7 @@ type ResolveConfigFn = (
 type ResolveConfigWithPathFn = (
   configNames: Array<FilePath>,
   assetFilePath: string,
-) => Promise<FilePath | null>;
+) => Promise<?FilePath>;
 
 /**
  * @section validator

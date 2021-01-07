@@ -16,12 +16,14 @@
   "main": "lib/CSSPackager.js",
   "source": "src/CSSPackager.js",
   "engines": {
-    "node": ">= 10.0.0",
-    "parcel": "^2.0.0-alpha.1.1"
+    "node": ">= 12.0.0",
+    "parcel": "^2.0.0-beta.1"
   },
   "dependencies": {
     "@parcel/plugin": "2.0.0-beta.1",
     "@parcel/source-map": "2.0.0-alpha.4.19",
-    "@parcel/utils": "2.0.0-beta.1"
+    "@parcel/utils": "2.0.0-beta.1",
+    "nullthrows": "^1.1.1",
+    "postcss": "^8.2.1"
   }
 }

@@ -23,7 +23,7 @@ import assert from 'assert';
 import invariant from 'assert';
 import crypto from 'crypto';
 import nullthrows from 'nullthrows';
-import {flatMap, objectSortedEntriesDeep} from '@parcel/utils';
+import {objectSortedEntriesDeep} from '@parcel/utils';
 
 import {getBundleGroupId, getPublicId} from './utils';
 import Graph, {ALL_EDGE_TYPES, mapVisitor, type GraphOpts} from './Graph';
@@ -290,11 +290,26 @@ export default class BundleGraph {
     | {|type: 'bundle_group', value: BundleGroup|}
     | {|type: 'asset', value: Asset|}
   ) {
+    let depNode = nullthrows(this._graph.getNode(dependency.id));
+
     if (
       bundle != null &&
-      this._graph.hasEdge(bundle.id, dependency.id, 'internal_async')
+      this._graph.hasEdge(bundle.id, depNode.id, 'internal_async')
     ) {
-      let resolved = this.getDependencyResolution(dependency, bundle);
+      let referencedAssetNode = this._graph.getNodesConnectedFrom(
+        depNode,
+        'references',
+      )[0];
+
+      let resolved;
+      if (referencedAssetNode == null) {
+        resolved = this.getDependencyResolution(dependency, bundle);
+      } else {
+        // If a referenced asset already exists, resolve this dependency to it.
+        invariant(referencedAssetNode.type === 'asset');
+        resolved = referencedAssetNode.value;
+      }
+
       if (resolved == null) {
         return;
       } else {
@@ -609,22 +624,21 @@ export default class BundleGraph {
     // asynchonously. If any of them appear in our traversal, this asset is
     // referenced.
     let asyncInternalReferencingBundles = new Set(
-      flatMap(
-        this._graph
-          .getNodesConnectedTo(assetNode, 'references')
-          .filter(node => node.type === 'dependency')
-          .map(node => {
-            invariant(node.type === 'dependency');
-            return node;
-          }),
-        dependencyNode =>
+      this._graph
+        .getNodesConnectedTo(assetNode, 'references')
+        .filter(node => node.type === 'dependency')
+        .map(node => {
+          invariant(node.type === 'dependency');
+          return node;
+        })
+        .flatMap(dependencyNode =>
           this._graph
             .getNodesConnectedTo(dependencyNode, 'internal_async')
             .map(node => {
               invariant(node.type === 'bundle');
               return node.value;
             }),
-      ),
+        ),
     );
 
     const bundleHasReference = (bundle: Bundle) => {
