@@ -17,7 +17,7 @@ export default async function loadExternalPlugins(
             relative,
             null,
             options.packageManager,
-            options.autoinstall,
+            options.shouldAutoInstall,
           ),
         )
         .filter(Boolean),
@@ -31,7 +31,7 @@ export default async function loadExternalPlugins(
           relative,
           _plugins[p],
           options.packageManager,
-          options.autoinstall,
+          options.shouldAutoInstall,
         ),
       ),
     );
@@ -46,14 +46,14 @@ async function loadPlugin(
   relative: FilePath,
   options: mixed = {},
   packageManager: PackageManager,
-  autoinstall: boolean,
+  shouldAutoInstall: boolean,
 ): mixed {
   if (typeof pluginArg !== 'string') {
     return pluginArg;
   }
 
   let plugin = await packageManager.require(pluginArg, relative, {
-    autoinstall,
+    shouldAutoInstall,
   });
   plugin = plugin.default || plugin;
 

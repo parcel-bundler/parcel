@@ -374,7 +374,7 @@ describe('babel', function() {
           distDir,
         },
       },
-      autoinstall: true,
+      shouldAutoInstall: true,
     });
     let file = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
     assert(file.includes('function Foo'));
@@ -397,7 +397,7 @@ describe('babel', function() {
           distDir,
         },
       },
-      autoinstall: true,
+      shouldAutoInstall: true,
     });
     let file = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
     assert(!file.includes('REPLACE_ME'));
@@ -442,7 +442,7 @@ describe('babel', function() {
         path.join(__dirname, '/integration/babel-env-name/index.js'),
         {
           targets: {main: {distDir, engines: {browsers: ['ie 11']}}},
-          disableCache: false,
+          shouldDisableCache: false,
         },
       );
       let file = await outputFS.readFile(
@@ -453,7 +453,7 @@ describe('babel', function() {
 
       await bundle(
         path.join(__dirname, '/integration/babel-env-name/index.js'),
-        {disableCache: false, env: {BABEL_ENV: 'production'}},
+        {shouldDisableCache: false, env: {BABEL_ENV: 'production'}},
       );
       file = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
       assert(!file.includes('class Foo'));
@@ -464,7 +464,7 @@ describe('babel', function() {
         path.join(__dirname, '/integration/babel-env-name/index.js'),
         {
           targets: {main: {distDir, engines: {browsers: ['ie 11']}}},
-          disableCache: false,
+          shouldDisableCache: false,
           env: {NODE_ENV: 'production'},
         },
       );
@@ -478,7 +478,7 @@ describe('babel', function() {
         path.join(__dirname, '/integration/babel-env-name/index.js'),
         {
           targets: {main: {distDir, engines: {browsers: ['ie 11']}}},
-          disableCache: false,
+          shouldDisableCache: false,
           env: {BABEL_ENV: 'development'},
         },
       );
@@ -551,7 +551,7 @@ describe('babel', function() {
 
       let b = bundler(path.join(inputDir, 'index.js'), {
         outputFS: fs,
-        autoinstall: true,
+        shouldAutoInstall: true,
       });
 
       subscription = await b.watch();

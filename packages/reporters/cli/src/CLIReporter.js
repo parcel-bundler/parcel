@@ -43,12 +43,14 @@ export async function _report(
       // Clear any previous output
       resetWindow();
 
-      if (options.serve) {
+      if (options.serveOptions) {
         persistMessage(
           chalk.blue.bold(
             `${emoji.info} Server running at ${
-              options.serve.https ? 'https' : 'http'
-            }://${options.serve.host ?? 'localhost'}:${options.serve.port}`,
+              options.serveOptions.https ? 'https' : 'http'
+            }://${options.serveOptions.host ?? 'localhost'}:${
+              options.serveOptions.port
+            }`,
           ),
         );
       }
@@ -86,7 +88,7 @@ export async function _report(
           event.bundleGraph,
           options.outputFS,
           options.projectRoot,
-          options.detailedReport,
+          options.detailedReport?.assetsPerBundle,
         );
       }
       break;
