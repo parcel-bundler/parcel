@@ -1,6 +1,6 @@
 {
   "name": "@parcel/optimizer-terser",
-  "version": "2.0.0-frontbucket.42",
+  "version": "2.0.0-frontbucket.43",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -20,10 +20,10 @@
     "parcel": "^2.0.0-alpha.1.1"
   },
   "dependencies": {
-    "@parcel/diagnostic": "2.0.0-frontbucket.23",
-    "@parcel/plugin": "2.0.0-frontbucket.39",
+    "@parcel/diagnostic": "2.0.0-frontbucket.24",
+    "@parcel/plugin": "2.0.0-frontbucket.40",
     "@parcel/source-map": "2.0.0-alpha.4.19",
-    "@parcel/utils": "2.0.0-frontbucket.35",
+    "@parcel/utils": "2.0.0-frontbucket.36",
     "nullthrows": "^1.1.1",
     "terser": "^5.2.0"
   },

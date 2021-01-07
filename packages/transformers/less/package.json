@@ -1,6 +1,6 @@
 {
   "name": "@parcel/transformer-less",
-  "version": "2.0.0-frontbucket.41",
+  "version": "2.0.0-frontbucket.42",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -20,7 +20,7 @@
     "parcel": "^2.0.0-alpha.1.1"
   },
   "dependencies": {
-    "@parcel/plugin": "2.0.0-frontbucket.39",
+    "@parcel/plugin": "2.0.0-frontbucket.40",
     "@parcel/source-map": "2.0.0-alpha.4.19"
   },
   "devDependencies": {

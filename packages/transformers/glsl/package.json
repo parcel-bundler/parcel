@@ -1,6 +1,6 @@
 {
   "name": "@parcel/transformer-glsl",
-  "version": "2.0.0-frontbucket.9",
+  "version": "2.0.0-frontbucket.10",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -20,8 +20,8 @@
     "parcel": "^2.0.0-alpha.1.1"
   },
   "dependencies": {
-    "@parcel/plugin": "2.0.0-frontbucket.39",
-    "@parcel/utils": "2.0.0-frontbucket.35"
+    "@parcel/plugin": "2.0.0-frontbucket.40",
+    "@parcel/utils": "2.0.0-frontbucket.36"
   },
   "devDependencies": {
     "glslify-bundle": "^5.1.1",
