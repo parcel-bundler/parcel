@@ -52,16 +52,6 @@ const handleUncaughtException = async exception => {
 
 process.on('unhandledRejection', handleUncaughtException);
 
-// Capture the NODE_ENV this process was launched with, so that it can be
-// used in Parcel (such as in process.env inlining).
-const initialNodeEnv = process.env.NODE_ENV;
-// Then, override NODE_ENV to be PARCEL_BUILD_ENV (replaced with `production` in builds)
-// so that dependencies of Parcel like React (which renders the cli through `ink`)
-// run in the appropriate mode.
-if (typeof process.env.PARCEL_BUILD_ENV === 'string') {
-  process.env.NODE_ENV = process.env.PARCEL_BUILD_ENV;
-}
-
 program.version(version);
 
 // --no-cache, --cache-dir, --no-source-maps, --no-autoinstall, --global?, --public-url, --log-level
@@ -339,11 +329,15 @@ function parsePort(portValue: string): number {
 async function normalizeOptions(command): Promise<InitialParcelOptions> {
   let nodeEnv;
   if (command.name() === 'build') {
-    nodeEnv = initialNodeEnv || 'production';
+    nodeEnv = process.env.NODE_ENV || 'production';
     command.autoinstall = false;
   } else {
-    nodeEnv = initialNodeEnv || 'development';
+    nodeEnv = process.env.NODE_ENV || 'development';
   }
+
+  // Set process.env.NODE_ENV to a default if undefined so that it is
+  // available in JS configs and plugins.
+  process.env.NODE_ENV = nodeEnv;
 
   let https = !!command.https;
   if (command.cert && command.key) {
