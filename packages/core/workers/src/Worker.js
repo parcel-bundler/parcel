@@ -13,6 +13,7 @@ export type WorkerCall = {|
   handle?: number,
   args: $ReadOnlyArray<any>,
   retries: number,
+  skipReadyCheck?: boolean,
   resolve: (result: Promise<any> | any) => void,
   reject: (error: any) => void,
 |};
@@ -96,6 +97,7 @@ export default class Worker extends EventEmitter {
           },
         ],
         retries: 0,
+        skipReadyCheck: true,
         resolve,
         reject,
       });
@@ -143,14 +145,19 @@ export default class Worker extends EventEmitter {
     let idx = this.callId++;
     this.calls.set(idx, call);
 
-    this.send({
-      type: 'request',
-      idx: idx,
-      child: this.id,
-      handle: call.handle,
-      method: call.method,
-      args: call.args,
-    });
+    (this.ready || call.skipReadyCheck === true
+      ? Promise.resolve()
+      : new Promise(res => this.once('ready', res))
+    ).then(() =>
+      this.send({
+        type: 'request',
+        idx: idx,
+        child: this.id,
+        handle: call.handle,
+        method: call.method,
+        args: call.args,
+      }),
+    );
   }
 
   receive(message: WorkerMessage): void {
