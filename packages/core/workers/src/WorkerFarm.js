@@ -502,15 +502,21 @@ export default class WorkerFarm extends EventEmitter {
     let promises = [];
     for (let worker of this.workers.values()) {
       promises.push(
-        new Promise((resolve, reject) => {
-          worker.call({
-            method,
-            args,
-            resolve,
-            reject,
-            retries: 0,
-          });
-        }),
+        (worker.ready
+          ? Promise.resolve()
+          : new Promise(res => worker.once('ready', res))
+        ).then(
+          () =>
+            new Promise((resolve, reject) =>
+              worker.call({
+                method,
+                args,
+                resolve,
+                reject,
+                retries: 0,
+              }),
+            ),
+        ),
       );
     }
 
