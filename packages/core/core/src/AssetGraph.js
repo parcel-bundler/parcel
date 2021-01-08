@@ -57,6 +57,8 @@ export function nodeFromAssetGroup(assetGroup: AssetGroup): AssetGroupNode {
   console.log('assetgroup filepath:', assetGroup.filePath);
   console.log('assetgroup env:', assetGroup.env);
 
+  // avoid using md5 method by reaching into cache?
+
   const id = md5FromOrderedObject({
     filePath: assetGroup.filePath,
     env: assetGroup.env.id,

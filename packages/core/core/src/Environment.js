@@ -1,5 +1,5 @@
 // @flow
-import type {EnvironmentOptions} from '@parcel/types';
+import type {EnvironmentOpts} from '@parcel/types';
 import type {Environment} from './types';
 import {md5FromOrderedObject} from '@parcel/utils';
 
@@ -8,7 +8,7 @@ const DEFAULT_ENGINES = {
   node: '>= 8.0.0',
 };
 
-export const envCache = new Map<Environment, string>();
+export const envCache = new Map<string, Environment>();
 //key: a4115e2a10742b469ad164abba6c75d8-${context} value: Environment
 
 // export const clearCache = () => {
@@ -17,14 +17,14 @@ export const envCache = new Map<Environment, string>();
 
 export function createEnvironment({
   context,
-  engines,
-  includeNodeModules,
+  engines, //  object here. perhaps we could only compare equality of objs
+  includeNodeModules, // obj
   outputFormat,
   minify = false,
   isLibrary = false,
   scopeHoist = false,
-  sourceMap,
-}: EnvironmentOptions = {}): Environment {
+  sourceMap, //obj
+}: EnvironmentOpts = {}): Environment {
   if (context == null) {
     if (engines?.node) {
       context = 'node';
@@ -96,47 +96,47 @@ export function createEnvironment({
     scopeHoist,
     sourceMap,
   };
-
-  // let res2: Environment = {
-  //   id: '',
-  //   context,
-  //   engines,
-  //   includeNodeModules,
-  //   outputFormat,
-  //   isLibrary,
-  //   minify,
-  //   scopeHoist,
-  //   sourceMap,
-  // };
-
   // hash based on everything BUT id? Map<everythingExceptID, envID>
+  // IDEA: Map<[EnvID, context], Environment> <-- have to first compute the ID (i.e., getEnvironmentHash)
 
-  // for (const entry of envCache.entries()) {
-  //   // entry: [Environment, id]
-  //   if (deepEqual(entry[0], res)) {
-  //     res.id = entry[1];
-  //     console.log('getting', res, 'from cache:', envCache.get(entry[0]));
-  //     return res;
-  //   }
-  // }
-
-  // map each assetgroupNode ID to envID-context?
-
-  //res.id = getEnvironmentHash(res); // <-- this is expensive
   let id = getEnvironmentHash(res);
-  //envCache.set(res2, id);
-  // Env IDs can be the same but have different fields in res (specifically, context)
-  // e.g., in kitchen-sink/test-with-runtransform.txt with assetgroupid: 304775f6f744bb2676964ece4ad25ee9
-  // see comment in getEnvironmentHash
+  let idAndContext = `${id}-${context}`;
 
-  // But each assetGroupNode ID maps to the same env ID.
-
-  // Map<nodeID, Environment>
-  // NOT THIS envCache.set(nodeId, res);
-
-  //console.log('cache is now:', envCache);
+  for (const entry of envCache.entries()) {
+    // entry: [string, Environment]
+    if (entry[0] === idAndContext) {
+      // res.id = entry[1];
+      // console.log('getting', res, 'from cache:', envCache.get(entry[0]));
+      // return res;
+      //-----------
+      // entry[0].id = entry[1];
+      // console.log(
+      //   'about to return',
+      //   entry[0],
+      //   'from cache. cache is now:',
+      //   envCache,
+      // );
+      // return entry[0];
+      //--------------
+      console.log('returning', entry[1], 'from cache');
+      return entry[1];
+    }
+  }
 
   res.id = id;
+  envCache.set(idAndContext, res);
+  // Env IDs can be the same but have different fields in res (specifically, context)
+  // e.g., in kitchen-sink/test-with-runtransform.txt with Assetgroupid: 304775f6f744bb2676964ece4ad25ee9
+  // see comment in getEnvironmentHash
+
+  // But each assetGroupNode ID maps to the same env ID. (see nodeFromAssetGroup in AssetGraph.js)
+  // Map<nodeID, Environment>?
+
+  // console.log('cache is now:');
+  // for (let i of envCache.entries()) {
+  //   console.log(JSON.stringify(i));
+  // }
+  // console.log('end cache');
 
   return res;
 }

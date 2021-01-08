@@ -80,7 +80,7 @@ export async function runTransform(
   let config = await loadConfig(configCachePath, options);
 
   console.log('*****in runtransform. filepath:', opts.request.filePath);
-  console.log('*****in runtransform. env:', opts.request.env);
+  console.log('*****in runtransform. env:', opts.request.env); // HERE
 
   return new Transformation({
     workerApi,

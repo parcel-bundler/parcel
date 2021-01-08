@@ -34,18 +34,83 @@ export function md5FromReadableStream(stream: Readable): Promise<string> {
   });
 }
 
+export const envCache = new Map<Object, string>();
+
 export function md5FromOrderedObject(
   obj: {+[string]: mixed, ...},
   encoding: StringHashEncoding = 'hex',
 ): string {
-  return md5FromString(JSON.stringify(obj), encoding);
+  // {
+  //   filePath: assetGroup.filePath,
+  //   env: assetGroup.env.id,
+  //   isSource: assetGroup.isSource,
+  //   sideEffects: assetGroup.sideEffects,
+  //   code: assetGroup.code,
+  //   pipeline: assetGroup.pipeline,
+  //   query: assetGroup.query ? objectSortedEntries(assetGroup.query) : null,
+  //   invalidations: assetGroup.invalidations,
+  // }
+
+  // maybe envCache can be Map<GenericObj, string> instead of Map<everythingExceptID, envID>
+
+  for (const entry of envCache.entries()) {
+    // entry: [Environment, id]
+    if (deepEqual(entry[0], obj)) {
+      console.log('getting the following from md5 cache', entry[1]);
+      return entry[1];
+    }
+  }
+
+  let value = md5FromString(JSON.stringify(obj), encoding);
+
+  envCache.set(obj, value);
+  return value;
+}
+
+function deepEqual(object1, object2) {
+  const keys1 = Object.keys(object1);
+  const keys2 = Object.keys(object2);
+
+  if (keys1.length !== keys2.length) {
+    return false;
+  }
+
+  for (const key of keys1) {
+    const val1 = object1[key];
+    const val2 = object2[key];
+
+    const areObjects = isObject(val1) && isObject(val2);
+    if (
+      (areObjects && !deepEqual(val1, val2)) ||
+      (!areObjects && val1 !== val2)
+    ) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function isObject(object) {
+  return object != null && typeof object === 'object';
 }
 
 export function md5FromObject(
   obj: {+[string]: mixed, ...},
   encoding: StringHashEncoding = 'hex',
 ): string {
-  return md5FromString(JSON.stringify(objectSortedEntriesDeep(obj)), encoding);
+  for (const entry of envCache.entries()) {
+    // entry: [Environment, id]
+    if (deepEqual(entry[0], obj)) {
+      console.log('getting the following from md5 cache', entry[1]);
+      return entry[1];
+    }
+  }
+
+  let value = md5FromString(JSON.stringify(obj), encoding);
+
+  envCache.set(obj, value);
+  return value;
 }
 
 export function md5FromFilePath(
