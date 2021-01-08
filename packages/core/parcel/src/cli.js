@@ -335,6 +335,10 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
     nodeEnv = process.env.NODE_ENV || 'development';
   }
 
+  // Set process.env.NODE_ENV to a default if undefined so that it is
+  // available in JS configs and plugins.
+  process.env.NODE_ENV = nodeEnv;
+
   let https = !!command.https;
   if (command.cert && command.key) {
     https = {
