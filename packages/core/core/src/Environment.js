@@ -1,5 +1,5 @@
 // @flow
-import type {EnvironmentOpts} from '@parcel/types';
+import type {EnvironmentOptions} from '@parcel/types';
 import type {Environment} from './types';
 import {md5FromOrderedObject} from '@parcel/utils';
 
@@ -24,7 +24,7 @@ export function createEnvironment({
   isLibrary = false,
   scopeHoist = false,
   sourceMap,
-}: EnvironmentOpts = {}): Environment {
+}: EnvironmentOptions = {}): Environment {
   if (context == null) {
     if (engines?.node) {
       context = 'node';
@@ -170,7 +170,7 @@ function isObject(object) {
 
 export function mergeEnvironments(
   a: Environment,
-  b: ?EnvironmentOpts,
+  b: ?EnvironmentOptions,
 ): Environment {
   // If merging the same object, avoid copying.
   if (a === b || !b) {

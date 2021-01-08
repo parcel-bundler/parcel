@@ -251,7 +251,7 @@ describe('ParcelConfig', () => {
         config,
         DEFAULT_OPTIONS.packageManager,
         DEFAULT_OPTIONS.inputFS,
-        DEFAULT_OPTIONS.autoinstall,
+        DEFAULT_OPTIONS.shouldAutoInstall,
       );
 
       // $FlowFixMe

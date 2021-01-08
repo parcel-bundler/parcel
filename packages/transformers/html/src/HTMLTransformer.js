@@ -39,7 +39,7 @@ export default (new Transformer({
     // empty <script></script> is added to make sure HMR is working even if user
     // didn't add any. It's inserted at the very end to take into account cases
     // when there's no html/head/body in source html.
-    if (options.hot && !(hasScripts || hasInlineScripts)) {
+    if (options.hmrOptions && !(hasScripts || hasInlineScripts)) {
       ast.program.push({
         tag: 'script',
         attrs: {
