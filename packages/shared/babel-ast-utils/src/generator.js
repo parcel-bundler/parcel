@@ -1,4 +1,4 @@
-import {baseGenerator, EXPRESSIONS_PRECEDENCE} from '@parcel/astring';
+import {baseGenerator, EXPRESSIONS_PRECEDENCE} from 'astring';
 
 export const expressionPrecedence = {
   ...EXPRESSIONS_PRECEDENCE,
