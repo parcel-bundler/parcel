@@ -37,7 +37,7 @@ export default (new Transformer({
   async transform({asset, config, options}) {
     const pugConfig = config ? config.contents : {};
     const pug = await options.packageManager.require('pug', asset.filePath, {
-      autoinstall: options.autoinstall,
+      shouldAutoInstall: options.shouldAutoInstall,
     });
     const content = await asset.getCode();
     const render = pug.compile(content, {

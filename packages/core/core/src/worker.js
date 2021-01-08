@@ -60,7 +60,7 @@ async function loadConfig(cachePath, options) {
     ((processedConfig: any): ProcessedParcelConfig),
     options.packageManager,
     options.inputFS,
-    options.autoinstall,
+    options.shouldAutoInstall,
   );
   parcelConfigCache.set(cachePath, config);
   return config;
@@ -134,7 +134,7 @@ export async function runPackage(
     processedConfig,
     options.packageManager,
     options.inputFS,
-    options.autoinstall,
+    options.shouldAutoInstall,
   );
 
   let runner = new PackagerRunner({

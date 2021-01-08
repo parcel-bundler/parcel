@@ -426,7 +426,7 @@ export default class Transformation {
   }
 
   async readFromCache(cacheKey: string): Promise<?Array<UncommittedAsset>> {
-    if (this.options.disableCache || this.request.code != null) {
+    if (this.options.shouldDisableCache || this.request.code != null) {
       return null;
     }
 

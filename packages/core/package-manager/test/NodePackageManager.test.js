@@ -67,7 +67,7 @@ describe('NodePackageManager', function() {
       await packageManager.resolve(
         'a',
         path.join(FIXTURES_DIR, 'has-foo/index.js'),
-        {autoinstall: true},
+        {shouldAutoInstall: true},
       ),
       {
         pkg: {
@@ -87,7 +87,7 @@ describe('NodePackageManager', function() {
         packageManager.resolve(
           'a',
           path.join(FIXTURES_DIR, 'has-a-not-yet-installed/index.js'),
-          {autoinstall: true},
+          {shouldAutoInstall: true},
         ),
       err => {
         invariant(err instanceof ThrowableDiagnostic);
@@ -108,7 +108,7 @@ describe('NodePackageManager', function() {
     await packageManager.resolve(
       'peers',
       path.join(FIXTURES_DIR, 'has-foo/index.js'),
-      {autoinstall: true},
+      {shouldAutoInstall: true},
     );
     assert.deepEqual(spy.args, [
       [
@@ -139,7 +139,7 @@ describe('NodePackageManager', function() {
     await packageManager.resolve(
       'peers',
       path.join(FIXTURES_DIR, 'empty/index.js'),
-      {autoinstall: true},
+      {shouldAutoInstall: true},
     );
     assert.deepEqual(spy.args, [
       [
@@ -200,7 +200,7 @@ describe('NodePackageManager', function() {
           path.join(FIXTURES_DIR, 'has-foo/subpackage/index.js'),
           {
             range: '^2.0.0',
-            autoinstall: true,
+            shouldAutoInstall: true,
           },
         ),
         {
@@ -251,7 +251,7 @@ describe('NodePackageManager', function() {
             path.join(FIXTURES_DIR, 'has-foo/index.js'),
             {
               range: '^2.0.0',
-              autoinstall: true,
+              shouldAutoInstall: true,
             },
           ),
         err => {

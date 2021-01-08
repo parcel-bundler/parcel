@@ -28,8 +28,8 @@ export default (new Transformer({
         'sharp',
         asset.filePath,
         {
-          // Sharp takes too long to install for autoinstall option to make sense
-          autoinstall: false,
+          // Sharp takes too long to install for shouldAutoInstall option to make sense
+          shouldAutoInstall: false,
         },
       );
 

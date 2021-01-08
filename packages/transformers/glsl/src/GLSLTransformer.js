@@ -12,7 +12,7 @@ export default (new Transformer({
       'glslify-deps',
       asset.filePath,
       {
-        autoinstall: options.autoinstall,
+        shouldAutoInstall: options.shouldAutoInstall,
       },
     );
 
@@ -40,7 +40,7 @@ export default (new Transformer({
       'glslify-bundle',
       asset.filePath,
       {
-        autoinstall: options.autoinstall,
+        shouldAutoInstall: options.shouldAutoInstall,
       },
     );
 

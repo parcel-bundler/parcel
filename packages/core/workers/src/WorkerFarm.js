@@ -44,7 +44,7 @@ export type FarmOptions = {|
   warmWorkers: boolean,
   workerPath?: FilePath,
   backend: BackendType,
-  patchConsole?: boolean,
+  shouldPatchConsole?: boolean,
 |};
 
 type WorkerModule = {|
@@ -206,7 +206,7 @@ export default class WorkerFarm extends EventEmitter {
     let worker = new Worker({
       forcedKillTime: this.options.forcedKillTime,
       backend: this.options.backend,
-      patchConsole: this.options.patchConsole,
+      shouldPatchConsole: this.options.shouldPatchConsole,
       sharedReferences: this.sharedReferences,
     });
 
