@@ -172,12 +172,12 @@ async function setup(entry) {
   b = bundler(entry, {
     inputFS: fs,
     outputFS: fs,
-    serve: {
+    serveOptions: {
       https: false,
       port,
       host: '127.0.0.1',
     },
-    hot: {
+    hmrOptions: {
       port,
     },
     defaultConfig: path.join(

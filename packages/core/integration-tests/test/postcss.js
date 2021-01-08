@@ -339,7 +339,7 @@ describe('postcss', () => {
       inputFS: overlayFS,
       packageManager,
       distDir,
-      autoinstall: true,
+      shouldAutoInstall: true,
     });
 
     // cssnext was installed

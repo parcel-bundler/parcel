@@ -24,7 +24,7 @@ export default async function babel7(
     ? bundledBabelCore
     : await options.packageManager.require('@babel/core', asset.filePath, {
         range: BABEL_RANGE,
-        autoinstall: options.autoinstall,
+        shouldAutoInstall: options.shouldAutoInstall,
       });
 
   let config = {

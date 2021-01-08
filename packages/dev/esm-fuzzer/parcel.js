@@ -23,7 +23,7 @@ module.exports = async function({
 
   let b = new Parcel({
     entries,
-    disableCache: true,
+    shouldDisableCache: true,
     defaultConfig: `${__dirname}/config.json`,
     inputFS: new OverlayFS(inputFS, new NodeFS()),
     outputFS: outputFS,
@@ -33,7 +33,7 @@ module.exports = async function({
       node: '14',
     },
     distDir: DIST_DIR,
-    patchConsole: false,
+    shouldPatchConsole: false,
     mode: 'production',
     minify: false,
     targets: {
