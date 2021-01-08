@@ -4456,6 +4456,7 @@ describe('scope hoisting', function() {
   it('loads another bundle from a dynamic import with a shared dependency only when necessary', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/sync-async-when-needed/index.js'),
+      {mode: 'production'},
     );
 
     assertBundles(b, [

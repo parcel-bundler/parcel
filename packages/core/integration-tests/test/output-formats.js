@@ -369,6 +369,7 @@ describe('output formats', function() {
           __dirname,
           '/integration/formats/commonjs-split-reexport-default/index.js',
         ),
+        {mode: 'production'},
       );
 
       assertBundles(b, [
