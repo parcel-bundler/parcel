@@ -260,9 +260,9 @@ export default (new Transformer({
       asset,
       data,
       parsed.pointers,
-      Boolean(options.hot),
+      Boolean(options.hmrOptions),
     );
-    if (options.hot) {
+    if (options.hmrOptions) {
       // To enable HMR, we must override the CSP to allow 'unsafe-eval'
       data.content_security_policy = cspPatchHMR(data.content_security_policy);
     }

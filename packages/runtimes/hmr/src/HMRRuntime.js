@@ -23,7 +23,7 @@ export default (new Runtime({
         `var HMR_HOST = ${JSON.stringify(host != null ? host : null)};` +
         `var HMR_PORT = ${JSON.stringify(port != null ? port : null)};` +
         `var HMR_SECURE = ${JSON.stringify(
-          !!(options.serve && options.serve.https),
+          !!(options.serveOptions && options.serveOptions.https),
         )};` +
         `var HMR_ENV_HASH = "${md5FromObject(bundle.env)}";` +
         `module.bundle.HMR_BUNDLE_ID = ${JSON.stringify(bundle.id)};` +
