@@ -14,7 +14,7 @@ import type {
   Statement,
 } from '@babel/types';
 
-import babelGenerate from '@babel/generator';
+import {generateAST} from '@parcel/babel-ast-utils';
 import invariant from 'assert';
 import {isEntry} from './utils';
 import SourceMap from '@parcel/source-map';
@@ -99,20 +99,14 @@ export function generate({
     ),
   );
 
-  let {code, rawMappings} = babelGenerate(ast, {
+  let {content, map} = generateAST({
+    ast,
     sourceMaps: !!bundle.env.sourceMap,
-    minified: bundle.env.minify,
-    comments: true, // retain /*@__PURE__*/ comments for terser
+    options,
   });
 
-  let map = null;
-  if (bundle.env.sourceMap && rawMappings != null) {
-    map = new SourceMap(options.projectRoot);
-    map.addIndexedMappings(rawMappings);
-  }
-
   return {
-    contents: code,
+    contents: content,
     map,
   };
 }

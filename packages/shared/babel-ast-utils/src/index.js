@@ -5,15 +5,22 @@ import type {
   BaseAsset,
   PluginOptions,
   SourceLocation,
+  FilePath,
 } from '@parcel/types';
-import type {SourceLocation as BabelSourceLocation} from '@babel/types';
+import type {
+  SourceLocation as BabelSourceLocation,
+  File as BabelNodeFile,
+} from '@babel/types';
 
 import path from 'path';
-import babelGenerate from '@babel/generator';
 import {parse as babelParse} from '@babel/parser';
 import SourceMap from '@parcel/source-map';
 import {relativeUrl} from '@parcel/utils';
 import {babelErrorEnhancer} from './babelErrorUtils';
+// $FlowFixMe
+import {generate as astringGenerate} from 'astring';
+// $FlowFixMe
+import {generator, expressionPrecedence} from './generator';
 
 export {babelErrorEnhancer};
 
@@ -42,6 +49,58 @@ export async function parse({
   }
 }
 
+// astring is ~50x faster than @babel/generator. We use it with a custom
+// generator to handle the Babel AST differences from ESTree.
+export function generateAST({
+  ast,
+  sourceFileName,
+  sourceMaps,
+  originalSourceMap,
+  options,
+}: {|
+  ast: BabelNodeFile,
+  sourceFileName?: FilePath,
+  sourceMaps?: boolean,
+  originalSourceMap?: ?SourceMap,
+  options: PluginOptions,
+|}): {|content: string, map: ?SourceMap|} {
+  let map = new SourceMap(options.projectRoot);
+  let mappings = [];
+  let generated = astringGenerate(ast.program, {
+    generator,
+    expressionPrecedence,
+    comments: true,
+    sourceMap: sourceMaps
+      ? {
+          file: sourceFileName,
+          addMapping(mapping) {
+            // Copy the object because astring mutates it
+            mappings.push({
+              original: mapping.original,
+              generated: {
+                line: mapping.generated.line,
+                column: mapping.generated.column,
+              },
+              name: mapping.name,
+              source: mapping.source,
+            });
+          },
+        }
+      : null,
+  });
+
+  map.addIndexedMappings(mappings);
+
+  if (originalSourceMap) {
+    map.extends(originalSourceMap.toBuffer());
+  }
+
+  return {
+    content: generated,
+    map,
+  };
+}
+
 export async function generate({
   asset,
   ast,
@@ -52,32 +111,13 @@ export async function generate({
   options: PluginOptions,
 |}): Promise<{|content: string, map: ?SourceMap|}> {
   let sourceFileName: string = relativeUrl(options.projectRoot, asset.filePath);
-  let generated;
-  try {
-    generated = babelGenerate(ast.program, {
-      sourceMaps: !!asset.env.sourceMap,
-      sourceFileName: sourceFileName,
-    });
-  } catch (e) {
-    throw await babelErrorEnhancer(e, asset);
-  }
-
-  let map = null;
-  let originalSourceMap = await asset.getMap();
-  if (generated.rawMappings) {
-    map = new SourceMap(options.projectRoot);
-    map.addIndexedMappings(generated.rawMappings);
-    if (originalSourceMap) {
-      map.extends(originalSourceMap.toBuffer());
-    }
-  } else {
-    map = originalSourceMap;
-  }
-
-  return {
-    content: generated.code,
-    map,
-  };
+  return generateAST({
+    ast: ast.program,
+    sourceFileName,
+    sourceMaps: !!asset.env.sourceMap,
+    originalSourceMap: await asset.getMap(),
+    options,
+  });
 }
 
 export function convertBabelLoc(loc: ?BabelSourceLocation): ?SourceLocation {

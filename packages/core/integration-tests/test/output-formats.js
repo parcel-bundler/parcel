@@ -547,7 +547,7 @@ describe('output formats', function() {
       );
 
       let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
-      assert(dist.includes('export { a, c }'));
+      assert(dist.includes('export {a, c}'));
       assert(dist.includes('export default'));
     });
 
@@ -557,7 +557,7 @@ describe('output formats', function() {
       );
 
       let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
-      assert(dist.includes('export { foo, other, other as test };'));
+      assert(dist.includes('export {foo, other, other as test};'));
       assert(dist.includes('export default other;'));
     });
 
@@ -567,7 +567,7 @@ describe('output formats', function() {
       );
 
       let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
-      assert(dist.includes('export { a, c }'));
+      assert(dist.includes('export {a, c}'));
       assert(!dist.includes('export default'));
     });
 
@@ -600,7 +600,7 @@ describe('output formats', function() {
 
       let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
       assert(dist.includes('export const bar'));
-      assert(dist.includes('import { add } from "lodash"'));
+      assert(dist.includes('import {add} from "lodash"'));
     });
 
     it('should support esmodule output with external modules (named import with same name)', async function() {
@@ -610,8 +610,8 @@ describe('output formats', function() {
 
       let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
       assert(dist.includes('export const bar'));
-      assert(dist.includes('import { assign } from "lodash/fp"'));
-      assert(dist.includes('import { assign as _assign } from "lodash"'));
+      assert(dist.includes('import {assign} from "lodash/fp"'));
+      assert(dist.includes('import {assign as _assign} from "lodash"'));
       assert(dist.includes('assign !== _assign'));
     });
 
@@ -643,7 +643,7 @@ describe('output formats', function() {
       let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
       assert(dist.includes('export const bar'));
       assert(dist.includes('import _lodash, * as _lodash2 from "lodash"'));
-      assert(dist.includes('import { add } from "lodash"'));
+      assert(dist.includes('import {add} from "lodash"'));
     });
 
     it('should support esmodule output with external modules (export)', async function() {
@@ -652,8 +652,8 @@ describe('output formats', function() {
       );
 
       let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
-      assert(dist.includes('import { add } from "lodash"'));
-      assert(dist.includes('export { add }'));
+      assert(dist.includes('import {add} from "lodash"'));
+      assert(dist.includes('export {add}'));
     });
 
     it('should support esmodule output with external modules (re-export)', async function() {
@@ -662,8 +662,8 @@ describe('output formats', function() {
       );
 
       let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
-      assert(dist.includes('import { add } from "lodash"'));
-      assert(dist.includes('export { add }'));
+      assert(dist.includes('import {add} from "lodash"'));
+      assert(dist.includes('export {add}'));
     });
 
     it('should support importing sibling bundles in library mode', async function() {
@@ -700,7 +700,7 @@ describe('output formats', function() {
       );
 
       let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
-      assert(dist.includes('import { foo as _foo } from "foo";'));
+      assert(dist.includes('import {foo as _foo} from "foo";'));
       assert(dist.includes('export const foo = _foo + 3;'));
     });
 
@@ -818,7 +818,7 @@ describe('output formats', function() {
         'utf8',
       );
       assert(
-        new RegExp(`import { .+ } from "\\.\\/${sharedBundle.name}"`).test(
+        new RegExp(`import {.+} from "\\.\\/${sharedBundle.name}"`).test(
           async1,
         ),
       );
@@ -828,7 +828,7 @@ describe('output formats', function() {
         'utf8',
       );
       assert(
-        new RegExp(`import { .+ } from "\\.\\/${sharedBundle.name}"`).test(
+        new RegExp(`import {.+} from "\\.\\/${sharedBundle.name}"`).test(
           async2,
         ),
       );
@@ -853,7 +853,7 @@ describe('output formats', function() {
 
       assert(/export function \$[a-f0-9]+\$init\(\)/.test(mainBundleContents));
       assert(
-        /import { \$[a-f0-9]+\$init } from "\.\/index\.js"/.test(
+        /import {\$[a-f0-9]+\$init} from "\.\/index\.js"/.test(
           childBundleContents,
         ),
       );
@@ -1050,7 +1050,7 @@ describe('output formats', function() {
 
       let async1 = await outputFS.readFile(async1Bundle.filePath, 'utf8');
       assert(
-        new RegExp(`import { .+ } from "\\.\\/${sharedBundle.name}"`).test(
+        new RegExp(`import {.+} from "\\.\\/${sharedBundle.name}"`).test(
           async1,
         ),
       );
@@ -1060,7 +1060,7 @@ describe('output formats', function() {
         'utf8',
       );
       assert(
-        new RegExp(`import { .+ } from "\\.\\/${sharedBundle.name}"`).test(
+        new RegExp(`import {.+} from "\\.\\/${sharedBundle.name}"`).test(
           async2,
         ),
       );
@@ -1087,7 +1087,7 @@ describe('output formats', function() {
       assert(exportName);
 
       assert.equal(
-        dist2.match(/import { ([a-z0-9$]+) } from "\.\/index\.js";/)[1],
+        dist2.match(/import {([a-z0-9$]+)} from "\.\/index\.js";/)[1],
         exportName,
       );
     });
@@ -1117,8 +1117,8 @@ describe('output formats', function() {
 
       let lines = dist.trim('\n').split('\n');
       assert(
-        // The last line is a sourcemap comment -- test the second-to-last line
-        lines[lines.length - 2].startsWith('export default'),
+        // The last line is a sourcemap comment, second is empty -- test the third-to-last line
+        lines[lines.length - 3].startsWith('export default'),
       );
     });
 

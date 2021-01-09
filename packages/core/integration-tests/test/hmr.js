@@ -68,7 +68,7 @@ describe('hmr', function() {
     it('should emit an HMR update for the file that changed', async function() {
       let port = await getPort();
       let b = bundler(path.join(__dirname, '/input/index.js'), {
-        hot: {port},
+        hmrOptions: {port},
         inputFS: overlayFS,
         config,
       });
@@ -89,7 +89,7 @@ describe('hmr', function() {
 
       // Figure out why output doesn't change...
       let localAsset = message.assets.find(
-        asset => asset.output === 'exports.a = 5;\nexports.b = 5;',
+        asset => asset.output === 'exports.a = 5;\nexports.b = 5;\n',
       );
       assert(!!localAsset);
     });
@@ -97,7 +97,7 @@ describe('hmr', function() {
     it('should emit an HMR update for all new dependencies along with the changed file', async function() {
       let port = await getPort();
       let b = bundler(path.join(__dirname, '/input/index.js'), {
-        hot: {port},
+        hmrOptions: {port},
         inputFS: overlayFS,
         config,
       });
@@ -122,7 +122,7 @@ describe('hmr', function() {
     it('should emit an HMR error on bundle failure', async function() {
       let port = await getPort();
       let b = bundler(path.join(__dirname, '/input/index.js'), {
-        hot: {port},
+        hmrOptions: {port},
         inputFS: overlayFS,
         config,
       });
@@ -149,7 +149,7 @@ describe('hmr', function() {
     it('should emit an HMR error to new connections after a bundle failure', async function() {
       let port = await getPort();
       let b = bundler(path.join(__dirname, '/input/index.js'), {
-        hot: {port},
+        hmrOptions: {port},
         inputFS: overlayFS,
         config,
       });
@@ -171,7 +171,7 @@ describe('hmr', function() {
     it('should emit an HMR update after error has been resolved', async function() {
       let port = await getPort();
       let b = bundler(path.join(__dirname, '/input/index.js'), {
-        hot: {port},
+        hmrOptions: {port},
         inputFS: overlayFS,
         config,
       });
@@ -203,12 +203,12 @@ describe('hmr', function() {
     it('should make a secure connection', async function() {
       let port = await getPort();
       let b = bundler(path.join(__dirname, '/input/index.js'), {
-        serve: {
+        serveOptions: {
           https: true,
           port,
           host: 'localhost',
         },
-        hot: {port},
+        hmrOptions: {port},
         inputFS: overlayFS,
         config,
       });
@@ -233,7 +233,7 @@ describe('hmr', function() {
     it('should make a secure connection with custom certificate', async function() {
       let port = await getPort();
       let b = bundler(path.join(__dirname, '/input/index.js'), {
-        serve: {
+        serveOptions: {
           https: {
             key: path.join(__dirname, '/integration/https/private.pem'),
             cert: path.join(__dirname, '/integration/https/primary.crt'),
@@ -241,7 +241,7 @@ describe('hmr', function() {
           port,
           host: 'localhost',
         },
-        hot: {port},
+        hmrOptions: {port},
         inputFS: overlayFS,
         config,
       });
@@ -270,7 +270,7 @@ describe('hmr', function() {
     /*it('should work with circular dependencies', async function() {
       let port = await getPort();
       let b = bundler(path.join(__dirname, '/input/index.js'), {
-        hot: {
+        hmrOptions: {
           https: false,
           port,
           host: 'localhost',
@@ -356,7 +356,7 @@ describe('hmr', function() {
 
       let port = await getPort();
       let b = await bundle(path.join(__dirname, '/input/index.js'), {
-        hot: {
+        hmrOptions: {
           https: false,
           port,
           host: 'localhost',
@@ -410,7 +410,7 @@ describe('hmr', function() {
 
       let port = await getPort();
       let b = await bundle(path.join(__dirname, '/input/index.js'), {
-        hot: {
+        hmrOptions: {
           https: false,
           port,
           host: 'localhost',
@@ -528,7 +528,7 @@ describe('hmr', function() {
 
       let port = await getPort();
       let b = await bundle(path.join(__dirname, '/input/index.js'), {
-        hot: {
+        hmrOptions: {
           https: false,
           port,
           host: 'localhost',
@@ -580,7 +580,7 @@ describe('hmr', function() {
 
       let port = await getPort();
       let b = await bundle(path.join(__dirname, '/input/index.js'), {
-        hot: {
+        hmrOptions: {
           https: false,
           port,
           host: 'localhost',
@@ -650,12 +650,12 @@ describe('hmr', function() {
       let b = bundler(path.join(testDir, 'index.html'), {
         inputFS: overlayFS,
         outputFS: overlayFS,
-        serve: {
+        serveOptions: {
           https: false,
           port,
           host: '127.0.0.1',
         },
-        hot: {port},
+        hmrOptions: {port},
         config,
       });
 
