@@ -89,7 +89,7 @@ describe('hmr', function() {
 
       // Figure out why output doesn't change...
       let localAsset = message.assets.find(
-        asset => asset.output === 'exports.a = 5;\nexports.b = 5;',
+        asset => asset.output === 'exports.a = 5;\nexports.b = 5;\n',
       );
       assert(!!localAsset);
     });
