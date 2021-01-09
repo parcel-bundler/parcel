@@ -84,6 +84,7 @@ class BundlerRunner {
     this.optionsRef = input.optionsRef;
     this.config = config;
     this.pluginOptions = new PluginOptions(
+      // TODO: proxy
       this.options
     );
   }
@@ -114,6 +115,13 @@ class BundlerRunner {
       }
     }
 
+    if (configResult != null) {
+      for (let file of configResult.files) {
+        this.api.invalidateOnFileUpdate(file.filePath);
+        this.api.invalidateOnFileDelete(file.filePath);
+      }
+    }
+
     // let cacheKey;
     // if (
     //   !this.options.disableCache// &&
@@ -140,12 +148,14 @@ class BundlerRunner {
       this.options,
     );
 
+    let logger = new PluginLogger({origin: this.config.getBundlerName()});
+
     try {
       await bundler.bundle({
         bundleGraph: mutableBundleGraph,
         config: configResult?.config,
         options: this.pluginOptions,
-        logger: new PluginLogger({origin: this.config.getBundlerName()}),
+        logger,
       });
     } catch (e) {
       throw new ThrowableDiagnostic({
@@ -160,7 +170,7 @@ class BundlerRunner {
         bundleGraph: mutableBundleGraph,
         config: configResult?.config,
         options: this.pluginOptions,
-        logger: new PluginLogger({origin: this.config.getBundlerName()}),
+        logger,
       });
     } catch (e) {
       throw new ThrowableDiagnostic({
@@ -180,6 +190,7 @@ class BundlerRunner {
       optionsRef: this.optionsRef,
       pluginOptions: this.pluginOptions,
     });
+    
     // $FlowFixMe
     await dumpGraphToGraphViz(internalBundleGraph._graph, 'after_runtimes');
     

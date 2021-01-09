@@ -1307,6 +1307,8 @@ describe('cache', function() {
 
       assert.equal(await run(b.bundleGraph), 'updated');
     });
+
+    it('should invalidate when a parcel transformer plugin version changes', function() {});
   });
 
   describe('entries', function() {
@@ -4127,12 +4129,98 @@ describe('cache', function() {
     });
   });
 
-  describe('bundler config', function() {
-    it('should support adding bundler config', function() {});
+  describe('bundling', function() {
+    it('should invalidate when a bundler plugin version changes', function() {});
 
-    it('should support updating bundler config', function() {});
+    it('should invalidate when a namer plugin version changes', function() {});
 
-    it('should support removing bundler config', function() {});
+    it('should invalidate when a runtime plugin version changes', function() {});
+  });
+
+  describe.only('bundler config', function() {
+    it('should support adding bundler config', async function() {
+      let b = await testCache({
+        entries: ['*.html'],
+        async setup() {
+          let pkgFile = path.join(inputDir, 'package.json');
+          let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
+          await overlayFS.writeFile(
+            pkgFile,
+            JSON.stringify({
+              ...pkg,
+              '@parcel/bundler-default': undefined
+            }),
+          );
+        },
+        async update(b) {
+          let html = await overlayFS.readFile(b.bundleGraph.getBundles().find(b => b.name === 'b.html')?.filePath, 'utf8');
+          assert.equal(html.match(/<script/g)?.length, 6);
+
+          let pkgFile = path.join(inputDir, 'package.json');
+          let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
+          await overlayFS.writeFile(
+            pkgFile,
+            JSON.stringify({
+              ...pkg,
+              '@parcel/bundler-default': {
+                http: 1
+              }
+            }),
+          );
+        },
+      }, 'shared-many');
+
+      let html = await overlayFS.readFile(b.bundleGraph.getBundles().find(b => b.name === 'b.html')?.filePath, 'utf8');
+      assert.equal(html.match(/<script/g)?.length, 5);
+    });
+
+    it('should support updating bundler config', async function() {
+      let b = await testCache({
+        entries: ['*.html'],
+        async update(b) {
+          let html = await overlayFS.readFile(b.bundleGraph.getBundles().find(b => b.name === 'b.html')?.filePath, 'utf8');
+          assert.equal(html.match(/<script/g)?.length, 5);
+
+          let pkgFile = path.join(inputDir, 'package.json');
+          let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
+          await overlayFS.writeFile(
+            pkgFile,
+            JSON.stringify({
+              ...pkg,
+              '@parcel/bundler-default': {
+                http: 2
+              }
+            }),
+          );
+        },
+      }, 'shared-many');
+
+      let html = await overlayFS.readFile(b.bundleGraph.getBundles().find(b => b.name === 'b.html')?.filePath, 'utf8');
+      assert.equal(html.match(/<script/g)?.length, 6);
+    });
+
+    it('should support removing bundler config', async function() {
+      let b = await testCache({
+        entries: ['*.html'],
+        async update(b) {
+          let html = await overlayFS.readFile(b.bundleGraph.getBundles().find(b => b.name === 'b.html')?.filePath, 'utf8');
+          assert.equal(html.match(/<script/g)?.length, 5);
+
+          let pkgFile = path.join(inputDir, 'package.json');
+          let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
+          await overlayFS.writeFile(
+            pkgFile,
+            JSON.stringify({
+              ...pkg,
+              '@parcel/bundler-default': undefined
+            }),
+          );
+        },
+      }, 'shared-many');
+
+      let html = await overlayFS.readFile(b.bundleGraph.getBundles().find(b => b.name === 'b.html')?.filePath, 'utf8');
+      assert.equal(html.match(/<script/g)?.length, 6);
+    });
   });
 
   describe('scope hoisting', function() {
