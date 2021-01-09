@@ -129,6 +129,7 @@ export default class Worker extends EventEmitter {
         resolve,
         reject,
         retries: 0,
+        skipReadyCheck: true,
       });
     });
   }
