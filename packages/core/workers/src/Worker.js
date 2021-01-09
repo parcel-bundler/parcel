@@ -145,19 +145,20 @@ export default class Worker extends EventEmitter {
     let idx = this.callId++;
     this.calls.set(idx, call);
 
-    (this.ready || call.skipReadyCheck === true
-      ? Promise.resolve()
-      : new Promise(res => this.once('ready', res))
-    ).then(() =>
-      this.send({
-        type: 'request',
-        idx: idx,
-        child: this.id,
-        handle: call.handle,
-        method: call.method,
-        args: call.args,
-      }),
-    );
+    let msg = {
+      type: 'request',
+      idx: idx,
+      child: this.id,
+      handle: call.handle,
+      method: call.method,
+      args: call.args,
+    };
+
+    if (this.ready || call.skipReadyCheck === true) {
+      this.send(msg);
+    } else {
+      this.once('ready', () => this.send(msg));
+    }
   }
 
   receive(message: WorkerMessage): void {
