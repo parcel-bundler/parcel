@@ -288,14 +288,13 @@ export default class Parcel {
       } = await this.#requestTracker.runRequest(request);
       dumpGraphToGraphViz(assetGraph, 'MainAssetGraph');
 
-      // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
       let [
         bundleGraph,
         serializedBundleGraph,
+        // $FlowFixMe[incompatible-call] Due to dumpGraphToGraphViz usage below
       ] = await this.#bundlerRunner.bundle(assetGraph, {
         signal,
       });
-      // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381 (Windows only)
       dumpGraphToGraphViz(bundleGraph._graph, 'BundleGraph');
 
       await this.#packagerRunner.writeBundles(
