@@ -1,5 +1,5 @@
 // @flow strict-local
-import type {NamedBundle} from '@parcel/types';
+import type {PackagedBundle} from '@parcel/types';
 import {Reporter} from '@parcel/plugin';
 import path from 'path';
 
@@ -14,7 +14,7 @@ export default (new Reporter({
       return;
     }
 
-    let bundlesByTarget: Map<string, Array<NamedBundle>> = new Map();
+    let bundlesByTarget: Map<string, Array<PackagedBundle>> = new Map();
     for (let bundle of event.bundleGraph.getBundles()) {
       if (!bundle.isInline) {
         let bundles = bundlesByTarget.get(bundle.target.distDir);

@@ -28,7 +28,7 @@ export default (new Optimizer({
       ...userConfig?.config,
       sourceMap: bundle.env.sourceMap
         ? {
-            filename: path.relative(options.projectRoot, bundle.filePath),
+            filename: path.relative(options.projectRoot, path.join(bundle.target.distDir, bundle.name)),
             asObject: true,
             content: originalMap,
           }

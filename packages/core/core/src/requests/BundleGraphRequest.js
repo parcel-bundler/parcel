@@ -2,6 +2,7 @@
 
 import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import type {
+  Async,
   Bundle as IBundle,
   Namer,
   FilePath,
@@ -11,6 +12,7 @@ import type WorkerFarm, {SharedReference} from '@parcel/workers';
 import type ParcelConfig from '../ParcelConfig';
 import type {StaticRunOpts, RunAPI} from '../RequestTracker';
 import type {Bundle as InternalBundle, ParcelOptions} from '../types';
+import type {ConfigAndCachePath} from './ParcelConfigRequest';
 
 import assert from 'assert';
 import path from 'path';
@@ -28,8 +30,7 @@ import {normalizeSeparators, unique, md5FromOrderedObject} from '@parcel/utils';
 import PluginOptions from '../public/PluginOptions';
 import applyRuntimes from '../applyRuntimes';
 import {PARCEL_VERSION} from '../constants';
-import {assertSignalNotAborted} from '../utils';
-// import {deserialize, serialize} from '../serializer';
+import {assertSignalNotAborted, optionsProxy} from '../utils';
 import createParcelConfigRequest, {
   getCachedParcelConfig,
 } from './ParcelConfigRequest';
@@ -44,9 +45,16 @@ type RunInput = {|
   ...StaticRunOpts<InternalBundleGraph>,
 |};
 
+type BundleGraphRequest = {|
+  id: string,
+  +type: 'bundle_graph_request',
+  run: RunInput => Async<InternalBundleGraph>,
+  input: BundleGraphRequestInput,
+|};
+
 export default function createBundleGraphRequest(
-  input: AssetGraphRequestInput,
-): AssetGraphRequest {
+  input: BundleGraphRequestInput,
+): BundleGraphRequest {
   return {
     type: 'bundle_graph_request',
     id: 'BundleGraph:' + input.assetGraph.getHash(),
@@ -75,12 +83,14 @@ class BundlerRunner {
     this.api = api;
     this.optionsRef = input.optionsRef;
     this.config = config;
-    this.pluginOptions = new PluginOptions(this.options);
+    this.pluginOptions = new PluginOptions(
+      this.options
+    );
   }
 
   async bundle(
     graph: AssetGraph,
-  ): Promise<[InternalBundleGraph, Buffer]> {
+  ): Promise<InternalBundleGraph> {
     report({
       type: 'buildProgress',
       phase: 'bundling',
@@ -164,7 +174,7 @@ class BundlerRunner {
 
     await applyRuntimes({
       bundleGraph: internalBundleGraph,
-      requestTracker: this.api,
+      api: this.api,
       config: this.config,
       options: this.options,
       optionsRef: this.optionsRef,
@@ -195,8 +205,6 @@ class BundlerRunner {
       version,
       hash: assetGraph.getHash(),
       config: configResult?.config,
-      // TODO: remove once bundling is a request and we track options as invalidations.
-      hot: this.options.hot,
     });
   }
 
@@ -208,11 +216,11 @@ class BundlerRunner {
       bundles.map(bundle => this.nameBundle(namers, bundle, bundleGraph)),
     );
 
-    let bundlePaths = bundles.map(b => b.filePath);
+    let bundleNames = bundles.map(b => path.join(b.target.distDir, nullthrows(b.name)));
     assert.deepEqual(
-      bundlePaths,
-      unique(bundlePaths),
-      'Bundles must have unique filePaths',
+      bundleNames,
+      unique(bundleNames),
+      'Bundles must have unique names',
     );
   }
 
@@ -250,11 +258,6 @@ class BundlerRunner {
             );
           }
 
-          let target = nullthrows(internalBundle.target);
-          internalBundle.filePath = path.join(
-            target.distDir,
-            normalizeSeparators(name),
-          );
           internalBundle.name = name;
           let {hashReference} = internalBundle;
           internalBundle.displayName = name.includes(hashReference)

@@ -5,6 +5,7 @@ import type {
   BuildEvent,
   BuildSuccessEvent,
   InitialParcelOptions,
+  PackagedBundle as IPackagedBundle,
 } from '@parcel/types';
 import type {ParcelOptions} from './types';
 // eslint-disable-next-line no-unused-vars
@@ -15,7 +16,7 @@ import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import invariant from 'assert';
 import ThrowableDiagnostic, {anyToDiagnostic} from '@parcel/diagnostic';
 import {assetFromValue} from './public/Asset';
-import {NamedBundle} from './public/Bundle';
+import {PackagedBundle} from './public/Bundle';
 import BundleGraph from './public/BundleGraph';
 import BundlerRunner from './BundlerRunner';
 import WorkerFarm from '@parcel/workers';
@@ -290,9 +291,9 @@ export default class Parcel {
         optionsRef: this.#optionsRef,
       });
 
+      // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
       let bundleGraph = await this.#requestTracker.runRequest(bundleGraphRequest);
 
-      // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
       // let [
       //   bundleGraph,
       //   serializedBundleGraph,
@@ -319,7 +320,7 @@ export default class Parcel {
             assetFromValue(asset, options),
           ]),
         ),
-        bundleGraph: new BundleGraph(bundleGraph, NamedBundle.get, options),
+        bundleGraph: new BundleGraph<IPackagedBundle>(bundleGraph, PackagedBundle.get, options),
         buildTime: Date.now() - startTime,
       };
 

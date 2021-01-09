@@ -10,7 +10,7 @@ import type {
 } from './types';
 import type ParcelConfig from './ParcelConfig';
 import type PluginOptions from './public/PluginOptions';
-import type RequestTracker from './RequestTracker';
+import type {RunAPI} from './RequestTracker';
 
 import assert from 'assert';
 import invariant from 'assert';
@@ -36,7 +36,7 @@ export default async function applyRuntimes({
   config,
   options,
   pluginOptions,
-  requestTracker,
+  api,
   optionsRef,
 }: {|
   bundleGraph: InternalBundleGraph,
@@ -44,7 +44,7 @@ export default async function applyRuntimes({
   options: ParcelOptions,
   optionsRef: SharedReference,
   pluginOptions: PluginOptions,
-  requestTracker: RequestTracker,
+  api: RunAPI,
 |}): Promise<void> {
   let connections: Array<RuntimeConnection> = [];
 
@@ -95,7 +95,7 @@ export default async function applyRuntimes({
   }
 
   let runtimesAssetGraph = await reconcileNewRuntimes(
-    requestTracker,
+    api,
     connections,
     optionsRef,
   );
@@ -184,7 +184,7 @@ export default async function applyRuntimes({
 }
 
 async function reconcileNewRuntimes(
-  requestTracker: RequestTracker,
+  api: RunAPI,
   connections: Array<RuntimeConnection>,
   optionsRef: SharedReference,
 ): Promise<AssetGraph> {
@@ -196,5 +196,5 @@ async function reconcileNewRuntimes(
   });
 
   // rebuild the graph
-  return (await requestTracker.runRequest(request, {force: true})).assetGraph;
+  return (await api.runRequest(request, {force: true})).assetGraph;
 }

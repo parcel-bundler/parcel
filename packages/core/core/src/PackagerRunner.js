@@ -209,7 +209,7 @@ export default class PackagerRunner {
   ): Promise<?ConfigOutput> {
     let config: ?ConfigOutput;
 
-    let {plugin} = await this.config.getPackager(nullthrows(bundle.filePath));
+    let {plugin} = await this.config.getPackager(nullthrows(bundle.name));
     if (plugin.loadConfig != null) {
       try {
         config = await nullthrows(plugin.loadConfig)({
@@ -288,7 +288,7 @@ export default class PackagerRunner {
       if (bundle.env.sourceMap && bundle.env.sourceMap.inline) {
         return this.generateSourceMap(bundleToInternalBundle(bundle), map);
       } else {
-        return path.basename(bundle.filePath) + '.map';
+        return path.basename(bundle.name) + '.map';
       }
     } else {
       return null;
@@ -307,7 +307,7 @@ export default class PackagerRunner {
       bundle,
     });
 
-    let {name, plugin} = await this.config.getPackager(bundle.filePath);
+    let {name, plugin} = await this.config.getPackager(bundle.name);
     try {
       return await plugin.package({
         config: configs.get(bundle.id)?.config,
@@ -370,7 +370,7 @@ export default class PackagerRunner {
       this.options,
     );
     let optimizers = await this.config.getOptimizers(
-      bundle.filePath,
+      bundle.name,
       internalBundle.pipeline,
     );
     if (!optimizers.length) {
@@ -424,7 +424,7 @@ export default class PackagerRunner {
     map: SourceMap,
   ): Promise<string> {
     // sourceRoot should be a relative path between outDir and rootDir for node.js targets
-    let filePath = nullthrows(bundle.filePath);
+    let filePath = path.join(bundle.target.distDir, nullthrows(bundle.name));
     let sourceRoot: string = path.relative(
       path.dirname(filePath),
       this.options.projectRoot,
@@ -479,11 +479,11 @@ export default class PackagerRunner {
     bundleGraph: InternalBundleGraph,
     configs: Map<string, ?ConfigOutput>,
   ): Promise<string> {
-    let filePath = nullthrows(bundle.filePath);
+    let name = nullthrows(bundle.name);
     // TODO: include packagers and optimizers used in inline bundles as well
-    let {version: packager} = await this.config.getPackager(filePath);
+    let {version: packager} = await this.config.getPackager(name);
     let optimizers = (
-      await this.config.getOptimizers(filePath)
+      await this.config.getOptimizers(name)
     ).map(({name, version}) => [name, version]);
 
     let configResults = {};
@@ -537,25 +537,21 @@ export default class PackagerRunner {
     hashRefToNameHash: Map<string, string>,
   |}) {
     let {inputFS, outputFS} = this.options;
-    let filePath = nullthrows(bundle.filePath);
     let name = nullthrows(bundle.name);
     let thisHashReference = bundle.hashReference;
 
     if (info.type !== bundle.type) {
-      filePath =
-        filePath.slice(0, -path.extname(filePath).length) + '.' + info.type;
       name = name.slice(0, -path.extname(name).length) + '.' + info.type;
       bundle.type = info.type;
     }
 
-    if (filePath.includes(thisHashReference)) {
+    if (name.includes(thisHashReference)) {
       let thisNameHash = nullthrows(hashRefToNameHash.get(thisHashReference));
-      filePath = filePath.replace(thisHashReference, thisNameHash);
       name = name.replace(thisHashReference, thisNameHash);
     }
 
+    let filePath = path.join(bundle.target.distDir, name);
     bundle.filePath = filePath;
-    bundle.name = name;
 
     let dir = path.dirname(filePath);
     await outputFS.mkdirp(dir); // ? Got rid of dist exists, is this an expensive operation

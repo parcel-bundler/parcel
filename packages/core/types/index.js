@@ -900,8 +900,6 @@ export interface Bundle {
   +hashReference: string;
   +type: string;
   +env: Environment;
-  /** The output filespath (if not inline), can contain <code>hashReference</code> before the optimizer ran. */
-  +filePath: ?FilePath;
   /** Whether this is an entry (e.g. should not be hashed). */
   +isEntry: ?boolean;
   /** Whether this bundle should be inlined into the parent bundle(s), */
@@ -929,9 +927,12 @@ export interface Bundle {
  */
 export interface NamedBundle extends Bundle {
   +publicId: string;
-  +filePath: FilePath;
   +name: string;
   +displayName: string;
+}
+
+export interface PackagedBundle extends NamedBundle {
+  +filePath: FilePath;
 }
 
 /**
@@ -1344,7 +1345,7 @@ export type BuildProgressEvent =
  */
 export type BuildSuccessEvent = {|
   +type: 'buildSuccess',
-  +bundleGraph: BundleGraph<NamedBundle>,
+  +bundleGraph: BundleGraph<PackagedBundle>,
   +buildTime: number,
   +changedAssets: Map<string, Asset>,
 |};

@@ -1,6 +1,6 @@
 // @flow strict-local
 
-import type {FilePath, NamedBundle, PluginOptions} from '@parcel/types';
+import type {FilePath, PackagedBundle, PluginOptions} from '@parcel/types';
 
 import invariant from 'assert';
 import {Reporter} from '@parcel/plugin';
@@ -21,7 +21,7 @@ export default (new Reporter({
 
     let bundlesByTarget: DefaultMap<
       string /* target name */,
-      Array<NamedBundle>,
+      Array<PackagedBundle>,
     > = new DefaultMap(() => []);
     for (let bundle of event.bundleGraph.getBundles()) {
       if (!bundle.isInline) {
@@ -102,7 +102,7 @@ type BundleData = {|
 |};
 
 async function getBundleData(
-  bundles: Array<NamedBundle>,
+  bundles: Array<PackagedBundle>,
   options: PluginOptions,
 ): Promise<BundleData> {
   let groups = await Promise.all(
@@ -121,7 +121,7 @@ type DirMapValue = File | DirMap;
 type DirMap = DefaultMap<FilePath, DirMapValue>;
 let createMap: () => DirMap = () => new DefaultMap(() => createMap());
 
-async function getBundleNode(bundle: NamedBundle, options: PluginOptions) {
+async function getBundleNode(bundle: PackagedBundle, options: PluginOptions) {
   let buildMetrics = await generateBuildMetrics(
     [bundle],
     options.outputFS,

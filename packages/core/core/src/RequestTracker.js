@@ -76,7 +76,6 @@ type Request<TInput, TResult> = {|
 type StoredRequest = {|
   id: string,
   +type: string,
-  input: mixed,
   result?: mixed,
   resultCacheKey?: ?string,
 |};
@@ -734,7 +733,7 @@ export default class RequestTracker {
 
     let {api, subRequests} = this.createAPI(id);
     try {
-      this.startRequest({id, type: request.type, input: request.input});
+      this.startRequest({id, type: request.type});
       let node = this.graph.getRequestNode(id);
       let result = await request.run({
         input: request.input,

@@ -2493,7 +2493,7 @@ describe('cache', function() {
         shouldContentHash: true,
         update(b) {
           let bundle = b.bundleGraph.getBundles()[1];
-          assert(!bundle.name.includes(bundle.id.slice(-8)));
+          assert(!bundle.filePath.includes(bundle.id.slice(-8)));
 
           return {
             shouldContentHash: false,
@@ -2502,10 +2502,10 @@ describe('cache', function() {
       });
 
       let bundle = b.bundleGraph.getBundles()[1];
-      assert(bundle.name.includes(bundle.id.slice(-8)));
+      assert(bundle.filePath.includes(bundle.id.slice(-8)));
     });
 
-    it('should update when hot options change', async function() {
+    it('should update when hmr options change', async function() {
       let b = await testCache({
         hmrOptions: {
           host: 'localhost',
