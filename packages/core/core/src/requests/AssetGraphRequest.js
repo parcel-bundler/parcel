@@ -6,6 +6,7 @@ import type {
   ModuleSpecifier,
   Symbol,
   SourceLocation,
+  Meta,
 } from '@parcel/types';
 import type {SharedReference} from '@parcel/workers';
 import type {Diagnostic} from '@parcel/diagnostic';
@@ -215,7 +216,7 @@ export class AssetGraphBuilder {
       // exportSymbol -> identifier
       let assetSymbols: $ReadOnlyMap<
         Symbol,
-        {|local: Symbol, loc: ?SourceLocation|},
+        {|local: Symbol, loc: ?SourceLocation, meta?: ?Meta|},
       > = assetNode.value.symbols;
       // identifier -> exportSymbol
       let assetSymbolsInverse;
@@ -357,7 +358,7 @@ export class AssetGraphBuilder {
 
       let assetSymbols: $ReadOnlyMap<
         Symbol,
-        {|local: Symbol, loc: ?SourceLocation|},
+        {|local: Symbol, loc: ?SourceLocation, meta?: ?Meta|},
       > = assetNode.value.symbols;
 
       let assetSymbolsInverse = new Map<Symbol, Set<Symbol>>();
