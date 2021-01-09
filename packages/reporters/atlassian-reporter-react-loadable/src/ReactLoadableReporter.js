@@ -70,6 +70,9 @@ const buildManifest = (
 
 exports.default = (new Reporter({
   async report({event, options}) {
+    if (options.env.NODE_ENV == 'development') {
+      return;
+    }
     if (event.type !== 'buildSuccess') {
       return;
     }
