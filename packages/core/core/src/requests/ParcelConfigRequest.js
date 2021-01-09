@@ -107,7 +107,7 @@ export function getCachedParcelConfig(
     processedConfig,
     options.packageManager,
     options.inputFS,
-    options.autoinstall,
+    options.shouldAutoInstall,
   );
 
   parcelConfigCache.set(cachePath, config);

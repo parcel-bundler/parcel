@@ -57,7 +57,7 @@ export default (new Transformer({
   async transform({asset, options, config, resolve}) {
     let rawConfig = config ? config.contents : {};
     let sass = await options.packageManager.require('sass', asset.filePath, {
-      autoinstall: options.autoinstall,
+      shouldAutoInstall: options.shouldAutoInstall,
     });
 
     const sassRender = promisify(sass.render.bind(sass));

@@ -1040,6 +1040,22 @@ export default class BundleGraph {
     );
   }
 
+  getAssetWithDependency(dep: Dependency): ?Asset {
+    let node = this._graph.getNode(dep.id);
+    if (!node) {
+      return null;
+    }
+
+    let res = this._graph.getNodesConnectedTo(node);
+    invariant(
+      res.length <= 1,
+      'Expected a single asset to be connected to a dependency',
+    );
+    if (res[0]?.type === 'asset') {
+      return res[0].value;
+    }
+  }
+
   bundleHasAsset(bundle: Bundle, asset: Asset): boolean {
     return this._graph.hasEdge(bundle.id, asset.id, 'contains');
   }
@@ -1094,8 +1110,8 @@ export default class BundleGraph {
       let depSymbol = symbolLookup.get(identifier);
       if (depSymbol != null) {
         let resolved = this.getDependencyResolution(dep);
-        if (!resolved) {
-          // External module
+        if (!resolved || resolved.id === asset.id) {
+          // External module or self-reference
           return {
             asset,
             exportSymbol: symbol,

@@ -33,7 +33,7 @@ try {
 function shouldExclude(asset, options) {
   return (
     !asset.isSource ||
-    !options.hot ||
+    !options.hmrOptions ||
     !asset.env.isBrowser() ||
     options.mode !== 'development' ||
     !asset.getDependencies().find(v => v.moduleSpecifier === 'react')

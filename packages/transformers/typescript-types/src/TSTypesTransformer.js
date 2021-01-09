@@ -22,7 +22,7 @@ export default (new Transformer({
     let ts: TypeScriptModule = await options.packageManager.require(
       'typescript',
       asset.filePath,
-      {autoinstall: options.autoinstall},
+      {shouldAutoInstall: options.shouldAutoInstall},
     );
 
     let opts: CompilerOptions = {

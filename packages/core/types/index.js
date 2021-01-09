@@ -149,7 +149,7 @@ export type TargetDescriptor = {|
 /**
  * This is used when creating an Environment (see that).
  */
-export type EnvironmentOpts = {|
+export type EnvironmentOptions = {|
   +context?: EnvironmentContext,
   +engines?: Engines,
   +includeNodeModules?:
@@ -248,6 +248,9 @@ export type PackageJSON = {
 
 export type LogLevel = 'none' | 'error' | 'warn' | 'info' | 'verbose';
 export type BuildMode = 'development' | 'production' | string;
+export type DetailedReportOptions = {|
+  assetsPerBundle?: number,
+|};
 
 export type InitialParcelOptions = {|
   +entries?: FilePath | Array<FilePath>,
@@ -257,31 +260,31 @@ export type InitialParcelOptions = {|
   +env?: EnvMap,
   +targets?: ?(Array<string> | {+[string]: TargetDescriptor, ...}),
 
-  +disableCache?: boolean,
+  +shouldDisableCache?: boolean,
   +cacheDir?: FilePath,
-  +killWorkers?: boolean,
   +mode?: BuildMode,
-  +minify?: boolean,
-  +scopeHoist?: boolean,
-  +sourceMaps?: boolean,
-  +publicUrl?: string,
-  +distDir?: FilePath,
-  +hot?: ?HMROptions,
-  +contentHash?: boolean,
-  +serve?: InitialServerOptions | false,
-  +autoinstall?: boolean,
+  +hmrOptions?: ?HMROptions,
+  +shouldContentHash?: boolean,
+  +serveOptions?: InitialServerOptions | false,
+  +shouldAutoInstall?: boolean,
   +logLevel?: LogLevel,
-  +profile?: boolean,
-  +patchConsole?: boolean,
+  +shouldProfile?: boolean,
+  +shouldPatchConsole?: boolean,
 
   +inputFS?: FileSystem,
   +outputFS?: FileSystem,
   +workerFarm?: WorkerFarm,
   +packageManager?: PackageManager,
-  +defaultEngines?: Engines,
-  +detailedReport?: number | boolean,
+  +detailedReport?: ?DetailedReportOptions,
 
-  // contentHash
+  // TODO: Refactor to defaultTargetOptions
+  +minify?: boolean,
+  +scopeHoist?: boolean,
+  +sourceMaps?: boolean,
+  +publicUrl?: string,
+  +distDir?: FilePath,
+  +defaultEngines?: Engines,
+
   // throwErrors
   // global?
 |};
@@ -296,9 +299,9 @@ export type InitialServerOptions = {|
 export interface PluginOptions {
   +mode: BuildMode;
   +env: EnvMap;
-  +hot: ?HMROptions;
-  +serve: ServerOptions | false;
-  +autoinstall: boolean;
+  +hmrOptions: ?HMROptions;
+  +serveOptions: ServerOptions | false;
+  +shouldAutoInstall: boolean;
   +logLevel: LogLevel;
   +entryRoot: FilePath;
   +projectRoot: FilePath;
@@ -307,7 +310,7 @@ export interface PluginOptions {
   +outputFS: FileSystem;
   +packageManager: PackageManager;
   +instanceId: string;
-  +detailedReport: number;
+  +detailedReport: ?DetailedReportOptions;
 }
 
 export type ServerOptions = {|
@@ -354,13 +357,17 @@ export type Symbol = string;
  * A map from extert names to the corespinding asset's lcoal variable name.
  */
 export interface AssetSymbols // eslint-disable-next-line no-undef
-  extends Iterable<[Symbol, {|local: Symbol, loc: ?SourceLocation|}]> {
+  extends Iterable<
+    [Symbol, {|local: Symbol, loc: ?SourceLocation, meta?: ?Meta|}],
+  > {
   /**
    * The exports of the asset are unknown, rather than just empty.
    * This is the default state.
    */
   +isCleared: boolean;
-  get(exportSymbol: Symbol): ?{|local: Symbol, loc: ?SourceLocation|};
+  get(
+    exportSymbol: Symbol,
+  ): ?{|local: Symbol, loc: ?SourceLocation, meta?: ?Meta|};
   hasExportSymbol(exportSymbol: Symbol): boolean;
   hasLocalSymbol(local: Symbol): boolean;
   exportSymbols(): Iterable<Symbol>;
@@ -370,7 +377,12 @@ export interface MutableAssetSymbols extends AssetSymbols {
    * Initilizes the map, sets isCleared to false.
    */
   ensure(): void;
-  set(exportSymbol: Symbol, local: Symbol, loc: ?SourceLocation): void;
+  set(
+    exportSymbol: Symbol,
+    local: Symbol,
+    loc: ?SourceLocation,
+    meta?: ?Meta,
+  ): void;
   delete(exportSymbol: Symbol): void;
 }
 /**
@@ -378,7 +390,10 @@ export interface MutableAssetSymbols extends AssetSymbols {
  */
 export interface MutableDependencySymbols // eslint-disable-next-line no-undef
   extends Iterable<
-    [Symbol, {|local: Symbol, loc: ?SourceLocation, isWeak: boolean|}],
+    [
+      Symbol,
+      {|local: Symbol, loc: ?SourceLocation, isWeak: boolean, meta?: ?Meta|},
+    ],
   > {
   /**
    * Initilizes the map, sets isCleared to false.
@@ -391,7 +406,7 @@ export interface MutableDependencySymbols // eslint-disable-next-line no-undef
   +isCleared: boolean;
   get(
     exportSymbol: Symbol,
-  ): ?{|local: Symbol, loc: ?SourceLocation, isWeak: boolean|};
+  ): ?{|local: Symbol, loc: ?SourceLocation, isWeak: boolean, meta?: ?Meta|};
   hasExportSymbol(exportSymbol: Symbol): boolean;
   hasLocalSymbol(local: Symbol): boolean;
   exportSymbols(): Iterable<Symbol>;
@@ -417,7 +432,7 @@ export type DependencyOptions = {|
   +isURL?: boolean,
   +isIsolated?: boolean,
   +loc?: SourceLocation,
-  +env?: EnvironmentOpts,
+  +env?: EnvironmentOptions,
   +meta?: Meta,
   +pipeline?: string,
   +resolveFrom?: FilePath,
@@ -563,7 +578,7 @@ export interface MutableAsset extends BaseAsset {
   setCode(string): void;
   /** Throws if the AST is dirty (meaning: this won't implicity stringify the AST). */
   getCode(): Promise<string>;
-  setEnvironment(opts: EnvironmentOpts): void;
+  setEnvironment(opts: EnvironmentOptions): void;
   setMap(?SourceMap): void;
   setStream(Readable): void;
 }
@@ -636,7 +651,7 @@ export type TransformerResult = {|
   +ast?: ?AST,
   +content?: ?Blob,
   +dependencies?: $ReadOnlyArray<DependencyOptions>,
-  +env?: EnvironmentOpts,
+  +env?: EnvironmentOptions,
   +filePath?: FilePath,
   +query?: ?QueryParameters,
   +includedFiles?: $ReadOnlyArray<File>,
@@ -663,9 +678,7 @@ export type ResolveFn = (from: FilePath, to: string) => Promise<FilePath>;
 /**
  * @section validator
  */
-type ResolveConfigFn = (
-  configNames: Array<FilePath>,
-) => Promise<?FilePath>;
+type ResolveConfigFn = (configNames: Array<FilePath>) => Promise<?FilePath>;
 
 /**
  * @section validator
@@ -911,6 +924,7 @@ export interface Bundle {
   /** The actual entry (which won't be a runtime). */
   getMainEntry(): ?Asset;
   hasAsset(Asset): boolean;
+  hasDependency(Dependency): boolean;
   /** Traverses the assets in the bundle. */
   traverseAssets<TContext>(visit: GraphVisitor<Asset, TContext>): ?TContext;
   /** Traverses assets and dependencies (see BundleTraversable). */
@@ -999,6 +1013,8 @@ export interface BundleGraph<TBundle: Bundle> {
   getDependencies(asset: Asset): Array<Dependency>;
   /** Get the dependencies that require the asset */
   getIncomingDependencies(asset: Asset): Array<Dependency>;
+  /** Get the asset that created the dependency. */
+  getAssetWithDependency(dep: Dependency): ?Asset;
   /**
    * Returns undefined if the specified dependency was excluded or wasn't async \
    * and otherwise the BundleGroup or Asset that the dependency resolves to.
@@ -1042,7 +1058,7 @@ export interface BundleGraph<TBundle: Bundle> {
   getExportedSymbols(
     asset: Asset,
     boundary: ?Bundle,
-  ): ?Array<ExportSymbolResolution>;
+  ): Array<ExportSymbolResolution>;
   traverseBundles<TContext>(
     visit: GraphVisitor<TBundle, TContext>,
     startBundle: ?Bundle,

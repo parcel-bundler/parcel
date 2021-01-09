@@ -20,7 +20,6 @@
     "node": ">= 12.0.0"
   },
   "dependencies": {
-    "@babel/generator": "^7.3.3",
     "@babel/parser": "^7.0.0",
     "@babel/template": "^7.4.0",
     "@babel/traverse": "^7.2.3",
@@ -30,6 +29,7 @@
     "@parcel/diagnostic": "2.0.0-beta.1",
     "@parcel/source-map": "2.0.0-alpha.4.19",
     "@parcel/utils": "2.0.0-beta.1",
+    "globals": "^13.2.0",
     "nullthrows": "^1.1.1"
   }
 }

@@ -45,7 +45,7 @@ export default function createValidationRequest(
         processedConfig,
         options.packageManager,
         options.inputFS,
-        options.autoinstall,
+        options.shouldAutoInstall,
       );
       let trackedRequestsDesc = assetRequests.filter(request => {
         return config.getValidatorNames(request.filePath).length > 0;

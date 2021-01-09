@@ -22,7 +22,7 @@ function runBundle(entries = 'src/index.js', opts) {
 
   return bundler(entries, {
     inputFS: overlayFS,
-    disableCache: false,
+    shouldDisableCache: false,
     ...opts,
   }).run();
 }
@@ -2368,17 +2368,17 @@ describe('cache', function() {
       );
     });
 
-    it('should update when contentHash changes', async function() {
+    it('should update when shouldContentHash changes', async function() {
       let b = await testCache({
         entries: ['src/index.html'],
         scopeHoist: true,
-        contentHash: true,
+        shouldContentHash: true,
         update(b) {
           let bundle = b.bundleGraph.getBundles()[1];
           assert(!bundle.name.includes(bundle.id.slice(-8)));
 
           return {
-            contentHash: false,
+            shouldContentHash: false,
           };
         },
       });
@@ -2389,7 +2389,7 @@ describe('cache', function() {
 
     it('should update when hot options change', async function() {
       let b = await testCache({
-        hot: {
+        hmrOptions: {
           host: 'localhost',
           port: 4321,
         },
@@ -2408,7 +2408,7 @@ describe('cache', function() {
           );
 
           return {
-            hot: {
+            hmrOptions: {
               host: 'example.com',
               port: 5678,
             },
@@ -2465,7 +2465,7 @@ describe('cache', function() {
           );
 
           return {
-            hot: {
+            hmrOptions: {
               host: 'example.com',
               port: 5678,
             },

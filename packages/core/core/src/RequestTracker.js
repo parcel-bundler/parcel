@@ -632,7 +632,7 @@ export default class RequestTracker {
     let requestGraphKey = md5FromString(`${cacheKey}:requestGraph`);
     let snapshotKey = md5FromString(`${cacheKey}:snapshot`);
 
-    if (this.options.disableCache) {
+    if (this.options.shouldDisableCache) {
       return;
     }
 
@@ -685,7 +685,7 @@ export function getWatcherOptions(options: ParcelOptions): WatcherOptions {
 }
 
 async function loadRequestGraph(options): Async<RequestGraph> {
-  if (options.disableCache) {
+  if (options.shouldDisableCache) {
     return new RequestGraph();
   }
 
