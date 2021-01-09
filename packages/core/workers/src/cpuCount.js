@@ -28,9 +28,9 @@ export function detectRealCores(): number {
     amount = parseInt(exec('sysctl -n hw.physicalcpu_max'), 10);
   } else if (platform === 'win32') {
     amount = parseInt(
-      exec(
-        'for /f "tokens=*" %f in (\'wmic cpu get NumberOfCores /value ^| find "="\') do set %f',
-      ).match(/(NumberOfCores=)(\d*)/)[2],
+      exec('wmic cpu get NumberOfCores')
+        .match(/\d+/g)
+        .filter(n => n !== '')[0],
       10,
     );
   }
