@@ -97,7 +97,7 @@ describe('html', function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-no-js/index.html'),
       {
-        hot: {},
+        hmrOptions: {},
       },
     );
 
@@ -905,7 +905,7 @@ describe('html', function() {
         __dirname,
         '/integration/html-inline-styles-element/index.html',
       ),
-      {disableCache: false},
+      {shouldDisableCache: false},
     );
 
     assertBundles(b, [
@@ -1672,7 +1672,7 @@ describe('html', function() {
       path.join(__dirname, '/html-inline-js-require/index.html'),
       {
         inputFS: overlayFS,
-        disableCache: false,
+        shouldDisableCache: false,
         distDir,
       },
     );
@@ -1685,12 +1685,12 @@ describe('html', function() {
 
     await overlayFS.writeFile(
       path.join(__dirname, '/html-inline-js-require/test.js'),
-      'console.log("foo")',
+      "console.log('foo')",
     );
     await getNextBuild(b);
 
     html = await outputFS.readFile(path.join(distDir, '/index.html'), 'utf8');
-    assert(html.includes('console.log("foo")'));
+    assert(html.includes("console.log('foo')"));
   });
 
   it('should invalidate parent bundle when nested inline bundles change', async function() {
@@ -1706,7 +1706,7 @@ describe('html', function() {
       path.join(__dirname, '/html-inline-js-nested/index.html'),
       {
         inputFS: overlayFS,
-        disableCache: false,
+        shouldDisableCache: false,
         distDir,
       },
     );

@@ -157,7 +157,7 @@ describe('sourcemaps', function() {
   it('Should create a basic browser sourcemap when serving', async function() {
     let fixture = path.join(__dirname, '/integration/sourcemap');
     let sourceFilename = path.join(fixture, 'index.js');
-    await bundle(sourceFilename, {serve: {port: 1234}});
+    await bundle(sourceFilename, {serveOptions: {port: 1234}});
 
     let filename = path.join(distDir, 'index.js');
     let raw = await outputFS.readFile(filename, 'utf8');

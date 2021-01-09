@@ -22,7 +22,7 @@ export default async function bundleReport(
   bundleGraph: BundleGraph<NamedBundle>,
   fs: FileSystem,
   projectRoot: FilePath,
-  assetCount: number,
+  assetCount: number = 0,
 ) {
   let bundleList = bundleGraph.getBundles().filter(b => !b.isInline);
 

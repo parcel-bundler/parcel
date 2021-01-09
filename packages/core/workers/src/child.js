@@ -130,7 +130,7 @@ export class Child {
     } else if (method === 'childInit') {
       try {
         let [moduleName, childOptions] = args;
-        if (childOptions.patchConsole) {
+        if (childOptions.shouldPatchConsole) {
           patchConsole();
         } else {
           unpatchConsole();

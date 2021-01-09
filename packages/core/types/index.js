@@ -149,7 +149,7 @@ export type TargetDescriptor = {|
 /**
  * This is used when creating an Environment (see that).
  */
-export type EnvironmentOpts = {|
+export type EnvironmentOptions = {|
   +context?: EnvironmentContext,
   +engines?: Engines,
   +includeNodeModules?:
@@ -248,6 +248,9 @@ export type PackageJSON = {
 
 export type LogLevel = 'none' | 'error' | 'warn' | 'info' | 'verbose';
 export type BuildMode = 'development' | 'production' | string;
+export type DetailedReportOptions = {|
+  assetsPerBundle?: number,
+|};
 
 export type InitialParcelOptions = {|
   +entries?: FilePath | Array<FilePath>,
@@ -257,31 +260,31 @@ export type InitialParcelOptions = {|
   +env?: EnvMap,
   +targets?: ?(Array<string> | {+[string]: TargetDescriptor, ...}),
 
-  +disableCache?: boolean,
+  +shouldDisableCache?: boolean,
   +cacheDir?: FilePath,
-  +killWorkers?: boolean,
   +mode?: BuildMode,
-  +minify?: boolean,
-  +scopeHoist?: boolean,
-  +sourceMaps?: boolean,
-  +publicUrl?: string,
-  +distDir?: FilePath,
-  +hot?: ?HMROptions,
-  +contentHash?: boolean,
-  +serve?: InitialServerOptions | false,
-  +autoinstall?: boolean,
+  +hmrOptions?: ?HMROptions,
+  +shouldContentHash?: boolean,
+  +serveOptions?: InitialServerOptions | false,
+  +shouldAutoInstall?: boolean,
   +logLevel?: LogLevel,
-  +profile?: boolean,
-  +patchConsole?: boolean,
+  +shouldProfile?: boolean,
+  +shouldPatchConsole?: boolean,
 
   +inputFS?: FileSystem,
   +outputFS?: FileSystem,
   +workerFarm?: WorkerFarm,
   +packageManager?: PackageManager,
-  +defaultEngines?: Engines,
-  +detailedReport?: number | boolean,
+  +detailedReport?: ?DetailedReportOptions,
 
-  // contentHash
+  // TODO: Refactor to defaultTargetOptions
+  +minify?: boolean,
+  +scopeHoist?: boolean,
+  +sourceMaps?: boolean,
+  +publicUrl?: string,
+  +distDir?: FilePath,
+  +defaultEngines?: Engines,
+
   // throwErrors
   // global?
 |};
@@ -296,9 +299,9 @@ export type InitialServerOptions = {|
 export interface PluginOptions {
   +mode: BuildMode;
   +env: EnvMap;
-  +hot: ?HMROptions;
-  +serve: ServerOptions | false;
-  +autoinstall: boolean;
+  +hmrOptions: ?HMROptions;
+  +serveOptions: ServerOptions | false;
+  +shouldAutoInstall: boolean;
   +logLevel: LogLevel;
   +entryRoot: FilePath;
   +projectRoot: FilePath;
@@ -307,7 +310,7 @@ export interface PluginOptions {
   +outputFS: FileSystem;
   +packageManager: PackageManager;
   +instanceId: string;
-  +detailedReport: number;
+  +detailedReport: ?DetailedReportOptions;
 }
 
 export type ServerOptions = {|
@@ -429,7 +432,7 @@ export type DependencyOptions = {|
   +isURL?: boolean,
   +isIsolated?: boolean,
   +loc?: SourceLocation,
-  +env?: EnvironmentOpts,
+  +env?: EnvironmentOptions,
   +meta?: Meta,
   +resolveFrom?: FilePath,
   +target?: Target,
@@ -574,7 +577,7 @@ export interface MutableAsset extends BaseAsset {
   setCode(string): void;
   /** Throws if the AST is dirty (meaning: this won't implicity stringify the AST). */
   getCode(): Promise<string>;
-  setEnvironment(opts: EnvironmentOpts): void;
+  setEnvironment(opts: EnvironmentOptions): void;
   setMap(?SourceMap): void;
   setStream(Readable): void;
 }
@@ -647,7 +650,7 @@ export type TransformerResult = {|
   +ast?: ?AST,
   +content?: ?Blob,
   +dependencies?: $ReadOnlyArray<DependencyOptions>,
-  +env?: EnvironmentOpts,
+  +env?: EnvironmentOptions,
   +filePath?: FilePath,
   +query?: ?QueryParameters,
   +includedFiles?: $ReadOnlyArray<File>,
@@ -674,9 +677,7 @@ export type ResolveFn = (from: FilePath, to: string) => Promise<FilePath>;
 /**
  * @section validator
  */
-type ResolveConfigFn = (
-  configNames: Array<FilePath>,
-) => Promise<?FilePath>;
+type ResolveConfigFn = (configNames: Array<FilePath>) => Promise<?FilePath>;
 
 /**
  * @section validator

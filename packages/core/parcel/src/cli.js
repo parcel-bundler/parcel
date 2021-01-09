@@ -52,16 +52,6 @@ const handleUncaughtException = async exception => {
 
 process.on('unhandledRejection', handleUncaughtException);
 
-// Capture the NODE_ENV this process was launched with, so that it can be
-// used in Parcel (such as in process.env inlining).
-const initialNodeEnv = process.env.NODE_ENV;
-// Then, override NODE_ENV to be PARCEL_BUILD_ENV (replaced with `production` in builds)
-// so that dependencies of Parcel like React (which renders the cli through `ink`)
-// run in the appropriate mode.
-if (typeof process.env.PARCEL_BUILD_ENV === 'string') {
-  process.env.NODE_ENV = process.env.PARCEL_BUILD_ENV;
-}
-
 program.version(version);
 
 // --no-cache, --cache-dir, --no-source-maps, --no-autoinstall, --global?, --public-url, --log-level
@@ -90,6 +80,7 @@ const commonOptions = {
   '--detailed-report [depth]': [
     'Print the asset timings and sizes in the build report',
     /^([0-9]+)$/,
+    '10',
   ],
 };
 
@@ -200,7 +191,7 @@ async function run(entries: Array<string>, command: any) {
     defaultConfig: require.resolve('@parcel/config-default', {
       paths: [fs.cwd(), __dirname],
     }),
-    patchConsole: true,
+    shouldPatchConsole: true,
     ...options,
   });
 
@@ -287,10 +278,10 @@ async function run(entries: Array<string>, command: any) {
       }
     }));
 
-    if (command.open && options.serve) {
+    if (command.open && options.serveOptions) {
       await openInBrowser(
-        `${options.serve.https ? 'https' : 'http'}://${options.serve.host ||
-          'localhost'}:${options.serve.port}`,
+        `${options.serveOptions.https ? 'https' : 'http'}://${options
+          .serveOptions.host || 'localhost'}:${options.serveOptions.port}`,
         command.open,
       );
     }
@@ -338,11 +329,15 @@ function parsePort(portValue: string): number {
 async function normalizeOptions(command): Promise<InitialParcelOptions> {
   let nodeEnv;
   if (command.name() === 'build') {
-    nodeEnv = initialNodeEnv || 'production';
+    nodeEnv = process.env.NODE_ENV || 'production';
     command.autoinstall = false;
   } else {
-    nodeEnv = initialNodeEnv || 'development';
+    nodeEnv = process.env.NODE_ENV || 'development';
   }
+
+  // Set process.env.NODE_ENV to a default if undefined so that it is
+  // available in JS configs and plugins.
+  process.env.NODE_ENV = nodeEnv;
 
   let https = !!command.https;
   if (command.cert && command.key) {
@@ -352,7 +347,7 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
     };
   }
 
-  let serve = false;
+  let serveOptions = false;
   let {host} = command;
 
   // Ensure port is valid and available
@@ -362,7 +357,7 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
     port = await getPort({port, host});
 
     if (port !== originalPort) {
-      let errorMessage = `Port "${port}" could not be used`;
+      let errorMessage = `Port "${originalPort}" could not be used`;
       if (command.port != null) {
         // Throw the error if the user defined a custom port
         throw new Error(errorMessage);
@@ -376,7 +371,7 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
   if (command.name() === 'serve') {
     let {publicUrl} = command;
 
-    serve = {
+    serveOptions = {
       https,
       port,
       host,
@@ -384,16 +379,16 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
     };
   }
 
-  let hmr = null;
+  let hmrOptions = null;
   if (command.name() !== 'build' && command.hmr !== false) {
     let hmrport = command.hmrPort ? parsePort(command.hmrPort) : port;
 
-    hmr = {port: hmrport, host};
+    hmrOptions = {port: hmrport, host};
   }
 
   let mode = command.name() === 'build' ? 'production' : 'development';
   return {
-    disableCache: command.cache === false,
+    shouldDisableCache: command.cache === false,
     cacheDir: command.cacheDir,
     mode,
     minify: command.minify != null ? command.minify : mode === 'production',
@@ -401,14 +396,19 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
     scopeHoist: command.scopeHoist,
     publicUrl: command.publicUrl,
     distDir: command.distDir,
-    hot: hmr,
-    contentHash: hmr ? false : command.contentHash,
-    serve,
+    hmrOptions,
+    shouldContentHash: hmrOptions ? false : command.shouldContentHash,
+    serveOptions,
     targets: command.target.length > 0 ? command.target : null,
-    autoinstall: command.autoinstall ?? true,
+    shouldAutoInstall: command.autoinstall ?? true,
     logLevel: command.logLevel,
-    profile: command.profile,
-    detailedReport: command.detailedReport,
+    shouldProfile: command.profile,
+    detailedReport:
+      command.detailedReport != null
+        ? {
+            assetsPerBundle: parseInt(command.detailedReport, 10),
+          }
+        : null,
     env: {
       NODE_ENV: nodeEnv,
     },
