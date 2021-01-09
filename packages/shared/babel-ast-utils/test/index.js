@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import assert from 'assert';
 import {parse as babelParse} from '@babel/parser';
-import {generateAST} from '@parcel/babel-ast-utils';
+import {generateAST} from '../';
 
 const FIXTURES_FOLDER = path.join(__dirname, 'fixtures');
 const files = fs.readdirSync(FIXTURES_FOLDER).sort();
@@ -12,7 +12,7 @@ const options = {
   sourceType: 'module',
 };
 
-describe.only('astring babel generator', () => {
+describe('astring babel generator', () => {
   files.forEach(filename => {
     it(filename, function() {
       const code = fs.readFileSync(
