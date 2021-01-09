@@ -5,6 +5,8 @@
  * @flow
  */
 
+declare module 'chalk' { // manually added
+
 /**
  * Basic foreground colors.
  *
@@ -69,7 +71,6 @@ declare type Modifiers =
   | "hidden"
   | "strikethrough"
   | "visible";
-declare var chalk: typeof npm$namespace$chalk;
 
 declare var npm$namespace$chalk: {|
   Options: Class<chalk$Options>,
@@ -389,4 +390,8 @@ declare var chalk: chalk$Chalk &
     },
     ...
   };
+
 declare export default typeof chalk;
+
+
+}
