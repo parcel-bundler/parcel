@@ -2514,6 +2514,18 @@ describe('cache', function() {
           host: 'localhost',
           port: 4321,
         },
+        async setup() {
+          await overlayFS.writeFile(
+            path.join(inputDir, '.parcelrc'),
+            JSON.stringify({
+              extends: '@parcel/config-default',
+              transformers: {
+                // Remove react-refresh transformer so we test whether the runtime updates
+                '*.js': ['@parcel/transformer-js']
+              }
+            }),
+          );
+        },
         async update(b) {
           let contents = await overlayFS.readFile(
             b.bundleGraph.getBundles()[0].filePath,
@@ -4204,9 +4216,73 @@ describe('cache', function() {
       assert.deepEqual(bundles.map(b => b.name), bundles.map(b => `${b.id.slice(-8)}.${b.type}`));
     });
 
-    it('should invalidate when adding a runtime plugin', function() {});
+    it('should invalidate when adding a runtime plugin', async function() {
+      let b = await testCache({
+        async update(b) {
+          let res = await run(b.bundleGraph, null, {require: false});
+          assert.equal(res.runtime_test, undefined);
 
-    it('should invalidate when a runtime plugin version changes', function() {});
+          await overlayFS.writeFile(
+            path.join(inputDir, '.parcelrc'),
+            JSON.stringify({
+              extends: '@parcel/config-default',
+              runtimes: {
+                browser: ['parcel-runtime-test']
+              },
+            }),
+          );
+        },
+      });
+
+      let res = await run(b.bundleGraph, null, {require: false});
+      assert.equal(res.runtime_test, true);
+    });
+
+    it('should invalidate when a runtime plugin version changes', async function() {
+      let b = await testCache({
+        async setup() {
+          await overlayFS.writeFile(
+            path.join(inputDir, '.parcelrc'),
+            JSON.stringify({
+              extends: '@parcel/config-default',
+              runtimes: {
+                browser: ['parcel-runtime-test']
+              },
+            }),
+          );
+        },
+        async update(b) {
+          let res = await run(b.bundleGraph, null, {require: false});
+          assert.equal(res.runtime_test, true);
+          assert.equal(res.test_runtime, undefined);
+
+          let namer = path.join(inputDir, 'node_modules', 'parcel-runtime-test', 'index.js');
+          await overlayFS.writeFile(
+            namer,
+            (await overlayFS.readFile(namer, 'utf8')).replace('runtime_test', 'test_runtime')
+          );
+
+          await overlayFS.writeFile(
+            path.join(inputDir, 'node_modules', 'parcel-runtime-test', 'package.json'),
+            JSON.stringify({
+              name: 'parcel-runtime-test',
+              version: '1.2.4'
+            })
+          );
+
+          // Clear require cache for the namer plugin, and ParcelConfig cache, which has its own plugin cache.
+          await workerFarm.callAllWorkers('invalidateRequireCache', [
+            namer,
+          ]);
+
+          clearParcelConfigCache();
+        },
+      });
+
+      let res = await run(b.bundleGraph, null, {require: false});
+      assert.equal(res.runtime_test, undefined);
+      assert.equal(res.test_runtime, true);
+    });
 
     describe('bundler config', function() {
       it('should support adding bundler config', async function() {

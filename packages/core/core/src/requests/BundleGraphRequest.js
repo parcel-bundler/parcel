@@ -84,8 +84,7 @@ class BundlerRunner {
     this.optionsRef = input.optionsRef;
     this.config = config;
     this.pluginOptions = new PluginOptions(
-      // TODO: proxy
-      this.options
+      optionsProxy(this.options, api.invalidateOnOptionChange)
     );
   }
 
