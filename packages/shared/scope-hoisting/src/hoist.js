@@ -980,7 +980,6 @@ const VISITOR: Visitor<MutableAsset> = {
 
   ExportNamedDeclaration(path, asset) {
     let {declaration, source, specifiers} = path.node;
-    console.log(path);
 
     if (source) {
       let dep = asset
