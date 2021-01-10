@@ -5,13 +5,10 @@
   "private": true,
   "scripts": {
     "setup": "make src",
-    "build": "parcel build src/entry.js"
+    "build": "rm -rf dist && parcel build src/entry.js --no-cache",
+    "get-size": "du -sh dist"
   },
-  "devDependencies": {
-    "@parcel/config-default": "2.0.0-beta.1",
-    "parcel": "2.0.0-beta.1"
-  },
-  "browser": "dist/legacy/index.js",
+  "browserLegacy": "dist/legacy/index.js",
   "browserModern": "dist/modern/index.js",
   "targets": {
     "browserModern": {
@@ -21,12 +18,16 @@
         ]
       }
     },
-    "browser": {
+    "browserLegacy": {
       "engines": {
         "browsers": [
           "> 0.25%"
         ]
       }
     }
+  },
+  "devDependencies": {
+    "@parcel/config-default": "2.0.0-beta.1",
+    "parcel": "2.0.0-beta.1"
   }
 }

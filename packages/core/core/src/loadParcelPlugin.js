@@ -20,12 +20,12 @@ export default async function loadPlugin<T>(
   pluginName: PackageName,
   resolveFrom: FilePath,
   keyPath: string,
-  autoinstall: boolean,
+  shouldAutoInstall: boolean,
 ): Promise<{|plugin: T, version: Semver|}> {
   let resolved, pkg;
   try {
     ({resolved, pkg} = await packageManager.resolve(pluginName, resolveFrom, {
-      autoinstall,
+      shouldAutoInstall,
     }));
   } catch (err) {
     let configContents = await fs.readFile(resolveFrom, 'utf8');
@@ -92,7 +92,7 @@ export default async function loadPlugin<T>(
   }
 
   let plugin = await packageManager.require(resolved, resolveFrom, {
-    autoinstall,
+    shouldAutoInstall,
   });
   plugin = plugin.default ? plugin.default : plugin;
   if (!plugin) {

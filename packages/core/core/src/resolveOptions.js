@@ -74,14 +74,6 @@ export default async function resolveOptions(
   let mode = initialOptions.mode ?? 'development';
   let minify = initialOptions.minify ?? mode === 'production';
 
-  let detailedReport: number = 0;
-  if (initialOptions.detailedReport != null) {
-    detailedReport =
-      initialOptions.detailedReport === true
-        ? 10
-        : parseInt(initialOptions.detailedReport, 10);
-  }
-
   let publicUrl = initialOptions.publicUrl ?? '/';
   let distDir =
     initialOptions.distDir != null
@@ -91,8 +83,8 @@ export default async function resolveOptions(
   return {
     config: initialOptions.config,
     defaultConfig: initialOptions.defaultConfig,
-    patchConsole:
-      initialOptions.patchConsole ?? process.env.NODE_ENV !== 'test',
+    shouldPatchConsole:
+      initialOptions.shouldPatchConsole ?? process.env.NODE_ENV !== 'test',
     env: {
       ...process.env,
       ...initialOptions.env,
@@ -104,19 +96,18 @@ export default async function resolveOptions(
     },
     mode,
     minify,
-    autoinstall: initialOptions.autoinstall ?? false,
-    hot: initialOptions.hot ?? null,
-    contentHash:
-      initialOptions.contentHash ?? initialOptions.mode === 'production',
-    serve: initialOptions.serve
+    shouldAutoInstall: initialOptions.shouldAutoInstall ?? false,
+    hmrOptions: initialOptions.hmrOptions ?? null,
+    shouldContentHash:
+      initialOptions.shouldContentHash ?? initialOptions.mode === 'production',
+    serveOptions: initialOptions.serveOptions
       ? {
-          ...initialOptions.serve,
+          ...initialOptions.serveOptions,
           distDir: distDir ?? path.join(outputCwd, 'dist'),
         }
       : false,
-    disableCache: initialOptions.disableCache ?? false,
-    killWorkers: initialOptions.killWorkers ?? true,
-    profile: initialOptions.profile ?? false,
+    shouldDisableCache: initialOptions.shouldDisableCache ?? false,
+    shouldProfile: initialOptions.shouldProfile ?? false,
     cacheDir,
     entries,
     entryRoot,
@@ -135,6 +126,6 @@ export default async function resolveOptions(
     cache,
     packageManager,
     instanceId: generateInstanceId(entries),
-    detailedReport,
+    detailedReport: initialOptions.detailedReport,
   };
 }

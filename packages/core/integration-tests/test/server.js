@@ -1,4 +1,6 @@
+// @flow strict-local
 import assert from 'assert';
+import invariant from 'assert';
 import path from 'path';
 import {
   bundler,
@@ -11,6 +13,7 @@ import {
 import http from 'http';
 import https from 'https';
 import getPort from 'get-port';
+import type {BuildEvent} from '@parcel/types';
 
 const distDir = path.resolve(__dirname, '.parcel-cache/dist');
 const config = path.join(
@@ -20,6 +23,7 @@ const config = path.join(
 
 function get(file, port, client = http) {
   return new Promise((resolve, reject) => {
+    // $FlowFixMe
     client.get(
       {
         hostname: 'localhost',
@@ -58,7 +62,7 @@ describe('server', function() {
     let b = bundler(path.join(__dirname, '/integration/commonjs/index.js'), {
       config,
       distDir,
-      serve: {
+      serveOptions: {
         https: false,
         port: port,
         host: 'localhost',
@@ -83,7 +87,7 @@ describe('server', function() {
     let b = bundler(inputPath, {
       config,
       distDir,
-      serve: {
+      serveOptions: {
         https: false,
         port: port,
         host: 'localhost',
@@ -108,7 +112,7 @@ describe('server', function() {
     let b = bundler(inputPath, {
       config,
       distDir,
-      serve: {
+      serveOptions: {
         https: false,
         port: port,
         host: 'localhost',
@@ -136,7 +140,7 @@ describe('server', function() {
     let b = bundler(inputPath, {
       config,
       distDir,
-      serve: {
+      serveOptions: {
         https: false,
         port: port,
         host: 'localhost',
@@ -144,11 +148,12 @@ describe('server', function() {
     });
 
     subscription = await b.watch();
-    let event = await getNextBuild(b);
-    assert.equal(event.type, 'buildSuccess');
+    let event: BuildEvent = await getNextBuild(b);
+    invariant(event.type === 'buildSuccess');
+    let bundleGraph = event.bundleGraph;
 
     let outputFile = await outputFS.readFile(
-      event.bundleGraph.getBundles()[0].filePath,
+      bundleGraph.getBundles()[0].filePath,
       'utf8',
     );
 
@@ -163,7 +168,7 @@ describe('server', function() {
     let port = await getPort();
     let b = bundler(path.join(__dirname, '/integration/commonjs/index.js'), {
       config,
-      serve: {
+      serveOptions: {
         https: false,
         port: port,
         host: 'localhost',
@@ -193,7 +198,7 @@ describe('server', function() {
       inputFS: overlayFS,
       config,
       distDir,
-      serve: {
+      serveOptions: {
         https: false,
         port: port,
         host: 'localhost',
@@ -224,7 +229,7 @@ describe('server', function() {
     let b = bundler(path.join(__dirname, '/integration/commonjs/index.js'), {
       config,
       distDir,
-      serve: {
+      serveOptions: {
         https: true,
         port: port,
         host: 'localhost',
@@ -246,7 +251,7 @@ describe('server', function() {
     let b = bundler(path.join(__dirname, '/integration/commonjs/index.js'), {
       config,
       distDir,
-      serve: {
+      serveOptions: {
         https: {
           key: path.join(__dirname, '/integration/https/private.pem'),
           cert: path.join(__dirname, '/integration/https/primary.crt'),
@@ -271,7 +276,7 @@ describe('server', function() {
     let b = bundler(path.join(__dirname, '/integration/commonjs/index.js'), {
       config,
       distDir,
-      serve: {
+      serveOptions: {
         https: false,
         port: port,
         host: 'localhost',
@@ -294,7 +299,7 @@ describe('server', function() {
     let b = bundler(path.join(__dirname, '/integration/commonjs/index.js'), {
       config,
       distDir,
-      serve: {
+      serveOptions: {
         https: false,
         port: port,
         host: 'localhost',
@@ -316,7 +321,7 @@ describe('server', function() {
     let b = bundler(path.join(__dirname, '/integration/html/index.html'), {
       config,
       distDir,
-      serve: {
+      serveOptions: {
         https: false,
         port: port,
         host: 'localhost',

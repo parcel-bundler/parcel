@@ -21,11 +21,16 @@ import type {
 import invariant from 'assert';
 import path from 'path';
 import nullthrows from 'nullthrows';
-import {md5FromObject, normalizeSeparators} from '@parcel/utils';
+import {
+  escapeMarkdown,
+  md5FromOrderedObject,
+  normalizeSeparators,
+  objectSortedEntries,
+} from '@parcel/utils';
 import logger, {PluginLogger} from '@parcel/logger';
 import {init as initSourcemaps} from '@parcel/source-map';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
-import {SOURCEMAP_EXTENSIONS, relativePath, flatMap} from '@parcel/utils';
+import {SOURCEMAP_EXTENSIONS} from '@parcel/utils';
 
 import ConfigLoader from './ConfigLoader';
 import {createDependency} from './Dependency';
@@ -135,18 +140,17 @@ export default class Transformation {
       try {
         await asset.loadExistingSourcemap();
       } catch (err) {
-        logger.warn([
+        logger.verbose([
           {
             origin: '@parcel/core',
-            message: `Could not load existing source map for ${relativePath(
-              this.options.projectRoot,
-              asset.value.filePath,
+            message: `Could not load existing source map for ${escapeMarkdown(
+              path.relative(this.options.projectRoot, asset.value.filePath),
             )}`,
             filePath: asset.value.filePath,
           },
           {
             origin: '@parcel/core',
-            message: err.message,
+            message: escapeMarkdown(err.message),
             filePath: asset.value.filePath,
           },
         ]);
@@ -156,7 +160,7 @@ export default class Transformation {
     let pipeline = await this.loadPipeline(
       this.request.filePath,
       asset.value.isSource,
-      this.request,
+      asset.value.pipeline,
     );
     let results = await this.runPipelines(pipeline, asset);
     let assets = results.map(a => a.value);
@@ -256,7 +260,7 @@ export default class Transformation {
     );
     let initialCacheEntry = await this.readFromCache(initialAssetCacheKey);
 
-    let assets =
+    let assets: Array<UncommittedAsset> =
       initialCacheEntry || (await this.runPipeline(pipeline, initialAsset));
 
     if (!initialCacheEntry) {
@@ -264,7 +268,7 @@ export default class Transformation {
         [initialAsset],
         pipeline.configs,
         await getInvalidationHash(
-          flatMap(assets, asset => asset.getInvalidations()),
+          assets.flatMap(asset => asset.getInvalidations()),
           this.options,
         ),
       );
@@ -278,7 +282,8 @@ export default class Transformation {
         nextPipeline = await this.loadNextPipeline({
           filePath: initialAsset.value.filePath,
           isSource: asset.value.isSource,
-          nextType: asset.value.type,
+          newType: asset.value.type,
+          newPipeline: asset.value.pipeline,
           currentPipeline: pipeline,
         });
       }
@@ -300,7 +305,7 @@ export default class Transformation {
         finalAssets,
         pipeline.configs,
         await getInvalidationHash(
-          flatMap(finalAssets, asset => asset.getInvalidations()),
+          finalAssets.flatMap(asset => asset.getInvalidations()),
           this.options,
         ),
       ),
@@ -316,7 +321,7 @@ export default class Transformation {
           processedFinalAssets,
           pipeline.configs,
           await getInvalidationHash(
-            flatMap(processedFinalAssets, asset => asset.getInvalidations()),
+            processedFinalAssets.flatMap(asset => asset.getInvalidations()),
             this.options,
           ),
         ),
@@ -348,7 +353,8 @@ export default class Transformation {
           (await this.loadNextPipeline({
             filePath: initialAsset.value.filePath,
             isSource: asset.value.isSource,
-            nextType: asset.value.type,
+            newType: asset.value.type,
+            newPipeline: asset.value.pipeline,
             currentPipeline: pipeline,
           }))
         ) {
@@ -387,9 +393,9 @@ export default class Transformation {
     }
 
     // Make assets with ASTs generate unless they are js assets and target uses
-    // scope hoisting. This parallelizes generation and distributes work more
-    // evenly across workers than if one worker needed to generate all assets in
-    // a large bundle during packaging.
+    // scope hoisting or we do CSS modules tree shaking. This parallelizes generation
+    // and distributes work more evenly across workers than if one worker needed to
+    // generate all assets in a large bundle during packaging.
     let generate = pipeline.generate;
     if (generate != null) {
       await Promise.all(
@@ -397,7 +403,12 @@ export default class Transformation {
           .filter(
             asset =>
               asset.ast != null &&
-              !(asset.value.type === 'js' && asset.value.env.scopeHoist),
+              !(
+                (asset.value.env.scopeHoist && asset.value.type === 'js') ||
+                (this.options.mode === 'production' &&
+                  asset.value.type === 'css' &&
+                  asset.value.symbols)
+              ),
           )
           .map(async asset => {
             if (asset.isASTDirty) {
@@ -415,7 +426,7 @@ export default class Transformation {
   }
 
   async readFromCache(cacheKey: string): Promise<?Array<UncommittedAsset>> {
-    if (this.options.disableCache || this.request.code != null) {
+    if (this.options.shouldDisableCache || this.request.code != null) {
       return null;
     }
 
@@ -443,7 +454,7 @@ export default class Transformation {
     await Promise.all(
       assets.map(asset =>
         asset.commit(
-          md5FromObject({
+          md5FromOrderedObject({
             configs: getImpactfulConfigInfo(configs),
           }),
         ),
@@ -465,9 +476,10 @@ export default class Transformation {
       pipeline: a.value.pipeline,
       hash: a.value.hash,
       uniqueKey: a.value.uniqueKey,
+      query: a.value.query ? objectSortedEntries(a.value.query) : '',
     }));
 
-    return md5FromObject({
+    return md5FromOrderedObject({
       parcelVersion: PARCEL_VERSION,
       assets: assetsKeyInfo,
       configs: getImpactfulConfigInfo(configs),
@@ -479,14 +491,14 @@ export default class Transformation {
   async loadPipeline(
     filePath: FilePath,
     isSource: boolean,
-    request?: AssetRequestInput,
+    pipeline: ?string,
   ): Promise<Pipeline> {
     let configRequest = {
       filePath,
       env: this.request.env,
       isSource,
-      pipeline: request?.pipeline,
-      isURL: request?.isURL,
+      pipeline: pipeline,
+      isURL: this.request.isURL,
       meta: {
         actionType: 'transformation',
       },
@@ -499,8 +511,8 @@ export default class Transformation {
 
     let transformers = await this.parcelConfig.getTransformers(
       filePath,
-      request?.pipeline,
-      request?.isURL,
+      pipeline,
+      this.request.isURL,
     );
 
     for (let {name, resolveFrom, keyPath} of transformers) {
@@ -515,7 +527,7 @@ export default class Transformation {
       configs.set(name, thirdPartyConfig);
     }
 
-    let pipeline = {
+    return {
       id: transformers.map(t => t.name).join(':'),
       transformers: transformers.map(transformer => ({
         name: transformer.name,
@@ -533,27 +545,27 @@ export default class Transformation {
       pluginOptions: this.pluginOptions,
       workerApi: this.workerApi,
     };
-
-    return pipeline;
   }
 
   async loadNextPipeline({
     filePath,
     isSource,
-    nextType,
+    newType,
+    newPipeline,
     currentPipeline,
   }: {|
     filePath: string,
     isSource: boolean,
-    nextType: string,
+    newType: string,
+    newPipeline: ?string,
     currentPipeline: Pipeline,
   |}): Promise<?Pipeline> {
     let nextFilePath =
-      filePath.slice(0, -path.extname(filePath).length) + '.' + nextType;
+      filePath.slice(0, -path.extname(filePath).length) + '.' + newType;
     let nextPipeline = await this.loadPipeline(
       nextFilePath,
       isSource,
-      this.request,
+      newPipeline,
     );
 
     if (nextPipeline.id === currentPipeline.id) {
@@ -740,9 +752,11 @@ function normalizeAssets(
       }
 
       let internalAsset = mutableAssetToUncommittedAsset(result);
+      // $FlowFixMe - ignore id already on env
       return {
         ast: internalAsset.ast,
         content: await internalAsset.content,
+        query: internalAsset.value.query,
         // $FlowFixMe
         dependencies: [...internalAsset.value.dependencies.values()],
         env: internalAsset.value.env,
@@ -752,6 +766,8 @@ function normalizeAssets(
         map: await internalAsset.getMap(),
         meta: result.meta,
         pipeline: internalAsset.value.pipeline,
+        // $FlowFixMe
+        symbols: internalAsset.value.symbols,
         type: result.type,
         uniqueKey: internalAsset.value.uniqueKey,
       };

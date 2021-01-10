@@ -21,20 +21,17 @@ import {
   validateSchema,
   findAlternativeNodeModules,
   findAlternativeFiles,
-  flatMap,
 } from '@parcel/utils';
 import ThrowableDiagnostic, {
   generateJSONCodeHighlights,
 } from '@parcel/diagnostic';
-// $FlowFixMe
 import {parse} from 'json5';
 import path from 'path';
 import assert from 'assert';
 
 import ParcelConfigSchema from '../ParcelConfig.schema';
 import {optionsProxy} from '../utils';
-
-const NAMED_PIPELINE_REGEX = /^[\w-.+]+:/;
+import ParcelConfig from '../ParcelConfig';
 
 type ConfigMap<K, V> = {[K]: V, ...};
 
@@ -45,7 +42,7 @@ export type ConfigAndCachePath = {|
 
 type RunOpts = {|
   input: null,
-  ...StaticRunOpts,
+  ...StaticRunOpts<ConfigAndCachePath>,
 |};
 
 export type ParcelConfigRequest = {|
@@ -92,6 +89,29 @@ export default function createParcelConfigRequest(): ParcelConfigRequest {
     },
     input: null,
   };
+}
+
+const parcelConfigCache = new Map();
+
+export function getCachedParcelConfig(
+  result: ConfigAndCachePath,
+  options: ParcelOptions,
+): ParcelConfig {
+  let {config: processedConfig, cachePath} = result;
+  let config = parcelConfigCache.get(cachePath);
+  if (config) {
+    return config;
+  }
+
+  config = new ParcelConfig(
+    processedConfig,
+    options.packageManager,
+    options.inputFS,
+    options.shouldAutoInstall,
+  );
+
+  parcelConfigCache.set(cachePath, config);
+  return config;
 }
 
 export async function loadParcelConfig(
@@ -355,7 +375,7 @@ export async function processConfigChain(
 
     if (errors.length > 0) {
       throw new ThrowableDiagnostic({
-        diagnostic: flatMap(errors, e => e.diagnostics),
+        diagnostic: errors.flatMap(e => e.diagnostics),
       });
     }
   }
@@ -489,7 +509,6 @@ export function mergeConfigs(
       base.transformers,
       ext.transformers,
       mergePipelines,
-      true,
     ),
     validators: mergeMaps(base.validators, ext.validators, mergePipelines),
     bundler: ext.bundler || base.bundler,
@@ -543,7 +562,6 @@ export function mergeMaps<K: string, V>(
   base: ?ConfigMap<K, V>,
   ext: ?ConfigMap<K, V>,
   merger?: (a: V, b: V) => V,
-  hasNamedPipelines: boolean = false,
 ): ConfigMap<K, V> {
   if (!ext || Object.keys(ext).length === 0) {
     return base || {};
@@ -554,29 +572,6 @@ export function mergeMaps<K: string, V>(
   }
 
   let res: ConfigMap<K, V> = {};
-  if (hasNamedPipelines) {
-    // in res, all named pipelines should come before the other pipelines
-    for (let k in ext) {
-      // $FlowFixMe Flow doesn't correctly infer the type. See https://github.com/facebook/flow/issues/1736.
-      let key: K = (k: any);
-      if (NAMED_PIPELINE_REGEX.test(key)) {
-        res[key] =
-          merger && base[key] != null ? merger(base[key], ext[key]) : ext[key];
-      }
-    }
-
-    // Add base options that aren't defined in the extension
-    for (let k in base) {
-      // $FlowFixMe
-      let key: K = (k: any);
-      if (NAMED_PIPELINE_REGEX.test(key)) {
-        if (res[key] == null) {
-          res[key] = base[key];
-        }
-      }
-    }
-  }
-
   // Add the extension options first so they have higher precedence in the output glob map
   for (let k in ext) {
     //$FlowFixMe Flow doesn't correctly infer the type. See https://github.com/facebook/flow/issues/1736.

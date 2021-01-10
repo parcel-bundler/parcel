@@ -7,7 +7,7 @@ import type {PluginLogger} from '@parcel/logger';
 import nullthrows from 'nullthrows';
 import path from 'path';
 import * as bundledBabelCore from '@babel/core';
-import {md5FromObject, resolveConfig} from '@parcel/utils';
+import {md5FromObject} from '@parcel/utils';
 import semver from 'semver';
 
 import getEnvOptions from './env';
@@ -26,29 +26,15 @@ export async function load(
   options: PluginOptions,
   logger: PluginLogger,
 ): Promise<void> {
-  // Don't look for a custom babel config if inside node_modules
+  // Don't transpile inside node_modules
   if (!config.isSource) {
-    return buildDefaultBabelConfig(options, config);
-  }
-
-  // If we are in a monorepo, also find .babelrc configs in the sub packages.
-  let babelrcRoots = [options.projectRoot];
-  let packageJSONPath = await resolveConfig(
-    options.inputFS,
-    config.searchPath,
-    ['package.json'],
-  );
-  if (packageJSONPath) {
-    let packageRoot = path.dirname(packageJSONPath);
-    if (packageRoot && packageRoot !== options.projectRoot) {
-      babelrcRoots.push(packageRoot);
-    }
+    return;
   }
 
   let resolved = await options.packageManager.resolve(
     '@babel/core',
     config.searchPath,
-    {range: BABEL_RANGE, autoinstall: options.autoinstall},
+    {range: BABEL_RANGE, shouldAutoInstall: options.shouldAutoInstall},
   );
   let babelCore = await options.packageManager.require(
     resolved.resolved,
@@ -56,14 +42,10 @@ export async function load(
   );
   let babelOptions = {
     filename: config.searchPath,
-    cwd: path.dirname(config.searchPath),
-    root: options.projectRoot,
-    babelrcRoots,
+    cwd: options.projectRoot,
     envName:
       options.env.BABEL_ENV ??
-      process.env.BABEL_ENV ??
       options.env.NODE_ENV ??
-      process.env.NODE_ENV ??
       (options.mode === 'production' || options.mode === 'development'
         ? options.mode
         : null) ??
@@ -176,11 +158,17 @@ export async function load(
 }
 
 async function buildDefaultBabelConfig(options: PluginOptions, config: Config) {
+  let jsxOptions = await getJSXOptions(options, config);
+
   let babelOptions;
   if (path.extname(config.searchPath).match(TYPESCRIPT_EXTNAME_RE)) {
-    babelOptions = getTypescriptOptions(config);
+    babelOptions = getTypescriptOptions(
+      config,
+      jsxOptions?.pragma,
+      jsxOptions?.pragmaFrag,
+    );
   } else {
-    babelOptions = getFlowOptions(config);
+    babelOptions = await getFlowOptions(config, options);
   }
 
   let babelTargets;
@@ -189,10 +177,7 @@ async function buildDefaultBabelConfig(options: PluginOptions, config: Config) {
     babelTargets = envOptions.targets;
     babelOptions = mergeOptions(babelOptions, {presets: envOptions.presets});
   }
-  babelOptions = mergeOptions(
-    babelOptions,
-    await getJSXOptions(options, config),
-  );
+  babelOptions = mergeOptions(babelOptions, jsxOptions?.config);
 
   if (babelOptions != null) {
     babelOptions.presets = (babelOptions.presets || []).map(preset =>
@@ -310,7 +295,7 @@ export async function postDeserialize(config: Config, options: PluginOptions) {
   let babelCore = config.result.internal
     ? bundledBabelCore
     : await options.packageManager.require('@babel/core', config.searchPath, {
-        autoinstall: options.autoinstall,
+        shouldAutoInstall: options.shouldAutoInstall,
       });
 
   config.result.config.presets = await Promise.all(
@@ -318,7 +303,7 @@ export async function postDeserialize(config: Config, options: PluginOptions) {
       let value = await options.packageManager.require(
         configItem.file.resolved,
         config.searchPath,
-        {autoinstall: options.autoinstall},
+        {shouldAutoInstall: options.shouldAutoInstall},
       );
       value = value.default ? value.default : value;
       return babelCore.createConfigItem([value, configItem.options], {
@@ -332,7 +317,7 @@ export async function postDeserialize(config: Config, options: PluginOptions) {
       let value = await options.packageManager.require(
         configItem.file.resolved,
         config.searchPath,
-        {autoinstall: options.autoinstall},
+        {shouldAutoInstall: options.shouldAutoInstall},
       );
       value = value.default ? value.default : value;
       return babelCore.createConfigItem([value, configItem.options], {

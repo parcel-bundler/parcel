@@ -1,14 +1,10 @@
 // @flow
-import type {
-  BundleGraph,
-  NamedBundle,
-  InitialParcelOptions,
-} from '@parcel/types';
+import type {InitialParcelOptions, BuildSuccessEvent} from '@parcel/types';
 import assert from 'assert';
 import path from 'path';
 import {
   assertBundles,
-  bundle,
+  bundler,
   run,
   overlayFS,
   inputFS,
@@ -17,21 +13,23 @@ import {
 } from '@parcel/test-utils';
 import fs from 'fs';
 
+let inputDir: string;
+
 function runBundle(entries = 'src/index.js', opts) {
   entries = (Array.isArray(entries) ? entries : [entries]).map(entry =>
-    path.join(__dirname, 'input', entry),
+    path.join(inputDir, entry),
   );
 
-  return bundle(entries, {
+  return bundler(entries, {
     inputFS: overlayFS,
-    disableCache: false,
+    shouldDisableCache: false,
     ...opts,
-  });
+  }).run();
 }
 
-type UpdateFn = (
-  BundleGraph<NamedBundle>,
-) => ?InitialParcelOptions | Promise<?InitialParcelOptions>;
+type UpdateFn = BuildSuccessEvent =>
+  | ?InitialParcelOptions
+  | Promise<?InitialParcelOptions>;
 type TestConfig = {|
   ...InitialParcelOptions,
   entries?: Array<string>,
@@ -40,15 +38,11 @@ type TestConfig = {|
 |};
 
 async function testCache(update: UpdateFn | TestConfig, integration) {
-  // Delete cache from previous test and perform initial build
-  await inputFS.rimraf(path.join(__dirname, '/input'));
   await overlayFS.rimraf(path.join(__dirname, '/input'));
   await ncp(
     path.join(__dirname, '/integration', integration ?? 'cache'),
-    path.join(__dirname, '/input'),
+    path.join(inputDir),
   );
-  await overlayFS.rimraf(path.join(__dirname, '/input/.parcel-cache'));
-  await overlayFS.rimraf(path.join(__dirname, '/input/dist'));
 
   let entries;
   let options: ?InitialParcelOptions;
@@ -72,33 +66,47 @@ async function testCache(update: UpdateFn | TestConfig, integration) {
   return b;
 }
 
-describe.only('cache', function() {
+describe('cache', function() {
+  before(async () => {
+    await inputFS.rimraf(path.join(__dirname, 'input'));
+  });
+
+  beforeEach(() => {
+    inputDir = path.join(
+      __dirname,
+      '/input',
+      Math.random()
+        .toString(36)
+        .slice(2),
+    );
+  });
+
   it('should support updating a JS file', async function() {
     let b = await testCache(async b => {
-      assert.equal(await run(b), 4);
+      assert.equal(await run(b.bundleGraph), 4);
       await overlayFS.writeFile(
-        path.join(__dirname, '/input/src/nested/test.js'),
+        path.join(inputDir, 'src/nested/test.js'),
         'export default 4',
       );
     });
 
-    assert.equal(await run(b), 6);
+    assert.equal(await run(b.bundleGraph), 6);
   });
 
   it('should support adding a dependency', async function() {
     let b = await testCache(async b => {
-      assert.equal(await run(b), 4);
+      assert.equal(await run(b.bundleGraph), 4);
       await overlayFS.writeFile(
-        path.join(__dirname, '/input/src/nested/foo.js'),
+        path.join(inputDir, 'src/nested/foo.js'),
         'export default 6',
       );
       await overlayFS.writeFile(
-        path.join(__dirname, '/input/src/nested/test.js'),
+        path.join(inputDir, 'src/nested/test.js'),
         'export {default} from "./foo";',
       );
     });
 
-    assert.equal(await run(b), 8);
+    assert.equal(await run(b.bundleGraph), 8);
   });
 
   it('should error when deleting a file', async function() {
@@ -106,9 +114,7 @@ describe.only('cache', function() {
     await assert.rejects(
       async () => {
         await testCache(async () => {
-          await overlayFS.unlink(
-            path.join(__dirname, '/input/src/nested/test.js'),
-          );
+          await overlayFS.unlink(path.join(inputDir, 'src/nested/test.js'));
         });
       },
       {message: "Failed to resolve './nested/test' from './src/index.js'"},
@@ -119,9 +125,7 @@ describe.only('cache', function() {
     // $FlowFixMe
     await assert.rejects(async () => {
       await testCache(async () => {
-        await overlayFS.unlink(
-          path.join(__dirname, '/input/src/nested/test.js'),
-        );
+        await overlayFS.unlink(path.join(inputDir, 'src/nested/test.js'));
       });
     });
 
@@ -152,7 +156,7 @@ describe.only('cache', function() {
       // {name: 'babel.config.mjs', formatter: mjs, nesting: false}
     ];
 
-    let testBabelCache = async opts => {
+    let testBabelCache = async (opts: TestConfig) => {
       await workerFarm.callAllWorkers('invalidateRequireCache', [
         require.resolve('@babel/core'),
       ]);
@@ -160,7 +164,7 @@ describe.only('cache', function() {
       return testCache({
         ...opts,
         async update(...args) {
-          opts.update(...args);
+          await opts.update(...args);
 
           // invalidate babel's caches since we're simulating a process restart
           await workerFarm.callAllWorkers('invalidateRequireCache', [
@@ -174,7 +178,7 @@ describe.only('cache', function() {
       describe(name, function() {
         beforeEach(async () => {
           await workerFarm.callAllWorkers('invalidateRequireCache', [
-            path.join(__dirname, `/input/${name}`),
+            path.join(inputDir, name),
           ]);
         });
 
@@ -184,16 +188,17 @@ describe.only('cache', function() {
             inputFS,
             outputFS: inputFS,
             async setup() {
+              await inputFS.mkdirp(inputDir);
               await inputFS.ncp(
                 path.join(__dirname, '/integration/cache'),
-                path.join(__dirname, '/input'),
+                inputDir,
               );
             },
             async update(b) {
-              assert.equal(await run(b), 4);
+              assert.equal(await run(b.bundleGraph), 4);
 
               let contents = await overlayFS.readFile(
-                b.getBundles()[0].filePath,
+                b.bundleGraph.getBundles()[0].filePath,
                 'utf8',
               );
               assert(
@@ -202,7 +207,7 @@ describe.only('cache', function() {
               );
 
               await inputFS.writeFile(
-                path.join(__dirname, `/input/${name}`),
+                path.join(inputDir, name),
                 formatter({
                   presets: ['@babel/preset-env'],
                 }),
@@ -210,10 +215,10 @@ describe.only('cache', function() {
             },
           });
 
-          assert.equal(await run(b), 4);
+          assert.equal(await run(b.bundleGraph), 4);
 
           let contents = await overlayFS.readFile(
-            b.getBundles()[0].filePath,
+            b.bundleGraph.getBundles()[0].filePath,
             'utf8',
           );
           assert(
@@ -228,12 +233,13 @@ describe.only('cache', function() {
             inputFS,
             outputFS: inputFS,
             async setup() {
+              await inputFS.mkdirp(inputDir);
               await inputFS.ncp(
                 path.join(__dirname, '/integration/cache'),
-                path.join(__dirname, '/input'),
+                inputDir,
               );
               await inputFS.writeFile(
-                path.join(__dirname, `/input/${name}`),
+                path.join(inputDir, name),
                 formatter({
                   presets: [
                     ['@babel/preset-env', {targets: {esmodules: true}}],
@@ -243,7 +249,7 @@ describe.only('cache', function() {
             },
             async update(b) {
               let contents = await overlayFS.readFile(
-                b.getBundles()[0].filePath,
+                b.bundleGraph.getBundles()[0].filePath,
                 'utf8',
               );
               assert(
@@ -252,20 +258,20 @@ describe.only('cache', function() {
               );
 
               await inputFS.writeFile(
-                path.join(__dirname, `/input/${name}`),
+                path.join(inputDir, name),
                 formatter({
                   presets: ['@babel/preset-env'],
                 }),
               );
 
               await workerFarm.callAllWorkers('invalidateRequireCache', [
-                path.join(__dirname, `/input/${name}`),
+                path.join(inputDir, name),
               ]);
             },
           });
 
           let contents = await overlayFS.readFile(
-            b.getBundles()[0].filePath,
+            b.bundleGraph.getBundles()[0].filePath,
             'utf8',
           );
           assert(
@@ -280,12 +286,13 @@ describe.only('cache', function() {
             inputFS,
             outputFS: inputFS,
             async setup() {
+              await inputFS.mkdirp(inputDir);
               await inputFS.ncp(
                 path.join(__dirname, '/integration/cache'),
-                path.join(__dirname, '/input'),
+                inputDir,
               );
               await inputFS.writeFile(
-                path.join(__dirname, `/input/${name}`),
+                path.join(inputDir, name),
                 formatter({
                   presets: ['@babel/preset-env'],
                 }),
@@ -293,7 +300,7 @@ describe.only('cache', function() {
             },
             async update(b) {
               let contents = await overlayFS.readFile(
-                b.getBundles()[0].filePath,
+                b.bundleGraph.getBundles()[0].filePath,
                 'utf8',
               );
               assert(
@@ -301,12 +308,12 @@ describe.only('cache', function() {
                 'class should be transpiled',
               );
 
-              await inputFS.unlink(path.join(__dirname, `/input/${name}`));
+              await inputFS.unlink(path.join(inputDir, name));
             },
           });
 
           let contents = await overlayFS.readFile(
-            b.getBundles()[0].filePath,
+            b.bundleGraph.getBundles()[0].filePath,
             'utf8',
           );
           assert(
@@ -322,12 +329,13 @@ describe.only('cache', function() {
             inputFS,
             outputFS: inputFS,
             async setup() {
+              await inputFS.mkdirp(inputDir);
               await inputFS.ncp(
                 path.join(__dirname, '/integration/cache'),
-                path.join(__dirname, '/input'),
+                inputDir,
               );
               await inputFS.writeFile(
-                path.join(__dirname, `/input/${extendedName}`),
+                path.join(inputDir, extendedName),
                 formatter({
                   presets: [
                     ['@babel/preset-env', {targets: {esmodules: true}}],
@@ -335,18 +343,18 @@ describe.only('cache', function() {
                 }),
               );
               await inputFS.writeFile(
-                path.join(__dirname, `/input/${name}`),
+                path.join(inputDir, name),
                 formatter({
                   extends: `./${extendedName}`,
                 }),
               );
               await workerFarm.callAllWorkers('invalidateRequireCache', [
-                path.join(__dirname, `/input/${extendedName}`),
+                path.join(inputDir, extendedName),
               ]);
             },
             async update(b) {
               let contents = await overlayFS.readFile(
-                b.getBundles()[0].filePath,
+                b.bundleGraph.getBundles()[0].filePath,
                 'utf8',
               );
               assert(
@@ -355,20 +363,20 @@ describe.only('cache', function() {
               );
 
               await inputFS.writeFile(
-                path.join(__dirname, `/input/${extendedName}`),
+                path.join(inputDir, extendedName),
                 formatter({
                   presets: ['@babel/preset-env'],
                 }),
               );
 
               await workerFarm.callAllWorkers('invalidateRequireCache', [
-                path.join(__dirname, `/input/${extendedName}`),
+                path.join(inputDir, extendedName),
               ]);
             },
           });
 
           let contents = await overlayFS.readFile(
-            b.getBundles()[0].filePath,
+            b.bundleGraph.getBundles()[0].filePath,
             'utf8',
           );
           assert(
@@ -384,16 +392,17 @@ describe.only('cache', function() {
               inputFS,
               outputFS: inputFS,
               async setup() {
+                await inputFS.mkdirp(inputDir);
                 await inputFS.ncp(
                   path.join(__dirname, '/integration/cache'),
-                  path.join(__dirname, '/input'),
+                  inputDir,
                 );
               },
               async update(b) {
-                assert.equal(await run(b), 4);
+                assert.equal(await run(b.bundleGraph), 4);
 
                 let contents = await overlayFS.readFile(
-                  b.getBundles()[0].filePath,
+                  b.bundleGraph.getBundles()[0].filePath,
                   'utf8',
                 );
                 assert(
@@ -406,7 +415,7 @@ describe.only('cache', function() {
                 );
 
                 await inputFS.writeFile(
-                  path.join(__dirname, `/input/src/nested/${name}`),
+                  path.join(inputDir, `src/nested/${name}`),
                   formatter({
                     presets: ['@babel/preset-env'],
                   }),
@@ -414,10 +423,10 @@ describe.only('cache', function() {
               },
             });
 
-            assert.equal(await run(b), 4);
+            assert.equal(await run(b.bundleGraph), 4);
 
             let contents = await overlayFS.readFile(
-              b.getBundles()[0].filePath,
+              b.bundleGraph.getBundles()[0].filePath,
               'utf8',
             );
             assert(
@@ -436,12 +445,13 @@ describe.only('cache', function() {
               inputFS,
               outputFS: inputFS,
               async setup() {
+                await inputFS.mkdirp(inputDir);
                 await inputFS.ncp(
                   path.join(__dirname, '/integration/cache'),
-                  path.join(__dirname, '/input'),
+                  inputDir,
                 );
                 await inputFS.writeFile(
-                  path.join(__dirname, `/input/src/nested/${name}`),
+                  path.join(inputDir, `src/nested/${name}`),
                   formatter({
                     presets: [
                       ['@babel/preset-env', {targets: {esmodules: true}}],
@@ -449,12 +459,12 @@ describe.only('cache', function() {
                   }),
                 );
                 await workerFarm.callAllWorkers('invalidateRequireCache', [
-                  path.join(__dirname, `/input/src/nested/${name}`),
+                  path.join(inputDir, `src/nested/${name}`),
                 ]);
               },
               async update(b) {
                 let contents = await overlayFS.readFile(
-                  b.getBundles()[0].filePath,
+                  b.bundleGraph.getBundles()[0].filePath,
                   'utf8',
                 );
                 assert(
@@ -467,20 +477,20 @@ describe.only('cache', function() {
                 );
 
                 await inputFS.writeFile(
-                  path.join(__dirname, `/input/src/nested/${name}`),
+                  path.join(inputDir, `src/nested/${name}`),
                   formatter({
                     presets: ['@babel/preset-env'],
                   }),
                 );
 
                 await workerFarm.callAllWorkers('invalidateRequireCache', [
-                  path.join(__dirname, `/input/src/nested/${name}`),
+                  path.join(inputDir, `src/nested/${name}`),
                 ]);
               },
             });
 
             let contents = await overlayFS.readFile(
-              b.getBundles()[0].filePath,
+              b.bundleGraph.getBundles()[0].filePath,
               'utf8',
             );
             assert(
@@ -499,12 +509,13 @@ describe.only('cache', function() {
               inputFS,
               outputFS: inputFS,
               async setup() {
+                await inputFS.mkdirp(inputDir);
                 await inputFS.ncp(
                   path.join(__dirname, '/integration/cache'),
-                  path.join(__dirname, '/input'),
+                  inputDir,
                 );
                 await inputFS.writeFile(
-                  path.join(__dirname, `/input/src/nested/${name}`),
+                  path.join(inputDir, `src/nested/${name}`),
                   formatter({
                     presets: ['@babel/preset-env'],
                   }),
@@ -512,7 +523,7 @@ describe.only('cache', function() {
               },
               async update(b) {
                 let contents = await overlayFS.readFile(
-                  b.getBundles()[0].filePath,
+                  b.bundleGraph.getBundles()[0].filePath,
                   'utf8',
                 );
                 assert(
@@ -524,14 +535,12 @@ describe.only('cache', function() {
                   'class should not be transpiled',
                 );
 
-                await inputFS.unlink(
-                  path.join(__dirname, `/input/src/nested/${name}`),
-                );
+                await inputFS.unlink(path.join(inputDir, `src/nested/${name}`));
               },
             });
 
             let contents = await overlayFS.readFile(
-              b.getBundles()[0].filePath,
+              b.bundleGraph.getBundles()[0].filePath,
               'utf8',
             );
             assert(
@@ -554,12 +563,13 @@ describe.only('cache', function() {
           inputFS,
           outputFS: inputFS,
           async setup() {
+            await inputFS.mkdirp(inputDir);
             await inputFS.ncp(
               path.join(__dirname, '/integration/cache'),
-              path.join(__dirname, '/input'),
+              inputDir,
             );
             await inputFS.writeFile(
-              path.join(__dirname, '/input/.babelrc'),
+              path.join(inputDir, '.babelrc'),
               JSON.stringify({
                 presets: ['@babel/preset-env'],
               }),
@@ -567,7 +577,7 @@ describe.only('cache', function() {
           },
           async update(b) {
             let contents = await overlayFS.readFile(
-              b.getBundles()[0].filePath,
+              b.bundleGraph.getBundles()[0].filePath,
               'utf8',
             );
             assert(
@@ -580,14 +590,14 @@ describe.only('cache', function() {
             );
 
             await inputFS.writeFile(
-              path.join(__dirname, '/input/.babelignore'),
+              path.join(inputDir, '.babelignore'),
               'src/nested',
             );
           },
         });
 
         let contents = await overlayFS.readFile(
-          b.getBundles()[0].filePath,
+          b.bundleGraph.getBundles()[0].filePath,
           'utf8',
         );
         assert(
@@ -606,24 +616,25 @@ describe.only('cache', function() {
           inputFS,
           outputFS: inputFS,
           async setup() {
+            await inputFS.mkdirp(inputDir);
             await inputFS.ncp(
               path.join(__dirname, '/integration/cache'),
-              path.join(__dirname, '/input'),
+              inputDir,
             );
             await inputFS.writeFile(
-              path.join(__dirname, '/input/.babelrc'),
+              path.join(inputDir, '.babelrc'),
               JSON.stringify({
                 presets: ['@babel/preset-env'],
               }),
             );
             await inputFS.writeFile(
-              path.join(__dirname, '/input/.babelignore'),
+              path.join(inputDir, '.babelignore'),
               'src/nested',
             );
           },
           async update(b) {
             let contents = await overlayFS.readFile(
-              b.getBundles()[0].filePath,
+              b.bundleGraph.getBundles()[0].filePath,
               'utf8',
             );
             assert(
@@ -635,15 +646,12 @@ describe.only('cache', function() {
               'class should be transpiled',
             );
 
-            await inputFS.writeFile(
-              path.join(__dirname, '/input/.babelignore'),
-              'src',
-            );
+            await inputFS.writeFile(path.join(inputDir, '.babelignore'), 'src');
           },
         });
 
         let contents = await overlayFS.readFile(
-          b.getBundles()[0].filePath,
+          b.bundleGraph.getBundles()[0].filePath,
           'utf8',
         );
         assert(
@@ -662,24 +670,25 @@ describe.only('cache', function() {
           inputFS,
           outputFS: inputFS,
           async setup() {
+            await inputFS.mkdirp(inputDir);
             await inputFS.ncp(
               path.join(__dirname, '/integration/cache'),
-              path.join(__dirname, '/input'),
+              inputDir,
             );
             await inputFS.writeFile(
-              path.join(__dirname, '/input/.babelrc'),
+              path.join(inputDir, '.babelrc'),
               JSON.stringify({
                 presets: ['@babel/preset-env'],
               }),
             );
             await inputFS.writeFile(
-              path.join(__dirname, '/input/.babelignore'),
+              path.join(inputDir, '.babelignore'),
               'src/nested',
             );
           },
           async update(b) {
             let contents = await overlayFS.readFile(
-              b.getBundles()[0].filePath,
+              b.bundleGraph.getBundles()[0].filePath,
               'utf8',
             );
             assert(
@@ -691,12 +700,12 @@ describe.only('cache', function() {
               'class should be transpiled',
             );
 
-            await inputFS.unlink(path.join(__dirname, '/input/.babelignore'));
+            await inputFS.unlink(path.join(inputDir, '.babelignore'));
           },
         });
 
         let contents = await overlayFS.readFile(
-          b.getBundles()[0].filePath,
+          b.bundleGraph.getBundles()[0].filePath,
           'utf8',
         );
         assert(!contents.includes('class Test'), 'class should be transpiled');
@@ -714,17 +723,18 @@ describe.only('cache', function() {
           inputFS,
           outputFS: inputFS,
           async setup() {
+            await inputFS.mkdirp(inputDir);
             await inputFS.ncp(
               path.join(__dirname, '/integration/cache'),
-              path.join(__dirname, '/input'),
+              inputDir,
             );
             await inputFS.mkdirp(
-              path.join(__dirname, '/input/node_modules/babel-plugin-dummy'),
+              path.join(inputDir, 'node_modules/babel-plugin-dummy'),
             );
             await inputFS.writeFile(
               path.join(
-                __dirname,
-                '/input/node_modules/babel-plugin-dummy/package.json',
+                inputDir,
+                '/node_modules/babel-plugin-dummy/package.json',
               ),
               JSON.stringify({
                 name: 'babel-plugin-dummy',
@@ -736,25 +746,22 @@ describe.only('cache', function() {
                 __dirname,
                 '/integration/babelrc-custom/babel-plugin-dummy.js',
               ),
-              path.join(
-                __dirname,
-                '/input/node_modules/babel-plugin-dummy/index.js',
-              ),
+              path.join(inputDir, '/node_modules/babel-plugin-dummy/index.js'),
             );
             await inputFS.writeFile(
-              path.join(__dirname, '/input/.babelrc'),
+              path.join(inputDir, '.babelrc'),
               JSON.stringify({
                 plugins: ['babel-plugin-dummy'],
               }),
             );
             await inputFS.writeFile(
-              path.join(__dirname, '/input/src/index.js'),
+              path.join(inputDir, 'src/index.js'),
               'console.log("REPLACE_ME")',
             );
           },
           async update(b) {
             let contents = await overlayFS.readFile(
-              b.getBundles()[0].filePath,
+              b.bundleGraph.getBundles()[0].filePath,
               'utf8',
             );
             assert(
@@ -763,8 +770,8 @@ describe.only('cache', function() {
             );
 
             let plugin = path.join(
-              __dirname,
-              '/input/node_modules/babel-plugin-dummy/index.js',
+              inputDir,
+              'node_modules/babel-plugin-dummy/index.js',
             );
             let source = await inputFS.readFile(plugin, 'utf8');
             await inputFS.writeFile(
@@ -774,8 +781,8 @@ describe.only('cache', function() {
 
             await inputFS.writeFile(
               path.join(
-                __dirname,
-                '/input/node_modules/babel-plugin-dummy/package.json',
+                inputDir,
+                'node_modules/babel-plugin-dummy/package.json',
               ),
               JSON.stringify({
                 name: 'babel-plugin-dummy',
@@ -784,16 +791,13 @@ describe.only('cache', function() {
             );
 
             await workerFarm.callAllWorkers('invalidateRequireCache', [
-              path.join(
-                __dirname,
-                '/input/node_modules/babel-plugin-dummy/index.js',
-              ),
+              path.join(inputDir, 'node_modules/babel-plugin-dummy/index.js'),
             ]);
           },
         });
 
         let contents = await overlayFS.readFile(
-          b.getBundles()[0].filePath,
+          b.bundleGraph.getBundles()[0].filePath,
           'utf8',
         );
         assert(contents.includes('replaced'), 'string should be replaced');
@@ -804,33 +808,33 @@ describe.only('cache', function() {
           // Babel's config loader only works with the node filesystem
           inputFS,
           outputFS: inputFS,
-          // cleanWorkerFarm: true,
           async setup() {
+            await inputFS.mkdirp(inputDir);
             await inputFS.ncp(
               path.join(__dirname, '/integration/cache'),
-              path.join(__dirname, '/input'),
+              inputDir,
             );
             await inputFS.copyFile(
               path.join(
                 __dirname,
                 '/integration/babelrc-custom/babel-plugin-dummy.js',
               ),
-              path.join(__dirname, '/input/babel-plugin-dummy.js'),
+              path.join(inputDir, 'babel-plugin-dummy.js'),
             );
             await inputFS.writeFile(
-              path.join(__dirname, '/input/.babelrc'),
+              path.join(inputDir, '.babelrc'),
               JSON.stringify({
                 plugins: ['./babel-plugin-dummy'],
               }),
             );
             await inputFS.writeFile(
-              path.join(__dirname, '/input/src/index.js'),
+              path.join(inputDir, 'src/index.js'),
               'console.log("REPLACE_ME")',
             );
           },
           async update(b) {
             let contents = await overlayFS.readFile(
-              b.getBundles()[0].filePath,
+              b.bundleGraph.getBundles()[0].filePath,
               'utf8',
             );
             assert(
@@ -838,7 +842,7 @@ describe.only('cache', function() {
               'string should be replaced',
             );
 
-            let plugin = path.join(__dirname, '/input/babel-plugin-dummy.js');
+            let plugin = path.join(inputDir, 'babel-plugin-dummy.js');
             let source = await inputFS.readFile(plugin, 'utf8');
             await inputFS.writeFile(
               plugin,
@@ -846,41 +850,45 @@ describe.only('cache', function() {
             );
 
             await workerFarm.callAllWorkers('invalidateRequireCache', [
-              path.join(__dirname, '/input/babel-plugin-dummy.js'),
+              path.join(inputDir, 'babel-plugin-dummy.js'),
             ]);
           },
         });
 
         let contents = await overlayFS.readFile(
-          b.getBundles()[0].filePath,
+          b.bundleGraph.getBundles()[0].filePath,
           'utf8',
         );
         assert(contents.includes('replaced'), 'string should be replaced');
       });
 
       it('should invalidate on startup when there are symlinked plugins', async function() {
+        // Symlinks don't work consistently on windows. Skip this test.
+        if (process.platform === 'win32') {
+          this.skip();
+          return;
+        }
+
         let b = await testBabelCache({
           // Babel's config loader only works with the node filesystem
           inputFS,
           outputFS: inputFS,
           async setup() {
+            await inputFS.mkdirp(inputDir);
             await inputFS.ncp(
               path.join(__dirname, '/integration/cache'),
-              path.join(__dirname, '/input'),
+              inputDir,
             );
             await inputFS.mkdirp(
-              path.join(__dirname, '/input/packages/babel-plugin-dummy'),
+              path.join(inputDir, 'packages/babel-plugin-dummy'),
             );
-            await inputFS.mkdirp(path.join(__dirname, '/input/node_modules'));
+            await inputFS.mkdirp(path.join(inputDir, 'node_modules'));
             fs.symlinkSync(
-              path.join(__dirname, '/input/packages/babel-plugin-dummy'),
-              path.join(__dirname, '/input/node_modules/babel-plugin-dummy'),
+              path.join(inputDir, 'packages/babel-plugin-dummy'),
+              path.join(inputDir, 'node_modules/babel-plugin-dummy'),
             );
             await inputFS.writeFile(
-              path.join(
-                __dirname,
-                '/input/packages/babel-plugin-dummy/package.json',
-              ),
+              path.join(inputDir, 'packages/babel-plugin-dummy/package.json'),
               JSON.stringify({
                 name: 'babel-plugin-dummy',
                 version: '1.0.0',
@@ -891,25 +899,22 @@ describe.only('cache', function() {
                 __dirname,
                 '/integration/babelrc-custom/babel-plugin-dummy.js',
               ),
-              path.join(
-                __dirname,
-                '/input/packages/babel-plugin-dummy/index.js',
-              ),
+              path.join(inputDir, 'packages/babel-plugin-dummy/index.js'),
             );
             await inputFS.writeFile(
-              path.join(__dirname, '/input/.babelrc'),
+              path.join(inputDir, '.babelrc'),
               JSON.stringify({
                 plugins: ['babel-plugin-dummy'],
               }),
             );
             await inputFS.writeFile(
-              path.join(__dirname, '/input/src/index.js'),
+              path.join(inputDir, 'src/index.js'),
               'console.log("REPLACE_ME")',
             );
           },
           async update(b) {
             let contents = await overlayFS.readFile(
-              b.getBundles()[0].filePath,
+              b.bundleGraph.getBundles()[0].filePath,
               'utf8',
             );
             assert(
@@ -918,8 +923,8 @@ describe.only('cache', function() {
             );
 
             let plugin = path.join(
-              __dirname,
-              '/input/packages/babel-plugin-dummy/index.js',
+              inputDir,
+              'packages/babel-plugin-dummy/index.js',
             );
             let source = await inputFS.readFile(plugin, 'utf8');
             await inputFS.writeFile(
@@ -928,16 +933,13 @@ describe.only('cache', function() {
             );
 
             await workerFarm.callAllWorkers('invalidateRequireCache', [
-              path.join(
-                __dirname,
-                '/input/packages/babel-plugin-dummy/index.js',
-              ),
+              path.join(inputDir, 'packages/babel-plugin-dummy/index.js'),
             ]);
           },
         });
 
         let contents = await overlayFS.readFile(
-          b.getBundles()[0].filePath,
+          b.bundleGraph.getBundles()[0].filePath,
           'utf8',
         );
         assert(contents.includes('replaced'), 'string should be replaced');
@@ -948,16 +950,16 @@ describe.only('cache', function() {
   describe('parcel config', function() {
     it('should support adding a .parcelrc', async function() {
       let b = await testCache(async b => {
-        assert.equal(await run(b), 4);
+        assert.equal(await run(b.bundleGraph), 4);
 
         let contents = await overlayFS.readFile(
-          b.getBundles()[0].filePath,
+          b.bundleGraph.getBundles()[0].filePath,
           'utf8',
         );
         assert(!contents.includes('TRANSFORMED CODE'));
 
         await overlayFS.writeFile(
-          path.join(__dirname, '/input/.parcelrc'),
+          path.join(inputDir, '.parcelrc'),
           JSON.stringify({
             extends: '@parcel/config-default',
             transformers: {
@@ -968,7 +970,7 @@ describe.only('cache', function() {
       });
 
       let contents = await overlayFS.readFile(
-        b.getBundles()[0].filePath,
+        b.bundleGraph.getBundles()[0].filePath,
         'utf8',
       );
       assert(contents.includes('TRANSFORMED CODE'));
@@ -978,7 +980,7 @@ describe.only('cache', function() {
       let b = await testCache({
         async setup() {
           await overlayFS.writeFile(
-            path.join(__dirname, '/input/.parcelrc'),
+            path.join(inputDir, '.parcelrc'),
             JSON.stringify({
               extends: '@parcel/config-default',
               transformers: {
@@ -989,13 +991,13 @@ describe.only('cache', function() {
         },
         async update(b) {
           let contents = await overlayFS.readFile(
-            b.getBundles()[0].filePath,
+            b.bundleGraph.getBundles()[0].filePath,
             'utf8',
           );
           assert(contents.includes('TRANSFORMED CODE'));
 
           await overlayFS.writeFile(
-            path.join(__dirname, '/input/.parcelrc'),
+            path.join(inputDir, '.parcelrc'),
             JSON.stringify({
               extends: '@parcel/config-default',
             }),
@@ -1004,19 +1006,19 @@ describe.only('cache', function() {
       });
 
       let contents = await overlayFS.readFile(
-        b.getBundles()[0].filePath,
+        b.bundleGraph.getBundles()[0].filePath,
         'utf8',
       );
       assert(!contents.includes('TRANSFORMED CODE'));
 
-      assert.equal(await run(b), 4);
+      assert.equal(await run(b.bundleGraph), 4);
     });
 
     it('should support updating an extended .parcelrc', async function() {
       let b = await testCache({
         async setup() {
           await overlayFS.writeFile(
-            path.join(__dirname, '/input/.parcelrc-extended'),
+            path.join(inputDir, '.parcelrc-extended'),
             JSON.stringify({
               extends: '@parcel/config-default',
               transformers: {
@@ -1026,7 +1028,7 @@ describe.only('cache', function() {
           );
 
           await overlayFS.writeFile(
-            path.join(__dirname, '/input/.parcelrc'),
+            path.join(inputDir, '.parcelrc'),
             JSON.stringify({
               extends: './.parcelrc-extended',
             }),
@@ -1034,13 +1036,13 @@ describe.only('cache', function() {
         },
         async update(b) {
           let contents = await overlayFS.readFile(
-            b.getBundles()[0].filePath,
+            b.bundleGraph.getBundles()[0].filePath,
             'utf8',
           );
           assert(contents.includes('TRANSFORMED CODE'));
 
           await overlayFS.writeFile(
-            path.join(__dirname, '/input/.parcelrc-extended'),
+            path.join(inputDir, '.parcelrc-extended'),
             JSON.stringify({
               extends: '@parcel/config-default',
             }),
@@ -1049,12 +1051,12 @@ describe.only('cache', function() {
       });
 
       let contents = await overlayFS.readFile(
-        b.getBundles()[0].filePath,
+        b.bundleGraph.getBundles()[0].filePath,
         'utf8',
       );
       assert(!contents.includes('TRANSFORMED CODE'));
 
-      assert.equal(await run(b), 4);
+      assert.equal(await run(b.bundleGraph), 4);
     });
 
     it('should error when deleting an extended parcelrc', async function() {
@@ -1064,7 +1066,7 @@ describe.only('cache', function() {
           await testCache({
             async setup() {
               await overlayFS.writeFile(
-                path.join(__dirname, '/input/.parcelrc-extended'),
+                path.join(inputDir, '.parcelrc-extended'),
                 JSON.stringify({
                   extends: '@parcel/config-default',
                   transformers: {
@@ -1074,7 +1076,7 @@ describe.only('cache', function() {
               );
 
               await overlayFS.writeFile(
-                path.join(__dirname, '/input/.parcelrc'),
+                path.join(inputDir, '.parcelrc'),
                 JSON.stringify({
                   extends: './.parcelrc-extended',
                 }),
@@ -1082,14 +1084,12 @@ describe.only('cache', function() {
             },
             async update(b) {
               let contents = await overlayFS.readFile(
-                b.getBundles()[0].filePath,
+                b.bundleGraph.getBundles()[0].filePath,
                 'utf8',
               );
               assert(contents.includes('TRANSFORMED CODE'));
 
-              await overlayFS.unlink(
-                path.join(__dirname, '/input/.parcelrc-extended'),
-              );
+              await overlayFS.unlink(path.join(inputDir, '.parcelrc-extended'));
             },
           });
         },
@@ -1101,7 +1101,7 @@ describe.only('cache', function() {
       let b = await testCache({
         async setup() {
           await overlayFS.writeFile(
-            path.join(__dirname, '/input/.parcelrc'),
+            path.join(inputDir, '.parcelrc'),
             JSON.stringify({
               extends: '@parcel/config-default',
               transformers: {
@@ -1112,22 +1112,22 @@ describe.only('cache', function() {
         },
         async update(b) {
           let contents = await overlayFS.readFile(
-            b.getBundles()[0].filePath,
+            b.bundleGraph.getBundles()[0].filePath,
             'utf8',
           );
           assert(contents.includes('TRANSFORMED CODE'));
 
-          await overlayFS.unlink(path.join(__dirname, '/input/.parcelrc'));
+          await overlayFS.unlink(path.join(inputDir, '.parcelrc'));
         },
       });
 
       let contents = await overlayFS.readFile(
-        b.getBundles()[0].filePath,
+        b.bundleGraph.getBundles()[0].filePath,
         'utf8',
       );
       assert(!contents.includes('TRANSFORMED CODE'));
 
-      assert.equal(await run(b), 4);
+      assert.equal(await run(b.bundleGraph), 4);
     });
   });
 
@@ -1135,53 +1135,120 @@ describe.only('cache', function() {
     it('should invalidate when included files changes', async function() {
       let b = await testCache({
         async setup() {
-          await overlayFS.writeFile(
-            path.join(__dirname, '/input/src/test.txt'),
-            'hi',
-          );
+          await overlayFS.writeFile(path.join(inputDir, 'src/test.txt'), 'hi');
 
           await overlayFS.writeFile(
-            path.join(__dirname, '/input/src/index.js'),
+            path.join(inputDir, 'src/index.js'),
             'module.exports = require("fs").readFileSync(__dirname + "/test.txt", "utf8")',
           );
         },
         async update(b) {
-          assert.equal(await run(b), 'hi');
+          assert.equal(await run(b.bundleGraph), 'hi');
 
           await overlayFS.writeFile(
-            path.join(__dirname, '/input/src/test.txt'),
+            path.join(inputDir, 'src/test.txt'),
             'updated',
           );
         },
       });
 
-      assert.equal(await run(b), 'updated');
+      assert.equal(await run(b.bundleGraph), 'updated');
+    });
+
+    it('should not invalidate when a set environment variable does not change', async () => {
+      let b = await testCache({
+        async setup() {
+          await overlayFS.writeFile(path.join(inputDir, '.env'), 'TEST=hi');
+
+          await overlayFS.writeFile(
+            path.join(inputDir, 'src/index.js'),
+            'module.exports = process.env.TEST',
+          );
+        },
+        async update(b) {
+          assert.equal(await run(b.bundleGraph), 'hi');
+
+          await overlayFS.writeFile(path.join(inputDir, '.env'), 'TEST=hi');
+        },
+      });
+
+      assert.equal(await run(b.bundleGraph), 'hi');
+      assert.equal(b.changedAssets.size, 0);
+    });
+
+    it('should not invalidate when an environment variable remains unset', async () => {
+      let b = await testCache({
+        async setup() {
+          await overlayFS.writeFile(
+            path.join(inputDir, 'src/index.js'),
+            'module.exports = process.env.TEST',
+          );
+        },
+        async update(b) {
+          assert.equal(await run(b.bundleGraph), undefined);
+        },
+      });
+
+      assert.equal(await run(b.bundleGraph), undefined);
+      assert.equal(b.changedAssets.size, 0);
+    });
+
+    it('should invalidate when an environment variable becomes set', async () => {
+      let b = await testCache({
+        async setup() {
+          await overlayFS.writeFile(
+            path.join(inputDir, 'src/index.js'),
+            'module.exports = process.env.TEST',
+          );
+        },
+        async update(b) {
+          assert.equal(await run(b.bundleGraph), undefined);
+          await overlayFS.writeFile(path.join(inputDir, '.env'), 'TEST=hi');
+        },
+      });
+
+      assert.equal(await run(b.bundleGraph), 'hi');
+    });
+
+    it('should invalidate when an environment variable becomes unset', async () => {
+      let b = await testCache({
+        async setup() {
+          await overlayFS.writeFile(
+            path.join(inputDir, 'src/index.js'),
+            'module.exports = process.env.TEST',
+          );
+          await overlayFS.writeFile(path.join(inputDir, '.env'), 'TEST=hi');
+        },
+        async update(b) {
+          assert.equal(await run(b.bundleGraph), 'hi');
+          await overlayFS.writeFile(path.join(inputDir, '.env'), '');
+        },
+      });
+
+      assert.equal(await run(b.bundleGraph), undefined);
     });
 
     it('should invalidate when environment variables change', async function() {
       let b = await testCache({
         async setup() {
-          await overlayFS.writeFile(
-            path.join(__dirname, '/input/.env'),
-            'TEST=hi',
-          );
+          await overlayFS.writeFile(path.join(inputDir, '.env'), 'TEST=hi');
 
           await overlayFS.writeFile(
-            path.join(__dirname, '/input/src/index.js'),
+            path.join(inputDir, 'src/index.js'),
             'module.exports = process.env.TEST',
           );
         },
         async update(b) {
-          assert.equal(await run(b), 'hi');
+          assert.equal(await run(b.bundleGraph), 'hi');
 
           await overlayFS.writeFile(
-            path.join(__dirname, '/input/.env'),
+            path.join(inputDir, '.env'),
             'TEST=updated',
           );
         },
       });
 
-      assert.equal(await run(b), 'updated');
+      assert.equal(await run(b.bundleGraph), 'updated');
     });
   });
 
@@ -1190,36 +1257,36 @@ describe.only('cache', function() {
       let b = await testCache({
         entries: ['src/entries/*.js'],
         async update(b) {
-          assertBundles(b, [
+          assertBundles(b.bundleGraph, [
             {
               name: 'a.js',
-              assets: ['a.js'],
+              assets: ['a.js', 'esmodule-helpers.js'],
             },
             {
               name: 'b.js',
-              assets: ['b.js'],
+              assets: ['b.js', 'esmodule-helpers.js'],
             },
           ]);
 
           await overlayFS.writeFile(
-            path.join(__dirname, '/input/src/entries/c.js'),
+            path.join(inputDir, 'src/entries/c.js'),
             'export let c = "c";',
           );
         },
       });
 
-      assertBundles(b, [
+      assertBundles(b.bundleGraph, [
         {
           name: 'a.js',
-          assets: ['a.js'],
+          assets: ['a.js', 'esmodule-helpers.js'],
         },
         {
           name: 'b.js',
-          assets: ['b.js'],
+          assets: ['b.js', 'esmodule-helpers.js'],
         },
         {
           name: 'c.js',
-          assets: ['c.js'],
+          assets: ['c.js', 'esmodule-helpers.js'],
         },
       ]);
     });
@@ -1228,27 +1295,25 @@ describe.only('cache', function() {
       let b = await testCache({
         entries: ['src/entries/*.js'],
         async update(b) {
-          assertBundles(b, [
+          assertBundles(b.bundleGraph, [
             {
               name: 'a.js',
-              assets: ['a.js'],
+              assets: ['a.js', 'esmodule-helpers.js'],
             },
             {
               name: 'b.js',
-              assets: ['b.js'],
+              assets: ['b.js', 'esmodule-helpers.js'],
             },
           ]);
 
-          await overlayFS.unlink(
-            path.join(__dirname, '/input/src/entries/b.js'),
-          );
+          await overlayFS.unlink(path.join(inputDir, 'src/entries/b.js'));
         },
       });
 
-      assertBundles(b, [
+      assertBundles(b.bundleGraph, [
         {
           name: 'a.js',
-          assets: ['a.js'],
+          assets: ['a.js', 'esmodule-helpers.js'],
         },
       ]);
     });
@@ -1258,13 +1323,13 @@ describe.only('cache', function() {
       await assert.rejects(
         async () => {
           await testCache(async () => {
-            await overlayFS.unlink(path.join(__dirname, '/input/src/index.js'));
+            await overlayFS.unlink(path.join(inputDir, 'src/index.js'));
           });
         },
         {
           message: `Entry ${path.join(
-            __dirname,
-            'input/src/index.js',
+            inputDir,
+            'src/index.js',
           )} does not exist`,
         },
       );
@@ -1275,24 +1340,24 @@ describe.only('cache', function() {
       await assert.rejects(
         async () => {
           await testCache(async () => {
-            await overlayFS.unlink(path.join(__dirname, '/input/src/index.js'));
+            await overlayFS.unlink(path.join(inputDir, 'src/index.js'));
           });
         },
         {
           message: `Entry ${path.join(
-            __dirname,
-            'input/src/index.js',
+            inputDir,
+            'src/index.js',
           )} does not exist`,
         },
       );
 
       await overlayFS.writeFile(
-        path.join(__dirname, '/input/src/index.js'),
+        path.join(inputDir, 'src/index.js'),
         'module.exports = "hi"',
       );
 
       let b = await runBundle();
-      assert.equal(await run(b), 'hi');
+      assert.equal(await run(b.bundleGraph), 'hi');
     });
   });
 
@@ -1302,7 +1367,7 @@ describe.only('cache', function() {
         scopeHoist: true,
         async update(b) {
           let contents = await overlayFS.readFile(
-            b.getBundles()[0].filePath,
+            b.bundleGraph.getBundles()[0].filePath,
             'utf8',
           );
           assert(
@@ -1310,7 +1375,7 @@ describe.only('cache', function() {
             'should not include export default',
           );
 
-          let pkgFile = path.join(__dirname, '/input/package.json');
+          let pkgFile = path.join(inputDir, 'package.json');
           let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
           await overlayFS.writeFile(
             pkgFile,
@@ -1327,7 +1392,7 @@ describe.only('cache', function() {
       });
 
       let contents = await overlayFS.readFile(
-        b.getBundles()[0].filePath,
+        b.bundleGraph.getBundles()[0].filePath,
         'utf8',
       );
       assert(
@@ -1337,7 +1402,7 @@ describe.only('cache', function() {
     });
 
     it('should support adding a second target', async function() {
-      let pkgFile = path.join(__dirname, '/input/package.json');
+      let pkgFile = path.join(inputDir, 'package.json');
       let b = await testCache({
         scopeHoist: true,
         async setup() {
@@ -1357,10 +1422,10 @@ describe.only('cache', function() {
           );
         },
         async update(b) {
-          assertBundles(b, [
+          assertBundles(b.bundleGraph, [
             {
               name: 'index.js',
-              assets: ['index.js', 'test.js', 'foo.js'],
+              assets: ['index.js', 'test.js'],
             },
           ]);
 
@@ -1386,20 +1451,20 @@ describe.only('cache', function() {
         },
       });
 
-      assertBundles(b, [
+      assertBundles(b.bundleGraph, [
         {
           name: 'index.js',
-          assets: ['index.js', 'test.js', 'foo.js'],
+          assets: ['index.js', 'test.js'],
         },
         {
           name: 'index.js',
-          assets: ['index.js', 'test.js', 'foo.js'],
+          assets: ['index.js', 'test.js'],
         },
       ]);
     });
 
     it('should support changing target output location', async function() {
-      let pkgFile = path.join(__dirname, '/input/package.json');
+      let pkgFile = path.join(inputDir, 'package.json');
       await testCache({
         scopeHoist: true,
         async setup() {
@@ -1427,14 +1492,10 @@ describe.only('cache', function() {
         },
         async update() {
           assert(
-            await overlayFS.exists(
-              path.join(__dirname, '/input/modern/index.js'),
-            ),
+            await overlayFS.exists(path.join(inputDir, 'modern/index.js')),
           );
           assert(
-            await overlayFS.exists(
-              path.join(__dirname, '/input/legacy/index.js'),
-            ),
+            await overlayFS.exists(path.join(inputDir, 'legacy/index.js')),
           );
 
           let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
@@ -1462,19 +1523,15 @@ describe.only('cache', function() {
       });
 
       assert(
-        await overlayFS.exists(
-          path.join(__dirname, '/input/dist/modern/index.js'),
-        ),
+        await overlayFS.exists(path.join(inputDir, 'dist/modern/index.js')),
       );
       assert(
-        await overlayFS.exists(
-          path.join(__dirname, '/input/dist/legacy/index.js'),
-        ),
+        await overlayFS.exists(path.join(inputDir, 'dist/legacy/index.js')),
       );
     });
 
     it('should support updating target config options', async function() {
-      let pkgFile = path.join(__dirname, '/input/package.json');
+      let pkgFile = path.join(inputDir, 'package.json');
       let b = await testCache({
         scopeHoist: true,
         async setup() {
@@ -1493,7 +1550,7 @@ describe.only('cache', function() {
         },
         async update(b) {
           let contents = await overlayFS.readFile(
-            b.getBundles()[0].filePath,
+            b.bundleGraph.getBundles()[0].filePath,
             'utf8',
           );
           assert(
@@ -1517,7 +1574,7 @@ describe.only('cache', function() {
       });
 
       let contents = await overlayFS.readFile(
-        b.getBundles()[0].filePath,
+        b.bundleGraph.getBundles()[0].filePath,
         'utf8',
       );
       assert(
@@ -1527,7 +1584,7 @@ describe.only('cache', function() {
     });
 
     it('should support deleting a target', async function() {
-      let pkgFile = path.join(__dirname, '/input/package.json');
+      let pkgFile = path.join(inputDir, 'package.json');
       let b = await testCache({
         scopeHoist: true,
         async setup() {
@@ -1552,14 +1609,14 @@ describe.only('cache', function() {
           );
         },
         async update(b) {
-          assertBundles(b, [
+          assertBundles(b.bundleGraph, [
             {
               name: 'index.js',
-              assets: ['index.js', 'test.js', 'foo.js'],
+              assets: ['index.js', 'test.js'],
             },
             {
               name: 'index.js',
-              assets: ['index.js', 'test.js', 'foo.js'],
+              assets: ['index.js', 'test.js'],
             },
           ]);
 
@@ -1580,16 +1637,16 @@ describe.only('cache', function() {
         },
       });
 
-      assertBundles(b, [
+      assertBundles(b.bundleGraph, [
         {
           name: 'index.js',
-          assets: ['index.js', 'test.js', 'foo.js'],
+          assets: ['index.js', 'test.js'],
         },
       ]);
     });
 
     it('should support deleting all targets', async function() {
-      let pkgFile = path.join(__dirname, '/input/package.json');
+      let pkgFile = path.join(inputDir, 'package.json');
       let b = await testCache({
         scopeHoist: true,
         async setup() {
@@ -1610,19 +1667,19 @@ describe.only('cache', function() {
           );
         },
         async update(b) {
-          assertBundles(b, [
+          assertBundles(b.bundleGraph, [
             {
               name: 'index.js',
-              assets: ['index.js', 'test.js', 'foo.js'],
+              assets: ['index.js', 'test.js'],
             },
             {
               name: 'index.js',
-              assets: ['index.js', 'test.js', 'foo.js'],
+              assets: ['index.js', 'test.js'],
             },
           ]);
 
           let contents = await overlayFS.readFile(
-            b.getBundles()[0].filePath,
+            b.bundleGraph.getBundles()[0].filePath,
             'utf8',
           );
           assert(
@@ -1631,7 +1688,7 @@ describe.only('cache', function() {
           );
 
           contents = await overlayFS.readFile(
-            b.getBundles()[1].filePath,
+            b.bundleGraph.getBundles()[1].filePath,
             'utf8',
           );
           assert(
@@ -1650,15 +1707,15 @@ describe.only('cache', function() {
         },
       });
 
-      assertBundles(b, [
+      assertBundles(b.bundleGraph, [
         {
           name: 'index.js',
-          assets: ['index.js', 'test.js', 'foo.js'],
+          assets: ['index.js', 'test.js'],
         },
       ]);
 
       let contents = await overlayFS.readFile(
-        b.getBundles()[0].filePath,
+        b.bundleGraph.getBundles()[0].filePath,
         'utf8',
       );
       assert(
@@ -1672,7 +1729,7 @@ describe.only('cache', function() {
     });
 
     it('should update when sourcemap options change', async function() {
-      let pkgFile = path.join(__dirname, '/input/package.json');
+      let pkgFile = path.join(inputDir, 'package.json');
       let b = await testCache({
         scopeHoist: true,
         async setup() {
@@ -1691,7 +1748,7 @@ describe.only('cache', function() {
         },
         async update(b) {
           let contents = await overlayFS.readFile(
-            b.getBundles()[0].filePath,
+            b.bundleGraph.getBundles()[0].filePath,
             'utf8',
           );
           assert(
@@ -1717,7 +1774,7 @@ describe.only('cache', function() {
       });
 
       let contents = await overlayFS.readFile(
-        b.getBundles()[0].filePath,
+        b.bundleGraph.getBundles()[0].filePath,
         'utf8',
       );
       assert(
@@ -1727,7 +1784,7 @@ describe.only('cache', function() {
     });
 
     it('should update when publicUrl changes', async function() {
-      let pkgFile = path.join(__dirname, '/input/package.json');
+      let pkgFile = path.join(inputDir, 'package.json');
       let b = await testCache({
         entries: ['src/index.html'],
         scopeHoist: true,
@@ -1747,7 +1804,7 @@ describe.only('cache', function() {
         },
         async update(b) {
           let contents = await overlayFS.readFile(
-            b.getBundles()[0].filePath,
+            b.bundleGraph.getBundles()[0].filePath,
             'utf8',
           );
           assert(
@@ -1771,7 +1828,7 @@ describe.only('cache', function() {
       });
 
       let contents = await overlayFS.readFile(
-        b.getBundles()[0].filePath,
+        b.bundleGraph.getBundles()[0].filePath,
         'utf8',
       );
       assert(
@@ -1781,7 +1838,7 @@ describe.only('cache', function() {
     });
 
     it('should update when a package.json is created', async function() {
-      let pkgFile = path.join(__dirname, '/input/package.json');
+      let pkgFile = path.join(inputDir, 'package.json');
       let pkg;
       let b = await testCache({
         scopeHoist: true,
@@ -1791,7 +1848,7 @@ describe.only('cache', function() {
         },
         async update(b) {
           let contents = await overlayFS.readFile(
-            b.getBundles()[0].filePath,
+            b.bundleGraph.getBundles()[0].filePath,
             'utf8',
           );
           assert(
@@ -1814,7 +1871,7 @@ describe.only('cache', function() {
       });
 
       let contents = await overlayFS.readFile(
-        b.getBundles()[0].filePath,
+        b.bundleGraph.getBundles()[0].filePath,
         'utf8',
       );
       assert(
@@ -1824,7 +1881,7 @@ describe.only('cache', function() {
     });
 
     it('should update when a package.json is deleted', async function() {
-      let pkgFile = path.join(__dirname, '/input/package.json');
+      let pkgFile = path.join(inputDir, 'package.json');
       let b = await testCache({
         scopeHoist: true,
         async setup() {
@@ -1843,7 +1900,7 @@ describe.only('cache', function() {
         },
         async update(b) {
           let contents = await overlayFS.readFile(
-            b.getBundles()[0].filePath,
+            b.bundleGraph.getBundles()[0].filePath,
             'utf8',
           );
           assert(
@@ -1855,7 +1912,7 @@ describe.only('cache', function() {
       });
 
       let contents = await overlayFS.readFile(
-        b.getBundles()[0].filePath,
+        b.bundleGraph.getBundles()[0].filePath,
         'utf8',
       );
       assert(
@@ -1870,7 +1927,7 @@ describe.only('cache', function() {
           scopeHoist: true,
           async update(b) {
             let contents = await overlayFS.readFile(
-              b.getBundles()[0].filePath,
+              b.bundleGraph.getBundles()[0].filePath,
               'utf8',
             );
             assert(
@@ -1878,14 +1935,14 @@ describe.only('cache', function() {
               'should include class',
             );
             await overlayFS.writeFile(
-              path.join(__dirname, '/input/browserslist'),
+              path.join(inputDir, 'browserslist'),
               'IE >= 11',
             );
           },
         });
 
         let contents = await overlayFS.readFile(
-          b.getBundles()[0].filePath,
+          b.bundleGraph.getBundles()[0].filePath,
           'utf8',
         );
         assert(
@@ -1899,7 +1956,7 @@ describe.only('cache', function() {
           scopeHoist: true,
           async update(b) {
             let contents = await overlayFS.readFile(
-              b.getBundles()[0].filePath,
+              b.bundleGraph.getBundles()[0].filePath,
               'utf8',
             );
             assert(
@@ -1907,14 +1964,14 @@ describe.only('cache', function() {
               'should include class',
             );
             await overlayFS.writeFile(
-              path.join(__dirname, '/input/.browserslistrc'),
+              path.join(inputDir, '.browserslistrc'),
               'IE >= 11',
             );
           },
         });
 
         let contents = await overlayFS.readFile(
-          b.getBundles()[0].filePath,
+          b.bundleGraph.getBundles()[0].filePath,
           'utf8',
         );
         assert(
@@ -1928,13 +1985,13 @@ describe.only('cache', function() {
           scopeHoist: true,
           async setup() {
             await overlayFS.writeFile(
-              path.join(__dirname, '/input/browserslist'),
+              path.join(inputDir, 'browserslist'),
               'IE >= 11',
             );
           },
           async update(b) {
             let contents = await overlayFS.readFile(
-              b.getBundles()[0].filePath,
+              b.bundleGraph.getBundles()[0].filePath,
               'utf8',
             );
             assert(
@@ -1942,14 +1999,14 @@ describe.only('cache', function() {
               'does not include class',
             );
             await overlayFS.writeFile(
-              path.join(__dirname, '/input/browserslist'),
+              path.join(inputDir, 'browserslist'),
               'last 1 Chrome version',
             );
           },
         });
 
         let contents = await overlayFS.readFile(
-          b.getBundles()[0].filePath,
+          b.bundleGraph.getBundles()[0].filePath,
           'utf8',
         );
         assert(
@@ -1963,25 +2020,25 @@ describe.only('cache', function() {
           scopeHoist: true,
           async setup() {
             await overlayFS.writeFile(
-              path.join(__dirname, '/input/browserslist'),
+              path.join(inputDir, 'browserslist'),
               'IE >= 11',
             );
           },
           async update(b) {
             let contents = await overlayFS.readFile(
-              b.getBundles()[0].filePath,
+              b.bundleGraph.getBundles()[0].filePath,
               'utf8',
             );
             assert(
               !/class \$[a-f0-9]+\$var\$Test/.test(contents),
               'does not include class',
             );
-            await overlayFS.unlink(path.join(__dirname, '/input/browserslist'));
+            await overlayFS.unlink(path.join(inputDir, 'browserslist'));
           },
         });
 
         let contents = await overlayFS.readFile(
-          b.getBundles()[0].filePath,
+          b.bundleGraph.getBundles()[0].filePath,
           'utf8',
         );
         assert(
@@ -1995,7 +2052,7 @@ describe.only('cache', function() {
           scopeHoist: true,
           async setup() {
             await overlayFS.writeFile(
-              path.join(__dirname, '/input/browserslist'),
+              path.join(inputDir, 'browserslist'),
               `
             [production]
             IE >= 11
@@ -2008,7 +2065,7 @@ describe.only('cache', function() {
           async update(b) {
             // "production" is the default environment for browserslist
             let contents = await overlayFS.readFile(
-              b.getBundles()[0].filePath,
+              b.bundleGraph.getBundles()[0].filePath,
               'utf8',
             );
             assert(
@@ -2021,7 +2078,7 @@ describe.only('cache', function() {
         });
 
         let contents = await overlayFS.readFile(
-          b.getBundles()[0].filePath,
+          b.bundleGraph.getBundles()[0].filePath,
           'utf8',
         );
         assert(
@@ -2038,7 +2095,7 @@ describe.only('cache', function() {
           scopeHoist: true,
           async setup() {
             await overlayFS.writeFile(
-              path.join(__dirname, '/input/browserslist'),
+              path.join(inputDir, 'browserslist'),
               `
             [production]
             IE >= 11
@@ -2051,7 +2108,7 @@ describe.only('cache', function() {
           async update(b) {
             // "production" is the default environment for browserslist
             let contents = await overlayFS.readFile(
-              b.getBundles()[0].filePath,
+              b.bundleGraph.getBundles()[0].filePath,
               'utf8',
             );
             assert(
@@ -2064,7 +2121,7 @@ describe.only('cache', function() {
         });
 
         let contents = await overlayFS.readFile(
-          b.getBundles()[0].filePath,
+          b.bundleGraph.getBundles()[0].filePath,
           'utf8',
         );
         assert(
@@ -2085,7 +2142,7 @@ describe.only('cache', function() {
         publicUrl: 'http://example.com/',
         async update(b) {
           let contents = await overlayFS.readFile(
-            b.getBundles()[0].filePath,
+            b.bundleGraph.getBundles()[0].filePath,
             'utf8',
           );
           assert(
@@ -2100,7 +2157,7 @@ describe.only('cache', function() {
       });
 
       let contents = await overlayFS.readFile(
-        b.getBundles()[0].filePath,
+        b.bundleGraph.getBundles()[0].filePath,
         'utf8',
       );
       assert(
@@ -2115,7 +2172,7 @@ describe.only('cache', function() {
         minify: false,
         async update(b) {
           let contents = await overlayFS.readFile(
-            b.getBundles()[0].filePath,
+            b.bundleGraph.getBundles()[0].filePath,
             'utf8',
           );
           assert(contents.includes('Test'), 'should include Test');
@@ -2127,7 +2184,7 @@ describe.only('cache', function() {
       });
 
       let contents = await overlayFS.readFile(
-        b.getBundles()[0].filePath,
+        b.bundleGraph.getBundles()[0].filePath,
         'utf8',
       );
       assert(!contents.includes('Test'), 'should not include Test');
@@ -2138,7 +2195,7 @@ describe.only('cache', function() {
         scopeHoist: false,
         async update(b) {
           let contents = await overlayFS.readFile(
-            b.getBundles()[0].filePath,
+            b.bundleGraph.getBundles()[0].filePath,
             'utf8',
           );
           assert(
@@ -2153,7 +2210,7 @@ describe.only('cache', function() {
       });
 
       let contents = await overlayFS.readFile(
-        b.getBundles()[0].filePath,
+        b.bundleGraph.getBundles()[0].filePath,
         'utf8',
       );
       assert(!contents.includes('parcelRequire'), 'should not include Test');
@@ -2164,7 +2221,7 @@ describe.only('cache', function() {
         sourceMaps: false,
         async update(b) {
           let contents = await overlayFS.readFile(
-            b.getBundles()[0].filePath,
+            b.bundleGraph.getBundles()[0].filePath,
             'utf8',
           );
           assert(
@@ -2179,7 +2236,7 @@ describe.only('cache', function() {
       });
 
       let contents = await overlayFS.readFile(
-        b.getBundles()[0].filePath,
+        b.bundleGraph.getBundles()[0].filePath,
         'utf8',
       );
       assert(
@@ -2193,7 +2250,7 @@ describe.only('cache', function() {
         scopeHoist: true,
         update(b) {
           assert(
-            /dist[/\\]index.js$/.test(b.getBundles()[0].filePath),
+            /dist[/\\]index.js$/.test(b.bundleGraph.getBundles()[0].filePath),
             'should end with dist/index.js',
           );
 
@@ -2204,7 +2261,9 @@ describe.only('cache', function() {
       });
 
       assert(
-        /dist[/\\]test[/\\]index.js$/.test(b.getBundles()[0].filePath),
+        /dist[/\\]test[/\\]index.js$/.test(
+          b.bundleGraph.getBundles()[0].filePath,
+        ),
         'should end with dist/test/index.js',
       );
     });
@@ -2214,7 +2273,7 @@ describe.only('cache', function() {
         scopeHoist: true,
         targets: ['legacy'],
         async setup() {
-          let pkgFile = path.join(__dirname, '/input/package.json');
+          let pkgFile = path.join(inputDir, 'package.json');
           let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
           await overlayFS.writeFile(
             pkgFile,
@@ -2236,15 +2295,15 @@ describe.only('cache', function() {
           );
         },
         async update(b) {
-          assertBundles(b, [
+          assertBundles(b.bundleGraph, [
             {
               name: 'index.js',
-              assets: ['index.js', 'test.js', 'foo.js'],
+              assets: ['index.js', 'test.js'],
             },
           ]);
 
           let contents = await overlayFS.readFile(
-            b.getBundles()[0].filePath,
+            b.bundleGraph.getBundles()[0].filePath,
             'utf8',
           );
           assert(
@@ -2258,15 +2317,15 @@ describe.only('cache', function() {
         },
       });
 
-      assertBundles(b, [
+      assertBundles(b.bundleGraph, [
         {
           name: 'index.js',
-          assets: ['index.js', 'test.js', 'foo.js'],
+          assets: ['index.js', 'test.js'],
         },
       ]);
 
       let contents = await overlayFS.readFile(
-        b.getBundles()[0].filePath,
+        b.bundleGraph.getBundles()[0].filePath,
         'utf8',
       );
       assert(
@@ -2283,7 +2342,7 @@ describe.only('cache', function() {
         },
         async update(b) {
           let contents = await overlayFS.readFile(
-            b.getBundles()[0].filePath,
+            b.bundleGraph.getBundles()[0].filePath,
             'utf8',
           );
           assert(
@@ -2300,7 +2359,7 @@ describe.only('cache', function() {
       });
 
       let contents = await overlayFS.readFile(
-        b.getBundles()[0].filePath,
+        b.bundleGraph.getBundles()[0].filePath,
         'utf8',
       );
       assert(
@@ -2309,34 +2368,34 @@ describe.only('cache', function() {
       );
     });
 
-    it('should update when contentHash changes', async function() {
+    it('should update when shouldContentHash changes', async function() {
       let b = await testCache({
         entries: ['src/index.html'],
         scopeHoist: true,
-        contentHash: true,
+        shouldContentHash: true,
         update(b) {
-          let bundle = b.getBundles()[1];
+          let bundle = b.bundleGraph.getBundles()[1];
           assert(!bundle.name.includes(bundle.id.slice(-8)));
 
           return {
-            contentHash: false,
+            shouldContentHash: false,
           };
         },
       });
 
-      let bundle = b.getBundles()[1];
+      let bundle = b.bundleGraph.getBundles()[1];
       assert(bundle.name.includes(bundle.id.slice(-8)));
     });
 
     it('should update when hot options change', async function() {
       let b = await testCache({
-        hot: {
+        hmrOptions: {
           host: 'localhost',
           port: 4321,
         },
         async update(b) {
           let contents = await overlayFS.readFile(
-            b.getBundles()[0].filePath,
+            b.bundleGraph.getBundles()[0].filePath,
             'utf8',
           );
           assert(
@@ -2349,7 +2408,7 @@ describe.only('cache', function() {
           );
 
           return {
-            hot: {
+            hmrOptions: {
               host: 'example.com',
               port: 5678,
             },
@@ -2358,7 +2417,7 @@ describe.only('cache', function() {
       });
 
       let contents = await overlayFS.readFile(
-        b.getBundles()[0].filePath,
+        b.bundleGraph.getBundles()[0].filePath,
         'utf8',
       );
       assert(
@@ -2374,7 +2433,7 @@ describe.only('cache', function() {
     it('should invalidate react refresh hot options change', async function() {
       let b = await testCache({
         async setup() {
-          let pkgFile = path.join(__dirname, '/input/package.json');
+          let pkgFile = path.join(inputDir, 'package.json');
           let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
           await overlayFS.writeFile(
             pkgFile,
@@ -2387,9 +2446,9 @@ describe.only('cache', function() {
           );
 
           await overlayFS.writeFile(
-            path.join(__dirname, '/input/src/index.js'),
+            path.join(inputDir, 'src/index.js'),
             `import React from 'react';
-            
+
             export function Component() {
               return <h1>Hello world</h1>;
             }`,
@@ -2397,7 +2456,7 @@ describe.only('cache', function() {
         },
         async update(b) {
           let contents = await overlayFS.readFile(
-            b.getBundles()[0].filePath,
+            b.bundleGraph.getBundles()[0].filePath,
             'utf8',
           );
           assert(
@@ -2406,7 +2465,7 @@ describe.only('cache', function() {
           );
 
           return {
-            hot: {
+            hmrOptions: {
               host: 'example.com',
               port: 5678,
             },
@@ -2415,7 +2474,7 @@ describe.only('cache', function() {
       });
 
       let contents = await overlayFS.readFile(
-        b.getBundles()[0].filePath,
+        b.bundleGraph.getBundles()[0].filePath,
         'utf8',
       );
       assert(
@@ -2428,13 +2487,13 @@ describe.only('cache', function() {
       let b = await testCache({
         async update(b) {
           let contents = await overlayFS.readFile(
-            b.getBundles()[0].filePath,
+            b.bundleGraph.getBundles()[0].filePath,
             'utf8',
           );
           assert(!contents.includes('TRANSFORMED CODE'));
 
           await overlayFS.writeFile(
-            path.join(__dirname, '/input/some-config'),
+            path.join(inputDir, 'some-config'),
             JSON.stringify({
               extends: '@parcel/config-default',
               transformers: {
@@ -2444,13 +2503,13 @@ describe.only('cache', function() {
           );
 
           return {
-            config: path.join(__dirname, '/input/some-config'),
+            config: path.join(inputDir, 'some-config'),
           };
         },
       });
 
       let contents = await overlayFS.readFile(
-        b.getBundles()[0].filePath,
+        b.bundleGraph.getBundles()[0].filePath,
         'utf8',
       );
       assert(contents.includes('TRANSFORMED CODE'));
@@ -2460,13 +2519,13 @@ describe.only('cache', function() {
       let b = await testCache({
         async update(b) {
           let contents = await overlayFS.readFile(
-            b.getBundles()[0].filePath,
+            b.bundleGraph.getBundles()[0].filePath,
             'utf8',
           );
           assert(!contents.includes('TRANSFORMED CODE'));
 
           await overlayFS.writeFile(
-            path.join(__dirname, '/input/some-config'),
+            path.join(inputDir, 'some-config'),
             JSON.stringify({
               extends: '@parcel/config-default',
               transformers: {
@@ -2476,298 +2535,31 @@ describe.only('cache', function() {
           );
 
           return {
-            defaultConfig: path.join(__dirname, '/input/some-config'),
+            defaultConfig: path.join(inputDir, 'some-config'),
           };
         },
       });
 
       let contents = await overlayFS.readFile(
-        b.getBundles()[0].filePath,
+        b.bundleGraph.getBundles()[0].filePath,
         'utf8',
       );
       assert(contents.includes('TRANSFORMED CODE'));
     });
   });
 
-  describe.only('resolver', function() {
-    it('should support updating a package.json#main field', async function() {
-      let b = await testCache(async b => {
-        assert.equal(await run(b), 4);
-        await overlayFS.writeFile(
-          path.join(__dirname, '/input/node_modules/foo/test.js'),
-          'module.exports = 4;',
-        );
+  describe('resolver', function() {
+    it('should support updating a package.json#main field', function() {});
 
-        await overlayFS.writeFile(
-          path.join(__dirname, '/input/node_modules/foo/package.json'),
-          JSON.stringify({main: 'test.js'})
-        );
-      });
+    it('should support adding an alias', function() {});
 
-      assert.equal(await run(b), 8);
-    });
+    it('should support updating an alias', function() {});
 
-    it('should support adding an alias', async function() {
-      let b = await testCache(async b => {
-        assert.equal(await run(b), 4);
-        await overlayFS.writeFile(
-          path.join(__dirname, '/input/node_modules/foo/test.js'),
-          'module.exports = 4;',
-        );
+    it('should support deleting an alias', function() {});
 
-        await overlayFS.writeFile(
-          path.join(__dirname, '/input/node_modules/foo/package.json'),
-          JSON.stringify({
-            main: 'foo.js',
-            alias: {
-              './foo.js': './test.js'
-            }
-          })
-        );
-      });
+    it('should support adding a node_modules folder', function() {});
 
-      assert.equal(await run(b), 8);
-    });
-
-    it('should support updating an alias', async function() {
-      let b = await testCache({
-        async setup() {
-          await overlayFS.writeFile(
-            path.join(__dirname, '/input/node_modules/foo/test.js'),
-            'module.exports = 4;',
-          );
-
-          await overlayFS.writeFile(
-            path.join(__dirname, '/input/node_modules/foo/package.json'),
-            JSON.stringify({
-              main: 'foo.js',
-              alias: {
-                './foo.js': './test.js'
-              }
-            })
-          );
-        },
-        async update(b) {
-          assert.equal(await run(b), 8);
-          await overlayFS.writeFile(
-            path.join(__dirname, '/input/node_modules/foo/baz.js'),
-            'module.exports = 6;',
-          );
-
-          await overlayFS.writeFile(
-            path.join(__dirname, '/input/node_modules/foo/package.json'),
-            JSON.stringify({
-              main: 'foo.js',
-              alias: {
-                './foo.js': './baz.js'
-              }
-            })
-          );
-        }
-      });
-
-      assert.equal(await run(b), 12);
-    });
-
-    it('should support deleting an alias', async function() {
-      let b = await testCache({
-        async setup() {
-          await overlayFS.writeFile(
-            path.join(__dirname, '/input/node_modules/foo/test.js'),
-            'module.exports = 4;',
-          );
-
-          await overlayFS.writeFile(
-            path.join(__dirname, '/input/node_modules/foo/package.json'),
-            JSON.stringify({
-              main: 'foo.js',
-              alias: {
-                './foo.js': './test.js'
-              }
-            })
-          );
-        },
-        async update(b) {
-          assert.equal(await run(b), 8);
-          await overlayFS.writeFile(
-            path.join(__dirname, '/input/node_modules/foo/package.json'),
-            JSON.stringify({main: 'foo.js'})
-          );
-        }
-      });
-
-      assert.equal(await run(b), 4);
-    });
-
-    it('should support adding a file with a higher priority extension', async function() {
-      let b = await testCache({
-        async setup() {
-          // Start out pointing to a .ts file from a .js file
-          let contents = await overlayFS.readFile(
-            path.join(__dirname, '/input/src/index.js'),
-            'utf8'
-          );
-          await overlayFS.writeFile(
-            path.join(__dirname, '/input/src/index.js'),
-            contents.replace('nested/test', 'nested/foo'),
-          );
-          await overlayFS.writeFile(
-            path.join(__dirname, '/input/src/nested/foo.ts'),
-            'module.exports = 4;',
-          );
-        },
-        async update(b) {
-          assert.equal(await run(b), 6);
-
-          // Adding a .js file should be higher priority
-          await overlayFS.writeFile(
-            path.join(__dirname, '/input/src/nested/foo.js'),
-            'module.exports = 2;',
-          );
-        }
-      });
-
-      assert.equal(await run(b), 4);
-    });
-
-    it('should support renaming a file to a different extension', async function() {
-      let b = await testCache({
-        async setup() {
-          // Start out pointing to a .js file
-          let contents = await overlayFS.readFile(
-            path.join(__dirname, '/input/src/index.js'),
-            'utf8'
-          );
-          await overlayFS.writeFile(
-            path.join(__dirname, '/input/src/index.js'),
-            contents.replace('nested/test', 'nested/foo'),
-          );
-          await overlayFS.writeFile(
-            path.join(__dirname, '/input/src/nested/foo.js'),
-            'module.exports = 4;',
-          );
-        },
-        async update(b) {
-          assert.equal(await run(b), 6);
-
-          // Rename to .ts
-          await overlayFS.writeFile(
-            path.join(__dirname, '/input/src/nested/foo.ts'),
-            'module.exports = 2;',
-          );
-
-          await overlayFS.unlink(
-            path.join(__dirname, '/input/src/nested/foo.js'),
-          );
-        }
-      });
-
-      assert.equal(await run(b), 4);
-    });
-
-    it('should resolve to a file over a directory with an index.js', async function() {
-      let b = await testCache({
-        async setup() {
-          let contents = await overlayFS.readFile(
-            path.join(__dirname, '/input/src/index.js'),
-            'utf8'
-          );
-          await overlayFS.writeFile(
-            path.join(__dirname, '/input/src/index.js'),
-            contents.replace('nested/test', 'nested'),
-          );
-          await overlayFS.writeFile(
-            path.join(__dirname, '/input/src/nested/index.js'),
-            'module.exports = 4;',
-          );
-        },
-        async update(b) {
-          assert.equal(await run(b), 6);
-
-          await overlayFS.writeFile(
-            path.join(__dirname, '/input/src/nested.js'),
-            'module.exports = 2;',
-          );
-        }
-      });
-
-      assert.equal(await run(b), 4);
-    });
-
-    it('should resolve to package.json#main over an index.js', async function() {
-      let b = await testCache({
-        async setup() {
-          let contents = await overlayFS.readFile(
-            path.join(__dirname, '/input/src/index.js'),
-            'utf8'
-          );
-          await overlayFS.writeFile(
-            path.join(__dirname, '/input/src/index.js'),
-            contents.replace('nested/test', 'nested'),
-          );
-          await overlayFS.writeFile(
-            path.join(__dirname, '/input/src/nested/index.js'),
-            'module.exports = 4;',
-          );
-        },
-        async update(b) {
-          assert.equal(await run(b), 6);
-
-          await overlayFS.writeFile(
-            path.join(__dirname, '/input/src/nested/package.json'),
-            JSON.stringify({
-              main: 'test.js'
-            })
-          );
-        }
-      });
-
-      assert.equal(await run(b), 4);
-    });
-
-    it('should recover from errors when adding a missing dependency', async function() {
-      // $FlowFixMe
-      await assert.rejects(
-        async () => {
-          await testCache({
-            async setup() {
-              await overlayFS.unlink(path.join(__dirname, '/input/src/nested/test.js'));
-            },
-            async update() {}
-          });
-        },
-        {
-          message: "Failed to resolve './nested/test' from './src/index.js'",
-        },
-      );
-
-      await overlayFS.writeFile(
-        path.join(__dirname, '/input/src/nested/test.js'),
-        'module.exports = 4;',
-      );
-
-      let b = await runBundle();
-      assert.equal(await run(b), 6);
-    });
-
-    it.only('should support adding a deeper node_modules folder', async function() {
-      let b = await testCache({
-        async update(b) {
-          assert.equal(await run(b), 4);
-
-          await overlayFS.mkdirp(
-             path.join(__dirname, '/input/src/nested/node_modules/foo'),
-          );
-
-          await overlayFS.writeFile(
-            path.join(__dirname, '/input/src/nested/node_modules/foo/index.js'),
-            'module.exports = 4;'
-          );
-        }
-      });
-
-      assert.equal(await run(b), 6);
-    });
+    it('should support adding a package.json', function() {});
 
     it('should support updating a symlink', function() {});
   });
@@ -2792,21 +2584,56 @@ describe.only('cache', function() {
     it('should support updating files added by runtimes', async function() {
       let b = await testCache(async b => {
         let contents = await overlayFS.readFile(
-          b.getBundles()[0].filePath,
+          b.bundleGraph.getBundles()[0].filePath,
           'utf8',
         );
         assert(contents.includes('INITIAL CODE'));
         await overlayFS.writeFile(
-          path.join(__dirname, 'input/dynamic-runtime.js'),
+          path.join(inputDir, 'dynamic-runtime.js'),
           "module.exports = 'UPDATED CODE'",
         );
       }, 'runtime-update');
 
       let contents = await overlayFS.readFile(
-        b.getBundles()[0].filePath,
+        b.bundleGraph.getBundles()[0].filePath,
         'utf8',
       );
       assert(contents.includes('UPDATED CODE'));
+    });
+  });
+
+  describe('Query Parameters', () => {
+    it('Should create additional assets if multiple query parameter combinations are used', async function() {
+      let b = await testCache(
+        {
+          entries: ['reformat.html'],
+          update: async b => {
+            let bundles = b.bundleGraph.getBundles();
+            let contents = await overlayFS.readFile(
+              bundles[0].filePath,
+              'utf8',
+            );
+            assert(contents.includes('.webp" alt="test image">'));
+            assert.equal(bundles.length, 2);
+            await overlayFS.writeFile(
+              path.join(inputDir, 'reformat.html'),
+              `<picture>
+              <source src="url:./image.jpg?as=webp&width=400" type="image/webp" />
+              <source src="url:./image.jpg?as=jpg&width=400" type="image/jpeg" />
+              <img src="url:./image.jpg?as=jpg&width=800" alt="test image" />
+            </picture>`,
+            );
+          },
+        },
+        'image',
+      );
+
+      let bundles = b.bundleGraph.getBundles();
+      let contents = await overlayFS.readFile(bundles[0].filePath, 'utf8');
+      assert(contents.includes('.webp" type="image/webp">'));
+      assert(contents.includes('.jpg" type="image/jpeg">'));
+      assert(contents.includes('.jpg" alt="test image">'));
+      assert.equal(bundles.length, 4);
     });
   });
 });

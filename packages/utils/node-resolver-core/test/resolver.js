@@ -1,4 +1,4 @@
-// @flow
+// @flow strict-local
 import NodeResolver from '..';
 import path from 'path';
 import assert from 'assert';
@@ -51,6 +51,14 @@ describe.only('resolver', function() {
     await outputFS.symlink(
       path.join(rootDir, 'packages/source-alias-glob'),
       path.join(rootDir, 'node_modules/source-alias-glob'),
+    );
+    await outputFS.symlink(
+      path.join(rootDir, 'bar.js'),
+      path.join(rootDir, 'baz.js'),
+    );
+    await outputFS.symlink(
+      path.join(rootDir, 'nested'),
+      path.join(rootDir, 'symlinked-nested'),
     );
 
     resolver = new NodeResolver({
@@ -869,7 +877,7 @@ describe.only('resolver', function() {
         parent: path.join(rootDir, 'foo.js'),
       });
       assert.deepEqual(resolved, {
-        filePath: path.join(rootDir, 'node_modules', 'source', 'source.js'),
+        filePath: path.join(rootDir, 'packages', 'source', 'source.js'),
         sideEffects: undefined,
         invalidateOnFileCreate: [],
         invalidateOnFileChange: [
@@ -910,12 +918,7 @@ describe.only('resolver', function() {
         parent: path.join(rootDir, 'foo.js'),
       });
       assert.deepEqual(resolved, {
-        filePath: path.join(
-          rootDir,
-          'node_modules',
-          'source-alias',
-          'source.js',
-        ),
+        filePath: path.join(rootDir, 'packages', 'source-alias', 'source.js'),
         sideEffects: undefined,
         invalidateOnFileCreate: [],
         invalidateOnFileChange: [
@@ -935,7 +938,7 @@ describe.only('resolver', function() {
       assert.deepEqual(resolved, {
         filePath: path.join(
           rootDir,
-          'node_modules',
+          'packages',
           'source-alias-glob',
           'src',
           'test.js',
@@ -947,6 +950,31 @@ describe.only('resolver', function() {
           path.join(rootDir, 'node_modules', 'source-alias-glob', 'package.json')
         ]
       });
+    });
+  });
+
+  describe('symlinks', function() {
+    it('should resolve symlinked files to their realpath', async function() {
+      let resolved = await resolver.resolve({
+        env: BROWSER_ENV,
+        filename: './baz.js',
+        isURL: false,
+        parent: path.join(rootDir, 'foo.js'),
+      });
+      assert.equal(nullthrows(resolved).filePath, path.join(rootDir, 'bar.js'));
+    });
+
+    it('should resolve symlinked directories to their realpath', async function() {
+      let resolved = await resolver.resolve({
+        env: BROWSER_ENV,
+        filename: './symlinked-nested',
+        isURL: false,
+        parent: path.join(rootDir, 'foo.js'),
+      });
+      assert.equal(
+        nullthrows(resolved).filePath,
+        path.join(rootDir, 'nested', 'index.js'),
+      );
     });
   });
 

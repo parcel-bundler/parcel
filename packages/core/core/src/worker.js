@@ -2,6 +2,7 @@
 
 import type {Bundle, ParcelOptions, ProcessedParcelConfig} from './types';
 import type {SharedReference, WorkerApi} from '@parcel/workers';
+import {loadConfig as configCache} from '@parcel/utils';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
@@ -48,18 +49,25 @@ function loadOptions(ref, workerApi) {
 }
 
 async function loadConfig(cachePath, options) {
-  let processedConfig =
-    parcelConfigCache.get(cachePath) ??
-    nullthrows(await options.cache.get(cachePath));
-  let config = new ParcelConfig(
+  let config = parcelConfigCache.get(cachePath);
+  if (config) {
+    return config;
+  }
+
+  let processedConfig = nullthrows(await options.cache.get(cachePath));
+  config = new ParcelConfig(
     // $FlowFixMe
     ((processedConfig: any): ProcessedParcelConfig),
     options.packageManager,
     options.inputFS,
-    options.autoinstall,
+    options.shouldAutoInstall,
   );
   parcelConfigCache.set(cachePath, config);
   return config;
+}
+
+export function clearConfigCache() {
+  configCache.clear();
 }
 
 export async function runTransform(
@@ -126,7 +134,7 @@ export async function runPackage(
     processedConfig,
     options.packageManager,
     options.inputFS,
-    options.autoinstall,
+    options.shouldAutoInstall,
   );
 
   let runner = new PackagerRunner({
@@ -135,10 +143,10 @@ export async function runPackage(
     report: reportWorker.bind(null, workerApi),
   });
 
-  let config = await runner.loadConfig(bundleGraph, bundle);
+  let configs = await runner.loadConfigs(bundleGraph, bundle);
   // TODO: add invalidations in `config?.files` once packaging is a request
 
-  let cacheKey = await runner.getCacheKey(bundle, bundleGraph, config?.config);
+  let cacheKey = await runner.getCacheKey(bundle, bundleGraph, configs);
   let cacheKeys = {
     content: PackagerRunner.getContentKey(cacheKey),
     map: PackagerRunner.getMapKey(cacheKey),
@@ -147,7 +155,7 @@ export async function runPackage(
 
   return (
     (await runner.getBundleInfoFromCache(cacheKeys.info)) ??
-    runner.getBundleInfo(bundle, bundleGraph, cacheKeys, config?.config)
+    runner.getBundleInfo(bundle, bundleGraph, cacheKeys, configs)
   );
 }
 

@@ -26,17 +26,18 @@ import {
   validateSchema,
 } from '@parcel/utils';
 import {createEnvironment} from '../Environment';
-import createParcelConfigRequest from './ParcelConfigRequest';
-import ParcelConfig from '../ParcelConfig';
+import createParcelConfigRequest, {
+  getCachedParcelConfig,
+} from './ParcelConfigRequest';
 // $FlowFixMe
 import browserslist from 'browserslist';
-// $FlowFixMe
 import jsonMap from 'json-source-map';
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import {
   COMMON_TARGET_DESCRIPTOR_SCHEMA,
   DESCRIPTOR_SCHEMA,
+  PACKAGE_DESCRIPTOR_SCHEMA,
   ENGINES_SCHEMA,
 } from '../TargetDescriptor.schema';
 import {BROWSER_ENVS} from '../public/Environment';
@@ -44,23 +45,8 @@ import {optionsProxy} from '../utils';
 
 type RunOpts = {|
   input: Entry,
-  ...StaticRunOpts,
+  ...StaticRunOpts<Array<Target>>,
 |};
-
-const DEFAULT_DEVELOPMENT_ENGINES = {
-  node: 'current',
-  browsers: [
-    'last 1 Chrome version',
-    'last 1 Safari version',
-    'last 1 Firefox version',
-    'last 1 Edge version',
-  ],
-};
-
-const DEFAULT_PRODUCTION_ENGINES = {
-  browsers: ['>= 0.25%'],
-  node: '8',
-};
 
 const DEFAULT_DIST_DIRNAME = 'dist';
 const COMMON_TARGETS = ['main', 'module', 'browser', 'types'];
@@ -90,16 +76,10 @@ async function run({input, api, options}: RunOpts) {
   );
   let targets = await targetResolver.resolve(input.packagePath);
 
-  let {config} = nullthrows(
+  let configResult = nullthrows(
     await api.runRequest<null, ConfigAndCachePath>(createParcelConfigRequest()),
   );
-
-  let parcelConfig = new ParcelConfig(
-    config,
-    options.packageManager,
-    options.inputFS,
-    options.autoinstall,
-  );
+  let parcelConfig = getCachedParcelConfig(configResult, options);
 
   // Find named pipelines for each target.
   let pipelineNames = new Set(parcelConfig.getNamedPipelines());
@@ -184,7 +164,7 @@ export class TargetResolver {
               },
             });
           }
-          return {
+          let target: Target = {
             name,
             distDir: path.resolve(this.fs.cwd(), distDir),
             publicUrl: descriptor.publicUrl ?? this.options.publicUrl,
@@ -200,10 +180,16 @@ export class TargetResolver {
               sourceMap: normalizeSourceMap(this.options, descriptor.sourceMap),
             }),
           };
+
+          if (descriptor.distEntry != null) {
+            target.distEntry = descriptor.distEntry;
+          }
+
+          return target;
         });
       }
 
-      let serve = this.options.serve;
+      let serve = this.options.serveOptions;
       if (serve) {
         // In serve mode, we only support a single browser target. If the user
         // provided more than one, or the matching target is not a browser, throw.
@@ -228,19 +214,17 @@ export class TargetResolver {
     } else {
       // Explicit targets were not provided. Either use a modern target for server
       // mode, or simply use the package.json targets.
-      if (this.options.serve) {
+      if (this.options.serveOptions) {
         // In serve mode, we only support a single browser target. Since the user
         // hasn't specified a target, use one targeting modern browsers for development
         targets = [
           {
             name: 'default',
-            distDir: this.options.serve.distDir,
+            distDir: this.options.serveOptions.distDir,
             publicUrl: this.options.publicUrl ?? '/',
             env: createEnvironment({
               context: 'browser',
-              engines: {
-                browsers: DEFAULT_DEVELOPMENT_ENGINES.browsers,
-              },
+              engines: {},
               minify: this.options.minify,
               scopeHoist: this.options.scopeHoist,
               sourceMap: this.options.sourceMaps ? {} : undefined,
@@ -354,18 +338,22 @@ export class TargetResolver {
     let moduleContext =
       pkg.browser ?? pkgTargets.browser ? 'browser' : mainContext;
 
-    let defaultEngines =
-      this.options.defaultEngines ??
-      (this.options.mode === 'production'
-        ? DEFAULT_PRODUCTION_ENGINES
-        : DEFAULT_DEVELOPMENT_ENGINES);
+    let defaultEngines = this.options.defaultEngines;
     let context = browsers ?? !node ? 'browser' : 'node';
-    if (context === 'browser' && pkgEngines.browsers == null) {
+    if (
+      context === 'browser' &&
+      pkgEngines.browsers == null &&
+      defaultEngines?.browsers != null
+    ) {
       pkgEngines = {
         ...pkgEngines,
         browsers: defaultEngines.browsers,
       };
-    } else if (context === 'node' && pkgEngines.node == null) {
+    } else if (
+      context === 'node' &&
+      pkgEngines.node == null &&
+      defaultEngines?.node != null
+    ) {
       pkgEngines = {
         ...pkgEngines,
         node: defaultEngines.node,
@@ -509,7 +497,7 @@ export class TargetResolver {
       }
 
       if (targetName in pkgTargets) {
-        let descriptor = parseDescriptor(
+        let descriptor = parsePackageDescriptor(
           targetName,
           pkgTargets[targetName],
           pkgFilePath,
@@ -593,9 +581,29 @@ function parseDescriptor(
   descriptor: mixed,
   pkgPath: ?FilePath,
   pkgContents: string | mixed,
-): TargetDescriptor | PackageTargetDescriptor {
+): TargetDescriptor {
   validateSchema.diagnostic(
     DESCRIPTOR_SCHEMA,
+    descriptor,
+    pkgPath,
+    pkgContents,
+    '@parcel/core',
+    `/targets/${targetName}`,
+    `Invalid target descriptor for target "${targetName}"`,
+  );
+
+  // $FlowFixMe we just verified this
+  return descriptor;
+}
+
+function parsePackageDescriptor(
+  targetName: string,
+  descriptor: mixed,
+  pkgPath: ?FilePath,
+  pkgContents: string | mixed,
+): PackageTargetDescriptor {
+  validateSchema.diagnostic(
+    PACKAGE_DESCRIPTOR_SCHEMA,
     descriptor,
     pkgPath,
     pkgContents,
@@ -613,7 +621,7 @@ function parseCommonTargetDescriptor(
   descriptor: mixed,
   pkgPath: ?FilePath,
   pkgContents: string | mixed,
-): TargetDescriptor | PackageTargetDescriptor | false {
+): PackageTargetDescriptor | false {
   validateSchema.diagnostic(
     COMMON_TARGET_DESCRIPTOR_SCHEMA,
     descriptor,

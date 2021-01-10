@@ -157,7 +157,7 @@ describe('sourcemaps', function() {
   it('Should create a basic browser sourcemap when serving', async function() {
     let fixture = path.join(__dirname, '/integration/sourcemap');
     let sourceFilename = path.join(fixture, 'index.js');
-    await bundle(sourceFilename, {serve: {port: 1234}});
+    await bundle(sourceFilename, {serveOptions: {port: 1234}});
 
     let filename = path.join(distDir, 'index.js');
     let raw = await outputFS.readFile(filename, 'utf8');
@@ -459,8 +459,11 @@ describe('sourcemaps', function() {
     sourceMap.addRawMappings(map);
 
     let mapData = sourceMap.getMap();
-    assert.equal(mapData.sources.length, 1);
-    assert.deepEqual(mapData.sources, ['./index.ts']);
+    assert.equal(mapData.sources.length, 2);
+    assert.deepEqual(mapData.sources, [
+      './index.ts',
+      '../../../../../transformers/js/src/esmodule-helpers.js',
+    ]);
 
     let input = await inputFS.readFile(
       path.join(path.dirname(filename), map.sourceRoot, map.sources[0]),
@@ -498,8 +501,12 @@ describe('sourcemaps', function() {
     sourceMap.addRawMappings(map);
 
     let mapData = sourceMap.getMap();
-    assert.equal(mapData.sources.length, 2);
-    assert.deepEqual(mapData.sources, ['./index.ts', './local.ts']);
+    assert.equal(mapData.sources.length, 3);
+    assert.deepEqual(mapData.sources, [
+      './index.ts',
+      './local.ts',
+      '../../../../../transformers/js/src/esmodule-helpers.js',
+    ]);
 
     let input = await inputFS.readFile(
       path.join(path.dirname(filename), map.sourceRoot, map.sources[0]),
@@ -738,6 +745,58 @@ describe('sourcemaps', function() {
     await test(true);
   });
 
+  it('should create a valid sourcemap for a Sass asset w/ imports', async function() {
+    let inputFilePath = path.join(
+      __dirname,
+      '/integration/scss-sourcemap-imports/style.scss',
+    );
+
+    await bundle(inputFilePath);
+    let distDir = path.join(__dirname, '../dist/');
+    let filename = path.join(distDir, 'style.css');
+    let raw = await outputFS.readFile(filename, 'utf8');
+    let mapUrlData = await loadSourceMapUrl(outputFS, filename, raw);
+    if (!mapUrlData) {
+      throw new Error('Could not load map');
+    }
+    let map = mapUrlData.map;
+
+    assert.equal(map.file, 'style.css.map');
+    assert(raw.includes('/*# sourceMappingURL=style.css.map */'));
+
+    let sourceMap = new SourceMap('/');
+    sourceMap.addRawMappings(map);
+
+    let mapData = sourceMap.getMap();
+    // This should actually just be `./integration/scss-sourcemap-imports/with_url.scss`
+    // but this is a small bug in the extend utility of the source-map library
+    assert.deepEqual(mapData.sources, [
+      './integration/scss-sourcemap-imports/style.scss',
+      './integration/scss-sourcemap-imports/with_url.scss',
+    ]);
+
+    let input = await inputFS.readFile(
+      path.join(path.dirname(filename), map.sourceRoot, map.sources[1]),
+      'utf-8',
+    );
+
+    checkSourceMapping({
+      map: sourceMap,
+      source: input,
+      generated: raw,
+      str: 'body',
+      sourcePath: './integration/scss-sourcemap-imports/with_url.scss',
+    });
+
+    checkSourceMapping({
+      map: sourceMap,
+      source: input,
+      generated: raw,
+      str: 'background-color',
+      sourcePath: './integration/scss-sourcemap-imports/with_url.scss',
+    });
+  });
+
   it('should create a valid sourcemap when for a CSS asset importing Sass', async function() {
     async function test(minify) {
       let inputFilePath = path.join(
@@ -898,7 +957,10 @@ describe('sourcemaps', function() {
 
     let map = mapData.map;
     assert.equal(map.file, 'index.js.map');
-    assert.deepEqual(map.sources, ['./index.js']);
+    assert.deepEqual(map.sources, [
+      './index.js',
+      '../../../../../transformers/js/src/esmodule-helpers.js',
+    ]);
     assert.equal(map.sourcesContent[0], sourceContent);
   });
 
@@ -929,7 +991,10 @@ describe('sourcemaps', function() {
 
     let map = mapUrlData.map;
     assert.equal(map.file, 'index.js.map');
-    assert.deepEqual(map.sources, ['./index.js']);
+    assert.deepEqual(map.sources, [
+      './index.js',
+      '../../../../../transformers/js/src/esmodule-helpers.js',
+    ]);
   });
 
   it('should respect --no-source-maps', async function() {
