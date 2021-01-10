@@ -5,9 +5,11 @@
  * @flow
  */
 
+declare module 'fileSize' { // manually added
+
 declare var fileSize: Filesize$Filesize;
 declare export default typeof fileSize;
-declare var Filesize: typeof npm$namespace$Filesize;
+
 
 declare var npm$namespace$Filesize: {|
   SiJedecBits: Class<Filesize$SiJedecBits>,
@@ -120,4 +122,7 @@ declare interface Filesize$Options {
 declare interface Filesize$Filesize {
   (bytes: number, options?: Filesize$Options): string;
   partial: (options: Filesize$Options) => (bytes: number) => string;
+}
+
+
 }
