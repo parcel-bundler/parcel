@@ -116,6 +116,10 @@ export function getCachedParcelConfig(
   return config;
 }
 
+export function clearParcelConfigCache() {
+  parcelConfigCache.clear();
+}
+
 export async function loadParcelConfig(
   options: ParcelOptions,
 ): Promise<{|...ParcelConfigChain, usedDefault: boolean|}> {

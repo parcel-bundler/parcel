@@ -51,6 +51,8 @@ export default async function applyRuntimes({
   for (let bundle of bundleGraph.getBundles()) {
     let runtimes = await config.getRuntimes(bundle.env.context);
     for (let runtime of runtimes) {
+      api.invalidateOnFileUpdate(runtime.pkgFilePath);
+
       try {
         let applied = await runtime.plugin.apply({
           bundle: NamedBundle.get(bundle, bundleGraph, options),

@@ -39,6 +39,7 @@ export type LoadedPlugin<T> = {|
   plugin: T,
   resolveFrom: FilePath,
   keyPath: string,
+  pkgFilePath: FilePath,
 |};
 
 export default class ParcelConfig {

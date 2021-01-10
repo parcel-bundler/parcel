@@ -97,7 +97,8 @@ class BundlerRunner {
       phase: 'bundling',
     });
 
-    let {plugin: bundler} = await this.config.getBundler();
+    let {plugin: bundler, pkgFilePath} = await this.config.getBundler();
+    this.api.invalidateOnFileUpdate(pkgFilePath);
 
     let configResult: ?ConfigOutput;
     if (bundler.loadConfig != null) {
@@ -207,13 +208,8 @@ class BundlerRunner {
     assetGraph: AssetGraph,
     configResult: ?ConfigOutput,
   ): Promise<string> {
-    let name = this.config.getBundlerName();
-    let {version} = await this.config.getBundler();
-
     return md5FromOrderedObject({
       parcelVersion: PARCEL_VERSION,
-      name,
-      version,
       hash: assetGraph.getHash(),
       config: configResult?.config,
     });
@@ -222,6 +218,10 @@ class BundlerRunner {
   async nameBundles(bundleGraph: InternalBundleGraph): Promise<void> {
     let namers = await this.config.getNamers();
     let bundles = bundleGraph.getBundles();
+
+    for (let namer of namers) {
+      this.api.invalidateOnFileUpdate(namer.pkgFilePath);
+    }
 
     await Promise.all(
       bundles.map(bundle => this.nameBundle(namers, bundle, bundleGraph)),
@@ -242,6 +242,7 @@ class BundlerRunner {
       plugin: Namer,
       resolveFrom: FilePath,
       keyPath: string,
+      pkgFilePath: FilePath,
     |}>,
     internalBundle: InternalBundle,
     internalBundleGraph: InternalBundleGraph,

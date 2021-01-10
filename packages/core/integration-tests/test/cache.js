@@ -16,6 +16,7 @@ import {
 import fs from 'fs';
 import {NodePackageManager} from '@parcel/package-manager';
 import {createWorkerFarm} from '@parcel/core';
+import {clearParcelConfigCache} from '@parcel/core/src/requests/ParcelConfigRequest';
 
 let inputDir: string;
 let packageManager = new NodePackageManager(inputFS);
@@ -2873,6 +2874,13 @@ describe('cache', function() {
             path.join(inputDir, 'src/nested/foo.js'),
             'module.exports = 2;',
           );
+
+          // Clear require cache for the namer plugin, and ParcelConfig cache, which has its own plugin cache.
+          await workerFarm.callAllWorkers('invalidateRequireCache', [
+            namer,
+          ]);
+
+          clearParcelConfigCache();
         },
       });
 
@@ -4129,12 +4137,166 @@ describe('cache', function() {
     });
   });
 
-  describe('bundling', function() {
+  describe.only('bundling', function() {
+    it('should invalidate when switching to a different bundler plugin', function() {});
+
     it('should invalidate when a bundler plugin version changes', function() {});
 
-    it('should invalidate when a namer plugin version changes', function() {});
+    it('should invalidate when adding a namer plugin', async function() {
+      let b = await testCache({
+        async update(b) {
+          let bundles = b.bundleGraph.getBundles().map(b => b.name);
+          assert.deepEqual(bundles, ['index.js']);
+
+          await overlayFS.writeFile(
+            path.join(inputDir, '.parcelrc'),
+            JSON.stringify({
+              extends: '@parcel/config-default',
+              namers: ['parcel-namer-test'],
+            }),
+          );
+        },
+      });
+
+      let bundles = b.bundleGraph.getBundles();
+      assert.deepEqual(bundles.map(b => b.name), bundles.map(b => `${b.id}.${b.type}`));
+    });
+
+    it('should invalidate when a namer plugin version changes', async function() {
+      let b = await testCache({
+        async setup() {
+          await overlayFS.writeFile(
+            path.join(inputDir, '.parcelrc'),
+            JSON.stringify({
+              extends: '@parcel/config-default',
+              namers: ['parcel-namer-test'],
+            }),
+          );
+        },
+        async update(b) {
+          let bundles = b.bundleGraph.getBundles();
+          assert.deepEqual(bundles.map(b => b.name), bundles.map(b => `${b.id}.${b.type}`));
+
+          let namer = path.join(inputDir, 'node_modules', 'parcel-namer-test', 'index.js');
+          await overlayFS.writeFile(
+            namer,
+            (await overlayFS.readFile(namer, 'utf8')).replace('bundle.id', 'bundle.id.slice(-8)')
+          );
+
+          await overlayFS.writeFile(
+            path.join(inputDir, 'node_modules', 'parcel-namer-test', 'package.json'),
+            JSON.stringify({
+              name: 'parcel-namer-mock',
+              version: '1.2.4'
+            })
+          );
+
+          // Clear require cache for the namer plugin, and ParcelConfig cache, which has its own plugin cache.
+          await workerFarm.callAllWorkers('invalidateRequireCache', [
+            namer,
+          ]);
+
+          clearParcelConfigCache();
+        },
+      });
+
+      let bundles = b.bundleGraph.getBundles();
+      assert.deepEqual(bundles.map(b => b.name), bundles.map(b => `${b.id.slice(-8)}.${b.type}`));
+    });
+
+    it('should invalidate when adding a runtime plugin', function() {});
 
     it('should invalidate when a runtime plugin version changes', function() {});
+
+    describe('bundler config', function() {
+      it('should support adding bundler config', async function() {
+        let b = await testCache({
+          entries: ['*.html'],
+          async setup() {
+            let pkgFile = path.join(inputDir, 'package.json');
+            let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
+            await overlayFS.writeFile(
+              pkgFile,
+              JSON.stringify({
+                ...pkg,
+                '@parcel/bundler-default': undefined
+              }),
+            );
+          },
+          async update(b) {
+            let html = await overlayFS.readFile(b.bundleGraph.getBundles().find(b => b.name === 'b.html')?.filePath, 'utf8');
+            assert.equal(html.match(/<script/g)?.length, 6);
+
+            let pkgFile = path.join(inputDir, 'package.json');
+            let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
+            await overlayFS.writeFile(
+              pkgFile,
+              JSON.stringify({
+                ...pkg,
+                '@parcel/bundler-default': {
+                  http: 1
+                }
+              }),
+            );
+          },
+        }, 'shared-many');
+
+        let html = await overlayFS.readFile(b.bundleGraph.getBundles().find(b => b.name === 'b.html')?.filePath, 'utf8');
+        assert.equal(html.match(/<script/g)?.length, 5);
+      });
+
+      it('should support updating bundler config', async function() {
+        let b = await testCache({
+          entries: ['*.html'],
+          async update(b) {
+            let html = await overlayFS.readFile(b.bundleGraph.getBundles().find(b => b.name === 'b.html')?.filePath, 'utf8');
+            assert.equal(html.match(/<script/g)?.length, 5);
+
+            let pkgFile = path.join(inputDir, 'package.json');
+            let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
+            await overlayFS.writeFile(
+              pkgFile,
+              JSON.stringify({
+                ...pkg,
+                '@parcel/bundler-default': {
+                  http: 2
+                }
+              }),
+            );
+          },
+        }, 'shared-many');
+
+        let html = await overlayFS.readFile(b.bundleGraph.getBundles().find(b => b.name === 'b.html')?.filePath, 'utf8');
+        assert.equal(html.match(/<script/g)?.length, 6);
+      });
+
+      it('should support removing bundler config', async function() {
+        let b = await testCache({
+          entries: ['*.html'],
+          async update(b) {
+            let html = await overlayFS.readFile(b.bundleGraph.getBundles().find(b => b.name === 'b.html')?.filePath, 'utf8');
+            assert.equal(html.match(/<script/g)?.length, 5);
+
+            let pkgFile = path.join(inputDir, 'package.json');
+            let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
+            await overlayFS.writeFile(
+              pkgFile,
+              JSON.stringify({
+                ...pkg,
+                '@parcel/bundler-default': undefined
+              }),
+            );
+          },
+        }, 'shared-many');
+
+        let html = await overlayFS.readFile(b.bundleGraph.getBundles().find(b => b.name === 'b.html')?.filePath, 'utf8');
+        assert.equal(html.match(/<script/g)?.length, 6);
+      });
+    });
+
+    describe('naming', function () {
+      
+    })
   });
 
   describe.only('bundler config', function() {
