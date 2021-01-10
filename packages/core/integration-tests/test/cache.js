@@ -4149,10 +4149,66 @@ describe('cache', function() {
     });
   });
 
-  describe.only('bundling', function() {
-    it('should invalidate when switching to a different bundler plugin', function() {});
+    describe.only('bundling', function() {
+    it('should invalidate when switching to a different bundler plugin', async function() {
+      let b = await testCache({
+        async update(b) {
+          assert.equal(b.bundleGraph.getBundles().length, 1);
 
-    it('should invalidate when a bundler plugin version changes', function() {});
+          await overlayFS.writeFile(
+            path.join(inputDir, '.parcelrc'),
+            JSON.stringify({
+              extends: '@parcel/config-default',
+              bundler: 'parcel-bundler-test',
+            }),
+          );
+        },
+      });
+
+      assert.equal(b.bundleGraph.getBundles().length, 3);
+    });
+
+    it('should invalidate when a bundler plugin version changes', async function() {
+      let b = await testCache({
+        async setup() {
+          await overlayFS.writeFile(
+            path.join(inputDir, '.parcelrc'),
+            JSON.stringify({
+              extends: '@parcel/config-default',
+              bundler: 'parcel-bundler-test',
+            }),
+          );
+        },
+        async update(b) {
+          assert.equal(b.bundleGraph.getBundles().length, 3);
+          assert.equal(b.bundleGraph.getBundles()[0].name, 'index.js');
+
+          let bundler = path.join(inputDir, 'node_modules', 'parcel-bundler-test', 'index.js');
+          await overlayFS.writeFile(
+            bundler,
+            (await overlayFS.readFile(bundler, 'utf8')).replace('Boolean(dependency.isEntry)', 'false')
+          );
+
+          await overlayFS.writeFile(
+            path.join(inputDir, 'node_modules', 'parcel-bundler-test', 'package.json'),
+            JSON.stringify({
+              name: 'parcel-bundler-test',
+              version: '1.2.4'
+            })
+          );
+
+          // Clear require cache for the bundler plugin, and ParcelConfig cache, which has its own plugin cache.
+          await workerFarm.callAllWorkers('invalidateRequireCache', [
+            bundler,
+          ]);
+
+          clearParcelConfigCache();
+        },
+      });
+
+      assert.equal(b.bundleGraph.getBundles().length, 3);
+      assert(b.bundleGraph.getBundles()[0].name.includes('HASH_REF'));
+    });
 
     it('should invalidate when adding a namer plugin', async function() {
       let b = await testCache({
@@ -4270,9 +4326,9 @@ describe('cache', function() {
             })
           );
 
-          // Clear require cache for the namer plugin, and ParcelConfig cache, which has its own plugin cache.
+          // Clear require cache for the runtime plugin, and ParcelConfig cache, which has its own plugin cache.
           await workerFarm.callAllWorkers('invalidateRequireCache', [
-            namer,
+            runtime,
           ]);
 
           clearParcelConfigCache();
@@ -4369,10 +4425,6 @@ describe('cache', function() {
         assert.equal(html.match(/<script/g)?.length, 6);
       });
     });
-
-    describe('naming', function () {
-      
-    })
   });
 
   describe.only('bundler config', function() {
