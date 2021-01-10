@@ -5,7 +5,7 @@
  * @flow
  */
 
-declare var terminalSize: typeof npm$namespace$terminalSize;
+declare module 'term-size' { // manually added
 
 declare var npm$namespace$terminalSize: {|
   Size: Class<terminalSize$Size>,
@@ -25,3 +25,5 @@ declare interface terminalSize$Size {
  */
 declare function terminalSize(): terminalSize$Size;
 declare export default typeof terminalSize;
+
+}
