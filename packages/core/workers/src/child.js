@@ -198,7 +198,11 @@ export class Child {
       }
     }
 
-    this.send(result);
+    try {
+      this.send(result);
+    } catch (e) {
+      result = this.send(errorResponseFromError(e));
+    }
   }
 
   handleResponse(data: WorkerResponse): void {

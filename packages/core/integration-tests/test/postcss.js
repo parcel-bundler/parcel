@@ -395,9 +395,9 @@ describe('postcss', () => {
     assert(/background-color:\s*red/.test(css));
   });
 
-  it('Should support postcss.config.js config file', async function() {
+  it('Should support postcss.config.js config file with PostCSS 7 plugin', async function() {
     let b = await bundle(
-      path.join(__dirname, '/integration/postcss-js-config/style.css'),
+      path.join(__dirname, '/integration/postcss-js-config-7/style.css'),
     );
 
     assertBundles(b, [
@@ -409,5 +409,18 @@ describe('postcss', () => {
 
     let css = await outputFS.readFile(path.join(distDir, 'style.css'), 'utf8');
     assert(css.includes('background-color: red;'));
+  });
+
+  it('Should support postcss.config.js config file with PostCSS 8 plugin', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/postcss-js-config-8/style.css'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'style.css',
+        assets: ['style.css'],
+      },
+    ]);
   });
 });
