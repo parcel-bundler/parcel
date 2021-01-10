@@ -5,8 +5,10 @@
  * @flow
  */
 
-import { SpinnerName } from "cli-spinners";
-declare var ora: typeof npm$namespace$ora;
+import type { SpinnerName } from "cli-spinners";
+
+declare module 'ora' { // manually added
+
 
 declare var npm$namespace$ora: {|
   Spinner: Class<ora$Spinner>,
@@ -259,3 +261,5 @@ declare var ora: {
   ...
 };
 declare export default typeof ora;
+
+}
