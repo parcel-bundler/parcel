@@ -106,8 +106,6 @@ class BundlerRunner {
           options: this.pluginOptions,
           logger: new PluginLogger({origin: this.config.getBundlerName()}),
         });
-
-        // TODO: add invalidations once bundling is a request
       } catch (e) {
         throw new ThrowableDiagnostic({
           diagnostic: errorToDiagnostic(e, this.config.getBundlerName()),

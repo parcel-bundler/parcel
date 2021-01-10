@@ -18,7 +18,6 @@ import ThrowableDiagnostic, {anyToDiagnostic} from '@parcel/diagnostic';
 import {assetFromValue} from './public/Asset';
 import {PackagedBundle} from './public/Bundle';
 import BundleGraph from './public/BundleGraph';
-import BundlerRunner from './BundlerRunner';
 import WorkerFarm from '@parcel/workers';
 import nullthrows from 'nullthrows';
 import {assertSignalNotAborted, BuildAbortError} from './utils';
@@ -48,7 +47,6 @@ export const INTERNAL_RESOLVE: symbol = Symbol('internal_resolve');
 
 export default class Parcel {
   #requestTracker /*: RequestTracker*/;
-  #bundlerRunner /*: BundlerRunner*/;
   #packagerRunner /*: PackagerRunner*/;
   #config /*: ParcelConfig*/;
   #farm /*: WorkerFarm*/;
@@ -132,14 +130,6 @@ export default class Parcel {
       farm: this.#farm,
       options: resolvedOptions,
     });
-
-    // this.#bundlerRunner = new BundlerRunner({
-    //   options: resolvedOptions,
-    //   optionsRef: optionsRef,
-    //   requestTracker: this.#requestTracker,
-    //   config: this.#config,
-    //   workerFarm: this.#farm,
-    // });
 
     this.#reporterRunner = new ReporterRunner({
       config: this.#config,
@@ -294,12 +284,6 @@ export default class Parcel {
       // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
       let bundleGraph = await this.#requestTracker.runRequest(bundleGraphRequest);
 
-      // let [
-      //   bundleGraph,
-      //   serializedBundleGraph,
-      // ] = await this.#bundlerRunner.bundle(assetGraph, {
-      //   signal,
-      // });
       // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381 (Windows only)
       dumpGraphToGraphViz(bundleGraph._graph, 'BundleGraph');
 
