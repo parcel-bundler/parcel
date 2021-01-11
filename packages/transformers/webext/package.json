@@ -13,8 +13,8 @@
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
-  "main": "lib/WebExtTransformer.js",
-  "source": "src/WebExtTransformer.js",
+  "main": "lib/WebExtensionTransformer.js",
+  "source": "src/WebExtensionTransformer.js",
   "engines": {
     "parcel": "^2.0.0-alpha.1.1"
   },
