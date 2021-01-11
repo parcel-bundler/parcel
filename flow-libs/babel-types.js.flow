@@ -2423,7 +2423,7 @@ declare module "@babel/types" {
   declare export function isType(nodetype: ?string, targetType: string): boolean;
   declare export function isValidES3Identifier(name: string): boolean;
   declare export function isValidES3Identifier(name: string): boolean;
-  declare export function isValidIdentifier(name: string): boolean;
+  declare export function isValidIdentifier(name: string, reserved?: boolean): boolean;
   declare export function isVar(node: BabelNode): boolean;
   declare export function matchesPattern(node: ?BabelNode, match: string | Array<string>, allowPartial?: boolean): boolean;
   declare export function validate(n: BabelNode, key: string, value: mixed): void;
