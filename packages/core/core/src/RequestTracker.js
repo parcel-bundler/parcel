@@ -711,12 +711,6 @@ export default class RequestTracker {
           option,
           this.options[option],
         ),
-      invalidateOnOptionChange: option =>
-        this.graph.invalidateOnOptionChange(
-          requestId,
-          option,
-          this.options[option],
-        ),
       getInvalidations: () => this.graph.getInvalidations(requestId),
       storeResult: (result, cacheKey) => {
         this.storeResult(requestId, result, cacheKey);

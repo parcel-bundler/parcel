@@ -1083,11 +1083,6 @@ export type FileInvalidation = {|
   filePath: FilePath
 |};
 
-export type ExtensionlessFileInvalidation = {|
-  filePath: FilePath,
-  extensions: Set<string>
-|};
-
 export type FileAboveInvalidation = {|
   fileName: string,
   aboveFilePath: FilePath
@@ -1096,7 +1091,6 @@ export type FileAboveInvalidation = {|
 export type FileCreateInvalidation = 
   | FileInvalidation
   | GlobInvalidation
-  | ExtensionlessFileInvalidation
   | FileAboveInvalidation;
 
 /**

@@ -70,7 +70,7 @@ type Module = {|
 
 type ResolverContext = {|
   invalidateOnFileCreate: Array<FileCreateInvalidation>,
-  invalidateOnFileChange: Array<FilePath>,
+  invalidateOnFileChange: Set<FilePath>,
 |};
 
 /**
@@ -118,7 +118,7 @@ export default class NodeResolver {
   |}): Promise<?ResolveResult> {
     let ctx = {
       invalidateOnFileCreate: [],
-      invalidateOnFileChange: [],
+      invalidateOnFileChange: new Set(),
     };
 
     // Get file extensions to search
@@ -157,7 +157,7 @@ export default class NodeResolver {
             filePath: await this.fs.realpath(module.filePath),
             code: module.code,
             invalidateOnFileCreate: ctx.invalidateOnFileCreate,
-            invalidateOnFileChange: ctx.invalidateOnFileChange,
+            invalidateOnFileChange: [...ctx.invalidateOnFileChange],
           };
         }
 
@@ -178,7 +178,7 @@ export default class NodeResolver {
               ? false
               : undefined,
           invalidateOnFileCreate: ctx.invalidateOnFileCreate,
-          invalidateOnFileChange: ctx.invalidateOnFileChange,
+          invalidateOnFileChange: [...ctx.invalidateOnFileChange],
         };
       }
     } catch (err) {
@@ -245,7 +245,7 @@ export default class NodeResolver {
     // Resolve the module in node_modules
     let resolved;
     try {
-      resolved = await this.findNodeModulePath(filename, sourceFile, ctx);
+      resolved = this.findNodeModulePath(filename, sourceFile, ctx);
     } catch (err) {
       // ignore
     }
@@ -290,7 +290,7 @@ export default class NodeResolver {
       let alternativeModules = await findAlternativeNodeModules(
         this.fs,
         resolved.moduleName,
-        dir,
+        path.dirname(sourceFile),
       );
 
       if (alternativeModules.length) {
@@ -601,7 +601,7 @@ export default class NodeResolver {
     let cached = this.packageCache.get(file);
 
     if (cached) {
-      ctx.invalidateOnFileChange.push(cached.pkgfile);
+      ctx.invalidateOnFileChange.add(cached.pkgfile);
       return cached;
     }
 
@@ -611,7 +611,7 @@ export default class NodeResolver {
     pkg.pkgfile = file;
     pkg.pkgdir = dir;
 
-    ctx.invalidateOnFileChange.push(file);
+    ctx.invalidateOnFileChange.add(file);
 
     // If the package has a `source` field, check if it is behind a symlink.
     // If so, we treat the module as source code rather than a pre-compiled module.
@@ -876,7 +876,6 @@ export default class NodeResolver {
 
   findPackage(sourceFile: string, ctx: ResolverContext): Promise<InternalPackageJSON | null> {
     ctx.invalidateOnFileCreate.push({
-      // glob: '**/package.json'
       fileName: 'package.json',
       aboveFilePath: sourceFile
     });

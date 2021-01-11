@@ -59,13 +59,6 @@ async function run({input, api, options}: RunOpts): Promise<EntryResult> {
     api.invalidateOnFileDelete(entry.filePath);
   }
 
-  // Invalidate whenever an entry is deleted.
-  // If the entry was a glob, we'll re-evaluate it, and otherwise
-  // a proper entry error will be thrown.
-  for (let entry of result.entries) {
-    api.invalidateOnFileDelete(entry.filePath);
-  }
-
   return result;
 }
 
