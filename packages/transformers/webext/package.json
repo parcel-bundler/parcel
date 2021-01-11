@@ -1,5 +1,5 @@
 {
-  "name": "@parcel/transformer-webext",
+  "name": "@parcel/transformer-webextension",
   "version": "2.0.0-beta.1",
   "license": "MIT",
   "publishConfig": {

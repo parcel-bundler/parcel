@@ -2,16 +2,13 @@
 
 import type {MutableAsset} from '@parcel/types';
 import {Transformer} from '@parcel/plugin';
-import {posix, join, extname, dirname, relative, resolve} from 'path';
+import {posix, join, extname, dirname, relative} from 'path';
 import jsm from 'json-source-map';
 import parseCSP from 'content-security-policy-parser';
 import {validateSchema} from '@parcel/utils';
 import ThrowableDiagnostic, {getJSONSourceLocation} from '@parcel/diagnostic';
 import {glob} from '@parcel/utils';
-import WebExtSchema from './schema';
-
-const RUNTIME = resolve(__dirname, 'runtime', 'autoreload.js');
-const RUNTIME_BG = resolve(__dirname, 'runtime', 'autoreload-bg.js');
+import WebExtensionSchema from './schema';
 
 const DEP_LOCS = [
   ['icons'],
@@ -55,7 +52,7 @@ async function collectDependencies(
         diagnostic: [
           {
             message: 'Invalid Web Extension manifest',
-            origin: '@parcel/transformer-webext',
+            origin: '@parcel/transformer-webextension',
             filePath,
             codeFrame: {
               codeHighlights: [
@@ -126,7 +123,7 @@ async function collectDependencies(
           diagnostic: [
             {
               message: 'Invalid Web Extension manifest',
-              origin: '@parcel/transformer-webext',
+              origin: '@parcel/transformer-webextension',
               filePath,
               codeFrame: {
                 codeHighlights: [
@@ -158,8 +155,9 @@ async function collectDependencies(
         program.web_accessible_resources[i],
       );
       for (const fp of await glob(globQuery, fs, {})) {
-        asset.addURLDependency(relative(dirname(filePath), fp), {
+        asset.addURLDependency(fp, {
           isEntry: true,
+          resolveFrom: dirname(filePath),
           loc: {
             filePath,
             ...getJSONSourceLocation(ptrs[`/web_accessible_resources/${i}`]),
@@ -242,13 +240,13 @@ export default (new Transformer({
     const parsed = jsm.parse(code);
     const data: any = parsed.data;
     validateSchema.diagnostic(
-      WebExtSchema,
+      WebExtensionSchema,
       {
         data: data,
         source: code,
         filePath: asset.filePath,
       },
-      '@parcel/transformer-webext',
+      '@parcel/transformer-webextension',
       'Invalid Web Extension manifest',
     );
     await collectDependencies(

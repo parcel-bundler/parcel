@@ -1,5 +1,5 @@
 {
-  "name": "@parcel/config-webext",
+  "name": "@parcel/config-webextension",
   "version": "2.0.0-beta.1",
   "license": "MIT",
   "publishConfig": {
@@ -16,7 +16,7 @@
   "main": "index.json",
   "dependencies": {
     "@parcel/config-default": "2.0.0-beta.1",
-    "@parcel/transformer-webext": "2.0.0-beta.1",
+    "@parcel/transformer-webextension": "2.0.0-beta.1",
     "@parcel/packager-raw-url": "2.0.0-beta.1"
   }
 }
