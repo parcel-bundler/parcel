@@ -423,6 +423,7 @@ export default class WorkerFarm extends EventEmitter {
                 args: [ref],
                 resolve,
                 reject,
+                skipReadyCheck: true,
                 retries: 0,
               });
             }),
@@ -444,6 +445,7 @@ export default class WorkerFarm extends EventEmitter {
             resolve,
             reject,
             retries: 0,
+            skipReadyCheck: true,
           });
         }),
       );
@@ -473,6 +475,7 @@ export default class WorkerFarm extends EventEmitter {
             resolve,
             reject,
             retries: 0,
+            skipReadyCheck: true,
           });
         }),
       );
@@ -532,6 +535,7 @@ export default class WorkerFarm extends EventEmitter {
                 resolve,
                 reject,
                 retries: 0,
+                skipReadyCheck: true,
               });
             }),
         ),

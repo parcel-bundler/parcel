@@ -1,47 +1,29 @@
 // @flow
 
-import type {
-  Asset,
-  BundleGraph,
-  PluginOptions,
-  NamedBundle,
-  Symbol,
-} from '@parcel/types';
+import type {Asset, BundleGraph, NamedBundle, Symbol} from '@parcel/types';
 import type {
   Expression,
   ExpressionStatement,
   Identifier,
   LVal,
   ObjectProperty,
-  Program,
   VariableDeclaration,
-  VariableDeclarator,
 } from '@babel/types';
-import type {NodePath} from '@babel/traverse';
 import type {ExternalBundle, ExternalModule} from '../types';
+import type {Scope} from '@parcel/babylon-walk';
 
 import * as t from '@babel/types';
 import {
-  isCallExpression,
+  isAssignmentExpression,
+  isExpressionStatement,
   isIdentifier,
-  isMemberExpression,
   isObjectExpression,
   isVariableDeclaration,
-  isVariableDeclarator,
 } from '@babel/types';
 import template from '@babel/template';
 import invariant from 'assert';
-import nullthrows from 'nullthrows';
-import {relative} from 'path';
 import {relativeBundlePath} from '@parcel/utils';
-import rename from '../renamer';
-import {
-  assertString,
-  getIdentifier,
-  getName,
-  getThrowableDiagnosticForNode,
-  removeReplaceBinding,
-} from '../utils';
+import {getIdentifier, getName} from '../utils';
 
 const REQUIRE_TEMPLATE = template.expression<
   {|
@@ -101,7 +83,7 @@ function generateDestructuringAssignment(
   specifiers,
   value,
   scope,
-): Array<VariableDeclaration> {
+): Array<BabelNode> {
   // If destructuring is not supported, generate a series of variable declarations
   // with member expressions for each property.
   if (!env.matchesEngines(DESTRUCTURING_ENGINES)) {
@@ -139,13 +121,11 @@ function generateDestructuringAssignment(
 }
 
 export function generateBundleImports(
+  bundleGraph: BundleGraph<NamedBundle>,
   from: NamedBundle,
   {bundle, assets}: ExternalBundle,
-  path: NodePath<Program>,
-  // Implement an interface consistent with other formats
-  // eslint-disable-next-line no-unused-vars
-  bundleGraph: BundleGraph<NamedBundle>,
-) {
+  scope: Scope,
+): Array<BabelNode> {
   let specifiers: Array<ObjectProperty> = [...assets].map(asset => {
     let id = getName(asset, 'init');
     return t.objectProperty(t.identifier(id), t.identifier(id), false, true);
@@ -156,41 +136,22 @@ export function generateBundleImports(
   });
 
   if (specifiers.length > 0) {
-    let decls = path.unshiftContainer(
-      'body',
-      generateDestructuringAssignment(
-        bundle.env,
-        specifiers,
-        expression,
-        path.scope,
-      ),
+    return generateDestructuringAssignment(
+      bundle.env,
+      specifiers,
+      expression,
+      scope,
     );
-
-    for (let decl of decls) {
-      // every VariableDeclaration emitted by generateDestructuringAssignment has only
-      // one VariableDeclarator
-      let next = decl.get<NodePath<VariableDeclarator>>('declarations.0');
-      for (let [name] of (Object.entries(
-        decl.getBindingIdentifierPaths(),
-      ): Array<[string, any]>)) {
-        if (path.scope.hasOwnBinding(name)) {
-          removeReplaceBinding(path.scope, name, next);
-        } else {
-          path.scope.registerDeclaration(decl);
-        }
-      }
-    }
   } else {
-    path.unshiftContainer('body', [t.expressionStatement(expression)]);
+    return [t.expressionStatement(expression)];
   }
 }
 
 export function generateExternalImport(
   bundle: NamedBundle,
   external: ExternalModule,
-  path: NodePath<Program>,
-) {
-  let {scope} = path;
+  scope: Scope,
+): Array<BabelNode> {
   let {source, specifiers, isCommonJS} = external;
 
   let properties: Array<ObjectProperty> = [];
@@ -216,7 +177,7 @@ export function generateExternalImport(
   let specifiersWildcard = specifiers.get('*');
   let specifiersDefault = specifiers.get('default');
 
-  let statements: Array<VariableDeclaration | ExpressionStatement> = [];
+  let statements: Array<BabelNode> = [];
   // Attempt to combine require calls as much as possible. Namespace, default, and named specifiers
   // cannot be combined, so in the case where we have more than one type, assign the require() result
   // to a variable first and then create additional variables for each specifier based on that.
@@ -239,6 +200,8 @@ export function generateExternalImport(
           NAMESPACE: t.objectExpression([]),
           MODULE: value,
         });
+
+        scope.add('$parcel$exportWildcard');
       }
 
       statements.push(
@@ -258,6 +221,8 @@ export function generateExternalImport(
           }),
         }),
       );
+
+      scope.add('$parcel$interopDefault');
     }
 
     if (properties.length > 0) {
@@ -281,6 +246,8 @@ export function generateExternalImport(
         }),
       }),
     );
+
+    scope.add('$parcel$interopDefault');
   } else if (specifiersWildcard) {
     let require = REQUIRE_TEMPLATE({
       BUNDLE: t.stringLiteral(source),
@@ -291,6 +258,8 @@ export function generateExternalImport(
         NAMESPACE: t.objectExpression([]),
         MODULE: require,
       });
+
+      scope.add('$parcel$exportWildcard');
     }
 
     statements.push(
@@ -320,67 +289,18 @@ export function generateExternalImport(
     );
   }
 
-  let decls: $ReadOnlyArray<
-    NodePath<ExpressionStatement | VariableDeclaration>,
-  > = path.unshiftContainer('body', statements);
-  for (let decl of decls) {
-    if (isVariableDeclaration(decl.node)) {
-      let declarator = decl.get<NodePath<VariableDeclarator>>('declarations.0');
-      for (let [name] of (Object.entries(
-        decl.getBindingIdentifierPaths(),
-      ): Array<[string, any]>)) {
-        if (path.scope.hasOwnBinding(name)) {
-          removeReplaceBinding(path.scope, name, declarator);
-        } else {
-          // $FlowFixMe
-          path.scope.registerBinding(decl.node.kind, declarator);
-        }
-      }
-
-      if (isCallExpression(declarator.node.init)) {
-        if (!isIdentifier(declarator.node.init.callee, {name: 'require'})) {
-          // $parcel$exportWildcard or $parcel$interopDefault
-          let id = declarator.get<NodePath<Identifier>>('init.callee');
-          let {name} = id.node;
-          nullthrows(path.scope.getBinding(name)).reference(id);
-          for (let arg of declarator.get<$ReadOnlyArray<NodePath<Expression>>>(
-            'init.arguments',
-          )) {
-            if (isIdentifier(arg.node)) {
-              // $FlowFixMe
-              nullthrows(path.scope.getBinding(arg.node.name)).reference(arg);
-            }
-          }
-        }
-      } else if (isIdentifier(declarator.node.init)) {
-        // a temporary variable for the transpiled destructuring assigment
-        nullthrows(path.scope.getBinding(declarator.node.init.name)).reference(
-          declarator.get<NodePath<Identifier>>('init'),
-        );
-      } else if (
-        isMemberExpression(declarator.node.init) &&
-        isIdentifier(declarator.node.init.object)
-      ) {
-        // (a temporary variable for the transpiled destructuring assigment).symbol
-        nullthrows(
-          path.scope.getBinding(declarator.node.init.object.name),
-        ).reference(declarator.get<NodePath<Identifier>>('init.object'));
-      }
-    }
-  }
+  return statements;
 }
 
-export function generateExports(
+export function generateBundleExports(
   bundleGraph: BundleGraph<NamedBundle>,
   bundle: NamedBundle,
   referencedAssets: Set<Asset>,
-  path: NodePath<Program>,
-  replacements: Map<Symbol, Symbol>,
-  options: PluginOptions,
-  maybeReplaceIdentifier: (NodePath<Identifier>) => void,
-): Set<Symbol> {
+  scope: Scope,
+  reexports: Set<{|exportAs: string, local: string|}>,
+): Array<BabelNode> {
   let exported = new Set<Symbol>();
-  let statements: Array<ExpressionStatement> = [];
+  let statements: Array<BabelNode> = [];
 
   for (let asset of referencedAssets) {
     let id = getIdentifier(asset, 'init');
@@ -393,121 +313,75 @@ export function generateExports(
     );
   }
 
-  let entry = bundle.getMainEntry();
-  if (entry) {
-    if (entry.meta.isCommonJS) {
-      let exportsId = assertString(entry.meta.exportsIdentifier);
+  for (let exp of reexports) {
+    statements.push(
+      EXPORT_TEMPLATE({
+        NAME: t.identifier(exp.exportAs),
+        IDENTIFIER: t.identifier(exp.local),
+      }),
+    );
+  }
 
-      let binding = path.scope.getBinding(exportsId);
-      if (binding) {
-        // If the exports object is constant, then we can just remove it and rename the
-        // references to the builtin CommonJS exports object. Otherwise, assign to module.exports.
-        invariant(isVariableDeclarator(binding.path.node));
-        let init = binding.path.node.init;
-        let isEmptyObject =
-          init && isObjectExpression(init) && init.properties.length === 0;
-        if (binding.constant && isEmptyObject) {
-          for (let path of binding.referencePaths) {
-            // This is never a ExportNamedDeclaration
-            invariant(isIdentifier(path.node));
-            path.node.name = 'exports';
-          }
+  return statements;
+}
 
-          binding.path.remove();
-          exported.add('exports');
-        } else {
-          exported.add(exportsId);
-          statements.push(
-            MODULE_EXPORTS_TEMPLATE({
-              IDENTIFIER: t.identifier(exportsId),
-            }),
-          );
-        }
+export function generateMainExport(
+  node: BabelNode,
+  exported: Array<{|exportAs: string, local: string|}>,
+): Array<BabelNode> {
+  let statements = [node];
+
+  for (let {exportAs, local} of exported) {
+    if (exportAs === '*') {
+      // Replace assignments to the `exports` object with `module.exports`
+      if (isExpressionStatement(node)) {
+        let expression = node.expression;
+        invariant(isAssignmentExpression(expression));
+        expression.left = t.memberExpression(
+          t.identifier('module'),
+          t.identifier('exports'),
+        );
+        continue;
+      }
+
+      // Remove the `exports` declaration if set to an empty object.
+      // Otherwise, assign to `module.exports`.
+      let isExports = false;
+      if (isVariableDeclaration(node)) {
+        let decl = node.declarations.find(
+          decl => isIdentifier(decl.id) && decl.id.name === local,
+        );
+        isExports =
+          decl &&
+          decl.init &&
+          isObjectExpression(decl.init) &&
+          decl.init.properties.length === 0;
+      }
+
+      if (!isExports) {
+        statements.push(
+          MODULE_EXPORTS_TEMPLATE({
+            IDENTIFIER: t.identifier(local),
+          }),
+        );
+      } else {
+        statements.shift();
       }
     } else {
-      for (let {exportAs, exportSymbol, symbol, asset, loc} of nullthrows(
-        bundleGraph.getExportedSymbols(entry, bundle),
-      )) {
-        if (symbol === false) {
-          // skipped
-        } else if (symbol === null) {
-          // TODO `meta.exportsIdentifier[exportSymbol]` should be exported
-          let relativePath = relative(options.projectRoot, asset.filePath);
-          throw getThrowableDiagnosticForNode(
-            `${relativePath} couldn't be statically analyzed when importing '${exportSymbol}'`,
-            entry.filePath,
-            loc,
-          );
-        } else if (symbol != null && symbol !== false) {
-          let hasReplacement = replacements.get(symbol);
-          symbol = hasReplacement ?? symbol;
-
-          // If there is an existing binding with the exported name (e.g. an import),
-          // rename it so we can use the name for the export instead.
-          if (path.scope.hasBinding(exportAs, true) && exportAs !== symbol) {
-            rename(path.scope, exportAs, path.scope.generateUid(exportAs));
-          }
-
-          let binding = path.scope.getBinding(symbol);
-          if (binding) {
-            if (!hasReplacement) {
-              let id =
-                // We cannot use the name if it's already used as global (e.g. `Map`).
-                !t.isValidIdentifier(exportAs) || path.scope.hasGlobal(exportAs)
-                  ? path.scope.generateUid(exportAs)
-                  : exportAs;
-              // rename only once, avoid having to update `replacements` transitively
-              rename(path.scope, symbol, id);
-              replacements.set(symbol, id);
-              symbol = id;
-            }
-
-            let [stmt] = binding.path.getStatementParent().insertAfter(
-              EXPORT_TEMPLATE({
-                NAME: t.identifier(exportAs),
-                IDENTIFIER: t.identifier(symbol),
-              }),
-            );
-            binding.reference(
-              stmt.get<NodePath<Identifier>>('expression.right'),
-            );
-
-            // Exports other than the default export are live bindings. Insert an assignment
-            // after each constant violation so this remains true.
-            if (exportAs !== 'default') {
-              for (let path of binding.constantViolations) {
-                let [stmt] = path.insertAfter(
-                  EXPORT_TEMPLATE({
-                    NAME: t.identifier(exportAs),
-                    IDENTIFIER: t.identifier(symbol),
-                  }),
-                );
-                binding.reference(
-                  stmt.get<NodePath<Identifier>>('expression.right'),
-                );
-              }
-            }
-          } else {
-            // `getExportedSymbols` can return `$id$import$foo` symbols so that cross-bundle imports
-            // are resolved correctly. There is no binding in that case.
-            let [decl] = path.pushContainer('body', [
-              EXPORT_TEMPLATE({
-                NAME: t.identifier(exportAs),
-                IDENTIFIER: t.identifier(symbol),
-              }),
-            ]);
-            maybeReplaceIdentifier(decl.get('expression.right'));
-          }
-        }
+      // Exports other than the default export are live bindings.
+      // Only insert an assignment to module.exports for non-default exports.
+      if (isExpressionStatement(node) && exportAs === 'default') {
+        continue;
       }
+
+      statements.push(
+        EXPORT_TEMPLATE({
+          NAME: t.identifier(exportAs),
+          IDENTIFIER: t.identifier(local),
+        }),
+      );
     }
   }
 
-  let stmts = path.pushContainer('body', statements);
-  for (let stmt of stmts) {
-    let id = stmt.get<NodePath<Identifier>>('expression.right');
-    nullthrows(path.scope.getBinding(id.node.name)).reference(id);
-  }
-
-  return exported;
+  return statements;
 }
