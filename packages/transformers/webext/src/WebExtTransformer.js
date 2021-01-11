@@ -13,8 +13,6 @@ import WebExtSchema from './schema';
 const RUNTIME = resolve(__dirname, 'runtime', 'autoreload.js');
 const RUNTIME_BG = resolve(__dirname, 'runtime', 'autoreload-bg.js');
 
-const BASE_KEYS = ['manifest_version', 'name', 'version'];
-
 const DEP_LOCS = [
   ['icons'],
   ['browser_action', 'default_icon'],
@@ -103,12 +101,11 @@ async function collectDependencies(
         }
       }
       if (hot && sc.js && sc.js.length) {
-        needRuntimeBG = ptrs[`/content_scripts/${i}/js/${sc.js.length - 1}`];
+        needRuntimeBG = true;
         sc.js.push(
-          asset.addURLDependency(
-            relative(dirname(asset.filePath), RUNTIME),
-            {},
-          ),
+          asset.addURLDependency('./runtime/autoreload.js', {
+            resolveFrom: __filename,
+          }),
         );
       }
     }
@@ -210,7 +207,9 @@ async function collectDependencies(
       program.background.scripts = [];
     }
     program.background.scripts.push(
-      asset.addURLDependency(relative(dirname(asset.filePath), RUNTIME_BG), {}),
+      asset.addURLDependency('./runtime/autoreload-bg.js', {
+        resolveFrom: __filename,
+      }),
     );
   }
 }
@@ -226,7 +225,7 @@ function cspPatchHMR(policy: ?string) {
       csp['script-src'].push("'unsafe-eval'");
     }
     for (const k in csp) {
-      policy += k + ' ' + csp[k].join(' ') + ';';
+      policy += `${k} ${csp[k].join(' ')};`;
     }
     return policy;
   } else {
@@ -242,10 +241,6 @@ export default (new Transformer({
     const code = await asset.getCode();
     const parsed = jsm.parse(code);
     const data: any = parsed.data;
-    if (BASE_KEYS.some(key => !data.hasOwnProperty(key))) {
-      // This is probably just another file that happens to be named manifest.json
-      return [asset];
-    }
     validateSchema.diagnostic(
       WebExtSchema,
       {
