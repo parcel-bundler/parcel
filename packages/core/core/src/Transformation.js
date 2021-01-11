@@ -363,7 +363,7 @@ export default class Transformation {
         }
 
         try {
-          let transformerResults = await runTransformer(
+          let transformerResults = await this.runTransformer(
             pipeline,
             asset,
             transformer.plugin,
@@ -601,6 +601,143 @@ export default class Transformation {
 
     return this.loadConfig(configRequest);
   }
+
+  async runTransformer(
+    pipeline: Pipeline,
+    asset: UncommittedAsset,
+    transformer: Transformer,
+    transformerName: string,
+    preloadedConfig: ?Config,
+    configKeyPath: string,
+    parcelConfig: ParcelConfig,
+  ): Promise<Array<TransformerResult>> {
+    const logger = new PluginLogger({origin: transformerName});
+
+    const resolve = async (from: FilePath, to: string): Promise<FilePath> => {
+      let result = nullthrows(
+        await pipeline.resolverRunner.resolve(
+          createDependency({
+            env: asset.value.env,
+            moduleSpecifier: to,
+            sourcePath: from,
+          }),
+        ),
+      );
+
+      if (result.invalidateOnFileCreate) {
+        // TODO ???
+      }
+
+      if (result.invalidateOnFileChange) {
+        for (let filePath of result.invalidateOnFileChange) {
+          let invalidation = {
+            type: 'file',
+            filePath
+          };
+
+          this.invalidations.set(getInvalidationId(invalidation), invalidation);
+        }
+      }
+
+      return result.assetGroup.filePath;
+    };
+
+    // If an ast exists on the asset, but we cannot reuse it,
+    // use the previous transform to generate code that we can re-parse.
+    if (
+      asset.ast &&
+      asset.isASTDirty &&
+      (!transformer.canReuseAST ||
+        !transformer.canReuseAST({
+          ast: asset.ast,
+          options: pipeline.pluginOptions,
+          logger,
+        })) &&
+      pipeline.generate
+    ) {
+      let output = await pipeline.generate(asset);
+      asset.content = output.content;
+      asset.mapBuffer = output.map?.toBuffer();
+    }
+
+    // Load config for the transformer.
+    let config = preloadedConfig;
+
+    // Parse if there is no AST available from a previous transform.
+    if (!asset.ast && transformer.parse) {
+      let ast = await transformer.parse({
+        asset: new MutableAsset(asset),
+        config,
+        options: pipeline.pluginOptions,
+        resolve,
+        logger,
+      });
+      if (ast) {
+        asset.setAST(ast);
+        asset.isASTDirty = false;
+      }
+    }
+
+    // Transform.
+    let results = await normalizeAssets(
+      // $FlowFixMe
+      await transformer.transform({
+        asset: new MutableAsset(asset),
+        ast: asset.ast,
+        config,
+        options: pipeline.pluginOptions,
+        resolve,
+        logger,
+      }),
+    );
+
+    // Create generate and postProcess functions that can be called later
+    pipeline.generate = (input: UncommittedAsset): Promise<GenerateOutput> => {
+      if (transformer.generate && input.ast) {
+        let generated = transformer.generate({
+          asset: new Asset(input),
+          ast: input.ast,
+          options: pipeline.pluginOptions,
+          logger,
+        });
+        input.clearAST();
+        return Promise.resolve(generated);
+      }
+
+      throw new Error(
+        'Asset has an AST but no generate method is available on the transform',
+      );
+    };
+
+    // For Flow
+    let postProcess = transformer.postProcess;
+    if (postProcess) {
+      pipeline.postProcess = async (
+        assets: Array<UncommittedAsset>,
+      ): Promise<Array<UncommittedAsset> | null> => {
+        let results = await postProcess.call(transformer, {
+          assets: assets.map(asset => new MutableAsset(asset)),
+          config,
+          options: pipeline.pluginOptions,
+          resolve,
+          logger,
+        });
+
+        return Promise.all(
+          results.map(result =>
+            asset.createChildAsset(
+              result,
+              transformerName,
+              parcelConfig.filePath,
+              configKeyPath,
+            ),
+          ),
+        );
+      };
+    }
+
+    return results;
+  }
 }
 
 type Pipeline = {|
@@ -621,126 +758,6 @@ type TransformerWithNameAndConfig = {|
   config: ?Config,
   configKeyPath: string,
 |};
-
-async function runTransformer(
-  pipeline: Pipeline,
-  asset: UncommittedAsset,
-  transformer: Transformer,
-  transformerName: string,
-  preloadedConfig: ?Config,
-  configKeyPath: string,
-  parcelConfig: ParcelConfig,
-): Promise<Array<TransformerResult>> {
-  const logger = new PluginLogger({origin: transformerName});
-
-  const resolve = async (from: FilePath, to: string): Promise<FilePath> => {
-    return nullthrows(
-      await pipeline.resolverRunner.resolve(
-        createDependency({
-          env: asset.value.env,
-          moduleSpecifier: to,
-          sourcePath: from,
-        }),
-      ),
-    ).filePath;
-  };
-
-  // If an ast exists on the asset, but we cannot reuse it,
-  // use the previous transform to generate code that we can re-parse.
-  if (
-    asset.ast &&
-    asset.isASTDirty &&
-    (!transformer.canReuseAST ||
-      !transformer.canReuseAST({
-        ast: asset.ast,
-        options: pipeline.pluginOptions,
-        logger,
-      })) &&
-    pipeline.generate
-  ) {
-    let output = await pipeline.generate(asset);
-    asset.content = output.content;
-    asset.mapBuffer = output.map?.toBuffer();
-  }
-
-  // Load config for the transformer.
-  let config = preloadedConfig;
-
-  // Parse if there is no AST available from a previous transform.
-  if (!asset.ast && transformer.parse) {
-    let ast = await transformer.parse({
-      asset: new MutableAsset(asset),
-      config,
-      options: pipeline.pluginOptions,
-      resolve,
-      logger,
-    });
-    if (ast) {
-      asset.setAST(ast);
-      asset.isASTDirty = false;
-    }
-  }
-
-  // Transform.
-  let results = await normalizeAssets(
-    // $FlowFixMe
-    await transformer.transform({
-      asset: new MutableAsset(asset),
-      ast: asset.ast,
-      config,
-      options: pipeline.pluginOptions,
-      resolve,
-      logger,
-    }),
-  );
-
-  // Create generate and postProcess functions that can be called later
-  pipeline.generate = (input: UncommittedAsset): Promise<GenerateOutput> => {
-    if (transformer.generate && input.ast) {
-      let generated = transformer.generate({
-        asset: new Asset(input),
-        ast: input.ast,
-        options: pipeline.pluginOptions,
-        logger,
-      });
-      input.clearAST();
-      return Promise.resolve(generated);
-    }
-
-    throw new Error(
-      'Asset has an AST but no generate method is available on the transform',
-    );
-  };
-
-  // For Flow
-  let postProcess = transformer.postProcess;
-  if (postProcess) {
-    pipeline.postProcess = async (
-      assets: Array<UncommittedAsset>,
-    ): Promise<Array<UncommittedAsset> | null> => {
-      let results = await postProcess.call(transformer, {
-        assets: assets.map(asset => new MutableAsset(asset)),
-        config,
-        options: pipeline.pluginOptions,
-        resolve,
-        logger,
-      });
-
-      return Promise.all(
-        results.map(result =>
-          asset.createChildAsset(
-            result,
-            transformerName,
-            parcelConfig.filePath,
-            configKeyPath,
-          ),
-        ),
-      );
-    };
-  }
-
-  return results;
-}
 
 function normalizeAssets(
   results: Array<TransformerResult | MutableAsset>,

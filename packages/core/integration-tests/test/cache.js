@@ -2548,7 +2548,7 @@ describe('cache', function() {
     });
   });
 
-  describe.only('resolver', function() {
+  describe('resolver', function() {
     it('should support updating a package.json#main field', async function() {
       let b = await testCache(async b => {
         assert.equal(await run(b.bundleGraph), 4);
@@ -2809,7 +2809,7 @@ describe('cache', function() {
       assert.equal(await run(b.bundleGraph), 6);
     });
 
-    it.only('should support adding a deeper node_modules folder', async function() {
+    it('should support adding a deeper node_modules folder', async function() {
       let b = await testCache({
         async update(b) {
           assert.equal(await run(b.bundleGraph), 4);

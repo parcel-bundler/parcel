@@ -1,6 +1,6 @@
 // @flow strict-local
 import type {Diagnostic} from '@parcel/diagnostic';
-import type {Async, QueryParameters} from '@parcel/types';
+import type {Async, FileCreateInvalidation, FilePath, QueryParameters} from '@parcel/types';
 import type {StaticRunOpts, RunAPI} from '../RequestTracker';
 import type {AssetGroup, Dependency, ParcelOptions} from '../types';
 import type {ConfigAndCachePath} from './ParcelConfigRequest';
@@ -59,34 +59,48 @@ async function run({input, api, options}: RunOpts) {
   let resolverRunner = new ResolverRunner({
     options,
     config,
-    api,
   });
-  let assetGroup = await resolverRunner.resolve(input.dependency);
+  let result = await resolverRunner.resolve(input.dependency);
 
-  if (assetGroup != null) {
-    api.invalidateOnFileDelete(assetGroup.filePath);
+  if (result != null) {
+    if (result.invalidateOnFileCreate) {
+      for (let file of result.invalidateOnFileCreate) {
+        api.invalidateOnFileCreate(file);
+      }
+    }
+
+    if (result.invalidateOnFileChange) {
+      for (let filePath of result.invalidateOnFileChange) {
+        api.invalidateOnFileUpdate(filePath);
+        api.invalidateOnFileDelete(filePath);
+      }
+    }
+    
+    api.invalidateOnFileDelete(result.assetGroup.filePath);
+    return result.assetGroup;
   }
-
-  return assetGroup;
 }
 
 type ResolverRunnerOpts = {|
   config: ParcelConfig,
   options: ParcelOptions,
-  api: RunAPI,
+|};
+
+type ResolverResult = {|
+  assetGroup: AssetGroup,
+  invalidateOnFileCreate?: Array<FileCreateInvalidation>;
+  invalidateOnFileChange?: Array<FilePath>;
 |};
 
 export class ResolverRunner {
   config: ParcelConfig;
   options: ParcelOptions;
   pluginOptions: PluginOptions;
-  api: RunAPI;
 
-  constructor({config, options, api}: ResolverRunnerOpts) {
+  constructor({config, options}: ResolverRunnerOpts) {
     this.config = config;
     this.options = options;
     this.pluginOptions = new PluginOptions(this.options);
-    this.api = api;
   }
 
   async getThrowableDiagnostic(
@@ -114,7 +128,7 @@ export class ResolverRunner {
     return new ThrowableDiagnostic({diagnostic});
   }
 
-  async resolve(dependency: Dependency): Promise<?AssetGroup> {
+  async resolve(dependency: Dependency): Promise<?ResolverResult> {
     let dep = new PublicDependency(dependency);
     report({
       type: 'buildProgress',
@@ -190,19 +204,6 @@ export class ResolverRunner {
         });
 
         if (result) {
-          if (result.invalidateOnFileCreate) {
-            for (let file of result.invalidateOnFileCreate) {
-              this.api.invalidateOnFileCreate(file);
-            }
-          }
-
-          if (result.invalidateOnFileChange) {
-            for (let filePath of result.invalidateOnFileChange) {
-              this.api.invalidateOnFileUpdate(filePath);
-              this.api.invalidateOnFileDelete(filePath);
-            }
-          }
-
           if (result.meta) {
             dependency.meta = {
               ...dependency.meta,
@@ -216,14 +217,18 @@ export class ResolverRunner {
 
           if (result.filePath != null) {
             return {
-              canDefer: result.canDefer,
-              filePath: result.filePath,
-              query,
-              sideEffects: result.sideEffects,
-              code: result.code,
-              env: dependency.env,
-              pipeline: pipeline ?? dependency.pipeline,
-              isURL: dependency.isURL,
+              assetGroup: {
+                canDefer: result.canDefer,
+                filePath: result.filePath,
+                query,
+                sideEffects: result.sideEffects,
+                code: result.code,
+                env: dependency.env,
+                pipeline: pipeline ?? dependency.pipeline,
+                isURL: dependency.isURL,
+              },
+              invalidateOnFileCreate: result.invalidateOnFileCreate,
+              invalidateOnFileChange: result.invalidateOnFileChange,
             };
           }
 
