@@ -4,12 +4,11 @@ import type {
   BundleGraph,
   ModuleSpecifier,
   NamedBundle,
-  PluginOptions,
   Symbol,
   SourceLocation,
 } from '@parcel/types';
-import type {NodePath} from '@babel/traverse';
-import type {Identifier, Program} from '@babel/types';
+import type {Node} from '@babel/types';
+import type {Scope} from '@parcel/babylon-walk';
 
 export type ExternalModule = {|
   source: ModuleSpecifier,
@@ -26,23 +25,25 @@ export type ExternalBundle = {|
 
 export type OutputFormat = {|
   generateBundleImports(
+    bundleGraph: BundleGraph<NamedBundle>,
     from: NamedBundle,
     external: ExternalBundle,
-    path: NodePath<Program>,
-    bundleGraph: BundleGraph<NamedBundle>,
-  ): void,
+    scope: Scope,
+  ): Array<Node>,
   generateExternalImport(
     bundle: NamedBundle,
     external: ExternalModule,
-    path: NodePath<Program>,
-  ): void,
-  generateExports(
+    scope: Scope,
+  ): Array<Node>,
+  generateBundleExports(
     bundleGraph: BundleGraph<NamedBundle>,
     bundle: NamedBundle,
     referencedAssets: Set<Asset>,
-    path: NodePath<Program>,
-    replacements: Map<Symbol, Symbol>,
-    options: PluginOptions,
-    maybeReplaceIdentifier: (NodePath<Identifier>) => void,
-  ): Set<Symbol>,
+    scope: Scope,
+    reexports: Set<{|exportAs: string, local: string|}>,
+  ): Array<Node>,
+  generateMainExport(
+    node: Node,
+    exported: Array<{|exportAs: string, local: string|}>,
+  ): Array<Node>,
 |};

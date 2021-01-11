@@ -357,13 +357,17 @@ export type Symbol = string;
  * A map from extert names to the corespinding asset's lcoal variable name.
  */
 export interface AssetSymbols // eslint-disable-next-line no-undef
-  extends Iterable<[Symbol, {|local: Symbol, loc: ?SourceLocation|}]> {
+  extends Iterable<
+    [Symbol, {|local: Symbol, loc: ?SourceLocation, meta?: ?Meta|}],
+  > {
   /**
    * The exports of the asset are unknown, rather than just empty.
    * This is the default state.
    */
   +isCleared: boolean;
-  get(exportSymbol: Symbol): ?{|local: Symbol, loc: ?SourceLocation|};
+  get(
+    exportSymbol: Symbol,
+  ): ?{|local: Symbol, loc: ?SourceLocation, meta?: ?Meta|};
   hasExportSymbol(exportSymbol: Symbol): boolean;
   hasLocalSymbol(local: Symbol): boolean;
   exportSymbols(): Iterable<Symbol>;
@@ -373,7 +377,12 @@ export interface MutableAssetSymbols extends AssetSymbols {
    * Initilizes the map, sets isCleared to false.
    */
   ensure(): void;
-  set(exportSymbol: Symbol, local: Symbol, loc: ?SourceLocation): void;
+  set(
+    exportSymbol: Symbol,
+    local: Symbol,
+    loc: ?SourceLocation,
+    meta?: ?Meta,
+  ): void;
   delete(exportSymbol: Symbol): void;
 }
 /**
@@ -381,7 +390,10 @@ export interface MutableAssetSymbols extends AssetSymbols {
  */
 export interface MutableDependencySymbols // eslint-disable-next-line no-undef
   extends Iterable<
-    [Symbol, {|local: Symbol, loc: ?SourceLocation, isWeak: boolean|}],
+    [
+      Symbol,
+      {|local: Symbol, loc: ?SourceLocation, isWeak: boolean, meta?: ?Meta|},
+    ],
   > {
   /**
    * Initilizes the map, sets isCleared to false.
@@ -394,7 +406,7 @@ export interface MutableDependencySymbols // eslint-disable-next-line no-undef
   +isCleared: boolean;
   get(
     exportSymbol: Symbol,
-  ): ?{|local: Symbol, loc: ?SourceLocation, isWeak: boolean|};
+  ): ?{|local: Symbol, loc: ?SourceLocation, isWeak: boolean, meta?: ?Meta|};
   hasExportSymbol(exportSymbol: Symbol): boolean;
   hasLocalSymbol(local: Symbol): boolean;
   exportSymbols(): Iterable<Symbol>;
@@ -911,6 +923,7 @@ export interface Bundle {
   /** The actual entry (which won't be a runtime). */
   getMainEntry(): ?Asset;
   hasAsset(Asset): boolean;
+  hasDependency(Dependency): boolean;
   /** Traverses the assets in the bundle. */
   traverseAssets<TContext>(visit: GraphVisitor<Asset, TContext>): ?TContext;
   /** Traverses assets and dependencies (see BundleTraversable). */
@@ -999,6 +1012,8 @@ export interface BundleGraph<TBundle: Bundle> {
   getDependencies(asset: Asset): Array<Dependency>;
   /** Get the dependencies that require the asset */
   getIncomingDependencies(asset: Asset): Array<Dependency>;
+  /** Get the asset that created the dependency. */
+  getAssetWithDependency(dep: Dependency): ?Asset;
   /**
    * Returns undefined if the specified dependency was excluded or wasn't async \
    * and otherwise the BundleGroup or Asset that the dependency resolves to.
@@ -1042,7 +1057,7 @@ export interface BundleGraph<TBundle: Bundle> {
   getExportedSymbols(
     asset: Asset,
     boundary: ?Bundle,
-  ): ?Array<ExportSymbolResolution>;
+  ): Array<ExportSymbolResolution>;
   traverseBundles<TContext>(
     visit: GraphVisitor<TBundle, TContext>,
     startBundle: ?Bundle,
