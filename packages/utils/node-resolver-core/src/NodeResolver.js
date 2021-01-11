@@ -69,8 +69,8 @@ type Module = {|
 |};
 
 type ResolverContext = {|
-  invalidateOnFileCreate: Set<FileCreateInvalidation>,
-  invalidateOnFileChange: Set<FilePath>,
+  invalidateOnFileCreate: Array<FileCreateInvalidation>,
+  invalidateOnFileChange: Array<FilePath>,
 |};
 
 /**
@@ -117,8 +117,8 @@ export default class NodeResolver {
     env: Env,
   |}): Promise<?ResolveResult> {
     let ctx = {
-      invalidateOnFileCreate: new Set(),
-      invalidateOnFileChange: new Set()
+      invalidateOnFileCreate: [],
+      invalidateOnFileChange: [],
     };
 
     // Get file extensions to search
@@ -156,8 +156,8 @@ export default class NodeResolver {
           return {
             filePath: await this.fs.realpath(module.filePath),
             code: module.code,
-            invalidateOnFileCreate: [...ctx.invalidateOnFileCreate],
-            invalidateOnFileChange: [...ctx.invalidateOnFileChange],
+            invalidateOnFileCreate: ctx.invalidateOnFileCreate,
+            invalidateOnFileChange: ctx.invalidateOnFileChange,
           };
         }
 
@@ -177,8 +177,8 @@ export default class NodeResolver {
             resolved.pkg && !this.hasSideEffects(resolved.path, resolved.pkg)
               ? false
               : undefined,
-          invalidateOnFileCreate: [...ctx.invalidateOnFileCreate],
-          invalidateOnFileChange: [...ctx.invalidateOnFileChange],
+          invalidateOnFileCreate: ctx.invalidateOnFileCreate,
+          invalidateOnFileChange: ctx.invalidateOnFileChange,
         };
       }
     } catch (err) {
@@ -440,14 +440,15 @@ export default class NodeResolver {
     }
   }
 
-  findNodeModulePath(filename: string, dir: string): ?Module {
+  findNodeModulePath(filename: string, sourceFile: FilePath, ctx: ResolverContext): ?Module {
     let [moduleName, subPath] = this.getModuleParts(filename);
 
-    ctx.invalidateOnFileCreate.add({
+    ctx.invalidateOnFileCreate.push({
       fileName: `node_modules/${moduleName}`,
       aboveFilePath: sourceFile
     });
 
+    let dir = path.dirname(sourceFile);
     let moduleDir = this.fs.findNodeModule(moduleName, dir);
     if (moduleDir) {
       return {
@@ -600,7 +601,7 @@ export default class NodeResolver {
     let cached = this.packageCache.get(file);
 
     if (cached) {
-      ctx.invalidateOnFileChange.add(cached.pkgfile);
+      ctx.invalidateOnFileChange.push(cached.pkgfile);
       return cached;
     }
 
@@ -610,7 +611,7 @@ export default class NodeResolver {
     pkg.pkgfile = file;
     pkg.pkgdir = dir;
 
-    ctx.invalidateOnFileChange.add(file);
+    ctx.invalidateOnFileChange.push(file);
 
     // If the package has a `source` field, check if it is behind a symlink.
     // If so, we treat the module as source code rather than a pre-compiled module.
@@ -683,12 +684,24 @@ export default class NodeResolver {
     pkg: InternalPackageJSON | null,
     ctx: ResolverContext,
   |}): Promise<?ResolvedFile> {
-    let higherPriorityExtensions = new Set();
-    let res;
-
     // Try all supported extensions
     let files = await this.expandFile(file, extensions, env, pkg);
-    let found = this.fs.findFirstFile(files);
+    let found = this.fs.findFirstFile(files.map(f => f[0]));
+    
+    // Add invalidations for higher priority files so we 
+    // re-resolve if any of them are created.
+    for (let [file, ext] of files) {
+      if (file === found) {
+        break;
+      }
+
+      if (ext) {
+        ctx.invalidateOnFileCreate.push({
+          filePath: file,
+        });
+      }
+    }
+
     if (found) {
       return {path: found, pkg};
     }
@@ -862,7 +875,7 @@ export default class NodeResolver {
   }
 
   findPackage(sourceFile: string, ctx: ResolverContext): Promise<InternalPackageJSON | null> {
-    ctx.invalidateOnFileCreate.add({
+    ctx.invalidateOnFileCreate.push({
       // glob: '**/package.json'
       fileName: 'package.json',
       aboveFilePath: sourceFile
@@ -872,7 +885,7 @@ export default class NodeResolver {
     let dir = path.dirname(sourceFile);
     let pkgFile = this.fs.findAncestorFile(['package.json'], dir);
     if (pkgFile) {
-      return this.readPackage(path.dirname(pkgFile));
+      return this.readPackage(path.dirname(pkgFile), ctx);
     }
 
     return Promise.resolve(null);
