@@ -89,16 +89,6 @@ export function generateAST({
       : null,
   });
 
-  let map = null;
-  let originalSourceMap = await asset.getMap();
-  if (generated.rawMappings) {
-    map = new SourceMap(options.projectRoot);
-    map.addIndexedMappings(generated.rawMappings);
-    if (originalSourceMap) {
-      map.extends(originalSourceMap.toBuffer());
-    }
-  } else {
-    map = originalSourceMap;
   map.addIndexedMappings(mappings);
 
   if (originalSourceMap) {

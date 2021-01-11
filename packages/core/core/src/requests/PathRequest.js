@@ -59,6 +59,7 @@ async function run({input, api, options}: RunOpts) {
   let resolverRunner = new ResolverRunner({
     options,
     config,
+    api,
   });
   let assetGroup = await resolverRunner.resolve(input.dependency);
 
