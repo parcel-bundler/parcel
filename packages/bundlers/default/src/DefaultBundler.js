@@ -10,6 +10,7 @@ import type {
 import type {SchemaEntity} from '@parcel/utils';
 
 import invariant from 'assert';
+//
 import {Bundler} from '@parcel/plugin';
 import {loadConfig, md5FromString, validateSchema} from '@parcel/utils';
 import nullthrows from 'nullthrows';
@@ -242,6 +243,8 @@ export default (new Bundler({
     deduplicate(bundleGraph);
   },
   optimize({bundleGraph, config}) {
+    invariant(config != null);
+
     // Step 4: Find duplicated assets in different bundle groups, and separate them into their own parallel bundles.
     // If multiple assets are always seen together in the same bundles, combine them together.
     let candidateBundles: Map<
