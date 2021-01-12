@@ -2,7 +2,7 @@
 
 import type {MutableAsset} from '@parcel/types';
 import {Transformer} from '@parcel/plugin';
-import {posix, join, extname, dirname, relative} from 'path';
+import {join, extname, dirname, relative} from 'path';
 import jsm from 'json-source-map';
 import parseCSP from 'content-security-policy-parser';
 import {validateSchema} from '@parcel/utils';
@@ -72,7 +72,7 @@ async function collectDependencies(
       });
     }
     for (const locale of await fs.readdir(locales)) {
-      asset.addURLDependency(posix.join('_locales', locale, 'messages.json'), {
+      asset.addURLDependency(`_locales/${locale}/messages.json`, {
         isEntry: true,
         pipeline: 'url',
       });
@@ -155,9 +155,8 @@ async function collectDependencies(
         program.web_accessible_resources[i],
       );
       for (const fp of await glob(globQuery, fs, {})) {
-        asset.addURLDependency(fp, {
+        asset.addURLDependency(relative(dirname(filePath), fp), {
           isEntry: true,
-          resolveFrom: dirname(filePath),
           loc: {
             filePath,
             ...getJSONSourceLocation(ptrs[`/web_accessible_resources/${i}`]),
