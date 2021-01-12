@@ -45,6 +45,7 @@ export default (new Reporter({
               port: serveOptions.port,
               devServer,
               logger,
+              sourceMaps: options.sourceMaps,
             };
             hmrServer = new HMRServer(hmrServerOptions);
             hmrServers.set(serveOptions.port, hmrServer);
@@ -57,6 +58,7 @@ export default (new Reporter({
           let hmrServerOptions = {
             port: hmrOptions.port,
             logger,
+            sourceMaps: options.sourceMaps,
           };
           hmrServer = new HMRServer(hmrServerOptions);
           hmrServers.set(hmrOptions.port, hmrServer);
