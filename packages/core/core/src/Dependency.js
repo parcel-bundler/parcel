@@ -25,7 +25,7 @@ type DependencyOpts = {|
   target?: Target,
   symbols?: Map<
     Symbol,
-    {|local: Symbol, loc: ?SourceLocation, isWeak: boolean|},
+    {|local: Symbol, loc: ?SourceLocation, isWeak: boolean, meta?: ?Meta|},
   >,
   pipeline?: ?string,
 |};
