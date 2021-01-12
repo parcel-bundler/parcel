@@ -100,10 +100,7 @@ export default (new Bundler({
           for (let asset of assets) {
             let bundle = bundleGraph.createBundle({
               entryAsset: asset,
-              isEntry:
-                asset.isIsolated || asset.isInline
-                  ? false
-                  : Boolean(dependency.isEntry),
+              isEntry: asset.isInline ? false : Boolean(dependency.isEntry),
               isInline: asset.isInline,
               target: bundleGroup.target,
             });
@@ -490,11 +487,13 @@ async function loadBundlerConfig(options: PluginOptions) {
 
   validateSchema.diagnostic(
     CONFIG_SCHEMA,
-    config,
-    result.files[0].filePath,
-    result.config,
+    {
+      data: config,
+      source: JSON.stringify(config),
+      filePath: result.files[0].filePath,
+      prependKey: `/${encodeJSONKeyComponent('@parcel/bundler-default')}`,
+    },
     '@parcel/bundler-default',
-    `/${encodeJSONKeyComponent('@parcel/bundler-default')}`,
     'Invalid config for @parcel/bundler-default',
   );
 
