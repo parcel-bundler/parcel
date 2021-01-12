@@ -8,14 +8,14 @@ import type {
 } from '@parcel/types';
 import type {
   CallExpression,
-  ClassDeclaration,
+  Expression,
   Identifier,
+  LVal,
   Node,
   Statement,
   VariableDeclaration,
 } from '@babel/types';
 
-import {parse as babelParse} from '@babel/parser';
 import path from 'path';
 import * as t from '@babel/types';
 import {
@@ -30,24 +30,44 @@ import {
   isStringLiteral,
   isVariableDeclaration,
 } from '@babel/types';
-import {simple as walkSimple, traverse} from '@parcel/babylon-walk';
+import {
+  simple as walkSimple,
+  traverse2,
+  REMOVE,
+  SKIP,
+} from '@parcel/babylon-walk';
 import {PromiseQueue, relativeUrl, relativePath} from '@parcel/utils';
 import invariant from 'assert';
 import fs from 'fs';
 import nullthrows from 'nullthrows';
-import {assertString, getName, getIdentifier, needsPrelude} from './utils';
-
-const HELPERS_PATH = path.join(__dirname, 'helpers.js');
-const HELPERS = parse(
-  fs.readFileSync(path.join(__dirname, 'helpers.js'), 'utf8'),
-  HELPERS_PATH,
-);
+import template from '@babel/template';
+import {
+  assertString,
+  getName,
+  getIdentifier,
+  parse,
+  needsPrelude,
+  needsDefaultInterop,
+} from './utils';
 
 const PRELUDE_PATH = path.join(__dirname, 'prelude.js');
 const PRELUDE = parse(
   fs.readFileSync(path.join(__dirname, 'prelude.js'), 'utf8'),
   PRELUDE_PATH,
 );
+
+const DEFAULT_INTEROP_TEMPLATE = template.statement<
+  {|
+    NAME: LVal,
+    MODULE: Expression,
+  |},
+  VariableDeclaration,
+>('var NAME = $parcel$interopDefault(MODULE);');
+
+const ESMODULE_TEMPLATE = template.statement<
+  {|EXPORTS: Expression|},
+  Statement,
+>(`$parcel$defineInteropFlag(EXPORTS);`);
 
 type AssetASTMap = Map<string, Array<Statement>>;
 type TraversalContext = {|
@@ -87,23 +107,13 @@ export async function concat({
         break;
       case 'asset':
         queue.add(() =>
-          processAsset(options, bundle, node.value, wrappedAssets),
+          processAsset(options, bundleGraph, bundle, node.value, wrappedAssets),
         );
     }
   });
 
   let outputs = new Map<string, Array<Statement>>(await queue.run());
-  let result = [...HELPERS];
-
-  // Add a declaration for parcelRequire that points to the unique global name.
-  if (bundle.env.outputFormat === 'global') {
-    result.push(
-      ...parse(
-        `var parcelRequire = $parcel$global.${parcelRequireName};`,
-        PRELUDE_PATH,
-      ),
-    );
-  }
+  let result = [];
 
   if (needsPrelude(bundle, bundleGraph)) {
     result.push(
@@ -184,6 +194,7 @@ export async function concat({
 
 async function processAsset(
   options: PluginOptions,
+  bundleGraph: BundleGraph<NamedBundle>,
   bundle: NamedBundle,
   asset: Asset,
   wrappedAssets: Set<string>,
@@ -195,6 +206,34 @@ async function processAsset(
   } else {
     let code = await asset.getCode();
     statements = parse(code, relativeUrl(options.projectRoot, asset.filePath));
+  }
+
+  // If this is a CommonJS module, add an interop default declaration if there are any ES6 default
+  // import dependencies in the same bundle for that module.
+  if (needsDefaultInterop(bundleGraph, bundle, asset)) {
+    statements.push(
+      DEFAULT_INTEROP_TEMPLATE({
+        NAME: getIdentifier(asset, '$interop$default'),
+        MODULE: t.identifier(assertString(asset.meta.exportsIdentifier)),
+      }),
+    );
+  }
+
+  // If this is an ES6 module with a default export, and it's required by a
+  // CommonJS module in the same bundle, then add an __esModule flag for interop with babel.
+  if (asset.meta.isES6Module && asset.symbols.hasExportSymbol('default')) {
+    let deps = bundleGraph.getIncomingDependencies(asset);
+    let hasCJSDep = deps.some(
+      dep =>
+        dep.meta.isCommonJS && !dep.isAsync && dep.symbols.hasExportSymbol('*'),
+    );
+    if (hasCJSDep) {
+      statements.push(
+        ESMODULE_TEMPLATE({
+          EXPORTS: t.identifier(assertString(asset.meta.exportsIdentifier)),
+        }),
+      );
+    }
   }
 
   if (wrappedAssets.has(asset.id)) {
@@ -211,16 +250,6 @@ async function processAsset(
   }
 
   return [asset.id, statements];
-}
-
-function parse(code, sourceFilename) {
-  let ast = babelParse(code, {
-    sourceFilename,
-    allowReturnOutsideFunction: true,
-    plugins: ['dynamicImport'],
-  });
-
-  return ast.program.body;
 }
 
 function shouldSkipAsset(
@@ -289,15 +318,14 @@ function findRequires(
 // Toplevel var/let/const declarations, function declarations and all `var` declarations
 // in a non-function scope need to be hoisted.
 const WRAP_MODULE_VISITOR = {
-  VariableDeclaration(path, {decls}) {
-    // $FlowFixMe
-    let {node, parent} = (path: {|node: VariableDeclaration, parent: Node|});
+  VariableDeclaration(node, {decls}, ancestors) {
+    let parent = ancestors[ancestors.length - 2];
     let isParentForX =
       isForInStatement(parent, {left: node}) ||
       isForOfStatement(parent, {left: node});
     let isParentFor = isForStatement(parent, {init: node});
 
-    if (node.kind === 'var' || isProgram(path.parent)) {
+    if (node.kind === 'var' || isProgram(parent)) {
       let replace: Array<any> = [];
       for (let decl of node.declarations) {
         let {id, init} = decl;
@@ -327,35 +355,30 @@ const WRAP_MODULE_VISITOR = {
           n = t.expressionStatement(n);
         }
 
-        path.replaceWith(n);
+        return n;
       } else {
-        path.remove();
+        return REMOVE;
       }
     }
-    path.skip();
+    return SKIP;
   },
-  FunctionDeclaration(path, {fns}) {
-    fns.push(path.node);
-    path.remove();
+  FunctionDeclaration(node, {fns}) {
+    fns.push(node);
+    return REMOVE;
   },
-  ClassDeclaration(path, {decls}) {
-    // $FlowFixMe
-    let {node} = (path: {|node: ClassDeclaration|});
+  ClassDeclaration(node, {decls}) {
     let {id} = node;
     invariant(isIdentifier(id));
 
     // Class declarations are not hoisted (they behave like `let`). We declare a variable
     // outside the function and convert to a class expression assignment.
     decls.push(t.variableDeclarator(id));
-    path.replaceWith(
-      t.expressionStatement(
-        t.assignmentExpression('=', id, t.toExpression(node)),
-      ),
+    return t.expressionStatement(
+      t.assignmentExpression('=', id, t.toExpression(node)),
     );
-    path.skip();
   },
-  'Function|Class'(path) {
-    path.skip();
+  'Function|Class'() {
+    return SKIP;
   },
   shouldSkip(node) {
     return t.isExpression(node);
@@ -366,7 +389,7 @@ function wrapModule(asset: Asset, statements) {
   let decls = [];
   let fns = [];
   let program = t.program(statements);
-  traverse(program, WRAP_MODULE_VISITOR, {decls, fns});
+  traverse2(program, WRAP_MODULE_VISITOR, {asset, decls, fns});
 
   let executed = getName(asset, 'executed');
   decls.push(

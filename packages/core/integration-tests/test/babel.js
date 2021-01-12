@@ -244,6 +244,21 @@ describe('babel', function() {
     assert(file.includes('React.createElement("div"'));
   });
 
+  it('should support compiling JSX with pure annotations', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/jsx-react/pure-comment.js'),
+    );
+
+    let file = await outputFS.readFile(
+      path.join(distDir, 'pure-comment.js'),
+      'utf8',
+    );
+    assert(file.includes('/*#__PURE__*/_reactDefault.default.createElement'));
+
+    let res = await run(b);
+    assert(res.Foo());
+  });
+
   it('should support compiling JSX in JS files with React aliased to Preact', async function() {
     await bundle(path.join(__dirname, '/integration/jsx-react-alias/index.js'));
 
