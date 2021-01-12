@@ -2658,6 +2658,27 @@ describe('cache', function() {
       assert.equal(await run(b.bundleGraph), 4);
     });
 
+    it('should support adding an alias in a closer package.json', async function() {
+      let b = await testCache(async b => {
+        assert.equal(await run(b.bundleGraph), 4);
+        await overlayFS.writeFile(
+          path.join(inputDir, 'src/nested/foo.js'),
+          'module.exports = 4;',
+        );
+
+        await overlayFS.writeFile(
+          path.join(inputDir, 'src/nested/package.json'),
+          JSON.stringify({
+            alias: {
+              './test.js': './foo.js'
+            }
+          })
+        );
+      });
+
+      assert.equal(await run(b.bundleGraph), 6);
+    });
+
     it('should support adding a file with a higher priority extension', async function() {
       let b = await testCache({
         async setup() {
@@ -2809,6 +2830,84 @@ describe('cache', function() {
       assert.equal(await run(b.bundleGraph), 6);
     });
 
+    it('should recover from a missing package.json#main', async function() {
+      let b = await testCache({
+        async setup() {
+          let contents = await overlayFS.readFile(
+            path.join(inputDir, 'src/index.js'),
+            'utf8'
+          );
+          await overlayFS.writeFile(
+            path.join(inputDir, 'src/index.js'),
+            contents.replace('nested/test', 'nested'),
+          );
+
+          await overlayFS.writeFile(
+            path.join(inputDir, 'src/nested/package.json'),
+            JSON.stringify({
+              main: 'tmp.js'
+            })
+          );
+
+          await overlayFS.writeFile(
+            path.join(inputDir, 'src/nested/index.js'),
+            'module.exports = 4;',
+          );
+        },
+        async update(b) {
+          assert.equal(await run(b.bundleGraph), 6);
+
+          await overlayFS.writeFile(
+            path.join(inputDir, 'src/nested/tmp.js'),
+            'module.exports = 8;',
+          );
+        }
+      });
+
+      assert.equal(await run(b.bundleGraph), 10);
+    });
+
+    it('should recover from an invalid package.json', async function() {
+      // $FlowFixMe
+      await assert.rejects(
+        async () => {
+          await testCache({
+            async setup() {
+              let contents = await overlayFS.readFile(
+                path.join(inputDir, 'src/index.js'),
+                'utf8'
+              );
+              await overlayFS.writeFile(
+                path.join(inputDir, 'src/index.js'),
+                contents.replace('nested/test', 'nested'),
+              );
+
+              await overlayFS.writeFile(
+                path.join(inputDir, 'src/nested/package.json'),
+                'invalid'
+              );
+
+              await overlayFS.writeFile(
+                path.join(inputDir, 'src/nested/index.js'),
+                'module.exports = 10;',
+              );
+            },
+            async update() {}
+          });
+        },
+      );
+
+      await overlayFS.writeFile(
+        path.join(inputDir, 'src/nested/package.json'),
+        JSON.stringify({
+          main: 'test.js'
+        })
+      );
+
+      let b = await runBundle();
+      assert.equal(await run(b.bundleGraph), 4);
+    });
+
     it('should support adding a deeper node_modules folder', async function() {
       let b = await testCache({
         async update(b) {
@@ -2827,8 +2926,6 @@ describe('cache', function() {
 
       assert.equal(await run(b.bundleGraph), 6);
     });
-
-    it('should support updating a symlink', function() {});
   });
 
   describe('bundler config', function() {

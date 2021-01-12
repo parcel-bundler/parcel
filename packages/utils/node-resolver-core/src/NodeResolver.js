@@ -586,6 +586,15 @@ export default class NodeResolver {
       }
     }
 
+    // Skip index fallback unless this is actually a directory.
+    try {
+      if (!(await this.fs.stat(dir)).isDirectory()) {
+        return;
+      }
+    } catch (err) {
+      return;
+    }
+
     // Fall back to an index file inside the directory.
     return this.loadAsFile({
       file: path.join(dir, 'index'),
@@ -605,13 +614,24 @@ export default class NodeResolver {
       return cached;
     }
 
-    let json = await this.fs.readFile(file, 'utf8');
+    let json;
+    try {
+      json = await this.fs.readFile(file, 'utf8');
+    } catch (err) {
+      // If the package.json doesn't exist, watch for it to be created.
+      ctx.invalidateOnFileCreate.push({
+        filePath: file
+      });
+      throw err;
+    }
+
+    // Add the invalidation *before* we try to parse the JSON in case of errors
+    // so that changes are picked up if the file is edited to fix the error.
+    ctx.invalidateOnFileChange.add(file);
     let pkg = JSON.parse(json);
 
     pkg.pkgfile = file;
     pkg.pkgdir = dir;
-
-    ctx.invalidateOnFileChange.add(file);
 
     // If the package has a `source` field, check if it is behind a symlink.
     // If so, we treat the module as source code rather than a pre-compiled module.
@@ -686,20 +706,18 @@ export default class NodeResolver {
   |}): Promise<?ResolvedFile> {
     // Try all supported extensions
     let files = await this.expandFile(file, extensions, env, pkg);
-    let found = this.fs.findFirstFile(files.map(f => f[0]));
+    let found = this.fs.findFirstFile(files);
     
     // Add invalidations for higher priority files so we 
     // re-resolve if any of them are created.
-    for (let [file, ext] of files) {
+    for (let file of files) {
       if (file === found) {
         break;
       }
 
-      if (ext) {
-        ctx.invalidateOnFileCreate.push({
-          filePath: file,
-        });
-      }
+      ctx.invalidateOnFileCreate.push({
+        filePath: file,
+      });
     }
 
     if (found) {
@@ -715,11 +733,14 @@ export default class NodeResolver {
     env: Env,
     pkg: InternalPackageJSON | null,
     expandAliases?: boolean = true,
-  ): Promise<Array<[string, string]>> {
+  ): Promise<Array<string>> {
     // Expand extensions and aliases
     let res = [];
     for (let ext of extensions) {
       let f = file + ext;
+      if (!path.extname(f)) {
+        continue;
+      }
 
       if (expandAliases) {
         let alias = await this.resolveAliases(f, env, pkg);
@@ -735,7 +756,7 @@ export default class NodeResolver {
         }
       }
 
-      res.push([f, ext]);
+      res.push(f);
     }
 
     return res;
