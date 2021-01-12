@@ -1091,7 +1091,7 @@ describe('javascript', function() {
     assert.equal(await output(), 5);
   });
 
-  it('should duplicate a module if it is not present in every parent bundle', async function() {
+  it('should duplicate an asset if it is not present in every parent bundle', async function() {
     let b = await bundle(
       ['a.js', 'b.js'].map(entry =>
         path.join(__dirname, 'integration/dynamic-hoist-no-dedupe', entry),
@@ -1130,6 +1130,48 @@ describe('javascript', function() {
         ],
       },
     ]);
+  });
+
+  it('should duplicate an asset if it is not available in all possible ancestries', async () => {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/dynamic-hoist-no-dedupe-ancestry/index.js',
+      ),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: [
+          'index.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'js-loader.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
+          'bundle-manifest.js',
+          'JSRuntime.js',
+          'relative-path.js',
+          'esmodule-helpers.js',
+        ],
+      },
+      {
+        assets: ['a.js', 'common.js', 'JSRuntime.js'],
+      },
+      {
+        assets: ['b.js', 'JSRuntime.js'],
+      },
+      {
+        assets: ['c.js', 'JSRuntime.js'],
+      },
+      {
+        assets: ['d.js', 'common.js'],
+      },
+    ]);
+
+    let {default: promise} = await run(b);
+    assert.equal(await promise, 42);
   });
 
   it('should support shared modules with async imports', async function() {
