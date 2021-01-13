@@ -1,6 +1,6 @@
 import {baseGenerator, EXPRESSIONS_PRECEDENCE} from 'astring';
 
-export const expressionPrecedence = {
+export const expressionsPrecedence = {
   ...EXPRESSIONS_PRECEDENCE,
   // Babel extensions
   NumericLiteral: EXPRESSIONS_PRECEDENCE.Literal,
