@@ -261,7 +261,8 @@ function formatComments(state, comments) {
     const comment = comments[i];
     if (comment.type === 'CommentLine') {
       // Line comment
-      state.write('// ' + comment.value.trim() + state.lineEnd + indent);
+      state.write('// ' + comment.value.trim() + state.lineEnd);
+      state.write(indent);
     } else {
       // Block comment
       state.write('/*');
@@ -273,7 +274,8 @@ function formatComments(state, comments) {
       if (
         !((value === '#__PURE__' || value === '@__PURE__') && i === length - 1)
       ) {
-        state.write(state.lineEnd + indent);
+        state.write(state.lineEnd);
+        state.write(indent);
       }
     }
   }
