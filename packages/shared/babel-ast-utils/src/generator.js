@@ -78,8 +78,8 @@ export const generator = {
   ArrowFunctionExpression(node, state) {
     if (node.body.type === 'OptionalMemberExpression') {
       // the ArrowFunctionExpression visitor in astring checks the type of the body
-      node.body.optional = true;
-      node.body.type = 'MemberExpression';
+      // Make sure they don't start with "O"
+      node.body.type = '_' + node.body.type;
     }
     baseGenerator.ArrowFunctionExpression.call(this, node, state);
   },
@@ -186,6 +186,9 @@ export const generator = {
     // astring doesn't support ImportExpression yet
     state.write('import');
   },
+  _OptionalMemberExpression(node, state) {
+    this.OptionalMemberExpression(node, state);
+  },
   OptionalMemberExpression(node, state) {
     node.optional = true;
     node.type = 'MemberExpression';
@@ -194,6 +197,9 @@ export const generator = {
   MemberExpression(node, state) {
     if (node.optional) node.optional = false;
     baseGenerator.MemberExpression.call(this, node, state);
+  },
+  _OptionalCallExpression(node, state) {
+    this.OptionalCallExpression(node, state);
   },
   OptionalCallExpression(node, state) {
     node.optional = true;
