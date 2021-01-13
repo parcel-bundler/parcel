@@ -123,7 +123,7 @@ export class NodePackageManager implements PackageManager {
     };
 
     try {
-      await m.load(filePath);
+      m.load(filePath);
     } catch (err) {
       delete Module._cache[filePath];
       throw err;
