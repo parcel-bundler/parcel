@@ -96,8 +96,12 @@ export class NodePackageManager implements PackageManager {
     Module._cache[filePath] = m;
 
     // Patch require within this module so it goes through our require
-    m.require = async id => {
-      return await this.require(id, filePath);
+    // m.require = async id => {
+    //   return await this.require(id, filePath);
+    // };
+    // TODO find a way to use async require
+    m.require = id => {
+      return this.requireSync(id, filePath);
     };
 
     // Patch `fs.readFile` temporarily so that it goes through our file system
