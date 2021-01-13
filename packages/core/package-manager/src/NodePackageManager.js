@@ -113,6 +113,15 @@ export class NodePackageManager implements PackageManager {
       return this.fs.readFile(filename, encoding, callback);
     };
 
+    // Patch `fs.readFileSync` temporarily so that it goes through our file system
+    let readFileSync = nativeFS.readFileSync;
+    // $FlowFixMe
+    nativeFS.readFileSync = (filename, encoding) => {
+      // $FlowFixMe
+      nativeFS.readFileSync = readFileSync;
+      return this.fs.readFileSync(filename, encoding);
+    };
+
     try {
       await m.load(filePath);
     } catch (err) {
