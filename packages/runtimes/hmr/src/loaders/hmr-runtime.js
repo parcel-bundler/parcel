@@ -1,4 +1,4 @@
-/* global HMR_HOST, HMR_PORT, HMR_ENV_HASH */
+/* global HMR_HOST, HMR_PORT, HMR_ENV_HASH, HMR_SECURE */
 
 var OVERLAY_ID = '__parcel__error__overlay__';
 
@@ -40,7 +40,12 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = getHostname();
   var port = getPort();
-  var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
+  var protocol =
+    HMR_SECURE ||
+    (location.protocol == 'https:' &&
+      !/localhost|127.0.0.1|0.0.0.0/.test(hostname))
+      ? 'wss'
+      : 'ws';
   var ws = new WebSocket(
     protocol + '://' + hostname + (port ? ':' + port : '') + '/',
   );

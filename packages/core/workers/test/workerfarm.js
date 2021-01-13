@@ -291,7 +291,7 @@ describe('WorkerFarm', function() {
     assert.equal(result, 'Shared reference does not exist');
   });
 
-  it('should resolve shared references in workers', async () => {
+  it('Should resolve shared references in workers', async () => {
     let workerfarm = new WorkerFarm({
       warmWorkers: true,
       useLocalWorker: false,

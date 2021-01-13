@@ -1197,4 +1197,62 @@ describe('sourcemaps', function() {
     await test(false);
     await test(true);
   });
+
+  it('should handle comments correctly in sourcemaps', async function() {
+    let sourceFilename = path.join(
+      __dirname,
+      '/integration/sourcemap-comments/index.js',
+    );
+    let b = await bundle(sourceFilename, {
+      scopeHoist: true,
+    });
+
+    let filename = b.getBundles()[0].filePath;
+    let raw = await outputFS.readFile(filename, 'utf8');
+    let mapUrlData = await loadSourceMapUrl(outputFS, filename, raw);
+    if (!mapUrlData) {
+      throw new Error('Could not load map');
+    }
+    let map = mapUrlData.map;
+
+    let sourceMap = new SourceMap('/');
+    sourceMap.addRawMappings(map);
+    let input = await inputFS.readFile(
+      path.join(path.dirname(filename), map.sourceRoot, map.sources[0]),
+      'utf8',
+    );
+    let sourcePath = './index.js';
+
+    checkSourceMapping({
+      map: sourceMap,
+      source: input,
+      generated: raw,
+      str: "console.log('foo')",
+      sourcePath,
+    });
+
+    checkSourceMapping({
+      map: sourceMap,
+      source: input,
+      generated: raw,
+      str: "console.log('bar')",
+      sourcePath,
+    });
+
+    checkSourceMapping({
+      map: sourceMap,
+      source: input,
+      generated: raw,
+      str: "console.log('baz')",
+      sourcePath,
+    });
+
+    checkSourceMapping({
+      map: sourceMap,
+      source: input,
+      generated: raw,
+      str: "console.log('idhf')",
+      sourcePath,
+    });
+  });
 });

@@ -30,7 +30,7 @@ export default function extractInlineAssets(
   // Extract inline <script> and <style> tags for processing.
   let parts = [];
   let hasScripts = false;
-  new PostHTML().walk.call(program, (node: PostHTMLNode) => {
+  PostHTML().walk.call(program, (node: PostHTMLNode) => {
     let parcelKey = md5FromString(`${asset.id}:${key++}`);
     if (node.tag === 'script' || node.tag === 'style') {
       let value = node.content && node.content.join('').trim();
