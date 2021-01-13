@@ -76,7 +76,10 @@ export const generator = {
     this.Literal(node, state);
   },
   ArrowFunctionExpression(node, state) {
-    if (node.body.type === 'OptionalMemberExpression') {
+    if (
+      node.body.type === 'OptionalMemberExpression' ||
+      node.body.type === 'OptionalCallExpression'
+    ) {
       // the ArrowFunctionExpression visitor in astring checks the type of the body
       // Make sure they don't start with "O"
       node.body.type = '_' + node.body.type;
