@@ -67,12 +67,15 @@ export default (new Transformer({
     if (result) {
       validateSchema.diagnostic(
         CONFIG_SCHEMA,
-        result.contents,
-        result.filePath,
+        {
+          data: result.contents,
+          // FIXME
+          source: await options.inputFS.readFile(result.filePath, 'utf8'),
+          filePath: result.filePath,
+          prependKey: `/${encodeJSONKeyComponent('@parcel/transformer-js')}`,
+        },
         // FIXME
-        await options.inputFS.readFile(result.filePath, 'utf8'),
         '@parcel/transformer-js',
-        `/${encodeJSONKeyComponent('@parcel/transformer-js')}`,
         'Invalid config for @parcel/transformer-js',
       );
     }
