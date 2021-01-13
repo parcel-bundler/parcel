@@ -181,7 +181,11 @@ export const generator = {
   OptionalMemberExpression(node, state) {
     node.optional = true;
     node.type = 'MemberExpression';
-    this.MemberExpression(node, state);
+    baseGenerator.MemberExpression.call(this, node, state);
+  },
+  MemberExpression(node, state) {
+    if (node.optional) node.optional = false;
+    baseGenerator.MemberExpression.call(this, node, state);
   },
   OptionalCallExpression(node, state) {
     node.optional = true;
