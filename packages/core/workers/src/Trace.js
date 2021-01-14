@@ -12,17 +12,17 @@ export default class Trace {
     this.tracer = new Tracer();
     this.tid = 0;
     this.eventId = 0;
-    this.init();
   }
 
   getEventId(): number {
     return this.eventId++;
   }
 
-  init() {
+  init(ts) {
     this.tracer.instantEvent({
       name: 'TracingStartedInPage',
       id: this.getEventId(),
+      ts,
       cat: ['disabled-by-default-devtools.timeline'],
       args: {
         data: {
@@ -42,6 +42,7 @@ export default class Trace {
     this.tracer.instantEvent({
       name: 'TracingStartedInBrowser',
       id: this.getEventId(),
+      ts,
       cat: ['disabled-by-default-devtools.timeline'],
       args: {
         data: {
@@ -52,6 +53,10 @@ export default class Trace {
   }
 
   addCPUProfile(name: string, profile: Profile) {
+    if (this.eventId === 0) {
+      this.init(profile.startTime);
+    }
+    
     const trace = this.tracer;
     const tid = this.tid;
     this.tid++;
