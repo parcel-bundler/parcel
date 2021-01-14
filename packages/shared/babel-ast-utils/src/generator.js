@@ -1,6 +1,6 @@
 import {baseGenerator, EXPRESSIONS_PRECEDENCE} from 'astring';
 
-export const expressionPrecedence = {
+export const expressionsPrecedence = {
   ...EXPRESSIONS_PRECEDENCE,
   // Babel extensions
   NumericLiteral: EXPRESSIONS_PRECEDENCE.Literal,
@@ -74,6 +74,14 @@ export const generator = {
     node.type = 'Literal';
     node.raw = getRaw(node);
     this.Literal(node, state);
+  },
+  ArrowFunctionExpression(node, state) {
+    if (node.body.type === 'OptionalMemberExpression') {
+      // the ArrowFunctionExpression visitor in astring checks the type of the body
+      node.body.optional = true;
+      node.body.type = 'MemberExpression';
+    }
+    baseGenerator.ArrowFunctionExpression.call(this, node, state);
   },
   ObjectProperty(node, state) {
     node.type = 'Property';
