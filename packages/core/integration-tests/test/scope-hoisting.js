@@ -167,6 +167,18 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, [123, 123]);
     });
 
+    it('supports async import of internalized asset with unused return value', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/async-internalize-unused/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.strictEqual(output, 'bc');
+    });
+
     it('supports importing a namespace of exported values', async function() {
       let b = await bundle(
         path.join(
