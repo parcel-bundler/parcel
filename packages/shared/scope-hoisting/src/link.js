@@ -11,10 +11,10 @@ import type {
 import type {ExternalModule, ExternalBundle} from './types';
 import type {
   Expression,
+  ExpressionStatement,
   File,
   FunctionDeclaration,
   Identifier,
-  Statement,
   StringLiteral,
   VariableDeclaration,
 } from '@babel/types';
@@ -48,9 +48,10 @@ import {
 } from './utils';
 import OutputFormats from './formats/index.js';
 
-const THROW_TEMPLATE = template.statement<{|MODULE: StringLiteral|}, Statement>(
-  '$parcel$missingModule(MODULE);',
-);
+const THROW_TEMPLATE = template.statement<
+  {|MODULE: StringLiteral|},
+  ExpressionStatement,
+>('$parcel$missingModule(MODULE);');
 const REQUIRE_RESOLVE_CALL_TEMPLATE = template.expression<
   {|ID: StringLiteral|},
   Expression,
@@ -678,13 +679,16 @@ export function link({
             }
 
             // async dependency that was internalized
-            if (asyncResolution?.type === 'asset') {
+            if (
+              newNode &&
+              asyncResolution?.type === 'asset' &&
+              !isExpressionStatement(newNode)
+            ) {
               newNode = t.callExpression(
                 t.memberExpression(
                   t.identifier('Promise'),
                   t.identifier('resolve'),
                 ),
-                // $FlowFixMe[incompatible-call]
                 [newNode],
               );
             }
