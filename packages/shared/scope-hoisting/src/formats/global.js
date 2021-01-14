@@ -85,7 +85,7 @@ export function generateBundleImports(
         statements.push(
           DEFAULT_INTEROP_TEMPLATE({
             NAME: getIdentifier(asset, '$interop$default'),
-            MODULE: t.callExpression(getIdentifier(asset, 'init'), []),
+            MODULE: getIdentifier(asset, 'init'),
           }),
         );
 

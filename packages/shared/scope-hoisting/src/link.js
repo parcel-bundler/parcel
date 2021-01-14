@@ -496,7 +496,7 @@ export function link({
       needsDefaultInterop(bundleGraph, bundle, mod)
     ) {
       let name = getName(mod, '$interop$default');
-      return t.identifier(name);
+      return t.callExpression(t.identifier(name), []);
     }
 
     // if there is a CommonJS export return $id$exports.name

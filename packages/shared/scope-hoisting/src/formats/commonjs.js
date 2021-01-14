@@ -49,7 +49,7 @@ const INTEROP_TEMPLATE = template.expression<
     MODULE: Expression,
   |},
   Expression,
->('$parcel$interopDefault(MODULE)');
+>('$parcel$interopDefault(MODULE)()');
 const ASSIGN_TEMPLATE = template.statement<
   {|
     SPECIFIERS: LVal,

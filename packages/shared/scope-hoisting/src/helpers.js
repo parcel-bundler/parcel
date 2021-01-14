@@ -1,5 +1,8 @@
 function $parcel$interopDefault(a) {
-  return a && a.__esModule ? a.default : a;
+  return function() {
+    var ns = typeof a === 'function' && a.__$parcel$init ? a() : a;
+    return ns && ns.__esModule ? ns.default : ns;
+  };
 }
 
 function $parcel$defineInteropFlag(a) {
