@@ -38,4 +38,5 @@ let y = () => ({
   b: 2
 });
 let z = a => a?.b;
+let z1 = a => a?.();
 let f1 = a => 1;
