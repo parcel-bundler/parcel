@@ -5,8 +5,9 @@ if (parcelRequire == null) {
   parcelRequire = function(name) {
     // Execute the bundle wrapper function if there is one registered.
     if (name in $parcel$bundles) {
-      $parcel$bundles[name]();
+      let wrapper = $parcel$bundles[name];
       delete $parcel$bundles[name];
+      wrapper();
     }
 
     if (name in $parcel$modules) {

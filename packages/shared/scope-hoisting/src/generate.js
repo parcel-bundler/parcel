@@ -31,8 +31,8 @@ const REGISTER_TEMPLATE = template.statement<
 >(`(function() {
   function $parcel$bundleWrapper() {
     if ($parcel$bundleWrapper._executed) return;
-    STATEMENTS;
     $parcel$bundleWrapper._executed = true;
+    STATEMENTS;
   }
   var $parcel$referencedAssets = REFERENCED_IDS;
   for (var $parcel$i = 0; $parcel$i < $parcel$referencedAssets.length; $parcel$i++) {
