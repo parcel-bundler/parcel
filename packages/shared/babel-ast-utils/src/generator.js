@@ -76,11 +76,15 @@ export const generator = {
     this.Literal(node, state);
   },
   ArrowFunctionExpression(node, state) {
+    // the ArrowFunctionExpression visitor in astring checks the type of the body
     if (node.body.type === 'OptionalMemberExpression') {
-      // the ArrowFunctionExpression visitor in astring checks the type of the body
       node.body.optional = true;
       node.body.type = 'MemberExpression';
+    } else if (node.body.type === 'OptionalCallExpression') {
+      node.body.optional = true;
+      node.body.type = 'CallExpression';
     }
+
     baseGenerator.ArrowFunctionExpression.call(this, node, state);
   },
   ObjectProperty(node, state) {
