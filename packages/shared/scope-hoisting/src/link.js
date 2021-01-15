@@ -389,7 +389,7 @@ export function link({
     return true;
   }
 
-  function maybeReplaceIdentifier(node: Identifier, ancestors) {
+  function maybeReplaceIdentifier(node: Identifier) {
     let {name} = node;
     if (typeof name !== 'string') {
       return;
@@ -408,7 +408,7 @@ export function link({
         res = t.objectExpression([]);
       } else {
         let [asset, symbol] = imported;
-        res = replaceImportNode(asset, symbol, node, ancestors);
+        res = replaceImportNode(asset, symbol, node);
 
         // If the export does not exist, replace with an empty object.
         if (!res) {
@@ -420,7 +420,7 @@ export function link({
   }
 
   // node is an Identifier like $id$import$foo that directly imports originalName from originalModule
-  function replaceImportNode(originalModule, originalName, node, ancestors) {
+  function replaceImportNode(originalModule, originalName, node) {
     let {asset: mod, symbol, identifier} = resolveSymbol(
       originalModule,
       originalName,
@@ -446,7 +446,7 @@ export function link({
         return null;
       }
 
-      res = addBundleImport(mod, node, ancestors);
+      res = addBundleImport(mod, node);
       return res ? interop(mod, symbol, node, res) : null;
     }
 
@@ -571,7 +571,7 @@ export function link({
     return specifiers.get('*');
   }
 
-  function addBundleImport(mod, node, ancestors) {
+  function addBundleImport(mod, node) {
     // Find a bundle that's reachable from the current bundle (sibling or ancestor)
     // containing this asset, and create an import for it if needed.
     let importedBundle = bundleGraph.findReachableBundleWithAsset(bundle, mod);
@@ -595,14 +595,11 @@ export function link({
       importedFiles.set(filePath, imported);
     }
 
-    // If not unused, add the asset to the list of specifiers to import.
-    if (!isUnusedValue(ancestors) && mod.meta.exportsIdentifier) {
-      invariant(imported.assets != null);
-      imported.assets.add(mod);
+    invariant(imported.assets != null);
+    imported.assets.add(mod);
 
-      let initIdentifier = getIdentifier(mod, 'init');
-      return t.callExpression(initIdentifier, []);
-    }
+    let initIdentifier = getIdentifier(mod, 'init');
+    return t.callExpression(initIdentifier, []);
   }
 
   traverse2(ast, {
@@ -656,7 +653,7 @@ export function link({
             // If there is a third arg, it is an identifier to replace the require with.
             // This happens when `require('foo').bar` is detected in the hoister.
             if (args.length > 2 && isIdentifier(args[2])) {
-              newNode = maybeReplaceIdentifier(args[2], ancestors);
+              newNode = maybeReplaceIdentifier(args[2]);
             } else {
               if (mod.meta.id && assets.has(assertString(mod.meta.id))) {
                 let isValueUsed = !isUnusedValue(ancestors);
@@ -674,7 +671,7 @@ export function link({
                   );
                 }
               } else if (mod.type === 'js') {
-                newNode = addBundleImport(mod, node, ancestors);
+                newNode = addBundleImport(mod, node);
               }
             }
 
@@ -839,9 +836,9 @@ export function link({
         }
       },
     },
-    AssignmentExpression(node, state, ancestors) {
+    AssignmentExpression(node) {
       if (isIdentifier(node.left)) {
-        let res = maybeReplaceIdentifier(node.left, ancestors);
+        let res = maybeReplaceIdentifier(node.left);
         if (isIdentifier(res) || isMemberExpression(res)) {
           node.left = res;
         }
@@ -905,7 +902,7 @@ export function link({
           node.name = exp[0].local;
         }
 
-        return maybeReplaceIdentifier(node, ancestors);
+        return maybeReplaceIdentifier(node);
       }
     },
     ExpressionStatement: {
