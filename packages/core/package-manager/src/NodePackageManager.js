@@ -71,7 +71,7 @@ export class NodePackageManager implements PackageManager {
     |},
   ): Promise<any> {
     let {resolved} = await this.resolve(name, from, opts);
-    return await this.load(resolved, from);
+    return this.load(resolved, from);
   }
 
   requireSync(name: ModuleSpecifier, from: FilePath): any {
