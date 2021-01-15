@@ -80,7 +80,6 @@ const commonOptions = {
   '--detailed-report [depth]': [
     'Print the asset timings and sizes in the build report',
     /^([0-9]+)$/,
-    '10',
   ],
 };
 
@@ -384,6 +383,10 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
     let hmrport = command.hmrPort ? parsePort(command.hmrPort) : port;
 
     hmrOptions = {port: hmrport, host};
+  }
+
+  if (command.detailedReport === true) {
+    command.detailedReport = '10';
   }
 
   let mode = command.name() === 'build' ? 'production' : 'development';
