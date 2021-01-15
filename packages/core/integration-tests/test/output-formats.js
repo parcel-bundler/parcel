@@ -705,6 +705,32 @@ describe('output formats', function() {
       assert(!dist.includes('foo'));
     });
 
+    it.only('should support interop imports from other bundles', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/formats/esm-interop-cross-bundle/a.js',
+        ),
+      );
+
+      assertBundles(b, [
+        {
+          type: 'js',
+          assets: ['a.js', 'c.js', 'JSRuntime.js'],
+        },
+        {
+          type: 'js',
+          assets: ['b.js'],
+        },
+      ]);
+
+      let dist = await outputFS.readFile(
+        b.getBundles().find(b => !b.isEntry).filePath,
+        'utf8',
+      );
+      assert(dist.includes('$parcel$interopDefault'));
+    });
+
     it('should rename imports that conflict with exports', async function() {
       let b = await bundle(
         path.join(__dirname, '/integration/formats/esm-conflict/a.js'),
