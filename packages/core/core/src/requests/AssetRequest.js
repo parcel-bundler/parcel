@@ -77,7 +77,7 @@ async function run({input, api, options, farm}: RunInput) {
   )({
     configCachePath: cachePath,
     optionsRef,
-    request, // HERE: env is in request
+    request,
   }): TransformationResult);
 
   let time = Date.now() - start;

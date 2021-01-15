@@ -312,7 +312,6 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
   }
 
   setEnvironment(env: EnvironmentOptions): void {
-    console.log('HELLOOO in setEnvironment of Asset.js');
     this.#asset.value.env = createEnvironment(env);
   }
 }

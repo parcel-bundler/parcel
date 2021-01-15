@@ -53,25 +53,17 @@ export function nodeFromDep(dep: Dependency): DependencyNode {
 }
 
 export function nodeFromAssetGroup(assetGroup: AssetGroup): AssetGroupNode {
-  console.log('**************************');
-  console.log('assetgroup filepath:', assetGroup.filePath);
-  console.log('assetgroup env:', assetGroup.env);
-
-  // avoid using md5 method by reaching into cache?
-
-  const id = md5FromOrderedObject({
-    filePath: assetGroup.filePath,
-    env: assetGroup.env.id,
-    isSource: assetGroup.isSource,
-    sideEffects: assetGroup.sideEffects,
-    code: assetGroup.code,
-    pipeline: assetGroup.pipeline,
-    query: assetGroup.query ? objectSortedEntries(assetGroup.query) : null,
-    invalidations: assetGroup.invalidations,
-  });
-  console.log('assetgroupNode id:', id);
   return {
-    id,
+    id: md5FromOrderedObject({
+      filePath: assetGroup.filePath,
+      env: assetGroup.env.id,
+      isSource: assetGroup.isSource,
+      sideEffects: assetGroup.sideEffects,
+      code: assetGroup.code,
+      pipeline: assetGroup.pipeline,
+      query: assetGroup.query ? objectSortedEntries(assetGroup.query) : null,
+      invalidations: assetGroup.invalidations,
+    }),
     type: 'asset_group',
     value: assetGroup,
     usedSymbolsDownDirty: true,

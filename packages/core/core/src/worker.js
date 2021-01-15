@@ -16,7 +16,6 @@ import PackagerRunner, {type BundleInfo} from './PackagerRunner';
 import Validation, {type ValidationOpts} from './Validation';
 import ParcelConfig from './ParcelConfig';
 import {registerCoreWithSerializer} from './utils';
-import {envCache} from './Environment';
 
 import '@parcel/cache'; // register with serializer
 import '@parcel/package-manager';
@@ -79,9 +78,6 @@ export async function runTransform(
   let options = loadOptions(optionsRef, workerApi);
   let config = await loadConfig(configCachePath, options);
 
-  console.log('*****in runtransform. filepath:', opts.request.filePath);
-  console.log('*****in runtransform. env:', opts.request.env); // HERE
-
   return new Transformation({
     workerApi,
     report: reportWorker.bind(null, workerApi),
@@ -89,10 +85,6 @@ export async function runTransform(
     config,
     ...rest,
   }).run();
-}
-
-export function clearEnvCache() {
-  envCache.clear();
 }
 
 export async function runValidate(

@@ -149,7 +149,6 @@ export default (new Bundler({
             bundlesByEntryAsset.set(asset, existingBundle);
             bundleGraph.createAssetReference(dependency, asset, existingBundle);
           } else {
-            console.log('HERE!');
             let bundle = bundleGraph.createBundle({
               uniqueKey: asset.id,
               env: asset.env,

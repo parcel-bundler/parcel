@@ -31,9 +31,6 @@ type DependencyOpts = {|
 |};
 
 export function createDependency(opts: DependencyOpts): Dependency {
-  console.log('**************************');
-  console.log('dep filepath:', opts.sourcePath);
-  console.log('dep env:', opts.env);
   let id =
     opts.id ||
     md5FromOrderedObject({
@@ -43,8 +40,6 @@ export function createDependency(opts: DependencyOpts): Dependency {
       target: opts.target,
       pipeline: opts.pipeline,
     });
-
-  console.log('dep id:', id);
 
   return {
     ...opts,

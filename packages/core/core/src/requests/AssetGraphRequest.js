@@ -37,6 +37,7 @@ import ThrowableDiagnostic from '@parcel/diagnostic';
 import AssetGraph from '../AssetGraph';
 import {PARCEL_VERSION} from '../constants';
 import createEntryRequest from './EntryRequest';
+import {envCache} from '../Environment';
 import createTargetRequest from './TargetRequest';
 import createAssetRequest from './AssetRequest';
 import createPathRequest from './PathRequest';
@@ -200,6 +201,20 @@ export class AssetGraphBuilder {
     dumpToGraphViz(this.requestGraph, 'RequestGraph');
 
     dumpToGraphViz(this.assetGraph, 'AssetGraph');
+
+    for (let asset of this.assetGraph.nodes.entries()) {
+      if (typeof asset[1].value === 'object' && asset[1].value?.env) {
+        let {id, context} = asset[1].value.env;
+        let idAndContext = `${id}-${context}`;
+        if (envCache.has(idAndContext)) {
+          // $FlowFixMe - Already asserted that asset[1].value is an object
+          asset[1].value.env = envCache.get(idAndContext);
+        } else {
+          // $FlowFixMe
+          envCache.set(idAndContext, asset[1].value.env);
+        }
+      }
+    }
 
     return {
       assetGraph: this.assetGraph,
