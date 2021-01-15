@@ -8,6 +8,9 @@ import('./async2');
 new Worker('worker.js');
 
 console.log(message);
+console.log('hi');
+console.log('hello');
+console.log(hi);
 
 // const message = require('./message');
 // const fs = require('fs');

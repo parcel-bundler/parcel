@@ -42,6 +42,7 @@ export default (new Reporter({
             );
 
             let fileName = relativePath(options.projectRoot, p);
+            console.log('bundle filePath', bundle.filePath);
             bundles.push({
               name: fileName,
               mappings: map.mappings,
