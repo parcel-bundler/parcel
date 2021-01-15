@@ -18,7 +18,7 @@ export default class Trace {
     return this.eventId++;
   }
 
-  init(ts) {
+  init(ts: number) {
     this.tracer.instantEvent({
       name: 'TracingStartedInPage',
       id: this.getEventId(),
