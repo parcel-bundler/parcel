@@ -705,7 +705,7 @@ describe('output formats', function() {
       assert(!dist.includes('foo'));
     });
 
-    it.only('should support interop imports from other bundles', async function() {
+    it('should support interop imports from other bundles', async function() {
       let b = await bundle(
         path.join(
           __dirname,
