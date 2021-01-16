@@ -34,7 +34,9 @@
       "includeNodeModules": {
         "css-declaration-sorter": false,
         "browserslist": false,
-        "util-deprecate": false
+        "util-deprecate": false,
+        "@parcel/source-map": false,
+        "@parcel/plugin": false
       },
       "isLibrary": true
     }
