@@ -23,7 +23,7 @@ function shouldBuildNative() {
 
 function bundleBuild() {
   const packagesCustomBuild = ['packages/optimizers/cssnano'];
-  for (const path of packagesCustomBuild) {
-    execSync('yarn build', {cwd: path, stdio: 'inherit'});
+  for (const p of packagesCustomBuild) {
+    execSync('yarn build', {cwd: p, stdio: 'inherit'});
   }
 }
