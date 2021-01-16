@@ -24,5 +24,19 @@
     "@parcel/source-map": "2.0.0-alpha.4.19",
     "cssnano": "^4.1.10",
     "postcss": "^8.0.5"
+  },
+  "scripts": {
+    "build": "cross-env NODE_ENV=production parcel build --target main src/CSSNanoOptimizer.js"
+  },
+  "targets": {
+    "main": {
+      "context": "node",
+      "includeNodeModules": {
+        "css-declaration-sorter": false,
+        "browserslist": false,
+        "util-deprecate": false
+      },
+      "isLibrary": true
+    }
   }
 }

@@ -1,6 +1,11 @@
 /* eslint-disable no-console */
 const fs = require('fs');
 const path = require('path');
+const {execSync} = require('child_process');
+
+if (process.env.PARCEL_BUILD_ENV == 'production') {
+  bundleBuild();
+}
 
 if (shouldBuildNative()) {
   require('./build-native');
@@ -14,4 +19,11 @@ function shouldBuildNative() {
     return false;
   }
   return true;
+}
+
+function bundleBuild() {
+  const packagesCustomBuild = ['packages/optimizers/cssnano'];
+  for (const path of packagesCustomBuild) {
+    execSync('yarn build', {cwd: path, stdio: 'inherit'});
+  }
 }
