@@ -254,7 +254,7 @@ export type AssetRequestInput = {|
   isURL?: boolean,
   query?: ?QueryParameters,
   invalidations?: Array<RequestInvalidation>,
-  invalidateReason?: number
+  invalidateReason?: number,
 |};
 
 export type AssetRequestResult = Array<Asset>;

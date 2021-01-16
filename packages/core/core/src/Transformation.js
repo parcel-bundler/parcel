@@ -432,7 +432,11 @@ export default class Transformation {
   }
 
   async readFromCache(cacheKey: string): Promise<?Array<UncommittedAsset>> {
-    if (this.options.shouldDisableCache || this.request.code != null || ((this.request.invalidateReason || 0) & FILE_CREATE)) {
+    if (
+      this.options.shouldDisableCache ||
+      this.request.code != null ||
+      (this.request.invalidateReason || 0) & FILE_CREATE
+    ) {
       return null;
     }
 
@@ -640,7 +644,7 @@ export default class Transformation {
         for (let filePath of result.invalidateOnFileChange) {
           let invalidation = {
             type: 'file',
-            filePath
+            filePath,
           };
 
           this.invalidations.set(getInvalidationId(invalidation), invalidation);

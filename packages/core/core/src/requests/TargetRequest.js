@@ -298,7 +298,9 @@ export class TargetResolver {
           ['browserslist', '.browserslistrc'],
         );
 
-        this.api.invalidateOnFileCreate({glob: '**/{browserslist,.browserslistrc}'});
+        this.api.invalidateOnFileCreate({
+          glob: '**/{browserslist,.browserslistrc}',
+        });
 
         if (browserslistConfig != null) {
           let contents = await this.fs.readFile(browserslistConfig, 'utf8');

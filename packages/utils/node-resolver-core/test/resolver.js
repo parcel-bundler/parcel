@@ -167,12 +167,12 @@ describe.only('resolver', function() {
           {
             fileName: 'package.json',
             aboveFilePath: require.resolve('browserify-zlib'),
-          }
+          },
         ],
         invalidateOnFileChange: [
           path.join(rootDir, 'package.json'),
           require.resolve('browserify-zlib/package.json'),
-        ]
+        ],
       });
     });
 
@@ -198,12 +198,12 @@ describe.only('resolver', function() {
           {
             fileName: 'package.json',
             aboveFilePath: path.join(__dirname, '..', 'src', '_empty.js'),
-          }
+          },
         ],
         invalidateOnFileChange: [
           path.join(rootDir, 'package.json'),
-          path.join(__dirname, '..', 'package.json')
-        ]
+          path.join(__dirname, '..', 'package.json'),
+        ],
       });
     });
 
@@ -241,12 +241,12 @@ describe.only('resolver', function() {
           {
             fileName: 'node_modules/foo',
             aboveFilePath: path.join(rootDir, 'foo.js'),
-          }
+          },
         ],
         invalidateOnFileChange: [
           path.join(rootDir, 'package.json'),
-          path.join(rootDir, 'node_modules', 'foo', 'package.json')
-        ]
+          path.join(rootDir, 'node_modules', 'foo', 'package.json'),
+        ],
       });
     });
 
@@ -272,12 +272,12 @@ describe.only('resolver', function() {
           {
             fileName: 'node_modules/package-main',
             aboveFilePath: path.join(rootDir, 'foo.js'),
-          }
+          },
         ],
         invalidateOnFileChange: [
           path.join(rootDir, 'package.json'),
-          path.join(rootDir, 'node_modules', 'package-main', 'package.json')
-        ]
+          path.join(rootDir, 'node_modules', 'package-main', 'package.json'),
+        ],
       });
     });
 
@@ -308,12 +308,12 @@ describe.only('resolver', function() {
           {
             fileName: 'node_modules/package-module',
             aboveFilePath: path.join(rootDir, 'foo.js'),
-          }
+          },
         ],
         invalidateOnFileChange: [
           path.join(rootDir, 'package.json'),
-          path.join(rootDir, 'node_modules', 'package-module', 'package.json')
-        ]
+          path.join(rootDir, 'node_modules', 'package-module', 'package.json'),
+        ],
       });
     });
 
@@ -344,12 +344,12 @@ describe.only('resolver', function() {
           {
             fileName: 'node_modules/package-browser',
             aboveFilePath: path.join(rootDir, 'foo.js'),
-          }
+          },
         ],
         invalidateOnFileChange: [
           path.join(rootDir, 'package.json'),
-          path.join(rootDir, 'node_modules', 'package-browser', 'package.json')
-        ]
+          path.join(rootDir, 'node_modules', 'package-browser', 'package.json'),
+        ],
       });
     });
 
@@ -380,12 +380,12 @@ describe.only('resolver', function() {
           {
             fileName: 'node_modules/package-browser',
             aboveFilePath: path.join(rootDir, 'foo.js'),
-          }
+          },
         ],
         invalidateOnFileChange: [
           path.join(rootDir, 'package.json'),
-          path.join(rootDir, 'node_modules', 'package-browser', 'package.json')
-        ]
+          path.join(rootDir, 'node_modules', 'package-browser', 'package.json'),
+        ],
       });
     });
 
@@ -418,22 +418,47 @@ describe.only('resolver', function() {
             aboveFilePath: path.join(rootDir, 'foo.js'),
           },
           {
-            filePath: path.join(rootDir, 'node_modules', 'package-fallback', 'main.js.js')
+            filePath: path.join(
+              rootDir,
+              'node_modules',
+              'package-fallback',
+              'main.js.js',
+            ),
           },
           {
-            filePath: path.join(rootDir, 'node_modules', 'package-fallback', 'main.js.json')
+            filePath: path.join(
+              rootDir,
+              'node_modules',
+              'package-fallback',
+              'main.js.json',
+            ),
           },
           {
-            filePath: path.join(rootDir, 'node_modules', 'package-fallback', 'main.js/index.js')
+            filePath: path.join(
+              rootDir,
+              'node_modules',
+              'package-fallback',
+              'main.js/index.js',
+            ),
           },
           {
-            filePath: path.join(rootDir, 'node_modules', 'package-fallback', 'main.js/index.json')
-          }
+            filePath: path.join(
+              rootDir,
+              'node_modules',
+              'package-fallback',
+              'main.js/index.json',
+            ),
+          },
         ],
         invalidateOnFileChange: [
           path.join(rootDir, 'package.json'),
-          path.join(rootDir, 'node_modules', 'package-fallback', 'package.json')
-        ]
+          path.join(
+            rootDir,
+            'node_modules',
+            'package-fallback',
+            'package.json',
+          ),
+        ],
       });
     });
 
@@ -467,16 +492,31 @@ describe.only('resolver', function() {
             aboveFilePath: path.join(rootDir, 'foo.js'),
           },
           {
-            filePath: path.join(rootDir, 'node_modules', 'package-main-directory', 'nested.js'),
+            filePath: path.join(
+              rootDir,
+              'node_modules',
+              'package-main-directory',
+              'nested.js',
+            ),
           },
           {
-            filePath: path.join(rootDir, 'node_modules', 'package-main-directory', 'nested.json'),
-          }
+            filePath: path.join(
+              rootDir,
+              'node_modules',
+              'package-main-directory',
+              'nested.json',
+            ),
+          },
         ],
         invalidateOnFileChange: [
           path.join(rootDir, 'package.json'),
-          path.join(rootDir, 'node_modules', 'package-main-directory', 'package.json')
-        ]
+          path.join(
+            rootDir,
+            'node_modules',
+            'package-main-directory',
+            'package.json',
+          ),
+        ],
       });
     });
 
@@ -502,12 +542,12 @@ describe.only('resolver', function() {
           {
             fileName: 'node_modules/foo',
             aboveFilePath: path.join(rootDir, 'foo.js'),
-          }
+          },
         ],
         invalidateOnFileChange: [
           path.join(rootDir, 'package.json'),
-          path.join(rootDir, 'node_modules', 'foo', 'package.json')
-        ]
+          path.join(rootDir, 'node_modules', 'foo', 'package.json'),
+        ],
       });
     });
 
@@ -533,12 +573,12 @@ describe.only('resolver', function() {
           {
             fileName: 'node_modules/@scope/pkg',
             aboveFilePath: path.join(rootDir, 'foo.js'),
-          }
+          },
         ],
         invalidateOnFileChange: [
           path.join(rootDir, 'package.json'),
-          path.join(rootDir, 'node_modules', '@scope', 'pkg', 'package.json')
-        ]
+          path.join(rootDir, 'node_modules', '@scope', 'pkg', 'package.json'),
+        ],
       });
     });
 
@@ -564,12 +604,12 @@ describe.only('resolver', function() {
           {
             fileName: 'node_modules/@scope/pkg',
             aboveFilePath: path.join(rootDir, 'foo.js'),
-          }
+          },
         ],
         invalidateOnFileChange: [
           path.join(rootDir, 'package.json'),
-          path.join(rootDir, 'node_modules', '@scope', 'pkg', 'package.json')
-        ]
+          path.join(rootDir, 'node_modules', '@scope', 'pkg', 'package.json'),
+        ],
       });
     });
   });
@@ -602,12 +642,17 @@ describe.only('resolver', function() {
           {
             fileName: 'node_modules/package-browser-alias',
             aboveFilePath: path.join(rootDir, 'foo.js'),
-          }
+          },
         ],
         invalidateOnFileChange: [
           path.join(rootDir, 'package.json'),
-          path.join(rootDir, 'node_modules', 'package-browser-alias', 'package.json')
-        ]
+          path.join(
+            rootDir,
+            'node_modules',
+            'package-browser-alias',
+            'package.json',
+          ),
+        ],
       });
     });
 
@@ -638,12 +683,17 @@ describe.only('resolver', function() {
           {
             fileName: 'node_modules/package-browser-alias',
             aboveFilePath: path.join(rootDir, 'foo.js'),
-          }
+          },
         ],
         invalidateOnFileChange: [
           path.join(rootDir, 'package.json'),
-          path.join(rootDir, 'node_modules', 'package-browser-alias', 'package.json')
-        ]
+          path.join(
+            rootDir,
+            'node_modules',
+            'package-browser-alias',
+            'package.json',
+          ),
+        ],
       });
     });
 
@@ -674,17 +724,32 @@ describe.only('resolver', function() {
           },
           {
             fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'node_modules', 'package-browser-alias', 'browser.js')
+            aboveFilePath: path.join(
+              rootDir,
+              'node_modules',
+              'package-browser-alias',
+              'browser.js',
+            ),
           },
           {
             fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'node_modules', 'package-browser-alias', 'bar')
-          }
+            aboveFilePath: path.join(
+              rootDir,
+              'node_modules',
+              'package-browser-alias',
+              'bar',
+            ),
+          },
         ],
         invalidateOnFileChange: [
           path.join(rootDir, 'package.json'),
-          path.join(rootDir, 'node_modules', 'package-browser-alias', 'package.json')
-        ]
+          path.join(
+            rootDir,
+            'node_modules',
+            'package-browser-alias',
+            'package.json',
+          ),
+        ],
       });
     });
 
@@ -715,12 +780,17 @@ describe.only('resolver', function() {
           {
             fileName: 'node_modules/package-browser-alias',
             aboveFilePath: path.join(rootDir, 'foo.js'),
-          }
+          },
         ],
         invalidateOnFileChange: [
           path.join(rootDir, 'package.json'),
-          path.join(rootDir, 'node_modules', 'package-browser-alias', 'package.json')
-        ]
+          path.join(
+            rootDir,
+            'node_modules',
+            'package-browser-alias',
+            'package.json',
+          ),
+        ],
       });
     });
 
@@ -751,17 +821,32 @@ describe.only('resolver', function() {
           },
           {
             fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'node_modules', 'package-browser-alias', 'browser.js')
+            aboveFilePath: path.join(
+              rootDir,
+              'node_modules',
+              'package-browser-alias',
+              'browser.js',
+            ),
           },
           {
             fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'node_modules', 'package-browser-alias', 'nested')
-          }
+            aboveFilePath: path.join(
+              rootDir,
+              'node_modules',
+              'package-browser-alias',
+              'nested',
+            ),
+          },
         ],
         invalidateOnFileChange: [
           path.join(rootDir, 'package.json'),
-          path.join(rootDir, 'node_modules', 'package-browser-alias', 'package.json')
-        ]
+          path.join(
+            rootDir,
+            'node_modules',
+            'package-browser-alias',
+            'package.json',
+          ),
+        ],
       });
     });
 
@@ -787,12 +872,12 @@ describe.only('resolver', function() {
           {
             fileName: 'node_modules/package-alias',
             aboveFilePath: path.join(rootDir, 'foo.js'),
-          }
+          },
         ],
         invalidateOnFileChange: [
           path.join(rootDir, 'package.json'),
-          path.join(rootDir, 'node_modules', 'package-alias', 'package.json')
-        ]
+          path.join(rootDir, 'node_modules', 'package-alias', 'package.json'),
+        ],
       });
     });
 
@@ -818,17 +903,27 @@ describe.only('resolver', function() {
           },
           {
             fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'node_modules', 'package-alias', 'browser.js')
+            aboveFilePath: path.join(
+              rootDir,
+              'node_modules',
+              'package-alias',
+              'browser.js',
+            ),
           },
           {
             fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'node_modules', 'package-alias', 'bar')
-          }
+            aboveFilePath: path.join(
+              rootDir,
+              'node_modules',
+              'package-alias',
+              'bar',
+            ),
+          },
         ],
         invalidateOnFileChange: [
           path.join(rootDir, 'package.json'),
-          path.join(rootDir, 'node_modules', 'package-alias', 'package.json')
-        ]
+          path.join(rootDir, 'node_modules', 'package-alias', 'package.json'),
+        ],
       });
     });
 
@@ -860,17 +955,33 @@ describe.only('resolver', function() {
           },
           {
             fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'node_modules', 'package-alias-glob', 'index.js')
+            aboveFilePath: path.join(
+              rootDir,
+              'node_modules',
+              'package-alias-glob',
+              'index.js',
+            ),
           },
           {
             fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'node_modules', 'package-alias-glob', 'src', 'test')
-          }
+            aboveFilePath: path.join(
+              rootDir,
+              'node_modules',
+              'package-alias-glob',
+              'src',
+              'test',
+            ),
+          },
         ],
         invalidateOnFileChange: [
           path.join(rootDir, 'package.json'),
-          path.join(rootDir, 'node_modules', 'package-alias-glob', 'package.json')
-        ]
+          path.join(
+            rootDir,
+            'node_modules',
+            'package-alias-glob',
+            'package.json',
+          ),
+        ],
       });
     });
 
@@ -896,12 +1007,12 @@ describe.only('resolver', function() {
           {
             fileName: 'node_modules/foo',
             aboveFilePath: path.join(rootDir, 'foo.js'),
-          }
+          },
         ],
         invalidateOnFileChange: [
           path.join(rootDir, 'package.json'),
-          path.join(rootDir, 'node_modules', 'foo', 'package.json')
-        ]
+          path.join(rootDir, 'node_modules', 'foo', 'package.json'),
+        ],
       });
     });
 
@@ -922,18 +1033,28 @@ describe.only('resolver', function() {
           },
           {
             fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'node_modules', 'package-alias', 'foo.js'),
+            aboveFilePath: path.join(
+              rootDir,
+              'node_modules',
+              'package-alias',
+              'foo.js',
+            ),
           },
           {
             fileName: 'node_modules/foo',
-            aboveFilePath: path.join(rootDir, 'node_modules', 'package-alias', 'foo.js'),
-          }
+            aboveFilePath: path.join(
+              rootDir,
+              'node_modules',
+              'package-alias',
+              'foo.js',
+            ),
+          },
         ],
         invalidateOnFileChange: [
           path.join(rootDir, 'package.json'),
           path.join(rootDir, 'node_modules', 'package-alias', 'package.json'),
-          path.join(rootDir, 'node_modules', 'foo', 'package.json')
-        ]
+          path.join(rootDir, 'node_modules', 'foo', 'package.json'),
+        ],
       });
     });
 
@@ -954,18 +1075,28 @@ describe.only('resolver', function() {
           },
           {
             fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'node_modules', 'package-alias', 'foo.js'),
+            aboveFilePath: path.join(
+              rootDir,
+              'node_modules',
+              'package-alias',
+              'foo.js',
+            ),
           },
           {
             fileName: 'node_modules/foo',
-            aboveFilePath: path.join(rootDir, 'node_modules', 'package-alias', 'foo.js'),
-          }
+            aboveFilePath: path.join(
+              rootDir,
+              'node_modules',
+              'package-alias',
+              'foo.js',
+            ),
+          },
         ],
         invalidateOnFileChange: [
           path.join(rootDir, 'package.json'),
           path.join(rootDir, 'node_modules', 'package-alias', 'package.json'),
-          path.join(rootDir, 'node_modules', 'foo', 'package.json')
-        ]
+          path.join(rootDir, 'node_modules', 'foo', 'package.json'),
+        ],
       });
     });
 
@@ -991,11 +1122,9 @@ describe.only('resolver', function() {
           {
             fileName: 'package.json',
             aboveFilePath: path.join(rootDir, 'bar.js'),
-          }
+          },
         ],
-        invalidateOnFileChange: [
-          path.join(rootDir, 'package.json'),
-        ]
+        invalidateOnFileChange: [path.join(rootDir, 'package.json')],
       });
     });
 
@@ -1016,17 +1145,22 @@ describe.only('resolver', function() {
           },
           {
             fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'node_modules', 'package-alias', 'foo.js'),
+            aboveFilePath: path.join(
+              rootDir,
+              'node_modules',
+              'package-alias',
+              'foo.js',
+            ),
           },
           {
             fileName: 'package.json',
             aboveFilePath: path.join(rootDir, 'bar.js'),
-          }
+          },
         ],
         invalidateOnFileChange: [
           path.join(rootDir, 'package.json'),
-          path.join(rootDir, 'node_modules', 'package-alias', 'package.json')
-        ]
+          path.join(rootDir, 'node_modules', 'package-alias', 'package.json'),
+        ],
       });
     });
 
@@ -1052,11 +1186,9 @@ describe.only('resolver', function() {
           {
             fileName: 'package.json',
             aboveFilePath: path.join(rootDir, 'nested', 'test.js'),
-          }
+          },
         ],
-        invalidateOnFileChange: [
-          path.join(rootDir, 'package.json'),
-        ]
+        invalidateOnFileChange: [path.join(rootDir, 'package.json')],
       });
     });
 
@@ -1088,11 +1220,9 @@ describe.only('resolver', function() {
           },
           {
             filePath: path.join(rootDir, 'nested.json'),
-          }
+          },
         ],
-        invalidateOnFileChange: [
-          path.join(rootDir, 'package.json'),
-        ]
+        invalidateOnFileChange: [path.join(rootDir, 'package.json')],
       });
     });
 
@@ -1120,9 +1250,7 @@ describe.only('resolver', function() {
             aboveFilePath: path.join(rootDir, 'nested', 'test.js'),
           },
         ],
-        invalidateOnFileChange: [
-          path.join(rootDir, 'package.json'),
-        ]
+        invalidateOnFileChange: [path.join(rootDir, 'package.json')],
       });
     });
 
@@ -1154,11 +1282,9 @@ describe.only('resolver', function() {
           },
           {
             filePath: path.join(rootDir, 'nested.json'),
-          }
+          },
         ],
-        invalidateOnFileChange: [
-          path.join(rootDir, 'package.json'),
-        ]
+        invalidateOnFileChange: [path.join(rootDir, 'package.json')],
       });
     });
 
@@ -1186,9 +1312,7 @@ describe.only('resolver', function() {
             aboveFilePath: path.join(rootDir, 'bar.js'),
           },
         ],
-        invalidateOnFileChange: [
-          path.join(rootDir, 'package.json'),
-        ]
+        invalidateOnFileChange: [path.join(rootDir, 'package.json')],
       });
     });
 
@@ -1216,9 +1340,7 @@ describe.only('resolver', function() {
             aboveFilePath: path.join(rootDir, 'nested', 'test'),
           },
         ],
-        invalidateOnFileChange: [
-          path.join(rootDir, 'package.json'),
-        ]
+        invalidateOnFileChange: [path.join(rootDir, 'package.json')],
       });
     });
 
@@ -1246,9 +1368,7 @@ describe.only('resolver', function() {
             aboveFilePath: path.join(rootDir, 'nested', 'test.js'),
           },
         ],
-        invalidateOnFileChange: [
-          path.join(rootDir, 'package.json'),
-        ]
+        invalidateOnFileChange: [path.join(rootDir, 'package.json')],
       });
     });
 
@@ -1269,7 +1389,12 @@ describe.only('resolver', function() {
           },
           {
             fileName: 'package.json',
-            aboveFilePath: path.join(rootDir, 'node_modules', 'package-alias', 'foo.js'),
+            aboveFilePath: path.join(
+              rootDir,
+              'node_modules',
+              'package-alias',
+              'foo.js',
+            ),
           },
           {
             fileName: 'package.json',
@@ -1278,8 +1403,8 @@ describe.only('resolver', function() {
         ],
         invalidateOnFileChange: [
           path.join(rootDir, 'package.json'),
-          path.join(rootDir, 'node_modules', 'package-alias', 'package.json')
-        ]
+          path.join(rootDir, 'node_modules', 'package-alias', 'package.json'),
+        ],
       });
     });
 
@@ -1309,8 +1434,13 @@ describe.only('resolver', function() {
         ],
         invalidateOnFileChange: [
           path.join(rootDir, 'package.json'),
-          path.join(rootDir, 'node_modules', 'package-browser-exclude', 'package.json')
-        ]
+          path.join(
+            rootDir,
+            'node_modules',
+            'package-browser-exclude',
+            'package.json',
+          ),
+        ],
       });
     });
 
@@ -1340,8 +1470,13 @@ describe.only('resolver', function() {
         ],
         invalidateOnFileChange: [
           path.join(rootDir, 'package.json'),
-          path.join(rootDir, 'node_modules', 'package-alias-exclude', 'package.json')
-        ]
+          path.join(
+            rootDir,
+            'node_modules',
+            'package-alias-exclude',
+            'package.json',
+          ),
+        ],
       });
     });
   });
@@ -1373,8 +1508,8 @@ describe.only('resolver', function() {
         ],
         invalidateOnFileChange: [
           path.join(rootDir, 'package.json'),
-          path.join(rootDir, 'node_modules', 'source', 'package.json')
-        ]
+          path.join(rootDir, 'node_modules', 'source', 'package.json'),
+        ],
       });
     });
 
@@ -1409,8 +1544,13 @@ describe.only('resolver', function() {
         ],
         invalidateOnFileChange: [
           path.join(rootDir, 'package.json'),
-          path.join(rootDir, 'node_modules', 'source-not-symlinked', 'package.json')
-        ]
+          path.join(
+            rootDir,
+            'node_modules',
+            'source-not-symlinked',
+            'package.json',
+          ),
+        ],
       });
     });
 
@@ -1440,8 +1580,8 @@ describe.only('resolver', function() {
         ],
         invalidateOnFileChange: [
           path.join(rootDir, 'package.json'),
-          path.join(rootDir, 'node_modules', 'source-alias', 'package.json')
-        ]
+          path.join(rootDir, 'node_modules', 'source-alias', 'package.json'),
+        ],
       });
     });
 
@@ -1477,8 +1617,13 @@ describe.only('resolver', function() {
         ],
         invalidateOnFileChange: [
           path.join(rootDir, 'package.json'),
-          path.join(rootDir, 'node_modules', 'source-alias-glob', 'package.json')
-        ]
+          path.join(
+            rootDir,
+            'node_modules',
+            'source-alias-glob',
+            'package.json',
+          ),
+        ],
       });
     });
   });

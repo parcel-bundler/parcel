@@ -49,7 +49,7 @@ type UncommittedAssetOptions = {|
   isASTDirty?: ?boolean,
   idBase?: ?string,
   invalidations?: Map<string, RequestInvalidation>,
-  fileCreateInvalidations?: Array<FileCreateInvalidation>;
+  fileCreateInvalidations?: Array<FileCreateInvalidation>,
 |};
 
 export default class UncommittedAsset {

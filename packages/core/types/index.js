@@ -565,6 +565,7 @@ export interface MutableAsset extends BaseAsset {
 
   addDependency(dep: DependencyOptions): string;
   addIncludedFile(filePath: FilePath): void;
+  invalidateOnFileCreate(invalidation: FileCreateInvalidation): void;
   addURLDependency(url: string, opts: $Shape<DependencyOptions>): string;
   invalidateOnEnvChange(env: string): void;
 

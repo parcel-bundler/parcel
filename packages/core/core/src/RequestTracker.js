@@ -1,7 +1,14 @@
 // @flow strict-local
 
 import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
-import type {Async, File, FilePath, FileCreateInvalidation, Glob, EnvMap} from '@parcel/types';
+import type {
+  Async,
+  File,
+  FilePath,
+  FileCreateInvalidation,
+  Glob,
+  EnvMap,
+} from '@parcel/types';
 import type {Event, Options as WatcherOptions} from '@parcel/watcher';
 import type WorkerFarm from '@parcel/workers';
 import type {NodeId, ParcelOptions, RequestInvalidation} from './types';
@@ -9,7 +16,12 @@ import type {NodeId, ParcelOptions, RequestInvalidation} from './types';
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import path from 'path';
-import {isGlobMatch, isDirectoryInside, md5FromObject, md5FromString} from '@parcel/utils';
+import {
+  isGlobMatch,
+  isDirectoryInside,
+  md5FromObject,
+  md5FromString,
+} from '@parcel/utils';
 import Graph, {type GraphOpts} from './Graph';
 import {assertSignalNotAborted, hashFromOption} from './utils';
 import {
@@ -22,7 +34,7 @@ import {
   ENV_CHANGE,
   OPTION_CHANGE,
   STARTUP,
-  ERROR
+  ERROR,
 } from './constants';
 
 type SerializedRequestGraph = {|
@@ -40,7 +52,7 @@ type GlobNode = {|id: string, +type: 'glob', value: Glob|};
 type FileNameNode = {|
   id: string,
   +type: 'file_name',
-  value: string
+  value: string,
 |};
 type EnvNode = {|
   id: string,
@@ -74,7 +86,7 @@ type RequestNode = {|
   id: string,
   +type: 'request',
   value: StoredRequest,
-  invalidateReason: InvalidateReason
+  invalidateReason: InvalidateReason,
 |};
 type RequestGraphNode =
   | RequestNode
@@ -93,7 +105,7 @@ type RequestGraphEdgeType =
   | 'dirname';
 
 export type RunAPI = {|
-  invalidateOnFileCreate: (FileCreateInvalidation) => void,
+  invalidateOnFileCreate: FileCreateInvalidation => void,
   invalidateOnFileDelete: FilePath => void,
   invalidateOnFileUpdate: FilePath => void,
   invalidateOnStartup: () => void,
@@ -142,7 +154,7 @@ const nodeFromRequest = (request: StoredRequest) => ({
   id: request.id,
   type: 'request',
   value: request,
-  invalidateReason: INITIAL_BUILD
+  invalidateReason: INITIAL_BUILD,
 });
 
 const nodeFromEnv = (env: string, value: string | void) => ({
@@ -236,9 +248,7 @@ export class RequestGraph extends Graph<
     return super.removeNode(node);
   }
 
-  getRequestNode(
-    id: string,
-  ): RequestNode {
+  getRequestNode(id: string): RequestNode {
     let node = nullthrows(this.getNode(id));
     invariant(node.type === 'request');
     return node;
@@ -364,13 +374,16 @@ export class RequestGraph extends Graph<
           this.addNode(fileNameNode);
         }
 
-        if (last != null && !this.hasEdge(last.id, fileNameNode.id, 'dirname')) {
+        if (
+          last != null &&
+          !this.hasEdge(last.id, fileNameNode.id, 'dirname')
+        ) {
           this.addEdge(last.id, fileNameNode.id, 'dirname');
         }
 
         last = fileNameNode;
       }
-      
+
       // The `aboveFilePath` condition asserts that requests are only invalidated
       // if the file being created is "above" it in the filesystem (e.g. the file
       // is created in a parent directory). There is likely to already be a node
@@ -383,7 +396,7 @@ export class RequestGraph extends Graph<
       // Now create an edge from the `aboveFilePath` node to the first file_name node
       // in the chain created above, and an edge from the last node in the chain back to
       // the `aboveFilePath` node. When matching, we will start from the first node in
-      // the chain, and continue following it to parent directories until there is an 
+      // the chain, and continue following it to parent directories until there is an
       // edge pointing an `aboveFilePath` node that also points to the start of the chain.
       // This indicates a complete match, and any requests attached to the `aboveFilePath`
       // node will be invalidated.
@@ -392,7 +405,10 @@ export class RequestGraph extends Graph<
         this.addEdge(node.id, firstId, 'invalidated_by_create_above');
       }
 
-      if (last != null && !this.hasEdge(last.id, node.id, 'invalidated_by_create_above')) {
+      if (
+        last != null &&
+        !this.hasEdge(last.id, node.id, 'invalidated_by_create_above')
+      ) {
         this.addEdge(last.id, node.id, 'invalidated_by_create_above');
       }
     } else if (input.filePath != null) {
@@ -469,7 +485,11 @@ export class RequestGraph extends Graph<
       .filter(Boolean);
   }
 
-  invalidateFileNameNode(node: FileNameNode, filePath: FilePath, matchNodes: Array<RequestGraphNode>) {
+  invalidateFileNameNode(
+    node: FileNameNode,
+    filePath: FilePath,
+    matchNodes: Array<RequestGraphNode>,
+  ) {
     // If there is an edge between this file_name node and one of the original file nodes pointed to
     // by the original file_name node, and the matched node is inside the current directory, invalidate
     // all connected requests pointed to by the file node.
@@ -524,7 +544,10 @@ export class RequestGraph extends Graph<
         let fileNameNode = this.getNode('file_name:' + basename);
         if (fileNameNode?.type === 'file_name') {
           // Find potential file nodes to be invalidated if this file name pattern matches
-          let above = this.getNodesConnectedTo(fileNameNode, 'invalidated_by_create_above');
+          let above = this.getNodesConnectedTo(
+            fileNameNode,
+            'invalidated_by_create_above',
+          );
           if (above.length > 0) {
             this.invalidateFileNameNode(fileNameNode, filePath, above);
           }
@@ -724,7 +747,7 @@ export default class RequestTracker {
     let subRequests = new Set();
     let invalidations = this.graph.getInvalidations(requestId);
     let api = {
-      invalidateOnFileCreate: (input) =>
+      invalidateOnFileCreate: input =>
         this.graph.invalidateOnFileCreate(requestId, input),
       invalidateOnFileDelete: filePath =>
         this.graph.invalidateOnFileDelete(requestId, filePath),

@@ -1,6 +1,11 @@
 // @flow strict-local
 import type {Diagnostic} from '@parcel/diagnostic';
-import type {Async, FileCreateInvalidation, FilePath, QueryParameters} from '@parcel/types';
+import type {
+  Async,
+  FileCreateInvalidation,
+  FilePath,
+  QueryParameters,
+} from '@parcel/types';
 import type {StaticRunOpts, RunAPI} from '../RequestTracker';
 import type {AssetGroup, Dependency, ParcelOptions} from '../types';
 import type {ConfigAndCachePath} from './ParcelConfigRequest';
@@ -75,7 +80,7 @@ async function run({input, api, options}: RunOpts) {
         api.invalidateOnFileDelete(filePath);
       }
     }
-    
+
     api.invalidateOnFileDelete(result.assetGroup.filePath);
     return result.assetGroup;
   }
@@ -88,8 +93,8 @@ type ResolverRunnerOpts = {|
 
 type ResolverResult = {|
   assetGroup: AssetGroup,
-  invalidateOnFileCreate?: Array<FileCreateInvalidation>;
-  invalidateOnFileChange?: Array<FilePath>;
+  invalidateOnFileCreate?: Array<FileCreateInvalidation>,
+  invalidateOnFileChange?: Array<FilePath>,
 |};
 
 export class ResolverRunner {

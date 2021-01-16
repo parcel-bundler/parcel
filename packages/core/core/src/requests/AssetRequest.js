@@ -74,9 +74,12 @@ async function run({input, api, options, farm, invalidateReason}: RunInput) {
 
   request.invalidateReason = invalidateReason;
 
-  let {assets, configRequests, invalidations, invalidateOnFileCreate} = (await farm.createHandle(
-    'runTransform',
-  )({
+  let {
+    assets,
+    configRequests,
+    invalidations,
+    invalidateOnFileCreate,
+  } = (await farm.createHandle('runTransform')({
     configCachePath: cachePath,
     optionsRef,
     request,

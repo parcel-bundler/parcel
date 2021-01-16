@@ -58,7 +58,7 @@ type Aliases =
 type ResolvedAlias = {|
   type: 'file' | 'global',
   sourcePath: FilePath,
-  resolved: string
+  resolved: string,
 |};
 type Module = {|
   moduleName?: string,
@@ -211,7 +211,11 @@ export default class NodeResolver {
 
     // If this isn't the entrypoint, resolve the input file to an absolute path
     if (parent) {
-      filename = await this.resolveFilename(filename, path.dirname(sourceFile), isURL);
+      filename = await this.resolveFilename(
+        filename,
+        path.dirname(sourceFile),
+        isURL,
+      );
     }
 
     // Resolve aliases in the parent module for this file.
@@ -440,12 +444,16 @@ export default class NodeResolver {
     }
   }
 
-  findNodeModulePath(filename: string, sourceFile: FilePath, ctx: ResolverContext): ?Module {
+  findNodeModulePath(
+    filename: string,
+    sourceFile: FilePath,
+    ctx: ResolverContext,
+  ): ?Module {
     let [moduleName, subPath] = this.getModuleParts(filename);
 
     ctx.invalidateOnFileCreate.push({
       fileName: `node_modules/${moduleName}`,
-      aboveFilePath: sourceFile
+      aboveFilePath: sourceFile,
     });
 
     let dir = path.dirname(sourceFile);
@@ -605,7 +613,10 @@ export default class NodeResolver {
     });
   }
 
-  async readPackage(dir: string, ctx: ResolverContext): Promise<InternalPackageJSON> {
+  async readPackage(
+    dir: string,
+    ctx: ResolverContext,
+  ): Promise<InternalPackageJSON> {
     let file = path.join(dir, 'package.json');
     let cached = this.packageCache.get(file);
 
@@ -620,7 +631,7 @@ export default class NodeResolver {
     } catch (err) {
       // If the package.json doesn't exist, watch for it to be created.
       ctx.invalidateOnFileCreate.push({
-        filePath: file
+        filePath: file,
       });
       throw err;
     }
@@ -707,8 +718,8 @@ export default class NodeResolver {
     // Try all supported extensions
     let files = await this.expandFile(file, extensions, env, pkg);
     let found = this.fs.findFirstFile(files);
-    
-    // Add invalidations for higher priority files so we 
+
+    // Add invalidations for higher priority files so we
     // re-resolve if any of them are created.
     for (let file of files) {
       if (file === found) {
@@ -835,7 +846,7 @@ export default class NodeResolver {
       return {
         type: 'file',
         sourcePath: pkg.pkgfile,
-        resolved: EMPTY_SHIM
+        resolved: EMPTY_SHIM,
       };
     }
 
@@ -853,7 +864,7 @@ export default class NodeResolver {
         return {
           type: 'global',
           sourcePath: pkg.pkgfile,
-          resolved: alias.global
+          resolved: alias.global,
         };
       } else if (alias.fileName) {
         alias = alias.fileName;
@@ -865,7 +876,7 @@ export default class NodeResolver {
       return {
         type: 'file',
         sourcePath: pkg.pkgfile,
-        resolved: await this.resolveFilename(alias, dir)
+        resolved: await this.resolveFilename(alias, dir),
       };
     }
 
@@ -895,10 +906,13 @@ export default class NodeResolver {
     return alias;
   }
 
-  findPackage(sourceFile: string, ctx: ResolverContext): Promise<InternalPackageJSON | null> {
+  findPackage(
+    sourceFile: string,
+    ctx: ResolverContext,
+  ): Promise<InternalPackageJSON | null> {
     ctx.invalidateOnFileCreate.push({
       fileName: 'package.json',
-      aboveFilePath: sourceFile
+      aboveFilePath: sourceFile,
     });
 
     // Find the nearest package.json file within the current node_modules folder
@@ -919,7 +933,10 @@ export default class NodeResolver {
   ): Promise<?ResolvedAlias> {
     // Load the root project's package.json file if we haven't already
     if (!this.rootPackage) {
-      this.rootPackage = await this.findPackage(path.join(this.projectRoot, 'index'), ctx);
+      this.rootPackage = await this.findPackage(
+        path.join(this.projectRoot, 'index'),
+        ctx,
+      );
     }
 
     // Load the local package, and resolve aliases
