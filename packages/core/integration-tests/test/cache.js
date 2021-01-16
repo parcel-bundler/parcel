@@ -2559,7 +2559,7 @@ describe('cache', function() {
 
         await overlayFS.writeFile(
           path.join(inputDir, 'node_modules/foo/package.json'),
-          JSON.stringify({main: 'test.js'})
+          JSON.stringify({main: 'test.js'}),
         );
       });
 
@@ -2579,9 +2579,9 @@ describe('cache', function() {
           JSON.stringify({
             main: 'foo.js',
             alias: {
-              './foo.js': './test.js'
-            }
-          })
+              './foo.js': './test.js',
+            },
+          }),
         );
       });
 
@@ -2601,9 +2601,9 @@ describe('cache', function() {
             JSON.stringify({
               main: 'foo.js',
               alias: {
-                './foo.js': './test.js'
-              }
-            })
+                './foo.js': './test.js',
+              },
+            }),
           );
         },
         async update(b) {
@@ -2618,11 +2618,11 @@ describe('cache', function() {
             JSON.stringify({
               main: 'foo.js',
               alias: {
-                './foo.js': './baz.js'
-              }
-            })
+                './foo.js': './baz.js',
+              },
+            }),
           );
-        }
+        },
       });
 
       assert.equal(await run(b.bundleGraph), 12);
@@ -2641,18 +2641,18 @@ describe('cache', function() {
             JSON.stringify({
               main: 'foo.js',
               alias: {
-                './foo.js': './test.js'
-              }
-            })
+                './foo.js': './test.js',
+              },
+            }),
           );
         },
         async update(b) {
           assert.equal(await run(b.bundleGraph), 8);
           await overlayFS.writeFile(
             path.join(inputDir, 'node_modules/foo/package.json'),
-            JSON.stringify({main: 'foo.js'})
+            JSON.stringify({main: 'foo.js'}),
           );
-        }
+        },
       });
 
       assert.equal(await run(b.bundleGraph), 4);
@@ -2670,9 +2670,9 @@ describe('cache', function() {
           path.join(inputDir, 'src/nested/package.json'),
           JSON.stringify({
             alias: {
-              './test.js': './foo.js'
-            }
-          })
+              './test.js': './foo.js',
+            },
+          }),
         );
       });
 
@@ -2685,7 +2685,7 @@ describe('cache', function() {
           // Start out pointing to a .ts file from a .js file
           let contents = await overlayFS.readFile(
             path.join(inputDir, 'src/index.js'),
-            'utf8'
+            'utf8',
           );
           await overlayFS.writeFile(
             path.join(inputDir, 'src/index.js'),
@@ -2704,7 +2704,7 @@ describe('cache', function() {
             path.join(inputDir, 'src/nested/foo.js'),
             'module.exports = 2;',
           );
-        }
+        },
       });
 
       assert.equal(await run(b.bundleGraph), 4);
@@ -2716,7 +2716,7 @@ describe('cache', function() {
           // Start out pointing to a .js file
           let contents = await overlayFS.readFile(
             path.join(inputDir, 'src/index.js'),
-            'utf8'
+            'utf8',
           );
           await overlayFS.writeFile(
             path.join(inputDir, 'src/index.js'),
@@ -2736,10 +2736,8 @@ describe('cache', function() {
             'module.exports = 2;',
           );
 
-          await overlayFS.unlink(
-            path.join(inputDir, 'src/nested/foo.js'),
-          );
-        }
+          await overlayFS.unlink(path.join(inputDir, 'src/nested/foo.js'));
+        },
       });
 
       assert.equal(await run(b.bundleGraph), 4);
@@ -2750,7 +2748,7 @@ describe('cache', function() {
         async setup() {
           let contents = await overlayFS.readFile(
             path.join(inputDir, 'src/index.js'),
-            'utf8'
+            'utf8',
           );
           await overlayFS.writeFile(
             path.join(inputDir, 'src/index.js'),
@@ -2768,7 +2766,7 @@ describe('cache', function() {
             path.join(inputDir, 'src/nested.js'),
             'module.exports = 2;',
           );
-        }
+        },
       });
 
       assert.equal(await run(b.bundleGraph), 4);
@@ -2779,7 +2777,7 @@ describe('cache', function() {
         async setup() {
           let contents = await overlayFS.readFile(
             path.join(inputDir, 'src/index.js'),
-            'utf8'
+            'utf8',
           );
           await overlayFS.writeFile(
             path.join(inputDir, 'src/index.js'),
@@ -2796,10 +2794,10 @@ describe('cache', function() {
           await overlayFS.writeFile(
             path.join(inputDir, 'src/nested/package.json'),
             JSON.stringify({
-              main: 'test.js'
-            })
+              main: 'test.js',
+            }),
           );
-        }
+        },
       });
 
       assert.equal(await run(b.bundleGraph), 4);
@@ -2813,7 +2811,7 @@ describe('cache', function() {
             async setup() {
               await overlayFS.unlink(path.join(inputDir, 'src/nested/test.js'));
             },
-            async update() {}
+            async update() {},
           });
         },
         {
@@ -2835,7 +2833,7 @@ describe('cache', function() {
         async setup() {
           let contents = await overlayFS.readFile(
             path.join(inputDir, 'src/index.js'),
-            'utf8'
+            'utf8',
           );
           await overlayFS.writeFile(
             path.join(inputDir, 'src/index.js'),
@@ -2845,8 +2843,8 @@ describe('cache', function() {
           await overlayFS.writeFile(
             path.join(inputDir, 'src/nested/package.json'),
             JSON.stringify({
-              main: 'tmp.js'
-            })
+              main: 'tmp.js',
+            }),
           );
 
           await overlayFS.writeFile(
@@ -2861,7 +2859,7 @@ describe('cache', function() {
             path.join(inputDir, 'src/nested/tmp.js'),
             'module.exports = 8;',
           );
-        }
+        },
       });
 
       assert.equal(await run(b.bundleGraph), 10);
@@ -2869,39 +2867,37 @@ describe('cache', function() {
 
     it('should recover from an invalid package.json', async function() {
       // $FlowFixMe
-      await assert.rejects(
-        async () => {
-          await testCache({
-            async setup() {
-              let contents = await overlayFS.readFile(
-                path.join(inputDir, 'src/index.js'),
-                'utf8'
-              );
-              await overlayFS.writeFile(
-                path.join(inputDir, 'src/index.js'),
-                contents.replace('nested/test', 'nested'),
-              );
+      await assert.rejects(async () => {
+        await testCache({
+          async setup() {
+            let contents = await overlayFS.readFile(
+              path.join(inputDir, 'src/index.js'),
+              'utf8',
+            );
+            await overlayFS.writeFile(
+              path.join(inputDir, 'src/index.js'),
+              contents.replace('nested/test', 'nested'),
+            );
 
-              await overlayFS.writeFile(
-                path.join(inputDir, 'src/nested/package.json'),
-                'invalid'
-              );
+            await overlayFS.writeFile(
+              path.join(inputDir, 'src/nested/package.json'),
+              'invalid',
+            );
 
-              await overlayFS.writeFile(
-                path.join(inputDir, 'src/nested/index.js'),
-                'module.exports = 10;',
-              );
-            },
-            async update() {}
-          });
-        },
-      );
+            await overlayFS.writeFile(
+              path.join(inputDir, 'src/nested/index.js'),
+              'module.exports = 10;',
+            );
+          },
+          async update() {},
+        });
+      });
 
       await overlayFS.writeFile(
         path.join(inputDir, 'src/nested/package.json'),
         JSON.stringify({
-          main: 'test.js'
-        })
+          main: 'test.js',
+        }),
       );
 
       let b = await runBundle();
@@ -2914,17 +2910,226 @@ describe('cache', function() {
           assert.equal(await run(b.bundleGraph), 4);
 
           await overlayFS.mkdirp(
-             path.join(inputDir, 'src/nested/node_modules/foo'),
+            path.join(inputDir, 'src/nested/node_modules/foo'),
           );
 
           await overlayFS.writeFile(
             path.join(inputDir, 'src/nested/node_modules/foo/index.js'),
-            'module.exports = 4;'
+            'module.exports = 4;',
           );
-        }
+        },
       });
 
       assert.equal(await run(b.bundleGraph), 6);
+    });
+
+    describe('stylus', function() {
+      it('should support resolver inside stylus file', async function() {
+        let b = await testCache(
+          {
+            entries: ['index.js'],
+            async setup() {
+              await overlayFS.writeFile(
+                path.join(inputDir, 'index.styl'),
+                `
+            @import "./b";
+            .a
+              background: red
+            `,
+              );
+
+              await overlayFS.mkdirp(path.join(inputDir, 'b'));
+              await overlayFS.writeFile(
+                path.join(inputDir, 'b/index.styl'),
+                `
+            .b
+              background: blue
+            `,
+              );
+            },
+            async update(b) {
+              let css = await overlayFS.readFile(
+                b.bundleGraph.getBundles().find(b => b.type === 'css')
+                  ?.filePath,
+                'utf8',
+              );
+              assert(css.includes('.a {'));
+              assert(css.includes('.b {'));
+              assert(!css.includes('.c {'));
+
+              await overlayFS.writeFile(
+                path.join(inputDir, 'b.styl'),
+                `
+            .c
+              background: blue
+            `,
+              );
+            },
+          },
+          'stylus',
+        );
+
+        let css = await overlayFS.readFile(
+          b.bundleGraph.getBundles().find(b => b.type === 'css')?.filePath,
+          'utf8',
+        );
+        assert(css.includes('.a {'));
+        assert(!css.includes('.b {'));
+        assert(css.includes('.c {'));
+      });
+
+      it('should support stylus default resolver', async function() {
+        let b = await testCache(
+          {
+            entries: ['index.js'],
+            async setup() {
+              await overlayFS.writeFile(
+                path.join(inputDir, '.stylusrc'),
+                JSON.stringify({
+                  paths: ['deps'],
+                }),
+              );
+            },
+            async update(b) {
+              let css = await overlayFS.readFile(
+                b.bundleGraph.getBundles().find(b => b.type === 'css')
+                  ?.filePath,
+                'utf8',
+              );
+              assert(css.includes('.a {'));
+              assert(!css.includes('.b {'));
+
+              await overlayFS.writeFile(
+                path.join(inputDir, 'a.styl'),
+                `
+            .b
+              background: blue
+            `,
+              );
+            },
+          },
+          'stylus-deps',
+        );
+
+        let css = await overlayFS.readFile(
+          b.bundleGraph.getBundles().find(b => b.type === 'css')?.filePath,
+          'utf8',
+        );
+        assert(!css.includes('.a {'));
+        assert(css.includes('.b {'));
+      });
+
+      it('should support glob imports in stylus files', async function() {
+        let b = await testCache(
+          {
+            entries: ['index.js'],
+            async update(b) {
+              let css = await overlayFS.readFile(
+                b.bundleGraph.getBundles().find(b => b.type === 'css')
+                  ?.filePath,
+                'utf8',
+              );
+              assert(css.includes('.index'));
+              assert(css.includes('.main'));
+              assert(css.includes('.foo'));
+              assert(css.includes('.bar'));
+
+              await overlayFS.writeFile(
+                path.join(inputDir, 'subdir/test.styl'),
+                `
+            .test
+              background: blue
+            `,
+              );
+
+              await overlayFS.writeFile(
+                path.join(inputDir, 'subdir/foo/test.styl'),
+                `
+            .foo-test
+              background: blue
+            `,
+              );
+            },
+          },
+          'stylus-glob-import',
+        );
+
+        let css = await overlayFS.readFile(
+          b.bundleGraph.getBundles().find(b => b.type === 'css')?.filePath,
+          'utf8',
+        );
+        assert(css.includes('.index'));
+        assert(css.includes('.main'));
+        assert(css.includes('.foo'));
+        assert(css.includes('.bar'));
+        assert(css.includes('.test'));
+        assert(css.includes('.foo-test'));
+      });
+
+      it('should support glob imports under stylus paths', async function() {
+        let b = await testCache(
+          {
+            entries: ['index.js'],
+            async setup() {
+              await overlayFS.writeFile(
+                path.join(inputDir, '.stylusrc'),
+                JSON.stringify({
+                  paths: ['subdir'],
+                }),
+              );
+
+              await overlayFS.writeFile(
+                path.join(inputDir, 'index.styl'),
+                `
+            @require 'foo/*'
+
+            .index
+              color: red
+            `,
+              );
+            },
+            async update(b) {
+              let css = await overlayFS.readFile(
+                b.bundleGraph.getBundles().find(b => b.type === 'css')
+                  ?.filePath,
+                'utf8',
+              );
+              assert(css.includes('.index'));
+              assert(!css.includes('.main'));
+              assert(css.includes('.foo'));
+              assert(!css.includes('.bar'));
+
+              await overlayFS.writeFile(
+                path.join(inputDir, 'subdir/test.styl'),
+                `
+            .test
+              background: blue
+            `,
+              );
+
+              await overlayFS.writeFile(
+                path.join(inputDir, 'subdir/foo/test.styl'),
+                `
+            .foo-test
+              background: blue
+            `,
+              );
+            },
+          },
+          'stylus-glob-import',
+        );
+
+        let css = await overlayFS.readFile(
+          b.bundleGraph.getBundles().find(b => b.type === 'css')?.filePath,
+          'utf8',
+        );
+        assert(css.includes('.index'));
+        assert(!css.includes('.main'));
+        assert(css.includes('.foo'));
+        assert(!css.includes('.bar'));
+        assert(!css.includes('.test'));
+        assert(css.includes('.foo-test'));
+      });
     });
   });
 
