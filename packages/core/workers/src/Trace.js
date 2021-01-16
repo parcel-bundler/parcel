@@ -56,7 +56,6 @@ export default class Trace {
     if (this.eventId === 0) {
       this.init(profile.startTime);
     }
-    
     const trace = this.tracer;
     const tid = this.tid;
     this.tid++;
