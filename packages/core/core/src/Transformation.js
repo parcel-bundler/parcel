@@ -2,6 +2,7 @@
 
 import type {
   FilePath,
+  FileCreateInvalidation,
   GenerateOutput,
   Transformer,
   TransformerResult,
@@ -50,7 +51,7 @@ import {
 } from './assetUtils';
 import summarizeRequest from './summarizeRequest';
 import PluginOptions from './public/PluginOptions';
-import {PARCEL_VERSION} from './constants';
+import {PARCEL_VERSION, FILE_CREATE} from './constants';
 import {optionsProxy} from './utils';
 
 type GenerateFunc = (input: UncommittedAsset) => Promise<GenerateOutput>;
@@ -71,6 +72,7 @@ export type TransformationResult = {|
   assets: Array<AssetValue>,
   configRequests: Array<ConfigRequestAndResult>,
   invalidations: Array<RequestInvalidation>,
+  invalidateOnFileCreate: Array<FileCreateInvalidation>,
 |};
 
 type ConfigMap = Map<PackageName, Config>;
@@ -89,6 +91,7 @@ export default class Transformation {
   parcelConfig: ParcelConfig;
   report: ReportFn;
   invalidations: Map<string, RequestInvalidation>;
+  invalidateOnFileCreate: Array<FileCreateInvalidation>;
 
   constructor({
     report,
@@ -105,6 +108,7 @@ export default class Transformation {
     this.request = request;
     this.workerApi = workerApi;
     this.invalidations = new Map();
+    this.invalidateOnFileCreate = [];
 
     this.pluginOptions = new PluginOptions(
       optionsProxy(this.options, option => {
@@ -193,6 +197,7 @@ export default class Transformation {
     return {
       assets,
       configRequests: this.configRequests,
+      invalidateOnFileCreate: this.invalidateOnFileCreate,
       invalidations: [...this.invalidations.values()],
     };
   }
@@ -245,6 +250,7 @@ export default class Transformation {
       options: this.options,
       content,
       invalidations: this.invalidations,
+      fileCreateInvalidations: this.invalidateOnFileCreate,
     });
   }
 
@@ -426,7 +432,7 @@ export default class Transformation {
   }
 
   async readFromCache(cacheKey: string): Promise<?Array<UncommittedAsset>> {
-    if (this.options.shouldDisableCache || this.request.code != null) {
+    if (this.options.shouldDisableCache || this.request.code != null || ((this.request.invalidateReason || 0) & FILE_CREATE)) {
       return null;
     }
 
@@ -460,6 +466,7 @@ export default class Transformation {
         ),
       ),
     );
+
     this.options.cache.set(
       cacheKey,
       assets.map(a => a.value),
@@ -626,6 +633,7 @@ export default class Transformation {
 
       if (result.invalidateOnFileCreate) {
         // TODO ???
+        this.invalidateOnFileCreate.push(...result.invalidateOnFileCreate);
       }
 
       if (result.invalidateOnFileChange) {

@@ -55,7 +55,7 @@ function getId(input: AssetRequestInput) {
   });
 }
 
-async function run({input, api, options, farm}: RunInput) {
+async function run({input, api, options, farm, invalidateReason}: RunInput) {
   api.invalidateOnFileUpdate(input.filePath);
   let start = Date.now();
   let {optionsRef, ...request} = input;
@@ -72,7 +72,9 @@ async function run({input, api, options, farm}: RunInput) {
     );
   });
 
-  let {assets, configRequests, invalidations} = (await farm.createHandle(
+  request.invalidateReason = invalidateReason;
+
+  let {assets, configRequests, invalidations, invalidateOnFileCreate} = (await farm.createHandle(
     'runTransform',
   )({
     configCachePath: cachePath,
@@ -83,6 +85,10 @@ async function run({input, api, options, farm}: RunInput) {
   let time = Date.now() - start;
   for (let asset of assets) {
     asset.stats.time = time;
+  }
+
+  for (let invalidation of invalidateOnFileCreate) {
+    api.invalidateOnFileCreate(invalidation);
   }
 
   for (let invalidation of invalidations) {

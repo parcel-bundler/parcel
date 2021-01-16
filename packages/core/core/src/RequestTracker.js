@@ -10,9 +10,20 @@ import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import path from 'path';
 import {isGlobMatch, isDirectoryInside, md5FromObject, md5FromString} from '@parcel/utils';
-import {PARCEL_VERSION} from './constants';
 import Graph, {type GraphOpts} from './Graph';
 import {assertSignalNotAborted, hashFromOption} from './utils';
+import {
+  PARCEL_VERSION,
+  VALID,
+  INITIAL_BUILD,
+  FILE_CREATE,
+  FILE_UPDATE,
+  FILE_DELETE,
+  ENV_CHANGE,
+  OPTION_CHANGE,
+  STARTUP,
+  ERROR
+} from './constants';
 
 type SerializedRequestGraph = {|
   ...GraphOpts<RequestGraphNode, RequestGraphEdgeType>,
@@ -58,10 +69,12 @@ type StoredRequest = {|
   resultCacheKey?: ?string,
 |};
 
+type InvalidateReason = number;
 type RequestNode = {|
   id: string,
   +type: 'request',
   value: StoredRequest,
+  invalidateReason: InvalidateReason
 |};
 type RequestGraphNode =
   | RequestNode
@@ -104,6 +117,7 @@ export type StaticRunOpts<TResult> = {|
   options: ParcelOptions,
   api: RunAPI,
   prevResult: ?TResult,
+  invalidateReason: InvalidateReason,
 |};
 
 const nodeFromFilePath = (filePath: string) => ({
@@ -128,6 +142,7 @@ const nodeFromRequest = (request: StoredRequest) => ({
   id: request.id,
   type: 'request',
   value: request,
+  invalidateReason: INITIAL_BUILD
 });
 
 const nodeFromEnv = (env: string, value: string | void) => ({
@@ -223,7 +238,7 @@ export class RequestGraph extends Graph<
 
   getRequestNode(
     id: string,
-  ): {|id: string, +type: 'request', value: StoredRequest|} {
+  ): RequestNode {
     let node = nullthrows(this.getNode(id));
     invariant(node.type === 'request');
     return node;
@@ -251,14 +266,15 @@ export class RequestGraph extends Graph<
     );
   }
 
-  invalidateNode(node: RequestGraphNode) {
+  invalidateNode(node: RequestGraphNode, reason: InvalidateReason) {
     invariant(node.type === 'request');
     if (this.hasNode(node.id)) {
+      node.invalidateReason |= reason;
       this.invalidNodeIds.add(node.id);
 
       let parentNodes = this.getNodesConnectedTo(node, 'subrequest');
       for (let parentNode of parentNodes) {
-        this.invalidateNode(parentNode);
+        this.invalidateNode(parentNode, reason);
       }
     }
   }
@@ -267,7 +283,7 @@ export class RequestGraph extends Graph<
     for (let nodeId of this.unpredicatableNodeIds) {
       let node = nullthrows(this.getNode(nodeId));
       invariant(node.type !== 'file' && node.type !== 'glob');
-      this.invalidateNode(node);
+      this.invalidateNode(node, STARTUP);
     }
   }
 
@@ -281,7 +297,7 @@ export class RequestGraph extends Graph<
           'invalidated_by_update',
         );
         for (let parentNode of parentNodes) {
-          this.invalidateNode(parentNode);
+          this.invalidateNode(parentNode, ENV_CHANGE);
         }
       }
     }
@@ -297,7 +313,7 @@ export class RequestGraph extends Graph<
           'invalidated_by_update',
         );
         for (let parentNode of parentNodes) {
-          this.invalidateNode(parentNode);
+          this.invalidateNode(parentNode, OPTION_CHANGE);
         }
       }
     }
@@ -469,7 +485,7 @@ export class RequestGraph extends Graph<
           'invalidated_by_create',
         );
         for (let connectedNode of connectedNodes) {
-          this.invalidateNode(connectedNode);
+          this.invalidateNode(connectedNode, FILE_CREATE);
         }
       }
     }
@@ -493,12 +509,15 @@ export class RequestGraph extends Graph<
       // then also invalidate nodes connected by invalidated_by_update edges.
       if (node && (type === 'create' || type === 'update')) {
         let nodes = this.getNodesConnectedTo(node, 'invalidated_by_update');
-        if (type === 'create') {
-          nodes = nodes.concat(this.getNodesConnectedTo(node, 'invalidated_by_create'));
+        for (let connectedNode of nodes) {
+          this.invalidateNode(connectedNode, FILE_UPDATE);
         }
 
-        for (let connectedNode of nodes) {
-          this.invalidateNode(connectedNode);
+        if (type === 'create') {
+          let nodes = this.getNodesConnectedTo(node, 'invalidated_by_create');
+          for (let connectedNode of nodes) {
+            this.invalidateNode(connectedNode, FILE_CREATE);
+          }
         }
       } else if (type === 'create') {
         let basename = path.basename(filePath);
@@ -521,7 +540,7 @@ export class RequestGraph extends Graph<
               'invalidated_by_create',
             );
             for (let connectedNode of connectedNodes) {
-              this.invalidateNode(connectedNode);
+              this.invalidateNode(connectedNode, FILE_CREATE);
             }
           }
         }
@@ -530,7 +549,7 @@ export class RequestGraph extends Graph<
           node,
           'invalidated_by_delete',
         )) {
-          this.invalidateNode(connectedNode);
+          this.invalidateNode(connectedNode, FILE_DELETE);
         }
       }
     }
@@ -619,12 +638,18 @@ export default class RequestTracker {
   completeRequest(id: string) {
     this.graph.invalidNodeIds.delete(id);
     this.graph.incompleteNodeIds.delete(id);
+    let node = this.graph.getNode(id);
+    if (node?.type === 'request') {
+      node.invalidateReason = VALID;
+    }
   }
 
   rejectRequest(id: string) {
     this.graph.incompleteNodeIds.delete(id);
-    if (this.graph.hasNode(id)) {
-      this.graph.invalidNodeIds.add(id);
+
+    let node = this.graph.getNode(id);
+    if (node?.type === 'request') {
+      this.graph.invalidateNode(node, ERROR);
     }
   }
 
@@ -668,12 +693,14 @@ export default class RequestTracker {
     let {api, subRequests} = this.createAPI(id);
     try {
       this.startRequest({id, type: request.type, input: request.input});
+      let node = this.graph.getRequestNode(id);
       let result = await request.run({
         input: request.input,
         api,
         farm: this.farm,
         options: this.options,
         prevResult: await this.getRequestResult<TResult>(id),
+        invalidateReason: node.invalidateReason,
       });
 
       assertSignalNotAborted(this.signal);
@@ -695,6 +722,7 @@ export default class RequestTracker {
 
   createAPI(requestId: string): {|api: RunAPI, subRequests: Set<NodeId>|} {
     let subRequests = new Set();
+    let invalidations = this.graph.getInvalidations(requestId);
     let api = {
       invalidateOnFileCreate: (input) =>
         this.graph.invalidateOnFileCreate(requestId, input),
@@ -711,7 +739,7 @@ export default class RequestTracker {
           option,
           this.options[option],
         ),
-      getInvalidations: () => this.graph.getInvalidations(requestId),
+      getInvalidations: () => invalidations,
       storeResult: (result, cacheKey) => {
         this.storeResult(requestId, result, cacheKey);
       },
