@@ -35,6 +35,7 @@
         "css-declaration-sorter": false,
         "browserslist": false,
         "util-deprecate": false,
+        "cosmiconfig": false,
         "@parcel/source-map": false,
         "@parcel/plugin": false
       },
