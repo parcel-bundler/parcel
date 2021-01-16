@@ -331,8 +331,6 @@ export default class Transformation {
             transformer.plugin,
             transformer.name,
             transformer.config,
-            transformer.configKeyPath,
-            this.parcelConfig,
           );
 
           for (let result of transformerResults) {
@@ -589,8 +587,6 @@ async function runTransformer(
   transformer: Transformer,
   transformerName: string,
   preloadedConfig: ?Config,
-  configKeyPath: string,
-  parcelConfig: ParcelConfig,
 ): Promise<Array<TransformerResult>> {
   const logger = new PluginLogger({origin: transformerName});
 
