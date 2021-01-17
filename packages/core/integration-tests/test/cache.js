@@ -3131,6 +3131,57 @@ describe('cache', function() {
         assert(css.includes('.foo-test'));
       });
     });
+
+    describe('less', function() {
+      it('should support adding higher priority less include paths', async function() {
+        let b = await testCache(
+          {
+            entries: ['index.js'],
+            async setup() {
+              await overlayFS.writeFile(
+                path.join(inputDir, '.lessrc'),
+                JSON.stringify({
+                  paths: ['include-path', 'node_modules/library'],
+                }),
+              );
+            },
+            async update(b) {
+              let css = await overlayFS.readFile(
+                b.bundleGraph.getBundles().find(b => b.type === 'css')
+                  ?.filePath,
+                'utf8',
+              );
+              assert(css.includes('.a'));
+              assert(css.includes('.b'));
+
+              await overlayFS.writeFile(
+                path.join(inputDir, 'a.less'),
+                `.c {
+                  background: blue
+                }`,
+              );
+
+              await overlayFS.writeFile(
+                path.join(inputDir, 'include-path/b.less'),
+                `.d {
+                  background: blue
+                }`,
+              );
+            },
+          },
+          'less-include-paths',
+        );
+
+        let css = await overlayFS.readFile(
+          b.bundleGraph.getBundles().find(b => b.type === 'css')?.filePath,
+          'utf8',
+        );
+        assert(!css.includes('.a'));
+        assert(!css.includes('.b'));
+        assert(css.includes('.c'));
+        assert(css.includes('.d'));
+      });
+    });
   });
 
   describe('bundler config', function() {
