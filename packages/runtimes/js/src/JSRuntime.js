@@ -100,7 +100,7 @@ export default (new Runtime({
       }
 
       if (resolved.type === 'asset') {
-        if (!bundle.env.scopeHoist) {
+        if (!bundle.env.shouldScopeHoist) {
           // If this bundle already has the asset this dependency references,
           // return a simple runtime of `Promise.resolve(internalRequire(assetId))`.
           // The linker handles this for scope-hoisting.
@@ -327,7 +327,7 @@ function getLoaderRuntime({
     )}')${
       // In global output with scope hoisting, functions return exports are
       // always returned. Otherwise, the exports are returned.
-      bundle.env.scopeHoist ? '()' : ''
+      bundle.env.shouldScopeHoist ? '()' : ''
     })`;
   }
 

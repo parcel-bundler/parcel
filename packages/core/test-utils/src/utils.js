@@ -99,7 +99,7 @@ export function bundler(
   entries: FilePath | Array<FilePath>,
   opts?: InitialParcelOptions,
 ): Parcel {
-  return new Parcel({
+  let options: InitialParcelOptions = {
     entries,
     shouldDisableCache: true,
     logLevel: 'none',
@@ -107,15 +107,29 @@ export function bundler(
     inputFS,
     outputFS,
     workerFarm,
-    distDir,
     packageManager: new NodePackageManager(opts?.inputFS || inputFS),
-    defaultEngines: {
-      browsers: ['last 1 Chrome version'],
-      node: '8',
-    },
     shouldContentHash: true,
     ...opts,
-  });
+    defaultTargetOptions: {
+      distDir,
+      engines: {
+        browsers: ['last 1 Chrome version'],
+        node: '8',
+      },
+    },
+  };
+
+  if (opts?.defaultTargetOptions) {
+    options = {
+      ...options,
+      defaultTargetOptions: {
+        ...options.defaultTargetOptions,
+        ...opts.defaultTargetOptions,
+      },
+    };
+  }
+
+  return new Parcel(options);
 }
 
 export function findAsset(
@@ -258,7 +272,7 @@ export async function runBundles(
   if (opts.require !== false) {
     switch (env.outputFormat) {
       case 'global':
-        if (env.scopeHoist) {
+        if (env.shouldScopeHoist) {
           return typeof ctx.output !== 'undefined' ? ctx.output : undefined;
         } else {
           for (let key in ctx) {

@@ -66,7 +66,7 @@ export default (new Packager({
     let parcelRequireName = nullthrows(config).parcelRequireName;
 
     // If scope hoisting is enabled, we use a different code path.
-    if (bundle.env.scopeHoist) {
+    if (bundle.env.shouldScopeHoist) {
       let wrappedAssets = new Set<string>();
       let {ast, referencedAssets} = link({
         bundle,

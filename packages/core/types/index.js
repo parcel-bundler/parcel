@@ -131,8 +131,8 @@ export type PackageTargetDescriptor = {|
   +distDir?: FilePath,
   +sourceMap?: boolean | TargetSourceMapOptions,
   +isLibrary?: boolean,
-  +minify?: boolean,
-  +scopeHoist?: boolean,
+  +shouldOptimize?: boolean,
+  +shouldScopeHoist?: boolean,
 |};
 
 /**
@@ -158,8 +158,8 @@ export type EnvironmentOptions = {|
     | {[PackageName]: boolean, ...},
   +outputFormat?: OutputFormat,
   +isLibrary?: boolean,
-  +minify?: boolean,
-  +scopeHoist?: boolean,
+  +shouldOptimize?: boolean,
+  +shouldScopeHoist?: boolean,
   +sourceMap?: ?TargetSourceMapOptions,
 |};
 
@@ -198,9 +198,9 @@ export interface Environment {
   /** Whether this is a library build (e.g. less loaders) */
   +isLibrary: boolean;
   /** Whether the output should be minified. */
-  +minify: boolean;
+  +shouldOptimize: boolean;
   /** Whether scope hoisting is enabled. */
-  +scopeHoist: boolean;
+  +shouldScopeHoist: boolean;
   +sourceMap: ?TargetSourceMapOptions;
 
   /** Whether <code>context</code> specifies a browser context. */
@@ -277,13 +277,14 @@ export type InitialParcelOptions = {|
   +packageManager?: PackageManager,
   +detailedReport?: ?DetailedReportOptions,
 
-  // TODO: Refactor to defaultTargetOptions
-  +minify?: boolean,
-  +scopeHoist?: boolean,
-  +sourceMaps?: boolean,
-  +publicUrl?: string,
-  +distDir?: FilePath,
-  +defaultEngines?: Engines,
+  +defaultTargetOptions?: {|
+    +shouldOptimize?: boolean,
+    +shouldScopeHoist?: boolean,
+    +sourceMaps?: boolean,
+    +publicUrl?: string,
+    +distDir?: FilePath,
+    +engines?: Engines,
+  |},
 
   // throwErrors
   // global?

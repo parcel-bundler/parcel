@@ -58,7 +58,7 @@ export default (new Transformer({
       engines: {
         browsers: asset.env.engines.browsers,
       },
-      minify: asset.env.minify,
+      shouldOptimize: asset.env.shouldOptimize,
       sourceMap: asset.env.sourceMap,
     });
 
