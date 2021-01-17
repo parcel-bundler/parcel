@@ -7,10 +7,21 @@ import {
   outputFS,
   shallowEqual,
   distDir,
+  mergeParcelOptions,
 } from '@parcel/test-utils';
 import {loadSourceMapUrl} from '@parcel/utils';
 
-const bundle = (name, opts = {}) => _bundle(name, {sourceMaps: true, ...opts});
+const bundle = (name, opts = {}) => {
+  return _bundle(
+    name,
+    // $FlowFixMe
+    mergeParcelOptions(opts, {
+      defaultTargetOptions: {
+        shouldOptimize: true,
+      },
+    }),
+  );
+};
 
 function indexToLineCol(str, index) {
   let beforeIndex = str.slice(0, index);

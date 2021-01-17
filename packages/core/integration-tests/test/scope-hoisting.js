@@ -11,16 +11,36 @@ import {
   findAsset,
   findDependency,
   getNextBuild,
+  mergeParcelOptions,
   outputFS,
   overlayFS,
   run,
   runBundle,
 } from '@parcel/test-utils';
 
-const bundle = (name, opts = {}) => _bundle(name, {scopeHoist: true, ...opts});
+const bundle = (name, opts = {}) => {
+  return _bundle(
+    name,
+    // $FlowFixMe
+    mergeParcelOptions(opts, {
+      defaultTargetOptions: {
+        shouldScopeHoist: true,
+      },
+    }),
+  );
+};
 
-const bundler = (name, opts = {}) =>
-  _bundler(name, {scopeHoist: true, ...opts});
+const bundler = (name, opts = {}) => {
+  return _bundler(
+    name,
+    // $FlowFixMe
+    mergeParcelOptions(opts, {
+      defaultTargetOptions: {
+        shouldScopeHoist: true,
+      },
+    }),
+  );
+};
 
 describe('scope hoisting', function() {
   describe('es6', function() {
@@ -1024,7 +1044,11 @@ describe('scope hoisting', function() {
           __dirname,
           '/integration/scope-hoisting/es6/tree-shaking-functions/a.js',
         ),
-        {minify: true},
+        {
+          defaultTargetOptions: {
+            shouldOptimize: true,
+          },
+        },
       );
 
       let output = await run(b);
@@ -1044,7 +1068,11 @@ describe('scope hoisting', function() {
           __dirname,
           '/integration/scope-hoisting/es6/tree-shaking-classes-babel/a.js',
         ),
-        {minify: true},
+        {
+          defaultTargetOptions: {
+            shouldOptimize: true,
+          },
+        },
       );
 
       let output = await run(b);
@@ -1613,7 +1641,11 @@ describe('scope hoisting', function() {
           __dirname,
           '/integration/scope-hoisting/es6/tree-shaking-export-computed-prop/a.js',
         ),
-        {minify: true},
+        {
+          defaultTargetOptions: {
+            shouldOptimize: true,
+          },
+        },
       );
 
       let output = await run(b);
@@ -2879,7 +2911,11 @@ describe('scope hoisting', function() {
             __dirname,
             '/integration/scope-hoisting/es6/tree-shaking-increment-object/a.js',
           ),
-          {minify: true},
+          {
+            defaultTargetOptions: {
+              shouldOptimize: true,
+            },
+          },
         );
 
         let content = await outputFS.readFile(
@@ -4094,7 +4130,11 @@ describe('scope hoisting', function() {
           __dirname,
           '/integration/scope-hoisting/commonjs/export-local/a.js',
         ),
-        {minify: true},
+        {
+          defaultTargetOptions: {
+            shouldOptimize: true,
+          },
+        },
       );
 
       let output = await run(b);

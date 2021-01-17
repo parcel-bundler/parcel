@@ -283,7 +283,7 @@ export type InitialParcelOptions = {|
     +sourceMaps?: boolean,
     +publicUrl?: string,
     +distDir?: FilePath,
-    +engines?: Engines,
+    +engines?: Engines | null,
   |},
 
   // throwErrors

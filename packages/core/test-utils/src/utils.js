@@ -99,35 +99,27 @@ export function bundler(
   entries: FilePath | Array<FilePath>,
   opts?: InitialParcelOptions,
 ): Parcel {
-  let options: InitialParcelOptions = {
-    entries,
-    shouldDisableCache: true,
-    logLevel: 'none',
-    defaultConfig: path.join(__dirname, '.parcelrc-no-reporters'),
-    inputFS,
-    outputFS,
-    workerFarm,
-    packageManager: new NodePackageManager(opts?.inputFS || inputFS),
-    shouldContentHash: true,
-    ...opts,
-    defaultTargetOptions: {
-      distDir,
-      engines: {
-        browsers: ['last 1 Chrome version'],
-        node: '8',
+  let options: InitialParcelOptions = mergeParcelOptions(
+    {
+      entries,
+      shouldDisableCache: true,
+      logLevel: 'none',
+      defaultConfig: path.join(__dirname, '.parcelrc-no-reporters'),
+      inputFS,
+      outputFS,
+      workerFarm,
+      packageManager: new NodePackageManager(opts?.inputFS || inputFS),
+      shouldContentHash: true,
+      defaultTargetOptions: {
+        distDir,
+        engines: {
+          browsers: ['last 1 Chrome version'],
+          node: '8',
+        },
       },
     },
-  };
-
-  if (opts?.defaultTargetOptions) {
-    options = {
-      ...options,
-      defaultTargetOptions: {
-        ...options.defaultTargetOptions,
-        ...opts.defaultTargetOptions,
-      },
-    };
-  }
+    opts,
+  );
 
   return new Parcel(options);
 }
@@ -168,6 +160,26 @@ export function findDependency(
     `Couldn't find dependency ${assetFileName} -> ${moduleSpecifier}`,
   );
   return dependency;
+}
+
+export function mergeParcelOptions(
+  optsOne: InitialParcelOptions,
+  optsTwo?: InitialParcelOptions | null,
+): InitialParcelOptions {
+  if (!optsTwo) {
+    return optsOne;
+  }
+
+  return {
+    ...optsOne,
+    ...optsTwo,
+    // $FlowFixMe
+    defaultTargetOptions: {
+      ...optsOne?.defaultTargetOptions,
+      // $FlowFixMe
+      ...optsTwo?.defaultTargetOptions,
+    },
+  };
 }
 
 export function assertDependencyWasDeferred(
