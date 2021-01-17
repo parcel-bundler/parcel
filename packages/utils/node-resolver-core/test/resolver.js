@@ -32,7 +32,7 @@ const BROWSER_ENV = {
   },
 };
 
-describe.only('resolver', function() {
+describe('resolver', function() {
   let resolver;
 
   beforeEach(async function() {
@@ -422,6 +422,14 @@ describe.only('resolver', function() {
               rootDir,
               'node_modules',
               'package-fallback',
+              'main.js',
+            ),
+          },
+          {
+            filePath: path.join(
+              rootDir,
+              'node_modules',
+              'package-fallback',
               'main.js.js',
             ),
           },
@@ -438,15 +446,7 @@ describe.only('resolver', function() {
               rootDir,
               'node_modules',
               'package-fallback',
-              'main.js/index.js',
-            ),
-          },
-          {
-            filePath: path.join(
-              rootDir,
-              'node_modules',
-              'package-fallback',
-              'main.js/index.json',
+              'main.js/package.json',
             ),
           },
         ],
@@ -505,6 +505,15 @@ describe.only('resolver', function() {
               'node_modules',
               'package-main-directory',
               'nested.json',
+            ),
+          },
+          {
+            filePath: path.join(
+              rootDir,
+              'node_modules',
+              'package-main-directory',
+              'nested',
+              'package.json',
             ),
           },
         ],
@@ -1221,6 +1230,9 @@ describe.only('resolver', function() {
           {
             filePath: path.join(rootDir, 'nested.json'),
           },
+          {
+            filePath: path.join(rootDir, 'nested', 'package.json'),
+          },
         ],
         invalidateOnFileChange: [path.join(rootDir, 'package.json')],
       });
@@ -1282,6 +1294,9 @@ describe.only('resolver', function() {
           },
           {
             filePath: path.join(rootDir, 'nested.json'),
+          },
+          {
+            filePath: path.join(rootDir, 'nested', 'package.json'),
           },
         ],
         invalidateOnFileChange: [path.join(rootDir, 'package.json')],

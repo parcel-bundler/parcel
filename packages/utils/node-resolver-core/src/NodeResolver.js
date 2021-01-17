@@ -750,10 +750,6 @@ export default class NodeResolver {
     let res = [];
     for (let ext of extensions) {
       let f = file + ext;
-      if (!path.extname(f)) {
-        continue;
-      }
-
       if (expandAliases) {
         let alias = await this.resolveAliases(f, env, pkg);
         let aliasPath;
@@ -768,7 +764,9 @@ export default class NodeResolver {
         }
       }
 
-      res.push(f);
+      if (path.extname(f)) {
+        res.push(f);
+      }
     }
 
     return res;
