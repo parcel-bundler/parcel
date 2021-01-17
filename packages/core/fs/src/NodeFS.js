@@ -17,12 +17,10 @@ import {promisify} from '@parcel/utils';
 import {registerSerializableClass} from '@parcel/core';
 import fsWriteStreamAtomic from '@parcel/fs-write-stream-atomic';
 import watcher from '@parcel/watcher';
-import {
-  findAncestorFile,
-  findNodeModule,
-  findFirstFile,
-} from '@parcel/fs-search';
 import packageJSON from '../package.json';
+
+import * as searchNative from '@parcel/fs-search';
+import * as searchJS from './find';
 
 // Most of this can go away once we only support Node 10+, which includes
 // require('fs').promises
@@ -30,6 +28,7 @@ import packageJSON from '../package.json';
 const realpath = promisify(
   process.platform === 'win32' ? fs.realpath : fs.realpath.native,
 );
+const isPnP = process.versions.pnp != null;
 
 export class NodeFS implements FileSystem {
   readFile: any = promisify(fs.readFile);
@@ -51,9 +50,15 @@ export class NodeFS implements FileSystem {
     process.platform === 'win32' ? fs.realpathSync : fs.realpathSync.native;
   existsSync: (path: string) => boolean = fs.existsSync;
   readdirSync: any = (fs.readdirSync: any);
-  findAncestorFile: any = findAncestorFile;
-  findNodeModule: any = findNodeModule;
-  findFirstFile: any = findFirstFile;
+  findAncestorFile: any = isPnP
+    ? (...args) => searchJS.findAncestorFile(this, ...args)
+    : searchNative.findAncestorFile;
+  findNodeModule: any = isPnP
+    ? (...args) => searchJS.findNodeModule(this, ...args)
+    : searchNative.findNodeModule;
+  findFirstFile: any = isPnP
+    ? (...args) => searchJS.findFirstFile(this, ...args)
+    : searchNative.findFirstFile;
 
   createWriteStream(filePath: string, options: any): Writable {
     return fsWriteStreamAtomic(filePath, options);

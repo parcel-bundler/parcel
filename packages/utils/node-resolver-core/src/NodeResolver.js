@@ -257,11 +257,7 @@ export default class NodeResolver {
     if (resolved === undefined && process.versions.pnp != null && parent) {
       try {
         let [moduleName, subPath] = this.getModuleParts(filename);
-        let pnp =
-          process.env.PARCEL_BUILD_ENV !== 'production'
-            ? _Module.findPnpApi(path.dirname(parent))
-            : // $FlowFixMe injected at runtime
-              require('pnpapi');
+        let pnp = _Module.findPnpApi(path.dirname(parent));
 
         let res = pnp.resolveToUnqualified(
           moduleName +
