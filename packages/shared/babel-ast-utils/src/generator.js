@@ -1,6 +1,6 @@
 import {baseGenerator, EXPRESSIONS_PRECEDENCE} from 'astring';
 
-export const expressionPrecedence = {
+export const expressionsPrecedence = {
   ...EXPRESSIONS_PRECEDENCE,
   // Babel extensions
   NumericLiteral: EXPRESSIONS_PRECEDENCE.Literal,
@@ -74,6 +74,17 @@ export const generator = {
     node.type = 'Literal';
     node.raw = getRaw(node);
     this.Literal(node, state);
+  },
+  ArrowFunctionExpression(node, state) {
+    if (
+      node.body.type === 'OptionalMemberExpression' ||
+      node.body.type === 'OptionalCallExpression'
+    ) {
+      // the ArrowFunctionExpression visitor in astring checks the type of the body
+      // Make sure they don't start with "O"
+      node.body.type = '_' + node.body.type;
+    }
+    baseGenerator.ArrowFunctionExpression.call(this, node, state);
   },
   ObjectProperty(node, state) {
     node.type = 'Property';
@@ -178,10 +189,20 @@ export const generator = {
     // astring doesn't support ImportExpression yet
     state.write('import');
   },
+  _OptionalMemberExpression(node, state) {
+    this.OptionalMemberExpression(node, state);
+  },
   OptionalMemberExpression(node, state) {
     node.optional = true;
     node.type = 'MemberExpression';
-    this.MemberExpression(node, state);
+    baseGenerator.MemberExpression.call(this, node, state);
+  },
+  MemberExpression(node, state) {
+    if (node.optional) node.optional = false;
+    baseGenerator.MemberExpression.call(this, node, state);
+  },
+  _OptionalCallExpression(node, state) {
+    this.OptionalCallExpression(node, state);
   },
   OptionalCallExpression(node, state) {
     node.optional = true;
@@ -257,7 +278,8 @@ function formatComments(state, comments) {
     const comment = comments[i];
     if (comment.type === 'CommentLine') {
       // Line comment
-      state.write('// ' + comment.value.trim() + state.lineEnd + indent);
+      state.write('// ' + comment.value.trim() + state.lineEnd);
+      state.write(indent);
     } else {
       // Block comment
       state.write('/*');
@@ -269,7 +291,8 @@ function formatComments(state, comments) {
       if (
         !((value === '#__PURE__' || value === '@__PURE__') && i === length - 1)
       ) {
-        state.write(state.lineEnd + indent);
+        state.write(state.lineEnd);
+        state.write(indent);
       }
     }
   }

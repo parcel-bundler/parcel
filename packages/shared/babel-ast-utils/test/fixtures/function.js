@@ -37,3 +37,6 @@ let y = () => ({
   a: 1,
   b: 2
 });
+let z = a => a?.b;
+let za = a => a?.();
+let zb = a => 1;
