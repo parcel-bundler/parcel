@@ -3181,6 +3181,180 @@ describe('cache', function() {
         assert(css.includes('.c'));
         assert(css.includes('.d'));
       });
+
+      it('should recover from missing import errors', async function() {
+        // $FlowFixMe
+        await assert.rejects(
+          async () => {
+            await testCache(
+              {
+                entries: ['index.js'],
+                async setup() {
+                  await overlayFS.writeFile(
+                    path.join(inputDir, '.lessrc'),
+                    JSON.stringify({
+                      paths: ['include-path', 'node_modules/library'],
+                    }),
+                  );
+
+                  await overlayFS.writeFile(
+                    path.join(inputDir, 'yarn.lock'),
+                    '',
+                  );
+
+                  await overlayFS.unlink(
+                    path.join(inputDir, 'include-path/a.less'),
+                  );
+                },
+                async update() {},
+              },
+              'less-include-paths',
+            );
+          },
+          {
+            message: "Failed to resolve 'a.less' from './index.less'",
+          },
+        );
+
+        await overlayFS.writeFile(
+          path.join(inputDir, 'include-path/a.less'),
+          `.d {
+            background: blue
+          }`,
+        );
+
+        let b = await runBundle('index.js');
+        let css = await overlayFS.readFile(
+          b.bundleGraph.getBundles().find(b => b.type === 'css')?.filePath,
+          'utf8',
+        );
+        assert(css.includes('.d'));
+        assert(css.includes('.b'));
+      });
+    });
+
+    describe('sass', function() {
+      it('should support adding higher priority sass include paths', async function() {
+        let b = await testCache(
+          {
+            entries: ['index.sass'],
+            async setup() {
+              await overlayFS.writeFile(
+                path.join(inputDir, '.sassrc'),
+                JSON.stringify({
+                  includePaths: ['include-path'],
+                }),
+              );
+            },
+            async update(b) {
+              let css = await overlayFS.readFile(
+                b.bundleGraph.getBundles().find(b => b.type === 'css')
+                  ?.filePath,
+                'utf8',
+              );
+              assert(css.includes('.included'));
+
+              await overlayFS.writeFile(
+                path.join(inputDir, 'style.sass'),
+                `.test
+                  background: blue
+                `,
+              );
+            },
+          },
+          'sass-include-paths-import',
+        );
+
+        let css = await overlayFS.readFile(
+          b.bundleGraph.getBundles().find(b => b.type === 'css')?.filePath,
+          'utf8',
+        );
+        assert(!css.includes('.included'));
+        assert(css.includes('.test'));
+      });
+
+      it('should the SASS_PATH environment variable', async function() {
+        let b = await testCache(
+          {
+            entries: ['index.sass'],
+            env: {
+              SASS_PATH: path.join(inputDir, 'include-path'),
+            },
+            async setup() {
+              await overlayFS.mkdirp(path.join(inputDir, 'include2'));
+              await overlayFS.writeFile(
+                path.join(inputDir, 'include2/style.sass'),
+                `.test
+                  background: blue
+                `,
+              );
+            },
+            async update(b) {
+              let css = await overlayFS.readFile(
+                b.bundleGraph.getBundles().find(b => b.type === 'css')
+                  ?.filePath,
+                'utf8',
+              );
+              assert(css.includes('.included'));
+
+              return {
+                env: {
+                  SASS_PATH: path.join(inputDir, 'include2'),
+                },
+              };
+            },
+          },
+          'sass-include-paths-import',
+        );
+
+        let css = await overlayFS.readFile(
+          b.bundleGraph.getBundles().find(b => b.type === 'css')?.filePath,
+          'utf8',
+        );
+        assert(!css.includes('.included'));
+        assert(css.includes('.test'));
+      });
+
+      it('should recover from missing import errors', async function() {
+        // $FlowFixMe
+        await assert.rejects(async () => {
+          await testCache(
+            {
+              entries: ['index.sass'],
+              async setup() {
+                await overlayFS.writeFile(
+                  path.join(inputDir, '.sassrc'),
+                  JSON.stringify({
+                    includePaths: ['include-path'],
+                  }),
+                );
+
+                await overlayFS.writeFile(path.join(inputDir, 'yarn.lock'), '');
+
+                await overlayFS.unlink(
+                  path.join(inputDir, 'include-path/style.sass'),
+                );
+              },
+              async update() {},
+            },
+            'sass-include-paths-import',
+          );
+        });
+
+        await overlayFS.writeFile(
+          path.join(inputDir, 'include-path/style.sass'),
+          `.d
+            background: blue
+          `,
+        );
+
+        let b = await runBundle('index.sass');
+        let css = await overlayFS.readFile(
+          b.bundleGraph.getBundles().find(b => b.type === 'css')?.filePath,
+          'utf8',
+        );
+        assert(css.includes('.d'));
+      });
     });
   });
 
