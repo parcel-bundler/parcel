@@ -118,14 +118,18 @@ async function run({input, api, options, farm, invalidateReason}: RunInput) {
       id,
       type: 'config_request',
       run: ({api}) => {
-        let {includedFiles, watchGlob, shouldInvalidateOnStartup} = result;
+        let {
+          includedFiles,
+          invalidateOnFileCreate,
+          shouldInvalidateOnStartup,
+        } = result;
         for (let filePath of includedFiles) {
           api.invalidateOnFileUpdate(filePath);
           api.invalidateOnFileDelete(filePath);
         }
 
-        if (watchGlob != null) {
-          api.invalidateOnFileCreate({glob: watchGlob});
+        for (let invalidation of invalidateOnFileCreate) {
+          api.invalidateOnFileCreate(invalidation);
         }
 
         if (shouldInvalidateOnStartup) {

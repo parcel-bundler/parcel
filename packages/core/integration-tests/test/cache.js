@@ -10,6 +10,7 @@ import {
   inputFS,
   ncp,
   workerFarm,
+  sleep,
 } from '@parcel/test-utils';
 import fs from 'fs';
 
@@ -212,6 +213,8 @@ describe('cache', function() {
                   presets: ['@babel/preset-env'],
                 }),
               );
+
+              await sleep(100);
             },
           });
 
@@ -267,6 +270,8 @@ describe('cache', function() {
               await workerFarm.callAllWorkers('invalidateRequireCache', [
                 path.join(inputDir, name),
               ]);
+
+              await sleep(100);
             },
           });
 
@@ -309,6 +314,7 @@ describe('cache', function() {
               );
 
               await inputFS.unlink(path.join(inputDir, name));
+              await sleep(100);
             },
           });
 
@@ -372,6 +378,8 @@ describe('cache', function() {
               await workerFarm.callAllWorkers('invalidateRequireCache', [
                 path.join(inputDir, extendedName),
               ]);
+
+              await sleep(100);
             },
           });
 
@@ -420,6 +428,8 @@ describe('cache', function() {
                     presets: ['@babel/preset-env'],
                   }),
                 );
+
+                await sleep(100);
               },
             });
 
@@ -486,6 +496,8 @@ describe('cache', function() {
                 await workerFarm.callAllWorkers('invalidateRequireCache', [
                   path.join(inputDir, `src/nested/${name}`),
                 ]);
+
+                await sleep(100);
               },
             });
 
@@ -536,6 +548,7 @@ describe('cache', function() {
                 );
 
                 await inputFS.unlink(path.join(inputDir, `src/nested/${name}`));
+                await sleep(100);
               },
             });
 
@@ -593,6 +606,8 @@ describe('cache', function() {
               path.join(inputDir, '.babelignore'),
               'src/nested',
             );
+
+            await sleep(100);
           },
         });
 
@@ -647,6 +662,7 @@ describe('cache', function() {
             );
 
             await inputFS.writeFile(path.join(inputDir, '.babelignore'), 'src');
+            await sleep(100);
           },
         });
 
@@ -701,6 +717,7 @@ describe('cache', function() {
             );
 
             await inputFS.unlink(path.join(inputDir, '.babelignore'));
+            await sleep(100);
           },
         });
 
@@ -2945,8 +2962,8 @@ describe('cache', function() {
                 // $FlowFixMe
                 process.versions.pnp = 42;
 
-                // $FlowFixMe
                 Module.findPnpApi = () =>
+                  // $FlowFixMe
                   require(path.join(inputDir, '.pnp.js'));
 
                 await inputFS.mkdirp(path.join(inputDir, 'pnp/testmodule2'));

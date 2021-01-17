@@ -245,8 +245,10 @@ export class TargetResolver {
     ]);
 
     // Invalidate whenever a package.json file is added.
-    // TODO: we really only need to invalidate if added *above* rootDir...
-    this.api.invalidateOnFileCreate({glob: `**/package.json`});
+    this.api.invalidateOnFileCreate({
+      fileName: 'package.json',
+      aboveFilePath: path.join(rootDir, 'index'),
+    });
 
     let pkg;
     let pkgContents;

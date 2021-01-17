@@ -605,7 +605,7 @@ export interface Config {
   setResultHash(resultHash: string): void;
   addIncludedFile(filePath: FilePath): void;
   addDevDependency(name: PackageName, version?: Semver): void;
-  setWatchGlob(glob: string): void;
+  invalidateOnFileCreate(invalidation: FileCreateInvalidation): void;
   getConfigFrom(
     searchPath: FilePath,
     filePaths: Array<FilePath>,
@@ -1078,19 +1078,19 @@ export type BundleResult = {|
 |};
 
 export type GlobInvalidation = {|
-  glob: Glob
+  glob: Glob,
 |};
 
 export type FileInvalidation = {|
-  filePath: FilePath
+  filePath: FilePath,
 |};
 
 export type FileAboveInvalidation = {|
   fileName: string,
-  aboveFilePath: FilePath
+  aboveFilePath: FilePath,
 |};
 
-export type FileCreateInvalidation = 
+export type FileCreateInvalidation =
   | FileInvalidation
   | GlobInvalidation
   | FileAboveInvalidation;
@@ -1111,8 +1111,8 @@ export type ResolveResult = {|
   +diagnostics?: Diagnostic | Array<Diagnostic>,
   /** Is spread (shallowly merged) onto the request's dependency.meta */
   +meta?: JSONObject,
-  +invalidateOnFileCreate?: Array<FileCreateInvalidation>;
-  +invalidateOnFileChange?: Array<FilePath>;
+  +invalidateOnFileCreate?: Array<FileCreateInvalidation>,
+  +invalidateOnFileChange?: Array<FilePath>,
 |};
 
 export type ConfigOutput = {|

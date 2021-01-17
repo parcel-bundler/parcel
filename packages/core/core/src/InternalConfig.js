@@ -1,6 +1,12 @@
 // @flow strict-local
 
-import type {FilePath, Glob, PackageName, ConfigResult} from '@parcel/types';
+import type {
+  FileCreateInvalidation,
+  FilePath,
+  Glob,
+  PackageName,
+  ConfigResult,
+} from '@parcel/types';
 import type {Config, Environment} from './types';
 
 type ConfigOpts = {|
@@ -9,7 +15,7 @@ type ConfigOpts = {|
   env: Environment,
   result?: ConfigResult,
   includedFiles?: Set<FilePath>,
-  watchGlob?: Glob,
+  invalidateOnFileCreate?: Array<FileCreateInvalidation>,
   devDeps?: Map<PackageName, ?string>,
   shouldRehydrate?: boolean,
   shouldReload?: boolean,
@@ -22,7 +28,7 @@ export function createConfig({
   env,
   result,
   includedFiles,
-  watchGlob,
+  invalidateOnFileCreate,
   devDeps,
   shouldRehydrate,
   shouldReload,
@@ -35,9 +41,9 @@ export function createConfig({
     result: result ?? null,
     resultHash: null,
     includedFiles: includedFiles ?? new Set(),
+    invalidateOnFileCreate: invalidateOnFileCreate ?? [],
     pkg: null,
     pkgFilePath: null,
-    watchGlob,
     devDeps: devDeps ?? new Map(),
     shouldRehydrate: shouldRehydrate ?? false,
     shouldReload: shouldReload ?? false,
@@ -51,36 +57,4 @@ export function addDevDependency(
   version?: string,
 ) {
   config.devDeps.set(name, version);
-}
-
-// TODO: start using edge types for more flexible invalidations
-export function getInvalidations(
-  config: Config,
-): Array<
-  | {|action: 'add', pattern: Glob|}
-  | {|action: 'change', pattern: FilePath|}
-  | {|action: 'unlink', pattern: FilePath|},
-> {
-  let invalidations = [];
-
-  if (config.watchGlob != null) {
-    invalidations.push({
-      action: 'add',
-      pattern: config.watchGlob,
-    });
-  }
-
-  for (let filePath of config.includedFiles) {
-    invalidations.push({
-      action: 'change',
-      pattern: filePath,
-    });
-
-    invalidations.push({
-      action: 'unlink',
-      pattern: filePath,
-    });
-  }
-
-  return invalidations;
 }

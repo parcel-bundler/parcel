@@ -20,6 +20,18 @@ import {BABEL_RANGE} from './constants';
 const TYPESCRIPT_EXTNAME_RE = /^\.tsx?/;
 const BABEL_TRANSFORMER_DIR = path.dirname(__dirname);
 const JS_EXTNAME_RE = /^\.(js|cjs|mjs)$/;
+const BABEL_CONFIG_FILENAMES = [
+  '.babelrc',
+  '.babelrc.js',
+  '.babelrc.json',
+  '.babelrc.cjs',
+  '.babelrc.mjs',
+  '.babelignore',
+  'babel.config.js',
+  'babel.config.json',
+  'babel.config.mjs',
+  'babel.config.cjs',
+];
 
 export async function load(
   config: Config,
@@ -63,9 +75,12 @@ export async function load(
   |} = await babelCore.loadPartialConfigAsync(babelOptions);
 
   // Invalidate when any babel config file is added.
-  config.setWatchGlob(
-    '**/{.babelrc,.babelrc.js,.babelrc.json,.babelrc.cjs,.babelrc.mjs,.babelignore,babel.config.js,babel.config.json,babel.config.mjs,babel.config.cjs}',
-  );
+  for (let fileName of BABEL_CONFIG_FILENAMES) {
+    config.invalidateOnFileCreate({
+      fileName,
+      aboveFilePath: config.searchPath,
+    });
+  }
 
   let addIncludedFile = file => {
     if (JS_EXTNAME_RE.test(path.extname(file))) {
