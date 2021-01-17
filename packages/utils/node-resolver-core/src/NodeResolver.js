@@ -272,6 +272,11 @@ export default class NodeResolver {
           moduleDir: res,
           filePath: path.join(res, subPath || ''),
         };
+
+        // Invalidate whenever the .pnp.js file changes.
+        ctx.invalidateOnFileChange.add(
+          pnp.resolveToUnqualified('pnpapi', null),
+        );
       } catch (e) {
         if (e.code !== 'MODULE_NOT_FOUND') {
           return null;

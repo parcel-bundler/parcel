@@ -636,7 +636,6 @@ export default class Transformation {
       );
 
       if (result.invalidateOnFileCreate) {
-        // TODO ???
         this.invalidateOnFileCreate.push(...result.invalidateOnFileCreate);
       }
 

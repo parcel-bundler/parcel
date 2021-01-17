@@ -2923,6 +2923,66 @@ describe('cache', function() {
       assert.equal(await run(b.bundleGraph), 6);
     });
 
+    describe('pnp', function() {
+      it('should invalidate when the .pnp.js file changes', async function() {
+        // $FlowFixMe
+        let Module = require('module');
+        let origPnpVersion = process.versions.pnp;
+        let origModuleResolveFilename = Module._resolveFilename;
+
+        try {
+          let b = await testCache(
+            {
+              entries: ['index.js'],
+              inputFS,
+              async setup() {
+                await inputFS.mkdirp(inputDir);
+                await inputFS.ncp(
+                  path.join(__dirname, '/integration/pnp-require'),
+                  inputDir,
+                );
+
+                // $FlowFixMe
+                process.versions.pnp = 42;
+
+                // $FlowFixMe
+                Module.findPnpApi = () =>
+                  require(path.join(inputDir, '.pnp.js'));
+
+                await inputFS.mkdirp(path.join(inputDir, 'pnp/testmodule2'));
+                await inputFS.writeFile(
+                  path.join(inputDir, 'pnp/testmodule2/index.js'),
+                  'exports.a = 4;',
+                );
+              },
+              async update(b) {
+                let output = await run(b.bundleGraph);
+                assert.equal(output(), 3);
+
+                let pnp = await inputFS.readFile(
+                  path.join(inputDir, '.pnp.js'),
+                  'utf8',
+                );
+                await inputFS.writeFile(
+                  path.join(inputDir, '.pnp.js'),
+                  pnp.replace("'pnp', 'testmodule'", "'pnp', 'testmodule2'"),
+                );
+
+                delete require.cache[path.join(inputDir, '.pnp.js')];
+              },
+            },
+            'pnp-require',
+          );
+
+          let output = await run(b.bundleGraph);
+          assert.equal(output(), 6);
+        } finally {
+          process.versions.pnp = origPnpVersion;
+          Module._resolveFilename = origModuleResolveFilename;
+        }
+      });
+    });
+
     describe('stylus', function() {
       it('should support resolver inside stylus file', async function() {
         let b = await testCache(
