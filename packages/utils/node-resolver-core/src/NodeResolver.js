@@ -1,7 +1,6 @@
 // @flow
 import type {
   FilePath,
-  Glob,
   FileCreateInvalidation,
   PackageJSON,
   PackageName,

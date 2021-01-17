@@ -6,7 +6,7 @@ import type {
   FilePath,
   QueryParameters,
 } from '@parcel/types';
-import type {StaticRunOpts, RunAPI} from '../RequestTracker';
+import type {StaticRunOpts} from '../RequestTracker';
 import type {AssetGroup, Dependency, ParcelOptions} from '../types';
 import type {ConfigAndCachePath} from './ParcelConfigRequest';
 

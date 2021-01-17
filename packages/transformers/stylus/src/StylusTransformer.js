@@ -9,7 +9,7 @@ import nativeFS from 'fs';
 const URL_RE = /^(?:url\s*\(\s*)?['"]?(?:[#/]|(?:https?:)?\/\/)/i;
 
 export default (new Transformer({
-  async loadConfig({config, options}) {
+  async loadConfig({config}) {
     let configFile = await config.getConfig(['.stylusrc', '.stylusrc.js'], {
       packageKey: 'stylus',
     });

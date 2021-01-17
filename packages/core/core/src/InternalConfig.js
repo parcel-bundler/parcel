@@ -3,7 +3,6 @@
 import type {
   FileCreateInvalidation,
   FilePath,
-  Glob,
   PackageName,
   ConfigResult,
 } from '@parcel/types';

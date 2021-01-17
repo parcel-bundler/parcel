@@ -4,7 +4,6 @@ import type {
   ConfigResult,
   FileCreateInvalidation,
   FilePath,
-  Glob,
   PackageJSON,
   PackageName,
   ConfigResultWithFilePath,
