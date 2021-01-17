@@ -406,13 +406,16 @@ export class TargetResolver {
             path.join(pkgDir, DEFAULT_DIST_DIRNAME, targetName);
         }
 
+        if (_descriptor == false) {
+          continue;
+        }
+
         let descriptor = parseCommonTargetDescriptor(
           targetName,
           _descriptor,
           pkgFilePath,
           pkgContents,
         );
-        if (!descriptor) continue;
 
         let isLibrary =
           typeof distEntry === 'string'
@@ -640,7 +643,7 @@ function parseCommonTargetDescriptor(
   descriptor: mixed,
   pkgPath: ?FilePath,
   pkgContents: ?string,
-): PackageTargetDescriptor | false {
+): PackageTargetDescriptor {
   validateSchema.diagnostic(
     COMMON_TARGET_DESCRIPTOR_SCHEMA,
     {
