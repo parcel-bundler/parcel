@@ -70,7 +70,7 @@ export default (new Transformer({
     let baseId = md5FromObject({
       filePath: asset.filePath,
     }).slice(-6);
-    let scopeId = 'data-v-' + baseId;
+    let scopeId = baseId;
     let hmrId = baseId + '-hmr';
     let basePath = basename(asset.filePath);
     let {template, script, styles, customBlocks} = nullthrows(
@@ -249,9 +249,7 @@ async function processPipeline({
         source: content,
         inMap: template.src ? undefined : template.map,
         isFunctional,
-        compilerOptions: {
-          scopeId,
-        },
+        id: scopeId,
       });
       if (templateComp.errors.length) {
         throw new ThrowableDiagnostic({
