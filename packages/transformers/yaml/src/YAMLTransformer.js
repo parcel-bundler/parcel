@@ -7,12 +7,12 @@ export default (new Transformer({
     const yaml = await options.packageManager.require(
       'js-yaml',
       asset.filePath,
-      {shouldAutoInstall: options.shouldAutoInstall},
+      {shouldAutoInstall: options.shouldAutoInstall, range: '^4.0.0'},
     );
     asset.type = 'js';
     asset.setCode(
       `module.exports = ${JSON.stringify(
-        yaml.safeLoad(await asset.getCode()),
+        yaml.load(await asset.getCode()),
         null,
         2,
       )};`,
