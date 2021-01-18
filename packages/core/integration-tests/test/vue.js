@@ -55,7 +55,7 @@ describe('vue', function() {
     );
     let output = (await run(b)).default;
     assert.equal(typeof output.render, 'function');
-    assert(/^data-v-[0-9a-h]{6}$/.test(output.__scopeId));
+    assert(/^[0-9a-h]{6}$/.test(output.__scopeId));
     assert.deepEqual(output.data(), {ok: true});
     let contents = await outputFS.readFile(
       path.join(distDir, 'App.css'),
