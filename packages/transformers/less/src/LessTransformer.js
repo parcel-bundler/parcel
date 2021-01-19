@@ -68,6 +68,10 @@ export default (new Transformer({
         sources: rawMap.sources.map(s => path.relative(options.projectRoot, s)),
       });
       asset.setMap(map);
+
+      for (let source of rawMap.sources) {
+        if (source !== asset.filePath) await asset.addIncludedFile(source);
+      }
     }
 
     asset.setCode(result.css);
