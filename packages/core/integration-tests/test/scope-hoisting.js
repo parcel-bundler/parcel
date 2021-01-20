@@ -581,6 +581,18 @@ describe('scope hoisting', function() {
       assert.strictEqual(output, Test);
     });
 
+    it('should default export JS globals', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/export-default-js-global/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert(new output([1, 2, 3]).has(1));
+    });
+
     it('should remove export named declaration without specifiers', async function() {
       let b = await bundle(
         path.join(
