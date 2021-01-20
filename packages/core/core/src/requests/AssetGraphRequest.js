@@ -148,6 +148,18 @@ export class AssetGraphBuilder {
         visitChildren(node);
       } else {
         // ? do we need to visit children inside of the promise that is queued?
+        if (typeof node.value === 'object' && node.value?.env) {
+          let {id, context} = node.value.env;
+          let idAndContext = `${id}-${context}`;
+          if (envCache.has(idAndContext)) {
+            // $FlowFixMe - Already asserted that node.value is an object
+            node.value.env = envCache.get(idAndContext);
+          } else {
+            // $FlowFixMe
+            envCache.set(idAndContext, node.value.env);
+          }
+        }
+
         this.queueCorrespondingRequest(node, errors).then(() =>
           visitChildren(node),
         );
@@ -201,20 +213,6 @@ export class AssetGraphBuilder {
     dumpToGraphViz(this.requestGraph, 'RequestGraph');
 
     dumpToGraphViz(this.assetGraph, 'AssetGraph');
-
-    for (let asset of this.assetGraph.nodes.entries()) {
-      if (typeof asset[1].value === 'object' && asset[1].value?.env) {
-        let {id, context} = asset[1].value.env;
-        let idAndContext = `${id}-${context}`;
-        if (envCache.has(idAndContext)) {
-          // $FlowFixMe - Already asserted that asset[1].value is an object
-          asset[1].value.env = envCache.get(idAndContext);
-        } else {
-          // $FlowFixMe
-          envCache.set(idAndContext, asset[1].value.env);
-        }
-      }
-    }
 
     return {
       assetGraph: this.assetGraph,
