@@ -17,7 +17,7 @@ let inputDir: string;
 
 function runBundle(entries = 'src/index.js', opts) {
   entries = (Array.isArray(entries) ? entries : [entries]).map(entry =>
-    path.join(inputDir, entry),
+    path.resolve(inputDir, entry),
   );
 
   return bundler(entries, {
@@ -2700,5 +2700,32 @@ describe('cache', function() {
     assert(typeof result1 === 'string' && result1.includes('foo'));
     assert.strictEqual(result1, result2);
     assert.strictEqual(result1, result3);
+  });
+
+  it('should correctly reuse intermediate pipeline results when transforming', async function() {
+    await ncp(path.join(__dirname, '/integration/json'), path.join(inputDir));
+
+    let entry = path.join(inputDir, 'index.js');
+    let original = await overlayFS.readFile(entry, 'utf8');
+
+    let b = await runBundle(entry);
+    let result1 = (await run(b.bundleGraph))();
+
+    await overlayFS.writeFile(
+      entry,
+      'module.exports = function(){ return 10; }',
+    );
+
+    b = await runBundle(entry);
+    let result2 = (await run(b.bundleGraph))();
+
+    await overlayFS.writeFile(entry, original);
+
+    b = await runBundle(entry);
+    let result3 = (await run(b.bundleGraph))();
+
+    assert.strictEqual(result1, 3);
+    assert.strictEqual(result2, 10);
+    assert.strictEqual(result3, 3);
   });
 });
