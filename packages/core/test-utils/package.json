@@ -18,7 +18,7 @@
     "@parcel/fs": "2.0.0-beta.1",
     "@parcel/package-manager": "2.0.0-beta.1",
     "@parcel/utils": "2.0.0-beta.1",
-    "chalk": "^2.1.0",
+    "chalk": "^4.1.0",
     "ncp": "^2.0.0",
     "nullthrows": "^1.1.1",
     "posthtml": "^0.15.1",

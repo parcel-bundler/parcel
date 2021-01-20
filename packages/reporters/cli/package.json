@@ -23,12 +23,12 @@
     "@parcel/plugin": "2.0.0-beta.1",
     "@parcel/types": "2.0.0-beta.1",
     "@parcel/utils": "2.0.0-beta.1",
-    "chalk": "^3.0.0",
-    "filesize": "^3.6.0",
+    "chalk": "^4.1.0",
+    "filesize": "^6.1.0",
     "nullthrows": "^1.1.1",
-    "ora": "^4.0.3",
+    "ora": "^5.2.0",
     "string-width": "^4.2.0",
     "strip-ansi": "^6.0.0",
-    "term-size": "^2.1.1"
+    "term-size": "^2.2.1"
   }
 }
