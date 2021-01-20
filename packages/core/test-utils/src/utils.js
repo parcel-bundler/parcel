@@ -53,7 +53,7 @@ export async function ncp(source: FilePath, destination: FilePath) {
 //   await workerFarm.end();
 // when https://github.com/nodejs/node/pull/28788 is resolved.
 
-const chalk = new _chalk.constructor({enabled: true});
+const chalk = new _chalk.Instance({enabled: true});
 const warning = chalk.keyword('orange');
 
 /* eslint-disable no-console */
