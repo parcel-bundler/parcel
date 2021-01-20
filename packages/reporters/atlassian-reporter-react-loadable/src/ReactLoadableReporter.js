@@ -70,6 +70,9 @@ const buildManifest = (
 
 exports.default = (new Reporter({
   async report({event, options}) {
+    if (options.mode == 'development' && process.env.PARCEL_REACT_LOADABLE) {
+      return;
+    }
     if (event.type !== 'buildSuccess') {
       return;
     }
