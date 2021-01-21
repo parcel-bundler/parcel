@@ -53,11 +53,11 @@ export async function ncp(source: FilePath, destination: FilePath) {
 //   await workerFarm.end();
 // when https://github.com/nodejs/node/pull/28788 is resolved.
 
-const chalk = new _chalk.Instance({enabled: true});
+const chalk = new _chalk.Instance();
 const warning = chalk.keyword('orange');
 
 /* eslint-disable no-console */
-// $FlowFixMe
+// $FlowFixMe[cannot-write]
 console.warn = (...args) => {
   // eslint-disable-next-line no-console
   console.error(warning(...args));
@@ -263,7 +263,7 @@ export async function runBundles(
         } else {
           for (let key in ctx) {
             if (key.startsWith('parcelRequire')) {
-              // $FlowFixMe
+              // $FlowFixMe[incompatible-use]
               return ctx[key](bundleGraph.getAssetPublicId(entryAsset));
             }
           }
@@ -397,7 +397,7 @@ export function assertBundles(
           `${actualBundle.name} does not match regexp ${name.toString()}`,
         );
       } else {
-        // $FlowFixMe
+        // $FlowFixMe[incompatible-call]
         assert.fail();
       }
     }
@@ -532,7 +532,7 @@ const nodeCache = {};
 function prepareNodeContext(filePath, globals) {
   let exports = {};
   let req = specifier => {
-    // $FlowFixMe
+    // $FlowFixMe[prop-missing]
     let res = resolve.sync(specifier, {
       basedir: path.dirname(filePath),
       preserveSymlinks: true,
@@ -572,7 +572,7 @@ function prepareNodeContext(filePath, globals) {
     }
 
     if (res === specifier) {
-      // $FlowFixMe
+      // $FlowFixMe[unsupported-syntax]
       return require(specifier);
     }
 
