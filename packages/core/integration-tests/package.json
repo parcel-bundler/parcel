@@ -8,7 +8,7 @@
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
   "scripts": {
-    "test": "cross-env NODE_ENV=test PARCEL_BUILD_ENV=test mocha",
+    "test": "cross-env NODE_OPTIONS=--experimental-vm-modules NODE_ENV=test PARCEL_BUILD_ENV=test mocha",
     "test-ci": "yarn test --reporter mocha-multi-reporters --reporter-options configFile=./test/mochareporters.json"
   },
   "devDependencies": {
@@ -20,7 +20,7 @@
     "@babel/preset-env": "^7.1.0",
     "@jetbrains/kotlinc-js-api": "^1.2.12",
     "@mdx-js/react": "^1.5.3",
-    "chalk": "^2.1.0",
+    "chalk": "^4.1.0",
     "codecov": "^3.0.0",
     "command-exists": "^1.2.6",
     "core-js": "^3.2.1",

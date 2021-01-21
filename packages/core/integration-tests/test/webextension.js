@@ -23,10 +23,10 @@ describe('webextension', function() {
         name: 'manifest.json',
         assets: ['manifest.json'],
       },
-      // next three are implemented to have the same name, but theoretically
       {assets: ['a.txt']},
       {assets: ['b.txt']},
       {assets: ['foo.png']},
+      {assets: ['foo-dark.png']},
       {assets: ['popup.html']},
       {assets: ['devtools.html']},
       {assets: ['content.js']},
