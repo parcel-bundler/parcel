@@ -998,6 +998,23 @@ describe('html', function() {
     assert(!html.includes('@import'));
   });
 
+  it('should not modify inline importmaps', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-inline-importmap/index.html'),
+      {production: true},
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.html',
+        assets: ['index.html'],
+      },
+    ]);
+
+    let html = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(html.includes('/node_modules/lit1.3.0/'));
+  });
+
   it('should allow imports and requires in inline <script> tags', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-inline-js-require/index.html'),

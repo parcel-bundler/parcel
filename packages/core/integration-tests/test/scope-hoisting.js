@@ -4127,6 +4127,23 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, 42);
     });
 
+    it('should retain the correct concat order with wrapped assets', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/wrap-concat-order/a.js',
+        ),
+      );
+
+      let calls = [];
+      await run(b, {
+        sideEffect(v) {
+          calls.push(v);
+        },
+      });
+      assert.deepStrictEqual(calls, [1, 2, 3, 4, 5, 6, 7]);
+    });
+
     it('should support optional requires', async function() {
       let b = await bundle(
         path.join(
