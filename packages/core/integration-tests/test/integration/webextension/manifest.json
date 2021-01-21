@@ -14,6 +14,11 @@
     "default_icon": {
       "100": "src/assets/foo.png"
     },
+    "theme_icons": [{
+      "dark": "src/assets/foo-dark.png",
+      "light": "src/assets/foo.png",
+      "size": 16
+    }],
     "default_popup": "src/popup.html"
   },
   "content_scripts": [{
