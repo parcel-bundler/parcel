@@ -22,11 +22,14 @@ const bundle = (name, opts = {}) => {
   return _bundle(
     name,
     // $FlowFixMe
-    mergeParcelOptions(opts, {
-      defaultTargetOptions: {
-        shouldScopeHoist: true,
+    mergeParcelOptions(
+      {
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
       },
-    }),
+      opts,
+    ),
   );
 };
 
@@ -34,11 +37,14 @@ const bundler = (name, opts = {}) => {
   return _bundler(
     name,
     // $FlowFixMe
-    mergeParcelOptions(opts, {
-      defaultTargetOptions: {
-        shouldScopeHoist: true,
+    mergeParcelOptions(
+      {
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
       },
-    }),
+      opts,
+    ),
   );
 };
 
