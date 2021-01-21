@@ -1,6 +1,7 @@
 // @flow strict-local
 
 import type {
+  AST,
   FilePath,
   GenerateOutput,
   Transformer,
@@ -54,10 +55,6 @@ import {PARCEL_VERSION} from './constants';
 import {optionsProxy} from './utils';
 
 type GenerateFunc = (input: UncommittedAsset) => Promise<GenerateOutput>;
-
-type PostProcessFunc = (
-  Array<UncommittedAsset>,
-) => Promise<Array<UncommittedAsset> | null>;
 
 export type TransformationOpts = {|
   options: ParcelOptions,
@@ -296,41 +293,7 @@ export default class Transformation {
       }
     }
 
-    if (!pipeline.postProcess) {
-      return finalAssets;
-    }
-
-    let processedCacheEntry = await this.readFromCache(
-      this.getCacheKey(
-        finalAssets,
-        pipeline.configs,
-        await getInvalidationHash(
-          finalAssets.flatMap(asset => asset.getInvalidations()),
-          this.options,
-        ),
-      ),
-    );
-
-    invariant(pipeline.postProcess != null);
-    let processedFinalAssets: Array<UncommittedAsset> =
-      processedCacheEntry ?? (await pipeline.postProcess(finalAssets)) ?? [];
-
-    if (!processedCacheEntry) {
-      await this.writeToCache(
-        this.getCacheKey(
-          processedFinalAssets,
-          pipeline.configs,
-          await getInvalidationHash(
-            processedFinalAssets.flatMap(asset => asset.getInvalidations()),
-            this.options,
-          ),
-        ),
-        processedFinalAssets,
-        pipeline.configs,
-      );
-    }
-
-    return processedFinalAssets;
+    return finalAssets;
   }
 
   async runPipeline(
@@ -369,8 +332,6 @@ export default class Transformation {
             transformer.plugin,
             transformer.name,
             transformer.config,
-            transformer.configKeyPath,
-            this.parcelConfig,
           );
 
           for (let result of transformerResults) {
@@ -437,12 +398,28 @@ export default class Transformation {
       return null;
     }
 
-    return cachedAssets.map(
-      (value: AssetValue) =>
-        new UncommittedAsset({
+    return Promise.all(
+      cachedAssets.map(async (value: AssetValue) => {
+        let content =
+          value.contentKey != null
+            ? this.options.cache.getStream(value.contentKey)
+            : null;
+        let mapBuffer =
+          value.astKey != null
+            ? await this.options.cache.getBlob<Buffer>(value.astKey)
+            : null;
+        let ast =
+          value.astKey != null
+            ? await this.options.cache.getBlob<AST>(value.astKey)
+            : null;
+        return new UncommittedAsset({
           value,
           options: this.options,
-        }),
+          content,
+          mapBuffer,
+          ast,
+        });
+      }),
     );
   }
 
@@ -611,7 +588,6 @@ type Pipeline = {|
   pluginOptions: PluginOptions,
   resolverRunner: ResolverRunner,
   workerApi: WorkerApi,
-  postProcess?: PostProcessFunc,
   generate?: GenerateFunc,
 |};
 
@@ -628,8 +604,6 @@ async function runTransformer(
   transformer: Transformer,
   transformerName: string,
   preloadedConfig: ?Config,
-  configKeyPath: string,
-  parcelConfig: ParcelConfig,
 ): Promise<Array<TransformerResult>> {
   const logger = new PluginLogger({origin: transformerName});
 
@@ -694,7 +668,7 @@ async function runTransformer(
     }),
   );
 
-  // Create generate and postProcess functions that can be called later
+  // Create generate functions that can be called later
   pipeline.generate = (input: UncommittedAsset): Promise<GenerateOutput> => {
     if (transformer.generate && input.ast) {
       let generated = transformer.generate({
@@ -711,33 +685,6 @@ async function runTransformer(
       'Asset has an AST but no generate method is available on the transform',
     );
   };
-
-  // For Flow
-  let postProcess = transformer.postProcess;
-  if (postProcess) {
-    pipeline.postProcess = async (
-      assets: Array<UncommittedAsset>,
-    ): Promise<Array<UncommittedAsset> | null> => {
-      let results = await postProcess.call(transformer, {
-        assets: assets.map(asset => new MutableAsset(asset)),
-        config,
-        options: pipeline.pluginOptions,
-        resolve,
-        logger,
-      });
-
-      return Promise.all(
-        results.map(result =>
-          asset.createChildAsset(
-            result,
-            transformerName,
-            parcelConfig.filePath,
-            configKeyPath,
-          ),
-        ),
-      );
-    };
-  }
 
   return results;
 }

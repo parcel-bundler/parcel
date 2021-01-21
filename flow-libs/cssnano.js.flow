@@ -7,7 +7,7 @@
 declare module 'cssnano' {
   declare interface CSSNanoOptions {
     configFile?: string;
-    preset?: [string, object] | string;
+    preset?: [string, mixed] | string;
   }
-  declare module.exports: (?CSSNanoOptions) => mixed;
+  declare module.exports: (?CSSNanoOptions) => void;
 }

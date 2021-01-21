@@ -434,6 +434,7 @@ export type DependencyOptions = {|
   +loc?: SourceLocation,
   +env?: EnvironmentOptions,
   +meta?: Meta,
+  +pipeline?: string,
   +resolveFrom?: FilePath,
   +target?: Target,
   +symbols?: $ReadOnlyMap<
@@ -778,13 +779,6 @@ export type Transformer = {|
     options: PluginOptions,
     logger: PluginLogger,
   |}) => Async<GenerateOutput>,
-  postProcess?: ({|
-    assets: Array<MutableAsset>,
-    config: ?ConfigResult,
-    resolve: ResolveFn,
-    options: PluginOptions,
-    logger: PluginLogger,
-  |}) => Async<Array<TransformerResult>>,
 |};
 
 /**

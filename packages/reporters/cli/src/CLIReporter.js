@@ -1,6 +1,7 @@
 // @flow
 import type {ReporterEvent, PluginOptions} from '@parcel/types';
 import type {Diagnostic} from '@parcel/diagnostic';
+import type {Color} from 'chalk';
 
 import {Reporter} from '@parcel/plugin';
 import {prettifyTime, prettyDiagnostic, throttle} from '@parcel/utils';
@@ -163,7 +164,7 @@ export async function _report(
 async function writeDiagnostic(
   options: PluginOptions,
   diagnostics: Array<Diagnostic>,
-  color: string,
+  color: Color,
   isError: boolean = false,
 ) {
   for (let diagnostic of diagnostics) {
