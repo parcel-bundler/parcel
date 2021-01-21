@@ -839,12 +839,15 @@ export default class NodeResolver {
     switch (typeof pkg.sideEffects) {
       case 'boolean':
         return pkg.sideEffects;
-      case 'string':
+      case 'string': {
+        let sideEffects = pkg.sideEffects;
+        invariant(typeof sideEffects === 'string');
         return micromatch.isMatch(
           path.relative(pkg.pkgdir, filePath),
-          pkg.sideEffects,
+          sideEffects,
           {matchBase: true},
         );
+      }
       case 'object':
         return pkg.sideEffects.some(sideEffects =>
           this.hasSideEffects(filePath, {...pkg, sideEffects}),
