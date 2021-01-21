@@ -315,7 +315,7 @@ describe('css', () => {
   it('should inline data-urls for text-encoded files', async () => {
     await bundle(path.join(__dirname, '/integration/data-url/text.css'), {
       defaultTargetOptions: {
-        shouldOptimize: true,
+        sourceMaps: false,
       },
     });
     let css = await outputFS.readFile(path.join(distDir, 'text.css'), 'utf8');

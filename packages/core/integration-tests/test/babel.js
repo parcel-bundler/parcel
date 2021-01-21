@@ -119,7 +119,7 @@ describe('babel', function() {
   it('should not compile with babel if no targets are defined', async function() {
     await bundle(path.join(__dirname, '/integration/babel-default/index.js'), {
       defaultTargetOptions: {
-        engines: null,
+        engines: undefined,
         shouldOptimize: false,
       },
     });
