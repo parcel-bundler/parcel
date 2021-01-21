@@ -148,14 +148,16 @@ async function collectDependencies(
     }
   }
   if (program.web_accessible_resources) {
+    let war = [];
     for (let i = 0; i < program.web_accessible_resources.length; ++i) {
       // TODO: this doesn't support Parcel resolution
-      const globQuery = join(
+      const globFiles = (await glob(join(
         dirname(filePath),
         program.web_accessible_resources[i],
-      );
-      for (const fp of await glob(globQuery, fs, {})) {
-        asset.addURLDependency(relative(dirname(filePath), fp), {
+      ), fs, {})).map(fp => relative(dirname(filePath), fp));
+      war = war.concat(globFiles);
+      for (const fp of globFiles) {
+        asset.addURLDependency(fp, {
           isEntry: true,
           loc: {
             filePath,
@@ -164,6 +166,7 @@ async function collectDependencies(
         });
       }
     }
+    program.web_accessible_resources = war;
   }
   for (const loc of DEP_LOCS) {
     const location = '/' + loc.join('/');
