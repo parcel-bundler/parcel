@@ -679,4 +679,17 @@ describe('babel', function() {
       assert(file.includes('something different'));
     });
   });
+
+  it('should support transpiling optional chaining', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/babel-optional-chaining/index.js'),
+    );
+
+    let file = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(!file.includes('?.'));
+
+    let output = await run(b);
+    assert.equal(typeof output, 'object');
+    assert.equal(output.default, undefined);
+  });
 });
