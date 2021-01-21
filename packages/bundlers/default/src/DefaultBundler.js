@@ -10,7 +10,6 @@ import type {
 import type {SchemaEntity} from '@parcel/utils';
 
 import invariant from 'assert';
-//
 import {Bundler} from '@parcel/plugin';
 import {loadConfig, md5FromString, validateSchema} from '@parcel/utils';
 import nullthrows from 'nullthrows';
@@ -186,7 +185,6 @@ export default (new Bundler({
         bundleGraph.addEntryToBundle(asset, bundle);
       }
     }
-    // Optimizations
     invariant(config != null);
 
     // Step 2: Remove asset graphs that begin with entries to other bundles.

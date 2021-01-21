@@ -140,11 +140,12 @@ export default class BundlerRunner {
           diagnostic: errorToDiagnostic(e, this.config.getBundlerName()),
         });
       }
-    }
-    assertSignalNotAborted(signal);
+      assertSignalNotAborted(signal);
 
-    // $FlowFixMe
-    await dumpGraphToGraphViz(internalBundleGraph._graph, 'after_optimize');
+      // $FlowFixMe
+      await dumpGraphToGraphViz(internalBundleGraph._graph, 'after_optimize');
+    }
+
     await this.nameBundles(internalBundleGraph);
 
     await applyRuntimes({
