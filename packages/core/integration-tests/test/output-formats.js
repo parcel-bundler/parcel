@@ -4,13 +4,25 @@ import nullthrows from 'nullthrows';
 import {
   assertBundles,
   bundle as _bundle,
+  mergeParcelOptions,
   outputFS,
   run,
   runBundle,
 } from '@parcel/test-utils';
 
-const bundle = (name, opts = {}) =>
-  _bundle(name, Object.assign({scopeHoist: true}, opts));
+const bundle = (name, opts = {}) => {
+  return _bundle(
+    name,
+    mergeParcelOptions(
+      {
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
+      },
+      opts,
+    ),
+  );
+};
 
 describe('output formats', function() {
   describe('commonjs', function() {
@@ -938,11 +950,13 @@ describe('output formats', function() {
       let b = await bundle(
         path.join(__dirname, '/integration/formats/esm-browser/index.html'),
         {
-          defaultEngines: {
-            browsers: [
-              // Implements es modules but not dynamic imports
-              'Chrome 61',
-            ],
+          defaultTargetOptions: {
+            engines: {
+              browsers: [
+                // Implements es modules but not dynamic imports
+                'Chrome 61',
+              ],
+            },
           },
         },
       );
