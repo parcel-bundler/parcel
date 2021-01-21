@@ -63,13 +63,16 @@ export default ({
           enum: ['navbar', 'menupanel', 'tabstrip', 'personaltoolbar'],
         },
         theme_icons: {
-          type: 'object',
-          properties: {
-            light: {type: 'string'},
-            dark: {type: 'string'},
-            size: {type: 'number'},
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              light: {type: 'string'},
+              dark: {type: 'string'},
+              size: {type: 'number'},
+            },
+            required: ['light', 'dark', 'size'],
           },
-          required: ['light', 'dark', 'size'],
         },
       },
     },
