@@ -4,10 +4,10 @@
 // Derived from the PostCSS docs available at
 // http://api.postcss.org/postcss.html.
 
-// eslint-disable-next-line import/no-extraneous-dependencies
-import typeof {SourceMapGenerator} from 'source-map';
-
 declare module 'postcss' {
+  // eslint-disable-next-line import/no-extraneous-dependencies
+  import type {SourceMapGenerator} from 'source-map';
+
   declare type Callback<T> = (T, number) => false | void;
 
   declare interface Input {
@@ -77,11 +77,11 @@ declare module 'postcss' {
     from: string,
     to: string,
     map: MapOptions,
-    parser: parser,
-    stringifier: stringifier,
+    parser: Parser,
+    stringifier: Stringifier,
     syntax: {|
-      parser: parser,
-      stringifier: stringifier,
+      parser: Parser,
+      stringifier: Stringifier,
     |},
   |}>;
 
@@ -102,14 +102,14 @@ declare module 'postcss' {
     postcss(...args: Array<any>): void,
   |};
 
-  declare type pluginFunction = (root: Root, result: Result) => void;
+  declare type PluginFunction = (root: Root, result: Result) => void;
 
   declare type Result = {
     content: string,
     css: string,
     map: SourceMapGenerator,
     messages: Array<Message>,
-    opts: processOptions,
+    opts: ProcessOptions,
     processor: Processor,
     root: Root,
     toString(): string,

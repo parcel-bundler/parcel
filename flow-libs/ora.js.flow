@@ -5,10 +5,9 @@
  * @flow
  */
 
-import type { SpinnerName } from "cli-spinners";
-
 declare module 'ora' { // manually added
 
+import type { SpinnerName } from "cli-spinners";
 
 declare var npm$namespace$ora: {|
   Spinner: Class<ora$Spinner>,
@@ -92,7 +91,7 @@ declare interface ora$Options {
    * You could for example set this to `process.stdout` instead.
    * @default process.stderr
    */
-  +stream?: NodeJS$WritableStream;
+  +stream?: stream$Writable;
 
   /**
    * Force enable/disable the spinner. If not specified, the spinner will be enabled if the `stream` is being run inside a TTY context (not spawned or piped) and/or not in a CI environment.
@@ -257,7 +256,7 @@ declare var ora: {
    * @param options - If a string is provided, it is treated as a shortcut for `options.text`.
    * @returns The spinner instance.
    */
-  promise(action: PromiseLike<mixed>, options?: ora$Options | string): ora$Ora,
+  promise(action: Promise<mixed>, options?: ora$Options | string): ora$Ora,
   ...
 };
 declare export default typeof ora;
