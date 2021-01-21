@@ -151,10 +151,13 @@ async function collectDependencies(
     let war = [];
     for (let i = 0; i < program.web_accessible_resources.length; ++i) {
       // TODO: this doesn't support Parcel resolution
-      const globFiles = (await glob(join(
-        dirname(filePath),
-        program.web_accessible_resources[i],
-      ), fs, {})).map(fp => relative(dirname(filePath), fp));
+      const globFiles = (
+        await glob(
+          join(dirname(filePath), program.web_accessible_resources[i]),
+          fs,
+          {},
+        )
+      ).map(fp => relative(dirname(filePath), fp));
       war = war.concat(globFiles);
       for (const fp of globFiles) {
         asset.addURLDependency(fp, {
