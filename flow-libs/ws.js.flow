@@ -1,6 +1,6 @@
-// flow-typed signature: cf710812f8fe053ca189786d3fa45067
-// flow-typed version: be32675b14/ws_v7.x.x/flow_>=v0.104.x
+// Adapated from flow-typed
 
+/* eslint-disable */
 declare type ws$PerMessageDeflateOptions = {|
   serverNoContextTakeover?: boolean,
   clientNoContextTakeover?: boolean,
@@ -14,6 +14,7 @@ declare type ws$PerMessageDeflateOptions = {|
   maxPayload?: number,
 |};
 
+// $FlowFixMe[incompatible-extend]
 declare class ws$WebSocketServer extends events$EventEmitter {
   /**
    * Create a `WebSocketServer` instance.
@@ -167,6 +168,7 @@ declare type ws$UnexpectedResponseListener = (
 ) => mixed;
 declare type ws$UpgradeListener = (response: http$IncomingMessage<>) => mixed;
 
+// $FlowFixMe[incompatible-extend]
 declare class ws$WebSocket extends events$EventEmitter {
   static Server: typeof ws$WebSocketServer;
 

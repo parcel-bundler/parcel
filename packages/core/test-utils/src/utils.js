@@ -9,6 +9,7 @@ import type {
   InitialParcelOptions,
   NamedBundle,
 } from '@parcel/types';
+import type {FileSystem} from '@parcel/fs';
 import type WorkerFarm from '@parcel/workers';
 
 import invariant from 'assert';
@@ -53,16 +54,20 @@ export async function ncp(source: FilePath, destination: FilePath) {
 //   await workerFarm.end();
 // when https://github.com/nodejs/node/pull/28788 is resolved.
 
-const chalk = new _chalk.constructor({enabled: true});
+const chalk = new _chalk.Instance();
 const warning = chalk.keyword('orange');
 
 /* eslint-disable no-console */
-// $FlowFixMe
+// $FlowFixMe[cannot-write]
 console.warn = (...args) => {
   // eslint-disable-next-line no-console
   console.error(warning(...args));
 };
 /* eslint-enable no-console */
+
+type ExternalModules = {|
+  [name: string]: (vm$Context) => {[string]: mixed},
+|};
 
 export function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -97,7 +102,7 @@ If you don't know how, check here: https://bit.ly/2UmWsbD
 
 export function bundler(
   entries: FilePath | Array<FilePath>,
-  opts?: InitialParcelOptions,
+  opts?: $Shape<InitialParcelOptions>,
 ): Parcel {
   return new Parcel({
     entries,
@@ -201,6 +206,23 @@ export function getNextBuild(b: Parcel): Promise<BuildEvent> {
   });
 }
 
+export function shallowEqual(
+  a: $Shape<{|+[string]: mixed|}>,
+  b: $Shape<{|+[string]: mixed|}>,
+): boolean {
+  if (Object.keys(a).length !== Object.keys(b).length) {
+    return false;
+  }
+
+  for (let [key, value] of Object.entries(a)) {
+    if (!b.hasOwnProperty(key) || b[key] !== value) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 type RunOpts = {require?: boolean, ...};
 
 export async function runBundles(
@@ -209,6 +231,7 @@ export async function runBundles(
   bundles: Array<NamedBundle>,
   globals: mixed,
   opts: RunOpts = {},
+  externalModules?: ExternalModules,
 ): Promise<mixed> {
   let entryAsset = nullthrows(
     bundles
@@ -216,7 +239,8 @@ export async function runBundles(
       .filter(Boolean)[0],
   );
   let env = entryAsset.env;
-  let target = entryAsset.env.context;
+  let target = env.context;
+  let outputFormat = env.outputFormat;
 
   let ctx, promises;
   switch (target) {
@@ -228,13 +252,19 @@ export async function runBundles(
     }
     case 'node':
     case 'electron-main':
-      ctx = prepareNodeContext(parent.filePath, globals);
+      ctx = prepareNodeContext(
+        outputFormat === 'commonjs' && parent.filePath,
+        globals,
+      );
       break;
     case 'electron-renderer': {
       let browser = prepareBrowserContext(parent.filePath, globals);
       ctx = {
         ...browser.ctx,
-        ...prepareNodeContext(parent.filePath, globals),
+        ...prepareNodeContext(
+          outputFormat === 'commonjs' && parent.filePath,
+          globals,
+        ),
       };
       promises = browser.promises;
       break;
@@ -244,26 +274,42 @@ export async function runBundles(
   }
 
   vm.createContext(ctx);
-  for (let b of bundles) {
-    new vm.Script(await overlayFS.readFile(nullthrows(b.filePath), 'utf8'), {
-      filename: b.name,
-    }).runInContext(ctx);
+  let esmOutput;
+  if (outputFormat === 'esmodule') {
+    invariant(bundles.length === 1, 'currently there can only be one bundle');
+    [esmOutput] = await runESM(
+      [nullthrows(bundles[0].filePath)],
+      ctx,
+      overlayFS,
+      externalModules,
+      true,
+    );
+  } else {
+    invariant(
+      externalModules == null,
+      'externalModules are only supported with ESM',
+    );
+    for (let b of bundles) {
+      // require, parcelRequire was set up in prepare*Context
+      new vm.Script(await overlayFS.readFile(nullthrows(b.filePath), 'utf8'), {
+        filename: b.name,
+      }).runInContext(ctx);
+    }
   }
-
   if (promises) {
     // await any ongoing dynamic imports during the run
     await Promise.all(promises);
   }
 
   if (opts.require !== false) {
-    switch (env.outputFormat) {
+    switch (outputFormat) {
       case 'global':
         if (env.scopeHoist) {
           return typeof ctx.output !== 'undefined' ? ctx.output : undefined;
         } else {
           for (let key in ctx) {
             if (key.startsWith('parcelRequire')) {
-              // $FlowFixMe
+              // $FlowFixMe[incompatible-use]
               return ctx[key](bundleGraph.getAssetPublicId(entryAsset));
             }
           }
@@ -272,6 +318,8 @@ export async function runBundles(
       case 'commonjs':
         invariant(typeof ctx.module === 'object' && ctx.module != null);
         return ctx.module.exports;
+      case 'esmodule':
+        return esmOutput;
       default:
         throw new Error(
           'Unable to run bundle with outputFormat ' + env.outputFormat,
@@ -287,6 +335,7 @@ export async function runBundle(
   bundle: NamedBundle,
   globals: mixed,
   opts: RunOpts = {},
+  externalModules?: ExternalModules,
 ): Promise<mixed> {
   if (bundle.type === 'html') {
     let code = await overlayFS.readFile(nullthrows(bundle.filePath));
@@ -312,9 +361,17 @@ export async function runBundle(
       scripts.map(p => nullthrows(bundles.find(b => b.filePath === p))),
       globals,
       opts,
+      externalModules,
     );
   } else {
-    return runBundles(bundleGraph, bundle, [bundle], globals, opts);
+    return runBundles(
+      bundleGraph,
+      bundle,
+      [bundle],
+      globals,
+      opts,
+      externalModules,
+    );
   }
 }
 
@@ -322,12 +379,13 @@ export function run(
   bundleGraph: BundleGraph<NamedBundle>,
   globals: mixed,
   opts: RunOpts = {},
+  externalModules?: ExternalModules,
   // $FlowFixMe[unclear-type]
 ): Promise<any> {
   let bundle = nullthrows(
     bundleGraph.getBundles().find(b => b.type === 'js' || b.type === 'html'),
   );
-  return runBundle(bundleGraph, bundle, globals, opts);
+  return runBundle(bundleGraph, bundle, globals, opts, externalModules);
 }
 
 export function assertBundles(
@@ -397,7 +455,7 @@ export function assertBundles(
           `${actualBundle.name} does not match regexp ${name.toString()}`,
         );
       } else {
-        // $FlowFixMe
+        // $FlowFixMe[incompatible-call]
         assert.fail();
       }
     }
@@ -529,100 +587,218 @@ function prepareBrowserContext(
 }
 
 const nodeCache = {};
+// no filepath = ESM
 function prepareNodeContext(filePath, globals) {
   let exports = {};
-  let req = specifier => {
-    // $FlowFixMe
-    let res = resolve.sync(specifier, {
-      basedir: path.dirname(filePath),
-      preserveSymlinks: true,
-      extensions: ['.js', '.json'],
-      readFileSync: (...args) => {
-        return overlayFS.readFileSync(...args);
-      },
-      isFile: file => {
-        try {
-          var stat = overlayFS.statSync(file);
-        } catch (err) {
-          return false;
-        }
-        return stat.isFile();
-      },
-      isDirectory: file => {
-        try {
-          var stat = overlayFS.statSync(file);
-        } catch (err) {
-          return false;
-        }
-        return stat.isDirectory();
-      },
+  let req =
+    filePath &&
+    (specifier => {
+      // $FlowFixMe[prop-missing]
+      let res = resolve.sync(specifier, {
+        basedir: path.dirname(filePath),
+        preserveSymlinks: true,
+        extensions: ['.js', '.json'],
+        readFileSync: (...args) => {
+          return overlayFS.readFileSync(...args);
+        },
+        isFile: file => {
+          try {
+            var stat = overlayFS.statSync(file);
+          } catch (err) {
+            return false;
+          }
+          return stat.isFile();
+        },
+        isDirectory: file => {
+          try {
+            var stat = overlayFS.statSync(file);
+          } catch (err) {
+            return false;
+          }
+          return stat.isDirectory();
+        },
+      });
+
+      // Shim FS module using overlayFS
+      if (res === 'fs') {
+        return {
+          readFile: async (file, encoding, cb) => {
+            let res = await overlayFS.readFile(file, encoding);
+            cb(null, res);
+          },
+          readFileSync: (file, encoding) => {
+            return overlayFS.readFileSync(file, encoding);
+          },
+        };
+      }
+
+      if (res === specifier) {
+        // $FlowFixMe[unsupported-syntax]
+        return require(specifier);
+      }
+
+      if (nodeCache[res]) {
+        return nodeCache[res].module.exports;
+      }
+
+      let ctx = prepareNodeContext(res, globals);
+      nodeCache[res] = ctx;
+
+      vm.createContext(ctx);
+      vm.runInContext(
+        '"use strict";\n' + overlayFS.readFileSync(res, 'utf8'),
+        ctx,
+      );
+      return ctx.module.exports;
     });
 
-    // Shim FS module using overlayFS
-    if (res === 'fs') {
-      return {
-        readFile: async (file, encoding, cb) => {
-          let res = await overlayFS.readFile(file, encoding);
-          cb(null, res);
-        },
-        readFileSync: (file, encoding) => {
-          return overlayFS.readFileSync(file, encoding);
-        },
-      };
-    }
-
-    if (res === specifier) {
-      // $FlowFixMe
-      return require(specifier);
-    }
-
-    if (nodeCache[res]) {
-      return nodeCache[res].module.exports;
-    }
-
-    let ctx = prepareNodeContext(res, globals);
-    nodeCache[res] = ctx;
-
-    vm.createContext(ctx);
-    vm.runInContext(
-      '"use strict";\n' + overlayFS.readFileSync(res, 'utf8'),
-      ctx,
-    );
-    return ctx.module.exports;
-  };
-
-  var ctx = Object.assign(
-    {
+  // $FlowFixMe any!
+  var ctx: any = {
+    ...(filePath && {
       module: {exports, require: req},
       exports,
       __filename: filePath,
       __dirname: path.dirname(filePath),
       require: req,
-      console,
-      process: process,
-      setTimeout: setTimeout,
-      setImmediate: setImmediate,
-    },
-    globals,
-  );
+    }),
+    console,
+    process: process,
+    setTimeout: setTimeout,
+    setImmediate: setImmediate,
+    global: null,
+    ...globals,
+  };
 
   ctx.global = ctx;
   return ctx;
 }
 
-export function shallowEqual(
-  a: $Shape<{|+[string]: mixed|}>,
-  b: $Shape<{|+[string]: mixed|}>,
-): boolean {
-  if (Object.keys(a).length !== Object.keys(b).length) {
-    return false;
-  }
+export async function runESM(
+  entries: Array<string>,
+  context: vm$Context,
+  fs: FileSystem,
+  externalModules: ExternalModules = {},
+  requireExtensions: boolean = false,
+): Promise<Array<{|[string]: mixed|}>> {
+  let cache = new Map();
+  function load(specifier, referrer) {
+    if (path.isAbsolute(specifier) || specifier.startsWith('.')) {
+      let extname = path.extname(specifier);
+      if (extname && extname !== '.js' && extname !== '.mjs') {
+        throw new Error(
+          'Unknown file extension in ' +
+            specifier +
+            ' from ' +
+            referrer.identifier,
+        );
+      }
+      let filename = path.resolve(
+        path.dirname(referrer.identifier),
+        !extname && !requireExtensions ? specifier + '.js' : specifier,
+      );
 
-  for (let [key, value] of Object.entries(a)) {
-    if (!b.hasOwnProperty(key) || b[key] !== value) {
-      return false;
+      let m = cache.get(filename);
+      if (m) {
+        return m;
+      }
+
+      let source = fs.readFileSync(filename, 'utf8');
+      // $FlowFixMe Experimental
+      m = new vm.SourceTextModule(source, {
+        identifier: filename,
+        importModuleDynamically: entry,
+        context,
+      });
+      cache.set(filename, m);
+      return m;
+    } else {
+      if (!(specifier in externalModules)) {
+        throw new Error(
+          `Couldn't resolve ${specifier} from ${referrer.identifier}`,
+        );
+      }
+
+      let m = cache.get(specifier);
+      if (m) {
+        return m;
+      }
+
+      let ns = externalModules[specifier](context);
+
+      // $FlowFixMe Experimental
+      m = new vm.SyntheticModule(
+        Object.keys(ns),
+        function() {
+          for (let [k, v] of Object.entries(ns)) {
+            this.setExport(k, v);
+          }
+        },
+        {identifier: specifier, context},
+      );
+      cache.set(specifier, m);
+      return m;
     }
   }
 
-  return true;
+  async function entry(specifier, referrer) {
+    let m = load(specifier, referrer);
+    if (m.status === 'unlinked') {
+      await m.link(load);
+    }
+    if (m.status === 'linked') {
+      await m.evaluate();
+    }
+    return m;
+  }
+
+  let modules = [];
+  for (let f of entries) {
+    modules.push(await entry(f, {identifier: ''}));
+  }
+
+  for (let m of modules) {
+    if (m.status === 'errored') {
+      throw m.error;
+    }
+  }
+
+  return modules.map(m => m.namespace);
+}
+
+export async function assertESMExports(
+  b: BundleGraph<NamedBundle>,
+  expected: mixed,
+  externalModules?: ExternalModules,
+  // $FlowFixMe[unclear-type]
+  evaluate: ?({|[string]: any|}) => mixed,
+) {
+  let parcelResult = await run(b, undefined, undefined, externalModules);
+
+  let entry = nullthrows(
+    b
+      .getBundles()
+      .find(b => b.type === 'js')
+      ?.getMainEntry(),
+  );
+  let [nodeResult] = await runESM(
+    [entry.filePath],
+    vm.createContext(prepareNodeContext(false, {})),
+    inputFS,
+    externalModules,
+  );
+
+  if (evaluate) {
+    parcelResult = await evaluate(parcelResult);
+    nodeResult = await evaluate(nodeResult);
+  }
+  assert.deepEqual(
+    parcelResult,
+    nodeResult,
+    "Bundle exports don't match Node's native behaviour",
+  );
+
+  if (!evaluate) {
+    parcelResult = {...parcelResult};
+  }
+  assert.deepEqual(parcelResult, expected);
 }

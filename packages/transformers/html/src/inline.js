@@ -28,7 +28,7 @@ export default function extractInlineAssets(
   let key = 0;
 
   // Extract inline <script> and <style> tags for processing.
-  let parts = [];
+  let parts: Array<TransformerResult> = [];
   let hasScripts = false;
   PostHTML().walk.call(program, (node: PostHTMLNode) => {
     let parcelKey = md5FromString(`${asset.id}:${key++}`);
@@ -64,8 +64,11 @@ export default function extractInlineAssets(
           type = 'js';
         }
 
+        if (!type) {
+          return node;
+        }
+
         if (!node.attrs) {
-          // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
           node.attrs = {};
         }
 
@@ -100,6 +103,7 @@ export default function extractInlineAssets(
           env,
           meta: {
             type: 'tag',
+            // $FlowFixMe
             node,
           },
         });
@@ -124,6 +128,7 @@ export default function extractInlineAssets(
         isInline: true,
         meta: {
           type: 'attr',
+          // $FlowFixMe
           node,
         },
       });
@@ -132,7 +137,6 @@ export default function extractInlineAssets(
     return node;
   });
 
-  // $FlowFixMe
   return {
     assets: parts,
     hasScripts,

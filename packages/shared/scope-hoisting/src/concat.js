@@ -172,9 +172,19 @@ export async function concat({
           .map(([, ast]) => ast)
           .flat();
       } else {
+        // splice assets with missing statementIndices last (= put wrapped asset at the top)
+        let wrapped = [];
         for (let [assetId, ast] of [...context.children].reverse()) {
-          let index = statementIndices.get(assetId) ?? 0;
-          statements.splice(index, 0, ...ast);
+          let index = statementIndices.get(assetId);
+          if (index) {
+            statements.splice(index, 0, ...ast);
+          } else {
+            wrapped.push(ast);
+          }
+        }
+
+        for (let ast of wrapped) {
+          statements.unshift(...ast);
         }
       }
 
