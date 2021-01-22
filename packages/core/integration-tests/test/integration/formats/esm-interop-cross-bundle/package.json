@@ -1,0 +1,5 @@
+{
+  "name": "esm-interop-cross-bundle",
+  "private": true,
+  "module": "dist/index.js"
+}
