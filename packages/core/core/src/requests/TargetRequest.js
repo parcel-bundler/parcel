@@ -595,6 +595,17 @@ function parseEngines(
   }
 }
 
+// Used for backwards compatibility
+function postProcessDescriptor(descriptor: mixed): mixed {
+  return {
+    ...descriptor,
+    // $FlowFixMe
+    shouldOptimize: descriptor.shouldOptimize || descriptor.minify,
+    // $FlowFixMe
+    shouldScopeHoist: descriptor.shouldScopeHoist || descriptor.scopeHoist,
+  };
+}
+
 function parseDescriptor(
   targetName: string,
   descriptor: mixed,
@@ -614,7 +625,7 @@ function parseDescriptor(
   );
 
   // $FlowFixMe we just verified this
-  return descriptor;
+  return postProcessDescriptor(descriptor);
 }
 
 function parsePackageDescriptor(
@@ -635,7 +646,7 @@ function parsePackageDescriptor(
     `Invalid target descriptor for target "${targetName}"`,
   );
   // $FlowFixMe we just verified this
-  return descriptor;
+  return postProcessDescriptor(descriptor);
 }
 
 function parseCommonTargetDescriptor(
@@ -657,13 +668,7 @@ function parseCommonTargetDescriptor(
   );
 
   // $FlowFixMe we just verified this
-  return {
-    ...descriptor,
-    // $FlowFixMe
-    shouldOptimize: descriptor.minify || descriptor.shouldOptimize,
-    // $FlowFixMe
-    shouldScopeHoist: descriptor.scopeHoist || descriptor.shouldScopeHoist,
-  };
+  return postProcessDescriptor(descriptor);
 }
 
 function assertNoDuplicateTargets(targets, pkgFilePath, pkgContents) {
