@@ -278,11 +278,7 @@ declare module "@babel/traverse" {
                 JSX,
                 Private,
                 TSTypeElement,
-                TSType,
-                NumberLiteral,
-                RegexLiteral,
-                RestProperty,
-                SpreadProperty } from "@babel/types";
+                TSType } from "@babel/types";
 
   declare export type VariableDeclarationKind =
     | "var"
@@ -428,7 +424,7 @@ declare module "@babel/traverse" {
       allowInsertArrow?: boolean,
       specCompliant?: boolean
     |}): void;
-    ensureBlock(): BabelBlockStatement;
+    ensureBlock(): BlockStatement;
 
     addComment(type: string, content: string, line?: boolean): void;
     addComments(type: string, comments: Array<string>): void;
@@ -1039,10 +1035,10 @@ declare module "@babel/traverse" {
     Private?: SingleVisitor<Private, S>,
     TSTypeElement?: SingleVisitor<TSTypeElement, S>,
     TSType?: SingleVisitor<TSType, S>,
-    NumberLiteral?: SingleVisitor<NumberLiteral, S>,
-    RegexLiteral?: SingleVisitor<RegexLiteral, S>,
-    RestProperty?: SingleVisitor<RestProperty, S>,
-    SpreadProperty?: SingleVisitor<SpreadProperty, S>,
+    NumberLiteral?: SingleVisitor<Node, S>,
+    RegexLiteral?: SingleVisitor<Node, S>,
+    RestProperty?: SingleVisitor<Node, S>,
+    SpreadProperty?: SingleVisitor<Node, S>,
     [string]: SingleVisitor<Node, S>,
     ...
   };
