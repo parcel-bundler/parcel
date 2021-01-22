@@ -78,7 +78,7 @@ const commonOptions = {
     'output directory to write to when unspecified by targets',
   '--profile': 'enable build profiling',
   '-V, --version': 'output the version number',
-  '--detailed-report [depth]': [
+  '--detailed-report [count]': [
     'Print the asset timings and sizes in the build report',
     parseOptionInt,
     '10',
