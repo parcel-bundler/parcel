@@ -12,6 +12,7 @@ import type {
   Entry,
   EntryFileNode,
   EntrySpecifierNode,
+  Environment,
   Target,
 } from './types';
 
@@ -25,6 +26,7 @@ import {
 import nullthrows from 'nullthrows';
 import Graph, {type GraphOpts} from './Graph';
 import {createDependency} from './Dependency';
+import {envCache} from './Environment';
 
 type InitOpts = {|
   entries?: Array<string>,
@@ -38,6 +40,24 @@ type SerializedAssetGraph = {|
 |};
 
 export function nodeFromDep(dep: Dependency): DependencyNode {
+  // if (
+  //   dep.id === '505a8f237d702ae361471e15399b1d33' ||
+  //   dep.id === '229c0b980b244349c94a967fcbd66d30' ||
+  //   dep.id === '29bed8456dcec5b09945cc17c3653687' ||
+  //   dep.id === '509070f216a5d752431ee8d7048ad55d'
+  // ) {
+  //   debugger;
+  // }
+  let {id, context} = dep.env;
+  let idAndContext = `${id}-${context}`;
+  if (envCache.has(idAndContext)) {
+    // $FlowFixMe - Already asserted that asset[1].value is an object
+    dep.env = envCache.get(idAndContext);
+  } else {
+    // $FlowFixMe
+    envCache.set(idAndContext, dep.env);
+  }
+
   return {
     id: dep.id,
     type: 'dependency',
@@ -71,6 +91,24 @@ export function nodeFromAssetGroup(assetGroup: AssetGroup): AssetGroupNode {
 }
 
 export function nodeFromAsset(asset: Asset): AssetNode {
+  // if (
+  //   asset.id === '505a8f237d702ae361471e15399b1d33' ||
+  //   asset.id === '229c0b980b244349c94a967fcbd66d30' ||
+  //   asset.id === '29bed8456dcec5b09945cc17c3653687' ||
+  //   asset.id === '509070f216a5d752431ee8d7048ad55d'
+  // ) {
+  //   debugger;
+  // }
+  let {id, context} = asset.env;
+  let idAndContext = `${id}-${context}`;
+  if (envCache.has(idAndContext)) {
+    // $FlowFixMe - Already asserted that asset[1].value is an object
+    asset.env = envCache.get(idAndContext);
+  } else {
+    // $FlowFixMe
+    envCache.set(idAndContext, asset.env);
+  }
+
   return {
     id: asset.id,
     type: 'asset',
@@ -100,6 +138,7 @@ export function nodeFromEntryFile(entry: Entry): EntryFileNode {
 export default class AssetGraph extends Graph<AssetGraphNode> {
   onNodeRemoved: ?(node: AssetGraphNode) => mixed;
   hash: ?string;
+  envCache: Map<string, Environment>;
 
   constructor(opts: ?SerializedAssetGraph) {
     if (opts) {
@@ -111,6 +150,7 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
       let rootNode = {id: '@@root', type: 'root', value: null};
       this.setRootNode(rootNode);
     }
+    this.envCache = new Map();
   }
 
   // $FlowFixMe

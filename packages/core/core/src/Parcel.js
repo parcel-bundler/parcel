@@ -288,6 +288,18 @@ export default class Parcel {
       } = await this.#requestTracker.runRequest(request);
       dumpGraphToGraphViz(assetGraph, 'MainAssetGraph');
 
+      console.log(
+        'huhuhu',
+        assetGraph.nodes.get('505a8f237d702ae361471e15399b1d33').value.env ===
+          assetGraph.nodes.get('229c0b980b244349c94a967fcbd66d30').value.env, // t
+        assetGraph.nodes.get('509070f216a5d752431ee8d7048ad55d').value.env ===
+          assetGraph.nodes.get('229c0b980b244349c94a967fcbd66d30').value.env, // true
+        assetRequests[24].env === assetRequests[29].env, // false
+        assetGraph.nodes.get('027c56fb2b6094029441ec5824653fab').value.env ===
+          assetGraph.nodes.get('29bed8456dcec5b09945cc17c3653687').value.env, // t
+        assetRequests[9].env === assetRequests[10].env, // true
+      );
+
       let [
         bundleGraph,
         serializedBundleGraph,
