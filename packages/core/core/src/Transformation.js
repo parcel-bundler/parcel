@@ -1,6 +1,7 @@
 // @flow strict-local
 
 import type {
+  AST,
   FilePath,
   GenerateOutput,
   Transformer,
@@ -397,12 +398,28 @@ export default class Transformation {
       return null;
     }
 
-    return cachedAssets.map(
-      (value: AssetValue) =>
-        new UncommittedAsset({
+    return Promise.all(
+      cachedAssets.map(async (value: AssetValue) => {
+        let content =
+          value.contentKey != null
+            ? this.options.cache.getStream(value.contentKey)
+            : null;
+        let mapBuffer =
+          value.astKey != null
+            ? await this.options.cache.getBlob<Buffer>(value.astKey)
+            : null;
+        let ast =
+          value.astKey != null
+            ? await this.options.cache.getBlob<AST>(value.astKey)
+            : null;
+        return new UncommittedAsset({
           value,
           options: this.options,
-        }),
+          content,
+          mapBuffer,
+          ast,
+        });
+      }),
     );
   }
 
