@@ -12,7 +12,6 @@ import type {FileSystem} from '@parcel/fs';
 import type {HTTPServer} from '@parcel/utils';
 
 import invariant from 'assert';
-import EventEmitter from 'events';
 import nullthrows from 'nullthrows';
 import path from 'path';
 import url from 'url';
