@@ -7,6 +7,7 @@ import {loadConfig as configCache} from '@parcel/utils';
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import BundleGraph from './BundleGraph';
+import {clearEnvironmentCache} from './Environment';
 import Transformation, {
   type TransformationOpts,
   type TransformationResult,
@@ -66,8 +67,9 @@ async function loadConfig(cachePath, options) {
   return config;
 }
 
-export function clearConfigCache() {
+export function clearConfigAndEnvironmentCache() {
   configCache.clear();
+  clearEnvironmentCache();
 }
 
 export async function runTransform(

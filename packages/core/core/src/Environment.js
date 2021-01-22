@@ -105,6 +105,10 @@ export function createEnvironment({
   return env;
 }
 
+export function clearEnvironmentCache() {
+  envCache.clear();
+}
+
 export function getOrSetEnvironment(input: Asset | Dependency) {
   let {id, context} = input.env;
   let idAndContext = `${id}-${context}`;
