@@ -233,10 +233,14 @@ export const generator = {
   ReturnStatement(node, state) {
     // Add parentheses if there are leading comments
     if (node.argument?.leadingComments?.length > 0) {
-      let indent = state.indent.repeat(state.indentLevel++);
-      state.write('return (' + state.lineEnd + indent + state.indent);
+      let indent = state.indent.repeat(state.indentLevel);
+      state.write('return (' + state.lineEnd);
+      state.write(indent + state.indent);
+      state.indentLevel++;
       this[node.argument.type](node.argument, state);
-      state.write(state.lineEnd + indent + ');');
+      state.indentLevel--;
+      state.write(state.lineEnd);
+      state.write(indent + ');');
     } else {
       baseGenerator.ReturnStatement.call(this, node, state);
     }
@@ -278,7 +282,10 @@ function formatComments(state, comments) {
     const comment = comments[i];
     if (comment.type === 'CommentLine') {
       // Line comment
-      state.write('// ' + comment.value.trim() + state.lineEnd);
+      state.write('// ' + comment.value.trim() + state.lineEnd, {
+        ...comment,
+        type: 'LineComment',
+      });
       state.write(indent);
     } else {
       // Block comment
