@@ -10,6 +10,7 @@ import {
   inputFS,
   ncp,
   workerFarm,
+  mergeParcelOptions,
 } from '@parcel/test-utils';
 import fs from 'fs';
 
@@ -20,11 +21,16 @@ function runBundle(entries = 'src/index.js', opts) {
     path.resolve(inputDir, entry),
   );
 
-  return bundler(entries, {
-    inputFS: overlayFS,
-    shouldDisableCache: false,
-    ...opts,
-  }).run();
+  return bundler(
+    entries,
+    mergeParcelOptions(
+      {
+        inputFS: overlayFS,
+        shouldDisableCache: false,
+      },
+      opts,
+    ),
+  ).run();
 }
 
 type UpdateFn = BuildSuccessEvent =>
@@ -2706,13 +2712,25 @@ describe('cache', function() {
 
     let entries = 'index.js';
 
-    let b = await runBundle(entries, {minify: false});
+    let b = await runBundle(entries, {
+      defaultTargetOptions: {
+        shouldOptimize: false,
+      },
+    });
     let result1 = (await run(b.bundleGraph))();
 
-    b = await runBundle(entries, {minify: true});
+    b = await runBundle(entries, {
+      defaultTargetOptions: {
+        shouldOptimize: true,
+      },
+    });
     let result2 = (await run(b.bundleGraph))();
 
-    b = await runBundle(entries, {minify: false});
+    b = await runBundle(entries, {
+      defaultTargetOptions: {
+        shouldOptimize: false,
+      },
+    });
     let result3 = (await run(b.bundleGraph))();
 
     assert(typeof result1 === 'string' && result1.includes('foo'));
