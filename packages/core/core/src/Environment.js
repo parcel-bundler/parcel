@@ -1,6 +1,6 @@
 // @flow
 import type {EnvironmentOptions} from '@parcel/types';
-import type {Environment} from './types';
+import type {Asset, Dependency, Environment} from './types';
 import {md5FromOrderedObject} from '@parcel/utils';
 
 const DEFAULT_ENGINES = {
@@ -8,7 +8,7 @@ const DEFAULT_ENGINES = {
   node: '>= 8.0.0',
 };
 
-export const envCache: Map<string, Environment> = new Map();
+const envCache: Map<string, Environment> = new Map();
 
 export function createEnvironment({
   context,
@@ -103,6 +103,18 @@ export function createEnvironment({
   }
 
   return env;
+}
+
+export function getOrSetEnvironment(input: Asset | Dependency) {
+  let {id, context} = input.env;
+  let idAndContext = `${id}-${context}`;
+
+  let env = envCache.get(idAndContext);
+  if (env) {
+    input.env = env;
+  } else {
+    envCache.set(idAndContext, input.env);
+  }
 }
 
 export function mergeEnvironments(

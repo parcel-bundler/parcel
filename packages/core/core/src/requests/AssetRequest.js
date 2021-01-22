@@ -3,7 +3,7 @@
 import type {Async} from '@parcel/types';
 import type {StaticRunOpts} from '../RequestTracker';
 import type {AssetRequestInput, AssetRequestResult} from '../types';
-import {envCache} from '../Environment';
+import {getOrSetEnvironment} from '../Environment';
 import type {ConfigAndCachePath} from './ParcelConfigRequest';
 import type {TransformationResult} from '../Transformation';
 
@@ -78,24 +78,16 @@ async function run({input, api, options, farm}: RunInput) {
   )({
     configCachePath: cachePath,
     optionsRef,
-    request, // HERE: env is in request
+    request,
   }): TransformationResult);
 
   let time = Date.now() - start;
   for (let asset of assets) {
     asset.stats.time = time;
   }
-  //maybe the missing envs are in configrequests?
+
   for (let asset of assets) {
-    let {id, context} = asset.env;
-    let idAndContext = `${id}-${context}`;
-    if (envCache.has(idAndContext)) {
-      // $FlowFixMe - Already asserted that asset[1].value is an object
-      asset.env = envCache.get(idAndContext);
-    } else {
-      // $FlowFixMe
-      envCache.set(idAndContext, asset.env);
-    }
+    getOrSetEnvironment(asset);
   }
 
   for (let invalidation of invalidations) {

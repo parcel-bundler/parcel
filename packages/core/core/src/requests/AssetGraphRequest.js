@@ -37,7 +37,6 @@ import ThrowableDiagnostic from '@parcel/diagnostic';
 import AssetGraph from '../AssetGraph';
 import {PARCEL_VERSION} from '../constants';
 import createEntryRequest from './EntryRequest';
-import {envCache} from '../Environment';
 import createTargetRequest from './TargetRequest';
 import createAssetRequest from './AssetRequest';
 import createPathRequest from './PathRequest';
@@ -148,8 +147,6 @@ export class AssetGraphBuilder {
         visitChildren(node);
       } else {
         // ? do we need to visit children inside of the promise that is queued?
-        //this.deduplicateEnvironment(node);
-
         this.queueCorrespondingRequest(node, errors).then(() =>
           visitChildren(node),
         );
@@ -669,20 +666,6 @@ export class AssetGraphBuilder {
       (node.correspondingRequest != null &&
         this.api.canSkipSubrequest(node.correspondingRequest))
     );
-  }
-
-  deduplicateEnvironment(node: AssetGraphNode): void {
-    if (typeof node.value === 'object' && node.value?.env) {
-      let {id, context} = node.value.env;
-      let idAndContext = `${id}-${context}`;
-      if (this.assetGraph.envCache.has(idAndContext)) {
-        // $FlowFixMe - Already asserted that node.value is an object
-        node.value.env = this.assetGraph.envCache.get(idAndContext);
-      } else {
-        // $FlowFixMe
-        envCache.set(idAndContext, node.value.env);
-      }
-    }
   }
 
   queueCorrespondingRequest(
