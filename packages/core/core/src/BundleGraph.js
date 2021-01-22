@@ -712,10 +712,16 @@ export default class BundleGraph {
     return bundleGroups.every(bundleGroup => {
       // If the asset is in any sibling bundles of the original bundle, it is reachable.
       let bundles = this.getBundlesInBundleGroup(bundleGroup);
-      if (
-        bundles.some(b => b.id !== bundle.id && this.bundleHasAsset(b, asset))
-      ) {
-        return true;
+      // ATLASSIAN: To avoid circular bundle references until the scope hoisting
+      // packager can handle them, only deduplicate from preceding siblings.
+      // TODO: Remove when the scope hoisting packager can handle cyclic bundle references.
+      for (let b of bundles) {
+        if (b.id === bundle.id) {
+          break;
+        }
+        if (this.bundleHasAsset(b, asset)) {
+          return true;
+        }
       }
 
       // Get a list of parent bundle nodes pointing to the bundle group
@@ -733,13 +739,18 @@ export default class BundleGraph {
           (node, ctx, actions) => {
             if (node.type === 'bundle_group') {
               let childBundles = this.getBundlesInBundleGroup(node.value);
-              if (
-                childBundles.some(
-                  b => b.id !== bundle.id && this.bundleHasAsset(b, asset),
-                )
-              ) {
-                inBundle = true;
-                actions.stop();
+              // ATLASSIAN: To avoid circular bundle references until the scope hoisting
+              // packager can handle them, only deduplicate from preceding siblings.
+              // TODO: Remove when the scope hoisting packager can handle cyclic bundle references.
+              for (let b of childBundles) {
+                if (b.id === bundle.id) {
+                  break;
+                }
+                if (this.bundleHasAsset(b, asset)) {
+                  inBundle = true;
+                  actions.stop();
+                  break;
+                }
               }
             }
 
