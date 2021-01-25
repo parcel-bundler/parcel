@@ -359,7 +359,7 @@ describe('html', function() {
     );
   });
 
-  it('should deduplicate shared code between script tags', async function() {
+  it.skip('should deduplicate shared code between script tags', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-js-dedup/index.html'),
     );
