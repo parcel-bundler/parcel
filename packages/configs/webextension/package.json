@@ -15,8 +15,8 @@
   },
   "main": "index.json",
   "dependencies": {
-    "@parcel/config-default": "2.0.0-beta.1",
+    "@parcel/config-default": "2.0.0-frontbucket.59",
     "@parcel/transformer-webextension": "2.0.0-beta.1",
-    "@parcel/packager-raw-url": "2.0.0-beta.1"
+    "@parcel/packager-raw-url": "2.0.0-frontbucket.20"
   }
 }
