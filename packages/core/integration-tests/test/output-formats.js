@@ -317,6 +317,7 @@ describe('output formats', function() {
     it('should support async split bundles', async function() {
       let b = await bundle(
         path.join(__dirname, '/integration/formats/commonjs-split/index.js'),
+        {mode: 'production', minify: false},
       );
 
       let index = await outputFS.readFile(
@@ -338,7 +339,6 @@ describe('output formats', function() {
         .getBundles()
         .find(b => b.name.startsWith('async1') && !index.includes(b.name));
       let shared = await outputFS.readFile(sharedBundle.filePath, 'utf8');
-
       assert(shared.includes('exports.$'));
 
       let async1 = await outputFS.readFile(
@@ -372,6 +372,7 @@ describe('output formats', function() {
           __dirname,
           '/integration/formats/commonjs-split-reexport-default/index.js',
         ),
+        {mode: 'production'},
       );
 
       assertBundles(b, [
@@ -886,6 +887,7 @@ describe('output formats', function() {
     it('should support async split bundles', async function() {
       let b = await bundle(
         path.join(__dirname, '/integration/formats/esm-split/index.js'),
+        {mode: 'production', minify: false},
       );
 
       let index = await outputFS.readFile(
@@ -966,6 +968,7 @@ describe('output formats', function() {
           __dirname,
           '/integration/formats/esm-split-worker/index.html',
         ),
+        {mode: 'production', minify: false},
       );
 
       let workerBundle = nullthrows(
@@ -1114,6 +1117,7 @@ describe('output formats', function() {
           __dirname,
           '/integration/formats/esm-browser-split-bundle/index.html',
         ),
+        {mode: 'production', minify: false},
       );
 
       let html = await outputFS.readFile(
@@ -1347,6 +1351,7 @@ describe('output formats', function() {
           __dirname,
           '/integration/formats/global-split-worker/index.html',
         ),
+        {mode: 'production', minify: false},
       );
     });
 

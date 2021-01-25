@@ -100,9 +100,6 @@ describe('vue', function() {
   it('should produce a basic production vue bundle', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/vue-basic/Basic.vue'),
-      {
-        production: true,
-      },
     );
     let output = (await run(b)).default;
     assert.equal(typeof output.render, 'function');
