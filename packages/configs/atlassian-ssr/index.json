@@ -10,10 +10,8 @@
     ],
     "*.{js,mjs,jsm,jsx,es6,ts,tsx}": [
       "@parcel/transformer-sync-dynamic-import",
-      "@parcel/transformer-react-refresh-babel",
       "@parcel/transformer-babel",
-      "@parcel/transformer-js",
-      "@parcel/transformer-react-refresh-wrap"
+      "@parcel/transformer-js"
     ],
     "*.{json,json5}": ["@parcel/transformer-json"],
     "*.toml": ["@parcel/transformer-toml"],

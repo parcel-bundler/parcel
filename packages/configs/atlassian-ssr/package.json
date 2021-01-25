@@ -36,8 +36,6 @@
     "@parcel/transformer-posthtml": "2.0.0-frontbucket.41",
     "@parcel/transformer-pug": "2.0.0-frontbucket.41",
     "@parcel/transformer-raw": "2.0.0-frontbucket.41",
-    "@parcel/transformer-react-refresh-babel": "2.0.0-frontbucket.41",
-    "@parcel/transformer-react-refresh-wrap": "2.0.0-frontbucket.45",
     "@parcel/transformer-sass": "2.0.0-frontbucket.44",
     "@parcel/transformer-stylus": "2.0.0-frontbucket.44",
     "@parcel/transformer-sugarss": "2.0.0-frontbucket.41",
