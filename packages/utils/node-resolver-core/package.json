@@ -1,6 +1,6 @@
 {
   "name": "@parcel/node-resolver-core",
-  "version": "2.0.0-frontbucket.27",
+  "version": "2.0.0-frontbucket.28",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -19,9 +19,9 @@
     "node": ">= 12.0.0"
   },
   "dependencies": {
-    "@parcel/diagnostic": "2.0.0-frontbucket.24",
+    "@parcel/diagnostic": "2.0.0-frontbucket.25",
     "@parcel/node-libs-browser": "2.0.0-frontbucket.11",
-    "@parcel/utils": "2.0.0-frontbucket.36",
+    "@parcel/utils": "2.0.0-frontbucket.37",
     "micromatch": "^3.0.4",
     "nullthrows": "^1.1.1",
     "querystring": "^0.2.0"

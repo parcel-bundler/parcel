@@ -1,6 +1,6 @@
 {
   "name": "@parcel/transformer-css",
-  "version": "2.0.0-frontbucket.43",
+  "version": "2.0.0-frontbucket.44",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -20,9 +20,9 @@
     "parcel": "^2.0.0-beta.1"
   },
   "dependencies": {
-    "@parcel/plugin": "2.0.0-frontbucket.40",
+    "@parcel/plugin": "2.0.0-frontbucket.41",
     "@parcel/source-map": "2.0.0-alpha.4.19",
-    "@parcel/utils": "2.0.0-frontbucket.36",
+    "@parcel/utils": "2.0.0-frontbucket.37",
     "nullthrows": "^1.1.1",
     "postcss": "^8.2.1",
     "postcss-value-parser": "^4.1.0",
