@@ -107,7 +107,7 @@ export function getCachedParcelConfig(
     processedConfig,
     options.packageManager,
     options.inputFS,
-    options.autoinstall,
+    options.shouldAutoInstall,
   );
 
   parcelConfigCache.set(cachePath, config);
@@ -482,11 +482,8 @@ export function validateConfigFile(
 
   validateSchema.diagnostic(
     ParcelConfigSchema,
-    config,
-    relativePath,
-    JSON.stringify(config, null, '\t'),
+    {data: config, filePath: relativePath},
     '@parcel/core',
-    '',
     'Invalid Parcel Config',
   );
 }

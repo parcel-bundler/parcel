@@ -167,6 +167,18 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, [123, 123]);
     });
 
+    it('supports async import of internalized asset with unused return value', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/async-internalize-unused/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.strictEqual(output, 'bc');
+    });
+
     it('supports importing a namespace of exported values', async function() {
       let b = await bundle(
         path.join(
@@ -198,8 +210,7 @@ describe('scope hoisting', function() {
         /\$parcel\$exportWildcard\((\$[a-f0-9]+\$exports), _lodash\);/,
       );
       assert(match);
-      let [, id] = match;
-      assert(contents.includes(`default = ${id}.add(10, 2);`));
+      assert(/_default = \$[a-f0-9]+\$var\$x.add\(10, 2\)/.test(contents));
 
       let output = await run(b);
       assert.deepEqual(output.default, 12);
@@ -702,12 +713,12 @@ describe('scope hoisting', function() {
 
       assert.deepStrictEqual(
         new Set(nullthrows(findAsset(b, 'b2.js')).symbols.exportSymbols()),
-        new Set(['*', 'foo', '__esModule']),
+        new Set(['*', 'foo', 'default', '__esModule']),
       );
 
       assert.deepStrictEqual(
         new Set(nullthrows(findAsset(b, 'b3.js')).symbols.exportSymbols()),
-        new Set(['*']),
+        new Set(['*', 'foo']),
       );
 
       let output = await run(b);
@@ -805,7 +816,7 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, 'foobar');
     });
 
-    it('supports requiring a re-exported and renamed ES6 import', async function() {
+    it('supports requiring a re-exported and renamed ES6 namespace import', async function() {
       let b = await bundle(
         path.join(
           __dirname,
@@ -2751,7 +2762,6 @@ describe('scope hoisting', function() {
             '/integration/scope-hoisting/es6/re-export-bundle-boundary-side-effects/index.js',
           ),
         );
-
         let output = await run(b);
         assert.deepEqual(output, ['operational', 'ui']);
       });
@@ -3658,6 +3668,36 @@ describe('scope hoisting', function() {
       assert.strictEqual(output, 6);
     });
 
+    it('supports using exports self reference', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/exports-self-reference/a.js',
+        ),
+      );
+
+      let content = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+      assert(content.includes('=>'));
+
+      let output = await run(b);
+      assert.strictEqual(output, 'Say other');
+    });
+
+    it('supports using module.exports self reference', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/module-exports-self-reference/a.js',
+        ),
+      );
+
+      let content = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+      assert(content.includes('=>'));
+
+      let output = await run(b);
+      assert.strictEqual(output, 'Say other');
+    });
+
     it('support url imports in wrapped modules with interop', async function() {
       let b = await bundle(
         path.join(
@@ -4091,6 +4131,23 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, 42);
     });
 
+    it('should retain the correct concat order with wrapped assets', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/wrap-concat-order/a.js',
+        ),
+      );
+
+      let calls = [];
+      await run(b, {
+        sideEffect(v) {
+          calls.push(v);
+        },
+      });
+      assert.deepStrictEqual(calls, [1, 2, 3, 4, 5, 6, 7]);
+    });
+
     it('should support optional requires', async function() {
       let b = await bundle(
         path.join(
@@ -4136,6 +4193,34 @@ describe('scope hoisting', function() {
       );
 
       assert.equal(await run(b), 'bar:bar');
+    });
+
+    it('should not insert interop default for commonjs modules with default export', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/interop-require-commonjs/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      let obj = {
+        test: 2,
+      };
+      obj.default = obj;
+      assert.deepEqual(output.default, obj);
+    });
+
+    it('should support multiple requires in the same variable declaration', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/require-multiple/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.equal(output, 'before foo middle bar after');
     });
 
     it('should support assigning to exports from inside a function', async function() {
@@ -4207,6 +4292,77 @@ describe('scope hoisting', function() {
 
       let output = await run(b);
       assert.equal(output, 'hello');
+    });
+
+    it('supports assigning to the result of a require', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/require-assign/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.equal(output, 4);
+    });
+
+    it('supports both static and non-static exports in the same module with self-reference', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/non-static-exports/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, {
+        foo: 2,
+        bar: 4,
+        baz: 6,
+      });
+    });
+
+    it('does not replace assignments to the exports object in the same module', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/self-reference-assignment/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, {
+        foo: {
+          bar: 'bar',
+        },
+      });
+    });
+
+    it('replaces static require member expressions with the correct `this` context', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/require-member-wrapped/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output(), {
+        foo: 2,
+        bar: 4,
+      });
+    });
+
+    it('does not create a self-referencing dependency for the default symbol without an __esModule flag', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/self-reference-default/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.equal(output, 2);
     });
   });
 

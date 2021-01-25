@@ -25,11 +25,12 @@
     "@parcel/config-default": "2.0.0-frontbucket.59",
     "@parcel/core": "2.0.0-frontbucket.47",
     "@parcel/diagnostic": "2.0.0-frontbucket.24",
+    "@parcel/events": "2.0.0-frontbucket.20",
     "@parcel/fs": "2.0.0-frontbucket.38",
     "@parcel/logger": "2.0.0-frontbucket.26",
     "@parcel/package-manager": "2.0.0-frontbucket.38",
     "@parcel/utils": "2.0.0-frontbucket.36",
-    "chalk": "^2.1.0",
+    "chalk": "^4.1.0",
     "commander": "^2.19.0",
     "get-port": "^4.2.0",
     "v8-compile-cache": "^2.0.0"

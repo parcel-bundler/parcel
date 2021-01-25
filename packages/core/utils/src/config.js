@@ -6,6 +6,7 @@ import path from 'path';
 import clone from 'clone';
 import {parse as json5} from 'json5';
 import {parse as toml} from '@iarna/toml';
+import LRU from 'lru-cache';
 
 export type ConfigOutput = {|
   config: ConfigResult,
@@ -15,6 +16,8 @@ export type ConfigOutput = {|
 export type ConfigOptions = {|
   parse?: boolean,
 |};
+
+const configCache = new LRU<FilePath, ConfigOutput>({max: 500});
 
 export function resolveConfig(
   fs: FileSystem,
@@ -42,20 +45,26 @@ export async function loadConfig(
 ): Promise<ConfigOutput | null> {
   let configFile = await resolveConfig(fs, filepath, filenames);
   if (configFile) {
+    let cachedOutput = configCache.get(configFile);
+    if (cachedOutput) {
+      return cachedOutput;
+    }
+
     try {
       let extname = path.extname(configFile).slice(1);
       if (extname === 'js') {
-        return {
+        let output = {
           // $FlowFixMe
           config: clone(require(configFile)),
           files: [{filePath: configFile}],
         };
+
+        configCache.set(configFile, output);
+        return output;
       }
 
       let configContent = await fs.readFile(configFile, 'utf8');
-      if (!configContent) {
-        return null;
-      }
+      if (!configContent) return null;
 
       let config;
       if (opts && opts.parse === false) {
@@ -65,10 +74,13 @@ export async function loadConfig(
         config = parse(configContent);
       }
 
-      return {
-        config: config,
+      let output = {
+        config,
         files: [{filePath: configFile}],
       };
+
+      configCache.set(configFile, output);
+      return output;
     } catch (err) {
       if (err.code === 'MODULE_NOT_FOUND' || err.code === 'ENOENT') {
         return null;
@@ -80,6 +92,10 @@ export async function loadConfig(
 
   return null;
 }
+
+loadConfig.clear = () => {
+  configCache.reset();
+};
 
 function getParser(extname) {
   switch (extname) {

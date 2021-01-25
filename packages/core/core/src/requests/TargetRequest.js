@@ -141,7 +141,7 @@ export class TargetResolver {
             name,
             _descriptor,
             null,
-            {targets: optionTargets},
+            JSON.stringify({targets: optionTargets}, null, '\t'),
           );
           if (distDir == null) {
             let optionTargetsString = JSON.stringify(optionTargets, null, '\t');
@@ -189,7 +189,7 @@ export class TargetResolver {
         });
       }
 
-      let serve = this.options.serve;
+      let serve = this.options.serveOptions;
       if (serve) {
         // In serve mode, we only support a single browser target. If the user
         // provided more than one, or the matching target is not a browser, throw.
@@ -214,13 +214,13 @@ export class TargetResolver {
     } else {
       // Explicit targets were not provided. Either use a modern target for server
       // mode, or simply use the package.json targets.
-      if (this.options.serve) {
+      if (this.options.serveOptions) {
         // In serve mode, we only support a single browser target. Since the user
         // hasn't specified a target, use one targeting modern browsers for development
         targets = [
           {
             name: 'default',
-            distDir: this.options.serve.distDir,
+            distDir: this.options.serveOptions.distDir,
             publicUrl: this.options.publicUrl ?? '/',
             env: createEnvironment({
               context: 'browser',
@@ -559,7 +559,7 @@ export class TargetResolver {
 function parseEngines(
   engines: mixed,
   pkgPath: ?FilePath,
-  pkgContents: string | mixed,
+  pkgContents: ?string,
   prependKey: string,
   message: string,
 ): Engines | typeof undefined {
@@ -568,14 +568,10 @@ function parseEngines(
   } else {
     validateSchema.diagnostic(
       ENGINES_SCHEMA,
-      engines,
-      pkgPath,
-      pkgContents,
+      {data: engines, source: pkgContents, filePath: pkgPath, prependKey},
       '@parcel/core',
-      prependKey,
       message,
     );
-
     // $FlowFixMe we just verified this
     return engines;
   }
@@ -585,15 +581,17 @@ function parseDescriptor(
   targetName: string,
   descriptor: mixed,
   pkgPath: ?FilePath,
-  pkgContents: string | mixed,
+  pkgContents: ?string,
 ): TargetDescriptor {
   validateSchema.diagnostic(
     DESCRIPTOR_SCHEMA,
-    descriptor,
-    pkgPath,
-    pkgContents,
+    {
+      data: descriptor,
+      source: pkgContents,
+      filePath: pkgPath,
+      prependKey: `/targets/${targetName}`,
+    },
     '@parcel/core',
-    `/targets/${targetName}`,
     `Invalid target descriptor for target "${targetName}"`,
   );
 
@@ -605,18 +603,19 @@ function parsePackageDescriptor(
   targetName: string,
   descriptor: mixed,
   pkgPath: ?FilePath,
-  pkgContents: string | mixed,
+  pkgContents: ?string,
 ): PackageTargetDescriptor {
   validateSchema.diagnostic(
     PACKAGE_DESCRIPTOR_SCHEMA,
-    descriptor,
-    pkgPath,
-    pkgContents,
+    {
+      data: descriptor,
+      source: pkgContents,
+      filePath: pkgPath,
+      prependKey: `/targets/${targetName}`,
+    },
     '@parcel/core',
-    `/targets/${targetName}`,
     `Invalid target descriptor for target "${targetName}"`,
   );
-
   // $FlowFixMe we just verified this
   return descriptor;
 }
@@ -625,15 +624,17 @@ function parseCommonTargetDescriptor(
   targetName: string,
   descriptor: mixed,
   pkgPath: ?FilePath,
-  pkgContents: string | mixed,
+  pkgContents: ?string,
 ): PackageTargetDescriptor | false {
   validateSchema.diagnostic(
     COMMON_TARGET_DESCRIPTOR_SCHEMA,
-    descriptor,
-    pkgPath,
-    pkgContents,
+    {
+      data: descriptor,
+      source: pkgContents,
+      filePath: pkgPath,
+      prependKey: `/targets/${targetName}`,
+    },
     '@parcel/core',
-    `/targets/${targetName}`,
     `Invalid target descriptor for target "${targetName}"`,
   );
 

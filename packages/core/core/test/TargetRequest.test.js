@@ -573,7 +573,7 @@ describe('TargetResolver', () => {
 
     let targetResolver = new TargetResolver(api, {
       ...DEFAULT_OPTIONS,
-      serve: {distDir: serveDistDir, port: 1234},
+      serveOptions: {distDir: serveDistDir, port: 1234},
     });
 
     assert.deepEqual(

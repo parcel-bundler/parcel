@@ -27,6 +27,7 @@ import type {
   TargetDescriptor,
   HMROptions,
   QueryParameters,
+  DetailedReportOptions,
 } from '@parcel/types';
 import type {SharedReference} from '@parcel/workers';
 import type {FileSystem} from '@parcel/fs';
@@ -102,7 +103,7 @@ export type Dependency = {|
   resolveFrom: ?string,
   symbols: ?Map<
     Symbol,
-    {|local: Symbol, loc: ?SourceLocation, isWeak: boolean|},
+    {|local: Symbol, loc: ?SourceLocation, isWeak: boolean, meta?: ?Meta|},
   >,
   pipeline?: ?string,
 |};
@@ -128,7 +129,7 @@ export type Asset = {|
   pipeline: ?string,
   astKey: ?string,
   astGenerator: ?ASTGenerator,
-  symbols: ?Map<Symbol, {|local: Symbol, loc: ?SourceLocation|}>,
+  symbols: ?Map<Symbol, {|local: Symbol, loc: ?SourceLocation, meta?: ?Meta|}>,
   sideEffects: boolean,
   uniqueKey: ?string,
   configPath?: FilePath,
@@ -163,27 +164,20 @@ export type ParcelOptions = {|
   defaultConfig?: ModuleSpecifier,
   env: EnvMap,
   targets: ?(Array<string> | {+[string]: TargetDescriptor, ...}),
-  defaultEngines?: Engines,
 
-  disableCache: boolean,
+  shouldDisableCache: boolean,
   cacheDir: FilePath,
-  killWorkers?: boolean,
   mode: BuildMode,
-  minify: boolean,
-  scopeHoist: boolean,
-  sourceMaps: boolean,
-  publicUrl: string,
-  distDir: ?FilePath,
-  hot: ?HMROptions,
-  contentHash: boolean,
-  serve: ServerOptions | false,
-  autoinstall: boolean,
+  hmrOptions: ?HMROptions,
+  shouldContentHash: boolean,
+  serveOptions: ServerOptions | false,
+  shouldAutoInstall: boolean,
   logLevel: LogLevel,
   projectRoot: FilePath,
   lockFile: ?FilePath,
-  profile: boolean,
-  patchConsole: boolean,
-  detailedReport?: number,
+  shouldProfile: boolean,
+  shouldPatchConsole: boolean,
+  detailedReport?: ?DetailedReportOptions,
 
   inputFS: FileSystem,
   outputFS: FileSystem,
@@ -191,6 +185,14 @@ export type ParcelOptions = {|
   packageManager: PackageManager,
 
   instanceId: string,
+
+  // TODO: Refactor to defaultTargetOptions
+  minify: boolean,
+  scopeHoist: boolean,
+  sourceMaps: boolean,
+  publicUrl: string,
+  distDir: ?FilePath,
+  defaultEngines?: Engines,
 |};
 
 export type NodeId = string;

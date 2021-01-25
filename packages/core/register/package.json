@@ -20,7 +20,7 @@
   },
   "scripts": {
     "run-example": "node ./example/index.js",
-    "clean": "rm -rf .parcel-cache"
+    "clean": "rimraf .parcel-cache"
   },
   "dependencies": {
     "@parcel/config-default": "2.0.0-frontbucket.59",

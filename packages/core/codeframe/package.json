@@ -20,8 +20,8 @@
     "node": ">= 12.0.0"
   },
   "dependencies": {
-    "chalk": "^2.4.2",
-    "emphasize": "^2.1.0",
+    "chalk": "^4.1.0",
+    "emphasize": "^4.2.0",
     "slice-ansi": "^4.0.0",
     "string-width": "^4.2.0"
   },

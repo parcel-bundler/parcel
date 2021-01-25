@@ -33,7 +33,7 @@ type SerializedParcelConfig = {|
   config: ProcessedParcelConfig,
   packageManager: PackageManager,
   fs: FileSystem,
-  autoinstall: boolean,
+  shouldAutoInstall: boolean,
 |};
 
 type LoadedPlugin<T> = {|
@@ -58,14 +58,14 @@ export default class ParcelConfig {
   optimizers: GlobMap<ExtendableParcelConfigPipeline>;
   reporters: PureParcelConfigPipeline;
   pluginCache: Map<PackageName, any>;
-  autoinstall: boolean;
+  shouldAutoInstall: boolean;
   regexCache: Map<string, RegExp>;
 
   constructor(
     config: ProcessedParcelConfig,
     packageManager: PackageManager,
     fs: FileSystem,
-    autoinstall: boolean,
+    shouldAutoInstall: boolean,
   ) {
     this.packageManager = packageManager;
     this.fs = fs;
@@ -80,7 +80,7 @@ export default class ParcelConfig {
     this.reporters = config.reporters || [];
     this.validators = config.validators || {};
     this.pluginCache = new Map();
-    this.autoinstall = autoinstall;
+    this.shouldAutoInstall = shouldAutoInstall;
     this.regexCache = new Map();
   }
 
@@ -89,7 +89,7 @@ export default class ParcelConfig {
       serialized.config,
       serialized.packageManager,
       serialized.fs,
-      serialized.autoinstall,
+      serialized.shouldAutoInstall,
     );
   }
 
@@ -114,7 +114,7 @@ export default class ParcelConfig {
       packageManager: this.packageManager,
       fs: this.fs,
       config: this.getConfig(),
-      autoinstall: this.autoinstall,
+      shouldAutoInstall: this.shouldAutoInstall,
     };
   }
 
@@ -132,7 +132,7 @@ export default class ParcelConfig {
       node.packageName,
       node.resolveFrom,
       node.keyPath,
-      this.autoinstall,
+      this.shouldAutoInstall,
     );
     this.pluginCache.set(node.packageName, plugin);
     return plugin;

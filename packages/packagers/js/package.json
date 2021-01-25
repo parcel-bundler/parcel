@@ -17,7 +17,7 @@
   "source": "src/JSPackager.js",
   "engines": {
     "node": ">= 12.0.0",
-    "parcel": "^2.0.0-alpha.1.1"
+    "parcel": "^2.0.0-beta.1"
   },
   "dependencies": {
     "@babel/traverse": "^7.2.3",

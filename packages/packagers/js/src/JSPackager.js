@@ -79,6 +79,7 @@ export default (new Packager({
         }),
         options,
         wrappedAssets,
+        parcelRequireName,
       });
 
       // Free up memory

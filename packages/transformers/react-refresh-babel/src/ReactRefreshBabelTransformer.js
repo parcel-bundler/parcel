@@ -6,7 +6,7 @@ import invariant from 'assert';
 async function shouldExclude(config, options) {
   if (
     !config.isSource ||
-    !options.hot ||
+    !options.hmrOptions ||
     !config.env.isBrowser() ||
     options.mode !== 'development'
   ) {

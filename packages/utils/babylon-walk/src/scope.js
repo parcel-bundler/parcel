@@ -127,7 +127,9 @@ export type ScopeState = {|
 
 export let scopeVisitor: Visitors<ScopeState> = {
   Program(node, state) {
-    state.scope = new Scope('program');
+    if (!state.scope) {
+      state.scope = new Scope('program');
+    }
   },
   Scopable: {
     enter(node, state, ancestors) {
@@ -138,13 +140,11 @@ export let scopeVisitor: Visitors<ScopeState> = {
       ) {
         return;
       }
+
       state.scope = new Scope('block', state.scope);
     },
     exit(node, state, ancestors) {
-      if (
-        !t.isScope(node, ancestors[ancestors.length - 2]) ||
-        t.isProgram(node)
-      ) {
+      if (!t.isScope(node, ancestors[ancestors.length - 2])) {
         return;
       }
 
