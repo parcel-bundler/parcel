@@ -299,7 +299,6 @@ export type InitialServerOptions = {|
 |};
 
 export interface PluginOptions {
-  +disableCache: boolean;
   +mode: BuildMode;
   +env: EnvMap;
   +hmrOptions: ?HMROptions;

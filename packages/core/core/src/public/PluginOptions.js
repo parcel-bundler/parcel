@@ -32,10 +32,6 @@ export default class PluginOptions implements IPluginOptions {
     return this;
   }
 
-  get disableCache(): boolean {
-    return this.#options.disableCache;
-  }
-
   get instanceId(): string {
     return this.#options.instanceId;
   }
