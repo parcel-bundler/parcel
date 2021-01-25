@@ -9,12 +9,14 @@ import {prettyDiagnostic, openInBrowser} from '@parcel/utils';
 import {Disposable} from '@parcel/events';
 import {INTERNAL_ORIGINAL_CONSOLE} from '@parcel/logger';
 import chalk from 'chalk';
-import program from 'commander';
+import commander from 'commander';
 import path from 'path';
 import getPort from 'get-port';
 import {version} from '../package.json';
 
 require('v8-compile-cache');
+
+const program = new commander.Command();
 
 // Exit codes in response to signals are traditionally
 // 128 + signal value
@@ -70,7 +72,7 @@ const commonOptions = {
     (val, list) => list.concat([val]),
     [],
   ],
-  '--log-level <level>': new program.Option(
+  '--log-level <level>': new commander.Option(
     '--log-level <level>',
     'set the log level',
   ).choices(['none', 'error', 'warn', 'info', 'verbose']),
@@ -164,7 +166,7 @@ program.on('--help', function() {
 });
 
 // Override to output option description if argument was missing
-program.Command.prototype.optionMissingArgument = function(option) {
+commander.Command.prototype.optionMissingArgument = function(option) {
   INTERNAL_ORIGINAL_CONSOLE.error(
     "error: option `%s' argument missing",
     option.flags,
@@ -346,7 +348,7 @@ function parsePort(portValue: string): number {
 function parseOptionInt(value) {
   const parsedValue = parseInt(value, 10);
   if (isNaN(parsedValue)) {
-    throw new program.InvalidOptionArgumentError('Must be an integer.');
+    throw new commander.InvalidOptionArgumentError('Must be an integer.');
   }
   return parsedValue;
 }
