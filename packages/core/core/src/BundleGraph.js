@@ -477,6 +477,10 @@ export default class BundleGraph {
     for (let bundleGroupNode of this._graph
       .getNodesConnectedFrom(nullthrows(this._graph.getNode(dependency.id)))
       .filter(node => node.type === 'bundle_group')) {
+      if (this._graph.hasEdge(bundle.id, bundleGroupNode.id, 'bundle')) {
+        return;
+      }
+
       let inboundDependencies = this._graph
         .getNodesConnectedTo(bundleGroupNode)
         .filter(node => node.type === 'dependency')
