@@ -94,18 +94,10 @@ export const PACKAGE_DESCRIPTOR_SCHEMA: SchemaObject = {
       ],
     },
     engines: ENGINES_SCHEMA,
-    // @deprecated
-    minify: {
+    optimize: {
       type: 'boolean',
     },
-    shouldOptimize: {
-      type: 'boolean',
-    },
-    // @deprecated
     scopeHoist: {
-      type: 'boolean',
-    },
-    shouldScopeHoist: {
       type: 'boolean',
     },
   },

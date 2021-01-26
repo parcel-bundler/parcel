@@ -1074,7 +1074,12 @@ describe('javascript', function() {
   it('should create a separate bundle for large modules shared between bundles', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/dynamic-common-large/index.js'),
-      {mode: 'production', scopeHoist: false},
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: false,
+        },
+      },
     );
 
     assertBundles(b, [
@@ -2816,7 +2821,12 @@ describe('javascript', function() {
       ['same-bundle.js', 'get-dep.js'].map(entry =>
         path.join(__dirname, '/integration/sync-async/', entry),
       ),
-      {mode: 'production', scopeHoist: false},
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: false,
+        },
+      },
     );
 
     assertBundles(b, [
@@ -2868,7 +2878,12 @@ describe('javascript', function() {
         __dirname,
         '/integration/shared-exports-for-sibling-descendant/index.js',
       ),
-      {mode: 'production', scopeHoist: false},
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: false,
+        },
+      },
     );
 
     assertBundles(b, [

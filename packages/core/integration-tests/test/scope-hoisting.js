@@ -1731,7 +1731,12 @@ describe('scope hoisting', function() {
           __dirname,
           '/integration/scope-hoisting/es6/interop-async/index.html',
         ),
-        {mode: 'production', minify: false},
+        {
+          mode: 'production',
+          defaultTargetOptions: {
+            shouldOptimize: false,
+          },
+        },
       );
 
       let output = await run(b);
@@ -4474,7 +4479,12 @@ describe('scope hoisting', function() {
   it('should include the prelude in shared entry bundles', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-shared/index.html'),
-      {mode: 'production', minify: false},
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldOptimize: false,
+        },
+      },
     );
 
     assertBundles(b, [
@@ -4520,7 +4530,12 @@ describe('scope hoisting', function() {
   it('should include prelude in shared worker bundles', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/worker-shared/index.js'),
-      {mode: 'production', minify: false},
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldOptimize: false,
+        },
+      },
     );
 
     let sharedBundle = b

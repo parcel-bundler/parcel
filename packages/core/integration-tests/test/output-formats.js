@@ -330,7 +330,12 @@ describe('output formats', function() {
     it('should support async split bundles', async function() {
       let b = await bundle(
         path.join(__dirname, '/integration/formats/commonjs-split/index.js'),
-        {mode: 'production', minify: false},
+        {
+          mode: 'production',
+          defaultTargetOptions: {
+            shouldOptimize: false,
+          },
+        },
       );
 
       let index = await outputFS.readFile(
@@ -900,7 +905,12 @@ describe('output formats', function() {
     it('should support async split bundles', async function() {
       let b = await bundle(
         path.join(__dirname, '/integration/formats/esm-split/index.js'),
-        {mode: 'production', minify: false},
+        {
+          mode: 'production',
+          defaultTargetOptions: {
+            shouldOptimize: false,
+          },
+        },
       );
 
       let index = await outputFS.readFile(
@@ -981,7 +991,12 @@ describe('output formats', function() {
           __dirname,
           '/integration/formats/esm-split-worker/index.html',
         ),
-        {mode: 'production', minify: false},
+        {
+          mode: 'production',
+          defaultTargetOptions: {
+            shouldOptimize: false,
+          },
+        },
       );
 
       let workerBundle = nullthrows(
@@ -1132,7 +1147,12 @@ describe('output formats', function() {
           __dirname,
           '/integration/formats/esm-browser-split-bundle/index.html',
         ),
-        {mode: 'production', minify: false},
+        {
+          mode: 'production',
+          defaultTargetOptions: {
+            shouldOptimize: false,
+          },
+        },
       );
 
       let html = await outputFS.readFile(
@@ -1366,7 +1386,12 @@ describe('output formats', function() {
           __dirname,
           '/integration/formats/global-split-worker/index.html',
         ),
-        {mode: 'production', minify: false},
+        {
+          mode: 'production',
+          defaultTargetOptions: {
+            shouldOptimize: false,
+          },
+        },
       );
     });
 
