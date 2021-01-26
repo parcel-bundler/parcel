@@ -1025,7 +1025,7 @@ describe('html', function() {
   it('should not modify inline importmaps', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-inline-importmap/index.html'),
-      {production: true},
+      {},
     );
 
     assertBundles(b, [
@@ -1125,7 +1125,7 @@ describe('html', function() {
         '/integration/html-js-shared-dynamic-nested/index.html',
       ),
       {
-        production: true,
+        mode: 'production',
         defaultTargetOptions: {
           shouldScopeHoist: true,
         },
@@ -1166,7 +1166,7 @@ describe('html', function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-inline-js-shared/index.html'),
       {
-        production: true,
+        mode: 'production',
         defaultTargetOptions: {
           shouldScopeHoist: true,
           shouldOptimize: false,
@@ -1207,7 +1207,7 @@ describe('html', function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-js-shared/index.html'),
       {
-        production: true,
+        mode: 'production',
         defaultTargetOptions: {
           shouldScopeHoist: true,
         },
@@ -1273,7 +1273,7 @@ describe('html', function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-js-shared-head/index.html'),
       {
-        production: true,
+        mode: 'production',
         defaultTargetOptions: {
           shouldScopeHoist: true,
         },
@@ -1339,7 +1339,6 @@ describe('html', function() {
     let b = await bundle(
       path.join(__dirname, '/integration/shared-sibling-entries/*.html'),
       {
-        production: true,
         defaultTargetOptions: {
           shouldScopeHoist: true,
         },
@@ -1398,7 +1397,7 @@ describe('html', function() {
         'integration/scope-hoisting/es6/interop-async/index.html',
       ),
       {
-        production: true,
+        mode: 'production',
         defaultTargetOptions: {
           shouldScopeHoist: true,
           shouldOptimize: false,
@@ -1436,7 +1435,6 @@ describe('html', function() {
         '/integration/shared-sibling-entries-multiple/*.html',
       ),
       {
-        production: true,
         defaultTargetOptions: {
           shouldScopeHoist: true,
         },
@@ -1684,7 +1682,6 @@ describe('html', function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-multi-entry/*.html'),
       {
-        production: true,
         defaultTargetOptions: {
           shouldScopeHoist: true,
         },
