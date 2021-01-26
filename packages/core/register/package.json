@@ -1,6 +1,6 @@
 {
   "name": "@parcel/register",
-  "version": "2.0.0-frontbucket.60",
+  "version": "2.0.0-frontbucket.61",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -23,8 +23,8 @@
     "clean": "rimraf .parcel-cache"
   },
   "dependencies": {
-    "@parcel/config-default": "2.0.0-frontbucket.60",
-    "@parcel/core": "2.0.0-frontbucket.48",
+    "@parcel/config-default": "2.0.0-frontbucket.61",
+    "@parcel/core": "2.0.0-frontbucket.49",
     "@parcel/fs": "2.0.0-frontbucket.39",
     "@parcel/package-manager": "2.0.0-frontbucket.39",
     "deasync": "^0.1.14",
