@@ -1,5 +1,4 @@
 // @flow strict-local
-// flowlint unsafe-getters-setters:off
 
 import type SourceMap from '@parcel/source-map';
 import type {Readable} from 'stream';
@@ -13,15 +12,14 @@ import type {
   Dependency as IDependency,
   DependencyOptions,
   Environment as IEnvironment,
-  EnvironmentOpts,
-  File,
+  EnvironmentOptions,
   FilePath,
   Meta,
   MutableAsset as IMutableAsset,
   PackageJSON,
   Stats,
-  MutableSymbols as IMutableSymbols,
-  Symbols as ISymbols,
+  MutableAssetSymbols as IMutableAssetSymbols,
+  AssetSymbols as IAssetSymbols,
   QueryParameters,
 } from '@parcel/types';
 import type {Asset as AssetValue, ParcelOptions} from '../types';
@@ -29,7 +27,7 @@ import type {Asset as AssetValue, ParcelOptions} from '../types';
 import nullthrows from 'nullthrows';
 import Environment from './Environment';
 import Dependency from './Dependency';
-import {Symbols, MutableAssetSymbols} from './Symbols';
+import {AssetSymbols, MutableAssetSymbols} from './Symbols';
 import UncommittedAsset from '../UncommittedAsset';
 import CommittedAsset from '../CommittedAsset';
 import {createEnvironment} from '../Environment';
@@ -110,7 +108,7 @@ class BaseAsset {
   }
 
   get query(): QueryParameters {
-    return this.#asset.value.query;
+    return this.#asset.value.query ?? {};
   }
 
   get meta(): Meta {
@@ -137,8 +135,8 @@ class BaseAsset {
     return this.#asset.value.sideEffects;
   }
 
-  get symbols(): ISymbols {
-    return new Symbols(this.#asset.value);
+  get symbols(): IAssetSymbols {
+    return new AssetSymbols(this.#asset.value);
   }
 
   get uniqueKey(): ?string {
@@ -161,10 +159,6 @@ class BaseAsset {
     |},
   ): Promise<ConfigResult | null> {
     return this.#asset.getConfig(filePaths, options);
-  }
-
-  getIncludedFiles(): $ReadOnlyArray<File> {
-    return this.#asset.getIncludedFiles();
   }
 
   getDependencies(): $ReadOnlyArray<IDependency> {
@@ -272,7 +266,7 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
     this.#asset.value.isSplittable = isSplittable;
   }
 
-  get symbols(): IMutableSymbols {
+  get symbols(): IMutableAssetSymbols {
     return new MutableAssetSymbols(this.#asset.value);
   }
 
@@ -280,8 +274,12 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
     return this.#asset.addDependency(dep);
   }
 
-  addIncludedFile(file: File): void {
-    this.#asset.addIncludedFile(file);
+  addIncludedFile(filePath: FilePath): void {
+    this.#asset.addIncludedFile(filePath);
+  }
+
+  invalidateOnEnvChange(env: string): void {
+    this.#asset.invalidateOnEnvChange(env);
   }
 
   isASTDirty(): boolean {
@@ -313,7 +311,7 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
     });
   }
 
-  setEnvironment(env: EnvironmentOpts): void {
+  setEnvironment(env: EnvironmentOptions): void {
     this.#asset.value.env = createEnvironment(env);
   }
 }

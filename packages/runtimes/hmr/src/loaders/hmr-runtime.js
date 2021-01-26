@@ -1,4 +1,4 @@
-/* global HMR_HOST, HMR_PORT, HMR_ENV_HASH */
+/* global HMR_HOST, HMR_PORT, HMR_ENV_HASH, HMR_SECURE */
 
 var OVERLAY_ID = '__parcel__error__overlay__';
 
@@ -24,14 +24,28 @@ function Module(moduleName) {
 module.bundle.Module = Module;
 var checkedAssets, assetsToAccept, acceptedAssets;
 
+function getHostname() {
+  return (
+    HMR_HOST ||
+    (location.protocol.indexOf('http') === 0 ? location.hostname : 'localhost')
+  );
+}
+
+function getPort() {
+  return HMR_PORT || location.port;
+}
+
 // eslint-disable-next-line no-redeclare
 var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
-  var hostname =
-    HMR_HOST ||
-    (location.protocol.indexOf('http') === 0 ? location.hostname : 'localhost');
-  var port = HMR_PORT || location.port;
-  var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
+  var hostname = getHostname();
+  var port = getPort();
+  var protocol =
+    HMR_SECURE ||
+    (location.protocol == 'https:' &&
+      !/localhost|127.0.0.1|0.0.0.0/.test(hostname))
+      ? 'wss'
+      : 'ws';
   var ws = new WebSocket(
     protocol + '://' + hostname + (port ? ':' + port : '') + '/',
   );
@@ -52,8 +66,7 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
       var handled = false;
       assets.forEach(asset => {
         var didAccept =
-          asset.type === 'css' ||
-          hmrAcceptCheck(global.parcelRequire, asset.id);
+          asset.type === 'css' || hmrAcceptCheck(module.bundle.root, asset.id);
         if (didAccept) {
           handled = true;
         }
@@ -63,7 +76,7 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
         console.clear();
 
         assets.forEach(function(asset) {
-          hmrApply(global.parcelRequire, asset);
+          hmrApply(module.bundle.root, asset);
         });
 
         for (var i = 0; i < assetsToAccept.length; i++) {
@@ -198,9 +211,17 @@ function reloadCSS() {
     var links = document.querySelectorAll('link[rel="stylesheet"]');
     for (var i = 0; i < links.length; i++) {
       var href = links[i].getAttribute('href');
+      var hostname = getHostname();
+      var servedFromHMRServer =
+        hostname === 'localhost'
+          ? new RegExp(
+              '^(https?:\\/\\/(0.0.0.0|127.0.0.1)|localhost):' + getPort(),
+            ).test(href)
+          : href.indexOf(hostname + ':' + getPort());
       var absolute =
         /^https?:\/\//i.test(href) &&
-        href.indexOf(window.location.origin) !== 0;
+        href.indexOf(window.location.origin) !== 0 &&
+        !servedFromHMRServer;
       if (!absolute) {
         updateLink(links[i]);
       }
@@ -253,7 +274,7 @@ function hmrAcceptCheck(bundle, id) {
     return true;
   }
 
-  return getParents(global.parcelRequire, id).some(function(v) {
+  return getParents(module.bundle.root, id).some(function(v) {
     return hmrAcceptCheck(v[0], v[1]);
   });
 }
@@ -278,7 +299,7 @@ function hmrAcceptRun(bundle, id) {
   if (cached && cached.hot && cached.hot._acceptCallbacks.length) {
     cached.hot._acceptCallbacks.forEach(function(cb) {
       var assetsToAlsoAccept = cb(function() {
-        return getParents(global.parcelRequire, id);
+        return getParents(module.bundle.root, id);
       });
       if (assetsToAlsoAccept && assetsToAccept.length) {
         assetsToAccept.push.apply(assetsToAccept, assetsToAlsoAccept);

@@ -16,53 +16,51 @@ import {report} from '../ReporterRunner';
 import PublicDependency from '../public/Dependency';
 import PluginOptions from '../public/PluginOptions';
 import ParcelConfig from '../ParcelConfig';
-import createParcelConfigRequest from './ParcelConfigRequest';
-
-export type PathRequestResult = AssetGroup | null | void;
+import createParcelConfigRequest, {
+  getCachedParcelConfig,
+} from './ParcelConfigRequest';
 
 export type PathRequest = {|
   id: string,
   +type: 'path_request',
-  run: RunOpts => Promise<PathRequestResult>,
-  input: Dependency,
+  run: RunOpts => Async<?AssetGroup>,
+  input: PathRequestInput,
+|};
+
+export type PathRequestInput = {|
+  dependency: Dependency,
+  name: string,
 |};
 
 type RunOpts = {|
-  input: Dependency,
-  ...StaticRunOpts,
+  input: PathRequestInput,
+  ...StaticRunOpts<?AssetGroup>,
 |};
 
 const type = 'path_request';
 const QUERY_PARAMS_REGEX = /^([^\t\r\n\v\f?]*)(\?.*)?/;
 
 export default function createPathRequest(
-  input: Dependency,
-): {|
-  id: string,
-  input: Dependency,
-  run: ({|input: Dependency, ...StaticRunOpts|}) => Async<?AssetGroup>,
-  +type: string,
-|} {
+  input: PathRequestInput,
+): PathRequest {
   return {
-    id: input.id,
+    id: input.dependency.id + ':' + input.name,
     type,
     run,
     input,
   };
 }
+
 async function run({input, api, options}: RunOpts) {
-  let {config} = nullthrows(
+  let configResult = nullthrows(
     await api.runRequest<null, ConfigAndCachePath>(createParcelConfigRequest()),
   );
+  let config = getCachedParcelConfig(configResult, options);
   let resolverRunner = new ResolverRunner({
     options,
-    config: new ParcelConfig(
-      config,
-      options.packageManager,
-      options.autoinstall,
-    ),
+    config,
   });
-  let assetGroup = await resolverRunner.resolve(input);
+  let assetGroup = await resolverRunner.resolve(input.dependency);
 
   if (assetGroup != null) {
     api.invalidateOnFileDelete(assetGroup.filePath);
@@ -124,7 +122,7 @@ export class ResolverRunner {
 
     let pipeline;
     let filePath;
-    let query: QueryParameters = {};
+    let query: ?QueryParameters;
     let validPipelines = new Set(this.config.getNamedPipelines());
     if (
       // Don't consider absolute paths. Absolute paths are only supported for entries,
@@ -139,7 +137,10 @@ export class ResolverRunner {
           // `url('http://example.com/foo.png')`
           return null;
         } else {
-          throw new Error(`Unknown pipeline ${pipeline}.`);
+          throw await this.getThrowableDiagnostic(
+            dependency,
+            `Unknown pipeline: ${pipeline}.`,
+          );
         }
       }
     } else {
@@ -150,23 +151,31 @@ export class ResolverRunner {
       filePath = dependency.moduleSpecifier;
     }
 
+    let queryPart = null;
     if (dependency.isURL) {
       let parsed = URL.parse(filePath);
       if (typeof parsed.pathname !== 'string') {
-        throw new Error(`Received URL without a pathname ${filePath}.`);
+        throw await this.getThrowableDiagnostic(
+          dependency,
+          `Received URL without a pathname ${filePath}.`,
+        );
       }
       filePath = decodeURIComponent(parsed.pathname);
+      if (parsed.query != null) {
+        queryPart = parsed.query;
+      }
+    } else {
+      let matchesQuerystring = filePath.match(QUERY_PARAMS_REGEX);
+      if (matchesQuerystring && matchesQuerystring[2] != null) {
+        filePath = matchesQuerystring[1];
+        queryPart = matchesQuerystring[2].substr(1);
+      }
+    }
+    if (queryPart != null) {
+      query = querystring.parse(queryPart);
     }
 
-    let matchesQuerystring = filePath.match(QUERY_PARAMS_REGEX);
-    if (matchesQuerystring && matchesQuerystring.length > 2) {
-      filePath = matchesQuerystring[1];
-      query = matchesQuerystring[2]
-        ? querystring.parse(matchesQuerystring[2].substr(1))
-        : {};
-    }
-
-    let errors: Array<ThrowableDiagnostic> = [];
+    let diagnostics: Array<Diagnostic> = [];
     for (let resolver of resolvers) {
       try {
         let result = await resolver.plugin.resolve({
@@ -177,12 +186,20 @@ export class ResolverRunner {
         });
 
         if (result) {
+          if (result.meta) {
+            dependency.meta = {
+              ...dependency.meta,
+              ...result.meta,
+            };
+          }
+
           if (result.isExcluded) {
             return null;
           }
 
           if (result.filePath != null) {
             return {
+              canDefer: result.canDefer,
               filePath: result.filePath,
               query,
               sideEffects: result.sideEffects,
@@ -192,14 +209,25 @@ export class ResolverRunner {
               isURL: dependency.isURL,
             };
           }
+
+          if (result.diagnostics) {
+            if (Array.isArray(result.diagnostics)) {
+              diagnostics.push(...result.diagnostics);
+            } else {
+              diagnostics.push(result.diagnostics);
+            }
+          }
         }
       } catch (e) {
         // Add error to error map, we'll append these to the standard error if we can't resolve the asset
-        errors.push(
-          new ThrowableDiagnostic({
-            diagnostic: errorToDiagnostic(e, resolver.name),
-          }),
-        );
+        let errorDiagnostic = errorToDiagnostic(e, resolver.name);
+        if (Array.isArray(errorDiagnostic)) {
+          diagnostics.push(...errorDiagnostic);
+        } else {
+          diagnostics.push(errorDiagnostic);
+        }
+
+        break;
       }
     }
 
@@ -207,11 +235,10 @@ export class ResolverRunner {
       return null;
     }
 
+    let resolveFrom = dependency.resolveFrom ?? dependency.sourcePath;
     let dir =
-      dependency.sourcePath != null
-        ? escapeMarkdown(
-            relativePath(this.options.projectRoot, dependency.sourcePath),
-          )
+      resolveFrom != null
+        ? escapeMarkdown(relativePath(this.options.projectRoot, resolveFrom))
         : '';
 
     let specifier = escapeMarkdown(dependency.moduleSpecifier || '');
@@ -222,13 +249,8 @@ export class ResolverRunner {
       `Failed to resolve '${specifier}' ${dir ? `from '${dir}'` : ''}`,
     );
 
-    // Merge resolver errors
-    if (errors.length) {
-      for (let error of errors) {
-        err.diagnostics.push(...error.diagnostics);
-      }
-    }
-
+    // Merge diagnostics
+    err.diagnostics.push(...diagnostics);
     err.code = 'MODULE_NOT_FOUND';
 
     throw err;

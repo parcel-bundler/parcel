@@ -5,15 +5,20 @@ import type {
   Blob,
   ConfigResult,
   DependencyOptions,
-  File,
   FilePath,
   PackageJSON,
   PackageName,
   TransformerResult,
 } from '@parcel/types';
-import type {Asset, Dependency, ParcelOptions} from './types';
+import type {
+  Asset,
+  RequestInvalidation,
+  Dependency,
+  ParcelOptions,
+} from './types';
 
 import v8 from 'v8';
+import invariant from 'assert';
 import {Readable} from 'stream';
 import SourceMap from '@parcel/source-map';
 import {
@@ -22,11 +27,18 @@ import {
   blobToStream,
   streamFromPromise,
   TapStream,
+  loadSourceMap,
+  SOURCEMAP_RE,
 } from '@parcel/utils';
 import {createDependency, mergeDependencies} from './Dependency';
 import {mergeEnvironments} from './Environment';
 import {PARCEL_VERSION} from './constants';
-import {createAsset, getConfig} from './assetUtils';
+import {
+  createAsset,
+  getConfig,
+  getInvalidationId,
+  getInvalidationHash,
+} from './assetUtils';
 
 type UncommittedAssetOptions = {|
   value: Asset,
@@ -36,6 +48,7 @@ type UncommittedAssetOptions = {|
   ast?: ?AST,
   isASTDirty?: ?boolean,
   idBase?: ?string,
+  invalidations?: Map<string, RequestInvalidation>,
 |};
 
 export default class UncommittedAsset {
@@ -47,6 +60,7 @@ export default class UncommittedAsset {
   ast: ?AST;
   isASTDirty: boolean;
   idBase: ?string;
+  invalidations: Map<string, RequestInvalidation>;
 
   constructor({
     value,
@@ -56,6 +70,7 @@ export default class UncommittedAsset {
     ast,
     isASTDirty,
     idBase,
+    invalidations,
   }: UncommittedAssetOptions) {
     this.value = value;
     this.options = options;
@@ -64,6 +79,7 @@ export default class UncommittedAsset {
     this.ast = ast;
     this.isASTDirty = isASTDirty || false;
     this.idBase = idBase;
+    this.invalidations = invalidations || new Map();
   }
 
   /*
@@ -90,14 +106,7 @@ export default class UncommittedAsset {
     // and hash while it's being written to the cache.
     await Promise.all([
       contentKey != null &&
-        this.options.cache.setStream(
-          contentKey,
-          this.getStream().pipe(
-            new TapStream(buf => {
-              size += buf.length;
-            }),
-          ),
-        ),
+        this.commitContent(contentKey).then(s => (size = s)),
       this.mapBuffer != null &&
         mapKey != null &&
         this.options.cache.setBlob(mapKey, this.mapBuffer),
@@ -112,7 +121,11 @@ export default class UncommittedAsset {
     this.value.mapKey = mapKey;
     this.value.astKey = astKey;
     this.value.outputHash = md5FromString(
-      [this.value.hash, pipelineKey].join(':'),
+      [
+        this.value.hash,
+        pipelineKey,
+        await getInvalidationHash(this.getInvalidations(), this.options),
+      ].join(':'),
     );
 
     if (this.content != null) {
@@ -120,6 +133,36 @@ export default class UncommittedAsset {
     }
 
     this.value.committed = true;
+  }
+
+  async commitContent(contentKey: string): Promise<number> {
+    let content = await this.content;
+    if (content == null) {
+      return 0;
+    }
+
+    let size = 0;
+    if (content instanceof Readable) {
+      await this.options.cache.setStream(
+        contentKey,
+        content.pipe(
+          new TapStream(buf => {
+            size += buf.length;
+          }),
+        ),
+      );
+
+      return size;
+    }
+
+    if (typeof content === 'string') {
+      size = Buffer.byteLength(content);
+    } else {
+      size = content.length;
+    }
+
+    await this.options.cache.setBlob(contentKey, content);
+    return size;
   }
 
   async getCode(): Promise<string> {
@@ -137,7 +180,7 @@ export default class UncommittedAsset {
       return (await this.content).toString();
     }
 
-    return '';
+    invariant(false, 'Internal error: missing content');
   }
 
   async getBuffer(): Promise<Buffer> {
@@ -182,6 +225,26 @@ export default class UncommittedAsset {
     this.clearAST();
   }
 
+  async loadExistingSourcemap(): Promise<?SourceMap> {
+    if (this.map) {
+      return this.map;
+    }
+
+    let code = await this.getCode();
+    let map = await loadSourceMap(this.value.filePath, code, {
+      fs: this.options.inputFS,
+      projectRoot: this.options.projectRoot,
+    });
+
+    if (map) {
+      this.map = map;
+      this.mapBuffer = map.toBuffer();
+      this.setCode(code.replace(SOURCEMAP_RE, ''));
+    }
+
+    return this.map;
+  }
+
   getMapBuffer(): Promise<?Buffer> {
     return Promise.resolve(this.mapBuffer);
   }
@@ -191,7 +254,7 @@ export default class UncommittedAsset {
       let mapBuffer = this.mapBuffer ?? (await this.getMapBuffer());
       if (mapBuffer) {
         // Get sourcemap from flatbuffer
-        let map = new SourceMap();
+        let map = new SourceMap(this.options.projectRoot);
         map.addBufferMappings(mapBuffer);
         this.map = map;
       }
@@ -249,12 +312,26 @@ export default class UncommittedAsset {
     return dep.id;
   }
 
-  addIncludedFile(file: File) {
-    this.value.includedFiles.set(file.filePath, file);
+  addIncludedFile(filePath: FilePath) {
+    let invalidation: RequestInvalidation = {
+      type: 'file',
+      filePath,
+    };
+
+    this.invalidations.set(getInvalidationId(invalidation), invalidation);
   }
 
-  getIncludedFiles(): Array<File> {
-    return Array.from(this.value.includedFiles.values());
+  invalidateOnEnvChange(key: string) {
+    let invalidation: RequestInvalidation = {
+      type: 'env',
+      key,
+    };
+
+    this.invalidations.set(getInvalidationId(invalidation), invalidation);
+  }
+
+  getInvalidations(): Array<RequestInvalidation> {
+    return [...this.invalidations.values()];
   }
 
   getDependencies(): Array<Dependency> {
@@ -265,6 +342,7 @@ export default class UncommittedAsset {
     result: TransformerResult,
     plugin: PackageName,
     configPath: FilePath,
+    configKeyPath: string,
   ): UncommittedAsset {
     let content = result.content ?? null;
 
@@ -274,6 +352,7 @@ export default class UncommittedAsset {
         hash: this.value.hash,
         filePath: this.value.filePath,
         type: result.type,
+        query: result.query,
         isIsolated: result.isIsolated ?? this.value.isIsolated,
         isInline: result.isInline ?? this.value.isInline,
         isSplittable: result.isSplittable ?? this.value.isSplittable,
@@ -283,7 +362,6 @@ export default class UncommittedAsset {
           this.value.type === result.type
             ? new Map(this.value.dependencies)
             : new Map(),
-        includedFiles: new Map(this.value.includedFiles),
         meta: {
           ...this.value.meta,
           ...result.meta,
@@ -295,10 +373,8 @@ export default class UncommittedAsset {
           time: 0,
           size: this.value.stats.size,
         },
-        symbols: !result.symbols
-          ? // TODO clone?
-            this.value.symbols
-          : new Map([...(this.value.symbols || []), ...(result.symbols || [])]),
+        // $FlowFixMe
+        symbols: result.symbols,
         sideEffects: result.sideEffects ?? this.value.sideEffects,
         uniqueKey: result.uniqueKey,
         astGenerator: result.ast
@@ -306,6 +382,7 @@ export default class UncommittedAsset {
           : null,
         plugin,
         configPath,
+        configKeyPath,
       }),
       options: this.options,
       content,
@@ -313,19 +390,13 @@ export default class UncommittedAsset {
       isASTDirty: result.ast === this.ast ? this.isASTDirty : true,
       mapBuffer: result.map ? result.map.toBuffer() : null,
       idBase: this.idBase,
+      invalidations: this.invalidations,
     });
 
     let dependencies = result.dependencies;
     if (dependencies) {
       for (let dep of dependencies) {
         asset.addDependency(dep);
-      }
-    }
-
-    let includedFiles = result.includedFiles;
-    if (includedFiles) {
-      for (let file of includedFiles) {
-        asset.addIncludedFile(file);
       }
     }
 
@@ -345,7 +416,7 @@ export default class UncommittedAsset {
     }
 
     for (let file of conf.files) {
-      this.addIncludedFile(file);
+      this.addIncludedFile(file.filePath);
     }
 
     return conf.config;

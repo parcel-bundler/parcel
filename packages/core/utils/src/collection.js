@@ -4,18 +4,6 @@ export function unique<T>(array: Array<T>): Array<T> {
   return [...new Set(array)];
 }
 
-export function flatMap<T, U>(
-  array: Array<T>,
-  projectFn: (T, number, Array<T>) => Array<U>,
-): Array<U> {
-  let out = [];
-
-  for (let arr of array.map(projectFn)) {
-    out.push(...arr);
-  }
-  return out;
-}
-
 export function objectSortedEntries(obj: {
   +[string]: mixed,
   ...,

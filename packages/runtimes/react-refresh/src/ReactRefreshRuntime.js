@@ -17,7 +17,7 @@ export default (new Runtime({
   async apply({bundle, options}) {
     if (
       bundle.type !== 'js' ||
-      !options.hot ||
+      !options.hmrOptions ||
       !bundle.env.isBrowser() ||
       options.mode !== 'development'
     ) {
@@ -27,7 +27,11 @@ export default (new Runtime({
     let entries = bundle.getEntryAssets();
     for (let entry of entries) {
       let pkg = await entry.getPackage();
-      if (pkg && pkg.dependencies && pkg.dependencies['react']) {
+      if (
+        pkg &&
+        ((pkg.dependencies && pkg.dependencies['react']) ||
+          (pkg.devDependencies && pkg.devDependencies['react']))
+      ) {
         return {
           filePath: __filename,
           code: CODE,

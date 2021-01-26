@@ -7,7 +7,6 @@ describe('jsonld', function() {
     let b = await bundle(
       path.join(__dirname, '/integration/schema-jsonld/index.html'),
       {
-        production: true,
         publicURL: 'https://place.holder/',
       },
     );

@@ -16,13 +16,14 @@ import type {
   Validator,
 } from '@parcel/types';
 import type {PackageManager} from '@parcel/package-manager';
+import type {FileSystem} from '@parcel/fs';
 import type {
   ProcessedParcelConfig,
   ParcelPluginNode,
   PureParcelConfigPipeline,
   ExtendableParcelConfigPipeline,
 } from './types';
-import {isMatch} from 'micromatch';
+import {makeRe} from 'micromatch';
 import {basename} from 'path';
 import loadPlugin from './loadParcelPlugin';
 
@@ -31,11 +32,21 @@ type SerializedParcelConfig = {|
   $$raw: boolean,
   config: ProcessedParcelConfig,
   packageManager: PackageManager,
-  autoinstall: boolean,
+  fs: FileSystem,
+  shouldAutoInstall: boolean,
+|};
+
+type LoadedPlugin<T> = {|
+  name: string,
+  version: Semver,
+  plugin: T,
+  resolveFrom: FilePath,
+  keyPath: string,
 |};
 
 export default class ParcelConfig {
   packageManager: PackageManager;
+  fs: FileSystem;
   filePath: FilePath;
   resolvers: PureParcelConfigPipeline;
   transformers: GlobMap<ExtendableParcelConfigPipeline>;
@@ -47,14 +58,17 @@ export default class ParcelConfig {
   optimizers: GlobMap<ExtendableParcelConfigPipeline>;
   reporters: PureParcelConfigPipeline;
   pluginCache: Map<PackageName, any>;
-  autoinstall: boolean;
+  shouldAutoInstall: boolean;
+  regexCache: Map<string, RegExp>;
 
   constructor(
     config: ProcessedParcelConfig,
     packageManager: PackageManager,
-    autoinstall: boolean,
+    fs: FileSystem,
+    shouldAutoInstall: boolean,
   ) {
     this.packageManager = packageManager;
+    this.fs = fs;
     this.filePath = config.filePath;
     this.resolvers = config.resolvers || [];
     this.transformers = config.transformers || {};
@@ -66,14 +80,16 @@ export default class ParcelConfig {
     this.reporters = config.reporters || [];
     this.validators = config.validators || {};
     this.pluginCache = new Map();
-    this.autoinstall = autoinstall;
+    this.shouldAutoInstall = shouldAutoInstall;
+    this.regexCache = new Map();
   }
 
   static deserialize(serialized: SerializedParcelConfig): ParcelConfig {
     return new ParcelConfig(
       serialized.config,
       serialized.packageManager,
-      serialized.autoinstall,
+      serialized.fs,
+      serialized.shouldAutoInstall,
     );
   }
 
@@ -96,8 +112,9 @@ export default class ParcelConfig {
     return {
       $$raw: false,
       packageManager: this.packageManager,
+      fs: this.fs,
       config: this.getConfig(),
-      autoinstall: this.autoinstall,
+      shouldAutoInstall: this.shouldAutoInstall,
     };
   }
 
@@ -110,10 +127,12 @@ export default class ParcelConfig {
     }
 
     plugin = loadPlugin<T>(
+      this.fs,
       this.packageManager,
       node.packageName,
       node.resolveFrom,
-      this.autoinstall,
+      node.keyPath,
+      this.shouldAutoInstall,
     );
     this.pluginCache.set(node.packageName, plugin);
     return plugin;
@@ -121,14 +140,7 @@ export default class ParcelConfig {
 
   loadPlugins<T>(
     plugins: PureParcelConfigPipeline,
-  ): Promise<
-    Array<{|
-      name: string,
-      version: Semver,
-      plugin: T,
-      resolveFrom: FilePath,
-    |}>,
-  > {
+  ): Promise<Array<LoadedPlugin<T>>> {
     return Promise.all(
       plugins.map(async p => {
         let {plugin, version} = await this.loadPlugin<T>(p);
@@ -137,6 +149,7 @@ export default class ParcelConfig {
           plugin,
           version,
           resolveFrom: p.resolveFrom,
+          keyPath: p.keyPath,
         };
       }),
     );
@@ -154,14 +167,7 @@ export default class ParcelConfig {
     return this._getResolverNodes().map(r => r.packageName);
   }
 
-  getResolvers(): Promise<
-    Array<{|
-      name: string,
-      plugin: Resolver,
-      resolveFrom: FilePath,
-      version: Semver,
-    |}>,
-  > {
+  getResolvers(): Promise<Array<LoadedPlugin<Resolver>>> {
     return this.loadPlugins<Resolver>(this._getResolverNodes());
   }
 
@@ -179,16 +185,7 @@ export default class ParcelConfig {
     return validators.map(v => v.packageName);
   }
 
-  getValidators(
-    filePath: FilePath,
-  ): Promise<
-    Array<{|
-      name: string,
-      plugin: Validator,
-      resolveFrom: FilePath,
-      version: Semver,
-    |}>,
-  > {
+  getValidators(filePath: FilePath): Promise<Array<LoadedPlugin<Validator>>> {
     let validators = this._getValidatorNodes(filePath);
     return this.loadPlugins<Validator>(validators);
   }
@@ -214,7 +211,11 @@ export default class ParcelConfig {
         return [];
       }
 
-      throw new Error(`No transformers found for "${filePath}".`);
+      throw new Error(
+        `No transformers found for ${filePath}` +
+          (pipeline != null ? ` with pipeline: '${pipeline}'` : '') +
+          '.',
+      );
     }
 
     return transformers;
@@ -237,14 +238,7 @@ export default class ParcelConfig {
     filePath: FilePath,
     pipeline?: ?string,
     allowEmpty?: boolean,
-  ): Promise<
-    Array<{|
-      name: string,
-      plugin: Transformer,
-      resolveFrom: FilePath,
-      version: Semver,
-    |}>,
-  > {
+  ): Promise<Array<LoadedPlugin<Transformer>>> {
     return this.loadPlugins<Transformer>(
       this._getTransformerNodes(filePath, pipeline, allowEmpty),
     );
@@ -266,14 +260,7 @@ export default class ParcelConfig {
     return this.loadPlugin<Bundler>(this.bundler);
   }
 
-  getNamers(): Promise<
-    Array<{|
-      name: string,
-      plugin: Namer,
-      resolveFrom: FilePath,
-      version: Semver,
-    |}>,
-  > {
+  getNamers(): Promise<Array<LoadedPlugin<Namer>>> {
     if (this.namers.length === 0) {
       throw new Error('No namer plugins specified in .parcelrc config');
     }
@@ -283,14 +270,7 @@ export default class ParcelConfig {
 
   getRuntimes(
     context: EnvironmentContext,
-  ): Promise<
-    Array<{|
-      name: string,
-      version: Semver,
-      plugin: Runtime,
-      resolveFrom: FilePath,
-    |}>,
-  > {
+  ): Promise<Array<LoadedPlugin<Runtime>>> {
     let runtimes = this.runtimes[context];
     if (!runtimes) {
       return Promise.resolve([]);
@@ -345,14 +325,7 @@ export default class ParcelConfig {
   getOptimizers(
     filePath: FilePath,
     pipeline: ?string,
-  ): Promise<
-    Array<{|
-      name: string,
-      version: Semver,
-      plugin: Optimizer,
-      resolveFrom: FilePath,
-    |}>,
-  > {
+  ): Promise<Array<LoadedPlugin<Optimizer>>> {
     let optimizers = this._getOptimizerNodes(filePath, pipeline);
     if (optimizers.length === 0) {
       return Promise.resolve([]);
@@ -361,22 +334,26 @@ export default class ParcelConfig {
     return this.loadPlugins<Optimizer>(optimizers);
   }
 
-  getReporters(): Promise<
-    Array<{|
-      name: string,
-      plugin: Reporter,
-      resolveFrom: FilePath,
-      version: Semver,
-    |}>,
-  > {
+  getReporters(): Promise<Array<LoadedPlugin<Reporter>>> {
     return this.loadPlugins<Reporter>(this.reporters);
   }
 
   isGlobMatch(filePath: FilePath, pattern: Glob, pipeline?: ?string): boolean {
-    let prefix = pipeline ? `${pipeline}:` : '';
+    let [patternPipeline, patternGlob] = pattern.split(':');
+    if (!patternGlob) {
+      patternGlob = patternPipeline;
+      patternPipeline = null;
+    }
+
+    let re = this.regexCache.get(patternGlob);
+    if (!re) {
+      re = makeRe(patternGlob, {dot: true});
+      this.regexCache.set(patternGlob, re);
+    }
+
     return (
-      isMatch(prefix + filePath, pattern) ||
-      isMatch(prefix + basename(filePath), pattern)
+      (pipeline === patternPipeline || (!pipeline && !patternPipeline)) &&
+      (re.test(filePath) || re.test(basename(filePath)))
     );
   }
 
@@ -396,8 +373,24 @@ export default class ParcelConfig {
     pipeline?: ?string,
   ): PureParcelConfigPipeline {
     let matches = [];
+    if (pipeline) {
+      // If a pipeline is requested, a the glob needs to match exactly
+      let exactMatch;
+      for (let pattern in globMap) {
+        if (this.isGlobMatch(filePath, pattern, pipeline)) {
+          exactMatch = globMap[pattern];
+          break;
+        }
+      }
+      if (!exactMatch) {
+        return [];
+      } else {
+        matches.push(exactMatch);
+      }
+    }
+
     for (let pattern in globMap) {
-      if (this.isGlobMatch(filePath, pattern, pipeline)) {
+      if (this.isGlobMatch(filePath, pattern)) {
         matches.push(globMap[pattern]);
       }
     }

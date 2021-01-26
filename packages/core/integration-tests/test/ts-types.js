@@ -18,7 +18,7 @@ describe('typescript types', function() {
     assertBundles(b, [
       {
         type: 'js',
-        assets: ['index.ts'],
+        assets: ['esmodule-helpers.js', 'index.ts'],
       },
       {
         type: 'ts',
@@ -47,23 +47,11 @@ describe('typescript types', function() {
     assertBundles(b, [
       {
         type: 'js',
-        assets: ['index.ts', 'file.ts', 'namespace.ts'],
+        assets: ['index.ts', 'file.ts', 'namespace.ts', 'esmodule-helpers.js'],
       },
       {
         type: 'ts',
         assets: ['index.ts'],
-        includedFiles: {
-          'index.ts': [
-            'other.ts',
-            'file.ts',
-            'namespace.ts',
-            'lib.d.ts',
-            'lib.dom.d.ts',
-            'lib.es5.d.ts',
-            'lib.scripthost.d.ts',
-            'lib.webworker.importscripts.d.ts',
-          ],
-        },
       },
     ]);
 
@@ -88,23 +76,17 @@ describe('typescript types', function() {
     assertBundles(b, [
       {
         type: 'js',
-        assets: ['index.ts', 'message.ts', 'other.ts', 'test.ts'],
+        assets: [
+          'esmodule-helpers.js',
+          'index.ts',
+          'message.ts',
+          'other.ts',
+          'test.ts',
+        ],
       },
       {
         type: 'ts',
         assets: ['index.ts'],
-        includedFiles: {
-          'index.ts': [
-            'message.ts',
-            'other.ts',
-            'test.ts',
-            'lib.d.ts',
-            'lib.dom.d.ts',
-            'lib.es5.d.ts',
-            'lib.scripthost.d.ts',
-            'lib.webworker.importscripts.d.ts',
-          ],
-        },
       },
     ]);
 
@@ -129,14 +111,11 @@ describe('typescript types', function() {
     assertBundles(b, [
       {
         type: 'js',
-        assets: ['index.tsx', 'other.tsx'],
+        assets: ['index.tsx', 'other.tsx', 'esmodule-helpers.js'],
       },
       {
         type: 'ts',
         assets: ['index.tsx'],
-        includedFiles: {
-          'index.ts': ['other.tsx'],
-        },
       },
     ]);
 
@@ -220,5 +199,23 @@ describe('typescript types', function() {
     ).replace(/\r\n/g, '\n');
 
     assert(/import\s*{\s*B\s*}\s*from\s*"b";/.test(dist));
+  });
+
+  it('should generate a typescript declaration file even when composite is true', async function() {
+    await bundle(
+      path.join(__dirname, '/integration/ts-types/composite/index.ts'),
+    );
+
+    let dist = (
+      await outputFS.readFile(
+        path.join(__dirname, '/integration/ts-types/composite/dist/index.d.ts'),
+        'utf8',
+      )
+    ).replace(/\r\n/g, '\n');
+    let expected = await inputFS.readFile(
+      path.join(__dirname, '/integration/ts-types/composite/expected.d.ts'),
+      'utf8',
+    );
+    assert.equal(dist, expected);
   });
 });

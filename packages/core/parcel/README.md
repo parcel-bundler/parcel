@@ -687,7 +687,7 @@ See [Bundlers](#bundlers)
 
 #### `.parcelrc#namers`
 
-`bundler` is an array of Parcel namer packages.
+`namers` is an array of Parcel namer packages.
 
 ```json
 {
@@ -1100,6 +1100,7 @@ asset graph. They mostly call out to different compilers and preprocessors.
 
 - `@parcel/transformer-babel`
 - `@parcel/transformer-coffeescript`
+- `@parcel/transformer-glsl`
 - `@parcel/transformer-graphql`
 - `@parcel/transformer-json`
 - `@parcel/transformer-json5`
@@ -1117,6 +1118,7 @@ asset graph. They mostly call out to different compilers and preprocessors.
 - `@parcel/transformer-wasm`
 - `@parcel/transformer-webmanifest`
 - `@parcel/transformer-yaml`
+- `@parcel/transformer-elm`
 - ...
 
 ### Bundlers
@@ -1544,3 +1546,7 @@ export default new Validator({
 ```
 
 If your plugin implements `validateAll`, Parcel will make sure to always invoke this method on the same thread (so that your cache state is accessible).
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE.md](https://github.com/parcel-bundler/parcel/blob/v2/LICENSE) file for details

@@ -5,18 +5,17 @@ import type {
   BundleGraph,
   PluginOptions,
   NamedBundle,
-  Symbol,
 } from '@parcel/types';
 import type {
   CallExpression,
-  ClassDeclaration,
+  Expression,
   Identifier,
+  LVal,
   Node,
   Statement,
   VariableDeclaration,
 } from '@babel/types';
 
-import {parse as babelParse} from '@babel/parser';
 import path from 'path';
 import * as t from '@babel/types';
 import {
@@ -31,24 +30,44 @@ import {
   isStringLiteral,
   isVariableDeclaration,
 } from '@babel/types';
-import {simple as walkSimple, traverse} from '@parcel/babylon-walk';
-import {PromiseQueue, relativeUrl} from '@parcel/utils';
+import {
+  simple as walkSimple,
+  traverse2,
+  REMOVE,
+  SKIP,
+} from '@parcel/babylon-walk';
+import {PromiseQueue, relativeUrl, relativePath} from '@parcel/utils';
 import invariant from 'assert';
 import fs from 'fs';
 import nullthrows from 'nullthrows';
-import {assertString, getName, getIdentifier, needsPrelude} from './utils';
-
-const HELPERS_PATH = path.join(__dirname, 'helpers.js');
-const HELPERS = parse(
-  fs.readFileSync(path.join(__dirname, 'helpers.js'), 'utf8'),
-  HELPERS_PATH,
-);
+import template from '@babel/template';
+import {
+  assertString,
+  getName,
+  getIdentifier,
+  parse,
+  needsPrelude,
+  needsDefaultInterop,
+} from './utils';
 
 const PRELUDE_PATH = path.join(__dirname, 'prelude.js');
 const PRELUDE = parse(
   fs.readFileSync(path.join(__dirname, 'prelude.js'), 'utf8'),
   PRELUDE_PATH,
 );
+
+const DEFAULT_INTEROP_TEMPLATE = template.statement<
+  {|
+    NAME: LVal,
+    MODULE: Expression,
+  |},
+  VariableDeclaration,
+>('var NAME = $parcel$interopDefault(MODULE);');
+
+const ESMODULE_TEMPLATE = template.statement<
+  {|EXPORTS: Expression|},
+  Statement,
+>(`$parcel$defineInteropFlag(EXPORTS);`);
 
 type AssetASTMap = Map<string, Array<Statement>>;
 type TraversalContext = {|
@@ -62,11 +81,13 @@ export async function concat({
   bundleGraph,
   options,
   wrappedAssets,
+  parcelRequireName,
 }: {|
   bundle: NamedBundle,
   bundleGraph: BundleGraph<NamedBundle>,
   options: PluginOptions,
   wrappedAssets: Set<string>,
+  parcelRequireName: string,
 |}): Promise<BabelNodeFile> {
   let queue = new PromiseQueue({maxConcurrent: 32});
   bundle.traverse((node, shouldWrap) => {
@@ -86,26 +107,28 @@ export async function concat({
         break;
       case 'asset':
         queue.add(() =>
-          processAsset(options, bundle, node.value, wrappedAssets),
+          processAsset(options, bundleGraph, bundle, node.value, wrappedAssets),
         );
     }
   });
 
   let outputs = new Map<string, Array<Statement>>(await queue.run());
-  let result = [...HELPERS];
+  let result = [];
+
   if (needsPrelude(bundle, bundleGraph)) {
-    result.unshift(...PRELUDE);
+    result.push(
+      ...parse(`var parcelRequireName = "${parcelRequireName}";`, PRELUDE_PATH),
+      ...PRELUDE,
+    );
   }
 
-  let usedExports = getUsedExports(bundle, bundleGraph);
-
-  // Node: for each asset, the order of `$parcel$require` calls and the corresponding
+  // Note: for each asset, the order of `$parcel$require` calls and the corresponding
   // `asset.getDependencies()` must be the same!
   bundle.traverseAssets<TraversalContext>({
     enter(asset, context) {
-      if (shouldSkipAsset(bundleGraph, asset, usedExports)) {
-        return context;
-      }
+      // Do not skip over excluded assets entirely, since their dependencies need
+      // to be in the correct order and they themselves need to be inserted correctly
+      // into the parent again.
 
       return {
         parent: context && context.children,
@@ -113,7 +136,7 @@ export async function concat({
       };
     },
     exit(asset, context) {
-      if (!context || shouldSkipAsset(bundleGraph, asset, usedExports)) {
+      if (!context) {
         return;
       }
 
@@ -138,11 +161,31 @@ export async function concat({
         }
       }
 
-      for (let [assetId, ast] of [...context.children].reverse()) {
-        let index = statementIndices.has(assetId)
-          ? nullthrows(statementIndices.get(assetId))
-          : 0;
-        statements.splice(index, 0, ...ast);
+      if (shouldSkipAsset(bundleGraph, bundle, asset)) {
+        // The order of imports of excluded assets has to be retained
+        statements = [...context.children]
+          .sort(
+            ([aId], [bId]) =>
+              nullthrows(statementIndices.get(aId)) -
+              nullthrows(statementIndices.get(bId)),
+          )
+          .map(([, ast]) => ast)
+          .flat();
+      } else {
+        // splice assets with missing statementIndices last (= put wrapped asset at the top)
+        let wrapped = [];
+        for (let [assetId, ast] of [...context.children].reverse()) {
+          let index = statementIndices.get(assetId);
+          if (index) {
+            statements.splice(index, 0, ...ast);
+          } else {
+            wrapped.push(ast);
+          }
+        }
+
+        for (let ast of wrapped) {
+          statements.unshift(...ast);
+        }
       }
 
       // If this module is referenced by another JS bundle, or is an entry module in a child bundle,
@@ -161,6 +204,7 @@ export async function concat({
 
 async function processAsset(
   options: PluginOptions,
+  bundleGraph: BundleGraph<NamedBundle>,
   bundle: NamedBundle,
   asset: Asset,
   wrappedAssets: Set<string>,
@@ -174,108 +218,59 @@ async function processAsset(
     statements = parse(code, relativeUrl(options.projectRoot, asset.filePath));
   }
 
+  // If this is a CommonJS module, add an interop default declaration if there are any ES6 default
+  // import dependencies in the same bundle for that module.
+  if (needsDefaultInterop(bundleGraph, bundle, asset)) {
+    statements.push(
+      DEFAULT_INTEROP_TEMPLATE({
+        NAME: getIdentifier(asset, '$interop$default'),
+        MODULE: t.identifier(assertString(asset.meta.exportsIdentifier)),
+      }),
+    );
+  }
+
+  // If this is an ES6 module with a default export, and it's required by a
+  // CommonJS module in the same bundle, then add an __esModule flag for interop with babel.
+  if (asset.meta.isES6Module && asset.symbols.hasExportSymbol('default')) {
+    let deps = bundleGraph.getIncomingDependencies(asset);
+    let hasCJSDep = deps.some(
+      dep =>
+        dep.meta.isCommonJS && !dep.isAsync && dep.symbols.hasExportSymbol('*'),
+    );
+    if (hasCJSDep) {
+      statements.push(
+        ESMODULE_TEMPLATE({
+          EXPORTS: t.identifier(assertString(asset.meta.exportsIdentifier)),
+        }),
+      );
+    }
+  }
+
   if (wrappedAssets.has(asset.id)) {
     statements = wrapModule(asset, statements);
   }
 
   if (statements[0]) {
-    t.addComment(statements[0], 'leading', ` ASSET: ${asset.filePath}`, true);
+    t.addComment(
+      statements[0],
+      'leading',
+      ` ASSET: ${relativePath(options.projectRoot, asset.filePath, false)}`,
+      true,
+    );
   }
 
   return [asset.id, statements];
 }
 
-function parse(code, sourceFilename) {
-  let ast = babelParse(code, {
-    sourceFilename,
-    allowReturnOutsideFunction: true,
-    plugins: ['dynamicImport'],
-  });
-
-  return ast.program.body;
-}
-
-function getUsedExports(
-  bundle: NamedBundle,
-  bundleGraph: BundleGraph<NamedBundle>,
-): Map<string, Set<Symbol>> {
-  let usedExports: Map<string, Set<Symbol>> = new Map();
-
-  let entry = bundle.getMainEntry();
-  if (entry) {
-    for (let {asset, symbol} of bundleGraph.getExportedSymbols(entry)) {
-      if (symbol) {
-        markUsed(asset, symbol);
-      }
-    }
-  }
-
-  bundle.traverseAssets(asset => {
-    for (let dep of bundleGraph.getDependencies(asset)) {
-      let resolvedAsset = bundleGraph.getDependencyResolution(dep, bundle);
-      if (!resolvedAsset) {
-        continue;
-      }
-
-      for (let [symbol, {local}] of dep.symbols) {
-        if (local === '*') {
-          continue;
-        }
-
-        if (symbol === '*') {
-          for (let {asset, symbol} of bundleGraph.getExportedSymbols(
-            resolvedAsset,
-          )) {
-            if (symbol) {
-              markUsed(asset, symbol);
-            }
-          }
-        }
-
-        markUsed(resolvedAsset, symbol);
-      }
-    }
-
-    // If the asset is referenced by another bundle, include all exports.
-    if (bundleGraph.isAssetReferencedByDependant(bundle, asset)) {
-      markUsed(asset, '*');
-      for (let {asset: a, symbol} of bundleGraph.getExportedSymbols(asset)) {
-        if (symbol) {
-          markUsed(a, symbol);
-        }
-      }
-    }
-  });
-
-  function markUsed(asset, symbol) {
-    let resolved = bundleGraph.resolveSymbol(asset, symbol);
-
-    let used = usedExports.get(resolved.asset.id);
-    if (!used) {
-      used = new Set();
-      usedExports.set(resolved.asset.id, used);
-    }
-
-    used.add(resolved.exportSymbol);
-  }
-
-  return usedExports;
-}
-
 function shouldSkipAsset(
   bundleGraph: BundleGraph<NamedBundle>,
+  bundle: NamedBundle,
   asset: Asset,
-  usedExports: Map<string, Set<Symbol>>,
 ) {
   return (
     asset.sideEffects === false &&
-    !asset.meta.isCommonJS &&
-    (!usedExports.has(asset.id) ||
-      nullthrows(usedExports.get(asset.id)).size === 0) &&
-    !bundleGraph.getIncomingDependencies(asset).find(d =>
-      // Don't exclude assets that was imported as a wildcard
-      d.symbols.hasExportSymbol('*'),
-    )
+    bundleGraph.getUsedSymbols(asset).size == 0 &&
+    !bundleGraph.isAssetReferencedByDependant(bundle, asset)
   );
 }
 
@@ -333,15 +328,14 @@ function findRequires(
 // Toplevel var/let/const declarations, function declarations and all `var` declarations
 // in a non-function scope need to be hoisted.
 const WRAP_MODULE_VISITOR = {
-  VariableDeclaration(path, {decls}) {
-    // $FlowFixMe
-    let {node, parent} = (path: {|node: VariableDeclaration, parent: Node|});
+  VariableDeclaration(node, {decls}, ancestors) {
+    let parent = ancestors[ancestors.length - 2];
     let isParentForX =
       isForInStatement(parent, {left: node}) ||
       isForOfStatement(parent, {left: node});
     let isParentFor = isForStatement(parent, {init: node});
 
-    if (node.kind === 'var' || isProgram(path.parent)) {
+    if (node.kind === 'var' || isProgram(parent)) {
       let replace: Array<any> = [];
       for (let decl of node.declarations) {
         let {id, init} = decl;
@@ -371,35 +365,30 @@ const WRAP_MODULE_VISITOR = {
           n = t.expressionStatement(n);
         }
 
-        path.replaceWith(n);
+        return n;
       } else {
-        path.remove();
+        return REMOVE;
       }
     }
-    path.skip();
+    return SKIP;
   },
-  FunctionDeclaration(path, {fns}) {
-    fns.push(path.node);
-    path.remove();
+  FunctionDeclaration(node, {fns}) {
+    fns.push(node);
+    return REMOVE;
   },
-  ClassDeclaration(path, {decls}) {
-    // $FlowFixMe
-    let {node} = (path: {|node: ClassDeclaration|});
+  ClassDeclaration(node, {decls}) {
     let {id} = node;
     invariant(isIdentifier(id));
 
     // Class declarations are not hoisted (they behave like `let`). We declare a variable
     // outside the function and convert to a class expression assignment.
     decls.push(t.variableDeclarator(id));
-    path.replaceWith(
-      t.expressionStatement(
-        t.assignmentExpression('=', id, t.toExpression(node)),
-      ),
+    return t.expressionStatement(
+      t.assignmentExpression('=', id, t.toExpression(node)),
     );
-    path.skip();
   },
-  'Function|Class'(path) {
-    path.skip();
+  'Function|Class'() {
+    return SKIP;
   },
   shouldSkip(node) {
     return t.isExpression(node);
@@ -410,7 +399,7 @@ function wrapModule(asset: Asset, statements) {
   let decls = [];
   let fns = [];
   let program = t.program(statements);
-  traverse(program, WRAP_MODULE_VISITOR, {decls, fns});
+  traverse2(program, WRAP_MODULE_VISITOR, {asset, decls, fns});
 
   let executed = getName(asset, 'executed');
   decls.push(

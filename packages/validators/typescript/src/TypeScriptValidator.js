@@ -23,7 +23,7 @@ let langServiceCache: {
 } = {};
 
 type TSValidatorConfig = {|
-  filepath: string | null,
+  filepath: ?string,
   baseDir: string,
   configHash: string,
   tsconfig: ConfigResult | null,
@@ -84,7 +84,7 @@ async function getConfig(
 ): Promise<TSValidatorConfig> {
   let configNames = ['tsconfig.json'];
   let tsconfig = await asset.getConfig(configNames);
-  let configPath: string | null = await resolveConfigWithPath(
+  let configPath: ?string = await resolveConfigWithPath(
     configNames,
     asset.filePath,
   );
@@ -109,7 +109,7 @@ async function tryCreateLanguageService(
     let ts = await options.packageManager.require(
       'typescript',
       asset.filePath,
-      {autoinstall: options.autoinstall},
+      {shouldAutoInstall: options.shouldAutoInstall},
     );
 
     // In order to prevent race conditions where we accidentally create two language services for the same config,
@@ -173,7 +173,10 @@ function getValidateResultFromDiagnostics(
             column: start.column + 1,
           };
 
-          if (typeof diagnostic.length === 'number') {
+          if (
+            typeof diagnostic.start === 'number' &&
+            typeof diagnostic.length === 'number'
+          ) {
             let endCharPosition = file.getLineAndCharacterOfPosition(
               diagnostic.start + diagnostic.length,
             );
@@ -186,11 +189,13 @@ function getValidateResultFromDiagnostics(
 
           codeframe = {
             code: source,
-            codeHighlights: {
-              start,
-              end,
-              message: diagnosticMessage,
-            },
+            codeHighlights: [
+              {
+                start,
+                end,
+                message: diagnosticMessage,
+              },
+            ],
           };
         }
       }

@@ -21,6 +21,7 @@ const TYPE_COLORS = {
   contains: 'grey',
   internal_async: 'orange',
   references: 'red',
+  sibling: 'green',
 };
 
 export default async function dumpGraphToGraphViz(
@@ -30,10 +31,14 @@ export default async function dumpGraphToGraphViz(
 ): Promise<void> {
   if (
     process.env.PARCEL_BUILD_ENV === 'production' ||
-    process.env.PARCEL_DUMP_GRAPHVIZ == null
+    process.env.PARCEL_DUMP_GRAPHVIZ == null ||
+    // $FlowFixMe
+    process.env.PARCEL_DUMP_GRAPHVIZ == false
   ) {
     return;
   }
+  let detailedSymbols = process.env.PARCEL_DUMP_GRAPHVIZ === 'symbols';
+
   const graphviz = require('graphviz');
   const tempy = require('tempy');
   let g = graphviz.digraph('G');
@@ -50,27 +55,70 @@ export default async function dumpGraphToGraphViz(
       let parts = [];
       if (node.value.isEntry) parts.push('entry');
       if (node.value.isAsync) parts.push('async');
-      if (node.value.isWeak) parts.push('weak');
       if (node.value.isOptional) parts.push('optional');
+      if (node.value.isIsolated) parts.push('isolated');
+      if (node.value.isURL) parts.push('url');
       if (node.hasDeferred) parts.push('deferred');
+      if (node.excluded) parts.push('excluded');
       if (parts.length) label += ' (' + parts.join(', ') + ')';
       if (node.value.env) label += ` (${getEnvDescription(node.value.env)})`;
+      let depSymbols = node.value.symbols;
+      if (detailedSymbols) {
+        if (depSymbols) {
+          if (depSymbols.size) {
+            label +=
+              '\nsymbols: ' +
+              [...depSymbols].map(([e, {local}]) => [e, local]).join(';');
+          }
+          let weakSymbols = [...depSymbols]
+            .filter(([, {isWeak}]) => isWeak)
+            .map(([s]) => s);
+          if (weakSymbols.length) {
+            label += '\nweakSymbols: ' + weakSymbols.join(',');
+          }
+          if (node.usedSymbolsUp.size > 0) {
+            label += '\nusedSymbolsUp: ' + [...node.usedSymbolsUp].join(',');
+          }
+          if (node.usedSymbolsDown.size > 0) {
+            label +=
+              '\nusedSymbolsDown: ' + [...node.usedSymbolsDown].join(',');
+          }
+        } else {
+          label += '\nsymbols: cleared';
+        }
+      }
     } else if (node.type === 'asset') {
       label += path.basename(node.value.filePath) + '#' + node.value.type;
+      if (detailedSymbols) {
+        if (!node.value.symbols) {
+          label += '\nsymbols: cleared';
+        } else if (node.value.symbols.size) {
+          label +=
+            '\nsymbols: ' +
+            [...node.value.symbols].map(([e, {local}]) => [e, local]).join(';');
+        }
+        if (node.usedSymbols.size) {
+          label += '\nusedSymbols: ' + [...node.usedSymbols].join(',');
+        }
+      }
     } else if (node.type === 'asset_group') {
       if (node.deferred) label += '(deferred)';
+      // $FlowFixMe
     } else if (node.type === 'file') {
       label += path.basename(node.value.filePath);
+      // $FlowFixMe
     } else if (node.type === 'transformer_request') {
       label +=
         path.basename(node.value.filePath) +
         ` (${getEnvDescription(node.value.env)})`;
+      // $FlowFixMe
     } else if (node.type === 'bundle') {
       let parts = [];
       if (node.value.isEntry) parts.push('entry');
       if (node.value.isInline) parts.push('inline');
       if (parts.length) label += ' (' + parts.join(', ') + ')';
       if (node.value.env) label += ` (${getEnvDescription(node.value.env)})`;
+      // $FlowFixMe
     } else if (node.type === 'request') {
       label = node.value.type + ':' + node.id;
     }
@@ -97,6 +145,8 @@ function getEnvDescription(env: Environment) {
     description = `${env.context}: ${env.engines.browsers.join(', ')}`;
   } else if (env.engines.node) {
     description = `node: ${env.engines.node}`;
+  } else if (env.engines.electron) {
+    description = `electron: ${env.engines.electron}`;
   }
 
   return description ?? '';

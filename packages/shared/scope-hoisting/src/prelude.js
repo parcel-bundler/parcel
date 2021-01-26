@@ -1,23 +1,13 @@
 var $parcel$modules = {};
 var $parcel$bundles = {};
 
-var globalObject =
-  typeof globalThis !== 'undefined'
-    ? globalThis
-    : typeof self !== 'undefined'
-    ? self
-    : typeof window !== 'undefined'
-    ? window
-    : typeof global !== 'undefined'
-    ? global
-    : {};
-
-if (globalObject.parcelRequire == null) {
-  globalObject.parcelRequire = function(name) {
+if (parcelRequire == null) {
+  parcelRequire = function(name) {
     // Execute the bundle wrapper function if there is one registered.
     if (name in $parcel$bundles) {
-      $parcel$bundles[name]();
+      let wrapper = $parcel$bundles[name];
       delete $parcel$bundles[name];
+      wrapper();
     }
 
     if (name in $parcel$modules) {
@@ -35,12 +25,14 @@ if (globalObject.parcelRequire == null) {
     throw err;
   };
 
-  globalObject.parcelRequire.register = function register(id, exports) {
+  parcelRequire.register = function register(id, exports) {
     $parcel$modules[id] = exports;
   };
 
-  globalObject.parcelRequire.registerBundle = function registerBundle(id, fn) {
+  parcelRequire.registerBundle = function registerBundle(id, fn) {
     $parcel$bundles[id] = fn;
     $parcel$modules[id] = {};
   };
+
+  $parcel$global[parcelRequireName] = parcelRequire;
 }

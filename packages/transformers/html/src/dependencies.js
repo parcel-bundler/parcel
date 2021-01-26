@@ -20,6 +20,7 @@ const ATTRS = {
   // Using href with <script> is described here: https://developer.mozilla.org/en-US/docs/Web/SVG/Element/script
   href: ['link', 'a', 'use', 'script'],
   srcset: ['img', 'source'],
+  imagesrcset: ['link'],
   poster: ['video'],
   'xlink:href': ['use', 'image', 'script'],
   content: ['meta'],
@@ -111,15 +112,19 @@ function collectSrcSetDependencies(asset, srcset, opts) {
 }
 
 function getAttrDepHandler(attr) {
-  if (attr === 'srcset') {
+  if (attr === 'srcset' || attr === 'imagesrcset') {
     return collectSrcSetDependencies;
   }
 
   return (asset, src, opts) => asset.addURLDependency(src, opts);
 }
 
-export default function collectDependencies(asset: MutableAsset, ast: AST) {
+export default function collectDependencies(
+  asset: MutableAsset,
+  ast: AST,
+): boolean {
   let isDirty = false;
+  let hasScripts = false;
   PostHTML().walk.call(ast.program, node => {
     let {tag, attrs} = node;
     if (!attrs) {
@@ -160,6 +165,11 @@ export default function collectDependencies(asset: MutableAsset, ast: AST) {
         continue;
       }
 
+      // Check for id references
+      if (attrs[attr][0] === '#') {
+        continue;
+      }
+
       let elements = ATTRS[attr];
       if (elements && elements.includes(node.tag)) {
         let depHandler = getAttrDepHandler(attr);
@@ -170,6 +180,10 @@ export default function collectDependencies(asset: MutableAsset, ast: AST) {
             : depOptionsHandler && depOptionsHandler[attr];
         attrs[attr] = depHandler(asset, attrs[attr], depOptions);
         isDirty = true;
+
+        if (node.tag === 'script') {
+          hasScripts = true;
+        }
       }
     }
 
@@ -179,4 +193,6 @@ export default function collectDependencies(asset: MutableAsset, ast: AST) {
 
     return node;
   });
+
+  return hasScripts;
 }

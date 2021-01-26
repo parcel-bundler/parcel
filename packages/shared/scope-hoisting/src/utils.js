@@ -4,7 +4,6 @@ import type {
   BundleGraph,
   MutableAsset,
   NamedBundle,
-  SourceLocation,
 } from '@parcel/types';
 import type {NodePath, Scope, VariableDeclarationKind} from '@babel/traverse';
 import type {
@@ -16,34 +15,41 @@ import type {
   ImportSpecifier,
   Node,
   VariableDeclarator,
+  Statement,
 } from '@babel/types';
+import {parse as babelParse} from '@babel/parser';
 import type {Diagnostic} from '@parcel/diagnostic';
-import type {SourceLocation as BabelSourceLocation} from '@babel/types';
 
 import {simple as walkSimple} from '@parcel/babylon-walk';
 import ThrowableDiagnostic from '@parcel/diagnostic';
 import * as t from '@babel/types';
-import {isVariableDeclarator, isVariableDeclaration} from '@babel/types';
+import {
+  isIdentifier,
+  isFunctionDeclaration,
+  isVariableDeclarator,
+  isVariableDeclaration,
+} from '@babel/types';
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import path from 'path';
+import fs from 'fs';
 
 export function getName(
   asset: Asset | MutableAsset,
   type: string,
   ...rest: Array<string>
 ): string {
-  return (
+  return t.toIdentifier(
     '$' +
-    t.toIdentifier(asset.id) +
-    '$' +
-    type +
-    (rest.length
-      ? '$' +
-        rest
-          .map(name => (name === 'default' ? name : t.toIdentifier(name)))
-          .join('$')
-      : '')
+      asset.id +
+      '$' +
+      type +
+      (rest.length
+        ? '$' +
+          rest
+            .map(name => (name === 'default' ? name : t.toIdentifier(name)))
+            .join('$')
+        : ''),
   );
 }
 
@@ -142,6 +148,24 @@ export function hasAsyncDescendant(
   return _hasAsyncDescendant;
 }
 
+export function needsDefaultInterop(
+  bundleGraph: BundleGraph<NamedBundle>,
+  bundle: NamedBundle,
+  asset: Asset,
+): boolean {
+  let deps = bundleGraph.getIncomingDependencies(asset);
+  if (asset.meta.isCommonJS && !asset.symbols.hasExportSymbol('default')) {
+    return deps.some(
+      dep =>
+        bundle.hasDependency(dep) &&
+        dep.meta.isES6Module &&
+        dep.symbols.hasExportSymbol('default'),
+    );
+  }
+
+  return false;
+}
+
 export function assertString(v: mixed): string {
   invariant(typeof v === 'string');
   return v;
@@ -164,14 +188,13 @@ export function pathRemove(path: NodePath<Node>) {
   path.remove();
 }
 
-function dereferenceIdentifier(node, scope) {
+export function dereferenceIdentifier(node: Identifier, scope: Scope) {
   let binding = scope.getBinding(node.name);
   if (binding) {
     let i = binding.referencePaths.findIndex(v => v.node === node);
     if (i >= 0) {
       binding.dereference();
       binding.referencePaths.splice(i, 1);
-      return;
     }
 
     let j = binding.constantViolations.findIndex(v =>
@@ -182,7 +205,6 @@ function dereferenceIdentifier(node, scope) {
       if (binding.constantViolations.length == 0) {
         binding.constant = true;
       }
-      return;
     }
   }
 }
@@ -289,16 +311,12 @@ export function getThrowableDiagnosticForNode(
   }
   if (loc) {
     diagnostic.codeFrame = {
-      codeHighlights: {
-        start: {
-          line: loc.start.line,
-          column: loc.start.column + 1,
+      codeHighlights: [
+        {
+          start: loc.start,
+          end: loc.end,
         },
-        // - Babel's columns are exclusive, ours are inclusive (column - 1)
-        // - Babel has 0-based columns, ours are 1-based (column + 1)
-        // = +-0
-        end: loc.end,
-      },
+      ],
     };
   }
   return new ThrowableDiagnostic({
@@ -306,19 +324,42 @@ export function getThrowableDiagnosticForNode(
   });
 }
 
-export function convertBabelLoc(loc: ?BabelSourceLocation): ?SourceLocation {
-  if (!loc || !loc.filename) return null;
+export function parse(code: string, sourceFilename: string): Array<Statement> {
+  let ast = babelParse(code, {
+    sourceFilename,
+    allowReturnOutsideFunction: true,
+    plugins: ['dynamicImport'],
+  });
 
-  let {filename, start, end} = loc;
-  return {
-    filePath: path.normalize(filename),
-    start: {
-      line: start.line,
-      column: start.column,
-    },
-    end: {
-      line: end.line,
-      column: end.column,
-    },
-  };
+  return ast.program.body;
+}
+
+let helpersCache;
+export function getHelpers(): Map<string, BabelNode> {
+  if (helpersCache != null) {
+    return helpersCache;
+  }
+
+  let helpersPath = path.join(__dirname, 'helpers.js');
+  let statements = parse(fs.readFileSync(helpersPath, 'utf8'), helpersPath);
+
+  helpersCache = new Map();
+  for (let statement of statements) {
+    if (isVariableDeclaration(statement)) {
+      if (
+        statement.declarations.length !== 1 ||
+        !isIdentifier(statement.declarations[0].id)
+      ) {
+        throw new Error('Unsupported helper');
+      }
+
+      helpersCache.set(statement.declarations[0].id.name, statement);
+    } else if (isFunctionDeclaration(statement) && isIdentifier(statement.id)) {
+      helpersCache.set(statement.id.name, statement);
+    } else {
+      throw new Error('Unsupported helper');
+    }
+  }
+
+  return helpersCache;
 }

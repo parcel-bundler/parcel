@@ -6,7 +6,7 @@ describe('pug', function() {
   it('should support bundling HTML', async function() {
     const b = await bundle(path.join(__dirname, '/integration/pug/index.pug'));
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         type: 'html',
         name: 'index.html',
@@ -45,14 +45,11 @@ describe('pug', function() {
       path.join(__dirname, '/integration/pug-include-extends/index.pug'),
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         type: 'html',
         name: 'index.html',
         assets: ['index.pug'],
-        includedFiles: {
-          'index.pug': ['base.pug', 'other.pug', 'nested.pug'],
-        },
       },
     ]);
 
@@ -68,7 +65,7 @@ describe('pug', function() {
       path.join(__dirname, '/integration/pug-var/index.pug'),
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         type: 'html',
         name: 'index.html',
@@ -89,7 +86,7 @@ describe('pug', function() {
       path.join(__dirname, '/integration/pug-mixins/index.pug'),
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         type: 'html',
         name: 'index.html',
@@ -106,7 +103,7 @@ describe('pug', function() {
       path.join(__dirname, '/integration/pug-filters/index.pug'),
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         type: 'html',
         name: 'index.html',
@@ -123,7 +120,7 @@ describe('pug', function() {
       path.join(__dirname, '/integration/pug-locals/index.pug'),
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         type: 'html',
         name: 'index.html',
@@ -138,12 +135,9 @@ describe('pug', function() {
   it('should minify HTML in production mode', async function() {
     const b = await bundle(
       path.join(__dirname, '/integration/pug-minify/index.pug'),
-      {
-        production: true,
-      },
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'index.html',
         assets: ['index.pug'],

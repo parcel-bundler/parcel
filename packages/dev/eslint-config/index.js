@@ -8,7 +8,7 @@ module.exports = {
     'prettier/flowtype',
     'prettier/react',
   ],
-  parser: 'babel-eslint',
+  parser: '@babel/eslint-parser',
   plugins: ['@parcel', 'flowtype', 'import', 'monorepo', 'react', 'mocha'],
   parserOptions: {
     ecmaVersion: 2018,

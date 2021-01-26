@@ -57,7 +57,7 @@ export default (new Transformer({
   async transform({asset, options, config, resolve}) {
     let rawConfig = config ? config.contents : {};
     let sass = await options.packageManager.require('sass', asset.filePath, {
-      autoinstall: options.autoinstall,
+      shouldAutoInstall: options.shouldAutoInstall,
     });
 
     const sassRender = promisify(sass.render.bind(sass));
@@ -78,12 +78,12 @@ export default (new Transformer({
       css = result.css;
       for (let included of result.stats.includedFiles) {
         if (included !== asset.filePath) {
-          asset.addIncludedFile({filePath: included});
+          asset.addIncludedFile(included);
         }
       }
 
       if (result.map != null) {
-        let map = new SourceMap();
+        let map = new SourceMap(options.projectRoot);
         map.addRawMappings(JSON.parse(result.map));
         asset.setMap(map);
       }

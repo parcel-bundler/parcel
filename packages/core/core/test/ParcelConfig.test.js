@@ -1,4 +1,5 @@
-// @flow
+// @flow strict-local
+
 import ParcelConfig from '../src/ParcelConfig';
 import assert from 'assert';
 import path from 'path';
@@ -6,6 +7,8 @@ import sinon from 'sinon';
 import logger from '@parcel/logger';
 import {inputFS} from '@parcel/test-utils';
 import {NodePackageManager} from '@parcel/package-manager';
+import {parseAndProcessConfig} from '../src/requests/ParcelConfigRequest';
+import {DEFAULT_OPTIONS} from './test-utils';
 
 const packageManager = new NodePackageManager(inputFS);
 
@@ -19,14 +22,17 @@ describe('ParcelConfig', () => {
           '*.css': {
             packageName: 'parcel-packager-css',
             resolveFrom: '.parcelrc',
+            keyPath: '/packagers/*.css',
           },
           '*.js': {
             packageName: 'parcel-packager-js',
             resolveFrom: '.parcelrc',
+            keyPath: '/packagers/*.js',
           },
         },
       },
       packageManager,
+      inputFS,
       false,
     );
 
@@ -40,6 +46,7 @@ describe('ParcelConfig', () => {
       assert.deepEqual(result, {
         packageName: 'parcel-packager-js',
         resolveFrom: '.parcelrc',
+        keyPath: '/packagers/*.js',
       });
     });
   });
@@ -54,6 +61,7 @@ describe('ParcelConfig', () => {
             {
               packageName: 'parcel-transform-jsx',
               resolveFrom: '.parcelrc',
+              keyPath: '/transformers/*.jsx/0',
             },
             '...',
           ],
@@ -61,11 +69,13 @@ describe('ParcelConfig', () => {
             {
               packageName: 'parcel-transform-js',
               resolveFrom: '.parcelrc',
+              keyPath: '/transformers/*.{js,jsx}/0',
             },
           ],
         },
       },
       packageManager,
+      inputFS,
       false,
     );
 
@@ -86,6 +96,7 @@ describe('ParcelConfig', () => {
         {
           packageName: 'parcel-transform-js',
           resolveFrom: '.parcelrc',
+          keyPath: '/transformers/*.{js,jsx}/0',
         },
       ]);
     });
@@ -99,10 +110,12 @@ describe('ParcelConfig', () => {
         {
           packageName: 'parcel-transform-jsx',
           resolveFrom: '.parcelrc',
+          keyPath: '/transformers/*.jsx/0',
         },
         {
           packageName: 'parcel-transform-js',
           resolveFrom: '.parcelrc',
+          keyPath: '/transformers/*.{js,jsx}/0',
         },
       ]);
     });
@@ -125,11 +138,13 @@ describe('ParcelConfig', () => {
               {
                 packageName: 'parcel-transformer-no-engines',
                 resolveFrom: configFilePath,
+                keyPath: '/transformers/*.js/0',
               },
             ],
           },
         },
         packageManager,
+        inputFS,
         false,
       );
 
@@ -137,6 +152,7 @@ describe('ParcelConfig', () => {
       let {plugin} = await config.loadPlugin({
         packageName: 'parcel-transformer-no-engines',
         resolveFrom: configFilePath,
+        keyPath: '/transformers/*.js/0',
       });
       assert(plugin);
       assert.equal(typeof plugin.transform, 'function');
@@ -163,32 +179,103 @@ describe('ParcelConfig', () => {
           transformers: {
             '*.js': [
               {
-                packageName: 'parcel-transformer-bad-engines',
+                packageName: 'parcel-transformer-not-found',
                 resolveFrom: configFilePath,
+                keyPath: '/transformers/*.js/0',
               },
             ],
           },
         },
         packageManager,
+        inputFS,
         false,
       );
+      // $FlowFixMe
+      let parcelVersion = require('../package.json').version;
+      let pkgJSON = path.join(
+        __dirname,
+        'fixtures',
+        'plugins',
+        'node_modules',
+        'parcel-transformer-bad-engines',
+        'package.json',
+      );
+      let code = inputFS.readFileSync(pkgJSON, 'utf8');
 
-      let errored = false;
-      try {
-        await config.loadPlugin({
-          packageName: 'parcel-transformer-bad-engines',
-          resolveFrom: configFilePath,
-        });
-      } catch (err) {
-        errored = true;
-        let parcelVersion = require('../package.json').version;
-        assert.equal(
-          err.message,
-          `The plugin "parcel-transformer-bad-engines" is not compatible with the current version of Parcel. Requires "5.x" but the current version is "${parcelVersion}".`,
-        );
-      }
+      // $FlowFixMe
+      await assert.rejects(
+        () =>
+          config.loadPlugin({
+            packageName: 'parcel-transformer-bad-engines',
+            resolveFrom: configFilePath,
+            keyPath: '/transformers/*.js/0',
+          }),
+        {
+          name: 'Error',
+          diagnostics: [
+            {
+              message: `The plugin "parcel-transformer-bad-engines" is not compatible with the current version of Parcel. Requires "5.x" but the current version is "${parcelVersion}".`,
+              origin: '@parcel/core',
+              filePath: pkgJSON,
+              language: 'json5',
+              codeFrame: {
+                code,
+                codeHighlights: [
+                  {
+                    start: {line: 5, column: 5},
+                    end: {line: 5, column: 19},
+                    message: undefined,
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      );
+    });
 
-      assert(errored, 'did not error');
+    it('should error with a codeframe if a plugin is not resolved', async () => {
+      let configFilePath = path.join(
+        __dirname,
+        'fixtures',
+        'config-plugin-not-found',
+        '.parcelrc',
+      );
+      let code = await DEFAULT_OPTIONS.inputFS.readFile(configFilePath, 'utf8');
+      let {config} = await parseAndProcessConfig(
+        configFilePath,
+        code,
+        DEFAULT_OPTIONS,
+      );
+      let parcelConfig = new ParcelConfig(
+        config,
+        DEFAULT_OPTIONS.packageManager,
+        DEFAULT_OPTIONS.inputFS,
+        DEFAULT_OPTIONS.shouldAutoInstall,
+      );
+
+      // $FlowFixMe
+      await assert.rejects(() => parcelConfig.getTransformers('test.js'), {
+        name: 'Error',
+        diagnostics: [
+          {
+            message: 'Cannot find parcel plugin "@parcel/transformer-jj"',
+            origin: '@parcel/core',
+            filePath: configFilePath,
+            language: 'json5',
+            codeFrame: {
+              code,
+              codeHighlights: [
+                {
+                  start: {line: 4, column: 14},
+                  end: {line: 4, column: 37},
+                  message: `Cannot find module "@parcel/transformer-jj", did you mean "@parcel/transformer-js"?`,
+                },
+              ],
+            },
+          },
+        ],
+      });
     });
   });
 });

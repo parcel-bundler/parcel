@@ -2,9 +2,11 @@
 
 import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import type {BundleGroup} from '@parcel/types';
+import type {ParcelOptions} from './types';
 
 import assert from 'assert';
 import baseX from 'base-x';
+import {md5FromObject} from '@parcel/utils';
 import {registerSerializableClass} from './serializer';
 import AssetGraph from './AssetGraph';
 import BundleGraph from './BundleGraph';
@@ -77,4 +79,44 @@ export function getPublicId(
   }
 
   throw new Error('Original id was not unique');
+}
+
+// These options don't affect compilation and should cause invalidations
+const ignoreOptions = new Set([
+  'env', // handled by separate invalidateOnEnvChange
+  'inputFS',
+  'outputFS',
+  'workerFarm',
+  'packageManager',
+  'detailedReport',
+  'shouldDisableCache',
+  'cacheDir',
+  'shouldAutoInstall',
+  'logLevel',
+  'shouldProfile',
+  'shouldPatchConsole',
+  'projectRoot',
+]);
+
+export function optionsProxy(
+  options: ParcelOptions,
+  invalidateOnOptionChange: string => void,
+): ParcelOptions {
+  return new Proxy(options, {
+    get(target, prop) {
+      if (!ignoreOptions.has(prop)) {
+        invalidateOnOptionChange(prop);
+      }
+
+      return target[prop];
+    },
+  });
+}
+
+export function hashFromOption(value: mixed): string {
+  if (typeof value === 'object' && value != null) {
+    return md5FromObject(value);
+  }
+
+  return String(value);
 }

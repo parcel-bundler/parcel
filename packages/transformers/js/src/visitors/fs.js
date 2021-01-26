@@ -1,5 +1,5 @@
 // @flow
-import type {AST, MutableAsset} from '@parcel/types';
+import type {AST, MutableAsset, PluginOptions} from '@parcel/types';
 import type {PluginLogger} from '@parcel/logger';
 import type {Visitor, NodePath} from '@babel/traverse';
 import type {CallExpression, Node, StringLiteral} from '@babel/types';
@@ -19,14 +19,23 @@ import {
 } from '@babel/types';
 import invariant from 'assert';
 import Path from 'path';
-import fs from 'fs';
 import template from '@babel/template';
 import {errorToDiagnostic} from '@parcel/diagnostic';
+import {convertBabelLoc} from '@parcel/babel-ast-utils';
 
 const bufferTemplate = template.expression<
   {|CONTENT: StringLiteral|},
   CallExpression,
 >('Buffer.from(CONTENT, "base64")');
+
+const throwErrorTemplate = template.expression<null, CallExpression>(
+  `(function(){
+  let e = new Error("ENOENT: no such file or directory, open '...'")
+  e.code = 'ENOENT';
+  throw e;
+})()`,
+  {syntacticPlaceholders: true},
+);
 
 export default ({
   AssignmentExpression(path) {
@@ -42,65 +51,107 @@ export default ({
     }
   },
 
-  CallExpression(path, {asset, logger, ast}) {
+  CallExpression(path, {asset, logger, ast, options, inlineFS}) {
     if (referencesImport(path, 'fs', 'readFileSync')) {
       let vars = {
         __dirname: Path.dirname(asset.filePath),
         __filename: Path.basename(asset.filePath),
       };
-      let filename, res, args;
 
-      try {
-        [filename, ...args] = (path
-          .get('arguments')
-          .map(arg => evaluate(arg, vars)): Array<string>);
+      let filename, args, res;
+      if (inlineFS) {
+        try {
+          [filename, ...args] = (path
+            .get('arguments')
+            .map(arg => evaluate(arg, vars)): Array<string>);
 
-        filename = Path.resolve(filename);
-        res = fs.readFileSync(filename, ...args);
-      } catch (_err) {
-        let err: Error = _err;
+          filename = Path.resolve(filename);
+          if (!Path.relative(options.projectRoot, filename).startsWith('..')) {
+            res = options.inputFS.readFileSync(filename, ...args);
+          }
+        } catch (_err) {
+          let err: Error = _err;
 
-        if (err instanceof NodeNotEvaluatedError) {
-          // Warn using a code frame
-          err.fileName = asset.filePath;
+          if (err instanceof NodeNotEvaluatedError) {
+            // Warn using a code frame
+            err.fileName = asset.filePath;
 
-          // $FlowFixMe the actual stack is useless
-          delete err.stack;
+            // $FlowFixMe the actual stack is useless
+            delete err.stack;
 
-          logger.warn(errorToDiagnostic(err));
-          return;
+            logger.warn(errorToDiagnostic(err));
+            return;
+          }
+
+          // Add location info so we log a code frame with the error
+          // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
+          err.loc =
+            path.node.arguments.length > 0
+              ? path.node.arguments[0].loc?.start
+              : path.node.loc?.start;
+          throw err;
         }
-
-        // Add location info so we log a code frame with the error
-        // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
-        err.loc =
-          path.node.arguments.length > 0
-            ? path.node.arguments[0].loc?.start
-            : path.node.loc?.start;
-        throw err;
       }
 
       let replacementNode;
-      if (Buffer.isBuffer(res)) {
-        invariant(res != null);
-        replacementNode = bufferTemplate({
-          CONTENT: t.stringLiteral(res.toString('base64')),
-        });
-      } else {
-        invariant(typeof res === 'string');
-        replacementNode = t.stringLiteral(res);
-      }
+      if (filename && res) {
+        if (Buffer.isBuffer(res)) {
+          invariant(res != null);
+          replacementNode = bufferTemplate({
+            CONTENT: t.stringLiteral(res.toString('base64')),
+          });
+        } else {
+          invariant(typeof res === 'string');
+          replacementNode = t.stringLiteral(res);
+        }
 
-      invariant(filename != null);
-      asset.addIncludedFile({
-        filePath: filename,
-      });
+        invariant(filename != null);
+        asset.addIncludedFile(filename);
+      } else {
+        let loc = convertBabelLoc(path.node.loc);
+        if (filename) {
+          let e = {
+            message:
+              'Disallowing fs.readFileSync of file outside project root, replacing with an error',
+            filePath: loc?.filePath ?? asset.filePath,
+            codeFrame: loc
+              ? {
+                  codeHighlights: [{start: loc.start, end: loc.end}],
+                }
+              : undefined,
+          };
+          if (asset.isSource) {
+            logger.warn(e);
+          } else {
+            logger.verbose(e);
+          }
+        } else {
+          logger.verbose({
+            message: 'Replacing fs.readFileSync with an error',
+            filePath: loc?.filePath ?? asset.filePath,
+            codeFrame: loc
+              ? {
+                  codeHighlights: [{start: loc.start, end: loc.end}],
+                }
+              : undefined,
+            hints: ['You might want to enable `inlineFS`?'],
+          });
+        }
+
+        replacementNode = throwErrorTemplate();
+      }
 
       path.replaceWith(replacementNode);
       asset.setAST(ast); // mark dirty
     }
   },
-}: Visitor<{|asset: MutableAsset, ast: AST, logger: PluginLogger|}>);
+}: Visitor<{|
+  asset: MutableAsset,
+  ast: AST,
+  logger: PluginLogger,
+  options: PluginOptions,
+  inlineFS: boolean,
+|}>);
 
 function isRequire(node, name, method) {
   // e.g. require('fs').readFileSync

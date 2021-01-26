@@ -16,7 +16,7 @@ export default (new Transformer({
 
     let [typescript, code]: [TypeScriptModule, string] = await Promise.all([
       options.packageManager.require('typescript', asset.filePath, {
-        autoinstall: options.autoinstall,
+        shouldAutoInstall: options.shouldAutoInstall,
       }),
       asset.getCode(),
     ]);

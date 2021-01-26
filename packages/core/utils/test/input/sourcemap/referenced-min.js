@@ -1,2 +1,2 @@
 function hello(){var l="Hello",o="world";console.log(l+" "+o+"!")}hello();
-//# sourceMappingURL=referenced-min.js.map
+//# sourceMappingURL=file://referenced-min.js.map

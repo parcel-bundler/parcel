@@ -1,16 +1,12 @@
+// @flow
 import assert from 'assert';
 import path from 'path';
 import {bundle} from '@parcel/test-utils';
-import defaultConfigContents from '@parcel/config-default';
 
-const config = {
-  ...defaultConfigContents,
-  validators: {
-    '*.{js,jsx,ts,tsx}': ['@parcel/validator-eslint'],
-  },
-  reporters: [],
-  filePath: require.resolve('@parcel/config-default'),
-};
+const config = path.join(
+  __dirname,
+  './integration/custom-configs/.parcelrc-eslint',
+);
 
 describe('eslint-validator', function() {
   it('should throw validation error with eslint errors', async function() {

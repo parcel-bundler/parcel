@@ -37,23 +37,19 @@ export default (new Transformer({
   async transform({asset, config, options}) {
     const pugConfig = config ? config.contents : {};
     const pug = await options.packageManager.require('pug', asset.filePath, {
-      autoinstall: options.autoinstall,
+      shouldAutoInstall: options.shouldAutoInstall,
     });
     const content = await asset.getCode();
     const render = pug.compile(content, {
-      degug: true,
       compileDebug: false,
       basedir: path.dirname(asset.filePath),
       filename: asset.filePath,
+      ...pugConfig,
       pretty: pugConfig.pretty || false,
-      doctype: pugConfig.doctype,
-      filters: pugConfig.filters,
-      filterOptions: pugConfig.filterOptions,
-      filterAliases: pugConfig.filterAliases,
     });
 
     for (let filePath of render.dependencies) {
-      await asset.addIncludedFile({filePath});
+      await asset.addIncludedFile(filePath);
     }
 
     asset.type = 'html';

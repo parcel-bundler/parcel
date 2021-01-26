@@ -83,7 +83,10 @@ export async function load({
           'WARNING: Using a JavaScript PostCSS config file means losing out on caching features of Parcel. Use a .postcssrc(.json) file whenever possible.',
       });
 
+      // JavaScript configs can use an array of functions... opt out of all caching...
       config.shouldInvalidateOnStartup();
+      config.shouldReload();
+      contents.__contains_functions = true;
     }
 
     if (typeof contents !== 'object') {
@@ -93,24 +96,19 @@ export async function load({
     if (
       contents.plugins == null ||
       typeof contents.plugins !== 'object' ||
-      Object.keys(contents.plugins) === 0
+      Object.keys(contents.plugins).length === 0
     ) {
       throw new Error('PostCSS config must have plugins');
     }
 
+    // contents is either:
+    // from JSON:    { plugins: { 'postcss-foo': { ...opts } } }
+    // from JS (v8): { plugins: [ { postcssPlugin: 'postcss-foo', ...visitor callback functions } ]
+    // from JS (v7): { plugins: [ [Function: ...] ]
     let configFilePlugins = Array.isArray(contents.plugins)
       ? contents.plugins
       : Object.keys(contents.plugins);
     for (let p of configFilePlugins) {
-      // JavaScript configs can use an array of functions... opt out of all caching...
-      if (typeof p === 'function') {
-        contents.__contains_functions = true;
-
-        // This should enforce the config to be revalidated as it can contain functions and is JS
-        config.shouldInvalidateOnStartup();
-        config.shouldReload();
-      }
-
       if (typeof p === 'string') {
         if (p.startsWith('.')) {
           logger.warn({
