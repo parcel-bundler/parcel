@@ -131,8 +131,8 @@ export type PackageTargetDescriptor = {|
   +distDir?: FilePath,
   +sourceMap?: boolean | TargetSourceMapOptions,
   +isLibrary?: boolean,
-  +shouldOptimize?: boolean,
-  +shouldScopeHoist?: boolean,
+  +optimize?: boolean,
+  +scopeHoist?: boolean,
 |};
 
 /**

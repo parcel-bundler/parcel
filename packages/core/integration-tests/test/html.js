@@ -531,9 +531,7 @@ describe('html', function() {
   });
 
   it('should preserve the spacing in the HTML tags', async function() {
-    await bundle(path.join(__dirname, '/integration/html/index.html'), {
-      production: true,
-    });
+    await bundle(path.join(__dirname, '/integration/html/index.html'));
 
     let html = await outputFS.readFile(
       path.join(distDir, 'index.html'),
@@ -1004,7 +1002,6 @@ describe('html', function() {
   it('should handle inline css with @imports', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-inline-css-import/index.html'),
-      {production: true},
     );
 
     assertBundles(b, [
@@ -1096,7 +1093,6 @@ describe('html', function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-inline-js-module/index.html'),
       {
-        production: true,
         defaultTargetOptions: {
           shouldScopeHoist: true,
         },
@@ -1173,6 +1169,7 @@ describe('html', function() {
         production: true,
         defaultTargetOptions: {
           shouldScopeHoist: true,
+          shouldOptimize: false,
         },
       },
     );
@@ -1404,6 +1401,7 @@ describe('html', function() {
         production: true,
         defaultTargetOptions: {
           shouldScopeHoist: true,
+          shouldOptimize: false,
         },
       },
     );
@@ -1495,7 +1493,9 @@ describe('html', function() {
   });
 
   it('should support split bundles with many pages', async function() {
-    await bundle(path.join(__dirname, '/integration/shared-many/*.html'));
+    await bundle(path.join(__dirname, '/integration/shared-many/*.html'), {
+      mode: 'production',
+    });
 
     let html = await outputFS.readFile(path.join(distDir, 'a.html'), 'utf8');
     assert.equal(html.match(/<script/g).length, 3);
@@ -1626,6 +1626,7 @@ describe('html', function() {
   it('should remove duplicate assets from sibling bundles', async function() {
     let bundleGraph = await bundle(
       path.join(__dirname, '/integration/shared-sibling-duplicate/*.html'),
+      {mode: 'production'},
     );
 
     bundleGraph.traverseBundles(bundle => {

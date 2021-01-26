@@ -166,7 +166,6 @@ describe('babel', function() {
         defaultTargetOptions: {
           shouldOptimize: false,
         },
-        mode: 'production', // ?
       });
       file = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
       assert.equal(prodRegExp.test(file), true);

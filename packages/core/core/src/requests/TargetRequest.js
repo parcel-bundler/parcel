@@ -178,10 +178,10 @@ export class TargetResolver {
               outputFormat: descriptor.outputFormat,
               shouldOptimize:
                 this.options.defaultTargetOptions.shouldOptimize &&
-                descriptor.shouldOptimize !== false,
+                descriptor.optimize !== false,
               shouldScopeHoist:
                 this.options.defaultTargetOptions.shouldScopeHoist &&
-                descriptor.shouldScopeHoist !== false,
+                descriptor.scopeHoist !== false,
               sourceMap: normalizeSourceMap(this.options, descriptor.sourceMap),
             }),
           };
@@ -447,10 +447,10 @@ export class TargetResolver {
             isLibrary: isLibrary,
             shouldOptimize:
               this.options.defaultTargetOptions.shouldOptimize &&
-              descriptor.shouldOptimize !== false,
+              descriptor.optimize !== false,
             shouldScopeHoist:
               this.options.defaultTargetOptions.shouldScopeHoist &&
-              descriptor.shouldScopeHoist !== false,
+              descriptor.scopeHoist !== false,
             sourceMap: normalizeSourceMap(this.options, descriptor.sourceMap),
           }),
           loc,
@@ -537,10 +537,10 @@ export class TargetResolver {
             isLibrary: descriptor.isLibrary,
             shouldOptimize:
               this.options.defaultTargetOptions.shouldOptimize &&
-              descriptor.shouldOptimize !== false,
+              descriptor.optimize !== false,
             shouldScopeHoist:
               this.options.defaultTargetOptions.shouldScopeHoist &&
-              descriptor.shouldScopeHoist !== false,
+              descriptor.scopeHoist !== false,
             sourceMap: normalizeSourceMap(this.options, descriptor.sourceMap),
           }),
           loc,
@@ -595,17 +595,6 @@ function parseEngines(
   }
 }
 
-// Used for backwards compatibility
-function postProcessDescriptor(descriptor: mixed): mixed {
-  return {
-    ...descriptor,
-    // $FlowFixMe
-    shouldOptimize: descriptor.shouldOptimize || descriptor.minify,
-    // $FlowFixMe
-    shouldScopeHoist: descriptor.shouldScopeHoist || descriptor.scopeHoist,
-  };
-}
-
 function parseDescriptor(
   targetName: string,
   descriptor: mixed,
@@ -625,7 +614,7 @@ function parseDescriptor(
   );
 
   // $FlowFixMe we just verified this
-  return postProcessDescriptor(descriptor);
+  return descriptor;
 }
 
 function parsePackageDescriptor(
@@ -646,7 +635,7 @@ function parsePackageDescriptor(
     `Invalid target descriptor for target "${targetName}"`,
   );
   // $FlowFixMe we just verified this
-  return postProcessDescriptor(descriptor);
+  return descriptor;
 }
 
 function parseCommonTargetDescriptor(
@@ -668,7 +657,7 @@ function parseCommonTargetDescriptor(
   );
 
   // $FlowFixMe we just verified this
-  return postProcessDescriptor(descriptor);
+  return descriptor;
 }
 
 function assertNoDuplicateTargets(targets, pkgFilePath, pkgContents) {

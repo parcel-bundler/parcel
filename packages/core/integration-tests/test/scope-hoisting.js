@@ -861,6 +861,7 @@ describe('scope hoisting', function() {
           __dirname,
           '/integration/scope-hoisting/es6/shared-bundle-reexport/*.html',
         ),
+        {mode: 'production'},
       );
 
       assertBundles(b, [
@@ -1730,6 +1731,7 @@ describe('scope hoisting', function() {
           __dirname,
           '/integration/scope-hoisting/es6/interop-async/index.html',
         ),
+        {mode: 'production', minify: false},
       );
 
       let output = await run(b);
@@ -4472,6 +4474,7 @@ describe('scope hoisting', function() {
   it('should include the prelude in shared entry bundles', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-shared/index.html'),
+      {mode: 'production', minify: false},
     );
 
     assertBundles(b, [
@@ -4517,6 +4520,7 @@ describe('scope hoisting', function() {
   it('should include prelude in shared worker bundles', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/worker-shared/index.js'),
+      {mode: 'production', minify: false},
     );
 
     let sharedBundle = b
@@ -4600,6 +4604,7 @@ describe('scope hoisting', function() {
         __dirname,
         '/integration/sync-async/same-bundle-scope-hoisting.js',
       ),
+      {mode: 'production'},
     );
 
     assertBundles(b, [
@@ -4623,6 +4628,7 @@ describe('scope hoisting', function() {
         __dirname,
         '/integration/sync-async/same-ancestry-scope-hoisting.js',
       ),
+      {mode: 'production'},
     );
 
     assertBundles(b, [
@@ -4651,6 +4657,7 @@ describe('scope hoisting', function() {
   it('loads another bundle from a dynamic import with a shared dependency only when necessary', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/sync-async-when-needed/index.js'),
+      {mode: 'production'},
     );
 
     assertBundles(b, [
@@ -4682,6 +4689,7 @@ describe('scope hoisting', function() {
         'same-bundle-scope-hoisting.js',
         'get-dep-scope-hoisting.js',
       ].map(entry => path.join(__dirname, '/integration/sync-async/', entry)),
+      {mode: 'production'},
     );
 
     assertBundles(b, [
@@ -4728,6 +4736,7 @@ describe('scope hoisting', function() {
         __dirname,
         '/integration/shared-exports-for-sibling-descendant/scope-hoisting.js',
       ),
+      {mode: 'production'},
     );
 
     assertBundles(b, [
