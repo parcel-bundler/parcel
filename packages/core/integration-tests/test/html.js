@@ -523,9 +523,7 @@ describe('html', function() {
   });
 
   it('should preserve the spacing in the HTML tags', async function() {
-    await bundle(path.join(__dirname, '/integration/html/index.html'), {
-      production: true,
-    });
+    await bundle(path.join(__dirname, '/integration/html/index.html'));
 
     let html = await outputFS.readFile(
       path.join(distDir, 'index.html'),
@@ -980,7 +978,6 @@ describe('html', function() {
   it('should handle inline css with @imports', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-inline-css-import/index.html'),
-      {production: true},
     );
 
     assertBundles(b, [
@@ -1067,7 +1064,7 @@ describe('html', function() {
   it('should support inline <script type="module">', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-inline-js-module/index.html'),
-      {production: true, scopeHoist: true},
+      {scopeHoist: true},
     );
 
     assertBundles(b, [
@@ -1095,7 +1092,7 @@ describe('html', function() {
         __dirname,
         '/integration/html-js-shared-dynamic-nested/index.html',
       ),
-      {production: true, scopeHoist: true},
+      {mode: 'production', scopeHoist: true},
     );
 
     assertBundles(b, [
@@ -1131,7 +1128,7 @@ describe('html', function() {
   it('should support shared bundles between multiple inline scripts', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-inline-js-shared/index.html'),
-      {production: true, scopeHoist: true},
+      {mode: 'production', scopeHoist: true, minify: false},
     );
 
     assertBundles(b, [
@@ -1167,7 +1164,7 @@ describe('html', function() {
   it.skip('inserts sibling bundles into html in the correct order (no head)', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-js-shared/index.html'),
-      {production: true, scopeHoist: true},
+      {mode: 'production', scopeHoist: true},
     );
 
     assertBundles(b, [
@@ -1229,7 +1226,7 @@ describe('html', function() {
   it.skip('inserts sibling bundles into html in the correct order (head)', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-js-shared-head/index.html'),
-      {production: true, scopeHoist: true},
+      {mode: 'production', scopeHoist: true},
     );
 
     assertBundles(b, [
@@ -1290,7 +1287,7 @@ describe('html', function() {
   it('should support multiple entries with shared sibling bundles', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/shared-sibling-entries/*.html'),
-      {production: true, scopeHoist: true},
+      {scopeHoist: true},
     );
 
     assertBundles(b, [
@@ -1344,7 +1341,7 @@ describe('html', function() {
         __dirname,
         'integration/scope-hoisting/es6/interop-async/index.html',
       ),
-      {production: true, scopeHoist: true},
+      {mode: 'production', scopeHoist: true, minify: false},
     );
     let bundles = b.getBundles();
 
@@ -1376,7 +1373,7 @@ describe('html', function() {
         __dirname,
         '/integration/shared-sibling-entries-multiple/*.html',
       ),
-      {production: true, scopeHoist: true},
+      {scopeHoist: true},
     );
 
     // a.html should point to a CSS bundle containing a.css as well as
@@ -1429,7 +1426,9 @@ describe('html', function() {
   });
 
   it('should support split bundles with many pages', async function() {
-    await bundle(path.join(__dirname, '/integration/shared-many/*.html'));
+    await bundle(path.join(__dirname, '/integration/shared-many/*.html'), {
+      mode: 'production',
+    });
 
     let html = await outputFS.readFile(path.join(distDir, 'a.html'), 'utf8');
     assert.equal(html.match(/<script/g).length, 3);
@@ -1560,6 +1559,7 @@ describe('html', function() {
   it('should remove duplicate assets from sibling bundles', async function() {
     let bundleGraph = await bundle(
       path.join(__dirname, '/integration/shared-sibling-duplicate/*.html'),
+      {mode: 'production'},
     );
 
     bundleGraph.traverseBundles(bundle => {
@@ -1614,10 +1614,7 @@ describe('html', function() {
   it('should include the correct paths when using multiple entries and referencing style from html and js', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-multi-entry/*.html'),
-      {
-        production: true,
-        scopeHoist: true,
-      },
+      {scopeHoist: true},
     );
 
     assertBundles(b, [

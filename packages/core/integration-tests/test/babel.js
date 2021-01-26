@@ -161,7 +161,6 @@ describe('babel', function() {
       // Prod build test
       await bundle(path.join(__dirname, projectBasePath, '/index.js'), {
         minify: false,
-        production: true,
       });
       file = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
       assert.equal(prodRegExp.test(file), true);
