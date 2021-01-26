@@ -1,14 +1,12 @@
 // @flow
 import type {EnvironmentOptions} from '@parcel/types';
-import type {Asset, Dependency, Environment} from './types';
+import type {Environment} from './types';
 import {md5FromOrderedObject} from '@parcel/utils';
 
 const DEFAULT_ENGINES = {
   browsers: ['> 0.25%'],
   node: '>= 8.0.0',
 };
-
-const envCache: Map<string, Environment> = new Map();
 
 export function createEnvironment({
   context,
@@ -92,33 +90,8 @@ export function createEnvironment({
     sourceMap,
   };
 
-  let id = getEnvironmentHash(res);
-  let idAndContext = `${id}-${context}`;
-
-  let env = envCache.get(idAndContext);
-  if (!env) {
-    res.id = id;
-    envCache.set(idAndContext, res);
-    return res;
-  }
-
-  return env;
-}
-
-export function clearEnvironmentCache() {
-  envCache.clear();
-}
-
-export function getOrSetEnvironment(input: Asset | Dependency) {
-  let {id, context} = input.env;
-  let idAndContext = `${id}-${context}`;
-
-  let env = envCache.get(idAndContext);
-  if (env) {
-    input.env = env;
-  } else {
-    envCache.set(idAndContext, input.env);
-  }
+  res.id = getEnvironmentHash(res);
+  return res;
 }
 
 export function mergeEnvironments(

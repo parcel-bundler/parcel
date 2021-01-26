@@ -12,6 +12,7 @@ import type {
   Entry,
   EntryFileNode,
   EntrySpecifierNode,
+  Environment,
   Target,
 } from './types';
 
@@ -25,7 +26,6 @@ import {
 import nullthrows from 'nullthrows';
 import Graph, {type GraphOpts} from './Graph';
 import {createDependency} from './Dependency';
-import {getOrSetEnvironment} from './Environment';
 
 type InitOpts = {|
   entries?: Array<string>,
@@ -39,8 +39,6 @@ type SerializedAssetGraph = {|
 |};
 
 export function nodeFromDep(dep: Dependency): DependencyNode {
-  getOrSetEnvironment(dep);
-
   return {
     id: dep.id,
     type: 'dependency',
@@ -74,8 +72,6 @@ export function nodeFromAssetGroup(assetGroup: AssetGroup): AssetGroupNode {
 }
 
 export function nodeFromAsset(asset: Asset): AssetNode {
-  getOrSetEnvironment(asset);
-
   return {
     id: asset.id,
     type: 'asset',
@@ -105,6 +101,7 @@ export function nodeFromEntryFile(entry: Entry): EntryFileNode {
 export default class AssetGraph extends Graph<AssetGraphNode> {
   onNodeRemoved: ?(node: AssetGraphNode) => mixed;
   hash: ?string;
+  envCache: Map<string, Environment>;
 
   constructor(opts: ?SerializedAssetGraph) {
     if (opts) {
@@ -116,6 +113,7 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
       let rootNode = {id: '@@root', type: 'root', value: null};
       this.setRootNode(rootNode);
     }
+    this.envCache = new Map();
   }
 
   // $FlowFixMe
@@ -130,6 +128,18 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
       ...super.serialize(),
       hash: this.hash,
     };
+  }
+
+  getOrSetEnvironment(input: Asset | Dependency | AssetGroup) {
+    let {id, context} = input.env;
+    let idAndContext = `${id}-${context}`;
+
+    let env = this.envCache.get(idAndContext);
+    if (env) {
+      input.env = env;
+    } else {
+      this.envCache.set(idAndContext, input.env);
+    }
   }
 
   setRootConnections({entries, assetGroups}: InitOpts) {
@@ -355,6 +365,7 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     assets: Array<Asset>,
     correspondingRequest: string,
   ) {
+    this.getOrSetEnvironment(assetGroup);
     let assetGroupNode = nodeFromAssetGroup(assetGroup);
     assetGroupNode = this.getNode(assetGroupNode.id);
     if (!assetGroupNode) {
@@ -370,6 +381,7 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
       isDirect: boolean,
     |}> = [];
     for (let asset of assets) {
+      this.getOrSetEnvironment(asset);
       let isDirect = !dependentAssetKeys.includes(asset.uniqueKey);
 
       let dependentAssets = [];
@@ -406,6 +418,7 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     let depNodes = [];
     let depNodesWithAssets = [];
     for (let dep of assetNode.value.dependencies.values()) {
+      this.getOrSetEnvironment(dep);
       let depNode = nodeFromDep(dep);
       let existing = this.getNode(depNode.id);
       if (existing) {

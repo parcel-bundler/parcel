@@ -3,7 +3,6 @@
 import type {Async} from '@parcel/types';
 import type {StaticRunOpts} from '../RequestTracker';
 import type {AssetRequestInput, AssetRequestResult} from '../types';
-import {getOrSetEnvironment} from '../Environment';
 import type {ConfigAndCachePath} from './ParcelConfigRequest';
 import type {TransformationResult} from '../Transformation';
 
@@ -84,10 +83,6 @@ async function run({input, api, options, farm}: RunInput) {
   let time = Date.now() - start;
   for (let asset of assets) {
     asset.stats.time = time;
-  }
-
-  for (let asset of assets) {
-    getOrSetEnvironment(asset);
   }
 
   for (let invalidation of invalidations) {
