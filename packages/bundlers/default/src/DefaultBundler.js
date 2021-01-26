@@ -43,7 +43,7 @@ export default (new Bundler({
     return loadBundlerConfig(options);
   },
 
-  bundle({bundleGraph}) {
+  bundle({bundleGraph, config}) {
     let bundleRoots: Map<Bundle, Array<Asset>> = new Map();
     let bundlesByEntryAsset: Map<Asset, Bundle> = new Map();
 
@@ -185,9 +185,6 @@ export default (new Bundler({
         bundleGraph.addEntryToBundle(asset, bundle);
       }
     }
-  },
-
-  optimize({bundleGraph, config}) {
     invariant(config != null);
 
     // Step 2: Remove asset graphs that begin with entries to other bundles.
@@ -242,6 +239,9 @@ export default (new Bundler({
 
     // Step 3: Remove assets that are duplicated in a parent bundle.
     deduplicate(bundleGraph);
+  },
+  optimize({bundleGraph, config}) {
+    invariant(config != null);
 
     // Step 4: Find duplicated assets in different bundle groups, and separate them into their own parallel bundles.
     // If multiple assets are always seen together in the same bundles, combine them together.
@@ -374,7 +374,6 @@ export default (new Bundler({
 
     // Remove assets that are duplicated between shared bundles.
     deduplicate(bundleGraph);
-
     // Step 5: Mark async dependencies on assets that are already available in
     // the bundle as internally resolvable. This removes the dependency between
     // the bundle and the bundle group providing that asset. If all connections

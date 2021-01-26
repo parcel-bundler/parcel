@@ -212,7 +212,7 @@ export default (new Packager({
         prefix +
         '({' +
         assets +
-        '},{},' +
+        '},' +
         JSON.stringify(
           entries.map(asset => bundleGraph.getAssetPublicId(asset)),
         ) +
