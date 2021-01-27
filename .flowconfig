@@ -27,8 +27,6 @@ esproposal.nullish_coalescing=enable
 esproposal.optional_chaining=enable
 module.system.node.main_field=source
 module.system.node.main_field=main
-types_first=true
-well_formed_exports=true
 
 [strict]
 nonstrict-import
@@ -40,4 +38,4 @@ untyped-import
 untyped-type-import
 
 [version]
-0.142.0
+0.143.0

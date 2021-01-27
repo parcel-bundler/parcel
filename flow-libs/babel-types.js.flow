@@ -1843,7 +1843,7 @@ declare module "@babel/types" {
   declare export function blockStatement(body: $ReadOnlyArray<BabelNodeStatement>, directives?: ?$ReadOnlyArray<BabelNodeDirective>): BabelNodeBlockStatement;
   declare export function breakStatement(label?: ?BabelNodeIdentifier): BabelNodeBreakStatement;
   declare export function callExpression(callee: BabelNodeExpression | BabelNodeV8IntrinsicIdentifier, _arguments: $ReadOnlyArray<BabelNodeExpression | BabelNodeSpreadElement | BabelNodeJSXNamespacedName | BabelNodeArgumentPlaceholder>): BabelNodeCallExpression;
-  declare export function catchClause(param?: ?BabelNodeIdentifier | BabelNode$ReadOnlyArrayPattern | BabelNodeObjectPattern, body: BabelNodeBlockStatement): BabelNodeCatchClause;
+  declare export function catchClause(param?: ?BabelNodeIdentifier | BabelNodeArrayPattern | BabelNodeObjectPattern, body: BabelNodeBlockStatement): BabelNodeCatchClause;
   declare export function conditionalExpression(test: BabelNodeExpression, consequent: BabelNodeExpression, alternate: BabelNodeExpression): BabelNodeConditionalExpression;
   declare export function continueStatement(label?: ?BabelNodeIdentifier): BabelNodeContinueStatement;
   declare export function debuggerStatement(): BabelNodeDebuggerStatement;
@@ -1885,7 +1885,7 @@ declare module "@babel/types" {
   declare export function variableDeclarator(id: BabelNodeLVal, init?: ?BabelNodeExpression): BabelNodeVariableDeclarator;
   declare export function whileStatement(test: BabelNodeExpression, body: BabelNodeStatement): BabelNodeWhileStatement;
   declare export function withStatement(object: BabelNodeExpression, body: BabelNodeStatement): BabelNodeWithStatement;
-  declare export function assignmentPattern(left: BabelNodeIdentifier | BabelNodeObjectPattern | BabelNode$ReadOnlyArrayPattern | BabelNodeMemberExpression, right: BabelNodeExpression): BabelNodeAssignmentPattern;
+  declare export function assignmentPattern(left: BabelNodeIdentifier | BabelNodeObjectPattern | BabelNodeArrayPattern | BabelNodeMemberExpression, right: BabelNodeExpression): BabelNodeAssignmentPattern;
   declare export function arrayPattern(elements: $ReadOnlyArray<null | BabelNodePatternLike>): BabelNodeArrayPattern;
   declare export function arrowFunctionExpression(params: $ReadOnlyArray<BabelNodeIdentifier | BabelNodePattern | BabelNodeRestElement | BabelNodeTSParameterProperty>, body: BabelNodeBlockStatement | BabelNodeExpression, async?: ?boolean): BabelNodeArrowFunctionExpression;
   declare export function classBody(body: $ReadOnlyArray<BabelNodeClassMethod | BabelNodeClassPrivateMethod | BabelNodeClassProperty | BabelNodeClassPrivateProperty | BabelNodeTSDeclareMethod | BabelNodeTSIndexSignature>): BabelNodeClassBody;

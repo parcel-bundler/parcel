@@ -14,8 +14,6 @@ const DEP_LOCS = [
   ['icons'],
   ['browser_action', 'default_icon'],
   ['browser_action', 'default_popup'],
-  ['browser_action', 'theme_actions', 'light'],
-  ['browser_action', 'theme_actions', 'dark'],
   ['page_action', 'default_icon'],
   ['page_action', 'default_popup'],
   ['background', 'scripts'],
@@ -145,6 +143,24 @@ async function collectDependencies(
         isEntry: true,
         loc,
       });
+    }
+  }
+  if (program.browser_action?.theme_icons) {
+    for (let i = 0; i < program.browser_action.theme_icons.length; ++i) {
+      const themeIcon = program.browser_action.theme_icons[i];
+      for (const k of ['light', 'dark']) {
+        const loc = getJSONSourceLocation(
+          ptrs[`/browser_action/theme_icons/${i}/${k}`],
+          'value',
+        );
+        themeIcon[k] = asset.addURLDependency(themeIcon[k], {
+          isEntry: true,
+          loc: {
+            ...loc,
+            filePath,
+          },
+        });
+      }
     }
   }
   if (program.web_accessible_resources) {

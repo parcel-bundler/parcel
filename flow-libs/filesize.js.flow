@@ -81,7 +81,7 @@ declare interface Filesize$Options {
   /**
    * ECMA-402 number format option overrides, default is "{}"
    */
-  localeOptions?: Intl.NumberFormatOptions;
+  localeOptions?: Intl$NumberFormatOptions;
 
   /**
    * Output of function (array, exponent, object, or string), default is string
