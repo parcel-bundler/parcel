@@ -135,9 +135,6 @@ describe('pug', function() {
   it('should minify HTML in production mode', async function() {
     const b = await bundle(
       path.join(__dirname, '/integration/pug-minify/index.pug'),
-      {
-        production: true,
-      },
     );
 
     assertBundles(b, [

@@ -113,7 +113,7 @@ declare module 'micromatch' {
      *
      * @default undefined
      */
-    ignore?: string | ReadonlyArray<string>,
+    ignore?: string | $ReadOnlyArray<string>,
     /**
      * Retain quotes in the generated regex, since quotes may also be used as an alternative to backslashes.
      *
@@ -340,8 +340,8 @@ declare module 'micromatch' {
      * ```
      */
     (
-      list: ReadonlyArray<string>,
-      patterns: string | ReadonlyArray<string>,
+      list: $ReadOnlyArray<string>,
+      patterns: string | $ReadOnlyArray<string>,
       options?: Options,
     ): string[],
 
@@ -363,7 +363,7 @@ declare module 'micromatch' {
      * ```
      */
     match(
-      list: ReadonlyArray<string>,
+      list: $ReadOnlyArray<string>,
       pattern: string,
       options?: Options,
     ): string[],
@@ -389,7 +389,7 @@ declare module 'micromatch' {
      */
     isMatch(
       string: string,
-      pattern: string | ReadonlyArray<string>,
+      pattern: string | $ReadOnlyArray<string>,
       options?: Options,
     ): boolean,
 
@@ -413,8 +413,8 @@ declare module 'micromatch' {
      * ```
      */
     some(
-      list: string | ReadonlyArray<string>,
-      patterns: string | ReadonlyArray<string>,
+      list: string | $ReadOnlyArray<string>,
+      patterns: string | $ReadOnlyArray<string>,
       options?: Options,
     ): boolean,
 
@@ -442,8 +442,8 @@ declare module 'micromatch' {
      * ```
      */
     every(
-      list: string | ReadonlyArray<string>,
-      patterns: string | ReadonlyArray<string>,
+      list: string | $ReadOnlyArray<string>,
+      patterns: string | $ReadOnlyArray<string>,
       options?: Options,
     ): boolean,
 
@@ -467,8 +467,8 @@ declare module 'micromatch' {
      * ```
      */
     any(
-      str: string | ReadonlyArray<string>,
-      patterns: string | ReadonlyArray<string>,
+      str: string | $ReadOnlyArray<string>,
+      patterns: string | $ReadOnlyArray<string>,
       options?: Options,
     ): boolean,
 
@@ -499,8 +499,8 @@ declare module 'micromatch' {
      * ```
      */
     all(
-      str: string | ReadonlyArray<string>,
-      patterns: string | ReadonlyArray<string>,
+      str: string | $ReadOnlyArray<string>,
+      patterns: string | $ReadOnlyArray<string>,
       options?: Options,
     ): boolean,
 
@@ -522,8 +522,8 @@ declare module 'micromatch' {
      * ```
      */
     not(
-      list: ReadonlyArray<string>,
-      patterns: string | ReadonlyArray<string>,
+      list: $ReadOnlyArray<string>,
+      patterns: string | $ReadOnlyArray<string>,
       options?: Options,
     ): string[],
 
@@ -548,7 +548,7 @@ declare module 'micromatch' {
      */
     contains(
       str: string,
-      patterns: string | ReadonlyArray<string>,
+      patterns: string | $ReadOnlyArray<string>,
       options?: Options,
     ): boolean,
 
@@ -573,9 +573,9 @@ declare module 'micromatch' {
      */
     matchKeys<T>(
       object: T,
-      patterns: string | ReadonlyArray<string>,
+      patterns: string | $ReadOnlyArray<string>,
       options?: Options,
-    ): Partial<T>,
+    ): $Shape<T>,
 
     /**
      * Returns a memoized matcher function from the given glob `pattern` and `options`. The returned function takes a string to match as its only argument and returns true if the string is a match.
@@ -657,7 +657,7 @@ declare module 'micromatch' {
      * //=> ['foo/(a|b)/bar']
      * ```
      */
-    braces(pattern: string, options?: braces.Options): string[],
+    braces(pattern: string, options?: mixed): string[],
 
     /**
      * Parse a glob pattern to create the source string for a regular expression.
@@ -686,7 +686,7 @@ declare module 'micromatch' {
      * //      { type: 'eos', val: '' } ] }
      * ```
      */
-    parse(glob: string, options?: Options): object,
+    parse(glob: string, options?: Options): any,
 
     /**
      * Scan a glob pattern to separate the pattern into segments.

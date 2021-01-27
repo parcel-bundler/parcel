@@ -127,22 +127,25 @@ export default class BundlerRunner {
 
     // $FlowFixMe
     await dumpGraphToGraphViz(internalBundleGraph._graph, 'after_bundle');
-    try {
-      await bundler.optimize({
-        bundleGraph: mutableBundleGraph,
-        config: configResult?.config,
-        options: this.pluginOptions,
-        logger: new PluginLogger({origin: this.config.getBundlerName()}),
-      });
-    } catch (e) {
-      throw new ThrowableDiagnostic({
-        diagnostic: errorToDiagnostic(e, this.config.getBundlerName()),
-      });
-    }
-    assertSignalNotAborted(signal);
+    if (this.pluginOptions.mode === 'production') {
+      try {
+        await bundler.optimize({
+          bundleGraph: mutableBundleGraph,
+          config: configResult?.config,
+          options: this.pluginOptions,
+          logger: new PluginLogger({origin: this.config.getBundlerName()}),
+        });
+      } catch (e) {
+        throw new ThrowableDiagnostic({
+          diagnostic: errorToDiagnostic(e, this.config.getBundlerName()),
+        });
+      }
+      assertSignalNotAborted(signal);
 
-    // $FlowFixMe
-    await dumpGraphToGraphViz(internalBundleGraph._graph, 'after_optimize');
+      // $FlowFixMe
+      await dumpGraphToGraphViz(internalBundleGraph._graph, 'after_optimize');
+    }
+
     await this.nameBundles(internalBundleGraph);
 
     await applyRuntimes({
