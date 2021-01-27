@@ -1,6 +1,6 @@
 {
   "name": "@parcel/config-default",
-  "version": "2.0.0-frontbucket.61",
+  "version": "2.0.0-frontbucket.62",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -18,7 +18,7 @@
     "test-ci": "mocha"
   },
   "dependencies": {
-    "@atlassian/parcel-reporter-analytics": "2.0.0-frontbucket.57",
+    "@atlassian/parcel-reporter-analytics": "2.0.0-frontbucket.58",
     "@parcel/bundler-default": "2.0.0-frontbucket.45",
     "@parcel/namer-default": "2.0.0-frontbucket.41",
     "@parcel/optimizer-cssnano": "2.0.0-frontbucket.43",

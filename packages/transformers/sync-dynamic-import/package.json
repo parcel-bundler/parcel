@@ -1,6 +1,6 @@
 {
   "name": "@parcel/transformer-sync-dynamic-import",
-  "version": "0.0.2-frontbucket.16",
+  "version": "0.0.2-frontbucket.17",
   "main": "lib/SyncDynamicImportTransformer.js",
   "source": "src/SyncDynamicImportTransformer.js",
   "engines": {
