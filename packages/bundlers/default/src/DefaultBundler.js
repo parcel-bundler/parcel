@@ -472,13 +472,9 @@ async function loadBundlerConfig(options: PluginOptions) {
     options.inputFS,
     path.join(options.projectRoot, 'index'),
     ['package.json'],
-    {parse: false},
   );
 
-  let pkgSource = result?.config;
-  let pkg = pkgSource ? JSON.parse(pkgSource) : null;
-
-  let config = pkg?.['@parcel/bundler-default'];
+  let config = result?.config['@parcel/bundler-default'];
   if (!config) {
     return {
       config: HTTP_OPTIONS['2'],
@@ -486,13 +482,13 @@ async function loadBundlerConfig(options: PluginOptions) {
     };
   }
 
-  invariant(result != null && pkgSource != null && pkg != null);
+  invariant(result != null);
 
   validateSchema.diagnostic(
     CONFIG_SCHEMA,
     {
       data: config,
-      source: pkgSource,
+      source: await options.inputFS.readFile(result.files[0].filePath, 'utf8'),
       filePath: result.files[0].filePath,
       prependKey: `/${encodeJSONKeyComponent('@parcel/bundler-default')}`,
     },

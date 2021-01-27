@@ -1762,7 +1762,7 @@ describe('html', function() {
     );
   });
 
-  it('should print a diganostic for invalid bundler options', async () => {
+  it('should print a diagnostic for invalid bundler options', async () => {
     let dir = path.join(__dirname, 'integration/invalid-bundler-config');
     let pkg = path.join(dir, 'package.json');
     let code = await inputFS.readFileSync(pkg, 'utf8');
