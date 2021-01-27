@@ -3,11 +3,21 @@
 import type {Asset, Bundle, BundleGraph, NamedBundle} from '@parcel/types';
 import type {Scope} from '@parcel/babylon-walk';
 import type {ExternalBundle, ExternalModule} from '../types';
+import type {LVal, Expression, VariableDeclaration} from '@babel/types';
 
 import * as t from '@babel/types';
+import template from '@babel/template';
 import {isExpressionStatement, isVariableDeclaration} from '@babel/types';
 import {relativeBundlePath} from '@parcel/utils';
-import {assertString, getName} from '../utils';
+import {assertString, getName, getIdentifier} from '../utils';
+
+const DEFAULT_INTEROP_TEMPLATE = template.statement<
+  {|
+    NAME: LVal,
+    MODULE: Expression,
+  |},
+  VariableDeclaration,
+>('var NAME = $parcel$interopDefault(MODULE);');
 
 export function generateBundleImports(
   bundleGraph: BundleGraph<NamedBundle>,
@@ -16,16 +26,37 @@ export function generateBundleImports(
   // eslint-disable-next-line no-unused-vars
   scope: Scope,
 ): Array<BabelNode> {
-  let specifiers = [...assets].map(asset => {
+  let specifiers = [];
+  let interops = [];
+  for (let asset of assets) {
     let id = getName(asset, 'init');
-    return t.importSpecifier(t.identifier(id), t.identifier(id));
-  });
+    specifiers.push(t.importSpecifier(t.identifier(id), t.identifier(id)));
+
+    if (asset.meta.isCommonJS === true) {
+      let deps = bundleGraph.getIncomingDependencies(asset);
+      let hasDefaultInterop = deps.some(
+        dep =>
+          dep.symbols.hasExportSymbol('default') && from.hasDependency(dep),
+      );
+      if (hasDefaultInterop) {
+        interops.push(
+          DEFAULT_INTEROP_TEMPLATE({
+            NAME: getIdentifier(asset, '$interop$default'),
+            MODULE: t.callExpression(getIdentifier(asset, 'init'), []),
+          }),
+        );
+
+        scope.add('$parcel$interopDefault');
+      }
+    }
+  }
 
   return [
     t.importDeclaration(
       specifiers,
       t.stringLiteral(relativeBundlePath(from, bundle)),
     ),
+    ...interops,
   ];
 }
 
