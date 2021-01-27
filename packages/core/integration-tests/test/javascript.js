@@ -835,7 +835,12 @@ describe('javascript', function() {
   it('should create a shared bundle to deduplicate assets in workers', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/worker-shared/index.js'),
-      {mode: 'production', scopeHoist: false},
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: false,
+        },
+      },
     );
 
     assertBundles(b, [
@@ -922,7 +927,7 @@ describe('javascript', function() {
   it('should create a shared bundle between browser and worker contexts', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/html-shared-worker/index.html'),
-      {mode: 'production', scopeHoist: false},
+      {mode: 'production', defaultTargetOptions: {shouldScopeHoist: false}},
     );
 
     assertBundles(b, [
@@ -2766,7 +2771,7 @@ describe('javascript', function() {
   it('can static import and dynamic import in the same bundle without creating a new bundle', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/sync-async/same-bundle.js'),
-      {mode: 'production', scopeHoist: false},
+      {mode: 'production', defaultTargetOptions: {shouldScopeHoist: false}},
     );
 
     assertBundles(b, [
@@ -2789,7 +2794,7 @@ describe('javascript', function() {
   it('can static import and dynamic import in the same bundle ancestry without creating a new bundle', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/sync-async/same-ancestry.js'),
-      {mode: 'production', scopeHoist: false},
+      {mode: 'production', defaultTargetOptions: {shouldScopeHoist: false}},
     );
 
     assertBundles(b, [
