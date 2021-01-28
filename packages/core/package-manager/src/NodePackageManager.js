@@ -139,7 +139,21 @@ export class NodePackageManager implements PackageManager {
           e.code !== 'MODULE_NOT_FOUND' ||
           options?.shouldAutoInstall !== true
         ) {
-          throw e;
+          if (
+            e.code === 'MODULE_NOT_FOUND' &&
+            options?.shouldAutoInstall !== true
+          ) {
+            throw new ThrowableDiagnostic({
+              diagnostic: {
+                message: e.message,
+                hints: [
+                  'Autoinstall is disabled, please install this package manually and restart Parcel.',
+                ],
+              },
+            });
+          } else {
+            throw e;
+          }
         }
 
         let conflicts = await getConflictingLocalDependencies(
