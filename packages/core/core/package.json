@@ -1,6 +1,6 @@
 {
   "name": "@parcel/core",
-  "version": "2.0.0-frontbucket.50",
+  "version": "2.0.0-frontbucket.51",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -28,7 +28,7 @@
     "@parcel/events": "2.0.0-frontbucket.20",
     "@parcel/fs": "2.0.0-frontbucket.39",
     "@parcel/logger": "2.0.0-frontbucket.27",
-    "@parcel/package-manager": "2.0.0-frontbucket.39",
+    "@parcel/package-manager": "2.0.0-frontbucket.40",
     "@parcel/plugin": "2.0.0-frontbucket.41",
     "@parcel/source-map": "2.0.0-alpha.4.19",
     "@parcel/types": "2.0.0-frontbucket.41",

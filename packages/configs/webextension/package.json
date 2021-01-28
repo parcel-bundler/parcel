@@ -1,6 +1,6 @@
 {
   "name": "@parcel/config-webextension",
-  "version": "2.0.0-frontbucket.2",
+  "version": "2.0.0-frontbucket.3",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -15,7 +15,7 @@
   },
   "main": "index.json",
   "dependencies": {
-    "@parcel/config-default": "2.0.0-frontbucket.62",
+    "@parcel/config-default": "2.0.0-frontbucket.63",
     "@parcel/packager-raw-url": "2.0.0-frontbucket.21",
     "@parcel/transformer-webextension": "2.0.0-frontbucket.0"
   }
