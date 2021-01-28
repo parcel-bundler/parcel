@@ -139,7 +139,21 @@ export class NodePackageManager implements PackageManager {
           e.code !== 'MODULE_NOT_FOUND' ||
           options?.shouldAutoInstall !== true
         ) {
-          throw e;
+          if (
+            e.code === 'MODULE_NOT_FOUND' &&
+            options?.shouldAutoInstall !== true
+          ) {
+            throw new ThrowableDiagnostic({
+              diagnostic: {
+                message: e.message,
+                hints: [
+                  'Autoinstall is disabled, please install this package manually and restart Parcel.',
+                ],
+              },
+            });
+          } else {
+            throw e;
+          }
         }
 
         let conflicts = await getConflictingLocalDependencies(
@@ -226,7 +240,9 @@ export class NodePackageManager implements PackageManager {
           throw new ThrowableDiagnostic({
             diagnostic: {
               message,
-              origin: '@parcel/package-manager',
+              hints: [
+                'Looks like the incompatible version was installed transitively. Add this package as a direct dependency with a compatible version range.',
+              ],
             },
           });
         }
