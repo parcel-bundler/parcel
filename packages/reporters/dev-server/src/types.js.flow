@@ -5,19 +5,19 @@ import type {FileSystem} from '@parcel/fs';
 import type {HTTPServer} from '@parcel/utils';
 import {
   IncomingMessage as HTTPIncomingMessage,
-  ServerResponse as HTTPServerResponse
+  ServerResponse as HTTPServerResponse,
 } from 'http';
 import {
   IncomingMessage as HTTPSIncomingMessage,
-  ServerResponse as HTTPSServerResponse
+  ServerResponse as HTTPSServerResponse,
 } from 'https';
 
 interface HTTPRequest extends HTTPIncomingMessage {
-  originalUrl?: string
-};
+  originalUrl?: string;
+}
 interface HTTPSRequest extends HTTPSIncomingMessage {
-  originalUrl?: string
-};
+  originalUrl?: string;
+}
 export type Request = HTTPRequest | HTTPSRequest;
 export type Response = HTTPServerResponse | HTTPSServerResponse;
 export type DevServerOptions = {|
@@ -27,16 +27,16 @@ export type DevServerOptions = {|
   cacheDir: string,
   inputFS: FileSystem,
   outputFS: FileSystem,
-  logger: PluginLogger
+  logger: PluginLogger,
 |};
 
 // TODO: Figure out if there is a node.js type that could be imported with a complete ServerError
 export type ServerError = Error & {|
-  code: string
+  code: string,
 |};
 
 export type HMRServerOptions = {|
   devServer?: HTTPServer,
   port: number,
-  logger: PluginLogger
+  logger: PluginLogger,
 |};

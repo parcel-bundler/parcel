@@ -1,0 +1,9 @@
+[{"ts":1011588,"pid":44157,"tid":0,"ph":"X","name":"init","dur":19772},
+{"ts":1032681,"pid":44157,"tid":0,"ph":"X","name":"assetGraphBuilder.build","dur":258533},
+{"ts":1295447,"pid":44157,"tid":0,"ph":"X","name":"bundler.bundle","dur":2811},
+{"ts":1298279,"pid":44157,"tid":0,"ph":"X","name":"bundler.optimize","dur":441},
+{"ts":1298776,"pid":44157,"tid":0,"ph":"X","name":"nameBundles","dur":3136},
+{"ts":1301928,"pid":44157,"tid":0,"ph":"X","name":"applyRuntimes","dur":5945},
+{"ts":1291237,"pid":44157,"tid":0,"ph":"X","name":"bundlerRunner.bundle","dur":17234},
+{"ts":1308531,"pid":44157,"tid":0,"ph":"X","name":"packagerRunner.writeBundles","dur":29947},
+{"ts":1343105,"pid":44157,"tid":0,"ph":"X","name":"validate","dur":282}

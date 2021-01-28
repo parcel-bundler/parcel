@@ -29,7 +29,7 @@ export default (new Transformer({
   },
 
   canReuseAST({ast}) {
-    return ast.type === 'postcss' && semver.satisfies(ast.version, '^8.0.0');
+    return ast.type === 'postcss' && semver.satisfies(ast.version, '^8.2.1');
   },
 
   async parse({asset, config, options}) {
@@ -40,15 +40,17 @@ export default (new Transformer({
     let postcss = await options.packageManager.require(
       'postcss',
       asset.filePath,
-      {autoinstall: options.autoinstall, range: '^8.0.0'},
+      {shouldAutoInstall: options.shouldAutoInstall, range: '^8.2.1'},
     );
 
     return {
       type: 'postcss',
-      version: '8.0.0',
-      program: postcss.parse(await asset.getCode(), {
-        from: asset.filePath,
-      }),
+      version: '8.2.1',
+      program: postcss
+        .parse(await asset.getCode(), {
+          from: asset.filePath,
+        })
+        .toJSON(),
     };
   },
 
@@ -61,32 +63,36 @@ export default (new Transformer({
     let postcss = await options.packageManager.require(
       'postcss',
       asset.filePath,
-      {autoinstall: options.autoinstall, range: '^8.0.0'},
+      {shouldAutoInstall: options.shouldAutoInstall, range: '^8.2.1'},
     );
 
     let plugins = [...config.hydrated.plugins];
+    let cssModules: ?{|[string]: string|} = null;
     if (config.hydrated.modules) {
       let postcssModules = await options.packageManager.require(
         'postcss-modules',
         asset.filePath,
-        {autoinstall: options.autoinstall},
+        {shouldAutoInstall: options.shouldAutoInstall},
       );
 
       plugins.push(
         postcssModules({
-          getJSON: (filename, json) => (asset.meta.cssModules = json),
+          getJSON: (filename, json) => (cssModules = json),
           Loader: createLoader(asset, resolve),
-          generateScopedName: (name, filename, css) =>
-            `_${name}_${md5FromString(filename + css).substr(0, 5)}`,
+          generateScopedName: (name, filename) =>
+            `_${name}_${md5FromString(
+              path.relative(options.projectRoot, filename),
+            ).substr(0, 6)}`,
           ...config.hydrated.modules,
         }),
       );
     }
 
     let ast = nullthrows(await asset.getAST());
+    let program = postcss.fromJSON(ast.program);
     let code = asset.isASTDirty() ? null : await asset.getCode();
     if (code == null || COMPOSES_RE.test(code)) {
-      ast.program.walkDecls(decl => {
+      program.walkDecls(decl => {
         let [, importPath] = FROM_IMPORT_RE.exec(decl.value) || [];
         if (decl.prop === 'composes' && importPath != null) {
           let parsed = valueParser(decl.value);
@@ -112,41 +118,51 @@ export default (new Transformer({
 
     // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
     let {messages, root} = await postcss(plugins).process(
-      ast.program,
+      program,
       config.hydrated,
     );
-    ast.program = root;
     asset.setAST({
       type: 'postcss',
-      version: '8.0.0',
-      program: root,
+      version: '8.2.1',
+      program: root.toJSON(),
     });
     for (let msg of messages) {
       if (msg.type === 'dependency') {
-        msg = (msg: {|
-          type: 'dependency',
-          plugin: string,
-          file: string,
-          parent: string,
-        |});
-
         asset.addIncludedFile(msg.file);
       }
     }
 
     let assets = [asset];
-    if (asset.meta.cssModules) {
-      let code = JSON.stringify(asset.meta.cssModules, null, 2);
+    if (cssModules) {
+      // $FlowFixMe
+      let cssModulesList = (Object.entries(cssModules): Array<
+        [string, string],
+      >);
       let deps = asset.getDependencies().filter(dep => !dep.isURL);
+      let code: string;
       if (deps.length > 0) {
         code = `
           module.exports = Object.assign({}, ${deps
             .map(dep => `require(${JSON.stringify(dep.moduleSpecifier)})`)
-            .join(', ')}, ${code});
+            .join(', ')}, ${JSON.stringify(cssModules, null, 2)});
         `;
       } else {
-        code = `module.exports = ${code};`;
+        code = cssModulesList
+          .map(
+            // This syntax enables shaking the invidual statements, so that unused classes don't even exist in JS.
+            ([className, classNameHashed]) =>
+              `module.exports[${JSON.stringify(className)}] = ${JSON.stringify(
+                classNameHashed,
+              )};`,
+          )
+          .join('\n');
       }
+
+      asset.symbols.ensure();
+      for (let [k, v] of cssModulesList) {
+        asset.symbols.set(k, v);
+      }
+      asset.symbols.set('default', 'default');
 
       assets.push({
         type: 'js',
@@ -161,11 +177,11 @@ export default (new Transformer({
     let postcss = await options.packageManager.require(
       'postcss',
       asset.filePath,
-      {autoinstall: options.autoinstall, range: '^8.0.0'},
+      {shouldAutoInstall: options.shouldAutoInstall, range: '^8.2.1'},
     );
 
     let code = '';
-    postcss.stringify(ast.program, c => {
+    postcss.stringify(postcss.fromJSON(ast.program), c => {
       code += c;
     });
 

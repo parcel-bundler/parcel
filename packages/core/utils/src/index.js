@@ -33,8 +33,6 @@ export {findAlternativeNodeModules, findAlternativeFiles} from './alternatives';
 export {blobToBuffer, blobToString} from './blob';
 export {
   unique,
-  flat,
-  flatMap,
   objectSortedEntries,
   objectSortedEntriesDeep,
   setDifference,
@@ -47,6 +45,7 @@ export {
   md5FromString,
   md5FromReadableStream,
   md5FromObject,
+  md5FromOrderedObject,
   md5FromFilePath,
 } from './md5';
 export {fuzzySearch} from './schema';

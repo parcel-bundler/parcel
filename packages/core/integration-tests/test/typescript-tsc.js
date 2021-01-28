@@ -45,7 +45,7 @@ describe('typescript tsc', function() {
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: ['index.ts'],
+        assets: ['index.ts', 'esmodule-helpers.js'],
       },
       {
         name: 'index.d.ts',

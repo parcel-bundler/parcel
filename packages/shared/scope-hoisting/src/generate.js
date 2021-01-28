@@ -9,11 +9,12 @@ import type {
 import type {
   ArrayExpression,
   ExpressionStatement,
+  Identifier,
   File,
   Statement,
 } from '@babel/types';
 
-import babelGenerate from '@babel/generator';
+import {generateAST} from '@parcel/babel-ast-utils';
 import invariant from 'assert';
 import {isEntry} from './utils';
 import SourceMap from '@parcel/source-map';
@@ -24,17 +25,18 @@ const REGISTER_TEMPLATE = template.statement<
   {|
     REFERENCED_IDS: ArrayExpression,
     STATEMENTS: Array<Statement>,
+    PARCEL_REQUIRE: Identifier,
   |},
   ExpressionStatement,
 >(`(function() {
   function $parcel$bundleWrapper() {
     if ($parcel$bundleWrapper._executed) return;
-    STATEMENTS;
     $parcel$bundleWrapper._executed = true;
+    STATEMENTS;
   }
   var $parcel$referencedAssets = REFERENCED_IDS;
   for (var $parcel$i = 0; $parcel$i < $parcel$referencedAssets.length; $parcel$i++) {
-    parcelRequire.registerBundle($parcel$referencedAssets[$parcel$i], $parcel$bundleWrapper);
+    PARCEL_REQUIRE.registerBundle($parcel$referencedAssets[$parcel$i], $parcel$bundleWrapper);
   }
 })()`);
 const WRAPPER_TEMPLATE = template.statement<
@@ -47,6 +49,7 @@ export function generate({
   bundle,
   ast,
   referencedAssets,
+  parcelRequireName,
   options,
 }: {|
   bundleGraph: BundleGraph<NamedBundle>,
@@ -54,6 +57,7 @@ export function generate({
   ast: File,
   options: PluginOptions,
   referencedAssets: Set<Asset>,
+  parcelRequireName: string,
 |}): {|contents: string, map: ?SourceMap|} {
   let interpreter;
   let mainEntry = bundle.getMainEntry();
@@ -80,6 +84,7 @@ export function generate({
                   t.stringLiteral(bundleGraph.getAssetPublicId(asset)),
                 ),
             ),
+            PARCEL_REQUIRE: t.identifier(parcelRequireName),
           }),
         ]
       : [WRAPPER_TEMPLATE({STATEMENTS: statements})];
@@ -94,20 +99,14 @@ export function generate({
     ),
   );
 
-  let {code, rawMappings} = babelGenerate(ast, {
-    sourceMaps: options.sourceMaps,
-    minified: bundle.env.minify,
-    comments: true, // retain /*@__PURE__*/ comments for terser
+  let {content, map} = generateAST({
+    ast,
+    sourceMaps: !!bundle.env.sourceMap,
+    options,
   });
 
-  let map = null;
-  if (options.sourceMaps && rawMappings != null) {
-    map = new SourceMap(options.projectRoot);
-    map.addIndexedMappings(rawMappings);
-  }
-
   return {
-    contents: code,
+    contents: content,
     map,
   };
 }

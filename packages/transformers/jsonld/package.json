@@ -16,7 +16,8 @@
   "main": "lib/JSONLDTransformer.js",
   "source": "src/JSONLDTransformer.js",
   "engines": {
-    "parcel": "^2.0.0-alpha.1.1"
+    "node": ">= 12.0.0",
+    "parcel": "^2.0.0-beta.1"
   },
   "scripts": {
     "test": "yarn workspace @parcel/integration-tests test -g jsonld"

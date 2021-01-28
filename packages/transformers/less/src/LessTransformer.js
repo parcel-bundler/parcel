@@ -1,4 +1,5 @@
 // @flow
+import {typeof default as Less} from 'less';
 import path from 'path';
 import {Transformer} from '@parcel/plugin';
 import SourceMap from '@parcel/source-map';
@@ -29,7 +30,7 @@ export default (new Transformer({
     asset.meta.hasDependencies = false;
 
     let less = await options.packageManager.require('less', asset.filePath, {
-      autoinstall: options.autoinstall,
+      shouldAutoInstall: options.shouldAutoInstall,
     });
 
     let code = await asset.getCode();
@@ -37,7 +38,7 @@ export default (new Transformer({
     try {
       let lessConfig: LessConfig = config ? {...config.config} : {};
 
-      if (options.sourceMaps) {
+      if (asset.env.sourceMap) {
         lessConfig.sourceMap = {};
       }
 
@@ -77,16 +78,18 @@ export default (new Transformer({
 
 function urlPlugin({asset}) {
   return {
-    install(less, pluginManager) {
+    install(less: Less, pluginManager) {
+      // This is a hack; no such interface exists, even conceptually, in Less.
+      type LessNodeWithValue = less.tree.Node & {value: any, ...};
+
       const visitor = new less.visitors.Visitor({
         visitUrl(node) {
+          const valueNode = ((node.value: any): LessNodeWithValue);
+          const stringValue = (valueNode.value: string);
           if (
-            !node.value.value.startsWith('#') // IE's `behavior: url(#default#VML)`)
+            !stringValue.startsWith('#') // IE's `behavior: url(#default#VML)`)
           ) {
-            node.value.value = asset.addURLDependency(
-              node.value.value,
-              node.currentFileInfo.filename,
-            );
+            valueNode.value = asset.addURLDependency(stringValue, {});
           }
           return node;
         },

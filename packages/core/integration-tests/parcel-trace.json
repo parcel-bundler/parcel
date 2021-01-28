@@ -1,0 +1,3290 @@
+[
+  {
+    "ts": 46938660,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "init",
+    "dur": 6341
+  },
+  {
+    "ts": 46945975,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "assetGraphBuilder.build",
+    "dur": 475783
+  },
+  {
+    "ts": 47422877,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundler.bundle",
+    "dur": 1557
+  },
+  {
+    "ts": 47424458,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "nameBundles",
+    "dur": 791
+  },
+  {
+    "ts": 47425262,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "applyRuntimes",
+    "dur": 42106
+  },
+  {
+    "ts": 47421778,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundlerRunner.bundle",
+    "dur": 45795
+  },
+  {
+    "ts": 47467586,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "packagerRunner.writeBundles",
+    "dur": 27377
+  },
+  {
+    "ts": 47495162,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "validate",
+    "dur": 58
+  },
+  {
+    "ts": 47504907,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "init",
+    "dur": 4826
+  },
+  {
+    "ts": 47510069,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "assetGraphBuilder.build",
+    "dur": 81948
+  },
+  {
+    "ts": 47594291,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundler.bundle",
+    "dur": 611
+  },
+  {
+    "ts": 47594925,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "nameBundles",
+    "dur": 778
+  },
+  {
+    "ts": 47595717,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "applyRuntimes",
+    "dur": 42702
+  },
+  {
+    "ts": 47592038,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundlerRunner.bundle",
+    "dur": 46832
+  },
+  {
+    "ts": 47638885,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "packagerRunner.writeBundles",
+    "dur": 215771
+  },
+  {
+    "ts": 47854762,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "validate",
+    "dur": 52
+  },
+  {
+    "ts": 60926260,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "init",
+    "dur": 6588
+  },
+  {
+    "ts": 60934884,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "assetGraphBuilder.build",
+    "dur": 22813
+  },
+  {
+    "ts": 60959356,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundler.bundle",
+    "dur": 199
+  },
+  {
+    "ts": 60959570,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "nameBundles",
+    "dur": 1543
+  },
+  {
+    "ts": 60961124,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "applyRuntimes",
+    "dur": 3931
+  },
+  {
+    "ts": 60957711,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundlerRunner.bundle",
+    "dur": 7429
+  },
+  {
+    "ts": 60965149,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "packagerRunner.writeBundles",
+    "dur": 8347
+  },
+  {
+    "ts": 60973664,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "validate",
+    "dur": 44
+  },
+  {
+    "ts": 60990413,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "init",
+    "dur": 5191
+  },
+  {
+    "ts": 60997622,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "assetGraphBuilder.build",
+    "dur": 14983
+  },
+  {
+    "ts": 61015348,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundler.bundle",
+    "dur": 198
+  },
+  {
+    "ts": 61015563,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "nameBundles",
+    "dur": 1573
+  },
+  {
+    "ts": 61017146,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "applyRuntimes",
+    "dur": 3859
+  },
+  {
+    "ts": 61012618,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundlerRunner.bundle",
+    "dur": 8814
+  },
+  {
+    "ts": 61021443,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "packagerRunner.writeBundles",
+    "dur": 7854
+  },
+  {
+    "ts": 61029400,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "validate",
+    "dur": 43
+  },
+  {
+    "ts": 61040044,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "init",
+    "dur": 6101
+  },
+  {
+    "ts": 61048184,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "assetGraphBuilder.build",
+    "dur": 56633
+  },
+  {
+    "ts": 61106550,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundler.bundle",
+    "dur": 367
+  },
+  {
+    "ts": 61106938,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "nameBundles",
+    "dur": 1599
+  },
+  {
+    "ts": 61108548,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "applyRuntimes",
+    "dur": 5443
+  },
+  {
+    "ts": 61104833,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundlerRunner.bundle",
+    "dur": 9296
+  },
+  {
+    "ts": 61114139,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "packagerRunner.writeBundles",
+    "dur": 9686
+  },
+  {
+    "ts": 61123945,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "validate",
+    "dur": 48
+  },
+  {
+    "ts": 61142653,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "init",
+    "dur": 5742
+  },
+  {
+    "ts": 61150459,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "assetGraphBuilder.build",
+    "dur": 16866
+  },
+  {
+    "ts": 61169106,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundler.bundle",
+    "dur": 196
+  },
+  {
+    "ts": 61169320,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "nameBundles",
+    "dur": 1462
+  },
+  {
+    "ts": 61170791,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "applyRuntimes",
+    "dur": 3972
+  },
+  {
+    "ts": 61167340,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundlerRunner.bundle",
+    "dur": 7890
+  },
+  {
+    "ts": 61175242,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "packagerRunner.writeBundles",
+    "dur": 13036
+  },
+  {
+    "ts": 61188402,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "validate",
+    "dur": 53
+  },
+  {
+    "ts": 61200823,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "init",
+    "dur": 6818
+  },
+  {
+    "ts": 61209762,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "assetGraphBuilder.build",
+    "dur": 61866
+  },
+  {
+    "ts": 61273453,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundler.bundle",
+    "dur": 935
+  },
+  {
+    "ts": 61274409,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "nameBundles",
+    "dur": 1576
+  },
+  {
+    "ts": 61275995,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "applyRuntimes",
+    "dur": 4241
+  },
+  {
+    "ts": 61271645,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundlerRunner.bundle",
+    "dur": 8730
+  },
+  {
+    "ts": 61280385,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "packagerRunner.writeBundles",
+    "dur": 8455
+  },
+  {
+    "ts": 61288944,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "validate",
+    "dur": 46
+  },
+  {
+    "ts": 61309299,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "init",
+    "dur": 6250
+  },
+  {
+    "ts": 61317808,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "assetGraphBuilder.build",
+    "dur": 16754
+  },
+  {
+    "ts": 61336372,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundler.bundle",
+    "dur": 197
+  },
+  {
+    "ts": 61336588,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "nameBundles",
+    "dur": 1696
+  },
+  {
+    "ts": 61338298,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "applyRuntimes",
+    "dur": 4036
+  },
+  {
+    "ts": 61334576,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundlerRunner.bundle",
+    "dur": 8237
+  },
+  {
+    "ts": 61342826,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "packagerRunner.writeBundles",
+    "dur": 8548
+  },
+  {
+    "ts": 61351491,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "validate",
+    "dur": 45
+  },
+  {
+    "ts": 61393628,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "init",
+    "dur": 5450
+  },
+  {
+    "ts": 61401104,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "assetGraphBuilder.build",
+    "dur": 14948
+  },
+  {
+    "ts": 61417707,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundler.bundle",
+    "dur": 190
+  },
+  {
+    "ts": 61417913,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "nameBundles",
+    "dur": 1447
+  },
+  {
+    "ts": 61419370,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "applyRuntimes",
+    "dur": 3682
+  },
+  {
+    "ts": 61416064,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundlerRunner.bundle",
+    "dur": 7392
+  },
+  {
+    "ts": 61423467,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "packagerRunner.writeBundles",
+    "dur": 6518
+  },
+  {
+    "ts": 61430082,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "validate",
+    "dur": 39
+  },
+  {
+    "ts": 67203656,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "init",
+    "dur": 7421
+  },
+  {
+    "ts": 67213649,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "assetGraphBuilder.build",
+    "dur": 20811
+  },
+  {
+    "ts": 67236291,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundler.bundle",
+    "dur": 398
+  },
+  {
+    "ts": 67236705,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "nameBundles",
+    "dur": 1768
+  },
+  {
+    "ts": 67238480,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "applyRuntimes",
+    "dur": 4844
+  },
+  {
+    "ts": 67234471,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundlerRunner.bundle",
+    "dur": 8981
+  },
+  {
+    "ts": 67243462,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "packagerRunner.writeBundles",
+    "dur": 8235
+  },
+  {
+    "ts": 67251798,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "validate",
+    "dur": 35
+  },
+  {
+    "ts": 67350420,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "init",
+    "dur": 7564
+  },
+  {
+    "ts": 67360544,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "assetGraphBuilder.build",
+    "dur": 19736
+  },
+  {
+    "ts": 67382366,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundler.bundle",
+    "dur": 192
+  },
+  {
+    "ts": 67382575,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "nameBundles",
+    "dur": 1715
+  },
+  {
+    "ts": 67384297,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "applyRuntimes",
+    "dur": 4516
+  },
+  {
+    "ts": 67380293,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundlerRunner.bundle",
+    "dur": 8630
+  },
+  {
+    "ts": 67388932,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "packagerRunner.writeBundles",
+    "dur": 8034
+  },
+  {
+    "ts": 67397070,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "validate",
+    "dur": 35
+  },
+  {
+    "ts": 67420970,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "init",
+    "dur": 6520
+  },
+  {
+    "ts": 67430203,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "assetGraphBuilder.build",
+    "dur": 45329
+  },
+  {
+    "ts": 67477664,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundler.bundle",
+    "dur": 260
+  },
+  {
+    "ts": 67477939,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "nameBundles",
+    "dur": 1753
+  },
+  {
+    "ts": 67479699,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "applyRuntimes",
+    "dur": 28715
+  },
+  {
+    "ts": 67475544,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundlerRunner.bundle",
+    "dur": 33415
+  },
+  {
+    "ts": 67508971,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "packagerRunner.writeBundles",
+    "dur": 10595
+  },
+  {
+    "ts": 67519665,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "validate",
+    "dur": 34
+  },
+  {
+    "ts": 67532346,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "init",
+    "dur": 6605
+  },
+  {
+    "ts": 67541301,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "assetGraphBuilder.build",
+    "dur": 139
+  },
+  {
+    "ts": 67548258,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundler.bundle",
+    "dur": 264
+  },
+  {
+    "ts": 67548537,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "nameBundles",
+    "dur": 1590
+  },
+  {
+    "ts": 67550136,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "applyRuntimes",
+    "dur": 13202
+  },
+  {
+    "ts": 67541453,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundlerRunner.bundle",
+    "dur": 22027
+  },
+  {
+    "ts": 67563490,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "packagerRunner.writeBundles",
+    "dur": 9681
+  },
+  {
+    "ts": 67573323,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "validate",
+    "dur": 7
+  },
+  {
+    "ts": 68235555,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "init",
+    "dur": 4750
+  },
+  {
+    "ts": 68240598,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "assetGraphBuilder.build",
+    "dur": 42109
+  },
+  {
+    "ts": 68283356,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundler.bundle",
+    "dur": 304
+  },
+  {
+    "ts": 68283673,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "nameBundles",
+    "dur": 535
+  },
+  {
+    "ts": 68284215,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "applyRuntimes",
+    "dur": 9010
+  },
+  {
+    "ts": 68282718,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundlerRunner.bundle",
+    "dur": 10638
+  },
+  {
+    "ts": 68293365,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "packagerRunner.writeBundles",
+    "dur": 5775
+  },
+  {
+    "ts": 68299234,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "validate",
+    "dur": 33
+  },
+  {
+    "ts": 101995400,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "init",
+    "dur": 5316
+  },
+  {
+    "ts": 102001526,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "assetGraphBuilder.build",
+    "dur": 35528
+  },
+  {
+    "ts": 102039676,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundler.bundle",
+    "dur": 659
+  },
+  {
+    "ts": 102040350,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "nameBundles",
+    "dur": 577
+  },
+  {
+    "ts": 102040933,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "applyRuntimes",
+    "dur": 9480
+  },
+  {
+    "ts": 102037065,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundlerRunner.bundle",
+    "dur": 13499
+  },
+  {
+    "ts": 102050572,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "packagerRunner.writeBundles",
+    "dur": 12240
+  },
+  {
+    "ts": 102062913,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "validate",
+    "dur": 31
+  },
+  {
+    "ts": 115657028,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "init",
+    "dur": 4963
+  },
+  {
+    "ts": 115662288,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "assetGraphBuilder.build",
+    "dur": 10145
+  },
+  {
+    "ts": 115673084,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundler.bundle",
+    "dur": 176
+  },
+  {
+    "ts": 115673274,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "nameBundles",
+    "dur": 554
+  },
+  {
+    "ts": 115673835,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "applyRuntimes",
+    "dur": 1256
+  },
+  {
+    "ts": 115672442,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundlerRunner.bundle",
+    "dur": 2741
+  },
+  {
+    "ts": 115675190,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "packagerRunner.writeBundles",
+    "dur": 3276
+  },
+  {
+    "ts": 119928667,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "init",
+    "dur": 5249
+  },
+  {
+    "ts": 119934290,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "assetGraphBuilder.build",
+    "dur": 34207
+  },
+  {
+    "ts": 119969624,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundler.bundle",
+    "dur": 372
+  },
+  {
+    "ts": 119970013,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "nameBundles",
+    "dur": 723
+  },
+  {
+    "ts": 119970743,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "applyRuntimes",
+    "dur": 10546
+  },
+  {
+    "ts": 119968510,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundlerRunner.bundle",
+    "dur": 12945
+  },
+  {
+    "ts": 119981465,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "packagerRunner.writeBundles",
+    "dur": 8659
+  },
+  {
+    "ts": 119990234,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "validate",
+    "dur": 39
+  },
+  {
+    "ts": 128149158,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "init",
+    "dur": 6766
+  },
+  {
+    "ts": 128156244,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "assetGraphBuilder.build",
+    "dur": 17779
+  },
+  {
+    "ts": 128174761,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundler.bundle",
+    "dur": 193
+  },
+  {
+    "ts": 128174969,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "nameBundles",
+    "dur": 584
+  },
+  {
+    "ts": 128175560,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "applyRuntimes",
+    "dur": 1229
+  },
+  {
+    "ts": 128174034,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundlerRunner.bundle",
+    "dur": 2846
+  },
+  {
+    "ts": 128176888,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "packagerRunner.writeBundles",
+    "dur": 3290
+  },
+  {
+    "ts": 128180285,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "validate",
+    "dur": 40
+  },
+  {
+    "ts": 128189351,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "init",
+    "dur": 4981
+  },
+  {
+    "ts": 128194645,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "assetGraphBuilder.build",
+    "dur": 19014
+  },
+  {
+    "ts": 128214380,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundler.bundle",
+    "dur": 189
+  },
+  {
+    "ts": 128214582,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "nameBundles",
+    "dur": 573
+  },
+  {
+    "ts": 128215161,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "applyRuntimes",
+    "dur": 1146
+  },
+  {
+    "ts": 128213670,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundlerRunner.bundle",
+    "dur": 2713
+  },
+  {
+    "ts": 128216390,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "packagerRunner.writeBundles",
+    "dur": 5205
+  },
+  {
+    "ts": 128221675,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "validate",
+    "dur": 25
+  },
+  {
+    "ts": 128230113,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "init",
+    "dur": 6210
+  },
+  {
+    "ts": 128236615,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "assetGraphBuilder.build",
+    "dur": 45241
+  },
+  {
+    "ts": 128285537,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundler.bundle",
+    "dur": 778
+  },
+  {
+    "ts": 128286331,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundler.optimize",
+    "dur": 24
+  },
+  {
+    "ts": 128286368,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "nameBundles",
+    "dur": 719
+  },
+  {
+    "ts": 128287094,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "applyRuntimes",
+    "dur": 1457
+  },
+  {
+    "ts": 128281867,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundlerRunner.bundle",
+    "dur": 6846
+  },
+  {
+    "ts": 128288725,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "packagerRunner.writeBundles",
+    "dur": 10596
+  },
+  {
+    "ts": 128299431,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "validate",
+    "dur": 45
+  },
+  {
+    "ts": 128311909,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "init",
+    "dur": 5084
+  },
+  {
+    "ts": 128319542,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "assetGraphBuilder.build",
+    "dur": 49679
+  },
+  {
+    "ts": 128371157,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundler.bundle",
+    "dur": 288
+  },
+  {
+    "ts": 128371459,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "nameBundles",
+    "dur": 1734
+  },
+  {
+    "ts": 128373200,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "applyRuntimes",
+    "dur": 17576
+  },
+  {
+    "ts": 128369231,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundlerRunner.bundle",
+    "dur": 22035
+  },
+  {
+    "ts": 128391277,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "packagerRunner.writeBundles",
+    "dur": 8109
+  },
+  {
+    "ts": 128399476,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "validate",
+    "dur": 31
+  },
+  {
+    "ts": 128412572,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "init",
+    "dur": 8594
+  },
+  {
+    "ts": 128423732,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "assetGraphBuilder.build",
+    "dur": 10391
+  },
+  {
+    "ts": 128436274,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundler.bundle",
+    "dur": 303
+  },
+  {
+    "ts": 128436591,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "nameBundles",
+    "dur": 1697
+  },
+  {
+    "ts": 128438294,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "applyRuntimes",
+    "dur": 7330
+  },
+  {
+    "ts": 128434133,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundlerRunner.bundle",
+    "dur": 12127
+  },
+  {
+    "ts": 128446271,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "packagerRunner.writeBundles",
+    "dur": 8161
+  },
+  {
+    "ts": 128454502,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "validate",
+    "dur": 30
+  },
+  {
+    "ts": 128468389,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "init",
+    "dur": 5111
+  },
+  {
+    "ts": 128476608,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "assetGraphBuilder.build",
+    "dur": 18282
+  },
+  {
+    "ts": 128496915,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundler.bundle",
+    "dur": 159
+  },
+  {
+    "ts": 128497087,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "nameBundles",
+    "dur": 1671
+  },
+  {
+    "ts": 128498765,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "applyRuntimes",
+    "dur": 4502
+  },
+  {
+    "ts": 128494901,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundlerRunner.bundle",
+    "dur": 8768
+  },
+  {
+    "ts": 128503680,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "packagerRunner.writeBundles",
+    "dur": 9815
+  },
+  {
+    "ts": 128513580,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "validate",
+    "dur": 32
+  },
+  {
+    "ts": 128526684,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "init",
+    "dur": 6748
+  },
+  {
+    "ts": 128535959,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "assetGraphBuilder.build",
+    "dur": 139
+  },
+  {
+    "ts": 128536110,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundlerRunner.bundle",
+    "dur": 6865
+  },
+  {
+    "ts": 128542988,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "packagerRunner.writeBundles",
+    "dur": 4773
+  },
+  {
+    "ts": 128547851,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "validate",
+    "dur": 7
+  },
+  {
+    "ts": 128558301,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "init",
+    "dur": 4990
+  },
+  {
+    "ts": 128563622,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "assetGraphBuilder.build",
+    "dur": 29141
+  },
+  {
+    "ts": 128593530,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundler.bundle",
+    "dur": 315
+  },
+  {
+    "ts": 128593859,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "nameBundles",
+    "dur": 533
+  },
+  {
+    "ts": 128594399,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "applyRuntimes",
+    "dur": 21342
+  },
+  {
+    "ts": 128592773,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundlerRunner.bundle",
+    "dur": 23144
+  },
+  {
+    "ts": 128615931,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "packagerRunner.writeBundles",
+    "dur": 7204
+  },
+  {
+    "ts": 128623234,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "validate",
+    "dur": 36
+  },
+  {
+    "ts": 128632986,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "init",
+    "dur": 4969
+  },
+  {
+    "ts": 128638240,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "assetGraphBuilder.build",
+    "dur": 31025
+  },
+  {
+    "ts": 128670005,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundler.bundle",
+    "dur": 331
+  },
+  {
+    "ts": 128670351,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "nameBundles",
+    "dur": 533
+  },
+  {
+    "ts": 128670891,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "applyRuntimes",
+    "dur": 19524
+  },
+  {
+    "ts": 128669275,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundlerRunner.bundle",
+    "dur": 21331
+  },
+  {
+    "ts": 128690615,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "packagerRunner.writeBundles",
+    "dur": 7365
+  },
+  {
+    "ts": 128698084,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "validate",
+    "dur": 34
+  },
+  {
+    "ts": 154805051,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "init",
+    "dur": 7050
+  },
+  {
+    "ts": 154814832,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "getWatchSubscription",
+    "dur": 6126
+  },
+  {
+    "ts": 154821362,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "assetGraphBuilder.build",
+    "dur": 46342
+  },
+  {
+    "ts": 154869565,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundler.bundle",
+    "dur": 268
+  },
+  {
+    "ts": 154869845,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "nameBundles",
+    "dur": 1645
+  },
+  {
+    "ts": 154871496,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "applyRuntimes",
+    "dur": 4525
+  },
+  {
+    "ts": 154867715,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundlerRunner.bundle",
+    "dur": 8425
+  },
+  {
+    "ts": 154876147,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "packagerRunner.writeBundles",
+    "dur": 11080
+  },
+  {
+    "ts": 154887317,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "validate",
+    "dur": 34
+  },
+  {
+    "ts": 154945077,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "assetGraphBuilder.build",
+    "dur": 13621
+  },
+  {
+    "ts": 154959307,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundler.bundle",
+    "dur": 255
+  },
+  {
+    "ts": 154959576,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "nameBundles",
+    "dur": 122
+  },
+  {
+    "ts": 154959704,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "applyRuntimes",
+    "dur": 142
+  },
+  {
+    "ts": 154958709,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundlerRunner.bundle",
+    "dur": 1247
+  },
+  {
+    "ts": 154959963,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "packagerRunner.writeBundles",
+    "dur": 13439
+  },
+  {
+    "ts": 154973501,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "validate",
+    "dur": 36
+  },
+  {
+    "ts": 155029566,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "assetGraphBuilder.build",
+    "dur": 14995
+  },
+  {
+    "ts": 155045188,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundler.bundle",
+    "dur": 294
+  },
+  {
+    "ts": 155045498,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "nameBundles",
+    "dur": 125
+  },
+  {
+    "ts": 155045628,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "applyRuntimes",
+    "dur": 154
+  },
+  {
+    "ts": 155044573,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundlerRunner.bundle",
+    "dur": 1344
+  },
+  {
+    "ts": 155045924,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "packagerRunner.writeBundles",
+    "dur": 7101
+  },
+  {
+    "ts": 155053122,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "validate",
+    "dur": 36
+  },
+  {
+    "ts": 176834151,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "init",
+    "dur": 4811
+  },
+  {
+    "ts": 176839262,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "assetGraphBuilder.build",
+    "dur": 61430
+  },
+  {
+    "ts": 176901484,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundler.bundle",
+    "dur": 287
+  },
+  {
+    "ts": 176901784,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "nameBundles",
+    "dur": 606
+  },
+  {
+    "ts": 176902397,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "applyRuntimes",
+    "dur": 1159
+  },
+  {
+    "ts": 176900701,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundlerRunner.bundle",
+    "dur": 2996
+  },
+  {
+    "ts": 176903703,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "packagerRunner.writeBundles",
+    "dur": 6605
+  },
+  {
+    "ts": 176910398,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "validate",
+    "dur": 1406240
+  },
+  {
+    "ts": 178330983,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "init",
+    "dur": 10516
+  },
+  {
+    "ts": 178343969,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "getWatchSubscription",
+    "dur": 5846
+  },
+  {
+    "ts": 178350147,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "assetGraphBuilder.build",
+    "dur": 51748
+  },
+  {
+    "ts": 178403902,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundler.bundle",
+    "dur": 967
+  },
+  {
+    "ts": 178404884,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "nameBundles",
+    "dur": 1775
+  },
+  {
+    "ts": 178406667,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "applyRuntimes",
+    "dur": 4798
+  },
+  {
+    "ts": 178401906,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundlerRunner.bundle",
+    "dur": 9663
+  },
+  {
+    "ts": 178411575,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "packagerRunner.writeBundles",
+    "dur": 8709
+  },
+  {
+    "ts": 178420363,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "validate",
+    "dur": 811018
+  },
+  {
+    "ts": 179285384,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "assetGraphBuilder.build",
+    "dur": 23918
+  },
+  {
+    "ts": 179310404,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundler.bundle",
+    "dur": 372
+  },
+  {
+    "ts": 179310791,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "nameBundles",
+    "dur": 129
+  },
+  {
+    "ts": 179310926,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "applyRuntimes",
+    "dur": 156
+  },
+  {
+    "ts": 179309313,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundlerRunner.bundle",
+    "dur": 1867
+  },
+  {
+    "ts": 179311185,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "packagerRunner.writeBundles",
+    "dur": 5182
+  },
+  {
+    "ts": 179316447,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "validate",
+    "dur": 441884
+  },
+  {
+    "ts": 179815781,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "assetGraphBuilder.build",
+    "dur": 24820
+  },
+  {
+    "ts": 179841580,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundler.bundle",
+    "dur": 276
+  },
+  {
+    "ts": 179841871,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "nameBundles",
+    "dur": 124
+  },
+  {
+    "ts": 179842000,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "applyRuntimes",
+    "dur": 144
+  },
+  {
+    "ts": 179840612,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundlerRunner.bundle",
+    "dur": 1633
+  },
+  {
+    "ts": 179842252,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "packagerRunner.writeBundles",
+    "dur": 5613
+  },
+  {
+    "ts": 179847937,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "validate",
+    "dur": 432786
+  },
+  {
+    "ts": 180295875,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "init",
+    "dur": 6275
+  },
+  {
+    "ts": 180304778,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "getWatchSubscription",
+    "dur": 5888
+  },
+  {
+    "ts": 180310954,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "assetGraphBuilder.build",
+    "dur": 67131
+  },
+  {
+    "ts": 180380061,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundler.bundle",
+    "dur": 330
+  },
+  {
+    "ts": 180380404,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "nameBundles",
+    "dur": 1687
+  },
+  {
+    "ts": 180382097,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "applyRuntimes",
+    "dur": 4651
+  },
+  {
+    "ts": 180378094,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundlerRunner.bundle",
+    "dur": 8784
+  },
+  {
+    "ts": 180386886,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "packagerRunner.writeBundles",
+    "dur": 9292
+  },
+  {
+    "ts": 180396261,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "validate",
+    "dur": 562088
+  },
+  {
+    "ts": 181015828,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "assetGraphBuilder.build",
+    "dur": 49399
+  },
+  {
+    "ts": 181066206,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundler.bundle",
+    "dur": 355
+  },
+  {
+    "ts": 181066575,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "nameBundles",
+    "dur": 114
+  },
+  {
+    "ts": 181066694,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "applyRuntimes",
+    "dur": 164
+  },
+  {
+    "ts": 181065237,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundlerRunner.bundle",
+    "dur": 1741
+  },
+  {
+    "ts": 181066985,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "packagerRunner.writeBundles",
+    "dur": 5267
+  },
+  {
+    "ts": 181072338,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "validate",
+    "dur": 386863
+  },
+  {
+    "ts": 181472241,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "init",
+    "dur": 4877
+  },
+  {
+    "ts": 181480269,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "getWatchSubscription",
+    "dur": 6442
+  },
+  {
+    "ts": 181487523,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "assetGraphBuilder.build",
+    "dur": 99827
+  },
+  {
+    "ts": 181590071,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundler.bundle",
+    "dur": 333
+  },
+  {
+    "ts": 181590418,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "nameBundles",
+    "dur": 1822
+  },
+  {
+    "ts": 181592246,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "applyRuntimes",
+    "dur": 5522
+  },
+  {
+    "ts": 181587359,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundlerRunner.bundle",
+    "dur": 10525
+  },
+  {
+    "ts": 181597891,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "packagerRunner.writeBundles",
+    "dur": 12498
+  },
+  {
+    "ts": 181610486,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "validate",
+    "dur": 549921
+  },
+  {
+    "ts": 182216319,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "assetGraphBuilder.build",
+    "dur": 45251
+  },
+  {
+    "ts": 182262472,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundler.bundle",
+    "dur": 309
+  },
+  {
+    "ts": 182262794,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "nameBundles",
+    "dur": 106
+  },
+  {
+    "ts": 182262906,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "applyRuntimes",
+    "dur": 144
+  },
+  {
+    "ts": 182261580,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundlerRunner.bundle",
+    "dur": 1581
+  },
+  {
+    "ts": 182263167,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "packagerRunner.writeBundles",
+    "dur": 4944
+  },
+  {
+    "ts": 182268187,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "validate",
+    "dur": 365680
+  },
+  {
+    "ts": 182648344,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "init",
+    "dur": 5551
+  },
+  {
+    "ts": 182656590,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "getWatchSubscription",
+    "dur": 5933
+  },
+  {
+    "ts": 182662745,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "assetGraphBuilder.build",
+    "dur": 64768
+  },
+  {
+    "ts": 182729407,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundler.bundle",
+    "dur": 338
+  },
+  {
+    "ts": 182729759,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "nameBundles",
+    "dur": 1622
+  },
+  {
+    "ts": 182731387,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "applyRuntimes",
+    "dur": 4622
+  },
+  {
+    "ts": 182727522,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundlerRunner.bundle",
+    "dur": 8610
+  },
+  {
+    "ts": 182736139,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "packagerRunner.writeBundles",
+    "dur": 9722
+  },
+  {
+    "ts": 182745948,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "validate",
+    "dur": 632937
+  },
+  {
+    "ts": 183436134,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "assetGraphBuilder.build",
+    "dur": 24157
+  },
+  {
+    "ts": 183461406,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundler.bundle",
+    "dur": 801
+  },
+  {
+    "ts": 183462226,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "nameBundles",
+    "dur": 154
+  },
+  {
+    "ts": 183462386,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "applyRuntimes",
+    "dur": 193
+  },
+  {
+    "ts": 183460305,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundlerRunner.bundle",
+    "dur": 2408
+  },
+  {
+    "ts": 183462720,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "packagerRunner.writeBundles",
+    "dur": 5606
+  },
+  {
+    "ts": 183468410,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "validate",
+    "dur": 359509
+  },
+  {
+    "ts": 183838074,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "init",
+    "dur": 10444
+  },
+  {
+    "ts": 183848871,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "assetGraphBuilder.build",
+    "dur": 43764
+  },
+  {
+    "ts": 183893386,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundler.bundle",
+    "dur": 226
+  },
+  {
+    "ts": 183893626,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "nameBundles",
+    "dur": 594
+  },
+  {
+    "ts": 183894227,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "applyRuntimes",
+    "dur": 1221
+  },
+  {
+    "ts": 183892645,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundlerRunner.bundle",
+    "dur": 2886
+  },
+  {
+    "ts": 183895538,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "packagerRunner.writeBundles",
+    "dur": 5080
+  },
+  {
+    "ts": 183900703,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "validate",
+    "dur": 37
+  },
+  {
+    "ts": 183909136,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "init",
+    "dur": 5792
+  },
+  {
+    "ts": 183915272,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "assetGraphBuilder.build",
+    "dur": 27811
+  },
+  {
+    "ts": 183943862,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundler.bundle",
+    "dur": 215
+  },
+  {
+    "ts": 183944089,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "nameBundles",
+    "dur": 574
+  },
+  {
+    "ts": 183944670,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "applyRuntimes",
+    "dur": 1282
+  },
+  {
+    "ts": 183943094,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundlerRunner.bundle",
+    "dur": 2937
+  },
+  {
+    "ts": 183946037,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "packagerRunner.writeBundles",
+    "dur": 5756
+  },
+  {
+    "ts": 183951877,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "validate",
+    "dur": 32
+  },
+  {
+    "ts": 183961273,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "init",
+    "dur": 5535
+  },
+  {
+    "ts": 183967137,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "assetGraphBuilder.build",
+    "dur": 669347
+  },
+  {
+    "ts": 184637211,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundler.bundle",
+    "dur": 370
+  },
+  {
+    "ts": 184637595,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "nameBundles",
+    "dur": 589
+  },
+  {
+    "ts": 184638190,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "applyRuntimes",
+    "dur": 1168
+  },
+  {
+    "ts": 184636494,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundlerRunner.bundle",
+    "dur": 2984
+  },
+  {
+    "ts": 184639484,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "packagerRunner.writeBundles",
+    "dur": 7064
+  },
+  {
+    "ts": 184646621,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "validate",
+    "dur": 32
+  },
+  {
+    "ts": 185387144,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "init",
+    "dur": 4850
+  },
+  {
+    "ts": 185392295,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "assetGraphBuilder.build",
+    "dur": 51480
+  },
+  {
+    "ts": 185444376,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundler.bundle",
+    "dur": 285
+  },
+  {
+    "ts": 185444674,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "nameBundles",
+    "dur": 515
+  },
+  {
+    "ts": 185445194,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "applyRuntimes",
+    "dur": 1177
+  },
+  {
+    "ts": 185443782,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundlerRunner.bundle",
+    "dur": 2710
+  },
+  {
+    "ts": 185446499,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "packagerRunner.writeBundles",
+    "dur": 5274
+  },
+  {
+    "ts": 185451860,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "validate",
+    "dur": 34
+  },
+  {
+    "ts": 185460069,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "init",
+    "dur": 4810
+  },
+  {
+    "ts": 185465215,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "assetGraphBuilder.build",
+    "dur": 51879
+  },
+  {
+    "ts": 185517893,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundler.bundle",
+    "dur": 299
+  },
+  {
+    "ts": 185518208,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "nameBundles",
+    "dur": 562
+  },
+  {
+    "ts": 185518776,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "applyRuntimes",
+    "dur": 1219
+  },
+  {
+    "ts": 185517104,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundlerRunner.bundle",
+    "dur": 3012
+  },
+  {
+    "ts": 185520123,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "packagerRunner.writeBundles",
+    "dur": 5440
+  },
+  {
+    "ts": 185525641,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "validate",
+    "dur": 33
+  },
+  {
+    "ts": 185609080,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "init",
+    "dur": 4841
+  },
+  {
+    "ts": 185614205,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "assetGraphBuilder.build",
+    "dur": 33727
+  },
+  {
+    "ts": 185648664,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundler.bundle",
+    "dur": 246
+  },
+  {
+    "ts": 185648923,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "nameBundles",
+    "dur": 578
+  },
+  {
+    "ts": 185649508,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "applyRuntimes",
+    "dur": 1298
+  },
+  {
+    "ts": 185647942,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundlerRunner.bundle",
+    "dur": 2970
+  },
+  {
+    "ts": 185650919,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "packagerRunner.writeBundles",
+    "dur": 4999
+  },
+  {
+    "ts": 185655997,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "validate",
+    "dur": 35
+  },
+  {
+    "ts": 185663661,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "init",
+    "dur": 7641
+  },
+  {
+    "ts": 185671642,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "assetGraphBuilder.build",
+    "dur": 31671
+  },
+  {
+    "ts": 185704057,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundler.bundle",
+    "dur": 336
+  },
+  {
+    "ts": 185704406,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "nameBundles",
+    "dur": 584
+  },
+  {
+    "ts": 185704996,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "applyRuntimes",
+    "dur": 47229
+  },
+  {
+    "ts": 185703323,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundlerRunner.bundle",
+    "dur": 49093
+  },
+  {
+    "ts": 185752424,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "packagerRunner.writeBundles",
+    "dur": 7224
+  },
+  {
+    "ts": 185759726,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "validate",
+    "dur": 35
+  },
+  {
+    "ts": 185769091,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "init",
+    "dur": 4915
+  },
+  {
+    "ts": 185774309,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "assetGraphBuilder.build",
+    "dur": 49526
+  },
+  {
+    "ts": 185824622,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundler.bundle",
+    "dur": 278
+  },
+  {
+    "ts": 185824913,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "nameBundles",
+    "dur": 562
+  },
+  {
+    "ts": 185825481,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "applyRuntimes",
+    "dur": 1182
+  },
+  {
+    "ts": 185823847,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundlerRunner.bundle",
+    "dur": 2926
+  },
+  {
+    "ts": 185826779,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "packagerRunner.writeBundles",
+    "dur": 30589
+  },
+  {
+    "ts": 185857460,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "validate",
+    "dur": 34
+  },
+  {
+    "ts": 185868630,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "init",
+    "dur": 4857
+  },
+  {
+    "ts": 185873799,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "assetGraphBuilder.build",
+    "dur": 22269
+  },
+  {
+    "ts": 185896823,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundler.bundle",
+    "dur": 201
+  },
+  {
+    "ts": 185897038,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "nameBundles",
+    "dur": 609
+  },
+  {
+    "ts": 185897654,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "applyRuntimes",
+    "dur": 1168
+  },
+  {
+    "ts": 185896079,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundlerRunner.bundle",
+    "dur": 2823
+  },
+  {
+    "ts": 185898908,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "packagerRunner.writeBundles",
+    "dur": 4982
+  },
+  {
+    "ts": 185903968,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "validate",
+    "dur": 31
+  },
+  {
+    "ts": 185912303,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "init",
+    "dur": 5275
+  },
+  {
+    "ts": 185917928,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "assetGraphBuilder.build",
+    "dur": 45170
+  },
+  {
+    "ts": 185963887,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundler.bundle",
+    "dur": 275
+  },
+  {
+    "ts": 185964177,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "nameBundles",
+    "dur": 641
+  },
+  {
+    "ts": 185964825,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "applyRuntimes",
+    "dur": 1316
+  },
+  {
+    "ts": 185963108,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundlerRunner.bundle",
+    "dur": 3151
+  },
+  {
+    "ts": 185966266,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "packagerRunner.writeBundles",
+    "dur": 5544
+  },
+  {
+    "ts": 185971899,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "validate",
+    "dur": 37
+  },
+  {
+    "ts": 192738207,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "init",
+    "dur": 5547
+  },
+  {
+    "ts": 192749324,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "getWatchSubscription",
+    "dur": 6099
+  },
+  {
+    "ts": 192755684,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "assetGraphBuilder.build",
+    "dur": 14412
+  },
+  {
+    "ts": 192774207,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundler.bundle",
+    "dur": 192
+  },
+  {
+    "ts": 192774415,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "nameBundles",
+    "dur": 2302
+  },
+  {
+    "ts": 192776725,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "applyRuntimes",
+    "dur": 6614
+  },
+  {
+    "ts": 192770109,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundlerRunner.bundle",
+    "dur": 13354
+  },
+  {
+    "ts": 192783471,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "packagerRunner.writeBundles",
+    "dur": 9181
+  },
+  {
+    "ts": 192792743,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "validate",
+    "dur": 33
+  },
+  {
+    "ts": 192848972,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "assetGraphBuilder.build",
+    "dur": 12026
+  },
+  {
+    "ts": 192863323,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundler.bundle",
+    "dur": 196
+  },
+  {
+    "ts": 192863573,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "nameBundles",
+    "dur": 100
+  },
+  {
+    "ts": 192863677,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "applyRuntimes",
+    "dur": 111
+  },
+  {
+    "ts": 192861009,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundlerRunner.bundle",
+    "dur": 2863
+  },
+  {
+    "ts": 192863878,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "packagerRunner.writeBundles",
+    "dur": 4188
+  },
+  {
+    "ts": 192868147,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "validate",
+    "dur": 32
+  },
+  {
+    "ts": 193375927,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "init",
+    "dur": 5177
+  },
+  {
+    "ts": 193381445,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "assetGraphBuilder.build",
+    "dur": 580394
+  },
+  {
+    "ts": 193962663,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundler.bundle",
+    "dur": 1142
+  },
+  {
+    "ts": 193963818,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "nameBundles",
+    "dur": 904
+  },
+  {
+    "ts": 193964727,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "applyRuntimes",
+    "dur": 1609
+  },
+  {
+    "ts": 193961850,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "bundlerRunner.bundle",
+    "dur": 4812
+  },
+  {
+    "ts": 193966670,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "packagerRunner.writeBundles",
+    "dur": 50268
+  },
+  {
+    "ts": 194017073,
+    "pid": 44128,
+    "tid": 0,
+    "ph": "X",
+    "name": "validate",
+    "dur": 45
+  }
+]

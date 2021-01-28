@@ -16,12 +16,12 @@
   "main": "lib/LessTransformer.js",
   "source": "src/LessTransformer.js",
   "engines": {
-    "node": ">= 10.0.0",
-    "parcel": "^2.0.0-alpha.1.1"
+    "node": ">= 12.0.0",
+    "parcel": "^2.0.0-beta.1"
   },
   "dependencies": {
     "@parcel/plugin": "2.0.0-beta.1",
-    "@parcel/source-map": "2.0.0-alpha.4.16"
+    "@parcel/source-map": "2.0.0-alpha.4.19"
   },
   "devDependencies": {
     "less": "^3.9.0"

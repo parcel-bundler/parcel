@@ -1,3 +1,4 @@
+// @flow strict-local
 import assert from 'assert';
 import path from 'path';
 import {bundler, getNextBuild, inputFS} from '@parcel/test-utils';
@@ -73,7 +74,7 @@ describe('proxy', function() {
     let port = await getPort();
     let b = bundler(path.join(dir, 'index.js'), {
       config,
-      serve: {
+      serveOptions: {
         https: false,
         port: port,
         host: 'localhost',
@@ -99,7 +100,7 @@ describe('proxy', function() {
     let port = await getPort();
     let b = bundler(path.join(dir, 'index.js'), {
       config,
-      serve: {
+      serveOptions: {
         https: false,
         port: port,
         host: 'localhost',
@@ -125,7 +126,7 @@ describe('proxy', function() {
     let port = await getPort();
     let b = bundler(path.join(dir, 'index.js'), {
       config,
-      serve: {
+      serveOptions: {
         https: false,
         port: port,
         host: 'localhost',

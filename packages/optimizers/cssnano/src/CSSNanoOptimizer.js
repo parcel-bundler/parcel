@@ -3,7 +3,6 @@
 import SourceMap from '@parcel/source-map';
 import {Optimizer} from '@parcel/plugin';
 import postcss from 'postcss';
-// flowlint-next-line untyped-import:off
 import cssnano from 'cssnano';
 
 export default (new Optimizer({
@@ -42,7 +41,7 @@ export default (new Optimizer({
     }
 
     let contents = result.css;
-    if (options.sourceMaps) {
+    if (bundle.env.sourceMap) {
       let reference = await getSourceMapReference(map);
       if (reference != null) {
         contents += '\n' + '/*# sourceMappingURL=' + reference + ' */\n';

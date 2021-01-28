@@ -5,11 +5,11 @@ export default (new Transformer({
   async transform({asset, options}) {
     let [mdx, code] = await Promise.all([
       options.packageManager.require('@mdx-js/mdx', asset.filePath, {
-        autoinstall: options.autoinstall,
+        shouldAutoInstall: options.shouldAutoInstall,
       }),
       asset.getCode(),
       options.packageManager.resolve('@mdx-js/react', asset.filePath, {
-        autoinstall: options.autoinstall,
+        shouldAutoInstall: options.shouldAutoInstall,
         saveDev: false,
       }),
     ]);

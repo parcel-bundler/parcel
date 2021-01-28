@@ -9,7 +9,7 @@ export default (new Validator({
     let eslint = await options.packageManager.require(
       'eslint',
       asset.filePath,
-      {autoinstall: options.autoinstall},
+      {shouldAutoInstall: options.shouldAutoInstall},
     );
     if (!cliEngine) {
       cliEngine = new eslint.CLIEngine({});
