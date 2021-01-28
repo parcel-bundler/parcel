@@ -950,7 +950,10 @@ const VISITOR: Visitor<MutableAsset> = {
       }),
     );
 
-    if (isIdentifier(declaration) && path.scope.hasBinding(declaration.name)) {
+    if (
+      isIdentifier(declaration) &&
+      path.scope.hasBinding(declaration.name, /* noGlobals */ true)
+    ) {
       // Rename the variable being exported.
       safeRename(path, asset, declaration.name, identifier.name);
       path.remove();
