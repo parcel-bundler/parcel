@@ -240,7 +240,9 @@ export class NodePackageManager implements PackageManager {
           throw new ThrowableDiagnostic({
             diagnostic: {
               message,
-              origin: '@parcel/package-manager',
+              hints: [
+                'Looks like the incompatible version was installed transitively. Add this package as a direct dependency with a compatible version range.',
+              ],
             },
           });
         }
