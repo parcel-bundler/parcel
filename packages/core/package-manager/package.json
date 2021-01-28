@@ -1,6 +1,6 @@
 {
   "name": "@parcel/package-manager",
-  "version": "2.0.0-frontbucket.30",
+  "version": "2.0.0-frontbucket.39",
   "description": "Blazing fast, zero configuration web application bundler",
   "license": "MIT",
   "publishConfig": {
@@ -17,14 +17,14 @@
   "main": "lib/index.js",
   "source": "src/index.js",
   "engines": {
-    "node": ">= 10.0.0"
+    "node": ">= 12.0.0"
   },
   "dependencies": {
-    "@parcel/diagnostic": "^2.0.0-frontbucket.16",
-    "@parcel/fs": "^2.0.0-frontbucket.30",
-    "@parcel/logger": "^2.0.0-frontbucket.18",
-    "@parcel/utils": "^2.0.0-frontbucket.28",
-    "@parcel/workers": "^2.0.0-frontbucket.29",
+    "@parcel/diagnostic": "2.0.0-frontbucket.25",
+    "@parcel/fs": "2.0.0-frontbucket.39",
+    "@parcel/logger": "2.0.0-frontbucket.27",
+    "@parcel/utils": "2.0.0-frontbucket.37",
+    "@parcel/workers": "2.0.0-frontbucket.38",
     "command-exists": "^1.2.6",
     "cross-spawn": "^6.0.4",
     "nullthrows": "^1.1.1",

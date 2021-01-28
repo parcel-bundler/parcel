@@ -79,6 +79,7 @@ export default (new Packager({
         }),
         options,
         wrappedAssets,
+        parcelRequireName,
       });
 
       // Free up memory
@@ -115,7 +116,7 @@ export default (new Packager({
         queue.add(async () => {
           let [code, mapBuffer] = await Promise.all([
             node.value.getCode(),
-            bundle.target.sourceMap && node.value.getMapBuffer(),
+            bundle.env.sourceMap && node.value.getMapBuffer(),
           ]);
           return {code, mapBuffer};
         });
@@ -175,7 +176,7 @@ export default (new Packager({
         wrapped += JSON.stringify(deps);
         wrapped += ']';
 
-        if (options.sourceMaps) {
+        if (bundle.env.sourceMap) {
           if (mapBuffer) {
             map.addBufferMappings(mapBuffer, lineOffset);
           } else {
@@ -211,7 +212,7 @@ export default (new Packager({
         prefix +
         '({' +
         assets +
-        '},{},' +
+        '},' +
         JSON.stringify(
           entries.map(asset => bundleGraph.getAssetPublicId(asset)),
         ) +
@@ -247,7 +248,7 @@ function getPrefix(
 
   let importScripts = '';
   if (bundle.env.isWorker()) {
-    let bundles = bundleGraph.getSiblingBundles(bundle);
+    let bundles = bundleGraph.getReferencedBundles(bundle);
     for (let b of bundles) {
       // ATLASSIAN: fork does support shared bundles in workers
       invariant(b.type !== 'js');

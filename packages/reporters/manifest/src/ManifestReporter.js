@@ -41,7 +41,7 @@ export default (new Reporter({
             let mainEntry = entryBundle.getMainEntry();
             if (mainEntry != null) {
               manifest[path.basename(mainEntry.filePath)] = bundleGraph
-                .getSiblingBundles(entryBundle)
+                .getReferencedBundles(entryBundle)
                 .concat([entryBundle])
                 .map(b => b.name);
             }

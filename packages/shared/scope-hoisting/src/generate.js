@@ -14,7 +14,7 @@ import type {
   Statement,
 } from '@babel/types';
 
-import babelGenerate from '@babel/generator';
+import {generateAST} from '@parcel/babel-ast-utils';
 import invariant from 'assert';
 import {isEntry} from './utils';
 import SourceMap from '@parcel/source-map';
@@ -31,8 +31,8 @@ const REGISTER_TEMPLATE = template.statement<
 >(`(function() {
   function $parcel$bundleWrapper() {
     if ($parcel$bundleWrapper._executed) return;
-    STATEMENTS;
     $parcel$bundleWrapper._executed = true;
+    STATEMENTS;
   }
   var $parcel$referencedAssets = REFERENCED_IDS;
   for (var $parcel$i = 0; $parcel$i < $parcel$referencedAssets.length; $parcel$i++) {
@@ -99,20 +99,14 @@ export function generate({
     ),
   );
 
-  let {code, rawMappings} = babelGenerate(ast, {
-    sourceMaps: options.sourceMaps,
-    minified: bundle.env.minify,
-    comments: true, // retain /*@__PURE__*/ comments for terser
+  let {content, map} = generateAST({
+    ast,
+    sourceMaps: !!bundle.env.sourceMap,
+    options,
   });
 
-  let map = null;
-  if (options.sourceMaps && rawMappings != null) {
-    map = new SourceMap(options.projectRoot);
-    map.addIndexedMappings(rawMappings);
-  }
-
   return {
-    contents: code,
+    contents: content,
     map,
   };
 }

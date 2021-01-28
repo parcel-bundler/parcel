@@ -34,7 +34,7 @@ important events that occur, such as as when builds start, progress, and end in 
 This telemetry includes information such memory and cpu usage. Details about user-triggered
 errors such as syntax errors should not be included in these reports. Other errors are captured automatically.
 
-Source code for our version of Parcel is available at https://staging.bb-inf.net/padmaia/parcel/src/master/
+Source code for our version of Parcel is available at https://bitbucket.org/atlassian/parcel/
 
 Please visit #parcel-frontbucket (for Frontbucket) or #parcel (for general discussion) in Slack
 to send us your feedback or questions!
@@ -137,10 +137,8 @@ function getAdditionalProperties(event: ReporterEvent, options: PluginOptions) {
       event.type === 'buildStart' ? 0 : performance.now() - buildStartTime,
     cpuUsageSinceBuildStart:
       event.type === 'buildStart' ? null : process.cpuUsage(buildStartCpuUsage),
-    disableCache: options.disableCache,
     mode: options.mode,
-    sourceMaps: options.sourceMaps,
-    serve: Boolean(options.serve),
+    serve: Boolean(options.serveOptions),
   };
 }
 

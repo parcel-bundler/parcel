@@ -7,6 +7,7 @@ import type {
   PluginOptions as IPluginOptions,
   ServerOptions,
   HMROptions,
+  DetailedReportOptions,
 } from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
 import type {PackageManager} from '@parcel/package-manager';
@@ -31,10 +32,6 @@ export default class PluginOptions implements IPluginOptions {
     return this;
   }
 
-  get disableCache(): boolean {
-    return this.#options.disableCache;
-  }
-
   get instanceId(): string {
     return this.#options.instanceId;
   }
@@ -43,24 +40,20 @@ export default class PluginOptions implements IPluginOptions {
     return this.#options.mode;
   }
 
-  get sourceMaps(): boolean {
-    return this.#options.sourceMaps;
-  }
-
   get env(): EnvMap {
     return this.#options.env;
   }
 
-  get hot(): ?HMROptions {
-    return this.#options.hot;
+  get hmrOptions(): ?HMROptions {
+    return this.#options.hmrOptions;
   }
 
-  get serve(): ServerOptions | false {
-    return this.#options.serve;
+  get serveOptions(): ServerOptions | false {
+    return this.#options.serveOptions;
   }
 
-  get autoinstall(): boolean {
-    return this.#options.autoinstall;
+  get shouldAutoInstall(): boolean {
+    return this.#options.shouldAutoInstall;
   }
 
   get logLevel(): LogLevel {
@@ -69,10 +62,6 @@ export default class PluginOptions implements IPluginOptions {
 
   get entryRoot(): FilePath {
     return this.#options.entryRoot;
-  }
-
-  get distDir(): ?FilePath {
-    return this.#options.distDir;
   }
 
   get cacheDir(): FilePath {
@@ -97,7 +86,7 @@ export default class PluginOptions implements IPluginOptions {
     return this.#options.packageManager;
   }
 
-  get detailedReport(): number {
-    return this.#options.detailedReport || 0;
+  get detailedReport(): ?DetailedReportOptions {
+    return this.#options.detailedReport;
   }
 }

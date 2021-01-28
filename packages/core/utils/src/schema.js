@@ -2,6 +2,8 @@
 import ThrowableDiagnostic, {
   generateJSONCodeHighlights,
 } from '@parcel/diagnostic';
+import type {Mapping} from 'json-source-map';
+import nullthrows from 'nullthrows';
 // flowlint-next-line untyped-import:off
 import levenshtein from 'fastest-levenshtein';
 
@@ -94,7 +96,7 @@ export type SchemaError =
       prop: string,
       expectedProps: Array<string>,
       actualProps: Array<string>,
-      dataType: null | 'key',
+      dataType: 'key' | 'value',
 
       dataPath: string,
       ancestors: Array<SchemaEntity>,
@@ -105,7 +107,6 @@ export type SchemaError =
       actualValue: mixed,
       dataType: ?'key' | 'value',
       message?: string,
-
       dataPath: string,
       ancestors: Array<SchemaEntity>,
     |};
@@ -165,8 +166,7 @@ function validateSchema(schema: SchemaEntity, data: mixed): Array<SchemaError> {
               }
             } else if (schemaNode.__validate) {
               let validationError = schemaNode.__validate(value);
-              // $FlowFixMe
-              if (validationError) {
+              if (typeof validationError == 'string') {
                 return {
                   type: 'other',
                   dataType: 'value',
@@ -232,7 +232,7 @@ function validateSchema(schema: SchemaEntity, data: mixed): Array<SchemaError> {
                     ({
                       type: 'missing-prop',
                       dataPath,
-                      dataType: null,
+                      dataType: 'value',
                       prop: k,
                       expectedProps: schemaNode.required,
                       actualProps: keys,
@@ -378,20 +378,41 @@ export function fuzzySearch(
 
 validateSchema.diagnostic = function(
   schema: SchemaEntity,
-  data: mixed,
-  dataContentsPath?: ?string,
-  dataContents: string | mixed,
+  data: {|
+    ...
+      | {|
+          source?: ?string,
+          data?: mixed,
+        |}
+      | {|
+          source: string,
+          map: {|
+            data: mixed,
+            pointers: {|[key: string]: Mapping|},
+          |},
+        |},
+    filePath?: ?string,
+    prependKey?: ?string,
+  |},
   origin: string,
-  prependKey: string,
   message: string,
 ): void {
-  let errors = validateSchema(schema, data);
+  if (
+    'source' in data &&
+    'data' in data &&
+    typeof data.source !== 'string' &&
+    !data
+  ) {
+    throw new Error(
+      'At least one of data.source and data.source must be defined!',
+    );
+  }
+  let object = data.map
+    ? data.map.data
+    : // $FlowFixMe we can assume it's a JSON object
+      data.data ?? JSON.parse(data.source);
+  let errors = validateSchema(schema, object);
   if (errors.length) {
-    let dataContentsString: string =
-      typeof dataContents === 'string'
-        ? dataContents
-        : // $FlowFixMe
-          JSON.stringify(dataContents, null, '\t');
     let keys = errors.map(e => {
       let message;
       if (e.type === 'enum') {
@@ -407,7 +428,7 @@ validateSchema.diagnostic = function(
             .map(v => JSON.stringify(v))
             .join(', ')}?`;
         } else if (expectedValues.length > 0) {
-          message = `Possible values: ${e.expectedValues
+          message = `Possible values: ${expectedValues
             .map(v => JSON.stringify(v))
             .join(', ')}`;
         } else {
@@ -429,10 +450,8 @@ validateSchema.diagnostic = function(
         let {prop, actualProps} = e;
         let likely = fuzzySearch(actualProps, prop);
         if (likely.length > 0) {
-          message = `Did you mean ${likely
-            .map(v => JSON.stringify(v))
-            .join(', ')}?`;
-          e.dataPath += '/' + prop;
+          message = `Did you mean ${JSON.stringify(prop)}?`;
+          e.dataPath += '/' + likely[0];
           e.dataType = 'key';
         } else {
           message = `Missing property ${prop}`;
@@ -448,12 +467,21 @@ validateSchema.diagnostic = function(
       }
       return {key: e.dataPath, type: e.dataType, message};
     });
+    let map, code;
+    if (data.map) {
+      map = data.map;
+      code = data.source;
+    } else {
+      // $FlowFixMe we can assume that data is valid JSON
+      map = data.source ?? JSON.stringify(nullthrows(data.data), 0, '\t');
+      code = map;
+    }
     let codeFrame = {
-      code: dataContentsString,
+      code,
       codeHighlights: generateJSONCodeHighlights(
-        dataContentsString,
+        map,
         keys.map(({key, type, message}) => ({
-          key: prependKey + key,
+          key: (data.prependKey ?? '') + key,
           type: type,
           message,
         })),
@@ -464,8 +492,7 @@ validateSchema.diagnostic = function(
       diagnostic: {
         message,
         origin,
-        // $FlowFixMe should be a sketchy string check
-        filePath: dataContentsPath || undefined,
+        filePath: data.filePath ?? undefined,
         language: 'json',
         codeFrame,
       },

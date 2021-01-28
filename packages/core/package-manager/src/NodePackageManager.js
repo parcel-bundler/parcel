@@ -9,7 +9,6 @@ import type {
 } from './types';
 import type {ResolveResult} from '@parcel/utils';
 
-import {resolve, resolveSync} from '@parcel/utils';
 import {registerSerializableClass} from '@parcel/core';
 import ThrowableDiagnostic, {
   encodeJSONKeyComponent,
@@ -24,6 +23,8 @@ import semver from 'semver';
 import {getConflictingLocalDependencies} from './utils';
 import {installPackage} from './installPackage';
 import pkg from '../package.json';
+import {NodeResolver} from './NodeResolver';
+import {NodeResolverSync} from './NodeResolverSync';
 
 // This implements a package manager for Node by monkey patching the Node require
 // algorithm so that it uses the specified FileSystem instead of the native one.
@@ -34,10 +35,14 @@ export class NodePackageManager implements PackageManager {
   fs: FileSystem;
   installer: ?PackageInstaller;
   cache: Map<ModuleSpecifier, ResolveResult> = new Map();
+  resolver: NodeResolver;
+  syncResolver: NodeResolverSync;
 
   constructor(fs: FileSystem, installer?: ?PackageInstaller) {
     this.fs = fs;
     this.installer = installer;
+    this.resolver = new NodeResolver(this.fs);
+    this.syncResolver = new NodeResolverSync(this.fs);
   }
 
   static deserialize(opts: any): NodePackageManager {
@@ -59,7 +64,11 @@ export class NodePackageManager implements PackageManager {
   async require(
     name: ModuleSpecifier,
     from: FilePath,
-    opts: ?{|range?: SemverRange, autoinstall?: boolean, saveDev?: boolean|},
+    opts: ?{|
+      range?: SemverRange,
+      shouldAutoInstall?: boolean,
+      saveDev?: boolean,
+    |},
   ): Promise<any> {
     let {resolved} = await this.resolve(name, from, opts);
     return this.load(resolved, from);
@@ -113,19 +122,23 @@ export class NodePackageManager implements PackageManager {
   async resolve(
     name: ModuleSpecifier,
     from: FilePath,
-    options?: ?{|range?: string, autoinstall?: boolean, saveDev?: boolean|},
+    options?: ?{|
+      range?: string,
+      shouldAutoInstall?: boolean,
+      saveDev?: boolean,
+    |},
   ): Promise<ResolveResult> {
     let basedir = path.dirname(from);
     let key = basedir + ':' + name;
     let resolved = this.cache.get(key);
     if (!resolved) {
       try {
-        resolved = await resolve(this.fs, name, {
-          basedir,
-          extensions: Object.keys(Module._extensions),
-        });
+        resolved = await this.resolver.resolve(name, basedir);
       } catch (e) {
-        if (e.code !== 'MODULE_NOT_FOUND' || options?.autoinstall !== true) {
+        if (
+          e.code !== 'MODULE_NOT_FOUND' ||
+          options?.shouldAutoInstall !== true
+        ) {
           throw e;
         }
 
@@ -142,7 +155,7 @@ export class NodePackageManager implements PackageManager {
 
           return this.resolve(name, from, {
             ...options,
-            autoinstall: false,
+            shouldAutoInstall: false,
           });
         }
 
@@ -176,11 +189,11 @@ export class NodePackageManager implements PackageManager {
             from,
           );
 
-          if (conflicts == null && options?.autoinstall === true) {
+          if (conflicts == null && options?.shouldAutoInstall === true) {
             await this.install([{name, range}], from);
             return this.resolve(name, from, {
               ...options,
-              autoinstall: false,
+              shouldAutoInstall: false,
             });
           } else if (conflicts != null) {
             throw new ThrowableDiagnostic({
@@ -227,10 +240,7 @@ export class NodePackageManager implements PackageManager {
 
   resolveSync(name: ModuleSpecifier, from: FilePath): ResolveResult {
     let basedir = path.dirname(from);
-    return resolveSync(this.fs, name, {
-      basedir,
-      extensions: Object.keys(Module._extensions),
-    });
+    return this.syncResolver.resolve(name, basedir);
   }
 
   async install(

@@ -1,17 +1,14 @@
 {
   "name": "@parcel/three-js-stresstest",
-  "version": "2.0.0-frontbucket.22",
+  "version": "2.0.0-frontbucket.33",
   "license": "MIT",
   "private": true,
   "scripts": {
     "setup": "make src",
-    "build": "parcel build src/entry.js"
+    "build": "rm -rf dist && parcel build src/entry.js --no-cache",
+    "get-size": "du -sh dist"
   },
-  "devDependencies": {
-    "@parcel/config-default": "^2.0.0-frontbucket.51",
-    "parcel": "^2.0.0-frontbucket.51"
-  },
-  "browser": "dist/legacy/index.js",
+  "browserLegacy": "dist/legacy/index.js",
   "browserModern": "dist/modern/index.js",
   "targets": {
     "browserModern": {
@@ -21,12 +18,16 @@
         ]
       }
     },
-    "browser": {
+    "browserLegacy": {
       "engines": {
         "browsers": [
           "> 0.25%"
         ]
       }
     }
+  },
+  "devDependencies": {
+    "@parcel/config-default": "2.0.0-frontbucket.62",
+    "parcel": "2.0.0-frontbucket.62"
   }
 }

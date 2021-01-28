@@ -2,6 +2,7 @@
 
 import type {Bundle, ParcelOptions, ProcessedParcelConfig} from './types';
 import type {SharedReference, WorkerApi} from '@parcel/workers';
+import {loadConfig as configCache} from '@parcel/utils';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
@@ -48,18 +49,25 @@ function loadOptions(ref, workerApi) {
 }
 
 async function loadConfig(cachePath, options) {
-  let processedConfig =
-    parcelConfigCache.get(cachePath) ??
-    nullthrows(await options.cache.get(cachePath));
-  let config = new ParcelConfig(
+  let config = parcelConfigCache.get(cachePath);
+  if (config) {
+    return config;
+  }
+
+  let processedConfig = nullthrows(await options.cache.get(cachePath));
+  config = new ParcelConfig(
     // $FlowFixMe
     ((processedConfig: any): ProcessedParcelConfig),
     options.packageManager,
     options.inputFS,
-    options.autoinstall,
+    options.shouldAutoInstall,
   );
   parcelConfigCache.set(cachePath, config);
   return config;
+}
+
+export function clearConfigCache() {
+  configCache.clear();
 }
 
 export async function runTransform(
@@ -126,7 +134,7 @@ export async function runPackage(
     processedConfig,
     options.packageManager,
     options.inputFS,
-    options.autoinstall,
+    options.shouldAutoInstall,
   );
 
   let runner = new PackagerRunner({
@@ -149,4 +157,25 @@ export async function runPackage(
     (await runner.getBundleInfoFromCache(cacheKeys.info)) ??
     runner.getBundleInfo(bundle, bundleGraph, cacheKeys, configs)
   );
+}
+
+const PKG_RE = /node_modules[/\\]((?:@[^/\\]+\/[^/\\]+)|[^/\\]+)(?!.*[/\\]node_modules[/\\])/;
+export function invalidateRequireCache(workerApi: WorkerApi, file: string) {
+  if (process.env.PARCEL_BUILD_ENV === 'test') {
+    // Delete this module and all children in the same node_modules folder
+    let module = require.cache[file];
+    if (module) {
+      delete require.cache[file];
+
+      let pkg = file.match(PKG_RE)?.[1];
+      for (let child of module.children) {
+        if (pkg === child.id.match(PKG_RE)?.[1]) {
+          invalidateRequireCache(workerApi, child.id);
+        }
+      }
+    }
+    return;
+  }
+
+  throw new Error('invalidateRequireCache is only for tests');
 }

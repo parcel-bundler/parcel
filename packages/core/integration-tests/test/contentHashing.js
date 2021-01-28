@@ -7,7 +7,7 @@ const distDir = path.join(__dirname, './dist');
 function bundle(path) {
   return _bundle(path, {
     inputFS: overlayFS,
-    disableCache: false,
+    shouldDisableCache: false,
     distDir,
   });
 }

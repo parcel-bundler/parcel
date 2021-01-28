@@ -1,14 +1,14 @@
 {
   "name": "@parcel/eslint-plugin",
   "private": true,
-  "version": "2.0.0-frontbucket.11",
+  "version": "2.0.0-frontbucket.20",
   "main": "index.js",
   "scripts": {},
   "dependencies": {
     "read-pkg-up": "^5.0.0"
   },
   "devDependencies": {
-    "babel-eslint": "^10.0.1",
+    "@babel/eslint-parser": "^7.12.1",
     "eslint": "^5.16.0"
   }
 }

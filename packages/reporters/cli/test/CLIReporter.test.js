@@ -17,20 +17,22 @@ const EMPTY_OPTIONS = {
   projectRoot: '',
   distDir: 'dist',
   lockFile: undefined,
-  autoinstall: false,
-  hot: undefined,
-  serve: false,
+  shouldAutoInstall: false,
+  hmrOptions: undefined,
+  serveOptions: false,
   mode: 'development',
   scopeHoist: false,
   minify: false,
   env: {},
-  disableCache: false,
+  shouldDisableCache: false,
   sourceMaps: false,
   inputFS,
   outputFS,
   instanceId: 'test',
   packageManager: new NodePackageManager(inputFS),
-  detailedReport: 10,
+  detailedReport: {
+    assetsPerBundle: 10,
+  },
 };
 
 describe('CLIReporter', () => {
@@ -39,7 +41,7 @@ describe('CLIReporter', () => {
   let stdoutOutput;
   let stderrOutput;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     // Stub these out to avoid writing noise to real stdio and to read from these
     // otherwise only writable streams
     originalStdout = process.stdout;
@@ -53,6 +55,13 @@ describe('CLIReporter', () => {
     let mockStderr = new PassThrough();
     mockStderr.on('data', d => (stderrOutput += stripAnsi(d.toString())));
     _setStdio(mockStdout, mockStderr);
+
+    await _report(
+      {
+        type: 'buildStart',
+      },
+      EMPTY_OPTIONS,
+    );
   });
 
   afterEach(() => {

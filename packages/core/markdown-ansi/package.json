@@ -1,6 +1,6 @@
 {
   "name": "@parcel/markdown-ansi",
-  "version": "2.0.0-frontbucket.12",
+  "version": "2.0.0-frontbucket.20",
   "description": "Blazing fast, zero configuration web application bundler",
   "publishConfig": {
     "access": "public"
@@ -17,9 +17,9 @@
   "main": "lib/markdown-ansi.js",
   "source": "src/markdown-ansi.js",
   "engines": {
-    "node": ">= 10.0.0"
+    "node": ">= 12.0.0"
   },
   "dependencies": {
-    "chalk": "^2.4.2"
+    "chalk": "^4.1.0"
   }
 }

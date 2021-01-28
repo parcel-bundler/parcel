@@ -6,13 +6,13 @@ import type {AssetRequestInput, AssetRequestResult} from '../types';
 import type {ConfigAndCachePath} from './ParcelConfigRequest';
 import type {TransformationResult} from '../Transformation';
 
-import {md5FromObject} from '@parcel/utils';
+import {md5FromOrderedObject, objectSortedEntries} from '@parcel/utils';
 import nullthrows from 'nullthrows';
 import createParcelConfigRequest from './ParcelConfigRequest';
 
 type RunInput = {|
   input: AssetRequestInput,
-  ...StaticRunOpts,
+  ...StaticRunOpts<AssetRequestResult>,
 |};
 
 export type AssetRequest = {|
@@ -23,7 +23,7 @@ export type AssetRequest = {|
 |};
 
 function generateRequestId(type, obj) {
-  return `${type}:${md5FromObject(obj)}`;
+  return `${type}:${md5FromOrderedObject(obj)}`;
 }
 
 export default function createAssetRequest(
@@ -42,11 +42,21 @@ const type = 'asset_request';
 function getId(input: AssetRequestInput) {
   // eslint-disable-next-line no-unused-vars
   let {optionsRef, ...hashInput} = input;
-  return `${type}:${md5FromObject(hashInput)}`;
+  return md5FromOrderedObject({
+    type,
+    filePath: input.filePath,
+    env: input.env.id,
+    isSource: input.isSource,
+    sideEffects: input.sideEffects,
+    code: input.code,
+    pipeline: input.pipeline,
+    query: input.query ? objectSortedEntries(input.query) : null,
+    invalidations: input.invalidations,
+  });
 }
 
 async function run({input, api, options, farm}: RunInput) {
-  api.invalidateOnFileUpdate(await options.inputFS.realpath(input.filePath));
+  api.invalidateOnFileUpdate(input.filePath);
   let start = Date.now();
   let {optionsRef, ...request} = input;
   let {cachePath} = nullthrows(
@@ -84,6 +94,11 @@ async function run({input, api, options, farm}: RunInput) {
       case 'env':
         api.invalidateOnEnvChange(invalidation.key);
         break;
+      case 'option':
+        api.invalidateOnOptionChange(invalidation.key);
+        break;
+      default:
+        throw new Error(`Unknown invalidation type: ${invalidation.type}`);
     }
   }
 

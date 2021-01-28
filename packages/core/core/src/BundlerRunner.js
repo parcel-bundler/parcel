@@ -1,17 +1,18 @@
 // @flow strict-local
 
+import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import type {
   Bundle as IBundle,
   Namer,
   FilePath,
   ConfigOutput,
 } from '@parcel/types';
-import type {Bundle as InternalBundle, ParcelOptions} from './types';
+import type WorkerFarm, {SharedReference} from '@parcel/workers';
 import type ParcelConfig from './ParcelConfig';
-import type WorkerFarm from '@parcel/workers';
-import type AssetGraphBuilder from './AssetGraphBuilder';
-import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
+// import type AssetGraphBuilder from './AssetGraphBuilder';
 import type Tracer from './Tracer';
+import type RequestTracker from './RequestTracker';
+import type {Bundle as InternalBundle, ParcelOptions} from './types';
 
 import assert from 'assert';
 import path from 'path';
@@ -25,42 +26,48 @@ import MutableBundleGraph from './public/MutableBundleGraph';
 import {Bundle, NamedBundle} from './public/Bundle';
 import {report} from './ReporterRunner';
 import dumpGraphToGraphViz from './dumpGraphToGraphViz';
-import {normalizeSeparators, unique, md5FromObject} from '@parcel/utils';
+import {normalizeSeparators, unique, md5FromOrderedObject} from '@parcel/utils';
 import PluginOptions from './public/PluginOptions';
 import applyRuntimes from './applyRuntimes';
 import {PARCEL_VERSION} from './constants';
 import {assertSignalNotAborted} from './utils';
+import {deserialize, serialize} from './serializer';
 
 type Opts = {|
   options: ParcelOptions,
+  optionsRef: SharedReference,
   config: ParcelConfig,
-  runtimesBuilder: AssetGraphBuilder,
+  // runtimesBuilder: AssetGraphBuilder,
   tracer: Tracer,
+  requestTracker: RequestTracker,
   workerFarm: WorkerFarm,
 |};
 
 export default class BundlerRunner {
   options: ParcelOptions;
+  optionsRef: SharedReference;
   config: ParcelConfig;
   pluginOptions: PluginOptions;
   farm: WorkerFarm;
-  runtimesBuilder: AssetGraphBuilder;
+  // runtimesBuilder: AssetGraphBuilder;
   tracer: Tracer;
+  requestTracker: RequestTracker;
   isBundling: boolean = false;
 
   constructor(opts: Opts) {
     this.options = opts.options;
+    this.optionsRef = opts.optionsRef;
     this.config = opts.config;
     this.pluginOptions = new PluginOptions(this.options);
-    this.runtimesBuilder = opts.runtimesBuilder;
     this.farm = opts.workerFarm;
     this.tracer = opts.tracer;
+    this.requestTracker = opts.requestTracker;
   }
 
   async bundle(
     graph: AssetGraph,
     {signal}: {|signal: ?AbortSignal|},
-  ): Promise<InternalBundleGraph> {
+  ): Promise<[InternalBundleGraph, Buffer]> {
     report({
       type: 'buildProgress',
       phase: 'bundling',
@@ -86,17 +93,20 @@ export default class BundlerRunner {
 
     let cacheKey;
     if (
-      !this.options.disableCache &&
-      !this.runtimesBuilder.requestTracker.hasInvalidRequests()
+      !this.options.shouldDisableCache &&
+      !this.requestTracker.hasInvalidRequests()
     ) {
       cacheKey = await this.getCacheKey(graph, configResult);
-      let cachedBundleGraph = await this.options.cache.get<InternalBundleGraph>(
-        cacheKey,
-      );
+      let cachedBundleGraphBuffer;
+      try {
+        cachedBundleGraphBuffer = await this.options.cache.getBlob(cacheKey);
+      } catch {
+        // Cache miss
+      }
       assertSignalNotAborted(signal);
 
-      if (cachedBundleGraph) {
-        return cachedBundleGraph;
+      if (cachedBundleGraphBuffer) {
+        return [deserialize(cachedBundleGraphBuffer), cachedBundleGraphBuffer];
       }
     }
 
@@ -129,27 +139,30 @@ export default class BundlerRunner {
 
     // $FlowFixMe
     await dumpGraphToGraphViz(internalBundleGraph._graph, 'after_bundle');
-    let bundlerOptimizeMeasurement = this.tracer.createMeasurement(
-      'bundler.optimize',
-    );
-    try {
-      await bundler.optimize({
-        bundleGraph: mutableBundleGraph,
-        config: configResult?.config,
-        options: this.pluginOptions,
-        logger: new PluginLogger({origin: this.config.getBundlerName()}),
-      });
-    } catch (e) {
-      throw new ThrowableDiagnostic({
-        diagnostic: errorToDiagnostic(e, this.config.getBundlerName()),
-      });
-    } finally {
-      bundlerOptimizeMeasurement.end();
-    }
-    assertSignalNotAborted(signal);
+    if (this.pluginOptions.mode === 'production') {
+      let bundlerOptimizeMeasurement = this.tracer.createMeasurement(
+        'bundler.optimize',
+      );
+      try {
+        await bundler.optimize({
+          bundleGraph: mutableBundleGraph,
+          config: configResult?.config,
+          options: this.pluginOptions,
+          logger: new PluginLogger({origin: this.config.getBundlerName()}),
+        });
+      } catch (e) {
+        throw new ThrowableDiagnostic({
+          diagnostic: errorToDiagnostic(e, this.config.getBundlerName()),
+        });
+      } finally {
+        bundlerOptimizeMeasurement.end();
+      }
+      assertSignalNotAborted(signal);
 
-    // $FlowFixMe
-    await dumpGraphToGraphViz(internalBundleGraph._graph, 'after_optimize');
+      // $FlowFixMe
+      await dumpGraphToGraphViz(internalBundleGraph._graph, 'after_optimize');
+    }
+
     await this.tracer.wrap('nameBundles', async () => {
       await this.nameBundles(internalBundleGraph);
     });
@@ -157,9 +170,10 @@ export default class BundlerRunner {
     await this.tracer.wrap('applyRuntimes', async () => {
       await applyRuntimes({
         bundleGraph: internalBundleGraph,
-        runtimesBuilder: this.runtimesBuilder,
+        requestTracker: this.requestTracker,
         config: this.config,
         options: this.options,
+        optionsRef: this.optionsRef,
         pluginOptions: this.pluginOptions,
       });
     });
@@ -167,12 +181,13 @@ export default class BundlerRunner {
     // $FlowFixMe
     await dumpGraphToGraphViz(internalBundleGraph._graph, 'after_runtimes');
 
+    let serializedBundleGraph = serialize(internalBundleGraph);
     if (cacheKey != null) {
-      await this.options.cache.set(cacheKey, internalBundleGraph);
+      await this.options.cache.setBlob(cacheKey, serializedBundleGraph);
     }
     assertSignalNotAborted(signal);
 
-    return internalBundleGraph;
+    return [internalBundleGraph, serializedBundleGraph];
   }
 
   async getCacheKey(
@@ -182,12 +197,14 @@ export default class BundlerRunner {
     let name = this.config.getBundlerName();
     let {version} = await this.config.getBundler();
 
-    return md5FromObject({
+    return md5FromOrderedObject({
       parcelVersion: PARCEL_VERSION,
       name,
       version,
       hash: assetGraph.getHash(),
       config: configResult?.config,
+      // TODO: remove once bundling is a request and we track options as invalidations.
+      hmrOptions: this.options.hmrOptions,
     });
   }
 

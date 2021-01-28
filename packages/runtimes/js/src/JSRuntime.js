@@ -10,7 +10,7 @@ import type {
 } from '@parcel/types';
 
 import {Runtime} from '@parcel/plugin';
-import {flatMap, relativeBundlePath} from '@parcel/utils';
+import {relativeBundlePath} from '@parcel/utils';
 import path from 'path';
 import nullthrows from 'nullthrows';
 
@@ -64,8 +64,18 @@ function getLoaders(
   return null;
 }
 
+// This cache should be invalidated if new dependencies get added to the bundle without the bundle objects changing
+// This can happen when we reuse the BundleGraph between subsequent builds
+let bundleDependencies = new WeakMap<
+  NamedBundle,
+  {|
+    asyncDependencies: Array<Dependency>,
+    otherDependencies: Array<Dependency>,
+  |},
+>();
+
 export default (new Runtime({
-  apply({bundle, bundleGraph, options}) {
+  apply({bundle, bundleGraph}) {
     // Dependency ids in code replaced with referenced bundle names
     // Loader runtime added for bundle groups that don't have a native loader (e.g. HTML/CSS/Worker - isURL?),
     // and which are not loaded by a parent bundle.
@@ -77,20 +87,7 @@ export default (new Runtime({
       return;
     }
 
-    let asyncDependencies = [];
-    let otherDependencies = [];
-    bundle.traverse(node => {
-      if (node.type !== 'dependency') {
-        return;
-      }
-
-      let dependency = node.value;
-      if (dependency.isAsync && !dependency.isURL) {
-        asyncDependencies.push(dependency);
-      } else {
-        otherDependencies.push(dependency);
-      }
-    });
+    let {asyncDependencies, otherDependencies} = getDependencies(bundle);
 
     let assets = [];
     for (let dependency of asyncDependencies) {
@@ -100,17 +97,18 @@ export default (new Runtime({
       }
 
       if (resolved.type === 'asset') {
-        // If this bundle already has the asset this dependency references,
-        // return a simple runtime of `Promise.resolve(require("path/to/asset"))`.
-        assets.push({
-          filePath: path.join(options.projectRoot, 'JSRuntime.js'),
-          // Using Promise['resolve'] to prevent Parcel from inferring this is an async dependency.
-          // TODO: Find a better way of doing this.
-          code: `module.exports = Promise['resolve'](require(${JSON.stringify(
-            './' + path.relative(options.projectRoot, resolved.value.filePath),
-          )}))`,
-          dependency,
-        });
+        if (!bundle.env.scopeHoist) {
+          // If this bundle already has the asset this dependency references,
+          // return a simple runtime of `Promise.resolve(internalRequire(assetId))`.
+          // The linker handles this for scope-hoisting.
+          assets.push({
+            filePath: __filename,
+            code: `module.exports = Promise.resolve(module.bundle.root(${JSON.stringify(
+              bundleGraph.getAssetPublicId(resolved.value),
+            )}))`,
+            dependency,
+          });
+        }
       } else {
         let loaderRuntime = getLoaderRuntime({
           bundle,
@@ -201,6 +199,36 @@ export default (new Runtime({
   },
 }): Runtime);
 
+function getDependencies(
+  bundle: NamedBundle,
+): {|
+  asyncDependencies: Array<Dependency>,
+  otherDependencies: Array<Dependency>,
+|} {
+  let cachedDependencies = bundleDependencies.get(bundle);
+
+  if (cachedDependencies) {
+    return cachedDependencies;
+  } else {
+    let asyncDependencies = [];
+    let otherDependencies = [];
+    bundle.traverse(node => {
+      if (node.type !== 'dependency') {
+        return;
+      }
+
+      let dependency = node.value;
+      if (dependency.isAsync && !dependency.isURL) {
+        asyncDependencies.push(dependency);
+      } else {
+        otherDependencies.push(dependency);
+      }
+    });
+    bundleDependencies.set(bundle, {asyncDependencies, otherDependencies});
+    return {asyncDependencies, otherDependencies};
+  }
+}
+
 function getLoaderRuntime({
   bundle,
   dependency,
@@ -217,25 +245,26 @@ function getLoaderRuntime({
     return;
   }
 
-  // Sort so the bundles containing the entry asset appear last
   let externalBundles = bundleGraph
     .getBundlesInBundleGroup(bundleGroup)
-    .filter(bundle => !bundle.isInline)
-    .sort(bundle =>
-      bundle
-        .getEntryAssets()
-        .map(asset => asset.id)
-        .includes(bundleGroup.entryAssetId)
-        ? 1
-        : -1,
-    );
+    .filter(bundle => !bundle.isInline);
+
+  let mainBundle = nullthrows(
+    externalBundles.find(
+      bundle => bundle.getMainEntry()?.id === bundleGroup.entryAssetId,
+    ),
+  );
 
   // CommonJS is a synchronous module system, so there is no need to load bundles in parallel.
   // Importing of the other bundles will be handled by the bundle group entry.
   // Do the same thing in library mode for ES modules, as we are building for another bundler
   // and the imports for sibling bundles will be in the target bundle.
   if (bundle.env.outputFormat === 'commonjs' || bundle.env.isLibrary) {
-    externalBundles = externalBundles.slice(-1);
+    externalBundles = [mainBundle];
+  } else {
+    // Otherwise, load the bundle group entry after the others.
+    externalBundles.splice(externalBundles.indexOf(mainBundle), 1);
+    externalBundles.reverse().push(mainBundle);
   }
 
   // Determine if we need to add a dynamic import() polyfill, or if all target browsers support it natively.
@@ -277,10 +306,10 @@ function getLoaderRuntime({
 
   if (bundle.env.context === 'browser') {
     loaderModules.push(
-      ...flatMap(
+      ...externalBundles
         // TODO: Allow css to preload resources as well
-        externalBundles.filter(to => to.type === 'js'),
-        from => {
+        .filter(to => to.type === 'js')
+        .flatMap(from => {
           let {preload, prefetch} = getHintedBundleGroups(bundleGraph, from);
 
           return [
@@ -297,8 +326,7 @@ function getLoaderRuntime({
               BROWSER_PREFETCH_LOADER,
             ),
           ];
-        },
-      ),
+        }),
     );
   }
 
@@ -343,17 +371,10 @@ function getHintedBundleGroups(
 ): {|preload: Array<BundleGroup>, prefetch: Array<BundleGroup>|} {
   let preload = [];
   let prefetch = [];
-  bundle.traverse(node => {
-    if (node.type !== 'dependency') {
-      return;
-    }
-
-    let dependency = node.value;
-    // $FlowFixMe
+  let {asyncDependencies} = getDependencies(bundle);
+  for (let dependency of asyncDependencies) {
     let attributes = dependency.meta?.importAttributes;
     if (
-      dependency.isAsync &&
-      !dependency.isURL &&
       typeof attributes === 'object' &&
       attributes != null &&
       // $FlowFixMe
@@ -370,7 +391,7 @@ function getHintedBundleGroups(
         }
       }
     }
-  });
+  }
 
   return {preload, prefetch};
 }
@@ -386,6 +407,7 @@ function getHintLoaders(
     let bundlesToPreload = bundleGraph.getBundlesInBundleGroup(
       bundleGroupToPreload,
     );
+
     for (let bundleToPreload of bundlesToPreload) {
       let relativePathExpr = getRelativePathExpr(from, bundleToPreload);
       let priority = TYPE_TO_RESOURCE_PRIORITY[bundleToPreload.type];

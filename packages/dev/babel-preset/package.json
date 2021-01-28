@@ -1,6 +1,6 @@
 {
   "name": "@parcel/babel-preset",
-  "version": "2.0.0-frontbucket.14",
+  "version": "2.0.0-frontbucket.22",
   "private": true,
   "license": "MIT",
   "dependencies": {
@@ -17,6 +17,6 @@
     "read-pkg-up": "^4.0.0"
   },
   "devDependencies": {
-    "@babel/core": "^7.7.0"
+    "@babel/core": "^7.12.0"
   }
 }

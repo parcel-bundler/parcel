@@ -1,6 +1,6 @@
 {
   "name": "@parcel/test-utils",
-  "version": "2.0.0-frontbucket.51",
+  "version": "2.0.0-frontbucket.62",
   "description": "Blazing fast, zero configuration web application bundler",
   "license": "MIT",
   "private": true,
@@ -8,23 +8,22 @@
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
-  "main": "lib/utils.js",
-  "source": "src/utils.js",
+  "main": "src/utils.js",
   "engines": {
-    "node": ">= 10.0.0"
+    "node": ">= 12.0.0"
   },
   "dependencies": {
-    "@parcel/config-default": "^2.0.0-frontbucket.51",
-    "@parcel/core": "^2.0.0-frontbucket.39",
-    "@parcel/fs": "^2.0.0-frontbucket.30",
-    "@parcel/package-manager": "^2.0.0-frontbucket.30",
-    "@parcel/utils": "^2.0.0-frontbucket.28",
-    "chalk": "^2.1.0",
+    "@parcel/config-default": "2.0.0-frontbucket.62",
+    "@parcel/core": "2.0.0-frontbucket.50",
+    "@parcel/fs": "2.0.0-frontbucket.39",
+    "@parcel/package-manager": "2.0.0-frontbucket.39",
+    "@parcel/utils": "2.0.0-frontbucket.37",
+    "chalk": "^4.1.0",
     "ncp": "^2.0.0",
     "nullthrows": "^1.1.1",
-    "posthtml": "^0.12.3",
-    "posthtml-parser": "^0.4.2",
+    "posthtml": "^0.15.1",
+    "posthtml-parser": "^0.6.0",
     "resolve": "^1.12.0",
-    "ws": "^5.1.1"
+    "ws": "^7.0.0"
   }
 }

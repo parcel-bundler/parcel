@@ -19,6 +19,7 @@ import type {
   Environment,
   ParcelOptions,
 } from './types';
+import {objectSortedEntries} from '@parcel/utils';
 import type {ConfigOutput} from '@parcel/utils';
 
 import {Readable} from 'stream';
@@ -33,10 +34,10 @@ import PluginOptions from './public/PluginOptions';
 import {
   blobToStream,
   loadConfig,
-  md5FromString,
+  md5FromOrderedObject,
   md5FromFilePath,
 } from '@parcel/utils';
-import {getEnvironmentHash} from './Environment';
+import {hashFromOption} from './utils';
 
 type AssetOptions = {|
   id?: string,
@@ -44,7 +45,7 @@ type AssetOptions = {|
   hash?: ?string,
   idBase?: ?string,
   filePath: FilePath,
-  query?: QueryParameters,
+  query?: ?QueryParameters,
   type: string,
   contentKey?: ?string,
   mapKey?: ?string,
@@ -60,7 +61,7 @@ type AssetOptions = {|
   outputHash?: ?string,
   pipeline?: ?string,
   stats: Stats,
-  symbols?: ?Map<Symbol, {|local: Symbol, loc: ?SourceLocation|}>,
+  symbols?: ?Map<Symbol, {|local: Symbol, loc: ?SourceLocation, meta?: ?Meta|}>,
   sideEffects?: boolean,
   uniqueKey?: ?string,
   plugin?: PackageName,
@@ -68,24 +69,28 @@ type AssetOptions = {|
   configKeyPath?: string,
 |};
 
-export function createAsset(options: AssetOptions): Asset {
+function createAssetIdFromOptions(options: AssetOptions): string {
+  let uniqueKey = options.uniqueKey ?? '';
   let idBase = options.idBase != null ? options.idBase : options.filePath;
-  let uniqueKey = options.uniqueKey || '';
+  let queryString = options.query ? objectSortedEntries(options.query) : '';
+
+  return md5FromOrderedObject({
+    idBase,
+    type: options.type,
+    env: options.env.id,
+    uniqueKey,
+    pipeline: options.pipeline ?? '',
+    queryString,
+  });
+}
+
+export function createAsset(options: AssetOptions): Asset {
   return {
-    id:
-      options.id != null
-        ? options.id
-        : md5FromString(
-            idBase +
-              options.type +
-              getEnvironmentHash(options.env) +
-              uniqueKey +
-              (options.pipeline ?? ''),
-          ),
+    id: options.id != null ? options.id : createAssetIdFromOptions(options),
     committed: options.committed ?? false,
     hash: options.hash,
     filePath: options.filePath,
-    query: options.query || {},
+    query: options.query,
     isIsolated: options.isIsolated ?? false,
     isInline: options.isInline ?? false,
     isSplittable: options.isSplittable,
@@ -101,9 +106,9 @@ export function createAsset(options: AssetOptions): Asset {
     env: options.env,
     meta: options.meta || {},
     stats: options.stats,
-    symbols: options.symbols ?? (options.symbols === null ? null : new Map()),
+    symbols: options.symbols,
     sideEffects: options.sideEffects ?? true,
-    uniqueKey: uniqueKey,
+    uniqueKey: options.uniqueKey ?? '',
     plugin: options.plugin,
     configPath: options.configPath,
     configKeyPath: options.configKeyPath,
@@ -136,7 +141,7 @@ async function _generateFromAST(asset: CommittedAsset | UncommittedAsset) {
     pluginName,
     nullthrows(asset.value.configPath),
     nullthrows(asset.value.configKeyPath),
-    asset.options.autoinstall,
+    asset.options.shouldAutoInstall,
   );
   if (!plugin.generate) {
     throw new Error(`${pluginName} does not have a generate method`);
@@ -210,6 +215,8 @@ export function getInvalidationId(invalidation: RequestInvalidation): string {
       return 'file:' + invalidation.filePath;
     case 'env':
       return 'env:' + invalidation.key;
+    case 'option':
+      return 'option:' + invalidation.key;
     default:
       throw new Error('Unknown invalidation type: ' + invalidation.type);
   }
@@ -219,6 +226,10 @@ export async function getInvalidationHash(
   invalidations: Array<RequestInvalidation>,
   options: ParcelOptions,
 ): Promise<string> {
+  if (invalidations.length === 0) {
+    return '';
+  }
+
   let sortedInvalidations = invalidations
     .slice()
     .sort((a, b) => (getInvalidationId(a) < getInvalidationId(b) ? -1 : 1));
@@ -236,6 +247,13 @@ export async function getInvalidationHash(
           invalidation.key + ':' + (options.env[invalidation.key] || ''),
         );
         break;
+      case 'option':
+        hash.update(
+          invalidation.key + ':' + hashFromOption(options[invalidation.key]),
+        );
+        break;
+      default:
+        throw new Error('Unknown invalidation type: ' + invalidation.type);
     }
   }
 

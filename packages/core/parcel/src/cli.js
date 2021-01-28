@@ -40,20 +40,18 @@ async function logUncaughtError(e: mixed) {
   await new Promise(resolve => setTimeout(resolve, 100));
 }
 
-process.on('unhandledRejection', async (reason: mixed) => {
-  await logUncaughtError(reason);
-  exitWithFailure();
-});
+const handleUncaughtException = async exception => {
+  try {
+    await logUncaughtError(exception);
+  } catch (err) {
+    console.error(exception);
+    console.error(err);
+  }
 
-// Capture the NODE_ENV this process was launched with, so that it can be
-// used in Parcel (such as in process.env inlining).
-const initialNodeEnv = process.env.NODE_ENV;
-// Then, override NODE_ENV to be PARCEL_BUILD_ENV (replaced with `production` in builds)
-// so that dependencies of Parcel like React (which renders the cli through `ink`)
-// run in the appropriate mode.
-if (typeof process.env.PARCEL_BUILD_ENV === 'string') {
-  process.env.NODE_ENV = process.env.PARCEL_BUILD_ENV;
-}
+  exitWithFailure();
+};
+
+process.on('unhandledRejection', handleUncaughtException);
 
 program.version(version);
 
@@ -83,6 +81,7 @@ const commonOptions = {
   '--detailed-report [depth]': [
     'Print the asset timings and sizes in the build report',
     /^([0-9]+)$/,
+    '10',
   ],
 };
 
@@ -90,8 +89,7 @@ var hmrOptions = {
   '--no-hmr': 'disable hot module replacement',
   '-p, --port <port>': [
     'set the port to serve on. defaults to $PORT or 1234',
-    value => parseInt(value, 10),
-    parseInt(process.env.PORT, 10) || 1234,
+    process.env.PORT,
   ],
   '--host <host>':
     'set the host to listen on, defaults to listening on all interfaces',
@@ -99,7 +97,7 @@ var hmrOptions = {
   '--cert <path>': 'path to certificate to use with HTTPS',
   '--key <path>': 'path to private key to use with HTTPS',
   '--no-autoinstall': 'disable autoinstall',
-  '--hmr-port <port>': 'hot module replacement port',
+  '--hmr-port <port>': ['hot module replacement port', process.env.HMR_PORT],
 };
 
 function applyOptions(cmd, options) {
@@ -120,7 +118,7 @@ let serve = program
     'automatically open in specified browser, defaults to default browser',
   )
   .option('--watch-for-stdin', 'exit when stdin closes')
-  .action(run);
+  .action(runCommand);
 
 applyOptions(serve, hmrOptions);
 applyOptions(serve, commonOptions);
@@ -130,7 +128,7 @@ let watch = program
   .description('starts the bundler in watch mode')
   .option('--public-url <url>', 'the path prefix for absolute urls')
   .option('--watch-for-stdin', 'exit when stdin closes')
-  .action(run);
+  .action(runCommand);
 
 applyOptions(watch, hmrOptions);
 applyOptions(watch, commonOptions);
@@ -141,7 +139,7 @@ let build = program
   .option('--no-minify', 'disable minification')
   .option('--no-scope-hoist', 'disable scope-hoisting')
   .option('--public-url <url>', 'the path prefix for absolute urls')
-  .action(run);
+  .action(runCommand);
 
 applyOptions(build, commonOptions);
 
@@ -172,6 +170,10 @@ if (!args[2] || !program.commands.some(c => c.name() === args[2])) {
 
 program.parse(args);
 
+function runCommand(...args) {
+  run(...args).catch(handleUncaughtException);
+}
+
 async function run(entries: Array<string>, command: any) {
   entries = entries.map(entry => path.resolve(entry));
 
@@ -190,7 +192,7 @@ async function run(entries: Array<string>, command: any) {
     defaultConfig: require.resolve('@parcel/config-default', {
       paths: [fs.cwd(), __dirname],
     }),
-    patchConsole: true,
+    shouldPatchConsole: true,
     ...options,
   });
 
@@ -207,6 +209,11 @@ async function run(entries: Array<string>, command: any) {
       await unsubscribe();
     } else if (parcel.isProfiling) {
       await parcel.stopProfiling();
+    }
+
+    if (process.stdin.isTTY && process.stdin.isRaw) {
+      // $FlowFixMe
+      process.stdin.setRawMode(false);
     }
 
     disposable.dispose();
@@ -254,6 +261,9 @@ async function run(entries: Array<string>, command: any) {
             ? parcel.stopProfiling()
             : parcel.startProfiling());
           break;
+        case 'y':
+          await parcel.takeHeapSnapshot();
+          break;
       }
     });
 
@@ -269,10 +279,10 @@ async function run(entries: Array<string>, command: any) {
       }
     }));
 
-    if (command.open && options.serve) {
+    if (command.open && options.serveOptions) {
       await openInBrowser(
-        `${options.serve.https ? 'https' : 'http'}://${options.serve.host ||
-          'localhost'}:${options.serve.port}`,
+        `${options.serveOptions.https ? 'https' : 'http'}://${options
+          .serveOptions.host || 'localhost'}:${options.serveOptions.port}`,
         command.open,
       );
     }
@@ -293,11 +303,11 @@ async function run(entries: Array<string>, command: any) {
   } else {
     try {
       await parcel.run();
-    } catch (e) {
+    } catch (err) {
       // If an exception is thrown during Parcel.build, it is given to reporters in a
       // buildFailure event, and has been shown to the user.
-      if (!(e instanceof BuildError)) {
-        await logUncaughtError(e);
+      if (!(err instanceof BuildError)) {
+        await logUncaughtError(err);
       }
       await exit(1);
     }
@@ -306,14 +316,29 @@ async function run(entries: Array<string>, command: any) {
   }
 }
 
+function parsePort(portValue: string): number {
+  let parsedPort = Number(portValue);
+
+  // Throw an error if port value is invalid...
+  if (!Number.isInteger(parsedPort)) {
+    throw new Error(`Port ${portValue} is not a valid integer.`);
+  }
+
+  return parsedPort;
+}
+
 async function normalizeOptions(command): Promise<InitialParcelOptions> {
   let nodeEnv;
   if (command.name() === 'build') {
-    nodeEnv = initialNodeEnv || 'production';
+    nodeEnv = process.env.NODE_ENV || 'production';
     command.autoinstall = false;
   } else {
-    nodeEnv = initialNodeEnv || 'development';
+    nodeEnv = process.env.NODE_ENV || 'development';
   }
+
+  // Set process.env.NODE_ENV to a default if undefined so that it is
+  // available in JS configs and plugins.
+  process.env.NODE_ENV = nodeEnv;
 
   let https = !!command.https;
   if (command.cert && command.key) {
@@ -323,23 +348,31 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
     };
   }
 
-  let serve = false;
-  let {port, host} = command;
+  let serveOptions = false;
+  let {host} = command;
+
+  // Ensure port is valid and available
+  let port = parsePort(command.port || '1234');
+  let originalPort = port;
   if (command.name() === 'serve' || command.hmr) {
     port = await getPort({port, host});
 
-    if (command.port && port !== command.port) {
-      // Parcel logger is not set up at this point, so just use native INTERNAL_ORIGINAL_CONSOLE.
-      INTERNAL_ORIGINAL_CONSOLE.warn(
-        chalk.bold.yellowBright(`⚠️  Port ${command.port} could not be used.`),
-      );
+    if (port !== originalPort) {
+      let errorMessage = `Port "${originalPort}" could not be used`;
+      if (command.port != null) {
+        // Throw the error if the user defined a custom port
+        throw new Error(errorMessage);
+      } else {
+        // Parcel logger is not set up at this point, so just use native INTERNAL_ORIGINAL_CONSOLE
+        INTERNAL_ORIGINAL_CONSOLE.warn(errorMessage);
+      }
     }
   }
 
   if (command.name() === 'serve') {
     let {publicUrl} = command;
 
-    serve = {
+    serveOptions = {
       https,
       port,
       host,
@@ -347,15 +380,16 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
     };
   }
 
-  let hmr = null;
+  let hmrOptions = null;
   if (command.name() !== 'build' && command.hmr !== false) {
-    let hmrport = command.hmrPort ? Number(command.hmrPort) : port;
-    hmr = {port: hmrport, host};
+    let hmrport = command.hmrPort ? parsePort(command.hmrPort) : port;
+
+    hmrOptions = {port: hmrport, host};
   }
 
   let mode = command.name() === 'build' ? 'production' : 'development';
   return {
-    disableCache: command.cache === false,
+    shouldDisableCache: command.cache === false,
     cacheDir: command.cacheDir,
     config: command.config,
     mode,
@@ -364,14 +398,19 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
     scopeHoist: command.scopeHoist,
     publicUrl: command.publicUrl,
     distDir: command.distDir,
-    hot: hmr,
-    contentHash: hmr ? false : command.contentHash,
-    serve,
+    hmrOptions,
+    shouldContentHash: hmrOptions ? false : command.shouldContentHash,
+    serveOptions,
     targets: command.target.length > 0 ? command.target : null,
-    autoinstall: command.autoinstall ?? true,
+    shouldAutoInstall: command.autoinstall ?? true,
     logLevel: command.logLevel,
-    profile: command.profile,
-    detailedReport: command.detailedReport,
+    shouldProfile: command.profile,
+    detailedReport:
+      command.detailedReport != null
+        ? {
+            assetsPerBundle: parseInt(command.detailedReport, 10),
+          }
+        : null,
     env: {
       NODE_ENV: nodeEnv,
     },

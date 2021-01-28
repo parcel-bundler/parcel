@@ -1,6 +1,6 @@
 {
   "name": "@parcel/cache",
-  "version": "2.0.0-frontbucket.28",
+  "version": "2.0.0-frontbucket.37",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -16,13 +16,13 @@
   "main": "lib/Cache.js",
   "source": "src/Cache.js",
   "engines": {
-    "node": ">= 10.0.0"
+    "node": ">= 12.0.0"
   },
   "dependencies": {
-    "@parcel/logger": "^2.0.0-frontbucket.18",
-    "@parcel/utils": "^2.0.0-frontbucket.28"
+    "@parcel/logger": "2.0.0-frontbucket.27",
+    "@parcel/utils": "2.0.0-frontbucket.37"
   },
   "peerDependencies": {
-    "@parcel/core": "^2.0.0-frontbucket.10"
+    "@parcel/core": "^2.0.0-alpha.3.1"
   }
 }
