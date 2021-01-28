@@ -201,17 +201,17 @@ export const generator = {
     if (node.optional) node.optional = false;
     baseGenerator.MemberExpression.call(this, node, state);
   },
-  CallExpression(node, state) {
-    if (node.optional) node.optional = false;
-    baseGenerator.CallExpression.call(this, node, state);
-  },
   _OptionalCallExpression(node, state) {
     this.OptionalCallExpression(node, state, true);
   },
   OptionalCallExpression(node, state) {
     node.optional = true;
     node.type = 'CallExpression';
-    this.CallExpression(node, state, true);
+    baseGenerator.CallExpression.call(this, node, state);
+  },
+  CallExpression(node, state) {
+    if (node.optional) node.optional = false;
+    baseGenerator.CallExpression.call(this, node, state);
   },
   ExportNamedDeclaration(node, state) {
     if (node.source) {
