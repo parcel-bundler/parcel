@@ -109,6 +109,34 @@ describe('cache', function() {
     assert.equal(await run(b.bundleGraph), 8);
   });
 
+  it('should support adding a dependency which changes the referenced bundles of a parent bundle', async function() {
+    async function exec(bundleGraph) {
+      let calls = [];
+      await run(bundleGraph, {
+        call(v) {
+          calls.push(v);
+        },
+      });
+      return calls;
+    }
+
+    let b = await testCache(
+      {
+        entries: ['index.html'],
+        update: async b => {
+          assert.deepEqual(await exec(b.bundleGraph), ['a', 'b']);
+          await overlayFS.writeFile(
+            path.join(inputDir, 'a.js'),
+            'import "./b.js"; call("a");',
+          );
+        },
+      },
+      'cache-add-dep-referenced',
+    );
+
+    assert.deepEqual(await exec(b.bundleGraph), ['b', 'a']);
+  });
+
   it('should error when deleting a file', async function() {
     // $FlowFixMe
     await assert.rejects(
