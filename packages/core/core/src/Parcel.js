@@ -289,8 +289,8 @@ export default class Parcel {
       this.#reporterRunner.report({
         type: 'buildStart',
       });
-      let buildMeasurement = this.#tracer.createMeasurement(
-        'createAssetGraphRequest',
+      let requestMeasurement = this.#tracer.createMeasurement(
+        'requestTracker.runRequest',
       );
       let request = createAssetGraphRequest({
         name: 'Main',
@@ -302,7 +302,7 @@ export default class Parcel {
         changedAssets,
         assetRequests,
       } = await this.#requestTracker.runRequest(request);
-      buildMeasurement.end();
+      requestMeasurement.end();
       dumpGraphToGraphViz(assetGraph, 'MainAssetGraph');
 
       let bundleMeasurement = this.#tracer.createMeasurement(
