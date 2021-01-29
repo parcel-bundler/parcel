@@ -1361,9 +1361,9 @@ export default class BundleGraph {
       hash.update(this.getContentHash(inlineBundle));
     }
 
-    for (let childBundle of this.getChildBundles(bundle)) {
-      if (!childBundle.isInline) {
-        hash.update(childBundle.id);
+    for (let referencedBundle of this.getReferencedBundles(bundle)) {
+      if (!referencedBundle.isInline) {
+        hash.update(referencedBundle.id);
       }
     }
 
