@@ -35,6 +35,14 @@ module.exports = function parcelBabelPresetEnv(api, opts) {
   }
 
   return {
-    presets: [['@babel/preset-env', opts]],
+    presets: [
+      [
+        '@babel/preset-env',
+        {
+          shippedProposals: true,
+          ...opts,
+        },
+      ],
+    ],
   };
 };
