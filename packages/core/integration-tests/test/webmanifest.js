@@ -145,7 +145,7 @@ describe('webmanifest', function() {
             message: `Cannot load file './icon.png' in '${path.dirname(
               manifestPathRelative,
             )}'.`,
-            // origin: '@parcel/resolver-default',
+            origin: '@parcel/resolver-default',
           },
         ],
       },

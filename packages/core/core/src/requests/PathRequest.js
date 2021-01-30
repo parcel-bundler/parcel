@@ -1,7 +1,6 @@
 // @flow strict-local
 import type {Diagnostic} from '@parcel/diagnostic';
 import type {Async, QueryParameters} from '@parcel/types';
-import type {StaticRunOpts} from '../RequestTracker';
 import type {AssetGroup, Dependency, ParcelOptions} from '../types';
 import type {ConfigAndCachePath} from './ParcelConfigRequest';
 
@@ -211,11 +210,11 @@ export class ResolverRunner {
           }
 
           if (result.diagnostics) {
-            if (Array.isArray(result.diagnostics)) {
-              diagnostics.push(...result.diagnostics);
-            } else {
-              diagnostics.push(result.diagnostics);
-            }
+            let errorDiagnostic = errorToDiagnostic(
+              new ThrowableDiagnostic({diagnostic: result.diagnostics}),
+              resolver.name,
+            );
+            diagnostics.push(...errorDiagnostic);
           }
         }
       } catch (e) {
