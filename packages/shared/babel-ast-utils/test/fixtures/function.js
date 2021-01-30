@@ -40,3 +40,14 @@ let y = () => ({
 let z = a => a?.b;
 let za = a => a?.();
 let zb = a => 1;
+function zc() {
+  function a() {
+    return (
+      // comment
+      null
+    );
+    console.log(2);
+  }
+  // abc
+  console.log(1);
+}

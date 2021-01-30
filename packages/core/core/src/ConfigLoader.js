@@ -8,6 +8,7 @@ import nullthrows from 'nullthrows';
 import {md5FromString, PromiseQueue} from '@parcel/utils';
 import {PluginLogger} from '@parcel/logger';
 import path from 'path';
+import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 
 import {createConfig} from './InternalConfig';
 import PublicConfig from './public/Config';
@@ -103,18 +104,25 @@ export default class ConfigLoader {
 
     invariant(typeof parcelConfigPath === 'string');
     invariant(typeof parcelConfigKeyPath === 'string');
+    let packageName = nullthrows(plugin);
     let {plugin: pluginInstance} = await this.parcelConfig.loadPlugin({
-      packageName: nullthrows(plugin),
+      packageName,
       resolveFrom: parcelConfigPath,
       keyPath: parcelConfigKeyPath,
     });
 
     if (pluginInstance.loadConfig != null) {
-      await pluginInstance.loadConfig({
-        config: new PublicConfig(config, this.options),
-        options: this.options,
-        logger: new PluginLogger({origin: nullthrows(plugin)}),
-      });
+      try {
+        await pluginInstance.loadConfig({
+          config: new PublicConfig(config, this.options),
+          options: this.options,
+          logger: new PluginLogger({origin: nullthrows(plugin)}),
+        });
+      } catch (e) {
+        throw new ThrowableDiagnostic({
+          diagnostic: errorToDiagnostic(e, packageName),
+        });
+      }
     }
 
     return config;

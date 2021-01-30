@@ -780,13 +780,6 @@ export type Transformer = {|
     options: PluginOptions,
     logger: PluginLogger,
   |}) => Async<GenerateOutput>,
-  postProcess?: ({|
-    assets: Array<MutableAsset>,
-    config: ?ConfigResult,
-    resolve: ResolveFn,
-    options: PluginOptions,
-    logger: PluginLogger,
-  |}) => Async<Array<TransformerResult>>,
 |};
 
 /**
