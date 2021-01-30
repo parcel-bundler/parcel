@@ -1,10 +1,9 @@
 // @flow
 // https://developer.mozilla.org/en-US/docs/Web/Manifest
-import type {MutableAsset} from '@parcel/types';
 import type {SchemaEntity} from '@parcel/utils';
 
 import invariant from 'assert';
-import {parse} from 'json-source-map';
+import jsm from 'json-source-map';
 import {getJSONSourceLocation} from '@parcel/diagnostic';
 import {Transformer} from '@parcel/plugin';
 import {validateSchema} from '@parcel/utils';
@@ -37,15 +36,12 @@ const MANIFEST_SCHEMA: SchemaEntity = {
 export default (new Transformer({
   async transform({asset}) {
     const source = await asset.getCode();
-    const {data, pointers} = parse(source);
+    const {data, pointers} = jsm.parse(source);
 
     validateSchema.diagnostic(
       MANIFEST_SCHEMA,
       {source, map: {data, pointers}, filePath: asset.filePath},
-      // asset.filePath,
-      // source,
       '@parcel/transformer-webmanifest',
-      // `/${encodeJSONKeyComponent('@parcel/transformer-webmanifest')}`,
       'Invalid webmanifest',
     );
 
