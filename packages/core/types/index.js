@@ -235,7 +235,7 @@ export type PackageJSON = {
   browser?: FilePath | {[FilePath]: FilePath | boolean, ...},
   source?: FilePath | {[FilePath]: FilePath, ...},
   alias?: {[PackageName | FilePath | Glob]: PackageName | FilePath, ...},
-  browserslist?: Array<string>,
+  browserslist?: Array<string> | {[string]: Array<string>},
   engines?: Engines,
   targets?: {[string]: PackageTargetDescriptor, ...},
   dependencies?: PackageDependencies,

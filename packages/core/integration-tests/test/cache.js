@@ -2613,6 +2613,53 @@ describe('cache', function() {
       );
       assert(contents.includes('TRANSFORMED CODE'));
     });
+
+    it('should update env browserslist in package.json when mode changes', async function() {
+      let env = process.env.NODE_ENV;
+      delete process.env.NODE_ENV;
+      try {
+        let b = await testCache({
+          scopeHoist: false,
+          minify: false,
+          mode: 'development',
+          async setup() {
+            let pkg = JSON.parse(
+              await overlayFS.readFile(
+                path.join(inputDir, 'package.json'),
+                'utf8',
+              ),
+            );
+            pkg.browserslist = {
+              production: ['ie 11'],
+              development: ['Chrome 80'],
+            };
+            await overlayFS.writeFile(
+              path.join(inputDir, 'package.json'),
+              JSON.stringify(pkg, null, 2),
+            );
+          },
+          async update(b) {
+            let contents = await overlayFS.readFile(
+              b.bundleGraph.getBundles()[0].filePath,
+              'utf8',
+            );
+            assert(/class Test/.test(contents), 'should include class');
+
+            return {
+              mode: 'production',
+            };
+          },
+        });
+
+        let contents = await overlayFS.readFile(
+          b.bundleGraph.getBundles()[0].filePath,
+          'utf8',
+        );
+        assert(!/class Test/.test(contents), 'does not include class');
+      } finally {
+        process.env.NODE_ENV = env;
+      }
+    });
   });
 
   describe('resolver', function() {

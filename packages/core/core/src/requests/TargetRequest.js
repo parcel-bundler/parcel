@@ -294,10 +294,21 @@ export class TargetResolver {
         'Invalid engines in package.json',
       ) || {};
     if (pkgEngines.browsers == null) {
+      let env =
+        this.options.env.BROWSERSLIST_ENV ??
+        this.options.env.NODE_ENV ??
+        this.options.mode;
+
       if (pkg.browserslist != null) {
+        let pkgBrowserslist = pkg.browserslist;
+        let browserslist =
+          typeof pkgBrowserslist === 'object' && !Array.isArray(pkgBrowserslist)
+            ? pkgBrowserslist[env]
+            : pkgBrowserslist;
+
         pkgEngines = {
           ...pkgEngines,
-          browsers: pkg.browserslist,
+          browsers: browserslist,
         };
       } else {
         let browserslistConfig = await resolveConfig(
@@ -311,10 +322,6 @@ export class TargetResolver {
         if (browserslistConfig != null) {
           let contents = await this.fs.readFile(browserslistConfig, 'utf8');
           let config = browserslist.parseConfig(contents);
-          let env =
-            this.options.env.BROWSERSLIST_ENV ??
-            this.options.env.NODE_ENV ??
-            'production';
           let browserslistBrowsers = config[env] || config.defaults;
 
           if (browserslistBrowsers) {
