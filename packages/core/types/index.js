@@ -9,13 +9,14 @@ import type {Diagnostic} from '@parcel/diagnostic';
 import type {PluginLogger} from '@parcel/logger';
 
 import type {AST as _AST, ConfigResult as _ConfigResult} from './unsafe';
+import Dependency from '@parcel/core/lib/public/Dependency';
 
 /** Plugin-specific AST, <code>any</code> */
 export type AST = _AST;
 export type ConfigResult = _ConfigResult;
 /** Plugin-specific config result, <code>any</code> */
-export type ConfigResultWithFilePath = {|
-  contents: ConfigResult,
+export type ConfigResultWithFilePath<T> = {|
+  contents: T,
   filePath: FilePath,
 |};
 /** <code>process.env</code> */
@@ -131,8 +132,8 @@ export type PackageTargetDescriptor = {|
   +distDir?: FilePath,
   +sourceMap?: boolean | TargetSourceMapOptions,
   +isLibrary?: boolean,
-  +minify?: boolean,
-  +scopeHoist?: boolean,
+  +minify?: boolean, // shouldOptimize
+  +scopeHoist?: boolean, // shouldScopeHoist
 |};
 
 /**
@@ -183,8 +184,9 @@ export type VersionMap = {
 /**
  * Defines the environment in for the output bundle
  */
+// TODO: some of these should not affect cache key/id of asset depending on transformer
 export interface Environment {
-  +context: EnvironmentContext;
+  +context: EnvironmentContext; // contexts?: Set<EnvironmentContext>
   +engines: Engines;
   /** Whether to include all/none packages \
    *  (<code>true / false</code>), an array of package names to include, or an object \
@@ -198,7 +200,7 @@ export interface Environment {
   /** Whether this is a library build (e.g. less loaders) */
   +isLibrary: boolean;
   /** Whether the output should be minified. */
-  +minify: boolean;
+  +minify: boolean; // shouldMinify
   /** Whether scope hoisting is enabled. */
   +scopeHoist: boolean;
   +sourceMap: ?TargetSourceMapOptions;
@@ -254,10 +256,17 @@ export type DetailedReportOptions = {|
 
 export type InitialParcelOptions = {|
   +entries?: FilePath | Array<FilePath>,
-  +entryRoot?: FilePath,
-  +config?: ModuleSpecifier,
+  +entryRoot?: FilePath, // TODO: remove. Replace with projectRoot.
+  +config?: ModuleSpecifier, // TODO: remove??
   +defaultConfig?: ModuleSpecifier,
+  /** Variables to set on process.env. */
   +env?: EnvMap,
+  /**
+   * Array of strings: a filter of targets from package.json version
+   * Object: override the target objects.
+   * TODO: fix cache: https://github.com/parcel-bundler/parcel/issues/3694
+   * TODO: possibly remove object form for now until a usecase arises.
+   */
   +targets?: ?(Array<string> | {+[string]: TargetDescriptor, ...}),
 
   +shouldDisableCache?: boolean,
@@ -278,6 +287,14 @@ export type InitialParcelOptions = {|
   +detailedReport?: ?DetailedReportOptions,
 
   // TODO: Refactor to defaultTargetOptions
+  // +defaultTargetOptions?: {|
+  //   +shouldOptimize?: boolean,
+  //   +shouldScopeHoist?: boolean,
+  //   +sourceMaps?: boolean | TargetSourceMapOptions,
+  //   +publicUrl?: string,
+  //   +distDir?: FilePath,
+  //   +engines?: Engines,
+  // |},
   +minify?: boolean,
   +scopeHoist?: boolean,
   +sourceMaps?: boolean,
@@ -296,6 +313,7 @@ export type InitialServerOptions = {|
   +https?: HTTPSOptions | boolean,
 |};
 
+// Rename to match initial parcel options above
 export interface PluginOptions {
   +mode: BuildMode;
   +env: EnvMap;
@@ -425,18 +443,39 @@ export interface MutableDependencySymbols // eslint-disable-next-line no-undef
  */
 export type DependencyOptions = {|
   +moduleSpecifier: ModuleSpecifier,
+  /** Creates a new bundle in a new bundle group. Also resolves to a promise in JS. */
   +isAsync?: boolean,
-  /** Is merged with the environment of the importer */
+  /** Needs a predicatable url - ie not content hashed */
   +isEntry?: boolean,
+  /** Doesn't throw if resolution fails? */
   +isOptional?: boolean,
+  /** Whether the specifier should be treated as a url */
   +isURL?: boolean,
+  /** Creates a new bundle in the same bundle group as the the parent. */
   +isIsolated?: boolean,
+
+  /**
+   * sync - resolvable synchronously. same bundle or another bundle already on the page.
+   * parallel (isIsolated) - a separate bundle that's loaded together with this bundle.
+   * lazy (isAsync) - a separate bundle that's loaded later.
+   */
+  +priority?: 'sync' | 'parallel' | 'lazy',
+
+  +needsStableName?: boolean,
+
+  // Replaces isURL
+  // commonjs
+  // esm - url but bare specifiers treated as node_modules
+  // url - like a browser. bare specifiers are relative urls.
+  // custom - you must have a resolver that can handle this?
+  +specifierType?: 'commonjs' | 'esm' | 'url' | 'custom',
+
   +loc?: SourceLocation,
   +env?: EnvironmentOptions,
   +meta?: Meta,
   +pipeline?: string,
   +resolveFrom?: FilePath,
-  +target?: Target,
+  +target?: Target, // TODO: remove?
   +symbols?: $ReadOnlyMap<
     Symbol,
     {|local: Symbol, loc: ?SourceLocation, isWeak: boolean|},
@@ -498,17 +537,18 @@ export type ASTGenerator = {|
  * @section transformer
  */
 export interface BaseAsset {
-  +env: Environment;
+  +env: Environment; // TODO: maybe remove this and only pass it to loadConfig
   /** The file system where the source is located. */
   +fs: FileSystem;
   +filePath: FilePath;
   +query: QueryParameters;
   +id: string;
   +meta: Meta;
-  +isIsolated: boolean;
+  // +isIsolated: boolean;
   /** Whether this asset will/should later be inserted back into the importer. */
-  +isInline: boolean;
-  +isSplittable: ?boolean;
+  // +isInline: boolean;
+  +bundleBehavior: null | 'isolated' | 'inline'; // TODO: possibly rename?
+  +isBundleSplittable: ?boolean;
   /** Whether this is asset is part of the users project (and not of an external dependencies) and should be transpiled. */
   +isSource: boolean;
   /** Usually corresponds to the file extension */
@@ -519,7 +559,7 @@ export interface BaseAsset {
    * Inline assets inheirit the parent's <code>id</code>, making it not be enough for a unique identification
    * (this could be a counter that is unique per asset)
    */
-  +uniqueKey: ?string;
+  +uniqueKey: ?string; // TODO: remove after we get rid of returning multiple assets from transformer and use dependencies instead.
   /** The type of the AST. */
   +astGenerator: ?ASTGenerator;
   +pipeline: ?string;
@@ -528,7 +568,7 @@ export interface BaseAsset {
   +symbols: AssetSymbols;
 
   /** Returns to current AST. See notes in subclasses (Asset, MutableAsset).*/
-  getAST(): Promise<?AST>;
+  getAST(): Promise<?AST>; // TODO: make it not throw?
   /** Returns to current source code. See notes in MutableAsset. */
   getCode(): Promise<string>;
   /** Returns the contents as a buffer. */
@@ -544,6 +584,7 @@ export interface BaseAsset {
    * for the specified filenames. <code>packageKey</code> can be used to also check <code>pkg#[packageKey]</code>.
    */
   getConfig(
+    // TODO: remove
     filePaths: Array<FilePath>,
     options: ?{|
       packageKey?: string,
@@ -551,7 +592,7 @@ export interface BaseAsset {
     |},
   ): Promise<ConfigResult | null>;
   /** Returns the package.json this file belongs to. */
-  getPackage(): Promise<PackageJSON | null>;
+  getPackage(): Promise<PackageJSON | null>; // TODO: Remove
 }
 
 /**
@@ -559,15 +600,19 @@ export interface BaseAsset {
  * @section transformer
  */
 export interface MutableAsset extends BaseAsset {
-  isIsolated: boolean;
-  isInline: boolean;
-  isSplittable: ?boolean;
+  // isIsolated: boolean;
+  // isInline: boolean;
+  // isSplittable: ?boolean;
+  bundleBehavior: null | 'isolated' | 'inline'; // TODO: possibly rename?
+  isBundleSplittable: ?boolean;
   type: string;
 
   addDependency(dep: DependencyOptions): string;
-  addIncludedFile(filePath: FilePath): void;
   addURLDependency(url: string, opts: $Shape<DependencyOptions>): string;
+  invalidateOnFileChange(filePath: FilePath): void; // TODO: rename - invalidateOnFileChange
   invalidateOnEnvChange(env: string): void;
+  invalidateOnOptionChange(option: string): void;
+  invalidateOnStartup(): void; // Maybe only in config??
 
   +symbols: MutableAssetSymbols;
 
@@ -578,7 +623,7 @@ export interface MutableAsset extends BaseAsset {
   setCode(string): void;
   /** Throws if the AST is dirty (meaning: this won't implicity stringify the AST). */
   getCode(): Promise<string>;
-  setEnvironment(opts: EnvironmentOptions): void;
+  setEnvironment(opts: EnvironmentOptions): void; // TODO: replace with something else?!
   setMap(?SourceMap): void;
   setStream(Readable): void;
 }
@@ -731,25 +776,65 @@ export type MultiThreadValidator = {|
  */
 export type Validator = DedicatedThreadValidator | MultiThreadValidator;
 
+export interface TransformerLoadConfigOptions<T> {
+  getConfigFrom(
+    searchPath: FilePath,
+    filePaths: Array<FilePath>,
+    options: ?{|
+      packageKey?: string,
+      parse?: boolean,
+      exclude?: boolean,
+    |},
+  ): Promise<ConfigResultWithFilePath<T> | null>;
+  getConfig(
+    filePaths: Array<FilePath>,
+    options: ?{|
+      packageKey?: string,
+      parse?: boolean,
+      exclude?: boolean,
+    |},
+  ): Promise<ConfigResultWithFilePath<T> | null>;
+  getPackage(): Promise<ConfigResultWithFilePath<PackageJSON> | null>;
+}
+
+export interface ConfigResult2<T> {
+  result: T;
+  cacheKey?: string; // Optional. If not passed, we hash result if possible. Otherwise throw error.
+  devDependencies?: Array<{|
+    name: PackageName,
+    resolveFrom: FilePath,
+    version?: Semver,
+  |}>;
+  invalidateOnFileCreate?: Array<Glob>;
+  invalidateOnFileChange?: Array<FilePath>;
+  shouldInvalidateOnStartup?: boolean;
+}
+
 /**
  * The methods for a transformer plugin.
  * @section transformer
  */
-export type Transformer = {|
+export type Transformer<ConfigType> = {|
+  getEnvironment?: ({|
+    env: Environment,
+  |}) => EnvironmentOptions,
   loadConfig?: ({|
-    config: Config,
+    // config: Config,
+    asset: Asset,
+    api: TransformerLoadConfigOptions<ConfigType>, /// ??? name?
     options: PluginOptions,
     logger: PluginLogger,
-  |}) => Async<void>,
-  preSerializeConfig?: ({|
-    config: Config,
-    options: PluginOptions,
-  |}) => Async<void>,
-  postDeserializeConfig?: ({|
-    config: Config,
-    options: PluginOptions,
-    logger: PluginLogger,
-  |}) => Async<void>,
+  |}) => Async<ConfigResult2<ConfigType>>,
+  // TODO: stop sending across IPC. Maybe bring back when caching configs.
+  // preSerializeConfig?: ({|
+  //   config: ConfigType,
+  //   options: PluginOptions,
+  // |}) => Async<void>,
+  // postDeserializeConfig?: ({|
+  //   config: ConfigType,
+  //   options: PluginOptions,
+  //   logger: PluginLogger,
+  // |}) => Async<void>,
   /** Whether an AST from a previous transformer can be reused (to prevent double-parsing) */
   canReuseAST?: ({|
     ast: AST,
@@ -758,20 +843,20 @@ export type Transformer = {|
   |}) => boolean,
   /** Parse the contents into an ast */
   parse?: ({|
-    asset: MutableAsset,
-    config: ?ConfigResult,
-    resolve: ResolveFn,
+    asset: Asset,
+    config: ?ConfigType,
+    resolve: ResolveFn, // TODO: figure out how to invalidate
     options: PluginOptions,
     logger: PluginLogger,
   |}) => Async<?AST>,
   /** Transform the asset and/or add new assets */
   transform({|
     asset: MutableAsset,
-    config: ?ConfigResult,
+    config: ?ConfigType,
     resolve: ResolveFn,
     options: PluginOptions,
     logger: PluginLogger,
-  |}): Async<Array<TransformerResult | MutableAsset>>,
+  |}): Async<Array<TransformerResult | MutableAsset>>, // TODO: return void?
   /** Stringify the AST */
   generate?: ({|
     asset: Asset,
@@ -841,7 +926,7 @@ export type BundlerBundleGraphTraversable =
  * isSplittable defaults to <code>entryAsset.isSplittable</code> or <code>false</code>
  * @section bundler
  */
-export type CreateBundleOpts =
+export type CreateBundleOptions =
   // If an entryAsset is provided, a bundle id, type, and environment will be
   // inferred from the entryAsset.
   | {|
@@ -941,9 +1026,17 @@ export interface NamedBundle extends Bundle {
  * A collection of sibling bundles (which are stored in the BundleGraph) that should be loaded together (in order).
  * @section bundler
  */
-export type BundleGroup = {|
-  +target: Target,
-  +entryAssetId: string,
+// export type BundleGroup = {|
+//   target: Target,
+//   entryAssetId: string,
+//   bundleIds: Array<string>,
+// |};
+
+export type ReferenceOptions = {|
+  fromDependency: Dependency,
+  ofBundle?: Bundle, // if not specified, in all bundles
+  toAsset: Asset
+  inBundle: Bundle,
 |};
 
 /**
@@ -952,6 +1045,9 @@ export type BundleGroup = {|
  */
 export interface MutableBundleGraph extends BundleGraph<Bundle> {
   /** Add asset and all child nodes to the bundle. */
+  // addBundleToBundleGroup(Bundle, BundleGroup): void;
+  // createAssetReference(Dependency, Asset): void;
+  // createBundleReference(Bundle, Bundle): void;
   addAssetGraphToBundle(
     Asset,
     Bundle,
@@ -962,26 +1058,18 @@ export interface MutableBundleGraph extends BundleGraph<Bundle> {
     Bundle,
     shouldSkipDependency?: (Dependency) => boolean,
   ): void;
-  addBundleToBundleGroup(Bundle, BundleGroup): void;
-  createAssetReference(Dependency, Asset, Bundle): void;
-  createBundleReference(Bundle, Bundle): void;
   createBundle(CreateBundleOpts): Bundle;
   /** Turns an edge (Dependency -> Asset-s) into (Dependency -> BundleGroup -> Asset-s) */
-  createBundleGroup(Dependency, Target): BundleGroup;
-  getDependencyAssets(Dependency): Array<Asset>;
-  getParentBundlesOfBundleGroup(BundleGroup): Array<Bundle>;
-  getTotalSize(Asset): number;
+  // createBundleGroup(Dependency, Target): BundleGroup;
+  createReference(ReferenceOptions): void;
+  getDependencyAssets(Dependency): Array<Asset>; // remove if we get rid of asset groups
+  // getParentBundlesOfBundleGroup(BundleGroup): Array<Bundle>;
+  getSizeOfAssetGraph(Asset): number;
   /** Remove all "contains" edges from the bundle to the nodes in the asset's subgraph. */
   removeAssetGraphFromBundle(Asset, Bundle): void;
-  removeBundleGroup(bundleGroup: BundleGroup): void;
+  // removeBundleGroup(bundleGroup: BundleGroup): void;
   /** Turns a dependency to a different bundle into a dependency to an asset inside <code>bundle</code>. */
-  internalizeAsyncDependency(bundle: Bundle, dependency: Dependency): void;
-  traverse<TContext>(
-    GraphVisitor<BundlerBundleGraphTraversable, TContext>,
-  ): ?TContext;
-  traverseContents<TContext>(
-    GraphVisitor<BundlerBundleGraphTraversable, TContext>,
-  ): ?TContext;
+  internalizeAsyncDependency(bundle: Bundle, dependency: Dependency): void; // maybe remove. what if asset is removed from bundle later?
 }
 
 /**
@@ -992,11 +1080,21 @@ export interface BundleGraph<TBundle: Bundle> {
   getAssetById(id: string): Asset;
   getAssetPublicId(asset: Asset): string;
   getBundles(): Array<TBundle>;
-  getBundleGroupsContainingBundle(bundle: Bundle): Array<BundleGroup>;
-  getBundlesInBundleGroup(bundleGroup: BundleGroup): Array<TBundle>;
+
+  // given a bundle, give me the async bundle that references this bundle
+  // ??? NAME ???
+  getReferencingEntryOrAsyncBundles(bundle: Bundle): Array<TBundle>;
+  // get the referenced bundles of that bundle (see below)
+
+  // getBundleGroupsContainingBundle(bundle: Bundle): Array<BundleGroup>;
+  // getBundlesInBundleGroup(bundleGroup: BundleGroup): Array<TBundle>;
   /** Child bundles are Bundles that might be loaded by an asset in the bundle */
-  getChildBundles(bundle: Bundle): Array<TBundle>;
-  getParentBundles(bundle: Bundle): Array<TBundle>;
+  // getChildBundles(bundle: Bundle): Array<TBundle>;
+  // getParentBundles(bundle: Bundle): Array<TBundle>;
+  /** See BundleGroup */
+  // getSiblingBundles(bundle: Bundle): Array<TBundle>;
+  /** Bundles that are referenced (by filename) */
+  getReferencingBundles(bundle: Bundle, type?: 'sync' | 'async'): Array<TBundle>;
   /** Bundles that are referenced (by filename) */
   getReferencedBundles(
     bundle: Bundle,
@@ -1012,6 +1110,17 @@ export interface BundleGraph<TBundle: Bundle> {
    * Returns undefined if the specified dependency was excluded or wasn't async \
    * and otherwise the BundleGroup or Asset that the dependency resolves to.
    */
+  // resolveAsyncDependency(
+  //   dependency: Dependency,
+  //   bundle: ?Bundle,
+  // ): ?(
+  //   // | {|type: 'bundle_group', value: BundleGroup|}
+  //   // | {|type: 'bundle', value: TBundle|}
+  //   // | {|type: 'asset', value: Asset|}
+  //   // {|bundles: Array<TBundle>, asset: Asset|}
+  // );
+  // isDependencyDeferred(dependency: Dependency): boolean;
+  isDependencyExcluded(dependency: Dependency): boolean;
   resolveAsyncDependency(
     dependency: Dependency,
     bundle: ?Bundle,
@@ -1022,15 +1131,18 @@ export interface BundleGraph<TBundle: Bundle> {
   /** If a dependency was excluded since it's unused based on symbol data. */
   isDependencySkipped(dependency: Dependency): boolean;
   /** Find out which asset the dependency resolved to. */
-  getDependencyResolution(dependency: Dependency, bundle: ?Bundle): ?Asset;
-  getReferencedBundle(dependency: Dependency, bundle: Bundle): ?TBundle;
-  findBundlesWithAsset(Asset): Array<TBundle>;
-  findBundlesWithDependency(Dependency): Array<TBundle>;
+  getResolvedAsset(dependency: Dependency, bundle: ?Bundle): ?Asset;
+  /** Find out which bundles the dependency resolved to. */
+  getResolvedBundles(dependency: Dependency, bundle: Bundle): ?Array<Bundle>;
+  getReferencedBundle(dependency: Dependency, bundle: Bundle): ?TBundle; // ?????
+  getBundlesWithAsset(Asset): Array<TBundle>;
+  getBundlesWithDependency(Dependency): Array<TBundle>;
   /** Whether the asset is already included in a compatible (regarding EnvironmentContext) parent bundle. */
   isAssetReachableFromBundle(asset: Asset, bundle: Bundle): boolean;
-  findReachableBundleWithAsset(bundle: Bundle, asset: Asset): ?TBundle;
-  isAssetReferencedByDependant(bundle: Bundle, asset: Asset): boolean;
-  hasParentBundleOfType(bundle: Bundle, type: string): boolean;
+  getReachableBundleWithAsset(bundle: Bundle, asset: Asset): ?TBundle;
+  // isAssetReferenced(asset: Asset): boolean;
+  isAssetReferenced(bundle: Bundle, asset: Asset): boolean;
+  // hasParentBundleOfType(bundle: Bundle, type: string): boolean; // remove - use getReferencingBundles
   /**
    * Resolve the export `symbol` of `asset` to the source,
    * stopping at the first asset after leaving `bundle`.
@@ -1042,11 +1154,14 @@ export interface BundleGraph<TBundle: Bundle> {
    * corresponding variable lives (resolves re-exports). Stop resolving transitively once \
    * <code>boundary</code> was left (<code>bundle.hasAsset(asset) === false</code>), then <code>result.symbol</code> is undefined.
    */
-  resolveSymbol(
+  getSymbolResolution(
     asset: Asset,
     symbol: Symbol,
     boundary: ?Bundle,
   ): SymbolResolution;
+  traverse<TContext>(
+    GraphVisitor<BundlerBundleGraphTraversable, TContext>,
+  ): ?TContext;
   /** Gets the symbols that are (transivitely) exported by the asset */
   getExportedSymbols(
     asset: Asset,
@@ -1083,6 +1198,10 @@ export type ResolveResult = {|
   +canDefer?: boolean,
   /** A resolver might return diagnostics to also run subsequent resolvers while still providing a reason why it failed. */
   +diagnostics?: Diagnostic | Array<Diagnostic>,
+
+  invalidateOnFileCreate?: Array<Glob>,
+  invalidateOnFileChange?: Array<FilePath>,
+  
   /** Is spread (shallowly merged) onto the request's dependency.meta */
   +meta?: JSONObject,
 |};
@@ -1098,20 +1217,21 @@ export type ConfigOutput = {|
  * bundle and optimize run in series and are functionally identitical.
  * @section bundler
  */
-export type Bundler = {|
+export type Bundler<T> = {|
   loadConfig?: ({|
     options: PluginOptions,
     logger: PluginLogger,
-  |}) => Async<ConfigOutput>,
+  |}) => Async<ConfigResult2<T>>,
   bundle({|
     bundleGraph: MutableBundleGraph,
-    config: ?ConfigResult,
+    // changedAssets??
+    config: T,
     options: PluginOptions,
     logger: PluginLogger,
   |}): Async<void>,
   optimize({|
     bundleGraph: MutableBundleGraph,
-    config: ?ConfigResult,
+    config: T,
     options: PluginOptions,
     logger: PluginLogger,
   |}): Async<void>,
