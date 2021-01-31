@@ -115,11 +115,13 @@ export default function extractInlineAssets(
     }
 
     // Process inline style attributes.
-    let style = node.attrs?.style;
-    if (style != null) {
-      asset.addDependency({
+    let attrs = node.attrs;
+    let style = attrs?.style;
+    if (attrs != null && style != null) {
+      attrs.style = asset.addDependency({
         moduleSpecifier: parcelKey,
       });
+      asset.setAST(ast); // mark dirty
 
       parts.push({
         type: 'css',
