@@ -697,6 +697,6 @@ describe('babel', function() {
 
     let output = await run(b);
     assert.equal(typeof output, 'object');
-    assert.equal(output.default, undefined);
+    assert.deepEqual(output.default, [undefined, undefined]);
   });
 });
