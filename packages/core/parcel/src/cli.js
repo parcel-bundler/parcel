@@ -135,7 +135,7 @@ applyOptions(watch, commonOptions);
 let build = program
   .command('build [input...]')
   .description('bundles for production')
-  .option('--no-minify', 'disable minification')
+  .option('--no-optimize', 'disable optimizers')
   .option('--no-scope-hoist', 'disable scope-hoisting')
   .option('--public-url <url>', 'the path prefix for absolute urls')
   .action(runCommand);
@@ -409,7 +409,7 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
     },
     defaultTargetOptions: {
       shouldOptimize:
-        command.minify != null ? command.minify : mode === 'production',
+        command.optimize != null ? command.optimize : mode === 'production',
       sourceMaps: command.sourceMaps ?? true,
       shouldScopeHoist: command.scopeHoist,
       publicUrl: command.publicUrl,

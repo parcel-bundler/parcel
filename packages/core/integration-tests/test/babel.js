@@ -612,7 +612,7 @@ describe('babel', function() {
             parcelCli,
             'build',
             'src/index.js',
-            '--no-minify',
+            '--no-optimize',
             '--no-scope-hoist',
           ],
           {
@@ -651,7 +651,7 @@ describe('babel', function() {
       let build = () =>
         spawnSync(
           'node',
-          [parcelCli, 'build', 'index.js', '--no-minify', '--no-scope-hoist'],
+          [parcelCli, 'build', 'index.js', '--no-optimize', '--no-scope-hoist'],
           {
             cwd: inputDir,
             env: {
