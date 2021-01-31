@@ -135,7 +135,7 @@ applyOptions(watch, commonOptions);
 let build = program
   .command('build [input...]')
   .description('bundles for production')
-  .option('--no-optimize', 'disable optimizers')
+  .option('--no-optimize', 'disable minification')
   .option('--no-scope-hoist', 'disable scope-hoisting')
   .option('--public-url <url>', 'the path prefix for absolute urls')
   .action(runCommand);
