@@ -16,13 +16,13 @@
   "main": "lib/TerserOptimizer.js",
   "source": "src/TerserOptimizer.js",
   "engines": {
-    "node": ">= 10.0.0",
-    "parcel": "^2.0.0-alpha.1.1"
+    "node": ">= 12.0.0",
+    "parcel": "^2.0.0-beta.1"
   },
   "dependencies": {
     "@parcel/diagnostic": "2.0.0-beta.1",
     "@parcel/plugin": "2.0.0-beta.1",
-    "@parcel/source-map": "2.0.0-alpha.4.15",
+    "@parcel/source-map": "2.0.0-alpha.4.19",
     "@parcel/utils": "2.0.0-beta.1",
     "nullthrows": "^1.1.1",
     "terser": "^5.2.0"

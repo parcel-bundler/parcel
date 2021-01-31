@@ -3,12 +3,184 @@ on:
   release:
     types: [published]
 jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v1
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+      - name: Link native packages
+        run: node scripts/link-native.js
+      - uses: bahmutov/npm-install@v1.1.0
+      - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
+        if: ${{ matrix.os == 'ubuntu-latest' }}
+        run: strip native-packages/*/*.node
+      - name: Strip debug symbols
+        if: ${{ matrix.os == 'macos-latest' }}
+        run: strip -x native-packages/*/*.node # Must use -x on macOS. This produces larger results on linux.
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: bindings-${{ matrix.os }}
+          path: native-packages/*/*.node
+      - name: Smoke test
+        run: node -e "require('@parcel/fs-search')"
+
+  build-linux-gnu-arm:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: arm-unknown-linux-gnueabihf
+            arch: armhf
+            strip: arm-linux-gnueabihf-strip
+          - target: aarch64-unknown-linux-gnu
+            arch: arm64
+            strip: aarch64-linux-gnu-strip
+    name: ${{ matrix.target }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+          target: ${{ matrix.target }}
+      - name: Install cross compile toolchains
+        run: |
+          sudo apt-get update
+          sudo apt-get install gcc-arm-linux-gnueabihf gcc-aarch64-linux-gnu g++-aarch64-linux-gnu -y
+      - name: Link native packages
+        run: node scripts/link-native.js
+      - uses: bahmutov/npm-install@v1.1.0
+        env:
+          RUST_TARGET: ${{ matrix.target }}
+      - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
+        run: ${{ matrix.strip }} native-packages/*/*.node
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: bindings-${{ matrix.target }}
+          path: native-packages/*/*.node
+      - name: debug
+        run: ls -l native-packages/*/*.node
+      - name: Configure binfmt-support
+        run: docker run --rm --privileged multiarch/qemu-user-static:register --reset
+      - name: Smoke test
+        uses: addnab/docker-run-action@v1
+        with:
+          image: ghcr.io/devongovett/multiarch-node:node14-${{ matrix.arch }}-focal
+          options: -v ${{github.workspace}}:/work
+          run: cd /work && node -e "require('@parcel/fs-search')"
+
+  build-linux-musl:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-musl
+            strip: strip
+          - target: aarch64-unknown-linux-musl
+            strip: aarch64-linux-musl-strip
+    name: ${{ matrix.target }}
+    runs-on: ubuntu-latest
+    container:
+      image: docker.pkg.github.com/napi-rs/napi-rs/rust-nodejs-alpine:lts
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GHCR_TOKEN }}
+    steps:
+      - uses: actions/checkout@v1
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+          target: ${{ matrix.target }}
+      - name: Install cross compile toolchains
+        if: ${{ matrix.target == 'aarch64-unknown-linux-musl' }}
+        run: |
+          curl -O https://musl.cc/aarch64-linux-musl-cross.tgz
+          tar xzf aarch64-linux-musl-cross.tgz
+          cp -R aarch64-linux-musl-cross/* /usr
+      - name: Link native packages
+        run: node scripts/link-native.js
+      - uses: bahmutov/npm-install@v1.1.0
+        env:
+          RUST_TARGET: ${{ matrix.target }}
+      - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
+        run: ${{ matrix.strip }} native-packages/*/*.node
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: bindings-linux-musl
+          path: native-packages/*/*.node
+      - name: debug
+        run: ls -l native-packages/*/*.node
+      - name: Smoke test
+        if: ${{ matrix.target == 'x86_64-unknown-linux-musl' }}
+        run: node -e 'require("@parcel/fs-search")'
+
+  build-apple-silicon:
+    name: aarch64-apple-darwin
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v1
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          profile: minimal
+          override: true
+          target: aarch64-apple-darwin
+      - name: Link native packages
+        run: node scripts/link-native.js
+      - uses: bahmutov/npm-install@v1.1.0
+        env:
+          RUST_TARGET: aarch64-apple-darwin
+      - name: Strip debug symbols
+        run: strip -x native-packages/*/*.node
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: bindings-apple-aarch64
+          path: native-packages/*/*.node
+      - name: debug
+        run: ls -l native-packages/*/*.node
+
   build-and-release:
     runs-on: ubuntu-latest
     name: Build and release the tagged version
+    needs:
+      - build
+      - build-linux-musl
+      - build-linux-gnu-arm
+      - build-apple-silicon
     steps:
       - uses: actions/checkout@v1
+      - name: Link native packages
+        run: node scripts/link-native.js
       - uses: bahmutov/npm-install@v1.1.0
+      - name: Download artifacts
+        uses: actions/download-artifact@v2
+        with:
+          path: artifacts
+      - name: Move artifacts
+        run: for d in artifacts/*/*; do cp $d/*.node native-packages/$(basename $d); done
+      - name: Debug
+        run: ls -l native-packages/*/*
       - run: echo //registry.npmjs.org/:_authToken=${NPM_TOKEN} > .npmrc
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}

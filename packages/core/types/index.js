@@ -97,7 +97,6 @@ export interface Target {
   /** The output folder */
   +distDir: FilePath;
   +env: Environment;
-  +sourceMap: ?TargetSourceMapOptions;
   +name: string;
   +publicUrl: string;
   /** The location that created this Target, e.g. `package.json#main`*/
@@ -145,6 +144,7 @@ export type PackageTargetDescriptor = {|
 export type TargetDescriptor = {|
   ...PackageTargetDescriptor,
   +distDir: FilePath,
+  +distEntry?: FilePath,
 |};
 
 /**
@@ -161,6 +161,7 @@ export type EnvironmentOptions = {|
   +isLibrary?: boolean,
   +minify?: boolean,
   +scopeHoist?: boolean,
+  +sourceMap?: ?TargetSourceMapOptions,
 |};
 
 /**
@@ -201,7 +202,8 @@ export interface Environment {
   /** Whether the output should be minified. */
   +minify: boolean; // shouldMinify
   /** Whether scope hoisting is enabled. */
-  +scopeHoist: boolean; // shouldScopeHoist
+  +scopeHoist: boolean;
+  +sourceMap: ?TargetSourceMapOptions;
 
   /** Whether <code>context</code> specifies a browser context. */
   isBrowser(): boolean;
@@ -235,18 +237,22 @@ export type PackageJSON = {
   browser?: FilePath | {[FilePath]: FilePath | boolean, ...},
   source?: FilePath | {[FilePath]: FilePath, ...},
   alias?: {[PackageName | FilePath | Glob]: PackageName | FilePath, ...},
-  browserslist?: Array<string>,
+  browserslist?: Array<string> | {[string]: Array<string>},
   engines?: Engines,
   targets?: {[string]: PackageTargetDescriptor, ...},
   dependencies?: PackageDependencies,
   devDependencies?: PackageDependencies,
   peerDependencies?: PackageDependencies,
   sideEffects?: boolean | FilePath | Array<FilePath>,
+  bin?: string | {|[string]: FilePath|},
   ...
 };
 
 export type LogLevel = 'none' | 'error' | 'warn' | 'info' | 'verbose';
 export type BuildMode = 'development' | 'production' | string;
+export type DetailedReportOptions = {|
+  assetsPerBundle?: number,
+|};
 
 export type InitialParcelOptions = {|
   +entries?: FilePath | Array<FilePath>,
@@ -263,41 +269,38 @@ export type InitialParcelOptions = {|
    */
   +targets?: ?(Array<string> | {+[string]: TargetDescriptor, ...}),
 
-  +disableCache?: boolean, // shouldDisableCache
+  +shouldDisableCache?: boolean,
   +cacheDir?: FilePath,
-  +killWorkers?: boolean, // TODO: remove
   +mode?: BuildMode,
-  // +minify?: boolean, // rename - shouldOptimize
-  // +scopeHoist?: boolean, // shouldScopeHoist
-  // +sourceMaps?: boolean | TargetSourceMapOptions, // TODO: change this to not override the targets. Should be a default.
-  // +publicUrl?: string,
-  +defaultTargetOptions?: {|
-    +shouldOptimize?: boolean,
-    +shouldScopeHoist?: boolean,
-    +sourceMaps?: boolean | TargetSourceMapOptions,
-    +publicUrl?: string,
-    +distDir?: FilePath,
-    +engines?: Engines,
-  |},
-  +hot?: HMROptions | false, // rename - hmrOptions
-  +contentHash?: boolean, // rename - shouldContentHash
-  +serve?: InitialServerOptions | false, // rename - serveOptions
-  +autoinstall?: boolean, // rename - shouldAutoInstall
+  +hmrOptions?: ?HMROptions,
+  +shouldContentHash?: boolean,
+  +serveOptions?: InitialServerOptions | false,
+  +shouldAutoInstall?: boolean,
   +logLevel?: LogLevel,
-  +profile?: boolean, // rename - shouldProfile
-  +patchConsole?: boolean, // rename - shouldPatchConsole
+  +shouldProfile?: boolean,
+  +shouldPatchConsole?: boolean,
 
   +inputFS?: FileSystem,
   +outputFS?: FileSystem,
   +workerFarm?: WorkerFarm,
   +packageManager?: PackageManager,
-  // +defaultEngines?: Engines,
-  // +detailedReport?: number | boolean,
-  +detailedReport?:
-    | boolean
-    | {|
-        assetsPerBundle?: number,
-      |},
+  +detailedReport?: ?DetailedReportOptions,
+
+  // TODO: Refactor to defaultTargetOptions
+  // +defaultTargetOptions?: {|
+  //   +shouldOptimize?: boolean,
+  //   +shouldScopeHoist?: boolean,
+  //   +sourceMaps?: boolean | TargetSourceMapOptions,
+  //   +publicUrl?: string,
+  //   +distDir?: FilePath,
+  //   +engines?: Engines,
+  // |},
+  +minify?: boolean,
+  +scopeHoist?: boolean,
+  +sourceMaps?: boolean,
+  +publicUrl?: string,
+  +distDir?: FilePath,
+  +defaultEngines?: Engines,
 
   // throwErrors
   // global?
@@ -313,11 +316,10 @@ export type InitialServerOptions = {|
 // Rename to match initial parcel options above
 export interface PluginOptions {
   +mode: BuildMode;
-  +sourceMaps: boolean;
   +env: EnvMap;
-  +hot: ?HMROptions;
-  +serve: ServerOptions | false;
-  +autoinstall: boolean;
+  +hmrOptions: ?HMROptions;
+  +serveOptions: ServerOptions | false;
+  +shouldAutoInstall: boolean;
   +logLevel: LogLevel;
   +entryRoot: FilePath;
   +projectRoot: FilePath;
@@ -326,7 +328,7 @@ export interface PluginOptions {
   +outputFS: FileSystem;
   +packageManager: PackageManager;
   +instanceId: string;
-  +detailedReport: number;
+  +detailedReport: ?DetailedReportOptions;
 }
 
 export type ServerOptions = {|
@@ -368,18 +370,71 @@ export type Meta = JSONObject;
  * An identifier in an asset (likely imported/exported).
  */
 export type Symbol = string;
-export interface Symbols // eslint-disable-next-line no-undef
-  extends Iterable<[Symbol, {|local: Symbol, loc: ?SourceLocation|}]> {
-  get(exportSymbol: Symbol): ?{|local: Symbol, loc: ?SourceLocation|};
+
+/**
+ * A map from extert names to the corespinding asset's lcoal variable name.
+ */
+export interface AssetSymbols // eslint-disable-next-line no-undef
+  extends Iterable<
+    [Symbol, {|local: Symbol, loc: ?SourceLocation, meta?: ?Meta|}],
+  > {
+  /**
+   * The exports of the asset are unknown, rather than just empty.
+   * This is the default state.
+   */
+  +isCleared: boolean;
+  get(
+    exportSymbol: Symbol,
+  ): ?{|local: Symbol, loc: ?SourceLocation, meta?: ?Meta|};
   hasExportSymbol(exportSymbol: Symbol): boolean;
   hasLocalSymbol(local: Symbol): boolean;
-  // Whether static analysis bailed out
-  +isCleared: boolean;
+  exportSymbols(): Iterable<Symbol>;
 }
-export interface MutableSymbols extends Symbols {
-  // Static analysis bailed out
-  clear(): void;
-  set(exportSymbol: Symbol, local: Symbol, loc: ?SourceLocation): void;
+export interface MutableAssetSymbols extends AssetSymbols {
+  /**
+   * Initilizes the map, sets isCleared to false.
+   */
+  ensure(): void;
+  set(
+    exportSymbol: Symbol,
+    local: Symbol,
+    loc: ?SourceLocation,
+    meta?: ?Meta,
+  ): void;
+  delete(exportSymbol: Symbol): void;
+}
+/**
+ * isWeak means: the symbol is not used by the parent asset itself and is merely reexported
+ */
+export interface MutableDependencySymbols // eslint-disable-next-line no-undef
+  extends Iterable<
+    [
+      Symbol,
+      {|local: Symbol, loc: ?SourceLocation, isWeak: boolean, meta?: ?Meta|},
+    ],
+  > {
+  /**
+   * Initilizes the map, sets isCleared to false.
+   */
+  ensure(): void;
+  /**
+   * The symbols taht are imports are unknown, rather than just empty.
+   * This is the default state.
+   */
+  +isCleared: boolean;
+  get(
+    exportSymbol: Symbol,
+  ): ?{|local: Symbol, loc: ?SourceLocation, isWeak: boolean, meta?: ?Meta|};
+  hasExportSymbol(exportSymbol: Symbol): boolean;
+  hasLocalSymbol(local: Symbol): boolean;
+  exportSymbols(): Iterable<Symbol>;
+  set(
+    exportSymbol: Symbol,
+    local: Symbol,
+    loc: ?SourceLocation,
+    isWeak: ?boolean,
+  ): void;
+  delete(exportSymbol: Symbol): void;
 }
 
 /**
@@ -396,8 +451,6 @@ export type DependencyOptions = {|
   +isOptional?: boolean,
   /** Whether the specifier should be treated as a url */
   +isURL?: boolean,
-  /** Removed by symbol propagation */
-  +isWeak?: ?boolean,
   /** Creates a new bundle in the same bundle group as the the parent. */
   +isIsolated?: boolean,
 
@@ -420,8 +473,13 @@ export type DependencyOptions = {|
   +loc?: SourceLocation,
   +env?: EnvironmentOptions,
   +meta?: Meta,
+  +pipeline?: string,
+  +resolveFrom?: FilePath,
   +target?: Target, // TODO: remove?
-  +symbols?: $ReadOnlyMap<Symbol, {|local: Symbol, loc: ?SourceLocation|}>,
+  +symbols?: $ReadOnlyMap<
+    Symbol,
+    {|local: Symbol, loc: ?SourceLocation, isWeak: boolean|},
+  >,
 |};
 
 /**
@@ -441,8 +499,6 @@ export interface Dependency {
   +isOptional: boolean;
   /** Whether an URL is expected (rather than the language-specific behaviour). */
   +isURL: boolean;
-  /** Whether this dependency does not provide any values for the importer itself. */
-  +isWeak: ?boolean;
   +isIsolated: boolean;
   /** Used for error messages, the code location that caused this dependency. */
   +loc: ?SourceLocation;
@@ -453,12 +509,13 @@ export interface Dependency {
   +sourceAssetId: ?string;
   /** Used for error messages, the importer. */
   +sourcePath: ?string;
+  +resolveFrom: ?string;
   /** a named pipeline (if the <code>moduleSpecifier</code> didn't specify one). */
   +pipeline: ?string;
 
   // TODO make immutable
   /** a <code>Map&lt;export name of importee, placeholder in importer&gt;</code>. */
-  +symbols: MutableSymbols;
+  +symbols: MutableDependencySymbols;
 }
 
 export type File = {|
@@ -508,7 +565,7 @@ export interface BaseAsset {
   +pipeline: ?string;
 
   /** a <code>Map&lt;export name, name of binding&gt;</code> */
-  +symbols: Symbols;
+  +symbols: AssetSymbols;
 
   /** Returns to current AST. See notes in subclasses (Asset, MutableAsset).*/
   getAST(): Promise<?AST>; // TODO: make it not throw?
@@ -557,10 +614,9 @@ export interface MutableAsset extends BaseAsset {
   invalidateOnOptionChange(option: string): void;
   invalidateOnStartup(): void; // Maybe only in config??
 
-  +symbols: MutableSymbols;
+  +symbols: MutableAssetSymbols;
 
   isASTDirty(): boolean;
-  /** Returns <code>null</code> if there is no AST. */
   getAST(): Promise<?AST>;
   setAST(AST): void;
   setBuffer(Buffer): void;
@@ -576,9 +632,6 @@ export interface MutableAsset extends BaseAsset {
  * @section transformer
  */
 export interface Asset extends BaseAsset {
-  /** Throws if there is no AST.*/
-  getAST(): Promise<?AST>;
-
   +stats: Stats;
 }
 
@@ -645,6 +698,7 @@ export type TransformerResult = {|
   +dependencies?: $ReadOnlyArray<DependencyOptions>,
   +env?: EnvironmentOptions,
   +filePath?: FilePath,
+  +query?: ?QueryParameters,
   +includedFiles?: $ReadOnlyArray<File>,
   +isInline?: boolean,
   +isIsolated?: boolean,
@@ -655,7 +709,6 @@ export type TransformerResult = {|
   +pipeline?: ?string,
   +sideEffects?: boolean,
   +symbols?: $ReadOnlyMap<Symbol, {|local: Symbol, loc: ?SourceLocation|}>,
-  +symbolsConfident?: boolean,
   +type: string,
   +uniqueKey?: ?string,
 |};
@@ -670,9 +723,7 @@ export type ResolveFn = (from: FilePath, to: string) => Promise<FilePath>;
 /**
  * @section validator
  */
-type ResolveConfigFn = (
-  configNames: Array<FilePath>,
-) => Promise<FilePath | null>;
+type ResolveConfigFn = (configNames: Array<FilePath>) => Promise<?FilePath>;
 
 /**
  * @section validator
@@ -680,7 +731,7 @@ type ResolveConfigFn = (
 type ResolveConfigWithPathFn = (
   configNames: Array<FilePath>,
   assetFilePath: string,
-) => Promise<FilePath | null>;
+) => Promise<?FilePath>;
 
 /**
  * @section validator
@@ -813,13 +864,6 @@ export type Transformer<ConfigType> = {|
     options: PluginOptions,
     logger: PluginLogger,
   |}) => Async<GenerateOutput>,
-  // postProcess?: ({|
-  //   assets: Array<MutableAsset>,
-  //   config: ?ConfigType,
-  //   resolve: ResolveFn,
-  //   options: PluginOptions,
-  //   logger: PluginLogger,
-  // |}) => Async<Array<TransformerResult>>,
 |};
 
 /**
@@ -920,8 +964,8 @@ export type SymbolResolution = {|
   /** under which name the symbol is exported */
   +exportSymbol: Symbol | string,
   /** The identifier under which the symbol can be referenced. */
-  +symbol: void | null | Symbol,
-  /** The location of the last specifier that lead to this result. */
+  +symbol: void | null | false | Symbol,
+  /** The location of the specifier that lead to this result. */
   +loc: ?SourceLocation,
 |};
 
@@ -958,6 +1002,7 @@ export interface Bundle {
   /** The actual entry (which won't be a runtime). */
   getMainEntry(): ?Asset;
   hasAsset(Asset): boolean;
+  hasDependency(Dependency): boolean;
   /** Traverses the assets in the bundle. */
   traverseAssets<TContext>(visit: GraphVisitor<Asset, TContext>): ?TContext;
   /** Traverses assets and dependencies (see BundleTraversable). */
@@ -1000,12 +1045,20 @@ export type ReferenceOptions = {|
  */
 export interface MutableBundleGraph extends BundleGraph<Bundle> {
   /** Add asset and all child nodes to the bundle. */
-  addAssetGraphToBundle(Asset, Bundle): void;
-  addEntryToBundle(Asset, Bundle): void;
   // addBundleToBundleGroup(Bundle, BundleGroup): void;
   // createAssetReference(Dependency, Asset): void;
   // createBundleReference(Bundle, Bundle): void;
-  createBundle(CreateBundleOptions): Bundle;
+  addAssetGraphToBundle(
+    Asset,
+    Bundle,
+    shouldSkipDependency?: (Dependency) => boolean,
+  ): void;
+  addEntryToBundle(
+    Asset,
+    Bundle,
+    shouldSkipDependency?: (Dependency) => boolean,
+  ): void;
+  createBundle(CreateBundleOpts): Bundle;
   /** Turns an edge (Dependency -> Asset-s) into (Dependency -> BundleGroup -> Asset-s) */
   // createBundleGroup(Dependency, Target): BundleGroup;
   createReference(ReferenceOptions): void;
@@ -1041,12 +1094,18 @@ export interface BundleGraph<TBundle: Bundle> {
   /** See BundleGroup */
   // getSiblingBundles(bundle: Bundle): Array<TBundle>;
   /** Bundles that are referenced (by filename) */
-  getReferencedBundles(bundle: Bundle, type?: 'sync' | 'async'): Array<TBundle>;
   getReferencingBundles(bundle: Bundle, type?: 'sync' | 'async'): Array<TBundle>;
-  /** Get the dependencies that require the asset */
+  /** Bundles that are referenced (by filename) */
+  getReferencedBundles(
+    bundle: Bundle,
+    opts?: {|recursive: boolean|},
+  ): Array<TBundle>;
+  /** Get the dependencies that the asset requires */
   getDependencies(asset: Asset): Array<Dependency>;
   /** Get the dependencies that require the asset */
   getIncomingDependencies(asset: Asset): Array<Dependency>;
+  /** Get the asset that created the dependency. */
+  getAssetWithDependency(dep: Dependency): ?Asset;
   /**
    * Returns undefined if the specified dependency was excluded or wasn't async \
    * and otherwise the BundleGroup or Asset that the dependency resolves to.
@@ -1062,6 +1121,15 @@ export interface BundleGraph<TBundle: Bundle> {
   // );
   // isDependencyDeferred(dependency: Dependency): boolean;
   isDependencyExcluded(dependency: Dependency): boolean;
+  resolveAsyncDependency(
+    dependency: Dependency,
+    bundle: ?Bundle,
+  ): ?(
+    | {|type: 'bundle_group', value: BundleGroup|}
+    | {|type: 'asset', value: Asset|}
+  );
+  /** If a dependency was excluded since it's unused based on symbol data. */
+  isDependencySkipped(dependency: Dependency): boolean;
   /** Find out which asset the dependency resolved to. */
   getResolvedAsset(dependency: Dependency, bundle: ?Bundle): ?Asset;
   /** Find out which bundles the dependency resolved to. */
@@ -1080,6 +1148,7 @@ export interface BundleGraph<TBundle: Bundle> {
    * stopping at the first asset after leaving `bundle`.
    * `symbol === null`: bailout (== caller should do `asset.exports[exportsSymbol]`)
    * `symbol === undefined`: symbol not found
+   * `symbol === false`: skipped
    *
    * <code>asset</code> exports <code>symbol</code>, try to find the asset where the \
    * corresponding variable lives (resolves re-exports). Stop resolving transitively once \
@@ -1090,15 +1159,19 @@ export interface BundleGraph<TBundle: Bundle> {
     symbol: Symbol,
     boundary: ?Bundle,
   ): SymbolResolution;
-  /** Gets the symbols that are (transivitely) exported by the asset */
-  getExportedSymbols(asset: Asset): Array<ExportSymbolResolution>;
   traverse<TContext>(
     GraphVisitor<BundlerBundleGraphTraversable, TContext>,
   ): ?TContext;
+  /** Gets the symbols that are (transivitely) exported by the asset */
+  getExportedSymbols(
+    asset: Asset,
+    boundary: ?Bundle,
+  ): Array<ExportSymbolResolution>;
   traverseBundles<TContext>(
     visit: GraphVisitor<TBundle, TContext>,
     startBundle: ?Bundle,
   ): ?TContext;
+  getUsedSymbols(Asset | Dependency): $ReadOnlySet<Symbol>;
 }
 
 /**
@@ -1121,13 +1194,16 @@ export type ResolveResult = {|
   +sideEffects?: boolean,
   /** A resolver might want to resolve to a dummy, in this case <code>filePath</code> is rather "resolve from". */
   +code?: string,
-  /** Whether this dependency can be deferred by Parcel itself (true by default) */
+  /** Whether this dependency can be deferred by Parcel itself (true by default). */
   +canDefer?: boolean,
-  /** A resolver might return diagnostics to also run subsequent resolvers while still providing a reason why it failed*/
+  /** A resolver might return diagnostics to also run subsequent resolvers while still providing a reason why it failed. */
   +diagnostics?: Diagnostic | Array<Diagnostic>,
 
   invalidateOnFileCreate?: Array<Glob>,
   invalidateOnFileChange?: Array<FilePath>,
+  
+  /** Is spread (shallowly merged) onto the request's dependency.meta */
+  +meta?: JSONObject,
 |};
 
 export type ConfigOutput = {|

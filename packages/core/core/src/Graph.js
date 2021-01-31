@@ -116,7 +116,7 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
 
   getNodesConnectedTo(
     node: TNode,
-    type: TEdgeType | null = null,
+    type: TEdgeType | null | Array<TEdgeType | null> = null,
   ): Array<TNode> {
     assertHasNode(this, node);
 
@@ -133,6 +133,13 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
           nodes.add(node);
         }
       }
+    } else if (Array.isArray(type)) {
+      nodes = new Set();
+      for (let typeName of type) {
+        for (let node of inboundByType.get(typeName)?.values() ?? []) {
+          nodes.add(node);
+        }
+      }
     } else {
       nodes = inboundByType.get(type)?.values() ?? [];
     }
@@ -142,7 +149,7 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
 
   getNodesConnectedFrom(
     node: TNode,
-    type: TEdgeType | null = null,
+    type: TEdgeType | null | Array<TEdgeType | null> = null,
   ): Array<TNode> {
     assertHasNode(this, node);
 
@@ -159,21 +166,18 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
           nodes.add(node);
         }
       }
+    } else if (Array.isArray(type)) {
+      nodes = new Set();
+      for (let typeName of type) {
+        for (let node of outboundByType.get(typeName)?.values() ?? []) {
+          nodes.add(node);
+        }
+      }
     } else {
       nodes = outboundByType.get(type)?.values() ?? [];
     }
 
     return [...nodes].map(to => nullthrows(this.nodes.get(to)));
-  }
-
-  merge(graph: Graph<TNode>): void {
-    for (let [, node] of graph.nodes) {
-      this.addNode(node);
-    }
-
-    for (let edge of graph.getAllEdges()) {
-      this.addEdge(edge.from, edge.to, edge.type);
-    }
   }
 
   // Removes node and any edges coming from or to that node
@@ -303,7 +307,7 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
   // Update a node's downstream nodes making sure to prune any orphaned branches
   replaceNodesConnectedTo(
     fromNode: TNode,
-    toNodes: Array<TNode>,
+    toNodes: $ReadOnlyArray<TNode>,
     replaceFilter?: null | (TNode => boolean),
     type?: TEdgeType | null = null,
   ): void {
@@ -334,7 +338,7 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
   traverse<TContext>(
     visit: GraphVisitor<TNode, TContext>,
     startNode: ?TNode,
-    type: TEdgeType | null = null,
+    type: TEdgeType | null | Array<TEdgeType | null> = null,
   ): ?TContext {
     return this.dfs({
       visit,
@@ -347,7 +351,7 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
     filter: (TNode, TraversalActions) => ?TValue,
     visit: GraphVisitor<TValue, TContext>,
     startNode: ?TNode,
-    type?: TEdgeType | null,
+    type?: TEdgeType | null | Array<TEdgeType | null>,
   ): ?TContext {
     return this.traverse(mapVisitor(filter, visit), startNode, type);
   }
@@ -355,7 +359,7 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
   traverseAncestors<TContext>(
     startNode: TNode,
     visit: GraphVisitor<TNode, TContext>,
-    type: TEdgeType | null = null,
+    type: TEdgeType | null | Array<TEdgeType | null> = null,
   ): ?TContext {
     return this.dfs({
       visit,

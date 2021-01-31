@@ -14,6 +14,7 @@ import type {
 import type {Bundle as InternalBundle, ParcelOptions} from '../types';
 import type InternalBundleGraph from '../BundleGraph';
 
+import invariant from 'assert';
 import nullthrows from 'nullthrows';
 
 import {assetFromValue, assetToAssetValue, Asset} from './Asset';
@@ -69,10 +70,8 @@ export default class BundleGraph<TBundle: IBundle>
     return this.#graph.getAssetPublicId(assetToAssetValue(asset));
   }
 
-  isDependencyDeferred(dep: IDependency): boolean {
-    return this.#graph.isDependencyDeferred(
-      dependencyToInternalDependency(dep),
-    );
+  isDependencySkipped(dep: IDependency): boolean {
+    return this.#graph.isDependencySkipped(dependencyToInternalDependency(dep));
   }
 
   getDependencyResolution(dep: IDependency, bundle: ?IBundle): ?IAsset {
@@ -91,21 +90,33 @@ export default class BundleGraph<TBundle: IBundle>
       .map(dep => new Dependency(dep));
   }
 
+  getAssetWithDependency(dep: IDependency): ?IAsset {
+    let asset = this.#graph.getAssetWithDependency(
+      dependencyToInternalDependency(dep),
+    );
+    if (asset) {
+      return assetFromValue(asset, this.#options);
+    }
+  }
+
   getBundleGroupsContainingBundle(bundle: IBundle): Array<BundleGroup> {
     return this.#graph.getBundleGroupsContainingBundle(
       bundleToInternalBundle(bundle),
     );
   }
 
-  getSiblingBundles(bundle: IBundle): Array<TBundle> {
+  getReferencedBundles(
+    bundle: IBundle,
+    opts?: {|recursive: boolean|},
+  ): Array<TBundle> {
     return this.#graph
-      .getSiblingBundles(bundleToInternalBundle(bundle))
+      .getReferencedBundles(bundleToInternalBundle(bundle), opts)
       .map(bundle =>
         this.#createBundle.call(null, bundle, this.#graph, this.#options),
       );
   }
 
-  getReferencedBundles(bundle: IBundle): Array<TBundle> {
+  getRequiredBundlesForBundle(bundle: IBundle): Array<TBundle> {
     return this.#graph
       .getReferencedBundles(bundleToInternalBundle(bundle))
       .map(bundle =>
@@ -174,10 +185,6 @@ export default class BundleGraph<TBundle: IBundle>
     return null;
   }
 
-  isAssetReferenced(asset: IAsset): boolean {
-    return this.#graph.isAssetReferenced(assetToAssetValue(asset));
-  }
-
   isAssetReferencedByDependant(bundle: IBundle, asset: IAsset): boolean {
     return this.#graph.isAssetReferencedByDependant(
       bundleToInternalBundle(bundle),
@@ -242,8 +249,14 @@ export default class BundleGraph<TBundle: IBundle>
     };
   }
 
-  getExportedSymbols(asset: IAsset): Array<ExportSymbolResolution> {
-    let res = this.#graph.getExportedSymbols(assetToAssetValue(asset));
+  getExportedSymbols(
+    asset: IAsset,
+    boundary: ?IBundle,
+  ): Array<ExportSymbolResolution> {
+    let res = this.#graph.getExportedSymbols(
+      assetToAssetValue(asset),
+      boundary ? bundleToInternalBundle(boundary) : null,
+    );
     return res.map(e => ({
       asset: assetFromValue(e.asset, this.#options),
       exportSymbol: e.exportSymbol,
@@ -281,5 +294,16 @@ export default class BundleGraph<TBundle: IBundle>
       .map(bundle =>
         this.#createBundle.call(null, bundle, this.#graph, this.#options),
       );
+  }
+
+  getUsedSymbols(v: IAsset | IDependency): $ReadOnlySet<Symbol> {
+    if (v instanceof Asset) {
+      return this.#graph.getUsedSymbolsAsset(assetToAssetValue(v));
+    } else {
+      invariant(v instanceof Dependency);
+      return this.#graph.getUsedSymbolsDependency(
+        dependencyToInternalDependency(v),
+      );
+    }
   }
 }

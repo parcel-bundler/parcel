@@ -2,15 +2,17 @@
 
 import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import type {Async, File, FilePath, Glob, EnvMap} from '@parcel/types';
-import type {Event} from '@parcel/watcher';
+import type {Event, Options as WatcherOptions} from '@parcel/watcher';
 import type WorkerFarm from '@parcel/workers';
 import type {NodeId, ParcelOptions, RequestInvalidation} from './types';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
-import {isGlobMatch} from '@parcel/utils';
+import path from 'path';
+import {isGlobMatch, md5FromObject, md5FromString} from '@parcel/utils';
+import {PARCEL_VERSION} from './constants';
 import Graph, {type GraphOpts} from './Graph';
-import {assertSignalNotAborted} from './utils';
+import {assertSignalNotAborted, hashFromOption} from './utils';
 
 type SerializedRequestGraph = {|
   ...GraphOpts<RequestGraphNode, RequestGraphEdgeType>,
@@ -18,6 +20,7 @@ type SerializedRequestGraph = {|
   incompleteNodeIds: Set<NodeId>,
   globNodeIds: Set<NodeId>,
   envNodeIds: Set<NodeId>,
+  optionNodeIds: Set<NodeId>,
   unpredicatableNodeIds: Set<NodeId>,
 |};
 
@@ -26,14 +29,20 @@ type GlobNode = {|id: string, +type: 'glob', value: Glob|};
 type EnvNode = {|
   id: string,
   +type: 'env',
-  value: {|key: string, value: string|},
+  value: {|key: string, value: string | void|},
+|};
+
+type OptionNode = {|
+  id: string,
+  +type: 'option',
+  value: {|key: string, hash: string|},
 |};
 
 type Request<TInput, TResult> = {|
   id: string,
   +type: string,
   input: TInput,
-  run: ({|input: TInput, ...StaticRunOpts|}) => Async<TResult>,
+  run: ({|input: TInput, ...StaticRunOpts<TResult>|}) => Async<TResult>,
 |};
 
 type StoredRequest = {|
@@ -41,6 +50,7 @@ type StoredRequest = {|
   +type: string,
   input: mixed,
   result?: mixed,
+  resultCacheKey?: ?string,
 |};
 
 type RequestNode = {|
@@ -48,7 +58,12 @@ type RequestNode = {|
   +type: 'request',
   value: StoredRequest,
 |};
-type RequestGraphNode = RequestNode | FileNode | GlobNode | EnvNode;
+type RequestGraphNode =
+  | RequestNode
+  | FileNode
+  | GlobNode
+  | EnvNode
+  | OptionNode;
 
 type RequestGraphEdgeType =
   | 'subrequest'
@@ -56,23 +71,31 @@ type RequestGraphEdgeType =
   | 'invalidated_by_delete'
   | 'invalidated_by_create';
 
-type RunAPI = {|
+export type RunAPI = {|
   invalidateOnFileCreate: Glob => void,
   invalidateOnFileDelete: FilePath => void,
   invalidateOnFileUpdate: FilePath => void,
   invalidateOnStartup: () => void,
   invalidateOnEnvChange: string => void,
+  invalidateOnOptionChange: string => void,
   getInvalidations(): Array<RequestInvalidation>,
-  storeResult: (result: mixed) => void,
+  storeResult: (result: mixed, cacheKey?: string) => void,
+  canSkipSubrequest(string): boolean,
   runRequest: <TInput, TResult>(
     subRequest: Request<TInput, TResult>,
+    opts?: RunRequestOpts,
   ) => Async<TResult>,
 |};
 
-export type StaticRunOpts = {|
+type RunRequestOpts = {|
+  force: boolean,
+|};
+
+export type StaticRunOpts<TResult> = {|
   farm: WorkerFarm,
   options: ParcelOptions,
   api: RunAPI,
+  prevResult: ?TResult,
 |};
 
 const nodeFromFilePath = (filePath: string) => ({
@@ -93,12 +116,21 @@ const nodeFromRequest = (request: StoredRequest) => ({
   value: request,
 });
 
-const nodeFromEnv = (env: string, value: string) => ({
+const nodeFromEnv = (env: string, value: string | void) => ({
   id: 'env:' + env,
   type: 'env',
   value: {
     key: env,
     value,
+  },
+});
+
+const nodeFromOption = (option: string, value: mixed) => ({
+  id: 'option:' + option,
+  type: 'option',
+  value: {
+    key: option,
+    hash: hashFromOption(value),
   },
 });
 
@@ -110,6 +142,7 @@ export class RequestGraph extends Graph<
   incompleteNodeIds: Set<NodeId> = new Set();
   globNodeIds: Set<NodeId> = new Set();
   envNodeIds: Set<NodeId> = new Set();
+  optionNodeIds: Set<NodeId> = new Set();
   // Unpredictable nodes are requests that cannot be predicted whether they should rerun based on
   // filesystem changes alone. They should rerun on each startup of Parcel.
   unpredicatableNodeIds: Set<NodeId> = new Set();
@@ -122,6 +155,7 @@ export class RequestGraph extends Graph<
     deserialized.incompleteNodeIds = opts.incompleteNodeIds;
     deserialized.globNodeIds = opts.globNodeIds;
     deserialized.envNodeIds = opts.envNodeIds;
+    deserialized.optionNodeIds = opts.optionNodeIds;
     deserialized.unpredicatableNodeIds = opts.unpredicatableNodeIds;
     // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381 (Windows only)
     return deserialized;
@@ -135,6 +169,7 @@ export class RequestGraph extends Graph<
       incompleteNodeIds: this.incompleteNodeIds,
       globNodeIds: this.globNodeIds,
       envNodeIds: this.envNodeIds,
+      optionNodeIds: this.optionNodeIds,
       unpredicatableNodeIds: this.unpredicatableNodeIds,
     };
   }
@@ -147,6 +182,10 @@ export class RequestGraph extends Graph<
 
       if (node.type === 'env') {
         this.envNodeIds.add(node.id);
+      }
+
+      if (node.type === 'option') {
+        this.optionNodeIds.add(node.id);
       }
     }
 
@@ -161,6 +200,9 @@ export class RequestGraph extends Graph<
     }
     if (node.type === 'env') {
       this.envNodeIds.delete(node.id);
+    }
+    if (node.type === 'option') {
+      this.optionNodeIds.delete(node.id);
     }
     return super.removeNode(node);
   }
@@ -231,6 +273,22 @@ export class RequestGraph extends Graph<
     }
   }
 
+  invalidateOptionNodes(options: ParcelOptions) {
+    for (let nodeId of this.optionNodeIds) {
+      let node = nullthrows(this.getNode(nodeId));
+      invariant(node.type === 'option');
+      if (hashFromOption(options[node.value.key]) !== node.value.hash) {
+        let parentNodes = this.getNodesConnectedTo(
+          node,
+          'invalidated_by_update',
+        );
+        for (let parentNode of parentNodes) {
+          this.invalidateNode(parentNode);
+        }
+      }
+    }
+  }
+
   invalidateOnFileUpdate(requestId: string, filePath: FilePath) {
     let requestNode = this.getRequestNode(requestId);
     let fileNode = nodeFromFilePath(filePath);
@@ -272,7 +330,7 @@ export class RequestGraph extends Graph<
     this.unpredicatableNodeIds.add(requestNode.id);
   }
 
-  invalidateOnEnvChange(requestId: string, env: string, value: string) {
+  invalidateOnEnvChange(requestId: string, env: string, value: string | void) {
     let requestNode = this.getRequestNode(requestId);
     let envNode = nodeFromEnv(env, value);
     if (!this.hasNode(envNode.id)) {
@@ -281,6 +339,18 @@ export class RequestGraph extends Graph<
 
     if (!this.hasEdge(requestNode.id, envNode.id, 'invalidated_by_update')) {
       this.addEdge(requestNode.id, envNode.id, 'invalidated_by_update');
+    }
+  }
+
+  invalidateOnOptionChange(requestId: string, option: string, value: mixed) {
+    let requestNode = this.getRequestNode(requestId);
+    let optionNode = nodeFromOption(option, value);
+    if (!this.hasNode(optionNode.id)) {
+      this.addNode(optionNode);
+    }
+
+    if (!this.hasEdge(requestNode.id, optionNode.id, 'invalidated_by_update')) {
+      this.addEdge(requestNode.id, optionNode.id, 'invalidated_by_update');
     }
   }
 
@@ -400,10 +470,12 @@ export default class RequestTracker {
     this.graph.removeById(id);
   }
 
-  storeResult(id: string, result: mixed) {
+  // If a cache key is provided, the result will be removed from the node and stored in a separate cache entry
+  storeResult(id: string, result: mixed, cacheKey: ?string) {
     let node = this.graph.getNode(id);
     if (node && node.type === 'request') {
       node.value.result = result;
+      node.value.resultCacheKey = cacheKey;
     }
   }
 
@@ -415,12 +487,21 @@ export default class RequestTracker {
     );
   }
 
-  getRequestResult<T>(id: string): T {
+  async getRequestResult<T>(id: string): Async<?T> {
     let node = nullthrows(this.graph.getNode(id));
     invariant(node.type === 'request');
-    // $FlowFixMe
-    let result: T = (node.value.result: any);
-    return result;
+    if (node.value.result != undefined) {
+      // $FlowFixMe
+      let result: T = (node.value.result: any);
+      return result;
+    } else if (node.value.resultCacheKey != null) {
+      let cachedResult: T = (nullthrows(
+        await this.options.cache.get(node.value.resultCacheKey),
+        // $FlowFixMe
+      ): any);
+      node.value.result = cachedResult;
+      return cachedResult;
+    }
   }
 
   completeRequest(id: string) {
@@ -462,10 +543,13 @@ export default class RequestTracker {
 
   async runRequest<TInput, TResult>(
     request: Request<TInput, TResult>,
+    opts?: ?RunRequestOpts,
   ): Async<TResult> {
     let id = request.id;
 
-    if (this.hasValidResult(id)) {
+    let hasValidResult = this.hasValidResult(id);
+    if (!opts?.force && hasValidResult) {
+      // $FlowFixMe
       return this.getRequestResult<TResult>(id);
     }
 
@@ -477,6 +561,7 @@ export default class RequestTracker {
         api,
         farm: this.farm,
         options: this.options,
+        prevResult: await this.getRequestResult<TResult>(id),
       });
 
       assertSignalNotAborted(this.signal);
@@ -507,23 +592,127 @@ export default class RequestTracker {
         this.graph.invalidateOnFileUpdate(requestId, filePath),
       invalidateOnStartup: () => this.graph.invalidateOnStartup(requestId),
       invalidateOnEnvChange: env =>
-        this.graph.invalidateOnEnvChange(
+        this.graph.invalidateOnEnvChange(requestId, env, this.options.env[env]),
+      invalidateOnOptionChange: option =>
+        this.graph.invalidateOnOptionChange(
           requestId,
-          env,
-          this.options.env[env] || '',
+          option,
+          this.options[option],
         ),
       getInvalidations: () => this.graph.getInvalidations(requestId),
-      storeResult: result => {
-        this.storeResult(requestId, result);
+      storeResult: (result, cacheKey) => {
+        this.storeResult(requestId, result, cacheKey);
+      },
+      canSkipSubrequest: id => {
+        if (this.hasValidResult(id)) {
+          subRequests.add(id);
+          return true;
+        }
+
+        return false;
       },
       runRequest: <TInput, TResult>(
         subRequest: Request<TInput, TResult>,
+        opts?: RunRequestOpts,
       ): Async<TResult> => {
         subRequests.add(subRequest.id);
-        return this.runRequest<TInput, TResult>(subRequest);
+        return this.runRequest<TInput, TResult>(subRequest, opts);
       },
     };
 
     return {api, subRequests};
   }
+
+  async writeToCache() {
+    let cacheKey = md5FromObject({
+      parcelVersion: PARCEL_VERSION,
+      entries: this.options.entries,
+    });
+
+    let requestGraphKey = md5FromString(`${cacheKey}:requestGraph`);
+    let snapshotKey = md5FromString(`${cacheKey}:snapshot`);
+
+    if (this.options.shouldDisableCache) {
+      return;
+    }
+
+    let promises = [];
+    for (let [, node] of this.graph.nodes) {
+      if (node.type !== 'request') {
+        continue;
+      }
+
+      let resultCacheKey = node.value.resultCacheKey;
+      if (resultCacheKey != null && node.value.result != null) {
+        promises.push(
+          this.options.cache.set(resultCacheKey, node.value.result),
+        );
+        delete node.value.result;
+      }
+    }
+
+    promises.push(this.options.cache.set(requestGraphKey, this.graph));
+
+    let opts = getWatcherOptions(this.options);
+    let snapshotPath = this.options.cache._getCachePath(snapshotKey, '.txt');
+    promises.push(
+      this.options.inputFS.writeSnapshot(
+        this.options.projectRoot,
+        snapshotPath,
+        opts,
+      ),
+    );
+
+    await Promise.all(promises);
+  }
+
+  static async init({
+    farm,
+    options,
+  }: {|
+    farm: WorkerFarm,
+    options: ParcelOptions,
+  |}): Async<RequestTracker> {
+    let graph = await loadRequestGraph(options);
+    return new RequestTracker({farm, options, graph});
+  }
+}
+
+export function getWatcherOptions(options: ParcelOptions): WatcherOptions {
+  let vcsDirs = ['.git', '.hg'].map(dir => path.join(options.projectRoot, dir));
+  let ignore = [options.cacheDir, ...vcsDirs];
+  return {ignore};
+}
+
+async function loadRequestGraph(options): Async<RequestGraph> {
+  if (options.shouldDisableCache) {
+    return new RequestGraph();
+  }
+
+  let cacheKey = md5FromObject({
+    parcelVersion: PARCEL_VERSION,
+    entries: options.entries,
+  });
+
+  let requestGraphKey = md5FromString(`${cacheKey}:requestGraph`);
+  let requestGraph = await options.cache.get<RequestGraph>(requestGraphKey);
+
+  if (requestGraph) {
+    let opts = getWatcherOptions(options);
+    let snapshotKey = md5FromString(`${cacheKey}:snapshot`);
+    let snapshotPath = options.cache._getCachePath(snapshotKey, '.txt');
+    let events = await options.inputFS.getEventsSince(
+      options.projectRoot,
+      snapshotPath,
+      opts,
+    );
+    requestGraph.invalidateUnpredictableNodes();
+    requestGraph.invalidateEnvNodes(options.env);
+    requestGraph.invalidateOptionNodes(options);
+    requestGraph.respondToFSEvents(events);
+
+    return requestGraph;
+  }
+
+  return new RequestGraph();
 }

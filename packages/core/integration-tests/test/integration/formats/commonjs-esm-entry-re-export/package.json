@@ -1,0 +1,5 @@
+{
+  "name": "commonjs-entry-re-export",
+  "private": true,
+  "module": "dist/index.js"
+}

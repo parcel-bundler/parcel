@@ -6,5 +6,6 @@ export interface Params {
   bar: number;
 }
 
-export var a = 2, b = 5;
-export default function () {}
+export var a = 2,
+  b = 5;
+export default function() {}

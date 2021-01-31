@@ -14,7 +14,7 @@ export async function loadTSConfig(config: Config, options: PluginOptions) {
   let ts: TypeScriptModule = await options.packageManager.require(
     'typescript',
     config.searchPath,
-    {autoinstall: options.autoinstall},
+    {shouldAutoInstall: options.shouldAutoInstall},
   );
 
   let host = new ParseConfigHost(options.inputFS, ts);
