@@ -365,7 +365,8 @@ export default class Transformation {
             asset =>
               asset.ast != null &&
               !(
-                (asset.value.env.scopeHoist && asset.value.type === 'js') ||
+                (asset.value.env.shouldScopeHoist &&
+                  asset.value.type === 'js') ||
                 (this.options.mode === 'production' &&
                   asset.value.type === 'css' &&
                   asset.value.symbols)

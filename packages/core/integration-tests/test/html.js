@@ -390,7 +390,9 @@ describe('html', function() {
   it('should minify HTML in production mode', async function() {
     let inputFile = path.join(__dirname, '/integration/htmlnano/index.html');
     await bundle(inputFile, {
-      minify: true,
+      defaultTargetOptions: {
+        shouldOptimize: true,
+      },
     });
 
     let inputSize = (await inputFS.stat(inputFile)).size;
@@ -407,7 +409,9 @@ describe('html', function() {
   it('should work with an empty html file', async function() {
     let inputFile = path.join(__dirname, '/integration/html-empty/index.html');
     await bundle(inputFile, {
-      minify: false,
+      defaultTargetOptions: {
+        shouldOptimize: false,
+      },
     });
 
     let outputFile = path.join(distDir, 'index.html');
@@ -419,7 +423,9 @@ describe('html', function() {
     await bundle(
       path.join(__dirname, '/integration/htmlnano-config/index.html'),
       {
-        minify: true,
+        defaultTargetOptions: {
+          shouldOptimize: true,
+        },
       },
     );
 
@@ -456,7 +462,9 @@ describe('html', function() {
       '/integration/htmlnano-defaults-form/index.html',
     );
     await bundle(inputFile, {
-      minify: true,
+      defaultTargetOptions: {
+        shouldOptimize: true,
+      },
     });
 
     let inputSize = (await inputFS.stat(inputFile)).size;
@@ -835,7 +843,11 @@ describe('html', function() {
   it('should process inline JS', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-inline-js/index.html'),
-      {minify: true},
+      {
+        defaultTargetOptions: {
+          shouldOptimize: true,
+        },
+      },
     );
 
     // inline bundles are not output, but are apart of the bundleGraph
@@ -862,7 +874,11 @@ describe('html', function() {
   it('should process inline styles', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-inline-styles/index.html'),
-      {minify: true},
+      {
+        defaultTargetOptions: {
+          shouldOptimize: true,
+        },
+      },
     );
 
     assertBundles(b, [
@@ -942,7 +958,11 @@ describe('html', function() {
   it('should process inline styles using lang', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-inline-sass/index.html'),
-      {minify: true},
+      {
+        defaultTargetOptions: {
+          shouldOptimize: true,
+        },
+      },
     );
 
     assertBundles(b, [
@@ -967,7 +987,11 @@ describe('html', function() {
   it('should process inline non-js scripts', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-inline-coffeescript/index.html'),
-      {minify: true},
+      {
+        defaultTargetOptions: {
+          shouldOptimize: true,
+        },
+      },
     );
 
     assertBundles(b, [
@@ -1014,7 +1038,7 @@ describe('html', function() {
   it('should not modify inline importmaps', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-inline-importmap/index.html'),
-      {production: true},
+      {},
     );
 
     assertBundles(b, [
@@ -1031,7 +1055,11 @@ describe('html', function() {
   it('should allow imports and requires in inline <script> tags', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-inline-js-require/index.html'),
-      {minify: true},
+      {
+        defaultTargetOptions: {
+          shouldOptimize: true,
+        },
+      },
     );
 
     assertBundles(b, [
@@ -1077,7 +1105,11 @@ describe('html', function() {
   it('should support inline <script type="module">', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-inline-js-module/index.html'),
-      {scopeHoist: true},
+      {
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
+      },
     );
 
     assertBundles(b, [
@@ -1105,7 +1137,12 @@ describe('html', function() {
         __dirname,
         '/integration/html-js-shared-dynamic-nested/index.html',
       ),
-      {mode: 'production', scopeHoist: true},
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
+      },
     );
 
     assertBundles(b, [
@@ -1141,7 +1178,13 @@ describe('html', function() {
   it('should support shared bundles between multiple inline scripts', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-inline-js-shared/index.html'),
-      {mode: 'production', scopeHoist: true, minify: false},
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+          shouldOptimize: false,
+        },
+      },
     );
 
     assertBundles(b, [
@@ -1176,7 +1219,12 @@ describe('html', function() {
   it('inserts sibling bundles into html in the correct order (no head)', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-js-shared/index.html'),
-      {mode: 'production', scopeHoist: true},
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
+      },
     );
 
     assertBundles(b, [
@@ -1237,7 +1285,12 @@ describe('html', function() {
   it('inserts sibling bundles into html in the correct order (head)', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-js-shared-head/index.html'),
-      {mode: 'production', scopeHoist: true},
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
+      },
     );
 
     assertBundles(b, [
@@ -1298,7 +1351,11 @@ describe('html', function() {
   it('should support multiple entries with shared sibling bundles', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/shared-sibling-entries/*.html'),
-      {scopeHoist: true},
+      {
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
+      },
     );
 
     assertBundles(b, [
@@ -1352,7 +1409,13 @@ describe('html', function() {
         __dirname,
         'integration/scope-hoisting/es6/interop-async/index.html',
       ),
-      {mode: 'production', scopeHoist: true, minify: false},
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+          shouldOptimize: false,
+        },
+      },
     );
     let bundles = b.getBundles();
 
@@ -1384,7 +1447,11 @@ describe('html', function() {
         __dirname,
         '/integration/shared-sibling-entries-multiple/*.html',
       ),
-      {scopeHoist: true},
+      {
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
+      },
     );
 
     // a.html should point to a CSS bundle containing a.css as well as
@@ -1587,7 +1654,9 @@ describe('html', function() {
 
   it('should support split bundles with many pages with esmodule output', async function() {
     await bundle(path.join(__dirname, '/integration/shared-many-esm/*.html'), {
-      scopeHoist: true,
+      defaultTargetOptions: {
+        shouldScopeHoist: true,
+      },
     });
 
     let checkHtml = async filename => {
@@ -1625,7 +1694,11 @@ describe('html', function() {
   it('should include the correct paths when using multiple entries and referencing style from html and js', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-multi-entry/*.html'),
-      {scopeHoist: true},
+      {
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
+      },
     );
 
     assertBundles(b, [
@@ -1700,7 +1773,9 @@ describe('html', function() {
       {
         inputFS: overlayFS,
         shouldDisableCache: false,
-        distDir,
+        defaultTargetOptions: {
+          distDir,
+        },
       },
     );
 
@@ -1734,7 +1809,9 @@ describe('html', function() {
       {
         inputFS: overlayFS,
         shouldDisableCache: false,
-        distDir,
+        defaultTargetOptions: {
+          distDir,
+        },
       },
     );
 
@@ -1761,7 +1838,9 @@ describe('html', function() {
     let b = await bundle(
       path.join(__dirname, '/integration/data-url/index.html'),
       {
-        sourceMaps: false,
+        defaultTargetOptions: {
+          sourceMaps: false,
+        },
       },
     );
 
