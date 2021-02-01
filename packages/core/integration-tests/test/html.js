@@ -911,6 +911,19 @@ describe('html', function() {
         assets: ['index.html'],
       },
     ]);
+
+    let bundles = b.getBundles();
+
+    let html = await outputFS.readFile(
+      bundles.find(bundle => bundle.type === 'html').filePath,
+      'utf8',
+    );
+
+    let urls = [...html.matchAll(/url\(([^)]*)\)/g)].map(m => m[1]);
+    assert.strictEqual(urls.length, 2);
+    for (let url of urls) {
+      assert(bundles.find(bundle => path.basename(bundle.filePath) === url));
+    }
   });
 
   it('should process inline element styles', async function() {
