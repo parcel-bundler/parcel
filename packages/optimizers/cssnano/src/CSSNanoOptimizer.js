@@ -13,7 +13,7 @@ export default (new Optimizer({
     map: prevMap,
     options,
   }) {
-    if (!bundle.env.minify) {
+    if (!bundle.env.shouldOptimize) {
       return {contents: prevContents, map: prevMap};
     }
 

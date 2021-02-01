@@ -61,7 +61,9 @@ describe('blob urls', () => {
     let b = await bundle(
       path.join(__dirname, '/integration/blob-url/index.js'),
       {
-        minify: true,
+        defaultTargetOptions: {
+          shouldOptimize: true,
+        },
       },
     );
 
