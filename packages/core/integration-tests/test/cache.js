@@ -67,7 +67,7 @@ async function testCache(update: UpdateFn | TestConfig, integration) {
   let newOptions = await update(b);
 
   // Run cached build
-  b = await runBundle(entries, Object.assign({}, options, newOptions));
+  b = await runBundle(entries, mergeParcelOptions(options || {}, newOptions));
 
   return b;
 }
@@ -2619,8 +2619,10 @@ describe('cache', function() {
       delete process.env.NODE_ENV;
       try {
         let b = await testCache({
-          scopeHoist: false,
-          minify: false,
+          defaultTargetOptions: {
+            shouldScopeHoist: false,
+            shouldOptimize: false,
+          },
           mode: 'development',
           async setup() {
             let pkg = JSON.parse(
