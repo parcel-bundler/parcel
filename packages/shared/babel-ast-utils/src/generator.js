@@ -43,22 +43,22 @@ export const generator = {
   NumericLiteral(node, state) {
     node.type = 'Literal';
     node.raw = getRaw(node);
-    this.Literal(node, state);
+    this.Literal(node, state, true);
   },
   StringLiteral(node, state) {
     node.type = 'Literal';
     node.raw = getRaw(node);
-    this.Literal(node, state);
+    this.Literal(node, state, true);
   },
   BooleanLiteral(node, state) {
     node.type = 'Literal';
-    this.Literal(node, state);
+    this.Literal(node, state, true);
   },
   NullLiteral(node, state) {
     node.type = 'Literal';
     node.raw = 'null';
     node.value = null;
-    this.Literal(node, state);
+    this.Literal(node, state, true);
   },
   RegExpLiteral(node, state) {
     node.type = 'Literal';
@@ -73,7 +73,7 @@ export const generator = {
   BigIntLiteral(node, state) {
     node.type = 'Literal';
     node.raw = getRaw(node);
-    this.Literal(node, state);
+    this.Literal(node, state, true);
   },
   ArrowFunctionExpression(node, state) {
     if (
@@ -101,7 +101,7 @@ export const generator = {
         node.shorthand = false;
       }
     }
-    this.Property(node, state);
+    this.Property(node, state, true);
   },
   ObjectMethod(node, state) {
     node.value = {
@@ -119,7 +119,7 @@ export const generator = {
       node.kind = 'init';
     }
 
-    this.Property(node, state);
+    this.Property(node, state, true);
   },
   ClassMethod(node, state) {
     node.value = {
@@ -133,7 +133,7 @@ export const generator = {
     };
 
     node.type = 'MethodDefinition';
-    this.MethodDefinition(node, state);
+    this.MethodDefinition(node, state, true);
   },
   ClassPrivateMethod(node, state) {
     node.value = {
@@ -147,7 +147,7 @@ export const generator = {
     };
 
     node.type = 'MethodDefinition';
-    this.MethodDefinition(node, state);
+    this.MethodDefinition(node, state, true);
   },
   ClassProperty(node, state) {
     if (node.static) {
@@ -164,7 +164,7 @@ export const generator = {
 
     if (node.value) {
       state.write(' = ');
-      this[node.value.type](node.value, state);
+      this[node.value.type](node.value, state, true);
     }
 
     state.write(';');
@@ -190,7 +190,7 @@ export const generator = {
     state.write('import');
   },
   _OptionalMemberExpression(node, state) {
-    this.OptionalMemberExpression(node, state);
+    this.OptionalMemberExpression(node, state, true);
   },
   OptionalMemberExpression(node, state) {
     node.optional = true;
@@ -202,12 +202,16 @@ export const generator = {
     baseGenerator.MemberExpression.call(this, node, state);
   },
   _OptionalCallExpression(node, state) {
-    this.OptionalCallExpression(node, state);
+    this.OptionalCallExpression(node, state, true);
   },
   OptionalCallExpression(node, state) {
     node.optional = true;
     node.type = 'CallExpression';
-    this.CallExpression(node, state);
+    baseGenerator.CallExpression.call(this, node, state);
+  },
+  CallExpression(node, state) {
+    if (node.optional) node.optional = false;
+    baseGenerator.CallExpression.call(this, node, state);
   },
   ExportNamedDeclaration(node, state) {
     if (node.source) {
@@ -233,10 +237,14 @@ export const generator = {
   ReturnStatement(node, state) {
     // Add parentheses if there are leading comments
     if (node.argument?.leadingComments?.length > 0) {
-      let indent = state.indent.repeat(state.indentLevel++);
-      state.write('return (' + state.lineEnd + indent + state.indent);
+      let indent = state.indent.repeat(state.indentLevel);
+      state.write('return (' + state.lineEnd);
+      state.write(indent + state.indent);
+      state.indentLevel++;
       this[node.argument.type](node.argument, state);
-      state.write(state.lineEnd + indent + ');');
+      state.indentLevel--;
+      state.write(state.lineEnd);
+      state.write(indent + ');');
     } else {
       baseGenerator.ReturnStatement.call(this, node, state);
     }
@@ -247,8 +255,12 @@ export const generator = {
 // TODO: contribute to astring.
 for (let key in generator) {
   let orig = generator[key];
-  generator[key] = function(node, state) {
-    if (node.leadingComments && node.leadingComments.length > 0) {
+  generator[key] = function(node, state, skipComments) {
+    if (
+      !skipComments &&
+      node.leadingComments &&
+      node.leadingComments.length > 0
+    ) {
       formatComments(state, node.leadingComments);
     }
     orig.call(this, node, state);
@@ -278,7 +290,10 @@ function formatComments(state, comments) {
     const comment = comments[i];
     if (comment.type === 'CommentLine') {
       // Line comment
-      state.write('// ' + comment.value.trim() + state.lineEnd);
+      state.write('// ' + comment.value.trim() + state.lineEnd, {
+        ...comment,
+        type: 'LineComment',
+      });
       state.write(indent);
     } else {
       // Block comment
