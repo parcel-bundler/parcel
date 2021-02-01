@@ -1,0 +1,16 @@
+{
+  "name": "wasm-single-crate",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "clean": "cargo clean && rm -rf .cache/ dist/ pkg/ node_modules/",
+    "build": "parcel build src/index.html --log-level verbose --no-minify --no-cache",
+    "build:node": "yarn build --target node",
+    "start": "parcel src/index.html --log-level verbose --no-cache"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@parcel/babel-register": "2.0.0-beta.1",
+    "@parcel/core": "2.0.0-beta.1"
+  }
+}

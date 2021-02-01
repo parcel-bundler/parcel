@@ -1,0 +1,21 @@
+{
+  "name": "wasm-multiple-crates",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "clean": "cargo clean && rm -rf .cache/ dist/ pkg/ node_modules/",
+    "build": "parcel build src/index.html --log-level verbose --no-minify --no-cache",
+    "build:node": "yarn build --target node",
+    "start": "parcel src/index.html --log-level verbose --no-cache"
+  },
+  "dependencies": {
+    "core-js": "3.6.5"
+  },
+  "devDependencies": {
+    "@babel/core": "7.10.2",
+    "@babel/plugin-transform-runtime": "7.10.1",
+    "@babel/preset-env": "7.10.2",
+    "@parcel/babel-register": "2.0.0-beta.1",
+    "@parcel/core": "2.0.0-beta.1"
+  }
+}

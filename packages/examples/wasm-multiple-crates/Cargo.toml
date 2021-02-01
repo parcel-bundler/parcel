@@ -1,0 +1,10 @@
+[workspace]
+members = [
+  "crates/hello",
+  "crates/world"
+]
+
+[profile.release]
+# Tell `rustc` to optimize for small code size.
+# @see: https://doc.rust-lang.org/cargo/reference/manifest.html#the-profile-sections
+opt-level = "s"
