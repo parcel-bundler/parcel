@@ -183,7 +183,7 @@ export default ({
           env: {
             context: 'web-worker',
             outputFormat:
-              isModule && asset.env.scopeHoist ? 'esmodule' : undefined,
+              isModule && asset.env.shouldScopeHoist ? 'esmodule' : undefined,
           },
           meta: {
             webworker: true,

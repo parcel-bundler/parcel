@@ -13,9 +13,9 @@ export function createEnvironment({
   engines,
   includeNodeModules,
   outputFormat,
-  minify = false,
+  shouldOptimize = false,
   isLibrary = false,
-  scopeHoist = false,
+  shouldScopeHoist = false,
   sourceMap,
 }: EnvironmentOptions = {}): Environment {
   if (context == null) {
@@ -85,8 +85,8 @@ export function createEnvironment({
     includeNodeModules,
     outputFormat,
     isLibrary,
-    minify,
-    scopeHoist,
+    shouldOptimize,
+    shouldScopeHoist,
     sourceMap,
   };
 
@@ -118,7 +118,7 @@ function getEnvironmentHash(env: Environment): string {
     includeNodeModules: env.includeNodeModules,
     outputFormat: env.outputFormat,
     isLibrary: env.isLibrary,
-    scopeHoist: env.scopeHoist,
+    shouldScopeHoist: env.shouldScopeHoist,
     sourceMap: env.sourceMap,
   });
 }
