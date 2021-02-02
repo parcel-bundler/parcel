@@ -8,7 +8,9 @@ function bundle(path) {
   return _bundle(path, {
     inputFS: overlayFS,
     shouldDisableCache: false,
-    distDir,
+    defaultTargetOptions: {
+      distDir,
+    },
   });
 }
 

@@ -43,9 +43,10 @@ export async function loadConfig(
   filenames: Array<FilePath>,
   opts: ?ConfigOptions,
 ): Promise<ConfigOutput | null> {
+  let parse = opts?.parse ?? true;
   let configFile = await resolveConfig(fs, filepath, filenames);
   if (configFile) {
-    let cachedOutput = configCache.get(configFile);
+    let cachedOutput = configCache.get(String(parse) + configFile);
     if (cachedOutput) {
       return cachedOutput;
     }
@@ -67,7 +68,7 @@ export async function loadConfig(
       if (!configContent) return null;
 
       let config;
-      if (opts && opts.parse === false) {
+      if (parse === false) {
         config = configContent;
       } else {
         let parse = getParser(extname);
@@ -79,7 +80,7 @@ export async function loadConfig(
         files: [{filePath: configFile}],
       };
 
-      configCache.set(configFile, output);
+      configCache.set(String(parse) + configFile, output);
       return output;
     } catch (err) {
       if (err.code === 'MODULE_NOT_FOUND' || err.code === 'ENOENT') {
