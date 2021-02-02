@@ -50,7 +50,7 @@ export default (new Transformer({
       cwd: path.dirname(asset.filePath),
       // $FlowFixMe[sketchy-null-string]
       debug: !options.env.PARCEL_ELM_NO_DEBUG && options.mode !== 'production',
-      optimize: asset.env.minify,
+      optimize: asset.env.shouldOptimize,
     };
     asset.invalidateOnEnvChange('PARCEL_ELM_NO_DEBUG');
     for (const filePath of await elm.findAllDependencies(asset.filePath)) {

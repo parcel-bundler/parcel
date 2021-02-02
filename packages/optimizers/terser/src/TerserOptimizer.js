@@ -11,7 +11,7 @@ import path from 'path';
 
 export default (new Optimizer({
   async optimize({contents, map, bundle, options, getSourceMapReference}) {
-    if (!bundle.env.minify) {
+    if (!bundle.env.shouldOptimize) {
       return {contents, map};
     }
 
