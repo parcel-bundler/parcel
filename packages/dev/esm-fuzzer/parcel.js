@@ -28,14 +28,16 @@ module.exports = async function({
     inputFS: new OverlayFS(inputFS, new NodeFS()),
     outputFS: outputFS,
     workerFarm: module.exports.workerFarm,
-    defaultEngines: {
-      browsers: ['Chrome 80'],
-      node: '14',
+    defaultTargetOptions: {
+      distDir: DIST_DIR,
+      shouldOptimize: false,
+      engines: {
+        browsers: ['Chrome 80'],
+        node: '14',
+      },
     },
-    distDir: DIST_DIR,
     shouldPatchConsole: false,
     mode: 'production',
-    minify: false,
     targets: {
       default: {
         outputFormat,

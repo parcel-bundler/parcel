@@ -28,7 +28,7 @@ export default function extractInlineAssets(
   let key = 0;
 
   // Extract inline <script> and <style> tags for processing.
-  let parts = [];
+  let parts: Array<TransformerResult> = [];
   let hasScripts = false;
   PostHTML().walk.call(program, (node: PostHTMLNode) => {
     let parcelKey = md5FromString(`${asset.id}:${key++}`);
@@ -55,7 +55,7 @@ export default function extractInlineAssets(
             type = node.attrs.type.split('/')[1];
           }
 
-          if (node.attrs.type === 'module' && asset.env.scopeHoist) {
+          if (node.attrs.type === 'module' && asset.env.shouldScopeHoist) {
             env = {
               outputFormat: 'esmodule',
             };
@@ -64,8 +64,11 @@ export default function extractInlineAssets(
           type = 'js';
         }
 
+        if (!type) {
+          return node;
+        }
+
         if (!node.attrs) {
-          // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
           node.attrs = {};
         }
 
@@ -100,6 +103,7 @@ export default function extractInlineAssets(
           env,
           meta: {
             type: 'tag',
+            // $FlowFixMe
             node,
           },
         });
@@ -111,11 +115,13 @@ export default function extractInlineAssets(
     }
 
     // Process inline style attributes.
-    let style = node.attrs?.style;
-    if (style != null) {
-      asset.addDependency({
+    let attrs = node.attrs;
+    let style = attrs?.style;
+    if (attrs != null && style != null) {
+      attrs.style = asset.addDependency({
         moduleSpecifier: parcelKey,
       });
+      asset.setAST(ast); // mark dirty
 
       parts.push({
         type: 'css',
@@ -124,6 +130,7 @@ export default function extractInlineAssets(
         isInline: true,
         meta: {
           type: 'attr',
+          // $FlowFixMe
           node,
         },
       });
@@ -132,7 +139,6 @@ export default function extractInlineAssets(
     return node;
   });
 
-  // $FlowFixMe
   return {
     assets: parts,
     hasScripts,

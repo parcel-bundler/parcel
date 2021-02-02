@@ -22,7 +22,7 @@ const VARS = {
     deps: ['process'],
   }),
   global: asset =>
-    asset.env.scopeHoist
+    asset.env.shouldScopeHoist
       ? /* Scope hoisting replaces this on its own in hoist.js */ null
       : /* the global `this` is passed as an argument in position 3 in standard JSPackager */ {
           code: `var global = arguments[3];`,

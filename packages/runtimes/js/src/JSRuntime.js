@@ -64,6 +64,16 @@ function getLoaders(
   return null;
 }
 
+// This cache should be invalidated if new dependencies get added to the bundle without the bundle objects changing
+// This can happen when we reuse the BundleGraph between subsequent builds
+let bundleDependencies = new WeakMap<
+  NamedBundle,
+  {|
+    asyncDependencies: Array<Dependency>,
+    otherDependencies: Array<Dependency>,
+  |},
+>();
+
 export default (new Runtime({
   apply({bundle, bundleGraph}) {
     // Dependency ids in code replaced with referenced bundle names
@@ -77,20 +87,7 @@ export default (new Runtime({
       return;
     }
 
-    let asyncDependencies = [];
-    let otherDependencies = [];
-    bundle.traverse(node => {
-      if (node.type !== 'dependency') {
-        return;
-      }
-
-      let dependency = node.value;
-      if (dependency.isAsync && !dependency.isURL) {
-        asyncDependencies.push(dependency);
-      } else {
-        otherDependencies.push(dependency);
-      }
-    });
+    let {asyncDependencies, otherDependencies} = getDependencies(bundle);
 
     let assets = [];
     for (let dependency of asyncDependencies) {
@@ -100,7 +97,7 @@ export default (new Runtime({
       }
 
       if (resolved.type === 'asset') {
-        if (!bundle.env.scopeHoist) {
+        if (!bundle.env.shouldScopeHoist) {
           // If this bundle already has the asset this dependency references,
           // return a simple runtime of `Promise.resolve(internalRequire(assetId))`.
           // The linker handles this for scope-hoisting.
@@ -201,6 +198,36 @@ export default (new Runtime({
     return assets;
   },
 }): Runtime);
+
+function getDependencies(
+  bundle: NamedBundle,
+): {|
+  asyncDependencies: Array<Dependency>,
+  otherDependencies: Array<Dependency>,
+|} {
+  let cachedDependencies = bundleDependencies.get(bundle);
+
+  if (cachedDependencies) {
+    return cachedDependencies;
+  } else {
+    let asyncDependencies = [];
+    let otherDependencies = [];
+    bundle.traverse(node => {
+      if (node.type !== 'dependency') {
+        return;
+      }
+
+      let dependency = node.value;
+      if (dependency.isAsync && !dependency.isURL) {
+        asyncDependencies.push(dependency);
+      } else {
+        otherDependencies.push(dependency);
+      }
+    });
+    bundleDependencies.set(bundle, {asyncDependencies, otherDependencies});
+    return {asyncDependencies, otherDependencies};
+  }
+}
 
 function getLoaderRuntime({
   bundle,
@@ -327,7 +354,7 @@ function getLoaderRuntime({
     )}')${
       // In global output with scope hoisting, functions return exports are
       // always returned. Otherwise, the exports are returned.
-      bundle.env.scopeHoist ? '()' : ''
+      bundle.env.shouldScopeHoist ? '()' : ''
     })`;
   }
 
@@ -344,17 +371,10 @@ function getHintedBundleGroups(
 ): {|preload: Array<BundleGroup>, prefetch: Array<BundleGroup>|} {
   let preload = [];
   let prefetch = [];
-  bundle.traverse(node => {
-    if (node.type !== 'dependency') {
-      return;
-    }
-
-    let dependency = node.value;
-    // $FlowFixMe
+  let {asyncDependencies} = getDependencies(bundle);
+  for (let dependency of asyncDependencies) {
     let attributes = dependency.meta?.importAttributes;
     if (
-      dependency.isAsync &&
-      !dependency.isURL &&
       typeof attributes === 'object' &&
       attributes != null &&
       // $FlowFixMe
@@ -371,7 +391,7 @@ function getHintedBundleGroups(
         }
       }
     }
-  });
+  }
 
   return {preload, prefetch};
 }

@@ -477,6 +477,10 @@ export default class BundleGraph {
     for (let bundleGroupNode of this._graph
       .getNodesConnectedFrom(nullthrows(this._graph.getNode(dependency.id)))
       .filter(node => node.type === 'bundle_group')) {
+      if (!this._graph.hasEdge(bundle.id, bundleGroupNode.id, 'bundle')) {
+        continue;
+      }
+
       let inboundDependencies = this._graph
         .getNodesConnectedTo(bundleGroupNode)
         .filter(node => node.type === 'dependency')
@@ -726,11 +730,26 @@ export default class BundleGraph {
 
       // Check that every parent bundle has a bundle group in its ancestry that contains the asset.
       return parentBundleNodes.every(bundleNode => {
-        let inBundle = false;
+        if (bundleNode.type === 'root') {
+          return false;
+        }
 
+        let isReachable = true;
         this._graph.traverseAncestors(
           bundleNode,
           (node, ctx, actions) => {
+            // If we've reached the root or a context change without
+            // finding this asset in the ancestry, it is not reachable.
+            if (
+              node.type === 'root' ||
+              (node.type === 'bundle' &&
+                node.value.env.context !== bundle.env.context)
+            ) {
+              isReachable = false;
+              actions.stop();
+              return;
+            }
+
             if (node.type === 'bundle_group') {
               let childBundles = this.getBundlesInBundleGroup(node.value);
               if (
@@ -738,23 +757,15 @@ export default class BundleGraph {
                   b => b.id !== bundle.id && this.bundleHasAsset(b, asset),
                 )
               ) {
-                inBundle = true;
-                actions.stop();
+                actions.skipChildren();
+                return;
               }
-            }
-
-            // Don't deduplicate when context changes
-            if (
-              node.type === 'bundle' &&
-              node.value.env.context !== bundle.env.context
-            ) {
-              actions.skipChildren();
             }
           },
           ['references', 'bundle'],
         );
 
-        return inBundle;
+        return isReachable;
       });
     });
   }

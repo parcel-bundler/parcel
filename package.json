@@ -13,7 +13,7 @@
   "scripts": {
     "build": "cross-env NODE_ENV=production PARCEL_BUILD_ENV=production gulp",
     "clean-test": "rimraf packages/core/integration-tests/.parcel-cache && rimraf packages/core/integration-tests/dist",
-    "clean": "yarn clean-test && lerna clean --yes && lerna exec -- rm -rf ./lib && yarn",
+    "clean": "yarn clean-test && lerna clean --yes && lerna exec -- rimraf ./lib && yarn",
     "format": "prettier --write \"./packages/*/*/{src,bin,test}/**/*.{js,json,md}\"",
     "link-all": "node scripts/link-all.js packages",
     "unlink-all": "node scripts/unlink-all.js packages",
@@ -39,7 +39,7 @@
     "cross-env": "^7.0.0",
     "doctoc": "^1.4.0",
     "eslint": "^6.0.0",
-    "flow-bin": "0.142.0",
+    "flow-bin": "0.143.0",
     "gulp": "^4.0.2",
     "gulp-babel": "^8.0.0",
     "husky": "^4.2.5",

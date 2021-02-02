@@ -1,8 +1,5 @@
-import {T} from "./i18n";
+import {T} from './i18n/index.js';
 
-const version = import("./version.js");
+const version = import('./version.js');
 
-console.log(
-	T("index"),
-	version.then(v => "Diagram" + v.default())
-);
+export default version.then((v) => [T('index'), 'Diagram' + v.default()]);
