@@ -1,2 +1,2 @@
-let a;
-export default a?.b;
+let a, x;
+export default [a?.b, x?.()];

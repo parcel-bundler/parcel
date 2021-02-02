@@ -338,8 +338,10 @@ describe('postcss', () => {
     await bundle(path.join(__dirname, '/input/index.css'), {
       inputFS: overlayFS,
       packageManager,
-      distDir,
       shouldAutoInstall: true,
+      defaultTargetOptions: {
+        distDir,
+      },
     });
 
     // cssnext was installed
