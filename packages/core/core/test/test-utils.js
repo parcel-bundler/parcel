@@ -25,13 +25,8 @@ export const DEFAULT_OPTIONS: ParcelOptions = {
   shouldContentHash: true,
   serveOptions: false,
   mode: 'development',
-  scopeHoist: false,
-  minify: false,
-  publicUrl: '/',
-  distDir: undefined,
   env: {},
   shouldDisableCache: false,
-  sourceMaps: false,
   shouldProfile: false,
   inputFS,
   outputFS,
@@ -39,6 +34,13 @@ export const DEFAULT_OPTIONS: ParcelOptions = {
   shouldPatchConsole: false,
   packageManager: new NodePackageManager(inputFS),
   instanceId: 'test',
+  defaultTargetOptions: {
+    shouldScopeHoist: false,
+    shouldOptimize: false,
+    publicUrl: '/',
+    distDir: undefined,
+    sourceMaps: false,
+  },
 };
 
 export const DEFAULT_ENV: Environment = createEnvironment({

@@ -132,7 +132,9 @@ describe('typescript', function() {
         path.join(__dirname, '/integration/typescript-require/index.ts'),
         {
           config,
-          minify: true,
+          defaultTargetOptions: {
+            shouldOptimize: true,
+          },
         },
       );
 
