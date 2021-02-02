@@ -1853,4 +1853,37 @@ describe('html', function() {
       `<img src="data:image/svg+xml,%3Csvg%20width%3D%22120%22%20height%3D%27120%27%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%0A%20%20%3Cfilter%20id%3D%22blur-_.%21~%2a%22%3E%0A%20%20%20%20%3CfeGaussianBlur%20stdDeviation%3D%225%22%2F%3E%0A%20%20%3C%2Ffilter%3E%0A%20%20%3Ccircle%20cx%3D%2260%22%20cy%3D%2260%22%20r%3D%2250%22%20fill%3D%22green%22%20filter%3D%22url%28%23blur-_.%21~%2a%29%22%20%2F%3E%0A%3C%2Fsvg%3E%0A">`,
     );
   });
+
+  it('should print a diagnostic for invalid bundler options', async () => {
+    let dir = path.join(__dirname, 'integration/invalid-bundler-config');
+    let pkg = path.join(dir, 'package.json');
+    let code = await inputFS.readFileSync(pkg, 'utf8');
+    await assert.rejects(() => bundle(path.join(dir, 'index.html')), {
+      name: 'BuildError',
+      diagnostics: [
+        {
+          message: 'Invalid config for @parcel/bundler-default',
+          origin: '@parcel/bundler-default',
+          filePath: pkg,
+          language: 'json',
+          codeFrame: {
+            code,
+            codeHighlights: [
+              {
+                message: 'Did you mean "minBundleSize", "minBundles"?',
+                start: {
+                  column: 30,
+                  line: 3,
+                },
+                end: {
+                  column: 45,
+                  line: 3,
+                },
+              },
+            ],
+          },
+        },
+      ],
+    });
+  });
 });
