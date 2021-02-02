@@ -488,7 +488,7 @@ async function loadBundlerConfig(options: PluginOptions) {
     CONFIG_SCHEMA,
     {
       data: config,
-      source: JSON.stringify(config),
+      source: await options.inputFS.readFile(result.files[0].filePath, 'utf8'),
       filePath: result.files[0].filePath,
       prependKey: `/${encodeJSONKeyComponent('@parcel/bundler-default')}`,
     },
