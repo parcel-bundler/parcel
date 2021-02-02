@@ -23,7 +23,7 @@ import {
 import ThrowableDiagnostic, {anyToDiagnostic} from '@parcel/diagnostic';
 import {escapeMarkdown} from '@parcel/utils';
 import Worker, {type WorkerCall} from './Worker';
-import cpuCount from './cpuCount';
+import {getCoreCount} from './cpuCount';
 import Handle from './Handle';
 import {child} from './childState';
 import {detectBackend} from './backend';
@@ -559,7 +559,7 @@ export default class WorkerFarm extends EventEmitter {
   static getNumWorkers(): number {
     return process.env.PARCEL_WORKERS
       ? parseInt(process.env.PARCEL_WORKERS, 10)
-      : cpuCount();
+      : getCoreCount();
   }
 
   static isWorker(): boolean {
