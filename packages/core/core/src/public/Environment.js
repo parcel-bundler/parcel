@@ -110,12 +110,12 @@ export default class Environment implements IEnvironment {
     return this.#environment.isLibrary;
   }
 
-  get minify(): boolean {
-    return this.#environment.minify;
+  get shouldOptimize(): boolean {
+    return this.#environment.shouldOptimize;
   }
 
-  get scopeHoist(): boolean {
-    return this.#environment.scopeHoist;
+  get shouldScopeHoist(): boolean {
+    return this.#environment.shouldScopeHoist;
   }
 
   get sourceMap(): ?TargetSourceMapOptions {
