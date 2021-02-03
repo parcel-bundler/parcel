@@ -9,6 +9,8 @@ import nullthrows from 'nullthrows';
 import path from 'path';
 import semver from 'semver';
 import valueParser from 'postcss-value-parser';
+import postcss from 'postcss';
+import postcssModules from 'postcss-modules';
 
 import {load, preSerialize, postDeserialize} from './loadConfig';
 
@@ -37,12 +39,6 @@ export default (new Transformer({
       return;
     }
 
-    let postcss = await options.packageManager.require(
-      'postcss',
-      asset.filePath,
-      {shouldAutoInstall: options.shouldAutoInstall, range: '^8.2.1'},
-    );
-
     return {
       type: 'postcss',
       version: '8.2.1',
@@ -60,21 +56,9 @@ export default (new Transformer({
       return [asset];
     }
 
-    let postcss = await options.packageManager.require(
-      'postcss',
-      asset.filePath,
-      {shouldAutoInstall: options.shouldAutoInstall, range: '^8.2.1'},
-    );
-
     let plugins = [...config.hydrated.plugins];
     let cssModules: ?{|[string]: string|} = null;
     if (config.hydrated.modules) {
-      let postcssModules = await options.packageManager.require(
-        'postcss-modules',
-        asset.filePath,
-        {shouldAutoInstall: options.shouldAutoInstall},
-      );
-
       plugins.push(
         postcssModules({
           getJSON: (filename, json) => (cssModules = json),
@@ -174,12 +158,6 @@ export default (new Transformer({
   },
 
   async generate({ast, asset, options}) {
-    let postcss = await options.packageManager.require(
-      'postcss',
-      asset.filePath,
-      {shouldAutoInstall: options.shouldAutoInstall, range: '^8.2.1'},
-    );
-
     let code = '';
     postcss.stringify(postcss.fromJSON(ast.program), c => {
       code += c;

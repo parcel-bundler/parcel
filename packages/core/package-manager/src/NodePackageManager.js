@@ -79,14 +79,13 @@ export class NodePackageManager implements PackageManager {
     return this.load(resolved, from);
   }
 
-  load(resolved: FilePath, from: FilePath): any {
-    if (!path.isAbsolute(resolved)) {
+  load(filePath: FilePath, from: FilePath): any {
+    if (!path.isAbsolute(filePath)) {
       // Node builtin module
       // $FlowFixMe
-      return require(resolved);
+      return require(filePath);
     }
 
-    let filePath = this.fs.realpathSync(resolved);
     const cachedModule = Module._cache[filePath];
     if (cachedModule !== undefined) {
       return cachedModule.exports;
@@ -264,7 +263,7 @@ export class NodePackageManager implements PackageManager {
     from: FilePath,
     opts?: InstallOptions,
   ) {
-    await installPackage(this.fs, modules, from, {
+    await installPackage(this.fs, this, modules, from, {
       packageInstaller: this.installer,
       ...opts,
     });

@@ -17,7 +17,6 @@ import {
   isDirectoryInside,
   md5FromObject,
   resolveConfig,
-  resolve,
   validateSchema,
   findAlternativeNodeModules,
   findAlternativeFiles,
@@ -93,6 +92,10 @@ export default function createParcelConfigRequest(): ParcelConfigRequest {
 
 const parcelConfigCache = new Map();
 
+export function clearParcelConfigCache() {
+  parcelConfigCache.clear();
+}
+
 export function getCachedParcelConfig(
   result: ConfigAndCachePath,
   options: ParcelOptions,
@@ -105,9 +108,7 @@ export function getCachedParcelConfig(
 
   config = new ParcelConfig(
     processedConfig,
-    options.packageManager,
-    options.inputFS,
-    options.shouldAutoInstall,
+    options,
   );
 
   parcelConfigCache.set(cachePath, config);
@@ -133,9 +134,7 @@ export async function resolveParcelConfig(
   let configPath =
     options.config != null
       ? (
-          await resolve(options.inputFS, options.config, {
-            basedir: resolveFrom,
-          })
+          await options.packageManager.resolve(options.config, resolveFrom)
         ).resolved
       : await resolveConfig(options.inputFS, resolveFrom, ['.parcelrc']);
 
@@ -143,9 +142,7 @@ export async function resolveParcelConfig(
   if (configPath == null && options.defaultConfig != null) {
     usedDefault = true;
     configPath = (
-      await resolve(options.inputFS, options.defaultConfig, {
-        basedir: resolveFrom,
-      })
+      await options.packageManager.resolve(options.defaultConfig, resolveFrom)
     ).resolved;
   }
 
@@ -393,10 +390,7 @@ export async function resolveExtends(
     return path.resolve(path.dirname(configPath), ext);
   } else {
     try {
-      let {resolved} = await resolve(options.inputFS, ext, {
-        basedir: path.dirname(configPath),
-        extensions: ['.json'],
-      });
+      let {resolved} = await options.packageManager.resolve(ext, configPath);
       return options.inputFS.realpath(resolved);
     } catch (err) {
       let parentContents = await options.inputFS.readFile(configPath, 'utf8');

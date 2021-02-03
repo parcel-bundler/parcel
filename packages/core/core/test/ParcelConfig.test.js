@@ -10,8 +10,6 @@ import {NodePackageManager} from '@parcel/package-manager';
 import {parseAndProcessConfig} from '../src/requests/ParcelConfigRequest';
 import {DEFAULT_OPTIONS} from './test-utils';
 
-const packageManager = new NodePackageManager(inputFS);
-
 describe('ParcelConfig', () => {
   describe('matchGlobMap', () => {
     let config = new ParcelConfig(
@@ -31,9 +29,7 @@ describe('ParcelConfig', () => {
           },
         },
       },
-      packageManager,
-      inputFS,
-      false,
+      DEFAULT_OPTIONS,
     );
 
     it('should return null array if no glob matches', () => {
@@ -74,9 +70,7 @@ describe('ParcelConfig', () => {
           ],
         },
       },
-      packageManager,
-      inputFS,
-      false,
+      DEFAULT_OPTIONS,
     );
 
     it('should return an empty array if no pipeline matches', () => {
@@ -143,9 +137,7 @@ describe('ParcelConfig', () => {
             ],
           },
         },
-        packageManager,
-        inputFS,
-        false,
+        DEFAULT_OPTIONS,
       );
 
       sinon.stub(logger, 'warn');
@@ -186,9 +178,7 @@ describe('ParcelConfig', () => {
             ],
           },
         },
-        packageManager,
-        inputFS,
-        false,
+        DEFAULT_OPTIONS,
       );
       // $FlowFixMe
       let parcelVersion = require('../package.json').version;
@@ -249,9 +239,7 @@ describe('ParcelConfig', () => {
       );
       let parcelConfig = new ParcelConfig(
         config,
-        DEFAULT_OPTIONS.packageManager,
-        DEFAULT_OPTIONS.inputFS,
-        DEFAULT_OPTIONS.shouldAutoInstall,
+        DEFAULT_OPTIONS,
       );
 
       // $FlowFixMe
@@ -269,7 +257,7 @@ describe('ParcelConfig', () => {
                 {
                   start: {line: 4, column: 14},
                   end: {line: 4, column: 37},
-                  message: `Cannot find module "@parcel/transformer-jj", did you mean "@parcel/transformer-js"?`,
+                  message: `Cannot find module "@parcel/transformer-jj"`,
                 },
               ],
             },

@@ -1,5 +1,6 @@
 // @flow
 import {Transformer} from '@parcel/plugin';
+import sharp from 'sharp';
 
 const FORMATS = new Map([
   ['heic', 'heif'],
@@ -24,15 +25,6 @@ export default (new Transformer({
     let format = asset.query.as ? asset.query.as.toLowerCase().trim() : null;
 
     if (width || height || quality || format) {
-      const sharp = await options.packageManager.require(
-        'sharp',
-        asset.filePath,
-        {
-          // Sharp takes too long to install for shouldAutoInstall option to make sense
-          shouldAutoInstall: false,
-        },
-      );
-
       let inputBuffer = await asset.getBuffer();
       let imagePipeline = sharp(inputBuffer);
       if (width || height) {

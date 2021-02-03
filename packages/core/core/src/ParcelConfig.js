@@ -22,8 +22,10 @@ import type {
   ParcelPluginNode,
   PureParcelConfigPipeline,
   ExtendableParcelConfigPipeline,
+  ParcelOptions,
 } from './types';
 import {makeRe} from 'micromatch';
+import path from 'path';
 import {basename} from 'path';
 import loadPlugin from './loadParcelPlugin';
 
@@ -31,9 +33,7 @@ type GlobMap<T> = {[Glob]: T, ...};
 type SerializedParcelConfig = {|
   $$raw: boolean,
   config: ProcessedParcelConfig,
-  packageManager: PackageManager,
-  fs: FileSystem,
-  shouldAutoInstall: boolean,
+  options: ParcelOptions,
 |};
 
 type LoadedPlugin<T> = {|
@@ -45,8 +45,7 @@ type LoadedPlugin<T> = {|
 |};
 
 export default class ParcelConfig {
-  packageManager: PackageManager;
-  fs: FileSystem;
+  options: ParcelOptions;
   filePath: FilePath;
   resolvers: PureParcelConfigPipeline;
   transformers: GlobMap<ExtendableParcelConfigPipeline>;
@@ -58,17 +57,13 @@ export default class ParcelConfig {
   optimizers: GlobMap<ExtendableParcelConfigPipeline>;
   reporters: PureParcelConfigPipeline;
   pluginCache: Map<PackageName, any>;
-  shouldAutoInstall: boolean;
   regexCache: Map<string, RegExp>;
 
   constructor(
     config: ProcessedParcelConfig,
-    packageManager: PackageManager,
-    fs: FileSystem,
-    shouldAutoInstall: boolean,
+    options: ParcelOptions,
   ) {
-    this.packageManager = packageManager;
-    this.fs = fs;
+    this.options = options;
     this.filePath = config.filePath;
     this.resolvers = config.resolvers || [];
     this.transformers = config.transformers || {};
@@ -80,16 +75,13 @@ export default class ParcelConfig {
     this.reporters = config.reporters || [];
     this.validators = config.validators || {};
     this.pluginCache = new Map();
-    this.shouldAutoInstall = shouldAutoInstall;
     this.regexCache = new Map();
   }
 
   static deserialize(serialized: SerializedParcelConfig): ParcelConfig {
     return new ParcelConfig(
       serialized.config,
-      serialized.packageManager,
-      serialized.fs,
-      serialized.shouldAutoInstall,
+      serialized.options,
     );
   }
 
@@ -111,10 +103,8 @@ export default class ParcelConfig {
   serialize(): SerializedParcelConfig {
     return {
       $$raw: false,
-      packageManager: this.packageManager,
-      fs: this.fs,
       config: this.getConfig(),
-      shouldAutoInstall: this.shouldAutoInstall,
+      options: this.options,
     };
   }
 
@@ -127,12 +117,10 @@ export default class ParcelConfig {
     }
 
     plugin = loadPlugin<T>(
-      this.fs,
-      this.packageManager,
       node.packageName,
       node.resolveFrom,
       node.keyPath,
-      this.shouldAutoInstall,
+      this.options,
     );
     this.pluginCache.set(node.packageName, plugin);
     return plugin;

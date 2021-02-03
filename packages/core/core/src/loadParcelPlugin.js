@@ -2,6 +2,7 @@
 import type {FilePath, PackageName, Semver} from '@parcel/types';
 import type {PackageManager} from '@parcel/package-manager';
 import type {FileSystem} from '@parcel/fs';
+import type {ParcelOptions} from './types';
 
 import semver from 'semver';
 import logger from '@parcel/logger';
@@ -10,29 +11,64 @@ import nullthrows from 'nullthrows';
 import ThrowableDiagnostic, {
   generateJSONCodeHighlights,
 } from '@parcel/diagnostic';
-import {findAlternativeNodeModules, resolveConfig} from '@parcel/utils';
+import {findAlternativeNodeModules, resolveConfig, loadConfig} from '@parcel/utils';
 import path from 'path';
 import {version as PARCEL_VERSION} from '../package.json';
 
+const NODE_MODULES = `${path.sep}node_modules${path.sep}`;
+
 export default async function loadPlugin<T>(
-  fs: FileSystem,
-  packageManager: PackageManager,
   pluginName: PackageName,
   resolveFrom: FilePath,
   keyPath: string,
-  shouldAutoInstall: boolean,
+  options: ParcelOptions,
 ): Promise<{|plugin: T, version: Semver|}> {
+  let range;
+  if (resolveFrom.includes(NODE_MODULES)) {
+    let configPkg = (await loadConfig(options.inputFS, resolveFrom, ['package.json']));
+    if (configPkg != null && configPkg.config.dependencies?.[pluginName] == null) {
+      // If not in the config's dependencies, the plugin will be auto installed with 
+      // the version declared in "parcelDependencies".
+      range = configPkg.config.parcelDependencies?.[pluginName];
+
+      if (range == null) {
+        let contents = await options.inputFS.readFile(configPkg.files[0].filePath, 'utf8');
+        throw new ThrowableDiagnostic({
+          diagnostic: {
+            message: `Could not determine version of ${pluginName} in ${path.relative(process.cwd(), resolveFrom)}. Either include it in "dependencies" or "parcelDependencies".`,
+            origin: '@parcel/core',
+            filePath: configPkg.files[0].filePath,
+            language: 'json5',
+            codeFrame: configPkg.config.dependencies || configPkg.config.parcelDependencies ? {
+              code: contents,
+              codeHighlights: generateJSONCodeHighlights(contents, [
+                {
+                  key: configPkg.config.parcelDependencies ? '/parcelDependencies' : '/dependencies',
+                  type: 'key',
+                },
+              ]),
+            } : undefined,
+          }
+        });
+      }
+
+      // Resolve from project root if not in the config's dependencies.
+      resolveFrom = path.join(options.projectRoot, 'index');
+    }
+  }
+
   let resolved, pkg;
   try {
-    ({resolved, pkg} = await packageManager.resolve(pluginName, resolveFrom, {
-      shouldAutoInstall,
+    ({resolved, pkg} = await options.packageManager.resolve(pluginName, resolveFrom, {
+      shouldAutoInstall: options.shouldAutoInstall,
+      range,
     }));
   } catch (err) {
-    let configContents = await fs.readFile(resolveFrom, 'utf8');
+    let configContents = await options.inputFS.readFile(resolveFrom, 'utf8');
     let alternatives = await findAlternativeNodeModules(
-      fs,
+      options.inputFS,
       pluginName,
-      path.dirname(resolveFrom),
+      options.projectRoot,
     );
     throw new ThrowableDiagnostic({
       diagnostic: {
@@ -70,9 +106,9 @@ export default async function loadPlugin<T>(
     !semver.satisfies(PARCEL_VERSION, parcelVersionRange)
   ) {
     let pkgFile = nullthrows(
-      await resolveConfig(fs, resolved, ['package.json']),
+      await resolveConfig(options.inputFS, resolved, ['package.json']),
     );
-    let pkgContents = await fs.readFile(pkgFile, 'utf8');
+    let pkgContents = await options.inputFS.readFile(pkgFile, 'utf8');
     throw new ThrowableDiagnostic({
       diagnostic: {
         message: `The plugin "${pluginName}" is not compatible with the current version of Parcel. Requires "${parcelVersionRange}" but the current version is "${PARCEL_VERSION}".`,
@@ -91,8 +127,8 @@ export default async function loadPlugin<T>(
     });
   }
 
-  let plugin = await packageManager.require(resolved, resolveFrom, {
-    shouldAutoInstall,
+  let plugin = await options.packageManager.require(resolved, path.join(options.projectRoot, 'index'), {
+    shouldAutoInstall: options.shouldAutoInstall,
   });
   plugin = plugin.default ? plugin.default : plugin;
   if (!plugin) {

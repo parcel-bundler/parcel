@@ -91,9 +91,7 @@ export default class Parcel {
     let {config} = await loadParcelConfig(resolvedOptions);
     this.#config = new ParcelConfig(
       config,
-      resolvedOptions.packageManager,
-      resolvedOptions.inputFS,
-      resolvedOptions.shouldAutoInstall,
+      resolvedOptions,
     );
 
     if (this.#initialOptions.workerFarm) {

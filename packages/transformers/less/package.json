@@ -21,9 +21,7 @@
   },
   "dependencies": {
     "@parcel/plugin": "2.0.0-beta.1",
-    "@parcel/source-map": "2.0.0-alpha.4.19"
-  },
-  "devDependencies": {
+    "@parcel/source-map": "2.0.0-alpha.4.19",
     "less": "^3.9.0"
   }
 }

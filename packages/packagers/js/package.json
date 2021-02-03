@@ -26,8 +26,5 @@
     "@parcel/source-map": "2.0.0-alpha.4.19",
     "@parcel/utils": "2.0.0-beta.1",
     "nullthrows": "^1.1.1"
-  },
-  "peerDependencies": {
-    "@parcel/core": "^2.0.0-alpha.3.1"
   }
 }

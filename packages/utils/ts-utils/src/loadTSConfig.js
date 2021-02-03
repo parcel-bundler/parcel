@@ -4,18 +4,13 @@ import typeof TypeScriptModule from 'typescript'; // eslint-disable-line import/
 import {ParseConfigHost} from './ParseConfigHost';
 import path from 'path';
 import nullthrows from 'nullthrows';
+import ts from 'typescript';
 
 export async function loadTSConfig(config: Config, options: PluginOptions) {
   let configResult = await config.getConfig(['tsconfig.json']);
   if (!configResult) {
     return;
   }
-
-  let ts: TypeScriptModule = await options.packageManager.require(
-    'typescript',
-    config.searchPath,
-    {shouldAutoInstall: options.shouldAutoInstall},
-  );
 
   let host = new ParseConfigHost(options.inputFS, ts);
   let parsedConfig = ts.parseJsonConfigFileContent(

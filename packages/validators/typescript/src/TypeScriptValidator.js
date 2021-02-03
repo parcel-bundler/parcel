@@ -12,6 +12,7 @@ import path from 'path';
 import {md5FromObject} from '@parcel/utils';
 import {Validator} from '@parcel/plugin';
 import {LanguageServiceHost, ParseConfigHost} from '@parcel/ts-utils';
+import ts from 'typescript';
 
 let langServiceCache: {
   [configHash: string]: {|
@@ -106,12 +107,6 @@ async function tryCreateLanguageService(
   options: PluginOptions,
 ): Promise<void> {
   if (config.tsconfig && !langServiceCache[config.configHash]) {
-    let ts = await options.packageManager.require(
-      'typescript',
-      asset.filePath,
-      {shouldAutoInstall: options.shouldAutoInstall},
-    );
-
     // In order to prevent race conditions where we accidentally create two language services for the same config,
     // we need to re-check the cache to see if a service has been created while we were awaiting 'ts'.
     if (!langServiceCache[config.configHash]) {
@@ -129,6 +124,7 @@ async function tryCreateLanguageService(
       langServiceCache[config.configHash] = {
         configHost,
         host,
+        // $FlowFixMe - complains about methods being readonly...
         service: ts.createLanguageService(host, ts.createDocumentRegistry()),
       };
     }
