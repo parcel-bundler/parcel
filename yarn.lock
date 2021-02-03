@@ -2935,6 +2935,13 @@
     "@octokit/openapi-types" "^3.1.1"
     "@types/node" ">= 8"
 
+"@parcel/fs-search@2.0.0-nightly.2190":
+  version "2.0.0-nightly.2190"
+  resolved "https://registry.yarnpkg.com/@parcel/fs-search/-/fs-search-2.0.0-nightly.2190.tgz#08f431a006b8ea19c2d33911a0da0dcfc3f186f0"
+  integrity sha512-gnQEvZas/U60VZmjQnewnFNSWSfSrPtGiDTmEfAJ94z44vWDm9ltLT8SoHAmhNJbr3+ga59W0Mng7Nv4bnXKBg==
+  dependencies:
+    detect-libc "^1.0.3"
+
 "@parcel/fs@^1.11.0":
   version "1.11.0"
   resolved "https://registry.yarnpkg.com/@parcel/fs/-/fs-1.11.0.tgz#fb8a2be038c454ad46a50dc0554c1805f13535cd"
