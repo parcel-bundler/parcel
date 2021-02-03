@@ -699,4 +699,20 @@ describe('babel', function() {
     assert.equal(typeof output, 'object');
     assert.deepEqual(output.default, [undefined, undefined]);
   });
+
+  it('should enable shippedProposals with @parcel/babel-preset-env in custom babelrc', async function() {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/babel-preset-env-shippedProposals/index.js',
+      ),
+    );
+
+    let file = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(!file.includes('#priv'));
+
+    let output = await run(b);
+    assert.strictEqual(typeof output, 'object');
+    assert.strictEqual(output.default, 123);
+  });
 });

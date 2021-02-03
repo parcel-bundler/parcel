@@ -40,16 +40,7 @@ export function getName(
   ...rest: Array<string>
 ): string {
   return t.toIdentifier(
-    '$' +
-      asset.id +
-      '$' +
-      type +
-      (rest.length
-        ? '$' +
-          rest
-            .map(name => (name === 'default' ? name : t.toIdentifier(name)))
-            .join('$')
-        : ''),
+    '$' + asset.id + '$' + type + (rest.length ? '$' + rest.join('$') : ''),
   );
 }
 
