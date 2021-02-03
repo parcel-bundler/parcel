@@ -1,8 +1,7 @@
-const fs = require('fs');
-
 let parts = [process.platform, process.arch];
 if (process.platform === 'linux') {
-  if (fs.existsSync('/etc/alpine-release')) {
+  const {MUSL, family} = require('detect-libc');
+  if (family === MUSL) {
     parts.push('musl');
   } else if (process.arch === 'arm') {
     parts.push('gnueabihf');
