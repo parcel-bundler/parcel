@@ -9,3 +9,9 @@ async function j() {
   await g().a;
   return await f();
 }
+async function k() {
+  return await (obj = Promise.resolve(1));
+}
+async function l() {
+  await (() => 1);
+}
