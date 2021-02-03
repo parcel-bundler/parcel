@@ -7,7 +7,7 @@ import type {
   PackageInstaller,
   InstallOptions,
 } from './types';
-import type {ResolveResult} from '@parcel/utils';
+import type {ResolveResult} from './NodeResolverBase';
 
 import {registerSerializableClass} from '@parcel/core';
 import ThrowableDiagnostic, {

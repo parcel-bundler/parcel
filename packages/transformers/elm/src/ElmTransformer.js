@@ -89,10 +89,12 @@ async function elmBinaryPath(searchPath, options) {
 
 async function resolveLocalElmBinary(searchPath, options) {
   try {
-    let result = require.resolve('elm/package.json')
-    let bin = nullthrows(result.pkg?.bin);
+    let result = require.resolve('elm/package.json');
+    // $FlowFixMe
+    let pkg = require('elm/package.json');
+    let bin = nullthrows(pkg.bin);
     return path.join(
-      path.dirname(result.resolved),
+      path.dirname(result),
       typeof bin === 'string' ? bin : bin.elm,
     );
   } catch (_) {

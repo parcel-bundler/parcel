@@ -257,7 +257,7 @@ describe('ParcelConfig', () => {
                 {
                   start: {line: 4, column: 14},
                   end: {line: 4, column: 37},
-                  message: `Cannot find module "@parcel/transformer-jj"`,
+                  message: `Cannot find module "@parcel/transformer-jj", did you mean "@parcel/transformer-js"?`,
                 },
               ],
             },

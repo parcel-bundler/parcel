@@ -68,7 +68,7 @@ export default async function loadPlugin<T>(
     let alternatives = await findAlternativeNodeModules(
       options.inputFS,
       pluginName,
-      options.projectRoot,
+      path.dirname(resolveFrom),
     );
     throw new ThrowableDiagnostic({
       diagnostic: {
@@ -127,7 +127,7 @@ export default async function loadPlugin<T>(
     });
   }
 
-  let plugin = await options.packageManager.require(resolved, path.join(options.projectRoot, 'index'), {
+  let plugin = await options.packageManager.require(resolved, resolveFrom, {
     shouldAutoInstall: options.shouldAutoInstall,
   });
   plugin = plugin.default ? plugin.default : plugin;
