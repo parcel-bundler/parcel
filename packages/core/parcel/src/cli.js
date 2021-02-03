@@ -105,7 +105,7 @@ var hmrOptions = {
 function applyOptions(cmd, options) {
   for (let opt in options) {
     const option = options[opt];
-    if (option.flags) {
+    if (option instanceof commander.Option) {
       cmd.addOption(option);
     } else {
       cmd.option(opt, ...(Array.isArray(option) ? option : [option]));
