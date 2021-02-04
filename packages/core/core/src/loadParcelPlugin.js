@@ -21,10 +21,11 @@ const NODE_MODULES = `${path.sep}node_modules${path.sep}`;
 
 export default async function loadPlugin<T>(
   pluginName: PackageName,
-  resolveFrom: FilePath,
+  configPath: FilePath,
   keyPath: string,
   options: ParcelOptions,
 ): Promise<{|plugin: T, version: Semver|}> {
+  let resolveFrom = configPath;
   let range;
   if (resolveFrom.includes(NODE_MODULES)) {
     let configPkg = await loadConfig(options.inputFS, resolveFrom, [
@@ -87,7 +88,11 @@ export default async function loadPlugin<T>(
       },
     ));
   } catch (err) {
-    let configContents = await options.inputFS.readFile(resolveFrom, 'utf8');
+    if (err.code !== 'MODULE_NOT_FOUND') {
+      throw err;
+    }
+
+    let configContents = await options.inputFS.readFile(configPath, 'utf8');
     let alternatives = await findAlternativeNodeModules(
       options.inputFS,
       pluginName,
@@ -97,7 +102,7 @@ export default async function loadPlugin<T>(
       diagnostic: {
         message: `Cannot find parcel plugin "${pluginName}"`,
         origin: '@parcel/core',
-        filePath: resolveFrom,
+        filePath: configPath,
         language: 'json5',
         codeFrame: {
           code: configContents,
