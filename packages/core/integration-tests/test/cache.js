@@ -14,7 +14,6 @@ import {
   sleep,
 } from '@parcel/test-utils';
 import fs from 'fs';
-import {clearParcelConfigCache} from '@parcel/core/src/requests/ParcelConfigRequest';
 import {NodePackageManager} from '@parcel/package-manager';
 
 let inputDir: string;

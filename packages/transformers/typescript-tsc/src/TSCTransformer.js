@@ -11,7 +11,7 @@ export default (new Transformer({
     await loadTSConfig(config, options);
   },
 
-  async transform({asset, config, options}) {
+  async transform({asset, config}) {
     asset.type = 'js';
 
     let code = await asset.getCode();

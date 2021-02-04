@@ -8,14 +8,12 @@ import nullthrows from 'nullthrows';
 import path from 'path';
 import * as babelCore from '@babel/core';
 import {md5FromObject} from '@parcel/utils';
-import semver from 'semver';
 
 import getEnvOptions from './env';
 import getJSXOptions from './jsx';
 import getFlowOptions from './flow';
 import getTypescriptOptions from './typescript';
 import {enginesToBabelTargets} from './utils';
-import {BABEL_RANGE} from './constants';
 
 const TYPESCRIPT_EXTNAME_RE = /^\.tsx?/;
 const BABEL_TRANSFORMER_DIR = path.dirname(__dirname);

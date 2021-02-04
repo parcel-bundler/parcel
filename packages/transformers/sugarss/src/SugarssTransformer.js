@@ -5,7 +5,7 @@ import postcss from 'postcss';
 import sugarss from 'sugarss';
 
 export default (new Transformer({
-  async transform({asset, options}) {
+  async transform({asset}) {
     const code = await asset.getCode();
     const {css} = await postcss().process(code, {
       from: asset.filePath,

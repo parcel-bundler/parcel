@@ -3,7 +3,7 @@ import {Transformer} from '@parcel/plugin';
 import mdx from '@mdx-js/mdx';
 
 export default (new Transformer({
-  async transform({asset, options}) {
+  async transform({asset}) {
     let code = await asset.getCode();
     let compiled = await mdx(code);
 

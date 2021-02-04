@@ -35,7 +35,7 @@ export default (new Transformer({
     }
   },
 
-  async transform({asset, config, options}) {
+  async transform({asset, config}) {
     const pugConfig = config ? config.contents : {};
     const content = await asset.getCode();
     const render = pug.compile(content, {

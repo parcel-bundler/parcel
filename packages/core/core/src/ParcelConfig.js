@@ -15,8 +15,6 @@ import type {
   Semver,
   Validator,
 } from '@parcel/types';
-import type {PackageManager} from '@parcel/package-manager';
-import type {FileSystem} from '@parcel/fs';
 import type {
   ProcessedParcelConfig,
   ParcelPluginNode,
@@ -25,7 +23,6 @@ import type {
   ParcelOptions,
 } from './types';
 import {makeRe} from 'micromatch';
-import path from 'path';
 import {basename} from 'path';
 import loadPlugin from './loadParcelPlugin';
 

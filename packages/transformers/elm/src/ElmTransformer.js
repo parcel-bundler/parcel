@@ -21,10 +21,10 @@ try {
 }
 
 export default (new Transformer({
-  async loadConfig({config, options}) {
+  async loadConfig({config}) {
     const elmConfig = await config.getConfig(['elm.json']);
     if (!elmConfig) {
-      await elmBinaryPath(config.searchPath, options); // Check if elm is even installed
+      elmBinaryPath(); // Check if elm is even installed
       throw new ThrowableDiagnostic({
         diagnostic: {
           message: "The 'elm.json' file is missing.",
@@ -39,7 +39,7 @@ export default (new Transformer({
   },
 
   async transform({asset, options}) {
-    const elmBinary = await elmBinaryPath(asset.filePath, options);
+    const elmBinary = elmBinaryPath();
     const compilerConfig = {
       spawn,
       cwd: path.dirname(asset.filePath),
@@ -58,7 +58,7 @@ export default (new Transformer({
 
     let code = await compileToString(elm, elmBinary, asset, compilerConfig);
     if (options.hmrOptions) {
-      code = await injectHotModuleReloadRuntime(code, asset.filePath, options);
+      code = elmHMR.inject(code);
     }
     if (compilerConfig.optimize) code = await minifyElmOutput(code);
 
@@ -68,8 +68,8 @@ export default (new Transformer({
   },
 }): Transformer);
 
-async function elmBinaryPath(searchPath, options) {
-  let elmBinary = await resolveLocalElmBinary(searchPath, options);
+function elmBinaryPath() {
+  let elmBinary = resolveLocalElmBinary();
 
   if (elmBinary == null && !commandExists.sync('elm')) {
     throw new ThrowableDiagnostic({
@@ -87,7 +87,7 @@ async function elmBinaryPath(searchPath, options) {
   return elmBinary;
 }
 
-async function resolveLocalElmBinary(searchPath, options) {
+function resolveLocalElmBinary() {
   try {
     let result = require.resolve('elm/package.json');
     // $FlowFixMe
@@ -107,10 +107,6 @@ function compileToString(elm, elmBinary, asset, config) {
     pathToElm: elmBinary,
     ...config,
   });
-}
-
-async function injectHotModuleReloadRuntime(code, filePath, options) {
-  return elmHMR.inject(code);
 }
 
 async function minifyElmOutput(source) {

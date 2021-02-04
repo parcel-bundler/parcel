@@ -14,7 +14,7 @@ const FORMATS = new Map([
 ]);
 
 export default (new Transformer({
-  async transform({asset, options}) {
+  async transform({asset}) {
     asset.isIsolated = true;
 
     let width = asset.query.width ? parseInt(asset.query.width, 10) : null;

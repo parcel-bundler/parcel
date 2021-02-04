@@ -34,7 +34,7 @@ export default (new Transformer({
     return ast.type === 'postcss' && semver.satisfies(ast.version, '^8.2.1');
   },
 
-  async parse({asset, config, options}) {
+  async parse({asset, config}) {
     if (!config) {
       return;
     }
@@ -157,7 +157,7 @@ export default (new Transformer({
     return assets;
   },
 
-  async generate({ast, asset, options}) {
+  generate({ast}) {
     let code = '';
     postcss.stringify(postcss.fromJSON(ast.program), c => {
       code += c;

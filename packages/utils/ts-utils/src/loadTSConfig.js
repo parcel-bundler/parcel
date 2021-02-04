@@ -1,6 +1,5 @@
 // @flow
 import type {Config, PluginOptions} from '@parcel/types';
-import typeof TypeScriptModule from 'typescript'; // eslint-disable-line import/no-extraneous-dependencies
 import {ParseConfigHost} from './ParseConfigHost';
 import path from 'path';
 import nullthrows from 'nullthrows';

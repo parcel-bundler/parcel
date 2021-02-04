@@ -6,7 +6,7 @@ import eslint from 'eslint';
 let cliEngine = null;
 
 export default (new Validator({
-  async validate({asset, options}) {
+  async validate({asset}) {
     if (!cliEngine) {
       cliEngine = new eslint.CLIEngine({});
     }

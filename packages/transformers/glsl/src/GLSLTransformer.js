@@ -7,7 +7,7 @@ import glslifyDeps from 'glslify-deps';
 import glslifyBundle from 'glslify-bundle';
 
 export default (new Transformer({
-  async transform({asset, options, resolve}) {
+  async transform({asset, resolve}) {
     asset.type = 'js';
 
     // Parse and collect dependencies with glslify-deps

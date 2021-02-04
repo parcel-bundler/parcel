@@ -1,6 +1,5 @@
 // @flow
 
-import {typeof default as Stylus} from 'stylus';
 import {Transformer} from '@parcel/plugin';
 import {createDependencyLocation, isGlob, glob} from '@parcel/utils';
 import path from 'path';

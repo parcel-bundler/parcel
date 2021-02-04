@@ -6,7 +6,6 @@ import path from 'path';
 import sinon from 'sinon';
 import logger from '@parcel/logger';
 import {inputFS} from '@parcel/test-utils';
-import {NodePackageManager} from '@parcel/package-manager';
 import {parseAndProcessConfig} from '../src/requests/ParcelConfigRequest';
 import {DEFAULT_OPTIONS} from './test-utils';
 

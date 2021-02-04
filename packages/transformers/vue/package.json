@@ -24,11 +24,12 @@
     "@parcel/plugin": "2.0.0-beta.1",
     "@parcel/source-map": "2.0.0-alpha.4.19",
     "@parcel/utils": "2.0.0-beta.1",
+    "@vue/compiler-sfc": "^3.0.0",
+    "consolidate": "^0.16.0",
     "nullthrows": "^1.1.1",
     "semver": "^5.4.1"
   },
   "devDependencies": {
-    "@vue/compiler-sfc": "^3.0.0",
     "vue": "^3.0.0"
   }
 }

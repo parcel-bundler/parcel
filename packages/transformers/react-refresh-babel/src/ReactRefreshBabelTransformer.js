@@ -21,7 +21,7 @@ export default (new Transformer({
   async loadConfig({config, options}) {
     config.setResult(await shouldExclude(config, options));
   },
-  async transform({asset, config, options}) {
+  transform({asset, config}) {
     if (!config) {
       asset.meta.babelPlugins = asset.meta.babelPlugins || [];
       invariant(Array.isArray(asset.meta.babelPlugins));

@@ -1,7 +1,5 @@
 // @flow
 import type {FilePath, PackageName, Semver} from '@parcel/types';
-import type {PackageManager} from '@parcel/package-manager';
-import type {FileSystem} from '@parcel/fs';
 import type {ParcelOptions} from './types';
 
 import semver from 'semver';

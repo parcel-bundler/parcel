@@ -44,7 +44,7 @@ export default (new Transformer({
   canReuseAST({ast}) {
     return ast.type === 'vue' && semver.satisfies(ast.version, '^3.0.0');
   },
-  async parse({asset, options}) {
+  async parse({asset}) {
     // TODO: This parses the vue component multiple times. Fix?
     let code = await asset.getCode();
     let parsed = compiler.parse(code, {
@@ -314,19 +314,12 @@ ${
             }
             style.lang = extname(style.src);
           }
-          let toInstall;
           switch (style.lang) {
             case 'less':
-              toInstall = 'less';
-              break;
             case 'stylus':
             case 'styl':
-              toInstall = 'stylus';
-              break;
             case 'scss':
             case 'sass':
-              toInstall = 'sass';
-              break;
             case 'css':
             case undefined:
               break;

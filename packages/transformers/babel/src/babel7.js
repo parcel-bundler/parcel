@@ -6,7 +6,6 @@ import invariant from 'assert';
 import * as babel from '@babel/core';
 import {relativeUrl} from '@parcel/utils';
 
-import {BABEL_RANGE} from './constants';
 import packageJson from '../package.json';
 
 const transformerVersion: mixed = packageJson.version;

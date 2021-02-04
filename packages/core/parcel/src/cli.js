@@ -330,7 +330,7 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
   if (command.name() === 'build') {
     nodeEnv = process.env.NODE_ENV || 'production';
     // Autoinstall unless explicitly disabled or we detect a CI environment.
-    command.autoinstall = command.autoinstall === false || process.env.CI ? false : true;
+    command.autoinstall = !(command.autoinstall === false || process.env.CI);
   } else {
     nodeEnv = process.env.NODE_ENV || 'development';
   }
