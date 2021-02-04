@@ -142,7 +142,7 @@ export class NodePackageManager implements PackageManager {
             e.code === 'MODULE_NOT_FOUND' &&
             options?.shouldAutoInstall !== true
           ) {
-            throw new ThrowableDiagnostic({
+            let err = new ThrowableDiagnostic({
               diagnostic: {
                 message: e.message,
                 hints: [
@@ -150,6 +150,9 @@ export class NodePackageManager implements PackageManager {
                 ],
               },
             });
+            // $FlowFixMe - needed for loadParcelPlugin
+            err.code = 'MODULE_NOT_FOUND';
+            throw err;
           } else {
             throw e;
           }
