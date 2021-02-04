@@ -46,7 +46,7 @@
     "@parcel/packager-ts": "2.0.0-beta.1",
     "@parcel/transformer-coffeescript": "2.0.0-beta.1",
     "@parcel/transformer-css": "2.0.0-beta.1",
-    "@parcel/transformer-elm": "^2.0.0-alpha.3.1",
+    "@parcel/transformer-elm": "2.0.0-beta.1",
     "@parcel/transformer-glsl": "2.0.0-beta.1",
     "@parcel/transformer-graphql": "2.0.0-beta.1",
     "@parcel/transformer-html": "2.0.0-beta.1",
