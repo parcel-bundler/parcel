@@ -106,10 +106,7 @@ export function getCachedParcelConfig(
     return config;
   }
 
-  config = new ParcelConfig(
-    processedConfig,
-    options,
-  );
+  config = new ParcelConfig(processedConfig, options);
 
   parcelConfigCache.set(cachePath, config);
   return config;
@@ -133,9 +130,8 @@ export async function resolveParcelConfig(
   let resolveFrom = getResolveFrom(options);
   let configPath =
     options.config != null
-      ? (
-          await options.packageManager.resolve(options.config, resolveFrom)
-        ).resolved
+      ? (await options.packageManager.resolve(options.config, resolveFrom))
+          .resolved
       : await resolveConfig(options.inputFS, resolveFrom, ['.parcelrc']);
 
   let usedDefault = false;

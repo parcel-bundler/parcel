@@ -236,10 +236,7 @@ describe('ParcelConfig', () => {
         code,
         DEFAULT_OPTIONS,
       );
-      let parcelConfig = new ParcelConfig(
-        config,
-        DEFAULT_OPTIONS,
-      );
+      let parcelConfig = new ParcelConfig(config, DEFAULT_OPTIONS);
 
       // $FlowFixMe
       await assert.rejects(() => parcelConfig.getTransformers('test.js'), {

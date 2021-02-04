@@ -56,10 +56,7 @@ export default class ParcelConfig {
   pluginCache: Map<PackageName, any>;
   regexCache: Map<string, RegExp>;
 
-  constructor(
-    config: ProcessedParcelConfig,
-    options: ParcelOptions,
-  ) {
+  constructor(config: ProcessedParcelConfig, options: ParcelOptions) {
     this.options = options;
     this.filePath = config.filePath;
     this.resolvers = config.resolvers || [];
@@ -76,10 +73,7 @@ export default class ParcelConfig {
   }
 
   static deserialize(serialized: SerializedParcelConfig): ParcelConfig {
-    return new ParcelConfig(
-      serialized.config,
-      serialized.options,
-    );
+    return new ParcelConfig(serialized.config, serialized.options);
   }
 
   getConfig(): ProcessedParcelConfig {

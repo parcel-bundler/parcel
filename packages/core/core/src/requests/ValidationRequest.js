@@ -41,10 +41,7 @@ export default function createValidationRequest(
         ),
       );
 
-      let config = new ParcelConfig(
-        processedConfig,
-        options,
-      );
+      let config = new ParcelConfig(processedConfig, options);
       let trackedRequestsDesc = assetRequests.filter(request => {
         return config.getValidatorNames(request.filePath).length > 0;
       });

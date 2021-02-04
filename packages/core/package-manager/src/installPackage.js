@@ -1,7 +1,12 @@
 // @flow
 
 import type {FilePath, PackageJSON} from '@parcel/types';
-import type {ModuleRequest, PackageManager, PackageInstaller, InstallOptions} from './types';
+import type {
+  ModuleRequest,
+  PackageManager,
+  PackageInstaller,
+  InstallOptions,
+} from './types';
 import type {FileSystem} from '@parcel/fs';
 
 import invariant from 'assert';
@@ -54,7 +59,9 @@ async function install(
 
   if (installPeers) {
     await Promise.all(
-      modules.map(m => installPeerDependencies(fs, packageManager, m, from, options)),
+      modules.map(m =>
+        installPeerDependencies(fs, packageManager, m, from, options),
+      ),
     );
   }
 }
@@ -168,11 +175,13 @@ export function _addToInstallQueue(
 
     queue
       .add(() =>
-        install(fs, packageManager, modulesToInstall, filePath, options).then(() => {
-          for (let m of modulesToInstall) {
-            modulesInstalling.delete(getModuleRequestKey(m));
-          }
-        }),
+        install(fs, packageManager, modulesToInstall, filePath, options).then(
+          () => {
+            for (let m of modulesToInstall) {
+              modulesInstalling.delete(getModuleRequestKey(m));
+            }
+          },
+        ),
       )
       .then(
         () => {},

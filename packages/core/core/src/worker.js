@@ -128,10 +128,7 @@ export async function runPackage(
     configRef,
     // $FlowFixMe
   ): any): ProcessedParcelConfig);
-  let parcelConfig = new ParcelConfig(
-    processedConfig,
-    options,
-  );
+  let parcelConfig = new ParcelConfig(processedConfig, options);
 
   let runner = new PackagerRunner({
     config: parcelConfig,

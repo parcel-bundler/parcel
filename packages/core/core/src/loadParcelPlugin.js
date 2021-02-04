@@ -9,7 +9,11 @@ import nullthrows from 'nullthrows';
 import ThrowableDiagnostic, {
   generateJSONCodeHighlights,
 } from '@parcel/diagnostic';
-import {findAlternativeNodeModules, resolveConfig, loadConfig} from '@parcel/utils';
+import {
+  findAlternativeNodeModules,
+  resolveConfig,
+  loadConfig,
+} from '@parcel/utils';
 import path from 'path';
 import {version as PARCEL_VERSION} from '../package.json';
 
@@ -23,30 +27,47 @@ export default async function loadPlugin<T>(
 ): Promise<{|plugin: T, version: Semver|}> {
   let range;
   if (resolveFrom.includes(NODE_MODULES)) {
-    let configPkg = (await loadConfig(options.inputFS, resolveFrom, ['package.json']));
-    if (configPkg != null && configPkg.config.dependencies?.[pluginName] == null) {
-      // If not in the config's dependencies, the plugin will be auto installed with 
+    let configPkg = await loadConfig(options.inputFS, resolveFrom, [
+      'package.json',
+    ]);
+    if (
+      configPkg != null &&
+      configPkg.config.dependencies?.[pluginName] == null
+    ) {
+      // If not in the config's dependencies, the plugin will be auto installed with
       // the version declared in "parcelDependencies".
       range = configPkg.config.parcelDependencies?.[pluginName];
 
       if (range == null) {
-        let contents = await options.inputFS.readFile(configPkg.files[0].filePath, 'utf8');
+        let contents = await options.inputFS.readFile(
+          configPkg.files[0].filePath,
+          'utf8',
+        );
         throw new ThrowableDiagnostic({
           diagnostic: {
-            message: `Could not determine version of ${pluginName} in ${path.relative(process.cwd(), resolveFrom)}. Either include it in "dependencies" or "parcelDependencies".`,
+            message: `Could not determine version of ${pluginName} in ${path.relative(
+              process.cwd(),
+              resolveFrom,
+            )}. Either include it in "dependencies" or "parcelDependencies".`,
             origin: '@parcel/core',
             filePath: configPkg.files[0].filePath,
             language: 'json5',
-            codeFrame: configPkg.config.dependencies || configPkg.config.parcelDependencies ? {
-              code: contents,
-              codeHighlights: generateJSONCodeHighlights(contents, [
-                {
-                  key: configPkg.config.parcelDependencies ? '/parcelDependencies' : '/dependencies',
-                  type: 'key',
-                },
-              ]),
-            } : undefined,
-          }
+            codeFrame:
+              configPkg.config.dependencies ||
+              configPkg.config.parcelDependencies
+                ? {
+                    code: contents,
+                    codeHighlights: generateJSONCodeHighlights(contents, [
+                      {
+                        key: configPkg.config.parcelDependencies
+                          ? '/parcelDependencies'
+                          : '/dependencies',
+                        type: 'key',
+                      },
+                    ]),
+                  }
+                : undefined,
+          },
         });
       }
 
@@ -57,10 +78,14 @@ export default async function loadPlugin<T>(
 
   let resolved, pkg;
   try {
-    ({resolved, pkg} = await options.packageManager.resolve(pluginName, resolveFrom, {
-      shouldAutoInstall: options.shouldAutoInstall,
-      range,
-    }));
+    ({resolved, pkg} = await options.packageManager.resolve(
+      pluginName,
+      resolveFrom,
+      {
+        shouldAutoInstall: options.shouldAutoInstall,
+        range,
+      },
+    ));
   } catch (err) {
     let configContents = await options.inputFS.readFile(resolveFrom, 'utf8');
     let alternatives = await findAlternativeNodeModules(

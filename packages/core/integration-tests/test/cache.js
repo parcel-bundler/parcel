@@ -195,7 +195,8 @@ describe('cache', function() {
 
     let testBabelCache = async (opts: TestConfig) => {
       await workerFarm.callAllWorkers('invalidateRequireCache', [
-        packageManager.resolveSync('@parcel/transformer-babel', __filename)?.resolved,
+        packageManager.resolveSync('@parcel/transformer-babel', __filename)
+          ?.resolved,
       ]);
 
       await workerFarm.callAllWorkers('invalidateRequireCache', [
@@ -209,7 +210,8 @@ describe('cache', function() {
 
           // invalidate babel's caches since we're simulating a process restart
           await workerFarm.callAllWorkers('invalidateRequireCache', [
-            packageManager.resolveSync('@parcel/transformer-babel', __filename)?.resolved,
+            packageManager.resolveSync('@parcel/transformer-babel', __filename)
+              ?.resolved,
           ]);
           await workerFarm.callAllWorkers('invalidateRequireCache', [
             packageManager.resolveSync('@babel/core', __filename)?.resolved,
