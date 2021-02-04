@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const exec = require('child_process').execSync;
+const semver = require('semver');
 
 let packages = JSON.parse(exec(`${path.join(__dirname, '..', 'node_modules', '.bin', 'lerna')} ls --json`));
 let packageVersions = new Map(packages.map(pkg => [pkg.name, pkg.version]));
@@ -17,7 +18,7 @@ for (let config of configs) {
         throw new Error(`Unknown parcel dependency ${dep}`);
       }
 
-      pkg.parcelDependencies[dep] = version;
+      pkg.parcelDependencies[dep] = (semver.parse(version).prerelease.length === 0 ? '^' : '') + version;
     }
 
     fs.writeFileSync(configPkgPath, JSON.stringify(pkg, null, 2) + '\n');
