@@ -42,6 +42,8 @@ import createAssetRequest from './AssetRequest';
 import createPathRequest from './PathRequest';
 
 import dumpToGraphViz from '../dumpGraphToGraphViz';
+import Tracer from '../Tracer';
+import {report} from '../ReporterRunner';
 
 type AssetGraphRequestInput = {|
   entries?: Array<string>,
@@ -102,6 +104,7 @@ export class AssetGraphBuilder {
   name: string;
   assetRequests: Array<AssetGroup> = [];
   cacheKey: string;
+  tracer: Tracer;
 
   constructor({input, prevResult, api, options}: RunInput) {
     let {entries, assetGroups, optionsRef, name} = input;
@@ -121,6 +124,7 @@ export class AssetGraphBuilder {
       name,
       entries,
     });
+    this.tracer = new Tracer(report);
 
     this.queue = new PromiseQueue();
   }
@@ -193,7 +197,9 @@ export class AssetGraphBuilder {
         }),
       );
     if (entryDependencies.some(d => d.value.env.scopeHoist)) {
-      this.propagateSymbols();
+      await this.tracer.wrap('propagateSymbols', async () => {
+        await this.propagateSymbols();
+      });
     }
     dumpToGraphViz(this.assetGraph, this.name);
     // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381

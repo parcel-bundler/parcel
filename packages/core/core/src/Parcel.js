@@ -290,7 +290,7 @@ export default class Parcel {
         type: 'buildStart',
       });
       let requestMeasurement = this.#tracer.createMeasurement(
-        'requestTracker.runRequest',
+        'requestTracker.runRequest (AssetGraphRequest)',
       );
       let request = createAssetGraphRequest({
         name: 'Main',

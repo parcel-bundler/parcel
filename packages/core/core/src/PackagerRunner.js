@@ -39,6 +39,7 @@ import BundleGraph, {
 } from './public/BundleGraph';
 import PluginOptions from './public/PluginOptions';
 import {PARCEL_VERSION, HASH_REF_PREFIX, HASH_REF_REGEX} from './constants';
+import Tracer from './Tracer';
 
 type Opts = {|
   config: ParcelConfig,
@@ -76,6 +77,7 @@ export default class PackagerRunner {
   distDir: FilePath;
   distExists: Set<FilePath>;
   report: ReportFn;
+  tracer: Tracer;
   getBundleInfoFromWorker: ({|
     bundle: InternalBundle,
     bundleGraphReference: SharedReference,
@@ -92,6 +94,7 @@ export default class PackagerRunner {
 
     this.farm = farm;
     this.report = report;
+    this.tracer = new Tracer(report);
     this.getBundleInfoFromWorker = farm
       ? farm.createHandle('runPackage')
       : () => {
