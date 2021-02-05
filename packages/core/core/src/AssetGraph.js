@@ -130,7 +130,8 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     };
   }
 
-  getOrSetEnvironment(input: Asset | Dependency | AssetGroup) {
+  // Deduplicates Environments by making them referentially equal
+  normalizeEnvironment(input: Asset | Dependency | AssetGroup) {
     let {id, context} = input.env;
     let idAndContext = `${id}-${context}`;
 
@@ -365,7 +366,7 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     assets: Array<Asset>,
     correspondingRequest: string,
   ) {
-    this.getOrSetEnvironment(assetGroup);
+    this.normalizeEnvironment(assetGroup);
     let assetGroupNode = nodeFromAssetGroup(assetGroup);
     assetGroupNode = this.getNode(assetGroupNode.id);
     if (!assetGroupNode) {
@@ -381,7 +382,7 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
       isDirect: boolean,
     |}> = [];
     for (let asset of assets) {
-      this.getOrSetEnvironment(asset);
+      this.normalizeEnvironment(asset);
       let isDirect = !dependentAssetKeys.includes(asset.uniqueKey);
 
       let dependentAssets = [];
@@ -418,7 +419,7 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     let depNodes = [];
     let depNodesWithAssets = [];
     for (let dep of assetNode.value.dependencies.values()) {
-      this.getOrSetEnvironment(dep);
+      this.normalizeEnvironment(dep);
       let depNode = nodeFromDep(dep);
       let existing = this.getNode(depNode.id);
       if (existing) {
