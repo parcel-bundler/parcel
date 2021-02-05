@@ -3,10 +3,12 @@
 import type {Identifier, Node} from '@babel/types';
 import type {Visitors} from './types';
 import * as t from '@babel/types';
+import invariant from 'assert';
 import {
   isClassDeclaration,
   isFunctionDeclaration,
   isIdentifier,
+  isImportDeclaration,
   isVariableDeclaration,
 } from '@babel/types';
 
@@ -167,16 +169,26 @@ export let scopeVisitor: Visitors<ScopeState> = {
       }
 
       // Register declarations with the scope.
-      let type: BindingType = 'const';
       if (isVariableDeclaration(node)) {
-        type = node.kind;
-      } else if (isClassDeclaration(node)) {
-        type = 'let';
-      }
-
-      let ids = t.getBindingIdentifiers(node);
-      for (let id in ids) {
-        scope.addBinding(id, node, type);
+        for (let decl of node.declarations) {
+          let ids = t.getBindingIdentifiers(decl);
+          for (let id in ids) {
+            scope.addBinding(id, decl, node.kind);
+          }
+        }
+      } else {
+        let type: BindingType;
+        if (isClassDeclaration(node)) {
+          type = 'let';
+        } else if (isImportDeclaration(node)) {
+          type = 'const';
+        } else {
+          invariant(false);
+        }
+        let ids = t.getBindingIdentifiers(node);
+        for (let id in ids) {
+          scope.addBinding(id, node, type);
+        }
       }
     },
   },
