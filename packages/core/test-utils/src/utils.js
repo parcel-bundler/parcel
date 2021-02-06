@@ -364,7 +364,7 @@ export async function runBundle(
   externalModules?: ExternalModules,
 ): Promise<mixed> {
   if (bundle.type === 'html') {
-    let code = await overlayFS.readFile(nullthrows(bundle.filePath));
+    let code = await overlayFS.readFile(nullthrows(bundle.filePath), 'utf8');
     let ast = postHtmlParse(code, {
       lowerCaseAttributeNames: true,
     });
