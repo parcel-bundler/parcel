@@ -190,7 +190,7 @@ async function buildDefaultBabelConfig(options: PluginOptions, config: Config) {
   let envOptions = await getEnvOptions(config);
   if (envOptions != null) {
     babelTargets = envOptions.targets;
-    babelOptions = mergeOptions(babelOptions, {presets: envOptions.presets});
+    babelOptions = mergeOptions(babelOptions, envOptions.config);
   }
   babelOptions = mergeOptions(babelOptions, jsxOptions?.config);
 

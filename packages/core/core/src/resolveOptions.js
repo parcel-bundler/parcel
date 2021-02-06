@@ -72,12 +72,14 @@ export default async function resolveOptions(
   let cache = new Cache(outputFS, cacheDir);
 
   let mode = initialOptions.mode ?? 'development';
-  let minify = initialOptions.minify ?? mode === 'production';
+  let shouldOptimize =
+    initialOptions?.defaultTargetOptions?.shouldOptimize ??
+    mode === 'production';
 
-  let publicUrl = initialOptions.publicUrl ?? '/';
+  let publicUrl = initialOptions?.defaultTargetOptions?.publicUrl ?? '/';
   let distDir =
-    initialOptions.distDir != null
-      ? path.resolve(inputCwd, initialOptions.distDir)
+    initialOptions?.defaultTargetOptions?.distDir != null
+      ? path.resolve(inputCwd, initialOptions?.defaultTargetOptions?.distDir)
       : undefined;
 
   return {
@@ -95,7 +97,6 @@ export default async function resolveOptions(
       )),
     },
     mode,
-    minify,
     shouldAutoInstall: initialOptions.shouldAutoInstall ?? false,
     hmrOptions: initialOptions.hmrOptions ?? null,
     shouldContentHash:
@@ -111,13 +112,7 @@ export default async function resolveOptions(
     cacheDir,
     entries,
     entryRoot,
-    defaultEngines: initialOptions.defaultEngines,
     targets: initialOptions.targets,
-    sourceMaps: initialOptions.sourceMaps ?? true,
-    scopeHoist:
-      initialOptions.scopeHoist ?? initialOptions.mode === 'production',
-    publicUrl,
-    distDir,
     logLevel: initialOptions.logLevel ?? 'info',
     projectRoot,
     lockFile,
@@ -127,5 +122,15 @@ export default async function resolveOptions(
     packageManager,
     instanceId: generateInstanceId(entries),
     detailedReport: initialOptions.detailedReport,
+    defaultTargetOptions: {
+      shouldOptimize,
+      shouldScopeHoist:
+        initialOptions?.defaultTargetOptions?.shouldScopeHoist ??
+        initialOptions.mode === 'production',
+      sourceMaps: initialOptions?.defaultTargetOptions?.sourceMaps ?? true,
+      publicUrl,
+      distDir,
+      engines: initialOptions?.defaultTargetOptions?.engines,
+    },
   };
 }

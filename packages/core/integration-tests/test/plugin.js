@@ -116,7 +116,11 @@ parcel-transformer-b`,
   it('merges symbol information when applying runtime assets', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/runtime-symbol-merging/entry.js'),
-      {scopeHoist: true},
+      {
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
+      },
     );
 
     assert.deepStrictEqual(
@@ -152,7 +156,11 @@ parcel-transformer-b`,
   it('properly excludes assets that are excluded and deferred by both app code and runtimes', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/runtime-deferred-excluded/index.js'),
-      {scopeHoist: true},
+      {
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
+      },
     );
 
     let calls = [];

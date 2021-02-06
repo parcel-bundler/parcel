@@ -10,6 +10,7 @@ import {
   inputFS,
   ncp,
   workerFarm,
+  mergeParcelOptions,
   sleep,
 } from '@parcel/test-utils';
 import fs from 'fs';
@@ -21,11 +22,16 @@ function runBundle(entries = 'src/index.js', opts) {
     path.resolve(inputDir, entry),
   );
 
-  return bundler(entries, {
-    inputFS: overlayFS,
-    shouldDisableCache: false,
-    ...opts,
-  }).run();
+  return bundler(
+    entries,
+    mergeParcelOptions(
+      {
+        inputFS: overlayFS,
+        shouldDisableCache: false,
+      },
+      opts,
+    ),
+  ).run();
 }
 
 type UpdateFn = BuildSuccessEvent =>
@@ -62,7 +68,7 @@ async function testCache(update: UpdateFn | TestConfig, integration) {
   let newOptions = await update(b);
 
   // Run cached build
-  b = await runBundle(entries, Object.assign({}, options, newOptions));
+  b = await runBundle(entries, mergeParcelOptions(options || {}, newOptions));
 
   return b;
 }
@@ -108,6 +114,34 @@ describe('cache', function() {
     });
 
     assert.equal(await run(b.bundleGraph), 8);
+  });
+
+  it('should support adding a dependency which changes the referenced bundles of a parent bundle', async function() {
+    async function exec(bundleGraph) {
+      let calls = [];
+      await run(bundleGraph, {
+        call(v) {
+          calls.push(v);
+        },
+      });
+      return calls;
+    }
+
+    let b = await testCache(
+      {
+        entries: ['index.html'],
+        update: async b => {
+          assert.deepEqual(await exec(b.bundleGraph), ['a', 'b']);
+          await overlayFS.writeFile(
+            path.join(inputDir, 'a.js'),
+            'import "./b.js"; call("a");',
+          );
+        },
+      },
+      'cache-add-dep-referenced',
+    );
+
+    assert.deepEqual(await exec(b.bundleGraph), ['b', 'a']);
   });
 
   it('should error when deleting a file', async function() {
@@ -1381,7 +1415,9 @@ describe('cache', function() {
   describe('target config', function() {
     it('should support adding a target config', async function() {
       let b = await testCache({
-        scopeHoist: true,
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
         async update(b) {
           let contents = await overlayFS.readFile(
             b.bundleGraph.getBundles()[0].filePath,
@@ -1421,7 +1457,9 @@ describe('cache', function() {
     it('should support adding a second target', async function() {
       let pkgFile = path.join(inputDir, 'package.json');
       let b = await testCache({
-        scopeHoist: true,
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
         async setup() {
           let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
           await overlayFS.writeFile(
@@ -1483,7 +1521,9 @@ describe('cache', function() {
     it('should support changing target output location', async function() {
       let pkgFile = path.join(inputDir, 'package.json');
       await testCache({
-        scopeHoist: true,
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
         async setup() {
           let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
           await overlayFS.writeFile(
@@ -1550,7 +1590,9 @@ describe('cache', function() {
     it('should support updating target config options', async function() {
       let pkgFile = path.join(inputDir, 'package.json');
       let b = await testCache({
-        scopeHoist: true,
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
         async setup() {
           let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
           await overlayFS.writeFile(
@@ -1603,7 +1645,9 @@ describe('cache', function() {
     it('should support deleting a target', async function() {
       let pkgFile = path.join(inputDir, 'package.json');
       let b = await testCache({
-        scopeHoist: true,
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
         async setup() {
           let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
           await overlayFS.writeFile(
@@ -1665,7 +1709,9 @@ describe('cache', function() {
     it('should support deleting all targets', async function() {
       let pkgFile = path.join(inputDir, 'package.json');
       let b = await testCache({
-        scopeHoist: true,
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
         async setup() {
           let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
           await overlayFS.writeFile(
@@ -1748,7 +1794,9 @@ describe('cache', function() {
     it('should update when sourcemap options change', async function() {
       let pkgFile = path.join(inputDir, 'package.json');
       let b = await testCache({
-        scopeHoist: true,
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
         async setup() {
           let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
           await overlayFS.writeFile(
@@ -1804,7 +1852,9 @@ describe('cache', function() {
       let pkgFile = path.join(inputDir, 'package.json');
       let b = await testCache({
         entries: ['src/index.html'],
-        scopeHoist: true,
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
         async setup() {
           let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
           await overlayFS.writeFile(
@@ -1858,7 +1908,9 @@ describe('cache', function() {
       let pkgFile = path.join(inputDir, 'package.json');
       let pkg;
       let b = await testCache({
-        scopeHoist: true,
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
         async setup() {
           pkg = JSON.parse(await overlayFS.readFile(pkgFile));
           await overlayFS.unlink(pkgFile);
@@ -1900,7 +1952,9 @@ describe('cache', function() {
     it('should update when a package.json is deleted', async function() {
       let pkgFile = path.join(inputDir, 'package.json');
       let b = await testCache({
-        scopeHoist: true,
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
         async setup() {
           let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
           await overlayFS.writeFile(
@@ -1941,7 +1995,9 @@ describe('cache', function() {
     describe('browserslist', function() {
       it('should update when a browserslist file is added', async function() {
         let b = await testCache({
-          scopeHoist: true,
+          defaultTargetOptions: {
+            shouldScopeHoist: true,
+          },
           async update(b) {
             let contents = await overlayFS.readFile(
               b.bundleGraph.getBundles()[0].filePath,
@@ -1970,7 +2026,9 @@ describe('cache', function() {
 
       it('should update when a .browserslistrc file is added', async function() {
         let b = await testCache({
-          scopeHoist: true,
+          defaultTargetOptions: {
+            shouldScopeHoist: true,
+          },
           async update(b) {
             let contents = await overlayFS.readFile(
               b.bundleGraph.getBundles()[0].filePath,
@@ -1999,7 +2057,9 @@ describe('cache', function() {
 
       it('should update when a browserslist is updated', async function() {
         let b = await testCache({
-          scopeHoist: true,
+          defaultTargetOptions: {
+            shouldScopeHoist: true,
+          },
           async setup() {
             await overlayFS.writeFile(
               path.join(inputDir, 'browserslist'),
@@ -2034,7 +2094,9 @@ describe('cache', function() {
 
       it('should update when a browserslist is deleted', async function() {
         let b = await testCache({
-          scopeHoist: true,
+          defaultTargetOptions: {
+            shouldScopeHoist: true,
+          },
           async setup() {
             await overlayFS.writeFile(
               path.join(inputDir, 'browserslist'),
@@ -2066,7 +2128,9 @@ describe('cache', function() {
 
       it('should update when BROWSERSLIST_ENV changes', async function() {
         let b = await testCache({
-          scopeHoist: true,
+          defaultTargetOptions: {
+            shouldScopeHoist: true,
+          },
           async setup() {
             await overlayFS.writeFile(
               path.join(inputDir, 'browserslist'),
@@ -2109,7 +2173,9 @@ describe('cache', function() {
       it('should update when NODE_ENV changes', async function() {
         let env = process.env.NODE_ENV;
         let b = await testCache({
-          scopeHoist: true,
+          defaultTargetOptions: {
+            shouldScopeHoist: true,
+          },
           async setup() {
             await overlayFS.writeFile(
               path.join(inputDir, 'browserslist'),
@@ -2155,8 +2221,10 @@ describe('cache', function() {
     it('should update when publicUrl changes', async function() {
       let b = await testCache({
         entries: ['src/index.html'],
-        scopeHoist: true,
-        publicUrl: 'http://example.com/',
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+          publicUrl: 'http://example.com/',
+        },
         async update(b) {
           let contents = await overlayFS.readFile(
             b.bundleGraph.getBundles()[0].filePath,
@@ -2168,7 +2236,9 @@ describe('cache', function() {
           );
 
           return {
-            publicUrl: 'http://mygreatwebsite.com/',
+            defaultTargetOptions: {
+              publicUrl: 'http://mygreatwebsite.com/',
+            },
           };
         },
       });
@@ -2185,8 +2255,10 @@ describe('cache', function() {
 
     it('should update when minify changes', async function() {
       let b = await testCache({
-        scopeHoist: true,
-        minify: false,
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+          shouldOptimize: false,
+        },
         async update(b) {
           let contents = await overlayFS.readFile(
             b.bundleGraph.getBundles()[0].filePath,
@@ -2195,7 +2267,9 @@ describe('cache', function() {
           assert(contents.includes('Test'), 'should include Test');
 
           return {
-            minify: true,
+            defaultTargetOptions: {
+              shouldOptimize: true,
+            },
           };
         },
       });
@@ -2209,7 +2283,9 @@ describe('cache', function() {
 
     it('should update when scopeHoist changes', async function() {
       let b = await testCache({
-        scopeHoist: false,
+        defaultTargetOptions: {
+          shouldScopeHoist: false,
+        },
         async update(b) {
           let contents = await overlayFS.readFile(
             b.bundleGraph.getBundles()[0].filePath,
@@ -2221,7 +2297,9 @@ describe('cache', function() {
           );
 
           return {
-            scopeHoist: true,
+            defaultTargetOptions: {
+              shouldScopeHoist: true,
+            },
           };
         },
       });
@@ -2235,7 +2313,9 @@ describe('cache', function() {
 
     it('should update when sourceMaps changes', async function() {
       let b = await testCache({
-        sourceMaps: false,
+        defaultTargetOptions: {
+          sourceMaps: false,
+        },
         async update(b) {
           let contents = await overlayFS.readFile(
             b.bundleGraph.getBundles()[0].filePath,
@@ -2247,7 +2327,9 @@ describe('cache', function() {
           );
 
           return {
-            sourceMaps: true,
+            defaultTargetOptions: {
+              sourceMaps: true,
+            },
           };
         },
       });
@@ -2264,7 +2346,9 @@ describe('cache', function() {
 
     it('should update when distDir changes', async function() {
       let b = await testCache({
-        scopeHoist: true,
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
         update(b) {
           assert(
             /dist[/\\]index.js$/.test(b.bundleGraph.getBundles()[0].filePath),
@@ -2272,7 +2356,9 @@ describe('cache', function() {
           );
 
           return {
-            distDir: 'dist/test',
+            defaultTargetOptions: {
+              distDir: 'dist/test',
+            },
           };
         },
       });
@@ -2287,7 +2373,9 @@ describe('cache', function() {
 
     it('should update when targets changes', async function() {
       let b = await testCache({
-        scopeHoist: true,
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
         targets: ['legacy'],
         async setup() {
           let pkgFile = path.join(inputDir, 'package.json');
@@ -2353,9 +2441,11 @@ describe('cache', function() {
 
     it('should update when defaultEngines changes', async function() {
       let b = await testCache({
-        scopeHoist: true,
-        defaultEngines: {
-          browsers: 'last 1 Chrome version',
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+          engines: {
+            browsers: 'last 1 Chrome version',
+          },
         },
         async update(b) {
           let contents = await overlayFS.readFile(
@@ -2368,8 +2458,11 @@ describe('cache', function() {
           );
 
           return {
-            defaultEngines: {
-              browsers: 'IE 11',
+            defaultTargetOptions: {
+              shouldScopeHoist: true,
+              engines: {
+                browsers: 'IE 11',
+              },
             },
           };
         },
@@ -2388,7 +2481,9 @@ describe('cache', function() {
     it('should update when shouldContentHash changes', async function() {
       let b = await testCache({
         entries: ['src/index.html'],
-        scopeHoist: true,
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
         shouldContentHash: true,
         update(b) {
           let bundle = b.bundleGraph.getBundles()[1];
@@ -2562,6 +2657,55 @@ describe('cache', function() {
         'utf8',
       );
       assert(contents.includes('TRANSFORMED CODE'));
+    });
+
+    it('should update env browserslist in package.json when mode changes', async function() {
+      let env = process.env.NODE_ENV;
+      delete process.env.NODE_ENV;
+      try {
+        let b = await testCache({
+          defaultTargetOptions: {
+            shouldScopeHoist: false,
+            shouldOptimize: false,
+          },
+          mode: 'development',
+          async setup() {
+            let pkg = JSON.parse(
+              await overlayFS.readFile(
+                path.join(inputDir, 'package.json'),
+                'utf8',
+              ),
+            );
+            pkg.browserslist = {
+              production: ['ie 11'],
+              development: ['Chrome 80'],
+            };
+            await overlayFS.writeFile(
+              path.join(inputDir, 'package.json'),
+              JSON.stringify(pkg, null, 2),
+            );
+          },
+          async update(b) {
+            let contents = await overlayFS.readFile(
+              b.bundleGraph.getBundles()[0].filePath,
+              'utf8',
+            );
+            assert(/class Test/.test(contents), 'should include class');
+
+            return {
+              mode: 'production',
+            };
+          },
+        });
+
+        let contents = await overlayFS.readFile(
+          b.bundleGraph.getBundles()[0].filePath,
+          'utf8',
+        );
+        assert(!/class Test/.test(contents), 'does not include class');
+      } finally {
+        process.env.NODE_ENV = env;
+      }
     });
   });
 
@@ -3516,13 +3660,25 @@ describe('cache', function() {
 
     let entries = 'index.js';
 
-    let b = await runBundle(entries, {minify: false});
+    let b = await runBundle(entries, {
+      defaultTargetOptions: {
+        shouldOptimize: false,
+      },
+    });
     let result1 = (await run(b.bundleGraph))();
 
-    b = await runBundle(entries, {minify: true});
+    b = await runBundle(entries, {
+      defaultTargetOptions: {
+        shouldOptimize: true,
+      },
+    });
     let result2 = (await run(b.bundleGraph))();
 
-    b = await runBundle(entries, {minify: false});
+    b = await runBundle(entries, {
+      defaultTargetOptions: {
+        shouldOptimize: false,
+      },
+    });
     let result3 = (await run(b.bundleGraph))();
 
     assert(typeof result1 === 'string' && result1.includes('foo'));

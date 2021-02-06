@@ -192,11 +192,10 @@ export class AssetGraphBuilder {
           return dep;
         }),
       );
-    if (entryDependencies.some(d => d.value.env.scopeHoist)) {
+    if (entryDependencies.some(d => d.value.env.shouldScopeHoist)) {
       this.propagateSymbols();
     }
     dumpToGraphViz(this.assetGraph, this.name);
-
     dumpToGraphViz(this.assetGraph, 'AssetGraph');
 
     return {

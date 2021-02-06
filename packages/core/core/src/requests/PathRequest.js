@@ -238,11 +238,11 @@ export class ResolverRunner {
           }
 
           if (result.diagnostics) {
-            if (Array.isArray(result.diagnostics)) {
-              diagnostics.push(...result.diagnostics);
-            } else {
-              diagnostics.push(result.diagnostics);
-            }
+            let errorDiagnostic = errorToDiagnostic(
+              new ThrowableDiagnostic({diagnostic: result.diagnostics}),
+              resolver.name,
+            );
+            diagnostics.push(...errorDiagnostic);
           }
         }
       } catch (e) {
