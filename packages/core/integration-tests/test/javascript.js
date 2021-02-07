@@ -797,6 +797,85 @@ describe('javascript', function() {
     ]);
   });
 
+  it('should recognize worker constructor with static URL and import.meta.url', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/worker-import-meta-url/index.js'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: [
+          'index.js',
+          'bundle-url.js',
+          'JSRuntime.js',
+          'get-worker-url.js',
+          'bundle-manifest.js',
+          'JSRuntime.js',
+          'relative-path.js',
+        ],
+      },
+      {
+        assets: ['worker.js'],
+      },
+    ]);
+
+    let contents = await outputFS.readFile(
+      b.getBundles().find(b => b.isEntry).filePath,
+      'utf8',
+    );
+    assert(!contents.includes('import.meta.url'));
+  });
+
+  it('should ignore worker constructors with dynamic URL and import.meta.url', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/worker-import-meta-url/dynamic.js'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'dynamic.js',
+        assets: ['dynamic.js'],
+      },
+    ]);
+
+    let contents = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(contents.includes('import.meta.url'));
+  });
+
+  it('should have a diagnostic for missing file in worker constructor with URL and import.meta.url', async function() {
+    let fixture = path.join(
+      __dirname,
+      'integration/worker-import-meta-url/missing.js',
+    );
+    let code = await inputFS.readFileSync(fixture, 'utf8');
+    await assert.rejects(() => bundle(fixture), {
+      name: 'BuildError',
+      diagnostics: [
+        {
+          //     message: 'Unknown pipeline: strange-pipeline.',
+          //     origin: '@parcel/core',
+          //     filePath: fixture,
+          //     codeFrame: {
+          //       code,
+          //       codeHighlights: [
+          //         {
+          //           start: {
+          //             column: 19,
+          //             line: 1,
+          //           },
+          //           end: {
+          //             column: 43,
+          //             line: 1,
+          //           },
+          //         },
+          //       ],
+          //     },
+        },
+      ],
+    });
+  });
+
   it.skip('should support bundling in workers with other loaders', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/workers-with-other-loaders/index.js'),
