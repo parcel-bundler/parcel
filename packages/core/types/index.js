@@ -378,6 +378,7 @@ export interface MutableAssetSymbols extends AssetSymbols {
    * Initilizes the map, sets isCleared to false.
    */
   ensure(): void;
+  clear(): void;
   set(
     exportSymbol: Symbol,
     local: Symbol,

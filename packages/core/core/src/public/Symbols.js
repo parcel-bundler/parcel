@@ -165,6 +165,9 @@ export class MutableAssetSymbols implements IMutableAssetSymbols {
       this.#value.symbols = new Map();
     }
   }
+  clear(): void {
+    this.#value.symbols = null;
+  }
 
   set(
     exportSymbol: ISymbol,
