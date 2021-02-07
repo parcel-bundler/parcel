@@ -8,23 +8,50 @@ import type {
   MutableAsset,
   PluginOptions,
 } from '@parcel/types';
-import type {Node, ObjectExpression} from '@babel/types';
+import type {
+  NewExpression,
+  Node,
+  ObjectExpression,
+  ObjectProperty,
+  StringLiteral,
+} from '@babel/types';
 import type {SimpleVisitors} from '@parcel/babylon-walk';
 
 import * as types from '@babel/types';
 import {
   isArrowFunctionExpression,
   isCallExpression,
-  isMemberExpression,
-  isReturnStatement,
-  isIdentifier,
-  isNewExpression,
   isFunction,
+  isIdentifier,
+  isMemberExpression,
+  isMetaProperty,
+  isNewExpression,
+  isObjectExpression,
+  isObjectProperty,
+  isReturnStatement,
+  isStringLiteral,
 } from '@babel/types';
 import {isURL, md5FromString, createDependencyLocation} from '@parcel/utils';
 import {isInFalsyBranch, hasBinding, morph} from './utils';
 
 const serviceWorkerPattern = ['navigator', 'serviceWorker', 'register'];
+
+function parseImportMetaUrl(node: Node): ?string {
+  if (isNewExpression(node) && isIdentifier(node.callee, {name: 'URL'})) {
+    let args = node.arguments;
+    if (isStringLiteral(args[0])) {
+      let mod = args[0];
+      if (
+        isMemberExpression(args[1]) &&
+        isIdentifier(args[1].property, {name: 'url'}) &&
+        isMetaProperty(args[1].object) &&
+        isIdentifier(args[1].object.property, {name: 'meta'})
+      ) {
+        return mod.value;
+      }
+    }
+  }
+}
 
 export default ({
   ImportDeclaration(node, {asset}) {
@@ -158,7 +185,7 @@ export default ({
   },
 
   NewExpression: {
-    exit(node, {asset, ast}, ancestors) {
+    exit(node: NewExpression, {asset, ast}, ancestors) {
       let {callee, arguments: args} = node;
 
       let isWebWorker =
@@ -166,20 +193,21 @@ export default ({
         (callee.name === 'Worker' || callee.name === 'SharedWorker') &&
         !hasBinding(ancestors, callee.name) &&
         !isInFalsyBranch(ancestors) &&
-        types.isStringLiteral(args[0]) &&
         (args.length === 1 || args.length === 2);
 
       if (isWebWorker) {
         let isModule = false;
-        if (types.isObjectExpression(args[1])) {
-          let prop = args[1].properties.find(v =>
-            types.isIdentifier(v.key, {name: 'type'}),
+        if (isObjectExpression(args[1])) {
+          // $FlowFixMe[incompatible-type]
+          let prop: ObjectProperty = args[1].properties.find(
+            v => isObjectProperty(v) && isIdentifier(v.key, {name: 'type'}),
           );
-          if (prop && types.isStringLiteral(prop.value))
+          if (prop && isStringLiteral(prop.value)) {
             isModule = prop.value.value === 'module';
+          }
         }
 
-        addURLDependency(asset, ast, args[0], {
+        let opts = {
           env: {
             context: 'web-worker',
             outputFormat:
@@ -188,8 +216,43 @@ export default ({
           meta: {
             webworker: true,
           },
-        });
-        return;
+        };
+
+        if (isStringLiteral(args[0])) {
+          addURLDependency(asset, ast, args[0], opts);
+          return;
+        } else {
+          let url = parseImportMetaUrl(args[0]);
+          if (url) {
+            let {loc} = args[0];
+            if (loc) {
+              opts = {
+                ...opts,
+                loc: {
+                  filePath: url,
+                  start: {
+                    line: loc.start.line + 0,
+                    column: loc.start.column + 1,
+                  },
+                  end: {
+                    line: loc.end.line + 0,
+                    column: loc.end.column,
+                  },
+                },
+              };
+            }
+            asset.addURLDependency(url, opts);
+
+            morph(
+              args[0],
+              types.callExpression(types.identifier('require'), [
+                types.stringLiteral(url),
+              ]),
+            );
+            asset.setAST(ast);
+            return;
+          }
+        }
       }
     },
   },
@@ -331,14 +394,17 @@ function addDependency(
 function addURLDependency(
   asset: MutableAsset,
   ast: AST,
-  node,
+  node: StringLiteral,
   opts: $Shape<DependencyOptions> = {},
 ) {
   let url = node.value;
-  asset.addURLDependency(url, {
-    loc: node.loc && createDependencyLocation(node.loc.start, node.value, 0, 1),
-    ...opts,
-  });
+  if (node.loc) {
+    opts = {
+      ...opts,
+      loc: createDependencyLocation(node.loc.start, node.value, 0, 1),
+    };
+  }
+  asset.addURLDependency(url, opts);
 
   morph(
     node,
