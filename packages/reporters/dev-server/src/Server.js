@@ -165,7 +165,7 @@ export default class Server {
                 return a.length - b.length;
               })
               .find(f => {
-                return f.endsWith('index.html');
+                return path.basename(f).startsWith('index');
               })
           : htmlBundleFilePaths[0];
       if (indexFilePath) {
