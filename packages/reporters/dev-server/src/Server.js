@@ -149,29 +149,29 @@ export default class Server {
   sendIndex(req: Request, res: Response) {
     if (this.bundleGraph) {
       // If the main asset is an HTML file, serve it
-      let htmlBundle = this.bundleGraph.traverseBundles(
-        (bundle, context, {stop}) => {
-          if (bundle.type !== 'html' || !bundle.isEntry) return;
+      let htmlBundleFilePaths = [];
+      this.bundleGraph.traverseBundles(bundle => {
+        if (bundle.type !== 'html' || !bundle.isEntry) {
+          return;
+        }
 
-          if (!context) {
-            context = bundle;
-          }
+        htmlBundleFilePaths.push(bundle.filePath);
+      });
 
-          if (
-            context &&
-            bundle.filePath &&
-            bundle.filePath.endsWith('index.html')
-          ) {
-            stop();
-            return bundle;
-          }
-        },
-      );
-
-      if (htmlBundle) {
+      let indexFilePath =
+        htmlBundleFilePaths.length > 1
+          ? htmlBundleFilePaths
+              .sort((a, b) => {
+                return a.length - b.length;
+              })
+              .find(f => {
+                return f.endsWith('index.html');
+              })
+          : htmlBundleFilePaths[0];
+      if (indexFilePath) {
         req.url = `/${path.relative(
           this.options.distDir,
-          nullthrows(htmlBundle.filePath),
+          nullthrows(indexFilePath),
         )}`;
 
         this.serveDist(req, res, () => this.send404(req, res));
