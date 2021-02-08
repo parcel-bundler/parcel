@@ -38,6 +38,7 @@ import {
   md5FromFilePath,
 } from '@parcel/utils';
 import {hashFromOption} from './utils';
+import {createBuildCache} from './buildCache';
 
 type AssetOptions = {|
   id?: string,
@@ -220,6 +221,8 @@ export function getInvalidationId(invalidation: RequestInvalidation): string {
   }
 }
 
+const hashCache = createBuildCache();
+
 export async function getInvalidationHash(
   invalidations: Array<RequestInvalidation>,
   options: ParcelOptions,
@@ -235,11 +238,19 @@ export async function getInvalidationHash(
   let hash = crypto.createHash('md5');
   for (let invalidation of sortedInvalidations) {
     switch (invalidation.type) {
-      case 'file':
-        hash.update(
-          await md5FromFilePath(options.inputFS, invalidation.filePath),
-        );
+      case 'file': {
+        // Only recompute the hash of this file if we haven't seen it already during this build.
+        let fileHash = hashCache.get(invalidation.filePath);
+        if (fileHash == null) {
+          fileHash = await md5FromFilePath(
+            options.inputFS,
+            invalidation.filePath,
+          );
+          hashCache.set(invalidation.filePath, fileHash);
+        }
+        hash.update(fileHash);
         break;
+      }
       case 'env':
         hash.update(
           invalidation.key + ':' + (options.env[invalidation.key] || ''),

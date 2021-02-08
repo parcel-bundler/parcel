@@ -113,6 +113,8 @@ export type RunAPI = {|
   invalidateOnOptionChange: string => void,
   getInvalidations(): Array<RequestInvalidation>,
   storeResult: (result: mixed, cacheKey?: string) => void,
+  getRequestResult: (id: string) => Async<?mixed>,
+  getSubRequests(): Array<StoredRequest>,
   canSkipSubrequest(string): boolean,
   runRequest: <TInput, TResult>(
     subRequest: Request<TInput, TResult>,
@@ -478,9 +480,25 @@ export class RequestGraph extends Graph<
             return {type: 'file', filePath: node.value.filePath};
           case 'env':
             return {type: 'env', key: node.value.key};
+          case 'option':
+            return {type: 'option', key: node.value.key};
         }
       })
       .filter(Boolean);
+  }
+
+  getSubRequests(requestId: string): Array<StoredRequest> {
+    if (!this.hasNode(requestId)) {
+      return [];
+    }
+
+    let requestNode = this.getRequestNode(requestId);
+    let subRequests = this.getNodesConnectedFrom(requestNode, 'subrequest');
+
+    return subRequests.map(node => {
+      invariant(node.type === 'request');
+      return node.value;
+    });
   }
 
   invalidateFileNameNode(
@@ -767,6 +785,8 @@ export default class RequestTracker {
       storeResult: (result, cacheKey) => {
         this.storeResult(requestId, result, cacheKey);
       },
+      getSubRequests: () => this.graph.getSubRequests(requestId),
+      getRequestResult: id => this.getRequestResult(id),
       canSkipSubrequest: id => {
         if (this.hasValidResult(id)) {
           subRequests.add(id);

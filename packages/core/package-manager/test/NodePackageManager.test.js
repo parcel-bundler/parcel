@@ -46,6 +46,15 @@ describe('NodePackageManager', function() {
           version: '1.1.0',
         },
         resolved: path.join(FIXTURES_DIR, 'has-foo/node_modules/foo/index.js'),
+        invalidateOnFileChange: new Set([
+          path.join(FIXTURES_DIR, 'has-foo/node_modules/foo/package.json'),
+        ]),
+        invalidateOnFileCreate: [
+          {
+            fileName: 'node_modules/foo',
+            aboveFilePath: path.join(FIXTURES_DIR, 'has-foo/index.js'),
+          },
+        ],
       },
     );
   });
@@ -74,6 +83,15 @@ describe('NodePackageManager', function() {
           name: 'a',
         },
         resolved: path.join(FIXTURES_DIR, 'has-foo/node_modules/a/index.js'),
+        invalidateOnFileChange: new Set([
+          path.join(FIXTURES_DIR, 'has-foo/node_modules/a/package.json'),
+        ]),
+        invalidateOnFileCreate: [
+          {
+            fileName: 'node_modules/a',
+            aboveFilePath: path.join(FIXTURES_DIR, 'has-foo/index.js'),
+          },
+        ],
       },
     );
   });
@@ -165,6 +183,11 @@ describe('NodePackageManager', function() {
 
   describe('range mismatch', () => {
     it("cannot autoinstall if there's a local requirement", async () => {
+      packageManager.invalidate(
+        'foo',
+        path.join(FIXTURES_DIR, 'has-foo/index.js'),
+      );
+
       // $FlowFixMe assert.rejects is Node 10+
       await assert.rejects(
         () =>
@@ -212,6 +235,21 @@ describe('NodePackageManager', function() {
             FIXTURES_DIR,
             'has-foo/subpackage/node_modules/foo/index.js',
           ),
+          invalidateOnFileChange: new Set([
+            path.join(
+              FIXTURES_DIR,
+              'has-foo/subpackage/node_modules/foo/package.json',
+            ),
+          ]),
+          invalidateOnFileCreate: [
+            {
+              fileName: 'node_modules/foo',
+              aboveFilePath: path.join(
+                FIXTURES_DIR,
+                'has-foo/subpackage/index.js',
+              ),
+            },
+          ],
         },
       );
 
@@ -232,6 +270,10 @@ describe('NodePackageManager', function() {
     });
 
     it("cannot autoinstall peer dependencies if there's an incompatible local requirement", async () => {
+      packageManager.invalidate(
+        'peers',
+        path.join(FIXTURES_DIR, 'has-foo/index.js'),
+      );
       packageInstaller.register(
         'foo',
         fs,

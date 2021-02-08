@@ -16,6 +16,7 @@ import PackagerRunner, {type BundleInfo} from './PackagerRunner';
 import Validation, {type ValidationOpts} from './Validation';
 import ParcelConfig from './ParcelConfig';
 import {registerCoreWithSerializer} from './utils';
+import {clearBuildCaches} from './buildCache';
 
 import '@parcel/cache'; // register with serializer
 import '@parcel/package-manager';
@@ -66,6 +67,7 @@ async function loadConfig(cachePath, options) {
 
 export function clearConfigCache() {
   configCache.clear();
+  clearBuildCaches();
 }
 
 export async function runTransform(

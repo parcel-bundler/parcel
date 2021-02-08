@@ -255,8 +255,6 @@ export type AssetRequestInput = {|
   optionsRef: SharedReference,
   isURL?: boolean,
   query?: ?QueryParameters,
-  invalidations?: Array<RequestInvalidation>,
-  invalidateReason?: number,
 |};
 
 export type AssetRequestResult = Array<Asset>;
@@ -274,6 +272,13 @@ export type AssetGroupNode = {|
   deferred?: boolean,
   hasDeferred?: boolean,
   usedSymbolsDownDirty: boolean,
+|};
+
+export type TransformationRequest = {|
+  ...AssetGroup,
+  invalidations: Array<RequestInvalidation>,
+  invalidateReason: number,
+  devDeps: Map<PackageName, string>,
 |};
 
 export type DepPathRequestNode = {|

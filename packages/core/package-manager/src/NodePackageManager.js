@@ -6,6 +6,7 @@ import type {
   PackageManager,
   PackageInstaller,
   InstallOptions,
+  Invalidations,
 } from './types';
 import type {ResolveResult} from './NodeResolverBase';
 
@@ -26,6 +27,11 @@ import pkg from '../package.json';
 import {NodeResolver} from './NodeResolver';
 import {NodeResolverSync} from './NodeResolverSync';
 
+// There can be more than one instance of NodePackageManager, but node has only a single module cache.
+// Therefore, the resolution cache and the map of parent to child modules should also be global.
+const cache = new Map<ModuleSpecifier, ResolveResult>();
+const children = new Map<FilePath, Set<ModuleSpecifier>>();
+
 // This implements a package manager for Node by monkey patching the Node require
 // algorithm so that it uses the specified FileSystem instead of the native one.
 // It also handles installing packages when they are required if not already installed.
@@ -34,7 +40,6 @@ import {NodeResolverSync} from './NodeResolverSync';
 export class NodePackageManager implements PackageManager {
   fs: FileSystem;
   installer: ?PackageInstaller;
-  cache: Map<ModuleSpecifier, ResolveResult> = new Map();
   resolver: NodeResolver;
   syncResolver: NodeResolverSync;
 
@@ -129,10 +134,10 @@ export class NodePackageManager implements PackageManager {
   ): Promise<ResolveResult> {
     let basedir = path.dirname(from);
     let key = basedir + ':' + name;
-    let resolved = this.cache.get(key);
+    let resolved = cache.get(key);
     if (!resolved) {
       try {
-        resolved = await this.resolver.resolve(name, basedir);
+        resolved = await this.resolver.resolve(name, from);
       } catch (e) {
         if (
           e.code !== 'MODULE_NOT_FOUND' ||
@@ -250,7 +255,20 @@ export class NodePackageManager implements PackageManager {
         }
       }
 
-      this.cache.set(key, resolved);
+      cache.set(key, resolved);
+
+      // Add the specifier as a child to the parent module.
+      // Don't do this if the specifier was an absolute path, as this was likely a dynamically resolved path
+      // (e.g. babel uses require() to load .babelrc.js configs and we don't want them to be added  as children of babel itself).
+      if (!path.isAbsolute(name)) {
+        let moduleChildren = children.get(from);
+        if (!moduleChildren) {
+          moduleChildren = new Set();
+          children.set(from, moduleChildren);
+        }
+
+        moduleChildren.add(name);
+      }
     }
 
     return resolved;
@@ -258,7 +276,24 @@ export class NodePackageManager implements PackageManager {
 
   resolveSync(name: ModuleSpecifier, from: FilePath): ResolveResult {
     let basedir = path.dirname(from);
-    return this.syncResolver.resolve(name, basedir);
+    let key = basedir + ':' + name;
+    let resolved = cache.get(key);
+    if (!resolved) {
+      resolved = this.syncResolver.resolve(name, from);
+      cache.set(key, resolved);
+
+      if (!path.isAbsolute(name)) {
+        let moduleChildren = children.get(from);
+        if (!moduleChildren) {
+          moduleChildren = new Set();
+          children.set(from, moduleChildren);
+        }
+
+        moduleChildren.add(name);
+      }
+    }
+
+    return resolved;
   }
 
   async install(
@@ -270,6 +305,82 @@ export class NodePackageManager implements PackageManager {
       packageInstaller: this.installer,
       ...opts,
     });
+  }
+
+  getInvalidations(name: ModuleSpecifier, from: FilePath): Invalidations {
+    let res = {
+      invalidateOnFileCreate: [],
+      invalidateOnFileChange: new Set(),
+    };
+
+    let seen = new Set();
+    let addKey = (name, from) => {
+      let basedir = path.dirname(from);
+      let key = basedir + ':' + name;
+      if (seen.has(key)) {
+        return;
+      }
+
+      seen.add(key);
+      let resolved = cache.get(key);
+      if (!resolved || !path.isAbsolute(resolved.resolved)) {
+        return;
+      }
+
+      res.invalidateOnFileCreate.push(...resolved.invalidateOnFileCreate);
+      res.invalidateOnFileChange.add(resolved.resolved);
+
+      for (let file of resolved.invalidateOnFileChange) {
+        res.invalidateOnFileChange.add(file);
+      }
+
+      let moduleChildren = children.get(resolved.resolved);
+      if (moduleChildren) {
+        for (let specifier of moduleChildren) {
+          addKey(specifier, resolved.resolved);
+        }
+      }
+    };
+
+    addKey(name, from);
+    return res;
+  }
+
+  invalidate(name: ModuleSpecifier, from: FilePath) {
+    let seen = new Set();
+
+    let invalidate = (name, from) => {
+      let basedir = path.dirname(from);
+      let key = basedir + ':' + name;
+      if (seen.has(key)) {
+        return;
+      }
+
+      seen.add(key);
+      let resolved = cache.get(key);
+      if (!resolved || !path.isAbsolute(resolved.resolved)) {
+        return;
+      }
+
+      let module = require.cache[resolved.resolved];
+      if (module) {
+        delete require.cache[resolved.resolved];
+      }
+
+      let moduleChildren = children.get(resolved.resolved);
+      if (moduleChildren) {
+        for (let specifier of moduleChildren) {
+          invalidate(specifier, resolved.resolved);
+        }
+      }
+
+      children.delete(resolved.resolved);
+      cache.delete(key);
+      this.resolver.invalidate(resolved.resolved);
+      this.syncResolver.invalidate(resolved.resolved);
+    };
+
+    invalidate(name, from);
   }
 }
 

@@ -25,6 +25,7 @@ import type {
 import {makeRe} from 'micromatch';
 import {basename} from 'path';
 import loadPlugin from './loadParcelPlugin';
+import {createBuildCache} from './buildCache';
 
 type GlobMap<T> = {[Glob]: T, ...};
 type SerializedParcelConfig = {|
@@ -40,6 +41,9 @@ type LoadedPlugin<T> = {|
   resolveFrom: FilePath,
   keyPath: string,
 |};
+
+// Tracks plugins that have been loaded during this build.
+const loadedPlugins = createBuildCache();
 
 export default class ParcelConfig {
   options: ParcelOptions;
@@ -101,34 +105,61 @@ export default class ParcelConfig {
 
   loadPlugin<T>(
     node: ParcelPluginNode,
-  ): Promise<{|plugin: T, version: Semver|}> {
+    devDeps?: Map<PackageName, string>,
+  ): Promise<{|plugin: T, version: Semver, resolveFrom: FilePath|}> {
+    // If the package is not in the list of dev deps, it is invalid and we need to reload it.
+    // We only want to do this once per build, so if it is in the list of loaded plugins, ignore.
+    let isInvalid =
+      devDeps &&
+      !devDeps.has(node.packageName) &&
+      !loadedPlugins.has(node.packageName);
+
     let plugin = this.pluginCache.get(node.packageName);
-    if (plugin) {
+    if (plugin && !isInvalid) {
       return plugin;
     }
 
-    plugin = loadPlugin<T>(
-      node.packageName,
-      node.resolveFrom,
-      node.keyPath,
-      this.options,
+    // If invalid, wait for the existing request and invalidate.
+    let promise = Promise.resolve();
+    if (plugin && isInvalid) {
+      promise = plugin.then(cached => {
+        this.options.packageManager.invalidate(
+          node.packageName,
+          cached.resolveFrom,
+        );
+      });
+    }
+
+    promise = promise.then(() =>
+      loadPlugin<T>(
+        node.packageName,
+        node.resolveFrom,
+        node.keyPath,
+        this.options,
+      ),
     );
-    this.pluginCache.set(node.packageName, plugin);
-    return plugin;
+
+    this.pluginCache.set(node.packageName, promise);
+    loadedPlugins.set(node.packageName, true);
+    return promise;
   }
 
   loadPlugins<T>(
     plugins: PureParcelConfigPipeline,
+    devDeps?: Map<PackageName, string>,
   ): Promise<Array<LoadedPlugin<T>>> {
     return Promise.all(
       plugins.map(async p => {
-        let {plugin, version} = await this.loadPlugin<T>(p);
+        let {plugin, version, resolveFrom} = await this.loadPlugin<T>(
+          p,
+          devDeps,
+        );
         return {
           name: p.packageName,
           plugin,
           version,
-          resolveFrom: p.resolveFrom,
           keyPath: p.keyPath,
+          resolveFrom,
         };
       }),
     );
@@ -217,9 +248,11 @@ export default class ParcelConfig {
     filePath: FilePath,
     pipeline?: ?string,
     allowEmpty?: boolean,
+    devDeps?: Map<PackageName, string>,
   ): Promise<Array<LoadedPlugin<Transformer>>> {
     return this.loadPlugins<Transformer>(
       this._getTransformerNodes(filePath, pipeline, allowEmpty),
+      devDeps,
     );
   }
 
@@ -231,7 +264,11 @@ export default class ParcelConfig {
     return this.bundler.packageName;
   }
 
-  getBundler(): Promise<{|version: Semver, plugin: Bundler|}> {
+  getBundler(): Promise<{|
+    version: Semver,
+    plugin: Bundler,
+    resolveFrom: FilePath,
+  |}> {
     if (!this.bundler) {
       throw new Error('No bundler specified in .parcelrc config');
     }

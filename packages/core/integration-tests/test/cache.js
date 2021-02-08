@@ -15,6 +15,7 @@ import {
 } from '@parcel/test-utils';
 import fs from 'fs';
 import {NodePackageManager} from '@parcel/package-manager';
+import {createWorkerFarm} from '@parcel/core';
 
 let inputDir: string;
 let packageManager = new NodePackageManager(inputFS);
@@ -3147,6 +3148,7 @@ describe('cache', function() {
                 );
 
                 delete require.cache[path.join(inputDir, '.pnp.js')];
+                await sleep(100);
               },
             },
             'pnp-require',
@@ -3593,6 +3595,301 @@ describe('cache', function() {
         );
         assert(css.includes('.d'));
       });
+    });
+  });
+
+  describe('dev deps', function() {
+    it('should invalidate when updating a parcel transformer plugin', async function() {
+      let b = await testCache({
+        async setup() {
+          await overlayFS.writeFile(
+            path.join(inputDir, '.parcelrc'),
+            JSON.stringify({
+              extends: '@parcel/config-default',
+              transformers: {
+                '*.js': ['parcel-transformer-mock'],
+              },
+            }),
+          );
+        },
+        async update(b) {
+          let output = await overlayFS.readFile(
+            b.bundleGraph.getBundles()[0].filePath,
+            'utf8',
+          );
+          assert(output.includes('TRANSFORMED CODE'));
+
+          let transformerDir = path.join(
+            inputDir,
+            'node_modules',
+            'parcel-transformer-mock',
+          );
+          await overlayFS.writeFile(
+            path.join(transformerDir, 'constants.js'),
+            'exports.message = "UPDATED"',
+          );
+        },
+      });
+
+      let output = await overlayFS.readFile(
+        b.bundleGraph.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert(output.includes('UPDATED'));
+    });
+
+    it('should resolve to package.json#main over an index.js', async function() {
+      let b = await testCache({
+        async setup() {
+          await overlayFS.writeFile(
+            path.join(inputDir, '.parcelrc'),
+            JSON.stringify({
+              extends: '@parcel/config-default',
+              transformers: {
+                '*.js': ['parcel-transformer-mock'],
+              },
+            }),
+          );
+        },
+        async update(b) {
+          let output = await overlayFS.readFile(
+            b.bundleGraph.getBundles()[0].filePath,
+            'utf8',
+          );
+          assert(output.includes('TRANSFORMED CODE'));
+
+          let transformerDir = path.join(
+            inputDir,
+            'node_modules',
+            'parcel-transformer-mock',
+          );
+          await overlayFS.writeFile(
+            path.join(transformerDir, 'MockTransformer.js'),
+            `
+            const Transformer = require('@parcel/plugin').Transformer;
+            module.exports = new Transformer({
+              transform({asset}) {
+                return [
+                  {
+                    type: 'js',
+                    content: 'UPDATED',
+                  },
+                ];
+              }
+            });
+            `,
+          );
+
+          await overlayFS.writeFile(
+            path.join(transformerDir, 'package.json'),
+            JSON.stringify({main: 'MockTransformer.js'}),
+          );
+        },
+      });
+
+      let output = await overlayFS.readFile(
+        b.bundleGraph.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert(output.includes('UPDATED'));
+    });
+
+    it('should resolve to a file over a directory with an index.js', async function() {
+      let transformerDir = path.join(
+        inputDir,
+        'node_modules',
+        'parcel-transformer-mock',
+      );
+      let b = await testCache({
+        async setup() {
+          await overlayFS.writeFile(
+            path.join(inputDir, '.parcelrc'),
+            JSON.stringify({
+              extends: '@parcel/config-default',
+              transformers: {
+                '*.js': ['parcel-transformer-mock'],
+              },
+            }),
+          );
+
+          await overlayFS.unlink(path.join(transformerDir, 'constants.js'));
+          await overlayFS.mkdirp(path.join(transformerDir, 'constants'));
+          await overlayFS.writeFile(
+            path.join(transformerDir, 'constants', 'index.js'),
+            'exports.message = "TRANSFORMED"',
+          );
+        },
+        async update(b) {
+          let output = await overlayFS.readFile(
+            b.bundleGraph.getBundles()[0].filePath,
+            'utf8',
+          );
+          assert(output.includes('TRANSFORMED'));
+
+          await overlayFS.writeFile(
+            path.join(transformerDir, 'constants.js'),
+            'exports.message = "UPDATED"',
+          );
+        },
+      });
+
+      let output = await overlayFS.readFile(
+        b.bundleGraph.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert(output.includes('UPDATED'));
+    });
+
+    it('should support adding a deeper node_modules folder', async function() {});
+
+    it('should support yarn pnp', async function() {
+      // $FlowFixMe
+      let Module = require('module');
+      let origPnpVersion = process.versions.pnp;
+      let origModuleResolveFilename = Module._resolveFilename;
+
+      // We must create a worker farm that only uses a single thread because our process.versions.pnp
+      // mock won't be available in the workers of the existing farm.
+      let workerFarm = createWorkerFarm({
+        maxConcurrentWorkers: 0,
+      });
+
+      try {
+        let b = await testCache({
+          inputFS,
+          outputFS: inputFS,
+          workerFarm,
+          async setup() {
+            await inputFS.mkdirp(inputDir);
+            await inputFS.ncp(
+              path.join(__dirname, '/integration/cache'),
+              inputDir,
+            );
+
+            // $FlowFixMe
+            process.versions.pnp = 42;
+
+            fs.renameSync(
+              path.join(inputDir, 'node_modules'),
+              path.join(inputDir, 'pnp'),
+            );
+
+            await inputFS.ncp(
+              path.join(inputDir, 'pnp'),
+              path.join(inputDir, 'pnp2'),
+            );
+
+            await inputFS.writeFile(
+              path.join(inputDir, 'pnp', 'parcel-transformer-mock', 'index.js'),
+              `
+                const Transformer = require('@parcel/plugin').Transformer;
+                module.exports = new Transformer({
+                  transform({asset}) {
+                    return [
+                      {
+                        type: 'js',
+                        content: 'TRANSFORMED CODE',
+                      },
+                    ];
+                  }
+                });
+                `,
+            );
+
+            await inputFS.writeFile(
+              path.join(
+                inputDir,
+                'pnp2',
+                'parcel-transformer-mock',
+                'index.js',
+              ),
+              `
+                const Transformer = require('@parcel/plugin').Transformer;
+                module.exports = new Transformer({
+                  transform({asset}) {
+                    return [
+                      {
+                        type: 'js',
+                        content: 'UPDATED',
+                      },
+                    ];
+                  }
+                });
+                `,
+            );
+
+            await inputFS.writeFile(
+              path.join(inputDir, '.pnp.js'),
+              `
+                const path = require('path');
+                const resolve = request => {
+                  if (request === 'parcel-transformer-mock' || request === 'foo') {
+                    return path.join(__dirname, 'pnp', request);
+                  } else if (request === 'pnpapi') {
+                    return __filename;
+                  } else {
+                    return require.resolve(request);
+                  }
+                };
+
+                module.exports = {resolveToUnqualified: resolve, resolveRequest: resolve};
+                `,
+            );
+
+            Module.findPnpApi = () =>
+              // $FlowFixMe
+              require(path.join(inputDir, '.pnp.js'));
+
+            await inputFS.writeFile(
+              path.join(inputDir, '.parcelrc'),
+              JSON.stringify({
+                extends: '@parcel/config-default',
+                transformers: {
+                  '*.js': ['parcel-transformer-mock'],
+                },
+              }),
+            );
+          },
+          async update(b) {
+            let output = await overlayFS.readFile(
+              b.bundleGraph.getBundles()[0].filePath,
+              'utf8',
+            );
+            assert(output.includes('TRANSFORMED CODE'));
+
+            await inputFS.writeFile(
+              path.join(inputDir, '.pnp.js'),
+              `
+                const path = require('path');
+                const resolve = request => {
+                  if (request === 'parcel-transformer-mock' || request === 'foo') {
+                    return path.join(__dirname, 'pnp2', request);
+                  } else if (request === 'pnpapi') {
+                    return __filename;
+                  } else {
+                    return require.resolve(request);
+                  }
+                };
+
+                module.exports = {resolveToUnqualified: resolve, resolveRequest: resolve};
+                `,
+            );
+
+            delete require.cache[path.join(inputDir, '.pnp.js')];
+            await sleep(100);
+          },
+        });
+
+        let output = await overlayFS.readFile(
+          b.bundleGraph.getBundles()[0].filePath,
+          'utf8',
+        );
+        assert(output.includes('UPDATED'));
+      } finally {
+        process.versions.pnp = origPnpVersion;
+        Module._resolveFilename = origModuleResolveFilename;
+        await workerFarm.end();
+      }
     });
   });
 
