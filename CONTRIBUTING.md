@@ -38,7 +38,7 @@ Use `yarn format` to make sure we keep the code format consistent.
 
 Use `yarn lint` to check for stylistic or unwanted errors.
 
-If you want to test out your change outside of the monorepo, you ran run `/path/to/monorepo/packages/core/parcel/src/bin.js` (provided that you don't have any `@parcel/*` plugins installed in this project).
+If you want to test out your change outside of the monorepo, you ran run `/path/to/monorepo/packages/core/parcel/src/bin.js build src/index.html` (provided that you don't have any `@parcel/*` plugins installed in this project).
 
 ## Notes and things to be aware of
 
