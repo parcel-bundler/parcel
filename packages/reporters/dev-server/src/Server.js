@@ -159,17 +159,19 @@ export default class Server {
         htmlBundleFilePaths.length > 1
           ? htmlBundleFilePaths
               .sort((a, b) => {
-                return a.length - b.length;
+                let lengthDiff = a.length - b.length;
+                if (lengthDiff === 0) {
+                  return a.localeCompare(b);
+                } else {
+                  return lengthDiff;
+                }
               })
               .find(f => {
                 return path.basename(f).startsWith('index');
               })
           : htmlBundleFilePaths[0];
       if (indexFilePath) {
-        req.url = `/${path.relative(
-          this.options.distDir,
-          indexFilePath,
-        )}`;
+        req.url = `/${path.relative(this.options.distDir, indexFilePath)}`;
 
         this.serveDist(req, res, () => this.send404(req, res));
       } else {
