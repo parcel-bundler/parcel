@@ -10,8 +10,8 @@ export default (new Transformer({
       outputFormat: asset.env.outputFormat,
       isLibrary: asset.env.isLibrary,
       sourceMap: asset.env.sourceMap,
-      minify: asset.env.minify,
-      scopeHoist: asset.env.scopeHoist,
+      shouldOptimize: asset.env.shouldOptimize,
+      shouldScopeHoist: asset.env.shouldScopeHoist,
       context: 'web-worker',
     });
     asset.isIsolated = true;

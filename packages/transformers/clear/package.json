@@ -13,8 +13,8 @@
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
-  "main": "lib/WorkerTransformer.js",
-  "source": "src/WorkerTransformer.js",
+  "main": "lib/ClearTransformer.js",
+  "source": "src/ClearTransformer.js",
   "engines": {
     "node": ">= 12.0.0",
     "parcel": "^2.0.0-beta.1"
