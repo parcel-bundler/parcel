@@ -1,1 +1,1 @@
-new Worker(new URL("./missing.js", import.meta.url));
+new Worker(new URL("./invalid.js", import.meta.url));

@@ -843,7 +843,7 @@ describe('javascript', function() {
     assert(contents.includes('import.meta.url'));
   });
 
-  it('should have a diagnostic for missing file in worker constructor with URL and import.meta.url', async function() {
+  it('should throw a codeframe for a missing file in worker constructor with URL and import.meta.url', async function() {
     let fixture = path.join(
       __dirname,
       'integration/worker-import-meta-url/missing.js',
@@ -853,24 +853,32 @@ describe('javascript', function() {
       name: 'BuildError',
       diagnostics: [
         {
-          //     message: 'Unknown pipeline: strange-pipeline.',
-          //     origin: '@parcel/core',
-          //     filePath: fixture,
-          //     codeFrame: {
-          //       code,
-          //       codeHighlights: [
-          //         {
-          //           start: {
-          //             column: 19,
-          //             line: 1,
-          //           },
-          //           end: {
-          //             column: 43,
-          //             line: 1,
-          //           },
-          //         },
-          //       ],
-          //     },
+          codeFrame: {
+            code,
+            codeHighlights: [
+              {
+                end: {
+                  column: 51,
+                  line: 1,
+                },
+                start: {
+                  column: 12,
+                  line: 1,
+                },
+              },
+            ],
+          },
+          filePath: fixture,
+          message: "Failed to resolve './invalid.js' from './missing.js'",
+          origin: '@parcel/core',
+        },
+        {
+          hints: [
+            'Did you mean __./dynamic.js__?',
+            'Did you mean __./index.js__?',
+          ],
+          message: "Cannot load file './invalid.js' in './'.",
+          origin: '@parcel/resolver-default',
         },
       ],
     });
