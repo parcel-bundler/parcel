@@ -12,7 +12,6 @@ import type {FileSystem} from '@parcel/fs';
 import type {HTTPServer} from '@parcel/utils';
 
 import invariant from 'assert';
-import nullthrows from 'nullthrows';
 import path from 'path';
 import url from 'url';
 import {
@@ -169,7 +168,7 @@ export default class Server {
       if (indexFilePath) {
         req.url = `/${path.relative(
           this.options.distDir,
-          nullthrows(indexFilePath),
+          indexFilePath,
         )}`;
 
         this.serveDist(req, res, () => this.send404(req, res));
