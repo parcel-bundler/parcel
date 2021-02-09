@@ -248,14 +248,15 @@ export class TargetResolver {
   }
 
   async resolvePackageTargets(rootDir: FilePath): Promise<Map<string, Target>> {
-    let conf = await loadConfig(this.fs, path.join(rootDir, 'index'), [
+    let rootFile = path.join(rootDir, 'index');
+    let conf = await loadConfig(this.fs, rootFile, [
       'package.json',
     ]);
 
     // Invalidate whenever a package.json file is added.
     this.api.invalidateOnFileCreate({
       fileName: 'package.json',
-      aboveFilePath: path.join(rootDir, 'index'),
+      aboveFilePath: rootFile,
     });
 
     let pkg;
@@ -320,7 +321,13 @@ export class TargetResolver {
         );
 
         this.api.invalidateOnFileCreate({
-          glob: '**/{browserslist,.browserslistrc}',
+          fileName: 'browserslist',
+          aboveFilePath: rootFile,
+        });
+
+        this.api.invalidateOnFileCreate({
+          fileName: '.browserslistrc',
+          aboveFilePath: rootFile,
         });
 
         if (browserslistConfig != null) {
