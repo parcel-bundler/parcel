@@ -21,7 +21,9 @@
   },
   "dependencies": {
     "@parcel/plugin": "2.0.0-beta.1",
-    "@mdx-js/mdx": "^1.6.22",
+    "@mdx-js/mdx": "^1.6.22"
+  },
+  "peerDependencies": {
     "@mdx-js/react": "^1.6.22"
   }
 }

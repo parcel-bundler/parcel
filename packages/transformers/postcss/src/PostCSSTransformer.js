@@ -12,7 +12,7 @@ import valueParser from 'postcss-value-parser';
 import postcss from 'postcss';
 import postcssModules from 'postcss-modules';
 
-import {load, preSerialize, postDeserialize} from './loadConfig';
+import {load, preSerialize} from './loadConfig';
 
 const COMPOSES_RE = /composes:.+from\s*("|').*("|')\s*;?/;
 const FROM_IMPORT_RE = /.+from\s*(?:"|')(.*)(?:"|')\s*;?/;
@@ -24,10 +24,6 @@ export default (new Transformer({
 
   preSerializeConfig({config}) {
     return preSerialize(config);
-  },
-
-  postDeserializeConfig({config, options}) {
-    return postDeserialize(config, options);
   },
 
   canReuseAST({ast}) {

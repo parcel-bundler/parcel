@@ -100,7 +100,7 @@ export default async function loadPlugin<T>(
     );
     throw new ThrowableDiagnostic({
       diagnostic: {
-        message: `Cannot find parcel plugin "${pluginName}"`,
+        message: `Cannot find Parcel plugin "${pluginName}"`,
         origin: '@parcel/core',
         filePath: configPath,
         language: 'json5',
