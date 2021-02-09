@@ -76,10 +76,63 @@ export class NodePackageManager implements PackageManager {
 
   requireSync(name: ModuleSpecifier, from: FilePath): any {
     let {resolved} = this.resolveSync(name, from);
-    return this.load(resolved, from);
+    return this.loadSync(resolved, from);
   }
 
-  load(resolved: FilePath, from: FilePath): any {
+  async load(resolved: FilePath, from: FilePath): any {
+    if (!path.isAbsolute(resolved)) {
+      // Node builtin module
+      // $FlowFixMe
+      return require(resolved);
+    }
+
+    let filePath = await this.fs.realpath(resolved);
+    const cachedModule = Module._cache[filePath];
+    if (cachedModule !== undefined) {
+      return cachedModule.exports;
+    }
+
+    let m = new Module(filePath, Module._cache[from] || module.parent);
+    Module._cache[filePath] = m;
+
+    // Patch require within this module so it goes through our require
+    // m.require = async id => {
+    //   return await this.require(id, filePath);
+    // };
+    // TODO find a way to use async require
+    m.require = id => {
+      return this.requireSync(id, filePath);
+    };
+
+    // Patch `fs.readFile` temporarily so that it goes through our file system
+    let readFile = nativeFS.readFile;
+    // $FlowFixMe
+    nativeFS.readFile = (filename, encoding, callback) => {
+      // $FlowFixMe
+      nativeFS.readFile = readFile;
+      return this.fs.readFile(filename, encoding, callback);
+    };
+
+    // Patch `fs.readFileSync` temporarily so that it goes through our file system
+    let readFileSync = nativeFS.readFileSync;
+    // $FlowFixMe
+    nativeFS.readFileSync = (filename, encoding) => {
+      // $FlowFixMe
+      nativeFS.readFileSync = readFileSync;
+      return this.fs.readFileSync(filename, encoding);
+    };
+
+    try {
+      m.load(filePath);
+    } catch (err) {
+      delete Module._cache[filePath];
+      throw err;
+    }
+
+    return m.exports;
+  }
+
+  loadSync(resolved: FilePath, from: FilePath): any {
     if (!path.isAbsolute(resolved)) {
       // Node builtin module
       // $FlowFixMe
