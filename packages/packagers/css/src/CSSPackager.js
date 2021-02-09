@@ -136,48 +136,52 @@ async function processCSSModule(
 ): Promise<[Asset, string, ?Buffer]> {
   let ast: Root = postcss.fromJSON(nullthrows((await asset.getAST())?.program));
 
-  let usedSymbols = bundleGraph.getUsedSymbols(asset);
-  let localSymbols = new Set(
-    [...asset.symbols].map(([, {local}]) => `.${local}`),
-  );
+  // Fix for `parcel build --no-scope-hoist`
+  if (bundle.env.scopeHoist) {
+    let usedSymbols = bundleGraph.getUsedSymbols(asset);
+    let localSymbols = new Set(
+      [...asset.symbols].map(([, {local}]) => `.${local}`),
+    );
 
-  let defaultImport = null;
-  if (usedSymbols.has('default')) {
-    let incoming = bundleGraph.getIncomingDependencies(asset);
-    // `import * as ns from ""; ns.default` is fine.
-    defaultImport = incoming.find(d => d.meta.hasDefaultImport);
-    if (defaultImport) {
-      let loc = defaultImport.symbols.get('default')?.loc;
-      logger.warn({
-        message:
-          'CSS modules cannot be tree shaken when imported with a default specifier',
-        filePath: nullthrows(loc?.filePath ?? defaultImport.sourcePath),
-        ...(loc && {
-          codeFrame: {
-            codeHighlights: [{start: loc.start, end: loc.end}],
-          },
-        }),
-        hints: [
-          `Instead do: import * as style from "${defaultImport.moduleSpecifier}";`,
-        ],
+    let defaultImport = null;
+    if (usedSymbols.has('default')) {
+      let incoming = bundleGraph.getIncomingDependencies(asset);
+      // `import * as ns from ""; ns.default` is fine.
+      defaultImport = incoming.find(d => d.meta.hasDefaultImport);
+      if (defaultImport) {
+        let loc = defaultImport.symbols.get('default')?.loc;
+        logger.warn({
+          message:
+            'CSS modules cannot be tree shaken when imported with a default specifier',
+          filePath: nullthrows(loc?.filePath ?? defaultImport.sourcePath),
+          ...(loc && {
+            codeFrame: {
+              codeHighlights: [{start: loc.start, end: loc.end}],
+            },
+          }),
+          hints: [
+            `Instead do: import * as style from "${defaultImport.moduleSpecifier}";`,
+          ],
+        });
+      }
+    }
+
+    if (!defaultImport) {
+      let usedLocalSymbols = new Set(
+        [...usedSymbols].map(
+          exportSymbol =>
+            `.${nullthrows(asset.symbols.get(exportSymbol)).local}`,
+        ),
+      );
+      ast.walkRules(rule => {
+        if (
+          localSymbols.has(rule.selector) &&
+          !usedLocalSymbols.has(rule.selector)
+        ) {
+          rule.remove();
+        }
       });
     }
-  }
-
-  if (!defaultImport) {
-    let usedLocalSymbols = new Set(
-      [...usedSymbols].map(
-        exportSymbol => `.${nullthrows(asset.symbols.get(exportSymbol)).local}`,
-      ),
-    );
-    ast.walkRules(rule => {
-      if (
-        localSymbols.has(rule.selector) &&
-        !usedLocalSymbols.has(rule.selector)
-      ) {
-        rule.remove();
-      }
-    });
   }
 
   let {content, map} = await postcss().process(ast, {
