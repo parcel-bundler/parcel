@@ -10,7 +10,6 @@
 [![David Dependency Status](https://david-dm.org/parcel-bundler/parcel.svg)](https://david-dm.org/parcel-bundler/parcel)
 [![npm package](https://img.shields.io/npm/v/parcel.svg)](https://www.npmjs.com/package/parcel)
 [![npm package](https://img.shields.io/npm/dm/parcel.svg)](https://www.npmjs.com/package/parcel)
-[![Join the community on Spectrum](https://withspectrum.github.io/badge/badge.svg)](https://spectrum.chat/parcel)
 [![Twitter Follow](https://img.shields.io/twitter/follow/parceljs.svg?style=social)](https://twitter.com/parceljs)
 
 ## Features
