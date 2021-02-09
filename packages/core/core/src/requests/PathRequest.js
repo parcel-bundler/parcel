@@ -213,14 +213,20 @@ export class ResolverRunner {
           if (result.diagnostics) {
             let errorDiagnostic = errorToDiagnostic(
               new ThrowableDiagnostic({diagnostic: result.diagnostics}),
-              resolver.name,
+              {
+                origin: resolver.name,
+                filePath,
+              },
             );
             diagnostics.push(...errorDiagnostic);
           }
         }
       } catch (e) {
         // Add error to error map, we'll append these to the standard error if we can't resolve the asset
-        let errorDiagnostic = errorToDiagnostic(e, resolver.name);
+        let errorDiagnostic = errorToDiagnostic(e, {
+          origin: resolver.name,
+          filePath,
+        });
         if (Array.isArray(errorDiagnostic)) {
           diagnostics.push(...errorDiagnostic);
         } else {

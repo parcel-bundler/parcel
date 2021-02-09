@@ -126,7 +126,9 @@ export default class Validation {
             this.handleResults(validatorResults);
           } catch (e) {
             throw new ThrowableDiagnostic({
-              diagnostic: errorToDiagnostic(e, validatorName),
+              diagnostic: errorToDiagnostic(e, {
+                origin: validatorName,
+              }),
             });
           }
         }

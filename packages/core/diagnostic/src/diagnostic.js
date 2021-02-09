@@ -119,14 +119,18 @@ export function anyToDiagnostic(input: Diagnostifiable): Array<Diagnostic> {
 /** Normalize the given error into a diagnostic. */
 export function errorToDiagnostic(
   error: ThrowableDiagnostic | PrintableError | string,
-  realOrigin?: string,
+  defaultValues: {
+    origin?: ?string,
+    filePath?: ?string,
+    ...
+  } = {},
 ): Array<Diagnostic> {
   let codeFrame: DiagnosticCodeFrame | void = undefined;
 
   if (typeof error === 'string') {
     return [
       {
-        origin: realOrigin ?? 'Error',
+        origin: defaultValues?.origin ?? 'Error',
         message: error,
         codeFrame,
       },
@@ -137,7 +141,7 @@ export function errorToDiagnostic(
     return error.diagnostics.map(d => {
       return {
         ...d,
-        origin: realOrigin ?? d.origin ?? 'unknown',
+        origin: d.origin ?? defaultValues?.origin ?? 'unknown',
       };
     });
   }
@@ -162,10 +166,14 @@ export function errorToDiagnostic(
 
   return [
     {
-      origin: realOrigin ?? 'Error',
+      origin: defaultValues?.origin ?? 'Error',
       message: error.message,
       name: error.name,
-      filePath: error.filePath ?? error.fileName,
+      filePath:
+        error.filePath ??
+        error.fileName ??
+        defaultValues?.filePath ??
+        undefined,
       stack: error.highlightedCodeFrame ?? error.codeFrame ?? error.stack,
       codeFrame,
     },
