@@ -9,12 +9,14 @@ import {prettyDiagnostic, openInBrowser} from '@parcel/utils';
 import {Disposable} from '@parcel/events';
 import {INTERNAL_ORIGINAL_CONSOLE} from '@parcel/logger';
 import chalk from 'chalk';
-import program from 'commander';
+import commander from 'commander';
 import path from 'path';
 import getPort from 'get-port';
 import {version} from '../package.json';
 
 require('v8-compile-cache');
+
+const program = new commander.Command();
 
 // Exit codes in response to signals are traditionally
 // 128 + signal value
@@ -52,6 +54,7 @@ const handleUncaughtException = async exception => {
 
 process.on('unhandledRejection', handleUncaughtException);
 
+program.storeOptionsAsProperties();
 program.version(version);
 
 // --no-cache, --cache-dir, --no-source-maps, --no-autoinstall, --global?, --public-url, --log-level
@@ -69,18 +72,19 @@ const commonOptions = {
     (val, list) => list.concat([val]),
     [],
   ],
-  '--log-level <level>': [
-    'set the log level, either "none", "error", "warn", "info", or "verbose".',
-    /^(none|error|warn|info|verbose)$/,
-  ],
+  '--log-level <level>': new commander.Option(
+    '--log-level <level>',
+    'set the log level',
+  ).choices(['none', 'error', 'warn', 'info', 'verbose']),
   '--dist-dir <dir>':
     'output directory to write to when unspecified by targets',
   '--no-autoinstall': 'disable autoinstall',
   '--profile': 'enable build profiling',
   '-V, --version': 'output the version number',
-  '--detailed-report [depth]': [
+  '--detailed-report [count]': [
     'Print the asset timings and sizes in the build report',
-    /^([0-9]+)$/,
+    parseOptionInt,
+    '10',
   ],
 };
 
@@ -100,10 +104,12 @@ var hmrOptions = {
 
 function applyOptions(cmd, options) {
   for (let opt in options) {
-    cmd.option(
-      opt,
-      ...(Array.isArray(options[opt]) ? options[opt] : [options[opt]]),
-    );
+    const option = options[opt];
+    if (option instanceof commander.Option) {
+      cmd.addOption(option);
+    } else {
+      cmd.option(opt, ...(Array.isArray(option) ? option : [option]));
+    }
   }
 }
 
@@ -159,6 +165,16 @@ program.on('--help', function() {
   INTERNAL_ORIGINAL_CONSOLE.log('');
 });
 
+// Override to output option description if argument was missing
+commander.Command.prototype.optionMissingArgument = function(option) {
+  INTERNAL_ORIGINAL_CONSOLE.error(
+    "error: option `%s' argument missing",
+    option.flags,
+  );
+  INTERNAL_ORIGINAL_CONSOLE.log(program.createHelp().optionDescription(option));
+  process.exit(1);
+};
+
 // Make serve the default command except for --help
 var args = process.argv;
 if (args[2] === '--help' || args[2] === '-h') args[2] = 'help';
@@ -172,7 +188,11 @@ function runCommand(...args) {
   run(...args).catch(handleUncaughtException);
 }
 
-async function run(entries: Array<string>, command: any) {
+async function run(
+  entries: Array<string>,
+  _opts: any, // using pre v7 Commander options as properties
+  command: any,
+) {
   entries = entries.map(entry => path.resolve(entry));
 
   if (entries.length === 0) {
@@ -323,6 +343,14 @@ function parsePort(portValue: string): number {
   }
 
   return parsedPort;
+}
+
+function parseOptionInt(value) {
+  const parsedValue = parseInt(value, 10);
+  if (isNaN(parsedValue)) {
+    throw new commander.InvalidOptionArgumentError('Must be an integer.');
+  }
+  return parsedValue;
 }
 
 async function normalizeOptions(command): Promise<InitialParcelOptions> {

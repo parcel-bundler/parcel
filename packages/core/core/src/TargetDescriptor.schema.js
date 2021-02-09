@@ -35,6 +35,7 @@ export const PACKAGE_DESCRIPTOR_SCHEMA: SchemaObject = {
         'web-worker',
         'electron-main',
         'electron-renderer',
+        'service-worker',
       ],
     },
     includeNodeModules: {

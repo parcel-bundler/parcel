@@ -298,6 +298,9 @@ export default class Parcel {
       );
       assertSignalNotAborted(signal);
 
+      // $FlowFixMe
+      dumpGraphToGraphViz(this.#requestTracker.graph, 'RequestGraph');
+
       let event = {
         type: 'buildSuccess',
         changedAssets: new Map(
