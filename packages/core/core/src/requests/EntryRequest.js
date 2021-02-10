@@ -96,6 +96,7 @@ class EntryResolver {
 
     if (stat.isDirectory()) {
       let pkg = await this.readPackage(entry);
+
       if (pkg && typeof pkg.source === 'string') {
         let source = path.join(path.dirname(pkg.filePath), pkg.source);
         try {
@@ -118,9 +119,31 @@ class EntryResolver {
           );
         }
 
+        let entries = [];
+        let files = [{filePath: pkg.filePath}];
+
+        if (pkg.targets) {
+          for (let targetName in pkg.targets) {
+            let target = pkg.targets[targetName];
+            if (target.source) {
+              let filePath = path.join(entry, target.source);
+              entries.push({filePath, packagePath: entry, target: targetName});
+            }
+          }
+        }
+
+        let allTargetsHaveSource =
+          entries.length > 0 &&
+          pkg.targets != null &&
+          Object.keys(pkg.targets).length === entries.length;
+        if (!allTargetsHaveSource) {
+          let defaultEntry = {filePath: source, packagePath: entry};
+          entries.unshift(defaultEntry);
+        }
+
         return {
-          entries: [{filePath: source, packagePath: entry}],
-          files: [{filePath: pkg.filePath}],
+          entries,
+          files,
         };
       }
 

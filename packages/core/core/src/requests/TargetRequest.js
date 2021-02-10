@@ -74,7 +74,7 @@ async function run({input, api, options}: RunOpts) {
     api,
     optionsProxy(options, api.invalidateOnOptionChange),
   );
-  let targets = await targetResolver.resolve(input.packagePath);
+  let targets = await targetResolver.resolve(input.packagePath, input.target);
 
   let configResult = nullthrows(
     await api.runRequest<null, ConfigAndCachePath>(createParcelConfigRequest()),
@@ -103,10 +103,18 @@ export class TargetResolver {
     this.options = options;
   }
 
-  async resolve(rootDir: FilePath): Promise<Array<Target>> {
-    let optionTargets = this.options.targets;
+  async resolve(
+    rootDir: FilePath,
+    exclusiveTarget: String,
+  ): Promise<Array<Target>> {
+    let optionTargets = exclusiveTarget
+      ? [exclusiveTarget]
+      : this.options.targets;
 
-    let packageTargets = await this.resolvePackageTargets(rootDir);
+    let packageTargets = await this.resolvePackageTargets(
+      rootDir,
+      exclusiveTarget,
+    );
     let targets: Array<Target>;
     if (optionTargets) {
       if (Array.isArray(optionTargets)) {
@@ -247,10 +255,20 @@ export class TargetResolver {
     return targets;
   }
 
-  async resolvePackageTargets(rootDir: FilePath): Promise<Map<string, Target>> {
+  async resolvePackageTargets(
+    rootDir: FilePath,
+    exclusiveTarget: String,
+  ): Promise<Map<string, Target>> {
     let conf = await loadConfig(this.fs, path.join(rootDir, 'index'), [
       'package.json',
     ]);
+
+    function skipTarget(targetName: String, descriptor) {
+      //  We skip targets if they have a descriptor.source and don't match the current exclusiveTarget
+      //  They will be handled by a separate resolvePackageTargets call from their Entry point
+      //  but with exclusiveTarget set.
+      return descriptor.source != null && exclusiveTarget !== targetName;
+    }
 
     // Invalidate whenever a package.json file is added.
     // TODO: we really only need to invalidate if added *above* rootDir...
@@ -424,6 +442,10 @@ export class TargetResolver {
           pkgContents,
         );
 
+        if (skipTarget(targetName, descriptor)) {
+          continue;
+        }
+
         let isLibrary =
           typeof distEntry === 'string'
             ? path.extname(distEntry) === '.js'
@@ -526,6 +548,9 @@ export class TargetResolver {
           pkgFilePath,
           pkgContents,
         );
+        if (skipTarget(targetName, descriptor)) {
+          continue;
+        }
         let pkgDir = path.dirname(nullthrows(pkgFilePath));
         targets.set(targetName, {
           name: targetName,

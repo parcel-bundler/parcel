@@ -72,6 +72,9 @@ export const PACKAGE_DESCRIPTOR_SCHEMA: SchemaObject = {
     isLibrary: {
       type: 'boolean',
     },
+    source: {
+      type: 'string',
+    },
     sourceMap: {
       oneOf: [
         {
@@ -110,6 +113,9 @@ export const DESCRIPTOR_SCHEMA: SchemaEntity = {
   properties: {
     ...PACKAGE_DESCRIPTOR_SCHEMA.properties,
     distEntry: {
+      type: 'string',
+    },
+    source: {
       type: 'string',
     },
   },
