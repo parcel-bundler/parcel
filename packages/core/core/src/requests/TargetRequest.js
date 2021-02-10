@@ -249,9 +249,7 @@ export class TargetResolver {
 
   async resolvePackageTargets(rootDir: FilePath): Promise<Map<string, Target>> {
     let rootFile = path.join(rootDir, 'index');
-    let conf = await loadConfig(this.fs, rootFile, [
-      'package.json',
-    ]);
+    let conf = await loadConfig(this.fs, rootFile, ['package.json']);
 
     // Invalidate whenever a package.json file is added.
     this.api.invalidateOnFileCreate({
