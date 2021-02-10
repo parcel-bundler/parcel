@@ -3643,6 +3643,20 @@ describe('scope hoisting', function() {
       assert.equal(output, 2);
     });
 
+    it('should remove unused exports assignments for wrapped modules', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/wrap-unused/a.js',
+        ),
+      );
+
+      // console.log(await outputFS.readFile(b.getBundles()[0].filePath, 'utf8'));
+
+      let output = await run(b);
+      assert.equal(output, 1);
+    });
+
     it('should hoist all vars in the scope', async function() {
       let b = await bundle(
         path.join(
