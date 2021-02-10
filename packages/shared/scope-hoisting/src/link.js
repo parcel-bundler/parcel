@@ -837,49 +837,48 @@ export function link({
       },
     },
     AssignmentExpression(node) {
+      let {left, right} = node;
+
+      if (isMemberExpression(left)) {
+        let {object, property, computed} = left;
+        if (
+          !(
+            isIdentifier(object) &&
+            ((isIdentifier(property) && !computed) || isStringLiteral(property))
+          )
+        ) {
+          return;
+        }
+
+        // Rename references to exported symbols to the exported name.
+        let exp = exportedSymbols.get(object.name);
+        if (exp) {
+          object.name = exp[0].local;
+        }
+
+        let asset = exportsMap.get(object.name);
+        if (!asset) {
+          return;
+        }
+
+        if (!needsExportsIdentifier(object.name)) {
+          return REMOVE;
+        }
+
+        if (isIdentifier(right) && !needsDeclaration(right.name)) {
+          return REMOVE;
+        }
+      }
       if (isIdentifier(node.left)) {
         let res = maybeReplaceIdentifier(node.left);
         if (isIdentifier(res) || isMemberExpression(res)) {
           node.left = res;
         }
 
-        return;
-      }
-
-      if (!isMemberExpression(node.left)) {
-        return;
-      }
-
-      let {
-        left: {object, property, computed},
-        right,
-      } = node;
-      if (
-        !(
-          isIdentifier(object) &&
-          ((isIdentifier(property) && !computed) || isStringLiteral(property))
-        )
-      ) {
-        return;
-      }
-
-      // Rename references to exported symbols to the exported name.
-      let exp = exportedSymbols.get(object.name);
-      if (exp) {
-        object.name = exp[0].local;
-      }
-
-      let asset = exportsMap.get(object.name);
-      if (!asset) {
-        return;
-      }
-
-      if (!needsExportsIdentifier(object.name)) {
-        return REMOVE;
-      }
-
-      if (isIdentifier(right) && !needsDeclaration(right.name)) {
-        return REMOVE;
+        // remove unused CommonJS `$id$export$foo = $id$var$foo;`
+        if (isIdentifier(left) && !needsDeclaration(left.name)) {
+          return REMOVE;
+        }
       }
     },
     Identifier(node, state, ancestors) {
