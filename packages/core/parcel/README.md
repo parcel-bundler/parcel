@@ -5,12 +5,9 @@
 </p>
 
 [![Backers on Open Collective](https://opencollective.com/parcel/backers/badge.svg)](#backers) [![Sponsors on Open Collective](https://opencollective.com/parcel/sponsors/badge.svg)](#sponsors)
-[![Build Status](https://dev.azure.com/devongovett/devongovett/_apis/build/status/parcel-bundler.parcel?branchName=master)](https://dev.azure.com/devongovett/devongovett/_build/latest?definitionId=1)
-[![Coverage](https://img.shields.io/codecov/c/github/parcel-bundler/parcel/master.svg)](https://codecov.io/github/parcel-bundler/parcel/)
-[![David Dependency Status](https://david-dm.org/parcel-bundler/parcel.svg)](https://david-dm.org/parcel-bundler/parcel)
+[![Build Status](https://dev.azure.com/devongovett/devongovett/_apis/build/status/parcel-bundler.parcel?branchName=v2)](https://dev.azure.com/devongovett/devongovett/_build/latest?definitionId=1)
 [![npm package](https://img.shields.io/npm/v/parcel.svg)](https://www.npmjs.com/package/parcel)
 [![npm package](https://img.shields.io/npm/dm/parcel.svg)](https://www.npmjs.com/package/parcel)
-[![Join the community on Spectrum](https://withspectrum.github.io/badge/badge.svg)](https://spectrum.chat/parcel)
 [![Twitter Follow](https://img.shields.io/twitter/follow/parceljs.svg?style=social)](https://twitter.com/parceljs)
 
 ## Features
