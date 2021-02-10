@@ -243,7 +243,7 @@ describe('ParcelConfig', () => {
         name: 'Error',
         diagnostics: [
           {
-            message: 'Cannot find parcel plugin "@parcel/transformer-jj"',
+            message: 'Cannot find Parcel plugin "@parcel/transformer-jj"',
             origin: '@parcel/core',
             filePath: configFilePath,
             language: 'json5',
