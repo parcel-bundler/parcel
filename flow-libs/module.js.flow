@@ -1,0 +1,67 @@
+//@flow strict-local
+
+// Derived from the documentation and source of Module located at
+// https://nodejs.org/api/module.html#module_modules_module_api and
+// https://github.com/nodejs/node/blob/cbfa2d11d4e42ea7f6a847a6930fd1022773252e/lib/internal/modules/cjs/loader.js/
+// Which is licensed MIT
+
+declare module 'module' {
+  import type {URL} from 'url';
+
+  declare type FilePath = string;
+
+  declare export default class Module {
+    constructor(id: FilePath, parent?: Module): void;
+    id: string;
+    path: FilePath;
+    paths: FilePath[];
+    exports: {|[export: string]: mixed|};
+    filename: string;
+    loaded: boolean;
+    children: Module[];
+    globalPaths: FilePath[];
+    load(fileName: string): void;
+    require: (request: string) => {|[export: string]: mixed|};
+    syncBuiltinESMExports(): void;
+
+    static runMain(): void;
+    static wrap(code: string): string;
+    static createRequire(
+      path: string | URL,
+    ): (request: string) => {|[export: string]: mixed|};
+    static builtinModules: string[];
+    static _cache: {|[key: FilePath]: Module|};
+    static _pathCache: {|[cacheKey: string]: FilePath|};
+    static _nodeModulePaths(from: FilePath): FilePath[];
+    static _initPaths(): void;
+    static findPnpApi(lookupSource: string): PnpApi | null;
+
+    static _findPath(
+      request: FilePath,
+      paths: FilePath[],
+      isMain: boolean,
+    ): FilePath | false;
+
+    static _extensions: {|
+      [extension: string]: (module: Module, fileName: string) => void,
+    |};
+
+    static _resolveLookupPaths(
+      request: FilePath,
+      parent: Module,
+    ): FilePath[] | null;
+
+    static _load(
+      request: FilePath,
+      parent: Module,
+      isMain: boolean,
+    ): {|[export: string]: mixed|};
+
+    static _resolveFilename: (
+      request: string,
+      parent?: Module,
+      isMain?: boolean,
+      options?: {|paths?: FilePath[]|},
+    ) => string | false;
+  }
+}

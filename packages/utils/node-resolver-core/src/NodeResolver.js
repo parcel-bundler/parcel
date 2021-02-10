@@ -232,7 +232,7 @@ export default class NodeResolver {
         let [moduleName, subPath] = this.getModuleParts(filename);
         let pnp = _Module.findPnpApi(path.dirname(parent));
 
-        let res = pnp.resolveToUnqualified(
+        let res = nullthrows(pnp).resolveToUnqualified(
           moduleName +
             // retain slash in `require('assert/')` to force loading builtin from npm
             (filename[moduleName.length] === '/' ? '/' : ''),
