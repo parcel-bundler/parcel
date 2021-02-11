@@ -16,7 +16,6 @@ import type {
   VariableDeclaration,
 } from '@babel/types';
 
-import path from 'path';
 import * as t from '@babel/types';
 import {
   isArrayPattern,
@@ -38,7 +37,6 @@ import {
 } from '@parcel/babylon-walk';
 import {PromiseQueue, relativeUrl, relativePath} from '@parcel/utils';
 import invariant from 'assert';
-import fs from 'fs';
 import nullthrows from 'nullthrows';
 import template from '@babel/template';
 import {
@@ -46,15 +44,8 @@ import {
   getName,
   getIdentifier,
   parse,
-  needsPrelude,
   needsDefaultInterop,
 } from './utils';
-
-const PRELUDE_PATH = path.join(__dirname, 'prelude.js');
-const PRELUDE = parse(
-  fs.readFileSync(path.join(__dirname, 'prelude.js'), 'utf8'),
-  PRELUDE_PATH,
-);
 
 const DEFAULT_INTEROP_TEMPLATE = template.statement<
   {|
@@ -81,13 +72,11 @@ export async function concat({
   bundleGraph,
   options,
   wrappedAssets,
-  parcelRequireName,
 }: {|
   bundle: NamedBundle,
   bundleGraph: BundleGraph<NamedBundle>,
   options: PluginOptions,
   wrappedAssets: Set<string>,
-  parcelRequireName: string,
 |}): Promise<BabelNodeFile> {
   let queue = new PromiseQueue({maxConcurrent: 32});
   bundle.traverse((node, shouldWrap) => {
@@ -114,13 +103,6 @@ export async function concat({
 
   let outputs = new Map<string, Array<Statement>>(await queue.run());
   let result = [];
-
-  if (needsPrelude(bundle, bundleGraph)) {
-    result.push(
-      ...parse(`var parcelRequireName = "${parcelRequireName}";`, PRELUDE_PATH),
-      ...PRELUDE,
-    );
-  }
 
   // Note: for each asset, the order of `$parcel$require` calls and the corresponding
   // `asset.getDependencies()` must be the same!

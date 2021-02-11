@@ -10,16 +10,21 @@ import type {
 } from '@parcel/types';
 import type {ExternalModule, ExternalBundle} from './types';
 import type {
+  ArrayExpression,
   Expression,
   ExpressionStatement,
   File,
+  Node,
   FunctionDeclaration,
   Identifier,
+  Statement,
   StringLiteral,
   VariableDeclaration,
 } from '@babel/types';
 
 import nullthrows from 'nullthrows';
+import path from 'path';
+import fs from 'fs';
 import invariant from 'assert';
 import {relative} from 'path';
 import template from '@babel/template';
@@ -45,6 +50,7 @@ import {
   isReferenced,
   needsPrelude,
   needsDefaultInterop,
+  parse,
 } from './utils';
 import OutputFormats from './formats/index.js';
 
@@ -66,8 +72,10 @@ const PARCEL_REQUIRE_TEMPLATE = template.statement<
   {|PARCEL_REQUIRE_NAME: Identifier|},
   VariableDeclaration,
 >(`var parcelRequire = $parcel$global.PARCEL_REQUIRE_NAME`);
-
-type LinkResult = {|ast: File, referencedAssets: Set<Asset>|};
+const PARCEL_REQUIRE_NAME_TEMPLATE = template.statement<
+  {|PARCEL_REQUIRE_NAME: StringLiteral|},
+  VariableDeclaration,
+>(`var parcelRequireName = PARCEL_REQUIRE_NAME;`);
 
 const BUILTINS = Object.keys(globals.builtin);
 const GLOBALS_BY_CONTEXT = {
@@ -86,6 +94,33 @@ const GLOBALS_BY_CONTEXT = {
   ]),
 };
 
+const PRELUDE_PATH = path.join(__dirname, 'prelude.js');
+const PRELUDE = parse(
+  fs.readFileSync(path.join(__dirname, 'prelude.js'), 'utf8'),
+  PRELUDE_PATH,
+);
+const REGISTER_TEMPLATE = template.statements<
+  {|
+    REFERENCED_IDS: ArrayExpression,
+    STATEMENTS: Array<Statement>,
+    PARCEL_REQUIRE: Identifier,
+  |},
+  Array<Statement>,
+>(`function $parcel$bundleWrapper() {
+  if ($parcel$bundleWrapper._executed) return;
+  $parcel$bundleWrapper._executed = true;
+  STATEMENTS;
+}
+var $parcel$referencedAssets = REFERENCED_IDS;
+for (var $parcel$i = 0; $parcel$i < $parcel$referencedAssets.length; $parcel$i++) {
+  PARCEL_REQUIRE.registerBundle($parcel$referencedAssets[$parcel$i], $parcel$bundleWrapper);
+}
+`);
+const WRAPPER_TEMPLATE = template.statement<
+  {|STATEMENTS: Array<Statement>|},
+  Statement,
+>('(function () { STATEMENTS; })()');
+
 export function link({
   bundle,
   bundleGraph,
@@ -100,7 +135,7 @@ export function link({
   options: PluginOptions,
   wrappedAssets: Set<string>,
   parcelRequireName: string,
-|}): LinkResult {
+|}): File {
   let format = OutputFormats[bundle.env.outputFormat];
   let replacements: Map<Symbol, Symbol> = new Map();
   let imports: Map<Symbol, null | [Asset, Symbol, ?SourceLocation]> = new Map();
@@ -401,7 +436,7 @@ export function link({
     }
 
     if (imports.has(name)) {
-      let res: ?BabelNode;
+      let res: ?Node;
       let imported = imports.get(name);
       if (imported == null) {
         // import was deferred
@@ -930,8 +965,7 @@ export function link({
     },
     Program: {
       exit(node) {
-        // $FlowFixMe
-        let statements: Array<BabelNode> = node.body;
+        let statements: Array<Statement> = node.body;
 
         for (let file of importedFiles.values()) {
           if (file.bundle) {
@@ -983,7 +1017,36 @@ export function link({
           scope.add('parcelRequire');
         }
 
-        let usedHelpers: Array<BabelNode> = [];
+        if (bundle.env.outputFormat === 'global') {
+          // Wrap async bundles in a closure and register with parcelRequire so they are executed
+          // at the right time (after other bundle dependencies are loaded).
+          let isAsync = !isEntry(bundle, bundleGraph);
+          if (isAsync) {
+            statements = REGISTER_TEMPLATE({
+              STATEMENTS: statements,
+              REFERENCED_IDS: t.arrayExpression(
+                [bundle.getMainEntry(), ...referencedAssets]
+                  .filter(Boolean)
+                  .map(asset =>
+                    t.stringLiteral(bundleGraph.getAssetPublicId(asset)),
+                  ),
+              ),
+              PARCEL_REQUIRE: t.identifier(parcelRequireName),
+            });
+          }
+
+          if (needsPrelude(bundle, bundleGraph)) {
+            statements = [
+              PARCEL_REQUIRE_NAME_TEMPLATE({
+                PARCEL_REQUIRE_NAME: t.stringLiteral(parcelRequireName),
+              }),
+            ]
+              .concat(PRELUDE)
+              .concat(statements);
+          }
+        }
+
+        let usedHelpers: Array<Statement> = [];
         for (let name of scope.names) {
           let helper = helpers.get(name);
           if (helper) {
@@ -999,13 +1062,17 @@ export function link({
 
         statements = usedHelpers.concat(statements);
 
+        if (bundle.env.outputFormat === 'global') {
+          statements = [WRAPPER_TEMPLATE({STATEMENTS: statements})];
+        }
+
         // $FlowFixMe
         return t.program(statements);
       },
     },
   });
 
-  return {ast, referencedAssets};
+  return ast;
 }
 
 function isUnusedValue(ancestors, i = 1) {

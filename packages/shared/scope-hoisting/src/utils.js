@@ -335,7 +335,7 @@ export function parse(code: string, sourceFilename: string): Array<Statement> {
 }
 
 let helpersCache;
-export function getHelpers(): Map<string, BabelNode> {
+export function getHelpers(): Map<string, Statement> {
   if (helpersCache != null) {
     return helpersCache;
   }
