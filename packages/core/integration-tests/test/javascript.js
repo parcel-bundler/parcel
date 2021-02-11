@@ -773,6 +773,76 @@ describe('javascript', function() {
     ]);
   });
 
+  it('should recognize serviceWorker.register with static URL and import.meta.url', async function() {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/service-worker-import-meta-url/index.js',
+      ),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: [
+          'index.js',
+          'bundle-url.js',
+          'JSRuntime.js',
+          'bundle-manifest.js',
+          'JSRuntime.js',
+          'relative-path.js',
+        ],
+      },
+      {
+        assets: ['worker.js'],
+      },
+    ]);
+
+    let contents = await outputFS.readFile(
+      b.getBundles().find(b => b.isEntry).filePath,
+      'utf8',
+    );
+    assert(!contents.includes('import.meta.url'));
+  });
+
+  it('should throw a codeframe for a missing file in serviceWorker.register with URL and import.meta.url', async function() {
+    let fixture = path.join(
+      __dirname,
+      'integration/service-worker-import-meta-url/missing.js',
+    );
+    let code = await inputFS.readFileSync(fixture, 'utf8');
+    await assert.rejects(() => bundle(fixture), {
+      name: 'BuildError',
+      diagnostics: [
+        {
+          codeFrame: {
+            code,
+            codeHighlights: [
+              {
+                end: {
+                  column: 51,
+                  line: 1,
+                },
+                start: {
+                  column: 12,
+                  line: 1,
+                },
+              },
+            ],
+          },
+          filePath: fixture,
+          message: "Failed to resolve './invalid.js' from './missing.js'",
+          origin: '@parcel/core',
+        },
+        {
+          hints: ['Did you mean __./index.js__?'],
+          message: "Cannot load file './invalid.js' in './'.",
+          origin: '@parcel/resolver-default',
+        },
+      ],
+    });
+  });
+
   it('should support bundling workers with circular dependencies', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/worker-circular/index.js'),

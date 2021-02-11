@@ -152,7 +152,7 @@ export default ({
         return;
       }
     },
-    exit(node, {asset, ast}, ancestors) {
+    exit(node, {asset, ast, logger}, ancestors) {
       if (node.type !== 'CallExpression') {
         // It's possible this node has been morphed into another type
         return;
@@ -161,7 +161,6 @@ export default ({
       let {callee, arguments: args} = node;
 
       let isRegisterServiceWorker =
-        types.isStringLiteral(args[0]) &&
         types.matchesPattern(callee, serviceWorkerPattern) &&
         !hasBinding(ancestors, 'navigator') &&
         !isInFalsyBranch(ancestors);
@@ -169,11 +168,51 @@ export default ({
       if (isRegisterServiceWorker) {
         // Treat service workers as an entry point so filenames remain consistent across builds.
         // https://developers.google.com/web/fundamentals/primers/service-workers/lifecycle#avoid_changing_the_url_of_your_service_worker_script
-        addURLDependency(asset, ast, args[0], {
+        let opts = {
           isEntry: true,
           env: {context: 'service-worker'},
-        });
-        return;
+        };
+
+        if (types.isStringLiteral(args[0])) {
+          let specifier = args[0];
+          let loc = convertBabelLoc(node.loc);
+          logger.warn({
+            message:
+              'Calling navigator.serviceWorker.register with a string literal is deprecated.',
+            filePath: loc?.filePath,
+            ...(loc && {
+              codeFrame: {
+                codeHighlights: [{start: loc.start, end: loc.end}],
+              },
+            }),
+            hints: [
+              `Replace with: navigator.serviceWorker.register(new URL('${specifier.value}', import.meta.url))`,
+            ],
+          });
+          addURLDependency(asset, ast, specifier, opts);
+          return;
+        } else {
+          let url = parseImportMetaUrl(args[0], ancestors);
+          if (url) {
+            let loc = convertBabelLoc(args[0].loc);
+            if (loc) {
+              opts = {
+                ...opts,
+                loc,
+              };
+            }
+            asset.addURLDependency(url, opts);
+
+            morph(
+              args[0],
+              types.callExpression(types.identifier('require'), [
+                types.stringLiteral(url),
+              ]),
+            );
+            asset.setAST(ast);
+            return;
+          }
+        }
       }
 
       let isImportScripts =
