@@ -30,7 +30,7 @@ describe('EntryResolver', () => {
     return fs.rimraf(cacheDir);
   });
 
-  it('resolves exactly specified targets entry----', async () => {
+  it('resolves specified targets entry with custom sources', async () => {
     let entryResolver = new EntryResolver({
       ...DEFAULT_OPTIONS,
       targets: {
