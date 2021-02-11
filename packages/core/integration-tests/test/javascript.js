@@ -843,6 +843,22 @@ describe('javascript', function() {
     assert(contents.includes('import.meta.url'));
   });
 
+  it('should ignore worker constructors with local URL binding and import.meta.url', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/worker-import-meta-url/local-url.js'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'local-url.js',
+        assets: ['local-url.js'],
+      },
+    ]);
+
+    let contents = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(contents.includes('import.meta.url'));
+  });
+
   it('should throw a codeframe for a missing file in worker constructor with URL and import.meta.url', async function() {
     let fixture = path.join(
       __dirname,

@@ -36,8 +36,12 @@ import {isInFalsyBranch, hasBinding, morph} from './utils';
 
 const serviceWorkerPattern = ['navigator', 'serviceWorker', 'register'];
 
-function parseImportMetaUrl(node: Node): ?string {
-  if (isNewExpression(node) && isIdentifier(node.callee, {name: 'URL'})) {
+function parseImportMetaUrl(node: Node, ancestors: Array<Node>): ?string {
+  if (
+    isNewExpression(node) &&
+    isIdentifier(node.callee, {name: 'URL'}) &&
+    !hasBinding(ancestors, 'URL')
+  ) {
     let args = node.arguments;
     if (isStringLiteral(args[0])) {
       let mod = args[0];
@@ -222,7 +226,7 @@ export default ({
           addURLDependency(asset, ast, args[0], opts);
           return;
         } else {
-          let url = parseImportMetaUrl(args[0]);
+          let url = parseImportMetaUrl(args[0], ancestors);
           if (url) {
             let {loc} = args[0];
             if (loc) {
