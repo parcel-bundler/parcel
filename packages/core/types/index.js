@@ -514,7 +514,7 @@ export interface BaseAsset {
   +isSource: boolean;
   /** Usually corresponds to the file extension */
   +type: string;
-  /** Whether this asset can be omitted if none if it's exports are being used (set by ResolveResult) */
+  /** Whether this asset can be omitted if none of its exports are being used (set by ResolveResult) */
   +sideEffects: boolean;
   /**
    * Inline assets inheirit the parent's <code>id</code>, making it not be enough for a unique identification
