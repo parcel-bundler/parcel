@@ -317,9 +317,13 @@ export async function runBundles(
     );
     for (let b of bundles) {
       // require, parcelRequire was set up in prepare*Context
-      new vm.Script(await overlayFS.readFile(nullthrows(b.filePath), 'utf8'), {
-        filename: b.name,
-      }).runInContext(ctx);
+      new vm.Script(
+        // '"use strict";\n' +
+        await overlayFS.readFile(nullthrows(b.filePath), 'utf8'),
+        {
+          filename: b.name,
+        },
+      ).runInContext(ctx);
     }
   }
   if (promises) {
@@ -521,13 +525,17 @@ function prepareBrowserContext(
         let {deferred, promise} = makeDeferredWithPromise();
         promises.push(promise);
         setTimeout(function() {
-          vm.runInContext(
-            overlayFS.readFileSync(
-              path.join(path.dirname(filePath), url.parse(el.src).pathname),
-              'utf8',
-            ),
-            ctx,
+          let file = path.join(
+            path.dirname(filePath),
+            url.parse(el.src).pathname,
           );
+          new vm.Script(
+            // '"use strict";\n' +
+            overlayFS.readFileSync(file, 'utf8'),
+            {
+              filename: file,
+            },
+          ).runInContext(ctx);
 
           el.onload();
           deferred.resolve();
@@ -671,10 +679,13 @@ function prepareNodeContext(filePath, globals) {
       nodeCache[res] = ctx;
 
       vm.createContext(ctx);
-      vm.runInContext(
-        '"use strict";\n' + overlayFS.readFileSync(res, 'utf8'),
-        ctx,
-      );
+      new vm.Script(
+        //'"use strict";\n' +
+        overlayFS.readFileSync(res, 'utf8'),
+        {
+          filename: res,
+        },
+      ).runInContext(ctx);
       return ctx.module.exports;
     });
 
