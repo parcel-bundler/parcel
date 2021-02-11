@@ -1,25 +1,20 @@
 // @flow strict-local
 
-import typeof TypeScriptModule from 'typescript'; // eslint-disable-line import/no-extraneous-dependencies
 import type {TranspileOptions} from 'typescript';
 
 import {Transformer} from '@parcel/plugin';
 import {loadTSConfig} from '@parcel/ts-utils';
+import typescript from 'typescript';
 
 export default (new Transformer({
   async loadConfig({config, options}) {
     await loadTSConfig(config, options);
   },
 
-  async transform({asset, config, options}) {
+  async transform({asset, config}) {
     asset.type = 'js';
 
-    let [typescript, code]: [TypeScriptModule, string] = await Promise.all([
-      options.packageManager.require('typescript', asset.filePath, {
-        shouldAutoInstall: options.shouldAutoInstall,
-      }),
-      asset.getCode(),
-    ]);
+    let code = await asset.getCode();
 
     let transpiled = typescript.transpileModule(
       code,

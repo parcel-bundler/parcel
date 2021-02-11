@@ -25,6 +25,10 @@ export class NodeResolver extends NodeResolverBase<Promise<ResolveResult>> {
       throw e;
     }
 
+    if (path.isAbsolute(res.resolved)) {
+      res.resolved = await this.fs.realpath(res.resolved);
+    }
+
     return res;
   }
 

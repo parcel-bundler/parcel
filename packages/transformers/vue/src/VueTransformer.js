@@ -8,6 +8,10 @@ import type {TransformerResult} from '@parcel/types';
 import SourceMap from '@parcel/source-map';
 import semver from 'semver';
 import {basename, extname, relative, dirname} from 'path';
+// $FlowFixMe
+import * as compiler from '@vue/compiler-sfc';
+// $FlowFixMe
+import consolidate from 'consolidate';
 
 const MODULE_BY_NAME_RE = /\.module\./;
 
@@ -40,13 +44,8 @@ export default (new Transformer({
   canReuseAST({ast}) {
     return ast.type === 'vue' && semver.satisfies(ast.version, '^3.0.0');
   },
-  async parse({asset, options}) {
+  async parse({asset}) {
     // TODO: This parses the vue component multiple times. Fix?
-    let compiler = await options.packageManager.require(
-      '@vue/compiler-sfc',
-      asset.filePath,
-      {shouldAutoInstall: options.shouldAutoInstall},
-    );
     let code = await asset.getCode();
     let parsed = compiler.parse(code, {
       sourceMap: true,
@@ -193,16 +192,6 @@ async function processPipeline({
   scopeId,
   hmrId,
 }) {
-  let compiler = await options.packageManager.require(
-    '@vue/compiler-sfc',
-    asset.filePath,
-    {shouldAutoInstall: options.shouldAutoInstall},
-  );
-  let consolidate = await options.packageManager.require(
-    'consolidate',
-    asset.filePath,
-    {shouldAutoInstall: options.shouldAutoInstall},
-  );
   switch (asset.pipeline) {
     case 'template': {
       let isFunctional = template.functional;
@@ -226,23 +215,7 @@ async function processPipeline({
             },
           });
         }
-        // TODO: Improve? This seems brittle
-        try {
-          content = await preprocessor.render(content, {});
-        } catch (e) {
-          if (e.code !== 'MODULE_NOT_FOUND' || !options.shouldAutoInstall) {
-            throw e;
-          }
-          let firstIndex = e.message.indexOf("'");
-          let secondIndex = e.message.indexOf("'", firstIndex + 1);
-          let toInstall = e.message.slice(firstIndex + 1, secondIndex);
-
-          await options.packageManager.require(toInstall, asset.filePath, {
-            shouldAutoInstall: true,
-          });
-
-          content = await preprocessor.render(content, {});
-        }
+        content = await preprocessor.render(content, {});
       }
       let templateComp = compiler.compileTemplate({
         filename: asset.filePath,
@@ -341,19 +314,12 @@ ${
             }
             style.lang = extname(style.src);
           }
-          let toInstall;
           switch (style.lang) {
             case 'less':
-              toInstall = 'less';
-              break;
             case 'stylus':
             case 'styl':
-              toInstall = 'stylus';
-              break;
             case 'scss':
             case 'sass':
-              toInstall = 'sass';
-              break;
             case 'css':
             case undefined:
               break;
@@ -365,11 +331,6 @@ ${
                   filePath: asset.filePath,
                 },
               });
-          }
-          if (toInstall) {
-            await options.packageManager.require(toInstall, asset.filePath, {
-              shouldAutoInstall: options.shouldAutoInstall,
-            });
           }
           let styleComp = await compiler.compileStyleAsync({
             filename: asset.filePath,

@@ -43,12 +43,8 @@ export default (new Packager({
         }
 
         queue.add(() => {
-          let usedSymbols = bundleGraph.getUsedSymbols(asset);
-          if (
-            !asset.symbols.isCleared &&
-            options.mode === 'production' &&
-            !usedSymbols.has('*')
-          ) {
+          // This condition needs to align with the one in Transformation#runPipeline !
+          if (!asset.symbols.isCleared && options.mode === 'production') {
             // a CSS Modules asset
             return processCSSModule(
               options,
@@ -164,7 +160,7 @@ async function processCSSModule(
     }
   }
 
-  if (!defaultImport) {
+  if (!defaultImport && !usedSymbols.has('*')) {
     let usedLocalSymbols = new Set(
       [...usedSymbols].map(
         exportSymbol => `.${nullthrows(asset.symbols.get(exportSymbol)).local}`,

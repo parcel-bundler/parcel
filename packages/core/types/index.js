@@ -514,7 +514,7 @@ export interface BaseAsset {
   +isSource: boolean;
   /** Usually corresponds to the file extension */
   +type: string;
-  /** Whether this asset can be omitted if none if it's exports are being used (set by ResolveResult) */
+  /** Whether this asset can be omitted if none of its exports are being used (set by ResolveResult) */
   +sideEffects: boolean;
   /**
    * Inline assets inheirit the parent's <code>id</code>, making it not be enough for a unique identification
@@ -745,11 +745,6 @@ export type Transformer = {|
   preSerializeConfig?: ({|
     config: Config,
     options: PluginOptions,
-  |}) => Async<void>,
-  postDeserializeConfig?: ({|
-    config: Config,
-    options: PluginOptions,
-    logger: PluginLogger,
   |}) => Async<void>,
   /** Whether an AST from a previous transformer can be reused (to prevent double-parsing) */
   canReuseAST?: ({|
