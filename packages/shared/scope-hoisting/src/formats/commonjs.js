@@ -126,7 +126,7 @@ export function generateBundleImports(
   from: NamedBundle,
   {bundle, assets}: ExternalBundle,
   scope: Scope,
-): Array<Statement> {
+): {|hoisted: Array<Statement>, imports: Array<Statement>|} {
   let specifiers: Array<ObjectProperty> = [...assets].map(asset => {
     let id = getName(asset, 'init');
     return t.objectProperty(t.identifier(id), t.identifier(id), false, true);
@@ -137,14 +137,17 @@ export function generateBundleImports(
   });
 
   if (specifiers.length > 0) {
-    return generateDestructuringAssignment(
-      bundle.env,
-      specifiers,
-      expression,
-      scope,
-    );
+    return {
+      imports: generateDestructuringAssignment(
+        bundle.env,
+        specifiers,
+        expression,
+        scope,
+      ),
+      hoisted: [],
+    };
   } else {
-    return [t.expressionStatement(expression)];
+    return {imports: [t.expressionStatement(expression)], hoisted: []};
   }
 }
 

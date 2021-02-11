@@ -30,7 +30,7 @@ export function generateBundleImports(
   {bundle, assets}: ExternalBundle,
   // eslint-disable-next-line no-unused-vars
   scope: Scope,
-): Array<Statement> {
+): {|hoisted: Array<Statement>, imports: Array<Statement>|} {
   let specifiers = [];
   let interops = [];
   for (let asset of assets) {
@@ -56,13 +56,16 @@ export function generateBundleImports(
     }
   }
 
-  return [
-    t.importDeclaration(
-      specifiers,
-      t.stringLiteral(relativeBundlePath(from, bundle)),
-    ),
-    ...interops,
-  ];
+  return {
+    hoisted: [
+      t.importDeclaration(
+        specifiers,
+        t.stringLiteral(relativeBundlePath(from, bundle)),
+      ),
+      ...interops,
+    ],
+    imports: [],
+  };
 }
 
 export function generateExternalImport(

@@ -54,18 +54,19 @@ export function generateBundleImports(
   from: NamedBundle,
   {bundle, assets}: ExternalBundle,
   scope: Scope,
-): Array<Statement> {
-  let statements = [];
+): {|hoisted: Array<Statement>, imports: Array<Statement>|} {
+  let hoisted = [];
   if (from.env.isWorker()) {
-    statements.push(
+    hoisted.push(
       IMPORTSCRIPTS_TEMPLATE({
         BUNDLE: t.stringLiteral(relativeBundlePath(from, bundle)),
       }),
     );
   }
 
+  let imports = [];
   for (let asset of assets) {
-    statements.push(
+    imports.push(
       IMPORT_TEMPLATE({
         NAME: getIdentifier(asset, 'init'),
         ASSET_ID: t.stringLiteral(bundleGraph.getAssetPublicId(asset)),
@@ -82,7 +83,7 @@ export function generateBundleImports(
           dep.symbols.hasExportSymbol('default') && from.hasDependency(dep),
       );
       if (hasDefaultInterop) {
-        statements.push(
+        imports.push(
           DEFAULT_INTEROP_TEMPLATE({
             NAME: getIdentifier(asset, '$interop$default'),
             MODULE: t.callExpression(getIdentifier(asset, 'init'), []),
@@ -93,7 +94,7 @@ export function generateBundleImports(
       }
     }
   }
-  return statements;
+  return {imports, hoisted};
 }
 
 export function generateExternalImport(

@@ -29,7 +29,7 @@ export type OutputFormat = {|
     from: NamedBundle,
     external: ExternalBundle,
     scope: Scope,
-  ): Array<Statement>,
+  ): {|hoisted: Array<Statement>, imports: Array<Statement>|},
   generateExternalImport(
     bundle: NamedBundle,
     external: ExternalModule,

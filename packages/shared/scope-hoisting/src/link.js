@@ -967,15 +967,17 @@ export function link({
       exit(node) {
         let statements: Array<Statement> = node.body;
 
+        let hoistedImports = [];
         for (let file of importedFiles.values()) {
           if (file.bundle) {
-            let res = format.generateBundleImports(
+            let {hoisted, imports} = format.generateBundleImports(
               bundleGraph,
               bundle,
               file,
               scope,
             );
-            statements = res.concat(statements);
+            statements = imports.concat(statements);
+            hoistedImports = hoistedImports.concat(hoisted);
           } else {
             let res = format.generateExternalImport(bundle, file, scope);
             statements = res.concat(statements);
@@ -1060,7 +1062,7 @@ export function link({
           }
         }
 
-        statements = usedHelpers.concat(statements);
+        statements = hoistedImports.concat(usedHelpers).concat(statements);
 
         if (bundle.env.outputFormat === 'global') {
           statements = [WRAPPER_TEMPLATE({STATEMENTS: statements})];
