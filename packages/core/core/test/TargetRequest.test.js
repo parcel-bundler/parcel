@@ -105,7 +105,7 @@ describe('TargetResolver', () => {
       },
     });
 
-    assert.deepEqual(
+    assert.deepStrictEqual(
       await targetResolver.resolve(COMMON_TARGETS_FIXTURE_PATH),
       [
         {
@@ -152,7 +152,7 @@ describe('TargetResolver', () => {
   it('resolves common targets from package.json', async () => {
     let targetResolver = new TargetResolver(api, DEFAULT_OPTIONS);
 
-    assert.deepEqual(
+    assert.deepStrictEqual(
       await targetResolver.resolve(COMMON_TARGETS_FIXTURE_PATH),
       [
         {
@@ -254,7 +254,7 @@ describe('TargetResolver', () => {
   it('allows ignoring common targets from package.json', async () => {
     let targetResolver = new TargetResolver(api, DEFAULT_OPTIONS);
 
-    assert.deepEqual(
+    assert.deepStrictEqual(
       await targetResolver.resolve(COMMON_TARGETS_IGNORE_FIXTURE_PATH),
       [
         {
@@ -296,7 +296,7 @@ describe('TargetResolver', () => {
 
   it('resolves custom targets from package.json', async () => {
     let targetResolver = new TargetResolver(api, DEFAULT_OPTIONS);
-    assert.deepEqual(
+    assert.deepStrictEqual(
       await targetResolver.resolve(CUSTOM_TARGETS_FIXTURE_PATH),
       [
         {
@@ -401,7 +401,7 @@ describe('TargetResolver', () => {
 
   it('resolves explicit distDir for custom targets from package.json', async () => {
     let targetResolver = new TargetResolver(api, DEFAULT_OPTIONS);
-    assert.deepEqual(
+    assert.deepStrictEqual(
       await targetResolver.resolve(CUSTOM_TARGETS_DISTDIR_FIXTURE_PATH),
       [
         {
@@ -428,9 +428,89 @@ describe('TargetResolver', () => {
     );
   });
 
+  it('skips targets with custom entry source for default entry', async () => {
+    let targetResolver = new TargetResolver(api, {
+      ...DEFAULT_OPTIONS,
+      targets: {
+        customA: {
+          context: 'browser',
+          distDir: 'customA',
+          source: 'customA/index.js',
+        },
+        customB: {
+          distDir: 'customB',
+        },
+      },
+    });
+
+    assert.deepStrictEqual(
+      await targetResolver.resolve(COMMON_TARGETS_FIXTURE_PATH),
+      [
+        {
+          name: 'customB',
+          distDir: path.resolve('customB'),
+          publicUrl: '/',
+          env: {
+            id: 'daa5d206066497852a3e8af4ff268cc2',
+            context: 'browser',
+            engines: {
+              browsers: ['> 0.25%'],
+            },
+            includeNodeModules: true,
+            outputFormat: 'global',
+            isLibrary: false,
+            shouldOptimize: false,
+            shouldScopeHoist: false,
+            sourceMap: {},
+          },
+        },
+      ],
+    );
+  });
+
+  it('skips other targets with custom entry', async () => {
+    let targetResolver = new TargetResolver(api, {
+      ...DEFAULT_OPTIONS,
+      targets: {
+        customA: {
+          context: 'browser',
+          distDir: 'customA',
+          source: 'customA/index.js',
+        },
+        customB: {
+          distDir: 'customB',
+        },
+      },
+    });
+
+    assert.deepStrictEqual(
+      await targetResolver.resolve(COMMON_TARGETS_FIXTURE_PATH, 'customA'),
+      [
+        {
+          name: 'customA',
+          distDir: path.resolve('customA'),
+          publicUrl: '/',
+          env: {
+            id: 'daa5d206066497852a3e8af4ff268cc2',
+            context: 'browser',
+            engines: {
+              browsers: ['> 0.25%'],
+            },
+            includeNodeModules: true,
+            outputFormat: 'global',
+            isLibrary: false,
+            shouldOptimize: false,
+            shouldScopeHoist: false,
+            sourceMap: {},
+          },
+        },
+      ],
+    );
+  });
+
   it('resolves main target with context from package.json', async () => {
     let targetResolver = new TargetResolver(api, DEFAULT_OPTIONS);
-    assert.deepEqual(await targetResolver.resolve(CONTEXT_FIXTURE_PATH), [
+    assert.deepStrictEqual(await targetResolver.resolve(CONTEXT_FIXTURE_PATH), [
       {
         name: 'main',
         distDir: path.join(__dirname, 'fixtures/context/dist/main'),
@@ -465,7 +545,7 @@ describe('TargetResolver', () => {
   it('resolves main target as an application when non-js file extension is used', async () => {
     let targetResolver = new TargetResolver(api, DEFAULT_OPTIONS);
     let fixture = path.join(__dirname, 'fixtures/application-targets');
-    assert.deepEqual(await targetResolver.resolve(fixture), [
+    assert.deepStrictEqual(await targetResolver.resolve(fixture), [
       {
         name: 'main',
         distDir: path.join(fixture, 'dist'),
@@ -503,7 +583,7 @@ describe('TargetResolver', () => {
       targets: ['main', 'browser'],
     });
 
-    assert.deepEqual(
+    assert.deepStrictEqual(
       await targetResolver.resolve(COMMON_TARGETS_FIXTURE_PATH),
       [
         {
@@ -578,7 +658,7 @@ describe('TargetResolver', () => {
       serveOptions: {distDir: serveDistDir, port: 1234},
     });
 
-    assert.deepEqual(
+    assert.deepStrictEqual(
       await targetResolver.resolve(COMMON_TARGETS_FIXTURE_PATH),
       [
         {
@@ -604,7 +684,7 @@ describe('TargetResolver', () => {
   it('generates the correct distDir with no explicit targets', async () => {
     let targetResolver = new TargetResolver(api, DEFAULT_OPTIONS);
 
-    assert.deepEqual(
+    assert.deepStrictEqual(
       await targetResolver.resolve(DEFAULT_DISTPATH_FIXTURE_PATHS.none),
       [
         {
@@ -632,7 +712,7 @@ describe('TargetResolver', () => {
   it('generates the correct distDir with one explicit target', async () => {
     let targetResolver = new TargetResolver(api, DEFAULT_OPTIONS);
 
-    assert.deepEqual(
+    assert.deepStrictEqual(
       await targetResolver.resolve(DEFAULT_DISTPATH_FIXTURE_PATHS.one),
       [
         {
@@ -662,7 +742,7 @@ describe('TargetResolver', () => {
   it('generates the correct distDirs with two explicit targets', async () => {
     let targetResolver = new TargetResolver(api, DEFAULT_OPTIONS);
 
-    assert.deepEqual(
+    assert.deepStrictEqual(
       await targetResolver.resolve(DEFAULT_DISTPATH_FIXTURE_PATHS.two),
       [
         {

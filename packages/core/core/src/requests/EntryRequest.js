@@ -62,7 +62,7 @@ async function run({input, api, options}: RunOpts): Promise<EntryResult> {
   return result;
 }
 
-class EntryResolver {
+export class EntryResolver {
   options: ParcelOptions;
 
   constructor(options: ParcelOptions) {
@@ -96,7 +96,6 @@ class EntryResolver {
 
     if (stat.isDirectory()) {
       let pkg = await this.readPackage(entry);
-
       if (pkg && typeof pkg.source === 'string') {
         let source = path.join(path.dirname(pkg.filePath), pkg.source);
         try {

@@ -1,0 +1,21 @@
+{
+  "name": "@parcel/multi-entry-package",
+  "version": "2.0.0-beta.1",
+  "license": "MIT",
+  "private": true,
+  "source": "src/index.js",
+  "browser": "dist/browser/index.js",
+  "alternate": "dist/alternate/index.js",
+  "targets": {
+    "alternate": {
+      "source": "src/indexAlternate.js"
+    },
+    "browser": {
+      "engines": {
+        "browsers": [
+          "last 1 Chrome version"
+        ]
+      }
+    }
+  }
+}
