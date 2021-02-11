@@ -12,7 +12,6 @@ import type {FileSystem} from '@parcel/fs';
 import type {HTTPServer} from '@parcel/utils';
 
 import invariant from 'assert';
-import nullthrows from 'nullthrows';
 import path from 'path';
 import url from 'url';
 import {
@@ -149,30 +148,30 @@ export default class Server {
   sendIndex(req: Request, res: Response) {
     if (this.bundleGraph) {
       // If the main asset is an HTML file, serve it
-      let htmlBundle = this.bundleGraph.traverseBundles(
-        (bundle, context, {stop}) => {
-          if (bundle.type !== 'html' || !bundle.isEntry) return;
+      let htmlBundleFilePaths = [];
+      this.bundleGraph.traverseBundles(bundle => {
+        if (bundle.type === 'html' && bundle.isEntry) {
+          htmlBundleFilePaths.push(bundle.filePath);
+        }
+      });
 
-          if (!context) {
-            context = bundle;
-          }
-
-          if (
-            context &&
-            bundle.filePath &&
-            bundle.filePath.endsWith('index.html')
-          ) {
-            stop();
-            return bundle;
-          }
-        },
-      );
-
-      if (htmlBundle) {
-        req.url = `/${path.relative(
-          this.options.distDir,
-          nullthrows(htmlBundle.filePath),
-        )}`;
+      let indexFilePath =
+        htmlBundleFilePaths.length > 1
+          ? htmlBundleFilePaths
+              .sort((a, b) => {
+                let lengthDiff = a.length - b.length;
+                if (lengthDiff === 0) {
+                  return a.localeCompare(b);
+                } else {
+                  return lengthDiff;
+                }
+              })
+              .find(f => {
+                return path.basename(f).startsWith('index');
+              })
+          : htmlBundleFilePaths[0];
+      if (indexFilePath) {
+        req.url = `/${path.relative(this.options.distDir, indexFilePath)}`;
 
         this.serveDist(req, res, () => this.send404(req, res));
       } else {

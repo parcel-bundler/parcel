@@ -23,7 +23,7 @@
     "check": "flow check",
     "lint": "eslint . && prettier \"./packages/*/*/{src,bin,test}/**/*.{js,json,md}\" --list-different",
     "lint:readme": "node scripts/validate-readme-toc.js",
-    "prepublishOnly": "yarn build",
+    "prepublishOnly": "yarn build && node scripts/update-config-dependencies.js",
     "test:unit": "cross-env NODE_ENV=test mocha",
     "test:integration": "yarn workspace @parcel/integration-tests test",
     "test:integration-ci": "yarn workspace @parcel/integration-tests test-ci",
@@ -50,6 +50,7 @@
     "mocha-multi-reporters": "^1.1.7",
     "prettier": "1.19.1",
     "rimraf": "^2.6.3",
+    "semver": "^5.4.1",
     "sinon": "^7.3.1"
   },
   "engines": {

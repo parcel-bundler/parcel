@@ -119,6 +119,7 @@ declare module 'postcss' {
   declare type Message = {|
     type: string,
     plugin: string,
+    file: string,
   |};
 
   declare type Builder = (

@@ -20,5 +20,11 @@
   },
   "dependencies": {
     "nullthrows": "^1.1.1"
+  },
+  "devDependencies": {
+    "typescript": "^3.0.0"
+  },
+  "peerDependencies": {
+    "typescript": "^3.0.0"
   }
 }

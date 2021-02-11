@@ -5,8 +5,8 @@ import path from 'path';
 import SourceMap from '@parcel/source-map';
 import type {DiagnosticCodeFrame} from '@parcel/diagnostic';
 
-import typeof TypeScriptModule from 'typescript'; // eslint-disable-line import/no-extraneous-dependencies
 import type {CompilerOptions} from 'typescript';
+import ts from 'typescript';
 import {CompilerHost, loadTSConfig} from '@parcel/ts-utils';
 import {TSModuleGraph} from './TSModuleGraph';
 import nullthrows from 'nullthrows';
@@ -18,13 +18,7 @@ export default (new Transformer({
     await loadTSConfig(config, options);
   },
 
-  async transform({asset, config, options, logger}) {
-    let ts: TypeScriptModule = await options.packageManager.require(
-      'typescript',
-      asset.filePath,
-      {shouldAutoInstall: options.shouldAutoInstall},
-    );
-
+  transform({asset, config, options, logger}) {
     let opts: CompilerOptions = {
       // React is the default. Users can override this by supplying their own tsconfig,
       // which many TypeScript users will already have for typechecking, etc.

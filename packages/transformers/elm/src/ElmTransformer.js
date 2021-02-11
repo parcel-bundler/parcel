@@ -7,6 +7,10 @@ import path from 'path';
 import {minify} from 'terser';
 import nullthrows from 'nullthrows';
 import ThrowableDiagnostic from '@parcel/diagnostic';
+// $FlowFixMe
+import elm from 'node-elm-compiler';
+// $FlowFixMe
+import elmHMR from 'elm-hot';
 
 let isWorker;
 try {
@@ -17,10 +21,10 @@ try {
 }
 
 export default (new Transformer({
-  async loadConfig({config, options}) {
+  async loadConfig({config}) {
     const elmConfig = await config.getConfig(['elm.json']);
     if (!elmConfig) {
-      await elmBinaryPath(config.searchPath, options); // Check if elm is even installed
+      elmBinaryPath(); // Check if elm is even installed
       throw new ThrowableDiagnostic({
         diagnostic: {
           message: "The 'elm.json' file is missing.",
@@ -35,16 +39,7 @@ export default (new Transformer({
   },
 
   async transform({asset, options}) {
-    const elmBinary = await elmBinaryPath(asset.filePath, options);
-    const elm = await options.packageManager.require(
-      'node-elm-compiler',
-      asset.filePath,
-      {
-        shouldAutoInstall: options.shouldAutoInstall,
-        saveDev: true,
-      },
-    );
-
+    const elmBinary = elmBinaryPath();
     const compilerConfig = {
       spawn,
       cwd: path.dirname(asset.filePath),
@@ -63,7 +58,7 @@ export default (new Transformer({
 
     let code = await compileToString(elm, elmBinary, asset, compilerConfig);
     if (options.hmrOptions) {
-      code = await injectHotModuleReloadRuntime(code, asset.filePath, options);
+      code = elmHMR.inject(code);
     }
     if (compilerConfig.optimize) code = await minifyElmOutput(code);
 
@@ -73,8 +68,8 @@ export default (new Transformer({
   },
 }): Transformer);
 
-async function elmBinaryPath(searchPath, options) {
-  let elmBinary = await resolveLocalElmBinary(searchPath, options);
+function elmBinaryPath() {
+  let elmBinary = resolveLocalElmBinary();
 
   if (elmBinary == null && !commandExists.sync('elm')) {
     throw new ThrowableDiagnostic({
@@ -92,17 +87,14 @@ async function elmBinaryPath(searchPath, options) {
   return elmBinary;
 }
 
-async function resolveLocalElmBinary(searchPath, options) {
+function resolveLocalElmBinary() {
   try {
-    let result = await options.packageManager.resolve(
-      'elm/package.json',
-      searchPath,
-      {shouldAutoInstall: false},
-    );
-
-    let bin = nullthrows(result.pkg?.bin);
+    let result = require.resolve('elm/package.json');
+    // $FlowFixMe
+    let pkg = require('elm/package.json');
+    let bin = nullthrows(pkg.bin);
     return path.join(
-      path.dirname(result.resolved),
+      path.dirname(result),
       typeof bin === 'string' ? bin : bin.elm,
     );
   } catch (_) {
@@ -115,14 +107,6 @@ function compileToString(elm, elmBinary, asset, config) {
     pathToElm: elmBinary,
     ...config,
   });
-}
-
-async function injectHotModuleReloadRuntime(code, filePath, options) {
-  const elmHMR = await options.packageManager.require('elm-hot', filePath, {
-    shouldAutoInstall: options.shouldAutoInstall,
-    saveDev: true,
-  });
-  return elmHMR.inject(code);
 }
 
 async function minifyElmOutput(source) {
