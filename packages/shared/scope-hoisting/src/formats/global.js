@@ -54,7 +54,7 @@ export function generateBundleImports(
   from: NamedBundle,
   {bundle, assets}: ExternalBundle,
   scope: Scope,
-): Array<BabelNode> {
+): Array<Statement> {
   let statements = [];
   if (from.env.isWorker()) {
     statements.push(
@@ -102,7 +102,7 @@ export function generateExternalImport(
   {loc}: ExternalModule,
   // eslint-disable-next-line no-unused-vars
   scope: Scope,
-): Array<BabelNode> {
+): Array<Statement> {
   throw getThrowableDiagnosticForNode(
     'External modules are not supported when building for browser',
     loc?.filePath,
@@ -117,8 +117,8 @@ export function generateBundleExports(
   scope: Scope,
   // eslint-disable-next-line no-unused-vars
   reexports: Set<{|exportAs: string, local: string|}>,
-): Array<BabelNode> {
-  let statements: Array<BabelNode> = [];
+): Array<Statement> {
+  let statements: Array<Statement> = [];
 
   for (let asset of referencedAssets) {
     let exportsId = getName(asset, 'init');

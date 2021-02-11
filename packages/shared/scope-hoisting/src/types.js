@@ -7,7 +7,7 @@ import type {
   Symbol,
   SourceLocation,
 } from '@parcel/types';
-import type {Node} from '@babel/types';
+import type {Node, Statement} from '@babel/types';
 import type {Scope} from '@parcel/babylon-walk';
 
 export type ExternalModule = {|
@@ -29,19 +29,19 @@ export type OutputFormat = {|
     from: NamedBundle,
     external: ExternalBundle,
     scope: Scope,
-  ): Array<Node>,
+  ): Array<Statement>,
   generateExternalImport(
     bundle: NamedBundle,
     external: ExternalModule,
     scope: Scope,
-  ): Array<Node>,
+  ): Array<Statement>,
   generateBundleExports(
     bundleGraph: BundleGraph<NamedBundle>,
     bundle: NamedBundle,
     referencedAssets: Set<Asset>,
     scope: Scope,
     reexports: Set<{|exportAs: string, local: string|}>,
-  ): Array<Node>,
+  ): Array<Statement>,
   generateMainExport(
     node: Node,
     exported: Array<{|exportAs: string, local: string|}>,

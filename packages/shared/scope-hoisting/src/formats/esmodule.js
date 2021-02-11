@@ -3,7 +3,12 @@
 import type {Asset, Bundle, BundleGraph, NamedBundle} from '@parcel/types';
 import type {Scope} from '@parcel/babylon-walk';
 import type {ExternalBundle, ExternalModule} from '../types';
-import type {LVal, Expression, VariableDeclaration} from '@babel/types';
+import type {
+  LVal,
+  Expression,
+  Statement,
+  VariableDeclaration,
+} from '@babel/types';
 
 import * as t from '@babel/types';
 import template from '@babel/template';
@@ -25,7 +30,7 @@ export function generateBundleImports(
   {bundle, assets}: ExternalBundle,
   // eslint-disable-next-line no-unused-vars
   scope: Scope,
-): Array<BabelNode> {
+): Array<Statement> {
   let specifiers = [];
   let interops = [];
   for (let asset of assets) {
@@ -65,7 +70,7 @@ export function generateExternalImport(
   external: ExternalModule,
   // eslint-disable-next-line no-unused-vars
   scope: Scope,
-): Array<BabelNode> {
+): Array<Statement> {
   let {source, specifiers, isCommonJS} = external;
   let defaultSpecifier = null;
   let namespaceSpecifier = null;
@@ -82,7 +87,7 @@ export function generateExternalImport(
     }
   }
 
-  let statements: Array<BabelNode> = [];
+  let statements: Array<Statement> = [];
 
   // ESModule syntax allows combining default and namespace specifiers, or default and named, but not all three.
 
@@ -111,7 +116,7 @@ export function generateBundleExports(
   referencedAssets: Set<Asset>,
   scope: Scope,
   reexports: Set<{|exportAs: string, local: string|}>,
-): Array<BabelNode> {
+): Array<Statement> {
   let statements = [];
 
   if (referencedAssets.size > 0 || reexports.size > 0) {
