@@ -1749,6 +1749,23 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, 'bar');
     });
 
+    it('should support unused imports of wrapped modules in different bundles', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/import-wrapped-bundle-unused/a.js',
+        ),
+      );
+
+      let called = false;
+      await run(b, {
+        sideEffect() {
+          called = true;
+        },
+      });
+      assert(called);
+    });
+
     it('should insert esModule flag for interop for async (or shared) bundles', async function() {
       let b = await bundle(
         path.join(
