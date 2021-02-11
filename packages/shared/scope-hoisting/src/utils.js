@@ -67,11 +67,20 @@ export function needsPrelude(
     return false;
   }
 
-  // If this is an entry bundle and it is referenced by other bundles,
-  // we need to add the prelude code, which allows registering modules dynamically at runtime.
+  let parentBundles = bundleGraph.getParentBundles(bundle);
+  let mightBeFirstJS =
+    parentBundles.length === 0 ||
+    parentBundles.some(b => b.type !== 'js') ||
+    bundleGraph
+      .getBundleGroupsContainingBundle(bundle)
+      .some(g => bundleGraph.isEntryBundleGroup(g)) ||
+    bundle.env.isIsolated() ||
+    !!bundle.getMainEntry()?.isIsolated;
 
+  // If this might be loaded as the first script in the context and it is referenced by other bundles,
+  // we need to add the prelude code, which allows registering modules dynamically at runtime.
   return (
-    isEntry(bundle, bundleGraph) &&
+    mightBeFirstJS &&
     // If this bundle has an async descendant, it will use the JSRuntime,
     // which uses parcelRequire. It's also possible that the descendant needs
     // to register exports for its own descendants.

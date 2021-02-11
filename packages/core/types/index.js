@@ -1004,6 +1004,7 @@ export interface BundleGraph<TBundle: Bundle> {
   getIncomingDependencies(asset: Asset): Array<Dependency>;
   /** Get the asset that created the dependency. */
   getAssetWithDependency(dep: Dependency): ?Asset;
+  isEntryBundleGroup(bundleGroup: BundleGroup): boolean;
   /**
    * Returns undefined if the specified dependency was excluded or wasn't async \
    * and otherwise the BundleGroup or Asset that the dependency resolves to.
