@@ -23,5 +23,11 @@
     "@parcel/plugin": "2.0.0-frontbucket.41",
     "@parcel/utils": "2.0.0-frontbucket.37",
     "chalk": "^4.1.0"
+  },
+  "devDependencies": {
+    "eslint": "^6.0.0"
+  },
+  "peerDependencies": {
+    "eslint": "^6.0.0"
   }
 }

@@ -90,7 +90,9 @@ const OPTIONS = {
       isIsolated: true,
       env: {
         outputFormat:
-          attrs.type === 'module' && env.scopeHoist ? 'esmodule' : undefined,
+          attrs.type === 'module' && env.shouldScopeHoist
+            ? 'esmodule'
+            : undefined,
       },
     };
   },

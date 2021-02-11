@@ -1,14 +1,10 @@
 // @flow
 
 import {Transformer} from '@parcel/plugin';
+import toml from '@iarna/toml';
 
 export default (new Transformer({
-  async transform({asset, options}) {
-    const toml = await options.packageManager.require(
-      '@iarna/toml',
-      asset.filePath,
-      {shouldAutoInstall: options.shouldAutoInstall},
-    );
+  async transform({asset}) {
     asset.type = 'js';
     asset.setCode(
       `module.exports = ${JSON.stringify(

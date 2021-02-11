@@ -91,6 +91,7 @@ declare module 'less' {
       Visitor: typeof visitors$Visitor,
       ...
     },
+    render(string, any): Promise<{|map: string, css: string|}>,
     ...
   };
 }

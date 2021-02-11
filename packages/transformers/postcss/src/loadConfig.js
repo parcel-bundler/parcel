@@ -139,10 +139,3 @@ export function preSerialize(config: Config) {
   // It also usually contains a bunch of functions so bad idea anyway...
   config.result.hydrated = {};
 }
-
-export function postDeserialize(
-  config: Config,
-  options: PluginOptions,
-): Promise<void> {
-  return configHydrator(config.result.raw, config, options);
-}

@@ -1,3 +1,4 @@
+// @flow
 import assert from 'assert';
 import path from 'path';
 import {
@@ -162,7 +163,9 @@ describe('css', () => {
     let b = await bundle(
       path.join(__dirname, '/integration/css-url/index.js'),
       {
-        minify: true,
+        defaultTargetOptions: {
+          shouldOptimize: true,
+        },
       },
     );
 
@@ -208,8 +211,10 @@ describe('css', () => {
         path.join(__dirname, '/integration/css-url-relative/src/b/style2.css'),
       ],
       {
-        minify: true,
-        sourceMaps: false,
+        defaultTargetOptions: {
+          shouldOptimize: true,
+          sourceMaps: false,
+        },
       },
     );
 
@@ -263,8 +268,10 @@ describe('css', () => {
     let b = await bundle(
       path.join(__dirname, '/integration/cssnano/index.js'),
       {
-        minify: true,
-        sourceMaps: false,
+        defaultTargetOptions: {
+          shouldOptimize: true,
+          sourceMaps: false,
+        },
       },
     );
 
@@ -281,7 +288,9 @@ describe('css', () => {
 
   it('should produce a sourcemap when sourceMaps are used', async function() {
     await bundle(path.join(__dirname, '/integration/cssnano/index.js'), {
-      minify: true,
+      defaultTargetOptions: {
+        shouldOptimize: true,
+      },
     });
 
     let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
@@ -305,7 +314,9 @@ describe('css', () => {
 
   it('should inline data-urls for text-encoded files', async () => {
     await bundle(path.join(__dirname, '/integration/data-url/text.css'), {
-      sourceMaps: false,
+      defaultTargetOptions: {
+        sourceMaps: false,
+      },
     });
     let css = await outputFS.readFile(path.join(distDir, 'text.css'), 'utf8');
     assert.equal(
