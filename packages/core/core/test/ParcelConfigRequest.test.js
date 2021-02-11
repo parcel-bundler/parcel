@@ -501,9 +501,7 @@ describe('loadParcelConfig', () => {
             keyPath: '/bundler',
           },
         },
-        DEFAULT_OPTIONS.packageManager,
-        DEFAULT_OPTIONS.inputFS,
-        false,
+        DEFAULT_OPTIONS,
       );
 
       let ext = {

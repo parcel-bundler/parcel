@@ -746,11 +746,6 @@ export type Transformer = {|
     config: Config,
     options: PluginOptions,
   |}) => Async<void>,
-  postDeserializeConfig?: ({|
-    config: Config,
-    options: PluginOptions,
-    logger: PluginLogger,
-  |}) => Async<void>,
   /** Whether an AST from a previous transformer can be reused (to prevent double-parsing) */
   canReuseAST?: ({|
     ast: AST,

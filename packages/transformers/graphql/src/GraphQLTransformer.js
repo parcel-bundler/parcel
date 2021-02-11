@@ -1,27 +1,11 @@
 // @flow
 import {Transformer} from '@parcel/plugin';
+import {parse, print, Source, stripIgnoredCharacters} from 'graphql';
+import {processDocumentImports} from 'graphql-import-macro';
 
 export default (new Transformer({
   async transform({asset, options, resolve}) {
-    const {
-      parse,
-      print,
-      Source,
-      stripIgnoredCharacters,
-    } = await options.packageManager.require('graphql', asset.filePath, {
-      shouldAutoInstall: options.shouldAutoInstall,
-    });
-
-    const {processDocumentImports} = await options.packageManager.require(
-      'graphql-import-macro',
-      asset.filePath,
-      {
-        shouldAutoInstall: options.shouldAutoInstall,
-      },
-    );
-
     const document = parse(new Source(await asset.getCode(), asset.filePath));
-
     const expandedDocument = await processDocumentImports(document, loadImport);
 
     async function loadImport(to, from) {

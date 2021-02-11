@@ -89,12 +89,7 @@ export default class Parcel {
     this.#resolvedOptions = resolvedOptions;
     await createCacheDir(resolvedOptions.outputFS, resolvedOptions.cacheDir);
     let {config} = await loadParcelConfig(resolvedOptions);
-    this.#config = new ParcelConfig(
-      config,
-      resolvedOptions.packageManager,
-      resolvedOptions.inputFS,
-      resolvedOptions.shouldAutoInstall,
-    );
+    this.#config = new ParcelConfig(config, resolvedOptions);
 
     if (this.#initialOptions.workerFarm) {
       if (this.#initialOptions.workerFarm.ending) {

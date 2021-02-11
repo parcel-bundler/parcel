@@ -2,14 +2,10 @@
 
 import {Transformer} from '@parcel/plugin';
 import postcss from 'postcss';
+import sugarss from 'sugarss';
 
 export default (new Transformer({
-  async transform({asset, options}) {
-    const sugarss = await options.packageManager.require(
-      'sugarss',
-      asset.filePath,
-      {shouldAutoInstall: options.shouldAutoInstall},
-    );
+  async transform({asset}) {
     const code = await asset.getCode();
     const {css} = await postcss().process(code, {
       from: asset.filePath,

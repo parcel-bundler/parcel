@@ -68,8 +68,6 @@
   "resolvers": ["@parcel/resolver-default"],
   "reporters": [
     "@parcel/reporter-cli",
-    "@parcel/reporter-dev-server",
-    "@parcel/reporter-bundle-analyzer",
-    "@parcel/reporter-bundle-buddy"
+    "@parcel/reporter-dev-server"
   ]
 }

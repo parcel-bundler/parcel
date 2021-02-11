@@ -26,8 +26,5 @@
     "@parcel/utils": "2.0.0-beta.1",
     "nullthrows": "^1.1.1",
     "esbuild": "^0.8.11"
-  },
-  "peerDependencies": {
-    "@parcel/core": "^2.0.0-alpha.3.1"
   }
 }
