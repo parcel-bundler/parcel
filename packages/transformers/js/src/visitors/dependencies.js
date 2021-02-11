@@ -33,6 +33,7 @@ import {
 } from '@babel/types';
 import {isURL, md5FromString, createDependencyLocation} from '@parcel/utils';
 import {isInFalsyBranch, hasBinding, morph} from './utils';
+import {convertBabelLoc} from '@parcel/babel-ast-utils';
 
 const serviceWorkerPattern = ['navigator', 'serviceWorker', 'register'];
 
@@ -228,21 +229,11 @@ export default ({
         } else {
           let url = parseImportMetaUrl(args[0], ancestors);
           if (url) {
-            let {loc} = args[0];
+            let loc = convertBabelLoc(args[0].loc);
             if (loc) {
               opts = {
                 ...opts,
-                loc: {
-                  filePath: url,
-                  start: {
-                    line: loc.start.line + 0,
-                    column: loc.start.column + 1,
-                  },
-                  end: {
-                    line: loc.end.line + 0,
-                    column: loc.end.column,
-                  },
-                },
+                loc,
               };
             }
             asset.addURLDependency(url, opts);
