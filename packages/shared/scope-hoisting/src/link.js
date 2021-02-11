@@ -1038,6 +1038,7 @@ export function link({
           }
 
           if (needsPrelude(bundle, bundleGraph)) {
+            scope.add('$parcel$global');
             statements = [
               PARCEL_REQUIRE_NAME_TEMPLATE({
                 PARCEL_REQUIRE_NAME: t.stringLiteral(parcelRequireName),
@@ -1049,17 +1050,17 @@ export function link({
         }
 
         let usedHelpers: Array<Statement> = [];
-        for (let name of scope.names) {
-          let helper = helpers.get(name);
-          if (helper) {
+        for (let [name, helper] of helpers) {
+          if (scope.names.has(name)) {
             usedHelpers.push(helper);
-          } else if (name === 'parcelRequire') {
-            usedHelpers.push(
-              PARCEL_REQUIRE_TEMPLATE({
-                PARCEL_REQUIRE_NAME: t.identifier(parcelRequireName),
-              }),
-            );
           }
+        }
+        if (scope.names.has('parcelRequire')) {
+          usedHelpers.push(
+            PARCEL_REQUIRE_TEMPLATE({
+              PARCEL_REQUIRE_NAME: t.identifier(parcelRequireName),
+            }),
+          );
         }
 
         statements = hoistedImports.concat(usedHelpers).concat(statements);
