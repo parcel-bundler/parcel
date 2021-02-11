@@ -1,5 +1,5 @@
 {
-  "name": "@parcel/multi-entry",
+  "name": "@parcel/target-source",
   "version": "2.0.0-beta.1",
   "license": "MIT",
   "private": true,
