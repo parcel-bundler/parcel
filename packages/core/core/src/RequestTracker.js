@@ -405,10 +405,8 @@ export class RequestGraph extends Graph<
         this.addEdge(node.id, firstId, 'invalidated_by_create_above');
       }
 
-      if (
-        last != null &&
-        !this.hasEdge(last.id, node.id, 'invalidated_by_create_above')
-      ) {
+      invariant(last != null);
+      if (!this.hasEdge(last.id, node.id, 'invalidated_by_create_above')) {
         this.addEdge(last.id, node.id, 'invalidated_by_create_above');
       }
     } else if (input.filePath != null) {
@@ -488,7 +486,7 @@ export class RequestGraph extends Graph<
   invalidateFileNameNode(
     node: FileNameNode,
     filePath: FilePath,
-    matchNodes: Array<RequestGraphNode>,
+    matchNodes: Array<FileNode>,
   ) {
     // If there is an edge between this file_name node and one of the original file nodes pointed to
     // by the original file_name node, and the matched node is inside the current directory, invalidate
@@ -496,7 +494,6 @@ export class RequestGraph extends Graph<
     let dirname = path.dirname(filePath);
     for (let matchNode of matchNodes) {
       if (
-        matchNode.type === 'file' &&
         this.hasEdge(node.id, matchNode.id, 'invalidated_by_create_above') &&
         isDirectoryInside(path.dirname(matchNode.value.filePath), dirname)
       ) {
@@ -547,7 +544,11 @@ export class RequestGraph extends Graph<
           let above = this.getNodesConnectedTo(
             fileNameNode,
             'invalidated_by_create_above',
-          );
+          ).map(node => {
+            invariant(node.type === 'file');
+            return node;
+          });
+
           if (above.length > 0) {
             this.invalidateFileNameNode(fileNameNode, filePath, above);
           }
