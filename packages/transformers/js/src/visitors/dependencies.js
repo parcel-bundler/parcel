@@ -16,6 +16,7 @@ import type {
   StringLiteral,
 } from '@babel/types';
 import type {SimpleVisitors} from '@parcel/babylon-walk';
+import type {PluginLogger} from '@parcel/logger';
 
 import * as types from '@babel/types';
 import {
@@ -190,7 +191,7 @@ export default ({
   },
 
   NewExpression: {
-    exit(node: NewExpression, {asset, ast}, ancestors) {
+    exit(node: NewExpression, {asset, ast, logger}, ancestors) {
       let {callee, arguments: args} = node;
 
       let isWebWorker =
@@ -224,7 +225,22 @@ export default ({
         };
 
         if (isStringLiteral(args[0])) {
-          addURLDependency(asset, ast, args[0], opts);
+          let specifier = args[0];
+          let loc = convertBabelLoc(node.loc);
+          logger.warn({
+            message:
+              'Calling the Worker constructor with a string literal is deprecated.',
+            filePath: loc?.filePath,
+            ...(loc && {
+              codeFrame: {
+                codeHighlights: [{start: loc.start, end: loc.end}],
+              },
+            }),
+            hints: [
+              `Replace with: new Worker(new URL('${specifier.value}', import.meta.url))`,
+            ],
+          });
+          addURLDependency(asset, ast, specifier, opts);
           return;
         } else {
           let url = parseImportMetaUrl(args[0], ancestors);
@@ -254,7 +270,12 @@ export default ({
 }: SimpleVisitors<
   (
     any,
-    {|asset: MutableAsset, ast: AST, options: PluginOptions|},
+    {|
+      asset: MutableAsset,
+      ast: AST,
+      options: PluginOptions,
+      logger: PluginLogger,
+    |},
     Array<Node>,
   ) => void,
 >);
