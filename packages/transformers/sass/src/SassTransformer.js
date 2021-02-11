@@ -5,6 +5,7 @@ import path from 'path';
 import {EOL} from 'os';
 import SourceMap from '@parcel/source-map';
 import sass from 'sass';
+import {pathToFileURL} from 'url';
 
 // E.g: ~library/file.sass
 const WEBPACK_ALIAS_RE = /^~[^/]/;
@@ -169,7 +170,7 @@ function resolvePathImporter({asset, resolve, includePaths, options}) {
 
     if (filePath) {
       return {
-        file: 'file://' + filePath,
+        file: pathToFileURL(filePath).toString(),
         contents,
       };
     }
