@@ -4,7 +4,6 @@ export type * from './generateBuildMetrics';
 export type * from './prettyDiagnostic';
 export type * from './schema';
 export type * from './http-server';
-export type * from './resolve';
 
 export {default as countLines} from './countLines';
 export {default as generateBuildMetrics} from './generateBuildMetrics';
@@ -33,8 +32,6 @@ export {findAlternativeNodeModules, findAlternativeFiles} from './alternatives';
 export {blobToBuffer, blobToString} from './blob';
 export {
   unique,
-  flat,
-  flatMap,
   objectSortedEntries,
   objectSortedEntriesDeep,
   setDifference,
@@ -65,7 +62,6 @@ export {
   streamFromPromise,
   fallbackStream,
 } from './stream';
-export {resolve, resolveSync} from './resolve';
 export {relativeBundlePath} from './relativeBundlePath';
 export {ansiHtml} from './ansi-html';
 export {escapeHTML} from './escape-html';

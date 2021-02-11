@@ -6,11 +6,8 @@ import path from 'path';
 import sinon from 'sinon';
 import logger from '@parcel/logger';
 import {inputFS} from '@parcel/test-utils';
-import {NodePackageManager} from '@parcel/package-manager';
 import {parseAndProcessConfig} from '../src/requests/ParcelConfigRequest';
 import {DEFAULT_OPTIONS} from './test-utils';
-
-const packageManager = new NodePackageManager(inputFS);
 
 describe('ParcelConfig', () => {
   describe('matchGlobMap', () => {
@@ -31,9 +28,7 @@ describe('ParcelConfig', () => {
           },
         },
       },
-      packageManager,
-      inputFS,
-      false,
+      DEFAULT_OPTIONS,
     );
 
     it('should return null array if no glob matches', () => {
@@ -74,9 +69,7 @@ describe('ParcelConfig', () => {
           ],
         },
       },
-      packageManager,
-      inputFS,
-      false,
+      DEFAULT_OPTIONS,
     );
 
     it('should return an empty array if no pipeline matches', () => {
@@ -143,9 +136,7 @@ describe('ParcelConfig', () => {
             ],
           },
         },
-        packageManager,
-        inputFS,
-        false,
+        DEFAULT_OPTIONS,
       );
 
       sinon.stub(logger, 'warn');
@@ -186,9 +177,7 @@ describe('ParcelConfig', () => {
             ],
           },
         },
-        packageManager,
-        inputFS,
-        false,
+        DEFAULT_OPTIONS,
       );
       // $FlowFixMe
       let parcelVersion = require('../package.json').version;
@@ -247,19 +236,14 @@ describe('ParcelConfig', () => {
         code,
         DEFAULT_OPTIONS,
       );
-      let parcelConfig = new ParcelConfig(
-        config,
-        DEFAULT_OPTIONS.packageManager,
-        DEFAULT_OPTIONS.inputFS,
-        DEFAULT_OPTIONS.autoinstall,
-      );
+      let parcelConfig = new ParcelConfig(config, DEFAULT_OPTIONS);
 
       // $FlowFixMe
       await assert.rejects(() => parcelConfig.getTransformers('test.js'), {
         name: 'Error',
         diagnostics: [
           {
-            message: 'Cannot find parcel plugin "@parcel/transformer-jj"',
+            message: 'Cannot find Parcel plugin "@parcel/transformer-jj"',
             origin: '@parcel/core',
             filePath: configFilePath,
             language: 'json5',

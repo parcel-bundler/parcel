@@ -16,12 +16,18 @@
   "main": "lib/EslintValidator.js",
   "source": "src/EslintValidator.js",
   "engines": {
-    "node": ">= 10.0.0",
-    "parcel": "^2.0.0-alpha.1.1"
+    "node": ">= 12.0.0",
+    "parcel": "^2.0.0-beta.1"
   },
   "dependencies": {
     "@parcel/plugin": "2.0.0-beta.1",
     "@parcel/utils": "2.0.0-beta.1",
-    "chalk": "^2.4.2"
+    "chalk": "^4.1.0"
+  },
+  "devDependencies": {
+    "eslint": "^6.0.0"
+  },
+  "peerDependencies": {
+    "eslint": "^6.0.0"
   }
 }

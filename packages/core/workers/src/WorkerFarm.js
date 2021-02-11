@@ -44,7 +44,7 @@ export type FarmOptions = {|
   warmWorkers: boolean,
   workerPath?: FilePath,
   backend: BackendType,
-  patchConsole?: boolean,
+  shouldPatchConsole?: boolean,
 |};
 
 type WorkerModule = {|
@@ -206,7 +206,7 @@ export default class WorkerFarm extends EventEmitter {
     let worker = new Worker({
       forcedKillTime: this.options.forcedKillTime,
       backend: this.options.backend,
-      patchConsole: this.options.patchConsole,
+      shouldPatchConsole: this.options.shouldPatchConsole,
       sharedReferences: this.sharedReferences,
     });
 
@@ -423,6 +423,7 @@ export default class WorkerFarm extends EventEmitter {
                 args: [ref],
                 resolve,
                 reject,
+                skipReadyCheck: true,
                 retries: 0,
               });
             }),
@@ -444,6 +445,7 @@ export default class WorkerFarm extends EventEmitter {
             resolve,
             reject,
             retries: 0,
+            skipReadyCheck: true,
           });
         }),
       );
@@ -473,6 +475,7 @@ export default class WorkerFarm extends EventEmitter {
             resolve,
             reject,
             retries: 0,
+            skipReadyCheck: true,
           });
         }),
       );
@@ -532,6 +535,7 @@ export default class WorkerFarm extends EventEmitter {
                 resolve,
                 reject,
                 retries: 0,
+                skipReadyCheck: true,
               });
             }),
         ),

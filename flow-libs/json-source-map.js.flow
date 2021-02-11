@@ -25,7 +25,7 @@ declare module 'json-source-map' {
       _?: mixed,
       opts?: {|bigint: boolean|},
     ) => {|
-      data: mixed,
+      data: any,
       pointers: {|[key: string]: Mapping|},
     |},
 

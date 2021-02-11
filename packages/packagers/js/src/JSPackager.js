@@ -66,7 +66,7 @@ export default (new Packager({
     let parcelRequireName = nullthrows(config).parcelRequireName;
 
     // If scope hoisting is enabled, we use a different code path.
-    if (bundle.env.scopeHoist) {
+    if (bundle.env.shouldScopeHoist) {
       let wrappedAssets = new Set<string>();
       let {ast, referencedAssets} = link({
         bundle,
@@ -80,6 +80,7 @@ export default (new Packager({
         }),
         options,
         wrappedAssets,
+        parcelRequireName,
       });
 
       // Free up memory
@@ -212,7 +213,7 @@ export default (new Packager({
         prefix +
         '({' +
         assets +
-        '},{},' +
+        '},' +
         JSON.stringify(
           entries.map(asset => bundleGraph.getAssetPublicId(asset)),
         ) +

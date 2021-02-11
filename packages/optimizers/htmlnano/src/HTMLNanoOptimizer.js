@@ -1,6 +1,5 @@
 // @flow strict-local
 
-// flowlint-next-line untyped-import:off
 import htmlnano from 'htmlnano';
 import {loadConfig} from '@parcel/utils';
 import {Optimizer} from '@parcel/plugin';
@@ -9,7 +8,7 @@ import path from 'path';
 
 export default (new Optimizer({
   async optimize({bundle, contents, map, options}) {
-    if (!bundle.env.minify) {
+    if (!bundle.env.shouldOptimize) {
       return {contents, map};
     }
 

@@ -20,33 +20,31 @@ import createParcelConfigRequest, {
   getCachedParcelConfig,
 } from './ParcelConfigRequest';
 
-export type PathRequestResult = AssetGroup | null | void;
-
 export type PathRequest = {|
   id: string,
   +type: 'path_request',
-  run: RunOpts => Promise<PathRequestResult>,
-  input: Dependency,
+  run: RunOpts => Async<?AssetGroup>,
+  input: PathRequestInput,
+|};
+
+export type PathRequestInput = {|
+  dependency: Dependency,
+  name: string,
 |};
 
 type RunOpts = {|
-  input: Dependency,
-  ...StaticRunOpts,
+  input: PathRequestInput,
+  ...StaticRunOpts<?AssetGroup>,
 |};
 
 const type = 'path_request';
 const QUERY_PARAMS_REGEX = /^([^\t\r\n\v\f?]*)(\?.*)?/;
 
 export default function createPathRequest(
-  input: Dependency,
-): {|
-  id: string,
-  input: Dependency,
-  run: ({|input: Dependency, ...StaticRunOpts|}) => Async<?AssetGroup>,
-  +type: string,
-|} {
+  input: PathRequestInput,
+): PathRequest {
   return {
-    id: input.id,
+    id: input.dependency.id + ':' + input.name,
     type,
     run,
     input,
@@ -62,7 +60,7 @@ async function run({input, api, options}: RunOpts) {
     options,
     config,
   });
-  let assetGroup = await resolverRunner.resolve(input);
+  let assetGroup = await resolverRunner.resolve(input.dependency);
 
   if (assetGroup != null) {
     api.invalidateOnFileDelete(assetGroup.filePath);
@@ -213,11 +211,11 @@ export class ResolverRunner {
           }
 
           if (result.diagnostics) {
-            if (Array.isArray(result.diagnostics)) {
-              diagnostics.push(...result.diagnostics);
-            } else {
-              diagnostics.push(result.diagnostics);
-            }
+            let errorDiagnostic = errorToDiagnostic(
+              new ThrowableDiagnostic({diagnostic: result.diagnostics}),
+              resolver.name,
+            );
+            diagnostics.push(...errorDiagnostic);
           }
         }
       } catch (e) {

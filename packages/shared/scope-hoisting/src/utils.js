@@ -15,16 +15,24 @@ import type {
   ImportSpecifier,
   Node,
   VariableDeclarator,
+  Statement,
 } from '@babel/types';
+import {parse as babelParse} from '@babel/parser';
 import type {Diagnostic} from '@parcel/diagnostic';
 
 import {simple as walkSimple} from '@parcel/babylon-walk';
 import ThrowableDiagnostic from '@parcel/diagnostic';
 import * as t from '@babel/types';
-import {isVariableDeclarator, isVariableDeclaration} from '@babel/types';
+import {
+  isIdentifier,
+  isFunctionDeclaration,
+  isVariableDeclarator,
+  isVariableDeclaration,
+} from '@babel/types';
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import path from 'path';
+import fs from 'fs';
 
 export function getName(
   asset: Asset | MutableAsset,
@@ -32,16 +40,7 @@ export function getName(
   ...rest: Array<string>
 ): string {
   return t.toIdentifier(
-    '$' +
-      asset.id +
-      '$' +
-      type +
-      (rest.length
-        ? '$' +
-          rest
-            .map(name => (name === 'default' ? name : t.toIdentifier(name)))
-            .join('$')
-        : ''),
+    '$' + asset.id + '$' + type + (rest.length ? '$' + rest.join('$') : ''),
   );
 }
 
@@ -138,6 +137,24 @@ export function hasAsyncDescendant(
   }, bundle);
 
   return _hasAsyncDescendant;
+}
+
+export function needsDefaultInterop(
+  bundleGraph: BundleGraph<NamedBundle>,
+  bundle: NamedBundle,
+  asset: Asset,
+): boolean {
+  let deps = bundleGraph.getIncomingDependencies(asset);
+  if (asset.meta.isCommonJS && !asset.symbols.hasExportSymbol('default')) {
+    return deps.some(
+      dep =>
+        bundle.hasDependency(dep) &&
+        dep.meta.isES6Module &&
+        dep.symbols.hasExportSymbol('default'),
+    );
+  }
+
+  return false;
 }
 
 export function assertString(v: mixed): string {
@@ -296,4 +313,44 @@ export function getThrowableDiagnosticForNode(
   return new ThrowableDiagnostic({
     diagnostic,
   });
+}
+
+export function parse(code: string, sourceFilename: string): Array<Statement> {
+  let ast = babelParse(code, {
+    sourceFilename,
+    allowReturnOutsideFunction: true,
+    plugins: ['dynamicImport'],
+  });
+
+  return ast.program.body;
+}
+
+let helpersCache;
+export function getHelpers(): Map<string, BabelNode> {
+  if (helpersCache != null) {
+    return helpersCache;
+  }
+
+  let helpersPath = path.join(__dirname, 'helpers.js');
+  let statements = parse(fs.readFileSync(helpersPath, 'utf8'), helpersPath);
+
+  helpersCache = new Map();
+  for (let statement of statements) {
+    if (isVariableDeclaration(statement)) {
+      if (
+        statement.declarations.length !== 1 ||
+        !isIdentifier(statement.declarations[0].id)
+      ) {
+        throw new Error('Unsupported helper');
+      }
+
+      helpersCache.set(statement.declarations[0].id.name, statement);
+    } else if (isFunctionDeclaration(statement) && isIdentifier(statement.id)) {
+      helpersCache.set(statement.id.name, statement);
+    } else {
+      throw new Error('Unsupported helper');
+    }
+  }
+
+  return helpersCache;
 }

@@ -23,7 +23,7 @@ import assert from 'assert';
 import invariant from 'assert';
 import crypto from 'crypto';
 import nullthrows from 'nullthrows';
-import {flatMap, objectSortedEntriesDeep} from '@parcel/utils';
+import {objectSortedEntriesDeep} from '@parcel/utils';
 
 import {getBundleGroupId, getPublicId} from './utils';
 import Graph, {ALL_EDGE_TYPES, mapVisitor, type GraphOpts} from './Graph';
@@ -290,11 +290,26 @@ export default class BundleGraph {
     | {|type: 'bundle_group', value: BundleGroup|}
     | {|type: 'asset', value: Asset|}
   ) {
+    let depNode = nullthrows(this._graph.getNode(dependency.id));
+
     if (
       bundle != null &&
-      this._graph.hasEdge(bundle.id, dependency.id, 'internal_async')
+      this._graph.hasEdge(bundle.id, depNode.id, 'internal_async')
     ) {
-      let resolved = this.getDependencyResolution(dependency, bundle);
+      let referencedAssetNode = this._graph.getNodesConnectedFrom(
+        depNode,
+        'references',
+      )[0];
+
+      let resolved;
+      if (referencedAssetNode == null) {
+        resolved = this.getDependencyResolution(dependency, bundle);
+      } else {
+        // If a referenced asset already exists, resolve this dependency to it.
+        invariant(referencedAssetNode.type === 'asset');
+        resolved = referencedAssetNode.value;
+      }
+
       if (resolved == null) {
         return;
       } else {
@@ -462,6 +477,10 @@ export default class BundleGraph {
     for (let bundleGroupNode of this._graph
       .getNodesConnectedFrom(nullthrows(this._graph.getNode(dependency.id)))
       .filter(node => node.type === 'bundle_group')) {
+      if (!this._graph.hasEdge(bundle.id, bundleGroupNode.id, 'bundle')) {
+        continue;
+      }
+
       let inboundDependencies = this._graph
         .getNodesConnectedTo(bundleGroupNode)
         .filter(node => node.type === 'dependency')
@@ -609,22 +628,21 @@ export default class BundleGraph {
     // asynchonously. If any of them appear in our traversal, this asset is
     // referenced.
     let asyncInternalReferencingBundles = new Set(
-      flatMap(
-        this._graph
-          .getNodesConnectedTo(assetNode, 'references')
-          .filter(node => node.type === 'dependency')
-          .map(node => {
-            invariant(node.type === 'dependency');
-            return node;
-          }),
-        dependencyNode =>
+      this._graph
+        .getNodesConnectedTo(assetNode, 'references')
+        .filter(node => node.type === 'dependency')
+        .map(node => {
+          invariant(node.type === 'dependency');
+          return node;
+        })
+        .flatMap(dependencyNode =>
           this._graph
             .getNodesConnectedTo(dependencyNode, 'internal_async')
             .map(node => {
               invariant(node.type === 'bundle');
               return node.value;
             }),
-      ),
+        ),
     );
 
     const bundleHasReference = (bundle: Bundle) => {
@@ -712,11 +730,26 @@ export default class BundleGraph {
 
       // Check that every parent bundle has a bundle group in its ancestry that contains the asset.
       return parentBundleNodes.every(bundleNode => {
-        let inBundle = false;
+        if (bundleNode.type === 'root') {
+          return false;
+        }
 
+        let isReachable = true;
         this._graph.traverseAncestors(
           bundleNode,
           (node, ctx, actions) => {
+            // If we've reached the root or a context change without
+            // finding this asset in the ancestry, it is not reachable.
+            if (
+              node.type === 'root' ||
+              (node.type === 'bundle' &&
+                node.value.env.context !== bundle.env.context)
+            ) {
+              isReachable = false;
+              actions.stop();
+              return;
+            }
+
             if (node.type === 'bundle_group') {
               let childBundles = this.getBundlesInBundleGroup(node.value);
               if (
@@ -724,23 +757,15 @@ export default class BundleGraph {
                   b => b.id !== bundle.id && this.bundleHasAsset(b, asset),
                 )
               ) {
-                inBundle = true;
-                actions.stop();
+                actions.skipChildren();
+                return;
               }
-            }
-
-            // Don't deduplicate when context changes
-            if (
-              node.type === 'bundle' &&
-              node.value.env.context !== bundle.env.context
-            ) {
-              actions.skipChildren();
             }
           },
           ['references', 'bundle'],
         );
 
-        return inBundle;
+        return isReachable;
       });
     });
   }
@@ -1026,6 +1051,22 @@ export default class BundleGraph {
     );
   }
 
+  getAssetWithDependency(dep: Dependency): ?Asset {
+    let node = this._graph.getNode(dep.id);
+    if (!node) {
+      return null;
+    }
+
+    let res = this._graph.getNodesConnectedTo(node);
+    invariant(
+      res.length <= 1,
+      'Expected a single asset to be connected to a dependency',
+    );
+    if (res[0]?.type === 'asset') {
+      return res[0].value;
+    }
+  }
+
   bundleHasAsset(bundle: Bundle, asset: Asset): boolean {
     return this._graph.hasEdge(bundle.id, asset.id, 'contains');
   }
@@ -1080,8 +1121,8 @@ export default class BundleGraph {
       let depSymbol = symbolLookup.get(identifier);
       if (depSymbol != null) {
         let resolved = this.getDependencyResolution(dep);
-        if (!resolved) {
-          // External module
+        if (!resolved || resolved.id === asset.id) {
+          // External module or self-reference
           return {
             asset,
             exportSymbol: symbol,
@@ -1327,9 +1368,9 @@ export default class BundleGraph {
       hash.update(this.getContentHash(inlineBundle));
     }
 
-    for (let childBundle of this.getChildBundles(bundle)) {
-      if (!childBundle.isInline) {
-        hash.update(childBundle.id);
+    for (let referencedBundle of this.getReferencedBundles(bundle)) {
+      if (!referencedBundle.isInline) {
+        hash.update(referencedBundle.id);
       }
     }
 

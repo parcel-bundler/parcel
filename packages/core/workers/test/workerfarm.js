@@ -132,7 +132,7 @@ describe('WorkerFarm', function() {
     await workerfarm.end();
   });
 
-  it('Forwards stdio from the child process and levels event source if patchConsole is true', async () => {
+  it('Forwards stdio from the child process and levels event source if shouldPatchConsole is true', async () => {
     let events = [];
     let logDisposable = Logger.onLog(event => events.push(event));
 
@@ -140,7 +140,7 @@ describe('WorkerFarm', function() {
       warmWorkers: true,
       useLocalWorker: false,
       workerPath: require.resolve('./integration/workerfarm/console.js'),
-      patchConsole: true,
+      shouldPatchConsole: true,
     });
 
     await workerfarm.run();
@@ -291,7 +291,7 @@ describe('WorkerFarm', function() {
     assert.equal(result, 'Shared reference does not exist');
   });
 
-  it('should resolve shared references in workers', async () => {
+  it('Should resolve shared references in workers', async () => {
     let workerfarm = new WorkerFarm({
       warmWorkers: true,
       useLocalWorker: false,

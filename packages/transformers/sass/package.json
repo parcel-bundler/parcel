@@ -16,19 +16,14 @@
   "main": "lib/SassTransformer.js",
   "source": "src/SassTransformer.js",
   "engines": {
-    "node": ">= 10.0.0",
-    "parcel": "^2.0.0-alpha.1.1"
+    "node": ">= 12.0.0",
+    "parcel": "^2.0.0-beta.1"
   },
   "dependencies": {
     "@parcel/fs": "2.0.0-beta.1",
     "@parcel/plugin": "2.0.0-beta.1",
-    "@parcel/source-map": "2.0.0-alpha.4.19",
-    "@parcel/utils": "2.0.0-beta.1"
-  },
-  "devDependencies": {
-    "sass": "^1.22.9"
-  },
-  "peerDependencies": {
-    "@parcel/core": "^2.0.0-alpha.3.1"
+    "@parcel/source-map": "2.0.0-alpha.4.21",
+    "@parcel/utils": "2.0.0-beta.1",
+    "sass": "^1.32.4"
   }
 }

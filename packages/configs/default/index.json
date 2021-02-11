@@ -13,6 +13,7 @@
     "*.{json,json5}": ["@parcel/transformer-json"],
     "*.jsonld": ["@parcel/transformer-jsonld"],
     "*.toml": ["@parcel/transformer-toml"],
+    "*.webmanifest": ["@parcel/transformer-webmanifest"],
     "*.yaml": ["@parcel/transformer-yaml"],
     "*.{glsl,vert,frag}": ["@parcel/transformer-glsl"],
     "*.{gql,graphql}": ["@parcel/transformer-graphql"],
@@ -61,14 +62,12 @@
     "*.css": "@parcel/packager-css",
     "*.js": "@parcel/packager-js",
     "*.ts": "@parcel/packager-ts",
-    "*.jsonld": "@parcel/packager-raw-url",
+    "*.{jsonld,webmanifest}": "@parcel/packager-raw-url",
     "*": "@parcel/packager-raw"
   },
   "resolvers": ["@parcel/resolver-default"],
   "reporters": [
     "@parcel/reporter-cli",
-    "@parcel/reporter-dev-server",
-    "@parcel/reporter-bundle-analyzer",
-    "@parcel/reporter-bundle-buddy"
+    "@parcel/reporter-dev-server"
   ]
 }

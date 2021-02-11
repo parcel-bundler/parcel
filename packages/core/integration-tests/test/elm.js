@@ -12,7 +12,7 @@ describe('elm', function() {
   it('should produce a basic Elm bundle', async function() {
     let b = await bundle(path.join(__dirname, '/integration/elm/index.js'));
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         type: 'js',
         assets: ['Main.elm', 'index.js'],
@@ -32,10 +32,10 @@ describe('elm', function() {
 
   it('should apply elm-hot if HMR is enabled', async function() {
     let b = await bundle(path.join(__dirname, '/integration/elm/index.js'), {
-      hot: true,
+      hmrOptions: true,
     });
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         type: 'js',
         assets: ['HMRRuntime.js', 'Main.elm', 'index.js'],
@@ -69,7 +69,9 @@ describe('elm', function() {
   it('should minify Elm in production mode', async function() {
     let b = await bundle(path.join(__dirname, '/integration/elm/index.js'), {
       mode: 'production',
-      minify: true,
+      defaultTargetOptions: {
+        shouldOptimize: true,
+      },
     });
 
     await run(b);

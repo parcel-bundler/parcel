@@ -16,9 +16,15 @@
   "main": "lib/index.js",
   "source": "src/index.js",
   "engines": {
-    "node": ">= 10.0.0"
+    "node": ">= 12.0.0"
   },
   "dependencies": {
     "nullthrows": "^1.1.1"
+  },
+  "devDependencies": {
+    "typescript": "^3.0.0"
+  },
+  "peerDependencies": {
+    "typescript": "^3.0.0"
   }
 }

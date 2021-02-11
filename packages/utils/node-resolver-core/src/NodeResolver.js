@@ -136,7 +136,7 @@ export default class NodeResolver {
       } else if (module.filePath) {
         if (module.code != null) {
           return {
-            filePath: module.filePath,
+            filePath: await this.fs.realpath(module.filePath),
             code: module.code,
           };
         }
@@ -151,7 +151,7 @@ export default class NodeResolver {
 
       if (resolved) {
         return {
-          filePath: resolved.path,
+          filePath: await this.fs.realpath(resolved.path),
           sideEffects:
             resolved.pkg && !this.hasSideEffects(resolved.path, resolved.pkg)
               ? false
@@ -194,7 +194,7 @@ export default class NodeResolver {
     if (Array.isArray(alias)) {
       if (alias[0] === 'global') {
         return {
-          filePath: `${alias[1]}.js`,
+          filePath: path.join(this.projectRoot, `${alias[1]}.js`),
           code: `module.exports=${alias[1]};`,
         };
       }
@@ -222,7 +222,7 @@ export default class NodeResolver {
     // Resolve the module in node_modules
     let resolved;
     try {
-      resolved = await this.findNodeModulePath(filename, dir);
+      resolved = this.findNodeModulePath(filename, dir);
     } catch (err) {
       // ignore
     }
@@ -230,11 +230,7 @@ export default class NodeResolver {
     if (resolved === undefined && process.versions.pnp != null && parent) {
       try {
         let [moduleName, subPath] = this.getModuleParts(filename);
-        let pnp =
-          process.env.PARCEL_BUILD_ENV !== 'production'
-            ? _Module.findPnpApi(path.dirname(parent))
-            : // $FlowFixMe injected at runtime
-              require('pnpapi');
+        let pnp = _Module.findPnpApi(path.dirname(parent));
 
         let res = pnp.resolveToUnqualified(
           moduleName +
@@ -414,34 +410,16 @@ export default class NodeResolver {
     }
   }
 
-  async findNodeModulePath(filename: string, dir: string): Promise<?Module> {
+  findNodeModulePath(filename: string, dir: string): ?Module {
     let [moduleName, subPath] = this.getModuleParts(filename);
-    let root = path.parse(dir).root;
-
-    while (dir !== root) {
-      // Skip node_modules directories
-      if (path.basename(dir) === 'node_modules') {
-        dir = path.dirname(dir);
-      }
-
-      try {
-        // First, check if the module directory exists. This prevents a lot of unnecessary checks later.
-        let moduleDir = path.join(dir, 'node_modules', moduleName);
-        let stats = await this.fs.stat(moduleDir);
-        if (stats.isDirectory()) {
-          return {
-            moduleName: moduleName,
-            subPath: subPath,
-            moduleDir: moduleDir,
-            filePath: path.join(dir, 'node_modules', filename),
-          };
-        }
-      } catch (err) {
-        // ignore
-      }
-
-      // Move up a directory
-      dir = path.dirname(dir);
+    let moduleDir = this.fs.findNodeModule(moduleName, dir);
+    if (moduleDir) {
+      return {
+        moduleName,
+        subPath,
+        moduleDir,
+        filePath: subPath ? path.join(moduleDir, subPath) : moduleDir,
+      };
     }
 
     return undefined;
@@ -473,15 +451,6 @@ export default class NodeResolver {
       extensions,
       env,
     });
-  }
-
-  async isFile(file: FilePath): Promise<boolean> {
-    try {
-      let stat = await this.fs.stat(file);
-      return stat.isFile() || stat.isFIFO();
-    } catch (err) {
-      return false;
-    }
   }
 
   async loadDirectory({
@@ -665,11 +634,13 @@ export default class NodeResolver {
     pkg: InternalPackageJSON | null,
   |}): Promise<?ResolvedFile> {
     // Try all supported extensions
-    for (let f of await this.expandFile(file, extensions, env, pkg)) {
-      if (await this.isFile(f)) {
-        return {path: f, pkg};
-      }
+    let files = await this.expandFile(file, extensions, env, pkg);
+    let found = this.fs.findFirstFile(files);
+    if (found) {
+      return {path: found, pkg};
     }
+
+    return null;
   }
 
   async expandFile(
@@ -753,14 +724,14 @@ export default class NodeResolver {
     // If filename is an absolute path, get one relative to the package.json directory.
     if (path.isAbsolute(filename)) {
       filename = relativePath(dir, filename);
-      alias = await this.lookupAlias(aliases, filename);
+      alias = this.lookupAlias(aliases, filename);
     } else {
       // It is a node_module. First try the entire filename as a key.
-      alias = await this.lookupAlias(aliases, normalizeSeparators(filename));
+      alias = this.lookupAlias(aliases, normalizeSeparators(filename));
       if (alias == null) {
         // If it didn't match, try only the module name.
         let [moduleName, subPath] = this.getModuleParts(filename);
-        alias = await this.lookupAlias(aliases, moduleName);
+        alias = this.lookupAlias(aliases, moduleName);
         if (typeof alias === 'string' && subPath) {
           let isRelative = alias.startsWith('./');
           // Append the filename back onto the aliased module.
@@ -823,20 +794,14 @@ export default class NodeResolver {
     return alias;
   }
 
-  async findPackage(dir: string): Promise<InternalPackageJSON | null> {
+  findPackage(dir: string): Promise<InternalPackageJSON | null> {
     // Find the nearest package.json file within the current node_modules folder
-    let root = path.parse(dir).root;
-    while (dir !== root && path.basename(dir) !== 'node_modules') {
-      try {
-        return await this.readPackage(dir);
-      } catch (err) {
-        // ignore
-      }
-
-      dir = path.dirname(dir);
+    let pkgFile = this.fs.findAncestorFile(['package.json'], dir);
+    if (pkgFile) {
+      return this.readPackage(path.dirname(pkgFile));
     }
 
-    return null;
+    return Promise.resolve(null);
   }
 
   async loadAlias(
@@ -874,12 +839,15 @@ export default class NodeResolver {
     switch (typeof pkg.sideEffects) {
       case 'boolean':
         return pkg.sideEffects;
-      case 'string':
+      case 'string': {
+        let sideEffects = pkg.sideEffects;
+        invariant(typeof sideEffects === 'string');
         return micromatch.isMatch(
           path.relative(pkg.pkgdir, filePath),
-          pkg.sideEffects,
+          sideEffects,
           {matchBase: true},
         );
+      }
       case 'object':
         return pkg.sideEffects.some(sideEffects =>
           this.hasSideEffects(filePath, {...pkg, sideEffects}),

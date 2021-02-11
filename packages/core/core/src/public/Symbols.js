@@ -5,6 +5,7 @@ import type {
   AssetSymbols as IAssetSymbols,
   MutableDependencySymbols as IMutableDependencySymbols,
   SourceLocation,
+  Meta,
 } from '@parcel/types';
 import type {Asset, Dependency} from '../types';
 
@@ -28,7 +29,7 @@ let valueToSymbols: WeakMap<Asset, AssetSymbols> = new WeakMap();
 
 export class AssetSymbols implements IAssetSymbols {
   /*::
-  @@iterator(): Iterator<[ISymbol, {|local: ISymbol, loc: ?SourceLocation|}]> { return ({}: any); }
+  @@iterator(): Iterator<[ISymbol, {|local: ISymbol, loc: ?SourceLocation, meta?: ?Meta|}]> { return ({}: any); }
   */
   #value: Asset;
 
@@ -44,7 +45,7 @@ export class AssetSymbols implements IAssetSymbols {
   }
 
   hasExportSymbol(exportSymbol: ISymbol): boolean {
-    return nullthrows(this.#value.symbols).has(exportSymbol);
+    return Boolean(this.#value.symbols?.has(exportSymbol));
   }
 
   hasLocalSymbol(local: ISymbol): boolean {
@@ -57,7 +58,9 @@ export class AssetSymbols implements IAssetSymbols {
     return false;
   }
 
-  get(exportSymbol: ISymbol): ?{|local: ISymbol, loc: ?SourceLocation|} {
+  get(
+    exportSymbol: ISymbol,
+  ): ?{|local: ISymbol, loc: ?SourceLocation, meta?: ?Meta|} {
     return this.#value.symbols?.get(exportSymbol);
   }
 
@@ -94,7 +97,7 @@ let valueToMutableAssetSymbols: WeakMap<
 > = new WeakMap();
 export class MutableAssetSymbols implements IMutableAssetSymbols {
   /*::
-  @@iterator(): Iterator<[ISymbol, {|local: ISymbol, loc: ?SourceLocation|}]> { return ({}: any); }
+  @@iterator(): Iterator<[ISymbol, {|local: ISymbol, loc: ?SourceLocation, meta?: ?Meta|}]> { return ({}: any); }
   */
   #value: Asset;
 
@@ -123,7 +126,9 @@ export class MutableAssetSymbols implements IMutableAssetSymbols {
     return false;
   }
 
-  get(exportSymbol: ISymbol): ?{|local: ISymbol, loc: ?SourceLocation|} {
+  get(
+    exportSymbol: ISymbol,
+  ): ?{|local: ISymbol, loc: ?SourceLocation, meta?: ?Meta|} {
     return nullthrows(this.#value.symbols).get(exportSymbol);
   }
 
@@ -161,8 +166,13 @@ export class MutableAssetSymbols implements IMutableAssetSymbols {
     }
   }
 
-  set(exportSymbol: ISymbol, local: ISymbol, loc: ?SourceLocation) {
-    nullthrows(this.#value.symbols).set(exportSymbol, {local, loc});
+  set(
+    exportSymbol: ISymbol,
+    local: ISymbol,
+    loc: ?SourceLocation,
+    meta: ?Meta,
+  ) {
+    nullthrows(this.#value.symbols).set(exportSymbol, {local, loc, meta});
   }
 
   delete(exportSymbol: ISymbol) {
@@ -176,7 +186,7 @@ let valueToMutableDependencySymbols: WeakMap<
 > = new WeakMap();
 export class MutableDependencySymbols implements IMutableDependencySymbols {
   /*::
-  @@iterator(): Iterator<[ISymbol, {|local: ISymbol, loc: ?SourceLocation, isWeak: boolean|}]> { return ({}: any); }
+  @@iterator(): Iterator<[ISymbol, {|local: ISymbol, loc: ?SourceLocation, isWeak: boolean, meta?: ?Meta|}]> { return ({}: any); }
   */
   #value: Dependency;
 
@@ -192,7 +202,7 @@ export class MutableDependencySymbols implements IMutableDependencySymbols {
   // immutable:
 
   hasExportSymbol(exportSymbol: ISymbol): boolean {
-    return nullthrows(this.#value.symbols).has(exportSymbol);
+    return Boolean(this.#value.symbols?.has(exportSymbol));
   }
 
   hasLocalSymbol(local: ISymbol): boolean {
@@ -206,7 +216,7 @@ export class MutableDependencySymbols implements IMutableDependencySymbols {
 
   get(
     exportSymbol: ISymbol,
-  ): ?{|local: ISymbol, loc: ?SourceLocation, isWeak: boolean|} {
+  ): ?{|local: ISymbol, loc: ?SourceLocation, isWeak: boolean, meta?: ?Meta|} {
     return nullthrows(this.#value.symbols).get(exportSymbol);
   }
 

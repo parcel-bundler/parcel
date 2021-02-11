@@ -27,6 +27,7 @@ import type {
   TargetDescriptor,
   HMROptions,
   QueryParameters,
+  DetailedReportOptions,
 } from '@parcel/types';
 import type {SharedReference} from '@parcel/workers';
 import type {FileSystem} from '@parcel/fs';
@@ -69,8 +70,8 @@ export type Environment = {|
     | {[PackageName]: boolean, ...},
   outputFormat: OutputFormat,
   isLibrary: boolean,
-  minify: boolean,
-  scopeHoist: boolean,
+  shouldOptimize: boolean,
+  shouldScopeHoist: boolean,
   sourceMap: ?TargetSourceMapOptions,
 |};
 
@@ -101,7 +102,7 @@ export type Dependency = {|
   resolveFrom: ?string,
   symbols: ?Map<
     Symbol,
-    {|local: Symbol, loc: ?SourceLocation, isWeak: boolean|},
+    {|local: Symbol, loc: ?SourceLocation, isWeak: boolean, meta?: ?Meta|},
   >,
   pipeline?: ?string,
 |};
@@ -127,7 +128,7 @@ export type Asset = {|
   pipeline: ?string,
   astKey: ?string,
   astGenerator: ?ASTGenerator,
-  symbols: ?Map<Symbol, {|local: Symbol, loc: ?SourceLocation|}>,
+  symbols: ?Map<Symbol, {|local: Symbol, loc: ?SourceLocation, meta?: ?Meta|}>,
   sideEffects: boolean,
   uniqueKey: ?string,
   configPath?: FilePath,
@@ -162,27 +163,20 @@ export type ParcelOptions = {|
   defaultConfig?: ModuleSpecifier,
   env: EnvMap,
   targets: ?(Array<string> | {+[string]: TargetDescriptor, ...}),
-  defaultEngines?: Engines,
 
-  disableCache: boolean,
+  shouldDisableCache: boolean,
   cacheDir: FilePath,
-  killWorkers?: boolean,
   mode: BuildMode,
-  minify: boolean,
-  scopeHoist: boolean,
-  sourceMaps: boolean,
-  publicUrl: string,
-  distDir: ?FilePath,
-  hot: ?HMROptions,
-  contentHash: boolean,
-  serve: ServerOptions | false,
-  autoinstall: boolean,
+  hmrOptions: ?HMROptions,
+  shouldContentHash: boolean,
+  serveOptions: ServerOptions | false,
+  shouldAutoInstall: boolean,
   logLevel: LogLevel,
   projectRoot: FilePath,
   lockFile: ?FilePath,
-  profile: boolean,
-  patchConsole: boolean,
-  detailedReport?: number,
+  shouldProfile: boolean,
+  shouldPatchConsole: boolean,
+  detailedReport?: ?DetailedReportOptions,
 
   inputFS: FileSystem,
   outputFS: FileSystem,
@@ -190,6 +184,15 @@ export type ParcelOptions = {|
   packageManager: PackageManager,
 
   instanceId: string,
+
+  +defaultTargetOptions: {|
+    +shouldOptimize: boolean,
+    +shouldScopeHoist: boolean,
+    +sourceMaps: boolean,
+    +publicUrl: string,
+    +distDir?: FilePath,
+    +engines?: Engines,
+  |},
 |};
 
 export type NodeId = string;
@@ -240,6 +243,7 @@ export type DependencyNode = {|
 export type RootNode = {|id: string, +type: 'root', value: string | null|};
 
 export type AssetRequestInput = {|
+  name?: string, // AssetGraph name, needed so that different graphs can isolated requests since the results are not stored
   filePath: FilePath,
   env: Environment,
   isSource?: boolean,

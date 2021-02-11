@@ -12,8 +12,6 @@ import type {FileSystem} from '@parcel/fs';
 import type {HTTPServer} from '@parcel/utils';
 
 import invariant from 'assert';
-import EventEmitter from 'events';
-import nullthrows from 'nullthrows';
 import path from 'path';
 import url from 'url';
 import {
@@ -54,8 +52,9 @@ const TEMPLATE_500 = fs.readFileSync(
 );
 type NextFunction = (req: Request, res: Response, next?: (any) => any) => any;
 
-export default class Server extends EventEmitter {
+export default class Server {
   pending: boolean;
+  pendingRequests: Array<[Request, Response]>;
   options: DevServerOptions;
   rootPath: string;
   bundleGraph: BundleGraph<NamedBundle> | null;
@@ -67,8 +66,6 @@ export default class Server extends EventEmitter {
   stopServer: ?() => Promise<void>;
 
   constructor(options: DevServerOptions) {
-    super();
-
     this.options = options;
     try {
       this.rootPath = new URL(options.publicUrl).pathname;
@@ -76,6 +73,7 @@ export default class Server extends EventEmitter {
       this.rootPath = options.publicUrl;
     }
     this.pending = true;
+    this.pendingRequests = [];
     this.bundleGraph = null;
     this.errors = null;
   }
@@ -89,7 +87,13 @@ export default class Server extends EventEmitter {
     this.errors = null;
     this.pending = false;
 
-    this.emit('bundled');
+    if (this.pendingRequests.length > 0) {
+      let pendingRequests = this.pendingRequests;
+      this.pendingRequests = [];
+      for (let [req, res] of pendingRequests) {
+        this.respond(req, res);
+      }
+    }
   }
 
   async buildError(options: PluginOptions, diagnostics: Array<Diagnostic>) {
@@ -144,30 +148,30 @@ export default class Server extends EventEmitter {
   sendIndex(req: Request, res: Response) {
     if (this.bundleGraph) {
       // If the main asset is an HTML file, serve it
-      let htmlBundle = this.bundleGraph.traverseBundles(
-        (bundle, context, {stop}) => {
-          if (bundle.type !== 'html' || !bundle.isEntry) return;
+      let htmlBundleFilePaths = [];
+      this.bundleGraph.traverseBundles(bundle => {
+        if (bundle.type === 'html' && bundle.isEntry) {
+          htmlBundleFilePaths.push(bundle.filePath);
+        }
+      });
 
-          if (!context) {
-            context = bundle;
-          }
-
-          if (
-            context &&
-            bundle.filePath &&
-            bundle.filePath.endsWith('index.html')
-          ) {
-            stop();
-            return bundle;
-          }
-        },
-      );
-
-      if (htmlBundle) {
-        req.url = `/${path.relative(
-          this.options.distDir,
-          nullthrows(htmlBundle.filePath),
-        )}`;
+      let indexFilePath =
+        htmlBundleFilePaths.length > 1
+          ? htmlBundleFilePaths
+              .sort((a, b) => {
+                let lengthDiff = a.length - b.length;
+                if (lengthDiff === 0) {
+                  return a.localeCompare(b);
+                } else {
+                  return lengthDiff;
+                }
+              })
+              .find(f => {
+                return path.basename(f).startsWith('index');
+              })
+          : htmlBundleFilePaths[0];
+      if (indexFilePath) {
+        req.url = `/${path.relative(this.options.distDir, indexFilePath)}`;
 
         this.serveDist(req, res, () => this.send404(req, res));
       } else {
@@ -348,13 +352,11 @@ export default class Server extends EventEmitter {
     const finalHandler = (req: Request, res: Response) => {
       this.logAccessIfVerbose(req);
 
-      const response = () => this.respond(req, res);
-
       // Wait for the parcelInstance to finish bundling if needed
       if (this.pending) {
-        this.once('bundled', response);
+        this.pendingRequests.push([req, res]);
       } else {
-        response();
+        this.respond(req, res);
       }
     };
 

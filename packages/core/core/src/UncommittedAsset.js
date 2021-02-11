@@ -18,6 +18,7 @@ import type {
 } from './types';
 
 import v8 from 'v8';
+import invariant from 'assert';
 import {Readable} from 'stream';
 import SourceMap from '@parcel/source-map';
 import {
@@ -179,7 +180,7 @@ export default class UncommittedAsset {
       return (await this.content).toString();
     }
 
-    return '';
+    invariant(false, 'Internal error: missing content');
   }
 
   async getBuffer(): Promise<Buffer> {
@@ -351,6 +352,7 @@ export default class UncommittedAsset {
         hash: this.value.hash,
         filePath: this.value.filePath,
         type: result.type,
+        query: result.query,
         isIsolated: result.isIsolated ?? this.value.isIsolated,
         isInline: result.isInline ?? this.value.isInline,
         isSplittable: result.isSplittable ?? this.value.isSplittable,

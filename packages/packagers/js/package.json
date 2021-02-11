@@ -16,18 +16,15 @@
   "main": "lib/JSPackager.js",
   "source": "src/JSPackager.js",
   "engines": {
-    "node": ">= 10.0.0",
-    "parcel": "^2.0.0-alpha.1.1"
+    "node": ">= 12.0.0",
+    "parcel": "^2.0.0-beta.1"
   },
   "dependencies": {
     "@babel/traverse": "^7.2.3",
     "@parcel/plugin": "2.0.0-beta.1",
     "@parcel/scope-hoisting": "2.0.0-beta.1",
-    "@parcel/source-map": "2.0.0-alpha.4.19",
+    "@parcel/source-map": "2.0.0-alpha.4.21",
     "@parcel/utils": "2.0.0-beta.1",
     "nullthrows": "^1.1.1"
-  },
-  "peerDependencies": {
-    "@parcel/core": "^2.0.0-alpha.3.1"
   }
 }

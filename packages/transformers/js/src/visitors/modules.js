@@ -1,4 +1,4 @@
-// @flow
+// @flow strict-local
 import type {ScopeState, Visitors} from '@parcel/babylon-walk';
 import type {
   ImportDeclaration,
@@ -194,13 +194,18 @@ let modulesVisitor: Visitors<State> = {
       };
     },
   },
-  ThisExpression(node, {scope}) {
-    while (scope) {
-      if (scope.type === 'function') {
+  ThisExpression(node, {scope}, ancestors) {
+    let s = scope;
+    while (s) {
+      if (s.type === 'function') {
         return;
       }
 
-      scope = scope.parent;
+      s = s.parent;
+    }
+
+    if (ancestors.some(a => t.isClassBody(a))) {
+      return;
     }
 
     return t.identifier('undefined');
@@ -228,7 +233,10 @@ function getDefault(state, source) {
   if (!names.default) {
     names.default = state.scope.generateUid(names.name + 'Default');
   }
-  return t.identifier(names.default);
+  return t.memberExpression(
+    t.identifier(names.default),
+    t.identifier('default'),
+  );
 }
 
 function getNamespace(state, source) {
@@ -362,7 +370,7 @@ export function esm2cjs(ast: BabelNodeFile, asset?: MutableAsset) {
       ]);
 
       prepend.push(decl);
-      scope.addBinding(names.name, decl);
+      scope.addBinding(names.name, decl, 'var');
     }
 
     if (isExportAllDeclaration(imp)) {
