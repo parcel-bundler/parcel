@@ -20,7 +20,6 @@
     "parcel": "^2.0.0-beta.1"
   },
   "dependencies": {
-    "@babel/parser": "^7.0.0",
     "@babel/template": "^7.4.0",
     "@babel/types": "^7.12.13",
     "@parcel/babel-ast-utils": "2.0.0-beta.1",
@@ -28,8 +27,5 @@
     "@parcel/utils": "2.0.0-beta.1",
     "react-refresh": "^0.9.0",
     "semver": "^5.4.1"
-  },
-  "peerDependencies": {
-    "@parcel/core": "^2.0.0-alpha.3.1"
   }
 }

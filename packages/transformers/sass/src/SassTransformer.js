@@ -4,6 +4,7 @@ import {promisify} from '@parcel/utils';
 import path from 'path';
 import {EOL} from 'os';
 import SourceMap from '@parcel/source-map';
+import sass from 'sass';
 
 // E.g: ~library/file.sass
 const WEBPACK_ALIAS_RE = /^~[^/]/;
@@ -63,11 +64,7 @@ export default (new Transformer({
 
   async transform({asset, options, config, resolve}) {
     let rawConfig = config ? config.contents : {};
-    let sass = await options.packageManager.require('sass', asset.filePath, {
-      shouldAutoInstall: options.shouldAutoInstall,
-    });
-
-    const sassRender = promisify(sass.render.bind(sass));
+    let sassRender = promisify(sass.render.bind(sass));
     let css;
     try {
       let code = await asset.getCode();

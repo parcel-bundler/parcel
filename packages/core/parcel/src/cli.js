@@ -78,6 +78,7 @@ const commonOptions = {
   ).choices(['none', 'error', 'warn', 'info', 'verbose']),
   '--dist-dir <dir>':
     'output directory to write to when unspecified by targets',
+  '--no-autoinstall': 'disable autoinstall',
   '--profile': 'enable build profiling',
   '-V, --version': 'output the version number',
   '--detailed-report [count]': [
@@ -98,7 +99,6 @@ var hmrOptions = {
   '--https': 'serves files over HTTPS',
   '--cert <path>': 'path to certificate to use with HTTPS',
   '--key <path>': 'path to private key to use with HTTPS',
-  '--no-autoinstall': 'disable autoinstall',
   '--hmr-port <port>': ['hot module replacement port', process.env.HMR_PORT],
 };
 
@@ -357,7 +357,8 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
   let nodeEnv;
   if (command.name() === 'build') {
     nodeEnv = process.env.NODE_ENV || 'production';
-    command.autoinstall = false;
+    // Autoinstall unless explicitly disabled or we detect a CI environment.
+    command.autoinstall = !(command.autoinstall === false || process.env.CI);
   } else {
     nodeEnv = process.env.NODE_ENV || 'development';
   }

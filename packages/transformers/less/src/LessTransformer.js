@@ -3,6 +3,7 @@ import {typeof default as Less} from 'less';
 import path from 'path';
 import {Transformer} from '@parcel/plugin';
 import SourceMap from '@parcel/source-map';
+import less from 'less';
 
 import {load, preSerialize} from './loadConfig';
 
@@ -28,10 +29,6 @@ export default (new Transformer({
   async transform({asset, options, config, resolve}) {
     asset.type = 'css';
     asset.meta.hasDependencies = false;
-
-    let less = await options.packageManager.require('less', asset.filePath, {
-      shouldAutoInstall: options.shouldAutoInstall,
-    });
 
     let code = await asset.getCode();
     let result;

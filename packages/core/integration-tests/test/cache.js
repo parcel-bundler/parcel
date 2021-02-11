@@ -14,8 +14,10 @@ import {
   sleep,
 } from '@parcel/test-utils';
 import fs from 'fs';
+import {NodePackageManager} from '@parcel/package-manager';
 
 let inputDir: string;
+let packageManager = new NodePackageManager(inputFS);
 
 function runBundle(entries = 'src/index.js', opts) {
   entries = (Array.isArray(entries) ? entries : [entries]).map(entry =>
@@ -193,7 +195,12 @@ describe('cache', function() {
 
     let testBabelCache = async (opts: TestConfig) => {
       await workerFarm.callAllWorkers('invalidateRequireCache', [
-        require.resolve('@babel/core'),
+        packageManager.resolveSync('@parcel/transformer-babel', __filename)
+          ?.resolved,
+      ]);
+
+      await workerFarm.callAllWorkers('invalidateRequireCache', [
+        packageManager.resolveSync('@babel/core', __filename)?.resolved,
       ]);
 
       return testCache({
@@ -203,7 +210,11 @@ describe('cache', function() {
 
           // invalidate babel's caches since we're simulating a process restart
           await workerFarm.callAllWorkers('invalidateRequireCache', [
-            require.resolve('@babel/core'),
+            packageManager.resolveSync('@parcel/transformer-babel', __filename)
+              ?.resolved,
+          ]);
+          await workerFarm.callAllWorkers('invalidateRequireCache', [
+            packageManager.resolveSync('@babel/core', __filename)?.resolved,
           ]);
         },
       });
@@ -844,6 +855,8 @@ describe('cache', function() {
             await workerFarm.callAllWorkers('invalidateRequireCache', [
               path.join(inputDir, 'node_modules/babel-plugin-dummy/index.js'),
             ]);
+
+            await sleep(100);
           },
         });
 
@@ -903,6 +916,8 @@ describe('cache', function() {
             await workerFarm.callAllWorkers('invalidateRequireCache', [
               path.join(inputDir, 'babel-plugin-dummy.js'),
             ]);
+
+            await sleep(100);
           },
         });
 
@@ -986,6 +1001,8 @@ describe('cache', function() {
             await workerFarm.callAllWorkers('invalidateRequireCache', [
               path.join(inputDir, 'packages/babel-plugin-dummy/index.js'),
             ]);
+
+            await sleep(100);
           },
         });
 

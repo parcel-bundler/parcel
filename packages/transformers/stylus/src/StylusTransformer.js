@@ -1,10 +1,15 @@
 // @flow
 
-import {typeof default as Stylus} from 'stylus';
 import {Transformer} from '@parcel/plugin';
 import {createDependencyLocation, isGlob, glob, globSync} from '@parcel/utils';
 import path from 'path';
 import nativeFS from 'fs';
+import stylus from 'stylus';
+import Parser from 'stylus/lib/parser';
+import DepsResolver from 'stylus/lib/visitor/deps-resolver';
+import nodes from 'stylus/lib/nodes';
+import utils from 'stylus/lib/utils';
+import Evaluator from 'stylus/lib/visitor/evaluator';
 
 const URL_RE = /^(?:url\s*\(\s*)?['"]?(?:[#/]|(?:https?:)?\/\/)/i;
 
@@ -46,13 +51,6 @@ export default (new Transformer({
 
   async transform({asset, resolve, config, options}) {
     let stylusConfig = config ? config.contents : {};
-    // stylus should be installed locally in the module that's being required
-    let stylus = (await options.packageManager.require(
-      'stylus',
-      asset.filePath,
-      {shouldAutoInstall: options.shouldAutoInstall},
-    ): Stylus);
-
     let code = await asset.getCode();
     let style = stylus(code, {...stylusConfig});
     style.set('filename', asset.filePath);
@@ -104,13 +102,6 @@ async function getDependencies(
   seen = new Set(),
 ) {
   seen.add(filepath);
-  const [Parser, DepsResolver, nodes, utils] = await Promise.all(
-    ['parser', 'visitor/deps-resolver', 'nodes', 'utils'].map(dep =>
-      parcelOptions.packageManager.require('stylus/lib/' + dep, filepath, {
-        shouldAutoInstall: options.shouldAutoInstall,
-      }),
-    ),
-  );
 
   nodes.filename = asset.filePath;
 
@@ -241,10 +232,6 @@ async function createEvaluator(
     options,
     parcelOptions,
     nativeGlob,
-  );
-  const Evaluator = await parcelOptions.packageManager.require(
-    'stylus/lib/visitor/evaluator',
-    asset.filePath,
   );
 
   // This is a custom stylus evaluator that extends stylus with support for the node
