@@ -54,7 +54,7 @@ async function install(
       fs,
     });
   } catch (err) {
-    throw new Error(`Failed to install ${moduleNames}.`);
+    throw new Error(`Failed to install ${moduleNames}: ` + err.message);
   }
 
   if (installPeers) {
