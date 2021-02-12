@@ -8,8 +8,6 @@
     "@parcel/babel-register": "2.0.0-beta.1",
     "@parcel/core": "2.0.0-beta.1"
   },
-  "browser": "dist/browser/index.js",
-  "alternate": "dist/alternate/index.js",
   "targets": {
     "alternate": {
       "source": "src/indexAlternate.js"
