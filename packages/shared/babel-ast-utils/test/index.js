@@ -27,12 +27,16 @@ describe('astring babel generator', () => {
         originalSourceMap: null,
         options: {projectRoot: '/foo'},
       });
-      assert.equal(
-        content,
-        code,
-        filename.substring(0, filename.length - 3),
-        'Generates code with the expected format',
-      );
+      if (filename === 'valid-only.js') {
+        babelParse(content), options;
+      } else {
+        assert.equal(
+          content,
+          code,
+          filename.substring(0, filename.length - 3),
+          'Generates code with the expected format',
+        );
+      }
     });
   });
 });
