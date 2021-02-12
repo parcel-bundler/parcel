@@ -118,7 +118,10 @@ describe('cache', function() {
     assert.equal(await run(b.bundleGraph), 8);
   });
 
-  it('should support adding a dependency which changes the referenced bundles of a parent bundle', async function() {
+  // ATLASSIAN: To avoid circular bundle references until the scope hoisting
+  // packager can handle them, only deduplicate from preceding siblings.
+  // TODO: Remove when the scope hoisting packager can handle cyclic bundle references.
+  it.skip('should support adding a dependency which changes the referenced bundles of a parent bundle', async function() {
     async function exec(bundleGraph) {
       let calls = [];
       await run(bundleGraph, {
