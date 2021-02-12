@@ -64,7 +64,12 @@ export class Scope {
   }
 
   addBinding(name: string, decl: Node, type: BindingType | 'param') {
-    if (type === 'var' && this.parent) {
+    if (
+      type === 'var' &&
+      this.type !== 'function' &&
+      this.type !== 'arrow_function' &&
+      this.parent
+    ) {
       this.parent.addBinding(name, decl, type);
     } else {
       if (type === 'param') type = 'var';

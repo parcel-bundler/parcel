@@ -10,6 +10,13 @@ export async function load({config}: {|config: Config|}): Promise<void> {
   let configContents = {};
   if (configFile != null) {
     configContents = configFile.contents;
+
+    // Resolve relative paths from config file
+    if (configContents.paths) {
+      configContents.paths = configContents.paths.map(p =>
+        path.resolve(path.dirname(configFile.filePath), p),
+      );
+    }
   }
 
   // Rewrites urls to be relative to the provided filename
