@@ -7,6 +7,7 @@ import type {
   Engines,
   EnvironmentContext,
   EnvMap,
+  FileCreateInvalidation,
   FilePath,
   Glob,
   JSONObject,
@@ -256,6 +257,7 @@ export type AssetRequestInput = {|
   isURL?: boolean,
   query?: ?QueryParameters,
   invalidations?: Array<RequestInvalidation>,
+  invalidateReason?: number,
 |};
 
 export type AssetRequestResult = Array<Asset>;
@@ -338,7 +340,7 @@ export type Config = {|
   includedFiles: Set<FilePath>,
   pkg: ?PackageJSON,
   pkgFilePath: ?FilePath,
-  watchGlob: ?Glob,
+  invalidateOnFileCreate: Array<FileCreateInvalidation>,
   devDeps: Map<PackageName, ?string>,
   shouldRehydrate: boolean,
   shouldReload: boolean,

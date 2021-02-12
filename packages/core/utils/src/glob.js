@@ -18,8 +18,28 @@ export function isGlobMatch(filePath: FilePath, glob: Glob): any {
 
 export function globSync(
   p: FilePath,
-  options: FastGlobOptions<FilePath>,
+  fs: FileSystem,
+  options?: FastGlobOptions<FilePath>,
 ): Array<FilePath> {
+  // $FlowFixMe
+  options = {
+    ...options,
+    fs: {
+      statSync: p => {
+        return fs.statSync(p);
+      },
+      lstatSync: p => {
+        // Our FileSystem interface doesn't have lstat support at the moment,
+        // but this is fine for our purposes since we follow symlinks by default.
+        return fs.statSync(p);
+      },
+      readdirSync: (p, opts) => {
+        return fs.readdirSync(p, opts);
+      },
+    },
+  };
+
+  // $FlowFixMe
   return fastGlob.sync(normalizeSeparators(p), options);
 }
 

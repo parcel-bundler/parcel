@@ -3309,9 +3309,9 @@ describe('javascript', function() {
     assert.deepEqual(res.baz(), [0, 1, 2, 3]);
   });
 
-  it('should replace an imported identifier with function param of the same name', async function() {
+  it('should replace an imported identifier with function locals of the same name', async function() {
     let b = await bundle(
-      path.join(__dirname, 'integration/js-import-shadow-param/index.js'),
+      path.join(__dirname, 'integration/js-import-shadow-func-var/index.js'),
     );
     let res = await run(b);
     assert.deepEqual(res.default, 123);

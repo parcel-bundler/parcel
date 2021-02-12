@@ -22,6 +22,10 @@ const TYPE_COLORS = {
   internal_async: 'orange',
   references: 'red',
   sibling: 'green',
+  invalidated_by_create: 'green',
+  invalidated_by_create_above: 'orange',
+  invalidate_by_update: 'cyan',
+  invalidated_by_delete: 'red',
 };
 
 export default async function dumpGraphToGraphViz(
