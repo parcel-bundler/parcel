@@ -115,9 +115,6 @@ export const DESCRIPTOR_SCHEMA: SchemaEntity = {
     distEntry: {
       type: 'string',
     },
-    source: {
-      type: 'string',
-    },
   },
 };
 
