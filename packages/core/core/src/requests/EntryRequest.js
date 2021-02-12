@@ -96,32 +96,46 @@ class EntryResolver {
 
     if (stat.isDirectory()) {
       let pkg = await this.readPackage(entry);
-      if (pkg && typeof pkg.source === 'string') {
-        let source = path.join(path.dirname(pkg.filePath), pkg.source);
-        try {
-          stat = await this.options.inputFS.stat(source);
-        } catch (err) {
-          throw new Error(
-            `${pkg.source} in ${path.relative(
-              this.options.inputFS.cwd(),
-              pkg.filePath,
-            )}#source does not exist`,
-          );
+      if (pkg && pkg.source != null) {
+        let entries = [];
+        let files = [];
+
+        let pkgSources = Array.isArray(pkg.source) ? pkg.source : [pkg.source];
+        for (let pkgSource of pkgSources) {
+          if (typeof pkgSource === 'string') {
+            let source = path.join(path.dirname(pkg.filePath), pkg.source);
+            try {
+              stat = await this.options.inputFS.stat(source);
+            } catch (err) {
+              throw new Error(
+                `${pkg.source} in ${path.relative(
+                  this.options.inputFS.cwd(),
+                  pkg.filePath,
+                )}#source does not exist`,
+              );
+            }
+
+            if (!stat.isFile()) {
+              throw new Error(
+                `${pkg.source} in ${path.relative(
+                  this.options.inputFS.cwd(),
+                  pkg.filePath,
+                )}#source is not a file`,
+              );
+            }
+
+            entries.push({filePath: source, packagePath: entry});
+            files.push({filePath: pkg.filePath});
+          }
         }
 
-        if (!stat.isFile()) {
-          throw new Error(
-            `${pkg.source} in ${path.relative(
-              this.options.inputFS.cwd(),
-              pkg.filePath,
-            )}#source is not a file`,
-          );
+        // Only return if we found any valid entries
+        if (entries.length && files.length) {
+          return {
+            entries,
+            files,
+          };
         }
-
-        return {
-          entries: [{filePath: source, packagePath: entry}],
-          files: [{filePath: pkg.filePath}],
-        };
       }
 
       throw new Error(`Could not find entry: ${entry}`);
