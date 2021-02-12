@@ -71,38 +71,38 @@ export default async function dumpGraphToGraphViz(
         if (depSymbols) {
           if (depSymbols.size) {
             label +=
-              '\nsymbols: ' +
+              '\\nsymbols: ' +
               [...depSymbols].map(([e, {local}]) => [e, local]).join(';');
           }
           let weakSymbols = [...depSymbols]
             .filter(([, {isWeak}]) => isWeak)
             .map(([s]) => s);
           if (weakSymbols.length) {
-            label += '\nweakSymbols: ' + weakSymbols.join(',');
+            label += '\\nweakSymbols: ' + weakSymbols.join(',');
           }
           if (node.usedSymbolsUp.size > 0) {
-            label += '\nusedSymbolsUp: ' + [...node.usedSymbolsUp].join(',');
+            label += '\\nusedSymbolsUp: ' + [...node.usedSymbolsUp].join(',');
           }
           if (node.usedSymbolsDown.size > 0) {
             label +=
-              '\nusedSymbolsDown: ' + [...node.usedSymbolsDown].join(',');
+              '\\nusedSymbolsDown: ' + [...node.usedSymbolsDown].join(',');
           }
         } else {
-          label += '\nsymbols: cleared';
+          label += '\\nsymbols: cleared';
         }
       }
     } else if (node.type === 'asset') {
       label += path.basename(node.value.filePath) + '#' + node.value.type;
       if (detailedSymbols) {
         if (!node.value.symbols) {
-          label += '\nsymbols: cleared';
+          label += '\\nsymbols: cleared';
         } else if (node.value.symbols.size) {
           label +=
-            '\nsymbols: ' +
+            '\\nsymbols: ' +
             [...node.value.symbols].map(([e, {local}]) => [e, local]).join(';');
         }
         if (node.usedSymbols.size) {
-          label += '\nusedSymbols: ' + [...node.usedSymbols].join(',');
+          label += '\\nusedSymbols: ' + [...node.usedSymbols].join(',');
         }
       }
     } else if (node.type === 'asset_group') {
