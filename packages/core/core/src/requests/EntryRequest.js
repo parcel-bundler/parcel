@@ -103,7 +103,7 @@ class EntryResolver {
         let pkgSources = Array.isArray(pkg.source) ? pkg.source : [pkg.source];
         for (let pkgSource of pkgSources) {
           if (typeof pkgSource === 'string') {
-            let source = path.join(path.dirname(pkg.filePath), pkg.source);
+            let source = path.join(path.dirname(pkg.filePath), pkgSource);
             try {
               stat = await this.options.inputFS.stat(source);
             } catch (err) {
