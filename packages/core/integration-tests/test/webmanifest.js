@@ -140,13 +140,15 @@ describe('webmanifest', function() {
             filePath: manifestPath,
             origin: '@parcel/core',
           },
-          {
-            hints: [],
-            message: `Cannot load file './icon.png' in '${path.dirname(
-              manifestPathRelative,
-            )}'.`,
-            origin: '@parcel/resolver-default',
-          },
+          // ATLASSIAN: This doesn't happen because URL dependencies fall back to node_modules
+          // in our modifications to the NodeResolver
+          // {
+          //   hints: [],
+          //   message: `Cannot load file './icon.png' in '${path.dirname(
+          //     manifestPathRelative,
+          //   )}'.`,
+          //   origin: '@parcel/resolver-default',
+          // },
         ],
       },
     );
