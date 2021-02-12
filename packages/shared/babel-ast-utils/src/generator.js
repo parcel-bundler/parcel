@@ -256,6 +256,16 @@ export const generator = {
 for (let key in generator) {
   let orig = generator[key];
   generator[key] = function(node, state, skipComments) {
+    // These are printed by astring itself
+    if (node.trailingComments) {
+      for (let c of node.trailingComments) {
+        if (c.type === 'CommentLine') {
+          c.type = 'LineComment';
+        } else {
+          c.type = 'BlockComment';
+        }
+      }
+    }
     if (
       !skipComments &&
       node.leadingComments &&
@@ -288,7 +298,7 @@ function formatComments(state, comments) {
   const {length} = comments;
   for (let i = 0; i < length; i++) {
     const comment = comments[i];
-    if (comment.type === 'CommentLine') {
+    if (comment.type === 'CommentLine' || comment.type === 'LineComment') {
       // Line comment
       state.write('// ' + comment.value.trim() + state.lineEnd, {
         ...comment,
