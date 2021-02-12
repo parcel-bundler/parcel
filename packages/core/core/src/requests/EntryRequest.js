@@ -108,7 +108,7 @@ class EntryResolver {
               stat = await this.options.inputFS.stat(source);
             } catch (err) {
               throw new Error(
-                `${pkg.source} in ${path.relative(
+                `${pkgSource} in ${path.relative(
                   this.options.inputFS.cwd(),
                   pkg.filePath,
                 )}#source does not exist`,
@@ -117,7 +117,7 @@ class EntryResolver {
 
             if (!stat.isFile()) {
               throw new Error(
-                `${pkg.source} in ${path.relative(
+                `${pkgSource} in ${path.relative(
                   this.options.inputFS.cwd(),
                   pkg.filePath,
                 )}#source is not a file`,
