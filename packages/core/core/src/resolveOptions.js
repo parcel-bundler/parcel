@@ -82,6 +82,13 @@ export default async function resolveOptions(
       ? path.resolve(inputCwd, initialOptions?.defaultTargetOptions?.distDir)
       : undefined;
 
+  let shouldBuildLazily = initialOptions.shouldBuildLazily ?? false;
+  let shouldContentHash =
+    initialOptions.shouldContentHash ?? initialOptions.mode === 'production';
+  if (shouldBuildLazily && shouldContentHash) {
+    throw new Error('Lazy bundling does not work with content hashing');
+  }
+
   return {
     config: initialOptions.config,
     defaultConfig: initialOptions.defaultConfig,
@@ -99,9 +106,8 @@ export default async function resolveOptions(
     mode,
     shouldAutoInstall: initialOptions.shouldAutoInstall ?? false,
     hmrOptions: initialOptions.hmrOptions ?? null,
-    shouldBuildLazily: initialOptions.shouldBuildLazily ?? false,
-    shouldContentHash:
-      initialOptions.shouldContentHash ?? initialOptions.mode === 'production',
+    shouldBuildLazily,
+    shouldContentHash,
     serveOptions: initialOptions.serveOptions
       ? {
           ...initialOptions.serveOptions,

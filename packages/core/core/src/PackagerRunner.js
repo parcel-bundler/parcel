@@ -123,10 +123,6 @@ export default class PackagerRunner {
       // Do not package and write placeholder bundles to disk. We just
       // need to update the name so other bundles can reference it.
       if (bundle.isPlaceholder) {
-        invariant(
-          !this.options.shouldContentHash,
-          'Lazy bundling does not work with content hashing',
-        );
         let hash = bundle.id.slice(-8);
         hashRefToNameHash.set(bundle.hashReference, hash);
         bundle.filePath = nullthrows(bundle.filePath).replace(
