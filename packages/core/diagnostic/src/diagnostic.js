@@ -119,11 +119,10 @@ export function anyToDiagnostic(input: Diagnostifiable): Array<Diagnostic> {
 /** Normalize the given error into a diagnostic. */
 export function errorToDiagnostic(
   error: ThrowableDiagnostic | PrintableError | string,
-  defaultValues: {
+  defaultValues: {|
     origin?: ?string,
     filePath?: ?string,
-    ...
-  } = {},
+  |} = {},
 ): Array<Diagnostic> {
   let codeFrame: DiagnosticCodeFrame | void = undefined;
 
