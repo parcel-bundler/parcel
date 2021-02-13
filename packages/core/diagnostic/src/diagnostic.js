@@ -122,7 +122,7 @@ export function errorToDiagnostic(
   defaultValues: {|
     origin?: ?string,
     filePath?: ?string,
-  |} = {},
+  |} = {...null},
 ): Array<Diagnostic> {
   let codeFrame: DiagnosticCodeFrame | void = undefined;
 
