@@ -96,7 +96,6 @@ export default class UncommittedAsset {
     // must be regenerated later and shouldn't be committed.
     if (this.ast != null && this.isASTDirty) {
       this.content = null;
-      this.mapBuffer = null;
     }
 
     let size = 0;
