@@ -201,12 +201,12 @@ export default class Server {
         return;
       }
 
+      let requestedPath = path.normalize(pathname.slice(1));
       let bundle = bundleGraph
         .getBundles()
         .find(
           b =>
-            path.relative(this.options.distDir, b.filePath) ===
-            pathname.slice(1),
+            path.relative(this.options.distDir, b.filePath) === requestedPath,
         );
       if (!bundle) {
         return next(req, res);
