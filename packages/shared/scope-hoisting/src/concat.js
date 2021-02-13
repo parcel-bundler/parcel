@@ -62,7 +62,9 @@ const DEFAULT_INTEROP_TEMPLATE = template.statement<
     MODULE: Expression,
   |},
   VariableDeclaration,
->('var NAME = $parcel$interopDefault(MODULE);');
+>('var NAME = /*@__PURE__*/$parcel$interopDefault(MODULE);', {
+  preserveComments: true,
+});
 
 const ESMODULE_TEMPLATE = template.statement<
   {|EXPORTS: Expression|},
