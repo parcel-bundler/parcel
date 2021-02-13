@@ -4,6 +4,7 @@ import {
   isArrowFunctionExpression,
   isBlock,
   isBlockStatement,
+  isClassDeclaration,
   isConditionalExpression,
   isFunctionDeclaration,
   isFunctionExpression,
@@ -28,15 +29,14 @@ export function hasBinding(node: Node | Array<Node>, name: string): boolean {
     isArrowFunctionExpression(node)
   ) {
     return (
-      (typeof node.id === 'object' &&
-        node.id != null &&
-        node.id.name === name) ||
-      node.params.some(param => isIdentifier(param) && param.name === name)
+      (node.id != null && node.id.name === name) ||
+      node.params.some(param => isIdentifier(param, {name}))
     );
+  } else if (isClassDeclaration(node)) {
+    return node.id != null && node.id.name === name;
   } else if (isVariableDeclaration(node)) {
-    return node.declarations.some(
-      declaration =>
-        isIdentifier(declaration.id) && declaration.id.name === name,
+    return node.declarations.some(declaration =>
+      isIdentifier(declaration.id, {name}),
     );
   }
 
