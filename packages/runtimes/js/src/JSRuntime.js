@@ -5,6 +5,7 @@ import type {
   BundleGroup,
   Dependency,
   Environment,
+  PluginOptions,
   NamedBundle,
   RuntimeAsset,
 } from '@parcel/types';
@@ -75,7 +76,7 @@ let bundleDependencies = new WeakMap<
 >();
 
 export default (new Runtime({
-  apply({bundle, bundleGraph}) {
+  apply({bundle, bundleGraph, options}) {
     // Dependency ids in code replaced with referenced bundle names
     // Loader runtime added for bundle groups that don't have a native loader (e.g. HTML/CSS/Worker - isURL?),
     // and which are not loaded by a parent bundle.
@@ -115,6 +116,7 @@ export default (new Runtime({
           dependency,
           bundleGraph,
           bundleGroup: resolved.value,
+          options,
         });
 
         if (loaderRuntime != null) {
@@ -174,17 +176,52 @@ export default (new Runtime({
           code: `module.exports = require("./" + ${getRelativePathExpr(
             bundle,
             mainBundle,
+            options,
           )})`,
         });
         continue;
       }
 
       // URL dependency or not, fall back to including a runtime that exports the url
-      assets.push(getURLRuntime(dependency, bundle, mainBundle));
+      assets.push(getURLRuntime(dependency, bundle, mainBundle, options));
+    }
+
+    // In development, bundles can be created lazily. This means that the parent bundle may not
+    // know about all of the sibling bundles of a child when it is written for the first time.
+    // Therefore, we need to also ensure that the siblings are loaded when the child loads.
+    if (options.shouldBuildLazily && bundle.env.outputFormat === 'global') {
+      let referenced = bundleGraph
+        .getReferencedBundles(bundle)
+        .filter(b => !b.isInline);
+      for (let referencedBundle of referenced) {
+        let loaders = getLoaders(bundle.env);
+        if (!loaders) {
+          continue;
+        }
+
+        let loader = loaders[referencedBundle.type];
+        if (!loader) {
+          continue;
+        }
+
+        let relativePathExpr = getRelativePathExpr(
+          bundle,
+          referencedBundle,
+          options,
+        );
+        let loaderCode = `require(${JSON.stringify(
+          loader,
+        )})(require('./bundle-url').getBundleURL() + ${relativePathExpr})`;
+        assets.push({
+          filePath: __filename,
+          code: loaderCode,
+          isEntry: true,
+        });
+      }
     }
 
     if (
-      shouldUseRuntimeManifest(bundle) &&
+      shouldUseRuntimeManifest(bundle, options) &&
       bundleGraph.getChildBundles(bundle).length > 0 &&
       isNewContext(bundle, bundleGraph)
     ) {
@@ -234,11 +271,13 @@ function getLoaderRuntime({
   dependency,
   bundleGroup,
   bundleGraph,
+  options,
 }: {|
   bundle: NamedBundle,
   dependency: Dependency,
   bundleGroup: BundleGroup,
   bundleGraph: BundleGraph<NamedBundle>,
+  options: PluginOptions,
 |}): ?RuntimeAsset {
   let loaders = getLoaders(bundle.env);
   if (loaders == null) {
@@ -282,7 +321,7 @@ function getLoaderRuntime({
         return;
       }
 
-      let relativePathExpr = getRelativePathExpr(bundle, to);
+      let relativePathExpr = getRelativePathExpr(bundle, to, options);
 
       // Use esmodule loader if possible
       if (to.type === 'js' && to.env.outputFormat === 'esmodule') {
@@ -298,9 +337,20 @@ function getLoaderRuntime({
         return `Promise.resolve(require("./" + ${relativePathExpr}))`;
       }
 
-      return `require(${JSON.stringify(
+      let code = `require(${JSON.stringify(
         loader,
       )})(require('./bundle-url').getBundleURL() + ${relativePathExpr})`;
+
+      // In development, clear the require cache when an error occurs so the
+      // user can try again (e.g. after fixing a build error).
+      if (
+        options.mode === 'development' &&
+        bundle.env.outputFormat === 'global'
+      ) {
+        code +=
+          '.catch(err => {delete module.bundle.cache[module.id]; throw err;})';
+      }
+      return code;
     })
     .filter(Boolean);
 
@@ -318,12 +368,14 @@ function getLoaderRuntime({
               bundle,
               preload,
               BROWSER_PRELOAD_LOADER,
+              options,
             ),
             ...getHintLoaders(
               bundleGraph,
               bundle,
               prefetch,
               BROWSER_PREFETCH_LOADER,
+              options,
             ),
           ];
         }),
@@ -401,6 +453,7 @@ function getHintLoaders(
   from: NamedBundle,
   bundleGroups: Array<BundleGroup>,
   loader: string,
+  options: PluginOptions,
 ): Array<string> {
   let hintLoaders = [];
   for (let bundleGroupToPreload of bundleGroups) {
@@ -409,7 +462,11 @@ function getHintLoaders(
     );
 
     for (let bundleToPreload of bundlesToPreload) {
-      let relativePathExpr = getRelativePathExpr(from, bundleToPreload);
+      let relativePathExpr = getRelativePathExpr(
+        from,
+        bundleToPreload,
+        options,
+      );
       let priority = TYPE_TO_RESOURCE_PRIORITY[bundleToPreload.type];
       hintLoaders.push(
         `require(${JSON.stringify(
@@ -445,8 +502,9 @@ function getURLRuntime(
   dependency: Dependency,
   from: NamedBundle,
   to: NamedBundle,
+  options: PluginOptions,
 ): RuntimeAsset {
-  let relativePathExpr = getRelativePathExpr(from, to);
+  let relativePathExpr = getRelativePathExpr(from, to, options);
   if (dependency.meta.webworker === true) {
     return {
       filePath: __filename,
@@ -487,8 +545,12 @@ function getRegisterCode(
   );
 }
 
-function getRelativePathExpr(from: NamedBundle, to: NamedBundle): string {
-  if (shouldUseRuntimeManifest(from)) {
+function getRelativePathExpr(
+  from: NamedBundle,
+  to: NamedBundle,
+  options: PluginOptions,
+): string {
+  if (shouldUseRuntimeManifest(from, options)) {
     return `require('./relative-path')(${JSON.stringify(
       from.publicId,
     )}, ${JSON.stringify(to.publicId)})`;
@@ -497,7 +559,15 @@ function getRelativePathExpr(from: NamedBundle, to: NamedBundle): string {
   return JSON.stringify(relativeBundlePath(from, to, {leadingDotSlash: false}));
 }
 
-function shouldUseRuntimeManifest(bundle: NamedBundle): boolean {
+function shouldUseRuntimeManifest(
+  bundle: NamedBundle,
+  options: PluginOptions,
+): boolean {
   let env = bundle.env;
-  return !env.isLibrary && env.outputFormat === 'global' && env.isBrowser();
+  return (
+    !env.isLibrary &&
+    env.outputFormat === 'global' &&
+    env.isBrowser() &&
+    options.mode === 'production'
+  );
 }

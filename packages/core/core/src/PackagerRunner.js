@@ -119,8 +119,31 @@ export default class PackagerRunner {
     |} = {};
     let writeEarlyPromises = {};
     let hashRefToNameHash = new Map();
-    // skip inline bundles, they will be processed via the parent bundle
-    let bundles = bundleGraph.getBundles().filter(bundle => !bundle.isInline);
+    let bundles = bundleGraph.getBundles().filter(bundle => {
+      // Do not package and write placeholder bundles to disk. We just
+      // need to update the name so other bundles can reference it.
+      if (bundle.isPlaceholder) {
+        invariant(
+          !this.options.shouldContentHash,
+          'Lazy bundling does not work with content hashing',
+        );
+        let hash = bundle.id.slice(-8);
+        hashRefToNameHash.set(bundle.hashReference, hash);
+        bundle.filePath = nullthrows(bundle.filePath).replace(
+          bundle.hashReference,
+          hash,
+        );
+        bundle.name = nullthrows(bundle.name).replace(
+          bundle.hashReference,
+          hash,
+        );
+        return false;
+      }
+
+      // skip inline bundles, they will be processed via the parent bundle
+      return !bundle.isInline;
+    });
+
     try {
       await Promise.all(
         bundles.map(async bundle => {
@@ -707,15 +730,11 @@ function assignComplexNameHashes(
       continue;
     }
 
-    let includedBundles = [
-      ...getBundlesIncludedInHash(bundle.id, bundleInfoMap),
-    ];
-
     hashRefToNameHash.set(
       bundle.hashReference,
       options.shouldContentHash
         ? md5FromString(
-            includedBundles
+            [...getBundlesIncludedInHash(bundle.id, bundleInfoMap)]
               .map(bundleId => bundleInfoMap[bundleId].hash)
               .join(':'),
           ).slice(-8)

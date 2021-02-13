@@ -99,6 +99,7 @@ export default async function resolveOptions(
     mode,
     shouldAutoInstall: initialOptions.shouldAutoInstall ?? false,
     hmrOptions: initialOptions.hmrOptions ?? null,
+    shouldBuildLazily: initialOptions.shouldBuildLazily ?? false,
     shouldContentHash:
       initialOptions.shouldContentHash ?? initialOptions.mode === 'production',
     serveOptions: initialOptions.serveOptions

@@ -122,6 +122,10 @@ let serve = program
     'automatically open in specified browser, defaults to default browser',
   )
   .option('--watch-for-stdin', 'exit when stdin closes')
+  .option(
+    '--lazy',
+    'Build async bundles on demand, when requested in the browser',
+  )
   .action(runCommand);
 
 applyOptions(serve, hmrOptions);
@@ -430,6 +434,7 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
     shouldAutoInstall: command.autoinstall ?? true,
     logLevel: command.logLevel,
     shouldProfile: command.profile,
+    shouldBuildLazily: command.lazy,
     detailedReport:
       command.detailedReport != null
         ? {

@@ -270,6 +270,7 @@ export type InitialParcelOptions = {|
   +logLevel?: LogLevel,
   +shouldProfile?: boolean,
   +shouldPatchConsole?: boolean,
+  +shouldBuildLazily?: boolean,
 
   +inputFS?: FileSystem,
   +outputFS?: FileSystem,
@@ -302,6 +303,7 @@ export interface PluginOptions {
   +env: EnvMap;
   +hmrOptions: ?HMROptions;
   +serveOptions: ServerOptions | false;
+  +shouldBuildLazily: boolean;
   +shouldAutoInstall: boolean;
   +logLevel: LogLevel;
   +entryRoot: FilePath;
@@ -1346,6 +1348,7 @@ export type BuildSuccessEvent = {|
   +bundleGraph: BundleGraph<NamedBundle>,
   +buildTime: number,
   +changedAssets: Map<string, Asset>,
+  +requestBundle: (bundle: NamedBundle) => Promise<BuildSuccessEvent>,
 |};
 
 /**

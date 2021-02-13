@@ -79,6 +79,7 @@ export function nodeFromAsset(asset: Asset): AssetNode {
     usedSymbols: new Set(),
     usedSymbolsDownDirty: true,
     usedSymbolsUpDirty: true,
+    deferred: false,
   };
 }
 

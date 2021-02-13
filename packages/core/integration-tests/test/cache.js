@@ -3147,6 +3147,7 @@ describe('cache', function() {
                 );
 
                 delete require.cache[path.join(inputDir, '.pnp.js')];
+                await sleep(100);
               },
             },
             'pnp-require',

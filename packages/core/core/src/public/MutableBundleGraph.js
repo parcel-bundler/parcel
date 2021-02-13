@@ -11,7 +11,7 @@ import type {
   BundlerBundleGraphTraversable,
   Target,
 } from '@parcel/types';
-import type {ParcelOptions} from '../types';
+import type {Asset, ParcelOptions} from '../types';
 
 import invariant from 'assert';
 import path from 'path';
@@ -27,6 +27,7 @@ import Dependency, {dependencyToInternalDependency} from './Dependency';
 import {environmentToInternalEnvironment} from './Environment';
 import {targetToInternalTarget} from './Target';
 import {HASH_REF_PREFIX} from '../constants';
+import {createAsset} from '../assetUtils';
 
 export default class MutableBundleGraph extends BundleGraph<IBundle>
   implements IMutableBundleGraph {
@@ -159,6 +160,13 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
     );
     this.#bundlePublicIds.add(publicId);
 
+    let isPlaceholder = false;
+    if (entryAsset) {
+      let entryAssetNode = this.#graph._graph.getNode(entryAsset.id);
+      invariant(entryAssetNode?.type === 'asset', 'Entry asset does not exist');
+      isPlaceholder = entryAssetNode.deferred;
+    }
+
     let bundleNode = {
       type: 'bundle',
       id: bundleId,
@@ -176,6 +184,7 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
         isEntry: opts.isEntry,
         isInline: opts.isInline,
         isSplittable: opts.isSplittable ?? entryAsset?.isSplittable,
+        isPlaceholder,
         target,
         name: null,
         displayName: null,

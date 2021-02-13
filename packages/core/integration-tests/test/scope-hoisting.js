@@ -3809,15 +3809,7 @@ describe('scope hoisting', function() {
       assertBundles(b, [
         {
           type: 'js',
-          assets: [
-            'a.js',
-            'b.js',
-            'bundle-manifest.js',
-            'bundle-url.js',
-            'JSRuntime.js',
-            'JSRuntime.js',
-            'relative-path.js',
-          ],
+          assets: ['a.js', 'b.js', 'bundle-url.js', 'JSRuntime.js'],
         },
         {
           type: 'txt',
@@ -4515,9 +4507,6 @@ describe('scope hoisting', function() {
           'index.js',
           'js-loader.js',
           'JSRuntime.js',
-          'bundle-manifest.js',
-          'JSRuntime.js',
-          'relative-path.js',
         ],
       },
       {
@@ -4882,14 +4871,11 @@ describe('scope hoisting', function() {
         name: 'scope-hoisting.js',
         assets: [
           'scope-hoisting.js',
-          'bundle-manifest.js',
           'bundle-url.js',
           'cacheLoader.js',
           'js-loader.js',
           'JSRuntime.js',
           'JSRuntime.js',
-          'JSRuntime.js',
-          'relative-path.js',
         ],
       },
       {assets: ['value.js']},
@@ -4915,26 +4901,20 @@ describe('scope hoisting', function() {
         name: 'scope-hoisting.js',
         assets: [
           'scope-hoisting.js',
-          'bundle-manifest.js',
           'bundle-url.js',
           'cacheLoader.js',
           'js-loader.js',
           'JSRuntime.js',
-          'JSRuntime.js',
-          'relative-path.js',
         ],
       },
       {
         name: 'other-entry.js',
         assets: [
           'other-entry.js',
-          'bundle-manifest.js',
           'bundle-url.js',
           'cacheLoader.js',
           'js-loader.js',
           'JSRuntime.js',
-          'JSRuntime.js',
-          'relative-path.js',
         ],
       },
       {assets: ['a.js', 'value.js']},

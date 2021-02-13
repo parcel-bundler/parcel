@@ -15,7 +15,7 @@ import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import invariant from 'assert';
 import ThrowableDiagnostic, {anyToDiagnostic} from '@parcel/diagnostic';
 import {assetFromValue} from './public/Asset';
-import {NamedBundle} from './public/Bundle';
+import {NamedBundle, bundleToInternalBundle} from './public/Bundle';
 import BundleGraph from './public/BundleGraph';
 import BundlerRunner from './BundlerRunner';
 import WorkerFarm from '@parcel/workers';
@@ -71,6 +71,7 @@ export default class Parcel {
   > */;
   #watcherSubscription /*: ?AsyncSubscription*/;
   #watcherCount /*: number*/ = 0;
+  #requestedAssetIds: Set<string> = new Set();
 
   isProfiling /*: boolean */;
 
@@ -183,16 +184,20 @@ export default class Parcel {
     await this.#farm.callAllWorkers('clearConfigCache', []);
   }
 
-  async _startNextBuild() {
+  async _startNextBuild(): Promise<?BuildEvent> {
     this.#watchAbortController = new AbortController();
     await this.#farm.callAllWorkers('clearConfigCache', []);
 
     try {
-      this.#watchEvents.emit({
-        buildEvent: await this._build({
-          signal: this.#watchAbortController.signal,
-        }),
+      let buildEvent = await this._build({
+        signal: this.#watchAbortController.signal,
       });
+
+      this.#watchEvents.emit({
+        buildEvent,
+      });
+
+      return buildEvent;
     } catch (err) {
       // Ignore BuildAbortErrors and only emit critical errors.
       if (!(err instanceof BuildAbortError)) {
@@ -273,14 +278,21 @@ export default class Parcel {
       });
       let request = createAssetGraphRequest({
         name: 'Main',
-        entries: nullthrows(this.#resolvedOptions).entries,
+        entries: options.entries,
         optionsRef: this.#optionsRef,
+        shouldBuildLazily: options.shouldBuildLazily,
+        requestedAssetIds: this.#requestedAssetIds,
       }); // ? should we create this on every build?
       let {
         assetGraph,
         changedAssets,
         assetRequests,
-      } = await this.#requestTracker.runRequest(request);
+      } = await this.#requestTracker.runRequest(request, {
+        force: options.shouldBuildLazily && this.#requestedAssetIds.size > 0,
+      });
+
+      this.#requestedAssetIds.clear();
+
       dumpGraphToGraphViz(assetGraph, 'MainAssetGraph');
 
       let [
@@ -311,6 +323,41 @@ export default class Parcel {
         ),
         bundleGraph: new BundleGraph(bundleGraph, NamedBundle.get, options),
         buildTime: Date.now() - startTime,
+        requestBundle: async bundle => {
+          let bundleNode = bundleGraph._graph.getNode(bundle.id);
+          invariant(bundleNode?.type === 'bundle', 'Bundle does not exist');
+
+          if (!bundleNode.value.isPlaceholder) {
+            // Nothing to do.
+            return {
+              type: 'buildSuccess',
+              changedAssets: new Map(),
+              bundleGraph: event.bundleGraph,
+              buildTime: 0,
+              requestBundle: event.requestBundle,
+            };
+          }
+
+          for (let assetId of bundleNode.value.entryAssetIds) {
+            this.#requestedAssetIds.add(assetId);
+          }
+
+          if (this.#watchQueue.getNumWaiting() === 0) {
+            if (this.#watchAbortController) {
+              this.#watchAbortController.abort();
+            }
+
+            this.#watchQueue.add(() => this._startNextBuild());
+          }
+
+          let results = await this.#watchQueue.run();
+          let result = results.filter(Boolean).pop();
+          if (result.type === 'buildFailure') {
+            throw new BuildError(result.diagnostics);
+          }
+
+          return result;
+        },
       };
 
       await this.#reporterRunner.report(event);

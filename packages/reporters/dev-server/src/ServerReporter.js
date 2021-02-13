@@ -95,7 +95,7 @@ export default (new Reporter({
             });
           }
 
-          server.buildSuccess(event.bundleGraph);
+          server.buildSuccess(event.bundleGraph, event.requestBundle);
         }
         if (hmrServer) {
           hmrServer.emitUpdate(event);
