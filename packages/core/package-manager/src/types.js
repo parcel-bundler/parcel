@@ -2,7 +2,7 @@
 
 import type {FilePath, SemverRange, ModuleSpecifier} from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
-import type {ResolveResult} from '@parcel/utils';
+import type {ResolveResult} from './NodeResolverBase';
 
 export type InstallOptions = {
   installPeers?: boolean,

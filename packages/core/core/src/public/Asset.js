@@ -13,6 +13,7 @@ import type {
   DependencyOptions,
   Environment as IEnvironment,
   EnvironmentOptions,
+  FileCreateInvalidation,
   FilePath,
   Meta,
   MutableAsset as IMutableAsset,
@@ -276,6 +277,10 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
 
   addIncludedFile(filePath: FilePath): void {
     this.#asset.addIncludedFile(filePath);
+  }
+
+  invalidateOnFileCreate(invalidation: FileCreateInvalidation): void {
+    this.#asset.invalidateOnFileCreate(invalidation);
   }
 
   invalidateOnEnvChange(env: string): void {

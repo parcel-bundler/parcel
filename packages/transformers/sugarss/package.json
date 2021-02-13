@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "@parcel/plugin": "2.0.0-beta.1",
-    "postcss": "^8.0.5"
+    "postcss": "^8.0.5",
+    "sugarss": "^3.0.3"
   }
 }

@@ -20,7 +20,6 @@
     "parcel": "^2.0.0-beta.1"
   },
   "dependencies": {
-    "@babel/core": "^7.12.0",
     "@babel/helper-compilation-targets": "^7.8.4",
     "@babel/plugin-transform-flow-strip-types": "^7.0.0",
     "@babel/plugin-transform-typescript": "^7.4.5",
@@ -37,9 +36,10 @@
     "semver": "^5.7.0"
   },
   "devDependencies": {
+    "@babel/core": "^7.12.0",
     "@parcel/types": "2.0.0-beta.1"
   },
   "peerDependencies": {
-    "@parcel/core": "^2.0.0-alpha.3.1"
+    "@babel/core": "^7.12.0"
   }
 }

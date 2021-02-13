@@ -136,12 +136,10 @@ async function _generateFromAST(asset: CommittedAsset | UncommittedAsset) {
 
   let pluginName = nullthrows(asset.value.plugin);
   let {plugin} = await loadPlugin<Transformer>(
-    asset.options.inputFS,
-    asset.options.packageManager,
     pluginName,
     nullthrows(asset.value.configPath),
     nullthrows(asset.value.configKeyPath),
-    asset.options.shouldAutoInstall,
+    asset.options,
   );
   if (!plugin.generate) {
     throw new Error(`${pluginName} does not have a generate method`);

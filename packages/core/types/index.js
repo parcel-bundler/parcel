@@ -514,7 +514,7 @@ export interface BaseAsset {
   +isSource: boolean;
   /** Usually corresponds to the file extension */
   +type: string;
-  /** Whether this asset can be omitted if none if it's exports are being used (set by ResolveResult) */
+  /** Whether this asset can be omitted if none of its exports are being used (set by ResolveResult) */
   +sideEffects: boolean;
   /**
    * Inline assets inheirit the parent's <code>id</code>, making it not be enough for a unique identification
@@ -567,6 +567,7 @@ export interface MutableAsset extends BaseAsset {
 
   addDependency(dep: DependencyOptions): string;
   addIncludedFile(filePath: FilePath): void;
+  invalidateOnFileCreate(invalidation: FileCreateInvalidation): void;
   addURLDependency(url: string, opts: $Shape<DependencyOptions>): string;
   invalidateOnEnvChange(env: string): void;
 
@@ -605,7 +606,7 @@ export interface Config {
   setResultHash(resultHash: string): void;
   addIncludedFile(filePath: FilePath): void;
   addDevDependency(name: PackageName, version?: Semver): void;
-  setWatchGlob(glob: string): void;
+  invalidateOnFileCreate(invalidation: FileCreateInvalidation): void;
   getConfigFrom(
     searchPath: FilePath,
     filePaths: Array<FilePath>,
@@ -745,11 +746,6 @@ export type Transformer = {|
   preSerializeConfig?: ({|
     config: Config,
     options: PluginOptions,
-  |}) => Async<void>,
-  postDeserializeConfig?: ({|
-    config: Config,
-    options: PluginOptions,
-    logger: PluginLogger,
   |}) => Async<void>,
   /** Whether an AST from a previous transformer can be reused (to prevent double-parsing) */
   canReuseAST?: ({|
@@ -1070,6 +1066,24 @@ export type BundleResult = {|
   +type?: string,
 |};
 
+export type GlobInvalidation = {|
+  glob: Glob,
+|};
+
+export type FileInvalidation = {|
+  filePath: FilePath,
+|};
+
+export type FileAboveInvalidation = {|
+  fileName: string,
+  aboveFilePath: FilePath,
+|};
+
+export type FileCreateInvalidation =
+  | FileInvalidation
+  | GlobInvalidation
+  | FileAboveInvalidation;
+
 /**
  * @section resolver
  */
@@ -1086,6 +1100,8 @@ export type ResolveResult = {|
   +diagnostics?: Diagnostic | Array<Diagnostic>,
   /** Is spread (shallowly merged) onto the request's dependency.meta */
   +meta?: JSONObject,
+  +invalidateOnFileCreate?: Array<FileCreateInvalidation>,
+  +invalidateOnFileChange?: Array<FilePath>,
 |};
 
 export type ConfigOutput = {|
