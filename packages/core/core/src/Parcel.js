@@ -15,7 +15,7 @@ import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import invariant from 'assert';
 import ThrowableDiagnostic, {anyToDiagnostic} from '@parcel/diagnostic';
 import {assetFromValue} from './public/Asset';
-import {NamedBundle, bundleToInternalBundle} from './public/Bundle';
+import {NamedBundle} from './public/Bundle';
 import BundleGraph from './public/BundleGraph';
 import BundlerRunner from './BundlerRunner';
 import WorkerFarm from '@parcel/workers';
@@ -71,7 +71,7 @@ export default class Parcel {
   > */;
   #watcherSubscription /*: ?AsyncSubscription*/;
   #watcherCount /*: number*/ = 0;
-  #requestedAssetIds: Set<string> = new Set();
+  #requestedAssetIds /*: Set<string>*/ = new Set();
 
   isProfiling /*: boolean */;
 

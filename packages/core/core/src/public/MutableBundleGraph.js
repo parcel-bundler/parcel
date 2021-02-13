@@ -11,7 +11,7 @@ import type {
   BundlerBundleGraphTraversable,
   Target,
 } from '@parcel/types';
-import type {Asset, ParcelOptions} from '../types';
+import type {ParcelOptions} from '../types';
 
 import invariant from 'assert';
 import path from 'path';
@@ -27,7 +27,6 @@ import Dependency, {dependencyToInternalDependency} from './Dependency';
 import {environmentToInternalEnvironment} from './Environment';
 import {targetToInternalTarget} from './Target';
 import {HASH_REF_PREFIX} from '../constants';
-import {createAsset} from '../assetUtils';
 
 export default class MutableBundleGraph extends BundleGraph<IBundle>
   implements IMutableBundleGraph {
