@@ -551,6 +551,7 @@ describe('scope hoisting', function() {
             f,
           ),
         ),
+        {mode: 'production'},
       );
 
       let output = await runBundle(
@@ -1782,6 +1783,28 @@ describe('scope hoisting', function() {
 
       let output = await run(b);
       assert.deepEqual(output, ['client', 'client', 'viewer']);
+    });
+
+    it('should enable minifier to remove unused modules despite of interopDefault', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/interop-pure/a.js',
+        ),
+        {
+          mode: 'production',
+          defaultTargetOptions: {
+            shouldOptimize: true,
+            sourceMaps: false,
+          },
+        },
+      );
+
+      let contents = await outputFS.readFileSync(
+        b.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert.strictEqual(contents.trim().length, 0);
     });
 
     it('should support the jsx pragma', async function() {

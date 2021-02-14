@@ -55,7 +55,7 @@ function getId(input: AssetRequestInput) {
   });
 }
 
-async function run({input, api, options, farm}: RunInput) {
+async function run({input, api, options, farm, invalidateReason}: RunInput) {
   api.invalidateOnFileUpdate(input.filePath);
   let start = Date.now();
   let {optionsRef, ...request} = input;
@@ -72,9 +72,14 @@ async function run({input, api, options, farm}: RunInput) {
     );
   });
 
-  let {assets, configRequests, invalidations} = (await farm.createHandle(
-    'runTransform',
-  )({
+  request.invalidateReason = invalidateReason;
+
+  let {
+    assets,
+    configRequests,
+    invalidations,
+    invalidateOnFileCreate,
+  } = (await farm.createHandle('runTransform')({
     configCachePath: cachePath,
     optionsRef,
     request,
@@ -83,6 +88,10 @@ async function run({input, api, options, farm}: RunInput) {
   let time = Date.now() - start;
   for (let asset of assets) {
     asset.stats.time = time;
+  }
+
+  for (let invalidation of invalidateOnFileCreate) {
+    api.invalidateOnFileCreate(invalidation);
   }
 
   for (let invalidation of invalidations) {
@@ -109,14 +118,18 @@ async function run({input, api, options, farm}: RunInput) {
       id,
       type: 'config_request',
       run: ({api}) => {
-        let {includedFiles, watchGlob, shouldInvalidateOnStartup} = result;
+        let {
+          includedFiles,
+          invalidateOnFileCreate,
+          shouldInvalidateOnStartup,
+        } = result;
         for (let filePath of includedFiles) {
           api.invalidateOnFileUpdate(filePath);
           api.invalidateOnFileDelete(filePath);
         }
 
-        if (watchGlob != null) {
-          api.invalidateOnFileCreate(watchGlob);
+        for (let invalidation of invalidateOnFileCreate) {
+          api.invalidateOnFileCreate(invalidation);
         }
 
         if (shouldInvalidateOnStartup) {

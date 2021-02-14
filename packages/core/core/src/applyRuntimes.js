@@ -85,7 +85,10 @@ export default async function applyRuntimes({
         }
       } catch (e) {
         throw new ThrowableDiagnostic({
-          diagnostic: errorToDiagnostic(e, runtime.name),
+          diagnostic: errorToDiagnostic(e, {
+            origin: runtime.name,
+            filePath: bundle.filePath,
+          }),
         });
       }
     }

@@ -1,3 +1,5 @@
+import foo from 'foo';
+
 // Useless class to test babel
 class Test {
   constructor(value) {
@@ -5,4 +7,4 @@ class Test {
   }
 }
 
-export default new Test(2).value;
+export default new Test(foo).value;

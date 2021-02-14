@@ -76,7 +76,11 @@ export default function createParcelConfigRequest(): ParcelConfigRequest {
       }
 
       if (usedDefault) {
-        api.invalidateOnFileCreate('**/.parcelrc');
+        let resolveFrom = getResolveFrom(options);
+        api.invalidateOnFileCreate({
+          fileName: '.parcelrc',
+          aboveFilePath: resolveFrom,
+        });
       }
 
       let cachePath = md5FromObject(config);
