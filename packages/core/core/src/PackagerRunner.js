@@ -219,7 +219,10 @@ export default class PackagerRunner {
         });
       } catch (e) {
         throw new ThrowableDiagnostic({
-          diagnostic: errorToDiagnostic(e, this.config.getBundlerName()),
+          diagnostic: errorToDiagnostic(e, {
+            origin: this.config.getBundlerName(),
+            filePath: bundle.filePath,
+          }),
         });
       }
     }
@@ -341,7 +344,10 @@ export default class PackagerRunner {
       });
     } catch (e) {
       throw new ThrowableDiagnostic({
-        diagnostic: errorToDiagnostic(e, name),
+        diagnostic: errorToDiagnostic(e, {
+          origin: name,
+          filePath: bundle.filePath,
+        }),
       });
     }
   }
@@ -402,7 +408,10 @@ export default class PackagerRunner {
         optimized.map = next.map;
       } catch (e) {
         throw new ThrowableDiagnostic({
-          diagnostic: errorToDiagnostic(e, optimizer.name),
+          diagnostic: errorToDiagnostic(e, {
+            origin: optimizer.name,
+            filePath: bundle.filePath,
+          }),
         });
       }
     }

@@ -452,7 +452,10 @@ export default class Transformation {
           }
         } catch (e) {
           throw new ThrowableDiagnostic({
-            diagnostic: errorToDiagnostic(e, transformer.name),
+            diagnostic: errorToDiagnostic(e, {
+              origin: transformer.name,
+              filePath: asset.value.filePath,
+            }),
           });
         }
       }

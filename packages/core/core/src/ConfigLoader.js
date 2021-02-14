@@ -120,7 +120,9 @@ export default class ConfigLoader {
         });
       } catch (e) {
         throw new ThrowableDiagnostic({
-          diagnostic: errorToDiagnostic(e, packageName),
+          diagnostic: errorToDiagnostic(e, {
+            origin: packageName,
+          }),
         });
       }
     }

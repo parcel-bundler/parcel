@@ -215,6 +215,10 @@ export default class BundleGraph<TBundle: IBundle>
       );
   }
 
+  isEntryBundleGroup(bundleGroup: BundleGroup): boolean {
+    return this.#graph.isEntryBundleGroup(bundleGroup);
+  }
+
   getChildBundles(bundle: IBundle): Array<TBundle> {
     return this.#graph
       .getChildBundles(bundleToInternalBundle(bundle))

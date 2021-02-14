@@ -7,6 +7,7 @@ import type {
   Identifier,
   LVal,
   ObjectProperty,
+  Statement,
   VariableDeclaration,
 } from '@babel/types';
 import type {ExternalBundle, ExternalModule} from '../types';
@@ -83,7 +84,7 @@ function generateDestructuringAssignment(
   specifiers,
   value,
   scope,
-): Array<BabelNode> {
+): Array<Statement> {
   // If destructuring is not supported, generate a series of variable declarations
   // with member expressions for each property.
   if (!env.matchesEngines(DESTRUCTURING_ENGINES)) {
@@ -125,7 +126,7 @@ export function generateBundleImports(
   from: NamedBundle,
   {bundle, assets}: ExternalBundle,
   scope: Scope,
-): Array<BabelNode> {
+): {|hoisted: Array<Statement>, imports: Array<Statement>|} {
   let specifiers: Array<ObjectProperty> = [...assets].map(asset => {
     let id = getName(asset, 'init');
     return t.objectProperty(t.identifier(id), t.identifier(id), false, true);
@@ -136,14 +137,17 @@ export function generateBundleImports(
   });
 
   if (specifiers.length > 0) {
-    return generateDestructuringAssignment(
-      bundle.env,
-      specifiers,
-      expression,
-      scope,
-    );
+    return {
+      imports: generateDestructuringAssignment(
+        bundle.env,
+        specifiers,
+        expression,
+        scope,
+      ),
+      hoisted: [],
+    };
   } else {
-    return [t.expressionStatement(expression)];
+    return {imports: [t.expressionStatement(expression)], hoisted: []};
   }
 }
 
@@ -151,7 +155,7 @@ export function generateExternalImport(
   bundle: NamedBundle,
   external: ExternalModule,
   scope: Scope,
-): Array<BabelNode> {
+): Array<Statement> {
   let {source, specifiers, isCommonJS} = external;
 
   let properties: Array<ObjectProperty> = [];
@@ -177,7 +181,7 @@ export function generateExternalImport(
   let specifiersWildcard = specifiers.get('*');
   let specifiersDefault = specifiers.get('default');
 
-  let statements: Array<BabelNode> = [];
+  let statements: Array<Statement> = [];
   // Attempt to combine require calls as much as possible. Namespace, default, and named specifiers
   // cannot be combined, so in the case where we have more than one type, assign the require() result
   // to a variable first and then create additional variables for each specifier based on that.
@@ -298,9 +302,9 @@ export function generateBundleExports(
   referencedAssets: Set<Asset>,
   scope: Scope,
   reexports: Set<{|exportAs: string, local: string|}>,
-): Array<BabelNode> {
+): Array<Statement> {
   let exported = new Set<Symbol>();
-  let statements: Array<BabelNode> = [];
+  let statements: Array<Statement> = [];
 
   for (let asset of referencedAssets) {
     let id = getIdentifier(asset, 'init');
