@@ -207,12 +207,25 @@ export default class Transformation {
       }
     }
 
+    let devDepRequests = [];
+    for (let devDepRequest of this.devDepRequests.values()) {
+      // If we've already sent a matching transformer + hash to the main thread during this build,
+      // there's no need to repeat ourselves.
+      let {name, hash} = devDepRequest;
+      if (hash === pluginCache.get(name)) {
+        devDepRequests.push({name, hash});
+      } else {
+        pluginCache.set(name, hash);
+        devDepRequests.push(devDepRequest);
+      }
+    }
+
     return {
       assets,
       configRequests: this.configRequests,
       invalidateOnFileCreate: this.invalidateOnFileCreate,
       invalidations: [...this.invalidations.values()],
-      devDepRequests: [...this.devDepRequests.values()],
+      devDepRequests,
     };
   }
 
@@ -372,6 +385,10 @@ export default class Transformation {
       transformer.resolveFrom,
     );
 
+    // It is possible for a transformer to have multiple different hashes due to
+    // different dependencies (e.g. conditional requires) so we must always
+    // recompute the hash and compare rather than only sending a transformer
+    // dev dependency once.
     let hash = await getInvalidationHash(
       [...invalidations.invalidateOnFileChange].map(f => ({
         type: 'file',
@@ -379,20 +396,6 @@ export default class Transformation {
       })),
       this.options,
     );
-
-    // If we've already sent a matching transformer + hash to the main thread during this build,
-    // there's no need to repeat ourselves. Note that it is possible for a transformer to have
-    // multiple different hashes due to different dependencies (e.g. conditional requires)
-    // so we must always recompute the hash and compare rather than only sending a transformer
-    // dev dependency once.
-    if (hash === pluginCache.get(transformer.name)) {
-      return {
-        name: transformer.name,
-        hash,
-      };
-    }
-
-    pluginCache.set(transformer.name, hash);
 
     return {
       name: transformer.name,
