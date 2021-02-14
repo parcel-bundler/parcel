@@ -551,6 +551,7 @@ describe('scope hoisting', function() {
             f,
           ),
         ),
+        {mode: 'production'},
       );
 
       let output = await runBundle(
