@@ -142,7 +142,7 @@ export class NodeResolver extends NodeResolverBase<Promise<ResolveResult>> {
     ctx: ResolverContext,
   ): Promise<?ResolveResult> {
     try {
-      pkg = await this.readPackage(dir + '/package.json', ctx);
+      pkg = await this.readPackage(path.join(dir, 'package.json'), ctx);
 
       // Get a list of possible package entry points.
       let entries = this.getPackageEntries(dir, pkg);
@@ -179,7 +179,7 @@ export class NodeResolver extends NodeResolverBase<Promise<ResolveResult>> {
       // it is likely a file. Try loading it as a file first.
       if (module.subPath) {
         let pkg = await this.readPackage(
-          module.moduleDir + '/package.json',
+          path.join(module.moduleDir, 'package.json'),
           ctx,
         );
         let res = await this.loadAsFile(module.filePath, pkg, ctx);

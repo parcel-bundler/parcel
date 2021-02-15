@@ -125,7 +125,7 @@ export class NodeResolverSync extends NodeResolverBase<ResolveResult> {
     ctx: ResolverContext,
   ): ?ResolveResult {
     try {
-      pkg = this.readPackage(dir + '/package.json', ctx);
+      pkg = this.readPackage(path.join(dir, 'package.json'), ctx);
 
       // Get a list of possible package entry points.
       let entries = this.getPackageEntries(dir, pkg);
@@ -160,7 +160,10 @@ export class NodeResolverSync extends NodeResolverBase<ResolveResult> {
       // If a module was specified as a module sub-path (e.g. some-module/some/path),
       // it is likely a file. Try loading it as a file first.
       if (module.subPath) {
-        let pkg = this.readPackage(module.moduleDir + '/package.json', ctx);
+        let pkg = this.readPackage(
+          path.join(module.moduleDir, 'package.json'),
+          ctx,
+        );
         let res = this.loadAsFile(module.filePath, pkg, ctx);
         if (res) {
           return res;
