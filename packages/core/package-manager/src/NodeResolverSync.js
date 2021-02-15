@@ -25,6 +25,10 @@ export class NodeResolverSync extends NodeResolverBase<ResolveResult> {
       throw e;
     }
 
+    if (path.isAbsolute(res.resolved)) {
+      res.resolved = this.fs.realpathSync(res.resolved);
+    }
+
     return res;
   }
 

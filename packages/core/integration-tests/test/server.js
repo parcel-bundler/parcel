@@ -112,7 +112,42 @@ describe('server', function() {
 
   it('should serve a default page if the main bundle is an HTML asset', async function() {
     let port = await getPort();
-    let inputPath = path.join(__dirname, '/integration/html/index.html');
+    let b = bundler(
+      [
+        path.join(__dirname, '/integration/html/other.html'),
+        path.join(__dirname, '/integration/html/index.html'),
+      ],
+      {
+        defaultTargetOptions: {
+          distDir,
+        },
+        config,
+        serveOptions: {
+          https: false,
+          port: port,
+          host: 'localhost',
+        },
+      },
+    );
+
+    subscription = await b.watch();
+    await getNextBuild(b);
+
+    let outputFile = await outputFS.readFile(
+      path.join(distDir, 'index.html'),
+      'utf8',
+    );
+
+    let data = await get('/', port);
+    assert.equal(data, outputFile);
+
+    data = await get('/foo/bar', port);
+    assert.equal(data, outputFile);
+  });
+
+  it('should serve a default page if the main bundle is an HTML asset even if it is not called index', async function() {
+    let port = await getPort();
+    let inputPath = path.join(__dirname, '/integration/html/other.html');
     let b = bundler(inputPath, {
       defaultTargetOptions: {
         distDir,
@@ -129,7 +164,7 @@ describe('server', function() {
     await getNextBuild(b);
 
     let outputFile = await outputFS.readFile(
-      path.join(distDir, 'index.html'),
+      path.join(distDir, 'other.html'),
       'utf8',
     );
 

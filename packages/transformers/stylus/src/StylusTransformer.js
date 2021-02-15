@@ -1,9 +1,15 @@
 // @flow
 
-import {typeof default as Stylus} from 'stylus';
 import {Transformer} from '@parcel/plugin';
-import {createDependencyLocation, isGlob, glob} from '@parcel/utils';
+import {createDependencyLocation, isGlob, glob, globSync} from '@parcel/utils';
 import path from 'path';
+import nativeFS from 'fs';
+import stylus from 'stylus';
+import Parser from 'stylus/lib/parser';
+import DepsResolver from 'stylus/lib/visitor/deps-resolver';
+import nodes from 'stylus/lib/nodes';
+import utils from 'stylus/lib/utils';
+import Evaluator from 'stylus/lib/visitor/evaluator';
 
 const URL_RE = /^(?:url\s*\(\s*)?['"]?(?:[#/]|(?:https?:)?\/\/)/i;
 
@@ -18,6 +24,13 @@ export default (new Transformer({
       if (isJavascript) {
         config.shouldInvalidateOnStartup();
         config.shouldReload();
+      }
+
+      // Resolve relative paths from config file
+      if (configFile.contents.paths) {
+        configFile.contents.paths = configFile.contents.paths.map(p =>
+          path.resolve(path.dirname(configFile.filePath), p),
+        );
       }
 
       config.setResult({
@@ -38,15 +51,8 @@ export default (new Transformer({
 
   async transform({asset, resolve, config, options}) {
     let stylusConfig = config ? config.contents : {};
-    // stylus should be installed locally in the module that's being required
-    let stylus = (await options.packageManager.require(
-      'stylus',
-      asset.filePath,
-      {shouldAutoInstall: options.shouldAutoInstall},
-    ): Stylus);
-
     let code = await asset.getCode();
-    let style = stylus(code, stylusConfig);
+    let style = stylus(code, {...stylusConfig});
     style.set('filename', asset.filePath);
     style.set('include css', true);
     // Setup a handler for the URL function so we add dependencies for linked assets.
@@ -59,9 +65,23 @@ export default (new Transformer({
       });
       return new stylus.nodes.Literal(`url(${JSON.stringify(filename)})`);
     });
+
+    let {resolved: stylusPath} = await options.packageManager.resolve(
+      'stylus',
+      asset.filePath,
+    );
+    let nativeGlob = await options.packageManager.require('glob', stylusPath);
+
     style.set(
       'Evaluator',
-      await createEvaluator(code, asset, resolve, style.options, options),
+      await createEvaluator(
+        code,
+        asset,
+        resolve,
+        style.options,
+        options,
+        nativeGlob,
+      ),
     );
 
     asset.type = 'css';
@@ -78,16 +98,10 @@ async function getDependencies(
   resolve,
   options,
   parcelOptions,
+  nativeGlob,
   seen = new Set(),
 ) {
   seen.add(filepath);
-  const [Parser, DepsResolver, nodes, utils] = await Promise.all(
-    ['parser', 'visitor/deps-resolver', 'nodes', 'utils'].map(dep =>
-      parcelOptions.packageManager.require('stylus/lib/' + dep, filepath, {
-        shouldAutoInstall: options.shouldAutoInstall,
-      }),
-    ),
-  );
 
   nodes.filename = asset.filePath;
 
@@ -101,15 +115,15 @@ async function getDependencies(
 
       if (!deps.has(importedPath)) {
         if (isGlob(importedPath)) {
+          // Invalidate when new files are created that match the glob pattern.
+          let absoluteGlob = path.resolve(path.dirname(filepath), importedPath);
+          asset.invalidateOnFileCreate({glob: absoluteGlob});
+
           deps.set(
             importedPath,
-            glob(
-              path.resolve(path.dirname(filepath), importedPath),
-              parcelOptions.inputFS,
-              {
-                onlyFiles: true,
-              },
-            ).then(entries =>
+            glob(absoluteGlob, asset.fs, {
+              onlyFiles: true,
+            }).then(entries =>
               Promise.all(
                 entries.map(entry =>
                   resolve(
@@ -140,7 +154,7 @@ async function getDependencies(
       }
 
       let found;
-      if (resolved) {
+      if (resolved && (!Array.isArray(resolved) || resolved.length > 0)) {
         found = Array.isArray(resolved) ? resolved : [resolved];
         res.set(importedPath, resolved);
       } else {
@@ -153,10 +167,22 @@ async function getDependencies(
           importedPath += '.styl';
         }
 
-        let paths = (options.paths || []).concat(path.dirname(filepath || '.'));
+        // Patch the native FS so we use Parcel's FS, and track files that are
+        // checked so we invalidate the cache when they are created.
+        let restore = patchNativeFS(asset.fs, nativeGlob);
+
+        let paths = [
+          ...new Set(
+            (options.paths || []).concat(path.dirname(filepath || '.')),
+          ),
+        ];
         found = utils.find(importedPath, paths, filepath);
         if (!found) {
           found = utils.lookupIndex(originalPath, paths, filepath);
+        }
+
+        for (let invalidation of restore()) {
+          asset.invalidateOnFileCreate(invalidation);
         }
 
         if (!found) {
@@ -177,6 +203,7 @@ async function getDependencies(
             resolve,
             options,
             parcelOptions,
+            nativeGlob,
             seen,
           )) {
             res.set(path, resolvedPath);
@@ -189,7 +216,14 @@ async function getDependencies(
   return res;
 }
 
-async function createEvaluator(code, asset, resolve, options, parcelOptions) {
+async function createEvaluator(
+  code,
+  asset,
+  resolve,
+  options,
+  parcelOptions,
+  nativeGlob,
+) {
   const deps = await getDependencies(
     code,
     asset.filePath,
@@ -197,10 +231,7 @@ async function createEvaluator(code, asset, resolve, options, parcelOptions) {
     resolve,
     options,
     parcelOptions,
-  );
-  const Evaluator = await parcelOptions.packageManager.require(
-    'stylus/lib/visitor/evaluator',
-    asset.filePath,
+    nativeGlob,
   );
 
   // This is a custom stylus evaluator that extends stylus with support for the node
@@ -225,19 +256,77 @@ async function createEvaluator(code, asset, resolve, options, parcelOptions) {
             return mergeBlocks(
               resolved.map(resolvedPath => {
                 node.string = resolvedPath;
-                return super.visitImport(imported.clone());
+                let restore = patchNativeFS(asset.fs, nativeGlob);
+                let res = super.visitImport(imported.clone());
+                restore();
+                return res;
               }),
             );
           }
         }
       }
 
+      // Patch the native FS so stylus uses Parcel's FS to read the file.
+      let restore = patchNativeFS(asset.fs, nativeGlob);
+
       // Done. Let stylus do its thing.
-      return super.visitImport(imported);
+      let res = super.visitImport(imported);
+
+      restore();
+      return res;
     }
   }
 
   return CustomEvaluator;
+}
+
+function patchNativeFS(fs, nativeGlob) {
+  let invalidations = [];
+  let readFileSync = nativeFS.readFileSync;
+  let statSync = nativeFS.statSync;
+
+  // $FlowFixMe
+  nativeFS.readFileSync = (filename, encoding) => {
+    return fs.readFileSync(filename, encoding);
+  };
+
+  // $FlowFixMe
+  nativeFS.statSync = p => {
+    try {
+      return fs.statSync(p);
+    } catch (err) {
+      // Track files that were checked but don't exist so that we watch for their creation.
+      if (!p.includes(`node_modules${path.sep}stylus`)) {
+        invalidations.push({filePath: p});
+      }
+      throw err;
+    }
+  };
+
+  // Patch the `glob` module as well so we use the Parcel FS and track invalidations.
+  let glob = nativeGlob.sync;
+  nativeGlob.sync = p => {
+    let res = globSync(p, fs);
+    if (!p.includes('node_modules/stylus')) {
+      // Sometimes stylus passes file paths with no glob parts to the `glob` module.
+      // We want to avoid treating these as globs for performance.
+      if (isGlob(p)) {
+        invalidations.push({glob: p});
+      } else if (res.length === 0) {
+        invalidations.push({filePath: p});
+      }
+    }
+    return res;
+  };
+
+  return () => {
+    // $FlowFixMe
+    nativeFS.readFileSync = readFileSync;
+    // $FlowFixMe
+    nativeFS.statSync = statSync;
+    nativeGlob.sync = glob;
+    return invalidations;
+  };
 }
 
 /**

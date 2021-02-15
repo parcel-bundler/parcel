@@ -58,9 +58,7 @@ async function loadConfig(cachePath, options) {
   config = new ParcelConfig(
     // $FlowFixMe
     ((processedConfig: any): ProcessedParcelConfig),
-    options.packageManager,
-    options.inputFS,
-    options.shouldAutoInstall,
+    options,
   );
   parcelConfigCache.set(cachePath, config);
   return config;
@@ -130,12 +128,7 @@ export async function runPackage(
     configRef,
     // $FlowFixMe
   ): any): ProcessedParcelConfig);
-  let parcelConfig = new ParcelConfig(
-    processedConfig,
-    options.packageManager,
-    options.inputFS,
-    options.shouldAutoInstall,
-  );
+  let parcelConfig = new ParcelConfig(processedConfig, options);
 
   let runner = new PackagerRunner({
     config: parcelConfig,
@@ -174,6 +167,8 @@ export function invalidateRequireCache(workerApi: WorkerApi, file: string) {
         }
       }
     }
+
+    parcelConfigCache.clear();
     return;
   }
 
