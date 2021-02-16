@@ -3879,6 +3879,95 @@ describe('cache', function() {
         await workerFarm.end();
       }
     });
+
+    describe('postcss', function() {
+      it('should invalidate when a postcss plugin changes', async function() {
+        let b = await testCache(
+          {
+            entries: ['index.css'],
+            async setup() {
+              await overlayFS.mkdirp(path.join(inputDir, 'node_modules'));
+              await ncp(
+                path.join(
+                  path.join(
+                    __dirname,
+                    'integration',
+                    'postcss-autoinstall',
+                    'postcss-test',
+                  ),
+                ),
+                path.join(inputDir, 'node_modules', 'postcss-test'),
+              );
+            },
+            async update(b) {
+              let output = await overlayFS.readFile(
+                b.bundleGraph.getBundles()[0].filePath,
+                'utf8',
+              );
+              assert(output.includes('background: green'));
+
+              let plugin = path.join(
+                inputDir,
+                'node_modules',
+                'postcss-test',
+                'index.js',
+              );
+              let pluginContents = await overlayFS.readFile(plugin, 'utf8');
+              await overlayFS.writeFile(
+                plugin,
+                pluginContents.replace('green', 'blue'),
+              );
+            },
+          },
+          'postcss-autoinstall/npm',
+        );
+
+        let output = await overlayFS.readFile(
+          b.bundleGraph.getBundles()[0].filePath,
+          'utf8',
+        );
+        assert(output.includes('background: blue'));
+      });
+
+      it('should invalidate when a JS postcss config changes', async function() {
+        let b = await testCache(
+          {
+            entries: ['style.css'],
+            inputFS,
+            outputFS: inputFS,
+            async setup() {
+              await inputFS.mkdirp(inputDir);
+              await inputFS.ncp(
+                path.join(__dirname, '/integration/postcss-js-config-7'),
+                inputDir,
+              );
+            },
+            async update(b) {
+              let output = await inputFS.readFile(
+                b.bundleGraph.getBundles()[0].filePath,
+                'utf8',
+              );
+              assert(output.includes('background-color: red;'));
+
+              let config = path.join(inputDir, 'postcss.config.js');
+              let configContents = await inputFS.readFile(config, 'utf8');
+              await inputFS.writeFile(
+                config,
+                configContents.replace('red', 'blue'),
+              );
+              await sleep(100);
+            },
+          },
+          'postcss-js-config-7',
+        );
+
+        let output = await inputFS.readFile(
+          b.bundleGraph.getBundles()[0].filePath,
+          'utf8',
+        );
+        assert(output.includes('background-color: blue'));
+      });
+    });
   });
 
   describe('bundler config', function() {
