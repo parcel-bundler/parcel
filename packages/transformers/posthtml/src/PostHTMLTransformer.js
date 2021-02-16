@@ -23,26 +23,13 @@ export default (new Transformer({
       let isJavascript = path.extname(configFile.filePath) === '.js';
       if (isJavascript) {
         config.shouldInvalidateOnStartup();
-        config.shouldReload();
       }
 
       // tells posthtml that we have already called parse
       configFile.contents.skipParse = true;
       delete configFile.contents.render;
 
-      config.setResult({
-        contents: configFile.contents,
-        isSerialisable: !isJavascript,
-      });
-    }
-  },
-
-  preSerializeConfig({config}) {
-    if (!config.result) return;
-
-    // Ensure we dont try to serialise functions
-    if (!config.result.isSerialisable) {
-      config.result.contents = {};
+      config.setResult(configFile.contents);
     }
   },
 
@@ -71,15 +58,11 @@ export default (new Transformer({
     }
 
     // load plugins
-    const plugins = await loadPlugins(
-      config.contents.plugins,
-      asset.filePath,
-      options,
-    );
+    const plugins = await loadPlugins(config.plugins, asset.filePath, options);
 
     let ast = nullthrows(await asset.getAST());
     let res = await posthtml(plugins).process(ast.program, {
-      ...config.contents,
+      ...config,
       plugins,
     });
 

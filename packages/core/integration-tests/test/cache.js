@@ -194,32 +194,14 @@ describe('cache', function() {
       // {name: 'babel.config.mjs', formatter: mjs, nesting: false}
     ];
 
-    let testBabelCache = async (opts: TestConfig) => {
-      await workerFarm.callAllWorkers('invalidateRequireCache', [
-        packageManager.resolveSync('@parcel/transformer-babel', __filename)
-          ?.resolved,
-      ]);
-
+    before(async () => {
+      // Invalidate @babel/core before any of these tests run so that it is required
+      // through NodePackageManager and we are able to track module children.
+      // Otherwise, it will already have been loaded by @babel/register.
       await workerFarm.callAllWorkers('invalidateRequireCache', [
         packageManager.resolveSync('@babel/core', __filename)?.resolved,
       ]);
-
-      return testCache({
-        ...opts,
-        async update(...args) {
-          await opts.update(...args);
-
-          // invalidate babel's caches since we're simulating a process restart
-          await workerFarm.callAllWorkers('invalidateRequireCache', [
-            packageManager.resolveSync('@parcel/transformer-babel', __filename)
-              ?.resolved,
-          ]);
-          await workerFarm.callAllWorkers('invalidateRequireCache', [
-            packageManager.resolveSync('@babel/core', __filename)?.resolved,
-          ]);
-        },
-      });
-    };
+    });
 
     for (let {name, formatter, nesting} of configs) {
       describe(name, function() {
@@ -230,7 +212,7 @@ describe('cache', function() {
         });
 
         it(`should support adding a ${name}`, async function() {
-          let b = await testBabelCache({
+          let b = await testCache({
             // Babel's config loader only works with the node filesystem
             inputFS,
             outputFS: inputFS,
@@ -260,6 +242,20 @@ describe('cache', function() {
                 }),
               );
 
+              // At the moment, adding a JS config requires restarting the process
+              // due to https://github.com/babel/babel/pull/12211. Simulate this
+              // by clearing the require cache for @parcel/transformer-babel and @babel/core.
+              await workerFarm.callAllWorkers('invalidateRequireCache', [
+                packageManager.resolveSync(
+                  '@parcel/transformer-babel',
+                  __filename,
+                )?.resolved,
+              ]);
+
+              await workerFarm.callAllWorkers('invalidateRequireCache', [
+                packageManager.resolveSync('@babel/core', __filename)?.resolved,
+              ]);
+
               await sleep(100);
             },
           });
@@ -277,7 +273,7 @@ describe('cache', function() {
         });
 
         it(`should support updating a ${name}`, async function() {
-          let b = await testBabelCache({
+          let b = await testCache({
             // Babel's config loader only works with the node filesystem
             inputFS,
             outputFS: inputFS,
@@ -332,7 +328,7 @@ describe('cache', function() {
         });
 
         it(`should support deleting a ${name}`, async function() {
-          let b = await testBabelCache({
+          let b = await testCache({
             // Babel's config loader only works with the node filesystem
             inputFS,
             outputFS: inputFS,
@@ -376,7 +372,7 @@ describe('cache', function() {
 
         it(`should support updating an extended ${name}`, async function() {
           let extendedName = '.babelrc-extended' + path.extname(name);
-          let b = await testBabelCache({
+          let b = await testCache({
             // Babel's config loader only works with the node filesystem
             inputFS,
             outputFS: inputFS,
@@ -441,7 +437,7 @@ describe('cache', function() {
 
         if (nesting) {
           it(`should support adding a nested ${name}`, async function() {
-            let b = await testBabelCache({
+            let b = await testCache({
               // Babel's config loader only works with the node filesystem
               inputFS,
               outputFS: inputFS,
@@ -475,6 +471,21 @@ describe('cache', function() {
                   }),
                 );
 
+                // At the moment, adding a JS config requires restarting the process
+                // due to https://github.com/babel/babel/pull/12211. Simulate this
+                // by clearing the require cache for @parcel/transformer-babel and @babel/core.
+                await workerFarm.callAllWorkers('invalidateRequireCache', [
+                  packageManager.resolveSync(
+                    '@parcel/transformer-babel',
+                    __filename,
+                  )?.resolved,
+                ]);
+
+                await workerFarm.callAllWorkers('invalidateRequireCache', [
+                  packageManager.resolveSync('@babel/core', __filename)
+                    ?.resolved,
+                ]);
+
                 await sleep(100);
               },
             });
@@ -496,7 +507,7 @@ describe('cache', function() {
           });
 
           it(`should support updating a nested ${name}`, async function() {
-            let b = await testBabelCache({
+            let b = await testCache({
               // Babel's config loader only works with the node filesystem
               inputFS,
               outputFS: inputFS,
@@ -562,7 +573,7 @@ describe('cache', function() {
           });
 
           it(`should support deleting a nested ${name}`, async function() {
-            let b = await testBabelCache({
+            let b = await testCache({
               // Babel's config loader only works with the node filesystem
               inputFS,
               outputFS: inputFS,
@@ -617,7 +628,7 @@ describe('cache', function() {
 
     describe('.babelignore', function() {
       it('should support adding a .babelignore', async function() {
-        let b = await testBabelCache({
+        let b = await testCache({
           // Babel's config loader only works with the node filesystem
           inputFS,
           outputFS: inputFS,
@@ -672,7 +683,7 @@ describe('cache', function() {
       });
 
       it('should support updating a .babelignore', async function() {
-        let b = await testBabelCache({
+        let b = await testCache({
           // Babel's config loader only works with the node filesystem
           inputFS,
           outputFS: inputFS,
@@ -727,7 +738,7 @@ describe('cache', function() {
       });
 
       it('should support deleting a .babelignore', async function() {
-        let b = await testBabelCache({
+        let b = await testCache({
           // Babel's config loader only works with the node filesystem
           inputFS,
           outputFS: inputFS,
@@ -780,8 +791,8 @@ describe('cache', function() {
     });
 
     describe('plugins', function() {
-      it('should invalidate when plugins change versions', async function() {
-        let b = await testBabelCache({
+      it('should invalidate when plugins are updated', async function() {
+        let b = await testCache({
           // Babel's config loader only works with the node filesystem
           inputFS,
           outputFS: inputFS,
@@ -842,21 +853,6 @@ describe('cache', function() {
               source.replace('hello there', 'replaced'),
             );
 
-            await inputFS.writeFile(
-              path.join(
-                inputDir,
-                'node_modules/babel-plugin-dummy/package.json',
-              ),
-              JSON.stringify({
-                name: 'babel-plugin-dummy',
-                version: '2.0.0',
-              }),
-            );
-
-            await workerFarm.callAllWorkers('invalidateRequireCache', [
-              path.join(inputDir, 'node_modules/babel-plugin-dummy/index.js'),
-            ]);
-
             await sleep(100);
           },
         });
@@ -868,8 +864,8 @@ describe('cache', function() {
         assert(contents.includes('replaced'), 'string should be replaced');
       });
 
-      it('should invalidate on startup when there are relative plugins', async function() {
-        let b = await testBabelCache({
+      it('should invalidate when there are relative plugins', async function() {
+        let b = await testCache({
           // Babel's config loader only works with the node filesystem
           inputFS,
           outputFS: inputFS,
@@ -914,10 +910,6 @@ describe('cache', function() {
               source.replace('hello there', 'replaced'),
             );
 
-            await workerFarm.callAllWorkers('invalidateRequireCache', [
-              path.join(inputDir, 'babel-plugin-dummy.js'),
-            ]);
-
             await sleep(100);
           },
         });
@@ -929,14 +921,14 @@ describe('cache', function() {
         assert(contents.includes('replaced'), 'string should be replaced');
       });
 
-      it('should invalidate on startup when there are symlinked plugins', async function() {
+      it('should invalidate when there are symlinked plugins', async function() {
         // Symlinks don't work consistently on windows. Skip this test.
         if (process.platform === 'win32') {
           this.skip();
           return;
         }
 
-        let b = await testBabelCache({
+        let b = await testCache({
           // Babel's config loader only works with the node filesystem
           inputFS,
           outputFS: inputFS,
@@ -998,10 +990,6 @@ describe('cache', function() {
               plugin,
               source.replace('hello there', 'replaced'),
             );
-
-            await workerFarm.callAllWorkers('invalidateRequireCache', [
-              path.join(inputDir, 'packages/babel-plugin-dummy/index.js'),
-            ]);
 
             await sleep(100);
           },

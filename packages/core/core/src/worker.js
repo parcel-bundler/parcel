@@ -51,7 +51,7 @@ function loadOptions(ref, workerApi) {
 
 async function loadConfig(cachePath, options) {
   let config = parcelConfigCache.get(cachePath);
-  if (config) {
+  if (config && config.options === options) {
     return config;
   }
 

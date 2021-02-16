@@ -113,7 +113,7 @@ export type RunAPI = {|
   invalidateOnOptionChange: string => void,
   getInvalidations(): Array<RequestInvalidation>,
   storeResult: (result: mixed, cacheKey?: string) => void,
-  getRequestResult: (id: string) => Async<?mixed>,
+  getRequestResult<T>(id: string): Async<?T>,
   getSubRequests(): Array<StoredRequest>,
   canSkipSubrequest(string): boolean,
   runRequest: <TInput, TResult>(
@@ -765,7 +765,7 @@ export default class RequestTracker {
   createAPI(requestId: string): {|api: RunAPI, subRequests: Set<NodeId>|} {
     let subRequests = new Set();
     let invalidations = this.graph.getInvalidations(requestId);
-    let api = {
+    let api: RunAPI = {
       invalidateOnFileCreate: input =>
         this.graph.invalidateOnFileCreate(requestId, input),
       invalidateOnFileDelete: filePath =>
@@ -786,7 +786,7 @@ export default class RequestTracker {
         this.storeResult(requestId, result, cacheKey);
       },
       getSubRequests: () => this.graph.getSubRequests(requestId),
-      getRequestResult: id => this.getRequestResult(id),
+      getRequestResult: <T>(id): Async<?T> => this.getRequestResult<T>(id),
       canSkipSubrequest: id => {
         if (this.hasValidResult(id)) {
           subRequests.add(id);

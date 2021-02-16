@@ -7,12 +7,15 @@ import type {
   PackageJSON,
   PackageName,
   ConfigResultWithFilePath,
+  ConfigDevDepOptions,
+  Transformer,
 } from '@parcel/types';
-import type {Config, ParcelOptions} from '../types';
+import type {Config, DevDepRequest, ParcelOptions} from '../types';
+import type {LoadedPlugin} from '../ParcelConfig';
 
 import {DefaultWeakMap, loadConfig} from '@parcel/utils';
-
 import Environment from './Environment';
+import {getInvalidationHash} from '../assetUtils';
 
 const internalConfigToConfig: DefaultWeakMap<
   ParcelOptions,
@@ -21,15 +24,23 @@ const internalConfigToConfig: DefaultWeakMap<
 
 export default class PublicConfig implements IConfig {
   #config /*: Config */;
+  #plugin /*: LoadedPlugin<Transformer> */;
+  #pkg /*: ?PackageJSON */;
+  #pkgFilePath /*: ?FilePath */;
   #options /*: ParcelOptions */;
 
-  constructor(config: Config, options: ParcelOptions): PublicConfig {
+  constructor(
+    config: Config,
+    plugin: LoadedPlugin<Transformer>,
+    options: ParcelOptions,
+  ): PublicConfig {
     let existing = internalConfigToConfig.get(options).get(config);
     if (existing != null) {
       return existing;
     }
 
     this.#config = config;
+    this.#plugin = plugin;
     this.#options = options;
     internalConfigToConfig.get(options).set(config, this);
     return this;
@@ -68,20 +79,50 @@ export default class PublicConfig implements IConfig {
     this.#config.includedFiles.add(filePath);
   }
 
-  addDevDependency(name: PackageName, version?: string) {
-    this.#config.devDeps.set(name, version);
+  async addDevDependency(
+    name: PackageName,
+    resolveFrom: FilePath,
+    options?: ConfigDevDepOptions,
+  ): Promise<void> {
+    // Ensure that the package manager has an entry for this resolution.
+    await this.#options.packageManager.resolve(name, resolveFrom);
+    let invalidations = this.#options.packageManager.getInvalidations(
+      name,
+      resolveFrom,
+    );
+
+    let hash = await getInvalidationHash(
+      [...invalidations.invalidateOnFileChange].map(f => ({
+        type: 'file',
+        filePath: f,
+      })),
+      this.#options,
+    );
+
+    let devDep: DevDepRequest = {
+      name,
+      resolveFrom,
+      hash,
+      invalidateOnFileCreate: invalidations.invalidateOnFileCreate,
+      invalidateOnFileChange: invalidations.invalidateOnFileChange,
+    };
+
+    // Optionally also invalidate the parcel plugin that is loading the config
+    // when this dev dep changes (e.g. to invalidate local caches).
+    if (options?.invalidateParcelPlugin) {
+      devDep.additionalInvalidations = [
+        {
+          name: this.#plugin.name,
+          resolveFrom: this.#plugin.resolveFrom,
+        },
+      ];
+    }
+
+    this.#config.devDeps.push(devDep);
   }
 
   invalidateOnFileCreate(invalidation: FileCreateInvalidation) {
     this.#config.invalidateOnFileCreate.push(invalidation);
-  }
-
-  shouldRehydrate() {
-    this.#config.shouldRehydrate = true;
-  }
-
-  shouldReload() {
-    this.#config.shouldReload = true;
   }
 
   shouldInvalidateOnStartup() {
@@ -104,7 +145,7 @@ export default class PublicConfig implements IConfig {
         return {
           contents: pkg[packageKey],
           // This should be fine as pkgFilePath should be defined by getPackage()
-          filePath: this.#config.pkgFilePath || '',
+          filePath: this.#pkgFilePath || '',
         };
       }
     }
@@ -147,8 +188,8 @@ export default class PublicConfig implements IConfig {
   }
 
   async getPackage(): Promise<PackageJSON | null> {
-    if (this.#config.pkg) {
-      return this.#config.pkg;
+    if (this.#pkg) {
+      return this.#pkg;
     }
 
     let pkgConfig = await this.getConfig(['package.json']);
@@ -156,9 +197,9 @@ export default class PublicConfig implements IConfig {
       return null;
     }
 
-    this.#config.pkg = pkgConfig.contents;
-    this.#config.pkgFilePath = pkgConfig.filePath;
+    this.#pkg = pkgConfig.contents;
+    this.#pkgFilePath = pkgConfig.filePath;
 
-    return this.#config.pkg;
+    return this.#pkg;
   }
 }

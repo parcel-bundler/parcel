@@ -5,6 +5,7 @@ import type {StaticRunOpts} from '../RequestTracker';
 import type {
   AssetRequestInput,
   AssetRequestResult,
+  DevDepRequest,
   TransformationRequest,
 } from '../types';
 import type {ConfigAndCachePath} from './ParcelConfigRequest';
@@ -13,7 +14,6 @@ import type {TransformationResult} from '../Transformation';
 import {md5FromOrderedObject, objectSortedEntries} from '@parcel/utils';
 import nullthrows from 'nullthrows';
 import createParcelConfigRequest from './ParcelConfigRequest';
-import invariant from 'assert';
 
 type RunInput = {|
   input: AssetRequestInput,
@@ -26,10 +26,6 @@ export type AssetRequest = {|
   run: RunInput => Async<AssetRequestResult>,
   input: AssetRequestInput,
 |};
-
-function generateRequestId(type, obj) {
-  return `${type}:${md5FromOrderedObject(obj)}`;
-}
 
 export default function createAssetRequest(
   input: AssetRequestInput,
@@ -67,6 +63,18 @@ async function run({input, api, farm, invalidateReason}: RunInput) {
     await api.runRequest<null, ConfigAndCachePath>(createParcelConfigRequest()),
   );
 
+  let previousDevDepRequests = new Map(
+    await Promise.all(
+      api
+        .getSubRequests()
+        .filter(req => req.type === 'dev_dep_request')
+        .map(async req => [
+          req.id,
+          nullthrows(await api.getRequestResult<DevDepRequest>(req.id)),
+        ]),
+    ),
+  );
+
   let request: TransformationRequest = {
     ...rest,
     invalidateReason,
@@ -79,21 +87,22 @@ async function run({input, api, farm, invalidateReason}: RunInput) {
       );
     }),
     devDeps: new Map(
-      await Promise.all(
-        api
-          .getSubRequests()
-          .filter(
-            req =>
-              req.type === 'dev_dep_request' && api.canSkipSubrequest(req.id),
-          )
-          .map(async req => {
-            let res = nullthrows(await api.getRequestResult(req.id));
-            invariant(
-              typeof res.name === 'string' && typeof res.hash === 'string',
-            );
-            return [res.name, res.hash];
-          }),
-      ),
+      [...previousDevDepRequests.entries()]
+        .filter(([id]) => api.canSkipSubrequest(id))
+        .map(([, req]) => [req.name, req.hash]),
+    ),
+    invalidDevDeps: await Promise.all(
+      [...previousDevDepRequests.entries()]
+        .filter(([id]) => !api.canSkipSubrequest(id))
+        .flatMap(([, req]) => {
+          return [
+            {
+              name: req.name,
+              resolveFrom: req.resolveFrom,
+            },
+            ...(req.additionalInvalidations ?? []),
+          ];
+        }),
     ),
   };
 
@@ -154,6 +163,7 @@ async function run({input, api, farm, invalidateReason}: RunInput) {
 
         api.storeResult({
           name: devDepRequest.name,
+          resolveFrom: devDepRequest.resolveFrom,
           hash: devDepRequest.hash,
         });
       },
@@ -162,17 +172,16 @@ async function run({input, api, farm, invalidateReason}: RunInput) {
   }
 
   // Add config requests
-  for (let {request, result} of configRequests) {
-    let id = generateRequestId('config_request', request);
+  for (let config of configRequests) {
     await api.runRequest<null, void>({
-      id,
+      id: 'config_request:' + config.id,
       type: 'config_request',
       run: ({api}) => {
         let {
           includedFiles,
           invalidateOnFileCreate,
           shouldInvalidateOnStartup,
-        } = result;
+        } = config;
         for (let filePath of includedFiles) {
           api.invalidateOnFileUpdate(filePath);
           api.invalidateOnFileDelete(filePath);
@@ -189,26 +198,37 @@ async function run({input, api, farm, invalidateReason}: RunInput) {
       input: null,
     });
 
-    // Add dep version requests
-    // TODO: add dev deps for configs
-    // for (let [moduleSpecifier] of result.devDeps) {
-    //   let depVersionRequst = {
-    //     moduleSpecifier,
-    //     resolveFrom:
-    //       result.pkgFilePath != null ? result.pkgFilePath : result.searchPath,
-    //   };
-    //   let id = generateRequestId('dep_version_request', depVersionRequst);
-    //   await api.runRequest<null, void>({
-    //     id,
-    //     type: 'version_request',
-    //     run: ({api}) => {
-    //       if (options.lockFile != null) {
-    //         api.invalidateOnFileUpdate(options.lockFile);
-    //       }
-    //     },
-    //     input: null,
-    //   });
-    // }
+    // Add dev dependencies for the config (e.g. plugins). These are connected directly
+    // to the asset request rather than the config request at the moment, which allows us
+    // to get a flattened list of dev deps to send to the transformer on the next request.
+    for (let devDepRequest of config.devDeps) {
+      await api.runRequest<null, void>({
+        id: 'dev_dep_request:' + devDepRequest.name + ':' + devDepRequest.hash,
+        type: 'dev_dep_request',
+        run: ({api}) => {
+          for (let filePath of nullthrows(
+            devDepRequest.invalidateOnFileChange,
+          )) {
+            api.invalidateOnFileUpdate(filePath);
+            api.invalidateOnFileDelete(filePath);
+          }
+
+          for (let invalidation of nullthrows(
+            devDepRequest.invalidateOnFileCreate,
+          )) {
+            api.invalidateOnFileCreate(invalidation);
+          }
+
+          api.storeResult({
+            name: devDepRequest.name,
+            resolveFrom: devDepRequest.resolveFrom,
+            hash: devDepRequest.hash,
+            additionalInvalidations: devDepRequest.additionalInvalidations,
+          });
+        },
+        input: null,
+      });
+    }
   }
 
   return assets;
