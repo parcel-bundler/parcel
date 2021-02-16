@@ -1,3 +1,14 @@
+var $parcel$global =
+  typeof globalThis !== 'undefined'
+    ? globalThis
+    : typeof self !== 'undefined'
+    ? self
+    : typeof window !== 'undefined'
+    ? window
+    : typeof global !== 'undefined'
+    ? global
+    : {};
+
 function $parcel$interopDefault(a) {
   return a && a.__esModule ? a.default : a;
 }
@@ -32,14 +43,3 @@ function $parcel$missingModule(name) {
   err.code = 'MODULE_NOT_FOUND';
   throw err;
 }
-
-var $parcel$global =
-  typeof globalThis !== 'undefined'
-    ? globalThis
-    : typeof self !== 'undefined'
-    ? self
-    : typeof window !== 'undefined'
-    ? window
-    : typeof global !== 'undefined'
-    ? global
-    : {};
