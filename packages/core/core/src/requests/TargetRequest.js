@@ -105,10 +105,10 @@ export class TargetResolver {
 
   async resolve(
     rootDir: FilePath,
-    exclusiveTarget: String,
+    exclusiveTarget?: string,
   ): Promise<Array<Target>> {
     let optionTargets = this.options.targets;
-    if (exclusiveTarget && optionTargets == null) {
+    if (exclusiveTarget != null && optionTargets == null) {
       optionTargets = [exclusiveTarget];
     }
 
@@ -145,7 +145,7 @@ export class TargetResolver {
       } else {
         // Otherwise, it's an object map of target descriptors (similar to those
         // in package.json). Adapt them to native targets.
-        targets = Object.entries(optionTargets)
+        targets = (Object.entries(optionTargets)
           .map(([name, _descriptor]) => {
             let {distDir, ...descriptor} = parseDescriptor(
               name,
@@ -153,9 +153,9 @@ export class TargetResolver {
               null,
               JSON.stringify({targets: optionTargets}, null, '\t'),
             );
-            if (this.skipTarget(name, exclusiveTarget, _descriptor)) {
-              return null;
-            }
+            // if (this.skipTarget(name, exclusiveTarget, descriptor.source)) {
+            //   return null;
+            // }
             if (distDir == null) {
               let optionTargetsString = JSON.stringify(
                 optionTargets,
@@ -169,7 +169,7 @@ export class TargetResolver {
                   codeFrame: {
                     code: optionTargetsString,
                     codeHighlights: generateJSONCodeHighlights(
-                      optionTargetsString,
+                      optionTargetsString || '',
                       [
                         {
                           key: `/${name}`,
@@ -212,7 +212,7 @@ export class TargetResolver {
 
             return target;
           })
-          .filter(value => value != null);
+          .filter(value => value != null): Array<Target>);
       }
 
       let serve = this.options.serveOptions;
@@ -262,7 +262,11 @@ export class TargetResolver {
         ];
       } else {
         targets = Array.from(packageTargets.values()).filter(descriptor => {
-          return !this.skipTarget(descriptor.name, exclusiveTarget, descriptor);
+          return !this.skipTarget(
+            descriptor.name,
+            exclusiveTarget,
+            descriptor.source,
+          );
         });
       }
     }
@@ -270,18 +274,22 @@ export class TargetResolver {
     return targets;
   }
 
-  skipTarget(targetName: String, exclusiveTarget: String, descriptor) {
+  skipTarget(
+    targetName: string,
+    exclusiveTarget?: string,
+    descriptorSource?: string,
+  ): boolean {
     //  We skip targets if they have a descriptor.source and don't match the current exclusiveTarget
     //  They will be handled by a separate resolvePackageTargets call from their Entry point
     //  but with exclusiveTarget set.
     return exclusiveTarget == null
-      ? descriptor.source != null
+      ? descriptorSource != null
       : targetName !== exclusiveTarget;
   }
 
   async resolvePackageTargets(
     rootDir: FilePath,
-    exclusiveTarget: String,
+    exclusiveTarget?: string,
   ): Promise<Map<string, Target>> {
     let rootFile = path.join(rootDir, 'index');
     let conf = await loadConfig(this.fs, rootFile, ['package.json']);
@@ -468,7 +476,7 @@ export class TargetResolver {
           pkgContents,
         );
 
-        if (this.skipTarget(targetName, exclusiveTarget, descriptor)) {
+        if (this.skipTarget(targetName, exclusiveTarget, descriptor.source)) {
           continue;
         }
 
@@ -574,7 +582,9 @@ export class TargetResolver {
           pkgFilePath,
           pkgContents,
         );
-        if (this.skipTarget(targetName, exclusiveTarget, descriptor)) {
+        if (
+          this.skipTarget(targetName, exclusiveTarget, descriptor.source || '')
+        ) {
           continue;
         }
         let pkgDir = path.dirname(nullthrows(pkgFilePath));

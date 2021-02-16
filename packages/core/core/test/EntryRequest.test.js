@@ -35,9 +35,11 @@ describe('EntryResolver', () => {
       ...DEFAULT_OPTIONS,
       targets: {
         alternate: {
+          distDir: '',
           source: 'src/indexAlternate.js',
         },
         browser: {
+          distDir: '',
           engines: {
             browsers: ['last 1 Chrome version'],
           },

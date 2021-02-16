@@ -133,6 +133,7 @@ export type PackageTargetDescriptor = {|
   +isLibrary?: boolean,
   +optimize?: boolean,
   +scopeHoist?: boolean,
+  +source?: string,
 |};
 
 /**

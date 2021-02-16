@@ -165,7 +165,9 @@ export class EntryResolver {
     throw new Error(`Unknown entry ${entry}`);
   }
 
-  async readPackage(entry: FilePath) {
+  // Disabling flow because it's complaining that this function is typed as 'any'... but it really should be typed as 'any'
+  // $FlowFixMe
+  async readPackage(entry: FilePath): any {
     let content, pkg;
     let pkgFile = path.join(entry, 'package.json');
     try {
@@ -184,7 +186,6 @@ export class EntryResolver {
       );
     }
 
-    pkg.filePath = pkgFile;
-    return pkg;
+    return {...pkg, filePath: pkgFile};
   }
 }
