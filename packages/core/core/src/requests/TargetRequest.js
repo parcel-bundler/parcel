@@ -283,13 +283,14 @@ export class TargetResolver {
     rootDir: FilePath,
     exclusiveTarget: String,
   ): Promise<Map<string, Target>> {
-    let conf = await loadConfig(this.fs, path.join(rootDir, 'index'), [
-      'package.json',
-    ]);
+    let rootFile = path.join(rootDir, 'index');
+    let conf = await loadConfig(this.fs, rootFile, ['package.json']);
 
     // Invalidate whenever a package.json file is added.
-    // TODO: we really only need to invalidate if added *above* rootDir...
-    this.api.invalidateOnFileCreate(`**/package.json`);
+    this.api.invalidateOnFileCreate({
+      fileName: 'package.json',
+      aboveFilePath: rootFile,
+    });
 
     let pkg;
     let pkgContents;
@@ -352,7 +353,15 @@ export class TargetResolver {
           ['browserslist', '.browserslistrc'],
         );
 
-        this.api.invalidateOnFileCreate('**/{browserslist,.browserslistrc}');
+        this.api.invalidateOnFileCreate({
+          fileName: 'browserslist',
+          aboveFilePath: rootFile,
+        });
+
+        this.api.invalidateOnFileCreate({
+          fileName: '.browserslistrc',
+          aboveFilePath: rootFile,
+        });
 
         if (browserslistConfig != null) {
           let contents = await this.fs.readFile(browserslistConfig, 'utf8');

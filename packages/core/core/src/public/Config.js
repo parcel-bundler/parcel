@@ -2,8 +2,8 @@
 import type {
   Config as IConfig,
   ConfigResult,
+  FileCreateInvalidation,
   FilePath,
-  Glob,
   PackageJSON,
   PackageName,
   ConfigResultWithFilePath,
@@ -72,8 +72,8 @@ export default class PublicConfig implements IConfig {
     this.#config.devDeps.set(name, version);
   }
 
-  setWatchGlob(glob: Glob) {
-    this.#config.watchGlob = glob;
+  invalidateOnFileCreate(invalidation: FileCreateInvalidation) {
+    this.#config.invalidateOnFileCreate.push(invalidation);
   }
 
   shouldRehydrate() {

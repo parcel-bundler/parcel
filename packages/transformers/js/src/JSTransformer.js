@@ -184,7 +184,12 @@ export default (new Transformer({
 
     // Collect dependencies
     if (code == null || canHaveDependencies(code)) {
-      walkAncestor(ast.program, collectDependencies, {asset, ast, options});
+      walkAncestor(ast.program, collectDependencies, {
+        asset,
+        ast,
+        options,
+        logger,
+      });
     }
 
     // If there's a hashbang, remove it and store it on the asset meta.

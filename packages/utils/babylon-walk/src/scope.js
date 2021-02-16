@@ -63,14 +63,20 @@ export class Scope {
     return uid;
   }
 
-  addBinding(name: string, decl: Node, type: BindingType) {
-    if (type === 'var' && type != 'block' && this.parent) {
+  addBinding(name: string, decl: Node, type: BindingType | 'param') {
+    if (
+      type === 'var' &&
+      this.type !== 'function' &&
+      this.type !== 'arrow_function' &&
+      this.parent
+    ) {
       this.parent.addBinding(name, decl, type);
     } else {
+      if (type === 'param') type = 'var';
       this.names.add(name);
       this.bindings.set(name, decl);
+      this.program.names.add(name);
     }
-    this.program.names.add(name);
   }
 
   getBinding(name: string): ?Node {
@@ -210,7 +216,7 @@ export let scopeVisitor: Visitors<ScopeState> = {
     let inner = t.getBindingIdentifiers(node);
     for (let id in inner) {
       if (id !== name) {
-        state.scope.addBinding(id, inner[id], 'var');
+        state.scope.addBinding(id, inner[id], 'param');
       }
     }
   },

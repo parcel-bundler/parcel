@@ -78,7 +78,10 @@ export default class ConfigLoader {
 
     publicConfig.setResultHash(md5FromString(JSON.stringify(devDeps)));
 
-    publicConfig.setWatchGlob('**/.parcelrc');
+    publicConfig.invalidateOnFileCreate({
+      fileName: '.parcelrc',
+      aboveFilePath: filePath,
+    });
 
     // TODO: get included files from plugin nodes
     // TODO: if extended config comes from a package, yarn.lock change should invalidate config request
@@ -117,7 +120,9 @@ export default class ConfigLoader {
         });
       } catch (e) {
         throw new ThrowableDiagnostic({
-          diagnostic: errorToDiagnostic(e, packageName),
+          diagnostic: errorToDiagnostic(e, {
+            origin: packageName,
+          }),
         });
       }
     }

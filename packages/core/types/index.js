@@ -567,6 +567,7 @@ export interface MutableAsset extends BaseAsset {
 
   addDependency(dep: DependencyOptions): string;
   addIncludedFile(filePath: FilePath): void;
+  invalidateOnFileCreate(invalidation: FileCreateInvalidation): void;
   addURLDependency(url: string, opts: $Shape<DependencyOptions>): string;
   invalidateOnEnvChange(env: string): void;
 
@@ -605,7 +606,7 @@ export interface Config {
   setResultHash(resultHash: string): void;
   addIncludedFile(filePath: FilePath): void;
   addDevDependency(name: PackageName, version?: Semver): void;
-  setWatchGlob(glob: string): void;
+  invalidateOnFileCreate(invalidation: FileCreateInvalidation): void;
   getConfigFrom(
     searchPath: FilePath,
     filePaths: Array<FilePath>,
@@ -1004,6 +1005,7 @@ export interface BundleGraph<TBundle: Bundle> {
   getIncomingDependencies(asset: Asset): Array<Dependency>;
   /** Get the asset that created the dependency. */
   getAssetWithDependency(dep: Dependency): ?Asset;
+  isEntryBundleGroup(bundleGroup: BundleGroup): boolean;
   /**
    * Returns undefined if the specified dependency was excluded or wasn't async \
    * and otherwise the BundleGroup or Asset that the dependency resolves to.
@@ -1065,6 +1067,24 @@ export type BundleResult = {|
   +type?: string,
 |};
 
+export type GlobInvalidation = {|
+  glob: Glob,
+|};
+
+export type FileInvalidation = {|
+  filePath: FilePath,
+|};
+
+export type FileAboveInvalidation = {|
+  fileName: string,
+  aboveFilePath: FilePath,
+|};
+
+export type FileCreateInvalidation =
+  | FileInvalidation
+  | GlobInvalidation
+  | FileAboveInvalidation;
+
 /**
  * @section resolver
  */
@@ -1081,6 +1101,8 @@ export type ResolveResult = {|
   +diagnostics?: Diagnostic | Array<Diagnostic>,
   /** Is spread (shallowly merged) onto the request's dependency.meta */
   +meta?: JSONObject,
+  +invalidateOnFileCreate?: Array<FileCreateInvalidation>,
+  +invalidateOnFileChange?: Array<FilePath>,
 |};
 
 export type ConfigOutput = {|
