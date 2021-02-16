@@ -1,6 +1,6 @@
 // @flow strict-local
 
-import type {Async, FilePath, File} from '@parcel/types';
+import type {Async, FilePath, File, PackageJSON} from '@parcel/types';
 import type {StaticRunOpts} from '../RequestTracker';
 import type {Entry, ParcelOptions} from '../types';
 
@@ -97,12 +97,13 @@ export class EntryResolver {
     if (stat.isDirectory()) {
       let pkg = await this.readPackage(entry);
       if (pkg && typeof pkg.source === 'string') {
-        let source = path.join(path.dirname(pkg.filePath), pkg.source);
+        let pkgSource = pkg.source;
+        let source = path.join(path.dirname(pkg.filePath), pkgSource);
         try {
           stat = await this.options.inputFS.stat(source);
         } catch (err) {
           throw new Error(
-            `${pkg.source} in ${path.relative(
+            `${pkgSource} in ${path.relative(
               this.options.inputFS.cwd(),
               pkg.filePath,
             )}#source does not exist`,
@@ -111,7 +112,7 @@ export class EntryResolver {
 
         if (!stat.isFile()) {
           throw new Error(
-            `${pkg.source} in ${path.relative(
+            `${pkgSource} in ${path.relative(
               this.options.inputFS.cwd(),
               pkg.filePath,
             )}#source is not a file`,
@@ -124,7 +125,7 @@ export class EntryResolver {
         if (pkg.targets) {
           for (let targetName in pkg.targets) {
             let target = pkg.targets[targetName];
-            if (target.source) {
+            if (target.source != null) {
               let filePath = path.join(entry, target.source);
               entries.push({filePath, packagePath: entry, target: targetName});
             }
@@ -165,9 +166,9 @@ export class EntryResolver {
     throw new Error(`Unknown entry ${entry}`);
   }
 
-  // Disabling flow because it's complaining that this function is typed as 'any'... but it really should be typed as 'any'
-  // $FlowFixMe
-  async readPackage(entry: FilePath): any {
+  async readPackage(
+    entry: FilePath,
+  ): Promise<?{...PackageJSON, filePath: FilePath, ...}> {
     let content, pkg;
     let pkgFile = path.join(entry, 'package.json');
     try {
