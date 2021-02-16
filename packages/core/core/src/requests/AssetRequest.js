@@ -144,7 +144,6 @@ async function run({input, api, farm, invalidateReason}: RunInput) {
     }
   }
 
-  // console.log('RESULT', require('util').inspect(devDepRequests, {depth: 10, colors: true, maxArrayLength: 1000}))
   for (let devDepRequest of devDepRequests) {
     await api.runRequest<null, void>({
       id: 'dev_dep_request:' + devDepRequest.name + ':' + devDepRequest.hash,

@@ -8,7 +8,7 @@ import sinon from 'sinon';
 import ThrowableDiagnostic from '@parcel/diagnostic';
 import {loadConfig} from '@parcel/utils';
 import WorkerFarm from '@parcel/workers';
-import {MockPackageInstaller, NodePackageManager} from '../';
+import {MockPackageInstaller, NodePackageManager} from '../src';
 
 const FIXTURES_DIR = path.join(__dirname, 'fixtures');
 

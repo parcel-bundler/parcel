@@ -137,7 +137,7 @@ export async function load(
     });
 
     // If the config has plugins loaded with require(), or inline plugins in the config,
-    // we can't cache the result of the  compilation because we don't know where they came from.
+    // we can't cache the result of the compilation because we don't know where they came from.
     if (hasRequire(partialConfig.options)) {
       logger.warn({
         message:
