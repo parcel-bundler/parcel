@@ -1368,9 +1368,9 @@ export default class BundleGraph {
       hash.update(this.getContentHash(inlineBundle));
     }
 
-    for (let childBundle of this.getChildBundles(bundle)) {
-      if (!childBundle.isInline) {
-        hash.update(childBundle.id);
+    for (let referencedBundle of this.getReferencedBundles(bundle)) {
+      if (!referencedBundle.isInline) {
+        hash.update(referencedBundle.id);
       }
     }
 
@@ -1441,5 +1441,14 @@ export default class BundleGraph {
     for (let edge of other._graph.getAllEdges()) {
       this._graph.addEdge(edge.from, edge.to, edge.type);
     }
+  }
+
+  isEntryBundleGroup(bundleGroup: BundleGroup): boolean {
+    return this._graph
+      .getNodesConnectedTo(
+        nullthrows(this._graph.getNode(getBundleGroupId(bundleGroup))),
+        'bundle',
+      )
+      .some(n => n.type === 'root');
   }
 }

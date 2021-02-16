@@ -773,6 +773,76 @@ describe('javascript', function() {
     ]);
   });
 
+  it('should recognize serviceWorker.register with static URL and import.meta.url', async function() {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/service-worker-import-meta-url/index.js',
+      ),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: [
+          'index.js',
+          'bundle-url.js',
+          'JSRuntime.js',
+          'bundle-manifest.js',
+          'JSRuntime.js',
+          'relative-path.js',
+        ],
+      },
+      {
+        assets: ['worker.js'],
+      },
+    ]);
+
+    let contents = await outputFS.readFile(
+      b.getBundles().find(b => b.isEntry).filePath,
+      'utf8',
+    );
+    assert(!contents.includes('import.meta.url'));
+  });
+
+  it('should throw a codeframe for a missing file in serviceWorker.register with URL and import.meta.url', async function() {
+    let fixture = path.join(
+      __dirname,
+      'integration/service-worker-import-meta-url/missing.js',
+    );
+    let code = await inputFS.readFileSync(fixture, 'utf8');
+    await assert.rejects(() => bundle(fixture), {
+      name: 'BuildError',
+      diagnostics: [
+        {
+          codeFrame: {
+            code,
+            codeHighlights: [
+              {
+                end: {
+                  column: 51,
+                  line: 1,
+                },
+                start: {
+                  column: 12,
+                  line: 1,
+                },
+              },
+            ],
+          },
+          filePath: fixture,
+          message: "Failed to resolve './invalid.js' from './missing.js'",
+          origin: '@parcel/core',
+        },
+        {
+          hints: ['Did you mean __./index.js__?'],
+          message: "Cannot load file './invalid.js' in './'.",
+          origin: '@parcel/resolver-default',
+        },
+      ],
+    });
+  });
+
   it('should support bundling workers with circular dependencies', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/worker-circular/index.js'),
@@ -795,6 +865,109 @@ describe('javascript', function() {
         assets: ['worker.js', 'worker-dep.js'],
       },
     ]);
+  });
+
+  it('should recognize worker constructor with static URL and import.meta.url', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/worker-import-meta-url/index.js'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: [
+          'index.js',
+          'bundle-url.js',
+          'JSRuntime.js',
+          'get-worker-url.js',
+          'bundle-manifest.js',
+          'JSRuntime.js',
+          'relative-path.js',
+        ],
+      },
+      {
+        assets: ['worker.js'],
+      },
+    ]);
+
+    let contents = await outputFS.readFile(
+      b.getBundles().find(b => b.isEntry).filePath,
+      'utf8',
+    );
+    assert(!contents.includes('import.meta.url'));
+  });
+
+  it('should ignore worker constructors with dynamic URL and import.meta.url', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/worker-import-meta-url/dynamic.js'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'dynamic.js',
+        assets: ['dynamic.js'],
+      },
+    ]);
+
+    let contents = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(contents.includes('import.meta.url'));
+  });
+
+  it('should ignore worker constructors with local URL binding and import.meta.url', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/worker-import-meta-url/local-url.js'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'local-url.js',
+        assets: ['local-url.js'],
+      },
+    ]);
+
+    let contents = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(contents.includes('import.meta.url'));
+  });
+
+  it('should throw a codeframe for a missing file in worker constructor with URL and import.meta.url', async function() {
+    let fixture = path.join(
+      __dirname,
+      'integration/worker-import-meta-url/missing.js',
+    );
+    let code = await inputFS.readFileSync(fixture, 'utf8');
+    await assert.rejects(() => bundle(fixture), {
+      name: 'BuildError',
+      diagnostics: [
+        {
+          codeFrame: {
+            code,
+            codeHighlights: [
+              {
+                end: {
+                  column: 51,
+                  line: 1,
+                },
+                start: {
+                  column: 12,
+                  line: 1,
+                },
+              },
+            ],
+          },
+          filePath: fixture,
+          message: "Failed to resolve './invalid.js' from './missing.js'",
+          origin: '@parcel/core',
+        },
+        {
+          hints: [
+            'Did you mean __./dynamic.js__?',
+            'Did you mean __./index.js__?',
+          ],
+          message: "Cannot load file './invalid.js' in './'.",
+          origin: '@parcel/resolver-default',
+        },
+      ],
+    });
   });
 
   it.skip('should support bundling in workers with other loaders', async function() {
@@ -1301,7 +1474,6 @@ describe('javascript', function() {
   it('should support importing a URL to a raw asset', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/import-raw/index.js'),
-      {shouldDisableCache: false},
     );
 
     assertBundles(b, [
@@ -1329,6 +1501,98 @@ describe('javascript', function() {
       path.join(distDir, url.parse(output()).pathname),
     );
     assert.equal(stats.size, 9);
+  });
+
+  it('should support referencing a raw asset with static URL and import.meta.url', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/import-raw-import-meta-url/index.js'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: [
+          'index.js',
+          'bundle-url.js',
+          'esmodule-helpers.js',
+          'JSRuntime.js',
+          'bundle-manifest.js',
+          'JSRuntime.js',
+          'relative-path.js',
+        ],
+      },
+      {
+        type: 'txt',
+        assets: ['test.txt'],
+      },
+    ]);
+
+    let contents = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(!contents.includes('import.meta.url'));
+
+    let output = await run(b);
+    assert(/^http:\/\/localhost\/test\.[0-9a-f]+\.txt$/.test(output.default));
+    let stats = await outputFS.stat(
+      path.join(distDir, url.parse(output.default).pathname),
+    );
+    assert.equal(stats.size, 9);
+  });
+
+  it('should ignore new URL and import.meta.url with local binding', async function() {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/import-raw-import-meta-url/local-url.js',
+      ),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'local-url.js',
+        assets: ['esmodule-helpers.js', 'local-url.js'],
+      },
+    ]);
+
+    let contents = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(contents.includes('import.meta.url'));
+  });
+
+  it('should support referencing a raw asset with static URL and import.meta.url (diagnostic)', async function() {
+    let fixture = path.join(
+      __dirname,
+      'integration/import-raw-import-meta-url/missing.js',
+    );
+    let code = await inputFS.readFileSync(fixture, 'utf8');
+    await assert.rejects(() => bundle(fixture), {
+      name: 'BuildError',
+      diagnostics: [
+        {
+          codeFrame: {
+            code,
+            codeHighlights: [
+              {
+                end: {
+                  column: 54,
+                  line: 1,
+                },
+                start: {
+                  column: 16,
+                  line: 1,
+                },
+              },
+            ],
+          },
+          filePath: fixture,
+          message: "Failed to resolve 'invalid.txt' from './missing.js'",
+          origin: '@parcel/core',
+        },
+        {
+          hints: [],
+          message: "Cannot load file './invalid.txt' in './'.",
+          origin: '@parcel/resolver-default',
+        },
+      ],
+    });
   });
 
   it('should support importing a URL to a large raw asset', async function() {
@@ -3298,6 +3562,22 @@ describe('javascript', function() {
     );
     let res = await run(b);
     assert.strictEqual(res.baz(), 'foo');
+  });
+
+  it('should not replace identifier with a var declaration inside a for loop', async function() {
+    let b = await bundle(
+      path.join(__dirname, 'integration/js-import-shadow-for-var/index.js'),
+    );
+    let res = await run(b);
+    assert.deepEqual(res.baz(), [0, 1, 2, 3]);
+  });
+
+  it('should replace an imported identifier with function locals of the same name', async function() {
+    let b = await bundle(
+      path.join(__dirname, 'integration/js-import-shadow-func-var/index.js'),
+    );
+    let res = await run(b);
+    assert.deepEqual(res.default, 123);
   });
 
   it('should not freeze live default imports', async function() {

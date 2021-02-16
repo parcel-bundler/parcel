@@ -10,16 +10,21 @@ import type {
 } from '@parcel/types';
 import type {ExternalModule, ExternalBundle} from './types';
 import type {
+  ArrayExpression,
   Expression,
   ExpressionStatement,
   File,
+  Node,
   FunctionDeclaration,
   Identifier,
+  Statement,
   StringLiteral,
   VariableDeclaration,
 } from '@babel/types';
 
 import nullthrows from 'nullthrows';
+import path from 'path';
+import fs from 'fs';
 import invariant from 'assert';
 import {relative} from 'path';
 import template from '@babel/template';
@@ -45,6 +50,7 @@ import {
   isReferenced,
   needsPrelude,
   needsDefaultInterop,
+  parse,
 } from './utils';
 import OutputFormats from './formats/index.js';
 
@@ -66,8 +72,10 @@ const PARCEL_REQUIRE_TEMPLATE = template.statement<
   {|PARCEL_REQUIRE_NAME: Identifier|},
   VariableDeclaration,
 >(`var parcelRequire = $parcel$global.PARCEL_REQUIRE_NAME`);
-
-type LinkResult = {|ast: File, referencedAssets: Set<Asset>|};
+const PARCEL_REQUIRE_NAME_TEMPLATE = template.statement<
+  {|PARCEL_REQUIRE_NAME: StringLiteral|},
+  VariableDeclaration,
+>(`var parcelRequireName = PARCEL_REQUIRE_NAME;`);
 
 const BUILTINS = Object.keys(globals.builtin);
 const GLOBALS_BY_CONTEXT = {
@@ -86,6 +94,33 @@ const GLOBALS_BY_CONTEXT = {
   ]),
 };
 
+const PRELUDE_PATH = path.join(__dirname, 'prelude.js');
+const PRELUDE = parse(
+  fs.readFileSync(path.join(__dirname, 'prelude.js'), 'utf8'),
+  PRELUDE_PATH,
+);
+const REGISTER_TEMPLATE = template.statements<
+  {|
+    REFERENCED_IDS: ArrayExpression,
+    STATEMENTS: Array<Statement>,
+    PARCEL_REQUIRE: Identifier,
+  |},
+  Array<Statement>,
+>(`function $parcel$bundleWrapper() {
+  if ($parcel$bundleWrapper._executed) return;
+  $parcel$bundleWrapper._executed = true;
+  STATEMENTS;
+}
+var $parcel$referencedAssets = REFERENCED_IDS;
+for (var $parcel$i = 0; $parcel$i < $parcel$referencedAssets.length; $parcel$i++) {
+  PARCEL_REQUIRE.registerBundle($parcel$referencedAssets[$parcel$i], $parcel$bundleWrapper);
+}
+`);
+const WRAPPER_TEMPLATE = template.statement<
+  {|STATEMENTS: Array<Statement>|},
+  Statement,
+>('(function () { STATEMENTS; })()');
+
 export function link({
   bundle,
   bundleGraph,
@@ -100,7 +135,7 @@ export function link({
   options: PluginOptions,
   wrappedAssets: Set<string>,
   parcelRequireName: string,
-|}): LinkResult {
+|}): File {
   let format = OutputFormats[bundle.env.outputFormat];
   let replacements: Map<Symbol, Symbol> = new Map();
   let imports: Map<Symbol, null | [Asset, Symbol, ?SourceLocation]> = new Map();
@@ -389,7 +424,7 @@ export function link({
     return true;
   }
 
-  function maybeReplaceIdentifier(node: Identifier, ancestors) {
+  function maybeReplaceIdentifier(node: Identifier) {
     let {name} = node;
     if (typeof name !== 'string') {
       return;
@@ -401,14 +436,14 @@ export function link({
     }
 
     if (imports.has(name)) {
-      let res: ?BabelNode;
+      let res: ?Node;
       let imported = imports.get(name);
       if (imported == null) {
         // import was deferred
         res = t.objectExpression([]);
       } else {
         let [asset, symbol] = imported;
-        res = replaceImportNode(asset, symbol, node, ancestors);
+        res = replaceImportNode(asset, symbol, node);
 
         // If the export does not exist, replace with an empty object.
         if (!res) {
@@ -420,7 +455,7 @@ export function link({
   }
 
   // node is an Identifier like $id$import$foo that directly imports originalName from originalModule
-  function replaceImportNode(originalModule, originalName, node, ancestors) {
+  function replaceImportNode(originalModule, originalName, node) {
     let {asset: mod, symbol, identifier} = resolveSymbol(
       originalModule,
       originalName,
@@ -446,7 +481,7 @@ export function link({
         return null;
       }
 
-      res = addBundleImport(mod, node, ancestors);
+      res = addBundleImport(mod, node);
       return res ? interop(mod, symbol, node, res) : null;
     }
 
@@ -571,7 +606,7 @@ export function link({
     return specifiers.get('*');
   }
 
-  function addBundleImport(mod, node, ancestors) {
+  function addBundleImport(mod, node) {
     // Find a bundle that's reachable from the current bundle (sibling or ancestor)
     // containing this asset, and create an import for it if needed.
     let importedBundle = bundleGraph.findReachableBundleWithAsset(bundle, mod);
@@ -595,14 +630,11 @@ export function link({
       importedFiles.set(filePath, imported);
     }
 
-    // If not unused, add the asset to the list of specifiers to import.
-    if (!isUnusedValue(ancestors) && mod.meta.exportsIdentifier) {
-      invariant(imported.assets != null);
-      imported.assets.add(mod);
+    invariant(imported.assets != null);
+    imported.assets.add(mod);
 
-      let initIdentifier = getIdentifier(mod, 'init');
-      return t.callExpression(initIdentifier, []);
-    }
+    let initIdentifier = getIdentifier(mod, 'init');
+    return t.callExpression(initIdentifier, []);
   }
 
   traverse2(ast, {
@@ -656,7 +688,7 @@ export function link({
             // If there is a third arg, it is an identifier to replace the require with.
             // This happens when `require('foo').bar` is detected in the hoister.
             if (args.length > 2 && isIdentifier(args[2])) {
-              newNode = maybeReplaceIdentifier(args[2], ancestors);
+              newNode = maybeReplaceIdentifier(args[2]);
             } else {
               if (mod.meta.id && assets.has(assertString(mod.meta.id))) {
                 let isValueUsed = !isUnusedValue(ancestors);
@@ -674,7 +706,7 @@ export function link({
                   );
                 }
               } else if (mod.type === 'js') {
-                newNode = addBundleImport(mod, node, ancestors);
+                newNode = addBundleImport(mod, node);
               }
             }
 
@@ -839,50 +871,49 @@ export function link({
         }
       },
     },
-    AssignmentExpression(node, state, ancestors) {
+    AssignmentExpression(node) {
+      let {left, right} = node;
+
+      if (isMemberExpression(left)) {
+        let {object, property, computed} = left;
+        if (
+          !(
+            isIdentifier(object) &&
+            ((isIdentifier(property) && !computed) || isStringLiteral(property))
+          )
+        ) {
+          return;
+        }
+
+        // Rename references to exported symbols to the exported name.
+        let exp = exportedSymbols.get(object.name);
+        if (exp) {
+          object.name = exp[0].local;
+        }
+
+        let asset = exportsMap.get(object.name);
+        if (!asset) {
+          return;
+        }
+
+        if (!needsExportsIdentifier(object.name)) {
+          return REMOVE;
+        }
+
+        if (isIdentifier(right) && !needsDeclaration(right.name)) {
+          return REMOVE;
+        }
+      }
       if (isIdentifier(node.left)) {
-        let res = maybeReplaceIdentifier(node.left, ancestors);
+        let res = maybeReplaceIdentifier(node.left);
         if (isIdentifier(res) || isMemberExpression(res)) {
           node.left = res;
         }
 
-        return;
-      }
-
-      if (!isMemberExpression(node.left)) {
-        return;
-      }
-
-      let {
-        left: {object, property, computed},
-        right,
-      } = node;
-      if (
-        !(
-          isIdentifier(object) &&
-          ((isIdentifier(property) && !computed) || isStringLiteral(property))
-        )
-      ) {
-        return;
-      }
-
-      // Rename references to exported symbols to the exported name.
-      let exp = exportedSymbols.get(object.name);
-      if (exp) {
-        object.name = exp[0].local;
-      }
-
-      let asset = exportsMap.get(object.name);
-      if (!asset) {
-        return;
-      }
-
-      if (!needsExportsIdentifier(object.name)) {
-        return REMOVE;
-      }
-
-      if (isIdentifier(right) && !needsDeclaration(right.name)) {
-        return REMOVE;
+        // remove unused CommonJS `$id$export$foo = $id$var$foo;`
+        if (isIdentifier(left) && !needsDeclaration(left.name)) {
+          return REMOVE;
+        }
       }
     },
     Identifier(node, state, ancestors) {
@@ -905,7 +936,7 @@ export function link({
           node.name = exp[0].local;
         }
 
-        return maybeReplaceIdentifier(node, ancestors);
+        return maybeReplaceIdentifier(node);
       }
     },
     ExpressionStatement: {
@@ -934,18 +965,19 @@ export function link({
     },
     Program: {
       exit(node) {
-        // $FlowFixMe
-        let statements: Array<BabelNode> = node.body;
+        let statements: Array<Statement> = node.body;
 
+        let hoistedImports = [];
         for (let file of importedFiles.values()) {
           if (file.bundle) {
-            let res = format.generateBundleImports(
+            let {hoisted, imports} = format.generateBundleImports(
               bundleGraph,
               bundle,
               file,
               scope,
             );
-            statements = res.concat(statements);
+            statements = imports.concat(statements);
+            hoistedImports = hoistedImports.concat(hoisted);
           } else {
             let res = format.generateExternalImport(bundle, file, scope);
             statements = res.concat(statements);
@@ -987,21 +1019,55 @@ export function link({
           scope.add('parcelRequire');
         }
 
-        let usedHelpers: Array<BabelNode> = [];
-        for (let name of scope.names) {
-          let helper = helpers.get(name);
-          if (helper) {
-            usedHelpers.push(helper);
-          } else if (name === 'parcelRequire') {
-            usedHelpers.push(
-              PARCEL_REQUIRE_TEMPLATE({
-                PARCEL_REQUIRE_NAME: t.identifier(parcelRequireName),
+        if (bundle.env.outputFormat === 'global') {
+          // Wrap async bundles in a closure and register with parcelRequire so they are executed
+          // at the right time (after other bundle dependencies are loaded).
+          let isAsync = !isEntry(bundle, bundleGraph);
+          if (isAsync) {
+            statements = REGISTER_TEMPLATE({
+              STATEMENTS: statements,
+              REFERENCED_IDS: t.arrayExpression(
+                [bundle.getMainEntry(), ...referencedAssets]
+                  .filter(Boolean)
+                  .map(asset =>
+                    t.stringLiteral(bundleGraph.getAssetPublicId(asset)),
+                  ),
+              ),
+              PARCEL_REQUIRE: t.identifier(parcelRequireName),
+            });
+          }
+
+          if (needsPrelude(bundle, bundleGraph)) {
+            scope.add('$parcel$global');
+            statements = [
+              PARCEL_REQUIRE_NAME_TEMPLATE({
+                PARCEL_REQUIRE_NAME: t.stringLiteral(parcelRequireName),
               }),
-            );
+            ]
+              .concat(PRELUDE)
+              .concat(statements);
           }
         }
 
-        statements = usedHelpers.concat(statements);
+        let usedHelpers: Array<Statement> = [];
+        for (let [name, helper] of helpers) {
+          if (scope.names.has(name)) {
+            usedHelpers.push(helper);
+          }
+        }
+        if (scope.names.has('parcelRequire')) {
+          usedHelpers.push(
+            PARCEL_REQUIRE_TEMPLATE({
+              PARCEL_REQUIRE_NAME: t.identifier(parcelRequireName),
+            }),
+          );
+        }
+
+        statements = hoistedImports.concat(usedHelpers).concat(statements);
+
+        if (bundle.env.outputFormat === 'global') {
+          statements = [WRAPPER_TEMPLATE({STATEMENTS: statements})];
+        }
 
         // $FlowFixMe
         return t.program(statements);
@@ -1009,7 +1075,7 @@ export function link({
     },
   });
 
-  return {ast, referencedAssets};
+  return ast;
 }
 
 function isUnusedValue(ancestors, i = 1) {

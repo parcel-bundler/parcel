@@ -295,6 +295,12 @@ export async function runBundles(
       promises = browser.promises;
       break;
     }
+    case 'web-worker': {
+      let prepared = prepareWorkerContext(parent.filePath, globals);
+      ctx = prepared.ctx;
+      promises = prepared.promises;
+      break;
+    }
     default:
       throw new Error('Unknown target ' + target);
   }
@@ -317,9 +323,13 @@ export async function runBundles(
     );
     for (let b of bundles) {
       // require, parcelRequire was set up in prepare*Context
-      new vm.Script(await overlayFS.readFile(nullthrows(b.filePath), 'utf8'), {
-        filename: b.name,
-      }).runInContext(ctx);
+      new vm.Script(
+        // '"use strict";\n' +
+        await overlayFS.readFile(nullthrows(b.filePath), 'utf8'),
+        {
+          filename: b.name,
+        },
+      ).runInContext(ctx);
     }
   }
   if (promises) {
@@ -364,7 +374,7 @@ export async function runBundle(
   externalModules?: ExternalModules,
 ): Promise<mixed> {
   if (bundle.type === 'html') {
-    let code = await overlayFS.readFile(nullthrows(bundle.filePath));
+    let code = await overlayFS.readFile(nullthrows(bundle.filePath), 'utf8');
     let ast = postHtmlParse(code, {
       lowerCaseAttributeNames: true,
     });
@@ -521,13 +531,17 @@ function prepareBrowserContext(
         let {deferred, promise} = makeDeferredWithPromise();
         promises.push(promise);
         setTimeout(function() {
-          vm.runInContext(
-            overlayFS.readFileSync(
-              path.join(path.dirname(filePath), url.parse(el.src).pathname),
-              'utf8',
-            ),
-            ctx,
+          let file = path.join(
+            path.dirname(filePath),
+            url.parse(el.src).pathname,
           );
+          new vm.Script(
+            // '"use strict";\n' +
+            overlayFS.readFileSync(file, 'utf8'),
+            {
+              filename: path.basename(file),
+            },
+          ).runInContext(ctx);
 
           el.onload();
           deferred.resolve();
@@ -578,6 +592,70 @@ function prepareBrowserContext(
       WebSocket,
       console,
       location: {hostname: 'localhost', origin: 'http://localhost'},
+      fetch(url) {
+        return Promise.resolve({
+          async arrayBuffer() {
+            let readFilePromise = overlayFS.readFile(
+              path.join(path.dirname(filePath), url),
+            );
+            promises.push(readFilePromise);
+            return new Uint8Array(await readFilePromise).buffer;
+          },
+          text() {
+            let readFilePromise = overlayFS.readFile(
+              path.join(path.dirname(filePath), url),
+              'utf8',
+            );
+            promises.push(readFilePromise);
+            return readFilePromise;
+          },
+        });
+      },
+      atob(str) {
+        return Buffer.from(str, 'base64').toString('binary');
+      },
+      btoa(str) {
+        return Buffer.from(str, 'binary').toString('base64');
+      },
+      URL,
+    },
+    globals,
+  );
+
+  ctx.window = ctx.self = ctx;
+  return {ctx, promises};
+}
+
+function prepareWorkerContext(
+  filePath: FilePath,
+  globals: mixed,
+): {|
+  ctx: vm$Context,
+  promises: Array<Promise<mixed>>,
+|} {
+  let promises = [];
+
+  var exports = {};
+  var ctx = Object.assign(
+    {
+      exports,
+      module: {exports},
+      WebSocket,
+      console,
+      location: {hostname: 'localhost', origin: 'http://localhost'},
+      importScripts(...urls) {
+        for (let u of urls) {
+          new vm.Script(
+            overlayFS.readFileSync(
+              path.join(path.dirname(filePath), url.parse(u).pathname),
+              'utf8',
+            ),
+            {
+              filename: path.basename(url.parse(u).pathname),
+            },
+          ).runInContext(ctx);
+        }
+      },
       fetch(url) {
         return Promise.resolve({
           async arrayBuffer() {
@@ -671,10 +749,13 @@ function prepareNodeContext(filePath, globals) {
       nodeCache[res] = ctx;
 
       vm.createContext(ctx);
-      vm.runInContext(
-        '"use strict";\n' + overlayFS.readFileSync(res, 'utf8'),
-        ctx,
-      );
+      new vm.Script(
+        //'"use strict";\n' +
+        overlayFS.readFileSync(res, 'utf8'),
+        {
+          filename: path.basename(res),
+        },
+      ).runInContext(ctx);
       return ctx.module.exports;
     });
 

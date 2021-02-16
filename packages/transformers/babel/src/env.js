@@ -2,6 +2,7 @@
 
 import type {Config} from '@parcel/types';
 import presetEnv from '@babel/preset-env';
+import type {BabelConfig} from './types';
 import type {Targets as BabelTargets, PresetEnvPlugin} from '@babel/preset-env';
 
 import getBabelTargets from './getBabelTargets';
@@ -15,18 +16,7 @@ import {enginesToBabelTargets} from './utils';
 export default async function getEnvOptions(
   config: Config,
 ): Promise<?{|
-  presets: Array<
-    Array<
-      | string
-      | {|
-          corejs: number,
-          ignoreBrowserslistConfig: boolean,
-          shippedProposals: boolean,
-          targets: BabelTargets,
-          useBuiltIns: string,
-        |},
-    >,
-  >,
+  config: BabelConfig,
   targets: BabelTargets,
 |}> {
   // Only compile if there are engines defined in the environment.
@@ -52,18 +42,7 @@ export default async function getEnvOptions(
 
   return {
     targets: appBabelTargets,
-    presets: [
-      [
-        '@parcel/babel-preset-env',
-        {
-          useBuiltIns: 'entry',
-          corejs: 3,
-          shippedProposals: true,
-          ignoreBrowserslistConfig: true,
-          targets: appBabelTargets,
-        },
-      ],
-    ],
+    config: {presets: ['@parcel/babel-preset-env']},
   };
 }
 

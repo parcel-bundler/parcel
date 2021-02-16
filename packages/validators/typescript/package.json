@@ -24,5 +24,11 @@
     "@parcel/ts-utils": "2.0.0-beta.1",
     "@parcel/types": "2.0.0-beta.1",
     "@parcel/utils": "2.0.0-beta.1"
+  },
+  "devDependencies": {
+    "typescript": "^3.0.0"
+  },
+  "peerDependencies": {
+    "typescript": "^3.0.0"
   }
 }
