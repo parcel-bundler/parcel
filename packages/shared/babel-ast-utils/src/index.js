@@ -55,13 +55,13 @@ export function generateAST({
   ast,
   sourceFileName,
   sourceMaps,
-  originalSourceMap,
+  //   originalSourceMap,
   options,
 }: {|
   ast: BabelNodeFile,
   sourceFileName?: FilePath,
   sourceMaps?: boolean,
-  originalSourceMap?: ?SourceMap,
+  //   originalSourceMap?: ?SourceMap,
   options: PluginOptions,
 |}): {|content: string, map: ?SourceMap|} {
   let map = new SourceMap(options.projectRoot);
@@ -91,9 +91,9 @@ export function generateAST({
 
   map.addIndexedMappings(mappings);
 
-  if (originalSourceMap) {
-    map.extends(originalSourceMap.toBuffer());
-  }
+  //   if (originalSourceMap) {
+  //     map.extends(originalSourceMap.toBuffer());
+  //   }
 
   return {
     content: generated,
@@ -115,7 +115,7 @@ export async function generate({
     ast: ast.program,
     sourceFileName,
     sourceMaps: !!asset.env.sourceMap,
-    originalSourceMap: await asset.getMap(),
+    // originalSourceMap: await asset.getMap(),
     options,
   });
 }
