@@ -293,3 +293,24 @@ export function md(strings: Array<string>, ...params: Array<any>): string {
   }
   return result.join('') + strings[strings.length - 1];
 }
+
+// $FlowFixMe[unclear-type]
+md.bold = function(s: any): {|value: string|} {
+  // $FlowFixMe[invalid-computed-prop]
+  return {[mdVerbatim]: true, value: '**' + escapeMarkdown(`${s}`) + '**'};
+};
+// $FlowFixMe[unclear-type]
+md.italic = function(s: any): {|value: string|} {
+  // $FlowFixMe[invalid-computed-prop]
+  return {[mdVerbatim]: true, value: '_' + escapeMarkdown(`${s}`) + '_'};
+};
+// $FlowFixMe[unclear-type]
+md.underline = function(s: any): {|value: string|} {
+  // $FlowFixMe[invalid-computed-prop]
+  return {[mdVerbatim]: true, value: '__' + escapeMarkdown(`${s}`) + '__'};
+};
+// $FlowFixMe[unclear-type]
+md.strikethrough = function(s: any): {|value: string|} {
+  // $FlowFixMe[invalid-computed-prop]
+  return {[mdVerbatim]: true, value: '~~' + escapeMarkdown(`${s}`) + '~~'};
+};
