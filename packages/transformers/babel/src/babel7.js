@@ -66,7 +66,6 @@ export default async function babel7(
           enter(path) {
             if (path.node.loc) {
               if (path.node.loc?.start) {
-                // TODO: Check if babel ast uses 1 or zero based indexes and match to our indexing system...
                 let mapping = map.findClosestMapping(
                   path.node.loc.start.line,
                   path.node.loc.start.column,
@@ -87,8 +86,6 @@ export default async function babel7(
 
                   // $FlowFixMe
                   path.node.loc.filename = mapping.source;
-                } else {
-                  console.log('No original mapping for:', path.node.loc.start);
                 }
               }
             }
