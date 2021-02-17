@@ -131,7 +131,7 @@ export default class PublicConfig implements IConfig {
 
   async getConfigFrom(
     searchPath: FilePath,
-    filePaths: Array<FilePath>,
+    fileNames: Array<string>,
     options: ?{|
       packageKey?: string,
       parse?: boolean,
@@ -150,15 +150,23 @@ export default class PublicConfig implements IConfig {
       }
     }
 
-    if (filePaths.length === 0) {
+    if (fileNames.length === 0) {
       return null;
+    }
+
+    // Invalidate when any of the file names are created above the search path.
+    for (let fileName of fileNames) {
+      this.invalidateOnFileCreate({
+        fileName,
+        aboveFilePath: searchPath,
+      });
     }
 
     let parse = options && options.parse;
     let conf = await loadConfig(
       this.#options.inputFS,
       searchPath,
-      filePaths,
+      fileNames,
       parse == null ? null : {parse},
     );
     if (conf == null) {

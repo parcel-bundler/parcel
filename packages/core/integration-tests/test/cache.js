@@ -3967,6 +3967,37 @@ describe('cache', function() {
         );
         assert(output.includes('background-color: blue'));
       });
+
+      it('should invalidate when a closer postcss config is added', async function() {
+        let b = await testCache(
+          {
+            entries: ['nested/index.css'],
+            async update(b) {
+              let output = await overlayFS.readFile(
+                b.bundleGraph.getBundles()[0].filePath,
+                'utf8',
+              );
+              assert(output.includes('background-color: green;'));
+
+              let configContents = await overlayFS.readFile(
+                path.join(inputDir, '.postcssrc'),
+                'utf8',
+              );
+              await overlayFS.writeFile(
+                path.join(inputDir, 'nested', '.postcssrc'),
+                configContents.replace('green', 'blue'),
+              );
+            },
+          },
+          'postcss-import',
+        );
+
+        let output = await overlayFS.readFile(
+          b.bundleGraph.getBundles()[0].filePath,
+          'utf8',
+        );
+        assert(output.includes('background-color: blue'));
+      });
     });
 
     describe('posthtml', function() {
