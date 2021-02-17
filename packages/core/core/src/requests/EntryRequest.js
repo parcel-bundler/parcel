@@ -1,6 +1,6 @@
 // @flow strict-local
 
-import type {Async, FilePath, File} from '@parcel/types';
+import type {Async, FilePath, File, PackageJSON} from '@parcel/types';
 import type {StaticRunOpts} from '../RequestTracker';
 import type {Entry, ParcelOptions} from '../types';
 
@@ -62,7 +62,7 @@ async function run({input, api, options}: RunOpts): Promise<EntryResult> {
   return result;
 }
 
-class EntryResolver {
+export class EntryResolver {
   options: ParcelOptions;
 
   constructor(options: ParcelOptions) {
@@ -97,12 +97,13 @@ class EntryResolver {
     if (stat.isDirectory()) {
       let pkg = await this.readPackage(entry);
       if (pkg && typeof pkg.source === 'string') {
-        let source = path.join(path.dirname(pkg.filePath), pkg.source);
+        let pkgSource = pkg.source;
+        let source = path.join(path.dirname(pkg.filePath), pkgSource);
         try {
           stat = await this.options.inputFS.stat(source);
         } catch (err) {
           throw new Error(
-            `${pkg.source} in ${path.relative(
+            `${pkgSource} in ${path.relative(
               this.options.inputFS.cwd(),
               pkg.filePath,
             )}#source does not exist`,
@@ -111,16 +112,38 @@ class EntryResolver {
 
         if (!stat.isFile()) {
           throw new Error(
-            `${pkg.source} in ${path.relative(
+            `${pkgSource} in ${path.relative(
               this.options.inputFS.cwd(),
               pkg.filePath,
             )}#source is not a file`,
           );
         }
 
+        let entries = [];
+        let files = [{filePath: pkg.filePath}];
+
+        if (pkg.targets) {
+          for (let targetName in pkg.targets) {
+            let target = pkg.targets[targetName];
+            if (target.source != null) {
+              let filePath = path.join(entry, target.source);
+              entries.push({filePath, packagePath: entry, target: targetName});
+            }
+          }
+        }
+
+        let allTargetsHaveSource =
+          entries.length > 0 &&
+          pkg.targets != null &&
+          Object.keys(pkg.targets).length === entries.length;
+        if (!allTargetsHaveSource) {
+          let defaultEntry = {filePath: source, packagePath: entry};
+          entries.unshift(defaultEntry);
+        }
+
         return {
-          entries: [{filePath: source, packagePath: entry}],
-          files: [{filePath: pkg.filePath}],
+          entries,
+          files,
         };
       }
 
@@ -143,7 +166,9 @@ class EntryResolver {
     throw new Error(`Unknown entry ${entry}`);
   }
 
-  async readPackage(entry: FilePath) {
+  async readPackage(
+    entry: FilePath,
+  ): Promise<?{...PackageJSON, filePath: FilePath, ...}> {
     let content, pkg;
     let pkgFile = path.join(entry, 'package.json');
     try {
@@ -162,7 +187,6 @@ class EntryResolver {
       );
     }
 
-    pkg.filePath = pkgFile;
-    return pkg;
+    return {...pkg, filePath: pkgFile};
   }
 }

@@ -58,7 +58,7 @@ const DEFAULT_DISTPATH_FIXTURE_PATHS = {
 
 const CONTEXT_FIXTURE_PATH = path.join(__dirname, 'fixtures/context');
 
-describe('TargetResolver', () => {
+describe.only('TargetResolver', () => {
   let cacheDir;
   beforeEach(() => {
     cacheDir = tempy.directory();
