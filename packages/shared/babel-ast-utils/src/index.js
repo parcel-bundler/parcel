@@ -37,6 +37,7 @@ export async function parse({
     return {
       type: 'babel',
       version: '7.0.0',
+      // TODO: Remap locations in the AST
       program: babelParse(code, {
         sourceFilename: relativeUrl(options.projectRoot, asset.filePath),
         allowReturnOutsideFunction: true,
