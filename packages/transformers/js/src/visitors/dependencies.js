@@ -9,6 +9,7 @@ import type {
   PluginOptions,
 } from '@parcel/types';
 import type {
+  Identifier,
   NewExpression,
   Node,
   ObjectExpression,
@@ -232,75 +233,99 @@ export default ({
   NewExpression: {
     exit(node: NewExpression, {asset, ast, logger}, ancestors) {
       let {callee, arguments: args} = node;
-
-      let isWebWorker =
-        callee.type === 'Identifier' &&
-        (callee.name === 'Worker' || callee.name === 'SharedWorker') &&
-        !hasBinding(ancestors, callee.name) &&
-        !isInFalsyBranch(ancestors) &&
-        (args.length === 1 || args.length === 2);
-
-      if (isWebWorker) {
-        let isModule = false;
-        if (isObjectExpression(args[1])) {
-          // $FlowFixMe[incompatible-type]
-          let prop: ObjectProperty = args[1].properties.find(
-            v => isObjectProperty(v) && isIdentifier(v.key, {name: 'type'}),
-          );
-          if (prop && isStringLiteral(prop.value)) {
-            isModule = prop.value.value === 'module';
-          }
-        }
-
-        let opts = {
-          env: {
-            context: 'web-worker',
-            outputFormat:
-              isModule && asset.env.shouldScopeHoist ? 'esmodule' : undefined,
-          },
-          meta: {
-            webworker: true,
-          },
-        };
-
-        if (isStringLiteral(args[0])) {
-          let specifier = args[0];
-          let loc = convertBabelLoc(node.loc);
-          logger.warn({
-            message:
-              'Calling the Worker constructor with a string literal is deprecated.',
-            filePath: loc?.filePath,
-            ...(loc && {
-              codeFrame: {
-                codeHighlights: [{start: loc.start, end: loc.end}],
-              },
-            }),
-            hints: [
-              `Replace with: new Worker(new URL('${specifier.value}', import.meta.url))`,
-            ],
-          });
-          addURLDependency(asset, ast, specifier, opts);
-          return;
-        } else {
-          let url = parseImportMetaUrl(args[0], ancestors);
-          if (url) {
-            let loc = convertBabelLoc(args[0].loc);
-            if (loc) {
-              opts = {
-                ...opts,
-                loc,
-              };
-            }
-            asset.addURLDependency(url, opts);
-
+      if (callee.type === 'Identifier') {
+        let url = parseImportMetaUrl(node, ancestors);
+        if (url != null) {
+          // `new Worker(new URL(...))` is handled in the parent `new Worker` node below
+          let parent = ancestors[ancestors.length - 2];
+          if (
+            !(
+              isNewExpression(parent) &&
+              isIdentifier(parent.callee) &&
+              isWebWorkerConstruction(
+                parent.callee,
+                parent.arguments,
+                ancestors,
+              )
+            )
+          ) {
+            let loc = convertBabelLoc(node.loc);
+            asset.addURLDependency(url, loc ? {loc} : {});
             morph(
-              args[0],
+              node,
               types.callExpression(types.identifier('require'), [
                 types.stringLiteral(url),
               ]),
             );
-            asset.setAST(ast);
             return;
+          }
+        }
+
+        if (
+          isWebWorkerConstruction(callee, args, ancestors) &&
+          !isInFalsyBranch(ancestors)
+        ) {
+          let isModule = false;
+          if (isObjectExpression(args[1])) {
+            // $FlowFixMe[incompatible-type]
+            let prop: ObjectProperty = args[1].properties.find(
+              v => isObjectProperty(v) && isIdentifier(v.key, {name: 'type'}),
+            );
+            if (prop && isStringLiteral(prop.value)) {
+              isModule = prop.value.value === 'module';
+            }
+          }
+
+          let opts = {
+            env: {
+              context: 'web-worker',
+              outputFormat:
+                isModule && asset.env.shouldScopeHoist ? 'esmodule' : undefined,
+            },
+            meta: {
+              webworker: true,
+            },
+          };
+
+          if (isStringLiteral(args[0])) {
+            let specifier = args[0];
+            let loc = convertBabelLoc(node.loc);
+            logger.warn({
+              message:
+                'Calling the Worker constructor with a string literal is deprecated.',
+              filePath: loc?.filePath,
+              ...(loc && {
+                codeFrame: {
+                  codeHighlights: [{start: loc.start, end: loc.end}],
+                },
+              }),
+              hints: [
+                `Replace with: new Worker(new URL('${specifier.value}', import.meta.url))`,
+              ],
+            });
+            addURLDependency(asset, ast, specifier, opts);
+            return;
+          } else {
+            let url = parseImportMetaUrl(args[0], ancestors);
+            if (url != null) {
+              let loc = convertBabelLoc(args[0].loc);
+              if (loc) {
+                opts = {
+                  ...opts,
+                  loc,
+                };
+              }
+              asset.addURLDependency(url, opts);
+
+              morph(
+                args[0],
+                types.callExpression(types.identifier('require'), [
+                  types.stringLiteral(url),
+                ]),
+              );
+              asset.setAST(ast);
+              return;
+            }
           }
         }
       }
@@ -318,6 +343,14 @@ export default ({
     Array<Node>,
   ) => void,
 >);
+
+function isWebWorkerConstruction(callee: Identifier, args, ancestors) {
+  return (
+    (callee.name === 'Worker' || callee.name === 'SharedWorker') &&
+    !hasBinding(ancestors, callee.name) &&
+    (args.length === 1 || args.length === 2)
+  );
+}
 
 // TypeScript, Rollup, and Parcel itself generate these patterns for async imports in CommonJS
 //   1. TypeScript - Promise.resolve().then(function () { return require(...) })
