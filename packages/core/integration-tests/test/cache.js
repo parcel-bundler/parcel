@@ -3968,6 +3968,101 @@ describe('cache', function() {
         assert(output.includes('background-color: blue'));
       });
     });
+
+    describe('posthtml', function() {
+      it('should invalidate when a posthtml plugin changes', async function() {
+        let b = await testCache(
+          {
+            entries: ['index.html'],
+            async setup() {
+              await overlayFS.mkdirp(path.join(inputDir, 'node_modules'));
+              await ncp(
+                path.join(
+                  path.join(
+                    __dirname,
+                    'integration',
+                    'posthtml-autoinstall',
+                    'posthtml-test',
+                  ),
+                ),
+                path.join(inputDir, 'node_modules', 'posthtml-test'),
+              );
+            },
+            async update(b) {
+              let output = await overlayFS.readFile(
+                b.bundleGraph.getBundles()[0].filePath,
+                'utf8',
+              );
+              assert(output.includes('<span id="test">Test</span>'));
+
+              let plugin = path.join(
+                inputDir,
+                'node_modules',
+                'posthtml-test',
+                'index.js',
+              );
+              let pluginContents = await overlayFS.readFile(plugin, 'utf8');
+              await overlayFS.writeFile(
+                plugin,
+                pluginContents.replace('span', 'section'),
+              );
+            },
+          },
+          'posthtml-autoinstall',
+        );
+
+        let output = await overlayFS.readFile(
+          b.bundleGraph.getBundles()[0].filePath,
+          'utf8',
+        );
+        assert(output.includes('<section id="test">Test</section>'));
+      });
+
+      it('should invalidate when a JS postcss config changes', async function() {
+        let b = await testCache(
+          {
+            entries: ['index.html'],
+            inputFS,
+            outputFS: inputFS,
+            async setup() {
+              await inputFS.mkdirp(inputDir);
+              await inputFS.ncp(
+                path.join(__dirname, '/integration/posthtml'),
+                inputDir,
+              );
+
+              await inputFS.mkdirp(path.join(inputDir, 'include'));
+              await inputFS.writeFile(
+                path.join(inputDir, 'include', 'other.html'),
+                '<h1>Another great page</h1>',
+              );
+            },
+            async update(b) {
+              let output = await inputFS.readFile(
+                b.bundleGraph.getBundles()[0].filePath,
+                'utf8',
+              );
+              assert(output.includes('<h1>Other page</h1>'));
+
+              let config = path.join(inputDir, '.posthtmlrc.js');
+              let configContents = await inputFS.readFile(config, 'utf8');
+              await inputFS.writeFile(
+                config,
+                configContents.replace('__dirname', '__dirname + "/include"'),
+              );
+              await sleep(100);
+            },
+          },
+          'posthtml',
+        );
+
+        let output = await inputFS.readFile(
+          b.bundleGraph.getBundles()[0].filePath,
+          'utf8',
+        );
+        assert(output.includes('<h1>Another great page</h1>'));
+      });
+    });
   });
 
   describe('bundler config', function() {
