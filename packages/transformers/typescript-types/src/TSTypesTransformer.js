@@ -8,6 +8,7 @@ import type {DiagnosticCodeFrame} from '@parcel/diagnostic';
 import type {CompilerOptions} from 'typescript';
 import ts from 'typescript';
 import {CompilerHost, loadTSConfig} from '@parcel/ts-utils';
+import {escapeMarkdown} from '@parcel/diagnostic';
 import {TSModuleGraph} from './TSModuleGraph';
 import nullthrows from 'nullthrows';
 import {collect} from './collect';
@@ -119,7 +120,7 @@ export default (new Transformer({
                 {
                   start,
                   end,
-                  message: diagnosticMessage,
+                  message: escapeMarkdown(diagnosticMessage),
                 },
               ],
             };
@@ -127,7 +128,7 @@ export default (new Transformer({
         }
 
         logger.warn({
-          message: diagnosticMessage,
+          message: escapeMarkdown(diagnosticMessage),
           filePath: filename,
           codeFrame: codeframe ? codeframe : undefined,
         });
