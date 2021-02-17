@@ -65,7 +65,6 @@ export {
 export {relativeBundlePath} from './relativeBundlePath';
 export {ansiHtml} from './ansi-html';
 export {escapeHTML} from './escape-html';
-export {escapeMarkdown} from './escape-markdown';
 export {
   SOURCEMAP_RE,
   SOURCEMAP_EXTENSIONS,

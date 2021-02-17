@@ -3,8 +3,7 @@ import type {FilePath} from '@parcel/types';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
-import jsonMap from 'json-source-map';
-import type {Mapping} from 'json-source-map';
+import jsonMap, {type Mapping} from 'json-source-map';
 
 /** These positions are 1-based (so <code>1</code> is the first line/column) */
 export type DiagnosticHighlightLocation = {|
@@ -130,7 +129,7 @@ export function errorToDiagnostic(
     return [
       {
         origin: defaultValues?.origin ?? 'Error',
-        message: error,
+        message: escapeMarkdown(error),
         codeFrame,
       },
     ];
@@ -166,7 +165,7 @@ export function errorToDiagnostic(
   return [
     {
       origin: defaultValues?.origin ?? 'Error',
-      message: error.message,
+      message: escapeMarkdown(error.message),
       name: error.name,
       filePath:
         error.filePath ??
@@ -268,4 +267,29 @@ export function getJSONSourceLocation(
 /** Sanitizes object keys before using them as <code>key</code> in generateJSONCodeHighlights */
 export function encodeJSONKeyComponent(component: string): string {
   return component.replace(/\//g, '~1');
+}
+
+const escapeCharacters = ['\\', '*', '_', '~'];
+
+export function escapeMarkdown(s: string): string {
+  let result = s;
+  for (const char of escapeCharacters) {
+    result = result.replace(new RegExp(`\\${char}`, 'g'), `\\${char}`);
+  }
+
+  return result;
+}
+
+const mdVerbatim = Symbol();
+// $FlowFixMe[unclear-type]
+export function md(strings: Array<string>, ...params: Array<any>): string {
+  let result = [];
+  for (let i = 0; i < params.length; i++) {
+    let param = params[i];
+    result.push(
+      strings[i],
+      param[mdVerbatim] ? param.value : escapeMarkdown(`${param}`),
+    );
+  }
+  return result.join('') + strings[strings.length - 1];
 }
