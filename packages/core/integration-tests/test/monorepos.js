@@ -27,7 +27,7 @@ describe('monorepos', function() {
     }
   });
 
-  it.only('should compile packages with target source overrides', async function() {
+  it('should compile packages with target source overrides', async function() {
     let fixture = path.join(__dirname, '/integration/target-source');
     let oldcwd = inputFS.cwd();
     inputFS.chdir(fixture);

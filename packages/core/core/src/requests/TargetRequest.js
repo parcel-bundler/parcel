@@ -143,6 +143,7 @@ export class TargetResolver {
           return matchingTarget;
         });
       } else {
+        optionTargets;
         // Otherwise, it's an object map of target descriptors (similar to those
         // in package.json). Adapt them to native targets.
         targets = Object.entries(optionTargets)
@@ -153,9 +154,6 @@ export class TargetResolver {
               null,
               JSON.stringify({targets: optionTargets}, null, '\t'),
             );
-            if (this.skipTarget(name, exclusiveTarget, descriptor.source)) {
-              return null;
-            }
             if (distDir == null) {
               let optionTargetsString = JSON.stringify(
                 optionTargets,
@@ -169,7 +167,7 @@ export class TargetResolver {
                   codeFrame: {
                     code: optionTargetsString,
                     codeHighlights: generateJSONCodeHighlights(
-                      optionTargetsString,
+                      optionTargetsString || '',
                       [
                         {
                           key: `/${name}`,
@@ -210,9 +208,16 @@ export class TargetResolver {
               target.distEntry = descriptor.distEntry;
             }
 
+            if (descriptor.source != null) {
+              target.source = descriptor.source;
+            }
+
             return target;
           })
-          .filter(value => value != null);
+          .filter(
+            target =>
+              !this.skipTarget(target.name, exclusiveTarget, target.source),
+          );
       }
 
       let serve = this.options.serveOptions;
