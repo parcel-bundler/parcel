@@ -25,38 +25,37 @@ import {generator, expressionsPrecedence} from './generator';
 
 export {babelErrorEnhancer};
 
-export function remapAstLocations(ast: BabelNodeFile, map?: ?SourceMap) {
-  if (map) {
-    // remap ast to original mappings
-    // This improves sourcemap accuracy and fixes sourcemaps when scope-hoisting
-    traverseAll(ast.program, node => {
-      if (node.loc) {
-        if (node.loc?.start) {
-          let mapping = map.findClosestMapping(
-            node.loc.start.line,
-            node.loc.start.column,
-          );
+export function remapAstLocations(ast: BabelNodeFile, map: SourceMap) {
+  // remap ast to original mappings
+  // This improves sourcemap accuracy and fixes sourcemaps when scope-hoisting
+  traverseAll(ast.program, node => {
+    if (node.loc) {
+      if (node.loc?.start) {
+        let mapping = map.findClosestMapping(
+          node.loc.start.line,
+          node.loc.start.column,
+        );
 
-          if (mapping?.original) {
-            // $FlowFixMe
-            node.loc.start.line = mapping.original.line;
-            // $FlowFixMe
-            node.loc.start.column = mapping.original.column;
+        if (mapping?.original) {
+          // $FlowFixMe
+          node.loc.start.line = mapping.original.line;
+          // $FlowFixMe
+          node.loc.start.column = mapping.original.column;
 
-            if (node.loc?.end) {
-              // $FlowFixMe
-              node.loc.end.line = mapping.original.line;
-              // $FlowFixMe
-              node.loc.end.column = mapping.original.column;
-            }
+          // $FlowFixMe
+          let length = node.loc.end.column - node.loc.start.column;
 
-            // $FlowFixMe
-            node.loc.filename = mapping.source;
-          }
+          // $FlowFixMe
+          node.loc.end.line = mapping.original.line;
+          // $FlowFixMe
+          node.loc.end.column = mapping.original.column + length;
+
+          // $FlowFixMe
+          node.loc.filename = mapping.source;
         }
       }
-    });
-  }
+    }
+  });
 }
 
 export async function parse({
@@ -76,7 +75,10 @@ export async function parse({
       sourceType: 'module',
     });
 
-    remapAstLocations(program, await asset.getMap());
+    let map = await asset.getMap();
+    if (map) {
+      remapAstLocations(program, map);
+    }
 
     return {
       type: 'babel',

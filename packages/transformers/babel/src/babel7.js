@@ -59,7 +59,9 @@ export default async function babel7(
     res = await babel.transformAsync(await asset.getCode(), config);
     if (res.ast) {
       let map = await asset.getMap();
-      remapAstLocations(res.ast, map);
+      if (map) {
+        remapAstLocations(res.ast, map);
+      }
     }
   }
 
