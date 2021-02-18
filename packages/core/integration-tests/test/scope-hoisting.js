@@ -5006,4 +5006,15 @@ describe('scope hoisting', function() {
     let res = await run(b);
     assert.deepEqual(res, 'x: 123');
   });
+
+  it('should insert the prelude for sibling bundles referenced in HTML', async function() {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        'integration/scope-hoisting/es6/sibling-dependencies/index.html',
+      ),
+    );
+    let res = await run(b);
+    assert.equal(res, 'a');
+  });
 });
