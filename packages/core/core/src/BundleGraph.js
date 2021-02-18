@@ -658,7 +658,12 @@ export default class BundleGraph {
     let visitedBundles: Set<Bundle> = new Set();
     // Check if any of this bundle's descendants, referencers, bundles referenced
     // by referencers, or descedants of its referencers reference the asset.
-    return [bundle, ...this.getReferencingBundles(bundle)].some(referencer => {
+    let siblingBundles = new Set(
+      this.getBundleGroupsContainingBundle(bundle).flatMap(bundleGroup =>
+        this.getBundlesInBundleGroup(bundleGroup),
+      ),
+    );
+    return [...siblingBundles].some(referencer => {
       let isReferenced = false;
       this.traverseBundles((descendant, _, actions) => {
         if (descendant.id === bundle.id) {
