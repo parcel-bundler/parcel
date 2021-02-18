@@ -25,6 +25,7 @@ const internalConfigToConfig: DefaultWeakMap<
 export default class PublicConfig implements IConfig {
   #config /*: Config */;
   #plugin /*: LoadedPlugin<Transformer> */;
+  #requestDevDeps /*: Map<string, string> */;
   #pkg /*: ?PackageJSON */;
   #pkgFilePath /*: ?FilePath */;
   #options /*: ParcelOptions */;
@@ -32,6 +33,7 @@ export default class PublicConfig implements IConfig {
   constructor(
     config: Config,
     plugin: LoadedPlugin<Transformer>,
+    requestDevDeps: Map<string, string>,
     options: ParcelOptions,
   ): PublicConfig {
     let existing = internalConfigToConfig.get(options).get(config);
@@ -41,6 +43,7 @@ export default class PublicConfig implements IConfig {
 
     this.#config = config;
     this.#plugin = plugin;
+    this.#requestDevDeps = requestDevDeps;
     this.#options = options;
     internalConfigToConfig.get(options).set(config, this);
     return this;
@@ -84,6 +87,17 @@ export default class PublicConfig implements IConfig {
     resolveFrom: FilePath,
     options?: ConfigDevDepOptions,
   ): Promise<void> {
+    let key = `${name}:${resolveFrom}`;
+    let hash = this.#requestDevDeps.get(key);
+    if (hash != null) {
+      this.#config.devDeps.push({
+        name,
+        resolveFrom,
+        hash,
+      });
+      return;
+    }
+
     // Ensure that the package manager has an entry for this resolution.
     await this.#options.packageManager.resolve(name, resolveFrom);
     let invalidations = this.#options.packageManager.getInvalidations(
@@ -91,7 +105,7 @@ export default class PublicConfig implements IConfig {
       resolveFrom,
     );
 
-    let hash = await getInvalidationHash(
+    hash = await getInvalidationHash(
       [...invalidations.invalidateOnFileChange].map(f => ({
         type: 'file',
         filePath: f,

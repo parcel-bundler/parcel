@@ -89,7 +89,7 @@ async function run({input, api, farm, invalidateReason}: RunInput) {
     devDeps: new Map(
       [...previousDevDepRequests.entries()]
         .filter(([id]) => api.canSkipSubrequest(id))
-        .map(([, req]) => [req.name, req.hash]),
+        .map(([, req]) => [`${req.name}:${req.resolveFrom}`, req.hash]),
     ),
     invalidDevDeps: await Promise.all(
       [...previousDevDepRequests.entries()]

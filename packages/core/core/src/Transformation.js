@@ -34,6 +34,7 @@ import {init as initSourcemaps} from '@parcel/source-map';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import {SOURCEMAP_EXTENSIONS} from '@parcel/utils';
 import crypto from 'crypto';
+import v8 from 'v8';
 
 import {createDependency} from './Dependency';
 import ParcelConfig from './ParcelConfig';
@@ -279,11 +280,11 @@ export default class Transformation {
     initialAsset: UncommittedAsset,
   ): Promise<Array<UncommittedAsset>> {
     let initialType = initialAsset.value.type;
-    let initialPipelineHash = this.getPipelineHash(pipeline);
+    let initialPipelineHash = await this.getPipelineHash(pipeline);
     let initialAssetCacheKey = this.getCacheKey(
       [initialAsset],
       await getInvalidationHash(this.request.invalidations, this.options), // TODO: should be per-pipeline
-      initialPipelineHash, // TODO: this should be computed from previous hashes so we don't re-transform when there is no actual change
+      initialPipelineHash,
     );
     let initialCacheEntry = await this.readFromCache(initialAssetCacheKey);
 
@@ -292,30 +293,31 @@ export default class Transformation {
 
     // Add dev dep requests for each transformer
     for (let transformer of pipeline.transformers) {
-      if (this.devDepRequests.has(transformer.name)) {
+      let key = `${transformer.name}:${transformer.resolveFrom}`;
+      if (this.devDepRequests.has(key)) {
         continue;
       }
 
       // If the request sent us a hash, we know the plugin and all of its dependencies didn't change.
       // Reuse the same hash in the response. No need to send back invalidations as the request won't
       // be re-run anyway.
-      let hash = this.request.devDeps.get(transformer.name);
+      let hash = this.request.devDeps.get(key);
       if (hash != null) {
-        this.devDepRequests.set(transformer.name, {
+        this.devDepRequests.set(key, {
           name: transformer.name,
           resolveFrom: transformer.resolveFrom,
           hash,
         });
       } else {
         this.devDepRequests.set(
-          transformer.name,
+          key,
           await this.getTransformerInvalidations(transformer),
         );
       }
     }
 
     if (!initialCacheEntry) {
-      let pipelineHash = this.getPipelineHash(pipeline);
+      let pipelineHash = await this.getPipelineHash(pipeline);
       let resultCacheKey = this.getCacheKey(
         [initialAsset],
         await getInvalidationHash(
@@ -351,18 +353,51 @@ export default class Transformation {
     return finalAssets;
   }
 
-  getPipelineHash(pipeline: Pipeline): string {
+  async getPipelineHash(pipeline: Pipeline): Promise<string> {
     let hash = crypto.createHash('md5');
     for (let transformer of pipeline.transformers) {
+      let key = `${transformer.name}:${transformer.resolveFrom}`;
       hash.update(
-        this.request.devDeps.get(transformer.name) ??
-          this.devDepRequests.get(transformer.name)?.hash ??
+        this.request.devDeps.get(key) ??
+          this.devDepRequests.get(key)?.hash ??
           '',
       );
 
       let config = this.configRequests.get(transformer.name);
       if (config) {
-        hash.update(config.id + (config.resultHash ?? ''));
+        hash.update(config.id);
+
+        // If there is no result hash set by the transformer, default to hashing the included
+        // files if any, otherwise try to hash the config result itself.
+        if (config.resultHash == null) {
+          if (config.includedFiles.size > 0) {
+            hash.update(
+              await getInvalidationHash(
+                [...config.includedFiles].map(filePath => ({
+                  type: 'file',
+                  filePath,
+                })),
+                this.options,
+              ),
+            );
+          } else if (config.result != null) {
+            try {
+              // $FlowFixMe
+              hash.update(v8.serialize(config.result));
+            } catch (err) {
+              throw new ThrowableDiagnostic({
+                diagnostic: {
+                  message:
+                    'Config result is not hashable because it contains non-serializable objects. Please use config.setResultHash to set the hash manually.',
+                  origin: transformer.name,
+                },
+              });
+            }
+          }
+        } else {
+          hash.update(config.resultHash ?? '');
+        }
+
         for (let devDep of config.devDeps) {
           hash.update(devDep.hash);
         }
@@ -660,7 +695,12 @@ export default class Transformation {
 
     try {
       await loadConfig({
-        config: new PublicConfig(config, transformer, this.options),
+        config: new PublicConfig(
+          config,
+          transformer,
+          this.request.devDeps,
+          this.options,
+        ),
         options: this.options,
         logger: new PluginLogger({origin: transformer.name}),
       });
