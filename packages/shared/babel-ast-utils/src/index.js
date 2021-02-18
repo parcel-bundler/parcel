@@ -52,6 +52,9 @@ export function remapAstLocations(ast: BabelNodeFile, map: SourceMap) {
 
           // $FlowFixMe
           node.loc.filename = mapping.source;
+        } else {
+          // Maintain null mappings?
+          node.loc = null;
         }
       }
     }
