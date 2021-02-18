@@ -280,9 +280,14 @@ export function escapeMarkdown(s: string): string {
   return result;
 }
 
-const mdVerbatim = Symbol();
 // $FlowFixMe[unclear-type]
-export function md(strings: Array<string>, ...params: Array<any>): string {
+type TemplateInput = any;
+
+const mdVerbatim = Symbol();
+export function md(
+  strings: Array<string>,
+  ...params: Array<TemplateInput>
+): string {
   let result = [];
   for (let i = 0; i < params.length; i++) {
     let param = params[i];
@@ -294,23 +299,22 @@ export function md(strings: Array<string>, ...params: Array<any>): string {
   return result.join('') + strings[strings.length - 1];
 }
 
-// $FlowFixMe[unclear-type]
-md.bold = function(s: any): {|value: string|} {
+md.bold = function(s: TemplateInput): {|value: string|} {
   // $FlowFixMe[invalid-computed-prop]
   return {[mdVerbatim]: true, value: '**' + escapeMarkdown(`${s}`) + '**'};
 };
-// $FlowFixMe[unclear-type]
-md.italic = function(s: any): {|value: string|} {
+
+md.italic = function(s: TemplateInput): {|value: string|} {
   // $FlowFixMe[invalid-computed-prop]
   return {[mdVerbatim]: true, value: '_' + escapeMarkdown(`${s}`) + '_'};
 };
-// $FlowFixMe[unclear-type]
-md.underline = function(s: any): {|value: string|} {
+
+md.underline = function(s: TemplateInput): {|value: string|} {
   // $FlowFixMe[invalid-computed-prop]
   return {[mdVerbatim]: true, value: '__' + escapeMarkdown(`${s}`) + '__'};
 };
-// $FlowFixMe[unclear-type]
-md.strikethrough = function(s: any): {|value: string|} {
+
+md.strikethrough = function(s: TemplateInput): {|value: string|} {
   // $FlowFixMe[invalid-computed-prop]
   return {[mdVerbatim]: true, value: '~~' + escapeMarkdown(`${s}`) + '~~'};
 };
