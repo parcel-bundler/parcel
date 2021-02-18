@@ -13,6 +13,7 @@ import {
   mergeParcelOptions,
   sleep,
 } from '@parcel/test-utils';
+import {md} from '@parcel/diagnostic';
 import fs from 'fs';
 import {NodePackageManager} from '@parcel/package-manager';
 
@@ -1395,7 +1396,7 @@ describe('cache', function() {
           });
         },
         {
-          message: `Entry ${path.join(
+          message: md`Entry ${path.join(
             inputDir,
             'src/index.js',
           )} does not exist`,
@@ -1412,7 +1413,7 @@ describe('cache', function() {
           });
         },
         {
-          message: `Entry ${path.join(
+          message: md`Entry ${path.join(
             inputDir,
             'src/index.js',
           )} does not exist`,
