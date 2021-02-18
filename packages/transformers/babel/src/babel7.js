@@ -5,7 +5,7 @@ import type {MutableAsset, AST, PluginOptions} from '@parcel/types';
 import invariant from 'assert';
 import * as babel from '@babel/core';
 import {relativeUrl} from '@parcel/utils';
-import traverse from '@babel/traverse';
+import {remapAstLocations} from '@parcel/babel-ast-utils';
 
 import packageJson from '../package.json';
 
@@ -59,39 +59,7 @@ export default async function babel7(
     res = await babel.transformAsync(await asset.getCode(), config);
     if (res.ast) {
       let map = await asset.getMap();
-      if (map) {
-        // remap ast to original mappings
-        // This improves sourcemap accuracy and fixes sourcemaps when scope-hoisting
-        traverse(res.ast.program, {
-          enter(path) {
-            if (path.node.loc) {
-              if (path.node.loc?.start) {
-                let mapping = map.findClosestMapping(
-                  path.node.loc.start.line,
-                  path.node.loc.start.column,
-                );
-
-                if (mapping?.original) {
-                  // $FlowFixMe
-                  path.node.loc.start.line = mapping.original.line;
-                  // $FlowFixMe
-                  path.node.loc.start.column = mapping.original.column;
-
-                  if (path.node.loc?.end) {
-                    // $FlowFixMe
-                    path.node.loc.end.line = mapping.original.line;
-                    // $FlowFixMe
-                    path.node.loc.end.column = mapping.original.column;
-                  }
-
-                  // $FlowFixMe
-                  path.node.loc.filename = mapping.source;
-                }
-              }
-            }
-          },
-        });
-      }
+      remapAstLocations(res.ast, map);
     }
   }
 

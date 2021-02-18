@@ -16,6 +16,7 @@ import path from 'path';
 import {parse as babelParse} from '@babel/parser';
 import SourceMap from '@parcel/source-map';
 import {relativeUrl} from '@parcel/utils';
+import {traverseAll} from '@parcel/babylon-walk';
 import {babelErrorEnhancer} from './babelErrorUtils';
 // $FlowFixMe
 import {generate as astringGenerate} from 'astring';
@@ -23,6 +24,40 @@ import {generate as astringGenerate} from 'astring';
 import {generator, expressionsPrecedence} from './generator';
 
 export {babelErrorEnhancer};
+
+export function remapAstLocations(ast: BabelNodeFile, map?: ?SourceMap) {
+  if (map) {
+    // remap ast to original mappings
+    // This improves sourcemap accuracy and fixes sourcemaps when scope-hoisting
+    traverseAll(ast.program, node => {
+      if (node.loc) {
+        if (node.loc?.start) {
+          let mapping = map.findClosestMapping(
+            node.loc.start.line,
+            node.loc.start.column,
+          );
+
+          if (mapping?.original) {
+            // $FlowFixMe
+            node.loc.start.line = mapping.original.line;
+            // $FlowFixMe
+            node.loc.start.column = mapping.original.column;
+
+            if (node.loc?.end) {
+              // $FlowFixMe
+              node.loc.end.line = mapping.original.line;
+              // $FlowFixMe
+              node.loc.end.column = mapping.original.column;
+            }
+
+            // $FlowFixMe
+            node.loc.filename = mapping.source;
+          }
+        }
+      }
+    });
+  }
+}
 
 export async function parse({
   asset,
@@ -34,16 +69,19 @@ export async function parse({
   options: PluginOptions,
 |}): Promise<AST> {
   try {
+    let program = babelParse(code, {
+      sourceFilename: relativeUrl(options.projectRoot, asset.filePath),
+      allowReturnOutsideFunction: true,
+      strictMode: false,
+      sourceType: 'module',
+    });
+
+    remapAstLocations(program, await asset.getMap());
+
     return {
       type: 'babel',
       version: '7.0.0',
-      // TODO: Remap locations in the AST
-      program: babelParse(code, {
-        sourceFilename: relativeUrl(options.projectRoot, asset.filePath),
-        allowReturnOutsideFunction: true,
-        strictMode: false,
-        sourceType: 'module',
-      }),
+      program,
     };
   } catch (e) {
     throw await babelErrorEnhancer(e, asset);
