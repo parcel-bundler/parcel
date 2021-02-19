@@ -37,12 +37,7 @@ export class Npm implements PackageInstaller {
     // filter them out when installing packages.
     let env = {};
     for (let key in process.env) {
-      if (
-        !key.startsWith('npm_') &&
-        key !== 'YARN_WRAP_OUTPUT' &&
-        key !== 'INIT_CWD' &&
-        key !== 'NODE_ENV'
-      ) {
+      if (!key.startsWith('npm_') && key !== 'INIT_CWD' && key !== 'NODE_ENV') {
         env[key] = process.env[key];
       }
     }
