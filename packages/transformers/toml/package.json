@@ -20,9 +20,7 @@
     "parcel": "^2.0.0-beta.1"
   },
   "dependencies": {
-    "@parcel/plugin": "2.0.0-frontbucket.41"
-  },
-  "devDependencies": {
+    "@parcel/plugin": "2.0.0-frontbucket.41",
     "@iarna/toml": "^2.2.3"
   }
 }

@@ -23,11 +23,11 @@
     "@babel/parser": "^7.0.0",
     "@babel/template": "^7.4.0",
     "@babel/traverse": "^7.2.3",
-    "@babel/types": "^7.12.11",
+    "@babel/types": "^7.12.13",
     "@parcel/babel-ast-utils": "2.0.0-frontbucket.22",
     "@parcel/babylon-walk": "2.0.0-frontbucket.11",
     "@parcel/diagnostic": "2.0.0-frontbucket.25",
-    "@parcel/source-map": "2.0.0-alpha.4.19",
+    "@parcel/source-map": "2.0.0-alpha.4.21",
     "@parcel/utils": "2.0.0-frontbucket.37",
     "globals": "^13.2.0",
     "nullthrows": "^1.1.1"

@@ -17,7 +17,7 @@
   },
   "author": "Timothy Gu <timothygu99@gmail.com>",
   "dependencies": {
-    "@babel/types": "^7.12.11",
+    "@babel/types": "^7.12.13",
     "lodash.clone": "^4.5.0"
   }
 }

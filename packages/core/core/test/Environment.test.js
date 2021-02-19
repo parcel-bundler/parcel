@@ -6,7 +6,7 @@ import {createEnvironment} from '../src/Environment';
 describe('Environment', () => {
   it('assigns a default environment with nothing passed', () => {
     assert.deepEqual(createEnvironment(), {
-      id: '86d7d73792af2fa2046abf3c2ab55aa8',
+      id: '4956efeac6786291754a5bb178fa9328',
       context: 'browser',
       engines: {
         browsers: ['> 0.25%'],
@@ -14,15 +14,15 @@ describe('Environment', () => {
       includeNodeModules: true,
       outputFormat: 'global',
       isLibrary: false,
-      minify: false,
-      scopeHoist: false,
+      shouldOptimize: false,
+      shouldScopeHoist: false,
       sourceMap: undefined,
     });
   });
 
   it('assigns a node context if a node engine is given', () => {
     assert.deepEqual(createEnvironment({engines: {node: '>= 10.0.0'}}), {
-      id: '33b63a51b1b17ee79ab504c2a5a564e9',
+      id: 'a3bda52ba0cc8110d936ba9026e87e52',
       context: 'node',
       engines: {
         node: '>= 10.0.0',
@@ -30,8 +30,8 @@ describe('Environment', () => {
       includeNodeModules: false,
       outputFormat: 'commonjs',
       isLibrary: false,
-      minify: false,
-      scopeHoist: false,
+      shouldOptimize: false,
+      shouldScopeHoist: false,
       sourceMap: undefined,
     });
   });
@@ -40,7 +40,7 @@ describe('Environment', () => {
     assert.deepEqual(
       createEnvironment({engines: {browsers: ['last 1 version']}}),
       {
-        id: 'd3665a7cc8b5db9caaffe0150e51f313',
+        id: 'e98b37e13207980d6e65f6318c6168e2',
         context: 'browser',
         engines: {
           browsers: ['last 1 version'],
@@ -48,8 +48,8 @@ describe('Environment', () => {
         includeNodeModules: true,
         outputFormat: 'global',
         isLibrary: false,
-        minify: false,
-        scopeHoist: false,
+        shouldOptimize: false,
+        shouldScopeHoist: false,
         sourceMap: undefined,
       },
     );
@@ -57,7 +57,7 @@ describe('Environment', () => {
 
   it('assigns default engines for node', () => {
     assert.deepEqual(createEnvironment({context: 'node'}), {
-      id: '19ef13a8424764abaf7be15b77523770',
+      id: '3586553556d47b982077a1832d4bbcb7',
       context: 'node',
       engines: {
         node: '>= 8.0.0',
@@ -65,15 +65,15 @@ describe('Environment', () => {
       includeNodeModules: false,
       outputFormat: 'commonjs',
       isLibrary: false,
-      minify: false,
-      scopeHoist: false,
+      shouldOptimize: false,
+      shouldScopeHoist: false,
       sourceMap: undefined,
     });
   });
 
   it('assigns default engines for browsers', () => {
     assert.deepEqual(createEnvironment({context: 'browser'}), {
-      id: '86d7d73792af2fa2046abf3c2ab55aa8',
+      id: '4956efeac6786291754a5bb178fa9328',
       context: 'browser',
       engines: {
         browsers: ['> 0.25%'],
@@ -81,8 +81,8 @@ describe('Environment', () => {
       includeNodeModules: true,
       outputFormat: 'global',
       isLibrary: false,
-      minify: false,
-      scopeHoist: false,
+      shouldOptimize: false,
+      shouldScopeHoist: false,
       sourceMap: undefined,
     });
   });

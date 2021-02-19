@@ -1,16 +1,12 @@
 // @flow
 import {Validator} from '@parcel/plugin';
 import type {DiagnosticCodeFrame} from '@parcel/diagnostic';
+import eslint from 'eslint';
 
 let cliEngine = null;
 
 export default (new Validator({
-  async validate({asset, options}) {
-    let eslint = await options.packageManager.require(
-      'eslint',
-      asset.filePath,
-      {shouldAutoInstall: options.shouldAutoInstall},
-    );
+  async validate({asset}) {
     if (!cliEngine) {
       cliEngine = new eslint.CLIEngine({});
     }

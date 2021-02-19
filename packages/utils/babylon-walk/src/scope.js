@@ -3,13 +3,17 @@
 import type {Identifier, Node} from '@babel/types';
 import type {Visitors} from './types';
 import * as t from '@babel/types';
+import invariant from 'assert';
 import {
-  isVariableDeclaration,
+  isClassDeclaration,
   isFunctionDeclaration,
   isIdentifier,
+  isImportDeclaration,
+  isVariableDeclaration,
 } from '@babel/types';
 
 export type ScopeType = 'program' | 'function' | 'arrow_function' | 'block';
+export type BindingType = 'var' | 'let' | 'const';
 export class Scope {
   type: ScopeType;
   names: Set<string> = new Set();
@@ -59,10 +63,20 @@ export class Scope {
     return uid;
   }
 
-  addBinding(name: string, decl: Node) {
-    this.names.add(name);
-    this.program.names.add(name);
-    this.bindings.set(name, decl);
+  addBinding(name: string, decl: Node, type: BindingType | 'param') {
+    if (
+      type === 'var' &&
+      this.type !== 'function' &&
+      this.type !== 'arrow_function' &&
+      this.parent
+    ) {
+      this.parent.addBinding(name, decl, type);
+    } else {
+      if (type === 'param') type = 'var';
+      this.names.add(name);
+      this.bindings.set(name, decl);
+      this.program.names.add(name);
+    }
   }
 
   getBinding(name: string): ?Node {
@@ -163,15 +177,23 @@ export let scopeVisitor: Visitors<ScopeState> = {
       // Register declarations with the scope.
       if (isVariableDeclaration(node)) {
         for (let decl of node.declarations) {
-          let ids = t.getBindingIdentifiers(node);
+          let ids = t.getBindingIdentifiers(decl);
           for (let id in ids) {
-            scope.addBinding(id, decl);
+            scope.addBinding(id, decl, node.kind);
           }
         }
       } else {
+        let type: BindingType;
+        if (isClassDeclaration(node)) {
+          type = 'let';
+        } else if (isImportDeclaration(node)) {
+          type = 'const';
+        } else {
+          invariant(false);
+        }
         let ids = t.getBindingIdentifiers(node);
         for (let id in ids) {
-          scope.addBinding(id, node);
+          scope.addBinding(id, node, type);
         }
       }
     },
@@ -181,7 +203,7 @@ export let scopeVisitor: Visitors<ScopeState> = {
     let name;
     if (isFunctionDeclaration(node) && isIdentifier(node.id)) {
       name = node.id.name;
-      state.scope.addBinding(name, node);
+      state.scope.addBinding(name, node, 'var');
     }
 
     // Create new scope
@@ -194,7 +216,7 @@ export let scopeVisitor: Visitors<ScopeState> = {
     let inner = t.getBindingIdentifiers(node);
     for (let id in inner) {
       if (id !== name) {
-        state.scope.addBinding(id, inner[id]);
+        state.scope.addBinding(id, inner[id], 'param');
       }
     }
   },

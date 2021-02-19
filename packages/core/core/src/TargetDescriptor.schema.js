@@ -35,6 +35,7 @@ export const PACKAGE_DESCRIPTOR_SCHEMA: SchemaObject = {
         'web-worker',
         'electron-main',
         'electron-renderer',
+        'service-worker',
       ],
     },
     includeNodeModules: {
@@ -94,7 +95,7 @@ export const PACKAGE_DESCRIPTOR_SCHEMA: SchemaObject = {
       ],
     },
     engines: ENGINES_SCHEMA,
-    minify: {
+    optimize: {
       type: 'boolean',
     },
     stableEntries: {

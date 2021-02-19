@@ -6,20 +6,30 @@ import type {PluginLogger} from '@parcel/logger';
 
 import nullthrows from 'nullthrows';
 import path from 'path';
-import * as bundledBabelCore from '@babel/core';
+import * as babelCore from '@babel/core';
 import {md5FromObject} from '@parcel/utils';
-import semver from 'semver';
 
 import getEnvOptions from './env';
 import getJSXOptions from './jsx';
 import getFlowOptions from './flow';
 import getTypescriptOptions from './typescript';
 import {enginesToBabelTargets} from './utils';
-import {BABEL_RANGE} from './constants';
 
 const TYPESCRIPT_EXTNAME_RE = /^\.tsx?/;
 const BABEL_TRANSFORMER_DIR = path.dirname(__dirname);
 const JS_EXTNAME_RE = /^\.(js|cjs|mjs)$/;
+const BABEL_CONFIG_FILENAMES = [
+  '.babelrc',
+  '.babelrc.js',
+  '.babelrc.json',
+  '.babelrc.cjs',
+  '.babelrc.mjs',
+  '.babelignore',
+  'babel.config.js',
+  'babel.config.json',
+  'babel.config.mjs',
+  'babel.config.cjs',
+];
 
 export async function load(
   config: Config,
@@ -31,15 +41,6 @@ export async function load(
     return;
   }
 
-  let resolved = await options.packageManager.resolve(
-    '@babel/core',
-    config.searchPath,
-    {range: BABEL_RANGE, shouldAutoInstall: options.shouldAutoInstall},
-  );
-  let babelCore = await options.packageManager.require(
-    resolved.resolved,
-    config.searchPath,
-  );
   let babelOptions = {
     filename: config.searchPath,
     cwd: options.projectRoot,
@@ -50,22 +51,20 @@ export async function load(
         ? options.mode
         : null) ??
       'development',
+    showIgnoredFiles: true,
   };
-
-  // Only add the showIgnoredFiles option if babel is new enough, otherwise it will throw on unknown option.
-  if (semver.satisfies(nullthrows(resolved.pkg).version, '^7.12.0')) {
-    // $FlowFixMe
-    babelOptions.showIgnoredFiles = true;
-  }
 
   let partialConfig: ?{|
     [string]: any,
   |} = await babelCore.loadPartialConfigAsync(babelOptions);
 
   // Invalidate when any babel config file is added.
-  config.setWatchGlob(
-    '**/{.babelrc,.babelrc.js,.babelrc.json,.babelrc.cjs,.babelrc.mjs,.babelignore,babel.config.js,babel.config.json,babel.config.mjs,babel.config.cjs}',
-  );
+  for (let fileName of BABEL_CONFIG_FILENAMES) {
+    config.invalidateOnFileCreate({
+      fileName,
+      aboveFilePath: config.searchPath,
+    });
+  }
 
   let addIncludedFile = file => {
     if (JS_EXTNAME_RE.test(path.extname(file))) {
@@ -175,19 +174,19 @@ async function buildDefaultBabelConfig(options: PluginOptions, config: Config) {
   let envOptions = await getEnvOptions(config);
   if (envOptions != null) {
     babelTargets = envOptions.targets;
-    babelOptions = mergeOptions(babelOptions, {presets: envOptions.presets});
+    babelOptions = mergeOptions(babelOptions, envOptions.config);
   }
   babelOptions = mergeOptions(babelOptions, jsxOptions?.config);
 
   if (babelOptions != null) {
     babelOptions.presets = (babelOptions.presets || []).map(preset =>
-      bundledBabelCore.createConfigItem(preset, {
+      babelCore.createConfigItem(preset, {
         type: 'preset',
         dirname: BABEL_TRANSFORMER_DIR,
       }),
     );
     babelOptions.plugins = (babelOptions.plugins || []).map(plugin =>
-      bundledBabelCore.createConfigItem(plugin, {
+      babelCore.createConfigItem(plugin, {
         type: 'plugin',
         dirname: BABEL_TRANSFORMER_DIR,
       }),
@@ -287,43 +286,6 @@ async function definePluginDependencies(config) {
         }),
       ).contents;
       config.addDevDependency(pkg.name, pkg.version);
-    }),
-  );
-}
-
-export async function postDeserialize(config: Config, options: PluginOptions) {
-  let babelCore = config.result.internal
-    ? bundledBabelCore
-    : await options.packageManager.require('@babel/core', config.searchPath, {
-        shouldAutoInstall: options.shouldAutoInstall,
-      });
-
-  config.result.config.presets = await Promise.all(
-    config.result.config.presets.map(async configItem => {
-      let value = await options.packageManager.require(
-        configItem.file.resolved,
-        config.searchPath,
-        {shouldAutoInstall: options.shouldAutoInstall},
-      );
-      value = value.default ? value.default : value;
-      return babelCore.createConfigItem([value, configItem.options], {
-        type: 'preset',
-        dirname: configItem.dirname,
-      });
-    }),
-  );
-  config.result.config.plugins = await Promise.all(
-    config.result.config.plugins.map(async configItem => {
-      let value = await options.packageManager.require(
-        configItem.file.resolved,
-        config.searchPath,
-        {shouldAutoInstall: options.shouldAutoInstall},
-      );
-      value = value.default ? value.default : value;
-      return babelCore.createConfigItem([value, configItem.options], {
-        type: 'plugin',
-        dirname: configItem.dirname,
-      });
     }),
   );
 }

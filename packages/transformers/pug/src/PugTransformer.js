@@ -2,6 +2,7 @@
 
 import path from 'path';
 import {Transformer} from '@parcel/plugin';
+import pug from 'pug';
 
 export default (new Transformer({
   async loadConfig({config}) {
@@ -34,11 +35,8 @@ export default (new Transformer({
     }
   },
 
-  async transform({asset, config, options}) {
+  async transform({asset, config}) {
     const pugConfig = config ? config.contents : {};
-    const pug = await options.packageManager.require('pug', asset.filePath, {
-      shouldAutoInstall: options.shouldAutoInstall,
-    });
     const content = await asset.getCode();
     const render = pug.compile(content, {
       compileDebug: false,

@@ -21,16 +21,12 @@ export default (new Transformer({
   async loadConfig({config, options}) {
     config.setResult(await shouldExclude(config, options));
   },
-  async transform({asset, config, options}) {
+  transform({asset, config}) {
     if (!config) {
-      let reactRefreshBabelPlugin = (
-        await options.packageManager.resolve('react-refresh/babel', __filename)
-      ).resolved;
-
       asset.meta.babelPlugins = asset.meta.babelPlugins || [];
       invariant(Array.isArray(asset.meta.babelPlugins));
       asset.meta.babelPlugins.push([
-        reactRefreshBabelPlugin,
+        require.resolve('react-refresh/babel'),
         {skipEnvCheck: true},
       ]);
     }

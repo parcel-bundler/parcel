@@ -11,16 +11,42 @@ import {
   findAsset,
   findDependency,
   getNextBuild,
+  mergeParcelOptions,
   outputFS,
   overlayFS,
   run,
   runBundle,
 } from '@parcel/test-utils';
 
-const bundle = (name, opts = {}) => _bundle(name, {scopeHoist: true, ...opts});
+const bundle = (name, opts = {}) => {
+  return _bundle(
+    name,
+    // $FlowFixMe
+    mergeParcelOptions(
+      {
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
+      },
+      opts,
+    ),
+  );
+};
 
-const bundler = (name, opts = {}) =>
-  _bundler(name, {scopeHoist: true, ...opts});
+const bundler = (name, opts = {}) => {
+  return _bundler(
+    name,
+    // $FlowFixMe
+    mergeParcelOptions(
+      {
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
+      },
+      opts,
+    ),
+  );
+};
 
 describe('scope hoisting', function() {
   describe('es6', function() {
@@ -94,6 +120,18 @@ describe('scope hoisting', function() {
 
       let output = await run(b);
       assert.equal(output, 2);
+    });
+
+    it('supports renaming non-ASCII identifiers', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/non-ascii-identifiers/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, [1, 2, 3, 4]);
     });
 
     it('supports renaming superclass identifiers', async function() {
@@ -1041,7 +1079,11 @@ describe('scope hoisting', function() {
           __dirname,
           '/integration/scope-hoisting/es6/tree-shaking-functions/a.js',
         ),
-        {minify: true},
+        {
+          defaultTargetOptions: {
+            shouldOptimize: true,
+          },
+        },
       );
 
       let output = await run(b);
@@ -1061,7 +1103,11 @@ describe('scope hoisting', function() {
           __dirname,
           '/integration/scope-hoisting/es6/tree-shaking-classes-babel/a.js',
         ),
-        {minify: true},
+        {
+          defaultTargetOptions: {
+            shouldOptimize: true,
+          },
+        },
       );
 
       let output = await run(b);
@@ -1630,7 +1676,11 @@ describe('scope hoisting', function() {
           __dirname,
           '/integration/scope-hoisting/es6/tree-shaking-export-computed-prop/a.js',
         ),
-        {minify: true},
+        {
+          defaultTargetOptions: {
+            shouldOptimize: true,
+          },
+        },
       );
 
       let output = await run(b);
@@ -1703,13 +1753,35 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, 'bar');
     });
 
+    it('should support unused imports of wrapped modules in different bundles', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/import-wrapped-bundle-unused/a.js',
+        ),
+      );
+
+      let called = false;
+      await run(b, {
+        sideEffect() {
+          called = true;
+        },
+      });
+      assert(called);
+    });
+
     it('should insert esModule flag for interop for async (or shared) bundles', async function() {
       let b = await bundle(
         path.join(
           __dirname,
           '/integration/scope-hoisting/es6/interop-async/index.html',
         ),
-        {mode: 'production', minify: false},
+        {
+          mode: 'production',
+          defaultTargetOptions: {
+            shouldOptimize: false,
+          },
+        },
       );
 
       let output = await run(b);
@@ -2897,7 +2969,11 @@ describe('scope hoisting', function() {
             __dirname,
             '/integration/scope-hoisting/es6/tree-shaking-increment-object/a.js',
           ),
-          {minify: true},
+          {
+            defaultTargetOptions: {
+              shouldOptimize: true,
+            },
+          },
         );
 
         let content = await outputFS.readFile(
@@ -3571,6 +3647,20 @@ describe('scope hoisting', function() {
       assert.equal(output, 2);
     });
 
+    it('should remove unused exports assignments for wrapped modules', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/wrap-unused/a.js',
+        ),
+      );
+
+      // console.log(await outputFS.readFile(b.getBundles()[0].filePath, 'utf8'));
+
+      let output = await run(b);
+      assert.equal(output, 1);
+    });
+
     it('should hoist all vars in the scope', async function() {
       let b = await bundle(
         path.join(
@@ -4114,7 +4204,11 @@ describe('scope hoisting', function() {
           __dirname,
           '/integration/scope-hoisting/commonjs/export-local/a.js',
         ),
-        {minify: true},
+        {
+          defaultTargetOptions: {
+            shouldOptimize: true,
+          },
+        },
       );
 
       let output = await run(b);
@@ -4446,7 +4540,12 @@ describe('scope hoisting', function() {
   it('should include the prelude in shared entry bundles', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-shared/index.html'),
-      {mode: 'production', minify: false},
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldOptimize: false,
+        },
+      },
     );
 
     assertBundles(b, [
@@ -4492,7 +4591,12 @@ describe('scope hoisting', function() {
   it.skip('should include prelude in shared worker bundles', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/worker-shared/index.js'),
-      {mode: 'production', minify: false},
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldOptimize: false,
+        },
+      },
     );
 
     let sharedBundle = b
