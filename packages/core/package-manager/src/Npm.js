@@ -82,7 +82,12 @@ export class Npm implements PackageInstaller {
         }
       }
     } catch (e) {
-      throw new Error('npm failed to install modules');
+      throw new Error(
+        'npm failed to install modules: ' +
+          e.message +
+          ' - ' +
+          stderr.join('\n'),
+      );
     }
   }
 }
