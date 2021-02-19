@@ -27,6 +27,7 @@ import type {
   HMROptions,
   QueryParameters,
   DetailedReportOptions,
+  DevDepOptions,
 } from '@parcel/types';
 import type {SharedReference} from '@parcel/workers';
 import type {FileSystem} from '@parcel/fs';
@@ -156,13 +157,13 @@ export type RequestInvalidation =
   | OptionInvalidation;
 
 export type DevDepRequest = {|
-  name: ModuleSpecifier,
+  moduleSpecifier: ModuleSpecifier,
   resolveFrom: FilePath,
   hash: string,
   invalidateOnFileCreate?: Array<FileCreateInvalidation>,
   invalidateOnFileChange?: Set<FilePath>,
   additionalInvalidations?: Array<{|
-    name: ModuleSpecifier,
+    moduleSpecifier: ModuleSpecifier,
     resolveFrom: FilePath,
   |}>,
 |};
@@ -289,7 +290,10 @@ export type TransformationRequest = {|
   invalidations: Array<RequestInvalidation>,
   invalidateReason: number,
   devDeps: Map<PackageName, string>,
-  invalidDevDeps: Array<{|name: ModuleSpecifier, resolveFrom: FilePath|}>,
+  invalidDevDeps: Array<{|
+    moduleSpecifier: ModuleSpecifier,
+    resolveFrom: FilePath,
+  |}>,
 |};
 
 export type DepPathRequestNode = {|
@@ -349,7 +353,7 @@ export type Config = {|
   result: ConfigResult,
   includedFiles: Set<FilePath>,
   invalidateOnFileCreate: Array<FileCreateInvalidation>,
-  devDeps: Array<DevDepRequest>,
+  devDeps: Array<DevDepOptions>,
   shouldInvalidateOnStartup: boolean,
 |};
 

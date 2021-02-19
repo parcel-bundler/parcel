@@ -89,7 +89,10 @@ async function run({input, api, farm, invalidateReason}: RunInput) {
     devDeps: new Map(
       [...previousDevDepRequests.entries()]
         .filter(([id]) => api.canSkipSubrequest(id))
-        .map(([, req]) => [`${req.name}:${req.resolveFrom}`, req.hash]),
+        .map(([, req]) => [
+          `${req.moduleSpecifier}:${req.resolveFrom}`,
+          req.hash,
+        ]),
     ),
     invalidDevDeps: await Promise.all(
       [...previousDevDepRequests.entries()]
@@ -97,7 +100,7 @@ async function run({input, api, farm, invalidateReason}: RunInput) {
         .flatMap(([, req]) => {
           return [
             {
-              name: req.name,
+              moduleSpecifier: req.moduleSpecifier,
               resolveFrom: req.resolveFrom,
             },
             ...(req.additionalInvalidations ?? []),
@@ -146,7 +149,11 @@ async function run({input, api, farm, invalidateReason}: RunInput) {
 
   for (let devDepRequest of devDepRequests) {
     await api.runRequest<null, void>({
-      id: 'dev_dep_request:' + devDepRequest.name + ':' + devDepRequest.hash,
+      id:
+        'dev_dep_request:' +
+        devDepRequest.moduleSpecifier +
+        ':' +
+        devDepRequest.hash,
       type: 'dev_dep_request',
       run: ({api}) => {
         for (let filePath of nullthrows(devDepRequest.invalidateOnFileChange)) {
@@ -161,9 +168,10 @@ async function run({input, api, farm, invalidateReason}: RunInput) {
         }
 
         api.storeResult({
-          name: devDepRequest.name,
+          moduleSpecifier: devDepRequest.moduleSpecifier,
           resolveFrom: devDepRequest.resolveFrom,
           hash: devDepRequest.hash,
+          additionalInvalidations: devDepRequest.additionalInvalidations,
         });
       },
       input: null,
@@ -171,16 +179,16 @@ async function run({input, api, farm, invalidateReason}: RunInput) {
   }
 
   // Add config requests
-  for (let config of configRequests) {
+  for (let configRequest of configRequests) {
     await api.runRequest<null, void>({
-      id: 'config_request:' + config.id,
+      id: 'config_request:' + configRequest.id,
       type: 'config_request',
       run: ({api}) => {
         let {
           includedFiles,
           invalidateOnFileCreate,
           shouldInvalidateOnStartup,
-        } = config;
+        } = configRequest;
         for (let filePath of includedFiles) {
           api.invalidateOnFileUpdate(filePath);
           api.invalidateOnFileDelete(filePath);
@@ -196,38 +204,6 @@ async function run({input, api, farm, invalidateReason}: RunInput) {
       },
       input: null,
     });
-
-    // Add dev dependencies for the config (e.g. plugins). These are connected directly
-    // to the asset request rather than the config request at the moment, which allows us
-    // to get a flattened list of dev deps to send to the transformer on the next request.
-    for (let devDepRequest of config.devDeps) {
-      await api.runRequest<null, void>({
-        id: 'dev_dep_request:' + devDepRequest.name + ':' + devDepRequest.hash,
-        type: 'dev_dep_request',
-        run: ({api}) => {
-          for (let filePath of nullthrows(
-            devDepRequest.invalidateOnFileChange,
-          )) {
-            api.invalidateOnFileUpdate(filePath);
-            api.invalidateOnFileDelete(filePath);
-          }
-
-          for (let invalidation of nullthrows(
-            devDepRequest.invalidateOnFileCreate,
-          )) {
-            api.invalidateOnFileCreate(invalidation);
-          }
-
-          api.storeResult({
-            name: devDepRequest.name,
-            resolveFrom: devDepRequest.resolveFrom,
-            hash: devDepRequest.hash,
-            additionalInvalidations: devDepRequest.additionalInvalidations,
-          });
-        },
-        input: null,
-      });
-    }
   }
 
   return assets;

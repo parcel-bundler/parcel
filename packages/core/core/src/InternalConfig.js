@@ -5,9 +5,10 @@ import type {
   FilePath,
   PackageName,
   ConfigResult,
+  DevDepOptions,
 } from '@parcel/types';
 import {md5FromString} from '@parcel/utils';
-import type {Config, DevDepRequest, Environment} from './types';
+import type {Config, Environment} from './types';
 
 type ConfigOpts = {|
   plugin: PackageName,
@@ -17,7 +18,7 @@ type ConfigOpts = {|
   result?: ConfigResult,
   includedFiles?: Set<FilePath>,
   invalidateOnFileCreate?: Array<FileCreateInvalidation>,
-  devDeps?: Array<DevDepRequest>,
+  devDeps?: Array<DevDepOptions>,
   shouldInvalidateOnStartup?: boolean,
 |};
 

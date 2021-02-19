@@ -78,13 +78,13 @@ export async function load(
       config.shouldInvalidateOnStartup();
 
       // But also add the config as a dev dependency so we can at least attempt invalidation in watch mode.
-      await config.addDevDependency(
-        relativePath(options.projectRoot, file),
-        path.join(options.projectRoot, 'index'),
+      config.addDevDependency({
+        moduleSpecifier: relativePath(options.projectRoot, file),
+        resolveFrom: path.join(options.projectRoot, 'index'),
         // Also invalidate @parcel/transformer-babel when the config or a dependency updates.
         // This ensures that the caches in @babel/core are also invalidated.
-        {invalidateParcelPlugin: true},
-      );
+        invalidateParcelPlugin: true,
+      });
     } else {
       config.addIncludedFile(file);
     }
@@ -237,13 +237,16 @@ async function definePluginDependencies(config, options) {
       // FIXME: this uses a relative path from the project root rather than resolving
       // from the config location because configItem.file.request can be a shorthand
       // rather than a full package name.
-      await config.addDevDependency(
-        relativePath(options.projectRoot, configItem.file.resolved),
-        path.join(options.projectRoot, 'index'),
+      config.addDevDependency({
+        moduleSpecifier: relativePath(
+          options.projectRoot,
+          configItem.file.resolved,
+        ),
+        resolveFrom: path.join(options.projectRoot, 'index'),
         // Also invalidate @parcel/transformer-babel when the plugin or a dependency updates.
         // This ensures that the caches in @babel/core are also invalidated.
-        {invalidateParcelPlugin: true},
-      );
+        invalidateParcelPlugin: true,
+      });
     }),
   );
 }

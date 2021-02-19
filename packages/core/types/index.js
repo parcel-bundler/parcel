@@ -592,7 +592,9 @@ export interface Asset extends BaseAsset {
   +stats: Stats;
 }
 
-export type ConfigDevDepOptions = {|
+export type DevDepOptions = {|
+  moduleSpecifier: ModuleSpecifier,
+  resolveFrom: FilePath,
   invalidateParcelPlugin?: boolean,
 |};
 
@@ -609,11 +611,7 @@ export interface Config {
   setResult(result: ConfigResult): void; // TODO: fix
   setResultHash(resultHash: string): void;
   addIncludedFile(filePath: FilePath): void;
-  addDevDependency(
-    name: PackageName,
-    resolveFrom: FilePath,
-    options?: ConfigDevDepOptions,
-  ): Promise<void>;
+  addDevDependency(devDep: DevDepOptions): void;
   invalidateOnFileCreate(invalidation: FileCreateInvalidation): void;
   getConfigFrom(
     searchPath: FilePath,

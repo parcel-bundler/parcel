@@ -33,10 +33,13 @@ export default (new Transformer({
         config.shouldInvalidateOnStartup();
 
         // Also add the config as a dev dependency so we attempt to reload in watch mode.
-        await config.addDevDependency(
-          relativePath(path.dirname(config.searchPath), configFile.filePath),
-          config.searchPath,
-        );
+        config.addDevDependency({
+          moduleSpecifier: relativePath(
+            path.dirname(config.searchPath),
+            configFile.filePath,
+          ),
+          resolveFrom: config.searchPath,
+        });
       }
 
       // Load plugins. This must be done before adding dev dependencies so we auto install.
@@ -52,7 +55,10 @@ export default (new Transformer({
         : Object.keys(configFile.contents.plugins);
       for (let p of pluginArray) {
         if (typeof p === 'string') {
-          await config.addDevDependency(p, configFile.filePath);
+          config.addDevDependency({
+            moduleSpecifier: p,
+            resolveFrom: configFile.filePath,
+          });
         }
       }
 

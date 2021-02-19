@@ -61,7 +61,10 @@ async function configHydrator(
     : Object.keys(configFilePlugins);
   for (let p of pluginArray) {
     if (typeof p === 'string') {
-      await config.addDevDependency(p, nullthrows(resolveFrom));
+      config.addDevDependency({
+        moduleSpecifier: p,
+        resolveFrom: nullthrows(resolveFrom),
+      });
     }
   }
 
@@ -105,10 +108,13 @@ export async function load({
       config.shouldInvalidateOnStartup();
 
       // Also add the config as a dev dependency so we attempt to reload in watch mode.
-      await config.addDevDependency(
-        relativePath(path.dirname(config.searchPath), configFile.filePath),
-        config.searchPath,
-      );
+      config.addDevDependency({
+        moduleSpecifier: relativePath(
+          path.dirname(config.searchPath),
+          configFile.filePath,
+        ),
+        resolveFrom: config.searchPath,
+      });
     }
 
     if (typeof contents !== 'object') {

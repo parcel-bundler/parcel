@@ -7,11 +7,10 @@ import type {
   PackageJSON,
   PackageName,
   ConfigResultWithFilePath,
-  ConfigDevDepOptions,
+  DevDepOptions,
   Transformer,
 } from '@parcel/types';
 import type {Config, DevDepRequest, ParcelOptions} from '../types';
-import type {LoadedPlugin} from '../ParcelConfig';
 
 import {DefaultWeakMap, loadConfig} from '@parcel/utils';
 import Environment from './Environment';
@@ -24,26 +23,17 @@ const internalConfigToConfig: DefaultWeakMap<
 
 export default class PublicConfig implements IConfig {
   #config /*: Config */;
-  #plugin /*: LoadedPlugin<Transformer> */;
-  #requestDevDeps /*: Map<string, string> */;
   #pkg /*: ?PackageJSON */;
   #pkgFilePath /*: ?FilePath */;
   #options /*: ParcelOptions */;
 
-  constructor(
-    config: Config,
-    plugin: LoadedPlugin<Transformer>,
-    requestDevDeps: Map<string, string>,
-    options: ParcelOptions,
-  ): PublicConfig {
+  constructor(config: Config, options: ParcelOptions): PublicConfig {
     let existing = internalConfigToConfig.get(options).get(config);
     if (existing != null) {
       return existing;
     }
 
     this.#config = config;
-    this.#plugin = plugin;
-    this.#requestDevDeps = requestDevDeps;
     this.#options = options;
     internalConfigToConfig.get(options).set(config, this);
     return this;
@@ -82,56 +72,7 @@ export default class PublicConfig implements IConfig {
     this.#config.includedFiles.add(filePath);
   }
 
-  async addDevDependency(
-    name: PackageName,
-    resolveFrom: FilePath,
-    options?: ConfigDevDepOptions,
-  ): Promise<void> {
-    let key = `${name}:${resolveFrom}`;
-    let hash = this.#requestDevDeps.get(key);
-    if (hash != null) {
-      this.#config.devDeps.push({
-        name,
-        resolveFrom,
-        hash,
-      });
-      return;
-    }
-
-    // Ensure that the package manager has an entry for this resolution.
-    await this.#options.packageManager.resolve(name, resolveFrom);
-    let invalidations = this.#options.packageManager.getInvalidations(
-      name,
-      resolveFrom,
-    );
-
-    hash = await getInvalidationHash(
-      [...invalidations.invalidateOnFileChange].map(f => ({
-        type: 'file',
-        filePath: f,
-      })),
-      this.#options,
-    );
-
-    let devDep: DevDepRequest = {
-      name,
-      resolveFrom,
-      hash,
-      invalidateOnFileCreate: invalidations.invalidateOnFileCreate,
-      invalidateOnFileChange: invalidations.invalidateOnFileChange,
-    };
-
-    // Optionally also invalidate the parcel plugin that is loading the config
-    // when this dev dep changes (e.g. to invalidate local caches).
-    if (options?.invalidateParcelPlugin) {
-      devDep.additionalInvalidations = [
-        {
-          name: this.#plugin.name,
-          resolveFrom: this.#plugin.resolveFrom,
-        },
-      ];
-    }
-
+  addDevDependency(devDep: DevDepOptions) {
     this.#config.devDeps.push(devDep);
   }
 
