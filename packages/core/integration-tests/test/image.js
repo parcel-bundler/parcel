@@ -74,5 +74,18 @@ describe('image', function() {
     it('from JS', testCase('js'));
     it('from HTML', testCase('html'));
     it('from CSS', testCase('css'));
+
+    it('all formats', async () => {
+      let b = await bundle(
+        path.join(__dirname, `/integration/image/reformat-all.html`),
+      );
+
+      let foundExtensions = new Set(b.getBundles().map(({type}) => type));
+
+      assert.deepStrictEqual(
+        foundExtensions,
+        new Set(['html', 'webp', 'avif', 'jpg', 'png', 'tiff']),
+      );
+    });
   });
 });
