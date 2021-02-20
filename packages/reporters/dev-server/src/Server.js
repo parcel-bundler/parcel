@@ -145,8 +145,8 @@ export default class Server {
     } else if (pathname.startsWith(this.rootPath)) {
       // Otherwise, serve the file from the dist folder
       req.url =
-        this.rootPath === '/' 
-          ? pathname 
+        this.rootPath === '/'
+          ? pathname
           : '/' + pathname.slice(this.rootPath.length);
       return this.serveBundle(req, res, () => this.sendIndex(req, res));
     } else {

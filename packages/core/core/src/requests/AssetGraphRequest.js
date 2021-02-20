@@ -220,14 +220,22 @@ export class AssetGraphBuilder {
 
   shouldVisitChild(node: AssetGraphNode, child: AssetGraphNode): boolean {
     if (this.shouldBuildLazily) {
-      if (node.type === 'asset') {
+      if (node.type === 'asset' && child.type === 'dependency') {
         node.requested =
           node.requested || this.requestedAssetIds.has(node.value.id);
+        let previouslyDeferred = node.deferred;
         node.deferred =
           !node.requested &&
           this.assetGraph
             .getIncomingDependencies(node.value)
             .every(dep => dep.isEntry || dep.isAsync);
+
+        if (!previouslyDeferred && node.deferred) {
+          this.assetGraph.markParentsWithHasDeferred(node);
+        } else if (previouslyDeferred && !node.deferred) {
+          this.assetGraph.unmarkParentsWithHasDeferred(node);
+        }
+
         return !node.deferred;
       }
     }
