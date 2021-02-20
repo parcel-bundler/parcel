@@ -63,8 +63,8 @@ export class Yarn implements PackageInstaller {
       args.push('-D');
     }
 
-    // When parcel is run by yarn (e.g. via package.json scripts), several environment variables are
-    // added. When parcel in turn calls yarn again, these can cause yarn to behave stragely, so we
+    // When Parcel is run by Yarn (e.g. via package.json scripts), several environment variables are
+    // added. When parcel in turn calls Yarn again, these can cause Yarn to behave stragely, so we
     // filter them out when installing packages.
     let env = {};
     for (let key in process.env) {

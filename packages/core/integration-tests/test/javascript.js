@@ -1407,7 +1407,6 @@ describe('javascript', function() {
   it('should support importing a URL to a raw asset', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/import-raw/index.js'),
-      {shouldDisableCache: false},
     );
 
     assertBundles(b, [
@@ -1428,6 +1427,98 @@ describe('javascript', function() {
       path.join(distDir, url.parse(output()).pathname),
     );
     assert.equal(stats.size, 9);
+  });
+
+  it('should support referencing a raw asset with static URL and import.meta.url', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/import-raw-import-meta-url/index.js'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: [
+          'index.js',
+          'bundle-url.js',
+          'esmodule-helpers.js',
+          'JSRuntime.js',
+          'bundle-manifest.js',
+          'JSRuntime.js',
+          'relative-path.js',
+        ],
+      },
+      {
+        type: 'txt',
+        assets: ['test.txt'],
+      },
+    ]);
+
+    let contents = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(!contents.includes('import.meta.url'));
+
+    let output = await run(b);
+    assert(/^http:\/\/localhost\/test\.[0-9a-f]+\.txt$/.test(output.default));
+    let stats = await outputFS.stat(
+      path.join(distDir, url.parse(output.default).pathname),
+    );
+    assert.equal(stats.size, 9);
+  });
+
+  it('should ignore new URL and import.meta.url with local binding', async function() {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/import-raw-import-meta-url/local-url.js',
+      ),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'local-url.js',
+        assets: ['esmodule-helpers.js', 'local-url.js'],
+      },
+    ]);
+
+    let contents = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(contents.includes('import.meta.url'));
+  });
+
+  it('should support referencing a raw asset with static URL and import.meta.url (diagnostic)', async function() {
+    let fixture = path.join(
+      __dirname,
+      'integration/import-raw-import-meta-url/missing.js',
+    );
+    let code = await inputFS.readFileSync(fixture, 'utf8');
+    await assert.rejects(() => bundle(fixture), {
+      name: 'BuildError',
+      diagnostics: [
+        {
+          codeFrame: {
+            code,
+            codeHighlights: [
+              {
+                end: {
+                  column: 54,
+                  line: 1,
+                },
+                start: {
+                  column: 16,
+                  line: 1,
+                },
+              },
+            ],
+          },
+          filePath: fixture,
+          message: "Failed to resolve 'invalid.txt' from './missing.js'",
+          origin: '@parcel/core',
+        },
+        {
+          hints: [],
+          message: "Cannot load file './invalid.txt' in './'.",
+          origin: '@parcel/resolver-default',
+        },
+      ],
+    });
   });
 
   it('should support importing a URL to a large raw asset', async function() {
