@@ -122,7 +122,7 @@ function nameFromContent(
 
     return path
       .join(path.relative(entryRoot, path.dirname(entryFilePath)), name)
-      .replace(/\.\.(\/|\\)/g, '__$1');
+      .replace(/\.\.(\/|\\)/g, 'up_$1');
   } else {
     // If this is an index file or common directory name, use the parent
     // directory name instead, which is probably more descriptive.
