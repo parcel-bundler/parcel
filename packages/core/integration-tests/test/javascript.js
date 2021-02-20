@@ -1442,9 +1442,6 @@ describe('javascript', function() {
           'bundle-url.js',
           'esmodule-helpers.js',
           'JSRuntime.js',
-          'bundle-manifest.js',
-          'JSRuntime.js',
-          'relative-path.js',
         ],
       },
       {

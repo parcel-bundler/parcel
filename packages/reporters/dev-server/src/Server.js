@@ -145,9 +145,10 @@ export default class Server {
     } else if (pathname.startsWith(this.rootPath)) {
       // Otherwise, serve the file from the dist folder
       req.url =
-        this.rootPath === '/'
-          ? pathname
-          : '/' + pathname.slice(this.rootPath.length);
+        this.rootPath === '/' ? pathname : pathname.slice(this.rootPath.length);
+      if (req.url[0] !== '/') {
+        req.url = '/' + req.url;
+      }
       return this.serveBundle(req, res, () => this.sendIndex(req, res));
     } else {
       return this.send404(req, res);
