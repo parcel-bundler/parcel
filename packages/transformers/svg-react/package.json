@@ -22,6 +22,7 @@
   "dependencies": {
     "@parcel/plugin": "2.0.0-beta.1",
     "camelcase": "^5.3.1",
-    "svg-to-jsx": "^1.0.2"
+    "@svgr/core": "^5.5.0",
+    "@svgr/plugin-jsx": "^5.5.0"
   }
 }
