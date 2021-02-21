@@ -5,16 +5,13 @@ import type {
   FileCreateInvalidation,
   FilePath,
   PackageJSON,
-  PackageName,
   ConfigResultWithFilePath,
   DevDepOptions,
-  Transformer,
 } from '@parcel/types';
-import type {Config, DevDepRequest, ParcelOptions} from '../types';
+import type {Config, ParcelOptions} from '../types';
 
 import {DefaultWeakMap, loadConfig} from '@parcel/utils';
 import Environment from './Environment';
-import {getInvalidationHash} from '../assetUtils';
 
 const internalConfigToConfig: DefaultWeakMap<
   ParcelOptions,

@@ -442,7 +442,7 @@ export default class Transformation {
 
     // Optionally also invalidate the parcel plugin that is loading the config
     // when this dev dep changes (e.g. to invalidate local caches).
-    if (opts?.invalidateParcelPlugin) {
+    if (invalidateParcelPlugin) {
       devDepRequest.additionalInvalidations = [
         {
           moduleSpecifier: transformer.name,

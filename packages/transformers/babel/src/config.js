@@ -65,7 +65,7 @@ export async function load(
     });
   }
 
-  let addIncludedFile = async file => {
+  let addIncludedFile = file => {
     if (JS_EXTNAME_RE.test(path.extname(file))) {
       // We need to invalidate on startup in case the config is non-static,
       // e.g. uses unknown environment variables, reads from the filesystem, etc.
@@ -147,7 +147,7 @@ export async function load(
       config.setResultHash(JSON.stringify(Date.now()));
       config.shouldInvalidateOnStartup();
     } else {
-      await definePluginDependencies(config, options);
+      definePluginDependencies(config, options);
       config.setResultHash(md5FromObject(partialConfig.options));
     }
   } else {
@@ -197,7 +197,7 @@ async function buildDefaultBabelConfig(options: PluginOptions, config: Config) {
     config: babelOptions,
     targets: babelTargets,
   });
-  await definePluginDependencies(config, options);
+  definePluginDependencies(config, options);
 }
 
 function mergeOptions(result, config?: null | BabelConfig) {
@@ -225,28 +225,26 @@ function hasRequire(options) {
   return configItems.some(item => !item.file);
 }
 
-async function definePluginDependencies(config, options) {
+function definePluginDependencies(config, options) {
   let babelConfig = config.result.config;
   if (babelConfig == null) {
     return;
   }
 
   let configItems = [...babelConfig.presets, ...babelConfig.plugins];
-  await Promise.all(
-    configItems.map(async configItem => {
-      // FIXME: this uses a relative path from the project root rather than resolving
-      // from the config location because configItem.file.request can be a shorthand
-      // rather than a full package name.
-      config.addDevDependency({
-        moduleSpecifier: relativePath(
-          options.projectRoot,
-          configItem.file.resolved,
-        ),
-        resolveFrom: path.join(options.projectRoot, 'index'),
-        // Also invalidate @parcel/transformer-babel when the plugin or a dependency updates.
-        // This ensures that the caches in @babel/core are also invalidated.
-        invalidateParcelPlugin: true,
-      });
-    }),
-  );
+  for (let configItem of configItems) {
+    // FIXME: this uses a relative path from the project root rather than resolving
+    // from the config location because configItem.file.request can be a shorthand
+    // rather than a full package name.
+    config.addDevDependency({
+      moduleSpecifier: relativePath(
+        options.projectRoot,
+        configItem.file.resolved,
+      ),
+      resolveFrom: path.join(options.projectRoot, 'index'),
+      // Also invalidate @parcel/transformer-babel when the plugin or a dependency updates.
+      // This ensures that the caches in @babel/core are also invalidated.
+      invalidateParcelPlugin: true,
+    });
+  }
 }
