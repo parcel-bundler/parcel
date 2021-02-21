@@ -154,7 +154,7 @@ export async function runPackage(
   );
 }
 
-const PKG_RE = /node_modules[/\\]((?:@[^/\\]+\/[^/\\]+)|[^/\\]+)(?!.*[/\\]node_modules[/\\])/;
+const PKG_RE = /node_modules[/\\]((?:@[^/\\]+[/\\][^/\\]+)|[^/\\]+)(?!.*[/\\]node_modules[/\\])/;
 export function invalidateRequireCache(workerApi: WorkerApi, file: string) {
   if (process.env.PARCEL_BUILD_ENV === 'test') {
     // Delete this module and all children in the same node_modules folder
