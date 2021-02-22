@@ -63,6 +63,10 @@ describe('monorepos', function() {
           name: 'indexAlternate.js',
           assets: ['bar.js', 'indexAlternate.js'],
         },
+        {
+          name: 'indexAlternate2.js',
+          assets: ['foo.js', 'indexAlternate2.js'],
+        },
       ]);
 
       let contents = await outputFS.readFile(
@@ -76,6 +80,12 @@ describe('monorepos', function() {
         'utf8',
       );
       assert(contents.includes('hello bar'));
+
+      contents = await outputFS.readFile(
+        path.join(distDir, '/package-a/src/indexAlternate2.js'),
+        'utf8',
+      );
+      assert(contents.includes('hello foo'));
     } finally {
       inputFS.chdir(oldcwd);
     }

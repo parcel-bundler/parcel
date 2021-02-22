@@ -5,6 +5,7 @@ import type {StaticRunOpts} from '../RequestTracker';
 import type {Entry, ParcelOptions} from '../types';
 
 import {isDirectoryInside, isGlob, glob} from '@parcel/utils';
+import ThrowableDiagnostic from '@parcel/diagnostic';
 import path from 'path';
 
 type RunOpts = {|
@@ -91,63 +92,99 @@ export class EntryResolver {
     try {
       stat = await this.options.inputFS.stat(entry);
     } catch (err) {
-      throw new Error(`Entry ${entry} does not exist`);
+      throw new ThrowableDiagnostic({
+        diagnostic: {
+          message: `Entry ${entry} does not exist`,
+          filePath: entry,
+        },
+      });
     }
 
     if (stat.isDirectory()) {
       let pkg = await this.readPackage(entry);
-      if (pkg && typeof pkg.source === 'string') {
-        let pkgSource = pkg.source;
-        let source = path.join(path.dirname(pkg.filePath), pkgSource);
-        try {
-          stat = await this.options.inputFS.stat(source);
-        } catch (err) {
-          throw new Error(
-            `${pkgSource} in ${path.relative(
-              this.options.inputFS.cwd(),
-              pkg.filePath,
-            )}#source does not exist`,
-          );
-        }
 
-        if (!stat.isFile()) {
-          throw new Error(
-            `${pkgSource} in ${path.relative(
-              this.options.inputFS.cwd(),
-              pkg.filePath,
-            )}#source is not a file`,
-          );
-        }
-
+      if (pkg) {
         let entries = [];
         let files = [{filePath: pkg.filePath}];
 
+        let targetsWithSources = 0;
         if (pkg.targets) {
           for (let targetName in pkg.targets) {
             let target = pkg.targets[targetName];
             if (target.source != null) {
-              let filePath = path.join(entry, target.source);
-              entries.push({filePath, packagePath: entry, target: targetName});
+              targetsWithSources++;
+              let targetSources = Array.isArray(target.source)
+                ? target.source
+                : [target.source];
+              for (let source of targetSources) {
+                let filePath = path.join(entry, source);
+                entries.push({
+                  filePath,
+                  packagePath: entry,
+                  target: targetName,
+                });
+              }
             }
           }
         }
 
         let allTargetsHaveSource =
-          entries.length > 0 &&
-          pkg.targets != null &&
-          Object.keys(pkg.targets).length === entries.length;
-        if (!allTargetsHaveSource) {
-          let defaultEntry = {filePath: source, packagePath: entry};
-          entries.unshift(defaultEntry);
+          targetsWithSources > 0 &&
+          Object.keys(pkg.targets).length === targetsWithSources;
+
+        if (!allTargetsHaveSource && pkg.source != null) {
+          let pkgSources = Array.isArray(pkg.source)
+            ? pkg.source
+            : [pkg.source];
+          for (let pkgSource of pkgSources) {
+            if (typeof pkgSource === 'string') {
+              let source = path.join(path.dirname(pkg.filePath), pkgSource);
+              try {
+                stat = await this.options.inputFS.stat(source);
+              } catch (err) {
+                throw new ThrowableDiagnostic({
+                  diagnostic: {
+                    message: `${pkgSource} in ${path.relative(
+                      this.options.inputFS.cwd(),
+                      pkg.filePath,
+                    )}#source does not exist`,
+                    filePath: source,
+                  },
+                });
+              }
+
+              if (!stat.isFile()) {
+                throw new ThrowableDiagnostic({
+                  diagnostic: {
+                    message: `${pkgSource} in ${path.relative(
+                      this.options.inputFS.cwd(),
+                      pkg.filePath,
+                    )}#source is not a file`,
+                    filePath: source,
+                  },
+                });
+              }
+
+              entries.push({filePath: source, packagePath: entry});
+            }
+          }
         }
 
-        return {
-          entries,
-          files,
-        };
+        // Only return if we found any valid entries
+        if (entries.length && files.length) {
+          return {
+            entries,
+            files,
+          };
+        }
       }
 
-      throw new Error(`Could not find entry: ${entry}`);
+      throw new ThrowableDiagnostic({
+        diagnostic: {
+          message: `Could not find entry: ${entry}`,
+          filePath: entry,
+        },
+      });
     } else if (stat.isFile()) {
       let projectRoot = this.options.projectRoot;
       let packagePath = isDirectoryInside(
@@ -163,7 +200,12 @@ export class EntryResolver {
       };
     }
 
-    throw new Error(`Unknown entry ${entry}`);
+    throw new ThrowableDiagnostic({
+      diagnostic: {
+        message: `Unknown entry: ${entry}`,
+        filePath: entry,
+      },
+    });
   }
 
   async readPackage(
@@ -180,11 +222,15 @@ export class EntryResolver {
     try {
       pkg = JSON.parse(content);
     } catch (err) {
-      throw new Error(
-        `Error parsing ${path.relative(this.options.inputFS.cwd(), pkgFile)}: ${
-          err.message
-        }`,
-      );
+      throw new ThrowableDiagnostic({
+        diagnostic: {
+          message: `Error parsing ${path.relative(
+            this.options.inputFS.cwd(),
+            pkgFile,
+          )}: ${err.message}`,
+          filePath: pkgFile,
+        },
+      });
     }
 
     return {...pkg, filePath: pkgFile};

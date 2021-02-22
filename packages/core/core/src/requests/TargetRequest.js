@@ -69,6 +69,19 @@ export default function createTargetRequest(input: Entry): TargetRequest {
   };
 }
 
+export function skipTarget(
+  targetName: string,
+  exclusiveTarget?: string,
+  descriptorSource?: string,
+): boolean {
+  //  We skip targets if they have a descriptor.source and don't match the current exclusiveTarget
+  //  They will be handled by a separate resolvePackageTargets call from their Entry point
+  //  but with exclusiveTarget set.
+  return exclusiveTarget == null
+    ? descriptorSource != null
+    : targetName !== exclusiveTarget;
+}
+
 async function run({input, api, options}: RunOpts) {
   let targetResolver = new TargetResolver(
     api,
@@ -215,8 +228,7 @@ export class TargetResolver {
             return target;
           })
           .filter(
-            target =>
-              !this.skipTarget(target.name, exclusiveTarget, target.source),
+            target => !skipTarget(target.name, exclusiveTarget, target.source),
           );
       }
 
@@ -267,7 +279,7 @@ export class TargetResolver {
         ];
       } else {
         targets = Array.from(packageTargets.values()).filter(descriptor => {
-          return !this.skipTarget(
+          return !skipTarget(
             descriptor.name,
             exclusiveTarget,
             descriptor.source,
@@ -277,19 +289,6 @@ export class TargetResolver {
     }
 
     return targets;
-  }
-
-  skipTarget(
-    targetName: string,
-    exclusiveTarget?: string,
-    descriptorSource?: string,
-  ): boolean {
-    //  We skip targets if they have a descriptor.source and don't match the current exclusiveTarget
-    //  They will be handled by a separate resolvePackageTargets call from their Entry point
-    //  but with exclusiveTarget set.
-    return exclusiveTarget == null
-      ? descriptorSource != null
-      : targetName !== exclusiveTarget;
   }
 
   async resolvePackageTargets(
@@ -481,7 +480,7 @@ export class TargetResolver {
           pkgContents,
         );
 
-        if (this.skipTarget(targetName, exclusiveTarget, descriptor.source)) {
+        if (skipTarget(targetName, exclusiveTarget, descriptor.source)) {
           continue;
         }
 
@@ -588,7 +587,7 @@ export class TargetResolver {
           pkgContents,
         );
         let pkgDir = path.dirname(nullthrows(pkgFilePath));
-        if (this.skipTarget(targetName, exclusiveTarget, descriptor.source)) {
+        if (skipTarget(targetName, exclusiveTarget, descriptor.source)) {
           continue;
         }
         targets.set(targetName, {

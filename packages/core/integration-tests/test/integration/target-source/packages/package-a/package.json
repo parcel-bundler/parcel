@@ -10,7 +10,7 @@
   },
   "targets": {
     "alternate": {
-      "source": "src/indexAlternate.js"
+      "source": ["src/indexAlternate.js", "src/indexAlternate2.js"]
     },
     "browser": {
       "engines": {

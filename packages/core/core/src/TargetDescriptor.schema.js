@@ -73,7 +73,14 @@ export const PACKAGE_DESCRIPTOR_SCHEMA: SchemaObject = {
       type: 'boolean',
     },
     source: {
-      type: 'string',
+      oneOf: [
+        {
+          type: 'string',
+        },
+        {
+          type: 'array',
+        },
+      ],
     },
     sourceMap: {
       oneOf: [
