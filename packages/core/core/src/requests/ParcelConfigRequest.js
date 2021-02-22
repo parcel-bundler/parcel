@@ -172,9 +172,10 @@ export async function resolveParcelConfig(
     contents,
     options,
   );
-  if (options.reporters.length > 0) {
+
+  if (options.additionalReporters.length > 0) {
     config.reporters = [
-      ...options.reporters.map(name => {
+      ...options.additionalReporters.map(name => {
         return {
           packageName: name,
           resolveFrom: options.inputFS.cwd(),
@@ -183,6 +184,7 @@ export async function resolveParcelConfig(
       ...(config.reporters ?? []),
     ];
   }
+
   return {config, extendedFiles, usedDefault};
 }
 
