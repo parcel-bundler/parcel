@@ -46,14 +46,14 @@ export default async function dumpGraphToGraphViz(
   const graphviz = require('graphviz');
   const tempy = require('tempy');
   let g = graphviz.digraph('G');
-  let nodes = Array.from(graph.nodes.values());
-  for (let node of nodes) {
-    let n = g.addNode(node.id);
+  // let nodes = Array.from(graph.nodes.values());
+  for (let [nodeId, node] of graph.nodes) {
+    let n = g.addNode(nodeId);
     // $FlowFixMe default is fine. Not every type needs to be in the map.
     n.set('color', COLORS[node.type || 'default']);
     n.set('shape', 'box');
     n.set('style', 'filled');
-    let label = `${node.type || 'No Type'}: [${node.id}]: `;
+    let label = `${node.type || 'No Type'}: [${nodeId}]: `;
     if (node.type === 'dependency') {
       label += node.value.moduleSpecifier;
       let parts = [];
@@ -124,7 +124,7 @@ export default async function dumpGraphToGraphViz(
       if (node.value.env) label += ` (${getEnvDescription(node.value.env)})`;
       // $FlowFixMe
     } else if (node.type === 'request') {
-      label = node.value.type + ':' + node.id;
+      label = node.value.type + ':' + nodeId;
     }
     n.set('label', label);
   }

@@ -163,7 +163,7 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
     node: TNode,
     type: TEdgeType | null | Array<TEdgeType | null> = null,
   ): Array<TNode> {
-    assertHasNode(this, node);
+    // assertHasNode(this, node);
 
     let outboundByType = this.outboundEdges.getEdgesByType(node.id);
     if (outboundByType == null) {
@@ -393,7 +393,7 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
     if (root == null) {
       throw new Error('A start node is required to traverse');
     }
-    assertHasNode(this, root);
+    // assertHasNode(this, root);
 
     let visited = new Set<TNode>();
     let stopped = false;
@@ -408,7 +408,7 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
     };
 
     let walk = (node, context) => {
-      if (!this.hasNode(node.id)) return;
+      // if (!this.hasNode(node.id)) return;
       visited.add(node);
 
       skipped = false;
@@ -486,26 +486,26 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
     return null;
   }
 
-  getSubGraph(node: TNode): this {
-    let graph = new this.constructor();
-    graph.setRootNode(node);
+  // getSubGraph(node: TNode): this {
+  //   let graph = new this.constructor();
+  //   graph.setRootNode(node);
 
-    let nodes = [];
-    this.traverse(node => {
-      nodes.push(node);
-      graph.addNode(node);
-    }, node);
+  //   let nodes = [];
+  //   this.traverse(node => {
+  //     nodes.push(node);
+  //     graph.addNode(node);
+  //   }, node);
 
-    for (let node of nodes) {
-      for (let [type, toNodes] of this.outboundEdges.getEdgesByType(node.id)) {
-        for (let to of toNodes) {
-          graph.addEdge(node.id, to, type);
-        }
-      }
-    }
+  //   for (let node of nodes) {
+  //     for (let [type, toNodes] of this.outboundEdges.getEdgesByType(node.id)) {
+  //       for (let to of toNodes) {
+  //         graph.addEdge(node.id, to, type);
+  //       }
+  //     }
+  //   }
 
-    return graph;
-  }
+  //   return graph;
+  // }
 
   findAncestor(node: TNode, fn: (node: TNode) => boolean): ?TNode {
     let res = null;

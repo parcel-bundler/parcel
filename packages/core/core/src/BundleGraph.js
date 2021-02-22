@@ -16,6 +16,7 @@ import type {
   BundleGraphNode,
   Dependency,
   DependencyNode,
+  NodeId,
 } from './types';
 import type AssetGraph from './AssetGraph';
 
@@ -122,10 +123,11 @@ export default class BundleGraph {
 
     let rootNode = assetGraph.getRootNode();
     invariant(rootNode != null && rootNode.type === 'root');
-    graph.setRootNode(rootNode);
+    // graph.setRootNode(rootNode);
 
     let assetGroupIds = new Set();
-    for (let [, node] of assetGraph.nodes) {
+    let assetGraphNodeIdToBundleGraphNodeId = new Map<NodeId, NodeId>();
+    for (let [nodeId, node] of assetGraph.nodes) {
       if (node.type === 'asset') {
         let {id: assetId} = node.value;
         // Generate a new, short public id for this asset to use.
@@ -139,12 +141,15 @@ export default class BundleGraph {
           assetPublicIds.add(publicId);
         }
       }
-
       // Don't copy over asset groups into the bundle graph.
       if (node.type === 'asset_group') {
         assetGroupIds.add(node.id);
       } else {
-        graph.addNode(node);
+        let bundleGraphNodeId = graph.addNode2(node);
+        if (node.id === assetGraph.rootNodeId) {
+          graph.rootNodeId = bundleGraphNodeId;
+        }
+        assetGraphNodeIdToBundleGraphNodeId.set(nodeId, bundleGraphNodeId);
       }
     }
 
@@ -159,10 +164,16 @@ export default class BundleGraph {
       for (let from of fromIds) {
         if (assetGroupIds.has(edge.to)) {
           for (let to of assetGraph.outboundEdges.getEdges(edge.to, null)) {
-            graph.addEdge(from, to);
+            graph.addEdge(
+              nullthrows(assetGraphNodeIdToBundleGraphNodeId.get(from)),
+              nullthrows(assetGraphNodeIdToBundleGraphNodeId.get(to)),
+            );
           }
         } else {
-          graph.addEdge(from, edge.to);
+          graph.addEdge(
+            nullthrows(assetGraphNodeIdToBundleGraphNodeId.get(from)),
+            nullthrows(assetGraphNodeIdToBundleGraphNodeId.get(edge.to)),
+          );
         }
       }
     }
