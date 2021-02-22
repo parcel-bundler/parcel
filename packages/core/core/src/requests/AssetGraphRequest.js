@@ -27,6 +27,7 @@ import type {EntryResult} from './EntryRequest';
 import type {PathRequestInput} from './PathRequest';
 
 import invariant from 'assert';
+import nullthrows from 'nullthrows';
 import path from 'path';
 import {
   escapeMarkdown,
@@ -607,9 +608,10 @@ export class AssetGraphBuilder {
     walk(root);
     // traverse circular dependencies if neccessary (anchestors of `dirtyDeps`)
     visited = new Set();
-    let queue = [...dirtyDeps];
-    while (queue.length > 0) {
-      let node = queue.shift();
+    let queue = new Set(dirtyDeps);
+    while (queue.size > 0) {
+      let node = nullthrows(queue.values().next().value);
+      queue.delete(node);
 
       visited.add(node);
       if (node.type === 'asset') {
@@ -640,11 +642,11 @@ export class AssetGraphBuilder {
         }
         for (let i of incoming) {
           if (i.usedSymbolsUpDirtyUp) {
-            queue.push(i);
+            queue.add(i);
           }
         }
       } else {
-        queue.push(...this.assetGraph.getNodesConnectedTo(node));
+        queue.add(...this.assetGraph.getNodesConnectedTo(node));
       }
     }
     // Just throw the first error. Since errors can bubble (e.g. reexporting a reexported symbol also fails),
