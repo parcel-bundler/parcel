@@ -167,11 +167,22 @@ export async function resolveParcelConfig(
     });
   }
 
-  let {config, extendedFiles} = await parseAndProcessConfig(
+  let {config, extendedFiles}: ParcelConfigChain = await parseAndProcessConfig(
     configPath,
     contents,
     options,
   );
+  if (options.reporters.length > 0) {
+    config.reporters = [
+      ...options.reporters.map(name => {
+        return {
+          packageName: name,
+          resolveFrom: options.inputFS.cwd(),
+        };
+      }),
+      ...(config.reporters ?? []),
+    ];
+  }
   return {config, extendedFiles, usedDefault};
 }
 

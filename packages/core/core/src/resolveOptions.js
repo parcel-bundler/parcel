@@ -127,6 +127,7 @@ export default async function resolveOptions(
     outputFS,
     cache,
     packageManager,
+    reporters: initialOptions.reporters ?? [],
     instanceId: generateInstanceId(entries),
     detailedReport: initialOptions.detailedReport,
     defaultTargetOptions: {

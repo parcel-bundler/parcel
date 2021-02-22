@@ -34,6 +34,7 @@ export const DEFAULT_OPTIONS: ParcelOptions = {
   cache,
   shouldPatchConsole: false,
   packageManager: new NodePackageManager(inputFS),
+  reporters: [],
   instanceId: 'test',
   defaultTargetOptions: {
     shouldScopeHoist: false,

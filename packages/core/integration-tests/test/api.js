@@ -26,4 +26,22 @@ describe('JS API', function() {
 
     assert(await outputFS.exists(path.join(distDir, NAME)));
   });
+
+  it('should run additional reports from the options', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/js-comment/index.js'),
+      {
+        reporters: ['@parcel/reporter-bundle-buddy'],
+      },
+    );
+
+    assertBundles(b, [
+      {
+        type: 'js',
+        assets: ['index.js'],
+      },
+    ]);
+
+    assert(await outputFS.exists(path.join(distDir, 'bundle-buddy.json')));
+  });
 });
