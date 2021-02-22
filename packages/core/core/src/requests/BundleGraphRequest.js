@@ -225,9 +225,7 @@ class BundlerRunner {
     // $FlowFixMe
     await dumpGraphToGraphViz(internalBundleGraph._graph, 'after_runtimes');
 
-    // let serializedBundleGraph = serialize(internalBundleGraph);
     this.api.storeResult(internalBundleGraph, cacheKey);
-
     return internalBundleGraph;
   }
 

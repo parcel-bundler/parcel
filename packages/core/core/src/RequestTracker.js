@@ -112,6 +112,7 @@ export type RunAPI = {|
   invalidateOnOptionChange: string => void,
   getInvalidations(): Array<RequestInvalidation>,
   storeResult: (result: mixed, cacheKey?: string) => void,
+  getPreviousResult<T>(): Async<?T>,
   getRequestResult<T>(id: string): Async<?T>,
   getSubRequests(): Array<StoredRequest>,
   canSkipSubrequest(string): boolean,
@@ -129,7 +130,6 @@ export type StaticRunOpts<TResult> = {|
   farm: WorkerFarm,
   options: ParcelOptions,
   api: RunAPI,
-  prevResult: ?TResult,
   invalidateReason: InvalidateReason,
 |};
 
@@ -740,7 +740,6 @@ export default class RequestTracker {
         api,
         farm: this.farm,
         options: this.options,
-        prevResult: await this.getRequestResult<TResult>(id),
         invalidateReason: node.invalidateReason,
       });
 
@@ -785,6 +784,8 @@ export default class RequestTracker {
         this.storeResult(requestId, result, cacheKey);
       },
       getSubRequests: () => this.graph.getSubRequests(requestId),
+      getPreviousResult: <T>(): Async<?T> =>
+        this.getRequestResult<T>(requestId),
       getRequestResult: <T>(id): Async<?T> => this.getRequestResult<T>(id),
       canSkipSubrequest: id => {
         if (this.hasValidResult(id)) {
