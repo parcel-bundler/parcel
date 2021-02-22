@@ -104,8 +104,9 @@ export class EntryResolver {
       let pkg = await this.readPackage(entry);
 
       if (pkg) {
+        let {filePath} = pkg;
         let entries = [];
-        let files = [{filePath: pkg.filePath}];
+        let files = [{filePath}];
 
         let targetsWithSources = 0;
         if (pkg.targets) {
@@ -130,6 +131,8 @@ export class EntryResolver {
 
         let allTargetsHaveSource =
           targetsWithSources > 0 &&
+          pkg != null &&
+          pkg.targets != null &&
           Object.keys(pkg.targets).length === targetsWithSources;
 
         if (!allTargetsHaveSource && pkg.source != null) {
@@ -138,7 +141,7 @@ export class EntryResolver {
             : [pkg.source];
           for (let pkgSource of pkgSources) {
             if (typeof pkgSource === 'string') {
-              let source = path.join(path.dirname(pkg.filePath), pkgSource);
+              let source = path.join(path.dirname(filePath), pkgSource);
               try {
                 stat = await this.options.inputFS.stat(source);
               } catch (err) {
@@ -146,7 +149,7 @@ export class EntryResolver {
                   diagnostic: {
                     message: `${pkgSource} in ${path.relative(
                       this.options.inputFS.cwd(),
-                      pkg.filePath,
+                      filePath,
                     )}#source does not exist`,
                     filePath: source,
                   },
@@ -158,7 +161,7 @@ export class EntryResolver {
                   diagnostic: {
                     message: `${pkgSource} in ${path.relative(
                       this.options.inputFS.cwd(),
-                      pkg.filePath,
+                      filePath,
                     )}#source is not a file`,
                     filePath: source,
                   },
