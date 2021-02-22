@@ -20,6 +20,13 @@ describe('Graph', () => {
     assert.equal(graph.nodes.get(node.id), node);
   });
 
+  it('addNode2 should add a node to the graph', () => {
+    let graph = new Graph();
+    let node = {id: 'a', type: 'mynode', value: 'a'};
+    let id = graph.addNode2(node);
+    assert.equal(graph.nodes.get(id), node);
+  });
+
   it("errors when removeNode is called with a node that doesn't belong", () => {
     let graph = new Graph();
     assert.throws(() => {

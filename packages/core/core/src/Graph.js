@@ -22,6 +22,7 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
   inboundEdges: AdjacencyList<TEdgeType | null>;
   outboundEdges: AdjacencyList<TEdgeType | null>;
   rootNodeId: ?NodeId;
+  nextNodeId: number = 0;
 
   constructor(opts: GraphOpts<TNode, TEdgeType> = ({}: any)) {
     this.nodes = opts.nodes || new Map();
@@ -78,6 +79,17 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
     }
     this.nodes.set(node.id, existingNode ?? node);
     return node;
+  }
+
+  // ## Possible new API Proposal
+  // * createId in addNode instead of using user generated id
+  // * addNode2 should ultimately only accept the value rather than TNode
+  // * we want to make sure nodeId is opaque
+
+  addNode2(node: TNode): NodeId {
+    let id = String(this.nextNodeId++);
+    this.nodes.set(id, node);
+    return id;
   }
 
   hasNode(id: NodeId): boolean {
