@@ -1055,7 +1055,11 @@ describe('javascript', function() {
       .find(b => b.name !== 'index.js');
     let workerBundle = b.getBundles().find(b => b.name.startsWith('worker-b'));
     let contents = await outputFS.readFile(workerBundle.filePath, 'utf8');
-    assert(contents.includes(`importScripts("./${path.basename(sharedBundle.filePath)}")`));
+    assert(
+      contents.includes(
+        `importScripts("./${path.basename(sharedBundle.filePath)}")`,
+      ),
+    );
   });
 
   it('should contain duplicate assets in workers when in development', async () => {
@@ -1133,7 +1137,11 @@ describe('javascript', function() {
       .find(b => b.name !== 'index.js');
     let workerBundle = b.getBundles().find(b => b.name.startsWith('worker'));
     let contents = await outputFS.readFile(workerBundle.filePath, 'utf8');
-    assert(contents.includes(`importScripts("./${path.basename(sharedBundle.filePath)}")`));
+    assert(
+      contents.includes(
+        `importScripts("./${path.basename(sharedBundle.filePath)}")`,
+      ),
+    );
 
     let outputArgs = [];
     let workerArgs = [];

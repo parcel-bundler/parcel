@@ -85,6 +85,7 @@ describe('TargetResolver', () => {
     canSkipSubrequest() {
       return false;
     },
+    getPreviousResult() {},
     getRequestResult() {},
     getSubRequests() {
       return [];

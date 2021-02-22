@@ -4625,7 +4625,11 @@ describe('scope hoisting', function() {
 
     let workerBundle = b.getBundles().find(b => b.name.startsWith('worker-b'));
     contents = await outputFS.readFile(workerBundle.filePath, 'utf8');
-    assert(contents.includes(`importScripts("./${path.basename(sharedBundle.filePath)}")`));
+    assert(
+      contents.includes(
+        `importScripts("./${path.basename(sharedBundle.filePath)}")`,
+      ),
+    );
   });
 
   // Mirrors the equivalent test in javascript.js
