@@ -112,7 +112,7 @@ export type RunAPI = {|
   invalidateOnOptionChange: string => void,
   getInvalidations(): Array<RequestInvalidation>,
   storeResult: (result: mixed, cacheKey?: string) => void,
-  getPreviousResult<T>(): Async<?T>,
+  getPreviousResult<T>(ifMatch?: string): Async<?T>,
   getRequestResult<T>(id: string): Async<?T>,
   getSubRequests(): Array<StoredRequest>,
   canSkipSubrequest(string): boolean,
@@ -126,7 +126,7 @@ type RunRequestOpts = {|
   force: boolean,
 |};
 
-export type StaticRunOpts<TResult> = {|
+export type StaticRunOpts = {|
   farm: WorkerFarm,
   options: ParcelOptions,
   api: RunAPI,
@@ -659,9 +659,14 @@ export default class RequestTracker {
     );
   }
 
-  async getRequestResult<T>(id: string): Async<?T> {
+  async getRequestResult<T>(id: string, ifMatch?: string): Async<?T> {
     let node = nullthrows(this.graph.getNode(id));
     invariant(node.type === 'request');
+
+    if (ifMatch != null && node.value.resultCacheKey !== ifMatch) {
+      return null;
+    }
+
     if (node.value.result != undefined) {
       // $FlowFixMe
       let result: T = (node.value.result: any);
@@ -784,8 +789,8 @@ export default class RequestTracker {
         this.storeResult(requestId, result, cacheKey);
       },
       getSubRequests: () => this.graph.getSubRequests(requestId),
-      getPreviousResult: <T>(): Async<?T> =>
-        this.getRequestResult<T>(requestId),
+      getPreviousResult: <T>(ifMatch?: string): Async<?T> =>
+        this.getRequestResult<T>(requestId, ifMatch),
       getRequestResult: <T>(id): Async<?T> => this.getRequestResult<T>(id),
       canSkipSubrequest: id => {
         if (this.hasValidResult(id)) {

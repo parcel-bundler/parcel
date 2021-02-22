@@ -145,23 +145,24 @@ class BundlerRunner {
       }
     }
 
-    // let cacheKey;
-    // if (
-    //   !this.options.shouldDisableCache// &&
-    //   // !this.api.hasInvalidRequests()
-    // ) {
     let cacheKey = await this.getCacheKey(graph, configResult);
-    //   let cachedBundleGraphBuffer;
-    //   try {
-    //     cachedBundleGraphBuffer = await this.options.cache.getBlob(cacheKey);
-    //   } catch {
-    //     // Cache miss
-    //   }
 
-    //   if (cachedBundleGraphBuffer) {
-    //     return [deserialize(cachedBundleGraphBuffer), cachedBundleGraphBuffer];
-    //   }
-    // }
+    // Check if the cacheKey matches the one already stored in the graph.
+    // This can save time deserializing from cache if the graph is already in memory.
+    let previousResult = await this.api.getPreviousResult(cacheKey);
+    if (previousResult != null) {
+      this.api.storeResult(previousResult, cacheKey);
+      return previousResult;
+    }
+
+    // Otherwise, check the cache in case the cache key has already been written to disk.
+    if (!this.options.shouldDisableCache) {
+      let cached = await this.options.cache.get(cacheKey);
+      if (cached != null) {
+        this.api.storeResult(cached, cacheKey);
+        return cached;
+      }
+    }
 
     let internalBundleGraph = InternalBundleGraph.fromAssetGraph(graph);
     // $FlowFixMe
