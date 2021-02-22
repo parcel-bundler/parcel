@@ -23,6 +23,7 @@ import {PluginLogger} from '@parcel/logger';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import {dependencyToInternalDependency} from './public/Dependency';
 import createAssetGraphRequest from './requests/AssetGraphRequest';
+import {createDevDependency, runDevDepRequest} from './requests/DevDepRequest';
 
 type RuntimeConnection = {|
   bundle: InternalBundle,
@@ -38,6 +39,7 @@ export default async function applyRuntimes({
   pluginOptions,
   api,
   optionsRef,
+  devDeps,
 }: {|
   bundleGraph: InternalBundleGraph,
   config: ParcelConfig,
@@ -45,13 +47,23 @@ export default async function applyRuntimes({
   optionsRef: SharedReference,
   pluginOptions: PluginOptions,
   api: RunAPI,
+  devDeps: Map<string, string>,
 |}): Promise<void> {
   let connections: Array<RuntimeConnection> = [];
 
   for (let bundle of bundleGraph.getBundles()) {
     let runtimes = await config.getRuntimes(bundle.env.context);
     for (let runtime of runtimes) {
-      api.invalidateOnFileUpdate(runtime.pkgFilePath);
+      let devDepRequest = await createDevDependency(
+        {
+          moduleSpecifier: runtime.name,
+          resolveFrom: runtime.resolveFrom,
+        },
+        runtime,
+        devDeps,
+        options,
+      );
+      await runDevDepRequest(api, devDepRequest);
 
       try {
         let applied = await runtime.plugin.apply({

@@ -59,6 +59,7 @@ import {optionsProxy} from './utils';
 import {createBuildCache} from './buildCache';
 import {createConfig} from './InternalConfig';
 import PublicConfig from './public/Config';
+import {createDevDependency, invalidateDevDeps} from './requests/DevDepRequest';
 
 type GenerateFunc = (input: UncommittedAsset) => Promise<GenerateOutput>;
 
@@ -88,7 +89,6 @@ export type TransformationResult = {|
 // A cache of plugin dependency hashes that we've already sent to the main thread.
 // Automatically cleared before each build.
 const pluginCache = createBuildCache();
-const invalidatedPlugins = createBuildCache();
 
 export default class Transformation {
   request: TransformationRequest;
@@ -164,14 +164,11 @@ export default class Transformation {
       }
     }
 
-    for (let {moduleSpecifier, resolveFrom} of this.request.invalidDevDeps) {
-      let key = `${moduleSpecifier}:${resolveFrom}`;
-      if (!invalidatedPlugins.has(key)) {
-        this.parcelConfig.invalidatePlugin(moduleSpecifier);
-        this.options.packageManager.invalidate(moduleSpecifier, resolveFrom);
-        invalidatedPlugins.set(key, true);
-      }
-    }
+    invalidateDevDeps(
+      this.request.invalidDevDeps,
+      this.options,
+      this.parcelConfig,
+    );
 
     let pipeline = await this.loadPipeline(
       this.request.filePath,
@@ -394,64 +391,21 @@ export default class Transformation {
     opts: DevDepOptions,
     transformer: LoadedPlugin<Transformer> | TransformerWithNameAndConfig,
   ): Promise<void> {
-    let {moduleSpecifier, resolveFrom, invalidateParcelPlugin} = opts;
+    let {moduleSpecifier, resolveFrom} = opts;
     let key = `${moduleSpecifier}:${resolveFrom}`;
     if (this.devDepRequests.has(key)) {
       return;
     }
 
-    // If the request sent us a hash, we know the dev dep and all of its dependencies didn't change.
-    // Reuse the same hash in the response. No need to send back invalidations as the request won't
-    // be re-run anyway.
-    let hash = this.request.devDeps.get(key);
-    if (hash != null) {
-      this.devDepRequests.set(key, {
-        moduleSpecifier,
-        resolveFrom,
-        hash,
-      });
-      return;
-    }
-
-    // Ensure that the package manager has an entry for this resolution.
-    await this.options.packageManager.resolve(moduleSpecifier, resolveFrom);
-    let invalidations = this.options.packageManager.getInvalidations(
-      moduleSpecifier,
-      resolveFrom,
+    this.devDepRequests.set(
+      key,
+      await createDevDependency(
+        opts,
+        transformer,
+        this.request.devDeps,
+        this.options,
+      ),
     );
-
-    // It is possible for a transformer to have multiple different hashes due to
-    // different dependencies (e.g. conditional requires) so we must always
-    // recompute the hash and compare rather than only sending a transformer
-    // dev dependency once.
-    hash = await getInvalidationHash(
-      [...invalidations.invalidateOnFileChange].map(f => ({
-        type: 'file',
-        filePath: f,
-      })),
-      this.options,
-    );
-
-    let devDepRequest: DevDepRequest = {
-      moduleSpecifier,
-      resolveFrom,
-      hash,
-      invalidateOnFileCreate: invalidations.invalidateOnFileCreate,
-      invalidateOnFileChange: invalidations.invalidateOnFileChange,
-    };
-
-    // Optionally also invalidate the parcel plugin that is loading the config
-    // when this dev dep changes (e.g. to invalidate local caches).
-    if (invalidateParcelPlugin) {
-      devDepRequest.additionalInvalidations = [
-        {
-          moduleSpecifier: transformer.name,
-          resolveFrom: transformer.resolveFrom,
-        },
-      ];
-    }
-
-    this.devDepRequests.set(key, devDepRequest);
   }
 
   async runPipeline(

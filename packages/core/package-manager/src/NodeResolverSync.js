@@ -82,7 +82,7 @@ export class NodeResolverSync extends NodeResolverBase<ResolveResult> {
     let pkg = JSON.parse(json);
 
     this.packageCache.set(file, pkg);
-    return [pkg, file];
+    return pkg;
   }
 
   loadAsFile(
@@ -128,7 +128,7 @@ export class NodeResolverSync extends NodeResolverBase<ResolveResult> {
       pkg = this.readPackage(path.join(dir, 'package.json'), ctx);
 
       // Get a list of possible package entry points.
-      let entries = this.getPackageEntries(dir, pkg[0]);
+      let entries = this.getPackageEntries(dir, pkg);
 
       for (let file of entries) {
         // First try loading package.main as a file, then try as a directory.

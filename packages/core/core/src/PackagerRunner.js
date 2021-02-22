@@ -346,7 +346,7 @@ export default class PackagerRunner {
       throw new ThrowableDiagnostic({
         diagnostic: errorToDiagnostic(e, {
           origin: name,
-          filePath: bundle.filePath,
+          filePath: path.join(bundle.target.distDir, bundle.name),
         }),
       });
     }
@@ -410,7 +410,7 @@ export default class PackagerRunner {
         throw new ThrowableDiagnostic({
           diagnostic: errorToDiagnostic(e, {
             origin: optimizer.name,
-            filePath: bundle.filePath,
+            filePath: path.join(bundle.target.distDir, bundle.name),
           }),
         });
       }

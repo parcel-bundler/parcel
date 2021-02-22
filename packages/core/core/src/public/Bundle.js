@@ -7,7 +7,6 @@ import type {
   BundleTraversable,
   Dependency as IDependency,
   Environment as IEnvironment,
-  FilePath,
   NamedBundle as INamedBundle,
   PackagedBundle as IPackagedBundle,
   Stats,
@@ -262,7 +261,9 @@ export class PackagedBundle extends NamedBundle implements IPackagedBundle {
     bundleGraph: BundleGraph,
     options: ParcelOptions,
   ): PackagedBundle {
-    let existingMap = internalBundleToPackagedBundle.get(options).get(bundleGraph);
+    let existingMap = internalBundleToPackagedBundle
+      .get(options)
+      .get(bundleGraph);
     let existing = existingMap.get(internalBundle);
     if (existing != null) {
       return existing;

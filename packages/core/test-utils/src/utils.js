@@ -874,7 +874,7 @@ export async function runESM(
 }
 
 export async function assertESMExports(
-  b: BundleGraph<NamedBundle>,
+  b: BundleGraph<PackagedBundle>,
   expected: mixed,
   externalModules?: ExternalModules,
   // $FlowFixMe[unclear-type]

@@ -16,7 +16,6 @@ import {
 import fs from 'fs';
 import {NodePackageManager} from '@parcel/package-manager';
 import {createWorkerFarm} from '@parcel/core';
-import {clearParcelConfigCache} from '@parcel/core/src/requests/ParcelConfigRequest';
 
 let inputDir: string;
 let packageManager = new NodePackageManager(inputFS);
@@ -1308,8 +1307,6 @@ describe('cache', function() {
 
       assert.equal(await run(b.bundleGraph), 'updated');
     });
-
-    it('should invalidate when a parcel transformer plugin version changes', function() {});
   });
 
   describe('entries', function() {
@@ -2521,8 +2518,8 @@ describe('cache', function() {
               extends: '@parcel/config-default',
               transformers: {
                 // Remove react-refresh transformer so we test whether the runtime updates
-                '*.js': ['@parcel/transformer-js']
-              }
+                '*.js': ['@parcel/transformer-js'],
+              },
             }),
           );
         },
@@ -2886,13 +2883,6 @@ describe('cache', function() {
             path.join(inputDir, 'src/nested/foo.js'),
             'module.exports = 2;',
           );
-
-          // Clear require cache for the namer plugin, and ParcelConfig cache, which has its own plugin cache.
-          await workerFarm.callAllWorkers('invalidateRequireCache', [
-            namer,
-          ]);
-
-          clearParcelConfigCache();
         },
       });
 
@@ -4149,7 +4139,7 @@ describe('cache', function() {
     });
   });
 
-    describe.only('bundling', function() {
+  describe('bundling', function() {
     it('should invalidate when switching to a different bundler plugin', async function() {
       let b = await testCache({
         async update(b) {
@@ -4165,10 +4155,10 @@ describe('cache', function() {
         },
       });
 
-      assert.equal(b.bundleGraph.getBundles().length, 3);
+      assert.equal(b.bundleGraph.getBundles().length, 4);
     });
 
-    it('should invalidate when a bundler plugin version changes', async function() {
+    it('should invalidate when a bundler plugin is updated', async function() {
       let b = await testCache({
         async setup() {
           await overlayFS.writeFile(
@@ -4180,33 +4170,26 @@ describe('cache', function() {
           );
         },
         async update(b) {
-          assert.equal(b.bundleGraph.getBundles().length, 3);
+          assert.equal(b.bundleGraph.getBundles().length, 4);
           assert.equal(b.bundleGraph.getBundles()[0].name, 'index.js');
 
-          let bundler = path.join(inputDir, 'node_modules', 'parcel-bundler-test', 'index.js');
+          let bundler = path.join(
+            inputDir,
+            'node_modules',
+            'parcel-bundler-test',
+            'index.js',
+          );
           await overlayFS.writeFile(
             bundler,
-            (await overlayFS.readFile(bundler, 'utf8')).replace('Boolean(dependency.isEntry)', 'false')
+            (await overlayFS.readFile(bundler, 'utf8')).replace(
+              'Boolean(dependency.isEntry)',
+              'false',
+            ),
           );
-
-          await overlayFS.writeFile(
-            path.join(inputDir, 'node_modules', 'parcel-bundler-test', 'package.json'),
-            JSON.stringify({
-              name: 'parcel-bundler-test',
-              version: '1.2.4'
-            })
-          );
-
-          // Clear require cache for the bundler plugin, and ParcelConfig cache, which has its own plugin cache.
-          await workerFarm.callAllWorkers('invalidateRequireCache', [
-            bundler,
-          ]);
-
-          clearParcelConfigCache();
         },
       });
 
-      assert.equal(b.bundleGraph.getBundles().length, 3);
+      assert.equal(b.bundleGraph.getBundles().length, 4);
       assert(b.bundleGraph.getBundles()[0].name.includes('HASH_REF'));
     });
 
@@ -4227,10 +4210,13 @@ describe('cache', function() {
       });
 
       let bundles = b.bundleGraph.getBundles();
-      assert.deepEqual(bundles.map(b => b.name), bundles.map(b => `${b.id}.${b.type}`));
+      assert.deepEqual(
+        bundles.map(b => b.name),
+        bundles.map(b => `${b.id}.${b.type}`),
+      );
     });
 
-    it('should invalidate when a namer plugin version changes', async function() {
+    it('should invalidate when a namer plugin is updated', async function() {
       let b = await testCache({
         async setup() {
           await overlayFS.writeFile(
@@ -4243,33 +4229,32 @@ describe('cache', function() {
         },
         async update(b) {
           let bundles = b.bundleGraph.getBundles();
-          assert.deepEqual(bundles.map(b => b.name), bundles.map(b => `${b.id}.${b.type}`));
-
-          let namer = path.join(inputDir, 'node_modules', 'parcel-namer-test', 'index.js');
-          await overlayFS.writeFile(
-            namer,
-            (await overlayFS.readFile(namer, 'utf8')).replace('bundle.id', 'bundle.id.slice(-8)')
+          assert.deepEqual(
+            bundles.map(b => b.name),
+            bundles.map(b => `${b.id}.${b.type}`),
           );
 
-          await overlayFS.writeFile(
-            path.join(inputDir, 'node_modules', 'parcel-namer-test', 'package.json'),
-            JSON.stringify({
-              name: 'parcel-namer-mock',
-              version: '1.2.4'
-            })
+          let namer = path.join(
+            inputDir,
+            'node_modules',
+            'parcel-namer-test',
+            'index.js',
           );
-
-          // Clear require cache for the namer plugin, and ParcelConfig cache, which has its own plugin cache.
-          await workerFarm.callAllWorkers('invalidateRequireCache', [
+          await overlayFS.writeFile(
             namer,
-          ]);
-
-          clearParcelConfigCache();
+            (await overlayFS.readFile(namer, 'utf8')).replace(
+              'bundle.id',
+              'bundle.id.slice(-8)',
+            ),
+          );
         },
       });
 
       let bundles = b.bundleGraph.getBundles();
-      assert.deepEqual(bundles.map(b => b.name), bundles.map(b => `${b.id.slice(-8)}.${b.type}`));
+      assert.deepEqual(
+        bundles.map(b => b.name),
+        bundles.map(b => `${b.id.slice(-8)}.${b.type}`),
+      );
     });
 
     it('should invalidate when adding a runtime plugin', async function() {
@@ -4283,7 +4268,7 @@ describe('cache', function() {
             JSON.stringify({
               extends: '@parcel/config-default',
               runtimes: {
-                browser: ['parcel-runtime-test']
+                browser: ['parcel-runtime-test'],
               },
             }),
           );
@@ -4294,7 +4279,7 @@ describe('cache', function() {
       assert.equal(res.runtime_test, true);
     });
 
-    it('should invalidate when a runtime plugin version changes', async function() {
+    it('should invalidate when a runtime is updated', async function() {
       let b = await testCache({
         async setup() {
           await overlayFS.writeFile(
@@ -4302,7 +4287,7 @@ describe('cache', function() {
             JSON.stringify({
               extends: '@parcel/config-default',
               runtimes: {
-                browser: ['parcel-runtime-test']
+                browser: ['parcel-runtime-test'],
               },
             }),
           );
@@ -4312,26 +4297,19 @@ describe('cache', function() {
           assert.equal(res.runtime_test, true);
           assert.equal(res.test_runtime, undefined);
 
-          let namer = path.join(inputDir, 'node_modules', 'parcel-runtime-test', 'index.js');
+          let namer = path.join(
+            inputDir,
+            'node_modules',
+            'parcel-runtime-test',
+            'index.js',
+          );
           await overlayFS.writeFile(
             namer,
-            (await overlayFS.readFile(namer, 'utf8')).replace('runtime_test', 'test_runtime')
+            (await overlayFS.readFile(namer, 'utf8')).replace(
+              'runtime_test',
+              'test_runtime',
+            ),
           );
-
-          await overlayFS.writeFile(
-            path.join(inputDir, 'node_modules', 'parcel-runtime-test', 'package.json'),
-            JSON.stringify({
-              name: 'parcel-runtime-test',
-              version: '1.2.4'
-            })
-          );
-
-          // Clear require cache for the runtime plugin, and ParcelConfig cache, which has its own plugin cache.
-          await workerFarm.callAllWorkers('invalidateRequireCache', [
-            runtime,
-          ]);
-
-          clearParcelConfigCache();
         },
       });
 
@@ -4342,174 +4320,121 @@ describe('cache', function() {
 
     describe('bundler config', function() {
       it('should support adding bundler config', async function() {
-        let b = await testCache({
-          entries: ['*.html'],
-          async setup() {
-            let pkgFile = path.join(inputDir, 'package.json');
-            let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
-            await overlayFS.writeFile(
-              pkgFile,
-              JSON.stringify({
-                ...pkg,
-                '@parcel/bundler-default': undefined
-              }),
-            );
-          },
-          async update(b) {
-            let html = await overlayFS.readFile(b.bundleGraph.getBundles().find(b => b.name === 'b.html')?.filePath, 'utf8');
-            assert.equal(html.match(/<script/g)?.length, 6);
+        let b = await testCache(
+          {
+            entries: ['*.html'],
+            mode: 'production',
+            async setup() {
+              let pkgFile = path.join(inputDir, 'package.json');
+              let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
+              await overlayFS.writeFile(
+                pkgFile,
+                JSON.stringify({
+                  ...pkg,
+                  '@parcel/bundler-default': undefined,
+                }),
+              );
+            },
+            async update(b) {
+              let html = await overlayFS.readFile(
+                b.bundleGraph.getBundles().find(b => b.name === 'b.html')
+                  ?.filePath,
+                'utf8',
+              );
+              assert.equal(html.match(/<script/g)?.length, 6);
 
-            let pkgFile = path.join(inputDir, 'package.json');
-            let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
-            await overlayFS.writeFile(
-              pkgFile,
-              JSON.stringify({
-                ...pkg,
-                '@parcel/bundler-default': {
-                  http: 1
-                }
-              }),
-            );
+              let pkgFile = path.join(inputDir, 'package.json');
+              let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
+              await overlayFS.writeFile(
+                pkgFile,
+                JSON.stringify({
+                  ...pkg,
+                  '@parcel/bundler-default': {
+                    http: 1,
+                  },
+                }),
+              );
+            },
           },
-        }, 'shared-many');
+          'shared-many',
+        );
 
-        let html = await overlayFS.readFile(b.bundleGraph.getBundles().find(b => b.name === 'b.html')?.filePath, 'utf8');
+        let html = await overlayFS.readFile(
+          b.bundleGraph.getBundles().find(b => b.name === 'b.html')?.filePath,
+          'utf8',
+        );
         assert.equal(html.match(/<script/g)?.length, 5);
       });
 
       it('should support updating bundler config', async function() {
-        let b = await testCache({
-          entries: ['*.html'],
-          async update(b) {
-            let html = await overlayFS.readFile(b.bundleGraph.getBundles().find(b => b.name === 'b.html')?.filePath, 'utf8');
-            assert.equal(html.match(/<script/g)?.length, 5);
+        let b = await testCache(
+          {
+            entries: ['*.html'],
+            mode: 'production',
+            async update(b) {
+              let html = await overlayFS.readFile(
+                b.bundleGraph.getBundles().find(b => b.name === 'b.html')
+                  ?.filePath,
+                'utf8',
+              );
+              assert.equal(html.match(/<script/g)?.length, 5);
 
-            let pkgFile = path.join(inputDir, 'package.json');
-            let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
-            await overlayFS.writeFile(
-              pkgFile,
-              JSON.stringify({
-                ...pkg,
-                '@parcel/bundler-default': {
-                  http: 2
-                }
-              }),
-            );
+              let pkgFile = path.join(inputDir, 'package.json');
+              let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
+              await overlayFS.writeFile(
+                pkgFile,
+                JSON.stringify({
+                  ...pkg,
+                  '@parcel/bundler-default': {
+                    http: 2,
+                  },
+                }),
+              );
+            },
           },
-        }, 'shared-many');
+          'shared-many',
+        );
 
-        let html = await overlayFS.readFile(b.bundleGraph.getBundles().find(b => b.name === 'b.html')?.filePath, 'utf8');
+        let html = await overlayFS.readFile(
+          b.bundleGraph.getBundles().find(b => b.name === 'b.html')?.filePath,
+          'utf8',
+        );
         assert.equal(html.match(/<script/g)?.length, 6);
       });
 
       it('should support removing bundler config', async function() {
-        let b = await testCache({
-          entries: ['*.html'],
-          async update(b) {
-            let html = await overlayFS.readFile(b.bundleGraph.getBundles().find(b => b.name === 'b.html')?.filePath, 'utf8');
-            assert.equal(html.match(/<script/g)?.length, 5);
+        let b = await testCache(
+          {
+            entries: ['*.html'],
+            mode: 'production',
+            async update(b) {
+              let html = await overlayFS.readFile(
+                b.bundleGraph.getBundles().find(b => b.name === 'b.html')
+                  ?.filePath,
+                'utf8',
+              );
+              assert.equal(html.match(/<script/g)?.length, 5);
 
-            let pkgFile = path.join(inputDir, 'package.json');
-            let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
-            await overlayFS.writeFile(
-              pkgFile,
-              JSON.stringify({
-                ...pkg,
-                '@parcel/bundler-default': undefined
-              }),
-            );
+              let pkgFile = path.join(inputDir, 'package.json');
+              let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
+              await overlayFS.writeFile(
+                pkgFile,
+                JSON.stringify({
+                  ...pkg,
+                  '@parcel/bundler-default': undefined,
+                }),
+              );
+            },
           },
-        }, 'shared-many');
+          'shared-many',
+        );
 
-        let html = await overlayFS.readFile(b.bundleGraph.getBundles().find(b => b.name === 'b.html')?.filePath, 'utf8');
+        let html = await overlayFS.readFile(
+          b.bundleGraph.getBundles().find(b => b.name === 'b.html')?.filePath,
+          'utf8',
+        );
         assert.equal(html.match(/<script/g)?.length, 6);
       });
-    });
-  });
-
-  describe.only('bundler config', function() {
-    it('should support adding bundler config', async function() {
-      let b = await testCache({
-        entries: ['*.html'],
-        async setup() {
-          let pkgFile = path.join(inputDir, 'package.json');
-          let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
-          await overlayFS.writeFile(
-            pkgFile,
-            JSON.stringify({
-              ...pkg,
-              '@parcel/bundler-default': undefined
-            }),
-          );
-        },
-        async update(b) {
-          let html = await overlayFS.readFile(b.bundleGraph.getBundles().find(b => b.name === 'b.html')?.filePath, 'utf8');
-          assert.equal(html.match(/<script/g)?.length, 6);
-
-          let pkgFile = path.join(inputDir, 'package.json');
-          let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
-          await overlayFS.writeFile(
-            pkgFile,
-            JSON.stringify({
-              ...pkg,
-              '@parcel/bundler-default': {
-                http: 1
-              }
-            }),
-          );
-        },
-      }, 'shared-many');
-
-      let html = await overlayFS.readFile(b.bundleGraph.getBundles().find(b => b.name === 'b.html')?.filePath, 'utf8');
-      assert.equal(html.match(/<script/g)?.length, 5);
-    });
-
-    it('should support updating bundler config', async function() {
-      let b = await testCache({
-        entries: ['*.html'],
-        async update(b) {
-          let html = await overlayFS.readFile(b.bundleGraph.getBundles().find(b => b.name === 'b.html')?.filePath, 'utf8');
-          assert.equal(html.match(/<script/g)?.length, 5);
-
-          let pkgFile = path.join(inputDir, 'package.json');
-          let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
-          await overlayFS.writeFile(
-            pkgFile,
-            JSON.stringify({
-              ...pkg,
-              '@parcel/bundler-default': {
-                http: 2
-              }
-            }),
-          );
-        },
-      }, 'shared-many');
-
-      let html = await overlayFS.readFile(b.bundleGraph.getBundles().find(b => b.name === 'b.html')?.filePath, 'utf8');
-      assert.equal(html.match(/<script/g)?.length, 6);
-    });
-
-    it('should support removing bundler config', async function() {
-      let b = await testCache({
-        entries: ['*.html'],
-        async update(b) {
-          let html = await overlayFS.readFile(b.bundleGraph.getBundles().find(b => b.name === 'b.html')?.filePath, 'utf8');
-          assert.equal(html.match(/<script/g)?.length, 5);
-
-          let pkgFile = path.join(inputDir, 'package.json');
-          let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
-          await overlayFS.writeFile(
-            pkgFile,
-            JSON.stringify({
-              ...pkg,
-              '@parcel/bundler-default': undefined
-            }),
-          );
-        },
-      }, 'shared-many');
-
-      let html = await overlayFS.readFile(b.bundleGraph.getBundles().find(b => b.name === 'b.html')?.filePath, 'utf8');
-      assert.equal(html.match(/<script/g)?.length, 6);
     });
   });
 

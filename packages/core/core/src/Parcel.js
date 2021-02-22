@@ -38,7 +38,7 @@ import createAssetGraphRequest from './requests/AssetGraphRequest';
 import createValidationRequest from './requests/ValidationRequest';
 import createBundleGraphRequest from './requests/BundleGraphRequest';
 import {Disposable} from '@parcel/events';
-import {deserialize, serialize} from './serializer';
+import {serialize} from './serializer';
 
 registerCoreWithSerializer();
 
@@ -282,7 +282,9 @@ export default class Parcel {
       });
 
       // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
-      let bundleGraph = await this.#requestTracker.runRequest(bundleGraphRequest);
+      let bundleGraph = await this.#requestTracker.runRequest(
+        bundleGraphRequest,
+      );
 
       // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381 (Windows only)
       dumpGraphToGraphViz(bundleGraph._graph, 'BundleGraph');
@@ -304,7 +306,11 @@ export default class Parcel {
             assetFromValue(asset, options),
           ]),
         ),
-        bundleGraph: new BundleGraph<IPackagedBundle>(bundleGraph, PackagedBundle.get, options),
+        bundleGraph: new BundleGraph<IPackagedBundle>(
+          bundleGraph,
+          PackagedBundle.get,
+          options,
+        ),
         buildTime: Date.now() - startTime,
       };
 

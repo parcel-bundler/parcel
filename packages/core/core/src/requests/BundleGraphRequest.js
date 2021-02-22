@@ -1,15 +1,13 @@
 // @flow strict-local
 
-import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import type {
   Async,
   Bundle as IBundle,
   Namer,
-  FilePath,
   ConfigOutput,
 } from '@parcel/types';
-import type WorkerFarm, {SharedReference} from '@parcel/workers';
-import type ParcelConfig from '../ParcelConfig';
+import type {SharedReference} from '@parcel/workers';
+import type ParcelConfig, {LoadedPlugin} from '../ParcelConfig';
 import type {StaticRunOpts, RunAPI} from '../RequestTracker';
 import type {Bundle as InternalBundle, ParcelOptions} from '../types';
 import type {ConfigAndCachePath} from './ParcelConfigRequest';
@@ -26,14 +24,20 @@ import MutableBundleGraph from '../public/MutableBundleGraph';
 import {Bundle, NamedBundle} from '../public/Bundle';
 import {report} from '../ReporterRunner';
 import dumpGraphToGraphViz from '../dumpGraphToGraphViz';
-import {normalizeSeparators, unique, md5FromOrderedObject} from '@parcel/utils';
+import {unique, md5FromOrderedObject} from '@parcel/utils';
 import PluginOptions from '../public/PluginOptions';
 import applyRuntimes from '../applyRuntimes';
 import {PARCEL_VERSION} from '../constants';
-import {assertSignalNotAborted, optionsProxy} from '../utils';
+import {optionsProxy} from '../utils';
 import createParcelConfigRequest, {
   getCachedParcelConfig,
 } from './ParcelConfigRequest';
+import {
+  createDevDependency,
+  getDevDepRequests,
+  invalidateDevDeps,
+  runDevDepRequest,
+} from './DevDepRequest';
 
 type BundleGraphRequestInput = {|
   assetGraph: AssetGraph,
@@ -60,11 +64,16 @@ export default function createBundleGraphRequest(
     id: 'BundleGraph:' + input.assetGraph.getHash(),
     run: async input => {
       let configResult = nullthrows(
-        await input.api.runRequest<null, ConfigAndCachePath>(createParcelConfigRequest()),
+        await input.api.runRequest<null, ConfigAndCachePath>(
+          createParcelConfigRequest(),
+        ),
       );
       let parcelConfig = getCachedParcelConfig(configResult, input.options);
 
-      let builder = new BundlerRunner(input, parcelConfig);
+      let {devDeps, invalidDevDeps} = await getDevDepRequests(input.api);
+      invalidateDevDeps(invalidDevDeps, input.options, parcelConfig);
+
+      let builder = new BundlerRunner(input, parcelConfig, devDeps);
       return builder.bundle(input.input.assetGraph);
     },
     input,
@@ -77,27 +86,41 @@ class BundlerRunner {
   config: ParcelConfig;
   pluginOptions: PluginOptions;
   api: RunAPI;
+  devDeps: Map<string, string>;
 
-  constructor({input, prevResult, api, options}: RunInput, config: ParcelConfig) {
+  constructor(
+    {input, api, options}: RunInput,
+    config: ParcelConfig,
+    devDeps: Map<string, string>,
+  ) {
     this.options = options;
     this.api = api;
     this.optionsRef = input.optionsRef;
     this.config = config;
+    this.devDeps = devDeps;
     this.pluginOptions = new PluginOptions(
-      optionsProxy(this.options, api.invalidateOnOptionChange)
+      optionsProxy(this.options, api.invalidateOnOptionChange),
     );
   }
 
-  async bundle(
-    graph: AssetGraph,
-  ): Promise<InternalBundleGraph> {
+  async bundle(graph: AssetGraph): Promise<InternalBundleGraph> {
     report({
       type: 'buildProgress',
       phase: 'bundling',
     });
 
-    let {plugin: bundler, pkgFilePath} = await this.config.getBundler();
-    this.api.invalidateOnFileUpdate(pkgFilePath);
+    let plugin = await this.config.getBundler();
+    let {plugin: bundler, name, resolveFrom} = plugin;
+    let devDepRequest = await createDevDependency(
+      {
+        moduleSpecifier: name,
+        resolveFrom,
+      },
+      plugin,
+      this.devDeps,
+      this.options,
+    );
+    await runDevDepRequest(this.api, devDepRequest);
 
     let configResult: ?ConfigOutput;
     if (bundler.loadConfig != null) {
@@ -108,7 +131,9 @@ class BundlerRunner {
         });
       } catch (e) {
         throw new ThrowableDiagnostic({
-          diagnostic: errorToDiagnostic(e, this.config.getBundlerName()),
+          diagnostic: errorToDiagnostic(e, {
+            origin: this.config.getBundlerName(),
+          }),
         });
       }
     }
@@ -122,10 +147,10 @@ class BundlerRunner {
 
     // let cacheKey;
     // if (
-    //   !this.options.disableCache// &&
+    //   !this.options.shouldDisableCache// &&
     //   // !this.api.hasInvalidRequests()
     // ) {
-      let cacheKey = await this.getCacheKey(graph, configResult);
+    let cacheKey = await this.getCacheKey(graph, configResult);
     //   let cachedBundleGraphBuffer;
     //   try {
     //     cachedBundleGraphBuffer = await this.options.cache.getBlob(cacheKey);
@@ -157,27 +182,34 @@ class BundlerRunner {
       });
     } catch (e) {
       throw new ThrowableDiagnostic({
-        diagnostic: errorToDiagnostic(e, this.config.getBundlerName()),
+        diagnostic: errorToDiagnostic(e, {
+          origin: this.config.getBundlerName(),
+        }),
       });
     }
 
     // $FlowFixMe
     await dumpGraphToGraphViz(internalBundleGraph._graph, 'after_bundle');
-    try {
-      await bundler.optimize({
-        bundleGraph: mutableBundleGraph,
-        config: configResult?.config,
-        options: this.pluginOptions,
-        logger,
-      });
-    } catch (e) {
-      throw new ThrowableDiagnostic({
-        diagnostic: errorToDiagnostic(e, this.config.getBundlerName()),
-      });
+    if (this.pluginOptions.mode === 'production') {
+      try {
+        await bundler.optimize({
+          bundleGraph: mutableBundleGraph,
+          config: configResult?.config,
+          options: this.pluginOptions,
+          logger,
+        });
+      } catch (e) {
+        throw new ThrowableDiagnostic({
+          diagnostic: errorToDiagnostic(e, {
+            origin: this.config.getBundlerName(),
+          }),
+        });
+      }
+
+      // $FlowFixMe
+      await dumpGraphToGraphViz(internalBundleGraph._graph, 'after_optimize');
     }
 
-    // $FlowFixMe
-    await dumpGraphToGraphViz(internalBundleGraph._graph, 'after_optimize');
     await this.nameBundles(internalBundleGraph);
 
     await applyRuntimes({
@@ -187,24 +219,19 @@ class BundlerRunner {
       options: this.options,
       optionsRef: this.optionsRef,
       pluginOptions: this.pluginOptions,
+      devDeps: this.devDeps,
     });
-    
+
     // $FlowFixMe
     await dumpGraphToGraphViz(internalBundleGraph._graph, 'after_runtimes');
-    
+
     // let serializedBundleGraph = serialize(internalBundleGraph);
-    this.api.storeResult(
-      internalBundleGraph,
-      cacheKey,
-    );
+    this.api.storeResult(internalBundleGraph, cacheKey);
 
     return internalBundleGraph;
   }
 
-  async getCacheKey(
-    assetGraph: AssetGraph,
-    configResult: ?ConfigOutput,
-  ): Promise<string> {
+  getCacheKey(assetGraph: AssetGraph, configResult: ?ConfigOutput): string {
     return md5FromOrderedObject({
       parcelVersion: PARCEL_VERSION,
       hash: assetGraph.getHash(),
@@ -217,14 +244,25 @@ class BundlerRunner {
     let bundles = bundleGraph.getBundles();
 
     for (let namer of namers) {
-      this.api.invalidateOnFileUpdate(namer.pkgFilePath);
+      let devDepRequest = await createDevDependency(
+        {
+          moduleSpecifier: namer.name,
+          resolveFrom: namer.resolveFrom,
+        },
+        namer,
+        this.devDeps,
+        this.options,
+      );
+      await runDevDepRequest(this.api, devDepRequest);
     }
 
     await Promise.all(
       bundles.map(bundle => this.nameBundle(namers, bundle, bundleGraph)),
     );
 
-    let bundleNames = bundles.map(b => path.join(b.target.distDir, nullthrows(b.name)));
+    let bundleNames = bundles.map(b =>
+      path.join(b.target.distDir, nullthrows(b.name)),
+    );
     assert.deepEqual(
       bundleNames,
       unique(bundleNames),
@@ -233,14 +271,7 @@ class BundlerRunner {
   }
 
   async nameBundle(
-    namers: Array<{|
-      name: string,
-      version: string,
-      plugin: Namer,
-      resolveFrom: FilePath,
-      keyPath: string,
-      pkgFilePath: FilePath,
-    |}>,
+    namers: Array<LoadedPlugin<Namer>>,
     internalBundle: InternalBundle,
     internalBundleGraph: InternalBundleGraph,
   ): Promise<void> {
@@ -277,7 +308,9 @@ class BundlerRunner {
         }
       } catch (e) {
         throw new ThrowableDiagnostic({
-          diagnostic: errorToDiagnostic(e, namer.name),
+          diagnostic: errorToDiagnostic(e, {
+            origin: namer.name,
+          }),
         });
       }
     }
