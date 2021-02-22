@@ -80,11 +80,11 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
     return node;
   }
 
-  hasNode(id: string): boolean {
+  hasNode(id: NodeId): boolean {
     return this.nodes.has(id);
   }
 
-  getNode(id: string): ?TNode {
+  getNode(id: NodeId): ?TNode {
     return this.nodes.get(id);
   }
 
