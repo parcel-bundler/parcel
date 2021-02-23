@@ -172,7 +172,10 @@ async function collectDependencies(
       // TODO: this doesn't support Parcel resolution
       const globFiles = (
         await glob(
-          path.join(path.dirname(filePath), program.web_accessible_resources[i]),
+          path.join(
+            path.dirname(filePath),
+            program.web_accessible_resources[i],
+          ),
           fs,
           {},
         )
