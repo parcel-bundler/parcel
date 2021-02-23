@@ -658,7 +658,12 @@ export default class BundleGraph {
     let visitedBundles: Set<Bundle> = new Set();
     // Check if any of this bundle's descendants, referencers, bundles referenced
     // by referencers, or descedants of its referencers reference the asset.
-    return [bundle, ...this.getReferencingBundles(bundle)].some(referencer => {
+    let siblingBundles = new Set(
+      this.getBundleGroupsContainingBundle(bundle).flatMap(bundleGroup =>
+        this.getBundlesInBundleGroup(bundleGroup),
+      ),
+    );
+    return [...siblingBundles].some(referencer => {
       let isReferenced = false;
       this.traverseBundles((descendant, _, actions) => {
         if (descendant.id === bundle.id) {
@@ -730,11 +735,26 @@ export default class BundleGraph {
 
       // Check that every parent bundle has a bundle group in its ancestry that contains the asset.
       return parentBundleNodes.every(bundleNode => {
-        let inBundle = false;
+        if (bundleNode.type === 'root') {
+          return false;
+        }
 
+        let isReachable = true;
         this._graph.traverseAncestors(
           bundleNode,
           (node, ctx, actions) => {
+            // If we've reached the root or a context change without
+            // finding this asset in the ancestry, it is not reachable.
+            if (
+              node.type === 'root' ||
+              (node.type === 'bundle' &&
+                node.value.env.context !== bundle.env.context)
+            ) {
+              isReachable = false;
+              actions.stop();
+              return;
+            }
+
             if (node.type === 'bundle_group') {
               let childBundles = this.getBundlesInBundleGroup(node.value);
               if (
@@ -742,23 +762,15 @@ export default class BundleGraph {
                   b => b.id !== bundle.id && this.bundleHasAsset(b, asset),
                 )
               ) {
-                inBundle = true;
-                actions.stop();
+                actions.skipChildren();
+                return;
               }
-            }
-
-            // Don't deduplicate when context changes
-            if (
-              node.type === 'bundle' &&
-              node.value.env.context !== bundle.env.context
-            ) {
-              actions.skipChildren();
             }
           },
           ['references', 'bundle'],
         );
 
-        return inBundle;
+        return isReachable;
       });
     });
   }
@@ -1361,9 +1373,9 @@ export default class BundleGraph {
       hash.update(this.getContentHash(inlineBundle));
     }
 
-    for (let childBundle of this.getChildBundles(bundle)) {
-      if (!childBundle.isInline) {
-        hash.update(childBundle.id);
+    for (let referencedBundle of this.getReferencedBundles(bundle)) {
+      if (!referencedBundle.isInline) {
+        hash.update(referencedBundle.id);
       }
     }
 
@@ -1434,5 +1446,14 @@ export default class BundleGraph {
     for (let edge of other._graph.getAllEdges()) {
       this._graph.addEdge(edge.from, edge.to, edge.type);
     }
+  }
+
+  isEntryBundleGroup(bundleGroup: BundleGroup): boolean {
+    return this._graph
+      .getNodesConnectedTo(
+        nullthrows(this._graph.getNode(getBundleGroupId(bundleGroup))),
+        'bundle',
+      )
+      .some(n => n.type === 'root');
   }
 }

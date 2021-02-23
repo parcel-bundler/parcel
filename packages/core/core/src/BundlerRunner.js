@@ -86,7 +86,9 @@ export default class BundlerRunner {
         // TODO: add invalidations once bundling is a request
       } catch (e) {
         throw new ThrowableDiagnostic({
-          diagnostic: errorToDiagnostic(e, this.config.getBundlerName()),
+          diagnostic: errorToDiagnostic(e, {
+            origin: this.config.getBundlerName(),
+          }),
         });
       }
     }
@@ -130,7 +132,9 @@ export default class BundlerRunner {
       });
     } catch (e) {
       throw new ThrowableDiagnostic({
-        diagnostic: errorToDiagnostic(e, this.config.getBundlerName()),
+        diagnostic: errorToDiagnostic(e, {
+          origin: this.config.getBundlerName(),
+        }),
       });
     } finally {
       bundlerBundleMeasurement.end();
@@ -152,7 +156,9 @@ export default class BundlerRunner {
         });
       } catch (e) {
         throw new ThrowableDiagnostic({
-          diagnostic: errorToDiagnostic(e, this.config.getBundlerName()),
+          diagnostic: errorToDiagnostic(e, {
+            origin: this.config.getBundlerName(),
+          }),
         });
       } finally {
         bundlerOptimizeMeasurement.end();
@@ -273,7 +279,10 @@ export default class BundlerRunner {
         }
       } catch (e) {
         throw new ThrowableDiagnostic({
-          diagnostic: errorToDiagnostic(e, namer.name),
+          diagnostic: errorToDiagnostic(e, {
+            origin: namer.name,
+            filePath: bundle.filePath,
+          }),
         });
       }
     }

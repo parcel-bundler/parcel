@@ -60,8 +60,10 @@ describe('server', function() {
   it('should serve files', async function() {
     let port = await getPort();
     let b = bundler(path.join(__dirname, '/integration/commonjs/index.js'), {
+      defaultTargetOptions: {
+        distDir,
+      },
       config,
-      distDir,
       serveOptions: {
         https: false,
         port: port,
@@ -85,8 +87,10 @@ describe('server', function() {
     let port = await getPort();
     let inputPath = path.join(__dirname, '/integration/commonjs/index.js');
     let b = bundler(inputPath, {
+      defaultTargetOptions: {
+        distDir,
+      },
       config,
-      distDir,
       serveOptions: {
         https: false,
         port: port,
@@ -108,16 +112,23 @@ describe('server', function() {
 
   it('should serve a default page if the main bundle is an HTML asset', async function() {
     let port = await getPort();
-    let inputPath = path.join(__dirname, '/integration/html/index.html');
-    let b = bundler(inputPath, {
-      config,
-      distDir,
-      serveOptions: {
-        https: false,
-        port: port,
-        host: 'localhost',
+    let b = bundler(
+      [
+        path.join(__dirname, '/integration/html/other.html'),
+        path.join(__dirname, '/integration/html/index.html'),
+      ],
+      {
+        defaultTargetOptions: {
+          distDir,
+        },
+        config,
+        serveOptions: {
+          https: false,
+          port: port,
+          host: 'localhost',
+        },
       },
-    });
+    );
 
     subscription = await b.watch();
     await getNextBuild(b);
@@ -134,12 +145,44 @@ describe('server', function() {
     assert.equal(data, outputFile);
   });
 
+  it('should serve a default page if the main bundle is an HTML asset even if it is not called index', async function() {
+    let port = await getPort();
+    let inputPath = path.join(__dirname, '/integration/html/other.html');
+    let b = bundler(inputPath, {
+      defaultTargetOptions: {
+        distDir,
+      },
+      config,
+      serveOptions: {
+        https: false,
+        port: port,
+        host: 'localhost',
+      },
+    });
+
+    subscription = await b.watch();
+    await getNextBuild(b);
+
+    let outputFile = await outputFS.readFile(
+      path.join(distDir, 'other.html'),
+      'utf8',
+    );
+
+    let data = await get('/', port);
+    assert.equal(data, outputFile);
+
+    data = await get('/foo/bar', port);
+    assert.equal(data, outputFile);
+  });
+
   it('should serve a default page if the main bundle is an HTML asset with package.json#source', async function() {
     let port = await getPort();
     let inputPath = path.join(__dirname, '/integration/html-pkg-source/');
     let b = bundler(inputPath, {
+      defaultTargetOptions: {
+        distDir,
+      },
       config,
-      distDir,
       serveOptions: {
         https: false,
         port: port,
@@ -195,9 +238,11 @@ describe('server', function() {
     let entry = path.join(inputDir, 'index.js');
 
     let b = bundler(entry, {
+      defaultTargetOptions: {
+        distDir,
+      },
       inputFS: overlayFS,
       config,
-      distDir,
       serveOptions: {
         https: false,
         port: port,
@@ -227,8 +272,10 @@ describe('server', function() {
   it('should support HTTPS', async function() {
     let port = await getPort();
     let b = bundler(path.join(__dirname, '/integration/commonjs/index.js'), {
+      defaultTargetOptions: {
+        distDir,
+      },
       config,
-      distDir,
       serveOptions: {
         https: true,
         port: port,
@@ -249,8 +296,10 @@ describe('server', function() {
   it('should support HTTPS via custom certificate', async function() {
     let port = await getPort();
     let b = bundler(path.join(__dirname, '/integration/commonjs/index.js'), {
+      defaultTargetOptions: {
+        distDir,
+      },
       config,
-      distDir,
       serveOptions: {
         https: {
           key: path.join(__dirname, '/integration/https/private.pem'),
@@ -274,8 +323,10 @@ describe('server', function() {
   it('should support setting a public url', async function() {
     let port = await getPort();
     let b = bundler(path.join(__dirname, '/integration/commonjs/index.js'), {
+      defaultTargetOptions: {
+        distDir,
+      },
       config,
-      distDir,
       serveOptions: {
         https: false,
         port: port,
@@ -297,8 +348,10 @@ describe('server', function() {
   it('should work with query parameters that contain a dot', async function() {
     let port = await getPort();
     let b = bundler(path.join(__dirname, '/integration/commonjs/index.js'), {
+      defaultTargetOptions: {
+        distDir,
+      },
       config,
-      distDir,
       serveOptions: {
         https: false,
         port: port,
@@ -319,8 +372,10 @@ describe('server', function() {
   it('should work with paths that contain a dot', async function() {
     let port = await getPort();
     let b = bundler(path.join(__dirname, '/integration/html/index.html'), {
+      defaultTargetOptions: {
+        distDir,
+      },
       config,
-      distDir,
       serveOptions: {
         https: false,
         port: port,

@@ -123,6 +123,50 @@ describe('postcss', () => {
     );
   });
 
+  it('should support importing css modules with a non-static namespace import', async () => {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/postcss-modules-import-namespace-whole/index.js',
+      ),
+      {mode: 'production'},
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js', 'style.module.css'],
+      },
+      {
+        name: 'index.css',
+        assets: ['global.css', 'style.module.css'],
+      },
+    ]);
+
+    let js = await outputFS.readFile(
+      b.getBundles().find(b => b.type === 'js').filePath,
+      'utf8',
+    );
+    assert(js.includes('unused'));
+
+    let output = await run(b);
+    assert(/_b-2_[0-9a-z]/.test(output['b-2']));
+    assert(/_unused_[0-9a-z]/.test(output['unused']));
+
+    let css = await outputFS.readFile(
+      b.getBundles().find(b => b.type === 'css').filePath,
+      'utf8',
+    );
+    let includedRules = new Set();
+    postcss.parse(css).walkRules(rule => {
+      includedRules.add(rule.selector);
+    });
+    assert.deepStrictEqual(
+      includedRules,
+      new Set(['body', `.${output['b-2']}`, `.${output['unused']}`, '.page']),
+    );
+  });
+
   it('should support transforming with postcss twice with the same result', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/postcss-plugins/index.js'),
@@ -338,8 +382,10 @@ describe('postcss', () => {
     await bundle(path.join(__dirname, '/input/index.css'), {
       inputFS: overlayFS,
       packageManager,
-      distDir,
       shouldAutoInstall: true,
+      defaultTargetOptions: {
+        distDir,
+      },
     });
 
     // cssnext was installed

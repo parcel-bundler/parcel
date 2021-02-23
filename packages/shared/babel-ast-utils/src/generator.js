@@ -1,4 +1,4 @@
-import {baseGenerator, EXPRESSIONS_PRECEDENCE} from 'astring';
+import {GENERATOR, EXPRESSIONS_PRECEDENCE} from 'astring';
 
 export const expressionsPrecedence = {
   ...EXPRESSIONS_PRECEDENCE,
@@ -18,7 +18,7 @@ export const expressionsPrecedence = {
 // Convert Babel's AST format to ESTree on the fly.
 // See https://babeljs.io/docs/en/babel-parser#output
 export const generator = {
-  ...baseGenerator,
+  ...GENERATOR,
   Program(node, state) {
     // Monkeypatch state to fix sourcemap filenames.
     let map = state.map;
@@ -34,11 +34,11 @@ export const generator = {
     }
 
     handleDirectives(node);
-    baseGenerator.Program.call(this, node, state);
+    GENERATOR.Program.call(this, node, state);
   },
   BlockStatement(node, state) {
     handleDirectives(node);
-    baseGenerator.BlockStatement.call(this, node, state);
+    GENERATOR.BlockStatement.call(this, node, state);
   },
   NumericLiteral(node, state) {
     node.type = 'Literal';
@@ -68,7 +68,7 @@ export const generator = {
       pattern: node.pattern,
       flags: node.flags,
     };
-    baseGenerator.Literal(node, state);
+    GENERATOR.Literal(node, state);
   },
   BigIntLiteral(node, state) {
     node.type = 'Literal';
@@ -84,7 +84,7 @@ export const generator = {
       // Make sure they don't start with "O"
       node.body.type = '_' + node.body.type;
     }
-    baseGenerator.ArrowFunctionExpression.call(this, node, state);
+    GENERATOR.ArrowFunctionExpression.call(this, node, state);
   },
   ObjectProperty(node, state) {
     node.type = 'Property';
@@ -195,11 +195,11 @@ export const generator = {
   OptionalMemberExpression(node, state) {
     node.optional = true;
     node.type = 'MemberExpression';
-    baseGenerator.MemberExpression.call(this, node, state);
+    GENERATOR.MemberExpression.call(this, node, state);
   },
   MemberExpression(node, state) {
     if (node.optional) node.optional = false;
-    baseGenerator.MemberExpression.call(this, node, state);
+    GENERATOR.MemberExpression.call(this, node, state);
   },
   _OptionalCallExpression(node, state) {
     this.OptionalCallExpression(node, state, true);
@@ -207,7 +207,11 @@ export const generator = {
   OptionalCallExpression(node, state) {
     node.optional = true;
     node.type = 'CallExpression';
-    this.CallExpression(node, state, true);
+    GENERATOR.CallExpression.call(this, node, state);
+  },
+  CallExpression(node, state) {
+    if (node.optional) node.optional = false;
+    GENERATOR.CallExpression.call(this, node, state);
   },
   ExportNamedDeclaration(node, state) {
     if (node.source) {
@@ -228,7 +232,7 @@ export const generator = {
       }
     }
 
-    baseGenerator[node.type].call(this, node, state);
+    GENERATOR[node.type].call(this, node, state);
   },
   ReturnStatement(node, state) {
     // Add parentheses if there are leading comments
@@ -242,7 +246,7 @@ export const generator = {
       state.write(state.lineEnd);
       state.write(indent + ');');
     } else {
-      baseGenerator.ReturnStatement.call(this, node, state);
+      GENERATOR.ReturnStatement.call(this, node, state);
     }
   },
 };
@@ -252,6 +256,16 @@ export const generator = {
 for (let key in generator) {
   let orig = generator[key];
   generator[key] = function(node, state, skipComments) {
+    // These are printed by astring itself
+    if (node.trailingComments) {
+      for (let c of node.trailingComments) {
+        if (c.type === 'CommentLine') {
+          c.type = 'LineComment';
+        } else {
+          c.type = 'BlockComment';
+        }
+      }
+    }
     if (
       !skipComments &&
       node.leadingComments &&
@@ -284,7 +298,7 @@ function formatComments(state, comments) {
   const {length} = comments;
   for (let i = 0; i < length; i++) {
     const comment = comments[i];
-    if (comment.type === 'CommentLine') {
+    if (comment.type === 'CommentLine' || comment.type === 'LineComment') {
       // Line comment
       state.write('// ' + comment.value.trim() + state.lineEnd, {
         ...comment,

@@ -7,6 +7,7 @@ import type {
   Engines,
   EnvironmentContext,
   EnvMap,
+  FileCreateInvalidation,
   FilePath,
   Glob,
   JSONObject,
@@ -70,8 +71,8 @@ export type Environment = {|
     | {[PackageName]: boolean, ...},
   outputFormat: OutputFormat,
   isLibrary: boolean,
-  minify: boolean,
-  scopeHoist: boolean,
+  shouldOptimize: boolean,
+  shouldScopeHoist: boolean,
   sourceMap: ?TargetSourceMapOptions,
 |};
 
@@ -185,13 +186,14 @@ export type ParcelOptions = {|
 
   instanceId: string,
 
-  // TODO: Refactor to defaultTargetOptions
-  minify: boolean,
-  scopeHoist: boolean,
-  sourceMaps: boolean,
-  publicUrl: string,
-  distDir: ?FilePath,
-  defaultEngines?: Engines,
+  +defaultTargetOptions: {|
+    +shouldOptimize: boolean,
+    +shouldScopeHoist: boolean,
+    +sourceMaps: boolean,
+    +publicUrl: string,
+    +distDir?: FilePath,
+    +engines?: Engines,
+  |},
 |};
 
 export type NodeId = string;
@@ -254,6 +256,7 @@ export type AssetRequestInput = {|
   isURL?: boolean,
   query?: ?QueryParameters,
   invalidations?: Array<RequestInvalidation>,
+  invalidateReason?: number,
 |};
 
 export type AssetRequestResult = Array<Asset>;
@@ -336,7 +339,7 @@ export type Config = {|
   includedFiles: Set<FilePath>,
   pkg: ?PackageJSON,
   pkgFilePath: ?FilePath,
-  watchGlob: ?Glob,
+  invalidateOnFileCreate: Array<FileCreateInvalidation>,
   devDeps: Map<PackageName, ?string>,
   shouldRehydrate: boolean,
   shouldReload: boolean,

@@ -24,7 +24,7 @@
     "@babel/parser": "^7.0.0",
     "@babel/template": "^7.4.0",
     "@babel/traverse": "^7.0.0",
-    "@babel/types": "^7.12.11",
+    "@babel/types": "^7.12.13",
     "@parcel/babel-ast-utils": "2.0.0-beta.1",
     "@parcel/babylon-walk": "2.0.0-beta.1",
     "@parcel/diagnostic": "2.0.0-beta.1",
@@ -35,8 +35,5 @@
     "micromatch": "^4.0.2",
     "nullthrows": "^1.1.1",
     "semver": "^5.4.1"
-  },
-  "peerDependencies": {
-    "@parcel/core": "^2.0.0-alpha.3.1"
   }
 }

@@ -4,7 +4,6 @@ export type * from './generateBuildMetrics';
 export type * from './prettyDiagnostic';
 export type * from './schema';
 export type * from './http-server';
-export type * from './resolve';
 
 export {default as countLines} from './countLines';
 export {default as generateBuildMetrics} from './generateBuildMetrics';
@@ -17,8 +16,6 @@ export {default as objectHash} from './objectHash';
 export {default as prettifyTime} from './prettifyTime';
 export {default as prettyDiagnostic} from './prettyDiagnostic';
 export {default as PromiseQueue} from './PromiseQueue';
-// flowlint-next-line untyped-import:off
-export {default as promisify} from './promisify';
 export {default as validateSchema} from './schema';
 export {default as TapStream} from './TapStream';
 export {default as urlJoin} from './urlJoin';
@@ -63,7 +60,6 @@ export {
   streamFromPromise,
   fallbackStream,
 } from './stream';
-export {resolve, resolveSync} from './resolve';
 export {relativeBundlePath} from './relativeBundlePath';
 export {ansiHtml} from './ansi-html';
 export {escapeHTML} from './escape-html';
