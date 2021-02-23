@@ -27,6 +27,7 @@ import type {EntryResult} from './EntryRequest';
 import type {PathRequestInput} from './PathRequest';
 
 import invariant from 'assert';
+import nullthrows from 'nullthrows';
 import path from 'path';
 import {
   escapeMarkdown,
@@ -487,11 +488,13 @@ export class AssetGraphBuilder {
       throw new Error('A root node is required to traverse');
     }
 
-    let queue: Array<AssetGraphNode> = [root];
+    // let queue: Array<AssetGraphNode> = [root];
+    let queue: Set<AssetGraphNode> = new Set([root]);
     let visited = new Set<AssetGraphNode>();
 
-    while (queue.length > 0) {
-      let node = queue.shift();
+    while (queue.size > 0) {
+      let node = nullthrows(queue.values().next().value);
+      queue.delete(node);
       let outgoing = this.assetGraph.getNodesConnectedFrom(node);
 
       let wasNodeDirty = false;
@@ -527,7 +530,7 @@ export class AssetGraphBuilder {
           childDirty = child.usedSymbolsDownDirty;
         }
         if (!visited.has(child) || childDirty) {
-          queue.push(child);
+          queue.add(child);
         }
       }
     }
@@ -607,12 +610,16 @@ export class AssetGraphBuilder {
     walk(root);
     // traverse circular dependencies if neccessary (anchestors of `dirtyDeps`)
     visited = new Set();
-    let queue = [...dirtyDeps];
-    while (queue.length > 0) {
-      let node = queue.shift();
+    // let queue = [...dirtyDeps];
+    let queue = new Set(dirtyDeps);
+    while (queue.size > 0) {
+      // queue.shift()
+      let node = nullthrows(queue.values().next().value);
+      queue.delete(node);
 
       visited.add(node);
       if (node.type === 'asset') {
+        // console.log('visiting', node.value.filePath, node.value.id);
         let incoming = this.assetGraph
           .getIncomingDependencies(node.value)
           .map(d => {
@@ -640,11 +647,13 @@ export class AssetGraphBuilder {
         }
         for (let i of incoming) {
           if (i.usedSymbolsUpDirtyUp) {
-            queue.push(i);
+            queue.add(i);
           }
         }
       } else {
-        queue.push(...this.assetGraph.getNodesConnectedTo(node));
+        for (let connectedNode of this.assetGraph.getNodesConnectedTo(node)) {
+          queue.add(connectedNode);
+        }
       }
     }
     // Just throw the first error. Since errors can bubble (e.g. reexporting a reexported symbol also fails),

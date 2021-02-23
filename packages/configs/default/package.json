@@ -23,6 +23,8 @@
     "@parcel/optimizer-terser": "2.0.0-beta.1",
     "@parcel/packager-js": "2.0.0-beta.1",
     "@parcel/packager-raw": "2.0.0-beta.1",
+    "@parcel/reporter-bundle-analyzer": "2.00-beta.1",
+    "@parcel/reporter-bundle-buddy": "2.00-beta.1",
     "@parcel/reporter-cli": "2.0.0-beta.1",
     "@parcel/reporter-dev-server": "2.0.0-beta.1",
     "@parcel/reporter-trace": "2.0.0-beta.1",
