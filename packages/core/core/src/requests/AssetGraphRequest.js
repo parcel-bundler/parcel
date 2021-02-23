@@ -488,11 +488,13 @@ export class AssetGraphBuilder {
       throw new Error('A root node is required to traverse');
     }
 
-    let queue: Array<AssetGraphNode> = [root];
+    // let queue: Array<AssetGraphNode> = [root];
+    let queue: Set<AssetGraphNode> = new Set([root]);
     let visited = new Set<AssetGraphNode>();
 
-    while (queue.length > 0) {
-      let node = queue.shift();
+    while (queue.size > 0) {
+      let node = nullthrows(queue.values().next().value);
+      queue.delete(node);
       let outgoing = this.assetGraph.getNodesConnectedFrom(node);
 
       let wasNodeDirty = false;
@@ -528,7 +530,7 @@ export class AssetGraphBuilder {
           childDirty = child.usedSymbolsDownDirty;
         }
         if (!visited.has(child) || childDirty) {
-          queue.push(child);
+          queue.add(child);
         }
       }
     }
@@ -646,7 +648,9 @@ export class AssetGraphBuilder {
           }
         }
       } else {
-        queue.add(...this.assetGraph.getNodesConnectedTo(node));
+        for (let connectedNode of this.assetGraph.getNodesConnectedTo(node)) {
+          queue.add(connectedNode);
+        }
       }
     }
     // Just throw the first error. Since errors can bubble (e.g. reexporting a reexported symbol also fails),
