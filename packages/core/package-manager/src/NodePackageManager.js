@@ -12,7 +12,9 @@ import type {ResolveResult} from './NodeResolverBase';
 import {registerSerializableClass} from '@parcel/core';
 import ThrowableDiagnostic, {
   encodeJSONKeyComponent,
+  escapeMarkdown,
   generateJSONCodeHighlights,
+  md,
 } from '@parcel/diagnostic';
 import nativeFS from 'fs';
 // $FlowFixMe this is untyped
@@ -144,7 +146,7 @@ export class NodePackageManager implements PackageManager {
           ) {
             let err = new ThrowableDiagnostic({
               diagnostic: {
-                message: e.message,
+                message: escapeMarkdown(e.message),
                 hints: [
                   'Autoinstall is disabled, please install this package manually and restart Parcel.',
                 ],
@@ -177,7 +179,7 @@ export class NodePackageManager implements PackageManager {
 
         throw new ThrowableDiagnostic({
           diagnostic: conflicts.fields.map(field => ({
-            message: `Could not find module "${name}", but it was listed in package.json. Run your package manager first.`,
+            message: md`Could not find module "${name}", but it was listed in package.json. Run your package manager first.`,
             filePath: conflicts.filePath,
             origin: '@parcel/package-manager',
             language: 'json',
@@ -214,7 +216,7 @@ export class NodePackageManager implements PackageManager {
           } else if (conflicts != null) {
             throw new ThrowableDiagnostic({
               diagnostic: {
-                message: `Could not find module "${name}" satisfying ${range}.`,
+                message: md`Could not find module "${name}" satisfying ${range}.`,
                 filePath: conflicts.filePath,
                 origin: '@parcel/package-manager',
                 language: 'json',
@@ -234,9 +236,9 @@ export class NodePackageManager implements PackageManager {
           }
 
           let version = pkg?.version;
-          let message = `Could not resolve package "${name}" that satisfies ${range}.`;
+          let message = md`Could not resolve package "${name}" that satisfies ${range}.`;
           if (version != null) {
-            message += ` Found ${version}.`;
+            message += md` Found ${version}.`;
           }
 
           throw new ThrowableDiagnostic({

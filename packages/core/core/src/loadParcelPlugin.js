@@ -8,6 +8,7 @@ import {CONFIG} from '@parcel/plugin';
 import nullthrows from 'nullthrows';
 import ThrowableDiagnostic, {
   generateJSONCodeHighlights,
+  md,
 } from '@parcel/diagnostic';
 import {
   findAlternativeNodeModules,
@@ -46,7 +47,7 @@ export default async function loadPlugin<T>(
         );
         throw new ThrowableDiagnostic({
           diagnostic: {
-            message: `Could not determine version of ${pluginName} in ${path.relative(
+            message: md`Could not determine version of ${pluginName} in ${path.relative(
               process.cwd(),
               resolveFrom,
             )}. Either include it in "dependencies" or "parcelDependencies".`,
@@ -100,7 +101,7 @@ export default async function loadPlugin<T>(
     );
     throw new ThrowableDiagnostic({
       diagnostic: {
-        message: `Cannot find Parcel plugin "${pluginName}"`,
+        message: md`Cannot find Parcel plugin "${pluginName}"`,
         origin: '@parcel/core',
         filePath: configPath,
         language: 'json5',
@@ -110,7 +111,7 @@ export default async function loadPlugin<T>(
             {
               key: keyPath,
               type: 'value',
-              message: `Cannot find module "${pluginName}"${
+              message: md`Cannot find module "${pluginName}"${
                 alternatives[0] ? `, did you mean "${alternatives[0]}"?` : ''
               }`,
             },
@@ -139,7 +140,7 @@ export default async function loadPlugin<T>(
     let pkgContents = await options.inputFS.readFile(pkgFile, 'utf8');
     throw new ThrowableDiagnostic({
       diagnostic: {
-        message: `The plugin "${pluginName}" is not compatible with the current version of Parcel. Requires "${parcelVersionRange}" but the current version is "${PARCEL_VERSION}".`,
+        message: md`The plugin "${pluginName}" is not compatible with the current version of Parcel. Requires "${parcelVersionRange}" but the current version is "${PARCEL_VERSION}".`,
         origin: '@parcel/core',
         filePath: pkgFile,
         language: 'json5',
