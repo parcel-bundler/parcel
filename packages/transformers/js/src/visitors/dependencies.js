@@ -90,7 +90,7 @@ export default ({
   },
 
   CallExpression: {
-    enter(node, {asset, ast}, ancestors) {
+    enter(node, {asset, ast, logger}, ancestors) {
       let {callee, arguments: args} = node;
 
       let isRequire =
@@ -108,7 +108,7 @@ export default ({
         addDependency(
           asset,
           types.isTemplateLiteral(args[0])
-            ? normalize(asset, args[0])
+            ? normalize(asset, args[0], logger)
             : args[0],
           {isOptional, isAsync},
         );
@@ -539,10 +539,14 @@ function objectExpressionNodeToJSONObject(
   return object;
 }
 
-function normalize(asset: MutableAsset, templateLiteral: TemplateLiteral) {
+function normalize(
+  asset: MutableAsset,
+  templateLiteral: TemplateLiteral,
+  logger: PluginLogger,
+) {
   if (templateLiteral.expressions.length) {
     let loc = convertBabelLoc(templateLiteral.loc);
-    throw new ThrowableDiagnostic({
+    let e = {
       diagnostic: {
         message: 'Expressions are not allowed in the require() calls.',
         origin: '@parcel/transformer-js',
@@ -553,7 +557,13 @@ function normalize(asset: MutableAsset, templateLiteral: TemplateLiteral) {
         }),
         filePath: asset.filePath,
       },
-    });
+    };
+
+    if (asset.isSource) {
+      throw new ThrowableDiagnostic(e);
+    } else {
+      logger.warn(e);
+    }
   }
 
   return {
