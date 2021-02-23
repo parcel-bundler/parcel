@@ -24,14 +24,17 @@ import invariant from 'assert';
 import path from 'path';
 import nullthrows from 'nullthrows';
 import {
-  escapeMarkdown,
   md5FromOrderedObject,
   normalizeSeparators,
   objectSortedEntries,
 } from '@parcel/utils';
 import logger, {PluginLogger} from '@parcel/logger';
 import {init as initSourcemaps} from '@parcel/source-map';
-import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
+import ThrowableDiagnostic, {
+  errorToDiagnostic,
+  escapeMarkdown,
+  md,
+} from '@parcel/diagnostic';
 import {SOURCEMAP_EXTENSIONS} from '@parcel/utils';
 
 import ConfigLoader from './ConfigLoader';
@@ -144,8 +147,9 @@ export default class Transformation {
         logger.verbose([
           {
             origin: '@parcel/core',
-            message: `Could not load existing source map for ${escapeMarkdown(
-              path.relative(this.options.projectRoot, asset.value.filePath),
+            message: md`Could not load existing source map for ${path.relative(
+              this.options.projectRoot,
+              asset.value.filePath,
             )}`,
             filePath: asset.value.filePath,
           },

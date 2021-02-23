@@ -23,6 +23,8 @@ import {
 } from '@parcel/utils';
 import ThrowableDiagnostic, {
   generateJSONCodeHighlights,
+  escapeMarkdown,
+  md,
 } from '@parcel/diagnostic';
 import {parse} from 'json5';
 import path from 'path';
@@ -156,7 +158,7 @@ export async function resolveParcelConfig(
   } catch (e) {
     throw new ThrowableDiagnostic({
       diagnostic: {
-        message: `Could not find parcel config at ${path.relative(
+        message: md`Could not find parcel config at ${path.relative(
           options.projectRoot,
           configPath,
         )}`,
@@ -196,7 +198,7 @@ export async function parseAndProcessConfig(
     };
     throw new ThrowableDiagnostic({
       diagnostic: {
-        message: 'Failed to parse .parcelrc',
+        message: `Failed to parse .parcelrc`,
         origin: '@parcel/core',
 
         filePath: configPath,
@@ -207,7 +209,7 @@ export async function parseAndProcessConfig(
             {
               start: pos,
               end: pos,
-              message: e.message,
+              message: escapeMarkdown(e.message),
             },
           ],
         },
@@ -401,7 +403,7 @@ export async function resolveExtends(
       );
       throw new ThrowableDiagnostic({
         diagnostic: {
-          message: 'Cannot find extended parcel config',
+          message: `Cannot find extended parcel config`,
           origin: '@parcel/core',
           filePath: configPath,
           language: 'json5',
@@ -411,7 +413,7 @@ export async function resolveExtends(
               {
                 key: extendsKey,
                 type: 'value',
-                message: `Cannot find module "${ext}"${
+                message: md`Cannot find module "${ext}"${
                   alternatives[0] ? `, did you mean "${alternatives[0]}"?` : ''
                 }`,
               },
@@ -455,7 +457,7 @@ async function processExtendedConfig(
             {
               key: extendsKey,
               type: 'value',
-              message: `"${extendsSpecifier}" does not exist${
+              message: md`"${extendsSpecifier}" does not exist${
                 alternatives[0] ? `, did you mean "./${alternatives[0]}"?` : ''
               }`,
             },

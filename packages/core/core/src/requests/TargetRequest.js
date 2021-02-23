@@ -17,6 +17,7 @@ import type {ConfigAndCachePath} from './ParcelConfigRequest';
 import ThrowableDiagnostic, {
   generateJSONCodeHighlights,
   getJSONSourceLocation,
+  md,
 } from '@parcel/diagnostic';
 import path from 'path';
 import {
@@ -126,7 +127,7 @@ export class TargetResolver {
           if (!matchingTarget) {
             throw new ThrowableDiagnostic({
               diagnostic: {
-                message: `Could not find target with name "${target}"`,
+                message: md`Could not find target with name "${target}"`,
                 origin: '@parcel/core',
               },
             });
@@ -147,7 +148,7 @@ export class TargetResolver {
             let optionTargetsString = JSON.stringify(optionTargets, null, '\t');
             throw new ThrowableDiagnostic({
               diagnostic: {
-                message: `Missing distDir for target "${name}"`,
+                message: md`Missing distDir for target "${name}"`,
                 origin: '@parcel/core',
                 codeFrame: {
                   code: optionTargetsString,
@@ -268,7 +269,7 @@ export class TargetResolver {
       if (pkgFile == null) {
         throw new ThrowableDiagnostic({
           diagnostic: {
-            message: `Expected package.json file in ${rootDir}`,
+            message: md`Expected package.json file in ${rootDir}`,
             origin: '@parcel/core',
           },
         });
@@ -500,7 +501,7 @@ export class TargetResolver {
                 JSON.stringify(pkgContents, null, '\t');
           throw new ThrowableDiagnostic({
             diagnostic: {
-              message: `Invalid distPath for target "${targetName}"`,
+              message: md`Invalid distPath for target "${targetName}"`,
               origin: '@parcel/core',
               language: 'json',
               filePath: pkgFilePath ?? undefined,
@@ -694,7 +695,7 @@ function assertNoDuplicateTargets(targets, pkgFilePath, pkgContents) {
   for (let [targetPath, targetNames] of targetsByPath) {
     if (targetNames.length > 1 && pkgContents != null && pkgFilePath != null) {
       diagnostics.push({
-        message: `Multiple targets have the same destination path "${path.relative(
+        message: md`Multiple targets have the same destination path "${path.relative(
           path.dirname(pkgFilePath),
           targetPath,
         )}"`,
