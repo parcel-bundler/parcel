@@ -3,6 +3,7 @@
 import type {Async, FilePath, File, PackageJSON} from '@parcel/types';
 import type {StaticRunOpts} from '../RequestTracker';
 import type {Entry, ParcelOptions} from '../types';
+import type {FileSystem} from '@parcel/fs';
 
 import {isDirectoryInside, isGlob, glob} from '@parcel/utils';
 import ThrowableDiagnostic from '@parcel/diagnostic';
@@ -63,6 +64,33 @@ async function run({input, api, options}: RunOpts): Promise<EntryResult> {
   return result;
 }
 
+async function asyncThrowIfNotFile(
+  fs: FileSystem,
+  source: string,
+  diagnosticPath: string,
+) {
+  let stat;
+  try {
+    stat = await fs.stat(source);
+  } catch (err) {
+    throw new ThrowableDiagnostic({
+      diagnostic: {
+        message: `${diagnosticPath} does not exist`,
+        filePath: source,
+      },
+    });
+  }
+
+  if (!stat.isFile()) {
+    throw new ThrowableDiagnostic({
+      diagnostic: {
+        message: `${diagnosticPath} is not a file`,
+        filePath: source,
+      },
+    });
+  }
+}
+
 export class EntryResolver {
   options: ParcelOptions;
 
@@ -117,10 +145,20 @@ export class EntryResolver {
               let targetSources = Array.isArray(target.source)
                 ? target.source
                 : [target.source];
-              for (let source of targetSources) {
-                let filePath = path.join(entry, source);
-                entries.push({
+              for (let relativeSource of targetSources) {
+                let source = path.join(entry, relativeSource);
+                let diagnosticPath = `${relativeSource} in ${path.relative(
+                  this.options.inputFS.cwd(),
                   filePath,
+                )}#targets["${targetName}"].source`;
+                await asyncThrowIfNotFile(
+                  this.options.inputFS,
+                  source,
+                  diagnosticPath,
+                );
+
+                entries.push({
+                  filePath: source,
                   packagePath: entry,
                   target: targetName,
                 });
@@ -142,32 +180,15 @@ export class EntryResolver {
           for (let pkgSource of pkgSources) {
             if (typeof pkgSource === 'string') {
               let source = path.join(path.dirname(filePath), pkgSource);
-              try {
-                stat = await this.options.inputFS.stat(source);
-              } catch (err) {
-                throw new ThrowableDiagnostic({
-                  diagnostic: {
-                    message: `${pkgSource} in ${path.relative(
-                      this.options.inputFS.cwd(),
-                      filePath,
-                    )}#source does not exist`,
-                    filePath: source,
-                  },
-                });
-              }
-
-              if (!stat.isFile()) {
-                throw new ThrowableDiagnostic({
-                  diagnostic: {
-                    message: `${pkgSource} in ${path.relative(
-                      this.options.inputFS.cwd(),
-                      filePath,
-                    )}#source is not a file`,
-                    filePath: source,
-                  },
-                });
-              }
-
+              let diagnosticPath = `${pkgSource} in ${path.relative(
+                this.options.inputFS.cwd(),
+                filePath,
+              )}#source`;
+              await asyncThrowIfNotFile(
+                this.options.inputFS,
+                source,
+                diagnosticPath,
+              );
               entries.push({filePath: source, packagePath: entry});
             }
           }
