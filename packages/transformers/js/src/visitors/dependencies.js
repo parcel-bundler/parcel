@@ -547,20 +547,22 @@ function normalize(
   if (templateLiteral.expressions.length) {
     let loc = convertBabelLoc(templateLiteral.loc);
     let e = {
-      diagnostic: {
-        message: 'Expressions are not allowed in the require() calls.',
-        origin: '@parcel/transformer-js',
-        ...(loc && {
-          codeFrame: {
-            codeHighlights: [{start: loc.start, end: loc.end}],
-          },
-        }),
-        filePath: asset.filePath,
-      },
+      message: 'Expressions are not allowed in the require() calls.',
+      origin: '@parcel/transformer-js',
+      ...(loc && {
+        codeFrame: {
+          codeHighlights: [{start: loc.start, end: loc.end}],
+        },
+      }),
+      filePath: asset.filePath,
     };
 
     if (asset.isSource) {
-      throw new ThrowableDiagnostic(e);
+      throw new ThrowableDiagnostic({
+        diagnostic: {
+          ...e,
+        },
+      });
     } else {
       logger.warn(e);
     }
