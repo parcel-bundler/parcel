@@ -61,7 +61,7 @@ describe('javascript', function() {
             codeHighlights: [
               {
                 start: {
-                  column: 20,
+                  column: 21,
                   line: 2,
                 },
                 end: {
