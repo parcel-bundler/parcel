@@ -220,7 +220,6 @@ export type AssetNode = {|
   hasDeferred?: boolean,
   usedSymbolsDownDirty: boolean,
   usedSymbolsUpDirty: boolean,
-  deferred: boolean,
   requested?: boolean,
 |};
 

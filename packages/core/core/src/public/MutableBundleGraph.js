@@ -163,7 +163,7 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
     if (entryAsset) {
       let entryAssetNode = this.#graph._graph.getNode(entryAsset.id);
       invariant(entryAssetNode?.type === 'asset', 'Entry asset does not exist');
-      isPlaceholder = entryAssetNode.deferred;
+      isPlaceholder = entryAssetNode.requested === false;
     }
 
     let bundleNode = {
