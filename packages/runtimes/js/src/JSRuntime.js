@@ -300,7 +300,9 @@ function getLoaderRuntime({
 
       return `require(${JSON.stringify(
         loader,
-      )})(require('./bundle-url').getBundleURL() + ${relativePathExpr})`;
+      )})(require('./bundle-url').getBundleURL('${
+        bundle.publicId
+      }') + ${relativePathExpr})`;
     })
     .filter(Boolean);
 
@@ -414,7 +416,9 @@ function getHintLoaders(
       hintLoaders.push(
         `require(${JSON.stringify(
           loader,
-        )})(require('./bundle-url').getBundleURL() + ${relativePathExpr}, ${
+        )})(require('./bundle-url').getBundleURL('${
+          from.publicId
+        }') + ${relativePathExpr}, ${
           priority ? JSON.stringify(priority) : 'null'
         }, ${JSON.stringify(
           bundleToPreload.target.env.outputFormat === 'esmodule',
@@ -457,7 +461,7 @@ function getURLRuntime(
 
   return {
     filePath: __filename,
-    code: `module.exports = require('./bundle-url').getBundleURL() + ${relativePathExpr}`,
+    code: `module.exports = require('./bundle-url').getBundleURL('${from.publicId}') + ${relativePathExpr}`,
     dependency,
   };
 }
