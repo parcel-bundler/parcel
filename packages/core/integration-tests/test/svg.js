@@ -22,6 +22,6 @@ describe('svg', function() {
 
     let file = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf-8');
     assert(file.includes('function SvgIcon'));
-    assert(file.includes('_reactDefault.default.createElement("svg"'));
+    assert(file.includes('_react.createElement("svg"'));
   });
 });

@@ -281,7 +281,7 @@ export default (new Transformer({
       data.content_security_policy = cspPatchHMR(data.content_security_policy);
     }
     asset.meta.handled = true;
-    asset.setCode(JSON.stringify(data));
+    asset.setCode(JSON.stringify(data, null, 2));
     return [asset];
   },
 }): Transformer);
