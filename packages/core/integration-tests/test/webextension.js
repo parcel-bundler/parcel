@@ -1,5 +1,6 @@
+import assert from 'assert';
 import path from 'path';
-import {bundle, assertBundles} from '@parcel/test-utils';
+import {bundle, assertBundles, outputFS} from '@parcel/test-utils';
 
 describe('webextension', function() {
   it('should resolve a full webextension bundle', async function() {
@@ -23,6 +24,10 @@ describe('webextension', function() {
         name: 'manifest.json',
         assets: ['manifest.json'],
       },
+      {
+        name: 'background.js',
+        assets: ['background.ts'],
+      },
       {assets: ['a.txt']},
       {assets: ['b.txt']},
       {assets: ['foo.png']},
@@ -31,8 +36,51 @@ describe('webextension', function() {
       {assets: ['devtools.html']},
       {assets: ['content.js']},
       {assets: ['content.css']},
-      {assets: ['background.js']},
     ]);
+  });
+
+  it('should resolve the web_accessible_resources globs', async function() {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/webextension-resolve-web-accessible-resources/manifest.json',
+      ),
+    );
+    assertBundles(b, [
+      {
+        name: 'manifest.json',
+        assets: ['manifest.json'],
+      },
+      {
+        name: 'index.js',
+        assets: ['index.ts', 'esmodule-helpers.js'],
+      },
+      {
+        name: 'other.js',
+        assets: ['other.ts', 'esmodule-helpers.js'],
+      },
+      {
+        name: 'index-jsx.js',
+        assets: [
+          'checkPropTypes.js',
+          'esmodule-helpers.js',
+          'index-jsx.jsx',
+          'index.js',
+          'index.js',
+          'react.development.js',
+          'ReactPropTypesSecret.js',
+        ],
+      },
+      {assets: ['single.js', 'esmodule-helpers.js']},
+    ]);
+    const manifest = await outputFS.readFile(
+      b.getBundles().find(b => b.name == 'manifest.json').filePath,
+      'utf8',
+    );
+    assert(/injected\/index.js/.test(manifest));
+    assert(/injected\/nested\/other.js/.test(manifest));
+    assert(/injected\/index-jsx.js/.test(manifest));
+    assert(/injected\/single.js/.test(manifest));
   });
   // TODO: Test error-checking
 });

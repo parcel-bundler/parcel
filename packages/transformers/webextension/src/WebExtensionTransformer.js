@@ -173,17 +173,16 @@ async function collectDependencies(
           fs,
           {},
         )
-      ).map(fp => relative(dirname(filePath), fp));
-      war = war.concat(globFiles);
-      for (const fp of globFiles) {
-        asset.addURLDependency(fp, {
+      ).map(fp =>
+        asset.addURLDependency(relative(dirname(filePath), fp), {
           isEntry: true,
           loc: {
             filePath,
             ...getJSONSourceLocation(ptrs[`/web_accessible_resources/${i}`]),
           },
-        });
-      }
+        }),
+      );
+      war = war.concat(globFiles);
     }
     program.web_accessible_resources = war;
   }
