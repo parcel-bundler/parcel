@@ -73,14 +73,19 @@ describe('webextension', function() {
       },
       {assets: ['single.js', 'esmodule-helpers.js']},
     ]);
-    const manifest = await outputFS.readFile(
-      b.getBundles().find(b => b.name == 'manifest.json').filePath,
-      'utf8',
+    const manifest = JSON.parse(
+      await outputFS.readFile(
+        b.getBundles().find(b => b.name == 'manifest.json').filePath,
+        'utf8',
+      ),
     );
-    assert(/injected\/index.js/.test(manifest));
-    assert(/injected\/nested\/other.js/.test(manifest));
-    assert(/injected\/index-jsx.js/.test(manifest));
-    assert(/injected\/single.js/.test(manifest));
+    const war = manifest.web_accessible_resources;
+    assert.deepEqual(war, [
+      '/injected/index.js',
+      '/injected/nested/other.js',
+      '/injected/index-jsx.js',
+      '/injected/single.js',
+    ]);
   });
   // TODO: Test error-checking
 });
