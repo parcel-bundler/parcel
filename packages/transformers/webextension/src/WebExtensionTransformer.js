@@ -1,12 +1,15 @@
 // @flow
-
 import type {MutableAsset} from '@parcel/types';
+
 import {Transformer} from '@parcel/plugin';
-import {join, extname, dirname, relative} from 'path';
+import path from 'path';
 import jsm from 'json-source-map';
 import parseCSP from 'content-security-policy-parser';
 import {validateSchema} from '@parcel/utils';
-import ThrowableDiagnostic, {getJSONSourceLocation} from '@parcel/diagnostic';
+import ThrowableDiagnostic, {
+  getJSONSourceLocation,
+  md,
+} from '@parcel/diagnostic';
 import {glob} from '@parcel/utils';
 import WebExtensionSchema from './schema';
 
@@ -39,10 +42,10 @@ async function collectDependencies(
   const fs = asset.fs;
   const filePath = asset.filePath;
   if (program.default_locale) {
-    const locales = join(dirname(filePath), '_locales');
+    const locales = path.join(path.dirname(filePath), '_locales');
     let err = !(await fs.exists(locales))
       ? 'key'
-      : !(await fs.exists(join(locales, program.default_locale)))
+      : !(await fs.exists(path.join(locales, program.default_locale)))
       ? 'value'
       : null;
     if (err) {
@@ -56,11 +59,11 @@ async function collectDependencies(
               codeHighlights: [
                 {
                   ...getJSONSourceLocation(ptrs['/default_locale'], err),
-                  message: `Localization directory${
+                  message: md`Localization directory${
                     err == 'value' ? ' for ' + program.default_locale : ''
-                  } does not exist: ${relative(
-                    dirname(filePath),
-                    join(locales, program.default_locale),
+                  } does not exist: ${path.relative(
+                    path.dirname(filePath),
+                    path.join(locales, program.default_locale),
                   )}`,
                 },
               ],
@@ -116,7 +119,7 @@ async function collectDependencies(
         ...sourceLoc,
       };
       const dictFile = program.dictionaries[dict];
-      if (extname(dictFile) != '.dic') {
+      if (path.extname(dictFile) != '.dic') {
         throw new ThrowableDiagnostic({
           diagnostic: [
             {
@@ -166,12 +169,12 @@ async function collectDependencies(
   if (program.web_accessible_resources) {
     for (let i = 0; i < program.web_accessible_resources.length; ++i) {
       // TODO: this doesn't support Parcel resolution
-      const globQuery = join(
-        dirname(filePath),
+      const globQuery = path.join(
+        path.dirname(filePath),
         program.web_accessible_resources[i],
       );
       for (const fp of await glob(globQuery, fs, {})) {
-        asset.addURLDependency(relative(dirname(filePath), fp), {
+        asset.addURLDependency(path.relative(path.dirname(filePath), fp), {
           isEntry: true,
           loc: {
             filePath,
@@ -197,7 +200,7 @@ async function collectDependencies(
           filePath,
           ...getJSONSourceLocation(ptrs[location], 'value'),
         },
-        pipeline: extname(obj) == '.json' ? 'url' : undefined,
+        pipeline: path.extname(obj) == '.json' ? 'url' : undefined,
       });
     else {
       for (const k of Object.keys(obj)) {
@@ -207,7 +210,7 @@ async function collectDependencies(
             filePath,
             ...getJSONSourceLocation(ptrs[location + '/' + k], 'value'),
           },
-          pipeline: extname(obj[k]) == '.json' ? 'url' : undefined,
+          pipeline: path.extname(obj[k]) == '.json' ? 'url' : undefined,
         });
       }
     }

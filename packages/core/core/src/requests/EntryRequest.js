@@ -6,7 +6,7 @@ import type {Entry, ParcelOptions} from '../types';
 import type {FileSystem} from '@parcel/fs';
 
 import {isDirectoryInside, isGlob, glob} from '@parcel/utils';
-import ThrowableDiagnostic from '@parcel/diagnostic';
+import ThrowableDiagnostic, {md} from '@parcel/diagnostic';
 import path from 'path';
 
 type RunOpts = {|
@@ -122,7 +122,7 @@ export class EntryResolver {
     } catch (err) {
       throw new ThrowableDiagnostic({
         diagnostic: {
-          message: `Entry ${entry} does not exist`,
+          message: md`Entry ${entry} does not exist`,
           filePath: entry,
         },
       });
@@ -147,7 +147,7 @@ export class EntryResolver {
                 : [target.source];
               for (let relativeSource of targetSources) {
                 let source = path.join(entry, relativeSource);
-                let diagnosticPath = `${relativeSource} in ${path.relative(
+                let diagnosticPath = md`${relativeSource} in ${path.relative(
                   this.options.inputFS.cwd(),
                   filePath,
                 )}#targets["${targetName}"].source`;
@@ -180,7 +180,7 @@ export class EntryResolver {
           for (let pkgSource of pkgSources) {
             if (typeof pkgSource === 'string') {
               let source = path.join(path.dirname(filePath), pkgSource);
-              let diagnosticPath = `${pkgSource} in ${path.relative(
+              let diagnosticPath = md`${pkgSource} in ${path.relative(
                 this.options.inputFS.cwd(),
                 filePath,
               )}#source`;
@@ -205,7 +205,7 @@ export class EntryResolver {
 
       throw new ThrowableDiagnostic({
         diagnostic: {
-          message: `Could not find entry: ${entry}`,
+          message: md`Could not find entry: ${entry}`,
           filePath: entry,
         },
       });
@@ -248,7 +248,7 @@ export class EntryResolver {
     } catch (err) {
       throw new ThrowableDiagnostic({
         diagnostic: {
-          message: `Error parsing ${path.relative(
+          message: md`Error parsing ${path.relative(
             this.options.inputFS.cwd(),
             pkgFile,
           )}: ${err.message}`,

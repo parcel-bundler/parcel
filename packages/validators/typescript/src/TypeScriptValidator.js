@@ -1,5 +1,4 @@
 // @flow
-import type {DiagnosticCodeFrame} from '@parcel/diagnostic';
 import type {
   Asset,
   ConfigResult,
@@ -9,10 +8,11 @@ import type {
 import type {LanguageService, Diagnostic} from 'typescript'; // eslint-disable-line import/no-extraneous-dependencies
 
 import path from 'path';
+import ts from 'typescript';
+import {type DiagnosticCodeFrame, escapeMarkdown} from '@parcel/diagnostic';
 import {md5FromObject} from '@parcel/utils';
 import {Validator} from '@parcel/plugin';
 import {LanguageServiceHost, ParseConfigHost} from '@parcel/ts-utils';
-import ts from 'typescript';
 
 let langServiceCache: {
   [configHash: string]: {|
@@ -147,10 +147,11 @@ function getValidateResultFromDiagnostics(
       let filename = filePath;
       let {file} = diagnostic;
 
-      let diagnosticMessage =
+      let diagnosticMessage = escapeMarkdown(
         typeof diagnostic.messageText === 'string'
           ? diagnostic.messageText
-          : diagnostic.messageText.messageText;
+          : diagnostic.messageText.messageText,
+      );
 
       let codeframe: ?DiagnosticCodeFrame;
       if (file != null && diagnostic.start != null) {
