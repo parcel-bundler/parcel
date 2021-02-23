@@ -196,7 +196,10 @@ export type ParcelOptions = {|
   outputFS: FileSystem,
   cache: Cache,
   packageManager: PackageManager,
-  additionalReporters: Array<PackageName>,
+  additionalReporters: Array<{|
+    packageName: ModuleSpecifier,
+    resolveFrom: FilePath,
+  |}>,
 
   instanceId: string,
 

@@ -435,7 +435,11 @@ async function normalizeOptions(
     command.detailedReport = '10';
   }
 
-  let additionalReporters = [];
+  let additionalReporters = [
+    '@parcel/reporter-cli',
+    '@parcel/reporter-dev-server',
+  ].map(packageName => ({packageName, resolveFrom: __dirname}));
+
   reporterOuter: for (let name of (command.reporter: Array<string>)) {
     let potentialNames = [
       name,
@@ -445,10 +449,13 @@ async function normalizeOptions(
     for (let packageName of potentialNames) {
       try {
         await packageManager.resolveSync(packageName, packageManager.fs.cwd());
-        additionalReporters.push(packageName);
+        additionalReporters.push({
+          packageName,
+          resolveFrom: packageManager.fs.cwd(),
+        });
         continue reporterOuter;
       } catch (e) {
-        // noop
+        // noop, try next name
       }
     }
     throw new Error(

@@ -175,12 +175,10 @@ export async function resolveParcelConfig(
 
   if (options.additionalReporters.length > 0) {
     config.reporters = [
-      ...options.additionalReporters.map(name => {
-        return {
-          packageName: name,
-          resolveFrom: options.inputFS.cwd(),
-        };
-      }),
+      ...options.additionalReporters.map(({packageName, resolveFrom}) => ({
+        packageName,
+        resolveFrom,
+      })),
       ...(config.reporters ?? []),
     ];
   }

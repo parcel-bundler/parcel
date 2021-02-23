@@ -31,7 +31,12 @@ describe('JS API', function() {
     let b = await bundle(
       path.join(__dirname, '/integration/js-comment/index.js'),
       {
-        additionalReporters: ['@parcel/reporter-bundle-buddy'],
+        additionalReporters: [
+          {
+            packageName: '@parcel/reporter-bundle-buddy',
+            resolveFrom: __dirname,
+          },
+        ],
       },
     );
 
