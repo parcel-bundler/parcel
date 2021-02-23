@@ -15,6 +15,8 @@ import type {
   ObjectExpression,
   ObjectProperty,
   StringLiteral,
+  TemplateLiteral,
+  BaseAsset,
 } from '@babel/types';
 import type {SimpleVisitors} from '@parcel/babylon-walk';
 import type {PluginLogger} from '@parcel/logger';
@@ -33,9 +35,15 @@ import {
   isReturnStatement,
   isStringLiteral,
 } from '@babel/types';
-import {isURL, md5FromString, createDependencyLocation} from '@parcel/utils';
+import {
+  isURL,
+  md5FromString,
+  createDependencyLocation,
+  normalizePath,
+} from '@parcel/utils';
 import {isInFalsyBranch, hasBinding, morph} from './utils';
 import {convertBabelLoc} from '@parcel/babel-ast-utils';
+import ThrowableDiagnostic from '@parcel/diagnostic';
 
 const serviceWorkerPattern = ['navigator', 'serviceWorker', 'register'];
 
@@ -90,7 +98,7 @@ export default ({
         types.isIdentifier(callee) &&
         callee.name === 'require' &&
         args.length === 1 &&
-        types.isStringLiteral(args[0]) &&
+        (types.isStringLiteral(args[0]) || types.isTemplateLiteral(args[0])) &&
         !hasBinding(ancestors, 'require') &&
         !isInFalsyBranch(ancestors);
 
@@ -98,7 +106,13 @@ export default ({
         let isOptional =
           ancestors.some(a => types.isTryStatement(a)) || undefined;
         let isAsync = isRequireAsync(ancestors, node, asset, ast);
-        addDependency(asset, args[0], {isOptional, isAsync});
+        addDependency(
+          asset,
+          types.isTemplateLiteral(args[0])
+            ? normalize(asset, args[0])
+            : args[0],
+          {isOptional, isAsync},
+        );
         return;
       }
 
@@ -524,4 +538,29 @@ function objectExpressionNodeToJSONObject(
   }
 
   return object;
+}
+
+function normalize(asset: BaseAsset, templateLiteral: TemplateLiteral) {
+  if (templateLiteral.expressions.length) {
+    throw new ThrowableDiagnostic({
+      diagnostic: {
+        message: 'Expressions are not allowed in the require() calls.',
+        origin: '@parcel/transformer-js',
+        codeFrame: {
+          codeHighlights: [
+            {
+              start: templateLiteral.loc.start,
+              end: templateLiteral.loc.end,
+            },
+          ],
+        },
+        filePath: asset.filePath,
+      },
+    });
+  }
+
+  return {
+    ...templateLiteral.quasis[0],
+    value: normalizePath(templateLiteral.quasis[0].value.raw),
+  };
 }
