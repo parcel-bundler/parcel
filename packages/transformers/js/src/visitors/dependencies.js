@@ -16,7 +16,6 @@ import type {
   ObjectProperty,
   StringLiteral,
   TemplateLiteral,
-  BaseAsset,
 } from '@babel/types';
 import type {SimpleVisitors} from '@parcel/babylon-walk';
 import type {PluginLogger} from '@parcel/logger';
@@ -540,27 +539,27 @@ function objectExpressionNodeToJSONObject(
   return object;
 }
 
-function normalize(asset: BaseAsset, templateLiteral: TemplateLiteral) {
+function normalize(asset: MutableAsset, templateLiteral: TemplateLiteral) {
   if (templateLiteral.expressions.length) {
+    let loc = convertBabelLoc(templateLiteral.loc);
     throw new ThrowableDiagnostic({
       diagnostic: {
         message: 'Expressions are not allowed in the require() calls.',
         origin: '@parcel/transformer-js',
-        codeFrame: {
-          codeHighlights: [
-            {
-              start: templateLiteral.loc.start,
-              end: templateLiteral.loc.end,
-            },
-          ],
-        },
+        ...(loc && {
+          codeFrame: {
+            codeHighlights: [{start: loc.start, end: loc.end}],
+          },
+        }),
         filePath: asset.filePath,
       },
     });
   }
 
   return {
-    ...templateLiteral.quasis[0],
+    ...(Array.isArray(templateLiteral.quasis) &&
+      templateLiteral.quasis[0] &&
+      convertBabelLoc(templateLiteral.quasis[0].loc)),
     value: normalizePath(templateLiteral.quasis[0].value.raw),
   };
 }
