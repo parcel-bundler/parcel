@@ -2,8 +2,7 @@
 
 import assert from 'assert';
 import path from 'path';
-import tempy from 'tempy';
-import {inputFS as fs, inputFS} from '@parcel/test-utils';
+import {inputFS as fs} from '@parcel/test-utils';
 import {EntryResolver} from '../src/requests/EntryRequest';
 import {DEFAULT_OPTIONS as _DEFAULT_OPTIONS} from './test-utils';
 
@@ -36,16 +35,15 @@ const INVALID_TARGET_SOURCE_NOT_FILE_FIXTURE_PATH = path.join(
 );
 
 function packagePath(fixturePath) {
-  return path.join(path.relative(inputFS.cwd(), fixturePath), '/package.json');
+  return path.join(path.relative(fs.cwd(), fixturePath), '/package.json');
 }
 
-describe.only('EntryResolver', () => {
+describe('EntryResolver', () => {
   let entryResolver = new EntryResolver({...DEFAULT_OPTIONS});
   it('rejects missing source in package.json', async () => {
     // $FlowFixMe assert.rejects is Node 10+
     await assert.rejects(
-      async () =>
-        await entryResolver.resolveEntry(INVALID_SOURCE_MISSING_FIXTURE_PATH),
+      () => entryResolver.resolveEntry(INVALID_SOURCE_MISSING_FIXTURE_PATH),
       {
         message: `missing.js in ${packagePath(
           INVALID_SOURCE_MISSING_FIXTURE_PATH,
@@ -56,8 +54,7 @@ describe.only('EntryResolver', () => {
   it('rejects non-file source in package.json', async () => {
     // $FlowFixMe assert.rejects is Node 10+
     await assert.rejects(
-      async () =>
-        await entryResolver.resolveEntry(INVALID_SOURCE_NOT_FILE_FIXTURE_PATH),
+      () => entryResolver.resolveEntry(INVALID_SOURCE_NOT_FILE_FIXTURE_PATH),
       {
         message: `src in ${packagePath(
           INVALID_SOURCE_NOT_FILE_FIXTURE_PATH,
@@ -68,10 +65,8 @@ describe.only('EntryResolver', () => {
   it('rejects missing target source in package.json', async () => {
     // $FlowFixMe assert.rejects is Node 10+
     await assert.rejects(
-      async () =>
-        await entryResolver.resolveEntry(
-          INVALID_TARGET_SOURCE_MISSING_FIXTURE_PATH,
-        ),
+      () =>
+        entryResolver.resolveEntry(INVALID_TARGET_SOURCE_MISSING_FIXTURE_PATH),
       {
         message: `missing.js in ${packagePath(
           INVALID_TARGET_SOURCE_MISSING_FIXTURE_PATH,
@@ -82,10 +77,8 @@ describe.only('EntryResolver', () => {
   it('rejects non-file target source in package.json', async () => {
     // $FlowFixMe assert.rejects is Node 10+
     await assert.rejects(
-      async () =>
-        await entryResolver.resolveEntry(
-          INVALID_TARGET_SOURCE_NOT_FILE_FIXTURE_PATH,
-        ),
+      () =>
+        entryResolver.resolveEntry(INVALID_TARGET_SOURCE_NOT_FILE_FIXTURE_PATH),
       {
         message: `src in ${packagePath(
           INVALID_TARGET_SOURCE_NOT_FILE_FIXTURE_PATH,
