@@ -35,7 +35,11 @@ const INVALID_TARGET_SOURCE_NOT_FILE_FIXTURE_PATH = path.join(
   'fixtures/invalid-target-source-not-file',
 );
 
-describe('EntryResolver', () => {
+function packagePath(fixturePath) {
+  return path.join(path.relative(inputFS.cwd(), fixturePath), '/package.json');
+}
+
+describe.only('EntryResolver', () => {
   let entryResolver = new EntryResolver({...DEFAULT_OPTIONS});
   it('rejects missing source in package.json', async () => {
     // $FlowFixMe assert.rejects is Node 10+
@@ -43,10 +47,9 @@ describe('EntryResolver', () => {
       async () =>
         await entryResolver.resolveEntry(INVALID_SOURCE_MISSING_FIXTURE_PATH),
       {
-        message: `missing.js in ${path.relative(
-          inputFS.cwd(),
+        message: `missing.js in ${packagePath(
           INVALID_SOURCE_MISSING_FIXTURE_PATH,
-        )}/package.json#source does not exist`,
+        )}#source does not exist`,
       },
     );
   });
@@ -56,10 +59,9 @@ describe('EntryResolver', () => {
       async () =>
         await entryResolver.resolveEntry(INVALID_SOURCE_NOT_FILE_FIXTURE_PATH),
       {
-        message: `src in ${path.relative(
-          inputFS.cwd(),
+        message: `src in ${packagePath(
           INVALID_SOURCE_NOT_FILE_FIXTURE_PATH,
-        )}/package.json#source is not a file`,
+        )}#source is not a file`,
       },
     );
   });
@@ -71,10 +73,9 @@ describe('EntryResolver', () => {
           INVALID_TARGET_SOURCE_MISSING_FIXTURE_PATH,
         ),
       {
-        message: `missing.js in ${path.relative(
-          inputFS.cwd(),
+        message: `missing.js in ${packagePath(
           INVALID_TARGET_SOURCE_MISSING_FIXTURE_PATH,
-        )}/package.json#targets["a"].source does not exist`,
+        )}#targets["a"].source does not exist`,
       },
     );
   });
@@ -86,10 +87,9 @@ describe('EntryResolver', () => {
           INVALID_TARGET_SOURCE_NOT_FILE_FIXTURE_PATH,
         ),
       {
-        message: `src in ${path.relative(
-          inputFS.cwd(),
+        message: `src in ${packagePath(
           INVALID_TARGET_SOURCE_NOT_FILE_FIXTURE_PATH,
-        )}/package.json#targets["a"].source is not a file`,
+        )}#targets["a"].source is not a file`,
       },
     );
   });
