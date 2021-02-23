@@ -160,12 +160,12 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
   }
 
   getNodesConnectedFrom(
-    node: TNode,
+    node: TNode | NodeId,
     type: TEdgeType | null | Array<TEdgeType | null> = null,
   ): Array<TNode> {
     // assertHasNode(this, node);
-
-    let outboundByType = this.outboundEdges.getEdgesByType(node.id);
+    let nodeId = typeof node === 'string' ? node : node.id;
+    let outboundByType = this.outboundEdges.getEdgesByType(nodeId);
     if (outboundByType == null) {
       return [];
     }
@@ -190,6 +190,38 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
     }
 
     return [...nodes].map(to => nullthrows(this.nodes.get(to)));
+  }
+
+  getNodeIdsConnectedFrom(
+    nodeId: NodeId,
+    type: TEdgeType | null | Array<TEdgeType | null> = null,
+  ): Array<NodeId> {
+    // assertHasNode(this, node);
+    let outboundByType = this.outboundEdges.getEdgesByType(nodeId);
+    if (outboundByType == null) {
+      return [];
+    }
+
+    let nodes;
+    if (type === ALL_EDGE_TYPES) {
+      nodes = new Set();
+      for (let [, typeNodes] of outboundByType) {
+        for (let node of typeNodes) {
+          nodes.add(node);
+        }
+      }
+    } else if (Array.isArray(type)) {
+      nodes = new Set();
+      for (let typeName of type) {
+        for (let node of outboundByType.get(typeName)?.values() ?? []) {
+          nodes.add(node);
+        }
+      }
+    } else {
+      nodes = outboundByType.get(type)?.values() ?? [];
+    }
+
+    return [...nodes];
   }
 
   // Removes node and any edges coming from or to that node
@@ -355,7 +387,7 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
     return this.dfs({
       visit,
       startNode,
-      getChildren: node => this.getNodesConnectedFrom(node, type),
+      getChildren: node => this.getNodeIdsConnectedFrom(node, type),
     });
   }
 
@@ -386,16 +418,17 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
     getChildren,
   }: {|
     visit: GraphVisitor<TNode, TContext>,
-    getChildren(node: TNode): Array<TNode>,
+    getChildren(nodeId: NodeId): Array<NodeId>,
     startNode?: ?TNode,
   |}): ?TContext {
-    let root = startNode ?? this.getRootNode();
-    if (root == null) {
+    let startNodeId = startNode != null ? startNode.id : this.rootNodeId;
+    //let root = startNodeId ?? this.getRootNode();
+    if (startNodeId == null) {
       throw new Error('A start node is required to traverse');
     }
     // assertHasNode(this, root);
 
-    let visited = new Set<TNode>();
+    let visited = new Set<NodeId>();
     let stopped = false;
     let skipped = false;
     let actions: TraversalActions = {
@@ -407,9 +440,10 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
       },
     };
 
-    let walk = (node, context) => {
+    let walk = (nodeId, context) => {
+      let node = nullthrows(this.nodes.get(nodeId));
       // if (!this.hasNode(node.id)) return;
-      visited.add(node);
+      visited.add(nodeId);
 
       skipped = false;
       let enter = typeof visit === 'function' ? visit : visit.enter;
@@ -427,8 +461,9 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
       if (stopped) {
         return context;
       }
-
-      for (let child of getChildren(node)) {
+      //want getChildren(nodeid)
+      console.log('get children is', getChildren(nodeId));
+      for (let child of getChildren(nodeId)) {
         if (visited.has(child)) {
           continue;
         }
@@ -456,7 +491,7 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
       }
     };
 
-    return walk(root);
+    return walk(startNodeId);
   }
 
   bfs(visit: (node: TNode) => ?boolean): ?TNode {

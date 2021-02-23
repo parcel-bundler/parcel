@@ -323,4 +323,29 @@ describe('Graph', () => {
     );
     assert.deepEqual(visited, ['a', 'b', 'd']);
   });
+
+  it.only('numbered node id tests', () => {
+    let graph = new Graph();
+    graph.addNode2({id: 'a', type: 'mynode', value: 'a'});
+    graph.addNode2({id: 'b', type: 'mynode', value: 'b'});
+    graph.addNode2({id: 'c', type: 'mynode', value: 'c'});
+    graph.addNode2({id: 'd', type: 'mynode', value: 'd'});
+
+    graph.addEdge('0', '1', 'edgetype');
+    graph.addEdge('0', '3');
+    graph.addEdge('1', '2');
+    graph.addEdge('1', '3', 'edgetype');
+
+    graph.rootNodeId = '0';
+
+    let visited = [];
+    graph.traverse(
+      node => {
+        visited.push(node.id);
+      },
+      null, // use root as startNode
+      'edgetype',
+    );
+    assert.deepEqual(visited, ['a', 'b', 'd']);
+  });
 });
