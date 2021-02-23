@@ -276,7 +276,11 @@ export default class BundleGraph {
   }
 
   isDependencySkipped(dependency: Dependency): boolean {
+    // dependency.id has a mismatch with the node ids we get from addNode2
+    // dependency.id is content based while the ids we get from addNode2 are
+    // incremental
     let node = this._graph.getNode(dependency.id);
+    console.log('node', node);
     invariant(node && node.type === 'dependency');
     return !!node.hasDeferred || node.excluded;
   }
