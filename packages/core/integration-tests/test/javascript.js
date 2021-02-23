@@ -34,6 +34,51 @@ describe('javascript', function() {
     assert.equal(output(), 3);
   });
 
+  it('should produce a basic JS bundle with CommonJS requires using template literals', async function() {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/commonjs-require-template-literals/index.js',
+      ),
+    );
+
+    let output = await run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(output(), 3);
+  });
+
+  it('should throw a diagnostic by using expressions inside of CommonJS requires using template literals', async function() {
+    let fixture = path.join(
+      __dirname,
+      '/integration/commonjs-require-template-literals-expressions/index.js',
+    );
+
+    await assert.rejects(() => bundle(fixture), {
+      name: 'BuildError',
+      diagnostics: [
+        {
+          codeFrame: {
+            codeHighlights: [
+              {
+                start: {
+                  column: 20,
+                  line: 2,
+                },
+                end: {
+                  column: 38,
+                  line: 2,
+                },
+              },
+            ],
+          },
+          filePath: fixture,
+          message: 'Expressions are not allowed in the require() calls.',
+          origin: '@parcel/transformer-js',
+        },
+      ],
+    });
+  });
+
   it('should import child bundles using a require call in CommonJS', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/commonjs-bundle-require/index.js'),
