@@ -84,7 +84,7 @@ export type Target = {|
   publicUrl: string,
   loc?: ?SourceLocation,
   pipeline?: string,
-  source?: string,
+  source?: FilePath | Array<FilePath>,
 |};
 
 export type Dependency = {|

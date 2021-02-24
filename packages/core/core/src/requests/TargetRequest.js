@@ -72,12 +72,13 @@ export default function createTargetRequest(input: Entry): TargetRequest {
 
 export function skipTarget(
   targetName: string,
-  exclusiveTarget?: string,
-  descriptorSource?: string,
+  exclusiveTarget?: FilePath,
+  descriptorSource?: FilePath | Array<FilePath>,
 ): boolean {
   //  We skip targets if they have a descriptor.source and don't match the current exclusiveTarget
   //  They will be handled by a separate resolvePackageTargets call from their Entry point
   //  but with exclusiveTarget set.
+
   return exclusiveTarget == null
     ? descriptorSource != null
     : targetName !== exclusiveTarget;
@@ -176,7 +177,7 @@ export class TargetResolver {
               );
               throw new ThrowableDiagnostic({
                 diagnostic: {
-                  message: md`Missing distDir for target "${name}"`,
+                  message: `Missing distDir for target "${name}"`,
                   origin: '@parcel/core',
                   codeFrame: {
                     code: optionTargetsString,
@@ -193,7 +194,7 @@ export class TargetResolver {
                 },
               });
             }
-            let target: Target = {
+            let target: Target = ({
               name,
               distDir: path.resolve(this.fs.cwd(), distDir),
               publicUrl:
@@ -216,7 +217,7 @@ export class TargetResolver {
                   descriptor.sourceMap,
                 ),
               }),
-            };
+            }: Target);
 
             if (descriptor.distEntry != null) {
               target.distEntry = descriptor.distEntry;
