@@ -39,7 +39,7 @@ function packagePath(fixturePath) {
   return path.join(path.relative(fs.cwd(), fixturePath), '/package.json');
 }
 
-describe.only('EntryResolver', () => {
+describe('EntryResolver', () => {
   let entryResolver = new EntryResolver({...DEFAULT_OPTIONS});
   it('rejects missing source in package.json', async () => {
     // $FlowFixMe assert.rejects is Node 10+
