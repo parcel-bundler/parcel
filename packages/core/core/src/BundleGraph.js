@@ -27,7 +27,8 @@ import nullthrows from 'nullthrows';
 import {objectSortedEntriesDeep} from '@parcel/utils';
 
 import {getBundleGroupId, getPublicId} from './utils';
-import Graph, {ALL_EDGE_TYPES, mapVisitor, type GraphOpts} from './Graph';
+import {ALL_EDGE_TYPES, mapVisitor} from './Graph';
+import ContentGraph, {type SerializedContentGraph} from './ContentGraph';
 
 type BundleGraphEdgeTypes =
   // A lack of an edge type indicates to follow the edge while traversing
@@ -67,7 +68,7 @@ type InternalExportSymbolResolution = {|
 
 type SerializedBundleGraph = {|
   $$raw: true,
-  graph: GraphOpts<BundleGraphNode, BundleGraphEdgeTypes>,
+  graph: SerializedContentGraph<BundleGraphNode, BundleGraphEdgeTypes>,
   bundleContentHashes: Map<string, string>,
   assetPublicIds: Set<string>,
   publicIdByAssetId: Map<string, string>,
@@ -95,7 +96,7 @@ export default class BundleGraph {
   // It needs to be exposed in BundlerRunner for now based on how applying runtimes works and the
   // BundlerRunner takes care of invalidating hashes when runtimes are applied, but this is not ideal.
   _bundleContentHashes: Map<string, string>;
-  _graph: Graph<BundleGraphNode, BundleGraphEdgeTypes>;
+  _graph: ContentGraph<BundleGraphNode, BundleGraphEdgeTypes>;
 
   constructor({
     graph,
@@ -103,7 +104,7 @@ export default class BundleGraph {
     assetPublicIds,
     bundleContentHashes,
   }: {|
-    graph: Graph<BundleGraphNode, BundleGraphEdgeTypes>,
+    graph: ContentGraph<BundleGraphNode, BundleGraphEdgeTypes>,
     publicIdByAssetId: Map<string, string>,
     assetPublicIds: Set<string>,
     bundleContentHashes: Map<string, string>,
@@ -119,7 +120,7 @@ export default class BundleGraph {
     publicIdByAssetId: Map<string, string> = new Map(),
     assetPublicIds: Set<string> = new Set(),
   ): BundleGraph {
-    let graph = new Graph<BundleGraphNode, BundleGraphEdgeTypes>();
+    let graph = new ContentGraph<BundleGraphNode, BundleGraphEdgeTypes>();
 
     let rootNode = assetGraph.getRootNode();
     invariant(rootNode != null && rootNode.type === 'root');
@@ -145,7 +146,7 @@ export default class BundleGraph {
       if (node.type === 'asset_group') {
         assetGroupIds.add(node.id);
       } else {
-        let bundleGraphNodeId = graph.addNode2(node);
+        let bundleGraphNodeId = graph.addNodeByContentKey(node.id, node);
         if (node.id === assetGraph.rootNodeId) {
           graph.rootNodeId = bundleGraphNodeId;
         }
@@ -198,7 +199,7 @@ export default class BundleGraph {
 
   static deserialize(serialized: SerializedBundleGraph): BundleGraph {
     return new BundleGraph({
-      graph: Graph.deserialize(serialized.graph),
+      graph: ContentGraph.deserialize(serialized.graph),
       assetPublicIds: serialized.assetPublicIds,
       bundleContentHashes: serialized.bundleContentHashes,
       publicIdByAssetId: serialized.publicIdByAssetId,
@@ -279,8 +280,8 @@ export default class BundleGraph {
     // dependency.id has a mismatch with the node ids we get from addNode2
     // dependency.id is content based while the ids we get from addNode2 are
     // incremental
-    let node = this._graph.getNode(dependency.id);
-    console.log('node', node);
+    // BundleGraph is now contentGraph
+    let node = this._graph.getNodeByContentKey(dependency.id);
     invariant(node && node.type === 'dependency');
     return !!node.hasDeferred || node.excluded;
   }
@@ -562,9 +563,9 @@ export default class BundleGraph {
   }
 
   getDependencyAssets(dependency: Dependency): Array<Asset> {
-    let dependencyNode = nullthrows(this._graph.getNode(dependency.id));
     return this._graph
-      .getNodesConnectedFrom(dependencyNode)
+      .getNodeIdsConnectedFrom(this._graph.getNodeIdByContentKey(dependency.id))
+      .map(id => nullthrows(this._graph.getNode(id)))
       .filter(node => node.type === 'asset')
       .map(node => {
         invariant(node.type === 'asset');
@@ -573,11 +574,6 @@ export default class BundleGraph {
   }
 
   getDependencyResolution(dep: Dependency, bundle: ?Bundle): ?Asset {
-    let depNode = this._graph.getNode(dep.id);
-    if (!depNode) {
-      return null;
-    }
-
     let assets = this.getDependencyAssets(dep);
     let firstAsset = assets[0];
     let resolved =
@@ -599,7 +595,7 @@ export default class BundleGraph {
             traversal.skipChildren();
           }
         },
-        depNode,
+        this._graph.getNodeIdByContentKey(dep.id),
         'references',
       );
     }
@@ -867,11 +863,16 @@ export default class BundleGraph {
         actions.skipChildren();
       }, visit),
       startNode: nullthrows(this._graph.getNode(bundle.id)),
-      getChildren: node => {
-        let children = this._graph.getNodesConnectedFrom(nullthrows(node));
+      getChildren: nodeId => {
+        let children = this._graph
+          .getNodeIdsConnectedFrom(nodeId)
+          .map(id => [id, nullthrows(this._graph.getNode(id))]);
+        // [ (id, node) ] -> array of tuples
+        // sort based on value, return ids
+
         let sorted =
           entries && bundle.entryAssetIds.length > 0
-            ? children.sort((a, b) => {
+            ? children.sort(([, a], [, b]) => {
                 let aIndex = bundle.entryAssetIds.indexOf(a.id);
                 let bIndex = bundle.entryAssetIds.indexOf(b.id);
 
@@ -890,7 +891,7 @@ export default class BundleGraph {
             : children;
 
         entries = false;
-        return sorted;
+        return sorted.map(([id]) => id);
       },
     });
   }
@@ -1041,11 +1042,11 @@ export default class BundleGraph {
         }
       },
       startNode: bundleNode,
-      getChildren: node =>
+      getChildren: nodeId =>
         // Shared bundles seem to depend on being used in the opposite order
         // they were added.
         // TODO: Should this be the case?
-        this._graph.getNodesConnectedFrom(node, 'references').reverse(),
+        this._graph.getNodeIdsConnectedFrom(nodeId, 'references').reverse(),
     });
 
     return [...referencedBundles];

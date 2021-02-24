@@ -23,7 +23,6 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
   outboundEdges: AdjacencyList<TEdgeType | null>;
   rootNodeId: ?NodeId;
   nextNodeId: number = 0;
-  contentIdToNumericId: Map<string, NodeId>;
 
   constructor(opts: GraphOpts<TNode, TEdgeType> = ({}: any)) {
     this.nodes = opts.nodes || new Map();
@@ -382,7 +381,7 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
 
   traverse<TContext>(
     visit: GraphVisitor<TNode, TContext>,
-    startNode: ?TNode,
+    startNode: ?(TNode | NodeId),
     type: TEdgeType | null | Array<TEdgeType | null> = null,
   ): ?TContext {
     return this.dfs({
@@ -420,9 +419,16 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
   }: {|
     visit: GraphVisitor<TNode, TContext>,
     getChildren(nodeId: NodeId): Array<NodeId>,
-    startNode?: ?TNode,
+    startNode?: ?(TNode | NodeId),
   |}): ?TContext {
-    let startNodeId = startNode != null ? startNode.id : this.rootNodeId;
+    let startNodeId;
+    if (startNode == null) {
+      startNodeId = this.rootNodeId;
+    } else if (typeof startNode === 'string') {
+      startNodeId = startNode;
+    } else {
+      startNodeId = startNode.id;
+    }
     //let root = startNodeId ?? this.getRootNode();
     if (startNodeId == null) {
       throw new Error('A start node is required to traverse');
@@ -462,8 +468,7 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
       if (stopped) {
         return context;
       }
-      //want getChildren(nodeid)
-      console.log('get children is', getChildren(nodeId));
+
       for (let child of getChildren(nodeId)) {
         if (visited.has(child)) {
           continue;
