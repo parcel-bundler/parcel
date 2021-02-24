@@ -178,6 +178,8 @@ async function buildDefaultBabelConfig(options: PluginOptions, config: Config) {
   babelOptions = mergeOptions(babelOptions, jsxOptions?.config);
 
   if (babelOptions != null) {
+    config.setResultHash(md5FromObject(babelOptions));
+
     babelOptions.presets = (babelOptions.presets || []).map(preset =>
       babelCore.createConfigItem(preset, {
         type: 'preset',

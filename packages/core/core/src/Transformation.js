@@ -350,31 +350,33 @@ export default class Transformation {
       if (config) {
         hash.update(config.id);
 
-        // If there is no result hash set by the transformer, default to hashing the included
-        // files if any, otherwise try to hash the config result itself.
+        // If there is no result hash set by the transformer, try to hash the result.
+        // If it is not serializable, hash included files instead.
         if (config.resultHash == null) {
-          if (config.includedFiles.size > 0) {
-            hash.update(
-              await getInvalidationHash(
-                [...config.includedFiles].map(filePath => ({
-                  type: 'file',
-                  filePath,
-                })),
-                this.options,
-              ),
-            );
-          } else if (config.result != null) {
+          if (config.result != null) {
             try {
               // $FlowFixMe
               hash.update(v8.serialize(config.result));
             } catch (err) {
-              throw new ThrowableDiagnostic({
-                diagnostic: {
-                  message:
-                    'Config result is not hashable because it contains non-serializable objects. Please use config.setResultHash to set the hash manually.',
-                  origin: transformer.name,
-                },
-              });
+              if (config.includedFiles.size > 0) {
+                hash.update(
+                  await getInvalidationHash(
+                    [...config.includedFiles].map(filePath => ({
+                      type: 'file',
+                      filePath,
+                    })),
+                    this.options,
+                  ),
+                );
+              } else {
+                throw new ThrowableDiagnostic({
+                  diagnostic: {
+                    message:
+                      'Config result is not hashable because it contains non-serializable objects. Please use config.setResultHash to set the hash manually.',
+                    origin: transformer.name,
+                  },
+                });
+              }
             }
           }
         } else {
