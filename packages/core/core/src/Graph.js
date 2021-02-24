@@ -23,6 +23,7 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
   outboundEdges: AdjacencyList<TEdgeType | null>;
   rootNodeId: ?NodeId;
   nextNodeId: number = 0;
+  contentIdToNumericId: Map<string, NodeId>;
 
   constructor(opts: GraphOpts<TNode, TEdgeType> = ({}: any)) {
     this.nodes = opts.nodes || new Map();

@@ -116,12 +116,12 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     this.envCache = new Map();
   }
 
-  // $FlowFixMe
+  // $FlowFixMe[prop-missing]
   static deserialize(opts: SerializedAssetGraph): AssetGraph {
     return new AssetGraph(opts);
   }
 
-  // $FlowFixMe
+  // $FlowFixMe[prop-missing]
   serialize(): SerializedAssetGraph {
     // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
     return {
