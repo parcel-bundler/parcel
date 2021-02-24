@@ -229,6 +229,8 @@ export class AssetGraphBuilder {
             .every(dep => dep.isEntry || dep.isAsync);
           if (isAsyncChild) {
             node.requested = false;
+          } else {
+            delete node.requested;
           }
         }
 
