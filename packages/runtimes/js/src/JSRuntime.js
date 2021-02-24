@@ -298,7 +298,14 @@ function getLoaderRuntime({
   // Importing of the other bundles will be handled by the bundle group entry.
   // Do the same thing in library mode for ES modules, as we are building for another bundler
   // and the imports for sibling bundles will be in the target bundle.
-  if (bundle.env.outputFormat === 'commonjs' || bundle.env.isLibrary) {
+  // Also do this when building lazily or the runtime itself could get deduplicated and only
+  // exist in the parent. This causes errors if an old version of the parent without the runtime
+  // is already loaded.
+  if (
+    bundle.env.outputFormat === 'commonjs' ||
+    bundle.env.isLibrary ||
+    options.shouldBuildLazily
+  ) {
     externalBundles = [mainBundle];
   } else {
     // Otherwise, load the bundle group entry after the others.
@@ -400,7 +407,7 @@ function getLoaderRuntime({
     loaderCode = `(${loaderCode})`;
   }
 
-  if (bundle.env.outputFormat === 'global') {
+  if (bundle.env.outputFormat === 'global' && mainBundle.type === 'js') {
     loaderCode += `.then(() => module.bundle.root('${bundleGraph.getAssetPublicId(
       bundleGraph.getAssetById(bundleGroup.entryAssetId),
     )}')${
