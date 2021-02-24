@@ -4,6 +4,7 @@ import assert from 'assert';
 import path from 'path';
 import tempy from 'tempy';
 import {inputFS as fs} from '@parcel/test-utils';
+import {md} from '@parcel/diagnostic';
 import {TargetResolver} from '../src/requests/TargetRequest';
 import {DEFAULT_OPTIONS as _DEFAULT_OPTIONS} from './test-utils';
 
@@ -932,7 +933,7 @@ describe('TargetResolver', () => {
     await assert.rejects(() => targetResolver.resolve(fixture), {
       diagnostics: [
         {
-          message: `Multiple targets have the same destination path "${path.normalize(
+          message: md`Multiple targets have the same destination path "${path.normalize(
             'dist/index.js',
           )}"`,
           origin: '@parcel/core',

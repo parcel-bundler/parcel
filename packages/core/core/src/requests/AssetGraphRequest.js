@@ -28,12 +28,8 @@ import type {PathRequestInput} from './PathRequest';
 
 import invariant from 'assert';
 import path from 'path';
-import {
-  escapeMarkdown,
-  md5FromOrderedObject,
-  PromiseQueue,
-} from '@parcel/utils';
-import ThrowableDiagnostic from '@parcel/diagnostic';
+import {md5FromOrderedObject, PromiseQueue} from '@parcel/utils';
+import ThrowableDiagnostic, {md} from '@parcel/diagnostic';
 import AssetGraph from '../AssetGraph';
 import {PARCEL_VERSION} from '../constants';
 import createEntryRequest from './EntryRequest';
@@ -427,11 +423,9 @@ export class AssetGraphBuilder {
             invariant(resolution && resolution.type === 'asset_group');
 
             errors.push({
-              message: `${escapeMarkdown(
-                path.relative(
-                  this.options.projectRoot,
-                  resolution.value.filePath,
-                ),
+              message: md`${path.relative(
+                this.options.projectRoot,
+                resolution.value.filePath,
               )} does not export '${s}'`,
               origin: '@parcel/core',
               filePath: loc?.filePath,

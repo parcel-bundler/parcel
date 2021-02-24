@@ -7,6 +7,7 @@ import {
   distDir,
   outputFS,
 } from '@parcel/test-utils';
+import {escapeMarkdown} from '@parcel/diagnostic';
 
 describe('sass', function() {
   it('should support requiring sass files', async function() {
@@ -223,18 +224,17 @@ describe('sass', function() {
   });
 
   it('should throw an exception when using webpack syntax', async function() {
-    let didThrow = false;
-    try {
-      await bundle(
-        path.join(
-          __dirname,
-          '/integration/sass-webpack-import-error/index.sass',
+    await assert.rejects(
+      () =>
+        bundle(
+          path.join(
+            __dirname,
+            '/integration/sass-webpack-import-error/index.sass',
+          ),
         ),
-      );
-    } catch (err) {
-      assert.equal(
-        err.diagnostics[0].message,
-        `
+      {
+        message: escapeMarkdown(
+          `
 The @import path "~library/style.sass" is using webpack specific syntax, which isn't supported by Parcel.
 
 To @import files from node_modules, use "library/style.sass"
@@ -243,11 +243,9 @@ To @import files from node_modules, use "library/style.sass"
   │         ^^^^^^^^^^^^^^^^^^^^^
   ╵
   test${path.sep}integration${path.sep}sass-webpack-import-error${path.sep}index.sass 1:9  root stylesheet`.trim(),
-      );
-      didThrow = true;
-    }
-
-    assert(didThrow);
+        ),
+      },
+    );
   });
 
   it('should support node_modules imports', async function() {

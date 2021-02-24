@@ -5,7 +5,7 @@ import type {StaticRunOpts} from '../RequestTracker';
 import type {Entry, ParcelOptions} from '../types';
 
 import {isDirectoryInside, isGlob, glob} from '@parcel/utils';
-import ThrowableDiagnostic from '@parcel/diagnostic';
+import ThrowableDiagnostic, {md} from '@parcel/diagnostic';
 import path from 'path';
 
 type RunOpts = {|
@@ -94,7 +94,7 @@ class EntryResolver {
     } catch (err) {
       throw new ThrowableDiagnostic({
         diagnostic: {
-          message: `Entry ${entry} does not exist`,
+          message: md`Entry ${entry} does not exist`,
           filePath: entry,
         },
       });
@@ -115,7 +115,7 @@ class EntryResolver {
             } catch (err) {
               throw new ThrowableDiagnostic({
                 diagnostic: {
-                  message: `${pkgSource} in ${path.relative(
+                  message: md`${pkgSource} in ${path.relative(
                     this.options.inputFS.cwd(),
                     pkg.filePath,
                   )}#source does not exist`,
@@ -127,7 +127,7 @@ class EntryResolver {
             if (!stat.isFile()) {
               throw new ThrowableDiagnostic({
                 diagnostic: {
-                  message: `${pkgSource} in ${path.relative(
+                  message: md`${pkgSource} in ${path.relative(
                     this.options.inputFS.cwd(),
                     pkg.filePath,
                   )}#source is not a file`,
@@ -152,7 +152,7 @@ class EntryResolver {
 
       throw new ThrowableDiagnostic({
         diagnostic: {
-          message: `Could not find entry: ${entry}`,
+          message: md`Could not find entry: ${entry}`,
           filePath: entry,
         },
       });
@@ -193,7 +193,7 @@ class EntryResolver {
     } catch (err) {
       throw new ThrowableDiagnostic({
         diagnostic: {
-          message: `Error parsing ${path.relative(
+          message: md`Error parsing ${path.relative(
             this.options.inputFS.cwd(),
             pkgFile,
           )}: ${err.message}`,
