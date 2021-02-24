@@ -1312,7 +1312,7 @@ describe('output formats', function() {
 
     it("doesn't support require.resolve calls for excluded assets without commonjs", async function() {
       let message =
-        "`require.resolve` calls for excluded assets are only supported with outputFormat: 'commonjs'";
+        "'require.resolve' calls for excluded assets are only supported with outputFormat: 'commonjs'";
       let source = path.join(
         __dirname,
         '/integration/formats/commonjs-esm/require-resolve.js',

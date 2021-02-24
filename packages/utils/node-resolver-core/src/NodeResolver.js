@@ -19,6 +19,7 @@ import {
 } from '@parcel/utils';
 import ThrowableDiagnostic, {
   generateJSONCodeHighlights,
+  md,
 } from '@parcel/diagnostic';
 import micromatch from 'micromatch';
 import builtins from './builtins';
@@ -300,7 +301,7 @@ export default class NodeResolver {
       if (alternativeModules.length) {
         throw new ThrowableDiagnostic({
           diagnostic: {
-            message: `Cannot find module ${resolved.moduleName}`,
+            message: md`Cannot find module ${resolved.moduleName}`,
             hints: alternativeModules.map(r => {
               return `Did you mean __${r}__?`;
             }),
@@ -420,7 +421,7 @@ export default class NodeResolver {
 
       throw new ThrowableDiagnostic({
         diagnostic: {
-          message: `Cannot load file '${relativeFileSpecifier}' in '${relativePath(
+          message: md`Cannot load file '${relativeFileSpecifier}' in '${relativePath(
             this.projectRoot,
             parentdir,
           )}'.`,
@@ -574,7 +575,7 @@ export default class NodeResolver {
         let pkgContent = await this.fs.readFile(pkg.pkgfile, 'utf8');
         throw new ThrowableDiagnostic({
           diagnostic: {
-            message: `Could not load '${fileSpecifier}' from module '${pkg.name}' found in package.json#${failedEntry.field}`,
+            message: md`Could not load '${fileSpecifier}' from module '${pkg.name}' found in package.json#${failedEntry.field}`,
             language: 'json',
             filePath: pkg.pkgfile,
             codeFrame: {
@@ -583,7 +584,7 @@ export default class NodeResolver {
                 {
                   key: `/${failedEntry.field}`,
                   type: 'value',
-                  message: `'${fileSpecifier}' does not exist${
+                  message: md`'${fileSpecifier}' does not exist${
                     alternative ? `, did you mean '${alternative}'?` : ''
                   }'`,
                 },
@@ -853,7 +854,7 @@ export default class NodeResolver {
         if (typeof alias.global !== 'string' || alias.global.length === 0) {
           throw new ThrowableDiagnostic({
             diagnostic: {
-              message: `The global alias for ${filename} is invalid.`,
+              message: md`The global alias for ${filename} is invalid.`,
               hints: [`Only nonzero-length strings are valid global aliases.`],
             },
           });
