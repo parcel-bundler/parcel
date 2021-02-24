@@ -38,9 +38,10 @@ function packagePath(fixturePath) {
   return path.join(path.relative(fs.cwd(), fixturePath), '/package.json');
 }
 
-describe('EntryResolver', () => {
+describe('EntryResolver', function() {
   let entryResolver = new EntryResolver({...DEFAULT_OPTIONS});
-  it('rejects missing source in package.json', async () => {
+  it('rejects missing source in package.json', async function() {
+    this.timeout(10000);
     // $FlowFixMe assert.rejects is Node 10+
     await assert.rejects(
       () => entryResolver.resolveEntry(INVALID_SOURCE_MISSING_FIXTURE_PATH),
@@ -51,7 +52,8 @@ describe('EntryResolver', () => {
       },
     );
   });
-  it('rejects non-file source in package.json', async () => {
+  it('rejects non-file source in package.json', async function() {
+    this.timeout(10000);
     // $FlowFixMe assert.rejects is Node 10+
     await assert.rejects(
       () => entryResolver.resolveEntry(INVALID_SOURCE_NOT_FILE_FIXTURE_PATH),
@@ -62,7 +64,8 @@ describe('EntryResolver', () => {
       },
     );
   });
-  it('rejects missing target source in package.json', async () => {
+  it('rejects missing target source in package.json', async function() {
+    this.timeout(10000);
     // $FlowFixMe assert.rejects is Node 10+
     await assert.rejects(
       () =>
@@ -74,7 +77,8 @@ describe('EntryResolver', () => {
       },
     );
   });
-  it('rejects non-file target source in package.json', async () => {
+  it('rejects non-file target source in package.json', async function() {
+    this.timeout(10000);
     // $FlowFixMe assert.rejects is Node 10+
     await assert.rejects(
       () =>
