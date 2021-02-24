@@ -158,7 +158,6 @@ export class TargetResolver {
           return matchingTarget;
         });
       } else {
-        optionTargets;
         // Otherwise, it's an object map of target descriptors (similar to those
         // in package.json). Adapt them to native targets.
         targets = Object.entries(optionTargets)
@@ -194,7 +193,7 @@ export class TargetResolver {
                 },
               });
             }
-            let target: Target = ({
+            let target: Target = {
               name,
               distDir: path.resolve(this.fs.cwd(), distDir),
               publicUrl:
@@ -217,7 +216,7 @@ export class TargetResolver {
                   descriptor.sourceMap,
                 ),
               }),
-            }: Target);
+            };
 
             if (descriptor.distEntry != null) {
               target.distEntry = descriptor.distEntry;

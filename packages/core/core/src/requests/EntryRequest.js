@@ -64,7 +64,7 @@ async function run({input, api, options}: RunOpts): Promise<EntryResult> {
   return result;
 }
 
-async function asyncThrowIfNotFile(
+async function assertFile(
   fs: FileSystem,
   source: string,
   diagnosticPath: string,
@@ -151,11 +151,7 @@ export class EntryResolver {
                   this.options.inputFS.cwd(),
                   filePath,
                 )}#targets["${targetName}"].source`;
-                await asyncThrowIfNotFile(
-                  this.options.inputFS,
-                  source,
-                  diagnosticPath,
-                );
+                await assertFile(this.options.inputFS, source, diagnosticPath);
 
                 entries.push({
                   filePath: source,
@@ -178,19 +174,13 @@ export class EntryResolver {
             ? pkg.source
             : [pkg.source];
           for (let pkgSource of pkgSources) {
-            if (typeof pkgSource === 'string') {
-              let source = path.join(path.dirname(filePath), pkgSource);
-              let diagnosticPath = md`${pkgSource} in ${path.relative(
-                this.options.inputFS.cwd(),
-                filePath,
-              )}#source`;
-              await asyncThrowIfNotFile(
-                this.options.inputFS,
-                source,
-                diagnosticPath,
-              );
-              entries.push({filePath: source, packagePath: entry});
-            }
+            let source = path.join(path.dirname(filePath), pkgSource);
+            let diagnosticPath = md`${pkgSource} in ${path.relative(
+              this.options.inputFS.cwd(),
+              filePath,
+            )}#source`;
+            await assertFile(this.options.inputFS, source, diagnosticPath);
+            entries.push({filePath: source, packagePath: entry});
           }
         }
 
