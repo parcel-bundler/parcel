@@ -54,7 +54,7 @@ type AssetGraphRequestResult = {|
 
 type RunInput = {|
   input: AssetGraphRequestInput,
-  ...StaticRunOpts<AssetGraphRequestResult>,
+  ...StaticRunOpts,
 |};
 
 type AssetGraphRequest = {|

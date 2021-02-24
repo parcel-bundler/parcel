@@ -43,7 +43,7 @@ export type ConfigAndCachePath = {|
 
 type RunOpts = {|
   input: null,
-  ...StaticRunOpts<ConfigAndCachePath>,
+  ...StaticRunOpts,
 |};
 
 export type ParcelConfigRequest = {|

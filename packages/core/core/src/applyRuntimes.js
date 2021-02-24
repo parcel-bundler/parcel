@@ -54,17 +54,6 @@ export default async function applyRuntimes({
   for (let bundle of bundleGraph.getBundles()) {
     let runtimes = await config.getRuntimes(bundle.env.context);
     for (let runtime of runtimes) {
-      let devDepRequest = await createDevDependency(
-        {
-          moduleSpecifier: runtime.name,
-          resolveFrom: runtime.resolveFrom,
-        },
-        runtime,
-        devDeps,
-        options,
-      );
-      await runDevDepRequest(api, devDepRequest);
-
       try {
         let applied = await runtime.plugin.apply({
           bundle: NamedBundle.get(bundle, bundleGraph, options),
@@ -76,6 +65,18 @@ export default async function applyRuntimes({
           options: pluginOptions,
           logger: new PluginLogger({origin: runtime.name}),
         });
+
+        // Add dev dep for runtime plugin AFTER running it, to account for lazy require().
+        let devDepRequest = await createDevDependency(
+          {
+            moduleSpecifier: runtime.name,
+            resolveFrom: runtime.resolveFrom,
+          },
+          runtime,
+          devDeps,
+          options,
+        );
+        await runDevDepRequest(api, devDepRequest);
 
         if (applied) {
           let runtimeAssets = Array.isArray(applied) ? applied : [applied];

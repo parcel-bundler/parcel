@@ -9,7 +9,11 @@ import type {
 import type {SharedReference} from '@parcel/workers';
 import type ParcelConfig, {LoadedPlugin} from '../ParcelConfig';
 import type {StaticRunOpts, RunAPI} from '../RequestTracker';
-import type {Bundle as InternalBundle, ParcelOptions} from '../types';
+import type {
+  Bundle as InternalBundle,
+  DevDepRequest,
+  ParcelOptions,
+} from '../types';
 import type {ConfigAndCachePath} from './ParcelConfigRequest';
 
 import assert from 'assert';
@@ -38,6 +42,7 @@ import {
   invalidateDevDeps,
   runDevDepRequest,
 } from './DevDepRequest';
+import {getInvalidationHash} from '../assetUtils';
 
 type BundleGraphRequestInput = {|
   assetGraph: AssetGraph,
@@ -46,7 +51,7 @@ type BundleGraphRequestInput = {|
 
 type RunInput = {|
   input: BundleGraphRequestInput,
-  ...StaticRunOpts<InternalBundleGraph>,
+  ...StaticRunOpts,
 |};
 
 type BundleGraphRequest = {|
@@ -111,16 +116,6 @@ class BundlerRunner {
 
     let plugin = await this.config.getBundler();
     let {plugin: bundler, name, resolveFrom} = plugin;
-    let devDepRequest = await createDevDependency(
-      {
-        moduleSpecifier: name,
-        resolveFrom,
-      },
-      plugin,
-      this.devDeps,
-      this.options,
-    );
-    await runDevDepRequest(this.api, devDepRequest);
 
     let configResult: ?ConfigOutput;
     if (bundler.loadConfig != null) {
@@ -138,12 +133,21 @@ class BundlerRunner {
       }
     }
 
-    if (configResult != null) {
-      for (let file of configResult.files) {
-        this.api.invalidateOnFileUpdate(file.filePath);
-        this.api.invalidateOnFileDelete(file.filePath);
-      }
-    }
+    // Group config invalidations under a config request so they don't appear in
+    // api.getInvalidations(), which is used in the cache key.
+    await this.api.runRequest<null, void>({
+      id: 'config_request:' + name,
+      type: 'config_request',
+      run: ({api}) => {
+        if (configResult != null) {
+          for (let file of configResult.files) {
+            api.invalidateOnFileUpdate(file.filePath);
+            api.invalidateOnFileDelete(file.filePath);
+          }
+        }
+      },
+      input: null,
+    });
 
     let cacheKey = await this.getCacheKey(graph, configResult);
 
@@ -211,6 +215,19 @@ class BundlerRunner {
       await dumpGraphToGraphViz(internalBundleGraph._graph, 'after_optimize');
     }
 
+    // Add dev dependency for the bundler. This must be done AFTER running it due to
+    // the potential for lazy require() that aren't executed until the request runs.
+    let devDepRequest = await createDevDependency(
+      {
+        moduleSpecifier: name,
+        resolveFrom,
+      },
+      plugin,
+      this.devDeps,
+      this.options,
+    );
+    await runDevDepRequest(this.api, devDepRequest);
+
     await this.nameBundles(internalBundleGraph);
 
     await applyRuntimes({
@@ -226,22 +243,31 @@ class BundlerRunner {
     // $FlowFixMe
     await dumpGraphToGraphViz(internalBundleGraph._graph, 'after_runtimes');
 
+    // Recompute the cache key to account for new dev dependencies and invalidations.
+    cacheKey = await this.getCacheKey(graph, configResult);
     this.api.storeResult(internalBundleGraph, cacheKey);
     return internalBundleGraph;
   }
 
-  getCacheKey(assetGraph: AssetGraph, configResult: ?ConfigOutput): string {
+  async getCacheKey(
+    assetGraph: AssetGraph,
+    configResult: ?ConfigOutput,
+  ): Promise<string> {
     return md5FromOrderedObject({
       parcelVersion: PARCEL_VERSION,
       hash: assetGraph.getHash(),
       config: configResult?.config,
+      devDepRequests: [...this.devDeps.values()],
+      invalidations: await getInvalidationHash(
+        this.api.getInvalidations(),
+        this.options,
+      ),
     });
   }
 
   async nameBundles(bundleGraph: InternalBundleGraph): Promise<void> {
     let namers = await this.config.getNamers();
     let bundles = bundleGraph.getBundles();
-
     for (let namer of namers) {
       let devDepRequest = await createDevDependency(
         {
@@ -258,6 +284,20 @@ class BundlerRunner {
     await Promise.all(
       bundles.map(bundle => this.nameBundle(namers, bundle, bundleGraph)),
     );
+
+    // Add dev deps for namers, AFTER running them to account for lazy require().
+    for (let namer of namers) {
+      let devDepRequest = await createDevDependency(
+        {
+          moduleSpecifier: namer.name,
+          resolveFrom: namer.resolveFrom,
+        },
+        namer,
+        this.devDeps,
+        this.options,
+      );
+      await runDevDepRequest(this.api, devDepRequest);
+    }
 
     let bundleNames = bundles.map(b =>
       path.join(b.target.distDir, nullthrows(b.name)),

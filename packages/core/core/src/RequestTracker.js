@@ -70,7 +70,7 @@ type Request<TInput, TResult> = {|
   id: string,
   +type: string,
   input: TInput,
-  run: ({|input: TInput, ...StaticRunOpts<TResult>|}) => Async<TResult>,
+  run: ({|input: TInput, ...StaticRunOpts|}) => Async<TResult>,
 |};
 
 type StoredRequest = {|

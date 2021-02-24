@@ -17,7 +17,7 @@ import {getDevDepRequests, runDevDepRequest} from './DevDepRequest';
 
 type RunInput = {|
   input: AssetRequestInput,
-  ...StaticRunOpts<AssetRequestResult>,
+  ...StaticRunOpts,
 |};
 
 export type AssetRequest = {|
