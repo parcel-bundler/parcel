@@ -79,6 +79,7 @@ export const PACKAGE_DESCRIPTOR_SCHEMA: SchemaObject = {
         },
         {
           type: 'array',
+          items: {type: 'string'},
         },
       ],
     },
