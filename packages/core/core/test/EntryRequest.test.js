@@ -40,6 +40,7 @@ function packagePath(fixturePath) {
 
 describe('EntryResolver', function() {
   let entryResolver = new EntryResolver({...DEFAULT_OPTIONS});
+
   it('rejects missing source in package.json', async function() {
     this.timeout(10000);
     // $FlowFixMe assert.rejects is Node 10+
