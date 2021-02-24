@@ -167,22 +167,30 @@ async function collectDependencies(
     }
   }
   if (program.web_accessible_resources) {
+    let war = [];
     for (let i = 0; i < program.web_accessible_resources.length; ++i) {
       // TODO: this doesn't support Parcel resolution
-      const globQuery = path.join(
-        path.dirname(filePath),
-        program.web_accessible_resources[i],
-      );
-      for (const fp of await glob(globQuery, fs, {})) {
+      const globFiles = (
+        await glob(
+          path.join(
+            path.dirname(filePath),
+            program.web_accessible_resources[i],
+          ),
+          fs,
+          {},
+        )
+      ).map(fp =>
         asset.addURLDependency(path.relative(path.dirname(filePath), fp), {
           isEntry: true,
           loc: {
             filePath,
             ...getJSONSourceLocation(ptrs[`/web_accessible_resources/${i}`]),
           },
-        });
-      }
+        }),
+      );
+      war = war.concat(globFiles);
     }
+    program.web_accessible_resources = war;
   }
   for (const loc of DEP_LOCS) {
     const location = '/' + loc.join('/');
