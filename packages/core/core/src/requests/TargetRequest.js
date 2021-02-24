@@ -176,7 +176,7 @@ export class TargetResolver {
               );
               throw new ThrowableDiagnostic({
                 diagnostic: {
-                  message: `Missing distDir for target "${name}"`,
+                  message: md`Missing distDir for target "${name}"`,
                   origin: '@parcel/core',
                   codeFrame: {
                     code: optionTargetsString,
