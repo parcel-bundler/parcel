@@ -799,9 +799,12 @@ export default class NodeResolver {
     if (env.isBrowser()) pkgKeys.push('browser');
 
     for (let pkgKey of pkgKeys) {
-      let alias = await this.getAlias(filename, pkg, pkg[pkgKey]);
-      if (alias != null) {
-        return alias;
+      let pkgKeyValue = pkg[pkgKey];
+      if (!Array.isArray(pkgKeyValue)) {
+        let alias = await this.getAlias(filename, pkg, pkgKeyValue);
+        if (alias != null) {
+          return alias;
+        }
       }
     }
     return null;
