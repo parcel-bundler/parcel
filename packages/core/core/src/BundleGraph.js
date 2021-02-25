@@ -1400,18 +1400,22 @@ export default class BundleGraph {
   }
 
   addBundleToBundleGroup(bundle: Bundle, bundleGroup: BundleGroup) {
-    let bundleGroupId = getBundleGroupId(bundleGroup);
-    if (this._graph.hasEdge(bundleGroupId, bundle.id, 'bundle')) {
+    let bundleGroupNodeId = this._graph.getNodeIdByContentKey(
+      getBundleGroupId(bundleGroup),
+    );
+    let bundleNodeId = this._graph.getNodeIdByContentKey(bundle.id);
+    if (this._graph.hasEdge(bundleGroupNodeId, bundleNodeId, 'bundle')) {
       // Bundle group already has bundle
       return;
     }
 
-    this._graph.addEdge(bundleGroupId, bundle.id);
-    this._graph.addEdge(bundleGroupId, bundle.id, 'bundle');
+    this._graph.addEdge(bundleGroupNodeId, bundleNodeId);
+    this._graph.addEdge(bundleGroupNodeId, bundleNodeId, 'bundle');
 
     for (let entryAssetId of bundle.entryAssetIds) {
-      if (this._graph.hasEdge(bundleGroupId, entryAssetId)) {
-        this._graph.removeEdge(bundleGroupId, entryAssetId);
+      let entryAssetNodeId = this._graph.getNodeIdByContentKey(entryAssetId);
+      if (this._graph.hasEdge(bundleGroupNodeId, entryAssetNodeId)) {
+        this._graph.removeEdge(bundleGroupNodeId, entryAssetNodeId);
       }
     }
   }
