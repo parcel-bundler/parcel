@@ -429,6 +429,87 @@ describe('TargetResolver', () => {
     );
   });
 
+  it('skips targets with custom entry source for default entry', async () => {
+    let targetResolver = new TargetResolver(api, {
+      ...DEFAULT_OPTIONS,
+      targets: {
+        customA: {
+          context: 'browser',
+          distDir: 'customA',
+          source: 'customA/index.js',
+        },
+        customB: {
+          distDir: 'customB',
+        },
+      },
+    });
+
+    assert.deepEqual(
+      await targetResolver.resolve(COMMON_TARGETS_FIXTURE_PATH),
+      [
+        {
+          name: 'customB',
+          distDir: path.resolve('customB'),
+          publicUrl: '/',
+          env: {
+            id: 'daa5d206066497852a3e8af4ff268cc2',
+            context: 'browser',
+            engines: {
+              browsers: ['> 0.25%'],
+            },
+            includeNodeModules: true,
+            outputFormat: 'global',
+            isLibrary: false,
+            shouldOptimize: false,
+            shouldScopeHoist: false,
+            sourceMap: {},
+          },
+        },
+      ],
+    );
+  });
+
+  it('skips other targets with custom entry', async () => {
+    let targetResolver = new TargetResolver(api, {
+      ...DEFAULT_OPTIONS,
+      targets: {
+        customA: {
+          context: 'browser',
+          distDir: 'customA',
+          source: 'customA/index.js',
+        },
+        customB: {
+          distDir: 'customB',
+        },
+      },
+    });
+
+    assert.deepEqual(
+      await targetResolver.resolve(COMMON_TARGETS_FIXTURE_PATH, 'customA'),
+      [
+        {
+          name: 'customA',
+          distDir: path.resolve('customA'),
+          publicUrl: '/',
+          env: {
+            id: 'daa5d206066497852a3e8af4ff268cc2',
+            context: 'browser',
+            engines: {
+              browsers: ['> 0.25%'],
+            },
+            includeNodeModules: true,
+            outputFormat: 'global',
+            isLibrary: false,
+            shouldOptimize: false,
+            shouldScopeHoist: false,
+            sourceMap: {},
+          },
+          source: 'customA/index.js',
+        },
+      ],
+    );
+  });
+
   it('resolves main target with context from package.json', async () => {
     let targetResolver = new TargetResolver(api, DEFAULT_OPTIONS);
     assert.deepEqual(await targetResolver.resolve(CONTEXT_FIXTURE_PATH), [
