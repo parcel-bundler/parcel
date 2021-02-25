@@ -133,6 +133,7 @@ export type PackageTargetDescriptor = {|
   +isLibrary?: boolean,
   +optimize?: boolean,
   +scopeHoist?: boolean,
+  +source?: FilePath | Array<FilePath>,
 |};
 
 /**
@@ -233,7 +234,7 @@ export type PackageJSON = {
   module?: FilePath,
   types?: FilePath,
   browser?: FilePath | {[FilePath]: FilePath | boolean, ...},
-  source?: FilePath | {[FilePath]: FilePath, ...},
+  source?: FilePath | Array<FilePath>,
   alias?: {[PackageName | FilePath | Glob]: PackageName | FilePath, ...},
   browserslist?: Array<string> | {[string]: Array<string>},
   engines?: Engines,

@@ -52,7 +52,7 @@ export async function findAlternativeNodeModules(
     dir = path.dirname(dir);
   }
 
-  return fuzzySearch(potentialModules, moduleName).slice(0, 2);
+  return fuzzySearch(potentialModules.sort(), moduleName).slice(0, 2);
 }
 
 async function findAllFilesUp({

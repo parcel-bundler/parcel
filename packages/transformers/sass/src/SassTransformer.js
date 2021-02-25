@@ -1,11 +1,11 @@
 // @flow
 import {Transformer} from '@parcel/plugin';
-import {promisify} from '@parcel/utils';
 import path from 'path';
 import {EOL} from 'os';
 import SourceMap from '@parcel/source-map';
 import sass from 'sass';
 import {pathToFileURL} from 'url';
+import {promisify} from 'util';
 
 // E.g: ~library/file.sass
 const WEBPACK_ALIAS_RE = /^~[^/]/;
@@ -110,7 +110,7 @@ function resolvePathImporter({asset, resolve, includePaths, options}) {
         * Loading a file relative to the current working directory (This rule doesn't really make sense for Parcel).
         * Each load path in `includePaths`
         * Each load path specified in the `SASS_PATH` environment variable, which should be semicolon-separated on Windows and colon-separated elsewhere.
-    
+
       See: https://sass-lang.com/documentation/js-api#importer
       See also: https://github.com/sass/dart-sass/blob/006e6aa62f2417b5267ad5cdb5ba050226fab511/lib/src/importer/node/implementation.dart
     */
