@@ -361,7 +361,7 @@ function getLoaderRuntime({
     })
     .filter(Boolean);
 
-  if (bundle.env.context === 'browser') {
+  if (bundle.env.context === 'browser' && !options.shouldBuildLazily) {
     loaderModules.push(
       ...externalBundles
         // TODO: Allow css to preload resources as well
