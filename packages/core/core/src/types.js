@@ -84,6 +84,7 @@ export type Target = {|
   publicUrl: string,
   loc?: ?SourceLocation,
   pipeline?: string,
+  source?: FilePath | Array<FilePath>,
 |};
 
 export type Dependency = {|
@@ -300,6 +301,7 @@ export type EntrySpecifierNode = {|
 export type Entry = {|
   filePath: FilePath,
   packagePath: FilePath,
+  target?: string,
 |};
 
 export type EntryFileNode = {|
