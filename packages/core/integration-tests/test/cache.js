@@ -4268,9 +4268,7 @@ describe('cache', function() {
             path.join(inputDir, '.parcelrc'),
             JSON.stringify({
               extends: '@parcel/config-default',
-              runtimes: {
-                browser: ['parcel-runtime-test'],
-              },
+              runtimes: ['parcel-runtime-test'],
             }),
           );
         },
@@ -4287,9 +4285,7 @@ describe('cache', function() {
             path.join(inputDir, '.parcelrc'),
             JSON.stringify({
               extends: '@parcel/config-default',
-              runtimes: {
-                browser: ['parcel-runtime-test'],
-              },
+              runtimes: ['parcel-runtime-test'],
             }),
           );
         },

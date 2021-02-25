@@ -5,6 +5,8 @@ import type {SharedReference} from '@parcel/workers';
 import type {
   AssetGroup,
   Bundle as InternalBundle,
+  Config,
+  DevDepRequest,
   NodeId,
   ParcelOptions,
 } from './types';
@@ -39,7 +41,9 @@ export default async function applyRuntimes({
   pluginOptions,
   api,
   optionsRef,
-  devDeps,
+  previousDevDeps,
+  devDepRequests,
+  configs,
 }: {|
   bundleGraph: InternalBundleGraph,
   config: ParcelConfig,
@@ -47,12 +51,14 @@ export default async function applyRuntimes({
   optionsRef: SharedReference,
   pluginOptions: PluginOptions,
   api: RunAPI,
-  devDeps: Map<string, string>,
+  previousDevDeps: Map<string, string>,
+  devDepRequests: Map<string, DevDepRequest>,
+  configs: Map<string, Config>,
 |}): Promise<void> {
+  let runtimes = await config.getRuntimes();
   let connections: Array<RuntimeConnection> = [];
 
   for (let bundle of bundleGraph.getBundles()) {
-    let runtimes = await config.getRuntimes(bundle.env.context);
     for (let runtime of runtimes) {
       try {
         let applied = await runtime.plugin.apply({
@@ -62,21 +68,10 @@ export default async function applyRuntimes({
             NamedBundle.get,
             options,
           ),
+          config: configs.get(runtime.name)?.result,
           options: pluginOptions,
           logger: new PluginLogger({origin: runtime.name}),
         });
-
-        // Add dev dep for runtime plugin AFTER running it, to account for lazy require().
-        let devDepRequest = await createDevDependency(
-          {
-            moduleSpecifier: runtime.name,
-            resolveFrom: runtime.resolveFrom,
-          },
-          runtime,
-          devDeps,
-          options,
-        );
-        await runDevDepRequest(api, devDepRequest);
 
         if (applied) {
           let runtimeAssets = Array.isArray(applied) ? applied : [applied];
@@ -107,6 +102,24 @@ export default async function applyRuntimes({
         });
       }
     }
+  }
+
+  // Add dev deps for runtime plugins AFTER running them, to account for lazy require().
+  for (let runtime of runtimes) {
+    let devDepRequest = await createDevDependency(
+      {
+        moduleSpecifier: runtime.name,
+        resolveFrom: runtime.resolveFrom,
+      },
+      runtime,
+      previousDevDeps,
+      options,
+    );
+    devDepRequests.set(
+      `${devDepRequest.moduleSpecifier}:${devDepRequest.resolveFrom}`,
+      devDepRequest,
+    );
+    await runDevDepRequest(api, devDepRequest);
   }
 
   let runtimesAssetGraph = await reconcileNewRuntimes(

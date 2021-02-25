@@ -1,16 +1,12 @@
 // @flow strict-local
 
-import type {
-  Async,
-  Bundle as IBundle,
-  Namer,
-  ConfigOutput,
-} from '@parcel/types';
+import type {Async, Bundle as IBundle, Namer} from '@parcel/types';
 import type {SharedReference} from '@parcel/workers';
 import type ParcelConfig, {LoadedPlugin} from '../ParcelConfig';
 import type {StaticRunOpts, RunAPI} from '../RequestTracker';
 import type {
   Bundle as InternalBundle,
+  Config,
   DevDepRequest,
   ParcelOptions,
 } from '../types';
@@ -43,6 +39,13 @@ import {
   runDevDepRequest,
 } from './DevDepRequest';
 import {getInvalidationHash} from '../assetUtils';
+import {createConfig} from '../InternalConfig';
+import {
+  loadPluginConfig,
+  runConfigRequest,
+  getConfigHash,
+  type PluginWithLoadConfig,
+} from './ConfigRequest';
 
 type BundleGraphRequestInput = {|
   assetGraph: AssetGraph,
@@ -91,21 +94,69 @@ class BundlerRunner {
   config: ParcelConfig;
   pluginOptions: PluginOptions;
   api: RunAPI;
-  devDeps: Map<string, string>;
+  previousDevDeps: Map<string, string>;
+  devDepRequests: Map<string, DevDepRequest>;
+  configs: Map<string, Config>;
 
   constructor(
     {input, api, options}: RunInput,
     config: ParcelConfig,
-    devDeps: Map<string, string>,
+    previousDevDeps: Map<string, string>,
   ) {
     this.options = options;
     this.api = api;
     this.optionsRef = input.optionsRef;
     this.config = config;
-    this.devDeps = devDeps;
+    this.previousDevDeps = previousDevDeps;
+    this.devDepRequests = new Map();
+    this.configs = new Map();
     this.pluginOptions = new PluginOptions(
       optionsProxy(this.options, api.invalidateOnOptionChange),
     );
+  }
+
+  async loadConfigs() {
+    // Load all configs up front so we can use them in the cache key
+    let bundler = await this.config.getBundler();
+    await this.loadConfig(bundler);
+
+    let namers = await this.config.getNamers();
+    for (let namer of namers) {
+      await this.loadConfig(namer);
+    }
+
+    let runtimes = await this.config.getRuntimes();
+    for (let runtime of runtimes) {
+      await this.loadConfig(runtime);
+    }
+  }
+
+  async loadConfig<T: PluginWithLoadConfig>(plugin: LoadedPlugin<T>) {
+    let config = createConfig({
+      plugin: plugin.name,
+      searchPath: path.join(this.options.projectRoot, 'index'),
+    });
+
+    await loadPluginConfig(plugin, config, this.options);
+    await runConfigRequest(this.api, config);
+    for (let devDep of config.devDeps) {
+      let devDepRequest = await createDevDependency(
+        devDep,
+        plugin,
+        this.previousDevDeps,
+        this.options,
+      );
+      await this.runDevDepRequest(devDepRequest);
+    }
+
+    this.configs.set(plugin.name, config);
+  }
+
+  async runDevDepRequest(devDepRequest: DevDepRequest) {
+    let {moduleSpecifier, resolveFrom} = devDepRequest;
+    let key = `${moduleSpecifier}:${resolveFrom}`;
+    this.devDepRequests.set(key, devDepRequest);
+    await runDevDepRequest(this.api, devDepRequest);
   }
 
   async bundle(graph: AssetGraph): Promise<InternalBundleGraph> {
@@ -114,42 +165,12 @@ class BundlerRunner {
       phase: 'bundling',
     });
 
+    await this.loadConfigs();
+
     let plugin = await this.config.getBundler();
     let {plugin: bundler, name, resolveFrom} = plugin;
 
-    let configResult: ?ConfigOutput;
-    if (bundler.loadConfig != null) {
-      try {
-        configResult = await nullthrows(bundler.loadConfig)({
-          options: this.pluginOptions,
-          logger: new PluginLogger({origin: this.config.getBundlerName()}),
-        });
-      } catch (e) {
-        throw new ThrowableDiagnostic({
-          diagnostic: errorToDiagnostic(e, {
-            origin: this.config.getBundlerName(),
-          }),
-        });
-      }
-    }
-
-    // Group config invalidations under a config request so they don't appear in
-    // api.getInvalidations(), which is used in the cache key.
-    await this.api.runRequest<null, void>({
-      id: 'config_request:' + name,
-      type: 'config_request',
-      run: ({api}) => {
-        if (configResult != null) {
-          for (let file of configResult.files) {
-            api.invalidateOnFileUpdate(file.filePath);
-            api.invalidateOnFileDelete(file.filePath);
-          }
-        }
-      },
-      input: null,
-    });
-
-    let cacheKey = await this.getCacheKey(graph, configResult);
+    let cacheKey = await this.getCacheKey(graph);
 
     // Check if the cacheKey matches the one already stored in the graph.
     // This can save time deserializing from cache if the graph is already in memory.
@@ -181,7 +202,7 @@ class BundlerRunner {
     try {
       await bundler.bundle({
         bundleGraph: mutableBundleGraph,
-        config: configResult?.config,
+        config: this.configs.get(plugin.name)?.result,
         options: this.pluginOptions,
         logger,
       });
@@ -199,7 +220,7 @@ class BundlerRunner {
       try {
         await bundler.optimize({
           bundleGraph: mutableBundleGraph,
-          config: configResult?.config,
+          config: this.configs.get(plugin.name)?.result,
           options: this.pluginOptions,
           logger,
         });
@@ -223,10 +244,10 @@ class BundlerRunner {
         resolveFrom,
       },
       plugin,
-      this.devDeps,
+      this.previousDevDeps,
       this.options,
     );
-    await runDevDepRequest(this.api, devDepRequest);
+    await this.runDevDepRequest(devDepRequest);
 
     await this.nameBundles(internalBundleGraph);
 
@@ -237,27 +258,28 @@ class BundlerRunner {
       options: this.options,
       optionsRef: this.optionsRef,
       pluginOptions: this.pluginOptions,
-      devDeps: this.devDeps,
+      previousDevDeps: this.previousDevDeps,
+      devDepRequests: this.devDepRequests,
+      configs: this.configs,
     });
 
     // $FlowFixMe
     await dumpGraphToGraphViz(internalBundleGraph._graph, 'after_runtimes');
 
     // Recompute the cache key to account for new dev dependencies and invalidations.
-    cacheKey = await this.getCacheKey(graph, configResult);
+    cacheKey = await this.getCacheKey(graph);
     this.api.storeResult(internalBundleGraph, cacheKey);
     return internalBundleGraph;
   }
 
-  async getCacheKey(
-    assetGraph: AssetGraph,
-    configResult: ?ConfigOutput,
-  ): Promise<string> {
+  async getCacheKey(assetGraph: AssetGraph): Promise<string> {
     return md5FromOrderedObject({
       parcelVersion: PARCEL_VERSION,
       hash: assetGraph.getHash(),
-      config: configResult?.config,
-      devDepRequests: [...this.devDeps.values()],
+      configs: [...this.configs].map(([pluginName, config]) =>
+        getConfigHash(config, pluginName, this.options),
+      ),
+      devDepRequests: [...this.devDepRequests.values()].map(d => d.hash),
       invalidations: await getInvalidationHash(
         this.api.getInvalidations(),
         this.options,
@@ -268,19 +290,6 @@ class BundlerRunner {
   async nameBundles(bundleGraph: InternalBundleGraph): Promise<void> {
     let namers = await this.config.getNamers();
     let bundles = bundleGraph.getBundles();
-    for (let namer of namers) {
-      let devDepRequest = await createDevDependency(
-        {
-          moduleSpecifier: namer.name,
-          resolveFrom: namer.resolveFrom,
-        },
-        namer,
-        this.devDeps,
-        this.options,
-      );
-      await runDevDepRequest(this.api, devDepRequest);
-    }
-
     await Promise.all(
       bundles.map(bundle => this.nameBundle(namers, bundle, bundleGraph)),
     );
@@ -293,10 +302,10 @@ class BundlerRunner {
           resolveFrom: namer.resolveFrom,
         },
         namer,
-        this.devDeps,
+        this.previousDevDeps,
         this.options,
       );
-      await runDevDepRequest(this.api, devDepRequest);
+      await this.runDevDepRequest(devDepRequest);
     }
 
     let bundleNames = bundles.map(b =>
@@ -326,6 +335,7 @@ class BundlerRunner {
         let name = await namer.plugin.name({
           bundle,
           bundleGraph,
+          config: this.configs.get(namer.name)?.result,
           options: this.pluginOptions,
           logger: new PluginLogger({origin: namer.name}),
         });

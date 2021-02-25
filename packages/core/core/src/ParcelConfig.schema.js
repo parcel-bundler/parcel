@@ -122,7 +122,7 @@ export default {
     packagers: (mapStringSchema('packager', 'packagers'): SchemaEntity),
     optimizers: (mapPipelineSchema('optimizer', 'optimizers'): SchemaEntity),
     reporters: (pipelineSchema('reporter', 'reporters'): SchemaEntity),
-    runtimes: (mapPipelineSchema('runtime', 'runtimes'): SchemaEntity),
+    runtimes: (pipelineSchema('runtime', 'runtimes'): SchemaEntity),
     filePath: {
       type: 'string',
     },

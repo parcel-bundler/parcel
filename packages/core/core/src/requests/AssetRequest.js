@@ -14,6 +14,7 @@ import {md5FromOrderedObject, objectSortedEntries} from '@parcel/utils';
 import nullthrows from 'nullthrows';
 import createParcelConfigRequest from './ParcelConfigRequest';
 import {getDevDepRequests, runDevDepRequest} from './DevDepRequest';
+import {runConfigRequest} from './ConfigRequest';
 
 type RunInput = {|
   input: AssetRequestInput,
@@ -119,32 +120,8 @@ async function run({input, api, farm, invalidateReason}: RunInput) {
     await runDevDepRequest(api, devDepRequest);
   }
 
-  // Add config requests
   for (let configRequest of configRequests) {
-    await api.runRequest<null, void>({
-      id: 'config_request:' + configRequest.id,
-      type: 'config_request',
-      run: ({api}) => {
-        let {
-          includedFiles,
-          invalidateOnFileCreate,
-          shouldInvalidateOnStartup,
-        } = configRequest;
-        for (let filePath of includedFiles) {
-          api.invalidateOnFileUpdate(filePath);
-          api.invalidateOnFileDelete(filePath);
-        }
-
-        for (let invalidation of invalidateOnFileCreate) {
-          api.invalidateOnFileCreate(invalidation);
-        }
-
-        if (shouldInvalidateOnStartup) {
-          api.invalidateOnStartup();
-        }
-      },
-      input: null,
-    });
+    await runConfigRequest(api, configRequest);
   }
 
   return assets;

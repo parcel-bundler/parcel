@@ -57,7 +57,7 @@ export type RawParcelConfig = {|
   transformers?: {[Glob]: RawParcelConfigPipeline, ...},
   bundler?: PackageName,
   namers?: RawParcelConfigPipeline,
-  runtimes?: {[EnvironmentContext]: RawParcelConfigPipeline, ...},
+  runtimes?: RawParcelConfigPipeline,
   packagers?: {[Glob]: PackageName, ...},
   optimizers?: {[Glob]: RawParcelConfigPipeline, ...},
   reporters?: RawParcelConfigPipeline,
@@ -1119,9 +1119,10 @@ export type ConfigOutput = {|
  */
 export type Bundler = {|
   loadConfig?: ({|
+    config: Config,
     options: PluginOptions,
     logger: PluginLogger,
-  |}) => Async<ConfigOutput>,
+  |}) => Async<void>,
   bundle({|
     bundleGraph: MutableBundleGraph,
     config: ?ConfigResult,
@@ -1140,10 +1141,16 @@ export type Bundler = {|
  * @section namer
  */
 export type Namer = {|
+  loadConfig?: ({|
+    config: Config,
+    options: PluginOptions,
+    logger: PluginLogger,
+  |}) => Async<void>,
   /** Return a filename/-path for <code>bundle</code> or nullish to leave it to the next namer plugin. */
   name({|
     bundle: Bundle,
     bundleGraph: BundleGraph<Bundle>,
+    config: ?ConfigResult,
     options: PluginOptions,
     logger: PluginLogger,
   |}): Async<?FilePath>,
@@ -1164,9 +1171,15 @@ export type RuntimeAsset = {|
  * @section runtime
  */
 export type Runtime = {|
+  loadConfig?: ({|
+    config: Config,
+    options: PluginOptions,
+    logger: PluginLogger,
+  |}) => Async<void>,
   apply({|
     bundle: NamedBundle,
     bundleGraph: BundleGraph<NamedBundle>,
+    config: ?ConfigResult,
     options: PluginOptions,
     logger: PluginLogger,
   |}): Async<void | RuntimeAsset | Array<RuntimeAsset>>,
