@@ -518,6 +518,7 @@ export class RequestGraph extends Graph<
   }
 
   respondToFSEvents(events: Array<Event>): boolean {
+    let didInvalidate = false;
     for (let {path: filePath, type} of events) {
       let node = this.getNode(filePath);
 
@@ -527,12 +528,14 @@ export class RequestGraph extends Graph<
       if (node && (type === 'create' || type === 'update')) {
         let nodes = this.getNodesConnectedTo(node, 'invalidated_by_update');
         for (let connectedNode of nodes) {
+          didInvalidate = true;
           this.invalidateNode(connectedNode, FILE_UPDATE);
         }
 
         if (type === 'create') {
           let nodes = this.getNodesConnectedTo(node, 'invalidated_by_create');
           for (let connectedNode of nodes) {
+            didInvalidate = true;
             this.invalidateNode(connectedNode, FILE_CREATE);
           }
         }
@@ -550,6 +553,7 @@ export class RequestGraph extends Graph<
           });
 
           if (above.length > 0) {
+            didInvalidate = true;
             this.invalidateFileNameNode(fileNameNode, filePath, above);
           }
         }
@@ -564,6 +568,7 @@ export class RequestGraph extends Graph<
               'invalidated_by_create',
             );
             for (let connectedNode of connectedNodes) {
+              didInvalidate = true;
               this.invalidateNode(connectedNode, FILE_CREATE);
             }
           }
@@ -573,12 +578,13 @@ export class RequestGraph extends Graph<
           node,
           'invalidated_by_delete',
         )) {
+          didInvalidate = true;
           this.invalidateNode(connectedNode, FILE_DELETE);
         }
       }
     }
 
-    return this.invalidNodeIds.size > 0;
+    return didInvalidate && this.invalidNodeIds.size > 0;
   }
 }
 

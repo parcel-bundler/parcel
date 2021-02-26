@@ -277,8 +277,8 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     return !defer;
   }
 
-  // Dependency: mark parent Asset <- AssetGroup with hasDeferred false
-  markParentsWithHasDeferred(node: DependencyNode) {
+  // Dependency: mark parent Asset <- AssetGroup with hasDeferred true
+  markParentsWithHasDeferred(node: AssetGraphNode) {
     this.traverseAncestors(node, (_node, _, actions) => {
       if (_node.type === 'asset') {
         _node.hasDeferred = true;
@@ -292,7 +292,7 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
   }
 
   // AssetGroup: update hasDeferred of all parent Dependency <- Asset <- AssetGroup
-  unmarkParentsWithHasDeferred(node: AssetGroupNode) {
+  unmarkParentsWithHasDeferred(node: AssetGraphNode) {
     this.traverseAncestors(node, (_node, ctx, actions) => {
       if (_node.type === 'asset') {
         let hasDeferred = this.getNodesConnectedFrom(_node).some(_childNode =>

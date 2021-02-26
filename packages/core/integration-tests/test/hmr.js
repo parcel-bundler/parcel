@@ -656,6 +656,7 @@ describe('hmr', function() {
           host: '127.0.0.1',
         },
         hmrOptions: {port},
+        shouldContentHash: false,
         config,
       });
 
