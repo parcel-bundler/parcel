@@ -123,6 +123,8 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
   }
 
   hasEdge(from: NodeId, to: NodeId, type?: TEdgeType | null = null): boolean {
+    this._assertHasNodeId(from);
+    this._assertHasNodeId(to);
     return this.outboundEdges.hasEdge(from, to, type);
   }
 
@@ -453,7 +455,7 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
   filteredTraverse<TValue, TContext>(
     filter: (TNode, TraversalActions) => ?TValue,
     visit: GraphVisitor<TValue, TContext>,
-    startNode: ?TNode,
+    startNode: ?(TNode | NodeId),
     type?: TEdgeType | null | Array<TEdgeType | null>,
   ): ?TContext {
     return this.traverse(mapVisitor(filter, visit), startNode, type);
