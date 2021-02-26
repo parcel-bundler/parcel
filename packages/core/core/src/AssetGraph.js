@@ -169,7 +169,8 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     // This needs to mark all connected nodes that doesn't become orphaned
     // due to replaceNodesConnectedTo to make sure that the symbols of
     // nodes from which at least one parent was removed are updated.
-    if (this.isOrphanedNode(node) && node.type === 'dependency') {
+    // Dojo UPDATE
+    if (this._isOrphanedNode(node.id) && node.type === 'dependency') {
       let children = this.getNodesConnectedFrom(node);
       for (let n of children) {
         invariant(n.type === 'asset_group' || n.type === 'asset');

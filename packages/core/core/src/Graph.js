@@ -507,6 +507,7 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
     };
 
     let walk = (nodeId, context) => {
+      console.log('walking', nodeId);
       let node = nullthrows(this.nodes.get(nodeId));
       // if (!this.hasNode(node.id)) return;
       visited.add(nodeId);

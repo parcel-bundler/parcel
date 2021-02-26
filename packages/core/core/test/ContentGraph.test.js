@@ -15,16 +15,16 @@ describe('ContentGraph', () => {
   it('addNodeByContentKey should add a node to the graph', () => {
     let graph = new ContentGraph();
     let node = {id: 'doNotUse', type: 'mynode', value: 'a'};
-    let nodeId = graph.addNodeByContentKey(node, 'a');
+    let nodeId = graph.addNodeByContentKey('a', node);
     assert.equal(graph.getNode(nodeId), node);
-    assert.equal(graph.contentKeyToNumericId.get('a'), nodeId);
+    assert.equal(graph._contentKeyToNodeId.get('a'), nodeId);
   });
 
   it('getNodeByContentKey should get a node from the graph', () => {
     let graph = new ContentGraph();
     let node = {id: 'doNotUse', type: 'mynode', value: 'a'};
-    let nodeId = graph.addNodeByContentKey(node, 'a');
+    let nodeId = graph.addNodeByContentKey('a', node);
     assert.equal(graph.getNodeByContentKey('a'), graph.getNode(nodeId));
-    assert.equal(graph.contentKeyToNumericId.get('a'), nodeId);
+    assert.equal(graph._contentKeyToNodeId.get('a'), nodeId);
   });
 });

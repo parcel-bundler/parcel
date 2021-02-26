@@ -102,9 +102,10 @@ describe('Graph', () => {
     graph.addNode(nodeC);
     graph.addEdge('a', 'b');
     graph.addEdge('a', 'c', 'edgetype');
-    assert(graph.isOrphanedNode(nodeA));
-    assert(!graph.isOrphanedNode(nodeB));
-    assert(!graph.isOrphanedNode(nodeC));
+    // Dojo UPDATE
+    assert(graph._isOrphanedNode(nodeA.id));
+    assert(!graph._isOrphanedNode(nodeB.id));
+    assert(!graph._isOrphanedNode(nodeC.id));
   });
 
   it('removeEdge should prune the graph at that edge', () => {
