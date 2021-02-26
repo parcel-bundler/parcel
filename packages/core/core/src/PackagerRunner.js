@@ -39,6 +39,7 @@ import BundleGraph, {
 } from './public/BundleGraph';
 import PluginOptions from './public/PluginOptions';
 import {PARCEL_VERSION, HASH_REF_PREFIX, HASH_REF_REGEX} from './constants';
+import {serialize} from './serializer';
 
 type Opts = {|
   config: ParcelConfig,
@@ -101,14 +102,11 @@ export default class PackagerRunner {
         };
   }
 
-  async writeBundles(
-    bundleGraph: InternalBundleGraph,
-    serializedBundleGraph: Buffer,
-  ) {
+  async writeBundles(bundleGraph: InternalBundleGraph) {
     let farm = nullthrows(this.farm);
     let {ref, dispose} = await farm.createSharedReference(
       bundleGraph,
-      serializedBundleGraph,
+      serialize(bundleGraph),
     );
 
     let bundleInfoMap: {|

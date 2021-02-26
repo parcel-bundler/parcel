@@ -671,7 +671,7 @@ export default class RequestTracker {
       // $FlowFixMe
       let result: T = (node.value.result: any);
       return result;
-    } else if (node.value.resultCacheKey != null) {
+    } else if (node.value.resultCacheKey != null && ifMatch == null) {
       let cachedResult: T = (nullthrows(
         await this.options.cache.get(node.value.resultCacheKey),
         // $FlowFixMe

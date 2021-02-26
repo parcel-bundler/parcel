@@ -289,10 +289,7 @@ export default class Parcel {
       // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381 (Windows only)
       dumpGraphToGraphViz(bundleGraph._graph, 'BundleGraph');
 
-      await this.#packagerRunner.writeBundles(
-        bundleGraph,
-        serialize(bundleGraph),
-      );
+      await this.#packagerRunner.writeBundles(bundleGraph);
       assertSignalNotAborted(signal);
 
       // $FlowFixMe

@@ -46,6 +46,7 @@ import {
   getConfigHash,
   type PluginWithLoadConfig,
 } from './ConfigRequest';
+import {cacheSerializedObject, deserializeToCache} from '../serializer';
 
 type BundleGraphRequestInput = {|
   assetGraph: AssetGraph,
@@ -174,18 +175,23 @@ class BundlerRunner {
 
     // Check if the cacheKey matches the one already stored in the graph.
     // This can save time deserializing from cache if the graph is already in memory.
+    // This will only happen in watch mode. In this case, serialization will occur once
+    // when sending the bundle graph to workers, and again on shutdown when writing to cache.
     let previousResult = await this.api.getPreviousResult(cacheKey);
     if (previousResult != null) {
-      this.api.storeResult(previousResult, cacheKey);
+      // No need to call api.storeResult here because it's already the request result.
       return previousResult;
     }
 
     // Otherwise, check the cache in case the cache key has already been written to disk.
     if (!this.options.shouldDisableCache) {
-      let cached = await this.options.cache.get(cacheKey);
+      let cached = await this.options.cache.getBuffer(cacheKey);
       if (cached != null) {
-        this.api.storeResult(cached, cacheKey);
-        return cached;
+        // Deserialize, and store the original buffer in an in memory cache so we avoid
+        // re-serializing it when sending to workers, and in build mode, when writing to cache on shutdown.
+        let graph = deserializeToCache(cached);
+        this.api.storeResult(graph, cacheKey);
+        return graph;
       }
     }
 
@@ -265,6 +271,10 @@ class BundlerRunner {
 
     // $FlowFixMe
     await dumpGraphToGraphViz(internalBundleGraph._graph, 'after_runtimes');
+
+    // Store the serialized bundle graph in an in memory cache so that we avoid serializing it
+    // many times to send to each worker, and in build mode, when writing to cache on shutdown.
+    cacheSerializedObject(internalBundleGraph);
 
     // Recompute the cache key to account for new dev dependencies and invalidations.
     cacheKey = await this.getCacheKey(graph);
