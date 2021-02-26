@@ -161,7 +161,7 @@ export class Bundle implements IBundle {
 
   getMainEntry(): ?IAsset {
     if (this.#bundle.mainEntryId != null) {
-      let assetNode = this.#bundleGraph._graph.getNode(
+      let assetNode = this.#bundleGraph._graph.getNodeByContentKey(
         this.#bundle.mainEntryId,
       );
       invariant(assetNode != null && assetNode.type === 'asset');

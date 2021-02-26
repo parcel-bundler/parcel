@@ -303,10 +303,11 @@ export default class BundleGraph {
 
   getParentBundlesOfBundleGroup(bundleGroup: BundleGroup): Array<Bundle> {
     return this._graph
-      .getNodesConnectedTo(
-        nullthrows(this._graph.getNode(getBundleGroupId(bundleGroup))),
+      .getNodeIdsConnectedTo(
+        this._graph.getNodeIdByContentKey(getBundleGroupId(bundleGroup)),
         'bundle',
       )
+      .map(id => nullthrows(this._graph.getNode(id)))
       .filter(node => node.type === 'bundle')
       .map(node => {
         invariant(node.type === 'bundle');
@@ -553,10 +554,11 @@ export default class BundleGraph {
 
   findBundlesWithAsset(asset: Asset): Array<Bundle> {
     return this._graph
-      .getNodesConnectedTo(
-        nullthrows(this._graph.getNode(asset.id)),
+      .getNodeIdsConnectedTo(
+        this._graph.getNodeIdByContentKey(asset.id),
         'contains',
       )
+      .map(id => nullthrows(this._graph.getNode(id)))
       .filter(node => node.type === 'bundle')
       .map(node => {
         invariant(node.type === 'bundle');
@@ -877,7 +879,7 @@ export default class BundleGraph {
 
         actions.skipChildren();
       }, visit),
-      startNode: nullthrows(this._graph.getNode(bundle.id)),
+      startNode: this._graph.getNodeIdByContentKey(bundle.id),
       getChildren: nodeId => {
         let children = this._graph
           .getNodeIdsConnectedFrom(nodeId)
@@ -945,7 +947,7 @@ export default class BundleGraph {
     return this._graph.filteredTraverse(
       node => (node.type === 'bundle' ? node.value : null),
       visit,
-      startBundle ? nullthrows(this._graph.getNode(startBundle.id)) : null,
+      startBundle ? this._graph.getNodeIdByContentKey(startBundle.id) : null,
       ['bundle', 'references'],
     );
   }
@@ -970,7 +972,7 @@ export default class BundleGraph {
       if (node.type === 'asset') {
         size += node.value.stats.size;
       }
-    }, nullthrows(this._graph.getNode(asset.id)));
+    }, nullthrows(this._graph.getNodeByContentKey(asset.id)));
     return size;
   }
 
