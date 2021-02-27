@@ -55,8 +55,8 @@ function Module(moduleName) {
 
   module.bundle.hotData = null;
 }
-
 module.bundle.Module = Module;
+
 var checkedAssets /*: {|[string]: boolean|} */,
   acceptedAssets /*: {|[string]: boolean|} */,
   assetsToAccept /*: Array<[ParcelRequire, string]> */;
@@ -92,7 +92,7 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
     acceptedAssets = ({} /*: {|[string]: boolean|} */);
     assetsToAccept = [];
 
-    var data: HMRMessage = JSON.parse(event.data);
+    var data /*: HMRMessage */ = JSON.parse(event.data);
 
     if (data.type === 'update') {
       // Remove error overlay if there is one
@@ -105,7 +105,8 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
       assets.forEach(asset => {
         var didAccept =
           asset.type === 'css' ||
-          (asset.type === 'js' && hmrAcceptCheck(module.bundle.root, asset));
+          (asset.type === 'js' &&
+            hmrAcceptCheck(module.bundle.root, asset.id, asset.depsByBundle));
         if (didAccept) {
           handled = true;
         }
@@ -157,7 +158,9 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
     console.error(e.message);
   };
   ws.onclose = function(e) {
-    console.warn('[parcel] 🚨 Connection to the HMR server was lost');
+    if (process.env.PARCEL_BUILD_ENV !== 'test') {
+      console.warn('[parcel] 🚨 Connection to the HMR server was lost');
+    }
   };
 }
 
@@ -254,7 +257,7 @@ function reloadCSS() {
     var links = document.querySelectorAll('link[rel="stylesheet"]');
     for (var i = 0; i < links.length; i++) {
       // $FlowFixMe[incompatible-type]
-      var href: string = links[i].getAttribute('href');
+      var href /*: string */ = links[i].getAttribute('href');
       var hostname = getHostname();
       var servedFromHMRServer =
         hostname === 'localhost'
@@ -275,7 +278,7 @@ function reloadCSS() {
   }, 50);
 }
 
-function hmrApply(bundle: ParcelRequire, asset: HMRAsset) {
+function hmrApply(bundle /*: ParcelRequire */, asset /*:  HMRAsset */) {
   var modules = bundle.modules;
   if (!modules) {
     return;
@@ -295,23 +298,26 @@ function hmrApply(bundle: ParcelRequire, asset: HMRAsset) {
   }
 }
 
-function hmrAcceptCheck(bundle /*: ParcelRequire */, asset /*: HMRAsset */) {
+function hmrAcceptCheck(
+  bundle /*: ParcelRequire */,
+  id /*: string */,
+  depsByBundle /*: ?{ [string]: { [string]: string } }*/,
+) {
   var modules = bundle.modules;
   if (!modules) {
     return;
   }
 
-  if (!asset.depsByBundle[bundle.HMR_BUNDLE_ID]) {
+  if (depsByBundle && !depsByBundle[bundle.HMR_BUNDLE_ID]) {
     // If we reached the root bundle without finding where the asset should go,
     // there's nothing to do. Mark as "accepted" so we don't reload the page.
     if (!bundle.parent) {
       return true;
     }
 
-    return hmrAcceptCheck(bundle.parent, asset);
+    return hmrAcceptCheck(bundle.parent, id, depsByBundle);
   }
 
-  let id = asset.id;
   if (checkedAssets[id]) {
     return;
   }
@@ -327,8 +333,7 @@ function hmrAcceptCheck(bundle /*: ParcelRequire */, asset /*: HMRAsset */) {
   }
 
   return getParents(module.bundle.root, id).some(function(v) {
-    // $FlowFixMe TODO this is an actual bug
-    return hmrAcceptCheck(v[0], v[1]);
+    return hmrAcceptCheck(v[0], v[1], null);
   });
 }
 
