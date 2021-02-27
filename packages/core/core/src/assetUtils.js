@@ -61,7 +61,7 @@ type AssetOptions = {|
   outputHash?: ?string,
   pipeline?: ?string,
   stats: Stats,
-  symbols?: ?Map<Symbol, {|local: Symbol, loc: ?SourceLocation|}>,
+  symbols?: ?Map<Symbol, {|local: Symbol, loc: ?SourceLocation, meta?: ?Meta|}>,
   sideEffects?: boolean,
   uniqueKey?: ?string,
   plugin?: PackageName,
@@ -136,12 +136,10 @@ async function _generateFromAST(asset: CommittedAsset | UncommittedAsset) {
 
   let pluginName = nullthrows(asset.value.plugin);
   let {plugin} = await loadPlugin<Transformer>(
-    asset.options.inputFS,
-    asset.options.packageManager,
     pluginName,
     nullthrows(asset.value.configPath),
     nullthrows(asset.value.configKeyPath),
-    asset.options.autoinstall,
+    asset.options,
   );
   if (!plugin.generate) {
     throw new Error(`${pluginName} does not have a generate method`);

@@ -17,13 +17,11 @@
   "source": "src/StylusTransformer.js",
   "engines": {
     "node": ">= 12.0.0",
-    "parcel": "^2.0.0-alpha.1.1"
+    "parcel": "^2.0.0-beta.1"
   },
   "dependencies": {
     "@parcel/plugin": "2.0.0-beta.1",
-    "@parcel/utils": "2.0.0-beta.1"
-  },
-  "devDependencies": {
+    "@parcel/utils": "2.0.0-beta.1",
     "stylus": "^0.54.5"
   }
 }

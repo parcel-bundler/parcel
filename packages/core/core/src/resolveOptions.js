@@ -72,27 +72,28 @@ export default async function resolveOptions(
   let cache = new Cache(outputFS, cacheDir);
 
   let mode = initialOptions.mode ?? 'development';
-  let minify = initialOptions.minify ?? mode === 'production';
+  let shouldOptimize =
+    initialOptions?.defaultTargetOptions?.shouldOptimize ??
+    mode === 'production';
 
-  let detailedReport: number = 0;
-  if (initialOptions.detailedReport != null) {
-    detailedReport =
-      initialOptions.detailedReport === true
-        ? 10
-        : parseInt(initialOptions.detailedReport, 10);
-  }
-
-  let publicUrl = initialOptions.publicUrl ?? '/';
+  let publicUrl = initialOptions?.defaultTargetOptions?.publicUrl ?? '/';
   let distDir =
-    initialOptions.distDir != null
-      ? path.resolve(inputCwd, initialOptions.distDir)
+    initialOptions?.defaultTargetOptions?.distDir != null
+      ? path.resolve(inputCwd, initialOptions?.defaultTargetOptions?.distDir)
       : undefined;
+
+  let shouldBuildLazily = initialOptions.shouldBuildLazily ?? false;
+  let shouldContentHash =
+    initialOptions.shouldContentHash ?? initialOptions.mode === 'production';
+  if (shouldBuildLazily && shouldContentHash) {
+    throw new Error('Lazy bundling does not work with content hashing');
+  }
 
   return {
     config: initialOptions.config,
     defaultConfig: initialOptions.defaultConfig,
-    patchConsole:
-      initialOptions.patchConsole ?? process.env.NODE_ENV !== 'test',
+    shouldPatchConsole:
+      initialOptions.shouldPatchConsole ?? process.env.NODE_ENV !== 'test',
     env: {
       ...process.env,
       ...initialOptions.env,
@@ -103,30 +104,22 @@ export default async function resolveOptions(
       )),
     },
     mode,
-    minify,
-    autoinstall: initialOptions.autoinstall ?? false,
-    hot: initialOptions.hot ?? null,
-    contentHash:
-      initialOptions.contentHash ?? initialOptions.mode === 'production',
-    serve: initialOptions.serve
+    shouldAutoInstall: initialOptions.shouldAutoInstall ?? false,
+    hmrOptions: initialOptions.hmrOptions ?? null,
+    shouldBuildLazily,
+    shouldContentHash,
+    serveOptions: initialOptions.serveOptions
       ? {
-          ...initialOptions.serve,
+          ...initialOptions.serveOptions,
           distDir: distDir ?? path.join(outputCwd, 'dist'),
         }
       : false,
-    disableCache: initialOptions.disableCache ?? false,
-    killWorkers: initialOptions.killWorkers ?? true,
-    profile: initialOptions.profile ?? false,
+    shouldDisableCache: initialOptions.shouldDisableCache ?? false,
+    shouldProfile: initialOptions.shouldProfile ?? false,
     cacheDir,
     entries,
     entryRoot,
-    defaultEngines: initialOptions.defaultEngines,
     targets: initialOptions.targets,
-    sourceMaps: initialOptions.sourceMaps ?? true,
-    scopeHoist:
-      initialOptions.scopeHoist ?? initialOptions.mode === 'production',
-    publicUrl,
-    distDir,
     logLevel: initialOptions.logLevel ?? 'info',
     projectRoot,
     lockFile,
@@ -135,6 +128,16 @@ export default async function resolveOptions(
     cache,
     packageManager,
     instanceId: generateInstanceId(entries),
-    detailedReport,
+    detailedReport: initialOptions.detailedReport,
+    defaultTargetOptions: {
+      shouldOptimize,
+      shouldScopeHoist:
+        initialOptions?.defaultTargetOptions?.shouldScopeHoist ??
+        initialOptions.mode === 'production',
+      sourceMaps: initialOptions?.defaultTargetOptions?.sourceMaps ?? true,
+      publicUrl,
+      distDir,
+      engines: initialOptions?.defaultTargetOptions?.engines,
+    },
   };
 }

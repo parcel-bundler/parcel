@@ -1,7 +1,12 @@
 // @flow
 
 import type {FilePath, PackageJSON} from '@parcel/types';
-import type {ModuleRequest, PackageInstaller, InstallOptions} from './types';
+import type {
+  ModuleRequest,
+  PackageManager,
+  PackageInstaller,
+  InstallOptions,
+} from './types';
 import type {FileSystem} from '@parcel/fs';
 
 import invariant from 'assert';
@@ -11,9 +16,10 @@ import semver from 'semver';
 import ThrowableDiagnostic, {
   generateJSONCodeHighlights,
   encodeJSONKeyComponent,
+  md,
 } from '@parcel/diagnostic';
 import logger from '@parcel/logger';
-import {loadConfig, PromiseQueue, resolveConfig, resolve} from '@parcel/utils';
+import {loadConfig, PromiseQueue, resolveConfig} from '@parcel/utils';
 import WorkerFarm from '@parcel/workers';
 
 import {Npm} from './Npm';
@@ -23,6 +29,7 @@ import validateModuleSpecifier from './validateModuleSpecifier';
 
 async function install(
   fs: FileSystem,
+  packageManager: PackageManager,
   modules: Array<ModuleRequest>,
   from: FilePath,
   options: InstallOptions = {},
@@ -48,27 +55,26 @@ async function install(
       fs,
     });
   } catch (err) {
-    throw new Error(`Failed to install ${moduleNames}.`);
+    throw new Error(`Failed to install ${moduleNames}: ${err.message}`);
   }
 
   if (installPeers) {
     await Promise.all(
-      modules.map(m => installPeerDependencies(fs, m, from, options)),
+      modules.map(m =>
+        installPeerDependencies(fs, packageManager, m, from, options),
+      ),
     );
   }
 }
 
 async function installPeerDependencies(
   fs: FileSystem,
+  packageManager: PackageManager,
   module: ModuleRequest,
   from: FilePath,
   options,
 ) {
-  let basedir = path.dirname(from);
-  const {resolved} = await resolve(fs, module.name, {
-    basedir,
-    range: module.range,
-  });
+  const {resolved} = await packageManager.resolve(module.name, from);
   const modulePkg: PackageJSON = nullthrows(
     await loadConfig(fs, resolved, ['package.json']),
   ).config;
@@ -80,14 +86,12 @@ async function installPeerDependencies(
 
     let conflicts = await getConflictingLocalDependencies(fs, name, from);
     if (conflicts) {
-      let {pkg} = await resolve(fs, name, {
-        basedir,
-      });
+      let {pkg} = await packageManager.resolve(name, from);
       invariant(pkg);
       if (!semver.satisfies(pkg.version, range)) {
         throw new ThrowableDiagnostic({
           diagnostic: {
-            message: `Could not install the peer dependency "${name}" for "${module.name}", installed version ${pkg.version} is incompatible with ${range}`,
+            message: md`Could not install the peer dependency "${name}" for "${module.name}", installed version ${pkg.version} is incompatible with ${range}`,
             filePath: conflicts.filePath,
             origin: '@parcel/package-manager',
             language: 'json',
@@ -114,6 +118,7 @@ async function installPeerDependencies(
   if (modules.length) {
     await install(
       fs,
+      packageManager,
       modules,
       from,
       Object.assign({}, options, {installPeers: false}),
@@ -148,6 +153,7 @@ let modulesInstalling: Set<string> = new Set();
 // across multiple instances of the package manager.
 export function _addToInstallQueue(
   fs: FileSystem,
+  packageManager: PackageManager,
   modules: Array<ModuleRequest>,
   filePath: FilePath,
   options?: InstallOptions,
@@ -170,11 +176,13 @@ export function _addToInstallQueue(
 
     queue
       .add(() =>
-        install(fs, modulesToInstall, filePath, options).then(() => {
-          for (let m of modulesToInstall) {
-            modulesInstalling.delete(getModuleRequestKey(m));
-          }
-        }),
+        install(fs, packageManager, modulesToInstall, filePath, options).then(
+          () => {
+            for (let m of modulesToInstall) {
+              modulesInstalling.delete(getModuleRequestKey(m));
+            }
+          },
+        ),
       )
       .then(
         () => {},
@@ -187,6 +195,7 @@ export function _addToInstallQueue(
 
 export function installPackage(
   fs: FileSystem,
+  packageManager: PackageManager,
   modules: Array<ModuleRequest>,
   filePath: FilePath,
   options?: InstallOptions,
@@ -195,12 +204,12 @@ export function installPackage(
     let workerApi = WorkerFarm.getWorkerApi();
     return workerApi.callMaster({
       location: __filename,
-      args: [fs, modules, filePath, options],
+      args: [fs, packageManager, modules, filePath, options],
       method: '_addToInstallQueue',
     });
   }
 
-  return _addToInstallQueue(fs, modules, filePath, options);
+  return _addToInstallQueue(fs, packageManager, modules, filePath, options);
 }
 
 function getModuleRequestKey(moduleRequest: ModuleRequest): string {

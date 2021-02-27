@@ -2,7 +2,7 @@
 
 import type {FilePath, SemverRange, ModuleSpecifier} from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
-import type {ResolveResult} from '@parcel/utils';
+import type {ResolveResult} from './NodeResolverBase';
 
 export type InstallOptions = {
   installPeers?: boolean,
@@ -27,12 +27,12 @@ export interface PackageManager {
   require(
     id: ModuleSpecifier,
     from: FilePath,
-    ?{|range?: SemverRange, autoinstall?: boolean, saveDev?: boolean|},
+    ?{|range?: SemverRange, shouldAutoInstall?: boolean, saveDev?: boolean|},
   ): Promise<any>;
   resolve(
     id: ModuleSpecifier,
     from: FilePath,
-    ?{|range?: SemverRange, autoinstall?: boolean, saveDev?: boolean|},
+    ?{|range?: SemverRange, shouldAutoInstall?: boolean, saveDev?: boolean|},
   ): Promise<ResolveResult>;
 }
 

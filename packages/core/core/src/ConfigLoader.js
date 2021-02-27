@@ -8,6 +8,7 @@ import nullthrows from 'nullthrows';
 import {md5FromString, PromiseQueue} from '@parcel/utils';
 import {PluginLogger} from '@parcel/logger';
 import path from 'path';
+import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 
 import {createConfig} from './InternalConfig';
 import PublicConfig from './public/Config';
@@ -77,7 +78,10 @@ export default class ConfigLoader {
 
     publicConfig.setResultHash(md5FromString(JSON.stringify(devDeps)));
 
-    publicConfig.setWatchGlob('**/.parcelrc');
+    publicConfig.invalidateOnFileCreate({
+      fileName: '.parcelrc',
+      aboveFilePath: filePath,
+    });
 
     // TODO: get included files from plugin nodes
     // TODO: if extended config comes from a package, yarn.lock change should invalidate config request
@@ -100,18 +104,27 @@ export default class ConfigLoader {
 
     invariant(typeof parcelConfigPath === 'string');
     invariant(typeof parcelConfigKeyPath === 'string');
+    let packageName = nullthrows(plugin);
     let {plugin: pluginInstance} = await this.parcelConfig.loadPlugin({
-      packageName: nullthrows(plugin),
+      packageName,
       resolveFrom: parcelConfigPath,
       keyPath: parcelConfigKeyPath,
     });
 
     if (pluginInstance.loadConfig != null) {
-      await pluginInstance.loadConfig({
-        config: new PublicConfig(config, this.options),
-        options: this.options,
-        logger: new PluginLogger({origin: nullthrows(plugin)}),
-      });
+      try {
+        await pluginInstance.loadConfig({
+          config: new PublicConfig(config, this.options),
+          options: this.options,
+          logger: new PluginLogger({origin: nullthrows(plugin)}),
+        });
+      } catch (e) {
+        throw new ThrowableDiagnostic({
+          diagnostic: errorToDiagnostic(e, {
+            origin: packageName,
+          }),
+        });
+      }
     }
 
     return config;

@@ -1,4 +1,4 @@
-/* global HMR_HOST, HMR_PORT, HMR_ENV_HASH */
+/* global HMR_HOST, HMR_PORT, HMR_ENV_HASH, HMR_SECURE */
 
 var OVERLAY_ID = '__parcel__error__overlay__';
 
@@ -40,7 +40,12 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = getHostname();
   var port = getPort();
-  var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
+  var protocol =
+    HMR_SECURE ||
+    (location.protocol == 'https:' &&
+      !/localhost|127.0.0.1|0.0.0.0/.test(hostname))
+      ? 'wss'
+      : 'ws';
   var ws = new WebSocket(
     protocol + '://' + hostname + (port ? ':' + port : '') + '/',
   );
@@ -61,7 +66,8 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
       var handled = false;
       assets.forEach(asset => {
         var didAccept =
-          asset.type === 'css' || hmrAcceptCheck(module.bundle.root, asset.id);
+          asset.type === 'css' ||
+          (asset.type === 'js' && hmrAcceptCheck(module.bundle.root, asset));
         if (didAccept) {
           handled = true;
         }
@@ -232,29 +238,37 @@ function hmrApply(bundle, asset) {
     return;
   }
 
-  if (modules[asset.id] || !bundle.parent) {
-    if (asset.type === 'css') {
-      reloadCSS();
-    } else {
-      var fn = new Function('require', 'module', 'exports', asset.output);
-      modules[asset.id] = [fn, asset.depsByBundle[bundle.HMR_BUNDLE_ID]];
-    }
+  if (asset.type === 'css') {
+    reloadCSS();
+    return;
+  }
+
+  let deps = asset.depsByBundle[bundle.HMR_BUNDLE_ID];
+  if (deps) {
+    var fn = new Function('require', 'module', 'exports', asset.output);
+    modules[asset.id] = [fn, deps];
   } else if (bundle.parent) {
     hmrApply(bundle.parent, asset);
   }
 }
 
-function hmrAcceptCheck(bundle, id) {
+function hmrAcceptCheck(bundle, asset) {
   var modules = bundle.modules;
-
   if (!modules) {
     return;
   }
 
-  if (!modules[id] && bundle.parent) {
-    return hmrAcceptCheck(bundle.parent, id);
+  if (!asset.depsByBundle[bundle.HMR_BUNDLE_ID]) {
+    // If we reached the root bundle without finding where the asset should go,
+    // there's nothing to do. Mark as "accepted" so we don't reload the page.
+    if (!bundle.parent) {
+      return true;
+    }
+
+    return hmrAcceptCheck(bundle.parent, asset);
   }
 
+  let id = asset.id;
   if (checkedAssets[id]) {
     return;
   }

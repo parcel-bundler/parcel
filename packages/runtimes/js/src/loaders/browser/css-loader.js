@@ -2,11 +2,19 @@ const cacheLoader = require('../../cacheLoader');
 
 module.exports = cacheLoader(function loadCSSBundle(bundle) {
   return new Promise(function(resolve, reject) {
+    // Don't insert the same link element twice (e.g. if it was already in the HTML)
+    let existingLinks = document.getElementsByTagName('link');
+    if ([...existingLinks].some(link => link.href === bundle)) {
+      resolve();
+      return;
+    }
+
     var link = document.createElement('link');
     link.rel = 'stylesheet';
     link.href = bundle;
     link.onerror = function(e) {
       link.onerror = link.onload = null;
+      link.remove();
       reject(e);
     };
 

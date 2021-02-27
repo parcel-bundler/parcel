@@ -6,6 +6,7 @@ import type {
   ConfigResult,
   DependencyOptions,
   FilePath,
+  FileCreateInvalidation,
   PackageJSON,
   PackageName,
   TransformerResult,
@@ -18,6 +19,7 @@ import type {
 } from './types';
 
 import v8 from 'v8';
+import invariant from 'assert';
 import {Readable} from 'stream';
 import SourceMap from '@parcel/source-map';
 import {
@@ -48,6 +50,7 @@ type UncommittedAssetOptions = {|
   isASTDirty?: ?boolean,
   idBase?: ?string,
   invalidations?: Map<string, RequestInvalidation>,
+  fileCreateInvalidations?: Array<FileCreateInvalidation>,
 |};
 
 export default class UncommittedAsset {
@@ -60,6 +63,7 @@ export default class UncommittedAsset {
   isASTDirty: boolean;
   idBase: ?string;
   invalidations: Map<string, RequestInvalidation>;
+  fileCreateInvalidations: Array<FileCreateInvalidation>;
 
   constructor({
     value,
@@ -70,6 +74,7 @@ export default class UncommittedAsset {
     isASTDirty,
     idBase,
     invalidations,
+    fileCreateInvalidations,
   }: UncommittedAssetOptions) {
     this.value = value;
     this.options = options;
@@ -79,6 +84,7 @@ export default class UncommittedAsset {
     this.isASTDirty = isASTDirty || false;
     this.idBase = idBase;
     this.invalidations = invalidations || new Map();
+    this.fileCreateInvalidations = fileCreateInvalidations || [];
   }
 
   /*
@@ -179,7 +185,7 @@ export default class UncommittedAsset {
       return (await this.content).toString();
     }
 
-    return '';
+    invariant(false, 'Internal error: missing content');
   }
 
   async getBuffer(): Promise<Buffer> {
@@ -320,6 +326,10 @@ export default class UncommittedAsset {
     this.invalidations.set(getInvalidationId(invalidation), invalidation);
   }
 
+  invalidateOnFileCreate(invalidation: FileCreateInvalidation) {
+    this.fileCreateInvalidations.push(invalidation);
+  }
+
   invalidateOnEnvChange(key: string) {
     let invalidation: RequestInvalidation = {
       type: 'env',
@@ -390,6 +400,7 @@ export default class UncommittedAsset {
       mapBuffer: result.map ? result.map.toBuffer() : null,
       idBase: this.idBase,
       invalidations: this.invalidations,
+      fileCreateInvalidations: this.fileCreateInvalidations,
     });
 
     let dependencies = result.dependencies;

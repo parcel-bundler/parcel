@@ -36,14 +36,12 @@ export default (new Bundler({
   // 2. If an asset is a different type than the current bundle, make a parallel bundle in the same bundle group.
   // 3. If an asset is already in a parent bundle in the same entry point, exclude from child bundles.
   // 4. If an asset is only in separate isolated entry points (e.g. workers, different HTML pages), duplicate it.
-  // 5. If the sub-graph from an asset is >= 30kb, and the number of parallel requests in the bundle group is < 5, create a new bundle containing the sub-graph.
-  // 6. If two assets are always seen together, put them in the same extracted bundle
 
   loadConfig({options}) {
     return loadBundlerConfig(options);
   },
 
-  bundle({bundleGraph}) {
+  bundle({bundleGraph, config}) {
     let bundleRoots: Map<Bundle, Array<Asset>> = new Map();
     let bundlesByEntryAsset: Map<Asset, Bundle> = new Map();
 
@@ -100,10 +98,7 @@ export default (new Bundler({
           for (let asset of assets) {
             let bundle = bundleGraph.createBundle({
               entryAsset: asset,
-              isEntry:
-                asset.isIsolated || asset.isInline
-                  ? false
-                  : Boolean(dependency.isEntry),
+              isEntry: asset.isInline ? false : Boolean(dependency.isEntry),
               isInline: asset.isInline,
               target: bundleGroup.target,
             });
@@ -188,9 +183,6 @@ export default (new Bundler({
         bundleGraph.addEntryToBundle(asset, bundle);
       }
     }
-  },
-
-  optimize({bundleGraph, config}) {
     invariant(config != null);
 
     // Step 2: Remove asset graphs that begin with entries to other bundles.
@@ -243,8 +235,59 @@ export default (new Bundler({
     // Step 3: Remove assets that are duplicated in a parent bundle.
     deduplicate(bundleGraph);
 
-    // Step 4: Find duplicated assets in different bundle groups, and separate them into their own parallel bundles.
+    // Step 4: Mark async dependencies on assets that are already available in
+    // the bundle as internally resolvable. This removes the dependency between
+    // the bundle and the bundle group providing that asset. If all connections
+    // to that bundle group are removed, remove that bundle group.
+    let asyncBundleGroups: Set<BundleGroup> = new Set();
+    bundleGraph.traverse((node, _, actions) => {
+      if (
+        node.type !== 'dependency' ||
+        node.value.isEntry ||
+        !node.value.isAsync
+      ) {
+        return;
+      }
+
+      if (bundleGraph.isDependencySkipped(node.value)) {
+        actions.skipChildren();
+        return;
+      }
+
+      let dependency = node.value;
+      let resolution = bundleGraph.getDependencyResolution(dependency);
+      if (resolution == null) {
+        return;
+      }
+
+      let externalResolution = bundleGraph.resolveAsyncDependency(dependency);
+      if (externalResolution?.type === 'bundle_group') {
+        asyncBundleGroups.add(externalResolution.value);
+      }
+
+      for (let bundle of bundleGraph.findBundlesWithDependency(dependency)) {
+        if (
+          bundle.hasAsset(resolution) ||
+          bundleGraph.isAssetReachableFromBundle(resolution, bundle)
+        ) {
+          bundleGraph.internalizeAsyncDependency(bundle, dependency);
+        }
+      }
+    });
+
+    // Remove any bundle groups that no longer have any parent bundles.
+    for (let bundleGroup of asyncBundleGroups) {
+      if (bundleGraph.getParentBundlesOfBundleGroup(bundleGroup).length === 0) {
+        bundleGraph.removeBundleGroup(bundleGroup);
+      }
+    }
+  },
+  optimize({bundleGraph, config}) {
+    invariant(config != null);
+
+    // Step 5: Find duplicated assets in different bundle groups, and separate them into their own parallel bundles.
     // If multiple assets are always seen together in the same bundles, combine them together.
+    // If the sub-graph from an asset is >= 30kb, and the number of parallel requests in the bundle group is < 5, create a new bundle containing the sub-graph.
     let candidateBundles: Map<
       string,
       {|
@@ -372,53 +415,6 @@ export default (new Bundler({
 
     // Remove assets that are duplicated between shared bundles.
     deduplicate(bundleGraph);
-
-    // Step 5: Mark async dependencies on assets that are already available in
-    // the bundle as internally resolvable. This removes the dependency between
-    // the bundle and the bundle group providing that asset. If all connections
-    // to that bundle group are removed, remove that bundle group.
-    let asyncBundleGroups: Set<BundleGroup> = new Set();
-    bundleGraph.traverse((node, _, actions) => {
-      if (
-        node.type !== 'dependency' ||
-        node.value.isEntry ||
-        !node.value.isAsync
-      ) {
-        return;
-      }
-
-      if (bundleGraph.isDependencySkipped(node.value)) {
-        actions.skipChildren();
-        return;
-      }
-
-      let dependency = node.value;
-      let resolution = bundleGraph.getDependencyResolution(dependency);
-      if (resolution == null) {
-        return;
-      }
-
-      let externalResolution = bundleGraph.resolveAsyncDependency(dependency);
-      if (externalResolution?.type === 'bundle_group') {
-        asyncBundleGroups.add(externalResolution.value);
-      }
-
-      for (let bundle of bundleGraph.findBundlesWithDependency(dependency)) {
-        if (
-          bundle.hasAsset(resolution) ||
-          bundleGraph.isAssetReachableFromBundle(resolution, bundle)
-        ) {
-          bundleGraph.internalizeAsyncDependency(bundle, dependency);
-        }
-      }
-    });
-
-    // Remove any bundle groups that no longer have any parent bundles.
-    for (let bundleGroup of asyncBundleGroups) {
-      if (bundleGraph.getParentBundlesOfBundleGroup(bundleGroup).length === 0) {
-        bundleGraph.removeBundleGroup(bundleGroup);
-      }
-    }
   },
 }): Bundler);
 
@@ -490,11 +486,13 @@ async function loadBundlerConfig(options: PluginOptions) {
 
   validateSchema.diagnostic(
     CONFIG_SCHEMA,
-    config,
-    result.files[0].filePath,
-    result.config,
+    {
+      data: config,
+      source: await options.inputFS.readFile(result.files[0].filePath, 'utf8'),
+      filePath: result.files[0].filePath,
+      prependKey: `/${encodeJSONKeyComponent('@parcel/bundler-default')}`,
+    },
     '@parcel/bundler-default',
-    `/${encodeJSONKeyComponent('@parcel/bundler-default')}`,
     'Invalid config for @parcel/bundler-default',
   );
 

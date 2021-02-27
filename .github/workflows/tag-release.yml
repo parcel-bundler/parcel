@@ -7,7 +7,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [macos-latest, windows-latest]
     name: ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     steps:
@@ -21,6 +21,9 @@ jobs:
       - name: Link native packages
         run: node scripts/link-native.js
       - uses: bahmutov/npm-install@v1.1.0
+      - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
+        if: ${{ matrix.os == 'macos-latest' }}
+        run: strip -x native-packages/*/*.node # Must use -x on macOS. This produces larger results on linux.
       - name: Upload artifacts
         uses: actions/upload-artifact@v2
         with:
@@ -29,6 +32,36 @@ jobs:
       - name: Smoke test
         run: node -e "require('@parcel/fs-search')"
 
+  build-linux-gnu-x64:
+    name: linux-gnu-x64
+    runs-on: ubuntu-latest
+    container:
+      image: docker.io/centos/nodejs-12-centos7
+    steps:
+      - uses: actions/checkout@v1
+      - name: Install yarn
+        run: npm install --global yarn@1
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+      - name: Link native packages
+        run: node scripts/link-native.js
+      - uses: bahmutov/npm-install@v1.1.0
+      - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
+        run: strip native-packages/*/*.node
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: bindings-linux-gnu-x64
+          path: native-packages/*/*.node
+      - name: debug
+        run: ls -l native-packages/*/*.node
+      - name: Smoke test
+        run: node -e 'require("@parcel/fs-search")'
+
   build-linux-gnu-arm:
     strategy:
       fail-fast: false
@@ -36,8 +69,10 @@ jobs:
         include:
           - target: arm-unknown-linux-gnueabihf
             arch: armhf
+            strip: arm-linux-gnueabihf-strip
           - target: aarch64-unknown-linux-gnu
             arch: arm64
+            strip: aarch64-linux-gnu-strip
     name: ${{ matrix.target }}
     runs-on: ubuntu-latest
     steps:
@@ -58,6 +93,8 @@ jobs:
       - uses: bahmutov/npm-install@v1.1.0
         env:
           RUST_TARGET: ${{ matrix.target }}
+      - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
+        run: ${{ matrix.strip }} native-packages/*/*.node
       - name: Upload artifacts
         uses: actions/upload-artifact@v2
         with:
@@ -78,7 +115,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target: [x86_64-unknown-linux-musl, aarch64-unknown-linux-musl]
+        include:
+          - target: x86_64-unknown-linux-musl
+            strip: strip
+          - target: aarch64-unknown-linux-musl
+            strip: aarch64-linux-musl-strip
     name: ${{ matrix.target }}
     runs-on: ubuntu-latest
     container:
@@ -106,6 +147,8 @@ jobs:
       - uses: bahmutov/npm-install@v1.1.0
         env:
           RUST_TARGET: ${{ matrix.target }}
+      - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
+        run: ${{ matrix.strip }} native-packages/*/*.node
       - name: Upload artifacts
         uses: actions/upload-artifact@v2
         with:
@@ -134,6 +177,8 @@ jobs:
       - uses: bahmutov/npm-install@v1.1.0
         env:
           RUST_TARGET: aarch64-apple-darwin
+      - name: Strip debug symbols
+        run: strip -x native-packages/*/*.node
       - name: Upload artifacts
         uses: actions/upload-artifact@v2
         with:

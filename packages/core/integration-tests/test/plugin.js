@@ -54,7 +54,7 @@ parcel-transformer-b`,
   it('should allow resolvers to return changes for dependency.meta', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/resolver-dependency-meta/a.js'),
-      {disableCache: false, contentHash: false, inputFS: overlayFS},
+      {shouldDisableCache: false, shouldContentHash: false, inputFS: overlayFS},
     );
 
     let calls = [];
@@ -75,7 +75,7 @@ parcel-transformer-b`,
 
     b = await bundle(
       path.join(__dirname, '/integration/resolver-dependency-meta/a.js'),
-      {disableCache: false, contentHash: false, inputFS: overlayFS},
+      {shouldDisableCache: false, shouldContentHash: false, inputFS: overlayFS},
     );
 
     calls = [];
@@ -93,7 +93,7 @@ parcel-transformer-b`,
     let config = path.join(fixture, 'foo.config.json');
     let b = await bundle(entry, {
       inputFS: overlayFS,
-      disableCache: false,
+      shouldDisableCache: false,
     });
 
     assert.strictEqual(
@@ -105,7 +105,7 @@ parcel-transformer-b`,
 
     b = await bundle(entry, {
       inputFS: overlayFS,
-      disableCache: false,
+      shouldDisableCache: false,
     });
     assert.strictEqual(
       await overlayFS.readFile(b.getBundles()[0].filePath, 'utf8'),
@@ -116,7 +116,11 @@ parcel-transformer-b`,
   it('merges symbol information when applying runtime assets', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/runtime-symbol-merging/entry.js'),
-      {scopeHoist: true},
+      {
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
+      },
     );
 
     assert.deepStrictEqual(
@@ -152,7 +156,11 @@ parcel-transformer-b`,
   it('properly excludes assets that are excluded and deferred by both app code and runtimes', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/runtime-deferred-excluded/index.js'),
-      {scopeHoist: true},
+      {
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
+      },
     );
 
     let calls = [];

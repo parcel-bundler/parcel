@@ -12,6 +12,7 @@ import type {
   Entry,
   EntryFileNode,
   EntrySpecifierNode,
+  Environment,
   Target,
 } from './types';
 
@@ -25,11 +26,6 @@ import {
 import nullthrows from 'nullthrows';
 import Graph, {type GraphOpts} from './Graph';
 import {createDependency} from './Dependency';
-
-type AssetGraphOpts = {|
-  ...GraphOpts<AssetGraphNode>,
-  onNodeRemoved?: (node: AssetGraphNode) => mixed,
-|};
 
 type InitOpts = {|
   entries?: Array<string>,
@@ -105,6 +101,7 @@ export function nodeFromEntryFile(entry: Entry): EntryFileNode {
 export default class AssetGraph extends Graph<AssetGraphNode> {
   onNodeRemoved: ?(node: AssetGraphNode) => mixed;
   hash: ?string;
+  envCache: Map<string, Environment>;
 
   constructor(opts: ?SerializedAssetGraph) {
     if (opts) {
@@ -113,7 +110,10 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
       this.hash = hash;
     } else {
       super();
+      let rootNode = {id: '@@root', type: 'root', value: null};
+      this.setRootNode(rootNode);
     }
+    this.envCache = new Map();
   }
 
   // $FlowFixMe
@@ -130,14 +130,20 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     };
   }
 
-  initOptions({onNodeRemoved}: AssetGraphOpts = {}) {
-    this.onNodeRemoved = onNodeRemoved;
+  // Deduplicates Environments by making them referentially equal
+  normalizeEnvironment(input: Asset | Dependency | AssetGroup) {
+    let {id, context} = input.env;
+    let idAndContext = `${id}-${context}`;
+
+    let env = this.envCache.get(idAndContext);
+    if (env) {
+      input.env = env;
+    } else {
+      this.envCache.set(idAndContext, input.env);
+    }
   }
 
-  initialize({entries, assetGroups}: InitOpts) {
-    let rootNode = {id: '@@root', type: 'root', value: null};
-    this.setRootNode(rootNode);
-
+  setRootConnections({entries, assetGroups}: InitOpts) {
     let nodes = [];
     if (entries) {
       for (let entry of entries) {
@@ -149,7 +155,7 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
         ...assetGroups.map(assetGroup => nodeFromAssetGroup(assetGroup)),
       );
     }
-    this.replaceNodesConnectedTo(rootNode, nodes);
+    this.replaceNodesConnectedTo(nullthrows(this.getRootNode()), nodes);
   }
 
   addNode(node: AssetGraphNode): AssetGraphNode {
@@ -271,8 +277,8 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     return !defer;
   }
 
-  // Dependency: mark parent Asset <- AssetGroup with hasDeferred false
-  markParentsWithHasDeferred(node: DependencyNode) {
+  // Dependency: mark parent Asset <- AssetGroup with hasDeferred true
+  markParentsWithHasDeferred(node: AssetGraphNode) {
     this.traverseAncestors(node, (_node, _, actions) => {
       if (_node.type === 'asset') {
         _node.hasDeferred = true;
@@ -286,7 +292,7 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
   }
 
   // AssetGroup: update hasDeferred of all parent Dependency <- Asset <- AssetGroup
-  unmarkParentsWithHasDeferred(node: AssetGroupNode) {
+  unmarkParentsWithHasDeferred(node: AssetGraphNode) {
     this.traverseAncestors(node, (_node, ctx, actions) => {
       if (_node.type === 'asset') {
         let hasDeferred = this.getNodesConnectedFrom(_node).some(_childNode =>
@@ -360,6 +366,7 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     assets: Array<Asset>,
     correspondingRequest: string,
   ) {
+    this.normalizeEnvironment(assetGroup);
     let assetGroupNode = nodeFromAssetGroup(assetGroup);
     assetGroupNode = this.getNode(assetGroupNode.id);
     if (!assetGroupNode) {
@@ -375,6 +382,7 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
       isDirect: boolean,
     |}> = [];
     for (let asset of assets) {
+      this.normalizeEnvironment(asset);
       let isDirect = !dependentAssetKeys.includes(asset.uniqueKey);
 
       let dependentAssets = [];
@@ -411,6 +419,7 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     let depNodes = [];
     let depNodesWithAssets = [];
     for (let dep of assetNode.value.dependencies.values()) {
+      this.normalizeEnvironment(dep);
       let depNode = nodeFromDep(dep);
       let existing = this.getNode(depNode.id);
       if (existing) {

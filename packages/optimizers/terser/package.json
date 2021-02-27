@@ -17,17 +17,14 @@
   "source": "src/TerserOptimizer.js",
   "engines": {
     "node": ">= 12.0.0",
-    "parcel": "^2.0.0-alpha.1.1"
+    "parcel": "^2.0.0-beta.1"
   },
   "dependencies": {
     "@parcel/diagnostic": "2.0.0-beta.1",
     "@parcel/plugin": "2.0.0-beta.1",
-    "@parcel/source-map": "2.0.0-alpha.4.19",
+    "@parcel/source-map": "2.0.0-alpha.4.21",
     "@parcel/utils": "2.0.0-beta.1",
     "nullthrows": "^1.1.1",
     "terser": "^5.2.0"
-  },
-  "peerDependencies": {
-    "@parcel/core": "^2.0.0-alpha.3.1"
   }
 }

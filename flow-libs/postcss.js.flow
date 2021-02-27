@@ -4,21 +4,64 @@
 // Derived from the PostCSS docs available at
 // http://api.postcss.org/postcss.html.
 
-// eslint-disable-next-line import/no-extraneous-dependencies
-import typeof {SourceMapGenerator} from 'source-map';
-
 declare module 'postcss' {
-  declare type NodeCallback = (Node, number) => false | void;
+  // eslint-disable-next-line import/no-extraneous-dependencies
+  import type {SourceMapGenerator} from 'source-map';
+
+  declare type Callback<T> = (T, number) => false | void;
+
+  declare interface Input {
+    file?: string;
+  }
+
+  declare interface Position {
+    offset: number;
+    column: number;
+    line: number;
+  }
+
+  declare interface Source {
+    input: Input;
+    start?: Position;
+    end?: Position;
+  }
 
   declare interface Node {
     parent: Container;
-    type: 'atrule' | 'comment' | 'decl' | 'root' | 'rule';
+    source: Source;
+    +type: 'atrule' | 'comment' | 'decl' | 'root' | 'rule';
+    toJSON(): mixed;
+  }
+
+  declare interface Decl extends Container {
+    type: 'decl';
+    prop: string;
+    value: string;
+    source: Source;
+  }
+
+  declare interface Rule extends Container {
+    selector: string;
+    type: 'rule';
+    remove(): void;
+  }
+
+  declare interface AtRule extends Container {
+    name: string;
+    params: string;
+    type: 'atrule';
+    remove(): void;
   }
 
   declare interface Container extends Node {
-    each(callback: NodeCallback): false | void;
+    each(callback: Callback<Node>): false | void;
     nodes: Array<Node>;
-    walk(callback: NodeCallback): false | void;
+    walk(callback: Callback<Node>): false | void;
+    walkRules(callback: Callback<Rule>): false | void;
+    walkDecls(nameFilter: string | RegExp, callback: Callback<Decl>): void;
+    walkDecls(callback: Callback<Decl>): void;
+    walkAtRules(nameFilter: string | RegExp, callback: Callback<AtRule>): void;
+    walkAtRules(callback: Callback<AtRule>): void;
   }
 
   declare interface Root extends Container {}
@@ -34,11 +77,11 @@ declare module 'postcss' {
     from: string,
     to: string,
     map: MapOptions,
-    parser: parser,
-    stringifier: stringifier,
+    parser: Parser,
+    stringifier: Stringifier,
     syntax: {|
-      parser: parser,
-      stringifier: stringifier,
+      parser: Parser,
+      stringifier: Stringifier,
     |},
   |}>;
 
@@ -59,14 +102,14 @@ declare module 'postcss' {
     postcss(...args: Array<any>): void,
   |};
 
-  declare type pluginFunction = (root: Root, result: Result) => void;
+  declare type PluginFunction = (root: Root, result: Result) => void;
 
   declare type Result = {
     content: string,
     css: string,
     map: SourceMapGenerator,
     messages: Array<Message>,
-    opts: processOptions,
+    opts: ProcessOptions,
     processor: Processor,
     root: Root,
     toString(): string,
@@ -76,6 +119,7 @@ declare module 'postcss' {
   declare type Message = {|
     type: string,
     plugin: string,
+    file: string,
   |};
 
   declare type Builder = (
@@ -95,6 +139,7 @@ declare module 'postcss' {
     comment: ($Shape<Node>) => Node,
     decl: ($Shape<Node>) => Node,
     rule: ($Shape<Node>) => Container,
+    fromJSON: <T: Node>(mixed) => T,
     ...
   };
 }

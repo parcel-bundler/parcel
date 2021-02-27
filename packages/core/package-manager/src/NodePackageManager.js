@@ -7,12 +7,14 @@ import type {
   PackageInstaller,
   InstallOptions,
 } from './types';
-import type {ResolveResult} from '@parcel/utils';
+import type {ResolveResult} from './NodeResolverBase';
 
 import {registerSerializableClass} from '@parcel/core';
 import ThrowableDiagnostic, {
   encodeJSONKeyComponent,
+  escapeMarkdown,
   generateJSONCodeHighlights,
+  md,
 } from '@parcel/diagnostic';
 import nativeFS from 'fs';
 // $FlowFixMe this is untyped
@@ -64,7 +66,11 @@ export class NodePackageManager implements PackageManager {
   async require(
     name: ModuleSpecifier,
     from: FilePath,
-    opts: ?{|range?: SemverRange, autoinstall?: boolean, saveDev?: boolean|},
+    opts: ?{|
+      range?: SemverRange,
+      shouldAutoInstall?: boolean,
+      saveDev?: boolean,
+    |},
   ): Promise<any> {
     let {resolved} = await this.resolve(name, from, opts);
     return this.load(resolved, from);
@@ -75,14 +81,13 @@ export class NodePackageManager implements PackageManager {
     return this.load(resolved, from);
   }
 
-  load(resolved: FilePath, from: FilePath): any {
-    if (!path.isAbsolute(resolved)) {
+  load(filePath: FilePath, from: FilePath): any {
+    if (!path.isAbsolute(filePath)) {
       // Node builtin module
       // $FlowFixMe
-      return require(resolved);
+      return require(filePath);
     }
 
-    let filePath = this.fs.realpathSync(resolved);
     const cachedModule = Module._cache[filePath];
     if (cachedModule !== undefined) {
       return cachedModule.exports;
@@ -118,7 +123,11 @@ export class NodePackageManager implements PackageManager {
   async resolve(
     name: ModuleSpecifier,
     from: FilePath,
-    options?: ?{|range?: string, autoinstall?: boolean, saveDev?: boolean|},
+    options?: ?{|
+      range?: string,
+      shouldAutoInstall?: boolean,
+      saveDev?: boolean,
+    |},
   ): Promise<ResolveResult> {
     let basedir = path.dirname(from);
     let key = basedir + ':' + name;
@@ -127,8 +136,28 @@ export class NodePackageManager implements PackageManager {
       try {
         resolved = await this.resolver.resolve(name, basedir);
       } catch (e) {
-        if (e.code !== 'MODULE_NOT_FOUND' || options?.autoinstall !== true) {
-          throw e;
+        if (
+          e.code !== 'MODULE_NOT_FOUND' ||
+          options?.shouldAutoInstall !== true
+        ) {
+          if (
+            e.code === 'MODULE_NOT_FOUND' &&
+            options?.shouldAutoInstall !== true
+          ) {
+            let err = new ThrowableDiagnostic({
+              diagnostic: {
+                message: escapeMarkdown(e.message),
+                hints: [
+                  'Autoinstall is disabled, please install this package manually and restart Parcel.',
+                ],
+              },
+            });
+            // $FlowFixMe - needed for loadParcelPlugin
+            err.code = 'MODULE_NOT_FOUND';
+            throw err;
+          } else {
+            throw e;
+          }
         }
 
         let conflicts = await getConflictingLocalDependencies(
@@ -144,13 +173,13 @@ export class NodePackageManager implements PackageManager {
 
           return this.resolve(name, from, {
             ...options,
-            autoinstall: false,
+            shouldAutoInstall: false,
           });
         }
 
         throw new ThrowableDiagnostic({
           diagnostic: conflicts.fields.map(field => ({
-            message: `Could not find module "${name}", but it was listed in package.json. Run your package manager first.`,
+            message: md`Could not find module "${name}", but it was listed in package.json. Run your package manager first.`,
             filePath: conflicts.filePath,
             origin: '@parcel/package-manager',
             language: 'json',
@@ -178,16 +207,16 @@ export class NodePackageManager implements PackageManager {
             from,
           );
 
-          if (conflicts == null && options?.autoinstall === true) {
+          if (conflicts == null && options?.shouldAutoInstall === true) {
             await this.install([{name, range}], from);
             return this.resolve(name, from, {
               ...options,
-              autoinstall: false,
+              shouldAutoInstall: false,
             });
           } else if (conflicts != null) {
             throw new ThrowableDiagnostic({
               diagnostic: {
-                message: `Could not find module "${name}" satisfying ${range}.`,
+                message: md`Could not find module "${name}" satisfying ${range}.`,
                 filePath: conflicts.filePath,
                 origin: '@parcel/package-manager',
                 language: 'json',
@@ -207,15 +236,17 @@ export class NodePackageManager implements PackageManager {
           }
 
           let version = pkg?.version;
-          let message = `Could not resolve package "${name}" that satisfies ${range}.`;
+          let message = md`Could not resolve package "${name}" that satisfies ${range}.`;
           if (version != null) {
-            message += ` Found ${version}.`;
+            message += md` Found ${version}.`;
           }
 
           throw new ThrowableDiagnostic({
             diagnostic: {
               message,
-              origin: '@parcel/package-manager',
+              hints: [
+                'Looks like the incompatible version was installed transitively. Add this package as a direct dependency with a compatible version range.',
+              ],
             },
           });
         }
@@ -237,7 +268,7 @@ export class NodePackageManager implements PackageManager {
     from: FilePath,
     opts?: InstallOptions,
   ) {
-    await installPackage(this.fs, modules, from, {
+    await installPackage(this.fs, this, modules, from, {
       packageInstaller: this.installer,
       ...opts,
     });

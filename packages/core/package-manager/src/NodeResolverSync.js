@@ -1,7 +1,7 @@
 // @flow
 
 import type {FilePath, ModuleSpecifier, PackageJSON} from '@parcel/types';
-import type {ResolveResult, ModuleInfo} from './NodeResolverBase';
+import type {ResolveResult} from './NodeResolverBase';
 import path from 'path';
 import {NodeResolverBase} from './NodeResolverBase';
 
@@ -23,6 +23,10 @@ export class NodeResolverSync extends NodeResolverBase<ResolveResult> {
       // $FlowFixMe
       e.code = 'MODULE_NOT_FOUND';
       throw e;
+    }
+
+    if (path.isAbsolute(res.resolved)) {
+      res.resolved = this.fs.realpathSync(res.resolved);
     }
 
     return res;
@@ -114,30 +118,5 @@ export class NodeResolverSync extends NodeResolverBase<ResolveResult> {
     } catch (e) {
       // ignore
     }
-  }
-
-  findNodeModulePath(
-    id: ModuleSpecifier,
-    dir: FilePath,
-  ): ?ResolveResult | ?ModuleInfo {
-    if (this.isBuiltin(id)) {
-      return {resolved: id};
-    }
-
-    let parts = this.getModuleParts(id);
-    let moduleDir = this.fs.findNodeModule(parts[0], dir);
-    if (moduleDir) {
-      return {
-        moduleName: parts[0],
-        subPath: parts[1],
-        moduleDir: moduleDir,
-        filePath:
-          parts.length > 1
-            ? path.join(moduleDir, ...parts.slice(1))
-            : moduleDir,
-      };
-    }
-
-    return null;
   }
 }

@@ -5,13 +5,13 @@ import {minify} from 'terser';
 import {Optimizer} from '@parcel/plugin';
 import {blobToString, loadConfig} from '@parcel/utils';
 import SourceMap from '@parcel/source-map';
-import ThrowableDiagnostic from '@parcel/diagnostic';
+import ThrowableDiagnostic, {escapeMarkdown} from '@parcel/diagnostic';
 
 import path from 'path';
 
 export default (new Optimizer({
   async optimize({contents, map, bundle, options, getSourceMapReference}) {
-    if (!bundle.env.minify) {
+    if (!bundle.env.shouldOptimize) {
       return {contents, map};
     }
 
@@ -46,6 +46,7 @@ export default (new Optimizer({
       // $FlowFixMe
       let {message, line, col} = error;
       if (line != null && col != null) {
+        message = escapeMarkdown(message);
         let diagnostics = [];
         let mapping = map?.findClosestMapping(line, col);
         if (mapping && mapping.original && mapping.source) {

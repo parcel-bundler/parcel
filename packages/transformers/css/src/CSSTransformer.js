@@ -1,12 +1,13 @@
 // @flow
 
+import type {Root} from 'postcss';
 import type {FilePath} from '@parcel/types';
-import type {Container, Node} from 'postcss';
 
 import SourceMap from '@parcel/source-map';
 import {Transformer} from '@parcel/plugin';
 import {createDependencyLocation, isURL} from '@parcel/utils';
 import postcss from 'postcss';
+import nullthrows from 'nullthrows';
 import valueParser from 'postcss-value-parser';
 import semver from 'semver';
 
@@ -19,7 +20,7 @@ function canHaveDependencies(filePath: FilePath, code: string) {
 
 export default (new Transformer({
   canReuseAST({ast}) {
-    return ast.type === 'postcss' && semver.satisfies(ast.version, '^8.0.0');
+    return ast.type === 'postcss' && semver.satisfies(ast.version, '^8.2.1');
   },
 
   async parse({asset}) {
@@ -40,10 +41,12 @@ export default (new Transformer({
 
     return {
       type: 'postcss',
-      version: '8.0.0',
-      program: postcss.parse(code, {
-        from: asset.filePath,
-      }),
+      version: '8.2.1',
+      program: postcss
+        .parse(code, {
+          from: asset.filePath,
+        })
+        .toJSON(),
     };
   },
 
@@ -55,7 +58,7 @@ export default (new Transformer({
       engines: {
         browsers: asset.env.engines.browsers,
       },
-      minify: asset.env.minify,
+      shouldOptimize: asset.env.shouldOptimize,
       sourceMap: asset.env.sourceMap,
     });
 
@@ -73,8 +76,10 @@ export default (new Transformer({
       return [asset];
     }
 
+    let program: Root = postcss.fromJSON(ast.program);
+
     let isDirty = false;
-    ast.program.walkAtRules('import', rule => {
+    program.walkAtRules('import', rule => {
       let params = valueParser(rule.params);
       let [name, ...media] = params.nodes;
       let moduleSpecifier;
@@ -89,13 +94,13 @@ export default (new Transformer({
       moduleSpecifier = name.value;
 
       if (!moduleSpecifier) {
-        throw new Error('Could not find import name for ' + rule);
+        throw new Error('Could not find import name for ' + String(rule));
       }
 
       if (isURL(moduleSpecifier)) {
         name.value = asset.addURLDependency(moduleSpecifier, {
           loc: createDependencyLocation(
-            rule.source.start,
+            nullthrows(rule.source.start),
             asset.filePath,
             0,
             8,
@@ -115,7 +120,7 @@ export default (new Transformer({
           moduleSpecifier,
           // Offset by 8 as it does not include `@import `
           loc: createDependencyLocation(
-            rule.source.start,
+            nullthrows(rule.source.start),
             moduleSpecifier,
             0,
             8,
@@ -131,7 +136,7 @@ export default (new Transformer({
       isDirty = true;
     });
 
-    ast.program.walkDecls(decl => {
+    program.walkDecls(decl => {
       if (URL_RE.test(decl.value)) {
         let parsed = valueParser(decl.value);
         let isDeclDirty = false;
@@ -145,7 +150,7 @@ export default (new Transformer({
           ) {
             let url = asset.addURLDependency(node.nodes[0].value, {
               loc: createDependencyLocation(
-                decl.source.start,
+                nullthrows(decl.source.start),
                 node.nodes[0].value,
               ),
             });
@@ -162,39 +167,17 @@ export default (new Transformer({
     });
 
     if (isDirty) {
-      asset.setAST(ast);
+      asset.setAST({
+        ...ast,
+        program: program.toJSON(),
+      });
     }
 
     return [asset];
   },
 
   async generate({asset, ast, options}) {
-    let root = ast.program;
-
-    // $FlowFixMe
-    if (Object.getPrototypeOf(ast.program) === Object.prototype) {
-      root = postcss.root(ast.program);
-      let convert = (parent: Container, node: Node, index: number) => {
-        let type = node.type === 'atrule' ? 'atRule' : node.type;
-        let result = postcss[type](node);
-        result.parent = parent;
-        if (parent) {
-          parent.nodes[index] = result;
-        }
-
-        if (result.walk) {
-          // $FlowFixMe
-          const container = (result: Container);
-          container.each((node, index) => {
-            convert(container, node, index);
-          });
-        }
-      };
-
-      root.each((node, index) => convert(root, node, index));
-    }
-
-    let result = await postcss().process(root, {
+    let result = await postcss().process(postcss.fromJSON(ast.program), {
       from: undefined,
       to: options.projectRoot + '/index',
       map: {

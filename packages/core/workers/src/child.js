@@ -130,7 +130,7 @@ export class Child {
     } else if (method === 'childInit') {
       try {
         let [moduleName, childOptions] = args;
-        if (childOptions.patchConsole) {
+        if (childOptions.shouldPatchConsole) {
           patchConsole();
         } else {
           unpatchConsole();
@@ -198,7 +198,11 @@ export class Child {
       }
     }
 
-    this.send(result);
+    try {
+      this.send(result);
+    } catch (e) {
+      result = this.send(errorResponseFromError(e));
+    }
   }
 
   handleResponse(data: WorkerResponse): void {

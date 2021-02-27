@@ -17,13 +17,14 @@ import {
   isDirectoryInside,
   md5FromObject,
   resolveConfig,
-  resolve,
   validateSchema,
   findAlternativeNodeModules,
   findAlternativeFiles,
 } from '@parcel/utils';
 import ThrowableDiagnostic, {
   generateJSONCodeHighlights,
+  escapeMarkdown,
+  md,
 } from '@parcel/diagnostic';
 import {parse} from 'json5';
 import path from 'path';
@@ -42,7 +43,7 @@ export type ConfigAndCachePath = {|
 
 type RunOpts = {|
   input: null,
-  ...StaticRunOpts,
+  ...StaticRunOpts<ConfigAndCachePath>,
 |};
 
 export type ParcelConfigRequest = {|
@@ -77,7 +78,11 @@ export default function createParcelConfigRequest(): ParcelConfigRequest {
       }
 
       if (usedDefault) {
-        api.invalidateOnFileCreate('**/.parcelrc');
+        let resolveFrom = getResolveFrom(options);
+        api.invalidateOnFileCreate({
+          fileName: '.parcelrc',
+          aboveFilePath: resolveFrom,
+        });
       }
 
       let cachePath = md5FromObject(config);
@@ -93,6 +98,10 @@ export default function createParcelConfigRequest(): ParcelConfigRequest {
 
 const parcelConfigCache = new Map();
 
+export function clearParcelConfigCache() {
+  parcelConfigCache.clear();
+}
+
 export function getCachedParcelConfig(
   result: ConfigAndCachePath,
   options: ParcelOptions,
@@ -103,12 +112,7 @@ export function getCachedParcelConfig(
     return config;
   }
 
-  config = new ParcelConfig(
-    processedConfig,
-    options.packageManager,
-    options.inputFS,
-    options.autoinstall,
-  );
+  config = new ParcelConfig(processedConfig, options);
 
   parcelConfigCache.set(cachePath, config);
   return config;
@@ -132,20 +136,15 @@ export async function resolveParcelConfig(
   let resolveFrom = getResolveFrom(options);
   let configPath =
     options.config != null
-      ? (
-          await resolve(options.inputFS, options.config, {
-            basedir: resolveFrom,
-          })
-        ).resolved
+      ? (await options.packageManager.resolve(options.config, resolveFrom))
+          .resolved
       : await resolveConfig(options.inputFS, resolveFrom, ['.parcelrc']);
 
   let usedDefault = false;
   if (configPath == null && options.defaultConfig != null) {
     usedDefault = true;
     configPath = (
-      await resolve(options.inputFS, options.defaultConfig, {
-        basedir: resolveFrom,
-      })
+      await options.packageManager.resolve(options.defaultConfig, resolveFrom)
     ).resolved;
   }
 
@@ -159,7 +158,7 @@ export async function resolveParcelConfig(
   } catch (e) {
     throw new ThrowableDiagnostic({
       diagnostic: {
-        message: `Could not find parcel config at ${path.relative(
+        message: md`Could not find parcel config at ${path.relative(
           options.projectRoot,
           configPath,
         )}`,
@@ -199,7 +198,7 @@ export async function parseAndProcessConfig(
     };
     throw new ThrowableDiagnostic({
       diagnostic: {
-        message: 'Failed to parse .parcelrc',
+        message: `Failed to parse .parcelrc`,
         origin: '@parcel/core',
 
         filePath: configPath,
@@ -210,7 +209,7 @@ export async function parseAndProcessConfig(
             {
               start: pos,
               end: pos,
-              message: e.message,
+              message: escapeMarkdown(e.message),
             },
           ],
         },
@@ -393,10 +392,7 @@ export async function resolveExtends(
     return path.resolve(path.dirname(configPath), ext);
   } else {
     try {
-      let {resolved} = await resolve(options.inputFS, ext, {
-        basedir: path.dirname(configPath),
-        extensions: ['.json'],
-      });
+      let {resolved} = await options.packageManager.resolve(ext, configPath);
       return options.inputFS.realpath(resolved);
     } catch (err) {
       let parentContents = await options.inputFS.readFile(configPath, 'utf8');
@@ -407,7 +403,7 @@ export async function resolveExtends(
       );
       throw new ThrowableDiagnostic({
         diagnostic: {
-          message: 'Cannot find extended parcel config',
+          message: `Cannot find extended parcel config`,
           origin: '@parcel/core',
           filePath: configPath,
           language: 'json5',
@@ -417,7 +413,7 @@ export async function resolveExtends(
               {
                 key: extendsKey,
                 type: 'value',
-                message: `Cannot find module "${ext}"${
+                message: md`Cannot find module "${ext}"${
                   alternatives[0] ? `, did you mean "${alternatives[0]}"?` : ''
                 }`,
               },
@@ -461,7 +457,7 @@ async function processExtendedConfig(
             {
               key: extendsKey,
               type: 'value',
-              message: `"${extendsSpecifier}" does not exist${
+              message: md`"${extendsSpecifier}" does not exist${
                 alternatives[0] ? `, did you mean "./${alternatives[0]}"?` : ''
               }`,
             },
@@ -482,11 +478,8 @@ export function validateConfigFile(
 
   validateSchema.diagnostic(
     ParcelConfigSchema,
-    config,
-    relativePath,
-    JSON.stringify(config, null, '\t'),
+    {data: config, filePath: relativePath},
     '@parcel/core',
-    '',
     'Invalid Parcel Config',
   );
 }
