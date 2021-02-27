@@ -38,7 +38,6 @@ import createAssetGraphRequest from './requests/AssetGraphRequest';
 import createValidationRequest from './requests/ValidationRequest';
 import createBundleGraphRequest from './requests/BundleGraphRequest';
 import {Disposable} from '@parcel/events';
-import {serialize} from './serializer';
 
 registerCoreWithSerializer();
 
