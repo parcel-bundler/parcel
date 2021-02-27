@@ -74,4 +74,8 @@ describe('md tagged template literal', () => {
     };
     assert.strictEqual('Test: b', md`Test: ${v}`);
   });
+
+  it('supports null and undefined', () => {
+    assert.strictEqual('Test: undefined null', md`Test: ${undefined} ${null}`);
+  });
 });
