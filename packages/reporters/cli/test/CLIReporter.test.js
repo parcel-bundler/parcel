@@ -18,6 +18,7 @@ const EMPTY_OPTIONS = {
   distDir: 'dist',
   lockFile: undefined,
   shouldAutoInstall: false,
+  shouldBuildLazily: false,
   hmrOptions: undefined,
   serveOptions: false,
   mode: 'development',

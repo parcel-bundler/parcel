@@ -3,6 +3,7 @@ import assert from 'assert';
 import invariant from 'assert';
 import path from 'path';
 import {
+  assertBundles,
   bundler,
   getNextBuild,
   inputFS,
@@ -391,5 +392,197 @@ describe('server', function() {
       data,
       await outputFS.readFile(path.join(distDir, 'index.html'), 'utf8'),
     );
+  });
+
+  it('should support lazy bundling', async function() {
+    let port = await getPort();
+    let b = bundler(path.join(__dirname, '/integration/html/index.html'), {
+      defaultTargetOptions: {
+        distDir,
+      },
+      config,
+      serveOptions: {
+        https: false,
+        port: port,
+        host: 'localhost',
+      },
+      shouldBuildLazily: true,
+      shouldContentHash: false,
+    });
+
+    await outputFS.mkdirp(distDir);
+
+    let builds = [];
+    subscription = await b.watch((err, buildEvent) => {
+      builds.push(buildEvent);
+    });
+
+    let build = await getNextBuild(b);
+
+    invariant(build.type === 'buildSuccess');
+    assertBundles(build.bundleGraph, [
+      {
+        name: 'index.html',
+        assets: ['index.html'],
+      },
+    ]);
+
+    // Bundle should exist in the graph, but not written to disk as it is just a placeholder
+    let dir = await outputFS.readdir(distDir);
+    assert.deepEqual(dir, []);
+
+    let data = await get('/index.html', port);
+    assert.equal(
+      data,
+      await outputFS.readFile(path.join(distDir, 'index.html'), 'utf8'),
+    );
+
+    assert.equal(builds.length, 2);
+    build = builds[1];
+    invariant(build?.type === 'buildSuccess');
+    assertBundles(build.bundleGraph, [
+      {
+        name: 'index.html',
+        assets: ['index.html'],
+      },
+      {
+        name: 'other.html',
+        assets: ['other.html'],
+      },
+      {
+        type: 'svg',
+        assets: ['icons.svg'],
+      },
+      {
+        type: 'png',
+        assets: ['100x100.png'],
+      },
+      {
+        type: 'js',
+        assets: ['index.js'],
+      },
+      {
+        type: 'css',
+        assets: ['index.css'],
+      },
+    ]);
+
+    // Sibling bundles should have been fully written to disk, but not async bundles.
+    dir = await outputFS.readdir(distDir);
+    assert.deepEqual(dir.length, 7);
+    assert(!dir.includes('other.html'));
+  });
+
+  it('should support lazy bundling sibling css files of dynamic import', async function() {
+    let port = await getPort();
+    let b = bundler(path.join(__dirname, '/integration/dynamic-css/index.js'), {
+      defaultTargetOptions: {
+        distDir,
+      },
+      config,
+      serveOptions: {
+        https: false,
+        port: port,
+        host: 'localhost',
+      },
+      shouldBuildLazily: true,
+      shouldContentHash: false,
+    });
+
+    await outputFS.mkdirp(distDir);
+
+    let builds = [];
+    subscription = await b.watch((err, buildEvent) => {
+      builds.push(buildEvent);
+    });
+
+    let build = await getNextBuild(b);
+
+    invariant(build.type === 'buildSuccess');
+    assertBundles(build.bundleGraph, [
+      {
+        name: 'index.js',
+        assets: ['index.js'],
+      },
+    ]);
+
+    // Bundle should exist in the graph, but not written to disk as it is just a placeholder
+    let dir = await outputFS.readdir(distDir);
+    assert.deepEqual(dir, []);
+
+    let data = await get(`/index.js`, port);
+    assert.equal(
+      data,
+      await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8'),
+    );
+
+    assert.equal(builds.length, 2);
+    build = builds[1];
+    invariant(build?.type === 'buildSuccess');
+    assertBundles(build.bundleGraph, [
+      {
+        name: 'index.js',
+        assets: [
+          'bundle-url.js',
+          'cacheLoader.js',
+          'css-loader.js',
+          'index.js',
+          'js-loader.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
+        ],
+      },
+      {name: /local\.[0-9a-f]{8}\.js/, assets: ['local.js']},
+      {name: 'index.css', assets: ['index.css']},
+    ]);
+
+    // local.js should exist in the graph, but not written to disk
+    dir = await outputFS.readdir(distDir);
+    assert.deepEqual(
+      dir.sort(),
+      ['index.js', 'index.css', 'index.js.map', 'index.css.map'].sort(),
+    );
+
+    let local = build.bundleGraph
+      .getBundles()
+      .find(b => b.type === 'js' && b.name.startsWith('local'));
+    invariant(local);
+    data = await get(`/${local.name}`, port);
+    assert.equal(
+      data,
+      await outputFS.readFile(path.join(distDir, local.name), 'utf8'),
+    );
+
+    assert.equal(builds.length, 3);
+    build = builds[2];
+    invariant(build?.type === 'buildSuccess');
+    assertBundles(build.bundleGraph, [
+      {
+        name: 'index.js',
+        assets: [
+          'bundle-url.js',
+          'cacheLoader.js',
+          'css-loader.js',
+          'index.js',
+          'js-loader.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
+        ],
+      },
+      {name: 'index.css', assets: ['index.css']},
+      {name: /local\.[0-9a-f]{8}\.js/, assets: ['local.js', 'JSRuntime.js']},
+      {name: /local\.[0-9a-f]{8}\.css/, assets: ['local.css']},
+    ]);
+
+    dir = await outputFS.readdir(distDir);
+    assert.deepEqual(dir.length, 8); // bundles + source maps
+
+    let localCSS = build.bundleGraph
+      .getBundles()
+      .find(b => b.type === 'css' && b.name.startsWith('local'));
+    invariant(localCSS);
+
+    assert(data.includes(localCSS.name));
+    assert(data.includes('css-loader'));
   });
 });

@@ -1587,14 +1587,11 @@ describe('html', function() {
         type: 'js',
         assets: [
           'a.js',
-          'bundle-manifest.js',
           'bundle-url.js',
           'esmodule-helpers.js',
           'get-worker-url.js',
           'index.js',
           'JSRuntime.js',
-          'JSRuntime.js',
-          'relative-path.js',
         ],
       },
     ]);

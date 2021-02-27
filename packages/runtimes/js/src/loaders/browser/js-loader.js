@@ -2,6 +2,13 @@ const cacheLoader = require('../../cacheLoader');
 
 module.exports = cacheLoader(function loadJSBundle(bundle) {
   return new Promise(function(resolve, reject) {
+    // Don't insert the same script twice (e.g. if it was already in the HTML)
+    let existingScripts = document.getElementsByTagName('script');
+    if ([...existingScripts].some(script => script.src === bundle)) {
+      resolve();
+      return;
+    }
+
     var script = document.createElement('script');
     script.async = true;
     script.type = 'text/javascript';
@@ -9,6 +16,7 @@ module.exports = cacheLoader(function loadJSBundle(bundle) {
     script.src = bundle;
     script.onerror = function(e) {
       script.onerror = script.onload = null;
+      script.remove();
       reject(e);
     };
 

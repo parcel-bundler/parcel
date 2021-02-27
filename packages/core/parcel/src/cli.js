@@ -66,7 +66,6 @@ const commonOptions = {
     'specify which config to use. can be a path or a package name',
   '--cache-dir <path>': 'set the cache directory. defaults to ".parcel-cache"',
   '--no-source-maps': 'disable sourcemaps',
-  '--no-content-hash': 'disable content hashing',
   '--target [name]': [
     'only build given target(s)',
     (val, list) => list.concat([val]),
@@ -122,6 +121,10 @@ let serve = program
     'automatically open in specified browser, defaults to default browser',
   )
   .option('--watch-for-stdin', 'exit when stdin closes')
+  .option(
+    '--lazy',
+    'Build async bundles on demand, when requested in the browser',
+  )
   .action(runCommand);
 
 applyOptions(serve, hmrOptions);
@@ -131,6 +134,7 @@ let watch = program
   .command('watch [input...]')
   .description('starts the bundler in watch mode')
   .option('--public-url <url>', 'the path prefix for absolute urls')
+  .option('--no-content-hash', 'disable content hashing')
   .option('--watch-for-stdin', 'exit when stdin closes')
   .action(runCommand);
 
@@ -143,6 +147,7 @@ let build = program
   .option('--no-optimize', 'disable minification')
   .option('--no-scope-hoist', 'disable scope-hoisting')
   .option('--public-url <url>', 'the path prefix for absolute urls')
+  .option('--no-content-hash', 'disable content hashing')
   .action(runCommand);
 
 applyOptions(build, commonOptions);
@@ -424,12 +429,13 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
     cacheDir: command.cacheDir,
     mode,
     hmrOptions,
-    shouldContentHash: hmrOptions ? false : command.shouldContentHash,
+    shouldContentHash: hmrOptions ? false : command.contentHash,
     serveOptions,
     targets: command.target.length > 0 ? command.target : null,
     shouldAutoInstall: command.autoinstall ?? true,
     logLevel: command.logLevel,
     shouldProfile: command.profile,
+    shouldBuildLazily: command.lazy,
     detailedReport:
       command.detailedReport != null
         ? {

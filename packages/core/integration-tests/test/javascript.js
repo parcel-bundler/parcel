@@ -333,12 +333,9 @@ describe('javascript', function() {
         name: 'index.js',
         assets: [
           'index.js',
-          'bundle-manifest.js',
           'bundle-url.js',
-          'relative-path.js',
           'cacheLoader.js',
           'js-loader.js',
-          'JSRuntime.js',
           'JSRuntime.js',
         ],
       },
@@ -529,9 +526,6 @@ describe('javascript', function() {
           'JSRuntime.js',
           'JSRuntime.js',
           'JSRuntime.js',
-          'bundle-manifest.js',
-          'JSRuntime.js',
-          'relative-path.js',
         ],
       },
       {
@@ -567,10 +561,7 @@ describe('javascript', function() {
           'bundle-url.js',
           'JSRuntime.js',
           'JSRuntime.js',
-          'JSRuntime.js',
           'get-worker-url.js',
-          'bundle-manifest.js',
-          'relative-path.js',
         ],
       },
       {
@@ -617,9 +608,6 @@ describe('javascript', function() {
           'JSRuntime.js',
           'JSRuntime.js',
           'JSRuntime.js',
-          'bundle-manifest.js',
-          'JSRuntime.js',
-          'relative-path.js',
         ],
       },
       {
@@ -650,9 +638,6 @@ describe('javascript', function() {
             'bundle-url.js',
             'JSRuntime.js',
             'JSRuntime.js',
-            'bundle-manifest.js',
-            'JSRuntime.js',
-            'relative-path.js',
           ],
         },
         {
@@ -661,9 +646,6 @@ describe('javascript', function() {
             `index-${workerType}.js`,
             'bundle-url.js',
             'JSRuntime.js',
-            'bundle-manifest.js',
-            'JSRuntime.js',
-            'relative-path.js',
           ].concat(workerType === 'webworker' ? ['get-worker-url.js'] : []),
         },
         {
@@ -714,9 +696,6 @@ describe('javascript', function() {
           'bundle-url.js',
           'get-worker-url.js',
           'JSRuntime.js',
-          'bundle-manifest.js',
-          'JSRuntime.js',
-          'relative-path.js',
         ],
       },
       {assets: ['external.js', 'JSRuntime.js']},
@@ -759,9 +738,6 @@ describe('javascript', function() {
           'bundle-url.js',
           'JSRuntime.js',
           'JSRuntime.js',
-          'bundle-manifest.js',
-          'JSRuntime.js',
-          'relative-path.js',
         ],
       },
       {
@@ -784,14 +760,7 @@ describe('javascript', function() {
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: [
-          'index.js',
-          'bundle-url.js',
-          'JSRuntime.js',
-          'bundle-manifest.js',
-          'JSRuntime.js',
-          'relative-path.js',
-        ],
+        assets: ['index.js', 'bundle-url.js', 'JSRuntime.js'],
       },
       {
         assets: ['worker.js'],
@@ -856,9 +825,6 @@ describe('javascript', function() {
           'bundle-url.js',
           'JSRuntime.js',
           'get-worker-url.js',
-          'bundle-manifest.js',
-          'JSRuntime.js',
-          'relative-path.js',
         ],
       },
       {
@@ -880,9 +846,6 @@ describe('javascript', function() {
           'bundle-url.js',
           'JSRuntime.js',
           'get-worker-url.js',
-          'bundle-manifest.js',
-          'JSRuntime.js',
-          'relative-path.js',
         ],
       },
       {
@@ -1076,9 +1039,6 @@ describe('javascript', function() {
           'bundle-url.js',
           'get-worker-url.js',
           'JSRuntime.js',
-          'JSRuntime.js',
-          'bundle-manifest.js',
-          'relative-path.js',
           'lodash.js',
         ],
       },
@@ -1089,10 +1049,7 @@ describe('javascript', function() {
           'bundle-url.js',
           'esmodule-helpers.js',
           'get-worker-url.js',
-          'bundle-manifest.js',
-          'JSRuntime.js',
           'lodash.js',
-          'relative-path.js',
         ],
       },
       {
@@ -1176,9 +1133,6 @@ describe('javascript', function() {
           'cacheLoader.js',
           'js-loader.js',
           'JSRuntime.js',
-          'bundle-manifest.js',
-          'JSRuntime.js',
-          'relative-path.js',
         ],
       },
       {
@@ -1209,9 +1163,6 @@ describe('javascript', function() {
           'esmodule-helpers.js',
           'js-loader.js',
           'JSRuntime.js',
-          'bundle-manifest.js',
-          'JSRuntime.js',
-          'relative-path.js',
         ],
       },
       {
@@ -1245,9 +1196,6 @@ describe('javascript', function() {
           'js-loader.js',
           'JSRuntime.js',
           'JSRuntime.js',
-          'bundle-manifest.js',
-          'JSRuntime.js',
-          'relative-path.js',
         ],
       },
     ]);
@@ -1315,9 +1263,6 @@ describe('javascript', function() {
           'cacheLoader.js',
           'js-loader.js',
           'JSRuntime.js',
-          'bundle-manifest.js',
-          'JSRuntime.js',
-          'relative-path.js',
         ],
       },
       {
@@ -1348,9 +1293,6 @@ describe('javascript', function() {
           'cacheLoader.js',
           'js-loader.js',
           'JSRuntime.js',
-          'bundle-manifest.js',
-          'JSRuntime.js',
-          'relative-path.js',
         ],
       },
       {
@@ -1363,9 +1305,6 @@ describe('javascript', function() {
           'esmodule-helpers.js',
           'js-loader.js',
           'JSRuntime.js',
-          'bundle-manifest.js',
-          'JSRuntime.js',
-          'relative-path.js',
         ],
       },
     ]);
@@ -1389,9 +1328,6 @@ describe('javascript', function() {
           'js-loader.js',
           'JSRuntime.js',
           'JSRuntime.js',
-          'bundle-manifest.js',
-          'JSRuntime.js',
-          'relative-path.js',
           'esmodule-helpers.js',
         ],
       },
@@ -1429,9 +1365,6 @@ describe('javascript', function() {
           'js-loader.js',
           'JSRuntime.js',
           'JSRuntime.js',
-          'bundle-manifest.js',
-          'JSRuntime.js',
-          'relative-path.js',
         ],
       },
       {
@@ -1487,14 +1420,7 @@ describe('javascript', function() {
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: [
-          'index.js',
-          'bundle-url.js',
-          'JSRuntime.js',
-          'bundle-manifest.js',
-          'JSRuntime.js',
-          'relative-path.js',
-        ],
+        assets: ['index.js', 'bundle-url.js', 'JSRuntime.js'],
       },
       {
         type: 'txt',
@@ -1524,9 +1450,6 @@ describe('javascript', function() {
           'bundle-url.js',
           'esmodule-helpers.js',
           'JSRuntime.js',
-          'bundle-manifest.js',
-          'JSRuntime.js',
-          'relative-path.js',
         ],
       },
       {
@@ -1627,14 +1550,7 @@ describe('javascript', function() {
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: [
-          'index.js',
-          'JSRuntime.js',
-          'bundle-url.js',
-          'bundle-manifest.js',
-          'JSRuntime.js',
-          'relative-path.js',
-        ],
+        assets: ['index.js', 'JSRuntime.js', 'bundle-url.js'],
       },
       {
         type: 'txt',
@@ -2773,9 +2689,6 @@ describe('javascript', function() {
           'cacheLoader.js',
           'esmodule-helpers.js',
           'js-loader.js',
-          'bundle-manifest.js',
-          'JSRuntime.js',
-          'relative-path.js',
         ],
       },
       {
@@ -2905,9 +2818,6 @@ describe('javascript', function() {
           'cacheLoader.js',
           'js-loader.js',
           'JSRuntime.js',
-          'bundle-manifest.js',
-          'JSRuntime.js',
-          'relative-path.js',
         ],
       },
       {
@@ -2932,9 +2842,6 @@ describe('javascript', function() {
           'cacheLoader.js',
           'js-loader.js',
           'JSRuntime.js',
-          'bundle-manifest.js',
-          'JSRuntime.js',
-          'relative-path.js',
         ],
       },
       {
@@ -2963,9 +2870,6 @@ describe('javascript', function() {
           'cacheLoader.js',
           'js-loader.js',
           'JSRuntime.js',
-          'bundle-manifest.js',
-          'JSRuntime.js',
-          'relative-path.js',
         ],
       },
       {
@@ -2990,9 +2894,6 @@ describe('javascript', function() {
         name: 'rollup.js',
         assets: [
           'rollup.js',
-          'bundle-manifest.js',
-          'JSRuntime.js',
-          'relative-path.js',
           'bundle-url.js',
           'cacheLoader.js',
           'js-loader.js',
@@ -3017,13 +2918,10 @@ describe('javascript', function() {
         name: 'parcel.js',
         assets: [
           'parcel.js',
-          'bundle-manifest.js',
           'bundle-url.js',
           'cacheLoader.js',
           'js-loader.js',
           'JSRuntime.js',
-          'JSRuntime.js',
-          'relative-path.js',
         ],
       },
       {
@@ -3039,6 +2937,11 @@ describe('javascript', function() {
     let _bundle = () =>
       bundle(path.join(fixtureDir, 'index.js'), {
         inputFS: overlayFS,
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: false,
+          shouldOptimize: false,
+        },
       });
 
     let first = await _bundle();
@@ -3253,13 +3156,10 @@ describe('javascript', function() {
         name: 'index.js',
         assets: [
           'index.js',
-          'bundle-manifest.js',
           'bundle-url.js',
           'cacheLoader.js',
           'js-loader.js',
           'JSRuntime.js',
-          'JSRuntime.js',
-          'relative-path.js',
           'esmodule-helpers.js',
         ],
       },
@@ -3280,14 +3180,11 @@ describe('javascript', function() {
         name: 'index.js',
         assets: [
           'index.js',
-          'bundle-manifest.js',
           'bundle-url.js',
           'cacheLoader.js',
           'js-loader.js',
           'JSRuntime.js',
           'JSRuntime.js',
-          'JSRuntime.js',
-          'relative-path.js',
           'esmodule-helpers.js',
         ],
       },
@@ -3355,13 +3252,10 @@ describe('javascript', function() {
         name: 'index.js',
         assets: [
           'index.js',
-          'bundle-manifest.js',
           'bundle-url.js',
           'cacheLoader.js',
           'js-loader.js',
           'JSRuntime.js',
-          'JSRuntime.js',
-          'relative-path.js',
           'esmodule-helpers.js',
         ],
       },
@@ -3369,13 +3263,10 @@ describe('javascript', function() {
         name: 'other-entry.js',
         assets: [
           'other-entry.js',
-          'bundle-manifest.js',
           'bundle-url.js',
           'cacheLoader.js',
           'js-loader.js',
           'JSRuntime.js',
-          'JSRuntime.js',
-          'relative-path.js',
         ],
       },
       {assets: ['a.js', 'value.js', 'esmodule-helpers.js']},

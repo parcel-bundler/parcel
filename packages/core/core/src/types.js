@@ -183,6 +183,7 @@ export type ParcelOptions = {|
   hmrOptions: ?HMROptions,
   shouldContentHash: boolean,
   serveOptions: ServerOptions | false,
+  shouldBuildLazily: boolean,
   shouldAutoInstall: boolean,
   logLevel: LogLevel,
   projectRoot: FilePath,
@@ -231,6 +232,7 @@ export type AssetNode = {|
   hasDeferred?: boolean,
   usedSymbolsDownDirty: boolean,
   usedSymbolsUpDirty: boolean,
+  requested?: boolean,
 |};
 
 export type DependencyNode = {|
@@ -409,6 +411,7 @@ export type Bundle = {|
   isEntry: ?boolean,
   isInline: ?boolean,
   isSplittable: ?boolean,
+  isPlaceholder?: boolean,
   target: Target,
   filePath: ?FilePath,
   name: ?string,
