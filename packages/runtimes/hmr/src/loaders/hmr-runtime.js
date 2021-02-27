@@ -20,12 +20,12 @@ interface ParcelRequire {
 interface ParcelModule {
   hot: {|
     data: mixed,
-    _acceptCallbacks: Array<(Function) => void>,
-    _disposeCallbacks: Array<(mixed) => void>,
-    accept(deps: Array<string> | string, cb: (Function) => void): void,
     accept(cb: (Function) => void): void,
     dispose(cb: (mixed) => void): void,
-    decline(): void,
+    // accept(deps: Array<string> | string, cb: (Function) => void): void,
+    // decline(): void,
+    _acceptCallbacks: Array<(Function) => void>,
+    _disposeCallbacks: Array<(mixed) => void>,
   |};
 }
 declare var module: {bundle: ParcelRequire, ...};
@@ -52,8 +52,7 @@ function Module(moduleName) {
       this._disposeCallbacks.push(fn);
     },
   };
-
-  module.bundle.hotData = null;
+  module.bundle.hotData = undefined;
 }
 module.bundle.Module = Module;
 
