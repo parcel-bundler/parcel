@@ -243,7 +243,10 @@ export default class BundleGraph {
 
       if (node.type === 'dependency') {
         for (let bundleGroupNode of this._graph
-          .getNodesConnectedFrom(node)
+          .getNodeIdsConnectedFrom(
+            this._graph.getNodeIdByContentKey(node.value.id),
+          )
+          .map(id => nullthrows(this._graph.getNode(id)))
           .filter(node => node.type === 'bundle_group')) {
           invariant(bundleGroupNode.type === 'bundle_group');
           this._graph.addEdge(
@@ -1468,9 +1471,12 @@ export default class BundleGraph {
   }
 
   merge(other: BundleGraph) {
-    for (let [, node] of other._graph.nodes) {
-      let existingNode = this._graph.getNode(node.id);
-      if (existingNode != null) {
+    let oldIdToNewId = new Map<NodeId, NodeId>();
+    for (let [nodeId, node] of other._graph.nodes) {
+      let existingNodeId = this._graph.getMaybeNodeIdByContentKey(node.id);
+      if (existingNodeId != null) {
+        oldIdToNewId.set(nodeId, existingNodeId);
+        let existingNode = nullthrows(this._graph.getNode(existingNodeId));
         // Merge symbols, recompute dep.exluded based on that
         if (existingNode.type === 'asset') {
           invariant(node.type === 'asset');
@@ -1494,12 +1500,17 @@ export default class BundleGraph {
             (node.excluded || Boolean(node.hasDeferred));
         }
       } else {
-        this._graph.addNode(node);
+        let newId = this._graph.addNodeByContentKey(node.id, node);
+        oldIdToNewId.set(nodeId, newId);
       }
     }
 
     for (let edge of other._graph.getAllEdges()) {
-      this._graph.addEdge(edge.from, edge.to, edge.type);
+      this._graph.addEdge(
+        nullthrows(oldIdToNewId.get(edge.from)),
+        nullthrows(oldIdToNewId.get(edge.to)),
+        edge.type,
+      );
     }
   }
 

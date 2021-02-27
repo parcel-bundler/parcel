@@ -129,14 +129,24 @@ export default async function applyRuntimes({
         bundle,
       );
     let duplicatedAssetIds: Set<NodeId> = new Set();
+    let runtimeGraphRuntimeNodeId = runtimesGraph._graph.getNodeIdByContentKey(
+      runtimeNode.id,
+    );
+    let bundleNodeId = bundleGraph._graph.getNodeIdByContentKey(bundle.id);
+    let bundleGraphRuntimeNodeId = bundleGraph._graph.getNodeIdByContentKey(
+      runtimeNode.id,
+    );
     runtimesGraph._graph.traverse((node, _, actions) => {
       if (node.type !== 'dependency') {
         return;
       }
 
       let assets = runtimesGraph._graph
-        .getNodesConnectedFrom(node)
-        .map(assetNode => {
+        .getNodeIdsConnectedFrom(
+          runtimesGraph._graph.getNodeIdByContentKey(node.id),
+        )
+        .map(assetNodeId => {
+          let assetNode = nullthrows(runtimesGraph._graph.getNode(assetNodeId));
           invariant(assetNode.type === 'asset');
           return assetNode.value;
         });
@@ -150,7 +160,7 @@ export default async function applyRuntimes({
           actions.skipChildren();
         }
       }
-    }, runtimeNode);
+    }, runtimeGraphRuntimeNodeId);
 
     runtimesGraph._graph.traverse((node, _, actions) => {
       if (node.type === 'asset' || node.type === 'dependency') {
@@ -159,26 +169,31 @@ export default async function applyRuntimes({
           return;
         }
 
-        bundleGraph._graph.addEdge(bundle.id, node.id, 'contains');
+        bundleGraph._graph.addEdge(
+          bundleNodeId,
+          bundleGraph._graph.getNodeIdByContentKey(node.id),
+          'contains',
+        );
       }
-    }, runtimeNode);
+    }, runtimeGraphRuntimeNodeId);
 
     if (isEntry) {
-      bundleGraph._graph.addEdge(
-        nullthrows(bundleGraph._graph.getNode(bundle.id)).id,
-        runtimeNode.id,
-      );
-      bundle.entryAssetIds.unshift(runtimeNode.id);
+      bundleGraph._graph.addEdge(bundleNodeId, bundleGraphRuntimeNodeId);
+      bundle.entryAssetIds.unshift(runtimeNode.value.id);
     }
 
     if (dependency == null) {
       // Verify this asset won't become an island
       assert(
-        bundleGraph._graph.getNodesConnectedTo(runtimeNode).length > 0,
+        bundleGraph._graph.getNodeIdsConnectedTo(bundleGraphRuntimeNodeId)
+          .length > 0,
         'Runtime must have an inbound dependency or be an entry',
       );
     } else {
-      bundleGraph._graph.addEdge(dependency.id, runtimeNode.id);
+      bundleGraph._graph.addEdge(
+        bundleGraph._graph.getNodeIdByContentKey(dependency.id),
+        bundleGraphRuntimeNodeId,
+      );
     }
   }
 }

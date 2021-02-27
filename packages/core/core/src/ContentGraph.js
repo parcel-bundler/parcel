@@ -67,4 +67,8 @@ export default class ContentGraph<
       'Expected content key to exist',
     );
   }
+
+  getMaybeNodeIdByContentKey(contentKey: string): ?NodeId {
+    return this._contentKeyToNodeId.get(contentKey);
+  }
 }
