@@ -123,14 +123,8 @@ export default class PackagerRunner {
       if (bundle.isPlaceholder) {
         let hash = bundle.id.slice(-8);
         hashRefToNameHash.set(bundle.hashReference, hash);
-        bundle.filePath = nullthrows(bundle.filePath).replace(
-          bundle.hashReference,
-          hash,
-        );
-        bundle.name = nullthrows(bundle.name).replace(
-          bundle.hashReference,
-          hash,
-        );
+        let name = nullthrows(bundle.name).replace(bundle.hashReference, hash);
+        bundle.filePath = path.join(bundle.target.distDir, name);
         return false;
       }
 
