@@ -48,7 +48,6 @@ export default (new Bundler({
     // Step 1: create bundles for each of the explicit code split points.
     bundleGraph.traverse({
       enter: (node, context, actions) => {
-        console.log('node type ', node.type);
         if (node.type !== 'dependency') {
           return {
             ...context,

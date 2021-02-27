@@ -364,21 +364,9 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
     return true;
   }
 
-  replaceNode(
-    fromNode: TNode,
-    toNode: TNode,
-    type: TEdgeType | null = null,
-  ): void {
-    assertHasNode(this, fromNode);
-
-    this.addNode(toNode);
-
-    for (let parent of this.inboundEdges.getEdges(fromNode.id, type)) {
-      this.addEdge(parent, toNode.id, type);
-      this.removeEdge(parent, fromNode.id, type);
-    }
-
-    this.removeNode(fromNode);
+  replaceNode(nodeId: NodeId, value: TNode): void {
+    this._assertHasNodeId(nodeId);
+    this.nodes.set(nodeId, value);
   }
 
   // Update a node's downstream nodes making sure to prune any orphaned branches

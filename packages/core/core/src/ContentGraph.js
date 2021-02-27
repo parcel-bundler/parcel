@@ -46,9 +46,9 @@ export default class ContentGraph<
 
   addNodeByContentKey(contentKey: string, node: TNode): NodeId {
     let nodeId = super.addNode2(node);
-    let fromNode = this.getNodeByContentKey(contentKey);
-    if (fromNode != null) {
-      super.replaceNode(fromNode, node);
+    let fromNodeId = this.getMaybeNodeIdByContentKey(contentKey);
+    if (fromNodeId != null) {
+      super.replaceNode(fromNodeId, node);
     }
     this._contentKeyToNodeId.set(contentKey, nodeId);
     return nodeId;
