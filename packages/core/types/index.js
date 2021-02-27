@@ -598,6 +598,11 @@ export interface Asset extends BaseAsset {
 export type DevDepOptions = {|
   moduleSpecifier: ModuleSpecifier,
   resolveFrom: FilePath,
+  /**
+   * Whether to also invalidate the parcel plugin that loaded this dev dependency
+   * when it changes. This is useful if the parcel plugin or another parent dependency
+   * has its own cache for this dev dependency other than Node's require cache.
+   */
   invalidateParcelPlugin?: boolean,
 |};
 
