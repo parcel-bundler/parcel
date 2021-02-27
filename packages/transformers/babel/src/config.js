@@ -111,16 +111,16 @@ export async function load(
       warnOldVersion();
 
       if (typeof partialConfig.babelrcPath === 'string') {
-        await addIncludedFile(partialConfig.babelrcPath);
+        addIncludedFile(partialConfig.babelrcPath);
       }
 
       if (typeof partialConfig.configPath === 'string') {
-        await addIncludedFile(partialConfig.configPath);
+        addIncludedFile(partialConfig.configPath);
       }
     }
   } else {
     for (let file of partialConfig.files) {
-      await addIncludedFile(file);
+      addIncludedFile(file);
     }
   }
 
