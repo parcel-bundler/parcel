@@ -85,7 +85,7 @@ export default (new Packager({
       // Free up memory
       traverse.cache.clear();
 
-      let {contents, map} = generate({
+      let {contents, map} = await generate({
         bundle,
         ast,
         options,
