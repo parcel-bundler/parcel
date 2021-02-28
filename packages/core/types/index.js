@@ -23,6 +23,8 @@ export type EnvMap = typeof process.env;
 
 export type QueryParameters = {[key: string]: string, ...};
 
+export type SourcesContentDictionary = {[sourceName: string]: string, ...};
+
 export type JSONValue =
   | null
   | void // ? Is this okay?

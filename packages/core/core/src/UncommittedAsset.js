@@ -10,6 +10,7 @@ import type {
   PackageJSON,
   PackageName,
   TransformerResult,
+  SourcesContentDictionary,
 } from '@parcel/types';
 import type {
   Asset,
@@ -46,6 +47,7 @@ type UncommittedAssetOptions = {|
   options: ParcelOptions,
   content?: ?Blob,
   mapBuffer?: ?Buffer,
+  sourcesContent?: ?SourcesContentDictionary,
   ast?: ?AST,
   isASTDirty?: ?boolean,
   idBase?: ?string,
@@ -58,6 +60,7 @@ export default class UncommittedAsset {
   options: ParcelOptions;
   content: ?(Blob | Promise<Buffer>);
   mapBuffer: ?Buffer;
+  sourcesContent: ?SourcesContentDictionary;
   map: ?SourceMap;
   ast: ?AST;
   isASTDirty: boolean;
@@ -75,11 +78,13 @@ export default class UncommittedAsset {
     idBase,
     invalidations,
     fileCreateInvalidations,
+    sourcesContent,
   }: UncommittedAssetOptions) {
     this.value = value;
     this.options = options;
     this.content = content;
     this.mapBuffer = mapBuffer;
+    this.sourcesContent = sourcesContent;
     this.ast = ast;
     this.isASTDirty = isASTDirty || false;
     this.idBase = idBase;
@@ -96,6 +101,7 @@ export default class UncommittedAsset {
     // must be regenerated later and shouldn't be committed.
     if (this.ast != null && this.isASTDirty) {
       this.content = null;
+      this.sourcesContent = await this.extractSourcesContentFromMap();
       this.mapBuffer = null;
     }
 
@@ -106,6 +112,10 @@ export default class UncommittedAsset {
       this.mapBuffer == null ? null : this.getCacheKey('map' + pipelineKey);
     let astKey =
       this.ast == null ? null : this.getCacheKey('ast' + pipelineKey);
+    let sourcesContentKey =
+      this.sourcesContent == null
+        ? null
+        : this.getCacheKey('sources-content' + pipelineKey);
 
     // Since we can only read from the stream once, compute the content length
     // and hash while it's being written to the cache.
@@ -121,10 +131,17 @@ export default class UncommittedAsset {
           // $FlowFixMe
           v8.serialize(this.ast),
         ),
+      sourcesContentKey != null &&
+        this.options.cache.setBlob(
+          sourcesContentKey,
+          // $FlowFixMe
+          JSON.stringify(this.sourcesContent),
+        ),
     ]);
     this.value.contentKey = contentKey;
     this.value.mapKey = mapKey;
     this.value.astKey = astKey;
+    this.value.sourcesContentKey = sourcesContentKey;
     this.value.outputHash = md5FromString(
       [
         this.value.hash,
@@ -168,6 +185,35 @@ export default class UncommittedAsset {
 
     await this.options.cache.setBlob(contentKey, content);
     return size;
+  }
+
+  async extractSourcesContentFromMap(): Promise<?SourcesContentDictionary> {
+    let map = await this.getMap();
+    if (!map) {
+      return null;
+    }
+
+    // TODO: Move a lot of this logic to the source-map library
+    let vlqMap = map.getMap();
+    let sources = vlqMap.sources;
+    let sourcesContent = vlqMap.sourcesContent;
+    let result = {};
+    for (let i = 0; i < sources.length; i++) {
+      let sourceContent = sourcesContent[i];
+      // $FlowFixMe we really don't care about empty strings...
+      if (sourceContent) {
+        let source = sources[i];
+        if (source) {
+          result[source] = sourceContent;
+        }
+      }
+    }
+
+    if (Object.keys(result).length > 0) {
+      return result;
+    } else {
+      return null;
+    }
   }
 
   async getCode(): Promise<string> {

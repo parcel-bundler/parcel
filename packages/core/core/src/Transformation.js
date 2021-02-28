@@ -140,7 +140,7 @@ export default class Transformation {
     let asset = await this.loadAsset();
 
     // Load existing sourcemaps
-    if (SOURCEMAP_EXTENSIONS.has(asset.value.type)) {
+    if (!asset.mapBuffer && SOURCEMAP_EXTENSIONS.has(asset.value.type)) {
       try {
         await asset.loadExistingSourcemap();
       } catch (err) {
@@ -212,6 +212,7 @@ export default class Transformation {
       isSource: isSourceOverride,
       sideEffects,
       query,
+      mapBuffer,
     } = this.request;
     let {
       content,
@@ -248,6 +249,7 @@ export default class Transformation {
         },
         sideEffects,
       }),
+      mapBuffer,
       options: this.options,
       content,
       invalidations: this.invalidations,

@@ -80,9 +80,12 @@ export default async function applyRuntimes({
               sourceContent: code,
             });
 
+            // This shouldn't be necessary probably a bug in the sourcemap library?
+            sourcemap.setSourceContent(sourceName, code);
+
             let assetGroup = {
               code,
-              map: sourcemap,
+              mapBuffer: sourcemap.toBuffer(),
               filePath,
               env: bundle.env,
               // Runtime assets should be considered source, as they should be
