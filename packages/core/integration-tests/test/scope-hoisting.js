@@ -1,7 +1,7 @@
 import assert from 'assert';
 import path from 'path';
 import nullthrows from 'nullthrows';
-import {escapeMarkdown} from '@parcel/utils';
+import {md} from '@parcel/diagnostic';
 import {
   assertBundles,
   assertDependencyWasDeferred,
@@ -436,11 +436,9 @@ describe('scope hoisting', function() {
       let source = path.normalize(
         'integration/scope-hoisting/es6/re-export-exclude-default/a.js',
       );
-      let message = escapeMarkdown(
-        `${path.normalize(
-          'integration/scope-hoisting/es6/re-export-exclude-default/b.js',
-        )} does not export 'default'`,
-      );
+      let message = md`${path.normalize(
+        'integration/scope-hoisting/es6/re-export-exclude-default/b.js',
+      )} does not export 'default'`;
       await assert.rejects(() => bundle(path.join(__dirname, source)), {
         name: 'BuildError',
         message,
@@ -473,8 +471,8 @@ describe('scope hoisting', function() {
       let source = path.normalize(
         'integration/scope-hoisting/es6/re-export-missing/a.js',
       );
-      let message = `${escapeMarkdown(
-        path.normalize('integration/scope-hoisting/es6/re-export-missing/c.js'),
+      let message = md`${path.normalize(
+        'integration/scope-hoisting/es6/re-export-missing/c.js',
       )} does not export 'foo'`;
       await assert.rejects(() => bundle(path.join(__dirname, source)), {
         name: 'BuildError',
@@ -1463,7 +1461,7 @@ describe('scope hoisting', function() {
 
       it('throws an error for missing exports for dynamic import: destructured await assignment', async function() {
         let source = 'await-assignment-error.js';
-        let message = escapeMarkdown(`async.js does not export 'missing'`);
+        let message = `async.js does not export 'missing'`;
         await assert.rejects(
           () =>
             bundle(
@@ -1504,7 +1502,7 @@ describe('scope hoisting', function() {
 
       it('throws an error for missing exports for dynamic import: destructured await declaration', async function() {
         let source = 'await-declaration-error.js';
-        let message = escapeMarkdown(`async.js does not export 'missing'`);
+        let message = `async.js does not export 'missing'`;
         await assert.rejects(
           () =>
             bundle(
@@ -1545,7 +1543,7 @@ describe('scope hoisting', function() {
 
       it('throws an error for missing exports for dynamic import: namespace await declaration', async function() {
         let source = 'await-declaration-namespace-error.js';
-        let message = escapeMarkdown(`async.js does not export 'missing'`);
+        let message = `async.js does not export 'missing'`;
         await assert.rejects(
           () =>
             bundle(
@@ -1586,7 +1584,7 @@ describe('scope hoisting', function() {
 
       it('throws an error for missing exports for dynamic import: destructured then', async function() {
         let source = 'then-error.js';
-        let message = escapeMarkdown(`async.js does not export 'missing'`);
+        let message = `async.js does not export 'missing'`;
         await assert.rejects(
           () =>
             bundle(
@@ -1627,7 +1625,7 @@ describe('scope hoisting', function() {
 
       it('throws an error for missing exports for dynamic import: namespace then', async function() {
         let source = 'then-namespace-error.js';
-        let message = escapeMarkdown(`async.js does not export 'missing'`);
+        let message = `async.js does not export 'missing'`;
         await assert.rejects(
           () =>
             bundle(
@@ -3182,11 +3180,9 @@ describe('scope hoisting', function() {
       let source = path.normalize(
         'integration/scope-hoisting/es6/unused-import-specifier/a.js',
       );
-      let message = escapeMarkdown(
-        `${path.normalize(
-          'integration/scope-hoisting/es6/unused-import-specifier/b.js',
-        )} does not export 'unused'`,
-      );
+      let message = md`${path.normalize(
+        'integration/scope-hoisting/es6/unused-import-specifier/b.js',
+      )} does not export 'unused'`;
       await assert.rejects(() => bundle(path.join(__dirname, source)), {
         name: 'BuildError',
         message,
@@ -3832,15 +3828,7 @@ describe('scope hoisting', function() {
       assertBundles(b, [
         {
           type: 'js',
-          assets: [
-            'a.js',
-            'b.js',
-            'bundle-manifest.js',
-            'bundle-url.js',
-            'JSRuntime.js',
-            'JSRuntime.js',
-            'relative-path.js',
-          ],
+          assets: ['a.js', 'b.js', 'bundle-url.js', 'JSRuntime.js'],
         },
         {
           type: 'txt',
@@ -3883,7 +3871,7 @@ describe('scope hoisting', function() {
 
     it("doesn't support require.resolve calls for included assets", async function() {
       let message =
-        "`require.resolve` calls for bundled modules or bundled assets aren't supported with scope hoisting";
+        "'require.resolve' calls for bundled modules or bundled assets aren't supported with scope hoisting";
       let source = path.join(
         __dirname,
         '/integration/scope-hoisting/commonjs/require-resolve/a.js',
@@ -4538,9 +4526,6 @@ describe('scope hoisting', function() {
           'index.js',
           'js-loader.js',
           'JSRuntime.js',
-          'bundle-manifest.js',
-          'JSRuntime.js',
-          'relative-path.js',
         ],
       },
       {
@@ -4905,14 +4890,11 @@ describe('scope hoisting', function() {
         name: 'scope-hoisting.js',
         assets: [
           'scope-hoisting.js',
-          'bundle-manifest.js',
           'bundle-url.js',
           'cacheLoader.js',
           'js-loader.js',
           'JSRuntime.js',
           'JSRuntime.js',
-          'JSRuntime.js',
-          'relative-path.js',
         ],
       },
       {assets: ['value.js']},
@@ -4938,26 +4920,20 @@ describe('scope hoisting', function() {
         name: 'scope-hoisting.js',
         assets: [
           'scope-hoisting.js',
-          'bundle-manifest.js',
           'bundle-url.js',
           'cacheLoader.js',
           'js-loader.js',
           'JSRuntime.js',
-          'JSRuntime.js',
-          'relative-path.js',
         ],
       },
       {
         name: 'other-entry.js',
         assets: [
           'other-entry.js',
-          'bundle-manifest.js',
           'bundle-url.js',
           'cacheLoader.js',
           'js-loader.js',
           'JSRuntime.js',
-          'JSRuntime.js',
-          'relative-path.js',
         ],
       },
       {assets: ['a.js', 'value.js']},
