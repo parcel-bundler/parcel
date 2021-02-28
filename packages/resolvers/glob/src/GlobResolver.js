@@ -1,0 +1,105 @@
+// @flow
+import {Resolver} from '@parcel/plugin';
+import {isGlob, glob, relativePath} from '@parcel/utils';
+import micromatch from 'micromatch';
+import path from 'path';
+import nullthrows from 'nullthrows';
+import ThrowableDiagnostic from '@parcel/diagnostic';
+
+export default (new Resolver({
+  async resolve({dependency, options, filePath}) {
+    if (!isGlob(filePath)) {
+      return;
+    }
+
+    let sourceAssetType = nullthrows(dependency.sourceAssetType);
+    let sourceFile = nullthrows(dependency.resolveFrom ?? dependency.sourcePath);
+    filePath = path.resolve(path.dirname(sourceFile), filePath);
+    let files = await glob(path.resolve(path.dirname(sourceFile), filePath), options.inputFS, {
+      onlyFiles: true
+    });
+
+    let re = micromatch.makeRe(filePath, {capture: true});
+    let matches = {};
+    let code = '';
+
+    for (let file of files) {
+      let match = file.match(re);
+      if (!match) continue;
+      let relative = relativePath(path.dirname(filePath), file);
+      if (sourceAssetType === 'js') {
+        let parts = match
+          .slice(1)
+          .filter(Boolean)
+          .reduce((a, p) => a.concat(p.split('/')), []);
+        set(matches, parts, relative);
+      } else if (sourceAssetType === 'css') {
+        code += `@import "${relative}";\n`;
+      } else {
+        throw new ThrowableDiagnostic({
+          diagnostic: {
+            message: `Glob imports are not supported in ${sourceAssetType} files.`,
+            filePath: sourceFile,
+            codeFrame: {
+              code: await options.inputFS.readFile(
+                sourceFile,
+                'utf8',
+              ),
+              codeHighlights: dependency.loc
+                ? [{start: dependency.loc.start, end: dependency.loc.end}]
+                : [],
+            }
+          }
+        })
+      }
+    }
+
+    if (sourceAssetType === 'js') {
+      code = 'module.exports = ' + generate(matches);
+    }
+
+    return {
+      filePath: path.join(path.dirname(filePath), path.basename(filePath, path.extname(filePath)) + '.' + sourceAssetType),
+      code,
+      invalidateOnFileCreate: [{glob: filePath}]
+    };
+  },
+}): Resolver);
+
+function set(obj, path, value) {
+  for (let i = 0; i < path.length - 1; i++) {
+    let part = path[i];
+
+    if (obj[part] == null) {
+      obj[part] = {};
+    }
+
+    obj = obj[part];
+  }
+
+  obj[path[path.length - 1]] = value;
+}
+
+function generate(matches, indent = '') {
+  if (typeof matches === 'string') {
+    return `require(${JSON.stringify(matches)})`;
+  }
+
+  let res = indent + '{';
+
+  let first = true;
+  for (let key in matches) {
+    if (!first) {
+      res += ',';
+    }
+
+    res += `\n${indent}  ${JSON.stringify(key)}: ${generate(
+      matches[key],
+      indent + '  '
+    )}`;
+    first = false;
+  }
+
+  res += '\n' + indent + '}';
+  return res;
+}

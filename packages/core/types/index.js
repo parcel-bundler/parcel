@@ -474,6 +474,8 @@ export interface Dependency {
   +sourceAssetId: ?string;
   /** Used for error messages, the importer. */
   +sourcePath: ?string;
+  /** The type of the asset that referenced this dependency. */
+  +sourceAssetType: ?string;
   +resolveFrom: ?string;
   /** a named pipeline (if the <code>moduleSpecifier</code> didn't specify one). */
   +pipeline: ?string;

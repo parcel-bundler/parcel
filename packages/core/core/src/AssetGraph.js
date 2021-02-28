@@ -433,6 +433,7 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
         depNode.complete = true;
         depNodesWithAssets.push([depNode, nodeFromAsset(dependentAsset)]);
       }
+      depNode.value.sourceAssetType = assetNode.value.type;
       depNodes.push(depNode);
     }
     assetNode.usedSymbolsDownDirty = true;

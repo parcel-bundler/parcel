@@ -1,20 +1,19 @@
+// @flow
 import assert from 'assert';
 import path from 'path';
-import {bundle, run, assertBundleTree, outputFS} from '@parcel/test-utils';
+import {bundle, run, assertBundles, outputFS} from '@parcel/test-utils';
+import nullthrows from 'nullthrows';
 
-describe.skip('glob', function() {
+describe('glob', function() {
   it('should require a glob of files', async function() {
     let b = await bundle(path.join(__dirname, '/integration/glob/index.js'));
 
-    await assertBundleTree(b, {
-      name: 'index.js',
-      assets: ['index.js', '*.js', 'a.js', 'b.js'],
-      childBundles: [
-        {
-          type: 'map',
-        },
-      ],
-    });
+    await assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js', '*.js', 'a.js', 'b.js'],
+      }
+    ]);
 
     let output = await run(b);
     assert.equal(typeof output, 'function');
@@ -26,15 +25,12 @@ describe.skip('glob', function() {
       path.join(__dirname, '/integration/glob-deep/index.js'),
     );
 
-    await assertBundleTree(b, {
-      name: 'index.js',
-      assets: ['index.js', '*.js', 'a.js', 'b.js', 'c.js', 'z.js'],
-      childBundles: [
-        {
-          type: 'map',
-        },
-      ],
-    });
+    await assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js', '*.js', 'a.js', 'b.js', 'c.js', 'z.js'],
+      }
+    ]);
 
     let output = await run(b);
     assert.equal(typeof output, 'function');
@@ -46,31 +42,23 @@ describe.skip('glob', function() {
       path.join(__dirname, '/integration/glob-css/index.js'),
     );
 
-    await assertBundleTree(b, {
-      name: 'index.js',
-      assets: ['index.js', 'index.css', '*.css', 'other.css', 'local.css'],
-      childBundles: [
-        {
-          name: 'index.css',
-          assets: ['index.css', 'other.css', 'local.css'],
-          childBundles: [
-            {
-              type: 'map',
-            },
-          ],
-        },
-        {
-          type: 'map',
-        },
-      ],
-    });
+    await assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js'],
+      },
+      {
+        name: 'index.css',
+        assets: ['*.css', 'index.css', 'other.css', 'local.css'],
+      },
+    ]);
 
     let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.equal(output(), 2);
 
     let css = await outputFS.readFile(
-      path.join(__dirname, '/dist/index.css'),
+      nullthrows(b.getBundles().find(b => b.type === 'css')).filePath,
       'utf8',
     );
     assert(css.includes('.local'));
