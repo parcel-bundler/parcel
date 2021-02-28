@@ -103,7 +103,7 @@ impl<'a> Fold for GlobalReplacer<'a> {
               create_decl_stmt(
                 id.sym.clone(),
                 self.global_mark,
-                ast::Expr::Lit(ast::Lit::Str(ast::Str { span: DUMMY_SP, value: swc_atoms::JsWord::from(self.filename), has_escape: false }))
+                ast::Expr::Lit(ast::Lit::Str(ast::Str { span: DUMMY_SP, value: swc_atoms::JsWord::from(self.filename), has_escape: false, kind: ast::StrKind::Synthesized }))
               )
             );
           },
@@ -113,7 +113,7 @@ impl<'a> Fold for GlobalReplacer<'a> {
               create_decl_stmt(
                 id.sym.clone(),
                 self.global_mark,
-                ast::Expr::Lit(ast::Lit::Str(ast::Str { span: DUMMY_SP, value: swc_atoms::JsWord::from(Path::new(self.filename).parent().unwrap().to_str().unwrap()), has_escape: false }))
+                ast::Expr::Lit(ast::Lit::Str(ast::Str { span: DUMMY_SP, value: swc_atoms::JsWord::from(Path::new(self.filename).parent().unwrap().to_str().unwrap()), has_escape: false, kind: ast::StrKind::Synthesized }))
               )
             );
           },
@@ -160,7 +160,7 @@ fn create_decl_stmt(name: swc_atoms::JsWord, global_mark: swc_common::Mark, init
         span: DUMMY_SP,
         decls: vec![
           ast::VarDeclarator {
-            name: ast::Pat::Ident(ast::Ident::new(name, DUMMY_SP.apply_mark(global_mark))),
+            name: ast::Pat::Ident(ast::BindingIdent::from(ast::Ident::new(name, DUMMY_SP.apply_mark(global_mark)))),
             span: DUMMY_SP,
             definite: false,
             init: Some(Box::new(init))

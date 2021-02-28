@@ -466,7 +466,7 @@ fn build_promise_chain(node: ast::CallExpr, require_node: ast::CallExpr) -> ast:
         ast::Expr::Fn(f) => {
           let mut f = f.clone();
           f.function.params.insert(0, ast::Param {
-            pat: ast::Pat::Ident(ast::Ident::new("res".into(), DUMMY_SP)),
+            pat: ast::Pat::Ident(ast::BindingIdent::from(ast::Ident::new("res".into(), DUMMY_SP))),
             decorators: vec![],
             span: DUMMY_SP
           });
@@ -474,7 +474,7 @@ fn build_promise_chain(node: ast::CallExpr, require_node: ast::CallExpr) -> ast:
         },
         ast::Expr::Arrow(f) => {
           let mut f = f.clone();
-          f.params.insert(0, ast::Pat::Ident(ast::Ident::new("res".into(), DUMMY_SP)));
+          f.params.insert(0, ast::Pat::Ident(ast::BindingIdent::from(ast::Ident::new("res".into(), DUMMY_SP))));
           ast::Expr::Arrow(f)
         },
         _ => return node
