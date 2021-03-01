@@ -25,7 +25,7 @@ export default async function loadPlugin<T>(
   configPath: FilePath,
   keyPath: string,
   options: ParcelOptions,
-): Promise<{|plugin: T, version: Semver|}> {
+): Promise<{|plugin: T, version: Semver, resolveFrom: FilePath|}> {
   let resolveFrom = configPath;
   let range;
   if (resolveFrom.includes(NODE_MODULES)) {
@@ -156,7 +156,7 @@ export default async function loadPlugin<T>(
     });
   }
 
-  let plugin = await options.packageManager.require(resolved, resolveFrom, {
+  let plugin = await options.packageManager.require(pluginName, resolveFrom, {
     shouldAutoInstall: options.shouldAutoInstall,
   });
   plugin = plugin.default ? plugin.default : plugin;
@@ -169,5 +169,5 @@ export default async function loadPlugin<T>(
       `Plugin ${pluginName} is not a valid Parcel plugin, should export an instance of a Parcel plugin ex. "export default new Reporter({ ... })".`,
     );
   }
-  return {plugin, version: nullthrows(pkg).version};
+  return {plugin, version: nullthrows(pkg).version, resolveFrom};
 }

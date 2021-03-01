@@ -10,12 +10,10 @@ import type {
   FileCreateInvalidation,
   FilePath,
   Glob,
-  JSONObject,
   LogLevel,
   Meta,
   ModuleSpecifier,
   PackageName,
-  PackageJSON,
   ReporterEvent,
   Semver,
   ServerOptions,
@@ -29,6 +27,7 @@ import type {
   HMROptions,
   QueryParameters,
   DetailedReportOptions,
+  DevDepOptions,
 } from '@parcel/types';
 import type {SharedReference} from '@parcel/workers';
 import type {FileSystem} from '@parcel/fs';
@@ -158,6 +157,18 @@ export type RequestInvalidation =
   | EnvInvalidation
   | OptionInvalidation;
 
+export type DevDepRequest = {|
+  moduleSpecifier: ModuleSpecifier,
+  resolveFrom: FilePath,
+  hash: string,
+  invalidateOnFileCreate?: Array<FileCreateInvalidation>,
+  invalidateOnFileChange?: Set<FilePath>,
+  additionalInvalidations?: Array<{|
+    moduleSpecifier: ModuleSpecifier,
+    resolveFrom: FilePath,
+  |}>,
+|};
+
 export type ParcelOptions = {|
   entries: Array<FilePath>,
   entryRoot: FilePath,
@@ -258,8 +269,6 @@ export type AssetRequestInput = {|
   optionsRef: SharedReference,
   isURL?: boolean,
   query?: ?QueryParameters,
-  invalidations?: Array<RequestInvalidation>,
-  invalidateReason?: number,
 |};
 
 export type AssetRequestResult = Array<Asset>;
@@ -277,6 +286,17 @@ export type AssetGroupNode = {|
   deferred?: boolean,
   hasDeferred?: boolean,
   usedSymbolsDownDirty: boolean,
+|};
+
+export type TransformationRequest = {|
+  ...AssetGroup,
+  invalidations: Array<RequestInvalidation>,
+  invalidateReason: number,
+  devDeps: Map<PackageName, string>,
+  invalidDevDeps: Array<{|
+    moduleSpecifier: ModuleSpecifier,
+    resolveFrom: FilePath,
+  |}>,
 |};
 
 export type DepPathRequestNode = {|
@@ -328,36 +348,17 @@ export type BundleGraphNode =
   | BundleGroupNode
   | BundleNode;
 
-export type ConfigRequestNode = {|
-  id: string,
-  +type: 'config_request',
-  value: ConfigRequestDesc,
-|};
-
 export type Config = {|
+  id: string,
   isSource: boolean,
   searchPath: FilePath,
   env: Environment,
   resultHash: ?string,
   result: ConfigResult,
   includedFiles: Set<FilePath>,
-  pkg: ?PackageJSON,
-  pkgFilePath: ?FilePath,
   invalidateOnFileCreate: Array<FileCreateInvalidation>,
-  devDeps: Map<PackageName, ?string>,
-  shouldRehydrate: boolean,
-  shouldReload: boolean,
+  devDeps: Array<DevDepOptions>,
   shouldInvalidateOnStartup: boolean,
-|};
-
-export type ConfigRequestDesc = {|
-  filePath: FilePath,
-  env: Environment,
-  isSource: boolean,
-  pipeline?: ?string,
-  isURL?: boolean,
-  plugin?: PackageName,
-  meta: JSONObject,
 |};
 
 export type DepVersionRequestNode = {|

@@ -595,6 +595,17 @@ export interface Asset extends BaseAsset {
   +stats: Stats;
 }
 
+export type DevDepOptions = {|
+  moduleSpecifier: ModuleSpecifier,
+  resolveFrom: FilePath,
+  /**
+   * Whether to also invalidate the parcel plugin that loaded this dev dependency
+   * when it changes. This is useful if the parcel plugin or another parent dependency
+   * has its own cache for this dev dependency other than Node's require cache.
+   */
+  invalidateParcelPlugin?: boolean,
+|};
+
 /**
  * @section transformer
  */
@@ -608,7 +619,7 @@ export interface Config {
   setResult(result: ConfigResult): void; // TODO: fix
   setResultHash(resultHash: string): void;
   addIncludedFile(filePath: FilePath): void;
-  addDevDependency(name: PackageName, version?: Semver): void;
+  addDevDependency(devDep: DevDepOptions): void;
   invalidateOnFileCreate(invalidation: FileCreateInvalidation): void;
   getConfigFrom(
     searchPath: FilePath,
@@ -628,8 +639,6 @@ export interface Config {
     |},
   ): Promise<ConfigResultWithFilePath | null>;
   getPackage(): Promise<PackageJSON | null>;
-  shouldRehydrate(): void;
-  shouldReload(): void;
   shouldInvalidateOnStartup(): void;
 }
 
@@ -745,10 +754,6 @@ export type Transformer = {|
     config: Config,
     options: PluginOptions,
     logger: PluginLogger,
-  |}) => Async<void>,
-  preSerializeConfig?: ({|
-    config: Config,
-    options: PluginOptions,
   |}) => Async<void>,
   /** Whether an AST from a previous transformer can be reused (to prevent double-parsing) */
   canReuseAST?: ({|

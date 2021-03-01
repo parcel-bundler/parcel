@@ -1,5 +1,5 @@
 // @flow strict-local
-import NodeResolver from '..';
+import NodeResolver from '../src/NodeResolver';
 import path from 'path';
 import assert from 'assert';
 import nullthrows from 'nullthrows';
