@@ -7,17 +7,23 @@ import nullthrows from 'nullthrows';
 import ThrowableDiagnostic from '@parcel/diagnostic';
 
 export default (new Resolver({
-  async resolve({dependency, options, filePath}) {
+  async resolve({dependency, options, filePath, pipeline}) {
     if (!isGlob(filePath)) {
       return;
     }
 
     let sourceAssetType = nullthrows(dependency.sourceAssetType);
-    let sourceFile = nullthrows(dependency.resolveFrom ?? dependency.sourcePath);
+    let sourceFile = nullthrows(
+      dependency.resolveFrom ?? dependency.sourcePath,
+    );
     filePath = path.resolve(path.dirname(sourceFile), filePath);
-    let files = await glob(path.resolve(path.dirname(sourceFile), filePath), options.inputFS, {
-      onlyFiles: true
-    });
+    let files = await glob(
+      path.resolve(path.dirname(sourceFile), filePath),
+      options.inputFS,
+      {
+        onlyFiles: true,
+      },
+    );
 
     let re = micromatch.makeRe(filePath, {capture: true});
     let matches = {};
@@ -27,6 +33,10 @@ export default (new Resolver({
       let match = file.match(re);
       if (!match) continue;
       let relative = relativePath(path.dirname(filePath), file);
+      if (pipeline) {
+        relative = `${pipeline}:${relative}`;
+      }
+
       if (sourceAssetType === 'js') {
         let parts = match
           .slice(1)
@@ -41,16 +51,13 @@ export default (new Resolver({
             message: `Glob imports are not supported in ${sourceAssetType} files.`,
             filePath: sourceFile,
             codeFrame: {
-              code: await options.inputFS.readFile(
-                sourceFile,
-                'utf8',
-              ),
+              code: await options.inputFS.readFile(sourceFile, 'utf8'),
               codeHighlights: dependency.loc
                 ? [{start: dependency.loc.start, end: dependency.loc.end}]
                 : [],
-            }
-          }
-        })
+            },
+          },
+        });
       }
     }
 
@@ -59,9 +66,13 @@ export default (new Resolver({
     }
 
     return {
-      filePath: path.join(path.dirname(filePath), path.basename(filePath, path.extname(filePath)) + '.' + sourceAssetType),
+      filePath: path.join(
+        path.dirname(filePath),
+        path.basename(filePath, path.extname(filePath)) + '.' + sourceAssetType,
+      ),
       code,
-      invalidateOnFileCreate: [{glob: filePath}]
+      invalidateOnFileCreate: [{glob: filePath}],
+      pipeline: null,
     };
   },
 }): Resolver);
@@ -95,7 +106,7 @@ function generate(matches, indent = '') {
 
     res += `\n${indent}  ${JSON.stringify(key)}: ${generate(
       matches[key],
-      indent + '  '
+      indent + '  ',
     )}`;
     first = false;
   }

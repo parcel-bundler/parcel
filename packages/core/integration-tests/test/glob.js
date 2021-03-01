@@ -12,7 +12,7 @@ describe('glob', function() {
       {
         name: 'index.js',
         assets: ['index.js', '*.js', 'a.js', 'b.js'],
-      }
+      },
     ]);
 
     let output = await run(b);
@@ -29,7 +29,7 @@ describe('glob', function() {
       {
         name: 'index.js',
         assets: ['index.js', '*.js', 'a.js', 'b.js', 'c.js', 'z.js'],
-      }
+      },
     ]);
 
     let output = await run(b);
@@ -64,5 +64,42 @@ describe('glob', function() {
     assert(css.includes('.local'));
     assert(css.includes('.other'));
     assert(css.includes('.index'));
+  });
+
+  it('should require a glob using a pipeline', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/glob-pipeline/index.js'),
+    );
+
+    await assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: [
+          'index.js',
+          '*.js',
+          'bundle-url.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
+        ],
+      },
+      {
+        type: 'txt',
+        assets: ['a.txt'],
+      },
+      {
+        type: 'txt',
+        assets: ['b.txt'],
+      },
+    ]);
+
+    let output = await run(b);
+    assert.deepEqual(output, {
+      a: `http://localhost/${
+        nullthrows(b.getBundles().find(b => b.name.startsWith('a'))).name
+      }`,
+      b: `http://localhost/${
+        nullthrows(b.getBundles().find(b => b.name.startsWith('b'))).name
+      }`,
+    });
   });
 });

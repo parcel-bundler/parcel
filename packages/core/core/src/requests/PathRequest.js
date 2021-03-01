@@ -207,6 +207,7 @@ export class ResolverRunner {
       try {
         let result = await resolver.plugin.resolve({
           filePath,
+          pipeline,
           dependency: dep,
           options: this.pluginOptions,
           logger: new PluginLogger({origin: resolver.name}),
@@ -233,7 +234,10 @@ export class ResolverRunner {
                 sideEffects: result.sideEffects,
                 code: result.code,
                 env: dependency.env,
-                pipeline: pipeline ?? dependency.pipeline,
+                pipeline:
+                  result.pipeline === undefined
+                    ? pipeline ?? dependency.pipeline
+                    : result.pipeline,
                 isURL: dependency.isURL,
               },
               invalidateOnFileCreate: result.invalidateOnFileCreate,

@@ -1095,6 +1095,7 @@ export type FileCreateInvalidation =
  */
 export type ResolveResult = {|
   +filePath?: FilePath,
+  +pipeline?: ?string,
   +isExcluded?: boolean,
   /** Corresponds to BaseAsset's <code>sideEffects</code>. */
   +sideEffects?: boolean,
@@ -1223,6 +1224,7 @@ export type Resolver = {|
     options: PluginOptions,
     logger: PluginLogger,
     filePath: FilePath,
+    pipeline: ?string,
   |}): Async<?ResolveResult>,
 |};
 
