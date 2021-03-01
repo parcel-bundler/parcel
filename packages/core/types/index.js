@@ -1097,6 +1097,7 @@ export type ResolveResult = {|
   +filePath?: FilePath,
   +pipeline?: ?string,
   +isExcluded?: boolean,
+  +isAsync?: boolean,
   /** Corresponds to BaseAsset's <code>sideEffects</code>. */
   +sideEffects?: boolean,
   /** A resolver might want to resolve to a dummy, in this case <code>filePath</code> is rather "resolve from". */

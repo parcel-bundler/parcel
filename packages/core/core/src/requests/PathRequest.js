@@ -221,6 +221,10 @@ export class ResolverRunner {
             };
           }
 
+          if (result.isAsync != null) {
+            dependency.isAsync = result.isAsync;
+          }
+
           if (result.isExcluded) {
             return null;
           }

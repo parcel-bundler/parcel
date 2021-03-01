@@ -102,4 +102,36 @@ describe('glob', function() {
       }`,
     });
   });
+
+  it('should import a glob with dynamic import', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/glob-async/index.js'),
+    );
+
+    await assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: [
+          'index.js',
+          '*.js',
+          'bundle-url.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
+          'cacheLoader.js',
+          'js-loader.js',
+        ],
+      },
+      {
+        type: 'js',
+        assets: ['a.js'],
+      },
+      {
+        type: 'js',
+        assets: ['b.js'],
+      },
+    ]);
+
+    let output = await run(b);
+    assert.equal(await output(), 3);
+  });
 });

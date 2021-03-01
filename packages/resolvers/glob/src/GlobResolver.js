@@ -62,7 +62,7 @@ export default (new Resolver({
     }
 
     if (sourceAssetType === 'js') {
-      code = 'module.exports = ' + generate(matches);
+      code = 'module.exports = ' + generate(matches, dependency.isAsync);
     }
 
     return {
@@ -73,6 +73,7 @@ export default (new Resolver({
       code,
       invalidateOnFileCreate: [{glob: filePath}],
       pipeline: null,
+      isAsync: false,
     };
   },
 }): Resolver);
@@ -91,9 +92,11 @@ function set(obj, path, value) {
   obj[path[path.length - 1]] = value;
 }
 
-function generate(matches, indent = '') {
+function generate(matches, isAsync, indent = '') {
   if (typeof matches === 'string') {
-    return `require(${JSON.stringify(matches)})`;
+    return isAsync
+      ? `() => import(${JSON.stringify(matches)})`
+      : `require(${JSON.stringify(matches)})`;
   }
 
   let res = indent + '{';
