@@ -12,7 +12,6 @@ import type {ConfigAndCachePath} from './ParcelConfigRequest';
 
 import ThrowableDiagnostic, {
   errorToDiagnostic,
-  escapeMarkdown,
   md,
 } from '@parcel/diagnostic';
 import {PluginLogger} from '@parcel/logger';
@@ -283,15 +282,13 @@ export class ResolverRunner {
     let resolveFrom = dependency.resolveFrom ?? dependency.sourcePath;
     let dir =
       resolveFrom != null
-        ? escapeMarkdown(relativePath(this.options.projectRoot, resolveFrom))
+        ? relativePath(this.options.projectRoot, resolveFrom)
         : '';
-
-    let specifier = escapeMarkdown(dependency.moduleSpecifier || '');
 
     // $FlowFixMe because of the err.code assignment
     let err = await this.getThrowableDiagnostic(
       dependency,
-      md`Failed to resolve '${specifier}' ${dir ? `from '${dir}'` : ''}`,
+      md`Failed to resolve '${dependency.moduleSpecifier}' ${dir ? `from '${dir}'` : ''}`,
     );
 
     // Merge diagnostics
