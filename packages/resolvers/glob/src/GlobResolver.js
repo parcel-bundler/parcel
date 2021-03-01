@@ -1,6 +1,6 @@
 // @flow
 import {Resolver} from '@parcel/plugin';
-import {isGlob, glob, relativePath} from '@parcel/utils';
+import {isGlob, glob, relativePath, normalizeSeparators} from '@parcel/utils';
 import micromatch from 'micromatch';
 import path from 'path';
 import nullthrows from 'nullthrows';
@@ -33,8 +33,9 @@ export default (new Resolver({
     }
 
     filePath = path.resolve(path.dirname(sourceFile), filePath);
+    let normalized = normalizeSeparators(filePath);
     let files = await glob(
-      path.resolve(path.dirname(sourceFile), filePath),
+      normalized,
       options.inputFS,
       {
         onlyFiles: true,
@@ -53,7 +54,7 @@ export default (new Resolver({
 
     let code = '';
     if (sourceAssetType === 'js') {
-      let re = micromatch.makeRe(filePath, {capture: true});
+      let re = micromatch.makeRe(normalized, {capture: true});
       let matches = {};
       for (let [file, relative] of results) {
         let match = file.match(re);
