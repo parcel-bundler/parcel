@@ -75,7 +75,8 @@ export default (new Resolver({
         path.basename(filePath, path.extname(filePath)) + '.' + sourceAssetType,
       ),
       code,
-      invalidateOnFileCreate: [{glob: filePath}],
+      // TODO: should be relative to the project root once #5900 lands.
+      invalidateOnFileCreate: [{glob: normalized}],
       pipeline: null,
       isAsync: false,
     };
