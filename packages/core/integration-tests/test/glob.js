@@ -148,10 +148,12 @@ describe('glob', function() {
       name: 'BuildError',
       diagnostics: [
         {
+          message: "Failed to resolve 'foo/\\\\\\*.js' from './index.html'",
+          origin: '@parcel/core',
+        },
+        {
           message: 'Glob imports are not supported in html files.',
           origin: '@parcel/resolver-glob',
-          filePath,
-          codeFrame: undefined,
         },
       ],
     });
@@ -164,8 +166,8 @@ describe('glob', function() {
       name: 'BuildError',
       diagnostics: [
         {
-          message: 'Glob imports are not supported in URL dependencies.',
-          origin: '@parcel/resolver-glob',
+          message: "Failed to resolve 'images/\\\\\\*.jpg' from './index.css'",
+          origin: '@parcel/core',
           filePath,
           codeFrame: {
             code: await inputFS.readFile(filePath, 'utf8'),
@@ -182,6 +184,10 @@ describe('glob', function() {
               },
             ],
           },
+        },
+        {
+          message: 'Glob imports are not supported in URL dependencies.',
+          origin: '@parcel/resolver-glob',
         },
       ],
     });

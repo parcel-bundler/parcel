@@ -28,15 +28,6 @@ export default (new Resolver({
       throw new ThrowableDiagnostic({
         diagnostic: {
           message: error,
-          filePath: sourceFile,
-          codeFrame: dependency.loc
-            ? {
-                codeHighlights: [
-                  {start: dependency.loc.start, end: dependency.loc.end},
-                ],
-                code: await options.inputFS.readFile(sourceFile, 'utf8'),
-              }
-            : undefined,
         },
       });
     }
