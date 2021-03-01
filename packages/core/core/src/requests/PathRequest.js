@@ -10,10 +10,7 @@ import type {StaticRunOpts} from '../RequestTracker';
 import type {AssetGroup, Dependency, ParcelOptions} from '../types';
 import type {ConfigAndCachePath} from './ParcelConfigRequest';
 
-import ThrowableDiagnostic, {
-  errorToDiagnostic,
-  md,
-} from '@parcel/diagnostic';
+import ThrowableDiagnostic, {errorToDiagnostic, md} from '@parcel/diagnostic';
 import {PluginLogger} from '@parcel/logger';
 import {relativePath} from '@parcel/utils';
 import nullthrows from 'nullthrows';
@@ -288,7 +285,9 @@ export class ResolverRunner {
     // $FlowFixMe because of the err.code assignment
     let err = await this.getThrowableDiagnostic(
       dependency,
-      md`Failed to resolve '${dependency.moduleSpecifier}' ${dir ? `from '${dir}'` : ''}`,
+      md`Failed to resolve '${dependency.moduleSpecifier}' ${
+        dir ? `from '${dir}'` : ''
+      }`,
     );
 
     // Merge diagnostics

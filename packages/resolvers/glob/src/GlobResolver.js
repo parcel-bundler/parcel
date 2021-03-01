@@ -34,13 +34,9 @@ export default (new Resolver({
 
     filePath = path.resolve(path.dirname(sourceFile), filePath);
     let normalized = normalizeSeparators(filePath);
-    let files = await glob(
-      normalized,
-      options.inputFS,
-      {
-        onlyFiles: true,
-      },
-    );
+    let files = await glob(normalized, options.inputFS, {
+      onlyFiles: true,
+    });
 
     let dir = path.dirname(filePath);
     let results = files.map(file => {
