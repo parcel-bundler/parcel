@@ -288,14 +288,16 @@ export class ResolverRunner {
 
     let specifier = escapeMarkdown(dependency.moduleSpecifier || '');
 
-    // $FlowFixMe because of the err.code assignment
-    let err = await this.getThrowableDiagnostic(
-      dependency,
-      md`Failed to resolve '${specifier}' ${dir ? `from '${dir}'` : ''}`,
-    );
+    let err =
+      diagnostics.length > 0
+        ? new ThrowableDiagnostic({diagnostic: diagnostics})
+        : // $FlowFixMe because of the err.code assignment
+          await this.getThrowableDiagnostic(
+            dependency,
+            md`Failed to resolve '${specifier}' ${dir ? `from '${dir}'` : ''}`,
+          );
 
-    // Merge diagnostics
-    err.diagnostics.push(...diagnostics);
+    // $FlowFixMe
     err.code = 'MODULE_NOT_FOUND';
 
     throw err;

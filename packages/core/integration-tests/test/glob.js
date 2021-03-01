@@ -1,7 +1,13 @@
 // @flow
 import assert from 'assert';
 import path from 'path';
-import {bundle, run, assertBundles, outputFS} from '@parcel/test-utils';
+import {
+  bundle,
+  run,
+  assertBundles,
+  outputFS,
+  inputFS,
+} from '@parcel/test-utils';
 import nullthrows from 'nullthrows';
 
 describe('glob', function() {
@@ -133,5 +139,51 @@ describe('glob', function() {
 
     let output = await run(b);
     assert.equal(await output(), 3);
+  });
+
+  it('should error when an unsupported asset type imports a glob', async function() {
+    let filePath = path.join(__dirname, '/integration/glob-error/index.html');
+    // $FlowFixMe
+    await assert.rejects(() => bundle(filePath), {
+      name: 'BuildError',
+      diagnostics: [
+        {
+          message: 'Glob imports are not supported in html files.',
+          origin: '@parcel/resolver-glob',
+          filePath,
+          codeFrame: undefined,
+        },
+      ],
+    });
+  });
+
+  it('should error when a URL dependency imports a glob', async function() {
+    let filePath = path.join(__dirname, '/integration/glob-error/index.css');
+    // $FlowFixMe
+    await assert.rejects(() => bundle(filePath), {
+      name: 'BuildError',
+      diagnostics: [
+        {
+          message: 'Glob imports are not supported in URL dependencies.',
+          origin: '@parcel/resolver-glob',
+          filePath,
+          codeFrame: {
+            code: await inputFS.readFile(filePath, 'utf8'),
+            codeHighlights: [
+              {
+                start: {
+                  column: 3,
+                  line: 2,
+                },
+                end: {
+                  column: 16,
+                  line: 2,
+                },
+              },
+            ],
+          },
+        },
+      ],
+    });
   });
 });

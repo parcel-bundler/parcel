@@ -16,6 +16,31 @@ export default (new Resolver({
     let sourceFile = nullthrows(
       dependency.resolveFrom ?? dependency.sourcePath,
     );
+
+    let error;
+    if (sourceAssetType !== 'js' && sourceAssetType !== 'css') {
+      error = `Glob imports are not supported in ${sourceAssetType} files.`;
+    } else if (dependency.isURL) {
+      error = 'Glob imports are not supported in URL dependencies.';
+    }
+
+    if (error) {
+      throw new ThrowableDiagnostic({
+        diagnostic: {
+          message: error,
+          filePath: sourceFile,
+          codeFrame: dependency.loc
+            ? {
+                codeHighlights: [
+                  {start: dependency.loc.start, end: dependency.loc.end},
+                ],
+                code: await options.inputFS.readFile(sourceFile, 'utf8'),
+              }
+            : undefined,
+        },
+      });
+    }
+
     filePath = path.resolve(path.dirname(sourceFile), filePath);
     let files = await glob(
       path.resolve(path.dirname(sourceFile), filePath),
@@ -45,19 +70,6 @@ export default (new Resolver({
         set(matches, parts, relative);
       } else if (sourceAssetType === 'css') {
         code += `@import "${relative}";\n`;
-      } else {
-        throw new ThrowableDiagnostic({
-          diagnostic: {
-            message: `Glob imports are not supported in ${sourceAssetType} files.`,
-            filePath: sourceFile,
-            codeFrame: {
-              code: await options.inputFS.readFile(sourceFile, 'utf8'),
-              codeHighlights: dependency.loc
-                ? [{start: dependency.loc.start, end: dependency.loc.end}]
-                : [],
-            },
-          },
-        });
       }
     }
 
