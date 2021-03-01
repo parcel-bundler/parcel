@@ -50,36 +50,40 @@ export default (new Resolver({
       },
     );
 
-    let re = micromatch.makeRe(filePath, {capture: true});
-    let matches = {};
-    let code = '';
-
-    for (let file of files) {
-      let match = file.match(re);
-      if (!match) continue;
-      let relative = relativePath(path.dirname(filePath), file);
+    let dir = path.dirname(filePath);
+    let results = files.map(file => {
+      let relative = relativePath(dir, file);
       if (pipeline) {
         relative = `${pipeline}:${relative}`;
       }
 
-      if (sourceAssetType === 'js') {
+      return [file, relative];
+    });
+
+    let code = '';
+    if (sourceAssetType === 'js') {
+      let re = micromatch.makeRe(filePath, {capture: true});
+      let matches = {};
+      for (let [file, relative] of results) {
+        let match = file.match(re);
+        if (!match) continue;
         let parts = match
           .slice(1)
           .filter(Boolean)
           .reduce((a, p) => a.concat(p.split('/')), []);
         set(matches, parts, relative);
-      } else if (sourceAssetType === 'css') {
+      }
+
+      code = 'module.exports = ' + generate(matches, dependency.isAsync);
+    } else if (sourceAssetType === 'css') {
+      for (let [, relative] of results) {
         code += `@import "${relative}";\n`;
       }
     }
 
-    if (sourceAssetType === 'js') {
-      code = 'module.exports = ' + generate(matches, dependency.isAsync);
-    }
-
     return {
       filePath: path.join(
-        path.dirname(filePath),
+        dir,
         path.basename(filePath, path.extname(filePath)) + '.' + sourceAssetType,
       ),
       code,
@@ -121,6 +125,7 @@ function generate(matches, isAsync, indent = '') {
 
     res += `\n${indent}  ${JSON.stringify(key)}: ${generate(
       matches[key],
+      isAsync,
       indent + '  ',
     )}`;
     first = false;
