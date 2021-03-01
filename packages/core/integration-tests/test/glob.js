@@ -148,7 +148,7 @@ describe('glob', function() {
       name: 'BuildError',
       diagnostics: [
         {
-          message: "Failed to resolve 'foo/\\\\\\*.js' from './index.html'",
+          message: "Failed to resolve 'foo/\\*.js' from './index.html'",
           origin: '@parcel/core',
         },
         {
@@ -166,7 +166,7 @@ describe('glob', function() {
       name: 'BuildError',
       diagnostics: [
         {
-          message: "Failed to resolve 'images/\\\\\\*.jpg' from './index.css'",
+          message: "Failed to resolve 'images/\\*.jpg' from './index.css'",
           origin: '@parcel/core',
           filePath,
           codeFrame: {
