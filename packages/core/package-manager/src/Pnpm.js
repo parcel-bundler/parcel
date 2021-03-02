@@ -88,12 +88,20 @@ export class Pnpm implements PackageInstaller {
     }
     args = args.concat(modules.map(npmSpecifierFromModuleRequest));
 
-    let addedCount = 0;
-    let removedCount = 0;
+    let env = {};
+    for (let key in process.env) {
+      if (!key.startsWith('npm_') && key !== 'INIT_CWD' && key !== 'NODE_ENV') {
+        env[key] = process.env[key];
+      }
+    }
+
+    let addedCount = 0,
+      removedCount = 0;
+
     let installProcess = spawn(PNPM_CMD, args, {
       cwd,
+      env,
     });
-
     installProcess.stdout
       .pipe(split())
       .pipe(new JSONParseStream())
@@ -116,49 +124,9 @@ export class Pnpm implements PackageInstaller {
             origin: '@parcel/package-manager',
             message: prefix(json.message),
           });
-        } else {
-          switch (json.name) {
-            case 'pnpm:importing':
-              logger.progress(prefix(`[importing] ${json.to}`));
-              return;
-            case 'pnpm:link':
-              logger.progress(prefix(`[link] ${json.link}`));
-              return;
-            case 'pnpm:progress':
-              logger.info({
-                origin: '@parcel/package-manager',
-                message: prefix(`[${json.status}] ${json.packageId}`),
-              });
-              return;
-            case 'pnpm:root':
-              if (json.added) {
-                logger.info({
-                  origin: '@parcel/package-manager',
-                  message: prefix(
-                    `[added] ${json.added.name} (${json.added.version || ''})`,
-                  ),
-                });
-              }
-              if (json.removed) {
-                logger.info({
-                  origin: '@parcel/package-manager',
-                  message: prefix(
-                    `[added] ${json.removed.name} (${json.removed.version ||
-                      ''})`,
-                  ),
-                });
-              }
-              return;
-            case 'pnpm:stats':
-              addedCount += json.added || 0;
-              removedCount += json.removed || 0;
-
-              logger.info({
-                origin: '@parcel/package-manager',
-                message: prefix(JSON.stringify(json)),
-              });
-              return;
-          }
+        } else if (json.name === 'pnpm:stats') {
+          addedCount += json.added ?? 0;
+          removedCount += json.removed ?? 0;
         }
       });
 
@@ -177,16 +145,12 @@ export class Pnpm implements PackageInstaller {
     try {
       await promiseFromProcess(installProcess);
 
-      if (addedCount > 0) {
+      if (addedCount > 0 || removedCount > 0) {
         logger.log({
           origin: '@parcel/package-manager',
-          message: `Added ${addedCount} packages via pnpm`,
-        });
-      }
-      if (removedCount > 0) {
-        logger.log({
-          origin: '@parcel/package-manager',
-          message: `Removed ${removedCount} packages via pnpm`,
+          message: `Added ${addedCount} and ${
+            removedCount > 0 ? `removed ${removedCount}` : ''
+          } packages via pnpm`,
         });
       }
 
