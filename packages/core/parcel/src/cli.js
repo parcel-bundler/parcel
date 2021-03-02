@@ -81,12 +81,12 @@ const commonOptions = {
   '--profile': 'enable build profiling',
   '-V, --version': 'output the version number',
   '--detailed-report [count]': [
-    'Print the asset timings and sizes in the build report',
+    'print the asset timings and sizes in the build report',
     parseOptionInt,
     '10',
   ],
   '--reporter <name>': [
-    'reporters',
+    'additional reporters to run',
     (val, acc) => {
       acc.push(val);
       return acc;
@@ -215,8 +215,8 @@ async function run(
   }
   let Parcel = require('@parcel/core').default;
   let fs = new NodeFS();
+  let options = await normalizeOptions(command, fs);
   let packageManager = new NodePackageManager(fs);
-  let options = await normalizeOptions(command, packageManager);
   let parcel = new Parcel({
     entries,
     packageManager,
@@ -369,7 +369,7 @@ function parseOptionInt(value) {
 
 async function normalizeOptions(
   command,
-  packageManager,
+  inputFS,
 ): Promise<InitialParcelOptions> {
   let nodeEnv;
   if (command.name() === 'build') {
@@ -440,7 +440,7 @@ async function normalizeOptions(
     {packageName: '@parcel/reporter-dev-server', resolveFrom: __filename},
     ...(command.reporter: Array<string>).map(packageName => ({
       packageName,
-      resolveFrom: path.join(packageManager.fs.cwd(), 'index'),
+      resolveFrom: path.join(inputFS.cwd(), 'index'),
     })),
   ];
 

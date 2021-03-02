@@ -167,7 +167,7 @@ export async function resolveParcelConfig(
     });
   }
 
-  let {config, extendedFiles}: ParcelConfigChain = await parseAndProcessConfig(
+  let {config, extendedFiles} = await parseAndProcessConfig(
     configPath,
     contents,
     options,
