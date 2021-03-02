@@ -132,35 +132,28 @@ async function determinePackageInstaller(
   filepath: FilePath,
 ): Promise<PackageInstaller> {
   let configFile = await resolveConfig(fs, filepath, [
+    'package-lock.json',
     'pnpm-lock.yaml',
     'yarn.lock',
-    'package-lock.json',
   ]);
 
   let configName = configFile && path.basename(configFile);
 
-  switch (configName) {
-    case 'pnpm-lock.yaml':
-      if (await Pnpm.exists()) {
-        return new Pnpm();
-      }
-      break;
-    case 'yarn.lock':
-      if (await Yarn.exists()) {
-        return new Yarn();
-      }
-      break;
-    case 'package-lock.json':
-      return new Npm();
-  }
-
-  if (await Pnpm.exists()) {
+  // Always use the package manager that seems to be used in the project,
+  // falling back to a different one wouldn't update the existing lockfile.
+  if (configName === 'package-lock.json') {
+    return new Npm();
+  } else if (configName === 'pnpm-lock.yaml') {
     return new Pnpm();
-  }
-  if (await Yarn.exists()) {
+  } else if (configName === 'yarn.lock') {
     return new Yarn();
   }
-  return new Npm();
+
+  if (await Yarn.exists()) {
+    return new Yarn();
+  } else {
+    return new Npm();
+  }
 }
 
 let queue = new PromiseQueue({maxConcurrent: 1});
