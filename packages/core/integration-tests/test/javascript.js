@@ -1054,6 +1054,36 @@ describe('javascript', function() {
     ]);
   });
 
+  it('should deduplicate and remove an unnecessary async bundle when it contains a cyclic reference to its entry', async () => {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/deduplicate-from-async-cyclic-bundle-entry/index.js',
+      ),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: [
+          'index.js',
+          'bar.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'esmodule-helpers.js',
+          'foo.js',
+          'js-loader.js',
+          'JSRuntime.js',
+        ],
+      },
+      {
+        assets: ['async.js', 'JSRuntime.js'],
+      },
+    ]);
+
+    assert.deepEqual(await Promise.all((await run(b)).default), [5, 4]);
+  });
+
   it('should create a shared bundle between browser and worker contexts', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/html-shared-worker/index.html'),
