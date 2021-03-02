@@ -428,7 +428,7 @@ export default class BundleGraph {
     this._bundleContentHashes.delete(bundle.id);
   }
 
-  removeBundle(bundle: Bundle) {
+  removeBundle(bundle: Bundle): Set<BundleGroup> {
     // Remove bundle node if it no longer has any entry assets
     let bundleNode = nullthrows(this._graph.getNode(bundle.id));
 
@@ -438,6 +438,7 @@ export default class BundleGraph {
     );
     this._graph.removeNode(bundleNode);
 
+    let removedBundleGroups: Set<BundleGroup> = new Set();
     // Remove bundle group node if it no longer has any bundles
     for (let bundleGroupNode of bundleGroupNodes) {
       invariant(bundleGroupNode.type === 'bundle_group');
@@ -450,11 +451,13 @@ export default class BundleGraph {
         // If the bundle group is now empty, remove it.
         this.getBundlesInBundleGroup(bundleGroup).length === 0
       ) {
+        removedBundleGroups.add(bundleGroup);
         this.removeBundleGroup(bundleGroup);
       }
     }
 
     this._bundleContentHashes.delete(bundle.id);
+    return removedBundleGroups;
   }
 
   removeBundleGroup(bundleGroup: BundleGroup) {
@@ -466,16 +469,16 @@ export default class BundleGraph {
     let bundlesInGroup = this.getBundlesInBundleGroup(bundleGroupNode.value);
     for (let bundle of bundlesInGroup) {
       if (this.getBundleGroupsContainingBundle(bundle).length === 1) {
-        this.removeBundle(bundle);
+        let removedBundleGroups = this.removeBundle(bundle);
+        if (removedBundleGroups.has(bundleGroup)) {
+          // This function can be reentered through removeBundle above. In the case this
+          // bundle group has already been removed, stop.
+          return;
+        }
       }
     }
 
-    // This function can be reentered through removeBundle above. In this case,
-    // the node may already been removed.
-    if (this._graph.hasNode(bundleGroupNode.id)) {
-      this._graph.removeNode(bundleGroupNode);
-    }
-
+    this._graph.removeNode(bundleGroupNode);
     assert(
       bundlesInGroup.every(
         bundle => this.getBundleGroupsContainingBundle(bundle).length > 0,
