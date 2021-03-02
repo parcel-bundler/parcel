@@ -376,40 +376,50 @@ export default class BundleGraph {
         return;
       }
 
-      if (node.type === 'asset' || node.type === 'dependency') {
-        if (this._graph.hasEdge(bundle.id, node.id, 'contains')) {
-          this._graph.removeEdge(
-            bundle.id,
-            node.id,
-            'contains',
-            // Removing this contains edge should not orphan the connected node. This
-            // is disabled for performance reasons as these edges are removed as part
-            // of a traversal, and checking for orphans becomes quite expensive in
-            // aggregate.
-            false /* removeOrphans */,
-          );
-          if (node.type === 'asset') {
-            bundle.stats.size -= asset.stats.size;
-          }
-        } else {
-          actions.skipChildren();
+      if (node.type !== 'dependency' && node.type !== 'asset') {
+        return;
+      }
+
+      if (this._graph.hasEdge(bundle.id, node.id, 'contains')) {
+        this._graph.removeEdge(
+          bundle.id,
+          node.id,
+          'contains',
+          // Removing this contains edge should not orphan the connected node. This
+          // is disabled for performance reasons as these edges are removed as part
+          // of a traversal, and checking for orphans becomes quite expensive in
+          // aggregate.
+          false /* removeOrphans */,
+        );
+
+        if (node.type === 'asset') {
+          bundle.stats.size -= asset.stats.size;
+        }
+      } else {
+        actions.skipChildren();
+      }
+
+      if (node.type === 'asset' && this._graph.hasEdge(bundle.id, node.id)) {
+        // Remove the untyped edge from the bundle to the node (it's an entry)
+        this._graph.removeEdge(bundle.id, node.id);
+
+        let entryIndex = bundle.entryAssetIds.indexOf(node.value.id);
+        if (entryIndex >= 0) {
+          // Shared bundles have untyped edges to their asset graphs but don't
+          // have entry assets. For those that have entry asset ids, remove them.
+          bundle.entryAssetIds.splice(entryIndex, 1);
         }
       }
 
       if (node.type === 'dependency') {
         this.removeExternalDependency(bundle, node.value);
         if (this._graph.hasEdge(bundle.id, node.id, 'references')) {
-          this._graph.addEdge(bundle.id, node.id, 'references');
+          this._graph.removeEdge(bundle.id, node.id, 'references');
         }
       }
     }, nullthrows(this._graph.getNode(asset.id)));
 
-    // Remove the untyped edge from the bundle to the entry.
-    if (this._graph.hasEdge(bundle.id, asset.id)) {
-      this._graph.removeEdge(bundle.id, asset.id);
-    }
-
-    // Remove bundle node if it no longer has any entry assets
+    // Remove bundle node if it no longer has any asset graphs
     let bundleNode = nullthrows(this._graph.getNode(bundle.id));
     if (this._graph.getNodesConnectedFrom(bundleNode).length === 0) {
       this.removeBundle(bundle);
