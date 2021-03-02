@@ -17,6 +17,7 @@ import type {ConfigAndCachePath} from './ParcelConfigRequest';
 import ThrowableDiagnostic, {
   generateJSONCodeHighlights,
   getJSONSourceLocation,
+  md,
 } from '@parcel/diagnostic';
 import path from 'path';
 import {
@@ -69,12 +70,26 @@ export default function createTargetRequest(input: Entry): TargetRequest {
   };
 }
 
+export function skipTarget(
+  targetName: string,
+  exclusiveTarget?: FilePath,
+  descriptorSource?: FilePath | Array<FilePath>,
+): boolean {
+  //  We skip targets if they have a descriptor.source and don't match the current exclusiveTarget
+  //  They will be handled by a separate resolvePackageTargets call from their Entry point
+  //  but with exclusiveTarget set.
+
+  return exclusiveTarget == null
+    ? descriptorSource != null
+    : targetName !== exclusiveTarget;
+}
+
 async function run({input, api, options}: RunOpts) {
   let targetResolver = new TargetResolver(
     api,
     optionsProxy(options, api.invalidateOnOptionChange),
   );
-  let targets = await targetResolver.resolve(input.packagePath);
+  let targets = await targetResolver.resolve(input.packagePath, input.target);
 
   let configResult = nullthrows(
     await api.runRequest<null, ConfigAndCachePath>(createParcelConfigRequest()),
@@ -103,10 +118,19 @@ export class TargetResolver {
     this.options = options;
   }
 
-  async resolve(rootDir: FilePath): Promise<Array<Target>> {
+  async resolve(
+    rootDir: FilePath,
+    exclusiveTarget?: string,
+  ): Promise<Array<Target>> {
     let optionTargets = this.options.targets;
+    if (exclusiveTarget != null && optionTargets == null) {
+      optionTargets = [exclusiveTarget];
+    }
 
-    let packageTargets = await this.resolvePackageTargets(rootDir);
+    let packageTargets = await this.resolvePackageTargets(
+      rootDir,
+      exclusiveTarget,
+    );
     let targets: Array<Target>;
     if (optionTargets) {
       if (Array.isArray(optionTargets)) {
@@ -126,7 +150,7 @@ export class TargetResolver {
           if (!matchingTarget) {
             throw new ThrowableDiagnostic({
               diagnostic: {
-                message: `Could not find target with name "${target}"`,
+                message: md`Could not find target with name "${target}"`,
                 origin: '@parcel/core',
               },
             });
@@ -136,62 +160,77 @@ export class TargetResolver {
       } else {
         // Otherwise, it's an object map of target descriptors (similar to those
         // in package.json). Adapt them to native targets.
-        targets = Object.entries(optionTargets).map(([name, _descriptor]) => {
-          let {distDir, ...descriptor} = parseDescriptor(
-            name,
-            _descriptor,
-            null,
-            JSON.stringify({targets: optionTargets}, null, '\t'),
-          );
-          if (distDir == null) {
-            let optionTargetsString = JSON.stringify(optionTargets, null, '\t');
-            throw new ThrowableDiagnostic({
-              diagnostic: {
-                message: `Missing distDir for target "${name}"`,
-                origin: '@parcel/core',
-                codeFrame: {
-                  code: optionTargetsString,
-                  codeHighlights: generateJSONCodeHighlights(
-                    optionTargetsString,
-                    [
-                      {
-                        key: `/${name}`,
-                        type: 'value',
-                      },
-                    ],
-                  ),
+        targets = Object.entries(optionTargets)
+          .map(([name, _descriptor]) => {
+            let {distDir, ...descriptor} = parseDescriptor(
+              name,
+              _descriptor,
+              null,
+              JSON.stringify({targets: optionTargets}, null, '\t'),
+            );
+            if (distDir == null) {
+              let optionTargetsString = JSON.stringify(
+                optionTargets,
+                null,
+                '\t',
+              );
+              throw new ThrowableDiagnostic({
+                diagnostic: {
+                  message: md`Missing distDir for target "${name}"`,
+                  origin: '@parcel/core',
+                  codeFrame: {
+                    code: optionTargetsString,
+                    codeHighlights: generateJSONCodeHighlights(
+                      optionTargetsString || '',
+                      [
+                        {
+                          key: `/${name}`,
+                          type: 'value',
+                        },
+                      ],
+                    ),
+                  },
                 },
-              },
-            });
-          }
-          let target: Target = {
-            name,
-            distDir: path.resolve(this.fs.cwd(), distDir),
-            publicUrl:
-              descriptor.publicUrl ??
-              this.options.defaultTargetOptions.publicUrl,
-            env: createEnvironment({
-              engines: descriptor.engines,
-              context: descriptor.context,
-              isLibrary: descriptor.isLibrary,
-              includeNodeModules: descriptor.includeNodeModules,
-              outputFormat: descriptor.outputFormat,
-              shouldOptimize:
-                this.options.defaultTargetOptions.shouldOptimize &&
-                descriptor.optimize !== false,
-              shouldScopeHoist:
-                this.options.defaultTargetOptions.shouldScopeHoist &&
-                descriptor.scopeHoist !== false,
-              sourceMap: normalizeSourceMap(this.options, descriptor.sourceMap),
-            }),
-          };
+              });
+            }
+            let target: Target = {
+              name,
+              distDir: path.resolve(this.fs.cwd(), distDir),
+              publicUrl:
+                descriptor.publicUrl ??
+                this.options.defaultTargetOptions.publicUrl,
+              env: createEnvironment({
+                engines: descriptor.engines,
+                context: descriptor.context,
+                isLibrary: descriptor.isLibrary,
+                includeNodeModules: descriptor.includeNodeModules,
+                outputFormat: descriptor.outputFormat,
+                shouldOptimize:
+                  this.options.defaultTargetOptions.shouldOptimize &&
+                  descriptor.optimize !== false,
+                shouldScopeHoist:
+                  this.options.defaultTargetOptions.shouldScopeHoist &&
+                  descriptor.scopeHoist !== false,
+                sourceMap: normalizeSourceMap(
+                  this.options,
+                  descriptor.sourceMap,
+                ),
+              }),
+            };
 
-          if (descriptor.distEntry != null) {
-            target.distEntry = descriptor.distEntry;
-          }
+            if (descriptor.distEntry != null) {
+              target.distEntry = descriptor.distEntry;
+            }
 
-          return target;
-        });
+            if (descriptor.source != null) {
+              target.source = descriptor.source;
+            }
+
+            return target;
+          })
+          .filter(
+            target => !skipTarget(target.name, exclusiveTarget, target.source),
+          );
       }
 
       let serve = this.options.serveOptions;
@@ -240,21 +279,31 @@ export class TargetResolver {
           },
         ];
       } else {
-        targets = Array.from(packageTargets.values());
+        targets = Array.from(packageTargets.values()).filter(descriptor => {
+          return !skipTarget(
+            descriptor.name,
+            exclusiveTarget,
+            descriptor.source,
+          );
+        });
       }
     }
 
     return targets;
   }
 
-  async resolvePackageTargets(rootDir: FilePath): Promise<Map<string, Target>> {
-    let conf = await loadConfig(this.fs, path.join(rootDir, 'index'), [
-      'package.json',
-    ]);
+  async resolvePackageTargets(
+    rootDir: FilePath,
+    exclusiveTarget?: string,
+  ): Promise<Map<string, Target>> {
+    let rootFile = path.join(rootDir, 'index');
+    let conf = await loadConfig(this.fs, rootFile, ['package.json']);
 
     // Invalidate whenever a package.json file is added.
-    // TODO: we really only need to invalidate if added *above* rootDir...
-    this.api.invalidateOnFileCreate(`**/package.json`);
+    this.api.invalidateOnFileCreate({
+      fileName: 'package.json',
+      aboveFilePath: rootFile,
+    });
 
     let pkg;
     let pkgContents;
@@ -267,7 +316,7 @@ export class TargetResolver {
       if (pkgFile == null) {
         throw new ThrowableDiagnostic({
           diagnostic: {
-            message: `Expected package.json file in ${rootDir}`,
+            message: md`Expected package.json file in ${rootDir}`,
             origin: '@parcel/core',
           },
         });
@@ -317,7 +366,15 @@ export class TargetResolver {
           ['browserslist', '.browserslistrc'],
         );
 
-        this.api.invalidateOnFileCreate('**/{browserslist,.browserslistrc}');
+        this.api.invalidateOnFileCreate({
+          fileName: 'browserslist',
+          aboveFilePath: rootFile,
+        });
+
+        this.api.invalidateOnFileCreate({
+          fileName: '.browserslistrc',
+          aboveFilePath: rootFile,
+        });
 
         if (browserslistConfig != null) {
           let contents = await this.fs.readFile(browserslistConfig, 'utf8');
@@ -424,6 +481,10 @@ export class TargetResolver {
           pkgContents,
         );
 
+        if (skipTarget(targetName, exclusiveTarget, descriptor.source)) {
+          continue;
+        }
+
         let isLibrary =
           typeof distEntry === 'string'
             ? path.extname(distEntry) === '.js'
@@ -491,7 +552,7 @@ export class TargetResolver {
                 JSON.stringify(pkgContents, null, '\t');
           throw new ThrowableDiagnostic({
             diagnostic: {
-              message: `Invalid distPath for target "${targetName}"`,
+              message: md`Invalid distPath for target "${targetName}"`,
               origin: '@parcel/core',
               language: 'json',
               filePath: pkgFilePath ?? undefined,
@@ -527,6 +588,9 @@ export class TargetResolver {
           pkgContents,
         );
         let pkgDir = path.dirname(nullthrows(pkgFilePath));
+        if (skipTarget(targetName, exclusiveTarget, descriptor.source)) {
+          continue;
+        }
         targets.set(targetName, {
           name: targetName,
           distDir:
@@ -685,7 +749,7 @@ function assertNoDuplicateTargets(targets, pkgFilePath, pkgContents) {
   for (let [targetPath, targetNames] of targetsByPath) {
     if (targetNames.length > 1 && pkgContents != null && pkgFilePath != null) {
       diagnostics.push({
-        message: `Multiple targets have the same destination path "${path.relative(
+        message: md`Multiple targets have the same destination path "${path.relative(
           path.dirname(pkgFilePath),
           targetPath,
         )}"`,

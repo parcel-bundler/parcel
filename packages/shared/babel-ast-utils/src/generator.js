@@ -249,6 +249,21 @@ export const generator = {
       GENERATOR.ReturnStatement.call(this, node, state);
     }
   },
+  ThrowStatement(node, state) {
+    // Add parentheses if there are leading comments
+    if (node.argument?.leadingComments?.length > 0) {
+      let indent = state.indent.repeat(state.indentLevel);
+      state.write('throw (' + state.lineEnd);
+      state.write(indent + state.indent);
+      state.indentLevel++;
+      this[node.argument.type](node.argument, state);
+      state.indentLevel--;
+      state.write(state.lineEnd);
+      state.write(indent + ');');
+    } else {
+      GENERATOR.ThrowStatement.call(this, node, state);
+    }
+  },
 };
 
 // Make every node support comments. Important for preserving /*@__PURE__*/ comments for terser.
@@ -256,6 +271,16 @@ export const generator = {
 for (let key in generator) {
   let orig = generator[key];
   generator[key] = function(node, state, skipComments) {
+    // These are printed by astring itself
+    if (node.trailingComments) {
+      for (let c of node.trailingComments) {
+        if (c.type === 'CommentLine') {
+          c.type = 'LineComment';
+        } else {
+          c.type = 'BlockComment';
+        }
+      }
+    }
     if (
       !skipComments &&
       node.leadingComments &&
@@ -288,7 +313,7 @@ function formatComments(state, comments) {
   const {length} = comments;
   for (let i = 0; i < length; i++) {
     const comment = comments[i];
-    if (comment.type === 'CommentLine') {
+    if (comment.type === 'CommentLine' || comment.type === 'LineComment') {
       // Line comment
       state.write('// ' + comment.value.trim() + state.lineEnd, {
         ...comment,

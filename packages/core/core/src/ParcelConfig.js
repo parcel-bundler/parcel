@@ -33,7 +33,7 @@ type SerializedParcelConfig = {|
   options: ParcelOptions,
 |};
 
-type LoadedPlugin<T> = {|
+export type LoadedPlugin<T> = {|
   name: string,
   version: Semver,
   plugin: T,
@@ -101,7 +101,7 @@ export default class ParcelConfig {
 
   loadPlugin<T>(
     node: ParcelPluginNode,
-  ): Promise<{|plugin: T, version: Semver|}> {
+  ): Promise<{|plugin: T, version: Semver, resolveFrom: FilePath|}> {
     let plugin = this.pluginCache.get(node.packageName);
     if (plugin) {
       return plugin;
@@ -113,8 +113,13 @@ export default class ParcelConfig {
       node.keyPath,
       this.options,
     );
+
     this.pluginCache.set(node.packageName, plugin);
     return plugin;
+  }
+
+  invalidatePlugin(packageName: PackageName) {
+    this.pluginCache.delete(packageName);
   }
 
   loadPlugins<T>(
@@ -122,13 +127,13 @@ export default class ParcelConfig {
   ): Promise<Array<LoadedPlugin<T>>> {
     return Promise.all(
       plugins.map(async p => {
-        let {plugin, version} = await this.loadPlugin<T>(p);
+        let {plugin, version, resolveFrom} = await this.loadPlugin<T>(p);
         return {
           name: p.packageName,
           plugin,
           version,
-          resolveFrom: p.resolveFrom,
           keyPath: p.keyPath,
+          resolveFrom,
         };
       }),
     );
@@ -231,7 +236,11 @@ export default class ParcelConfig {
     return this.bundler.packageName;
   }
 
-  getBundler(): Promise<{|version: Semver, plugin: Bundler|}> {
+  getBundler(): Promise<{|
+    version: Semver,
+    plugin: Bundler,
+    resolveFrom: FilePath,
+  |}> {
     if (!this.bundler) {
       throw new Error('No bundler specified in .parcelrc config');
     }

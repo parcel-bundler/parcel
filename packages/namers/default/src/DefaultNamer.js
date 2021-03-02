@@ -3,7 +3,7 @@
 import type {Bundle, FilePath} from '@parcel/types';
 
 import {Namer} from '@parcel/plugin';
-import ThrowableDiagnostic from '@parcel/diagnostic';
+import ThrowableDiagnostic, {md} from '@parcel/diagnostic';
 import assert from 'assert';
 import path from 'path';
 import nullthrows from 'nullthrows';
@@ -58,14 +58,14 @@ export default (new Namer({
         );
         let err = new ThrowableDiagnostic({
           diagnostic: {
-            message: `Target "${bundle.target.name}" declares an output file path of "${fullName}" which does not match the compiled bundle type "${bundle.type}".`,
+            message: md`Target "${bundle.target.name}" declares an output file path of "${fullName}" which does not match the compiled bundle type "${bundle.type}".`,
             filePath: loc.filePath,
             codeFrame: {
               codeHighlights: [
                 {
                   start: loc.start,
                   end: loc.end,
-                  message: `Did you mean "${fullName.slice(
+                  message: md`Did you mean "${fullName.slice(
                     0,
                     -path.extname(fullName).length,
                   ) +

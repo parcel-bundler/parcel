@@ -1,10 +1,14 @@
 // @flow strict-local
+import type {TransformerResult} from '@parcel/types';
+
 import {Transformer} from '@parcel/plugin';
 import nullthrows from 'nullthrows';
 import {md5FromObject} from '@parcel/utils';
-import ThrowableDiagnostic from '@parcel/diagnostic';
-import type {Diagnostic} from '@parcel/diagnostic';
-import type {TransformerResult} from '@parcel/types';
+import ThrowableDiagnostic, {
+  type Diagnostic,
+  escapeMarkdown,
+  md,
+} from '@parcel/diagnostic';
 import SourceMap from '@parcel/source-map';
 import semver from 'semver';
 import {basename, extname, relative, dirname} from 'path';
@@ -154,7 +158,7 @@ function createDiagnostic(err, filePath) {
     };
   }
   let diagnostic: Diagnostic = {
-    message: err.message,
+    message: escapeMarkdown(err.message),
     origin: '@parcel/transformer-vue',
     name: err.name,
     stack: err.stack,
@@ -209,7 +213,7 @@ async function processPipeline({
         if (!preprocessor) {
           throw new ThrowableDiagnostic({
             diagnostic: {
-              message: `Unknown template language: "${template.lang}"`,
+              message: md`Unknown template language: "${template.lang}"`,
               origin: '@parcel/transformer-vue',
               filePath: asset.filePath,
             },
@@ -281,7 +285,7 @@ ${
         default:
           throw new ThrowableDiagnostic({
             diagnostic: {
-              message: `Unknown script language: "${script.lang}"`,
+              message: md`Unknown script language: "${script.lang}"`,
               origin: '@parcel/transformer-vue',
               filePath: asset.filePath,
             },
@@ -326,7 +330,7 @@ ${
             default:
               throw new ThrowableDiagnostic({
                 diagnostic: {
-                  message: `Unknown style language: "${style.lang}"`,
+                  message: md`Unknown style language: "${style.lang}"`,
                   origin: '@parcel/transformer-vue',
                   filePath: asset.filePath,
                 },
@@ -399,7 +403,7 @@ export default cssModules;`,
         if (!config.customBlocks[type]) {
           throw new ThrowableDiagnostic({
             diagnostic: {
-              message: `No preprocessor found for block type ${type}`,
+              message: md`No preprocessor found for block type ${type}`,
               origin: '@parcel/transformer-vue',
               filePath: asset.filePath,
             },

@@ -5,6 +5,7 @@ import nullthrows from 'nullthrows';
 import RequestTracker from '../src/RequestTracker';
 import WorkerFarm from '@parcel/workers';
 import {DEFAULT_OPTIONS} from './test-utils';
+import {INITIAL_BUILD} from '../src/constants';
 
 const options = DEFAULT_OPTIONS;
 const farm = new WorkerFarm({workerPath: require.resolve('../src/worker.js')});
@@ -39,7 +40,7 @@ describe('RequestTracker', () => {
       input: null,
     });
     let node = nullthrows(tracker.graph.getNode('abc'));
-    tracker.graph.invalidateNode(node);
+    tracker.graph.invalidateNode(node, INITIAL_BUILD);
     let called = false;
     await tracker.runRequest({
       id: 'abc',
@@ -68,7 +69,7 @@ describe('RequestTracker', () => {
       input: null,
     });
     let node = nullthrows(tracker.graph.getNode('xyz'));
-    tracker.graph.invalidateNode(node);
+    tracker.graph.invalidateNode(node, INITIAL_BUILD);
     assert(
       tracker
         .getInvalidRequests()
@@ -116,7 +117,7 @@ describe('RequestTracker', () => {
       input: null,
     });
     let node = nullthrows(tracker.graph.getNode('abc'));
-    tracker.graph.invalidateNode(node);
+    tracker.graph.invalidateNode(node, INITIAL_BUILD);
     await tracker.runRequest({
       id: 'abc',
       type: 'mock_request',

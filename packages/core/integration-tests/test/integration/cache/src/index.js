@@ -1,4 +1,5 @@
 import test from './nested/test';
+import foo from 'foo';
 
 class Result {
   constructor(value) {
@@ -6,4 +7,4 @@ class Result {
   }
 }
 
-module.exports = new Result(test + 2).value;
+module.exports = new Result(test + foo).value;

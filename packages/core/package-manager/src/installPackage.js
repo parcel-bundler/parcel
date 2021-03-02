@@ -16,6 +16,7 @@ import semver from 'semver';
 import ThrowableDiagnostic, {
   generateJSONCodeHighlights,
   encodeJSONKeyComponent,
+  md,
 } from '@parcel/diagnostic';
 import logger from '@parcel/logger';
 import {loadConfig, PromiseQueue, resolveConfig} from '@parcel/utils';
@@ -54,7 +55,7 @@ async function install(
       fs,
     });
   } catch (err) {
-    throw new Error(`Failed to install ${moduleNames}.`);
+    throw new Error(`Failed to install ${moduleNames}: ${err.message}`);
   }
 
   if (installPeers) {
@@ -90,7 +91,7 @@ async function installPeerDependencies(
       if (!semver.satisfies(pkg.version, range)) {
         throw new ThrowableDiagnostic({
           diagnostic: {
-            message: `Could not install the peer dependency "${name}" for "${module.name}", installed version ${pkg.version} is incompatible with ${range}`,
+            message: md`Could not install the peer dependency "${name}" for "${module.name}", installed version ${pkg.version} is incompatible with ${range}`,
             filePath: conflicts.filePath,
             origin: '@parcel/package-manager',
             language: 'json',

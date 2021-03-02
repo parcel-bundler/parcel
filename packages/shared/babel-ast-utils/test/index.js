@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import assert from 'assert';
 import {parse as babelParse} from '@babel/parser';
-import {generateAST} from '../';
+import {generateAST} from '../src';
 
 const FIXTURES_FOLDER = path.join(__dirname, 'fixtures');
 const files = fs.readdirSync(FIXTURES_FOLDER).sort();
@@ -27,12 +27,16 @@ describe('astring babel generator', () => {
         originalSourceMap: null,
         options: {projectRoot: '/foo'},
       });
-      assert.equal(
-        content,
-        code,
-        filename.substring(0, filename.length - 3),
-        'Generates code with the expected format',
-      );
+      if (filename === 'valid-only.js') {
+        babelParse(content), options;
+      } else {
+        assert.equal(
+          content,
+          code,
+          filename.substring(0, filename.length - 3),
+          'Generates code with the expected format',
+        );
+      }
     });
   });
 });
