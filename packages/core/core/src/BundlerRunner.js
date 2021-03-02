@@ -121,11 +121,13 @@ export default class BundlerRunner {
           origin: this.config.getBundlerName(),
         }),
       });
+    } finally {
+      // $FlowFixMe
+      await dumpGraphToGraphViz(internalBundleGraph._graph, 'after_bundle');
     }
+
     assertSignalNotAborted(signal);
 
-    // $FlowFixMe
-    await dumpGraphToGraphViz(internalBundleGraph._graph, 'after_bundle');
     if (this.pluginOptions.mode === 'production') {
       try {
         await bundler.optimize({
@@ -140,11 +142,12 @@ export default class BundlerRunner {
             origin: this.config.getBundlerName(),
           }),
         });
+      } finally {
+        // $FlowFixMe
+        await dumpGraphToGraphViz(internalBundleGraph._graph, 'after_optimize');
       }
-      assertSignalNotAborted(signal);
 
-      // $FlowFixMe
-      await dumpGraphToGraphViz(internalBundleGraph._graph, 'after_optimize');
+      assertSignalNotAborted(signal);
     }
 
     await this.nameBundles(internalBundleGraph);
