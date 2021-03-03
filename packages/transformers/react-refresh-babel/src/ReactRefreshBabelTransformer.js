@@ -12,8 +12,8 @@ async function shouldExclude(config, options) {
   ) {
     return true;
   } else {
-    let pkg = await config.getPackage();
-    let usesReact = pkg?.dependencies?.react || pkg?.peerDependencies?.react;
+    const pkg = await config.getPackage();
+    const usesReact = pkg?.dependencies?.react || pkg?.peerDependencies?.react;
     return !usesReact;
   }
 }
