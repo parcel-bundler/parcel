@@ -151,6 +151,8 @@ async function determinePackageInstaller(
 
   if (await Yarn.exists()) {
     return new Yarn();
+  } else if (await Pnpm.exists()) {
+    return new Pnpm();
   } else {
     return new Npm();
   }
