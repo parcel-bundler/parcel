@@ -27,6 +27,7 @@ import {objectSortedEntriesDeep} from '@parcel/utils';
 
 import {getBundleGroupId, getPublicId} from './utils';
 import Graph, {ALL_EDGE_TYPES, mapVisitor, type GraphOpts} from './Graph';
+import Environment from './public/Environment';
 
 type BundleGraphEdgeTypes =
   // A lack of an edge type indicates to follow the edge while traversing
@@ -728,6 +729,16 @@ export default class BundleGraph {
   }
 
   isAssetReachableFromBundle(asset: Asset, bundle: Bundle): boolean {
+    // If a bundle's environment is isolated, it can't access assets present
+    // in any ancestor bundles. Don't consider any assets reachable.
+    if (
+      new Environment(bundle.env).isIsolated() ||
+      !bundle.isSplittable ||
+      bundle.isInline
+    ) {
+      return false;
+    }
+
     // For an asset to be reachable from a bundle, it must either exist in a sibling bundle,
     // or in an ancestor bundle group reachable from all parent bundles.
     let bundleGroups = this.getBundleGroupsContainingBundle(bundle);
