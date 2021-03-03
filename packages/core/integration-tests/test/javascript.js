@@ -1084,6 +1084,39 @@ describe('javascript', function() {
     assert.deepEqual(await Promise.all((await run(b)).default), [5, 4]);
   });
 
+  it('async dependency internalization successfully removes unneeded bundlegroups and their bundles', async () => {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/internalize-remove-bundlegroup/index.js',
+      ),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: [
+          'bundle-url.js',
+          'get-worker-url.js',
+          'index.js',
+          'JSRuntime.js',
+        ],
+      },
+      {
+        assets: [
+          'bundle-url.js',
+          'get-worker-url.js',
+          'JSRuntime.js',
+          'worker1.js',
+          'worker2.js',
+          'worker3.js',
+          'core.js',
+        ],
+      },
+      {assets: ['core.js', 'worker3.js']},
+    ]);
+  });
+
   it('should create a shared bundle between browser and worker contexts', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/html-shared-worker/index.html'),
