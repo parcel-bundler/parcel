@@ -13,7 +13,8 @@ async function shouldExclude(config, options) {
     return true;
   } else {
     let pkg = await config.getPackage();
-    return !(pkg && pkg.dependencies && pkg.dependencies['react']);
+    let usesReact = pkg?.dependencies?.react || pkg?.peerDependencies?.react;
+    return !usesReact;
   }
 }
 
