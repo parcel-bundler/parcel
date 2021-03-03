@@ -405,7 +405,7 @@ export default class UncommittedAsset {
     result: TransformerResult,
     plugin: PackageName,
     configPath: FilePath,
-    configKeyPath: string,
+    configKeyPath?: string,
   ): UncommittedAsset {
     let content = result.content ?? null;
 
