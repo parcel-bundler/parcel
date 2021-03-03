@@ -5735,4 +5735,24 @@ describe('javascript', function () {
 
     assert.deepEqual(calls, ['common', 'deep']);
   });
+
+  it('supports deferring unused dependencies with sideEffects: false', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/side-effects-false/a.js'),
+    );
+
+    let content = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+
+    assert(!content.includes('returned from bar'));
+
+    let called = false;
+    let output = await run(b, {
+      sideEffect: () => {
+        called = true;
+      },
+    });
+
+    assert(!called, 'side effect called');
+    assert.deepEqual(output.default, 4);
+  });
 });

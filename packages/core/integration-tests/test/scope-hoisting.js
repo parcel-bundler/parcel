@@ -2626,7 +2626,7 @@ describe('scope hoisting', function () {
         assert.deepEqual(res.output, 2);
       });
 
-      it('supports deferring an unused ES6 re-exports (namespace used)', async function () {
+      it('supports deferring unused ES6 re-exports (namespace used)', async function () {
         let b = await bundle(
           path.join(
             __dirname,
@@ -2661,7 +2661,7 @@ describe('scope hoisting', function () {
         assert.deepEqual(await run(b), 123);
       });
 
-      it('supports deferring an unused ES6 re-exports (reexport named used)', async function () {
+      it('supports deferring unused ES6 re-exports (reexport named used)', async function () {
         let b = await bundle(
           path.join(
             __dirname,
@@ -2683,7 +2683,7 @@ describe('scope hoisting', function () {
         assert.deepEqual(output, 'Message 2');
       });
 
-      it('supports deferring an unused ES6 re-exports (namespace rename used)', async function () {
+      it('supports deferring unused ES6 re-exports (namespace rename used)', async function () {
         let b = await bundle(
           path.join(
             __dirname,
@@ -2705,7 +2705,7 @@ describe('scope hoisting', function () {
         assert.deepEqual(output, {default: 'Message 3'});
       });
 
-      it('supports deferring an unused ES6 re-exports (direct export used)', async function () {
+      it('supports deferring unused ES6 re-exports (direct export used)', async function () {
         let b = await bundle(
           path.join(
             __dirname,
