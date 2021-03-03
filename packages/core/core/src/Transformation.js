@@ -139,8 +139,11 @@ export default class Transformation {
 
     let asset = await this.loadAsset();
 
-    // Load existing sourcemaps
-    if (!asset.mapBuffer && SOURCEMAP_EXTENSIONS.has(asset.value.type)) {
+    if (asset.mapBuffer) {
+      // Extract sources content from existing map
+      await asset.extractSourcesContentFromMap();
+    } else if (SOURCEMAP_EXTENSIONS.has(asset.value.type)) {
+      // Load existing sourcemaps, this automatically runs the source contents extraction
       try {
         await asset.loadExistingSourcemap();
       } catch (err) {
@@ -432,12 +435,18 @@ export default class Transformation {
           value.astKey != null
             ? await this.options.cache.getBlob<AST>(value.astKey)
             : null;
+        let sourcesContent =
+          value.sourcesContentKey != null
+            ? await this.options.cache.getBlob<string>(value.sourcesContentKey)
+            : null;
         return new UncommittedAsset({
           value,
           options: this.options,
           content,
           mapBuffer,
           ast,
+          sourcesContent:
+            sourcesContent != null ? JSON.parse(sourcesContent) : null,
         });
       }),
     );

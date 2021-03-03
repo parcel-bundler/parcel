@@ -105,7 +105,7 @@ export function generateAST({
   sourceFileName?: FilePath,
   sourceMaps?: boolean,
   options: PluginOptions,
-|}): {|content: string, map: ?SourceMap|} {
+|}): {|content: string, map: SourceMap|} {
   let map = new SourceMap(options.projectRoot);
   let mappings = [];
   let generated = astringGenerate(ast.program, {
@@ -139,7 +139,7 @@ export function generateAST({
   };
 }
 
-export function generate({
+export async function generate({
   asset,
   ast,
   options,
@@ -147,14 +147,26 @@ export function generate({
   asset: BaseAsset,
   ast: AST,
   options: PluginOptions,
-|}): {|content: string, map: ?SourceMap|} {
+|}): Promise<{|content: string, map: ?SourceMap|}> {
   let sourceFileName: string = relativeUrl(options.projectRoot, asset.filePath);
-  return generateAST({
+  let {content, map} = generateAST({
     ast: ast.program,
     sourceFileName,
     sourceMaps: !!asset.env.sourceMap,
     options,
   });
+
+  let sourcesContent = await asset.getSourcesContent();
+  if (sourcesContent) {
+    for (let sourcesContentFileName of Object.keys(sourcesContent)) {
+      map.setSourceContent(
+        sourcesContentFileName,
+        sourcesContent[sourcesContentFileName],
+      );
+    }
+  }
+
+  return {content, map};
 }
 
 export function convertBabelLoc(loc: ?BabelSourceLocation): ?SourceLocation {

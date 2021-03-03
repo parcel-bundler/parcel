@@ -7,8 +7,9 @@ import invariant from 'assert';
 import {generateAST} from '@parcel/babel-ast-utils';
 import SourceMap from '@parcel/source-map';
 import * as t from '@babel/types';
+import nullthrows from 'nullthrows';
 
-export function generate({
+export async function generate({
   bundle,
   ast,
   options,
@@ -16,7 +17,7 @@ export function generate({
   bundle: NamedBundle,
   ast: File,
   options: PluginOptions,
-|}): {|contents: string, map: ?SourceMap|} {
+|}): Promise<{|contents: string, map: ?SourceMap|}> {
   let interpreter;
   let mainEntry = bundle.getMainEntry();
   if (mainEntry && !bundle.target.env.isBrowser()) {
@@ -39,6 +40,24 @@ export function generate({
     sourceMaps: !!bundle.env.sourceMap,
     options,
   });
+
+  let promises = [];
+  // Traverse the bundle to get all source contents
+  bundle.traverseAssets(asset => {
+    promises.push(
+      asset.getSourcesContent().then(sourcesContent => {
+        if (sourcesContent) {
+          for (let sourcesContentFileName of Object.keys(sourcesContent)) {
+            map.setSourceContent(
+              sourcesContentFileName,
+              sourcesContent[sourcesContentFileName],
+            );
+          }
+        }
+      }),
+    );
+  });
+  await Promise.all(promises);
 
   return {
     contents: content,

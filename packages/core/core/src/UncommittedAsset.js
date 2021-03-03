@@ -101,7 +101,7 @@ export default class UncommittedAsset {
     // must be regenerated later and shouldn't be committed.
     if (this.ast != null && this.isASTDirty) {
       this.content = null;
-      this.sourcesContent = await this.extractSourcesContentFromMap();
+      await this.extractSourcesContentFromMap();
       this.mapBuffer = null;
     }
 
@@ -187,13 +187,13 @@ export default class UncommittedAsset {
     return size;
   }
 
-  async extractSourcesContentFromMap(): Promise<?SourcesContentDictionary> {
+  async extractSourcesContentFromMap(): Promise<void> {
     let map = await this.getMap();
     if (!map) {
-      return null;
+      return;
     }
 
-    // TODO: Move a lot of this logic to the source-map library
+    // TODO: Update source-map library... and use getSourcesContent
     let vlqMap = map.getMap();
     let sources = vlqMap.sources;
     let sourcesContent = vlqMap.sourcesContent;
@@ -210,10 +210,16 @@ export default class UncommittedAsset {
     }
 
     if (Object.keys(result).length > 0) {
-      return result;
-    } else {
-      return null;
+      // $FlowFixMe
+      this.sourcesContent = {
+        ...(this.sourcesContent || {}),
+        ...result,
+      };
     }
+  }
+
+  getSourcesContent(): Promise<?SourcesContentDictionary> {
+    return Promise.resolve(this.sourcesContent);
   }
 
   async getCode(): Promise<string> {
@@ -290,6 +296,7 @@ export default class UncommittedAsset {
     if (map) {
       this.map = map;
       this.mapBuffer = map.toBuffer();
+      await this.extractSourcesContentFromMap();
       this.setCode(code.replace(SOURCEMAP_RE, ''));
     }
 
@@ -315,7 +322,8 @@ export default class UncommittedAsset {
   }
 
   setMap(map: ?SourceMap): void {
-    this.mapBuffer = map?.toBuffer();
+    this.map = map;
+    this.mapBuffer = this.map?.toBuffer();
   }
 
   getAST(): Promise<?AST> {
@@ -447,6 +455,7 @@ export default class UncommittedAsset {
       idBase: this.idBase,
       invalidations: this.invalidations,
       fileCreateInvalidations: this.fileCreateInvalidations,
+      sourcesContent: this.sourcesContent, // is this correct-ish?
     });
 
     let dependencies = result.dependencies;
