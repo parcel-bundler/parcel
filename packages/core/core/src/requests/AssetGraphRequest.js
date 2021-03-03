@@ -527,7 +527,6 @@ export class AssetGraphBuilder {
       throw new Error('A root node is required to traverse');
     }
 
-    // let queue: Array<AssetGraphNode> = [root];
     let queue: Set<AssetGraphNode> = new Set([root]);
     let visited = new Set<AssetGraphNode>();
 
