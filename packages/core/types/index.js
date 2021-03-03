@@ -288,6 +288,11 @@ export type InitialParcelOptions = {|
     +engines?: Engines,
   |},
 
+  +additionalReporters?: Array<{|
+    packageName: ModuleSpecifier,
+    resolveFrom: FilePath,
+  |}>,
+
   // throwErrors
   // global?
 |};
