@@ -47,9 +47,8 @@ export default async function getEnvOptions(
 }
 
 function getNeededPlugins(targets: BabelTargets): Array<PresetEnvPlugin> {
-  const { version } = require("@babel/core")
   return presetEnv(
-    {version: version , assertVersion: () => true},
+    {version: require('@babel/core').version, assertVersion: () => true},
     {targets: targets},
   ).plugins.filter(p => p[0]);
 }
