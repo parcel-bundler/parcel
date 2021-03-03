@@ -47,8 +47,9 @@ export default async function getEnvOptions(
 }
 
 function getNeededPlugins(targets: BabelTargets): Array<PresetEnvPlugin> {
+  const { version } = require("@babel/core")
   return presetEnv(
-    {version: '7.13.0', assertVersion: () => true}, // version is required since https://github.com/babel/babel/pull/12934/
+    {version: version , assertVersion: () => true},
     {targets: targets},
   ).plugins.filter(p => p[0]);
 }
