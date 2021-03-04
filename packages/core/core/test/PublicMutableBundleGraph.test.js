@@ -48,7 +48,7 @@ describe('PublicMutableBundleGraph', () => {
 
     assert.deepEqual(
       internalBundleGraph.getBundles().map(b => b.publicId),
-      ['5H7vL', '72iZA'],
+      ['2iKuX', '7cqnn'],
     );
   });
 
@@ -130,13 +130,13 @@ function createMockAssetGraph() {
   );
 
   let dep1 = createDependency({
-    moduleSpecifier: './path/to/index/src/main.js',
+    moduleSpecifier: 'path/to/index/src/main.js',
     isEntry: true,
     env: DEFAULT_ENV,
     target: DEFAULT_TARGETS[0],
   });
   let dep2 = createDependency({
-    moduleSpecifier: './path/to/index/src/main2.js',
+    moduleSpecifier: 'path/to/index/src/main2.js',
     isEntry: true,
     env: DEFAULT_ENV,
     target: DEFAULT_TARGETS[0],

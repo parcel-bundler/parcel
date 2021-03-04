@@ -26,7 +26,7 @@ describe('InternalAsset', () => {
     assert.deepEqual(asset.getInvalidations(), [
       {
         type: 'file',
-        filePath: './foo/file',
+        filePath: 'foo/file',
       },
     ]);
   });

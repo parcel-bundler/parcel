@@ -65,5 +65,5 @@ export const DEFAULT_TARGETS: Array<Target> = [
 ];
 
 export function relative(f: string): string {
-  return relativePath(__dirname, f);
+  return relativePath(__dirname, f, false);
 }

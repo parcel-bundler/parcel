@@ -1580,7 +1580,7 @@ describe('javascript', function() {
     assert(contents.includes('import.meta.url'));
   });
 
-  it('should support referencing a raw asset with static URL and import.meta.url (diagnostic)', async function() {
+  it('should throw a codeframe for a missing raw asset with static URL and import.meta.url', async function() {
     let fixture = path.join(
       __dirname,
       'integration/import-raw-import-meta-url/missing.js',

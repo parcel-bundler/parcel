@@ -296,7 +296,7 @@ export class ResolverRunner {
 
     let err: ThrowableDiagnostic = await this.getThrowableDiagnostic(
       dependency,
-      md`Failed to resolve '${specifier}' ${dir ? `from '${dir}'` : ''}`,
+      md`Failed to resolve '${specifier}' ${dir ? `from './${dir}'` : ''}`,
     );
 
     // Merge diagnostics

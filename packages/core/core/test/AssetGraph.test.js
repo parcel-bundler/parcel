@@ -30,8 +30,8 @@ describe('AssetGraph', () => {
     });
 
     assert(graph.hasNode(nullthrows(graph.rootNodeId)));
-    assert(graph.hasContentKey('entry_specifier:./path/to/index1'));
-    assert(graph.hasContentKey('entry_specifier:./path/to/index2'));
+    assert(graph.hasContentKey('entry_specifier:path/to/index1'));
+    assert(graph.hasContentKey('entry_specifier:path/to/index2'));
   });
 
   it('resolveEntry should connect an entry_specifier node to entry_file nodes', () => {
@@ -64,7 +64,7 @@ describe('AssetGraph', () => {
     );
     assert(
       graph.hasEdge(
-        graph.getNodeIdByContentKey('entry_specifier:./path/to/index1'),
+        graph.getNodeIdByContentKey('entry_specifier:path/to/index1'),
         graph.getNodeIdByContentKey(
           nodeFromEntryFile({
             filePath: toProjectPath('/path/to/index1/src/main.js'),
@@ -125,7 +125,7 @@ describe('AssetGraph', () => {
     assert(
       graph.hasContentKey(
         createDependency({
-          moduleSpecifier: './path/to/index1/src/main.js',
+          moduleSpecifier: 'path/to/index1/src/main.js',
           target: DEFAULT_TARGETS[0],
           env: DEFAULT_ENV,
         }).id,
@@ -134,7 +134,7 @@ describe('AssetGraph', () => {
     assert(
       graph.hasContentKey(
         createDependency({
-          moduleSpecifier: './path/to/index2/src/main.js',
+          moduleSpecifier: 'path/to/index2/src/main.js',
           target: DEFAULT_TARGETS[0],
           env: DEFAULT_ENV,
         }).id,
@@ -143,16 +143,16 @@ describe('AssetGraph', () => {
     assert.deepEqual(graph.getAllEdges(), [
       {
         from: graph.rootNodeId,
-        to: graph.getNodeIdByContentKey('entry_specifier:./path/to/index1'),
+        to: graph.getNodeIdByContentKey('entry_specifier:path/to/index1'),
         type: null,
       },
       {
         from: graph.rootNodeId,
-        to: graph.getNodeIdByContentKey('entry_specifier:./path/to/index2'),
+        to: graph.getNodeIdByContentKey('entry_specifier:path/to/index2'),
         type: null,
       },
       {
-        from: graph.getNodeIdByContentKey('entry_specifier:./path/to/index1'),
+        from: graph.getNodeIdByContentKey('entry_specifier:path/to/index1'),
         to: graph.getNodeIdByContentKey(
           nodeFromEntryFile({
             filePath: toProjectPath('/path/to/index1/src/main.js'),
@@ -162,7 +162,7 @@ describe('AssetGraph', () => {
         type: null,
       },
       {
-        from: graph.getNodeIdByContentKey('entry_specifier:./path/to/index2'),
+        from: graph.getNodeIdByContentKey('entry_specifier:path/to/index2'),
         to: graph.getNodeIdByContentKey(
           nodeFromEntryFile({
             filePath: toProjectPath('/path/to/index2/src/main.js'),
@@ -180,7 +180,7 @@ describe('AssetGraph', () => {
         ),
         to: graph.getNodeIdByContentKey(
           createDependency({
-            moduleSpecifier: './path/to/index1/src/main.js',
+            moduleSpecifier: 'path/to/index1/src/main.js',
             target: DEFAULT_TARGETS[0],
             env: DEFAULT_ENV,
           }).id,
@@ -196,7 +196,7 @@ describe('AssetGraph', () => {
         ),
         to: graph.getNodeIdByContentKey(
           createDependency({
-            moduleSpecifier: './path/to/index2/src/main.js',
+            moduleSpecifier: 'path/to/index2/src/main.js',
             target: DEFAULT_TARGETS[0],
             env: DEFAULT_ENV,
           }).id,
@@ -233,7 +233,7 @@ describe('AssetGraph', () => {
     );
 
     let dep = createDependency({
-      moduleSpecifier: './path/to/index/src/main.js',
+      moduleSpecifier: 'path/to/index/src/main.js',
       target: DEFAULT_TARGETS[0],
       env: DEFAULT_ENV,
     });
@@ -298,7 +298,7 @@ describe('AssetGraph', () => {
     );
 
     let dep = createDependency({
-      moduleSpecifier: './path/to/index/src/main.js',
+      moduleSpecifier: 'path/to/index/src/main.js',
       target: DEFAULT_TARGETS[0],
       env: DEFAULT_ENV,
       sourcePath: toProjectPath(''),
@@ -462,7 +462,7 @@ describe('AssetGraph', () => {
     );
 
     let dep = createDependency({
-      moduleSpecifier: './path/to/index/src/main.js',
+      moduleSpecifier: 'path/to/index/src/main.js',
       env: DEFAULT_ENV,
       target: DEFAULT_TARGETS[0],
     });
