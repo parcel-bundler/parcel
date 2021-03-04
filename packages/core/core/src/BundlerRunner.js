@@ -1,14 +1,9 @@
 // @flow strict-local
 
 import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
-import type {
-  Bundle as IBundle,
-  Namer,
-  FilePath,
-  ConfigOutput,
-} from '@parcel/types';
+import type {Bundle as IBundle, Namer, ConfigOutput} from '@parcel/types';
 import type WorkerFarm, {SharedReference} from '@parcel/workers';
-import type ParcelConfig from './ParcelConfig';
+import type ParcelConfig, {LoadedPlugin} from './ParcelConfig';
 import type RequestTracker from './RequestTracker';
 import type {Bundle as InternalBundle, ParcelOptions} from './types';
 
@@ -210,13 +205,7 @@ export default class BundlerRunner {
   }
 
   async nameBundle(
-    namers: Array<{|
-      name: string,
-      version: string,
-      plugin: Namer,
-      resolveFrom: FilePath,
-      keyPath: string,
-    |}>,
+    namers: Array<LoadedPlugin<Namer>>,
     internalBundle: InternalBundle,
     internalBundleGraph: InternalBundleGraph,
   ): Promise<void> {

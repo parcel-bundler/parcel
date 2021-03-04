@@ -859,7 +859,7 @@ type TransformerWithNameAndConfig = {|
   name: PackageName,
   plugin: Transformer,
   config: ?Config,
-  configKeyPath: string,
+  configKeyPath?: string,
   resolveFrom: FilePath,
 |};
 

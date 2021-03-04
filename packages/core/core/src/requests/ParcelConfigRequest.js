@@ -172,6 +172,17 @@ export async function resolveParcelConfig(
     contents,
     options,
   );
+
+  if (options.additionalReporters.length > 0) {
+    config.reporters = [
+      ...options.additionalReporters.map(({packageName, resolveFrom}) => ({
+        packageName,
+        resolveFrom,
+      })),
+      ...(config.reporters ?? []),
+    ];
+  }
+
   return {config, extendedFiles, usedDefault};
 }
 
