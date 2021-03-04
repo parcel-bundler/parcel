@@ -28,6 +28,8 @@
     "@parcel/fs": "2.0.0-beta.1",
     "@parcel/logger": "2.0.0-beta.1",
     "@parcel/package-manager": "2.0.0-beta.1",
+    "@parcel/reporter-cli": "2.0.0-beta.1",
+    "@parcel/reporter-dev-server": "2.0.0-beta.1",
     "@parcel/utils": "2.0.0-beta.1",
     "chalk": "^4.1.0",
     "commander": "^7.0.0",

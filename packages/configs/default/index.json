@@ -65,9 +65,5 @@
     "*.{jsonld,webmanifest}": "@parcel/packager-raw-url",
     "*": "@parcel/packager-raw"
   },
-  "resolvers": ["@parcel/resolver-default"],
-  "reporters": [
-    "@parcel/reporter-cli",
-    "@parcel/reporter-dev-server"
-  ]
+  "resolvers": ["@parcel/resolver-default"]
 }
