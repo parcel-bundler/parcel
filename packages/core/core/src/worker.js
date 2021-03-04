@@ -55,12 +55,10 @@ async function loadConfig(cachePath, options) {
     return config;
   }
 
-  let processedConfig = nullthrows(await options.cache.get(cachePath));
-  config = new ParcelConfig(
-    // $FlowFixMe
-    ((processedConfig: any): ProcessedParcelConfig),
-    options,
+  let processedConfig = nullthrows(
+    await options.cache.get<ProcessedParcelConfig>(cachePath),
   );
+  config = new ParcelConfig(processedConfig, options);
   parcelConfigCache.set(cachePath, config);
   return config;
 }

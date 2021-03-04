@@ -45,8 +45,6 @@ export type ExtendableParcelConfigPipeline = $ReadOnlyArray<
 >;
 
 export type ProcessedParcelConfig = {|
-  // TODO ProjectPath?
-  extends?: PackageName | FilePath | Array<PackageName | FilePath>,
   resolvers?: PureParcelConfigPipeline,
   transformers?: {[Glob]: ExtendableParcelConfigPipeline, ...},
   bundler: ?ParcelPluginNode,

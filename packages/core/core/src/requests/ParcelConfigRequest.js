@@ -288,7 +288,6 @@ export function processConfig(
   configFile: ResolvedParcelConfigFile,
 ): ProcessedParcelConfig {
   return {
-    extends: configFile.extends,
     filePath: toProjectPath(options.projectRoot, configFile.filePath),
     ...(configFile.resolveFrom != null
       ? {
