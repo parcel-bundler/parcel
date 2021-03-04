@@ -293,7 +293,7 @@ export function md(
     let param = params[i];
     result.push(
       strings[i],
-      param[mdVerbatim] ? param.value : escapeMarkdown(`${param}`),
+      param?.[mdVerbatim] ? param.value : escapeMarkdown(`${param}`),
     );
   }
   return result.join('') + strings[strings.length - 1];
