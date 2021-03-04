@@ -23,7 +23,7 @@ const NODE_MODULES = `${path.sep}node_modules${path.sep}`;
 export default async function loadPlugin<T>(
   pluginName: PackageName,
   configPath: FilePath,
-  keyPath: string,
+  keyPath?: string,
   options: ParcelOptions,
 ): Promise<{|plugin: T, version: Semver, resolveFrom: FilePath|}> {
   let resolveFrom = configPath;
@@ -105,18 +105,22 @@ export default async function loadPlugin<T>(
         origin: '@parcel/core',
         filePath: configPath,
         language: 'json5',
-        codeFrame: {
-          code: configContents,
-          codeHighlights: generateJSONCodeHighlights(configContents, [
-            {
-              key: keyPath,
-              type: 'value',
-              message: md`Cannot find module "${pluginName}"${
-                alternatives[0] ? `, did you mean "${alternatives[0]}"?` : ''
-              }`,
-            },
-          ]),
-        },
+        codeFrame: keyPath
+          ? {
+              code: configContents,
+              codeHighlights: generateJSONCodeHighlights(configContents, [
+                {
+                  key: keyPath,
+                  type: 'value',
+                  message: md`Cannot find module "${pluginName}"${
+                    alternatives[0]
+                      ? `, did you mean "${alternatives[0]}"?`
+                      : ''
+                  }`,
+                },
+              ]),
+            }
+          : undefined,
       },
     });
   }

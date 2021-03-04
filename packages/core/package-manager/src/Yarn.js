@@ -135,7 +135,7 @@ export class Yarn implements PackageInstaller {
     try {
       return await promiseFromProcess(installProcess);
     } catch (e) {
-      throw new Error('Yarn failed to install modules');
+      throw new Error('Yarn failed to install modules:' + e.message);
     }
   }
 }
