@@ -541,16 +541,16 @@ export function mergePipelines(
     return base ?? [];
   }
 
+  if (ext.filter(v => v === '...').length > 1) {
+    throw new Error(
+      'Only one spread element can be included in a config pipeline',
+    );
+  }
+
   if (base) {
     // Merge the base pipeline if a rest element is defined
     let spreadIndex = ext.indexOf('...');
     if (spreadIndex >= 0) {
-      if (ext.filter(v => v === '...').length > 1) {
-        throw new Error(
-          'Only one spread element can be included in a config pipeline',
-        );
-      }
-
       return [
         ...ext.slice(0, spreadIndex),
         ...(base || []),
@@ -559,7 +559,7 @@ export function mergePipelines(
     }
   }
 
-  return ext;
+  return ext?.filter(s => s !== '...');
 }
 
 export function mergeMaps<K: string, V>(
