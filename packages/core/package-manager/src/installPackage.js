@@ -24,6 +24,7 @@ import WorkerFarm from '@parcel/workers';
 
 import {Npm} from './Npm';
 import {Yarn} from './Yarn';
+import {Pnpm} from './Pnpm.js';
 import {getConflictingLocalDependencies} from './utils';
 import validateModuleSpecifier from './validateModuleSpecifier';
 
@@ -131,18 +132,30 @@ async function determinePackageInstaller(
   filepath: FilePath,
 ): Promise<PackageInstaller> {
   let configFile = await resolveConfig(fs, filepath, [
-    'yarn.lock',
     'package-lock.json',
+    'pnpm-lock.yaml',
+    'yarn.lock',
   ]);
-  let hasYarn = await Yarn.exists();
 
-  // If Yarn isn't available, or there is a package-lock.json file, use npm.
   let configName = configFile && path.basename(configFile);
-  if (!hasYarn || configName === 'package-lock.json') {
+
+  // Always use the package manager that seems to be used in the project,
+  // falling back to a different one wouldn't update the existing lockfile.
+  if (configName === 'package-lock.json') {
     return new Npm();
+  } else if (configName === 'pnpm-lock.yaml') {
+    return new Pnpm();
+  } else if (configName === 'yarn.lock') {
+    return new Yarn();
   }
 
-  return new Yarn();
+  if (await Yarn.exists()) {
+    return new Yarn();
+  } else if (await Pnpm.exists()) {
+    return new Pnpm();
+  } else {
+    return new Npm();
+  }
 }
 
 let queue = new PromiseQueue({maxConcurrent: 1});
