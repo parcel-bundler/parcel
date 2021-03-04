@@ -6,6 +6,7 @@ import {DEFAULT_ENV, DEFAULT_TARGETS} from './test-utils';
 import AssetGraph, {nodeFromAssetGroup} from '../src/AssetGraph';
 import {createAsset} from '../src/assetUtils';
 import {createDependency} from '../src/Dependency';
+import {toProjectPath} from '../src/projectPath';
 
 const id1 = '0123456789abcdef0123456789abcdef';
 const id2 = '9876543210fedcba9876543210fedcba';
@@ -45,25 +46,33 @@ function getAssets(bundleGraph) {
 const stats = {size: 0, time: 0};
 function createMockAssetGraph(ids: [string, string]) {
   let graph = new AssetGraph();
-  graph.setRootConnections({entries: ['./index']});
+  graph.setRootConnections({entries: [toProjectPath('/', '/index')]});
 
   graph.resolveEntry(
-    './index',
-    [{filePath: '/path/to/index/src/main.js', packagePath: '/path/to/index'}],
+    toProjectPath('/', '/index'),
+    [
+      {
+        filePath: toProjectPath('/', '/path/to/index/src/main.js'),
+        packagePath: toProjectPath('/', '/path/to/index'),
+      },
+    ],
     '1',
   );
   graph.resolveTargets(
-    {filePath: '/path/to/index/src/main.js', packagePath: '/path/to/index'},
+    {
+      filePath: toProjectPath('/', '/path/to/index/src/main.js'),
+      packagePath: toProjectPath('/', '/path/to/index'),
+    },
     DEFAULT_TARGETS,
     '2',
   );
 
   let dep = createDependency({
-    moduleSpecifier: '/path/to/index/src/main.js',
+    moduleSpecifier: './path/to/index/src/main.js',
     env: DEFAULT_ENV,
     target: DEFAULT_TARGETS[0],
   });
-  let filePath = '/index.js';
+  let filePath = toProjectPath('/', '/index.js');
   let req = {filePath, env: DEFAULT_ENV, query: {}};
   graph.resolveDependency(dep, nodeFromAssetGroup(req).value, '3');
 

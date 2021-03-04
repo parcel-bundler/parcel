@@ -35,7 +35,7 @@
     "is-url": "^1.2.2",
     "json5": "^1.0.1",
     "lru-cache": "^6.0.0",
-    "micromatch": "^4.0.2",
+    "micromatch": "^3.0.4",
     "node-forge": "^0.10.0",
     "nullthrows": "^1.1.1",
     "open": "^7.0.3"

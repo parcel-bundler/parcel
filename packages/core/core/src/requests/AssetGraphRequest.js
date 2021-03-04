@@ -1,13 +1,6 @@
 // @flow strict-local
 
-import type {
-  Async,
-  FilePath,
-  ModuleSpecifier,
-  Symbol,
-  SourceLocation,
-  Meta,
-} from '@parcel/types';
+import type {Async, Symbol, SourceLocation, Meta} from '@parcel/types';
 import type {SharedReference} from '@parcel/workers';
 import type {Diagnostic} from '@parcel/diagnostic';
 import type {
@@ -27,7 +20,6 @@ import type {EntryResult} from './EntryRequest';
 import type {PathRequestInput} from './PathRequest';
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
-import path from 'path';
 import {md5FromOrderedObject, PromiseQueue} from '@parcel/utils';
 import ThrowableDiagnostic, {md} from '@parcel/diagnostic';
 import AssetGraph from '../AssetGraph';
@@ -36,11 +28,12 @@ import createEntryRequest from './EntryRequest';
 import createTargetRequest from './TargetRequest';
 import createAssetRequest from './AssetRequest';
 import createPathRequest from './PathRequest';
+import {type ProjectPath, fromProjectPathRelative} from '../projectPath';
 
 import dumpToGraphViz from '../dumpGraphToGraphViz';
 
 type AssetGraphRequestInput = {|
-  entries?: Array<string>,
+  entries?: Array<ProjectPath>,
   assetGroups?: Array<AssetGroup>,
   optionsRef: SharedReference,
   name: string,
@@ -489,8 +482,7 @@ export class AssetGraphBuilder {
             invariant(resolution && resolution.type === 'asset_group');
 
             errors.push({
-              message: md`${path.relative(
-                this.options.projectRoot,
+              message: md`${fromProjectPathRelative(
                 resolution.value.filePath,
               )} does not export '${s}'`,
               origin: '@parcel/core',
@@ -775,9 +767,9 @@ export class AssetGraphBuilder {
     );
   }
 
-  async runEntryRequest(input: ModuleSpecifier) {
+  async runEntryRequest(input: ProjectPath) {
     let request = createEntryRequest(input);
-    let result = await this.api.runRequest<FilePath, EntryResult>(request, {
+    let result = await this.api.runRequest<ProjectPath, EntryResult>(request, {
       force: true,
     });
     this.assetGraph.resolveEntry(request.input, result.entries, request.id);

@@ -2,13 +2,16 @@
 import type {
   Async,
   Config as IConfig,
-  FilePath,
-  FileCreateInvalidation,
   PluginOptions as IPluginOptions,
 } from '@parcel/types';
-import type {Config, ParcelOptions} from '../types';
+import type {
+  Config,
+  ParcelOptions,
+  InternalFileCreateInvalidation,
+} from '../types';
 import type {LoadedPlugin} from '../ParcelConfig';
 import type {RunAPI} from '../RequestTracker';
+import type {ProjectPath} from '../projectPath';
 
 import crypto from 'crypto';
 import v8 from 'v8';
@@ -30,8 +33,8 @@ export type PluginWithLoadConfig = {
 
 export type ConfigRequest = {
   id: string,
-  includedFiles: Set<FilePath>,
-  invalidateOnFileCreate: Array<FileCreateInvalidation>,
+  includedFiles: Set<ProjectPath>,
+  invalidateOnFileCreate: Array<InternalFileCreateInvalidation>,
   invalidateOnOptionChange: Set<string>,
   shouldInvalidateOnStartup: boolean,
   ...

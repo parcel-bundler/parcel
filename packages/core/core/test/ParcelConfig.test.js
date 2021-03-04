@@ -8,22 +8,25 @@ import logger from '@parcel/logger';
 import {inputFS} from '@parcel/test-utils';
 import {parseAndProcessConfig} from '../src/requests/ParcelConfigRequest';
 import {DEFAULT_OPTIONS} from './test-utils';
+import {toProjectPath} from '../src/projectPath';
+
+const PARCELRC_PATH = toProjectPath('/', '/.parcelrc');
 
 describe('ParcelConfig', () => {
   describe('matchGlobMap', () => {
     let config = new ParcelConfig(
       {
-        filePath: '.parcelrc',
+        filePath: PARCELRC_PATH,
         bundler: undefined,
         packagers: {
           '*.css': {
             packageName: 'parcel-packager-css',
-            resolveFrom: '.parcelrc',
+            resolveFrom: PARCELRC_PATH,
             keyPath: '/packagers/*.css',
           },
           '*.js': {
             packageName: 'parcel-packager-js',
-            resolveFrom: '.parcelrc',
+            resolveFrom: PARCELRC_PATH,
             keyPath: '/packagers/*.js',
           },
         },
@@ -32,15 +35,21 @@ describe('ParcelConfig', () => {
     );
 
     it('should return null array if no glob matches', () => {
-      let result = config.matchGlobMap('foo.wasm', config.packagers);
+      let result = config.matchGlobMap(
+        toProjectPath('/', '/foo.wasm'),
+        config.packagers,
+      );
       assert.deepEqual(result, null);
     });
 
     it('should return a matching pipeline', () => {
-      let result = config.matchGlobMap('foo.js', config.packagers);
+      let result = config.matchGlobMap(
+        toProjectPath('/', '/foo.js'),
+        config.packagers,
+      );
       assert.deepEqual(result, {
         packageName: 'parcel-packager-js',
-        resolveFrom: '.parcelrc',
+        resolveFrom: PARCELRC_PATH,
         keyPath: '/packagers/*.js',
       });
     });
@@ -49,13 +58,13 @@ describe('ParcelConfig', () => {
   describe('matchGlobMapPipelines', () => {
     let config = new ParcelConfig(
       {
-        filePath: '.parcelrc',
+        filePath: PARCELRC_PATH,
         bundler: undefined,
         transformers: {
           '*.jsx': [
             {
               packageName: 'parcel-transform-jsx',
-              resolveFrom: '.parcelrc',
+              resolveFrom: PARCELRC_PATH,
               keyPath: '/transformers/*.jsx/0',
             },
             '...',
@@ -63,7 +72,7 @@ describe('ParcelConfig', () => {
           '*.{js,jsx}': [
             {
               packageName: 'parcel-transform-js',
-              resolveFrom: '.parcelrc',
+              resolveFrom: PARCELRC_PATH,
               keyPath: '/transformers/*.{js,jsx}/0',
             },
           ],
@@ -74,7 +83,7 @@ describe('ParcelConfig', () => {
 
     it('should return an empty array if no pipeline matches', () => {
       let pipeline = config.matchGlobMapPipelines(
-        'foo.css',
+        toProjectPath('/', '/foo.css'),
         config.transformers,
       );
       assert.deepEqual(pipeline, []);
@@ -82,13 +91,13 @@ describe('ParcelConfig', () => {
 
     it('should return a matching pipeline', () => {
       let pipeline = config.matchGlobMapPipelines(
-        'foo.js',
+        toProjectPath('/', '/foo.js'),
         config.transformers,
       );
       assert.deepEqual(pipeline, [
         {
           packageName: 'parcel-transform-js',
-          resolveFrom: '.parcelrc',
+          resolveFrom: PARCELRC_PATH,
           keyPath: '/transformers/*.{js,jsx}/0',
         },
       ]);
@@ -96,18 +105,18 @@ describe('ParcelConfig', () => {
 
     it('should merge pipelines with spread elements', () => {
       let pipeline = config.matchGlobMapPipelines(
-        'foo.jsx',
+        toProjectPath('/', '/foo.jsx'),
         config.transformers,
       );
       assert.deepEqual(pipeline, [
         {
           packageName: 'parcel-transform-jsx',
-          resolveFrom: '.parcelrc',
+          resolveFrom: PARCELRC_PATH,
           keyPath: '/transformers/*.jsx/0',
         },
         {
           packageName: 'parcel-transform-js',
-          resolveFrom: '.parcelrc',
+          resolveFrom: PARCELRC_PATH,
           keyPath: '/transformers/*.{js,jsx}/0',
         },
       ]);
@@ -116,11 +125,10 @@ describe('ParcelConfig', () => {
 
   describe('loadPlugin', () => {
     it('should warn if a plugin needs to specify an engines.parcel field in package.json', async () => {
-      let configFilePath = path.join(
-        __dirname,
-        'fixtures',
-        'plugins',
-        '.parcelrc',
+      let projectRoot = path.join(__dirname, 'fixtures', 'plugins');
+      let configFilePath = toProjectPath(
+        projectRoot,
+        path.join(__dirname, 'fixtures', 'plugins', '.parcelrc'),
       );
       let config = new ParcelConfig(
         {
@@ -136,7 +144,7 @@ describe('ParcelConfig', () => {
             ],
           },
         },
-        DEFAULT_OPTIONS,
+        {...DEFAULT_OPTIONS, projectRoot},
       );
 
       sinon.stub(logger, 'warn');
@@ -157,11 +165,10 @@ describe('ParcelConfig', () => {
     });
 
     it('should error if a plugin specifies an invalid engines.parcel field in package.json', async () => {
-      let configFilePath = path.join(
-        __dirname,
-        'fixtures',
-        'plugins',
-        '.parcelrc',
+      let projectRoot = path.join(__dirname, 'fixtures', 'plugins');
+      let configFilePath = toProjectPath(
+        projectRoot,
+        path.join(__dirname, 'fixtures', 'plugins', '.parcelrc'),
       );
       let config = new ParcelConfig(
         {
@@ -177,9 +184,9 @@ describe('ParcelConfig', () => {
             ],
           },
         },
-        DEFAULT_OPTIONS,
+        {...DEFAULT_OPTIONS, projectRoot},
       );
-      // $FlowFixMe
+      // $FlowFixMe[untyped-import]
       let parcelVersion = require('../package.json').version;
       let pkgJSON = path.join(
         __dirname,

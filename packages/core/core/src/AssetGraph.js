@@ -28,9 +28,10 @@ import {
 import nullthrows from 'nullthrows';
 import ContentGraph, {type SerializedContentGraph} from './ContentGraph';
 import {createDependency} from './Dependency';
+import {type ProjectPath, fromProjectPathRelative} from './projectPath';
 
 type InitOpts = {|
-  entries?: Array<string>,
+  entries?: Array<ProjectPath>,
   targets?: Array<Target>,
   assetGroups?: Array<AssetGroup>,
 |};
@@ -83,9 +84,9 @@ export function nodeFromAsset(asset: Asset): AssetNode {
   };
 }
 
-export function nodeFromEntrySpecifier(entry: string): EntrySpecifierNode {
+export function nodeFromEntrySpecifier(entry: ProjectPath): EntrySpecifierNode {
   return {
-    id: 'entry_specifier:' + entry,
+    id: 'entry_specifier:' + fromProjectPathRelative(entry),
     type: 'entry_specifier',
     value: entry,
   };
@@ -191,7 +192,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
   }
 
   resolveEntry(
-    entry: string,
+    entry: ProjectPath,
     resolved: Array<Entry>,
     correspondingRequest: ContentKey,
   ) {
@@ -216,7 +217,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
     let depNodes = targets.map(target => {
       let node = nodeFromDep(
         createDependency({
-          moduleSpecifier: entry.filePath,
+          moduleSpecifier: fromProjectPathRelative(entry.filePath),
           pipeline: target.pipeline,
           target: target,
           env: target.env,

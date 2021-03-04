@@ -478,8 +478,8 @@ export interface Dependency {
   /** Used for error messages, the importer. */
   +sourceAssetId: ?string;
   /** Used for error messages, the importer. */
-  +sourcePath: ?string;
-  +resolveFrom: ?string;
+  +sourcePath: ?FilePath;
+  +resolveFrom: ?FilePath;
   /** a named pipeline (if the <code>moduleSpecifier</code> didn't specify one). */
   +pipeline: ?string;
 

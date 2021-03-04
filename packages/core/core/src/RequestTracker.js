@@ -1,21 +1,17 @@
 // @flow strict-local
 
 import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
-import type {
-  Async,
-  File,
-  FilePath,
-  FileCreateInvalidation,
-  Glob,
-  EnvMap,
-} from '@parcel/types';
-import type {Event, Options as WatcherOptions} from '@parcel/watcher';
+import type {Async, EnvMap} from '@parcel/types';
+import type {EventType, Options as WatcherOptions} from '@parcel/watcher';
 import type WorkerFarm from '@parcel/workers';
 import type {
   ContentKey,
   NodeId,
   ParcelOptions,
   RequestInvalidation,
+  InternalFile,
+  InternalFileCreateInvalidation,
+  InternalGlob,
 } from './types';
 
 import invariant from 'assert';
@@ -29,6 +25,13 @@ import {
 } from '@parcel/utils';
 import ContentGraph, {type SerializedContentGraph} from './ContentGraph';
 import {assertSignalNotAborted, hashFromOption} from './utils';
+import {
+  type ProjectPath,
+  fromProjectPathRelative,
+  toProjectPathUnsafe,
+  toProjectPath,
+} from './projectPath';
+
 import {
   PARCEL_VERSION,
   VALID,
@@ -52,8 +55,8 @@ type SerializedRequestGraph = {|
   unpredicatableNodeIds: Set<NodeId>,
 |};
 
-type FileNode = {|id: ContentKey, +type: 'file', value: File|};
-type GlobNode = {|id: ContentKey, +type: 'glob', value: Glob|};
+type FileNode = {|id: ContentKey, +type: 'file', value: InternalFile|};
+type GlobNode = {|id: ContentKey, +type: 'glob', value: InternalGlob|};
 type FileNameNode = {|
   id: ContentKey,
   +type: 'file_name',
@@ -109,9 +112,9 @@ type RequestGraphEdgeType =
   | 'dirname';
 
 export type RunAPI = {|
-  invalidateOnFileCreate: FileCreateInvalidation => void,
-  invalidateOnFileDelete: FilePath => void,
-  invalidateOnFileUpdate: FilePath => void,
+  invalidateOnFileCreate: InternalFileCreateInvalidation => void,
+  invalidateOnFileDelete: ProjectPath => void,
+  invalidateOnFileUpdate: ProjectPath => void,
   invalidateOnStartup: () => void,
   invalidateOnEnvChange: string => void,
   invalidateOnOptionChange: string => void,
@@ -138,32 +141,32 @@ export type StaticRunOpts = {|
   invalidateReason: InvalidateReason,
 |};
 
-const nodeFromFilePath = (filePath: string) => ({
-  id: filePath,
+const nodeFromFilePath = (filePath: ProjectPath): RequestGraphNode => ({
+  id: fromProjectPathRelative(filePath),
   type: 'file',
   value: {filePath},
 });
 
-const nodeFromGlob = (glob: Glob) => ({
-  id: glob,
+const nodeFromGlob = (glob: InternalGlob): RequestGraphNode => ({
+  id: fromProjectPathRelative(glob),
   type: 'glob',
   value: glob,
 });
 
-const nodeFromFileName = (fileName: string) => ({
+const nodeFromFileName = (fileName: string): RequestGraphNode => ({
   id: 'file_name:' + fileName,
   type: 'file_name',
   value: fileName,
 });
 
-const nodeFromRequest = (request: StoredRequest) => ({
+const nodeFromRequest = (request: StoredRequest): RequestGraphNode => ({
   id: request.id,
   type: 'request',
   value: request,
   invalidateReason: INITIAL_BUILD,
 });
 
-const nodeFromEnv = (env: string, value: string | void) => ({
+const nodeFromEnv = (env: string, value: string | void): RequestGraphNode => ({
   id: 'env:' + env,
   type: 'env',
   value: {
@@ -172,7 +175,7 @@ const nodeFromEnv = (env: string, value: string | void) => ({
   },
 });
 
-const nodeFromOption = (option: string, value: mixed) => ({
+const nodeFromOption = (option: string, value: mixed): RequestGraphNode => ({
   id: 'option:' + option,
   type: 'option',
   value: {
@@ -341,7 +344,7 @@ export class RequestGraph extends ContentGraph<
     }
   }
 
-  invalidateOnFileUpdate(requestNodeId: NodeId, filePath: FilePath) {
+  invalidateOnFileUpdate(requestNodeId: NodeId, filePath: ProjectPath) {
     let fileNodeId = this.addNode(nodeFromFilePath(filePath));
 
     if (!this.hasEdge(requestNodeId, fileNodeId, 'invalidated_by_update')) {
@@ -349,7 +352,7 @@ export class RequestGraph extends ContentGraph<
     }
   }
 
-  invalidateOnFileDelete(requestNodeId: NodeId, filePath: FilePath) {
+  invalidateOnFileDelete(requestNodeId: NodeId, filePath: ProjectPath) {
     let fileNodeId = this.addNode(nodeFromFilePath(filePath));
 
     if (!this.hasEdge(requestNodeId, fileNodeId, 'invalidated_by_delete')) {
@@ -357,7 +360,10 @@ export class RequestGraph extends ContentGraph<
     }
   }
 
-  invalidateOnFileCreate(requestNodeId: NodeId, input: FileCreateInvalidation) {
+  invalidateOnFileCreate(
+    requestNodeId: NodeId,
+    input: InternalFileCreateInvalidation,
+  ) {
     let node;
     if (input.glob != null) {
       node = nodeFromGlob(input.glob);
@@ -500,20 +506,23 @@ export class RequestGraph extends ContentGraph<
 
   invalidateFileNameNode(
     node: FileNameNode,
-    filePath: FilePath,
+    filePath: ProjectPath,
     matchNodes: Array<FileNode>,
   ) {
     // If there is an edge between this file_name node and one of the original file nodes pointed to
     // by the original file_name node, and the matched node is inside the current directory, invalidate
     // all connected requests pointed to by the file node.
-    let dirname = path.dirname(filePath);
+    let dirname = path.dirname(fromProjectPathRelative(filePath));
 
     let nodeId = this.getNodeIdByContentKey(node.id);
     for (let matchNode of matchNodes) {
       let matchNodeId = this.getNodeIdByContentKey(matchNode.id);
       if (
         this.hasEdge(nodeId, matchNodeId, 'invalidated_by_create_above') &&
-        isDirectoryInside(path.dirname(matchNode.value.filePath), dirname)
+        isDirectoryInside(
+          path.dirname(fromProjectPathRelative(matchNode.value.filePath)),
+          dirname,
+        )
       ) {
         let connectedNodes = this.getNodeIdsConnectedTo(
           matchNodeId,
@@ -535,14 +544,21 @@ export class RequestGraph extends ContentGraph<
       ) {
         let parent = nullthrows(this.getNodeByContentKey(contentKey));
         invariant(parent.type === 'file_name');
-        this.invalidateFileNameNode(parent, dirname, matchNodes);
+        this.invalidateFileNameNode(
+          parent,
+          toProjectPathUnsafe(dirname),
+          matchNodes,
+        );
       }
     }
   }
 
-  respondToFSEvents(events: Array<Event>): boolean {
+  respondToFSEvents(
+    events: Array<{|path: ProjectPath, type: EventType|}>,
+  ): boolean {
     let didInvalidate = false;
-    for (let {path: filePath, type} of events) {
+    for (let {path: _filePath, type} of events) {
+      let filePath = fromProjectPathRelative(_filePath);
       let hasFileRequest = this.hasContentKey(filePath);
 
       // sometimes mac os reports update events as create events.
@@ -586,7 +602,7 @@ export class RequestGraph extends ContentGraph<
 
           if (above.length > 0) {
             didInvalidate = true;
-            this.invalidateFileNameNode(fileNameNode, filePath, above);
+            this.invalidateFileNameNode(fileNameNode, _filePath, above);
           }
         }
 
@@ -594,7 +610,7 @@ export class RequestGraph extends ContentGraph<
           let globNode = this.getNode(globeNodeId);
           invariant(globNode && globNode.type === 'glob');
 
-          if (isGlobMatch(filePath, globNode.value)) {
+          if (isGlobMatch(filePath, fromProjectPathRelative(globNode.value))) {
             let connectedNodes = this.getNodeIdsConnectedTo(
               globeNodeId,
               'invalidated_by_create',
@@ -723,7 +739,9 @@ export default class RequestTracker {
     }
   }
 
-  respondToFSEvents(events: Array<Event>): boolean {
+  respondToFSEvents(
+    events: Array<{|path: ProjectPath, type: EventType|}>,
+  ): boolean {
     return this.graph.respondToFSEvents(events);
   }
 
@@ -932,7 +950,12 @@ async function loadRequestGraph(options): Async<RequestGraph> {
     requestGraph.invalidateUnpredictableNodes();
     requestGraph.invalidateEnvNodes(options.env);
     requestGraph.invalidateOptionNodes(options);
-    requestGraph.respondToFSEvents(events);
+    requestGraph.respondToFSEvents(
+      events.map(e => ({
+        type: e.type,
+        path: toProjectPath(options.projectRoot, e.path),
+      })),
+    );
 
     return requestGraph;
   }

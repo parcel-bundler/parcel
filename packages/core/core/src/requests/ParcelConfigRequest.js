@@ -30,6 +30,7 @@ import ThrowableDiagnostic, {
 import {parse} from 'json5';
 import path from 'path';
 import invariant from 'assert';
+import {toProjectPath} from '../projectPath';
 
 import ParcelConfigSchema from '../ParcelConfig.schema';
 import {optionsProxy} from '../utils';
@@ -67,7 +68,14 @@ export default function createParcelConfigRequest(): ParcelConfigRequest {
     id: type,
     type,
     async run({api, options}: RunOpts): Promise<ConfigAndCachePath> {
-      let {config, extendedFiles, usedDefault} = await loadParcelConfig(
+      let {
+        config,
+        extendedFiles,
+        usedDefault,
+      }: {|
+        ...ParcelConfigChain,
+        usedDefault: boolean,
+      |} = await loadParcelConfig(
         optionsProxy(options, api.invalidateOnOptionChange),
       );
 
@@ -75,15 +83,16 @@ export default function createParcelConfigRequest(): ParcelConfigRequest {
       api.invalidateOnFileDelete(config.filePath);
 
       for (let filePath of extendedFiles) {
-        api.invalidateOnFileUpdate(filePath);
-        api.invalidateOnFileDelete(filePath);
+        let pp = toProjectPath(options.projectRoot, filePath);
+        api.invalidateOnFileUpdate(pp);
+        api.invalidateOnFileDelete(pp);
       }
 
       if (usedDefault) {
         let resolveFrom = getResolveFrom(options);
         api.invalidateOnFileCreate({
           fileName: '.parcelrc',
-          aboveFilePath: resolveFrom,
+          aboveFilePath: toProjectPath(options.projectRoot, resolveFrom),
         });
       }
 
@@ -164,7 +173,7 @@ export async function resolveParcelConfig(
     });
   }
 
-  let {config, extendedFiles} = await parseAndProcessConfig(
+  let {config, extendedFiles}: ParcelConfigChain = await parseAndProcessConfig(
     configPath,
     contents,
     options,
@@ -228,18 +237,19 @@ export async function parseAndProcessConfig(
 }
 
 function processPipeline(
+  options: ParcelOptions,
   pipeline: ?Array<PackageName>,
   keyPath: string,
   filePath: FilePath,
-  //$FlowFixMe
-): any {
+) {
   if (pipeline) {
     return pipeline.map((pkg, i) => {
+      // $FlowFixMe
       if (pkg === '...') return pkg;
 
       return {
         packageName: pkg,
-        resolveFrom: filePath,
+        resolveFrom: toProjectPath(options.projectRoot, filePath),
         keyPath: `${keyPath}/${i}`,
       };
     });
@@ -247,6 +257,7 @@ function processPipeline(
 }
 
 function processMap(
+  options: ParcelOptions,
   // $FlowFixMe
   map: ?ConfigMap<any, any>,
   keyPath: string,
@@ -261,11 +272,11 @@ function processMap(
     if (typeof map[k] === 'string') {
       res[k] = {
         packageName: map[k],
-        resolveFrom: filePath,
+        resolveFrom: toProjectPath(options.projectRoot, filePath),
         keyPath: `${keyPath}/${k}`,
       };
     } else {
-      res[k] = processPipeline(map[k], `${keyPath}/${k}`, filePath);
+      res[k] = processPipeline(options, map[k], `${keyPath}/${k}`, filePath);
     }
   }
 
@@ -273,18 +284,28 @@ function processMap(
 }
 
 export function processConfig(
+  options: ParcelOptions,
   configFile: ResolvedParcelConfigFile,
 ): ProcessedParcelConfig {
   return {
     extends: configFile.extends,
-    filePath: configFile.filePath,
-    resolveFrom: configFile.resolveFrom,
+    filePath: toProjectPath(options.projectRoot, configFile.filePath),
+    ...(configFile.resolveFrom != null
+      ? {
+          resolveFrom: toProjectPath(
+            options.projectRoot,
+            configFile.resolveFrom,
+          ),
+        }
+      : {...null}),
     resolvers: processPipeline(
+      options,
       configFile.resolvers,
       '/resolvers',
       configFile.filePath,
     ),
     transformers: processMap(
+      options,
       configFile.transformers,
       '/transformers',
       configFile.filePath,
@@ -293,32 +314,45 @@ export function processConfig(
       configFile.bundler != null
         ? {
             packageName: configFile.bundler,
-            resolveFrom: configFile.filePath,
+            resolveFrom: toProjectPath(
+              options.projectRoot,
+              configFile.filePath,
+            ),
             keyPath: '/bundler',
           }
         : undefined,
-    namers: processPipeline(configFile.namers, '/namers', configFile.filePath),
+    namers: processPipeline(
+      options,
+      configFile.namers,
+      '/namers',
+      configFile.filePath,
+    ),
     runtimes: processPipeline(
+      options,
       configFile.runtimes,
       '/runtimes',
       configFile.filePath,
     ),
     packagers: processMap(
+      options,
       configFile.packagers,
       '/packagers',
       configFile.filePath,
     ),
     optimizers: processMap(
+      options,
       configFile.optimizers,
       '/optimizers',
       configFile.filePath,
     ),
     reporters: processPipeline(
+      options,
       configFile.reporters,
       '/reporters',
       configFile.filePath,
     ),
     validators: processMap(
+      options,
       configFile.validators,
       '/validators',
       configFile.filePath,
@@ -336,7 +370,7 @@ export async function processConfigChain(
   validateConfigFile(configFile, relativePath);
 
   // Process config...
-  let config: ProcessedParcelConfig = processConfig({
+  let config: ProcessedParcelConfig = processConfig(options, {
     filePath,
     ...configFile,
   });
@@ -470,7 +504,7 @@ async function processExtendedConfig(
               key: extendsKey,
               type: 'value',
               message: md`"${extendsSpecifier}" does not exist${
-                alternatives[0] ? `, did you mean "./${alternatives[0]}"?` : ''
+                alternatives[0] ? `, did you mean "${alternatives[0]}"?` : ''
               }`,
             },
           ]),

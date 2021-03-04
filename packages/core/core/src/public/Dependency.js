@@ -2,16 +2,18 @@
 import type {
   Dependency as IDependency,
   Environment as IEnvironment,
-  SourceLocation,
+  FilePath,
   Meta,
   MutableDependencySymbols as IMutableDependencySymbols,
+  SourceLocation,
 } from '@parcel/types';
-import type {Dependency as InternalDependency} from '../types';
+import type {Dependency as InternalDependency, ParcelOptions} from '../types';
 
+import nullthrows from 'nullthrows';
 import Environment from './Environment';
 import Target from './Target';
 import {MutableDependencySymbols} from './Symbols';
-import nullthrows from 'nullthrows';
+import {fromProjectPath} from '../projectPath';
 
 const inspect = Symbol.for('nodejs.util.inspect.custom');
 
@@ -31,14 +33,16 @@ export function dependencyToInternalDependency(
 
 export default class Dependency implements IDependency {
   #dep /*: InternalDependency */;
+  #options /*: ParcelOptions */;
 
-  constructor(dep: InternalDependency): Dependency {
+  constructor(dep: InternalDependency, options: ParcelOptions): Dependency {
     let existing = internalDependencyToDependency.get(dep);
     if (existing != null) {
       return existing;
     }
 
     this.#dep = dep;
+    this.#options = options;
     _dependencyToInternalDependency.set(this, dep);
     internalDependencyToDependency.set(dep, this);
     return this;
@@ -95,7 +99,7 @@ export default class Dependency implements IDependency {
 
   get target(): ?Target {
     let target = this.#dep.target;
-    return target ? new Target(target) : null;
+    return target ? new Target(target, this.#options) : null;
   }
 
   get sourceAssetId(): ?string {
@@ -103,13 +107,16 @@ export default class Dependency implements IDependency {
     return this.#dep.sourceAssetId;
   }
 
-  get sourcePath(): ?string {
+  get sourcePath(): ?FilePath {
     // TODO: does this need to be public?
-    return this.#dep.sourcePath;
+    return fromProjectPath(this.#options.projectRoot, this.#dep.sourcePath);
   }
 
-  get resolveFrom(): ?string {
-    return this.#dep.resolveFrom ?? this.#dep.sourcePath;
+  get resolveFrom(): ?FilePath {
+    return fromProjectPath(
+      this.#options.projectRoot,
+      this.#dep.resolveFrom ?? this.#dep.sourcePath,
+    );
   }
 
   get pipeline(): ?string {

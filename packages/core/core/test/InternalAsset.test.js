@@ -5,6 +5,7 @@ import UncommittedAsset from '../src/UncommittedAsset';
 import {createAsset} from '../src/assetUtils';
 import {createEnvironment} from '../src/Environment';
 import {DEFAULT_OPTIONS} from './test-utils';
+import {toProjectPath} from '../src/projectPath';
 
 const stats = {time: 0, size: 0};
 
@@ -12,7 +13,7 @@ describe('InternalAsset', () => {
   it('only includes connected files once per filePath', () => {
     let asset = new UncommittedAsset({
       value: createAsset({
-        filePath: '/foo/asset.js',
+        filePath: toProjectPath('/', '/foo/asset.js'),
         env: createEnvironment(),
         stats,
         type: 'js',
@@ -20,12 +21,12 @@ describe('InternalAsset', () => {
       }),
       options: DEFAULT_OPTIONS,
     });
-    asset.addIncludedFile('/foo/file');
-    asset.addIncludedFile('/foo/file');
+    asset.addIncludedFile(toProjectPath('/', '/foo/file'));
+    asset.addIncludedFile(toProjectPath('/', '/foo/file'));
     assert.deepEqual(asset.getInvalidations(), [
       {
         type: 'file',
-        filePath: '/foo/file',
+        filePath: './foo/file',
       },
     ]);
   });
@@ -33,7 +34,7 @@ describe('InternalAsset', () => {
   it('only includes dependencies once per id', () => {
     let asset = new UncommittedAsset({
       value: createAsset({
-        filePath: '/foo/asset.js',
+        filePath: toProjectPath('/', '/foo/asset.js'),
         env: createEnvironment(),
         stats,
         type: 'js',
@@ -52,7 +53,7 @@ describe('InternalAsset', () => {
   it('includes different dependencies if their id differs', () => {
     let asset = new UncommittedAsset({
       value: createAsset({
-        filePath: '/foo/asset.js',
+        filePath: toProjectPath('/', '/foo/asset.js'),
         env: createEnvironment(),
         stats,
         type: 'js',

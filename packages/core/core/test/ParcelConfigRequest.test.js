@@ -14,9 +14,10 @@ import {
   processConfig,
 } from '../src/requests/ParcelConfigRequest';
 import {validatePackageName} from '../src/ParcelConfig.schema';
-import {DEFAULT_OPTIONS} from './test-utils';
+import {DEFAULT_OPTIONS, relative} from './test-utils';
+import {toProjectPath} from '../src/projectPath';
 
-describe('loadParcelConfig', () => {
+describe('ParcelConfigRequest', () => {
   describe('validatePackageName', () => {
     it('should error on an invalid official package', () => {
       assert.throws(() => {
@@ -316,7 +317,7 @@ describe('loadParcelConfig', () => {
           [
             {
               packageName: 'parcel-transform-foo',
-              resolveFrom: '.parcelrc',
+              resolveFrom: toProjectPath('/', '/.parcelrc'),
               keyPath: '/transformers/*.js/0',
             },
           ],
@@ -325,7 +326,7 @@ describe('loadParcelConfig', () => {
         [
           {
             packageName: 'parcel-transform-foo',
-            resolveFrom: '.parcelrc',
+            resolveFrom: './.parcelrc',
             keyPath: '/transformers/*.js/0',
           },
         ],
@@ -337,14 +338,14 @@ describe('loadParcelConfig', () => {
         mergePipelines(null, [
           {
             packageName: 'parcel-transform-bar',
-            resolveFrom: '.parcelrc',
+            resolveFrom: toProjectPath('/', '/.parcelrc'),
             keyPath: '/transformers/*.js/0',
           },
         ]),
         [
           {
             packageName: 'parcel-transform-bar',
-            resolveFrom: '.parcelrc',
+            resolveFrom: './.parcelrc',
             keyPath: '/transformers/*.js/0',
           },
         ],
@@ -357,14 +358,14 @@ describe('loadParcelConfig', () => {
           [
             {
               packageName: 'parcel-transform-foo',
-              resolveFrom: '.parcelrc',
+              resolveFrom: toProjectPath('/', '/.parcelrc'),
               keyPath: '/transformers/*.js/0',
             },
           ],
           [
             {
               packageName: 'parcel-transform-bar',
-              resolveFrom: '.parcelrc',
+              resolveFrom: toProjectPath('/', '/.parcelrc'),
               keyPath: '/transformers/*.js/0',
             },
           ],
@@ -372,7 +373,7 @@ describe('loadParcelConfig', () => {
         [
           {
             packageName: 'parcel-transform-bar',
-            resolveFrom: '.parcelrc',
+            resolveFrom: './.parcelrc',
             keyPath: '/transformers/*.js/0',
           },
         ],
@@ -385,20 +386,20 @@ describe('loadParcelConfig', () => {
           [
             {
               packageName: 'parcel-transform-foo',
-              resolveFrom: '.parcelrc',
+              resolveFrom: toProjectPath('/', '/.parcelrc'),
               keyPath: '/transformers/*.js/0',
             },
           ],
           [
             {
               packageName: 'parcel-transform-bar',
-              resolveFrom: '.parcelrc',
+              resolveFrom: toProjectPath('/', '/.parcelrc'),
               keyPath: '/transformers/*.js/0',
             },
             '...',
             {
               packageName: 'parcel-transform-baz',
-              resolveFrom: '.parcelrc',
+              resolveFrom: toProjectPath('/', '/.parcelrc'),
               keyPath: '/transformers/*.js/2',
             },
           ],
@@ -406,17 +407,17 @@ describe('loadParcelConfig', () => {
         [
           {
             packageName: 'parcel-transform-bar',
-            resolveFrom: '.parcelrc',
+            resolveFrom: './.parcelrc',
             keyPath: '/transformers/*.js/0',
           },
           {
             packageName: 'parcel-transform-foo',
-            resolveFrom: '.parcelrc',
+            resolveFrom: './.parcelrc',
             keyPath: '/transformers/*.js/0',
           },
           {
             packageName: 'parcel-transform-baz',
-            resolveFrom: '.parcelrc',
+            resolveFrom: './.parcelrc',
             keyPath: '/transformers/*.js/2',
           },
         ],
@@ -429,20 +430,20 @@ describe('loadParcelConfig', () => {
           [
             {
               packageName: 'parcel-transform-foo',
-              resolveFrom: '.parcelrc',
+              resolveFrom: toProjectPath('/', '/.parcelrc'),
               keyPath: '/transformers/*.js/0',
             },
           ],
           [
             {
               packageName: 'parcel-transform-bar',
-              resolveFrom: '.parcelrc',
+              resolveFrom: toProjectPath('/', '/.parcelrc'),
               keyPath: '/transformers/*.js/0',
             },
             '...',
             {
               packageName: 'parcel-transform-baz',
-              resolveFrom: '.parcelrc',
+              resolveFrom: toProjectPath('/', '/.parcelrc'),
               keyPath: '/transformers/*.js/2',
             },
             '...',
@@ -456,13 +457,13 @@ describe('loadParcelConfig', () => {
         mergePipelines(null, [
           {
             packageName: 'parcel-transform-bar',
-            resolveFrom: '.parcelrc',
+            resolveFrom: toProjectPath('/', '/.parcelrc'),
             keyPath: '/transformers/*.js/0',
           },
           '...',
           {
             packageName: 'parcel-transform-baz',
-            resolveFrom: '.parcelrc',
+            resolveFrom: toProjectPath('/', '/.parcelrc'),
             keyPath: '/transformers/*.js/2',
           },
         ]),
@@ -486,13 +487,13 @@ describe('loadParcelConfig', () => {
         mergePipelines(null, [
           {
             packageName: 'parcel-transform-bar',
-            resolveFrom: '.parcelrc',
+            resolveFrom: toProjectPath('/', '/.parcelrc'),
             keyPath: '/transformers/*.js/0',
           },
           '...',
           {
             packageName: 'parcel-transform-baz',
-            resolveFrom: '.parcelrc',
+            resolveFrom: toProjectPath('/', '/.parcelrc'),
             keyPath: '/transformers/*.js/2',
           },
           '...',
@@ -544,11 +545,11 @@ describe('loadParcelConfig', () => {
     it('should merge configs', () => {
       let base = new ParcelConfig(
         {
-          filePath: '.parcelrc',
+          filePath: toProjectPath('/', '/.parcelrc'),
           resolvers: [
             {
               packageName: 'parcel-resolver-base',
-              resolveFrom: '.parcelrc',
+              resolveFrom: toProjectPath('/', '/.parcelrc'),
               keyPath: '/resolvers/0',
             },
           ],
@@ -556,21 +557,21 @@ describe('loadParcelConfig', () => {
             '*.js': [
               {
                 packageName: 'parcel-transform-base',
-                resolveFrom: '.parcelrc',
+                resolveFrom: toProjectPath('/', '/.parcelrc'),
                 keyPath: '/transformers/*.js/0',
               },
             ],
             '*.css': [
               {
                 packageName: 'parcel-transform-css',
-                resolveFrom: '.parcelrc',
+                resolveFrom: toProjectPath('/', '/.parcelrc'),
                 keyPath: '/transformers/*.css/0',
               },
             ],
           },
           bundler: {
             packageName: 'parcel-bundler-base',
-            resolveFrom: '.parcelrc',
+            resolveFrom: toProjectPath('/', '/.parcelrc'),
             keyPath: '/bundler',
           },
         },
@@ -582,7 +583,7 @@ describe('loadParcelConfig', () => {
         resolvers: [
           {
             packageName: 'parcel-resolver-ext',
-            resolveFrom: '.parcelrc',
+            resolveFrom: './.parcelrc',
             keyPath: '/resolvers/0',
           },
           '...',
@@ -591,7 +592,7 @@ describe('loadParcelConfig', () => {
           '*.js': [
             {
               packageName: 'parcel-transform-ext',
-              resolveFrom: '.parcelrc',
+              resolveFrom: './.parcelrc',
               keyPath: '/transformers/*.js/0',
             },
             '...',
@@ -604,12 +605,12 @@ describe('loadParcelConfig', () => {
         resolvers: [
           {
             packageName: 'parcel-resolver-ext',
-            resolveFrom: '.parcelrc',
+            resolveFrom: './.parcelrc',
             keyPath: '/resolvers/0',
           },
           {
             packageName: 'parcel-resolver-base',
-            resolveFrom: '.parcelrc',
+            resolveFrom: './.parcelrc',
             keyPath: '/resolvers/0',
           },
         ],
@@ -617,26 +618,26 @@ describe('loadParcelConfig', () => {
           '*.js': [
             {
               packageName: 'parcel-transform-ext',
-              resolveFrom: '.parcelrc',
+              resolveFrom: './.parcelrc',
               keyPath: '/transformers/*.js/0',
             },
             {
               packageName: 'parcel-transform-base',
-              resolveFrom: '.parcelrc',
+              resolveFrom: './.parcelrc',
               keyPath: '/transformers/*.js/0',
             },
           ],
           '*.css': [
             {
               packageName: 'parcel-transform-css',
-              resolveFrom: '.parcelrc',
+              resolveFrom: './.parcelrc',
               keyPath: '/transformers/*.css/0',
             },
           ],
         },
         bundler: {
           packageName: 'parcel-bundler-base',
-          resolveFrom: '.parcelrc',
+          resolveFrom: './.parcelrc',
           keyPath: '/bundler',
         },
         runtimes: [],
@@ -680,7 +681,7 @@ describe('loadParcelConfig', () => {
   describe('parseAndProcessConfig', () => {
     it('should load and merge configs', async () => {
       let defaultConfigPath = require.resolve('@parcel/config-default');
-      let defaultConfig = processConfig({
+      let defaultConfig = processConfig(DEFAULT_OPTIONS, {
         ...require('@parcel/config-default'),
         filePath: defaultConfigPath,
       });
@@ -707,12 +708,12 @@ describe('loadParcelConfig', () => {
       assert.deepEqual(transformers['*.js'], [
         {
           packageName: 'parcel-transformer-sub',
-          resolveFrom: subConfigFilePath,
+          resolveFrom: relative(subConfigFilePath),
           keyPath: '/transformers/*.js/0',
         },
         {
           packageName: 'parcel-transformer-base',
-          resolveFrom: configFilePath,
+          resolveFrom: relative(configFilePath),
           keyPath: '/transformers/*.js/0',
         },
         '...',

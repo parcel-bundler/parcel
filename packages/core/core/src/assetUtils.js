@@ -34,18 +34,23 @@ import PluginOptions from './public/PluginOptions';
 import {
   blobToStream,
   loadConfig,
-  md5FromOrderedObject,
   md5FromFilePath,
+  md5FromOrderedObject,
 } from '@parcel/utils';
 import {hashFromOption} from './utils';
 import {createBuildCache} from './buildCache';
+import {
+  type ProjectPath,
+  fromProjectPath,
+  fromProjectPathRelative,
+} from './projectPath';
 
 type AssetOptions = {|
   id?: string,
   committed?: boolean,
   hash?: ?string,
   idBase?: ?string,
-  filePath: FilePath,
+  filePath: ProjectPath,
   query?: ?QueryParameters,
   type: string,
   contentKey?: ?string,
@@ -66,7 +71,7 @@ type AssetOptions = {|
   sideEffects?: boolean,
   uniqueKey?: ?string,
   plugin?: PackageName,
-  configPath?: FilePath,
+  configPath?: ProjectPath,
   configKeyPath?: string,
 |};
 
@@ -138,7 +143,10 @@ async function _generateFromAST(asset: CommittedAsset | UncommittedAsset) {
   let pluginName = nullthrows(asset.value.plugin);
   let {plugin} = await loadPlugin<Transformer>(
     pluginName,
-    nullthrows(asset.value.configPath),
+    fromProjectPath(
+      asset.options.projectRoot,
+      nullthrows(asset.value.configPath),
+    ),
     nullthrows(asset.value.configKeyPath),
     asset.options,
   );
@@ -198,7 +206,7 @@ export async function getConfig(
 
   let conf = await loadConfig(
     asset.options.inputFS,
-    asset.value.filePath,
+    fromProjectPath(asset.options.projectRoot, asset.value.filePath),
     filePaths,
     parse == null ? null : {parse},
   );
@@ -212,7 +220,7 @@ export async function getConfig(
 export function getInvalidationId(invalidation: RequestInvalidation): string {
   switch (invalidation.type) {
     case 'file':
-      return 'file:' + invalidation.filePath;
+      return 'file:' + fromProjectPathRelative(invalidation.filePath);
     case 'env':
       return 'env:' + invalidation.key;
     case 'option':
@@ -245,7 +253,7 @@ export async function getInvalidationHash(
         if (fileHash == null) {
           fileHash = await md5FromFilePath(
             options.inputFS,
-            invalidation.filePath,
+            fromProjectPath(options.projectRoot, invalidation.filePath),
           );
           hashCache.set(invalidation.filePath, fileHash);
         }

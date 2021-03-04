@@ -16,6 +16,7 @@ import type {
   RequestInvalidation,
   Dependency,
   ParcelOptions,
+  InternalFileCreateInvalidation,
 } from './types';
 
 import v8 from 'v8';
@@ -23,13 +24,13 @@ import invariant from 'assert';
 import {Readable} from 'stream';
 import SourceMap from '@parcel/source-map';
 import {
-  bufferStream,
-  md5FromString,
   blobToStream,
+  bufferStream,
+  loadSourceMap,
+  md5FromString,
+  SOURCEMAP_RE,
   streamFromPromise,
   TapStream,
-  loadSourceMap,
-  SOURCEMAP_RE,
 } from '@parcel/utils';
 import {createDependency, mergeDependencies} from './Dependency';
 import {mergeEnvironments} from './Environment';
@@ -40,6 +41,8 @@ import {
   getInvalidationId,
   getInvalidationHash,
 } from './assetUtils';
+import {invalidateOnFileCreateToInternal} from './utils';
+import {type ProjectPath, fromProjectPath, toProjectPath} from './projectPath';
 
 type UncommittedAssetOptions = {|
   value: Asset,
@@ -50,7 +53,7 @@ type UncommittedAssetOptions = {|
   isASTDirty?: ?boolean,
   idBase?: ?string,
   invalidations?: Map<string, RequestInvalidation>,
-  fileCreateInvalidations?: Array<FileCreateInvalidation>,
+  fileCreateInvalidations?: Array<InternalFileCreateInvalidation>,
 |};
 
 export default class UncommittedAsset {
@@ -63,7 +66,7 @@ export default class UncommittedAsset {
   isASTDirty: boolean;
   idBase: ?string;
   invalidations: Map<string, RequestInvalidation>;
-  fileCreateInvalidations: Array<FileCreateInvalidation>;
+  fileCreateInvalidations: Array<InternalFileCreateInvalidation>;
 
   constructor({
     value,
@@ -236,10 +239,14 @@ export default class UncommittedAsset {
     }
 
     let code = await this.getCode();
-    let map = await loadSourceMap(this.value.filePath, code, {
-      fs: this.options.inputFS,
-      projectRoot: this.options.projectRoot,
-    });
+    let map = await loadSourceMap(
+      fromProjectPath(this.options.projectRoot, this.value.filePath),
+      code,
+      {
+        fs: this.options.inputFS,
+        projectRoot: this.options.projectRoot,
+      },
+    );
 
     if (map) {
       this.map = map;
@@ -299,9 +306,10 @@ export default class UncommittedAsset {
 
   addDependency(opts: DependencyOptions): string {
     // eslint-disable-next-line no-unused-vars
-    let {env, target, symbols, ...rest} = opts;
+    let {env, target, symbols, resolveFrom, ...rest} = opts;
     let dep = createDependency({
       ...rest,
+      resolveFrom: toProjectPath(this.options.projectRoot, resolveFrom),
       // $FlowFixMe "convert" the $ReadOnlyMaps to the interal mutable one
       symbols,
       env: mergeEnvironments(this.value.env, env),
@@ -317,7 +325,7 @@ export default class UncommittedAsset {
     return dep.id;
   }
 
-  addIncludedFile(filePath: FilePath) {
+  addIncludedFile(filePath: ProjectPath) {
     let invalidation: RequestInvalidation = {
       type: 'file',
       filePath,
@@ -327,7 +335,9 @@ export default class UncommittedAsset {
   }
 
   invalidateOnFileCreate(invalidation: FileCreateInvalidation) {
-    this.fileCreateInvalidations.push(invalidation);
+    this.fileCreateInvalidations.push(
+      invalidateOnFileCreateToInternal(this.options.projectRoot, invalidation),
+    );
   }
 
   invalidateOnEnvChange(key: string) {
@@ -350,7 +360,7 @@ export default class UncommittedAsset {
   createChildAsset(
     result: TransformerResult,
     plugin: PackageName,
-    configPath: FilePath,
+    configPath: ProjectPath,
     configKeyPath?: string,
   ): UncommittedAsset {
     let content = result.content ?? null;
@@ -426,7 +436,9 @@ export default class UncommittedAsset {
     }
 
     for (let file of conf.files) {
-      this.addIncludedFile(file.filePath);
+      this.addIncludedFile(
+        toProjectPath(this.options.projectRoot, file.filePath),
+      );
     }
 
     return conf.config;

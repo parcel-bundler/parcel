@@ -10,6 +10,7 @@ import {resolveConfig, md5FromString} from '@parcel/utils';
 import {NodeFS} from '@parcel/fs';
 import Cache from '@parcel/cache';
 import {NodePackageManager} from '@parcel/package-manager';
+import {toProjectPath} from './projectPath';
 
 // Default cache directory name
 const DEFAULT_CACHE_DIRNAME = '.parcel-cache';
@@ -52,11 +53,6 @@ export default async function resolveOptions(
       '.hg',
     ])) || path.join(inputFS.cwd(), 'index'); // ? Should this just be rootDir
 
-  let lockFile = null;
-  let rootFileName = path.basename(projectRootFile);
-  if (LOCK_FILE_NAMES.includes(rootFileName)) {
-    lockFile = projectRootFile;
-  }
   let projectRoot = path.dirname(projectRootFile);
 
   let inputCwd = inputFS.cwd();
@@ -117,17 +113,20 @@ export default async function resolveOptions(
     shouldDisableCache: initialOptions.shouldDisableCache ?? false,
     shouldProfile: initialOptions.shouldProfile ?? false,
     cacheDir,
-    entries,
-    entryRoot,
+    entries: entries.map(e => toProjectPath(projectRoot, e)),
+    entryRoot: toProjectPath(projectRoot, entryRoot),
     targets: initialOptions.targets,
     logLevel: initialOptions.logLevel ?? 'info',
     projectRoot,
-    lockFile,
     inputFS,
     outputFS,
     cache,
     packageManager,
-    additionalReporters: initialOptions.additionalReporters ?? [],
+    additionalReporters:
+      initialOptions.additionalReporters?.map(({packageName, resolveFrom}) => ({
+        packageName,
+        resolveFrom: toProjectPath(projectRoot, resolveFrom),
+      })) ?? [],
     instanceId: generateInstanceId(entries),
     detailedReport: initialOptions.detailedReport,
     defaultTargetOptions: {
@@ -137,7 +136,9 @@ export default async function resolveOptions(
         initialOptions.mode === 'production',
       sourceMaps: initialOptions?.defaultTargetOptions?.sourceMaps ?? true,
       publicUrl,
-      distDir,
+      ...(distDir != null
+        ? {distDir: toProjectPath(projectRoot, distDir)}
+        : {...null}),
       engines: initialOptions?.defaultTargetOptions?.engines,
     },
   };

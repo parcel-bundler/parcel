@@ -6,6 +6,7 @@ import UncommittedAsset from '../src/UncommittedAsset';
 import {createAsset} from '../src/assetUtils';
 import {createEnvironment} from '../src/Environment';
 import {DEFAULT_OPTIONS} from './test-utils';
+import {toProjectPath} from '../src/projectPath';
 
 describe('Public Asset', () => {
   let internalAsset;
@@ -13,7 +14,7 @@ describe('Public Asset', () => {
     internalAsset = new UncommittedAsset({
       options: DEFAULT_OPTIONS,
       value: createAsset({
-        filePath: '/does/not/exist',
+        filePath: toProjectPath('/', '/does/not/exist'),
         type: 'js',
         env: createEnvironment({}),
         isSource: true,

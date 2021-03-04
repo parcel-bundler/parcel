@@ -17,6 +17,7 @@ import nullthrows from 'nullthrows';
 import createParcelConfigRequest from './ParcelConfigRequest';
 import {runDevDepRequest} from './DevDepRequest';
 import {runConfigRequest} from './ConfigRequest';
+import {fromProjectPathRelative} from '../projectPath';
 
 type RunInput = {|
   input: AssetRequestInput,
@@ -93,7 +94,7 @@ async function run({input, api, farm, invalidateReason}: RunInput) {
       [...previousDevDepRequests.entries()]
         .filter(([id]) => api.canSkipSubrequest(id))
         .map(([, req]) => [
-          `${req.moduleSpecifier}:${req.resolveFrom}`,
+          `${req.moduleSpecifier}:${fromProjectPathRelative(req.resolveFrom)}`,
           req.hash,
         ]),
     ),

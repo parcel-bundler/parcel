@@ -10,8 +10,10 @@ import type {
 } from '@parcel/types';
 import type {Config, ParcelOptions} from '../types';
 
+import invariant from 'assert';
 import {DefaultWeakMap, loadConfig} from '@parcel/utils';
 import Environment from './Environment';
+import {fromProjectPath, toProjectPath} from '../projectPath';
 
 const internalConfigToConfig: DefaultWeakMap<
   ParcelOptions,
@@ -41,7 +43,7 @@ export default class PublicConfig implements IConfig {
   }
 
   get searchPath(): FilePath {
-    return this.#config.searchPath;
+    return fromProjectPath(this.#options.projectRoot, this.#config.searchPath);
   }
 
   get result(): ConfigResult {
@@ -53,7 +55,11 @@ export default class PublicConfig implements IConfig {
   }
 
   get includedFiles(): Set<FilePath> {
-    return this.#config.includedFiles;
+    return new Set(
+      [...this.#config.includedFiles].map(f =>
+        fromProjectPath(this.#options.projectRoot, f),
+      ),
+    );
   }
 
   // $FlowFixMe
@@ -66,15 +72,40 @@ export default class PublicConfig implements IConfig {
   }
 
   addIncludedFile(filePath: FilePath) {
-    this.#config.includedFiles.add(filePath);
+    this.#config.includedFiles.add(
+      toProjectPath(this.#options.projectRoot, filePath),
+    );
   }
 
   addDevDependency(devDep: DevDepOptions) {
-    this.#config.devDeps.push(devDep);
+    this.#config.devDeps.push({
+      ...devDep,
+      resolveFrom: toProjectPath(this.#options.projectRoot, devDep.resolveFrom),
+    });
   }
 
   invalidateOnFileCreate(invalidation: FileCreateInvalidation) {
-    this.#config.invalidateOnFileCreate.push(invalidation);
+    if (invalidation.glob != null) {
+      // $FlowFixMe
+      this.#config.invalidateOnFileCreate.push(invalidation);
+    } else if (invalidation.filePath != null) {
+      this.#config.invalidateOnFileCreate.push({
+        filePath: toProjectPath(
+          this.#options.projectRoot,
+          invalidation.filePath,
+        ),
+      });
+    } else {
+      invariant(invalidation.aboveFilePath != null);
+      this.#config.invalidateOnFileCreate.push({
+        // $FlowFixMe
+        fileName: invalidation.fileName,
+        aboveFilePath: toProjectPath(
+          this.#options.projectRoot,
+          invalidation.aboveFilePath,
+        ),
+      });
+    }
   }
 
   shouldInvalidateOnStartup() {

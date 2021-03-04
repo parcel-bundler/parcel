@@ -87,7 +87,7 @@ export default class BundleGraph<TBundle: IBundle>
   getIncomingDependencies(asset: IAsset): Array<IDependency> {
     return this.#graph
       .getIncomingDependencies(assetToAssetValue(asset))
-      .map(dep => new Dependency(dep));
+      .map(dep => new Dependency(dep, this.#options));
   }
 
   getAssetWithDependency(dep: IDependency): ?IAsset {
@@ -162,7 +162,7 @@ export default class BundleGraph<TBundle: IBundle>
   getDependencies(asset: IAsset): Array<IDependency> {
     return this.#graph
       .getDependencies(assetToAssetValue(asset))
-      .map(dep => new Dependency(dep));
+      .map(dep => new Dependency(dep, this.#options));
   }
 
   isAssetReachableFromBundle(asset: IAsset, bundle: IBundle): boolean {

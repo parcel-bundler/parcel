@@ -22,7 +22,12 @@ export function normalizePath(
   filePath: FilePath,
   leadingDotSlash: boolean = true,
 ): FilePath {
-  if (leadingDotSlash && filePath[0] !== '.' && filePath[0] !== '/') {
+  if (
+    leadingDotSlash &&
+    (filePath[0] !== '.' ||
+      (filePath[1] !== '.' && filePath[1] !== '/' && filePath[1] !== '\\')) &&
+    filePath[0] !== '/'
+  ) {
     return normalizeSeparators('./' + filePath);
   } else {
     return normalizeSeparators(filePath);

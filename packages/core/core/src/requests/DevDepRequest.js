@@ -1,21 +1,32 @@
-// @flow
-import type {DevDepOptions, ModuleSpecifier, FilePath} from '@parcel/types';
+// @flow strict-local
+import type {ModuleSpecifier} from '@parcel/types';
 import type ParcelConfig from '../ParcelConfig';
-import type {DevDepRequest, ParcelOptions} from '../types';
+import type {
+  DevDepRequest,
+  ParcelOptions,
+  InternalDevDepOptions,
+} from '../types';
 import type {RunAPI} from '../RequestTracker';
+import type {ProjectPath} from '../projectPath';
 
 import nullthrows from 'nullthrows';
 import {getInvalidationHash} from '../assetUtils';
 import {createBuildCache} from '../buildCache';
+import {invalidateOnFileCreateToInternal} from '../utils';
+import {
+  fromProjectPath,
+  fromProjectPathRelative,
+  toProjectPath,
+} from '../projectPath';
 
 export async function createDevDependency(
-  opts: DevDepOptions,
-  plugin: {name: ModuleSpecifier, resolveFrom: FilePath, ...},
+  opts: InternalDevDepOptions,
+  plugin: {name: ModuleSpecifier, resolveFrom: ProjectPath, ...},
   requestDevDeps: Map<string, string>,
   options: ParcelOptions,
 ): Promise<DevDepRequest> {
   let {moduleSpecifier, resolveFrom, invalidateParcelPlugin} = opts;
-  let key = `${moduleSpecifier}:${resolveFrom}`;
+  let key = `${moduleSpecifier}:${fromProjectPathRelative(resolveFrom)}`;
 
   // If the request sent us a hash, we know the dev dep and all of its dependencies didn't change.
   // Reuse the same hash in the response. No need to send back invalidations as the request won't
@@ -29,19 +40,25 @@ export async function createDevDependency(
     };
   }
 
+  let resolveFromAbsolute = fromProjectPath(options.projectRoot, resolveFrom);
+
   // Ensure that the package manager has an entry for this resolution.
-  await options.packageManager.resolve(moduleSpecifier, resolveFrom);
+  await options.packageManager.resolve(moduleSpecifier, resolveFromAbsolute);
   let invalidations = options.packageManager.getInvalidations(
     moduleSpecifier,
-    resolveFrom,
+    resolveFromAbsolute,
   );
+
+  let invalidateOnFileChangeProject = [
+    ...invalidations.invalidateOnFileChange,
+  ].map(f => toProjectPath(options.projectRoot, f));
 
   // It is possible for a transformer to have multiple different hashes due to
   // different dependencies (e.g. conditional requires) so we must always
   // recompute the hash and compare rather than only sending a transformer
   // dev dependency once.
   hash = await getInvalidationHash(
-    [...invalidations.invalidateOnFileChange].map(f => ({
+    invalidateOnFileChangeProject.map(f => ({
       type: 'file',
       filePath: f,
     })),
@@ -52,8 +69,10 @@ export async function createDevDependency(
     moduleSpecifier,
     resolveFrom,
     hash,
-    invalidateOnFileCreate: invalidations.invalidateOnFileCreate,
-    invalidateOnFileChange: invalidations.invalidateOnFileChange,
+    invalidateOnFileCreate: invalidations.invalidateOnFileCreate.map(i =>
+      invalidateOnFileCreateToInternal(options.projectRoot, i),
+    ),
+    invalidateOnFileChange: new Set(invalidateOnFileChangeProject),
   };
 
   // Optionally also invalidate the parcel plugin that is loading the config
@@ -72,7 +91,7 @@ export async function createDevDependency(
 
 type DevDepSpecifier = {|
   moduleSpecifier: ModuleSpecifier,
-  resolveFrom: FilePath,
+  resolveFrom: ProjectPath,
 |};
 
 type DevDepRequests = {|
@@ -98,7 +117,7 @@ export async function getDevDepRequests(api: RunAPI): Promise<DevDepRequests> {
       [...previousDevDepRequests.entries()]
         .filter(([id]) => api.canSkipSubrequest(id))
         .map(([, req]) => [
-          `${req.moduleSpecifier}:${req.resolveFrom}`,
+          `${req.moduleSpecifier}:${fromProjectPathRelative(req.resolveFrom)}`,
           req.hash,
         ]),
     ),
@@ -128,10 +147,13 @@ export function invalidateDevDeps(
   config: ParcelConfig,
 ) {
   for (let {moduleSpecifier, resolveFrom} of invalidDevDeps) {
-    let key = `${moduleSpecifier}:${resolveFrom}`;
+    let key = `${moduleSpecifier}:${fromProjectPathRelative(resolveFrom)}`;
     if (!invalidatedDevDeps.has(key)) {
       config.invalidatePlugin(moduleSpecifier);
-      options.packageManager.invalidate(moduleSpecifier, resolveFrom);
+      options.packageManager.invalidate(
+        moduleSpecifier,
+        fromProjectPath(options.projectRoot, resolveFrom),
+      );
       invalidatedDevDeps.set(key, true);
     }
   }

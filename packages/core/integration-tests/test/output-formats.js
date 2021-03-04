@@ -475,7 +475,7 @@ describe('output formats', function() {
     });
 
     it('should throw an error on missing export with esmodule input and sideEffects: false', async function() {
-      let message = "other.js does not export 'a'";
+      let message = "./other.js does not export 'a'";
       let source = 'missing-export.js';
       await assert.rejects(
         () =>
@@ -874,7 +874,7 @@ describe('output formats', function() {
     });
 
     it('should throw an error on missing export with esmodule output and sideEffects: false', async function() {
-      let message = "b.js does not export 'a'";
+      let message = "./b.js does not export 'a'";
       let source = 'missing-export.js';
       await assert.rejects(
         () =>

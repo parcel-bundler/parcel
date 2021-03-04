@@ -1,10 +1,14 @@
 // @flow strict-local
 
 import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
-import type {BundleGroup} from '@parcel/types';
-import type {ParcelOptions} from './types';
+import type {
+  BundleGroup,
+  FileCreateInvalidation,
+  FilePath,
+} from '@parcel/types';
+import type {ParcelOptions, InternalFileCreateInvalidation} from './types';
 
-import assert from 'assert';
+import invariant from 'assert';
 import baseX from 'base-x';
 import {md5FromObject} from '@parcel/utils';
 import {registerSerializableClass} from './serializer';
@@ -14,6 +18,7 @@ import Graph from './Graph';
 import ParcelConfig from './ParcelConfig';
 import {RequestGraph} from './RequestTracker';
 import Config from './public/Config';
+import {toProjectPath} from './projectPath';
 // flowlint-next-line untyped-import:off
 import packageJson from '../package.json';
 
@@ -46,7 +51,7 @@ export function registerCoreWithSerializer() {
     throw new Error('Expected package version to be a string');
   }
 
-  // $FlowFixMe
+  // $FlowFixMe[incompatible-cast]
   for (let [name, ctor] of (Object.entries({
     AssetGraph,
     Config,
@@ -65,7 +70,7 @@ export function getPublicId(
   id: string,
   alreadyExists: string => boolean,
 ): string {
-  assert(
+  invariant(
     id.match(/^[0-9a-f]{32}$/),
     `id ${id} must be a 32-character hexadecimal string`,
   );
@@ -120,4 +125,25 @@ export function hashFromOption(value: mixed): string {
   }
 
   return String(value);
+}
+
+export function invalidateOnFileCreateToInternal(
+  projectRoot: FilePath,
+  invalidation: FileCreateInvalidation,
+): InternalFileCreateInvalidation {
+  if (invalidation.glob != null) {
+    return {glob: toProjectPath(projectRoot, invalidation.glob)};
+  } else if (invalidation.filePath != null) {
+    return {
+      filePath: toProjectPath(projectRoot, invalidation.filePath),
+    };
+  } else {
+    invariant(
+      invalidation.aboveFilePath != null && invalidation.fileName != null,
+    );
+    return {
+      fileName: invalidation.fileName,
+      aboveFilePath: toProjectPath(projectRoot, invalidation.aboveFilePath),
+    };
+  }
 }

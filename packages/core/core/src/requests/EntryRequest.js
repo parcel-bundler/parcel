@@ -1,16 +1,22 @@
 // @flow strict-local
 
-import type {Async, FilePath, File, PackageJSON} from '@parcel/types';
+import type {Async, FilePath, PackageJSON} from '@parcel/types';
 import type {StaticRunOpts} from '../RequestTracker';
-import type {Entry, ParcelOptions} from '../types';
+import type {Entry, InternalFile, ParcelOptions} from '../types';
 import type {FileSystem} from '@parcel/fs';
 
 import {isDirectoryInside, isGlob, glob} from '@parcel/utils';
 import ThrowableDiagnostic, {md} from '@parcel/diagnostic';
 import path from 'path';
+import {
+  type ProjectPath,
+  fromProjectPath,
+  fromProjectPathRelative,
+  toProjectPath,
+} from '../projectPath';
 
 type RunOpts = {|
-  input: FilePath,
+  input: ProjectPath,
   ...StaticRunOpts,
 |};
 
@@ -18,19 +24,19 @@ export type EntryRequest = {|
   id: string,
   +type: 'entry_request',
   run: RunOpts => Async<EntryResult>,
-  input: FilePath,
+  input: ProjectPath,
 |};
 
 export type EntryResult = {|
   entries: Array<Entry>,
-  files: Array<File>,
+  files: Array<InternalFile>,
 |};
 
 const type = 'entry_request';
 
-export default function createEntryRequest(input: FilePath): EntryRequest {
+export default function createEntryRequest(input: ProjectPath): EntryRequest {
   return {
-    id: `${type}:${input}`,
+    id: `${type}:${fromProjectPathRelative(input)}`,
     type,
     run,
     input,
@@ -39,7 +45,8 @@ export default function createEntryRequest(input: FilePath): EntryRequest {
 
 async function run({input, api, options}: RunOpts): Promise<EntryResult> {
   let entryResolver = new EntryResolver(options);
-  let result = await entryResolver.resolveEntry(input);
+  let filePath = fromProjectPath(options.projectRoot, input);
+  let result = await entryResolver.resolveEntry(filePath);
 
   // Connect files like package.json that affect the entry
   // resolution so we invalidate when they change.
@@ -50,7 +57,7 @@ async function run({input, api, options}: RunOpts): Promise<EntryResult> {
 
   // If the entry specifier is a glob, add a glob node so
   // we invalidate when a new file matches.
-  if (isGlob(input)) {
+  if (isGlob(filePath)) {
     api.invalidateOnFileCreate({glob: input});
   }
 
@@ -129,12 +136,20 @@ export class EntryResolver {
     }
 
     if (stat.isDirectory()) {
-      let pkg = await this.readPackage(entry);
+      let pkg: ?{
+        ...PackageJSON,
+        filePath: FilePath,
+        ...
+      } = await this.readPackage(entry);
 
       if (pkg) {
         let {filePath} = pkg;
         let entries = [];
-        let files = [{filePath}];
+        let files = [
+          {
+            filePath: toProjectPath(this.options.projectRoot, filePath),
+          },
+        ];
 
         let targetsWithSources = 0;
         if (pkg.targets) {
@@ -154,8 +169,8 @@ export class EntryResolver {
                 await assertFile(this.options.inputFS, source, diagnosticPath);
 
                 entries.push({
-                  filePath: source,
-                  packagePath: entry,
+                  filePath: toProjectPath(this.options.projectRoot, source),
+                  packagePath: toProjectPath(this.options.projectRoot, entry),
                   target: targetName,
                 });
               }
@@ -180,7 +195,10 @@ export class EntryResolver {
               filePath,
             )}#source`;
             await assertFile(this.options.inputFS, source, diagnosticPath);
-            entries.push({filePath: source, packagePath: entry});
+            entries.push({
+              filePath: toProjectPath(this.options.projectRoot, source),
+              packagePath: toProjectPath(this.options.projectRoot, entry),
+            });
           }
         }
 
@@ -209,7 +227,12 @@ export class EntryResolver {
         : projectRoot;
 
       return {
-        entries: [{filePath: entry, packagePath: packagePath}],
+        entries: [
+          {
+            filePath: toProjectPath(this.options.projectRoot, entry),
+            packagePath: toProjectPath(this.options.projectRoot, packagePath),
+          },
+        ],
         files: [],
       };
     }

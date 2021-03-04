@@ -14,7 +14,6 @@ import type {
 import type {ParcelOptions} from '../types';
 
 import invariant from 'assert';
-import path from 'path';
 import nullthrows from 'nullthrows';
 import {md5FromString} from '@parcel/utils';
 import BundleGraph from './BundleGraph';
@@ -27,6 +26,7 @@ import Dependency, {dependencyToInternalDependency} from './Dependency';
 import {environmentToInternalEnvironment} from './Environment';
 import {targetToInternalTarget} from './Target';
 import {HASH_REF_PREFIX} from '../constants';
+import {fromProjectPathRelative} from '../projectPath';
 
 export default class MutableBundleGraph extends BundleGraph<IBundle>
   implements IMutableBundleGraph {
@@ -49,7 +49,7 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
       assetToAssetValue(asset),
       bundleToInternalBundle(bundle),
       shouldSkipDependency
-        ? d => shouldSkipDependency(new Dependency(d))
+        ? d => shouldSkipDependency(new Dependency(d, this.#options))
         : undefined,
     );
   }
@@ -63,7 +63,7 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
       assetToAssetValue(asset),
       bundleToInternalBundle(bundle),
       shouldSkipDependency
-        ? d => shouldSkipDependency(new Dependency(d))
+        ? d => shouldSkipDependency(new Dependency(d, this.#options))
         : undefined,
     );
   }
@@ -156,7 +156,7 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
     let bundleId = md5FromString(
       'bundle:' +
         (opts.uniqueKey ?? nullthrows(entryAsset?.id)) +
-        path.relative(this.#options.projectRoot, target.distDir),
+        fromProjectPathRelative(target.distDir),
     );
 
     let existing = this.#graph._graph.getNodeByContentKey(bundleId);
@@ -263,7 +263,10 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
             value: assetFromValue(node.value, this.#options),
           };
         } else if (node.type === 'dependency') {
-          return {type: 'dependency', value: new Dependency(node.value)};
+          return {
+            type: 'dependency',
+            value: new Dependency(node.value, this.#options),
+          };
         }
       },
       visit,
@@ -313,7 +316,7 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
             ? {type: 'asset', value: assetFromValue(node.value, this.#options)}
             : {
                 type: 'dependency',
-                value: new Dependency(node.value),
+                value: new Dependency(node.value, this.#options),
               },
         visit,
       ),

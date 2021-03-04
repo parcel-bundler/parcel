@@ -1,26 +1,26 @@
 // @flow strict-local
 
-import type {
-  FileCreateInvalidation,
-  FilePath,
-  PackageName,
-  ConfigResult,
-  DevDepOptions,
-} from '@parcel/types';
+import type {PackageName, ConfigResult} from '@parcel/types';
 import {md5FromString} from '@parcel/utils';
-import type {Config, Environment} from './types';
 import {createEnvironment} from './Environment';
+import type {
+  Config,
+  Environment,
+  InternalFileCreateInvalidation,
+  InternalDevDepOptions,
+} from './types';
+import {type ProjectPath, fromProjectPathRelative} from './projectPath';
 
 type ConfigOpts = {|
   plugin: PackageName,
-  searchPath: FilePath,
+  searchPath: ProjectPath,
   isSource?: boolean,
   env?: Environment,
   result?: ConfigResult,
-  includedFiles?: Set<FilePath>,
-  invalidateOnFileCreate?: Array<FileCreateInvalidation>,
+  includedFiles?: Set<ProjectPath>,
+  invalidateOnFileCreate?: Array<InternalFileCreateInvalidation>,
   invalidateOnOptionChange?: Set<string>,
-  devDeps?: Array<DevDepOptions>,
+  devDeps?: Array<InternalDevDepOptions>,
   shouldInvalidateOnStartup?: boolean,
 |};
 
@@ -38,7 +38,12 @@ export function createConfig({
 }: ConfigOpts): Config {
   let environment = env ?? createEnvironment();
   return {
-    id: md5FromString(plugin + searchPath + environment.id + String(isSource)),
+    id: md5FromString(
+      plugin +
+        fromProjectPathRelative(searchPath) +
+        environment.id +
+        String(isSource),
+    ),
     isSource: isSource ?? false,
     searchPath,
     env: environment,

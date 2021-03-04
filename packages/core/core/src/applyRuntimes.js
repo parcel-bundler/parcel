@@ -26,6 +26,11 @@ import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import {dependencyToInternalDependency} from './public/Dependency';
 import createAssetGraphRequest from './requests/AssetGraphRequest';
 import {createDevDependency, runDevDepRequest} from './requests/DevDepRequest';
+import {
+  fromProjectPath,
+  toProjectPath,
+  fromProjectPathRelative,
+} from './projectPath';
 
 type RuntimeConnection = {|
   bundle: InternalBundle,
@@ -78,7 +83,7 @@ export default async function applyRuntimes({
           for (let {code, dependency, filePath, isEntry} of runtimeAssets) {
             let assetGroup = {
               code,
-              filePath,
+              filePath: toProjectPath(options.projectRoot, filePath),
               env: bundle.env,
               // Runtime assets should be considered source, as they should be
               // e.g. compiled to run in the target environment
@@ -97,7 +102,7 @@ export default async function applyRuntimes({
         throw new ThrowableDiagnostic({
           diagnostic: errorToDiagnostic(e, {
             origin: runtime.name,
-            filePath: bundle.filePath,
+            filePath: fromProjectPath(options.projectRoot, bundle.filePath),
           }),
         });
       }
@@ -116,7 +121,9 @@ export default async function applyRuntimes({
       options,
     );
     devDepRequests.set(
-      `${devDepRequest.moduleSpecifier}:${devDepRequest.resolveFrom}`,
+      `${devDepRequest.moduleSpecifier}:${fromProjectPathRelative(
+        devDepRequest.resolveFrom,
+      )}`,
       devDepRequest,
     );
     await runDevDepRequest(api, devDepRequest);

@@ -19,9 +19,9 @@ import type {FileSystem, FileOptions} from '@parcel/fs';
 
 import invariant from 'assert';
 import {
+  blobToStream,
   md5FromOrderedObject,
   md5FromString,
-  blobToStream,
   TapStream,
 } from '@parcel/utils';
 import {PluginLogger} from '@parcel/logger';
@@ -40,6 +40,7 @@ import BundleGraph, {
 import PluginOptions from './public/PluginOptions';
 import {PARCEL_VERSION, HASH_REF_PREFIX, HASH_REF_REGEX} from './constants';
 import {serialize} from './serializer';
+import {fromProjectPath, joinProjectPath} from './projectPath';
 
 type Opts = {|
   config: ParcelConfig,
@@ -124,7 +125,7 @@ export default class PackagerRunner {
         let hash = bundle.id.slice(-8);
         hashRefToNameHash.set(bundle.hashReference, hash);
         let name = nullthrows(bundle.name).replace(bundle.hashReference, hash);
-        bundle.filePath = path.join(bundle.target.distDir, name);
+        bundle.filePath = joinProjectPath(bundle.target.distDir, name);
         return false;
       }
 
@@ -232,7 +233,10 @@ export default class PackagerRunner {
         throw new ThrowableDiagnostic({
           diagnostic: errorToDiagnostic(e, {
             origin: this.config.getBundlerName(),
-            filePath: bundle.filePath,
+            filePath: fromProjectPath(
+              this.options.projectRoot,
+              bundle.filePath,
+            ),
           }),
         });
       }
@@ -435,9 +439,13 @@ export default class PackagerRunner {
     map: SourceMap,
   ): Promise<string> {
     // sourceRoot should be a relative path between outDir and rootDir for node.js targets
-    let filePath = path.join(bundle.target.distDir, nullthrows(bundle.name));
+    let filePath = joinProjectPath(
+      bundle.target.distDir,
+      nullthrows(bundle.name),
+    );
+    let fullPath = fromProjectPath(this.options.projectRoot, filePath);
     let sourceRoot: string = path.relative(
-      path.dirname(filePath),
+      path.dirname(fullPath),
       this.options.projectRoot,
     );
     let inlineSources = false;
@@ -466,7 +474,7 @@ export default class PackagerRunner {
       }
     }
 
-    let mapFilename = filePath + '.map';
+    let mapFilename = fullPath + '.map';
     let isInlineMap = bundle.env.sourceMap && bundle.env.sourceMap.inline;
 
     let stringified = await map.stringify({
@@ -561,10 +569,11 @@ export default class PackagerRunner {
       name = name.replace(thisHashReference, thisNameHash);
     }
 
-    let filePath = path.join(bundle.target.distDir, name);
+    let filePath = joinProjectPath(bundle.target.distDir, name);
     bundle.filePath = filePath;
 
-    let dir = path.dirname(filePath);
+    let fullPath = fromProjectPath(this.options.projectRoot, bundle.filePath);
+    let dir = path.dirname(fullPath);
     await outputFS.mkdirp(dir); // ? Got rid of dist exists, is this an expensive operation
 
     // Use the file mode from the entry asset as the file mode for the bundle.
@@ -581,7 +590,7 @@ export default class PackagerRunner {
     let contentStream = this.options.cache.getStream(cacheKeys.content);
     let size = await writeFileStream(
       outputFS,
-      filePath,
+      fullPath,
       contentStream,
       info.hashReferences,
       hashRefToNameHash,
@@ -601,7 +610,7 @@ export default class PackagerRunner {
       let mapStream = this.options.cache.getStream(mapKey);
       await writeFileStream(
         outputFS,
-        filePath + '.map',
+        fullPath + '.map',
         mapStream,
         info.hashReferences,
         hashRefToNameHash,

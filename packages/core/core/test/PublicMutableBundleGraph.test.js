@@ -11,11 +11,12 @@ import AssetGraph, {nodeFromAssetGroup} from '../src/AssetGraph';
 import {createAsset} from '../src/assetUtils';
 import {createDependency} from '../src/Dependency';
 import nullthrows from 'nullthrows';
+import {toProjectPath} from '../src/projectPath';
 
 const id1 = '0123456789abcdef0123456789abcdef';
 const id2 = '9876543210fedcba9876543210fedcba';
 
-describe('MutableBundleGraph', () => {
+describe('PublicMutableBundleGraph', () => {
   it('creates publicIds for bundles', () => {
     let internalBundleGraph = InternalBundleGraph.fromAssetGraph(
       createMockAssetGraph(),
@@ -47,7 +48,7 @@ describe('MutableBundleGraph', () => {
 
     assert.deepEqual(
       internalBundleGraph.getBundles().map(b => b.publicId),
-      ['2iKuX', '7cqnn'],
+      ['5H7vL', '72iZA'],
     );
   });
 
@@ -88,44 +89,60 @@ const stats = {size: 0, time: 0};
 function createMockAssetGraph() {
   let graph = new AssetGraph();
   graph.setRootConnections({
-    entries: ['./index', './index2'],
+    entries: [toProjectPath('/', '/index'), toProjectPath('/', '/index2')],
   });
 
   graph.resolveEntry(
-    './index',
-    [{filePath: '/path/to/index/src/main.js', packagePath: '/path/to/index'}],
+    toProjectPath('/', '/index'),
+    [
+      {
+        filePath: toProjectPath('/', '/path/to/index/src/main.js'),
+        packagePath: toProjectPath('/', '/path/to/index'),
+      },
+    ],
     '1',
   );
   graph.resolveEntry(
-    './index2',
-    [{filePath: '/path/to/index/src/main2.js', packagePath: '/path/to/index'}],
+    toProjectPath('/', '/index2'),
+    [
+      {
+        filePath: toProjectPath('/', '/path/to/index/src/main2.js'),
+        packagePath: toProjectPath('/', '/path/to/index'),
+      },
+    ],
     '2',
   );
   graph.resolveTargets(
-    {filePath: '/path/to/index/src/main.js', packagePath: '/path/to/index'},
+    {
+      filePath: toProjectPath('/', '/path/to/index/src/main.js'),
+      packagePath: toProjectPath('/', '/path/to/index'),
+    },
     DEFAULT_TARGETS,
     '3',
   );
   graph.resolveTargets(
-    {filePath: '/path/to/index/src/main2.js', packagePath: '/path/to/index'},
+    {
+      filePath: toProjectPath('/', '/path/to/index/src/main2.js'),
+      packagePath: toProjectPath('/', '/path/to/index'),
+    },
     DEFAULT_TARGETS,
     '4',
   );
 
   let dep1 = createDependency({
-    moduleSpecifier: '/path/to/index/src/main.js',
+    moduleSpecifier: './path/to/index/src/main.js',
     isEntry: true,
     env: DEFAULT_ENV,
     target: DEFAULT_TARGETS[0],
   });
   let dep2 = createDependency({
-    moduleSpecifier: '/path/to/index/src/main2.js',
+    moduleSpecifier: './path/to/index/src/main2.js',
     isEntry: true,
     env: DEFAULT_ENV,
     target: DEFAULT_TARGETS[0],
   });
 
-  let filePath = '/index.js';
+  let filePath = toProjectPath('/', '/index.js');
   let req1 = {filePath, env: DEFAULT_ENV, query: {}};
   graph.resolveDependency(dep1, nodeFromAssetGroup(req1).value, '5');
   graph.resolveAssetGroup(
@@ -144,7 +161,7 @@ function createMockAssetGraph() {
     '6',
   );
 
-  filePath = '/index2.js';
+  filePath = toProjectPath('/', '/index2.js');
   let req2 = {filePath, env: DEFAULT_ENV, query: {}};
   graph.resolveDependency(dep2, nodeFromAssetGroup(req2).value, '7');
   graph.resolveAssetGroup(
