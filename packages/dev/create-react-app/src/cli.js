@@ -2,7 +2,7 @@
 
 import program from 'commander';
 // flowlint-next-line untyped-import:off
-import {name, version} from '../package.json';
+import {version} from '../package.json';
 // flowlint-next-line untyped-import:off
 import simpleGit from 'simple-git';
 import fs from 'fs';
@@ -24,22 +24,18 @@ const rimraf = promisify(_rimraf);
 // eslint-disable-next-line no-console
 const log = console.log;
 
-// $FlowFixMe[incompatible-call]
-program.name(name).version(version);
-program.action((command: string | typeof program) => {
-  if (typeof command !== 'string') {
-    command.help();
-    return;
-  }
-
-  run(command).catch(reason => {
-    // eslint-disable-next-line no-console
-    console.error(chalk`${emoji.error} {red ${reason.message}}`);
-    process.exit(1);
-  });
-});
-
-program.parse(process.argv);
+program
+  .name('create-react-app')
+  .version(version)
+  .arguments('<path-to-new-app>')
+  .action(command => {
+    run(command).catch(reason => {
+      // eslint-disable-next-line no-console
+      console.error(chalk`${emoji.error} {red ${reason.message}}`);
+      process.exit(1);
+    });
+  })
+  .parse();
 
 async function run(packagePath: string) {
   log(
