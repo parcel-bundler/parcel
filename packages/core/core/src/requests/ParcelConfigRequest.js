@@ -9,6 +9,7 @@ import type {
 import type {StaticRunOpts} from '../RequestTracker';
 import type {
   ExtendableParcelConfigPipeline,
+  PureParcelConfigPipeline,
   ParcelOptions,
   ProcessedParcelConfig,
 } from '../types';
@@ -28,7 +29,7 @@ import ThrowableDiagnostic, {
 } from '@parcel/diagnostic';
 import {parse} from 'json5';
 import path from 'path';
-import assert from 'assert';
+import invariant from 'assert';
 
 import ParcelConfigSchema from '../ParcelConfig.schema';
 import {optionsProxy} from '../utils';
@@ -499,7 +500,7 @@ export function validateNotEmpty(
   config: RawParcelConfig | ResolvedParcelConfigFile,
   relativePath: FilePath,
 ) {
-  assert.notDeepStrictEqual(config, {}, `${relativePath} can't be empty`);
+  invariant.notDeepStrictEqual(config, {}, `${relativePath} can't be empty`);
 }
 
 export function mergeConfigs(
@@ -535,10 +536,14 @@ function getResolveFrom(options: ParcelOptions) {
 export function mergePipelines(
   base: ?ExtendableParcelConfigPipeline,
   ext: ?ExtendableParcelConfigPipeline,
-  // $FlowFixMe
-): any {
+): PureParcelConfigPipeline {
   if (ext == null) {
-    return base ?? [];
+    return (
+      base?.map(s => {
+        invariant(typeof s !== 'string');
+        return s;
+      }) ?? []
+    );
   }
 
   if (ext.filter(v => v === '...').length > 1) {
@@ -552,14 +557,28 @@ export function mergePipelines(
     let spreadIndex = ext.indexOf('...');
     if (spreadIndex >= 0) {
       return [
-        ...ext.slice(0, spreadIndex),
-        ...(base || []),
-        ...ext.slice(spreadIndex + 1),
+        ...ext.slice(0, spreadIndex).map(s => {
+          invariant(typeof s !== 'string');
+          return s;
+        }),
+        ...(base?.map(s => {
+          invariant(typeof s !== 'string');
+          return s;
+        }) ?? []),
+        ...ext.slice(spreadIndex + 1).map(s => {
+          invariant(typeof s !== 'string');
+          return s;
+        }),
       ];
     }
   }
 
-  return ext?.filter(s => s !== '...');
+  return ext
+    ?.filter(s => s !== '...')
+    .map(s => {
+      invariant(typeof s !== 'string');
+      return s;
+    });
 }
 
 export function mergeMaps<K: string, V>(
