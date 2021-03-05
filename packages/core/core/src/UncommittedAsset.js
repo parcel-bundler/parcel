@@ -193,6 +193,13 @@ export default class UncommittedAsset {
 
     let result = map.getSourcesContentMap();
     if (Object.keys(result).length > 0) {
+      // TODO: Move this to the sourcemap library at some point...
+      for (let key of Object.keys(result)) {
+        if (result[key] == null) {
+          delete result[key];
+        }
+      }
+
       // $FlowFixMe
       this.sourcesContent = {
         ...(this.sourcesContent || {}),

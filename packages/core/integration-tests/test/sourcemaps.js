@@ -1118,8 +1118,7 @@ describe('sourcemaps', function() {
         );
       }
     }
-
-    assert.equal(map.sourcesContent[2], 'module.exports = (a, b) => a + b\n');
+    assert.equal(map.sourcesContent[1], 'module.exports = (a, b) => a + b\n');
   });
 
   it('should load referenced contents of sourcemaps', async function() {
