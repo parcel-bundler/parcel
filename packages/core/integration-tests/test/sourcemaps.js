@@ -1088,12 +1088,10 @@ describe('sourcemaps', function() {
       }
     }
 
-    // TODO: Figure out how to handle inline sources, cannot embed this into an ast
-    // assert.equal(map.sourcesContent[1], 'module.exports = (a, b) => a + b');
+    assert.equal(map.sourcesContent[1], 'module.exports = (a, b) => a + b');
   });
 
-  // TODO: Figure out how to handle inline sources, cannot embed this into an ast
-  it.skip('should load inline sourcemaps of libraries', async function() {
+  it('should load inline sourcemaps of libraries', async function() {
     let sourceFilename = path.join(
       __dirname,
       '/integration/sourcemap-inline/index.js',
