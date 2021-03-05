@@ -189,26 +189,9 @@ export default class UncommittedAsset {
 
   async extractSourcesContentFromMap(): Promise<void> {
     let map = await this.getMap();
-    if (!map) {
-      return;
-    }
+    if (!map) return;
 
-    // TODO: Update source-map library... and use getSourcesContent
-    let vlqMap = map.getMap();
-    let sources = vlqMap.sources;
-    let sourcesContent = vlqMap.sourcesContent;
-    let result = {};
-    for (let i = 0; i < sources.length; i++) {
-      let sourceContent = sourcesContent[i];
-      // $FlowFixMe we really don't care about empty strings...
-      if (sourceContent) {
-        let source = sources[i];
-        if (source) {
-          result[source] = sourceContent;
-        }
-      }
-    }
-
+    let result = map.getSourcesContentMap();
     if (Object.keys(result).length > 0) {
       // $FlowFixMe
       this.sourcesContent = {
