@@ -1,17 +1,16 @@
 // @flow
 import type {TSModule, Export} from './TSModule';
-import typeof TypeScriptModule from 'typescript'; // eslint-disable-line import/no-extraneous-dependencies
+
 import nullthrows from 'nullthrows';
 import invariant from 'assert';
+import ts from 'typescript';
 
 export class TSModuleGraph {
-  ts: TypeScriptModule;
   modules: Map<string, TSModule>;
   mainModuleName: string;
   mainModule: ?TSModule;
 
-  constructor(ts: TypeScriptModule, mainModuleName: string) {
-    this.ts = ts;
+  constructor(mainModuleName: string) {
     this.modules = new Map();
     this.mainModuleName = mainModuleName;
     this.mainModule = null;
@@ -29,8 +28,6 @@ export class TSModuleGraph {
   }
 
   markUsed(module: TSModule, name: string, context: any): void {
-    let {ts} = this;
-
     // If name is imported, mark used in the original module
     if (module.imports.has(name)) {
       module.used.add(name);
