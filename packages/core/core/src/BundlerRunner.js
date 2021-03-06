@@ -89,14 +89,20 @@ export default class BundlerRunner {
       cacheKey = await this.getCacheKey(graph, configResult);
       let cachedBundleGraphBuffer;
       try {
-        cachedBundleGraphBuffer = await this.options.cache.getBlob(cacheKey);
+        cachedBundleGraphBuffer = await this.options.cache.getBlob<Buffer>(
+          cacheKey,
+        );
       } catch {
         // Cache miss
       }
       assertSignalNotAborted(signal);
 
-      if (cachedBundleGraphBuffer) {
-        return [deserialize(cachedBundleGraphBuffer), cachedBundleGraphBuffer];
+      let _cachedBundleGraphBuffer = cachedBundleGraphBuffer; // For Flow
+      if (_cachedBundleGraphBuffer) {
+        return [
+          deserialize(_cachedBundleGraphBuffer),
+          _cachedBundleGraphBuffer,
+        ];
       }
     }
 

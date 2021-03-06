@@ -796,8 +796,9 @@ export default class Transformation {
     let config = preloadedConfig;
 
     // Parse if there is no AST available from a previous transform.
-    if (!asset.ast && transformer.parse) {
-      let ast = await transformer.parse({
+    let parse = transformer.parse?.bind(transformer);
+    if (!asset.ast && parse) {
+      let ast = await parse({
         asset: new MutableAsset(asset),
         config,
         options: pipeline.pluginOptions,
@@ -825,10 +826,12 @@ export default class Transformation {
 
     // Create generate function that can be called later
     pipeline.generate = (input: UncommittedAsset): Promise<GenerateOutput> => {
-      if (transformer.generate && input.ast) {
-        let generated = transformer.generate({
+      let generate = transformer.generate?.bind(transformer);
+      let ast = input.ast;
+      if (generate && ast) {
+        let generated = generate({
           asset: new Asset(input),
-          ast: input.ast,
+          ast,
           options: pipeline.pluginOptions,
           logger,
         });

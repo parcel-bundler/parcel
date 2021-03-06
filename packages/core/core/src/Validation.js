@@ -90,8 +90,9 @@ export default class Validation {
               await Promise.all(
                 assets.map(async asset => {
                   let config = null;
-                  if (plugin.getConfig) {
-                    config = await plugin.getConfig({
+                  let getConfig = plugin.getConfig?.bind(plugin);
+                  if (getConfig) {
+                    config = await getConfig({
                       asset: new Asset(asset),
                       options: pluginOptions,
                       logger: validatorLogger,

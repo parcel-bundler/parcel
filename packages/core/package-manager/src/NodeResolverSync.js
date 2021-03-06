@@ -16,12 +16,9 @@ export class NodeResolverSync extends NodeResolverBase<ResolveResult> {
       id = path.resolve(path.dirname(from), id);
     }
 
-    let res;
-    if (path.isAbsolute(id)) {
-      res = this.loadRelative(id, ctx);
-    } else {
-      res = this.loadNodeModules(id, from, ctx);
-    }
+    let res = path.isAbsolute(id)
+      ? this.loadRelative(id, ctx)
+      : this.loadNodeModules(id, from, ctx);
 
     if (!res) {
       let e = new Error(`Could not resolve module "${id}" from "${from}"`);
