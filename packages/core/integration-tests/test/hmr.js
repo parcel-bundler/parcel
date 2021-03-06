@@ -4,10 +4,12 @@ import path from 'path';
 import {
   bundler,
   getNextBuild,
+  getNextBuildSuccess,
   ncp,
   outputFS,
   overlayFS,
   sleep,
+  run,
 } from '@parcel/test-utils';
 import WebSocket from 'ws';
 import json5 from 'json5';
@@ -43,26 +45,82 @@ async function nextWSMessage(ws: WebSocket) {
 }
 
 describe('hmr', function() {
-  let subscription;
+  let subscription, ws;
+
+  async function testHMRClient(
+    name: string,
+    updates:
+      | ((
+          // $FlowFixMe[unclear-type]
+          Array<any>,
+        ) => {[string]: string})
+      // $FlowFixMe[unclear-type]
+      | Array<(Array<any>) => {[string]: string}>,
+  ) {
+    await ncp(
+      path.join(__dirname, '/integration/', name),
+      path.join(__dirname, '/input'),
+    );
+
+    let port = await getPort();
+    let b = bundler(path.join(__dirname, '/input/index.js'), {
+      hmrOptions: {
+        https: false,
+        port,
+        host: 'localhost',
+      },
+      inputFS: overlayFS,
+      config,
+    });
+
+    subscription = await b.watch();
+    let {bundleGraph} = await getNextBuildSuccess(b);
+    ws = await openSocket('ws://localhost:' + port);
+
+    let outputs = [];
+    await run(bundleGraph, {
+      output(o) {
+        outputs.push(o);
+      },
+    });
+
+    for (let update of [].concat(updates)) {
+      // Fixup the prototypes so that strict assertions work
+      let fsUpdates = update(JSON.parse(JSON.stringify(outputs)));
+      for (let f in fsUpdates) {
+        await overlayFS.writeFile(
+          path.join(__dirname, '/input/', f),
+          fsUpdates[f],
+        );
+      }
+    }
+
+    await nextWSMessage(ws);
+    await sleep(100);
+
+    // Fixup the prototypes so that strict assertions work
+    return JSON.parse(JSON.stringify(outputs));
+  }
+
   afterEach(async () => {
+    if (ws) {
+      await closeSocket(ws);
+      ws = null;
+    }
+
     if (subscription) {
       await subscription.unsubscribe();
+      subscription = null;
     }
-    subscription = null;
   });
 
   describe('hmr server', () => {
-    let ws;
     beforeEach(async function() {
       await outputFS.rimraf(path.join(__dirname, '/input'));
       await ncp(
         path.join(__dirname, '/integration/commonjs'),
         path.join(__dirname, '/input'),
       );
-    });
-
-    afterEach(async () => {
-      await closeSocket(ws);
     });
 
     it('should emit an HMR update for the file that changed', async function() {
@@ -264,44 +322,113 @@ describe('hmr', function() {
     });
   });
 
-  // TODO: Update these...
   // TODO: add test for 4532 (`require` call in modified asset in child bundle where HMR runtime runs in parent bundle)
   describe('hmr runtime', () => {
-    /*it('should work with circular dependencies', async function() {
-      let port = await getPort();
-      let b = bundler(path.join(__dirname, '/input/index.js'), {
-        hmrOptions: {
-          https: false,
-          port,
-          host: 'localhost',
-        },
-        inputFS: overlayFS,
-        config,
+    beforeEach(async () => {
+      await outputFS.rimraf(path.join(__dirname, '/input'));
+    });
+
+    it('should support self accepting', async function() {
+      let outputs = await testHMRClient('hmr-accept-self', outputs => {
+        assert.deepStrictEqual(outputs, [
+          ['other', 1],
+          ['local', 1],
+          ['index', 1],
+        ]);
+
+        return {
+          'other.js': 'export const value = 3; output(["other", value]);',
+        };
       });
 
-      let bundle = await b.run();
-      subscription = await b.watch();
-      await getNextBuild(b);
+      assert.deepStrictEqual(outputs, [
+        ['other', 1],
+        ['local', 1],
+        ['index', 1],
+        ['other', 3],
+        ['local', 3],
+      ]);
+    });
 
-      ws = await openSocket('ws://localhost:' + port);
-      let outputs = [];
+    it('should bubble through parents', async function() {
+      let outputs = await testHMRClient('hmr-bubble', outputs => {
+        assert.deepStrictEqual(outputs, [
+          ['other', 1],
+          ['local', 1],
+          ['index', 1],
+        ]);
 
-      await run(bundle, {
-        output(o) {
-          outputs.push(o);
-        },
+        return {
+          'other.js': 'export const value = 3; output(["other", value]);',
+        };
       });
 
-      assert.deepEqual(outputs, [3]);
+      assert.deepStrictEqual(outputs, [
+        ['other', 1],
+        ['local', 1],
+        ['index', 1],
+        ['other', 3],
+        ['local', 3],
+        ['index', 3],
+      ]);
+    });
 
-      outputFS.writeFile(
-        path.join(__dirname, '/input/local.js'),
-        "var other = require('./index.js'); exports.a = 5; exports.b = 5;",
-      );
+    it('should call dispose callbacks', async function() {
+      let outputs = await testHMRClient('hmr-dispose', outputs => {
+        assert.deepStrictEqual(outputs, [
+          ['eval:other', 1, null],
+          ['eval:local', 1, null],
+          ['eval:index', 1, null],
+        ]);
+
+        return {
+          'other.js': `export const value = 3;
+output(["eval:other", value, module.hot.data]);
+module.hot.dispose((data) => {
+  output(["dispose:other", value]);
+  data.value = value;
+})
+`,
+        };
+      });
+
+      // Webpack:
+      // ["eval:other", 1, undefined]
+      // ["eval:local", 1, undefined]
+      // ["eval:index", 1, undefined]
+      // ["dispose:index", 1]
+      // ["dispose:local", 1]
+      // ["dispose:other", 1]
+      // ["eval:other", 3, {value: 1}]
+      // ["eval:local", 3, {value: 1}]
+      // ["eval:index", 3, {value: 1}]
+      assert.deepStrictEqual(outputs, [
+        ['eval:other', 1, null],
+        ['eval:local', 1, null],
+        ['eval:index', 1, null],
+        ['dispose:other', 1],
+        ['eval:other', 3, {value: 1}],
+        ['dispose:local', 1],
+        ['eval:local', 3, {value: 1}],
+        ['dispose:index', 1],
+        ['eval:index', 3, {value: 1}],
+      ]);
+    });
+
+    it('should work with circular dependencies', async function() {
+      let outputs = await testHMRClient('hmr-circular', outputs => {
+        assert.deepEqual(outputs, [3]);
+
+        return {
+          'local.js':
+            "var other = require('./index.js'); exports.a = 5; exports.b = 5;",
+        };
+      });
 
       assert.deepEqual(outputs, [3, 10]);
     });
 
+    /*
     it.skip('should accept HMR updates in the runtime after an initial error', async function() {
       await fs.mkdirp(path.join(__dirname, '/input'));
       fs.writeFile(
