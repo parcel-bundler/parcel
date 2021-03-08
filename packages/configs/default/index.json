@@ -5,8 +5,7 @@
     "bundle-text:*": ["@parcel/transformer-inline-string", "..."],
     "data-url:*": ["@parcel/transformer-inline-string", "..."],
     "*.{js,mjs,jsm,jsx,es6,cjs,ts,tsx}": [
-      "@parcel/transformer-js-swc",
-      "@parcel/transformer-js"
+      "@parcel/transformer-js-swc"
     ],
     "*.{json,json5}": ["@parcel/transformer-json"],
     "*.jsonld": ["@parcel/transformer-jsonld"],
@@ -51,7 +50,7 @@
   "packagers": {
     "*.html": "@parcel/packager-html",
     "*.css": "@parcel/packager-css",
-    "*.js": "@parcel/packager-js",
+    "*.js": "@parcel/packager-swc",
     "*.ts": "@parcel/packager-ts",
     "*.{jsonld,webmanifest}": "@parcel/packager-raw-url",
     "*": "@parcel/packager-raw"

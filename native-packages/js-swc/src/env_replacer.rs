@@ -10,7 +10,7 @@ use utils::*;
 pub struct EnvReplacer<'a> {
   pub replace_env: bool,
   pub is_browser: bool,
-  pub env: HashMap<swc_atoms::JsWord, ast::Str>,
+  pub env: HashMap<swc_atoms::JsWord, swc_atoms::JsWord>,
   pub decls: &'a HashSet<(JsWord, SyntaxContext)>
 }
 
@@ -57,7 +57,12 @@ impl<'a> Fold for EnvReplacer<'a> {
                     Lit(Lit::Str(Str { value: ref sym, .. })) |
                     Ident(Ident { ref sym, .. }) => {
                       if let Some(val) = self.env.get(sym) {
-                        return Lit(Lit::Str(val.clone()))
+                        return Lit(Lit::Str(ast::Str {
+                          span: DUMMY_SP,
+                          value: val.into(),
+                          has_escape: false,
+                          kind: ast::StrKind::Synthesized
+                        }))
                       } else {
                         return Ident(Ident::new(js_word!("undefined"), DUMMY_SP))
                       }

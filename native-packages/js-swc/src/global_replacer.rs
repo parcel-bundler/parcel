@@ -80,7 +80,12 @@ impl<'a> Fold for GlobalReplacer<'a> {
               create_decl_stmt(
                 id.sym.clone(),
                 self.global_mark,
-                Call(create_require(specifier.clone()))
+                Member(MemberExpr {
+                  obj: ast::ExprOrSuper::Expr(Box::new(Call(create_require(specifier.clone())))),
+                  prop: Box::new(Ident(ast::Ident::new("Buffer".into(), DUMMY_SP))),
+                  computed: false,
+                  span: DUMMY_SP,
+                })
               )
             );
 
@@ -118,21 +123,21 @@ impl<'a> Fold for GlobalReplacer<'a> {
             );
           },
           "global" => {
-            self.globals.insert(
-              id.sym.clone(),
-              create_decl_stmt(
-                id.sym.clone(),
-                self.global_mark,
-                ast::Expr::Member(
-                  ast::MemberExpr {
-                    obj: ast::ExprOrSuper::Expr(Box::new(Ident(Ident::new(js_word!("arguments"), DUMMY_SP)))),
-                    prop: Box::new(Lit(ast::Lit::Num(ast::Number { value: 3.0, span: DUMMY_SP }))),
-                    computed: true,
-                    span: DUMMY_SP
-                  }
-                )
-              )
-            );
+            // self.globals.insert(
+            //   id.sym.clone(),
+            //   create_decl_stmt(
+            //     id.sym.clone(),
+            //     self.global_mark,
+            //     ast::Expr::Member(
+            //       ast::MemberExpr {
+            //         obj: ast::ExprOrSuper::Expr(Box::new(Ident(Ident::new(js_word!("arguments"), DUMMY_SP)))),
+            //         prop: Box::new(Lit(ast::Lit::Num(ast::Number { value: 3.0, span: DUMMY_SP }))),
+            //         computed: true,
+            //         span: DUMMY_SP
+            //       }
+            //     )
+            //   )
+            // );
           },
           _ => {}
         }

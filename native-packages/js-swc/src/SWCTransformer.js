@@ -5,6 +5,7 @@ import {isURL} from '@parcel/utils';
 import path from 'path';
 import browserslist from 'browserslist';
 import semver from 'semver';
+import nullthrows from 'nullthrows';
 
 const JSX_EXTENSIONS = {
   '.jsx': true,
@@ -106,21 +107,23 @@ export default (new Transformer({
       targets = {node: semver.minVersion(asset.env.engines.node)?.toString()};
     }
 
-    let {dependencies, code: compiledCode, shebang} = transform({
+    let {dependencies, code: compiledCode, shebang, hoist_result} = transform({
       filename: asset.filePath,
       code,
-      replaceEnv: !asset.env.isNode(),
-      isBrowser: asset.env.isBrowser(),
+      module_id: asset.id,
+      replace_env: !asset.env.isNode(),
+      is_browser: asset.env.isBrowser(),
       env: options.env,
-      isTypeScript: asset.type === 'ts' || asset.type === 'tsx',
-      isJSX: Boolean(config?.isJSX),
-      jsxPragma: config?.pragma,
-      jsxPragmaFrag: config?.pragmaFrag,
-      isDevelopment: options.mode === 'development',
+      is_type_script: asset.type === 'ts' || asset.type === 'tsx',
+      is_jsx: Boolean(config?.isJSX),
+      jsx_pragma: config?.pragma,
+      jsx_pragma_frag: config?.pragmaFrag,
+      is_development: options.mode === 'development',
       targets,
     });
 
     // console.log(Object.keys(options.env))
+    // console.log(asset.filePath, hoist_result);
 
     if (shebang) {
       asset.meta.interpreter = shebang;
@@ -169,10 +172,91 @@ export default (new Transformer({
           moduleSpecifier: dep.specifier,
           loc: dep.loc,
           isAsync: dep.kind === 'DynamicImport',
-          isOptional: dep.isOptional,
+          isOptional: dep.is_optional,
           meta,
         });
       }
+    }
+
+    if (hoist_result) {
+      asset.symbols.ensure();
+      for (let symbol in hoist_result.exported_symbols) {
+        asset.symbols.set(symbol, hoist_result.exported_symbols[symbol]);
+      }
+
+      let deps = new Map(
+        asset.getDependencies().map(dep => [dep.moduleSpecifier, dep]),
+      );
+      for (let dep of deps.values()) {
+        dep.symbols.ensure();
+      }
+
+      for (let name in hoist_result.imported_symbols) {
+        let [moduleSpecifier, exported] = hoist_result.imported_symbols[name];
+        let dep = deps.get(moduleSpecifier);
+        if (!dep) continue;
+        dep.symbols.set(exported, name);
+      }
+
+      for (let [name, moduleSpecifier, exported] of hoist_result.re_exports) {
+        let dep = deps.get(moduleSpecifier);
+        if (!dep) continue;
+
+        if (name === '*' && exported === '*') {
+          dep.symbols.set('*', '*', null, true);
+        } else {
+          let reExportName =
+            dep.symbols.get(exported)?.local ??
+            `$${asset.id}$re_export$${name}`;
+          asset.symbols.set(name, reExportName);
+          dep.symbols.set(exported, reExportName, null, true);
+        }
+      }
+
+      for (let moduleSpecifier of hoist_result.wrapped_requires) {
+        let dep = deps.get(moduleSpecifier);
+        if (!dep) continue;
+        dep.meta.shouldWrap = true;
+      }
+
+      if (hoist_result.self_references.length > 0) {
+        let symbols = new Map();
+        for (let name of hoist_result.self_references) {
+          // Do not create a self-reference for the `default` symbol unless we have seen an __esModule flag.
+          if (
+            name === 'default' &&
+            !asset.symbols.hasExportSymbol('__esModule')
+          ) {
+            continue;
+          }
+
+          let local = nullthrows(asset.symbols.get(name)).local;
+          symbols.set(name, {
+            local,
+            isWeak: false,
+            // loc: convertBabelLoc(path.node.loc),
+            loc: null,
+          });
+        }
+
+        asset.addDependency({
+          moduleSpecifier: `./${path.basename(asset.filePath)}`,
+          symbols,
+        });
+      }
+
+      if (
+        (deps.size === 0 &&
+          Object.keys(hoist_result.exported_symbols).length === 0) ||
+        (hoist_result.should_wrap && !asset.symbols.hasExportSymbol('*'))
+      ) {
+        compiledCode = `var $${asset.id}$exports = {\n};\n` + compiledCode;
+        asset.symbols.set('*', `$${asset.id}$exports`);
+      }
+
+      asset.meta.staticExports = hoist_result.static_cjs_exports;
+      asset.meta.shouldWrap = hoist_result.should_wrap;
+      asset.meta.id = asset.id;
     }
 
     asset.type = 'js';

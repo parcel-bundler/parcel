@@ -11,20 +11,21 @@ use swc_ecmascript::utils::var::VarCollector;
 /// This is used later to determine whether an identifier references a declared variable.
 pub fn collect_decls(module: &ast::Module) -> HashSet<(JsWord, SyntaxContext)> {
   let mut c = DeclCollector {
-    decls: HashSet::new()
+    decls: HashSet::new(),
+    in_var: false,
   };
   module.visit_with(&ast::Invalid { span: DUMMY_SP } as _, &mut c);
   return c.decls
 }
 
 struct DeclCollector {
-  pub decls: HashSet<(JsWord, SyntaxContext)>,
+  decls: HashSet<(JsWord, SyntaxContext)>,
+  in_var: bool,
 }
 
 impl Visit for DeclCollector {
   fn visit_decl(&mut self, node: &ast::Decl, _parent: &dyn Node) {
     use ast::Decl::*;
-    swc_ecmascript::visit::visit_decl(self, node, _parent);
 
     match node {
       Class(class) => {
@@ -33,37 +34,48 @@ impl Visit for DeclCollector {
       Fn(f) => {
         self.decls.insert((f.ident.sym.clone(), f.ident.span.ctxt()));
       },
-      Var(var) => {
-        let mut found = vec![];
-        let mut finder = VarCollector {
-          to: &mut found
-        };
-
-        var.visit_with(&ast::Invalid { span: DUMMY_SP } as _, &mut finder);
-
-        for decl in found {
-          self.decls.insert(decl);
-        }
-      },
       _ => {}
+    }
+
+    node.visit_children_with(self);
+  }
+
+  fn visit_var_declarator(&mut self, node: &ast::VarDeclarator, _parent: &dyn Node) {
+    self.in_var = true;
+    node.name.visit_with(node, self);
+    self.in_var = false;
+  }
+
+  fn visit_binding_ident(&mut self, node: &ast::BindingIdent, _parent: &dyn Node) {
+    if self.in_var {
+      self.decls.insert((node.id.sym.clone(), node.id.span.ctxt));
+    }
+  }
+
+  fn visit_assign_pat_prop(&mut self, node: &ast::AssignPatProp, _parent: &dyn Node) {
+    if self.in_var {
+      self.decls.insert((node.key.sym.clone(), node.key.span.ctxt));
     }
   }
 
   fn visit_function(&mut self, node: &ast::Function, _parent: &dyn Node) {
-    swc_ecmascript::visit::visit_function(self, node, _parent);
-
+    self.in_var = true;
     for param in &node.params {
-      let mut found = vec![];
-      let mut finder = VarCollector {
-        to: &mut found
-      };
-
-      param.visit_with(&ast::Invalid { span: DUMMY_SP } as _, &mut finder);
-
-      for decl in found {
-        self.decls.insert(decl);
-      }
+      param.visit_with(node, self);
     }
+    self.in_var = false;
+
+    node.body.visit_with(node, self);
+  }
+
+  fn visit_arrow_expr(&mut self, node: &ast::ArrowExpr, _parent: &dyn Node) {
+    self.in_var = true;
+    for param in &node.params {
+      param.visit_with(node, self);
+    }
+    self.in_var = false;
+
+    node.body.visit_with(node, self);
   }
 
   fn visit_import_specifier(&mut self, node: &ast::ImportSpecifier, _parent: &dyn Node) {

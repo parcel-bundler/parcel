@@ -5,10 +5,11 @@ use swc_atoms::JsWord;
 use swc_common::{SourceMap, DUMMY_SP, SyntaxContext};
 use swc_ecmascript::ast;
 use swc_ecmascript::visit::{Fold, FoldWith};
+use serde::{Deserialize, Serialize};
 
 use utils::*;
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum DependencyKind {
   Import,
   Export,
@@ -25,7 +26,7 @@ impl fmt::Display for DependencyKind {
   }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct DependencyDescriptor {
   pub kind: DependencyKind,
   /// The location of the import/export statement.
@@ -352,16 +353,16 @@ impl<'a> Fold for DependencyCollector<'a> {
     // Replace import() with require()
     if kind == DependencyKind::DynamicImport {
       let mut call = node.clone();
-      call.callee = ast::ExprOrSuper::Expr(
-        Box::new(
-          ast::Expr::Ident(
-            ast::Ident::new("require".into(), DUMMY_SP)
-          )
-        )
-      );
+      // call.callee = ast::ExprOrSuper::Expr(
+      //   Box::new(
+      //     ast::Expr::Ident(
+      //       ast::Ident::new("require".into(), DUMMY_SP)
+      //     )
+      //   )
+      // );
 
-      // Drop import attributes
-      call.args.truncate(1);
+      // // Drop import attributes
+      // call.args.truncate(1);
 
       // Track the returned require call to be replaced with a promise chain.
       self.require_node = Some(call.clone());
