@@ -151,7 +151,7 @@ export class Bundle implements IBundle {
 
   getEntryAssets(): Array<IAsset> {
     return this.#bundle.entryAssetIds.map(id => {
-      let assetNode = this.#bundleGraph._graph.getNode(id);
+      let assetNode = this.#bundleGraph._graph.getNodeByContentKey(id);
       invariant(assetNode != null && assetNode.type === 'asset');
       return assetFromValue(assetNode.value, this.#options);
     });
@@ -159,7 +159,7 @@ export class Bundle implements IBundle {
 
   getMainEntry(): ?IAsset {
     if (this.#bundle.mainEntryId != null) {
-      let assetNode = this.#bundleGraph._graph.getNode(
+      let assetNode = this.#bundleGraph._graph.getNodeByContentKey(
         this.#bundle.mainEntryId,
       );
       invariant(assetNode != null && assetNode.type === 'asset');

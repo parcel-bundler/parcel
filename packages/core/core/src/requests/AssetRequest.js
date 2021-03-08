@@ -5,6 +5,7 @@ import type {StaticRunOpts} from '../RequestTracker';
 import type {
   AssetRequestInput,
   AssetRequestResult,
+  ContentKey,
   DevDepRequest,
   TransformationRequest,
 } from '../types';
@@ -21,7 +22,7 @@ type RunInput = {|
 |};
 
 export type AssetRequest = {|
-  id: string,
+  id: ContentKey,
   +type: 'asset_request',
   run: RunInput => Async<AssetRequestResult>,
   input: AssetRequestInput,

@@ -324,7 +324,7 @@ export default class Parcel {
         bundleGraph: new BundleGraph(bundleGraph, NamedBundle.get, options),
         buildTime: Date.now() - startTime,
         requestBundle: async bundle => {
-          let bundleNode = bundleGraph._graph.getNode(bundle.id);
+          let bundleNode = bundleGraph._graph.getNodeByContentKey(bundle.id);
           invariant(bundleNode?.type === 'bundle', 'Bundle does not exist');
 
           if (!bundleNode.value.isPlaceholder) {
