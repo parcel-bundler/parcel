@@ -727,6 +727,25 @@ describe('resolver', function() {
               fileName: 'node_modules/side-effects-false',
               aboveFilePath: path.join(rootDir, 'foo.js'),
             },
+            {
+              filePath: path.join(
+                rootDir,
+                'node_modules',
+                'side-effects-false',
+                'src',
+                'package.json',
+              ),
+            },
+            {
+              aboveFilePath: path.join(
+                rootDir,
+                'node_modules',
+                'side-effects-false',
+                'src',
+                'index',
+              ),
+              fileName: 'package.json',
+            },
           ],
           invalidateOnFileChange: [
             path.join(rootDir, 'package.json'),
@@ -765,6 +784,25 @@ describe('resolver', function() {
             {
               fileName: 'node_modules/side-effects-false',
               aboveFilePath: path.join(rootDir, 'foo.js'),
+            },
+            {
+              filePath: path.join(
+                rootDir,
+                'node_modules',
+                'side-effects-false',
+                'src',
+                'package.json',
+              ),
+            },
+            {
+              aboveFilePath: path.join(
+                rootDir,
+                'node_modules',
+                'side-effects-false',
+                'src',
+                'index',
+              ),
+              fileName: 'package.json',
             },
           ],
           invalidateOnFileChange: [
