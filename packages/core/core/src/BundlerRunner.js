@@ -89,9 +89,7 @@ export default class BundlerRunner {
       cacheKey = await this.getCacheKey(graph, configResult);
       let cachedBundleGraphBuffer;
       try {
-        cachedBundleGraphBuffer = await this.options.cache.getBlob<Buffer>(
-          cacheKey,
-        );
+        cachedBundleGraphBuffer = await this.options.cache.getBlob(cacheKey);
       } catch {
         // Cache miss
       }

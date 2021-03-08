@@ -1,7 +1,6 @@
 // @flow strict-local
 
 import type {
-  AST,
   FilePath,
   FileCreateInvalidation,
   GenerateOutput,
@@ -576,12 +575,15 @@ export default class Transformation {
             : null;
         let mapBuffer =
           value.astKey != null
-            ? await this.options.cache.getBlob<Buffer>(value.astKey)
+            ? await this.options.cache.getBlob(value.astKey)
             : null;
         let ast =
           value.astKey != null
-            ? await this.options.cache.getBlob<AST>(value.astKey)
+            ? // TODO: Capture with a test and likely use cache.get() as this returns a buffer.
+              // $FlowFixMe[incompatible-call]
+              await this.options.cache.getBlob(value.astKey)
             : null;
+
         return new UncommittedAsset({
           value,
           options: this.options,
