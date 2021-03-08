@@ -828,11 +828,11 @@ export default class Transformation {
 
     // Create generate function that can be called later
     pipeline.generate = (input: UncommittedAsset): Promise<GenerateOutput> => {
-      let generate = transformer.generate?.bind(transformer);
       let ast = input.ast;
-      if (generate && ast) {
-        let generated = generate({
-          asset: new Asset(input),
+      let asset = new Asset(input);
+      if (transformer.generate && ast) {
+        let generated = transformer.generate({
+          asset,
           ast,
           options: pipeline.pluginOptions,
           logger,
