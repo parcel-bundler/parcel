@@ -6,7 +6,7 @@ module.exports = cacheLoader(function loadCSSBundle(bundle) {
     let existingLinks = document.getElementsByTagName('link');
     if (
       [...existingLinks].some(
-        link => link.href === bundle && link.rel.includes('stylesheet'),
+        link => link.href === bundle && link.rel.indexOf('stylesheet') > -1,
       )
     ) {
       resolve();
