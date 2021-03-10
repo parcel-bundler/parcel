@@ -1,4 +1,5 @@
 // @flow
+import nullthrows from 'nullthrows';
 import {TSModule} from './TSModule';
 import type {TSModuleGraph} from './TSModuleGraph';
 import typeof TypeScriptModule from 'typescript'; // eslint-disable-line import/no-extraneous-dependencies
@@ -10,21 +11,22 @@ export function collect(
   context: any,
   sourceFile: any,
 ): any {
-  let currentModule: ?TSModule;
+  let _currentModule: ?TSModule;
   let visit = (node: any): any => {
     if (ts.isBundle(node)) {
       return ts.updateBundle(node, ts.visitNodes(node.sourceFiles, visit));
     }
 
     if (ts.isModuleDeclaration(node)) {
-      currentModule = new TSModule();
-      moduleGraph.addModule(node.name.text, currentModule);
+      _currentModule = new TSModule();
+      moduleGraph.addModule(node.name.text, _currentModule);
     }
 
-    if (!currentModule) {
+    if (!_currentModule) {
       return ts.visitEachChild(node, visit, context);
     }
 
+    let currentModule = nullthrows(_currentModule);
     if (ts.isImportDeclaration(node) && node.importClause) {
       if (node.importClause.namedBindings) {
         if (node.importClause.namedBindings.elements) {

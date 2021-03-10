@@ -16,16 +16,13 @@ export class NodeResolver extends NodeResolverBase<Promise<ResolveResult>> {
       id = path.resolve(path.dirname(from), id);
     }
 
-    let res;
-    if (path.isAbsolute(id)) {
-      res = await this.loadRelative(id, ctx);
-    } else {
-      res = await this.loadNodeModules(id, from, ctx);
-    }
+    let res = path.isAbsolute(id)
+      ? await this.loadRelative(id, ctx)
+      : await this.loadNodeModules(id, from, ctx);
 
     if (!res) {
       let e = new Error(`Could not resolve module "${id}" from "${from}"`);
-      // $FlowFixMe
+      // $FlowFixMe[prop-missing]
       e.code = 'MODULE_NOT_FOUND';
       throw e;
     }
