@@ -203,10 +203,14 @@ export class AssetGraphBuilder {
         }),
       );
     if (entryDependencies.some(d => d.value.env.shouldScopeHoist)) {
-      this.propagateSymbols();
+      try {
+        this.propagateSymbols();
+      } catch (e) {
+        dumpToGraphViz(this.assetGraph, 'AssetGraph_' + this.name + '_failed');
+        throw e;
+      }
     }
-    dumpToGraphViz(this.assetGraph, this.name);
-    dumpToGraphViz(this.assetGraph, 'AssetGraph');
+    dumpToGraphViz(this.assetGraph, 'AssetGraph_' + this.name);
 
     return {
       assetGraph: this.assetGraph,
