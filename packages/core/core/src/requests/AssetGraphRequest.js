@@ -203,10 +203,14 @@ export class AssetGraphBuilder {
         }),
       );
     if (entryDependencies.some(d => d.value.env.shouldScopeHoist)) {
-      this.propagateSymbols();
+      try {
+        this.propagateSymbols();
+      } catch (e) {
+        dumpToGraphViz(this.assetGraph, 'AssetGraph_' + this.name + '_failed');
+        throw e;
+      }
     }
-    dumpToGraphViz(this.assetGraph, this.name);
-    dumpToGraphViz(this.assetGraph, 'AssetGraph');
+    dumpToGraphViz(this.assetGraph, 'AssetGraph_' + this.name);
 
     return {
       assetGraph: this.assetGraph,
@@ -393,21 +397,22 @@ export class AssetGraphBuilder {
     // Because namespace reexports introduce ambiguity, go up the graph from the leaves to the
     // root and remove requested symbols that aren't actually exported
     this.propagateSymbolsUp((assetNode, incomingDeps, outgoingDeps) => {
-      if (!assetNode.value.symbols) return [];
-
-      let assetSymbols: $ReadOnlyMap<
+      let assetSymbols: ?$ReadOnlyMap<
         Symbol,
         {|local: Symbol, loc: ?SourceLocation, meta?: ?Meta|},
       > = assetNode.value.symbols;
 
-      let assetSymbolsInverse = new Map<Symbol, Set<Symbol>>();
-      for (let [s, {local}] of assetSymbols) {
-        let set = assetSymbolsInverse.get(local);
-        if (!set) {
-          set = new Set();
-          assetSymbolsInverse.set(local, set);
+      let assetSymbolsInverse = null;
+      if (assetSymbols) {
+        assetSymbolsInverse = new Map<Symbol, Set<Symbol>>();
+        for (let [s, {local}] of assetSymbols) {
+          let set = assetSymbolsInverse.get(local);
+          if (!set) {
+            set = new Set();
+            assetSymbolsInverse.set(local, set);
+          }
+          set.add(s);
         }
-        set.add(s);
       }
 
       let reexportedSymbols = new Set<Symbol>();
@@ -438,7 +443,7 @@ export class AssetGraphBuilder {
             continue;
           }
 
-          let reexported = assetSymbolsInverse.get(local);
+          let reexported = assetSymbolsInverse?.get(local);
           if (reexported != null) {
             reexported.forEach(s => reexportedSymbols.add(s));
           }
@@ -456,6 +461,7 @@ export class AssetGraphBuilder {
         let hasNamespaceReexport = incomingDepSymbols.get('*')?.local === '*';
         for (let s of incomingDep.usedSymbolsDown) {
           if (
+            assetSymbols == null || // Assume everything could be provided if symbols are cleared
             assetNode.usedSymbols.has(s) ||
             reexportedSymbols.has(s) ||
             s === '*'
