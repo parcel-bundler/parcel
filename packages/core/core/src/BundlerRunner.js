@@ -95,8 +95,12 @@ export default class BundlerRunner {
       }
       assertSignalNotAborted(signal);
 
-      if (cachedBundleGraphBuffer) {
-        return [deserialize(cachedBundleGraphBuffer), cachedBundleGraphBuffer];
+      let _cachedBundleGraphBuffer = cachedBundleGraphBuffer; // For Flow
+      if (_cachedBundleGraphBuffer) {
+        return [
+          deserialize(_cachedBundleGraphBuffer),
+          _cachedBundleGraphBuffer,
+        ];
       }
     }
 

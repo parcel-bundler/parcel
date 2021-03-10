@@ -19,7 +19,7 @@ export function shake(
   // Propagate exports from the main module to determine what types should be included
   let exportedNames = moduleGraph.propagate(context);
 
-  let currentModule: ?TSModule;
+  let _currentModule: ?TSModule;
   let visit = (node: any): any => {
     if (ts.isBundle(node)) {
       return ts.updateBundle(node, ts.visitNodes(node.sourceFiles, visit));
@@ -27,8 +27,8 @@ export function shake(
 
     // Flatten all module declarations into the top-level scope
     if (ts.isModuleDeclaration(node)) {
-      let isFirstModule = !currentModule;
-      currentModule = moduleGraph.getModule(node.name.text);
+      let isFirstModule = !_currentModule;
+      _currentModule = moduleGraph.getModule(node.name.text);
       let statements = ts.visitEachChild(node, visit, context).body.statements;
 
       if (isFirstModule) {
@@ -38,7 +38,7 @@ export function shake(
       return statements;
     }
 
-    if (!currentModule) {
+    if (!_currentModule) {
       return ts.visitEachChild(node, visit, context);
     }
 
@@ -47,6 +47,7 @@ export function shake(
       return null;
     }
 
+    let currentModule = nullthrows(_currentModule);
     // Remove exports from flattened modules
     if (ts.isExportDeclaration(node)) {
       if (
