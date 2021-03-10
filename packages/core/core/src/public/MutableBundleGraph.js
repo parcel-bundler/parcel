@@ -159,6 +159,13 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
     );
     this.#bundlePublicIds.add(publicId);
 
+    let isPlaceholder = false;
+    if (entryAsset) {
+      let entryAssetNode = this.#graph._graph.getNode(entryAsset.id);
+      invariant(entryAssetNode?.type === 'asset', 'Entry asset does not exist');
+      isPlaceholder = entryAssetNode.requested === false;
+    }
+
     let bundleNode = {
       type: 'bundle',
       id: bundleId,
@@ -176,6 +183,7 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
         isEntry: opts.isEntry,
         isInline: opts.isInline,
         isSplittable: opts.isSplittable ?? entryAsset?.isSplittable,
+        isPlaceholder,
         target,
         name: null,
         displayName: null,

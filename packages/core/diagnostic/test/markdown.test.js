@@ -1,7 +1,7 @@
 // @flow
 import assert from 'assert';
 
-import {escapeMarkdown, md} from '../';
+import {escapeMarkdown, md} from '../src/diagnostic';
 
 describe('escapeMarkdown', () => {
   it('returns an escaped string 01', () => {
@@ -73,5 +73,9 @@ describe('md tagged template literal', () => {
       },
     };
     assert.strictEqual('Test: b', md`Test: ${v}`);
+  });
+
+  it('supports null and undefined', () => {
+    assert.strictEqual('Test: undefined null', md`Test: ${undefined} ${null}`);
   });
 });
