@@ -3222,6 +3222,15 @@ describe('scope hoisting', function() {
       let output = await run(b);
       assert.equal(output, 123);
     });
+
+    it('can reexport urls to raw assets', async () => {
+      await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/reexport-raw-url/index.js',
+        ),
+      );
+    });
   });
 
   describe('commonjs', function() {
