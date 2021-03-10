@@ -142,11 +142,12 @@ async function _generateFromAST(asset: CommittedAsset | UncommittedAsset) {
     nullthrows(asset.value.configKeyPath),
     asset.options,
   );
-  if (!plugin.generate) {
+  let generate = plugin.generate?.bind(plugin);
+  if (!generate) {
     throw new Error(`${pluginName} does not have a generate method`);
   }
 
-  let {content, map} = await plugin.generate({
+  let {content, map} = await generate({
     asset: new PublicAsset(asset),
     ast,
     options: new PluginOptions(asset.options),

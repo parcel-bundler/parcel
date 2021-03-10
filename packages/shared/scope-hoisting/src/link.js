@@ -717,12 +717,13 @@ export function link({
               asyncResolution?.type === 'asset' &&
               !isExpressionStatement(newNode)
             ) {
+              let _newNode = newNode; // For Flow
               newNode = t.callExpression(
                 t.memberExpression(
                   t.identifier('Promise'),
                   t.identifier('resolve'),
                 ),
-                [newNode],
+                [_newNode],
               );
             }
           }

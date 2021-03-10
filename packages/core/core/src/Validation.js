@@ -88,24 +88,25 @@ export default class Validation {
             // Otherwise, pass the assets one-at-a-time
             else if (plugin.validate && !this.dedicatedThread) {
               await Promise.all(
-                assets.map(async asset => {
+                assets.map(async input => {
                   let config = null;
+                  let asset = new Asset(input);
                   if (plugin.getConfig) {
                     config = await plugin.getConfig({
-                      asset: new Asset(asset),
+                      asset,
                       options: pluginOptions,
                       logger: validatorLogger,
                       resolveConfig: (configNames: Array<string>) =>
                         resolveConfig(
                           this.options.inputFS,
-                          asset.value.filePath,
+                          input.value.filePath,
                           configNames,
                         ),
                     });
                   }
 
                   let validatorResult = await plugin.validate({
-                    asset: new Asset(asset),
+                    asset,
                     options: pluginOptions,
                     config,
                     logger: validatorLogger,
