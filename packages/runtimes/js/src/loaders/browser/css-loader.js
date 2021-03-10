@@ -4,7 +4,12 @@ module.exports = cacheLoader(function loadCSSBundle(bundle) {
   return new Promise(function(resolve, reject) {
     // Don't insert the same link element twice (e.g. if it was already in the HTML)
     let existingLinks = document.getElementsByTagName('link');
-    if ([...existingLinks].some(link => link.href === bundle)) {
+    if (
+      [...existingLinks].some(
+        link => link.href === bundle && link.rel.includes('stylesheet'),
+      )
+    ) {
+      console.log(">>> it's here");
       resolve();
       return;
     }
@@ -13,6 +18,7 @@ module.exports = cacheLoader(function loadCSSBundle(bundle) {
     link.rel = 'stylesheet';
     link.href = bundle;
     link.onerror = function(e) {
+      console.log('on Error');
       link.onerror = link.onload = null;
       link.remove();
       reject(e);
