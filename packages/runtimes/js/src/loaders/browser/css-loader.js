@@ -9,7 +9,6 @@ module.exports = cacheLoader(function loadCSSBundle(bundle) {
         link => link.href === bundle && link.rel.includes('stylesheet'),
       )
     ) {
-      console.log(">>> it's here");
       resolve();
       return;
     }
@@ -18,7 +17,6 @@ module.exports = cacheLoader(function loadCSSBundle(bundle) {
     link.rel = 'stylesheet';
     link.href = bundle;
     link.onerror = function(e) {
-      console.log('on Error');
       link.onerror = link.onload = null;
       link.remove();
       reject(e);
