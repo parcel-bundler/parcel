@@ -332,30 +332,4 @@ describe('css', () => {
   background-image: url('data:image/webp;base64,UklGR`),
     );
   });
-
-  it('should load the css bundle that was prefetched', async function() {
-    let b = await bundle(
-      path.join(
-        __dirname,
-        '/integration/dynamic-static-prefetch-loaded/index.js',
-      ),
-    );
-
-    let output = await run(b);
-    let headChildren = await output.default;
-
-    let cssBundles = headChildren.filter(child =>
-      child.href?.match(/prefetched\..*\.css/),
-    );
-    assert.equal(cssBundles.length, 2);
-
-    assert(cssBundles[0].tag === 'link');
-    assert(cssBundles[0].rel === 'prefetch');
-    assert(cssBundles[0].as === 'style');
-    assert(cssBundles[0].href.match(/prefetched\..*\.css/));
-
-    assert(cssBundles[1].tag === 'link');
-    assert(cssBundles[1].rel === 'stylesheet');
-    assert(cssBundles[1].href.match(/prefetched\..*\.css/));
-  });
 });
