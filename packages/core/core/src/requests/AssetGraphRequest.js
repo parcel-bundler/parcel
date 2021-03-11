@@ -37,6 +37,7 @@ import createEntryRequest from './EntryRequest';
 import createTargetRequest from './TargetRequest';
 import createAssetRequest from './AssetRequest';
 import createPathRequest from './PathRequest';
+import logger from '@parcel/logger';
 
 import dumpToGraphViz from '../dumpGraphToGraphViz';
 
@@ -90,7 +91,7 @@ const typesWithRequests = new Set([
   'asset_group',
 ]);
 
-export class AssetGraphBuilder {
+class AssetGraphBuilder {
   assetGraph: AssetGraph;
   assetRequests: Array<AssetGroup>;
   queue: PromiseQueue<mixed>;
@@ -298,7 +299,12 @@ export class AssetGraphBuilder {
             continue;
           }
 
+          let namedSymbols = [];
           for (let exportSymbol of incomingDep.usedSymbolsDown) {
+            if (exportSymbol !== 'default') {
+              namedSymbols.push(exportSymbol);
+            }
+
             if (exportSymbol === '*') {
               assetNode.usedSymbols.add('*');
               namespaceReexportedSymbols.add('*');
@@ -318,6 +324,35 @@ export class AssetGraphBuilder {
             else if (hasNamespaceOutgoingDeps && exportSymbol !== 'default') {
               namespaceReexportedSymbols.add(exportSymbol);
             }
+          }
+
+          // TODO: Move to symbol registration that happens in development too,
+          // likely added by https://github.com/parcel-bundler/parcel/pull/5528
+          if (
+            assetNode.value.meta.isJSON === true /* for Flow */ &&
+            namedSymbols.length > 0
+          ) {
+            logger.warn({
+              origin: '@parcel/core',
+              message: md`
+Using named imports from JSON modules is deprecated.
+              `,
+              filePath: incomingDep.value.sourcePath ?? undefined,
+              codeFrame: {
+                codeHighlights: namedSymbols
+                  .map(symbol => incomingDep.value.symbols?.get(symbol)?.loc)
+                  .filter(Boolean)
+                  .map(loc => ({
+                    start: loc.start,
+                    end: loc.end,
+                  })),
+              },
+              hints: [
+                `Instead, use: import json from "${incomingDep.value.moduleSpecifier}";`,
+                `              const {${namedSymbols.join(', ')}} = json;`,
+              ],
+            });
+            //
           }
         }
       }
