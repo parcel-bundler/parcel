@@ -1,0 +1,42 @@
+{
+  "navigation": {
+    "title": "Parcel",
+    "name": "parcel",
+    "url": "/platform/parcel/",
+    "categories": [
+      {
+        "title": "Guides",
+        "name": "devguide",
+        "url": "/platform/parcel/",
+        "subcategories": [
+          {
+            "title": "Atlassian plugins",
+            "name": "plugins",
+            "expandAlways": true,
+            "items": [
+              {
+                "title": "About",
+                "url": "/platform/parcel/plugins/about/"
+              },
+              {
+                "title": "Server Side Rendering",
+                "url": "/platform/parcel/plugins/ssr/"
+              }
+            ]
+          },
+          {
+            "title": "Support",
+            "name": "support",
+            "expandAlways": true,
+            "items": [
+              {
+                "title": "Getting Support",
+                "url": "/platform/parcel/support/getting-support/"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
