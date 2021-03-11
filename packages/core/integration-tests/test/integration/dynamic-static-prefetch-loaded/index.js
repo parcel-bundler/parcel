@@ -1,1 +1,8 @@
-export default import('./async').then(() => document.head.children);
+export default import('./async').then(
+  (dependency) => { 
+    return {
+      children: document.head.children,
+      loadDependency: dependency.default
+    }    
+  }
+);

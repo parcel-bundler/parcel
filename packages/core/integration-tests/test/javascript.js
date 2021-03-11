@@ -382,8 +382,10 @@ describe('javascript', function() {
     );
 
     let output = await run(b);
-    let headChildren = await output.default;
+    let outputReturn = await output.default;
+    await outputReturn.loadDependency();
 
+    let headChildren = outputReturn.children;
     assert.equal(headChildren.length, 5);
     let cssBundles = headChildren.filter(child =>
       child.href?.match(/prefetched-loaded\..*\.css/),
