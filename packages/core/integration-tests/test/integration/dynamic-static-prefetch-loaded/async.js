@@ -1,5 +1,5 @@
 function loadPrefetched() {
-  import('./prefetched', {prefetch: true});
+  import('./prefetched-loaded', {prefetch: true});
 }
 
 loadPrefetched();

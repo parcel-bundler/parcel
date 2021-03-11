@@ -384,19 +384,20 @@ describe('javascript', function() {
     let output = await run(b);
     let headChildren = await output.default;
 
+    assert.equal(headChildren.length, 5);
     let cssBundles = headChildren.filter(child =>
-      child.href?.match(/prefetched\..*\.css/),
+      child.href?.match(/prefetched-loaded\..*\.css/),
     );
     assert.equal(cssBundles.length, 2);
 
     assert(cssBundles[0].tag === 'link');
     assert(cssBundles[0].rel === 'prefetch');
     assert(cssBundles[0].as === 'style');
-    assert(cssBundles[0].href.match(/prefetched\..*\.css/));
+    assert(cssBundles[0].href.match(/prefetched-loaded\..*\.css/));
 
     assert(cssBundles[1].tag === 'link');
     assert(cssBundles[1].rel === 'stylesheet');
-    assert(cssBundles[1].href.match(/prefetched\..*\.css/));
+    assert(cssBundles[1].href.match(/prefetched-loaded\..*\.css/));
   });
 
   it('should preload bundles when declared as an import attribute statically', async function() {
