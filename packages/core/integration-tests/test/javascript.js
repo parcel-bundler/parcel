@@ -3523,7 +3523,7 @@ describe('javascript', function() {
       path.join(__dirname, 'integration/js-import-shadow-for-var/index.js'),
     );
     let res = await run(b);
-    assert.deepEqual(res.baz(), [0, 1, 2, 3]);
+    assert.strictEqual(res.baz(), [0, 1, 2, 3]);
   });
 
   it('should replace an imported identifier with function locals of the same name', async function() {
@@ -3531,7 +3531,7 @@ describe('javascript', function() {
       path.join(__dirname, 'integration/js-import-shadow-func-var/index.js'),
     );
     let res = await run(b);
-    assert.deepEqual(res.default, 123);
+    assert.strictEqual(res.default, 123);
   });
 
   it('should not freeze live default imports', async function() {
@@ -3539,7 +3539,7 @@ describe('javascript', function() {
       path.join(__dirname, 'integration/js-import-default-live/index.js'),
     );
     let res = await run(b);
-    assert.deepEqual(res.default, [123, 789]);
+    assert.strictEqual(res.default, [123, 789]);
   });
 
   it('should not rewrite this in arrow function class properties', async function() {
@@ -3547,12 +3547,12 @@ describe('javascript', function() {
       path.join(__dirname, 'integration/js-class-this-esm/a.js'),
     );
     let res = await run(b);
-    assert.deepEqual(res.default, 'x: 123');
+    assert.strictEqual(res.default, 'x: 123');
   });
 
-  it('supports deferring unused dependencies with sideEffects: false', async function() {
+  it('supports deferring unused ESM imports with sideEffects: false', async function() {
     let b = await bundle(
-      path.join(__dirname, '/integration/side-effects-false/a.js'),
+      path.join(__dirname, '/integration/side-effects-false/import.js'),
     );
 
     let content = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
@@ -3561,12 +3561,24 @@ describe('javascript', function() {
 
     let called = false;
     let output = await run(b, {
-      sideEffect: () => {
+      sideEffect() {
         called = true;
       },
     });
 
     assert(!called, 'side effect called');
-    assert.deepEqual(output.default, 4);
+    assert.strictEqual(output.default, 4);
+  });
+
+  it('supports ESM imports and requires with sideEffects: false', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/side-effects-false/import-require.js'),
+    );
+
+    let output = await run(b, {
+      sideEffect() {},
+    });
+
+    assert.strictEqual(output.default, '4returned from bar');
   });
 });

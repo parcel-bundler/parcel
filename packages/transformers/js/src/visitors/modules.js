@@ -10,17 +10,18 @@ import type {
 import {MutableAsset} from '@parcel/types';
 import * as t from '@babel/types';
 import {
-  isIdentifier,
-  isImportDeclaration,
   isExportAllDeclaration,
   isExportDefaultSpecifier,
   isExportNamedDeclaration,
   isExportNamespaceSpecifier,
   isExportSpecifier,
   isFunctionDeclaration,
+  isIdentifier,
+  isImportDeclaration,
   isImportDefaultSpecifier,
   isImportNamespaceSpecifier,
   isImportSpecifier,
+  isStringLiteral,
 } from '@babel/types';
 import {
   traverse2,
@@ -33,6 +34,7 @@ import invariant from 'assert';
 import path from 'path';
 import nullthrows from 'nullthrows';
 import {normalizeSeparators} from '@parcel/utils';
+import {isInFalsyBranch, hasBinding} from './utils';
 
 type State = {|
   ...ScopeState,
@@ -43,6 +45,7 @@ type State = {|
     string,
     {|name: string, default: string, namespace: string|},
   >,
+  requires: Set<string>,
   exports: Array<{|local: Expression, exported: Identifier|}>,
   needsInteropFlag: boolean,
   asset: ?MutableAsset,
@@ -217,6 +220,23 @@ let modulesVisitor: Visitors<State> = {
 
     return t.identifier('undefined');
   },
+  CallExpression: {
+    enter(node, {requires}, ancestors) {
+      let {callee, arguments: args} = node;
+
+      let isRequire =
+        isIdentifier(callee, {name: 'require'}) &&
+        !hasBinding(ancestors, 'require') &&
+        args.length === 1 &&
+        !isInFalsyBranch(ancestors);
+
+      let param = args[0];
+      if (isRequire && isStringLiteral(param)) {
+        // Don't try to analyze which symbols are used here, just clear the symbols to deopt correctly
+        requires.add(param.value);
+      }
+    },
+  },
 };
 
 function getNames(state, source) {
@@ -267,6 +287,7 @@ export function esm2cjs(ast: BabelNodeFile, asset?: MutableAsset) {
   let importNames = new Map();
   let scope = new Scope('program');
   let exports = [];
+  let requires = new Set();
   let state: State = {
     imports,
     importNames,
@@ -274,6 +295,7 @@ export function esm2cjs(ast: BabelNodeFile, asset?: MutableAsset) {
     needsInteropFlag: false,
     scope,
     asset,
+    requires,
   };
 
   asset?.symbols.ensure();
@@ -283,6 +305,8 @@ export function esm2cjs(ast: BabelNodeFile, asset?: MutableAsset) {
   if (asset) {
     for (let node of imports) {
       let source = nullthrows(node.source).value;
+      if (requires.has(source)) continue;
+
       let dep = asset
         .getDependencies()
         .find(dep => dep.moduleSpecifier === source);
