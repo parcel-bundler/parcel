@@ -5736,9 +5736,9 @@ describe('javascript', function () {
     assert.deepEqual(calls, ['common', 'deep']);
   });
 
-  it('supports deferring unused dependencies with sideEffects: false', async function() {
+  it('supports deferring unused ESM imports with sideEffects: false', async function() {
     let b = await bundle(
-      path.join(__dirname, '/integration/side-effects-false/a.js'),
+      path.join(__dirname, '/integration/side-effects-false/import.js'),
     );
 
     let content = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
@@ -5747,12 +5747,24 @@ describe('javascript', function () {
 
     let called = false;
     let output = await run(b, {
-      sideEffect: () => {
+      sideEffect() {
         called = true;
       },
     });
 
     assert(!called, 'side effect called');
-    assert.deepEqual(output.default, 4);
+    assert.strictEqual(output.default, 4);
+  });
+
+  it('supports ESM imports and requires with sideEffects: false', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/side-effects-false/import-require.js'),
+    );
+
+    let output = await run(b, {
+      sideEffect() {},
+    });
+
+    assert.strictEqual(output.default, '4returned from bar');
   });
 });
