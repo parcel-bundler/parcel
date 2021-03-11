@@ -8,6 +8,7 @@ import {CONFIG} from '@parcel/plugin';
 import nullthrows from 'nullthrows';
 import ThrowableDiagnostic, {
   generateJSONCodeHighlights,
+  md,
 } from '@parcel/diagnostic';
 import {
   findAlternativeNodeModules,
@@ -22,9 +23,9 @@ const NODE_MODULES = `${path.sep}node_modules${path.sep}`;
 export default async function loadPlugin<T>(
   pluginName: PackageName,
   configPath: FilePath,
-  keyPath: string,
+  keyPath?: string,
   options: ParcelOptions,
-): Promise<{|plugin: T, version: Semver|}> {
+): Promise<{|plugin: T, version: Semver, resolveFrom: FilePath|}> {
   let resolveFrom = configPath;
   let range;
   if (resolveFrom.includes(NODE_MODULES)) {
@@ -46,7 +47,7 @@ export default async function loadPlugin<T>(
         );
         throw new ThrowableDiagnostic({
           diagnostic: {
-            message: `Could not determine version of ${pluginName} in ${path.relative(
+            message: md`Could not determine version of ${pluginName} in ${path.relative(
               process.cwd(),
               resolveFrom,
             )}. Either include it in "dependencies" or "parcelDependencies".`,
@@ -100,22 +101,26 @@ export default async function loadPlugin<T>(
     );
     throw new ThrowableDiagnostic({
       diagnostic: {
-        message: `Cannot find Parcel plugin "${pluginName}"`,
+        message: md`Cannot find Parcel plugin "${pluginName}"`,
         origin: '@parcel/core',
         filePath: configPath,
         language: 'json5',
-        codeFrame: {
-          code: configContents,
-          codeHighlights: generateJSONCodeHighlights(configContents, [
-            {
-              key: keyPath,
-              type: 'value',
-              message: `Cannot find module "${pluginName}"${
-                alternatives[0] ? `, did you mean "${alternatives[0]}"?` : ''
-              }`,
-            },
-          ]),
-        },
+        codeFrame: keyPath
+          ? {
+              code: configContents,
+              codeHighlights: generateJSONCodeHighlights(configContents, [
+                {
+                  key: keyPath,
+                  type: 'value',
+                  message: md`Cannot find module "${pluginName}"${
+                    alternatives[0]
+                      ? `, did you mean "${alternatives[0]}"?`
+                      : ''
+                  }`,
+                },
+              ]),
+            }
+          : undefined,
       },
     });
   }
@@ -139,7 +144,7 @@ export default async function loadPlugin<T>(
     let pkgContents = await options.inputFS.readFile(pkgFile, 'utf8');
     throw new ThrowableDiagnostic({
       diagnostic: {
-        message: `The plugin "${pluginName}" is not compatible with the current version of Parcel. Requires "${parcelVersionRange}" but the current version is "${PARCEL_VERSION}".`,
+        message: md`The plugin "${pluginName}" is not compatible with the current version of Parcel. Requires "${parcelVersionRange}" but the current version is "${PARCEL_VERSION}".`,
         origin: '@parcel/core',
         filePath: pkgFile,
         language: 'json5',
@@ -155,7 +160,7 @@ export default async function loadPlugin<T>(
     });
   }
 
-  let plugin = await options.packageManager.require(resolved, resolveFrom, {
+  let plugin = await options.packageManager.require(pluginName, resolveFrom, {
     shouldAutoInstall: options.shouldAutoInstall,
   });
   plugin = plugin.default ? plugin.default : plugin;
@@ -168,5 +173,5 @@ export default async function loadPlugin<T>(
       `Plugin ${pluginName} is not a valid Parcel plugin, should export an instance of a Parcel plugin ex. "export default new Reporter({ ... })".`,
     );
   }
-  return {plugin, version: nullthrows(pkg).version};
+  return {plugin, version: nullthrows(pkg).version, resolveFrom};
 }

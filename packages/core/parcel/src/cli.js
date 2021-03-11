@@ -66,7 +66,6 @@ const commonOptions = {
     'specify which config to use. can be a path or a package name',
   '--cache-dir <path>': 'set the cache directory. defaults to ".parcel-cache"',
   '--no-source-maps': 'disable sourcemaps',
-  '--no-content-hash': 'disable content hashing',
   '--target [name]': [
     'only build given target(s)',
     (val, list) => list.concat([val]),
@@ -82,9 +81,17 @@ const commonOptions = {
   '--profile': 'enable build profiling',
   '-V, --version': 'output the version number',
   '--detailed-report [count]': [
-    'Print the asset timings and sizes in the build report',
+    'print the asset timings and sizes in the build report',
     parseOptionInt,
     '10',
+  ],
+  '--reporter <name>': [
+    'additional reporters to run',
+    (val, acc) => {
+      acc.push(val);
+      return acc;
+    },
+    [],
   ],
 };
 
@@ -122,6 +129,10 @@ let serve = program
     'automatically open in specified browser, defaults to default browser',
   )
   .option('--watch-for-stdin', 'exit when stdin closes')
+  .option(
+    '--lazy',
+    'Build async bundles on demand, when requested in the browser',
+  )
   .action(runCommand);
 
 applyOptions(serve, hmrOptions);
@@ -131,6 +142,7 @@ let watch = program
   .command('watch [input...]')
   .description('starts the bundler in watch mode')
   .option('--public-url <url>', 'the path prefix for absolute urls')
+  .option('--no-content-hash', 'disable content hashing')
   .option('--watch-for-stdin', 'exit when stdin closes')
   .action(runCommand);
 
@@ -143,6 +155,7 @@ let build = program
   .option('--no-optimize', 'disable minification')
   .option('--no-scope-hoist', 'disable scope-hoisting')
   .option('--public-url <url>', 'the path prefix for absolute urls')
+  .option('--no-content-hash', 'disable content hashing')
   .action(runCommand);
 
 applyOptions(build, commonOptions);
@@ -196,17 +209,18 @@ async function run(
   entries = entries.map(entry => path.resolve(entry));
 
   if (entries.length === 0) {
+    // TODO move this into core, a glob could still lead to no entries
     INTERNAL_ORIGINAL_CONSOLE.log('No entries found');
     return;
   }
   let Parcel = require('@parcel/core').default;
-  let options = await normalizeOptions(command);
   let fs = new NodeFS();
+  let options = await normalizeOptions(command, fs);
   let packageManager = new NodePackageManager(fs);
   let parcel = new Parcel({
     entries,
     packageManager,
-    // $FlowFixMe - flow doesn't know about the `paths` option (added in Node v8.9.0)
+    // $FlowFixMe[extra-arg] - flow doesn't know about the `paths` option (added in Node v8.9.0)
     defaultConfig: require.resolve('@parcel/config-default', {
       paths: [fs.cwd(), __dirname],
     }),
@@ -353,7 +367,10 @@ function parseOptionInt(value) {
   return parsedValue;
 }
 
-async function normalizeOptions(command): Promise<InitialParcelOptions> {
+async function normalizeOptions(
+  command,
+  inputFS,
+): Promise<InitialParcelOptions> {
   let nodeEnv;
   if (command.name() === 'build') {
     nodeEnv = process.env.NODE_ENV || 'production';
@@ -418,18 +435,28 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
     command.detailedReport = '10';
   }
 
+  let additionalReporters = [
+    {packageName: '@parcel/reporter-cli', resolveFrom: __filename},
+    {packageName: '@parcel/reporter-dev-server', resolveFrom: __filename},
+    ...(command.reporter: Array<string>).map(packageName => ({
+      packageName,
+      resolveFrom: path.join(inputFS.cwd(), 'index'),
+    })),
+  ];
+
   let mode = command.name() === 'build' ? 'production' : 'development';
   return {
     shouldDisableCache: command.cache === false,
     cacheDir: command.cacheDir,
     mode,
     hmrOptions,
-    shouldContentHash: hmrOptions ? false : command.shouldContentHash,
+    shouldContentHash: hmrOptions ? false : command.contentHash,
     serveOptions,
     targets: command.target.length > 0 ? command.target : null,
     shouldAutoInstall: command.autoinstall ?? true,
     logLevel: command.logLevel,
     shouldProfile: command.profile,
+    shouldBuildLazily: command.lazy,
     detailedReport:
       command.detailedReport != null
         ? {
@@ -439,6 +466,7 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
     env: {
       NODE_ENV: nodeEnv,
     },
+    additionalReporters,
     defaultTargetOptions: {
       shouldOptimize:
         command.optimize != null ? command.optimize : mode === 'production',

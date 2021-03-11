@@ -1,6 +1,7 @@
 // @flow strict-local
 import ThrowableDiagnostic, {
   generateJSONCodeHighlights,
+  escapeMarkdown,
 } from '@parcel/diagnostic';
 import type {Mapping} from 'json-source-map';
 import nullthrows from 'nullthrows';
@@ -483,14 +484,14 @@ validateSchema.diagnostic = function(
         keys.map(({key, type, message}) => ({
           key: (data.prependKey ?? '') + key,
           type: type,
-          message,
+          message: message != null ? escapeMarkdown(message) : message,
         })),
       ),
     };
 
     throw new ThrowableDiagnostic({
       diagnostic: {
-        message,
+        message: message,
         origin,
         filePath: data.filePath ?? undefined,
         language: 'json',

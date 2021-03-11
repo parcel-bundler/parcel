@@ -5,23 +5,25 @@ import type {
   FilePath,
   PackageName,
   ConfigResult,
+  DevDepOptions,
 } from '@parcel/types';
+import {md5FromString} from '@parcel/utils';
 import type {Config, Environment} from './types';
 
 type ConfigOpts = {|
+  plugin: PackageName,
   isSource: boolean,
   searchPath: FilePath,
   env: Environment,
   result?: ConfigResult,
   includedFiles?: Set<FilePath>,
   invalidateOnFileCreate?: Array<FileCreateInvalidation>,
-  devDeps?: Map<PackageName, ?string>,
-  shouldRehydrate?: boolean,
-  shouldReload?: boolean,
+  devDeps?: Array<DevDepOptions>,
   shouldInvalidateOnStartup?: boolean,
 |};
 
 export function createConfig({
+  plugin,
   isSource,
   searchPath,
   env,
@@ -29,11 +31,10 @@ export function createConfig({
   includedFiles,
   invalidateOnFileCreate,
   devDeps,
-  shouldRehydrate,
-  shouldReload,
   shouldInvalidateOnStartup,
 }: ConfigOpts): Config {
   return {
+    id: md5FromString(plugin + searchPath + env.id + String(isSource)),
     isSource,
     searchPath,
     env,
@@ -41,19 +42,7 @@ export function createConfig({
     resultHash: null,
     includedFiles: includedFiles ?? new Set(),
     invalidateOnFileCreate: invalidateOnFileCreate ?? [],
-    pkg: null,
-    pkgFilePath: null,
-    devDeps: devDeps ?? new Map(),
-    shouldRehydrate: shouldRehydrate ?? false,
-    shouldReload: shouldReload ?? false,
+    devDeps: devDeps ?? [],
     shouldInvalidateOnStartup: shouldInvalidateOnStartup ?? false,
   };
-}
-
-export function addDevDependency(
-  config: Config,
-  name: PackageName,
-  version?: string,
-) {
-  config.devDeps.set(name, version);
 }

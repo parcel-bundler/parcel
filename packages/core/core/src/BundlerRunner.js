@@ -1,14 +1,9 @@
 // @flow strict-local
 
 import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
-import type {
-  Bundle as IBundle,
-  Namer,
-  FilePath,
-  ConfigOutput,
-} from '@parcel/types';
+import type {Bundle as IBundle, Namer, ConfigOutput} from '@parcel/types';
 import type WorkerFarm, {SharedReference} from '@parcel/workers';
-import type ParcelConfig from './ParcelConfig';
+import type ParcelConfig, {LoadedPlugin} from './ParcelConfig';
 import type RequestTracker from './RequestTracker';
 import type {Bundle as InternalBundle, ParcelOptions} from './types';
 
@@ -100,8 +95,12 @@ export default class BundlerRunner {
       }
       assertSignalNotAborted(signal);
 
-      if (cachedBundleGraphBuffer) {
-        return [deserialize(cachedBundleGraphBuffer), cachedBundleGraphBuffer];
+      let _cachedBundleGraphBuffer = cachedBundleGraphBuffer; // For Flow
+      if (_cachedBundleGraphBuffer) {
+        return [
+          deserialize(_cachedBundleGraphBuffer),
+          _cachedBundleGraphBuffer,
+        ];
       }
     }
 
@@ -126,11 +125,13 @@ export default class BundlerRunner {
           origin: this.config.getBundlerName(),
         }),
       });
+    } finally {
+      // $FlowFixMe
+      await dumpGraphToGraphViz(internalBundleGraph._graph, 'after_bundle');
     }
+
     assertSignalNotAborted(signal);
 
-    // $FlowFixMe
-    await dumpGraphToGraphViz(internalBundleGraph._graph, 'after_bundle');
     if (this.pluginOptions.mode === 'production') {
       try {
         await bundler.optimize({
@@ -145,11 +146,12 @@ export default class BundlerRunner {
             origin: this.config.getBundlerName(),
           }),
         });
+      } finally {
+        // $FlowFixMe
+        await dumpGraphToGraphViz(internalBundleGraph._graph, 'after_optimize');
       }
-      assertSignalNotAborted(signal);
 
-      // $FlowFixMe
-      await dumpGraphToGraphViz(internalBundleGraph._graph, 'after_optimize');
+      assertSignalNotAborted(signal);
     }
 
     await this.nameBundles(internalBundleGraph);
@@ -210,13 +212,7 @@ export default class BundlerRunner {
   }
 
   async nameBundle(
-    namers: Array<{|
-      name: string,
-      version: string,
-      plugin: Namer,
-      resolveFrom: FilePath,
-      keyPath: string,
-    |}>,
+    namers: Array<LoadedPlugin<Namer>>,
     internalBundle: InternalBundle,
     internalBundleGraph: InternalBundleGraph,
   ): Promise<void> {

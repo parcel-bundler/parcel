@@ -105,10 +105,7 @@ describe('typescript', function() {
             'index.ts',
             'JSRuntime.js',
             'bundle-url.js',
-            'bundle-manifest.js',
             'esmodule-helpers.js',
-            'JSRuntime.js',
-            'relative-path.js',
           ],
         },
         {

@@ -7,7 +7,7 @@
     "100": "src/assets/foo.png"
   },
   "background": {
-    "scripts": ["./src/background.js"],
+    "scripts": ["./src/background.ts"],
     "persistent": true
   },
   "browser_action": {

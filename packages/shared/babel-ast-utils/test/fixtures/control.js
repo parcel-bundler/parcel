@@ -1,3 +1,7 @@
+throw (
+  /*comment*/
+  new Error("abc")
+);
 if (a > b) {} else {}
 if (c != d) {}
 var a = b > c ? d : e;

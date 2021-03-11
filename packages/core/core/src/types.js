@@ -10,12 +10,10 @@ import type {
   FileCreateInvalidation,
   FilePath,
   Glob,
-  JSONObject,
   LogLevel,
   Meta,
   ModuleSpecifier,
   PackageName,
-  PackageJSON,
   ReporterEvent,
   Semver,
   ServerOptions,
@@ -29,6 +27,7 @@ import type {
   HMROptions,
   QueryParameters,
   DetailedReportOptions,
+  DevDepOptions,
 } from '@parcel/types';
 import type {SharedReference} from '@parcel/workers';
 import type {FileSystem} from '@parcel/fs';
@@ -38,7 +37,7 @@ import type {PackageManager} from '@parcel/package-manager';
 export type ParcelPluginNode = {|
   packageName: PackageName,
   resolveFrom: FilePath,
-  keyPath: string,
+  keyPath?: string,
 |};
 
 export type PureParcelConfigPipeline = $ReadOnlyArray<ParcelPluginNode>;
@@ -84,6 +83,7 @@ export type Target = {|
   publicUrl: string,
   loc?: ?SourceLocation,
   pipeline?: string,
+  source?: FilePath | Array<FilePath>,
 |};
 
 export type Dependency = {|
@@ -157,6 +157,18 @@ export type RequestInvalidation =
   | EnvInvalidation
   | OptionInvalidation;
 
+export type DevDepRequest = {|
+  moduleSpecifier: ModuleSpecifier,
+  resolveFrom: FilePath,
+  hash: string,
+  invalidateOnFileCreate?: Array<FileCreateInvalidation>,
+  invalidateOnFileChange?: Set<FilePath>,
+  additionalInvalidations?: Array<{|
+    moduleSpecifier: ModuleSpecifier,
+    resolveFrom: FilePath,
+  |}>,
+|};
+
 export type ParcelOptions = {|
   entries: Array<FilePath>,
   entryRoot: FilePath,
@@ -171,6 +183,7 @@ export type ParcelOptions = {|
   hmrOptions: ?HMROptions,
   shouldContentHash: boolean,
   serveOptions: ServerOptions | false,
+  shouldBuildLazily: boolean,
   shouldAutoInstall: boolean,
   logLevel: LogLevel,
   projectRoot: FilePath,
@@ -183,6 +196,10 @@ export type ParcelOptions = {|
   outputFS: FileSystem,
   cache: Cache,
   packageManager: PackageManager,
+  additionalReporters: Array<{|
+    packageName: ModuleSpecifier,
+    resolveFrom: FilePath,
+  |}>,
 
   instanceId: string,
 
@@ -219,6 +236,7 @@ export type AssetNode = {|
   hasDeferred?: boolean,
   usedSymbolsDownDirty: boolean,
   usedSymbolsUpDirty: boolean,
+  requested?: boolean,
 |};
 
 export type DependencyNode = {|
@@ -255,8 +273,6 @@ export type AssetRequestInput = {|
   optionsRef: SharedReference,
   isURL?: boolean,
   query?: ?QueryParameters,
-  invalidations?: Array<RequestInvalidation>,
-  invalidateReason?: number,
 |};
 
 export type AssetRequestResult = Array<Asset>;
@@ -274,6 +290,17 @@ export type AssetGroupNode = {|
   deferred?: boolean,
   hasDeferred?: boolean,
   usedSymbolsDownDirty: boolean,
+|};
+
+export type TransformationRequest = {|
+  ...AssetGroup,
+  invalidations: Array<RequestInvalidation>,
+  invalidateReason: number,
+  devDeps: Map<PackageName, string>,
+  invalidDevDeps: Array<{|
+    moduleSpecifier: ModuleSpecifier,
+    resolveFrom: FilePath,
+  |}>,
 |};
 
 export type DepPathRequestNode = {|
@@ -298,6 +325,7 @@ export type EntrySpecifierNode = {|
 export type Entry = {|
   filePath: FilePath,
   packagePath: FilePath,
+  target?: string,
 |};
 
 export type EntryFileNode = {|
@@ -324,36 +352,17 @@ export type BundleGraphNode =
   | BundleGroupNode
   | BundleNode;
 
-export type ConfigRequestNode = {|
-  id: string,
-  +type: 'config_request',
-  value: ConfigRequestDesc,
-|};
-
 export type Config = {|
+  id: string,
   isSource: boolean,
   searchPath: FilePath,
   env: Environment,
   resultHash: ?string,
   result: ConfigResult,
   includedFiles: Set<FilePath>,
-  pkg: ?PackageJSON,
-  pkgFilePath: ?FilePath,
   invalidateOnFileCreate: Array<FileCreateInvalidation>,
-  devDeps: Map<PackageName, ?string>,
-  shouldRehydrate: boolean,
-  shouldReload: boolean,
+  devDeps: Array<DevDepOptions>,
   shouldInvalidateOnStartup: boolean,
-|};
-
-export type ConfigRequestDesc = {|
-  filePath: FilePath,
-  env: Environment,
-  isSource: boolean,
-  pipeline?: ?string,
-  isURL?: boolean,
-  plugin?: PackageName,
-  meta: JSONObject,
 |};
 
 export type DepVersionRequestNode = {|
@@ -405,6 +414,7 @@ export type Bundle = {|
   isEntry: ?boolean,
   isInline: ?boolean,
   isSplittable: ?boolean,
+  isPlaceholder?: boolean,
   target: Target,
   filePath: ?FilePath,
   name: ?string,
