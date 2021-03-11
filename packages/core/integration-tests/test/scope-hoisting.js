@@ -17,6 +17,8 @@ import {
   run,
   runBundle,
 } from '@parcel/test-utils';
+import logger from '@parcel/logger';
+import sinon from 'sinon';
 
 const bundle = (name, opts = {}) => {
   return _bundle(
@@ -3269,6 +3271,48 @@ describe('scope hoisting', function() {
 
       let output = await run(b);
       assert(/foo\.[a-f0-9]+\.png$/.test(output));
+    });
+
+    it('warns when named importing from json', async () => {
+      sinon.spy(logger, 'warn');
+      let entryFilePath = path.join(
+        __dirname,
+        '/integration/scope-hoisting/es6/named-json-import/index.js',
+      );
+      let b = await bundle(entryFilePath);
+
+      assert.deepEqual(await run(b), ['bar', 'baz']);
+
+      let call = logger.warn.getCalls()[0].args;
+      assert.deepEqual(call[0].codeFrame, {
+        codeHighlights: [
+          {
+            start: {
+              column: 15,
+              line: 1,
+            },
+            end: {
+              column: 17,
+              line: 1,
+            },
+          },
+          {
+            end: {
+              column: 22,
+              line: 1,
+            },
+            start: {
+              column: 20,
+              line: 1,
+            },
+          },
+        ],
+      });
+      assert.equal(call[0].filePath, entryFilePath);
+      assert.deepEqual(call[0].hints, [
+        'Instead, use: import json from "./foo.json";',
+        '              const {foo, bar} = json;',
+      ]);
     });
   });
 
