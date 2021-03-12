@@ -1,5 +1,5 @@
 const loadDependency = async function () {
-  import('./prefetched-loaded', {prefetch: true}).then(file => file.default)
+  return await import('./prefetched-loaded', {prefetch: true});
 }
 
 export default loadDependency;
