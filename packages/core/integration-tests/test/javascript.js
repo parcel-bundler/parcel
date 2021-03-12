@@ -996,6 +996,7 @@ describe('javascript', function() {
       ],
     });
   });
+
   // ATLASSIAN: Don't share bundles between workers and page scripts
   it.skip('should create a shared bundle to deduplicate assets in workers', async () => {
     let b = await bundle(
@@ -1602,11 +1603,13 @@ describe('javascript', function() {
           message: "Failed to resolve 'invalid.txt' from './missing.js'",
           origin: '@parcel/core',
         },
-        {
-          hints: [],
-          message: "Cannot load file './invalid.txt' in './'.",
-          origin: '@parcel/resolver-default',
-        },
+        // ATLASSIAN: URL dependencies fall back to node_modules because of modified NodeResolver
+        //
+        // {
+        //   hints: [],
+        //   message: "Cannot load file './invalid.txt' in './'.",
+        //   origin: '@parcel/resolver-default',
+        // },
       ],
     });
   });

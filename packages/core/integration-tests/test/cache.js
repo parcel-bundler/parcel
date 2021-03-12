@@ -92,6 +92,12 @@ describe('cache', function() {
     );
   });
 
+  // ATLASSIAN : Adding input / parcel-cache clean up to prevent memory limit errors in integration pipelines
+  afterEach(async () => {
+    await inputFS.rimraf(path.join(__dirname, 'input'));
+    await inputFS.rimraf(path.join(__dirname, '.parcel-cache'));
+  });
+
   it('should support updating a JS file', async function() {
     let b = await testCache(async b => {
       assert.equal(await run(b.bundleGraph), 4);

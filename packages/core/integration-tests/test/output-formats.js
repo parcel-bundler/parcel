@@ -1381,7 +1381,8 @@ describe('output formats', function() {
   });
 
   describe('global', function() {
-    it('should support split bundles between main script and workers', async function() {
+    // ATLASSIAN: Don't share across workers for now as worker-specific code is added
+    it.skip('should support split bundles between main script and workers', async function() {
       let b = await bundle(
         path.join(
           __dirname,

@@ -118,7 +118,7 @@ describe('TargetResolver', () => {
           publicUrl: '/',
           distDir: path.resolve('customA'),
           env: {
-            id: '1c8faadcd7aa7f220fe2e7aa726b28ea',
+            id: '1c8faadcd7aa7f220fe2e7aa726b28ea', // ATLASSIAN: env id is different because of stable entries
             context: 'browser',
             includeNodeModules: true,
             engines: {
@@ -460,7 +460,7 @@ describe('TargetResolver', () => {
           distDir: path.resolve('customB'),
           publicUrl: '/',
           env: {
-            id: 'daa5d206066497852a3e8af4ff268cc2',
+            id: '1c8faadcd7aa7f220fe2e7aa726b28ea', // ATLASSIAN: env id is different because of stable entries
             context: 'browser',
             engines: {
               browsers: ['> 0.25%'],
@@ -500,7 +500,7 @@ describe('TargetResolver', () => {
           distDir: path.resolve('customA'),
           publicUrl: '/',
           env: {
-            id: 'daa5d206066497852a3e8af4ff268cc2',
+            id: '1c8faadcd7aa7f220fe2e7aa726b28ea', // ATLASSIAN: env id is different because of stable entries
             context: 'browser',
             engines: {
               browsers: ['> 0.25%'],
