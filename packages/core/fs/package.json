@@ -23,7 +23,7 @@
     "@parcel/fs-search": "2.0.0-nightly.2190",
     "@parcel/fs-write-stream-atomic": "2.0.0-frontbucket.8",
     "@parcel/utils": "2.0.0-frontbucket.37",
-    "@parcel/watcher": "2.0.0-alpha.9",
+    "@parcel/watcher": "2.0.0-alpha.10",
     "@parcel/workers": "2.0.0-frontbucket.38",
     "graceful-fs": "^4.2.4",
     "mkdirp": "^0.5.1",

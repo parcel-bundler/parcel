@@ -32,7 +32,7 @@ module.exports = ({types: t}) => ({
   visitor: {
     ImportDeclaration({node}, state) {
       let source = node.source;
-      if (t.isStringLiteral(source)) {
+      if (t.isStringLiteral(source) && source.value.startsWith('@parcel/')) {
         source.value = getSourceField(
           source.value,
           state.file.opts.filename || process.cwd(),
@@ -45,7 +45,8 @@ module.exports = ({types: t}) => ({
         t.isIdentifier(node.callee, {name: 'require'}) &&
         !path.scope.hasBinding(node.callee.value) &&
         node.arguments.length === 1 &&
-        t.isStringLiteral(node.arguments[0])
+        t.isStringLiteral(node.arguments[0]) &&
+        node.arguments[0].value.startsWith('@parcel/')
       ) {
         try {
           node.arguments[0].value = getSourceField(

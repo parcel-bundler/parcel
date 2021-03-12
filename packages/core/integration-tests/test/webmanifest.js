@@ -1,7 +1,7 @@
 import assert from 'assert';
 import path from 'path';
 import {bundle, assertBundles, inputFS, outputFS} from '@parcel/test-utils';
-import {escapeMarkdown} from '@parcel/utils';
+import {md} from '@parcel/diagnostic';
 
 describe('webmanifest', function() {
   it('should support .webmanifest', async function() {
@@ -107,9 +107,7 @@ describe('webmanifest', function() {
     let manifestPath = path.join(__dirname, manifestPathRelative);
     let manifest = await inputFS.readFileSync(manifestPath, 'utf8');
 
-    let message = `Failed to resolve 'icon.png' from '${escapeMarkdown(
-      manifestPathRelative,
-    )}'`;
+    let message = md`Failed to resolve 'icon.png' from '${manifestPathRelative}'`;
 
     await assert.rejects(
       () =>

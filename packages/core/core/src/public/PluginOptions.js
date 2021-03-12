@@ -52,6 +52,10 @@ export default class PluginOptions implements IPluginOptions {
     return this.#options.serveOptions;
   }
 
+  get shouldBuildLazily(): boolean {
+    return this.#options.shouldBuildLazily;
+  }
+
   get shouldAutoInstall(): boolean {
     return this.#options.shouldAutoInstall;
   }

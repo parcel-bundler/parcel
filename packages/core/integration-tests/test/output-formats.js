@@ -1280,7 +1280,7 @@ describe('output formats', function() {
 
     it("doesn't support require.resolve calls for excluded assets without commonjs", async function() {
       let message =
-        "`require.resolve` calls for excluded assets are only supported with outputFormat: 'commonjs'";
+        "'require.resolve' calls for excluded assets are only supported with outputFormat: 'commonjs'";
       let source = path.join(
         __dirname,
         '/integration/formats/commonjs-esm/require-resolve.js',
@@ -1381,11 +1381,59 @@ describe('output formats', function() {
   });
 
   describe('global', function() {
+    it('should support split bundles between main script and workers', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/formats/global-split-worker/index.html',
+        ),
+        {
+          mode: 'production',
+          defaultTargetOptions: {
+            shouldOptimize: false,
+          },
+        },
+      );
+
+      assertBundles(b, [
+        {
+          type: 'js',
+          assets: [
+            'bundle-manifest.js',
+            'bundle-url.js',
+            'get-worker-url.js',
+            'index.js',
+            'JSRuntime.js',
+            'JSRuntime.js',
+            'relative-path.js',
+          ],
+        },
+        {type: 'html', assets: ['index.html']},
+        {type: 'js', assets: ['lodash.js']},
+        {type: 'js', assets: ['worker.js']},
+      ]);
+
+      let workerBundle;
+      assert.strictEqual(
+        await run(b, {
+          Worker: class {
+            constructor(url) {
+              workerBundle = nullthrows(
+                b.getBundles().find(b => b.name === path.posix.basename(url)),
+              );
+            }
+          },
+        }),
+        3,
+      );
+      assert.strictEqual(await runBundle(b, workerBundle), 30);
+    });
+
     it('should support async split bundles for workers', async function() {
       await bundle(
         path.join(
           __dirname,
-          '/integration/formats/global-split-worker/index.html',
+          '/integration/formats/global-split-worker-async/index.html',
         ),
         {
           mode: 'production',

@@ -10,9 +10,13 @@ import type {StaticRunOpts} from '../RequestTracker';
 import type {AssetGroup, Dependency, ParcelOptions} from '../types';
 import type {ConfigAndCachePath} from './ParcelConfigRequest';
 
-import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
+import ThrowableDiagnostic, {
+  errorToDiagnostic,
+  escapeMarkdown,
+  md,
+} from '@parcel/diagnostic';
 import {PluginLogger} from '@parcel/logger';
-import {escapeMarkdown, relativePath} from '@parcel/utils';
+import {relativePath} from '@parcel/utils';
 import nullthrows from 'nullthrows';
 import path from 'path';
 import URL from 'url';
@@ -162,7 +166,7 @@ export class ResolverRunner {
         } else {
           throw await this.getThrowableDiagnostic(
             dependency,
-            `Unknown pipeline: ${pipeline}.`,
+            md`Unknown pipeline: ${pipeline}.`,
           );
         }
       }
@@ -180,7 +184,7 @@ export class ResolverRunner {
       if (typeof parsed.pathname !== 'string') {
         throw await this.getThrowableDiagnostic(
           dependency,
-          `Received URL without a pathname ${filePath}.`,
+          md`Received URL without a pathname ${filePath}.`,
         );
       }
       filePath = decodeURIComponent(parsed.pathname);
@@ -240,14 +244,20 @@ export class ResolverRunner {
           if (result.diagnostics) {
             let errorDiagnostic = errorToDiagnostic(
               new ThrowableDiagnostic({diagnostic: result.diagnostics}),
-              resolver.name,
+              {
+                origin: resolver.name,
+                filePath,
+              },
             );
             diagnostics.push(...errorDiagnostic);
           }
         }
       } catch (e) {
         // Add error to error map, we'll append these to the standard error if we can't resolve the asset
-        let errorDiagnostic = errorToDiagnostic(e, resolver.name);
+        let errorDiagnostic = errorToDiagnostic(e, {
+          origin: resolver.name,
+          filePath,
+        });
         if (Array.isArray(errorDiagnostic)) {
           diagnostics.push(...errorDiagnostic);
         } else {
@@ -273,7 +283,7 @@ export class ResolverRunner {
     // $FlowFixMe because of the err.code assignment
     let err = await this.getThrowableDiagnostic(
       dependency,
-      `Failed to resolve '${specifier}' ${dir ? `from '${dir}'` : ''}`,
+      md`Failed to resolve '${specifier}' ${dir ? `from '${dir}'` : ''}`,
     );
 
     // Merge diagnostics
