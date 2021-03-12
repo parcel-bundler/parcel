@@ -373,6 +373,35 @@ describe('javascript', function() {
     assert(headChildren[2].href.match(/prefetched\..*\.css/));
   });
 
+  it('should load additional links that were prefetched', async function() {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/dynamic-static-prefetch-loaded/index.js',
+      ),
+    );
+
+    let output = await run(b);
+    let outputReturn = await output.default;
+    await outputReturn.loadDependency();
+
+    let headChildren = outputReturn.children;
+    assert.equal(headChildren.length, 5);
+    let cssBundles = headChildren.filter(child =>
+      child.href?.match(/prefetched-loaded\..*\.css/),
+    );
+    assert.equal(cssBundles.length, 2);
+
+    assert(cssBundles[0].tag === 'link');
+    assert(cssBundles[0].rel === 'prefetch');
+    assert(cssBundles[0].as === 'style');
+    assert(cssBundles[0].href.match(/prefetched-loaded\..*\.css/));
+
+    assert(cssBundles[1].tag === 'link');
+    assert(cssBundles[1].rel === 'stylesheet');
+    assert(cssBundles[1].href.match(/prefetched-loaded\..*\.css/));
+  });
+
   it('should preload bundles when declared as an import attribute statically', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/dynamic-static-preload/index.js'),
