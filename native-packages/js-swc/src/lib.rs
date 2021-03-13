@@ -207,7 +207,7 @@ fn transform(ctx: CallContext) -> Result<JsUnknown> {
             module.fold_with(&mut passes)
           };
 
-          let (module, hoist_result) = hoist(module, config.module_id.as_str(), decls, ignore_mark);
+          let (module, hoist_result) = hoist(module, source_map.clone(), config.module_id.as_str(), decls, ignore_mark);
           result.hoist_result = Some(hoist_result);
 
           let mut passes = chain!(

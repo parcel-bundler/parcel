@@ -1,7 +1,8 @@
 // @flow
+import type {JSONObject} from '@parcel/types';
 import {Transformer} from '@parcel/plugin';
 import {transform} from '../parcel-swc.node';
-import {isURL} from '@parcel/utils';
+import {isURL, relativeUrl} from '@parcel/utils';
 import path from 'path';
 import browserslist from 'browserslist';
 import semver from 'semver';
@@ -109,6 +110,7 @@ export default (new Transformer({
       targets = {node: semver.minVersion(asset.env.engines.node)?.toString()};
     }
 
+    let relativePath = relativeUrl(options.projectRoot, asset.filePath);
     let {dependencies, code: compiledCode, shebang, hoist_result} = transform({
       filename: asset.filePath,
       code,
@@ -163,7 +165,7 @@ export default (new Transformer({
           continue;
         }
 
-        let meta = {kind: dep.kind};
+        let meta: JSONObject = {kind: dep.kind};
         if (dep.attributes) {
           meta.importAttributes = dep.attributes;
         }
@@ -179,9 +181,22 @@ export default (new Transformer({
     }
 
     if (hoist_result) {
+      let convertLoc = (loc) => ({
+        filePath: relativePath,
+        start: {
+          line: loc.start_line,
+          column: loc.start_col,
+        },
+        end: {
+          line: loc.end_line,
+          column: loc.end_col
+        }
+      });
+
       asset.symbols.ensure();
       for (let symbol in hoist_result.exported_symbols) {
-        asset.symbols.set(symbol, hoist_result.exported_symbols[symbol]);
+        let [local, loc] = hoist_result.exported_symbols[symbol];
+        asset.symbols.set(symbol, local, convertLoc(loc));
       }
 
       let deps = new Map(
@@ -192,24 +207,24 @@ export default (new Transformer({
       }
 
       for (let name in hoist_result.imported_symbols) {
-        let [moduleSpecifier, exported] = hoist_result.imported_symbols[name];
+        let [moduleSpecifier, exported, loc] = hoist_result.imported_symbols[name];
         let dep = deps.get(moduleSpecifier);
         if (!dep) continue;
-        dep.symbols.set(exported, name);
+        dep.symbols.set(exported, name, convertLoc(loc));
       }
 
-      for (let [name, moduleSpecifier, exported] of hoist_result.re_exports) {
+      for (let [name, moduleSpecifier, exported, loc] of hoist_result.re_exports) {
         let dep = deps.get(moduleSpecifier);
         if (!dep) continue;
 
         if (name === '*' && exported === '*') {
-          dep.symbols.set('*', '*', null, true);
+          dep.symbols.set('*', '*', convertLoc(loc), true);
         } else {
           let reExportName =
             dep.symbols.get(exported)?.local ??
             `$${asset.id}$re_export$${name}`;
           asset.symbols.set(name, reExportName);
-          dep.symbols.set(exported, reExportName, null, true);
+          dep.symbols.set(exported, reExportName, convertLoc(loc), true);
         }
       }
 
@@ -240,7 +255,6 @@ export default (new Transformer({
           symbols.set(name, {
             local,
             isWeak: false,
-            // loc: convertBabelLoc(path.node.loc),
             loc: null,
           });
         }
