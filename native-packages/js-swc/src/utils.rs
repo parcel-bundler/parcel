@@ -42,12 +42,12 @@ pub fn match_member_expr(expr: &ast::MemberExpr, idents: Vec<&str>, decls: &Hash
   return parts == idents
 }
 
-pub fn create_require(specifier: swc_atoms::JsWord) -> ast::CallExpr {
+pub fn create_require(specifier: swc_atoms::JsWord, ignore_mark: swc_common::Mark) -> ast::CallExpr {
   ast::CallExpr {
     callee: ast::ExprOrSuper::Expr(
       Box::new(
         ast::Expr::Ident(
-          ast::Ident::new("require".into(), DUMMY_SP)
+          ast::Ident::new("require".into(), DUMMY_SP.apply_mark(ignore_mark))
         )
       )
     ),

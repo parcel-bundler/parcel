@@ -96,7 +96,9 @@ export default (new Transformer({
           }
         }
 
-        let [major, minor = '0', patch = '0'] = version.split('.');
+        let [major, minor = '0', patch = '0'] = version
+          .split('-')[0]
+          .split('.');
         let semverVersion = `${major}.${minor}.${patch}`;
 
         if (targets[name] == null || semver.gt(targets[name], semverVersion)) {
@@ -123,7 +125,7 @@ export default (new Transformer({
     });
 
     // console.log(Object.keys(options.env))
-    // console.log(asset.filePath, hoist_result);
+    // console.log(asset.filePath, hoist_result, code, compiledCode);
 
     if (shebang) {
       asset.meta.interpreter = shebang;
@@ -161,11 +163,9 @@ export default (new Transformer({
           continue;
         }
 
-        let meta;
+        let meta = {kind: dep.kind};
         if (dep.attributes) {
-          meta = {
-            importAttributes: dep.attributes,
-          };
+          meta.importAttributes = dep.attributes;
         }
 
         asset.addDependency({
@@ -219,6 +219,12 @@ export default (new Transformer({
         dep.meta.shouldWrap = true;
       }
 
+      for (let name in hoist_result.dynamic_imports) {
+        let dep = deps.get(hoist_result.dynamic_imports[name]);
+        if (!dep) continue;
+        dep.meta.promiseSymbol = name;
+      }
+
       if (hoist_result.self_references.length > 0) {
         let symbols = new Map();
         for (let name of hoist_result.self_references) {
@@ -245,12 +251,14 @@ export default (new Transformer({
         });
       }
 
+      // Add * symbol if there are CJS exports, no imports/exports at all, or the asset is wrapped.
+      // This allows accessing symbols that don't exist without errors in symbol propagation.
       if (
+        hoist_result.has_cjs_exports ||
         (deps.size === 0 &&
           Object.keys(hoist_result.exported_symbols).length === 0) ||
         (hoist_result.should_wrap && !asset.symbols.hasExportSymbol('*'))
       ) {
-        compiledCode = `var $${asset.id}$exports = {\n};\n` + compiledCode;
         asset.symbols.set('*', `$${asset.id}$exports`);
       }
 

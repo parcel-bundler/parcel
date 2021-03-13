@@ -3,14 +3,21 @@
 import type {Asset, BundleGraph, NamedBundle, Async} from '@parcel/types';
 
 import {Packager} from '@parcel/plugin';
-import {PromiseQueue, relativeUrl, relativePath} from '@parcel/utils';
+import {
+  PromiseQueue,
+  relativeUrl,
+  relativePath,
+  relativeBundlePath,
+} from '@parcel/utils';
 import nullthrows from 'nullthrows';
 
-const prelude = `var $parcel$modules = {};
+// https://262.ecma-international.org/6.0/#sec-names-and-keywords
+const IDENTIFIER_RE = /^[$_\p{ID_Start}][$_\u200C\u200D\p{ID_Continue}]*$/u;
+
+const prelude = parcelRequireName => `var $parcel$modules = {};
 var $parcel$inits = {};
 
-var parcelRequireName = "parcelRequire123";
-var parcelRequire = globalThis[parcelRequireName];
+var parcelRequire = globalThis[${JSON.stringify(parcelRequireName)}];
 if (parcelRequire == null) {
   parcelRequire = function(id) {
     if (id in $parcel$modules) {
@@ -33,7 +40,7 @@ if (parcelRequire == null) {
     $parcel$inits[id] = init;
   };
 
-  globalThis[parcelRequireName] = parcelRequire;
+  globalThis[${JSON.stringify(parcelRequireName)}] = parcelRequire;
 }
 `;
 
@@ -89,6 +96,7 @@ export default (new Packager({
     config,
     options,
   }) {
+    let isAsyncBundle = !isEntry(bundle, bundleGraph);
     let queue = new PromiseQueue({maxConcurrent: 32});
     let wrappedAssets = new Set();
     bundle.traverse((node, shouldWrap) => {
@@ -111,7 +119,11 @@ export default (new Packager({
             let code = await node.value.getCode();
             return [node.value.id, {asset: node.value, code}];
           });
-          if (node.value.meta.shouldWrap) {
+          if (
+            node.value.meta.shouldWrap ||
+            isAsyncBundle ||
+            bundleGraph.isAssetReferencedByDependant(bundle, node.value)
+          ) {
             wrappedAssets.add(node.value.id);
             return true;
           }
@@ -146,10 +158,7 @@ export default (new Packager({
           if (!resolved || skipped) continue;
           if (bundle.hasAsset(resolved)) {
             depCode += visit(resolved.id) + '\n';
-          } /*else if (resolved.type === 'js') {
-            needsPrelude = true;
-            depCode += `parcelRequire(${JSON.stringify(resolved.id)});`;
-          }*/
+          }
         }
 
         return depCode;
@@ -161,22 +170,56 @@ export default (new Packager({
       }
 
       let usedSymbols = bundleGraph.getUsedSymbols(asset);
+      let hoistedRequires = new Map();
 
-      let resolveSymbol = (resolved, imported) => {
+      let resolveSymbol = (resolved, imported, dep) => {
         let {
           asset: resolvedAsset,
           exportSymbol,
           symbol,
         } = bundleGraph.resolveSymbol(resolved, imported, bundle);
         let isWrapped =
-          wrappedAssets.has(resolvedAsset.id) && resolvedAsset !== asset;
+          !bundle.hasAsset(resolvedAsset) ||
+          (wrappedAssets.has(resolvedAsset.id) && resolvedAsset !== asset);
         let staticExports = resolvedAsset.meta.staticExports !== false;
-        // TODO: if resolvedAsset.meta.shouldWrap, then the parcelRequire should go at the import site
-        let obj = isWrapped
-          ? `parcelRequire(${JSON.stringify(resolvedAsset.id)})`
-          : resolvedAsset.symbols.get('*')?.local ||
-            `$${resolvedAsset.id}$exports`;
-        if (imported === '*' || exportSymbol === '*') {
+        if (isWrapped && dep && !dep?.meta.shouldWrap) {
+          let hoisted = hoistedRequires.get(dep.id);
+          if (!hoisted) {
+            hoisted = new Map();
+            hoistedRequires.set(dep.id, hoisted);
+          }
+
+          hoisted.set(
+            resolvedAsset.id,
+            `var $${bundleGraph.getAssetPublicId(
+              resolvedAsset,
+            )} = parcelRequire(${JSON.stringify(
+              bundleGraph.getAssetPublicId(resolvedAsset),
+            )});`,
+          );
+        }
+
+        if (isWrapped) {
+          needsPrelude = true;
+        }
+
+        let isDefaultInterop =
+          exportSymbol === 'default' &&
+          dep?.meta.kind === 'Import' &&
+          resolvedAsset.symbols.hasExportSymbol('*') &&
+          resolvedAsset.symbols.hasExportSymbol('default') &&
+          !resolvedAsset.symbols.hasExportSymbol('__esModule');
+
+        let obj =
+          isWrapped && (!dep || dep?.meta.shouldWrap)
+            ? `parcelRequire(${JSON.stringify(
+                bundleGraph.getAssetPublicId(resolvedAsset),
+              )})`
+            : isWrapped && dep
+            ? `$${bundleGraph.getAssetPublicId(resolvedAsset)}`
+            : resolvedAsset.symbols.get('*')?.local ||
+              `$${resolvedAsset.meta.id}$exports`;
+        if (imported === '*' || exportSymbol === '*' || isDefaultInterop) {
           return obj;
         } else if (
           (!staticExports || isWrapped || !symbol) &&
@@ -187,11 +230,14 @@ export default (new Packager({
             resolvedAsset.symbols.hasExportSymbol('*') &&
             needsDefaultInterop(bundleGraph, bundle, resolvedAsset)
           ) {
-            // TODO: not great...
-            let interop = `$${resolvedAsset.id}$interop$default`;
-            return isWrapped ? `(${obj}, ${interop})` : interop;
+            usedHelpers.add('$parcel$interopDefault');
+            return `$parcel$interopDefault(${obj})`;
           } else {
-            return `${obj}.${exportSymbol}`;
+            if (IDENTIFIER_RE.test(exportSymbol)) {
+              return `${obj}.${exportSymbol}`;
+            }
+
+            return `${obj}[${JSON.stringify(exportSymbol)}]`;
           }
         } else {
           return symbol;
@@ -200,11 +246,34 @@ export default (new Packager({
 
       let replacements = new Map();
       for (let dep of deps) {
-        let resolved = bundleGraph.getDependencyResolution(dep, bundle);
+        let asyncResolution = bundleGraph.resolveAsyncDependency(dep, bundle);
+        let resolved =
+          asyncResolution?.type === 'asset'
+            ? // Prefer the underlying asset over a runtime to load it. It will
+              // be wrapped in Promise.resolve() later.
+              asyncResolution.value
+            : bundleGraph.getDependencyResolution(dep, bundle);
         if (!resolved || resolved === asset) continue;
+
         for (let [imported, {local}] of dep.symbols) {
           if (local === '*') continue;
-          replacements.set(local, resolveSymbol(resolved, imported));
+          let symbol = resolveSymbol(resolved, imported, dep);
+          replacements.set(
+            local,
+            asyncResolution?.type === 'asset'
+              ? `Promise.resolve(${symbol})`
+              : symbol,
+          );
+        }
+
+        if (dep.isAsync && dep.meta.promiseSymbol) {
+          let symbol = resolveSymbol(resolved, '*', dep);
+          replacements.set(
+            dep.meta.promiseSymbol,
+            asyncResolution?.type === 'asset'
+              ? `Promise.resolve(${symbol})`
+              : symbol,
+          );
         }
       }
 
@@ -218,25 +287,41 @@ export default (new Packager({
         code = code.replace(regex, m => replacements.get(m));
       }
 
+      let defaultInterop =
+        asset.symbols.hasExportSymbol('*') &&
+        usedSymbols.has('default') &&
+        !asset.symbols.hasExportSymbol('__esModule');
+
       if (
         asset.meta.staticExports === false ||
         shouldWrap ||
-        usedSymbols.has('*')
+        usedSymbols.has('*') ||
+        defaultInterop
       ) {
         let keys =
           usedSymbols.has('*') || asset.symbols.hasExportSymbol('*')
             ? asset.symbols.exportSymbols()
             : [...usedSymbols];
         let prepend = '';
-        prepend += `\nvar $${id}$exports = {\n};\n`;
+        prepend += `\nvar $${asset.meta.id}$exports = {\n};\n`;
 
         // TODO: only if required by CJS?
         if (asset.symbols.hasExportSymbol('default') && usedSymbols.has('*')) {
-          prepend += `\n$parcel$defineInteropFlag($${id}$exports);\n`;
+          prepend += `\n$parcel$defineInteropFlag($${asset.meta.id}$exports);\n`;
           usedHelpers.add('$parcel$defineInteropFlag');
         }
 
-        let usedExports = [...keys].filter(exp => exp !== '*');
+        let incomingDeps = bundleGraph.getIncomingDependencies(asset);
+        let usedExports = [...asset.symbols.exportSymbols()].filter(symbol => {
+          if (symbol === '*') return false;
+          if (defaultInterop) return true;
+          let unused = incomingDeps.every(d => {
+            let symbols = bundleGraph.getUsedSymbols(d);
+            return !symbols.has(symbol) && !symbols.has('*');
+          });
+          return !unused;
+        });
+
         if (usedExports.length > 0) {
           prepend += `\n${usedExports
             .map(
@@ -254,17 +339,30 @@ export default (new Packager({
 
         for (let dep of deps) {
           let resolved = bundleGraph.getDependencyResolution(dep, bundle);
-          if (!resolved) continue;
+          if (!resolved || bundleGraph.isDependencySkipped(dep)) continue;
 
           let isWrapped = wrappedAssets.has(resolved.id);
-          let obj = isWrapped
-            ? `parcelRequire(${JSON.stringify(resolved.id)})`
-            : resolved.symbols.get('*')?.local || `$${resolved.id}$exports`;
 
           for (let [imported, {local}] of dep.symbols) {
             if (imported === '*' && local === '*') {
-              code += `\n$parcel$exportWildcard($${id}$exports, ${obj});`;
-              usedHelpers.add('$parcel$exportWildcard');
+              if (
+                isWrapped ||
+                resolved.meta.staticExports === false ||
+                bundleGraph.getUsedSymbols(resolved).has('*')
+              ) {
+                let obj = resolveSymbol(resolved, '*', dep);
+                code += `\n$parcel$exportWildcard($${id}$exports, ${obj});`;
+                usedHelpers.add('$parcel$exportWildcard');
+              } else {
+                for (let symbol of bundleGraph.getUsedSymbols(dep)) {
+                  prepend += `$parcel$export($${id}$exports, ${JSON.stringify(
+                    symbol,
+                  )}, () => ${resolveSymbol(
+                    resolved,
+                    symbol,
+                  )}, (v) => ${resolveSymbol(asset, symbol)} = v);\n`;
+                }
+              }
             }
           }
         }
@@ -272,64 +370,98 @@ export default (new Packager({
         code = prepend + code;
       }
 
+      let getHoistedParcelRequires = (dep, resolved) => {
+        let hoisted = hoistedRequires.get(dep.id);
+        let res = '';
+        let isWrapped =
+          !bundle.hasAsset(resolved) ||
+          (wrappedAssets.has(resolved.id) && resolved !== asset);
+
+        if (
+          isWrapped &&
+          !dep.meta.shouldWrap &&
+          (!hoisted || hoisted.keys().next().value !== resolved.id) &&
+          !bundleGraph.isDependencySkipped(dep) &&
+          !shouldSkipAsset(bundleGraph, bundle, resolved)
+        ) {
+          needsPrelude = true;
+          res += `parcelRequire(${JSON.stringify(
+            bundleGraph.getAssetPublicId(resolved),
+          )});`;
+        }
+
+        if (hoisted) {
+          needsPrelude = true;
+          res += '\n' + [...hoisted.values()].join('\n');
+        }
+
+        return res;
+      };
+
       if (shouldWrap) {
         needsPrelude = true;
 
         let exportsName =
           asset.symbols.get('*')?.local || `$${asset.id}$exports`;
         let depCode = '';
+        let depMap = new Map();
         for (let dep of deps) {
-          let resolved = nullthrows(
-            bundleGraph.getDependencyResolution(dep, bundle),
-          );
-          depCode += visit(resolved.id) + '\n';
-          // TODO: use regex, like below
-          code = code.replaceAll(
-            `import   "${asset.id}:${dep.moduleSpecifier}";`,
-            dep.meta.shouldWrap
-              ? ''
-              : `\nparcelRequire(${JSON.stringify(resolved.id)});`,
-          );
+          depMap.set(`${asset.meta.id}:${dep.moduleSpecifier}`, dep);
         }
 
-        if (needsDefaultInterop(bundleGraph, bundle, asset)) {
-          // invariant: have exports object
-          depCode += `var $${id}$interop$default;\n`;
-          code += `$${id}$interop$default = /*@__PURE__*/$parcel$interopDefault(module.exports);\n`;
-          usedHelpers.add('$parcel$interopDefault');
-        }
+        code = code.replace(/import\s+"(.+?)";\n/g, (m, d) => {
+          let dep = depMap.get(d);
+          if (dep) {
+            let resolved = bundleGraph.getDependencyResolution(dep, bundle);
+            let skipped = bundleGraph.isDependencySkipped(dep);
+            if (resolved && !skipped && bundle.hasAsset(resolved)) {
+              depCode += visit(resolved.id) + '\n';
+            } /* else if (resolved.type === 'js') {
+              needsPrelude = true;
+              depCode += `parcelRequire(${JSON.stringify(bundleGraph.getAssetPublicId(resolved))});`;
+            }*/
+            return resolved ? getHoistedParcelRequires(dep, resolved) : '';
+          }
+          return '';
+        });
 
         code = `
         ${depCode}
-parcelRequire.register(${JSON.stringify(id)}, function(module, exports) {
+parcelRequire.register(${JSON.stringify(
+          bundleGraph.getAssetPublicId(asset),
+        )}, function(module, exports) {
   ${code
     .replaceAll(`var ${exportsName} = {\n};\n`, '')
     .replaceAll(exportsName, 'module.exports')}
 });
 `;
       } else {
-        if (needsDefaultInterop(bundleGraph, bundle, asset)) {
-          // invariant: have exports object
-          code += `var $${id}$interop$default = /*@__PURE__*/$parcel$interopDefault($${id}$exports);\n`;
-          usedHelpers.add('$parcel$interopDefault');
-        }
-
         let depMap = new Map();
         for (let dep of deps) {
-          let resolved = bundleGraph.getDependencyResolution(dep, bundle);
-          let skipped = bundleGraph.isDependencySkipped(dep);
-          if (!resolved || skipped) continue; // TODO
-          depMap.set(`${asset.meta.id}:${dep.moduleSpecifier}`, resolved);
+          depMap.set(`${asset.meta.id}:${dep.moduleSpecifier}`, dep);
         }
 
-        code = code.replace(/import\s+"(.+?)";\n/g, (m, dep) => {
-          let resolved = depMap.get(dep);
-          if (resolved) {
+        code = code.replace(/import\s+"(.+?)";\n/g, (m, d) => {
+          let dep = nullthrows(depMap.get(d));
+          let resolved = bundleGraph.getDependencyResolution(dep, bundle);
+          let skipped = bundleGraph.isDependencySkipped(dep);
+          if (resolved && !skipped) {
             if (bundle.hasAsset(resolved)) {
-              return visit(resolved.id);
+              let res = visit(resolved.id);
+              // if (wrappedAssets.has(resolved.id) && !dep.meta.shouldWrap) {
+              // res += `\nvar $${dep.id} = parcelRequire(${JSON.stringify(bundleGraph.getAssetPublicId(resolved))});\n`;
+              // }
+              let hoisted = getHoistedParcelRequires(dep, resolved);
+              if (hoisted) {
+                res += '\n' + hoisted;
+              }
+              return res;
             } else if (resolved.type === 'js') {
-              needsPrelude = true;
-              return `parcelRequire(${JSON.stringify(resolved.id)});`;
+              return getHoistedParcelRequires(dep, resolved);
+              // if (hoistedRequires.has(dep.id)) {
+              //   return `\n${[...hoistedRequires.get(dep.id)].join('\n')}\n`;
+              // }
+              // return `parcelRequire(${JSON.stringify(bundleGraph.getAssetPublicId(resolved))});`;
             }
           }
           return '';
@@ -339,31 +471,68 @@ parcelRequire.register(${JSON.stringify(id)}, function(module, exports) {
       return code;
     };
 
-    let entries = bundle.getEntryAssets();
     let res = '';
-    for (let entry of entries) {
-      res += visit(entry.id) + '\n';
-    }
+    bundle.traverseAssets((asset, _, actions) => {
+      res += visit(asset.id) + '\n';
+      actions.skipChildren();
+    });
 
     for (let helper of usedHelpers) {
       res = helpers[helper] + res;
     }
 
     if (needsPrelude) {
-      res = prelude + res;
+      let parentBundles = bundleGraph.getParentBundles(bundle);
+      let mightBeFirstJS =
+        parentBundles.length === 0 ||
+        parentBundles.some(b => b.type !== 'js') ||
+        bundleGraph
+          .getBundleGroupsContainingBundle(bundle)
+          .some(g => bundleGraph.isEntryBundleGroup(g)) ||
+        bundle.env.isIsolated() ||
+        !!bundle.getMainEntry()?.isIsolated;
+      if (mightBeFirstJS) {
+        res = prelude('parcelRequire123') + res;
+      } else {
+        res =
+          `var parcelRequire = globalThis[${JSON.stringify(
+            'parcelRequire123',
+          )}];\n` + res;
+      }
+    }
+
+    let entries = bundle.getEntryAssets();
+    let mainEntry = bundle.getMainEntry();
+    if (isAsyncBundle && bundle.env.outputFormat === 'global') {
+      // In async bundles we don't want the main entry to execute until we require it
+      // as there might be dependencies in a sibling bundle that hasn't loaded yet.
+      entries = entries.filter(a => a.id !== mainEntry?.id);
+      mainEntry = null;
     }
 
     for (let entry of entries) {
       if (wrappedAssets.has(entry.id)) {
-        res += `\nparcelRequire(${JSON.stringify(entry.id)});\n`;
+        res += `\nparcelRequire(${JSON.stringify(
+          bundleGraph.getAssetPublicId(entry),
+        )});\n`;
       }
+    }
+
+    if (bundle.env.isWorker()) {
+      let importScripts = '';
+      let bundles = bundleGraph.getReferencedBundles(bundle);
+      for (let b of bundles) {
+        importScripts += `importScripts("${relativeBundlePath(bundle, b)}");\n`;
+      }
+
+      res = importScripts + res;
     }
 
     res = `(function () {
   ${res}
 })();`;
 
-    // console.log(res)
+    // console.log(bundle.name, res)
 
     return {
       contents: res,
@@ -401,5 +570,18 @@ function shouldSkipAsset(
     asset.sideEffects === false &&
     bundleGraph.getUsedSymbols(asset).size == 0 &&
     !bundleGraph.isAssetReferencedByDependant(bundle, asset)
+  );
+}
+
+function isEntry(
+  bundle: NamedBundle,
+  bundleGraph: BundleGraph<NamedBundle>,
+): boolean {
+  // If there is no parent JS bundle (e.g. in an HTML page), or environment is isolated (e.g. worker)
+  // then this bundle is an "entry"
+  return (
+    !bundleGraph.hasParentBundleOfType(bundle, 'js') ||
+    bundle.env.isIsolated() ||
+    !!bundle.getMainEntry()?.isIsolated
   );
 }

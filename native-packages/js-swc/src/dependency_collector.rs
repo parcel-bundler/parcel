@@ -41,14 +41,15 @@ pub struct DependencyDescriptor {
 }
 
 /// This pass collects dependencies in a module and compiles references as needed to work with Parcel's JSRuntime.
-pub fn dependency_collector<'a>(source_map: &'a SourceMap, items: &'a mut Vec<DependencyDescriptor>, decls: &'a HashSet<(JsWord, SyntaxContext)>) -> impl Fold + 'a {
+pub fn dependency_collector<'a>(source_map: &'a SourceMap, items: &'a mut Vec<DependencyDescriptor>, decls: &'a HashSet<(JsWord, SyntaxContext)>, ignore_mark: swc_common::Mark) -> impl Fold + 'a {
   DependencyCollector {
     source_map,
     items,
     in_try: false,
     in_promise: false,
     require_node: None,
-    decls
+    decls,
+    ignore_mark
   }
 }
 
@@ -58,7 +59,8 @@ struct DependencyCollector<'a> {
   in_try: bool,
   in_promise: bool,
   require_node: Option<ast::CallExpr>,
-  decls: &'a HashSet<(JsWord, SyntaxContext)>
+  decls: &'a HashSet<(JsWord, SyntaxContext)>,
+  ignore_mark: swc_common::Mark
 }
 
 impl<'a> DependencyCollector<'a> {
@@ -185,7 +187,7 @@ impl<'a> Fold for DependencyCollector<'a> {
             call.callee = ast::ExprOrSuper::Expr(
               Box::new(
                 ast::Expr::Ident(
-                  ast::Ident::new("require".into(), DUMMY_SP)
+                  ast::Ident::new("require".into(), DUMMY_SP.apply_mark(self.ignore_mark))
                 )
               )
             );
@@ -196,7 +198,7 @@ impl<'a> Fold for DependencyCollector<'a> {
             call.callee = ast::ExprOrSuper::Expr(
               Box::new(
                 ast::Expr::Ident(
-                  ast::Ident::new("import".into(), DUMMY_SP)
+                  ast::Ident::new("import".into(), DUMMY_SP.apply_mark(self.ignore_mark))
                 )
               )
             );
@@ -318,7 +320,7 @@ impl<'a> Fold for DependencyCollector<'a> {
 
             return ast::ExprOrSpread {
               spread: None,
-              expr: Box::new(Call(create_require(str_.value.clone())))
+              expr: Box::new(Call(create_require(str_.value.clone(), self.ignore_mark)))
             };
           }
         }
@@ -343,9 +345,9 @@ impl<'a> Fold for DependencyCollector<'a> {
           // If url dependency, replace import with require() of runtime module
           if kind == DependencyKind::ServiceWorker {
             let mut node = node.clone();
-            node.args[0].expr = Box::new(Call(create_require(str_.value.clone())));
+            node.args[0].expr = Box::new(Call(create_require(str_.value.clone(), self.ignore_mark)));
             return node
-          }    
+          }
         }
       }
     }
@@ -424,7 +426,7 @@ impl<'a> Fold for DependencyCollector<'a> {
                 callee: ast::ExprOrSuper::Expr(
                   Box::new(
                     ast::Expr::Ident(
-                      ast::Ident::new("require".into(), DUMMY_SP)
+                      ast::Ident::new("require".into(), DUMMY_SP.apply_mark(self.ignore_mark))
                     )
                   )
                 ),

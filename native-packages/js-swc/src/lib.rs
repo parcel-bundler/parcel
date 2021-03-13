@@ -153,6 +153,7 @@ fn transform(ctx: CallContext) -> Result<JsUnknown> {
           module = module.fold_with(&mut passes);
 
           let global_mark = Mark::fresh(Mark::root());
+          let ignore_mark = Mark::fresh(Mark::root());
           let module = module.fold_with(&mut resolver_with_mark(global_mark));
           let decls = collect_decls(&module);
     
@@ -193,7 +194,7 @@ fn transform(ctx: CallContext) -> Result<JsUnknown> {
                 global_mark
               },
               // Collect dependencies
-              dependency_collector(&source_map, &mut result.dependencies, &decls),
+              dependency_collector(&source_map, &mut result.dependencies, &decls, ignore_mark),
               // Transpile new syntax to older syntax if needed
               Optional::new(preset_env(global_mark, preset_env_config), config.targets.is_some()),
               // Convert ESM to CommonJS
@@ -206,7 +207,7 @@ fn transform(ctx: CallContext) -> Result<JsUnknown> {
             module.fold_with(&mut passes)
           };
 
-          let (module, hoist_result) = hoist(module, config.module_id.as_str(), decls, global_mark);
+          let (module, hoist_result) = hoist(module, config.module_id.as_str(), decls, ignore_mark);
           result.hoist_result = Some(hoist_result);
 
           let mut passes = chain!(
@@ -243,6 +244,8 @@ fn parse(code: &str, filename: &str, source_map: &Lrc<SourceMap>, config: &Confi
     let mut esconfig = EsConfig::default();
     esconfig.jsx = config.is_jsx;
     esconfig.dynamic_import = true;
+    esconfig.export_default_from = true;
+    esconfig.export_namespace_from = true;
     Syntax::Es(esconfig)
   };
 

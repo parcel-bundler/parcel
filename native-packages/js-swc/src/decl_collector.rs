@@ -44,6 +44,9 @@ impl Visit for DeclCollector {
     self.in_var = true;
     node.name.visit_with(node, self);
     self.in_var = false;
+    if let Some(init) = &node.init {
+      init.visit_with(node, self);
+    }
   }
 
   fn visit_binding_ident(&mut self, node: &ast::BindingIdent, _parent: &dyn Node) {
