@@ -1,7 +1,9 @@
 // @flow
-import type {Config, PluginOptions} from '@parcel/types';
+import type {Config, FilePath, PluginOptions} from '@parcel/types';
 import type {PluginLogger} from '@parcel/logger';
 import path from 'path';
+import {relativePath} from '@parcel/utils';
+import nullthrows from 'nullthrows';
 
 import loadExternalPlugins from './loadPlugins';
 
@@ -10,6 +12,7 @@ const MODULE_BY_NAME_RE = /\.module\./;
 async function configHydrator(
   configFile: any,
   config: Config,
+  resolveFrom: ?FilePath,
   options: PluginOptions,
 ) {
   // Use a basic, modules-only PostCSS config if the file opts in by a name
@@ -20,6 +23,7 @@ async function configHydrator(
         'postcss-modules': {},
       },
     };
+    resolveFrom = __filename;
   }
 
   if (configFile == null) {
@@ -44,9 +48,25 @@ async function configHydrator(
 
   let plugins = await loadExternalPlugins(
     configFilePlugins,
-    config.searchPath,
+    nullthrows(resolveFrom),
     options,
   );
+
+  // contents is either:
+  // from JSON:    { plugins: { 'postcss-foo': { ...opts } } }
+  // from JS (v8): { plugins: [ { postcssPlugin: 'postcss-foo', ...visitor callback functions } ]
+  // from JS (v7): { plugins: [ [Function: ...] ]
+  let pluginArray = Array.isArray(configFilePlugins)
+    ? configFilePlugins
+    : Object.keys(configFilePlugins);
+  for (let p of pluginArray) {
+    if (typeof p === 'string') {
+      config.addDevDependency({
+        moduleSpecifier: p,
+        resolveFrom: nullthrows(resolveFrom),
+      });
+    }
+  }
 
   config.setResult({
     raw: configFile,
@@ -78,15 +98,23 @@ export async function load({
     contents = configFile.contents;
     let isDynamic = configFile && path.extname(configFile.filePath) === '.js';
     if (isDynamic) {
+      // We have to invalidate on startup in case the config is non-deterministic,
+      // e.g. using unknown environment variables, reading from the filesystem, etc.
       logger.warn({
         message:
           'WARNING: Using a JavaScript PostCSS config file means losing out on caching features of Parcel. Use a .postcssrc(.json) file whenever possible.',
       });
 
-      // JavaScript configs can use an array of functions... opt out of all caching...
       config.shouldInvalidateOnStartup();
-      config.shouldReload();
-      contents.__contains_functions = true;
+
+      // Also add the config as a dev dependency so we attempt to reload in watch mode.
+      config.addDevDependency({
+        moduleSpecifier: relativePath(
+          path.dirname(config.searchPath),
+          configFile.filePath,
+        ),
+        resolveFrom: config.searchPath,
+      });
     }
 
     if (typeof contents !== 'object') {
@@ -100,42 +128,7 @@ export async function load({
     ) {
       throw new Error('PostCSS config must have plugins');
     }
-
-    // contents is either:
-    // from JSON:    { plugins: { 'postcss-foo': { ...opts } } }
-    // from JS (v8): { plugins: [ { postcssPlugin: 'postcss-foo', ...visitor callback functions } ]
-    // from JS (v7): { plugins: [ [Function: ...] ]
-    let configFilePlugins = Array.isArray(contents.plugins)
-      ? contents.plugins
-      : Object.keys(contents.plugins);
-    for (let p of configFilePlugins) {
-      if (typeof p === 'string') {
-        if (p.startsWith('.')) {
-          logger.warn({
-            message:
-              'WARNING: Using relative PostCSS plugins means losing out on caching features of Parcel. Bundle this plugin up in a package or use a monorepo to resolve this issue.',
-          });
-
-          config.shouldInvalidateOnStartup();
-        }
-
-        config.addDevDependency(p);
-      }
-    }
   }
 
-  return configHydrator(contents, config, options);
-}
-
-export function preSerialize(config: Config) {
-  if (!config.result) return;
-
-  // Ensure we dont pass functions to the serialiser
-  if (config.result.raw.__contains_functions) {
-    config.result.raw = {};
-  }
-
-  // This gets re-hydrated in Deserialize, so never store this.
-  // It also usually contains a bunch of functions so bad idea anyway...
-  config.result.hydrated = {};
+  return configHydrator(contents, config, configFile?.filePath, options);
 }

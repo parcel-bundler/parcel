@@ -53,13 +53,11 @@ export default (new Reporter({
           }
         }
 
-        if (hmrOptions && typeof hmrOptions.port === 'number') {
-          let hmrServerOptions = {
-            port: hmrOptions.port,
-            logger,
-          };
+        let port = hmrOptions?.port;
+        if (typeof port === 'number') {
+          let hmrServerOptions = {port, logger};
           hmrServer = new HMRServer(hmrServerOptions);
-          hmrServers.set(hmrOptions.port, hmrServer);
+          hmrServers.set(port, hmrServer);
           hmrServer.start();
         }
         break;

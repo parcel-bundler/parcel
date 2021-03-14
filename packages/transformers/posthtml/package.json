@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "@parcel/plugin": "2.0.0-beta.1",
+    "@parcel/utils": "2.0.0-beta.1",
     "nullthrows": "^1.1.1",
     "posthtml": "^0.15.1",
     "posthtml-parser": "^0.6.0",

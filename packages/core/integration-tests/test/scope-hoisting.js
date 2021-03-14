@@ -3222,6 +3222,54 @@ describe('scope hoisting', function() {
       let output = await run(b);
       assert.equal(output, 123);
     });
+
+    it('can import urls to raw assets', async () => {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/raw-url/index-import.js',
+        ),
+      );
+
+      assert.deepStrictEqual(
+        new Set(
+          b.getUsedSymbols(
+            findDependency(b, 'index-import.js', 'url:./foo.png'),
+          ),
+        ),
+        new Set(['default']),
+      );
+
+      let output = await run(b);
+      assert(/foo\.[a-f0-9]+\.png$/.test(output));
+    });
+
+    it('can reexport urls to raw assets', async () => {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/raw-url/index-reexport.js',
+        ),
+      );
+
+      assert.deepStrictEqual(
+        new Set(
+          b.getUsedSymbols(
+            findDependency(b, 'index-reexport.js', './reexports'),
+          ),
+        ),
+        new Set(['assetUrl']),
+      );
+      assert.deepStrictEqual(
+        new Set(
+          b.getUsedSymbols(findDependency(b, 'reexports.js', 'url:./foo.png')),
+        ),
+        new Set(['default']),
+      );
+
+      let output = await run(b);
+      assert(/foo\.[a-f0-9]+\.png$/.test(output));
+    });
   });
 
   describe('commonjs', function() {

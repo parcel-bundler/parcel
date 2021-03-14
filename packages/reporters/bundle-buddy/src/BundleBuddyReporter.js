@@ -4,13 +4,8 @@ import {Reporter} from '@parcel/plugin';
 import path from 'path';
 
 export default (new Reporter({
-  async report({event, options}) {
-    if (
-      event.type !== 'buildSuccess' ||
-      process.env.BUNDLE_BUDDY == null ||
-      // $FlowFixMe
-      process.env.BUNDLE_BUDDY == false
-    ) {
+  async report({event, options, logger}) {
+    if (event.type !== 'buildSuccess') {
       return;
     }
 
@@ -48,9 +43,15 @@ export default (new Reporter({
       }
 
       await options.outputFS.writeFile(
-        `${targetDir}/bundle-buddy.json`,
+        path.join(targetDir, 'bundle-buddy.json'),
         JSON.stringify(out),
       );
+      logger.info({
+        message: `Wrote report to ${path.relative(
+          options.outputFS.cwd(),
+          path.join(targetDir, 'bundle-buddy.json'),
+        )}`,
+      });
     }
   },
 }): Reporter);

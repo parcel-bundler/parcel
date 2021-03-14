@@ -23,7 +23,6 @@ export default (new Transformer({
       let isJavascript = path.extname(configFile.filePath) === '.js';
       if (isJavascript) {
         config.shouldInvalidateOnStartup();
-        config.shouldReload();
       }
 
       // Resolve relative paths from config file
@@ -33,24 +32,12 @@ export default (new Transformer({
         );
       }
 
-      config.setResult({
-        contents: configFile.contents,
-        isSerialisable: !isJavascript,
-      });
-    }
-  },
-
-  preSerializeConfig({config}) {
-    if (!config.result) return;
-
-    // Ensure we dont try to serialise functions
-    if (!config.result.isSerialisable) {
-      config.result.contents = {};
+      config.setResult(configFile.contents);
     }
   },
 
   async transform({asset, resolve, config, options}) {
-    let stylusConfig = config ? config.contents : {};
+    let stylusConfig = config ?? {};
     let code = await asset.getCode();
     let style = stylus(code, {...stylusConfig});
     style.set('filename', asset.filePath);
@@ -68,7 +55,7 @@ export default (new Transformer({
 
     let {resolved: stylusPath} = await options.packageManager.resolve(
       'stylus',
-      asset.filePath,
+      __filename,
     );
     let nativeGlob = await options.packageManager.require('glob', stylusPath);
 
@@ -307,7 +294,7 @@ function patchNativeFS(fs, nativeGlob) {
   let glob = nativeGlob.sync;
   nativeGlob.sync = p => {
     let res = globSync(p, fs);
-    if (!p.includes('node_modules/stylus')) {
+    if (!p.includes(`node_modules${path.sep}stylus`)) {
       // Sometimes stylus passes file paths with no glob parts to the `glob` module.
       // We want to avoid treating these as globs for performance.
       if (isGlob(p)) {

@@ -29,29 +29,15 @@ export default (new Transformer({
       let isJavascript = path.extname(configFile.filePath) === '.js';
       if (isJavascript) {
         config.shouldInvalidateOnStartup();
-        config.shouldReload();
       }
 
-      config.setResult({
-        contents: configFile.contents,
-        isSerialisable: !isJavascript,
-      });
-    }
-  },
-
-  preSerializeConfig({config}) {
-    if (!config.result) return;
-
-    // Ensure we dont try to serialise functions
-    if (!config.result.isSerialisable) {
-      config.result.contents = {};
+      config.setResult(configFile.contents);
     }
   },
 
   async transform({asset, config}) {
-    let svgoConfig = config ? config.contents : {};
     let code = await asset.getCode();
-    let svgo = new SVGO({...defaultConfig, ...svgoConfig});
+    let svgo = new SVGO({...defaultConfig, ...config});
     let res = await svgo.optimize(code, {path: asset.id});
 
     asset.setCode(res.data);

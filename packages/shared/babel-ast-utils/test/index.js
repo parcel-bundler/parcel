@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import assert from 'assert';
 import {parse as babelParse} from '@babel/parser';
-import {generateAST} from '../';
+import {generateAST} from '../src';
 
 const FIXTURES_FOLDER = path.join(__dirname, 'fixtures');
 const files = fs.readdirSync(FIXTURES_FOLDER).sort();

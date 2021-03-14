@@ -187,7 +187,7 @@ export default (new Bundler({
 
     // Step 2: Remove asset graphs that begin with entries to other bundles.
     bundleGraph.traverseBundles(bundle => {
-      if (bundle.isInline || !bundle.isSplittable) {
+      if (bundle.isInline || !bundle.isSplittable || bundle.env.isIsolated()) {
         return;
       }
 
@@ -255,6 +255,11 @@ export default (new Bundler({
       }
 
       let dependency = node.value;
+      if (dependency.isURL) {
+        // Don't internalize dependencies on URLs, e.g. `new Worker('foo.js')`
+        return;
+      }
+
       let resolution = bundleGraph.getDependencyResolution(dependency);
       if (resolution == null) {
         return;
@@ -426,16 +431,6 @@ function deduplicate(bundleGraph: MutableBundleGraph) {
       // This ensures that the earlier bundle is able to execute before the later one.
       let bundles = bundleGraph.findBundlesWithAsset(asset).reverse();
       for (let bundle of bundles) {
-        // If a bundle's environment is isolated, it can't access assets present
-        // in any ancestor bundles. Don't deduplicate any assets.
-        if (
-          bundle.env.isIsolated() ||
-          !bundle.isSplittable ||
-          bundle.isInline
-        ) {
-          continue;
-        }
-
         if (
           bundle.hasAsset(asset) &&
           bundleGraph.isAssetReachableFromBundle(asset, bundle)

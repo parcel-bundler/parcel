@@ -96,6 +96,7 @@ const ignoreOptions = new Set([
   'shouldProfile',
   'shouldPatchConsole',
   'projectRoot',
+  'additionalReporters',
 ]);
 
 export function optionsProxy(

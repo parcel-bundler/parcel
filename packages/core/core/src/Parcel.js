@@ -293,8 +293,6 @@ export default class Parcel {
 
       this.#requestedAssetIds.clear();
 
-      dumpGraphToGraphViz(assetGraph, 'MainAssetGraph');
-
       let [
         bundleGraph,
         serializedBundleGraph,

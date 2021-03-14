@@ -113,6 +113,8 @@ export type RunAPI = {|
   invalidateOnOptionChange: string => void,
   getInvalidations(): Array<RequestInvalidation>,
   storeResult: (result: mixed, cacheKey?: string) => void,
+  getRequestResult<T>(id: string): Async<?T>,
+  getSubRequests(): Array<StoredRequest>,
   canSkipSubrequest(string): boolean,
   runRequest: <TInput, TResult>(
     subRequest: Request<TInput, TResult>,
@@ -478,9 +480,25 @@ export class RequestGraph extends Graph<
             return {type: 'file', filePath: node.value.filePath};
           case 'env':
             return {type: 'env', key: node.value.key};
+          case 'option':
+            return {type: 'option', key: node.value.key};
         }
       })
       .filter(Boolean);
+  }
+
+  getSubRequests(requestId: string): Array<StoredRequest> {
+    if (!this.hasNode(requestId)) {
+      return [];
+    }
+
+    let requestNode = this.getRequestNode(requestId);
+    let subRequests = this.getNodesConnectedFrom(requestNode, 'subrequest');
+
+    return subRequests.map(node => {
+      invariant(node.type === 'request');
+      return node.value;
+    });
   }
 
   invalidateFileNameNode(
@@ -753,7 +771,7 @@ export default class RequestTracker {
   createAPI(requestId: string): {|api: RunAPI, subRequests: Set<NodeId>|} {
     let subRequests = new Set();
     let invalidations = this.graph.getInvalidations(requestId);
-    let api = {
+    let api: RunAPI = {
       invalidateOnFileCreate: input =>
         this.graph.invalidateOnFileCreate(requestId, input),
       invalidateOnFileDelete: filePath =>
@@ -773,6 +791,8 @@ export default class RequestTracker {
       storeResult: (result, cacheKey) => {
         this.storeResult(requestId, result, cacheKey);
       },
+      getSubRequests: () => this.graph.getSubRequests(requestId),
+      getRequestResult: <T>(id): Async<?T> => this.getRequestResult<T>(id),
       canSkipSubrequest: id => {
         if (this.hasValidResult(id)) {
           subRequests.add(id);

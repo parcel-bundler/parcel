@@ -27,9 +27,10 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
     this.nodes = opts.nodes || new Map();
     this.rootNodeId = opts.rootNodeId;
 
-    if (opts.edges) {
-      this.inboundEdges = new AdjacencyList(opts.edges.inboundEdges);
-      this.outboundEdges = new AdjacencyList(opts.edges.outboundEdges);
+    let edges = opts.edges;
+    if (edges != null) {
+      this.inboundEdges = new AdjacencyList(edges.inboundEdges);
+      this.outboundEdges = new AdjacencyList(edges.outboundEdges);
     } else {
       this.inboundEdges = new AdjacencyList();
       this.outboundEdges = new AdjacencyList();
@@ -141,7 +142,7 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
         }
       }
     } else {
-      nodes = inboundByType.get(type)?.values() ?? [];
+      nodes = new Set(inboundByType.get(type)?.values() ?? []);
     }
 
     return [...nodes].map(to => nullthrows(this.nodes.get(to)));
@@ -174,7 +175,7 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
         }
       }
     } else {
-      nodes = outboundByType.get(type)?.values() ?? [];
+      nodes = new Set(outboundByType.get(type)?.values() ?? []);
     }
 
     return [...nodes].map(to => nullthrows(this.nodes.get(to)));

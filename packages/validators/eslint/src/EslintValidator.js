@@ -2,6 +2,7 @@
 import {Validator} from '@parcel/plugin';
 import {type DiagnosticCodeFrame, escapeMarkdown} from '@parcel/diagnostic';
 import eslint from 'eslint';
+import invariant from 'assert';
 
 let cliEngine = null;
 
@@ -11,6 +12,8 @@ export default (new Validator({
       cliEngine = new eslint.CLIEngine({});
     }
     let code = await asset.getCode();
+
+    invariant(cliEngine != null);
     let report = cliEngine.executeOnText(code, asset.filePath);
 
     let validatorResult = {

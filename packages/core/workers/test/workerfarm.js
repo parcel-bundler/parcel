@@ -1,6 +1,6 @@
 import Logger from '@parcel/logger';
 import assert from 'assert';
-import WorkerFarm from '../';
+import WorkerFarm from '../src';
 
 describe('WorkerFarm', function() {
   this.timeout(30000);

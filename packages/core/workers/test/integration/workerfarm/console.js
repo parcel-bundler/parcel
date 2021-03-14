@@ -1,4 +1,4 @@
-const WorkerFarm = require('../../../').default;
+const WorkerFarm = require('../../../src/WorkerFarm').default;
 
 function run() {
   if (WorkerFarm.isWorker()) {

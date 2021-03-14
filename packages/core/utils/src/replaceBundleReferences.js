@@ -13,7 +13,7 @@ import type {
 import {Readable} from 'stream';
 import nullthrows from 'nullthrows';
 import URL from 'url';
-import {bufferStream, relativeBundlePath, urlJoin} from '../';
+import {bufferStream, relativeBundlePath, urlJoin} from './';
 
 type ReplacementMap = Map<
   string /* dependency id */,

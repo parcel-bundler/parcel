@@ -9,6 +9,7 @@ import type {
 import type {StaticRunOpts} from '../RequestTracker';
 import type {
   ExtendableParcelConfigPipeline,
+  PureParcelConfigPipeline,
   ParcelOptions,
   ProcessedParcelConfig,
 } from '../types';
@@ -28,7 +29,7 @@ import ThrowableDiagnostic, {
 } from '@parcel/diagnostic';
 import {parse} from 'json5';
 import path from 'path';
-import assert from 'assert';
+import invariant from 'assert';
 
 import ParcelConfigSchema from '../ParcelConfig.schema';
 import {optionsProxy} from '../utils';
@@ -172,6 +173,17 @@ export async function resolveParcelConfig(
     contents,
     options,
   );
+
+  if (options.additionalReporters.length > 0) {
+    config.reporters = [
+      ...options.additionalReporters.map(({packageName, resolveFrom}) => ({
+        packageName,
+        resolveFrom,
+      })),
+      ...(config.reporters ?? []),
+    ];
+  }
+
   return {config, extendedFiles, usedDefault};
 }
 
@@ -488,7 +500,7 @@ export function validateNotEmpty(
   config: RawParcelConfig | ResolvedParcelConfigFile,
   relativePath: FilePath,
 ) {
-  assert.notDeepStrictEqual(config, {}, `${relativePath} can't be empty`);
+  invariant.notDeepStrictEqual(config, {}, `${relativePath} can't be empty`);
 }
 
 export function mergeConfigs(
@@ -497,7 +509,9 @@ export function mergeConfigs(
 ): ProcessedParcelConfig {
   return {
     filePath: ext.filePath,
-    resolvers: mergePipelines(base.resolvers, ext.resolvers),
+    resolvers: assertPurePipeline(
+      mergePipelines(base.resolvers, ext.resolvers),
+    ),
     transformers: mergeMaps(
       base.transformers,
       ext.transformers,
@@ -505,11 +519,15 @@ export function mergeConfigs(
     ),
     validators: mergeMaps(base.validators, ext.validators, mergePipelines),
     bundler: ext.bundler || base.bundler,
-    namers: mergePipelines(base.namers, ext.namers),
-    runtimes: mergeMaps(base.runtimes, ext.runtimes, mergePipelines),
+    namers: assertPurePipeline(mergePipelines(base.namers, ext.namers)),
+    runtimes: mergeMaps(base.runtimes, ext.runtimes, (a, b) =>
+      assertPurePipeline(mergePipelines(a, b)),
+    ),
     packagers: mergeMaps(base.packagers, ext.packagers),
     optimizers: mergeMaps(base.optimizers, ext.optimizers, mergePipelines),
-    reporters: mergePipelines(base.reporters, ext.reporters),
+    reporters: assertPurePipeline(
+      mergePipelines(base.reporters, ext.reporters),
+    ),
   };
 }
 
@@ -521,34 +539,40 @@ function getResolveFrom(options: ParcelOptions) {
   return path.join(dir, 'index');
 }
 
+function assertPurePipeline(
+  pipeline: ExtendableParcelConfigPipeline,
+): PureParcelConfigPipeline {
+  return pipeline.map(s => {
+    invariant(typeof s !== 'string');
+    return s;
+  });
+}
+
 export function mergePipelines(
   base: ?ExtendableParcelConfigPipeline,
   ext: ?ExtendableParcelConfigPipeline,
-  // $FlowFixMe
-): any {
+): ExtendableParcelConfigPipeline {
   if (ext == null) {
     return base ?? [];
   }
 
-  if (base) {
-    // Merge the base pipeline if a rest element is defined
-    let spreadIndex = ext.indexOf('...');
-    if (spreadIndex >= 0) {
-      if (ext.filter(v => v === '...').length > 1) {
-        throw new Error(
-          'Only one spread element can be included in a config pipeline',
-        );
-      }
-
-      return [
-        ...ext.slice(0, spreadIndex),
-        ...(base || []),
-        ...ext.slice(spreadIndex + 1),
-      ];
-    }
+  if (ext.filter(v => v === '...').length > 1) {
+    throw new Error(
+      'Only one spread element can be included in a config pipeline',
+    );
   }
 
-  return ext;
+  // Merge the base pipeline if a rest element is defined
+  let spreadIndex = ext.indexOf('...');
+  if (spreadIndex >= 0) {
+    return [
+      ...ext.slice(0, spreadIndex),
+      ...(base ?? []),
+      ...ext.slice(spreadIndex + 1),
+    ];
+  } else {
+    return ext;
+  }
 }
 
 export function mergeMaps<K: string, V>(
