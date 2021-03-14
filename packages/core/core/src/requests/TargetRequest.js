@@ -116,6 +116,24 @@ async function run({input, api, options}: RunOpts) {
     input.target,
   );
 
+  for (const currTarget of targets) {
+    if (
+      currTarget.name !== 'default' &&
+      currTarget.distEntry != null &&
+      path.join(currTarget.distDir, currTarget.distEntry) === input.filePath
+    ) {
+      throw new ThrowableDiagnostic({
+        diagnostic: {
+          message: 'Target is configured to overwrite source code.',
+          hints: [
+            'Are package.json target fields (possibly main, module, browser, or distDir) different from the source files?',
+            'Please see www.v2.parceljs.org/configuration/package-json for more information.',
+          ],
+        },
+      });
+    }
+  }
+
   let configResult = nullthrows(
     await api.runRequest<null, ConfigAndCachePath>(createParcelConfigRequest()),
   );
