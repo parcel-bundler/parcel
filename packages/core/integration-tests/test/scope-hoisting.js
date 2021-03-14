@@ -230,6 +230,7 @@ describe.only('scope hoisting', function() {
     });
 
     it.skip('supports namespace imports of excluded assets (node_modules)', async function() {
+      // TODO: CJS output format
       let b = await bundle(
         path.join(
           __dirname,
@@ -432,7 +433,7 @@ describe.only('scope hoisting', function() {
       assert.equal(output, Symbol.for('abc'));
     });
 
-    it.skip('excludes default when re-exporting a module', async function() {
+    it('excludes default when re-exporting a module', async function() {
       let source = path.normalize(
         'integration/scope-hoisting/es6/re-export-exclude-default/a.js',
       );
@@ -467,7 +468,7 @@ describe.only('scope hoisting', function() {
       });
     });
 
-    it.skip('throws when reexporting a missing symbol', async function() {
+    it('throws when reexporting a missing symbol', async function() {
       let source = path.normalize(
         'integration/scope-hoisting/es6/re-export-missing/a.js',
       );
@@ -557,6 +558,24 @@ describe.only('scope hoisting', function() {
         b.getBundles().find(b => b.type === 'html'),
       );
       assert.strictEqual(output, 'aaa');
+    });
+
+    it('supports live bindings of default exports', async function() {
+      // https://github.com/parcel-bundler/parcel/issues/5658
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/export-default-live/a.js',
+        ),
+      );
+
+      let out = [];
+      let output = await run(b, {
+        output(o) {
+          out.push(o);
+        },
+      });
+      assert.deepEqual(out, [5, 10]);
     });
 
     it('supports dynamic import syntax for code splitting', async function() {
@@ -834,7 +853,7 @@ describe.only('scope hoisting', function() {
       assert.deepEqual(output, ['b', true]);
     });
 
-    it.skip("unused and missing pseudo re-exports doen't fail the build", async function() {
+    it("unused and missing pseudo re-exports doen't fail the build", async function() {
       let b = await bundle(
         path.join(
           __dirname,
@@ -1521,7 +1540,7 @@ describe.only('scope hoisting', function() {
         );
       });
 
-      it.skip('throws an error for missing exports for dynamic import: destructured await declaration', async function() {
+      it('throws an error for missing exports for dynamic import: destructured await declaration', async function() {
         let source = 'await-declaration-error.js';
         let message = `async.js does not export 'missing'`;
         await assert.rejects(
@@ -1562,7 +1581,7 @@ describe.only('scope hoisting', function() {
         );
       });
 
-      it.skip('throws an error for missing exports for dynamic import: namespace await declaration', async function() {
+      it('throws an error for missing exports for dynamic import: namespace await declaration', async function() {
         let source = 'await-declaration-namespace-error.js';
         let message = `async.js does not export 'missing'`;
         await assert.rejects(
@@ -1603,7 +1622,7 @@ describe.only('scope hoisting', function() {
         );
       });
 
-      it.skip('throws an error for missing exports for dynamic import: destructured then', async function() {
+      it('throws an error for missing exports for dynamic import: destructured then', async function() {
         let source = 'then-error.js';
         let message = `async.js does not export 'missing'`;
         await assert.rejects(
@@ -1644,7 +1663,7 @@ describe.only('scope hoisting', function() {
         );
       });
 
-      it.skip('throws an error for missing exports for dynamic import: namespace then', async function() {
+      it('throws an error for missing exports for dynamic import: namespace then', async function() {
         let source = 'then-namespace-error.js';
         let message = `async.js does not export 'missing'`;
         await assert.rejects(
@@ -3293,6 +3312,46 @@ describe.only('scope hoisting', function() {
       let output = await run(b);
       assert(/foo\.[a-f0-9]+\.png$/.test(output));
     });
+
+    it('should wrap modules in shared bundles', async function() {
+      // https://github.com/parcel-bundler/parcel/issues/5659
+      let b = await bundle(
+        path.join(
+          __dirname,
+          'integration/scope-hoisting/es6/shared-bundle-side-effect-order/index.js',
+        ),
+        {mode: 'production'},
+      );
+
+      let sideEffects = [];
+      let res = await run(b, {
+        sideEffect(out) {
+          sideEffects.push(out);
+        },
+      });
+      await res;
+      assert.deepEqual(sideEffects, ['shared1', 'run1 1', 'shared2', 'run2 2']);
+    });
+
+    it('should ensure that modules are only executed once in shared bundles', async function() {
+      // https://github.com/parcel-bundler/parcel/issues/5659
+      let b = await bundle(
+        path.join(
+          __dirname,
+          'integration/scope-hoisting/es6/shared-bundle-side-effect-duplication/index.js',
+        ),
+        {mode: 'production'},
+      );
+
+      let sideEffects = [];
+      let res = await run(b, {
+        sideEffect(out) {
+          sideEffects.push(out);
+        },
+      });
+      await res;
+      assert.deepEqual(sideEffects, ['v']);
+    });
   });
 
   describe('commonjs', function() {
@@ -3668,6 +3727,19 @@ describe.only('scope hoisting', function() {
       assert.equal(output, 42);
     });
 
+    it('should support assigning to module.exports with another export', async function() {
+      // https://github.com/parcel-bundler/parcel/issues/5782
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/module-exports-default-assignment/index.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.equal(output.foo, 'b');
+    });
+
     it("doesn't insert parcelRequire for missing non-js assets", async function() {
       let b = await bundle(
         path.join(
@@ -3805,6 +3877,19 @@ describe.only('scope hoisting', function() {
 
       let output = await run(b);
       assert.deepEqual(output, {foo: 2});
+    });
+
+    it('should support typeof require when wrapped', async function() {
+      // https://github.com/parcel-bundler/parcel/issues/5883
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/wrap-typeof-require/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.equal(output, 'c1');
     });
 
     it('should not rename function local variables according to global replacements', async function() {
@@ -4011,6 +4096,18 @@ describe.only('scope hoisting', function() {
       );
 
       assert.deepEqual(await run(b), [{foo: 3}, 3, 3]);
+    });
+
+    it('supports non-static mutations of the exports object', async function() {
+      // https://github.com/parcel-bundler/parcel/issues/5591
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/mutated-non-static-require/index.js',
+        ),
+      );
+
+      assert.deepEqual(await run(b), 4);
     });
 
     it.skip('supports require.resolve calls for excluded modules', async function() {
@@ -4549,6 +4646,75 @@ describe.only('scope hoisting', function() {
 
       let output = await run(b);
       assert.equal(output, 2);
+    });
+
+    it('should ensure that side effect ordering is correct in sequence expressions with require', async function() {
+      // https://github.com/parcel-bundler/parcel/issues/5606
+      let b = await bundle(
+        path.join(
+          __dirname,
+          'integration/scope-hoisting/commonjs/wrap-expressions/a.js',
+        ),
+      );
+
+      let sideEffects = [];
+      let res = await run(b, {
+        sideEffect(out) {
+          sideEffects.push(out);
+        },
+      });
+      await res;
+      assert.deepEqual(sideEffects, ['before', 'require', 'after']);
+    });
+
+    it('should ensure that side effect ordering is correct in binary expressions with require', async function() {
+      // https://github.com/parcel-bundler/parcel/issues/5606
+      let b = await bundle(
+        path.join(
+          __dirname,
+          'integration/scope-hoisting/commonjs/wrap-expressions/b.js',
+        ),
+      );
+
+      let sideEffects = [];
+      let res = await run(b, {
+        sideEffect(out) {
+          sideEffects.push(out);
+        },
+      });
+      await res;
+      assert.deepEqual(sideEffects, ['before', 'require', 'after']);
+    });
+
+    it('should ensure that side effect ordering is correct with default interop', async function() {
+      // https://github.com/parcel-bundler/parcel/issues/5662
+      let b = await bundle(
+        path.join(
+          __dirname,
+          'integration/scope-hoisting/commonjs/wrap-default-interop/index.js',
+        ),
+      );
+
+      let sideEffects = [];
+      let res = await run(b, {
+        sideEffect(out) {
+          sideEffects.push(out);
+        },
+      });
+      await res;
+      assert.deepEqual(sideEffects, ['shared', 'run1', 'async c: 123']);
+    });
+
+    it('should support non-object module.exports', async function() {
+      // https://github.com/parcel-bundler/parcel/issues/5892
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/export-non-object/index.js',
+        ),
+      );
+
+      let output = await run(b, null, {strict: true});
     });
   });
 

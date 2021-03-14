@@ -494,7 +494,34 @@ impl<'a> Fold for Hoist<'a> {
       _ => {}
     }
 
-    node.fold_children_with(self)
+    let res = node.fold_children_with(self);
+    res
+  }
+
+  fn fold_seq_expr(&mut self, node: SeqExpr) -> SeqExpr {
+    // This is a hack to work around the SWC fixer pass removing identifiers in sequence expressions
+    // that aren't at the end. In general this makes sense, but we need to preserve these so that they
+    // can be replaced with a parcelRequire call in the linker. We just wrap with a unary expression to 
+    // get around this for now.
+    let len = node.exprs.len();
+    let exprs = node.exprs.into_iter().enumerate().map(|(i, expr)| {
+      if i != len - 1 {
+        if let Some(_) = match_require(&*expr, &self.collect.decls, self.collect.ignore_mark) {
+          return Box::new(Expr::Unary(UnaryExpr {
+            op: UnaryOp::Bang,
+            arg: expr.fold_with(self),
+            span: DUMMY_SP
+          }))
+        }
+      }
+
+      expr.fold_with(self)
+    }).collect();
+
+    SeqExpr {
+      exprs,
+      ..node
+    }
   }
 
   fn fold_ident(&mut self, node: Ident) -> Ident {

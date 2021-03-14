@@ -280,6 +280,7 @@ export default (new Packager({
       if (replacements.size > 0) {
         let regex = new RegExp(
           [...replacements.keys()]
+            .sort((a, b) => b.length - a.length)
             .map(k => k.replace(/[$]/g, '\\$&'))
             .join('|'),
           'g',
