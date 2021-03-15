@@ -187,7 +187,6 @@ export default (new Bundler({
 
     // Step 2: Remove asset graphs that begin with entries to other bundles.
     bundleGraph.traverseBundles(bundle => {
-      // ATLASSIAN: Don't share across workers for now as worker-specific code is added
       if (bundle.isInline || !bundle.isSplittable || bundle.env.isIsolated()) {
         return;
       }
