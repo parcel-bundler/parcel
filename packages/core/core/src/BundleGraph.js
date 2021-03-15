@@ -381,7 +381,11 @@ export default class BundleGraph {
         return;
       }
 
-      if (this._graph.hasEdge(bundle.id, node.id, 'contains')) {
+      if (
+        this._graph.hasEdge(bundle.id, node.id, 'contains') &&
+        (node.type !== 'asset' ||
+          this.isAssetReachableFromBundle(node.value, bundle))
+      ) {
         this._graph.removeEdge(
           bundle.id,
           node.id,
@@ -398,6 +402,7 @@ export default class BundleGraph {
         }
       } else {
         actions.skipChildren();
+        return;
       }
 
       if (node.type === 'asset' && this._graph.hasEdge(bundle.id, node.id)) {
