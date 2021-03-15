@@ -1,7 +1,6 @@
 // @flow strict-local
 
 import type {
-  AST,
   FilePath,
   FileCreateInvalidation,
   GenerateOutput,
@@ -576,12 +575,15 @@ export default class Transformation {
             : null;
         let mapBuffer =
           value.astKey != null
-            ? await this.options.cache.getBlob<Buffer>(value.astKey)
+            ? await this.options.cache.getBlob(value.astKey)
             : null;
         let ast =
           value.astKey != null
-            ? await this.options.cache.getBlob<AST>(value.astKey)
+            ? // TODO: Capture with a test and likely use cache.get() as this returns a buffer.
+              // $FlowFixMe[incompatible-call]
+              await this.options.cache.getBlob(value.astKey)
             : null;
+
         return new UncommittedAsset({
           value,
           options: this.options,
@@ -796,8 +798,9 @@ export default class Transformation {
     let config = preloadedConfig;
 
     // Parse if there is no AST available from a previous transform.
-    if (!asset.ast && transformer.parse) {
-      let ast = await transformer.parse({
+    let parse = transformer.parse?.bind(transformer);
+    if (!asset.ast && parse) {
+      let ast = await parse({
         asset: new MutableAsset(asset),
         config,
         options: pipeline.pluginOptions,
@@ -825,10 +828,12 @@ export default class Transformation {
 
     // Create generate function that can be called later
     pipeline.generate = (input: UncommittedAsset): Promise<GenerateOutput> => {
-      if (transformer.generate && input.ast) {
+      let ast = input.ast;
+      let asset = new Asset(input);
+      if (transformer.generate && ast) {
         let generated = transformer.generate({
-          asset: new Asset(input),
-          ast: input.ast,
+          asset,
+          ast,
           options: pipeline.pluginOptions,
           logger,
         });

@@ -29,6 +29,7 @@ import {objectSortedEntriesDeep} from '@parcel/utils';
 import {getBundleGroupId, getPublicId} from './utils';
 import {ALL_EDGE_TYPES, mapVisitor} from './Graph';
 import ContentGraph, {type SerializedContentGraph} from './ContentGraph';
+import Environment from './public/Environment';
 
 type BundleGraphEdgeTypes =
   // A lack of an edge type indicates to follow the edge while traversing
@@ -415,23 +416,38 @@ export default class BundleGraph {
         return;
       }
 
-      if (node.type === 'asset' || node.type === 'dependency') {
-        if (this._graph.hasEdge(bundleNodeId, nodeId, 'contains')) {
-          this._graph.removeEdge(
-            bundleNodeId,
-            nodeId,
-            'contains',
-            // Removing this contains edge should not orphan the connected node. This
-            // is disabled for performance reasons as these edges are removed as part
-            // of a traversal, and checking for orphans becomes quite expensive in
-            // aggregate.
-            false /* removeOrphans */,
-          );
-          if (node.type === 'asset') {
-            bundle.stats.size -= asset.stats.size;
-          }
-        } else {
-          actions.skipChildren();
+      if (node.type !== 'dependency' && node.type !== 'asset') {
+        return;
+      }
+
+      if (this._graph.hasEdge(bundleNodeId, nodeId, 'contains')) {
+        this._graph.removeEdge(
+          bundleNodeId,
+          nodeId,
+          'contains',
+          // Removing this contains edge should not orphan the connected node. This
+          // is disabled for performance reasons as these edges are removed as part
+          // of a traversal, and checking for orphans becomes quite expensive in
+          // aggregate.
+          false /* removeOrphans */,
+        );
+
+        if (node.type === 'asset') {
+          bundle.stats.size -= asset.stats.size;
+        }
+      } else {
+        actions.skipChildren();
+      }
+
+      if (node.type === 'asset' && this._graph.hasEdge(bundleNodeId, nodeId)) {
+        // Remove the untyped edge from the bundle to the node (it's an entry)
+        this._graph.removeEdge(bundleNodeId, nodeId);
+
+        let entryIndex = bundle.entryAssetIds.indexOf(node.value.id);
+        if (entryIndex >= 0) {
+          // Shared bundles have untyped edges to their asset graphs but don't
+          // have entry assets. For those that have entry asset ids, remove them.
+          bundle.entryAssetIds.splice(entryIndex, 1);
         }
       }
 
@@ -443,11 +459,6 @@ export default class BundleGraph {
       }
     }, assetNodeId);
 
-    // Remove the untyped edge from the bundle to the entry.
-    if (this._graph.hasEdge(bundleNodeId, assetNodeId)) {
-      this._graph.removeEdge(bundleNodeId, assetNodeId);
-    }
-
     // Remove bundle node if it no longer has any entry assets
     if (this._graph.getNodeIdsConnectedFrom(bundleNodeId).length === 0) {
       this.removeBundle(bundle);
@@ -456,7 +467,7 @@ export default class BundleGraph {
     this._bundleContentHashes.delete(bundle.id);
   }
 
-  removeBundle(bundle: Bundle) {
+  removeBundle(bundle: Bundle): Set<BundleGroup> {
     // Remove bundle node if it no longer has any entry assets
     let bundleNodeId = this._graph.getNodeIdByContentKey(bundle.id);
 
@@ -466,6 +477,7 @@ export default class BundleGraph {
     );
     this._graph.removeNode(bundleNodeId);
 
+    let removedBundleGroups: Set<BundleGroup> = new Set();
     // Remove bundle group node if it no longer has any bundles
     for (let bundleGroupNodeId of bundleGroupNodeIds) {
       let bundleGroupNode = nullthrows(this._graph.getNode(bundleGroupNodeId));
@@ -479,11 +491,13 @@ export default class BundleGraph {
         // If the bundle group is now empty, remove it.
         this.getBundlesInBundleGroup(bundleGroup).length === 0
       ) {
+        removedBundleGroups.add(bundleGroup);
         this.removeBundleGroup(bundleGroup);
       }
     }
 
     this._bundleContentHashes.delete(bundle.id);
+    return removedBundleGroups;
   }
 
   removeBundleGroup(bundleGroup: BundleGroup) {
@@ -495,7 +509,12 @@ export default class BundleGraph {
     let bundlesInGroup = this.getBundlesInBundleGroup(bundleGroupNode.value);
     for (let bundle of bundlesInGroup) {
       if (this.getBundleGroupsContainingBundle(bundle).length === 1) {
-        this.removeBundle(bundle);
+        let removedBundleGroups = this.removeBundle(bundle);
+        if (removedBundleGroups.has(bundleGroup)) {
+          // This function can be reentered through removeBundle above. In the case this
+          // bundle group has already been removed, stop.
+          return;
+        }
       }
     }
 
@@ -776,6 +795,16 @@ export default class BundleGraph {
   }
 
   isAssetReachableFromBundle(asset: Asset, bundle: Bundle): boolean {
+    // If a bundle's environment is isolated, it can't access assets present
+    // in any ancestor bundles. Don't consider any assets reachable.
+    if (
+      new Environment(bundle.env).isIsolated() ||
+      !bundle.isSplittable ||
+      bundle.isInline
+    ) {
+      return false;
+    }
+
     // For an asset to be reachable from a bundle, it must either exist in a sibling bundle,
     // or in an ancestor bundle group reachable from all parent bundles.
     let bundleGroups = this.getBundleGroupsContainingBundle(bundle);
