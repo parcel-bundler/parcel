@@ -171,10 +171,11 @@ export default class NodeResolver {
       }
 
       if (resolved) {
+        let _resolved = resolved; // For Flow
         return {
-          filePath: await this.fs.realpath(resolved.path),
+          filePath: await this.fs.realpath(_resolved.path),
           sideEffects:
-            resolved.pkg && !this.hasSideEffects(resolved.path, resolved.pkg)
+            _resolved.pkg && !this.hasSideEffects(_resolved.path, _resolved.pkg)
               ? false
               : undefined,
           invalidateOnFileCreate: ctx.invalidateOnFileCreate,
@@ -301,7 +302,7 @@ export default class NodeResolver {
       if (alternativeModules.length) {
         throw new ThrowableDiagnostic({
           diagnostic: {
-            message: md`Cannot find module ${resolved.moduleName}`,
+            message: md`Cannot find module ${nullthrows(resolved).moduleName}`,
             hints: alternativeModules.map(r => {
               return `Did you mean __${r}__?`;
             }),
@@ -609,7 +610,7 @@ export default class NodeResolver {
       file: path.join(dir, 'index'),
       extensions,
       env,
-      pkg: pkg || null,
+      pkg: pkg ?? (await this.findPackage(path.join(dir, 'index'), ctx)),
       ctx,
     });
   }

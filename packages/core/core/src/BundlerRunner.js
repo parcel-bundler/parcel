@@ -95,8 +95,12 @@ export default class BundlerRunner {
       }
       assertSignalNotAborted(signal);
 
-      if (cachedBundleGraphBuffer) {
-        return [deserialize(cachedBundleGraphBuffer), cachedBundleGraphBuffer];
+      let _cachedBundleGraphBuffer = cachedBundleGraphBuffer; // For Flow
+      if (_cachedBundleGraphBuffer) {
+        return [
+          deserialize(_cachedBundleGraphBuffer),
+          _cachedBundleGraphBuffer,
+        ];
       }
     }
 
@@ -121,11 +125,13 @@ export default class BundlerRunner {
           origin: this.config.getBundlerName(),
         }),
       });
+    } finally {
+      // $FlowFixMe
+      await dumpGraphToGraphViz(internalBundleGraph._graph, 'after_bundle');
     }
+
     assertSignalNotAborted(signal);
 
-    // $FlowFixMe
-    await dumpGraphToGraphViz(internalBundleGraph._graph, 'after_bundle');
     if (this.pluginOptions.mode === 'production') {
       try {
         await bundler.optimize({
@@ -140,11 +146,12 @@ export default class BundlerRunner {
             origin: this.config.getBundlerName(),
           }),
         });
+      } finally {
+        // $FlowFixMe
+        await dumpGraphToGraphViz(internalBundleGraph._graph, 'after_optimize');
       }
-      assertSignalNotAborted(signal);
 
-      // $FlowFixMe
-      await dumpGraphToGraphViz(internalBundleGraph._graph, 'after_optimize');
+      assertSignalNotAborted(signal);
     }
 
     await this.nameBundles(internalBundleGraph);

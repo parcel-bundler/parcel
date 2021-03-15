@@ -16,6 +16,7 @@ import json5 from 'json5';
 import getPort from 'get-port';
 // flowlint-next-line untyped-import:off
 import JSDOM from 'jsdom';
+import nullthrows from 'nullthrows';
 
 const config = path.join(
   __dirname,
@@ -95,7 +96,7 @@ describe('hmr', function() {
       }
     }
 
-    await nextWSMessage(ws);
+    await nextWSMessage(nullthrows(ws));
     await sleep(100);
 
     // Fixup the prototypes so that strict assertions work
@@ -141,7 +142,7 @@ describe('hmr', function() {
         'exports.a = 5;\nexports.b = 5;',
       );
 
-      let message = await nextWSMessage(ws);
+      let message = await nextWSMessage(nullthrows(ws));
 
       assert.equal(message.type, 'update');
 
@@ -170,7 +171,7 @@ describe('hmr', function() {
         'require("fs"); exports.a = 5; exports.b = 5;',
       );
 
-      let message = await nextWSMessage(ws);
+      let message = await nextWSMessage(nullthrows(ws));
 
       assert.equal(message.type, 'update');
 
@@ -195,7 +196,7 @@ describe('hmr', function() {
         'require("fs"; exports.a = 5; exports.b = 5;',
       );
 
-      let message = await nextWSMessage(ws);
+      let message = await nextWSMessage(nullthrows(ws));
 
       assert.equal(message.type, 'error');
 
@@ -244,7 +245,7 @@ describe('hmr', function() {
         'require("fs"; exports.a = 5; exports.b = 5;',
       );
 
-      let message = await nextWSMessage(ws);
+      let message = await nextWSMessage(nullthrows(ws));
 
       assert.equal(message.type, 'error');
 
@@ -253,7 +254,7 @@ describe('hmr', function() {
         'require("fs"); exports.a = 5; exports.b = 5;',
       );
 
-      message = await nextWSMessage(ws);
+      message = await nextWSMessage(nullthrows(ws));
 
       assert.equal(message.type, 'update');
     });
@@ -283,7 +284,7 @@ describe('hmr', function() {
         'exports.a = 5;\nexports.b = 5;',
       );
 
-      let message = await nextWSMessage(ws);
+      let message = await nextWSMessage(nullthrows(ws));
 
       assert.equal(message.type, 'update');
     });
@@ -316,7 +317,7 @@ describe('hmr', function() {
         'exports.a = 5;\nexports.b = 5;',
       );
 
-      let message = await nextWSMessage(ws);
+      let message = await nextWSMessage(nullthrows(ws));
 
       assert.equal(message.type, 'update');
     });
@@ -801,17 +802,17 @@ module.hot.dispose((data) => {
             pretendToBeVisual: true,
           },
         );
-        window = dom.window;
+        let _window = (window = dom.window); // For Flow
         window.WebSocket = WebSocket;
         await new Promise(res =>
           dom.window.document.addEventListener('load', () => {
             res();
           }),
         );
-        window.console.clear = () => {};
-        window.console.warn = () => {};
+        _window.console.clear = () => {};
+        _window.console.warn = () => {};
 
-        let initialHref = window.document.querySelector('link').href;
+        let initialHref = _window.document.querySelector('link').href;
 
         await overlayFS.copyFile(
           path.join(testDir, 'index.2.css'),
@@ -820,7 +821,7 @@ module.hot.dispose((data) => {
         assert.equal((await getNextBuild(b)).type, 'buildSuccess');
         await sleep(200);
 
-        let newHref = window.document.querySelector('link').href;
+        let newHref = _window.document.querySelector('link').href;
 
         assert.notStrictEqual(initialHref, newHref);
       } finally {
