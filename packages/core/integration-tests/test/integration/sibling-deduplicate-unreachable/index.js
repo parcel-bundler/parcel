@@ -1,4 +1,4 @@
 import('./d');
 import('./c');
 import('./b');
-import('./a');
+output = import('./a').then(res => res.default);
