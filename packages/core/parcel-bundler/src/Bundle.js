@@ -183,6 +183,9 @@ class Bundle {
     let mappings = [];
 
     if (!this.isEmpty) {
+      if (newHashes.has(this.name)) {
+        throw new Error(`Multiple bundles conflict creating "${this.name}"`);
+      }
       let hash = this.getHash();
       newHashes.set(this.name, hash);
 
