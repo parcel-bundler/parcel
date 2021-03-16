@@ -1,19 +1,23 @@
 // @flow
 import {Transformer} from '@parcel/plugin';
+import sharp from 'sharp';
 
+// from https://github.com/lovell/sharp/blob/df7b8ba73808fc494be413e88cfb621b6279218c/lib/output.js#L6-L17
 const FORMATS = new Map([
   ['heic', 'heif'],
   ['heif', 'heif'],
+  ['avif', 'avif'],
   ['jpeg', 'jpeg'],
   ['jpg', 'jpeg'],
   ['png', 'png'],
   ['raw', 'raw'],
   ['tiff', 'tiff'],
   ['webp', 'webp'],
+  ['gif', 'gif'],
 ]);
 
 export default (new Transformer({
-  async transform({asset, options}) {
+  async transform({asset}) {
     asset.isIsolated = true;
 
     let width = asset.query.width ? parseInt(asset.query.width, 10) : null;
@@ -24,15 +28,6 @@ export default (new Transformer({
     let format = asset.query.as ? asset.query.as.toLowerCase().trim() : null;
 
     if (width || height || quality || format) {
-      const sharp = await options.packageManager.require(
-        'sharp',
-        asset.filePath,
-        {
-          // Sharp takes too long to install for autoinstall option to make sense
-          autoinstall: false,
-        },
-      );
-
       let inputBuffer = await asset.getBuffer();
       let imagePipeline = sharp(inputBuffer);
       if (width || height) {

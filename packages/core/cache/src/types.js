@@ -8,6 +8,6 @@ export interface Cache {
   set(key: string, value: mixed): Promise<void>;
   getStream(key: string): Readable;
   setStream(key: string, stream: Readable): Promise<void>;
-  getBlob<T>(key: string): Promise<?T>;
+  getBlob(key: string): Promise<Buffer>;
   setBlob(key: string, contents: Buffer | string): Promise<void>;
 }

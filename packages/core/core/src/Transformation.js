@@ -2,37 +2,43 @@
 
 import type {
   FilePath,
+  FileCreateInvalidation,
   GenerateOutput,
   Transformer,
   TransformerResult,
   PackageName,
+  DevDepOptions,
 } from '@parcel/types';
 import type {WorkerApi} from '@parcel/workers';
 import type {
   Asset as AssetValue,
-  AssetRequestInput,
+  TransformationRequest,
   RequestInvalidation,
   Config,
-  ConfigRequestDesc,
+  DevDepRequest,
   ParcelOptions,
   ReportFn,
 } from './types';
+import type {LoadedPlugin} from './ParcelConfig';
 
-import invariant from 'assert';
 import path from 'path';
 import nullthrows from 'nullthrows';
 import {
-  escapeMarkdown,
   md5FromOrderedObject,
   normalizeSeparators,
   objectSortedEntries,
 } from '@parcel/utils';
 import logger, {PluginLogger} from '@parcel/logger';
 import {init as initSourcemaps} from '@parcel/source-map';
-import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
+import ThrowableDiagnostic, {
+  errorToDiagnostic,
+  escapeMarkdown,
+  md,
+} from '@parcel/diagnostic';
 import {SOURCEMAP_EXTENSIONS} from '@parcel/utils';
+import crypto from 'crypto';
+import v8 from 'v8';
 
-import ConfigLoader from './ConfigLoader';
 import {createDependency} from './Dependency';
 import ParcelConfig from './ParcelConfig';
 // TODO: eventually call path request as sub requests
@@ -50,45 +56,53 @@ import {
 } from './assetUtils';
 import summarizeRequest from './summarizeRequest';
 import PluginOptions from './public/PluginOptions';
-import {PARCEL_VERSION} from './constants';
+import {PARCEL_VERSION, FILE_CREATE} from './constants';
 import {optionsProxy} from './utils';
+import {createBuildCache} from './buildCache';
+import {createConfig} from './InternalConfig';
+import PublicConfig from './public/Config';
 
 type GenerateFunc = (input: UncommittedAsset) => Promise<GenerateOutput>;
-
-type PostProcessFunc = (
-  Array<UncommittedAsset>,
-) => Promise<Array<UncommittedAsset> | null>;
 
 export type TransformationOpts = {|
   options: ParcelOptions,
   config: ParcelConfig,
   report: ReportFn,
-  request: AssetRequestInput,
+  request: TransformationRequest,
   workerApi: WorkerApi,
+|};
+
+export type ConfigRequest = {|
+  id: string,
+  includedFiles: Set<FilePath>,
+  invalidateOnFileCreate: Array<FileCreateInvalidation>,
+  shouldInvalidateOnStartup: boolean,
 |};
 
 export type TransformationResult = {|
   assets: Array<AssetValue>,
-  configRequests: Array<ConfigRequestAndResult>,
+  configRequests: Array<ConfigRequest>,
   invalidations: Array<RequestInvalidation>,
+  invalidateOnFileCreate: Array<FileCreateInvalidation>,
+  devDepRequests: Array<DevDepRequest>,
 |};
 
-type ConfigMap = Map<PackageName, Config>;
-type ConfigRequestAndResult = {|
-  request: ConfigRequestDesc,
-  result: Config,
-|};
+// A cache of plugin dependency hashes that we've already sent to the main thread.
+// Automatically cleared before each build.
+const pluginCache = createBuildCache();
+const invalidatedPlugins = createBuildCache();
 
 export default class Transformation {
-  request: AssetRequestInput;
-  configLoader: ConfigLoader;
-  configRequests: Array<ConfigRequestAndResult>;
+  request: TransformationRequest;
+  configs: Map<string, Config>;
+  devDepRequests: Map<string, DevDepRequest>;
   options: ParcelOptions;
   pluginOptions: PluginOptions;
   workerApi: WorkerApi;
   parcelConfig: ParcelConfig;
   report: ReportFn;
   invalidations: Map<string, RequestInvalidation>;
+  invalidateOnFileCreate: Array<FileCreateInvalidation>;
 
   constructor({
     report,
@@ -97,14 +111,15 @@ export default class Transformation {
     config,
     workerApi,
   }: TransformationOpts) {
-    this.configRequests = [];
-    this.configLoader = new ConfigLoader({options, config});
+    this.configs = new Map();
     this.parcelConfig = config;
     this.options = options;
     this.report = report;
     this.request = request;
     this.workerApi = workerApi;
     this.invalidations = new Map();
+    this.invalidateOnFileCreate = [];
+    this.devDepRequests = new Map();
 
     this.pluginOptions = new PluginOptions(
       optionsProxy(this.options, option => {
@@ -116,12 +131,6 @@ export default class Transformation {
         this.invalidations.set(getInvalidationId(invalidation), invalidation);
       }),
     );
-  }
-
-  async loadConfig(configRequest: ConfigRequestDesc): Promise<Config> {
-    let result = await this.configLoader.load(configRequest);
-    this.configRequests.push({request: configRequest, result});
-    return result;
   }
 
   async run(): Promise<TransformationResult> {
@@ -143,8 +152,9 @@ export default class Transformation {
         logger.verbose([
           {
             origin: '@parcel/core',
-            message: `Could not load existing source map for ${escapeMarkdown(
-              path.relative(this.options.projectRoot, asset.value.filePath),
+            message: md`Could not load existing source map for ${path.relative(
+              this.options.projectRoot,
+              asset.value.filePath,
             )}`,
             filePath: asset.value.filePath,
           },
@@ -157,6 +167,15 @@ export default class Transformation {
       }
     }
 
+    for (let {moduleSpecifier, resolveFrom} of this.request.invalidDevDeps) {
+      let key = `${moduleSpecifier}:${resolveFrom}`;
+      if (!invalidatedPlugins.has(key)) {
+        this.parcelConfig.invalidatePlugin(moduleSpecifier);
+        this.options.packageManager.invalidate(moduleSpecifier, resolveFrom);
+        invalidatedPlugins.set(key, true);
+      }
+    }
+
     let pipeline = await this.loadPipeline(
       this.request.filePath,
       asset.value.isSource,
@@ -165,35 +184,41 @@ export default class Transformation {
     let results = await this.runPipelines(pipeline, asset);
     let assets = results.map(a => a.value);
 
-    for (let {request, result} of this.configRequests) {
-      if (request.plugin != null) {
-        let resolveFrom = request.meta.parcelConfigPath;
-        let keyPath = request.meta.parcelConfigKeyPath;
-        invariant(
-          typeof resolveFrom === 'string',
-          'request.meta.parcelConfigPath should be a string!',
+    let configRequests = [...this.configs.values()]
+      .filter(config => {
+        // No need to send to the graph if there are no invalidations.
+        return (
+          config.includedFiles.size > 0 ||
+          config.invalidateOnFileCreate.length > 0 ||
+          config.shouldInvalidateOnStartup
         );
-        invariant(
-          typeof keyPath === 'string',
-          'request.meta.parcelConfigKeyPath should be a string!',
-        );
+      })
+      .map(config => ({
+        id: config.id,
+        includedFiles: config.includedFiles,
+        invalidateOnFileCreate: config.invalidateOnFileCreate,
+        shouldInvalidateOnStartup: config.shouldInvalidateOnStartup,
+      }));
 
-        let {plugin} = await this.parcelConfig.loadPlugin({
-          packageName: request.plugin,
-          resolveFrom,
-          keyPath,
-        });
-
-        if (plugin && plugin.preSerializeConfig) {
-          plugin.preSerializeConfig({config: result});
-        }
+    let devDepRequests = [];
+    for (let devDepRequest of this.devDepRequests.values()) {
+      // If we've already sent a matching transformer + hash to the main thread during this build,
+      // there's no need to repeat ourselves.
+      let {moduleSpecifier, resolveFrom, hash} = devDepRequest;
+      if (hash === pluginCache.get(moduleSpecifier)) {
+        devDepRequests.push({moduleSpecifier, resolveFrom, hash});
+      } else {
+        pluginCache.set(moduleSpecifier, hash);
+        devDepRequests.push(devDepRequest);
       }
     }
 
     return {
       assets,
-      configRequests: this.configRequests,
+      configRequests,
+      invalidateOnFileCreate: this.invalidateOnFileCreate,
       invalidations: [...this.invalidations.values()],
+      devDepRequests,
     };
   }
 
@@ -245,6 +270,7 @@ export default class Transformation {
       options: this.options,
       content,
       invalidations: this.invalidations,
+      fileCreateInvalidations: this.invalidateOnFileCreate,
     });
   }
 
@@ -253,26 +279,39 @@ export default class Transformation {
     initialAsset: UncommittedAsset,
   ): Promise<Array<UncommittedAsset>> {
     let initialType = initialAsset.value.type;
+    let initialPipelineHash = await this.getPipelineHash(pipeline);
     let initialAssetCacheKey = this.getCacheKey(
       [initialAsset],
-      pipeline.configs,
-      await getInvalidationHash(this.request.invalidations || [], this.options),
+      await getInvalidationHash(this.request.invalidations, this.options), // TODO: should be per-pipeline
+      initialPipelineHash,
     );
     let initialCacheEntry = await this.readFromCache(initialAssetCacheKey);
 
     let assets: Array<UncommittedAsset> =
       initialCacheEntry || (await this.runPipeline(pipeline, initialAsset));
 
+    // Add dev dep requests for each transformer
+    for (let transformer of pipeline.transformers) {
+      await this.addDevDependency(
+        {
+          moduleSpecifier: transformer.name,
+          resolveFrom: transformer.resolveFrom,
+        },
+        transformer,
+      );
+    }
+
     if (!initialCacheEntry) {
+      let pipelineHash = await this.getPipelineHash(pipeline);
       let resultCacheKey = this.getCacheKey(
         [initialAsset],
-        pipeline.configs,
         await getInvalidationHash(
           assets.flatMap(asset => asset.getInvalidations()),
           this.options,
         ),
+        pipelineHash,
       );
-      await this.writeToCache(resultCacheKey, assets, pipeline.configs);
+      await this.writeToCache(resultCacheKey, assets, pipelineHash);
     }
 
     let finalAssets: Array<UncommittedAsset> = [];
@@ -296,41 +335,126 @@ export default class Transformation {
       }
     }
 
-    if (!pipeline.postProcess) {
-      return finalAssets;
+    return finalAssets;
+  }
+
+  async getPipelineHash(pipeline: Pipeline): Promise<string> {
+    let hash = crypto.createHash('md5');
+    for (let transformer of pipeline.transformers) {
+      let key = `${transformer.name}:${transformer.resolveFrom}`;
+      hash.update(
+        this.request.devDeps.get(key) ??
+          this.devDepRequests.get(key)?.hash ??
+          '',
+      );
+
+      let config = this.configs.get(transformer.name);
+      if (config) {
+        hash.update(config.id);
+
+        // If there is no result hash set by the transformer, default to hashing the included
+        // files if any, otherwise try to hash the config result itself.
+        if (config.resultHash == null) {
+          if (config.includedFiles.size > 0) {
+            hash.update(
+              await getInvalidationHash(
+                [...config.includedFiles].map(filePath => ({
+                  type: 'file',
+                  filePath,
+                })),
+                this.options,
+              ),
+            );
+          } else if (config.result != null) {
+            try {
+              // $FlowFixMe
+              hash.update(v8.serialize(config.result));
+            } catch (err) {
+              throw new ThrowableDiagnostic({
+                diagnostic: {
+                  message:
+                    'Config result is not hashable because it contains non-serializable objects. Please use config.setResultHash to set the hash manually.',
+                  origin: transformer.name,
+                },
+              });
+            }
+          }
+        } else {
+          hash.update(config.resultHash ?? '');
+        }
+
+        for (let devDep of config.devDeps) {
+          let key = `${devDep.moduleSpecifier}:${devDep.resolveFrom}`;
+          hash.update(nullthrows(this.devDepRequests.get(key)).hash);
+        }
+      }
     }
 
-    let processedCacheEntry = await this.readFromCache(
-      this.getCacheKey(
-        finalAssets,
-        pipeline.configs,
-        await getInvalidationHash(
-          finalAssets.flatMap(asset => asset.getInvalidations()),
-          this.options,
-        ),
-      ),
+    return hash.digest('hex');
+  }
+
+  async addDevDependency(
+    opts: DevDepOptions,
+    transformer: LoadedPlugin<Transformer> | TransformerWithNameAndConfig,
+  ): Promise<void> {
+    let {moduleSpecifier, resolveFrom, invalidateParcelPlugin} = opts;
+    let key = `${moduleSpecifier}:${resolveFrom}`;
+    if (this.devDepRequests.has(key)) {
+      return;
+    }
+
+    // If the request sent us a hash, we know the dev dep and all of its dependencies didn't change.
+    // Reuse the same hash in the response. No need to send back invalidations as the request won't
+    // be re-run anyway.
+    let hash = this.request.devDeps.get(key);
+    if (hash != null) {
+      this.devDepRequests.set(key, {
+        moduleSpecifier,
+        resolveFrom,
+        hash,
+      });
+      return;
+    }
+
+    // Ensure that the package manager has an entry for this resolution.
+    await this.options.packageManager.resolve(moduleSpecifier, resolveFrom);
+    let invalidations = this.options.packageManager.getInvalidations(
+      moduleSpecifier,
+      resolveFrom,
     );
 
-    invariant(pipeline.postProcess != null);
-    let processedFinalAssets: Array<UncommittedAsset> =
-      processedCacheEntry ?? (await pipeline.postProcess(finalAssets)) ?? [];
+    // It is possible for a transformer to have multiple different hashes due to
+    // different dependencies (e.g. conditional requires) so we must always
+    // recompute the hash and compare rather than only sending a transformer
+    // dev dependency once.
+    hash = await getInvalidationHash(
+      [...invalidations.invalidateOnFileChange].map(f => ({
+        type: 'file',
+        filePath: f,
+      })),
+      this.options,
+    );
 
-    if (!processedCacheEntry) {
-      await this.writeToCache(
-        this.getCacheKey(
-          processedFinalAssets,
-          pipeline.configs,
-          await getInvalidationHash(
-            processedFinalAssets.flatMap(asset => asset.getInvalidations()),
-            this.options,
-          ),
-        ),
-        processedFinalAssets,
-        pipeline.configs,
-      );
+    let devDepRequest: DevDepRequest = {
+      moduleSpecifier,
+      resolveFrom,
+      hash,
+      invalidateOnFileCreate: invalidations.invalidateOnFileCreate,
+      invalidateOnFileChange: invalidations.invalidateOnFileChange,
+    };
+
+    // Optionally also invalidate the parcel plugin that is loading the config
+    // when this dev dep changes (e.g. to invalidate local caches).
+    if (invalidateParcelPlugin) {
+      devDepRequest.additionalInvalidations = [
+        {
+          moduleSpecifier: transformer.name,
+          resolveFrom: transformer.resolveFrom,
+        },
+      ];
     }
 
-    return processedFinalAssets;
+    this.devDepRequests.set(key, devDepRequest);
   }
 
   async runPipeline(
@@ -363,14 +487,12 @@ export default class Transformation {
         }
 
         try {
-          let transformerResults = await runTransformer(
+          let transformerResults = await this.runTransformer(
             pipeline,
             asset,
             transformer.plugin,
             transformer.name,
             transformer.config,
-            transformer.configKeyPath,
-            this.parcelConfig,
           );
 
           for (let result of transformerResults) {
@@ -385,7 +507,10 @@ export default class Transformation {
           }
         } catch (e) {
           throw new ThrowableDiagnostic({
-            diagnostic: errorToDiagnostic(e, transformer.name),
+            diagnostic: errorToDiagnostic(e, {
+              origin: transformer.name,
+              filePath: asset.value.filePath,
+            }),
           });
         }
       }
@@ -404,7 +529,8 @@ export default class Transformation {
             asset =>
               asset.ast != null &&
               !(
-                (asset.value.env.scopeHoist && asset.value.type === 'js') ||
+                (asset.value.env.shouldScopeHoist &&
+                  asset.value.type === 'js') ||
                 (this.options.mode === 'production' &&
                   asset.value.type === 'css' &&
                   asset.value.symbols)
@@ -426,7 +552,11 @@ export default class Transformation {
   }
 
   async readFromCache(cacheKey: string): Promise<?Array<UncommittedAsset>> {
-    if (this.options.disableCache || this.request.code != null) {
+    if (
+      this.options.shouldDisableCache ||
+      this.request.code != null ||
+      this.request.invalidateReason & FILE_CREATE
+    ) {
       return null;
     }
 
@@ -437,29 +567,41 @@ export default class Transformation {
       return null;
     }
 
-    return cachedAssets.map(
-      (value: AssetValue) =>
-        new UncommittedAsset({
+    return Promise.all(
+      cachedAssets.map(async (value: AssetValue) => {
+        let content =
+          value.contentKey != null
+            ? this.options.cache.getStream(value.contentKey)
+            : null;
+        let mapBuffer =
+          value.astKey != null
+            ? await this.options.cache.getBlob(value.astKey)
+            : null;
+        let ast =
+          value.astKey != null
+            ? // TODO: Capture with a test and likely use cache.get() as this returns a buffer.
+              // $FlowFixMe[incompatible-call]
+              await this.options.cache.getBlob(value.astKey)
+            : null;
+
+        return new UncommittedAsset({
           value,
           options: this.options,
-        }),
+          content,
+          mapBuffer,
+          ast,
+        });
+      }),
     );
   }
 
   async writeToCache(
     cacheKey: string,
     assets: Array<UncommittedAsset>,
-    configs: ConfigMap,
+    pipelineHash: string,
   ): Promise<void> {
-    await Promise.all(
-      assets.map(asset =>
-        asset.commit(
-          md5FromOrderedObject({
-            configs: getImpactfulConfigInfo(configs),
-          }),
-        ),
-      ),
-    );
+    await Promise.all(assets.map(asset => asset.commit(pipelineHash)));
+
     this.options.cache.set(
       cacheKey,
       assets.map(a => a.value),
@@ -468,8 +610,8 @@ export default class Transformation {
 
   getCacheKey(
     assets: Array<UncommittedAsset>,
-    configs: ConfigMap,
     invalidationHash: string,
+    pipelineHash: string,
   ): string {
     let assetsKeyInfo = assets.map(a => ({
       filePath: a.value.filePath,
@@ -482,9 +624,9 @@ export default class Transformation {
     return md5FromOrderedObject({
       parcelVersion: PARCEL_VERSION,
       assets: assetsKeyInfo,
-      configs: getImpactfulConfigInfo(configs),
       env: this.request.env,
       invalidationHash,
+      pipelineHash,
     });
   }
 
@@ -493,49 +635,32 @@ export default class Transformation {
     isSource: boolean,
     pipeline: ?string,
   ): Promise<Pipeline> {
-    let configRequest = {
-      filePath,
-      env: this.request.env,
-      isSource,
-      pipeline: pipeline,
-      isURL: this.request.isURL,
-      meta: {
-        actionType: 'transformation',
-      },
-    };
-    let configs = new Map();
-
-    let config = await this.loadConfig(configRequest);
-
-    configs.set('parcel', config);
-
     let transformers = await this.parcelConfig.getTransformers(
       filePath,
       pipeline,
       this.request.isURL,
     );
 
-    for (let {name, resolveFrom, keyPath} of transformers) {
-      let thirdPartyConfig = await this.loadTransformerConfig({
+    for (let transformer of transformers) {
+      let config = await this.loadTransformerConfig(
         filePath,
-        plugin: name,
-        parcelConfigPath: resolveFrom,
-        parcelConfigKeyPath: keyPath,
+        transformer,
         isSource,
-      });
-
-      configs.set(name, thirdPartyConfig);
+      );
+      if (config) {
+        this.configs.set(transformer.name, config);
+      }
     }
 
     return {
       id: transformers.map(t => t.name).join(':'),
       transformers: transformers.map(transformer => ({
         name: transformer.name,
-        config: configs.get(transformer.name)?.result,
+        resolveFrom: transformer.resolveFrom,
+        config: this.configs.get(transformer.name)?.result,
         configKeyPath: transformer.keyPath,
         plugin: transformer.plugin,
       })),
-      configs,
       options: this.options,
       resolverRunner: new ResolverRunner({
         config: this.parcelConfig,
@@ -575,43 +700,163 @@ export default class Transformation {
     return nextPipeline;
   }
 
-  loadTransformerConfig({
-    filePath,
-    plugin,
-    parcelConfigPath,
-    parcelConfigKeyPath,
-    isSource,
-  }: {|
+  async loadTransformerConfig(
     filePath: FilePath,
-    plugin: PackageName,
-    parcelConfigPath: FilePath,
-    parcelConfigKeyPath: string,
+    transformer: LoadedPlugin<Transformer>,
     isSource: boolean,
-  |}): Promise<Config> {
-    let configRequest = {
-      filePath,
-      env: this.request.env,
-      plugin,
+  ): Promise<?Config> {
+    let loadConfig = transformer.plugin.loadConfig;
+    if (!loadConfig) {
+      return;
+    }
+
+    let config = createConfig({
+      plugin: transformer.name,
       isSource,
-      meta: {
-        parcelConfigPath,
-        parcelConfigKeyPath,
-      },
+      searchPath: filePath,
+      env: this.request.env,
+    });
+
+    try {
+      await loadConfig({
+        config: new PublicConfig(config, this.options),
+        options: this.options,
+        logger: new PluginLogger({origin: transformer.name}),
+      });
+    } catch (e) {
+      throw new ThrowableDiagnostic({
+        diagnostic: errorToDiagnostic(e, {
+          origin: transformer.name,
+        }),
+      });
+    }
+
+    for (let devDep of config.devDeps) {
+      await this.addDevDependency(devDep, transformer);
+    }
+
+    return config;
+  }
+
+  async runTransformer(
+    pipeline: Pipeline,
+    asset: UncommittedAsset,
+    transformer: Transformer,
+    transformerName: string,
+    preloadedConfig: ?Config,
+  ): Promise<Array<TransformerResult>> {
+    const logger = new PluginLogger({origin: transformerName});
+
+    const resolve = async (from: FilePath, to: string): Promise<FilePath> => {
+      let result = nullthrows(
+        await pipeline.resolverRunner.resolve(
+          createDependency({
+            env: asset.value.env,
+            moduleSpecifier: to,
+            sourcePath: from,
+          }),
+        ),
+      );
+
+      if (result.invalidateOnFileCreate) {
+        this.invalidateOnFileCreate.push(...result.invalidateOnFileCreate);
+      }
+
+      if (result.invalidateOnFileChange) {
+        for (let filePath of result.invalidateOnFileChange) {
+          let invalidation = {
+            type: 'file',
+            filePath,
+          };
+
+          this.invalidations.set(getInvalidationId(invalidation), invalidation);
+        }
+      }
+
+      return result.assetGroup.filePath;
     };
 
-    return this.loadConfig(configRequest);
+    // If an ast exists on the asset, but we cannot reuse it,
+    // use the previous transform to generate code that we can re-parse.
+    if (
+      asset.ast &&
+      asset.isASTDirty &&
+      (!transformer.canReuseAST ||
+        !transformer.canReuseAST({
+          ast: asset.ast,
+          options: pipeline.pluginOptions,
+          logger,
+        })) &&
+      pipeline.generate
+    ) {
+      let output = await pipeline.generate(asset);
+      asset.content = output.content;
+      asset.mapBuffer = output.map?.toBuffer();
+    }
+
+    // Load config for the transformer.
+    let config = preloadedConfig;
+
+    // Parse if there is no AST available from a previous transform.
+    let parse = transformer.parse?.bind(transformer);
+    if (!asset.ast && parse) {
+      let ast = await parse({
+        asset: new MutableAsset(asset),
+        config,
+        options: pipeline.pluginOptions,
+        resolve,
+        logger,
+      });
+      if (ast) {
+        asset.setAST(ast);
+        asset.isASTDirty = false;
+      }
+    }
+
+    // Transform.
+    let results = await normalizeAssets(
+      // $FlowFixMe
+      await transformer.transform({
+        asset: new MutableAsset(asset),
+        ast: asset.ast,
+        config,
+        options: pipeline.pluginOptions,
+        resolve,
+        logger,
+      }),
+    );
+
+    // Create generate function that can be called later
+    pipeline.generate = (input: UncommittedAsset): Promise<GenerateOutput> => {
+      let ast = input.ast;
+      let asset = new Asset(input);
+      if (transformer.generate && ast) {
+        let generated = transformer.generate({
+          asset,
+          ast,
+          options: pipeline.pluginOptions,
+          logger,
+        });
+        input.clearAST();
+        return Promise.resolve(generated);
+      }
+
+      throw new Error(
+        'Asset has an AST but no generate method is available on the transform',
+      );
+    };
+
+    return results;
   }
 }
 
 type Pipeline = {|
   id: string,
   transformers: Array<TransformerWithNameAndConfig>,
-  configs: ConfigMap,
   options: ParcelOptions,
   pluginOptions: PluginOptions,
   resolverRunner: ResolverRunner,
   workerApi: WorkerApi,
-  postProcess?: PostProcessFunc,
   generate?: GenerateFunc,
 |};
 
@@ -619,128 +864,9 @@ type TransformerWithNameAndConfig = {|
   name: PackageName,
   plugin: Transformer,
   config: ?Config,
-  configKeyPath: string,
+  configKeyPath?: string,
+  resolveFrom: FilePath,
 |};
-
-async function runTransformer(
-  pipeline: Pipeline,
-  asset: UncommittedAsset,
-  transformer: Transformer,
-  transformerName: string,
-  preloadedConfig: ?Config,
-  configKeyPath: string,
-  parcelConfig: ParcelConfig,
-): Promise<Array<TransformerResult>> {
-  const logger = new PluginLogger({origin: transformerName});
-
-  const resolve = async (from: FilePath, to: string): Promise<FilePath> => {
-    return nullthrows(
-      await pipeline.resolverRunner.resolve(
-        createDependency({
-          env: asset.value.env,
-          moduleSpecifier: to,
-          sourcePath: from,
-        }),
-      ),
-    ).filePath;
-  };
-
-  // If an ast exists on the asset, but we cannot reuse it,
-  // use the previous transform to generate code that we can re-parse.
-  if (
-    asset.ast &&
-    asset.isASTDirty &&
-    (!transformer.canReuseAST ||
-      !transformer.canReuseAST({
-        ast: asset.ast,
-        options: pipeline.pluginOptions,
-        logger,
-      })) &&
-    pipeline.generate
-  ) {
-    let output = await pipeline.generate(asset);
-    asset.content = output.content;
-    asset.mapBuffer = output.map?.toBuffer();
-  }
-
-  // Load config for the transformer.
-  let config = preloadedConfig;
-
-  // Parse if there is no AST available from a previous transform.
-  if (!asset.ast && transformer.parse) {
-    let ast = await transformer.parse({
-      asset: new MutableAsset(asset),
-      config,
-      options: pipeline.pluginOptions,
-      resolve,
-      logger,
-    });
-    if (ast) {
-      asset.setAST(ast);
-      asset.isASTDirty = false;
-    }
-  }
-
-  // Transform.
-  let results = await normalizeAssets(
-    // $FlowFixMe
-    await transformer.transform({
-      asset: new MutableAsset(asset),
-      ast: asset.ast,
-      config,
-      options: pipeline.pluginOptions,
-      resolve,
-      logger,
-    }),
-  );
-
-  // Create generate and postProcess functions that can be called later
-  pipeline.generate = (input: UncommittedAsset): Promise<GenerateOutput> => {
-    if (transformer.generate && input.ast) {
-      let generated = transformer.generate({
-        asset: new Asset(input),
-        ast: input.ast,
-        options: pipeline.pluginOptions,
-        logger,
-      });
-      input.clearAST();
-      return Promise.resolve(generated);
-    }
-
-    throw new Error(
-      'Asset has an AST but no generate method is available on the transform',
-    );
-  };
-
-  // For Flow
-  let postProcess = transformer.postProcess;
-  if (postProcess) {
-    pipeline.postProcess = async (
-      assets: Array<UncommittedAsset>,
-    ): Promise<Array<UncommittedAsset> | null> => {
-      let results = await postProcess.call(transformer, {
-        assets: assets.map(asset => new MutableAsset(asset)),
-        config,
-        options: pipeline.pluginOptions,
-        resolve,
-        logger,
-      });
-
-      return Promise.all(
-        results.map(result =>
-          asset.createChildAsset(
-            result,
-            transformerName,
-            parcelConfig.filePath,
-            configKeyPath,
-          ),
-        ),
-      );
-    };
-  }
-
-  return results;
-}
 
 function normalizeAssets(
   results: Array<TransformerResult | MutableAsset>,
@@ -773,23 +899,4 @@ function normalizeAssets(
       };
     }),
   );
-}
-
-function getImpactfulConfigInfo(configs: ConfigMap) {
-  let impactfulConfigInfo = {};
-
-  for (let [configType, {devDeps, resultHash}] of configs) {
-    let devDepsObject = {};
-
-    for (let [moduleName, version] of devDeps) {
-      devDepsObject[moduleName] = version;
-    }
-
-    impactfulConfigInfo[configType] = {
-      devDeps: devDepsObject,
-      resultHash,
-    };
-  }
-
-  return impactfulConfigInfo;
 }

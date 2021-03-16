@@ -6,8 +6,9 @@ import invariant from 'assert';
 import path from 'path';
 import sinon from 'sinon';
 import ThrowableDiagnostic from '@parcel/diagnostic';
+import {loadConfig} from '@parcel/utils';
 import WorkerFarm from '@parcel/workers';
-import {MockPackageInstaller, NodePackageManager} from '../';
+import {MockPackageInstaller, NodePackageManager} from '../src';
 
 const FIXTURES_DIR = path.join(__dirname, 'fixtures');
 
@@ -30,6 +31,7 @@ describe('NodePackageManager', function() {
   });
 
   afterEach(async () => {
+    loadConfig.clear();
     await workerFarm.end();
   });
 
@@ -44,6 +46,15 @@ describe('NodePackageManager', function() {
           version: '1.1.0',
         },
         resolved: path.join(FIXTURES_DIR, 'has-foo/node_modules/foo/index.js'),
+        invalidateOnFileChange: new Set([
+          path.join(FIXTURES_DIR, 'has-foo/node_modules/foo/package.json'),
+        ]),
+        invalidateOnFileCreate: [
+          {
+            fileName: 'node_modules/foo',
+            aboveFilePath: path.join(FIXTURES_DIR, 'has-foo/index.js'),
+          },
+        ],
       },
     );
   });
@@ -65,13 +76,22 @@ describe('NodePackageManager', function() {
       await packageManager.resolve(
         'a',
         path.join(FIXTURES_DIR, 'has-foo/index.js'),
-        {autoinstall: true},
+        {shouldAutoInstall: true},
       ),
       {
         pkg: {
           name: 'a',
         },
         resolved: path.join(FIXTURES_DIR, 'has-foo/node_modules/a/index.js'),
+        invalidateOnFileChange: new Set([
+          path.join(FIXTURES_DIR, 'has-foo/node_modules/a/package.json'),
+        ]),
+        invalidateOnFileCreate: [
+          {
+            fileName: 'node_modules/a',
+            aboveFilePath: path.join(FIXTURES_DIR, 'has-foo/index.js'),
+          },
+        ],
       },
     );
   });
@@ -85,7 +105,7 @@ describe('NodePackageManager', function() {
         packageManager.resolve(
           'a',
           path.join(FIXTURES_DIR, 'has-a-not-yet-installed/index.js'),
-          {autoinstall: true},
+          {shouldAutoInstall: true},
         ),
       err => {
         invariant(err instanceof ThrowableDiagnostic);
@@ -106,7 +126,7 @@ describe('NodePackageManager', function() {
     await packageManager.resolve(
       'peers',
       path.join(FIXTURES_DIR, 'has-foo/index.js'),
-      {autoinstall: true},
+      {shouldAutoInstall: true},
     );
     assert.deepEqual(spy.args, [
       [
@@ -137,7 +157,7 @@ describe('NodePackageManager', function() {
     await packageManager.resolve(
       'peers',
       path.join(FIXTURES_DIR, 'empty/index.js'),
-      {autoinstall: true},
+      {shouldAutoInstall: true},
     );
     assert.deepEqual(spy.args, [
       [
@@ -163,6 +183,11 @@ describe('NodePackageManager', function() {
 
   describe('range mismatch', () => {
     it("cannot autoinstall if there's a local requirement", async () => {
+      packageManager.invalidate(
+        'foo',
+        path.join(FIXTURES_DIR, 'has-foo/index.js'),
+      );
+
       // $FlowFixMe assert.rejects is Node 10+
       await assert.rejects(
         () =>
@@ -198,7 +223,7 @@ describe('NodePackageManager', function() {
           path.join(FIXTURES_DIR, 'has-foo/subpackage/index.js'),
           {
             range: '^2.0.0',
-            autoinstall: true,
+            shouldAutoInstall: true,
           },
         ),
         {
@@ -210,6 +235,21 @@ describe('NodePackageManager', function() {
             FIXTURES_DIR,
             'has-foo/subpackage/node_modules/foo/index.js',
           ),
+          invalidateOnFileChange: new Set([
+            path.join(
+              FIXTURES_DIR,
+              'has-foo/subpackage/node_modules/foo/package.json',
+            ),
+          ]),
+          invalidateOnFileCreate: [
+            {
+              fileName: 'node_modules/foo',
+              aboveFilePath: path.join(
+                FIXTURES_DIR,
+                'has-foo/subpackage/index.js',
+              ),
+            },
+          ],
         },
       );
 
@@ -230,6 +270,10 @@ describe('NodePackageManager', function() {
     });
 
     it("cannot autoinstall peer dependencies if there's an incompatible local requirement", async () => {
+      packageManager.invalidate(
+        'peers',
+        path.join(FIXTURES_DIR, 'has-foo/index.js'),
+      );
       packageInstaller.register(
         'foo',
         fs,
@@ -249,7 +293,7 @@ describe('NodePackageManager', function() {
             path.join(FIXTURES_DIR, 'has-foo/index.js'),
             {
               range: '^2.0.0',
-              autoinstall: true,
+              shouldAutoInstall: true,
             },
           ),
         err => {

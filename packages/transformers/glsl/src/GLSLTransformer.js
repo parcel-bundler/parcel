@@ -1,20 +1,14 @@
 // @flow
 
 import path from 'path';
-import {promisify} from '@parcel/utils';
+import {promisify} from 'util';
 import {Transformer} from '@parcel/plugin';
+import glslifyDeps from 'glslify-deps';
+import glslifyBundle from 'glslify-bundle';
 
 export default (new Transformer({
-  async transform({asset, options, resolve}) {
+  async transform({asset, resolve}) {
     asset.type = 'js';
-
-    let glslifyDeps = await options.packageManager.require(
-      'glslify-deps',
-      asset.filePath,
-      {
-        autoinstall: options.autoinstall,
-      },
-    );
 
     // Parse and collect dependencies with glslify-deps
     let cwd = path.dirname(asset.filePath);
@@ -34,14 +28,6 @@ export default (new Transformer({
     let ast = await promisify(depper.inline.bind(depper))(
       await asset.getCode(),
       cwd,
-    );
-
-    let glslifyBundle = await options.packageManager.require(
-      'glslify-bundle',
-      asset.filePath,
-      {
-        autoinstall: options.autoinstall,
-      },
     );
 
     collectDependencies(asset, ast);

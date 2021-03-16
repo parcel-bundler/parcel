@@ -1,3 +1,4 @@
+// @flow
 import assert from 'assert';
 import path from 'path';
 import {
@@ -117,8 +118,10 @@ describe('babel', function() {
 
   it('should not compile with babel if no targets are defined', async function() {
     await bundle(path.join(__dirname, '/integration/babel-default/index.js'), {
-      defaultEngines: null,
-      minify: false,
+      defaultTargetOptions: {
+        engines: undefined,
+        shouldOptimize: false,
+      },
     });
     let file = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
     assert(file.includes('class Foo'));
@@ -160,8 +163,9 @@ describe('babel', function() {
       assert.equal(prodRegExp.test(file), false);
       // Prod build test
       await bundle(path.join(__dirname, projectBasePath, '/index.js'), {
-        minify: false,
-        production: true,
+        defaultTargetOptions: {
+          shouldOptimize: false,
+        },
       });
       file = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
       assert.equal(prodRegExp.test(file), true);
@@ -243,6 +247,21 @@ describe('babel', function() {
 
     let file = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
     assert(file.includes('React.createElement("div"'));
+  });
+
+  it('should support compiling JSX with pure annotations', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/jsx-react/pure-comment.js'),
+    );
+
+    let file = await outputFS.readFile(
+      path.join(distDir, 'pure-comment.js'),
+      'utf8',
+    );
+    assert(file.includes('/*#__PURE__*/_reactDefault.default.createElement'));
+
+    let res = await run(b);
+    assert(res.Foo());
   });
 
   it('should support compiling JSX in JS files with React aliased to Preact', async function() {
@@ -344,7 +363,9 @@ describe('babel', function() {
 
     await bundle(path.join(fixtureDir, 'src/index.js'), {
       mode: 'production',
-      minify: false,
+      defaultTargetOptions: {
+        shouldOptimize: false,
+      },
     });
 
     let [main, esmodule] = await Promise.all([
@@ -375,7 +396,7 @@ describe('babel', function() {
           distDir,
         },
       },
-      autoinstall: true,
+      shouldAutoInstall: true,
     });
     let file = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
     assert(file.includes('function Foo'));
@@ -398,7 +419,7 @@ describe('babel', function() {
           distDir,
         },
       },
-      autoinstall: true,
+      shouldAutoInstall: true,
     });
     let file = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
     assert(!file.includes('REPLACE_ME'));
@@ -443,7 +464,7 @@ describe('babel', function() {
         path.join(__dirname, '/integration/babel-env-name/index.js'),
         {
           targets: {main: {distDir, engines: {browsers: ['ie 11']}}},
-          disableCache: false,
+          shouldDisableCache: false,
         },
       );
       let file = await outputFS.readFile(
@@ -454,7 +475,7 @@ describe('babel', function() {
 
       await bundle(
         path.join(__dirname, '/integration/babel-env-name/index.js'),
-        {disableCache: false, env: {BABEL_ENV: 'production'}},
+        {shouldDisableCache: false, env: {BABEL_ENV: 'production'}},
       );
       file = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
       assert(!file.includes('class Foo'));
@@ -465,7 +486,7 @@ describe('babel', function() {
         path.join(__dirname, '/integration/babel-env-name/index.js'),
         {
           targets: {main: {distDir, engines: {browsers: ['ie 11']}}},
-          disableCache: false,
+          shouldDisableCache: false,
           env: {NODE_ENV: 'production'},
         },
       );
@@ -479,7 +500,7 @@ describe('babel', function() {
         path.join(__dirname, '/integration/babel-env-name/index.js'),
         {
           targets: {main: {distDir, engines: {browsers: ['ie 11']}}},
-          disableCache: false,
+          shouldDisableCache: false,
           env: {BABEL_ENV: 'development'},
         },
       );
@@ -552,7 +573,7 @@ describe('babel', function() {
 
       let b = bundler(path.join(inputDir, 'index.js'), {
         outputFS: fs,
-        autoinstall: true,
+        shouldAutoInstall: true,
       });
 
       subscription = await b.watch();
@@ -591,7 +612,7 @@ describe('babel', function() {
             parcelCli,
             'build',
             'src/index.js',
-            '--no-minify',
+            '--no-optimize',
             '--no-scope-hoist',
           ],
           {
@@ -630,7 +651,7 @@ describe('babel', function() {
       let build = () =>
         spawnSync(
           'node',
-          [parcelCli, 'build', 'index.js', '--no-minify', '--no-scope-hoist'],
+          [parcelCli, 'build', 'index.js', '--no-optimize', '--no-scope-hoist'],
           {
             cwd: inputDir,
             env: {
@@ -664,5 +685,34 @@ describe('babel', function() {
       assert(!file.includes('hello there'));
       assert(file.includes('something different'));
     });
+  });
+
+  it('should support transpiling optional chaining', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/babel-optional-chaining/index.js'),
+    );
+
+    let file = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(!file.includes('?.'));
+
+    let output = await run(b);
+    assert.equal(typeof output, 'object');
+    assert.deepEqual(output.default, [undefined, undefined]);
+  });
+
+  it('should enable shippedProposals with @parcel/babel-preset-env in custom babelrc', async function() {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/babel-preset-env-shippedProposals/index.js',
+      ),
+    );
+
+    let file = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(!file.includes('#priv'));
+
+    let output = await run(b);
+    assert.strictEqual(typeof output, 'object');
+    assert.strictEqual(output.default, 123);
   });
 });

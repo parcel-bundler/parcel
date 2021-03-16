@@ -162,6 +162,7 @@ declare module "@babel/core" {
 
   declare export function loadOptions(options?: Options): Options;
   declare export function loadPartialConfig(options?: Object): any;
+  declare export function loadPartialConfigAsync(options?: Object): Promise<any>;
   declare export function createConfigItem(
     value:
       | string

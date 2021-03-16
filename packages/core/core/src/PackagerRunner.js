@@ -119,47 +119,69 @@ export default class PackagerRunner {
     |} = {};
     let writeEarlyPromises = {};
     let hashRefToNameHash = new Map();
-    // skip inline bundles, they will be processed via the parent bundle
-    let bundles = bundleGraph.getBundles().filter(bundle => !bundle.isInline);
-    await Promise.all(
-      bundles.map(async bundle => {
-        let info = await this.processBundle(bundle, bundleGraph, ref);
-        bundleInfoMap[bundle.id] = info;
-        if (!info.hashReferences.length) {
-          hashRefToNameHash.set(
-            bundle.hashReference,
-            this.options.contentHash
-              ? info.hash.slice(-8)
-              : bundle.id.slice(-8),
-          );
-          writeEarlyPromises[bundle.id] = this.writeToDist({
-            bundle,
-            info,
-            hashRefToNameHash,
-            bundleGraph,
-          });
-        }
-      }),
-    );
-    assignComplexNameHashes(
-      hashRefToNameHash,
-      bundles,
-      bundleInfoMap,
-      this.options,
-    );
-    await Promise.all(
-      bundles.map(
-        bundle =>
-          writeEarlyPromises[bundle.id] ??
-          this.writeToDist({
-            bundle,
-            info: bundleInfoMap[bundle.id],
-            hashRefToNameHash,
-            bundleGraph,
-          }),
-      ),
-    );
-    await dispose();
+    let bundles = bundleGraph.getBundles().filter(bundle => {
+      // Do not package and write placeholder bundles to disk. We just
+      // need to update the name so other bundles can reference it.
+      if (bundle.isPlaceholder) {
+        let hash = bundle.id.slice(-8);
+        hashRefToNameHash.set(bundle.hashReference, hash);
+        bundle.filePath = nullthrows(bundle.filePath).replace(
+          bundle.hashReference,
+          hash,
+        );
+        bundle.name = nullthrows(bundle.name).replace(
+          bundle.hashReference,
+          hash,
+        );
+        return false;
+      }
+
+      // skip inline bundles, they will be processed via the parent bundle
+      return !bundle.isInline;
+    });
+
+    try {
+      await Promise.all(
+        bundles.map(async bundle => {
+          let info = await this.processBundle(bundle, bundleGraph, ref);
+          bundleInfoMap[bundle.id] = info;
+          if (!info.hashReferences.length) {
+            hashRefToNameHash.set(
+              bundle.hashReference,
+              this.options.shouldContentHash
+                ? info.hash.slice(-8)
+                : bundle.id.slice(-8),
+            );
+            writeEarlyPromises[bundle.id] = this.writeToDist({
+              bundle,
+              info,
+              hashRefToNameHash,
+              bundleGraph,
+            });
+          }
+        }),
+      );
+      assignComplexNameHashes(
+        hashRefToNameHash,
+        bundles,
+        bundleInfoMap,
+        this.options,
+      );
+      await Promise.all(
+        bundles.map(
+          bundle =>
+            writeEarlyPromises[bundle.id] ??
+            this.writeToDist({
+              bundle,
+              info: bundleInfoMap[bundle.id],
+              hashRefToNameHash,
+              bundleGraph,
+            }),
+        ),
+      );
+    } finally {
+      await dispose();
+    }
   }
 
   async processBundle(
@@ -216,7 +238,10 @@ export default class PackagerRunner {
         });
       } catch (e) {
         throw new ThrowableDiagnostic({
-          diagnostic: errorToDiagnostic(e, this.config.getBundlerName()),
+          diagnostic: errorToDiagnostic(e, {
+            origin: this.config.getBundlerName(),
+            filePath: bundle.filePath,
+          }),
         });
       }
     }
@@ -225,7 +250,7 @@ export default class PackagerRunner {
   }
 
   getBundleInfoFromCache(infoKey: string): Async<?BundleInfo> {
-    if (this.options.disableCache) {
+    if (this.options.shouldDisableCache) {
       return;
     }
 
@@ -338,7 +363,10 @@ export default class PackagerRunner {
       });
     } catch (e) {
       throw new ThrowableDiagnostic({
-        diagnostic: errorToDiagnostic(e, name),
+        diagnostic: errorToDiagnostic(e, {
+          origin: name,
+          filePath: bundle.filePath,
+        }),
       });
     }
   }
@@ -399,7 +427,10 @@ export default class PackagerRunner {
         optimized.map = next.map;
       } catch (e) {
         throw new ThrowableDiagnostic({
-          diagnostic: errorToDiagnostic(e, optimizer.name),
+          diagnostic: errorToDiagnostic(e, {
+            origin: optimizer.name,
+            filePath: bundle.filePath,
+          }),
         });
       }
     }
@@ -426,7 +457,7 @@ export default class PackagerRunner {
       ) {
         sourceRoot = bundle.env.sourceMap.sourceRoot;
       } else if (
-        this.options.serve &&
+        this.options.serveOptions &&
         bundle.target.env.context === 'browser'
       ) {
         sourceRoot = '/__parcel_source_root';
@@ -718,15 +749,11 @@ function assignComplexNameHashes(
       continue;
     }
 
-    let includedBundles = [
-      ...getBundlesIncludedInHash(bundle.id, bundleInfoMap),
-    ];
-
     hashRefToNameHash.set(
       bundle.hashReference,
-      options.contentHash
+      options.shouldContentHash
         ? md5FromString(
-            includedBundles
+            [...getBundlesIncludedInHash(bundle.id, bundleInfoMap)]
               .map(bundleId => bundleInfoMap[bundleId].hash)
               .join(':'),
           ).slice(-8)

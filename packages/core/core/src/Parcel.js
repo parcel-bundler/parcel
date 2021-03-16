@@ -70,6 +70,7 @@ export default class Parcel {
   > */;
   #watcherSubscription /*: ?AsyncSubscription*/;
   #watcherCount /*: number*/ = 0;
+  #requestedAssetIds /*: Set<string>*/ = new Set();
 
   isProfiling /*: boolean */;
 
@@ -87,12 +88,7 @@ export default class Parcel {
     );
     this.#resolvedOptions = resolvedOptions;
     let {config} = await loadParcelConfig(resolvedOptions);
-    this.#config = new ParcelConfig(
-      config,
-      resolvedOptions.packageManager,
-      resolvedOptions.inputFS,
-      resolvedOptions.autoinstall,
-    );
+    this.#config = new ParcelConfig(config, resolvedOptions);
 
     if (this.#initialOptions.workerFarm) {
       if (this.#initialOptions.workerFarm.ending) {
@@ -101,7 +97,7 @@ export default class Parcel {
       this.#farm = this.#initialOptions.workerFarm;
     } else {
       this.#farm = createWorkerFarm({
-        patchConsole: resolvedOptions.patchConsole,
+        shouldPatchConsole: resolvedOptions.shouldPatchConsole,
       });
     }
 
@@ -187,17 +183,23 @@ export default class Parcel {
       this.#disposable.dispose(),
       await this.#requestTracker.writeToCache(),
     ]);
+    await this.#farm.callAllWorkers('clearConfigCache', []);
   }
 
-  async _startNextBuild() {
+  async _startNextBuild(): Promise<?BuildEvent> {
     this.#watchAbortController = new AbortController();
+    await this.#farm.callAllWorkers('clearConfigCache', []);
 
     try {
-      this.#watchEvents.emit({
-        buildEvent: await this._build({
-          signal: this.#watchAbortController.signal,
-        }),
+      let buildEvent = await this._build({
+        signal: this.#watchAbortController.signal,
       });
+
+      this.#watchEvents.emit({
+        buildEvent,
+      });
+
+      return buildEvent;
     } catch (err) {
       // Ignore BuildAbortErrors and only emit critical errors.
       if (!(err instanceof BuildAbortError)) {
@@ -270,7 +272,7 @@ export default class Parcel {
     this.#requestTracker.setSignal(signal);
     let options = nullthrows(this.#resolvedOptions);
     try {
-      if (options.profile) {
+      if (options.shouldProfile) {
         await this.startProfiling();
       }
       this.#reporterRunner.report({
@@ -278,24 +280,28 @@ export default class Parcel {
       });
       let request = createAssetGraphRequest({
         name: 'Main',
-        entries: nullthrows(this.#resolvedOptions).entries,
+        entries: options.entries,
         optionsRef: this.#optionsRef,
+        shouldBuildLazily: options.shouldBuildLazily,
+        requestedAssetIds: this.#requestedAssetIds,
       }); // ? should we create this on every build?
       let {
         assetGraph,
         changedAssets,
         assetRequests,
-      } = await this.#requestTracker.runRequest(request);
-      dumpGraphToGraphViz(assetGraph, 'MainAssetGraph');
+      } = await this.#requestTracker.runRequest(request, {
+        force: options.shouldBuildLazily && this.#requestedAssetIds.size > 0,
+      });
 
-      // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
+      this.#requestedAssetIds.clear();
+
       let [
         bundleGraph,
         serializedBundleGraph,
+        // $FlowFixMe[incompatible-call] Due to dumpGraphToGraphViz usage below
       ] = await this.#bundlerRunner.bundle(assetGraph, {
         signal,
       });
-      // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381 (Windows only)
       dumpGraphToGraphViz(bundleGraph._graph, 'BundleGraph');
 
       await this.#packagerRunner.writeBundles(
@@ -303,6 +309,9 @@ export default class Parcel {
         serializedBundleGraph,
       );
       assertSignalNotAborted(signal);
+
+      // $FlowFixMe
+      dumpGraphToGraphViz(this.#requestTracker.graph, 'RequestGraph');
 
       let event = {
         type: 'buildSuccess',
@@ -314,6 +323,41 @@ export default class Parcel {
         ),
         bundleGraph: new BundleGraph(bundleGraph, NamedBundle.get, options),
         buildTime: Date.now() - startTime,
+        requestBundle: async bundle => {
+          let bundleNode = bundleGraph._graph.getNode(bundle.id);
+          invariant(bundleNode?.type === 'bundle', 'Bundle does not exist');
+
+          if (!bundleNode.value.isPlaceholder) {
+            // Nothing to do.
+            return {
+              type: 'buildSuccess',
+              changedAssets: new Map(),
+              bundleGraph: event.bundleGraph,
+              buildTime: 0,
+              requestBundle: event.requestBundle,
+            };
+          }
+
+          for (let assetId of bundleNode.value.entryAssetIds) {
+            this.#requestedAssetIds.add(assetId);
+          }
+
+          if (this.#watchQueue.getNumWaiting() === 0) {
+            if (this.#watchAbortController) {
+              this.#watchAbortController.abort();
+            }
+
+            this.#watchQueue.add(() => this._startNextBuild());
+          }
+
+          let results = await this.#watchQueue.run();
+          let result = results.filter(Boolean).pop();
+          if (result.type === 'buildFailure') {
+            throw new BuildError(result.diagnostics);
+          }
+
+          return result;
+        },
       };
 
       await this.#reporterRunner.report(event);

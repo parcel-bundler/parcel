@@ -57,9 +57,8 @@ export class FSCache implements Cache {
     return this.fs.exists(this._getCachePath(key));
   }
 
-  getBlob<T>(key: string, encoding?: buffer$Encoding): Promise<?T> {
-    // $FlowFixMe
-    return this.fs.readFile(this._getCachePath(key), encoding);
+  getBlob(key: string): Promise<Buffer> {
+    return this.fs.readFile(this._getCachePath(key));
   }
 
   async setBlob(key: string, contents: Buffer | string): Promise<void> {

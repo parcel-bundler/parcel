@@ -1,7 +1,7 @@
 {
   "name": "@parcel/eslint-plugin",
   "private": true,
-  "version": "2.0.0-beta.1",
+  "version": "2.0.0-beta.2",
   "main": "index.js",
   "scripts": {},
   "dependencies": {
@@ -9,6 +9,6 @@
   },
   "devDependencies": {
     "@babel/eslint-parser": "^7.12.1",
-    "eslint": "^5.16.0"
+    "eslint": "^7.20.0"
   }
 }

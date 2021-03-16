@@ -3,8 +3,9 @@ import {typeof default as Less} from 'less';
 import path from 'path';
 import {Transformer} from '@parcel/plugin';
 import SourceMap from '@parcel/source-map';
+import less from 'less';
 
-import {load, preSerialize} from './loadConfig';
+import {load} from './loadConfig';
 
 // E.g: ~library/file.less
 const WEBPACK_ALIAS_RE = /^~[^/]/;
@@ -21,17 +22,9 @@ export default (new Transformer({
     return load({config});
   },
 
-  preSerializeConfig({config}) {
-    return preSerialize(config);
-  },
-
   async transform({asset, options, config, resolve}) {
     asset.type = 'css';
     asset.meta.hasDependencies = false;
-
-    let less = await options.packageManager.require('less', asset.filePath, {
-      autoinstall: options.autoinstall,
-    });
 
     let code = await asset.getCode();
     let result;
@@ -113,7 +106,7 @@ function resolvePathPlugin({asset, resolve}) {
           return false;
         }
 
-        async loadFile(rawFilename, ...args) {
+        async loadFile(rawFilename, currentDirectory, options) {
           let filename = rawFilename;
 
           if (WEBPACK_ALIAS_RE.test(filename)) {
@@ -123,15 +116,53 @@ function resolvePathPlugin({asset, resolve}) {
             );
           }
 
-          try {
-            return await super.loadFile(filename, ...args);
-          } catch (err) {
-            if (err.type !== 'File') {
-              throw err;
-            }
-            filename = await resolve(asset.filePath, filename);
-            return super.loadFile(filename, ...args);
+          // Based on https://github.com/less/less.js/blob/master/packages/less/src/less-node/file-manager.js
+          let isAbsoluteFilename = this.isPathAbsolute(filename);
+          let paths = isAbsoluteFilename ? [''] : [currentDirectory];
+          if (options.paths) {
+            paths.push(...options.paths);
           }
+
+          let prefixes = options.prefixes || [''];
+          let fileParts = this.extractUrlParts(filename);
+          let filePath;
+          let contents;
+
+          if (filename[0] !== '~') {
+            outer: for (let p of paths) {
+              for (let prefix of prefixes) {
+                filePath = fileParts.rawPath + prefix + fileParts.filename;
+                if (p) {
+                  filePath = path.join(p, filePath);
+                }
+
+                if (options.ext) {
+                  filePath = this.tryAppendExtension(filePath, options.ext);
+                }
+
+                try {
+                  contents = await asset.fs.readFile(filePath, 'utf8');
+                  break outer;
+                } catch (err) {
+                  asset.invalidateOnFileCreate({filePath});
+                }
+              }
+            }
+          }
+
+          if (!contents) {
+            filePath = await resolve(asset.filePath, filename);
+            contents = await asset.fs.readFile(filePath, 'utf8');
+          }
+
+          if (filePath) {
+            asset.addIncludedFile(filePath);
+          }
+
+          return {
+            contents,
+            filename: filePath,
+          };
         }
       }
 

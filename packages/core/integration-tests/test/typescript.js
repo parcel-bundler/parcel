@@ -105,10 +105,7 @@ describe('typescript', function() {
             'index.ts',
             'JSRuntime.js',
             'bundle-url.js',
-            'bundle-manifest.js',
             'esmodule-helpers.js',
-            'JSRuntime.js',
-            'relative-path.js',
           ],
         },
         {
@@ -132,7 +129,9 @@ describe('typescript', function() {
         path.join(__dirname, '/integration/typescript-require/index.ts'),
         {
           config,
-          minify: true,
+          defaultTargetOptions: {
+            shouldOptimize: true,
+          },
         },
       );
 

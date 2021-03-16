@@ -15,13 +15,12 @@ import type {
   Semver,
   Validator,
 } from '@parcel/types';
-import type {PackageManager} from '@parcel/package-manager';
-import type {FileSystem} from '@parcel/fs';
 import type {
   ProcessedParcelConfig,
   ParcelPluginNode,
   PureParcelConfigPipeline,
   ExtendableParcelConfigPipeline,
+  ParcelOptions,
 } from './types';
 import {makeRe} from 'micromatch';
 import {basename} from 'path';
@@ -31,22 +30,19 @@ type GlobMap<T> = {[Glob]: T, ...};
 type SerializedParcelConfig = {|
   $$raw: boolean,
   config: ProcessedParcelConfig,
-  packageManager: PackageManager,
-  fs: FileSystem,
-  autoinstall: boolean,
+  options: ParcelOptions,
 |};
 
-type LoadedPlugin<T> = {|
+export type LoadedPlugin<T> = {|
   name: string,
   version: Semver,
   plugin: T,
   resolveFrom: FilePath,
-  keyPath: string,
+  keyPath?: string,
 |};
 
 export default class ParcelConfig {
-  packageManager: PackageManager;
-  fs: FileSystem;
+  options: ParcelOptions;
   filePath: FilePath;
   resolvers: PureParcelConfigPipeline;
   transformers: GlobMap<ExtendableParcelConfigPipeline>;
@@ -58,17 +54,10 @@ export default class ParcelConfig {
   optimizers: GlobMap<ExtendableParcelConfigPipeline>;
   reporters: PureParcelConfigPipeline;
   pluginCache: Map<PackageName, any>;
-  autoinstall: boolean;
   regexCache: Map<string, RegExp>;
 
-  constructor(
-    config: ProcessedParcelConfig,
-    packageManager: PackageManager,
-    fs: FileSystem,
-    autoinstall: boolean,
-  ) {
-    this.packageManager = packageManager;
-    this.fs = fs;
+  constructor(config: ProcessedParcelConfig, options: ParcelOptions) {
+    this.options = options;
     this.filePath = config.filePath;
     this.resolvers = config.resolvers || [];
     this.transformers = config.transformers || {};
@@ -80,17 +69,11 @@ export default class ParcelConfig {
     this.reporters = config.reporters || [];
     this.validators = config.validators || {};
     this.pluginCache = new Map();
-    this.autoinstall = autoinstall;
     this.regexCache = new Map();
   }
 
   static deserialize(serialized: SerializedParcelConfig): ParcelConfig {
-    return new ParcelConfig(
-      serialized.config,
-      serialized.packageManager,
-      serialized.fs,
-      serialized.autoinstall,
-    );
+    return new ParcelConfig(serialized.config, serialized.options);
   }
 
   getConfig(): ProcessedParcelConfig {
@@ -111,31 +94,32 @@ export default class ParcelConfig {
   serialize(): SerializedParcelConfig {
     return {
       $$raw: false,
-      packageManager: this.packageManager,
-      fs: this.fs,
       config: this.getConfig(),
-      autoinstall: this.autoinstall,
+      options: this.options,
     };
   }
 
   loadPlugin<T>(
     node: ParcelPluginNode,
-  ): Promise<{|plugin: T, version: Semver|}> {
+  ): Promise<{|plugin: T, version: Semver, resolveFrom: FilePath|}> {
     let plugin = this.pluginCache.get(node.packageName);
     if (plugin) {
       return plugin;
     }
 
     plugin = loadPlugin<T>(
-      this.fs,
-      this.packageManager,
       node.packageName,
       node.resolveFrom,
       node.keyPath,
-      this.autoinstall,
+      this.options,
     );
+
     this.pluginCache.set(node.packageName, plugin);
     return plugin;
+  }
+
+  invalidatePlugin(packageName: PackageName) {
+    this.pluginCache.delete(packageName);
   }
 
   loadPlugins<T>(
@@ -143,13 +127,13 @@ export default class ParcelConfig {
   ): Promise<Array<LoadedPlugin<T>>> {
     return Promise.all(
       plugins.map(async p => {
-        let {plugin, version} = await this.loadPlugin<T>(p);
+        let {plugin, version, resolveFrom} = await this.loadPlugin<T>(p);
         return {
           name: p.packageName,
           plugin,
           version,
-          resolveFrom: p.resolveFrom,
           keyPath: p.keyPath,
+          resolveFrom,
         };
       }),
     );
@@ -252,7 +236,11 @@ export default class ParcelConfig {
     return this.bundler.packageName;
   }
 
-  getBundler(): Promise<{|version: Semver, plugin: Bundler|}> {
+  getBundler(): Promise<{|
+    version: Semver,
+    plugin: Bundler,
+    resolveFrom: FilePath,
+  |}> {
     if (!this.bundler) {
       throw new Error('No bundler specified in .parcelrc config');
     }

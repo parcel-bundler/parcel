@@ -3,8 +3,7 @@ import type {FilePath} from '@parcel/types';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
-import jsonMap from 'json-source-map';
-import type {Mapping} from 'json-source-map';
+import jsonMap, {type Mapping} from 'json-source-map';
 
 /** These positions are 1-based (so <code>1</code> is the first line/column) */
 export type DiagnosticHighlightLocation = {|
@@ -119,15 +118,18 @@ export function anyToDiagnostic(input: Diagnostifiable): Array<Diagnostic> {
 /** Normalize the given error into a diagnostic. */
 export function errorToDiagnostic(
   error: ThrowableDiagnostic | PrintableError | string,
-  realOrigin?: string,
+  defaultValues: {|
+    origin?: ?string,
+    filePath?: ?string,
+  |} = {...null},
 ): Array<Diagnostic> {
   let codeFrame: DiagnosticCodeFrame | void = undefined;
 
   if (typeof error === 'string') {
     return [
       {
-        origin: realOrigin ?? 'Error',
-        message: error,
+        origin: defaultValues?.origin ?? 'Error',
+        message: escapeMarkdown(error),
         codeFrame,
       },
     ];
@@ -137,7 +139,7 @@ export function errorToDiagnostic(
     return error.diagnostics.map(d => {
       return {
         ...d,
-        origin: realOrigin ?? d.origin ?? 'unknown',
+        origin: d.origin ?? defaultValues?.origin ?? 'unknown',
       };
     });
   }
@@ -162,10 +164,14 @@ export function errorToDiagnostic(
 
   return [
     {
-      origin: realOrigin ?? 'Error',
-      message: error.message,
+      origin: defaultValues?.origin ?? 'Error',
+      message: escapeMarkdown(error.message),
       name: error.name,
-      filePath: error.filePath ?? error.fileName,
+      filePath:
+        error.filePath ??
+        error.fileName ??
+        defaultValues?.filePath ??
+        undefined,
       stack: error.highlightedCodeFrame ?? error.codeFrame ?? error.stack,
       codeFrame,
     },
@@ -207,11 +213,17 @@ export default class ThrowableDiagnostic extends Error {
  * <code>type</code> signifies whether the key of the value in a JSON object should be highlighted.
  */
 export function generateJSONCodeHighlights(
-  code: string,
+  data:
+    | string
+    | {|
+        data: mixed,
+        pointers: {|[key: string]: Mapping|},
+      |},
   ids: Array<{|key: string, type?: ?'key' | 'value', message?: string|}>,
 ): Array<DiagnosticCodeHighlight> {
   // json-source-map doesn't support a tabWidth option (yet)
-  let map = jsonMap.parse(code.replace(/\t/g, ' '));
+  let map =
+    typeof data == 'string' ? jsonMap.parse(data.replace(/\t/g, ' ')) : data;
   return ids.map(({key, type, message}) => {
     let pos = nullthrows(map.pointers[key]);
     return {
@@ -256,3 +268,53 @@ export function getJSONSourceLocation(
 export function encodeJSONKeyComponent(component: string): string {
   return component.replace(/\//g, '~1');
 }
+
+const escapeCharacters = ['\\', '*', '_', '~'];
+
+export function escapeMarkdown(s: string): string {
+  let result = s;
+  for (const char of escapeCharacters) {
+    result = result.replace(new RegExp(`\\${char}`, 'g'), `\\${char}`);
+  }
+
+  return result;
+}
+
+// $FlowFixMe[unclear-type]
+type TemplateInput = any;
+
+const mdVerbatim = Symbol();
+export function md(
+  strings: Array<string>,
+  ...params: Array<TemplateInput>
+): string {
+  let result = [];
+  for (let i = 0; i < params.length; i++) {
+    let param = params[i];
+    result.push(
+      strings[i],
+      param?.[mdVerbatim] ? param.value : escapeMarkdown(`${param}`),
+    );
+  }
+  return result.join('') + strings[strings.length - 1];
+}
+
+md.bold = function(s: TemplateInput): {|value: string|} {
+  // $FlowFixMe[invalid-computed-prop]
+  return {[mdVerbatim]: true, value: '**' + escapeMarkdown(`${s}`) + '**'};
+};
+
+md.italic = function(s: TemplateInput): {|value: string|} {
+  // $FlowFixMe[invalid-computed-prop]
+  return {[mdVerbatim]: true, value: '_' + escapeMarkdown(`${s}`) + '_'};
+};
+
+md.underline = function(s: TemplateInput): {|value: string|} {
+  // $FlowFixMe[invalid-computed-prop]
+  return {[mdVerbatim]: true, value: '__' + escapeMarkdown(`${s}`) + '__'};
+};
+
+md.strikethrough = function(s: TemplateInput): {|value: string|} {
+  // $FlowFixMe[invalid-computed-prop]
+  return {[mdVerbatim]: true, value: '~~' + escapeMarkdown(`${s}`) + '~~'};
+};

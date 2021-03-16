@@ -2,6 +2,7 @@
 
 import type {Bundle, ParcelOptions, ProcessedParcelConfig} from './types';
 import type {SharedReference, WorkerApi} from '@parcel/workers';
+import {loadConfig as configCache} from '@parcel/utils';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
@@ -15,6 +16,7 @@ import PackagerRunner, {type BundleInfo} from './PackagerRunner';
 import Validation, {type ValidationOpts} from './Validation';
 import ParcelConfig from './ParcelConfig';
 import {registerCoreWithSerializer} from './utils';
+import {clearBuildCaches} from './buildCache';
 
 import '@parcel/cache'; // register with serializer
 import '@parcel/package-manager';
@@ -49,7 +51,7 @@ function loadOptions(ref, workerApi) {
 
 async function loadConfig(cachePath, options) {
   let config = parcelConfigCache.get(cachePath);
-  if (config) {
+  if (config && config.options === options) {
     return config;
   }
 
@@ -57,12 +59,15 @@ async function loadConfig(cachePath, options) {
   config = new ParcelConfig(
     // $FlowFixMe
     ((processedConfig: any): ProcessedParcelConfig),
-    options.packageManager,
-    options.inputFS,
-    options.autoinstall,
+    options,
   );
   parcelConfigCache.set(cachePath, config);
   return config;
+}
+
+export function clearConfigCache() {
+  configCache.clear();
+  clearBuildCaches();
 }
 
 export async function runTransform(
@@ -125,12 +130,7 @@ export async function runPackage(
     configRef,
     // $FlowFixMe
   ): any): ProcessedParcelConfig);
-  let parcelConfig = new ParcelConfig(
-    processedConfig,
-    options.packageManager,
-    options.inputFS,
-    options.autoinstall,
-  );
+  let parcelConfig = new ParcelConfig(processedConfig, options);
 
   let runner = new PackagerRunner({
     config: parcelConfig,
@@ -154,7 +154,7 @@ export async function runPackage(
   );
 }
 
-const PKG_RE = /node_modules[/\\]((?:@[^/\\]+\/[^/\\]+)|[^/\\]+)(?!.*[/\\]node_modules[/\\])/;
+const PKG_RE = /node_modules[/\\]((?:@[^/\\]+[/\\][^/\\]+)|[^/\\]+)(?!.*[/\\]node_modules[/\\])/;
 export function invalidateRequireCache(workerApi: WorkerApi, file: string) {
   if (process.env.PARCEL_BUILD_ENV === 'test') {
     // Delete this module and all children in the same node_modules folder
@@ -169,6 +169,8 @@ export function invalidateRequireCache(workerApi: WorkerApi, file: string) {
         }
       }
     }
+
+    parcelConfigCache.clear();
     return;
   }
 

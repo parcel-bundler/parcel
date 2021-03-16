@@ -1,4 +1,39 @@
-/* global HMR_HOST, HMR_PORT, HMR_ENV_HASH */
+// @flow
+/* global HMR_HOST, HMR_PORT, HMR_ENV_HASH, HMR_SECURE */
+
+/*::
+import type {
+  HMRAsset,
+  HMRMessage,
+} from '@parcel/reporter-dev-server/src/HMRServer.js';
+interface ParcelRequire {
+  (string): mixed;
+  cache: {|[string]: ParcelModule|};
+  hotData: mixed;
+  Module: any;
+  parent: ?ParcelRequire;
+  isParcelRequire: true;
+  modules: {|[string]: [Function, {|[string]: string|}]|};
+  HMR_BUNDLE_ID: string;
+  root: ParcelRequire;
+}
+interface ParcelModule {
+  hot: {|
+    data: mixed,
+    accept(cb: (Function) => void): void,
+    dispose(cb: (mixed) => void): void,
+    // accept(deps: Array<string> | string, cb: (Function) => void): void,
+    // decline(): void,
+    _acceptCallbacks: Array<(Function) => void>,
+    _disposeCallbacks: Array<(mixed) => void>,
+  |};
+}
+declare var module: {bundle: ParcelRequire, ...};
+declare var HMR_HOST: string;
+declare var HMR_PORT: string;
+declare var HMR_ENV_HASH: string;
+declare var HMR_SECURE: boolean;
+*/
 
 var OVERLAY_ID = '__parcel__error__overlay__';
 
@@ -17,12 +52,13 @@ function Module(moduleName) {
       this._disposeCallbacks.push(fn);
     },
   };
-
-  module.bundle.hotData = null;
+  module.bundle.hotData = undefined;
 }
-
 module.bundle.Module = Module;
-var checkedAssets, assetsToAccept, acceptedAssets;
+
+var checkedAssets /*: {|[string]: boolean|} */,
+  acceptedAssets /*: {|[string]: boolean|} */,
+  assetsToAccept /*: Array<[ParcelRequire, string]> */;
 
 function getHostname() {
   return (
@@ -40,16 +76,22 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = getHostname();
   var port = getPort();
-  var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
+  var protocol =
+    HMR_SECURE ||
+    (location.protocol == 'https:' &&
+      !/localhost|127.0.0.1|0.0.0.0/.test(hostname))
+      ? 'wss'
+      : 'ws';
   var ws = new WebSocket(
     protocol + '://' + hostname + (port ? ':' + port : '') + '/',
   );
-  ws.onmessage = function(event) {
-    checkedAssets = {};
+  // $FlowFixMe
+  ws.onmessage = function(event /*: {data: string, ...} */) {
+    checkedAssets = ({} /*: {|[string]: boolean|} */);
+    acceptedAssets = ({} /*: {|[string]: boolean|} */);
     assetsToAccept = [];
-    acceptedAssets = {};
 
-    var data = JSON.parse(event.data);
+    var data /*: HMRMessage */ = JSON.parse(event.data);
 
     if (data.type === 'update') {
       // Remove error overlay if there is one
@@ -61,7 +103,9 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
       var handled = false;
       assets.forEach(asset => {
         var didAccept =
-          asset.type === 'css' || hmrAcceptCheck(module.bundle.root, asset.id);
+          asset.type === 'css' ||
+          (asset.type === 'js' &&
+            hmrAcceptCheck(module.bundle.root, asset.id, asset.depsByBundle));
         if (didAccept) {
           handled = true;
         }
@@ -105,6 +149,7 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
       // Render the fancy html overlay
       removeErrorOverlay();
       var overlay = createErrorOverlay(data.diagnostics.html);
+      // $FlowFixMe
       document.body.appendChild(overlay);
     }
   };
@@ -112,7 +157,9 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
     console.error(e.message);
   };
   ws.onclose = function(e) {
-    console.warn('[parcel] 🚨 Connection to the HMR server was lost');
+    if (process.env.PARCEL_BUILD_ENV !== 'test') {
+      console.warn('[parcel] 🚨 Connection to the HMR server was lost');
+    }
   };
 }
 
@@ -156,7 +203,7 @@ function createErrorOverlay(diagnostics) {
   return overlay;
 }
 
-function getParents(bundle, id) {
+function getParents(bundle, id) /*: Array<[ParcelRequire, string]> */ {
   var modules = bundle.modules;
   if (!modules) {
     return [];
@@ -186,13 +233,16 @@ function updateLink(link) {
   var newLink = link.cloneNode();
   newLink.onload = function() {
     if (link.parentNode !== null) {
+      // $FlowFixMe
       link.parentNode.removeChild(link);
     }
   };
   newLink.setAttribute(
     'href',
+    // $FlowFixMe
     link.getAttribute('href').split('?')[0] + '?' + Date.now(),
   );
+  // $FlowFixMe
   link.parentNode.insertBefore(newLink, link.nextSibling);
 }
 
@@ -205,7 +255,8 @@ function reloadCSS() {
   cssTimeout = setTimeout(function() {
     var links = document.querySelectorAll('link[rel="stylesheet"]');
     for (var i = 0; i < links.length; i++) {
-      var href = links[i].getAttribute('href');
+      // $FlowFixMe[incompatible-type]
+      var href /*: string */ = links[i].getAttribute('href');
       var hostname = getHostname();
       var servedFromHMRServer =
         hostname === 'localhost'
@@ -226,33 +277,44 @@ function reloadCSS() {
   }, 50);
 }
 
-function hmrApply(bundle, asset) {
+function hmrApply(bundle /*: ParcelRequire */, asset /*:  HMRAsset */) {
   var modules = bundle.modules;
   if (!modules) {
     return;
   }
 
-  if (modules[asset.id] || !bundle.parent) {
-    if (asset.type === 'css') {
-      reloadCSS();
-    } else {
-      var fn = new Function('require', 'module', 'exports', asset.output);
-      modules[asset.id] = [fn, asset.depsByBundle[bundle.HMR_BUNDLE_ID]];
-    }
+  if (asset.type === 'css') {
+    reloadCSS();
+    return;
+  }
+
+  let deps = asset.depsByBundle[bundle.HMR_BUNDLE_ID];
+  if (deps) {
+    var fn = new Function('require', 'module', 'exports', asset.output);
+    modules[asset.id] = [fn, deps];
   } else if (bundle.parent) {
     hmrApply(bundle.parent, asset);
   }
 }
 
-function hmrAcceptCheck(bundle, id) {
+function hmrAcceptCheck(
+  bundle /*: ParcelRequire */,
+  id /*: string */,
+  depsByBundle /*: ?{ [string]: { [string]: string } }*/,
+) {
   var modules = bundle.modules;
-
   if (!modules) {
     return;
   }
 
-  if (!modules[id] && bundle.parent) {
-    return hmrAcceptCheck(bundle.parent, id);
+  if (depsByBundle && !depsByBundle[bundle.HMR_BUNDLE_ID]) {
+    // If we reached the root bundle without finding where the asset should go,
+    // there's nothing to do. Mark as "accepted" so we don't reload the page.
+    if (!bundle.parent) {
+      return true;
+    }
+
+    return hmrAcceptCheck(bundle.parent, id, depsByBundle);
   }
 
   if (checkedAssets[id]) {
@@ -270,11 +332,11 @@ function hmrAcceptCheck(bundle, id) {
   }
 
   return getParents(module.bundle.root, id).some(function(v) {
-    return hmrAcceptCheck(v[0], v[1]);
+    return hmrAcceptCheck(v[0], v[1], null);
   });
 }
 
-function hmrAcceptRun(bundle, id) {
+function hmrAcceptRun(bundle /*: ParcelRequire */, id /*: string */) {
   var cached = bundle.cache[id];
   bundle.hotData = {};
   if (cached && cached.hot) {

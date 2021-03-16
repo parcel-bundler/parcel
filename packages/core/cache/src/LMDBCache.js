@@ -60,8 +60,11 @@ export class LMDBCache implements Cache {
     await this.store.put(key, buf);
   }
 
-  getBlob<T>(key: string): Promise<?T> {
-    return Promise.resolve(this.store.get(key));
+  getBlob(key: string): Promise<Buffer> {
+    let buffer = this.store.get(key);
+    return buffer != null
+      ? Promise.resolve(buffer)
+      : Promise.reject(new Error(`Key ${key} not found in cache`));
   }
 
   async setBlob(key: string, contents: Buffer | string): Promise<void> {

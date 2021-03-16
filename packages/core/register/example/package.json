@@ -1,6 +1,6 @@
 {
   "name": "register-example",
-  "version": "2.0.0-alpha.1.1",
+  "version": "2.0.0-beta.1",
   "main": "./index.js",
   "license": "MIT",
   "scripts": {

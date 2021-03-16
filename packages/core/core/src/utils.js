@@ -87,16 +87,16 @@ const ignoreOptions = new Set([
   'inputFS',
   'outputFS',
   'workerFarm',
-  'killWorkers',
   'packageManager',
   'detailedReport',
-  'disableCache',
+  'shouldDisableCache',
   'cacheDir',
-  'autoinstall',
+  'shouldAutoInstall',
   'logLevel',
-  'profile',
-  'patchConsole',
+  'shouldProfile',
+  'shouldPatchConsole',
   'projectRoot',
+  'additionalReporters',
 ]);
 
 export function optionsProxy(

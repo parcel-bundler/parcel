@@ -5,6 +5,7 @@ import type {
   Asset as IAsset,
   Bundle as IBundle,
   BundleTraversable,
+  Dependency as IDependency,
   Environment as IEnvironment,
   FilePath,
   NamedBundle as INamedBundle,
@@ -21,7 +22,7 @@ import {DefaultWeakMap} from '@parcel/utils';
 import {assetToAssetValue, assetFromValue} from './Asset';
 import {mapVisitor} from '../Graph';
 import Environment from './Environment';
-import Dependency from './Dependency';
+import Dependency, {dependencyToInternalDependency} from './Dependency';
 import Target from './Target';
 
 const internalBundleToBundle: DefaultWeakMap<
@@ -138,6 +139,13 @@ export class Bundle implements IBundle {
     return this.#bundleGraph.bundleHasAsset(
       this.#bundle,
       assetToAssetValue(asset),
+    );
+  }
+
+  hasDependency(dep: IDependency): boolean {
+    return this.#bundleGraph.bundleHasDependency(
+      this.#bundle,
+      dependencyToInternalDependency(dep),
     );
   }
 

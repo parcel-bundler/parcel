@@ -1,20 +1,11 @@
 // @flow
 import {Transformer} from '@parcel/plugin';
+import mdx from '@mdx-js/mdx';
 
 export default (new Transformer({
-  async transform({asset, options}) {
-    let [mdx, code] = await Promise.all([
-      options.packageManager.require('@mdx-js/mdx', asset.filePath, {
-        autoinstall: options.autoinstall,
-      }),
-      asset.getCode(),
-      options.packageManager.resolve('@mdx-js/react', asset.filePath, {
-        autoinstall: options.autoinstall,
-        saveDev: false,
-      }),
-    ]);
-
-    const compiled = await mdx(code);
+  async transform({asset}) {
+    let code = await asset.getCode();
+    let compiled = await mdx(code);
 
     asset.type = 'js';
     asset.setCode(`/* @jsx mdx */
