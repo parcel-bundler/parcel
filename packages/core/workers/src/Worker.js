@@ -122,7 +122,7 @@ export default class Worker extends EventEmitter {
   }
 
   sendSharedReference(ref: SharedReference, value: mixed) {
-    new Promise((resolve, reject) => {
+    return new Promise((resolve, reject) => {
       this.call({
         method: 'createSharedReference',
         args: [ref, value],

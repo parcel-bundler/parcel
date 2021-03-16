@@ -1191,6 +1191,11 @@ describe('cache', function() {
         },
         async update(b) {
           assert.equal(await run(b.bundleGraph), undefined);
+
+          await overlayFS.writeFile(
+            path.join(inputDir, 'src/index.js'),
+            'module.exports = process.env.TEST',
+          );
         },
       });
 
