@@ -177,7 +177,7 @@ impl<'a> Fold for Hoist<'a> {
               self.re_exports.push(("*".into(), export.src.value.clone(), "*".into(), SourceLocation::from(&self.collect.source_map, export.span)));
             },
             ModuleDecl::ExportDefaultExpr(export) => {
-              let ident = self.get_export_ident(DUMMY_SP, &"default".into());
+              let ident = self.get_export_ident(export.span, &"default".into());
               let init = export.expr.clone().fold_with(self);
               if self.requires_in_stmt.len() > 0 {
                 items.append(&mut self.requires_in_stmt);
@@ -186,11 +186,11 @@ impl<'a> Fold for Hoist<'a> {
               items.push(ModuleItem::Stmt(Stmt::Decl(Decl::Var(VarDecl {
                 declare: false,
                 kind: VarDeclKind::Var,
-                span: export.span,
+                span: DUMMY_SP,
                 decls: vec![
                   VarDeclarator {
                     definite: false,
-                    span: export.span,
+                    span: DUMMY_SP,
                     name: Pat::Ident(BindingIdent::from(ident)),
                     init: Some(init)
                   }
@@ -427,7 +427,7 @@ impl<'a> Fold for Hoist<'a> {
                 // require('foo').bar -> $id$import$foo$bar
                 if let Some(source) = match_require(expr, &self.collect.decls, self.collect.ignore_mark) {
                   self.add_require(&source);
-                  return Expr::Ident(self.get_import_ident(call.span, &source, &key, SourceLocation::from(&self.collect.source_map, member.span)))
+                  return Expr::Ident(self.get_import_ident(member.span, &source, &key, SourceLocation::from(&self.collect.source_map, member.span)))
                 }
               },
               Expr::Member(mem) => {

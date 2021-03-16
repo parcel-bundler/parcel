@@ -1,5 +1,6 @@
 // @flow
 import type {JSONObject} from '@parcel/types';
+import SourceMap from '@parcel/source-map';
 import {Transformer} from '@parcel/plugin';
 import {transform} from '../parcel-swc.node';
 import {isURL, relativeUrl} from '@parcel/utils';
@@ -111,7 +112,7 @@ export default (new Transformer({
     }
 
     let relativePath = relativeUrl(options.projectRoot, asset.filePath);
-    let {dependencies, code: compiledCode, shebang, hoist_result} = transform({
+    let {dependencies, code: compiledCode, map, shebang, hoist_result} = transform({
       filename: asset.filePath,
       code,
       module_id: asset.id,
@@ -124,6 +125,7 @@ export default (new Transformer({
       jsx_pragma_frag: config?.pragmaFrag,
       is_development: options.mode === 'development',
       targets,
+      source_maps: !!asset.env.sourceMap
     });
 
     // console.log(Object.keys(options.env))
@@ -283,6 +285,12 @@ export default (new Transformer({
 
     asset.type = 'js';
     asset.setCode(compiledCode);
+
+    if (map) {
+      let sourceMap = new SourceMap(options.projectRoot);
+      sourceMap.addRawMappings(JSON.parse(map));
+      asset.setMap(sourceMap)
+    }
 
     return [asset];
   },

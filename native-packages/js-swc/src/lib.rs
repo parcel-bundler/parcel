@@ -62,12 +62,14 @@ struct Config {
   jsx_pragma: Option<String>,
   jsx_pragma_frag: Option<String>,
   is_development: bool,
-  targets: Option<HashMap<String, String>>
+  targets: Option<HashMap<String, String>>,
+  source_maps: bool,
 }
 
 #[derive(Serialize, Debug, Deserialize, Default)]
 struct TransformResult {
   code: String,
+  map: Option<String>,
   shebang: Option<String>,
   dependencies: Vec<DependencyDescriptor>,
   hoist_result: Option<hoist::HoistResult>
@@ -132,7 +134,7 @@ fn transform(ctx: CallContext) -> Result<JsUnknown> {
       };
 
       let mut global_items = vec![];
-      let program = swc_common::GLOBALS.set(&Globals::new(), || {
+      swc_common::GLOBALS.set(&Globals::new(), || {
         helpers::HELPERS.set(&helpers::Helpers::new(false), || {
           let mut react_options = react::Options::default();
           if config.is_jsx {
@@ -145,12 +147,14 @@ fn transform(ctx: CallContext) -> Result<JsUnknown> {
             react_options.development = config.is_development;
           }
 
-          let mut passes = chain!(
-            Optional::new(react::jsx(source_map.clone(), Some(&comments), react_options), config.is_jsx),
-            Optional::new(typescript::strip(), config.is_type_script)
-          );
+          module = {
+            let mut passes = chain!(
+              Optional::new(react::jsx(source_map.clone(), Some(&comments), react_options), config.is_jsx),
+              Optional::new(typescript::strip(), config.is_type_script)
+            );
 
-          module = module.fold_with(&mut passes);
+            module.fold_with(&mut passes)
+          };
 
           let global_mark = Mark::fresh(Mark::root());
           let ignore_mark = Mark::fresh(Mark::root());
@@ -210,27 +214,35 @@ fn transform(ctx: CallContext) -> Result<JsUnknown> {
           let (module, hoist_result) = hoist(module, source_map.clone(), config.module_id.as_str(), decls, ignore_mark);
           result.hoist_result = Some(hoist_result);
 
-          let mut passes = chain!(
-            helpers::inject_helpers(),
-            hygiene(),
-            fixer(Some(&comments)),
-          );
-          module.fold_with(&mut passes)
+          let program = {
+            let mut passes = chain!(
+              helpers::inject_helpers(),
+              hygiene(),
+              fixer(Some(&comments)),
+            );
+            module.fold_with(&mut passes)
+          };
+
+          result.dependencies.extend(global_items);
+
+          let (buf, mut src_map_buf) = emit(source_map.clone(), comments, &program, config.source_maps)?;
+          if config.source_maps {
+            let mut map_buf = vec![];
+            if let Ok(_) = source_map.build_source_map(&mut src_map_buf).to_writer(&mut map_buf) {
+              result.map = Some(String::from_utf8(map_buf).unwrap());
+            }
+          }
+          result.code = String::from_utf8(buf).unwrap();
+          ctx.env.to_js_value(&result)
         })
-      });
-
-      result.dependencies.extend(global_items);
-
-      let (buf, _src_map_buf) = emit(source_map, comments, &program)?;
-      result.code = String::from_utf8(buf).unwrap();
-      ctx.env.to_js_value(&result)
+      })
     }
   }
 }
 
 fn parse(code: &str, filename: &str, source_map: &Lrc<SourceMap>, config: &Config) -> PResult<(Module, SingleThreadedComments)> {
   let source_file = source_map.new_source_file(
-    FileName::Custom(filename.into()),
+    FileName::Real(filename.into()),
     code.into()
   );
 
@@ -263,7 +275,7 @@ fn parse(code: &str, filename: &str, source_map: &Lrc<SourceMap>, config: &Confi
   }
 }
 
-fn emit(source_map: Lrc<SourceMap>, comments: SingleThreadedComments, program: &Module) -> Result<(Vec<u8>, Vec<(swc_common::BytePos, swc_common::LineCol)>)> {
+fn emit(source_map: Lrc<SourceMap>, comments: SingleThreadedComments, program: &Module, source_maps: bool) -> Result<(Vec<u8>, Vec<(swc_common::BytePos, swc_common::LineCol)>)> {
   let mut src_map_buf = vec![];
   let mut buf = vec![];
   {
@@ -272,7 +284,11 @@ fn emit(source_map: Lrc<SourceMap>, comments: SingleThreadedComments, program: &
         source_map.clone(),
         "\n",
         &mut buf,
-        Some(&mut src_map_buf),
+        if source_maps {
+          Some(&mut src_map_buf)
+        } else {
+          None
+        },
       )
     );
     let config = swc_ecmascript::codegen::Config { minify: false };

@@ -8,7 +8,9 @@ import {
   relativeUrl,
   relativePath,
   relativeBundlePath,
+  countLines,
 } from '@parcel/utils';
+import SourceMap from '@parcel/source-map';
 import nullthrows from 'nullthrows';
 
 // https://262.ecma-international.org/6.0/#sec-names-and-keywords
@@ -116,8 +118,11 @@ export default (new Packager({
           break;
         case 'asset':
           queue.add(async () => {
-            let code = await node.value.getCode();
-            return [node.value.id, {asset: node.value, code}];
+            let [code, map] = await Promise.all([
+              node.value.getCode(),
+              node.value.getMapBuffer()
+            ]);
+            return [node.value.id, {asset: node.value, code, map}];
           });
           if (
             node.value.meta.shouldWrap ||
@@ -130,7 +135,7 @@ export default (new Packager({
       }
     });
 
-    let outputs = new Map<string, {|asset: Asset, code: string|}>(
+    let outputs = new Map<string, {|asset: Asset, code: string, map: ?Buffer|}>(
       await queue.run(),
     );
 
@@ -140,28 +145,37 @@ export default (new Packager({
     let seen = new Set();
     let visit = id => {
       if (seen.has(id)) {
-        return '';
+        return ['', new SourceMap(options.projectRoot), 0];
       }
 
       seen.add(id);
 
-      let {asset, code} = nullthrows(outputs.get(id));
+      let {asset, code, map} = nullthrows(outputs.get(id));
       let shouldWrap = wrappedAssets.has(id);
       let deps = bundleGraph.getDependencies(asset);
 
+      let sourceMap = bundle.env.sourceMap ? new SourceMap(options.projectRoot) : null;
+      sourceMap?.addBufferMappings(nullthrows(map));
+
       if (shouldSkipAsset(bundleGraph, bundle, asset)) {
         let depCode = '';
+        let lineCount = 0;
         // TODO: order?
         for (let dep of deps) {
           let resolved = bundleGraph.getDependencyResolution(dep, bundle);
           let skipped = bundleGraph.isDependencySkipped(dep);
           if (!resolved || skipped) continue;
           if (bundle.hasAsset(resolved)) {
-            depCode += visit(resolved.id) + '\n';
+            let [code, map, lines] = visit(resolved.id);
+            depCode += code + '\n';
+            if (sourceMap && map) {
+              sourceMap.addBufferMappings(map.toBuffer(), lineCount);
+            }
+            lineCount += lines + 1;
           }
         }
 
-        return depCode;
+        return [depCode, sourceMap, lineCount];
       }
 
       // TODO: maybe a meta prop?
@@ -278,14 +292,7 @@ export default (new Packager({
       }
 
       if (replacements.size > 0) {
-        let regex = new RegExp(
-          [...replacements.keys()]
-            .sort((a, b) => b.length - a.length)
-            .map(k => k.replace(/[$]/g, '\\$&'))
-            .join('|'),
-          'g',
-        );
-        code = code.replace(regex, m => replacements.get(m));
+        [code] = replace(code, sourceMap, replacements);
       }
 
       let defaultInterop =
@@ -304,11 +311,16 @@ export default (new Packager({
             ? asset.symbols.exportSymbols()
             : [...usedSymbols];
         let prepend = '';
-        prepend += `\nvar $${asset.meta.id}$exports = {\n};\n`;
+        let prependLineCount = 0;
+        if (!shouldWrap) {
+          prepend += `var $${asset.meta.id}$exports = {};\n`;
+          prependLineCount++;
+        }
 
         // TODO: only if required by CJS?
         if (asset.symbols.hasExportSymbol('default') && usedSymbols.has('*')) {
           prepend += `\n$parcel$defineInteropFlag($${asset.meta.id}$exports);\n`;
+          prependLineCount += 2;
           usedHelpers.add('$parcel$defineInteropFlag');
         }
 
@@ -336,6 +348,7 @@ export default (new Packager({
             )
             .join('\n')}\n`;
           usedHelpers.add('$parcel$export');
+          prependLineCount += 1 + usedExports.length;
         }
 
         for (let dep of deps) {
@@ -362,10 +375,15 @@ export default (new Packager({
                     resolved,
                     symbol,
                   )}, (v) => ${resolveSymbol(asset, symbol)} = v);\n`;
+                  prependLineCount++;
                 }
               }
             }
           }
+        }
+
+        if (sourceMap) {
+          sourceMap.offsetLines(1, prependLineCount);
         }
 
         code = prepend + code;
@@ -374,6 +392,7 @@ export default (new Packager({
       let getHoistedParcelRequires = (dep, resolved) => {
         let hoisted = hoistedRequires.get(dep.id);
         let res = '';
+        let lineCount = 0;
         let isWrapped =
           !bundle.hasAsset(resolved) ||
           (wrappedAssets.has(resolved.id) && resolved !== asset);
@@ -394,92 +413,153 @@ export default (new Packager({
         if (hoisted) {
           needsPrelude = true;
           res += '\n' + [...hoisted.values()].join('\n');
+          lineCount += hoisted.size;
         }
 
-        return res;
+        return [res, lineCount];
       };
 
+      let depMap = new Map();
+      for (let dep of deps) {
+        depMap.set(`${asset.meta.id}:${dep.moduleSpecifier}`, dep);
+      }
+
+      let lineCount = 0;
       if (shouldWrap) {
         needsPrelude = true;
 
-        let exportsName =
-          asset.symbols.get('*')?.local || `$${asset.id}$exports`;
-        let depCode = '';
-        let depMap = new Map();
-        for (let dep of deps) {
-          depMap.set(`${asset.meta.id}:${dep.moduleSpecifier}`, dep);
-        }
+        let depContent = [];
+        let lineOffset = 1;
+        code = code.replace(/\n|import\s+"(.+?)";/g, (m, d) => {
+          if (m === '\n') {
+            lineOffset++;
+            lineCount++;
+            return m;
+          }
 
-        code = code.replace(/import\s+"(.+?)";\n/g, (m, d) => {
           let dep = depMap.get(d);
           if (dep) {
             let resolved = bundleGraph.getDependencyResolution(dep, bundle);
             let skipped = bundleGraph.isDependencySkipped(dep);
             if (resolved && !skipped && bundle.hasAsset(resolved)) {
-              depCode += visit(resolved.id) + '\n';
-            } /* else if (resolved.type === 'js') {
-              needsPrelude = true;
-              depCode += `parcelRequire(${JSON.stringify(bundleGraph.getAssetPublicId(resolved))});`;
-            }*/
-            return resolved ? getHoistedParcelRequires(dep, resolved) : '';
+              depContent.push(visit(resolved.id));
+            }
+
+            if (!resolved) {
+              // TODO: handle sourcemap
+              return '';
+            }
+
+            let [res, lines] = getHoistedParcelRequires(dep, resolved);
+            if (sourceMap) {
+              if (lines > 0) {
+                sourceMap.offsetLines(lineOffset, lines);
+              }
+            }
+            lineOffset += lines;
+            lineCount += lines;
+            return res;
           }
           return '';
         });
 
-        code = `
-        ${depCode}
-parcelRequire.register(${JSON.stringify(
-          bundleGraph.getAssetPublicId(asset),
-        )}, function(module, exports) {
-  ${code
-    .replaceAll(`var ${exportsName} = {\n};\n`, '')
-    .replaceAll(exportsName, 'module.exports')}
-});
-`;
-      } else {
-        let depMap = new Map();
-        for (let dep of deps) {
-          depMap.set(`${asset.meta.id}:${dep.moduleSpecifier}`, dep);
+        let replacements = new Map();
+        let exportsName =
+          asset.symbols.get('*')?.local || `$${asset.id}$exports`;
+        replacements.set(exportsName, 'module.exports');
+        let lineDiff = 0;
+        [code, lineDiff] = replace(code, sourceMap, replacements);
+        lineCount += lineDiff;
+        
+        let depCode = '';
+        let depLine = 1;
+        for (let [code, map, lineCount] of depContent) {
+          if (!code) continue;
+          depCode += code + '\n';
+          lineCount++;
+          if (sourceMap && map) {
+            sourceMap.offsetLines(depLine, lineCount);
+            sourceMap.addBufferMappings(map.toBuffer(), depLine - 1, 0);
+            depLine += lineCount;
+          }
         }
 
-        code = code.replace(/import\s+"(.+?)";\n/g, (m, d) => {
+        sourceMap?.offsetLines(depLine, 1);
+        lineCount += depLine ;
+
+        code = depCode + `parcelRequire.register(${JSON.stringify(
+          bundleGraph.getAssetPublicId(asset),
+        )}, function(module, exports) {
+${code}
+});
+`;
+
+        lineCount += 2;
+      } else {
+        let lineOffset = 1;
+        code = code.replace(/\n|import\s+"(.+?)";/g, (m, d) => {
+          if (m === '\n') {
+            lineOffset++;
+            lineCount++;
+            return m;
+          }
+
           let dep = nullthrows(depMap.get(d));
           let resolved = bundleGraph.getDependencyResolution(dep, bundle);
           let skipped = bundleGraph.isDependencySkipped(dep);
           if (resolved && !skipped) {
             if (bundle.hasAsset(resolved)) {
-              let res = visit(resolved.id);
-              // if (wrappedAssets.has(resolved.id) && !dep.meta.shouldWrap) {
-              // res += `\nvar $${dep.id} = parcelRequire(${JSON.stringify(bundleGraph.getAssetPublicId(resolved))});\n`;
-              // }
-              let hoisted = getHoistedParcelRequires(dep, resolved);
+              let [res, map, lines] = visit(resolved.id);
+              let [hoisted, hoistedLineCount] = getHoistedParcelRequires(dep, resolved);
               if (hoisted) {
                 res += '\n' + hoisted;
+                lines += 1 + hoistedLineCount;
               }
+              if (sourceMap && map) {
+                if (lines > 0) {
+                  sourceMap.offsetLines(lineOffset, lines);
+                }
+                sourceMap.addBufferMappings(map.toBuffer(), lineOffset - 1, 0);
+                lineOffset += lines;
+              }
+              lineCount += lines;
               return res;
             } else if (resolved.type === 'js') {
-              return getHoistedParcelRequires(dep, resolved);
-              // if (hoistedRequires.has(dep.id)) {
-              //   return `\n${[...hoistedRequires.get(dep.id)].join('\n')}\n`;
-              // }
-              // return `parcelRequire(${JSON.stringify(bundleGraph.getAssetPublicId(resolved))});`;
+              let [hoisted, hoistedLineCount] = getHoistedParcelRequires(dep, resolved);
+              // TODO
+              return hoisted;
             }
           }
           return '';
         });
       }
 
-      return code;
+      return [code, sourceMap, lineCount];
     };
 
     let res = '';
+    let lineCount = 0;
+    let sourceMap = bundle.env.sourceMap ? new SourceMap(options.projectRoot) : null;
     bundle.traverseAssets((asset, _, actions) => {
-      res += visit(asset.id) + '\n';
+      if (seen.has(asset.id)) {
+        actions.skipChildren();
+        return
+      }
+
+      let [content, map, lines] = visit(asset.id);
+      res += content + '\n';
+      if (sourceMap && map) {
+        sourceMap.addBufferMappings(map.toBuffer(), lineCount);
+      }
+      lineCount += lines + 1;
       actions.skipChildren();
     });
 
     for (let helper of usedHelpers) {
       res = helpers[helper] + res;
+      if (sourceMap) {
+        sourceMap.offsetLines(1, countLines(helpers[helper]) - 1);
+      }
     }
 
     if (needsPrelude) {
@@ -493,12 +573,17 @@ parcelRequire.register(${JSON.stringify(
         bundle.env.isIsolated() ||
         !!bundle.getMainEntry()?.isIsolated;
       if (mightBeFirstJS) {
-        res = prelude('parcelRequire123') + res;
+        let preludeContent = prelude('parcelRequire123');
+        if (sourceMap) {
+          sourceMap.offsetLines(1, countLines(preludeContent) - 1);
+        }
+        res = preludeContent + res;
       } else {
         res =
           `var parcelRequire = globalThis[${JSON.stringify(
             'parcelRequire123',
           )}];\n` + res;
+        sourceMap?.offsetLines(1, 1);
       }
     }
 
@@ -527,16 +612,19 @@ parcelRequire.register(${JSON.stringify(
       }
 
       res = importScripts + res;
+      sourceMap?.offsetLines(1, bundles.length);
     }
 
+    sourceMap?.offsetLines(1, 1);
     res = `(function () {
-  ${res}
+${res}
 })();`;
 
     // console.log(bundle.name, res)
 
     return {
       contents: res,
+      map: sourceMap
     };
   },
 }): Packager);
@@ -585,4 +673,55 @@ function isEntry(
     bundle.env.isIsolated() ||
     !!bundle.getMainEntry()?.isIsolated
   );
+}
+
+function replace(code: string, sourceMap: ?SourceMap, replacements: Map<string, string>) {
+  let regex = new RegExp(
+    '\n|' +
+    [...replacements.keys()]
+      .sort((a, b) => b.length - a.length)
+      .map(k => k.replace(/[$]/g, '\\$&'))
+      .join('|'),
+    'g',
+  );
+  let line = 1;
+  let offset = 0;
+  let columnStartIndex = 0;
+  let lineDiff = 0;
+  code = code.replace(regex, (m, i) => {
+    if (m === '\n') {
+      line++;
+      columnStartIndex = i + offset + 1;
+      return '\n';
+    }
+
+    let replacement = replacements.get(m);
+    if (sourceMap) {
+      // let matchNewlineIndex = newlineIndex(m);
+      // let replacementNewlineIndex = newlineIndex(replacement);
+      // let lengthDifference = replacementNewlineIndex - matchNewlineIndex;
+      let lengthDifference = replacement.length - m.length;
+      if (lengthDifference !== 0) {
+        sourceMap.offsetColumns(line, i + offset - columnStartIndex + m.length, lengthDifference);
+        offset += lengthDifference;
+      }
+
+      // let matchLines = countLines(m, matchNewlineIndex);
+      // let replacementLines = countLines(replacement, replacementNewlineIndex);
+      // let lineDifference = replacementLines - matchLines;
+      // if (lineDifference !== 0) {
+      //   sourceMap.offsetLines(line + 1, lineDifference);
+      //   lineDiff += lineDifference;
+      //   offset = 0;
+      // }
+    }
+    return replacement;
+  });
+
+  return [code, lineDiff];
+}
+
+function newlineIndex(s) {
+  let idx = s.indexOf('\n');
+  return idx < 0 ? s.length : idx;
 }
