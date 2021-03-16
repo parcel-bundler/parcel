@@ -37,7 +37,7 @@ export type LoadedPlugin<T> = {|
   version: Semver,
   plugin: T,
   resolveFrom: FilePath,
-  keyPath: string,
+  keyPath?: string,
 |};
 
 export default class ParcelConfig {

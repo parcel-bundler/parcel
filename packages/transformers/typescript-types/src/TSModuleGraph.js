@@ -1,17 +1,16 @@
 // @flow
 import type {TSModule, Export} from './TSModule';
-import typeof TypeScriptModule from 'typescript'; // eslint-disable-line import/no-extraneous-dependencies
+
 import nullthrows from 'nullthrows';
 import invariant from 'assert';
+import ts from 'typescript';
 
 export class TSModuleGraph {
-  ts: TypeScriptModule;
   modules: Map<string, TSModule>;
   mainModuleName: string;
   mainModule: ?TSModule;
 
-  constructor(ts: TypeScriptModule, mainModuleName: string) {
-    this.ts = ts;
+  constructor(mainModuleName: string) {
     this.modules = new Map();
     this.mainModuleName = mainModuleName;
     this.mainModule = null;
@@ -29,18 +28,16 @@ export class TSModuleGraph {
   }
 
   markUsed(module: TSModule, name: string, context: any): void {
-    let {ts} = this;
-
     // If name is imported, mark used in the original module
     if (module.imports.has(name)) {
       module.used.add(name);
-      let {specifier, imported} = nullthrows(module.imports.get(name));
-      let m = this.getModule(specifier);
-      if (!m) {
+      let resolved = this.resolveImport(module, name);
+      // Missing or external
+      if (!resolved || resolved.module === module) {
         return;
       }
 
-      return this.markUsed(m, imported, context);
+      return this.markUsed(resolved.module, resolved.imported, context);
     }
 
     if (module.used.has(name)) {
@@ -112,8 +109,8 @@ export class TSModuleGraph {
     // Named export
     return {
       module: m,
-      name: m.getName(exportName),
-      imported: e.imported || exportName,
+      name: exportName,
+      imported: e.imported != null ? m.getName(e.imported) : exportName,
     };
   }
 
@@ -205,6 +202,8 @@ export class TSModuleGraph {
       exportedNames.set(e.name, e.module);
     }
 
+    let importedSymbolsToUpdate = [];
+
     // Assign unique names across all modules
     for (let m of this.modules.values()) {
       for (let [orig, name] of m.names) {
@@ -212,7 +211,13 @@ export class TSModuleGraph {
           continue;
         }
 
-        if (!m.used.has(orig) || m.imports.get(orig)) {
+        if (!m.used.has(orig)) {
+          continue;
+        }
+
+        if (m.imports.has(orig)) {
+          // Update imports after all modules's local variables have been renamed
+          importedSymbolsToUpdate.push([m, orig]);
           continue;
         }
 
@@ -222,6 +227,11 @@ export class TSModuleGraph {
           names[name] = 1;
         }
       }
+    }
+
+    for (let [m, orig] of importedSymbolsToUpdate) {
+      let imported = nullthrows(this.resolveImport(m, orig));
+      m.names.set(orig, imported.imported);
     }
 
     return exportedNames;

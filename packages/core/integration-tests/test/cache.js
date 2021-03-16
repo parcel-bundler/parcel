@@ -206,12 +206,6 @@ describe('cache', function() {
 
     for (let {name, formatter, nesting} of configs) {
       describe(name, function() {
-        beforeEach(async () => {
-          await workerFarm.callAllWorkers('invalidateRequireCache', [
-            path.join(inputDir, name),
-          ]);
-        });
-
         it(`should support adding a ${name}`, async function() {
           let b = await testCache({
             // Babel's config loader only works with the node filesystem
@@ -242,20 +236,6 @@ describe('cache', function() {
                   presets: ['@babel/preset-env'],
                 }),
               );
-
-              // At the moment, adding a JS config requires restarting the process
-              // due to https://github.com/babel/babel/pull/12211. Simulate this
-              // by clearing the require cache for @parcel/transformer-babel and @babel/core.
-              await workerFarm.callAllWorkers('invalidateRequireCache', [
-                packageManager.resolveSync(
-                  '@parcel/transformer-babel',
-                  __filename,
-                )?.resolved,
-              ]);
-
-              await workerFarm.callAllWorkers('invalidateRequireCache', [
-                packageManager.resolveSync('@babel/core', __filename)?.resolved,
-              ]);
 
               await sleep(100);
             },
@@ -309,10 +289,6 @@ describe('cache', function() {
                   presets: ['@babel/preset-env'],
                 }),
               );
-
-              await workerFarm.callAllWorkers('invalidateRequireCache', [
-                path.join(inputDir, name),
-              ]);
 
               await sleep(100);
             },
@@ -397,9 +373,6 @@ describe('cache', function() {
                   extends: `./${extendedName}`,
                 }),
               );
-              await workerFarm.callAllWorkers('invalidateRequireCache', [
-                path.join(inputDir, extendedName),
-              ]);
             },
             async update(b) {
               let contents = await overlayFS.readFile(
@@ -417,10 +390,6 @@ describe('cache', function() {
                   presets: ['@babel/preset-env'],
                 }),
               );
-
-              await workerFarm.callAllWorkers('invalidateRequireCache', [
-                path.join(inputDir, extendedName),
-              ]);
 
               await sleep(100);
             },
@@ -472,21 +441,6 @@ describe('cache', function() {
                   }),
                 );
 
-                // At the moment, adding a JS config requires restarting the process
-                // due to https://github.com/babel/babel/pull/12211. Simulate this
-                // by clearing the require cache for @parcel/transformer-babel and @babel/core.
-                await workerFarm.callAllWorkers('invalidateRequireCache', [
-                  packageManager.resolveSync(
-                    '@parcel/transformer-babel',
-                    __filename,
-                  )?.resolved,
-                ]);
-
-                await workerFarm.callAllWorkers('invalidateRequireCache', [
-                  packageManager.resolveSync('@babel/core', __filename)
-                    ?.resolved,
-                ]);
-
                 await sleep(100);
               },
             });
@@ -526,9 +480,6 @@ describe('cache', function() {
                     ],
                   }),
                 );
-                await workerFarm.callAllWorkers('invalidateRequireCache', [
-                  path.join(inputDir, `src/nested/${name}`),
-                ]);
               },
               async update(b) {
                 let contents = await overlayFS.readFile(
@@ -550,10 +501,6 @@ describe('cache', function() {
                     presets: ['@babel/preset-env'],
                   }),
                 );
-
-                await workerFarm.callAllWorkers('invalidateRequireCache', [
-                  path.join(inputDir, `src/nested/${name}`),
-                ]);
 
                 await sleep(100);
               },
@@ -4338,7 +4285,7 @@ describe('cache', function() {
                   ?.filePath,
                 'utf8',
               );
-              assert.equal(html.match(/<script/g)?.length, 6);
+              assert.equal(html.match(/<script/g)?.length, 5);
 
               let pkgFile = path.join(inputDir, 'package.json');
               let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
@@ -4360,7 +4307,7 @@ describe('cache', function() {
           b.bundleGraph.getBundles().find(b => b.name === 'b.html')?.filePath,
           'utf8',
         );
-        assert.equal(html.match(/<script/g)?.length, 5);
+        assert.equal(html.match(/<script/g)?.length, 4);
       });
 
       it('should support updating bundler config', async function() {
@@ -4374,7 +4321,7 @@ describe('cache', function() {
                   ?.filePath,
                 'utf8',
               );
-              assert.equal(html.match(/<script/g)?.length, 5);
+              assert.equal(html.match(/<script/g)?.length, 4);
 
               let pkgFile = path.join(inputDir, 'package.json');
               let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
@@ -4396,7 +4343,7 @@ describe('cache', function() {
           b.bundleGraph.getBundles().find(b => b.name === 'b.html')?.filePath,
           'utf8',
         );
-        assert.equal(html.match(/<script/g)?.length, 6);
+        assert.equal(html.match(/<script/g)?.length, 5);
       });
 
       it('should support removing bundler config', async function() {
@@ -4410,7 +4357,7 @@ describe('cache', function() {
                   ?.filePath,
                 'utf8',
               );
-              assert.equal(html.match(/<script/g)?.length, 5);
+              assert.equal(html.match(/<script/g)?.length, 4);
 
               let pkgFile = path.join(inputDir, 'package.json');
               let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
@@ -4430,7 +4377,7 @@ describe('cache', function() {
           b.bundleGraph.getBundles().find(b => b.name === 'b.html')?.filePath,
           'utf8',
         );
-        assert.equal(html.match(/<script/g)?.length, 6);
+        assert.equal(html.match(/<script/g)?.length, 5);
       });
     });
   });

@@ -7,8 +7,8 @@ import type {
   ConfigResult,
   DevDepOptions,
 } from '@parcel/types';
-import type {Config, Environment} from './types';
 import {md5FromString} from '@parcel/utils';
+import type {Config, Environment} from './types';
 import {createEnvironment} from './Environment';
 
 type ConfigOpts = {|

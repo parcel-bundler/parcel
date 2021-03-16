@@ -218,10 +218,11 @@ class BundlerRunner {
           origin: this.config.getBundlerName(),
         }),
       });
+    } finally {
+      // $FlowFixMe[incompatible-call]
+      await dumpGraphToGraphViz(internalBundleGraph._graph, 'after_bundle');
     }
 
-    // $FlowFixMe
-    await dumpGraphToGraphViz(internalBundleGraph._graph, 'after_bundle');
     if (this.pluginOptions.mode === 'production') {
       try {
         await bundler.optimize({
@@ -236,10 +237,10 @@ class BundlerRunner {
             origin: this.config.getBundlerName(),
           }),
         });
+      } finally {
+        // $FlowFixMe[incompatible-call]
+        await dumpGraphToGraphViz(internalBundleGraph._graph, 'after_optimize');
       }
-
-      // $FlowFixMe
-      await dumpGraphToGraphViz(internalBundleGraph._graph, 'after_optimize');
     }
 
     // Add dev dependency for the bundler. This must be done AFTER running it due to

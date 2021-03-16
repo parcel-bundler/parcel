@@ -120,9 +120,10 @@ function mapObject(object: any, fn: (val: any) => any, preOrder = false): any {
         if (result instanceof Map) {
           result.set(key, newValue);
         } else if (result instanceof Set) {
+          let _result = result; // For Flow
           // TODO: do we care about iteration order??
-          result.delete(value);
-          result.add(newValue);
+          _result.delete(value);
+          _result.add(newValue);
         } else {
           result[key] = newValue;
         }

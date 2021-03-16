@@ -124,24 +124,24 @@ export async function getConfigHash(
   let hash = crypto.createHash('md5');
   hash.update(config.id);
 
-  // If there is no result hash set by the plugin, try to hash the result.
-  // If it is not serializable, hash included files instead.
+  // If there is no result hash set by the transformer, default to hashing the included
+  // files if any, otherwise try to hash the config result itself.
   if (config.resultHash == null) {
-    try {
-      // $FlowFixMe
-      hash.update(v8.serialize(config.result));
-    } catch (err) {
-      if (config.includedFiles.size > 0) {
-        hash.update(
-          await getInvalidationHash(
-            [...config.includedFiles].map(filePath => ({
-              type: 'file',
-              filePath,
-            })),
-            options,
-          ),
-        );
-      } else {
+    if (config.includedFiles.size > 0) {
+      hash.update(
+        await getInvalidationHash(
+          [...config.includedFiles].map(filePath => ({
+            type: 'file',
+            filePath,
+          })),
+          options,
+        ),
+      );
+    } else if (config.result != null) {
+      try {
+        // $FlowFixMe
+        hash.update(v8.serialize(config.result));
+      } catch (err) {
         throw new ThrowableDiagnostic({
           diagnostic: {
             message:

@@ -93,9 +93,10 @@ export default (new Optimizer({
 
     let sourceMap = null;
     let minifiedContents: string = nullthrows(result.code);
-    if (result.map && typeof result.map !== 'string') {
+    let resultMap = result.map;
+    if (resultMap && typeof resultMap !== 'string') {
       sourceMap = new SourceMap(options.projectRoot);
-      sourceMap.addRawMappings(result.map);
+      sourceMap.addRawMappings(resultMap);
       let sourcemapReference = await getSourceMapReference(sourceMap);
       if (sourcemapReference) {
         minifiedContents += `\n//# sourceMappingURL=${sourcemapReference}\n`;

@@ -3,6 +3,7 @@
 import type {
   Asset,
   BuildEvent,
+  BuildSuccessEvent,
   BundleGraph,
   Dependency,
   FilePath,
@@ -230,6 +231,14 @@ export function getNextBuild(b: Parcel): Promise<BuildEvent> {
       })
       .catch(reject);
   });
+}
+
+export async function getNextBuildSuccess(
+  b: Parcel,
+): Promise<BuildSuccessEvent> {
+  let evt = await getNextBuild(b);
+  invariant(evt.type === 'buildSuccess');
+  return evt;
 }
 
 export function shallowEqual(
@@ -570,8 +579,8 @@ function prepareBrowserContext(
       return {timeStamp: Date.now()};
     },
 
-    getElementById() {
-      return fakeElement;
+    getElementById(id) {
+      if (id !== '__parcel__error__overlay__') return fakeElement;
     },
 
     body: {
@@ -591,7 +600,7 @@ function prepareBrowserContext(
       module: {exports},
       document: fakeDocument,
       WebSocket,
-      console,
+      console: {...console, clear: () => {}},
       location: {hostname: 'localhost', origin: 'http://localhost'},
       fetch(url) {
         return Promise.resolve({
