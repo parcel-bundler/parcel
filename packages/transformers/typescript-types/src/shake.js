@@ -1,12 +1,12 @@
 // @flow
 import {TSModule} from './TSModule';
 import type {TSModuleGraph} from './TSModuleGraph';
-import typeof TypeScriptModule from 'typescript'; // eslint-disable-line import/no-extraneous-dependencies
-import {getExportedName, isDeclaration} from './utils';
+
+import ts from 'typescript';
 import nullthrows from 'nullthrows';
+import {getExportedName, isDeclaration} from './utils';
 
 export function shake(
-  ts: TypeScriptModule,
   moduleGraph: TSModuleGraph,
   context: any,
   sourceFile: any,
@@ -32,7 +32,7 @@ export function shake(
       let statements = ts.visitEachChild(node, visit, context).body.statements;
 
       if (isFirstModule) {
-        statements.unshift(...generateImports(ts, moduleGraph));
+        statements.unshift(...generateImports(moduleGraph));
       }
 
       return statements;
@@ -207,7 +207,7 @@ export function shake(
   return ts.visitNode(sourceFile, visit);
 }
 
-function generateImports(ts: TypeScriptModule, moduleGraph: TSModuleGraph) {
+function generateImports(moduleGraph: TSModuleGraph) {
   let importStatements = [];
   for (let [specifier, names] of moduleGraph.getAllImports()) {
     let defaultSpecifier;
