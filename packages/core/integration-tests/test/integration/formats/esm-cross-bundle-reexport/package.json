@@ -1,0 +1,5 @@
+{
+  "name": "esm-cross-bundle-reexport",
+  "private": true,
+  "module": "dist/index.js"
+}

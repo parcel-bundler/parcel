@@ -1330,6 +1330,16 @@ describe('output formats', function() {
       let ns = await run(b);
       assert.deepEqual({...ns}, {default: {default: 'default'}});
     });
+
+    it('can reexport named commonjs across bundles', async () => {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/formats/esm-cross-bundle-reexport/index.js',
+        ),
+      );
+      assert.deepEqual(await (await run(b)).default, {foo: 'foo'});
+    });
   });
 
   it('should support generating ESM from universal module wrappers', async function() {

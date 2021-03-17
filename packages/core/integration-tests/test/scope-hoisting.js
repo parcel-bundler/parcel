@@ -3314,16 +3314,6 @@ describe('scope hoisting', function() {
         '              const {foo, bar} = json;',
       ]);
     });
-
-    it('can reexport named imports from json with a warning', async () => {
-      let b = await bundle(
-        path.join(
-          __dirname,
-          '/integration/scope-hoisting/es6/named-json-reexport/index.js',
-        ),
-      );
-      assert.deepEqual(await run(b), {bar: 'bar'});
-    });
   });
 
   describe('commonjs', function() {
