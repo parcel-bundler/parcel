@@ -6,8 +6,6 @@ import json5 from 'json5';
 export default (new Transformer({
   async transform({asset}) {
     asset.type = 'js';
-    asset.meta.isJSON = true;
-
     // Use JSON.parse("...") for faster script parsing, see
     // https://v8.dev/blog/cost-of-javascript-2019#json.
     // Apply `JSON.stringify` twice to make it a valid string literal.
