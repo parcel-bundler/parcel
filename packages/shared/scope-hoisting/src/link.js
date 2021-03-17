@@ -226,7 +226,7 @@ export function link({
 
           let local = exportAs;
           if (symbols) {
-            local = symbols[0].local;
+            local = nullthrows(symbols[0]).local;
           } else {
             symbols = [];
             exportedSymbols.set(symbol, symbols);
@@ -242,13 +242,22 @@ export function link({
 
           symbols.push({exportAs, local});
         } else if (symbol === null) {
-          // TODO `meta.exportsIdentifier[exportSymbol]` should be exported
-          let relativePath = relative(options.projectRoot, asset.filePath);
-          throw getThrowableDiagnosticForNode(
-            md`${relativePath} couldn't be statically analyzed when importing '${exportSymbol}'`,
-            entry.filePath,
-            loc,
+          let local;
+          let symbols = exportedSymbols.get(
+            assertString(asset.meta.exportsIdentifier),
           );
+          if (symbols) {
+            local = nullthrows(symbols[0]).local;
+          } else {
+            local = scope.generateUid(exportAs);
+            symbols = [];
+            exportedSymbols.set(
+              assertString(asset.meta.exportsIdentifier),
+              symbols,
+            );
+          }
+
+          symbols.push({exportAs, local});
         } else if (symbol !== false) {
           let relativePath = relative(options.projectRoot, asset.filePath);
           throw getThrowableDiagnosticForNode(
