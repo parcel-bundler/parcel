@@ -212,7 +212,7 @@ export default class Server {
             path.relative(this.options.distDir, b.filePath) === requestedPath,
         );
       if (!bundle) {
-        return next(req, res);
+        return this.serveDist(req, res, next);
       }
 
       invariant(this.requestBundle != null);

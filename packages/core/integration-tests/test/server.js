@@ -111,6 +111,33 @@ describe('server', function() {
     assert.equal(data, inputFile);
   });
 
+  it('should serve sourcemaps', async function() {
+    let port = await getPort();
+    let inputPath = path.join(__dirname, '/integration/commonjs/index.js');
+    let b = bundler(inputPath, {
+      defaultTargetOptions: {
+        distDir,
+      },
+      config,
+      serveOptions: {
+        https: false,
+        port: port,
+        host: 'localhost',
+      },
+    });
+
+    subscription = await b.watch();
+    await getNextBuild(b);
+
+    let data = await get('/index.js.map', port);
+    let distFile = await outputFS.readFile(
+      path.join(distDir, 'index.js.map'),
+      'utf8',
+    );
+
+    assert.equal(data, distFile);
+  });
+
   it('should serve a default page if the main bundle is an HTML asset', async function() {
     let port = await getPort();
     let b = bundler(
