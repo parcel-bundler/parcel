@@ -76,6 +76,36 @@ describe('html', function() {
     assert.equal(value, 'Hi');
   });
 
+  it('should support pkg#source array as entrypoints', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-pkg-source-array'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'a.html',
+        assets: ['a.html'],
+      },
+      {
+        name: 'b.html',
+        assets: ['b.html'],
+      },
+    ]);
+
+    assert(
+      await outputFS.exists(
+        path.join(distDir, 'html-pkg-source-array/a.html'),
+        'utf8',
+      ),
+    );
+    assert(
+      await outputFS.exists(
+        path.join(distDir, 'html-pkg-source-array/b.html'),
+        'utf8',
+      ),
+    );
+  });
+
   it('should find href attr when not first', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-attr-order/index.html'),
@@ -1511,15 +1541,19 @@ describe('html', function() {
     });
 
     let html = await outputFS.readFile(path.join(distDir, 'a.html'), 'utf8');
+    // ATLASSIAN : number of bundles are different due to additional rules
     assert.equal(html.match(/<script/g).length, 3);
 
     html = await outputFS.readFile(path.join(distDir, 'b.html'), 'utf8');
+    // ATLASSIAN : number of bundles are different due to additional rules
     assert.equal(html.match(/<script/g).length, 5);
 
     html = await outputFS.readFile(path.join(distDir, 'c.html'), 'utf8');
+    // ATLASSIAN : number of bundles are different due to additional rules
     assert.equal(html.match(/<script/g).length, 4);
 
     html = await outputFS.readFile(path.join(distDir, 'd.html'), 'utf8');
+    // ATLASSIAN : number of bundles are different due to additional rules
     assert.equal(html.match(/<script/g).length, 3);
 
     html = await outputFS.readFile(path.join(distDir, 'e.html'), 'utf8');
@@ -1555,14 +1589,11 @@ describe('html', function() {
         type: 'js',
         assets: [
           'a.js',
-          'bundle-manifest.js',
           'bundle-url.js',
           'esmodule-helpers.js',
           'get-worker-url.js',
           'index.js',
           'JSRuntime.js',
-          'JSRuntime.js',
-          'relative-path.js',
         ],
       },
     ]);

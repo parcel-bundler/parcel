@@ -4,6 +4,7 @@ import assert from 'assert';
 import path from 'path';
 import tempy from 'tempy';
 import {inputFS as fs} from '@parcel/test-utils';
+import {md} from '@parcel/diagnostic';
 import {TargetResolver} from '../src/requests/TargetRequest';
 import {DEFAULT_OPTIONS as _DEFAULT_OPTIONS} from './test-utils';
 
@@ -85,6 +86,10 @@ describe('TargetResolver', () => {
     canSkipSubrequest() {
       return false;
     },
+    getRequestResult() {},
+    getSubRequests() {
+      return [];
+    },
   };
 
   it('resolves exactly specified targets', async () => {
@@ -113,7 +118,7 @@ describe('TargetResolver', () => {
           publicUrl: '/',
           distDir: path.resolve('customA'),
           env: {
-            id: '1c8faadcd7aa7f220fe2e7aa726b28ea',
+            id: '1c8faadcd7aa7f220fe2e7aa726b28ea', // ATLASSIAN: env id is different because of stable entries
             context: 'browser',
             includeNodeModules: true,
             engines: {
@@ -427,6 +432,87 @@ describe('TargetResolver', () => {
           },
           loc: undefined,
           stableEntries: undefined,
+        },
+      ],
+    );
+  });
+
+  it('skips targets with custom entry source for default entry', async () => {
+    let targetResolver = new TargetResolver(api, {
+      ...DEFAULT_OPTIONS,
+      targets: {
+        customA: {
+          context: 'browser',
+          distDir: 'customA',
+          source: 'customA/index.js',
+        },
+        customB: {
+          distDir: 'customB',
+        },
+      },
+    });
+
+    assert.deepEqual(
+      await targetResolver.resolve(COMMON_TARGETS_FIXTURE_PATH),
+      [
+        {
+          name: 'customB',
+          distDir: path.resolve('customB'),
+          publicUrl: '/',
+          env: {
+            id: '1c8faadcd7aa7f220fe2e7aa726b28ea', // ATLASSIAN: env id is different because of stable entries
+            context: 'browser',
+            engines: {
+              browsers: ['> 0.25%'],
+            },
+            includeNodeModules: true,
+            outputFormat: 'global',
+            isLibrary: false,
+            shouldOptimize: false,
+            shouldScopeHoist: false,
+            sourceMap: {},
+          },
+        },
+      ],
+    );
+  });
+
+  it('skips other targets with custom entry', async () => {
+    let targetResolver = new TargetResolver(api, {
+      ...DEFAULT_OPTIONS,
+      targets: {
+        customA: {
+          context: 'browser',
+          distDir: 'customA',
+          source: 'customA/index.js',
+        },
+        customB: {
+          distDir: 'customB',
+        },
+      },
+    });
+
+    assert.deepEqual(
+      await targetResolver.resolve(COMMON_TARGETS_FIXTURE_PATH, 'customA'),
+      [
+        {
+          name: 'customA',
+          distDir: path.resolve('customA'),
+          publicUrl: '/',
+          env: {
+            id: '1c8faadcd7aa7f220fe2e7aa726b28ea', // ATLASSIAN: env id is different because of stable entries
+            context: 'browser',
+            engines: {
+              browsers: ['> 0.25%'],
+            },
+            includeNodeModules: true,
+            outputFormat: 'global',
+            isLibrary: false,
+            shouldOptimize: false,
+            shouldScopeHoist: false,
+            sourceMap: {},
+          },
+          source: 'customA/index.js',
         },
       ],
     );
@@ -939,7 +1025,7 @@ describe('TargetResolver', () => {
     await assert.rejects(() => targetResolver.resolve(fixture), {
       diagnostics: [
         {
-          message: `Multiple targets have the same destination path "${path.normalize(
+          message: md`Multiple targets have the same destination path "${path.normalize(
             'dist/index.js',
           )}"`,
           origin: '@parcel/core',

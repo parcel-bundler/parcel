@@ -10,7 +10,7 @@ import Parcel, {createWorkerFarm} from '../src/Parcel';
 
 describe('Parcel', function() {
   // ATLASSIAN: Pipelines seems to take a while with these
-  this.timeout(60000);
+  this.timeout(75000);
 
   let workerFarm;
   before(() => {

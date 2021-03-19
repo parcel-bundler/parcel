@@ -2,15 +2,18 @@
 import {Transformer} from '@parcel/plugin';
 import sharp from 'sharp';
 
+// from https://github.com/lovell/sharp/blob/df7b8ba73808fc494be413e88cfb621b6279218c/lib/output.js#L6-L17
 const FORMATS = new Map([
   ['heic', 'heif'],
   ['heif', 'heif'],
+  ['avif', 'avif'],
   ['jpeg', 'jpeg'],
   ['jpg', 'jpeg'],
   ['png', 'png'],
   ['raw', 'raw'],
   ['tiff', 'tiff'],
   ['webp', 'webp'],
+  ['gif', 'gif'],
 ]);
 
 export default (new Transformer({
