@@ -130,7 +130,7 @@ export default class CommittedAsset {
         );
         this.sourcesContent = JSON.parse(sourcesContentBlob.toString('utf-8'));
       } else {
-        return Promise.resolve(null);
+        return null;
       }
     }
 
