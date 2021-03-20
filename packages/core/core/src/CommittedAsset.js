@@ -122,17 +122,13 @@ export default class CommittedAsset {
     return this.map;
   }
 
-  getSourcesContent(): Promise<?SourcesContentDictionary> {
+  async getSourcesContent(): Promise<?SourcesContentDictionary> {
     if (this.sourcesContent == null) {
       if (this.value.sourcesContentKey != null) {
-        this.sourcesContent = (async () => {
-          let sourcesContentBlob = await this.options.cache.getBlob<string>(
-            nullthrows(this.value.sourcesContentKey),
-          );
-          if (sourcesContentBlob != null) {
-            return JSON.parse(sourcesContentBlob);
-          }
-        })();
+        let sourcesContentBlob = await this.options.cache.getBlob(
+          nullthrows(this.value.sourcesContentKey),
+        );
+        this.sourcesContent = JSON.parse(sourcesContentBlob.toString('utf-8'));
       } else {
         return Promise.resolve(null);
       }

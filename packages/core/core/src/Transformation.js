@@ -556,10 +556,9 @@ export default class Transformation {
             : null;
         let sourcesContent =
           value.sourcesContentKey != null
-            // $FlowFixMe
-            ? await this.options.cache.getBlob<string>(value.sourcesContentKey)
+            ? await this.options.cache.getBlob(value.sourcesContentKey)
             : null;
-            
+
         return new UncommittedAsset({
           value,
           options: this.options,
@@ -567,7 +566,9 @@ export default class Transformation {
           mapBuffer,
           ast,
           sourcesContent:
-            sourcesContent != null ? JSON.parse(sourcesContent) : null,
+            sourcesContent != null
+              ? JSON.parse(sourcesContent.toString('utf-8'))
+              : null,
         });
       }),
     );
