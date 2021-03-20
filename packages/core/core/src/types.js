@@ -33,7 +33,6 @@ import type {SharedReference} from '@parcel/workers';
 import type {FileSystem} from '@parcel/fs';
 import type Cache from '@parcel/cache';
 import type {PackageManager} from '@parcel/package-manager';
-import SourceMap from '@parcel/source-map';
 
 export type ParcelPluginNode = {|
   packageName: PackageName,

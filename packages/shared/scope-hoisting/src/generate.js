@@ -7,7 +7,6 @@ import invariant from 'assert';
 import {generateAST} from '@parcel/babel-ast-utils';
 import SourceMap from '@parcel/source-map';
 import * as t from '@babel/types';
-import nullthrows from 'nullthrows';
 
 export async function generate({
   bundle,
