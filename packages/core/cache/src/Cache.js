@@ -53,6 +53,18 @@ export default class Cache {
     return key;
   }
 
+  async getBuffer(key: string): Promise<?Buffer> {
+    try {
+      return await this.fs.readFile(this._getCachePath(key));
+    } catch (err) {
+      if (err.code === 'ENOENT') {
+        return null;
+      } else {
+        throw err;
+      }
+    }
+  }
+
   async get<T>(key: string): Promise<?T> {
     try {
       let data = await this.fs.readFile(this._getCachePath(key));
