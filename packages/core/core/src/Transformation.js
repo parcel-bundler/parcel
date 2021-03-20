@@ -1,7 +1,6 @@
 // @flow strict-local
 
 import type {
-  AST,
   FilePath,
   FileCreateInvalidation,
   GenerateOutput,
@@ -38,7 +37,6 @@ import ThrowableDiagnostic, {
 } from '@parcel/diagnostic';
 import {SOURCEMAP_EXTENSIONS} from '@parcel/utils';
 import crypto from 'crypto';
-import v8 from 'v8';
 
 import {createDependency} from './Dependency';
 import ParcelConfig from './ParcelConfig';
@@ -61,6 +59,7 @@ import {PARCEL_VERSION, FILE_CREATE} from './constants';
 import {optionsProxy} from './utils';
 import {createBuildCache} from './buildCache';
 import {createConfig} from './InternalConfig';
+import {getConfigHash, type ConfigRequest} from './requests/ConfigRequest';
 import PublicConfig from './public/Config';
 
 type GenerateFunc = (input: UncommittedAsset) => Promise<GenerateOutput>;
@@ -71,13 +70,6 @@ export type TransformationOpts = {|
   report: ReportFn,
   request: TransformationRequest,
   workerApi: WorkerApi,
-|};
-
-export type ConfigRequest = {|
-  id: string,
-  includedFiles: Set<FilePath>,
-  invalidateOnFileCreate: Array<FileCreateInvalidation>,
-  shouldInvalidateOnStartup: boolean,
 |};
 
 export type TransformationResult = {|
@@ -194,6 +186,7 @@ export default class Transformation {
         return (
           config.includedFiles.size > 0 ||
           config.invalidateOnFileCreate.length > 0 ||
+          config.invalidateOnOptionChange.size > 0 ||
           config.shouldInvalidateOnStartup
         );
       })
@@ -201,6 +194,7 @@ export default class Transformation {
         id: config.id,
         includedFiles: config.includedFiles,
         invalidateOnFileCreate: config.invalidateOnFileCreate,
+        invalidateOnOptionChange: config.invalidateOnOptionChange,
         shouldInvalidateOnStartup: config.shouldInvalidateOnStartup,
       }));
 
@@ -356,38 +350,9 @@ export default class Transformation {
 
       let config = this.configs.get(transformer.name);
       if (config) {
-        hash.update(config.id);
-
-        // If there is no result hash set by the transformer, default to hashing the included
-        // files if any, otherwise try to hash the config result itself.
-        if (config.resultHash == null) {
-          if (config.includedFiles.size > 0) {
-            hash.update(
-              await getInvalidationHash(
-                [...config.includedFiles].map(filePath => ({
-                  type: 'file',
-                  filePath,
-                })),
-                this.options,
-              ),
-            );
-          } else if (config.result != null) {
-            try {
-              // $FlowFixMe
-              hash.update(v8.serialize(config.result));
-            } catch (err) {
-              throw new ThrowableDiagnostic({
-                diagnostic: {
-                  message:
-                    'Config result is not hashable because it contains non-serializable objects. Please use config.setResultHash to set the hash manually.',
-                  origin: transformer.name,
-                },
-              });
-            }
-          }
-        } else {
-          hash.update(config.resultHash ?? '');
-        }
+        hash.update(
+          await getConfigHash(config, transformer.name, this.options),
+        );
 
         for (let devDep of config.devDeps) {
           let key = `${devDep.moduleSpecifier}:${devDep.resolveFrom}`;
@@ -581,16 +546,20 @@ export default class Transformation {
             : null;
         let mapBuffer =
           value.astKey != null
-            ? await this.options.cache.getBlob<Buffer>(value.astKey)
+            ? await this.options.cache.getBlob(value.astKey)
             : null;
         let ast =
           value.astKey != null
-            ? await this.options.cache.getBlob<AST>(value.astKey)
+            ? // TODO: Capture with a test and likely use cache.get() as this returns a buffer.
+              // $FlowFixMe[incompatible-call]
+              await this.options.cache.getBlob(value.astKey)
             : null;
         let sourcesContent =
           value.sourcesContentKey != null
+            // $FlowFixMe
             ? await this.options.cache.getBlob<string>(value.sourcesContentKey)
             : null;
+            
         return new UncommittedAsset({
           value,
           options: this.options,
@@ -807,8 +776,9 @@ export default class Transformation {
     let config = preloadedConfig;
 
     // Parse if there is no AST available from a previous transform.
-    if (!asset.ast && transformer.parse) {
-      let ast = await transformer.parse({
+    let parse = transformer.parse?.bind(transformer);
+    if (!asset.ast && parse) {
+      let ast = await parse({
         asset: new MutableAsset(asset),
         config,
         options: pipeline.pluginOptions,
@@ -836,10 +806,12 @@ export default class Transformation {
 
     // Create generate function that can be called later
     pipeline.generate = (input: UncommittedAsset): Promise<GenerateOutput> => {
-      if (transformer.generate && input.ast) {
+      let ast = input.ast;
+      let asset = new Asset(input);
+      if (transformer.generate && ast) {
         let generated = transformer.generate({
-          asset: new Asset(input),
-          ast: input.ast,
+          asset,
+          ast,
           options: pipeline.pluginOptions,
           logger,
         });

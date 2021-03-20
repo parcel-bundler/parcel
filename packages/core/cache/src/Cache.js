@@ -44,14 +44,25 @@ export default class Cache {
     return this.fs.exists(this._getCachePath(key, '.blob'));
   }
 
-  getBlob<T>(key: string, encoding?: buffer$Encoding): Promise<?T> {
-    // $FlowFixMe
-    return this.fs.readFile(this._getCachePath(key, '.blob'), encoding);
+  getBlob(key: string): Promise<Buffer> {
+    return this.fs.readFile(this._getCachePath(key, '.blob'));
   }
 
   async setBlob(key: string, contents: Buffer | string): Promise<string> {
     await this.fs.writeFile(this._getCachePath(key, '.blob'), contents);
     return key;
+  }
+
+  async getBuffer(key: string): Promise<?Buffer> {
+    try {
+      return await this.fs.readFile(this._getCachePath(key));
+    } catch (err) {
+      if (err.code === 'ENOENT') {
+        return null;
+      } else {
+        throw err;
+      }
+    }
   }
 
   async get<T>(key: string): Promise<?T> {

@@ -46,7 +46,7 @@ import {optionsProxy} from '../utils';
 
 type RunOpts = {|
   input: Entry,
-  ...StaticRunOpts<Array<Target>>,
+  ...StaticRunOpts,
 |};
 
 const DEFAULT_DIST_DIRNAME = 'dist';
@@ -321,13 +321,13 @@ export class TargetResolver {
           },
         });
       }
-      pkgFilePath = pkgFile.filePath;
-      pkgDir = path.dirname(pkgFilePath);
-      pkgContents = await this.fs.readFile(pkgFilePath, 'utf8');
+      let _pkgFilePath = (pkgFilePath = pkgFile.filePath); // For Flow
+      pkgDir = path.dirname(_pkgFilePath);
+      pkgContents = await this.fs.readFile(_pkgFilePath, 'utf8');
       pkgMap = jsonMap.parse(pkgContents.replace(/\t/g, ' '));
 
-      this.api.invalidateOnFileUpdate(pkgFilePath);
-      this.api.invalidateOnFileDelete(pkgFilePath);
+      this.api.invalidateOnFileUpdate(_pkgFilePath);
+      this.api.invalidateOnFileDelete(_pkgFilePath);
     } else {
       pkg = {};
       pkgDir = this.fs.cwd();
@@ -433,7 +433,7 @@ export class TargetResolver {
     }
 
     for (let targetName of COMMON_TARGETS) {
-      let targetDist;
+      let _targetDist;
       let pointer;
       if (
         targetName === 'browser' &&
@@ -441,19 +441,20 @@ export class TargetResolver {
         typeof pkg[targetName] === 'object'
       ) {
         // The `browser` field can be a file path or an alias map.
-        targetDist = pkg[targetName][pkg.name];
+        _targetDist = pkg[targetName][pkg.name];
         pointer = `/${targetName}/${pkg.name}`;
       } else {
-        targetDist = pkg[targetName];
+        _targetDist = pkg[targetName];
         pointer = `/${targetName}`;
       }
 
+      // For Flow
+      let targetDist = _targetDist;
       if (typeof targetDist === 'string' || pkgTargets[targetName]) {
         let distDir;
         let distEntry;
         let loc;
 
-        invariant(typeof pkgFilePath === 'string');
         invariant(pkgMap != null);
 
         let _descriptor: mixed = pkgTargets[targetName] ?? {};
@@ -461,7 +462,7 @@ export class TargetResolver {
           distDir = path.resolve(pkgDir, path.dirname(targetDist));
           distEntry = path.basename(targetDist);
           loc = {
-            filePath: pkgFilePath,
+            filePath: nullthrows(pkgFilePath),
             ...getJSONSourceLocation(pkgMap.pointers[pointer], 'value'),
           };
         } else {

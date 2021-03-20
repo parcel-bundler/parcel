@@ -178,13 +178,16 @@ async function buildDefaultBabelConfig(options: PluginOptions, config: Config) {
   babelOptions = mergeOptions(babelOptions, jsxOptions?.config);
 
   if (babelOptions != null) {
-    babelOptions.presets = (babelOptions.presets || []).map(preset =>
+    let _babelOptions = babelOptions; // For Flow
+    config.setResultHash(md5FromObject(babelOptions));
+
+    _babelOptions.presets = (_babelOptions.presets || []).map(preset =>
       babelCore.createConfigItem(preset, {
         type: 'preset',
         dirname: BABEL_TRANSFORMER_DIR,
       }),
     );
-    babelOptions.plugins = (babelOptions.plugins || []).map(plugin =>
+    _babelOptions.plugins = (_babelOptions.plugins || []).map(plugin =>
       babelCore.createConfigItem(plugin, {
         type: 'plugin',
         dirname: BABEL_TRANSFORMER_DIR,

@@ -5,12 +5,14 @@ import type {SharedReference} from '@parcel/workers';
 import type {
   AssetGroup,
   Bundle as InternalBundle,
+  Config,
+  DevDepRequest,
   NodeId,
   ParcelOptions,
 } from './types';
 import type ParcelConfig from './ParcelConfig';
 import type PluginOptions from './public/PluginOptions';
-import type RequestTracker from './RequestTracker';
+import type {RunAPI} from './RequestTracker';
 
 import path from 'path';
 import assert from 'assert';
@@ -26,6 +28,7 @@ import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import SourceMap from '@parcel/source-map';
 import {dependencyToInternalDependency} from './public/Dependency';
 import createAssetGraphRequest from './requests/AssetGraphRequest';
+import {createDevDependency, runDevDepRequest} from './requests/DevDepRequest';
 
 type RuntimeConnection = {|
   bundle: InternalBundle,
@@ -39,20 +42,26 @@ export default async function applyRuntimes({
   config,
   options,
   pluginOptions,
-  requestTracker,
+  api,
   optionsRef,
+  previousDevDeps,
+  devDepRequests,
+  configs,
 }: {|
   bundleGraph: InternalBundleGraph,
   config: ParcelConfig,
   options: ParcelOptions,
   optionsRef: SharedReference,
   pluginOptions: PluginOptions,
-  requestTracker: RequestTracker,
+  api: RunAPI,
+  previousDevDeps: Map<string, string>,
+  devDepRequests: Map<string, DevDepRequest>,
+  configs: Map<string, Config>,
 |}): Promise<void> {
+  let runtimes = await config.getRuntimes();
   let connections: Array<RuntimeConnection> = [];
 
   for (let bundle of bundleGraph.getBundles()) {
-    let runtimes = await config.getRuntimes(bundle.env.context);
     for (let runtime of runtimes) {
       try {
         let applied = await runtime.plugin.apply({
@@ -62,6 +71,7 @@ export default async function applyRuntimes({
             NamedBundle.get,
             options,
           ),
+          config: configs.get(runtime.name)?.result,
           options: pluginOptions,
           logger: new PluginLogger({origin: runtime.name}),
         });
@@ -79,9 +89,6 @@ export default async function applyRuntimes({
               sourceName,
               sourceContent: code,
             });
-
-            // This shouldn't be necessary probably a bug in the sourcemap library?
-            sourcemap.setSourceContent(sourceName, code);
 
             let assetGroup = {
               code,
@@ -112,8 +119,26 @@ export default async function applyRuntimes({
     }
   }
 
+  // Add dev deps for runtime plugins AFTER running them, to account for lazy require().
+  for (let runtime of runtimes) {
+    let devDepRequest = await createDevDependency(
+      {
+        moduleSpecifier: runtime.name,
+        resolveFrom: runtime.resolveFrom,
+      },
+      runtime,
+      previousDevDeps,
+      options,
+    );
+    devDepRequests.set(
+      `${devDepRequest.moduleSpecifier}:${devDepRequest.resolveFrom}`,
+      devDepRequest,
+    );
+    await runDevDepRequest(api, devDepRequest);
+  }
+
   let runtimesAssetGraph = await reconcileNewRuntimes(
-    requestTracker,
+    api,
     connections,
     optionsRef,
   );
@@ -202,7 +227,7 @@ export default async function applyRuntimes({
 }
 
 async function reconcileNewRuntimes(
-  requestTracker: RequestTracker,
+  api: RunAPI,
   connections: Array<RuntimeConnection>,
   optionsRef: SharedReference,
 ): Promise<AssetGraph> {
@@ -214,5 +239,5 @@ async function reconcileNewRuntimes(
   });
 
   // rebuild the graph
-  return (await requestTracker.runRequest(request, {force: true})).assetGraph;
+  return (await api.runRequest(request, {force: true})).assetGraph;
 }

@@ -1,6 +1,6 @@
 {
   "name": "@parcel/optimizer-esbuild",
-  "version": "2.0.0-beta.1",
+  "version": "2.0.0-beta.2",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -20,11 +20,11 @@
     "parcel": "^2.0.0-alpha.1.1"
   },
   "dependencies": {
-    "@parcel/diagnostic": "2.0.0-beta.1",
-    "@parcel/plugin": "2.0.0-beta.1",
-    "@parcel/source-map": "2.0.0-alpha.4.22",
-    "@parcel/utils": "2.0.0-beta.1",
-    "nullthrows": "^1.1.1",
-    "esbuild": "^0.8.11"
+    "@parcel/diagnostic": "2.0.0-beta.2",
+    "@parcel/plugin": "2.0.0-beta.2",
+    "@parcel/source-map": "2.0.0-alpha.4.21",
+    "@parcel/utils": "2.0.0-beta.2",
+    "esbuild": "^0.8.11",
+    "nullthrows": "^1.1.1"
   }
 }

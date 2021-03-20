@@ -5,6 +5,7 @@ import type {SchemaEntity} from '@parcel/utils';
 
 import template from '@babel/template';
 import semver from 'semver';
+import path from 'path';
 import {Transformer} from '@parcel/plugin';
 import collectDependencies from './visitors/dependencies';
 import processVisitor from './visitors/process';
@@ -60,9 +61,11 @@ function canHaveDependencies(code) {
 
 export default (new Transformer({
   async loadConfig({options, config}) {
-    let result = await config.getConfig([], {
-      packageKey: '@parcel/transformer-js',
-    });
+    let result = await config.getConfigFrom(
+      path.join(options.projectRoot, 'index'),
+      [],
+      {packageKey: '@parcel/transformer-js'},
+    );
 
     if (result) {
       validateSchema.diagnostic(

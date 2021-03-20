@@ -75,10 +75,10 @@ describe('javascript', function() {
       },
     ]);
 
-    let txtBundle = b.getBundles().find(b => b.type === 'txt').name;
+    let txtBundle = b.getBundles().find(b => b.type === 'txt').filePath;
 
     let output = await run(b);
-    assert.strictEqual(path.basename(output), txtBundle);
+    assert.strictEqual(path.basename(output), path.basename(txtBundle));
   });
 
   it('should produce a basic JS bundle with ES6 imports', async function() {
@@ -371,6 +371,35 @@ describe('javascript', function() {
     assert(headChildren[2].rel === 'prefetch');
     assert(headChildren[2].as === 'style');
     assert(headChildren[2].href.match(/prefetched\..*\.css/));
+  });
+
+  it('should load additional links that were prefetched', async function() {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/dynamic-static-prefetch-loaded/index.js',
+      ),
+    );
+
+    let output = await run(b);
+    let outputReturn = await output.default;
+    await outputReturn.loadDependency();
+
+    let headChildren = outputReturn.children;
+    assert.equal(headChildren.length, 5);
+    let cssBundles = headChildren.filter(child =>
+      child.href?.match(/prefetched-loaded\..*\.css/),
+    );
+    assert.equal(cssBundles.length, 2);
+
+    assert(cssBundles[0].tag === 'link');
+    assert(cssBundles[0].rel === 'prefetch');
+    assert(cssBundles[0].as === 'style');
+    assert(cssBundles[0].href.match(/prefetched-loaded\..*\.css/));
+
+    assert(cssBundles[1].tag === 'link');
+    assert(cssBundles[1].rel === 'stylesheet');
+    assert(cssBundles[1].href.match(/prefetched-loaded\..*\.css/));
   });
 
   it('should preload bundles when declared as an import attribute statically', async function() {
@@ -1018,7 +1047,11 @@ describe('javascript', function() {
       .find(b => b.name !== 'index.js');
     let workerBundle = b.getBundles().find(b => b.name.startsWith('worker-b'));
     let contents = await outputFS.readFile(workerBundle.filePath, 'utf8');
-    assert(contents.includes(`importScripts("./${sharedBundle.name}")`));
+    assert(
+      contents.includes(
+        `importScripts("./${path.basename(sharedBundle.filePath)}")`,
+      ),
+    );
   });
 
   it('should contain duplicate assets in workers when in development', async () => {
@@ -1051,6 +1084,69 @@ describe('javascript', function() {
       {
         assets: ['worker-b.js', 'lodash.js', 'esmodule-helpers.js'],
       },
+    ]);
+  });
+
+  it('should deduplicate and remove an unnecessary async bundle when it contains a cyclic reference to its entry', async () => {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/deduplicate-from-async-cyclic-bundle-entry/index.js',
+      ),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: [
+          'index.js',
+          'bar.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'esmodule-helpers.js',
+          'foo.js',
+          'js-loader.js',
+          'JSRuntime.js',
+        ],
+      },
+      {
+        assets: ['async.js', 'JSRuntime.js'],
+      },
+    ]);
+
+    assert.deepEqual(await Promise.all((await run(b)).default), [5, 4]);
+  });
+
+  it('async dependency internalization successfully removes unneeded bundlegroups and their bundles', async () => {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/internalize-remove-bundlegroup/index.js',
+      ),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: [
+          'bundle-url.js',
+          'get-worker-url.js',
+          'index.js',
+          'JSRuntime.js',
+        ],
+      },
+      {
+        assets: [
+          'bundle-url.js',
+          'get-worker-url.js',
+          'JSRuntime.js',
+          'worker1.js',
+          'worker2.js',
+          'worker3.js',
+          'core.js',
+        ],
+      },
+      {assets: ['core.js', 'worker3.js']},
     ]);
   });
 
@@ -1090,7 +1186,11 @@ describe('javascript', function() {
       .find(b => b.name !== 'index.js');
     let workerBundle = b.getBundles().find(b => b.name.startsWith('worker'));
     let contents = await outputFS.readFile(workerBundle.filePath, 'utf8');
-    assert(contents.includes(`importScripts("./${sharedBundle.name}")`));
+    assert(
+      contents.includes(
+        `importScripts("./${path.basename(sharedBundle.filePath)}")`,
+      ),
+    );
 
     let outputArgs = [];
     let workerArgs = [];
@@ -2952,7 +3052,7 @@ describe('javascript', function() {
     let getBundleNameWithPrefix = (b, prefix) =>
       b
         .getBundles()
-        .map(bundle => bundle.name)
+        .map(bundle => path.basename(bundle.filePath))
         .find(name => name.startsWith(prefix));
 
     assert.equal(

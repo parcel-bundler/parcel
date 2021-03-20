@@ -28,7 +28,10 @@ export default (new Optimizer({
       ...userConfig?.config,
       sourceMap: bundle.env.sourceMap
         ? {
-            filename: path.relative(options.projectRoot, bundle.filePath),
+            filename: path.relative(
+              options.projectRoot,
+              path.join(bundle.target.distDir, bundle.name),
+            ),
             asObject: true,
             content: originalMap,
           }
@@ -90,9 +93,10 @@ export default (new Optimizer({
 
     let sourceMap = null;
     let minifiedContents: string = nullthrows(result.code);
-    if (result.map && typeof result.map !== 'string') {
+    let resultMap = result.map;
+    if (resultMap && typeof resultMap !== 'string') {
       sourceMap = new SourceMap(options.projectRoot);
-      sourceMap.addRawMappings(result.map);
+      sourceMap.addRawMappings(resultMap);
       let sourcemapReference = await getSourceMapReference(sourceMap);
       if (sourcemapReference) {
         minifiedContents += `\n//# sourceMappingURL=${sourcemapReference}\n`;

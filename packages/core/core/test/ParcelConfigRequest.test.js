@@ -426,6 +426,55 @@ describe('loadParcelConfig', () => {
         );
       }, /Only one spread element can be included in a config pipeline/);
     });
+
+    it('should remove spread element even without a base map', () => {
+      assert.deepEqual(
+        mergePipelines(null, [
+          {
+            packageName: 'parcel-transform-bar',
+            resolveFrom: '.parcelrc',
+            keyPath: '/transformers/*.js/0',
+          },
+          '...',
+          {
+            packageName: 'parcel-transform-baz',
+            resolveFrom: '.parcelrc',
+            keyPath: '/transformers/*.js/2',
+          },
+        ]),
+        [
+          {
+            packageName: 'parcel-transform-bar',
+            resolveFrom: '.parcelrc',
+            keyPath: '/transformers/*.js/0',
+          },
+          {
+            packageName: 'parcel-transform-baz',
+            resolveFrom: '.parcelrc',
+            keyPath: '/transformers/*.js/2',
+          },
+        ],
+      );
+    });
+
+    it('should throw if more than one spread element is in a pipeline even without a base map', () => {
+      assert.throws(() => {
+        mergePipelines(null, [
+          {
+            packageName: 'parcel-transform-bar',
+            resolveFrom: '.parcelrc',
+            keyPath: '/transformers/*.js/0',
+          },
+          '...',
+          {
+            packageName: 'parcel-transform-baz',
+            resolveFrom: '.parcelrc',
+            keyPath: '/transformers/*.js/2',
+          },
+          '...',
+        ]);
+      }, /Only one spread element can be included in a config pipeline/);
+    });
   });
 
   describe('mergeMaps', () => {
@@ -566,7 +615,7 @@ describe('loadParcelConfig', () => {
           resolveFrom: '.parcelrc',
           keyPath: '/bundler',
         },
-        runtimes: {},
+        runtimes: [],
         namers: [],
         optimizers: {},
         packagers: {},

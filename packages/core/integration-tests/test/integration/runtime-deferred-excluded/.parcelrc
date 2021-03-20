@@ -1,6 +1,4 @@
 {
   "extends": "@parcel/config-default",
-  "runtimes": {
-    "browser": ["parcel-runtime-test"]
-  }
+  "runtimes": ["parcel-runtime-test"]
 }
