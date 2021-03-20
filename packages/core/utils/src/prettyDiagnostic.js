@@ -71,7 +71,7 @@ export default async function prettyDiagnostic(
           );
     result.codeframe += formattedCodeFrame;
   } else if (typeof filePath === 'string') {
-    result.codeframe += `${chalk.underline(filePath)}\n`;
+    result.codeframe += chalk.underline(filePath);
   }
 
   if (stack != null) {

@@ -28,7 +28,8 @@ async function logUncaughtError(e: mixed) {
     for (let diagnostic of e.diagnostics) {
       let out = await prettyDiagnostic(diagnostic);
       INTERNAL_ORIGINAL_CONSOLE.error(out.message);
-      INTERNAL_ORIGINAL_CONSOLE.error(out.codeframe || out.stack);
+      INTERNAL_ORIGINAL_CONSOLE.error(out.codeframe);
+      INTERNAL_ORIGINAL_CONSOLE.error(out.stack);
       for (let h of out.hints) {
         INTERNAL_ORIGINAL_CONSOLE.error(h);
       }
