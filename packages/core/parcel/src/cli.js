@@ -399,7 +399,18 @@ async function normalizeOptions(
   let port = parsePort(command.port || '1234');
   let originalPort = port;
   if (command.name() === 'serve' || command.hmr) {
-    port = await getPort({port, host});
+    try {
+      port = await getPort({port, host});
+    } catch (err) {
+      throw new ThrowableDiagnostic({
+        diagnostic: {
+          message: `Could not get available port: ${err.message}`,
+          origin: 'parcel',
+          filePath: __filename,
+          stack: err.stack,
+        },
+      });
+    }
 
     if (port !== originalPort) {
       let errorMessage = `Port "${originalPort}" could not be used`;
