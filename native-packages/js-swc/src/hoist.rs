@@ -26,11 +26,11 @@ macro_rules! hash {
   };
 }
 
-pub fn hoist(module: Module, source_map: Lrc<swc_common::SourceMap>, module_id: &str, decls: HashSet<IdentId>, ignore_mark: Mark) -> (Module, HoistResult) {
+pub fn hoist(module: Module, source_map: Lrc<swc_common::SourceMap>, module_id: &str, decls: HashSet<IdentId>, ignore_mark: Mark, global_mark: Mark) -> (Module, HoistResult) {
   let mut collect = Collect::new(source_map, decls, ignore_mark);
   module.visit_with(&Invalid { span: DUMMY_SP } as _, &mut collect);
 
-  let mut hoist = Hoist::new(module_id, &collect);
+  let mut hoist = Hoist::new(module_id, &collect, global_mark);
   let module = module.fold_with(&mut hoist);
   (module, hoist.get_result())
 }
@@ -38,6 +38,7 @@ pub fn hoist(module: Module, source_map: Lrc<swc_common::SourceMap>, module_id: 
 struct Hoist<'a> {
   module_id: &'a str,
   collect: &'a Collect,
+  global_ctxt: SyntaxContext,
   requires_in_stmt: Vec<ModuleItem>,
   export_decls: HashSet<JsWord>,
   imported_symbols: HashMap<JsWord, (JsWord, JsWord, SourceLocation)>,
@@ -62,10 +63,11 @@ pub struct HoistResult {
 }
 
 impl<'a> Hoist<'a> {
-  fn new(module_id: &'a str, collect: &'a Collect) -> Self {
+  fn new(module_id: &'a str, collect: &'a Collect, global_mark: Mark) -> Self {
     Hoist {
       module_id,
       collect,
+      global_ctxt: SyntaxContext::empty().apply_mark(global_mark),
       requires_in_stmt: vec![],
       export_decls: HashSet::new(),
       imported_symbols: HashMap::new(),
@@ -569,7 +571,7 @@ impl<'a> Fold for Hoist<'a> {
       return Ident::new("$parcel$global".into(), node.span);
     }
     
-    if self.collect.decls.contains(&id!(node)) && !self.collect.should_wrap {
+    if node.span.ctxt() == self.global_ctxt && self.collect.decls.contains(&id!(node)) && !self.collect.should_wrap {
       let new_name: JsWord = format!("${}$var${}", self.module_id, node.sym).into();
       return Ident::new(new_name, node.span)
     }

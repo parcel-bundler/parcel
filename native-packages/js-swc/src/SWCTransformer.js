@@ -112,7 +112,13 @@ export default (new Transformer({
     }
 
     let relativePath = relativeUrl(options.projectRoot, asset.filePath);
-    let {dependencies, code: compiledCode, map, shebang, hoist_result} = transform({
+    let {
+      dependencies,
+      code: compiledCode,
+      map,
+      shebang,
+      hoist_result,
+    } = transform({
       filename: asset.filePath,
       code,
       module_id: asset.id,
@@ -125,7 +131,7 @@ export default (new Transformer({
       jsx_pragma_frag: config?.pragmaFrag,
       is_development: options.mode === 'development',
       targets,
-      source_maps: !!asset.env.sourceMap
+      source_maps: !!asset.env.sourceMap,
     });
 
     // console.log(Object.keys(options.env))
@@ -183,7 +189,7 @@ export default (new Transformer({
     }
 
     if (hoist_result) {
-      let convertLoc = (loc) => ({
+      let convertLoc = loc => ({
         filePath: relativePath,
         start: {
           line: loc.start_line,
@@ -191,8 +197,8 @@ export default (new Transformer({
         },
         end: {
           line: loc.end_line,
-          column: loc.end_col
-        }
+          column: loc.end_col,
+        },
       });
 
       asset.symbols.ensure();
@@ -209,13 +215,20 @@ export default (new Transformer({
       }
 
       for (let name in hoist_result.imported_symbols) {
-        let [moduleSpecifier, exported, loc] = hoist_result.imported_symbols[name];
+        let [moduleSpecifier, exported, loc] = hoist_result.imported_symbols[
+          name
+        ];
         let dep = deps.get(moduleSpecifier);
         if (!dep) continue;
         dep.symbols.set(exported, name, convertLoc(loc));
       }
 
-      for (let [name, moduleSpecifier, exported, loc] of hoist_result.re_exports) {
+      for (let [
+        name,
+        moduleSpecifier,
+        exported,
+        loc,
+      ] of hoist_result.re_exports) {
         let dep = deps.get(moduleSpecifier);
         if (!dep) continue;
 
@@ -289,7 +302,7 @@ export default (new Transformer({
     if (map) {
       let sourceMap = new SourceMap(options.projectRoot);
       sourceMap.addRawMappings(JSON.parse(map));
-      asset.setMap(sourceMap)
+      asset.setMap(sourceMap);
     }
 
     return [asset];
