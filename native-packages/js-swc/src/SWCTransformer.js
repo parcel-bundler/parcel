@@ -199,6 +199,10 @@ export default (new Transformer({
             loc: convertLoc(dep.loc),
           });
         }
+      } else if (dep.kind === 'URL') {
+        asset.addURLDependency(dep.specifier, {
+          loc: convertLoc(dep.loc),
+        });
       } else {
         if (dep.kind === 'DynamicImport' && isURL(dep.specifier)) {
           continue;

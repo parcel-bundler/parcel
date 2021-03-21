@@ -330,6 +330,7 @@ fn parse(code: &str, filename: &str, source_map: &Lrc<SourceMap>, config: &Confi
     esconfig.dynamic_import = true;
     esconfig.export_default_from = true;
     esconfig.export_namespace_from = true;
+    esconfig.import_meta = true;
     Syntax::Es(esconfig)
   };
 
