@@ -13,16 +13,18 @@
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
-  "main": "lib/SWCPackager.js",
-  "source": "src/SWCPackager.js",
+  "main": "lib/index.js",
+  "source": "src/index.js",
   "engines": {
     "node": ">= 12.0.0",
     "parcel": "^2.0.0-beta.1"
   },
   "dependencies": {
+    "@parcel/diagnostic": "2.0.0-beta.1",
     "@parcel/plugin": "2.0.0-beta.1",
     "@parcel/source-map": "2.0.0-alpha.4.21",
     "@parcel/utils": "2.0.0-beta.1",
+    "globals": "^13.2.0",
     "nullthrows": "^1.1.1"
   }
 }

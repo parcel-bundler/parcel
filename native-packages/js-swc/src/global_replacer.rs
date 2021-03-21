@@ -7,7 +7,7 @@ use swc_ecmascript::ast;
 use swc_ecmascript::visit::{Fold, FoldWith};
 
 use dependency_collector::{DependencyDescriptor, DependencyKind};
-use utils::create_require;
+use utils::{create_require, SourceLocation};
 
 pub struct GlobalReplacer<'a> {
   pub source_map: &'a SourceMap,
@@ -20,7 +20,7 @@ pub struct GlobalReplacer<'a> {
 
 impl<'a> Fold for GlobalReplacer<'a> {
   fn fold_expr(&mut self, node: ast::Expr) -> ast::Expr {
-    use ast::{Expr::*, Ident, MemberExpr};
+    use ast::{Expr::*, MemberExpr};
 
     // Do not traverse into the `prop` side of member expressions unless computed.
     let node = match node {
@@ -60,14 +60,9 @@ impl<'a> Fold for GlobalReplacer<'a> {
             );
 
             let specifier = id.sym.clone();
-            let start = self.source_map.lookup_char_pos(id.span.lo);
-            let end = self.source_map.lookup_char_pos(id.span.hi);
             self.items.push(DependencyDescriptor {
               kind: DependencyKind::Require,
-              start_line: start.line,
-              start_col: start.col_display,
-              end_line: end.line,
-              end_col: end.col_display,
+              loc: SourceLocation::from(self.source_map, id.span),
               specifier,
               attributes: None,
               is_optional: false,
@@ -89,14 +84,9 @@ impl<'a> Fold for GlobalReplacer<'a> {
               )
             );
 
-            let start = self.source_map.lookup_char_pos(id.span.lo);
-            let end = self.source_map.lookup_char_pos(id.span.hi);
             self.items.push(DependencyDescriptor {
               kind: DependencyKind::Require,
-              start_line: start.line,
-              start_col: start.col_display,
-              end_line: end.line,
-              end_col: end.col_display,
+              loc: SourceLocation::from(self.source_map, id.span),
               specifier,
               attributes: None,
               is_optional: false,

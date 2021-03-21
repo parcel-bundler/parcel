@@ -58,7 +58,7 @@ pub fn create_require(specifier: swc_atoms::JsWord, ignore_mark: swc_common::Mar
   }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
 pub struct SourceLocation {
   start_line: usize,
   start_col: usize,

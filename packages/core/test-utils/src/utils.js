@@ -334,7 +334,7 @@ export async function runBundles(
       // require, parcelRequire was set up in prepare*Context
       new vm.Script(
         (opts.strict ? '"use strict";\n' : '') +
-        await overlayFS.readFile(nullthrows(b.filePath), 'utf8'),
+          (await overlayFS.readFile(nullthrows(b.filePath), 'utf8')),
         {
           filename: b.name,
         },
@@ -755,18 +755,34 @@ function prepareNodeContext(filePath, globals) {
         return nodeCache[res].module.exports;
       }
 
-      let ctx = prepareNodeContext(res, globals);
-      nodeCache[res] = ctx;
+      let g = {
+        ...globals,
+      };
 
-      vm.createContext(ctx);
+      for (let key in ctx) {
+        if (
+          key !== 'module' &&
+          key !== 'exports' &&
+          key !== '__filename' &&
+          key !== '__dirname' &&
+          key !== 'require'
+        ) {
+          g[key] = ctx[key];
+        }
+      }
+
+      let childCtx = prepareNodeContext(res, g);
+      nodeCache[res] = childCtx;
+
+      vm.createContext(childCtx);
       new vm.Script(
         //'"use strict";\n' +
         overlayFS.readFileSync(res, 'utf8'),
         {
           filename: path.basename(res),
         },
-      ).runInContext(ctx);
-      return ctx.module.exports;
+      ).runInContext(childCtx);
+      return childCtx.module.exports;
     });
 
   // $FlowFixMe any!
@@ -857,8 +873,7 @@ export async function runESM(
     }
   }
 
-  async function entry(specifier, referrer) {
-    let m = load(specifier, referrer);
+  async function _entry(m) {
     if (m.status === 'unlinked') {
       await m.link(load);
     }
@@ -866,6 +881,17 @@ export async function runESM(
       await m.evaluate();
     }
     return m;
+  }
+
+  let entryPromises = new Map();
+  function entry(specifier, referrer) {
+    let m = load(specifier, referrer);
+    let promise = entryPromises.get(m);
+    if (!promise) {
+      promise = _entry(m);
+      entryPromises.set(m, promise);
+    }
+    return promise;
   }
 
   let modules = [];

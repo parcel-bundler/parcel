@@ -229,8 +229,7 @@ describe.only('scope hoisting', function() {
       assert.equal(output, 2);
     });
 
-    it.skip('supports namespace imports of excluded assets (node_modules)', async function() {
-      // TODO: CJS output format
+    it('supports namespace imports of excluded assets (node_modules)', async function() {
       let b = await bundle(
         path.join(
           __dirname,
@@ -244,12 +243,6 @@ describe.only('scope hoisting', function() {
       );
 
       assert(contents.includes('require("lodash")'));
-
-      let match = contents.match(
-        /\$parcel\$exportWildcard\((\$[a-f0-9]+\$exports), _lodash\);/,
-      );
-      assert(match);
-      assert(/_default = \$[a-f0-9]+\$var\$x.add\(10, 2\)/.test(contents));
 
       let output = await run(b);
       assert.deepEqual(output.default, 12);
@@ -570,7 +563,7 @@ describe.only('scope hoisting', function() {
       );
 
       let out = [];
-      let output = await run(b, {
+      await run(b, {
         output(o) {
           out.push(o);
         },
@@ -798,9 +791,6 @@ describe.only('scope hoisting', function() {
         ),
       );
 
-      let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
-      // assert(/var \$[a-z0-9]+\$cjs_exports/.test(dist));
-
       let [foo, bExports] = await run(b);
       assert.equal(foo, 'foobar');
       assert.equal(typeof bExports, 'object');
@@ -894,7 +884,7 @@ describe.only('scope hoisting', function() {
       assert.deepEqual(output, [123, 123]);
     });
 
-    it.skip('supports reexporting an asset from a shared bundle inside a shared bundle', async function() {
+    it('supports reexporting an asset from a shared bundle inside a shared bundle', async function() {
       let b = await bundle(
         path.join(
           __dirname,
@@ -1464,13 +1454,14 @@ describe.only('scope hoisting', function() {
         );
       });
 
-      it.skip('supports tree shaking statically analyzable dynamic import: esmodule output', async function() {
+      it('supports tree shaking statically analyzable dynamic import: esmodule output', async function() {
         let b = await bundle(
           path.join(
             __dirname,
             '/integration/scope-hoisting/es6/tree-shaking-dynamic-import/then.js',
           ),
           {
+            mode: 'production',
             targets: {
               default: {
                 outputFormat: 'esmodule',
@@ -2589,7 +2580,7 @@ describe.only('scope hoisting', function() {
         assert.deepEqual(output, 123);
       });
 
-      it.skip('correctly handles ES6 re-exports in library mode entries', async function() {
+      it('correctly handles ES6 re-exports in library mode entries', async function() {
         let b = await bundle(
           path.join(
             __dirname,
@@ -4079,11 +4070,6 @@ describe.only('scope hoisting', function() {
         ),
       );
 
-      let contents = await outputFS.readFile(
-        b.getBundles()[0].filePath,
-        'utf8',
-      );
-      // assert(!contents.includes('$exports'));
       assert.equal(await run(b), 43);
     });
 
@@ -4714,7 +4700,7 @@ describe.only('scope hoisting', function() {
         ),
       );
 
-      let output = await run(b, null, {strict: true});
+      await run(b, null, {strict: true});
     });
   });
 
@@ -5104,13 +5090,12 @@ describe.only('scope hoisting', function() {
     assert.deepEqual(await run(b), ['a', 'b', 'c']);
   });
 
-  it.skip('can run an entry bundle whose entry asset is present in another bundle', async () => {
-    // TODO: CJS output format
+  it('can run an entry bundle whose entry asset is present in another bundle', async () => {
     let b = await bundle(
       ['index.js', 'value.js'].map(basename =>
         path.join(__dirname, '/integration/sync-entry-shared', basename),
       ),
-      {targets: {main: {context: 'node', distDir}}},
+      {targets: {main: {context: 'node', distDir, isLibrary: true}}},
     );
 
     assertBundles(b, [

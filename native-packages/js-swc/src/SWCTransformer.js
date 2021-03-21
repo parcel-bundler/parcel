@@ -142,11 +142,22 @@ export default (new Transformer({
     }
 
     // console.log(asset.filePath, dependencies);
+    let convertLoc = loc => ({
+      filePath: relativePath,
+      start: {
+        line: loc.start_line,
+        column: loc.start_col,
+      },
+      end: {
+        line: loc.end_line,
+        column: loc.end_col,
+      },
+    });
 
     for (let dep of dependencies) {
       if (dep.kind === 'WebWorker') {
         asset.addURLDependency(dep.specifier, {
-          loc: dep.loc,
+          loc: convertLoc(dep.loc),
           env: {
             context: 'web-worker',
             // outputFormat:
@@ -158,14 +169,14 @@ export default (new Transformer({
         });
       } else if (dep.kind === 'ServiceWorker') {
         asset.addURLDependency(dep.specifier, {
-          loc: dep.loc,
+          loc: convertLoc(dep.loc),
           isEntry: true,
           env: {context: 'service-worker'},
         });
       } else if (dep.kind === 'ImportScripts') {
         if (asset.env.isWorker()) {
           asset.addURLDependency(dep.specifier, {
-            loc: dep.loc,
+            loc: convertLoc(dep.loc),
           });
         }
       } else {
@@ -180,7 +191,7 @@ export default (new Transformer({
 
         asset.addDependency({
           moduleSpecifier: dep.specifier,
-          loc: dep.loc,
+          loc: convertLoc(dep.loc),
           isAsync: dep.kind === 'DynamicImport',
           isOptional: dep.is_optional,
           meta,
@@ -189,18 +200,6 @@ export default (new Transformer({
     }
 
     if (hoist_result) {
-      let convertLoc = loc => ({
-        filePath: relativePath,
-        start: {
-          line: loc.start_line,
-          column: loc.start_col,
-        },
-        end: {
-          line: loc.end_line,
-          column: loc.end_col,
-        },
-      });
-
       asset.symbols.ensure();
       for (let symbol in hoist_result.exported_symbols) {
         let [local, loc] = hoist_result.exported_symbols[symbol];

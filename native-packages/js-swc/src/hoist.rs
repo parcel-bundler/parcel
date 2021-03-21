@@ -909,13 +909,13 @@ impl Visit for Collect {
             Some(exported) => exported.sym.clone(),
             None => named.orig.sym.clone()
           };
-          self.exports.insert(id!(named.orig), exported);
+          self.exports.entry(id!(named.orig)).or_insert(exported);
         },
         ExportSpecifier::Default(default) => {
-          self.exports.insert(id!(default.exported), js_word!("default"));
+          self.exports.entry(id!(default.exported)).or_insert(js_word!("default"));
         },
         ExportSpecifier::Namespace(namespace) => {
-          self.exports.insert(id!(namespace.name), "*".into());
+          self.exports.entry(id!(namespace.name)).or_insert("*".into());
         }
       }
     }

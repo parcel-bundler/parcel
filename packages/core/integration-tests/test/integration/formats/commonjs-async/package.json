@@ -1,5 +1,10 @@
 {
   "name": "commonjs-async",
   "private": true,
-  "main": "dist/index.js"
+  "main": "dist/index.js",
+  "targets": {
+    "main": {
+      "context": "node"
+    }
+  }
 }

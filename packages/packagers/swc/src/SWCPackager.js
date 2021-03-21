@@ -6,122 +6,68 @@ import type {
   Dependency,
   PluginOptions,
   NamedBundle,
-  Async,
 } from '@parcel/types';
 
-import {Packager} from '@parcel/plugin';
-import {
-  PromiseQueue,
-  relativeUrl,
-  relativePath,
-  relativeBundlePath,
-  countLines,
-} from '@parcel/utils';
+import {PromiseQueue, relativeBundlePath, countLines} from '@parcel/utils';
 import SourceMap from '@parcel/source-map';
 import nullthrows from 'nullthrows';
 import invariant from 'assert';
+import ThrowableDiagnostic from '@parcel/diagnostic';
+import globals from 'globals';
+
+import {ESMOutputFormat} from './ESMOutputFormat';
+import {CJSOutputFormat} from './CJSOutputFormat';
+import {GlobalOutputFormat} from './GlobalOutputFormat';
+import {prelude, helpers} from './helpers';
 
 // https://262.ecma-international.org/6.0/#sec-names-and-keywords
 const IDENTIFIER_RE = /^[$_\p{ID_Start}][$_\u200C\u200D\p{ID_Continue}]*$/u;
+const ID_START_RE = /^[$_\p{ID_Start}]/u;
+const NON_ID_CONTINUE_RE = /[^$_\u200C\u200D\p{ID_Continue}]/gu;
 
-const prelude = parcelRequireName => `var $parcel$modules = {};
-var $parcel$inits = {};
-
-var parcelRequire = globalThis[${JSON.stringify(parcelRequireName)}];
-if (parcelRequire == null) {
-  parcelRequire = function(id) {
-    if (id in $parcel$modules) {
-      return $parcel$modules[id].exports;
-    }
-    if (id in $parcel$inits) {
-      let init = $parcel$inits[id];
-      delete $parcel$inits[id];
-      let module = {id, exports: {}};
-      $parcel$modules[id] = module;
-      init.call(module.exports, module, module.exports);
-      return module.exports;
-    }
-    var err = new Error("Cannot find module '" + id + "'");
-    err.code = 'MODULE_NOT_FOUND';
-    throw err;
-  };
-
-  parcelRequire.register = function register(id, init) {
-    $parcel$inits[id] = init;
-  };
-
-  globalThis[${JSON.stringify(parcelRequireName)}] = parcelRequire;
-}
-`;
-
-const helpers = {
-  $parcel$export: `function $parcel$export(e, n, v, s) {
-  Object.defineProperty(e, n, {get: v, set: s, enumerable: true});
-}
-`,
-  $parcel$exportWildcard: `function $parcel$exportWildcard(dest, source) {
-  Object.keys(source).forEach(function(key) {
-    if (key === 'default' || key === '__esModule') {
-      return;
-    }
-
-    Object.defineProperty(dest, key, {
-      enumerable: true,
-      get: function get() {
-        return source[key];
-      },
-    });
-  });
-
-  return dest;
-}
-`,
-  $parcel$interopDefault: `function $parcel$interopDefault(a) {
-  return a && a.__esModule ? a.default : a;
-}
-`,
-  $parcel$global: `var $parcel$global =
-typeof globalThis !== 'undefined'
-  ? globalThis
-  : typeof self !== 'undefined'
-  ? self
-  : typeof window !== 'undefined'
-  ? window
-  : typeof global !== 'undefined'
-  ? global
-  : {};
-`,
-  $parcel$defineInteropFlag: `function $parcel$defineInteropFlag(a) {
-  Object.defineProperty(a, '__esModule', {value: true});
-}
-`,
+const BUILTINS = Object.keys(globals.builtin);
+const GLOBALS_BY_CONTEXT = {
+  browser: new Set([...BUILTINS, ...Object.keys(globals.browser)]),
+  'web-worker': new Set([...BUILTINS, ...Object.keys(globals.worker)]),
+  'service-worker': new Set([
+    ...BUILTINS,
+    ...Object.keys(globals.serviceworker),
+  ]),
+  node: new Set([...BUILTINS, ...Object.keys(globals.node)]),
+  'electron-main': new Set([...BUILTINS, ...Object.keys(globals.node)]),
+  'electron-renderer': new Set([
+    ...BUILTINS,
+    ...Object.keys(globals.node),
+    ...Object.keys(globals.browser),
+  ]),
 };
 
-export default (new Packager({
-  package({
-    bundle,
-    bundleGraph,
-    getInlineBundleContents,
-    getSourceMapReference,
-    config,
-    options,
-  }) {
-    return new SWCPackager(
-      options,
-      bundleGraph,
-      bundle,
-      'parcelRequire123',
-    ).package();
-  },
-}): Packager);
+const OUTPUT_FORMATS = {
+  esmodule: ESMOutputFormat,
+  commonjs: CJSOutputFormat,
+  global: GlobalOutputFormat,
+};
 
-class SWCPackager {
+export interface OutputFormat {
+  buildBundlePrelude(): [string, number];
+  buildBundlePostlude(): string;
+}
+
+export class SWCPackager {
   options: PluginOptions;
   bundleGraph: BundleGraph<NamedBundle>;
   bundle: NamedBundle;
   parcelRequireName: string;
+  outputFormat: OutputFormat;
   isAsyncBundle: boolean;
+  globalNames: Set<string>;
   assetOutputs: Map<string, {|code: string, map: ?Buffer|}>;
+  exportedSymbols: Map<
+    string,
+    Array<{|exportAs: string, local: string|}>,
+  > = new Map();
+  externals: Map<string, Map<string, string>> = new Map();
+  topLevelNames: Map<string, number> = new Map();
   seenAssets: Set<string> = new Set();
   wrappedAssets: Set<string> = new Set();
   hoistedRequires: Map<string, Map<string, string>> = new Map();
@@ -138,14 +84,36 @@ class SWCPackager {
     this.bundleGraph = bundleGraph;
     this.bundle = bundle;
     this.parcelRequireName = parcelRequireName;
+
+    let OutputFormat = OUTPUT_FORMATS[this.bundle.env.outputFormat];
+    this.outputFormat = new OutputFormat(this);
+
     this.isAsyncBundle =
       this.bundleGraph.hasParentBundleOfType(this.bundle, 'js') &&
       !this.bundle.env.isIsolated() &&
       !this.bundle.getMainEntry()?.isIsolated;
+
+    this.globalNames = GLOBALS_BY_CONTEXT[bundle.env.context];
   }
 
-  async package() {
+  async package(): Promise<{|contents: string, map: ?SourceMap|}> {
     await this.loadAssets();
+    await this.buildExportedSymbols();
+
+    // If building a library, the target is actually another bundler rather
+    // than the final output that could be loaded in a browser. So, loader
+    // runtimes are excluded, and instead we add imports into the entry bundle
+    // of each bundle group pointing at the sibling bundles. These can be
+    // picked up by another bundler later at which point runtimes will be added.
+    if (
+      this.bundle.env.isLibrary ||
+      this.bundle.env.outputFormat === 'commonjs'
+    ) {
+      let bundles = this.bundleGraph.getReferencedBundles(this.bundle);
+      for (let b of bundles) {
+        this.externals.set(relativeBundlePath(this.bundle, b), new Map());
+      }
+    }
 
     // Add each asset that is directly connected to the bundle. Dependencies will be handled
     // by replacing `import` statements in the code.
@@ -172,11 +140,11 @@ class SWCPackager {
 
     let [prelude, preludeLines] = this.buildBundlePrelude();
     res = prelude + res;
-    sourceMap?.offsetLines(1, 1 + preludeLines);
+    sourceMap?.offsetLines(1, preludeLines);
 
     let entries = this.bundle.getEntryAssets();
     let mainEntry = this.bundle.getMainEntry();
-    if (this.isAsyncBundle && this.bundle.env.outputFormat === 'global') {
+    if (this.isAsyncBundle) {
       // In async bundles we don't want the main entry to execute until we require it
       // as there might be dependencies in a sibling bundle that hasn't loaded yet.
       entries = entries.filter(a => a.id !== mainEntry?.id);
@@ -186,15 +154,22 @@ class SWCPackager {
     // If any of the entry assets are wrapped, call parcelRequire so they are executed.
     for (let entry of entries) {
       if (this.wrappedAssets.has(entry.id)) {
-        res += `\nparcelRequire(${JSON.stringify(
+        let parcelRequire = `parcelRequire(${JSON.stringify(
           this.bundleGraph.getAssetPublicId(entry),
         )});\n`;
+
+        if (
+          entry === mainEntry &&
+          this.exportedSymbols.has(entry.symbols.get('*')?.local)
+        ) {
+          res += `\nvar exports = ${parcelRequire}`;
+        } else {
+          res += `\n${parcelRequire}`;
+        }
       }
     }
 
-    res = `(function () {
-${res}
-})();`;
+    res += this.outputFormat.buildBundlePostlude();
 
     return {
       contents: res,
@@ -245,7 +220,85 @@ ${res}
     this.assetOutputs = new Map(await queue.run());
   }
 
-  visitAsset(asset: Asset) {
+  buildExportedSymbols() {
+    if (this.isAsyncBundle || this.bundle.env.outputFormat !== 'esmodule') {
+      return;
+    }
+
+    let entry = this.bundle.getMainEntry();
+    if (entry) {
+      for (let {exportAs, symbol} of this.bundleGraph.getExportedSymbols(
+        entry,
+      )) {
+        if (typeof symbol === 'string') {
+          let symbols = this.exportedSymbols.get(
+            symbol === '*' ? entry.symbols.get('*')?.local : symbol,
+          );
+
+          let local = exportAs;
+          if (symbols) {
+            local = symbols[0].local;
+          } else {
+            symbols = [];
+            this.exportedSymbols.set(symbol, symbols);
+
+            if (local === '*') {
+              exportAs = 'default';
+              local = 'exports';
+            } else if (local === 'default') {
+              local = '_default';
+            }
+
+            local = this.getTopLevelName(local);
+          }
+
+          symbols.push({exportAs, local});
+        } else if (symbol === null) {
+          // TODO `meta.exportsIdentifier[exportSymbol]` should be exported
+          // let relativePath = relative(options.projectRoot, asset.filePath);
+          // throw getThrowableDiagnosticForNode(
+          //   md`${relativePath} couldn't be statically analyzed when importing '${exportSymbol}'`,
+          //   entry.filePath,
+          //   loc,
+          // );
+        } else if (symbol !== false) {
+          // let relativePath = relative(options.projectRoot, asset.filePath);
+          // throw getThrowableDiagnosticForNode(
+          //   md`${relativePath} does not export '${exportSymbol}'`,
+          //   entry.filePath,
+          //   loc,
+          // );
+        }
+      }
+    }
+  }
+
+  resolveExportedSymbol(symbol: string): string {
+    let exported = this.exportedSymbols.get(symbol);
+    if (exported) {
+      return exported[0].local;
+    }
+
+    return symbol;
+  }
+
+  getTopLevelName(name: string): string {
+    name = name.replace(NON_ID_CONTINUE_RE, '');
+    if (!ID_START_RE.test(name) || this.globalNames.has(name)) {
+      name = '_' + name;
+    }
+
+    let count = this.topLevelNames.get(name);
+    if (count == null) {
+      this.topLevelNames.set(name, 1);
+      return name;
+    }
+
+    this.topLevelNames.set(name, count + 1);
+    return name + count;
+  }
+
+  visitAsset(asset: Asset): [string, ?SourceMap, number] {
     invariant(!this.seenAssets.has(asset.id), 'Already visited asset');
     this.seenAssets.add(asset.id);
 
@@ -253,7 +306,11 @@ ${res}
     return this.buildAsset(asset, code, map);
   }
 
-  buildAsset(asset: Asset, code: string, map: ?Buffer) {
+  buildAsset(
+    asset: Asset,
+    code: string,
+    map: ?Buffer,
+  ): [string, ?SourceMap, number] {
     let shouldWrap = this.wrappedAssets.has(asset.id);
     let deps = this.bundleGraph.getDependencies(asset);
 
@@ -264,6 +321,7 @@ ${res}
       sourceMap?.addBufferMappings(map);
     }
 
+    // If this asset is skipped, just add dependencies and not the asset's content.
     if (this.shouldSkipAsset(asset)) {
       let depCode = '';
       let lineCount = 0;
@@ -299,6 +357,7 @@ ${res}
       this.usedHelpers.add('$parcel$global');
     }
 
+    let [depMap, replacements] = this.buildReplacements(asset, deps);
     let [prepend, prependLines, append] = this.buildAssetPrelude(asset, deps);
     if (prependLines > 0) {
       sourceMap?.offsetLines(1, prependLines);
@@ -306,8 +365,6 @@ ${res}
     }
 
     code += append;
-
-    let [depMap, replacements] = this.buildReplacements(asset, deps);
 
     // Build a regular expression for all the replacements we need to do.
     // We need to track how many newlines there are for source maps, replace
@@ -453,7 +510,10 @@ ${code}
     return [code, sourceMap, lineCount];
   }
 
-  buildReplacements(asset: Asset, deps: Array<Dependency>) {
+  buildReplacements(
+    asset: Asset,
+    deps: Array<Dependency>,
+  ): [Map<string, Dependency>, Map<string, string>] {
     let assetId = asset.meta.id;
     invariant(typeof assetId === 'string');
 
@@ -474,6 +534,37 @@ ${code}
             // be wrapped in Promise.resolve() later.
             asyncResolution.value
           : this.bundleGraph.getDependencyResolution(dep, this.bundle);
+      if (
+        !resolved &&
+        !dep.isOptional &&
+        !this.bundleGraph.isDependencySkipped(dep)
+      ) {
+        let external = this.addExternal(dep);
+        for (let [imported, {local}] of dep.symbols) {
+          // If already imported, just add the already renamed variable to the mapping.
+          let renamed = external.get(imported);
+          if (renamed && local !== '*') {
+            replacements.set(local, renamed);
+            continue;
+          }
+
+          // Rename the specifier to something nicer. Try to use the imported
+          // name, except for default and namespace imports, and if the name is
+          // already in scope.
+          renamed = imported;
+          if (imported === 'default' || imported === '*') {
+            renamed = this.getTopLevelName(dep.moduleSpecifier);
+          } else if (!this.exportedSymbols.has(local)) {
+            renamed = this.getTopLevelName(imported);
+          }
+
+          external.set(imported, renamed);
+          if (local !== '*') {
+            replacements.set(local, renamed);
+          }
+        }
+      }
+
       if (!resolved || resolved === asset) {
         continue;
       }
@@ -509,9 +600,23 @@ ${code}
       }
     }
 
+    // Replace symbols with exported names.
+    if (this.exportedSymbols.size > 0) {
+      for (let [, {local}] of asset.symbols) {
+        let exported = this.exportedSymbols.get(local);
+        if (exported) {
+          replacements.set(local, exported[0].local);
+        }
+      }
+    }
+
     // If this asset is wrapped, we need to replace the exports namespace with `module.exports`,
     // which will be provided to us by the wrapper.
-    if (this.wrappedAssets.has(asset.id)) {
+    if (
+      this.wrappedAssets.has(asset.id) ||
+      (this.bundle.env.outputFormat === 'commonjs' &&
+        asset === this.bundle.getMainEntry())
+    ) {
       let exportsName = asset.symbols.get('*')?.local || `$${asset.id}$exports`;
       replacements.set(exportsName, 'module.exports');
     }
@@ -519,12 +624,43 @@ ${code}
     return [depMap, replacements];
   }
 
+  addExternal(dep: Dependency): Map<string, string> {
+    if (this.bundle.env.outputFormat === 'global') {
+      throw new ThrowableDiagnostic({
+        diagnostic: {
+          message:
+            'External modules are not supported when building for browser',
+          filePath: nullthrows(dep.sourcePath),
+          codeFrame: {
+            codeHighlights: dep.loc
+              ? [
+                  {
+                    start: dep.loc.start,
+                    end: dep.loc.end,
+                  },
+                ]
+              : [],
+          },
+        },
+      });
+    }
+
+    // Map of ModuleSpecifier -> Map<ExportedSymbol, Identifier>>
+    let external = this.externals.get(dep.moduleSpecifier);
+    if (!external) {
+      external = new Map();
+      this.externals.set(dep.moduleSpecifier, external);
+    }
+
+    return external;
+  }
+
   resolveSymbol(
     parentAsset: Asset,
     resolved: Asset,
     imported: string,
     dep?: Dependency,
-  ) {
+  ): string {
     let {
       asset: resolvedAsset,
       exportSymbol,
@@ -574,8 +710,10 @@ ${code}
         ? `parcelRequire(${JSON.stringify(publicId)})`
         : isWrapped && dep
         ? `$${publicId}`
-        : resolvedAsset.symbols.get('*')?.local ||
-          `$${resolvedAsset.meta.id}$exports`;
+        : this.resolveExportedSymbol(
+            resolvedAsset.symbols.get('*')?.local ||
+              `$${resolvedAsset.meta.id}$exports`,
+          );
 
     if (imported === '*' || exportSymbol === '*' || isDefaultInterop) {
       // Resolve to the namespace object if requested or this is a CJS default interop reqiure.
@@ -607,7 +745,7 @@ ${code}
       // TODO: not sure about this.
       return '{}';
     } else {
-      return symbol;
+      return this.resolveExportedSymbol(symbol);
     }
   }
 
@@ -615,7 +753,7 @@ ${code}
     parentAsset: Asset,
     dep: Dependency,
     resolved: Asset,
-  ) {
+  ): [string, number] {
     if (resolved.type !== 'js') {
       return ['', 0];
     }
@@ -653,7 +791,10 @@ ${code}
     return [res, lineCount];
   }
 
-  buildAssetPrelude(asset: Asset, deps: Array<Dependency>) {
+  buildAssetPrelude(
+    asset: Asset,
+    deps: Array<Dependency>,
+  ): [string, number, string] {
     let prepend = '';
     let prependLineCount = 0;
     let append = '';
@@ -671,19 +812,40 @@ ${code}
       usedSymbols.has('default') &&
       !asset.symbols.hasExportSymbol('__esModule');
 
+    // If the asset has * in its used symbols, we might need the exports namespace.
+    // The one case where this isn't true is in ESM library entries, where the only
+    // dependency on * is the entry dependency. In this case, we will use ESM exports
+    // instead of the namespace object.
+    let usedNamespace =
+      usedSymbols.has('*') &&
+      (this.bundle.env.outputFormat !== 'esmodule' ||
+        !this.bundle.env.isLibrary ||
+        asset !== this.bundle.getMainEntry() ||
+        this.bundleGraph
+          .getIncomingDependencies(asset)
+          .some(
+            dep =>
+              !dep.isEntry && this.bundleGraph.getUsedSymbols(dep).has('*'),
+          ));
+
     // If the asset doesn't have static exports, should wrap, the namespace is used,
     // or we need default interop, then we need to synthesize a namespace object for
     // this asset.
     if (
       asset.meta.staticExports === false ||
       shouldWrap ||
-      usedSymbols.has('*') ||
+      usedNamespace ||
       defaultInterop
     ) {
       // Insert a declaration for the exports namespace object. If the asset is wrapped
       // we don't need to do this, because we'll use the `module.exports` object provided
-      // by the wrapper instead.
-      if (!shouldWrap) {
+      // by the wrapper instead. This is also true of CommonJS entry assets, which will use
+      // the `module.exports` object provided by CJS.
+      if (
+        !shouldWrap &&
+        (this.bundle.env.outputFormat !== 'commonjs' ||
+          asset !== this.bundle.getMainEntry())
+      ) {
         prepend += `var $${assetId}$exports = {};\n`;
         prependLineCount++;
       }
@@ -743,14 +905,24 @@ ${code}
           dep,
           this.bundle,
         );
-        if (!resolved || this.bundleGraph.isDependencySkipped(dep)) {
+        if (dep.isOptional || this.bundleGraph.isDependencySkipped(dep)) {
           continue;
         }
 
-        let isWrapped = this.wrappedAssets.has(resolved.id);
+        let isWrapped = resolved && this.wrappedAssets.has(resolved.id);
 
         for (let [imported, {local}] of dep.symbols) {
           if (imported === '*' && local === '*') {
+            if (!resolved) {
+              // Re-exporting an external module. This should have already been handled in buildReplacements.
+              let external = nullthrows(
+                nullthrows(this.externals.get(dep.moduleSpecifier)).get('*'),
+              );
+              append += `$parcel$exportWildcard($${assetId}$exports, ${external});\n`;
+              this.usedHelpers.add('$parcel$exportWildcard');
+              continue;
+            }
+
             // If the resolved asset has an exports object, use the $parcel$exportWildcard helper
             // to re-export all symbols. Otherwise, if there's no namespace object available, add
             // $parcel$export calls for each used symbol of the dependency.
@@ -783,10 +955,19 @@ ${code}
     return [prepend, prependLineCount, append];
   }
 
-  buildBundlePrelude() {
+  buildBundlePrelude(): [string, number] {
     let enableSourceMaps = this.bundle.env.sourceMap;
     let res = '';
     let lines = 0;
+
+    // The output format may have specific things to add at the start of the bundle (e.g. imports).
+    let [
+      outputFormatPrelude,
+      outputFormatLines,
+    ] = this.outputFormat.buildBundlePrelude();
+    res += outputFormatPrelude;
+    lines += outputFormatLines;
+
     if (this.needsPrelude) {
       // Add the prelude if this is potentially the first JS bundle to load in a
       // particular context (e.g. entry scripts in HTML, workers, etc.).
@@ -801,13 +982,13 @@ ${code}
         !!this.bundle.getMainEntry()?.isIsolated;
 
       if (mightBeFirstJS) {
-        res = prelude(this.parcelRequireName);
+        res += prelude(this.parcelRequireName);
         if (enableSourceMaps) {
           lines += countLines(res) - 1;
         }
       } else {
         // Otherwise, get the current parcelRequire global.
-        res = `var parcelRequire = globalThis[${JSON.stringify(
+        res += `var parcelRequire = globalThis[${JSON.stringify(
           this.parcelRequireName,
         )}];\n`;
         lines++;
@@ -840,7 +1021,7 @@ ${code}
     return [res, lines];
   }
 
-  needsDefaultInterop(asset: Asset) {
+  needsDefaultInterop(asset: Asset): boolean {
     if (
       asset.symbols.hasExportSymbol('*') &&
       !asset.symbols.hasExportSymbol('default')
@@ -857,7 +1038,7 @@ ${code}
     return false;
   }
 
-  shouldSkipAsset(asset: Asset) {
+  shouldSkipAsset(asset: Asset): boolean {
     return (
       asset.sideEffects === false &&
       this.bundleGraph.getUsedSymbols(asset).size == 0 &&

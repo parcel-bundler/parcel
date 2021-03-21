@@ -29,11 +29,7 @@ impl fmt::Display for DependencyKind {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct DependencyDescriptor {
   pub kind: DependencyKind,
-  /// The location of the import/export statement.
-  pub start_line: usize,
-  pub start_col: usize,
-  pub end_line: usize,
-  pub end_col: usize,
+  pub loc: SourceLocation,
   /// The text specifier associated with the import/export statement.
   pub specifier: swc_atoms::JsWord,
   pub attributes: Option<HashMap<swc_atoms::JsWord, bool>>,
@@ -72,15 +68,9 @@ impl<'a> DependencyCollector<'a> {
     attributes: Option<HashMap<swc_atoms::JsWord, bool>>,
     is_optional: bool,
   ) {
-    let start = self.source_map.lookup_char_pos(span.lo);
-    let end = self.source_map.lookup_char_pos(span.hi);
-
     self.items.push(DependencyDescriptor {
       kind,
-      start_line: start.line,
-      start_col: start.col_display,
-      end_line: end.line,
-      end_col: end.col_display,
+      loc: SourceLocation::from(self.source_map, span),
       specifier,
       attributes,
       is_optional,
@@ -426,7 +416,7 @@ impl<'a> Fold for DependencyCollector<'a> {
                 callee: ast::ExprOrSuper::Expr(
                   Box::new(
                     ast::Expr::Ident(
-                      ast::Ident::new("require".into(), DUMMY_SP.apply_mark(self.ignore_mark))
+                      ast::Ident::new("require".into(), DUMMY_SP)
                     )
                   )
                 ),

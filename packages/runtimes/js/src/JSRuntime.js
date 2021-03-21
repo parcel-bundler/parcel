@@ -315,7 +315,11 @@ function getLoaderRuntime({
 
   // Determine if we need to add a dynamic import() polyfill, or if all target browsers support it natively.
   let needsDynamicImportPolyfill = false;
-  if (bundle.env.isBrowser() && bundle.env.outputFormat === 'esmodule') {
+  if (
+    !bundle.env.isLibrary &&
+    bundle.env.isBrowser() &&
+    bundle.env.outputFormat === 'esmodule'
+  ) {
     needsDynamicImportPolyfill = !bundle.env.matchesEngines(
       DYNAMIC_IMPORT_BROWSERS,
     );
@@ -394,20 +398,13 @@ function getLoaderRuntime({
   }
 
   let loaderCode = loaderModules.join(', ');
-  if (
-    loaderModules.length > 1 &&
-    (bundle.env.outputFormat === 'global' ||
-      !externalBundles.every(b => b.type === 'js'))
-  ) {
+  if (loaderModules.length > 1) {
     loaderCode = `Promise.all([${loaderCode}])`;
-    if (bundle.env.outputFormat !== 'global') {
-      loaderCode += `.then(r => r[r.length - 1])`;
-    }
   } else {
     loaderCode = `(${loaderCode})`;
   }
 
-  if (bundle.env.outputFormat === 'global' && mainBundle.type === 'js') {
+  if (mainBundle.type === 'js') {
     loaderCode += `.then(() => parcelRequire('${bundleGraph.getAssetPublicId(
       bundleGraph.getAssetById(bundleGroup.entryAssetId),
     )}')${
