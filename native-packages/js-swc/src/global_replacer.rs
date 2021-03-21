@@ -16,11 +16,12 @@ pub struct GlobalReplacer<'a> {
   pub filename: &'a str,
   pub decls: &'a HashSet<(JsWord, SyntaxContext)>,
   pub global_mark: swc_common::Mark,
+  pub scope_hoist: bool,
 }
 
 impl<'a> Fold for GlobalReplacer<'a> {
   fn fold_expr(&mut self, node: ast::Expr) -> ast::Expr {
-    use ast::{Expr::*, MemberExpr};
+    use ast::{Expr::*, Ident, MemberExpr};
 
     // Do not traverse into the `prop` side of member expressions unless computed.
     let node = match node {
@@ -113,21 +114,23 @@ impl<'a> Fold for GlobalReplacer<'a> {
             );
           },
           "global" => {
-            // self.globals.insert(
-            //   id.sym.clone(),
-            //   create_decl_stmt(
-            //     id.sym.clone(),
-            //     self.global_mark,
-            //     ast::Expr::Member(
-            //       ast::MemberExpr {
-            //         obj: ast::ExprOrSuper::Expr(Box::new(Ident(Ident::new(js_word!("arguments"), DUMMY_SP)))),
-            //         prop: Box::new(Lit(ast::Lit::Num(ast::Number { value: 3.0, span: DUMMY_SP }))),
-            //         computed: true,
-            //         span: DUMMY_SP
-            //       }
-            //     )
-            //   )
-            // );
+            if !self.scope_hoist {
+              self.globals.insert(
+                id.sym.clone(),
+                create_decl_stmt(
+                  id.sym.clone(),
+                  self.global_mark,
+                  ast::Expr::Member(
+                    ast::MemberExpr {
+                      obj: ast::ExprOrSuper::Expr(Box::new(Ident(Ident::new(js_word!("arguments"), DUMMY_SP)))),
+                      prop: Box::new(Lit(ast::Lit::Num(ast::Number { value: 3.0, span: DUMMY_SP }))),
+                      computed: true,
+                      span: DUMMY_SP
+                    }
+                  )
+                )
+              );
+            }
           },
           _ => {}
         }

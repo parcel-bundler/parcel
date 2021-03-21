@@ -104,7 +104,7 @@ export default (new Runtime({
           // The linker handles this for scope-hoisting.
           assets.push({
             filePath: __filename,
-            code: `module.exports = Promise.resolve(parcelRequire(${JSON.stringify(
+            code: `module.exports = Promise.resolve(module.bundle.root(${JSON.stringify(
               bundleGraph.getAssetPublicId(resolved.value),
             )}))`,
             dependency,
@@ -405,14 +405,12 @@ function getLoaderRuntime({
   }
 
   if (mainBundle.type === 'js') {
-    loaderCode += `.then(() => parcelRequire('${bundleGraph.getAssetPublicId(
+    let parcelRequire = bundle.env.shouldScopeHoist
+      ? 'parcelRequire'
+      : 'module.bundle.root';
+    loaderCode += `.then(() => ${parcelRequire}('${bundleGraph.getAssetPublicId(
       bundleGraph.getAssetById(bundleGroup.entryAssetId),
-    )}')${
-      // In global output with scope hoisting, functions return exports are
-      // always returned. Otherwise, the exports are returned.
-      // bundle.env.shouldScopeHoist ? '()' : ''
-      ''
-    })`;
+    )}'))`;
   }
 
   return {

@@ -37,7 +37,7 @@ pub struct DependencyDescriptor {
 }
 
 /// This pass collects dependencies in a module and compiles references as needed to work with Parcel's JSRuntime.
-pub fn dependency_collector<'a>(source_map: &'a SourceMap, items: &'a mut Vec<DependencyDescriptor>, decls: &'a HashSet<(JsWord, SyntaxContext)>, ignore_mark: swc_common::Mark) -> impl Fold + 'a {
+pub fn dependency_collector<'a>(source_map: &'a SourceMap, items: &'a mut Vec<DependencyDescriptor>, decls: &'a HashSet<(JsWord, SyntaxContext)>, ignore_mark: swc_common::Mark, scope_hoist: bool) -> impl Fold + 'a {
   DependencyCollector {
     source_map,
     items,
@@ -45,7 +45,8 @@ pub fn dependency_collector<'a>(source_map: &'a SourceMap, items: &'a mut Vec<De
     in_promise: false,
     require_node: None,
     decls,
-    ignore_mark
+    ignore_mark,
+    scope_hoist
   }
 }
 
@@ -56,7 +57,8 @@ struct DependencyCollector<'a> {
   in_promise: bool,
   require_node: Option<ast::CallExpr>,
   decls: &'a HashSet<(JsWord, SyntaxContext)>,
-  ignore_mark: swc_common::Mark
+  ignore_mark: swc_common::Mark,
+  scope_hoist: bool
 }
 
 impl<'a> DependencyCollector<'a> {
@@ -345,16 +347,18 @@ impl<'a> Fold for DependencyCollector<'a> {
     // Replace import() with require()
     if kind == DependencyKind::DynamicImport {
       let mut call = node.clone();
-      // call.callee = ast::ExprOrSuper::Expr(
-      //   Box::new(
-      //     ast::Expr::Ident(
-      //       ast::Ident::new("require".into(), DUMMY_SP)
-      //     )
-      //   )
-      // );
+      if !self.scope_hoist {
+        call.callee = ast::ExprOrSuper::Expr(
+          Box::new(
+            ast::Expr::Ident(
+              ast::Ident::new("require".into(), DUMMY_SP)
+            )
+          )
+        );
+      }
 
-      // // Drop import attributes
-      // call.args.truncate(1);
+      // Drop import attributes
+      call.args.truncate(1);
 
       // Track the returned require call to be replaced with a promise chain.
       self.require_node = Some(call.clone());

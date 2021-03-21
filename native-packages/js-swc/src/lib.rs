@@ -21,7 +21,7 @@ use std::str::FromStr;
 
 use swc_common::comments::SingleThreadedComments;
 use swc_common::{FileName, SourceMap, sync::Lrc, chain, Globals, Mark};
-use swc_common::errors::{ColorConfig, Handler};
+use swc_common::errors::{Handler, Emitter, DiagnosticBuilder};
 use swc_ecmascript::ast;
 use swc_ecmascript::ast::{Module};
 use swc_ecmascript::parser::lexer::Lexer;
@@ -48,6 +48,7 @@ use dependency_collector::*;
 use env_replacer::*;
 use global_replacer::GlobalReplacer;
 use hoist::hoist;
+use utils::SourceLocation;
 
 #[derive(Serialize, Debug, Deserialize)]
 struct Config {
@@ -64,6 +65,7 @@ struct Config {
   is_development: bool,
   targets: Option<HashMap<String, String>>,
   source_maps: bool,
+  scope_hoist: bool,
 }
 
 #[derive(Serialize, Debug, Deserialize, Default)]
@@ -72,7 +74,8 @@ struct TransformResult {
   map: Option<String>,
   shebang: Option<String>,
   dependencies: Vec<DependencyDescriptor>,
-  hoist_result: Option<hoist::HoistResult>
+  hoist_result: Option<hoist::HoistResult>,
+  diagnostics: Option<Vec<Diagnostic>>
 }
 
 fn targets_to_versions(targets: &Option<HashMap<String, String>>) -> Option<Versions> {
@@ -105,6 +108,28 @@ fn targets_to_versions(targets: &Option<HashMap<String, String>>) -> Option<Vers
   None
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+struct CodeHighlight {
+  message: Option<String>,
+  loc: SourceLocation
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct Diagnostic {
+  message: String,
+  code_highlights: Option<Vec<CodeHighlight>>,
+  hints: Option<Vec<String>>
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct ErrorBuffer(std::sync::Arc<std::sync::Mutex<Vec<swc_common::errors::Diagnostic>>>);
+
+impl Emitter for ErrorBuffer {
+  fn emit(&mut self, db: &DiagnosticBuilder) {
+    self.0.lock().unwrap().push((**db).clone());
+  }
+}
+
 #[js_function(1)]
 fn transform(ctx: CallContext) -> Result<JsUnknown> {
   let opts = ctx.get::<JsObject>(0)?;
@@ -115,13 +140,50 @@ fn transform(ctx: CallContext) -> Result<JsUnknown> {
   let module = parse(config.code.as_str(), config.filename.as_str(), &source_map, &config);
 
   match module {
-    Err(_err) => {
-      let handler = Handler::with_tty_emitter(ColorConfig::Auto, true, false, Some(source_map.clone()));
-      _err.into_diagnostic(&handler).emit();
-      Err(Error {
-        reason: "an error occurred".into(),
-        status: napi::Status::GenericFailure
-      })
+    Err(err) => {
+      let error_buffer = ErrorBuffer::default();
+      let handler = Handler::with_emitter(true, false, Box::new(error_buffer.clone()));
+      err.into_diagnostic(&handler).emit();
+
+      let s = error_buffer.0.lock().unwrap().clone();
+      let diagnostics: Vec<Diagnostic> = s
+        .iter()
+        .map(|diagnostic| {
+          let message = diagnostic.message();
+          let span = diagnostic.span.clone();
+          let suggestions = diagnostic.suggestions.clone();
+
+          let span_labels = span.span_labels();
+          let code_highlights = if !span_labels.is_empty() {
+            let mut highlights = vec![];
+            for span_label in span_labels {
+              highlights.push(CodeHighlight {
+                message: span_label.label,
+                loc: SourceLocation::from(&source_map, span_label.span)
+              });
+            }
+
+            Some(highlights)
+          } else {
+            None
+          };
+
+          let hints = if !suggestions.is_empty() {
+            Some(suggestions.into_iter().map(|suggestion| suggestion.msg).collect())
+          } else {
+            None
+          };
+
+          Diagnostic {
+            message,
+            code_highlights,
+            hints
+          }
+        })
+        .collect();
+
+      result.diagnostics = Some(diagnostics);
+      ctx.env.to_js_value(&result)
     },
     Ok((module, comments)) => {
       let mut module = module;
@@ -195,31 +257,34 @@ fn transform(ctx: CallContext) -> Result<JsUnknown> {
                 globals: HashMap::new(),
                 filename: config.filename.as_str(),
                 decls: &decls,
-                global_mark
+                global_mark,
+                scope_hoist: config.scope_hoist
               },
               // Collect dependencies
-              dependency_collector(&source_map, &mut result.dependencies, &decls, ignore_mark),
+              dependency_collector(&source_map, &mut result.dependencies, &decls, ignore_mark, config.scope_hoist),
               // Transpile new syntax to older syntax if needed
               Optional::new(preset_env(global_mark, preset_env_config), config.targets.is_some()),
               // Convert ESM to CommonJS
-              // common_js,
-              // helpers::inject_helpers(),
-              // hygiene(),
-              // fixer(Some(&comments)),
+              Optional::new(common_js, !config.scope_hoist)
             );
 
             module.fold_with(&mut passes)
           };
 
-          let (module, hoist_result) = hoist(
-            module,
-            source_map.clone(),
-            config.module_id.as_str(),
-            decls,
-            ignore_mark,
-            global_mark
-          );
-          result.hoist_result = Some(hoist_result);
+          let module = if config.scope_hoist {
+            let (module, hoist_result) = hoist(
+              module,
+              source_map.clone(),
+              config.module_id.as_str(),
+              decls,
+              ignore_mark,
+              global_mark
+            );
+            result.hoist_result = Some(hoist_result);
+            module
+          } else {
+            module
+          };
 
           let program = {
             let mut passes = chain!(

@@ -8,6 +8,7 @@ import path from 'path';
 import browserslist from 'browserslist';
 import semver from 'semver';
 import nullthrows from 'nullthrows';
+import ThrowableDiagnostic from '@parcel/diagnostic';
 
 const JSX_EXTENSIONS = {
   '.jsx': true,
@@ -118,6 +119,7 @@ export default (new Transformer({
       map,
       shebang,
       hoist_result,
+      diagnostics,
     } = transform({
       filename: asset.filePath,
       code,
@@ -132,16 +134,9 @@ export default (new Transformer({
       is_development: options.mode === 'development',
       targets,
       source_maps: !!asset.env.sourceMap,
+      scope_hoist: asset.env.shouldScopeHoist,
     });
 
-    // console.log(Object.keys(options.env))
-    // console.log(asset.filePath, hoist_result, code, compiledCode);
-
-    if (shebang) {
-      asset.meta.interpreter = shebang;
-    }
-
-    // console.log(asset.filePath, dependencies);
     let convertLoc = loc => ({
       filePath: relativePath,
       start: {
@@ -153,6 +148,31 @@ export default (new Transformer({
         column: loc.end_col,
       },
     });
+
+    if (diagnostics) {
+      throw new ThrowableDiagnostic({
+        diagnostic: diagnostics.map(diagnostic => ({
+          filePath: asset.filePath,
+          message: diagnostic.message,
+          codeFrame: {
+            codeHighlights: diagnostic.code_highlights?.map(highlight => ({
+              message: highlight.message,
+              ...convertLoc(highlight.loc),
+            })),
+          },
+          hints: diagnostic.hints,
+        })),
+      });
+    }
+
+    // console.log(Object.keys(options.env))
+    // console.log(asset.filePath, hoist_result, code, compiledCode);
+
+    if (shebang) {
+      asset.meta.interpreter = shebang;
+    }
+
+    // console.log(asset.filePath, dependencies);
 
     for (let dep of dependencies) {
       if (dep.kind === 'WebWorker') {
