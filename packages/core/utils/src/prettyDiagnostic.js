@@ -51,8 +51,9 @@ export default async function prettyDiagnostic(
       (options &&
         (await options.inputFS.readFile(nullthrows(filePath), 'utf8')));
 
+    let formattedCodeFrame = '';
     if (code != null) {
-      let formattedCodeFrame = formatCodeFrame(code, highlights, {
+      formattedCodeFrame = formatCodeFrame(code, highlights, {
         useColor: true,
         syntaxHighlighting: true,
         language:
@@ -60,15 +61,17 @@ export default async function prettyDiagnostic(
           language || (filePath ? path.extname(filePath).substr(1) : undefined),
         terminalWidth,
       });
-
-      result.codeframe +=
-        typeof filePath !== 'string'
-          ? ''
-          : chalk.underline(
-              `${filePath}:${highlights[0].start.line}:${highlights[0].start.column}\n`,
-            );
-      result.codeframe += formattedCodeFrame;
     }
+
+    result.codeframe +=
+      typeof filePath !== 'string'
+        ? ''
+        : chalk.underline(
+            `${filePath}:${highlights[0].start.line}:${highlights[0].start.column}\n`,
+          );
+    result.codeframe += formattedCodeFrame;
+  } else if (typeof filePath === 'string') {
+    result.codeframe += chalk.underline(filePath);
   }
 
   if (stack != null) {
