@@ -1,5 +1,6 @@
 // @flow
 import type {JSONObject} from '@parcel/types';
+import type {SchemaEntity} from '@parcel/utils';
 import SourceMap from '@parcel/source-map';
 import {Transformer} from '@parcel/plugin';
 import {transform} from '../parcel-swc.node';
@@ -8,7 +9,9 @@ import path from 'path';
 import browserslist from 'browserslist';
 import semver from 'semver';
 import nullthrows from 'nullthrows';
-import ThrowableDiagnostic from '@parcel/diagnostic';
+import ThrowableDiagnostic, {encodeJSONKeyComponent} from '@parcel/diagnostic';
+import {validateSchema} from '@parcel/utils';
+import {isMatch} from 'micromatch';
 
 const JSX_EXTENSIONS = {
   '.jsx': true,
@@ -47,9 +50,33 @@ const BROWSER_MAPPING = {
   op_mini: null,
 };
 
+const CONFIG_SCHEMA: SchemaEntity = {
+  type: 'object',
+  properties: {
+    inlineFS: {
+      type: 'boolean',
+    },
+    inlineEnvironment: {
+      oneOf: [
+        {
+          type: 'boolean',
+        },
+        {
+          type: 'array',
+          items: {
+            type: 'string',
+          },
+        },
+      ],
+    },
+  },
+  additionalProperties: false,
+};
+
 export default (new Transformer({
-  async loadConfig({config}) {
-    let pkg = await config.getPackage();
+  async loadConfig({config, options}) {
+    let result = await config.getConfig(['package.json']);
+    let pkg = result?.contents;
     let reactLib;
     if (pkg?.alias && pkg.alias['react']) {
       // e.g.: `{ alias: { "react": "preact/compat" } }`
@@ -64,6 +91,25 @@ export default (new Transformer({
       );
     }
 
+    let inlineEnvironment = true;
+    if (pkg?.['@parcel/transformer-js']) {
+      validateSchema.diagnostic(
+        CONFIG_SCHEMA,
+        {
+          data: pkg['@parcel/transformer-js'],
+          // FIXME
+          source: await options.inputFS.readFile(result.filePath, 'utf8'),
+          filePath: result.filePath,
+          prependKey: `/${encodeJSONKeyComponent('@parcel/transformer-js')}`,
+        },
+        // FIXME
+        '@parcel/transformer-js',
+        'Invalid config for @parcel/transformer-js',
+      );
+
+      inlineEnvironment = pkg['@parcel/transformer-js'].inlineEnvironment;
+    }
+
     let pragma = reactLib ? JSX_PRAGMA[reactLib].pragma : undefined;
     let pragmaFrag = reactLib ? JSX_PRAGMA[reactLib].pragmaFrag : undefined;
     let isJSX = pragma || JSX_EXTENSIONS[path.extname(config.searchPath)];
@@ -71,6 +117,7 @@ export default (new Transformer({
       isJSX,
       pragma,
       pragmaFrag,
+      inlineEnvironment,
     });
   },
   async transform({asset, config, options}) {
@@ -113,6 +160,24 @@ export default (new Transformer({
     }
 
     let relativePath = relativeUrl(options.projectRoot, asset.filePath);
+    let env = options.env;
+
+    if (!config?.inlineEnvironment) {
+      env = {
+        NODE_ENV: options.env.NODE_ENV,
+      };
+
+      if (process.env.PARCEL_BUILD_ENV === 'test') {
+        env.PARCEL_BUILD_ENV = 'test';
+      }
+    } else if (Array.isArray(config?.inlineEnvironment)) {
+      env = Object.fromEntries(
+        Object.entries(env).filter(([key]) =>
+          isMatch(key, config.inlineEnvironment),
+        ),
+      );
+    }
+
     let {
       dependencies,
       code: compiledCode,
@@ -126,7 +191,7 @@ export default (new Transformer({
       module_id: asset.id,
       replace_env: !asset.env.isNode(),
       is_browser: asset.env.isBrowser(),
-      env: options.env,
+      env,
       is_type_script: asset.type === 'ts' || asset.type === 'tsx',
       is_jsx: Boolean(config?.isJSX),
       jsx_pragma: config?.pragma,

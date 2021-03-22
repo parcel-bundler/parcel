@@ -264,7 +264,7 @@ fn transform(ctx: CallContext) -> Result<JsUnknown> {
               dependency_collector(&source_map, &mut result.dependencies, &decls, ignore_mark, config.scope_hoist),
               // Transpile new syntax to older syntax if needed
               Optional::new(preset_env(global_mark, preset_env_config), config.targets.is_some()),
-              // Convert ESM to CommonJS
+              // Convert ESM to CommonJS if not scope hoisting
               Optional::new(common_js, !config.scope_hoist)
             );
 
