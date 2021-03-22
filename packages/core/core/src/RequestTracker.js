@@ -803,7 +803,6 @@ export default class RequestTracker {
     let requestNodeId = this.startRequest({
       id: request.id,
       type: request.type,
-      input: request.input,
     });
 
     let {api, subRequestContentKeys} = this.createAPI(requestNodeId);
@@ -858,7 +857,7 @@ export default class RequestTracker {
       },
       getSubRequests: () => this.graph.getSubRequests(requestId),
       getPreviousResult: <T>(ifMatch?: string): Async<?T> => {
-        let contentKey = this.graph.getNode(requestId)?.id;
+        let contentKey = nullthrows(this.graph.getNode(requestId)?.id);
         return this.getRequestResult<T>(contentKey, ifMatch);
       },
       getRequestResult: <T>(id): Async<?T> => this.getRequestResult<T>(id),
