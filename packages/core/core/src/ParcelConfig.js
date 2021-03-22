@@ -12,6 +12,7 @@ import type {
   Reporter,
   Semver,
   Validator,
+  FilePath,
 } from '@parcel/types';
 import type {
   ProcessedParcelConfig,
@@ -28,6 +29,7 @@ import {
   type ProjectPath,
   fromProjectPath,
   fromProjectPathRelative,
+  toProjectPathUnsafe,
 } from './projectPath';
 
 type GlobMap<T> = {[Glob]: T, ...};
@@ -264,22 +266,23 @@ export default class ParcelConfig {
     return this.loadPlugins<Runtime>(this.runtimes);
   }
 
-  _getPackagerNode(filePath: ProjectPath): ParcelPluginNode {
-    let packagerName = this.matchGlobMap(filePath, this.packagers);
+  _getPackagerNode(filePath: FilePath): ParcelPluginNode {
+    let packagerName = this.matchGlobMap(
+      toProjectPathUnsafe(filePath),
+      this.packagers,
+    );
     if (!packagerName) {
-      throw new Error(
-        `No packager found for "${fromProjectPathRelative(filePath)}".`,
-      );
+      throw new Error(`No packager found for "${filePath}".`);
     }
     return packagerName;
   }
 
-  getPackagerName(filePath: ProjectPath): string {
+  getPackagerName(filePath: FilePath): string {
     return this._getPackagerNode(filePath).packageName;
   }
 
   async getPackager(
-    filePath: ProjectPath,
+    filePath: FilePath,
   ): Promise<{|
     name: string,
     version: Semver,
@@ -296,21 +299,25 @@ export default class ParcelConfig {
   }
 
   _getOptimizerNodes(
-    filePath: ProjectPath,
+    filePath: FilePath,
     pipeline: ?string,
   ): PureParcelConfigPipeline {
     return (
-      this.matchGlobMapPipelines(filePath, this.optimizers, pipeline) ?? []
+      this.matchGlobMapPipelines(
+        toProjectPathUnsafe(filePath),
+        this.optimizers,
+        pipeline,
+      ) ?? []
     );
   }
 
-  getOptimizerNames(filePath: ProjectPath, pipeline: ?string): Array<string> {
+  getOptimizerNames(filePath: FilePath, pipeline: ?string): Array<string> {
     let optimizers = this._getOptimizerNodes(filePath, pipeline);
     return optimizers.map(o => o.packageName);
   }
 
   getOptimizers(
-    filePath: ProjectPath,
+    filePath: FilePath,
     pipeline: ?string,
   ): Promise<Array<LoadedPlugin<Optimizer>>> {
     let optimizers = this._getOptimizerNodes(filePath, pipeline);
