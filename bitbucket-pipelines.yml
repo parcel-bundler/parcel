@@ -44,7 +44,7 @@ definitions:
           - pipe: docker://atlassian/artifactory-sidekick:latest
           - source .artifactory/activate.sh
           - cd dac
-          - yarn install
+          - yarn
           - yarn validate
           - yarn link-check
     - step: &release-docs
@@ -56,6 +56,7 @@ definitions:
           - pipe: docker://atlassian/artifactory-sidekick:latest
           - source .artifactory/activate.sh
           - cd dac
+          - yarn
           # Set the release version of the package to be the same as the build number.
           - npm version "1.${BITBUCKET_BUILD_NUMBER}.0" -m "%s [skip ci]"
           - yarn validate
@@ -79,4 +80,7 @@ pipelines:
           - step: *validate-docs
       - step: *build-release-parcel
       - step: *release-docs
-
+  custom:
+    release-docs:
+      - step: *validate-docs
+      - step: *release-docs
