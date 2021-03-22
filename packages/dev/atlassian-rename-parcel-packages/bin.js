@@ -54,7 +54,11 @@ for (const filePath of packageJsons) {
     }
   }
 
-  for (const depMap of [contents.dependencies, contents.devDependencies]) {
+  for (const depMap of [
+    contents.dependencies,
+    contents.devDependencies,
+    contents.parcelDependencies,
+  ]) {
     if (typeof depMap !== 'object' || depMap == null) {
       continue;
     }
