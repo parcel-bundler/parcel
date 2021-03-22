@@ -566,7 +566,6 @@ function getRelativePathExpr(
       from.publicId,
     )}, ${JSON.stringify(to.publicId)})`;
   }
-
   return JSON.stringify(relativeBundlePath(from, to, {leadingDotSlash: false}));
 }
 

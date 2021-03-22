@@ -3619,7 +3619,12 @@ describe('javascript', function() {
     ]);
 
     let [a, b] = bundleGraph.getBundles().filter(b => b.isEntry);
-    // TODO
-    await runBundles(bundleGraph, a, [a, b]);
+
+    const resA = await runBundles(bundleGraph, a, [a, b]);
+    const resB = await runBundles(bundleGraph, b, [a, b]);
+
+    console.log({resA});
+    console.log({resB});
+    assert.equal(resA, resB);
   });
 });

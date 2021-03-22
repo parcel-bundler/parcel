@@ -12,7 +12,6 @@ import type {
 } from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
 import type WorkerFarm from '@parcel/workers';
-
 import invariant from 'assert';
 import util from 'util';
 import Parcel, {createWorkerFarm} from '@parcel/core';
@@ -332,9 +331,11 @@ export async function runBundles(
     );
     for (let b of bundles) {
       // require, parcelRequire was set up in prepare*Context
+      // $FlowFixMe[prop-missing]
+      ctx.b = b;
       new vm.Script(
-        // '"use strict";\n' +
-        await overlayFS.readFile(nullthrows(b.filePath), 'utf8'),
+        'setCurrentScript(b.name);' +
+          (await overlayFS.readFile(nullthrows(b.filePath), 'utf8')),
         {
           filename: b.name,
         },
@@ -359,7 +360,7 @@ export async function runBundles(
             }
           }
         }
-        return;
+        return ctx;
       case 'commonjs':
         invariant(typeof ctx.module === 'object' && ctx.module != null);
         return ctx.module.exports;
@@ -371,7 +372,6 @@ export async function runBundles(
         );
     }
   }
-
   return ctx;
 }
 
@@ -540,12 +540,10 @@ function prepareBrowserContext(
         let {deferred, promise} = makeDeferredWithPromise();
         promises.push(promise);
         setTimeout(function() {
-          let file = path.join(
-            path.dirname(filePath),
-            url.parse(el.src).pathname,
-          );
+          let file = path.join(`${distDir}/../`, url.parse(el.src).pathname);
+
           new vm.Script(
-            // '"use strict";\n' +
+            //'"use strict";\n' +
             overlayFS.readFileSync(file, 'utf8'),
             {
               filename: path.basename(file),
@@ -592,6 +590,15 @@ function prepareBrowserContext(
     },
   };
 
+  class mockError extends Error {
+    message: string;
+
+    constructor(message) {
+      super();
+      this.message = message + 'MOCKERROR!!!!';
+    }
+  }
+
   var exports = {};
   var ctx = Object.assign(
     {
@@ -599,8 +606,13 @@ function prepareBrowserContext(
       module: {exports},
       document: fakeDocument,
       WebSocket,
+      b: null,
       console: {...console, clear: () => {}},
+      mockError,
       location: {hostname: 'localhost', origin: 'http://localhost'},
+      setCurrentScript(bundlePath) {
+        fakeDocument.currentScript.src = `http://localhost/dist/${bundlePath}`;
+      },
       fetch(url) {
         return Promise.resolve({
           async arrayBuffer() {

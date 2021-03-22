@@ -18,6 +18,7 @@
     "@parcel/fs": "2.0.0-beta.2",
     "@parcel/package-manager": "2.0.0-beta.2",
     "@parcel/utils": "2.0.0-beta.2",
+    "@parcel/runtime-js": "2.0.0-beta.2",
     "chalk": "^4.1.0",
     "ncp": "^2.0.0",
     "nullthrows": "^1.1.1",
