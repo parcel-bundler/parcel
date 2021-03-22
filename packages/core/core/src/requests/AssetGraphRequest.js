@@ -47,13 +47,15 @@ type AssetGraphRequestInput = {|
   requestedAssetIds?: Set<string>,
 |};
 
+type AssetGraphRequestResult = {|
+  assetGraph: AssetGraph,
+  changedAssets: Map<string, Asset>,
+  assetRequests: Array<AssetGroup>,
+|};
+
 type RunInput = {|
   input: AssetGraphRequestInput,
-  ...StaticRunOpts<{|
-    assetGraph: AssetGraph,
-    changedAssets: Map<string, Asset>,
-    assetRequests: Array<AssetGroup>,
-  |}>,
+  ...StaticRunOpts,
 |};
 
 type AssetGraphRequest = {|
@@ -73,8 +75,9 @@ export default function createAssetGraphRequest(
   return {
     type: 'asset_graph_request',
     id: input.name,
-    run: input => {
-      let builder = new AssetGraphBuilder(input);
+    run: async input => {
+      let prevResult = await input.api.getPreviousResult<AssetGraphRequestResult>();
+      let builder = new AssetGraphBuilder(input, prevResult);
       return builder.build();
     },
     input,
@@ -102,7 +105,10 @@ export class AssetGraphBuilder {
   shouldBuildLazily: boolean;
   requestedAssetIds: Set<string>;
 
-  constructor({input, prevResult, api, options}: RunInput) {
+  constructor(
+    {input, api, options}: RunInput,
+    prevResult: ?AssetGraphRequestResult,
+  ) {
     let {
       entries,
       assetGroups,
@@ -133,11 +139,7 @@ export class AssetGraphBuilder {
     this.queue = new PromiseQueue();
   }
 
-  async build(): Promise<{|
-    assetGraph: AssetGraph,
-    changedAssets: Map<string, Asset>,
-    assetRequests: Array<AssetGroup>,
-  |}> {
+  async build(): Promise<AssetGraphRequestResult> {
     let errors = [];
     let rootNodeId = nullthrows(
       this.assetGraph.rootNodeId,
