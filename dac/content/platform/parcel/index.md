@@ -2,16 +2,28 @@
 title: Index page for parcel Documentation
 platform: platform
 product: parcel
-category: devguide
+category: index
 subcategory: index
-date: '2021-03-08'
+date: '2021-03-23'
 ---
 
-## _This page is under construction_
+{{% note %}}
+The content is currently under construction as we release our initial docs.
+{{% /note %}}
 
 # Introduction
 
+package: `@atlassian/parcel` / [repo](https://bitbucket.org/atlassian/parcel) / [public repo](https://github.com/parcel-bundler/parcel/)
+
 Parcel is a packager for the modern web with a focus on performance and modularity. It is developed with Atlassian’s needs and scale at its core, while benefitting from contributions and resources of a healthy open source project.
+
+Because of Atlassian's need for scale with Bitbucket and Jira, Atlassian distributes a fork with custom plugins and additional internal needs.
+
+Please see the [Code of Conduct](https://bitbucket.org/atlassian/parcel/src/bitbucket-integration/CODE_OF_CONDUCT.md) and [Contributing Guide](https://bitbucket.org/atlassian/parcel/src/bitbucket-integration/CONTRIBUTING.md) before contributions.
+
+### Notable differences
+
+- _TODO_
 
 ## Goals
 
