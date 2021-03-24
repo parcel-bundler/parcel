@@ -1,8 +1,4 @@
 {
   "extends": "@parcel/config-default",
-  "runtimes": {
-    "browser": [
-      "parcel-runtime-mock"
-    ]
-  }
+  "runtimes": ["parcel-runtime-mock"]
 }

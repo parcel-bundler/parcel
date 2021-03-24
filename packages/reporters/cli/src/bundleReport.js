@@ -1,5 +1,5 @@
 // @flow
-import type {BundleGraph, FilePath, NamedBundle} from '@parcel/types';
+import type {BundleGraph, FilePath, PackagedBundle} from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
 
 import {generateBuildMetrics, prettifyTime} from '@parcel/utils';
@@ -19,7 +19,7 @@ const COLUMNS = [
 ];
 
 export default async function bundleReport(
-  bundleGraph: BundleGraph<NamedBundle>,
+  bundleGraph: BundleGraph<PackagedBundle>,
   fs: FileSystem,
   projectRoot: FilePath,
   assetCount: number = 0,
