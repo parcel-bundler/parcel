@@ -441,7 +441,7 @@ impl<'a> Fold for Hoist<'a> {
               },
               Expr::This(_) => {
                 // this.foo -> $id$export$foo
-                if self.collect.static_cjs_exports && !self.collect.should_wrap && !self.in_function_scope {
+                if self.collect.static_cjs_exports && !self.collect.should_wrap && !self.in_function_scope && !self.collect.is_esm {
                   self.self_references.insert(key.clone());
                   return Expr::Ident(self.get_export_ident(member.span, &key))
                 }
@@ -470,10 +470,15 @@ impl<'a> Fold for Hoist<'a> {
         }
       },
       Expr::This(this) => {
-        if !self.in_function_scope && !self.collect.should_wrap {
-          self.self_references.insert("*".into());
-          return Expr::Ident(self.get_export_ident(this.span, &"*".into()));
-      }
+        if !self.in_function_scope {
+          // If ESM, replace `this` with `undefined`, otherwise with the CJS exports object.
+          if self.collect.is_esm {
+            return Expr::Ident(Ident::new("undefined".into(), DUMMY_SP));
+          } else if !self.collect.should_wrap {
+            self.self_references.insert("*".into());
+            return Expr::Ident(self.get_export_ident(this.span, &"*".into()));  
+          }
+        }
       },
       Expr::Unary(unary) => {
         // typeof require -> "function"
@@ -787,6 +792,7 @@ pub struct Collect {
   ignore_mark: Mark,
   static_cjs_exports: bool,
   has_cjs_exports: bool,
+  is_esm: bool,
   should_wrap: bool,
   imports: HashMap<IdentId, (JsWord, JsWord, bool, SourceLocation)>,
   exports: HashMap<IdentId, JsWord>,
@@ -807,6 +813,7 @@ impl Collect {
       ignore_mark,
       static_cjs_exports: true,
       has_cjs_exports: false,
+      is_esm: false,
       should_wrap: false,
       imports: HashMap::new(),
       exports: HashMap::new(),
@@ -847,6 +854,9 @@ impl Visit for Collect {
 
   fn visit_module_item(&mut self, node: &ModuleItem, _parent: &dyn Node) {
     match node {
+      ModuleItem::ModuleDecl(_decl) => {
+        self.is_esm = true;
+      },
       ModuleItem::Stmt(stmt) => {
         match stmt {
           Stmt::Decl(decl) => {

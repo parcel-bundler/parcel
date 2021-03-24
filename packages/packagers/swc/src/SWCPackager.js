@@ -960,6 +960,21 @@ ${code}
     let res = '';
     let lines = 0;
 
+    // Add hashbang if the entry asset recorded an interpreter.
+    let mainEntry = this.bundle.getMainEntry();
+    if (
+      mainEntry &&
+      !this.isAsyncBundle &&
+      !this.bundle.target.env.isBrowser()
+    ) {
+      let interpreter = mainEntry.meta.interpreter;
+      invariant(interpreter == null || typeof interpreter === 'string');
+      if (interpreter != null) {
+        res += `#!${interpreter}\n`;
+        lines++;
+      }
+    }
+
     // The output format may have specific things to add at the start of the bundle (e.g. imports).
     let [
       outputFormatPrelude,
