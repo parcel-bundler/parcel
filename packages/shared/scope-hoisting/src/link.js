@@ -160,7 +160,7 @@ export function link({
   if (bundle.env.isLibrary) {
     let bundles = bundleGraph.getReferencedBundles(bundle);
     for (let b of bundles) {
-      importedFiles.set(nullthrows(b.filePath), {
+      importedFiles.set(b.id, {
         bundle: b,
         assets: new Set(),
       });
@@ -620,15 +620,14 @@ export function link({
       );
     }
 
-    let filePath = nullthrows(importedBundle.filePath);
-    let imported = importedFiles.get(filePath);
+    let imported = importedFiles.get(importedBundle.id);
     if (!imported) {
       imported = {
         bundle: importedBundle,
         assets: new Set(),
         loc: convertBabelLoc(node.loc),
       };
-      importedFiles.set(filePath, imported);
+      importedFiles.set(importedBundle.id, imported);
     }
 
     invariant(imported.assets != null);

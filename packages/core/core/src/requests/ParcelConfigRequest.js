@@ -44,7 +44,7 @@ export type ConfigAndCachePath = {|
 
 type RunOpts = {|
   input: null,
-  ...StaticRunOpts<ConfigAndCachePath>,
+  ...StaticRunOpts,
 |};
 
 export type ParcelConfigRequest = {|
@@ -302,7 +302,11 @@ export function processConfig(
           }
         : undefined,
     namers: processPipeline(configFile.namers, '/namers', configFile.filePath),
-    runtimes: processMap(configFile.runtimes, '/runtimes', configFile.filePath),
+    runtimes: processPipeline(
+      configFile.runtimes,
+      '/runtimes',
+      configFile.filePath,
+    ),
     packagers: processMap(
       configFile.packagers,
       '/packagers',
@@ -520,9 +524,7 @@ export function mergeConfigs(
     validators: mergeMaps(base.validators, ext.validators, mergePipelines),
     bundler: ext.bundler || base.bundler,
     namers: assertPurePipeline(mergePipelines(base.namers, ext.namers)),
-    runtimes: mergeMaps(base.runtimes, ext.runtimes, (a, b) =>
-      assertPurePipeline(mergePipelines(a, b)),
-    ),
+    runtimes: assertPurePipeline(mergePipelines(base.runtimes, ext.runtimes)),
     packagers: mergeMaps(base.packagers, ext.packagers),
     optimizers: mergeMaps(base.optimizers, ext.optimizers, mergePipelines),
     reporters: assertPurePipeline(
