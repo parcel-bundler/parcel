@@ -311,7 +311,7 @@ impl<'a> Fold for DependencyCollector<'a> {
 
             return ast::ExprOrSpread {
               spread: None,
-              expr: Box::new(Call(create_require(str_.value.clone(), self.ignore_mark)))
+              expr: Box::new(Call(create_require(str_.value.clone())))
             };
           }
         }
@@ -334,7 +334,7 @@ impl<'a> Fold for DependencyCollector<'a> {
           );
 
           let mut node = node.clone();
-          node.args[0].expr = Box::new(Call(create_require(specifier, self.ignore_mark)));
+          node.args[0].expr = Box::new(Call(create_require(specifier)));
           return node
         }
       }
@@ -352,7 +352,7 @@ impl<'a> Fold for DependencyCollector<'a> {
           // If url dependency, replace import with require() of runtime module
           if kind == DependencyKind::ServiceWorker {
             let mut node = node.clone();
-            node.args[0].expr = Box::new(Call(create_require(str_.value.clone(), self.ignore_mark)));
+            node.args[0].expr = Box::new(Call(create_require(str_.value.clone())));
             return node
           }
         }
@@ -440,7 +440,7 @@ impl<'a> Fold for DependencyCollector<'a> {
         // Replace argument with a require call to resolve the URL at runtime.
         let mut node = node.clone();
         if let Some(mut args) = node.args.clone() {
-          args[0].expr = Box::new(Call(create_require(specifier, self.ignore_mark)));
+          args[0].expr = Box::new(Call(create_require(specifier)));
           node.args = Some(args);
         }
 
@@ -461,7 +461,7 @@ impl<'a> Fold for DependencyCollector<'a> {
         false
       );
 
-      return ast::Expr::Call(create_require(specifier, self.ignore_mark));
+      return ast::Expr::Call(create_require(specifier));
     }
 
     node.fold_children_with(self)

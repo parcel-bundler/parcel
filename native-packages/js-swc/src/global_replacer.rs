@@ -56,7 +56,7 @@ impl<'a> Fold for GlobalReplacer<'a> {
               create_decl_stmt(
                 id.sym.clone(),
                 self.global_mark,
-                Call(create_require(js_word!("process"), swc_common::Mark::fresh(swc_common::Mark::root())))
+                Call(create_require(js_word!("process")))
               )
             );
 
@@ -77,7 +77,7 @@ impl<'a> Fold for GlobalReplacer<'a> {
                 id.sym.clone(),
                 self.global_mark,
                 Member(MemberExpr {
-                  obj: ast::ExprOrSuper::Expr(Box::new(Call(create_require(specifier.clone(), swc_common::Mark::fresh(swc_common::Mark::root()))))),
+                  obj: ast::ExprOrSuper::Expr(Box::new(Call(create_require(specifier.clone())))),
                   prop: Box::new(Ident(ast::Ident::new("Buffer".into(), DUMMY_SP))),
                   computed: false,
                   span: DUMMY_SP,
