@@ -66,7 +66,7 @@ describe('javascript', function() {
           'bundle-url.js',
           'index.js',
           'JSRuntime.js',
-          /* 'esmodule-helpers.js', */
+          'esmodule-helpers.js',
         ],
       },
       {
@@ -258,7 +258,7 @@ describe('javascript', function() {
         assets: [
           '_empty.js',
           'browser.js',
-          /* 'esmodule-helpers.js', */
+          'esmodule-helpers.js',
           'index.js',
           'main.js',
         ],
@@ -281,7 +281,7 @@ describe('javascript', function() {
     assertBundles(b, [
       {
         name: 'main.js',
-        assets: [/* 'esmodule-helpers.js', */ 'main.js'],
+        assets: ['esmodule-helpers.js', 'main.js'],
       },
     ]);
 
@@ -534,7 +534,7 @@ describe('javascript', function() {
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: [/* 'esmodule-helpers.js', */ 'index.js'],
+        assets: ['esmodule-helpers.js', 'index.js'],
       },
     ]);
   });
@@ -1020,6 +1020,7 @@ describe('javascript', function() {
           'JSRuntime.js',
           'bundle-manifest.js',
           'relative-path.js',
+          'esmodule-helpers.js',
         ],
       },
       {
@@ -1037,7 +1038,7 @@ describe('javascript', function() {
         assets: ['worker-b.js'],
       },
       {
-        assets: [/* 'esmodule-helpers.js', */ 'lodash.js'],
+        assets: ['esmodule-helpers.js', 'lodash.js'],
       },
     ]);
 
@@ -1069,6 +1070,7 @@ describe('javascript', function() {
           'get-worker-url.js',
           'JSRuntime.js',
           'lodash.js',
+          'esmodule-helpers.js',
         ],
       },
       {
@@ -1076,13 +1078,13 @@ describe('javascript', function() {
           'worker-a.js',
           'JSRuntime.js',
           'bundle-url.js',
-          // 'esmodule-helpers.js',
+          'esmodule-helpers.js',
           'get-worker-url.js',
           'lodash.js',
         ],
       },
       {
-        assets: ['worker-b.js', 'lodash.js' /*'esmodule-helpers.js'*/],
+        assets: ['worker-b.js', 'lodash.js', 'esmodule-helpers.js'],
       },
     ]);
   });
@@ -1176,7 +1178,7 @@ describe('javascript', function() {
         assets: ['worker.js'],
       },
       {
-        assets: ['lodash.js' /*, 'esmodule-helpers.js'*/],
+        assets: ['lodash.js', 'esmodule-helpers.js'],
       },
     ]);
 
@@ -1228,7 +1230,7 @@ describe('javascript', function() {
         ],
       },
       {
-        assets: ['local.js', 'JSRuntime.js'],
+        assets: ['local.js', 'JSRuntime.js', 'esmodule-helpers.js'],
       },
       {
         assets: ['test.txt'],
@@ -1252,7 +1254,7 @@ describe('javascript', function() {
           'index.js',
           'bundle-url.js',
           'cacheLoader.js',
-          /* 'esmodule-helpers.js', */
+          'esmodule-helpers.js',
           'js-loader.js',
           'JSRuntime.js',
         ],
@@ -1375,7 +1377,7 @@ describe('javascript', function() {
     );
     assertBundles(b, [
       {
-        assets: ['c.js', 'common.js' /*, 'esmodule-helpers.js' */],
+        assets: ['c.js', 'common.js', 'esmodule-helpers.js'],
       },
       {
         name: 'b.js',
@@ -1394,7 +1396,7 @@ describe('javascript', function() {
           'bundle-url.js',
           'common.js',
           'cacheLoader.js',
-          /* 'esmodule-helpers.js', */
+          'esmodule-helpers.js',
           'js-loader.js',
           'JSRuntime.js',
         ],
@@ -1420,7 +1422,7 @@ describe('javascript', function() {
           'js-loader.js',
           'JSRuntime.js',
           'JSRuntime.js',
-          // 'esmodule-helpers.js',
+          'esmodule-helpers.js',
         ],
       },
       {
@@ -1453,7 +1455,7 @@ describe('javascript', function() {
           'index.js',
           'bundle-url.js',
           'cacheLoader.js',
-          /* 'esmodule-helpers.js', */
+          'esmodule-helpers.js',
           'js-loader.js',
           'JSRuntime.js',
           'JSRuntime.js',
@@ -1540,7 +1542,7 @@ describe('javascript', function() {
         assets: [
           'index.js',
           'bundle-url.js',
-          // 'esmodule-helpers.js',
+          'esmodule-helpers.js',
           'JSRuntime.js',
         ],
       },
@@ -1572,7 +1574,7 @@ describe('javascript', function() {
     assertBundles(b, [
       {
         name: 'local-url.js',
-        assets: [/*'esmodule-helpers.js', */ 'local-url.js'],
+        assets: ['esmodule-helpers.js', 'local-url.js'],
       },
     ]);
 
@@ -1707,7 +1709,7 @@ describe('javascript', function() {
 
     assertBundles(b, [
       {
-        assets: ['a.js', 'b.js', 'c.js' /*, 'esmodule-helpers.js' */],
+        assets: ['a.js', 'b.js', 'c.js', 'esmodule-helpers.js'],
       },
     ]);
 
@@ -2046,7 +2048,8 @@ describe('javascript', function() {
         name: 'browser.js',
         assets: [
           'browser.js',
-          'browser-module.js' /*, 'esmodule-helpers.js' */,
+          'browser-module.js',
+          'esmodule-helpers.js',
         ],
       },
     ]);
@@ -2216,7 +2219,7 @@ describe('javascript', function() {
     assertBundles(b, [
       {
         name: 'main-field.js',
-        assets: ['main-field.js', 'main.js' /*, 'esmodule-helpers.js' */],
+        assets: ['main-field.js', 'main.js', 'esmodule-helpers.js'],
       },
     ]);
 
@@ -2782,7 +2785,7 @@ describe('javascript', function() {
           'JSRuntime.js',
           'bundle-url.js',
           'cacheLoader.js',
-          /* 'esmodule-helpers.js', */
+          'esmodule-helpers.js',
           'js-loader.js',
         ],
       },
@@ -2815,11 +2818,11 @@ describe('javascript', function() {
     assertBundles(b, [
       {
         name: 'a.js',
-        assets: ['a.js', /* 'esmodule-helpers.js', */ 'lodash.js'],
+        assets: ['a.js', 'esmodule-helpers.js', 'lodash.js'],
       },
       {
         name: 'b.js',
-        assets: ['b.js', /* 'esmodule-helpers.js', */ 'lodash.js'],
+        assets: ['b.js', 'esmodule-helpers.js', 'lodash.js'],
       },
     ]);
   });
@@ -2883,7 +2886,7 @@ describe('javascript', function() {
         assets: [
           'index.js',
           b.getBundles().find(b => b.isInline).id + '.js',
-          /* 'esmodule-helpers.js', */
+          'esmodule-helpers.js',
         ],
       },
       {
@@ -3097,7 +3100,7 @@ describe('javascript', function() {
           'get-dep-2.js',
           'dep.js',
           'JSRuntime.js',
-          /* 'esmodule-helpers.js', */
+          'esmodule-helpers.js',
         ],
       },
     ]);
@@ -3124,7 +3127,7 @@ describe('javascript', function() {
           'JSRuntime.js',
           'relative-path.js',
           'same-ancestry.js',
-          /* 'esmodule-helpers.js', */
+          'esmodule-helpers.js',
         ],
       },
       {
@@ -3160,7 +3163,7 @@ describe('javascript', function() {
           'get-dep-2.js',
           'dep.js',
           'JSRuntime.js',
-          /* 'esmodule-helpers.js', */
+          'esmodule-helpers.js',
         ],
       },
       {
@@ -3174,7 +3177,7 @@ describe('javascript', function() {
           'JSRuntime.js',
           'JSRuntime.js',
           'relative-path.js',
-          /* 'esmodule-helpers.js', */
+          'esmodule-helpers.js',
         ],
       },
     ]);
@@ -3233,7 +3236,7 @@ describe('javascript', function() {
           'JSRuntime.js',
           'JSRuntime.js',
           'relative-path.js',
-          /* 'esmodule-helpers.js', */
+          'esmodule-helpers.js',
         ],
       },
     ]);
@@ -3257,10 +3260,10 @@ describe('javascript', function() {
           'cacheLoader.js',
           'js-loader.js',
           'JSRuntime.js',
-          /* 'esmodule-helpers.js', */
+          'esmodule-helpers.js',
         ],
       },
-      {name: 'value.js', assets: ['value.js' /*, 'esmodule-helpers.js' */]},
+      {name: 'value.js', assets: ['value.js', 'esmodule-helpers.js']},
       {assets: ['async.js']},
     ]);
 
@@ -3282,7 +3285,7 @@ describe('javascript', function() {
           'js-loader.js',
           'JSRuntime.js',
           'JSRuntime.js',
-          /* 'esmodule-helpers.js', */
+          'esmodule-helpers.js',
         ],
       },
       {assets: ['value.js']},
@@ -3353,7 +3356,7 @@ describe('javascript', function() {
           'cacheLoader.js',
           'js-loader.js',
           'JSRuntime.js',
-          /* 'esmodule-helpers.js', */
+          'esmodule-helpers.js',
         ],
       },
       {
@@ -3366,7 +3369,7 @@ describe('javascript', function() {
           'JSRuntime.js',
         ],
       },
-      {assets: ['a.js', 'value.js' /*, 'esmodule-helpers.js' */]},
+      {assets: ['a.js', 'value.js', 'esmodule-helpers.js']},
       {assets: ['b.js']},
     ]);
 

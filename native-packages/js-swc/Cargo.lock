@@ -509,6 +509,7 @@ dependencies = [
 name = "parcel-js-swc"
 version = "0.1.0"
 dependencies = [
+ "Inflector",
  "indoc",
  "napi",
  "napi-build",

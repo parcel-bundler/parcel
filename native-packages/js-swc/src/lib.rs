@@ -7,6 +7,7 @@ extern crate swc_common;
 #[macro_use]
 extern crate swc_atoms;
 extern crate serde;
+extern crate inflector;
 
 mod decl_collector;
 mod dependency_collector;
@@ -14,8 +15,9 @@ mod env_replacer;
 mod global_replacer;
 mod utils;
 mod hoist;
+mod modules;
 
-use napi::{CallContext, JsString, JsObject, JsUnknown, Result, Error};
+use napi::{CallContext, JsObject, JsUnknown, Result};
 use std::collections::{HashMap};
 use std::str::FromStr;
 
@@ -29,7 +31,6 @@ use swc_ecmascript::parser::{Parser, EsConfig, TsConfig, StringInput, Syntax, PR
 use swc_ecmascript::transforms::resolver::resolver_with_mark;
 use swc_ecmascript::visit::{FoldWith};
 use swc_ecmascript::transforms::{
-  modules::common_js,
   helpers,
   fixer,
   hygiene,
@@ -49,6 +50,7 @@ use env_replacer::*;
 use global_replacer::GlobalReplacer;
 use hoist::hoist;
 use utils::SourceLocation;
+use modules::esm2cjs;
 
 #[derive(Serialize, Debug, Deserialize)]
 struct Config {
@@ -75,7 +77,8 @@ struct TransformResult {
   shebang: Option<String>,
   dependencies: Vec<DependencyDescriptor>,
   hoist_result: Option<hoist::HoistResult>,
-  diagnostics: Option<Vec<Diagnostic>>
+  diagnostics: Option<Vec<Diagnostic>>,
+  needs_esm_helpers: bool,
 }
 
 fn targets_to_versions(targets: &Option<HashMap<String, String>>) -> Option<Versions> {
@@ -222,13 +225,6 @@ fn transform(ctx: CallContext) -> Result<JsUnknown> {
           let ignore_mark = Mark::fresh(Mark::root());
           let module = module.fold_with(&mut resolver_with_mark(global_mark));
           let decls = collect_decls(&module);
-    
-          let common_js = common_js::common_js(global_mark, swc_ecmascript::transforms::modules::util::Config {
-            strict: false,
-            strict_mode: false,
-            lazy: swc_ecmascript::transforms::modules::util::Lazy::default(),
-            no_interop: false,
-          });
 
           let mut preset_env_config = swc_ecma_preset_env::Config::default();
           if let Some(versions) = targets_to_versions(&config.targets) {
@@ -260,12 +256,12 @@ fn transform(ctx: CallContext) -> Result<JsUnknown> {
                 global_mark,
                 scope_hoist: config.scope_hoist
               },
-              // Collect dependencies
-              dependency_collector(&source_map, &mut result.dependencies, &decls, ignore_mark, config.scope_hoist),
               // Transpile new syntax to older syntax if needed
               Optional::new(preset_env(global_mark, preset_env_config), config.targets.is_some()),
-              // Convert ESM to CommonJS if not scope hoisting
-              Optional::new(common_js, !config.scope_hoist)
+              // Inject SWC helpers if needed.
+              helpers::inject_helpers(),
+              // Collect dependencies
+              dependency_collector(&source_map, &mut result.dependencies, &decls, ignore_mark, config.scope_hoist),
             );
 
             module.fold_with(&mut passes)
@@ -283,12 +279,13 @@ fn transform(ctx: CallContext) -> Result<JsUnknown> {
             result.hoist_result = Some(hoist_result);
             module
           } else {
+            let (module, needs_helpers) = esm2cjs(module);
+            result.needs_esm_helpers = needs_helpers;
             module
           };
 
           let program = {
             let mut passes = chain!(
-              helpers::inject_helpers(),
               hygiene(),
               fixer(Some(&comments)),
             );

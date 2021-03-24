@@ -293,15 +293,13 @@ export async function runBundles(
       );
       break;
     case 'electron-renderer': {
-      let browser = prepareBrowserContext(parent.filePath, globals);
-      ctx = {
-        ...browser.ctx,
-        ...prepareNodeContext(
-          outputFormat === 'commonjs' && parent.filePath,
-          globals,
-        ),
-      };
-      promises = browser.promises;
+      ctx = prepareBrowserContext(parent.filePath, globals);
+      prepareNodeContext(
+        outputFormat === 'commonjs' && parent.filePath,
+        globals,
+        ctx,
+      );
+      promises = ctx.promises;
       break;
     }
     case 'web-worker': {
@@ -702,7 +700,7 @@ function prepareWorkerContext(
 
 const nodeCache = {};
 // no filepath = ESM
-function prepareNodeContext(filePath, globals) {
+function prepareNodeContext(filePath, globals, ctx = {}) {
   let exports = {};
   let req =
     filePath &&
@@ -785,24 +783,20 @@ function prepareNodeContext(filePath, globals) {
       return childCtx.module.exports;
     });
 
-  // $FlowFixMe any!
-  var ctx: any = {
-    ...(filePath && {
-      module: {exports, require: req},
-      exports,
-      __filename: filePath,
-      __dirname: path.dirname(filePath),
-      require: req,
-    }),
-    console,
-    process: process,
-    setTimeout: setTimeout,
-    setImmediate: setImmediate,
-    global: null,
-    ...globals,
-  };
+  if (filePath) {
+    ctx.module = {exports, require: req};
+    ctx.exports = exports;
+    ctx.__filename = filePath;
+    ctx.__dirname = path.dirname(filePath);
+    ctx.require = req;
+  }
 
+  ctx.console = console;
+  ctx.process = process;
+  ctx.setTimeout = setTimeout;
+  ctx.setImmediate = setImmediate;
   ctx.global = ctx;
+  Object.assign(ctx, globals);
   return ctx;
 }
 

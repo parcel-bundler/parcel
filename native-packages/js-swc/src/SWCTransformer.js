@@ -184,6 +184,7 @@ export default (new Transformer({
       map,
       shebang,
       hoist_result,
+      needs_esm_helpers,
       diagnostics,
     } = transform({
       filename: asset.filePath,
@@ -231,7 +232,7 @@ export default (new Transformer({
     }
 
     // console.log(Object.keys(options.env))
-    // console.log(asset.filePath, hoist_result, code, compiledCode);
+    // console.log(asset.filePath, hoist_result, compiledCode);
 
     if (shebang) {
       asset.meta.interpreter = shebang;
@@ -382,6 +383,16 @@ export default (new Transformer({
       asset.meta.staticExports = hoist_result.static_cjs_exports;
       asset.meta.shouldWrap = hoist_result.should_wrap;
       asset.meta.id = asset.id;
+    } else if (needs_esm_helpers) {
+      asset.addDependency({
+        moduleSpecifier: '@parcel/transformer-js-swc/src/esmodule-helpers.js',
+        resolveFrom: __filename,
+        env: {
+          includeNodeModules: {
+            '@parcel/transformer-js': true,
+          },
+        },
+      });
     }
 
     asset.type = 'js';

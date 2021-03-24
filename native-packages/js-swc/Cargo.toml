@@ -15,6 +15,7 @@ swc_common = { version = "0.10.12", features = ["tty-emitter", "sourcemap"] }
 swc_atoms = "*"
 indoc = "1.0.3"
 serde = "1.0.123"
+Inflector = "0.11.4"
 
 [build-dependencies]
 napi-build = { git = "https://github.com/napi-rs/napi-rs", branch = "main" }
