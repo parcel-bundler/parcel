@@ -1,0 +1,14 @@
+{
+  "name": "@parcel/reporter-lsp",
+  "version": "2.0.0-beta.2",
+  "main": "lib/LspReporter.js",
+  "source": "src/LspReporter.js",
+  "engines": {
+    "node": ">= 12.0.0",
+    "parcel": "^2.0.0-beta.1"
+  },
+  "dependencies": {
+    "vscode-languageserver": "^7.0.0",
+    "vscode-jsonrpc": "^6.0.0"
+  }
+}
