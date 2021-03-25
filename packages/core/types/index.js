@@ -1156,6 +1156,12 @@ export type Bundler = {|
     options: PluginOptions,
     logger: PluginLogger,
   |}): Async<void>,
+  update({|
+    bundleGraph: MutableBundleGraph,
+    config: ?ConfigResult,
+    options: PluginOptions,
+    logger: PluginLogger,
+  |}): Async<void>,
 |};
 
 /**
