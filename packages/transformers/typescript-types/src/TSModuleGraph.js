@@ -244,10 +244,10 @@ export class TSModuleGraph {
 
       // If it's external, then we need to dedup duplicate imported names, and ensure
       // that they do not conflict with any exported or local names.
-      let importedNames = imports.get(imported.specifier);
+      let importedNames = imports.get(imp.specifier);
       if (!importedNames) {
         importedNames = new Map();
-        imports.set(imported.specifier, importedNames);
+        imports.set(imp.specifier, importedNames);
       }
 
       let name = importedNames.get(imported.imported);
