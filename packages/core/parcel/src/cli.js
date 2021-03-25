@@ -132,6 +132,7 @@ let serve = program
     '--lazy',
     'Build async bundles on demand, when requested in the browser',
   )
+  .option('--incremental-bundling', 'incrementally bundle')
   .action(runCommand);
 
 applyOptions(serve, hmrOptions);
