@@ -8,6 +8,8 @@
     "parcel": "^2.0.0-beta.1"
   },
   "dependencies": {
+    "@parcel/plugin": "2.0.0-beta.2",
+    "@parcel/utils": "2.0.0-beta.2",
     "vscode-languageserver": "^7.0.0",
     "vscode-jsonrpc": "^6.0.0"
   }
