@@ -1,28 +1,75 @@
 // @flow
 import {
   createConnection,
-  TextDocuments,
-  Diagnostic,
+  Diagnostic as LspDiagnostic,
   DiagnosticSeverity,
-  ProposedFeatures,
-  InitializeParams,
-  DidChangeConfigurationNotification,
-  CompletionItem,
-  CompletionItemKind,
-  TextDocumentPositionParams,
-  TextDocumentSyncKind,
-  InitializeResult,
   WorkDoneProgressServerReporter,
 } from 'vscode-languageserver/node';
 import {DefaultMap} from '@parcel/utils';
-
+import type {Diagnostic as ParcelDiagnostic} from '@parcel/diagnostic';
+import type {FilePath} from '@parcel/types';
+import path from 'path';
 import invariant from 'assert';
 import {createClientPipeTransport} from 'vscode-jsonrpc';
 
 import {Reporter} from '@parcel/plugin';
+import util from 'util';
 
 let connection;
 let progressReporter: WorkDoneProgressServerReporter;
+let fileDiagnostics: DefaultMap<
+  string,
+  Array<LspDiagnostic>,
+> = new DefaultMap(() => []);
+
+type ParcelSeverity = 'error' | 'warn' | 'info' | 'verbose';
+function parcelSeverityToLspSeverity(parcelSeverity: ParcelSeverity): mixed {
+  switch (parcelSeverity) {
+    case 'error':
+      return DiagnosticSeverity.Error;
+    case 'warn':
+      return DiagnosticSeverity.Warning;
+    case 'info':
+      return DiagnosticSeverity.Information;
+    case 'verbose':
+      return DiagnosticSeverity.Hint;
+    default:
+      throw new Error('Unknown severity');
+  }
+}
+function updateDiagnostics(
+  fileDiagnostics: DefaultMap<string, Array<LspDiagnostic>>,
+  parcelDiagnostics: Array<ParcelDiagnostic>,
+  parcelSeverity: ParcelSeverity,
+  projectRoot: FilePath,
+): void {
+  let severity = parcelSeverityToLspSeverity(parcelSeverity);
+  for (let diagnostic of parcelDiagnostics) {
+    let filePath =
+      diagnostic.filePath &&
+      (path.isAbsolute(diagnostic.filePath)
+        ? diagnostic.filePath
+        : path.join(projectRoot, diagnostic.filePath));
+    let range = diagnostic.codeFrame?.codeHighlights[0];
+    if (filePath && range) {
+      fileDiagnostics.get(`file://${filePath}`).push({
+        range: {
+          start: {
+            line: range.start.line - 1,
+            character: range.start.column - 1,
+          },
+          end: {
+            line: range.end.line - 1,
+            character: range.end.column,
+          },
+        },
+        source: diagnostic.origin,
+        message: diagnostic.message,
+        severity,
+      });
+    }
+  }
+}
 
 export default (new Reporter({
   async report({event, options}) {
@@ -46,35 +93,39 @@ export default (new Reporter({
         progressReporter.begin('Parcel');
         break;
       case 'buildSuccess':
+        fileDiagnostics.clear();
         progressReporter.done();
         break;
       case 'buildFailure': {
-        let fileDiagnostics = new DefaultMap(() => []);
-        for (let diagnostic of event.diagnostics) {
-          let range = diagnostic.codeFrame?.codeHighlights[0];
-          if (diagnostic.filePath && range) {
-            fileDiagnostics.get(diagnostic.filePath).push({
-              range: {
-                start: {
-                  line: range.start.line - 1,
-                  character: range.start.column - 1,
-                },
-                end: {
-                  line: range.end.line - 1,
-                  character: range.end.column,
-                },
-              },
-              source: diagnostic.origin,
-              message: diagnostic.message,
-            });
-          }
+        updateDiagnostics(
+          fileDiagnostics,
+          event.diagnostics,
+          'error',
+          options.projectRoot,
+        );
+        for (let [uri, diagnostics] of fileDiagnostics) {
+          connection.sendDiagnostics({uri, diagnostics});
         }
-        for (let [fileName, diagnostics] of fileDiagnostics) {
-          connection.sendDiagnostics({uri: `file://${fileName}`, diagnostics});
-        }
+        fileDiagnostics.clear();
         progressReporter.done();
         break;
       }
+      case 'log':
+        if (
+          event.diagnostics != null &&
+          (event.level === 'error' ||
+            event.level === 'warn' ||
+            event.level === 'info' ||
+            event.level === 'verbose')
+        ) {
+          updateDiagnostics(
+            fileDiagnostics,
+            event.diagnostics,
+            event.level,
+            options.projectRoot,
+          );
+        }
+        break;
       case 'buildProgress':
         progressReporter.report(event.phase);
         break;
