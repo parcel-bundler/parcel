@@ -6,6 +6,7 @@ import react from 'react';
 import foo from '@atlaskit/editor-common';
 import('./async');
 import('./async2');
+import('./async3');
 
 new Worker('worker.js');
 

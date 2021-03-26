@@ -14,6 +14,7 @@ import {
   InitializeResult,
   WorkDoneProgressServerReporter,
 } from 'vscode-languageserver/node';
+import {DefaultMap} from '@parcel/utils';
 
 import invariant from 'assert';
 import {createClientPipeTransport} from 'vscode-jsonrpc';
@@ -47,9 +48,33 @@ export default (new Reporter({
       case 'buildSuccess':
         progressReporter.done();
         break;
-      case 'buildFailure':
+      case 'buildFailure': {
+        let fileDiagnostics = new DefaultMap(() => []);
+        for (let diagnostic of event.diagnostics) {
+          let range = diagnostic.codeFrame?.codeHighlights[0];
+          if (diagnostic.filePath && range) {
+            fileDiagnostics.get(diagnostic.filePath).push({
+              range: {
+                start: {
+                  line: range.start.line - 1,
+                  character: range.start.column - 1,
+                },
+                end: {
+                  line: range.end.line - 1,
+                  character: range.end.column,
+                },
+              },
+              source: diagnostic.origin,
+              message: diagnostic.message,
+            });
+          }
+        }
+        for (let [fileName, diagnostics] of fileDiagnostics) {
+          connection.sendDiagnostics({uri: `file://${fileName}`, diagnostics});
+        }
         progressReporter.done();
         break;
+      }
       case 'buildProgress':
         progressReporter.report(event.phase);
         break;
