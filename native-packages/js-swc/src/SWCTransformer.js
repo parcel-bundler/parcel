@@ -91,7 +91,16 @@ export default (new Transformer({
       );
     }
 
+    // Check if we should ignore fs calls
+    // See https://github.com/defunctzombie/node-browser-resolve#skip
+    let ignoreFS =
+      pkg &&
+      pkg.browser &&
+      typeof pkg.browser === 'object' &&
+      pkg.browser.fs === false;
+
     let inlineEnvironment = true;
+    let inlineFS = !ignoreFS;
     if (pkg?.['@parcel/transformer-js']) {
       validateSchema.diagnostic(
         CONFIG_SCHEMA,
@@ -107,7 +116,9 @@ export default (new Transformer({
         'Invalid config for @parcel/transformer-js',
       );
 
-      inlineEnvironment = pkg['@parcel/transformer-js'].inlineEnvironment;
+      inlineEnvironment =
+        pkg['@parcel/transformer-js'].inlineEnvironment ?? inlineEnvironment;
+      inlineFS = pkg['@parcel/transformer-js'].inlineFS ?? inlineFS;
     }
 
     let pragma = reactLib ? JSX_PRAGMA[reactLib].pragma : undefined;
@@ -118,6 +129,7 @@ export default (new Transformer({
       pragma,
       pragmaFrag,
       inlineEnvironment,
+      inlineFS,
     });
   },
   async transform({asset, config, options}) {
@@ -190,7 +202,10 @@ export default (new Transformer({
       filename: asset.filePath,
       code,
       module_id: asset.id,
+      project_root: options.projectRoot,
       replace_env: !asset.env.isNode(),
+      inline_fs: Boolean(config?.inlineFS) && !asset.env.isNode(),
+      insert_node_globals: !asset.env.isNode(),
       is_browser: asset.env.isBrowser(),
       env,
       is_type_script: asset.type === 'ts' || asset.type === 'tsx',

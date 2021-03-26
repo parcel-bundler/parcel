@@ -8,6 +8,7 @@ extern crate swc_common;
 extern crate swc_atoms;
 extern crate serde;
 extern crate inflector;
+extern crate data_encoding;
 
 mod decl_collector;
 mod dependency_collector;
@@ -16,6 +17,7 @@ mod global_replacer;
 mod utils;
 mod hoist;
 mod modules;
+mod fs;
 
 use napi::{CallContext, JsObject, JsUnknown, Result};
 use std::collections::{HashMap};
@@ -51,14 +53,18 @@ use global_replacer::GlobalReplacer;
 use hoist::hoist;
 use utils::SourceLocation;
 use modules::esm2cjs;
+use fs::inline_fs;
 
 #[derive(Serialize, Debug, Deserialize)]
 struct Config {
   filename: String,
   code: String,
   module_id: String,
+  project_root: String,
   replace_env: bool,
   env: HashMap<swc_atoms::JsWord, swc_atoms::JsWord>,
+  inline_fs: bool,
+  insert_node_globals: bool,
   is_browser: bool,
   is_type_script: bool,
   is_jsx: bool,
@@ -246,8 +252,16 @@ fn transform(ctx: CallContext) -> Result<JsUnknown> {
               // don't include dependencies inside conditionals that are always false.
               expr_simplifier(),
               dead_branch_remover(),
+              // Inline Node fs.readFileSync calls
+              Optional::new(inline_fs(
+                config.filename.as_str(),
+                source_map.clone(),
+                decls.clone(),
+                global_mark,
+                config.project_root
+              ), config.inline_fs),
               // Insert dependencies for node globals
-              GlobalReplacer {
+              Optional::new(GlobalReplacer {
                 source_map: &source_map,
                 items: &mut global_items,
                 globals: HashMap::new(),
@@ -255,7 +269,7 @@ fn transform(ctx: CallContext) -> Result<JsUnknown> {
                 decls: &decls,
                 global_mark,
                 scope_hoist: config.scope_hoist
-              },
+              }, config.insert_node_globals),
               // Transpile new syntax to older syntax if needed
               Optional::new(preset_env(global_mark, preset_env_config), config.targets.is_some()),
               // Inject SWC helpers if needed.

@@ -28,7 +28,7 @@ const bundle = (name, opts = {}) => {
   );
 };
 
-describe.only('output formats', function() {
+describe('output formats', function() {
   describe('commonjs', function() {
     it('should support commonjs output (exports)', async function() {
       let b = await bundle(
@@ -1204,11 +1204,11 @@ describe.only('output formats', function() {
                 {
                   start: {
                     line: 1,
-                    column: 1,
+                    column: 21,
                   },
                   end: {
                     line: 1,
-                    column: 29,
+                    column: 28,
                   },
                 },
               ],

@@ -788,13 +788,13 @@ macro_rules! visit_fn {
 
 pub struct Collect {
   source_map: Lrc<swc_common::SourceMap>,
-  decls: HashSet<IdentId>,
+  pub decls: HashSet<IdentId>,
   ignore_mark: Mark,
   static_cjs_exports: bool,
   has_cjs_exports: bool,
   is_esm: bool,
   should_wrap: bool,
-  imports: HashMap<IdentId, (JsWord, JsWord, bool, SourceLocation)>,
+  pub imports: HashMap<IdentId, (JsWord, JsWord, bool, SourceLocation)>,
   exports: HashMap<IdentId, JsWord>,
   non_static_access: HashSet<IdentId>,
   non_static_requires: HashSet<JsWord>,
@@ -806,7 +806,7 @@ pub struct Collect {
 }
 
 impl Collect {
-  fn new(source_map: Lrc<swc_common::SourceMap>, decls: HashSet<IdentId>, ignore_mark: Mark) -> Self {
+  pub fn new(source_map: Lrc<swc_common::SourceMap>, decls: HashSet<IdentId>, ignore_mark: Mark) -> Self {
     Collect {
       source_map,
       decls,
@@ -878,8 +878,7 @@ impl Visit for Collect {
           },
           _ => {}
         }
-      },
-      _ => {}
+      }
     }
 
     self.in_top_level = false;
@@ -1247,7 +1246,7 @@ impl Visit for Collect {
 }
 
 impl Collect {
-  fn match_require(&mut self, node: &Expr) -> Option<JsWord> {
+  pub fn match_require(&self, node: &Expr) -> Option<JsWord> {
     match_require(node, &self.decls, self.ignore_mark)
   }
 

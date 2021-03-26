@@ -4,7 +4,6 @@ use swc_atoms::JsWord;
 use swc_common::{DUMMY_SP, SyntaxContext};
 use swc_ecmascript::ast;
 use swc_ecmascript::visit::{Visit, VisitWith, Node};
-use swc_ecmascript::utils::var::VarCollector;
 
 /// This pass collects all declarations in a module into a single HashSet of tuples
 /// containing identifier names and their associated syntax context (scope).
