@@ -34,12 +34,8 @@
     }
   },
   "dependencies": {
-    "@atlaskit/editor-common": "^55.4.2",
-    "@atlaskit/media-core": "^32.1.2",
     "lodash": "^4.17.11",
     "react": "^16.6.3",
-    "react-dom": "^16.6.3",
-    "react-intl": "^5.13.5",
-    "rxjs-compat": "^6.6.6"
+    "react-dom": "^16.6.3"
   }
 }

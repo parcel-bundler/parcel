@@ -3,12 +3,18 @@ import parcel from 'url:./parcel.webp';
 import {message} from './message';
 import lodash from 'lodash';
 import react from 'react';
-import foo from '@atlaskit/editor-common';
 import('./async');
 import('./async2');
-import('./async3');
+// import('./async3');
+//
+//
+//
 
-new Worker('worker.js');
+console.log(react);
+
+console.log(lodash);
+
+// new Worker('worker.js');
 
 console.log(message);
 
