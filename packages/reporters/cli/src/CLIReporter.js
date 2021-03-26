@@ -4,10 +4,15 @@ import type {Diagnostic} from '@parcel/diagnostic';
 import type {Color} from 'chalk';
 
 import {Reporter} from '@parcel/plugin';
-import {prettifyTime, prettyDiagnostic, throttle} from '@parcel/utils';
+import {
+  getProgressMessage,
+  prettifyTime,
+  prettyDiagnostic,
+  throttle,
+} from '@parcel/utils';
 import chalk from 'chalk';
 
-import {getProgressMessage, getTerminalWidth} from './utils';
+import {getTerminalWidth} from './utils';
 import logLevels from './logLevels';
 import bundleReport from './bundleReport';
 import {

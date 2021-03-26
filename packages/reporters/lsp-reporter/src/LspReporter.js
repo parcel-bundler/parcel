@@ -1,15 +1,15 @@
 // @flow strict-local
 /* eslint-disable no-console */
 
-import {createConnection, DiagnosticSeverity} from 'vscode-languageserver/node';
-import {DefaultMap} from '@parcel/utils';
 import type {Diagnostic as ParcelDiagnostic} from '@parcel/diagnostic';
 import type {FilePath} from '@parcel/types';
-import path from 'path';
-import invariant from 'assert';
-import {createClientPipeTransport} from 'vscode-jsonrpc';
 
+import {createClientPipeTransport} from 'vscode-jsonrpc';
+import {createConnection, DiagnosticSeverity} from 'vscode-languageserver/node';
+import {DefaultMap, getProgressMessage} from '@parcel/utils';
 import {Reporter} from '@parcel/plugin';
+import invariant from 'assert';
+import path from 'path';
 
 // flowlint-next-line unclear-type:off
 type WorkDoneProgressServerReporter = any;
@@ -82,9 +82,13 @@ export default (new Reporter({
           );
         }
         break;
-      case 'buildProgress':
-        progressReporter.report(event.phase);
+      case 'buildProgress': {
+        let message = getProgressMessage(event);
+        if (message != null) {
+          progressReporter.report(message);
+        }
         break;
+      }
       case 'watchEnd':
         if (connection == null) {
           break;

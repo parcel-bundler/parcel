@@ -71,3 +71,4 @@ export {
   loadSourceMap,
   remapSourceLocation,
 } from './sourcemap';
+export {getProgressMessage} from './reporters';
