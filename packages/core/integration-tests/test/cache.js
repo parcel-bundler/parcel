@@ -1387,10 +1387,7 @@ describe('cache', function() {
             b.bundleGraph.getBundles()[0].filePath,
             'utf8',
           );
-          assert(
-            !contents.includes('export '),
-            'should not include export',
-          );
+          assert(!contents.includes('export '), 'should not include export');
 
           let pkgFile = path.join(inputDir, 'package.json');
           let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
@@ -1412,10 +1409,7 @@ describe('cache', function() {
         b.bundleGraph.getBundles()[0].filePath,
         'utf8',
       );
-      assert(
-        contents.includes('export '),
-        'should include export',
-      );
+      assert(contents.includes('export '), 'should include export');
     });
 
     it('should support adding a second target', async function() {
@@ -1576,10 +1570,7 @@ describe('cache', function() {
             b.bundleGraph.getBundles()[0].filePath,
             'utf8',
           );
-          assert(
-            contents.includes('export '),
-            'should include export',
-          );
+          assert(contents.includes('export '), 'should include export');
 
           let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
           await overlayFS.writeFile(
@@ -1709,10 +1700,7 @@ describe('cache', function() {
             b.bundleGraph.getBundles()[0].filePath,
             'utf8',
           );
-          assert(
-            contents.includes('export '),
-            'should include export',
-          );
+          assert(contents.includes('export '), 'should include export');
 
           contents = await overlayFS.readFile(
             b.bundleGraph.getBundles()[1].filePath,
@@ -1745,10 +1733,7 @@ describe('cache', function() {
         b.bundleGraph.getBundles()[0].filePath,
         'utf8',
       );
-      assert(
-        !contents.includes('export '),
-        'should not include export',
-      );
+      assert(!contents.includes('export '), 'should not include export');
       assert(
         !contents.includes('module.exports ='),
         'should not include module.exports',
@@ -1884,10 +1869,7 @@ describe('cache', function() {
             b.bundleGraph.getBundles()[0].filePath,
             'utf8',
           );
-          assert(
-            !contents.includes('export '),
-            'does not include export',
-          );
+          assert(!contents.includes('export '), 'does not include export');
 
           await overlayFS.writeFile(
             pkgFile,
@@ -1907,10 +1889,7 @@ describe('cache', function() {
         b.bundleGraph.getBundles()[0].filePath,
         'utf8',
       );
-      assert(
-        contents.includes('export '),
-        'should include export',
-      );
+      assert(contents.includes('export '), 'should include export');
     });
 
     it('should update when a package.json is deleted', async function() {
@@ -1938,10 +1917,7 @@ describe('cache', function() {
             b.bundleGraph.getBundles()[0].filePath,
             'utf8',
           );
-          assert(
-            contents.includes('export '),
-            'should include export',
-          );
+          assert(contents.includes('export '), 'should include export');
           await overlayFS.unlink(pkgFile);
         },
       });
@@ -1950,10 +1926,7 @@ describe('cache', function() {
         b.bundleGraph.getBundles()[0].filePath,
         'utf8',
       );
-      assert(
-        !contents.includes('export '),
-        'does not include export',
-      );
+      assert(!contents.includes('export '), 'does not include export');
     });
 
     describe('browserslist', function() {
