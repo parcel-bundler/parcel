@@ -5,7 +5,8 @@
     "bundle-text:*": ["@parcel/transformer-inline-string", "..."],
     "data-url:*": ["@parcel/transformer-inline-string", "..."],
     "*.{js,mjs,jsm,jsx,es6,cjs,ts,tsx}": [
-      "@parcel/transformer-js-swc"
+      "@parcel/transformer-js-swc",
+      "@parcel/transformer-react-refresh-wrap"
     ],
     "*.{json,json5}": ["@parcel/transformer-json"],
     "*.jsonld": ["@parcel/transformer-jsonld"],

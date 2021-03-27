@@ -19,6 +19,7 @@ pub enum DependencyKind {
   ServiceWorker,
   ImportScripts,
   URL,
+  File,
 }
 
 impl fmt::Display for DependencyKind {

@@ -792,7 +792,7 @@ macro_rules! visit_fn {
 }
 
 pub struct Collect {
-  source_map: Lrc<swc_common::SourceMap>,
+  pub source_map: Lrc<swc_common::SourceMap>,
   pub decls: HashSet<IdentId>,
   ignore_mark: Mark,
   static_cjs_exports: bool,

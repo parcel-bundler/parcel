@@ -1139,10 +1139,18 @@ describe('cache', function() {
   describe('transformations', function() {
     it('should invalidate when included files changes', async function() {
       let b = await testCache({
+        // TODO: update when the fs transform supports the MemoryFS
+        inputFS,
+        outputFS: inputFS,
         async setup() {
-          await overlayFS.writeFile(path.join(inputDir, 'src/test.txt'), 'hi');
+          await inputFS.mkdirp(inputDir);
+          await inputFS.ncp(
+            path.join(__dirname, '/integration/cache'),
+            inputDir,
+          );
+          await inputFS.writeFile(path.join(inputDir, 'src/test.txt'), 'hi');
 
-          await overlayFS.writeFile(
+          await inputFS.writeFile(
             path.join(inputDir, 'src/index.js'),
             'module.exports = require("fs").readFileSync(__dirname + "/test.txt", "utf8")',
           );
@@ -1150,10 +1158,12 @@ describe('cache', function() {
         async update(b) {
           assert.equal(await run(b.bundleGraph), 'hi');
 
-          await overlayFS.writeFile(
+          await inputFS.writeFile(
             path.join(inputDir, 'src/test.txt'),
             'updated',
           );
+
+          await sleep(100);
         },
       });
 

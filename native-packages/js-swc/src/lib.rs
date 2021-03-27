@@ -208,7 +208,8 @@ fn transform(ctx: CallContext) -> Result<JsUnknown> {
         None => None
       };
 
-      let mut global_items = vec![];
+      let mut global_deps = vec![];
+      let mut fs_deps = vec![];
       swc_common::GLOBALS.set(&Globals::new(), || {
         helpers::HELPERS.set(&helpers::Helpers::new(false), || {
           let mut react_options = react::Options::default();
@@ -268,12 +269,13 @@ fn transform(ctx: CallContext) -> Result<JsUnknown> {
                 source_map.clone(),
                 decls.clone(),
                 global_mark,
-                config.project_root
+                config.project_root,
+                &mut fs_deps,
               ), config.inline_fs && config.code.contains("readFileSync")),
               // Insert dependencies for node globals
               Optional::new(GlobalReplacer {
                 source_map: &source_map,
-                items: &mut global_items,
+                items: &mut global_deps,
                 globals: HashMap::new(),
                 filename: config.filename.as_str(),
                 decls: &decls,
@@ -316,7 +318,8 @@ fn transform(ctx: CallContext) -> Result<JsUnknown> {
             module.fold_with(&mut passes)
           };
 
-          result.dependencies.extend(global_items);
+          result.dependencies.extend(global_deps);
+          result.dependencies.extend(fs_deps);
 
           let (buf, mut src_map_buf) = emit(source_map.clone(), comments, &program, config.source_maps)?;
           if config.source_maps {

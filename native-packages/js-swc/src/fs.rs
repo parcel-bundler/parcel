@@ -3,9 +3,11 @@ use std::path::{Path, PathBuf};
 use swc_ecmascript::visit::{Fold, FoldWith, VisitWith};
 use swc_ecmascript::ast::*;
 use swc_atoms::JsWord;
-use swc_common::{DUMMY_SP, SyntaxContext, Mark};
+use swc_common::{DUMMY_SP, SyntaxContext, Mark, Span};
 use crate::hoist::Collect;
 use data_encoding::{BASE64, HEXLOWER};
+use dependency_collector::{DependencyDescriptor, DependencyKind};
+use crate::utils::SourceLocation;
 
 type IdentId = (JsWord, SyntaxContext);
 macro_rules! id {
@@ -14,23 +16,25 @@ macro_rules! id {
   };
 }
 
-pub fn inline_fs(filename: &str, source_map: swc_common::sync::Lrc<swc_common::SourceMap>, decls: HashSet<IdentId>, global_mark: Mark, project_root: String) -> impl Fold {
+pub fn inline_fs<'a>(filename: &str, source_map: swc_common::sync::Lrc<swc_common::SourceMap>, decls: HashSet<IdentId>, global_mark: Mark, project_root: String, deps: &'a mut Vec<DependencyDescriptor>) -> impl Fold + 'a {
   InlineFS {
     filename: Path::new(filename).to_path_buf(),
     collect: Collect::new(source_map, decls, Mark::fresh(Mark::root())),
     global_mark,
-    project_root
+    project_root,
+    deps
   }
 }
 
-struct InlineFS {
+struct InlineFS<'a> {
   filename: PathBuf,
   collect: Collect,
   global_mark: Mark,
-  project_root: String
+  project_root: String,
+  deps: &'a mut Vec<DependencyDescriptor>,
 }
 
-impl Fold for InlineFS {
+impl<'a> Fold for InlineFS<'a> {
   fn fold_module(&mut self, node: Module) -> Module {
     node.visit_with(&Invalid { span: DUMMY_SP } as _, &mut self.collect);
     node.fold_children_with(self)
@@ -44,7 +48,7 @@ impl Fold for InlineFS {
             if let Some((source, specifier)) = self.match_module_reference(expr) {
               if &source == "fs" && &specifier == "readFileSync" {
                 if let Some(arg) = call.args.get(0) {
-                  if let Some(res) = self.evaluate_fs_arg(&*arg.expr, call.args.get(1)) {
+                  if let Some(res) = self.evaluate_fs_arg(&*arg.expr, call.args.get(1), call.span) {
                     return res
                   }
                 }
@@ -61,7 +65,7 @@ impl Fold for InlineFS {
   }
 }
 
-impl InlineFS {
+impl<'a> InlineFS<'a> {
   fn match_module_reference(&self, node: &Expr) -> Option<(JsWord, JsWord)> {
     match node {
       Expr::Ident(ident) => {
@@ -111,7 +115,7 @@ impl InlineFS {
     return None
   }
 
-  fn evaluate_fs_arg(&self, node: &Expr, encoding: Option<&ExprOrSpread>) -> Option<Expr> {
+  fn evaluate_fs_arg(&mut self, node: &Expr, encoding: Option<&ExprOrSpread>, span: Span) -> Option<Expr> {
     let mut evaluator = Evaluator {
       inline: self
     };
@@ -136,23 +140,25 @@ impl InlineFS {
           None => "buffer"
         };
 
+        // TODO: this should probably happen in JS so we use Parcel's file system
+        // rather than only the real FS. Will need when we convert to WASM.
         let contents = match encoding {
           "base64" | "buffer" => {
-            if let Ok(contents) = std::fs::read(path) {
+            if let Ok(contents) = std::fs::read(&path) {
               BASE64.encode(&contents)
             } else {
               return None
             }
           },
           "hex" => {
-            if let Ok(contents) = std::fs::read(path) {
+            if let Ok(contents) = std::fs::read(&path) {
               HEXLOWER.encode(&contents)
             } else {
               return None
             }
           },
           "utf8" | "utf-8" => {
-            if let Ok(contents) = std::fs::read_to_string(path) {
+            if let Ok(contents) = std::fs::read_to_string(&path) {
               contents
             } else {
               return None
@@ -167,6 +173,15 @@ impl InlineFS {
           has_escape: false,
           span: DUMMY_SP
         }));
+
+        // Add a file dependency so the cache is invalidated when this file changes.
+        self.deps.push(DependencyDescriptor {
+          kind: DependencyKind::File,
+          loc: SourceLocation::from(&self.collect.source_map, span),
+          specifier: path.to_str().unwrap().into(),
+          attributes: None,
+          is_optional: false
+        });
 
         // If buffer, wrap in Buffer.from(base64String, 'base64')
         if encoding == "buffer" {
@@ -205,7 +220,7 @@ impl InlineFS {
 }
 
 struct Evaluator<'a> {
-  inline: &'a InlineFS
+  inline: &'a InlineFS<'a>
 }
 
 impl<'a> Fold for Evaluator<'a> {

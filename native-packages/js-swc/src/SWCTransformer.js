@@ -293,6 +293,8 @@ export default (new Transformer({
         asset.addURLDependency(dep.specifier, {
           loc: convertLoc(dep.loc),
         });
+      } else if (dep.kind === 'File') {
+        asset.addIncludedFile(dep.specifier);
       } else {
         if (dep.kind === 'DynamicImport' && isURL(dep.specifier)) {
           continue;
