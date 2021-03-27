@@ -269,6 +269,7 @@ export default class UncommittedAsset {
   }
 
   setMap(map: ?SourceMap): void {
+    this.map = map;
     this.mapBuffer = map?.toBuffer();
   }
 

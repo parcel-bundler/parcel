@@ -447,8 +447,12 @@ export default (new Transformer({
     asset.setCode(compiledCode);
 
     if (map) {
+      let originalMap = await asset.getMapBuffer();
       let sourceMap = new SourceMap(options.projectRoot);
       sourceMap.addRawMappings(JSON.parse(map));
+      if (originalMap) {
+        sourceMap.extends(originalMap);
+      }
       asset.setMap(sourceMap);
     }
 
