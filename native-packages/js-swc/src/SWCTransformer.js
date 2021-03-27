@@ -1,5 +1,5 @@
 // @flow
-import type {JSONObject} from '@parcel/types';
+import type {JSONObject, EnvMap} from '@parcel/types';
 import type {SchemaEntity} from '@parcel/utils';
 import SourceMap from '@parcel/source-map';
 import {Transformer} from '@parcel/plugin';
@@ -75,20 +75,21 @@ const CONFIG_SCHEMA: SchemaEntity = {
 
 export default (new Transformer({
   async loadConfig({config, options}) {
-    let result = await config.getConfig(['package.json']);
-    let pkg = result?.contents;
+    let pkg = await config.getPackage();
     let reactLib;
-    if (pkg?.alias && pkg.alias['react']) {
-      // e.g.: `{ alias: { "react": "preact/compat" } }`
-      reactLib = 'react';
-    } else {
-      // Find a dependency that we can map to a JSX pragma
-      reactLib = Object.keys(JSX_PRAGMA).find(
-        libName =>
-          pkg &&
-          ((pkg.dependencies && pkg.dependencies[libName]) ||
-            (pkg.devDependencies && pkg.devDependencies[libName])),
-      );
+    if (config.isSource) {
+      if (pkg?.alias && pkg.alias['react']) {
+        // e.g.: `{ alias: { "react": "preact/compat" } }`
+        reactLib = 'react';
+      } else {
+        // Find a dependency that we can map to a JSX pragma
+        reactLib = Object.keys(JSX_PRAGMA).find(
+          libName =>
+            pkg &&
+            ((pkg.dependencies && pkg.dependencies[libName]) ||
+              (pkg.devDependencies && pkg.devDependencies[libName])),
+        );
+      }
     }
 
     let reactRefresh =
@@ -106,13 +107,19 @@ export default (new Transformer({
       typeof pkg.browser === 'object' &&
       pkg.browser.fs === false;
 
-    let inlineEnvironment = true;
+    let result = await config.getConfigFrom(
+      path.join(options.projectRoot, 'index'),
+      ['package.json'],
+    );
+    let rootPkg = result?.contents;
+
+    let inlineEnvironment = config.isSource;
     let inlineFS = !ignoreFS;
-    if (pkg?.['@parcel/transformer-js']) {
+    if (result && rootPkg?.['@parcel/transformer-js']) {
       validateSchema.diagnostic(
         CONFIG_SCHEMA,
         {
-          data: pkg['@parcel/transformer-js'],
+          data: rootPkg['@parcel/transformer-js'],
           // FIXME
           source: await options.inputFS.readFile(result.filePath, 'utf8'),
           filePath: result.filePath,
@@ -124,8 +131,9 @@ export default (new Transformer({
       );
 
       inlineEnvironment =
-        pkg['@parcel/transformer-js'].inlineEnvironment ?? inlineEnvironment;
-      inlineFS = pkg['@parcel/transformer-js'].inlineFS ?? inlineFS;
+        rootPkg['@parcel/transformer-js'].inlineEnvironment ??
+        inlineEnvironment;
+      inlineFS = rootPkg['@parcel/transformer-js'].inlineFS ?? inlineFS;
     }
 
     let pragma = reactLib ? JSX_PRAGMA[reactLib].pragma : undefined;
@@ -149,53 +157,64 @@ export default (new Transformer({
 
     let code = await asset.getCode();
 
-    let targets = null;
-    if (asset.env.isElectron() && asset.env.engines.electron) {
-      targets = {
-        electron: semver.minVersion(asset.env.engines.electron)?.toString(),
-      };
-    } else if (asset.env.isBrowser() && asset.env.engines.browsers) {
-      targets = {};
-      let browsers = browserslist(asset.env.engines.browsers);
-      for (let browser of browsers) {
-        let [name, version] = browser.split(' ');
-        if (BROWSER_MAPPING.hasOwnProperty(name)) {
-          name = BROWSER_MAPPING[name];
-          if (!name) {
-            continue;
+    let targets;
+    if (asset.isSource) {
+      if (asset.env.isElectron() && asset.env.engines.electron) {
+        targets = {
+          electron: semver.minVersion(asset.env.engines.electron)?.toString(),
+        };
+      } else if (asset.env.isBrowser() && asset.env.engines.browsers) {
+        targets = {};
+        let browsers = browserslist(asset.env.engines.browsers);
+        for (let browser of browsers) {
+          let [name, version] = browser.split(' ');
+          if (BROWSER_MAPPING.hasOwnProperty(name)) {
+            name = BROWSER_MAPPING[name];
+            if (!name) {
+              continue;
+            }
+          }
+
+          let [major, minor = '0', patch = '0'] = version
+            .split('-')[0]
+            .split('.');
+          let semverVersion = `${major}.${minor}.${patch}`;
+
+          if (
+            targets[name] == null ||
+            semver.gt(targets[name], semverVersion)
+          ) {
+            targets[name] = semverVersion;
           }
         }
-
-        let [major, minor = '0', patch = '0'] = version
-          .split('-')[0]
-          .split('.');
-        let semverVersion = `${major}.${minor}.${patch}`;
-
-        if (targets[name] == null || semver.gt(targets[name], semverVersion)) {
-          targets[name] = semverVersion;
-        }
+      } else if (asset.env.isNode() && asset.env.engines.node) {
+        targets = {node: semver.minVersion(asset.env.engines.node)?.toString()};
       }
-    } else if (asset.env.isNode() && asset.env.engines.node) {
-      targets = {node: semver.minVersion(asset.env.engines.node)?.toString()};
     }
 
     let relativePath = relativeUrl(options.projectRoot, asset.filePath);
-    let env = options.env;
+    let env: EnvMap = {};
 
     if (!config?.inlineEnvironment) {
-      env = {
-        NODE_ENV: options.env.NODE_ENV,
-      };
+      if (options.env.NODE_ENV != null) {
+        env.NODE_ENV = options.env.NODE_ENV;
+      }
 
       if (process.env.PARCEL_BUILD_ENV === 'test') {
         env.PARCEL_BUILD_ENV = 'test';
       }
     } else if (Array.isArray(config?.inlineEnvironment)) {
-      env = Object.fromEntries(
-        Object.entries(env).filter(([key]) =>
-          isMatch(key, config.inlineEnvironment),
-        ),
-      );
+      for (let key in options.env) {
+        if (isMatch(key, config.inlineEnvironment)) {
+          env[key] = options.env[key];
+        }
+      }
+    } else {
+      for (let key in options.env) {
+        if (!key.startsWith('npm_')) {
+          env[key] = options.env[key];
+        }
+      }
     }
 
     let {
