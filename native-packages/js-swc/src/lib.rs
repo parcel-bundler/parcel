@@ -269,7 +269,7 @@ fn transform(ctx: CallContext) -> Result<JsUnknown> {
                 decls.clone(),
                 global_mark,
                 config.project_root
-              ), config.inline_fs),
+              ), config.inline_fs && config.code.contains("readFileSync")),
               // Insert dependencies for node globals
               Optional::new(GlobalReplacer {
                 source_map: &source_map,
