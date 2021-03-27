@@ -220,6 +220,11 @@ impl<'a> Fold for Hoist<'a> {
                 }
               };
 
+              if self.requires_in_stmt.len() > 0 {
+                items.append(&mut self.requires_in_stmt);
+                self.requires_in_stmt.clear();
+              }
+
               items.push(ModuleItem::Stmt(Stmt::Decl(decl)));
             },
             ModuleDecl::ExportDecl(export) => {
@@ -763,7 +768,7 @@ impl<'a> Hoist<'a> {
     let new_name: JsWord = if exported == "*" {
       format!("${}$exports", self.module_id).into()
     } else {
-      format!("${}$export${}", self.module_id, exported).into()
+      format!("${}$export${:x}", self.module_id, hash!(exported)).into()
     };
 
     self.exported_symbols.entry(exported.clone()).or_insert((new_name.clone(), SourceLocation::from(&self.collect.source_map, span)));

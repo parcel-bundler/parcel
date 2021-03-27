@@ -1378,8 +1378,8 @@ describe('cache', function() {
             'utf8',
           );
           assert(
-            !contents.includes('export default'),
-            'should not include export default',
+            !contents.includes('export '),
+            'should not include export',
           );
 
           let pkgFile = path.join(inputDir, 'package.json');
@@ -1403,8 +1403,8 @@ describe('cache', function() {
         'utf8',
       );
       assert(
-        contents.includes('export default'),
-        'should include export default',
+        contents.includes('export '),
+        'should include export',
       );
     });
 
@@ -1567,8 +1567,8 @@ describe('cache', function() {
             'utf8',
           );
           assert(
-            contents.includes('export default'),
-            'should include export default',
+            contents.includes('export '),
+            'should include export',
           );
 
           let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
@@ -1700,8 +1700,8 @@ describe('cache', function() {
             'utf8',
           );
           assert(
-            contents.includes('export default'),
-            'should include export default',
+            contents.includes('export '),
+            'should include export',
           );
 
           contents = await overlayFS.readFile(
@@ -1736,8 +1736,8 @@ describe('cache', function() {
         'utf8',
       );
       assert(
-        !contents.includes('export default'),
-        'should not include export default',
+        !contents.includes('export '),
+        'should not include export',
       );
       assert(
         !contents.includes('module.exports ='),
@@ -1875,8 +1875,8 @@ describe('cache', function() {
             'utf8',
           );
           assert(
-            !contents.includes('export default'),
-            'does not include export default',
+            !contents.includes('export '),
+            'does not include export',
           );
 
           await overlayFS.writeFile(
@@ -1898,8 +1898,8 @@ describe('cache', function() {
         'utf8',
       );
       assert(
-        contents.includes('export default'),
-        'should include export default',
+        contents.includes('export '),
+        'should include export',
       );
     });
 
@@ -1929,8 +1929,8 @@ describe('cache', function() {
             'utf8',
           );
           assert(
-            contents.includes('export default'),
-            'should include export default',
+            contents.includes('export '),
+            'should include export',
           );
           await overlayFS.unlink(pkgFile);
         },
@@ -1941,8 +1941,8 @@ describe('cache', function() {
         'utf8',
       );
       assert(
-        !contents.includes('export default'),
-        'does not include export default',
+        !contents.includes('export '),
+        'does not include export',
       );
     });
 

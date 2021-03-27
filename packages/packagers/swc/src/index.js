@@ -21,7 +21,7 @@ export default (new Packager({
       : new DevPackager(options, bundleGraph, bundle, parcelRequireName);
 
     let {contents, map} = await packager.package();
-    contents += '\n' + await getSourceMapSuffix(getSourceMapReference, map);
+    contents += '\n' + (await getSourceMapSuffix(getSourceMapReference, map));
 
     return replaceInlineReferences({
       bundle,

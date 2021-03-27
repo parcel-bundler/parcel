@@ -66,7 +66,10 @@ export class DevPackager {
       let wrapped = first ? '' : ',';
 
       if (node.type === 'dependency') {
-        let resolved = this.bundleGraph.getDependencyResolution(node.value, this.bundle);
+        let resolved = this.bundleGraph.getDependencyResolution(
+          node.value,
+          this.bundle,
+        );
         if (resolved && resolved.type !== 'js') {
           // if this is a reference to another javascript asset, we should not include
           // its output, as its contents should already be loaded.
@@ -89,9 +92,14 @@ export class DevPackager {
         let deps = {};
         let dependencies = this.bundleGraph.getDependencies(asset);
         for (let dep of dependencies) {
-          let resolved = this.bundleGraph.getDependencyResolution(dep, this.bundle);
+          let resolved = this.bundleGraph.getDependencyResolution(
+            dep,
+            this.bundle,
+          );
           if (resolved) {
-            deps[dep.moduleSpecifier] = this.bundleGraph.getAssetPublicId(resolved);
+            deps[dep.moduleSpecifier] = this.bundleGraph.getAssetPublicId(
+              resolved,
+            );
           }
         }
 
@@ -136,37 +144,33 @@ export class DevPackager {
       mainEntry = null;
     }
 
-    let contents = 
+    let contents =
       prefix +
-        '({' +
-        assets +
-        '},' +
-        JSON.stringify(
-          entries.map(asset => this.bundleGraph.getAssetPublicId(asset)),
-        ) +
-        ', ' +
-        JSON.stringify(
-          mainEntry ? this.bundleGraph.getAssetPublicId(mainEntry) : null,
-        ) +
-        ', ' +
-        JSON.stringify(this.parcelRequireName) +
-        ')' +
-        '\n';
+      '({' +
+      assets +
+      '},' +
+      JSON.stringify(
+        entries.map(asset => this.bundleGraph.getAssetPublicId(asset)),
+      ) +
+      ', ' +
+      JSON.stringify(
+        mainEntry ? this.bundleGraph.getAssetPublicId(mainEntry) : null,
+      ) +
+      ', ' +
+      JSON.stringify(this.parcelRequireName) +
+      ')' +
+      '\n';
 
     return {
       contents,
-      map
-    }
+      map,
+    };
   }
 
   getPrefix(): string {
     let interpreter: ?string;
     let mainEntry = this.bundle.getMainEntry();
-    if (
-      mainEntry &&
-      this.isEntry() &&
-      !this.bundle.target.env.isBrowser()
-    ) {
+    if (mainEntry && this.isEntry() && !this.bundle.target.env.isBrowser()) {
       let _interpreter = mainEntry.meta.interpreter;
       invariant(_interpreter == null || typeof _interpreter === 'string');
       interpreter = _interpreter;
@@ -176,13 +180,18 @@ export class DevPackager {
     if (this.bundle.env.isWorker()) {
       let bundles = this.bundleGraph.getReferencedBundles(this.bundle);
       for (let b of bundles) {
-        importScripts += `importScripts("${relativeBundlePath(this.bundle, b)}");\n`;
+        importScripts += `importScripts("${relativeBundlePath(
+          this.bundle,
+          b,
+        )}");\n`;
       }
     }
 
     return (
       // If the entry asset included a hashbang, repeat it at the top of the bundle
-      (interpreter != null ? `#!${interpreter}\n` : '') + importScripts + PRELUDE
+      (interpreter != null ? `#!${interpreter}\n` : '') +
+      importScripts +
+      PRELUDE
     );
   }
 

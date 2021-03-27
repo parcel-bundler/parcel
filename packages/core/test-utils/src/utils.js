@@ -287,12 +287,14 @@ export async function runBundles(
     }
     case 'node':
     case 'electron-main':
+      nodeCache.clear();
       ctx = prepareNodeContext(
         outputFormat === 'commonjs' && parent.filePath,
         globals,
       );
       break;
     case 'electron-renderer': {
+      nodeCache.clear();
       ctx = prepareBrowserContext(parent.filePath, globals);
       prepareNodeContext(
         outputFormat === 'commonjs' && parent.filePath,
@@ -698,9 +700,10 @@ function prepareWorkerContext(
   return {ctx, promises};
 }
 
-const nodeCache = {};
+const nodeCache = new Map();
 // no filepath = ESM
-function prepareNodeContext(filePath, globals, ctx = {}) {
+// $FlowFixMe
+function prepareNodeContext(filePath, globals, ctx: any = {}) {
   let exports = {};
   let req =
     filePath &&
@@ -749,8 +752,9 @@ function prepareNodeContext(filePath, globals, ctx = {}) {
         return require(specifier);
       }
 
-      if (nodeCache[res]) {
-        return nodeCache[res].module.exports;
+      let cached = nodeCache.get(res);
+      if (cached) {
+        return cached.module.exports;
       }
 
       let g = {
@@ -770,7 +774,7 @@ function prepareNodeContext(filePath, globals, ctx = {}) {
       }
 
       let childCtx = prepareNodeContext(res, g);
-      nodeCache[res] = childCtx;
+      nodeCache.set(res, childCtx);
 
       vm.createContext(childCtx);
       new vm.Script(
@@ -917,6 +921,7 @@ export async function assertESMExports(
       .find(b => b.type === 'js')
       ?.getMainEntry(),
   );
+  nodeCache.clear();
   let [nodeResult] = await runESM(
     [entry.filePath],
     vm.createContext(prepareNodeContext(false, {})),

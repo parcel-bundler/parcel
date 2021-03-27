@@ -2046,11 +2046,7 @@ describe('javascript', function() {
     assertBundles(b, [
       {
         name: 'browser.js',
-        assets: [
-          'browser.js',
-          'browser-module.js',
-          'esmodule-helpers.js',
-        ],
+        assets: ['browser.js', 'browser-module.js', 'esmodule-helpers.js'],
       },
     ]);
 
