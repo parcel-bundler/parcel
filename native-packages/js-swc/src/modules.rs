@@ -378,18 +378,28 @@ impl Fold for ESMFold {
               match &export.decl {
                 Decl::Class(class) => {
                   self.create_export(class.ident.sym.clone(), Expr::Ident(class.ident.clone()), export.span);
+                  items.push(ModuleItem::Stmt(Stmt::Decl(export.decl.clone().fold_with(self))));
                 },
                 Decl::Fn(func) => {
                   self.create_export(func.ident.sym.clone(), Expr::Ident(func.ident.clone()), export.span);
+                  items.push(ModuleItem::Stmt(Stmt::Decl(export.decl.clone().fold_with(self))));
                 },
-                Decl::Var(_var) => {
-                  self.in_export_decl = true;
+                Decl::Var(var) => {
+                  let mut var = var.clone();
+                  var.decls = var.decls.iter().map(|decl| {
+                    let mut decl = decl.clone();
+                    self.in_export_decl = true;
+                    decl.name = decl.name.clone().fold_with(self);
+                    self.in_export_decl = false;
+                    decl.init = decl.init.clone().fold_with(self);
+                    decl
+                  }).collect();
+                  items.push(ModuleItem::Stmt(Stmt::Decl(Decl::Var(var))));
+                },
+                _ => {
+                  items.push(ModuleItem::Stmt(Stmt::Decl(export.decl.clone().fold_with(self))));
                 }
-                _ => {}
               }
-          
-              items.push(ModuleItem::Stmt(Stmt::Decl(export.decl.clone().fold_with(self))));
-              self.in_export_decl = false;
             },
             _ => {
               items.push(item.clone())

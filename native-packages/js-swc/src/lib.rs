@@ -9,6 +9,7 @@ extern crate swc_atoms;
 extern crate serde;
 extern crate inflector;
 extern crate data_encoding;
+extern crate sha1;
 
 mod decl_collector;
 mod dependency_collector;
@@ -18,6 +19,7 @@ mod utils;
 mod hoist;
 mod modules;
 mod fs;
+mod fast_refresh;
 
 use napi::{CallContext, JsObject, JsUnknown, Result};
 use std::collections::{HashMap};
@@ -54,6 +56,7 @@ use hoist::hoist;
 use utils::SourceLocation;
 use modules::esm2cjs;
 use fs::inline_fs;
+use fast_refresh::react_refresh;
 
 #[derive(Serialize, Debug, Deserialize)]
 struct Config {
@@ -71,6 +74,7 @@ struct Config {
   jsx_pragma: Option<String>,
   jsx_pragma_frag: Option<String>,
   is_development: bool,
+  react_refresh: bool,
   targets: Option<HashMap<String, String>>,
   source_maps: bool,
   scope_hoist: bool,
@@ -220,6 +224,12 @@ fn transform(ctx: CallContext) -> Result<JsUnknown> {
 
           module = {
             let mut passes = chain!(
+              Optional::new(react_refresh(
+                "$RefreshReg$",
+                "$RefreshSig$",
+                false,
+                source_map.clone()
+              ), config.react_refresh),
               Optional::new(react::jsx(source_map.clone(), Some(&comments), react_options), config.is_jsx),
               Optional::new(typescript::strip(), config.is_type_script)
             );

@@ -938,14 +938,19 @@ impl Visit for Collect {
       Decl::Fn(func) => {
         self.exports.insert(id!(func.ident), func.ident.sym.clone());
       },
-      Decl::Var(_var) => {
-        self.in_export_decl = true;
+      Decl::Var(var) => {
+        for decl in &var.decls {
+          self.in_export_decl = true;
+          decl.name.visit_with(decl, self);
+          self.in_export_decl = false;
+
+          decl.init.visit_with(decl, self);
+        }
       }
       _ => {}
     }
 
     node.visit_children_with(self);
-    self.in_export_decl = false;
   }
 
   fn visit_export_default_decl(&mut self, node: &ExportDefaultDecl, _parent: &dyn Node) {
@@ -1436,7 +1441,7 @@ mod tests {
   use swc_common::{FileName, SourceMap, sync::Lrc, DUMMY_SP, chain, Globals, Mark};
   use swc_ecmascript::parser::lexer::Lexer;
   use swc_ecmascript::parser::{Parser, EsConfig, TsConfig, StringInput, Syntax, PResult};
-  use swc_ecmascript::transforms::resolver;
+  use swc_ecmascript::transforms::resolver_with_mark;
   use swc_ecmascript::codegen::text_writer::JsWriter;
   extern crate indoc;
   use self::indoc::indoc;
@@ -1463,13 +1468,14 @@ mod tests {
       Ok(module) => {
         swc_common::GLOBALS.set(&Globals::new(), || {
           swc_ecmascript::transforms::helpers::HELPERS.set(&swc_ecmascript::transforms::helpers::Helpers::new(false), || {
-            let module = module.fold_with(&mut resolver());
+            let global_mark = Mark::fresh(Mark::root());
+            let module = module.fold_with(&mut resolver_with_mark(global_mark));
 
             let mut collect = Collect::new(source_map.clone(), collect_decls(&module), Mark::fresh(Mark::root()));
             module.visit_with(&Invalid { span: DUMMY_SP } as _, &mut collect);
             
             let (module, res) = {
-              let mut hoist = Hoist::new("abc", &collect);
+              let mut hoist = Hoist::new("abc", &collect, global_mark);
               let module = module.fold_with(&mut hoist);
               (module, hoist.get_result())
             };
@@ -2034,8 +2040,8 @@ mod tests {
     assert_eq!(code, indoc!{r#"
     import   "abc:other";
     function $abc$var$x() {
-        const $abc$var$foo = $abc$import$558d6cfb8af8a010;
-        console.log($abc$var$foo.bar);
+        const foo = $abc$import$558d6cfb8af8a010;
+        console.log(foo.bar);
     }
     import   "abc:bar";
     $abc$import$3705fc5f2281438d;
@@ -2051,8 +2057,8 @@ mod tests {
     assert_eq!(code, indoc!{r#"
     import   "abc:other";
     function $abc$var$x() {
-        const $abc$var$foo = $abc$import$558d6cfb8af8a010$ba02ad2230917043;
-        console.log($abc$var$foo);
+        const foo = $abc$import$558d6cfb8af8a010$ba02ad2230917043;
+        console.log(foo);
     }
     "#});
 
@@ -2079,8 +2085,8 @@ mod tests {
     assert_eq!(code, indoc!{r#"
     import   "abc:other";
     function $abc$var$x() {
-        const $abc$var$foo = $abc$import$558d6cfb8af8a010[test];
-        console.log($abc$var$foo);
+        const foo = $abc$import$558d6cfb8af8a010[test];
+        console.log(foo);
     }
     "#});
 
@@ -2094,8 +2100,8 @@ mod tests {
     assert_eq!(code, indoc!{r#"
     import   "abc:other";
     function $abc$var$x() {
-        const { foo: $abc$var$foo  } = $abc$import$558d6cfb8af8a010;
-        console.log($abc$var$foo);
+        const { foo: foo  } = $abc$import$558d6cfb8af8a010;
+        console.log(foo);
     }
     "#});
 
@@ -2116,7 +2122,7 @@ mod tests {
     assert_eq!(code, indoc!{r#"
     import   "abc:a";
     import   "abc:b";
-    let $abc$var$x = ($abc$import$7ac649919d1c80a6, $abc$import$a91ade93898ecc38);
+    let $abc$var$x = (!$abc$import$7ac649919d1c80a6, $abc$import$a91ade93898ecc38);
     "#});
 
     let (_collect, code, _hoist) = parse(r#"
@@ -2154,7 +2160,7 @@ mod tests {
 
     assert_eq!(code, indoc!{r#"
     import   "abc:y";
-    for(let $abc$var$x = $abc$import$57bbd0ca114c72e; $abc$var$x < 5; $abc$var$x++){
+    for(let x = $abc$import$57bbd0ca114c72e; x < 5; x++){
     }
     "#});
   }
@@ -2439,8 +2445,8 @@ mod tests {
     assert_eq!(code, indoc!{r#"
     import   "abc:other";
     async function $abc$var$test() {
-        const $abc$var$x = await $abc$importAsync$558d6cfb8af8a010;
-        console.log($abc$var$x.foo);
+        const x = await $abc$importAsync$558d6cfb8af8a010;
+        console.log(x.foo);
     }
     "#});
 
@@ -2459,8 +2465,8 @@ mod tests {
     assert_eq!(code, indoc!{r#"
     import   "abc:other";
     async function $abc$var$test() {
-        const $abc$var$x = await $abc$importAsync$558d6cfb8af8a010;
-        console.log($abc$var$x[foo]);
+        const x = await $abc$importAsync$558d6cfb8af8a010;
+        console.log(x[foo]);
     }
     "#});
 
@@ -2479,8 +2485,8 @@ mod tests {
     assert_eq!(code, indoc!{r#"
     import   "abc:other";
     async function $abc$var$test() {
-        const { foo: $abc$var$foo  } = await $abc$importAsync$558d6cfb8af8a010;
-        console.log($abc$var$foo);
+        const { foo: foo  } = await $abc$importAsync$558d6cfb8af8a010;
+        console.log(foo);
     }
     "#});
 
@@ -2499,8 +2505,8 @@ mod tests {
     assert_eq!(code, indoc!{r#"
     import   "abc:other";
     async function $abc$var$test() {
-        const { foo: $abc$var$bar  } = await $abc$importAsync$558d6cfb8af8a010;
-        console.log($abc$var$bar);
+        const { foo: bar  } = await $abc$importAsync$558d6cfb8af8a010;
+        console.log(bar);
     }
     "#});
 
@@ -2515,7 +2521,7 @@ mod tests {
     });
     assert_eq!(code, indoc!{r#"
     import   "abc:other";
-    $abc$importAsync$558d6cfb8af8a010.then(($abc$var$x)=>$abc$var$x.foo
+    $abc$importAsync$558d6cfb8af8a010.then((x)=>x.foo
     );
     "#});
 
@@ -2530,7 +2536,7 @@ mod tests {
     });
     assert_eq!(code, indoc!{r#"
     import   "abc:other";
-    $abc$importAsync$558d6cfb8af8a010.then(($abc$var$x)=>$abc$var$x
+    $abc$importAsync$558d6cfb8af8a010.then((x)=>x
     );
     "#});
 
@@ -2545,7 +2551,7 @@ mod tests {
     });
     assert_eq!(code, indoc!{r#"
     import   "abc:other";
-    $abc$importAsync$558d6cfb8af8a010.then(({ foo: $abc$var$foo  })=>$abc$var$foo
+    $abc$importAsync$558d6cfb8af8a010.then(({ foo: foo  })=>foo
     );
     "#});
 
@@ -2560,7 +2566,7 @@ mod tests {
     });
     assert_eq!(code, indoc!{r#"
     import   "abc:other";
-    $abc$importAsync$558d6cfb8af8a010.then(({ foo: $abc$var$bar  })=>$abc$var$bar
+    $abc$importAsync$558d6cfb8af8a010.then(({ foo: bar  })=>bar
     );
     "#});
 
@@ -2575,8 +2581,8 @@ mod tests {
     });
     assert_eq!(code, indoc!{r#"
     import   "abc:other";
-    $abc$importAsync$558d6cfb8af8a010.then(function($abc$var$x) {
-        return $abc$var$x.foo;
+    $abc$importAsync$558d6cfb8af8a010.then(function(x) {
+        return x.foo;
     });
     "#});
 
@@ -2591,8 +2597,8 @@ mod tests {
     });
     assert_eq!(code, indoc!{r#"
     import   "abc:other";
-    $abc$importAsync$558d6cfb8af8a010.then(function($abc$var$x) {
-        return $abc$var$x;
+    $abc$importAsync$558d6cfb8af8a010.then(function(x) {
+        return x;
     });
     "#});
 
@@ -2607,7 +2613,7 @@ mod tests {
     });
     assert_eq!(code, indoc!{r#"
     import   "abc:other";
-    $abc$importAsync$558d6cfb8af8a010.then(function({ foo: $abc$var$foo  }) {
+    $abc$importAsync$558d6cfb8af8a010.then(function({ foo: foo  }) {
     });
     "#});
 
@@ -2622,7 +2628,7 @@ mod tests {
     });
     assert_eq!(code, indoc!{r#"
     import   "abc:other";
-    $abc$importAsync$558d6cfb8af8a010.then(function({ foo: $abc$var$bar  }) {
+    $abc$importAsync$558d6cfb8af8a010.then(function({ foo: bar  }) {
     });
     "#});
   }

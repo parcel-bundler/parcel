@@ -91,6 +91,13 @@ export default (new Transformer({
       );
     }
 
+    let reactRefresh =
+      config.isSource &&
+      options.hmrOptions &&
+      config.env.isBrowser() &&
+      options.mode === 'development' &&
+      pkg?.dependencies?.['react'];
+
     // Check if we should ignore fs calls
     // See https://github.com/defunctzombie/node-browser-resolve#skip
     let ignoreFS =
@@ -130,6 +137,7 @@ export default (new Transformer({
       pragmaFrag,
       inlineEnvironment,
       inlineFS,
+      reactRefresh,
     });
   },
   async transform({asset, config, options}) {
@@ -213,6 +221,7 @@ export default (new Transformer({
       jsx_pragma: config?.pragma,
       jsx_pragma_frag: config?.pragmaFrag,
       is_development: options.mode === 'development',
+      react_refresh: Boolean(config?.reactRefresh),
       targets,
       source_maps: !!asset.env.sourceMap,
       scope_hoist: asset.env.shouldScopeHoist,
