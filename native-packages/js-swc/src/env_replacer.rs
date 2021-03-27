@@ -11,7 +11,8 @@ pub struct EnvReplacer<'a> {
   pub replace_env: bool,
   pub is_browser: bool,
   pub env: HashMap<swc_atoms::JsWord, swc_atoms::JsWord>,
-  pub decls: &'a HashSet<(JsWord, SyntaxContext)>
+  pub decls: &'a HashSet<(JsWord, SyntaxContext)>,
+  pub used_env: &'a mut HashSet<JsWord>,
 }
 
 impl<'a> Fold for EnvReplacer<'a> {
@@ -56,6 +57,7 @@ impl<'a> Fold for EnvReplacer<'a> {
                   match &**prop {
                     Lit(Lit::Str(Str { value: ref sym, .. })) |
                     Ident(Ident { ref sym, .. }) => {
+                      self.used_env.insert(sym.clone());
                       if let Some(val) = self.env.get(sym) {
                         return Lit(Lit::Str(ast::Str {
                           span: DUMMY_SP,

@@ -22,7 +22,7 @@ mod fs;
 mod fast_refresh;
 
 use napi::{CallContext, JsObject, JsUnknown, Result};
-use std::collections::{HashMap};
+use std::collections::{HashMap, HashSet};
 use std::str::FromStr;
 
 use swc_common::comments::SingleThreadedComments;
@@ -89,6 +89,7 @@ struct TransformResult {
   hoist_result: Option<hoist::HoistResult>,
   diagnostics: Option<Vec<Diagnostic>>,
   needs_esm_helpers: bool,
+  used_env: HashSet<swc_atoms::JsWord>
 }
 
 fn targets_to_versions(targets: &Option<HashMap<String, String>>) -> Option<Versions> {
@@ -258,6 +259,7 @@ fn transform(ctx: CallContext) -> Result<JsUnknown> {
                 env: config.env,
                 is_browser: config.is_browser,
                 decls: &decls,
+                used_env: &mut result.used_env
               },
               // Simplify expressions and remove dead branches so that we
               // don't include dependencies inside conditionals that are always false.

@@ -206,6 +206,7 @@ export default (new Transformer({
       hoist_result,
       needs_esm_helpers,
       diagnostics,
+      used_env,
     } = transform({
       filename: asset.filePath,
       code,
@@ -262,7 +263,9 @@ export default (new Transformer({
       asset.meta.interpreter = shebang;
     }
 
-    // console.log(asset.filePath, dependencies);
+    for (let env of used_env) {
+      asset.invalidateOnEnvChange(env);
+    }
 
     for (let dep of dependencies) {
       if (dep.kind === 'WebWorker') {
