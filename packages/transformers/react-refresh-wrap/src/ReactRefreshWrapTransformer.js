@@ -43,9 +43,11 @@ ${code}
   window.$RefreshSig$ = prevRefreshSig;
 }`;
 
-    map.offsetLines(1, 6);
     asset.setCode(code);
-    asset.setMap(map);
+    if (map) {
+      map.offsetLines(1, 6);
+      asset.setMap(map);
+    }
 
     // The JSTransformer has already run, do it manually
     asset.addDependency({
