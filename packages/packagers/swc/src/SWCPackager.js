@@ -983,6 +983,18 @@ ${code}
     res += outputFormatPrelude;
     lines += outputFormatLines;
 
+    // Add used helpers.
+    if (this.needsPrelude) {
+      this.usedHelpers.add('$parcel$global');
+    }
+
+    for (let helper of this.usedHelpers) {
+      res += helpers[helper];
+      if (enableSourceMaps) {
+        lines += countLines(helpers[helper]) - 1;
+      }
+    }
+
     if (this.needsPrelude) {
       // Add the prelude if this is potentially the first JS bundle to load in a
       // particular context (e.g. entry scripts in HTML, workers, etc.).
@@ -1023,14 +1035,6 @@ ${code}
 
       res += importScripts;
       lines += bundles.length;
-    }
-
-    // Add used helpers.
-    for (let helper of this.usedHelpers) {
-      res += helpers[helper];
-      if (enableSourceMaps) {
-        lines += countLines(helpers[helper]) - 1;
-      }
     }
 
     return [res, lines];
