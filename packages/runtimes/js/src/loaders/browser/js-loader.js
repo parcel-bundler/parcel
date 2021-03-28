@@ -6,7 +6,7 @@ module.exports = cacheLoader(function loadJSBundle(bundle) {
     let existingScripts = document.getElementsByTagName('script');
     let isCurrentBundle = function(script) {
       return script.src === bundle;
-    }
+    };
 
     if ([].concat(existingScripts).some(isCurrentBundle)) {
       resolve();
