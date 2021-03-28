@@ -39,7 +39,7 @@ struct Hoist<'a> {
   module_id: &'a str,
   collect: &'a Collect,
   global_ctxt: SyntaxContext,
-  requires_in_stmt: Vec<ModuleItem>,
+  module_items: Vec<ModuleItem>,
   export_decls: HashSet<JsWord>,
   imported_symbols: HashMap<JsWord, (JsWord, JsWord, SourceLocation)>,
   exported_symbols: HashMap<JsWord, (JsWord, SourceLocation)>,
@@ -68,7 +68,7 @@ impl<'a> Hoist<'a> {
       module_id,
       collect,
       global_ctxt: SyntaxContext::empty().apply_mark(global_mark),
-      requires_in_stmt: vec![],
+      module_items: vec![],
       export_decls: HashSet::new(),
       imported_symbols: HashMap::new(),
       exported_symbols: HashMap::new(),
@@ -98,7 +98,6 @@ impl<'a> Fold for Hoist<'a> {
   fn fold_module(&mut self, node: Module) -> Module {
     let mut node = node;
     let mut hoisted_imports = vec![];
-    let mut items = vec![];
     for item in &node.body {
       match &item {
         ModuleItem::ModuleDecl(decl) => {
@@ -181,11 +180,7 @@ impl<'a> Fold for Hoist<'a> {
             ModuleDecl::ExportDefaultExpr(export) => {
               let ident = self.get_export_ident(export.span, &"default".into());
               let init = export.expr.clone().fold_with(self);
-              if self.requires_in_stmt.len() > 0 {
-                items.append(&mut self.requires_in_stmt);
-                self.requires_in_stmt.clear();
-              }
-              items.push(ModuleItem::Stmt(Stmt::Decl(Decl::Var(VarDecl {
+              self.module_items.push(ModuleItem::Stmt(Stmt::Decl(Decl::Var(VarDecl {
                 declare: false,
                 kind: VarDeclKind::Var,
                 span: DUMMY_SP,
@@ -220,18 +215,15 @@ impl<'a> Fold for Hoist<'a> {
                 }
               };
 
-              if self.requires_in_stmt.len() > 0 {
-                items.append(&mut self.requires_in_stmt);
-                self.requires_in_stmt.clear();
-              }
-
-              items.push(ModuleItem::Stmt(Stmt::Decl(decl)));
+              self.module_items.push(ModuleItem::Stmt(Stmt::Decl(decl)));
             },
             ModuleDecl::ExportDecl(export) => {
-              items.push(ModuleItem::Stmt(Stmt::Decl(export.decl.clone().fold_with(self))));
+              let d = export.decl.clone().fold_with(self);
+              self.module_items.push(ModuleItem::Stmt(Stmt::Decl(d)));
             },
             _ => {
-              items.push(item.clone().fold_with(self))
+              let d = item.clone().fold_with(self);
+              self.module_items.push(d)
             }
           }
         },
@@ -243,19 +235,24 @@ impl<'a> Fold for Hoist<'a> {
                   let mut decls = vec![];
                   for v in &var.decls {
                     if let Some(init) = &v.init {
+                      // Match var x = require('foo');
                       if let Some(source) = match_require(init, &self.collect.decls, self.collect.ignore_mark) {
                         // If the require is accessed in a way we cannot analyze, do not replace.
                         // e.g. const {x: {y: z}} = require('x');
                         // The require will be handled in the expression handler, below.
                         if !self.collect.non_static_requires.contains(&source) {
+                          // If this is not the first declarator in the variable declaration, we need to
+                          // split the declaration into multiple to preserve side effect ordering.
+                          // var x = sideEffect(), y = require('foo'), z = 2;
+                          //   -> var x = sideEffect(); import 'foo'; var y = $id$import$foo, z = 2;
                           if decls.len() > 0 {
                             let mut var = var.clone();
                             var.decls = decls.clone();
-                            items.push(ModuleItem::Stmt(Stmt::Decl(Decl::Var(var))));
+                            self.module_items.push(ModuleItem::Stmt(Stmt::Decl(Decl::Var(var))));
                             decls.clear();
                           }
 
-                          items.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
+                          self.module_items.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
                             specifiers: vec![],
                             asserts: None,
                             span: DUMMY_SP,
@@ -270,16 +267,21 @@ impl<'a> Fold for Hoist<'a> {
                         Expr::Member(member) => {
                           match &member.obj {
                             ExprOrSuper::Expr(expr) => {
+                              // Match var x = require('foo').bar;
                               if let Some(source) = match_require(&*expr, &self.collect.decls, self.collect.ignore_mark) {
                                 if !self.collect.non_static_requires.contains(&source) {
+                                  // If this is not the first declarator in the variable declaration, we need to
+                                  // split the declaration into multiple to preserve side effect ordering.
+                                  // var x = sideEffect(), y = require('foo').bar, z = 2;
+                                  //   -> var x = sideEffect(); import 'foo'; var y = $id$import$foo$bar, z = 2;
                                   if decls.len() > 0 {
                                     let mut var = var.clone();
                                     var.decls = decls.clone();
-                                    items.push(ModuleItem::Stmt(Stmt::Decl(Decl::Var(var))));
+                                    self.module_items.push(ModuleItem::Stmt(Stmt::Decl(Decl::Var(var))));
                                     decls.clear();
                                   }
         
-                                  items.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
+                                  self.module_items.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
                                     specifiers: vec![],
                                     asserts: None,
                                     span: DUMMY_SP,
@@ -296,44 +298,42 @@ impl<'a> Fold for Hoist<'a> {
                         _ => {}
                       }
                     }
+
+                    // Otherwise, fold the variable initializer. If requires were found
+                    // in the expression, they will be hoisted into module_items. If the
+                    // length increases, then we need to split the variable declaration
+                    // into multiple to preserve side effect ordering.
+                    // var x = 2, y = doSomething(require('foo')), z = 3;
+                    //   -> var x = 2; import 'foo'; var y = doSomething($id$import$foo), z = 3;
+                    let items_len = self.module_items.len();
                     let d = v.clone().fold_with(self);
-                    if self.requires_in_stmt.len() > 0 {
+                    if self.module_items.len() > items_len {
                       if decls.len() > 0 {
                         let mut var = var.clone();
                         var.decls = decls.clone();
-                        items.push(ModuleItem::Stmt(Stmt::Decl(Decl::Var(var))));
+                        self.module_items.insert(items_len, ModuleItem::Stmt(Stmt::Decl(Decl::Var(var))));
                         decls.clear();
                       }
-
-                      items.append(&mut self.requires_in_stmt);
-                      self.requires_in_stmt.clear();
                     }
                     decls.push(d);
                   }
 
+                  // Push whatever declarators are left.
                   if decls.len() > 0 {
                     let mut var = var.clone();
                     var.decls = decls;
-                    items.push(ModuleItem::Stmt(Stmt::Decl(Decl::Var(var))))
+                    self.module_items.push(ModuleItem::Stmt(Stmt::Decl(Decl::Var(var))))
                   }
                 },
                 _ => {
                   let d = item.clone().fold_with(self);
-                  if self.requires_in_stmt.len() > 0 {
-                    items.append(&mut self.requires_in_stmt);
-                    self.requires_in_stmt.clear();
-                  }
-                  items.push(d)
+                  self.module_items.push(d)
                 }
               }
             },
             _ => {
               let d = item.clone().fold_with(self);
-              if self.requires_in_stmt.len() > 0 {
-                items.append(&mut self.requires_in_stmt);
-                self.requires_in_stmt.clear();
-              }
-              items.push(d)
+              self.module_items.push(d)
             }
           }
         }
@@ -356,8 +356,8 @@ impl<'a> Fold for Hoist<'a> {
       }))));
     }
 
-    items.splice(0..0, hoisted_imports);
-    node.body = items;
+    self.module_items.splice(0..0, hoisted_imports);
+    node.body = self.module_items.clone();
     node
   }
 
@@ -745,7 +745,7 @@ impl<'a> Fold for Hoist<'a> {
 
 impl<'a> Hoist<'a> {
   fn add_require(&mut self, source: &JsWord) {
-    self.requires_in_stmt.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
+    self.module_items.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
       specifiers: vec![],
       asserts: None,
       span: DUMMY_SP,
@@ -2180,8 +2180,8 @@ mod tests {
     "#);
 
     assert_eq!(code, indoc!{r#"
-    let $abc$export$x = 3;
-    let $abc$export$y = 4;
+    let $abc$export$10b1f2ceae7ab64e = 3;
+    let $abc$export$57bbd0ca114c72e = 4;
     let $abc$var$z = 6;
     "#});
 
@@ -2190,7 +2190,7 @@ mod tests {
     "#);
 
     assert_eq!(code, indoc!{r#"
-    var $abc$export$default = 3;
+    var $abc$export$9099ad97b570f7c = 3;
     "#});
 
     let (_collect, code, _hoist) = parse(r#"
@@ -2200,7 +2200,7 @@ mod tests {
 
     assert_eq!(code, indoc!{r#"
     let $abc$var$x = 3;
-    var $abc$export$default = $abc$var$x;
+    var $abc$export$9099ad97b570f7c = $abc$var$x;
     "#});
 
     let (_collect, code, _hoist) = parse(r#"
@@ -2208,7 +2208,7 @@ mod tests {
     "#);
 
     assert_eq!(code, indoc!{r#"
-    function $abc$export$default() {
+    function $abc$export$9099ad97b570f7c() {
     }
     "#});
 
@@ -2217,7 +2217,7 @@ mod tests {
     "#);
 
     assert_eq!(code, indoc!{r#"
-    class $abc$export$default {
+    class $abc$export$9099ad97b570f7c {
     }
     "#});
 
@@ -2226,7 +2226,7 @@ mod tests {
     "#);
 
     assert_eq!(code, indoc!{r#"
-    var $abc$export$x = 2, $abc$export$y = 3;
+    var $abc$export$10b1f2ceae7ab64e = 2, $abc$export$57bbd0ca114c72e = 3;
     "#});
 
     let (_collect, code, _hoist) = parse(r#"
@@ -2236,9 +2236,9 @@ mod tests {
     "#);
 
     assert_eq!(code, indoc!{r#"
-    var { x: $abc$export$x , ...$abc$export$y } = something;
-    var [$abc$export$p, ...$abc$export$q] = something;
-    var { x: $abc$export$x = 3  } = something;
+    var { x: $abc$export$10b1f2ceae7ab64e , ...$abc$export$57bbd0ca114c72e } = something;
+    var [$abc$export$e809c7c5e035fc81, ...$abc$export$51cf687b896afa97] = something;
+    var { x: $abc$export$10b1f2ceae7ab64e = 3  } = something;
     "#});
 
     let (_collect, code, _hoist) = parse(r#"
@@ -2246,7 +2246,7 @@ mod tests {
     "#);
 
     assert_eq!(code, indoc!{r#"
-    function $abc$export$test() {
+    function $abc$export$fdd70aeca3bc8cbb() {
     }
     "#});
 
@@ -2255,7 +2255,7 @@ mod tests {
     "#);
 
     assert_eq!(code, indoc!{r#"
-    class $abc$export$Test {
+    class $abc$export$785fc6237f113e49 {
     }
     "#});
 
@@ -2283,8 +2283,8 @@ mod tests {
     "#);
 
     assert_eq!(code, indoc!{r#"
-    var $abc$export$foo;
-    $abc$export$foo = 2;
+    var $abc$export$ba02ad2230917043;
+    $abc$export$ba02ad2230917043 = 2;
     "#});
 
     let (_collect, code, _hoist) = parse(r#"
@@ -2292,8 +2292,8 @@ mod tests {
     "#);
 
     assert_eq!(code, indoc!{r#"
-    var $abc$export$foo;
-    $abc$export$foo = 2;
+    var $abc$export$ba02ad2230917043;
+    $abc$export$ba02ad2230917043 = 2;
     "#});
 
     let (_collect, code, _hoist) = parse(r#"
@@ -2303,9 +2303,9 @@ mod tests {
     "#);
 
     assert_eq!(code, indoc!{r#"
-    var $abc$export$foo;
+    var $abc$export$ba02ad2230917043;
     function $abc$var$init() {
-        $abc$export$foo = 2;
+        $abc$export$ba02ad2230917043 = 2;
     }
     "#});
 
@@ -2314,8 +2314,8 @@ mod tests {
     "#);
 
     assert_eq!(code, indoc!{r#"
-    var $abc$export$foo;
-    $abc$export$foo = 2;
+    var $abc$export$ba02ad2230917043;
+    $abc$export$ba02ad2230917043 = 2;
     "#});
 
     let (_collect, code, _hoist) = parse(r#"
@@ -2323,8 +2323,8 @@ mod tests {
     "#);
 
     assert_eq!(code, indoc!{r#"
-    var $abc$export$foo;
-    $abc$export$foo = 2;
+    var $abc$export$ba02ad2230917043;
+    $abc$export$ba02ad2230917043 = 2;
     "#});
 
     let (_collect, code, _hoist) = parse(r#"
@@ -2333,9 +2333,9 @@ mod tests {
     "#);
 
     assert_eq!(code, indoc!{r#"
-    var $abc$export$foo;
-    $abc$export$foo = 2;
-    console.log($abc$export$foo);
+    var $abc$export$ba02ad2230917043;
+    $abc$export$ba02ad2230917043 = 2;
+    console.log($abc$export$ba02ad2230917043);
     "#});
 
     let (_collect, code, _hoist) = parse(r#"
@@ -2344,9 +2344,9 @@ mod tests {
     "#);
 
     assert_eq!(code, indoc!{r#"
-    var $abc$export$foo;
-    $abc$export$foo = 2;
-    console.log($abc$export$foo);
+    var $abc$export$ba02ad2230917043;
+    $abc$export$ba02ad2230917043 = 2;
+    console.log($abc$export$ba02ad2230917043);
     "#});
   }
 
