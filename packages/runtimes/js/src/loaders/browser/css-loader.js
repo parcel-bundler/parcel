@@ -4,11 +4,11 @@ module.exports = cacheLoader(function loadCSSBundle(bundle) {
   return new Promise(function(resolve, reject) {
     // Don't insert the same link element twice (e.g. if it was already in the HTML)
     let existingLinks = document.getElementsByTagName('link');
-    if (
-      [...existingLinks].some(
-        link => link.href === bundle && link.rel.indexOf('stylesheet') > -1,
-      )
-    ) {
+    let isCurrentBundle = function(link) {
+      return link.href === bundle && link.rel.indexOf('stylesheet') > -1;
+    };
+
+    if ([].concat(existingLinks).some(isCurrentBundle)) {
       resolve();
       return;
     }
