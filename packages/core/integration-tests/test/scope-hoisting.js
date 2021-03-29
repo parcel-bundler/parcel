@@ -48,7 +48,7 @@ const bundler = (name, opts = {}) => {
   );
 };
 
-describe.only('scope hoisting', function() {
+describe('scope hoisting', function() {
   describe('es6', function() {
     it('supports default imports and exports of expressions', async function() {
       let b = await bundle(
@@ -3343,6 +3343,247 @@ describe.only('scope hoisting', function() {
       await res;
       assert.deepEqual(sideEffects, ['v']);
     });
+
+    it('should error when assigning to a named import', async function() {
+      let source = path.join(
+        __dirname,
+        'integration/scope-hoisting/es6/import-local-assign/named.js',
+      );
+
+      await assert.rejects(() => bundle(source), {
+        name: 'BuildError',
+        message: 'Assignment to an import specifier is not allowed',
+        diagnostics: [
+          {
+            message: 'Assignment to an import specifier is not allowed',
+            origin: '@parcel/transformer-js-swc',
+            filePath: source,
+            codeFrame: {
+              codeHighlights: [
+                {
+                  message: null,
+                  start: {
+                    line: 2,
+                    column: 1,
+                  },
+                  end: {
+                    line: 2,
+                    column: 3,
+                  },
+                },
+                {
+                  message: 'Originally imported here',
+                  start: {
+                    line: 1,
+                    column: 9,
+                  },
+                  end: {
+                    line: 1,
+                    column: 11,
+                  },
+                },
+              ],
+            },
+            hints: null,
+          },
+        ],
+      });
+    });
+
+    it('should error when assigning to a default import', async function() {
+      let source = path.join(
+        __dirname,
+        'integration/scope-hoisting/es6/import-local-assign/default.js',
+      );
+
+      await assert.rejects(() => bundle(source), {
+        name: 'BuildError',
+        message: 'Assignment to an import specifier is not allowed',
+        diagnostics: [
+          {
+            message: 'Assignment to an import specifier is not allowed',
+            origin: '@parcel/transformer-js-swc',
+            filePath: source,
+            codeFrame: {
+              codeHighlights: [
+                {
+                  message: null,
+                  start: {
+                    line: 2,
+                    column: 1,
+                  },
+                  end: {
+                    line: 2,
+                    column: 1,
+                  },
+                },
+                {
+                  message: 'Originally imported here',
+                  start: {
+                    line: 1,
+                    column: 8,
+                  },
+                  end: {
+                    line: 1,
+                    column: 8,
+                  },
+                },
+              ],
+            },
+            hints: null,
+          },
+        ],
+      });
+    });
+
+    it('should error when assigning to a namespace import', async function() {
+      let source = path.join(
+        __dirname,
+        'integration/scope-hoisting/es6/import-local-assign/namespace.js',
+      );
+
+      await assert.rejects(() => bundle(source), {
+        name: 'BuildError',
+        message: 'Assignment to an import specifier is not allowed',
+        diagnostics: [
+          {
+            message: 'Assignment to an import specifier is not allowed',
+            origin: '@parcel/transformer-js-swc',
+            filePath: source,
+            codeFrame: {
+              codeHighlights: [
+                {
+                  message: null,
+                  start: {
+                    line: 2,
+                    column: 1,
+                  },
+                  end: {
+                    line: 2,
+                    column: 1,
+                  },
+                },
+                {
+                  message: 'Originally imported here',
+                  start: {
+                    line: 1,
+                    column: 13,
+                  },
+                  end: {
+                    line: 1,
+                    column: 13,
+                  },
+                },
+              ],
+            },
+            hints: null,
+          },
+        ],
+      });
+    });
+
+    it('should error with a destructuring assignment to a namespace import', async function() {
+      let source = path.join(
+        __dirname,
+        'integration/scope-hoisting/es6/import-local-assign/destructure-assign.js',
+      );
+
+      await assert.rejects(() => bundle(source), {
+        name: 'BuildError',
+        message: 'Assignment to an import specifier is not allowed',
+        diagnostics: [
+          {
+            message: 'Assignment to an import specifier is not allowed',
+            origin: '@parcel/transformer-js-swc',
+            filePath: source,
+            codeFrame: {
+              codeHighlights: [
+                {
+                  message: null,
+                  start: {
+                    line: 2,
+                    column: 8,
+                  },
+                  end: {
+                    line: 2,
+                    column: 10,
+                  },
+                },
+                {
+                  message: 'Originally imported here',
+                  start: {
+                    line: 1,
+                    column: 9,
+                  },
+                  end: {
+                    line: 1,
+                    column: 11,
+                  },
+                },
+              ],
+            },
+            hints: null,
+          },
+        ],
+      });
+    });
+
+    it('should error with multiple assignments to an import', async function() {
+      let source = path.join(
+        __dirname,
+        'integration/scope-hoisting/es6/import-local-assign/multiple.js',
+      );
+
+      await assert.rejects(() => bundle(source), {
+        name: 'BuildError',
+        message: 'Assignment to an import specifier is not allowed',
+        diagnostics: [
+          {
+            message: 'Assignment to an import specifier is not allowed',
+            origin: '@parcel/transformer-js-swc',
+            filePath: source,
+            codeFrame: {
+              codeHighlights: [
+                {
+                  message: null,
+                  start: {
+                    line: 2,
+                    column: 1,
+                  },
+                  end: {
+                    line: 2,
+                    column: 3,
+                  },
+                },
+                {
+                  message: null,
+                  start: {
+                    line: 3,
+                    column: 1,
+                  },
+                  end: {
+                    line: 3,
+                    column: 3,
+                  },
+                },
+                {
+                  message: 'Originally imported here',
+                  start: {
+                    line: 1,
+                    column: 9,
+                  },
+                  end: {
+                    line: 1,
+                    column: 11,
+                  },
+                },
+              ],
+            },
+            hints: null,
+          },
+        ],
+      });
+    });
   });
 
   describe('commonjs', function() {
@@ -4701,6 +4942,111 @@ describe.only('scope hoisting', function() {
       );
 
       await run(b, null, {strict: true});
+    });
+
+    it('should support assignment to a local variable with require', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/require-local-assign/basic.js',
+        ),
+      );
+
+      let outputs = [];
+      await run(b, {
+        output(x) {
+          outputs.push(x);
+        },
+      });
+
+      assert.deepEqual(outputs, [
+        [{foo: 2}, {foo: 2}],
+        [4, {foo: 2}],
+      ]);
+    });
+
+    it('should support out of order assignment to a local variable with require', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/require-local-assign/in-function.js',
+        ),
+      );
+
+      let outputs = [];
+      await run(b, {
+        output(x) {
+          outputs.push(x);
+        },
+      });
+
+      assert.deepEqual(outputs, [
+        [{foo: 2}, {foo: 2}],
+        [4, {foo: 2}],
+      ]);
+    });
+
+    it('should support assignment to a local variable with require and member expression', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/require-local-assign/member.js',
+        ),
+      );
+
+      let outputs = [];
+      await run(b, {
+        output(x) {
+          outputs.push(x);
+        },
+      });
+
+      assert.deepEqual(outputs, [
+        [2, 2],
+        [4, 2],
+      ]);
+    });
+
+    it('should support assignment to a local variable with require and destructuring', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/require-local-assign/destructure.js',
+        ),
+      );
+
+      let outputs = [];
+      await run(b, {
+        output(x) {
+          outputs.push(x);
+        },
+      });
+
+      assert.deepEqual(outputs, [
+        [2, 2],
+        [4, 2],
+      ]);
+    });
+
+    it('should support assignment to a local variable with require and non-static access', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/require-local-assign/destructure.js',
+        ),
+      );
+
+      let outputs = [];
+      await run(b, {
+        output(x) {
+          outputs.push(x);
+        },
+      });
+
+      assert.deepEqual(outputs, [
+        [2, 2],
+        [4, 2],
+      ]);
     });
   });
 

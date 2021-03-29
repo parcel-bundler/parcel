@@ -53,7 +53,7 @@ use dependency_collector::*;
 use env_replacer::*;
 use global_replacer::GlobalReplacer;
 use hoist::hoist;
-use utils::SourceLocation;
+use utils::{SourceLocation, CodeHighlight, Diagnostic};
 use modules::esm2cjs;
 use fs::inline_fs;
 use fast_refresh::react_refresh;
@@ -120,19 +120,6 @@ fn targets_to_versions(targets: &Option<HashMap<String, String>>) -> Option<Vers
   }
 
   None
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-struct CodeHighlight {
-  message: Option<String>,
-  loc: SourceLocation
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-struct Diagnostic {
-  message: String,
-  code_highlights: Option<Vec<CodeHighlight>>,
-  hints: Option<Vec<String>>
 }
 
 #[derive(Debug, Clone, Default)]
@@ -296,7 +283,7 @@ fn transform(ctx: CallContext) -> Result<JsUnknown> {
           };
 
           let module = if config.scope_hoist {
-            let (module, hoist_result) = hoist(
+            let res = hoist(
               module,
               source_map.clone(),
               config.module_id.as_str(),
@@ -304,8 +291,16 @@ fn transform(ctx: CallContext) -> Result<JsUnknown> {
               ignore_mark,
               global_mark
             );
-            result.hoist_result = Some(hoist_result);
-            module
+            match res {
+              Ok((module, hoist_result)) => {
+                result.hoist_result = Some(hoist_result);
+                module    
+              },
+              Err(diagnostics) => {
+                result.diagnostics = Some(diagnostics);
+                return ctx.env.to_js_value(&result)
+              }
+            }
           } else {
             let (module, needs_helpers) = esm2cjs(module);
             result.needs_esm_helpers = needs_helpers;

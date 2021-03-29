@@ -4,7 +4,7 @@ use swc_ecmascript::visit::{Fold, FoldWith, VisitWith};
 use swc_ecmascript::ast::*;
 use swc_atoms::JsWord;
 use swc_common::{DUMMY_SP, SyntaxContext, Mark, Span};
-use crate::hoist::Collect;
+use crate::hoist::{Collect, Import};
 use data_encoding::{BASE64, HEXLOWER};
 use dependency_collector::{DependencyDescriptor, DependencyKind};
 use crate::utils::SourceLocation;
@@ -19,7 +19,7 @@ macro_rules! id {
 pub fn inline_fs<'a>(filename: &str, source_map: swc_common::sync::Lrc<swc_common::SourceMap>, decls: HashSet<IdentId>, global_mark: Mark, project_root: String, deps: &'a mut Vec<DependencyDescriptor>) -> impl Fold + 'a {
   InlineFS {
     filename: Path::new(filename).to_path_buf(),
-    collect: Collect::new(source_map, decls, Mark::fresh(Mark::root())),
+    collect: Collect::new(source_map, decls, Mark::fresh(Mark::root()), global_mark),
     global_mark,
     project_root,
     deps
@@ -69,8 +69,8 @@ impl<'a> InlineFS<'a> {
   fn match_module_reference(&self, node: &Expr) -> Option<(JsWord, JsWord)> {
     match node {
       Expr::Ident(ident) => {
-        if let Some(specifier) = self.collect.imports.get(&id!(ident)).cloned() {
-          return Some((specifier.0, specifier.1))
+        if let Some(Import {source, specifier, ..}) = self.collect.imports.get(&id!(ident)) {
+          return Some((source.clone(), specifier.clone()))
         }
       },
       Expr::Member(member) => {
@@ -97,7 +97,7 @@ impl<'a> InlineFS<'a> {
 
             match &**expr {
               Expr::Ident(ident) => {
-                if let Some((source, specifier,..)) = self.collect.imports.get(&id!(ident)) {
+                if let Some(Import {source, specifier, ..}) = self.collect.imports.get(&id!(ident)) {
                   if specifier == "default" || specifier == "*" {
                     return Some((source.clone(), prop))
                   }

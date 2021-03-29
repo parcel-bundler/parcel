@@ -617,7 +617,7 @@ ${code}
       (this.bundle.env.outputFormat === 'commonjs' &&
         asset === this.bundle.getMainEntry())
     ) {
-      let exportsName = asset.symbols.get('*')?.local || `$${asset.id}$exports`;
+      let exportsName = asset.symbols.get('*')?.local || `$${assetId}$exports`;
       replacements.set(exportsName, 'module.exports');
     }
 

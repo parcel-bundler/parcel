@@ -6,41 +6,43 @@ use swc_ecmascript::ast;
 use serde::{Deserialize, Serialize};
 
 pub fn match_member_expr(expr: &ast::MemberExpr, idents: Vec<&str>, decls: &HashSet<(JsWord, SyntaxContext)>) -> bool {
-  use ast::{Expr::*, ExprOrSuper::*, Lit, Str, Ident, MemberExpr};
-  
-  let mut node = &Member(expr.clone());
-  let mut parts = Vec::new();
-  loop {
-    match node {
-      Member(MemberExpr {
-        obj: Expr(ref obj),
-        ref prop,
-        ..
-      }) => {
-        match &**prop {
-          Lit(Lit::Str(Str { value: ref sym, .. })) |
-          Ident(Ident { ref sym, .. }) => {
-            parts.insert(0, sym);
-          },
-          _ => {}
-        }
+  use ast::{Expr::*, ExprOrSuper::*, Lit, Str, Ident};
 
-        node = &**obj;
-      },
-      Ident(Ident { ref sym, span, .. }) => {
-        // Bail if root identifier is declared in scope.
-        if decls.contains(&(sym.clone(), span.ctxt())) {
+  let mut member = expr;
+  let mut idents = idents;
+  while idents.len() > 1 {
+    let expected = idents.pop().unwrap();
+    let prop = match &*member.prop {
+      Lit(Lit::Str(Str { value: ref sym, .. })) => sym,
+      Ident(Ident { ref sym, .. }) => {
+        if member.computed {
           return false
         }
 
-        parts.insert(0, sym);
-        break
+        sym
       },
-      _ => break
+      _ => return false
+    };
+
+    if prop != expected {
+      return false
+    }
+
+    match &member.obj {
+      Expr(expr) => {
+        match &**expr {
+          Member(m) => member = m,
+          Ident(Ident { ref sym, span, .. }) => {
+            return idents.len() == 1 && sym == idents.pop().unwrap() && !decls.contains(&(sym.clone(), span.ctxt()));
+          },
+          _ => return false
+        }
+      },
+      _ => return false
     }
   }
-  
-  return parts == idents
+
+  return false
 }
 
 pub fn create_require(specifier: swc_atoms::JsWord) -> ast::CallExpr {
@@ -80,4 +82,17 @@ impl SourceLocation {
       end_col: end.col_display,
     }
   }
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct CodeHighlight {
+  pub message: Option<String>,
+  pub loc: SourceLocation
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Diagnostic {
+  pub message: String,
+  pub code_highlights: Option<Vec<CodeHighlight>>,
+  pub hints: Option<Vec<String>>
 }
