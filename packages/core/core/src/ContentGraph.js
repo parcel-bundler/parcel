@@ -3,7 +3,6 @@
 import Graph, {type GraphOpts} from './Graph';
 import type {ContentKey, Node, NodeId} from './types';
 import nullthrows from 'nullthrows';
-import assert from 'assert';
 
 export type SerializedContentGraph<
   TNode: Node,
