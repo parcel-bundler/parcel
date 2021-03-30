@@ -75,13 +75,12 @@ type Request<TInput, TResult> = {|
   id: string,
   +type: string,
   input: TInput,
-  run: ({|input: TInput, ...StaticRunOpts<TResult>|}) => Async<TResult>,
+  run: ({|input: TInput, ...StaticRunOpts|}) => Async<TResult>,
 |};
 
 type StoredRequest = {|
   id: string,
   +type: string,
-  input: mixed,
   result?: mixed,
   resultCacheKey?: ?string,
 |};
@@ -119,6 +118,7 @@ export type RunAPI = {|
   getInvalidations(): Array<RequestInvalidation>,
   storeResult: (result: mixed, cacheKey?: string) => void,
   getRequestResult<T>(contentKey: ContentKey): Async<?T>,
+  getPreviousResult<T>(ifMatch?: string): Async<?T>,
   getSubRequests(): Array<StoredRequest>,
   canSkipSubrequest(ContentKey): boolean,
   runRequest: <TInput, TResult>(
@@ -131,11 +131,10 @@ type RunRequestOpts = {|
   force: boolean,
 |};
 
-export type StaticRunOpts<TResult> = {|
+export type StaticRunOpts = {|
   farm: WorkerFarm,
   options: ParcelOptions,
   api: RunAPI,
-  prevResult: ?TResult,
   invalidateReason: InvalidateReason,
 |};
 
@@ -721,15 +720,22 @@ export default class RequestTracker {
     );
   }
 
-  async getRequestResult<T>(contentKey: ContentKey): Async<?T> {
+  async getRequestResult<T>(
+    contentKey: ContentKey,
+    ifMatch?: string,
+  ): Async<?T> {
     let node = nullthrows(this.graph.getNodeByContentKey(contentKey));
-
     invariant(node.type === 'request');
+
+    if (ifMatch != null && node.value.resultCacheKey !== ifMatch) {
+      return null;
+    }
+
     if (node.value.result != undefined) {
       // $FlowFixMe
       let result: T = (node.value.result: any);
       return result;
-    } else if (node.value.resultCacheKey != null) {
+    } else if (node.value.resultCacheKey != null && ifMatch == null) {
       let cachedResult: T = (nullthrows(
         await this.options.cache.get(node.value.resultCacheKey),
         // $FlowFixMe
@@ -797,19 +803,18 @@ export default class RequestTracker {
     let requestNodeId = this.startRequest({
       id: request.id,
       type: request.type,
-      input: request.input,
     });
 
     let {api, subRequestContentKeys} = this.createAPI(requestNodeId);
 
     try {
       let node = this.graph.getRequestNode(requestNodeId);
+
       let result = await request.run({
         input: request.input,
         api,
         farm: this.farm,
         options: this.options,
-        prevResult: await this.getRequestResult<TResult>(request.id),
         invalidateReason: node.invalidateReason,
       });
 
@@ -828,7 +833,7 @@ export default class RequestTracker {
   createAPI(
     requestId: NodeId,
   ): {|api: RunAPI, subRequestContentKeys: Set<ContentKey>|} {
-    let subRequestContentKeys = new Set();
+    let subRequestContentKeys = new Set<ContentKey>();
     let invalidations = this.graph.getInvalidations(requestId);
     let api: RunAPI = {
       invalidateOnFileCreate: input =>
@@ -851,12 +856,17 @@ export default class RequestTracker {
         this.storeResult(requestId, result, cacheKey);
       },
       getSubRequests: () => this.graph.getSubRequests(requestId),
-      getRequestResult: <T>(contentKey): Async<?T> =>
-        this.getRequestResult<T>(contentKey),
-      canSkipSubrequest: subRequestId => {
-        let nodeId = this.graph._contentKeyToNodeId.get(subRequestId);
-        if (nodeId != null && this.hasValidResult(nodeId)) {
-          subRequestContentKeys.add(subRequestId);
+      getPreviousResult: <T>(ifMatch?: string): Async<?T> => {
+        let contentKey = nullthrows(this.graph.getNode(requestId)?.id);
+        return this.getRequestResult<T>(contentKey, ifMatch);
+      },
+      getRequestResult: <T>(id): Async<?T> => this.getRequestResult<T>(id),
+      canSkipSubrequest: contentKey => {
+        if (
+          this.graph.hasContentKey(contentKey) &&
+          this.hasValidResult(this.graph.getNodeIdByContentKey(contentKey))
+        ) {
+          subRequestContentKeys.add(contentKey);
           return true;
         }
 
