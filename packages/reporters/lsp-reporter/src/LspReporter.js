@@ -4,13 +4,18 @@
 import type {Diagnostic as ParcelDiagnostic} from '@parcel/diagnostic';
 import type {FilePath} from '@parcel/types';
 
-import {createClientPipeTransport} from 'vscode-jsonrpc';
+import {
+  createClientPipeTransport,
+  generateRandomPipeName,
+} from 'vscode-jsonrpc';
 import {createConnection, DiagnosticSeverity} from 'vscode-languageserver/node';
 import {DefaultMap, getProgressMessage} from '@parcel/utils';
 import {Reporter} from '@parcel/plugin';
 import invariant from 'assert';
 import path from 'path';
 import nullthrows from 'nullthrows';
+import os from 'os';
+import fs from 'fs';
 
 // flowlint-next-line unclear-type:off
 type WorkDoneProgressServerReporter = any;
@@ -27,6 +32,7 @@ let fileDiagnostics: DefaultMap<
   string,
   Array<LspDiagnostic>,
 > = new DefaultMap(() => []);
+let pipeFilename;
 
 export default (new Reporter({
   async report({event, options}) {
@@ -34,20 +40,36 @@ export default (new Reporter({
       case 'watchStart': {
         //TODO: include pid in createServerPipeTransport
         connectionPromise = (async () => {
-          let transport = await createClientPipeTransport('/tmp/parcel');
+          let transportName = generateRandomPipeName();
+          let transport = await createClientPipeTransport(transportName);
+          // Create a file to ID the transport
+          let pathname = path.join(os.tmpdir(), 'parcel-lsp');
+          await fs.promises.mkdir(pathname, {recursive: true});
+          pipeFilename = path.join(pathname, String(process.pid));
+          await fs.promises.writeFile(
+            pipeFilename,
+            JSON.stringify({
+              transportName,
+              pid: process.pid,
+              argv: process.argv,
+            }),
+          );
+
           connection = await createConnection(
             ...(await transport.onConnected()),
           );
 
-          connection.onInitialize(() => {
-            console.debug('Connection is initialized');
+          return new Promise((resolve, reject) => {
+            connection.onInitialized(() => {
+              console.debug('Connection is initialized');
+              invariant(connection != null);
+              connection.window.showInformationMessage('hi');
+              resolve(connection);
+            });
             invariant(connection != null);
-            connection.window.showInformationMessage('hi');
+            connection.listen();
+            console.debug('connection listening...');
           });
-          invariant(connection != null);
-          connection.listen();
-          console.debug('connection listening...');
-          return connection;
         })();
         progressReporter = new ProgressReporter();
         nullthrows(connectionPromise).then(connection => {
@@ -61,6 +83,8 @@ export default (new Reporter({
 
           if (watchEnded) {
             connection.dispose();
+            invariant(pipeFilename);
+            fs.unlinkSync(pipeFilename);
           }
         });
         break;
@@ -136,6 +160,10 @@ export default (new Reporter({
         if (connection != null) {
           connection.dispose();
         }
+        if (pipeFilename != null) {
+          fs.unlinkSync(pipeFilename);
+        }
+
         connectionPromise = null;
         connection = null;
         console.debug('connection disposed of');
