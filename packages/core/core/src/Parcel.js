@@ -265,7 +265,7 @@ export default class Parcel {
       if (options.shouldProfile) {
         await this.startProfiling();
       }
-      this.#reporterRunner.report({
+      await this.#reporterRunner.report({
         type: 'buildStart',
       });
       let request = createAssetGraphRequest({

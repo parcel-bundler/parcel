@@ -10,6 +10,7 @@ import {DefaultMap, getProgressMessage} from '@parcel/utils';
 import {Reporter} from '@parcel/plugin';
 import invariant from 'assert';
 import path from 'path';
+import nullthrows from 'nullthrows';
 
 // flowlint-next-line unclear-type:off
 type WorkDoneProgressServerReporter = any;
@@ -18,8 +19,10 @@ type LspDiagnostic = any;
 
 type ParcelSeverity = 'error' | 'warn' | 'info' | 'verbose';
 
+let connectionPromise;
 let connection;
-let progressReporter: WorkDoneProgressServerReporter;
+let progressReporter: ?ProgressReporter;
+let watchEnded = false;
 let fileDiagnostics: DefaultMap<
   string,
   Array<LspDiagnostic>,
@@ -30,26 +33,60 @@ export default (new Reporter({
     switch (event.type) {
       case 'watchStart': {
         //TODO: include pid in createServerPipeTransport
-        let transport = await createClientPipeTransport('/tmp/parcel');
-        connection = createConnection(...(await transport.onConnected()));
-        connection.onInitialize(() => {
-          console.debug('Connection is initialized');
+        connectionPromise = (async () => {
+          let transport = await createClientPipeTransport('/tmp/parcel');
+          connection = await createConnection(
+            ...(await transport.onConnected()),
+          );
+
+          connection.onInitialize(() => {
+            console.debug('Connection is initialized');
+            invariant(connection != null);
+            connection.window.showInformationMessage('hi');
+          });
           invariant(connection != null);
-          connection.window.showInformationMessage('hi');
+          connection.listen();
+          console.debug('connection listening...');
+          return connection;
+        })();
+        progressReporter = new ProgressReporter();
+        nullthrows(connectionPromise).then(connection => {
+          if (fileDiagnostics.size > 0) {
+            if (connection != null) {
+              for (let [uri, diagnostics] of fileDiagnostics) {
+                connection.sendDiagnostics({uri, diagnostics});
+              }
+            }
+          }
+
+          if (watchEnded) {
+            connection.dispose();
+          }
         });
-        invariant(connection != null);
-        connection.listen();
-        console.debug('connection listening...');
         break;
       }
-      case 'buildStart':
-        invariant(connection != null);
-        progressReporter = await connection.window.createWorkDoneProgress();
-        progressReporter.begin('Parcel');
-        break;
-      case 'buildSuccess':
+      case 'buildStart': {
+        nullthrows(progressReporter).begin();
+        let filePaths = [...fileDiagnostics.keys()];
         fileDiagnostics.clear();
-        progressReporter.done();
+
+        if (connection != null) {
+          await Promise.all(
+            filePaths.map(uri =>
+              connection.window.sendDiagnostics({uri, diagnostics: []}),
+            ),
+          );
+        }
+
+        break;
+      }
+      case 'buildSuccess':
+        nullthrows(progressReporter).done();
+        if (connection != null) {
+          for (let [uri, diagnostics] of fileDiagnostics) {
+            connection.sendDiagnostics({uri, diagnostics});
+          }
+        }
         break;
       case 'buildFailure': {
         updateDiagnostics(
@@ -58,12 +95,14 @@ export default (new Reporter({
           'error',
           options.projectRoot,
         );
-        for (let [uri, diagnostics] of fileDiagnostics) {
-          invariant(connection != null);
-          connection.sendDiagnostics({uri, diagnostics});
+
+        if (connection != null) {
+          const _connection = connection;
+          for (let [uri, diagnostics] of fileDiagnostics) {
+            _connection.sendDiagnostics({uri, diagnostics});
+          }
         }
-        fileDiagnostics.clear();
-        progressReporter.done();
+        nullthrows(progressReporter).done();
         break;
       }
       case 'log':
@@ -85,22 +124,58 @@ export default (new Reporter({
       case 'buildProgress': {
         let message = getProgressMessage(event);
         if (message != null) {
-          progressReporter.report(message);
+          nullthrows(progressReporter).report(message);
         }
         break;
       }
       case 'watchEnd':
-        if (connection == null) {
+        watchEnded = true;
+        if (connectionPromise == null) {
           break;
         }
-        invariant(connection != null);
-        connection.dispose();
+        if (connection != null) {
+          connection.dispose();
+        }
+        connectionPromise = null;
         connection = null;
         console.debug('connection disposed of');
         break;
     }
   },
 }): Reporter);
+
+class ProgressReporter {
+  progressReporterPromise: ?Promise<WorkDoneProgressServerReporter>;
+  lastMessage: ?string;
+  begin() {
+    this.progressReporterPromise = (async () => {
+      let connection = await nullthrows(connectionPromise);
+      let reporter = await connection.window.createWorkDoneProgress();
+      reporter.begin('Parcel');
+      return reporter;
+    })();
+    this.progressReporterPromise.then(reporter => {
+      if (this.lastMessage != null) {
+        reporter.report(this.lastMessage);
+      }
+    });
+  }
+  async done() {
+    if (this.progressReporterPromise == null) {
+      this.begin();
+    }
+    invariant(this.progressReporterPromise != null);
+    (await this.progressReporterPromise).done();
+  }
+  async report(message: string) {
+    if (this.progressReporterPromise == null) {
+      this.lastMessage = message;
+      this.begin();
+    } else {
+      (await this.progressReporterPromise).report(message);
+    }
+  }
+}
 
 function updateDiagnostics(
   fileDiagnostics: DefaultMap<string, Array<LspDiagnostic>>,
