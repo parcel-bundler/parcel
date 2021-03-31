@@ -79,6 +79,7 @@ const commonOptions = {
     'output directory to write to when unspecified by targets',
   '--no-autoinstall': 'disable autoinstall',
   '--profile': 'enable build profiling',
+  '--incremental': 'enable incremental bundling',
   '-V, --version': 'output the version number',
   '--detailed-report [count]': [
     'print the asset timings and sizes in the build report',
@@ -465,6 +466,7 @@ async function normalizeOptions(
     shouldAutoInstall: command.autoinstall ?? true,
     logLevel: command.logLevel,
     shouldProfile: command.profile,
+    isIncremental: command.incremental ?? true,
     shouldBuildLazily: command.lazy,
     detailedReport:
       command.detailedReport != null
