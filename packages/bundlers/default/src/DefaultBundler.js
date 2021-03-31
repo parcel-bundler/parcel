@@ -436,10 +436,10 @@ export default (new Bundler({
     // Remove assets that are duplicated between shared bundles.
     deduplicate(bundleGraph);
   },
-  update({bundleGraph, config}) {
-    //reqrite bundling basically -_-
-    //changedAssets or changed bundles ?
-    // incrementally update cached bundle graph
+  update({bundleGraph, config, changedAssets}) {
+    // [ ] add isIncremental flag
+    // [ ] want to return changed bundles
+    // [ ] incrementally update cached bundle graph
     let bundleRoots: Map<Bundle, Array<Asset>> = new Map();
     let bundlesByEntryAsset: Map<Asset, Bundle> = new Map();
 
