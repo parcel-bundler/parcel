@@ -452,6 +452,11 @@ describe('server', function() {
         name: 'index.html',
         assets: ['index.html'],
       },
+      {
+        name: 'index.HASH_REF_2d285d6f29236f5b00e1db199488d505.css',
+        type: 'css',
+        assets: ['index.html'],
+      },
     ]);
 
     // Bundle should exist in the graph, but not written to disk as it is just a placeholder
@@ -470,6 +475,11 @@ describe('server', function() {
     assertBundles(build.bundleGraph, [
       {
         name: 'index.html',
+        assets: ['index.html'],
+      },
+      {
+        name: 'index.HASH_REF_2d285d6f29236f5b00e1db199488d505.css',
+        type: 'css',
         assets: ['index.html'],
       },
       {
