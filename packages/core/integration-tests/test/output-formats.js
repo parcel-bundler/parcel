@@ -855,7 +855,7 @@ describe('output formats', function() {
       let asyncBundle = b
         .getBundles()
         .find(bundle => bundle.name.startsWith('async'));
-      assert(entry.includes(`import("./${asyncBundle.name}")`));
+      assert(entry.includes(`import("./${path.basename(asyncBundle.filePath)}")`));
 
       assert.equal(await (await run(b)).default, 4);
     });
@@ -895,7 +895,7 @@ describe('output formats', function() {
       let asyncBundle = b
         .getBundles()
         .find(bundle => bundle.name.startsWith('async'));
-      assert(entry.includes(`getBundleURL() + "${asyncBundle.name}"`));
+      assert(entry.includes(`getBundleURL() + "${path.basename(asyncBundle.filePath)}"`));
     });
 
     it('should support building esmodules with css imports', async function() {
@@ -930,9 +930,9 @@ describe('output formats', function() {
       assert(
         new RegExp(
           'Promise.all\\(\\[\\n.+?getBundleURL\\(\\) \\+ "' +
-            asyncCssBundle.name +
+            path.basename(asyncCssBundle.filePath) +
             '"\\),\\n\\s*import\\("\\.\\/' +
-            asyncJsBundle.name +
+            path.basename(asyncJsBundle.filePath) +
             '"\\)\\n\\s*\\]\\)',
         ).test(entry),
       );
@@ -984,7 +984,7 @@ describe('output formats', function() {
         // async import both bundles in parallel for performance
         assert(
           new RegExp(
-            `import\\("\\./${sharedBundle.name}"\\),\\n\\s*import\\("./${bundle.name}"\\)`,
+            `import\\("\\./${path.basename(sharedBundle.filePath)}"\\),\\n\\s*import\\("./${path.basename(bundle.filePath)}"\\)`,
           ).test(entry),
         );
       }

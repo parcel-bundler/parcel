@@ -1123,7 +1123,7 @@ describe('scope hoisting', function() {
       assert(!contents.includes('method'));
     });
 
-    ['global' /*, 'esmodule'*/].forEach(outputFormat => {
+    ['global', 'esmodule'].forEach(outputFormat => {
       let targets = {
         default: {
           outputFormat,
