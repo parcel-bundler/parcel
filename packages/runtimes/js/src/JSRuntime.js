@@ -347,11 +347,7 @@ function getLoaderRuntime({
   }
 
   let externalBundles = bundleGraph.getBundlesInBundleGroup(bundleGroup);
-  let mainBundle = nullthrows(
-    externalBundles.find(
-      bundle => bundle.getMainEntry()?.id === bundleGroup.entryAssetId,
-    ),
-  );
+  let mainBundle = bundleGraph.getMainBundle(bundleGroup);
 
   // CommonJS is a synchronous module system, so there is no need to load bundles in parallel.
   // Importing of the other bundles will be handled by the bundle group entry.

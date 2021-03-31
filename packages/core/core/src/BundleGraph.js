@@ -2103,4 +2103,12 @@ export default class BundleGraph {
     this._targetEntryRoots.set(target.distDir, root);
     return root;
   }
+
+  getMainBundle(bundleGroup: BundleGroup): Bundle {
+    return nullthrows(
+      this.getBundlesInBundleGroup(bundleGroup).find(
+        b => b.mainEntryId === bundleGroup.entryAssetId,
+      ),
+    );
+  }
 }

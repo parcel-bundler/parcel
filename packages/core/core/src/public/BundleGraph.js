@@ -314,4 +314,13 @@ export default class BundleGraph<TBundle: IBundle>
       targetToInternalTarget(target),
     );
   }
+
+  getMainBundle(bundleGroup: BundleGroup): TBundle {
+    return this.#createBundle.call(
+      null,
+      this.#graph.getMainBundle(bundleGroup),
+      this.#graph,
+      this.#options,
+    );
+  }
 }
