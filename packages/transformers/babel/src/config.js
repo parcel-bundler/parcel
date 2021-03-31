@@ -8,13 +8,11 @@ import path from 'path';
 import * as babelCore from '@babel/core';
 import {md5FromObject, relativePath} from '@parcel/utils';
 
-import getEnvOptions from './env';
-import getJSXOptions from './jsx';
+import isJSX from './jsx';
 import getFlowOptions from './flow';
-import getTypescriptOptions from './typescript';
 import {enginesToBabelTargets} from './utils';
 
-const TYPESCRIPT_EXTNAME_RE = /^\.tsx?/;
+const TYPESCRIPT_EXTNAME_RE = /\.tsx?$/;
 const BABEL_TRANSFORMER_DIR = path.dirname(__dirname);
 const JS_EXTNAME_RE = /^\.(js|cjs|mjs)$/;
 const BABEL_CONFIG_FILENAMES = [
@@ -130,10 +128,22 @@ export async function load(
   ) {
     return;
   } else if (partialConfig.hasFilesystemConfig()) {
+    // Determine what syntax plugins we need to enable
+    let syntaxPlugins = [];
+    if (TYPESCRIPT_EXTNAME_RE.test(config.searchPath)) {
+      syntaxPlugins.push('typescript');
+      if (config.searchPath.endsWith('.tsx')) {
+        syntaxPlugins.push('jsx');
+      }
+    } else if (await isJSX(options, config)) {
+      syntaxPlugins.push('jsx');
+    }
+
     config.setResult({
       internal: false,
       config: partialConfig.options,
       targets: enginesToBabelTargets(config.env),
+      syntaxPlugins,
     });
 
     // If the config has plugins loaded with require(), or inline plugins in the config,
@@ -156,71 +166,42 @@ export async function load(
 }
 
 async function buildDefaultBabelConfig(options: PluginOptions, config: Config) {
-  let jsxOptions = await getJSXOptions(options, config);
-
-  let babelOptions;
-  if (path.extname(config.searchPath).match(TYPESCRIPT_EXTNAME_RE)) {
-    babelOptions = getTypescriptOptions(
-      config,
-      jsxOptions?.pragma,
-      jsxOptions?.pragmaFrag,
-    );
-  } else {
-    babelOptions = await getFlowOptions(config, options);
+  // If this is a .ts or .tsx file, we don't need to enable flow.
+  if (TYPESCRIPT_EXTNAME_RE.test(config.searchPath)) {
+    return;
   }
 
-  let babelTargets;
-  let envOptions = await getEnvOptions(config);
-  if (envOptions != null) {
-    babelTargets = envOptions.targets;
-    babelOptions = mergeOptions(babelOptions, envOptions.config);
+  // Detect flow. If not enabled, babel doesn't need to run at all.
+  let babelOptions = await getFlowOptions(config, options);
+  if (babelOptions == null) {
+    return;
   }
-  babelOptions = mergeOptions(babelOptions, jsxOptions?.config);
 
-  if (babelOptions != null) {
-    let _babelOptions = babelOptions; // For Flow
-    config.setResultHash(md5FromObject(babelOptions));
-
-    _babelOptions.presets = (_babelOptions.presets || []).map(preset =>
-      babelCore.createConfigItem(preset, {
-        type: 'preset',
-        dirname: BABEL_TRANSFORMER_DIR,
-      }),
-    );
-    _babelOptions.plugins = (_babelOptions.plugins || []).map(plugin =>
-      babelCore.createConfigItem(plugin, {
-        type: 'plugin',
-        dirname: BABEL_TRANSFORMER_DIR,
-      }),
-    );
+  // When flow is enabled, we may also need to enable JSX so it parses properly.
+  let syntaxPlugins = [];
+  if (await isJSX(options, config)) {
+    syntaxPlugins.push('jsx');
   }
+
+  babelOptions.presets = (babelOptions.presets || []).map(preset =>
+    babelCore.createConfigItem(preset, {
+      type: 'preset',
+      dirname: BABEL_TRANSFORMER_DIR,
+    }),
+  );
+  babelOptions.plugins = (babelOptions.plugins || []).map(plugin =>
+    babelCore.createConfigItem(plugin, {
+      type: 'plugin',
+      dirname: BABEL_TRANSFORMER_DIR,
+    }),
+  );
 
   config.setResult({
     internal: true,
     config: babelOptions,
-    targets: babelTargets,
+    syntaxPlugins,
   });
   definePluginDependencies(config, options);
-}
-
-function mergeOptions(result, config?: null | BabelConfig) {
-  if (
-    !config ||
-    ((!config.presets || config.presets.length === 0) &&
-      (!config.plugins || config.plugins.length === 0))
-  ) {
-    return result;
-  }
-
-  let merged = result;
-  if (merged) {
-    merged.presets = (merged.presets || []).concat(config.presets || []);
-    merged.plugins = (merged.plugins || []).concat(config.plugins || []);
-  } else {
-    result = config;
-  }
-
-  return result;
 }
 
 function hasRequire(options) {

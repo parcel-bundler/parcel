@@ -31,6 +31,16 @@ export default async function babel7(
       allowReturnOutsideFunction: true,
       strictMode: false,
       sourceType: 'module',
+      plugins: [
+        ...(babelOptions.config.parserOpts?.plugins ?? []),
+        ...(babelOptions.syntaxPlugins ?? []),
+        // Applied by preset-env
+        'classProperties',
+        'classPrivateProperties',
+        'classPrivateMethods',
+        'exportDefaultFrom',
+        // 'topLevelAwait'
+      ]
     },
     caller: {
       name: 'parcel',
