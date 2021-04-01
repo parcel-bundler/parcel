@@ -1,4 +1,4 @@
-import React from 'react';
+import * as React from 'react';
 import logoUrl from 'url:./logo.svg';
 import frontUrl from 'url:./front.png';
 import backUrl from 'url:./back.png';
