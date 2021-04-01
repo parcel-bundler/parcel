@@ -17,22 +17,6 @@
   },
   "browser": "dist/legacy/index.html",
   "browserModern": "dist/modern/index.html",
-  "targets": {
-    "browserModern": {
-      "engines": {
-        "browsers": [
-          "last 1 Chrome version"
-        ]
-      }
-    },
-    "browser": {
-      "engines": {
-        "browsers": [
-          "> 0.25%"
-        ]
-      }
-    }
-  },
   "dependencies": {
     "lodash": "^4.17.11",
     "react": "^16.6.3",
