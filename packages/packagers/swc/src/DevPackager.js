@@ -1,15 +1,12 @@
 // @flow
 import type {
-  Asset,
   BundleGraph,
-  Dependency,
   PluginOptions,
   NamedBundle,
 } from '@parcel/types';
 
 import {PromiseQueue, relativeBundlePath, countLines} from '@parcel/utils';
 import SourceMap from '@parcel/source-map';
-import nullthrows from 'nullthrows';
 import invariant from 'assert';
 import path from 'path';
 import fs from 'fs';

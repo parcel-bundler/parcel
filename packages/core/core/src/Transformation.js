@@ -843,7 +843,7 @@ function normalizeAssets(
   results: Array<TransformerResult | MutableAsset>,
 ): Promise<Array<TransformerResult | UncommittedAsset>> {
   return Promise.all(
-    results.map<Promise<TransformerResult | UncommittedAsset>>(async result => {
+    results.map<Promise<TransformerResult | UncommittedAsset>>(result => {
       if (result instanceof MutableAsset) {
         return mutableAssetToUncommittedAsset(result);
       }

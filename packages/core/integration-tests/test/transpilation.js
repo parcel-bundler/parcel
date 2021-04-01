@@ -3,22 +3,13 @@ import assert from 'assert';
 import path from 'path';
 import {
   bundle,
-  bundler,
   distDir,
-  getNextBuild,
   inputFS as fs,
   outputFS,
-  removeDistDirectory,
   run,
-  sleep,
 } from '@parcel/test-utils';
-import Logger from '@parcel/logger';
-import os from 'os';
-import {spawnSync} from 'child_process';
 import {symlinkSync} from 'fs';
-import tempy from 'tempy';
 
-const parcelCli = require.resolve('parcel/src/bin.js');
 const inputDir = path.join(__dirname, '/input');
 
 describe('transpilation', function() {

@@ -15,7 +15,6 @@ import {
 import Logger from '@parcel/logger';
 import os from 'os';
 import {spawnSync} from 'child_process';
-import {symlinkSync} from 'fs';
 import tempy from 'tempy';
 
 const parcelCli = require.resolve('parcel/src/bin.js');

@@ -106,7 +106,6 @@ describe('output formats', function() {
         ),
       );
 
-      let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
       assert.deepEqual(await run(b), {});
     });
 

@@ -1,6 +1,6 @@
 {
   "name": "@parcel/transformer-js-swc",
-  "version": "2.0.0-beta.1",
+  "version": "2.0.0-beta.2",
   "main": "lib/SWCTransformer.js",
   "source": "src/SWCTransformer.js",
   "napi": {
@@ -8,6 +8,16 @@
   },
   "engines": {
     "parcel": "^2.0.0-beta.1"
+  },
+  "dependencies": {
+    "@parcel/diagnostic": "2.0.0-beta.2",
+    "@parcel/plugin": "2.0.0-beta.2",
+    "@parcel/source-map": "2.0.0-alpha.4.21",
+    "@parcel/utils": "2.0.0-beta.2",
+    "browserslist": "^4.6.6",
+    "micromatch": "^4.0.2",
+    "nullthrows": "^1.1.1",
+    "semver": "^5.4.1"
   },
   "devDependencies": {
     "napi-rs": "^0.3.10",

@@ -1,7 +1,6 @@
 // @flow
 
 import type {Config, PluginOptions} from '@parcel/types';
-import type {BabelConfig} from './types';
 import type {PluginLogger} from '@parcel/logger';
 
 import path from 'path';

@@ -1,7 +1,6 @@
 // @flow strict-local
 
 import type {Config, PluginOptions} from '@parcel/types';
-import type {BabelConfig} from './types';
 
 import path from 'path';
 
@@ -25,7 +24,6 @@ export default async function isJSX(
   }
 
   let pkg = await config.getPackage();
-  let reactLib;
   if (pkg?.alias && pkg.alias['react']) {
     // e.g.: `{ alias: { "react": "preact/compat" } }`
     return true;
