@@ -70,7 +70,7 @@ type AssetOptions = {|
   configKeyPath?: string,
 |};
 
-function createAssetIdFromOptions(options: AssetOptions): string {
+export function createAssetIdFromOptions(options: AssetOptions): string {
   let uniqueKey = options.uniqueKey ?? '';
   let idBase = options.idBase != null ? options.idBase : options.filePath;
   let queryString = options.query ? objectSortedEntries(options.query) : '';

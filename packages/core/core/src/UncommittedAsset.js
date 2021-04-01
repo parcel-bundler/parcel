@@ -36,6 +36,7 @@ import {mergeEnvironments} from './Environment';
 import {PARCEL_VERSION} from './constants';
 import {
   createAsset,
+  createAssetIdFromOptions,
   getConfig,
   getInvalidationId,
   getInvalidationHash,
@@ -435,5 +436,9 @@ export default class UncommittedAsset {
 
   getPackage(): Promise<PackageJSON | null> {
     return this.getConfig(['package.json']);
+  }
+
+  updateId() {
+    this.value.id = createAssetIdFromOptions(this.value);
   }
 }

@@ -209,6 +209,7 @@ export default class Transformation {
     }
 
     return {
+      $$raw: true,
       assets,
       configRequests,
       invalidateOnFileCreate: this.invalidateOnFileCreate,
@@ -462,6 +463,10 @@ export default class Transformation {
           );
 
           for (let result of transformerResults) {
+            if (result instanceof UncommittedAsset) {
+              resultingAssets.push(result);
+              continue;
+            }
             resultingAssets.push(
               asset.createChildAsset(
                 result,
@@ -836,33 +841,14 @@ type TransformerWithNameAndConfig = {|
 
 function normalizeAssets(
   results: Array<TransformerResult | MutableAsset>,
-): Promise<Array<TransformerResult>> {
+): Promise<Array<TransformerResult | UncommittedAsset>> {
   return Promise.all(
-    results.map<Promise<TransformerResult>>(async result => {
-      if (!(result instanceof MutableAsset)) {
-        return result;
+    results.map<Promise<TransformerResult | UncommittedAsset>>(async result => {
+      if (result instanceof MutableAsset) {
+        return mutableAssetToUncommittedAsset(result);
       }
 
-      let internalAsset = mutableAssetToUncommittedAsset(result);
-      // $FlowFixMe - ignore id already on env
-      return {
-        ast: internalAsset.ast,
-        content: await internalAsset.content,
-        query: internalAsset.value.query,
-        // $FlowFixMe
-        dependencies: [...internalAsset.value.dependencies.values()],
-        env: internalAsset.value.env,
-        filePath: result.filePath,
-        isInline: result.isInline,
-        isIsolated: result.isIsolated,
-        map: await internalAsset.getMap(),
-        meta: result.meta,
-        pipeline: internalAsset.value.pipeline,
-        // $FlowFixMe
-        symbols: internalAsset.value.symbols,
-        type: result.type,
-        uniqueKey: internalAsset.value.uniqueKey,
-      };
+      return result;
     }),
   );
 }

@@ -241,6 +241,7 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
 
   set type(type: string): void {
     this.#asset.value.type = type;
+    this.#asset.updateId();
   }
 
   get isIsolated(): boolean {
@@ -318,5 +319,6 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
 
   setEnvironment(env: EnvironmentOptions): void {
     this.#asset.value.env = createEnvironment(env);
+    this.#asset.updateId();
   }
 }
