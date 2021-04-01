@@ -240,8 +240,10 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
   }
 
   set type(type: string): void {
-    this.#asset.value.type = type;
-    this.#asset.updateId();
+    if (type !== this.#asset.value.type) {
+      this.#asset.value.type = type;
+      this.#asset.updateId();
+    }
   }
 
   get isIsolated(): boolean {

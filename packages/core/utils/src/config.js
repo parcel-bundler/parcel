@@ -18,15 +18,24 @@ export type ConfigOptions = {|
 |};
 
 const configCache = new LRU<FilePath, ConfigOutput>({max: 500});
+const resolveCache = new Map();
 
 export function resolveConfig(
   fs: FileSystem,
   filepath: FilePath,
   filenames: Array<FilePath>,
 ): Promise<?FilePath> {
-  return Promise.resolve(
-    fs.findAncestorFile(filenames, path.dirname(filepath)),
-  );
+  // Cache the result of resolving config for this directory.
+  // This is automatically invalidated at the end of the current build.
+  let key = path.dirname(filepath) + filenames.join(',');
+  let cached = resolveCache.get(key);
+  if (cached !== undefined) {
+    return cached;
+  }
+
+  let resolved = fs.findAncestorFile(filenames, path.dirname(filepath));
+  resolveCache.set(key, resolved);
+  return Promise.resolve(resolved);
 }
 
 export function resolveConfigSync(
@@ -96,6 +105,7 @@ export async function loadConfig(
 
 loadConfig.clear = () => {
   configCache.reset();
+  resolveCache.clear();
 };
 
 function getParser(extname) {

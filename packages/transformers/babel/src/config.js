@@ -6,7 +6,7 @@ import type {PluginLogger} from '@parcel/logger';
 
 import path from 'path';
 import * as babelCore from '@babel/core';
-import {md5FromObject, relativePath} from '@parcel/utils';
+import {md5FromObject, relativePath, resolveConfig} from '@parcel/utils';
 
 import isJSX from './jsx';
 import getFlowOptions from './flow';
@@ -35,6 +35,12 @@ export async function load(
 ): Promise<void> {
   // Don't transpile inside node_modules
   if (!config.isSource) {
+    return;
+  }
+
+  // Do nothing if we cannot resolve any babel config filenames. Checking using our own
+  // config resolution (which is cached) is much faster than relying on babel.
+  if (!await resolveConfig(options.inputFS, config.searchPath, BABEL_CONFIG_FILENAMES)) {
     return;
   }
 
