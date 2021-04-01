@@ -32,12 +32,11 @@ describe('html', function() {
 
     assertBundles(b, [
       {
-        name: 'index.html',
+        type: 'css',
         assets: ['index.html'],
       },
       {
-        name: 'index.HASH_REF_e5cf7117b2aa99548decd63ab74b27b6.css',
-        type: 'css',
+        name: 'index.html',
         assets: ['index.html'],
       },
       {

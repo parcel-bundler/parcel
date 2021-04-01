@@ -449,12 +449,11 @@ describe('server', function() {
     invariant(build.type === 'buildSuccess');
     assertBundles(build.bundleGraph, [
       {
-        name: 'index.html',
+        type: 'css',
         assets: ['index.html'],
       },
       {
-        name: 'index.HASH_REF_2d285d6f29236f5b00e1db199488d505.css',
-        type: 'css',
+        name: 'index.html',
         assets: ['index.html'],
       },
     ]);
@@ -474,12 +473,11 @@ describe('server', function() {
     invariant(build?.type === 'buildSuccess');
     assertBundles(build.bundleGraph, [
       {
-        name: 'index.html',
+        type: 'css',
         assets: ['index.html'],
       },
       {
-        name: 'index.HASH_REF_2d285d6f29236f5b00e1db199488d505.css',
-        type: 'css',
+        name: 'index.html',
         assets: ['index.html'],
       },
       {
