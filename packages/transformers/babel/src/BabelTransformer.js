@@ -44,7 +44,10 @@ export default (new Transformer({
 
   async generate({asset, ast, options}) {
     let originalSourceMap = await asset.getMap();
-    let sourceFileName: string = relativeUrl(options.projectRoot, asset.filePath);
+    let sourceFileName: string = relativeUrl(
+      options.projectRoot,
+      asset.filePath,
+    );
     let {code, rawMappings} = generate(ast.program, {
       sourceFileName,
       sourceMaps: !!asset.env.sourceMap,

@@ -517,10 +517,7 @@ describe('babel', function() {
 
   it('should compile with custom babel plugin plus default transforms', async function() {
     let b = await bundle(
-      path.join(
-        __dirname,
-        '/integration/babel-custom/index.js',
-      ),
+      path.join(__dirname, '/integration/babel-custom/index.js'),
     );
 
     let file = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
@@ -533,12 +530,9 @@ describe('babel', function() {
     assert.strictEqual(output.default, 'hello');
   });
 
-   it('should compile with custom babel plugin and jsx', async function() {
+  it('should compile with custom babel plugin and jsx', async function() {
     let b = await bundle(
-      path.join(
-        __dirname,
-        '/integration/babel-custom/jsx.js',
-      ),
+      path.join(__dirname, '/integration/babel-custom/jsx.js'),
     );
 
     let file = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
@@ -548,10 +542,7 @@ describe('babel', function() {
 
   it('should compile with custom babel plugin and typescript', async function() {
     let b = await bundle(
-      path.join(
-        __dirname,
-        '/integration/babel-custom/ts.ts',
-      ),
+      path.join(__dirname, '/integration/babel-custom/ts.ts'),
     );
 
     let file = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
@@ -567,10 +558,7 @@ describe('babel', function() {
 
   it('should compile with custom babel plugin and tsx', async function() {
     let b = await bundle(
-      path.join(
-        __dirname,
-        '/integration/babel-custom/tsx.tsx',
-      ),
+      path.join(__dirname, '/integration/babel-custom/tsx.tsx'),
     );
 
     let file = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');

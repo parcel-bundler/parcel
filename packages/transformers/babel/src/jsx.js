@@ -10,7 +10,7 @@ const JSX_LIBRARIES = ['react', 'preact', 'nervejs', 'hyperapp'];
 
 /**
  * Returns whether an asset is likely JSX. Attempts to detect react or react-like libraries
- * along with 
+ * along with
  */
 export default async function isJSX(
   options: PluginOptions,

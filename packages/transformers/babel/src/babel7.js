@@ -40,7 +40,7 @@ export default async function babel7(
         'classPrivateMethods',
         'exportDefaultFrom',
         // 'topLevelAwait'
-      ]
+      ],
     },
     caller: {
       name: 'parcel',

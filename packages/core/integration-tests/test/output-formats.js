@@ -855,7 +855,9 @@ describe('output formats', function() {
       let asyncBundle = b
         .getBundles()
         .find(bundle => bundle.name.startsWith('async'));
-      assert(entry.includes(`import("./${path.basename(asyncBundle.filePath)}")`));
+      assert(
+        entry.includes(`import("./${path.basename(asyncBundle.filePath)}")`),
+      );
 
       assert.equal(await (await run(b)).default, 4);
     });
@@ -895,7 +897,11 @@ describe('output formats', function() {
       let asyncBundle = b
         .getBundles()
         .find(bundle => bundle.name.startsWith('async'));
-      assert(entry.includes(`getBundleURL() + "${path.basename(asyncBundle.filePath)}"`));
+      assert(
+        entry.includes(
+          `getBundleURL() + "${path.basename(asyncBundle.filePath)}"`,
+        ),
+      );
     });
 
     it('should support building esmodules with css imports', async function() {
@@ -984,7 +990,9 @@ describe('output formats', function() {
         // async import both bundles in parallel for performance
         assert(
           new RegExp(
-            `import\\("\\./${path.basename(sharedBundle.filePath)}"\\),\\n\\s*import\\("./${path.basename(bundle.filePath)}"\\)`,
+            `import\\("\\./${path.basename(
+              sharedBundle.filePath,
+            )}"\\),\\n\\s*import\\("./${path.basename(bundle.filePath)}"\\)`,
           ).test(entry),
         );
       }

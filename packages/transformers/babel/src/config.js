@@ -40,7 +40,13 @@ export async function load(
 
   // Do nothing if we cannot resolve any babel config filenames. Checking using our own
   // config resolution (which is cached) is much faster than relying on babel.
-  if (!await resolveConfig(options.inputFS, config.searchPath, BABEL_CONFIG_FILENAMES)) {
+  if (
+    !(await resolveConfig(
+      options.inputFS,
+      config.searchPath,
+      BABEL_CONFIG_FILENAMES,
+    ))
+  ) {
     return;
   }
 
