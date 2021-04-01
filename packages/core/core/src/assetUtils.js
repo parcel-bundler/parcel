@@ -243,13 +243,13 @@ export async function getInvalidationHash(
         // Only recompute the hash of this file if we haven't seen it already during this build.
         let fileHash = hashCache.get(invalidation.filePath);
         if (fileHash == null) {
-          fileHash = await md5FromFilePath(
+          fileHash = md5FromFilePath(
             options.inputFS,
             invalidation.filePath,
           );
           hashCache.set(invalidation.filePath, fileHash);
         }
-        hash.update(fileHash);
+        hash.update(await fileHash);
         break;
       }
       case 'env':
