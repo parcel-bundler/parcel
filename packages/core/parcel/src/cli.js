@@ -165,7 +165,6 @@ program
   .command('help [command]')
   .description('display help information for a command')
   .action(function(command) {
-    // $FlowFixMe[incompatible-use]
     let cmd = program.commands.find(c => c.name() === command) || program;
     cmd.help();
   });
