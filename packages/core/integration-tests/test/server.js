@@ -111,6 +111,33 @@ describe('server', function() {
     assert.equal(data, inputFile);
   });
 
+  it('should serve sourcemaps', async function() {
+    let port = await getPort();
+    let inputPath = path.join(__dirname, '/integration/commonjs/index.js');
+    let b = bundler(inputPath, {
+      defaultTargetOptions: {
+        distDir,
+      },
+      config,
+      serveOptions: {
+        https: false,
+        port: port,
+        host: 'localhost',
+      },
+    });
+
+    subscription = await b.watch();
+    await getNextBuild(b);
+
+    let data = await get('/index.js.map', port);
+    let distFile = await outputFS.readFile(
+      path.join(distDir, 'index.js.map'),
+      'utf8',
+    );
+
+    assert.equal(data, distFile);
+  });
+
   it('should serve a default page if the main bundle is an HTML asset', async function() {
     let port = await getPort();
     let b = bundler(
@@ -545,12 +572,17 @@ describe('server', function() {
 
     let local = build.bundleGraph
       .getBundles()
-      .find(b => b.type === 'js' && b.name.startsWith('local'));
+      .find(
+        b => b.type === 'js' && path.basename(b.filePath).startsWith('local'),
+      );
     invariant(local);
-    data = await get(`/${local.name}`, port);
+    data = await get(`/${path.basename(local.filePath)}`, port);
     assert.equal(
       data,
-      await outputFS.readFile(path.join(distDir, local.name), 'utf8'),
+      await outputFS.readFile(
+        path.join(distDir, path.basename(local.filePath)),
+        'utf8',
+      ),
     );
 
     assert.equal(builds.length, 3);
@@ -579,10 +611,12 @@ describe('server', function() {
 
     let localCSS = build.bundleGraph
       .getBundles()
-      .find(b => b.type === 'css' && b.name.startsWith('local'));
+      .find(
+        b => b.type === 'css' && path.basename(b.filePath).startsWith('local'),
+      );
     invariant(localCSS);
 
-    assert(data.includes(localCSS.name));
+    assert(data.includes(path.basename(localCSS.filePath)));
     assert(data.includes('css-loader'));
   });
 });

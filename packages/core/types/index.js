@@ -57,7 +57,7 @@ export type RawParcelConfig = {|
   transformers?: {[Glob]: RawParcelConfigPipeline, ...},
   bundler?: PackageName,
   namers?: RawParcelConfigPipeline,
-  runtimes?: {[EnvironmentContext]: RawParcelConfigPipeline, ...},
+  runtimes?: RawParcelConfigPipeline,
   packagers?: {[Glob]: PackageName, ...},
   optimizers?: {[Glob]: RawParcelConfigPipeline, ...},
   reporters?: RawParcelConfigPipeline,
@@ -914,8 +914,6 @@ export interface Bundle {
   +hashReference: string;
   +type: string;
   +env: Environment;
-  /** The output filespath (if not inline), can contain <code>hashReference</code> before the optimizer ran. */
-  +filePath: ?FilePath;
   /** Whether this is an entry (e.g. should not be hashed). */
   +isEntry: ?boolean;
   /** Whether this bundle should be inlined into the parent bundle(s), */
@@ -943,9 +941,12 @@ export interface Bundle {
  */
 export interface NamedBundle extends Bundle {
   +publicId: string;
-  +filePath: FilePath;
   +name: string;
   +displayName: string;
+}
+
+export interface PackagedBundle extends NamedBundle {
+  +filePath: FilePath;
 }
 
 /**
@@ -1132,9 +1133,10 @@ export type ConfigOutput = {|
  */
 export type Bundler = {|
   loadConfig?: ({|
+    config: Config,
     options: PluginOptions,
     logger: PluginLogger,
-  |}) => Async<ConfigOutput>,
+  |}) => Async<void>,
   bundle({|
     bundleGraph: MutableBundleGraph,
     config: ?ConfigResult,
@@ -1160,10 +1162,16 @@ export type Bundler = {|
  * @section namer
  */
 export type Namer = {|
+  loadConfig?: ({|
+    config: Config,
+    options: PluginOptions,
+    logger: PluginLogger,
+  |}) => Async<void>,
   /** Return a filename/-path for <code>bundle</code> or nullish to leave it to the next namer plugin. */
   name({|
     bundle: Bundle,
     bundleGraph: BundleGraph<Bundle>,
+    config: ?ConfigResult,
     options: PluginOptions,
     logger: PluginLogger,
   |}): Async<?FilePath>,
@@ -1184,9 +1192,15 @@ export type RuntimeAsset = {|
  * @section runtime
  */
 export type Runtime = {|
+  loadConfig?: ({|
+    config: Config,
+    options: PluginOptions,
+    logger: PluginLogger,
+  |}) => Async<void>,
   apply({|
     bundle: NamedBundle,
     bundleGraph: BundleGraph<NamedBundle>,
+    config: ?ConfigResult,
     options: PluginOptions,
     logger: PluginLogger,
   |}): Async<void | RuntimeAsset | Array<RuntimeAsset>>,
@@ -1365,7 +1379,7 @@ export type BuildProgressEvent =
  */
 export type BuildSuccessEvent = {|
   +type: 'buildSuccess',
-  +bundleGraph: BundleGraph<NamedBundle>,
+  +bundleGraph: BundleGraph<PackagedBundle>,
   +buildTime: number,
   +changedAssets: Map<string, Asset>,
   +requestBundle: (bundle: NamedBundle) => Promise<BuildSuccessEvent>,

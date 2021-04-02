@@ -586,10 +586,7 @@ all), but here's an example of a `.parcelrc` file that contains every field:
   },
   "bundler": "@parcel/bundler-default",
   "namers": ["@parcel/namer-default"],
-  "runtimes": {
-    "browser": ["@parcel/runtime-js", "@parcel/runtime-browser-hmr"],
-    "node": ["@parcel/runtime-js"]
-  },
+  "runtimes": ["@parcel/runtime-js", "@parcel/runtime-browser-hmr"],
   "packagers": {
     "*.js": "@parcel/packager-js",
     "*.css": "@parcel/packager-css",
@@ -696,14 +693,11 @@ See [Namers](#namers)
 
 #### `.parcelrc#runtimes`
 
-`runtimes` is an object map of environments to arrays of Parcel runtime packages.
+`runtimes` is an array of Parcel runtime packages.
 
 ```json
 {
-  "runtimes": {
-    "browser": ["@parcel/runtime-js", "@parcel/runtime-browser-hmr"],
-    "node": ["@parcel/runtime-js"]
-  }
+  "runtimes": ["@parcel/runtime-js", "@parcel/runtime-browser-hmr"],
 }
 ```
 
@@ -1153,10 +1147,7 @@ included in the final bundle.
 
 ```json
 {
-  "runtimes": {
-    "browser": ["@parcel/runtime-js", "@parcel/runtime-browser-hmr"],
-    "node": ["@parcel/runtime-js"]
-  }
+  "runtimes": ["@parcel/runtime-js", "@parcel/runtime-browser-hmr"]
 }
 ```
 

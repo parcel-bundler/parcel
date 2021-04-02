@@ -11,7 +11,7 @@ import path from 'path';
 
 type RunOpts = {|
   input: FilePath,
-  ...StaticRunOpts<EntryResult>,
+  ...StaticRunOpts,
 |};
 
 export type EntryRequest = {|

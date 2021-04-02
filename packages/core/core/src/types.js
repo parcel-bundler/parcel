@@ -51,7 +51,7 @@ export type ProcessedParcelConfig = {|
   transformers?: {[Glob]: ExtendableParcelConfigPipeline, ...},
   bundler: ?ParcelPluginNode,
   namers?: PureParcelConfigPipeline,
-  runtimes?: {[EnvironmentContext]: PureParcelConfigPipeline, ...},
+  runtimes?: PureParcelConfigPipeline,
   packagers?: {[Glob]: ParcelPluginNode, ...},
   optimizers?: {[Glob]: ExtendableParcelConfigPipeline, ...},
   reporters?: PureParcelConfigPipeline,
@@ -362,6 +362,7 @@ export type Config = {|
   result: ConfigResult,
   includedFiles: Set<FilePath>,
   invalidateOnFileCreate: Array<FileCreateInvalidation>,
+  invalidateOnOptionChange: Set<string>,
   devDeps: Array<DevDepOptions>,
   shouldInvalidateOnStartup: boolean,
 |};
