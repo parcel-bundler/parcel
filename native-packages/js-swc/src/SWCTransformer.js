@@ -3,7 +3,7 @@ import type {JSONObject, EnvMap} from '@parcel/types';
 import type {SchemaEntity} from '@parcel/utils';
 import SourceMap from '@parcel/source-map';
 import {Transformer} from '@parcel/plugin';
-import {transform} from '../parcel-swc.node';
+import {transform} from './native';
 import {isURL, relativeUrl} from '@parcel/utils';
 import path from 'path';
 import browserslist from 'browserslist';
