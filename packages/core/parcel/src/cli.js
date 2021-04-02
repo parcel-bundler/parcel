@@ -84,7 +84,6 @@ const commonOptions = {
   '--detailed-report [count]': [
     'print the asset timings and sizes in the build report',
     parseOptionInt,
-    '10',
   ],
   '--reporter <name>': [
     'additional reporters to run',
