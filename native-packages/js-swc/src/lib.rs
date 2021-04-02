@@ -236,6 +236,7 @@ fn transform(ctx: CallContext) -> Result<JsUnknown> {
             preset_env_config.targets = Some(Targets::Versions(versions));
             preset_env_config.shipped_proposals = true;
             preset_env_config.mode = Some(Entry);
+            preset_env_config.bugfixes = true;
           }
           
           let module = {
