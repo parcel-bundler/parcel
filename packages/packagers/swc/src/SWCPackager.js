@@ -130,7 +130,7 @@ export class SWCPackager {
 
       let [content, map, lines] = this.visitAsset(asset);
       if (sourceMap && map) {
-        sourceMap.addSourceMap(map, lineCount);
+        sourceMap.addBufferMappings(map.toBuffer(), lineCount);
       }
 
       res += content + '\n';
@@ -343,7 +343,7 @@ export class SWCPackager {
           let [code, map, lines] = this.visitAsset(resolved);
           depCode += code + '\n';
           if (sourceMap && map) {
-            sourceMap.addSourceMap(map, lineCount);
+            sourceMap.addBufferMappings(map.toBuffer(), lineCount);
           }
           lineCount += lines + 1;
         }
@@ -439,7 +439,7 @@ export class SWCPackager {
             }
 
             if (map) {
-              sourceMap.addSourceMap(map, lineCount, 0);
+              sourceMap.addBufferMappings(map.toBuffer(), lineCount, 0);
             }
           }
 
@@ -489,7 +489,7 @@ export class SWCPackager {
         if (!code) continue;
         depCode += code + '\n';
         if (sourceMap && map) {
-          sourceMap.addSourceMap(map, depLines, 0);
+          sourceMap.addBufferMappings(map.toBuffer(), depLines, 0);
         }
         depLines += lineCount + 1;
       }
