@@ -158,11 +158,9 @@ export class SWCPackager {
           this.bundleGraph.getAssetPublicId(entry),
         )});\n`;
 
-        if (
-          entry === mainEntry &&
-          this.exportedSymbols.has(entry.symbols.get('*')?.local)
-        ) {
-          res += `\nvar exports = ${parcelRequire}`;
+        let entryExports = entry.symbols.get('*')?.local;
+        if (entry === mainEntry && this.exportedSymbols.has(entryExports)) {
+          res += `\nvar ${entryExports} = ${parcelRequire}`;
         } else {
           res += `\n${parcelRequire}`;
         }
@@ -235,21 +233,16 @@ export class SWCPackager {
             symbol === '*' ? entry.symbols.get('*')?.local : symbol,
           );
 
-          let local = exportAs;
+          let local = symbol;
           if (symbols) {
             local = symbols[0].local;
           } else {
             symbols = [];
             this.exportedSymbols.set(symbol, symbols);
+          }
 
-            if (local === '*') {
-              exportAs = 'default';
-              local = 'exports';
-            } else if (local === 'default') {
-              local = '_default';
-            }
-
-            local = this.getTopLevelName(local);
+          if (exportAs === '*') {
+            exportAs = 'default';
           }
 
           symbols.push({exportAs, local});
@@ -271,15 +264,6 @@ export class SWCPackager {
         }
       }
     }
-  }
-
-  resolveExportedSymbol(symbol: string): string {
-    let exported = this.exportedSymbols.get(symbol);
-    if (exported) {
-      return exported[0].local;
-    }
-
-    return symbol;
   }
 
   getTopLevelName(name: string): string {
@@ -548,14 +532,19 @@ ${code}
             continue;
           }
 
-          // Rename the specifier to something nicer. Try to use the imported
-          // name, except for default and namespace imports, and if the name is
-          // already in scope.
-          renamed = imported;
-          if (imported === 'default' || imported === '*') {
-            renamed = this.getTopLevelName(dep.moduleSpecifier);
-          } else if (!this.exportedSymbols.has(local)) {
-            renamed = this.getTopLevelName(imported);
+          // Rename the specifier so that multiple local imports of the same imported specifier
+          // are deduplicated. We have to prefix the imported name with the bundle id so that
+          // local variables do not shadow it.
+          if (this.exportedSymbols.has(local)) {
+            renamed = local;
+          } else if (imported === 'default' || imported === '*') {
+            renamed = this.getTopLevelName(
+              `$${this.bundle.publicId}$${dep.moduleSpecifier}`,
+            );
+          } else {
+            renamed = this.getTopLevelName(
+              `$${this.bundle.publicId}$${imported}`,
+            );
           }
 
           external.set(imported, renamed);
@@ -597,16 +586,6 @@ ${code}
             ? `Promise.resolve(${symbol})`
             : symbol,
         );
-      }
-    }
-
-    // Replace symbols with exported names.
-    if (this.exportedSymbols.size > 0) {
-      for (let [, {local}] of asset.symbols) {
-        let exported = this.exportedSymbols.get(local);
-        if (exported) {
-          replacements.set(local, exported[0].local);
-        }
       }
     }
 
@@ -710,10 +689,8 @@ ${code}
         ? `parcelRequire(${JSON.stringify(publicId)})`
         : isWrapped && dep
         ? `$${publicId}`
-        : this.resolveExportedSymbol(
-            resolvedAsset.symbols.get('*')?.local ||
-              `$${resolvedAsset.meta.id}$exports`,
-          );
+        : resolvedAsset.symbols.get('*')?.local ||
+          `$${resolvedAsset.meta.id}$exports`;
 
     if (imported === '*' || exportSymbol === '*' || isDefaultInterop) {
       // Resolve to the namespace object if requested or this is a CJS default interop reqiure.
@@ -745,7 +722,7 @@ ${code}
       // TODO: not sure about this.
       return '{}';
     } else {
-      return this.resolveExportedSymbol(symbol);
+      return symbol;
     }
   }
 

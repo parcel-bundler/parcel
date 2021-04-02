@@ -2270,7 +2270,7 @@
     "@octokit/plugin-request-log" "^1.0.0"
     "@octokit/plugin-rest-endpoint-methods" "3.17.0"
 
-"@octokit/rest@^18.0.12", "@octokit/rest@^18.0.9":
+"@octokit/rest@^18.0.12":
   version "18.3.4"
   resolved "https://registry.yarnpkg.com/@octokit/rest/-/rest-18.3.4.tgz#8e7ab02cd509e2fe7e71917a54254a8f8b827f20"
   integrity sha512-NES0pHbwyFB1D0jrLkdnIXgEmze/gLE0JoSNgfAe4vwD77/qaQGO/lRWNuPPsoBVBjiW6mmA9CU5cYHujJTKQA==
@@ -4914,7 +4914,7 @@ deasync@^0.1.14:
     bindings "^1.5.0"
     node-addon-api "^1.7.1"
 
-debug@*, debug@4.3.1, debug@^4.0.1, debug@^4.1.0, debug@^4.1.1, debug@^4.2.0, debug@^4.3.1:
+debug@*, debug@4.3.1, debug@^4.0.1, debug@^4.1.0, debug@^4.1.1, debug@^4.3.1:
   version "4.3.1"
   resolved "https://registry.yarnpkg.com/debug/-/debug-4.3.1.tgz#f0d229c505e0c6d8c49ac553d1b13dc183f6b2ee"
   integrity sha512-doEwdvm4PCeK4K3RQN2ZC2BYUBaxwLARCqZmMjtF8a51J2Rb0xpVloFRnCODwqjpwnAoao4pelN8l3RJdv3gRQ==
@@ -9319,22 +9319,6 @@ napi-build-utils@^1.0.1:
   version "1.0.2"
   resolved "https://registry.yarnpkg.com/napi-build-utils/-/napi-build-utils-1.0.2.tgz#b1fddc0b2c46e380a0b7a76f984dd47c41a13806"
   integrity sha512-ONmRUqK7zj7DWX0D9ADe03wbwOBZxNAfF20PlGfCWQcD3+/MakShIHrMqx9YwPTfxDdF1zLeL+RGZiR9kGMLdg==
-
-napi-rs@^0.3.10:
-  version "0.3.10"
-  resolved "https://registry.yarnpkg.com/napi-rs/-/napi-rs-0.3.10.tgz#df8620c9a86bb0a612204c50ac634dd25d1dfe96"
-  integrity sha512-Jw9A5T1WFIxNuUT6JNqo4cuPqZimnQg3BtFjQVpusDKLHGKBsxGiIMVUM/HT3jkZ44oVWoew4kAxygty0dzWFA==
-  dependencies:
-    "@octokit/rest" "^18.0.9"
-    chalk "^4.1.0"
-    clipanion "^2.6.2"
-    debug "^4.2.0"
-    fdir "^4.1.0"
-    inquirer "^7.3.3"
-    lodash "^4.17.20"
-    putasset "^5.0.3"
-    toml "^3.0.0"
-    tslib "^2.0.3"
 
 natural-compare@^1.4.0:
   version "1.4.0"

@@ -128,7 +128,7 @@ describe('output formats', function() {
       );
 
       let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
-      assert(/var {\s*add\s*} = require\("lodash"\)/.test(dist));
+      assert(/var {add: \s*\$.+?\$add\s*} = require\("lodash"\)/.test(dist));
       assert.equal((await run(b)).bar, 3);
     });
 
@@ -141,7 +141,11 @@ describe('output formats', function() {
       );
 
       let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
-      assert(/var {\s*assign\s*} = require\("lodash\/fp"\)/.test(dist));
+      assert(
+        /var {assign: \s*\$.+?\$assign\s*} = require\("lodash\/fp"\)/.test(
+          dist,
+        ),
+      );
       let match = dist.match(
         /var {\s*assign:\s*(.*)\s*} = require\("lodash"\)/,
       );
@@ -159,7 +163,7 @@ describe('output formats', function() {
       );
 
       let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
-      assert(dist.includes('var lodash = require("lodash")'));
+      assert(dist.includes('= require("lodash")'));
       assert.equal((await run(b)).bar, 3);
     });
 
@@ -172,9 +176,7 @@ describe('output formats', function() {
       );
 
       let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
-      assert(
-        dist.includes('var lodash = $parcel$interopDefault(require("lodash"))'),
-      );
+      assert(dist.includes('= $parcel$interopDefault(require("lodash"))'));
       assert.equal((await run(b)).bar, 3);
     });
 
@@ -188,8 +190,8 @@ describe('output formats', function() {
 
       let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
       assert(dist.includes('= require("lodash")'));
-      assert(dist.includes('= $parcel$interopDefault(lodash'));
-      assert(/var {\s*add\s*} = lodash/);
+      assert(dist.includes('= $parcel$interopDefault('));
+      assert(/var {add: \s*\$.+?\$add\s*} = lodash/);
       assert.equal((await run(b)).bar, 6);
     });
 
@@ -202,7 +204,7 @@ describe('output formats', function() {
       );
 
       let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
-      assert(dist.includes('var add = require("lodash").add'));
+      assert(dist.includes('= require("lodash").add'));
       assert.equal((await run(b)).bar, 3);
     });
 
@@ -215,8 +217,8 @@ describe('output formats', function() {
       );
 
       let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
-      assert(dist.includes('var assign = require("lodash/fp").assign;'));
-      assert(dist.includes('var assign1 = require("lodash").assign;'));
+      assert(dist.includes('= require("lodash/fp").assign;'));
+      assert(dist.includes('= require("lodash").assign;'));
       assert.equal((await run(b)).bar, true);
     });
 
@@ -229,9 +231,9 @@ describe('output formats', function() {
       );
 
       let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
-      assert(dist.includes('var temp = require("lodash")'));
-      assert(dist.includes('var add = temp.add'));
-      assert(dist.includes('var subtract = temp.subtract'));
+      assert(dist.includes('= require("lodash")'));
+      assert(dist.includes('= temp.add'));
+      assert(dist.includes('= temp.subtract'));
       assert.equal((await run(b)).bar, 2);
     });
 
@@ -244,7 +246,7 @@ describe('output formats', function() {
       );
 
       let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
-      assert(dist.includes('var add = require("lodash").add'));
+      assert(dist.includes('= require("lodash").add'));
     });
 
     it('should support commonjs output with old node without destructuring (multiple)', async function() {
@@ -256,9 +258,9 @@ describe('output formats', function() {
       );
 
       let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
-      assert(dist.includes('var temp = require("lodash")'));
-      assert(dist.includes('var add = temp.add'));
-      assert(dist.includes('var subtract = temp.subtract'));
+      assert(dist.includes('= require("lodash")'));
+      assert(dist.includes('= temp.add'));
+      assert(dist.includes('= temp.subtract'));
     });
 
     it('should support importing sibling bundles in library mode', async function() {
@@ -1077,6 +1079,31 @@ describe('output formats', function() {
       let ns = await run(b);
       assert.deepEqual({...ns}, {default: {default: 'default'}});
     });
+
+    it('should rename shadowed imported specifiers to something unique', async function() {
+      let b = await bundle(
+        path.join(__dirname, '/integration/formats/esm-import-shadow/a.mjs'),
+      );
+
+      let _b = await import(
+        path.join(
+          __dirname,
+          '/integration/formats/esm-import-shadow/node_modules/b/index.mjs',
+        )
+      );
+      let ns = await run(b, {}, {}, {b: () => _b});
+      let [useContext] = ns.createContext('Hello');
+      assert.strictEqual(useContext(), 'Hello World');
+    });
+
+    it('should rename shadowed exports to something unique', async function() {
+      let b = await bundle(
+        path.join(__dirname, '/integration/formats/esm-export-shadow/a.mjs'),
+      );
+
+      let ns = await run(b);
+      assert.strictEqual(ns.fib(5), 8);
+    });
   });
 
   it('should support generating ESM from universal module wrappers', async function() {
@@ -1111,16 +1138,20 @@ describe('output formats', function() {
     );
     assert.deepEqual(calls, [[['a', 10]]]);
 
-    let esmContents = await outputFS.readFile(
-      b
-        .getBundles()
-        .find(b => b.type === 'js' && b.env.outputFormat === 'esmodule')
-        .filePath,
-      'utf8',
+    let esm = b
+      .getBundles()
+      .find(b => b.type === 'js' && b.env.outputFormat === 'esmodule');
+
+    calls = [];
+    assert.deepEqual(
+      await runBundle(b, cjs, {
+        foo(v) {
+          calls.push(v);
+        },
+      }),
+      {Map: 2},
     );
-    assert(esmContents.includes('const _Map'));
-    assert(esmContents.includes('_Map as Map'));
-    assert(esmContents.includes('new Map'));
+    assert.deepEqual(calls, [[['a', 10]]]);
   });
 
   describe('global', function() {
