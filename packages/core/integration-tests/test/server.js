@@ -449,6 +449,10 @@ describe('server', function() {
     invariant(build.type === 'buildSuccess');
     assertBundles(build.bundleGraph, [
       {
+        type: 'css',
+        assets: ['index.html'],
+      },
+      {
         name: 'index.html',
         assets: ['index.html'],
       },
@@ -468,6 +472,10 @@ describe('server', function() {
     build = builds[1];
     invariant(build?.type === 'buildSuccess');
     assertBundles(build.bundleGraph, [
+      {
+        type: 'css',
+        assets: ['index.html'],
+      },
       {
         name: 'index.html',
         assets: ['index.html'],
