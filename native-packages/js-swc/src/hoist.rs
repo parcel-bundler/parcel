@@ -734,27 +734,14 @@ impl<'a> Fold for Hoist<'a> {
           value: Box::new(Expr::Ident(ident.fold_with(self)))
         })
       },
-      Prop::KeyValue(kv) => {
-        let mut kv = kv.clone();
-        kv.value = kv.value.fold_with(self);
-        Prop::KeyValue(kv)
-      },
-      Prop::Getter(getter) => {
-        let mut getter = getter.clone();
-        getter.body = getter.body.fold_with(self);
-        Prop::Getter(getter)
-      },
-      Prop::Setter(setter) => {
-        let mut setter = setter.clone();
-        setter.body = setter.body.fold_with(self);
-        Prop::Setter(setter)
-      },
-      Prop::Method(method) => {
-        let mut method = method.clone();
-        method.function = method.function.fold_with(self);
-        Prop::Method(method)
-      },
       _ => node.fold_children_with(self)
+    }
+  }
+
+  fn fold_prop_name(&mut self, node: PropName) -> PropName {
+    match node {
+      PropName::Computed(k) => PropName::Computed(k.fold_with(self)),
+      k => k
     }
   }
 
@@ -2818,6 +2805,35 @@ mod tests {
     import   "abc:other";
     $abc$importAsync$558d6cfb8af8a010.then(function({ foo: bar  }) {
     });
+    "#});
+  }
+  
+  #[test]
+  fn fold_hoist_vars() {
+    let (_collect, code, _hoist) = parse(r#"
+    var x = 2;
+    var y = {x};
+    var z = {x: 3};
+    var w = {[x]: 4};
+
+    function test() {
+      var x = 3;
+    }
+    "#);
+    assert_eq!(code, indoc!{r#"
+    var $abc$var$x = 2;
+    var $abc$var$y = {
+        x: $abc$var$x
+    };
+    var $abc$var$z = {
+        x: 3
+    };
+    var $abc$var$w = {
+        [$abc$var$x]: 4
+    };
+    function $abc$var$test() {
+        var x = 3;
+    }
     "#});
   }
 }
