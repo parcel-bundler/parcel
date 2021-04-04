@@ -208,6 +208,7 @@ export default class Transformation {
       }
     }
 
+    // $FlowFixMe
     return {
       $$raw: true,
       assets,

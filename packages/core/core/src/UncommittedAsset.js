@@ -439,6 +439,7 @@ export default class UncommittedAsset {
   }
 
   updateId() {
+    // $FlowFixMe - this is fine
     this.value.id = createAssetIdFromOptions(this.value);
   }
 }

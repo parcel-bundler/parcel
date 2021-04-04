@@ -6,7 +6,7 @@ use std::convert::TryInto;
 use napi::{CallContext, JsNumber, JsString, JsNull, Either, JsObject, Result};
 use std::path::Path;
 
-#[js_function(2)]
+#[js_function(3)]
 fn find_ancestor_file(ctx: CallContext) -> Result<Either<JsNull, JsString>> {
   let names = ctx.get::<JsObject>(0)?;
   let length: u32 = names.get_named_property::<JsNumber>("length")?.try_into()?;
@@ -17,6 +17,8 @@ fn find_ancestor_file(ctx: CallContext) -> Result<Either<JsNull, JsString>> {
 
   let f = ctx.get::<JsString>(1)?.into_utf8()?;
   let from = Path::new(f.as_str()?);
+  let r = ctx.get::<JsString>(2)?.into_utf8()?;
+  let root = Path::new(r.as_str()?);
 
   for dir in from.ancestors() {
     // Break if we hit a node_modules directory
@@ -31,6 +33,10 @@ fn find_ancestor_file(ctx: CallContext) -> Result<Either<JsNull, JsString>> {
       if fullpath.is_file() {
         return ctx.env.create_string(fullpath.to_str().unwrap()).map(Either::B);
       }
+    }
+
+    if dir == root {
+      break
     }
   }
 

@@ -30,7 +30,7 @@ const EMPTY_OPTIONS = {
   inputFS,
   outputFS,
   instanceId: 'test',
-  packageManager: new NodePackageManager(inputFS),
+  packageManager: new NodePackageManager(inputFS, '/'),
   detailedReport: {
     assetsPerBundle: 10,
   },

@@ -19,7 +19,7 @@ import {NodePackageManager} from '@parcel/package-manager';
 import {createWorkerFarm} from '@parcel/core';
 
 let inputDir: string;
-let packageManager = new NodePackageManager(inputFS);
+let packageManager = new NodePackageManager(inputFS, '/');
 
 function runBundle(entries = 'src/index.js', opts) {
   entries = (Array.isArray(entries) ? entries : [entries]).map(entry =>

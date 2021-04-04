@@ -200,6 +200,7 @@ export async function getConfig(
     asset.options.inputFS,
     asset.value.filePath,
     filePaths,
+    asset.options.projectRoot,
     parse == null ? null : {parse},
   );
   if (!conf) {

@@ -37,15 +37,26 @@ export async function load(
     return;
   }
 
+  // Invalidate when any babel config file is added.
+  for (let fileName of BABEL_CONFIG_FILENAMES) {
+    config.invalidateOnFileCreate({
+      fileName,
+      aboveFilePath: config.searchPath,
+    });
+  }
+
   // Do nothing if we cannot resolve any babel config filenames. Checking using our own
   // config resolution (which is cached) is much faster than relying on babel.
+  let res;
   if (
     !(await resolveConfig(
       options.inputFS,
       config.searchPath,
       BABEL_CONFIG_FILENAMES,
+      options.projectRoot,
     ))
   ) {
+    await buildDefaultBabelConfig(options, config);
     return;
   }
 
@@ -65,14 +76,6 @@ export async function load(
   let partialConfig: ?{|
     [string]: any,
   |} = await babelCore.loadPartialConfigAsync(babelOptions);
-
-  // Invalidate when any babel config file is added.
-  for (let fileName of BABEL_CONFIG_FILENAMES) {
-    config.invalidateOnFileCreate({
-      fileName,
-      aboveFilePath: config.searchPath,
-    });
-  }
 
   let addIncludedFile = file => {
     if (JS_EXTNAME_RE.test(path.extname(file))) {

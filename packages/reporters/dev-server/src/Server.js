@@ -361,7 +361,7 @@ export default class Server {
       '.proxyrc.js',
       '.proxyrc',
       '.proxyrc.json',
-    ]);
+    ], this.options.projectRoot);
 
     if (!pkg || !pkg.config || !pkg.files) {
       return this;

@@ -20,6 +20,7 @@ export default (new Packager({
       options.inputFS,
       path.join(options.entryRoot, 'index'),
       ['package.json'],
+      options.projectRoot,
     );
     let name = pkg?.config.name ?? '';
     return {

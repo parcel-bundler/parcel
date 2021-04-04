@@ -33,6 +33,7 @@ async function install(
   packageManager: PackageManager,
   modules: Array<ModuleRequest>,
   from: FilePath,
+  projectRoot: FilePath,
   options: InstallOptions = {},
 ): Promise<void> {
   let {installPeers = true, saveDev = true, packageInstaller} = options;
@@ -40,11 +41,11 @@ async function install(
 
   logger.progress(`Installing ${moduleNames}...`);
 
-  let fromPkgPath = await resolveConfig(fs, from, ['package.json']);
+  let fromPkgPath = await resolveConfig(fs, from, ['package.json'], projectRoot);
   let cwd = fromPkgPath ? path.dirname(fromPkgPath) : fs.cwd();
 
   if (!packageInstaller) {
-    packageInstaller = await determinePackageInstaller(fs, from);
+    packageInstaller = await determinePackageInstaller(fs, from, projectRoot);
   }
 
   try {
@@ -62,7 +63,7 @@ async function install(
   if (installPeers) {
     await Promise.all(
       modules.map(m =>
-        installPeerDependencies(fs, packageManager, m, from, options),
+        installPeerDependencies(fs, packageManager, m, from, projectRoot, options),
       ),
     );
   }
@@ -73,11 +74,12 @@ async function installPeerDependencies(
   packageManager: PackageManager,
   module: ModuleRequest,
   from: FilePath,
+  projectRoot: FilePath,
   options,
 ) {
   const {resolved} = await packageManager.resolve(module.name, from);
   const modulePkg: PackageJSON = nullthrows(
-    await loadConfig(fs, resolved, ['package.json']),
+    await loadConfig(fs, resolved, ['package.json'], projectRoot),
   ).config;
   const peers = modulePkg.peerDependencies || {};
 
@@ -85,7 +87,7 @@ async function installPeerDependencies(
   for (let [name, range] of Object.entries(peers)) {
     invariant(typeof range === 'string');
 
-    let conflicts = await getConflictingLocalDependencies(fs, name, from);
+    let conflicts = await getConflictingLocalDependencies(fs, name, from, projectRoot);
     if (conflicts) {
       let {pkg} = await packageManager.resolve(name, from);
       invariant(pkg);
@@ -122,6 +124,7 @@ async function installPeerDependencies(
       packageManager,
       modules,
       from,
+      projectRoot,
       Object.assign({}, options, {installPeers: false}),
     );
   }
@@ -130,12 +133,13 @@ async function installPeerDependencies(
 async function determinePackageInstaller(
   fs: FileSystem,
   filepath: FilePath,
+  projectRoot: FilePath,
 ): Promise<PackageInstaller> {
   let configFile = await resolveConfig(fs, filepath, [
     'package-lock.json',
     'pnpm-lock.yaml',
     'yarn.lock',
-  ]);
+  ], projectRoot);
 
   let configName = configFile && path.basename(configFile);
 
@@ -169,6 +173,7 @@ export function _addToInstallQueue(
   packageManager: PackageManager,
   modules: Array<ModuleRequest>,
   filePath: FilePath,
+  projectRoot: FilePath,
   options?: InstallOptions,
 ): Promise<mixed> {
   modules = modules.map(request => ({
@@ -189,7 +194,7 @@ export function _addToInstallQueue(
 
     queue
       .add(() =>
-        install(fs, packageManager, modulesToInstall, filePath, options).then(
+        install(fs, packageManager, modulesToInstall, filePath, projectRoot, options).then(
           () => {
             for (let m of modulesToInstall) {
               modulesInstalling.delete(getModuleRequestKey(m));
@@ -211,18 +216,19 @@ export function installPackage(
   packageManager: PackageManager,
   modules: Array<ModuleRequest>,
   filePath: FilePath,
+  projectRoot: FilePath,
   options?: InstallOptions,
 ): Promise<mixed> {
   if (WorkerFarm.isWorker()) {
     let workerApi = WorkerFarm.getWorkerApi();
     return workerApi.callMaster({
       location: __filename,
-      args: [fs, packageManager, modules, filePath, options],
+      args: [fs, packageManager, modules, filePath, projectRoot, options],
       method: '_addToInstallQueue',
     });
   }
 
-  return _addToInstallQueue(fs, packageManager, modules, filePath, options);
+  return _addToInstallQueue(fs, packageManager, modules, filePath, projectRoot, options);
 }
 
 function getModuleRequestKey(moduleRequest: ModuleRequest): string {

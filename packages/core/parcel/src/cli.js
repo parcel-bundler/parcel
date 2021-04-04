@@ -216,10 +216,8 @@ async function run(
   let Parcel = require('@parcel/core').default;
   let fs = new NodeFS();
   let options = await normalizeOptions(command, fs);
-  let packageManager = new NodePackageManager(fs);
   let parcel = new Parcel({
     entries,
-    packageManager,
     // $FlowFixMe[extra-arg] - flow doesn't know about the `paths` option (added in Node v8.9.0)
     defaultConfig: require.resolve('@parcel/config-default', {
       paths: [fs.cwd(), __dirname],

@@ -37,9 +37,6 @@ export default async function resolveOptions(
   let inputFS = initialOptions.inputFS || new NodeFS();
   let outputFS = initialOptions.outputFS || new NodeFS();
 
-  let packageManager =
-    initialOptions.packageManager || new NodePackageManager(inputFS);
-
   let entryRoot =
     initialOptions.entryRoot != null
       ? path.resolve(initialOptions.entryRoot)
@@ -50,7 +47,7 @@ export default async function resolveOptions(
       ...LOCK_FILE_NAMES,
       '.git',
       '.hg',
-    ])) || path.join(inputFS.cwd(), 'index'); // ? Should this just be rootDir
+    ], path.parse(entryRoot).root)) || path.join(inputFS.cwd(), 'index'); // ? Should this just be rootDir
 
   let lockFile = null;
   let rootFileName = path.basename(projectRootFile);
@@ -58,6 +55,9 @@ export default async function resolveOptions(
     lockFile = projectRootFile;
   }
   let projectRoot = path.dirname(projectRootFile);
+
+  let packageManager =
+    initialOptions.packageManager || new NodePackageManager(inputFS, projectRoot);
 
   let inputCwd = inputFS.cwd();
   let outputCwd = outputFS.cwd();
@@ -101,6 +101,7 @@ export default async function resolveOptions(
         initialOptions.env ?? {},
         inputFS,
         path.join(projectRoot, 'index'),
+        projectRoot,
       )),
     },
     mode,

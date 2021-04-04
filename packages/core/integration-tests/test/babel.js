@@ -473,7 +473,7 @@ describe('babel', function() {
         );
 
       build();
-      let file = await fs.readFile(path.join(distDir, 'index.js'), 'utf8');
+      let file = await fs.readFile(path.join(inputDir, 'dist', 'index.js'), 'utf8');
       assert(!file.includes('REPLACE_ME'));
       assert(file.includes('hello there'));
 
@@ -491,7 +491,7 @@ describe('babel', function() {
       );
 
       build();
-      file = await fs.readFile(path.join(distDir, 'index.js'), 'utf8');
+      file = await fs.readFile(path.join(inputDir, 'dist', 'index.js'), 'utf8');
       assert(!file.includes('REPLACE_ME'));
       assert(!file.includes('hello there'));
       assert(file.includes('something different'));

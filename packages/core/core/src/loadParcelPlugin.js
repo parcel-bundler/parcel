@@ -31,7 +31,7 @@ export default async function loadPlugin<T>(
   if (resolveFrom.includes(NODE_MODULES)) {
     let configPkg = await loadConfig(options.inputFS, resolveFrom, [
       'package.json',
-    ]);
+    ], options.projectRoot);
     if (
       configPkg != null &&
       configPkg.config.dependencies?.[pluginName] == null
@@ -139,7 +139,7 @@ export default async function loadPlugin<T>(
     !semver.satisfies(PARCEL_VERSION, parcelVersionRange)
   ) {
     let pkgFile = nullthrows(
-      await resolveConfig(options.inputFS, resolved, ['package.json']),
+      await resolveConfig(options.inputFS, resolved, ['package.json'], options.projectRoot),
     );
     let pkgContents = await options.inputFS.readFile(pkgFile, 'utf8');
     throw new ThrowableDiagnostic({

@@ -36,9 +36,10 @@ export function findAncestorFile(
   fs: FileSystem,
   fileNames: Array<string>,
   dir: FilePath,
+  root: FilePath,
 ): ?FilePath {
-  let {root} = path.parse(dir);
-  while (dir !== root) {
+  let {root: pathRoot} = path.parse(dir);
+  while (true) {
     if (path.basename(dir) === 'node_modules') {
       return null;
     }
@@ -52,6 +53,10 @@ export function findAncestorFile(
       } catch (err) {
         // ignore
       }
+    }
+
+    if (dir === root || dir === pathRoot) {
+      break;
     }
 
     dir = path.dirname(dir);

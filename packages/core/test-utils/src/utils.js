@@ -114,7 +114,6 @@ export function bundler(
       inputFS,
       outputFS,
       workerFarm,
-      packageManager: new NodePackageManager(opts?.inputFS || inputFS),
       shouldContentHash: true,
       defaultTargetOptions: {
         distDir,
