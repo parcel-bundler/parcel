@@ -1,6 +1,7 @@
 // @flow
 import type {InitialParcelOptions, BuildSuccessEvent} from '@parcel/types';
 import assert from 'assert';
+import invariant from 'assert';
 import path from 'path';
 import {
   assertBundles,
@@ -12,6 +13,7 @@ import {
   workerFarm,
   mergeParcelOptions,
   sleep,
+  getNextBuild,
 } from '@parcel/test-utils';
 import {md} from '@parcel/diagnostic';
 import fs from 'fs';
@@ -4549,5 +4551,62 @@ describe('cache', function() {
     assert.strictEqual(result1, 3);
     assert.strictEqual(result2, 10);
     assert.strictEqual(result3, 3);
+  });
+
+  it('properly watches included files even after resaving them without changes', async function() {
+    this.timeout(15000);
+    let subscription;
+    let fixture = path.join(__dirname, '/integration/included-file');
+    try {
+      let b = bundler(path.join(fixture, 'index.txt'), {
+        inputFS: overlayFS,
+        shouldDisableCache: false,
+      });
+      await overlayFS.mkdirp(fixture);
+      await overlayFS.writeFile(path.join(fixture, 'included.txt'), 'a');
+      subscription = await b.watch();
+      let event = await getNextBuild(b);
+      invariant(event.type === 'buildSuccess');
+      let output1 = await overlayFS.readFile(
+        event.bundleGraph.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert.strictEqual(output1, 'a');
+
+      // Change included file
+      await overlayFS.writeFile(path.join(fixture, 'included.txt'), 'b');
+      event = await getNextBuild(b);
+      invariant(event.type === 'buildSuccess');
+      let output2 = await overlayFS.readFile(
+        event.bundleGraph.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert.strictEqual(output2, 'b');
+
+      // Rewrite included file without change
+      await overlayFS.writeFile(path.join(fixture, 'included.txt'), 'b');
+      event = await getNextBuild(b);
+      invariant(event.type === 'buildSuccess');
+      let output3 = await overlayFS.readFile(
+        event.bundleGraph.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert.strictEqual(output3, 'b');
+
+      // Change included file
+      await overlayFS.writeFile(path.join(fixture, 'included.txt'), 'c');
+      event = await getNextBuild(b);
+      invariant(event.type === 'buildSuccess');
+      let output4 = await overlayFS.readFile(
+        event.bundleGraph.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert.strictEqual(output4, 'c');
+    } finally {
+      if (subscription) {
+        await subscription.unsubscribe();
+        subscription = null;
+      }
+    }
   });
 });
