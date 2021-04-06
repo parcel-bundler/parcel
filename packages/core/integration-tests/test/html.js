@@ -32,6 +32,10 @@ describe('html', function() {
 
     assertBundles(b, [
       {
+        type: 'css',
+        assets: ['index.html'],
+      },
+      {
         name: 'index.html',
         assets: ['index.html'],
       },
