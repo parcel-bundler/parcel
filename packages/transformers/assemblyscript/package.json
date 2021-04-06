@@ -1,0 +1,31 @@
+{
+  "name": "@parcel/transformer-assemblyscript",
+  "version": "2.0.0-beta.1",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "funding": {
+    "type": "opencollective",
+    "url": "https://opencollective.com/parcel"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  },
+  "main": "lib/ASTransformer.js",
+  "source": "src/ASTransformer.js",
+  "engines": {
+    "node": ">= 12.0.0",
+    "parcel": "^2.0.0-alpha.1.1"
+  },
+  "peerDependencies": {
+    "assemblyscript": "*"
+  },
+  "dependencies": {
+    "@parcel/plugin": "2.0.0-nightly.636"
+  },
+  "devDependencies": {
+    "@parcel/types": "2.0.0-beta.2"
+  }
+}
