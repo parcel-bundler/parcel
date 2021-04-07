@@ -309,6 +309,11 @@ export default class Transformation {
         pipelineHash,
       );
       await this.writeToCache(resultCacheKey, assets, pipelineHash);
+    } else {
+      // See above TODO, this should be per-pipeline
+      for (let i of this.request.invalidations) {
+        this.invalidations.set(getInvalidationId(i), i);
+      }
     }
 
     let finalAssets: Array<UncommittedAsset> = [];
