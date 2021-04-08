@@ -10,33 +10,21 @@ import defaultConfigContents from '@parcel/config-default';
 import Module from 'module';
 import path from 'path';
 import {addHook} from 'pirates';
-import Parcel, {INTERNAL_RESOLVE, INTERNAL_TRANSFORM} from '@parcel/core';
-
-import syncPromise from './syncPromise';
+import {ParcelNode} from '@parcel/node';
 
 let hooks = {};
 let lastDisposable;
-let packageManager = new NodePackageManager(new NodeFS(), '/');
-let defaultConfig = {
-  ...defaultConfigContents,
-  filePath: packageManager.resolveSync('@parcel/config-default', __filename)
-    .resolved,
-};
 
 function register(inputOpts?: InitialParcelOptions): IDisposable {
-  let opts: InitialParcelOptions = {
-    ...defaultConfig,
-    ...(inputOpts || {}),
-  };
-
   // Replace old hook, as this one likely contains options.
   if (lastDisposable) {
     lastDisposable.dispose();
   }
 
-  let parcel = new Parcel({
+  let parcel = new ParcelNode({
     logLevel: 'error',
-    ...opts,
+    defaultConfig: require.resolve('@parcel/config-default'),
+    ...inputOpts,
   });
 
   let env = {
@@ -46,32 +34,17 @@ function register(inputOpts?: InitialParcelOptions): IDisposable {
     },
   };
 
-  syncPromise(parcel._init());
-
   let isProcessing = false;
 
-  // As Parcel is pretty much fully asynchronous, create an async function and wrap it in a syncPromise later...
-  async function fileProcessor(code, filePath) {
+  function fileProcessor(code, filePath) {
     if (isProcessing) {
       return code;
     }
 
     try {
       isProcessing = true;
-      // $FlowFixMe
-      let result = await parcel[INTERNAL_TRANSFORM]({
-        filePath,
-        env,
-      });
-
-      if (result.assets && result.assets.length >= 1) {
-        let output = '';
-        let asset = result.assets.find(a => a.type === 'js');
-        if (asset) {
-          output = await asset.getCode();
-        }
-        return output;
-      }
+      let {code} = parcel.transform(filePath);
+      return code;
     } catch (e) {
       /* eslint-disable no-console */
       console.error('@parcel/register failed to process: ', filePath);
@@ -84,24 +57,14 @@ function register(inputOpts?: InitialParcelOptions): IDisposable {
     return '';
   }
 
-  let hookFunction = (...args) => syncPromise(fileProcessor(...args));
-
   function resolveFile(currFile, targetFile) {
     try {
       isProcessing = true;
-
-      let resolved = syncPromise(
-        // $FlowFixMe
-        parcel[INTERNAL_RESOLVE]({
-          moduleSpecifier: targetFile,
-          sourcePath: currFile,
-          env,
-        }),
-      );
+      let resolved = parcel.resolve(targetFile, currFile);
 
       let targetFileExtension = path.extname(resolved);
       if (!hooks[targetFileExtension]) {
-        hooks[targetFileExtension] = addHook(hookFunction, {
+        hooks[targetFileExtension] = addHook(fileProcessor, {
           exts: [targetFileExtension],
           ignoreNodeModules: false,
         });
@@ -113,7 +76,7 @@ function register(inputOpts?: InitialParcelOptions): IDisposable {
     }
   }
 
-  hooks.js = addHook(hookFunction, {
+  hooks.js = addHook(fileProcessor, {
     exts: ['.js'],
     ignoreNodeModules: false,
   });

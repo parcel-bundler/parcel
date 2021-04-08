@@ -608,7 +608,6 @@ export default class Transformation {
 
     for (let transformer of transformers) {
       let config = await this.loadTransformerConfig(
-        filePath,
         transformer,
         isSource,
       );
@@ -666,7 +665,6 @@ export default class Transformation {
   }
 
   async loadTransformerConfig(
-    filePath: FilePath,
     transformer: LoadedPlugin<Transformer>,
     isSource: boolean,
   ): Promise<?Config> {
@@ -678,7 +676,7 @@ export default class Transformation {
     let config = createConfig({
       plugin: transformer.name,
       isSource,
-      searchPath: filePath,
+      searchPath: this.request.filePath,
       env: this.request.env,
     });
 
