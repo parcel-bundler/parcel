@@ -6,6 +6,7 @@ import {
   bundler,
   run,
   runBundle,
+  runBundles,
   assertBundles,
   ncp,
   overlayFS,
@@ -3585,5 +3586,60 @@ describe('javascript', function() {
     );
     let res = await run(b);
     assert.deepEqual(res.default, 'x: 123');
+  });
+
+  it('should support importing async bundles from bundles with different dist paths', async function() {
+    let bundleGraph = await bundle(
+      ['bar/entry/entry-a.js', 'foo/entry-b.js'].map(f =>
+        path.join(__dirname, 'integration/differing-bundle-urls', f),
+      ),
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldOptimize: false,
+        },
+      },
+    );
+    assertBundles(bundleGraph, [
+      {
+        name: 'entry-a.js',
+        assets: [
+          'bundle-manifest.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'entry-a.js',
+          'js-loader.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
+          'relative-path.js',
+        ],
+      },
+      {
+        name: 'entry-b.js',
+        assets: [
+          'bundle-manifest.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'entry-b.js',
+          'js-loader.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
+          'relative-path.js',
+        ],
+      },
+      {name: /deep\.[a-f0-9]+\.js/, assets: ['deep.js']},
+      {name: /common\.[a-f0-9]+\.js/, assets: ['index.js']},
+    ]);
+
+    let [a, b] = bundleGraph.getBundles().filter(b => b.isEntry);
+    let calls = [];
+
+    await runBundles(bundleGraph, a, [a, b], {
+      sideEffect: v => {
+        calls.push(v);
+      },
+    });
+
+    assert.deepEqual(calls, ['common', 'deep']);
   });
 });
