@@ -158,11 +158,10 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
         ...assetGroups.map(assetGroup => nodeFromAssetGroup(assetGroup)),
       );
     }
-    let nodeIds = [];
-    for (let node of nodes) {
-      nodeIds.push(this.addNode(node));
-    }
-    this.replaceNodeIdsConnectedTo(nullthrows(this.rootNodeId), nodeIds);
+    this.replaceNodeIdsConnectedTo(
+      nullthrows(this.rootNodeId),
+      nodes.map(node => this.addNode(node)),
+    );
   }
 
   addNode(node: AssetGraphNode): NodeId {
@@ -177,7 +176,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
     // due to replaceNodesConnectedTo to make sure that the symbols of
     // nodes from which at least one parent was removed are updated.
     let node = nullthrows(this.getNode(nodeId));
-    if (this._isOrphanedNode(nodeId) && node.type === 'dependency') {
+    if (this.isOrphanedNode(nodeId) && node.type === 'dependency') {
       let children = this.getNodeIdsConnectedFrom(nodeId).map(id =>
         nullthrows(this.getNode(id)),
       );
@@ -201,11 +200,10 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
     invariant(entrySpecifierNode.type === 'entry_specifier');
     entrySpecifierNode.correspondingRequest = correspondingRequest;
 
-    let entryFileNodeIds = [];
-    resolved.map(file => {
-      entryFileNodeIds.push(this.addNode(nodeFromEntryFile(file)));
-    });
-    this.replaceNodeIdsConnectedTo(entrySpecifierNodeId, entryFileNodeIds);
+    this.replaceNodeIdsConnectedTo(
+      entrySpecifierNodeId,
+      resolved.map(file => this.addNode(nodeFromEntryFile(file))),
+    );
   }
 
   resolveTargets(
@@ -234,17 +232,15 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
       return node;
     });
 
-    let depNodeIds = [];
-    for (let node of depNodes) {
-      depNodeIds.push(this.addNode(node));
-    }
-
     let entryNodeId = this.getNodeIdByContentKey(nodeFromEntryFile(entry).id);
     let entryNode = nullthrows(this.getNode(entryNodeId));
     invariant(entryNode.type === 'entry_file');
     entryNode.correspondingRequest = correspondingRequest;
 
-    this.replaceNodeIdsConnectedTo(entryNodeId, depNodeIds);
+    this.replaceNodeIdsConnectedTo(
+      entryNodeId,
+      depNodes.map(node => this.addNode(node)),
+    );
   }
 
   resolveDependency(

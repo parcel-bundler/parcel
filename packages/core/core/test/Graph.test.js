@@ -88,9 +88,9 @@ describe('Graph', () => {
     let nodeC = graph.addNode({id: 'c', type: 'mynode', value: 'c'});
     graph.addEdge(nodeA, nodeB);
     graph.addEdge(nodeA, nodeC, 'edgetype');
-    assert(graph._isOrphanedNode(nodeA));
-    assert(!graph._isOrphanedNode(nodeB));
-    assert(!graph._isOrphanedNode(nodeC));
+    assert(graph.isOrphanedNode(nodeA));
+    assert(!graph.isOrphanedNode(nodeB));
+    assert(!graph.isOrphanedNode(nodeC));
   });
 
   it('removeEdge should prune the graph at that edge', () => {

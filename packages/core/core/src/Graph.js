@@ -233,12 +233,12 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
     this.outboundEdges.removeEdge(from, to, type);
     this.inboundEdges.removeEdge(to, from, type);
 
-    if (removeOrphans && this._isOrphanedNode(to)) {
+    if (removeOrphans && this.isOrphanedNode(to)) {
       this.removeNode(to);
     }
   }
 
-  _isOrphanedNode(nodeId: NodeId): boolean {
+  isOrphanedNode(nodeId: NodeId): boolean {
     this._assertHasNodeId(nodeId);
 
     if (this.rootNodeId == null) {

@@ -1354,7 +1354,6 @@ export default class BundleGraph {
       };
     }
   }
-  // TODO : NODE ID : update here
   getAssetById(contentKey: string): Asset {
     let node = this._graph.getNodeByContentKey(contentKey);
     if (node == null) {

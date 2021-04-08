@@ -73,7 +73,7 @@ export default class ContentGraph<
   }
 
   hasContentKey(contentKey: ContentKey): boolean {
-    return this._contentKeyToNodeId.get(contentKey) != null;
+    return this._contentKeyToNodeId.has(contentKey);
   }
 
   removeNode(nodeId: NodeId) {

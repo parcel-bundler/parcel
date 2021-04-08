@@ -409,7 +409,7 @@ export class AssetGraphBuilder {
       let assetSymbols: ?$ReadOnlyMap<
         Symbol,
         {|local: Symbol, loc: ?SourceLocation, meta?: ?Meta|},
-      > = assetNode?.value?.symbols;
+      > = assetNode.value.symbols;
 
       let assetSymbolsInverse = null;
       if (assetSymbols) {
@@ -721,7 +721,7 @@ export class AssetGraphBuilder {
           }
         }
       } else {
-        const connectedNodes = this.assetGraph.getNodeIdsConnectedTo(
+        let connectedNodes = this.assetGraph.getNodeIdsConnectedTo(
           queuedNodeId,
         );
         if (connectedNodes.length > 0) {
