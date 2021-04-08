@@ -5,6 +5,7 @@ import type {SharedReference} from '@parcel/workers';
 import type ParcelConfig, {LoadedPlugin} from '../ParcelConfig';
 import type {StaticRunOpts, RunAPI} from '../RequestTracker';
 import type {
+  Asset,
   Bundle as InternalBundle,
   Config,
   DevDepRequest,
@@ -51,6 +52,7 @@ import {cacheSerializedObject, deserializeToCache} from '../serializer';
 type BundleGraphRequestInput = {|
   assetGraph: AssetGraph,
   optionsRef: SharedReference,
+  changedAssets: Map<string, Asset>,
 |};
 
 type RunInput = {|
@@ -83,7 +85,8 @@ export default function createBundleGraphRequest(
       invalidateDevDeps(invalidDevDeps, input.options, parcelConfig);
 
       let builder = new BundlerRunner(input, parcelConfig, devDeps);
-      return builder.bundle(input.input.assetGraph);
+
+      return builder.bundle(input.input.assetGraph, input.input.changedAssets);
     },
     input,
   };
@@ -160,7 +163,10 @@ class BundlerRunner {
     await runDevDepRequest(this.api, devDepRequest);
   }
 
-  async bundle(graph: AssetGraph): Promise<InternalBundleGraph> {
+  async bundle(
+    graph: AssetGraph,
+    changedAssets: Map<string, Asset>,
+  ): Promise<InternalBundleGraph> {
     report({
       type: 'buildProgress',
       phase: 'bundling',
@@ -205,13 +211,31 @@ class BundlerRunner {
 
     let logger = new PluginLogger({origin: this.config.getBundlerName()});
 
+    const numOfAssets = Array.from(graph.nodes.values()).filter(
+      node => node.type === 'asset',
+    ).length;
+
+    // if assets === changedAssets, do a normal bundle
+    const shouldUpdate =
+      this.options.isIncremental && numOfAssets > changedAssets.size;
+
     try {
-      await bundler.bundle({
-        bundleGraph: mutableBundleGraph,
-        config: this.configs.get(plugin.name)?.result,
-        options: this.pluginOptions,
-        logger,
-      });
+      if (shouldUpdate) {
+        await bundler.update({
+          bundleGraph: mutableBundleGraph,
+          config: this.configs.get(plugin.name)?.result,
+          options: this.pluginOptions,
+          logger,
+          changedAssets,
+        });
+      } else {
+        await bundler.bundle({
+          bundleGraph: mutableBundleGraph,
+          config: this.configs.get(plugin.name)?.result,
+          options: this.pluginOptions,
+          logger,
+        });
+      }
     } catch (e) {
       throw new ThrowableDiagnostic({
         diagnostic: errorToDiagnostic(e, {
