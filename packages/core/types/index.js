@@ -1162,7 +1162,7 @@ export type Bundler = {|
     config: ?ConfigResult,
     options: PluginOptions,
     logger: PluginLogger,
-    changedAssets: Array<Asset>,
+    changedAssets: Map<string, Asset>,
   |}): Array<Bundle>, //not sure of return type
 |};
 

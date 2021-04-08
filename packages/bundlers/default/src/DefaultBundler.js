@@ -437,9 +437,11 @@ export default (new Bundler({
     deduplicate(bundleGraph);
   },
   update({bundleGraph, config, changedAssets}) {
-    // [ ] add isIncremental flag
+    console.log('>>>> BundlerUpdate', changedAssets?.size);
     // [ ] want to return changed bundles
     // [ ] incrementally update cached bundle graph
+    // [ ] should mark changed assets as modified, added, or deleted
+    // [ ] get a cached bundle
     let bundleRoots: Map<Bundle, Array<Asset>> = new Map();
     let bundlesByEntryAsset: Map<Asset, Bundle> = new Map();
 
@@ -684,6 +686,8 @@ export default (new Bundler({
         bundleGraph.removeBundleGroup(bundleGroup);
       }
     }
+
+    return [];
   },
 }): Bundler);
 
