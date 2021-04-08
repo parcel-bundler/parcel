@@ -275,6 +275,46 @@ export default class Parcel {
         shouldBuildLazily: options.shouldBuildLazily,
         requestedAssetIds: this.#requestedAssetIds,
       }); // ? should we create this on every build?
+
+      let previousBundleGraph;
+      // TODO : Will need to move logic - absolutely not where this sort of logic would exist, but am testing how to get the information
+
+      // How to get the previous Bundle Graph
+      // Grab the previous asset graph request result if available.
+      // Then create the content with BundleGraph:<AssetGraphHash>
+      // Check the cache to see if the BundleGraph exists
+      let prevAssetGraphRequest = this.#requestTracker.graph.getNode(
+        request.id,
+      );
+      if (prevAssetGraphRequest?.value != null) {
+        invariant(prevAssetGraphRequest.value.type === 'asset_graph_request');
+        if (
+          prevAssetGraphRequest.value.resultCacheKey != null &&
+          typeof prevAssetGraphRequest.value.resultCacheKey === 'string'
+        ) {
+          const previousAssetGraph = nullthrows(
+            await this.#requestTracker.options.cache.get(
+              prevAssetGraphRequest.value.resultCacheKey,
+            ),
+          );
+          console.log(previousAssetGraph);
+          const previousBundleGraphResult = this.#requestTracker.graph.getNode(
+            'BundleGraph:' + previousAssetGraph.assetGraph.getHash(),
+          );
+
+          if (previousBundleGraphResult?.value != null) {
+            if (previousBundleGraphResult.value.result) {
+              previousBundleGraph = previousBundleGraphResult.result;
+            } else if (previousBundleGraphResult.value.resultCacheKey) {
+              previousBundleGraph = await this.#requestTracker.options.cache.get(
+                previousBundleGraphResult.value.resultCacheKey,
+              );
+            }
+          }
+        }
+      }
+      console.log('Previous Bundle Graph: ', previousBundleGraph);
+
       let {
         assetGraph,
         changedAssets,
@@ -287,6 +327,7 @@ export default class Parcel {
 
       let bundleGraphRequest = createBundleGraphRequest({
         assetGraph,
+        changedAssets,
         optionsRef: this.#optionsRef,
       });
 
