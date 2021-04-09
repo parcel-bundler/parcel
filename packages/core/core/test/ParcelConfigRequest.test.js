@@ -615,7 +615,7 @@ describe('loadParcelConfig', () => {
           resolveFrom: '.parcelrc',
           keyPath: '/bundler',
         },
-        runtimes: {},
+        runtimes: [],
         namers: [],
         optimizers: {},
         packagers: {},

@@ -20,7 +20,7 @@ export default (new Optimizer({
 
     let relativeBundlePath = path.relative(
       options.projectRoot,
-      bundle.filePath,
+      path.join(bundle.target.distDir, bundle.name),
     );
     let code = await blobToString(contents);
     if (map) {

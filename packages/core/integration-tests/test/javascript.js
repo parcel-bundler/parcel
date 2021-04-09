@@ -76,10 +76,10 @@ describe('javascript', function() {
       },
     ]);
 
-    let txtBundle = b.getBundles().find(b => b.type === 'txt').name;
+    let txtBundle = b.getBundles().find(b => b.type === 'txt').filePath;
 
     let output = await run(b);
-    assert.strictEqual(path.basename(output), txtBundle);
+    assert.strictEqual(path.basename(output), path.basename(txtBundle));
   });
 
   it('should produce a basic JS bundle with ES6 imports', async function() {
@@ -1048,7 +1048,11 @@ describe('javascript', function() {
       .find(b => b.name !== 'index.js');
     let workerBundle = b.getBundles().find(b => b.name.startsWith('worker-b'));
     let contents = await outputFS.readFile(workerBundle.filePath, 'utf8');
-    assert(contents.includes(`importScripts("./${sharedBundle.name}")`));
+    assert(
+      contents.includes(
+        `importScripts("./${path.basename(sharedBundle.filePath)}")`,
+      ),
+    );
   });
 
   it('should contain duplicate assets in workers when in development', async () => {
@@ -1183,7 +1187,11 @@ describe('javascript', function() {
       .find(b => b.name !== 'index.js');
     let workerBundle = b.getBundles().find(b => b.name.startsWith('worker'));
     let contents = await outputFS.readFile(workerBundle.filePath, 'utf8');
-    assert(contents.includes(`importScripts("./${sharedBundle.name}")`));
+    assert(
+      contents.includes(
+        `importScripts("./${path.basename(sharedBundle.filePath)}")`,
+      ),
+    );
 
     let outputArgs = [];
     let workerArgs = [];
@@ -3045,7 +3053,7 @@ describe('javascript', function() {
     let getBundleNameWithPrefix = (b, prefix) =>
       b
         .getBundles()
-        .map(bundle => bundle.name)
+        .map(bundle => path.basename(bundle.filePath))
         .find(name => name.startsWith(prefix));
 
     assert.equal(

@@ -179,6 +179,8 @@ async function buildDefaultBabelConfig(options: PluginOptions, config: Config) {
 
   if (babelOptions != null) {
     let _babelOptions = babelOptions; // For Flow
+    config.setResultHash(md5FromObject(babelOptions));
+
     _babelOptions.presets = (_babelOptions.presets || []).map(preset =>
       babelCore.createConfigItem(preset, {
         type: 'preset',

@@ -355,7 +355,11 @@ describe('output formats', function() {
 
       let sharedBundle = b
         .getBundles()
-        .find(b => b.name.startsWith('async1') && !index.includes(b.name));
+        .find(
+          b =>
+            b.name.startsWith('async1') &&
+            !index.includes(path.basename(b.filePath)),
+        );
       let shared = await outputFS.readFile(sharedBundle.filePath, 'utf8');
       assert(shared.includes('exports.$'));
 
@@ -369,7 +373,9 @@ describe('output formats', function() {
       );
       assert(
         new RegExp(
-          `var {\\s*(.|\\n)+\\s*} = require\\("\\.\\/${sharedBundle.name}"\\)`,
+          `var {\\s*(.|\\n)+\\s*} = require\\("\\.\\/${path.basename(
+            sharedBundle.filePath,
+          )}"\\)`,
         ).test(async1),
       );
 
@@ -379,7 +385,9 @@ describe('output formats', function() {
       );
       assert(
         new RegExp(
-          `var {\\s*(.|\\n)+\\s*} = require\\("\\.\\/${sharedBundle.name}"\\)`,
+          `var {\\s*(.|\\n)+\\s*} = require\\("\\.\\/${path.basename(
+            sharedBundle.filePath,
+          )}"\\)`,
         ).test(async2),
       );
     });
@@ -922,7 +930,11 @@ describe('output formats', function() {
 
       let sharedBundle = b
         .getBundles()
-        .find(b => b.name.startsWith('async1') && !index.includes(b.name));
+        .find(
+          b =>
+            b.name.startsWith('async1') &&
+            !index.includes(path.basename(b.filePath)),
+        );
       let shared = await outputFS.readFile(sharedBundle.filePath, 'utf8');
       assert(/export {\$[a-f0-9]+\$init, \$[a-f0-9]+\$init}/.test(shared));
 
@@ -935,9 +947,9 @@ describe('output formats', function() {
         'utf8',
       );
       assert(
-        new RegExp(`import {.+} from "\\.\\/${sharedBundle.name}"`).test(
-          async1,
-        ),
+        new RegExp(
+          `import {.+} from "\\.\\/${path.basename(sharedBundle.filePath)}"`,
+        ).test(async1),
       );
 
       let async2 = await outputFS.readFile(
@@ -945,9 +957,9 @@ describe('output formats', function() {
         'utf8',
       );
       assert(
-        new RegExp(`import {.+} from "\\.\\/${sharedBundle.name}"`).test(
-          async2,
-        ),
+        new RegExp(
+          `import {.+} from "\\.\\/${path.basename(sharedBundle.filePath)}"`,
+        ).test(async2),
       );
 
       await assertESMExports(
@@ -1038,15 +1050,22 @@ describe('output formats', function() {
       assert(html.includes('<script type="module" src="/index'));
 
       let entry = await outputFS.readFile(
-        b.getBundles().find(b => b.name === html.match(/src="\/(.*?)"/)[1])
-          .filePath,
+        b
+          .getBundles()
+          .find(
+            b => path.basename(b.filePath) === html.match(/src="\/(.*?)"/)[1],
+          ).filePath,
         'utf8',
       );
 
       let asyncBundle = b
         .getBundles()
         .find(bundle => bundle.name.startsWith('async'));
-      assert(entry.includes(`import("./" + "${asyncBundle.name}")`));
+      assert(
+        entry.includes(
+          `import("./" + "${path.basename(asyncBundle.filePath)}")`,
+        ),
+      );
 
       let async = await outputFS.readFile(
         b.getBundles().find(b => b.name.startsWith('async')).filePath,
@@ -1078,8 +1097,11 @@ describe('output formats', function() {
       assert(html.includes('<script type="module" src="/index'));
 
       let entry = await outputFS.readFile(
-        b.getBundles().find(b => b.name === html.match(/src="\/(.*?)"/)[1])
-          .filePath,
+        b
+          .getBundles()
+          .find(
+            b => path.basename(b.filePath) === html.match(/src="\/(.*?)"/)[1],
+          ).filePath,
         'utf8',
       );
       assert(entry.includes('function importModule'));
@@ -1114,8 +1136,11 @@ describe('output formats', function() {
       assert(html.includes('<link rel="stylesheet" href="/index'));
 
       let entry = await outputFS.readFile(
-        b.getBundles().find(b => b.name === html.match(/src="\/(.*?)"/)[1])
-          .filePath,
+        b
+          .getBundles()
+          .find(
+            b => path.basename(b.filePath) === html.match(/src="\/(.*?)"/)[1],
+          ).filePath,
         'utf8',
       );
 
@@ -1131,7 +1156,7 @@ describe('output formats', function() {
           "Promise.all\\(\\[.+?getBundleURL\\('[a-zA-Z0-9]+'\\) \\+ \"" +
             asyncCssBundle.name +
             '"\\), import\\("\\.\\/" \\+ "' +
-            asyncJsBundle.name +
+            path.basename(asyncJsBundle.filePath) +
             '"\\)\\]\\)',
         ).test(entry),
       );
@@ -1168,7 +1193,9 @@ describe('output formats', function() {
 
       let bundles = b.getBundles();
       let entry = await outputFS.readFile(
-        bundles.find(b => b.name === html.match(/src="\/(.*?)"/)[1]).filePath,
+        bundles.find(
+          b => path.basename(b.filePath) === html.match(/src="\/(.*?)"/)[1],
+        ).filePath,
         'utf8',
       );
 
@@ -1182,7 +1209,9 @@ describe('output formats', function() {
         // async import both bundles in parallel for performance
         assert(
           entry.includes(
-            `import("./" + "${sharedBundle.name}"), import("./" + "${bundle.name}")`,
+            `import("./" + "${path.basename(
+              sharedBundle.filePath,
+            )}"), import("./" + "${path.basename(bundle.filePath)}")`,
           ),
         );
       }
@@ -1194,9 +1223,9 @@ describe('output formats', function() {
 
       let async1 = await outputFS.readFile(async1Bundle.filePath, 'utf8');
       assert(
-        new RegExp(`import {.+} from "\\.\\/${sharedBundle.name}"`).test(
-          async1,
-        ),
+        new RegExp(
+          `import {.+} from "\\.\\/${path.basename(sharedBundle.filePath)}"`,
+        ).test(async1),
       );
 
       let async2 = await outputFS.readFile(
@@ -1204,9 +1233,9 @@ describe('output formats', function() {
         'utf8',
       );
       assert(
-        new RegExp(`import {.+} from "\\.\\/${sharedBundle.name}"`).test(
-          async2,
-        ),
+        new RegExp(
+          `import {.+} from "\\.\\/${path.basename(sharedBundle.filePath)}"`,
+        ).test(async2),
       );
     });
 
@@ -1422,7 +1451,11 @@ describe('output formats', function() {
           Worker: class {
             constructor(url) {
               workerBundle = nullthrows(
-                b.getBundles().find(b => b.name === path.posix.basename(url)),
+                b
+                  .getBundles()
+                  .find(
+                    b => path.basename(b.filePath) === path.posix.basename(url),
+                  ),
               );
             }
           },

@@ -1,7 +1,7 @@
 // @flow strict-local
 
 import assert from 'assert';
-import {Bundle, NamedBundle} from '../src/public/Bundle';
+import {Bundle, NamedBundle, PackagedBundle} from '../src/public/Bundle';
 import BundleGraph from '../src/BundleGraph';
 import {createEnvironment} from '../src/Environment';
 import {DEFAULT_OPTIONS} from './test-utils';
@@ -55,6 +55,13 @@ describe('Public Bundle', () => {
     assert.equal(
       NamedBundle.get(internalBundle, bundleGraph, DEFAULT_OPTIONS),
       NamedBundle.get(internalBundle, bundleGraph, DEFAULT_OPTIONS),
+    );
+  });
+
+  it('returns the same public PackagedBundle given an internal bundle', () => {
+    assert.equal(
+      PackagedBundle.get(internalBundle, bundleGraph, DEFAULT_OPTIONS),
+      PackagedBundle.get(internalBundle, bundleGraph, DEFAULT_OPTIONS),
     );
   });
 });
