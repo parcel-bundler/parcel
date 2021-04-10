@@ -3592,4 +3592,68 @@ describe('javascript', function() {
     let res = await run(b);
     assert.deepEqual(res.default, 'x: 123');
   });
+
+  it('should support runtime module deduplication', async function() {
+    let b = await bundle(
+      path.join(__dirname, 'integration/js-runtime-dedup/index.js'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: [
+          'index.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'js-loader.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
+        ],
+      },
+      {
+        assets: ['async1.js', 'shared.js', 'esmodule-helpers.js'],
+      },
+      {
+        assets: ['async2.js', 'shared.js', 'esmodule-helpers.js'],
+      },
+    ]);
+
+    let res = await run(b);
+    assert.equal(await res, true);
+  });
+
+  it('should support runtime module deduplication with scope hoisting', async function() {
+    let b = await bundle(
+      path.join(__dirname, 'integration/js-runtime-dedup/index.js'),
+      {
+        mode: 'production',
+      },
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: [
+          'index.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'js-loader.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
+          'bundle-manifest.js',
+          'JSRuntime.js',
+          'relative-path.js',
+        ],
+      },
+      {
+        assets: ['async1.js', 'shared.js'],
+      },
+      {
+        assets: ['async2.js', 'shared.js'],
+      },
+    ]);
+
+    let res = await run(b);
+    assert.equal(await res, true);
+  });
 });
