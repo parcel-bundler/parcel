@@ -1,12 +1,7 @@
 // @flow strict-local
 
 import type {WorkerApi} from '@parcel/workers';
-import type {
-  AssetGroup,
-  ConfigRequestDesc,
-  ParcelOptions,
-  ReportFn,
-} from './types';
+import type {AssetGroup, ParcelOptions, ReportFn} from './types';
 import type {Validator, ValidateResult} from '@parcel/types';
 import type {Diagnostic} from '@parcel/diagnostic';
 
@@ -15,7 +10,6 @@ import {resolveConfig, normalizeSeparators} from '@parcel/utils';
 import logger, {PluginLogger} from '@parcel/logger';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import ParcelConfig from './ParcelConfig';
-import ConfigLoader from './ConfigLoader';
 import UncommittedAsset from './UncommittedAsset';
 import {createAsset} from './assetUtils';
 import {Asset} from './public/Asset';
@@ -39,8 +33,6 @@ export default class Validation {
   allAssets: {[validatorName: string]: UncommittedAsset[], ...} = {};
   allValidators: {[validatorName: string]: Validator, ...} = {};
   dedicatedThread: boolean;
-  configRequests: Array<ConfigRequestDesc>;
-  configLoader: ConfigLoader;
   impactfulOptions: $Shape<ParcelOptions>;
   options: ParcelOptions;
   parcelConfig: ParcelConfig;
@@ -56,7 +48,6 @@ export default class Validation {
     report,
     workerApi,
   }: ValidationOpts) {
-    this.configLoader = new ConfigLoader({options, config});
     this.dedicatedThread = dedicatedThread ?? false;
     this.options = options;
     this.parcelConfig = config;
@@ -97,24 +88,25 @@ export default class Validation {
             // Otherwise, pass the assets one-at-a-time
             else if (plugin.validate && !this.dedicatedThread) {
               await Promise.all(
-                assets.map(async asset => {
+                assets.map(async input => {
                   let config = null;
+                  let asset = new Asset(input);
                   if (plugin.getConfig) {
                     config = await plugin.getConfig({
-                      asset: new Asset(asset),
+                      asset,
                       options: pluginOptions,
                       logger: validatorLogger,
                       resolveConfig: (configNames: Array<string>) =>
                         resolveConfig(
                           this.options.inputFS,
-                          asset.value.filePath,
+                          input.value.filePath,
                           configNames,
                         ),
                     });
                   }
 
                   let validatorResult = await plugin.validate({
-                    asset: new Asset(asset),
+                    asset,
                     options: pluginOptions,
                     config,
                     logger: validatorLogger,
@@ -126,7 +118,9 @@ export default class Validation {
             this.handleResults(validatorResults);
           } catch (e) {
             throw new ThrowableDiagnostic({
-              diagnostic: errorToDiagnostic(e, validatorName),
+              diagnostic: errorToDiagnostic(e, {
+                origin: validatorName,
+              }),
             });
           }
         }

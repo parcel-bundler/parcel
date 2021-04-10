@@ -34,11 +34,7 @@ parcel-transformer-b`,
       path.join(__dirname, '/integration/optimizer-changing-type/index.js'),
     );
 
-    assert.deepEqual(fs.readdirSync(distDir), [
-      'index.test',
-      // ATLASSIAN: This unconditionally includes a react-loadable.json for now
-      'react-loadable.json',
-    ]);
+    assert.deepEqual(fs.readdirSync(distDir), ['index.test']);
   });
 
   it('should allow resolver plugins to disable deferring', async function() {
@@ -120,7 +116,11 @@ parcel-transformer-b`,
   it('merges symbol information when applying runtime assets', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/runtime-symbol-merging/entry.js'),
-      {scopeHoist: true},
+      {
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
+      },
     );
 
     assert.deepStrictEqual(
@@ -156,7 +156,11 @@ parcel-transformer-b`,
   it('properly excludes assets that are excluded and deferred by both app code and runtimes', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/runtime-deferred-excluded/index.js'),
-      {scopeHoist: true},
+      {
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
+      },
     );
 
     let calls = [];

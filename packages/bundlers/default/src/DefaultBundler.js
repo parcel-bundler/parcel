@@ -187,7 +187,6 @@ export default (new Bundler({
 
     // Step 2: Remove asset graphs that begin with entries to other bundles.
     bundleGraph.traverseBundles(bundle => {
-      // ATLASSIAN: Don't share across workers for now as worker-specific code is added
       if (bundle.isInline || !bundle.isSplittable || bundle.env.isIsolated()) {
         return;
       }
@@ -258,6 +257,11 @@ export default (new Bundler({
       }
 
       let dependency = node.value;
+      if (dependency.isURL) {
+        // Don't internalize dependencies on URLs, e.g. `new Worker('foo.js')`
+        return;
+      }
+
       let resolution = bundleGraph.getDependencyResolution(dependency);
       if (resolution == null) {
         return;
@@ -431,16 +435,6 @@ function deduplicate(bundleGraph: MutableBundleGraph) {
       // This ensures that the earlier bundle is able to execute before the later one.
       let bundles = bundleGraph.findBundlesWithAsset(asset).reverse();
       for (let bundle of bundles) {
-        // If a bundle's environment is isolated, it can't access assets present
-        // in any ancestor bundles. Don't deduplicate any assets.
-        if (
-          bundle.env.isIsolated() ||
-          !bundle.isSplittable ||
-          bundle.isInline
-        ) {
-          continue;
-        }
-
         if (
           bundle.hasAsset(asset) &&
           bundleGraph.isAssetReachableFromBundle(asset, bundle)
@@ -493,7 +487,7 @@ async function loadBundlerConfig(options: PluginOptions) {
     CONFIG_SCHEMA,
     {
       data: config,
-      source: JSON.stringify(config),
+      source: await options.inputFS.readFile(result.files[0].filePath, 'utf8'),
       filePath: result.files[0].filePath,
       prependKey: `/${encodeJSONKeyComponent('@parcel/bundler-default')}`,
     },

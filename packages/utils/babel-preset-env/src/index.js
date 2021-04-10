@@ -1,6 +1,6 @@
 const semver = require('semver');
 
-const COMPATIBLE_PARCEL_BABEL_TRANSFORMER_SEMVER = '^2.0.0-alpha.1.1';
+const COMPATIBLE_PARCEL_BABEL_TRANSFORMER_SEMVER = '^2.0.0-beta.1';
 
 module.exports = function parcelBabelPresetEnv(api, opts) {
   let name = api.caller(caller => caller && caller.name);
@@ -22,7 +22,11 @@ module.exports = function parcelBabelPresetEnv(api, opts) {
           '@babel/preset-env',
           {
             modules: false,
+            ignoreBrowserslistConfig: true,
             targets: JSON.parse(targets),
+            useBuiltIns: 'entry',
+            corejs: 3,
+            shippedProposals: true,
             ...opts,
           },
         ],
@@ -31,6 +35,14 @@ module.exports = function parcelBabelPresetEnv(api, opts) {
   }
 
   return {
-    presets: [['@babel/preset-env', opts]],
+    presets: [
+      [
+        '@babel/preset-env',
+        {
+          shippedProposals: true,
+          ...opts,
+        },
+      ],
+    ],
   };
 };

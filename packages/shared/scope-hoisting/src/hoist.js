@@ -752,7 +752,7 @@ const VISITOR: Visitor<MutableAsset> = {
       dep.symbols.ensure();
       if (memberAccesses != null) {
         // The import() return value was statically analyzable
-        for (let {name, loc} of memberAccesses) {
+        for (let {name, loc} of nullthrows(memberAccesses)) {
           dep.symbols.set(
             name,
             getName(asset, 'importAsync', dep.id, name),
@@ -950,7 +950,10 @@ const VISITOR: Visitor<MutableAsset> = {
       }),
     );
 
-    if (isIdentifier(declaration) && path.scope.hasBinding(declaration.name)) {
+    if (
+      isIdentifier(declaration) &&
+      path.scope.hasBinding(declaration.name, /* noGlobals */ true)
+    ) {
       // Rename the variable being exported.
       safeRename(path, asset, declaration.name, identifier.name);
       path.remove();

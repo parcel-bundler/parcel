@@ -5,6 +5,7 @@ import {
   assertBundles,
   assertESMExports,
   bundle as _bundle,
+  mergeParcelOptions,
   outputFS,
   run,
   runBundle,
@@ -13,7 +14,19 @@ import * as react from 'react';
 import * as lodash from 'lodash';
 import * as lodashFP from 'lodash/fp';
 
-const bundle = (name, opts) => _bundle(name, {scopeHoist: true, ...opts});
+const bundle = (name, opts = {}) => {
+  return _bundle(
+    name,
+    mergeParcelOptions(
+      {
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
+      },
+      opts,
+    ),
+  );
+};
 
 describe('output formats', function() {
   describe('commonjs', function() {
@@ -317,7 +330,12 @@ describe('output formats', function() {
     it('should support async split bundles', async function() {
       let b = await bundle(
         path.join(__dirname, '/integration/formats/commonjs-split/index.js'),
-        {mode: 'production', minify: false},
+        {
+          mode: 'production',
+          defaultTargetOptions: {
+            shouldOptimize: false,
+          },
+        },
       );
 
       let index = await outputFS.readFile(
@@ -887,7 +905,12 @@ describe('output formats', function() {
     it('should support async split bundles', async function() {
       let b = await bundle(
         path.join(__dirname, '/integration/formats/esm-split/index.js'),
-        {mode: 'production', minify: false},
+        {
+          mode: 'production',
+          defaultTargetOptions: {
+            shouldOptimize: false,
+          },
+        },
       );
 
       let index = await outputFS.readFile(
@@ -969,7 +992,12 @@ describe('output formats', function() {
           __dirname,
           '/integration/formats/esm-split-worker/index.html',
         ),
-        {mode: 'production', minify: false},
+        {
+          mode: 'production',
+          defaultTargetOptions: {
+            shouldOptimize: false,
+          },
+        },
       );
 
       let workerBundle = nullthrows(
@@ -1032,11 +1060,13 @@ describe('output formats', function() {
       let b = await bundle(
         path.join(__dirname, '/integration/formats/esm-browser/index.html'),
         {
-          defaultEngines: {
-            browsers: [
-              // Implements es modules but not dynamic imports
-              'Chrome 61',
-            ],
+          defaultTargetOptions: {
+            engines: {
+              browsers: [
+                // Implements es modules but not dynamic imports
+                'Chrome 61',
+              ],
+            },
           },
         },
       );
@@ -1118,7 +1148,12 @@ describe('output formats', function() {
           __dirname,
           '/integration/formats/esm-browser-split-bundle/index.html',
         ),
-        {mode: 'production', minify: false},
+        {
+          mode: 'production',
+          defaultTargetOptions: {
+            shouldOptimize: false,
+          },
+        },
       );
 
       let html = await outputFS.readFile(
@@ -1245,7 +1280,7 @@ describe('output formats', function() {
 
     it("doesn't support require.resolve calls for excluded assets without commonjs", async function() {
       let message =
-        "`require.resolve` calls for excluded assets are only supported with outputFormat: 'commonjs'";
+        "'require.resolve' calls for excluded assets are only supported with outputFormat: 'commonjs'";
       let source = path.join(
         __dirname,
         '/integration/formats/commonjs-esm/require-resolve.js',
@@ -1346,13 +1381,67 @@ describe('output formats', function() {
   });
 
   describe('global', function() {
-    it('should support async split bundles for workers', async function() {
-      await bundle(
+    // ATLASSIAN: Don't share across workers for now as worker-specific code is added
+    it.skip('should support split bundles between main script and workers', async function() {
+      let b = await bundle(
         path.join(
           __dirname,
           '/integration/formats/global-split-worker/index.html',
         ),
-        {mode: 'production', minify: false},
+        {
+          mode: 'production',
+          defaultTargetOptions: {
+            shouldOptimize: false,
+          },
+        },
+      );
+
+      assertBundles(b, [
+        {
+          type: 'js',
+          assets: [
+            'bundle-manifest.js',
+            'bundle-url.js',
+            'get-worker-url.js',
+            'index.js',
+            'JSRuntime.js',
+            'JSRuntime.js',
+            'relative-path.js',
+          ],
+        },
+        {type: 'html', assets: ['index.html']},
+        {type: 'js', assets: ['lodash.js']},
+        {type: 'js', assets: ['worker.js']},
+      ]);
+
+      let workerBundle;
+      assert.strictEqual(
+        await run(b, {
+          Worker: class {
+            constructor(url) {
+              workerBundle = nullthrows(
+                b.getBundles().find(b => b.name === path.posix.basename(url)),
+              );
+            }
+          },
+        }),
+        3,
+      );
+      assert.strictEqual(await runBundle(b, workerBundle), 30);
+    });
+
+    it('should support async split bundles for workers', async function() {
+      await bundle(
+        path.join(
+          __dirname,
+          '/integration/formats/global-split-worker-async/index.html',
+        ),
+        {
+          mode: 'production',
+          defaultTargetOptions: {
+            shouldOptimize: false,
+          },
+        },
       );
     });
 

@@ -1,0 +1,40 @@
+{
+  "name": "@atlassian/docs-parcel",
+  "version": "1.0.0",
+  "devDependencies": {
+    "@atlassian/doc-scripts": "latest"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://bitbucket.org/atlassian/parcel.git"
+  },
+  "dependencies": {},
+  "scripts": {
+    "usage": "doc-scripts usage",
+    "preview": "doc-scripts preview",
+    "spellcheck": "doc-scripts spellcheck",
+    "validate": "doc-scripts validate",
+    "set-last-updated": "doc-scripts set-last-updated",
+    "link-check": "doc-scripts link-check",
+    "onboard-to-dac": "doc-scripts onboard-to-dac",
+    "prepare": "doc-scripts validate",
+    "prepack": "doc-scripts set-last-updated"
+  },
+  "files": [
+    "content/**/*",
+    "data/*"
+  ],
+  "docs": [
+    {
+      "//0": "Defines the root folder where your content is stored",
+      "contentDir": "/content/platform/parcel",
+      "//1": "Defines at which URL each folder should be placed on DAC",
+      "publishPath": "/platform/parcel",
+      "//2": "The srcPath defines where in the git repository this documentation set lives. It is used for the 'Improve this page' links. This should point to the directory that contains this package.json file from the root of your repo.",
+      "srcPath": "/",
+      "platform": "platform",
+      "product": "parcel",
+      "humanName": "parcel"
+    }
+  ]
+}

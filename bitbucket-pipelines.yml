@@ -35,6 +35,32 @@ definitions:
           - npm set unsafe-perm true
           - yarn install --frozen-lockfile
           - yarn lerna publish from-git --no-push --yes --registry https://packages.atlassian.com/api/npm/atlassian-npm/
+    - step: &validate-docs
+        name: Validate Atlassian Docs
+        image: node:12-slim
+        caches:
+          - node
+        script:
+          - pipe: docker://atlassian/artifactory-sidekick:latest
+          - source .artifactory/activate.sh
+          - cd dac
+          - yarn
+          - yarn validate
+          - yarn link-check
+    - step: &release-docs
+        name: Release Atlassian Docs
+        image: node:12-slim
+        caches:
+          - node
+        script:
+          - pipe: docker://atlassian/artifactory-sidekick:latest
+          - source .artifactory/activate.sh
+          - cd dac
+          - yarn
+          # Set the release version of the package to be the same as the build number.
+          - npm version "1.${BITBUCKET_BUILD_NUMBER}.0" -m "%s [skip ci]"
+          - yarn validate
+          - yarn publish
 
 pipelines:
   default:
@@ -43,6 +69,7 @@ pipelines:
         - step: *lint
         - step: *test-unit
         - step: *test-integration
+        - step: *validate-docs
   tags:
     '*':
       - parallel:
@@ -50,4 +77,10 @@ pipelines:
           - step: *lint
           - step: *test-unit
           - step: *test-integration
+          - step: *validate-docs
       - step: *build-release-parcel
+      - step: *release-docs
+  custom:
+    release-docs:
+      - step: *validate-docs
+      - step: *release-docs

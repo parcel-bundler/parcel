@@ -217,7 +217,9 @@ describe('javascript', function() {
   it('should preserve hashbangs in scopehoisted bundles', async () => {
     let fixturePath = path.join(__dirname, '/integration/node_hashbang');
     await bundle(path.join(__dirname, '/integration/node_hashbang/main.js'), {
-      scopeHoist: true,
+      defaultTargetOptions: {
+        shouldScopeHoist: true,
+      },
     });
 
     let main = await outputFS.readFile(
@@ -331,12 +333,9 @@ describe('javascript', function() {
         name: 'index.js',
         assets: [
           'index.js',
-          'bundle-manifest.js',
           'bundle-url.js',
-          'relative-path.js',
           'cacheLoader.js',
           'js-loader.js',
-          'JSRuntime.js',
           'JSRuntime.js',
         ],
       },
@@ -372,6 +371,35 @@ describe('javascript', function() {
     assert(headChildren[2].rel === 'prefetch');
     assert(headChildren[2].as === 'style');
     assert(headChildren[2].href.match(/prefetched\..*\.css/));
+  });
+
+  it('should load additional links that were prefetched', async function() {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/dynamic-static-prefetch-loaded/index.js',
+      ),
+    );
+
+    let output = await run(b);
+    let outputReturn = await output.default;
+    await outputReturn.loadDependency();
+
+    let headChildren = outputReturn.children;
+    assert.equal(headChildren.length, 5);
+    let cssBundles = headChildren.filter(child =>
+      child.href?.match(/prefetched-loaded\..*\.css/),
+    );
+    assert.equal(cssBundles.length, 2);
+
+    assert(cssBundles[0].tag === 'link');
+    assert(cssBundles[0].rel === 'prefetch');
+    assert(cssBundles[0].as === 'style');
+    assert(cssBundles[0].href.match(/prefetched-loaded\..*\.css/));
+
+    assert(cssBundles[1].tag === 'link');
+    assert(cssBundles[1].rel === 'stylesheet');
+    assert(cssBundles[1].href.match(/prefetched-loaded\..*\.css/));
   });
 
   it('should preload bundles when declared as an import attribute statically', async function() {
@@ -527,9 +555,6 @@ describe('javascript', function() {
           'JSRuntime.js',
           'JSRuntime.js',
           'JSRuntime.js',
-          'bundle-manifest.js',
-          'JSRuntime.js',
-          'relative-path.js',
         ],
       },
       {
@@ -547,7 +572,11 @@ describe('javascript', function() {
   it('should support bundling workers of type module', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/workers-module/index.js'),
-      {scopeHoist: true},
+      {
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
+      },
     );
 
     assertBundles(b, [
@@ -561,10 +590,7 @@ describe('javascript', function() {
           'bundle-url.js',
           'JSRuntime.js',
           'JSRuntime.js',
-          'JSRuntime.js',
           'get-worker-url.js',
-          'bundle-manifest.js',
-          'relative-path.js',
         ],
       },
       {
@@ -611,9 +637,6 @@ describe('javascript', function() {
           'JSRuntime.js',
           'JSRuntime.js',
           'JSRuntime.js',
-          'bundle-manifest.js',
-          'JSRuntime.js',
-          'relative-path.js',
         ],
       },
       {
@@ -644,9 +667,6 @@ describe('javascript', function() {
             'bundle-url.js',
             'JSRuntime.js',
             'JSRuntime.js',
-            'bundle-manifest.js',
-            'JSRuntime.js',
-            'relative-path.js',
           ],
         },
         {
@@ -655,9 +675,6 @@ describe('javascript', function() {
             `index-${workerType}.js`,
             'bundle-url.js',
             'JSRuntime.js',
-            'bundle-manifest.js',
-            'JSRuntime.js',
-            'relative-path.js',
           ].concat(workerType === 'webworker' ? ['get-worker-url.js'] : []),
         },
         {
@@ -708,9 +725,6 @@ describe('javascript', function() {
           'bundle-url.js',
           'get-worker-url.js',
           'JSRuntime.js',
-          'bundle-manifest.js',
-          'JSRuntime.js',
-          'relative-path.js',
         ],
       },
       {assets: ['external.js', 'JSRuntime.js']},
@@ -753,9 +767,6 @@ describe('javascript', function() {
           'bundle-url.js',
           'JSRuntime.js',
           'JSRuntime.js',
-          'bundle-manifest.js',
-          'JSRuntime.js',
-          'relative-path.js',
         ],
       },
       {
@@ -765,6 +776,69 @@ describe('javascript', function() {
         assets: ['worker-outside.js'],
       },
     ]);
+  });
+
+  it('should recognize serviceWorker.register with static URL and import.meta.url', async function() {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/service-worker-import-meta-url/index.js',
+      ),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js', 'bundle-url.js', 'JSRuntime.js'],
+      },
+      {
+        assets: ['worker.js'],
+      },
+    ]);
+
+    let contents = await outputFS.readFile(
+      b.getBundles().find(b => b.isEntry).filePath,
+      'utf8',
+    );
+    assert(!contents.includes('import.meta.url'));
+  });
+
+  it('should throw a codeframe for a missing file in serviceWorker.register with URL and import.meta.url', async function() {
+    let fixture = path.join(
+      __dirname,
+      'integration/service-worker-import-meta-url/missing.js',
+    );
+    let code = await inputFS.readFileSync(fixture, 'utf8');
+    await assert.rejects(() => bundle(fixture), {
+      name: 'BuildError',
+      diagnostics: [
+        {
+          codeFrame: {
+            code,
+            codeHighlights: [
+              {
+                end: {
+                  column: 51,
+                  line: 1,
+                },
+                start: {
+                  column: 12,
+                  line: 1,
+                },
+              },
+            ],
+          },
+          filePath: fixture,
+          message: "Failed to resolve './invalid.js' from './missing.js'",
+          origin: '@parcel/core',
+        },
+        {
+          hints: ['Did you mean __./index.js__?'],
+          message: "Cannot load file './invalid.js' in './'.",
+          origin: '@parcel/resolver-default',
+        },
+      ],
+    });
   });
 
   it('should support bundling workers with circular dependencies', async function() {
@@ -780,15 +854,112 @@ describe('javascript', function() {
           'bundle-url.js',
           'JSRuntime.js',
           'get-worker-url.js',
-          'bundle-manifest.js',
-          'JSRuntime.js',
-          'relative-path.js',
         ],
       },
       {
         assets: ['worker.js', 'worker-dep.js'],
       },
     ]);
+  });
+
+  it('should recognize worker constructor with static URL and import.meta.url', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/worker-import-meta-url/index.js'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: [
+          'index.js',
+          'bundle-url.js',
+          'JSRuntime.js',
+          'get-worker-url.js',
+        ],
+      },
+      {
+        assets: ['worker.js'],
+      },
+    ]);
+
+    let contents = await outputFS.readFile(
+      b.getBundles().find(b => b.isEntry).filePath,
+      'utf8',
+    );
+    assert(!contents.includes('import.meta.url'));
+  });
+
+  it('should ignore worker constructors with dynamic URL and import.meta.url', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/worker-import-meta-url/dynamic.js'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'dynamic.js',
+        assets: ['dynamic.js'],
+      },
+    ]);
+
+    let contents = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(contents.includes('import.meta.url'));
+  });
+
+  it('should ignore worker constructors with local URL binding and import.meta.url', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/worker-import-meta-url/local-url.js'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'local-url.js',
+        assets: ['local-url.js'],
+      },
+    ]);
+
+    let contents = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(contents.includes('import.meta.url'));
+  });
+
+  it('should throw a codeframe for a missing file in worker constructor with URL and import.meta.url', async function() {
+    let fixture = path.join(
+      __dirname,
+      'integration/worker-import-meta-url/missing.js',
+    );
+    let code = await inputFS.readFileSync(fixture, 'utf8');
+    await assert.rejects(() => bundle(fixture), {
+      name: 'BuildError',
+      diagnostics: [
+        {
+          codeFrame: {
+            code,
+            codeHighlights: [
+              {
+                end: {
+                  column: 51,
+                  line: 1,
+                },
+                start: {
+                  column: 12,
+                  line: 1,
+                },
+              },
+            ],
+          },
+          filePath: fixture,
+          message: "Failed to resolve './invalid.js' from './missing.js'",
+          origin: '@parcel/core',
+        },
+        {
+          hints: [
+            'Did you mean __./dynamic.js__?',
+            'Did you mean __./index.js__?',
+          ],
+          message: "Cannot load file './invalid.js' in './'.",
+          origin: '@parcel/resolver-default',
+        },
+      ],
+    });
   });
 
   it.skip('should support bundling in workers with other loaders', async function() {
@@ -825,11 +996,17 @@ describe('javascript', function() {
       ],
     });
   });
+
   // ATLASSIAN: Don't share bundles between workers and page scripts
   it.skip('should create a shared bundle to deduplicate assets in workers', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/worker-shared/index.js'),
-      {mode: 'production', scopeHoist: false},
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: false,
+        },
+      },
     );
 
     assertBundles(b, [
@@ -888,9 +1065,6 @@ describe('javascript', function() {
           'bundle-url.js',
           'get-worker-url.js',
           'JSRuntime.js',
-          'JSRuntime.js',
-          'bundle-manifest.js',
-          'relative-path.js',
           'lodash.js',
         ],
       },
@@ -901,10 +1075,7 @@ describe('javascript', function() {
           'bundle-url.js',
           'esmodule-helpers.js',
           'get-worker-url.js',
-          'bundle-manifest.js',
-          'JSRuntime.js',
           'lodash.js',
-          'relative-path.js',
         ],
       },
       {
@@ -913,11 +1084,74 @@ describe('javascript', function() {
     ]);
   });
 
+  it('should deduplicate and remove an unnecessary async bundle when it contains a cyclic reference to its entry', async () => {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/deduplicate-from-async-cyclic-bundle-entry/index.js',
+      ),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: [
+          'index.js',
+          'bar.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'esmodule-helpers.js',
+          'foo.js',
+          'js-loader.js',
+          'JSRuntime.js',
+        ],
+      },
+      {
+        assets: ['async.js', 'JSRuntime.js'],
+      },
+    ]);
+
+    assert.deepEqual(await Promise.all((await run(b)).default), [5, 4]);
+  });
+
+  it('async dependency internalization successfully removes unneeded bundlegroups and their bundles', async () => {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/internalize-remove-bundlegroup/index.js',
+      ),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: [
+          'bundle-url.js',
+          'get-worker-url.js',
+          'index.js',
+          'JSRuntime.js',
+        ],
+      },
+      {
+        assets: [
+          'bundle-url.js',
+          'get-worker-url.js',
+          'JSRuntime.js',
+          'worker1.js',
+          'worker2.js',
+          'worker3.js',
+          'core.js',
+        ],
+      },
+      {assets: ['core.js', 'worker3.js']},
+    ]);
+  });
+
   // ATLASSIAN: Don't share bundles between workers and page scripts
   it.skip('should create a shared bundle between browser and worker contexts', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/html-shared-worker/index.html'),
-      {mode: 'production', scopeHoist: false},
+      {mode: 'production', defaultTargetOptions: {shouldScopeHoist: false}},
     );
 
     assertBundles(b, [
@@ -985,9 +1219,6 @@ describe('javascript', function() {
           'cacheLoader.js',
           'js-loader.js',
           'JSRuntime.js',
-          'bundle-manifest.js',
-          'JSRuntime.js',
-          'relative-path.js',
         ],
       },
       {
@@ -1018,9 +1249,6 @@ describe('javascript', function() {
           'esmodule-helpers.js',
           'js-loader.js',
           'JSRuntime.js',
-          'bundle-manifest.js',
-          'JSRuntime.js',
-          'relative-path.js',
         ],
       },
       {
@@ -1054,9 +1282,6 @@ describe('javascript', function() {
           'js-loader.js',
           'JSRuntime.js',
           'JSRuntime.js',
-          'bundle-manifest.js',
-          'JSRuntime.js',
-          'relative-path.js',
         ],
       },
     ]);
@@ -1069,7 +1294,12 @@ describe('javascript', function() {
   it('should create a separate bundle for large modules shared between bundles', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/dynamic-common-large/index.js'),
-      {mode: 'production', scopeHoist: false},
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: false,
+        },
+      },
     );
 
     assertBundles(b, [
@@ -1119,9 +1349,6 @@ describe('javascript', function() {
           'cacheLoader.js',
           'js-loader.js',
           'JSRuntime.js',
-          'bundle-manifest.js',
-          'JSRuntime.js',
-          'relative-path.js',
         ],
       },
       {
@@ -1134,7 +1361,7 @@ describe('javascript', function() {
     assert.equal(await output(), 5);
   });
 
-  it('should duplicate a module if it is not present in every parent bundle', async function() {
+  it('should duplicate an asset if it is not present in every parent bundle', async function() {
     let b = await bundle(
       ['a.js', 'b.js'].map(entry =>
         path.join(__dirname, 'integration/dynamic-hoist-no-dedupe', entry),
@@ -1152,9 +1379,6 @@ describe('javascript', function() {
           'cacheLoader.js',
           'js-loader.js',
           'JSRuntime.js',
-          'bundle-manifest.js',
-          'JSRuntime.js',
-          'relative-path.js',
         ],
       },
       {
@@ -1167,12 +1391,48 @@ describe('javascript', function() {
           'esmodule-helpers.js',
           'js-loader.js',
           'JSRuntime.js',
-          'bundle-manifest.js',
-          'JSRuntime.js',
-          'relative-path.js',
         ],
       },
     ]);
+  });
+
+  it('should duplicate an asset if it is not available in all possible ancestries', async () => {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/dynamic-hoist-no-dedupe-ancestry/index.js',
+      ),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: [
+          'index.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'js-loader.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
+          'esmodule-helpers.js',
+        ],
+      },
+      {
+        assets: ['a.js', 'common.js', 'JSRuntime.js'],
+      },
+      {
+        assets: ['b.js', 'JSRuntime.js'],
+      },
+      {
+        assets: ['c.js', 'JSRuntime.js'],
+      },
+      {
+        assets: ['d.js', 'common.js'],
+      },
+    ]);
+
+    let {default: promise} = await run(b);
+    assert.equal(await promise, 42);
   });
 
   it('should support shared modules with async imports', async function() {
@@ -1191,9 +1451,6 @@ describe('javascript', function() {
           'js-loader.js',
           'JSRuntime.js',
           'JSRuntime.js',
-          'bundle-manifest.js',
-          'JSRuntime.js',
-          'relative-path.js',
         ],
       },
       {
@@ -1244,20 +1501,12 @@ describe('javascript', function() {
   it('should support importing a URL to a raw asset', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/import-raw/index.js'),
-      {shouldDisableCache: false},
     );
 
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: [
-          'index.js',
-          'bundle-url.js',
-          'JSRuntime.js',
-          'bundle-manifest.js',
-          'JSRuntime.js',
-          'relative-path.js',
-        ],
+        assets: ['index.js', 'bundle-url.js', 'JSRuntime.js'],
       },
       {
         type: 'txt',
@@ -1272,6 +1521,97 @@ describe('javascript', function() {
       path.join(distDir, url.parse(output()).pathname),
     );
     assert.equal(stats.size, 9);
+  });
+
+  it('should support referencing a raw asset with static URL and import.meta.url', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/import-raw-import-meta-url/index.js'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: [
+          'index.js',
+          'bundle-url.js',
+          'esmodule-helpers.js',
+          'JSRuntime.js',
+        ],
+      },
+      {
+        type: 'txt',
+        assets: ['test.txt'],
+      },
+    ]);
+
+    let contents = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(!contents.includes('import.meta.url'));
+
+    let output = await run(b);
+    assert(/^http:\/\/localhost\/test\.[0-9a-f]+\.txt$/.test(output.default));
+    let stats = await outputFS.stat(
+      path.join(distDir, url.parse(output.default).pathname),
+    );
+    assert.equal(stats.size, 9);
+  });
+
+  it('should ignore new URL and import.meta.url with local binding', async function() {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/import-raw-import-meta-url/local-url.js',
+      ),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'local-url.js',
+        assets: ['esmodule-helpers.js', 'local-url.js'],
+      },
+    ]);
+
+    let contents = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(contents.includes('import.meta.url'));
+  });
+
+  it('should support referencing a raw asset with static URL and import.meta.url (diagnostic)', async function() {
+    let fixture = path.join(
+      __dirname,
+      'integration/import-raw-import-meta-url/missing.js',
+    );
+    let code = await inputFS.readFileSync(fixture, 'utf8');
+    await assert.rejects(() => bundle(fixture), {
+      name: 'BuildError',
+      diagnostics: [
+        {
+          codeFrame: {
+            code,
+            codeHighlights: [
+              {
+                end: {
+                  column: 54,
+                  line: 1,
+                },
+                start: {
+                  column: 16,
+                  line: 1,
+                },
+              },
+            ],
+          },
+          filePath: fixture,
+          message: "Failed to resolve 'invalid.txt' from './missing.js'",
+          origin: '@parcel/core',
+        },
+        // ATLASSIAN: URL dependencies fall back to node_modules because of modified NodeResolver
+        //
+        // {
+        //   hints: [],
+        //   message: "Cannot load file './invalid.txt' in './'.",
+        //   origin: '@parcel/resolver-default',
+        // },
+      ],
+    });
   });
 
   it('should support importing a URL to a large raw asset', async function() {
@@ -1291,19 +1631,14 @@ describe('javascript', function() {
 
     let b = await bundle(path.join(inputDir, 'index.js'), {
       inputFS: overlayFS,
-      distDir,
+      defaultTargetOptions: {
+        distDir,
+      },
     });
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: [
-          'index.js',
-          'JSRuntime.js',
-          'bundle-url.js',
-          'bundle-manifest.js',
-          'JSRuntime.js',
-          'relative-path.js',
-        ],
+        assets: ['index.js', 'JSRuntime.js', 'bundle-url.js'],
       },
       {
         type: 'txt',
@@ -1322,8 +1657,10 @@ describe('javascript', function() {
 
   it('should minify JS in production mode', async function() {
     let b = await bundle(path.join(__dirname, '/integration/uglify/index.js'), {
-      minify: true,
-      scopeHoist: false,
+      defaultTargetOptions: {
+        shouldOptimize: true,
+        shouldScopeHoist: false,
+      },
     });
 
     let output = await run(b);
@@ -1336,8 +1673,10 @@ describe('javascript', function() {
 
   it('should use uglify config', async function() {
     await bundle(path.join(__dirname, '/integration/uglify-config/index.js'), {
-      minify: true,
-      scopeHoist: false,
+      defaultTargetOptions: {
+        shouldOptimize: true,
+        shouldScopeHoist: false,
+      },
     });
 
     let js = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
@@ -1819,7 +2158,11 @@ describe('javascript', function() {
   it.skip('should resolve the module field before main if scope-hoisting is enabled', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/resolve-entries/module-field.js'),
-      {scopeHoist: true},
+      {
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
+      },
     );
 
     assertBundles(b, [
@@ -1838,7 +2181,11 @@ describe('javascript', function() {
   it.skip('should resolve the module field before main if scope-hoisting is enabled', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/resolve-entries/both-fields.js'),
-      {scopeHoist: true},
+      {
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
+      },
     );
 
     assertBundles(b, [
@@ -1876,8 +2223,10 @@ describe('javascript', function() {
     let b = await bundle(
       path.join(__dirname, '/integration/uglify-json/index.json'),
       {
-        minify: true,
-        scopeHoist: false,
+        defaultTargetOptions: {
+          shouldOptimize: true,
+          shouldScopeHoist: false,
+        },
       },
     );
 
@@ -1892,8 +2241,10 @@ describe('javascript', function() {
     let b = await bundle(
       path.join(__dirname, '/integration/uglify-json5/index.json5'),
       {
-        minify: true,
-        scopeHoist: false,
+        defaultTargetOptions: {
+          shouldOptimize: true,
+          shouldScopeHoist: false,
+        },
       },
     );
 
@@ -1906,8 +2257,10 @@ describe('javascript', function() {
 
   it.skip('should minify YAML for production', async function() {
     let b = await bundle(path.join(__dirname, '/integration/yaml/index.js'), {
-      minify: true,
-      scopeHoist: false,
+      defaultTargetOptions: {
+        shouldOptimize: true,
+        shouldScopeHoist: false,
+      },
     });
 
     let output = await run(b);
@@ -1920,8 +2273,10 @@ describe('javascript', function() {
 
   it('should minify TOML for production', async function() {
     let b = await bundle(path.join(__dirname, '/integration/toml/index.js'), {
-      minify: true,
-      scopeHoist: false,
+      defaultTargetOptions: {
+        shouldOptimize: true,
+        shouldScopeHoist: false,
+      },
     });
 
     let output = await run(b);
@@ -2103,7 +2458,9 @@ describe('javascript', function() {
     let b = await bundle(
       path.join(__dirname, `/integration/js-comment/index.js`),
       {
-        scopeHoist: true,
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
       },
     );
 
@@ -2115,8 +2472,10 @@ describe('javascript', function() {
     let b = await bundle(
       path.join(__dirname, `/integration/js-comment/index.js`),
       {
-        scopeHoist: true,
-        minify: true,
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+          shouldOptimize: true,
+        },
       },
     );
 
@@ -2140,7 +2499,11 @@ describe('javascript', function() {
   it('should not replace toplevel this with undefined in CommonJS when scope-hoisting', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/js-this-commonjs/a.js'),
-      {scopeHoist: true},
+      {
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
+      },
     );
 
     let output;
@@ -2165,7 +2528,11 @@ describe('javascript', function() {
   it('should replace toplevel this with undefined in ESM when scope-hoisting', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/js-this-es6/a.js'),
-      {scopeHoist: true},
+      {
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
+      },
     );
 
     let output;
@@ -2179,7 +2546,11 @@ describe('javascript', function() {
   it('support building with multiple target and varying scopeHoist setting', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/js-multi-target-scope-hoist/index.js'),
-      {scopeHoist: true},
+      {
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
+      },
     );
 
     for (let bundle of b.getBundles()) {
@@ -2265,7 +2636,11 @@ describe('javascript', function() {
   it.skip('should support importing HTML from JS async', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/import-html-async/index.js'),
-      {sourceMaps: false},
+      {
+        defaultTargetOptions: {
+          sourceMaps: false,
+        },
+      },
     );
 
     assertBundles(b, {
@@ -2301,7 +2676,9 @@ describe('javascript', function() {
       path.join(__dirname, '/integration/import-html-async/index.js'),
       {
         target: 'node',
-        sourceMaps: false,
+        defaultTargetOptions: {
+          sourceMaps: false,
+        },
       },
     );
 
@@ -2337,7 +2714,9 @@ describe('javascript', function() {
     let b = await bundle(
       path.join(__dirname, '/integration/import-html-sync/index.js'),
       {
-        sourceMaps: false,
+        defaultTargetOptions: {
+          sourceMaps: false,
+        },
       },
     );
 
@@ -2398,9 +2777,6 @@ describe('javascript', function() {
           'cacheLoader.js',
           'esmodule-helpers.js',
           'js-loader.js',
-          'bundle-manifest.js',
-          'JSRuntime.js',
-          'relative-path.js',
         ],
       },
       {
@@ -2530,9 +2906,6 @@ describe('javascript', function() {
           'cacheLoader.js',
           'js-loader.js',
           'JSRuntime.js',
-          'bundle-manifest.js',
-          'JSRuntime.js',
-          'relative-path.js',
         ],
       },
       {
@@ -2557,9 +2930,6 @@ describe('javascript', function() {
           'cacheLoader.js',
           'js-loader.js',
           'JSRuntime.js',
-          'bundle-manifest.js',
-          'JSRuntime.js',
-          'relative-path.js',
         ],
       },
       {
@@ -2588,9 +2958,6 @@ describe('javascript', function() {
           'cacheLoader.js',
           'js-loader.js',
           'JSRuntime.js',
-          'bundle-manifest.js',
-          'JSRuntime.js',
-          'relative-path.js',
         ],
       },
       {
@@ -2615,9 +2982,6 @@ describe('javascript', function() {
         name: 'rollup.js',
         assets: [
           'rollup.js',
-          'bundle-manifest.js',
-          'JSRuntime.js',
-          'relative-path.js',
           'bundle-url.js',
           'cacheLoader.js',
           'js-loader.js',
@@ -2642,13 +3006,10 @@ describe('javascript', function() {
         name: 'parcel.js',
         assets: [
           'parcel.js',
-          'bundle-manifest.js',
           'bundle-url.js',
           'cacheLoader.js',
           'js-loader.js',
           'JSRuntime.js',
-          'JSRuntime.js',
-          'relative-path.js',
         ],
       },
       {
@@ -2664,6 +3025,11 @@ describe('javascript', function() {
     let _bundle = () =>
       bundle(path.join(fixtureDir, 'index.js'), {
         inputFS: overlayFS,
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: false,
+          shouldOptimize: false,
+        },
       });
 
     let first = await _bundle();
@@ -2710,7 +3076,7 @@ describe('javascript', function() {
   it('can static import and dynamic import in the same bundle without creating a new bundle', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/sync-async/same-bundle.js'),
-      {mode: 'production', scopeHoist: false},
+      {mode: 'production', defaultTargetOptions: {shouldScopeHoist: false}},
     );
 
     assertBundles(b, [
@@ -2733,7 +3099,7 @@ describe('javascript', function() {
   it('can static import and dynamic import in the same bundle ancestry without creating a new bundle', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/sync-async/same-ancestry.js'),
-      {mode: 'production', scopeHoist: false},
+      {mode: 'production', defaultTargetOptions: {shouldScopeHoist: false}},
     );
 
     assertBundles(b, [
@@ -2765,7 +3131,12 @@ describe('javascript', function() {
       ['same-bundle.js', 'get-dep.js'].map(entry =>
         path.join(__dirname, '/integration/sync-async/', entry),
       ),
-      {mode: 'production', scopeHoist: false},
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: false,
+        },
+      },
     );
 
     assertBundles(b, [
@@ -2817,7 +3188,12 @@ describe('javascript', function() {
         __dirname,
         '/integration/shared-exports-for-sibling-descendant/index.js',
       ),
-      {mode: 'production', scopeHoist: false},
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: false,
+        },
+      },
     );
 
     assertBundles(b, [
@@ -2868,13 +3244,10 @@ describe('javascript', function() {
         name: 'index.js',
         assets: [
           'index.js',
-          'bundle-manifest.js',
           'bundle-url.js',
           'cacheLoader.js',
           'js-loader.js',
           'JSRuntime.js',
-          'JSRuntime.js',
-          'relative-path.js',
           'esmodule-helpers.js',
         ],
       },
@@ -2895,14 +3268,11 @@ describe('javascript', function() {
         name: 'index.js',
         assets: [
           'index.js',
-          'bundle-manifest.js',
           'bundle-url.js',
           'cacheLoader.js',
           'js-loader.js',
           'JSRuntime.js',
           'JSRuntime.js',
-          'JSRuntime.js',
-          'relative-path.js',
           'esmodule-helpers.js',
         ],
       },
@@ -2919,7 +3289,9 @@ describe('javascript', function() {
     await assert.rejects(
       () =>
         bundle(fixture, {
-          minify: true,
+          defaultTargetOptions: {
+            shouldOptimize: true,
+          },
         }),
       {
         name: 'BuildError',
@@ -2968,13 +3340,10 @@ describe('javascript', function() {
         name: 'index.js',
         assets: [
           'index.js',
-          'bundle-manifest.js',
           'bundle-url.js',
           'cacheLoader.js',
           'js-loader.js',
           'JSRuntime.js',
-          'JSRuntime.js',
-          'relative-path.js',
           'esmodule-helpers.js',
         ],
       },
@@ -2982,13 +3351,10 @@ describe('javascript', function() {
         name: 'other-entry.js',
         assets: [
           'other-entry.js',
-          'bundle-manifest.js',
           'bundle-url.js',
           'cacheLoader.js',
           'js-loader.js',
           'JSRuntime.js',
-          'JSRuntime.js',
-          'relative-path.js',
         ],
       },
       {assets: ['a.js', 'value.js', 'esmodule-helpers.js']},
@@ -3183,6 +3549,22 @@ describe('javascript', function() {
     );
     let res = await run(b);
     assert.strictEqual(res.baz(), 'foo');
+  });
+
+  it('should not replace identifier with a var declaration inside a for loop', async function() {
+    let b = await bundle(
+      path.join(__dirname, 'integration/js-import-shadow-for-var/index.js'),
+    );
+    let res = await run(b);
+    assert.deepEqual(res.baz(), [0, 1, 2, 3]);
+  });
+
+  it('should replace an imported identifier with function locals of the same name', async function() {
+    let b = await bundle(
+      path.join(__dirname, 'integration/js-import-shadow-func-var/index.js'),
+    );
+    let res = await run(b);
+    assert.deepEqual(res.default, 123);
   });
 
   it('should not freeze live default imports', async function() {

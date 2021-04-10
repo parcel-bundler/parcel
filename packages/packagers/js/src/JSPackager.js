@@ -65,9 +65,9 @@ export default (new Packager({
     let parcelRequireName = nullthrows(config).parcelRequireName;
 
     // If scope hoisting is enabled, we use a different code path.
-    if (bundle.env.scopeHoist) {
+    if (bundle.env.shouldScopeHoist) {
       let wrappedAssets = new Set<string>();
-      let {ast, referencedAssets} = link({
+      let ast = link({
         bundle,
         bundleGraph,
         ast: await concat({
@@ -75,7 +75,6 @@ export default (new Packager({
           bundleGraph,
           options,
           wrappedAssets,
-          parcelRequireName,
         }),
         options,
         wrappedAssets,
@@ -86,11 +85,8 @@ export default (new Packager({
       traverse.cache.clear();
 
       let {contents, map} = generate({
-        bundleGraph,
         bundle,
         ast,
-        referencedAssets,
-        parcelRequireName,
         options,
       });
       return replaceReferences({

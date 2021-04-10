@@ -2,6 +2,7 @@
 
 import type {DevServerOptions, Request, Response} from './types.js.flow';
 import type {
+  BuildSuccessEvent,
   BundleGraph,
   FilePath,
   PluginOptions,
@@ -12,7 +13,6 @@ import type {FileSystem} from '@parcel/fs';
 import type {HTTPServer} from '@parcel/utils';
 
 import invariant from 'assert';
-import nullthrows from 'nullthrows';
 import path from 'path';
 import url from 'url';
 import {
@@ -59,6 +59,7 @@ export default class Server {
   options: DevServerOptions;
   rootPath: string;
   bundleGraph: BundleGraph<NamedBundle> | null;
+  requestBundle: ?(bundle: NamedBundle) => Promise<BuildSuccessEvent>;
   errors: Array<{|
     message: string,
     stack: string,
@@ -76,6 +77,7 @@ export default class Server {
     this.pending = true;
     this.pendingRequests = [];
     this.bundleGraph = null;
+    this.requestBundle = null;
     this.errors = null;
   }
 
@@ -83,8 +85,12 @@ export default class Server {
     this.pending = true;
   }
 
-  buildSuccess(bundleGraph: BundleGraph<NamedBundle>) {
+  buildSuccess(
+    bundleGraph: BundleGraph<NamedBundle>,
+    requestBundle: (bundle: NamedBundle) => Promise<BuildSuccessEvent>,
+  ) {
     this.bundleGraph = bundleGraph;
+    this.requestBundle = requestBundle;
     this.errors = null;
     this.pending = false;
 
@@ -140,7 +146,10 @@ export default class Server {
       // Otherwise, serve the file from the dist folder
       req.url =
         this.rootPath === '/' ? pathname : pathname.slice(this.rootPath.length);
-      return this.serveDist(req, res, () => this.sendIndex(req, res));
+      if (req.url[0] !== '/') {
+        req.url = '/' + req.url;
+      }
+      return this.serveBundle(req, res, () => this.sendIndex(req, res));
     } else {
       return this.send404(req, res);
     }
@@ -149,35 +158,72 @@ export default class Server {
   sendIndex(req: Request, res: Response) {
     if (this.bundleGraph) {
       // If the main asset is an HTML file, serve it
-      let htmlBundle = this.bundleGraph.traverseBundles(
-        (bundle, context, {stop}) => {
-          if (bundle.type !== 'html' || !bundle.isEntry) return;
+      let htmlBundleFilePaths = [];
+      this.bundleGraph.traverseBundles(bundle => {
+        if (bundle.type === 'html' && bundle.isEntry) {
+          htmlBundleFilePaths.push(bundle.filePath);
+        }
+      });
 
-          if (!context) {
-            context = bundle;
-          }
-
-          if (
-            context &&
-            bundle.filePath &&
-            bundle.filePath.endsWith('index.html')
-          ) {
-            stop();
-            return bundle;
-          }
-        },
-      );
-
-      if (htmlBundle) {
-        req.url = `/${path.relative(
-          this.options.distDir,
-          nullthrows(htmlBundle.filePath),
-        )}`;
-
-        this.serveDist(req, res, () => this.send404(req, res));
+      let indexFilePath =
+        htmlBundleFilePaths.length > 1
+          ? htmlBundleFilePaths
+              .sort((a, b) => {
+                let lengthDiff = a.length - b.length;
+                if (lengthDiff === 0) {
+                  return a.localeCompare(b);
+                } else {
+                  return lengthDiff;
+                }
+              })
+              .find(f => {
+                return path.basename(f).startsWith('index');
+              })
+          : htmlBundleFilePaths[0];
+      if (indexFilePath) {
+        req.url = `/${path.relative(this.options.distDir, indexFilePath)}`;
+        this.serveBundle(req, res, () => this.send404(req, res));
       } else {
         this.send404(req, res);
       }
+    } else {
+      this.send404(req, res);
+    }
+  }
+
+  async serveBundle(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
+    let bundleGraph = this.bundleGraph;
+    if (bundleGraph) {
+      let {pathname} = url.parse(req.url);
+      if (!pathname) {
+        this.send500(req, res);
+        return;
+      }
+
+      let requestedPath = path.normalize(pathname.slice(1));
+      let bundle = bundleGraph
+        .getBundles()
+        .find(
+          b =>
+            path.relative(this.options.distDir, b.filePath) === requestedPath,
+        );
+      if (!bundle) {
+        return next(req, res);
+      }
+
+      invariant(this.requestBundle != null);
+      try {
+        await this.requestBundle(bundle);
+      } catch (err) {
+        this.send500(req, res);
+        return;
+      }
+
+      this.serveDist(req, res, next);
     } else {
       this.send404(req, res);
     }

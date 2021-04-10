@@ -8,23 +8,57 @@ import type {
   MutableAsset,
   PluginOptions,
 } from '@parcel/types';
-import type {Node, ObjectExpression} from '@babel/types';
+import type {
+  Identifier,
+  NewExpression,
+  Node,
+  ObjectExpression,
+  ObjectProperty,
+  StringLiteral,
+} from '@babel/types';
 import type {SimpleVisitors} from '@parcel/babylon-walk';
+import type {PluginLogger} from '@parcel/logger';
 
 import * as types from '@babel/types';
 import {
   isArrowFunctionExpression,
   isCallExpression,
-  isMemberExpression,
-  isReturnStatement,
-  isIdentifier,
-  isNewExpression,
   isFunction,
+  isIdentifier,
+  isMemberExpression,
+  isMetaProperty,
+  isNewExpression,
+  isObjectExpression,
+  isObjectProperty,
+  isReturnStatement,
+  isStringLiteral,
 } from '@babel/types';
 import {isURL, md5FromString, createDependencyLocation} from '@parcel/utils';
 import {isInFalsyBranch, hasBinding, morph} from './utils';
+import {convertBabelLoc} from '@parcel/babel-ast-utils';
 
 const serviceWorkerPattern = ['navigator', 'serviceWorker', 'register'];
+
+function parseImportMetaUrl(node: Node, ancestors: Array<Node>): ?string {
+  if (
+    isNewExpression(node) &&
+    isIdentifier(node.callee, {name: 'URL'}) &&
+    !hasBinding(ancestors, 'URL')
+  ) {
+    let args = node.arguments;
+    if (isStringLiteral(args[0])) {
+      let mod = args[0];
+      if (
+        isMemberExpression(args[1]) &&
+        isIdentifier(args[1].property, {name: 'url'}) &&
+        isMetaProperty(args[1].object) &&
+        isIdentifier(args[1].object.property, {name: 'meta'})
+      ) {
+        return mod.value;
+      }
+    }
+  }
+}
 
 export default ({
   ImportDeclaration(node, {asset}) {
@@ -119,7 +153,7 @@ export default ({
         return;
       }
     },
-    exit(node, {asset, ast}, ancestors) {
+    exit(node, {asset, ast, logger}, ancestors) {
       if (node.type !== 'CallExpression') {
         // It's possible this node has been morphed into another type
         return;
@@ -128,7 +162,6 @@ export default ({
       let {callee, arguments: args} = node;
 
       let isRegisterServiceWorker =
-        types.isStringLiteral(args[0]) &&
         types.matchesPattern(callee, serviceWorkerPattern) &&
         !hasBinding(ancestors, 'navigator') &&
         !isInFalsyBranch(ancestors);
@@ -136,11 +169,51 @@ export default ({
       if (isRegisterServiceWorker) {
         // Treat service workers as an entry point so filenames remain consistent across builds.
         // https://developers.google.com/web/fundamentals/primers/service-workers/lifecycle#avoid_changing_the_url_of_your_service_worker_script
-        addURLDependency(asset, ast, args[0], {
+        let opts = {
           isEntry: true,
           env: {context: 'service-worker'},
-        });
-        return;
+        };
+
+        if (types.isStringLiteral(args[0])) {
+          let specifier = args[0];
+          let loc = convertBabelLoc(node.loc);
+          logger.warn({
+            message:
+              'Calling navigator.serviceWorker.register with a string literal is deprecated.',
+            filePath: loc?.filePath,
+            ...(loc && {
+              codeFrame: {
+                codeHighlights: [{start: loc.start, end: loc.end}],
+              },
+            }),
+            hints: [
+              `Replace with: navigator.serviceWorker.register(new URL('${specifier.value}', import.meta.url))`,
+            ],
+          });
+          addURLDependency(asset, ast, specifier, opts);
+          return;
+        } else {
+          let url = parseImportMetaUrl(args[0], ancestors);
+          if (url) {
+            let loc = convertBabelLoc(args[0].loc);
+            if (loc) {
+              opts = {
+                ...opts,
+                loc,
+              };
+            }
+            asset.addURLDependency(url, opts);
+
+            morph(
+              args[0],
+              types.callExpression(types.identifier('require'), [
+                types.stringLiteral(url),
+              ]),
+            );
+            asset.setAST(ast);
+            return;
+          }
+        }
       }
 
       let isImportScripts =
@@ -158,48 +231,126 @@ export default ({
   },
 
   NewExpression: {
-    exit(node, {asset, ast}, ancestors) {
+    exit(node: NewExpression, {asset, ast, logger}, ancestors) {
       let {callee, arguments: args} = node;
-
-      let isWebWorker =
-        callee.type === 'Identifier' &&
-        (callee.name === 'Worker' || callee.name === 'SharedWorker') &&
-        !hasBinding(ancestors, callee.name) &&
-        !isInFalsyBranch(ancestors) &&
-        types.isStringLiteral(args[0]) &&
-        (args.length === 1 || args.length === 2);
-
-      if (isWebWorker) {
-        let isModule = false;
-        if (types.isObjectExpression(args[1])) {
-          let prop = args[1].properties.find(v =>
-            types.isIdentifier(v.key, {name: 'type'}),
-          );
-          if (prop && types.isStringLiteral(prop.value))
-            isModule = prop.value.value === 'module';
+      if (callee.type === 'Identifier') {
+        let url = parseImportMetaUrl(node, ancestors);
+        if (url != null) {
+          // `new Worker(new URL(...))` is handled in the parent `new Worker` node below
+          let parent = ancestors[ancestors.length - 2];
+          if (
+            !(
+              isNewExpression(parent) &&
+              isIdentifier(parent.callee) &&
+              isWebWorkerConstruction(
+                parent.callee,
+                parent.arguments,
+                ancestors,
+              )
+            )
+          ) {
+            let loc = convertBabelLoc(node.loc);
+            asset.addURLDependency(url, loc ? {loc} : {});
+            morph(
+              node,
+              types.callExpression(types.identifier('require'), [
+                types.stringLiteral(url),
+              ]),
+            );
+            return;
+          }
         }
 
-        addURLDependency(asset, ast, args[0], {
-          env: {
-            context: 'web-worker',
-            outputFormat:
-              isModule && asset.env.scopeHoist ? 'esmodule' : undefined,
-          },
-          meta: {
-            webworker: true,
-          },
-        });
-        return;
+        if (
+          isWebWorkerConstruction(callee, args, ancestors) &&
+          !isInFalsyBranch(ancestors)
+        ) {
+          let isModule = false;
+          if (isObjectExpression(args[1])) {
+            // $FlowFixMe[incompatible-type]
+            let prop: ObjectProperty = args[1].properties.find(
+              v => isObjectProperty(v) && isIdentifier(v.key, {name: 'type'}),
+            );
+            if (prop && isStringLiteral(prop.value)) {
+              isModule = prop.value.value === 'module';
+            }
+          }
+
+          let opts = {
+            env: {
+              context: 'web-worker',
+              outputFormat:
+                isModule && asset.env.shouldScopeHoist ? 'esmodule' : undefined,
+            },
+            meta: {
+              webworker: true,
+            },
+          };
+
+          if (isStringLiteral(args[0])) {
+            let specifier = args[0];
+            let loc = convertBabelLoc(node.loc);
+            logger.warn({
+              message:
+                'Calling the Worker constructor with a string literal is deprecated.',
+              filePath: loc?.filePath,
+              ...(loc && {
+                codeFrame: {
+                  codeHighlights: [{start: loc.start, end: loc.end}],
+                },
+              }),
+              hints: [
+                `Replace with: new Worker(new URL('${specifier.value}', import.meta.url))`,
+              ],
+            });
+            addURLDependency(asset, ast, specifier, opts);
+            return;
+          } else {
+            let url = parseImportMetaUrl(args[0], ancestors);
+            if (url != null) {
+              let loc = convertBabelLoc(args[0].loc);
+              if (loc) {
+                opts = {
+                  ...opts,
+                  loc,
+                };
+              }
+              asset.addURLDependency(url, opts);
+
+              morph(
+                args[0],
+                types.callExpression(types.identifier('require'), [
+                  types.stringLiteral(url),
+                ]),
+              );
+              asset.setAST(ast);
+              return;
+            }
+          }
+        }
       }
     },
   },
 }: SimpleVisitors<
   (
     any,
-    {|asset: MutableAsset, ast: AST, options: PluginOptions|},
+    {|
+      asset: MutableAsset,
+      ast: AST,
+      options: PluginOptions,
+      logger: PluginLogger,
+    |},
     Array<Node>,
   ) => void,
 >);
+
+function isWebWorkerConstruction(callee: Identifier, args, ancestors) {
+  return (
+    (callee.name === 'Worker' || callee.name === 'SharedWorker') &&
+    !hasBinding(ancestors, callee.name) &&
+    (args.length === 1 || args.length === 2)
+  );
+}
 
 // TypeScript, Rollup, and Parcel itself generate these patterns for async imports in CommonJS
 //   1. TypeScript - Promise.resolve().then(function () { return require(...) })
@@ -331,14 +482,17 @@ function addDependency(
 function addURLDependency(
   asset: MutableAsset,
   ast: AST,
-  node,
+  node: StringLiteral,
   opts: $Shape<DependencyOptions> = {},
 ) {
   let url = node.value;
-  asset.addURLDependency(url, {
-    loc: node.loc && createDependencyLocation(node.loc.start, node.value, 0, 1),
-    ...opts,
-  });
+  if (node.loc) {
+    opts = {
+      ...opts,
+      loc: createDependencyLocation(node.loc.start, node.value, 0, 1),
+    };
+  }
+  asset.addURLDependency(url, opts);
 
   morph(
     node,

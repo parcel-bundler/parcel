@@ -4,10 +4,17 @@ import assert from 'assert';
 import path from 'path';
 import tempy from 'tempy';
 import {inputFS as fs} from '@parcel/test-utils';
+import {md} from '@parcel/diagnostic';
 import {TargetResolver} from '../src/requests/TargetRequest';
 import {DEFAULT_OPTIONS as _DEFAULT_OPTIONS} from './test-utils';
 
-const DEFAULT_OPTIONS = {..._DEFAULT_OPTIONS, sourceMaps: true};
+const DEFAULT_OPTIONS = {
+  ..._DEFAULT_OPTIONS,
+  defaultTargetOptions: {
+    ..._DEFAULT_OPTIONS.defaultTargetOptions,
+    sourceMaps: true,
+  },
+};
 
 const COMMON_TARGETS_FIXTURE_PATH = path.join(
   __dirname,
@@ -79,6 +86,10 @@ describe('TargetResolver', () => {
     canSkipSubrequest() {
       return false;
     },
+    getRequestResult() {},
+    getSubRequests() {
+      return [];
+    },
   };
 
   it('resolves exactly specified targets', async () => {
@@ -107,7 +118,7 @@ describe('TargetResolver', () => {
           publicUrl: '/',
           distDir: path.resolve('customA'),
           env: {
-            id: '3a388f310262014289e03f9c7f9b5f89',
+            id: '1c8faadcd7aa7f220fe2e7aa726b28ea', // ATLASSIAN: env id is different because of stable entries
             context: 'browser',
             includeNodeModules: true,
             engines: {
@@ -115,8 +126,8 @@ describe('TargetResolver', () => {
             },
             outputFormat: 'global',
             isLibrary: false,
-            minify: false,
-            scopeHoist: false,
+            shouldOptimize: false,
+            shouldScopeHoist: false,
             sourceMap: {},
           },
         },
@@ -126,7 +137,7 @@ describe('TargetResolver', () => {
           distEntry: 'b.js',
           distDir: path.resolve('customB'),
           env: {
-            id: '4559f7921c0a7b09da3f6eb971f0ea01',
+            id: 'dc9a4a2483865510f066a3e49cc2471c',
             context: 'node',
             includeNodeModules: false,
             engines: {
@@ -134,8 +145,8 @@ describe('TargetResolver', () => {
             },
             outputFormat: 'commonjs',
             isLibrary: false,
-            minify: false,
-            scopeHoist: false,
+            shouldOptimize: false,
+            shouldScopeHoist: false,
             sourceMap: {},
           },
         },
@@ -155,7 +166,7 @@ describe('TargetResolver', () => {
           distEntry: 'index.js',
           publicUrl: '/',
           env: {
-            id: 'ec23842ff2fa38818f6e0b633f6a1e18',
+            id: 'fe07c14b7535066dde2888f40042458f',
             context: 'node',
             engines: {
               node: '>= 8.0.0',
@@ -163,8 +174,8 @@ describe('TargetResolver', () => {
             includeNodeModules: false,
             outputFormat: 'commonjs',
             isLibrary: true,
-            minify: false,
-            scopeHoist: false,
+            shouldOptimize: false,
+            shouldScopeHoist: false,
             sourceMap: {},
           },
           loc: {
@@ -185,7 +196,7 @@ describe('TargetResolver', () => {
           distEntry: 'index.js',
           publicUrl: '/',
           env: {
-            id: 'bc55a97ffdae1e8edc4db8922682897a',
+            id: '940e78349973f342d8f7dd828fc8e48a',
             context: 'browser',
             engines: {
               browsers: ['last 1 version'],
@@ -193,8 +204,8 @@ describe('TargetResolver', () => {
             includeNodeModules: false,
             outputFormat: 'esmodule',
             isLibrary: true,
-            minify: false,
-            scopeHoist: false,
+            shouldOptimize: false,
+            shouldScopeHoist: false,
             sourceMap: {
               inlineSources: true,
             },
@@ -217,7 +228,7 @@ describe('TargetResolver', () => {
           distEntry: 'index.js',
           publicUrl: '/assets',
           env: {
-            id: 'c2bfd1627da4aacbbd539b545c4a8eab',
+            id: 'b03ffef03e4414d90f51ae18744452d0',
             context: 'browser',
             engines: {
               browsers: ['last 1 version'],
@@ -225,8 +236,8 @@ describe('TargetResolver', () => {
             includeNodeModules: false,
             outputFormat: 'commonjs',
             isLibrary: true,
-            minify: false,
-            scopeHoist: false,
+            shouldOptimize: false,
+            shouldScopeHoist: false,
             sourceMap: {},
           },
           loc: {
@@ -258,7 +269,7 @@ describe('TargetResolver', () => {
           publicUrl: '/',
           stableEntries: undefined,
           env: {
-            id: '19ef13a8424764abaf7be15b77523770',
+            id: '3586553556d47b982077a1832d4bbcb7',
             context: 'node',
             engines: {
               node: '>= 8.0.0',
@@ -266,8 +277,8 @@ describe('TargetResolver', () => {
             includeNodeModules: false,
             outputFormat: 'commonjs',
             isLibrary: false,
-            minify: false,
-            scopeHoist: false,
+            shouldOptimize: false,
+            shouldScopeHoist: false,
             sourceMap: undefined,
           },
           loc: {
@@ -300,7 +311,7 @@ describe('TargetResolver', () => {
           distEntry: 'index.js',
           publicUrl: '/',
           env: {
-            id: 'ec23842ff2fa38818f6e0b633f6a1e18',
+            id: 'fe07c14b7535066dde2888f40042458f',
             context: 'node',
             engines: {
               node: '>= 8.0.0',
@@ -308,8 +319,8 @@ describe('TargetResolver', () => {
             includeNodeModules: false,
             outputFormat: 'commonjs',
             isLibrary: true,
-            minify: false,
-            scopeHoist: false,
+            shouldOptimize: false,
+            shouldScopeHoist: false,
             sourceMap: {},
           },
           loc: {
@@ -334,7 +345,7 @@ describe('TargetResolver', () => {
           publicUrl: '/',
           stableEntries: undefined,
           env: {
-            id: 'ef90d3ac2fd5c6eb8f490101ffefa418',
+            id: '0a5943110ae4c7409297a8354eda8472',
             context: 'browser',
             engines: {
               browsers: ['last 1 version'],
@@ -342,8 +353,8 @@ describe('TargetResolver', () => {
             includeNodeModules: true,
             outputFormat: 'global',
             isLibrary: false,
-            minify: false,
-            scopeHoist: false,
+            shouldOptimize: false,
+            shouldScopeHoist: false,
             sourceMap: {},
           },
           loc: {
@@ -368,7 +379,7 @@ describe('TargetResolver', () => {
           publicUrl: '/',
           stableEntries: undefined,
           env: {
-            id: '9a6bcf3d6126341188863df3af3392ea',
+            id: '05807bcdb63dc13bac45ec42c6b60f3f',
             context: 'browser',
             engines: {
               browsers: ['ie11'],
@@ -376,8 +387,8 @@ describe('TargetResolver', () => {
             includeNodeModules: true,
             outputFormat: 'global',
             isLibrary: false,
-            minify: false,
-            scopeHoist: false,
+            shouldOptimize: false,
+            shouldScopeHoist: false,
             sourceMap: {},
           },
           loc: {
@@ -407,7 +418,7 @@ describe('TargetResolver', () => {
           distEntry: undefined,
           publicUrl: 'www',
           env: {
-            id: '9217a79b78c7fc9156733770bb942dbc',
+            id: '8946d45796e0b98a1f2a0bd41399753c',
             context: 'browser',
             engines: {
               browsers: '> 0.25%',
@@ -415,12 +426,93 @@ describe('TargetResolver', () => {
             includeNodeModules: true,
             outputFormat: 'global',
             isLibrary: false,
-            minify: false,
-            scopeHoist: false,
+            shouldOptimize: false,
+            shouldScopeHoist: false,
             sourceMap: {},
           },
           loc: undefined,
           stableEntries: undefined,
+        },
+      ],
+    );
+  });
+
+  it('skips targets with custom entry source for default entry', async () => {
+    let targetResolver = new TargetResolver(api, {
+      ...DEFAULT_OPTIONS,
+      targets: {
+        customA: {
+          context: 'browser',
+          distDir: 'customA',
+          source: 'customA/index.js',
+        },
+        customB: {
+          distDir: 'customB',
+        },
+      },
+    });
+
+    assert.deepEqual(
+      await targetResolver.resolve(COMMON_TARGETS_FIXTURE_PATH),
+      [
+        {
+          name: 'customB',
+          distDir: path.resolve('customB'),
+          publicUrl: '/',
+          env: {
+            id: '1c8faadcd7aa7f220fe2e7aa726b28ea', // ATLASSIAN: env id is different because of stable entries
+            context: 'browser',
+            engines: {
+              browsers: ['> 0.25%'],
+            },
+            includeNodeModules: true,
+            outputFormat: 'global',
+            isLibrary: false,
+            shouldOptimize: false,
+            shouldScopeHoist: false,
+            sourceMap: {},
+          },
+        },
+      ],
+    );
+  });
+
+  it('skips other targets with custom entry', async () => {
+    let targetResolver = new TargetResolver(api, {
+      ...DEFAULT_OPTIONS,
+      targets: {
+        customA: {
+          context: 'browser',
+          distDir: 'customA',
+          source: 'customA/index.js',
+        },
+        customB: {
+          distDir: 'customB',
+        },
+      },
+    });
+
+    assert.deepEqual(
+      await targetResolver.resolve(COMMON_TARGETS_FIXTURE_PATH, 'customA'),
+      [
+        {
+          name: 'customA',
+          distDir: path.resolve('customA'),
+          publicUrl: '/',
+          env: {
+            id: '1c8faadcd7aa7f220fe2e7aa726b28ea', // ATLASSIAN: env id is different because of stable entries
+            context: 'browser',
+            engines: {
+              browsers: ['> 0.25%'],
+            },
+            includeNodeModules: true,
+            outputFormat: 'global',
+            isLibrary: false,
+            shouldOptimize: false,
+            shouldScopeHoist: false,
+            sourceMap: {},
+          },
+          source: 'customA/index.js',
         },
       ],
     );
@@ -435,14 +527,14 @@ describe('TargetResolver', () => {
         distEntry: 'index.js',
         publicUrl: '/',
         env: {
-          id: 'e3800e7ac211bf8d34912a79cb1b230b',
+          id: 'c4fa7024d613d610ab00f97462639b5c',
           context: 'node',
           engines: {},
           includeNodeModules: false,
           isLibrary: true,
           outputFormat: 'commonjs',
-          minify: false,
-          scopeHoist: false,
+          shouldOptimize: false,
+          shouldScopeHoist: false,
           sourceMap: {},
         },
         loc: {
@@ -470,14 +562,14 @@ describe('TargetResolver', () => {
         distEntry: 'index.html',
         publicUrl: '/',
         env: {
-          id: 'e8dc65d0d478655a1bc4ed2f67a83963',
+          id: '1be6b89f22ec2d705ed9f68c4af45288',
           context: 'browser',
           engines: {},
           includeNodeModules: true,
           isLibrary: false,
           outputFormat: 'global',
-          minify: false,
-          scopeHoist: false,
+          shouldOptimize: false,
+          shouldScopeHoist: false,
           sourceMap: {},
         },
         loc: {
@@ -510,7 +602,7 @@ describe('TargetResolver', () => {
           distEntry: 'index.js',
           publicUrl: '/',
           env: {
-            id: 'ec23842ff2fa38818f6e0b633f6a1e18',
+            id: 'fe07c14b7535066dde2888f40042458f',
             context: 'node',
             engines: {
               node: '>= 8.0.0',
@@ -518,8 +610,8 @@ describe('TargetResolver', () => {
             includeNodeModules: false,
             outputFormat: 'commonjs',
             isLibrary: true,
-            minify: false,
-            scopeHoist: false,
+            shouldOptimize: false,
+            shouldScopeHoist: false,
             sourceMap: {},
           },
           loc: {
@@ -540,7 +632,7 @@ describe('TargetResolver', () => {
           distEntry: 'index.js',
           publicUrl: '/assets',
           env: {
-            id: 'c2bfd1627da4aacbbd539b545c4a8eab',
+            id: 'b03ffef03e4414d90f51ae18744452d0',
             context: 'browser',
             engines: {
               browsers: ['last 1 version'],
@@ -548,8 +640,8 @@ describe('TargetResolver', () => {
             includeNodeModules: false,
             outputFormat: 'commonjs',
             isLibrary: true,
-            minify: false,
-            scopeHoist: false,
+            shouldOptimize: false,
+            shouldScopeHoist: false,
             sourceMap: {},
           },
           loc: {
@@ -584,14 +676,14 @@ describe('TargetResolver', () => {
           distDir: serveDistDir,
           publicUrl: '/',
           env: {
-            id: 'e8dc65d0d478655a1bc4ed2f67a83963',
+            id: '1be6b89f22ec2d705ed9f68c4af45288',
             context: 'browser',
             engines: {},
             includeNodeModules: true,
             outputFormat: 'global',
             isLibrary: false,
-            minify: false,
-            scopeHoist: false,
+            shouldOptimize: false,
+            shouldScopeHoist: false,
             sourceMap: {},
           },
         },
@@ -610,7 +702,7 @@ describe('TargetResolver', () => {
           distDir: path.join(DEFAULT_DISTPATH_FIXTURE_PATHS.none, 'dist'),
           publicUrl: '/',
           env: {
-            id: '37f838420aa6354df1bfcbb0c1635dd4',
+            id: '245496e01cea968d2cab3768ff9aaacf',
             context: 'browser',
             engines: {
               browsers: ['Chrome 80'],
@@ -618,8 +710,8 @@ describe('TargetResolver', () => {
             includeNodeModules: true,
             outputFormat: 'global',
             isLibrary: false,
-            minify: false,
-            scopeHoist: false,
+            shouldOptimize: false,
+            shouldScopeHoist: false,
             sourceMap: {},
           },
         },
@@ -639,7 +731,7 @@ describe('TargetResolver', () => {
           distEntry: undefined,
           publicUrl: '/',
           env: {
-            id: '37f838420aa6354df1bfcbb0c1635dd4',
+            id: '245496e01cea968d2cab3768ff9aaacf',
             context: 'browser',
             engines: {
               browsers: ['Chrome 80'],
@@ -647,8 +739,8 @@ describe('TargetResolver', () => {
             includeNodeModules: true,
             outputFormat: 'global',
             isLibrary: false,
-            minify: false,
-            scopeHoist: false,
+            shouldOptimize: false,
+            shouldScopeHoist: false,
             sourceMap: {},
           },
           loc: undefined,
@@ -674,7 +766,7 @@ describe('TargetResolver', () => {
           distEntry: undefined,
           publicUrl: '/',
           env: {
-            id: 'ef90d3ac2fd5c6eb8f490101ffefa418',
+            id: '0a5943110ae4c7409297a8354eda8472',
             context: 'browser',
             engines: {
               browsers: ['last 1 version'],
@@ -682,8 +774,8 @@ describe('TargetResolver', () => {
             includeNodeModules: true,
             outputFormat: 'global',
             isLibrary: false,
-            minify: false,
-            scopeHoist: false,
+            shouldOptimize: false,
+            shouldScopeHoist: false,
             sourceMap: {},
           },
           loc: undefined,
@@ -699,7 +791,7 @@ describe('TargetResolver', () => {
           distEntry: undefined,
           publicUrl: '/',
           env: {
-            id: 'a89cd464584e64e2a177364426d188f4',
+            id: '0968da8dca39c8653179c67b2753046a',
             context: 'browser',
             engines: {
               browsers: ['IE 11'],
@@ -707,8 +799,8 @@ describe('TargetResolver', () => {
             includeNodeModules: true,
             outputFormat: 'global',
             isLibrary: false,
-            minify: false,
-            scopeHoist: false,
+            shouldOptimize: false,
+            shouldScopeHoist: false,
             sourceMap: {},
           },
           loc: undefined,
@@ -933,7 +1025,7 @@ describe('TargetResolver', () => {
     await assert.rejects(() => targetResolver.resolve(fixture), {
       diagnostics: [
         {
-          message: `Multiple targets have the same destination path "${path.normalize(
+          message: md`Multiple targets have the same destination path "${path.normalize(
             'dist/index.js',
           )}"`,
           origin: '@parcel/core',

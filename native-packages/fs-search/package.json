@@ -26,5 +26,8 @@
   "scripts": {
     "build": "napi build --platform",
     "build-release": "napi build --platform --release"
+  },
+  "dependencies": {
+    "detect-libc": "^1.0.3"
   }
 }

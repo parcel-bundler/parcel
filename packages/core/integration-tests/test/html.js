@@ -76,6 +76,36 @@ describe('html', function() {
     assert.equal(value, 'Hi');
   });
 
+  it('should support pkg#source array as entrypoints', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-pkg-source-array'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'a.html',
+        assets: ['a.html'],
+      },
+      {
+        name: 'b.html',
+        assets: ['b.html'],
+      },
+    ]);
+
+    assert(
+      await outputFS.exists(
+        path.join(distDir, 'html-pkg-source-array/a.html'),
+        'utf8',
+      ),
+    );
+    assert(
+      await outputFS.exists(
+        path.join(distDir, 'html-pkg-source-array/b.html'),
+        'utf8',
+      ),
+    );
+  });
+
   it('should find href attr when not first', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-attr-order/index.html'),
@@ -390,7 +420,9 @@ describe('html', function() {
   it('should minify HTML in production mode', async function() {
     let inputFile = path.join(__dirname, '/integration/htmlnano/index.html');
     await bundle(inputFile, {
-      minify: true,
+      defaultTargetOptions: {
+        shouldOptimize: true,
+      },
     });
 
     let inputSize = (await inputFS.stat(inputFile)).size;
@@ -407,7 +439,9 @@ describe('html', function() {
   it('should work with an empty html file', async function() {
     let inputFile = path.join(__dirname, '/integration/html-empty/index.html');
     await bundle(inputFile, {
-      minify: false,
+      defaultTargetOptions: {
+        shouldOptimize: false,
+      },
     });
 
     let outputFile = path.join(distDir, 'index.html');
@@ -419,7 +453,9 @@ describe('html', function() {
     await bundle(
       path.join(__dirname, '/integration/htmlnano-config/index.html'),
       {
-        minify: true,
+        defaultTargetOptions: {
+          shouldOptimize: true,
+        },
       },
     );
 
@@ -456,7 +492,9 @@ describe('html', function() {
       '/integration/htmlnano-defaults-form/index.html',
     );
     await bundle(inputFile, {
-      minify: true,
+      defaultTargetOptions: {
+        shouldOptimize: true,
+      },
     });
 
     let inputSize = (await inputFS.stat(inputFile)).size;
@@ -835,7 +873,11 @@ describe('html', function() {
   it('should process inline JS', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-inline-js/index.html'),
-      {minify: true},
+      {
+        defaultTargetOptions: {
+          shouldOptimize: true,
+        },
+      },
     );
 
     // inline bundles are not output, but are apart of the bundleGraph
@@ -862,7 +904,11 @@ describe('html', function() {
   it('should process inline styles', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-inline-styles/index.html'),
-      {minify: true},
+      {
+        defaultTargetOptions: {
+          shouldOptimize: true,
+        },
+      },
     );
 
     assertBundles(b, [
@@ -895,6 +941,19 @@ describe('html', function() {
         assets: ['index.html'],
       },
     ]);
+
+    let bundles = b.getBundles();
+
+    let html = await outputFS.readFile(
+      bundles.find(bundle => bundle.type === 'html').filePath,
+      'utf8',
+    );
+
+    let urls = [...html.matchAll(/url\(([^)]*)\)/g)].map(m => m[1]);
+    assert.strictEqual(urls.length, 2);
+    for (let url of urls) {
+      assert(bundles.find(bundle => path.basename(bundle.filePath) === url));
+    }
   });
 
   it('should process inline element styles', async function() {
@@ -929,7 +988,11 @@ describe('html', function() {
   it('should process inline styles using lang', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-inline-sass/index.html'),
-      {minify: true},
+      {
+        defaultTargetOptions: {
+          shouldOptimize: true,
+        },
+      },
     );
 
     assertBundles(b, [
@@ -954,7 +1017,11 @@ describe('html', function() {
   it('should process inline non-js scripts', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-inline-coffeescript/index.html'),
-      {minify: true},
+      {
+        defaultTargetOptions: {
+          shouldOptimize: true,
+        },
+      },
     );
 
     assertBundles(b, [
@@ -1001,7 +1068,7 @@ describe('html', function() {
   it('should not modify inline importmaps', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-inline-importmap/index.html'),
-      {production: true},
+      {},
     );
 
     assertBundles(b, [
@@ -1018,7 +1085,11 @@ describe('html', function() {
   it('should allow imports and requires in inline <script> tags', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-inline-js-require/index.html'),
-      {minify: true},
+      {
+        defaultTargetOptions: {
+          shouldOptimize: true,
+        },
+      },
     );
 
     assertBundles(b, [
@@ -1064,7 +1135,11 @@ describe('html', function() {
   it('should support inline <script type="module">', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-inline-js-module/index.html'),
-      {scopeHoist: true},
+      {
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
+      },
     );
 
     assertBundles(b, [
@@ -1092,7 +1167,12 @@ describe('html', function() {
         __dirname,
         '/integration/html-js-shared-dynamic-nested/index.html',
       ),
-      {mode: 'production', scopeHoist: true},
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
+      },
     );
 
     assertBundles(b, [
@@ -1128,7 +1208,13 @@ describe('html', function() {
   it('should support shared bundles between multiple inline scripts', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-inline-js-shared/index.html'),
-      {mode: 'production', scopeHoist: true, minify: false},
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+          shouldOptimize: false,
+        },
+      },
     );
 
     assertBundles(b, [
@@ -1164,7 +1250,12 @@ describe('html', function() {
   it.skip('inserts sibling bundles into html in the correct order (no head)', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-js-shared/index.html'),
-      {mode: 'production', scopeHoist: true},
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
+      },
     );
 
     assertBundles(b, [
@@ -1226,7 +1317,12 @@ describe('html', function() {
   it.skip('inserts sibling bundles into html in the correct order (head)', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-js-shared-head/index.html'),
-      {mode: 'production', scopeHoist: true},
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
+      },
     );
 
     assertBundles(b, [
@@ -1287,7 +1383,11 @@ describe('html', function() {
   it('should support multiple entries with shared sibling bundles', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/shared-sibling-entries/*.html'),
-      {scopeHoist: true},
+      {
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
+      },
     );
 
     assertBundles(b, [
@@ -1341,7 +1441,13 @@ describe('html', function() {
         __dirname,
         'integration/scope-hoisting/es6/interop-async/index.html',
       ),
-      {mode: 'production', scopeHoist: true, minify: false},
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+          shouldOptimize: false,
+        },
+      },
     );
     let bundles = b.getBundles();
 
@@ -1373,7 +1479,11 @@ describe('html', function() {
         __dirname,
         '/integration/shared-sibling-entries-multiple/*.html',
       ),
-      {scopeHoist: true},
+      {
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
+      },
     );
 
     // a.html should point to a CSS bundle containing a.css as well as
@@ -1431,15 +1541,19 @@ describe('html', function() {
     });
 
     let html = await outputFS.readFile(path.join(distDir, 'a.html'), 'utf8');
+    // ATLASSIAN : number of bundles are different due to additional rules
     assert.equal(html.match(/<script/g).length, 3);
 
     html = await outputFS.readFile(path.join(distDir, 'b.html'), 'utf8');
+    // ATLASSIAN : number of bundles are different due to additional rules
     assert.equal(html.match(/<script/g).length, 5);
 
     html = await outputFS.readFile(path.join(distDir, 'c.html'), 'utf8');
+    // ATLASSIAN : number of bundles are different due to additional rules
     assert.equal(html.match(/<script/g).length, 4);
 
     html = await outputFS.readFile(path.join(distDir, 'd.html'), 'utf8');
+    // ATLASSIAN : number of bundles are different due to additional rules
     assert.equal(html.match(/<script/g).length, 3);
 
     html = await outputFS.readFile(path.join(distDir, 'e.html'), 'utf8');
@@ -1475,14 +1589,11 @@ describe('html', function() {
         type: 'js',
         assets: [
           'a.js',
-          'bundle-manifest.js',
           'bundle-url.js',
           'esmodule-helpers.js',
           'get-worker-url.js',
           'index.js',
           'JSRuntime.js',
-          'JSRuntime.js',
-          'relative-path.js',
         ],
       },
     ]);
@@ -1576,7 +1687,9 @@ describe('html', function() {
 
   it('should support split bundles with many pages with esmodule output', async function() {
     await bundle(path.join(__dirname, '/integration/shared-many-esm/*.html'), {
-      scopeHoist: true,
+      defaultTargetOptions: {
+        shouldScopeHoist: true,
+      },
     });
 
     let checkHtml = async filename => {
@@ -1614,7 +1727,11 @@ describe('html', function() {
   it('should include the correct paths when using multiple entries and referencing style from html and js', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-multi-entry/*.html'),
-      {scopeHoist: true},
+      {
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
+      },
     );
 
     assertBundles(b, [
@@ -1689,7 +1806,9 @@ describe('html', function() {
       {
         inputFS: overlayFS,
         shouldDisableCache: false,
-        distDir,
+        defaultTargetOptions: {
+          distDir,
+        },
       },
     );
 
@@ -1723,7 +1842,9 @@ describe('html', function() {
       {
         inputFS: overlayFS,
         shouldDisableCache: false,
-        distDir,
+        defaultTargetOptions: {
+          distDir,
+        },
       },
     );
 
@@ -1750,7 +1871,9 @@ describe('html', function() {
     let b = await bundle(
       path.join(__dirname, '/integration/data-url/index.html'),
       {
-        sourceMaps: false,
+        defaultTargetOptions: {
+          sourceMaps: false,
+        },
       },
     );
 
@@ -1762,5 +1885,38 @@ describe('html', function() {
       contents.trim(),
       `<img src="data:image/svg+xml,%3Csvg%20width%3D%22120%22%20height%3D%27120%27%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%0A%20%20%3Cfilter%20id%3D%22blur-_.%21~%2a%22%3E%0A%20%20%20%20%3CfeGaussianBlur%20stdDeviation%3D%225%22%2F%3E%0A%20%20%3C%2Ffilter%3E%0A%20%20%3Ccircle%20cx%3D%2260%22%20cy%3D%2260%22%20r%3D%2250%22%20fill%3D%22green%22%20filter%3D%22url%28%23blur-_.%21~%2a%29%22%20%2F%3E%0A%3C%2Fsvg%3E%0A">`,
     );
+  });
+
+  it('should print a diagnostic for invalid bundler options', async () => {
+    let dir = path.join(__dirname, 'integration/invalid-bundler-config');
+    let pkg = path.join(dir, 'package.json');
+    let code = await inputFS.readFileSync(pkg, 'utf8');
+    await assert.rejects(() => bundle(path.join(dir, 'index.html')), {
+      name: 'BuildError',
+      diagnostics: [
+        {
+          message: 'Invalid config for @parcel/bundler-default',
+          origin: '@parcel/bundler-default',
+          filePath: pkg,
+          language: 'json',
+          codeFrame: {
+            code,
+            codeHighlights: [
+              {
+                message: 'Did you mean "minBundleSize", "minBundles"?',
+                start: {
+                  column: 30,
+                  line: 3,
+                },
+                end: {
+                  column: 45,
+                  line: 3,
+                },
+              },
+            ],
+          },
+        },
+      ],
+    });
   });
 });

@@ -10,22 +10,7 @@ import syncDynamicImportPlugin from './babel/babel-plugin-sync-dynamic-import';
 
 const transformerVersion: mixed = packageJson.version;
 
-const IMPORT_RE = /\b(?:import\b|export\b|require\s*\()/;
-const ENV_RE = /\b(?:process\.env)\b/;
-const BROWSER_RE = /\b(?:process\.browser)\b/;
-const GLOBAL_RE = /\b(?:process|__dirname|__filename|global|Buffer|define)\b/;
-const FS_RE = /\breadFileSync\b/;
-const SW_RE = /\bnavigator\s*\.\s*serviceWorker\s*\.\s*register\s*\(/;
-const WORKER_RE = /\bnew\s*(?:Shared)?Worker\s*\(/;
-
-function canHaveDependencies(code) {
-  return (
-    IMPORT_RE.test(code) ||
-    GLOBAL_RE.test(code) ||
-    SW_RE.test(code) ||
-    WORKER_RE.test(code)
-  );
-}
+const IMPORT_RE = /\bimport\b/;
 
 export default (new Transformer({
   canReuseAST({ast}) {
@@ -34,13 +19,7 @@ export default (new Transformer({
 
   async parse({asset, options}) {
     let code = await asset.getCode();
-    if (
-      !asset.env.scopeHoist &&
-      !canHaveDependencies(code) &&
-      !ENV_RE.test(code) &&
-      !BROWSER_RE.test(code) &&
-      !FS_RE.test(code)
-    ) {
+    if (!IMPORT_RE.test(code)) {
       return null;
     }
 

@@ -19,6 +19,7 @@ import {
 } from '@babel/types';
 import invariant from 'assert';
 import Path from 'path';
+import nullthrows from 'nullthrows';
 import template from '@babel/template';
 import {errorToDiagnostic} from '@parcel/diagnostic';
 import {convertBabelLoc} from '@parcel/babel-ast-utils';
@@ -67,7 +68,7 @@ export default ({
 
           filename = Path.resolve(filename);
           if (!Path.relative(options.projectRoot, filename).startsWith('..')) {
-            res = options.inputFS.readFileSync(filename, ...args);
+            res = options.inputFS.readFileSync(nullthrows(filename), ...args);
           }
         } catch (_err) {
           let err: Error = _err;
@@ -209,12 +210,14 @@ function referencesImport(path: NodePath<CallExpression>, name, method) {
     return;
   }
 
-  let bindingNode: Node = bindingPath.getData('__require') || bindingPath.node;
-  let parent: Node = bindingPath.parent;
+  let _bindingPath = bindingPath; // For Flow
+  let bindingNode: Node =
+    _bindingPath.getData('__require') || _bindingPath.node;
+  let parent: Node = _bindingPath.parent;
 
   if (isImportDeclaration(parent)) {
     // e.g. import fs from 'fs';
-    let {node: bindingPathNode} = bindingPath;
+    let {node: bindingPathNode} = _bindingPath;
     if (
       isImportSpecifier(bindingPathNode) &&
       bindingPathNode.imported.name !== method

@@ -1,86 +1,48 @@
 // @flow strict-local
 
-import type {FilePath, Glob, PackageName, ConfigResult} from '@parcel/types';
+import type {
+  FileCreateInvalidation,
+  FilePath,
+  PackageName,
+  ConfigResult,
+  DevDepOptions,
+} from '@parcel/types';
+import {md5FromString} from '@parcel/utils';
 import type {Config, Environment} from './types';
 
 type ConfigOpts = {|
+  plugin: PackageName,
   isSource: boolean,
   searchPath: FilePath,
   env: Environment,
   result?: ConfigResult,
   includedFiles?: Set<FilePath>,
-  watchGlob?: Glob,
-  devDeps?: Map<PackageName, ?string>,
-  shouldRehydrate?: boolean,
-  shouldReload?: boolean,
+  invalidateOnFileCreate?: Array<FileCreateInvalidation>,
+  devDeps?: Array<DevDepOptions>,
   shouldInvalidateOnStartup?: boolean,
 |};
 
 export function createConfig({
+  plugin,
   isSource,
   searchPath,
   env,
   result,
   includedFiles,
-  watchGlob,
+  invalidateOnFileCreate,
   devDeps,
-  shouldRehydrate,
-  shouldReload,
   shouldInvalidateOnStartup,
 }: ConfigOpts): Config {
   return {
+    id: md5FromString(plugin + searchPath + env.id + String(isSource)),
     isSource,
     searchPath,
     env,
     result: result ?? null,
     resultHash: null,
     includedFiles: includedFiles ?? new Set(),
-    pkg: null,
-    pkgFilePath: null,
-    watchGlob,
-    devDeps: devDeps ?? new Map(),
-    shouldRehydrate: shouldRehydrate ?? false,
-    shouldReload: shouldReload ?? false,
+    invalidateOnFileCreate: invalidateOnFileCreate ?? [],
+    devDeps: devDeps ?? [],
     shouldInvalidateOnStartup: shouldInvalidateOnStartup ?? false,
   };
-}
-
-export function addDevDependency(
-  config: Config,
-  name: PackageName,
-  version?: string,
-) {
-  config.devDeps.set(name, version);
-}
-
-// TODO: start using edge types for more flexible invalidations
-export function getInvalidations(
-  config: Config,
-): Array<
-  | {|action: 'add', pattern: Glob|}
-  | {|action: 'change', pattern: FilePath|}
-  | {|action: 'unlink', pattern: FilePath|},
-> {
-  let invalidations = [];
-
-  if (config.watchGlob != null) {
-    invalidations.push({
-      action: 'add',
-      pattern: config.watchGlob,
-    });
-  }
-
-  for (let filePath of config.includedFiles) {
-    invalidations.push({
-      action: 'change',
-      pattern: filePath,
-    });
-
-    invalidations.push({
-      action: 'unlink',
-      pattern: filePath,
-    });
-  }
-
-  return invalidations;
 }

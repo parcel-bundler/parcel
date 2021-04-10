@@ -133,8 +133,9 @@ export type PackageTargetDescriptor = {|
   +sourceMap?: boolean | TargetSourceMapOptions,
   +stableEntries?: boolean,
   +isLibrary?: boolean,
-  +minify?: boolean,
+  +optimize?: boolean,
   +scopeHoist?: boolean,
+  +source?: FilePath | Array<FilePath>,
 |};
 
 /**
@@ -160,8 +161,8 @@ export type EnvironmentOptions = {|
     | {[PackageName]: boolean, ...},
   +outputFormat?: OutputFormat,
   +isLibrary?: boolean,
-  +minify?: boolean,
-  +scopeHoist?: boolean,
+  +shouldOptimize?: boolean,
+  +shouldScopeHoist?: boolean,
   +sourceMap?: ?TargetSourceMapOptions,
 |};
 
@@ -200,9 +201,9 @@ export interface Environment {
   /** Whether this is a library build (e.g. less loaders) */
   +isLibrary: boolean;
   /** Whether the output should be minified. */
-  +minify: boolean;
+  +shouldOptimize: boolean;
   /** Whether scope hoisting is enabled. */
-  +scopeHoist: boolean;
+  +shouldScopeHoist: boolean;
   +sourceMap: ?TargetSourceMapOptions;
 
   /** Whether <code>context</code> specifies a browser context. */
@@ -235,9 +236,9 @@ export type PackageJSON = {
   module?: FilePath,
   types?: FilePath,
   browser?: FilePath | {[FilePath]: FilePath | boolean, ...},
-  source?: FilePath | {[FilePath]: FilePath, ...},
+  source?: FilePath | Array<FilePath>,
   alias?: {[PackageName | FilePath | Glob]: PackageName | FilePath, ...},
-  browserslist?: Array<string>,
+  browserslist?: Array<string> | {[string]: Array<string>},
   engines?: Engines,
   targets?: {[string]: PackageTargetDescriptor, ...},
   dependencies?: PackageDependencies,
@@ -272,6 +273,7 @@ export type InitialParcelOptions = {|
   +logLevel?: LogLevel,
   +shouldProfile?: boolean,
   +shouldPatchConsole?: boolean,
+  +shouldBuildLazily?: boolean,
 
   +inputFS?: FileSystem,
   +outputFS?: FileSystem,
@@ -279,13 +281,19 @@ export type InitialParcelOptions = {|
   +packageManager?: PackageManager,
   +detailedReport?: ?DetailedReportOptions,
 
-  // TODO: Refactor to defaultTargetOptions
-  +minify?: boolean,
-  +scopeHoist?: boolean,
-  +sourceMaps?: boolean,
-  +publicUrl?: string,
-  +distDir?: FilePath,
-  +defaultEngines?: Engines,
+  +defaultTargetOptions?: {|
+    +shouldOptimize?: boolean,
+    +shouldScopeHoist?: boolean,
+    +sourceMaps?: boolean,
+    +publicUrl?: string,
+    +distDir?: FilePath,
+    +engines?: Engines,
+  |},
+
+  +additionalReporters?: Array<{|
+    packageName: ModuleSpecifier,
+    resolveFrom: FilePath,
+  |}>,
 
   // throwErrors
   // global?
@@ -303,6 +311,7 @@ export interface PluginOptions {
   +env: EnvMap;
   +hmrOptions: ?HMROptions;
   +serveOptions: ServerOptions | false;
+  +shouldBuildLazily: boolean;
   +shouldAutoInstall: boolean;
   +logLevel: LogLevel;
   +entryRoot: FilePath;
@@ -515,7 +524,7 @@ export interface BaseAsset {
   +isSource: boolean;
   /** Usually corresponds to the file extension */
   +type: string;
-  /** Whether this asset can be omitted if none if it's exports are being used (set by ResolveResult) */
+  /** Whether this asset can be omitted if none of its exports are being used (set by ResolveResult) */
   +sideEffects: boolean;
   /**
    * Inline assets inheirit the parent's <code>id</code>, making it not be enough for a unique identification
@@ -568,6 +577,7 @@ export interface MutableAsset extends BaseAsset {
 
   addDependency(dep: DependencyOptions): string;
   addIncludedFile(filePath: FilePath): void;
+  invalidateOnFileCreate(invalidation: FileCreateInvalidation): void;
   addURLDependency(url: string, opts: $Shape<DependencyOptions>): string;
   invalidateOnEnvChange(env: string): void;
 
@@ -592,6 +602,17 @@ export interface Asset extends BaseAsset {
   +stats: Stats;
 }
 
+export type DevDepOptions = {|
+  moduleSpecifier: ModuleSpecifier,
+  resolveFrom: FilePath,
+  /**
+   * Whether to also invalidate the parcel plugin that loaded this dev dependency
+   * when it changes. This is useful if the parcel plugin or another parent dependency
+   * has its own cache for this dev dependency other than Node's require cache.
+   */
+  invalidateParcelPlugin?: boolean,
+|};
+
 /**
  * @section transformer
  */
@@ -605,8 +626,8 @@ export interface Config {
   setResult(result: ConfigResult): void; // TODO: fix
   setResultHash(resultHash: string): void;
   addIncludedFile(filePath: FilePath): void;
-  addDevDependency(name: PackageName, version?: Semver): void;
-  setWatchGlob(glob: string): void;
+  addDevDependency(devDep: DevDepOptions): void;
+  invalidateOnFileCreate(invalidation: FileCreateInvalidation): void;
   getConfigFrom(
     searchPath: FilePath,
     filePaths: Array<FilePath>,
@@ -625,8 +646,6 @@ export interface Config {
     |},
   ): Promise<ConfigResultWithFilePath | null>;
   getPackage(): Promise<PackageJSON | null>;
-  shouldRehydrate(): void;
-  shouldReload(): void;
   shouldInvalidateOnStartup(): void;
 }
 
@@ -739,15 +758,6 @@ export type Validator = DedicatedThreadValidator | MultiThreadValidator;
  */
 export type Transformer = {|
   loadConfig?: ({|
-    config: Config,
-    options: PluginOptions,
-    logger: PluginLogger,
-  |}) => Async<void>,
-  preSerializeConfig?: ({|
-    config: Config,
-    options: PluginOptions,
-  |}) => Async<void>,
-  postDeserializeConfig?: ({|
     config: Config,
     options: PluginOptions,
     logger: PluginLogger,
@@ -1013,6 +1023,7 @@ export interface BundleGraph<TBundle: Bundle> {
   getIncomingDependencies(asset: Asset): Array<Dependency>;
   /** Get the asset that created the dependency. */
   getAssetWithDependency(dep: Dependency): ?Asset;
+  isEntryBundleGroup(bundleGroup: BundleGroup): boolean;
   /**
    * Returns undefined if the specified dependency was excluded or wasn't async \
    * and otherwise the BundleGroup or Asset that the dependency resolves to.
@@ -1074,6 +1085,24 @@ export type BundleResult = {|
   +type?: string,
 |};
 
+export type GlobInvalidation = {|
+  glob: Glob,
+|};
+
+export type FileInvalidation = {|
+  filePath: FilePath,
+|};
+
+export type FileAboveInvalidation = {|
+  fileName: string,
+  aboveFilePath: FilePath,
+|};
+
+export type FileCreateInvalidation =
+  | FileInvalidation
+  | GlobInvalidation
+  | FileAboveInvalidation;
+
 /**
  * @section resolver
  */
@@ -1090,6 +1119,8 @@ export type ResolveResult = {|
   +diagnostics?: Diagnostic | Array<Diagnostic>,
   /** Is spread (shallowly merged) onto the request's dependency.meta */
   +meta?: JSONObject,
+  +invalidateOnFileCreate?: Array<FileCreateInvalidation>,
+  +invalidateOnFileChange?: Array<FilePath>,
 |};
 
 export type ConfigOutput = {|
@@ -1334,6 +1365,7 @@ export type BuildSuccessEvent = {|
   +bundleGraph: BundleGraph<NamedBundle>,
   +buildTime: number,
   +changedAssets: Map<string, Asset>,
+  +requestBundle: (bundle: NamedBundle) => Promise<BuildSuccessEvent>,
 |};
 
 /**

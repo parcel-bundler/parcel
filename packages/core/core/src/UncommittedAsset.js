@@ -6,6 +6,7 @@ import type {
   ConfigResult,
   DependencyOptions,
   FilePath,
+  FileCreateInvalidation,
   PackageJSON,
   PackageName,
   TransformerResult,
@@ -49,6 +50,7 @@ type UncommittedAssetOptions = {|
   isASTDirty?: ?boolean,
   idBase?: ?string,
   invalidations?: Map<string, RequestInvalidation>,
+  fileCreateInvalidations?: Array<FileCreateInvalidation>,
 |};
 
 export default class UncommittedAsset {
@@ -61,6 +63,7 @@ export default class UncommittedAsset {
   isASTDirty: boolean;
   idBase: ?string;
   invalidations: Map<string, RequestInvalidation>;
+  fileCreateInvalidations: Array<FileCreateInvalidation>;
 
   constructor({
     value,
@@ -71,6 +74,7 @@ export default class UncommittedAsset {
     isASTDirty,
     idBase,
     invalidations,
+    fileCreateInvalidations,
   }: UncommittedAssetOptions) {
     this.value = value;
     this.options = options;
@@ -80,6 +84,7 @@ export default class UncommittedAsset {
     this.isASTDirty = isASTDirty || false;
     this.idBase = idBase;
     this.invalidations = invalidations || new Map();
+    this.fileCreateInvalidations = fileCreateInvalidations || [];
   }
 
   /*
@@ -321,6 +326,10 @@ export default class UncommittedAsset {
     this.invalidations.set(getInvalidationId(invalidation), invalidation);
   }
 
+  invalidateOnFileCreate(invalidation: FileCreateInvalidation) {
+    this.fileCreateInvalidations.push(invalidation);
+  }
+
   invalidateOnEnvChange(key: string) {
     let invalidation: RequestInvalidation = {
       type: 'env',
@@ -342,7 +351,7 @@ export default class UncommittedAsset {
     result: TransformerResult,
     plugin: PackageName,
     configPath: FilePath,
-    configKeyPath: string,
+    configKeyPath?: string,
   ): UncommittedAsset {
     let content = result.content ?? null;
 
@@ -391,6 +400,7 @@ export default class UncommittedAsset {
       mapBuffer: result.map ? result.map.toBuffer() : null,
       idBase: this.idBase,
       invalidations: this.invalidations,
+      fileCreateInvalidations: this.fileCreateInvalidations,
     });
 
     let dependencies = result.dependencies;

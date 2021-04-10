@@ -370,7 +370,7 @@ export function esm2cjs(ast: BabelNodeFile, asset?: MutableAsset) {
       ]);
 
       prepend.push(decl);
-      scope.addBinding(names.name, decl);
+      scope.addBinding(names.name, decl, 'var');
     }
 
     if (isExportAllDeclaration(imp)) {

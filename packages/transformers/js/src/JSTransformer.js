@@ -102,7 +102,7 @@ export default (new Transformer({
   async parse({asset, options}) {
     let code = await asset.getCode();
     if (
-      !asset.env.scopeHoist &&
+      !asset.env.shouldScopeHoist &&
       !canHaveDependencies(code) &&
       !ENV_RE.test(code) &&
       !BROWSER_RE.test(code) &&
@@ -184,7 +184,12 @@ export default (new Transformer({
 
     // Collect dependencies
     if (code == null || canHaveDependencies(code)) {
-      walkAncestor(ast.program, collectDependencies, {asset, ast, options});
+      walkAncestor(ast.program, collectDependencies, {
+        asset,
+        ast,
+        options,
+        logger,
+      });
     }
 
     // If there's a hashbang, remove it and store it on the asset meta.
@@ -196,7 +201,7 @@ export default (new Transformer({
       isASTDirty = true;
     }
 
-    if (asset.env.scopeHoist) {
+    if (asset.env.shouldScopeHoist) {
       hoist(asset, ast);
     } else if (asset.meta.isES6Module) {
       // Convert ES6 modules to CommonJS

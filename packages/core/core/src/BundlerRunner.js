@@ -1,15 +1,9 @@
 // @flow strict-local
 
 import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
-import type {
-  Bundle as IBundle,
-  Namer,
-  FilePath,
-  ConfigOutput,
-} from '@parcel/types';
+import type {Bundle as IBundle, Namer, ConfigOutput} from '@parcel/types';
 import type WorkerFarm, {SharedReference} from '@parcel/workers';
-import type ParcelConfig from './ParcelConfig';
-// import type AssetGraphBuilder from './AssetGraphBuilder';
+import type ParcelConfig, {LoadedPlugin} from './ParcelConfig';
 import type Tracer from './Tracer';
 import type RequestTracker from './RequestTracker';
 import type {Bundle as InternalBundle, ParcelOptions} from './types';
@@ -86,7 +80,9 @@ export default class BundlerRunner {
         // TODO: add invalidations once bundling is a request
       } catch (e) {
         throw new ThrowableDiagnostic({
-          diagnostic: errorToDiagnostic(e, this.config.getBundlerName()),
+          diagnostic: errorToDiagnostic(e, {
+            origin: this.config.getBundlerName(),
+          }),
         });
       }
     }
@@ -105,8 +101,12 @@ export default class BundlerRunner {
       }
       assertSignalNotAborted(signal);
 
-      if (cachedBundleGraphBuffer) {
-        return [deserialize(cachedBundleGraphBuffer), cachedBundleGraphBuffer];
+      let _cachedBundleGraphBuffer = cachedBundleGraphBuffer; // For Flow
+      if (_cachedBundleGraphBuffer) {
+        return [
+          deserialize(_cachedBundleGraphBuffer),
+          _cachedBundleGraphBuffer,
+        ];
       }
     }
 
@@ -130,15 +130,18 @@ export default class BundlerRunner {
       });
     } catch (e) {
       throw new ThrowableDiagnostic({
-        diagnostic: errorToDiagnostic(e, this.config.getBundlerName()),
+        diagnostic: errorToDiagnostic(e, {
+          origin: this.config.getBundlerName(),
+        }),
       });
     } finally {
       bundlerBundleMeasurement.end();
+      // $FlowFixMe
+      await dumpGraphToGraphViz(internalBundleGraph._graph, 'after_bundle');
     }
+
     assertSignalNotAborted(signal);
 
-    // $FlowFixMe
-    await dumpGraphToGraphViz(internalBundleGraph._graph, 'after_bundle');
     if (this.pluginOptions.mode === 'production') {
       let bundlerOptimizeMeasurement = this.tracer.createMeasurement(
         'bundler.optimize',
@@ -152,15 +155,17 @@ export default class BundlerRunner {
         });
       } catch (e) {
         throw new ThrowableDiagnostic({
-          diagnostic: errorToDiagnostic(e, this.config.getBundlerName()),
+          diagnostic: errorToDiagnostic(e, {
+            origin: this.config.getBundlerName(),
+          }),
         });
       } finally {
         bundlerOptimizeMeasurement.end();
+        // $FlowFixMe
+        await dumpGraphToGraphViz(internalBundleGraph._graph, 'after_optimize');
       }
-      assertSignalNotAborted(signal);
 
-      // $FlowFixMe
-      await dumpGraphToGraphViz(internalBundleGraph._graph, 'after_optimize');
+      assertSignalNotAborted(signal);
     }
 
     await this.tracer.wrap('nameBundles', async () => {
@@ -225,13 +230,7 @@ export default class BundlerRunner {
   }
 
   async nameBundle(
-    namers: Array<{|
-      name: string,
-      version: string,
-      plugin: Namer,
-      resolveFrom: FilePath,
-      keyPath: string,
-    |}>,
+    namers: Array<LoadedPlugin<Namer>>,
     internalBundle: InternalBundle,
     internalBundleGraph: InternalBundleGraph,
   ): Promise<void> {
@@ -273,7 +272,10 @@ export default class BundlerRunner {
         }
       } catch (e) {
         throw new ThrowableDiagnostic({
-          diagnostic: errorToDiagnostic(e, namer.name),
+          diagnostic: errorToDiagnostic(e, {
+            origin: namer.name,
+            filePath: bundle.filePath,
+          }),
         });
       }
     }

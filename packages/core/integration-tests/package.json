@@ -1,6 +1,6 @@
 {
   "name": "@parcel/integration-tests",
-  "version": "2.0.0-frontbucket.63",
+  "version": "2.0.0-frontbucket.67",
   "private": true,
   "license": "MIT",
   "repository": {
@@ -17,7 +17,7 @@
     "@babel/plugin-syntax-export-default-from": "^7.2.0",
     "@babel/plugin-syntax-export-namespace-from": "^7.2.0",
     "@babel/plugin-syntax-module-attributes": "^7.10.4",
-    "@babel/preset-env": "^7.1.0",
+    "@babel/preset-env": "^7.12.11",
     "@jetbrains/kotlinc-js-api": "^1.2.12",
     "@mdx-js/react": "^1.5.3",
     "chalk": "^4.1.0",
@@ -39,7 +39,7 @@
     "ncp": "^2.0.0",
     "nib": "^1.1.2",
     "node-elm-compiler": "^5.0.5",
-    "parcel": "2.0.0-frontbucket.62",
+    "parcel": "2.0.0-frontbucket.66",
     "postcss": "^8.2.1",
     "postcss-custom-properties": "^8.0.9",
     "postcss-import": "^13.0.0",

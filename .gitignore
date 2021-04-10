@@ -21,3 +21,8 @@ parcel-bundle-reports/
 .verdaccio_storage/
 sourcemap-info.json
 packages/native-packages
+parcel-trace.json
+reports*.txt
+bundle-graph-serialized*.v8
+request-graph-serialized*.v8
+

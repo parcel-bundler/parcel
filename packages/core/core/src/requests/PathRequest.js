@@ -1,13 +1,22 @@
 // @flow strict-local
 import type {Diagnostic} from '@parcel/diagnostic';
-import type {Async, QueryParameters} from '@parcel/types';
+import type {
+  Async,
+  FileCreateInvalidation,
+  FilePath,
+  QueryParameters,
+} from '@parcel/types';
 import type {StaticRunOpts} from '../RequestTracker';
 import type {AssetGroup, Dependency, ParcelOptions} from '../types';
 import type {ConfigAndCachePath} from './ParcelConfigRequest';
 
-import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
+import ThrowableDiagnostic, {
+  errorToDiagnostic,
+  escapeMarkdown,
+  md,
+} from '@parcel/diagnostic';
 import {PluginLogger} from '@parcel/logger';
-import {escapeMarkdown, relativePath} from '@parcel/utils';
+import {relativePath} from '@parcel/utils';
 import nullthrows from 'nullthrows';
 import path from 'path';
 import URL from 'url';
@@ -60,28 +69,36 @@ async function run({input, api, options}: RunOpts) {
     options,
     config,
   });
-  let assetGroup = await resolverRunner.resolve(input.dependency);
+  let result = await resolverRunner.resolve(input.dependency);
 
-  if (assetGroup != null) {
-    api.invalidateOnFileDelete(assetGroup.filePath);
+  if (result != null) {
+    if (result.invalidateOnFileCreate) {
+      for (let file of result.invalidateOnFileCreate) {
+        api.invalidateOnFileCreate(file);
+      }
+    }
+
+    if (result.invalidateOnFileChange) {
+      for (let filePath of result.invalidateOnFileChange) {
+        api.invalidateOnFileUpdate(filePath);
+        api.invalidateOnFileDelete(filePath);
+      }
+    }
+
+    api.invalidateOnFileDelete(result.assetGroup.filePath);
+    return result.assetGroup;
   }
-
-  // ATLASSIAN: quick fix for https://product-fabric.atlassian.net/jira/software/projects/P2X/boards/431
-  // Ideal solution involves additional api to allow resolvers to set their own invalidations
-  if (
-    assetGroup != null &&
-    assetGroup.filePath.includes('node_modules') &&
-    options.lockFile != null
-  ) {
-    api.invalidateOnFileUpdate(options.lockFile);
-  }
-
-  return assetGroup;
 }
 
 type ResolverRunnerOpts = {|
   config: ParcelConfig,
   options: ParcelOptions,
+|};
+
+type ResolverResult = {|
+  assetGroup: AssetGroup,
+  invalidateOnFileCreate?: Array<FileCreateInvalidation>,
+  invalidateOnFileChange?: Array<FilePath>,
 |};
 
 export class ResolverRunner {
@@ -120,7 +137,7 @@ export class ResolverRunner {
     return new ThrowableDiagnostic({diagnostic});
   }
 
-  async resolve(dependency: Dependency): Promise<?AssetGroup> {
+  async resolve(dependency: Dependency): Promise<?ResolverResult> {
     let dep = new PublicDependency(dependency);
     report({
       type: 'buildProgress',
@@ -149,7 +166,7 @@ export class ResolverRunner {
         } else {
           throw await this.getThrowableDiagnostic(
             dependency,
-            `Unknown pipeline: ${pipeline}.`,
+            md`Unknown pipeline: ${pipeline}.`,
           );
         }
       }
@@ -167,7 +184,7 @@ export class ResolverRunner {
       if (typeof parsed.pathname !== 'string') {
         throw await this.getThrowableDiagnostic(
           dependency,
-          `Received URL without a pathname ${filePath}.`,
+          md`Received URL without a pathname ${filePath}.`,
         );
       }
       filePath = decodeURIComponent(parsed.pathname);
@@ -209,28 +226,38 @@ export class ResolverRunner {
 
           if (result.filePath != null) {
             return {
-              canDefer: result.canDefer,
-              filePath: result.filePath,
-              query,
-              sideEffects: result.sideEffects,
-              code: result.code,
-              env: dependency.env,
-              pipeline: pipeline ?? dependency.pipeline,
-              isURL: dependency.isURL,
+              assetGroup: {
+                canDefer: result.canDefer,
+                filePath: result.filePath,
+                query,
+                sideEffects: result.sideEffects,
+                code: result.code,
+                env: dependency.env,
+                pipeline: pipeline ?? dependency.pipeline,
+                isURL: dependency.isURL,
+              },
+              invalidateOnFileCreate: result.invalidateOnFileCreate,
+              invalidateOnFileChange: result.invalidateOnFileChange,
             };
           }
 
           if (result.diagnostics) {
-            if (Array.isArray(result.diagnostics)) {
-              diagnostics.push(...result.diagnostics);
-            } else {
-              diagnostics.push(result.diagnostics);
-            }
+            let errorDiagnostic = errorToDiagnostic(
+              new ThrowableDiagnostic({diagnostic: result.diagnostics}),
+              {
+                origin: resolver.name,
+                filePath,
+              },
+            );
+            diagnostics.push(...errorDiagnostic);
           }
         }
       } catch (e) {
         // Add error to error map, we'll append these to the standard error if we can't resolve the asset
-        let errorDiagnostic = errorToDiagnostic(e, resolver.name);
+        let errorDiagnostic = errorToDiagnostic(e, {
+          origin: resolver.name,
+          filePath,
+        });
         if (Array.isArray(errorDiagnostic)) {
           diagnostics.push(...errorDiagnostic);
         } else {
@@ -256,7 +283,7 @@ export class ResolverRunner {
     // $FlowFixMe because of the err.code assignment
     let err = await this.getThrowableDiagnostic(
       dependency,
-      `Failed to resolve '${specifier}' ${dir ? `from '${dir}'` : ''}`,
+      md`Failed to resolve '${specifier}' ${dir ? `from '${dir}'` : ''}`,
     );
 
     // Merge diagnostics

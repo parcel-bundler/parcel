@@ -10,12 +10,14 @@ import {getSentry} from '@atlassian/internal-parcel-utils';
 import {Disposable} from '@parcel/events';
 import {INTERNAL_ORIGINAL_CONSOLE} from '@parcel/logger';
 import chalk from 'chalk';
-import program from 'commander';
+import commander from 'commander';
 import path from 'path';
 import getPort from 'get-port';
 import {version} from '../package.json';
 
 require('v8-compile-cache');
+
+const program = new commander.Command();
 
 // Exit codes in response to signals are traditionally
 // 128 + signal value
@@ -53,6 +55,7 @@ const handleUncaughtException = async exception => {
 
 process.on('unhandledRejection', handleUncaughtException);
 
+program.storeOptionsAsProperties();
 program.version(version);
 
 // --no-cache, --cache-dir, --no-source-maps, --no-autoinstall, --global?, --public-url, --log-level
@@ -64,24 +67,32 @@ const commonOptions = {
     'specify which config to use. can be a path or a package name',
   '--cache-dir <path>': 'set the cache directory. defaults to ".parcel-cache"',
   '--no-source-maps': 'disable sourcemaps',
-  '--no-content-hash': 'disable content hashing',
   '--target [name]': [
     'only build given target(s)',
     (val, list) => list.concat([val]),
     [],
   ],
-  '--log-level <level>': [
-    'set the log level, either "none", "error", "warn", "info", or "verbose".',
-    /^(none|error|warn|info|verbose)$/,
-  ],
+  '--log-level <level>': new commander.Option(
+    '--log-level <level>',
+    'set the log level',
+  ).choices(['none', 'error', 'warn', 'info', 'verbose']),
   '--dist-dir <dir>':
     'output directory to write to when unspecified by targets',
+  '--no-autoinstall': 'disable autoinstall',
   '--profile': 'enable build profiling',
   '-V, --version': 'output the version number',
-  '--detailed-report [depth]': [
-    'Print the asset timings and sizes in the build report',
-    /^([0-9]+)$/,
+  '--detailed-report [count]': [
+    'print the asset timings and sizes in the build report',
+    parseOptionInt,
     '10',
+  ],
+  '--reporter <name>': [
+    'additional reporters to run',
+    (val, acc) => {
+      acc.push(val);
+      return acc;
+    },
+    [],
   ],
 };
 
@@ -96,16 +107,17 @@ var hmrOptions = {
   '--https': 'serves files over HTTPS',
   '--cert <path>': 'path to certificate to use with HTTPS',
   '--key <path>': 'path to private key to use with HTTPS',
-  '--no-autoinstall': 'disable autoinstall',
   '--hmr-port <port>': ['hot module replacement port', process.env.HMR_PORT],
 };
 
 function applyOptions(cmd, options) {
   for (let opt in options) {
-    cmd.option(
-      opt,
-      ...(Array.isArray(options[opt]) ? options[opt] : [options[opt]]),
-    );
+    const option = options[opt];
+    if (option instanceof commander.Option) {
+      cmd.addOption(option);
+    } else {
+      cmd.option(opt, ...(Array.isArray(option) ? option : [option]));
+    }
   }
 }
 
@@ -118,6 +130,10 @@ let serve = program
     'automatically open in specified browser, defaults to default browser',
   )
   .option('--watch-for-stdin', 'exit when stdin closes')
+  .option(
+    '--lazy',
+    'Build async bundles on demand, when requested in the browser',
+  )
   .action(runCommand);
 
 applyOptions(serve, hmrOptions);
@@ -127,6 +143,7 @@ let watch = program
   .command('watch [input...]')
   .description('starts the bundler in watch mode')
   .option('--public-url <url>', 'the path prefix for absolute urls')
+  .option('--no-content-hash', 'disable content hashing')
   .option('--watch-for-stdin', 'exit when stdin closes')
   .action(runCommand);
 
@@ -136,9 +153,10 @@ applyOptions(watch, commonOptions);
 let build = program
   .command('build [input...]')
   .description('bundles for production')
-  .option('--no-minify', 'disable minification')
+  .option('--no-optimize', 'disable minification')
   .option('--no-scope-hoist', 'disable scope-hoisting')
   .option('--public-url <url>', 'the path prefix for absolute urls')
+  .option('--no-content-hash', 'disable content hashing')
   .action(runCommand);
 
 applyOptions(build, commonOptions);
@@ -161,6 +179,16 @@ program.on('--help', function() {
   INTERNAL_ORIGINAL_CONSOLE.log('');
 });
 
+// Override to output option description if argument was missing
+commander.Command.prototype.optionMissingArgument = function(option) {
+  INTERNAL_ORIGINAL_CONSOLE.error(
+    "error: option `%s' argument missing",
+    option.flags,
+  );
+  INTERNAL_ORIGINAL_CONSOLE.log(program.createHelp().optionDescription(option));
+  process.exit(1);
+};
+
 // Make serve the default command except for --help
 var args = process.argv;
 if (args[2] === '--help' || args[2] === '-h') args[2] = 'help';
@@ -174,21 +202,26 @@ function runCommand(...args) {
   run(...args).catch(handleUncaughtException);
 }
 
-async function run(entries: Array<string>, command: any) {
+async function run(
+  entries: Array<string>,
+  _opts: any, // using pre v7 Commander options as properties
+  command: any,
+) {
   entries = entries.map(entry => path.resolve(entry));
 
   if (entries.length === 0) {
+    // TODO move this into core, a glob could still lead to no entries
     INTERNAL_ORIGINAL_CONSOLE.log('No entries found');
     return;
   }
   let Parcel = require('@parcel/core').default;
-  let options = await normalizeOptions(command);
   let fs = new NodeFS();
+  let options = await normalizeOptions(command, fs);
   let packageManager = new NodePackageManager(fs);
   let parcel = new Parcel({
     entries,
     packageManager,
-    // $FlowFixMe - flow doesn't know about the `paths` option (added in Node v8.9.0)
+    // $FlowFixMe[extra-arg] - flow doesn't know about the `paths` option (added in Node v8.9.0)
     defaultConfig: require.resolve('@parcel/config-default', {
       paths: [fs.cwd(), __dirname],
     }),
@@ -327,11 +360,23 @@ function parsePort(portValue: string): number {
   return parsedPort;
 }
 
-async function normalizeOptions(command): Promise<InitialParcelOptions> {
+function parseOptionInt(value) {
+  const parsedValue = parseInt(value, 10);
+  if (isNaN(parsedValue)) {
+    throw new commander.InvalidOptionArgumentError('Must be an integer.');
+  }
+  return parsedValue;
+}
+
+async function normalizeOptions(
+  command,
+  inputFS,
+): Promise<InitialParcelOptions> {
   let nodeEnv;
   if (command.name() === 'build') {
     nodeEnv = process.env.NODE_ENV || 'production';
-    command.autoinstall = false;
+    // Autoinstall unless explicitly disabled or we detect a CI environment.
+    command.autoinstall = !(command.autoinstall === false || process.env.CI);
   } else {
     nodeEnv = process.env.NODE_ENV || 'development';
   }
@@ -387,24 +432,33 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
     hmrOptions = {port: hmrport, host};
   }
 
+  if (command.detailedReport === true) {
+    command.detailedReport = '10';
+  }
+
+  let additionalReporters = [
+    {packageName: '@parcel/reporter-cli', resolveFrom: __filename},
+    {packageName: '@parcel/reporter-dev-server', resolveFrom: __filename},
+    ...(command.reporter: Array<string>).map(packageName => ({
+      packageName,
+      resolveFrom: path.join(inputFS.cwd(), 'index'),
+    })),
+  ];
+
   let mode = command.name() === 'build' ? 'production' : 'development';
   return {
     shouldDisableCache: command.cache === false,
     cacheDir: command.cacheDir,
     config: command.config,
     mode,
-    minify: command.minify != null ? command.minify : mode === 'production',
-    sourceMaps: command.sourceMaps ?? true,
-    scopeHoist: command.scopeHoist,
-    publicUrl: command.publicUrl,
-    distDir: command.distDir,
     hmrOptions,
-    shouldContentHash: hmrOptions ? false : command.shouldContentHash,
+    shouldContentHash: hmrOptions ? false : command.contentHash,
     serveOptions,
     targets: command.target.length > 0 ? command.target : null,
     shouldAutoInstall: command.autoinstall ?? true,
     logLevel: command.logLevel,
     shouldProfile: command.profile,
+    shouldBuildLazily: command.lazy,
     detailedReport:
       command.detailedReport != null
         ? {
@@ -413,6 +467,15 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
         : null,
     env: {
       NODE_ENV: nodeEnv,
+    },
+    additionalReporters,
+    defaultTargetOptions: {
+      shouldOptimize:
+        command.optimize != null ? command.optimize : mode === 'production',
+      sourceMaps: command.sourceMaps ?? true,
+      shouldScopeHoist: command.scopeHoist,
+      publicUrl: command.publicUrl,
+      distDir: command.distDir,
     },
   };
 }

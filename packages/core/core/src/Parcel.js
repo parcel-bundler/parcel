@@ -73,6 +73,7 @@ export default class Parcel {
   > */;
   #watcherSubscription /*: ?AsyncSubscription*/;
   #watcherCount /*: number*/ = 0;
+  #requestedAssetIds /*: Set<string>*/ = new Set();
 
   isProfiling /*: boolean */;
 
@@ -91,12 +92,7 @@ export default class Parcel {
     this.#resolvedOptions = resolvedOptions;
     await createCacheDir(resolvedOptions.outputFS, resolvedOptions.cacheDir);
     let {config} = await loadParcelConfig(resolvedOptions);
-    this.#config = new ParcelConfig(
-      config,
-      resolvedOptions.packageManager,
-      resolvedOptions.inputFS,
-      resolvedOptions.shouldAutoInstall,
-    );
+    this.#config = new ParcelConfig(config, resolvedOptions);
 
     if (this.#initialOptions.workerFarm) {
       if (this.#initialOptions.workerFarm.ending) {
@@ -193,16 +189,20 @@ export default class Parcel {
     await this.#farm.callAllWorkers('clearConfigCache', []);
   }
 
-  async _startNextBuild() {
+  async _startNextBuild(): Promise<?BuildEvent> {
     this.#watchAbortController = new AbortController();
     await this.#farm.callAllWorkers('clearConfigCache', []);
 
     try {
-      this.#watchEvents.emit({
-        buildEvent: await this._build({
-          signal: this.#watchAbortController.signal,
-        }),
+      let buildEvent = await this._build({
+        signal: this.#watchAbortController.signal,
       });
+
+      this.#watchEvents.emit({
+        buildEvent,
+      });
+
+      return buildEvent;
     } catch (err) {
       // Ignore BuildAbortErrors and only emit critical errors.
       if (!(err instanceof BuildAbortError)) {
@@ -294,16 +294,22 @@ export default class Parcel {
       );
       let request = createAssetGraphRequest({
         name: 'Main',
-        entries: nullthrows(this.#resolvedOptions).entries,
+        entries: options.entries,
         optionsRef: this.#optionsRef,
+        shouldBuildLazily: options.shouldBuildLazily,
+        requestedAssetIds: this.#requestedAssetIds,
       }); // ? should we create this on every build?
       let {
         assetGraph,
         changedAssets,
         assetRequests,
-      } = await this.#requestTracker.runRequest(request);
+      } = await this.#requestTracker.runRequest(request, {
+        force: options.shouldBuildLazily && this.#requestedAssetIds.size > 0,
+      });
       requestMeasurement.end();
       dumpGraphToGraphViz(assetGraph, 'MainAssetGraph');
+
+      this.#requestedAssetIds.clear();
 
       let bundleMeasurement = this.#tracer.createMeasurement(
         'bundlerRunner.bundle',
@@ -326,6 +332,9 @@ export default class Parcel {
       });
       assertSignalNotAborted(signal);
 
+      // $FlowFixMe
+      dumpGraphToGraphViz(this.#requestTracker.graph, 'RequestGraph');
+
       let event = {
         type: 'buildSuccess',
         changedAssets: new Map(
@@ -336,6 +345,41 @@ export default class Parcel {
         ),
         bundleGraph: new BundleGraph(bundleGraph, NamedBundle.get, options),
         buildTime: Date.now() - startTime,
+        requestBundle: async bundle => {
+          let bundleNode = bundleGraph._graph.getNode(bundle.id);
+          invariant(bundleNode?.type === 'bundle', 'Bundle does not exist');
+
+          if (!bundleNode.value.isPlaceholder) {
+            // Nothing to do.
+            return {
+              type: 'buildSuccess',
+              changedAssets: new Map(),
+              bundleGraph: event.bundleGraph,
+              buildTime: 0,
+              requestBundle: event.requestBundle,
+            };
+          }
+
+          for (let assetId of bundleNode.value.entryAssetIds) {
+            this.#requestedAssetIds.add(assetId);
+          }
+
+          if (this.#watchQueue.getNumWaiting() === 0) {
+            if (this.#watchAbortController) {
+              this.#watchAbortController.abort();
+            }
+
+            this.#watchQueue.add(() => this._startNextBuild());
+          }
+
+          let results = await this.#watchQueue.run();
+          let result = results.filter(Boolean).pop();
+          if (result.type === 'buildFailure') {
+            throw new BuildError(result.diagnostics);
+          }
+
+          return result;
+        },
       };
 
       await this.#reporterRunner.report(event);

@@ -2,6 +2,7 @@
 
 import path from 'path';
 import {Transformer} from '@parcel/plugin';
+import pug from 'pug';
 
 export default (new Transformer({
   async loadConfig({config}) {
@@ -15,30 +16,14 @@ export default (new Transformer({
       let isJavascript = path.extname(configFile.filePath) === '.js';
       if (isJavascript) {
         config.shouldInvalidateOnStartup();
-        config.shouldReload();
       }
 
-      config.setResult({
-        contents: configFile.contents,
-        isSerialisable: !isJavascript,
-      });
+      config.setResult(configFile.contents);
     }
   },
 
-  preSerializeConfig({config}) {
-    if (!config.result) return;
-
-    // Ensure we dont try to serialise functions
-    if (!config.result.isSerialisable) {
-      config.result.contents = {};
-    }
-  },
-
-  async transform({asset, config, options}) {
-    const pugConfig = config ? config.contents : {};
-    const pug = await options.packageManager.require('pug', asset.filePath, {
-      shouldAutoInstall: options.shouldAutoInstall,
-    });
+  async transform({asset, config}) {
+    const pugConfig = config ?? {};
     const content = await asset.getCode();
     const render = pug.compile(content, {
       compileDebug: false,

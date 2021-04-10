@@ -1,0 +1,10 @@
+{
+  "manifest_version": 2,
+  "name": "Parcel WebExt",
+  "version": "1.2.0",
+  "web_accessible_resources": [
+    "/injected/**/*.ts",
+    "/injected/*.jsx",
+    "/injected/single.js"
+  ]
+}

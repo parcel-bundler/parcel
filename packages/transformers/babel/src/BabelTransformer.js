@@ -4,19 +4,11 @@ import {generate, babelErrorEnhancer} from '@parcel/babel-ast-utils';
 import {Transformer} from '@parcel/plugin';
 import semver from 'semver';
 import babel7 from './babel7';
-import {load, preSerialize, postDeserialize} from './config';
+import {load} from './config';
 
 export default (new Transformer({
   async loadConfig({config, options, logger}) {
     await load(config, options, logger);
-  },
-
-  preSerializeConfig({config}) {
-    return preSerialize(config);
-  },
-
-  postDeserializeConfig({config, options}) {
-    return postDeserialize(config, options);
   },
 
   canReuseAST({ast}) {

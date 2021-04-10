@@ -1,3 +1,4 @@
+// @flow
 import assert from 'assert';
 import path from 'path';
 import {
@@ -117,8 +118,10 @@ describe('babel', function() {
 
   it('should not compile with babel if no targets are defined', async function() {
     await bundle(path.join(__dirname, '/integration/babel-default/index.js'), {
-      defaultEngines: null,
-      minify: false,
+      defaultTargetOptions: {
+        engines: undefined,
+        shouldOptimize: false,
+      },
     });
     let file = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
     assert(file.includes('class Foo'));
@@ -160,7 +163,9 @@ describe('babel', function() {
       assert.equal(prodRegExp.test(file), false);
       // Prod build test
       await bundle(path.join(__dirname, projectBasePath, '/index.js'), {
-        minify: false,
+        defaultTargetOptions: {
+          shouldOptimize: false,
+        },
       });
       file = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
       assert.equal(prodRegExp.test(file), true);
@@ -358,7 +363,9 @@ describe('babel', function() {
 
     await bundle(path.join(fixtureDir, 'src/index.js'), {
       mode: 'production',
-      minify: false,
+      defaultTargetOptions: {
+        shouldOptimize: false,
+      },
     });
 
     let [main, esmodule] = await Promise.all([
@@ -605,7 +612,7 @@ describe('babel', function() {
             parcelCli,
             'build',
             'src/index.js',
-            '--no-minify',
+            '--no-optimize',
             '--no-scope-hoist',
           ],
           {
@@ -644,7 +651,7 @@ describe('babel', function() {
       let build = () =>
         spawnSync(
           'node',
-          [parcelCli, 'build', 'index.js', '--no-minify', '--no-scope-hoist'],
+          [parcelCli, 'build', 'index.js', '--no-optimize', '--no-scope-hoist'],
           {
             cwd: inputDir,
             env: {
@@ -690,6 +697,22 @@ describe('babel', function() {
 
     let output = await run(b);
     assert.equal(typeof output, 'object');
-    assert.equal(output.default, undefined);
+    assert.deepEqual(output.default, [undefined, undefined]);
+  });
+
+  it('should enable shippedProposals with @parcel/babel-preset-env in custom babelrc', async function() {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/babel-preset-env-shippedProposals/index.js',
+      ),
+    );
+
+    let file = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(!file.includes('#priv'));
+
+    let output = await run(b);
+    assert.strictEqual(typeof output, 'object');
+    assert.strictEqual(output.default, 123);
   });
 });

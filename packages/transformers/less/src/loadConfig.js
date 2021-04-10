@@ -10,6 +10,13 @@ export async function load({config}: {|config: Config|}): Promise<void> {
   let configContents = {};
   if (configFile != null) {
     configContents = configFile.contents;
+
+    // Resolve relative paths from config file
+    if (configContents.paths) {
+      configContents.paths = configContents.paths.map(p =>
+        path.resolve(path.dirname(configFile.filePath), p),
+      );
+    }
   }
 
   // Rewrites urls to be relative to the provided filename
@@ -20,17 +27,7 @@ export async function load({config}: {|config: Config|}): Promise<void> {
   let isDynamic = configFile && path.extname(configFile.filePath) === '.js';
   if (isDynamic) {
     config.shouldInvalidateOnStartup();
-    config.shouldReload();
   }
 
   return config.setResult({isStatic: !isDynamic, config: configContents});
-}
-
-export function preSerialize(config: Config) {
-  if (!config.result) return;
-
-  // Ensure we dont pass functions to the serialiser
-  if (!config.result.isStatic) {
-    config.result.config = {};
-  }
 }

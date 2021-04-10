@@ -6,7 +6,9 @@ export function generateMainCode(originalSpecifier, methods) {
     export default function createWorker() {
       let counter = 0;
       let callbacks = {};
-      let worker = new Worker(${JSON.stringify(originalSpecifier)});
+      let worker = new Worker(new URL(${JSON.stringify(
+        originalSpecifier,
+      )}, import.meta.url));
       let term = worker.terminate;
       worker.kill = signal => {
         worker.postMessage({ type: 'KILL', signal });
