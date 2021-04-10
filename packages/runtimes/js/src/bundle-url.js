@@ -1,5 +1,3 @@
-/* globals document:readonly */
-
 var bundleURL = {};
 function getBundleURLCached(id) {
   let value = bundleURL[id];
@@ -12,29 +10,15 @@ function getBundleURLCached(id) {
 }
 
 function getBundleURL() {
-  // Attempt to find the URL of the current script and use that as the base URL
-  if (process.env.PARCEL_BUILD_ENV === 'test') {
-    if (typeof document !== 'undefined' && 'currentScript' in document) {
-      console.log(
-        'returning getbaseurl:',
-        getBaseURL(document.currentScript.src),
-      );
-      return getBaseURL(document.currentScript.src);
-    }
-  }
-
   try {
     throw new Error();
   } catch (err) {
     var matches = ('' + err.stack).match(/(https?|file|ftp):\/\/[^)\n]+/g);
     if (matches) {
       // Use the last occurrence so that the URL of the calling bundle is returned, not of the bundling containing this
-      console.log('matches:', matches);
-      console.log('returning:', getBaseURL(matches[matches.length - 1]));
       return getBaseURL(matches[matches.length - 1]);
     }
   }
-  console.log('helloo in getbundurl. returning /');
   return '/';
 }
 

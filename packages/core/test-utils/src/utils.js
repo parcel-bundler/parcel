@@ -280,7 +280,7 @@ export async function runBundles(
   let ctx, promises;
   switch (target) {
     case 'browser': {
-      let prepared = prepareBrowserContext(parent.filePath, globals);
+      let prepared = prepareBrowserContext(parent, globals);
       ctx = prepared.ctx;
       promises = prepared.promises;
       break;
@@ -293,7 +293,7 @@ export async function runBundles(
       );
       break;
     case 'electron-renderer': {
-      let browser = prepareBrowserContext(parent.filePath, globals);
+      let browser = prepareBrowserContext(parent, globals);
       ctx = {
         ...browser.ctx,
         ...prepareNodeContext(
@@ -332,11 +332,9 @@ export async function runBundles(
     );
     for (let b of bundles) {
       // require, parcelRequire was set up in prepare*Context
-      // $FlowFixMe[prop-missing]
-      ctx.b = b;
       new vm.Script(
-        'setCurrentScript(b.name);' +
-          (await overlayFS.readFile(nullthrows(b.filePath), 'utf8')),
+        // '"use strict";\n' +
+        await overlayFS.readFile(nullthrows(b.filePath), 'utf8'),
         {
           filename: b.name,
         },
@@ -373,6 +371,7 @@ export async function runBundles(
         );
     }
   }
+
   return ctx;
 }
 
@@ -522,7 +521,7 @@ export function normaliseNewlines(text: string): string {
 }
 
 function prepareBrowserContext(
-  filePath: FilePath,
+  bundle: PackagedBundle,
   globals: mixed,
 ): {|
   ctx: vm$Context,
@@ -542,7 +541,10 @@ function prepareBrowserContext(
         let {deferred, promise} = makeDeferredWithPromise();
         promises.push(promise);
         setTimeout(function() {
-          let file = path.join(`${distDir}/../`, url.parse(el.src).pathname);
+          let file = path.join(
+            bundle.target.distDir,
+            url.parse(el.src).pathname,
+          );
 
           new vm.Script(
             // '"use strict";\n' +
@@ -587,46 +589,59 @@ function prepareBrowserContext(
         return null;
       },
     },
-    currentScript: {
-      src: 'http://localhost/script.js',
-    },
+
+    currentScript: null,
   };
 
-  class mockError extends Error {
-    message: string;
+  var exports = {};
 
+  class customError {
     constructor(message) {
-      super();
-      this.message = message + 'MOCKERROR!!!!';
+      const customError = new Error(message);
+      const stackStart = customError.stack.indexOf('at new customError');
+      const stack = customError.stack
+        .slice(stackStart, customError.stack.indexOf('at Script.runInContext'))
+        .split('\n');
+      stack.shift();
+      stack.pop();
+      for (let [i, line] of stack.entries()) {
+        stack[i] = line.replace(
+          /( ?.* )\(?(.*)\)?$/,
+          (_, prefix, path) =>
+            prefix +
+            (path.endsWith(')')
+              ? `(http://localhost:3000/${path.slice(0, path.length - 1)})`
+              : `http://localhost:3000/${path}`),
+        );
+      }
+      customError.stack =
+        customError.stack.slice(0, stackStart).replace(/ +$/, '') +
+        stack.join('\n');
+      return customError;
     }
   }
 
-  var exports = {};
   var ctx = Object.assign(
     {
+      Error: customError,
       exports,
       module: {exports},
       document: fakeDocument,
       WebSocket,
-      b: null,
       console: {...console, clear: () => {}},
-      mockError,
       location: {hostname: 'localhost', origin: 'http://localhost'},
-      setCurrentScript(bundlePath) {
-        fakeDocument.currentScript.src = `http://localhost/dist/${bundlePath}`;
-      },
       fetch(url) {
         return Promise.resolve({
           async arrayBuffer() {
             let readFilePromise = overlayFS.readFile(
-              path.join(path.dirname(filePath), url),
+              path.join(path.dirname(bundle.target.distDir), url),
             );
             promises.push(readFilePromise);
             return new Uint8Array(await readFilePromise).buffer;
           },
           text() {
             let readFilePromise = overlayFS.readFile(
-              path.join(path.dirname(filePath), url),
+              path.join(path.dirname(bundle.target.distDir), url),
               'utf8',
             );
             promises.push(readFilePromise);

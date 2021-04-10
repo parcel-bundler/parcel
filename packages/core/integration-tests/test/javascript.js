@@ -3593,7 +3593,12 @@ describe('javascript', function() {
       ['bar/entry/entry-a.js', 'foo/entry-b.js'].map(f =>
         path.join(__dirname, 'integration/differing-bundle-urls', f),
       ),
-      {mode: 'production'},
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldOptimize: false,
+        },
+      },
     );
     assertBundles(bundleGraph, [
       {
@@ -3627,12 +3632,14 @@ describe('javascript', function() {
     ]);
 
     let [a, b] = bundleGraph.getBundles().filter(b => b.isEntry);
+    let calls = [];
 
-    const resA = await runBundles(bundleGraph, a, [a, b]);
-    const resB = await runBundles(bundleGraph, b, [a, b]);
+    await runBundles(bundleGraph, a, [a, b], {
+      sideEffect: v => {
+        calls.push(v);
+      },
+    });
 
-    console.log({resA});
-    console.log({resB});
-    assert.equal(resA, resB);
+    assert.deepEqual(calls, ['common', 'deep']);
   });
 });

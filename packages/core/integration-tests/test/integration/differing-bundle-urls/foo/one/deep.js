@@ -1,1 +1,2 @@
-console.log("deep")
+sideEffect("deep");
+console.log("deep");
