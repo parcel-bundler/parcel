@@ -3588,7 +3588,7 @@ describe('javascript', function() {
     assert.deepEqual(res.default, 'x: 123');
   });
 
-  it('should support importing async bundles from bundles with different dist paths', async function() {
+  it.only('should support importing async bundles from bundles with different dist paths', async function() {
     let bundleGraph = await bundle(
       ['bar/entry/entry-a.js', 'foo/entry-b.js'].map(f =>
         path.join(__dirname, 'integration/differing-bundle-urls', f),
