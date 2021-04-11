@@ -1,0 +1,17 @@
+{
+  "name": "@parcel/assemblyscript-example",
+  "version": "2.0.0-beta.2",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "demo": "parcel build src/index.html"
+  },
+  "browserslist": [
+    "last 1 Chrome versions"
+  ],
+  "devDependencies": {
+    "@parcel/babel-register": "2.0.0-beta.2",
+    "parcel": "2.0.0-beta.2",
+    "assemblyscript": "^0.18.24"
+  }
+}
