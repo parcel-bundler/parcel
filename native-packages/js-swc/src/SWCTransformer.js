@@ -96,6 +96,7 @@ export default (new Transformer({
       config.isSource &&
       options.hmrOptions &&
       config.env.isBrowser() &&
+      !config.env.isWorker() &&
       options.mode === 'development' &&
       pkg?.dependencies?.['react'];
 

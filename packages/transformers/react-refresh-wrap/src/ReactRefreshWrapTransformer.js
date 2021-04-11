@@ -11,6 +11,7 @@ function shouldExclude(asset, options) {
     !asset.isSource ||
     !options.hmrOptions ||
     !asset.env.isBrowser() ||
+    asset.env.isWorker() ||
     options.mode !== 'development' ||
     !asset.getDependencies().find(v => v.moduleSpecifier === 'react')
   );
