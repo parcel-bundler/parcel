@@ -261,6 +261,30 @@ describe('loadParcelConfig', () => {
       );
     });
 
+    it('should throw for invalid top level keys', () => {
+      assert.throws(
+        () => {
+          validateConfigFile(
+            // $FlowFixMe this is of course invalid
+            {
+              extends: '@parcel/config-default',
+              '@parcel/transformer-js': {
+                inlineEnvironment: false,
+              },
+            },
+            '.parcelrc',
+          );
+        },
+        e => {
+          assert.strictEqual(
+            e.diagnostics[0].codeFrame.codeHighlights[0].message,
+            `Did you mean "transformers"?`,
+          );
+          return true;
+        },
+      );
+    });
+
     it('should succeed on valid config', () => {
       validateConfigFile(
         {
@@ -702,7 +726,7 @@ describe('loadParcelConfig', () => {
       assert.deepEqual(config.reporters, defaultConfig.reporters || []);
     });
 
-    it('should emit a codeframe when a malformed .parcelrc was found', async () => {
+    it('should emit a codeframe.codeHighlights when a malformed .parcelrc was found', async () => {
       let configFilePath = path.join(
         __dirname,
         'fixtures',
