@@ -31,6 +31,8 @@
     "*.elm": ["@parcel/transformer-elm"],
     "*.mdx": ["@parcel/transformer-mdx"],
     "*.vue": ["@parcel/transformer-vue"],
+    "*.as": ["@parcel/transformer-assemblyscript"],
+    "*.wasm": ["@parcel/transformer-raw"],
     "template:*.vue": ["@parcel/transformer-vue"],
     "script:*.vue": ["@parcel/transformer-vue"],
     "style:*.vue": ["@parcel/transformer-vue"],

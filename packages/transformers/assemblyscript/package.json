@@ -20,12 +20,13 @@
     "parcel": "^2.0.0-alpha.1.1"
   },
   "peerDependencies": {
-    "assemblyscript": "*"
+    "assemblyscript": "^0.18.0"
   },
   "dependencies": {
-    "@parcel/plugin": "2.0.0-nightly.636"
+    "@parcel/plugin": "2.0.0-beta.2"
   },
   "devDependencies": {
-    "@parcel/types": "2.0.0-beta.2"
+    "@parcel/types": "2.0.0-beta.2",
+    "assemblyscript": "^0.18.24"
   }
 }

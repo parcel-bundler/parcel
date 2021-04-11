@@ -2187,13 +2187,6 @@
   dependencies:
     detect-libc "^1.0.3"
 
-"@parcel/plugin@2.0.0-nightly.636":
-  version "2.0.0-nightly.636"
-  resolved "https://registry.yarnpkg.com/@parcel/plugin/-/plugin-2.0.0-nightly.636.tgz#fce85bbb05acee72f1657b9a88dbfd679f1e63bf"
-  integrity sha512-PrunZ7ZmcFRnD3maZag4OWQ+P0Uf6wOwoY2RTsTCMcvID6zl9p1O9s0co/PxUTWPl9o2ijhroZ3LL/vCi1GqRQ==
-  dependencies:
-    "@parcel/types" "2.0.0-nightly.636+82276043"
-
 "@parcel/source-map@2.0.0-alpha.4.21":
   version "2.0.0-alpha.4.21"
   resolved "https://registry.yarnpkg.com/@parcel/source-map/-/source-map-2.0.0-alpha.4.21.tgz#608f37fefe05ba1d8a8527ca0f3a8487560d4695"
@@ -2201,11 +2194,6 @@
   dependencies:
     node-addon-api "^3.0.0"
     node-gyp-build "^4.2.3"
-
-"@parcel/types@2.0.0-nightly.636+82276043":
-  version "2.0.0-nightly.636"
-  resolved "https://registry.yarnpkg.com/@parcel/types/-/types-2.0.0-nightly.636.tgz#eec747fe0254a6dc48c940a0043fcbe9035f8922"
-  integrity sha512-8XIZtEe0J8GC+Fr3ooCbrk6CRkor/v0riuuvLZ1B5kAoIvgjkMz94lWVcp7eYLNuanYYAgJf534OiJHEkOmzEA==
 
 "@parcel/watcher@2.0.0-alpha.10":
   version "2.0.0-alpha.10"
@@ -3023,6 +3011,14 @@ asn1@~0.2.3:
   dependencies:
     safer-buffer "~2.1.0"
 
+assemblyscript@^0.18.24:
+  version "0.18.24"
+  resolved "https://registry.yarnpkg.com/assemblyscript/-/assemblyscript-0.18.24.tgz#dea726771d512fb6efc70a9d53d73c2682f19146"
+  integrity sha512-V9i7TKgRW4x8jv6+4JimVJXdi9MoiJqCvDYfYgqMfjaquClp1vwcPQXpvKHTvY4PJl4S6cLN48QWtTRGhlB9cg==
+  dependencies:
+    binaryen "100.0.0"
+    long "^4.0.0"
+
 assert-plus@1.0.0, assert-plus@^1.0.0:
   version "1.0.0"
   resolved "https://registry.yarnpkg.com/assert-plus/-/assert-plus-1.0.0.tgz#f12e0f3c5d77b0b1cdd9146942e4e96c1e4dd525"
@@ -3268,6 +3264,11 @@ binary-extensions@^2.0.0:
   version "2.0.0"
   resolved "https://registry.yarnpkg.com/binary-extensions/-/binary-extensions-2.0.0.tgz#23c0df14f6a88077f5f986c0d167ec03c3d5537c"
   integrity sha512-Phlt0plgpIIBOGTT/ehfFnbNlfsDEiqmzE2KRXoX1bLIlir4X/MR+zSyBEkL05ffWgnRSf/DXv+WrUAVr93/ow==
+
+binaryen@100.0.0:
+  version "100.0.0"
+  resolved "https://registry.yarnpkg.com/binaryen/-/binaryen-100.0.0.tgz#8ed91955eff14eb4758d68d593869cbc1a9a0dff"
+  integrity sha512-nxOt8d8/VXAuSVEtAWUdKrqpqCy365QqD223EzzB1GzS5himiZAfM/R5lXx+M/5q8TB8cYp3tYxv5rTjNTJveQ==
 
 bindings@^1.5.0:
   version "1.5.0"
@@ -8463,6 +8464,11 @@ lolex@^5.0.1:
   integrity sha512-h4hmjAvHTmd+25JSwrtTIuwbKdwg5NzZVRMLn9saij4SZaepCrTCxPr35H/3bjwfMJtN+t3CX8672UIkglz28A==
   dependencies:
     "@sinonjs/commons" "^1.7.0"
+
+long@^4.0.0:
+  version "4.0.0"
+  resolved "https://registry.yarnpkg.com/long/-/long-4.0.0.tgz#9a7b71cfb7d361a194ea555241c92f7468d5bf28"
+  integrity sha512-XsP+KhQif4bjX1kbuSiySJFNAehNxgLb6hPRGJ9QsUr8ajHkuXGdrHmFUTUUXhDwVX2R5bY4JNZEwbUiMhV+MA==
 
 longest@^1.0.1:
   version "1.0.1"
