@@ -8,11 +8,9 @@ import * as babelCore from '@babel/core';
 import {md5FromObject, relativePath, resolveConfig} from '@parcel/utils';
 
 import isJSX from './jsx';
-import getFlowOptions from './flow';
 import {enginesToBabelTargets} from './utils';
 
 const TYPESCRIPT_EXTNAME_RE = /\.tsx?$/;
-const BABEL_TRANSFORMER_DIR = path.dirname(__dirname);
 const JS_EXTNAME_RE = /^\.(js|cjs|mjs)$/;
 const BABEL_CONFIG_FILENAMES = [
   '.babelrc',
@@ -55,7 +53,6 @@ export async function load(
       options.projectRoot,
     ))
   ) {
-    await buildDefaultBabelConfig(options, config);
     return;
   }
 
@@ -173,48 +170,7 @@ export async function load(
       definePluginDependencies(config, options);
       config.setResultHash(md5FromObject(partialConfig.options));
     }
-  } else {
-    await buildDefaultBabelConfig(options, config);
   }
-}
-
-async function buildDefaultBabelConfig(options: PluginOptions, config: Config) {
-  // If this is a .ts or .tsx file, we don't need to enable flow.
-  if (TYPESCRIPT_EXTNAME_RE.test(config.searchPath)) {
-    return;
-  }
-
-  // Detect flow. If not enabled, babel doesn't need to run at all.
-  let babelOptions = await getFlowOptions(config, options);
-  if (babelOptions == null) {
-    return;
-  }
-
-  // When flow is enabled, we may also need to enable JSX so it parses properly.
-  let syntaxPlugins = [];
-  if (await isJSX(options, config)) {
-    syntaxPlugins.push('jsx');
-  }
-
-  babelOptions.presets = (babelOptions.presets || []).map(preset =>
-    babelCore.createConfigItem(preset, {
-      type: 'preset',
-      dirname: BABEL_TRANSFORMER_DIR,
-    }),
-  );
-  babelOptions.plugins = (babelOptions.plugins || []).map(plugin =>
-    babelCore.createConfigItem(plugin, {
-      type: 'plugin',
-      dirname: BABEL_TRANSFORMER_DIR,
-    }),
-  );
-
-  config.setResult({
-    internal: true,
-    config: babelOptions,
-    syntaxPlugins,
-  });
-  definePluginDependencies(config, options);
 }
 
 function hasRequire(options) {
