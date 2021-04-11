@@ -98,7 +98,7 @@ describe('loadParcelConfig', () => {
     it('should require pipeline to be an array', () => {
       assert.throws(() => {
         validateConfigFile(
-          // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
+          // $FlowExpectedError[incompatible-call]
           {
             filePath: '.parcelrc',
             resolvers: '123',
@@ -113,7 +113,7 @@ describe('loadParcelConfig', () => {
         validateConfigFile(
           {
             filePath: '.parcelrc',
-            // $FlowFixMe
+            // $FlowExpectedError[incompatible-call]
             resolvers: [1, '123', 5],
           },
           '.parcelrc',
@@ -158,7 +158,7 @@ describe('loadParcelConfig', () => {
         validateConfigFile(
           {
             filePath: '.parcelrc',
-            // $FlowFixMe
+            // $FlowExpectedError[incompatible-call]
             transformers: ['parcel-transformer-test', '...'],
           },
           '.parcelrc',
@@ -184,7 +184,7 @@ describe('loadParcelConfig', () => {
     it('should require extends to be a string or array of strings', () => {
       assert.throws(() => {
         validateConfigFile(
-          // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
+          // $FlowExpectedError[incompatible-call]
           {
             filePath: '.parcelrc',
             extends: 2,
@@ -197,7 +197,7 @@ describe('loadParcelConfig', () => {
         validateConfigFile(
           {
             filePath: '.parcelrc',
-            // $FlowFixMe
+            // $FlowExpectedError[incompatible-call]
             extends: [2, 7],
           },
           '.parcelrc',
@@ -265,7 +265,7 @@ describe('loadParcelConfig', () => {
       assert.throws(
         () => {
           validateConfigFile(
-            // $FlowFixMe this is of course invalid
+            // $FlowExpectedError
             {
               extends: '@parcel/config-default',
               '@parcel/transformer-js': {
@@ -740,7 +740,7 @@ describe('loadParcelConfig', () => {
         column: 14,
       };
 
-      // $FlowFixMe
+      // $FlowFixMe[prop-missing]
       await assert.rejects(
         () => parseAndProcessConfig(configFilePath, code, DEFAULT_OPTIONS),
         {
@@ -776,7 +776,7 @@ describe('loadParcelConfig', () => {
       );
       let code = await DEFAULT_OPTIONS.inputFS.readFile(configFilePath, 'utf8');
 
-      // $FlowFixMe
+      // $FlowFixMe[prop-missing]
       await assert.rejects(
         () => parseAndProcessConfig(configFilePath, code, DEFAULT_OPTIONS),
         {
@@ -813,7 +813,7 @@ describe('loadParcelConfig', () => {
       );
       let code = await DEFAULT_OPTIONS.inputFS.readFile(configFilePath, 'utf8');
 
-      // $FlowFixMe
+      // $FlowFixMe[prop-missing]
       await assert.rejects(
         () => parseAndProcessConfig(configFilePath, code, DEFAULT_OPTIONS),
         {
@@ -850,7 +850,7 @@ describe('loadParcelConfig', () => {
       );
       let code = await DEFAULT_OPTIONS.inputFS.readFile(configFilePath, 'utf8');
 
-      // $FlowFixMe
+      // $FlowFixMe[prop-missing]
       await assert.rejects(
         () => parseAndProcessConfig(configFilePath, code, DEFAULT_OPTIONS),
         {
