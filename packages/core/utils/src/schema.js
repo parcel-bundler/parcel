@@ -212,7 +212,7 @@ function validateSchema(schema: SchemaEntity, data: mixed): Array<SchemaError> {
                   k =>
                     ({
                       type: 'forbidden-prop',
-                      dataPath: dataPath + '/' + encodeJSONKeyComponent(k), // todo
+                      dataPath: dataPath + '/' + encodeJSONKeyComponent(k),
                       dataType: 'key',
                       prop: k,
                       expectedProps: Object.keys(schemaNode.properties),
