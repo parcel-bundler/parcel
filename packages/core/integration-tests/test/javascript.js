@@ -1817,7 +1817,7 @@ describe('javascript', function() {
 
     let output = await run(b);
     assert.ok(!output.toString().includes('process.env'));
-    assert.equal(output(), 'undefined:undefined');
+    assert.equal(output(), 'undefined:undefined:undefined');
   });
 
   it('should only insert environment variables in browser environment matching the glob', async function() {
