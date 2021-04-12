@@ -19,7 +19,7 @@ import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import AssetGraph, {nodeFromAssetGroup} from './AssetGraph';
 import BundleGraph from './public/BundleGraph';
-import InternalBundleGraph from './BundleGraph';
+import InternalBundleGraph, {BundleGraphEdgeTypes} from './BundleGraph';
 import {NamedBundle} from './public/Bundle';
 import {PluginLogger} from '@parcel/logger';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
@@ -187,7 +187,11 @@ export default async function applyRuntimes({
           return;
         }
 
-        bundleGraph._graph.addEdge(bundle.id, node.id, 'contains');
+        bundleGraph._graph.addEdge(
+          bundle.id,
+          node.id,
+          BundleGraphEdgeTypes.contains,
+        );
       }
     }, runtimeNode);
 

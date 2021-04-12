@@ -94,7 +94,7 @@ describe('Graph', () => {
     graph.addNode(nodeB);
     graph.addNode(nodeC);
     graph.addEdge('a', 'b');
-    graph.addEdge('a', 'c', 'edgetype');
+    graph.addEdge('a', 'c', 1);
     assert(graph.isOrphanedNode(nodeA));
     assert(!graph.isOrphanedNode(nodeB));
     assert(!graph.isOrphanedNode(nodeC));
@@ -121,7 +121,7 @@ describe('Graph', () => {
     assert(graph.nodes.has('d'));
     assert(!graph.nodes.has('b'));
     assert(!graph.nodes.has('c'));
-    assert.deepEqual(graph.getAllEdges(), [{from: 'a', to: 'd', type: null}]);
+    assert.deepEqual(graph.getAllEdges(), [{from: 'a', to: 'd', type: 0}]);
   });
 
   it('removing a node recursively deletes orphaned nodes', () => {
@@ -165,8 +165,8 @@ describe('Graph', () => {
       ['a', 'c', 'f'],
     );
     assert.deepEqual(graph.getAllEdges(), [
-      {from: 'a', to: 'c', type: null},
-      {from: 'c', to: 'f', type: null},
+      {from: 'a', to: 'c', type: 0},
+      {from: 'c', to: 'f', type: 0},
     ]);
   });
 
@@ -212,8 +212,8 @@ describe('Graph', () => {
       ['a', 'c', 'f'],
     );
     assert.deepEqual(graph.getAllEdges(), [
-      {from: 'a', to: 'c', type: null},
-      {from: 'c', to: 'f', type: null},
+      {from: 'a', to: 'c', type: 0},
+      {from: 'c', to: 'f', type: 0},
     ]);
   });
 
@@ -246,11 +246,11 @@ describe('Graph', () => {
 
     assert.deepEqual(nodesBefore, getNodeIds());
     assert.deepEqual(graph.getAllEdges(), [
-      {from: 'a', to: 'b', type: null},
-      {from: 'b', to: 'c', type: null},
-      {from: 'b', to: 'd', type: null},
-      {from: 'd', to: 'e', type: null},
-      {from: 'e', to: 'b', type: null},
+      {from: 'a', to: 'b', type: 0},
+      {from: 'b', to: 'c', type: 0},
+      {from: 'b', to: 'd', type: 0},
+      {from: 'd', to: 'e', type: 0},
+      {from: 'e', to: 'b', type: 0},
     ]);
   });
 
@@ -287,8 +287,8 @@ describe('Graph', () => {
     assert(!graph.nodes.has('c'));
     assert(graph.nodes.has('d'));
     assert.deepEqual(graph.getAllEdges(), [
-      {from: 'a', to: 'b', type: null},
-      {from: 'a', to: 'd', type: null},
+      {from: 'a', to: 'b', type: 0},
+      {from: 'a', to: 'd', type: 0},
     ]);
   });
 
@@ -299,10 +299,10 @@ describe('Graph', () => {
     graph.addNode({id: 'c', type: 'mynode', value: 'c'});
     graph.addNode({id: 'd', type: 'mynode', value: 'd'});
 
-    graph.addEdge('a', 'b', 'edgetype');
+    graph.addEdge('a', 'b', 1);
     graph.addEdge('a', 'd');
     graph.addEdge('b', 'c');
-    graph.addEdge('b', 'd', 'edgetype');
+    graph.addEdge('b', 'd', 1);
 
     graph.rootNodeId = 'a';
 
@@ -312,7 +312,7 @@ describe('Graph', () => {
         visited.push(node.id);
       },
       null, // use root as startNode
-      'edgetype',
+      1,
     );
     assert.deepEqual(visited, ['a', 'b', 'd']);
   });

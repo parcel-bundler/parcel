@@ -6,21 +6,22 @@ import type {TraversalActions, GraphVisitor} from '@parcel/types';
 import assert from 'assert';
 import nullthrows from 'nullthrows';
 
-export type GraphOpts<TNode, TEdgeType: string | null = null> = {|
+type NullEdgeType = 0;
+export type GraphOpts<TNode, TEdgeType: number = 0> = {|
   nodes?: Map<NodeId, TNode>,
   edges?: {|
-    inboundEdges: AdjacencyListMap<TEdgeType | null>,
-    outboundEdges: AdjacencyListMap<TEdgeType | null>,
+    inboundEdges: AdjacencyListMap<TEdgeType | NullEdgeType>,
+    outboundEdges: AdjacencyListMap<TEdgeType | NullEdgeType>,
   |},
   rootNodeId?: ?NodeId,
 |};
 
 export const ALL_EDGE_TYPES = '@@all_edge_types';
 
-export default class Graph<TNode: Node, TEdgeType: string | null = null> {
+export default class Graph<TNode: Node, TEdgeType: number = 0> {
   nodes: Map<NodeId, TNode>;
-  inboundEdges: AdjacencyList<TEdgeType | null>;
-  outboundEdges: AdjacencyList<TEdgeType | null>;
+  inboundEdges: AdjacencyList<TEdgeType | NullEdgeType>;
+  outboundEdges: AdjacencyList<TEdgeType | NullEdgeType>;
   rootNodeId: ?NodeId;
 
   constructor(opts: GraphOpts<TNode, TEdgeType> = ({}: any)) {
@@ -60,7 +61,7 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
 
   // Returns a list of all edges in the graph. This can be large, so iterating
   // the complete list can be costly in large graphs. Used when merging graphs.
-  getAllEdges(): Array<Edge<TEdgeType | null>> {
+  getAllEdges(): Array<Edge<TEdgeType | NullEdgeType>> {
     let edges = [];
     for (let [from, edgeList] of this.outboundEdges.getListMap()) {
       for (let [type, toNodes] of edgeList) {
@@ -98,7 +99,7 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
     return this.rootNodeId ? this.getNode(this.rootNodeId) : null;
   }
 
-  addEdge(from: NodeId, to: NodeId, type: TEdgeType | null = null): void {
+  addEdge(from: NodeId, to: NodeId, type: TEdgeType | NullEdgeType = 0): void {
     if (!this.getNode(from)) {
       throw new Error(`"from" node '${from}' not found`);
     }
@@ -111,13 +112,17 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
     this.inboundEdges.addEdge(to, from, type);
   }
 
-  hasEdge(from: NodeId, to: NodeId, type?: TEdgeType | null = null): boolean {
+  hasEdge(
+    from: NodeId,
+    to: NodeId,
+    type?: TEdgeType | NullEdgeType = 0,
+  ): boolean {
     return this.outboundEdges.hasEdge(from, to, type);
   }
 
   getNodesConnectedTo(
     node: TNode,
-    type: TEdgeType | null | Array<TEdgeType | null> = null,
+    type: TEdgeType | NullEdgeType | Array<TEdgeType> = 0,
   ): Array<TNode> {
     assertHasNode(this, node);
 
@@ -150,7 +155,7 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
 
   getNodesConnectedFrom(
     node: TNode,
-    type: TEdgeType | null | Array<TEdgeType | null> = null,
+    type: TEdgeType | NullEdgeType | Array<TEdgeType> = 0,
   ): Array<TNode> {
     assertHasNode(this, node);
 
@@ -215,7 +220,7 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
     this.removeNode(node);
   }
 
-  removeEdges(node: TNode, type: TEdgeType | null = null) {
+  removeEdges(node: TNode, type: TEdgeType | NullEdgeType = 0) {
     assertHasNode(this, node);
 
     for (let to of this.outboundEdges.getEdges(node.id, type)) {
@@ -227,7 +232,7 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
   removeEdge(
     from: NodeId,
     to: NodeId,
-    type: TEdgeType | null = null,
+    type: TEdgeType | NullEdgeType = 0,
     removeOrphans: boolean = true,
   ) {
     if (!this.outboundEdges.hasEdge(from, to, type)) {
@@ -291,7 +296,7 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
   replaceNode(
     fromNode: TNode,
     toNode: TNode,
-    type: TEdgeType | null = null,
+    type: TEdgeType | NullEdgeType = 0,
   ): void {
     assertHasNode(this, fromNode);
 
@@ -310,7 +315,7 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
     fromNode: TNode,
     toNodes: $ReadOnlyArray<TNode>,
     replaceFilter?: null | (TNode => boolean),
-    type?: TEdgeType | null = null,
+    type?: TEdgeType | NullEdgeType = 0,
   ): void {
     assertHasNode(this, fromNode);
 
@@ -339,7 +344,7 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
   traverse<TContext>(
     visit: GraphVisitor<TNode, TContext>,
     startNode: ?TNode,
-    type: TEdgeType | null | Array<TEdgeType | null> = null,
+    type: TEdgeType | NullEdgeType | Array<TEdgeType> = 0,
   ): ?TContext {
     return this.dfs({
       visit,
@@ -352,7 +357,7 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
     filter: (TNode, TraversalActions) => ?TValue,
     visit: GraphVisitor<TValue, TContext>,
     startNode: ?TNode,
-    type?: TEdgeType | null | Array<TEdgeType | null>,
+    type?: TEdgeType | Array<TEdgeType>,
   ): ?TContext {
     return this.traverse(mapVisitor(filter, visit), startNode, type);
   }
@@ -360,7 +365,7 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
   traverseAncestors<TContext>(
     startNode: TNode,
     visit: GraphVisitor<TNode, TContext>,
-    type: TEdgeType | null | Array<TEdgeType | null> = null,
+    type: TEdgeType | NullEdgeType | Array<TEdgeType> = 0,
   ): ?TContext {
     return this.dfs({
       visit,

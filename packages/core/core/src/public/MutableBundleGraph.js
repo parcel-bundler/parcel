@@ -18,7 +18,7 @@ import path from 'path';
 import nullthrows from 'nullthrows';
 import {md5FromString} from '@parcel/utils';
 import BundleGraph from './BundleGraph';
-import InternalBundleGraph from '../BundleGraph';
+import InternalBundleGraph, {BundleGraphEdgeTypes} from '../BundleGraph';
 import {Bundle, bundleToInternalBundle} from './Bundle';
 import {mapVisitor, ALL_EDGE_TYPES} from '../Graph';
 import {assetFromValue, assetToAssetValue} from './Asset';
@@ -98,26 +98,30 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
     let assetNodes = this.#graph._graph.getNodesConnectedFrom(dependencyNode);
     this.#graph._graph.addEdge(dependencyNode.id, bundleGroupNode.id);
     this.#graph._graph.replaceNodesConnectedTo(bundleGroupNode, assetNodes);
-    this.#graph._graph.addEdge(dependencyNode.id, resolved.id, 'references');
+    this.#graph._graph.addEdge(
+      dependencyNode.id,
+      resolved.id,
+      BundleGraphEdgeTypes.references,
+    );
     this.#graph._graph.removeEdge(dependencyNode.id, resolved.id);
 
     if (dependency.isEntry) {
       this.#graph._graph.addEdge(
         nullthrows(this.#graph._graph.getRootNode()).id,
         bundleGroupNode.id,
-        'bundle',
+        BundleGraphEdgeTypes.bundle,
       );
     } else {
       let inboundBundleNodes = this.#graph._graph.getNodesConnectedTo(
         dependencyNode,
-        'contains',
+        BundleGraphEdgeTypes.contains,
       );
       for (let inboundBundleNode of inboundBundleNodes) {
         invariant(inboundBundleNode.type === 'bundle');
         this.#graph._graph.addEdge(
           inboundBundleNode.id,
           bundleGroupNode.id,
-          'bundle',
+          BundleGraphEdgeTypes.bundle,
         );
       }
     }

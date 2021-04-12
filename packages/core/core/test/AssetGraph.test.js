@@ -123,12 +123,12 @@ describe('AssetGraph', () => {
       {
         from: '@@root',
         to: 'entry_specifier:/path/to/index1',
-        type: null,
+        type: 0,
       },
       {
         from: '@@root',
         to: 'entry_specifier:/path/to/index2',
-        type: null,
+        type: 0,
       },
       {
         from: 'entry_specifier:/path/to/index1',
@@ -136,7 +136,7 @@ describe('AssetGraph', () => {
           filePath: '/path/to/index1/src/main.js',
           packagePath: '/path/to/index1',
         }).id,
-        type: null,
+        type: 0,
       },
       {
         from: 'entry_specifier:/path/to/index2',
@@ -144,7 +144,7 @@ describe('AssetGraph', () => {
           filePath: '/path/to/index2/src/main.js',
           packagePath: '/path/to/index2',
         }).id,
-        type: null,
+        type: 0,
       },
       {
         from: nodeFromEntryFile({
@@ -156,7 +156,7 @@ describe('AssetGraph', () => {
           target: DEFAULT_TARGETS[0],
           env: DEFAULT_ENV,
         }).id,
-        type: null,
+        type: 0,
       },
       {
         from: nodeFromEntryFile({
@@ -168,7 +168,7 @@ describe('AssetGraph', () => {
           target: DEFAULT_TARGETS[0],
           env: DEFAULT_ENV,
         }).id,
-        type: null,
+        type: 0,
       },
     ]);
   });
