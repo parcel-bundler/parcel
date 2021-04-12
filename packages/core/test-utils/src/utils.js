@@ -610,8 +610,8 @@ function prepareBrowserContext(
           (_, prefix, path) =>
             prefix +
             (path.endsWith(')')
-              ? `(http://localhost:3000/${path.slice(0, path.length - 1)})`
-              : `http://localhost:3000/${path}`),
+              ? `(http://localhost/${path.slice(0, path.length - 1)})`
+              : `http://localhost/${path}`),
         );
       }
       customError.stack =
