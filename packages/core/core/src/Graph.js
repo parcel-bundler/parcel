@@ -547,6 +547,35 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
   findNodes(predicate: TNode => boolean): Array<TNode> {
     return Array.from(this.nodes.values()).filter(predicate);
   }
+
+  /**
+    Determine if node / edge structure is equal
+  */
+  isEqualStructure(otherGraph: ?Graph<TNode, TEdgeType>): boolean {
+    if (otherGraph == null) {
+      return false;
+    }
+
+    let nodeKeys = Array.from(this.nodes.keys());
+    let otherGraphNodeKeys = Array.from(otherGraph.nodes.keys());
+
+    let doKeysMatch =
+      nodeKeys.length === otherGraphNodeKeys.length &&
+      nodeKeys.every(key => otherGraphNodeKeys.includes(key));
+
+    if (!doKeysMatch) {
+      return false;
+    }
+
+    if (otherGraph.getAllEdges().length !== this.getAllEdges().length) {
+      return false;
+    }
+
+    let doEdgesMatch = otherGraph
+      .getAllEdges()
+      .every(edge => this.hasEdge(edge.from, edge.to, edge.type));
+    return doEdgesMatch;
+  }
 }
 
 export function mapVisitor<TNode, TValue, TContext>(
