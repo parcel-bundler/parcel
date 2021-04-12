@@ -38,6 +38,7 @@ import createAssetRequest from './AssetRequest';
 import createPathRequest from './PathRequest';
 
 import dumpToGraphViz from '../dumpGraphToGraphViz';
+import clone from 'clone';
 
 type AssetGraphRequestInput = {|
   entries?: Array<string>,
@@ -66,6 +67,8 @@ type AssetGraphRequest = {|
     assetGraph: AssetGraph,
     changedAssets: Map<string, Asset>,
     assetRequests: Array<AssetGroup>,
+    isAssetGraphStructureSame: boolean,
+    previousAssetGraphHash: ?string,
   |}>,
   input: AssetGraphRequestInput,
 |};
@@ -78,8 +81,16 @@ export default function createAssetGraphRequest(
     id: input.name,
     run: async input => {
       let prevResult = await input.api.getPreviousResult<AssetGraphRequestResult>();
-      let builder = new AssetGraphBuilder(input, prevResult);
-      return builder.build();
+      let builder = new AssetGraphBuilder(input, clone(prevResult)); // pass clone to not override the previous result reference
+      let assetGraphRequest = await builder.build();
+
+      return {
+        ...assetGraphRequest,
+        previousAssetGraphHash: prevResult?.assetGraph.hash,
+        isAssetGraphStructureSame: assetGraphRequest.assetGraph.isEqualStructure(
+          prevResult?.assetGraph,
+        ),
+      };
     },
     input,
   };

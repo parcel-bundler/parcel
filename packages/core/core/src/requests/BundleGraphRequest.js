@@ -53,6 +53,8 @@ type BundleGraphRequestInput = {|
   assetGraph: AssetGraph,
   optionsRef: SharedReference,
   changedAssets: Map<string, Asset>,
+  previousAssetGraphHash: ?string,
+  isAssetGraphStructureSame: ?boolean,
 |};
 
 type RunInput = {|
@@ -63,7 +65,10 @@ type RunInput = {|
 type BundleGraphRequest = {|
   id: string,
   +type: 'bundle_graph_request',
-  run: RunInput => Async<InternalBundleGraph>,
+  run: RunInput => Async<{|
+    bundleGraph: InternalBundleGraph,
+    changedBundles: Array<InternalBundle>,
+  |}>,
   input: BundleGraphRequestInput,
 |};
 
@@ -85,8 +90,20 @@ export default function createBundleGraphRequest(
       invalidateDevDeps(invalidDevDeps, input.options, parcelConfig);
 
       let builder = new BundlerRunner(input, parcelConfig, devDeps);
+      let bundleGraph = await builder.bundle(
+        input.input.assetGraph,
+        input.input.previousAssetGraphHash,
+        input.input.changedAssets,
+      );
 
-      return builder.bundle(input.input.assetGraph, input.input.changedAssets);
+      let changedBundles = Array.from(
+        input.input.changedAssets.values(),
+      ).flatMap(asset => bundleGraph.getBundlesContainingAssets(asset));
+
+      return {
+        bundleGraph,
+        changedBundles,
+      };
     },
     input,
   };
@@ -165,6 +182,7 @@ class BundlerRunner {
 
   async bundle(
     graph: AssetGraph,
+    previousAssetGraphHash: ?string,
     changedAssets: Map<string, Asset>,
   ): Promise<InternalBundleGraph> {
     report({
@@ -174,7 +192,8 @@ class BundlerRunner {
 
     await this.loadConfigs();
 
-    let plugin = await this.config.getBundler();
+    // TODO - Why does this need double await (or rather, why is this com)
+    let plugin = await await this.config.getBundler();
     let {plugin: bundler, name, resolveFrom} = plugin;
 
     let cacheKey = await this.getCacheKey(graph);
