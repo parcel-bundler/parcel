@@ -9,10 +9,7 @@ import nullthrows from 'nullthrows';
 type NullEdgeType = 0;
 export type GraphOpts<TNode, TEdgeType: number = 0> = {|
   nodes?: Map<NodeId, TNode>,
-  edges?: {|
-    inboundEdges: AdjacencyListMap<TEdgeType | NullEdgeType>,
-    outboundEdges: AdjacencyListMap<TEdgeType | NullEdgeType>,
-  |},
+  edges?: AdjacencyListMap<TEdgeType | NullEdgeType>,
   rootNodeId?: ?NodeId,
 |};
 
@@ -27,11 +24,17 @@ export default class Graph<TNode: Node, TEdgeType: number = 0> {
   constructor(opts: GraphOpts<TNode, TEdgeType> = ({}: any)) {
     this.nodes = opts.nodes || new Map();
     this.rootNodeId = opts.rootNodeId;
-
     let edges = opts.edges;
     if (edges != null) {
-      this.inboundEdges = new AdjacencyList(edges.inboundEdges);
-      this.outboundEdges = new AdjacencyList(edges.outboundEdges);
+      this.inboundEdges = new AdjacencyList();
+      this.outboundEdges = new AdjacencyList(edges);
+      for (let [from, edgeList] of edges) {
+        for (let [type, toNodes] of edgeList) {
+          for (let to of toNodes) {
+            this.inboundEdges.addEdge(to, from, type);
+          }
+        }
+      }
     } else {
       this.inboundEdges = new AdjacencyList();
       this.outboundEdges = new AdjacencyList();
@@ -51,10 +54,7 @@ export default class Graph<TNode: Node, TEdgeType: number = 0> {
   serialize(): GraphOpts<TNode, TEdgeType> {
     return {
       nodes: this.nodes,
-      edges: {
-        inboundEdges: this.inboundEdges.getListMap(),
-        outboundEdges: this.outboundEdges.getListMap(),
-      },
+      edges: this.outboundEdges.getListMap(),
       rootNodeId: this.rootNodeId,
     };
   }
