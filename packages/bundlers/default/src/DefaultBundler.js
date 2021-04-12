@@ -436,12 +436,7 @@ export default (new Bundler({
     // Remove assets that are duplicated between shared bundles.
     deduplicate(bundleGraph);
   },
-  update({bundleGraph, config, changedAssets}) {
-    console.log('>>>> BundlerUpdate', changedAssets?.size);
-    // [ ] want to return changed bundles
-    // [ ] incrementally update cached bundle graph
-    // [ ] should mark changed assets as modified, added, or deleted
-    // [ ] get a cached bundle
+  update({bundleGraph, config}) {
     let bundleRoots: Map<Bundle, Array<Asset>> = new Map();
     let bundlesByEntryAsset: Map<Asset, Bundle> = new Map();
 
