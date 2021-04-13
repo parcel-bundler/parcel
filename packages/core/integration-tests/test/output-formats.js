@@ -633,6 +633,7 @@ describe('output formats', function() {
       );
 
       let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+      console.log({dist});
       assert(dist.includes('export var foo'));
       assert(!dist.includes('export default'));
       await assertESMExports(b, {foo: 4});
@@ -644,6 +645,7 @@ describe('output formats', function() {
       );
 
       let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+      console.log({dist});
       assert(dist.includes('export const bar'));
       assert(dist.includes('import {add} from "lodash"'));
       await assertESMExports(
