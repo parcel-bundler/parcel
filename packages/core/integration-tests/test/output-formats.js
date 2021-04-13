@@ -614,7 +614,7 @@ describe('output formats', function() {
       await assertESMExports(b, {a: 2, c: 5});
     });
 
-    it.skip('should support esmodule output (re-export namespace as)', async function() {
+    it.only('should support esmodule output (re-export namespace as)', async function() {
       let b = await bundle(
         path.join(
           __dirname,
@@ -627,7 +627,7 @@ describe('output formats', function() {
       await assertESMExports(b, {ns: {a: 2, c: 5}});
     });
 
-    it('should support esmodule output (renaming re-export)', async function() {
+    it.only('should support esmodule output (renaming re-export)', async function() {
       let b = await bundle(
         path.join(__dirname, '/integration/formats/esm/re-export-rename.js'),
       );
