@@ -633,7 +633,6 @@ describe('output formats', function() {
       );
 
       let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
-      console.log({dist});
       assert(dist.includes('export var foo'));
       assert(!dist.includes('export default'));
       await assertESMExports(b, {foo: 4});
@@ -645,7 +644,6 @@ describe('output formats', function() {
       );
 
       let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
-      console.log({dist});
       assert(dist.includes('export const bar'));
       assert(dist.includes('import {add} from "lodash"'));
       await assertESMExports(
@@ -1112,9 +1110,9 @@ describe('output formats', function() {
         .getBundles()
         .find(bundle => bundle.name.startsWith('async'));
       assert(
-        new RegExp(
-          "getBundleURL\\('[a-zA-Z0-9]+'\\) \\+ \"" + asyncBundle.name + '"',
-        ).test(entry),
+        entry.includes(
+          `getBundleURL() + "${path.basename(asyncBundle.filePath)}"`,
+        ),
       );
 
       let async = await outputFS.readFile(
@@ -1155,8 +1153,8 @@ describe('output formats', function() {
       );
       assert(
         new RegExp(
-          "Promise.all\\(\\[.+?getBundleURL\\('[a-zA-Z0-9]+'\\) \\+ \"" +
-            asyncCssBundle.name +
+          'Promise.all\\(\\[.+?getBundleURL\\(\\) \\+ "' +
+            path.basename(asyncCssBundle.filePath) +
             '"\\), import\\("\\.\\/" \\+ "' +
             path.basename(asyncJsBundle.filePath) +
             '"\\)\\]\\)',
