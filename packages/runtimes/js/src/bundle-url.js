@@ -1,6 +1,3 @@
-// eslint-disable-next-line no-unused-vars
-/* globals document:readonly */
-
 var bundleURL = null;
 function getBundleURLCached() {
   if (!bundleURL) {
