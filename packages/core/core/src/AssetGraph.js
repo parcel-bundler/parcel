@@ -111,11 +111,13 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
       this.hash = hash;
     } else {
       super();
-      this.rootNodeId = this.addNode({
-        id: '@@root',
-        type: 'root',
-        value: null,
-      });
+      this.setRootNodeId(
+        this.addNode({
+          id: '@@root',
+          type: 'root',
+          value: null,
+        }),
+      );
     }
     this.envCache = new Map();
   }

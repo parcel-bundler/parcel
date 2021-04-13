@@ -341,12 +341,7 @@ export class RequestGraph extends ContentGraph<
   }
 
   invalidateOnFileUpdate(requestNodeId: NodeId, filePath: FilePath) {
-    let fileNodeId;
-    if (this.hasContentKey(filePath)) {
-      fileNodeId = this.getNodeIdByContentKey(filePath);
-    } else {
-      fileNodeId = this.addNode(nodeFromFilePath(filePath));
-    }
+    let fileNodeId = this.ensureNode(filePath, nodeFromFilePath(filePath));
 
     if (!this.hasEdge(requestNodeId, fileNodeId, 'invalidated_by_update')) {
       this.addEdge(requestNodeId, fileNodeId, 'invalidated_by_update');
@@ -354,12 +349,7 @@ export class RequestGraph extends ContentGraph<
   }
 
   invalidateOnFileDelete(requestNodeId: NodeId, filePath: FilePath) {
-    let fileNodeId;
-    if (this.hasContentKey(filePath)) {
-      fileNodeId = this.getNodeIdByContentKey(filePath);
-    } else {
-      fileNodeId = this.addNode(nodeFromFilePath(filePath));
-    }
+    let fileNodeId = this.ensureNode(filePath, nodeFromFilePath(filePath));
 
     if (!this.hasEdge(requestNodeId, fileNodeId, 'invalidated_by_delete')) {
       this.addEdge(requestNodeId, fileNodeId, 'invalidated_by_delete');
@@ -383,13 +373,7 @@ export class RequestGraph extends ContentGraph<
       for (let part of parts) {
         let fileNameNode = nodeFromFileName(part);
 
-        let fileNameNodeId;
-        if (this.hasContentKey(fileNameNode.id)) {
-          fileNameNodeId = this.getNodeIdByContentKey(fileNameNode.id);
-        } else {
-          fileNameNodeId = this.addNode(fileNameNode);
-        }
-
+        let fileNameNodeId = this.ensureNode(fileNameNode.id, fileNameNode);
         if (
           lastNodeId != null &&
           !this.hasEdge(lastNodeId, fileNameNodeId, 'dirname')
@@ -405,12 +389,7 @@ export class RequestGraph extends ContentGraph<
       // is created in a parent directory). There is likely to already be a node
       // for this file in the graph (e.g. the source file) that we can reuse for this.
       node = nodeFromFilePath(aboveFilePath);
-      let nodeId;
-      if (this.hasContentKey(node.id)) {
-        nodeId = this.getNodeIdByContentKey(node.id);
-      } else {
-        nodeId = this.addNode(node);
-      }
+      let nodeId = this.ensureNode(node.id, node);
 
       // Now create an edge from the `aboveFilePath` node to the first file_name node
       // in the chain created above, and an edge from the last node in the chain back to
@@ -435,12 +414,7 @@ export class RequestGraph extends ContentGraph<
       throw new Error('Invalid invalidation');
     }
 
-    let nodeId;
-    if (this.hasContentKey(node.id)) {
-      nodeId = this.getNodeIdByContentKey(node.id);
-    } else {
-      nodeId = this.addNode(node);
-    }
+    let nodeId = this.ensureNode(node.id, node);
     if (!this.hasEdge(requestNodeId, nodeId, 'invalidated_by_create')) {
       this.addEdge(requestNodeId, nodeId, 'invalidated_by_create');
     }
@@ -457,12 +431,7 @@ export class RequestGraph extends ContentGraph<
     value: string | void,
   ) {
     let envNode = nodeFromEnv(env, value);
-    let envNodeId = this.addNode(envNode);
-    if (this.hasContentKey(envNode.id)) {
-      envNodeId = this.getNodeIdByContentKey(envNode.id);
-    } else {
-      envNodeId = this.addNode(envNode);
-    }
+    let envNodeId = this.ensureNode(envNode.id, envNode);
 
     if (!this.hasEdge(requestNodeId, envNodeId, 'invalidated_by_update')) {
       this.addEdge(requestNodeId, envNodeId, 'invalidated_by_update');
@@ -475,12 +444,7 @@ export class RequestGraph extends ContentGraph<
     value: mixed,
   ) {
     let optionNode = nodeFromOption(option, value);
-    let optionNodeId = this.addNode(optionNode);
-    if (this.hasContentKey(optionNode.id)) {
-      optionNodeId = this.getNodeIdByContentKey(optionNode.id);
-    } else {
-      optionNodeId = this.addNode(optionNode);
-    }
+    let optionNodeId = this.ensureNode(optionNode.id, optionNode);
 
     if (!this.hasEdge(requestNodeId, optionNodeId, 'invalidated_by_update')) {
       this.addEdge(requestNodeId, optionNodeId, 'invalidated_by_update');
@@ -563,17 +527,12 @@ export class RequestGraph extends ContentGraph<
     // Find the `file_name` node for the parent directory and
     // recursively invalidate connected requests as described above.
     let basename = path.basename(dirname);
-    if (this.hasContentKey('file_name:' + basename)) {
+    let contentKey = 'file_name:' + basename;
+    if (this.hasContentKey(contentKey)) {
       if (
-        this.hasEdge(
-          nodeId,
-          this.getNodeIdByContentKey('file_name:' + basename),
-          'dirname',
-        )
+        this.hasEdge(nodeId, this.getNodeIdByContentKey(contentKey), 'dirname')
       ) {
-        let parent = nullthrows(
-          this.getNodeByContentKey('file_name:' + basename),
-        );
+        let parent = nullthrows(this.getNodeByContentKey(contentKey));
         invariant(parent.type === 'file_name');
         this.invalidateFileNameNode(parent, dirname, matchNodes);
       }
@@ -792,7 +751,9 @@ export default class RequestTracker {
     request: Request<TInput, TResult>,
     opts?: ?RunRequestOpts,
   ): Async<TResult> {
-    let requestId = this.graph._contentKeyToNodeId.get(request.id);
+    let requestId = this.graph.hasContentKey(request.id)
+      ? this.graph.getNodeIdByContentKey(request.id)
+      : undefined;
     let hasValidResult = requestId != null && this.hasValidResult(requestId);
 
     if (!opts?.force && hasValidResult) {

@@ -129,6 +129,7 @@ export default class BundleGraph {
       assetGraph.rootNodeId != null
         ? assetGraph.getNode(assetGraph.rootNodeId)
         : null;
+    invariant(assetGraphRootNode != null && assetGraphRootNode.type === 'root');
 
     for (let [nodeId, node] of assetGraph.nodes) {
       if (node.type === 'asset') {
@@ -151,7 +152,7 @@ export default class BundleGraph {
       } else {
         let bundleGraphNodeId = graph.addNodeByContentKey(node.id, node);
         if (node.id === assetGraphRootNode?.id) {
-          graph.rootNodeId = bundleGraphNodeId;
+          graph.setRootNodeId(bundleGraphNodeId);
         }
         assetGraphNodeIdToBundleGraphNodeId.set(nodeId, bundleGraphNodeId);
       }

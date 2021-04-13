@@ -28,7 +28,7 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
 
   constructor(opts?: GraphOpts<TNode, TEdgeType>) {
     this.nodes = opts?.nodes || new Map();
-    this.rootNodeId = opts?.rootNodeId;
+    this.setRootNodeId(opts?.rootNodeId);
     this.nextNodeId = opts?.nextNodeId ?? 0;
 
     let edges = opts?.edges;
@@ -39,6 +39,10 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
       this.inboundEdges = new AdjacencyList();
       this.outboundEdges = new AdjacencyList();
     }
+  }
+
+  setRootNodeId(id: ?NodeId) {
+    this.rootNodeId = id;
   }
 
   static deserialize(

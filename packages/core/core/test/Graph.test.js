@@ -188,7 +188,7 @@ describe('Graph', () => {
     let nodeE = graph.addNode({id: 'e', type: 'mynode', value: 'e'});
     let nodeF = graph.addNode({id: 'f', type: 'mynode', value: 'f'});
     let nodeG = graph.addNode({id: 'g', type: 'mynode', value: 'g'});
-    graph.rootNodeId = nodeA;
+    graph.setRootNodeId(nodeA);
 
     graph.addEdge(nodeA, nodeB);
     graph.addEdge(nodeA, nodeC);
@@ -221,7 +221,7 @@ describe('Graph', () => {
     let nodeC = graph.addNode({id: 'c', type: 'mynode', value: 'c'});
     let nodeD = graph.addNode({id: 'd', type: 'mynode', value: 'd'});
     let nodeE = graph.addNode({id: 'e', type: 'mynode', value: 'e'});
-    graph.rootNodeId = nodeA;
+    graph.setRootNodeId(nodeA);
 
     graph.addEdge(nodeA, nodeB);
     graph.addEdge(nodeB, nodeC);
@@ -250,7 +250,7 @@ describe('Graph', () => {
 
     let nodeA = graph.addNode({id: 'a', type: 'mynode', value: 'a'});
     let nodeB = graph.addNode({id: 'b', type: 'mynode', value: 'b'});
-    graph.rootNodeId = nodeA;
+    graph.setRootNodeId(nodeA);
 
     graph.addEdge(nodeA, nodeB);
 
@@ -297,7 +297,7 @@ describe('Graph', () => {
     graph.addEdge(nodeB, nodeC);
     graph.addEdge(nodeB, nodeD, 'edgetype');
 
-    graph.rootNodeId = nodeA;
+    graph.setRootNodeId(nodeA);
 
     let visited = [];
     graph.traverse(

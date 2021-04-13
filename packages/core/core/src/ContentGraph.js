@@ -81,4 +81,12 @@ export default class ContentGraph<
     this._contentKeyToNodeId.delete(nullthrows(this.getNode(nodeId)).id);
     super.removeNode(nodeId);
   }
+
+  ensureNode(contentKey: ContentKey, node: TNode) {
+    if (this.hasContentKey(contentKey)) {
+      return this.getNodeIdByContentKey(contentKey);
+    } else {
+      return this.addNode(node);
+    }
+  }
 }
