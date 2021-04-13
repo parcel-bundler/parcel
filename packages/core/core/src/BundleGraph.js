@@ -56,30 +56,6 @@ export const BundleGraphEdgeTypes = {
 
 type BundleGraphEdgeType = $Values<typeof BundleGraphEdgeTypes>;
 
-// type BundleGraphEdgeTypes =
-//   // A lack of an edge type indicates to follow the edge while traversing
-//   // the bundle's contents, e.g. `bundle.traverse()` during packaging.
-//   | null
-//   // Used for constant-time checks of presence of a dependency or asset in a bundle,
-//   // avoiding bundle traversal in cases like `isAssetInAncestors`
-//   | 'contains'
-//   // Connections between bundles and bundle groups, for quick traversal of the
-//   // bundle hierarchy.
-//   | 'bundle'
-//   // When dependency -> asset: Indicates that the asset a dependency references
-//   //                           is contained in another bundle.
-//   // When dependency -> bundle: Indicates the bundle is necessary for any bundles
-//   //                           with the dependency.
-//   // When bundle -> bundle:    Indicates the target bundle is necessary for the
-//   //                           source bundle.
-//   // This type prevents referenced assets from being traversed from dependencies
-//   // along the untyped edge, and enables traversal to referenced bundles that are
-//   // not directly connected to bundle group nodes.
-//   | 'references'
-//   // Signals that the dependency is internally resolvable via the bundle's ancestry,
-//   // and that the bundle connected to the dependency is not necessary for the source bundle.
-//   | BundleGraphEdgeTypeIds.internal_async;
-
 type InternalSymbolResolution = {|
   asset: Asset,
   exportSymbol: string,

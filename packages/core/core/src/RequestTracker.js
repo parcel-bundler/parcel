@@ -105,14 +105,6 @@ type RequestGraphNode =
   | EnvNode
   | OptionNode;
 
-// type RequestGraphEdgeType =
-//   | 'subrequest'
-//   | 'invalidated_by_update'
-//   | 'invalidated_by_delete'
-//   | 'invalidated_by_create'
-//   | 'invalidated_by_create_above'
-//   | 'dirname';
-
 export type RunAPI = {|
   invalidateOnFileCreate: FileCreateInvalidation => void,
   invalidateOnFileDelete: FilePath => void,
