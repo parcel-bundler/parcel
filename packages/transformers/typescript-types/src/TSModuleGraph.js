@@ -229,9 +229,40 @@ export class TSModuleGraph {
       }
     }
 
+    // Map of imported specifiers -> map of imported names to local names
+    let imports = new Map();
+
     for (let [m, orig] of importedSymbolsToUpdate) {
+      let imp = nullthrows(m.imports.get(orig));
       let imported = nullthrows(this.resolveImport(m, orig));
-      m.names.set(orig, imported.imported);
+
+      // If the module is bundled, map the local name to the original exported name.
+      if (this.modules.has(imp.specifier)) {
+        m.names.set(orig, imported.imported);
+        continue;
+      }
+
+      // If it's external, then we need to dedup duplicate imported names, and ensure
+      // that they do not conflict with any exported or local names.
+      let importedNames = imports.get(imp.specifier);
+      if (!importedNames) {
+        importedNames = new Map();
+        imports.set(imp.specifier, importedNames);
+      }
+
+      let name = importedNames.get(imported.imported);
+      if (!name) {
+        if (names[imported.imported]) {
+          name = `_${imported.imported}${names[imported.imported]++}`;
+        } else {
+          name = imported.imported;
+          names[imported.imported] = 1;
+        }
+
+        importedNames.set(imported.imported, name);
+      }
+
+      m.names.set(orig, name);
     }
 
     return exportedNames;
