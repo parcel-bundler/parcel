@@ -7,6 +7,7 @@ import type {
   DependencyOptions,
   FilePath,
   FileCreateInvalidation,
+  GenerateOutput,
   PackageJSON,
   PackageName,
   TransformerResult,
@@ -65,6 +66,7 @@ export default class UncommittedAsset {
   idBase: ?string;
   invalidations: Map<string, RequestInvalidation>;
   fileCreateInvalidations: Array<FileCreateInvalidation>;
+  generate: ?() => Promise<GenerateOutput>;
 
   constructor({
     value,
