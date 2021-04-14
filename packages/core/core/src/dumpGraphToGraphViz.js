@@ -32,6 +32,7 @@ export default async function dumpGraphToGraphViz(
   // $FlowFixMe
   graph: Graph<AssetGraphNode> | Graph<BundleGraphNode>,
   name: string,
+  edgeTypes?: any,
 ): Promise<void> {
   if (
     process.env.PARCEL_BUILD_ENV === 'production' ||
@@ -128,9 +129,15 @@ export default async function dumpGraphToGraphViz(
     }
     n.set('label', label);
   }
+  let edgeNames;
+  if (edgeTypes) {
+    edgeNames = Object.fromEntries(
+      Object.entries(edgeTypes).map(([k, v]) => [v, k]),
+    );
+  }
   for (let edge of graph.getAllEdges()) {
     let gEdge = g.addEdge(edge.from, edge.to);
-    let color = edge.type != null ? TYPE_COLORS[edge.type] : null;
+    let color = edgeNames ? TYPE_COLORS[edgeNames[edge.type]] : null;
     if (color != null) {
       gEdge.set('color', color);
     }

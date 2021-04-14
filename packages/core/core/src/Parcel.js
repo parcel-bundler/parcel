@@ -33,7 +33,11 @@ import {AbortController} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import {PromiseQueue} from '@parcel/utils';
 import ParcelConfig from './ParcelConfig';
 import logger from '@parcel/logger';
-import RequestTracker, {getWatcherOptions} from './RequestTracker';
+import {BundleGraphEdgeTypes} from './BundleGraph';
+import RequestTracker, {
+  getWatcherOptions,
+  RequestGraphEdgeTypes,
+} from './RequestTracker';
 import createAssetGraphRequest from './requests/AssetGraphRequest';
 import createValidationRequest from './requests/ValidationRequest';
 import createBundleGraphRequest from './requests/BundleGraphRequest';
@@ -295,14 +299,22 @@ export default class Parcel {
         bundleGraphRequest,
       );
 
-      // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381 (Windows only)
-      dumpGraphToGraphViz(bundleGraph._graph, 'BundleGraph');
+      dumpGraphToGraphViz(
+        // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381 (Windows only)
+        bundleGraph._graph,
+        'BundleGraph',
+        BundleGraphEdgeTypes,
+      );
 
       await this.#packagerRunner.writeBundles(bundleGraph);
       assertSignalNotAborted(signal);
 
       // $FlowFixMe
-      dumpGraphToGraphViz(this.#requestTracker.graph, 'RequestGraph');
+      dumpGraphToGraphViz(
+        this.#requestTracker.graph,
+        'RequestGraph',
+        RequestGraphEdgeTypes,
+      );
 
       let event = {
         type: 'buildSuccess',
