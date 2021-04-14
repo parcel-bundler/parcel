@@ -23,12 +23,12 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
   rootNodeId: ?NodeId;
   nextNodeId: number = 0;
 
-  constructor(opts: GraphOpts<TNode, TEdgeType> = ({}: any)) {
-    this.nodes = opts.nodes || new Map();
-    this.setRootNodeId(opts.rootNodeId);
-    this.nextNodeId = opts.nextNodeId ?? 0;
+  constructor(opts: ?GraphOpts<TNode, TEdgeType>) {
+    this.nodes = opts?.nodes || new Map();
+    this.setRootNodeId(opts?.rootNodeId);
+    this.nextNodeId = opts?.nextNodeId ?? 0;
 
-    let edges = opts.edges;
+    let edges = opts?.edges;
     if (edges != null) {
       this.inboundEdges = new AdjacencyList();
       this.outboundEdges = new AdjacencyList(edges);

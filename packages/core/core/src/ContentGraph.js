@@ -82,7 +82,7 @@ export default class ContentGraph<
     super.removeNode(nodeId);
   }
 
-  ensureNode(contentKey: ContentKey, node: TNode) {
+  ensureNode(contentKey: ContentKey, node: TNode): NodeId {
     if (this.hasContentKey(contentKey)) {
       return this.getNodeIdByContentKey(contentKey);
     } else {
