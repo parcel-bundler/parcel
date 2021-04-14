@@ -220,11 +220,12 @@ export class RequestGraph extends ContentGraph<
     };
   }
 
+  // addNode for RequestGraph should not override the value if added multiple times
   addNode(node: RequestGraphNode): NodeId {
     let didNodeExist = this.hasContentKey(node.id);
-    let nodeId = super.addNodeByContentKey(node.id, node);
 
     if (!didNodeExist) {
+      let nodeId = super.addNodeByContentKey(node.id, node);
       if (node.type === 'glob') {
         this.globNodeIds.add(nodeId);
       }
@@ -238,7 +239,7 @@ export class RequestGraph extends ContentGraph<
       }
     }
 
-    return nodeId;
+    return this.getNodeIdByContentKey(node.id);
   }
 
   removeNode(nodeId: NodeId): void {
@@ -341,7 +342,7 @@ export class RequestGraph extends ContentGraph<
   }
 
   invalidateOnFileUpdate(requestNodeId: NodeId, filePath: FilePath) {
-    let fileNodeId = this.ensureNode(filePath, nodeFromFilePath(filePath));
+    let fileNodeId = this.addNode(nodeFromFilePath(filePath));
 
     if (!this.hasEdge(requestNodeId, fileNodeId, 'invalidated_by_update')) {
       this.addEdge(requestNodeId, fileNodeId, 'invalidated_by_update');
@@ -349,7 +350,7 @@ export class RequestGraph extends ContentGraph<
   }
 
   invalidateOnFileDelete(requestNodeId: NodeId, filePath: FilePath) {
-    let fileNodeId = this.ensureNode(filePath, nodeFromFilePath(filePath));
+    let fileNodeId = this.addNode(nodeFromFilePath(filePath));
 
     if (!this.hasEdge(requestNodeId, fileNodeId, 'invalidated_by_delete')) {
       this.addEdge(requestNodeId, fileNodeId, 'invalidated_by_delete');
@@ -373,7 +374,7 @@ export class RequestGraph extends ContentGraph<
       for (let part of parts) {
         let fileNameNode = nodeFromFileName(part);
 
-        let fileNameNodeId = this.ensureNode(fileNameNode.id, fileNameNode);
+        let fileNameNodeId = this.addNode(fileNameNode);
         if (
           lastNodeId != null &&
           !this.hasEdge(lastNodeId, fileNameNodeId, 'dirname')
@@ -389,7 +390,7 @@ export class RequestGraph extends ContentGraph<
       // is created in a parent directory). There is likely to already be a node
       // for this file in the graph (e.g. the source file) that we can reuse for this.
       node = nodeFromFilePath(aboveFilePath);
-      let nodeId = this.ensureNode(node.id, node);
+      let nodeId = this.addNode(node);
 
       // Now create an edge from the `aboveFilePath` node to the first file_name node
       // in the chain created above, and an edge from the last node in the chain back to
@@ -414,7 +415,7 @@ export class RequestGraph extends ContentGraph<
       throw new Error('Invalid invalidation');
     }
 
-    let nodeId = this.ensureNode(node.id, node);
+    let nodeId = this.addNode(node);
     if (!this.hasEdge(requestNodeId, nodeId, 'invalidated_by_create')) {
       this.addEdge(requestNodeId, nodeId, 'invalidated_by_create');
     }
@@ -431,7 +432,7 @@ export class RequestGraph extends ContentGraph<
     value: string | void,
   ) {
     let envNode = nodeFromEnv(env, value);
-    let envNodeId = this.ensureNode(envNode.id, envNode);
+    let envNodeId = this.addNode(envNode);
 
     if (!this.hasEdge(requestNodeId, envNodeId, 'invalidated_by_update')) {
       this.addEdge(requestNodeId, envNodeId, 'invalidated_by_update');
@@ -444,7 +445,7 @@ export class RequestGraph extends ContentGraph<
     value: mixed,
   ) {
     let optionNode = nodeFromOption(option, value);
-    let optionNodeId = this.ensureNode(optionNode.id, optionNode);
+    let optionNodeId = this.addNode(optionNode);
 
     if (!this.hasEdge(requestNodeId, optionNodeId, 'invalidated_by_update')) {
       this.addEdge(requestNodeId, optionNodeId, 'invalidated_by_update');
