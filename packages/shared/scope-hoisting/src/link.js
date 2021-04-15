@@ -105,6 +105,7 @@ const REGISTER_TEMPLATE = template.statements<
     REFERENCED_IDS: ArrayExpression,
     STATEMENTS: Array<Statement>,
     PARCEL_REQUIRE: Identifier,
+    BUNDLE_ID: StringLiteral,
   |},
   Array<Statement>,
 >(`function $parcel$bundleWrapper() {
@@ -114,7 +115,7 @@ const REGISTER_TEMPLATE = template.statements<
 }
 var $parcel$referencedAssets = REFERENCED_IDS;
 for (var $parcel$i = 0; $parcel$i < $parcel$referencedAssets.length; $parcel$i++) {
-  PARCEL_REQUIRE.registerBundle($parcel$referencedAssets[$parcel$i], $parcel$bundleWrapper);
+  PARCEL_REQUIRE.registerBundle($parcel$referencedAssets[$parcel$i], $parcel$bundleWrapper, BUNDLE_ID);
 }
 `);
 const WRAPPER_TEMPLATE = template.statement<
@@ -1036,6 +1037,7 @@ export function link({
                   ),
               ),
               PARCEL_REQUIRE: t.identifier(parcelRequireName),
+              BUNDLE_ID: t.stringLiteral(bundle.publicId),
             });
           }
 
