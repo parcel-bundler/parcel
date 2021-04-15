@@ -709,7 +709,7 @@ ${code}
         this.needsDefaultInterop(resolvedAsset)
       ) {
         this.usedHelpers.add('$parcel$interopDefault');
-        return `$parcel$interopDefault(${obj})`;
+        return `($parcel$interopDefault(${obj}))`;
       } else {
         if (IDENTIFIER_RE.test(exportSymbol)) {
           return `${obj}.${exportSymbol}`;
