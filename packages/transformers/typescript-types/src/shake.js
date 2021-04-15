@@ -223,8 +223,8 @@ function generateImports(moduleGraph: TSModuleGraph) {
       } else {
         namedSpecifiers.push(
           ts.createImportSpecifier(
-            name === imported ? undefined : ts.createIdentifier(name),
-            ts.createIdentifier(imported),
+            name === imported ? undefined : ts.createIdentifier(imported),
+            ts.createIdentifier(name),
           ),
         );
       }

@@ -2,6 +2,7 @@
 import ThrowableDiagnostic, {
   generateJSONCodeHighlights,
   escapeMarkdown,
+  encodeJSONKeyComponent,
 } from '@parcel/diagnostic';
 import type {Mapping} from 'json-source-map';
 import nullthrows from 'nullthrows';
@@ -211,7 +212,7 @@ function validateSchema(schema: SchemaEntity, data: mixed): Array<SchemaError> {
                   k =>
                     ({
                       type: 'forbidden-prop',
-                      dataPath: dataPath + '/' + k,
+                      dataPath: dataPath + '/' + encodeJSONKeyComponent(k),
                       dataType: 'key',
                       prop: k,
                       expectedProps: Object.keys(schemaNode.properties),
@@ -254,7 +255,7 @@ function validateSchema(schema: SchemaEntity, data: mixed): Array<SchemaError> {
                     [schemaNode.properties[k]].concat(schemaAncestors),
                     // $FlowFixMe type was already checked
                     dataNode[k],
-                    dataPath + '/' + k,
+                    dataPath + '/' + encodeJSONKeyComponent(k),
                   );
                   if (result) results.push(result);
                 } else {
@@ -263,7 +264,7 @@ function validateSchema(schema: SchemaEntity, data: mixed): Array<SchemaError> {
                       results.push({
                         type: 'enum',
                         dataType: 'key',
-                        dataPath: dataPath + '/' + k,
+                        dataPath: dataPath + '/' + encodeJSONKeyComponent(k),
                         expectedValues: Object.keys(
                           schemaNode.properties,
                         ).filter(
@@ -280,7 +281,7 @@ function validateSchema(schema: SchemaEntity, data: mixed): Array<SchemaError> {
                       [additionalProperties].concat(schemaAncestors),
                       // $FlowFixMe type was already checked
                       dataNode[k],
-                      dataPath + '/' + k,
+                      dataPath + '/' + encodeJSONKeyComponent(k),
                     );
                     if (result) results.push(result);
                   }
