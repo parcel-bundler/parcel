@@ -40,6 +40,7 @@ use swc_ecmascript::transforms::{
   hygiene,
   optimization::simplify::expr_simplifier,
   optimization::simplify::dead_branch_remover,
+  compat::reserved_words::reserved_words,
   react,
   typescript,
   pass::Optional
@@ -310,6 +311,7 @@ fn transform(ctx: CallContext) -> Result<JsUnknown> {
 
           let program = {
             let mut passes = chain!(
+              reserved_words(),
               hygiene(),
               fixer(Some(&comments)),
             );
