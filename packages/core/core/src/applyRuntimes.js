@@ -19,7 +19,7 @@ import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import AssetGraph, {nodeFromAssetGroup} from './AssetGraph';
 import BundleGraph from './public/BundleGraph';
-import InternalBundleGraph, {BundleGraphEdgeTypes} from './BundleGraph';
+import InternalBundleGraph, {bundleGraphEdgeTypes} from './BundleGraph';
 import {NamedBundle} from './public/Bundle';
 import {PluginLogger} from '@parcel/logger';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
@@ -190,7 +190,7 @@ export default async function applyRuntimes({
         bundleGraph._graph.addEdge(
           bundle.id,
           node.id,
-          BundleGraphEdgeTypes.contains,
+          bundleGraphEdgeTypes.contains,
         );
       }
     }, runtimeNode);

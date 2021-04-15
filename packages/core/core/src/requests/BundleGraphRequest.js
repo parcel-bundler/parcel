@@ -19,7 +19,7 @@ import {PluginLogger} from '@parcel/logger';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import AssetGraph from '../AssetGraph';
 import BundleGraph from '../public/BundleGraph';
-import InternalBundleGraph, {BundleGraphEdgeTypes} from '../BundleGraph';
+import InternalBundleGraph, {bundleGraphEdgeTypes} from '../BundleGraph';
 import MutableBundleGraph from '../public/MutableBundleGraph';
 import {Bundle, NamedBundle} from '../public/Bundle';
 import {report} from '../ReporterRunner';
@@ -200,7 +200,7 @@ class BundlerRunner {
       // $FlowFixMe
       internalBundleGraph._graph,
       'before_bundle',
-      BundleGraphEdgeTypes,
+      bundleGraphEdgeTypes,
     );
     let mutableBundleGraph = new MutableBundleGraph(
       internalBundleGraph,
@@ -227,7 +227,7 @@ class BundlerRunner {
         // $FlowFixMe[incompatible-call]
         internalBundleGraph._graph,
         'after_bundle',
-        BundleGraphEdgeTypes,
+        bundleGraphEdgeTypes,
       );
     }
 
@@ -250,7 +250,7 @@ class BundlerRunner {
           // $FlowFixMe[incompatible-call]
           internalBundleGraph._graph,
           'after_optimize',
-          BundleGraphEdgeTypes,
+          bundleGraphEdgeTypes,
         );
       }
     }
@@ -286,7 +286,7 @@ class BundlerRunner {
       // $FlowFixMe
       internalBundleGraph._graph,
       'after_runtimes',
-      BundleGraphEdgeTypes,
+      bundleGraphEdgeTypes,
     );
 
     // Store the serialized bundle graph in an in memory cache so that we avoid serializing it
