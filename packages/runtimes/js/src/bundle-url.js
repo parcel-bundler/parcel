@@ -38,6 +38,7 @@ function getBaseURL(url) {
 // TODO: Replace uses with `new URL(url).origin` when ie11 is no longer supported.
 function getOrigin(url) {
   let matches = ('' + url).match(/(https?|file|ftp):\/\/[^/]+/);
+  let matches = ('' + url).match(/(https?|file|ftp):\/\/(\/)?[^/]+/);
   if (!matches) {
     throw new Error('Origin not found');
   }
