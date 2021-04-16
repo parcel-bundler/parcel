@@ -2305,8 +2305,10 @@ describe('javascript', function() {
     ]);
 
     let output = await run(b);
-
-    assert.equal(Object.getPrototypeOf(output).constructor.name, 'Error');
+    assert.equal(
+      Object.getPrototypeOf(output).constructor.name,
+      'PatchedError',
+    );
     assert(
       /Cannot find module ['"]optional-dep['"]/.test(output.message),
       'Should set correct error message',

@@ -595,7 +595,7 @@ function prepareBrowserContext(
 
   var exports = {};
 
-  const PatchedError = function(message) {
+  function PatchedError(message) {
     const patchedError = new Error(message);
     const stackStart = patchedError.stack.indexOf('at new PatchedError');
     const stack = patchedError.stack
@@ -618,7 +618,7 @@ function prepareBrowserContext(
       stack.join('\n');
 
     return patchedError;
-  };
+  }
 
   // $FlowFixMe[cannot-write]
   PatchedError.prototype = Error.prototype;
