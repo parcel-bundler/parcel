@@ -595,35 +595,39 @@ function prepareBrowserContext(
 
   var exports = {};
 
-  class customError {
-    constructor(message) {
-      const customError = new Error(message);
-      const stackStart = customError.stack.indexOf('at new customError');
-      const stack = customError.stack
-        .slice(stackStart, customError.stack.indexOf('at Script.runInContext'))
-        .split('\n');
-      stack.shift();
-      stack.pop();
-      for (let [i, line] of stack.entries()) {
-        stack[i] = line.replace(
-          /( ?.* )\(?(.*)\)?$/,
-          (_, prefix, path) =>
-            prefix +
-            (path.endsWith(')')
-              ? `(http://localhost/${path.slice(0, path.length - 1)})`
-              : `http://localhost/${path}`),
-        );
-      }
-      customError.stack =
-        customError.stack.slice(0, stackStart).replace(/ +$/, '') +
-        stack.join('\n');
-      return customError;
+  const PatchedError = function(message) {
+    const patchedError = new Error(message);
+    const stackStart = patchedError.stack.indexOf('at new PatchedError');
+    const stack = patchedError.stack
+      .slice(stackStart, patchedError.stack.indexOf('at Script.runInContext'))
+      .split('\n');
+    stack.shift();
+    stack.pop();
+    for (let [i, line] of stack.entries()) {
+      stack[i] = line.replace(
+        /( ?.* )\(?(.*)\)?$/,
+        (_, prefix, path) =>
+          prefix +
+          (path.endsWith(')')
+            ? `(http://localhost/${path.slice(0, path.length - 1)})`
+            : `http://localhost/${path}`),
+      );
     }
-  }
+    patchedError.stack =
+      patchedError.stack.slice(0, stackStart).replace(/ +$/, '') +
+      stack.join('\n');
+
+    return patchedError;
+  };
+
+  // $FlowFixMe[cannot-write]
+  PatchedError.prototype = Error.prototype;
+  // $FlowFixMe[cannot-write]
+  Error.prototype.constructor = PatchedError;
 
   var ctx = Object.assign(
     {
-      Error: customError,
+      Error: PatchedError,
       exports,
       module: {exports},
       document: fakeDocument,
