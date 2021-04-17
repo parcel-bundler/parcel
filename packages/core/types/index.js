@@ -1155,7 +1155,8 @@ export type Bundler = {|
     options: PluginOptions,
     logger: PluginLogger,
     changedAssets: Map<string, Asset>,
-  |}): Array<Bundle>, //not sure of return type
+    isAssetGraphStructureSame: boolean,
+  |}): Array<void>,
 |};
 
 /**
