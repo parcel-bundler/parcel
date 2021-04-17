@@ -207,13 +207,13 @@ export default (new Transformer({
     } else if (Array.isArray(config?.inlineEnvironment)) {
       for (let key in options.env) {
         if (isMatch(key, config.inlineEnvironment)) {
-          env[key] = options.env[key];
+          env[key] = String(options.env[key]);
         }
       }
     } else {
       for (let key in options.env) {
         if (!key.startsWith('npm_')) {
-          env[key] = options.env[key];
+          env[key] = String(options.env[key]);
         }
       }
     }
