@@ -1,6 +1,6 @@
 // @flow strict-local
 
-import type {Async, Bundle as IBundle, Namer} from '@parcel/types';
+import type {Bundle as IBundle, Namer} from '@parcel/types';
 import type {SharedReference} from '@parcel/workers';
 import type ParcelConfig, {LoadedPlugin} from '../ParcelConfig';
 import type {StaticRunOpts, RunAPI} from '../RequestTracker';
@@ -18,7 +18,7 @@ import path from 'path';
 import nullthrows from 'nullthrows';
 import {PluginLogger} from '@parcel/logger';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
-import AssetGraph from '../AssetGraph';
+import AssetGraph, {nodeFromAsset} from '../AssetGraph';
 import BundleGraph from '../public/BundleGraph';
 import InternalBundleGraph from '../BundleGraph';
 import MutableBundleGraph from '../public/MutableBundleGraph';
@@ -58,6 +58,11 @@ type BundleGraphRequestInput = {|
   isAssetGraphStructureSame: ?boolean,
 |};
 
+type BundleGraphRequestResult = {|
+  bundleGraph: InternalBundleGraph,
+  changedBundles: Array<InternalBundle>,
+|};
+
 type RunInput = {|
   input: BundleGraphRequestInput,
   ...StaticRunOpts,
@@ -66,10 +71,7 @@ type RunInput = {|
 type BundleGraphRequest = {|
   id: string,
   +type: 'bundle_graph_request',
-  run: RunInput => Async<{|
-    bundleGraph: InternalBundleGraph,
-    changedBundles: Array<InternalBundle>,
-  |}>,
+  run: RunInput => Promise<BundleGraphRequestResult>,
   input: BundleGraphRequestInput,
 |};
 
@@ -91,20 +93,13 @@ export default function createBundleGraphRequest(
       invalidateDevDeps(invalidDevDeps, input.options, parcelConfig);
 
       let builder = new BundlerRunner(input, parcelConfig, devDeps);
-      let bundleGraph = await builder.bundle(
-        input.input.assetGraph,
-        input.input.previousAssetGraphHash,
-        input.input.changedAssets,
-      );
 
-      let changedBundles = Array.from(
-        input.input.changedAssets.values(),
-      ).flatMap(asset => bundleGraph.getBundlesContainingAssets(asset));
-
-      return {
-        bundleGraph,
-        changedBundles,
-      };
+      return builder.bundle({
+        graph: input.input.assetGraph,
+        previousAssetGraphHash: input.input.previousAssetGraphHash,
+        changedAssets: input.input.changedAssets,
+        isAssetGraphStructureSame: input.input.isAssetGraphStructureSame,
+      });
     },
     input,
   };
@@ -181,11 +176,17 @@ class BundlerRunner {
     await runDevDepRequest(this.api, devDepRequest);
   }
 
-  async bundle(
+  async bundle({
+    graph,
+    previousAssetGraphHash,
+    changedAssets,
+    isAssetGraphStructureSame,
+  }: {|
     graph: AssetGraph,
     previousAssetGraphHash: ?string,
     changedAssets: Map<string, Asset>,
-  ): Promise<InternalBundleGraph> {
+    isAssetGraphStructureSame: ?boolean,
+  |}): Promise<BundleGraphRequestResult> {
     report({
       type: 'buildProgress',
       phase: 'bundling',
@@ -193,7 +194,6 @@ class BundlerRunner {
 
     await this.loadConfigs();
 
-    // TODO - Why does this need double await (or rather, why is this com)
     let plugin = await await this.config.getBundler();
     let {plugin: bundler, name, resolveFrom} = plugin;
 
@@ -221,17 +221,24 @@ class BundlerRunner {
       }
     }
 
-    let internalBundleGraph = InternalBundleGraph.fromAssetGraph(graph);
+    // if cache is disabled, should this even happen?
+    let cachedBundleGraph: ?BundleGraphRequestResult;
+    if (this.options.isIncremental && previousAssetGraphHash != null) {
+      cachedBundleGraph = await this.api.getRequestResult(
+        'BundleGraph:' + previousAssetGraphHash,
+      );
+    }
+
+    let internalBundleGraph: InternalBundleGraph =
+      cachedBundleGraph?.bundleGraph ??
+      InternalBundleGraph.fromAssetGraph(graph);
+
     // $FlowFixMe
     await dumpGraphToGraphViz(internalBundleGraph._graph, 'before_bundle');
-    let mutableBundleGraph = new MutableBundleGraph(
-      internalBundleGraph,
-      this.options,
-    );
 
     let logger = new PluginLogger({origin: this.config.getBundlerName()});
 
-    const numOfAssets = Array.from(graph.nodes.values()).filter(
+    let numOfAssets = Array.from(graph.nodes.values()).filter(
       node => node.type === 'asset',
     ).length;
 
@@ -239,16 +246,21 @@ class BundlerRunner {
     const shouldUpdate =
       this.options.isIncremental && numOfAssets > changedAssets.size;
 
+    let mutableBundleGraph;
     try {
-      if (shouldUpdate) {
-        await bundler.update({
-          bundleGraph: mutableBundleGraph,
-          config: this.configs.get(plugin.name)?.result,
-          options: this.pluginOptions,
-          logger,
-          changedAssets,
-        });
+      if (shouldUpdate && isAssetGraphStructureSame) {
+        for (let asset of changedAssets.values()) {
+          internalBundleGraph._graph.addNode(nodeFromAsset(asset));
+        }
+        mutableBundleGraph = new MutableBundleGraph(
+          internalBundleGraph,
+          this.options,
+        );
       } else {
+        let mutableBundleGraph = new MutableBundleGraph(
+          internalBundleGraph,
+          this.options,
+        );
         await bundler.bundle({
           bundleGraph: mutableBundleGraph,
           config: this.configs.get(plugin.name)?.result,
@@ -313,7 +325,6 @@ class BundlerRunner {
       devDepRequests: this.devDepRequests,
       configs: this.configs,
     });
-
     // $FlowFixMe
     await dumpGraphToGraphViz(internalBundleGraph._graph, 'after_runtimes');
 
@@ -325,8 +336,18 @@ class BundlerRunner {
 
     // Recompute the cache key to account for new dev dependencies and invalidations.
     cacheKey = await this.getCacheKey(graph);
-    this.api.storeResult(internalBundleGraph, cacheKey);
-    return internalBundleGraph;
+
+    // TODO : May want to move
+    let changedBundles = Array.from(changedAssets.values()).flatMap(asset =>
+      internalBundleGraph.getBundlesContainingAssets(asset),
+    );
+
+    let result = {
+      bundleGraph: internalBundleGraph,
+      changedBundles,
+    };
+    this.api.storeResult(result, cacheKey);
+    return result;
   }
 
   async getCacheKey(assetGraph: AssetGraph): Promise<string> {

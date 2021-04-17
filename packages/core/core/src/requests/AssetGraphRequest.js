@@ -50,7 +50,12 @@ type AssetGraphRequestInput = {|
   requestedAssetIds?: Set<string>,
 |};
 
-type AssetGraphRequestResult = {|
+type AssetGraphRequestResult = AssetGraphBuilderResult & {|
+  isAssetGraphStructureSame: boolean,
+  previousAssetGraphHash: ?string,
+|};
+
+type AssetGraphBuilderResult = {|
   assetGraph: AssetGraph,
   changedAssets: Map<string, Asset>,
   assetRequests: Array<AssetGroup>,
@@ -60,17 +65,10 @@ type RunInput = {|
   input: AssetGraphRequestInput,
   ...StaticRunOpts,
 |};
-
 type AssetGraphRequest = {|
   id: string,
   +type: 'asset_graph_request',
-  run: RunInput => Async<{|
-    assetGraph: AssetGraph,
-    changedAssets: Map<string, Asset>,
-    assetRequests: Array<AssetGroup>,
-    isAssetGraphStructureSame: boolean,
-    previousAssetGraphHash: ?string,
-  |}>,
+  run: RunInput => Async<AssetGraphRequestResult>,
   input: AssetGraphRequestInput,
 |};
 
@@ -83,7 +81,7 @@ export default function createAssetGraphRequest(
     run: async input => {
       let prevResult = await input.api.getPreviousResult<AssetGraphRequestResult>();
       let builder = new AssetGraphBuilder(input, clone(prevResult)); // pass clone to not override the previous result reference
-      let assetGraphRequest = await builder.build();
+      let assetGraphRequest = await await builder.build();
 
       return {
         ...assetGraphRequest,
@@ -149,7 +147,7 @@ export class AssetGraphBuilder {
     this.queue = new PromiseQueue();
   }
 
-  async build(): Promise<AssetGraphRequestResult> {
+  async build(): Promise<AssetGraphBuilderResult> {
     let errors = [];
     let rootNodeId = nullthrows(
       this.assetGraph.rootNodeId,
