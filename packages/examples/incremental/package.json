@@ -5,7 +5,7 @@
   "private": true,
   "scripts": {
     "start": "PARCEL_WORKERS=0 parcel src/index.js --incremental",
-    "start:clean": "rm -rf .parcel-cache dist && yarn demo"
+    "start:clean": "rm -rf .parcel-cache dist && yarn start"
   },
   "devDependencies": {
     "@parcel/core": "2.0.0-beta.2"
