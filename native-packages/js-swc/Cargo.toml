@@ -9,9 +9,9 @@ crate-type = ["cdylib"]
 [dependencies]
 napi = { git = "https://github.com/napi-rs/napi-rs", branch = "main", features = ["serde-json"] }
 napi-derive = { git = "https://github.com/napi-rs/napi-rs", branch = "main" }
-swc_ecmascript = { version = "0.29.1", features = ["parser", "transforms", "module", "optimization", "react", "typescript", "utils", "visit", "codegen", "utils"] }
-swc_ecma_preset_env = { version = "0.13.0" }
-swc_common = { version = "0.10.13", features = ["tty-emitter", "sourcemap"] }
+swc_ecmascript = { version = "0.31.2", features = ["parser", "transforms", "module", "optimization", "react", "typescript", "utils", "visit", "codegen", "utils"] }
+swc_ecma_preset_env = { version = "0.15.2" }
+swc_common = { version = "0.10.16", features = ["tty-emitter", "sourcemap"] }
 swc_atoms = "*"
 indoc = "1.0.3"
 serde = "1.0.123"

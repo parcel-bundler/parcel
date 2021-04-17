@@ -3560,8 +3560,7 @@ describe('javascript', function() {
     assert.strictEqual(res.baz(), 'foo');
   });
 
-  it.skip('should not replace identifier with a var declaration inside a for loop', async function() {
-    // TODO: swc block scoping bug
+  it('should not replace identifier with a var declaration inside a for loop', async function() {
     let b = await bundle(
       path.join(__dirname, 'integration/js-import-shadow-for-var/index.js'),
     );
