@@ -597,7 +597,7 @@ function prepareBrowserContext(
 
   function PatchedError(message) {
     const patchedError = new Error(message);
-    const stackStart = patchedError.stack.indexOf('at new PatchedError');
+    const stackStart = patchedError.stack.indexOf('at new Error');
     const stack = patchedError.stack
       .slice(stackStart, patchedError.stack.indexOf('at Script.runInContext'))
       .split('\n');
@@ -622,6 +622,10 @@ function prepareBrowserContext(
 
   // $FlowFixMe[cannot-write]
   PatchedError.prototype = Error.prototype;
+  Object.defineProperty(PatchedError, 'name', {
+    writable: true,
+    value: 'Error',
+  });
   // $FlowFixMe[cannot-write]
   Error.prototype.constructor = PatchedError;
 
