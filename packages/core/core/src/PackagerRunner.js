@@ -116,9 +116,14 @@ export default class PackagerRunner {
     let hashRefToNameHash = new Map();
     let bundles = bundleGraph.getBundles().filter(bundle => {
       // Do not package and write bundles to disk if the bundle is unchanged
-      if (!changedBundles.includes(bundle.id)) {
+      if (
+        !changedBundles
+          .map(changedBundle => changedBundle.id)
+          .includes(bundle.id)
+      ) {
         return false;
       }
+
       // Do not package and write placeholder bundles to disk. We just
       // need to update the name so other bundles can reference it.
       if (bundle.isPlaceholder) {

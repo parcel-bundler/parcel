@@ -303,12 +303,10 @@ export default class Parcel {
         optionsRef: this.#optionsRef,
       });
 
-      // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
       let {bundleGraph, changedBundles} = await this.#requestTracker.runRequest(
         bundleGraphRequest,
       );
 
-      // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381 (Windows only)
       dumpGraphToGraphViz(bundleGraph._graph, 'BundleGraph');
 
       await this.#packagerRunner.writeBundles(bundleGraph, changedBundles);
