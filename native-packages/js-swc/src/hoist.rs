@@ -492,6 +492,14 @@ impl<'a> Fold for Hoist<'a> {
           },
           _ => {}
         }
+
+        // Don't visit member.prop so we avoid the ident visitor.
+        return Expr::Member(MemberExpr {
+          span: member.span,
+          obj: member.obj.clone().fold_with(self),
+          prop: member.prop.clone(),
+          computed: member.computed
+        })
       },
       Expr::Call(call) => {
         // require('foo') -> $id$import$foo
@@ -542,8 +550,7 @@ impl<'a> Fold for Hoist<'a> {
       _ => {}
     }
 
-    let res = node.fold_children_with(self);
-    res
+    node.fold_children_with(self)
   }
 
   fn fold_seq_expr(&mut self, node: SeqExpr) -> SeqExpr {
@@ -2600,6 +2607,21 @@ mod tests {
     assert_eq!(code, indoc!{r#"
     $abc$exports[foo] = 2;
     console.log($abc$exports.foo);
+    "#});
+
+    let (_collect, code, _hoist) = parse(r#"
+    var module = {exports: {}};
+    module.exports.foo = 2;
+    console.log(module.exports.foo);
+    "#);
+
+    assert_eq!(code, indoc!{r#"
+    var $abc$var$module = {
+        exports: {
+        }
+    };
+    $abc$var$module.exports.foo = 2;
+    console.log($abc$var$module.exports.foo);
     "#});
   }
 
