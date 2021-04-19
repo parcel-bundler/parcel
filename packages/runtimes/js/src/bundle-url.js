@@ -1,6 +1,6 @@
 var bundleURL = {};
 function getBundleURLCached(id) {
-  let value = bundleURL[id];
+  var value = bundleURL[id];
   if (!value) {
     value = getBundleURL();
     bundleURL[id] = value;
