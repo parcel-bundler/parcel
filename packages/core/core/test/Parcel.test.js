@@ -9,7 +9,7 @@ import path from 'path';
 import Parcel, {createWorkerFarm} from '../src/Parcel';
 
 describe('Parcel', function() {
-  this.timeout(60000);
+  this.timeout(75000);
 
   let workerFarm;
   before(() => {
