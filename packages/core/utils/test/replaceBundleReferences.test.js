@@ -13,6 +13,7 @@ describe('replace bundle references', () => {
       name: 'reformat.html',
       // $FlowFixMe
       target: {
+        distDir: '/user/dist',
         publicUrl: '/',
       },
     };
@@ -24,6 +25,7 @@ describe('replace bundle references', () => {
       name: 'image.HASH_REF_87f9d66c16c2216ccc7e5664cf089305.webp',
       // $FlowFixMe
       target: {
+        distDir: '/user/dist',
         publicUrl: '/',
       },
     };
@@ -55,6 +57,7 @@ describe('replace bundle references', () => {
       name: 'reformat.html',
       // $FlowFixMe
       target: {
+        distDir: '/user/dist',
         publicUrl: '/',
       },
     };
@@ -66,6 +69,7 @@ describe('replace bundle references', () => {
       name: 'image.HASH_REF_87f9d66c16c2216ccc7e5664cf089305.webp',
       // $FlowFixMe
       target: {
+        distDir: '/user/dist',
         publicUrl: '/',
       },
     };
@@ -97,6 +101,7 @@ describe('replace bundle references', () => {
       name: 'reformat.html',
       // $FlowFixMe
       target: {
+        distDir: '/user/dist',
         publicUrl: 'https://test.com/static',
       },
     };
@@ -108,6 +113,7 @@ describe('replace bundle references', () => {
       name: 'image.HASH_REF_87f9d66c16c2216ccc7e5664cf089305.webp',
       // $FlowFixMe
       target: {
+        distDir: '/user/dist',
         publicUrl: 'https://test.com/static',
       },
     };
@@ -139,6 +145,7 @@ describe('replace bundle references', () => {
       name: 'reformat.html',
       // $FlowFixMe
       target: {
+        distDir: '/user/dist',
         publicUrl: 'https://test.com/static',
       },
     };
@@ -150,6 +157,7 @@ describe('replace bundle references', () => {
       name: 'image.HASH_REF_87f9d66c16c2216ccc7e5664cf089305.webp',
       // $FlowFixMe
       target: {
+        distDir: '/user/dist/assets',
         publicUrl: 'https://test.com/static',
       },
     };

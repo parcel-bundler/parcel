@@ -98,7 +98,7 @@ describe('loadParcelConfig', () => {
     it('should require pipeline to be an array', () => {
       assert.throws(() => {
         validateConfigFile(
-          // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
+          // $FlowExpectedError[incompatible-call]
           {
             filePath: '.parcelrc',
             resolvers: '123',
@@ -113,7 +113,7 @@ describe('loadParcelConfig', () => {
         validateConfigFile(
           {
             filePath: '.parcelrc',
-            // $FlowFixMe
+            // $FlowExpectedError[incompatible-call]
             resolvers: [1, '123', 5],
           },
           '.parcelrc',
@@ -158,7 +158,7 @@ describe('loadParcelConfig', () => {
         validateConfigFile(
           {
             filePath: '.parcelrc',
-            // $FlowFixMe
+            // $FlowExpectedError[incompatible-call]
             transformers: ['parcel-transformer-test', '...'],
           },
           '.parcelrc',
@@ -184,7 +184,7 @@ describe('loadParcelConfig', () => {
     it('should require extends to be a string or array of strings', () => {
       assert.throws(() => {
         validateConfigFile(
-          // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
+          // $FlowExpectedError[incompatible-call]
           {
             filePath: '.parcelrc',
             extends: 2,
@@ -197,7 +197,7 @@ describe('loadParcelConfig', () => {
         validateConfigFile(
           {
             filePath: '.parcelrc',
-            // $FlowFixMe
+            // $FlowExpectedError[incompatible-call]
             extends: [2, 7],
           },
           '.parcelrc',
@@ -258,6 +258,30 @@ describe('loadParcelConfig', () => {
           extends: ['parcel-config-foo', 'parcel-config-bar'],
         },
         '.parcelrc',
+      );
+    });
+
+    it('should throw for invalid top level keys', () => {
+      assert.throws(
+        () => {
+          validateConfigFile(
+            // $FlowExpectedError
+            {
+              extends: '@parcel/config-default',
+              '@parcel/transformer-js': {
+                inlineEnvironment: false,
+              },
+            },
+            '.parcelrc',
+          );
+        },
+        e => {
+          assert.strictEqual(
+            e.diagnostics[0].codeFrame.codeHighlights[0].message,
+            `Did you mean "transformers"?`,
+          );
+          return true;
+        },
       );
     });
 
@@ -615,7 +639,7 @@ describe('loadParcelConfig', () => {
           resolveFrom: '.parcelrc',
           keyPath: '/bundler',
         },
-        runtimes: {},
+        runtimes: [],
         namers: [],
         optimizers: {},
         packagers: {},
@@ -702,7 +726,7 @@ describe('loadParcelConfig', () => {
       assert.deepEqual(config.reporters, defaultConfig.reporters || []);
     });
 
-    it('should emit a codeframe when a malformed .parcelrc was found', async () => {
+    it('should emit a codeframe.codeHighlights when a malformed .parcelrc was found', async () => {
       let configFilePath = path.join(
         __dirname,
         'fixtures',
@@ -716,7 +740,7 @@ describe('loadParcelConfig', () => {
         column: 14,
       };
 
-      // $FlowFixMe
+      // $FlowFixMe[prop-missing]
       await assert.rejects(
         () => parseAndProcessConfig(configFilePath, code, DEFAULT_OPTIONS),
         {
@@ -752,7 +776,7 @@ describe('loadParcelConfig', () => {
       );
       let code = await DEFAULT_OPTIONS.inputFS.readFile(configFilePath, 'utf8');
 
-      // $FlowFixMe
+      // $FlowFixMe[prop-missing]
       await assert.rejects(
         () => parseAndProcessConfig(configFilePath, code, DEFAULT_OPTIONS),
         {
@@ -789,7 +813,7 @@ describe('loadParcelConfig', () => {
       );
       let code = await DEFAULT_OPTIONS.inputFS.readFile(configFilePath, 'utf8');
 
-      // $FlowFixMe
+      // $FlowFixMe[prop-missing]
       await assert.rejects(
         () => parseAndProcessConfig(configFilePath, code, DEFAULT_OPTIONS),
         {
@@ -826,7 +850,7 @@ describe('loadParcelConfig', () => {
       );
       let code = await DEFAULT_OPTIONS.inputFS.readFile(configFilePath, 'utf8');
 
-      // $FlowFixMe
+      // $FlowFixMe[prop-missing]
       await assert.rejects(
         () => parseAndProcessConfig(configFilePath, code, DEFAULT_OPTIONS),
         {
