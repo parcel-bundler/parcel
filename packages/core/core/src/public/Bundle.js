@@ -127,10 +127,6 @@ export class Bundle implements IBundle {
     return new Target(this.#bundle.target);
   }
 
-  get filePath(): ?FilePath {
-    return this.#bundle.filePath;
-  }
-
   get name(): ?string {
     return this.#bundle.name;
   }

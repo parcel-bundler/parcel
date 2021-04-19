@@ -112,7 +112,7 @@ async function getBundleData(
   };
 }
 
-function getBundleStats(bundles: Array<NamedBundle>) {
+function getBundleStats(bundles: Array<PackagedBundle>) {
   return {
     assets: bundles.map(bundle => {
       return {
