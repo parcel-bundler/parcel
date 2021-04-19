@@ -13,6 +13,7 @@ import type {Diagnostic} from '@parcel/diagnostic';
 import type {
   Asset,
   AssetGroup,
+  AssetNode,
   AssetRequestInput,
   Dependency,
   DependencyNode,
@@ -257,9 +258,7 @@ export class AssetGraphBuilder {
 
   propagateSymbols() {
     // Propagate the requested symbols down from the root to the leaves
-    this.propagateSymbolsDown((assetNodeId, incomingDeps, outgoingDeps) => {
-      let assetNode = nullthrows(this.assetGraph.getNode(assetNodeId));
-      invariant(assetNode.type === 'asset');
+    this.propagateSymbolsDown((assetNode, incomingDeps, outgoingDeps) => {
       if (!assetNode.value.symbols) return;
 
       // exportSymbol -> identifier
@@ -402,8 +401,7 @@ export class AssetGraphBuilder {
 
     // Because namespace reexports introduce ambiguity, go up the graph from the leaves to the
     // root and remove requested symbols that aren't actually exported
-    this.propagateSymbolsUp((assetNodeId, incomingDeps, outgoingDeps) => {
-      let assetNode = nullthrows(this.assetGraph.getNode(assetNodeId));
+    this.propagateSymbolsUp((assetNode, incomingDeps, outgoingDeps) => {
       invariant(assetNode.type === 'asset');
 
       let assetSymbols: ?$ReadOnlyMap<
@@ -542,7 +540,7 @@ export class AssetGraphBuilder {
 
   propagateSymbolsDown(
     visit: (
-      nodeId: NodeId,
+      assetNode: AssetNode,
       incoming: $ReadOnlyArray<DependencyNode>,
       outgoing: $ReadOnlyArray<DependencyNode>,
     ) => void,
@@ -567,7 +565,7 @@ export class AssetGraphBuilder {
         node.usedSymbolsDownDirty = false;
       } else if (node.type === 'asset' && node.usedSymbolsDownDirty) {
         visit(
-          queuedNodeId,
+          node,
           this.assetGraph.getIncomingDependencies(node.value).map(d => {
             let dep = this.assetGraph.getNodeByContentKey(d.id);
             invariant(dep && dep.type === 'dependency');
@@ -604,7 +602,7 @@ export class AssetGraphBuilder {
 
   propagateSymbolsUp(
     visit: (
-      nodeId: NodeId,
+      assetNode: AssetNode,
       incoming: $ReadOnlyArray<DependencyNode>,
       outgoing: $ReadOnlyArray<DependencyNode>,
     ) => Array<Diagnostic>,
@@ -654,7 +652,7 @@ export class AssetGraphBuilder {
         if (node.usedSymbolsUpDirty) {
           node.usedSymbolsUpDirty = false;
           let e = visit(
-            nodeId,
+            node,
             incoming,
             outgoing.map(depNodeId => {
               let depNode = nullthrows(this.assetGraph.getNode(depNodeId));
@@ -708,7 +706,7 @@ export class AssetGraphBuilder {
           }
         }
         if (node.usedSymbolsUpDirty) {
-          let e = visit(queuedNodeId, incoming, outgoing);
+          let e = visit(node, incoming, outgoing);
           if (e.length > 0) {
             errors.set(queuedNodeId, e);
           } else {
