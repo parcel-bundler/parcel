@@ -280,7 +280,7 @@ export async function runBundles(
   let ctx, promises;
   switch (target) {
     case 'browser': {
-      let prepared = prepareBrowserContext(parent, globals);
+      let prepared = prepareBrowserContext(parent.filePath, globals);
       ctx = prepared.ctx;
       promises = prepared.promises;
       break;
@@ -293,7 +293,7 @@ export async function runBundles(
       );
       break;
     case 'electron-renderer': {
-      let browser = prepareBrowserContext(parent, globals);
+      let browser = prepareBrowserContext(parent.filePath, globals);
       ctx = {
         ...browser.ctx,
         ...prepareNodeContext(
@@ -521,7 +521,8 @@ export function normaliseNewlines(text: string): string {
 }
 
 function prepareBrowserContext(
-  bundle: PackagedBundle,
+  filePath: FilePath,
+  //bundle: PackagedBundle,
   globals: mixed,
 ): {|
   ctx: vm$Context,
@@ -541,11 +542,14 @@ function prepareBrowserContext(
         let {deferred, promise} = makeDeferredWithPromise();
         promises.push(promise);
         setTimeout(function() {
+          //console.log('part1:', bundle.target.distDir);
+          console.log('part1 (old):', path.dirname(filePath));
+          console.log('part2:', url.parse(el.src).pathname);
           let file = path.join(
-            bundle.target.distDir,
+            path.dirname(filePath),
             url.parse(el.src).pathname,
           );
-
+          console.log({file});
           new vm.Script(
             // '"use strict";\n' +
             overlayFS.readFileSync(file, 'utf8'),
@@ -621,17 +625,18 @@ function prepareBrowserContext(
   }
 
   // $FlowFixMe[cannot-write]
-  PatchedError.prototype = Error.prototype;
-  Object.defineProperty(PatchedError, 'name', {
-    writable: true,
-    value: 'Error',
-  });
-  // $FlowFixMe[cannot-write]
-  Error.prototype.constructor = PatchedError;
+  // PatchedError.prototype = Error.prototype;
+  // Object.defineProperty(PatchedError, 'name', {
+  //   writable: true,
+  //   value: 'Error',
+  // });
+  // // $FlowFixMe[cannot-write]
+  // Error.prototype.constructor = PatchedError;
 
   var ctx = Object.assign(
     {
       Error: PatchedError,
+      // Error,
       exports,
       module: {exports},
       document: fakeDocument,
@@ -642,14 +647,14 @@ function prepareBrowserContext(
         return Promise.resolve({
           async arrayBuffer() {
             let readFilePromise = overlayFS.readFile(
-              path.join(path.dirname(bundle.target.distDir), url),
+              path.join(path.dirname(filePath), url),
             );
             promises.push(readFilePromise);
             return new Uint8Array(await readFilePromise).buffer;
           },
           text() {
             let readFilePromise = overlayFS.readFile(
-              path.join(path.dirname(bundle.target.distDir), url),
+              path.join(path.dirname(filePath), url),
               'utf8',
             );
             promises.push(readFilePromise);

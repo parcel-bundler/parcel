@@ -1110,11 +1110,9 @@ describe('output formats', function() {
         .getBundles()
         .find(bundle => bundle.name.startsWith('async'));
       assert(
-        new RegExp(
-          "getBundleURL\\('[a-zA-Z0-9]+'\\) \\+ \"" +
-            path.basename(asyncBundle.filePath) +
-            '"',
-        ).test(entry),
+        entry.includes(
+          `getBundleURL() + "${path.basename(asyncBundle.filePath)}"`,
+        ),
       );
 
       let async = await outputFS.readFile(
@@ -1155,7 +1153,7 @@ describe('output formats', function() {
       );
       assert(
         new RegExp(
-          "Promise.all\\(\\[.+?getBundleURL\\('[a-zA-Z0-9]+'\\) \\+ \"" +
+          'Promise.all\\(\\[.+?getBundleURL\\(\\) \\+ "' +
             path.basename(asyncCssBundle.filePath) +
             '"\\), import\\("\\.\\/" \\+ "' +
             path.basename(asyncJsBundle.filePath) +
