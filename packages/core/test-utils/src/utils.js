@@ -280,7 +280,7 @@ export async function runBundles(
   let ctx, promises;
   switch (target) {
     case 'browser': {
-      let prepared = prepareBrowserContext(parent.filePath, globals);
+      let prepared = prepareBrowserContext(parent, globals);
       ctx = prepared.ctx;
       promises = prepared.promises;
       break;
@@ -293,7 +293,7 @@ export async function runBundles(
       );
       break;
     case 'electron-renderer': {
-      let browser = prepareBrowserContext(parent.filePath, globals);
+      let browser = prepareBrowserContext(parent, globals);
       ctx = {
         ...browser.ctx,
         ...prepareNodeContext(
@@ -521,7 +521,7 @@ export function normaliseNewlines(text: string): string {
 }
 
 function prepareBrowserContext(
-  filePath: FilePath,
+  bundle: PackagedBundle,
   globals: mixed,
 ): {|
   ctx: vm$Context,
@@ -542,9 +542,10 @@ function prepareBrowserContext(
         promises.push(promise);
         setTimeout(function() {
           let file = path.join(
-            path.dirname(filePath),
+            bundle.target.distDir,
             url.parse(el.src).pathname,
           );
+
           new vm.Script(
             // '"use strict";\n' +
             overlayFS.readFileSync(file, 'utf8'),
@@ -588,14 +589,49 @@ function prepareBrowserContext(
         return null;
       },
     },
-    currentScript: {
-      src: 'http://localhost/script.js',
-    },
+
+    currentScript: null,
   };
 
   var exports = {};
+
+  function PatchedError(message) {
+    const patchedError = new Error(message);
+    const stackStart = patchedError.stack.indexOf('at new Error');
+    const stack = patchedError.stack
+      .slice(stackStart, patchedError.stack.indexOf('at Script.runInContext'))
+      .split('\n');
+    stack.shift();
+    stack.pop();
+    for (let [i, line] of stack.entries()) {
+      stack[i] = line.replace(
+        /( ?.* )\(?(.*)\)?$/,
+        (_, prefix, path) =>
+          prefix +
+          (path.endsWith(')')
+            ? `(http://localhost/${path.slice(0, path.length - 1)})`
+            : `http://localhost/${path}`),
+      );
+    }
+    patchedError.stack =
+      patchedError.stack.slice(0, stackStart).replace(/ +$/, '') +
+      stack.join('\n');
+
+    return patchedError;
+  }
+
+  // $FlowFixMe[cannot-write]
+  PatchedError.prototype = Error.prototype;
+  Object.defineProperty(PatchedError, 'name', {
+    writable: true,
+    value: 'Error',
+  });
+  // $FlowFixMe[cannot-write]
+  Error.prototype.constructor = PatchedError;
+
   var ctx = Object.assign(
     {
+      Error: PatchedError,
       exports,
       module: {exports},
       document: fakeDocument,
@@ -606,14 +642,14 @@ function prepareBrowserContext(
         return Promise.resolve({
           async arrayBuffer() {
             let readFilePromise = overlayFS.readFile(
-              path.join(path.dirname(filePath), url),
+              path.join(path.dirname(bundle.target.distDir), url),
             );
             promises.push(readFilePromise);
             return new Uint8Array(await readFilePromise).buffer;
           },
           text() {
             let readFilePromise = overlayFS.readFile(
-              path.join(path.dirname(filePath), url),
+              path.join(path.dirname(bundle.target.distDir), url),
               'utf8',
             );
             promises.push(readFilePromise);

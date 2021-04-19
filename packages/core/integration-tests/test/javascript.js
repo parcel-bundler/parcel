@@ -2305,7 +2305,6 @@ describe('javascript', function() {
     ]);
 
     let output = await run(b);
-
     assert.equal(Object.getPrototypeOf(output).constructor.name, 'Error');
     assert(
       /Cannot find module ['"]optional-dep['"]/.test(output.message),
