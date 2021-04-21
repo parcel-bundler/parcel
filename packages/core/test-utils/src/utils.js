@@ -603,6 +603,7 @@ function prepareBrowserContext(
       .split('\n');
     stack.shift();
     stack.pop();
+    stack.unshift(`    at $var$getBundleURL (${bundle.name})`);
     for (let [i, line] of stack.entries()) {
       stack[i] = line.replace(
         /( ?.* )\(?(.*)\)?$/,
