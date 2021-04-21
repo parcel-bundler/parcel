@@ -1,13 +1,19 @@
 // @flow
 import path from 'path';
-import type {BundleGraph, NamedBundle, Dependency, Target} from '@parcel/types';
+import type {
+  BundleGraph,
+  NamedBundle,
+  PackagedBundle,
+  Dependency,
+  Target,
+} from '@parcel/types';
 import {Reporter} from '@parcel/plugin';
 import nullthrows from 'nullthrows';
 
 const manifest = {};
 const buildManifest = (
   bundles: Set<NamedBundle>,
-  bundleGraph: BundleGraph<NamedBundle>,
+  bundleGraph: BundleGraph<PackagedBundle>,
 ) => {
   const assets = {};
   bundles.forEach((bundle: NamedBundle) => {

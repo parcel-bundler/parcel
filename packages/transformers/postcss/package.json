@@ -22,6 +22,7 @@
   "dependencies": {
     "@parcel/plugin": "2.0.0-frontbucket.42",
     "@parcel/utils": "2.0.0-frontbucket.38",
+    "clone": "^2.1.1",
     "css-modules-loader-core": "^1.1.0",
     "nullthrows": "^1.1.1",
     "postcss-modules": "^3.2.2",

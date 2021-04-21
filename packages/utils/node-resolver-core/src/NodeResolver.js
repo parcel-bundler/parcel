@@ -618,7 +618,7 @@ export default class NodeResolver {
       file: path.join(dir, 'index'),
       extensions,
       env,
-      pkg: pkg || null,
+      pkg: pkg ?? (await this.findPackage(path.join(dir, 'index'), ctx)),
       ctx,
     });
   }

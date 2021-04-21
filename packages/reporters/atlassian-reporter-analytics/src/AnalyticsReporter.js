@@ -61,12 +61,12 @@ to send us your feedback or questions!
                 break;
               case 'packaging':
               case 'optimizing':
-                filePath = event.bundle.filePath;
+                filePath = path.join(
+                  event.bundle.target.distDir,
+                  event.bundle.name,
+                );
                 bundle = {
-                  filePath: path.relative(
-                    options.projectRoot,
-                    event.bundle.filePath,
-                  ),
+                  filePath: path.relative(options.projectRoot, filePath),
                   name: event.bundle.name,
                   stats: event.bundle.stats,
                 };

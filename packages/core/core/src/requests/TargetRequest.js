@@ -46,7 +46,7 @@ import {optionsProxy} from '../utils';
 
 type RunOpts = {|
   input: Entry,
-  ...StaticRunOpts<Array<Target>>,
+  ...StaticRunOpts,
 |};
 
 const DEFAULT_DIST_DIRNAME = 'dist';
