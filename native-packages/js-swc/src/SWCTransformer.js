@@ -42,6 +42,7 @@ const BROWSER_MAPPING = {
   and_ff: 'firefox',
   ie_mob: 'ie',
   ios_saf: 'ios',
+  op_mob: 'opera',
   and_qq: null,
   and_uc: null,
   baidu: null,
