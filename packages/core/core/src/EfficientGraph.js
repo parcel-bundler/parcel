@@ -213,7 +213,7 @@ export default class EfficientGraph {
       // than the previous capacity.
       this.resizeNodes((this.nodes.length / NODE_SIZE) * 2);
     }
-    return id;
+    return toNodeId(id);
   }
 
   /**
@@ -335,27 +335,13 @@ export default class EfficientGraph {
     );
   }
 
-  // TODO: getAllEdges(): Array<Edge<TEdgeType | NullEdgeType>> {
-  // TODO: addNode(node: TNode): NodeId {
-  // TODO: hasNode(id: NodeId): boolean {
-  // TODO: getNode(id: NodeId): ?TNode {
-  // TODO: addEdge(from: NodeId, to: NodeId, type: TEdgeType | NullEdgeType = 0): void {
+  // Need to be updated to support `type`
   // TODO: hasEdge(from: NodeId, to: NodeId, type?: TEdgeType | NullEdgeType = 0): boolean {
-  // TODO: removeNode(nodeId: NodeId) {
-  // TODO: removeEdges(nodeId: NodeId, type: TEdgeType | NullEdgeType = 0) {
-  // TODO: removeEdge(from: NodeId, to: NodeId, type: TEdgeType | NullEdgeType = 0, removeOrphans: boolean = true) {
-  // TODO: _isOrphanedNode(nodeId: NodeId): boolean {
-  // TODO: updateNode(nodeId: NodeId, node: TNode): void {
-  // TODO: replaceNode(fromNodeId: NodeId, toNodeId: NodeId, type: TEdgeType | NullEdgeType = 0): void {
-  // TODO: replaceNodeIdsConnectedTo(fromNodeId: NodeId, toNodeIds: $ReadOnlyArray<NodeId>, replaceFilter?: null | ((NodeId) => boolean), type?: TEdgeType | NullEdgeType = 0,): void {
-  // TODO: traverse<TContext>(visit: GraphVisitor<NodeId, TContext>, startNodeId: ?NodeId, type: TEdgeType | NullEdgeType | Array<TEdgeType | NullEdgeType> = 0): ?TContext {
-  // TODO: filteredTraverse<TValue, TContext>(filter: (NodeId, TraversalActions) => ?TValue, visit: GraphVisitor<TValue, TContext>, startNodeId: ?NodeId, type?: TEdgeType | Array<TEdgeType | NullEdgeType>): ?TContext {
-  // TODO: traverseAncestors<TContext>(startNodeId: ?NodeId, visit: GraphVisitor<NodeId, TContext>, type: TEdgeType | NullEdgeType | Array<TEdgeType | NullEdgeType> = 0): ?TContext {
-  // TODO: dfs<TContext>({visit, startNodeId, getChildren}: {| visit: GraphVisitor<NodeId, TContext>, getChildren(nodeId: NodeId): Array<NodeId>, startNodeId?: ?NodeId, |}): ?TContext {
-  // TODO: bfs(visit: (nodeId: NodeId) => ?boolean): ?NodeId {
-  // TODO: findAncestor(nodeId: NodeId, fn: (nodeId: NodeId) => boolean): ?NodeId {
-  // TODO: findAncestors(nodeId: NodeId, fn: (nodeId: NodeId) => boolean): Array<NodeId> {
-  // TODO: findDescendant(nodeId: NodeId, fn: (nodeId: NodeId) => boolean): ?NodeId {
-  // TODO: findDescendants(nodeId: NodeId, fn: (nodeId: NodeId) => boolean): Array<NodeId> {
-  // TODO: _assertHasNodeId(nodeId: NodeId) {
+  // TODO: getNodesConnectedFrom()
+  // TODO: getNodesConnectedTo()
+
+  // AdjacencyList
+  // removeEdge(from: NodeId, to: NodeId, type: TEdgeType): void {
+  // getEdges(from: NodeId, type: TEdgeType): $ReadOnlySet<NodeId> {
+  // getEdgesByType(from: NodeId): $ReadOnlyMap<TEdgeType, $ReadOnlySet<NodeId>> {
 }
