@@ -598,12 +598,13 @@ function prepareBrowserContext(
   function PatchedError(message) {
     const patchedError = new Error(message);
     const stackStart = patchedError.stack.indexOf('at new Error');
-    const stack = patchedError.stack
-      .slice(stackStart, patchedError.stack.indexOf('at Script.runInContext'))
-      .split('\n');
+    const stackEnd = patchedError.stack.includes('at Script.runInContext')
+      ? patchedError.stack.indexOf('at Script.runInContext')
+      : patchedError.stack.indexOf('at runNextTicks');
+    const stack = patchedError.stack.slice(stackStart, stackEnd).split('\n');
     stack.shift();
     stack.pop();
-    stack.unshift(`    at $var$getBundleURL (${bundle.name})`);
+    stack.unshift(`    at getBundleURL (${bundle.name})`);
     for (let [i, line] of stack.entries()) {
       stack[i] = line.replace(
         /( ?.* )\(?(.*)\)?$/,
