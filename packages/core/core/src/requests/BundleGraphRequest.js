@@ -270,6 +270,8 @@ class BundlerRunner {
           internalBundleGraph,
           this.options,
         );
+      } else if (shouldUpdate && !isAssetGraphStructureSame) {
+        //import or export change, removal of import for now (assuming)
       } else {
         internalBundleGraph = InternalBundleGraph.fromAssetGraph(graph);
 
