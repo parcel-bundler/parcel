@@ -12,20 +12,19 @@ import type {SharedReference} from '@parcel/workers';
 import type {Diagnostic} from '@parcel/diagnostic';
 import type {
   Asset,
-  AssetGraphNode,
   AssetGroup,
   AssetNode,
   AssetRequestInput,
   Dependency,
   DependencyNode,
   Entry,
+  NodeId,
   ParcelOptions,
   Target,
 } from '../types';
 import type {StaticRunOpts, RunAPI} from '../RequestTracker';
 import type {EntryResult} from './EntryRequest';
 import type {PathRequestInput} from './PathRequest';
-
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import path from 'path';
@@ -152,40 +151,41 @@ export class AssetGraphBuilder {
 
   async build(): Promise<AssetGraphBuilderResult> {
     let errors = [];
+    let rootNodeId = nullthrows(
+      this.assetGraph.rootNodeId,
+      'A root node is required to traverse',
+    );
 
-    let root = this.assetGraph.getRootNode();
-    if (!root) {
-      throw new Error('A root node is required to traverse');
-    }
-
-    let visited = new Set([root.id]);
-    const visit = (node: AssetGraphNode) => {
+    let visited = new Set([rootNodeId]);
+    const visit = (nodeId: NodeId) => {
       if (errors.length > 0) {
         return;
       }
 
-      if (this.shouldSkipRequest(node)) {
-        visitChildren(node);
+      if (this.shouldSkipRequest(nodeId)) {
+        visitChildren(nodeId);
       } else {
         // ? do we need to visit children inside of the promise that is queued?
-        this.queueCorrespondingRequest(node, errors).then(() =>
-          visitChildren(node),
+        this.queueCorrespondingRequest(nodeId, errors).then(() =>
+          visitChildren(nodeId),
         );
       }
     };
-    const visitChildren = (node: AssetGraphNode) => {
-      for (let child of this.assetGraph.getNodesConnectedFrom(node)) {
+
+    const visitChildren = (nodeId: NodeId) => {
+      for (let childNodeId of this.assetGraph.getNodeIdsConnectedFrom(nodeId)) {
+        let child = nullthrows(this.assetGraph.getNode(childNodeId));
         if (
-          (!visited.has(child.id) || child.hasDeferred) &&
-          this.shouldVisitChild(node, child)
+          (!visited.has(childNodeId) || child.hasDeferred) &&
+          this.shouldVisitChild(nodeId, childNodeId)
         ) {
-          visited.add(child.id);
-          visit(child);
+          visited.add(childNodeId);
+          visit(childNodeId);
         }
       }
     };
 
-    visit(root);
+    visit(rootNodeId);
     await this.queue.run();
 
     this.api.storeResult(
@@ -203,12 +203,13 @@ export class AssetGraphBuilder {
     // Skip symbol propagation if no target is using scope hoisting
     // (mainly for faster development builds)
     let entryDependencies = this.assetGraph
-      .getNodesConnectedFrom(root)
+      .getNodeIdsConnectedFrom(rootNodeId)
       .flatMap(entrySpecifier =>
-        this.assetGraph.getNodesConnectedFrom(entrySpecifier),
+        this.assetGraph.getNodeIdsConnectedFrom(entrySpecifier),
       )
       .flatMap(entryFile =>
-        this.assetGraph.getNodesConnectedFrom(entryFile).map(dep => {
+        this.assetGraph.getNodeIdsConnectedFrom(entryFile).map(depNodeId => {
+          let dep = nullthrows(this.assetGraph.getNode(depNodeId));
           invariant(dep.type === 'dependency');
           return dep;
         }),
@@ -230,9 +231,11 @@ export class AssetGraphBuilder {
     };
   }
 
-  shouldVisitChild(node: AssetGraphNode, child: AssetGraphNode): boolean {
+  shouldVisitChild(nodeId: NodeId, childNodeId: NodeId): boolean {
     if (this.shouldBuildLazily) {
-      if (node.type === 'asset' && child.type === 'dependency') {
+      let node = nullthrows(this.assetGraph.getNode(nodeId));
+      let childNode = nullthrows(this.assetGraph.getNode(childNodeId));
+      if (node.type === 'asset' && childNode.type === 'dependency') {
         if (this.requestedAssetIds.has(node.value.id)) {
           node.requested = true;
         } else if (!node.requested) {
@@ -246,20 +249,20 @@ export class AssetGraphBuilder {
           }
         }
 
-        let previouslyDeferred = child.deferred;
-        child.deferred = node.requested === false;
+        let previouslyDeferred = childNode.deferred;
+        childNode.deferred = node.requested === false;
 
-        if (!previouslyDeferred && child.deferred) {
-          this.assetGraph.markParentsWithHasDeferred(child);
-        } else if (previouslyDeferred && !child.deferred) {
-          this.assetGraph.unmarkParentsWithHasDeferred(child);
+        if (!previouslyDeferred && childNode.deferred) {
+          this.assetGraph.markParentsWithHasDeferred(childNodeId);
+        } else if (previouslyDeferred && !childNode.deferred) {
+          this.assetGraph.unmarkParentsWithHasDeferred(childNodeId);
         }
 
-        return !child.deferred;
+        return !childNode.deferred;
       }
     }
 
-    return this.assetGraph.shouldVisitChild(node, child);
+    return this.assetGraph.shouldVisitChild(nodeId, childNodeId);
   }
 
   propagateSymbols() {
@@ -408,6 +411,8 @@ export class AssetGraphBuilder {
     // Because namespace reexports introduce ambiguity, go up the graph from the leaves to the
     // root and remove requested symbols that aren't actually exported
     this.propagateSymbolsUp((assetNode, incomingDeps, outgoingDeps) => {
+      invariant(assetNode.type === 'asset');
+
       let assetSymbols: ?$ReadOnlyMap<
         Symbol,
         {|local: Symbol, loc: ?SourceLocation, meta?: ?Meta|},
@@ -432,7 +437,11 @@ export class AssetGraphBuilder {
         if (!outgoingDepSymbols) continue;
 
         // excluded, assume everything that is requested exists
-        if (this.assetGraph.getNodesConnectedFrom(outgoingDep).length === 0) {
+        if (
+          this.assetGraph.getNodeIdsConnectedFrom(
+            this.assetGraph.getNodeIdByContentKey(outgoingDep.id),
+          ).length === 0
+        ) {
           outgoingDep.usedSymbolsDown.forEach(s =>
             outgoingDep.usedSymbolsUp.add(s),
           );
@@ -480,8 +489,11 @@ export class AssetGraphBuilder {
             incomingDep.usedSymbolsUp.add(s);
           } else if (!hasNamespaceReexport) {
             let loc = incomingDep.value.symbols?.get(s)?.loc;
-            let [resolution] = this.assetGraph.getNodesConnectedFrom(
-              incomingDep,
+            let [resolutionNodeId] = this.assetGraph.getNodeIdsConnectedFrom(
+              this.assetGraph.getNodeIdByContentKey(incomingDep.id),
+            );
+            let resolution = nullthrows(
+              this.assetGraph.getNode(resolutionNodeId),
             );
             invariant(resolution && resolution.type === 'asset_group');
 
@@ -516,9 +528,12 @@ export class AssetGraphBuilder {
           incomingDep.value.symbols != null &&
           incomingDep.usedSymbolsUp.size === 0
         ) {
-          let assetGroups = this.assetGraph.getNodesConnectedFrom(incomingDep);
+          let assetGroups = this.assetGraph.getNodeIdsConnectedFrom(
+            this.assetGraph.getNodeIdByContentKey(incomingDep.id),
+          );
           if (assetGroups.length === 1) {
-            let [assetGroup] = assetGroups;
+            let [assetGroupId] = assetGroups;
+            let assetGroup = nullthrows(this.assetGraph.getNode(assetGroupId));
             invariant(assetGroup.type === 'asset_group');
             if (assetGroup.value.sideEffects === false) {
               incomingDep.excluded = true;
@@ -534,23 +549,24 @@ export class AssetGraphBuilder {
 
   propagateSymbolsDown(
     visit: (
-      node: AssetNode,
+      assetNode: AssetNode,
       incoming: $ReadOnlyArray<DependencyNode>,
       outgoing: $ReadOnlyArray<DependencyNode>,
     ) => void,
   ) {
-    let root = this.assetGraph.getRootNode();
-    if (!root) {
-      throw new Error('A root node is required to traverse');
-    }
-
-    let queue: Set<AssetGraphNode> = new Set([root]);
-    let visited = new Set<AssetGraphNode>();
+    let rootNodeId = nullthrows(
+      this.assetGraph.rootNodeId,
+      'A root node is required to traverse',
+    );
+    let queue: Set<NodeId> = new Set([rootNodeId]);
+    let visited = new Set<NodeId>();
 
     while (queue.size > 0) {
-      let node = nullthrows(queue.values().next().value);
-      queue.delete(node);
-      let outgoing = this.assetGraph.getNodesConnectedFrom(node);
+      let queuedNodeId = nullthrows(queue.values().next().value);
+      queue.delete(queuedNodeId);
+
+      let outgoing = this.assetGraph.getNodeIdsConnectedFrom(queuedNodeId);
+      let node = nullthrows(this.assetGraph.getNode(queuedNodeId));
 
       let wasNodeDirty = false;
       if (node.type === 'dependency' || node.type === 'asset_group') {
@@ -560,29 +576,31 @@ export class AssetGraphBuilder {
         visit(
           node,
           this.assetGraph.getIncomingDependencies(node.value).map(d => {
-            let dep = this.assetGraph.getNode(d.id);
+            let dep = this.assetGraph.getNodeByContentKey(d.id);
             invariant(dep && dep.type === 'dependency');
             return dep;
           }),
           outgoing.map(dep => {
-            invariant(dep.type === 'dependency');
-            return dep;
+            let depNode = nullthrows(this.assetGraph.getNode(dep));
+            invariant(depNode.type === 'dependency');
+            return depNode;
           }),
         );
         node.usedSymbolsDownDirty = false;
       }
 
-      visited.add(node);
+      visited.add(queuedNodeId);
       for (let child of outgoing) {
+        let childNode = nullthrows(this.assetGraph.getNode(child));
         let childDirty = false;
         if (
-          (child.type === 'asset' || child.type === 'asset_group') &&
+          (childNode.type === 'asset' || childNode.type === 'asset_group') &&
           wasNodeDirty
         ) {
-          child.usedSymbolsDownDirty = true;
+          childNode.usedSymbolsDownDirty = true;
           childDirty = true;
-        } else if (child.type === 'dependency') {
-          childDirty = child.usedSymbolsDownDirty;
+        } else if (childNode.type === 'dependency') {
+          childDirty = childNode.usedSymbolsDownDirty;
         }
         if (!visited.has(child) || childDirty) {
           queue.add(child);
@@ -593,27 +611,29 @@ export class AssetGraphBuilder {
 
   propagateSymbolsUp(
     visit: (
-      node: AssetNode,
+      assetNode: AssetNode,
       incoming: $ReadOnlyArray<DependencyNode>,
       outgoing: $ReadOnlyArray<DependencyNode>,
     ) => Array<Diagnostic>,
   ): void {
-    let root = this.assetGraph.getRootNode();
-    if (!root) {
-      throw new Error('A root node is required to traverse');
-    }
+    let rootNodeId = nullthrows(
+      this.assetGraph.rootNodeId,
+      'A root node is required to traverse',
+    );
 
-    let errors = new Map<AssetNode, Array<Diagnostic>>();
+    let errors = new Map<NodeId, Array<Diagnostic>>();
 
-    let dirtyDeps = new Set<DependencyNode>();
-    let visited = new Set([root.id]);
+    let dirtyDeps = new Set<NodeId>();
+    let visited = new Set([rootNodeId]);
     // post-order dfs
-    const walk = (node: AssetGraphNode) => {
-      let outgoing = this.assetGraph.getNodesConnectedFrom(node);
-      for (let child of outgoing) {
-        if (!visited.has(child.id)) {
-          visited.add(child.id);
-          walk(child);
+    const walk = (nodeId: NodeId) => {
+      let node = nullthrows(this.assetGraph.getNode(nodeId));
+      let outgoing = this.assetGraph.getNodeIdsConnectedFrom(nodeId);
+      for (let childId of outgoing) {
+        if (!visited.has(childId)) {
+          visited.add(childId);
+          walk(childId);
+          let child = nullthrows(this.assetGraph.getNode(childId));
           if (node.type === 'asset') {
             invariant(child.type === 'dependency');
             if (child.usedSymbolsUpDirtyUp) {
@@ -628,7 +648,7 @@ export class AssetGraphBuilder {
         let incoming = this.assetGraph
           .getIncomingDependencies(node.value)
           .map(d => {
-            let n = this.assetGraph.getNode(d.id);
+            let n = this.assetGraph.getNodeByContentKey(d.id);
             invariant(n && n.type === 'dependency');
             return n;
           });
@@ -643,46 +663,51 @@ export class AssetGraphBuilder {
           let e = visit(
             node,
             incoming,
-            outgoing.map(dep => {
-              invariant(dep.type === 'dependency');
-              return dep;
+            outgoing.map(depNodeId => {
+              let depNode = nullthrows(this.assetGraph.getNode(depNodeId));
+              invariant(depNode.type === 'dependency');
+              return depNode;
             }),
           );
           if (e.length > 0) {
-            errors.set(node, e);
+            errors.set(nodeId, e);
           } else {
-            errors.delete(node);
+            errors.delete(nodeId);
           }
         }
       } else if (node.type === 'dependency') {
         if (node.usedSymbolsUpDirtyUp) {
-          dirtyDeps.add(node);
+          dirtyDeps.add(nodeId);
         } else {
-          dirtyDeps.delete(node);
+          dirtyDeps.delete(nodeId);
         }
       }
     };
-    walk(root);
-    // traverse circular dependencies if neccessary (anchestors of `dirtyDeps`)
+    walk(rootNodeId);
+    // traverse circular dependencies if necessary (ancestors of `dirtyDeps`)
     visited = new Set();
     let queue = new Set(dirtyDeps);
     while (queue.size > 0) {
-      let node = nullthrows(queue.values().next().value);
-      queue.delete(node);
-
-      visited.add(node);
+      let queuedNodeId = nullthrows(queue.values().next().value);
+      queue.delete(queuedNodeId);
+      visited.add(queuedNodeId);
+      let node = nullthrows(this.assetGraph.getNode(queuedNodeId));
       if (node.type === 'asset') {
         let incoming = this.assetGraph
           .getIncomingDependencies(node.value)
-          .map(d => {
-            let n = this.assetGraph.getNode(d.id);
-            invariant(n && n.type === 'dependency');
-            return n;
+          .map(dep => {
+            let depNode = this.assetGraph.getNodeByContentKey(dep.id);
+            invariant(depNode && depNode.type === 'dependency');
+            return depNode;
           });
-        let outgoing = this.assetGraph.getNodesConnectedFrom(node).map(dep => {
-          invariant(dep.type === 'dependency');
-          return dep;
-        });
+        let outgoing = this.assetGraph
+          .getNodeIdsConnectedFrom(queuedNodeId)
+          .map(depNodeId => {
+            let depNode = nullthrows(this.assetGraph.getNode(depNodeId));
+
+            invariant(depNode.type === 'dependency');
+            return depNode;
+          });
         for (let dep of outgoing) {
           if (dep.usedSymbolsUpDirtyUp) {
             node.usedSymbolsUpDirty = true;
@@ -692,19 +717,22 @@ export class AssetGraphBuilder {
         if (node.usedSymbolsUpDirty) {
           let e = visit(node, incoming, outgoing);
           if (e.length > 0) {
-            errors.set(node, e);
+            errors.set(queuedNodeId, e);
           } else {
-            errors.delete(node);
+            errors.delete(queuedNodeId);
           }
         }
         for (let i of incoming) {
           if (i.usedSymbolsUpDirtyUp) {
-            queue.add(i);
+            queue.add(this.assetGraph.getNodeIdByContentKey(i.id));
           }
         }
       } else {
-        for (let connectedNode of this.assetGraph.getNodesConnectedTo(node)) {
-          queue.add(connectedNode);
+        let connectedNodes = this.assetGraph.getNodeIdsConnectedTo(
+          queuedNodeId,
+        );
+        if (connectedNodes.length > 0) {
+          queue.add(...connectedNodes);
         }
       }
     }
@@ -717,7 +745,8 @@ export class AssetGraphBuilder {
     }
   }
 
-  shouldSkipRequest(node: AssetGraphNode): boolean {
+  shouldSkipRequest(nodeId: NodeId): boolean {
+    let node = nullthrows(this.assetGraph.getNode(nodeId));
     return (
       node.complete === true ||
       !typesWithRequests.has(node.type) ||
@@ -727,10 +756,11 @@ export class AssetGraphBuilder {
   }
 
   queueCorrespondingRequest(
-    node: AssetGraphNode,
+    nodeId: NodeId,
     errors: Array<Error>,
   ): Promise<mixed> {
     let promise;
+    let node = nullthrows(this.assetGraph.getNode(nodeId));
     switch (node.type) {
       case 'entry_specifier':
         promise = this.runEntryRequest(node.value);
