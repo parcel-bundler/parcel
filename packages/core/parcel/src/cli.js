@@ -465,6 +465,7 @@ async function normalizeOptions(
     shouldAutoInstall: command.autoinstall ?? true,
     logLevel: command.logLevel,
     shouldProfile: command.profile,
+    isIncremental: command.incremental ?? false,
     shouldBuildLazily: command.lazy,
     detailedReport:
       command.detailedReport != null

@@ -1,0 +1,13 @@
+{
+  "name": "@parcel/example-incremental",
+  "version": "2.0.0-beta.2",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "start": "PARCEL_WORKERS=0 parcel src/index.js",
+    "start:clean": "rm -rf .parcel-cache dist && yarn start"
+  },
+  "devDependencies": {
+    "@parcel/core": "2.0.0-beta.2"
+  }
+}

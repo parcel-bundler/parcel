@@ -82,6 +82,9 @@ export default function createAssetGraphRequest(
       let previousAssetGraphHash = prevResult?.assetGraph.getHash();
       let builder = new AssetGraphBuilder(input, prevResult);
       let assetGraphRequest = await await builder.build();
+      let isAssetGraphStructureSame = assetGraphRequest.assetGraph.isEqualStructure(
+        prevResult?.assetGraph,
+      );
 
       return {
         ...assetGraphRequest,

@@ -1156,6 +1156,15 @@ export type Bundler = {|
     options: PluginOptions,
     logger: PluginLogger,
   |}): Async<void>,
+  update({|
+    bundleGraph: MutableBundleGraph,
+    config: ?ConfigResult,
+    options: PluginOptions,
+    logger: PluginLogger,
+    changedAssets: Map<string, Asset>,
+    isAssetGraphStructureSame: boolean,
+    changedBundles: Array<Bundle>, //should this be internal? or is that not accessible from here
+  |}): Array<void>,
 |};
 
 /**

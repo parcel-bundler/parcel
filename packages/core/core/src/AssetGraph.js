@@ -584,4 +584,23 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
     this.hash = hash.finish();
     return this.hash;
   }
+
+  getAssetChanges(
+    prevResult: AssetGraph,
+    isAssetGraphStructureSame: boolean,
+    changedAssets: Map<string, Asset>,
+  ): Map<Asset, string> {
+    let changes = new Map<Asset, string>(); // String should be our own result (changedResult)
+    if (!isAssetGraphStructureSame) {
+      return changes;
+    }
+    this.traverse({
+      enter: node => {
+        if (changedAssets.get(node.id)) {
+          //determine change?
+        }
+      },
+    });
+    return changes;
+  }
 }
