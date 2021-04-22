@@ -356,7 +356,7 @@ export class SWCPackager {
     // of all imported symbols with their resolved export symbols. This is all done
     // in a single regex so that we only do one pass over the whole code.
     let regex = new RegExp(
-      '\n|import\\s+"(.+?)";' +
+      '\n|import\\s+"([0-9a-f]{32}:.+?)";' +
         (replacements.size > 0
           ? '|' +
             [...replacements.keys()]
