@@ -6,7 +6,7 @@ import type {
   BundleGraph,
   FilePath,
   PluginOptions,
-  NamedBundle,
+  PackagedBundle,
 } from '@parcel/types';
 import type {Diagnostic} from '@parcel/diagnostic';
 import type {FileSystem} from '@parcel/fs';
@@ -58,8 +58,8 @@ export default class Server {
   pendingRequests: Array<[Request, Response]>;
   options: DevServerOptions;
   rootPath: string;
-  bundleGraph: BundleGraph<NamedBundle> | null;
-  requestBundle: ?(bundle: NamedBundle) => Promise<BuildSuccessEvent>;
+  bundleGraph: BundleGraph<PackagedBundle> | null;
+  requestBundle: ?(bundle: PackagedBundle) => Promise<BuildSuccessEvent>;
   errors: Array<{|
     message: string,
     stack: string,
@@ -86,8 +86,8 @@ export default class Server {
   }
 
   buildSuccess(
-    bundleGraph: BundleGraph<NamedBundle>,
-    requestBundle: (bundle: NamedBundle) => Promise<BuildSuccessEvent>,
+    bundleGraph: BundleGraph<PackagedBundle>,
+    requestBundle: (bundle: PackagedBundle) => Promise<BuildSuccessEvent>,
   ) {
     this.bundleGraph = bundleGraph;
     this.requestBundle = requestBundle;
@@ -207,12 +207,14 @@ export default class Server {
       let requestedPath = path.normalize(pathname.slice(1));
       let bundle = bundleGraph
         .getBundles()
+        .filter(b => !b.isInline)
         .find(
           b =>
             path.relative(this.options.distDir, b.filePath) === requestedPath,
         );
       if (!bundle) {
-        return next(req, res);
+        this.serveDist(req, res, next);
+        return;
       }
 
       invariant(this.requestBundle != null);

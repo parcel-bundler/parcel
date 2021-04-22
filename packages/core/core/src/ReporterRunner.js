@@ -8,7 +8,7 @@ import invariant from 'assert';
 import {
   bundleToInternalBundle,
   bundleToInternalBundleGraph,
-  NamedBundle,
+  PackagedBundle,
 } from './public/Bundle';
 import WorkerFarm, {bus} from '@parcel/workers';
 import ParcelConfig from './ParcelConfig';
@@ -54,7 +54,7 @@ export default class ReporterRunner {
     if (
       event.type === 'buildProgress' &&
       (event.phase === 'optimizing' || event.phase === 'packaging') &&
-      !(event.bundle instanceof NamedBundle)
+      !(event.bundle instanceof PackagedBundle)
     ) {
       // $FlowFixMe[prop-missing]
       let bundleGraphRef = event.bundleGraphRef;
@@ -70,7 +70,7 @@ export default class ReporterRunner {
       // $FlowFixMe[incompatible-call]
       this.report({
         ...event,
-        bundle: NamedBundle.get(bundle, bundleGraph, this.options),
+        bundle: PackagedBundle.get(bundle, bundleGraph, this.options),
       });
       return;
     }

@@ -1,5 +1,6 @@
-// @flow
+// @flow strict-local
 
+import {toNodeId, fromNodeId} from './types';
 import type {Edge, Node, NodeId} from './types';
 import type {TraversalActions, GraphVisitor} from '@parcel/types';
 
@@ -8,11 +9,9 @@ import nullthrows from 'nullthrows';
 
 export type GraphOpts<TNode, TEdgeType: string | null = null> = {|
   nodes?: Map<NodeId, TNode>,
-  edges?: {|
-    inboundEdges: AdjacencyListMap<TEdgeType | null>,
-    outboundEdges: AdjacencyListMap<TEdgeType | null>,
-  |},
+  edges?: AdjacencyListMap<TEdgeType | null>,
   rootNodeId?: ?NodeId,
+  nextNodeId?: ?number,
 |};
 
 export const ALL_EDGE_TYPES = '@@all_edge_types';
@@ -22,19 +21,32 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
   inboundEdges: AdjacencyList<TEdgeType | null>;
   outboundEdges: AdjacencyList<TEdgeType | null>;
   rootNodeId: ?NodeId;
+  nextNodeId: number = 0;
 
-  constructor(opts: GraphOpts<TNode, TEdgeType> = ({}: any)) {
-    this.nodes = opts.nodes || new Map();
-    this.rootNodeId = opts.rootNodeId;
+  constructor(opts: ?GraphOpts<TNode, TEdgeType>) {
+    this.nodes = opts?.nodes || new Map();
+    this.setRootNodeId(opts?.rootNodeId);
+    this.nextNodeId = opts?.nextNodeId ?? 0;
 
-    let edges = opts.edges;
+    let edges = opts?.edges;
     if (edges != null) {
-      this.inboundEdges = new AdjacencyList(edges.inboundEdges);
-      this.outboundEdges = new AdjacencyList(edges.outboundEdges);
+      this.inboundEdges = new AdjacencyList();
+      this.outboundEdges = new AdjacencyList(edges);
+      for (let [from, edgeList] of edges) {
+        for (let [type, toNodes] of edgeList) {
+          for (let to of toNodes) {
+            this.inboundEdges.addEdge(to, from, type);
+          }
+        }
+      }
     } else {
       this.inboundEdges = new AdjacencyList();
       this.outboundEdges = new AdjacencyList();
     }
+  }
+
+  setRootNodeId(id: ?NodeId) {
+    this.rootNodeId = id;
   }
 
   static deserialize(
@@ -44,17 +56,16 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
       nodes: opts.nodes,
       edges: opts.edges,
       rootNodeId: opts.rootNodeId,
+      nextNodeId: opts.nextNodeId,
     });
   }
 
   serialize(): GraphOpts<TNode, TEdgeType> {
     return {
       nodes: this.nodes,
-      edges: {
-        inboundEdges: this.inboundEdges.getListMap(),
-        outboundEdges: this.outboundEdges.getListMap(),
-      },
+      edges: this.outboundEdges.getListMap(),
       rootNodeId: this.rootNodeId,
+      nextNodeId: this.nextNodeId,
     };
   }
 
@@ -72,39 +83,27 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
     return edges;
   }
 
-  addNode(node: TNode): TNode {
-    let existingNode = this.nodes.get(node.id);
-    if (existingNode) {
-      existingNode.value = node.value;
-    }
-    this.nodes.set(node.id, existingNode ?? node);
-    return node;
+  addNode(node: TNode): NodeId {
+    let id = toNodeId(this.nextNodeId++);
+    this.nodes.set(id, node);
+    return id;
   }
 
-  hasNode(id: string): boolean {
+  hasNode(id: NodeId): boolean {
     return this.nodes.has(id);
   }
 
-  getNode(id: string): ?TNode {
+  getNode(id: NodeId): ?TNode {
     return this.nodes.get(id);
-  }
-
-  setRootNode(node: TNode): void {
-    this.addNode(node);
-    this.rootNodeId = node.id;
-  }
-
-  getRootNode(): ?TNode {
-    return this.rootNodeId ? this.getNode(this.rootNodeId) : null;
   }
 
   addEdge(from: NodeId, to: NodeId, type: TEdgeType | null = null): void {
     if (!this.getNode(from)) {
-      throw new Error(`"from" node '${from}' not found`);
+      throw new Error(`"from" node '${fromNodeId(from)}' not found`);
     }
 
     if (!this.getNode(to)) {
-      throw new Error(`"to" node '${to}' not found`);
+      throw new Error(`"to" node '${fromNodeId(to)}' not found`);
     }
 
     this.outboundEdges.addEdge(from, to, type);
@@ -115,13 +114,13 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
     return this.outboundEdges.hasEdge(from, to, type);
   }
 
-  getNodesConnectedTo(
-    node: TNode,
+  getNodeIdsConnectedTo(
+    nodeId: NodeId,
     type: TEdgeType | null | Array<TEdgeType | null> = null,
-  ): Array<TNode> {
-    assertHasNode(this, node);
+  ): Array<NodeId> {
+    this._assertHasNodeId(nodeId);
 
-    let inboundByType = this.inboundEdges.getEdgesByType(node.id);
+    let inboundByType = this.inboundEdges.getEdgesByType(nodeId);
     if (inboundByType == null) {
       return [];
     }
@@ -145,16 +144,15 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
       nodes = new Set(inboundByType.get(type)?.values() ?? []);
     }
 
-    return [...nodes].map(to => nullthrows(this.nodes.get(to)));
+    return [...nodes];
   }
 
-  getNodesConnectedFrom(
-    node: TNode,
+  getNodeIdsConnectedFrom(
+    nodeId: NodeId,
     type: TEdgeType | null | Array<TEdgeType | null> = null,
-  ): Array<TNode> {
-    assertHasNode(this, node);
-
-    let outboundByType = this.outboundEdges.getEdgesByType(node.id);
+  ): Array<NodeId> {
+    this._assertHasNodeId(nodeId);
+    let outboundByType = this.outboundEdges.getEdgesByType(nodeId);
     if (outboundByType == null) {
       return [];
     }
@@ -178,20 +176,18 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
       nodes = new Set(outboundByType.get(type)?.values() ?? []);
     }
 
-    return [...nodes].map(to => nullthrows(this.nodes.get(to)));
+    return [...nodes];
   }
 
   // Removes node and any edges coming from or to that node
-  removeNode(node: TNode) {
-    assertHasNode(this, node);
+  removeNode(nodeId: NodeId) {
+    this._assertHasNodeId(nodeId);
 
-    for (let [type, nodesForType] of this.inboundEdges.getEdgesByType(
-      node.id,
-    )) {
+    for (let [type, nodesForType] of this.inboundEdges.getEdgesByType(nodeId)) {
       for (let from of nodesForType) {
         this.removeEdge(
           from,
-          node.id,
+          nodeId,
           type,
           // Do not allow orphans to be removed as this node could be one
           // and is already being removed.
@@ -200,26 +196,21 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
       }
     }
 
-    for (let [type, toNodes] of this.outboundEdges.getEdgesByType(node.id)) {
+    for (let [type, toNodes] of this.outboundEdges.getEdgesByType(nodeId)) {
       for (let to of toNodes) {
-        this.removeEdge(node.id, to, type);
+        this.removeEdge(nodeId, to, type);
       }
     }
 
-    let wasRemoved = this.nodes.delete(node.id);
+    let wasRemoved = this.nodes.delete(nodeId);
     assert(wasRemoved);
   }
 
-  removeById(id: NodeId) {
-    let node = nullthrows(this.getNode(id));
-    this.removeNode(node);
-  }
+  removeEdges(nodeId: NodeId, type: TEdgeType | null = null) {
+    this._assertHasNodeId(nodeId);
 
-  removeEdges(node: TNode, type: TEdgeType | null = null) {
-    assertHasNode(this, node);
-
-    for (let to of this.outboundEdges.getEdges(node.id, type)) {
-      this.removeEdge(node.id, to, type);
+    for (let to of this.outboundEdges.getEdges(nodeId, type)) {
+      this.removeEdge(nodeId, to, type);
     }
   }
 
@@ -231,33 +222,35 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
     removeOrphans: boolean = true,
   ) {
     if (!this.outboundEdges.hasEdge(from, to, type)) {
-      throw new Error(`Outbound edge from ${from} to ${to} not found!`);
+      throw new Error(
+        `Outbound edge from ${fromNodeId(from)} to ${fromNodeId(
+          to,
+        )} not found!`,
+      );
     }
 
     if (!this.inboundEdges.hasEdge(to, from, type)) {
-      throw new Error(`Inbound edge from ${to} to ${from} not found!`);
+      throw new Error(
+        `Inbound edge from ${fromNodeId(to)} to ${fromNodeId(from)} not found!`,
+      );
     }
 
     this.outboundEdges.removeEdge(from, to, type);
     this.inboundEdges.removeEdge(to, from, type);
 
-    let connectedNode = nullthrows(this.nodes.get(to));
-    if (removeOrphans && this.isOrphanedNode(connectedNode)) {
-      this.removeNode(connectedNode);
+    if (removeOrphans && this.isOrphanedNode(to)) {
+      this.removeNode(to);
     }
   }
 
-  isOrphanedNode(node: TNode): boolean {
-    assertHasNode(this, node);
+  isOrphanedNode(nodeId: NodeId): boolean {
+    this._assertHasNodeId(nodeId);
 
-    let rootNode = this.getRootNode();
-    if (rootNode == null) {
+    if (this.rootNodeId == null) {
       // If the graph does not have a root, and there are inbound edges,
       // this node should not be considered orphaned.
       // return false;
-      for (let [, inboundNodeIds] of this.inboundEdges.getEdgesByType(
-        node.id,
-      )) {
+      for (let [, inboundNodeIds] of this.inboundEdges.getEdgesByType(nodeId)) {
         if (inboundNodeIds.size > 0) {
           return false;
         }
@@ -269,10 +262,11 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
     // Otherwise, attempt to traverse backwards to the root. If there is a path,
     // then this is not an orphaned node.
     let hasPathToRoot = false;
+    // go back to traverseAncestors
     this.traverseAncestors(
-      node,
-      (ancestor, _, actions) => {
-        if (ancestor.id === rootNode.id) {
+      nodeId,
+      (ancestorId, _, actions) => {
+        if (ancestorId === this.rootNodeId) {
           hasPathToRoot = true;
           actions.stop();
         }
@@ -288,103 +282,101 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
     return true;
   }
 
+  updateNode(nodeId: NodeId, node: TNode): void {
+    this._assertHasNodeId(nodeId);
+    this.nodes.set(nodeId, node);
+  }
+
   replaceNode(
-    fromNode: TNode,
-    toNode: TNode,
+    fromNodeId: NodeId,
+    toNodeId: NodeId,
     type: TEdgeType | null = null,
   ): void {
-    assertHasNode(this, fromNode);
-
-    this.addNode(toNode);
-
-    for (let parent of this.inboundEdges.getEdges(fromNode.id, type)) {
-      this.addEdge(parent, toNode.id, type);
-      this.removeEdge(parent, fromNode.id, type);
+    this._assertHasNodeId(fromNodeId);
+    for (let parent of this.inboundEdges.getEdges(fromNodeId, type)) {
+      this.addEdge(parent, toNodeId, type);
+      this.removeEdge(parent, fromNodeId, type);
     }
-
-    this.removeNode(fromNode);
+    this.removeNode(fromNodeId);
   }
 
   // Update a node's downstream nodes making sure to prune any orphaned branches
-  replaceNodesConnectedTo(
-    fromNode: TNode,
-    toNodes: $ReadOnlyArray<TNode>,
-    replaceFilter?: null | (TNode => boolean),
+  replaceNodeIdsConnectedTo(
+    fromNodeId: NodeId,
+    toNodeIds: $ReadOnlyArray<NodeId>,
+    replaceFilter?: null | (NodeId => boolean),
     type?: TEdgeType | null = null,
   ): void {
-    assertHasNode(this, fromNode);
+    this._assertHasNodeId(fromNodeId);
 
-    let outboundEdges = this.outboundEdges.getEdges(fromNode.id, type);
+    let outboundEdges = this.outboundEdges.getEdges(fromNodeId, type);
     let childrenToRemove = new Set(
       replaceFilter
-        ? [...outboundEdges].filter(toNodeId =>
-            replaceFilter(nullthrows(this.nodes.get(toNodeId))),
-          )
+        ? [...outboundEdges].filter(toNodeId => replaceFilter(toNodeId))
         : outboundEdges,
     );
-    for (let toNode of toNodes) {
-      this.addNode(toNode);
-      childrenToRemove.delete(toNode.id);
+    for (let toNodeId of toNodeIds) {
+      childrenToRemove.delete(toNodeId);
 
-      if (!this.hasEdge(fromNode.id, toNode.id, type)) {
-        this.addEdge(fromNode.id, toNode.id, type);
+      if (!this.hasEdge(fromNodeId, toNodeId, type)) {
+        this.addEdge(fromNodeId, toNodeId, type);
       }
     }
 
     for (let child of childrenToRemove) {
-      this.removeEdge(fromNode.id, child, type);
+      this.removeEdge(fromNodeId, child, type);
     }
   }
 
   traverse<TContext>(
-    visit: GraphVisitor<TNode, TContext>,
-    startNode: ?TNode,
+    visit: GraphVisitor<NodeId, TContext>,
+    startNodeId: ?NodeId,
     type: TEdgeType | null | Array<TEdgeType | null> = null,
   ): ?TContext {
     return this.dfs({
       visit,
-      startNode,
-      getChildren: node => this.getNodesConnectedFrom(node, type),
+      startNodeId,
+      getChildren: nodeId => this.getNodeIdsConnectedFrom(nodeId, type),
     });
   }
 
   filteredTraverse<TValue, TContext>(
-    filter: (TNode, TraversalActions) => ?TValue,
+    filter: (NodeId, TraversalActions) => ?TValue,
     visit: GraphVisitor<TValue, TContext>,
-    startNode: ?TNode,
+    startNodeId: ?NodeId,
     type?: TEdgeType | null | Array<TEdgeType | null>,
   ): ?TContext {
-    return this.traverse(mapVisitor(filter, visit), startNode, type);
+    return this.traverse(mapVisitor(filter, visit), startNodeId, type);
   }
 
   traverseAncestors<TContext>(
-    startNode: TNode,
-    visit: GraphVisitor<TNode, TContext>,
+    startNodeId: ?NodeId,
+    visit: GraphVisitor<NodeId, TContext>,
     type: TEdgeType | null | Array<TEdgeType | null> = null,
   ): ?TContext {
     return this.dfs({
       visit,
-      startNode,
-      getChildren: node => this.getNodesConnectedTo(node, type),
+      startNodeId,
+      getChildren: nodeId => this.getNodeIdsConnectedTo(nodeId, type),
     });
   }
 
   dfs<TContext>({
     visit,
-    startNode,
+    startNodeId,
     getChildren,
   }: {|
-    visit: GraphVisitor<TNode, TContext>,
-    getChildren(node: TNode): Array<TNode>,
-    startNode?: ?TNode,
+    visit: GraphVisitor<NodeId, TContext>,
+    getChildren(nodeId: NodeId): Array<NodeId>,
+    startNodeId?: ?NodeId,
   |}): ?TContext {
-    let root = startNode ?? this.getRootNode();
-    if (root == null) {
-      throw new Error('A start node is required to traverse');
-    }
-    assertHasNode(this, root);
+    let traversalStartNode = nullthrows(
+      startNodeId ?? this.rootNodeId,
+      'A start node is required to traverse',
+    );
+    this._assertHasNodeId(traversalStartNode);
 
-    let visited = new Set<TNode>();
+    let visited = new Set<NodeId>();
     let stopped = false;
     let skipped = false;
     let actions: TraversalActions = {
@@ -396,15 +388,16 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
       },
     };
 
-    let walk = (node, context) => {
-      if (!this.hasNode(node.id)) return;
-      visited.add(node);
+    let walk = (nodeId, context: ?TContext) => {
+      if (!this.hasNode(nodeId)) return;
+      visited.add(nodeId);
 
       skipped = false;
       let enter = typeof visit === 'function' ? visit : visit.enter;
       if (enter) {
-        let newContext = enter(node, context, actions);
+        let newContext = enter(nodeId, context, actions);
         if (typeof newContext !== 'undefined') {
+          // $FlowFixMe[reassign-const]
           context = newContext;
         }
       }
@@ -417,7 +410,7 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
         return context;
       }
 
-      for (let child of getChildren(node)) {
+      for (let child of getChildren(nodeId)) {
         if (visited.has(child)) {
           continue;
         }
@@ -430,8 +423,9 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
       }
 
       if (typeof visit !== 'function' && visit.exit) {
-        let newContext = visit.exit(node, context, actions);
+        let newContext = visit.exit(nodeId, context, actions);
         if (typeof newContext !== 'undefined') {
+          // $FlowFixMe[reassign-const]
           context = newContext;
         }
       }
@@ -445,26 +439,26 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
       }
     };
 
-    return walk(root);
+    return walk(traversalStartNode);
   }
 
-  bfs(visit: (node: TNode) => ?boolean): ?TNode {
-    let root = this.getRootNode();
-    if (!root) {
-      throw new Error('A root node is required to traverse');
-    }
+  bfs(visit: (nodeId: NodeId) => ?boolean): ?NodeId {
+    let rootNodeId = nullthrows(
+      this.rootNodeId,
+      'A root node is required to traverse',
+    );
 
-    let queue: Array<TNode> = [root];
-    let visited = new Set<TNode>([root]);
+    let queue: Array<NodeId> = [rootNodeId];
+    let visited = new Set<NodeId>([rootNodeId]);
 
     while (queue.length > 0) {
       let node = queue.shift();
-      let stop = visit(node);
+      let stop = visit(rootNodeId);
       if (stop === true) {
         return node;
       }
 
-      for (let child of this.getNodesConnectedFrom(node)) {
+      for (let child of this.getNodeIdsConnectedFrom(node)) {
         if (!visited.has(child)) {
           visited.add(child);
           queue.push(child);
@@ -475,97 +469,80 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
     return null;
   }
 
-  getSubGraph(node: TNode): this {
-    let graph = new this.constructor();
-    graph.setRootNode(node);
-
-    let nodes = [];
-    this.traverse(node => {
-      nodes.push(node);
-      graph.addNode(node);
-    }, node);
-
-    for (let node of nodes) {
-      for (let [type, toNodes] of this.outboundEdges.getEdgesByType(node.id)) {
-        for (let to of toNodes) {
-          graph.addEdge(node.id, to, type);
-        }
+  findAncestor(nodeId: NodeId, fn: (nodeId: NodeId) => boolean): ?NodeId {
+    let res = null;
+    this.traverseAncestors(nodeId, (nodeId, ctx, traversal) => {
+      if (fn(nodeId)) {
+        res = nodeId;
+        traversal.stop();
       }
+    });
+    return res;
+  }
+
+  findAncestors(
+    nodeId: NodeId,
+    fn: (nodeId: NodeId) => boolean,
+  ): Array<NodeId> {
+    let res = [];
+    this.traverseAncestors(nodeId, (nodeId, ctx, traversal) => {
+      if (fn(nodeId)) {
+        res.push(nodeId);
+        traversal.skipChildren();
+      }
+    });
+    return res;
+  }
+
+  findDescendant(nodeId: NodeId, fn: (nodeId: NodeId) => boolean): ?NodeId {
+    let res = null;
+    this.traverse((nodeId, ctx, traversal) => {
+      if (fn(nodeId)) {
+        res = nodeId;
+        traversal.stop();
+      }
+    }, nodeId);
+    return res;
+  }
+
+  findDescendants(
+    nodeId: NodeId,
+    fn: (nodeId: NodeId) => boolean,
+  ): Array<NodeId> {
+    let res = [];
+    this.traverse((nodeId, ctx, traversal) => {
+      if (fn(nodeId)) {
+        res.push(nodeId);
+        traversal.skipChildren();
+      }
+    }, nodeId);
+    return res;
+  }
+
+  _assertHasNodeId(nodeId: NodeId) {
+    if (!this.hasNode(nodeId)) {
+      throw new Error('Does not have node ' + fromNodeId(nodeId));
     }
-
-    return graph;
-  }
-
-  findAncestor(node: TNode, fn: (node: TNode) => boolean): ?TNode {
-    let res = null;
-    this.traverseAncestors(node, (node, ctx, traversal) => {
-      if (fn(node)) {
-        res = node;
-        traversal.stop();
-      }
-    });
-    return res;
-  }
-
-  findAncestors(node: TNode, fn: (node: TNode) => boolean): Array<TNode> {
-    let res = [];
-    this.traverseAncestors(node, (node, ctx, traversal) => {
-      if (fn(node)) {
-        res.push(node);
-        traversal.skipChildren();
-      }
-    });
-    return res;
-  }
-
-  findDescendant(node: TNode, fn: (node: TNode) => boolean): ?TNode {
-    let res = null;
-    this.traverse((node, ctx, traversal) => {
-      if (fn(node)) {
-        res = node;
-        traversal.stop();
-      }
-    }, node);
-    return res;
-  }
-
-  findDescendants(node: TNode, fn: (node: TNode) => boolean): Array<TNode> {
-    let res = [];
-    this.traverse((node, ctx, traversal) => {
-      if (fn(node)) {
-        res.push(node);
-        traversal.skipChildren();
-      }
-    }, node);
-    return res;
-  }
-
-  findNode(predicate: TNode => boolean): ?TNode {
-    return Array.from(this.nodes.values()).find(predicate);
-  }
-
-  findNodes(predicate: TNode => boolean): Array<TNode> {
-    return Array.from(this.nodes.values()).filter(predicate);
   }
 }
 
-export function mapVisitor<TNode, TValue, TContext>(
-  filter: (TNode, TraversalActions) => ?TValue,
+export function mapVisitor<NodeId, TValue, TContext>(
+  filter: (NodeId, TraversalActions) => ?TValue,
   visit: GraphVisitor<TValue, TContext>,
-): GraphVisitor<TNode, TContext> {
+): GraphVisitor<NodeId, TContext> {
   return {
-    enter: (node, context, actions) => {
+    enter: (nodeId, context, actions) => {
       let enter = typeof visit === 'function' ? visit : visit.enter;
       if (!enter) {
         return;
       }
 
-      let value = filter(node, actions);
+      let value = filter(nodeId, actions);
       if (value != null) {
         return enter(value, context, actions);
       }
     },
-    exit: (node, context, actions) => {
+    exit: (nodeId, context, actions) => {
       if (typeof visit === 'function') {
         return;
       }
@@ -575,18 +552,12 @@ export function mapVisitor<TNode, TValue, TContext>(
         return;
       }
 
-      let value = filter(node, actions);
+      let value = filter(nodeId, actions);
       if (value != null) {
         return exit(value, context, actions);
       }
     },
   };
-}
-
-function assertHasNode<TNode: Node>(graph: Graph<TNode, *>, node: TNode) {
-  if (!graph.hasNode(node.id)) {
-    throw new Error('Does not have node ' + node.id);
-  }
 }
 
 type AdjacencyListMap<TEdgeType> = Map<NodeId, Map<TEdgeType, Set<NodeId>>>;

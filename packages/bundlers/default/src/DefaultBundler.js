@@ -4,6 +4,7 @@ import type {
   Asset,
   Bundle,
   BundleGroup,
+  Config,
   MutableBundleGraph,
   PluginOptions,
 } from '@parcel/types';
@@ -11,9 +12,8 @@ import type {SchemaEntity} from '@parcel/utils';
 
 import invariant from 'assert';
 import {Bundler} from '@parcel/plugin';
-import {loadConfig, md5FromString, validateSchema} from '@parcel/utils';
+import {md5FromString, validateSchema} from '@parcel/utils';
 import nullthrows from 'nullthrows';
-import path from 'path';
 import {encodeJSONKeyComponent} from '@parcel/diagnostic';
 
 // Default options by http version.
@@ -37,8 +37,8 @@ export default (new Bundler({
   // 3. If an asset is already in a parent bundle in the same entry point, exclude from child bundles.
   // 4. If an asset is only in separate isolated entry points (e.g. workers, different HTML pages), duplicate it.
 
-  loadConfig({options}) {
-    return loadBundlerConfig(options);
+  loadConfig({config, options}) {
+    return loadBundlerConfig(config, options);
   },
 
   bundle({bundleGraph, config}) {
@@ -462,45 +462,36 @@ const CONFIG_SCHEMA: SchemaEntity = {
   additionalProperties: false,
 };
 
-async function loadBundlerConfig(options: PluginOptions) {
-  let result = await loadConfig(
-    options.inputFS,
-    path.join(options.projectRoot, 'index'),
-    ['package.json'],
-  );
-
-  let config = result?.config['@parcel/bundler-default'];
-  if (!config) {
-    return {
-      config: HTTP_OPTIONS['2'],
-      files: result?.files ?? [],
-    };
+async function loadBundlerConfig(config: Config, options: PluginOptions) {
+  let conf = await config.getConfig([], {
+    packageKey: '@parcel/bundler-default',
+  });
+  if (!conf) {
+    config.setResult(HTTP_OPTIONS['2']);
+    return;
   }
 
-  invariant(result != null);
+  invariant(conf?.contents != null);
 
   validateSchema.diagnostic(
     CONFIG_SCHEMA,
     {
-      data: config,
-      source: await options.inputFS.readFile(result.files[0].filePath, 'utf8'),
-      filePath: result.files[0].filePath,
+      data: conf?.contents,
+      source: await options.inputFS.readFile(conf.filePath, 'utf8'),
+      filePath: conf.filePath,
       prependKey: `/${encodeJSONKeyComponent('@parcel/bundler-default')}`,
     },
     '@parcel/bundler-default',
     'Invalid config for @parcel/bundler-default',
   );
 
-  let http = config.http ?? 2;
+  let http = conf.contents.http ?? 2;
   let defaults = HTTP_OPTIONS[http];
 
-  return {
-    config: {
-      minBundles: config.minBundles ?? defaults.minBundles,
-      minBundleSize: config.minBundleSize ?? defaults.minBundleSize,
-      maxParallelRequests:
-        config.maxParallelRequests ?? defaults.maxParallelRequests,
-    },
-    files: result.files,
-  };
+  config.setResult({
+    minBundles: conf.contents.minBundles ?? defaults.minBundles,
+    minBundleSize: conf.contents.minBundleSize ?? defaults.minBundleSize,
+    maxParallelRequests:
+      conf.contents.maxParallelRequests ?? defaults.maxParallelRequests,
+  });
 }
