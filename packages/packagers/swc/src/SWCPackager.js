@@ -704,6 +704,7 @@ ${code}
       // than a direct reference. If importing default from a CJS module,
       // use a helper to check the __esModule flag at runtime.
       if (
+        dep?.meta.kind === 'Import' &&
         exportSymbol === 'default' &&
         resolvedAsset.symbols.hasExportSymbol('*') &&
         this.needsDefaultInterop(resolvedAsset)

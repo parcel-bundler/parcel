@@ -4721,6 +4721,18 @@ describe('scope hoisting', function() {
       assert.deepEqual(output.default, obj);
     });
 
+    it('should not insert default interop for wrapped CJS modules', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/interop-require-commonjs-wrapped/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.equal(output, 'default');
+    });
+
     it('should support multiple requires in the same variable declaration', async function() {
       let b = await bundle(
         path.join(
