@@ -867,10 +867,9 @@ ${code}
         prepend += `\n${usedExports
           .map(exp => {
             let resolved = this.resolveSymbol(asset, asset, exp);
-            // TODO: only include setter for CJS - ESM exports are constant.
             return `$parcel$export($${assetId}$exports, ${JSON.stringify(
               exp,
-            )}, () => ${resolved}, (v) => ${resolved} = v);`;
+            )}, () => ${resolved}${asset.meta.hasCJSExports ? `, (v) => ${resolved} = v` : ''});`;
           })
           .join('\n')}\n`;
         this.usedHelpers.add('$parcel$export');
@@ -921,7 +920,7 @@ ${code}
                 );
                 prepend += `$parcel$export($${assetId}$exports, ${JSON.stringify(
                   symbol,
-                )}, () => ${resolvedSymbol}, (v) => ${resolvedSymbol} = v);\n`;
+                )}, () => ${resolvedSymbol}${asset.meta.hasCJSExports ? `, (v) => ${resolvedSymbol} = v` : ''});\n`;
                 prependLineCount++;
               }
             }

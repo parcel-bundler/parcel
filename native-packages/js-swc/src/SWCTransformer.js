@@ -434,6 +434,7 @@ export default (new Transformer({
         asset.symbols.set('*', `$${asset.id}$exports`);
       }
 
+      asset.meta.hasCJSExports = hoist_result.has_cjs_exports;
       asset.meta.staticExports = hoist_result.static_cjs_exports;
       asset.meta.shouldWrap = hoist_result.should_wrap;
       asset.meta.id = asset.id;
