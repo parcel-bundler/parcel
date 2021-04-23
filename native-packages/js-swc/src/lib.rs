@@ -200,7 +200,7 @@ fn transform(ctx: CallContext) -> Result<JsUnknown> {
       let mut global_deps = vec![];
       let mut fs_deps = vec![];
       swc_common::GLOBALS.set(&Globals::new(), || {
-        helpers::HELPERS.set(&helpers::Helpers::new(true), || {
+        helpers::HELPERS.set(&helpers::Helpers::new(/* external helpers from @swc/helpers */ true), || {
           let mut react_options = react::Options::default();
           if config.is_jsx {
             if let Some(jsx_pragma) = config.jsx_pragma {
