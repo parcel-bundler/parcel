@@ -5048,6 +5048,60 @@ describe('scope hoisting', function() {
         [4, 2],
       ]);
     });
+
+    it('should not update mutated destructured requires', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/require-non-const-export/destructure.js',
+        ),
+      );
+
+      let outputs = [];
+      await run(b, {
+        output(x) {
+          outputs.push(x);
+        },
+      });
+
+      assert.deepEqual(outputs, [2, 2]);
+    });
+
+    it('should not update mutated require members', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/require-non-const-export/member.js',
+        ),
+      );
+
+      let outputs = [];
+      await run(b, {
+        output(x) {
+          outputs.push(x);
+        },
+      });
+
+      assert.deepEqual(outputs, [2, 2]);
+    });
+
+    it('should update live mutated require members', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/require-non-const-export/live.js',
+        ),
+      );
+
+      let outputs = [];
+      await run(b, {
+        output(x) {
+          outputs.push(x);
+        },
+      });
+
+      assert.deepEqual(outputs, [2, 3]);
+    });
   });
 
   it('should not throw with JS included from HTML', async function() {

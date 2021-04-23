@@ -123,7 +123,7 @@ impl<'a> Fold for Hoist<'a> {
                   ImportSpecifier::Namespace(ns) => &ns.local
                 };
 
-                if let Some(spans) = self.collect.top_level_assigns.get(&id!(local)) {
+                if let Some(spans) = self.collect.non_const_bindings.get(&id!(local)) {
                   let mut highlights: Vec<CodeHighlight> = spans.iter().map(|span| CodeHighlight {
                     loc: SourceLocation::from(&self.collect.source_map, *span),
                     message: None
@@ -447,7 +447,7 @@ impl<'a> Fold for Hoist<'a> {
                 if let Some(Import {source, specifier, kind, ..}) = self.collect.imports.get(&id!(ident)) {
                   // If there are any non-static accesses of the namespace, don't perform any replacement.
                   // This will be handled in the Ident visitor below, which replaces y -> $id$import$10b1f2ceae7ab64e.
-                  if specifier == "*" && !self.collect.non_static_access.contains(&id!(ident)) && !self.collect.top_level_assigns.contains_key(&id!(ident)) && !self.collect.non_static_requires.contains(&source) {
+                  if specifier == "*" && !self.collect.non_static_access.contains(&id!(ident)) && !self.collect.non_const_bindings.contains_key(&id!(ident)) && !self.collect.non_static_requires.contains(&source) {
                     if *kind == ImportKind::DynamicImport {
                       let name: JsWord = format!("${}$importAsync${:x}${:x}", self.module_id, hash!(source), hash!(key)).into();
                       self.imported_symbols.insert(name, (source.clone(), key.clone(), SourceLocation::from(&self.collect.source_map, member.span)));
@@ -603,8 +603,8 @@ impl<'a> Fold for Hoist<'a> {
           // required value, and we reference that instead. This allows the local variable
           // to be re-assigned without affecting the original exported variable.
           // See handle_non_const_require, below.
-          if self.collect.top_level_assigns.contains_key(&id!(node)) {
-            return self.get_require_ident(source, specifier);
+          if self.collect.non_const_bindings.contains_key(&id!(node)) {
+            return self.get_require_ident(&node.sym);
           }
 
           return self.get_import_ident(node.span, source, specifier, loc.clone());
@@ -807,13 +807,8 @@ impl<'a> Hoist<'a> {
     return Ident::new(new_name, span)
   }
 
-  fn get_require_ident(&self, source: &JsWord, local: &JsWord) -> Ident {
-    let name: JsWord = if local == "*" {
-      format!("${}$require${:x}", self.module_id, hash!(source)).into()
-    } else {
-      format!("${}$require${:x}${:x}", self.module_id, hash!(source), hash!(local)).into()
-    };
-    return Ident::new(name, DUMMY_SP)
+  fn get_require_ident(&self, local: &JsWord) -> Ident {
+    return Ident::new(format!("${}$require${}", self.module_id, local).into(), DUMMY_SP)
   }
 
   fn get_export_ident(&mut self, span: Span, exported: &JsWord) -> Ident {
@@ -840,7 +835,7 @@ impl<'a> Hoist<'a> {
     
     for ident in non_const_bindings {
       if let Some(Import {specifier, ..}) = self.collect.imports.get(&id!(ident)) {
-        let require_id = self.get_require_ident(&source, specifier);
+        let require_id = self.get_require_ident(&ident.sym);
         let import_id = self.get_import_ident(v.span, &source, specifier, SourceLocation::from(&self.collect.source_map, v.span));
         self.module_items.push(ModuleItem::Stmt(Stmt::Decl(Decl::Var(VarDecl {
           declare: false,
@@ -898,7 +893,7 @@ pub struct Collect {
   pub imports: HashMap<IdentId, Import>,
   exports: HashMap<IdentId, JsWord>,
   non_static_access: HashSet<IdentId>,
-  top_level_assigns: HashMap<IdentId, Vec<Span>>,
+  non_const_bindings: HashMap<IdentId, Vec<Span>>,
   non_static_requires: HashSet<JsWord>,
   wrapped_requires: HashSet<JsWord>,
   in_module_this: bool,
@@ -922,7 +917,7 @@ impl Collect {
       imports: HashMap::new(),
       exports: HashMap::new(),
       non_static_access: HashSet::new(),
-      top_level_assigns: HashMap::new(),
+      non_const_bindings: HashMap::new(),
       non_static_requires: HashSet::new(),
       wrapped_requires: HashSet::new(),
       in_module_this: true,
@@ -1108,7 +1103,7 @@ impl Visit for Collect {
     }
 
     if self.in_assign && node.id.span.ctxt() == self.global_ctxt {
-      self.top_level_assigns.entry(id!(node.id)).or_default().push(node.id.span);
+      self.non_const_bindings.entry(id!(node.id)).or_default().push(node.id.span);
     }
   }
 
@@ -1118,7 +1113,7 @@ impl Visit for Collect {
     }
 
     if self.in_assign && node.key.span.ctxt() == self.global_ctxt {
-      self.top_level_assigns.entry(id!(node.key)).or_default().push(node.key.span);
+      self.non_const_bindings.entry(id!(node.key)).or_default().push(node.key.span);
     }
   }
 
@@ -1430,6 +1425,10 @@ impl Collect {
                     kind,
                     loc: SourceLocation::from(&self.source_map, ident.id.span)
                   });
+
+                  // Mark as non-constant. CJS exports can be mutated by other modules,
+                  // so it's not safe to reference them directly.
+                  self.non_const_bindings.entry(id!(ident.id)).or_default().push(ident.id.span);
                 },
                 _ => {
                   // Non-static.
@@ -1447,6 +1446,7 @@ impl Collect {
                 kind,
                 loc: SourceLocation::from(&self.source_map, assign.key.span)
               });
+              self.non_const_bindings.entry(id!(assign.key)).or_default().push(assign.key.span);
             },
             ObjectPatProp::Rest(_rest) => {
               // let {x, ...y} = require('y');
@@ -1466,7 +1466,7 @@ impl Collect {
   fn get_non_const_binding_idents(&self, node: &Pat, idents: &mut HashSet<Ident>) {
     match node {
       Pat::Ident(ident) => {
-        if self.top_level_assigns.contains_key(&id!(ident.id)) {
+        if self.non_const_bindings.contains_key(&id!(ident.id)) {
           idents.insert(ident.id.clone());
         }
       },
@@ -1477,7 +1477,7 @@ impl Collect {
               self.get_non_const_binding_idents(&*kv.value, idents);
             },
             ObjectPatProp::Assign(assign) => {
-              if self.top_level_assigns.contains_key(&id!(assign.key)) {
+              if self.non_const_bindings.contains_key(&id!(assign.key)) {
                 idents.insert(assign.key.clone());
               }
             },
