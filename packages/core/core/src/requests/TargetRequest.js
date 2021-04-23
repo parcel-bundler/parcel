@@ -42,7 +42,7 @@ import {
   ENGINES_SCHEMA,
 } from '../TargetDescriptor.schema';
 import {BROWSER_ENVS} from '../public/Environment';
-import {optionsProxy} from '../utils';
+import {optionsProxy, toInternalSourceLocation} from '../utils';
 import {fromProjectPath, toProjectPath} from '../projectPath';
 
 type RunOpts = {|
@@ -545,7 +545,7 @@ export class TargetResolver {
               descriptor.scopeHoist !== false,
             sourceMap: normalizeSourceMap(this.options, descriptor.sourceMap),
           }),
-          loc,
+          loc: toInternalSourceLocation(this.options.projectRoot, loc),
         });
       }
     }
@@ -642,7 +642,7 @@ export class TargetResolver {
               descriptor.scopeHoist !== false,
             sourceMap: normalizeSourceMap(this.options, descriptor.sourceMap),
           }),
-          loc,
+          loc: toInternalSourceLocation(this.options.projectRoot, loc),
         });
       }
     }

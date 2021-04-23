@@ -8,10 +8,18 @@ import InternalBundleGraph from '../src/BundleGraph';
 import MutableBundleGraph from '../src/public/MutableBundleGraph';
 import {DEFAULT_ENV, DEFAULT_TARGETS, DEFAULT_OPTIONS} from './test-utils';
 import AssetGraph, {nodeFromAssetGroup} from '../src/AssetGraph';
-import {createAsset} from '../src/assetUtils';
-import {createDependency} from '../src/Dependency';
+import {createAsset as _createAsset} from '../src/assetUtils';
+import {createDependency as _createDependency} from '../src/Dependency';
 import nullthrows from 'nullthrows';
 import {toProjectPath} from '../src/projectPath';
+
+function createAsset(opts) {
+  return _createAsset('/', opts);
+}
+
+function createDependency(opts) {
+  return _createDependency('/', opts);
+}
 
 const id1 = '0123456789abcdef0123456789abcdef';
 const id2 = '9876543210fedcba9876543210fedcba';

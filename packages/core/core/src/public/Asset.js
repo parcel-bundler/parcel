@@ -141,7 +141,7 @@ class BaseAsset {
   }
 
   get symbols(): IAssetSymbols {
-    return new AssetSymbols(this.#asset.value);
+    return new AssetSymbols(this.#asset.options, this.#asset.value);
   }
 
   get uniqueKey(): ?string {
@@ -274,7 +274,7 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
   }
 
   get symbols(): IMutableAssetSymbols {
-    return new MutableAssetSymbols(this.#asset.value);
+    return new MutableAssetSymbols(this.#asset.options, this.#asset.value);
   }
 
   addDependency(dep: DependencyOptions): string {

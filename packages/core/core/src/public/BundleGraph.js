@@ -21,6 +21,7 @@ import {assetFromValue, assetToAssetValue, Asset} from './Asset';
 import {bundleToInternalBundle} from './Bundle';
 import Dependency, {dependencyToInternalDependency} from './Dependency';
 import {mapVisitor} from '../Graph';
+import {fromInternalSourceLocation} from '../utils';
 
 // Friendly access for other modules within this package that need access
 // to the internal bundle.
@@ -249,7 +250,7 @@ export default class BundleGraph<TBundle: IBundle>
       asset: assetFromValue(res.asset, this.#options),
       exportSymbol: res.exportSymbol,
       symbol: res.symbol,
-      loc: res.loc,
+      loc: fromInternalSourceLocation(this.#options.projectRoot, res.loc),
     };
   }
 
@@ -265,7 +266,7 @@ export default class BundleGraph<TBundle: IBundle>
       asset: assetFromValue(e.asset, this.#options),
       exportSymbol: e.exportSymbol,
       symbol: e.symbol,
-      loc: e.loc,
+      loc: fromInternalSourceLocation(this.#options.projectRoot, e.loc),
       exportAs: e.exportAs,
     }));
   }

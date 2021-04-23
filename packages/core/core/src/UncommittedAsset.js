@@ -307,7 +307,7 @@ export default class UncommittedAsset {
   addDependency(opts: DependencyOptions): string {
     // eslint-disable-next-line no-unused-vars
     let {env, target, symbols, resolveFrom, ...rest} = opts;
-    let dep = createDependency({
+    let dep = createDependency(this.options.projectRoot, {
       ...rest,
       resolveFrom: toProjectPath(this.options.projectRoot, resolveFrom),
       // $FlowFixMe "convert" the $ReadOnlyMaps to the interal mutable one
@@ -366,7 +366,7 @@ export default class UncommittedAsset {
     let content = result.content ?? null;
 
     let asset = new UncommittedAsset({
-      value: createAsset({
+      value: createAsset(this.options.projectRoot, {
         idBase: this.idBase,
         hash: this.value.hash,
         filePath: this.value.filePath,

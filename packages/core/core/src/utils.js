@@ -5,8 +5,14 @@ import type {
   BundleGroup,
   FileCreateInvalidation,
   FilePath,
+  SourceLocation,
+  Symbol,
 } from '@parcel/types';
-import type {ParcelOptions, InternalFileCreateInvalidation} from './types';
+import type {
+  ParcelOptions,
+  InternalFileCreateInvalidation,
+  InternalSourceLocation,
+} from './types';
 
 import invariant from 'assert';
 import baseX from 'base-x';
@@ -18,7 +24,7 @@ import Graph from './Graph';
 import ParcelConfig from './ParcelConfig';
 import {RequestGraph} from './RequestTracker';
 import Config from './public/Config';
-import {toProjectPath} from './projectPath';
+import {fromProjectPath, toProjectPath} from './projectPath';
 // flowlint-next-line untyped-import:off
 import packageJson from '../package.json';
 
@@ -146,4 +152,49 @@ export function invalidateOnFileCreateToInternal(
       aboveFilePath: toProjectPath(projectRoot, invalidation.aboveFilePath),
     };
   }
+}
+
+export function fromInternalSourceLocation(
+  projectRoot: FilePath,
+  loc: ?InternalSourceLocation,
+): ?SourceLocation {
+  if (!loc) return loc;
+
+  return {
+    filePath: fromProjectPath(projectRoot, loc.filePath),
+    start: loc.start,
+    end: loc.end,
+  };
+}
+
+export function toInternalSourceLocation(
+  projectRoot: FilePath,
+  loc: ?SourceLocation,
+): ?InternalSourceLocation {
+  if (!loc) return loc;
+
+  return {
+    filePath: toProjectPath(projectRoot, loc.filePath),
+    start: loc.start,
+    end: loc.end,
+  };
+}
+export function toInternalSymbols<T: {|loc: ?SourceLocation|}>(
+  projectRoot: FilePath,
+  symbols: ?Map<Symbol, T>,
+): ?Map<
+  Symbol,
+  {|loc: ?InternalSourceLocation, ...$Rest<T, {|loc: ?SourceLocation|}>|},
+> {
+  if (!symbols) return symbols;
+
+  return new Map(
+    [...symbols].map(([k, {loc, ...v}]) => [
+      k,
+      {
+        ...v,
+        loc: toInternalSourceLocation(projectRoot, loc),
+      },
+    ]),
+  );
 }

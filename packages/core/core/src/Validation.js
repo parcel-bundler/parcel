@@ -191,7 +191,7 @@ export default class Validation {
     let idBase = code != null ? hash : fromProjectPathRelative(filePath);
     return new UncommittedAsset({
       idBase,
-      value: createAsset({
+      value: createAsset(this.options.projectRoot, {
         idBase,
         filePath: filePath,
         isSource,

@@ -8,7 +8,7 @@ import {DEFAULT_OPTIONS} from './test-utils';
 
 describe('Public Dependency', () => {
   it('returns the same public Dependency given an internal dependency', () => {
-    let internalDependency = createDependency({
+    let internalDependency = createDependency('/', {
       moduleSpecifier: 'foo',
       env: createEnvironment({}),
     });

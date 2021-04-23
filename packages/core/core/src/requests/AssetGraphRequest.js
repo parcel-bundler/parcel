@@ -1,6 +1,6 @@
 // @flow strict-local
 
-import type {Async, Symbol, SourceLocation, Meta} from '@parcel/types';
+import type {Async, Symbol, Meta} from '@parcel/types';
 import type {SharedReference} from '@parcel/workers';
 import type {Diagnostic} from '@parcel/diagnostic';
 import type {
@@ -11,6 +11,7 @@ import type {
   Dependency,
   DependencyNode,
   Entry,
+  InternalSourceLocation,
   NodeId,
   ParcelOptions,
   Target,
@@ -28,7 +29,11 @@ import createEntryRequest from './EntryRequest';
 import createTargetRequest from './TargetRequest';
 import createAssetRequest from './AssetRequest';
 import createPathRequest from './PathRequest';
-import {type ProjectPath, fromProjectPathRelative} from '../projectPath';
+import {
+  type ProjectPath,
+  fromProjectPathRelative,
+  fromProjectPath,
+} from '../projectPath';
 
 import dumpToGraphViz from '../dumpGraphToGraphViz';
 
@@ -257,7 +262,7 @@ export class AssetGraphBuilder {
       // exportSymbol -> identifier
       let assetSymbols: $ReadOnlyMap<
         Symbol,
-        {|local: Symbol, loc: ?SourceLocation, meta?: ?Meta|},
+        {|local: Symbol, loc: ?InternalSourceLocation, meta?: ?Meta|},
       > = assetNode.value.symbols;
       // identifier -> exportSymbol
       let assetSymbolsInverse;
@@ -399,7 +404,7 @@ export class AssetGraphBuilder {
 
       let assetSymbols: ?$ReadOnlyMap<
         Symbol,
-        {|local: Symbol, loc: ?SourceLocation, meta?: ?Meta|},
+        {|local: Symbol, loc: ?InternalSourceLocation, meta?: ?Meta|},
       > = assetNode.value.symbols;
 
       let assetSymbolsInverse = null;
@@ -454,7 +459,7 @@ export class AssetGraphBuilder {
         }
       }
 
-      let errors = [];
+      let errors: Array<Diagnostic> = [];
 
       for (let incomingDep of incomingDeps) {
         let incomingDepUsedSymbolsUpOld = incomingDep.usedSymbolsUp;
@@ -486,7 +491,9 @@ export class AssetGraphBuilder {
                 resolution.value.filePath,
               )} does not export '${s}'`,
               origin: '@parcel/core',
-              filePath: loc?.filePath,
+              filePath:
+                fromProjectPath(this.options.projectRoot, loc?.filePath) ??
+                undefined,
               language: assetNode.value.type,
               codeFrame: loc
                 ? {

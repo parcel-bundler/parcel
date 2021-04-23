@@ -3,7 +3,6 @@
 import type {
   BundleGroup,
   GraphVisitor,
-  SourceLocation,
   Symbol,
   TraversalActions,
 } from '@parcel/types';
@@ -17,6 +16,7 @@ import type {
   Dependency,
   DependencyNode,
   NodeId,
+  InternalSourceLocation,
 } from './types';
 import type AssetGraph from './AssetGraph';
 
@@ -59,7 +59,7 @@ type InternalSymbolResolution = {|
   asset: Asset,
   exportSymbol: string,
   symbol: ?Symbol | false,
-  loc: ?SourceLocation,
+  loc: ?InternalSourceLocation,
 |};
 
 type InternalExportSymbolResolution = {|

@@ -10,6 +10,7 @@ import type {Target as TargetValue, ParcelOptions} from '../types';
 import nullthrows from 'nullthrows';
 import Environment from './Environment';
 import {fromProjectPath} from '../projectPath';
+import {fromInternalSourceLocation} from '../utils';
 
 const internalTargetToTarget: WeakMap<TargetValue, Target> = new WeakMap();
 const _targetToInternalTarget: WeakMap<ITarget, TargetValue> = new WeakMap();
@@ -55,6 +56,9 @@ export default class Target implements ITarget {
   }
 
   get loc(): ?SourceLocation {
-    return this.#target.loc;
+    return fromInternalSourceLocation(
+      this.#options.projectRoot,
+      this.#target.loc,
+    );
   }
 }

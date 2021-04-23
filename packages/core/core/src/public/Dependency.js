@@ -14,6 +14,7 @@ import Environment from './Environment';
 import Target from './Target';
 import {MutableDependencySymbols} from './Symbols';
 import {fromProjectPath} from '../projectPath';
+import {fromInternalSourceLocation} from '../utils';
 
 const inspect = Symbol.for('nodejs.util.inspect.custom');
 
@@ -82,7 +83,7 @@ export default class Dependency implements IDependency {
   }
 
   get loc(): ?SourceLocation {
-    return this.#dep.loc;
+    return fromInternalSourceLocation(this.#options.projectRoot, this.#dep.loc);
   }
 
   get env(): IEnvironment {
@@ -94,7 +95,7 @@ export default class Dependency implements IDependency {
   }
 
   get symbols(): IMutableDependencySymbols {
-    return new MutableDependencySymbols(this.#dep);
+    return new MutableDependencySymbols(this.#options, this.#dep);
   }
 
   get target(): ?Target {

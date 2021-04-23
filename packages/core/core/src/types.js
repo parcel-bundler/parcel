@@ -16,7 +16,6 @@ import type {
   ReporterEvent,
   Semver,
   ServerOptions,
-  SourceLocation,
   Stats,
   Symbol,
   TargetSourceMapOptions,
@@ -73,13 +72,27 @@ export type Environment = {|
   sourceMap: ?TargetSourceMapOptions,
 |};
 
+export type InternalSourceLocation = {|
+  +filePath: ProjectPath,
+  /** inclusive */
+  +start: {|
+    +line: number,
+    +column: number,
+  |},
+  /** exclusive */
+  +end: {|
+    +line: number,
+    +column: number,
+  |},
+|};
+
 export type Target = {|
   distEntry?: ?FilePath,
   distDir: ProjectPath,
   env: Environment,
   name: string,
   publicUrl: string,
-  loc?: ?SourceLocation,
+  loc?: ?InternalSourceLocation,
   pipeline?: string,
   source?: FilePath | Array<FilePath>,
 |};
@@ -92,7 +105,7 @@ export type Dependency = {|
   isOptional: boolean,
   isURL: boolean,
   isIsolated: boolean,
-  loc: ?SourceLocation,
+  loc: ?InternalSourceLocation,
   env: Environment,
   meta: Meta,
   target: ?Target,
@@ -101,7 +114,12 @@ export type Dependency = {|
   resolveFrom: ?ProjectPath,
   symbols: ?Map<
     Symbol,
-    {|local: Symbol, loc: ?SourceLocation, isWeak: boolean, meta?: ?Meta|},
+    {|
+      local: Symbol,
+      loc: ?InternalSourceLocation,
+      isWeak: boolean,
+      meta?: ?Meta,
+    |},
   >,
   pipeline?: ?string,
 |};
@@ -127,7 +145,10 @@ export type Asset = {|
   pipeline: ?string,
   astKey: ?string,
   astGenerator: ?ASTGenerator,
-  symbols: ?Map<Symbol, {|local: Symbol, loc: ?SourceLocation, meta?: ?Meta|}>,
+  symbols: ?Map<
+    Symbol,
+    {|local: Symbol, loc: ?InternalSourceLocation, meta?: ?Meta|},
+  >,
   sideEffects: boolean,
   uniqueKey: ?string,
   configPath?: ProjectPath,

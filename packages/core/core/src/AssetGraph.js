@@ -216,7 +216,8 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
   ) {
     let depNodes = targets.map(target => {
       let node = nodeFromDep(
-        createDependency({
+        // The passed project path is ignored in this case, because there is no `loc`
+        createDependency('', {
           moduleSpecifier: fromProjectPathRelative(entry.filePath),
           pipeline: target.pipeline,
           target: target,

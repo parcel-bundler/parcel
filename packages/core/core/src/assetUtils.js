@@ -37,7 +37,7 @@ import {
   md5FromFilePath,
   md5FromOrderedObject,
 } from '@parcel/utils';
-import {hashFromOption} from './utils';
+import {hashFromOption, toInternalSourceLocation} from './utils';
 import {createBuildCache} from './buildCache';
 import {
   type ProjectPath,
@@ -90,7 +90,10 @@ function createAssetIdFromOptions(options: AssetOptions): string {
   });
 }
 
-export function createAsset(options: AssetOptions): Asset {
+export function createAsset(
+  projectRoot: FilePath,
+  options: AssetOptions,
+): Asset {
   return {
     id: options.id != null ? options.id : createAssetIdFromOptions(options),
     committed: options.committed ?? false,
@@ -112,7 +115,18 @@ export function createAsset(options: AssetOptions): Asset {
     env: options.env,
     meta: options.meta || {},
     stats: options.stats,
-    symbols: options.symbols,
+    symbols:
+      options.symbols &&
+      new Map(
+        [...options.symbols].map(([k, v]) => [
+          k,
+          {
+            local: v.local,
+            meta: v.meta,
+            loc: toInternalSourceLocation(projectRoot, v.loc),
+          },
+        ]),
+      ),
     sideEffects: options.sideEffects ?? true,
     uniqueKey: options.uniqueKey ?? '',
     plugin: options.plugin,

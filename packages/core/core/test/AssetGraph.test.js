@@ -8,12 +8,20 @@ import AssetGraph, {
   nodeFromEntryFile,
   nodeFromAsset,
 } from '../src/AssetGraph';
-import {createDependency} from '../src/Dependency';
-import {createAsset} from '../src/assetUtils';
+import {createDependency as _createDependency} from '../src/Dependency';
+import {createAsset as _createAsset} from '../src/assetUtils';
 import {DEFAULT_ENV, DEFAULT_TARGETS} from './test-utils';
 import {toProjectPath as _toProjectPath} from '../src/projectPath';
 
 const stats = {size: 0, time: 0};
+
+function createAsset(opts) {
+  return _createAsset('/', opts);
+}
+
+function createDependency(opts) {
+  return _createDependency('/', opts);
+}
 
 function toProjectPath(p) {
   return _toProjectPath('/', p);

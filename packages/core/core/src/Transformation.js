@@ -261,7 +261,7 @@ export default class Transformation {
     let idBase = code != null ? hash : fromProjectPathRelative(filePath);
     return new UncommittedAsset({
       idBase,
-      value: createAsset({
+      value: createAsset(this.options.projectRoot, {
         idBase,
         filePath,
         isSource,
@@ -759,7 +759,7 @@ export default class Transformation {
         invalidateOnFileChange?: Array<FilePath>,
       |} = nullthrows(
         await pipeline.resolverRunner.resolve(
-          createDependency({
+          createDependency(this.options.projectRoot, {
             env: asset.value.env,
             moduleSpecifier: to,
             sourcePath: toProjectPath(this.options.projectRoot, from),

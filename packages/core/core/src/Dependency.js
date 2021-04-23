@@ -1,13 +1,16 @@
 // @flow
 import type {
   SourceLocation,
+  FilePath,
   Meta,
   ModuleSpecifier,
   Symbol,
 } from '@parcel/types';
-import {md5FromOrderedObject} from '@parcel/utils';
 import type {Dependency, Environment, Target} from './types';
-import {type ProjectPath} from './projectPath';
+import type {ProjectPath} from './projectPath';
+
+import {md5FromOrderedObject} from '@parcel/utils';
+import {toInternalSourceLocation} from './utils';
 
 type DependencyOpts = {|
   id?: string,
@@ -31,7 +34,10 @@ type DependencyOpts = {|
   pipeline?: ?string,
 |};
 
-export function createDependency(opts: DependencyOpts): Dependency {
+export function createDependency(
+  projectRoot: FilePath,
+  opts: DependencyOpts,
+): Dependency {
   let id =
     opts.id ||
     md5FromOrderedObject({
@@ -45,13 +51,26 @@ export function createDependency(opts: DependencyOpts): Dependency {
   return {
     ...opts,
     id,
+    loc: toInternalSourceLocation(projectRoot, opts.loc),
     isAsync: opts.isAsync ?? false,
     isEntry: opts.isEntry,
     isOptional: opts.isOptional ?? false,
     isURL: opts.isURL ?? false,
     isIsolated: opts.isIsolated ?? false,
     meta: opts.meta || {},
-    symbols: opts.symbols,
+    symbols:
+      opts.symbols &&
+      new Map(
+        [...opts.symbols].map(([k, v]) => [
+          k,
+          {
+            local: v.local,
+            meta: v.meta,
+            isWeak: v.isWeak,
+            loc: toInternalSourceLocation(projectRoot, v.loc),
+          },
+        ]),
+      ),
   };
 }
 
