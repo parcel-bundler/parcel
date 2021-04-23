@@ -447,6 +447,14 @@ export function assertBundles(
     let assets = [];
 
     bundle.traverseAssets(asset => {
+      if (asset.filePath.includes('@swc/helpers')) {
+        // Skip all helpers for now, as they add friction and churn to assertions.
+        // A longer term solution might have an explicit opt-in to this behavior, or
+        // if we enable symbol propagation unconditionally, the set of helpers
+        // should be more minimal.
+        return;
+      }
+
       const name = path.basename(asset.filePath);
       assets.push(name);
     });
