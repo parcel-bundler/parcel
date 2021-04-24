@@ -77,12 +77,52 @@ describe.only('EfficientGraph', () => {
   //   assert(!graph.hasNode(toNodeId(-1)));
   // });
 
-  it('addEdge should add an edge to the graph', () => {
+  it.only('addEdge should add an edge to the graph', () => {
     let graph = new EfficientGraph();
     let nodeA = graph.addNode();
     let nodeB = graph.addNode();
     graph.addEdge(nodeA, nodeB);
     assert(graph.hasEdge(nodeA, nodeB));
+  });
+
+  it.only('hasEdge should return true for existing edges', () => {
+    let graph = new EfficientGraph();
+    graph.addEdge(toNodeId(2), toNodeId(3), 2);
+    assert(graph.hasEdge(toNodeId(2), toNodeId(3)));
+    assert(graph.hasEdge(toNodeId(2), toNodeId(3), 2));
+  });
+
+  it.only('hasEdge should return false for nonexistent edges', () => {
+    let graph = new EfficientGraph();
+    graph.addEdge(toNodeId(2), toNodeId(3), 2);
+    assert(!graph.hasEdge(toNodeId(3), toNodeId(2)));
+    assert(!graph.hasEdge(toNodeId(2), toNodeId(3), 3));
+  });
+
+  it.only('getNodesConnectedFrom returns correct node ids', () => {
+    let graph = new EfficientGraph();
+    graph.addEdge(toNodeId(2), toNodeId(3), 2);
+    graph.addEdge(toNodeId(2), toNodeId(3), 3);
+    graph.addEdge(toNodeId(2), toNodeId(4));
+    graph.addEdge(toNodeId(3), toNodeId(4));
+
+    // should only return nodes with edge type 2
+    assert.deepEqual([...graph.getNodesConnectedFrom(toNodeId(2), 2)], [3]);
+    // should return all nodes connected from 2
+    assert.deepEqual([...graph.getNodesConnectedFrom(toNodeId(2))], [4, 3]);
+  });
+
+  it.only('getNodesConnectedTo returns correct node ids', () => {
+    let graph = new EfficientGraph();
+    graph.addEdge(toNodeId(2), toNodeId(3), 2);
+    graph.addEdge(toNodeId(2), toNodeId(3), 3);
+    graph.addEdge(toNodeId(2), toNodeId(4));
+    graph.addEdge(toNodeId(3), toNodeId(4), 2);
+
+    // should only return nodes with edge type 2
+    assert.deepEqual([...graph.getNodesConnectedTo(toNodeId(4), 2)], [3]);
+    // should return all nodes connected to 4
+    assert.deepEqual([...graph.getNodesConnectedTo(toNodeId(4))], [3, 2]);
   });
 
   // it('isOrphanedNode should return true or false if the node is orphaned or not', () => {

@@ -265,7 +265,7 @@ export default class EfficientGraph {
    * otherwise, returns the index at which the edge should be added.
    *
    */
-  index(from: NodeId, to: NodeId): number {
+  index(from: NodeId, to: NodeId, type: number = 1): number {
     // The index is most often simply the hash of edge.
     let hash = this.hash(from, to);
 
@@ -273,7 +273,12 @@ export default class EfficientGraph {
     // We do this instead of simply using the `hash` as the index because
     // it is possible for multiple edges to have the same hash.
     while (this.edges[hash + TYPE]) {
-      if (this.edges[hash + FROM] === from && this.edges[hash + TO] === to) {
+      if (
+        this.edges[hash + FROM] === from &&
+        this.edges[hash + TO] === to &&
+        // if type === 1, the edge type isn't specified, so return
+        (type === 1 || this.edges[hash + TYPE] === type)
+      ) {
         // If this edge is already in the graph, bail out.
         return -1;
       } else {
@@ -292,33 +297,37 @@ export default class EfficientGraph {
   /**
    * Check if the graph has an edge connecting the `from` and `to` nodes.
    */
-  hasEdge(from: NodeId, to: NodeId): boolean {
-    return this.index(from, to) === -1;
+  hasEdge(from: NodeId, to: NodeId, type: number = 1): boolean {
+    return this.index(from, to, type) === -1;
   }
 
   /**
    * Get the list of nodes connected from
    */
-  *getNodesConnectedFrom(from: NodeId): Iterable<NodeId> {
+  *getNodesConnectedFrom(from: NodeId, type: number = 1): Iterable<NodeId> {
     for (
       let i = this.nodes[fromNodeId(from) + FIRST_OUT];
       i;
       i = this.edges[i - 1 + NEXT_OUT]
     ) {
-      yield toNodeId(this.edges[i - 1 + TO]);
+      if (type === 1 || this.edges[i - 1] === type) {
+        yield toNodeId(this.edges[i - 1 + TO]);
+      }
     }
   }
 
   /**
    * Get the list of nodes whose edges from to
    */
-  *getNodesConnectedTo(to: NodeId): Iterable<NodeId> {
+  *getNodesConnectedTo(to: NodeId, type: number = 1): Iterable<NodeId> {
     for (
       let i = this.nodes[fromNodeId(to) + FIRST_IN];
       i;
       i = this.edges[i - 1 + NEXT_IN]
     ) {
-      yield toNodeId(this.edges[i - 1 + FROM]);
+      if (type === 1 || this.edges[i - 1] === type) {
+        yield toNodeId(this.edges[i - 1 + FROM]);
+      }
     }
   }
 
