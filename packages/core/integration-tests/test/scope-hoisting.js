@@ -3584,6 +3584,18 @@ describe('scope hoisting', function() {
         ],
       });
     });
+
+    it('should allow re-declaring __esModule interop flag', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          'integration/scope-hoisting/es6/double-esmodule/index.js',
+        ),
+      );
+
+      let res = await run(b);
+      assert.deepEqual(res, 'default');
+    });
   });
 
   describe('commonjs', function() {

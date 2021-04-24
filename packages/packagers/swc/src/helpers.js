@@ -30,7 +30,7 @@ if (parcelRequire == null) {
 
 export const helpers = {
   $parcel$export: `function $parcel$export(e, n, v, s) {
-  Object.defineProperty(e, n, {get: v, set: s, enumerable: true});
+  Object.defineProperty(e, n, {get: v, set: s, enumerable: true, configurable: true});
 }
 `,
   $parcel$exportWildcard: `function $parcel$exportWildcard(dest, source) {
@@ -66,7 +66,7 @@ typeof globalThis !== 'undefined'
   : {};
 `,
   $parcel$defineInteropFlag: `function $parcel$defineInteropFlag(a) {
-  Object.defineProperty(a, '__esModule', {value: true});
+  Object.defineProperty(a, '__esModule', {value: true, configurable: true});
 }
 `,
 };
