@@ -416,9 +416,15 @@ impl<'a> Fold for Hoist<'a> {
   fn fold_expr(&mut self, node: Expr) -> Expr {
     match &node {
       Expr::Member(member) => {
-        if !self.collect.should_wrap && match_member_expr(&member, vec!["module", "exports"], &self.collect.decls) {
-          self.self_references.insert("*".into());
-          return Expr::Ident(self.get_export_ident(member.span, &"*".into()))
+        if !self.collect.should_wrap {
+          if match_member_expr(&member, vec!["module", "exports"], &self.collect.decls) {
+            self.self_references.insert("*".into());
+            return Expr::Ident(self.get_export_ident(member.span, &"*".into()))
+          }
+
+          if match_member_expr(&member, vec!["module", "hot"], &self.collect.decls) {
+            return Expr::Lit(Lit::Null(Null { span: member.span }))
+          }
         }
 
         let key = match &*member.prop {
@@ -531,6 +537,7 @@ impl<'a> Fold for Hoist<'a> {
       },
       Expr::Unary(unary) => {
         // typeof require -> "function"
+        // typeof module -> "object"
         if unary.op == UnaryOp::TypeOf {
           match &*unary.arg {
             Expr::Ident(ident) => {
@@ -541,6 +548,15 @@ impl<'a> Fold for Hoist<'a> {
                   span: unary.span,
                   value: js_word!("function")
                 }))
+              }
+
+              if ident.sym == js_word!("module") && !self.collect.decls.contains(&id!(ident)) {
+                return Expr::Lit(Lit::Str(Str {
+                  kind: StrKind::Synthesized,
+                  has_escape: false,
+                  span: unary.span,
+                  value: js_word!("object")
+                })) 
               }
             },
             _ => {}
@@ -1128,6 +1144,10 @@ impl Visit for Collect {
       return
     }
 
+    if match_member_expr(&node, vec!["module", "hot"], &self.decls) {
+      return
+    }
+
     let is_static = match &*node.prop {
       Expr::Ident(_) => !node.computed,
       Expr::Lit(lit) => {
@@ -1160,6 +1180,12 @@ impl Visit for Collect {
               }
             }
 
+            if ident.sym == js_word!("module") && !self.decls.contains(&id!(ident)) {
+              self.has_cjs_exports = true;
+              self.static_cjs_exports = false;
+              self.should_wrap = true;
+            }
+
             // `import` isn't really an identifier...
             if !is_static && ident.sym != js_word!("import") {
               self.non_static_access.insert(id!(ident));
@@ -1182,6 +1208,17 @@ impl Visit for Collect {
     }
 
     node.visit_children_with(self);
+  }
+
+  fn visit_unary_expr(&mut self, node: &UnaryExpr, _parent: &dyn Node) {
+    if node.op == UnaryOp::TypeOf {
+      match &*node.arg {
+        Expr::Ident(ident) if ident.sym == js_word!("module") && !self.decls.contains(&id!(ident)) => {
+          // Do nothing to avoid the ident visitor from marking the module as non-static.
+        }
+        _ => node.visit_children_with(self)
+      }
+    }
   }
 
   fn visit_expr(&mut self, node: &Expr, _parent: &dyn Node) {
@@ -1822,6 +1859,37 @@ mod tests {
   }
 
   #[test]
+  fn should_wrap() {
+    let (collect, _code, _hoist) = parse(r#"
+    eval('');
+    "#);
+    assert_eq!(collect.should_wrap, true);
+
+    let (collect, _code, _hoist) = parse(r#"
+    doSomething(module);
+    "#);
+    assert_eq!(collect.should_wrap, true);
+
+    let (collect, _code, _hoist) = parse(r#"
+    console.log(module.id);
+    "#);
+    assert_eq!(collect.should_wrap, true);
+
+    let (collect, _code, _hoist) = parse(r#"
+    console.log(typeof module);
+    console.log(module.hot);
+    "#);
+    assert_eq!(collect.should_wrap, false);
+
+    let (collect, _code, _hoist) = parse(r#"
+    exports.foo = 2;
+    return;
+    exports.bar = 3;
+    "#);
+    assert_eq!(collect.should_wrap, true);
+  }
+
+  #[test]
   fn cjs_non_static_exports() {
     let (collect, _code, _hoist) = parse(r#"
     exports[test] = 2;
@@ -2104,8 +2172,9 @@ mod tests {
     assert_eq!(code, indoc!{r#"
     const $abc$var$x = 4;
     import   "abc:other";
+    var $abc$require$bar = $abc$import$558d6cfb8af8a010$3705fc5f2281438d;
     const $abc$var$baz = 3;
-    console.log($abc$import$558d6cfb8af8a010$3705fc5f2281438d);
+    console.log($abc$require$bar);
     "#});
 
     let (_collect, code, _hoist) = parse(r#"
@@ -2183,7 +2252,8 @@ mod tests {
 
     assert_eq!(code, indoc!{r#"
     import   "abc:other";
-    console.log($abc$import$558d6cfb8af8a010$ba02ad2230917043);
+    var $abc$require$foo = $abc$import$558d6cfb8af8a010$ba02ad2230917043;
+    console.log($abc$require$foo);
     "#});
 
     let (_collect, code, _hoist) = parse(r#"
@@ -2856,6 +2926,20 @@ mod tests {
     function $abc$var$test() {
         var x = 3;
     }
+    "#});
+  }
+
+  #[test]
+  fn fold_cjs_objects() {
+    let (_collect, code, _hoist) = parse(r#"
+    console.log(typeof module);
+    console.log(typeof require);
+    console.log(module.hot);
+    "#);
+    assert_eq!(code, indoc!{r#"
+    console.log("object");
+    console.log("function");
+    console.log(null);
     "#});
   }
 }
