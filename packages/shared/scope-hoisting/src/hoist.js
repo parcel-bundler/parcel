@@ -1,6 +1,11 @@
 // @flow
 
-import type {AST, MutableAsset, SourceLocation} from '@parcel/types';
+import type {
+  AST,
+  MutableAsset,
+  PluginOptions,
+  SourceLocation,
+} from '@parcel/types';
 import type {NodePath, Visitor} from '@babel/traverse';
 import type {
   CallExpression,
@@ -94,18 +99,18 @@ const TYPEOF = {
   require: 'function',
 };
 
-export function hoist(asset: MutableAsset, ast: AST) {
+export function hoist(options: PluginOptions, asset: MutableAsset, ast: AST) {
   if (ast.type !== 'babel' || ast.version !== '7.0.0') {
     throw new Error('Asset does not have a babel AST');
   }
 
-  traverse(ast.program, VISITOR, null, asset);
+  traverse(ast.program, VISITOR, null, {asset, options});
   asset.setAST(ast);
 }
 
-const VISITOR: Visitor<MutableAsset> = {
+const VISITOR: Visitor<{|asset: MutableAsset, options: PluginOptions|}> = {
   Program: {
-    enter(path, asset) {
+    enter(path, {asset, options}) {
       asset.symbols.ensure();
       asset.meta.id = asset.id;
       asset.meta.exportsIdentifier = getName(asset, 'exports');
@@ -192,7 +197,7 @@ const VISITOR: Visitor<MutableAsset> = {
                     {
                       local: '@exports',
                       isWeak: false,
-                      loc: convertBabelLoc(path.node.loc),
+                      loc: convertBabelLoc(options, path.node.loc),
                     },
                   ],
                 ]),
@@ -229,7 +234,7 @@ const VISITOR: Visitor<MutableAsset> = {
                     {
                       local: '@exports',
                       isWeak: false,
-                      loc: convertBabelLoc(path.node.loc),
+                      loc: convertBabelLoc(options, path.node.loc),
                     },
                   ],
                 ]),
@@ -253,7 +258,7 @@ const VISITOR: Visitor<MutableAsset> = {
       }
     },
 
-    exit(path, asset) {
+    exit(path, {asset}) {
       let scope = path.scope;
 
       let exportsIdentifier = getIdentifier(asset, 'exports');
@@ -309,7 +314,7 @@ const VISITOR: Visitor<MutableAsset> = {
     }
   },
 
-  MemberExpression(path, asset) {
+  MemberExpression(path, {asset, options}) {
     if (path.scope.hasBinding('module') || path.scope.getData('shouldWrap')) {
       return;
     }
@@ -317,12 +322,16 @@ const VISITOR: Visitor<MutableAsset> = {
     if (t.matchesPattern(path.node, 'module.exports')) {
       // Replace module.exports.foo with exported identifier if possible,
       // and add a self-referencing dependency so we know the symbol is used.
-      let selfReference = addSelfReference(path, asset);
+      let selfReference = addSelfReference(options, path, asset);
       if (selfReference) {
         path.parentPath.replaceWith(selfReference);
       } else {
         let exportsId = getExportsIdentifier(asset, path.scope);
-        asset.symbols.set('*', exportsId.name, convertBabelLoc(path.node.loc));
+        asset.symbols.set(
+          '*',
+          exportsId.name,
+          convertBabelLoc(options, path.node.loc),
+        );
         path.replaceWith(exportsId);
 
         if (!path.scope.hasBinding(exportsId.name)) {
@@ -348,7 +357,7 @@ const VISITOR: Visitor<MutableAsset> = {
     }
   },
 
-  ReferencedIdentifier(path, asset) {
+  ReferencedIdentifier(path, {asset, options}) {
     if (
       path.node.name === 'exports' &&
       !path.scope.hasBinding('exports') &&
@@ -363,7 +372,7 @@ const VISITOR: Visitor<MutableAsset> = {
 
       // Replace exports.foo with exported identifier if possible,
       // and add a self-referencing dependency so we know the symbol is used.
-      let selfReference = addSelfReference(path, asset);
+      let selfReference = addSelfReference(options, path, asset);
       if (selfReference) {
         path.parentPath.replaceWith(selfReference);
       } else {
@@ -376,7 +385,7 @@ const VISITOR: Visitor<MutableAsset> = {
     }
   },
 
-  ThisExpression(path, asset) {
+  ThisExpression(path, {asset, options}) {
     if (!path.scope.getData('shouldWrap')) {
       let scope = path.scope;
       while (scope?.parent) {
@@ -402,7 +411,7 @@ const VISITOR: Visitor<MutableAsset> = {
       } else {
         // Replace this.foo with exported identifier if possible,
         // and add a self-referencing dependency so we know the symbol is used.
-        let selfReference = addSelfReference(path, asset);
+        let selfReference = addSelfReference(options, path, asset);
         if (selfReference) {
           path.parentPath.replaceWith(selfReference);
         } else {
@@ -412,7 +421,7 @@ const VISITOR: Visitor<MutableAsset> = {
     }
   },
 
-  AssignmentExpression(path, asset) {
+  AssignmentExpression(path, {asset, options}) {
     if (path.scope.getData('shouldWrap')) {
       return;
     }
@@ -514,7 +523,7 @@ const VISITOR: Visitor<MutableAsset> = {
           asset.symbols.set(
             name,
             identifier.name,
-            convertBabelLoc(path.node.loc),
+            convertBabelLoc(options, path.node.loc),
             {isPure: isPure(scope.getBinding(identifier.name))},
           );
         }
@@ -548,7 +557,7 @@ const VISITOR: Visitor<MutableAsset> = {
     }
   },
 
-  CallExpression(path, asset) {
+  CallExpression(path, {asset, options}) {
     let {callee, arguments: args} = path.node;
     let [arg] = args;
     if (
@@ -649,7 +658,7 @@ const VISITOR: Visitor<MutableAsset> = {
         memberAccesses = [
           {
             name,
-            loc: convertBabelLoc(parent.loc),
+            loc: convertBabelLoc(options, parent.loc),
           },
         ];
 
@@ -718,7 +727,7 @@ const VISITOR: Visitor<MutableAsset> = {
             }
           }
 
-          return {name: p.key.name, loc: convertBabelLoc(p.loc)};
+          return {name: p.key.name, loc: convertBabelLoc(options, p.loc)};
         });
       } else if (
         !path.scope.getData('shouldWrap') && // eval is evil
@@ -742,7 +751,7 @@ const VISITOR: Visitor<MutableAsset> = {
           return {
             // $FlowFixMe[prop-missing]
             name,
-            loc: convertBabelLoc(parent.loc),
+            loc: convertBabelLoc(options, parent.loc),
           };
         });
       }
@@ -762,7 +771,7 @@ const VISITOR: Visitor<MutableAsset> = {
         dep.symbols.set(
           '*',
           getName(asset, 'require', source),
-          convertBabelLoc(path.node.loc),
+          convertBabelLoc(options, path.node.loc),
         );
 
         // Mark the dependency as CJS so that we keep the $id$exports var in the linker.
@@ -813,7 +822,7 @@ const VISITOR: Visitor<MutableAsset> = {
     }
   },
 
-  ImportDeclaration(path, asset) {
+  ImportDeclaration(path, {asset, options}) {
     let dep = asset
       .getDependencies()
       .find(dep => dep.moduleSpecifier === path.node.source.value);
@@ -866,7 +875,7 @@ const VISITOR: Visitor<MutableAsset> = {
               dep.symbols.set(
                 imported,
                 id.name,
-                convertBabelLoc(specifier.loc),
+                convertBabelLoc(options, specifier.loc),
               );
               dereferenceIdentifier(node, p.scope);
               p.parentPath.replaceWith(id);
@@ -881,7 +890,11 @@ const VISITOR: Visitor<MutableAsset> = {
             if (existing) {
               id.name = existing;
             }
-            dep.symbols.set('*', id.name, convertBabelLoc(specifier.loc));
+            dep.symbols.set(
+              '*',
+              id.name,
+              convertBabelLoc(options, specifier.loc),
+            );
           }
         } else {
           // mark this as a weak import:
@@ -910,7 +923,7 @@ const VISITOR: Visitor<MutableAsset> = {
           dep.symbols.set(
             imported,
             id.name,
-            convertBabelLoc(specifier.loc),
+            convertBabelLoc(options, specifier.loc),
             isWeak,
           );
         }
@@ -922,7 +935,7 @@ const VISITOR: Visitor<MutableAsset> = {
     path.remove();
   },
 
-  ExportDefaultDeclaration(path, asset) {
+  ExportDefaultDeclaration(path, {asset, options}) {
     let {declaration, loc} = path.node;
     let identifier = getExportIdentifier(asset, 'default');
     let name: ?string;
@@ -975,13 +988,18 @@ const VISITOR: Visitor<MutableAsset> = {
 
     if (!asset.symbols.hasExportSymbol('default')) {
       let binding = path.scope.getBinding(identifier.name);
-      asset.symbols.set('default', identifier.name, convertBabelLoc(loc), {
-        isPure: isPure(binding),
-      });
+      asset.symbols.set(
+        'default',
+        identifier.name,
+        convertBabelLoc(options, loc),
+        {
+          isPure: isPure(binding),
+        },
+      );
     }
   },
 
-  ExportNamedDeclaration(path, asset) {
+  ExportNamedDeclaration(path, {asset, options}) {
     let {declaration, source, specifiers} = path.node;
 
     if (source) {
@@ -1017,7 +1035,7 @@ const VISITOR: Visitor<MutableAsset> = {
           dep.symbols.set(
             imported,
             id.name,
-            convertBabelLoc(specifier.loc),
+            convertBabelLoc(options, specifier.loc),
             true,
           );
         }
@@ -1025,7 +1043,7 @@ const VISITOR: Visitor<MutableAsset> = {
         asset.symbols.set(
           exported.name,
           id.name,
-          convertBabelLoc(specifier.loc),
+          convertBabelLoc(options, specifier.loc),
         );
 
         id.loc = specifier.loc;
@@ -1042,11 +1060,11 @@ const VISITOR: Visitor<MutableAsset> = {
       path.remove();
     } else if (declaration) {
       if (isIdentifier(declaration.id)) {
-        addExport(asset, path, declaration.id, declaration.id);
+        addExport(options, asset, path, declaration.id, declaration.id);
       } else {
         let identifiers = t.getBindingIdentifiers(declaration);
         for (let id of Object.keys(identifiers)) {
-          addExport(asset, path, identifiers[id], identifiers[id]);
+          addExport(options, asset, path, identifiers[id], identifiers[id]);
         }
       }
 
@@ -1054,20 +1072,20 @@ const VISITOR: Visitor<MutableAsset> = {
     } else {
       for (let specifier of specifiers) {
         invariant(isExportSpecifier(specifier)); // because source is empty
-        addExport(asset, path, specifier.local, specifier.exported);
+        addExport(options, asset, path, specifier.local, specifier.exported);
       }
       path.remove();
     }
   },
 
-  ExportAllDeclaration(path, asset) {
+  ExportAllDeclaration(path, {asset, options}) {
     let dep = asset
       .getDependencies()
       .find(dep => dep.moduleSpecifier === path.node.source.value);
     if (dep) {
       dep.meta.isES6Module = true;
       dep.symbols.ensure();
-      dep.symbols.set('*', '*', convertBabelLoc(path.node.loc), true);
+      dep.symbols.set('*', '*', convertBabelLoc(options, path.node.loc), true);
     }
 
     let replacement = EXPORT_ALL_TEMPLATE({
@@ -1134,7 +1152,13 @@ function addImport(
   path.scope.setData('hoistedImport', lastImport);
 }
 
-function addExport(asset: MutableAsset, path, local, exported) {
+function addExport(
+  options: PluginOptions,
+  asset: MutableAsset,
+  path,
+  local,
+  exported,
+) {
   let scope = path.scope.getProgramParent();
   let identifier = getExportIdentifier(asset, exported.name);
 
@@ -1157,7 +1181,7 @@ function addExport(asset: MutableAsset, path, local, exported) {
     asset.symbols.set(
       exported.name,
       identifier.name,
-      convertBabelLoc(exported.loc),
+      convertBabelLoc(options, exported.loc),
       {isPure: isPure(binding)},
     );
   }
@@ -1243,6 +1267,7 @@ function isUnusedValue(path: NodePath<Node>): boolean {
 }
 
 function addSelfReference(
+  options: PluginOptions,
   path: NodePath<Node>,
   asset: MutableAsset,
 ): ?Identifier {
@@ -1269,7 +1294,7 @@ function addSelfReference(
           {
             local: local.name,
             isWeak: false,
-            loc: convertBabelLoc(path.node.loc),
+            loc: convertBabelLoc(options, path.node.loc),
           },
         ],
       ]),

@@ -101,7 +101,8 @@ export default (new Transformer({
         name.value = asset.addURLDependency(moduleSpecifier, {
           loc: createDependencyLocation(
             nullthrows(rule.source.start),
-            asset.filePath,
+            rule.source.input.file ?? asset.filePath,
+            moduleSpecifier,
             0,
             8,
           ),
@@ -121,6 +122,7 @@ export default (new Transformer({
           // Offset by 8 as it does not include `@import `
           loc: createDependencyLocation(
             nullthrows(rule.source.start),
+            rule.source.input.file ?? asset.filePath,
             moduleSpecifier,
             0,
             8,
@@ -151,6 +153,7 @@ export default (new Transformer({
             let url = asset.addURLDependency(node.nodes[0].value, {
               loc: createDependencyLocation(
                 nullthrows(decl.source.start),
+                decl.source.input.file ?? asset.filePath,
                 node.nodes[0].value,
               ),
             });

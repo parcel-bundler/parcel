@@ -37,7 +37,7 @@ import ThrowableDiagnostic, {
 } from '@parcel/diagnostic';
 import {SOURCEMAP_EXTENSIONS} from '@parcel/utils';
 
-import {createDependency} from './Dependency';
+import {createDependency, dependencyToDependencyOptions} from './Dependency';
 import ParcelConfig from './ParcelConfig';
 // TODO: eventually call path request as sub requests
 import {ResolverRunner} from './requests/PathRequest';
@@ -60,7 +60,10 @@ import {createBuildCache} from './buildCache';
 import {createConfig} from './InternalConfig';
 import {getConfigHash, type ConfigRequest} from './requests/ConfigRequest';
 import PublicConfig from './public/Config';
-import {invalidateOnFileCreateToInternal} from './utils';
+import {
+  invalidateOnFileCreateToInternal,
+  fromInternalSourceLocation,
+} from './utils';
 import {
   type ProjectPath,
   fromProjectPath,
@@ -762,7 +765,7 @@ export default class Transformation {
           createDependency(this.options.projectRoot, {
             env: asset.value.env,
             moduleSpecifier: to,
-            sourcePath: toProjectPath(this.options.projectRoot, from),
+            sourcePath: from,
           }),
         ),
       );
@@ -903,20 +906,10 @@ function normalizeAssets(
         query: internalAsset.value.query,
         dependencies: ([...internalAsset.value.dependencies.values()].map(
           dep => {
-            // eslint-disable-next-line no-unused-vars
-            let {id, sourceAssetId, sourcePath, resolveFrom, ...rest} = dep;
-            // $FlowFixMe this isn't really compatible with DependencyOptions
-            return {
-              ...rest,
-              ...(resolveFrom != null
-                ? {
-                    resolveFrom: fromProjectPath(
-                      options.projectRoot,
-                      resolveFrom,
-                    ),
-                  }
-                : null),
-            };
+            return (dependencyToDependencyOptions(
+              options.projectRoot,
+              dep,
+            ): DependencyOptions);
           },
         ): Array<DependencyOptions>),
         env: internalAsset.value.env,
@@ -926,8 +919,18 @@ function normalizeAssets(
         map: await internalAsset.getMap(),
         meta: result.meta,
         pipeline: internalAsset.value.pipeline,
-        // $FlowFixMe
-        symbols: internalAsset.value.symbols,
+        symbols: internalAsset.value.symbols
+          ? new Map(
+              [...internalAsset.value.symbols].map(([k, v]) => [
+                k,
+                {
+                  local: v.local,
+                  meta: v.meta ?? undefined,
+                  loc: fromInternalSourceLocation(options.projectRoot, v.loc),
+                },
+              ]),
+            )
+          : undefined,
         type: result.type,
         uniqueKey: internalAsset.value.uniqueKey,
       };

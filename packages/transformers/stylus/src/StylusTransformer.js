@@ -47,6 +47,7 @@ export default (new Transformer({
       let filename = asset.addURLDependency(node.val, {
         loc: createDependencyLocation(
           {line: node.lineno, column: node.column},
+          asset.filePath,
           node.val,
         ),
       });

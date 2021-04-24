@@ -1,20 +1,21 @@
 // @flow
 import type {
-  SourceLocation,
+  DependencyOptions,
   FilePath,
   Meta,
   ModuleSpecifier,
+  SourceLocation,
   Symbol,
 } from '@parcel/types';
 import type {Dependency, Environment, Target} from './types';
-import type {ProjectPath} from './projectPath';
 
 import {md5FromOrderedObject} from '@parcel/utils';
-import {toInternalSourceLocation} from './utils';
+import {toInternalSourceLocation, fromInternalSourceLocation} from './utils';
+import {fromProjectPath, toProjectPath} from './projectPath';
 
 type DependencyOpts = {|
   id?: string,
-  sourcePath?: ProjectPath,
+  sourcePath?: FilePath,
   sourceAssetId?: string,
   moduleSpecifier: ModuleSpecifier,
   isAsync?: boolean,
@@ -25,7 +26,7 @@ type DependencyOpts = {|
   loc?: SourceLocation,
   env: Environment,
   meta?: Meta,
-  resolveFrom?: ProjectPath,
+  resolveFrom?: FilePath,
   target?: Target,
   symbols?: Map<
     Symbol,
@@ -50,6 +51,8 @@ export function createDependency(
 
   return {
     ...opts,
+    resolveFrom: toProjectPath(projectRoot, opts.resolveFrom),
+    sourcePath: toProjectPath(projectRoot, opts.sourcePath),
     id,
     loc: toInternalSourceLocation(projectRoot, opts.loc),
     isAsync: opts.isAsync ?? false,
@@ -71,6 +74,41 @@ export function createDependency(
           },
         ]),
       ),
+  };
+}
+
+export function dependencyToDependencyOptions(
+  projectRoot: FilePath,
+  dep: Dependency,
+): DependencyOptions {
+  // eslint-disable-next-line no-unused-vars
+  let {id, ...env} = dep.env;
+
+  return {
+    moduleSpecifier: dep.moduleSpecifier,
+    isAsync: dep.isAsync,
+    isEntry: dep.isEntry ?? undefined,
+    isOptional: dep.isOptional,
+    isURL: dep.isURL,
+    isIsolated: dep.isIsolated,
+    loc: fromInternalSourceLocation(projectRoot, dep.loc) ?? undefined,
+    env: env,
+    meta: dep.meta,
+    resolveFrom: fromProjectPath(projectRoot, dep.resolveFrom) ?? undefined,
+    symbols: dep.symbols
+      ? new Map(
+          [...dep.symbols].map(([k, v]) => [
+            k,
+            {
+              local: v.local,
+              meta: v.meta ?? undefined,
+              isWeak: v.isWeak,
+              loc: fromInternalSourceLocation(projectRoot, v.loc),
+            },
+          ]),
+        )
+      : undefined,
+    pipeline: dep.pipeline ?? undefined,
   };
 }
 

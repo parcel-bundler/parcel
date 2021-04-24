@@ -19,6 +19,7 @@ import type {
 import type {SimpleVisitors} from '@parcel/babylon-walk';
 import type {PluginLogger} from '@parcel/logger';
 
+import path from 'path';
 import * as types from '@babel/types';
 import {
   isArrowFunctionExpression,
@@ -61,21 +62,21 @@ function parseImportMetaUrl(node: Node, ancestors: Array<Node>): ?string {
 }
 
 export default ({
-  ImportDeclaration(node, {asset}) {
+  ImportDeclaration(node, {asset, options}) {
     asset.meta.isES6Module = true;
-    addDependency(asset, node.source);
+    addDependency(options, asset, node.source);
   },
 
-  ExportNamedDeclaration(node, {asset}) {
+  ExportNamedDeclaration(node, {asset, options}) {
     asset.meta.isES6Module = true;
     if (node.source) {
-      addDependency(asset, node.source);
+      addDependency(options, asset, node.source);
     }
   },
 
-  ExportAllDeclaration(node, {asset}) {
+  ExportAllDeclaration(node, {asset, options}) {
     asset.meta.isES6Module = true;
-    addDependency(asset, node.source);
+    addDependency(options, asset, node.source);
   },
 
   ExportDefaultDeclaration(node, {asset}) {
@@ -83,7 +84,7 @@ export default ({
   },
 
   CallExpression: {
-    enter(node, {asset, ast}, ancestors) {
+    enter(node, {asset, ast, options}, ancestors) {
       let {callee, arguments: args} = node;
 
       let isRequire =
@@ -98,7 +99,7 @@ export default ({
         let isOptional =
           ancestors.some(a => types.isTryStatement(a)) || undefined;
         let isAsync = isRequireAsync(ancestors, node, asset, ast);
-        addDependency(asset, args[0], {isOptional, isAsync});
+        addDependency(options, asset, args[0], {isOptional, isAsync});
         return;
       }
 
@@ -113,7 +114,7 @@ export default ({
       if (isRequireResolve) {
         let isOptional =
           ancestors.some(a => types.isTryStatement(a)) || undefined;
-        addDependency(asset, args[0], {isOptional});
+        addDependency(options, asset, args[0], {isOptional});
         return;
       }
 
@@ -146,14 +147,14 @@ export default ({
           args.splice(1, 1);
         }
 
-        addDependency(asset, args[0], {isAsync: true, meta});
+        addDependency(options, asset, args[0], {isAsync: true, meta});
 
         node.callee = types.identifier('require');
         asset.setAST(ast);
         return;
       }
     },
-    exit(node, {asset, ast, logger}, ancestors) {
+    exit(node, {asset, ast, logger, options}, ancestors) {
       if (node.type !== 'CallExpression') {
         // It's possible this node has been morphed into another type
         return;
@@ -190,7 +191,7 @@ export default ({
               `Replace with: navigator.serviceWorker.register(new URL('${specifier.value}', import.meta.url))`,
             ],
           });
-          addURLDependency(asset, ast, specifier, opts);
+          addURLDependency(options, asset, ast, specifier, opts);
           return;
         } else {
           let url = parseImportMetaUrl(args[0], ancestors);
@@ -222,7 +223,7 @@ export default ({
       if (isImportScripts) {
         for (let arg of args) {
           if (types.isStringLiteral(arg)) {
-            addURLDependency(asset, ast, arg);
+            addURLDependency(options, asset, ast, arg);
           }
         }
         return;
@@ -231,7 +232,7 @@ export default ({
   },
 
   NewExpression: {
-    exit(node: NewExpression, {asset, ast, logger}, ancestors) {
+    exit(node: NewExpression, {asset, ast, logger, options}, ancestors) {
       let {callee, arguments: args} = node;
       if (callee.type === 'Identifier') {
         let url = parseImportMetaUrl(node, ancestors);
@@ -249,7 +250,7 @@ export default ({
               )
             )
           ) {
-            let loc = convertBabelLoc(node.loc);
+            let loc = convertBabelLoc(options, node.loc);
             asset.addURLDependency(url, loc ? {loc} : {});
             morph(
               node,
@@ -289,7 +290,7 @@ export default ({
 
           if (isStringLiteral(args[0])) {
             let specifier = args[0];
-            let loc = convertBabelLoc(node.loc);
+            let loc = convertBabelLoc(options, node.loc);
             logger.warn({
               message:
                 'Calling the Worker constructor with a string literal is deprecated.',
@@ -303,12 +304,12 @@ export default ({
                 `Replace with: new Worker(new URL('${specifier.value}', import.meta.url))`,
               ],
             });
-            addURLDependency(asset, ast, specifier, opts);
+            addURLDependency(options, asset, ast, specifier, opts);
             return;
           } else {
             let url = parseImportMetaUrl(args[0], ancestors);
             if (url != null) {
-              let loc = convertBabelLoc(args[0].loc);
+              let loc = convertBabelLoc(options, args[0].loc);
               if (loc) {
                 opts = {
                   ...opts,
@@ -461,16 +462,29 @@ function getFunctionParent(ancestors) {
 }
 
 function addDependency(
-  asset,
-  node,
+  options: PluginOptions,
+  asset: MutableAsset,
+  node: StringLiteral,
   opts: ?{|isAsync?: boolean, isOptional?: boolean, meta?: ?Meta|},
 ) {
   let dependencyOptions: DependencyOptions = {
     moduleSpecifier: node.value,
-    loc: node.loc && createDependencyLocation(node.loc.start, node.value, 0, 1),
     isAsync: opts ? opts.isAsync : false,
     isOptional: opts ? opts.isOptional : false,
   };
+
+  if (node.loc?.filename) {
+    dependencyOptions = {
+      ...dependencyOptions,
+      loc: createDependencyLocation(
+        node.loc.start,
+        path.resolve(options.projectRoot, node.loc.filename),
+        node.value,
+        0,
+        1,
+      ),
+    };
+  }
 
   if (opts?.meta != null) {
     dependencyOptions = {...dependencyOptions, meta: opts.meta};
@@ -480,16 +494,23 @@ function addDependency(
 }
 
 function addURLDependency(
+  options: PluginOptions,
   asset: MutableAsset,
   ast: AST,
   node: StringLiteral,
   opts: $Shape<DependencyOptions> = {},
 ) {
   let url = node.value;
-  if (node.loc) {
+  if (node.loc?.filename) {
     opts = {
       ...opts,
-      loc: createDependencyLocation(node.loc.start, node.value, 0, 1),
+      loc: createDependencyLocation(
+        node.loc.start,
+        path.resolve(options.projectRoot, node.loc.filename),
+        node.value,
+        0,
+        1,
+      ),
     };
   }
   asset.addURLDependency(url, opts);

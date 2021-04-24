@@ -445,10 +445,9 @@ export type DependencyOptions = {|
   +meta?: Meta,
   +pipeline?: string,
   +resolveFrom?: FilePath,
-  +target?: Target,
   +symbols?: $ReadOnlyMap<
     Symbol,
-    {|local: Symbol, loc: ?SourceLocation, isWeak: boolean|},
+    {|local: Symbol, loc: ?SourceLocation, isWeak: boolean, meta?: Meta|},
   >,
 |};
 
@@ -682,7 +681,10 @@ export type TransformerResult = {|
   +meta?: Meta,
   +pipeline?: ?string,
   +sideEffects?: boolean,
-  +symbols?: $ReadOnlyMap<Symbol, {|local: Symbol, loc: ?SourceLocation|}>,
+  +symbols?: $ReadOnlyMap<
+    Symbol,
+    {|local: Symbol, loc: ?SourceLocation, meta: ?Meta|},
+  >,
   +type: string,
   +uniqueKey?: ?string,
 |};

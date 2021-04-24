@@ -309,12 +309,12 @@ describe('AssetGraph', () => {
       moduleSpecifier: 'path/to/index/src/main.js',
       target: DEFAULT_TARGETS[0],
       env: DEFAULT_ENV,
-      sourcePath: toProjectPath(''),
+      sourcePath: '',
     });
-    let filePath = toProjectPath('/index.js');
+    let sourcePath = '/index.js';
+    let filePath = toProjectPath(sourcePath);
     let req = {filePath, env: DEFAULT_ENV, query: {}};
     graph.resolveDependency(dep, req, '3');
-    let sourcePath = filePath;
     let assets = [
       createAsset({
         id: '1',
@@ -474,10 +474,10 @@ describe('AssetGraph', () => {
       env: DEFAULT_ENV,
       target: DEFAULT_TARGETS[0],
     });
-    let filePath = toProjectPath('/index.js');
+    let sourcePath = '/index.js';
+    let filePath = toProjectPath(sourcePath);
     let req = {filePath, env: DEFAULT_ENV, query: {}};
     graph.resolveDependency(dep, req, '123');
-    let sourcePath = filePath;
     let dep1 = createDependency({
       moduleSpecifier: 'dependent-asset-1',
       env: DEFAULT_ENV,
@@ -560,12 +560,12 @@ describe('AssetGraph', () => {
     let indexFooDep = createDependency({
       moduleSpecifier: './foo',
       env: DEFAULT_ENV,
-      sourcePath: toProjectPath('/index.js'),
+      sourcePath: '/index.js',
     });
     let indexBarDep = createDependency({
       moduleSpecifier: './bar',
       env: DEFAULT_ENV,
-      sourcePath: toProjectPath('/index.js'),
+      sourcePath: '/index.js',
     });
     let indexAsset = createAsset({
       id: 'assetIndex',
@@ -593,7 +593,7 @@ describe('AssetGraph', () => {
     let fooUtilsDep = createDependency({
       moduleSpecifier: './utils',
       env: DEFAULT_ENV,
-      sourcePath: toProjectPath('/foo.js'),
+      sourcePath: '/foo.js',
     });
     let fooUtilsDepNode = nodeFromDep(fooUtilsDep);
     let fooAsset = createAsset({
@@ -638,7 +638,7 @@ describe('AssetGraph', () => {
     let barUtilsDep = createDependency({
       moduleSpecifier: './utils',
       env: DEFAULT_ENV,
-      sourcePath: toProjectPath('/bar.js'),
+      sourcePath: '/bar.js',
     });
     let barAsset = createAsset({
       id: 'assetBar',

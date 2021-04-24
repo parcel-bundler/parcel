@@ -109,7 +109,7 @@ export default ({
         invariant(filename != null);
         asset.addIncludedFile(filename);
       } else {
-        let loc = convertBabelLoc(path.node.loc);
+        let loc = convertBabelLoc(options, path.node.loc);
         if (filename) {
           let e = {
             message:

@@ -80,14 +80,15 @@ function createMockAssetGraph(ids: [string, string]) {
     env: DEFAULT_ENV,
     target: DEFAULT_TARGETS[0],
   });
-  let filePath = toProjectPath('/', '/index.js');
+  let sourcePath = '/index.js';
+  let filePath = toProjectPath('/', sourcePath);
   let req = {filePath, env: DEFAULT_ENV, query: {}};
   graph.resolveDependency(dep, nodeFromAssetGroup(req).value, '3');
 
   let dep1 = createDependency({
     moduleSpecifier: 'dependent-asset-1',
     env: DEFAULT_ENV,
-    sourcePath: filePath,
+    sourcePath,
   });
 
   let assets = [

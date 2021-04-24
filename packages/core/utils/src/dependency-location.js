@@ -5,6 +5,7 @@ export default function createDependencyLocation(
     column: number,
     ...
   },
+  filePath: string,
   moduleSpecifier: string,
   lineOffset: number = 0,
   columnOffset: number = 0,
@@ -16,7 +17,7 @@ export default function createDependencyLocation(
   start: {|column: number, line: number|},
 |} {
   return {
-    filePath: moduleSpecifier,
+    filePath,
     start: {
       line: start.line + lineOffset,
       column: start.column + columnOffset,

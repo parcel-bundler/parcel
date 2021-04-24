@@ -205,7 +205,7 @@ export default (new Transformer({
     }
 
     if (asset.env.shouldScopeHoist) {
-      hoist(asset, ast);
+      hoist(options, asset, ast);
     } else if (asset.meta.isES6Module) {
       // Convert ES6 modules to CommonJS
       esm2cjs(ast.program, asset);

@@ -556,7 +556,7 @@ export function link({
         source: dep.moduleSpecifier,
         specifiers: new Map(),
         isCommonJS: !!dep.meta?.isCommonJS,
-        loc: convertBabelLoc(node.loc),
+        loc: convertBabelLoc(options, node.loc),
       };
 
       importedFiles.set(dep.moduleSpecifier, importedFile);
@@ -625,7 +625,7 @@ export function link({
       imported = {
         bundle: importedBundle,
         assets: new Set(),
-        loc: convertBabelLoc(node.loc),
+        loc: convertBabelLoc(options, node.loc),
       };
       importedFiles.set(importedBundle.id, imported);
     }
@@ -762,7 +762,7 @@ export function link({
             throw getThrowableDiagnosticForNode(
               "'require.resolve' calls for excluded assets are only supported with outputFormat: 'commonjs'",
               mapped.filePath,
-              convertBabelLoc(node.loc),
+              convertBabelLoc(options, node.loc),
             );
           }
 
@@ -773,7 +773,7 @@ export function link({
           throw getThrowableDiagnosticForNode(
             "'require.resolve' calls for bundled modules or bundled assets aren't supported with scope hoisting",
             mapped.filePath,
-            convertBabelLoc(node.loc),
+            convertBabelLoc(options, node.loc),
           );
         }
       } else if (callee.name === '$parcel$exportWildcard') {

@@ -447,7 +447,7 @@ describe('scope hoisting', function() {
           {
             message,
             origin: '@parcel/core',
-            filePath: source,
+            filePath: path.join(__dirname, source),
             language: 'js',
             codeFrame: {
               codeHighlights: [
@@ -482,7 +482,8 @@ describe('scope hoisting', function() {
           {
             message,
             origin: '@parcel/core',
-            filePath: path.normalize(
+            filePath: path.join(
+              __dirname,
               'integration/scope-hoisting/es6/re-export-missing/b.js',
             ),
             language: 'js',
@@ -1461,208 +1462,178 @@ describe('scope hoisting', function() {
       });
 
       it('throws an error for missing exports for dynamic import: destructured await assignment', async function() {
-        let source = 'await-assignment-error.js';
-        let message = `./async.js does not export 'missing'`;
-        await assert.rejects(
-          () =>
-            bundle(
-              path.join(
-                __dirname,
-                'integration/scope-hoisting/es6/tree-shaking-dynamic-import',
-                source,
-              ),
-            ),
-          {
-            name: 'BuildError',
-            message,
-            diagnostics: [
-              {
-                message,
-                origin: '@parcel/core',
-                filePath: source,
-                language: 'js',
-                codeFrame: {
-                  codeHighlights: [
-                    {
-                      start: {
-                        column: 5,
-                        line: 3,
-                      },
-                      end: {
-                        column: 11,
-                        line: 3,
-                      },
-                    },
-                  ],
-                },
-              },
-            ],
-          },
+        let source = path.join(
+          __dirname,
+          'integration/scope-hoisting/es6/tree-shaking-dynamic-import',
+          'await-assignment-error.js',
         );
+        let message = `./async.js does not export 'missing'`;
+        await assert.rejects(() => bundle(source), {
+          name: 'BuildError',
+          message,
+          diagnostics: [
+            {
+              message,
+              origin: '@parcel/core',
+              filePath: source,
+              language: 'js',
+              codeFrame: {
+                codeHighlights: [
+                  {
+                    start: {
+                      column: 5,
+                      line: 3,
+                    },
+                    end: {
+                      column: 11,
+                      line: 3,
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        });
       });
 
       it('throws an error for missing exports for dynamic import: destructured await declaration', async function() {
-        let source = 'await-declaration-error.js';
-        let message = `./async.js does not export 'missing'`;
-        await assert.rejects(
-          () =>
-            bundle(
-              path.join(
-                __dirname,
-                'integration/scope-hoisting/es6/tree-shaking-dynamic-import',
-                source,
-              ),
-            ),
-          {
-            name: 'BuildError',
-            message,
-            diagnostics: [
-              {
-                message,
-                origin: '@parcel/core',
-                filePath: source,
-                language: 'js',
-                codeFrame: {
-                  codeHighlights: [
-                    {
-                      start: {
-                        column: 8,
-                        line: 2,
-                      },
-                      end: {
-                        column: 14,
-                        line: 2,
-                      },
-                    },
-                  ],
-                },
-              },
-            ],
-          },
+        let source = path.join(
+          __dirname,
+          'integration/scope-hoisting/es6/tree-shaking-dynamic-import',
+          'await-declaration-error.js',
         );
+        let message = `./async.js does not export 'missing'`;
+        await assert.rejects(() => bundle(source), {
+          name: 'BuildError',
+          message,
+          diagnostics: [
+            {
+              message,
+              origin: '@parcel/core',
+              filePath: source,
+              language: 'js',
+              codeFrame: {
+                codeHighlights: [
+                  {
+                    start: {
+                      column: 8,
+                      line: 2,
+                    },
+                    end: {
+                      column: 14,
+                      line: 2,
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        });
       });
 
       it('throws an error for missing exports for dynamic import: namespace await declaration', async function() {
-        let source = 'await-declaration-namespace-error.js';
-        let message = `./async.js does not export 'missing'`;
-        await assert.rejects(
-          () =>
-            bundle(
-              path.join(
-                __dirname,
-                'integration/scope-hoisting/es6/tree-shaking-dynamic-import',
-                source,
-              ),
-            ),
-          {
-            name: 'BuildError',
-            message,
-            diagnostics: [
-              {
-                message,
-                origin: '@parcel/core',
-                filePath: source,
-                language: 'js',
-                codeFrame: {
-                  codeHighlights: [
-                    {
-                      start: {
-                        column: 10,
-                        line: 3,
-                      },
-                      end: {
-                        column: 19,
-                        line: 3,
-                      },
-                    },
-                  ],
-                },
-              },
-            ],
-          },
+        let source = path.join(
+          __dirname,
+          'integration/scope-hoisting/es6/tree-shaking-dynamic-import',
+          'await-declaration-namespace-error.js',
         );
+        let message = `./async.js does not export 'missing'`;
+        await assert.rejects(() => bundle(source), {
+          name: 'BuildError',
+          message,
+          diagnostics: [
+            {
+              message,
+              origin: '@parcel/core',
+              filePath: source,
+              language: 'js',
+              codeFrame: {
+                codeHighlights: [
+                  {
+                    start: {
+                      column: 10,
+                      line: 3,
+                    },
+                    end: {
+                      column: 19,
+                      line: 3,
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        });
       });
 
       it('throws an error for missing exports for dynamic import: destructured then', async function() {
-        let source = 'then-error.js';
-        let message = `./async.js does not export 'missing'`;
-        await assert.rejects(
-          () =>
-            bundle(
-              path.join(
-                __dirname,
-                'integration/scope-hoisting/es6/tree-shaking-dynamic-import',
-                source,
-              ),
-            ),
-          {
-            name: 'BuildError',
-            message,
-            diagnostics: [
-              {
-                message,
-                origin: '@parcel/core',
-                filePath: source,
-                language: 'js',
-                codeFrame: {
-                  codeHighlights: [
-                    {
-                      start: {
-                        column: 38,
-                        line: 1,
-                      },
-                      end: {
-                        column: 44,
-                        line: 1,
-                      },
-                    },
-                  ],
-                },
-              },
-            ],
-          },
+        let source = path.join(
+          __dirname,
+          'integration/scope-hoisting/es6/tree-shaking-dynamic-import',
+          'then-error.js',
         );
+        let message = `./async.js does not export 'missing'`;
+        await assert.rejects(() => bundle(source), {
+          name: 'BuildError',
+          message,
+          diagnostics: [
+            {
+              message,
+              origin: '@parcel/core',
+              filePath: source,
+              language: 'js',
+              codeFrame: {
+                codeHighlights: [
+                  {
+                    start: {
+                      column: 38,
+                      line: 1,
+                    },
+                    end: {
+                      column: 44,
+                      line: 1,
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        });
       });
 
       it('throws an error for missing exports for dynamic import: namespace then', async function() {
-        let source = 'then-namespace-error.js';
-        let message = `./async.js does not export 'missing'`;
-        await assert.rejects(
-          () =>
-            bundle(
-              path.join(
-                __dirname,
-                'integration/scope-hoisting/es6/tree-shaking-dynamic-import',
-                source,
-              ),
-            ),
-          {
-            name: 'BuildError',
-            message,
-            diagnostics: [
-              {
-                message,
-                origin: '@parcel/core',
-                filePath: source,
-                language: 'js',
-                codeFrame: {
-                  codeHighlights: [
-                    {
-                      start: {
-                        column: 45,
-                        line: 1,
-                      },
-                      end: {
-                        column: 54,
-                        line: 1,
-                      },
-                    },
-                  ],
-                },
-              },
-            ],
-          },
+        let source = path.join(
+          __dirname,
+          'integration/scope-hoisting/es6/tree-shaking-dynamic-import',
+          'then-namespace-error.js',
         );
+        let message = `./async.js does not export 'missing'`;
+        await assert.rejects(() => bundle(source), {
+          name: 'BuildError',
+          message,
+          diagnostics: [
+            {
+              message,
+              origin: '@parcel/core',
+              filePath: source,
+              language: 'js',
+              codeFrame: {
+                codeHighlights: [
+                  {
+                    start: {
+                      column: 45,
+                      line: 1,
+                    },
+                    end: {
+                      column: 54,
+                      line: 1,
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        });
       });
     });
 
@@ -3191,7 +3162,7 @@ describe('scope hoisting', function() {
           {
             message,
             origin: '@parcel/core',
-            filePath: source,
+            filePath: path.join(__dirname, source),
             language: 'js',
             codeFrame: {
               codeHighlights: [
