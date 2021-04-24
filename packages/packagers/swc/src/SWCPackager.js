@@ -675,6 +675,8 @@ ${code}
     // and no __esModule flag, we need to resolve to the namespace instead.
     let isDefaultInterop =
       exportSymbol === 'default' &&
+      staticExports &&
+      !isWrapped &&
       dep?.meta.kind === 'Import' &&
       resolvedAsset.symbols.hasExportSymbol('*') &&
       resolvedAsset.symbols.hasExportSymbol('default') &&
