@@ -180,8 +180,9 @@ describe('TargetResolver', () => {
             sourceMap: {},
           },
           loc: {
-            // TODO?
-            filePath: path.join(COMMON_TARGETS_FIXTURE_PATH, 'package.json'),
+            filePath: relative(
+              path.join(COMMON_TARGETS_FIXTURE_PATH, 'package.json'),
+            ),
             start: {
               column: 11,
               line: 2,
@@ -213,7 +214,9 @@ describe('TargetResolver', () => {
             },
           },
           loc: {
-            filePath: path.join(COMMON_TARGETS_FIXTURE_PATH, 'package.json'),
+            filePath: relative(
+              path.join(COMMON_TARGETS_FIXTURE_PATH, 'package.json'),
+            ),
             start: {
               column: 13,
               line: 3,
@@ -243,7 +246,9 @@ describe('TargetResolver', () => {
             sourceMap: {},
           },
           loc: {
-            filePath: path.join(COMMON_TARGETS_FIXTURE_PATH, 'package.json'),
+            filePath: relative(
+              path.join(COMMON_TARGETS_FIXTURE_PATH, 'package.json'),
+            ),
             start: {
               column: 14,
               line: 4,
@@ -285,9 +290,8 @@ describe('TargetResolver', () => {
             sourceMap: undefined,
           },
           loc: {
-            filePath: path.join(
-              COMMON_TARGETS_IGNORE_FIXTURE_PATH,
-              'package.json',
+            filePath: relative(
+              path.join(COMMON_TARGETS_IGNORE_FIXTURE_PATH, 'package.json'),
             ),
             start: {
               column: 10,
@@ -327,7 +331,9 @@ describe('TargetResolver', () => {
             sourceMap: {},
           },
           loc: {
-            filePath: path.join(CUSTOM_TARGETS_FIXTURE_PATH, 'package.json'),
+            filePath: relative(
+              path.join(CUSTOM_TARGETS_FIXTURE_PATH, 'package.json'),
+            ),
             start: {
               column: 11,
               line: 2,
@@ -357,7 +363,9 @@ describe('TargetResolver', () => {
             sourceMap: {},
           },
           loc: {
-            filePath: path.join(CUSTOM_TARGETS_FIXTURE_PATH, 'package.json'),
+            filePath: relative(
+              path.join(CUSTOM_TARGETS_FIXTURE_PATH, 'package.json'),
+            ),
             start: {
               column: 20,
               line: 3,
@@ -387,7 +395,9 @@ describe('TargetResolver', () => {
             sourceMap: {},
           },
           loc: {
-            filePath: path.join(CUSTOM_TARGETS_FIXTURE_PATH, 'package.json'),
+            filePath: relative(
+              path.join(CUSTOM_TARGETS_FIXTURE_PATH, 'package.json'),
+            ),
             start: {
               column: 20,
               line: 4,
@@ -532,7 +542,7 @@ describe('TargetResolver', () => {
           sourceMap: {},
         },
         loc: {
-          filePath: path.join(CONTEXT_FIXTURE_PATH, 'package.json'),
+          filePath: relative(path.join(CONTEXT_FIXTURE_PATH, 'package.json')),
           start: {
             column: 11,
             line: 2,
@@ -567,7 +577,7 @@ describe('TargetResolver', () => {
           sourceMap: {},
         },
         loc: {
-          filePath: path.join(fixture, 'package.json'),
+          filePath: relative(path.join(fixture, 'package.json')),
           start: {
             column: 11,
             line: 2,
@@ -609,7 +619,9 @@ describe('TargetResolver', () => {
             sourceMap: {},
           },
           loc: {
-            filePath: path.join(COMMON_TARGETS_FIXTURE_PATH, 'package.json'),
+            filePath: relative(
+              path.join(COMMON_TARGETS_FIXTURE_PATH, 'package.json'),
+            ),
             start: {
               column: 11,
               line: 2,
@@ -639,7 +651,9 @@ describe('TargetResolver', () => {
             sourceMap: {},
           },
           loc: {
-            filePath: path.join(COMMON_TARGETS_FIXTURE_PATH, 'package.json'),
+            filePath: relative(
+              path.join(COMMON_TARGETS_FIXTURE_PATH, 'package.json'),
+            ),
             start: {
               column: 14,
               line: 4,
