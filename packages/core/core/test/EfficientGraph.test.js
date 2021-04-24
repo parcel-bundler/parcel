@@ -77,7 +77,22 @@ describe.only('EfficientGraph', () => {
   //   assert(!graph.hasNode(toNodeId(-1)));
   // });
 
-  it.only('addEdge should add an edge to the graph', () => {
+  it('getAllEdges returns all edges', () => {
+    let graph = new EfficientGraph();
+    graph.addEdge(toNodeId(1), toNodeId(2), 2);
+    graph.addEdge(toNodeId(1), toNodeId(2), 3);
+    graph.addEdge(toNodeId(4), toNodeId(5));
+    assert.deepEqual(
+      [...graph.getAllEdges()],
+      [
+        {from: 1, to: 2, type: 2},
+        {from: 1, to: 2, type: 3},
+        {from: 4, to: 5, type: 1},
+      ],
+    );
+  });
+
+  it('addEdge should add an edge to the graph', () => {
     let graph = new EfficientGraph();
     let nodeA = graph.addNode();
     let nodeB = graph.addNode();
@@ -85,21 +100,21 @@ describe.only('EfficientGraph', () => {
     assert(graph.hasEdge(nodeA, nodeB));
   });
 
-  it.only('hasEdge should return true for existing edges', () => {
+  it('hasEdge should return true for existing edges', () => {
     let graph = new EfficientGraph();
     graph.addEdge(toNodeId(2), toNodeId(3), 2);
     assert(graph.hasEdge(toNodeId(2), toNodeId(3)));
     assert(graph.hasEdge(toNodeId(2), toNodeId(3), 2));
   });
 
-  it.only('hasEdge should return false for nonexistent edges', () => {
+  it('hasEdge should return false for nonexistent edges', () => {
     let graph = new EfficientGraph();
     graph.addEdge(toNodeId(2), toNodeId(3), 2);
     assert(!graph.hasEdge(toNodeId(3), toNodeId(2)));
     assert(!graph.hasEdge(toNodeId(2), toNodeId(3), 3));
   });
 
-  it.only('getNodesConnectedFrom returns correct node ids', () => {
+  it('getNodesConnectedFrom returns correct node ids', () => {
     let graph = new EfficientGraph();
     graph.addEdge(toNodeId(2), toNodeId(3), 2);
     graph.addEdge(toNodeId(2), toNodeId(3), 3);
@@ -112,7 +127,7 @@ describe.only('EfficientGraph', () => {
     assert.deepEqual([...graph.getNodesConnectedFrom(toNodeId(2))], [4, 3]);
   });
 
-  it.only('getNodesConnectedTo returns correct node ids', () => {
+  it('getNodesConnectedTo returns correct node ids', () => {
     let graph = new EfficientGraph();
     graph.addEdge(toNodeId(2), toNodeId(3), 2);
     graph.addEdge(toNodeId(2), toNodeId(3), 3);

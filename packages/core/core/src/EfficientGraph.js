@@ -294,6 +294,37 @@ export default class EfficientGraph {
     return hash;
   }
 
+  // Probably not the best way to do this
+  // Doesn't work if you add multiple edges between the same nodes
+  // ex:
+  // graph.addEdge(1, 2, 2)
+  // graph.addEdge(1, 2, 3)
+  // graph.getAllEdges() only returns [{from: 1, to: 2, type: 2}]
+  getAllEdges(): Array<{|
+    from: number,
+    to: number,
+    type: number,
+    // nextIn: number,
+    // nextOut: number,
+  |}> {
+    let edgeObjs = [];
+    let i = 0;
+    while (i < this.edges.length) {
+      if (this.edges[i + TYPE]) {
+        edgeObjs.push({
+          from: this.edges[i + FROM],
+          to: this.edges[i + TO],
+          type: this.edges[i + TYPE],
+          // nextIn: this.edges[i + NEXT_IN],
+          // nextOut: this.edges[i + NEXT_OUT],
+        });
+        i += EDGE_SIZE;
+      }
+      i++;
+    }
+    return edgeObjs;
+  }
+
   /**
    * Check if the graph has an edge connecting the `from` and `to` nodes.
    */
@@ -335,6 +366,9 @@ export default class EfficientGraph {
    * Create a hash of the edge connecting the `from` and `to` nodes.
    *
    * This hash is used to index the edge in the `edges` array.
+   *
+   * This might need to include the type as well if we assume that
+   * multiple edges can exist between two of the same nodes
    */
   hash(from: NodeId, to: NodeId): number {
     // TODO: understand this hash function
