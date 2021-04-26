@@ -353,11 +353,7 @@ export default class EfficientGraph {
           }
         }
       } else {
-        if (
-          type === 1 ||
-          type === ALL_EDGE_TYPES ||
-          this.edges[i - 1] === type
-        ) {
+        if (type === ALL_EDGE_TYPES || this.edges[i - 1] === type) {
           yield toNodeId(this.edges[i - 1 + TO]);
         }
       }
@@ -383,11 +379,7 @@ export default class EfficientGraph {
           }
         }
       } else {
-        if (
-          type === 1 ||
-          type === ALL_EDGE_TYPES ||
-          this.edges[i - 1] === type
-        ) {
+        if (type === ALL_EDGE_TYPES || this.edges[i - 1] === type) {
           yield toNodeId(this.edges[i - 1 + FROM]);
         }
       }

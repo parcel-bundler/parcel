@@ -3,7 +3,11 @@
 import assert from 'assert';
 import sinon from 'sinon';
 
-import EfficientGraph, {NODE_SIZE, EDGE_SIZE} from '../src/EfficientGraph';
+import EfficientGraph, {
+  ALL_EDGE_TYPES,
+  NODE_SIZE,
+  EDGE_SIZE,
+} from '../src/EfficientGraph';
 import {toNodeId} from '../src/types';
 
 describe.only('EfficientGraph', () => {
@@ -116,15 +120,21 @@ describe.only('EfficientGraph', () => {
 
   it('getNodesConnectedFrom returns correct node ids', () => {
     let graph = new EfficientGraph();
-    graph.addEdge(toNodeId(2), toNodeId(3), 2);
-    graph.addEdge(toNodeId(2), toNodeId(3), 3);
-    graph.addEdge(toNodeId(2), toNodeId(4));
+    graph.addEdge(toNodeId(2), toNodeId(3));
+    graph.addEdge(toNodeId(2), toNodeId(4), 2);
+    graph.addEdge(toNodeId(2), toNodeId(5), 3);
     graph.addEdge(toNodeId(3), toNodeId(4));
 
-    // should only return nodes with edge type 2
-    assert.deepEqual([...graph.getNodesConnectedFrom(toNodeId(2), 2)], [3]);
+    // should only return nodes connected from 2 with edge type 2
+    assert.deepEqual([...graph.getNodesConnectedFrom(toNodeId(2), 2)], [4]);
+    // should return all nodes connected from 2 with edge type of 1
+    assert.deepEqual([...graph.getNodesConnectedFrom(toNodeId(2))], [3]);
     // should return all nodes connected from 2
-    assert.deepEqual([...graph.getNodesConnectedFrom(toNodeId(2))], [4, 3]);
+    assert.deepEqual(
+      // $FlowFixMe
+      [...graph.getNodesConnectedFrom(toNodeId(2), ALL_EDGE_TYPES)],
+      [5, 4, 3],
+    );
   });
 
   it('getNodesConnectedFrom returns correct node ids with multiple edge types', () => {
@@ -146,15 +156,22 @@ describe.only('EfficientGraph', () => {
 
   it('getNodesConnectedTo returns correct node ids', () => {
     let graph = new EfficientGraph();
+    graph.addEdge(toNodeId(1), toNodeId(4), 6);
     graph.addEdge(toNodeId(2), toNodeId(3), 2);
     graph.addEdge(toNodeId(2), toNodeId(3), 3);
     graph.addEdge(toNodeId(2), toNodeId(4));
     graph.addEdge(toNodeId(3), toNodeId(4), 2);
 
-    // should only return nodes with edge type 2
+    // should only return nodes connected to 4 with edge type 2
     assert.deepEqual([...graph.getNodesConnectedTo(toNodeId(4), 2)], [3]);
+    // should return all nodes connected to 4 with edge type of 1
+    assert.deepEqual([...graph.getNodesConnectedTo(toNodeId(4))], [2]);
     // should return all nodes connected to 4
-    assert.deepEqual([...graph.getNodesConnectedTo(toNodeId(4))], [3, 2]);
+    assert.deepEqual(
+      // $FlowFixMe
+      [...graph.getNodesConnectedTo(toNodeId(4), ALL_EDGE_TYPES)],
+      [3, 2, 1],
+    );
   });
 
   it('getNodesConnectedTo returns correct node ids with multiple edge types', () => {
