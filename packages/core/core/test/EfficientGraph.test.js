@@ -127,6 +127,23 @@ describe.only('EfficientGraph', () => {
     assert.deepEqual([...graph.getNodesConnectedFrom(toNodeId(2))], [4, 3]);
   });
 
+  it('getNodesConnectedFrom returns correct node ids with multiple edge types', () => {
+    let graph = new EfficientGraph();
+    graph.addEdge(toNodeId(2), toNodeId(3), 2);
+    graph.addEdge(toNodeId(2), toNodeId(4), 3);
+    graph.addEdge(toNodeId(2), toNodeId(5), 4);
+
+    assert.deepEqual([...graph.getNodesConnectedFrom(toNodeId(2), [3])], [4]);
+    assert.deepEqual(
+      [...graph.getNodesConnectedFrom(toNodeId(2), [2, 3])],
+      [4, 3],
+    );
+    assert.deepEqual(
+      [...graph.getNodesConnectedFrom(toNodeId(2), [2, 3, 4])],
+      [5, 4, 3],
+    );
+  });
+
   it('getNodesConnectedTo returns correct node ids', () => {
     let graph = new EfficientGraph();
     graph.addEdge(toNodeId(2), toNodeId(3), 2);
@@ -140,6 +157,22 @@ describe.only('EfficientGraph', () => {
     assert.deepEqual([...graph.getNodesConnectedTo(toNodeId(4))], [3, 2]);
   });
 
+  it('getNodesConnectedTo returns correct node ids with multiple edge types', () => {
+    let graph = new EfficientGraph();
+    graph.addEdge(toNodeId(1), toNodeId(5), 2);
+    graph.addEdge(toNodeId(2), toNodeId(5), 3);
+    graph.addEdge(toNodeId(3), toNodeId(5), 4);
+
+    assert.deepEqual([...graph.getNodesConnectedTo(toNodeId(5), [3])], [2]);
+    assert.deepEqual(
+      [...graph.getNodesConnectedTo(toNodeId(5), [2, 3])],
+      [2, 1],
+    );
+    assert.deepEqual(
+      [...graph.getNodesConnectedTo(toNodeId(5), [2, 3, 4])],
+      [3, 2, 1],
+    );
+  });
   // it('isOrphanedNode should return true or false if the node is orphaned or not', () => {
   //   let graph = new EfficientGraph();
   //   let nodeA = graph.addNode({id: 'a', type: 'mynode', value: 'a'});

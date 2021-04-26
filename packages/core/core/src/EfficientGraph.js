@@ -59,6 +59,8 @@ const FIRST_IN = 0;
 /** The offset to `NODE_SIZE` at which the hash of the first outgoing edge is stored. */
 const FIRST_OUT = 1;
 
+export const ALL_EDGE_TYPES = '@@all_edge_types';
+
 type EfficientGraphOpts = {|
   nodes: Uint32Array,
   edges: Uint32Array,
@@ -335,14 +337,29 @@ export default class EfficientGraph {
   /**
    * Get the list of nodes connected from
    */
-  *getNodesConnectedFrom(from: NodeId, type: number = 1): Iterable<NodeId> {
+  *getNodesConnectedFrom(
+    from: NodeId,
+    type: number | Array<number> = 1,
+  ): Iterable<NodeId> {
     for (
       let i = this.nodes[fromNodeId(from) + FIRST_OUT];
       i;
       i = this.edges[i - 1 + NEXT_OUT]
     ) {
-      if (type === 1 || this.edges[i - 1] === type) {
-        yield toNodeId(this.edges[i - 1 + TO]);
+      if (Array.isArray(type)) {
+        for (let typeNum of type) {
+          if (typeNum === 1 || this.edges[i - 1] === typeNum) {
+            yield toNodeId(this.edges[i - 1 + TO]);
+          }
+        }
+      } else {
+        if (
+          type === 1 ||
+          type === ALL_EDGE_TYPES ||
+          this.edges[i - 1] === type
+        ) {
+          yield toNodeId(this.edges[i - 1 + TO]);
+        }
       }
     }
   }
@@ -350,14 +367,29 @@ export default class EfficientGraph {
   /**
    * Get the list of nodes whose edges from to
    */
-  *getNodesConnectedTo(to: NodeId, type: number = 1): Iterable<NodeId> {
+  *getNodesConnectedTo(
+    to: NodeId,
+    type: number | Array<number> = 1,
+  ): Iterable<NodeId> {
     for (
       let i = this.nodes[fromNodeId(to) + FIRST_IN];
       i;
       i = this.edges[i - 1 + NEXT_IN]
     ) {
-      if (type === 1 || this.edges[i - 1] === type) {
-        yield toNodeId(this.edges[i - 1 + FROM]);
+      if (Array.isArray(type)) {
+        for (let typeNum of type) {
+          if (typeNum === 1 || this.edges[i - 1] === typeNum) {
+            yield toNodeId(this.edges[i - 1 + FROM]);
+          }
+        }
+      } else {
+        if (
+          type === 1 ||
+          type === ALL_EDGE_TYPES ||
+          this.edges[i - 1] === type
+        ) {
+          yield toNodeId(this.edges[i - 1 + FROM]);
+        }
       }
     }
   }
