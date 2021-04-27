@@ -135,66 +135,93 @@ export default class EfficientGraph {
    * the allocated size of the `edges` array.
    */
   resizeEdges(size: number) {
+    /** The edge list to be copied to the resized list. */
     let edges = this.edges;
     // Allocate the required space for an `edges` array of the given `size`.
     this.edges = new Uint32Array(size * EDGE_SIZE);
 
-    // Copy the existing edges into the new array.
-    // TODO: Understand why this is more complex than `resizeNode`
-    for (let i = 0; i < this.nodes.length; i += NODE_SIZE) {
-      let lastOut;
+    // For each node in the graph, copy the existing edges into the new array.
+    for (
+      /** The next node with edges to copy. */
+      let from = 0;
+      from < this.nodes.length;
+      from += NODE_SIZE
+    ) {
+      /** The last edge copied. */
+      let lastHash;
       for (
-        let hash = this.nodes[i + FIRST_OUT];
+        /** The next edge to be copied. */
+        let hash = this.nodes[from + FIRST_OUT];
         hash;
         hash = edges[hash - 1 + NEXT_OUT]
       ) {
+        /** The node that the next outgoing edge connects to. */
         let to = edges[hash - 1 + TO];
-        let newHash = this.index(toNodeId(i), toNodeId(to));
-        if (newHash === -1) {
+        /** The index at which to copy this edge. */
+        let index = this.index(toNodeId(from), toNodeId(to));
+        if (index === -1) {
+          // Edge already copied?
           continue;
         }
 
-        this.edges[newHash + TYPE] = edges[hash - 1 + TYPE];
-        this.edges[newHash + FROM] = i;
-        this.edges[newHash + TO] = to;
-        if (lastOut != null) {
-          this.edges[lastOut + NEXT_OUT] = 1 + newHash;
+        // Copy the details of the edge into the new edge list.
+        this.edges[index + TYPE] = edges[hash - 1 + TYPE];
+        this.edges[index + FROM] = from;
+        this.edges[index + TO] = to;
+        if (lastHash != null) {
+          // If this edge is not the first outgoing edge from the current node,
+          // link this edge to the last outgoing edge copied.
+          this.edges[lastHash + NEXT_OUT] = 1 + index;
         } else {
-          this.nodes[i + FIRST_OUT] = 1 + newHash;
+          // If this edge is the first outgoing edge from the current node,
+          // link this edge to the current node.
+          this.nodes[from + FIRST_OUT] = 1 + index;
         }
-
-        lastOut = newHash;
+        // Keep track of the last outgoing edge copied.
+        lastHash = index;
       }
 
-      let lastIn;
+      // Reset lastHash for use while copying incoming edges.
+      lastHash = undefined;
       for (
-        let hash = this.nodes[i + FIRST_IN];
+        /** The next incoming edge to be copied. */
+        let hash = this.nodes[from + FIRST_IN];
         hash;
         hash = edges[hash - 1 + NEXT_IN]
       ) {
+        /** The node that the next incoming edge connects from. */
         let from = edges[hash - 1 + FROM];
-        let newHash = this.hash(toNodeId(from), toNodeId(i));
-        while (this.edges[newHash + TYPE]) {
+        /** The index at which to copy this edge. */
+        let index = this.hash(toNodeId(from), toNodeId(from));
+        // If there is a hash collision,
+        // scan the edges array for a space to copy the edge.
+        while (this.edges[index + TYPE]) {
           if (
-            this.edges[newHash + FROM] === from &&
-            this.edges[newHash + TO] === i
+            this.edges[index + FROM] === from &&
+            this.edges[index + TO] === from
           ) {
             break;
           } else {
-            newHash = (newHash + EDGE_SIZE) % this.edges.length;
+            index = (index + EDGE_SIZE) % this.edges.length;
           }
         }
 
-        this.edges[newHash + TYPE] = edges[hash - 1 + TYPE];
-        this.edges[newHash + FROM] = from;
-        this.edges[newHash + TO] = i;
-        if (lastIn != null) {
-          this.edges[lastIn + NEXT_IN] = 1 + newHash;
+        // Copy the details of the edge into the new edge list.
+        this.edges[index + TYPE] = edges[hash - 1 + TYPE];
+        this.edges[index + FROM] = from;
+        this.edges[index + TO] = from;
+        if (lastHash != null) {
+          // If this edge is not the first incoming edge to the current node,
+          // link this edge to the last incoming edge copied.
+          this.edges[lastHash + NEXT_IN] = 1 + index;
         } else {
-          this.nodes[i + FIRST_IN] = 1 + newHash;
+          // If this edge is the first incoming edge from the current node,
+          // link this edge to the current node.
+          this.nodes[from + FIRST_IN] = 1 + index;
         }
 
-        lastIn = newHash;
+        // Keep track of the last edge copied.
+        lastHash = index;
       }
     }
   }
