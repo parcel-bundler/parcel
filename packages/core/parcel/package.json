@@ -53,8 +53,7 @@
         "@parcel/core": false,
         "@parcel/fs": false,
         "@parcel/package-manager": false,
-        "@parcel/fs-search": false,
-        "highlight.js": false
+        "@parcel/fs-search": false
       },
       "isLibrary": true
     }
