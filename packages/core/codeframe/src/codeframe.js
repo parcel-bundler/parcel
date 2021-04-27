@@ -34,6 +34,7 @@ const highlightSyntax = (txt: string, lang?: string): string => {
     try {
       if (!registeredLanguages.get(lang)) {
         // TODO use dynamic import
+        // $FlowFixMe flow doesn't support string interpolation inside require!
         const syntax = require(`highlight.js/lib/languages/${lang}`);
         emphasize.registerLanguage(lang, syntax);
         registeredLanguages.set(lang, true);
