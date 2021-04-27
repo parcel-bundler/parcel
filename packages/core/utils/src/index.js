@@ -7,7 +7,6 @@ export type * from './http-server';
 
 export {default as countLines} from './countLines';
 export {default as generateBuildMetrics} from './generateBuildMetrics';
-export {default as generateCertificate} from './generateCertificate';
 export {default as getCertificate} from './getCertificate';
 export {default as getRootDir} from './getRootDir';
 export {default as isDirectoryInside} from './isDirectoryInside';
