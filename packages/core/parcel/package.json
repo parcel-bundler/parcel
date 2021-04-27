@@ -54,8 +54,7 @@
         "@parcel/fs": false,
         "@parcel/package-manager": false,
         "@parcel/fs-search": false,
-        "highlight.js": false,
-        "node-forge": false
+        "highlight.js": false
       },
       "isLibrary": true
     }
