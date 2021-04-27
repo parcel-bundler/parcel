@@ -9,7 +9,7 @@ import type {FileSystem} from '@parcel/fs';
 import http from 'http';
 import https from 'https';
 import nullthrows from 'nullthrows';
-import {getCertificate, generateCertificate} from './';
+import {getCertificate} from './';
 
 type CreateHTTPServerOpts = {|
   https: ?(HTTPSOptions | boolean),
@@ -34,6 +34,7 @@ export async function createHTTPServer(
   if (!options.https) {
     server = http.createServer(options.listener);
   } else if (options.https === true) {
+    const generateCertificate = (await import('./generateCertificate')).default;
     let {cert, key} = await generateCertificate(
       options.outputFS,
       options.cacheDir,
