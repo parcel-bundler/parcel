@@ -871,7 +871,9 @@ ${code}
             let resolved = this.resolveSymbol(asset, asset, exp);
             return `$parcel$export($${assetId}$exports, ${JSON.stringify(
               exp,
-            )}, () => ${resolved}${asset.meta.hasCJSExports ? `, (v) => ${resolved} = v` : ''});`;
+            )}, () => ${resolved}${
+              asset.meta.hasCJSExports ? `, (v) => ${resolved} = v` : ''
+            });`;
           })
           .join('\n')}\n`;
         this.usedHelpers.add('$parcel$export');
@@ -922,7 +924,11 @@ ${code}
                 );
                 prepend += `$parcel$export($${assetId}$exports, ${JSON.stringify(
                   symbol,
-                )}, () => ${resolvedSymbol}${asset.meta.hasCJSExports ? `, (v) => ${resolvedSymbol} = v` : ''});\n`;
+                )}, () => ${resolvedSymbol}${
+                  asset.meta.hasCJSExports
+                    ? `, (v) => ${resolvedSymbol} = v`
+                    : ''
+                });\n`;
                 prependLineCount++;
               }
             }
@@ -962,11 +968,6 @@ ${code}
     res += outputFormatPrelude;
     lines += outputFormatLines;
 
-    // Add used helpers.
-    if (this.needsPrelude) {
-      this.usedHelpers.add('$parcel$global');
-    }
-
     for (let helper of this.usedHelpers) {
       res += helpers[helper];
       if (enableSourceMaps) {
@@ -975,6 +976,9 @@ ${code}
     }
 
     if (this.needsPrelude) {
+      // Add used helpers.
+      this.usedHelpers.add('$parcel$global');
+
       // Add the prelude if this is potentially the first JS bundle to load in a
       // particular context (e.g. entry scripts in HTML, workers, etc.).
       let parentBundles = this.bundleGraph.getParentBundles(this.bundle);
@@ -994,7 +998,7 @@ ${code}
         }
       } else {
         // Otherwise, get the current parcelRequire global.
-        res += `var parcelRequire = globalThis[${JSON.stringify(
+        res += `var parcelRequire = $parcel$global[${JSON.stringify(
           this.parcelRequireName,
         )}];\n`;
         lines++;
