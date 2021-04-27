@@ -968,6 +968,11 @@ ${code}
     res += outputFormatPrelude;
     lines += outputFormatLines;
 
+    // Add used helpers.
+    if (this.needsPrelude) {
+      this.usedHelpers.add('$parcel$global');
+    }
+
     for (let helper of this.usedHelpers) {
       res += helpers[helper];
       if (enableSourceMaps) {
@@ -976,9 +981,6 @@ ${code}
     }
 
     if (this.needsPrelude) {
-      // Add used helpers.
-      this.usedHelpers.add('$parcel$global');
-
       // Add the prelude if this is potentially the first JS bundle to load in a
       // particular context (e.g. entry scripts in HTML, workers, etc.).
       let parentBundles = this.bundleGraph.getParentBundles(this.bundle);
