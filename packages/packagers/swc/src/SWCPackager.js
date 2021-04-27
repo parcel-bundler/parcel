@@ -654,7 +654,7 @@ ${code}
 
     // If the rsolved asset is wrapped, but imported at the top-level by this asset,
     // then we hoist parcelRequire calls to the top of this asset so side effects run immediately.
-    if (isWrapped && dep && !dep?.meta.shouldWrap) {
+    if (isWrapped && dep && !dep?.meta.shouldWrap && symbol !== false) {
       let hoisted = this.hoistedRequires.get(dep.id);
       if (!hoisted) {
         hoisted = new Map();
