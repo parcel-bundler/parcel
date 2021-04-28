@@ -90,7 +90,8 @@ checksum = "7ffc5c5338469d4d3ea17d269fa8ea3512ad247247c30bd2df69e68309ed0a08"
 [[package]]
 name = "napi"
 version = "1.6.0"
-source = "git+https://github.com/napi-rs/napi-rs?branch=main#823cf7205c6504cb45fa39453929664c7be660d8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f06c3175294af4a9d4217c370250f5acea6c06b3d162b7a2f7c8e5a00393b684"
 dependencies = [
  "napi-build",
  "napi-sys",
@@ -100,7 +101,8 @@ dependencies = [
 [[package]]
 name = "napi-build"
 version = "1.0.2"
-source = "git+https://github.com/napi-rs/napi-rs?branch=main#823cf7205c6504cb45fa39453929664c7be660d8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3039ed15066300360660239cab9a6071a0ed899547c49e40952d87ded49b29b8"
 dependencies = [
  "cfg-if",
  "ureq",
@@ -109,7 +111,8 @@ dependencies = [
 [[package]]
 name = "napi-derive"
 version = "1.1.0"
-source = "git+https://github.com/napi-rs/napi-rs?branch=main#823cf7205c6504cb45fa39453929664c7be660d8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8e7ed160148f94ee17936f00288029cb0cfb37c08bbace9f514f735dcd869ed7"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -119,7 +122,8 @@ dependencies = [
 [[package]]
 name = "napi-sys"
 version = "1.1.0"
-source = "git+https://github.com/napi-rs/napi-rs?branch=main#823cf7205c6504cb45fa39453929664c7be660d8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "192c38c1012409fbf1d9868e29375fc3e1444cf1e222ba407c7bca6a2187fbfa"
 
 [[package]]
 name = "once_cell"
