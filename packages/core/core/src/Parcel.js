@@ -287,8 +287,8 @@ export default class Parcel {
         assetGraph,
         changedAssets,
         assetRequests,
-        isAssetGraphStructureSame,
         previousAssetGraphHash,
+        didDependencyStructureChange,
       } = await this.#requestTracker.runRequest(request, {
         force: options.shouldBuildLazily && this.#requestedAssetIds.size > 0,
       });
@@ -299,20 +299,19 @@ export default class Parcel {
         assetGraph,
         changedAssets,
         previousAssetGraphHash,
-        isAssetGraphStructureSame,
+        didDependencyStructureChange,
         optionsRef: this.#optionsRef,
       });
 
-      let {bundleGraph, changedBundles} = await this.#requestTracker.runRequest(
+      let {bundleGraph} = await this.#requestTracker.runRequest(
         bundleGraphRequest,
       );
 
       dumpGraphToGraphViz(bundleGraph._graph, 'BundleGraph');
 
-      await this.#packagerRunner.writeBundles(bundleGraph, changedBundles);
+      await this.#packagerRunner.writeBundles(bundleGraph);
       assertSignalNotAborted(signal);
 
-      // $FlowFixMe
       dumpGraphToGraphViz(this.#requestTracker.graph, 'RequestGraph');
 
       let event = {
