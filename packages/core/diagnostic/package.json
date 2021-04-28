@@ -1,6 +1,6 @@
 {
   "name": "@parcel/diagnostic",
-  "version": "2.0.0-frontbucket.26",
+  "version": "2.0.0-frontbucket.69",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
