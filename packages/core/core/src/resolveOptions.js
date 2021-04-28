@@ -107,7 +107,6 @@ export default async function resolveOptions(
     shouldAutoInstall: initialOptions.shouldAutoInstall ?? false,
     hmrOptions: initialOptions.hmrOptions ?? null,
     shouldBuildLazily,
-    isIncremental: initialOptions.isIncremental ?? false, // setting to false as default until comfortable
     shouldContentHash,
     serveOptions: initialOptions.serveOptions
       ? {
