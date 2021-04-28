@@ -34,8 +34,8 @@ export async function createHTTPServer(
   if (!options.https) {
     server = http.createServer(options.listener);
   } else if (options.https === true) {
-    const generateCertificate = (await import('./generateCertificate.js'))
-      .default.default;
+    const generateCertificate = /* $FlowIgnore[prop-missing] the exports of the dynamic import are wrapped in an excess object */
+    (await import('./generateCertificate.js')).default.default;
     let {cert, key} = await generateCertificate(
       options.outputFS,
       options.cacheDir,
