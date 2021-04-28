@@ -1,0 +1,6 @@
+[workspace]
+members = ["native-packages/fs-search"]
+
+[profile.release]
+lto = true
+opt-level = 3
