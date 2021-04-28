@@ -59,7 +59,8 @@
     "node": ">= 12.0.0"
   },
   "lint-staged": {
-    "*.{js,json,md}": "prettier --write"
+    "*.{js,json,md}": "prettier --write",
+    "*.rs": "rustfmt"
   },
   "collective": {
     "type": "opencollective",
