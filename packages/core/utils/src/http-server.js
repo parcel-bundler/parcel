@@ -34,7 +34,8 @@ export async function createHTTPServer(
   if (!options.https) {
     server = http.createServer(options.listener);
   } else if (options.https === true) {
-    const generateCertificate = (await import('./generateCertificate')).default;
+    const generateCertificate = (await import('./generateCertificate.js'))
+      .default.default;
     let {cert, key} = await generateCertificate(
       options.outputFS,
       options.cacheDir,
