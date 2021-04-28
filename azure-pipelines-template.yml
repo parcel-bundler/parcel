@@ -41,6 +41,11 @@ jobs:
 
       - script: node scripts/link-native.js
         displayName: 'Link native dependencies'
+      # Like yarn --frozen-lockfile, fails immediately if lockfile needs updates
+      - script: cargo fetch --locked
+        displayName: 'Fetch cargo dependencies'
+      - script: cargo test --all
+        displayName: 'Run Rust tests'
 
       # use `--frozen-lockfile` to fail immediately if the committed yarn.lock needs updates
       # https://yarnpkg.com/lang/en/docs/cli/install/#toc-yarn-install-frozen-lockfile
