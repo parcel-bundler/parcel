@@ -270,7 +270,6 @@ export type InitialParcelOptions = {|
   +shouldAutoInstall?: boolean,
   +logLevel?: LogLevel,
   +shouldProfile?: boolean,
-  +isIncremental?: boolean,
   +shouldPatchConsole?: boolean,
   +shouldBuildLazily?: boolean,
 
@@ -1149,14 +1148,6 @@ export type Bundler = {|
     options: PluginOptions,
     logger: PluginLogger,
   |}): Async<void>,
-  update({|
-    bundleGraph: MutableBundleGraph,
-    config: ?ConfigResult,
-    options: PluginOptions,
-    logger: PluginLogger,
-    changedAssets: Map<string, Asset>,
-    isAssetGraphStructureSame: boolean,
-  |}): Array<void>,
 |};
 
 /**

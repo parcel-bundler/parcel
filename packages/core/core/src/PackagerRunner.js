@@ -102,10 +102,7 @@ export default class PackagerRunner {
         };
   }
 
-  async writeBundles(
-    bundleGraph: InternalBundleGraph,
-    changedBundles: Array<InternalBundle>,
-  ) {
+  async writeBundles(bundleGraph: InternalBundleGraph) {
     let farm = nullthrows(this.farm);
     let {ref, dispose} = await farm.createSharedReference(
       bundleGraph,
@@ -121,15 +118,6 @@ export default class PackagerRunner {
     let writeEarlyPromises = {};
     let hashRefToNameHash = new Map();
     let bundles = bundleGraph.getBundles().filter(bundle => {
-      // Do not package and write bundles to disk if the bundle is unchanged
-      if (
-        !changedBundles
-          .map(changedBundle => changedBundle.id)
-          .includes(bundle.id)
-      ) {
-        return false;
-      }
-
       // Do not package and write placeholder bundles to disk. We just
       // need to update the name so other bundles can reference it.
       if (bundle.isPlaceholder) {

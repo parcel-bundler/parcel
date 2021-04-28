@@ -38,7 +38,6 @@ import createAssetRequest from './AssetRequest';
 import createPathRequest from './PathRequest';
 
 import dumpToGraphViz from '../dumpGraphToGraphViz';
-import clone from 'clone';
 
 type AssetGraphRequestInput = {|
   entries?: Array<string>,
@@ -50,7 +49,6 @@ type AssetGraphRequestInput = {|
 |};
 
 type AssetGraphRequestResult = AssetGraphBuilderResult & {|
-  isAssetGraphStructureSame: boolean,
   previousAssetGraphHash: ?string,
 |};
 
@@ -58,6 +56,7 @@ type AssetGraphBuilderResult = {|
   assetGraph: AssetGraph,
   changedAssets: Map<string, Asset>,
   assetRequests: Array<AssetGroup>,
+  didDependencyStructureChange: boolean,
 |};
 
 type RunInput = {|
@@ -79,15 +78,14 @@ export default function createAssetGraphRequest(
     id: input.name,
     run: async input => {
       let prevResult = await input.api.getPreviousResult<AssetGraphRequestResult>();
-      let builder = new AssetGraphBuilder(input, clone(prevResult)); // pass clone to not override the previous result reference
+      let previousAssetGraphHash = prevResult?.assetGraph.getHash();
+
+      let builder = new AssetGraphBuilder(input, prevResult);
       let assetGraphRequest = await await builder.build();
 
       return {
         ...assetGraphRequest,
-        previousAssetGraphHash: prevResult?.assetGraph.hash,
-        isAssetGraphStructureSame: assetGraphRequest.assetGraph.isEqualStructure(
-          prevResult?.assetGraph,
-        ),
+        previousAssetGraphHash,
       };
     },
     input,
@@ -113,6 +111,7 @@ export class AssetGraphBuilder {
   assetRequests: Array<AssetGroup> = [];
   cacheKey: string;
   shouldBuildLazily: boolean;
+  didDependencyStructureChange: boolean;
   requestedAssetIds: Set<string>;
 
   constructor(
@@ -139,6 +138,7 @@ export class AssetGraphBuilder {
     this.name = name;
     this.requestedAssetIds = requestedAssetIds ?? new Set();
     this.shouldBuildLazily = shouldBuildLazily ?? false;
+    this.didDependencyStructureChange = false;
 
     this.cacheKey = md5FromOrderedObject({
       parcelVersion: PARCEL_VERSION,
@@ -218,16 +218,20 @@ export class AssetGraphBuilder {
       try {
         this.propagateSymbols();
       } catch (e) {
-        dumpToGraphViz(this.assetGraph, 'AssetGraph_' + this.name + '_failed');
+        await dumpToGraphViz(
+          this.assetGraph,
+          'AssetGraph_' + this.name + '_failed',
+        );
         throw e;
       }
     }
-    dumpToGraphViz(this.assetGraph, 'AssetGraph_' + this.name);
+    await dumpToGraphViz(this.assetGraph, 'AssetGraph_' + this.name);
 
     return {
       assetGraph: this.assetGraph,
       changedAssets: this.changedAssets,
       assetRequests: this.assetRequests,
+      didDependencyStructureChange: this.didDependencyStructureChange,
     };
   }
 
@@ -823,10 +827,38 @@ export class AssetGraphBuilder {
 
     if (assets != null) {
       for (let asset of assets) {
+        if (!this.didDependencyStructureChange) {
+          let otherAsset = this.assetGraph.getNodeByContentKey(asset.id);
+          if (otherAsset != null) {
+            invariant(otherAsset.type === 'asset');
+            this.didDependencyStructureChange = this._areDependenciesEqualForAssets(
+              asset,
+              otherAsset.value,
+            );
+          }
+        }
         this.changedAssets.set(asset.id, asset);
       }
       this.assetGraph.resolveAssetGroup(input, assets, request.id);
     }
+  }
+
+  _areDependenciesEqualForAssets(asset: Asset, otherAsset: Asset): boolean {
+    if (otherAsset == null) {
+      return false;
+    }
+
+    let assetDependencies = Array.from(asset?.dependencies.keys()).sort();
+    let otherAssetDependencies = Array.from(
+      otherAsset?.dependencies.keys(),
+    ).sort();
+    if (assetDependencies.length !== otherAssetDependencies.length) {
+      return false;
+    }
+
+    return assetDependencies.every(
+      (key, index) => key === otherAssetDependencies[index],
+    );
   }
 }
 
