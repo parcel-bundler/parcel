@@ -1764,6 +1764,15 @@ describe('javascript', function() {
     assert.equal(output(), 'test:test');
   });
 
+  it('should not replace process.env.hasOwnProperty with undefined', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/env-hasOwnProperty/index.js'),
+    );
+
+    let output = await run(b);
+    assert.strictEqual(output, false);
+  });
+
   it('should not insert environment variables in electron-main environment', async function() {
     let b = await bundle(path.join(__dirname, '/integration/env/index.js'), {
       targets: {

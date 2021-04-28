@@ -18,7 +18,7 @@ pub struct EnvReplacer<'a> {
 impl<'a> Fold for EnvReplacer<'a> {
   fn fold_expr(&mut self, node: ast::Expr) -> ast::Expr {
     use ast::{Expr::*, ExprOrSuper::*, Lit, Str, Ident, MemberExpr, Bool};
-    
+
     // Replace assignments to process.browser with `true`
     // TODO: this seems questionable but we did it in the JS version??
     if let Assign(ref assign) = node {
@@ -34,7 +34,7 @@ impl<'a> Fold for EnvReplacer<'a> {
         }
       }
     }
-    
+
     match node {
       Member(ref member) => {
         if self.is_browser && match_member_expr(member, vec!["process", "browser"], self.decls) {
@@ -66,7 +66,17 @@ impl<'a> Fold for EnvReplacer<'a> {
                           kind: ast::StrKind::Synthesized
                         }))
                       } else {
-                        return Ident(Ident::new(js_word!("undefined"), DUMMY_SP))
+                        match sym as &str {
+                          // don't replace process.env.hasOwnProperty with undefined
+                          "hasOwnProperty"
+                          | "isPrototypeOf"
+                          | "propertyIsEnumerable"
+                          | "toLocaleString"
+                          | "toSource"
+                          | "toString"
+                          | "valueOf" => {}
+                          _ => return Ident(Ident::new(js_word!("undefined"), DUMMY_SP))
+                        }
                       }
                     },
                     _ => {},
