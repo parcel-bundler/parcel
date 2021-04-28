@@ -872,7 +872,6 @@ export class AssetGraphBuilder {
     let otherAssetDependencies = Array.from(
       otherAsset?.dependencies.keys(),
     ).sort();
-
     if (assetDependencies.length !== otherAssetDependencies.length) {
       return false;
     }

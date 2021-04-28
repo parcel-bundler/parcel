@@ -26,7 +26,7 @@ import MutableBundleGraph from '../public/MutableBundleGraph';
 import {Bundle, NamedBundle} from '../public/Bundle';
 import {report} from '../ReporterRunner';
 import dumpGraphToGraphViz from '../dumpGraphToGraphViz';
-import {unique} from '@parcel/utils';
+import {unique, hashObject} from '@parcel/utils';
 import {hashString} from '@parcel/hash';
 import PluginOptions from '../public/PluginOptions';
 import applyRuntimes from '../applyRuntimes';
@@ -358,7 +358,7 @@ class BundlerRunner {
   }
 
   getBundlerHash(): string {
-    return md5FromOrderedObject({
+    return hashObject({
       bundlerName: this.config.getBundlerName(),
       config: this.configs.get(this.config.getBundlerName())?.result,
     });
