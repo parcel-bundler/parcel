@@ -32,7 +32,8 @@
     "nightly:release": "lerna publish -y --canary --preid nightly --dist-tag=nightly --exact --force-publish=* --no-git-tag-version --no-push",
     "tag:prerelease": "lerna version --exact --force-publish=* --no-git-tag-version --no-push",
     "tag:release": "lerna version --force-publish=* --no-git-tag-version --no-push",
-    "release": "lerna publish -y from-package --dist-tag=next --no-git-tag-version --no-push"
+    "release": "lerna publish -y from-package --dist-tag=next --no-git-tag-version --no-push",
+    "prepare": "husky install"
   },
   "devDependencies": {
     "@babel/core": "^7.12.0",
@@ -43,7 +44,7 @@
     "flow-bin": "0.148.0",
     "gulp": "^4.0.2",
     "gulp-babel": "^8.0.0",
-    "husky": "^4.2.5",
+    "husky": "^6.0.0",
     "lerna": "^3.3.2",
     "lint-staged": "^10.2.11",
     "mocha": "^8.3.0",
@@ -56,11 +57,6 @@
   },
   "engines": {
     "node": ">= 12.0.0"
-  },
-  "husky": {
-    "hooks": {
-      "pre-commit": "lint-staged"
-    }
   },
   "lint-staged": {
     "*.{js,json,md}": "prettier --write"
