@@ -9,7 +9,7 @@ import type {FileSystem} from '@parcel/fs';
 import http from 'http';
 import https from 'https';
 import nullthrows from 'nullthrows';
-import {getCertificate} from './';
+import getCertificate from './getCertificate';
 
 type CreateHTTPServerOpts = {|
   https: ?(HTTPSOptions | boolean),
