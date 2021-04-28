@@ -43,7 +43,6 @@ export const DEFAULT_OPTIONS: ParcelOptions = {
     distDir: undefined,
     sourceMaps: false,
   },
-  isIncremental: false,
 };
 
 export const DEFAULT_ENV: Environment = createEnvironment({

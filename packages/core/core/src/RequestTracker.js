@@ -93,7 +93,7 @@ type RequestNode = {|
   value: StoredRequest,
   invalidateReason: InvalidateReason,
 |};
-type RequestGraphNode =
+export type RequestGraphNode =
   | RequestNode
   | FileNode
   | GlobNode

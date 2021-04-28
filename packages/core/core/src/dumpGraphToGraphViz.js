@@ -1,9 +1,12 @@
-// @flow
+// @flow strict-local
 
 import type {Environment} from './types';
+import invariant from 'assert';
 
 import type Graph from './Graph';
 import type {AssetGraphNode, BundleGraphNode} from './types';
+import {fromNodeId} from './types';
+import type {RequestGraphNode} from './RequestTracker';
 
 import path from 'path';
 
@@ -11,7 +14,6 @@ const COLORS = {
   root: 'gray',
   asset: 'green',
   dependency: 'orange',
-  transformer_request: 'cyan',
   file: 'gray',
   default: 'white',
 };
@@ -28,31 +30,32 @@ const TYPE_COLORS = {
   invalidated_by_delete: 'red',
 };
 
-export default async function dumpGraphToGraphViz(
-  // $FlowFixMe
-  graph: Graph<AssetGraphNode> | Graph<BundleGraphNode>,
-  name: string,
-): Promise<void> {
+export default async function dumpGraphToGraphViz<
+  TNode: AssetGraphNode | BundleGraphNode | RequestGraphNode,
+  TEdgeType: string | null = null,
+>(graph: Graph<TNode, TEdgeType>, name: string): Promise<void> {
   if (
     process.env.PARCEL_BUILD_ENV === 'production' ||
     process.env.PARCEL_DUMP_GRAPHVIZ == null ||
-    // $FlowFixMe
+    // $FlowFixMe[invalid-compare]
     process.env.PARCEL_DUMP_GRAPHVIZ == false
   ) {
     return;
   }
   let detailedSymbols = process.env.PARCEL_DUMP_GRAPHVIZ === 'symbols';
 
+  // $FlowFixMe[untyped-import]
   const graphviz = require('graphviz');
   const tempy = require('tempy');
   let g = graphviz.digraph('G');
-  for (let [id, node] of graph.nodes) {
-    let n = g.addNode(nodeId(id));
+  let nodes = Array.from(graph.nodes.entries());
+  for (let [id, node] of nodes) {
+    let n = g.addNode(`${fromNodeId(id)}`);
     // $FlowFixMe default is fine. Not every type needs to be in the map.
     n.set('color', COLORS[node.type || 'default']);
     n.set('shape', 'box');
     n.set('style', 'filled');
-    let label = `${node.type || 'No Type'}: [${node.id}]: `;
+    let label = `${node.type || 'No Type'}: [${fromNodeId(id)}]: `;
     if (node.type === 'dependency') {
       label += node.value.moduleSpecifier;
       let parts = [];
@@ -91,6 +94,7 @@ export default async function dumpGraphToGraphViz(
         }
       }
     } else if (node.type === 'asset') {
+      invariant(node.type === 'asset');
       label += path.basename(node.value.filePath) + '#' + node.value.type;
       if (detailedSymbols) {
         if (!node.value.symbols) {
@@ -105,30 +109,23 @@ export default async function dumpGraphToGraphViz(
         }
       }
     } else if (node.type === 'asset_group') {
+      invariant(node.type === 'asset_group');
       if (node.deferred) label += '(deferred)';
-      // $FlowFixMe
     } else if (node.type === 'file') {
       label += path.basename(node.value.filePath);
-      // $FlowFixMe
-    } else if (node.type === 'transformer_request') {
-      label +=
-        path.basename(node.value.filePath) +
-        ` (${getEnvDescription(node.value.env)})`;
-      // $FlowFixMe
     } else if (node.type === 'bundle') {
       let parts = [];
       if (node.value.isEntry) parts.push('entry');
       if (node.value.isInline) parts.push('inline');
       if (parts.length) label += ' (' + parts.join(', ') + ')';
       if (node.value.env) label += ` (${getEnvDescription(node.value.env)})`;
-      // $FlowFixMe
     } else if (node.type === 'request') {
       label = node.value.type + ':' + node.id;
     }
     n.set('label', label);
   }
   for (let edge of graph.getAllEdges()) {
-    let gEdge = g.addEdge(nodeId(edge.from), nodeId(edge.to));
+    let gEdge = g.addEdge(`${fromNodeId(edge.from)}`, `${fromNodeId(edge.to)}`);
     let color = edge.type != null ? TYPE_COLORS[edge.type] : null;
     if (color != null) {
       gEdge.set('color', color);
@@ -140,20 +137,15 @@ export default async function dumpGraphToGraphViz(
   console.log('Dumped', tmp);
 }
 
-function nodeId(id) {
-  // $FlowFixMe
-  return `node${id}`;
-}
-
 function getEnvDescription(env: Environment) {
   let description;
   if (typeof env.engines.browsers === 'string') {
     description = `${env.context}: ${env.engines.browsers}`;
   } else if (Array.isArray(env.engines.browsers)) {
     description = `${env.context}: ${env.engines.browsers.join(', ')}`;
-  } else if (env.engines.node) {
+  } else if (env.engines.node != null) {
     description = `node: ${env.engines.node}`;
-  } else if (env.engines.electron) {
+  } else if (env.engines.electron != null) {
     description = `electron: ${env.engines.electron}`;
   }
 
