@@ -36,6 +36,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.12.0",
+    "@napi-rs/cli": "1.0.4",
     "cross-env": "^7.0.0",
     "doctoc": "^1.4.0",
     "eslint": "^7.20.0",
