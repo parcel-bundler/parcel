@@ -5073,6 +5073,18 @@ describe('scope hoisting', function() {
       ]);
     });
 
+    it('should handle require as the callee in a new expression', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/require-new/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.strictEqual(output.foo(), 1);
+    });
+
     it('should not update mutated destructured requires', async function() {
       let b = await bundle(
         path.join(

@@ -678,7 +678,8 @@ ${code}
     // namespace export symbol.
     let obj =
       isWrapped && (!dep || dep?.meta.shouldWrap)
-        ? `parcelRequire(${JSON.stringify(publicId)})`
+        ? // Wrap in extra parenthesis to not change semantics, e.g.`new (parcelRequire("..."))()`.
+          `(parcelRequire(${JSON.stringify(publicId)}))`
         : isWrapped && dep
         ? `$${publicId}`
         : resolvedAsset.symbols.get('*')?.local ||
