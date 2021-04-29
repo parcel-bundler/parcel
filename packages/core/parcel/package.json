@@ -53,7 +53,8 @@
         "@parcel/core": false,
         "@parcel/fs": false,
         "@parcel/package-manager": false,
-        "@parcel/fs-search": false
+        "@parcel/fs-search": false,
+        "@parcel/source-map": false
       },
       "isLibrary": true,
       "outputFormat": "commonjs"
