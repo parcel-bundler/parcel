@@ -371,7 +371,15 @@ export default class BundleGraph {
   removeAssetGraphFromBundle(asset: Asset, bundle: Bundle) {
     // Remove all contains edges from the bundle to the nodes in the asset's
     // subgraph.
+    let bundleNode = nullthrows(this._graph.getNode(bundle.id));
+    let entryNodes = new Set(this._graph.getNodesConnectedFrom(bundleNode));
+
     this._graph.traverse((node, context, actions) => {
+      if (entryNodes.has(node)) {
+        actions.skipChildren();
+        return;
+      }
+
       if (node.type === 'bundle_group') {
         actions.skipChildren();
         return;
@@ -421,7 +429,6 @@ export default class BundleGraph {
     }, nullthrows(this._graph.getNode(asset.id)));
 
     // Remove bundle node if it no longer has any asset graphs
-    let bundleNode = nullthrows(this._graph.getNode(bundle.id));
     if (this._graph.getNodesConnectedFrom(bundleNode).length === 0) {
       this.removeBundle(bundle);
     }
