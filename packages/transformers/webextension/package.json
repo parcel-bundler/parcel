@@ -1,6 +1,6 @@
 {
   "name": "@parcel/transformer-webextension",
-  "version": "2.0.0-frontbucket.69",
+  "version": "2.0.0-frontbucket.70",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -19,9 +19,9 @@
     "parcel": "^2.0.0-alpha.1.1"
   },
   "dependencies": {
-    "@parcel/diagnostic": "2.0.0-frontbucket.69",
-    "@parcel/plugin": "2.0.0-frontbucket.69",
-    "@parcel/utils": "2.0.0-frontbucket.69",
+    "@parcel/diagnostic": "2.0.0-frontbucket.70",
+    "@parcel/plugin": "2.0.0-frontbucket.70",
+    "@parcel/utils": "2.0.0-frontbucket.70",
     "content-security-policy-parser": "^0.3.0",
     "json-source-map": "^0.6.1"
   }

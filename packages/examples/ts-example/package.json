@@ -1,14 +1,14 @@
 {
   "name": "@parcel/ts-example",
-  "version": "2.0.0-frontbucket.69",
+  "version": "2.0.0-frontbucket.70",
   "license": "MIT",
   "private": true,
   "scripts": {
     "demo": "parcel build src/index.ts"
   },
   "devDependencies": {
-    "@parcel/babel-register": "2.0.0-frontbucket.69",
-    "@parcel/core": "2.0.0-frontbucket.69"
+    "@parcel/babel-register": "2.0.0-frontbucket.70",
+    "@parcel/core": "2.0.0-frontbucket.70"
   },
   "main": "dist/main.js",
   "module": "dist/module.js",
