@@ -452,34 +452,14 @@ export class SWCPackager {
       return replacement;
     });
 
-    // If the asset is wrapped, we need to insert the dependency code that we collected above
-    // before the parcelRequire wrapper around this asset's code.
+    // If the asset is wrapped, we need to insert the dependency code outside the parcelRequire.register
+    // wrapper. Dependencies must be inserted AFTER the asset is registered so that circular dependencies work.
     if (shouldWrap) {
-      if (sourceMap) {
-        // Count the number of lines for each dependency, plus one for the newline after each,
-        // (if it has any code), and one for parcelRequire.register at the end.
-        // We do this rather than in the loop below so that offsetLines is only called once.
-        let depLines = depContent.reduce(
-          (p, d) => (p += d[2] > 0 ? d[2] + 1 : 0),
-          1,
-        );
-        sourceMap.offsetLines(1, depLines);
-        lineCount += depLines;
-      }
-
-      let depCode = '';
-      let depLines = 0;
-      for (let [code, map, lineCount] of depContent) {
-        if (!code) continue;
-        depCode += code + '\n';
-        if (sourceMap && map) {
-          sourceMap.addBufferMappings(map.toBuffer(), depLines, 0);
-        }
-        depLines += lineCount + 1;
-      }
+      // Offset by one line for the parcelRequire.register wrapper.
+      sourceMap?.offsetLines(1, 1);
+      lineCount++;
 
       code =
-        depCode +
         `parcelRequire.register(${JSON.stringify(
           this.bundleGraph.getAssetPublicId(asset),
         )}, function(module, exports) {
@@ -488,6 +468,16 @@ ${code}
 `;
 
       lineCount += 2;
+
+      for (let [depCode, map, lines] of depContent) {
+        if (!depCode) continue;
+        code += depCode + '\n';
+        if (sourceMap && map) {
+          sourceMap.addBufferMappings(map.toBuffer(), lineCount, 0);
+        }
+        lineCount += lines + 1;
+      }
+
       this.needsPrelude = true;
     }
 
