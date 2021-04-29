@@ -994,9 +994,10 @@ ${code}
         !!this.bundle.getMainEntry()?.isIsolated;
 
       if (mightBeFirstJS) {
-        res += prelude(this.parcelRequireName);
+        let preludeCode = prelude(this.parcelRequireName);
+        res += preludeCode;
         if (enableSourceMaps) {
-          lines += countLines(res) - 1;
+          lines += countLines(preludeCode) - 1;
         }
       } else {
         // Otherwise, get the current parcelRequire global.
