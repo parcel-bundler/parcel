@@ -55,7 +55,8 @@
         "@parcel/package-manager": false,
         "@parcel/fs-search": false
       },
-      "isLibrary": true
+      "isLibrary": true,
+      "outputFormat": "commonjs"
     }
   }
 }
