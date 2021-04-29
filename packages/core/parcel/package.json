@@ -44,7 +44,7 @@
     "@parcel/babel-register": "2.0.0-beta.2"
   },
   "scripts": {
-    "bundle": "cross-env NODE_ENV=production parcel build --target bundle lib/bin.js --no-scope-hoist"
+    "bundle": "cross-env NODE_ENV=production parcel build --target bundle src/bin.js --no-scope-hoist"
   },
   "targets": {
     "bundle": {
