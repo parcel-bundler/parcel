@@ -1,6 +1,6 @@
 {
   "name": "@parcel/babel-register",
-  "version": "2.0.0-frontbucket.70",
+  "version": "2.0.0-frontbucket.71",
   "description": "Blazing fast, zero configuration web application bundler",
   "license": "MIT",
   "private": true,
@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@babel/register": "^7.4.4",
-    "@parcel/babel-preset": "2.0.0-frontbucket.70",
+    "@parcel/babel-preset": "2.0.0-frontbucket.71",
     "resolve": "^1.12.0"
   }
 }
