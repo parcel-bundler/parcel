@@ -1,6 +1,6 @@
 {
   "name": "@parcel/codeframe",
-  "version": "2.0.0-frontbucket.71",
+  "version": "2.0.0-frontbucket.72",
   "description": "Blazing fast, zero configuration web application bundler",
   "license": "MIT",
   "publishConfig": {

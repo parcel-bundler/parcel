@@ -1,6 +1,6 @@
 {
   "name": "@parcel/babel-ast-utils",
-  "version": "2.0.0-frontbucket.71",
+  "version": "2.0.0-frontbucket.72",
   "description": "Blazing fast, zero configuration web application bundler",
   "license": "MIT",
   "publishConfig": {
@@ -22,7 +22,7 @@
   "dependencies": {
     "@babel/parser": "^7.0.0",
     "@parcel/source-map": "2.0.0-alpha.4.21",
-    "@parcel/utils": "2.0.0-frontbucket.71",
+    "@parcel/utils": "2.0.0-frontbucket.72",
     "astring": "^1.6.2"
   }
 }

@@ -1,14 +1,14 @@
 {
   "name": "@parcel/react-refresh-example",
-  "version": "2.0.0-frontbucket.71",
+  "version": "2.0.0-frontbucket.72",
   "license": "MIT",
   "private": true,
   "scripts": {
     "start": "parcel src/index.html"
   },
   "devDependencies": {
-    "@parcel/babel-register": "2.0.0-frontbucket.71",
-    "@parcel/core": "2.0.0-frontbucket.71"
+    "@parcel/babel-register": "2.0.0-frontbucket.72",
+    "@parcel/core": "2.0.0-frontbucket.72"
   },
   "dependencies": {
     "react": "^16.11.0",
