@@ -314,7 +314,7 @@ impl<'a> Fold for Hoist<'a> {
                                     self.module_items.push(ModuleItem::Stmt(Stmt::Decl(Decl::Var(var))));
                                     decls.clear();
                                   }
-        
+
                                   self.module_items.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
                                     specifiers: vec![],
                                     asserts: None,
@@ -531,7 +531,7 @@ impl<'a> Fold for Hoist<'a> {
             return Expr::Ident(Ident::new("undefined".into(), DUMMY_SP));
           } else if !self.collect.should_wrap {
             self.self_references.insert("*".into());
-            return Expr::Ident(self.get_export_ident(this.span, &"*".into()));  
+            return Expr::Ident(self.get_export_ident(this.span, &"*".into()));
           }
         }
       },
@@ -556,7 +556,7 @@ impl<'a> Fold for Hoist<'a> {
                   has_escape: false,
                   span: unary.span,
                   value: js_word!("object")
-                })) 
+                }))
               }
             },
             _ => {}
@@ -572,7 +572,7 @@ impl<'a> Fold for Hoist<'a> {
   fn fold_seq_expr(&mut self, node: SeqExpr) -> SeqExpr {
     // This is a hack to work around the SWC fixer pass removing identifiers in sequence expressions
     // that aren't at the end. In general this makes sense, but we need to preserve these so that they
-    // can be replaced with a parcelRequire call in the linker. We just wrap with a unary expression to 
+    // can be replaced with a parcelRequire call in the linker. We just wrap with a unary expression to
     // get around this for now.
     let len = node.exprs.len();
     let exprs = node.exprs.into_iter().enumerate().map(|(i, expr)| {
@@ -648,7 +648,7 @@ impl<'a> Fold for Hoist<'a> {
     if node.sym == js_word!("global") && !self.collect.decls.contains(&id!(node)) {
       return Ident::new("$parcel$global".into(), node.span);
     }
-    
+
     if node.span.ctxt() == self.collect.global_ctxt && self.collect.decls.contains(&id!(node)) && !self.collect.should_wrap {
       let new_name: JsWord = format!("${}$var${}", self.module_id, node.sym).into();
       return Ident::new(new_name, node.span)
@@ -748,7 +748,7 @@ impl<'a> Fold for Hoist<'a> {
     if self.collect.should_wrap {
       return node.fold_children_with(self)
     }
-    
+
     // TODO: test
     match node {
       Prop::Shorthand(ident) => {
@@ -772,7 +772,7 @@ impl<'a> Fold for Hoist<'a> {
     if self.collect.should_wrap {
       return node.fold_children_with(self)
     }
-    
+
     // var {a, b} = foo; -> var {a: $id$var$a, b: $id$var$b} = foo;
     match &node {
       ObjectPatProp::Assign(assign) => {
@@ -835,7 +835,7 @@ impl<'a> Hoist<'a> {
     };
 
     self.exported_symbols.entry(exported.clone()).or_insert((new_name.clone(), SourceLocation::from(&self.collect.source_map, span)));
-    
+
     let mut span = span;
     span.ctxt = SyntaxContext::empty();
     return Ident::new(new_name, span)
@@ -848,7 +848,7 @@ impl<'a> Hoist<'a> {
     // imports are constant (this is ensured by the diagnostic in fold_module above).
     let mut non_const_bindings = HashSet::new();
     self.collect.get_non_const_binding_idents(&v.name, &mut non_const_bindings);
-    
+
     for ident in non_const_bindings {
       if let Some(Import {specifier, ..}) = self.collect.imports.get(&id!(ident)) {
         let require_id = self.get_require_ident(&ident.sym);
@@ -1268,7 +1268,16 @@ impl Visit for Collect {
     match &node.left {
       PatOrExpr::Pat(pat) => {
         if has_binding_identifier(pat, &"exports".into(), &self.decls) {
-          // Must wrap. https://parcel2-repl.now.sh/#JTdCJTIyY3VycmVudFByZXNldCUyMiUzQSUyMkphdmFzY3JpcHQlMjIlMkMlMjJvcHRpb25zJTIyJTNBJTdCJTIybWluaWZ5JTIyJTNBZmFsc2UlMkMlMjJzY29wZUhvaXN0JTIyJTNBdHJ1ZSUyQyUyMnNvdXJjZU1hcHMlMjIlM0FmYWxzZSUyQyUyMnB1YmxpY1VybCUyMiUzQSUyMiUyRl9fcmVwbF9kaXN0JTIyJTJDJTIydGFyZ2V0VHlwZSUyMiUzQSUyMmJyb3dzZXJzJTIyJTJDJTIydGFyZ2V0RW52JTIyJTNBbnVsbCUyQyUyMm91dHB1dEZvcm1hdCUyMiUzQW51bGwlMkMlMjJobXIlMjIlM0FmYWxzZSUyQyUyMm1vZGUlMjIlM0ElMjJwcm9kdWN0aW9uJTIyJTJDJTIycmVuZGVyR3JhcGhzJTIyJTNBZmFsc2UlMkMlMjJ2aWV3U291cmNlbWFwcyUyMiUzQWZhbHNlJTJDJTIyZGVwZW5kZW5jaWVzJTIyJTNBJTVCJTVEJTdEJTJDJTIyYXNzZXRzJTIyJTNBJTVCJTVCJTIyc3JjJTJGaW5kZXguanMlMjIlMkMlMjJmdW5jdGlvbiUyMGxvZ0V4cG9ydHMoKSUyMCU3QiU1Q24lMjAlMjBjb25zb2xlLmxvZyhleHBvcnRzKSUzQiU1Q24lN0QlNUNuZXhwb3J0cy50ZXN0JTIwJTNEJTIwMiUzQiU1Q25sb2dFeHBvcnRzKCklM0IlNUNuZXhwb3J0cyUyMCUzRCUyMCU3QnRlc3QlM0ElMjA0JTdEJTNCJTVDbmxvZ0V4cG9ydHMoKSUzQiUyMiUyQzElNUQlMkMlNUIlMjJzcmMlMkZvdGhlci5qcyUyMiUyQyUyMmNsYXNzJTIwVGhpbmclMjAlN0IlNUNuJTIwJTIwcnVuKCklMjAlN0IlNUNuJTIwJTIwJTIwJTIwY29uc29sZS5sb2coJTVDJTIyVGVzdCU1QyUyMiklM0IlNUNuJTIwJTIwJTdEJTIwJTVDbiU3RCU1Q24lNUNuY29uc3QlMjB4JTIwJTNEJTIwMTIzJTNCJTVDbmV4cG9ydCUyMCU3QlRoaW5nJTJDJTIweCU3RCUzQiUyMiU1RCU1RCU3RA==
+          // Must wrap for cases like
+          // ```
+          // function logExports() {
+          //   console.log(exports);
+          // }
+          // exports.test = 2;
+          // logExports();
+          // exports = {test: 4};
+          // logExports();
+          // ```
           self.static_cjs_exports = false;
           self.has_cjs_exports = true;
           self.should_wrap = true;
@@ -1320,7 +1329,7 @@ impl Visit for Collect {
                   })]
                 }), &source, ImportKind::Require);
                 return
-              }    
+              }
             },
             _ => {}
           }
@@ -1337,7 +1346,12 @@ impl Visit for Collect {
       }
     }
 
+    // This is visited via visit_module_item with is_top_level == true, it needs to be
+    // set to false for called visitors (and restored again).
+    let in_top_level = self.in_top_level;
+    self.in_top_level = false;
     node.visit_children_with(self);
+    self.in_top_level = in_top_level;
   }
 
   fn visit_call_expr(&mut self, node: &CallExpr, _parent: &dyn Node) {
@@ -1351,7 +1365,7 @@ impl Visit for Collect {
       self.non_static_requires.insert(source.clone());
       self.wrapped_requires.insert(source.clone());
     }
-    
+
     match &node.callee {
       ExprOrSuper::Expr(expr) => {
         match &**expr {
@@ -1656,6 +1670,7 @@ fn has_binding_identifier(node: &Pat, sym: &JsWord, decls: &HashSet<IdentId>) ->
 mod tests {
   use super::*;
   use crate::collect_decls;
+  use std::iter::FromIterator;
   use swc_common::comments::SingleThreadedComments;
   use swc_common::{FileName, SourceMap, sync::Lrc, DUMMY_SP, chain, Globals, Mark};
   use swc_ecmascript::parser::lexer::Lexer;
@@ -1671,8 +1686,8 @@ mod tests {
       FileName::Anon,
       code.into()
     );
-  
-    let comments = SingleThreadedComments::default();  
+
+    let comments = SingleThreadedComments::default();
     let mut esconfig = EsConfig::default();
     esconfig.dynamic_import = true;
     let lexer = Lexer::new(
@@ -1681,7 +1696,7 @@ mod tests {
       StringInput::from(&*source_file),
       Some(&comments),
     );
-  
+
     let mut parser = Parser::new_from(lexer);
     match parser.parse_module() {
       Ok(module) => {
@@ -1692,7 +1707,7 @@ mod tests {
 
             let mut collect = Collect::new(source_map.clone(), collect_decls(&module), Mark::fresh(Mark::root()), global_mark);
             module.visit_with(&Invalid { span: DUMMY_SP } as _, &mut collect);
-            
+
             let (module, res) = {
               let mut hoist = Hoist::new("abc", &collect);
               let module = module.fold_with(&mut hoist);
@@ -1728,10 +1743,10 @@ mod tests {
         cm: source_map.clone(),
         wr: writer,
       };
-      
+
       emitter.emit_module(&program);
     }
-  
+
     return String::from_utf8(buf).unwrap();
   }
 
@@ -2281,7 +2296,7 @@ mod tests {
 
   #[test]
   fn fold_require_wrapped() {
-    let (_collect, code, _hoist) = parse(r#"
+    let (_collect, code, hoist) = parse(r#"
     function x() {
       const foo = require('other');
       console.log(foo.bar);
@@ -2298,6 +2313,25 @@ mod tests {
     import   "abc:bar";
     $abc$import$3705fc5f2281438d;
     "#});
+    assert_eq!(hoist.wrapped_requires, HashSet::<JsWord>::from_iter(vec![JsWord::from("other")]));
+
+    let (_collect, code, hoist) = parse(r#"
+    var foo = (function () {
+      if (Date.now() < 0) {
+        var bar = require("other");
+      }
+    })();
+    "#);
+
+    assert_eq!(code, indoc!{r#"
+    import   "abc:other";
+    var $abc$var$foo = (function() {
+        if (Date.now() < 0) {
+            var bar = $abc$import$558d6cfb8af8a010;
+        }
+    })();
+    "#});
+    assert_eq!(hoist.wrapped_requires, HashSet::<JsWord>::from_iter(vec![JsWord::from("other")]));
 
     let (_collect, code, _hoist) = parse(r#"
     function x() {
@@ -2899,7 +2933,7 @@ mod tests {
     });
     "#});
   }
-  
+
   #[test]
   fn fold_hoist_vars() {
     let (_collect, code, _hoist) = parse(r#"
