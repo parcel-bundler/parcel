@@ -181,7 +181,7 @@ export class SWCPackager {
       switch (node.type) {
         case 'dependency':
           // Mark assets that should be wrapped, based on metadata in the incoming dependency tree
-          if (shouldWrap || node.value.meta.shouldWrap) {
+          if (node.value.meta.shouldWrap) {
             let resolved = this.bundleGraph.getDependencyResolution(
               node.value,
               this.bundle,
@@ -202,6 +202,7 @@ export class SWCPackager {
           });
 
           if (
+            shouldWrap ||
             node.value.meta.shouldWrap ||
             this.isAsyncBundle ||
             this.bundleGraph.isAssetReferencedByDependant(
