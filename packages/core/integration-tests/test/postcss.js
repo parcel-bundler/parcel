@@ -45,6 +45,34 @@ describe('postcss', () => {
     assert(css.includes(`.${cssClass}`));
   });
 
+  it('should build successfully with only postcss-modules config', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/postcss-modules-config/index.js'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['foo.css', 'foo.js', 'index.css', 'index.js'],
+      },
+      {
+        name: 'index.css',
+        assets: ['foo.css', 'index.css'],
+      },
+    ]);
+
+    let output = await run(b);
+    assert.equal(typeof output, 'function');
+
+    let value = output();
+    assert(/_foo_[0-9a-z]/.test(value));
+
+    let cssClass = value.match(/(_foo_[0-9a-z])/)[1];
+
+    let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
+    assert(css.includes(`.${cssClass}`));
+  });
+
   it('should support transforming css modules with postcss (import default)', async () => {
     let b = await bundle(
       path.join(
@@ -376,7 +404,11 @@ describe('postcss', () => {
 
     // The package manager uses an overlay filesystem, which performs writes to
     // an in-memory fs and reads first from memory, then falling back to the real fs.
-    let packageManager = new NodePackageManager(overlayFS, inputDir, packageInstaller);
+    let packageManager = new NodePackageManager(
+      overlayFS,
+      inputDir,
+      packageInstaller,
+    );
 
     let distDir = path.join(outputFS.cwd(), 'dist');
 
