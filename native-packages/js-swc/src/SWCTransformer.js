@@ -267,6 +267,7 @@ export default (new Transformer({
           filePath: asset.filePath,
           message: diagnostic.message,
           codeFrame: {
+            code,
             codeHighlights: diagnostic.code_highlights?.map(highlight => {
               let {start, end} = convertLoc(highlight.loc);
               return {
