@@ -509,7 +509,7 @@ impl Fold for ESMFold {
               Ident::new("parcelHelpers".into(), DUMMY_SP.apply_mark(self.mark)).into(),
             ),
             init: Some(Box::new(Expr::Call(crate::utils::create_require(
-              "@parcel/transformer-js-swc/src/esmodule-helpers.js".into(),
+              "@parcel/transformer-js/src/esmodule-helpers.js".into(),
             )))),
             definite: false,
           }],

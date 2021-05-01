@@ -10,7 +10,7 @@ import {
 import path from 'path';
 import nullthrows from 'nullthrows';
 import {DevPackager} from './DevPackager';
-import {SWCPackager} from './SWCPackager';
+import {ScopeHoistingPackager} from './ScopeHoistingPackager';
 
 export default (new Packager({
   async loadConfig({options}) {
@@ -39,7 +39,7 @@ export default (new Packager({
     options,
   }) {
     let packager = bundle.env.shouldScopeHoist
-      ? new SWCPackager(
+      ? new ScopeHoistingPackager(
           options,
           bundleGraph,
           bundle,

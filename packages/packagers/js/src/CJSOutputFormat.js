@@ -1,5 +1,5 @@
 // @flow
-import type {SWCPackager, OutputFormat} from './SWCPackager';
+import type {ScopeHoistingPackager, OutputFormat} from './ScopeHoistingPackager';
 
 // List of engines that support object destructuring syntax
 const DESTRUCTURING_ENGINES = {
@@ -15,9 +15,9 @@ const DESTRUCTURING_ENGINES = {
 };
 
 export class CJSOutputFormat implements OutputFormat {
-  packager: SWCPackager;
+  packager: ScopeHoistingPackager;
 
-  constructor(packager: SWCPackager) {
+  constructor(packager: ScopeHoistingPackager) {
     this.packager = packager;
   }
 

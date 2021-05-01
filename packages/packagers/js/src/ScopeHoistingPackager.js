@@ -53,7 +53,7 @@ export interface OutputFormat {
   buildBundlePostlude(): string;
 }
 
-export class SWCPackager {
+export class ScopeHoistingPackager {
   options: PluginOptions;
   bundleGraph: BundleGraph<NamedBundle>;
   bundle: NamedBundle;
@@ -130,7 +130,7 @@ export class SWCPackager {
 
       let [content, map, lines] = this.visitAsset(asset);
       if (sourceMap && map) {
-        sourceMap.addBufferMappings(map.toBuffer(), lineCount);
+        sourceMap.addSourceMap(map, lineCount);
       }
 
       res += content + '\n';
@@ -328,7 +328,7 @@ export class SWCPackager {
           let [code, map, lines] = this.visitAsset(resolved);
           depCode += code + '\n';
           if (sourceMap && map) {
-            sourceMap.addBufferMappings(map.toBuffer(), lineCount);
+            sourceMap.addSourceMap(map, lineCount);
           }
           lineCount += lines + 1;
         }
@@ -424,7 +424,7 @@ export class SWCPackager {
             }
 
             if (map) {
-              sourceMap.addBufferMappings(map.toBuffer(), lineCount, 0);
+              sourceMap.addSourceMap(map, lineCount, 0);
             }
           }
 
@@ -473,7 +473,7 @@ ${code}
         if (!depCode) continue;
         code += depCode + '\n';
         if (sourceMap && map) {
-          sourceMap.addBufferMappings(map.toBuffer(), lineCount, 0);
+          sourceMap.addSourceMap(map, lineCount, 0);
         }
         lineCount += lines + 1;
       }

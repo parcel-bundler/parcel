@@ -1,10 +1,10 @@
 // @flow
-import type {SWCPackager, OutputFormat} from './SWCPackager';
+import type {ScopeHoistingPackager, OutputFormat} from './ScopeHoistingPackager';
 
 export class ESMOutputFormat implements OutputFormat {
-  packager: SWCPackager;
+  packager: ScopeHoistingPackager;
 
-  constructor(packager: SWCPackager) {
+  constructor(packager: ScopeHoistingPackager) {
     this.packager = packager;
   }
 

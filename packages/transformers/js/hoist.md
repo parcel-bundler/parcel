@@ -41,7 +41,7 @@ In the second pass, we transform:
 4. References to imports/requires are replaced with a renamed variable, and added to the symbols. If we previously determined in the first phase that the import was accessed non-statically, a member expression is used for all references to that dependency.
 5. All top-level variables are renamed to include the module id so that they can be concatenated together safely. This is skipped if the module needs to be wrapped, e.g. used `eval`.
 
-The output from Rust is an object which is used by the SWCTransformer Parcel plugin to add symbols to dependencies and the asset itself, along with some metadata that is used by the packager.
+The output from Rust is an object which is used by the JSTransformer Parcel plugin to add symbols to dependencies and the asset itself, along with some metadata that is used by the packager.
 
 ## Packaging
 

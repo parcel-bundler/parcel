@@ -3376,7 +3376,7 @@ describe('scope hoisting', function() {
         diagnostics: [
           {
             message: 'Assignment to an import specifier is not allowed',
-            origin: '@parcel/transformer-js-swc',
+            origin: '@parcel/transformer-js',
             filePath: source,
             codeFrame: {
               code,
@@ -3424,7 +3424,7 @@ describe('scope hoisting', function() {
         diagnostics: [
           {
             message: 'Assignment to an import specifier is not allowed',
-            origin: '@parcel/transformer-js-swc',
+            origin: '@parcel/transformer-js',
             filePath: source,
             codeFrame: {
               code,
@@ -3472,7 +3472,7 @@ describe('scope hoisting', function() {
         diagnostics: [
           {
             message: 'Assignment to an import specifier is not allowed',
-            origin: '@parcel/transformer-js-swc',
+            origin: '@parcel/transformer-js',
             filePath: source,
             codeFrame: {
               code,
@@ -3520,7 +3520,7 @@ describe('scope hoisting', function() {
         diagnostics: [
           {
             message: 'Assignment to an import specifier is not allowed',
-            origin: '@parcel/transformer-js-swc',
+            origin: '@parcel/transformer-js',
             filePath: source,
             codeFrame: {
               code,
@@ -3568,7 +3568,7 @@ describe('scope hoisting', function() {
         diagnostics: [
           {
             message: 'Assignment to an import specifier is not allowed',
-            origin: '@parcel/transformer-js-swc',
+            origin: '@parcel/transformer-js',
             filePath: source,
             codeFrame: {
               code,

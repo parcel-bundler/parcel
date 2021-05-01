@@ -6,7 +6,7 @@
     "data-url:*": ["@parcel/transformer-inline-string", "..."],
     "*.{js,mjs,jsm,jsx,es6,cjs,ts,tsx}": [
       "@parcel/transformer-babel",
-      "@parcel/transformer-js-swc",
+      "@parcel/transformer-js",
       "@parcel/transformer-react-refresh-wrap"
     ],
     "*.{json,json5}": ["@parcel/transformer-json"],
@@ -52,7 +52,7 @@
   "packagers": {
     "*.html": "@parcel/packager-html",
     "*.css": "@parcel/packager-css",
-    "*.js": "@parcel/packager-swc",
+    "*.js": "@parcel/packager-js",
     "*.ts": "@parcel/packager-ts",
     "*.{jsonld,webmanifest}": "@parcel/packager-raw-url",
     "*": "@parcel/packager-raw"

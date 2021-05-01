@@ -1235,7 +1235,7 @@ describe('output formats', function() {
         diagnostics: [
           {
             message,
-            origin: '@parcel/packager-swc',
+            origin: '@parcel/packager-js',
             filePath: source,
             codeFrame: {
               codeHighlights: [
