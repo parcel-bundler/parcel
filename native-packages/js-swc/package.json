@@ -27,7 +27,7 @@
     "semver": "^5.4.1"
   },
   "devDependencies": {
-    "@napi-rs/cli": "1.0.0-alpha.10",
+    "@napi-rs/cli": "1.0.4",
     "tiny-benchy": "^1.0.1"
   },
   "scripts": {

@@ -29,5 +29,8 @@
   },
   "dependencies": {
     "detect-libc": "^1.0.3"
+  },
+  "devDependencies": {
+    "@napi-rs/cli": "1.0.4"
   }
 }

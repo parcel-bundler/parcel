@@ -7,8 +7,8 @@ version = "0.1.0"
 crate-type = ["cdylib"]
 
 [dependencies]
-napi = { git = "https://github.com/napi-rs/napi-rs", branch = "main", features = ["serde-json"] }
-napi-derive = { git = "https://github.com/napi-rs/napi-rs", branch = "main" }
+napi = { version = "1", features = ["serde-json"] }
+napi-derive = { version = "1" }
 swc_ecmascript = { version = "0.31.2", features = ["parser", "transforms", "module", "optimization", "react", "typescript", "utils", "visit", "codegen", "utils"] }
 swc_ecma_preset_env = { version = "0.15.2" }
 swc_common = { version = "0.10.16", features = ["tty-emitter", "sourcemap"] }
@@ -20,4 +20,4 @@ data-encoding = "2.3.2"
 sha-1 = "0.9.4"
 
 [build-dependencies]
-napi-build = { git = "https://github.com/napi-rs/napi-rs", branch = "main" }
+napi-build = { version = "1" }
