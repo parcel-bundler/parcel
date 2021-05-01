@@ -63,8 +63,8 @@ impl<'a> Fold for EnvReplacer<'a> {
                 if match_member_expr(member, vec!["process", "env"], self.decls) {
                   match &**prop {
                     Lit(Lit::Str(Str { value: ref sym, .. })) | Ident(Ident { ref sym, .. }) => {
-                      self.used_env.insert(sym.clone());
                       if let Some(val) = self.env.get(sym) {
+                        self.used_env.insert(sym.clone());
                         return Lit(Lit::Str(ast::Str {
                           span: DUMMY_SP,
                           value: val.into(),
@@ -81,7 +81,10 @@ impl<'a> Fold for EnvReplacer<'a> {
                           | "toSource"
                           | "toString"
                           | "valueOf" => {}
-                          _ => return Ident(Ident::new(js_word!("undefined"), DUMMY_SP)),
+                          _ => {
+                            self.used_env.insert(sym.clone());
+                            return Ident(Ident::new(js_word!("undefined"), DUMMY_SP));
+                          }
                         }
                       }
                     }
