@@ -1,9 +1,5 @@
 // @flow
-import type {
-  BundleGraph,
-  PluginOptions,
-  NamedBundle,
-} from '@parcel/types';
+import type {BundleGraph, PluginOptions, NamedBundle} from '@parcel/types';
 
 import {PromiseQueue, relativeBundlePath, countLines} from '@parcel/utils';
 import SourceMap from '@parcel/source-map';

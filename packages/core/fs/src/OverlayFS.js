@@ -196,7 +196,11 @@ export class OverlayFS implements FileSystem {
     await this.writable.writeSnapshot(dir, snapshot, opts);
   }
 
-  findAncestorFile(fileNames: Array<string>, fromDir: FilePath, root: FilePath): ?FilePath {
+  findAncestorFile(
+    fileNames: Array<string>,
+    fromDir: FilePath,
+    root: FilePath,
+  ): ?FilePath {
     return findAncestorFile(this, fileNames, fromDir, root);
   }
 

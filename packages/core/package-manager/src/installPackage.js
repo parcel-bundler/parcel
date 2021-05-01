@@ -41,7 +41,12 @@ async function install(
 
   logger.progress(`Installing ${moduleNames}...`);
 
-  let fromPkgPath = await resolveConfig(fs, from, ['package.json'], projectRoot);
+  let fromPkgPath = await resolveConfig(
+    fs,
+    from,
+    ['package.json'],
+    projectRoot,
+  );
   let cwd = fromPkgPath ? path.dirname(fromPkgPath) : fs.cwd();
 
   if (!packageInstaller) {
@@ -63,7 +68,14 @@ async function install(
   if (installPeers) {
     await Promise.all(
       modules.map(m =>
-        installPeerDependencies(fs, packageManager, m, from, projectRoot, options),
+        installPeerDependencies(
+          fs,
+          packageManager,
+          m,
+          from,
+          projectRoot,
+          options,
+        ),
       ),
     );
   }
@@ -87,7 +99,12 @@ async function installPeerDependencies(
   for (let [name, range] of Object.entries(peers)) {
     invariant(typeof range === 'string');
 
-    let conflicts = await getConflictingLocalDependencies(fs, name, from, projectRoot);
+    let conflicts = await getConflictingLocalDependencies(
+      fs,
+      name,
+      from,
+      projectRoot,
+    );
     if (conflicts) {
       let {pkg} = await packageManager.resolve(name, from);
       invariant(pkg);
@@ -135,11 +152,12 @@ async function determinePackageInstaller(
   filepath: FilePath,
   projectRoot: FilePath,
 ): Promise<PackageInstaller> {
-  let configFile = await resolveConfig(fs, filepath, [
-    'package-lock.json',
-    'pnpm-lock.yaml',
-    'yarn.lock',
-  ], projectRoot);
+  let configFile = await resolveConfig(
+    fs,
+    filepath,
+    ['package-lock.json', 'pnpm-lock.yaml', 'yarn.lock'],
+    projectRoot,
+  );
 
   let configName = configFile && path.basename(configFile);
 
@@ -194,13 +212,18 @@ export function _addToInstallQueue(
 
     queue
       .add(() =>
-        install(fs, packageManager, modulesToInstall, filePath, projectRoot, options).then(
-          () => {
-            for (let m of modulesToInstall) {
-              modulesInstalling.delete(getModuleRequestKey(m));
-            }
-          },
-        ),
+        install(
+          fs,
+          packageManager,
+          modulesToInstall,
+          filePath,
+          projectRoot,
+          options,
+        ).then(() => {
+          for (let m of modulesToInstall) {
+            modulesInstalling.delete(getModuleRequestKey(m));
+          }
+        }),
       )
       .then(
         () => {},
@@ -228,7 +251,14 @@ export function installPackage(
     });
   }
 
-  return _addToInstallQueue(fs, packageManager, modules, filePath, projectRoot, options);
+  return _addToInstallQueue(
+    fs,
+    packageManager,
+    modules,
+    filePath,
+    projectRoot,
+    options,
+  );
 }
 
 function getModuleRequestKey(moduleRequest: ModuleRequest): string {

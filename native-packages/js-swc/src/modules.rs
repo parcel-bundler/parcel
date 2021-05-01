@@ -1,9 +1,9 @@
-use std::collections::{HashSet, HashMap};
-use swc_ecmascript::visit::{Fold, FoldWith};
-use swc_ecmascript::ast::*;
-use swc_atoms::JsWord;
-use swc_common::{DUMMY_SP, SyntaxContext, Mark, Span};
 use inflector::Inflector;
+use std::collections::{HashMap, HashSet};
+use swc_atoms::JsWord;
+use swc_common::{Mark, Span, SyntaxContext, DUMMY_SP};
+use swc_ecmascript::ast::*;
+use swc_ecmascript::visit::{Fold, FoldWith};
 
 type IdentId = (JsWord, SyntaxContext);
 macro_rules! id {
@@ -22,7 +22,7 @@ pub fn esm2cjs(node: Module) -> (Module, bool) {
     needs_helpers: false,
     in_export_decl: false,
     in_function_scope: false,
-    mark: Mark::fresh(Mark::root())
+    mark: Mark::fresh(Mark::root()),
   };
 
   let module = node.fold_with(&mut fold);
@@ -43,12 +43,12 @@ struct ESMFold {
   needs_helpers: bool,
   in_export_decl: bool,
   in_function_scope: bool,
-  mark: Mark
+  mark: Mark,
 }
 
 fn local_name_for_src(src: &JsWord) -> JsWord {
   if !src.contains('/') {
-      return format!("_{}", src.to_camel_case()).into();
+    return format!("_{}", src.to_camel_case()).into();
   }
 
   format!("_{}", src.split('/').last().unwrap().to_camel_case()).into()
@@ -57,24 +57,33 @@ fn local_name_for_src(src: &JsWord) -> JsWord {
 impl ESMFold {
   fn get_require_name(&mut self, src: &JsWord, span: Span) -> Ident {
     if let Some((name, mark)) = self.require_names.get(src) {
-      return Ident::new(name.clone(), span.with_ctxt(SyntaxContext::empty()).apply_mark(*mark))
+      return Ident::new(
+        name.clone(),
+        span.with_ctxt(SyntaxContext::empty()).apply_mark(*mark),
+      );
     }
 
     let name = local_name_for_src(src);
     let mark = Mark::fresh(Mark::root());
     self.require_names.insert(src.clone(), (name.clone(), mark));
-    Ident::new(name, span.with_ctxt(SyntaxContext::empty()).apply_mark(mark))
+    Ident::new(
+      name,
+      span.with_ctxt(SyntaxContext::empty()).apply_mark(mark),
+    )
   }
 
   fn get_interop_default_name(&mut self, src: &JsWord) -> Ident {
     self.get_require_name(src, DUMMY_SP);
     let (name, mark) = self.require_names.get(src).unwrap();
-    Ident::new(format!("{}Default", name).into(), DUMMY_SP.apply_mark(*mark))
+    Ident::new(
+      format!("{}Default", name).into(),
+      DUMMY_SP.apply_mark(*mark),
+    )
   }
 
   fn create_require(&mut self, src: JsWord, span: Span) {
     if self.require_names.contains_key(&src) {
-      return
+      return;
     }
 
     let ident = self.get_require_name(&src, DUMMY_SP);
@@ -95,7 +104,7 @@ impl ESMFold {
 
   fn create_interop_default(&mut self, src: JsWord) {
     if self.interops.contains(&src) {
-      return
+      return;
     }
 
     let local = self.get_require_name(&src, DUMMY_SP);
@@ -106,9 +115,11 @@ impl ESMFold {
       decls: vec![VarDeclarator {
         span: DUMMY_SP,
         name: Pat::Ident(ident.into()),
-        init: Some(Box::new(self.create_helper_call("interopDefault".into(), vec![
-          Expr::Ident(local)
-        ], DUMMY_SP))),
+        init: Some(Box::new(self.create_helper_call(
+          "interopDefault".into(),
+          vec![Expr::Ident(local)],
+          DUMMY_SP,
+        ))),
         definite: false,
       }],
       declare: false,
@@ -132,40 +143,44 @@ impl ESMFold {
         .iter()
         .map(|arg| ExprOrSpread {
           expr: Box::new(arg.clone()),
-          spread: None
+          spread: None,
         })
         .collect(),
       span,
-      type_args: None
+      type_args: None,
     })
   }
 
   fn call_helper(&mut self, name: JsWord, args: Vec<Expr>, span: Span) -> ModuleItem {
     ModuleItem::Stmt(Stmt::Expr(ExprStmt {
       expr: Box::new(self.create_helper_call(name, args, span)),
-      span
+      span,
     }))
   }
 
   fn create_export(&mut self, exported: JsWord, local: Expr, span: Span) {
-    let export = self.call_helper(js_word!("export"), vec![
-      Expr::Ident(Ident::new("exports".into(), DUMMY_SP)),
-      Expr::Lit(Lit::Str(Str {
-        value: exported,
-        has_escape: false,
-        kind: StrKind::Synthesized,
-        span: DUMMY_SP
-      })),
-      Expr::Arrow(ArrowExpr {
-        body: BlockStmtOrExpr::Expr(Box::new(local)),
-        is_async: false,
-        is_generator: false,
-        params: vec![],
-        span: DUMMY_SP,
-        return_type: None,
-        type_params: None
-      })
-    ], span);
+    let export = self.call_helper(
+      js_word!("export"),
+      vec![
+        Expr::Ident(Ident::new("exports".into(), DUMMY_SP)),
+        Expr::Lit(Lit::Str(Str {
+          value: exported,
+          has_escape: false,
+          kind: StrKind::Synthesized,
+          span: DUMMY_SP,
+        })),
+        Expr::Arrow(ArrowExpr {
+          body: BlockStmtOrExpr::Expr(Box::new(local)),
+          is_async: false,
+          is_generator: false,
+          params: vec![],
+          span: DUMMY_SP,
+          return_type: None,
+          type_params: None,
+        }),
+      ],
+      span,
+    );
     self.exports.push(export)
   }
 
@@ -174,22 +189,25 @@ impl ESMFold {
       expr: Box::new(Expr::Assign(AssignExpr {
         op: AssignOp::Assign,
         left: PatOrExpr::Expr(Box::new(Expr::Member(MemberExpr {
-          obj: ExprOrSuper::Expr(Box::new(Expr::Ident(Ident::new("exports".into(), DUMMY_SP)))),
+          obj: ExprOrSuper::Expr(Box::new(Expr::Ident(Ident::new(
+            "exports".into(),
+            DUMMY_SP,
+          )))),
           prop: Box::new(Expr::Ident(Ident::new(name, DUMMY_SP))),
           computed: false,
-          span: DUMMY_SP
+          span: DUMMY_SP,
         }))),
         right: Box::new(right),
-        span: DUMMY_SP
+        span: DUMMY_SP,
       })),
-      span
+      span,
     }))
-  }  
+  }
 
   fn create_import_access(&mut self, source: &JsWord, imported: &JsWord, span: Span) -> Expr {
     if imported == "*" {
       let name = self.get_require_name(source, span);
-      return Expr::Ident(name)
+      return Expr::Ident(name);
     }
 
     let obj = if imported == "default" {
@@ -202,7 +220,7 @@ impl ESMFold {
       obj: ExprOrSuper::Expr(Box::new(Expr::Ident(obj))),
       prop: Box::new(Expr::Ident(Ident::new(imported.clone(), DUMMY_SP))),
       computed: false,
-      span: span
+      span: span,
     })
   }
 }
@@ -225,35 +243,43 @@ impl Fold for ESMFold {
                   ImportSpecifier::Named(named) => {
                     let imported = match &named.imported {
                       Some(imported) => imported.sym.clone(),
-                      None => named.local.sym.clone()
+                      None => named.local.sym.clone(),
                     };
-                    self.imports.insert(id!(named.local), (import.src.value.clone(), imported.clone()));
+                    self.imports.insert(
+                      id!(named.local),
+                      (import.src.value.clone(), imported.clone()),
+                    );
                     if imported == js_word!("default") {
                       self.create_interop_default(import.src.value.clone());
                     }
-                  },
+                  }
                   ImportSpecifier::Default(default) => {
-                    self.imports.insert(id!(default.local), (import.src.value.clone(), "default".into()));
+                    self.imports.insert(
+                      id!(default.local),
+                      (import.src.value.clone(), "default".into()),
+                    );
                     self.create_interop_default(import.src.value.clone());
-                  },
+                  }
                   ImportSpecifier::Namespace(namespace) => {
-                    self.imports.insert(id!(namespace.local), (import.src.value.clone(), "*".into()));
+                    self
+                      .imports
+                      .insert(id!(namespace.local), (import.src.value.clone(), "*".into()));
                   }
                 }
               }
-            },
+            }
             _ => {}
           }
-        },
+        }
         _ => {}
       }
     }
 
     // If we didn't see any module declarations, nothing to do.
     if !is_esm {
-      return node
+      return node;
     }
-    
+
     let node = node.fold_children_with(self);
     let mut needs_interop_flag = false;
     let mut items = vec![];
@@ -264,7 +290,7 @@ impl Fold for ESMFold {
           match decl {
             ModuleDecl::Import(_import) => {
               // Handled above
-            },
+            }
             ModuleDecl::ExportNamed(export) => {
               needs_interop_flag = true;
 
@@ -276,24 +302,30 @@ impl Fold for ESMFold {
                     ExportSpecifier::Named(named) => {
                       let exported = match &named.exported {
                         Some(exported) => exported.clone(),
-                        None => named.orig.clone()
+                        None => named.orig.clone(),
                       };
 
                       if named.orig.sym == js_word!("default") {
                         self.create_interop_default(src.value.clone());
                       }
 
-                      let specifier = self.create_import_access(&src.value, &named.orig.sym, DUMMY_SP);
+                      let specifier =
+                        self.create_import_access(&src.value, &named.orig.sym, DUMMY_SP);
                       self.create_export(exported.sym, specifier, export.span);
-                    },
+                    }
                     ExportSpecifier::Default(default) => {
                       self.create_interop_default(src.value.clone());
-                      let specifier = self.create_import_access(&src.value, &js_word!("default"), DUMMY_SP);
+                      let specifier =
+                        self.create_import_access(&src.value, &js_word!("default"), DUMMY_SP);
                       self.create_export(default.exported.sym.clone(), specifier, export.span);
-                    },
+                    }
                     ExportSpecifier::Namespace(namespace) => {
                       let local = self.get_require_name(&src.value, DUMMY_SP);
-                      self.create_export(namespace.name.sym.clone(), Expr::Ident(local), export.span)
+                      self.create_export(
+                        namespace.name.sym.clone(),
+                        Expr::Ident(local),
+                        export.span,
+                      )
                     }
                   }
                 }
@@ -303,37 +335,47 @@ impl Fold for ESMFold {
                     ExportSpecifier::Named(named) => {
                       let exported = match &named.exported {
                         Some(exported) => exported.clone(),
-                        None => named.orig.clone()
+                        None => named.orig.clone(),
                       };
 
                       // Handle import {foo} from 'bar'; export {foo};
-                      let value = if let Some((source, imported)) = self.imports.get(&id!(named.orig)).cloned() {
+                      let value = if let Some((source, imported)) =
+                        self.imports.get(&id!(named.orig)).cloned()
+                      {
                         self.create_import_access(&source, &imported, named.orig.span)
                       } else {
                         Expr::Ident(named.orig.clone())
                       };
 
                       self.create_export(exported.sym, value, export.span);
-                    },
+                    }
                     _ => {}
                   }
                 }
               }
-            },
+            }
             ModuleDecl::ExportAll(export) => {
               needs_interop_flag = true;
               self.create_require(export.src.value.clone(), export.span);
               let require_name = self.get_require_name(&export.src.value, export.span);
-              let export = self.call_helper("exportAll".into(), vec![
-                Expr::Ident(require_name),
-                Expr::Ident(Ident::new("exports".into(), DUMMY_SP))
-              ], export.span);
+              let export = self.call_helper(
+                "exportAll".into(),
+                vec![
+                  Expr::Ident(require_name),
+                  Expr::Ident(Ident::new("exports".into(), DUMMY_SP)),
+                ],
+                export.span,
+              );
               self.requires.push(export);
-            },
+            }
             ModuleDecl::ExportDefaultExpr(export) => {
               needs_interop_flag = true;
-              items.push(self.create_exports_assign("default".into(), *export.expr.clone(), export.span))
-            },
+              items.push(self.create_exports_assign(
+                "default".into(),
+                *export.expr.clone(),
+                export.span,
+              ))
+            }
             ModuleDecl::ExportDefaultDecl(export) => {
               needs_interop_flag = true;
 
@@ -343,79 +385,111 @@ impl Fold for ESMFold {
                     items.push(ModuleItem::Stmt(Stmt::Decl(Decl::Class(ClassDecl {
                       ident: ident.clone(),
                       declare: false,
-                      class: class.class.clone()
+                      class: class.class.clone(),
                     }))));
-                    items.push(self.create_exports_assign("default".into(), Expr::Ident(ident.clone()), DUMMY_SP));
+                    items.push(self.create_exports_assign(
+                      "default".into(),
+                      Expr::Ident(ident.clone()),
+                      DUMMY_SP,
+                    ));
                   } else {
-                    items.push(self.create_exports_assign("default".into(), Expr::Class(ClassExpr {
-                      ident: None,
-                      class: class.class.clone()
-                    }), export.span));
+                    items.push(self.create_exports_assign(
+                      "default".into(),
+                      Expr::Class(ClassExpr {
+                        ident: None,
+                        class: class.class.clone(),
+                      }),
+                      export.span,
+                    ));
                   }
-                },
+                }
                 DefaultDecl::Fn(func) => {
                   if let Some(ident) = &func.ident {
                     items.push(ModuleItem::Stmt(Stmt::Decl(Decl::Fn(FnDecl {
                       ident: ident.clone(),
                       declare: false,
-                      function: func.function.clone()
+                      function: func.function.clone(),
                     }))));
-                    items.push(self.create_exports_assign("default".into(), Expr::Ident(ident.clone()), DUMMY_SP));
+                    items.push(self.create_exports_assign(
+                      "default".into(),
+                      Expr::Ident(ident.clone()),
+                      DUMMY_SP,
+                    ));
                   } else {
-                    items.push(self.create_exports_assign("default".into(), Expr::Fn(FnExpr {
-                      ident: None,
-                      function: func.function.clone()
-                    }), export.span));
+                    items.push(self.create_exports_assign(
+                      "default".into(),
+                      Expr::Fn(FnExpr {
+                        ident: None,
+                        function: func.function.clone(),
+                      }),
+                      export.span,
+                    ));
                   }
-                },
+                }
                 _ => {
                   unreachable!("unsupported export default declaration");
                 }
               }
-            },
+            }
             ModuleDecl::ExportDecl(export) => {
               needs_interop_flag = true;
               match &export.decl {
                 Decl::Class(class) => {
-                  self.create_export(class.ident.sym.clone(), Expr::Ident(class.ident.clone()), export.span);
-                  items.push(ModuleItem::Stmt(Stmt::Decl(export.decl.clone().fold_with(self))));
-                },
+                  self.create_export(
+                    class.ident.sym.clone(),
+                    Expr::Ident(class.ident.clone()),
+                    export.span,
+                  );
+                  items.push(ModuleItem::Stmt(Stmt::Decl(
+                    export.decl.clone().fold_with(self),
+                  )));
+                }
                 Decl::Fn(func) => {
-                  self.create_export(func.ident.sym.clone(), Expr::Ident(func.ident.clone()), export.span);
-                  items.push(ModuleItem::Stmt(Stmt::Decl(export.decl.clone().fold_with(self))));
-                },
+                  self.create_export(
+                    func.ident.sym.clone(),
+                    Expr::Ident(func.ident.clone()),
+                    export.span,
+                  );
+                  items.push(ModuleItem::Stmt(Stmt::Decl(
+                    export.decl.clone().fold_with(self),
+                  )));
+                }
                 Decl::Var(var) => {
                   let mut var = var.clone();
-                  var.decls = var.decls.iter().map(|decl| {
-                    let mut decl = decl.clone();
-                    self.in_export_decl = true;
-                    decl.name = decl.name.clone().fold_with(self);
-                    self.in_export_decl = false;
-                    decl.init = decl.init.clone().fold_with(self);
-                    decl
-                  }).collect();
+                  var.decls = var
+                    .decls
+                    .iter()
+                    .map(|decl| {
+                      let mut decl = decl.clone();
+                      self.in_export_decl = true;
+                      decl.name = decl.name.clone().fold_with(self);
+                      self.in_export_decl = false;
+                      decl.init = decl.init.clone().fold_with(self);
+                      decl
+                    })
+                    .collect();
                   items.push(ModuleItem::Stmt(Stmt::Decl(Decl::Var(var))));
-                },
+                }
                 _ => {
-                  items.push(ModuleItem::Stmt(Stmt::Decl(export.decl.clone().fold_with(self))));
+                  items.push(ModuleItem::Stmt(Stmt::Decl(
+                    export.decl.clone().fold_with(self),
+                  )));
                 }
               }
-            },
-            _ => {
-              items.push(item.clone())
             }
+            _ => items.push(item.clone()),
           }
-        },
-        _ => {
-          items.push(item.clone())
         }
+        _ => items.push(item.clone()),
       }
     }
 
     if needs_interop_flag {
-      let helper = self.call_helper("defineInteropFlag".into(), vec![
-        Expr::Ident(Ident::new("exports".into(), DUMMY_SP))
-      ], DUMMY_SP);
+      let helper = self.call_helper(
+        "defineInteropFlag".into(),
+        vec![Expr::Ident(Ident::new("exports".into(), DUMMY_SP))],
+        DUMMY_SP,
+      );
       self.exports.insert(0, helper);
     }
 
@@ -424,17 +498,24 @@ impl Fold for ESMFold {
     items.splice(0..0, self.exports.clone());
 
     if self.needs_helpers {
-      items.insert(0, ModuleItem::Stmt(Stmt::Decl(Decl::Var(VarDecl {
-        span: DUMMY_SP,
-        kind: VarDeclKind::Var,
-        decls: vec![VarDeclarator {
+      items.insert(
+        0,
+        ModuleItem::Stmt(Stmt::Decl(Decl::Var(VarDecl {
           span: DUMMY_SP,
-          name: Pat::Ident(Ident::new("parcelHelpers".into(), DUMMY_SP.apply_mark(self.mark)).into()),
-          init: Some(Box::new(Expr::Call(crate::utils::create_require("@parcel/transformer-js-swc/src/esmodule-helpers.js".into())))),
-          definite: false,
-        }],
-        declare: false,
-      }))))
+          kind: VarDeclKind::Var,
+          decls: vec![VarDeclarator {
+            span: DUMMY_SP,
+            name: Pat::Ident(
+              Ident::new("parcelHelpers".into(), DUMMY_SP.apply_mark(self.mark)).into(),
+            ),
+            init: Some(Box::new(Expr::Call(crate::utils::create_require(
+              "@parcel/transformer-js-swc/src/esmodule-helpers.js".into(),
+            )))),
+            definite: false,
+          }],
+          declare: false,
+        }))),
+      )
     }
 
     node.body = items;
@@ -451,7 +532,11 @@ impl Fold for ESMFold {
 
   fn fold_assign_pat_prop(&mut self, node: AssignPatProp) -> AssignPatProp {
     if self.in_export_decl {
-      self.create_export(node.key.sym.clone(), Expr::Ident(node.key.clone()), DUMMY_SP);
+      self.create_export(
+        node.key.sym.clone(),
+        Expr::Ident(node.key.clone()),
+        DUMMY_SP,
+      );
     }
 
     node.fold_children_with(self)
@@ -481,15 +566,15 @@ impl Fold for ESMFold {
         } else {
           node
         }
-      },
+      }
       Expr::This(_this) => {
         if !self.in_function_scope {
           Expr::Ident(Ident::new(js_word!("undefined"), DUMMY_SP))
         } else {
           node
         }
-      },
-      _ => node.fold_children_with(self)
+      }
+      _ => node.fold_children_with(self),
     }
   }
 
@@ -500,13 +585,13 @@ impl Fold for ESMFold {
         if let Some((source, imported)) = self.imports.get(&id!(ident)).cloned() {
           Prop::KeyValue(KeyValueProp {
             key: PropName::Ident(Ident::new(ident.sym.clone(), DUMMY_SP)),
-            value: Box::new(self.create_import_access(&source, &imported, ident.span))
+            value: Box::new(self.create_import_access(&source, &imported, ident.span)),
           })
         } else {
           node.fold_children_with(self)
         }
-      },
-      _ => node.fold_children_with(self)
+      }
+      _ => node.fold_children_with(self),
     }
   }
 }

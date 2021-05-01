@@ -1,11 +1,11 @@
-use std::fmt;
 use std::collections::{HashMap, HashSet};
+use std::fmt;
 
+use serde::{Deserialize, Serialize};
 use swc_atoms::JsWord;
-use swc_common::{SourceMap, DUMMY_SP, SyntaxContext};
+use swc_common::{SourceMap, SyntaxContext, DUMMY_SP};
 use swc_ecmascript::ast;
 use swc_ecmascript::visit::{Fold, FoldWith};
-use serde::{Deserialize, Serialize};
 
 use utils::*;
 
@@ -39,7 +39,13 @@ pub struct DependencyDescriptor {
 }
 
 /// This pass collects dependencies in a module and compiles references as needed to work with Parcel's JSRuntime.
-pub fn dependency_collector<'a>(source_map: &'a SourceMap, items: &'a mut Vec<DependencyDescriptor>, decls: &'a HashSet<(JsWord, SyntaxContext)>, ignore_mark: swc_common::Mark, scope_hoist: bool) -> impl Fold + 'a {
+pub fn dependency_collector<'a>(
+  source_map: &'a SourceMap,
+  items: &'a mut Vec<DependencyDescriptor>,
+  decls: &'a HashSet<(JsWord, SyntaxContext)>,
+  ignore_mark: swc_common::Mark,
+  scope_hoist: bool,
+) -> impl Fold + 'a {
   DependencyCollector {
     source_map,
     items,
@@ -48,7 +54,7 @@ pub fn dependency_collector<'a>(source_map: &'a SourceMap, items: &'a mut Vec<De
     require_node: None,
     decls,
     ignore_mark,
-    scope_hoist
+    scope_hoist,
   }
 }
 
@@ -60,7 +66,7 @@ struct DependencyCollector<'a> {
   require_node: Option<ast::CallExpr>,
   decls: &'a HashSet<(JsWord, SyntaxContext)>,
   ignore_mark: swc_common::Mark,
-  scope_hoist: bool
+  scope_hoist: bool,
 }
 
 impl<'a> DependencyCollector<'a> {
@@ -93,7 +99,7 @@ impl<'a> Fold for DependencyCollector<'a> {
       node.src.span,
       DependencyKind::Import,
       None,
-      false
+      false,
     );
 
     return node;
@@ -110,7 +116,7 @@ impl<'a> Fold for DependencyCollector<'a> {
         src.span,
         DependencyKind::Export,
         None,
-        false
+        false,
       );
     }
 
@@ -123,7 +129,7 @@ impl<'a> Fold for DependencyCollector<'a> {
       node.src.span,
       DependencyKind::Export,
       None,
-      false
+      false,
     );
 
     return node;
@@ -137,19 +143,19 @@ impl<'a> Fold for DependencyCollector<'a> {
 
     let handler = match node.handler {
       Some(handler) => Some(handler.fold_with(self)),
-      None => None
+      None => None,
     };
 
     let finalizer = match node.finalizer {
       Some(finalizer) => Some(finalizer.fold_with(self)),
-      None => None
+      None => None,
     };
 
     ast::TryStmt {
       span: node.span,
       block,
       handler,
-      finalizer
+      finalizer,
     }
   }
 
@@ -167,42 +173,42 @@ impl<'a> Fold for DependencyCollector<'a> {
         if self.decls.contains(&(ident.sym.clone(), ident.span.ctxt())) {
           return node.fold_children_with(self);
         }
-        
+
         match ident.sym.to_string().as_str() {
           "import" => DependencyKind::DynamicImport,
-          "require" => if self.in_promise {
-            DependencyKind::DynamicImport
-          } else {
-            DependencyKind::Require 
-          },
+          "require" => {
+            if self.in_promise {
+              DependencyKind::DynamicImport
+            } else {
+              DependencyKind::Require
+            }
+          }
           "importScripts" => DependencyKind::ImportScripts,
           "__parcel__require__" => {
             let mut call = node.clone();
-            call.callee = ast::ExprOrSuper::Expr(
-              Box::new(
-                ast::Expr::Ident(
-                  ast::Ident::new("require".into(), DUMMY_SP.apply_mark(self.ignore_mark))
-                )
-              )
-            );
-            return call
-          },
+            call.callee = ast::ExprOrSuper::Expr(Box::new(ast::Expr::Ident(ast::Ident::new(
+              "require".into(),
+              DUMMY_SP.apply_mark(self.ignore_mark),
+            ))));
+            return call;
+          }
           "__parcel__import__" => {
             let mut call = node.clone();
-            call.callee = ast::ExprOrSuper::Expr(
-              Box::new(
-                ast::Expr::Ident(
-                  ast::Ident::new("import".into(), DUMMY_SP.apply_mark(self.ignore_mark))
-                )
-              )
-            );
-            return call
-          },
+            call.callee = ast::ExprOrSuper::Expr(Box::new(ast::Expr::Ident(ast::Ident::new(
+              "import".into(),
+              DUMMY_SP.apply_mark(self.ignore_mark),
+            ))));
+            return call;
+          }
           _ => return node.fold_children_with(self),
         }
-      },
+      }
       Member(member) => {
-        if match_member_expr(member, vec!["navigator", "serviceWorker", "register"], self.decls) {
+        if match_member_expr(
+          member,
+          vec!["navigator", "serviceWorker", "register"],
+          self.decls,
+        ) {
           DependencyKind::ServiceWorker
         } else {
           let was_in_promise = self.in_promise;
@@ -213,7 +219,7 @@ impl<'a> Fold for DependencyCollector<'a> {
             self.in_promise = true;
             let node = node.fold_children_with(self);
             self.in_promise = was_in_promise;
-            return node
+            return node;
           }
 
           // Match compiled dynamic imports (TypeScript)
@@ -240,7 +246,7 @@ impl<'a> Fold for DependencyCollector<'a> {
                                 self.require_node = None;
                                 return build_promise_chain(node.clone(), require_node);
                               }
-                            },
+                            }
                             _ => {}
                           }
                         }
@@ -252,10 +258,10 @@ impl<'a> Fold for DependencyCollector<'a> {
             }
           }
 
-          return node.fold_children_with(self)
+          return node.fold_children_with(self);
         }
-      },
-      _ => return node.fold_children_with(self)
+      }
+      _ => return node.fold_children_with(self),
     };
 
     // Convert import attributes for dynamic import
@@ -272,13 +278,13 @@ impl<'a> Fold for DependencyCollector<'a> {
 
             let kv = match &**prop {
               ast::Prop::KeyValue(kv) => kv,
-              _ => continue
+              _ => continue,
             };
 
             let k = match &kv.key {
-              ast::PropName::Ident(Ident { sym, .. }) |
-              ast::PropName::Str(ast::Str { value: sym, .. }) => sym.clone(),
-              _ => continue
+              ast::PropName::Ident(Ident { sym, .. })
+              | ast::PropName::Str(ast::Str { value: sym, .. }) => sym.clone(),
+              _ => continue,
             };
 
             let v = match &*kv.value {
@@ -299,44 +305,36 @@ impl<'a> Fold for DependencyCollector<'a> {
     // return the resolved URL at runtime).
     if kind == DependencyKind::ImportScripts {
       let mut node = node.clone();
-      node.args = node.args.iter().map(|arg| {
-        if let Lit(lit) = &*arg.expr {
-          if let ast::Lit::Str(str_) = lit {
-            self.add_dependency(
-              str_.value.clone(),
-              str_.span,
-              kind.clone(),
-              None,
-              false
-            );
+      node.args = node
+        .args
+        .iter()
+        .map(|arg| {
+          if let Lit(lit) = &*arg.expr {
+            if let ast::Lit::Str(str_) = lit {
+              self.add_dependency(str_.value.clone(), str_.span, kind.clone(), None, false);
 
-            return ast::ExprOrSpread {
-              spread: None,
-              expr: Box::new(Call(create_require(str_.value.clone())))
-            };
+              return ast::ExprOrSpread {
+                spread: None,
+                expr: Box::new(Call(create_require(str_.value.clone()))),
+              };
+            }
           }
-        }
 
-        return arg.clone()
-      }).collect();
+          return arg.clone();
+        })
+        .collect();
 
-      return node
+      return node;
     }
 
     if let Some(arg) = node.args.get(0) {
       if kind == DependencyKind::ServiceWorker {
         if let Some((specifier, span)) = match_import_meta_url(&*arg.expr, self.decls) {
-          self.add_dependency(
-            specifier.clone(),
-            span,
-            kind.clone(),
-            attributes,
-            false
-          );
+          self.add_dependency(specifier.clone(), span, kind.clone(), attributes, false);
 
           let mut node = node.clone();
           node.args[0].expr = Box::new(Call(create_require(specifier)));
-          return node
+          return node;
         }
       }
 
@@ -347,14 +345,14 @@ impl<'a> Fold for DependencyCollector<'a> {
             str_.span,
             kind.clone(),
             attributes,
-            kind == DependencyKind::Require && self.in_try
+            kind == DependencyKind::Require && self.in_try,
           );
 
           // If url dependency, replace import with require() of runtime module
           if kind == DependencyKind::ServiceWorker {
             let mut node = node.clone();
             node.args[0].expr = Box::new(Call(create_require(str_.value.clone())));
-            return node
+            return node;
           }
         }
       }
@@ -364,13 +362,10 @@ impl<'a> Fold for DependencyCollector<'a> {
     if kind == DependencyKind::DynamicImport {
       let mut call = node.clone();
       if !self.scope_hoist {
-        call.callee = ast::ExprOrSuper::Expr(
-          Box::new(
-            ast::Expr::Ident(
-              ast::Ident::new("require".into(), DUMMY_SP)
-            )
-          )
-        );
+        call.callee = ast::ExprOrSuper::Expr(Box::new(ast::Expr::Ident(ast::Ident::new(
+          "require".into(),
+          DUMMY_SP,
+        ))));
       }
 
       // Drop import attributes
@@ -381,20 +376,19 @@ impl<'a> Fold for DependencyCollector<'a> {
       return call;
     }
 
-    return node.fold_children_with(self)
+    return node.fold_children_with(self);
   }
 
   fn fold_new_expr(&mut self, node: ast::NewExpr) -> ast::NewExpr {
-    use ast::{Expr::*};
+    use ast::Expr::*;
 
     let matched = match &*node.callee {
       Ident(id) => {
         match id.sym {
-          js_word!("Worker") |
-          js_word!("SharedWorker") => {
+          js_word!("Worker") | js_word!("SharedWorker") => {
             // Bail if defined in scope
             !self.decls.contains(&(id.sym.clone(), id.span.ctxt()))
-          },
+          }
           js_word!("Promise") => {
             // Match requires inside promises (e.g. Rollup compiled dynamic imports)
             // new Promise(resolve => resolve(require('foo')))
@@ -404,12 +398,12 @@ impl<'a> Fold for DependencyCollector<'a> {
             self.in_promise = true;
             let node = swc_ecmascript::visit::fold_new_expr(self, node);
             self.in_promise = was_in_promise;
-            return node
-          },
-          _ => false
+            return node;
+          }
+          _ => false,
         }
-      },
-      _ => false
+      }
+      _ => false,
     };
 
     if !matched {
@@ -424,10 +418,10 @@ impl<'a> Fold for DependencyCollector<'a> {
           if let ast::Lit::Str(str_) = lit {
             (str_.value.clone(), str_.span)
           } else {
-            return node
+            return node;
           }
         } else {
-          return node
+          return node;
         };
 
         self.add_dependency(
@@ -435,7 +429,7 @@ impl<'a> Fold for DependencyCollector<'a> {
           span,
           DependencyKind::WebWorker,
           None,
-          false
+          false,
         );
 
         // Replace argument with a require call to resolve the URL at runtime.
@@ -445,7 +439,7 @@ impl<'a> Fold for DependencyCollector<'a> {
           node.args = Some(args);
         }
 
-        return node
+        return node;
       }
     }
 
@@ -454,13 +448,7 @@ impl<'a> Fold for DependencyCollector<'a> {
 
   fn fold_expr(&mut self, node: ast::Expr) -> ast::Expr {
     if let Some((specifier, span)) = match_import_meta_url(&node, self.decls) {
-      self.add_dependency(
-        specifier.clone(),
-        span,
-        DependencyKind::URL,
-        None,
-        false
-      );
+      self.add_dependency(specifier.clone(), span, DependencyKind::URL, None, false);
 
       return ast::Expr::Call(create_require(specifier));
     }
@@ -478,7 +466,7 @@ impl<'a> Fold for DependencyCollector<'a> {
 //   Promise.resolve().then(() => require('./foo')).then(res => __importStar(res));
 fn build_promise_chain(node: ast::CallExpr, require_node: ast::CallExpr) -> ast::CallExpr {
   let mut transformer = PromiseTransformer {
-    require_node: Some(require_node)
+    require_node: Some(require_node),
   };
 
   let node = node.fold_with(&mut transformer);
@@ -489,19 +477,31 @@ fn build_promise_chain(node: ast::CallExpr, require_node: ast::CallExpr) -> ast:
       let f = match &*f.expr {
         ast::Expr::Fn(f) => {
           let mut f = f.clone();
-          f.function.params.insert(0, ast::Param {
-            pat: ast::Pat::Ident(ast::BindingIdent::from(ast::Ident::new("res".into(), DUMMY_SP))),
-            decorators: vec![],
-            span: DUMMY_SP
-          });
+          f.function.params.insert(
+            0,
+            ast::Param {
+              pat: ast::Pat::Ident(ast::BindingIdent::from(ast::Ident::new(
+                "res".into(),
+                DUMMY_SP,
+              ))),
+              decorators: vec![],
+              span: DUMMY_SP,
+            },
+          );
           ast::Expr::Fn(f)
-        },
+        }
         ast::Expr::Arrow(f) => {
           let mut f = f.clone();
-          f.params.insert(0, ast::Pat::Ident(ast::BindingIdent::from(ast::Ident::new("res".into(), DUMMY_SP))));
+          f.params.insert(
+            0,
+            ast::Pat::Ident(ast::BindingIdent::from(ast::Ident::new(
+              "res".into(),
+              DUMMY_SP,
+            ))),
+          );
           ast::Expr::Arrow(f)
-        },
-        _ => return node
+        }
+        _ => return node,
       };
 
       return ast::CallExpr {
@@ -518,8 +518,8 @@ fn build_promise_chain(node: ast::CallExpr, require_node: ast::CallExpr) -> ast:
                     span: DUMMY_SP,
                     stmts: vec![ast::Stmt::Return(ast::ReturnStmt {
                       span: DUMMY_SP,
-                      arg: Some(Box::new(ast::Expr::Call(require_node.clone())))
-                    })]
+                      arg: Some(Box::new(ast::Expr::Call(require_node.clone()))),
+                    })],
                   }),
                   params: vec![],
                   decorators: vec![],
@@ -527,27 +527,27 @@ fn build_promise_chain(node: ast::CallExpr, require_node: ast::CallExpr) -> ast:
                   is_generator: false,
                   return_type: None,
                   type_params: None,
-                  span: DUMMY_SP
-                }
+                  span: DUMMY_SP,
+                },
               })),
-              spread: None
+              spread: None,
             }],
             span: DUMMY_SP,
-            type_args: None
+            type_args: None,
           }))),
-          prop: Box::new(ast::Expr::Ident(ast::Ident::new("then".into(), DUMMY_SP)))
+          prop: Box::new(ast::Expr::Ident(ast::Ident::new("then".into(), DUMMY_SP))),
         }))),
         args: vec![ast::ExprOrSpread {
           expr: Box::new(f),
-          spread: None
+          spread: None,
         }],
         span: DUMMY_SP,
-        type_args: None
-      }
+        type_args: None,
+      };
     }
   }
 
-  return node
+  return node;
 }
 
 struct PromiseTransformer {
@@ -601,67 +601,72 @@ impl Fold for PromiseTransformer {
   }
 }
 
-fn match_import_meta_url(expr: &ast::Expr, decls: &HashSet<(JsWord, SyntaxContext)>) -> Option<(JsWord, swc_common::Span)> {
+fn match_import_meta_url(
+  expr: &ast::Expr,
+  decls: &HashSet<(JsWord, SyntaxContext)>,
+) -> Option<(JsWord, swc_common::Span)> {
   match expr {
     ast::Expr::New(new) => {
       let is_url = match &*new.callee {
-        ast::Expr::Ident(id) => id.sym == js_word!("URL") && !decls.contains(&(id.sym.clone(), id.span.ctxt())),
-        _ => false
+        ast::Expr::Ident(id) => {
+          id.sym == js_word!("URL") && !decls.contains(&(id.sym.clone(), id.span.ctxt()))
+        }
+        _ => false,
       };
 
       if !is_url {
-        return None
+        return None;
       }
 
       if let Some(args) = &new.args {
         let specifier = if let Some(arg) = args.get(0) {
           match &*arg.expr {
             ast::Expr::Lit(ast::Lit::Str(s)) => s,
-            _ => return None
+            _ => return None,
           }
         } else {
-          return None
+          return None;
         };
 
         if let Some(arg) = args.get(1) {
           match &*arg.expr {
             ast::Expr::Member(member) => {
               match &member.obj {
-                ast::ExprOrSuper::Expr(expr) => {
-                  match &**expr {
-                    ast::Expr::MetaProp(ast::MetaPropExpr {
-                      meta: ast::Ident {
+                ast::ExprOrSuper::Expr(expr) => match &**expr {
+                  ast::Expr::MetaProp(ast::MetaPropExpr {
+                    meta:
+                      ast::Ident {
                         sym: js_word!("import"),
                         ..
                       },
-                      prop: ast::Ident {
+                    prop:
+                      ast::Ident {
                         sym: js_word!("meta"),
                         ..
-                      }
-                    }) => {},
-                    _ => return None
-                  }
+                      },
+                  }) => {}
+                  _ => return None,
                 },
-                _ => return None
+                _ => return None,
               }
 
               let is_url = match &*member.prop {
                 ast::Expr::Ident(id) => id.sym == js_word!("url") && !member.computed,
                 ast::Expr::Lit(ast::Lit::Str(str)) => str.value == js_word!("url"),
-                _ => false
+                _ => false,
               };
 
               if !is_url {
-                return None
+                return None;
               }
 
-              return Some((specifier.value.clone(), specifier.span))
-            },
-            _ => return None
+              return Some((specifier.value.clone(), specifier.span));
+            }
+            _ => return None,
           }
         }
       }
-    },
+    }
     _ => {}
   }
 

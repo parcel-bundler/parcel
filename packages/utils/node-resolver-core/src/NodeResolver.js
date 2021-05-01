@@ -922,7 +922,11 @@ export default class NodeResolver {
 
     // Find the nearest package.json file within the current node_modules folder
     let dir = path.dirname(sourceFile);
-    let pkgFile = this.fs.findAncestorFile(['package.json'], dir, this.projectRoot);
+    let pkgFile = this.fs.findAncestorFile(
+      ['package.json'],
+      dir,
+      this.projectRoot,
+    );
     if (pkgFile) {
       return this.readPackage(path.dirname(pkgFile), ctx);
     }

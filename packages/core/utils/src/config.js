@@ -34,7 +34,11 @@ export function resolveConfig(
     return Promise.resolve(cached);
   }
 
-  let resolved = fs.findAncestorFile(filenames, path.dirname(filepath), projectRoot);
+  let resolved = fs.findAncestorFile(
+    filenames,
+    path.dirname(filepath),
+    projectRoot,
+  );
   resolveCache.set(key, resolved);
   return Promise.resolve(resolved);
 }

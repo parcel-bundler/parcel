@@ -46,7 +46,11 @@ export class NodePackageManager implements PackageManager {
   resolver: NodeResolver;
   syncResolver: NodeResolverSync;
 
-  constructor(fs: FileSystem, projectRoot: FilePath, installer?: ?PackageInstaller) {
+  constructor(
+    fs: FileSystem,
+    projectRoot: FilePath,
+    installer?: ?PackageInstaller,
+  ) {
     this.fs = fs;
     this.projectRoot = projectRoot;
     this.installer = installer;

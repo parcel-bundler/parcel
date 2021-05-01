@@ -11,7 +11,7 @@ export default async function loadEnv(
   env: EnvMap,
   fs: FileSystem,
   filePath: FilePath,
-  projectRoot: FilePath
+  projectRoot: FilePath,
 ): Promise<EnvMap> {
   const NODE_ENV = env.NODE_ENV ?? 'development';
 
@@ -27,7 +27,12 @@ export default async function loadEnv(
 
   let envs = await Promise.all(
     dotenvFiles.map(async dotenvFile => {
-      const envPath = await resolveConfig(fs, filePath, [dotenvFile], projectRoot);
+      const envPath = await resolveConfig(
+        fs,
+        filePath,
+        [dotenvFile],
+        projectRoot,
+      );
       if (envPath == null) {
         return;
       }

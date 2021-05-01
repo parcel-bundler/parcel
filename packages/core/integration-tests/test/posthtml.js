@@ -120,7 +120,11 @@ describe('posthtml', function() {
 
     // The package manager uses an overlay filesystem, which performs writes to
     // an in-memory fs and reads first from memory, then falling back to the real fs.
-    let packageManager = new NodePackageManager(overlayFS, inputDir, packageInstaller);
+    let packageManager = new NodePackageManager(
+      overlayFS,
+      inputDir,
+      packageInstaller,
+    );
 
     let distDir = path.join(outputFS.cwd(), 'dist');
 

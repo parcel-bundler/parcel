@@ -1,8 +1,8 @@
-use std::path::Path;
 use std::collections::{HashMap, HashSet};
+use std::path::Path;
 
 use swc_atoms::JsWord;
-use swc_common::{SourceMap, DUMMY_SP, SyntaxContext};
+use swc_common::{SourceMap, SyntaxContext, DUMMY_SP};
 use swc_ecmascript::ast;
 use swc_ecmascript::visit::{Fold, FoldWith};
 
@@ -41,11 +41,13 @@ impl<'a> Fold for GlobalReplacer<'a> {
       }
       _ => node.fold_children_with(self),
     };
-    
+
     match node {
       Ident(ref id) => {
         // Only handle global variables
-        if self.globals.contains_key(&id.sym) || self.decls.contains(&(id.sym.clone(), id.span.ctxt())) {
+        if self.globals.contains_key(&id.sym)
+          || self.decls.contains(&(id.sym.clone(), id.span.ctxt()))
+        {
           return node;
         }
 
@@ -56,8 +58,8 @@ impl<'a> Fold for GlobalReplacer<'a> {
               create_decl_stmt(
                 id.sym.clone(),
                 self.global_mark,
-                Call(create_require(js_word!("process")))
-              )
+                Call(create_require(js_word!("process"))),
+              ),
             );
 
             let specifier = id.sym.clone();
@@ -68,7 +70,7 @@ impl<'a> Fold for GlobalReplacer<'a> {
               attributes: None,
               is_optional: false,
             });
-          },
+          }
           "Buffer" => {
             let specifier = swc_atoms::JsWord::from("buffer");
             self.globals.insert(
@@ -81,8 +83,8 @@ impl<'a> Fold for GlobalReplacer<'a> {
                   prop: Box::new(Ident(ast::Ident::new("Buffer".into(), DUMMY_SP))),
                   computed: false,
                   span: DUMMY_SP,
-                })
-              )
+                }),
+              ),
             );
 
             self.items.push(DependencyDescriptor {
@@ -92,27 +94,39 @@ impl<'a> Fold for GlobalReplacer<'a> {
               attributes: None,
               is_optional: false,
             });
-          },
+          }
           "__filename" => {
             self.globals.insert(
               id.sym.clone(),
               create_decl_stmt(
                 id.sym.clone(),
                 self.global_mark,
-                ast::Expr::Lit(ast::Lit::Str(ast::Str { span: DUMMY_SP, value: swc_atoms::JsWord::from(self.filename), has_escape: false, kind: ast::StrKind::Synthesized }))
-              )
+                ast::Expr::Lit(ast::Lit::Str(ast::Str {
+                  span: DUMMY_SP,
+                  value: swc_atoms::JsWord::from(self.filename),
+                  has_escape: false,
+                  kind: ast::StrKind::Synthesized,
+                })),
+              ),
             );
-          },
+          }
           "__dirname" => {
             self.globals.insert(
               id.sym.clone(),
               create_decl_stmt(
                 id.sym.clone(),
                 self.global_mark,
-                ast::Expr::Lit(ast::Lit::Str(ast::Str { span: DUMMY_SP, value: swc_atoms::JsWord::from(Path::new(self.filename).parent().unwrap().to_str().unwrap()), has_escape: false, kind: ast::StrKind::Synthesized }))
-              )
+                ast::Expr::Lit(ast::Lit::Str(ast::Str {
+                  span: DUMMY_SP,
+                  value: swc_atoms::JsWord::from(
+                    Path::new(self.filename).parent().unwrap().to_str().unwrap(),
+                  ),
+                  has_escape: false,
+                  kind: ast::StrKind::Synthesized,
+                })),
+              ),
             );
-          },
+          }
           "global" => {
             if !self.scope_hoist {
               self.globals.insert(
@@ -120,51 +134,62 @@ impl<'a> Fold for GlobalReplacer<'a> {
                 create_decl_stmt(
                   id.sym.clone(),
                   self.global_mark,
-                  ast::Expr::Member(
-                    ast::MemberExpr {
-                      obj: ast::ExprOrSuper::Expr(Box::new(Ident(Ident::new(js_word!("arguments"), DUMMY_SP)))),
-                      prop: Box::new(Lit(ast::Lit::Num(ast::Number { value: 3.0, span: DUMMY_SP }))),
-                      computed: true,
-                      span: DUMMY_SP
-                    }
-                  )
-                )
+                  ast::Expr::Member(ast::MemberExpr {
+                    obj: ast::ExprOrSuper::Expr(Box::new(Ident(Ident::new(
+                      js_word!("arguments"),
+                      DUMMY_SP,
+                    )))),
+                    prop: Box::new(Lit(ast::Lit::Num(ast::Number {
+                      value: 3.0,
+                      span: DUMMY_SP,
+                    }))),
+                    computed: true,
+                    span: DUMMY_SP,
+                  }),
+                ),
               );
             }
-          },
+          }
           _ => {}
         }
-      },
+      }
       _ => {}
     }
 
-    return node
+    return node;
   }
 
   fn fold_module(&mut self, node: ast::Module) -> ast::Module {
     // Insert globals at the top of the program
     let mut node = swc_ecmascript::visit::fold_module(self, node);
-    node.body.splice(0..0, self.globals.values().map(|stmt| ast::ModuleItem::Stmt(stmt.clone())));
-    return node
+    node.body.splice(
+      0..0,
+      self
+        .globals
+        .values()
+        .map(|stmt| ast::ModuleItem::Stmt(stmt.clone())),
+    );
+    return node;
   }
 }
 
-fn create_decl_stmt(name: swc_atoms::JsWord, global_mark: swc_common::Mark, init: ast::Expr) -> ast::Stmt {
-  ast::Stmt::Decl(
-    ast::Decl::Var(
-      ast::VarDecl {
-        kind: ast::VarDeclKind::Var,
-        declare: false,
-        span: DUMMY_SP,
-        decls: vec![
-          ast::VarDeclarator {
-            name: ast::Pat::Ident(ast::BindingIdent::from(ast::Ident::new(name, DUMMY_SP.apply_mark(global_mark)))),
-            span: DUMMY_SP,
-            definite: false,
-            init: Some(Box::new(init))
-          }
-        ]
-      }
-    )
-  )
+fn create_decl_stmt(
+  name: swc_atoms::JsWord,
+  global_mark: swc_common::Mark,
+  init: ast::Expr,
+) -> ast::Stmt {
+  ast::Stmt::Decl(ast::Decl::Var(ast::VarDecl {
+    kind: ast::VarDeclKind::Var,
+    declare: false,
+    span: DUMMY_SP,
+    decls: vec![ast::VarDeclarator {
+      name: ast::Pat::Ident(ast::BindingIdent::from(ast::Ident::new(
+        name,
+        DUMMY_SP.apply_mark(global_mark),
+      ))),
+      span: DUMMY_SP,
+      definite: false,
+      init: Some(Box::new(init)),
+    }],
+  }))
 }

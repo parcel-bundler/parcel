@@ -39,7 +39,7 @@ fn find_ancestor_file(ctx: CallContext) -> Result<Either<JsNull, JsString>> {
     }
 
     if dir == root {
-      break
+      break;
     }
   }
 

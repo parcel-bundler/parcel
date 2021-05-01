@@ -1,9 +1,9 @@
-use std::collections::{HashSet};
+use std::collections::HashSet;
 
 use swc_atoms::JsWord;
-use swc_common::{DUMMY_SP, SyntaxContext};
+use swc_common::{SyntaxContext, DUMMY_SP};
 use swc_ecmascript::ast;
-use swc_ecmascript::visit::{Visit, VisitWith, Node};
+use swc_ecmascript::visit::{Node, Visit, VisitWith};
 
 /// This pass collects all declarations in a module into a single HashSet of tuples
 /// containing identifier names and their associated syntax context (scope).
@@ -14,7 +14,7 @@ pub fn collect_decls(module: &ast::Module) -> HashSet<(JsWord, SyntaxContext)> {
     in_var: false,
   };
   module.visit_with(&ast::Invalid { span: DUMMY_SP } as _, &mut c);
-  return c.decls
+  return c.decls;
 }
 
 struct DeclCollector {
@@ -28,11 +28,15 @@ impl Visit for DeclCollector {
 
     match node {
       Class(class) => {
-        self.decls.insert((class.ident.sym.clone(), class.ident.span.ctxt()));
-      },
+        self
+          .decls
+          .insert((class.ident.sym.clone(), class.ident.span.ctxt()));
+      }
       Fn(f) => {
-        self.decls.insert((f.ident.sym.clone(), f.ident.span.ctxt()));
-      },
+        self
+          .decls
+          .insert((f.ident.sym.clone(), f.ident.span.ctxt()));
+      }
       _ => {}
     }
 
@@ -56,7 +60,9 @@ impl Visit for DeclCollector {
 
   fn visit_assign_pat_prop(&mut self, node: &ast::AssignPatProp, _parent: &dyn Node) {
     if self.in_var {
-      self.decls.insert((node.key.sym.clone(), node.key.span.ctxt));
+      self
+        .decls
+        .insert((node.key.sym.clone(), node.key.span.ctxt));
     }
   }
 
@@ -86,13 +92,19 @@ impl Visit for DeclCollector {
 
     match node {
       Default(default) => {
-        self.decls.insert((default.local.sym.clone(), default.local.span.ctxt()));
-      },
+        self
+          .decls
+          .insert((default.local.sym.clone(), default.local.span.ctxt()));
+      }
       Named(named) => {
-        self.decls.insert((named.local.sym.clone(), named.local.span.ctxt()));
-      },
+        self
+          .decls
+          .insert((named.local.sym.clone(), named.local.span.ctxt()));
+      }
       Namespace(namespace) => {
-        self.decls.insert((namespace.local.sym.clone(), namespace.local.span.ctxt()));
+        self
+          .decls
+          .insert((namespace.local.sym.clone(), namespace.local.span.ctxt()));
       }
     }
   }

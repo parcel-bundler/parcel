@@ -297,7 +297,12 @@ export class TargetResolver {
     exclusiveTarget?: string,
   ): Promise<Map<string, Target>> {
     let rootFile = path.join(rootDir, 'index');
-    let conf = await loadConfig(this.fs, rootFile, ['package.json'], this.options.projectRoot);
+    let conf = await loadConfig(
+      this.fs,
+      rootFile,
+      ['package.json'],
+      this.options.projectRoot,
+    );
 
     // Invalidate whenever a package.json file is added.
     this.api.invalidateOnFileCreate({

@@ -4,17 +4,17 @@
 // The MIT License (MIT)
 //
 // Copyright (c) 2020-2021 postUI Lab.
-// 
+//
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
 // in the Software without restriction, including without limitation the rights
 // to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 // copies of the Software, and to permit persons to whom the Software is
 // furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in
 // all copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 // FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -23,34 +23,34 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
+use data_encoding::BASE64;
 use sha1::{Digest, Sha1};
-use std::rc::Rc;
 use std::collections::HashSet;
+use std::rc::Rc;
 use swc_common::{SourceMap, Spanned, DUMMY_SP};
 use swc_ecmascript::ast::*;
 use swc_ecmascript::visit::{noop_fold_type, Fold};
-use data_encoding::{BASE64};
 
 /// Shortcut for `quote_ident!(span.apply_mark(Mark::fresh(Mark::root())), s)`
 macro_rules! private_ident {
-    ($s:expr) => {
-        private_ident!(::swc_common::DUMMY_SP, $s)
-    };
-    ($span:expr, $s:expr) => {{
-        use swc_common::Mark;
-        let mark = Mark::fresh(Mark::root());
-        let span = $span.apply_mark(mark);
-        Ident::new($s.into(), span)
-    }};
+  ($s:expr) => {
+    private_ident!(::swc_common::DUMMY_SP, $s)
+  };
+  ($span:expr, $s:expr) => {{
+    use swc_common::Mark;
+    let mark = Mark::fresh(Mark::root());
+    let span = $span.apply_mark(mark);
+    Ident::new($s.into(), span)
+  }};
 }
 
 macro_rules! quote_ident {
-    ($s:expr) => {
-        quote_ident!(::swc_common::DUMMY_SP, $s)
-    };
-    ($span:expr, $s:expr) => {{
-        Ident::new($s.into(), $span)
-    }};
+  ($s:expr) => {
+    quote_ident!(::swc_common::DUMMY_SP, $s)
+  };
+  ($span:expr, $s:expr) => {{
+    Ident::new($s.into(), $span)
+  }};
 }
 
 pub fn react_refresh(
@@ -1090,20 +1090,17 @@ mod tests {
   use std::cmp::min;
 
   use swc_common::comments::SingleThreadedComments;
-  use swc_common::{FileName, SourceMap, sync::Lrc, Globals};
-  use swc_ecmascript::parser::lexer::Lexer;
-  use swc_ecmascript::parser::{Parser, EsConfig, StringInput, Syntax, PResult};
+  use swc_common::{sync::Lrc, FileName, Globals, SourceMap};
   use swc_ecmascript::codegen::text_writer::JsWriter;
+  use swc_ecmascript::parser::lexer::Lexer;
+  use swc_ecmascript::parser::{EsConfig, PResult, Parser, StringInput, Syntax};
   use swc_ecmascript::visit::FoldWith;
 
   fn parse(code: &str) -> PResult<(Module, SingleThreadedComments, Lrc<SourceMap>)> {
     let source_map = Lrc::new(SourceMap::default());
-    let source_file = source_map.new_source_file(
-      FileName::Anon,
-      code.into()
-    );
-  
-    let comments = SingleThreadedComments::default();  
+    let source_file = source_map.new_source_file(FileName::Anon, code.into());
+
+    let comments = SingleThreadedComments::default();
     let mut esconfig = EsConfig::default();
     esconfig.dynamic_import = true;
     esconfig.jsx = true;
@@ -1113,26 +1110,28 @@ mod tests {
       StringInput::from(&*source_file),
       Some(&comments),
     );
-  
+
     let mut parser = Parser::new_from(lexer);
     match parser.parse_module() {
       Ok(module) => Ok((module, comments, source_map)),
-      Err(err) => Err(err)
+      Err(err) => Err(err),
     }
   }
 
-  fn emit(source_map: Lrc<SourceMap>, comments: SingleThreadedComments, program: &Module) -> String {
+  fn emit(
+    source_map: Lrc<SourceMap>,
+    comments: SingleThreadedComments,
+    program: &Module,
+  ) -> String {
     let mut src_map_buf = vec![];
     let mut buf = vec![];
     {
-      let writer = Box::new(
-        JsWriter::new(
-          source_map.clone(),
-          "\n",
-          &mut buf,
-          Some(&mut src_map_buf),
-        )
-      );
+      let writer = Box::new(JsWriter::new(
+        source_map.clone(),
+        "\n",
+        &mut buf,
+        Some(&mut src_map_buf),
+      ));
       let config = swc_ecmascript::codegen::Config { minify: false };
       let mut emitter = swc_ecmascript::codegen::Emitter {
         cfg: config,
@@ -1140,24 +1139,22 @@ mod tests {
         cm: source_map.clone(),
         wr: writer,
       };
-      
+
       emitter.emit_module(&program);
     }
-  
+
     return String::from_utf8(buf).unwrap();
   }
 
   fn t(specifier: &str, source: &str, expect: &str) -> bool {
     let (module, comments, source_map) = parse(source).expect("could not parse module");
     let code = swc_common::GLOBALS.set(&Globals::new(), || {
-      let module = module.fold_with(
-        &mut react_refresh(
-          "$RefreshReg$",
-          "$RefreshSig$",
-          true,
-          source_map.clone(),
-        )
-      );
+      let module = module.fold_with(&mut react_refresh(
+        "$RefreshReg$",
+        "$RefreshSig$",
+        true,
+        source_map.clone(),
+      ));
 
       emit(source_map, comments, &module)
     });

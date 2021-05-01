@@ -1992,15 +1992,18 @@ describe('scope hoisting', function() {
 
     it('should handle circular dependencies with wrapped assets', async () => {
       let b = await bundle(
-        path.join(__dirname, '/integration/scope-hoisting/es6/circular-wrap/index.mjs'),
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/circular-wrap/index.mjs',
+        ),
       );
 
       let output = [];
       await run(b, {
         output(o) {
           output.push(o);
-        }
-      })
+        },
+      });
 
       assert.deepEqual(output, ['d', 'c', 'b', 'a', 'index']);
     });

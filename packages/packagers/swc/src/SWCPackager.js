@@ -460,10 +460,9 @@ export class SWCPackager {
       sourceMap?.offsetLines(1, 1);
       lineCount++;
 
-      code =
-        `parcelRequire.register(${JSON.stringify(
-          this.bundleGraph.getAssetPublicId(asset),
-        )}, function(module, exports) {
+      code = `parcelRequire.register(${JSON.stringify(
+        this.bundleGraph.getAssetPublicId(asset),
+      )}, function(module, exports) {
 ${code}
 });
 `;

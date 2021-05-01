@@ -46,7 +46,11 @@ export class NodeResolverBase<T> {
   packageCache: Map<string, PackageJSON>;
   projectRoot: FilePath;
 
-  constructor(fs: FileSystem, projectRoot: FilePath, extensions?: Array<string>) {
+  constructor(
+    fs: FileSystem,
+    projectRoot: FilePath,
+    extensions?: Array<string>,
+  ) {
     this.fs = fs;
     this.projectRoot = projectRoot;
     this.extensions = extensions || Object.keys(Module._extensions);

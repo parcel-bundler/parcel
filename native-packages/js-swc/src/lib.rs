@@ -1,63 +1,57 @@
 extern crate napi;
 #[macro_use]
 extern crate napi_derive;
-extern crate swc_ecmascript;
-extern crate swc_ecma_preset_env;
 extern crate swc_common;
+extern crate swc_ecma_preset_env;
+extern crate swc_ecmascript;
 #[macro_use]
 extern crate swc_atoms;
-extern crate serde;
-extern crate inflector;
 extern crate data_encoding;
+extern crate inflector;
+extern crate serde;
 extern crate sha1;
 
 mod decl_collector;
 mod dependency_collector;
 mod env_replacer;
+mod fast_refresh;
+mod fs;
 mod global_replacer;
-mod utils;
 mod hoist;
 mod modules;
-mod fs;
-mod fast_refresh;
+mod utils;
 
 use napi::{CallContext, JsObject, JsUnknown, Result};
 use std::collections::{HashMap, HashSet};
 use std::str::FromStr;
 
-use swc_common::comments::SingleThreadedComments;
-use swc_common::{FileName, SourceMap, sync::Lrc, chain, Globals, Mark};
-use swc_common::errors::{Handler, Emitter, DiagnosticBuilder};
-use swc_ecmascript::ast;
-use swc_ecmascript::ast::{Module};
-use swc_ecmascript::parser::lexer::Lexer;
-use swc_ecmascript::parser::{Parser, EsConfig, TsConfig, StringInput, Syntax, PResult};
-use swc_ecmascript::transforms::resolver::resolver_with_mark;
-use swc_ecmascript::visit::{FoldWith};
-use swc_ecmascript::transforms::{
-  helpers,
-  fixer,
-  hygiene,
-  optimization::simplify::expr_simplifier,
-  optimization::simplify::dead_branch_remover,
-  compat::reserved_words::reserved_words,
-  react,
-  typescript,
-  pass::Optional
-};
-use swc_ecmascript::codegen::text_writer::JsWriter;
-use swc_ecma_preset_env::{preset_env, Targets, Versions, Version, Mode::Entry};
 use serde::{Deserialize, Serialize};
+use swc_common::comments::SingleThreadedComments;
+use swc_common::errors::{DiagnosticBuilder, Emitter, Handler};
+use swc_common::{chain, sync::Lrc, FileName, Globals, Mark, SourceMap};
+use swc_ecma_preset_env::{preset_env, Mode::Entry, Targets, Version, Versions};
+use swc_ecmascript::ast;
+use swc_ecmascript::ast::Module;
+use swc_ecmascript::codegen::text_writer::JsWriter;
+use swc_ecmascript::parser::lexer::Lexer;
+use swc_ecmascript::parser::{EsConfig, PResult, Parser, StringInput, Syntax, TsConfig};
+use swc_ecmascript::transforms::resolver::resolver_with_mark;
+use swc_ecmascript::transforms::{
+  compat::reserved_words::reserved_words, fixer, helpers, hygiene,
+  optimization::simplify::dead_branch_remover, optimization::simplify::expr_simplifier,
+  pass::Optional, react, typescript,
+};
+use swc_ecmascript::visit::FoldWith;
 
 use decl_collector::*;
 use dependency_collector::*;
 use env_replacer::*;
+use fast_refresh::react_refresh;
+use fs::inline_fs;
 use global_replacer::GlobalReplacer;
 use hoist::hoist;
-use utils::{SourceLocation, CodeHighlight, Diagnostic};
 use modules::esm2cjs;
-use fs::inline_fs;
-use fast_refresh::react_refresh;
+use utils::{CodeHighlight, Diagnostic, SourceLocation};
 
 #[derive(Serialize, Debug, Deserialize)]
 struct Config {
@@ -90,7 +84,7 @@ struct TransformResult {
   hoist_result: Option<hoist::HoistResult>,
   diagnostics: Option<Vec<Diagnostic>>,
   needs_esm_helpers: bool,
-  used_env: HashSet<swc_atoms::JsWord>
+  used_env: HashSet<swc_atoms::JsWord>,
 }
 
 fn targets_to_versions(targets: &Option<HashMap<String, String>>) -> Option<Versions> {
@@ -117,7 +111,7 @@ fn targets_to_versions(targets: &Option<HashMap<String, String>>) -> Option<Vers
     set_target!(versions, android);
     set_target!(versions, node);
     set_target!(versions, electron);
-    return Some(versions)
+    return Some(versions);
   }
 
   None
@@ -139,7 +133,12 @@ fn transform(ctx: CallContext) -> Result<JsUnknown> {
   let mut result = TransformResult::default();
 
   let source_map = Lrc::new(SourceMap::default());
-  let module = parse(config.code.as_str(), config.filename.as_str(), &source_map, &config);
+  let module = parse(
+    config.code.as_str(),
+    config.filename.as_str(),
+    &source_map,
+    &config,
+  );
 
   match module {
     Err(err) => {
@@ -161,7 +160,7 @@ fn transform(ctx: CallContext) -> Result<JsUnknown> {
             for span_label in span_labels {
               highlights.push(CodeHighlight {
                 message: span_label.label,
-                loc: SourceLocation::from(&source_map, span_label.span)
+                loc: SourceLocation::from(&source_map, span_label.span),
               });
             }
 
@@ -171,7 +170,12 @@ fn transform(ctx: CallContext) -> Result<JsUnknown> {
           };
 
           let hints = if !suggestions.is_empty() {
-            Some(suggestions.into_iter().map(|suggestion| suggestion.msg).collect())
+            Some(
+              suggestions
+                .into_iter()
+                .map(|suggestion| suggestion.msg)
+                .collect(),
+            )
           } else {
             None
           };
@@ -179,168 +183,189 @@ fn transform(ctx: CallContext) -> Result<JsUnknown> {
           Diagnostic {
             message,
             code_highlights,
-            hints
+            hints,
           }
         })
         .collect();
 
       result.diagnostics = Some(diagnostics);
       ctx.env.to_js_value(&result)
-    },
+    }
     Ok((module, comments)) => {
       let mut module = module;
       result.shebang = match module.shebang {
         Some(shebang) => {
           module.shebang = None;
           Some(shebang.to_string())
-        },
-        None => None
+        }
+        None => None,
       };
 
       let mut global_deps = vec![];
       let mut fs_deps = vec![];
       swc_common::GLOBALS.set(&Globals::new(), || {
-        helpers::HELPERS.set(&helpers::Helpers::new(/* external helpers from @swc/helpers */ true), || {
-          let mut react_options = react::Options::default();
-          if config.is_jsx {
-            if let Some(jsx_pragma) = config.jsx_pragma {
-              react_options.pragma = jsx_pragma;
+        helpers::HELPERS.set(
+          &helpers::Helpers::new(/* external helpers from @swc/helpers */ true),
+          || {
+            let mut react_options = react::Options::default();
+            if config.is_jsx {
+              if let Some(jsx_pragma) = config.jsx_pragma {
+                react_options.pragma = jsx_pragma;
+              }
+              if let Some(jsx_pragma_frag) = config.jsx_pragma_frag {
+                react_options.pragma_frag = jsx_pragma_frag;
+              }
+              react_options.development = config.is_development;
             }
-            if let Some(jsx_pragma_frag) = config.jsx_pragma_frag {
-              react_options.pragma_frag = jsx_pragma_frag;
+
+            module = {
+              let mut passes = chain!(
+                Optional::new(
+                  react_refresh("$RefreshReg$", "$RefreshSig$", false, source_map.clone()),
+                  config.react_refresh
+                ),
+                Optional::new(
+                  react::jsx(source_map.clone(), Some(&comments), react_options),
+                  config.is_jsx
+                ),
+                Optional::new(typescript::strip(), config.is_type_script)
+              );
+
+              module.fold_with(&mut passes)
+            };
+
+            let global_mark = Mark::fresh(Mark::root());
+            let ignore_mark = Mark::fresh(Mark::root());
+            let module = module.fold_with(&mut resolver_with_mark(global_mark));
+            let decls = collect_decls(&module);
+
+            let mut preset_env_config = swc_ecma_preset_env::Config::default();
+            if let Some(versions) = targets_to_versions(&config.targets) {
+              preset_env_config.targets = Some(Targets::Versions(versions));
+              preset_env_config.shipped_proposals = true;
+              preset_env_config.mode = Some(Entry);
+              preset_env_config.bugfixes = true;
             }
-            react_options.development = config.is_development;
-          }
 
-          module = {
-            let mut passes = chain!(
-              Optional::new(react_refresh(
-                "$RefreshReg$",
-                "$RefreshSig$",
-                false,
-                source_map.clone()
-              ), config.react_refresh),
-              Optional::new(react::jsx(source_map.clone(), Some(&comments), react_options), config.is_jsx),
-              Optional::new(typescript::strip(), config.is_type_script)
-            );
+            let module = {
+              let mut passes = chain!(
+                // Inline process.env and process.browser
+                EnvReplacer {
+                  replace_env: config.replace_env,
+                  env: config.env,
+                  is_browser: config.is_browser,
+                  decls: &decls,
+                  used_env: &mut result.used_env
+                },
+                // Simplify expressions and remove dead branches so that we
+                // don't include dependencies inside conditionals that are always false.
+                expr_simplifier(),
+                dead_branch_remover(),
+                // Inline Node fs.readFileSync calls
+                Optional::new(
+                  inline_fs(
+                    config.filename.as_str(),
+                    source_map.clone(),
+                    decls.clone(),
+                    global_mark,
+                    config.project_root,
+                    &mut fs_deps,
+                  ),
+                  config.inline_fs && config.code.contains("readFileSync")
+                ),
+                // Insert dependencies for node globals
+                Optional::new(
+                  GlobalReplacer {
+                    source_map: &source_map,
+                    items: &mut global_deps,
+                    globals: HashMap::new(),
+                    filename: config.filename.as_str(),
+                    decls: &decls,
+                    global_mark,
+                    scope_hoist: config.scope_hoist
+                  },
+                  config.insert_node_globals
+                ),
+                // Transpile new syntax to older syntax if needed
+                Optional::new(
+                  preset_env(global_mark, preset_env_config),
+                  config.targets.is_some()
+                ),
+                // Inject SWC helpers if needed.
+                helpers::inject_helpers(),
+                // Collect dependencies
+                dependency_collector(
+                  &source_map,
+                  &mut result.dependencies,
+                  &decls,
+                  ignore_mark,
+                  config.scope_hoist
+                ),
+              );
 
-            module.fold_with(&mut passes)
-          };
+              module.fold_with(&mut passes)
+            };
 
-          let global_mark = Mark::fresh(Mark::root());
-          let ignore_mark = Mark::fresh(Mark::root());
-          let module = module.fold_with(&mut resolver_with_mark(global_mark));
-          let decls = collect_decls(&module);
-
-          let mut preset_env_config = swc_ecma_preset_env::Config::default();
-          if let Some(versions) = targets_to_versions(&config.targets) {
-            preset_env_config.targets = Some(Targets::Versions(versions));
-            preset_env_config.shipped_proposals = true;
-            preset_env_config.mode = Some(Entry);
-            preset_env_config.bugfixes = true;
-          }
-          
-          let module = {
-            let mut passes = chain!(
-              // Inline process.env and process.browser
-              EnvReplacer {
-                replace_env: config.replace_env,
-                env: config.env,
-                is_browser: config.is_browser,
-                decls: &decls,
-                used_env: &mut result.used_env
-              },
-              // Simplify expressions and remove dead branches so that we
-              // don't include dependencies inside conditionals that are always false.
-              expr_simplifier(),
-              dead_branch_remover(),
-              // Inline Node fs.readFileSync calls
-              Optional::new(inline_fs(
-                config.filename.as_str(),
+            let module = if config.scope_hoist {
+              let res = hoist(
+                module,
                 source_map.clone(),
-                decls.clone(),
+                config.module_id.as_str(),
+                decls,
+                ignore_mark,
                 global_mark,
-                config.project_root,
-                &mut fs_deps,
-              ), config.inline_fs && config.code.contains("readFileSync")),
-              // Insert dependencies for node globals
-              Optional::new(GlobalReplacer {
-                source_map: &source_map,
-                items: &mut global_deps,
-                globals: HashMap::new(),
-                filename: config.filename.as_str(),
-                decls: &decls,
-                global_mark,
-                scope_hoist: config.scope_hoist
-              }, config.insert_node_globals),
-              // Transpile new syntax to older syntax if needed
-              Optional::new(preset_env(global_mark, preset_env_config), config.targets.is_some()),
-              // Inject SWC helpers if needed.
-              helpers::inject_helpers(),
-              // Collect dependencies
-              dependency_collector(&source_map, &mut result.dependencies, &decls, ignore_mark, config.scope_hoist),
-            );
+              );
+              match res {
+                Ok((module, hoist_result)) => {
+                  result.hoist_result = Some(hoist_result);
+                  module
+                }
+                Err(diagnostics) => {
+                  result.diagnostics = Some(diagnostics);
+                  return ctx.env.to_js_value(&result);
+                }
+              }
+            } else {
+              let (module, needs_helpers) = esm2cjs(module);
+              result.needs_esm_helpers = needs_helpers;
+              module
+            };
 
-            module.fold_with(&mut passes)
-          };
+            let program = {
+              let mut passes = chain!(reserved_words(), hygiene(), fixer(Some(&comments)),);
+              module.fold_with(&mut passes)
+            };
 
-          let module = if config.scope_hoist {
-            let res = hoist(
-              module,
-              source_map.clone(),
-              config.module_id.as_str(),
-              decls,
-              ignore_mark,
-              global_mark
-            );
-            match res {
-              Ok((module, hoist_result)) => {
-                result.hoist_result = Some(hoist_result);
-                module    
-              },
-              Err(diagnostics) => {
-                result.diagnostics = Some(diagnostics);
-                return ctx.env.to_js_value(&result)
+            result.dependencies.extend(global_deps);
+            result.dependencies.extend(fs_deps);
+
+            let (buf, mut src_map_buf) =
+              emit(source_map.clone(), comments, &program, config.source_maps)?;
+            if config.source_maps {
+              let mut map_buf = vec![];
+              if let Ok(_) = source_map
+                .build_source_map(&mut src_map_buf)
+                .to_writer(&mut map_buf)
+              {
+                result.map = Some(String::from_utf8(map_buf).unwrap());
               }
             }
-          } else {
-            let (module, needs_helpers) = esm2cjs(module);
-            result.needs_esm_helpers = needs_helpers;
-            module
-          };
-
-          let program = {
-            let mut passes = chain!(
-              reserved_words(),
-              hygiene(),
-              fixer(Some(&comments)),
-            );
-            module.fold_with(&mut passes)
-          };
-
-          result.dependencies.extend(global_deps);
-          result.dependencies.extend(fs_deps);
-
-          let (buf, mut src_map_buf) = emit(source_map.clone(), comments, &program, config.source_maps)?;
-          if config.source_maps {
-            let mut map_buf = vec![];
-            if let Ok(_) = source_map.build_source_map(&mut src_map_buf).to_writer(&mut map_buf) {
-              result.map = Some(String::from_utf8(map_buf).unwrap());
-            }
-          }
-          result.code = String::from_utf8(buf).unwrap();
-          ctx.env.to_js_value(&result)
-        })
+            result.code = String::from_utf8(buf).unwrap();
+            ctx.env.to_js_value(&result)
+          },
+        )
       })
     }
   }
 }
 
-fn parse(code: &str, filename: &str, source_map: &Lrc<SourceMap>, config: &Config) -> PResult<(Module, SingleThreadedComments)> {
-  let source_file = source_map.new_source_file(
-    FileName::Real(filename.into()),
-    code.into()
-  );
+fn parse(
+  code: &str,
+  filename: &str,
+  source_map: &Lrc<SourceMap>,
+  config: &Config,
+) -> PResult<(Module, SingleThreadedComments)> {
+  let source_file = source_map.new_source_file(FileName::Real(filename.into()), code.into());
 
   let comments = SingleThreadedComments::default();
   let syntax = if config.is_type_script {
@@ -368,26 +393,29 @@ fn parse(code: &str, filename: &str, source_map: &Lrc<SourceMap>, config: &Confi
   let mut parser = Parser::new_from(lexer);
   match parser.parse_module() {
     Err(err) => Err(err),
-    Ok(module) => Ok((module, comments))
+    Ok(module) => Ok((module, comments)),
   }
 }
 
-fn emit(source_map: Lrc<SourceMap>, comments: SingleThreadedComments, program: &Module, source_maps: bool) -> Result<(Vec<u8>, Vec<(swc_common::BytePos, swc_common::LineCol)>)> {
+fn emit(
+  source_map: Lrc<SourceMap>,
+  comments: SingleThreadedComments,
+  program: &Module,
+  source_maps: bool,
+) -> Result<(Vec<u8>, Vec<(swc_common::BytePos, swc_common::LineCol)>)> {
   let mut src_map_buf = vec![];
   let mut buf = vec![];
   {
-    let writer = Box::new(
-      JsWriter::new(
-        source_map.clone(),
-        "\n",
-        &mut buf,
-        if source_maps {
-          Some(&mut src_map_buf)
-        } else {
-          None
-        },
-      )
-    );
+    let writer = Box::new(JsWriter::new(
+      source_map.clone(),
+      "\n",
+      &mut buf,
+      if source_maps {
+        Some(&mut src_map_buf)
+      } else {
+        None
+      },
+    ));
     let config = swc_ecmascript::codegen::Config { minify: false };
     let mut emitter = swc_ecmascript::codegen::Emitter {
       cfg: config,
@@ -395,7 +423,7 @@ fn emit(source_map: Lrc<SourceMap>, comments: SingleThreadedComments, program: &
       cm: source_map.clone(),
       wr: writer,
     };
-    
+
     emitter.emit_module(&program)?;
   }
 
