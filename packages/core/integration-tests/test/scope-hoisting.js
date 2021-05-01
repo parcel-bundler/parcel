@@ -11,6 +11,7 @@ import {
   findAsset,
   findDependency,
   getNextBuild,
+  inputFS,
   mergeParcelOptions,
   outputFS,
   overlayFS,
@@ -3367,6 +3368,7 @@ describe('scope hoisting', function() {
         __dirname,
         'integration/scope-hoisting/es6/import-local-assign/named.js',
       );
+      let code = await inputFS.readFile(source, 'utf8');
 
       await assert.rejects(() => bundle(source), {
         name: 'BuildError',
@@ -3377,6 +3379,7 @@ describe('scope hoisting', function() {
             origin: '@parcel/transformer-js-swc',
             filePath: source,
             codeFrame: {
+              code,
               codeHighlights: [
                 {
                   message: null,
@@ -3413,6 +3416,7 @@ describe('scope hoisting', function() {
         __dirname,
         'integration/scope-hoisting/es6/import-local-assign/default.js',
       );
+      let code = await inputFS.readFile(source, 'utf8');
 
       await assert.rejects(() => bundle(source), {
         name: 'BuildError',
@@ -3423,6 +3427,7 @@ describe('scope hoisting', function() {
             origin: '@parcel/transformer-js-swc',
             filePath: source,
             codeFrame: {
+              code,
               codeHighlights: [
                 {
                   message: null,
@@ -3459,6 +3464,7 @@ describe('scope hoisting', function() {
         __dirname,
         'integration/scope-hoisting/es6/import-local-assign/namespace.js',
       );
+      let code = await inputFS.readFile(source, 'utf8');
 
       await assert.rejects(() => bundle(source), {
         name: 'BuildError',
@@ -3469,6 +3475,7 @@ describe('scope hoisting', function() {
             origin: '@parcel/transformer-js-swc',
             filePath: source,
             codeFrame: {
+              code,
               codeHighlights: [
                 {
                   message: null,
@@ -3505,6 +3512,7 @@ describe('scope hoisting', function() {
         __dirname,
         'integration/scope-hoisting/es6/import-local-assign/destructure-assign.js',
       );
+      let code = await inputFS.readFile(source, 'utf8');
 
       await assert.rejects(() => bundle(source), {
         name: 'BuildError',
@@ -3515,6 +3523,7 @@ describe('scope hoisting', function() {
             origin: '@parcel/transformer-js-swc',
             filePath: source,
             codeFrame: {
+              code,
               codeHighlights: [
                 {
                   message: null,
@@ -3551,6 +3560,7 @@ describe('scope hoisting', function() {
         __dirname,
         'integration/scope-hoisting/es6/import-local-assign/multiple.js',
       );
+      let code = await inputFS.readFile(source, 'utf8');
 
       await assert.rejects(() => bundle(source), {
         name: 'BuildError',
@@ -3561,6 +3571,7 @@ describe('scope hoisting', function() {
             origin: '@parcel/transformer-js-swc',
             filePath: source,
             codeFrame: {
+              code,
               codeHighlights: [
                 {
                   message: null,
