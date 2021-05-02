@@ -170,6 +170,10 @@ describe('transpilation', function() {
 
   describe('tests needing the real filesystem', () => {
     afterEach(async () => {
+      if (process.platform === 'win32') {
+        return;
+      }
+      
       try {
         await fs.rimraf(inputDir);
         await fs.rimraf(distDir);
