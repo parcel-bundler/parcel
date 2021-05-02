@@ -1866,6 +1866,21 @@ describe('javascript', function() {
     assert.equal(output(), 'production:production');
   });
 
+  it('should not inline computed accesses to process.env', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/env-computed/index.js'),
+      {
+        env: {name: 'abc'},
+      },
+    );
+
+    let contents = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(contents.includes('process.env'));
+
+    let output = await run(b);
+    assert.strictEqual(output, 'abc');
+  });
+
   it('should insert environment variables from a file', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/env-file/index.js'),

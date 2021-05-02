@@ -56,6 +56,7 @@ impl<'a> Fold for EnvReplacer<'a> {
           MemberExpr {
             obj: Expr(ref expr),
             ref prop,
+            computed: false,
             ..
           } => {
             match &**expr {
