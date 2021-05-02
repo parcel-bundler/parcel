@@ -130,7 +130,7 @@ export class ScopeHoistingPackager {
 
       let [content, map, lines] = this.visitAsset(asset);
       if (sourceMap && map) {
-        sourceMap.addSourceMap(map, lineCount);
+        sourceMap.addBufferMappings(map.toBuffer(), lineCount);
       }
 
       res += content + '\n';
@@ -328,7 +328,7 @@ export class ScopeHoistingPackager {
           let [code, map, lines] = this.visitAsset(resolved);
           depCode += code + '\n';
           if (sourceMap && map) {
-            sourceMap.addSourceMap(map, lineCount);
+            sourceMap.addBufferMappings(map.toBuffer(), lineCount);
           }
           lineCount += lines + 1;
         }
@@ -424,7 +424,7 @@ export class ScopeHoistingPackager {
             }
 
             if (map) {
-              sourceMap.addSourceMap(map, lineCount, 0);
+              sourceMap.addBufferMappings(map.toBuffer(), lineCount, 0);
             }
           }
 
@@ -473,7 +473,7 @@ ${code}
         if (!depCode) continue;
         code += depCode + '\n';
         if (sourceMap && map) {
-          sourceMap.addSourceMap(map, lineCount, 0);
+          sourceMap.addBufferMappings(map.toBuffer(), lineCount, 0);
         }
         lineCount += lines + 1;
       }
