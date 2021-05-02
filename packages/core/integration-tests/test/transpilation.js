@@ -173,7 +173,7 @@ describe('transpilation', function() {
       if (process.platform === 'win32') {
         return;
       }
-      
+
       try {
         await fs.rimraf(inputDir);
         await fs.rimraf(distDir);
