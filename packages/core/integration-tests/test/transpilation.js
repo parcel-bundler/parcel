@@ -181,6 +181,11 @@ describe('transpilation', function() {
     });
 
     it('should compile node_modules when symlinked with a source field in package.json', async function() {
+      if (process.platform === 'win32') {
+        this.skip();
+        return;
+      }
+
       const inputDir = path.join(__dirname, '/input');
       await fs.rimraf(inputDir);
       await fs.mkdirp(path.join(inputDir, 'node_modules'));
