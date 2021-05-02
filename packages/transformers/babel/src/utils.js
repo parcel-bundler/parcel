@@ -4,7 +4,7 @@ import type {Environment} from '@parcel/types';
 import type {Targets as BabelTargets} from '@babel/preset-env';
 
 import invariant from 'assert';
-import semver from 'semver';
+import semverRange from 'semver/classes/range';
 import {TargetNames} from '@babel/helper-compilation-targets/lib/options';
 
 // List of browsers to exclude when the esmodule target is specified.
@@ -74,7 +74,7 @@ export function enginesToBabelTargets(env: Environment): BabelTargets {
 //       once semver has been upgraded across Parcel.
 export function getMinSemver(version: string): ?string {
   try {
-    let range = new semver.Range(version);
+    let range = new semverRange(version);
     let sorted = range.set.sort((a, b) => a[0].semver.compare(b[0].semver));
     return sorted[0][0].semver.version;
   } catch (err) {

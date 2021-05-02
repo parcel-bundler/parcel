@@ -7,7 +7,7 @@ import {Transformer} from '@parcel/plugin';
 import FileSystemLoader from 'css-modules-loader-core/lib/file-system-loader';
 import nullthrows from 'nullthrows';
 import path from 'path';
-import semver from 'semver';
+import semverSatisfies from 'semver/functions/satisfies';
 import valueParser from 'postcss-value-parser';
 import postcssModules from 'postcss-modules';
 import typeof * as Postcss from 'postcss';
@@ -23,7 +23,7 @@ export default (new Transformer({
   },
 
   canReuseAST({ast}) {
-    return ast.type === 'postcss' && semver.satisfies(ast.version, '^8.2.1');
+    return ast.type === 'postcss' && semverSatisfies(ast.version, '^8.2.1');
   },
 
   async parse({asset, config, options}) {

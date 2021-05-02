@@ -21,7 +21,7 @@ import nativeFS from 'fs';
 // $FlowFixMe this is untyped
 import Module from 'module';
 import path from 'path';
-import semver from 'semver';
+import semverSatisfies from 'semver/functions/satisfies';
 
 import {getConflictingLocalDependencies} from './utils';
 import {installPackage} from './installPackage';
@@ -214,7 +214,7 @@ export class NodePackageManager implements PackageManager {
       let range = options?.range;
       if (range != null) {
         let pkg = resolved.pkg;
-        if (pkg == null || !semver.satisfies(pkg.version, range)) {
+        if (pkg == null || !semverSatisfies(pkg.version, range)) {
           let conflicts = await getConflictingLocalDependencies(
             this.fs,
             name,

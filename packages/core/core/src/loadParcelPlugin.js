@@ -2,7 +2,7 @@
 import type {FilePath, PackageName, Semver} from '@parcel/types';
 import type {ParcelOptions} from './types';
 
-import semver from 'semver';
+import semverSatisfies from 'semver/functions/satisfies';
 import logger from '@parcel/logger';
 import {CONFIG} from '@parcel/plugin';
 import nullthrows from 'nullthrows';
@@ -139,7 +139,7 @@ export default async function loadPlugin<T>(
 
   if (
     parcelVersionRange &&
-    !semver.satisfies(PARCEL_VERSION, parcelVersionRange)
+    !semverSatisfies(PARCEL_VERSION, parcelVersionRange)
   ) {
     let pkgFile = nullthrows(
       await resolveConfig(

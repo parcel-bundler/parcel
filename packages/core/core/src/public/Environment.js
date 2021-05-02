@@ -11,7 +11,7 @@ import type {
 import type {Environment as InternalEnvironment} from '../types';
 import nullthrows from 'nullthrows';
 import browserslist from 'browserslist';
-import semver from 'semver';
+import semverIntersects  from 'semver/ranges/intersects';
 
 export const BROWSER_ENVS: Set<string> = new Set<string>([
   'browser',
@@ -163,7 +163,7 @@ export default class Environment implements IEnvironment {
       let withoutMinBrowsers = browserslist([...browsers, ...minBrowsers]);
       return matchedBrowsers.length === withoutMinBrowsers.length;
     } else if (this.isNode() && this.engines.node != null && minVersions.node) {
-      return !semver.intersects(`< ${minVersions.node}`, this.engines.node);
+      return !semverIntersects(`< ${minVersions.node}`, this.engines.node);
     }
 
     return false;
