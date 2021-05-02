@@ -39,6 +39,7 @@ export function findAncestorFile(
   root: FilePath,
 ): ?FilePath {
   let {root: pathRoot} = path.parse(dir);
+  // eslint-disable-next-line no-constant-condition
   while (true) {
     if (path.basename(dir) === 'node_modules') {
       return null;

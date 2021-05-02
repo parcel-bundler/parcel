@@ -29,7 +29,6 @@ import postHtml from 'posthtml';
 import {makeDeferredWithPromise, normalizeSeparators} from '@parcel/utils';
 import _chalk from 'chalk';
 import resolve from 'resolve';
-import {NodePackageManager} from '@parcel/package-manager';
 
 export const workerFarm = (createWorkerFarm(): WorkerFarm);
 export const inputFS: NodeFS = new NodeFS();

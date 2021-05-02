@@ -1138,10 +1138,6 @@ describe('output formats', function() {
     );
     assert.deepEqual(calls, [[['a', 10]]]);
 
-    let esm = b
-      .getBundles()
-      .find(b => b.type === 'js' && b.env.outputFormat === 'esmodule');
-
     calls = [];
     assert.deepEqual(
       await runBundle(b, cjs, {
