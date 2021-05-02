@@ -1,5 +1,8 @@
 // @flow
-import type {ScopeHoistingPackager, OutputFormat} from './ScopeHoistingPackager';
+import type {
+  ScopeHoistingPackager,
+  OutputFormat,
+} from './ScopeHoistingPackager';
 
 // List of engines that support object destructuring syntax
 const DESTRUCTURING_ENGINES = {

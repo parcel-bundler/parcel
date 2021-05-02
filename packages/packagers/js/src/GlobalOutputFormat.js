@@ -1,5 +1,8 @@
 // @flow
-import type {ScopeHoistingPackager, OutputFormat} from './ScopeHoistingPackager';
+import type {
+  ScopeHoistingPackager,
+  OutputFormat,
+} from './ScopeHoistingPackager';
 
 export class GlobalOutputFormat implements OutputFormat {
   packager: ScopeHoistingPackager;
