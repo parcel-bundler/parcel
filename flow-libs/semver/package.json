@@ -1,0 +1,15 @@
+{
+  "name": "flowtyped/semver",
+  "version": "7.3.5",
+  "description": "Flow definitions for semver",
+  "license": "MIT",
+  "contributors": [
+    {
+      "name": "Amin Yahyaabadi",
+      "url": "https://github.com/aminya",
+      "githubUsername": "aminya"
+    }
+  ],
+  "main": "",
+  "types": "index.flow"
+}
