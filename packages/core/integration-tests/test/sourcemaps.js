@@ -478,7 +478,7 @@ describe('sourcemaps', function() {
     assert.equal(mapData.sources.length, 2);
     assert.deepEqual(mapData.sources, [
       './index.ts',
-      '../../../../../../native-packages/js-swc/src/esmodule-helpers.js',
+      '../../../../../transformers/js/src/esmodule-helpers.js',
     ]);
 
     let input = await inputFS.readFile(
@@ -521,7 +521,7 @@ describe('sourcemaps', function() {
     assert.deepEqual(mapData.sources, [
       './index.ts',
       './local.ts',
-      '../../../../../../native-packages/js-swc/src/esmodule-helpers.js',
+      '../../../../../transformers/js/src/esmodule-helpers.js',
     ]);
 
     let input = await inputFS.readFile(
@@ -987,7 +987,7 @@ describe('sourcemaps', function() {
     assert.equal(map.file, 'index.js.map');
     assert.deepEqual(map.sources, [
       './index.js',
-      '../../../../../../native-packages/js-swc/src/esmodule-helpers.js',
+      '../../../../../transformers/js/src/esmodule-helpers.js',
     ]);
     assert.equal(map.sourcesContent[0], sourceContent);
   });
@@ -1021,7 +1021,7 @@ describe('sourcemaps', function() {
     assert.equal(map.file, 'index.js.map');
     assert.deepEqual(map.sources, [
       './index.js',
-      '../../../../../../native-packages/js-swc/src/esmodule-helpers.js',
+      '../../../../../transformers/js/src/esmodule-helpers.js',
     ]);
   });
 
