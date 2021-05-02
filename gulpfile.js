@@ -125,7 +125,7 @@ function bundleBuild(done) {
     // link current parcel binary to node_modules
     execSync('yarn link', {cwd: 'packages/core/parcel', stdio: 'inherit'});
     // bundle packages
-    const packagesCustomBuild = ['packages/core/parcel'];
+    const packagesCustomBuild = ['packages/core/core', 'packages/core/parcel'];
     for (const pack of packagesCustomBuild) {
       execSync('yarn bundle', {cwd: pack, stdio: 'inherit'});
     }

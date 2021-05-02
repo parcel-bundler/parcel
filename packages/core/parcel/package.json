@@ -59,5 +59,8 @@
       "isLibrary": true,
       "outputFormat": "commonjs"
     }
+  },
+  "alias": {
+    "@parcel/core": "@parcel/core/lib/index.bundle.js"
   }
 }

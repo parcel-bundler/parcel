@@ -456,6 +456,13 @@ export function createWorkerFarm(
 ): WorkerFarm {
   return new WorkerFarm({
     ...options,
-    workerPath: path.join(__dirname, 'worker.js').replace(/\\/g, '/'),
+    workerPath: path
+      .join(
+        __dirname,
+        process.env.PARCEL_BUNDLE_ENV == 'worker'
+          ? 'worker.bundle.js'
+          : 'worker.js',
+      )
+      .replace(/\\/g, '/'),
   });
 }
