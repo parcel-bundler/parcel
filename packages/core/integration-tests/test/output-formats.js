@@ -1,5 +1,6 @@
 import assert from 'assert';
 import path from 'path';
+import {pathToFileURL} from 'url';
 import nullthrows from 'nullthrows';
 import {
   assertBundles,
@@ -1086,10 +1087,12 @@ describe('output formats', function() {
       );
 
       let _b = await import(
-        path.join(
-          __dirname,
-          '/integration/formats/esm-import-shadow/node_modules/b/index.mjs',
-        )
+        pathToFileURL(
+          path.join(
+            __dirname,
+            '/integration/formats/esm-import-shadow/node_modules/b/index.mjs',
+          ),
+        ).toString()
       );
       let ns = await run(b, {}, {}, {b: () => _b});
       let [useContext] = ns.createContext('Hello');
