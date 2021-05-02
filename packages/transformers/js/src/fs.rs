@@ -138,7 +138,7 @@ impl<'a> InlineFS<'a> {
     match res {
       Expr::Lit(Lit::Str(str_)) => {
         // Ignore if outside the project root
-        let path = match Path::new(&str_.value.to_string()).canonicalize() {
+        let path = match dunce::canonicalize(Path::new(&str_.value.to_string())) {
           Ok(path) => path,
           Err(_err) => return None,
         };

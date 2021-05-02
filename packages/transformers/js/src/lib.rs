@@ -7,6 +7,7 @@ extern crate swc_ecmascript;
 #[macro_use]
 extern crate swc_atoms;
 extern crate data_encoding;
+extern crate dunce;
 extern crate inflector;
 extern crate serde;
 extern crate sha1;
