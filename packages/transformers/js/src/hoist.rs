@@ -1896,10 +1896,10 @@ mod tests {
   use crate::collect_decls;
   use std::iter::FromIterator;
   use swc_common::comments::SingleThreadedComments;
-  use swc_common::{chain, sync::Lrc, FileName, Globals, Mark, SourceMap, DUMMY_SP};
+  use swc_common::{sync::Lrc, FileName, Globals, Mark, SourceMap, DUMMY_SP};
   use swc_ecmascript::codegen::text_writer::JsWriter;
   use swc_ecmascript::parser::lexer::Lexer;
-  use swc_ecmascript::parser::{EsConfig, PResult, Parser, StringInput, Syntax, TsConfig};
+  use swc_ecmascript::parser::{EsConfig, Parser, StringInput, Syntax};
   use swc_ecmascript::transforms::resolver_with_mark;
   extern crate indoc;
   use self::indoc::indoc;
@@ -1973,7 +1973,7 @@ mod tests {
         wr: writer,
       };
 
-      emitter.emit_module(&program);
+      emitter.emit_module(&program).unwrap();
     }
 
     return String::from_utf8(buf).unwrap();
@@ -1982,6 +1982,7 @@ mod tests {
   macro_rules! map(
     { $($key:expr => $value:expr),* } => {
       {
+        #[allow(unused_mut)]
         let mut m = HashMap::new();
         $(
           m.insert($key, $value);
@@ -1994,6 +1995,7 @@ mod tests {
   macro_rules! set(
     { $($key:expr),* } => {
       {
+        #[allow(unused_mut)]
         let mut m = HashSet::new();
         $(
           m.insert($key);

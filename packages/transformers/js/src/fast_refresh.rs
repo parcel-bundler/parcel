@@ -1140,13 +1140,13 @@ mod tests {
         wr: writer,
       };
 
-      emitter.emit_module(&program);
+      emitter.emit_module(&program).unwrap();
     }
 
     return String::from_utf8(buf).unwrap();
   }
 
-  fn t(specifier: &str, source: &str, expect: &str) -> bool {
+  fn t(source: &str, expect: &str) -> bool {
     let (module, comments, source_map) = parse(source).expect("could not parse module");
     let code = swc_common::GLOBALS.set(&Globals::new(), || {
       let module = module.fold_with(&mut react_refresh(
@@ -1226,7 +1226,7 @@ $RefreshReg$(_c2, "Bar");
 $RefreshReg$(_c3, "Baz");
 $RefreshReg$(_c4, "App");
 "#;
-    assert!(t("/app.jsx", source, expect));
+    assert!(t(source, expect));
   }
 
   #[test]
@@ -1285,7 +1285,7 @@ _s4(App, "useFancyState{bar}", false, ()=>[
 );
 $RefreshReg$(_c, "App");
 "#;
-    assert!(t("/app.jsx", source, expect));
+    assert!(t(source, expect));
   }
 
   #[test]
@@ -1344,7 +1344,7 @@ _s3(App, "useFancyState{bar}\nuseThing{baz}\nuseState{}\nuseThePlatform{}\nuseFa
 );
 $RefreshReg$(_c, "App");
 "#;
-    assert!(t("/app.jsx", source, expect));
+    assert!(t(source, expect));
   }
 
   #[test]
@@ -1448,7 +1448,7 @@ $RefreshReg$(_c16, "%default%$React.memo$forwardRef");
 $RefreshReg$(_c17, "%default%$React.memo");
 $RefreshReg$(_c18, "%default%");
 "#;
-    assert!(t("/app.jsx", source, expect));
+    assert!(t(source, expect));
   }
 
   #[test]
@@ -1542,6 +1542,6 @@ if (cond) {
 export default function() {
 };
 "#;
-    assert!(t("/app.jsx", source, expect));
+    assert!(t(source, expect));
   }
 }
