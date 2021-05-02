@@ -16,8 +16,17 @@ if (parcelRequire == null) {
 
     // Try the node require function if it exists.
     // Do not use `require` to prevent Webpack from trying to bundle this call
+    let nodeRequire;
     if (typeof module !== 'undefined' && typeof module.require === 'function') {
-      return module.require(name);
+      nodeRequire = module.require.bind(module);
+    } else {
+      const req = eval('require');
+      if (typeof req === 'function') {
+        nodeRequire = req;
+      }
+    }
+    if (nodeRequire) {
+      return nodeRequire(name);
     }
 
     var err = new Error("Cannot find module '" + name + "'");
