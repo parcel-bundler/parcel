@@ -14,7 +14,7 @@
     "build": "cross-env NODE_ENV=production PARCEL_BUILD_ENV=production gulp",
     "build-native": "node scripts/build-native.js",
     "build-native-release": "node scripts/build-native.js --release",
-    "build:bundle": "cross-env NODE_ENV=production PARCEL_BUILD_ENV=production PARCEL_BUNDLE_ENV=production gulp bundle",
+    "build:bundle": "yarn build && cross-env NODE_ENV=production PARCEL_BUILD_ENV=production PARCEL_BUNDLE_ENV=production gulp bundle",
     "clean-test": "rimraf packages/core/integration-tests/.parcel-cache && rimraf packages/core/integration-tests/dist",
     "clean": "yarn clean-test && lerna clean --yes && lerna exec -- rimraf ./lib && yarn",
     "format": "prettier --write \"./packages/*/*/{src,bin,test}/**/*.{js,json,md}\" && cargo fmt --all",

@@ -122,6 +122,9 @@ function renameStream(fn) {
 
 function bundleBuild(done) {
   if (process.env.PARCEL_BUILD_ENV == 'production') {
+    // link current parcel binary to node_modules
+    execSync('yarn link', {cwd: 'packages/core/parcel', stdio: 'inherit'});
+    // bundle packages
     const packagesCustomBuild = ['packages/core/parcel'];
     for (const pack of packagesCustomBuild) {
       execSync('yarn bundle', {cwd: pack, stdio: 'inherit'});
