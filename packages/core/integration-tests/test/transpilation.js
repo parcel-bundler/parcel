@@ -174,9 +174,7 @@ describe('transpilation', function() {
         await fs.rimraf(inputDir);
         await fs.rimraf(distDir);
       } catch (e) {
-        if (e.code === 'ENOENT') {
-          throw e;
-        }
+        // ignore
       }
     });
 
