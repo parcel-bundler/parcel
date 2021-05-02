@@ -159,7 +159,11 @@ export class ScopeHoistingPackager {
         )});\n`;
 
         let entryExports = entry.symbols.get('*')?.local;
-        if (entry === mainEntry && this.exportedSymbols.has(entryExports)) {
+        if (
+          entryExports &&
+          entry === mainEntry &&
+          this.exportedSymbols.has(entryExports)
+        ) {
           res += `\nvar ${entryExports} = ${parcelRequire}`;
         } else {
           res += `\n${parcelRequire}`;
@@ -231,7 +235,7 @@ export class ScopeHoistingPackager {
       )) {
         if (typeof symbol === 'string') {
           let symbols = this.exportedSymbols.get(
-            symbol === '*' ? entry.symbols.get('*')?.local : symbol,
+            symbol === '*' ? nullthrows(entry.symbols.get('*')?.local) : symbol,
           );
 
           let local = symbol;
@@ -676,14 +680,15 @@ ${code}
     // is an inline require (not top-level), use a parcelRequire call, otherwise
     // the hoisted variable declared above. Otherwise, if not wrapped, use the
     // namespace export symbol.
+    let assetId = resolvedAsset.meta.id;
+    invariant(typeof assetId === 'string');
     let obj =
       isWrapped && (!dep || dep?.meta.shouldWrap)
         ? // Wrap in extra parenthesis to not change semantics, e.g.`new (parcelRequire("..."))()`.
           `(parcelRequire(${JSON.stringify(publicId)}))`
         : isWrapped && dep
         ? `$${publicId}`
-        : resolvedAsset.symbols.get('*')?.local ||
-          `$${resolvedAsset.meta.id}$exports`;
+        : resolvedAsset.symbols.get('*')?.local || `$${assetId}$exports`;
 
     if (imported === '*' || exportSymbol === '*' || isDefaultInterop) {
       // Resolve to the namespace object if requested or this is a CJS default interop reqiure.

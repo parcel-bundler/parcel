@@ -293,13 +293,14 @@ export async function runBundles(
       break;
     case 'electron-renderer': {
       nodeCache.clear();
-      ctx = prepareBrowserContext(parent.filePath, globals);
+      let prepared = prepareBrowserContext(parent.filePath, globals);
       prepareNodeContext(
         outputFormat === 'commonjs' && parent.filePath,
         globals,
-        ctx,
+        prepared.ctx,
       );
-      promises = ctx.promises;
+      ctx = prepared.ctx;
+      promises = prepared.promises;
       break;
     }
     case 'web-worker': {

@@ -111,7 +111,7 @@ export class CJSOutputFormat implements OutputFormat {
     specifiers: Array<{|key: string, value: string|}>,
     value: string,
     isIdentifier: boolean,
-  ) {
+  ): [string, number] {
     let res = '';
     let lines = 0;
 
