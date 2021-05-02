@@ -28,7 +28,7 @@
     "command-exists": "^1.2.6",
     "cross-spawn": "^6.0.4",
     "nullthrows": "^1.1.1",
-    "semver": "^5.4.1",
+    "semver": "^7.3.5",
     "split2": "^3.1.1"
   },
   "peerDependencies": {

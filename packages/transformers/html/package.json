@@ -26,6 +26,6 @@
     "posthtml": "^0.15.1",
     "posthtml-parser": "^0.6.0",
     "posthtml-render": "^1.4.0",
-    "semver": "^5.4.1"
+    "semver": "^7.3.5"
   }
 }

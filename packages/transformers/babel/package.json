@@ -32,7 +32,7 @@
     "browserslist": "^4.6.6",
     "core-js": "^3.2.1",
     "nullthrows": "^1.1.1",
-    "semver": "^5.7.0"
+    "semver": "^7.3.5"
   },
   "devDependencies": {
     "@babel/core": "^7.12.0",

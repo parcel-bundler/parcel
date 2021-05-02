@@ -52,7 +52,7 @@
     "mocha-multi-reporters": "^1.5.1",
     "prettier": "1.19.1",
     "rimraf": "^2.6.3",
-    "semver": "^5.4.1",
+    "semver": "^7.3.5",
     "sinon": "^7.3.1"
   },
   "engines": {
