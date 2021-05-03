@@ -12,6 +12,9 @@ extern crate inflector;
 extern crate serde;
 extern crate sha1;
 
+#[global_allocator]
+static GLOBAL: jemallocator::Jemalloc = jemallocator::Jemalloc;
+
 mod decl_collector;
 mod dependency_collector;
 mod env_replacer;
