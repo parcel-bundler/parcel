@@ -20,7 +20,7 @@ data-encoding = "2.3.2"
 sha-1 = "0.9.4"
 dunce = "1.0.1"
 
-[target.'cfg(all(unix, not(target_env = "musl")))'.dependencies]
+[target.'cfg(all(unix, not(target_env = "musl"), any(target_os = "macos", not(target_arch = "aarch64"))))'.dependencies]
 jemallocator = "0.3.2"
 
 [target.'cfg(windows)'.dependencies]
