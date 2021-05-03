@@ -12,7 +12,7 @@ extern crate inflector;
 extern crate serde;
 extern crate sha1;
 
-#[cfg(all(unix, not(target_env = "musl")))]
+#[cfg(target_os = "macos")]
 #[global_allocator]
 static GLOBAL: jemallocator::Jemalloc = jemallocator::Jemalloc;
 

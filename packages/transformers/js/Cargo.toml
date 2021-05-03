@@ -20,7 +20,7 @@ data-encoding = "2.3.2"
 sha-1 = "0.9.4"
 dunce = "1.0.1"
 
-[target.'cfg(all(unix, not(target_env = "musl")))'.dependencies]
+[target.'cfg(target_os = "macos")'.dependencies]
 jemallocator = { version = "0.3.2", features = ["disable_initial_exec_tls"] }
 
 [target.'cfg(windows)'.dependencies]
