@@ -28,6 +28,7 @@
     "@parcel/packager-html": "2.0.0-frontbucket.72",
     "@parcel/packager-js": "2.0.0-frontbucket.72",
     "@parcel/packager-raw": "2.0.0-frontbucket.72",
+    "@parcel/reporter-manifest": "^2.0.0-frontbucket.72",
     "@parcel/resolver-default": "2.0.0-frontbucket.72",
     "@parcel/runtime-browser-hmr": "2.0.0-frontbucket.72",
     "@parcel/runtime-js": "2.0.0-frontbucket.72",

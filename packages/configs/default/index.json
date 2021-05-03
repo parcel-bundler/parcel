@@ -69,5 +69,8 @@
     "*": "@parcel/packager-raw"
   },
   "resolvers": ["@parcel/resolver-default"],
-  "reporters": ["@atlassian/parcel-reporter-analytics"]
+  "reporters": [
+    "@atlassian/parcel-reporter-analytics",
+    "@parcel/reporter-manifest"
+  ]
 }
