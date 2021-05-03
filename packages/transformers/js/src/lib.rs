@@ -23,7 +23,6 @@ static ALLOC: mimalloc::MiMalloc = mimalloc::MiMalloc;
 mod decl_collector;
 mod dependency_collector;
 mod env_replacer;
-mod fast_refresh;
 mod fs;
 mod global_replacer;
 mod hoist;
@@ -55,7 +54,6 @@ use swc_ecmascript::visit::FoldWith;
 use decl_collector::*;
 use dependency_collector::*;
 use env_replacer::*;
-use fast_refresh::react_refresh;
 use fs::inline_fs;
 use global_replacer::GlobalReplacer;
 use hoist::hoist;
@@ -230,7 +228,12 @@ fn transform(ctx: CallContext) -> Result<JsUnknown> {
             module = {
               let mut passes = chain!(
                 Optional::new(
-                  react_refresh("$RefreshReg$", "$RefreshSig$", false, source_map.clone()),
+                  react::refresh(
+                    true,
+                    Some(react::RefreshOptions::default()),
+                    source_map.clone(),
+                    Some(&comments),
+                  ),
                   config.react_refresh
                 ),
                 Optional::new(
