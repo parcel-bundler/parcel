@@ -12,8 +12,13 @@ extern crate inflector;
 extern crate serde;
 extern crate sha1;
 
+#[cfg(all(unix, not(target_env = "musl")))]
 #[global_allocator]
 static GLOBAL: jemallocator::Jemalloc = jemallocator::Jemalloc;
+
+#[cfg(windows)]
+#[global_allocator]
+static ALLOC: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
 mod decl_collector;
 mod dependency_collector;

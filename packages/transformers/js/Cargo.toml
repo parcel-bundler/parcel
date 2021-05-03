@@ -19,7 +19,12 @@ Inflector = "0.11.4"
 data-encoding = "2.3.2"
 sha-1 = "0.9.4"
 dunce = "1.0.1"
+
+[target.'cfg(all(unix, not(target_env = "musl")))'.dependencies]
 jemallocator = "0.3.2"
+
+[target.'cfg(windows)'.dependencies]
+mimalloc = { version = "0.1.25", default-features = false }
 
 [build-dependencies]
 napi-build = { version = "1" }
