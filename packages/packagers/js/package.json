@@ -1,6 +1,6 @@
 {
   "name": "@parcel/packager-js",
-  "version": "2.0.0-frontbucket.72",
+  "version": "2.0.0-frontbucket.73",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -21,10 +21,10 @@
   },
   "dependencies": {
     "@babel/traverse": "^7.2.3",
-    "@parcel/plugin": "2.0.0-frontbucket.72",
-    "@parcel/scope-hoisting": "2.0.0-frontbucket.72",
+    "@parcel/plugin": "2.0.0-frontbucket.73",
+    "@parcel/scope-hoisting": "2.0.0-frontbucket.73",
     "@parcel/source-map": "2.0.0-alpha.4.21",
-    "@parcel/utils": "2.0.0-frontbucket.72",
+    "@parcel/utils": "2.0.0-frontbucket.73",
     "nullthrows": "^1.1.1"
   }
 }
