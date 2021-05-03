@@ -107,8 +107,8 @@ impl<'a> Fold for Hoist<'a> {
   fn fold_module(&mut self, node: Module) -> Module {
     let mut node = node;
     let mut hoisted_imports = vec![];
-    for item in &node.body {
-      match &item {
+    for item in node.body {
+      match item {
         ModuleItem::ModuleDecl(decl) => {
           match decl {
             ModuleDecl::Import(import) => {
@@ -156,7 +156,7 @@ impl<'a> Fold for Hoist<'a> {
               }
             }
             ModuleDecl::ExportNamed(export) => {
-              if let Some(src) = &export.src {
+              if let Some(src) = export.src {
                 // TODO: skip if already imported.
                 hoisted_imports.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
                   specifiers: vec![],
@@ -171,23 +171,23 @@ impl<'a> Fold for Hoist<'a> {
                   type_only: false,
                 })));
 
-                for specifier in &export.specifiers {
+                for specifier in export.specifiers {
                   match specifier {
                     ExportSpecifier::Named(named) => {
-                      let exported = match &named.exported {
-                        Some(exported) => exported.sym.clone(),
+                      let exported = match named.exported {
+                        Some(exported) => exported.sym,
                         None => named.orig.sym.clone(),
                       };
                       self.re_exports.push((
                         exported,
                         src.value.clone(),
-                        named.orig.sym.clone(),
+                        named.orig.sym,
                         SourceLocation::from(&self.collect.source_map, named.span),
                       ));
                     }
                     ExportSpecifier::Default(default) => {
                       self.re_exports.push((
-                        default.exported.sym.clone(),
+                        default.exported.sym,
                         src.value.clone(),
                         js_word!("default"),
                         SourceLocation::from(&self.collect.source_map, default.exported.span),
@@ -195,7 +195,7 @@ impl<'a> Fold for Hoist<'a> {
                     }
                     ExportSpecifier::Namespace(namespace) => {
                       self.re_exports.push((
-                        namespace.name.sym.clone(),
+                        namespace.name.sym,
                         src.value.clone(),
                         "*".into(),
                         SourceLocation::from(&self.collect.source_map, namespace.span),
@@ -204,16 +204,17 @@ impl<'a> Fold for Hoist<'a> {
                   }
                 }
               } else {
-                for specifier in &export.specifiers {
+                for specifier in export.specifiers {
                   match specifier {
                     ExportSpecifier::Named(named) => {
-                      let exported = match &named.exported {
-                        Some(exported) => exported.sym.clone(),
-                        None => named.orig.sym.clone(),
+                      let id = id!(named.orig);
+                      let exported = match named.exported {
+                        Some(exported) => exported.sym,
+                        None => named.orig.sym,
                       };
                       if let Some(Import {
                         source, specifier, ..
-                      }) = self.collect.imports.get(&id!(named.orig))
+                      }) = self.collect.imports.get(&id)
                       {
                         self.re_exports.push((
                           exported,
@@ -225,7 +226,7 @@ impl<'a> Fold for Hoist<'a> {
                         // A variable will appear only once in the `exports` mapping but
                         // could be exported multiple times with different names.
                         // Find the original exported name, and remap.
-                        let orig_exported = self.collect.exports.get(&id!(named.orig)).unwrap();
+                        let orig_exported = self.collect.exports.get(&id).unwrap();
                         let id = if self.collect.should_wrap {
                           Ident::new(orig_exported.clone(), DUMMY_SP)
                         } else {
@@ -257,14 +258,14 @@ impl<'a> Fold for Hoist<'a> {
               })));
               self.re_exports.push((
                 "*".into(),
-                export.src.value.clone(),
+                export.src.value,
                 "*".into(),
                 SourceLocation::from(&self.collect.source_map, export.span),
               ));
             }
             ModuleDecl::ExportDefaultExpr(export) => {
               let ident = self.get_export_ident(export.span, &"default".into());
-              let init = export.expr.clone().fold_with(self);
+              let init = export.expr.fold_with(self);
               self
                 .module_items
                 .push(ModuleItem::Stmt(Stmt::Decl(Decl::Var(VarDecl {
@@ -280,16 +281,16 @@ impl<'a> Fold for Hoist<'a> {
                 }))));
             }
             ModuleDecl::ExportDefaultDecl(export) => {
-              let decl = match &export.decl {
+              let decl = match export.decl {
                 DefaultDecl::Class(class) => Decl::Class(ClassDecl {
                   ident: self.get_export_ident(DUMMY_SP, &"default".into()),
                   declare: false,
-                  class: class.class.clone().fold_with(self),
+                  class: class.class.fold_with(self),
                 }),
                 DefaultDecl::Fn(func) => Decl::Fn(FnDecl {
                   ident: self.get_export_ident(DUMMY_SP, &"default".into()),
                   declare: false,
-                  function: func.function.clone().fold_with(self),
+                  function: func.function.fold_with(self),
                 }),
                 _ => {
                   unreachable!("unsupported export default declaration");
@@ -299,12 +300,12 @@ impl<'a> Fold for Hoist<'a> {
               self.module_items.push(ModuleItem::Stmt(Stmt::Decl(decl)));
             }
             ModuleDecl::ExportDecl(export) => {
-              let d = export.decl.clone().fold_with(self);
+              let d = export.decl.fold_with(self);
               self.module_items.push(ModuleItem::Stmt(Stmt::Decl(d)));
             }
-            _ => {
-              let d = item.clone().fold_with(self);
-              self.module_items.push(d)
+            item => {
+              let d = item.fold_with(self);
+              self.module_items.push(ModuleItem::ModuleDecl(d))
             }
           }
         }
@@ -329,12 +330,15 @@ impl<'a> Fold for Hoist<'a> {
                           // var x = sideEffect(), y = require('foo'), z = 2;
                           //   -> var x = sideEffect(); import 'foo'; var y = $id$import$foo, z = 2;
                           if decls.len() > 0 {
-                            let mut var = var.clone();
-                            var.decls = decls.clone();
+                            let var = VarDecl {
+                              span: var.span,
+                              kind: var.kind,
+                              declare: var.declare,
+                              decls: std::mem::take(&mut decls),
+                            };
                             self
                               .module_items
                               .push(ModuleItem::Stmt(Stmt::Decl(Decl::Var(var))));
-                            decls.clear();
                           }
 
                           self
@@ -353,7 +357,7 @@ impl<'a> Fold for Hoist<'a> {
                             })));
 
                           // Create variable assignments for any declarations that are not constant.
-                          self.handle_non_const_require(v, &source);
+                          self.handle_non_const_require(&v, &source);
                           continue;
                         }
                       }
@@ -372,12 +376,15 @@ impl<'a> Fold for Hoist<'a> {
                                   // var x = sideEffect(), y = require('foo').bar, z = 2;
                                   //   -> var x = sideEffect(); import 'foo'; var y = $id$import$foo$bar, z = 2;
                                   if decls.len() > 0 {
-                                    let mut var = var.clone();
-                                    var.decls = decls.clone();
+                                    let var = VarDecl {
+                                      span: var.span,
+                                      kind: var.kind,
+                                      declare: var.declare,
+                                      decls: std::mem::take(&mut decls),
+                                    };
                                     self
                                       .module_items
                                       .push(ModuleItem::Stmt(Stmt::Decl(Decl::Var(var))));
-                                    decls.clear();
                                   }
 
                                   self.module_items.push(ModuleItem::ModuleDecl(
@@ -395,7 +402,7 @@ impl<'a> Fold for Hoist<'a> {
                                     }),
                                   ));
 
-                                  self.handle_non_const_require(v, &source);
+                                  self.handle_non_const_require(&v, &source);
                                   continue;
                                 }
                               }
@@ -417,12 +424,15 @@ impl<'a> Fold for Hoist<'a> {
                     let d = v.clone().fold_with(self);
                     if self.module_items.len() > items_len {
                       if decls.len() > 0 {
-                        let mut var = var.clone();
-                        var.decls = decls.clone();
+                        let var = VarDecl {
+                          span: var.span,
+                          kind: var.kind,
+                          declare: var.declare,
+                          decls: std::mem::take(&mut decls),
+                        };
                         self
                           .module_items
                           .insert(items_len, ModuleItem::Stmt(Stmt::Decl(Decl::Var(var))));
-                        decls.clear();
                       }
                     }
                     decls.push(d);
@@ -430,29 +440,33 @@ impl<'a> Fold for Hoist<'a> {
 
                   // Push whatever declarators are left.
                   if decls.len() > 0 {
-                    let mut var = var.clone();
-                    var.decls = decls;
+                    let var = VarDecl {
+                      span: var.span,
+                      kind: var.kind,
+                      declare: var.declare,
+                      decls,
+                    };
                     self
                       .module_items
                       .push(ModuleItem::Stmt(Stmt::Decl(Decl::Var(var))))
                   }
                 }
-                _ => {
-                  let d = item.clone().fold_with(self);
-                  self.module_items.push(d)
+                item => {
+                  let d = item.fold_with(self);
+                  self.module_items.push(ModuleItem::Stmt(Stmt::Decl(d)))
                 }
               }
             }
-            _ => {
-              let d = item.clone().fold_with(self);
-              self.module_items.push(d)
+            item => {
+              let d = item.fold_with(self);
+              self.module_items.push(ModuleItem::Stmt(d))
             }
           }
         }
       }
     }
 
-    for name in &self.export_decls {
+    for name in self.export_decls.drain() {
       hoisted_imports.push(ModuleItem::Stmt(Stmt::Decl(Decl::Var(VarDecl {
         declare: false,
         kind: VarDeclKind::Var,
@@ -460,14 +474,14 @@ impl<'a> Fold for Hoist<'a> {
         decls: vec![VarDeclarator {
           definite: false,
           span: node.span,
-          name: Pat::Ident(BindingIdent::from(Ident::new(name.clone(), DUMMY_SP))),
+          name: Pat::Ident(BindingIdent::from(Ident::new(name, DUMMY_SP))),
           init: None,
         }],
       }))));
     }
 
     self.module_items.splice(0..0, hoisted_imports);
-    node.body = self.module_items.clone();
+    node.body = std::mem::take(&mut self.module_items);
     node
   }
 
@@ -488,7 +502,7 @@ impl<'a> Fold for Hoist<'a> {
   }
 
   fn fold_expr(&mut self, node: Expr) -> Expr {
-    match &node {
+    match node {
       Expr::Member(member) => {
         if !self.collect.should_wrap {
           if match_member_expr(&member, vec!["module", "exports"], &self.collect.decls) {
@@ -506,18 +520,18 @@ impl<'a> Fold for Hoist<'a> {
             if !member.computed {
               ident.sym.clone()
             } else {
-              return node.fold_children_with(self);
+              return Expr::Member(member.fold_children_with(self));
             }
           }
           Expr::Lit(lit) => match lit {
             Lit::Str(str_) => str_.value.clone(),
-            _ => return node.fold_children_with(self),
+            _ => return Expr::Member(member.fold_children_with(self)),
           },
-          _ => return node.fold_children_with(self),
+          _ => return Expr::Member(member.fold_children_with(self)),
         };
 
-        match &member.obj {
-          ExprOrSuper::Expr(expr) => {
+        match member.obj {
+          ExprOrSuper::Expr(ref expr) => {
             match &**expr {
               Expr::Ident(ident) => {
                 // import * as y from 'x'; OR const y = require('x'); OR const y = await import('x');
@@ -616,12 +630,12 @@ impl<'a> Fold for Hoist<'a> {
         // Don't visit member.prop so we avoid the ident visitor.
         return Expr::Member(MemberExpr {
           span: member.span,
-          obj: member.obj.clone().fold_with(self),
-          prop: member.prop.clone(),
+          obj: member.obj.fold_with(self),
+          prop: member.prop,
           computed: member.computed,
         });
       }
-      Expr::Call(call) => {
+      Expr::Call(ref call) => {
         // require('foo') -> $id$import$foo
         if let Some(source) = match_require(&node, &self.collect.decls, self.collect.ignore_mark) {
           self.add_require(&source);
@@ -641,7 +655,7 @@ impl<'a> Fold for Hoist<'a> {
             self.imported_symbols.insert(
               name.clone(),
               (
-                source.clone(),
+                source,
                 "*".into(),
                 SourceLocation::from(&self.collect.source_map, call.span),
               ),
@@ -661,7 +675,7 @@ impl<'a> Fold for Hoist<'a> {
           }
         }
       }
-      Expr::Unary(unary) => {
+      Expr::Unary(ref unary) => {
         // typeof require -> "function"
         // typeof module -> "object"
         if unary.op == UnaryOp::TypeOf {
@@ -826,11 +840,13 @@ impl<'a> Fold for Hoist<'a> {
     match &**expr {
       Expr::Member(member) => {
         if match_member_expr(&member, vec!["module", "exports"], &self.collect.decls) {
-          let mut assign = node.clone();
           let ident = BindingIdent::from(self.get_export_ident(member.span, &"*".into()));
-          assign.left = PatOrExpr::Pat(Box::new(Pat::Ident(ident.clone())));
-          assign.right = node.right.fold_with(self);
-          return assign;
+          return AssignExpr {
+            span: node.span,
+            op: node.op,
+            left: PatOrExpr::Pat(Box::new(Pat::Ident(ident))),
+            right: node.right.fold_with(self),
+          };
         }
 
         let is_cjs_exports = match &member.obj {
@@ -872,17 +888,21 @@ impl<'a> Fold for Hoist<'a> {
             self.export_decls.insert(ident.id.sym.clone());
           }
 
-          let mut assign = node.clone();
-          assign.left = if self.collect.static_cjs_exports {
-            PatOrExpr::Pat(Box::new(Pat::Ident(ident.clone())))
-          } else {
-            let mut member = member.clone();
-            member.obj = ExprOrSuper::Expr(Box::new(Expr::Ident(ident.id.clone())));
-            member.prop = member.prop.fold_with(self);
-            PatOrExpr::Pat(Box::new(Pat::Expr(Box::new(Expr::Member(member)))))
+          return AssignExpr {
+            span: node.span,
+            op: node.op,
+            left: if self.collect.static_cjs_exports {
+              PatOrExpr::Pat(Box::new(Pat::Ident(ident)))
+            } else {
+              PatOrExpr::Pat(Box::new(Pat::Expr(Box::new(Expr::Member(MemberExpr {
+                span: member.span,
+                obj: ExprOrSuper::Expr(Box::new(Expr::Ident(ident.id.clone()))),
+                prop: member.prop.clone().fold_with(self),
+                computed: member.computed,
+              })))))
+            },
+            right: node.right.fold_with(self),
           };
-          assign.right = node.right.fold_with(self);
-          return assign;
         }
       }
       _ => {}
@@ -919,19 +939,17 @@ impl<'a> Fold for Hoist<'a> {
     }
 
     // var {a, b} = foo; -> var {a: $id$var$a, b: $id$var$b} = foo;
-    match &node {
+    match node {
       ObjectPatProp::Assign(assign) => ObjectPatProp::KeyValue(KeyValuePatProp {
         key: PropName::Ident(Ident::new(assign.key.sym.clone(), DUMMY_SP)),
-        value: Box::new(match &assign.value {
+        value: Box::new(match assign.value {
           Some(value) => Pat::Assign(AssignPat {
-            left: Box::new(Pat::Ident(BindingIdent::from(
-              assign.key.clone().fold_with(self),
-            ))),
-            right: value.clone().fold_with(self),
+            left: Box::new(Pat::Ident(BindingIdent::from(assign.key.fold_with(self)))),
+            right: value.fold_with(self),
             span: DUMMY_SP,
             type_ann: None,
           }),
-          None => Pat::Ident(BindingIdent::from(assign.key.clone().fold_with(self))),
+          None => Pat::Ident(BindingIdent::from(assign.key.fold_with(self))),
         }),
       }),
       _ => node.fold_children_with(self),
@@ -1037,7 +1055,7 @@ impl<'a> Hoist<'a> {
             decls: vec![VarDeclarator {
               definite: false,
               span: DUMMY_SP,
-              name: Pat::Ident(BindingIdent::from(require_id.clone())),
+              name: Pat::Ident(BindingIdent::from(require_id)),
               init: Some(Box::new(Expr::Ident(import_id))),
             }],
           }))));
@@ -1425,6 +1443,17 @@ impl Visit for Collect {
   }
 
   fn visit_expr(&mut self, node: &Expr, _parent: &dyn Node) {
+    // If we reached this visitor, this is a non-top-level require that isn't in a variable
+    // declaration. We need to wrap the referenced module to preserve side effect ordering.
+    if let Some(source) = self.match_require(node) {
+      self.wrapped_requires.insert(source);
+    }
+
+    if let Some(source) = match_import(node, self.ignore_mark) {
+      self.non_static_requires.insert(source.clone());
+      self.wrapped_requires.insert(source);
+    }
+
     match node {
       Expr::Ident(ident) => {
         // Bail if `module` or `exports` are accessed non-statically.
@@ -1569,17 +1598,6 @@ impl Visit for Collect {
   }
 
   fn visit_call_expr(&mut self, node: &CallExpr, _parent: &dyn Node) {
-    // If we reached this visitor, this is a non-top-level require that isn't in a variable
-    // declaration. We need to wrap the referenced module to preserve side effect ordering.
-    if let Some(source) = self.match_require(&Expr::Call(node.clone())) {
-      self.wrapped_requires.insert(source.clone());
-    }
-
-    if let Some(source) = match_import(&Expr::Call(node.clone()), self.ignore_mark) {
-      self.non_static_requires.insert(source.clone());
-      self.wrapped_requires.insert(source.clone());
-    }
-
     match &node.callee {
       ExprOrSuper::Expr(expr) => {
         match &**expr {
@@ -1618,7 +1636,7 @@ impl Visit for Collect {
                         self.add_pat_imports(param, &source, ImportKind::DynamicImport);
                       } else {
                         self.non_static_requires.insert(source.clone());
-                        self.wrapped_requires.insert(source.clone());
+                        self.wrapped_requires.insert(source);
                       }
 
                       expr.visit_with(node, self);
