@@ -20,8 +20,7 @@ import {
   restoreDeserializedObject,
   serialize,
 } from '@parcel/core';
-import ThrowableDiagnostic, {anyToDiagnostic} from '@parcel/diagnostic';
-import {escapeMarkdown} from '@parcel/utils';
+import ThrowableDiagnostic, {anyToDiagnostic, md} from '@parcel/diagnostic';
 import Worker, {type WorkerCall} from './Worker';
 import cpuCount from './cpuCount';
 import Handle from './Handle';
@@ -497,7 +496,7 @@ export default class WorkerFarm extends EventEmitter {
 
     logger.info({
       origin: '@parcel/workers',
-      message: escapeMarkdown(`Wrote profile to ${filename}`),
+      message: md`Wrote profile to ${filename}`,
     });
   }
 
@@ -543,10 +542,9 @@ export default class WorkerFarm extends EventEmitter {
 
       logger.info({
         origin: '@parcel/workers',
-        message: escapeMarkdown(
-          'Wrote heap snapshots to the following paths:\n' +
-            snapshotPaths.join('\n'),
-        ),
+        message: md`Wrote heap snapshots to the following paths:\n${snapshotPaths.join(
+          '\n',
+        )}`,
       });
     } catch {
       logger.error({

@@ -23,6 +23,7 @@ export const DEFAULT_OPTIONS: ParcelOptions = {
   shouldAutoInstall: false,
   hmrOptions: undefined,
   shouldContentHash: true,
+  shouldBuildLazily: false,
   serveOptions: false,
   mode: 'development',
   env: {},
@@ -33,6 +34,7 @@ export const DEFAULT_OPTIONS: ParcelOptions = {
   cache,
   shouldPatchConsole: false,
   packageManager: new NodePackageManager(inputFS),
+  additionalReporters: [],
   instanceId: 'test',
   defaultTargetOptions: {
     shouldScopeHoist: false,

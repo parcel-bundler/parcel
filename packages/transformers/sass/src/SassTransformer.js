@@ -1,11 +1,11 @@
 // @flow
 import {Transformer} from '@parcel/plugin';
-import {promisify} from '@parcel/utils';
 import path from 'path';
 import {EOL} from 'os';
 import SourceMap from '@parcel/source-map';
 import sass from 'sass';
 import {pathToFileURL} from 'url';
+import {promisify} from 'util';
 
 // E.g: ~library/file.sass
 const WEBPACK_ALIAS_RE = /^~[^/]/;
@@ -16,55 +16,37 @@ export default (new Transformer({
       packageKey: 'sass',
     });
 
-    let configResult = {
-      contents: configFile ? configFile.contents : {},
-      isSerialisable: true,
-    };
+    let configResult = configFile ? configFile.contents : {};
 
     // Resolve relative paths from config file
-    if (configFile && configResult.contents.includePaths) {
-      configResult.contents.includePaths = configResult.contents.includePaths.map(
-        p => path.resolve(path.dirname(configFile.filePath), p),
+    if (configFile && configResult.includePaths) {
+      configResult.includePaths = configResult.includePaths.map(p =>
+        path.resolve(path.dirname(configFile.filePath), p),
       );
     }
 
     if (configFile && path.extname(configFile.filePath) === '.js') {
       config.shouldInvalidateOnStartup();
-      config.shouldReload();
-
-      configResult.isSerialisable = false;
     }
 
-    if (configResult.contents.importer === undefined) {
-      configResult.contents.importer = [];
-    } else if (!Array.isArray(configResult.contents.importer)) {
-      configResult.contents.importer = [configResult.contents.importer];
+    if (configResult.importer === undefined) {
+      configResult.importer = [];
+    } else if (!Array.isArray(configResult.importer)) {
+      configResult.importer = [configResult.importer];
     }
 
     // Always emit sourcemap
-    configResult.contents.sourceMap = true;
+    configResult.sourceMap = true;
     // sources are created relative to the directory of outFile
-    configResult.contents.outFile = path.join(
-      options.projectRoot,
-      'style.css.map',
-    );
-    configResult.contents.omitSourceMapUrl = true;
-    configResult.contents.sourceMapContents = false;
+    configResult.outFile = path.join(options.projectRoot, 'style.css.map');
+    configResult.omitSourceMapUrl = true;
+    configResult.sourceMapContents = false;
 
     config.setResult(configResult);
   },
 
-  preSerializeConfig({config}) {
-    if (!config.result) return;
-
-    // Ensure we dont try to serialise functions
-    if (!config.result.isSerialisable) {
-      config.result.contents = {};
-    }
-  },
-
   async transform({asset, options, config, resolve}) {
-    let rawConfig = config ? config.contents : {};
+    let rawConfig = config ?? {};
     let sassRender = promisify(sass.render.bind(sass));
     let css;
     try {
@@ -128,7 +110,7 @@ function resolvePathImporter({asset, resolve, includePaths, options}) {
         * Loading a file relative to the current working directory (This rule doesn't really make sense for Parcel).
         * Each load path in `includePaths`
         * Each load path specified in the `SASS_PATH` environment variable, which should be semicolon-separated on Windows and colon-separated elsewhere.
-    
+
       See: https://sass-lang.com/documentation/js-api#importer
       See also: https://github.com/sass/dart-sass/blob/006e6aa62f2417b5267ad5cdb5ba050226fab511/lib/src/importer/node/implementation.dart
     */

@@ -1,20 +1,15 @@
 // @flow strict-local
-import type {NamedBundle} from '@parcel/types';
+import type {PackagedBundle} from '@parcel/types';
 import {Reporter} from '@parcel/plugin';
 import path from 'path';
 
 export default (new Reporter({
-  async report({event, options}) {
-    if (
-      event.type !== 'buildSuccess' ||
-      process.env.BUNDLE_BUDDY == null ||
-      // $FlowFixMe
-      process.env.BUNDLE_BUDDY == false
-    ) {
+  async report({event, options, logger}) {
+    if (event.type !== 'buildSuccess') {
       return;
     }
 
-    let bundlesByTarget: Map<string, Array<NamedBundle>> = new Map();
+    let bundlesByTarget: Map<string, Array<PackagedBundle>> = new Map();
     for (let bundle of event.bundleGraph.getBundles()) {
       if (!bundle.isInline) {
         let bundles = bundlesByTarget.get(bundle.target.distDir);
@@ -48,9 +43,15 @@ export default (new Reporter({
       }
 
       await options.outputFS.writeFile(
-        `${targetDir}/bundle-buddy.json`,
+        path.join(targetDir, 'bundle-buddy.json'),
         JSON.stringify(out),
       );
+      logger.info({
+        message: `Wrote report to ${path.relative(
+          options.outputFS.cwd(),
+          path.join(targetDir, 'bundle-buddy.json'),
+        )}`,
+      });
     }
   },
 }): Reporter);

@@ -4,10 +4,11 @@ import {Transformer} from '@parcel/plugin';
 import path from 'path';
 import SourceMap from '@parcel/source-map';
 import type {DiagnosticCodeFrame} from '@parcel/diagnostic';
-
 import type {CompilerOptions} from 'typescript';
+
 import ts from 'typescript';
 import {CompilerHost, loadTSConfig} from '@parcel/ts-utils';
+import {escapeMarkdown} from '@parcel/diagnostic';
 import {TSModuleGraph} from './TSModuleGraph';
 import nullthrows from 'nullthrows';
 import {collect} from './collect';
@@ -51,17 +52,17 @@ export default (new Transformer({
     let mainModuleName = path
       .relative(program.getCommonSourceDirectory(), asset.filePath)
       .slice(0, -path.extname(asset.filePath).length);
-    let moduleGraph = new TSModuleGraph(ts, mainModuleName);
+    let moduleGraph = new TSModuleGraph(mainModuleName);
 
     let emitResult = program.emit(undefined, undefined, undefined, true, {
       afterDeclarations: [
         // 1. Build module graph
         context => sourceFile => {
-          return collect(ts, moduleGraph, context, sourceFile);
+          return collect(moduleGraph, context, sourceFile);
         },
         // 2. Tree shake and rename types
         context => sourceFile => {
-          return shake(ts, moduleGraph, context, sourceFile);
+          return shake(moduleGraph, context, sourceFile);
         },
       ],
     });
@@ -119,7 +120,7 @@ export default (new Transformer({
                 {
                   start,
                   end,
-                  message: diagnosticMessage,
+                  message: escapeMarkdown(diagnosticMessage),
                 },
               ],
             };
@@ -127,7 +128,7 @@ export default (new Transformer({
         }
 
         logger.warn({
-          message: diagnosticMessage,
+          message: escapeMarkdown(diagnosticMessage),
           filePath: filename,
           codeFrame: codeframe ? codeframe : undefined,
         });

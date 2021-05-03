@@ -1,5 +1,6 @@
 // @flow
 import v8 from 'v8';
+import {createBuildCache} from './buildCache';
 
 const nameToCtor: Map<string, Class<*>> = new Map();
 const ctorToName: Map<Class<*>, string> = new Map();
@@ -119,9 +120,10 @@ function mapObject(object: any, fn: (val: any) => any, preOrder = false): any {
         if (result instanceof Map) {
           result.set(key, newValue);
         } else if (result instanceof Set) {
+          let _result = result; // For Flow
           // TODO: do we care about iteration order??
-          result.delete(value);
-          result.add(newValue);
+          _result.delete(value);
+          _result.add(newValue);
         } else {
           result[key] = newValue;
         }
@@ -218,7 +220,14 @@ export function restoreDeserializedObject(object: any): any {
   });
 }
 
+const serializeCache = createBuildCache();
+
 export function serialize(object: any): Buffer {
+  let cached = serializeCache.get(object);
+  if (cached) {
+    return cached;
+  }
+
   let mapped = prepareForSerialization(object);
   // $FlowFixMe - flow doesn't know about this method yet
   return v8.serialize(mapped);
@@ -228,4 +237,18 @@ export function deserialize(buffer: Buffer): any {
   // $FlowFixMe - flow doesn't know about this method yet
   let obj = v8.deserialize(buffer);
   return restoreDeserializedObject(obj);
+}
+
+export function cacheSerializedObject(object: any, buffer?: Buffer): void {
+  serializeCache.set(object, buffer || serialize(object));
+}
+
+export function deserializeToCache(buffer: Buffer): any {
+  let deserialized = deserialize(buffer);
+  serializeCache.set(deserialized, buffer);
+  return deserialized;
+}
+
+export function removeSerializedObjectFromCache(object: any) {
+  serializeCache.delete(object);
 }

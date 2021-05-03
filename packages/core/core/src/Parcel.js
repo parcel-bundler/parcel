@@ -5,6 +5,7 @@ import type {
   BuildEvent,
   BuildSuccessEvent,
   InitialParcelOptions,
+  PackagedBundle as IPackagedBundle,
 } from '@parcel/types';
 import type {ParcelOptions} from './types';
 // eslint-disable-next-line no-unused-vars
@@ -15,9 +16,8 @@ import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import invariant from 'assert';
 import ThrowableDiagnostic, {anyToDiagnostic} from '@parcel/diagnostic';
 import {assetFromValue} from './public/Asset';
-import {NamedBundle} from './public/Bundle';
+import {PackagedBundle} from './public/Bundle';
 import BundleGraph from './public/BundleGraph';
-import BundlerRunner from './BundlerRunner';
 import WorkerFarm from '@parcel/workers';
 import nullthrows from 'nullthrows';
 import {assertSignalNotAborted, BuildAbortError} from './utils';
@@ -36,6 +36,7 @@ import logger from '@parcel/logger';
 import RequestTracker, {getWatcherOptions} from './RequestTracker';
 import createAssetGraphRequest from './requests/AssetGraphRequest';
 import createValidationRequest from './requests/ValidationRequest';
+import createBundleGraphRequest from './requests/BundleGraphRequest';
 import {Disposable} from '@parcel/events';
 
 registerCoreWithSerializer();
@@ -45,7 +46,6 @@ export const INTERNAL_RESOLVE: symbol = Symbol('internal_resolve');
 
 export default class Parcel {
   #requestTracker /*: RequestTracker*/;
-  #bundlerRunner /*: BundlerRunner*/;
   #packagerRunner /*: PackagerRunner*/;
   #config /*: ParcelConfig*/;
   #farm /*: WorkerFarm*/;
@@ -71,6 +71,7 @@ export default class Parcel {
   > */;
   #watcherSubscription /*: ?AsyncSubscription*/;
   #watcherCount /*: number*/ = 0;
+  #requestedAssetIds /*: Set<string>*/ = new Set();
 
   isProfiling /*: boolean */;
 
@@ -130,14 +131,6 @@ export default class Parcel {
       options: resolvedOptions,
     });
 
-    this.#bundlerRunner = new BundlerRunner({
-      options: resolvedOptions,
-      optionsRef: optionsRef,
-      requestTracker: this.#requestTracker,
-      config: this.#config,
-      workerFarm: this.#farm,
-    });
-
     this.#reporterRunner = new ReporterRunner({
       config: this.#config,
       options: resolvedOptions,
@@ -183,16 +176,20 @@ export default class Parcel {
     await this.#farm.callAllWorkers('clearConfigCache', []);
   }
 
-  async _startNextBuild() {
+  async _startNextBuild(): Promise<?BuildEvent> {
     this.#watchAbortController = new AbortController();
     await this.#farm.callAllWorkers('clearConfigCache', []);
 
     try {
-      this.#watchEvents.emit({
-        buildEvent: await this._build({
-          signal: this.#watchAbortController.signal,
-        }),
+      let buildEvent = await this._build({
+        signal: this.#watchAbortController.signal,
       });
+
+      this.#watchEvents.emit({
+        buildEvent,
+      });
+
+      return buildEvent;
     } catch (err) {
       // Ignore BuildAbortErrors and only emit critical errors.
       if (!(err instanceof BuildAbortError)) {
@@ -273,29 +270,35 @@ export default class Parcel {
       });
       let request = createAssetGraphRequest({
         name: 'Main',
-        entries: nullthrows(this.#resolvedOptions).entries,
+        entries: options.entries,
         optionsRef: this.#optionsRef,
+        shouldBuildLazily: options.shouldBuildLazily,
+        requestedAssetIds: this.#requestedAssetIds,
       }); // ? should we create this on every build?
       let {
         assetGraph,
         changedAssets,
         assetRequests,
-      } = await this.#requestTracker.runRequest(request);
-      dumpGraphToGraphViz(assetGraph, 'MainAssetGraph');
-
-      let [
-        bundleGraph,
-        serializedBundleGraph,
-        // $FlowFixMe[incompatible-call] Due to dumpGraphToGraphViz usage below
-      ] = await this.#bundlerRunner.bundle(assetGraph, {
-        signal,
+      } = await this.#requestTracker.runRequest(request, {
+        force: options.shouldBuildLazily && this.#requestedAssetIds.size > 0,
       });
+
+      this.#requestedAssetIds.clear();
+
+      let bundleGraphRequest = createBundleGraphRequest({
+        assetGraph,
+        optionsRef: this.#optionsRef,
+      });
+
+      // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
+      let bundleGraph = await this.#requestTracker.runRequest(
+        bundleGraphRequest,
+      );
+
+      // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381 (Windows only)
       dumpGraphToGraphViz(bundleGraph._graph, 'BundleGraph');
 
-      await this.#packagerRunner.writeBundles(
-        bundleGraph,
-        serializedBundleGraph,
-      );
+      await this.#packagerRunner.writeBundles(bundleGraph);
       assertSignalNotAborted(signal);
 
       // $FlowFixMe
@@ -309,8 +312,47 @@ export default class Parcel {
             assetFromValue(asset, options),
           ]),
         ),
-        bundleGraph: new BundleGraph(bundleGraph, NamedBundle.get, options),
+        bundleGraph: new BundleGraph<IPackagedBundle>(
+          bundleGraph,
+          PackagedBundle.get,
+          options,
+        ),
         buildTime: Date.now() - startTime,
+        requestBundle: async bundle => {
+          let bundleNode = bundleGraph._graph.getNodeByContentKey(bundle.id);
+          invariant(bundleNode?.type === 'bundle', 'Bundle does not exist');
+
+          if (!bundleNode.value.isPlaceholder) {
+            // Nothing to do.
+            return {
+              type: 'buildSuccess',
+              changedAssets: new Map(),
+              bundleGraph: event.bundleGraph,
+              buildTime: 0,
+              requestBundle: event.requestBundle,
+            };
+          }
+
+          for (let assetId of bundleNode.value.entryAssetIds) {
+            this.#requestedAssetIds.add(assetId);
+          }
+
+          if (this.#watchQueue.getNumWaiting() === 0) {
+            if (this.#watchAbortController) {
+              this.#watchAbortController.abort();
+            }
+
+            this.#watchQueue.add(() => this._startNextBuild());
+          }
+
+          let results = await this.#watchQueue.run();
+          let result = results.filter(Boolean).pop();
+          if (result.type === 'buildFailure') {
+            throw new BuildError(result.diagnostics);
+          }
+
+          return result;
+        },
       };
 
       await this.#reporterRunner.report(event);

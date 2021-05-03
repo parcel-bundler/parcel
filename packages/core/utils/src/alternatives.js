@@ -24,7 +24,7 @@ export async function findAlternativeNodeModules(
       let modulesDir = path.join(dir, 'node_modules');
       let stats = await fs.stat(modulesDir);
       if (stats.isDirectory()) {
-        let dirContent = await fs.readdir(modulesDir);
+        let dirContent = (await fs.readdir(modulesDir)).sort();
 
         // Filter out the modules that interest us
         let modules = dirContent.filter(i =>
@@ -36,7 +36,7 @@ export async function findAlternativeNodeModules(
           await Promise.all(
             modules.map(async item => {
               let orgDirPath = path.join(modulesDir, item);
-              let orgDirContent = await fs.readdir(orgDirPath);
+              let orgDirContent = (await fs.readdir(orgDirPath)).sort();
 
               // Add all org packages
               potentialModules.push(...orgDirContent.map(i => `${item}/${i}`));
@@ -52,7 +52,7 @@ export async function findAlternativeNodeModules(
     dir = path.dirname(dir);
   }
 
-  return fuzzySearch(potentialModules, moduleName).slice(0, 2);
+  return fuzzySearch(potentialModules.sort(), moduleName).slice(0, 2);
 }
 
 async function findAllFilesUp({
@@ -70,7 +70,7 @@ async function findAllFilesUp({
   maxlength: number,
   collected: Array<string>,
 |}): Promise<mixed> {
-  let dirContent = await fs.readdir(dir);
+  let dirContent = (await fs.readdir(dir)).sort();
   return Promise.all(
     dirContent.map(async item => {
       let fullPath = path.join(dir, item);

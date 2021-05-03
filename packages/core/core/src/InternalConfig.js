@@ -5,55 +5,49 @@ import type {
   FilePath,
   PackageName,
   ConfigResult,
+  DevDepOptions,
 } from '@parcel/types';
+import {md5FromString} from '@parcel/utils';
 import type {Config, Environment} from './types';
+import {createEnvironment} from './Environment';
 
 type ConfigOpts = {|
-  isSource: boolean,
+  plugin: PackageName,
   searchPath: FilePath,
-  env: Environment,
+  isSource?: boolean,
+  env?: Environment,
   result?: ConfigResult,
   includedFiles?: Set<FilePath>,
   invalidateOnFileCreate?: Array<FileCreateInvalidation>,
-  devDeps?: Map<PackageName, ?string>,
-  shouldRehydrate?: boolean,
-  shouldReload?: boolean,
+  invalidateOnOptionChange?: Set<string>,
+  devDeps?: Array<DevDepOptions>,
   shouldInvalidateOnStartup?: boolean,
 |};
 
 export function createConfig({
+  plugin,
   isSource,
   searchPath,
   env,
   result,
   includedFiles,
   invalidateOnFileCreate,
+  invalidateOnOptionChange,
   devDeps,
-  shouldRehydrate,
-  shouldReload,
   shouldInvalidateOnStartup,
 }: ConfigOpts): Config {
+  let environment = env ?? createEnvironment();
   return {
-    isSource,
+    id: md5FromString(plugin + searchPath + environment.id + String(isSource)),
+    isSource: isSource ?? false,
     searchPath,
-    env,
+    env: environment,
     result: result ?? null,
     resultHash: null,
     includedFiles: includedFiles ?? new Set(),
     invalidateOnFileCreate: invalidateOnFileCreate ?? [],
-    pkg: null,
-    pkgFilePath: null,
-    devDeps: devDeps ?? new Map(),
-    shouldRehydrate: shouldRehydrate ?? false,
-    shouldReload: shouldReload ?? false,
+    invalidateOnOptionChange: invalidateOnOptionChange ?? new Set(),
+    devDeps: devDeps ?? [],
     shouldInvalidateOnStartup: shouldInvalidateOnStartup ?? false,
   };
-}
-
-export function addDevDependency(
-  config: Config,
-  name: PackageName,
-  version?: string,
-) {
-  config.devDeps.set(name, version);
 }

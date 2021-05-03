@@ -3,7 +3,7 @@
 import type {Bundle, FilePath} from '@parcel/types';
 
 import {Namer} from '@parcel/plugin';
-import ThrowableDiagnostic from '@parcel/diagnostic';
+import ThrowableDiagnostic, {md} from '@parcel/diagnostic';
 import assert from 'assert';
 import path from 'path';
 import nullthrows from 'nullthrows';
@@ -12,14 +12,6 @@ const COMMON_NAMES = new Set(['index', 'src', 'lib']);
 
 export default (new Namer({
   name({bundle, bundleGraph, options}) {
-    // If the bundle has an explicit file path given (e.g. by a target), use that.
-    if (bundle.filePath != null) {
-      // TODO: what about multiple assets in the same dep?
-      // e.g. input is a Vue file, output is JS + CSS
-      // which is defined as a target in package.json?
-      return bundle.filePath;
-    }
-
     let bundleGroup = bundleGraph.getBundleGroupsContainingBundle(bundle)[0];
     let bundleGroupBundles = bundleGraph.getBundlesInBundleGroup(bundleGroup);
 
@@ -58,14 +50,14 @@ export default (new Namer({
         );
         let err = new ThrowableDiagnostic({
           diagnostic: {
-            message: `Target "${bundle.target.name}" declares an output file path of "${fullName}" which does not match the compiled bundle type "${bundle.type}".`,
+            message: md`Target "${bundle.target.name}" declares an output file path of "${fullName}" which does not match the compiled bundle type "${bundle.type}".`,
             filePath: loc.filePath,
             codeFrame: {
               codeHighlights: [
                 {
                   start: loc.start,
                   end: loc.end,
-                  message: `Did you mean "${fullName.slice(
+                  message: md`Did you mean "${fullName.slice(
                     0,
                     -path.extname(fullName).length,
                   ) +

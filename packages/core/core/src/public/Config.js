@@ -5,13 +5,12 @@ import type {
   FileCreateInvalidation,
   FilePath,
   PackageJSON,
-  PackageName,
   ConfigResultWithFilePath,
+  DevDepOptions,
 } from '@parcel/types';
 import type {Config, ParcelOptions} from '../types';
 
 import {DefaultWeakMap, loadConfig} from '@parcel/utils';
-
 import Environment from './Environment';
 
 const internalConfigToConfig: DefaultWeakMap<
@@ -21,6 +20,8 @@ const internalConfigToConfig: DefaultWeakMap<
 
 export default class PublicConfig implements IConfig {
   #config /*: Config */;
+  #pkg /*: ?PackageJSON */;
+  #pkgFilePath /*: ?FilePath */;
   #options /*: ParcelOptions */;
 
   constructor(config: Config, options: ParcelOptions): PublicConfig {
@@ -68,20 +69,12 @@ export default class PublicConfig implements IConfig {
     this.#config.includedFiles.add(filePath);
   }
 
-  addDevDependency(name: PackageName, version?: string) {
-    this.#config.devDeps.set(name, version);
+  addDevDependency(devDep: DevDepOptions) {
+    this.#config.devDeps.push(devDep);
   }
 
   invalidateOnFileCreate(invalidation: FileCreateInvalidation) {
     this.#config.invalidateOnFileCreate.push(invalidation);
-  }
-
-  shouldRehydrate() {
-    this.#config.shouldRehydrate = true;
-  }
-
-  shouldReload() {
-    this.#config.shouldReload = true;
   }
 
   shouldInvalidateOnStartup() {
@@ -90,34 +83,41 @@ export default class PublicConfig implements IConfig {
 
   async getConfigFrom(
     searchPath: FilePath,
-    filePaths: Array<FilePath>,
+    fileNames: Array<string>,
     options: ?{|
       packageKey?: string,
       parse?: boolean,
       exclude?: boolean,
     |},
   ): Promise<ConfigResultWithFilePath | null> {
-    let packageKey = options && options.packageKey;
+    let packageKey = options?.packageKey;
     if (packageKey != null) {
-      let pkg = await this.getPackage();
-      if (pkg && pkg[packageKey]) {
+      let pkg = await this.getConfigFrom(searchPath, ['package.json']);
+      if (pkg && pkg.contents[packageKey]) {
         return {
-          contents: pkg[packageKey],
-          // This should be fine as pkgFilePath should be defined by getPackage()
-          filePath: this.#config.pkgFilePath || '',
+          contents: pkg.contents[packageKey],
+          filePath: pkg.filePath,
         };
       }
     }
 
-    if (filePaths.length === 0) {
+    if (fileNames.length === 0) {
       return null;
+    }
+
+    // Invalidate when any of the file names are created above the search path.
+    for (let fileName of fileNames) {
+      this.invalidateOnFileCreate({
+        fileName,
+        aboveFilePath: searchPath,
+      });
     }
 
     let parse = options && options.parse;
     let conf = await loadConfig(
       this.#options.inputFS,
       searchPath,
-      filePaths,
+      fileNames,
       parse == null ? null : {parse},
     );
     if (conf == null) {
@@ -147,8 +147,8 @@ export default class PublicConfig implements IConfig {
   }
 
   async getPackage(): Promise<PackageJSON | null> {
-    if (this.#config.pkg) {
-      return this.#config.pkg;
+    if (this.#pkg) {
+      return this.#pkg;
     }
 
     let pkgConfig = await this.getConfig(['package.json']);
@@ -156,9 +156,9 @@ export default class PublicConfig implements IConfig {
       return null;
     }
 
-    this.#config.pkg = pkgConfig.contents;
-    this.#config.pkgFilePath = pkgConfig.filePath;
+    this.#pkg = pkgConfig.contents;
+    this.#pkgFilePath = pkgConfig.filePath;
 
-    return this.#config.pkg;
+    return this.#pkg;
   }
 }

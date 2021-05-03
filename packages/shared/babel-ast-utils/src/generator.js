@@ -249,6 +249,21 @@ export const generator = {
       GENERATOR.ReturnStatement.call(this, node, state);
     }
   },
+  ThrowStatement(node, state) {
+    // Add parentheses if there are leading comments
+    if (node.argument?.leadingComments?.length > 0) {
+      let indent = state.indent.repeat(state.indentLevel);
+      state.write('throw (' + state.lineEnd);
+      state.write(indent + state.indent);
+      state.indentLevel++;
+      this[node.argument.type](node.argument, state);
+      state.indentLevel--;
+      state.write(state.lineEnd);
+      state.write(indent + ');');
+    } else {
+      GENERATOR.ThrowStatement.call(this, node, state);
+    }
+  },
 };
 
 // Make every node support comments. Important for preserving /*@__PURE__*/ comments for terser.
@@ -259,7 +274,7 @@ for (let key in generator) {
     // These are printed by astring itself
     if (node.trailingComments) {
       for (let c of node.trailingComments) {
-        if (c.type === 'CommentLine') {
+        if (c.type === 'CommentLine' || c.type === 'LineComment') {
           c.type = 'LineComment';
         } else {
           c.type = 'BlockComment';

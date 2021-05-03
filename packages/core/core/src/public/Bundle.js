@@ -7,8 +7,8 @@ import type {
   BundleTraversable,
   Dependency as IDependency,
   Environment as IEnvironment,
-  FilePath,
   NamedBundle as INamedBundle,
+  PackagedBundle as IPackagedBundle,
   Stats,
   Target as ITarget,
   GraphVisitor,
@@ -32,6 +32,10 @@ const internalBundleToBundle: DefaultWeakMap<
 const internalBundleToNamedBundle: DefaultWeakMap<
   ParcelOptions,
   DefaultWeakMap<BundleGraph, WeakMap<InternalBundle, NamedBundle>>,
+> = new DefaultWeakMap(() => new DefaultWeakMap(() => new WeakMap()));
+const internalBundleToPackagedBundle: DefaultWeakMap<
+  ParcelOptions,
+  DefaultWeakMap<BundleGraph, WeakMap<InternalBundle, PackagedBundle>>,
 > = new DefaultWeakMap(() => new DefaultWeakMap(() => new WeakMap()));
 
 // Friendly access for other modules within this package that need access
@@ -123,14 +127,6 @@ export class Bundle implements IBundle {
     return new Target(this.#bundle.target);
   }
 
-  get filePath(): ?FilePath {
-    return this.#bundle.filePath;
-  }
-
-  get name(): ?string {
-    return this.#bundle.name;
-  }
-
   get stats(): Stats {
     return this.#bundle.stats;
   }
@@ -151,7 +147,7 @@ export class Bundle implements IBundle {
 
   getEntryAssets(): Array<IAsset> {
     return this.#bundle.entryAssetIds.map(id => {
-      let assetNode = this.#bundleGraph._graph.getNode(id);
+      let assetNode = this.#bundleGraph._graph.getNodeByContentKey(id);
       invariant(assetNode != null && assetNode.type === 'asset');
       return assetFromValue(assetNode.value, this.#options);
     });
@@ -159,7 +155,7 @@ export class Bundle implements IBundle {
 
   getMainEntry(): ?IAsset {
     if (this.#bundle.mainEntryId != null) {
-      let assetNode = this.#bundleGraph._graph.getNode(
+      let assetNode = this.#bundleGraph._graph.getNodeByContentKey(
         this.#bundle.mainEntryId,
       );
       invariant(assetNode != null && assetNode.type === 'asset');
@@ -232,10 +228,6 @@ export class NamedBundle extends Bundle implements INamedBundle {
     return namedBundle;
   }
 
-  get filePath(): FilePath {
-    return nullthrows(this.#bundle.filePath);
-  }
-
   get name(): string {
     return nullthrows(this.#bundle.name);
   }
@@ -246,5 +238,51 @@ export class NamedBundle extends Bundle implements INamedBundle {
 
   get publicId(): string {
     return nullthrows(this.#bundle.publicId);
+  }
+}
+
+export class PackagedBundle extends NamedBundle implements IPackagedBundle {
+  #bundle /*: InternalBundle */;
+  #bundleGraph /*: BundleGraph */;
+
+  constructor(
+    sentinel: mixed,
+    bundle: InternalBundle,
+    bundleGraph: BundleGraph,
+    options: ParcelOptions,
+  ) {
+    super(sentinel, bundle, bundleGraph, options);
+    this.#bundle = bundle; // Repeating for flow
+    this.#bundleGraph = bundleGraph; // Repeating for flow
+  }
+
+  static get(
+    internalBundle: InternalBundle,
+    bundleGraph: BundleGraph,
+    options: ParcelOptions,
+  ): PackagedBundle {
+    let existingMap = internalBundleToPackagedBundle
+      .get(options)
+      .get(bundleGraph);
+    let existing = existingMap.get(internalBundle);
+    if (existing != null) {
+      return existing;
+    }
+
+    let packagedBundle = new PackagedBundle(
+      _private,
+      internalBundle,
+      bundleGraph,
+      options,
+    );
+    _bundleToInternalBundle.set(packagedBundle, internalBundle);
+    _bundleToInternalBundleGraph.set(packagedBundle, bundleGraph);
+    existingMap.set(internalBundle, packagedBundle);
+
+    return packagedBundle;
+  }
+
+  get filePath(): string {
+    return nullthrows(this.#bundle.filePath);
   }
 }

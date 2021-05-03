@@ -1,10 +1,14 @@
 // @flow strict-local
+import type {TransformerResult} from '@parcel/types';
+
 import {Transformer} from '@parcel/plugin';
 import nullthrows from 'nullthrows';
 import {md5FromObject} from '@parcel/utils';
-import ThrowableDiagnostic from '@parcel/diagnostic';
-import type {Diagnostic} from '@parcel/diagnostic';
-import type {TransformerResult} from '@parcel/types';
+import ThrowableDiagnostic, {
+  type Diagnostic,
+  escapeMarkdown,
+  md,
+} from '@parcel/diagnostic';
 import SourceMap from '@parcel/source-map';
 import semver from 'semver';
 import {basename, extname, relative, dirname} from 'path';
@@ -66,11 +70,11 @@ export default (new Transformer({
     };
   },
   async transform({asset, options, resolve, config}) {
-    let baseId = md5FromObject({
+    let id = md5FromObject({
       filePath: asset.filePath,
     }).slice(-6);
-    let scopeId = 'data-v-' + baseId;
-    let hmrId = baseId + '-hmr';
+    let scopeId = 'data-v-' + id;
+    let hmrId = id + '-hmr';
     let basePath = basename(asset.filePath);
     let {template, script, styles, customBlocks} = nullthrows(
       await asset.getAST(),
@@ -86,7 +90,7 @@ export default (new Transformer({
         basePath,
         options,
         resolve,
-        scopeId,
+        id,
         hmrId,
       });
     }
@@ -154,7 +158,7 @@ function createDiagnostic(err, filePath) {
     };
   }
   let diagnostic: Diagnostic = {
-    message: err.message,
+    message: escapeMarkdown(err.message),
     origin: '@parcel/transformer-vue',
     name: err.name,
     stack: err.stack,
@@ -189,7 +193,7 @@ async function processPipeline({
   basePath,
   options,
   resolve,
-  scopeId,
+  id,
   hmrId,
 }) {
   switch (asset.pipeline) {
@@ -209,7 +213,7 @@ async function processPipeline({
         if (!preprocessor) {
           throw new ThrowableDiagnostic({
             diagnostic: {
-              message: `Unknown template language: "${template.lang}"`,
+              message: md`Unknown template language: "${template.lang}"`,
               origin: '@parcel/transformer-vue',
               filePath: asset.filePath,
             },
@@ -221,10 +225,9 @@ async function processPipeline({
         filename: asset.filePath,
         source: content,
         inMap: template.src ? undefined : template.map,
+        scoped: styles.some(style => style.scoped),
         isFunctional,
-        compilerOptions: {
-          scopeId,
-        },
+        id,
       });
       if (templateComp.errors.length) {
         throw new ThrowableDiagnostic({
@@ -281,7 +284,7 @@ ${
         default:
           throw new ThrowableDiagnostic({
             diagnostic: {
-              message: `Unknown script language: "${script.lang}"`,
+              message: md`Unknown script language: "${script.lang}"`,
               origin: '@parcel/transformer-vue',
               filePath: asset.filePath,
             },
@@ -326,7 +329,7 @@ ${
             default:
               throw new ThrowableDiagnostic({
                 diagnostic: {
-                  message: `Unknown style language: "${style.lang}"`,
+                  message: md`Unknown style language: "${style.lang}"`,
                   origin: '@parcel/transformer-vue',
                   filePath: asset.filePath,
                 },
@@ -339,7 +342,7 @@ ${
             preprocessLang: style.lang || 'css',
             scoped: style.scoped,
             map: style.src ? undefined : style.map,
-            id: scopeId,
+            id,
           });
           if (styleComp.errors.length) {
             throw new ThrowableDiagnostic({
@@ -399,7 +402,7 @@ export default cssModules;`,
         if (!config.customBlocks[type]) {
           throw new ThrowableDiagnostic({
             diagnostic: {
-              message: `No preprocessor found for block type ${type}`,
+              message: md`No preprocessor found for block type ${type}`,
               origin: '@parcel/transformer-vue',
               filePath: asset.filePath,
             },

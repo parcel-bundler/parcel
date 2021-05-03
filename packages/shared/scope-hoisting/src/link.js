@@ -29,6 +29,7 @@ import invariant from 'assert';
 import {relative} from 'path';
 import template from '@babel/template';
 import * as t from '@babel/types';
+import {md} from '@parcel/diagnostic';
 import {
   isAssignmentExpression,
   isExpressionStatement,
@@ -159,7 +160,7 @@ export function link({
   if (bundle.env.isLibrary) {
     let bundles = bundleGraph.getReferencedBundles(bundle);
     for (let b of bundles) {
-      importedFiles.set(nullthrows(b.filePath), {
+      importedFiles.set(b.id, {
         bundle: b,
         assets: new Set(),
       });
@@ -244,14 +245,14 @@ export function link({
           // TODO `meta.exportsIdentifier[exportSymbol]` should be exported
           let relativePath = relative(options.projectRoot, asset.filePath);
           throw getThrowableDiagnosticForNode(
-            `${relativePath} couldn't be statically analyzed when importing '${exportSymbol}'`,
+            md`${relativePath} couldn't be statically analyzed when importing '${exportSymbol}'`,
             entry.filePath,
             loc,
           );
         } else if (symbol !== false) {
           let relativePath = relative(options.projectRoot, asset.filePath);
           throw getThrowableDiagnosticForNode(
-            `${relativePath} does not export '${exportSymbol}'`,
+            md`${relativePath} does not export '${exportSymbol}'`,
             entry.filePath,
             loc,
           );
@@ -619,15 +620,14 @@ export function link({
       );
     }
 
-    let filePath = nullthrows(importedBundle.filePath);
-    let imported = importedFiles.get(filePath);
+    let imported = importedFiles.get(importedBundle.id);
     if (!imported) {
       imported = {
         bundle: importedBundle,
         assets: new Set(),
         loc: convertBabelLoc(node.loc),
       };
-      importedFiles.set(filePath, imported);
+      importedFiles.set(importedBundle.id, imported);
     }
 
     invariant(imported.assets != null);
@@ -716,12 +716,13 @@ export function link({
               asyncResolution?.type === 'asset' &&
               !isExpressionStatement(newNode)
             ) {
+              let _newNode = newNode; // For Flow
               newNode = t.callExpression(
                 t.memberExpression(
                   t.identifier('Promise'),
                   t.identifier('resolve'),
                 ),
-                [newNode],
+                [_newNode],
               );
             }
           }
@@ -759,7 +760,7 @@ export function link({
           // was excluded from bundling (e.g. includeNodeModules = false)
           if (bundle.env.outputFormat !== 'commonjs') {
             throw getThrowableDiagnosticForNode(
-              "`require.resolve` calls for excluded assets are only supported with outputFormat: 'commonjs'",
+              "'require.resolve' calls for excluded assets are only supported with outputFormat: 'commonjs'",
               mapped.filePath,
               convertBabelLoc(node.loc),
             );
@@ -770,7 +771,7 @@ export function link({
           });
         } else {
           throw getThrowableDiagnosticForNode(
-            "`require.resolve` calls for bundled modules or bundled assets aren't supported with scope hoisting",
+            "'require.resolve' calls for bundled modules or bundled assets aren't supported with scope hoisting",
             mapped.filePath,
             convertBabelLoc(node.loc),
           );
