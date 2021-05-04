@@ -12,7 +12,7 @@ const WEBPACK_ALIAS_RE = /^~[^/]/;
 
 export default (new Transformer({
   async loadConfig({config, options}) {
-    let configFile = await config.getConfig(['.sassrc', '.sassrc.js'], {
+    let configFile = await config.getConfig(['.sassrc', '.sassrc.json', '.sassrc.js'], {
       packageKey: 'sass',
     });
 
