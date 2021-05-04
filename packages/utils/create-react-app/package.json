@@ -1,8 +1,8 @@
 {
   "name": "@parcel/create-react-app",
-  "version": "2.0.0-beta.2",
+  "version": "2.0.0-beta.7",
   "bin": {
-    "parcel-create-react-app": "src/bin.js"
+    "parcel-create-react-app": "lib/bin.js"
   },
   "main": "lib/bin.js",
   "source": "src/bin.js",

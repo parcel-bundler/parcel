@@ -101,7 +101,7 @@ async function createApp(packageName: string, tempPath: string) {
   ]);
 
   log(emoji.progress, 'Installing packages...');
-  await installPackages(['parcel@nightly'], {
+  await installPackages(['parcel@nightly', 'postcss', '@babel/core'], {
     cwd: tempPath,
     isDevDependency: true,
   });

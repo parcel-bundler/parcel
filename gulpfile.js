@@ -31,7 +31,7 @@ const paths = {
   ],
   packageJson: [
     'packages/core/parcel/package.json',
-    'packages/dev/create-react-app/package.json',
+    'packages/utils/create-react-app/package.json',
   ],
   packages: 'packages/',
 };
