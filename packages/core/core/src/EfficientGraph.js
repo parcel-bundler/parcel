@@ -1,6 +1,7 @@
 // @flow
 import {fromNodeId, toNodeId} from './types';
 import type {NodeId} from './types';
+import {digraph} from 'graphviz';
 
 /**
  * Each node is represented with 2 4-byte chunks:
@@ -429,6 +430,17 @@ export default class EfficientGraph {
     );
   }
 
+  graphviz(type: 'graph' | 'edges' | 'nodes' = 'graph'): string {
+    switch (type) {
+      case 'edges':
+        return edgesToDot(this);
+      case 'nodes':
+        return nodesToDot(this);
+      default:
+        return toDot(this);
+    }
+  }
+
   // Need to be updated to support `type`
   // TODO: hasEdge(from: NodeId, to: NodeId, type?: TEdgeType | NullEdgeType = 0): boolean {
   // TODO: getNodesConnectedFrom()
@@ -438,4 +450,259 @@ export default class EfficientGraph {
   // removeEdge(from: NodeId, to: NodeId, type: TEdgeType): void {
   // getEdges(from: NodeId, type: TEdgeType): $ReadOnlySet<NodeId> {
   // getEdgesByType(from: NodeId): $ReadOnlyMap<TEdgeType, $ReadOnlySet<NodeId>> {
+}
+
+let nodeColor = {color: 'black', fontcolor: 'black'};
+let emptyColor = {color: 'darkgray', fontcolor: 'darkgray'};
+let edgeColor = {color: 'brown', fontcolor: 'brown'};
+
+function toDot(data: EfficientGraph): string {
+  let g = digraph('G');
+  g.set('rankdir', 'LR');
+  g.setNodeAttribut('fontsize', 8);
+  g.setNodeAttribut('height', 0);
+  g.setNodeAttribut('shape', 'square');
+  g.setEdgeAttribut('fontsize', 8);
+  g.setEdgeAttribut('arrowhead', 'open');
+
+  let graph = g.addCluster('clusterGraph');
+  graph.set('label', 'Graph');
+  graph.setEdgeAttribut('color', edgeColor.color);
+  graph.setEdgeAttribut('fontcolor', edgeColor.fontcolor);
+
+  let adjacencyList = g.addCluster('clusterAdjacencyList');
+  adjacencyList.set('label', 'AdjacencyList');
+  adjacencyList.setNodeAttribut('shape', 'record');
+  adjacencyList.setNodeAttribut('color', edgeColor.color);
+  adjacencyList.setNodeAttribut('fontcolor', edgeColor.color);
+  adjacencyList.setEdgeAttribut('color', edgeColor.color);
+  adjacencyList.setEdgeAttribut('fontcolor', edgeColor.color);
+  adjacencyList.setEdgeAttribut('fontsize', 6);
+
+  for (let i = 0; i < data.edges.length; i++) {
+    let type = data.edges[i + TYPE];
+    if (type) {
+      let from = data.edges[i + FROM];
+      let to = data.edges[i + TO];
+      let nextIn = data.edges[i + NEXT_IN];
+      let nextOut = data.edges[i + NEXT_OUT];
+      // TODO: add type to label?
+      let label = String(i + 1);
+
+      let fromFirstIn = data.nodes[from + FIRST_IN];
+      let fromFirstOut = data.nodes[from + FIRST_OUT];
+      let toFirstIn = data.nodes[to + FIRST_IN];
+      let toFirstOut = data.nodes[to + FIRST_OUT];
+
+      graph.addEdge(String(from), String(to), {label});
+
+      adjacencyList.addNode(`node${from}`, {
+        label: `node ${from} | { <FIRST_IN> ${fromFirstIn}  | <FIRST_OUT> ${fromFirstOut} }`,
+        ...nodeColor,
+      });
+
+      adjacencyList.addNode(`edge${label}`, {
+        label: `edge ${label} | { <TYPE> ${type} | <FROM> ${from} | <TO> ${to} | <NEXT_IN> ${nextIn} | <NEXT_OUT> ${nextOut} }`,
+      });
+
+      adjacencyList.addNode(`node${to}`, {
+        label: `node ${to} | { <FIRST_IN> ${toFirstIn}  | <FIRST_OUT> ${toFirstOut} }`,
+        ...nodeColor,
+      });
+
+      adjacencyList.addEdge(`edge${label}`, `node${from}`, {
+        tailport: 'FROM',
+        label: 'FROM',
+        style: 'dashed',
+      });
+
+      adjacencyList.addEdge(`edge${label}`, `node${to}`, {
+        label: 'TO',
+        tailport: 'TO',
+      });
+
+      if (nextIn) {
+        adjacencyList.addEdge(`edge${label}`, `edge${nextIn}`, {
+          tailport: 'NEXT_IN',
+          label: 'NEXT_IN',
+          style: 'dashed',
+        });
+      }
+
+      if (nextOut) {
+        adjacencyList.addEdge(`edge${label}`, `edge${nextOut}`, {
+          label: 'NEXT_OUT',
+          tailport: 'NEXT_OUT',
+        });
+      }
+
+      if (fromFirstIn) {
+        adjacencyList.addEdge(`node${from}`, `edge${label}`, {
+          tailport: 'FIRST_IN',
+          label: 'FIRST_IN',
+          ...nodeColor,
+        });
+      }
+
+      if (fromFirstOut) {
+        adjacencyList.addEdge(`node${from}`, `edge${label}`, {
+          tailport: 'FIRST_OUT',
+          label: 'FIRST_OUT',
+          ...nodeColor,
+        });
+      }
+
+      if (toFirstIn) {
+        adjacencyList.addEdge(`node${to}`, `edge${label}`, {
+          tailport: 'FIRST_IN',
+          label: 'FIRST_IN',
+          ...nodeColor,
+        });
+      }
+
+      if (toFirstOut) {
+        adjacencyList.addEdge(`node${to}`, `edge${label}`, {
+          tailport: 'FIRST_OUT',
+          label: 'FIRST_OUT',
+          ...nodeColor,
+        });
+      }
+
+      i += EDGE_SIZE;
+    }
+  }
+
+  return g.to_dot();
+}
+
+function nodesToDot(data: EfficientGraph): string {
+  let g = digraph('G');
+  g.set('rankdir', 'LR');
+  g.set('nodesep', 0);
+  g.set('ranksep', 0);
+  g.setNodeAttribut('fontsize', 8);
+  g.setNodeAttribut('height', 0);
+  g.setNodeAttribut('shape', 'square');
+  g.setEdgeAttribut('fontsize', 8);
+  g.setEdgeAttribut('arrowhead', 'open');
+
+  let nodes = g.addCluster('clusterNodes');
+  nodes.set('label', 'Nodes');
+  nodes.setNodeAttribut('shape', 'record');
+  nodes.setEdgeAttribut('fontsize', 6);
+  nodes.setEdgeAttribut('style', 'invis');
+
+  let lastOut = 0;
+  for (let i = 0; i < data.nodes.length / NODE_SIZE; i++) {
+    let firstIn = data.nodes[i + FIRST_IN];
+    let firstOut = data.nodes[i + FIRST_OUT];
+    if (firstIn || firstOut) {
+      if (lastOut < i - FIRST_OUT) {
+        if (lastOut === 0) {
+          nodes.addNode(`node${lastOut}`, {
+            label: `${lastOut}…${i - 1} | `,
+            ...emptyColor,
+          });
+        } else {
+          nodes.addNode(`node${lastOut + 1}`, {
+            label: `${lastOut + 1}…${i - 1} | `,
+            ...emptyColor,
+          });
+          nodes.addEdge(`node${lastOut}`, `node${lastOut + 1}`);
+          lastOut += 1;
+        }
+      }
+      nodes.addNode(`node${i}`, {
+        label: `${i} | {${firstIn} | ${firstOut}}`,
+      });
+      nodes.addEdge(`node${lastOut}`, `node${i}`);
+      lastOut = i;
+    } else if (i === data.nodes.length / NODE_SIZE - 1) {
+      if (lastOut < i - FIRST_OUT) {
+        if (lastOut === 0) {
+          nodes.addNode(`node${lastOut}`, {
+            label: `${lastOut}…${i - 1} | `,
+            ...emptyColor,
+          });
+        } else {
+          nodes.addNode(`node${lastOut + 1}`, {
+            label: `${lastOut + 1}…${i - 1} | `,
+            ...emptyColor,
+          });
+          nodes.addEdge(`node${lastOut}`, `node${lastOut + 1}`);
+        }
+      }
+    }
+  }
+
+  return g.to_dot();
+}
+
+function edgesToDot(data: EfficientGraph): string {
+  let g = digraph('G');
+  g.set('rankdir', 'LR');
+  g.set('nodesep', 0);
+  g.set('ranksep', 0);
+  g.setNodeAttribut('fontsize', 8);
+  g.setNodeAttribut('height', 0);
+  g.setNodeAttribut('shape', 'square');
+  g.setEdgeAttribut('fontsize', 8);
+  g.setEdgeAttribut('arrowhead', 'open');
+
+  let edges = g.addCluster('clusterEdges');
+  edges.set('label', 'Edges');
+  edges.setNodeAttribut('shape', 'record');
+  edges.setEdgeAttribut('fontsize', 6);
+  edges.setEdgeAttribut('style', 'invis');
+
+  let lastOut = 1;
+  for (let i = 1; i < data.edges.length + 1; i += EDGE_SIZE) {
+    let type = data.edges[i - 1 + TYPE];
+    if (type) {
+      let from = data.edges[i - 1 + FROM];
+      let to = data.edges[i - 1 + TO];
+      let nextIn = data.edges[i - 1 + NEXT_IN];
+      let nextOut = data.edges[i - 1 + NEXT_OUT];
+
+      if (lastOut < i - EDGE_SIZE) {
+        if (lastOut === 1) {
+          edges.addNode(`edge${lastOut}`, {
+            label: `${lastOut}…${i - EDGE_SIZE} | `,
+            ...emptyColor,
+          });
+        } else {
+          edges.addNode(`edge${lastOut + EDGE_SIZE}`, {
+            label: `${lastOut + EDGE_SIZE}…${i - EDGE_SIZE} | `,
+            ...emptyColor,
+          });
+          edges.addEdge(`edge${lastOut}`, `edge${lastOut + EDGE_SIZE}`);
+          lastOut += EDGE_SIZE;
+        }
+      }
+
+      edges.addNode(`edge${i}`, {
+        label: `${i} | {${type} | ${from} | ${to} | ${nextIn} | ${nextOut}}`,
+      });
+
+      edges.addEdge(`edge${lastOut}`, `edge${i}`);
+      lastOut = i;
+    } else if (i === data.edges.length + 1 - EDGE_SIZE) {
+      if (lastOut < i - EDGE_SIZE) {
+        if (lastOut === 1) {
+          edges.addNode(`edge${lastOut}`, {
+            label: `${lastOut}…${i - EDGE_SIZE} | `,
+            ...emptyColor,
+          });
+        } else {
+          edges.addNode(`edge${lastOut + EDGE_SIZE}`, {
+            label: `${lastOut + EDGE_SIZE}…${i - EDGE_SIZE} | `,
+            ...emptyColor,
+          });
+          edges.addEdge(`edge${lastOut}`, `edge${lastOut + EDGE_SIZE}`);
+        }
+      }
+    }
+  }
+
+  return g.to_dot();
 }
