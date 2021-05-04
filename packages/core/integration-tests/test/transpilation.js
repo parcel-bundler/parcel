@@ -91,8 +91,7 @@ describe('transpilation', function() {
     assert(file.includes('React.createElement("div"'));
   });
 
-  it.skip('should support compiling JSX with pure annotations', async function() {
-    // TODO: SWC
+  it('should support compiling JSX with pure annotations', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/jsx-react/pure-comment.js'),
     );
@@ -101,7 +100,7 @@ describe('transpilation', function() {
       path.join(distDir, 'pure-comment.js'),
       'utf8',
     );
-    assert(file.includes('/*#__PURE__*/_reactDefault.default.createElement'));
+    assert(file.includes('/*#__PURE__*/ _reactDefault.default.createElement'));
 
     let res = await run(b);
     assert(res.Foo());

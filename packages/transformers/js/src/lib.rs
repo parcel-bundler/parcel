@@ -223,21 +223,17 @@ fn transform(ctx: CallContext) -> Result<JsUnknown> {
                 react_options.pragma_frag = jsx_pragma_frag;
               }
               react_options.development = config.is_development;
+              react_options.refresh = if config.react_refresh {
+                Some(react::RefreshOptions::default())
+              } else {
+                None
+              };
             }
 
             module = {
               let mut passes = chain!(
                 Optional::new(
-                  react::refresh(
-                    true,
-                    Some(react::RefreshOptions::default()),
-                    source_map.clone(),
-                    Some(&comments),
-                  ),
-                  config.react_refresh
-                ),
-                Optional::new(
-                  react::jsx(source_map.clone(), Some(&comments), react_options),
+                  react::react(source_map.clone(), Some(&comments), react_options),
                   config.is_jsx
                 ),
                 Optional::new(typescript::strip(), config.is_type_script)
