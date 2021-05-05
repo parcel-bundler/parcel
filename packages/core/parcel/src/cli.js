@@ -450,7 +450,6 @@ async function normalizeOptions(
 
   let additionalReporters = [
     {packageName: '@parcel/reporter-cli', resolveFrom: __filename},
-    {packageName: '@parcel/reporter-dev-server', resolveFrom: __filename},
     ...(command.reporter: Array<string>).map(packageName => ({
       packageName,
       resolveFrom: path.join(inputFS.cwd(), 'index'),
