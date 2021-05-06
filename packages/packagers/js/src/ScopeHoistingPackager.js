@@ -173,6 +173,26 @@ export class ScopeHoistingPackager {
 
     res += this.outputFormat.buildBundlePostlude();
 
+    if (sourceMap) {
+      let promises = [];
+      // Traverse the bundle to get all source contents
+      this.bundle.traverseAssets(asset => {
+        promises.push(
+          asset.getSourcesContent().then(sourcesContent => {
+            if (sourcesContent) {
+              for (let sourcesContentFileName of Object.keys(sourcesContent)) {
+                sourceMap.setSourceContent(
+                  sourcesContentFileName,
+                  sourcesContent[sourcesContentFileName],
+                );
+              }
+            }
+          }),
+        );
+      });
+      await Promise.all(promises);
+    }
+
     return {
       contents: res,
       map: sourceMap,

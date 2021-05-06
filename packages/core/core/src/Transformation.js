@@ -27,6 +27,7 @@ import {
   md5FromOrderedObject,
   normalizeSeparators,
   objectSortedEntries,
+  relativeUrl,
 } from '@parcel/utils';
 import logger, {PluginLogger} from '@parcel/logger';
 import {init as initSourcemaps} from '@parcel/source-map';
@@ -142,8 +143,9 @@ export default class Transformation {
       await asset.extractSourcesContentFromMap();
     } else if (SOURCEMAP_EXTENSIONS.has(asset.value.type)) {
       // Load existing sourcemaps, this automatically runs the source contents extraction
+      let existing;
       try {
-        await asset.loadExistingSourcemap();
+        existing = await asset.loadExistingSourcemap();
       } catch (err) {
         logger.verbose([
           {
@@ -160,6 +162,17 @@ export default class Transformation {
             filePath: asset.value.filePath,
           },
         ]);
+      }
+
+      if (existing == null) {
+        // If no existing sourcemap was found, initialize sourcesContent with
+        // the asset's filepath and its original contents.
+        asset.sourcesContent = {
+          [relativeUrl(
+            this.options.projectRoot,
+            asset.value.filePath,
+          )]: await asset.getCode(),
+        };
       }
     }
 
