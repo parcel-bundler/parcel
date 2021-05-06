@@ -872,13 +872,21 @@ export class AssetGraphBuilder {
     let otherAssetDependencies = Array.from(
       otherAsset?.dependencies.keys(),
     ).sort();
+
     if (assetDependencies.length !== otherAssetDependencies.length) {
       return false;
     }
 
-    return assetDependencies.every(
-      (key, index) => key === otherAssetDependencies[index],
-    );
+    return assetDependencies.every((key, index) => {
+      if (key !== otherAssetDependencies[index]) {
+        return false;
+      }
+
+      return equalSet(
+        new Set(asset?.dependencies.get(key)?.symbols?.keys()),
+        new Set(otherAsset?.dependencies.get(key)?.symbols?.keys()),
+      );
+    });
   }
 }
 
