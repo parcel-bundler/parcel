@@ -57,7 +57,7 @@ type AssetGraphBuilderResult = {|
   assetGraph: AssetGraph,
   changedAssets: Map<string, Asset>,
   assetRequests: Array<AssetGroup>,
-  didDependencyStructureChange: boolean,
+  shouldBundle: boolean,
 |};
 
 type RunInput = {|
@@ -80,7 +80,6 @@ export default function createAssetGraphRequest(
     run: async input => {
       let prevResult = await input.api.getPreviousResult<AssetGraphRequestResult>();
       let previousAssetGraphHash = prevResult?.assetGraph.getHash();
-
       let builder = new AssetGraphBuilder(input, prevResult);
       let assetGraphRequest = await await builder.build();
 
@@ -112,7 +111,7 @@ export class AssetGraphBuilder {
   assetRequests: Array<AssetGroup> = [];
   cacheKey: string;
   shouldBuildLazily: boolean;
-  didDependencyStructureChange: boolean;
+  shouldBundle: boolean;
   requestedAssetIds: Set<string>;
 
   constructor(
@@ -139,20 +138,11 @@ export class AssetGraphBuilder {
     this.name = name;
     this.requestedAssetIds = requestedAssetIds ?? new Set();
     this.shouldBuildLazily = shouldBuildLazily ?? false;
-<<<<<<< HEAD
     this.cacheKey = hashString(
       `${PARCEL_VERSION}${name}${JSON.stringify(entries) ?? ''}`,
     );
-=======
-    this.didDependencyStructureChange = false;
 
-    this.cacheKey = md5FromOrderedObject({
-      parcelVersion: PARCEL_VERSION,
-      name,
-      entries,
-    });
->>>>>>> Updated initial incremental bundling
-
+    this.shouldBundle = false;
     this.queue = new PromiseQueue();
   }
 
@@ -238,7 +228,7 @@ export class AssetGraphBuilder {
       assetGraph: this.assetGraph,
       changedAssets: this.changedAssets,
       assetRequests: this.assetRequests,
-      didDependencyStructureChange: this.didDependencyStructureChange,
+      shouldBundle: this.shouldBundle,
     };
   }
 
@@ -798,11 +788,25 @@ export class AssetGraphBuilder {
   }
 
   async runEntryRequest(input: ModuleSpecifier) {
+    let prevEntries = this.assetGraph
+      .getEntryAssets()
+      .map(asset => asset.id)
+      .sort();
     let request = createEntryRequest(input);
     let result = await this.api.runRequest<FilePath, EntryResult>(request, {
       force: true,
     });
     this.assetGraph.resolveEntry(request.input, result.entries, request.id);
+
+    let currentEntries = this.assetGraph
+      .getEntryAssets()
+      .map(asset => asset.id)
+      .sort();
+    let didEntriesChange =
+      prevEntries.length !== currentEntries.length ||
+      prevEntries.every((entryId, index) => entryId === currentEntries[index]);
+
+    this.shouldBundle = this.shouldBundle || didEntriesChange;
   }
 
   async runTargetRequest(input: Entry) {
@@ -836,19 +840,26 @@ export class AssetGraphBuilder {
 
     if (assets != null) {
       for (let asset of assets) {
-        if (!this.didDependencyStructureChange) {
+        if (!this.shouldBundle) {
           let otherAsset = this.assetGraph.getNodeByContentKey(asset.id);
           if (otherAsset != null) {
             invariant(otherAsset.type === 'asset');
-            this.didDependencyStructureChange = this._areDependenciesEqualForAssets(
+            this.shouldBundle = !this._areDependenciesEqualForAssets(
               asset,
               otherAsset.value,
             );
+          } else {
+            // adding a new entry or dependency
+            this.shouldBundle = true;
           }
         }
+
         this.changedAssets.set(asset.id, asset);
       }
       this.assetGraph.resolveAssetGroup(input, assets, request.id);
+    } else {
+      // bold assumption that something changed
+      this.shouldBundle = true;
     }
   }
 

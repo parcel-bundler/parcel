@@ -288,7 +288,7 @@ export default class Parcel {
         changedAssets,
         assetRequests,
         previousAssetGraphHash,
-        didDependencyStructureChange,
+        shouldBundle,
       } = await this.#requestTracker.runRequest(request, {
         force: options.shouldBuildLazily && this.#requestedAssetIds.size > 0,
       });
@@ -299,7 +299,7 @@ export default class Parcel {
         assetGraph,
         changedAssets,
         previousAssetGraphHash,
-        didDependencyStructureChange,
+        shouldBundle,
         optionsRef: this.#optionsRef,
       });
 
