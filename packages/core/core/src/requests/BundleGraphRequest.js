@@ -8,17 +8,19 @@ import type {
   Asset,
   Bundle as InternalBundle,
   Config,
+  ContentKey,
   DevDepRequest,
   ParcelOptions,
 } from '../types';
 import type {ConfigAndCachePath} from './ParcelConfigRequest';
 
+import invariant from 'assert';
 import assert from 'assert';
 import path from 'path';
 import nullthrows from 'nullthrows';
 import {PluginLogger} from '@parcel/logger';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
-import AssetGraph from '../AssetGraph';
+import AssetGraph, {nodeFromAsset} from '../AssetGraph';
 import BundleGraph from '../public/BundleGraph';
 import InternalBundleGraph from '../BundleGraph';
 import MutableBundleGraph from '../public/MutableBundleGraph';
@@ -54,12 +56,13 @@ type BundleGraphRequestInput = {|
   optionsRef: SharedReference,
   changedAssets: Map<string, Asset>,
   previousAssetGraphHash: ?string,
-  didDependencyStructureChange: boolean,
+  shouldBundle: boolean,
 |};
 
 type BundleGraphRequestResult = {|
   bundleGraph: InternalBundleGraph,
-  changedBundles: Array<InternalBundle>,
+  changedBundles: Set<ContentKey>,
+  bundlerHash: string,
 |};
 
 type RunInput = {|
@@ -97,7 +100,7 @@ export default function createBundleGraphRequest(
         graph: input.input.assetGraph,
         previousAssetGraphHash: input.input.previousAssetGraphHash,
         changedAssets: input.input.changedAssets,
-        didDependencyStructureChange: input.input.didDependencyStructureChange,
+        shouldBundle: input.input.shouldBundle,
       });
     },
     input,
@@ -179,22 +182,24 @@ class BundlerRunner {
     graph,
     previousAssetGraphHash,
     changedAssets,
-    didDependencyStructureChange,
+    shouldBundle,
   }: {|
     graph: AssetGraph,
     previousAssetGraphHash: ?string,
     changedAssets: Map<string, Asset>,
-    didDependencyStructureChange: boolean,
+    shouldBundle: boolean,
   |}): Promise<BundleGraphRequestResult> {
     report({
       type: 'buildProgress',
       phase: 'bundling',
     });
+    let mutableShouldBundle = shouldBundle;
 
     await this.loadConfigs();
 
     let plugin = await await this.config.getBundler();
     let {plugin: bundler, name, resolveFrom} = plugin;
+    let bundlerHash = this.getBundlerHash();
 
     let cacheKey = await this.getCacheKey(graph);
 
@@ -220,39 +225,45 @@ class BundlerRunner {
       }
     }
 
+    let changedBundles = new Set<ContentKey>();
     // if cache is disabled, should this even happen?
     let cachedBundleGraph: ?BundleGraphRequestResult;
-    if (previousAssetGraphHash != null) {
-      cachedBundleGraph = await this.api.getRequestResult(
+    if (
+      !mutableShouldBundle &&
+      previousAssetGraphHash != null &&
+      this.pluginOptions.mode !== 'production'
+    ) {
+      cachedBundleGraph = await this.api.getRequestResult<BundleGraphRequestResult>(
         'BundleGraph:' + previousAssetGraphHash,
       );
+
+      // should re-bundle if using a different bundle from previously
+      if (cachedBundleGraph?.bundlerHash !== bundlerHash) {
+        mutableShouldBundle = true;
+      }
     }
-
-    let internalBundleGraph: InternalBundleGraph =
-      cachedBundleGraph?.bundleGraph ??
-      InternalBundleGraph.fromAssetGraph(graph);
-
-    await dumpGraphToGraphViz(internalBundleGraph._graph, 'before_bundle');
 
     let logger = new PluginLogger({origin: this.config.getBundlerName()});
 
-    let numOfAssets = Array.from(graph.nodes.values()).filter(
-      node => node.type === 'asset',
-    ).length;
-
-    const shouldUpdate =
-      numOfAssets > changedAssets.size && !didDependencyStructureChange;
-
+    let internalBundleGraph: InternalBundleGraph;
     let mutableBundleGraph;
     try {
-      if (shouldUpdate) {
+      if (!mutableShouldBundle && cachedBundleGraph?.bundleGraph != null) {
+        internalBundleGraph = cachedBundleGraph.bundleGraph;
+        await dumpGraphToGraphViz(internalBundleGraph._graph, 'before_bundle');
+
         // if no changes to the dependency structure, we invalidate the bundle.
         // when the bundle hash is invalidated, the bundle graph will re-hash for packaging
         for (let asset of changedAssets.values()) {
+          internalBundleGraph._graph.addNodeByContentKey(
+            asset.id,
+            nodeFromAsset(asset),
+          );
           let bundles = internalBundleGraph.findBundlesWithAsset(asset);
 
           for (let bundle of bundles) {
             internalBundleGraph._bundleContentHashes.delete(bundle.id);
+            changedBundles.add(bundle.id);
           }
         }
         mutableBundleGraph = new MutableBundleGraph(
@@ -260,6 +271,8 @@ class BundlerRunner {
           this.options,
         );
       } else {
+        internalBundleGraph = InternalBundleGraph.fromAssetGraph(graph);
+
         mutableBundleGraph = new MutableBundleGraph(
           internalBundleGraph,
           this.options,
@@ -278,6 +291,7 @@ class BundlerRunner {
         }),
       });
     } finally {
+      invariant(internalBundleGraph != null);
       await dumpGraphToGraphViz(internalBundleGraph._graph, 'after_bundle');
     }
 
@@ -336,16 +350,20 @@ class BundlerRunner {
     // Recompute the cache key to account for new dev dependencies and invalidations.
     cacheKey = await this.getCacheKey(graph);
 
-    let changedBundles = Array.from(changedAssets.values()).flatMap(asset =>
-      internalBundleGraph.getBundlesContainingAssets(asset),
-    );
-
     let result = {
       bundleGraph: internalBundleGraph,
       changedBundles,
+      bundlerHash,
     };
     this.api.storeResult(result, cacheKey);
     return result;
+  }
+
+  getBundlerHash(): string {
+    return md5FromOrderedObject({
+      bundlerName: this.config.getBundlerName(),
+      config: this.configs.get(this.config.getBundlerName())?.result,
+    });
   }
 
   async getCacheKey(assetGraph: AssetGraph): Promise<string> {

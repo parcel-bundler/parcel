@@ -92,7 +92,7 @@ export default class UncommittedAsset {
   }
 
   /*
-   * Prepares the asset for being serialized to the cache by commiting its
+   * Prepares the asset for being serialized to the cache by committing its
    * content and map of the asset to the cache.
    */
   async commit(pipelineKey: string): Promise<void> {
