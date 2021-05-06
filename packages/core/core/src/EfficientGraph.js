@@ -391,8 +391,7 @@ export default class EfficientGraph {
    *
    * This hash is used to index the edge in the `edges` array.
    *
-   * This might need to include the type as well if we assume that
-   * multiple edges can exist between two of the same nodes
+   * TODO: add type to hash function
    */
   hash(from: NodeId, to: NodeId): number {
     // TODO: understand this hash function

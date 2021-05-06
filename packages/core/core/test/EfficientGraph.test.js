@@ -10,7 +10,7 @@ import EfficientGraph, {
 } from '../src/EfficientGraph';
 import {toNodeId} from '../src/types';
 
-describe.only('EfficientGraph', () => {
+describe('EfficientGraph', () => {
   it('constructor should initialize an empty graph', () => {
     let graph = new EfficientGraph(1, 1);
     assert.deepEqual(graph.nodes, new Uint32Array(1 * NODE_SIZE));
@@ -58,21 +58,34 @@ describe.only('EfficientGraph', () => {
   //   }, /Does not have node/);
   // });
 
-  it("errors when adding an edge to a node that doesn't exist", () => {
-    let graph = new EfficientGraph();
-    let node = graph.addNode();
-    assert.throws(() => {
-      graph.addEdge(node, toNodeId(-1));
-    }, /"to" node '-1' not found/);
-  });
+  // it("errors when adding an edge to a node that doesn't exist", () => {
+  //   let graph = new EfficientGraph();
+  //   let node = graph.addNode();
+  //   assert.throws(() => {
+  //     graph.addEdge(node, toNodeId(-1));
+  //   }, /"to" node '-1' not found/);
+  // });
 
-  it("errors when adding an edge from a node that doesn't exist", () => {
-    let graph = new EfficientGraph();
-    let node = graph.addNode();
-    assert.throws(() => {
-      graph.addEdge(toNodeId(-1), node);
-    }, /"from" node '-1' not found/);
-  });
+  // it("errors when adding an edge from a node that doesn't exist", () => {
+  //   let graph = new EfficientGraph();
+  //   let node = graph.addNode();
+  //   assert.throws(() => {
+  //     graph.addEdge(toNodeId(-1), node);
+  //   }, /"from" node '-1' not found/);
+  // });
+
+  // it('addEdge will resize if needed', () => {
+  //   let graph = new EfficientGraph();
+  //   for (let i = 0; i < 2048; i++) {
+  //     graph.addNode();
+  //     graph.addEdge(toNodeId(i), toNodeId(i + 1), i + 2);
+  //   }
+
+  //   assert.deepEqual(
+  //     [...graph.getNodesConnectedFrom(toNodeId(1574), 1576)],
+  //     [1575],
+  //   );
+  // });
 
   // it('hasNode should return a boolean based on whether the node exists in the graph', () => {
   //   let graph = new EfficientGraph();

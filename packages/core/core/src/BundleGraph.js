@@ -9,6 +9,9 @@ import type {
 } from '@parcel/types';
 import querystring from 'querystring';
 
+import {toNodeId} from './types';
+import {DefaultMap} from '@parcel/utils';
+
 import type {
   Asset,
   AssetNode,
@@ -34,13 +37,13 @@ import Environment from './public/Environment';
 export const bundleGraphEdgeTypes = {
   // A lack of an edge type indicates to follow the edge while traversing
   // the bundle's contents, e.g. `bundle.traverse()` during packaging.
-  null: 0,
+  null: 1,
   // Used for constant-time checks of presence of a dependency or asset in a bundle,
   // avoiding bundle traversal in cases like `isAssetInAncestors`
-  contains: 1,
+  contains: 2,
   // Connections between bundles and bundle groups, for quick traversal of the
   // bundle hierarchy.
-  bundle: 2,
+  bundle: 3,
   // When dependency -> asset: Indicates that the asset a dependency references
   //                           is contained in another bundle.
   // When dependency -> bundle: Indicates the bundle is necessary for any bundles
@@ -50,10 +53,10 @@ export const bundleGraphEdgeTypes = {
   // This type prevents referenced assets from being traversed from dependencies
   // along the untyped edge, and enables traversal to referenced bundles that are
   // not directly connected to bundle group nodes.
-  references: 3,
+  references: 4,
   // Signals that the dependency is internally resolvable via the bundle's ancestry,
   // and that the bundle connected to the dependency is not necessary for the source bundle.
-  internal_async: 4,
+  internal_async: 5,
 };
 
 type BundleGraphEdgeType = $Values<typeof bundleGraphEdgeTypes>;

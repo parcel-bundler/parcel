@@ -1,14 +1,15 @@
 // @flow strict-local
 
-import {toNodeId, fromNodeId} from './types';
+import {fromNodeId} from './types';
 import type {Edge, Node, NodeId} from './types';
+import EfficientGraph from './EfficientGraph';
 import type {TraversalActions, GraphVisitor} from '@parcel/types';
 
 import assert from 'assert';
 import nullthrows from 'nullthrows';
 
-type NullEdgeType = 0;
-export type GraphOpts<TNode, TEdgeType: number = 0> = {|
+type NullEdgeType = 1;
+export type GraphOpts<TNode, TEdgeType: number = 1> = {|
   nodes?: Map<NodeId, TNode>,
   edges?: AdjacencyListMap<TEdgeType | NullEdgeType>,
   rootNodeId?: ?NodeId,
@@ -17,17 +18,20 @@ export type GraphOpts<TNode, TEdgeType: number = 0> = {|
 
 export const ALL_EDGE_TYPES = '@@all_edge_types';
 
-export default class Graph<TNode: Node, TEdgeType: number = 0> {
+export default class Graph<TNode: Node, TEdgeType: number = 1> {
   nodes: Map<NodeId, TNode>;
   inboundEdges: AdjacencyList<TEdgeType | NullEdgeType>;
   outboundEdges: AdjacencyList<TEdgeType | NullEdgeType>;
   rootNodeId: ?NodeId;
   nextNodeId: number = 0;
+  // should we include the generics?
+  _graph: EfficientGraph;
 
   constructor(opts: ?GraphOpts<TNode, TEdgeType>) {
     this.nodes = opts?.nodes || new Map();
     this.setRootNodeId(opts?.rootNodeId);
     this.nextNodeId = opts?.nextNodeId ?? 0;
+    this._graph = new EfficientGraph();
 
     let edges = opts?.edges;
     if (edges != null) {
@@ -85,7 +89,8 @@ export default class Graph<TNode: Node, TEdgeType: number = 0> {
   }
 
   addNode(node: TNode): NodeId {
-    let id = toNodeId(this.nextNodeId++);
+    // let id = toNodeId(this.nextNodeId++);
+    let id = this._graph.addNode();
     this.nodes.set(id, node);
     return id;
   }
@@ -98,7 +103,7 @@ export default class Graph<TNode: Node, TEdgeType: number = 0> {
     return this.nodes.get(id);
   }
 
-  addEdge(from: NodeId, to: NodeId, type: TEdgeType | NullEdgeType = 0): void {
+  addEdge(from: NodeId, to: NodeId, type: TEdgeType | NullEdgeType = 1): void {
     if (!this.getNode(from)) {
       throw new Error(`"from" node '${fromNodeId(from)}' not found`);
     }
@@ -107,81 +112,86 @@ export default class Graph<TNode: Node, TEdgeType: number = 0> {
       throw new Error(`"to" node '${fromNodeId(to)}' not found`);
     }
 
-    this.outboundEdges.addEdge(from, to, type);
-    this.inboundEdges.addEdge(to, from, type);
+    // this.outboundEdges.addEdge(from, to, type);
+    // this.inboundEdges.addEdge(to, from, type);
+    this._graph.addEdge(from, to, type);
   }
 
   hasEdge(
     from: NodeId,
     to: NodeId,
-    type?: TEdgeType | NullEdgeType = 0,
+    type?: TEdgeType | NullEdgeType = 1,
   ): boolean {
-    return this.outboundEdges.hasEdge(from, to, type);
+    // return this.outboundEdges.hasEdge(from, to, type);
+    return this._graph.hasEdge(from, to, type);
   }
 
   getNodeIdsConnectedTo(
     nodeId: NodeId,
-    type: TEdgeType | NullEdgeType | Array<TEdgeType | NullEdgeType> = 0,
+    type: TEdgeType | NullEdgeType | Array<TEdgeType | NullEdgeType> = 1,
   ): Array<NodeId> {
     this._assertHasNodeId(nodeId);
 
-    let inboundByType = this.inboundEdges.getEdgesByType(nodeId);
-    if (inboundByType == null) {
-      return [];
-    }
+    return [...this._graph.getNodesConnectedTo(nodeId, Number(type))];
+    // let inboundByType = this.inboundEdges.getEdgesByType(nodeId);
+    // if (inboundByType == null) {
+    //   return [];
+    // }
 
-    let nodes;
-    if (type === ALL_EDGE_TYPES) {
-      nodes = new Set();
-      for (let [, typeNodes] of inboundByType) {
-        for (let node of typeNodes) {
-          nodes.add(node);
-        }
-      }
-    } else if (Array.isArray(type)) {
-      nodes = new Set();
-      for (let typeName of type) {
-        for (let node of inboundByType.get(typeName)?.values() ?? []) {
-          nodes.add(node);
-        }
-      }
-    } else {
-      nodes = new Set(inboundByType.get(type)?.values() ?? []);
-    }
+    // let nodes;
+    // if (type === ALL_EDGE_TYPES) {
+    //   nodes = new Set();
+    //   for (let [, typeNodes] of inboundByType) {
+    //     for (let node of typeNodes) {
+    //       nodes.add(node);
+    //     }
+    //   }
+    // } else if (Array.isArray(type)) {
+    //   nodes = new Set();
+    //   for (let typeName of type) {
+    //     for (let node of inboundByType.get(typeName)?.values() ?? []) {
+    //       nodes.add(node);
+    //     }
+    //   }
+    // } else {
+    //   nodes = new Set(inboundByType.get(type)?.values() ?? []);
+    // }
 
-    return [...nodes];
+    // return [...nodes];
   }
 
   getNodeIdsConnectedFrom(
     nodeId: NodeId,
-    type: TEdgeType | NullEdgeType | Array<TEdgeType | NullEdgeType> = 0,
+    type: TEdgeType | NullEdgeType | Array<TEdgeType | NullEdgeType> = 1,
   ): Array<NodeId> {
     this._assertHasNodeId(nodeId);
-    let outboundByType = this.outboundEdges.getEdgesByType(nodeId);
-    if (outboundByType == null) {
-      return [];
-    }
 
-    let nodes;
-    if (type === ALL_EDGE_TYPES) {
-      nodes = new Set();
-      for (let [, typeNodes] of outboundByType) {
-        for (let node of typeNodes) {
-          nodes.add(node);
-        }
-      }
-    } else if (Array.isArray(type)) {
-      nodes = new Set();
-      for (let typeName of type) {
-        for (let node of outboundByType.get(typeName)?.values() ?? []) {
-          nodes.add(node);
-        }
-      }
-    } else {
-      nodes = new Set(outboundByType.get(type)?.values() ?? []);
-    }
+    return [...this._graph.getNodesConnectedFrom(nodeId, Number(type))];
+    // let outboundByType = this.outboundEdges.getEdgesByType(nodeId);
+    // if (outboundByType == null) {
+    //   return [];
+    // }
 
-    return [...nodes];
+    // let nodes;
+    // if (type === ALL_EDGE_TYPES) {
+    //   nodes = new Set();
+    //   for (let [, typeNodes] of outboundByType) {
+    //     for (let node of typeNodes) {
+    //       nodes.add(node);
+    //     }
+    //   }
+    // } else if (Array.isArray(type)) {
+    //   nodes = new Set();
+    //   for (let typeName of type) {
+    //     for (let node of outboundByType.get(typeName)?.values() ?? []) {
+    //       nodes.add(node);
+    //     }
+    //   }
+    // } else {
+    //   nodes = new Set(outboundByType.get(type)?.values() ?? []);
+    // }
+
+    // return [...nodes];
   }
 
   // Removes node and any edges coming from or to that node
@@ -211,7 +221,7 @@ export default class Graph<TNode: Node, TEdgeType: number = 0> {
     assert(wasRemoved);
   }
 
-  removeEdges(nodeId: NodeId, type: TEdgeType | NullEdgeType = 0) {
+  removeEdges(nodeId: NodeId, type: TEdgeType | NullEdgeType = 1) {
     this._assertHasNodeId(nodeId);
 
     for (let to of this.outboundEdges.getEdges(nodeId, type)) {
@@ -223,7 +233,7 @@ export default class Graph<TNode: Node, TEdgeType: number = 0> {
   removeEdge(
     from: NodeId,
     to: NodeId,
-    type: TEdgeType | NullEdgeType = 0,
+    type: TEdgeType | NullEdgeType = 1,
     removeOrphans: boolean = true,
   ) {
     if (!this.outboundEdges.hasEdge(from, to, type)) {
@@ -295,7 +305,7 @@ export default class Graph<TNode: Node, TEdgeType: number = 0> {
   replaceNode(
     fromNodeId: NodeId,
     toNodeId: NodeId,
-    type: TEdgeType | NullEdgeType = 0,
+    type: TEdgeType | NullEdgeType = 1,
   ): void {
     this._assertHasNodeId(fromNodeId);
     for (let parent of this.inboundEdges.getEdges(fromNodeId, type)) {
@@ -310,7 +320,7 @@ export default class Graph<TNode: Node, TEdgeType: number = 0> {
     fromNodeId: NodeId,
     toNodeIds: $ReadOnlyArray<NodeId>,
     replaceFilter?: null | (NodeId => boolean),
-    type?: TEdgeType | NullEdgeType = 0,
+    type?: TEdgeType | NullEdgeType = 1,
   ): void {
     this._assertHasNodeId(fromNodeId);
 
@@ -336,7 +346,7 @@ export default class Graph<TNode: Node, TEdgeType: number = 0> {
   traverse<TContext>(
     visit: GraphVisitor<NodeId, TContext>,
     startNodeId: ?NodeId,
-    type: TEdgeType | NullEdgeType | Array<TEdgeType | NullEdgeType> = 0,
+    type: TEdgeType | NullEdgeType | Array<TEdgeType | NullEdgeType> = 1,
   ): ?TContext {
     return this.dfs({
       visit,
@@ -357,7 +367,7 @@ export default class Graph<TNode: Node, TEdgeType: number = 0> {
   traverseAncestors<TContext>(
     startNodeId: ?NodeId,
     visit: GraphVisitor<NodeId, TContext>,
-    type: TEdgeType | NullEdgeType | Array<TEdgeType | NullEdgeType> = 0,
+    type: TEdgeType | NullEdgeType | Array<TEdgeType | NullEdgeType> = 1,
   ): ?TContext {
     return this.dfs({
       visit,

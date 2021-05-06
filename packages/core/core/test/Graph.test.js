@@ -6,14 +6,14 @@ import sinon from 'sinon';
 import Graph from '../src/Graph';
 import {toNodeId} from '../src/types';
 
-describe('Graph', () => {
-  it('constructor should initialize an empty graph', () => {
+describe.only('Graph', () => {
+  it.only('constructor should initialize an empty graph', () => {
     let graph = new Graph();
     assert.deepEqual(graph.nodes, new Map());
     assert.deepEqual(graph.getAllEdges(), []);
   });
 
-  it('addNode should add a node to the graph', () => {
+  it.only('addNode should add a node to the graph', () => {
     let graph = new Graph();
     let node = {id: 'do not use', type: 'mynode', value: 'a'};
     let id = graph.addNode(node);
@@ -50,7 +50,7 @@ describe('Graph', () => {
     }, /Does not have node/);
   });
 
-  it("errors when adding an edge to a node that doesn't exist", () => {
+  it.only("errors when adding an edge to a node that doesn't exist", () => {
     let graph = new Graph();
     let node = graph.addNode({id: 'foo', type: 'mynode', value: null});
     assert.throws(() => {
@@ -58,7 +58,7 @@ describe('Graph', () => {
     }, /"to" node '-1' not found/);
   });
 
-  it("errors when adding an edge from a node that doesn't exist", () => {
+  it.only("errors when adding an edge from a node that doesn't exist", () => {
     let graph = new Graph();
     let node = graph.addNode({id: 'foo', type: 'mynode', value: null});
     assert.throws(() => {
@@ -73,7 +73,7 @@ describe('Graph', () => {
     assert(!graph.hasNode(toNodeId(-1)));
   });
 
-  it('addEdge should add an edge to the graph', () => {
+  it.only('addEdge should add an edge to the graph', () => {
     let graph = new Graph();
     let nodeA = graph.addNode({id: 'a', type: 'mynode', value: null});
     let nodeB = graph.addNode({id: 'b', type: 'mynode', value: null});
