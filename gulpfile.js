@@ -31,7 +31,10 @@ const paths = {
     'packages/*/*/src/**/dev-prelude.js',
     'packages/*/dev-server/src/templates/**',
   ],
-  packageJson: 'packages/core/parcel/package.json',
+  packageJson: [
+    'packages/core/parcel/package.json',
+    'packages/utils/create-react-app/package.json',
+  ],
   packages: 'packages/',
 };
 
@@ -62,7 +65,12 @@ exports.clean = function clean(cb) {
 exports.default = exports.build = gulp.series(
   gulp.parallel(buildBabel, copyOthers),
   // Babel reads from package.json so update these after babel has run
-  () => updatePackageJson(paths.packageJson),
+  paths.packageJson.map(
+    packageJsonPath =>
+      function updatePackageJson() {
+        return _updatePackageJson(packageJsonPath);
+      },
+  ),
 );
 
 function buildBabel() {
@@ -80,7 +88,7 @@ function copyOthers() {
     .pipe(gulp.dest(paths.packages));
 }
 
-function updatePackageJson(file) {
+function _updatePackageJson(file) {
   return gulp
     .src(file)
     .pipe(
