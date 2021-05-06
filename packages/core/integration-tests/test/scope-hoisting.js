@@ -3226,41 +3226,15 @@ describe('scope hoisting', function() {
       });
     });
 
-    it.skip("doesn't ignore missing import specifiers in source assets", async function() {
-      // Skipping. Tradeoff between extra potentially unused symbols that could be tree-shaken vs error message on unused exports.
-      // Possibly only do this in development. Or just use a linter for this.
-      let source = path.normalize(
-        'integration/scope-hoisting/es6/unused-import-specifier/a.js',
+    it('ignores missing import specifiers in source assets', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          'integration/scope-hoisting/es6/unused-import-specifier/a.js',
+        ),
       );
-      let message = md`${path.normalize(
-        'integration/scope-hoisting/es6/unused-import-specifier/b.js',
-      )} does not export 'unused'`;
-      await assert.rejects(() => bundle(path.join(__dirname, source)), {
-        name: 'BuildError',
-        message,
-        diagnostics: [
-          {
-            message,
-            origin: '@parcel/core',
-            filePath: source,
-            language: 'js',
-            codeFrame: {
-              codeHighlights: [
-                {
-                  start: {
-                    line: 1,
-                    column: 15,
-                  },
-                  end: {
-                    line: 1,
-                    column: 20,
-                  },
-                },
-              ],
-            },
-          },
-        ],
-      });
+      let output = await run(b);
+      assert.equal(output, 123);
     });
 
     it('ignores unused import specifiers in node-modules', async function() {
