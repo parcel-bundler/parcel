@@ -385,6 +385,57 @@ export default class EfficientGraph {
   }
 
   /**
+   *
+   */
+  removeEdge(from: NodeId, to: NodeId, type: number = 1): void {
+    if (this.index(from, to, type) !== -1) {
+      // The edge is not in the graph; do nothing.
+      return;
+    }
+
+    let index = this.hash(from, to /*, type*/);
+
+    // Update pointers to the removed edge to the next outgoing edge.
+    let nextOut = this.edges[index + NEXT_OUT];
+    let fromFirstOut = indexOfEdge(this.nodes[fromNodeId(from) + FIRST_OUT]);
+    if (fromFirstOut === index) {
+      this.nodes[fromNodeId(from) + FIRST_OUT] = nextOut;
+    } else {
+      while (fromFirstOut) {
+        if (fromFirstOut === index) {
+          this.edges[fromFirstOut + NEXT_OUT] = nextOut;
+          break;
+        }
+        fromFirstOut = this.edges[fromFirstOut + NEXT_OUT];
+      }
+    }
+
+    // Update pointers to the removed edge to the next incoming edge.
+    let nextIn = this.edges[index + NEXT_IN];
+    let fromFirstIn = indexOfEdge(this.nodes[fromNodeId(to) + FIRST_IN]);
+    if (fromFirstIn === index) {
+      this.nodes[fromNodeId(to) + FIRST_IN] = nextIn;
+    } else {
+      while (fromFirstIn) {
+        if (fromFirstIn === index) {
+          this.edges[fromFirstIn + NEXT_IN] = nextIn;
+          break;
+        }
+        fromFirstIn = this.edges[fromFirstIn + NEXT_IN];
+      }
+    }
+
+    // Free up this space in the edges list.
+    this.edges[index + TYPE] = 0;
+    this.edges[index + FROM] = 0;
+    this.edges[index + TO] = 0;
+    this.edges[index + NEXT_IN] = 0;
+    this.edges[index + NEXT_OUT] = 0;
+
+    this.numEdges--;
+  }
+
+  /**
    * Get the list of nodes connected from this node.
    */
   *getNodesConnectedFrom(
