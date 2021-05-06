@@ -215,6 +215,11 @@ export default async function applyRuntimes({
 
     if (isEntry) {
       bundleGraph._graph.addEdge(bundleNodeId, bundleGraphRuntimeNodeId);
+      // add entry to the front, remove previous runtime
+      if (bundle.entryAssetIds.includes(runtimeNode.id)) {
+        let index = bundle.entryAssetIds.indexOf(runtimeNode.id);
+        bundle.entryAssetIds.splice(index, 1);
+      }
       bundle.entryAssetIds.unshift(runtimeNode.id);
     }
 
