@@ -2,6 +2,7 @@
 import {fromNodeId, toNodeId} from './types';
 import type {NodeId} from './types';
 import {digraph} from 'graphviz';
+import {spawn} from 'child_process';
 
 /**
  * Each node is represented with 2 4-byte chunks:
@@ -430,7 +431,7 @@ export default class EfficientGraph {
     );
   }
 
-  graphviz(type: 'graph' | 'edges' | 'nodes' = 'graph'): string {
+  toDot(type: 'graph' | 'edges' | 'nodes' = 'graph'): string {
     switch (type) {
       case 'edges':
         return edgesToDot(this);
@@ -705,4 +706,30 @@ function edgesToDot(data: EfficientGraph): string {
   }
 
   return g.to_dot();
+}
+
+export function openGraphViz(
+  data: EfficientGraph,
+  type?: 'graph' | 'nodes' | 'edges',
+): Promise<void> {
+  if (!type) {
+    return Promise.all([
+      openGraphViz(data, 'nodes'),
+      openGraphViz(data, 'edges'),
+      openGraphViz(data, 'graph'),
+    ]).then(() => void 0);
+  }
+  let preview = spawn('open', ['-a', 'Preview.app', '-f'], {stdio: ['pipe']});
+  let result = new Promise((resolve, reject) => {
+    preview.on('close', code => {
+      if (code) reject(`process exited with code ${code}`);
+      else resolve();
+    });
+  });
+
+  let dot = spawn('dot', ['-Tpng'], {stdio: ['pipe']});
+  dot.stdout.pipe(preview.stdin);
+  dot.stdin.write(data.toDot(type));
+  dot.stdin.end();
+  return result;
 }
