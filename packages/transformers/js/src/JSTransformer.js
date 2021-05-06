@@ -282,9 +282,6 @@ export default (new Transformer({
       });
     }
 
-    // console.log(Object.keys(options.env))
-    // console.log(asset.filePath, hoist_result, compiledCode);
-
     if (shebang) {
       asset.meta.interpreter = shebang;
     }
