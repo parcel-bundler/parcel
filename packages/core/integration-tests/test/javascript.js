@@ -1741,8 +1741,7 @@ describe('javascript', function() {
     assert.deepEqual(output(), false);
   });
 
-  it.skip('should insert environment variables inserted by a prior transform', async () => {
-    // Skipped: relies on Babel...
+  it('should insert environment variables inserted by a prior transform', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/env-prior-transform/index.js'),
     );
