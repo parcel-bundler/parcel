@@ -1,4 +1,7 @@
-export const prelude = parcelRequireName => `var $parcel$modules = {};
+// @flow strict-local
+export const prelude = (
+  parcelRequireName: string,
+): string => `var $parcel$modules = {};
 var $parcel$inits = {};
 
 var parcelRequire = $parcel$global[${JSON.stringify(parcelRequireName)}];

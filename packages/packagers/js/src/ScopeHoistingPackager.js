@@ -60,7 +60,7 @@ export class ScopeHoistingPackager {
   parcelRequireName: string;
   outputFormat: OutputFormat;
   isAsyncBundle: boolean;
-  globalNames: Set<string>;
+  globalNames: $ReadOnlySet<string>;
   assetOutputs: Map<string, {|code: string, map: ?Buffer|}>;
   exportedSymbols: Map<
     string,
@@ -98,7 +98,7 @@ export class ScopeHoistingPackager {
 
   async package(): Promise<{|contents: string, map: ?SourceMap|}> {
     await this.loadAssets();
-    await this.buildExportedSymbols();
+    this.buildExportedSymbols();
 
     // If building a library, the target is actually another bundler rather
     // than the final output that could be loaded in a browser. So, loader

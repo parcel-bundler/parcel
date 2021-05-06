@@ -1,4 +1,4 @@
-// @flow
+// @flow strict-local
 import type {Async} from '@parcel/types';
 import type SourceMap from '@parcel/source-map';
 import {Packager} from '@parcel/plugin';
