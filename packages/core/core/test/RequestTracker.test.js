@@ -39,8 +39,10 @@ describe('RequestTracker', () => {
       run: () => {},
       input: null,
     });
-    let node = nullthrows(tracker.graph.getNode('abc'));
-    tracker.graph.invalidateNode(node, INITIAL_BUILD);
+    tracker.graph.invalidateNode(
+      tracker.graph.getNodeIdByContentKey('abc'),
+      INITIAL_BUILD,
+    );
     let called = false;
     await tracker.runRequest({
       id: 'abc',
@@ -68,8 +70,10 @@ describe('RequestTracker', () => {
       },
       input: null,
     });
-    let node = nullthrows(tracker.graph.getNode('xyz'));
-    tracker.graph.invalidateNode(node, INITIAL_BUILD);
+    tracker.graph.invalidateNode(
+      tracker.graph.getNodeIdByContentKey('xyz'),
+      INITIAL_BUILD,
+    );
     assert(
       tracker
         .getInvalidRequests()
@@ -116,8 +120,8 @@ describe('RequestTracker', () => {
       },
       input: null,
     });
-    let node = nullthrows(tracker.graph.getNode('abc'));
-    tracker.graph.invalidateNode(node, INITIAL_BUILD);
+    let nodeId = nullthrows(tracker.graph.getNodeIdByContentKey('abc'));
+    tracker.graph.invalidateNode(nodeId, INITIAL_BUILD);
     await tracker.runRequest({
       id: 'abc',
       type: 'mock_request',
@@ -131,7 +135,7 @@ describe('RequestTracker', () => {
       },
       input: null,
     });
-    assert(!tracker.graph.hasNode('xyz'));
+    assert(!tracker.graph.hasContentKey('xyz'));
   });
 
   it('should return a cached result if it was stored', async () => {

@@ -4,7 +4,11 @@ module.exports = cacheLoader(function loadJSBundle(bundle) {
   return new Promise(function(resolve, reject) {
     // Don't insert the same script twice (e.g. if it was already in the HTML)
     let existingScripts = document.getElementsByTagName('script');
-    if ([...existingScripts].some(script => script.src === bundle)) {
+    let isCurrentBundle = function(script) {
+      return script.src === bundle;
+    };
+
+    if ([].concat(existingScripts).some(isCurrentBundle)) {
       resolve();
       return;
     }

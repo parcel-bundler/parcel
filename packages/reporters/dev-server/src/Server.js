@@ -207,12 +207,14 @@ export default class Server {
       let requestedPath = path.normalize(pathname.slice(1));
       let bundle = bundleGraph
         .getBundles()
+        .filter(b => !b.isInline)
         .find(
           b =>
             path.relative(this.options.distDir, b.filePath) === requestedPath,
         );
       if (!bundle) {
-        return next(req, res);
+        this.serveDist(req, res, next);
+        return;
       }
 
       invariant(this.requestBundle != null);
