@@ -585,22 +585,45 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
     return this.hash;
   }
 
-  getAssetChanges(
+  getChangedAssetGraph(
     prevResult: AssetGraph,
     isAssetGraphStructureSame: boolean,
     changedAssets: Map<string, Asset>,
-  ): Map<Asset, string> {
-    let changes = new Map<Asset, string>(); // String should be our own result (changedResult)
-    if (!isAssetGraphStructureSame) {
-      return changes;
-    }
-    this.traverse({
-      enter: node => {
-        if (changedAssets.get(node.id)) {
-          //determine change?
-        }
-      },
+  ): AssetGraph {
+    // Called when graph structure is not same or there are changed assets
+    let subGraphChanges = new AssetGraph();
+    changedAssets.forEach(value => {
+      //add asset as node from new graph
+      let changedNode = this.getNode(value.id);
+      this.traverse(
+        {
+          enter: node => {
+            // add all inbound and outbound edges and nodes to subGraphchanges
+            subGraphChanges.addNode(node);
+            this.inboundEdges._listMap.forEach((value, key) => {
+              if (node.id === key) {
+                subGraphChanges.inboundEdges._listMap.set(node.id, value); //TODO clone or use AddEdge
+              }
+            });
+            this.outboundEdges._listMap.forEach((value, key) => {
+              if (node.id === key) {
+                subGraphChanges.outboundEdges._listMap.set(node.id, value);
+                // TODO
+                // value.get(null)?.forEach((value) => {
+                //   subGraphChanges.outboundEdges.addEdge(node.id, value, null);
+                // })
+              }
+            });
+            //stop as soon as node matched old graph after adding that node
+            if (this.nodes.has(node.id)) {
+              return;
+            }
+          },
+        },
+        changedNode,
+      );
     });
-    return changes;
+
+    return subGraphChanges;
   }
 }
