@@ -27,10 +27,15 @@
 
   var cache = previousRequire.cache || {};
   // Do not use `require` to prevent Webpack from trying to bundle this call
-  var nodeRequire =
-    typeof module !== 'undefined' &&
-    typeof module.require === 'function' &&
-    module.require.bind(module);
+  let nodeRequire;
+  if (typeof module !== 'undefined' && typeof module.require === 'function') {
+    nodeRequire = module.require.bind(module);
+  } else {
+    const req = eval('require');
+    if (typeof req === 'function') {
+      nodeRequire = req;
+    }
+  }
 
   function newRequire(name, jumped) {
     if (!cache[name]) {
