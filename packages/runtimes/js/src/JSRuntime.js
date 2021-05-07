@@ -346,7 +346,9 @@ function getLoaderRuntime({
 
       let code = `require(${JSON.stringify(
         loader,
-      )})(require('./bundle-url').getBundleURL() + ${relativePathExpr})`;
+      )})(require('./bundle-url').getBundleURL('${
+        bundle.publicId
+      }') + ${relativePathExpr})`;
 
       // In development, clear the require cache when an error occurs so the
       // user can try again (e.g. after fixing a build error).
@@ -478,7 +480,9 @@ function getHintLoaders(
       hintLoaders.push(
         `require(${JSON.stringify(
           loader,
-        )})(require('./bundle-url').getBundleURL() + ${relativePathExpr}, ${
+        )})(require('./bundle-url').getBundleURL('${
+          from.publicId
+        }') + ${relativePathExpr}, ${
           priority ? JSON.stringify(priority) : 'null'
         }, ${JSON.stringify(
           bundleToPreload.target.env.outputFormat === 'esmodule',
@@ -522,7 +526,7 @@ function getURLRuntime(
 
   return {
     filePath: __filename,
-    code: `module.exports = require('./bundle-url').getBundleURL() + ${relativePathExpr}`,
+    code: `module.exports = require('./bundle-url').getBundleURL('${from.publicId}') + ${relativePathExpr}`,
     dependency,
   };
 }
