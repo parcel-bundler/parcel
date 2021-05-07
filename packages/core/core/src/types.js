@@ -444,7 +444,6 @@ export type BundleGroupNode = {|
   +type: 'bundle_group',
   value: BundleGroup,
 |};
-
 export type TransformationOpts = {|
   request: AssetGroup,
   optionsRef: SharedReference,
