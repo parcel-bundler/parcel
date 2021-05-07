@@ -160,6 +160,8 @@ export default (new Packager({
           let resolved = bundleGraph.getDependencyResolution(dep, bundle);
           if (resolved) {
             deps[dep.moduleSpecifier] = bundleGraph.getAssetPublicId(resolved);
+          } else if (bundleGraph.isDependencySkipped(dep)) {
+            deps[dep.moduleSpecifier] = false;
           }
         }
 
