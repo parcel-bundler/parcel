@@ -916,7 +916,6 @@ impl<'a> Fold for Hoist<'a> {
       return node.fold_children_with(self);
     }
 
-    // TODO: test
     match node {
       Prop::Shorthand(ident) => Prop::KeyValue(KeyValueProp {
         key: PropName::Ident(Ident::new(ident.sym.clone(), DUMMY_SP)),
@@ -1187,7 +1186,7 @@ impl Visit for Collect {
               return;
             }
 
-            // TODO: handle require('foo').bar / require('foo').bar()
+            // TODO: optimize `require('foo').bar` / `require('foo').bar()` as well
           }
           _ => {}
         }
@@ -1689,7 +1688,7 @@ impl Collect {
         for prop in &object.props {
           match prop {
             ObjectPatProp::KeyValue(kv) => {
-              let local = match &kv.key {
+              let imported = match &kv.key {
                 PropName::Ident(ident) => ident.sym.clone(),
                 PropName::Str(str) => str.value.clone(),
                 _ => {
@@ -1702,12 +1701,12 @@ impl Collect {
               match &*kv.value {
                 Pat::Ident(ident) => {
                   // let {x: y} = require('y');
-                  // Need to track `y` as a used symbol.
+                  // Need to track `x` as a used symbol.
                   self.imports.insert(
                     id!(ident.id),
                     Import {
                       source: src.clone(),
-                      specifier: local,
+                      specifier: imported,
                       kind,
                       loc: SourceLocation::from(&self.source_map, ident.id.span),
                     },
