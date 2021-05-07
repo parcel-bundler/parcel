@@ -159,19 +159,6 @@ describe('babel', function() {
     assert(file.includes('function Bar'));
   });
 
-  it('should strip away flow types', async function() {
-    let b = await bundle(
-      path.join(__dirname, '/integration/babel-strip-flow-types/index.js'),
-    );
-
-    let output = await run(b);
-    assert.equal(typeof output, 'function');
-    assert.equal(output(), 'hello world');
-
-    let file = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
-    assert(!file.includes('OptionsType'));
-  });
-
   it('should support compiling with babel using babel.config.js config', async function() {
     await bundle(
       path.join(__dirname, '/integration/babel-config-js/src/index.js'),

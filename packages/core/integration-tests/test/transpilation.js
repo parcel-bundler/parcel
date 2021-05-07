@@ -167,6 +167,19 @@ describe('transpilation', function() {
     assert(!file.includes('es.array.concat'));
   });
 
+  it('should strip away flow types', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/strip-flow-types/index.js'),
+    );
+
+    let output = await run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(output(), 'hello world');
+
+    let file = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
+    assert(!file.includes('Writable'));
+  });
+
   describe('tests needing the real filesystem', () => {
     afterEach(async () => {
       if (process.platform === 'win32') {
