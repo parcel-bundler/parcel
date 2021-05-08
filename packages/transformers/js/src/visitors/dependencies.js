@@ -15,6 +15,7 @@ import type {
   ObjectExpression,
   ObjectProperty,
   StringLiteral,
+  TemplateLiteral,
 } from '@babel/types';
 import type {SimpleVisitors} from '@parcel/babylon-walk';
 import type {PluginLogger} from '@parcel/logger';
@@ -33,9 +34,15 @@ import {
   isReturnStatement,
   isStringLiteral,
 } from '@babel/types';
-import {isURL, md5FromString, createDependencyLocation} from '@parcel/utils';
+import {
+  isURL,
+  md5FromString,
+  createDependencyLocation,
+  normalizePath,
+} from '@parcel/utils';
 import {isInFalsyBranch, hasBinding, morph} from './utils';
 import {convertBabelLoc} from '@parcel/babel-ast-utils';
+import ThrowableDiagnostic from '@parcel/diagnostic';
 
 const serviceWorkerPattern = ['navigator', 'serviceWorker', 'register'];
 
@@ -83,14 +90,14 @@ export default ({
   },
 
   CallExpression: {
-    enter(node, {asset, ast}, ancestors) {
+    enter(node, {asset, ast, logger}, ancestors) {
       let {callee, arguments: args} = node;
 
       let isRequire =
         types.isIdentifier(callee) &&
         callee.name === 'require' &&
         args.length === 1 &&
-        types.isStringLiteral(args[0]) &&
+        (types.isStringLiteral(args[0]) || types.isTemplateLiteral(args[0])) &&
         !hasBinding(ancestors, 'require') &&
         !isInFalsyBranch(ancestors);
 
@@ -98,7 +105,13 @@ export default ({
         let isOptional =
           ancestors.some(a => types.isTryStatement(a)) || undefined;
         let isAsync = isRequireAsync(ancestors, node, asset, ast);
-        addDependency(asset, args[0], {isOptional, isAsync});
+        addDependency(
+          asset,
+          types.isTemplateLiteral(args[0])
+            ? normalize(asset, args[0], logger)
+            : args[0],
+          {isOptional, isAsync},
+        );
         return;
       }
 
@@ -524,4 +537,41 @@ function objectExpressionNodeToJSONObject(
   }
 
   return object;
+}
+
+function normalize(
+  asset: MutableAsset,
+  templateLiteral: TemplateLiteral,
+  logger: PluginLogger,
+) {
+  if (templateLiteral.expressions.length) {
+    let loc = convertBabelLoc(templateLiteral.loc);
+    let e = {
+      message: 'Expressions are not allowed in the require() calls.',
+      origin: '@parcel/transformer-js',
+      ...(loc && {
+        codeFrame: {
+          codeHighlights: [{start: loc.start, end: loc.end}],
+        },
+      }),
+      filePath: asset.filePath,
+    };
+
+    if (asset.isSource) {
+      throw new ThrowableDiagnostic({
+        diagnostic: {
+          ...e,
+        },
+      });
+    } else {
+      logger.warn(e);
+    }
+  }
+
+  return {
+    ...(Array.isArray(templateLiteral.quasis) &&
+      templateLiteral.quasis[0] &&
+      convertBabelLoc(templateLiteral.quasis[0].loc)),
+    value: normalizePath(templateLiteral.quasis[0].value.raw),
+  };
 }
