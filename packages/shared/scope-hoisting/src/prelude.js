@@ -26,12 +26,17 @@ if (parcelRequire == null) {
   };
 
   parcelRequire.register = function register(id, exports) {
+    exports.__$parcel$init = true;
     $parcel$modules[id] = exports;
   };
 
   parcelRequire.registerBundle = function registerBundle(id, fn) {
     $parcel$bundles[id] = fn;
-    $parcel$modules[id] = {};
+    function init() {
+      return $parcel$modules[id] === init ? undefined : $parcel$modules[id]();
+    }
+    init.__$parcel$init = true;
+    $parcel$modules[id] = init;
   };
 
   $parcel$global[parcelRequireName] = parcelRequire;
