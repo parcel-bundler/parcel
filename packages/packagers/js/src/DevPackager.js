@@ -55,7 +55,7 @@ export class DevPackager {
 
     let prefix = this.getPrefix();
     let lineOffset = countLines(prefix);
-    let script;
+    let script: ?{|code: string, mapBuffer: ?Buffer|} = null;
 
     this.bundle.traverse(node => {
       let wrapped = first ? '' : ',';
@@ -174,9 +174,10 @@ export class DevPackager {
     // runtimes with a parcelRequire call.
     if (this.bundle.env.sourceType === 'script' && script) {
       let entryMap;
-      if (script.mapBuffer) {
+      let mapBuffer = script.mapBuffer;
+      if (mapBuffer) {
         entryMap = new SourceMap(this.options.projectRoot);
-        entryMap.addBufferMappings(script.mapBuffer);
+        entryMap.addBufferMappings(mapBuffer);
       }
       contents += replaceScriptDependencies(
         this.bundleGraph,
