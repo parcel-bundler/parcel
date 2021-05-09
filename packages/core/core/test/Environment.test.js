@@ -6,7 +6,7 @@ import {createEnvironment} from '../src/Environment';
 describe('Environment', () => {
   it('assigns a default environment with nothing passed', () => {
     assert.deepEqual(createEnvironment(), {
-      id: 'df4026ac04fc13af1373bbf94f5cd301',
+      id: 'c83ca9b24017e1e3f48f001f92aa51da',
       context: 'browser',
       engines: {
         browsers: ['> 0.25%'],
@@ -17,12 +17,14 @@ describe('Environment', () => {
       shouldOptimize: false,
       shouldScopeHoist: false,
       sourceMap: undefined,
+      loc: undefined,
+      sourceType: 'module',
     });
   });
 
   it('assigns a node context if a node engine is given', () => {
     assert.deepEqual(createEnvironment({engines: {node: '>= 10.0.0'}}), {
-      id: '3f3b667d8da182f7b4819d6b24dfa215',
+      id: '8c981a8961473a58b919c03741721e25',
       context: 'node',
       engines: {
         node: '>= 10.0.0',
@@ -33,6 +35,8 @@ describe('Environment', () => {
       shouldOptimize: false,
       shouldScopeHoist: false,
       sourceMap: undefined,
+      loc: undefined,
+      sourceType: 'module',
     });
   });
 
@@ -40,7 +44,7 @@ describe('Environment', () => {
     assert.deepEqual(
       createEnvironment({engines: {browsers: ['last 1 version']}}),
       {
-        id: '2535eaad0d1d3ccb199dc1b052b94406',
+        id: 'a72c48fdadd2d4c47a3eec71eab4eb36',
         context: 'browser',
         engines: {
           browsers: ['last 1 version'],
@@ -51,13 +55,15 @@ describe('Environment', () => {
         shouldOptimize: false,
         shouldScopeHoist: false,
         sourceMap: undefined,
+        loc: undefined,
+        sourceType: 'module',
       },
     );
   });
 
   it('assigns default engines for node', () => {
     assert.deepEqual(createEnvironment({context: 'node'}), {
-      id: 'f61da5725403cc01b4448e3dfef40d92',
+      id: 'fbd532586d9a5c69405252416c600aa0',
       context: 'node',
       engines: {
         node: '>= 8.0.0',
@@ -68,12 +74,14 @@ describe('Environment', () => {
       shouldOptimize: false,
       shouldScopeHoist: false,
       sourceMap: undefined,
+      loc: undefined,
+      sourceType: 'module',
     });
   });
 
   it('assigns default engines for browsers', () => {
     assert.deepEqual(createEnvironment({context: 'browser'}), {
-      id: 'df4026ac04fc13af1373bbf94f5cd301',
+      id: 'c83ca9b24017e1e3f48f001f92aa51da',
       context: 'browser',
       engines: {
         browsers: ['> 0.25%'],
@@ -84,6 +92,8 @@ describe('Environment', () => {
       shouldOptimize: false,
       shouldScopeHoist: false,
       sourceMap: undefined,
+      loc: undefined,
+      sourceType: 'module',
     });
   });
 });
