@@ -30,12 +30,12 @@ import ThrowableDiagnostic, {
 import {parse} from 'json5';
 import path from 'path';
 import invariant from 'assert';
-import {toProjectPath} from '../projectPath';
 
 import ParcelConfigSchema from '../ParcelConfig.schema';
 import {optionsProxy} from '../utils';
 import ParcelConfig from '../ParcelConfig';
 import {createBuildCache} from '../buildCache';
+import {toProjectPath} from '../projectPath';
 
 type ConfigMap<K, V> = {[K]: V, ...};
 

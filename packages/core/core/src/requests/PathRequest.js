@@ -237,12 +237,19 @@ export class ResolverRunner {
           }
 
           if (result.filePath != null) {
+            let resultFilePath = result.filePath;
+            if (!path.isAbsolute(resultFilePath)) {
+              throw new Error(
+                md`Resolvers must return an absolute path, ${resolver.name} returned: ${resultFilePath}`,
+              );
+            }
+
             return {
               assetGroup: {
                 canDefer: result.canDefer,
                 filePath: toProjectPath(
                   this.options.projectRoot,
-                  result.filePath,
+                  resultFilePath,
                 ),
                 query,
                 sideEffects: result.sideEffects,

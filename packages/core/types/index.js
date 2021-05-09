@@ -1105,6 +1105,7 @@ export type FileCreateInvalidation =
  * @section resolver
  */
 export type ResolveResult = {|
+  /** An absolute path to the file. */
   +filePath?: FilePath,
   +isExcluded?: boolean,
   /** Corresponds to BaseAsset's <code>sideEffects</code>. */
