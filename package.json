@@ -41,7 +41,7 @@
     "cross-env": "^7.0.0",
     "doctoc": "^1.4.0",
     "eslint": "^7.20.0",
-    "flow-bin": "0.148.0",
+    "flow-bin": "0.150.0",
     "gulp": "^4.0.2",
     "gulp-babel": "^8.0.0",
     "husky": "^6.0.0",
