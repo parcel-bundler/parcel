@@ -86,9 +86,9 @@ export default (new Transformer({
         // Find a dependency that we can map to a JSX pragma
         reactLib = Object.keys(JSX_PRAGMA).find(
           libName =>
-            pkg &&
-            ((pkg.dependencies && pkg.dependencies[libName]) ||
-              (pkg.devDependencies && pkg.devDependencies[libName])),
+            pkg?.dependencies?.[libName] ||
+            pkg?.devDependencies?.[libName] ||
+            pkg?.peerDependencies?.[libName],
         );
       }
     }
@@ -99,7 +99,9 @@ export default (new Transformer({
       config.env.isBrowser() &&
       !config.env.isWorker() &&
       options.mode === 'development' &&
-      pkg?.dependencies?.['react'];
+      (pkg?.dependencies?.react ||
+        pkg?.devDependencies?.react ||
+        pkg?.peerDependencies?.react);
 
     // Check if we should ignore fs calls
     // See https://github.com/defunctzombie/node-browser-resolve#skip

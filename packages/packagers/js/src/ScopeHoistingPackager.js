@@ -314,7 +314,6 @@ export class ScopeHoistingPackager {
     if (this.shouldSkipAsset(asset)) {
       let depCode = '';
       let lineCount = 0;
-      // TODO: order?
       for (let dep of deps) {
         let resolved = this.bundleGraph.getDependencyResolution(
           dep,
@@ -717,9 +716,7 @@ ${code}
         return `${obj}[${JSON.stringify(exportSymbol)}]`;
       }
     } else if (!symbol) {
-      // Asset was skipped or not found.
-      // TODO: not sure about this.
-      return '{}';
+      invariant(false, 'Asset was skipped or not found.');
     } else {
       return symbol;
     }
