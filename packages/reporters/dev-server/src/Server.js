@@ -20,6 +20,7 @@ import {
   createHTTPServer,
   loadConfig,
   prettyDiagnostic,
+  relativePath,
 } from '@parcel/utils';
 import serverErrors from './serverErrors';
 import fs from 'fs';
@@ -52,6 +53,14 @@ const TEMPLATE_500 = fs.readFileSync(
   'utf8',
 );
 type NextFunction = (req: Request, res: Response, next?: (any) => any) => any;
+
+function getUrlDirectory(url: string) {
+  let chunks = url.split('/');
+  if (chunks[chunks.length - 1].includes('.')) {
+    chunks.pop();
+  }
+  return chunks.join('/');
+}
 
 export default class Server {
   pending: boolean;
@@ -165,23 +174,31 @@ export default class Server {
         }
       });
 
-      let indexFilePath =
-        htmlBundleFilePaths.length > 1
-          ? htmlBundleFilePaths
-              .sort((a, b) => {
-                let lengthDiff = a.length - b.length;
-                if (lengthDiff === 0) {
-                  return a.localeCompare(b);
-                } else {
-                  return lengthDiff;
-                }
-              })
-              .find(f => {
-                return path.basename(f).startsWith('index');
-              })
-          : htmlBundleFilePaths[0];
+      htmlBundleFilePaths = htmlBundleFilePaths.map(p => {
+        return `/${relativePath(this.options.distDir, p, false)}`;
+      });
+
+      let indexFilePath = null;
+      if (htmlBundleFilePaths.length === 1) {
+        indexFilePath = htmlBundleFilePaths[0];
+      } else {
+        let reqDirectory = getUrlDirectory(req.url);
+        indexFilePath = htmlBundleFilePaths
+          .filter(v => {
+            let dir = getUrlDirectory(v);
+            let filename = v.replace(dir, '');
+            let withoutExtension = filename.replace(path.extname(filename), '');
+            return (
+              withoutExtension === '/index' && reqDirectory.startsWith(dir)
+            );
+          })
+          .sort((a, b) => {
+            return b.length - a.length;
+          })[0];
+      }
+
       if (indexFilePath) {
-        req.url = `/${path.relative(this.options.distDir, indexFilePath)}`;
+        req.url = indexFilePath;
         this.serveBundle(req, res, () => this.send404(req, res));
       } else {
         this.send404(req, res);

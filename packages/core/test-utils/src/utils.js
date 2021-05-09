@@ -494,7 +494,11 @@ export function assertBundles(
     let actualName = actualBundle.name;
     if (name != null && actualName != null) {
       if (typeof name === 'string') {
-        assert.equal(actualName, name);
+        assert.equal(
+          actualName,
+          name,
+          `Bundle name "${actualName}", does not match expected name "${name}"`,
+        );
       } else if (name instanceof RegExp) {
         assert(
           actualName.match(name),
@@ -502,7 +506,7 @@ export function assertBundles(
         );
       } else {
         // $FlowFixMe[incompatible-call]
-        assert.fail();
+        assert.fail('Expected bundle name has invalid type');
       }
     }
 

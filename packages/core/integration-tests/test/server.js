@@ -140,37 +140,39 @@ describe('server', function() {
 
   it('should serve a default page if the main bundle is an HTML asset', async function() {
     let port = await getPort();
-    let b = bundler(
-      [
-        path.join(__dirname, '/integration/html/other.html'),
-        path.join(__dirname, '/integration/html/index.html'),
-      ],
-      {
-        defaultTargetOptions: {
-          distDir,
-        },
-        config,
-        serveOptions: {
-          https: false,
-          port: port,
-          host: 'localhost',
-        },
+    let b = bundler(path.join(__dirname, '/integration/html/index.html'), {
+      defaultTargetOptions: {
+        distDir,
       },
-    );
+      config,
+      serveOptions: {
+        https: false,
+        port: port,
+        host: 'localhost',
+      },
+    });
 
     subscription = await b.watch();
     await getNextBuild(b);
 
-    let outputFile = await outputFS.readFile(
+    let rootIndexFile = await outputFS.readFile(
       path.join(distDir, 'index.html'),
       'utf8',
     );
 
     let data = await get('/', port);
-    assert.equal(data, outputFile);
+    assert.equal(data, rootIndexFile);
+
+    let fooIndexFile = await outputFS.readFile(
+      path.join(distDir, 'foo/index.html'),
+      'utf8',
+    );
+
+    data = await get('/foo', port);
+    assert.equal(data, fooIndexFile);
 
     data = await get('/foo/bar', port);
-    assert.equal(data, outputFile);
+    assert.equal(data, fooIndexFile);
   });
 
   it('should serve a default page if the main bundle is an HTML asset even if it is not called index', async function() {
@@ -191,16 +193,19 @@ describe('server', function() {
     subscription = await b.watch();
     await getNextBuild(b);
 
-    let outputFile = await outputFS.readFile(
+    let rootIndexFile = await outputFS.readFile(
       path.join(distDir, 'other.html'),
       'utf8',
     );
 
     let data = await get('/', port);
-    assert.equal(data, outputFile);
+    assert.equal(data, rootIndexFile);
+
+    data = await get('/foo', port);
+    assert.equal(data, rootIndexFile);
 
     data = await get('/foo/bar', port);
-    assert.equal(data, outputFile);
+    assert.equal(data, rootIndexFile);
   });
 
   it('should serve a default page if the main bundle is an HTML asset with package.json#source', async function() {
@@ -477,6 +482,12 @@ describe('server', function() {
         assets: ['index.html'],
       },
       {
+        // index.html
+        name: 'index.html',
+        assets: ['index.html'],
+      },
+      {
+        // foo/index.html
         name: 'index.html',
         assets: ['index.html'],
       },
@@ -504,7 +515,7 @@ describe('server', function() {
 
     // Sibling bundles should have been fully written to disk, but not async bundles.
     dir = await outputFS.readdir(distDir);
-    assert.deepEqual(dir.length, 7);
+    assert.deepEqual(dir.length, 8);
     assert(!dir.includes('other.html'));
   });
 
