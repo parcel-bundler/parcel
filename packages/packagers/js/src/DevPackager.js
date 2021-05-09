@@ -6,6 +6,7 @@ import SourceMap from '@parcel/source-map';
 import invariant from 'assert';
 import path from 'path';
 import fs from 'fs';
+import {replaceScriptDependencies} from './utils';
 
 const PRELUDE = fs
   .readFileSync(path.join(__dirname, 'dev-prelude.js'), 'utf8')
@@ -54,6 +55,7 @@ export class DevPackager {
 
     let prefix = this.getPrefix();
     let lineOffset = countLines(prefix);
+    let script;
 
     this.bundle.traverse(node => {
       let wrapped = first ? '' : ',';
@@ -81,6 +83,16 @@ export class DevPackager {
           asset.type === 'js',
           'all assets in a js bundle must be js assets',
         );
+
+        // If this is the main entry of a script rather than a module, we need to hoist it
+        // outside the bundle wrapper function so that its variables are exposed as globals.
+        if (
+          this.bundle.env.sourceType === 'script' &&
+          asset === this.bundle.getMainEntry()
+        ) {
+          script = results[i++];
+          return;
+        }
 
         let deps = {};
         let dependencies = this.bundleGraph.getDependencies(asset);
@@ -130,7 +142,10 @@ export class DevPackager {
 
     let entries = this.bundle.getEntryAssets();
     let mainEntry = this.bundle.getMainEntry();
-    if (!this.isEntry() && this.bundle.env.outputFormat === 'global') {
+    if (
+      (!this.isEntry() && this.bundle.env.outputFormat === 'global') ||
+      this.bundle.env.sourceType === 'script'
+    ) {
       // In async bundles we don't want the main entry to execute until we require it
       // as there might be dependencies in a sibling bundle that hasn't loaded yet.
       entries = entries.filter(a => a.id !== mainEntry?.id);
@@ -153,6 +168,27 @@ export class DevPackager {
       JSON.stringify(this.parcelRequireName) +
       ')' +
       '\n';
+
+    // The entry asset of a script bundle gets hoisted outside the bundle wrapper function
+    // so that its variables become globals. We need to replace any require calls for
+    // runtimes with a parcelRequire call.
+    if (this.bundle.env.sourceType === 'script' && script) {
+      let entryMap;
+      if (script.mapBuffer) {
+        entryMap = new SourceMap(this.options.projectRoot);
+        entryMap.addBufferMappings(script.mapBuffer);
+      }
+      contents += replaceScriptDependencies(
+        this.bundleGraph,
+        this.bundle,
+        script.code,
+        entryMap,
+        this.parcelRequireName,
+      );
+      if (this.bundle.env.sourceMap && entryMap) {
+        map.addBufferMappings(entryMap.toBuffer(), lineOffset);
+      }
+    }
 
     return {
       contents,

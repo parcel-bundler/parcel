@@ -7,7 +7,7 @@ use swc_ecmascript::ast;
 use swc_ecmascript::visit::{Fold, FoldWith};
 
 use dependency_collector::{DependencyDescriptor, DependencyKind};
-use utils::{create_require, SourceLocation};
+use utils::{create_require, SourceLocation, SourceType};
 
 pub struct GlobalReplacer<'a> {
   pub source_map: &'a SourceMap,
@@ -70,6 +70,7 @@ impl<'a> Fold for GlobalReplacer<'a> {
               attributes: None,
               is_optional: false,
               is_helper: false,
+              source_type: Some(SourceType::Module),
             });
           }
           "Buffer" => {
@@ -95,6 +96,7 @@ impl<'a> Fold for GlobalReplacer<'a> {
               attributes: None,
               is_optional: false,
               is_helper: false,
+              source_type: Some(SourceType::Module),
             });
           }
           "__filename" => {

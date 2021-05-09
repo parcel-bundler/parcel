@@ -555,7 +555,7 @@ describe('javascript', function() {
     ]);
   });
 
-  it.skip('should support bundling workers of type module', async function() {
+  it('should support bundling workers of type module', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/workers-module/index.js'),
       {
@@ -567,14 +567,14 @@ describe('javascript', function() {
 
     assertBundles(b, [
       {
-        assets: ['dedicated-worker.js'],
+        assets: ['dedicated-worker.js', 'index.js'],
       },
       {
         name: 'index.js',
         assets: ['index.js', 'bundle-url.js', 'get-worker-url.js'],
       },
       {
-        assets: ['shared-worker.js'],
+        assets: ['shared-worker.js', 'index.js'],
       },
     ]);
 
@@ -593,10 +593,155 @@ describe('javascript', function() {
     assert(dedicated);
     assert(shared);
 
+    let main = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
     dedicated = await outputFS.readFile(dedicated.filePath, 'utf8');
     shared = await outputFS.readFile(shared.filePath, 'utf8');
-    assert(/import .* from ?"foo";/.test(dedicated));
-    assert(/import .* from ?"foo";/.test(shared));
+    assert(/new Worker(.*?, {[\n\s]+type: 'module'[\n\s]+})/.test(main));
+    assert(/new SharedWorker(.*?, {[\n\s]+type: 'module'[\n\s]+})/.test(main));
+  });
+
+  for (let scopeHoist of [true, false]) {
+    it(`should compile workers to non modules if ${
+      scopeHoist ? 'browsers do not support it' : 'scopeHoist = false'
+    }`, async function() {
+      let b = await bundle(
+        path.join(__dirname, '/integration/workers-module/index.js'),
+        {
+          defaultTargetOptions: {
+            shouldScopeHoist: true,
+            engines: {
+              browsers: '>= 0.25%',
+            },
+          },
+        },
+      );
+
+      assertBundles(b, [
+        {
+          assets: ['dedicated-worker.js', 'index.js'],
+        },
+        {
+          name: 'index.js',
+          assets: [
+            'index.js',
+            'bundle-url.js',
+            'JSRuntime.js',
+            'JSRuntime.js',
+            'get-worker-url.js',
+          ],
+        },
+        {
+          assets: ['shared-worker.js', 'index.js'],
+        },
+      ]);
+
+      let dedicated, shared;
+      b.traverseBundles((bundle, ctx, traversal) => {
+        if (bundle.getMainEntry().filePath.endsWith('shared-worker.js')) {
+          shared = bundle;
+        } else if (
+          bundle.getMainEntry().filePath.endsWith('dedicated-worker.js')
+        ) {
+          dedicated = bundle;
+        }
+        if (dedicated && shared) traversal.stop();
+      });
+
+      assert(dedicated);
+      assert(shared);
+
+      let main = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+      dedicated = await outputFS.readFile(dedicated.filePath, 'utf8');
+      shared = await outputFS.readFile(shared.filePath, 'utf8');
+      assert(/new Worker([^,]*?)/.test(main));
+      assert(/new SharedWorker([^,]*?)/.test(main));
+      assert(!/export var foo/.test(dedicated));
+      assert(!/export var foo/.test(shared));
+    });
+  }
+
+  it('should preserve the name option to workers', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/workers-module/named.js'),
+      {
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+          engines: {
+            browsers: '>= 0.25%',
+          },
+        },
+      },
+    );
+
+    let main = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(/new Worker(.*?, {[\n\s]+name: 'worker'[\n\s]+})/.test(main));
+    assert(/new SharedWorker(.*?, {[\n\s]+name: 'shared'[\n\s]+})/.test(main));
+  });
+
+  it('should error if importing in a worker without type: module', async function() {
+    let errored = false;
+    try {
+      await bundle(
+        path.join(__dirname, '/integration/workers-module/error.js'),
+        {
+          defaultTargetOptions: {
+            shouldScopeHoist: true,
+          },
+        },
+      );
+    } catch (err) {
+      errored = true;
+      assert.equal(
+        err.message,
+        'Web workers cannot have imports or exports. Use the `type: "module"` option instead.',
+      );
+      assert.deepEqual(err.diagnostics, [
+        {
+          message:
+            'Web workers cannot have imports or exports. Use the `type: "module"` option instead.',
+          filePath: path.join(
+            __dirname,
+            '/integration/workers-module/dedicated-worker.js',
+          ),
+          origin: '@parcel/transformer-js',
+          codeFrame: {
+            codeHighlights: [
+              {
+                start: {
+                  line: 1,
+                  column: 1,
+                },
+                end: {
+                  line: 1,
+                  column: 22,
+                },
+              },
+            ],
+          },
+        },
+        {
+          message: 'The environment was originally created here:',
+          filePath: 'error.js',
+          origin: '@parcel/transformer-js',
+          codeFrame: {
+            codeHighlights: [
+              {
+                start: {
+                  line: 1,
+                  column: 12,
+                },
+                end: {
+                  line: 1,
+                  column: 32,
+                },
+              },
+            ],
+          },
+        },
+      ]);
+    }
+
+    assert(errored);
   });
 
   it('should support bundling workers with different order', async function() {
@@ -666,16 +811,7 @@ describe('javascript', function() {
         'utf8',
       );
 
-      assert(
-        workerBundleContents.includes(
-          'importScripts(require("imported.js"));\n',
-        ),
-      );
-      assert(
-        workerBundleContents.includes(
-          'importScripts(require("imported.js"), require("imported2.js"));\n',
-        ),
-      );
+      assert.equal(workerBundleContents.match(/importScript/g).length, 3);
     });
   }
 
@@ -706,11 +842,7 @@ describe('javascript', function() {
       'utf8',
     );
 
-    assert(
-      workerBundleContents.includes(
-        'importScripts(require("https://unpkg.com/parcel"));',
-      ),
-    );
+    assert(workerBundleContents.includes('importScripts'));
     assert(
       workerBundleContents.includes(
         'module.exports = "https://unpkg.com/parcel"',
@@ -735,6 +867,131 @@ describe('javascript', function() {
         assets: ['worker-outside.js'],
       },
     ]);
+  });
+
+  it('should support bundling service-workers with type: module', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/service-worker/module.js'),
+      {
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
+      },
+    );
+
+    assertBundles(b, [
+      {
+        name: 'module.js',
+        assets: ['module.js', 'bundle-url.js', 'JSRuntime.js'],
+      },
+      {
+        assets: ['module-worker.js'],
+      },
+    ]);
+
+    let bundles = b.getBundles();
+    let main = bundles.find(b => !b.env.isWorker());
+    let worker = bundles.find(b => b.env.isWorker());
+    let mainContents = await outputFS.readFile(main.filePath, 'utf8');
+    let workerContents = await outputFS.readFile(worker.filePath, 'utf8');
+    assert(/navigator.serviceWorker.register\([^,]+?\)/.test(mainContents));
+    assert(!/export /.test(workerContents));
+  });
+
+  it('should preserve the scope option for service workers', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/service-worker/scope.js'),
+      {
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
+      },
+    );
+
+    assertBundles(b, [
+      {
+        name: 'scope.js',
+        assets: ['bundle-url.js', 'scope.js', 'JSRuntime.js'],
+      },
+      {
+        assets: ['module-worker.js'],
+      },
+    ]);
+
+    let bundles = b.getBundles();
+    let main = bundles.find(b => !b.env.isWorker());
+    let mainContents = await outputFS.readFile(main.filePath, 'utf8');
+    assert(
+      /navigator.serviceWorker.register\(.*?, {[\n\s]*scope: 'foo'[\n\s]*}\)/.test(
+        mainContents,
+      ),
+    );
+  });
+
+  it('should error if importing in a service worker without type: module', async function() {
+    let errored = false;
+    try {
+      await bundle(
+        path.join(__dirname, '/integration/service-worker/error.js'),
+        {
+          defaultTargetOptions: {
+            shouldScopeHoist: true,
+          },
+        },
+      );
+    } catch (err) {
+      errored = true;
+      assert.equal(
+        err.message,
+        'Service workers cannot have imports or exports. Use the `type: "module"` option instead.',
+      );
+      assert.deepEqual(err.diagnostics, [
+        {
+          message:
+            'Service workers cannot have imports or exports. Use the `type: "module"` option instead.',
+          filePath: path.join(
+            __dirname,
+            '/integration/service-worker/module-worker.js',
+          ),
+          origin: '@parcel/transformer-js',
+          codeFrame: {
+            codeHighlights: [
+              {
+                start: {
+                  line: 1,
+                  column: 1,
+                },
+                end: {
+                  line: 1,
+                  column: 19,
+                },
+              },
+            ],
+          },
+        },
+        {
+          message: 'The environment was originally created here:',
+          filePath: 'integration/service-worker/error.js',
+          origin: '@parcel/transformer-js',
+          codeFrame: {
+            codeHighlights: [
+              {
+                start: {
+                  line: 1,
+                  column: 34,
+                },
+                end: {
+                  line: 1,
+                  column: 51,
+                },
+              },
+            ],
+          },
+        },
+      ]);
+    }
+
+    assert(errored);
   });
 
   it('should recognize serviceWorker.register with static URL and import.meta.url', async function() {

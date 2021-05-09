@@ -547,11 +547,13 @@ describe('scope hoisting', function() {
         {mode: 'production'},
       );
 
-      let output = await runBundle(
+      let ctx = await runBundle(
         b,
         b.getBundles().find(b => b.type === 'html'),
+        {output: null},
+        {require: false},
       );
-      assert.strictEqual(output, 'aaa');
+      assert.deepEqual(ctx.output, 'aaa');
     });
 
     it('supports live bindings of default exports', async function() {
@@ -1822,8 +1824,8 @@ describe('scope hoisting', function() {
         },
       );
 
-      let output = await run(b);
-      assert.deepEqual(output, ['client', 'client', 'viewer']);
+      let res = await run(b, {output: null}, {require: false});
+      assert.deepEqual(await res.output, ['client', 'client', 'viewer']);
     });
 
     it('should enable minifier to remove unused modules despite of interopDefault', async function() {
@@ -2299,8 +2301,12 @@ describe('scope hoisting', function() {
         try {
           let bundleEvent = await getNextBuild(b);
           assert(bundleEvent.type === 'buildSuccess');
-          let output = await run(bundleEvent.bundleGraph);
-          assert.deepEqual(output, {akGridSize: 8});
+          let res = await run(
+            bundleEvent.bundleGraph,
+            {output: null},
+            {require: false},
+          );
+          assert.deepEqual(await res.output, {akGridSize: 8});
 
           assert.deepStrictEqual(
             new Set(
@@ -2331,8 +2337,12 @@ describe('scope hoisting', function() {
 
           bundleEvent = await getNextBuild(b);
           assert.strictEqual(bundleEvent.type, 'buildSuccess');
-          output = await run(bundleEvent.bundleGraph);
-          assert.deepEqual(output, [
+          res = await run(
+            bundleEvent.bundleGraph,
+            {output: null},
+            {require: false},
+          );
+          assert.deepEqual(await res.output, [
             {akGridSize: 8},
             {akEmojiSelectedBackgroundColor: '#EBECF0'},
           ]);
@@ -2365,8 +2375,12 @@ describe('scope hoisting', function() {
 
           bundleEvent = await getNextBuild(b);
           assert.strictEqual(bundleEvent.type, 'buildSuccess');
-          output = await run(bundleEvent.bundleGraph);
-          assert.deepEqual(output, {akGridSize: 8});
+          res = await run(
+            bundleEvent.bundleGraph,
+            {output: null},
+            {require: false},
+          );
+          assert.deepEqual(await res.output, {akGridSize: 8});
 
           assert.deepStrictEqual(
             new Set(
@@ -2419,13 +2433,18 @@ describe('scope hoisting', function() {
         ]);
 
         let calls = [];
-        let output = await run(b, {
-          sideEffect: caller => {
-            calls.push(caller);
+        let res = await run(
+          b,
+          {
+            output: null,
+            sideEffect: caller => {
+              calls.push(caller);
+            },
           },
-        });
+          {require: false},
+        );
         assert.deepEqual(calls, ['b1']);
-        assert.deepEqual(output, 2);
+        assert.deepEqual(res.output, 2);
 
         let css = await outputFS.readFile(
           b.getBundles().find(bundle => bundle.type === 'css').filePath,
@@ -2454,13 +2473,18 @@ describe('scope hoisting', function() {
         ]);
 
         let calls = [];
-        let output = await run(b, {
-          sideEffect: caller => {
-            calls.push(caller);
+        let res = await run(
+          b,
+          {
+            output: null,
+            sideEffect: caller => {
+              calls.push(caller);
+            },
           },
-        });
+          {require: false},
+        );
         assert.deepEqual(calls, ['b1']);
-        assert.deepEqual(output, 2);
+        assert.deepEqual(res.output, 2);
       });
 
       it('supports deferring an unused ES6 re-exports (namespace used)', async function() {
@@ -5237,9 +5261,9 @@ describe('scope hoisting', function() {
       },
     ]);
 
-    let output = await run(b);
-    assert.equal(typeof output, 'function');
-    assert.equal(await output(), 'Imported: foobar');
+    let res = await run(b, {output: null}, {require: false});
+    assert.equal(typeof res.output, 'function');
+    assert.equal(await res.output(), 'Imported: foobar');
   });
 
   it('should include the prelude in shared entry bundles', async function() {
@@ -5684,7 +5708,7 @@ describe('scope hoisting', function() {
         'integration/scope-hoisting/es6/sibling-dependencies/index.html',
       ),
     );
-    let res = await run(b);
-    assert.equal(res, 'a');
+    let res = await run(b, {output: null}, {require: false});
+    assert.equal(res.output, 'a');
   });
 });

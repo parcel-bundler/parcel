@@ -1,7 +1,0 @@
-{
-    "targets": {
-        "default": {
-            "includeNodeModules": false
-        }
-    }
-}

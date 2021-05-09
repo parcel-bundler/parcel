@@ -26,6 +26,7 @@ import {PluginLogger} from '@parcel/logger';
 import {md5FromString} from '@parcel/utils';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import {dependencyToInternalDependency} from './public/Dependency';
+import {mergeEnvironments} from './Environment';
 import createAssetGraphRequest from './requests/AssetGraphRequest';
 import {createDevDependency, runDevDepRequest} from './requests/DevDepRequest';
 
@@ -77,8 +78,14 @@ export default async function applyRuntimes({
 
         if (applied) {
           let runtimeAssets = Array.isArray(applied) ? applied : [applied];
-          for (let {code, dependency, filePath, isEntry} of runtimeAssets) {
-            let sourceName = path.join(
+          for (let {
+            code,
+            dependency,
+            filePath,
+            isEntry,
+            env,
+          } of runtimeAssets) {
+						let sourceName = path.join(
               path.dirname(filePath),
               `runtime-${md5FromString(code)}.${bundle.type}`,
             );
@@ -86,7 +93,7 @@ export default async function applyRuntimes({
             let assetGroup = {
               code,
               filePath: sourceName,
-              env: bundle.env,
+              env: mergeEnvironments(bundle.env, env),
               // Runtime assets should be considered source, as they should be
               // e.g. compiled to run in the target environment
               isSource: true,

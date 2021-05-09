@@ -15,16 +15,6 @@ import {relativeBundlePath} from '@parcel/utils';
 import path from 'path';
 import nullthrows from 'nullthrows';
 
-// List of browsers that support dynamic import natively
-// https://caniuse.com/#feat=es6-module-dynamic-import
-const DYNAMIC_IMPORT_BROWSERS = {
-  edge: '76',
-  firefox: '67',
-  chrome: '63',
-  safari: '11.1',
-  opera: '50',
-};
-
 // Used for as="" in preload/prefetch
 const TYPE_TO_RESOURCE_PRIORITY = {
   css: 'style',
@@ -108,6 +98,7 @@ export default (new Runtime({
               bundleGraph.getAssetPublicId(resolved.value),
             )}))`,
             dependency,
+            env: {sourceType: 'module'},
           });
         }
       } else {
@@ -137,6 +128,7 @@ export default (new Runtime({
           filePath: path.join(__dirname, `/bundles/${referencedBundle.id}.js`),
           code: `module.exports = ${JSON.stringify(dependency.id)};`,
           dependency,
+          env: {sourceType: 'module'},
         });
         continue;
       }
@@ -153,6 +145,7 @@ export default (new Runtime({
             dependency.moduleSpecifier,
           )}`,
           dependency,
+          env: {sourceType: 'module'},
         });
         continue;
       }
@@ -178,6 +171,7 @@ export default (new Runtime({
             mainBundle,
             options,
           )})`,
+          env: {sourceType: 'module'},
         });
         continue;
       }
@@ -216,6 +210,7 @@ export default (new Runtime({
           filePath: __filename,
           code: loaderCode,
           isEntry: true,
+          env: {sourceType: 'module'},
         });
       }
     }
@@ -229,6 +224,7 @@ export default (new Runtime({
         filePath: __filename,
         code: getRegisterCode(bundle, bundleGraph),
         isEntry: true,
+        env: {sourceType: 'module'},
       });
     }
 
@@ -314,16 +310,7 @@ function getLoaderRuntime({
   }
 
   // Determine if we need to add a dynamic import() polyfill, or if all target browsers support it natively.
-  let needsDynamicImportPolyfill = false;
-  if (
-    !bundle.env.isLibrary &&
-    bundle.env.isBrowser() &&
-    bundle.env.outputFormat === 'esmodule'
-  ) {
-    needsDynamicImportPolyfill = !bundle.env.matchesEngines(
-      DYNAMIC_IMPORT_BROWSERS,
-    );
-  }
+  let needsDynamicImportPolyfill = !bundle.env.supports('dynamic-import', true);
 
   let loaderModules = externalBundles
     .map(to => {
@@ -417,6 +404,7 @@ function getLoaderRuntime({
     filePath: __filename,
     code: `module.exports = ${loaderCode};`,
     dependency,
+    env: {sourceType: 'module'},
   };
 }
 
@@ -513,6 +501,7 @@ function getURLRuntime(
       filePath: __filename,
       code: `module.exports = require('./get-worker-url')(${relativePathExpr});`,
       dependency,
+      env: {sourceType: 'module'},
     };
   }
 
@@ -520,6 +509,7 @@ function getURLRuntime(
     filePath: __filename,
     code: `module.exports = require('./bundle-url').getBundleURL() + ${relativePathExpr}`,
     dependency,
+    env: {sourceType: 'module'},
   };
 }
 
@@ -569,6 +559,7 @@ function shouldUseRuntimeManifest(
   let env = bundle.env;
   return (
     !env.isLibrary &&
+    !bundle.isInline &&
     env.outputFormat === 'global' &&
     env.isBrowser() &&
     options.mode === 'production'

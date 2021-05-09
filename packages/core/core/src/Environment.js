@@ -13,10 +13,12 @@ export function createEnvironment({
   engines,
   includeNodeModules,
   outputFormat,
+  sourceType,
   shouldOptimize = false,
   isLibrary = false,
   shouldScopeHoist = false,
   sourceMap,
+  loc,
 }: EnvironmentOptions = {}): Environment {
   if (context == null) {
     if (engines?.node) {
@@ -84,10 +86,12 @@ export function createEnvironment({
     engines,
     includeNodeModules,
     outputFormat,
+    sourceType: sourceType ?? 'module',
     isLibrary,
     shouldOptimize,
     shouldScopeHoist,
     sourceMap,
+    loc,
   };
 
   res.id = getEnvironmentHash(res);
@@ -117,6 +121,7 @@ function getEnvironmentHash(env: Environment): string {
     engines: env.engines,
     includeNodeModules: env.includeNodeModules,
     outputFormat: env.outputFormat,
+    sourceType: env.sourceType,
     isLibrary: env.isLibrary,
     shouldScopeHoist: env.shouldScopeHoist,
     sourceMap: env.sourceMap,

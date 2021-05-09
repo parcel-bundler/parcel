@@ -19,6 +19,7 @@ import {ESMOutputFormat} from './ESMOutputFormat';
 import {CJSOutputFormat} from './CJSOutputFormat';
 import {GlobalOutputFormat} from './GlobalOutputFormat';
 import {prelude, helpers} from './helpers';
+import {replaceScriptDependencies} from './utils';
 
 // https://262.ecma-international.org/6.0/#sec-names-and-keywords
 const IDENTIFIER_RE = /^[$_\p{ID_Start}][$_\u200C\u200D\p{ID_Continue}]*$/u;
@@ -54,7 +55,7 @@ const OUTPUT_FORMATS = {
 
 export interface OutputFormat {
   buildBundlePrelude(): [string, number];
-  buildBundlePostlude(): string;
+  buildBundlePostlude(): [string, number];
 }
 
 export class ScopeHoistingPackager {
@@ -144,6 +145,7 @@ export class ScopeHoistingPackager {
 
     let [prelude, preludeLines] = this.buildBundlePrelude();
     res = prelude + res;
+    lineCount += preludeLines;
     sourceMap?.offsetLines(1, preludeLines);
 
     let entries = this.bundle.getEntryAssets();
@@ -157,7 +159,7 @@ export class ScopeHoistingPackager {
 
     // If any of the entry assets are wrapped, call parcelRequire so they are executed.
     for (let entry of entries) {
-      if (this.wrappedAssets.has(entry.id)) {
+      if (this.wrappedAssets.has(entry.id) && !this.isScriptEntry(entry)) {
         let parcelRequire = `parcelRequire(${JSON.stringify(
           this.bundleGraph.getAssetPublicId(entry),
         )});\n`;
@@ -172,10 +174,45 @@ export class ScopeHoistingPackager {
         } else {
           res += `\n${parcelRequire}`;
         }
+
+        lineCount += 2;
       }
     }
 
-    res += this.outputFormat.buildBundlePostlude();
+    let [postlude, postludeLines] = this.outputFormat.buildBundlePostlude();
+    res += postlude;
+    lineCount += postludeLines;
+
+    // The entry asset of a script bundle gets hoisted outside the bundle wrapper so that
+    // its top-level variables become globals like a real browser script. We need to replace
+    // all dependency references for runtimes with a parcelRequire call.
+    if (
+      this.bundle.env.outputFormat === 'global' &&
+      this.bundle.env.sourceType === 'script'
+    ) {
+      res += '\n';
+      lineCount++;
+
+      let mainEntry = nullthrows(this.bundle.getMainEntry());
+      let {code, map: mapBuffer} = nullthrows(
+        this.assetOutputs.get(mainEntry.id),
+      );
+      let map;
+      if (mapBuffer) {
+        map = new SourceMap(this.options.projectRoot);
+        map.addBufferMappings(mapBuffer);
+      }
+      res += replaceScriptDependencies(
+        this.bundleGraph,
+        this.bundle,
+        code,
+        map,
+        this.parcelRequireName,
+      );
+      if (sourceMap && map) {
+        sourceMap.addBufferMappings(map.toBuffer(), lineCount);
+      }
+    }
 
     return {
       contents: res,
@@ -213,6 +250,7 @@ export class ScopeHoistingPackager {
             shouldWrap ||
             node.value.meta.shouldWrap ||
             this.isAsyncBundle ||
+            this.bundle.env.sourceType === 'script' ||
             this.bundleGraph.isAssetReferencedByDependant(
               this.bundle,
               node.value,
@@ -232,8 +270,9 @@ export class ScopeHoistingPackager {
       return;
     }
 
+    // TODO: handle ESM exports of wrapped entry assets...
     let entry = this.bundle.getMainEntry();
-    if (entry) {
+    if (entry && !this.wrappedAssets.has(entry.id)) {
       for (let {exportAs, symbol} of this.bundleGraph.getExportedSymbols(
         entry,
       )) {
@@ -1038,10 +1077,22 @@ ${code}
   }
 
   shouldSkipAsset(asset: Asset): boolean {
+    if (this.isScriptEntry(asset)) {
+      return true;
+    }
+
     return (
       asset.sideEffects === false &&
       this.bundleGraph.getUsedSymbols(asset).size == 0 &&
       !this.bundleGraph.isAssetReferencedByDependant(this.bundle, asset)
+    );
+  }
+
+  isScriptEntry(asset: Asset): boolean {
+    return (
+      this.bundle.env.outputFormat === 'global' &&
+      this.bundle.env.sourceType === 'script' &&
+      asset === this.bundle.getMainEntry()
     );
   }
 }

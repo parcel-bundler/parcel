@@ -428,8 +428,8 @@ describe('sourcemaps', function() {
       source: inputs[0],
       generated: raw,
       str: 'const local',
-      generatedStr: 'const t',
-      sourcePath: 'index.js',
+      generatedStr: 'const o',
+      sourcePath: './index.js',
     });
 
     checkSourceMapping({
@@ -437,8 +437,8 @@ describe('sourcemaps', function() {
       source: inputs[0],
       generated: raw,
       str: 'local.a',
-      generatedStr: 't.a',
-      sourcePath: 'index.js',
+      generatedStr: 'o.a',
+      sourcePath: './index.js',
     });
 
     checkSourceMapping({
@@ -446,8 +446,8 @@ describe('sourcemaps', function() {
       source: inputs[1],
       generated: raw,
       str: 'exports.a',
-      generatedStr: 'o.a',
-      sourcePath: 'local.js',
+      generatedStr: 't.a',
+      sourcePath: './local.js',
     });
 
     checkSourceMapping({
@@ -455,8 +455,17 @@ describe('sourcemaps', function() {
       source: inputs[2],
       generated: raw,
       str: 'exports.count = function(a, b) {',
-      generatedStr: 'o.count=function(e,n){',
-      sourcePath: 'utils/util.js',
+      generatedStr: 't.count=function(e,n){',
+      sourcePath: './utils/util.js',
+    });
+
+    checkSourceMapping({
+      map: sourceMap,
+      source: inputs[2],
+      generated: raw,
+      str: 'return a + b',
+      generatedStr: 'return e+n',
+      sourcePath: './utils/util.js',
     });
   });
 

@@ -18,6 +18,7 @@ import type {
   Semver,
   ServerOptions,
   SourceLocation,
+  SourceType,
   Stats,
   Symbol,
   TargetSourceMapOptions,
@@ -69,10 +70,12 @@ export type Environment = {|
     | Array<PackageName>
     | {[PackageName]: boolean, ...},
   outputFormat: OutputFormat,
+  sourceType: ?SourceType,
   isLibrary: boolean,
   shouldOptimize: boolean,
   shouldScopeHoist: boolean,
   sourceMap: ?TargetSourceMapOptions,
+  loc: ?SourceLocation,
 |};
 
 export type Target = {|

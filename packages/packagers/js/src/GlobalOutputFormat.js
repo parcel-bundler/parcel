@@ -15,7 +15,7 @@ export class GlobalOutputFormat implements OutputFormat {
     return ['(function () {\n', 1];
   }
 
-  buildBundlePostlude(): string {
-    return '})();';
+  buildBundlePostlude(): [string, number] {
+    return ['})();', 0];
   }
 }

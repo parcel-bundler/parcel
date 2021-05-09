@@ -1,1 +1,1 @@
-new Worker('./worker1.js');
+new Worker('./worker1.js', {type: 'module'});
