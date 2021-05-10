@@ -1,6 +1,5 @@
 // @flow
 import type {
-  DependencyOptions,
   FilePath,
   Meta,
   ModuleSpecifier,
@@ -10,8 +9,8 @@ import type {
 import type {Dependency, Environment, Target} from './types';
 
 import {md5FromOrderedObject} from '@parcel/utils';
-import {toInternalSourceLocation, fromInternalSourceLocation} from './utils';
-import {fromProjectPath, toProjectPath} from './projectPath';
+import {toInternalSourceLocation} from './utils';
+import {toProjectPath} from './projectPath';
 
 type DependencyOpts = {|
   id?: string,
@@ -74,41 +73,6 @@ export function createDependency(
           },
         ]),
       ),
-  };
-}
-
-export function dependencyToDependencyOptions(
-  projectRoot: FilePath,
-  dep: Dependency,
-): DependencyOptions {
-  // eslint-disable-next-line no-unused-vars
-  let {id, ...env} = dep.env;
-
-  return {
-    moduleSpecifier: dep.moduleSpecifier,
-    isAsync: dep.isAsync,
-    isEntry: dep.isEntry ?? undefined,
-    isOptional: dep.isOptional,
-    isURL: dep.isURL,
-    isIsolated: dep.isIsolated,
-    loc: fromInternalSourceLocation(projectRoot, dep.loc) ?? undefined,
-    env: env,
-    meta: dep.meta,
-    resolveFrom: fromProjectPath(projectRoot, dep.resolveFrom) ?? undefined,
-    symbols: dep.symbols
-      ? new Map(
-          [...dep.symbols].map(([k, v]) => [
-            k,
-            {
-              local: v.local,
-              meta: v.meta ?? undefined,
-              isWeak: v.isWeak,
-              loc: fromInternalSourceLocation(projectRoot, v.loc),
-            },
-          ]),
-        )
-      : undefined,
-    pipeline: dep.pipeline ?? undefined,
   };
 }
 

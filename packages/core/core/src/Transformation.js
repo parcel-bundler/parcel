@@ -1,7 +1,6 @@
 // @flow strict-local
 
 import type {
-  DependencyOptions,
   FilePath,
   FileCreateInvalidation,
   GenerateOutput,
@@ -37,7 +36,7 @@ import ThrowableDiagnostic, {
 } from '@parcel/diagnostic';
 import {SOURCEMAP_EXTENSIONS} from '@parcel/utils';
 
-import {createDependency, dependencyToDependencyOptions} from './Dependency';
+import {createDependency} from './Dependency';
 import ParcelConfig from './ParcelConfig';
 // TODO: eventually call path request as sub requests
 import {ResolverRunner} from './requests/PathRequest';
@@ -60,10 +59,7 @@ import {createBuildCache} from './buildCache';
 import {createConfig} from './InternalConfig';
 import {getConfigHash, type ConfigRequest} from './requests/ConfigRequest';
 import PublicConfig from './public/Config';
-import {
-  invalidateOnFileCreateToInternal,
-  fromInternalSourceLocation,
-} from './utils';
+import {invalidateOnFileCreateToInternal} from './utils';
 import {
   type ProjectPath,
   fromProjectPath,
@@ -888,50 +884,12 @@ type TransformerWithNameAndConfig = {|
 function normalizeAssets(
   options,
   results: Array<TransformerResult | MutableAsset>,
-): Promise<Array<TransformerResult>> {
-  return Promise.all(
-    results.map<Promise<TransformerResult>>(async result => {
-      if (!(result instanceof MutableAsset)) {
-        return result;
-      }
+): Array<TransformerResult | UncommittedAsset> {
+  return results.map(result => {
+    if (result instanceof MutableAsset) {
+      return mutableAssetToUncommittedAsset(result);
+    }
 
-      let internalAsset = mutableAssetToUncommittedAsset(result);
-      // $FlowFixMe - ignore id already on env
-      let env: EnvironmentOptions = internalAsset.value.env;
-      return {
-        ast: internalAsset.ast,
-        content: await internalAsset.content,
-        query: internalAsset.value.query,
-        dependencies: ([...internalAsset.value.dependencies.values()].map(
-          dep => {
-            return (dependencyToDependencyOptions(
-              options.projectRoot,
-              dep,
-            ): DependencyOptions);
-          },
-        ): Array<DependencyOptions>),
-        env,
-        filePath: result.filePath,
-        isInline: result.isInline,
-        isIsolated: result.isIsolated,
-        map: await internalAsset.getMap(),
-        meta: result.meta,
-        pipeline: internalAsset.value.pipeline,
-        symbols: internalAsset.value.symbols
-          ? new Map(
-              [...internalAsset.value.symbols].map(([k, v]) => [
-                k,
-                {
-                  local: v.local,
-                  meta: v.meta ?? undefined,
-                  loc: fromInternalSourceLocation(options.projectRoot, v.loc),
-                },
-              ]),
-            )
-          : undefined,
-        type: result.type,
-        uniqueKey: internalAsset.value.uniqueKey,
-      };
-    }),
-  );
+    return result;
+  });
 }
