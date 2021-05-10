@@ -7,18 +7,31 @@ import Graph from '../src/Graph';
 import {toNodeId} from '../src/types';
 
 describe.only('Graph', () => {
-  it.only('constructor should initialize an empty graph', () => {
+  it('constructor should initialize an empty graph', () => {
     let graph = new Graph();
     assert.deepEqual(graph.nodes, new Map());
     assert.deepEqual(graph.getAllEdges(), []);
   });
 
-  it.only('addNode should add a node to the graph', () => {
+  it('addNode should add a node to the graph', () => {
     let graph = new Graph();
     let node = {id: 'do not use', type: 'mynode', value: 'a'};
     let id = graph.addNode(node);
     assert.equal(graph.nodes.get(id), node);
   });
+
+  // it('replaces a node', () => {
+  //   let graph = new Graph();
+  //   let node1 = {id: 'do not use1', type: 'mynode', value: 'a'};
+  //   let node2 = {id: 'do not use2', type: 'mynode', value: 'b'};
+  //   let node3 = {id: 'do not use3', type: 'mynode', value: 'c'};
+  //   let id1 = graph.addNode(node1);
+  //   let id2 = graph.addNode(node2);
+  //   let id3 = graph.addNode(node3);
+  //   graph.addEdge(id1, id2);
+  //   graph.replaceNode(id1, id3);
+  //   assert.equal();
+  // });
 
   it("errors when removeNode is called with a node that doesn't belong", () => {
     let graph = new Graph();
@@ -50,7 +63,7 @@ describe.only('Graph', () => {
     }, /Does not have node/);
   });
 
-  it.only("errors when adding an edge to a node that doesn't exist", () => {
+  it("errors when adding an edge to a node that doesn't exist", () => {
     let graph = new Graph();
     let node = graph.addNode({id: 'foo', type: 'mynode', value: null});
     assert.throws(() => {
@@ -58,7 +71,7 @@ describe.only('Graph', () => {
     }, /"to" node '-1' not found/);
   });
 
-  it.only("errors when adding an edge from a node that doesn't exist", () => {
+  it("errors when adding an edge from a node that doesn't exist", () => {
     let graph = new Graph();
     let node = graph.addNode({id: 'foo', type: 'mynode', value: null});
     assert.throws(() => {
@@ -73,7 +86,7 @@ describe.only('Graph', () => {
     assert(!graph.hasNode(toNodeId(-1)));
   });
 
-  it.only('addEdge should add an edge to the graph', () => {
+  it('addEdge should add an edge to the graph', () => {
     let graph = new Graph();
     let nodeA = graph.addNode({id: 'a', type: 'mynode', value: null});
     let nodeB = graph.addNode({id: 'b', type: 'mynode', value: null});

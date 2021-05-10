@@ -328,8 +328,9 @@ export default class EfficientGraph {
       if (
         this.edges[hash + FROM] === from &&
         this.edges[hash + TO] === to &&
-        // if type === 1, the edge type isn't specified, so return
-        (type === 1 || toEdgeType(this.edges[hash + TYPE]) === type)
+        // if type === ALL_EDGE_TYPES, return all edges
+        (type === ALL_EDGE_TYPES ||
+          toEdgeType(this.edges[hash + TYPE]) === type)
       ) {
         // If this edge is already in the graph, bail out.
         return -1;

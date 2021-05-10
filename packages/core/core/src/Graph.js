@@ -78,15 +78,16 @@ export default class Graph<TNode: Node, TEdgeType: number = 1> {
   // Returns a list of all edges in the graph. This can be large, so iterating
   // the complete list can be costly in large graphs. Used when merging graphs.
   getAllEdges(): Array<Edge<TEdgeType | NullEdgeType>> {
-    let edges = [];
-    for (let [from, edgeList] of this.outboundEdges.getListMap()) {
-      for (let [type, toNodes] of edgeList) {
-        for (let to of toNodes) {
-          edges.push({from, to, type});
-        }
-      }
-    }
-    return edges;
+    // let edges = [];
+    // for (let [from, edgeList] of this.outboundEdges.getListMap()) {
+    //   for (let [type, toNodes] of edgeList) {
+    //     for (let to of toNodes) {
+    //       edges.push({from, to, type});
+    //     }
+    //   }
+    // }
+    // return edges;
+    return [...this.adjacencyList.getAllEdges()];
   }
 
   addNode(node: TNode): NodeId {
@@ -199,12 +200,17 @@ export default class Graph<TNode: Node, TEdgeType: number = 1> {
     this._assertHasNodeId(nodeId);
 
     for (let from of [
-      ...this.adjacencyList.getNodesConnectedTo(nodeId, ALL_EDGE_TYPES),
+      ...this.adjacencyList.getNodesConnectedTo(
+        nodeId,
+        // $FlowFixMe
+        ALL_EDGE_TYPES,
+      ),
     ]) {
       this.removeEdge(
         from,
         nodeId,
-        0 /* any type */,
+        // $FlowFixMe
+        ALL_EDGE_TYPES /* any type */,
         // Do not allow orphans to be removed as this node could be one
         // and is already being removed.
         false /* removeOrphans */,
@@ -212,7 +218,11 @@ export default class Graph<TNode: Node, TEdgeType: number = 1> {
     }
 
     for (let to of [
-      ...this.adjacencyList.getNodesConnectedFrom(nodeId, ALL_EDGE_TYPES),
+      ...this.adjacencyList.getNodesConnectedFrom(
+        nodeId,
+        // $FlowFixMe
+        ALL_EDGE_TYPES,
+      ),
     ]) {
       this.removeEdge(nodeId, to);
     }
@@ -224,7 +234,10 @@ export default class Graph<TNode: Node, TEdgeType: number = 1> {
   removeEdges(nodeId: NodeId, type: TEdgeType | NullEdgeType = 1) {
     this._assertHasNodeId(nodeId);
 
-    for (let to of this.outboundEdges.getEdges(nodeId, type)) {
+    // for (let to of this.outboundEdges.getEdges(nodeId, type)) {
+    //   this.removeEdge(nodeId, to, type);
+    // }
+    for (let to of this.getNodeIdsConnectedFrom(nodeId, type)) {
       this.removeEdge(nodeId, to, type);
     }
   }
@@ -291,13 +304,21 @@ export default class Graph<TNode: Node, TEdgeType: number = 1> {
     this.nodes.set(nodeId, node);
   }
 
+  /*
+    Replaces the 'from' NodeId with the 'to' NodeId and replaces the inbound
+    edges 'to' NodeId's with the new 'to' NodeId
+  */
   replaceNode(
     fromNodeId: NodeId,
     toNodeId: NodeId,
     type: TEdgeType | NullEdgeType = 1,
   ): void {
     this._assertHasNodeId(fromNodeId);
-    for (let parent of this.inboundEdges.getEdges(fromNodeId, type)) {
+    // for (let parent of this.inboundEdges.getEdges(fromNodeId, type)) {
+    //   this.addEdge(parent, toNodeId, type);
+    //   this.removeEdge(parent, fromNodeId, type);
+    // }
+    for (let parent of this.getNodeIdsConnectedTo(fromNodeId, type)) {
       this.addEdge(parent, toNodeId, type);
       this.removeEdge(parent, fromNodeId, type);
     }
@@ -313,7 +334,8 @@ export default class Graph<TNode: Node, TEdgeType: number = 1> {
   ): void {
     this._assertHasNodeId(fromNodeId);
 
-    let outboundEdges = this.outboundEdges.getEdges(fromNodeId, type);
+    // let outboundEdges = this.outboundEdges.getEdges(fromNodeId, type);
+    let outboundEdges = [...this.getNodeIdsConnectedFrom(fromNodeId, type)];
     let childrenToRemove = new Set(
       replaceFilter
         ? [...outboundEdges].filter(toNodeId => replaceFilter(toNodeId))

@@ -120,7 +120,14 @@ describe('EfficientGraph', () => {
   it('hasEdge should return true for existing edges', () => {
     let graph = new EfficientGraph();
     graph.addEdge(toNodeId(2), toNodeId(3), 2);
-    assert(graph.hasEdge(toNodeId(2), toNodeId(3)));
+    assert(
+      graph.hasEdge(
+        toNodeId(2),
+        toNodeId(3),
+        // $FlowFixMe
+        ALL_EDGE_TYPES,
+      ),
+    );
     assert(graph.hasEdge(toNodeId(2), toNodeId(3), 2));
   });
 

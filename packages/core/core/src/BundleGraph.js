@@ -9,9 +9,6 @@ import type {
 } from '@parcel/types';
 import querystring from 'querystring';
 
-import {toNodeId} from './types';
-import {DefaultMap} from '@parcel/utils';
-
 import type {
   Asset,
   AssetNode,
@@ -1607,18 +1604,6 @@ export default class BundleGraph {
   }
 
   merge(other: BundleGraph) {
-    let map = new DefaultMap<{|from: NodeId, to: NodeId|}, Set<NodeId>>(
-      () => new Set<NodeId>(),
-    );
-    for (let edge of this._graph.getAllEdges()) {
-      map.get({from: edge.from, to: edge.to}).add(toNodeId(edge.type));
-    }
-    // console.log(map);
-    console.log(
-      'multiple types between the same nodes',
-      [...map.values()].filter(set => set.size > 1),
-    );
-    map.clear();
     let otherGraphIdToThisNodeId = new Map<NodeId, NodeId>();
     for (let [otherNodeId, otherNode] of other._graph.nodes) {
       if (this._graph.hasContentKey(otherNode.id)) {
