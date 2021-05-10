@@ -227,7 +227,9 @@ export default class Transformation {
       }
     }
 
+    // $FlowFixMe
     return {
+      $$raw: true,
       assets,
       configRequests,
       invalidateOnFileCreate: this.invalidateOnFileCreate,
@@ -497,6 +499,10 @@ export default class Transformation {
           );
 
           for (let result of transformerResults) {
+            if (result instanceof UncommittedAsset) {
+              resultingAssets.push(result);
+              continue;
+            }
             resultingAssets.push(
               asset.createChildAsset(
                 result,
@@ -521,36 +527,30 @@ export default class Transformation {
       inputAssets = resultingAssets;
     }
 
-    // Make assets with ASTs generate unless they are js assets and target uses
-    // scope hoisting or we do CSS modules tree shaking. This parallelizes generation
+    // Make assets with ASTs generate unless they are CSS modules. This parallelizes generation
     // and distributes work more evenly across workers than if one worker needed to
     // generate all assets in a large bundle during packaging.
-    let generate = pipeline.generate;
-    if (generate != null) {
-      await Promise.all(
-        resultingAssets
-          .filter(
-            asset =>
-              asset.ast != null &&
-              !(
-                (asset.value.env.shouldScopeHoist &&
-                  asset.value.type === 'js') ||
-                (this.options.mode === 'production' &&
-                  asset.value.type === 'css' &&
-                  asset.value.symbols)
-              ),
-          )
-          .map(async asset => {
-            if (asset.isASTDirty) {
-              let output = await generate(asset);
-              asset.content = output.content;
-              asset.mapBuffer = output.map?.toBuffer();
-            }
+    await Promise.all(
+      resultingAssets
+        .filter(
+          asset =>
+            asset.ast != null &&
+            !(
+              this.options.mode === 'production' &&
+              asset.value.type === 'css' &&
+              asset.value.symbols
+            ),
+        )
+        .map(async asset => {
+          if (asset.isASTDirty && asset.generate) {
+            let output = await asset.generate();
+            asset.content = output.content;
+            asset.mapBuffer = output.map?.toBuffer();
+          }
 
-            asset.clearAST();
-          }),
-      );
-    }
+          asset.clearAST();
+        }),
+    );
 
     return finalAssets.concat(resultingAssets);
   }
@@ -752,7 +752,7 @@ export default class Transformation {
     transformer: Transformer,
     transformerName: string,
     preloadedConfig: ?Config,
-  ): Promise<Array<TransformerResult>> {
+  ): Promise<$ReadOnlyArray<TransformerResult | UncommittedAsset>> {
     const logger = new PluginLogger({origin: transformerName});
 
     const resolve = async (from: FilePath, to: string): Promise<FilePath> => {
@@ -806,9 +806,9 @@ export default class Transformation {
           options: pipeline.pluginOptions,
           logger,
         })) &&
-      pipeline.generate
+      asset.generate
     ) {
-      let output = await pipeline.generate(asset);
+      let output = await asset.generate();
       asset.content = output.content;
       asset.mapBuffer = output.map?.toBuffer();
     }
@@ -833,31 +833,28 @@ export default class Transformation {
     }
 
     // Transform.
-    let results = await normalizeAssets(
-      this.options,
-      // $FlowFixMe
+    let transfomerResult: Array<TransformerResult | MutableAsset> =
+      // $FlowFixMe the returned IMutableAsset really is a MutableAsset
       await transformer.transform({
         asset: new MutableAsset(asset),
-        ast: asset.ast,
         config,
         options: pipeline.pluginOptions,
         resolve,
         logger,
-      }),
-    );
+      });
+    let results = await normalizeAssets(this.options, transfomerResult);
 
     // Create generate function that can be called later
-    pipeline.generate = (input: UncommittedAsset): Promise<GenerateOutput> => {
-      let ast = input.ast;
-      let asset = new Asset(input);
-      if (transformer.generate && ast) {
+    asset.generate = (): Promise<GenerateOutput> => {
+      let publicAsset = new Asset(asset);
+      if (transformer.generate && asset.ast) {
         let generated = transformer.generate({
-          asset,
-          ast,
+          asset: publicAsset,
+          ast: asset.ast,
           options: pipeline.pluginOptions,
           logger,
         });
-        input.clearAST();
+        asset.clearAST();
         return Promise.resolve(generated);
       }
 
@@ -900,6 +897,7 @@ function normalizeAssets(
 
       let internalAsset = mutableAssetToUncommittedAsset(result);
       // $FlowFixMe - ignore id already on env
+      let env: EnvironmentOptions = internalAsset.value.env;
       return {
         ast: internalAsset.ast,
         content: await internalAsset.content,
@@ -912,7 +910,7 @@ function normalizeAssets(
             ): DependencyOptions);
           },
         ): Array<DependencyOptions>),
-        env: internalAsset.value.env,
+        env,
         filePath: result.filePath,
         isInline: result.isInline,
         isIsolated: result.isIsolated,

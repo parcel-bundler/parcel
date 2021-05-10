@@ -7,6 +7,7 @@ import type {
   DependencyOptions,
   FilePath,
   FileCreateInvalidation,
+  GenerateOutput,
   PackageJSON,
   PackageName,
   TransformerResult,
@@ -37,6 +38,7 @@ import {mergeEnvironments} from './Environment';
 import {PARCEL_VERSION} from './constants';
 import {
   createAsset,
+  createAssetIdFromOptions,
   getConfig,
   getInvalidationId,
   getInvalidationHash,
@@ -67,6 +69,7 @@ export default class UncommittedAsset {
   idBase: ?string;
   invalidations: Map<string, RequestInvalidation>;
   fileCreateInvalidations: Array<InternalFileCreateInvalidation>;
+  generate: ?() => Promise<GenerateOutput>;
 
   constructor({
     value,
@@ -276,6 +279,7 @@ export default class UncommittedAsset {
   }
 
   setMap(map: ?SourceMap): void {
+    this.map = map;
     this.mapBuffer = map?.toBuffer();
   }
 
@@ -449,5 +453,10 @@ export default class UncommittedAsset {
 
   getPackage(): Promise<PackageJSON | null> {
     return this.getConfig(['package.json']);
+  }
+
+  updateId() {
+    // $FlowFixMe - this is fine
+    this.value.id = createAssetIdFromOptions(this.value);
   }
 }

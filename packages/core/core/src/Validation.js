@@ -82,6 +82,7 @@ export default class Validation {
                     this.options.inputFS,
                     assetFilePath,
                     configNames,
+                    this.options.projectRoot,
                   ),
               });
             }
@@ -102,6 +103,7 @@ export default class Validation {
                           this.options.inputFS,
                           publicAsset.filePath,
                           configNames,
+                          this.options.projectRoot,
                         ),
                     });
                   }

@@ -1,6 +1,6 @@
 [workspace]
-members = ["native-packages/fs-search"]
+members = ["packages/transformers/js", "packages/utils/fs-search"]
 
 [profile.release]
-lto = true
 opt-level = 3
+# lto = true
