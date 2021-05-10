@@ -23,8 +23,9 @@
     "node": ">= 12.0.0"
   },
   "files": [
-    "lib/*.js",
-    "*.node"
+    "lib",
+    "*.node",
+    "src"
   ],
   "dependencies": {
     "@parcel/diagnostic": "2.0.0-beta.2",
