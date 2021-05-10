@@ -342,7 +342,7 @@ describe('sourcemaps', function() {
       source: inputs[2],
       generated: raw,
       str: 'exports.count = function(a, b) {',
-      generatedStr: 'exports.count = function (a, b) {',
+      generatedStr: 'exports.count = function(a, b) {',
       sourcePath: './utils/util.js',
     });
 

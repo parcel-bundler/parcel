@@ -418,6 +418,7 @@ export default class NodeResolver {
         this.fs,
         relativeFileSpecifier,
         parentdir,
+        this.projectRoot,
       );
 
       throw new ThrowableDiagnostic({
@@ -570,6 +571,7 @@ export default class NodeResolver {
           this.fs,
           fileSpecifier,
           pkg.pkgdir,
+          this.projectRoot,
         );
 
         let alternative = alternatives[0];
@@ -920,7 +922,11 @@ export default class NodeResolver {
 
     // Find the nearest package.json file within the current node_modules folder
     let dir = path.dirname(sourceFile);
-    let pkgFile = this.fs.findAncestorFile(['package.json'], dir);
+    let pkgFile = this.fs.findAncestorFile(
+      ['package.json'],
+      dir,
+      this.projectRoot,
+    );
     if (pkgFile) {
       return this.readPackage(path.dirname(pkgFile), ctx);
     }

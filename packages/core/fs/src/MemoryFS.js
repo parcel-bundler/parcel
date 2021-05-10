@@ -618,8 +618,12 @@ export class MemoryFS implements FileSystem {
     await this.writeFile(snapshot, '' + this.events.length);
   }
 
-  findAncestorFile(fileNames: Array<string>, fromDir: FilePath): ?FilePath {
-    return findAncestorFile(this, fileNames, fromDir);
+  findAncestorFile(
+    fileNames: Array<string>,
+    fromDir: FilePath,
+    root: FilePath,
+  ): ?FilePath {
+    return findAncestorFile(this, fileNames, fromDir, root);
   }
 
   findNodeModule(moduleName: string, fromDir: FilePath): ?FilePath {
