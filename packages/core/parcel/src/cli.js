@@ -2,7 +2,6 @@
 
 import type {InitialParcelOptions} from '@parcel/types';
 import {BuildError} from '@parcel/core';
-import {NodePackageManager} from '@parcel/package-manager';
 import {NodeFS} from '@parcel/fs';
 import ThrowableDiagnostic from '@parcel/diagnostic';
 import {prettyDiagnostic, openInBrowser} from '@parcel/utils';
@@ -85,7 +84,6 @@ const commonOptions = {
   '--detailed-report [count]': [
     'print the asset timings and sizes in the build report',
     parseOptionInt,
-    '10',
   ],
   '--reporter <name>': [
     'additional reporters to run',
@@ -220,10 +218,8 @@ async function run(
   let Parcel = require('@parcel/core').default;
   let fs = new NodeFS();
   let options = await normalizeOptions(command, fs);
-  let packageManager = new NodePackageManager(fs);
   let parcel = new Parcel({
     entries,
-    packageManager,
     // $FlowFixMe[extra-arg] - flow doesn't know about the `paths` option (added in Node v8.9.0)
     defaultConfig: require.resolve('@parcel/config-default', {
       paths: [fs.cwd(), __dirname],

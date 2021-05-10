@@ -21,6 +21,7 @@ export default (new Optimizer({
       options.inputFS,
       path.join(options.entryRoot, 'index'),
       ['.terserrc', '.uglifyrc', '.uglifyrc.js', '.terserrc.js'],
+      options.projectRoot,
     );
 
     let originalMap = map ? await map.stringify({}) : null;

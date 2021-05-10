@@ -32,8 +32,9 @@ export async function getConflictingLocalDependencies(
   fs: FileSystem,
   name: string,
   local: FilePath,
+  projectRoot: FilePath,
 ): Promise<?{|json: string, filePath: FilePath, fields: Array<string>|}> {
-  let pkgPath = await resolveConfig(fs, local, ['package.json']);
+  let pkgPath = await resolveConfig(fs, local, ['package.json'], projectRoot);
   if (pkgPath == null) {
     return;
   }

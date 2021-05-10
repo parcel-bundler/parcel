@@ -139,7 +139,12 @@ export async function resolveParcelConfig(
     options.config != null
       ? (await options.packageManager.resolve(options.config, resolveFrom))
           .resolved
-      : await resolveConfig(options.inputFS, resolveFrom, ['.parcelrc']);
+      : await resolveConfig(
+          options.inputFS,
+          resolveFrom,
+          ['.parcelrc'],
+          options.projectRoot,
+        );
 
   let usedDefault = false;
   if (configPath == null && options.defaultConfig != null) {
@@ -460,6 +465,7 @@ async function processExtendedConfig(
       options.inputFS,
       extendsSpecifier,
       path.dirname(resolvedExtendedConfigPath),
+      options.projectRoot,
     );
     throw new ThrowableDiagnostic({
       diagnostic: {

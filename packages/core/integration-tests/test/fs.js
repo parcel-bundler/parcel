@@ -28,10 +28,7 @@ describe('fs', function() {
       );
 
       // $FlowFixMe
-      await assert.rejects(() => run(b), {
-        message: `ENOENT: no such file or directory, open '...'`,
-        code: 'ENOENT',
-      });
+      await assert.rejects(() => run(b), /\.readFileSync is not a function/);
     });
 
     it('should not inline a file outside of the project root', async function() {
@@ -43,10 +40,7 @@ describe('fs', function() {
       );
 
       // $FlowFixMe
-      await assert.rejects(() => run(b), {
-        message: `ENOENT: no such file or directory, open '...'`,
-        code: 'ENOENT',
-      });
+      await assert.rejects(() => run(b), /\.readFileSync is not a function/);
     });
 
     it('should inline a file as a string', async function() {
@@ -81,7 +75,7 @@ describe('fs', function() {
       assert.equal(output, 'hello');
     });
 
-    it('should inline a file with fs require assignment', async function() {
+    it.skip('should inline a file with fs require assignment', async function() {
       let b = await bundle(
         path.join(__dirname, '/integration/fs-assign/index.js'),
       );
@@ -89,7 +83,7 @@ describe('fs', function() {
       assert.equal(output, 'hello');
     });
 
-    it('should inline a file with fs require assignment alias', async function() {
+    it.skip('should inline a file with fs require assignment alias', async function() {
       let b = await bundle(
         path.join(__dirname, '/integration/fs-assign-alias/index.js'),
       );
@@ -105,7 +99,7 @@ describe('fs', function() {
       assert.equal(output, 'hello');
     });
 
-    it('should inline a file with fs require destructure assignment', async function() {
+    it.skip('should inline a file with fs require destructure assignment', async function() {
       let b = await bundle(
         path.join(__dirname, '/integration/fs-destructure-assign/index.js'),
       );
@@ -160,17 +154,9 @@ describe('fs', function() {
       let b = await bundle(
         path.join(__dirname, '/integration/fs-file-non-evaluable/index.js'),
       );
-      let thrown = false;
 
-      try {
-        await run(b);
-      } catch (e) {
-        assert(e.message.includes('.readFileSync is not a function'));
-
-        thrown = true;
-      }
-
-      assert.equal(thrown, true);
+      // $FlowFixMe
+      await assert.rejects(() => run(b), /\.readFileSync is not a function/);
     });
 
     it('should ignore fs calls when the filename is not evaluable after preset-env', async function() {
@@ -180,34 +166,18 @@ describe('fs', function() {
           '/integration/fs-file-non-evaluable-template-env/index.js',
         ),
       );
-      let thrown = false;
 
-      try {
-        await run(b);
-      } catch (e) {
-        assert(e.message.includes('.readFileSync is not a function'));
-
-        thrown = true;
-      }
-
-      assert.equal(thrown, true);
+      // $FlowFixMe
+      await assert.rejects(() => run(b), /\.readFileSync is not a function/);
     });
 
     it('should ignore fs calls when the options are not evaluable', async function() {
       let b = await bundle(
         path.join(__dirname, '/integration/fs-options-non-evaluable/index.js'),
       );
-      let thrown = false;
 
-      try {
-        await run(b);
-      } catch (e) {
-        assert(e.message.includes('.readFileSync is not a function'));
-
-        thrown = true;
-      }
-
-      assert.equal(thrown, true);
+      // $FlowFixMe
+      await assert.rejects(() => run(b), /\.readFileSync is not a function/);
     });
   });
 
