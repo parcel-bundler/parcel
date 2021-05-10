@@ -40,6 +40,10 @@ describe('html', function() {
         assets: ['index.html'],
       },
       {
+        name: 'index.html',
+        assets: ['index.html'],
+      },
+      {
         type: 'png',
         assets: ['100x100.png'],
       },
