@@ -20,19 +20,6 @@ describe.only('Graph', () => {
     assert.equal(graph.nodes.get(id), node);
   });
 
-  // it('replaces a node', () => {
-  //   let graph = new Graph();
-  //   let node1 = {id: 'do not use1', type: 'mynode', value: 'a'};
-  //   let node2 = {id: 'do not use2', type: 'mynode', value: 'b'};
-  //   let node3 = {id: 'do not use3', type: 'mynode', value: 'c'};
-  //   let id1 = graph.addNode(node1);
-  //   let id2 = graph.addNode(node2);
-  //   let id3 = graph.addNode(node3);
-  //   graph.addEdge(id1, id2);
-  //   graph.replaceNode(id1, id3);
-  //   assert.equal();
-  // });
-
   it("errors when removeNode is called with a node that doesn't belong", () => {
     let graph = new Graph();
     assert.throws(() => {

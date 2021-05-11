@@ -104,7 +104,15 @@ export default class Graph<TNode: Node, TEdgeType: number = 1> {
     return this.nodes.get(id);
   }
 
-  addEdge(from: NodeId, to: NodeId, type: TEdgeType | NullEdgeType = 1): void {
+  addEdge(
+    from: NodeId,
+    to: NodeId,
+    type: TEdgeType | NullEdgeType = 1,
+  ): boolean {
+    if (Number(type) === 0) {
+      throw new Error(`Edge type "${type}" not allowed`);
+    }
+
     if (!this.getNode(from)) {
       throw new Error(`"from" node '${fromNodeId(from)}' not found`);
     }
@@ -115,7 +123,7 @@ export default class Graph<TNode: Node, TEdgeType: number = 1> {
 
     // this.outboundEdges.addEdge(from, to, type);
     // this.inboundEdges.addEdge(to, from, type);
-    this.adjacencyList.addEdge(from, to, type);
+    return this.adjacencyList.addEdge(from, to, type);
   }
 
   hasEdge(
@@ -256,7 +264,6 @@ export default class Graph<TNode: Node, TEdgeType: number = 1> {
     }
 
     this.adjacencyList.removeEdge(from, to, type);
-
     if (removeOrphans && this.isOrphanedNode(to)) {
       this.removeNode(to);
     }
@@ -269,8 +276,11 @@ export default class Graph<TNode: Node, TEdgeType: number = 1> {
       // If the graph does not have a root, and there are inbound edges,
       // this node should not be considered orphaned.
       // return false;
-      for (let id of this.adjacencyList.getNodesConnectedTo(nodeId)) {
-        if (this.hasNode(id)) return false;
+      // for (let id of this.getNodeIdsConnectedTo(nodeId)) {
+      //   if (this.hasNode(id)) return false;
+      // }
+      if (this.getNodeIdsConnectedTo(nodeId, ALL_EDGE_TYPES).length) {
+        return false;
       }
 
       return true;
@@ -304,26 +314,19 @@ export default class Graph<TNode: Node, TEdgeType: number = 1> {
     this.nodes.set(nodeId, node);
   }
 
-  /*
-    Replaces the 'from' NodeId with the 'to' NodeId and replaces the inbound
-    edges 'to' NodeId's with the new 'to' NodeId
-  */
-  replaceNode(
-    fromNodeId: NodeId,
-    toNodeId: NodeId,
-    type: TEdgeType | NullEdgeType = 1,
-  ): void {
-    this._assertHasNodeId(fromNodeId);
-    // for (let parent of this.inboundEdges.getEdges(fromNodeId, type)) {
-    //   this.addEdge(parent, toNodeId, type);
-    //   this.removeEdge(parent, fromNodeId, type);
-    // }
-    for (let parent of this.getNodeIdsConnectedTo(fromNodeId, type)) {
-      this.addEdge(parent, toNodeId, type);
-      this.removeEdge(parent, fromNodeId, type);
-    }
-    this.removeNode(fromNodeId);
-  }
+  // TODO: remove because this isn't actually used anywhere?
+  // replaceNode(
+  //   fromNodeId: NodeId,
+  //   toNodeId: NodeId,
+  //   type: TEdgeType | NullEdgeType = 0,
+  // ): void {
+  //   this._assertHasNodeId(fromNodeId);
+  //   for (let parent of this.inboundEdges.getEdges(fromNodeId, type)) {
+  //     this.addEdge(parent, toNodeId, type);
+  //     this.removeEdge(parent, fromNodeId, type);
+  //   }
+  //   this.removeNode(fromNodeId);
+  // }
 
   // Update a node's downstream nodes making sure to prune any orphaned branches
   replaceNodeIdsConnectedTo(
@@ -334,8 +337,7 @@ export default class Graph<TNode: Node, TEdgeType: number = 1> {
   ): void {
     this._assertHasNodeId(fromNodeId);
 
-    // let outboundEdges = this.outboundEdges.getEdges(fromNodeId, type);
-    let outboundEdges = [...this.getNodeIdsConnectedFrom(fromNodeId, type)];
+    let outboundEdges = this.getNodeIdsConnectedFrom(fromNodeId, type);
     let childrenToRemove = new Set(
       replaceFilter
         ? [...outboundEdges].filter(toNodeId => replaceFilter(toNodeId))
