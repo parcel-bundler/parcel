@@ -42,7 +42,9 @@ async function build() {
 
 function setupMacBuild() {
   let xcodeDir = execSync('xcode-select -p | head -1', {encoding: 'utf8'}).trim();
-  console.log(xcodeDir);
+  let sysRoot = execSync('xcrun --sdk macosx --show-sdk-path', {encoding: 'utf8'}).trim();
+  console.log(xcodeDir, sysRoot);
   process.env.CC = `${xcodeDir}/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang`;
   process.env.CXX = `${xcodeDir}/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++`;
+  process.env.CFLAGS = `-isysroot ${sysRoot} -isystem ${sysRoot}`;
 }
