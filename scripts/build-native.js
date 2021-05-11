@@ -2,11 +2,17 @@
 const fs = require('fs');
 const glob = require('glob');
 const path = require('path');
-const {spawn} = require('child_process');
+const {spawn, execSync} = require('child_process');
 
 let release = process.argv.includes('--release');
+build();
 
 async function build() {
+  if (process.platform === 'darwin') {
+    await setupMacBuild();
+  }
+  return;
+
   let packages = glob.sync('packages/*/*')
   for (let pkg of packages) {
     try {
@@ -35,4 +41,9 @@ async function build() {
   }
 }
 
-build();
+function setupMacBuild() {
+  let xcodeDir = execSync('xcode-select -p | head -1', {encoding: 'utf8'}).trim();
+  console.log(xcodeDir);
+  process.env.CC = `${xcodeDir}/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang`;
+  process.env.CXX = `${xcodeDir}/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++`;
+}
