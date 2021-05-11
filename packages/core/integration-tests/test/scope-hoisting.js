@@ -3598,6 +3598,17 @@ describe('scope hoisting', function() {
       let res = await run(b);
       assert.deepEqual(res, 'default');
     });
+
+    it('can dynamically import a side-effect-free reexport', async () => {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          'integration/scope-hoisting/es6/conditional-import-side-effect-free-reexport/index.mjs',
+        ),
+      );
+
+      assert.deepEqual(await run(b), 42);
+    });
   });
 
   describe('commonjs', function() {
