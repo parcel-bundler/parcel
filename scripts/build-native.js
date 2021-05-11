@@ -11,7 +11,6 @@ async function build() {
   if (process.platform === 'darwin') {
     await setupMacBuild();
   }
-  return;
 
   let packages = glob.sync('packages/*/*')
   for (let pkg of packages) {
