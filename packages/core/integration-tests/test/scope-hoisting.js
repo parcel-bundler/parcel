@@ -1100,8 +1100,7 @@ describe('scope hoisting', function() {
       assert(!/.-./.test(contents));
     });
 
-    it.skip('removes unused transpiled classes using terser when minified', async function() {
-      // TODO: SWC needs to add PURE annotations
+    it('removes unused transpiled classes using terser when minified', async function() {
       let b = await bundle(
         path.join(
           __dirname,
