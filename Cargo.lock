@@ -870,9 +870,9 @@ dependencies = [
 
 [[package]]
 name = "sha-1"
-version = "0.9.5"
+version = "0.9.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b659df5fc3ce22274daac600ffb845300bd2125bcfaec047823075afdab81c00"
+checksum = "8c4cfa741c5832d0ef7fab46cabed29c2aae926db0b11bb2069edd8db5e64e16"
 dependencies = [
  "block-buffer",
  "cfg-if 1.0.0",
@@ -1068,9 +1068,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_parser"
-version = "0.56.1"
+version = "0.56.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a05a6baaadcb546d4fe48a4c579a314f0e5c3916bd7660ecdd5f514b6669e53b"
+checksum = "66d39c21af0e3322ffb84cf8c34a1262c2f77a9d18a22b76f46f4f52128a834a"
 dependencies = [
  "either",
  "enum_kind",
@@ -1134,9 +1134,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_transforms_base"
-version = "0.14.1"
+version = "0.14.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4d0c2b1dd41e282d81236272edc26a62f3bea9091eaa57ae2360428599182b4f"
+checksum = "5e4451b723a726922a5ef2e8ee23d00226a5d19953589d0db1471bce20cf1549"
 dependencies = [
  "fxhash",
  "once_cell",
@@ -1153,9 +1153,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_transforms_compat"
-version = "0.16.1"
+version = "0.16.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "45a4fc3c4cc16e107230db96dd8f2524b047318aa5779475874699868010132c"
+checksum = "038c0425a6f47d7f30dd8949d96c5eecb34fde1487188c5ba6ab931a888e5137"
 dependencies = [
  "arrayvec",
  "fxhash",
@@ -1208,9 +1208,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_transforms_optimization"
-version = "0.19.0"
+version = "0.19.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a1e28d81370d6c953af30519d7d5b77e738f94efd514f9f7b8c4abd435bc5d36"
+checksum = "72ece73c3e0ca0f985c9c481061dffe7a87668ef11ffa4622b921d06b56a1cc4"
 dependencies = [
  "dashmap",
  "fxhash",
@@ -1289,9 +1289,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_utils"
-version = "0.35.0"
+version = "0.35.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fdd805ae228ee0e0f5c2c458d8f2ed1f180bb4b197ab2688088854f779698902"
+checksum = "f39917228791ada83d1c549ef2a1ae09e852bae52c9d34be3f396e265e82f5ed"
 dependencies = [
  "once_cell",
  "scoped-tls",
