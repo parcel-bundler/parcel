@@ -226,7 +226,7 @@ class BundlerRunner {
     }
 
     let changedBundles = new Set<ContentKey>();
-    // if cache is disabled, should this even happen?
+    // TODO : determine if cache is disabled, should this happen?
     let cachedBundleGraph: ?BundleGraphRequestResult;
     if (
       !mutableShouldBundle &&
