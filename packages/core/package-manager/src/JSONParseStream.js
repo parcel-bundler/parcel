@@ -17,7 +17,13 @@ export default class JSONParseStream extends Transform {
     callback: (err: ?Error, parsed: ?JSONObject) => mixed,
   ) {
     try {
-      callback(null, JSON.parse(chunk.toString()));
+      let parsed;
+      try {
+        parsed = JSON.parse(chunk.toString());
+      } catch (e) {
+        return;
+      }
+      callback(null, parsed);
     } catch (err) {
       callback(err);
     }
