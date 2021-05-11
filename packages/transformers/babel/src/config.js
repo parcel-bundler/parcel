@@ -2,9 +2,10 @@
 
 import type {Config, PluginOptions} from '@parcel/types';
 import type {PluginLogger} from '@parcel/logger';
+import typeof * as BabelCore from '@babel/core';
 
 import path from 'path';
-import * as babelCore from '@babel/core';
+import * as internalBabelCore from '@babel/core';
 import {md5FromObject, relativePath, resolveConfig} from '@parcel/utils';
 
 import isJSX from './jsx';
@@ -55,9 +56,19 @@ export async function load(
       options.projectRoot,
     ))
   ) {
-    await buildDefaultBabelConfig(options, config);
+    await buildDefaultBabelConfig(internalBabelCore, options, config);
     return;
   }
+
+  const babelCore: BabelCore = await options.packageManager.require(
+    '@babel/core',
+    config.searchPath,
+    {
+      range: '^7.12.0',
+      saveDev: true,
+      shouldAutoInstall: options.shouldAutoInstall,
+    },
+  );
 
   let babelOptions = {
     filename: config.searchPath,
@@ -174,11 +185,15 @@ export async function load(
       config.setResultHash(md5FromObject(partialConfig.options));
     }
   } else {
-    await buildDefaultBabelConfig(options, config);
+    await buildDefaultBabelConfig(babelCore, options, config);
   }
 }
 
-async function buildDefaultBabelConfig(options: PluginOptions, config: Config) {
+async function buildDefaultBabelConfig(
+  babelCore: BabelCore,
+  options: PluginOptions,
+  config: Config,
+) {
   // If this is a .ts or .tsx file, we don't need to enable flow.
   if (TYPESCRIPT_EXTNAME_RE.test(config.searchPath)) {
     return;

@@ -3,7 +3,7 @@
 import type {MutableAsset, AST, PluginOptions} from '@parcel/types';
 
 import invariant from 'assert';
-import * as babel from '@babel/core';
+import * as internalBabelCore from '@babel/core';
 import {relativeUrl} from '@parcel/utils';
 
 import packageJson from '../package.json';
@@ -17,6 +17,14 @@ export default async function babel7(
   babelOptions: any,
   additionalPlugins: Array<any> = [],
 ): Promise<?AST> {
+  const babelCode = babelOptions.internal
+    ? internalBabelCore
+    : await options.packageManager.require('@babel/core', asset.filePath, {
+        range: '^7.12.0',
+        saveDev: true,
+        shouldAutoInstall: options.shouldAutoInstall,
+      });
+
   let config = {
     ...babelOptions.config,
     plugins: additionalPlugins.concat(babelOptions.config.plugins),
@@ -53,13 +61,13 @@ export default async function babel7(
   let ast = await asset.getAST();
   let res;
   if (ast) {
-    res = await babel.transformFromAstAsync(
+    res = await babelCode.transformFromAstAsync(
       ast.program,
       asset.isASTDirty() ? undefined : await asset.getCode(),
       config,
     );
   } else {
-    res = await babel.transformAsync(await asset.getCode(), config);
+    res = await babelCode.transformAsync(await asset.getCode(), config);
   }
 
   if (res.ast) {
