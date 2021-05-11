@@ -9,7 +9,7 @@ build();
 
 async function build() {
   if (process.platform === 'darwin') {
-    await setupMacBuild();
+    setupMacBuild();
   }
 
   let packages = glob.sync('packages/*/*')
