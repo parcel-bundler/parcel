@@ -2304,10 +2304,10 @@
     "@svgr/hast-util-to-babel-ast" "^5.5.0"
     svg-parser "^2.0.2"
 
-"@swc/helpers@^0.2.10":
-  version "0.2.10"
-  resolved "https://registry.yarnpkg.com/@swc/helpers/-/helpers-0.2.10.tgz#a13e8a5024dac954984d93300df8757edcbe9190"
-  integrity sha512-8IFJec2TMe+gyh3/1+QxFOvsh37AzbSsa30bC1/7y7RGcuxo2d1Fw0c206TGA+GuB5zl+bq7rSRApynWxgYrYg==
+"@swc/helpers@^0.2.11":
+  version "0.2.11"
+  resolved "https://registry.yarnpkg.com/@swc/helpers/-/helpers-0.2.11.tgz#34c842dcd8182810b4ab72d0d1fc34b553909e2e"
+  integrity sha512-0FFPZrCwRDLsbJDKzs1Oo+TAqfAyxnZWZoTF6rUrfWQCYpwuKFj7tAEt/wa830fqCPE5Uk6qIo9KMkPe7Qgukg==
 
 "@textlint/ast-node-types@^4.0.3":
   version "4.2.5"
