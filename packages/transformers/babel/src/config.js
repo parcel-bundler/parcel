@@ -56,7 +56,7 @@ export async function load(
       options.projectRoot,
     ))
   ) {
-    await buildDefaultBabelConfig(internalBabelCore, options, config);
+    await buildDefaultBabelConfig(options, config);
     return;
   }
 
@@ -185,15 +185,11 @@ export async function load(
       config.setResultHash(md5FromObject(partialConfig.options));
     }
   } else {
-    await buildDefaultBabelConfig(babelCore, options, config);
+    await buildDefaultBabelConfig(options, config);
   }
 }
 
-async function buildDefaultBabelConfig(
-  babelCore: BabelCore,
-  options: PluginOptions,
-  config: Config,
-) {
+async function buildDefaultBabelConfig(options: PluginOptions, config: Config) {
   // If this is a .ts or .tsx file, we don't need to enable flow.
   if (TYPESCRIPT_EXTNAME_RE.test(config.searchPath)) {
     return;
@@ -212,13 +208,13 @@ async function buildDefaultBabelConfig(
   }
 
   babelOptions.presets = (babelOptions.presets || []).map(preset =>
-    babelCore.createConfigItem(preset, {
+    internalBabelCore.createConfigItem(preset, {
       type: 'preset',
       dirname: BABEL_TRANSFORMER_DIR,
     }),
   );
   babelOptions.plugins = (babelOptions.plugins || []).map(plugin =>
-    babelCore.createConfigItem(plugin, {
+    internalBabelCore.createConfigItem(plugin, {
       type: 'plugin',
       dirname: BABEL_TRANSFORMER_DIR,
     }),
