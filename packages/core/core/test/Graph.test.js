@@ -303,10 +303,10 @@ describe.only('Graph', () => {
     let nodeC = graph.addNode({id: 'c', type: 'mynode', value: 'c'});
     let nodeD = graph.addNode({id: 'd', type: 'mynode', value: 'd'});
 
-    graph.addEdge(nodeA, nodeB, 1);
+    graph.addEdge(nodeA, nodeB, 2);
     graph.addEdge(nodeA, nodeD);
     graph.addEdge(nodeB, nodeC);
-    graph.addEdge(nodeB, nodeD, 1);
+    graph.addEdge(nodeB, nodeD, 2);
 
     graph.setRootNodeId(nodeA);
 
@@ -316,7 +316,7 @@ describe.only('Graph', () => {
         visited.push(nodeId);
       },
       null, // use root as startNode
-      1,
+      2,
     );
 
     assert.deepEqual(visited, [nodeA, nodeB, nodeD]);
