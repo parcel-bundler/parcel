@@ -69,6 +69,10 @@ export async function load(
       shouldAutoInstall: options.shouldAutoInstall,
     },
   );
+  config.addDevDependency({
+    moduleSpecifier: '@babel/core',
+    resolveFrom: config.searchPath,
+  });
 
   let babelOptions = {
     filename: config.searchPath,
