@@ -98,6 +98,12 @@ opaque type EdgeType = number;
 // const fromEdgeType = (type: EdgeType): number => type + 1;
 // const toEdgeType = (id: number) => Math.max(0, id - 1);
 
+/** Get the id of the node at the given index in the nodes array. */
+const nodeAt = (index: number): NodeId =>
+  toNodeId((index - (index % NODE_SIZE)) / NODE_SIZE);
+/** Get the index in the nodes array of the given node. */
+const indexOfNode = (id: NodeId): number => fromNodeId(id) * NODE_SIZE;
+
 export default class EfficientGraph<TEdgeType: number = 1> {
   /** An array of nodes, which each node occupying `NODE_SIZE` adjacent indices. */
   nodes: Uint32Array;
@@ -312,12 +318,12 @@ export default class EfficientGraph<TEdgeType: number = 1> {
     this.edges[index + TYPE] = type;
     this.edges[index + FROM] = fromNodeId(from);
     this.edges[index + TO] = fromNodeId(to);
-    this.edges[index + NEXT_IN] = this.nodes[fromNodeId(to) + FIRST_IN];
-    this.edges[index + NEXT_OUT] = this.nodes[fromNodeId(from) + FIRST_OUT];
+    this.edges[index + NEXT_IN] = this.nodes[indexOfNode(to) + FIRST_IN];
+    this.edges[index + NEXT_OUT] = this.nodes[indexOfNode(from) + FIRST_OUT];
     // We store the hash of this edge as the `to` node's incoming edge
     // and as the `from` node's outgoing edge.
-    this.nodes[fromNodeId(to) + FIRST_IN] = edgeAt(index);
-    this.nodes[fromNodeId(from) + FIRST_OUT] = edgeAt(index);
+    this.nodes[indexOfNode(to) + FIRST_IN] = edgeAt(index);
+    this.nodes[indexOfNode(from) + FIRST_OUT] = edgeAt(index);
     return true;
   }
 
@@ -406,9 +412,9 @@ export default class EfficientGraph<TEdgeType: number = 1> {
 
     // Update pointers to the removed edge to the next outgoing edge.
     let nextOut = this.edges[index + NEXT_OUT];
-    let fromFirstOut = indexOfEdge(this.nodes[fromNodeId(from) + FIRST_OUT]);
+    let fromFirstOut = indexOfEdge(this.nodes[indexOfNode(from) + FIRST_OUT]);
     if (fromFirstOut === index) {
-      this.nodes[fromNodeId(from) + FIRST_OUT] = nextOut;
+      this.nodes[indexOfNode(from) + FIRST_OUT] = nextOut;
     } else {
       while (fromFirstOut) {
         if (fromFirstOut === index) {
@@ -421,9 +427,9 @@ export default class EfficientGraph<TEdgeType: number = 1> {
 
     // Update pointers to the removed edge to the next incoming edge.
     let nextIn = this.edges[index + NEXT_IN];
-    let fromFirstIn = indexOfEdge(this.nodes[fromNodeId(to) + FIRST_IN]);
+    let fromFirstIn = indexOfEdge(this.nodes[indexOfNode(to) + FIRST_IN]);
     if (fromFirstIn === index) {
-      this.nodes[fromNodeId(to) + FIRST_IN] = nextIn;
+      this.nodes[indexOfNode(to) + FIRST_IN] = nextIn;
     } else {
       while (fromFirstIn) {
         if (fromFirstIn === index) {
@@ -452,7 +458,7 @@ export default class EfficientGraph<TEdgeType: number = 1> {
     type: TEdgeType | NullEdgeType | Array<TEdgeType | NullEdgeType> = 1,
   ): Iterable<NodeId> {
     for (
-      let i = indexOfEdge(this.nodes[fromNodeId(from) + FIRST_OUT]);
+      let i = indexOfEdge(this.nodes[indexOfNode(from) + FIRST_OUT]);
       i;
       i = indexOfEdge(this.edges[i + NEXT_OUT])
     ) {
@@ -478,7 +484,7 @@ export default class EfficientGraph<TEdgeType: number = 1> {
     type: TEdgeType | NullEdgeType | Array<TEdgeType | NullEdgeType> = 1,
   ): Iterable<NodeId> {
     for (
-      let i = indexOfEdge(this.nodes[fromNodeId(to) + FIRST_IN]);
+      let i = indexOfEdge(this.nodes[indexOfNode(to) + FIRST_IN]);
       i;
       i = indexOfEdge(this.edges[i + NEXT_IN])
     ) {
