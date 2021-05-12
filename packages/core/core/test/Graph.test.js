@@ -6,7 +6,7 @@ import sinon from 'sinon';
 import Graph from '../src/Graph';
 import {toNodeId} from '../src/types';
 
-describe('Graph', () => {
+describe.only('Graph', () => {
   it('constructor should initialize an empty graph', () => {
     let graph = new Graph();
     assert.deepEqual(graph.nodes, new Map());
@@ -290,10 +290,10 @@ describe('Graph', () => {
     let nodeC = graph.addNode({id: 'c', type: 'mynode', value: 'c'});
     let nodeD = graph.addNode({id: 'd', type: 'mynode', value: 'd'});
 
-    graph.addEdge(nodeA, nodeB, 1);
+    graph.addEdge(nodeA, nodeB, 2);
     graph.addEdge(nodeA, nodeD);
     graph.addEdge(nodeB, nodeC);
-    graph.addEdge(nodeB, nodeD, 1);
+    graph.addEdge(nodeB, nodeD, 2);
 
     graph.setRootNodeId(nodeA);
 
@@ -303,7 +303,7 @@ describe('Graph', () => {
         visited.push(nodeId);
       },
       null, // use root as startNode
-      1,
+      2,
     );
 
     assert.deepEqual(visited, [nodeA, nodeB, nodeD]);

@@ -3,6 +3,7 @@ import {fromNodeId, toNodeId} from './types';
 import type {NodeId} from './types';
 import {digraph} from 'graphviz';
 import {spawn} from 'child_process';
+import type {NullEdgeType} from './Graph';
 
 /**
  * Each node is represented with 2 4-byte chunks:
@@ -77,6 +78,12 @@ type EdgeAttr =
   | typeof NEXT_IN
   | typeof NEXT_OUT;
 
+type Edge<TEdgeType> = {|
+  from: NodeId,
+  to: NodeId,
+  type: TEdgeType,
+|};
+
 type NodeAttr = typeof FIRST_IN | typeof FIRST_OUT;
 
 opaque type EdgeHash = number;
@@ -86,11 +93,12 @@ const edgeAt = (index: number): EdgeHash => index + 1;
 const indexOfEdge = (hash: EdgeHash) => Math.max(0, hash - 1);
 
 opaque type EdgeType = number;
+/** remove these for now in favor of preventing 0 edge types in Graph */
 /** `1` is added to the type to allow a type value of `0`. */
-const fromEdgeType = (type: EdgeType): number => type + 1;
-const toEdgeType = (id: number) => Math.max(0, id - 1);
+// const fromEdgeType = (type: EdgeType): number => type + 1;
+// const toEdgeType = (id: number) => Math.max(0, id - 1);
 
-export default class EfficientGraph {
+export default class EfficientGraph<TEdgeType: number = 1> {
   /** An array of nodes, which each node occupying `NODE_SIZE` adjacent indices. */
   nodes: Uint32Array;
   /** An array of edges, which each edge occupying `EDGE_SIZE` adjacent indices. */
@@ -115,7 +123,7 @@ export default class EfficientGraph {
    *
    * The options should match the format returned by the `serialize` method.
    */
-  static deserialize(opts: EfficientGraphOpts): EfficientGraph {
+  static deserialize(opts: EfficientGraphOpts): EfficientGraph<TEdgeType> {
     let res = Object.create(EfficientGraph.prototype);
     res.nodes = opts.nodes;
     res.edges = opts.edges;
@@ -273,7 +281,11 @@ export default class EfficientGraph {
    * Returns a `true` if the edge was added,
    * or `false` if the edge already exists.
    */
-  addEdge(from: NodeId, to: NodeId, type: number = 1): boolean {
+  addEdge(
+    from: NodeId,
+    to: NodeId,
+    type: TEdgeType | NullEdgeType = 1,
+  ): boolean {
     // The percentage of utilization of the total capacity of `edges`.
     let load = this.numEdges / (this.edges.length / EDGE_SIZE);
     // If we're in danger of overflowing the `edges` array, resize it.
@@ -286,11 +298,10 @@ export default class EfficientGraph {
     }
 
     // We use the hash of the edge as the index for the edge.
-    let index = this.index(from, to);
+    let index = this.index(from, to, type);
 
     if (index === -1) {
       // The edge is already in the graph; do nothing.
-      // TODO: throw when types don't match; we don't support edges of multiple types
       return false;
     }
 
@@ -298,7 +309,7 @@ export default class EfficientGraph {
 
     // Each edge takes up `EDGE_SIZE` space in the `edges` array.
     // `[type, from, to, nextIncoming, nextOutgoing]`
-    this.edges[index + TYPE] = fromEdgeType(type);
+    this.edges[index + TYPE] = type;
     this.edges[index + FROM] = fromNodeId(from);
     this.edges[index + TO] = fromNodeId(to);
     this.edges[index + NEXT_IN] = this.nodes[fromNodeId(to) + FIRST_IN];
@@ -317,10 +328,9 @@ export default class EfficientGraph {
    * otherwise, returns the index at which the edge should be added.
    *
    */
-  index(from: NodeId, to: NodeId, type: number = 1): number {
+  index(from: NodeId, to: NodeId, type: TEdgeType | NullEdgeType = 1): number {
     // The index is most often simply the hash of edge.
     let hash = indexOfEdge(this.hash(from, to));
-
     // we scan the `edges` array for the next empty slot after the `hash` offset.
     // We do this instead of simply using the `hash` as the index because
     // it is possible for multiple edges to have the same hash.
@@ -328,8 +338,8 @@ export default class EfficientGraph {
       if (
         this.edges[hash + FROM] === from &&
         this.edges[hash + TO] === to &&
-        // if type === 1, the edge type isn't specified, so return
-        (type === 1 || toEdgeType(this.edges[hash + TYPE]) === type)
+        // if type === ALL_EDGE_TYPES, return all edges
+        (type === ALL_EDGE_TYPES || this.edges[hash + TYPE] === type)
       ) {
         // If this edge is already in the graph, bail out.
         return -1;
@@ -352,13 +362,7 @@ export default class EfficientGraph {
   // graph.addEdge(1, 2, 2)
   // graph.addEdge(1, 2, 3)
   // graph.getAllEdges() only returns [{from: 1, to: 2, type: 2}]
-  getAllEdges(): Array<{|
-    from: NodeId,
-    to: NodeId,
-    type: EdgeType,
-    // nextIn: number,
-    // nextOut: number,
-  |}> {
+  getAllEdges(): Array<Edge<TEdgeType | NullEdgeType>> {
     let edgeObjs = [];
     let i = 0;
     while (i < this.edges.length) {
@@ -366,9 +370,7 @@ export default class EfficientGraph {
         edgeObjs.push({
           from: toNodeId(this.edges[i + FROM]),
           to: toNodeId(this.edges[i + TO]),
-          type: toEdgeType(this.edges[i + TYPE]),
-          // nextIn: this.edges[i + NEXT_IN],
-          // nextOut: this.edges[i + NEXT_OUT],
+          type: (this.edges[i + TYPE]: any),
         });
         i += EDGE_SIZE;
       }
@@ -380,14 +382,22 @@ export default class EfficientGraph {
   /**
    * Check if the graph has an edge connecting the `from` and `to` nodes.
    */
-  hasEdge(from: NodeId, to: NodeId, type: number = 1): boolean {
+  hasEdge(
+    from: NodeId,
+    to: NodeId,
+    type: TEdgeType | NullEdgeType = 1,
+  ): boolean {
     return this.index(from, to, type) === -1;
   }
 
   /**
    *
    */
-  removeEdge(from: NodeId, to: NodeId, type: number = 1): void {
+  removeEdge(
+    from: NodeId,
+    to: NodeId,
+    type: TEdgeType | NullEdgeType = 1,
+  ): void {
     if (this.index(from, to, type) !== -1) {
       // The edge is not in the graph; do nothing.
       return;
@@ -440,7 +450,7 @@ export default class EfficientGraph {
    */
   *getNodesConnectedFrom(
     from: NodeId,
-    type: number | Array<number> = 1,
+    type: TEdgeType | NullEdgeType | Array<TEdgeType | NullEdgeType> = 1,
   ): Iterable<NodeId> {
     for (
       let i = indexOfEdge(this.nodes[fromNodeId(from) + FIRST_OUT]);
@@ -449,15 +459,12 @@ export default class EfficientGraph {
     ) {
       if (Array.isArray(type)) {
         for (let typeNum of type) {
-          if (typeNum === 1 || toEdgeType(this.edges[i + TYPE]) === typeNum) {
+          if (typeNum === ALL_EDGE_TYPES || this.edges[i + TYPE] === typeNum) {
             yield toNodeId(this.edges[i + TO]);
           }
         }
       } else {
-        if (
-          type === ALL_EDGE_TYPES ||
-          toEdgeType(this.edges[i + TYPE]) === type
-        ) {
+        if (type === ALL_EDGE_TYPES || this.edges[i + TYPE] === type) {
           yield toNodeId(this.edges[i + TO]);
         }
       }
@@ -469,7 +476,7 @@ export default class EfficientGraph {
    */
   *getNodesConnectedTo(
     to: NodeId,
-    type: number | Array<number> = 1,
+    type: TEdgeType | NullEdgeType | Array<TEdgeType | NullEdgeType> = 1,
   ): Iterable<NodeId> {
     for (
       let i = indexOfEdge(this.nodes[fromNodeId(to) + FIRST_IN]);
@@ -478,15 +485,12 @@ export default class EfficientGraph {
     ) {
       if (Array.isArray(type)) {
         for (let typeNum of type) {
-          if (typeNum === 1 || toEdgeType(this.edges[i + TYPE]) === typeNum) {
+          if (typeNum === ALL_EDGE_TYPES || this.edges[i + TYPE] === typeNum) {
             yield toNodeId(this.edges[i + FROM]);
           }
         }
       } else {
-        if (
-          type === ALL_EDGE_TYPES ||
-          toEdgeType(this.edges[i + TYPE]) === type
-        ) {
+        if (type === ALL_EDGE_TYPES || this.edges[i + TYPE] === type) {
           yield toNodeId(this.edges[i + FROM]);
         }
       }
@@ -498,8 +502,7 @@ export default class EfficientGraph {
    *
    * This hash is used to index the edge in the `edges` array.
    *
-   * This might need to include the type as well if we assume that
-   * multiple edges can exist between two of the same nodes
+   * TODO: add type to hash function
    */
   hash(from: NodeId, to: NodeId): number {
     return (
@@ -537,7 +540,7 @@ let nodeColor = {color: 'black', fontcolor: 'black'};
 let emptyColor = {color: 'darkgray', fontcolor: 'darkgray'};
 let edgeColor = {color: 'brown', fontcolor: 'brown'};
 
-function toDot(data: EfficientGraph): string {
+function toDot<TEdgeType: number>(data: EfficientGraph<TEdgeType>): string {
   let g = digraph('G');
   g.set('rankdir', 'LR');
   g.setNodeAttribut('fontsize', 8);
@@ -657,7 +660,9 @@ function toDot(data: EfficientGraph): string {
   return g.to_dot();
 }
 
-function nodesToDot(data: EfficientGraph): string {
+function nodesToDot<TEdgeType: number>(
+  data: EfficientGraph<TEdgeType>,
+): string {
   let g = digraph('G');
   g.set('rankdir', 'LR');
   g.set('nodesep', 0);
@@ -720,7 +725,9 @@ function nodesToDot(data: EfficientGraph): string {
   return g.to_dot();
 }
 
-function edgesToDot(data: EfficientGraph): string {
+function edgesToDot<TEdgeType: number>(
+  data: EfficientGraph<TEdgeType>,
+): string {
   let g = digraph('G');
   g.set('rankdir', 'LR');
   g.set('nodesep', 0);
@@ -791,8 +798,8 @@ function edgesToDot(data: EfficientGraph): string {
   return g.to_dot();
 }
 
-export function openGraphViz(
-  data: EfficientGraph,
+export function openGraphViz<TEdgeType: number>(
+  data: EfficientGraph<TEdgeType>,
   type?: 'graph' | 'nodes' | 'edges',
 ): Promise<void> {
   if (!type) {

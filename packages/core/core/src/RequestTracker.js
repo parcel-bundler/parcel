@@ -43,12 +43,12 @@ import {
 } from './constants';
 
 export const requestGraphEdgeTypes = {
-  subrequest: 1,
-  invalidated_by_update: 2,
-  invalidated_by_delete: 3,
-  invalidated_by_create: 4,
-  invalidated_by_create_above: 5,
-  dirname: 6,
+  subrequest: 2,
+  invalidated_by_update: 3,
+  invalidated_by_delete: 4,
+  invalidated_by_create: 5,
+  invalidated_by_create_above: 6,
+  dirname: 7,
 };
 
 type RequestGraphEdgeType = $Values<typeof requestGraphEdgeTypes>;

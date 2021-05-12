@@ -58,21 +58,34 @@ describe.only('EfficientGraph', () => {
   //   }, /Does not have node/);
   // });
 
-  it("errors when adding an edge to a node that doesn't exist", () => {
-    let graph = new EfficientGraph();
-    let node = graph.addNode();
-    assert.throws(() => {
-      graph.addEdge(node, toNodeId(-1));
-    }, /"to" node '-1' not found/);
-  });
+  // it("errors when adding an edge to a node that doesn't exist", () => {
+  //   let graph = new EfficientGraph();
+  //   let node = graph.addNode();
+  //   assert.throws(() => {
+  //     graph.addEdge(node, toNodeId(-1));
+  //   }, /"to" node '-1' not found/);
+  // });
 
-  it("errors when adding an edge from a node that doesn't exist", () => {
-    let graph = new EfficientGraph();
-    let node = graph.addNode();
-    assert.throws(() => {
-      graph.addEdge(toNodeId(-1), node);
-    }, /"from" node '-1' not found/);
-  });
+  // it("errors when adding an edge from a node that doesn't exist", () => {
+  //   let graph = new EfficientGraph();
+  //   let node = graph.addNode();
+  //   assert.throws(() => {
+  //     graph.addEdge(toNodeId(-1), node);
+  //   }, /"from" node '-1' not found/);
+  // });
+
+  // it('addEdge will resize if needed', () => {
+  //   let graph = new EfficientGraph();
+  //   for (let i = 0; i < 2048; i++) {
+  //     graph.addNode();
+  //     graph.addEdge(toNodeId(i), toNodeId(i + 1), i + 2);
+  //   }
+
+  //   assert.deepEqual(
+  //     [...graph.getNodesConnectedFrom(toNodeId(1574), 1576)],
+  //     [1575],
+  //   );
+  // });
 
   // it('hasNode should return a boolean based on whether the node exists in the graph', () => {
   //   let graph = new EfficientGraph();
@@ -100,14 +113,21 @@ describe.only('EfficientGraph', () => {
     let graph = new EfficientGraph();
     let nodeA = graph.addNode();
     let nodeB = graph.addNode();
-    graph.addEdge(nodeA, nodeB);
+    assert(graph.addEdge(nodeA, nodeB));
     assert(graph.hasEdge(nodeA, nodeB));
   });
 
   it('hasEdge should return true for existing edges', () => {
     let graph = new EfficientGraph();
     graph.addEdge(toNodeId(2), toNodeId(3), 2);
-    assert(graph.hasEdge(toNodeId(2), toNodeId(3)));
+    assert(
+      graph.hasEdge(
+        toNodeId(2),
+        toNodeId(3),
+        // $FlowFixMe
+        ALL_EDGE_TYPES,
+      ),
+    );
     assert(graph.hasEdge(toNodeId(2), toNodeId(3), 2));
   });
 
