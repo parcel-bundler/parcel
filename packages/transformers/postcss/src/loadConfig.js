@@ -80,6 +80,8 @@ async function configHydrator(
   });
 }
 
+let count = 0;
+
 export async function load({
   config,
   options,
@@ -89,6 +91,7 @@ export async function load({
   options: PluginOptions,
   logger: PluginLogger,
 |}): Promise<void> {
+  if (count > 0) return;
   let configFile: any = await config.getConfig(
     ['.postcssrc', '.postcssrc.json', '.postcssrc.js', 'postcss.config.js'],
     {packageKey: 'postcss'},
