@@ -8,7 +8,7 @@ import type {TraversalActions, GraphVisitor} from '@parcel/types';
 import assert from 'assert';
 import nullthrows from 'nullthrows';
 
-type NullEdgeType = 1;
+export type NullEdgeType = 1;
 export type GraphOpts<TNode, TEdgeType: number = 1> = {|
   nodes?: Map<NodeId, TNode>,
   edges?: AdjacencyListMap<TEdgeType | NullEdgeType>,
@@ -22,7 +22,7 @@ export default class Graph<TNode: Node, TEdgeType: number = 1> {
   nodes: Map<NodeId, TNode>;
   inboundEdges: AdjacencyList<TEdgeType | NullEdgeType>;
   outboundEdges: AdjacencyList<TEdgeType | NullEdgeType>;
-  adjacencyList: EfficientGraph;
+  adjacencyList: EfficientGraph<TEdgeType>;
   rootNodeId: ?NodeId;
   nextNodeId: number = 0;
 
@@ -35,7 +35,7 @@ export default class Graph<TNode: Node, TEdgeType: number = 1> {
     if (edges != null) {
       // this.inboundEdges = new AdjacencyList();
       // this.outboundEdges = new AdjacencyList(edges);
-      this.adjacencyList = new EfficientGraph();
+      this.adjacencyList = new EfficientGraph<TEdgeType>();
       for (let [from, edgeList] of edges) {
         for (let [type, toNodes] of edgeList) {
           for (let to of toNodes) {
@@ -47,7 +47,7 @@ export default class Graph<TNode: Node, TEdgeType: number = 1> {
     } else {
       // this.inboundEdges = new AdjacencyList();
       // this.outboundEdges = new AdjacencyList();
-      this.adjacencyList = new EfficientGraph();
+      this.adjacencyList = new EfficientGraph<TEdgeType>();
     }
   }
 
