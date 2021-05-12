@@ -88,7 +88,7 @@ type NodeAttr = typeof FIRST_IN | typeof FIRST_OUT;
 
 opaque type EdgeHash = number;
 /** Get the hash of the edge at the given index in the edges array. */
-const edgeAt = (index: number): EdgeHash => index + 1;
+const edgeAt = (index: number): EdgeHash => index - (index % EDGE_SIZE) + 1;
 /** Get the index in the edges array of the given edge. */
 const indexOfEdge = (hash: EdgeHash) => Math.max(0, hash - 1);
 
@@ -178,15 +178,15 @@ export default class EfficientGraph<TEdgeType: number = 1> {
       from += NODE_SIZE
     ) {
       /** The last edge copied. */
-      let lastHash;
+      let lastIndex = null;
       for (
         /** The next edge to be copied. */
         let hash = this.nodes[from + FIRST_OUT];
         hash;
-        hash = edges[hash - 1 + NEXT_OUT]
+        hash = edges[indexOfEdge(hash) + NEXT_OUT]
       ) {
         /** The node that the next outgoing edge connects to. */
-        let to = edges[hash - 1 + TO];
+        let to = edges[indexOfEdge(hash) + TO];
         /** The index at which to copy this edge. */
         let index = this.index(toNodeId(from), toNodeId(to));
         if (index === -1) {
@@ -195,32 +195,32 @@ export default class EfficientGraph<TEdgeType: number = 1> {
         }
 
         // Copy the details of the edge into the new edge list.
-        this.edges[index + TYPE] = edges[hash - 1 + TYPE];
+        this.edges[index + TYPE] = edges[indexOfEdge(hash) + TYPE];
         this.edges[index + FROM] = from;
         this.edges[index + TO] = to;
-        if (lastHash != null) {
+        if (lastIndex != null) {
           // If this edge is not the first outgoing edge from the current node,
           // link this edge to the last outgoing edge copied.
-          this.edges[lastHash + NEXT_OUT] = 1 + index;
+          this.edges[lastIndex + NEXT_OUT] = edgeAt(index);
         } else {
           // If this edge is the first outgoing edge from the current node,
           // link this edge to the current node.
-          this.nodes[from + FIRST_OUT] = 1 + index;
+          this.nodes[from + FIRST_OUT] = edgeAt(index);
         }
         // Keep track of the last outgoing edge copied.
-        lastHash = index;
+        lastIndex = index;
       }
 
       // Reset lastHash for use while copying incoming edges.
-      lastHash = undefined;
+      lastIndex = undefined;
       for (
         /** The next incoming edge to be copied. */
         let hash = this.nodes[from + FIRST_IN];
         hash;
-        hash = edges[hash - 1 + NEXT_IN]
+        hash = edges[indexOfEdge(hash) + NEXT_IN]
       ) {
         /** The node that the next incoming edge connects from. */
-        let from = edges[hash - 1 + FROM];
+        let from = edges[indexOfEdge(hash) + FROM];
         /** The index at which to copy this edge. */
         let index = this.hash(toNodeId(from), toNodeId(from));
         // If there is a hash collision,
@@ -237,21 +237,21 @@ export default class EfficientGraph<TEdgeType: number = 1> {
         }
 
         // Copy the details of the edge into the new edge list.
-        this.edges[index + TYPE] = edges[hash - 1 + TYPE];
+        this.edges[index + TYPE] = edges[indexOfEdge(hash) + TYPE];
         this.edges[index + FROM] = from;
         this.edges[index + TO] = from;
-        if (lastHash != null) {
+        if (lastIndex != null) {
           // If this edge is not the first incoming edge to the current node,
           // link this edge to the last incoming edge copied.
-          this.edges[lastHash + NEXT_IN] = 1 + index;
+          this.edges[lastIndex + NEXT_IN] = edgeAt(index);
         } else {
           // If this edge is the first incoming edge from the current node,
           // link this edge to the current node.
-          this.nodes[from + FIRST_IN] = 1 + index;
+          this.nodes[from + FIRST_IN] = edgeAt(index);
         }
 
         // Keep track of the last edge copied.
-        lastHash = index;
+        lastIndex = index;
       }
     }
   }
@@ -329,17 +329,16 @@ export default class EfficientGraph<TEdgeType: number = 1> {
    *
    */
   index(from: NodeId, to: NodeId, type: TEdgeType | NullEdgeType = 1): number {
-    // The index is most often simply the hash of edge.
-    let hash = indexOfEdge(this.hash(from, to));
-    // we scan the `edges` array for the next empty slot after the `hash` offset.
-    // We do this instead of simply using the `hash` as the index because
-    // it is possible for multiple edges to have the same hash.
-    while (this.edges[hash + TYPE]) {
+    let index = indexOfEdge(this.hash(from, to));
+    // we scan the `edges` array for the next empty slot after the `index`.
+    // We do this instead of simply using the `index` because it is possible
+    // for multiple edges to have the same hash.
+    while (this.edges[index + TYPE]) {
       if (
-        this.edges[hash + FROM] === from &&
-        this.edges[hash + TO] === to &&
+        this.edges[index + FROM] === from &&
+        this.edges[index + TO] === to &&
         // if type === ALL_EDGE_TYPES, return all edges
-        (type === ALL_EDGE_TYPES || this.edges[hash + TYPE] === type)
+        (type === ALL_EDGE_TYPES || this.edges[index + TYPE] === type)
       ) {
         // If this edge is already in the graph, bail out.
         return -1;
@@ -349,11 +348,11 @@ export default class EfficientGraph<TEdgeType: number = 1> {
         // Note that each 'slot' is of size `EDGE_SIZE`.
         // Also note that we handle overflow of `edges` by wrapping
         // back to the beginning of the `edges` array.
-        hash = (hash + EDGE_SIZE) % this.edges.length;
+        index = (index + EDGE_SIZE) % this.edges.length;
       }
     }
 
-    return hash;
+    return index;
   }
 
   // Probably not the best way to do this
@@ -504,7 +503,7 @@ export default class EfficientGraph<TEdgeType: number = 1> {
    *
    * TODO: add type to hash function
    */
-  hash(from: NodeId, to: NodeId): number {
+  hash(from: NodeId, to: NodeId): EdgeHash {
     return (
       1 + // 1 is added to every hash to guarantee a truthy result.
       Math.abs(
