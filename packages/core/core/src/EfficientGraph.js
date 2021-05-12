@@ -568,36 +568,54 @@ function toDot<TEdgeType: number>(data: EfficientGraph<TEdgeType>): string {
   adjacencyList.setEdgeAttribut('fontcolor', edgeColor.color);
   adjacencyList.setEdgeAttribut('fontsize', 6);
 
-  for (let i = 0; i < data.edges.length; i++) {
-    let type = data.edges[i + TYPE];
-    if (type) {
-      let from = data.edges[i + FROM];
-      let to = data.edges[i + TO];
-      let nextIn = data.edges[i + NEXT_IN];
-      let nextOut = data.edges[i + NEXT_OUT];
-      // TODO: add type to label?
-      let label = String(edgeAt(i));
+  for (let i = 0; i < data.nodes.length; i += NODE_SIZE) {
+    let firstIn = data.nodes[i + FIRST_IN];
+    let firstOut = data.nodes[i + FIRST_OUT];
 
-      let fromFirstIn = data.nodes[from + FIRST_IN];
-      let fromFirstOut = data.nodes[from + FIRST_OUT];
-      let toFirstIn = data.nodes[to + FIRST_IN];
-      let toFirstOut = data.nodes[to + FIRST_OUT];
+    if (!firstIn && !firstOut) continue;
 
-      graph.addEdge(String(from), String(to), {label});
+    adjacencyList.addNode(`node${nodeAt(i)}`, {
+      label: `node ${nodeAt(
+        i,
+      )} | { <FIRST_IN> ${firstIn} | <FIRST_OUT> ${firstOut} }`,
+      ...nodeColor,
+    });
 
-      adjacencyList.addNode(`node${from}`, {
-        label: `node ${from} | { <FIRST_IN> ${fromFirstIn} | <FIRST_OUT> ${fromFirstOut} }`,
+    if (firstIn) {
+      adjacencyList.addEdge(`node${nodeAt(i)}`, `edge${firstIn}`, {
+        tailport: 'FIRST_IN',
+        label: 'FIRST_IN',
         ...nodeColor,
       });
+    }
+
+    if (firstOut) {
+      adjacencyList.addEdge(`node${nodeAt(i)}`, `edge${firstOut}`, {
+        tailport: 'FIRST_OUT',
+        label: 'FIRST_OUT',
+        ...nodeColor,
+      });
+    }
+
+    let nextEdge = firstOut;
+    while (nextEdge) {
+      let index = indexOfEdge(nextEdge);
+      let type = data.edges[index + TYPE];
+      let from = data.edges[index + FROM];
+      let to = data.edges[index + TO];
+      let nextIn = data.edges[index + NEXT_IN];
+      let nextOut = data.edges[index + NEXT_OUT];
+      // TODO: add type to label?
+      let label = String(nextEdge);
+
+      graph.addEdge(
+        String(nodeAt(i)),
+        String(data.edges[indexOfEdge(nextEdge) + TO]),
+        {label},
+      );
 
       adjacencyList.addNode(`edge${label}`, {
-        label: `edge ${label} | { <TYPE> ${type -
-          1} | <FROM> ${from} | <TO> ${to} | <NEXT_IN> ${nextIn} | <NEXT_OUT> ${nextOut} }`,
-      });
-
-      adjacencyList.addNode(`node${to}`, {
-        label: `node ${to} | { <FIRST_IN> ${toFirstIn} | <FIRST_OUT> ${toFirstOut} }`,
-        ...nodeColor,
+        label: `edge ${label} | { <TYPE> ${type} | <FROM> ${from} | <TO> ${to} | <NEXT_IN> ${nextIn} | <NEXT_OUT> ${nextOut} }`,
       });
 
       adjacencyList.addEdge(`edge${label}`, `node${from}`, {
@@ -626,39 +644,7 @@ function toDot<TEdgeType: number>(data: EfficientGraph<TEdgeType>): string {
         });
       }
 
-      if (fromFirstIn) {
-        adjacencyList.addEdge(`node${from}`, `edge${label}`, {
-          tailport: 'FIRST_IN',
-          label: 'FIRST_IN',
-          ...nodeColor,
-        });
-      }
-
-      if (fromFirstOut) {
-        adjacencyList.addEdge(`node${from}`, `edge${label}`, {
-          tailport: 'FIRST_OUT',
-          label: 'FIRST_OUT',
-          ...nodeColor,
-        });
-      }
-
-      if (toFirstIn) {
-        adjacencyList.addEdge(`node${to}`, `edge${label}`, {
-          tailport: 'FIRST_IN',
-          label: 'FIRST_IN',
-          ...nodeColor,
-        });
-      }
-
-      if (toFirstOut) {
-        adjacencyList.addEdge(`node${to}`, `edge${label}`, {
-          tailport: 'FIRST_OUT',
-          label: 'FIRST_OUT',
-          ...nodeColor,
-        });
-      }
-
-      i += EDGE_SIZE;
+      nextEdge = nextOut;
     }
   }
 
@@ -685,43 +671,45 @@ function nodesToDot<TEdgeType: number>(
   nodes.setEdgeAttribut('style', 'invis');
 
   let lastOut = 0;
-  for (let i = 0; i < data.nodes.length / NODE_SIZE; i++) {
+  for (let i = 0; i < data.nodes.length; i += NODE_SIZE) {
     let firstIn = data.nodes[i + FIRST_IN];
     let firstOut = data.nodes[i + FIRST_OUT];
     if (firstIn || firstOut) {
-      if (lastOut < i - FIRST_OUT) {
+      if (lastOut < i - NODE_SIZE) {
         if (lastOut === 0) {
           nodes.addNode(`node${lastOut}`, {
-            label: `${lastOut}…${i - 1} | `,
+            label: `${lastOut}…${i - NODE_SIZE} | `,
             ...emptyColor,
           });
         } else {
-          nodes.addNode(`node${lastOut + 1}`, {
-            label: `${lastOut + 1}…${i - 1} | `,
+          nodes.addNode(`node${lastOut + NODE_SIZE}`, {
+            label: `${lastOut + NODE_SIZE}…${i - NODE_SIZE} | `,
             ...emptyColor,
           });
-          nodes.addEdge(`node${lastOut}`, `node${lastOut + 1}`);
-          lastOut += 1;
+          nodes.addEdge(`node${lastOut}`, `node${lastOut + NODE_SIZE}`);
+          lastOut += NODE_SIZE;
         }
       }
+
       nodes.addNode(`node${i}`, {
-        label: `${i} | {${firstIn} | ${firstOut}}`,
+        label: `${fromNodeId(nodeAt(i))} | {${firstIn} | ${firstOut}}`,
       });
+
       nodes.addEdge(`node${lastOut}`, `node${i}`);
       lastOut = i;
-    } else if (i === data.nodes.length / NODE_SIZE - 1) {
-      if (lastOut < i - FIRST_OUT) {
+    } else if (i === data.nodes.length - NODE_SIZE) {
+      if (lastOut < i - NODE_SIZE) {
         if (lastOut === 0) {
           nodes.addNode(`node${lastOut}`, {
-            label: `${lastOut}…${i - 1} | `,
+            label: `${lastOut}…${i - NODE_SIZE} | `,
             ...emptyColor,
           });
         } else {
-          nodes.addNode(`node${lastOut + 1}`, {
-            label: `${lastOut + 1}…${i - 1} | `,
+          nodes.addNode(`node${lastOut + NODE_SIZE}`, {
+            label: `${lastOut + NODE_SIZE}…${i - NODE_SIZE} | `,
             ...emptyColor,
           });
-          nodes.addEdge(`node${lastOut}`, `node${lastOut + 1}`);
+          nodes.addEdge(`node${lastOut}`, `node${lastOut + NODE_SIZE}`);
         }
       }
     }
@@ -822,7 +810,7 @@ export function openGraphViz<TEdgeType: number>(
     });
   });
 
-  let dot = spawn('dot', ['-Tpng'], {stdio: ['pipe']});
+  let dot = spawn('dot', ['-T', 'png'], {stdio: ['pipe']});
   dot.stdout.pipe(preview.stdin);
   dot.stdin.write(data.toDot(type));
   dot.stdin.end();
