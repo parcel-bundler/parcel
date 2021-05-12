@@ -6,6 +6,7 @@ import type {
   ConfigResult,
   FilePath,
   PackageJSON,
+  SourcesContentDictionary,
 } from '@parcel/types';
 import type {Asset, Dependency, ParcelOptions} from './types';
 
@@ -14,6 +15,7 @@ import {Readable} from 'stream';
 import SourceMap from '@parcel/source-map';
 import {bufferStream, blobToStream, streamFromPromise} from '@parcel/utils';
 import {getConfig, generateFromAST} from './assetUtils';
+import nullthrows from 'nullthrows';
 
 export default class CommittedAsset {
   value: Asset;
@@ -24,6 +26,7 @@ export default class CommittedAsset {
   ast: ?Promise<AST>;
   idBase: ?string;
   generatingPromise: ?Promise<void>;
+  sourcesContent: ?Promise<?SourcesContentDictionary>;
 
   constructor(value: Asset, options: ParcelOptions) {
     this.value = value;
@@ -117,6 +120,21 @@ export default class CommittedAsset {
     }
 
     return this.map;
+  }
+
+  async getSourcesContent(): Promise<?SourcesContentDictionary> {
+    if (this.sourcesContent == null) {
+      if (this.value.sourcesContentKey != null) {
+        let sourcesContentBlob = await this.options.cache.getBlob(
+          nullthrows(this.value.sourcesContentKey),
+        );
+        this.sourcesContent = JSON.parse(sourcesContentBlob.toString('utf-8'));
+      } else {
+        return null;
+      }
+    }
+
+    return this.sourcesContent;
   }
 
   getAST(): Promise<?AST> {

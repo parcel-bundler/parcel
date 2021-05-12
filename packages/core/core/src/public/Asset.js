@@ -22,6 +22,7 @@ import type {
   MutableAssetSymbols as IMutableAssetSymbols,
   AssetSymbols as IAssetSymbols,
   QueryParameters,
+  SourcesContentDictionary,
 } from '@parcel/types';
 import type {Asset as AssetValue, ParcelOptions} from '../types';
 
@@ -192,6 +193,10 @@ class BaseAsset {
 
   getMapBuffer(): Promise<?Buffer> {
     return this.#asset.getMapBuffer();
+  }
+
+  getSourcesContent(): Promise<?SourcesContentDictionary> {
+    return this.#asset.getSourcesContent();
   }
 }
 

@@ -30,7 +30,7 @@
     "@parcel/babel-ast-utils": "2.0.0-beta.2",
     "@parcel/babel-preset-env": "2.0.0-beta.2",
     "@parcel/plugin": "2.0.0-beta.2",
-    "@parcel/source-map": "2.0.0-alpha.4.21",
+    "@parcel/source-map": "2.0.0-alpha.4.22",
     "@parcel/utils": "2.0.0-beta.2",
     "browserslist": "^4.6.6",
     "core-js": "^3.2.1",

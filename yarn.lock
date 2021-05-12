@@ -2187,6 +2187,14 @@
     node-addon-api "^3.0.0"
     node-gyp-build "^4.2.3"
 
+"@parcel/source-map@2.0.0-alpha.4.22":
+  version "2.0.0-alpha.4.22"
+  resolved "https://registry.yarnpkg.com/@parcel/source-map/-/source-map-2.0.0-alpha.4.22.tgz#9c2e588a66aa5a3b090379259b1b1144385f9f18"
+  integrity sha512-kKOCoEz4AvTX+exRH8NXwK61f76ikDGoLacpq/vVRj3usNGauXBWwlckXW7CzGjHJ38gw5UuasgXy9i0t+U18w==
+  dependencies:
+    node-addon-api "^3.0.0"
+    node-gyp-build "^4.2.3"
+
 "@parcel/watcher@2.0.0-alpha.10":
   version "2.0.0-alpha.10"
   resolved "https://registry.yarnpkg.com/@parcel/watcher/-/watcher-2.0.0-alpha.10.tgz#99266189f5193512dbdf6b0faca20400c519a16e"

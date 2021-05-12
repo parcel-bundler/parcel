@@ -1076,7 +1076,7 @@ describe('sourcemaps', function() {
 
     let map = sourcemapData.map;
     assert.equal(map.sourceRoot, '../test/');
-    assert.equal(map.sources.length, 3);
+    assert.equal(map.sources.length, 2);
     for (let source of map.sources) {
       if (path.extname(source) !== '.coffee') {
         assert(
@@ -1088,7 +1088,7 @@ describe('sourcemaps', function() {
       }
     }
 
-    assert.equal(map.sourcesContent[2], 'module.exports = (a, b) => a + b');
+    assert.equal(map.sourcesContent[1], 'module.exports = (a, b) => a + b');
   });
 
   it('should load inline sourcemaps of libraries', async function() {
@@ -1107,7 +1107,7 @@ describe('sourcemaps', function() {
 
     let map = sourcemapData.map;
     assert.equal(map.sourceRoot, '../test/');
-    assert.equal(map.sources.length, 3);
+    assert.equal(map.sources.length, 2);
     for (let source of map.sources) {
       if (path.extname(source) !== '.coffee') {
         assert(
@@ -1118,8 +1118,7 @@ describe('sourcemaps', function() {
         );
       }
     }
-
-    assert.equal(map.sourcesContent[2], 'module.exports = (a, b) => a + b\n');
+    assert.equal(map.sourcesContent[1], 'module.exports = (a, b) => a + b\n');
   });
 
   it('should load referenced contents of sourcemaps', async function() {
@@ -1138,7 +1137,7 @@ describe('sourcemaps', function() {
 
     let map = sourcemapData.map;
     assert.equal(map.sourceRoot, '../test/');
-    assert.equal(map.sources.length, 3);
+    assert.equal(map.sources.length, 2);
     for (let source of map.sources) {
       assert(
         await inputFS.exists(

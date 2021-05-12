@@ -30,9 +30,14 @@ export default (new Transformer({
           asset.meta.babelPlugins != null &&
           Array.isArray(asset.meta.babelPlugins)
         ) {
-          await babel7(asset, options, config, asset.meta.babelPlugins);
+          await babel7({
+            asset,
+            options,
+            babelOptions: config,
+            additionalPlugins: asset.meta.babelPlugins,
+          });
         } else {
-          await babel7(asset, options, config);
+          await babel7({asset, options, babelOptions: config});
         }
       }
 

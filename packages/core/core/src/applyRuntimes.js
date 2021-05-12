@@ -14,6 +14,7 @@ import type ParcelConfig from './ParcelConfig';
 import type PluginOptions from './public/PluginOptions';
 import type {RunAPI} from './RequestTracker';
 
+import path from 'path';
 import assert from 'assert';
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
@@ -22,7 +23,9 @@ import BundleGraph from './public/BundleGraph';
 import InternalBundleGraph from './BundleGraph';
 import {NamedBundle} from './public/Bundle';
 import {PluginLogger} from '@parcel/logger';
+import {md5FromString} from '@parcel/utils';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
+import SourceMap from '@parcel/source-map';
 import {dependencyToInternalDependency} from './public/Dependency';
 import createAssetGraphRequest from './requests/AssetGraphRequest';
 import {createDevDependency, runDevDepRequest} from './requests/DevDepRequest';
@@ -76,8 +79,20 @@ export default async function applyRuntimes({
         if (applied) {
           let runtimeAssets = Array.isArray(applied) ? applied : [applied];
           for (let {code, dependency, filePath, isEntry} of runtimeAssets) {
+            let sourceName = path.join(
+              path.dirname(filePath),
+              `runtime-${md5FromString(code)}.${bundle.type}`,
+            );
+
+            let sourcemap = SourceMap.generateEmptyMap({
+              projectRoot: pluginOptions.projectRoot,
+              sourceName,
+              sourceContent: code,
+            });
+
             let assetGroup = {
               code,
+              mapBuffer: sourcemap.toBuffer(),
               filePath,
               env: bundle.env,
               // Runtime assets should be considered source, as they should be

@@ -21,7 +21,7 @@
   },
   "dependencies": {
     "@babel/parser": "^7.0.0",
-    "@parcel/source-map": "2.0.0-alpha.4.21",
+    "@parcel/source-map": "2.0.0-alpha.4.22",
     "@parcel/utils": "2.0.0-beta.2",
     "astring": "^1.6.2"
   }

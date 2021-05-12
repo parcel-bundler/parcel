@@ -11,6 +11,7 @@ import type {
   PackageJSON,
   PackageName,
   TransformerResult,
+  SourcesContentDictionary,
 } from '@parcel/types';
 import type {
   Asset,
@@ -48,6 +49,7 @@ type UncommittedAssetOptions = {|
   options: ParcelOptions,
   content?: ?Blob,
   mapBuffer?: ?Buffer,
+  sourcesContent?: ?SourcesContentDictionary,
   ast?: ?AST,
   isASTDirty?: ?boolean,
   idBase?: ?string,
@@ -60,6 +62,7 @@ export default class UncommittedAsset {
   options: ParcelOptions;
   content: ?(Blob | Promise<Buffer>);
   mapBuffer: ?Buffer;
+  sourcesContent: ?SourcesContentDictionary;
   map: ?SourceMap;
   ast: ?AST;
   isASTDirty: boolean;
@@ -78,11 +81,13 @@ export default class UncommittedAsset {
     idBase,
     invalidations,
     fileCreateInvalidations,
+    sourcesContent,
   }: UncommittedAssetOptions) {
     this.value = value;
     this.options = options;
     this.content = content;
     this.mapBuffer = mapBuffer;
+    this.sourcesContent = sourcesContent;
     this.ast = ast;
     this.isASTDirty = isASTDirty || false;
     this.idBase = idBase;
@@ -99,6 +104,7 @@ export default class UncommittedAsset {
     // must be regenerated later and shouldn't be committed.
     if (this.ast != null && this.isASTDirty) {
       this.content = null;
+      await this.extractSourcesContentFromMap();
       this.mapBuffer = null;
     }
 
@@ -109,6 +115,10 @@ export default class UncommittedAsset {
       this.mapBuffer == null ? null : this.getCacheKey('map' + pipelineKey);
     let astKey =
       this.ast == null ? null : this.getCacheKey('ast' + pipelineKey);
+    let sourcesContentKey =
+      this.sourcesContent == null
+        ? null
+        : this.getCacheKey('sources-content' + pipelineKey);
 
     // Since we can only read from the stream once, compute the content length
     // and hash while it's being written to the cache.
@@ -124,10 +134,17 @@ export default class UncommittedAsset {
           // $FlowFixMe
           v8.serialize(this.ast),
         ),
+      sourcesContentKey != null &&
+        this.options.cache.setBlob(
+          sourcesContentKey,
+          // $FlowFixMe
+          JSON.stringify(this.sourcesContent),
+        ),
     ]);
     this.value.contentKey = contentKey;
     this.value.mapKey = mapKey;
     this.value.astKey = astKey;
+    this.value.sourcesContentKey = sourcesContentKey;
     this.value.outputHash = md5FromString(
       [
         this.value.hash,
@@ -171,6 +188,31 @@ export default class UncommittedAsset {
 
     await this.options.cache.setBlob(contentKey, content);
     return size;
+  }
+
+  async extractSourcesContentFromMap(): Promise<void> {
+    let map = await this.getMap();
+    if (!map) return;
+
+    let result = map.getSourcesContentMap();
+    if (Object.keys(result).length > 0) {
+      // TODO: Move this to the sourcemap library at some point...
+      for (let key of Object.keys(result)) {
+        if (result[key] == null) {
+          delete result[key];
+        }
+      }
+
+      // $FlowFixMe
+      this.sourcesContent = {
+        ...(this.sourcesContent || {}),
+        ...result,
+      };
+    }
+  }
+
+  getSourcesContent(): Promise<?SourcesContentDictionary> {
+    return Promise.resolve(this.sourcesContent);
   }
 
   async getCode(): Promise<string> {
@@ -247,6 +289,7 @@ export default class UncommittedAsset {
     if (map) {
       this.map = map;
       this.mapBuffer = map.toBuffer();
+      await this.extractSourcesContentFromMap();
       this.setCode(code.replace(SOURCEMAP_RE, ''));
     }
 
@@ -273,7 +316,7 @@ export default class UncommittedAsset {
 
   setMap(map: ?SourceMap): void {
     this.map = map;
-    this.mapBuffer = map?.toBuffer();
+    this.mapBuffer = this.map?.toBuffer();
   }
 
   getAST(): Promise<?AST> {
@@ -405,6 +448,7 @@ export default class UncommittedAsset {
       idBase: this.idBase,
       invalidations: this.invalidations,
       fileCreateInvalidations: this.fileCreateInvalidations,
+      sourcesContent: this.sourcesContent, // is this correct-ish?
     });
 
     let dependencies = result.dependencies;

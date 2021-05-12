@@ -137,8 +137,11 @@ export default class Transformation {
 
     let asset = await this.loadAsset();
 
-    // Load existing sourcemaps
-    if (SOURCEMAP_EXTENSIONS.has(asset.value.type)) {
+    if (asset.mapBuffer) {
+      // Extract sources content from existing map
+      await asset.extractSourcesContentFromMap();
+    } else if (SOURCEMAP_EXTENSIONS.has(asset.value.type)) {
+      // Load existing sourcemaps, this automatically runs the source contents extraction
       try {
         await asset.loadExistingSourcemap();
       } catch (err) {
@@ -228,6 +231,7 @@ export default class Transformation {
       isSource: isSourceOverride,
       sideEffects,
       query,
+      mapBuffer,
     } = this.request;
     let {
       content,
@@ -264,6 +268,7 @@ export default class Transformation {
         },
         sideEffects,
       }),
+      mapBuffer,
       options: this.options,
       content,
       invalidations: this.invalidations,
@@ -554,6 +559,10 @@ export default class Transformation {
               // $FlowFixMe[incompatible-call]
               await this.options.cache.getBlob(value.astKey)
             : null;
+        let sourcesContent =
+          value.sourcesContentKey != null
+            ? await this.options.cache.getBlob(value.sourcesContentKey)
+            : null;
 
         return new UncommittedAsset({
           value,
@@ -561,6 +570,10 @@ export default class Transformation {
           content,
           mapBuffer,
           ast,
+          sourcesContent:
+            sourcesContent != null
+              ? JSON.parse(sourcesContent.toString('utf-8'))
+              : null,
         });
       }),
     );

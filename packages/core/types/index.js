@@ -23,6 +23,8 @@ export type EnvMap = typeof process.env;
 
 export type QueryParameters = {[key: string]: string, ...};
 
+export type SourcesContentDictionary = {[sourceName: string]: string, ...};
+
 export type JSONValue =
   | null
   | void // ? Is this okay?
@@ -548,6 +550,8 @@ export interface BaseAsset {
   getMap(): Promise<?SourceMap>;
   /** A buffer representation of the sourcemap (if existent). */
   getMapBuffer(): Promise<?Buffer>;
+  /** Returns the sourcemap (if existent). */
+  getSourcesContent(): Promise<?SourcesContentDictionary>;
   getDependencies(): $ReadOnlyArray<Dependency>;
   /** Used to load config files, (looks in every parent folder until a module root) \
    * for the specified filenames. <code>packageKey</code> can be used to also check <code>pkg#[packageKey]</code>.
