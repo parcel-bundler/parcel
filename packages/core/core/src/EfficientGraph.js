@@ -408,36 +408,38 @@ export default class EfficientGraph<TEdgeType: number = 1> {
       return;
     }
 
-    let index = this.hash(from, to /*, type*/);
+    let index = indexOfEdge(this.hash(from, to /*, type*/));
 
-    // Update pointers to the removed edge to the next outgoing edge.
+    // Remove outgoing ref to this edge from incoming node.
     let nextOut = this.edges[index + NEXT_OUT];
-    let fromFirstOut = indexOfEdge(this.nodes[indexOfNode(from) + FIRST_OUT]);
-    if (fromFirstOut === index) {
+    let outIndex = indexOfEdge(this.nodes[indexOfNode(from) + FIRST_OUT]);
+    if (outIndex === index) {
       this.nodes[indexOfNode(from) + FIRST_OUT] = nextOut;
     } else {
-      while (fromFirstOut) {
-        if (fromFirstOut === index) {
-          this.edges[fromFirstOut + NEXT_OUT] = nextOut;
+      let prevOut = outIndex;
+      do {
+        outIndex = indexOfEdge(this.edges[outIndex + NEXT_OUT]);
+        if (outIndex === index) {
+          this.edges[prevOut + NEXT_OUT] = nextOut;
           break;
         }
-        fromFirstOut = this.edges[fromFirstOut + NEXT_OUT];
-      }
+      } while (outIndex);
     }
 
-    // Update pointers to the removed edge to the next incoming edge.
+    // Remove incoming ref to this edge from to outgoing node.
     let nextIn = this.edges[index + NEXT_IN];
-    let fromFirstIn = indexOfEdge(this.nodes[indexOfNode(to) + FIRST_IN]);
-    if (fromFirstIn === index) {
+    let inIndex = indexOfEdge(this.nodes[indexOfNode(to) + FIRST_IN]);
+    if (inIndex === index) {
       this.nodes[indexOfNode(to) + FIRST_IN] = nextIn;
     } else {
-      while (fromFirstIn) {
-        if (fromFirstIn === index) {
-          this.edges[fromFirstIn + NEXT_IN] = nextIn;
+      let prevIn = inIndex;
+      do {
+        inIndex = indexOfEdge(this.edges[inIndex + NEXT_IN]);
+        if (inIndex === index) {
+          this.edges[prevIn + NEXT_IN] = nextIn;
           break;
         }
-        fromFirstIn = this.edges[fromFirstIn + NEXT_IN];
-      }
+      } while (inIndex);
     }
 
     // Free up this space in the edges list.
