@@ -703,55 +703,6 @@ impl<'a> Fold for Hoist<'a> {
           }
         }
       }
-      Expr::Bin(ref binary) => {
-        let is_typeof_require = |expr: &Expr| -> bool {
-          if let Expr::Unary(UnaryExpr {
-            op: UnaryOp::TypeOf,
-            ref arg,
-            ..
-          }) = expr
-          {
-            if let Expr::Ident(ref ident) = &**arg {
-              if ident.sym == js_word!("require") && !self.collect.decls.contains(&id!(ident)) {
-                return true;
-              }
-            }
-          }
-          false
-        };
-        let is_function_str = |expr: &Expr| -> bool {
-          if let Expr::Lit(Lit::Str(ref str)) = expr {
-            if str.value == js_word!("function") {
-              return true;
-            }
-          }
-          false
-        };
-
-        let is_typeof_require_function = if let Expr::Bin(BinExpr {
-          op,
-          ref left,
-          ref right,
-          ..
-        }) = &*binary.left
-        {
-          (op == &BinaryOp::EqEq || op == &BinaryOp::EqEqEq)
-            && ((is_function_str(&**left) && is_typeof_require(&**right))
-              || (is_function_str(&**right) && is_typeof_require(&**left)))
-        } else {
-          false
-        };
-
-        let is_require_ident = if let Expr::Ident(ref ident) = &*binary.right {
-          ident.sym == js_word!("require") && !self.collect.decls.contains(&id!(ident))
-        } else {
-          false
-        };
-
-        if is_typeof_require_function && is_require_ident {
-          return Expr::Ident(Ident::new("undefined".into(), DUMMY_SP));
-        }
-      }
       _ => {}
     }
 
@@ -3805,12 +3756,6 @@ mod tests {
     console.log(typeof module);
     console.log(typeof require);
     console.log(module.hot);
-    console.log("function" == typeof require && require);
-    console.log("function" === typeof require && require);
-    console.log(typeof require == "function" && require);
-    console.log(typeof require === "function" && require);
-    console.log(require && "function" == typeof require);
-    console.log(require && typeof require == "function");
     "#,
     );
     assert_eq!(
@@ -3819,12 +3764,6 @@ mod tests {
     console.log("object");
     console.log("function");
     console.log(null);
-    console.log(undefined);
-    console.log(undefined);
-    console.log(undefined);
-    console.log(undefined);
-    console.log(require && "function" == "function");
-    console.log(require && "function" == "function");
     "#}
     );
   }
