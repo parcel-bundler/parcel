@@ -3609,6 +3609,18 @@ describe('scope hoisting', function() {
 
       assert.deepEqual(await run(b), 42);
     });
+
+    it('registers intermediate wrapped reexports', async () => {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          'integration/scope-hoisting/es6/register-intermediate-wrapped-reexports/index.mjs',
+        ),
+      );
+
+      let res = await Promise.all(await run(b));
+      assert.deepEqual(res, [42, 42]);
+    });
   });
 
   describe('commonjs', function() {
