@@ -339,6 +339,7 @@ export default (new Transformer({
           isAsync: dep.kind === 'DynamicImport',
           isOptional: dep.is_optional,
           meta,
+          resolveFrom: dep.is_helper ? __filename : undefined,
         });
       }
     }

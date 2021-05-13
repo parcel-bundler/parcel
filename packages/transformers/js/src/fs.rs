@@ -195,6 +195,7 @@ impl<'a> InlineFS<'a> {
           specifier: path.to_str().unwrap().into(),
           attributes: None,
           is_optional: false,
+          is_helper: false,
         });
 
         // If buffer, wrap in Buffer.from(base64String, 'base64')
