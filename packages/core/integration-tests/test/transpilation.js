@@ -142,6 +142,18 @@ describe('transpilation', function() {
     assert(file.includes('h("div"'));
   });
 
+  it('should not transpile spread in JSX with modern targets', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/jsx-spread/index.jsx'),
+    );
+
+    let file = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    console.log(file);
+    assert(file.includes('React.createElement("div"'));
+    assert(file.includes('...a'));
+    assert(!file.includes('@swc/helpers'));
+  });
+
   it('should support transpiling optional chaining', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/babel-optional-chaining/index.js'),
