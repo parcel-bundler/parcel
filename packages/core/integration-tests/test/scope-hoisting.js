@@ -3610,11 +3610,11 @@ describe('scope hoisting', function() {
       assert.deepEqual(await run(b), 42);
     });
 
-    it('registers intermediate wrapped reexports', async () => {
+    it('individually exports symbols from intermediately wrapped reexports', async () => {
       let b = await bundle(
         path.join(
           __dirname,
-          'integration/scope-hoisting/es6/register-intermediate-wrapped-reexports/index.mjs',
+          'integration/scope-hoisting/es6/export-intermediate-wrapped-reexports/index.mjs',
         ),
       );
 
