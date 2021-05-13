@@ -586,42 +586,48 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
   }
 
   getChangedAssetGraph(
-    prevResult: AssetGraph,
-    isAssetGraphStructureSame: boolean,
+    previousContentKeys: Set<ContentKey>,
     changedAssets: Map<string, Asset>,
   ): AssetGraph {
     // Called when graph structure is not same or there are changed assets
     let subGraphChanges = new AssetGraph();
     changedAssets.forEach(value => {
       //add asset as node from new graph
-      let changedNode = this.getNode(value.id);
-      this.traverse(
-        {
-          enter: node => {
-            // add all inbound and outbound edges and nodes to subGraphchanges
-            subGraphChanges.addNode(node);
-            this.inboundEdges._listMap.forEach((value, key) => {
-              if (node.id === key) {
-                subGraphChanges.inboundEdges._listMap.set(node.id, value); //TODO clone or use AddEdge
-              }
-            });
-            this.outboundEdges._listMap.forEach((value, key) => {
-              if (node.id === key) {
-                subGraphChanges.outboundEdges._listMap.set(node.id, value);
-                // TODO
-                // value.get(null)?.forEach((value) => {
-                //   subGraphChanges.outboundEdges.addEdge(node.id, value, null);
-                // })
-              }
-            });
-            //stop as soon as node matched old graph after adding that node
-            if (this.nodes.has(node.id)) {
-              return;
+      let changedNodeId = this.getNodeIdByContentKey(value.id);
+      this.traverse((nodeId, _, actions) => {
+        // add all inbound and outbound edges and nodes to subGraphchanges
+        let assetGraphNode = this.getNode(nodeId); //get assetgraph node by its number id from original assetgraph
+        if (assetGraphNode) {
+          //this will only add teh existing node from old assetgraph I think ?
+          subGraphChanges.addNode(assetGraphNode);
+          this.inboundEdges._listMap.forEach((value, key) => {
+            if (nodeId === key) {
+              subGraphChanges.inboundEdges._listMap.set(nodeId, value); //TODO clone or use AddEdge
             }
-          },
-        },
-        changedNode,
-      );
+          });
+          this.outboundEdges._listMap.forEach((value, key) => {
+            if (nodeId === key) {
+              subGraphChanges.outboundEdges._listMap.set(nodeId, value);
+              // TODO
+              // value.get(null)?.forEach((value) => {
+              //   subGraphChanges.outboundEdges.addEdge(node.id, value, null);
+              // })
+              //this node id different ??
+            }
+          });
+          //stop as soon as node matched old graph after adding that node
+
+          if (
+            //this should be checking the old assetgraph!
+            previousContentKeys.has(assetGraphNode.id) && //check new assetgraph is node exists
+            assetGraphNode.id &&
+            !changedAssets.has(assetGraphNode.id)
+          ) {
+            actions.skipChildren();
+            return;
+          }
+        }
+      }, changedNodeId);
     });
 
     return subGraphChanges;
