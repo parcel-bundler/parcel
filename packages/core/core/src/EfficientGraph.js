@@ -3,7 +3,7 @@ import {fromNodeId, toNodeId} from './types';
 import type {NodeId} from './types';
 import {digraph} from 'graphviz';
 import {spawn} from 'child_process';
-import type {NullEdgeType} from './Graph';
+import type {NullEdgeType, AllEdgeTypes} from './Graph';
 
 /**
  * Each node is represented with 2 4-byte chunks:
@@ -62,7 +62,7 @@ const FIRST_IN: 0 = 0;
 /** The offset to `NODE_SIZE` at which the hash of the first outgoing edge is stored. */
 const FIRST_OUT: 1 = 1;
 
-export const ALL_EDGE_TYPES = '@@all_edge_types';
+export const ALL_EDGE_TYPES: AllEdgeTypes = '@@all_edge_types';
 
 type EfficientGraphOpts = {|
   nodes: Uint32Array,
@@ -334,7 +334,11 @@ export default class EfficientGraph<TEdgeType: number = 1> {
    * otherwise, returns the index at which the edge should be added.
    *
    */
-  index(from: NodeId, to: NodeId, type: TEdgeType | NullEdgeType = 1): number {
+  index(
+    from: NodeId,
+    to: NodeId,
+    type: AllEdgeTypes | TEdgeType | NullEdgeType = 1,
+  ): number {
     let index = indexOfEdge(this.hash(from, to));
     // we scan the `edges` array for the next empty slot after the `index`.
     // We do this instead of simply using the `index` because it is possible
@@ -453,16 +457,47 @@ export default class EfficientGraph<TEdgeType: number = 1> {
   }
 
   /**
+   *
+   */
+  getEdges(
+    from: NodeId,
+    type:
+      | AllEdgeTypes
+      | TEdgeType
+      | NullEdgeType
+      | Array<TEdgeType | NullEdgeType> = 1,
+  ): $ReadOnlySet<NodeId> {
+    return new Set(this.getNodesConnectedFrom(from, type));
+  }
+
+  /**
+   *
+   */
+  // getEdgesByType(from: NodeId): $ReadOnlyMap<number, $ReadOnlySet<NodeId>> {
+  //   let typeMap = new Map();
+  //   for (
+  //     let i = this.nodes[indexOfNode(from) + FIRST_OUT];
+  //     i;
+  //     i = this.edges[indexOfEdge(i) + NEXT_OUT]
+  //   ) {
+  //     let type = this.edges[indexOfEdge(i) + TYPE];
+  //     let nodeSet = typeMap.get(type) || new Set();
+  //     nodeSet.add(toNodeId(i));
+  //     typeMap.set(type, nodeSet);
+  //   }
+  //   return typeMap;
+  // }
+  /**
    * Get the list of nodes connected from this node.
    */
   *getNodesConnectedFrom(
     from: NodeId,
     type:
-      | ALL_EDGE_TYPES
+      | AllEdgeTypes
       | TEdgeType
       | NullEdgeType
       | Array<TEdgeType | NullEdgeType> = 1,
-  ): Iterable<NodeId> {
+  ): Iterator<NodeId> {
     for (
       let i = indexOfEdge(this.nodes[indexOfNode(from) + FIRST_OUT]);
       i;
@@ -488,11 +523,11 @@ export default class EfficientGraph<TEdgeType: number = 1> {
   *getNodesConnectedTo(
     to: NodeId,
     type:
-      | ALL_EDGE_TYPES
+      | AllEdgeTypes
       | TEdgeType
       | NullEdgeType
       | Array<TEdgeType | NullEdgeType> = 1,
-  ): Iterable<NodeId> {
+  ): Iterator<NodeId> {
     for (
       let i = indexOfEdge(this.nodes[indexOfNode(to) + FIRST_IN]);
       i;
@@ -584,15 +619,15 @@ function toDot<TEdgeType: number>(data: EfficientGraph<TEdgeType>): string {
 
     if (!firstIn && !firstOut) continue;
 
-    adjacencyList.addNode(`node${nodeAt(i)}`, {
-      label: `node ${nodeAt(
-        i,
+    adjacencyList.addNode(`node${String(nodeAt(i))}`, {
+      label: `node ${String(
+        nodeAt(i),
       )} | { <FIRST_IN> ${firstIn} | <FIRST_OUT> ${firstOut} }`,
       ...nodeColor,
     });
 
     if (firstIn) {
-      adjacencyList.addEdge(`node${nodeAt(i)}`, `edge${firstIn}`, {
+      adjacencyList.addEdge(`node${String(nodeAt(i))}`, `edge${firstIn}`, {
         tailport: 'FIRST_IN',
         label: 'FIRST_IN',
         ...nodeColor,
@@ -600,7 +635,7 @@ function toDot<TEdgeType: number>(data: EfficientGraph<TEdgeType>): string {
     }
 
     if (firstOut) {
-      adjacencyList.addEdge(`node${nodeAt(i)}`, `edge${firstOut}`, {
+      adjacencyList.addEdge(`node${String(nodeAt(i))}`, `edge${firstOut}`, {
         tailport: 'FIRST_OUT',
         label: 'FIRST_OUT',
         ...nodeColor,
