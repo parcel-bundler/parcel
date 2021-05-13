@@ -3,7 +3,7 @@ import {fromNodeId, toNodeId} from './types';
 import type {NodeId} from './types';
 import {digraph} from 'graphviz';
 import {spawn} from 'child_process';
-import type {NullEdgeType} from './Graph';
+import type {NullEdgeType, AllEdgeTypes} from './Graph';
 
 /**
  * Each node is represented with 2 4-byte chunks:
@@ -62,7 +62,7 @@ const FIRST_IN: 0 = 0;
 /** The offset to `NODE_SIZE` at which the hash of the first outgoing edge is stored. */
 const FIRST_OUT: 1 = 1;
 
-export const ALL_EDGE_TYPES = '@@all_edge_types';
+export const ALL_EDGE_TYPES: AllEdgeTypes = '@@all_edge_types';
 
 type EfficientGraphOpts = {|
   nodes: Uint32Array,
@@ -97,6 +97,12 @@ opaque type EdgeType = number;
 /** `1` is added to the type to allow a type value of `0`. */
 // const fromEdgeType = (type: EdgeType): number => type + 1;
 // const toEdgeType = (id: number) => Math.max(0, id - 1);
+
+/** Get the id of the node at the given index in the nodes array. */
+const nodeAt = (index: number): NodeId =>
+  toNodeId((index - (index % NODE_SIZE)) / NODE_SIZE);
+/** Get the index in the nodes array of the given node. */
+const indexOfNode = (id: NodeId): number => fromNodeId(id) * NODE_SIZE;
 
 export default class EfficientGraph<TEdgeType: number = 1> {
   /** An array of nodes, which each node occupying `NODE_SIZE` adjacent indices. */
@@ -178,50 +184,51 @@ export default class EfficientGraph<TEdgeType: number = 1> {
       from += NODE_SIZE
     ) {
       /** The last edge copied. */
-      let lastHash;
+      let lastIndex = null;
       for (
         /** The next edge to be copied. */
         let hash = this.nodes[from + FIRST_OUT];
         hash;
-        hash = edges[hash - 1 + NEXT_OUT]
+        hash = edges[indexOfEdge(hash) + NEXT_OUT]
       ) {
         /** The node that the next outgoing edge connects to. */
-        let to = edges[hash - 1 + TO];
+        let to = edges[indexOfEdge(hash) + TO];
+        let type = edges[indexOfEdge(hash) + TYPE];
         /** The index at which to copy this edge. */
-        let index = this.index(toNodeId(from), toNodeId(to));
+        let index = this.index(toNodeId(from), toNodeId(to), type);
         if (index === -1) {
           // Edge already copied?
           continue;
         }
 
         // Copy the details of the edge into the new edge list.
-        this.edges[index + TYPE] = edges[hash - 1 + TYPE];
+        this.edges[index + TYPE] = type;
         this.edges[index + FROM] = from;
         this.edges[index + TO] = to;
-        if (lastHash != null) {
+        if (lastIndex != null) {
           // If this edge is not the first outgoing edge from the current node,
           // link this edge to the last outgoing edge copied.
-          this.edges[lastHash + NEXT_OUT] = 1 + index;
+          this.edges[lastIndex + NEXT_OUT] = edgeAt(index);
         } else {
           // If this edge is the first outgoing edge from the current node,
           // link this edge to the current node.
-          this.nodes[from + FIRST_OUT] = 1 + index;
+          this.nodes[from + FIRST_OUT] = edgeAt(index);
         }
         // Keep track of the last outgoing edge copied.
-        lastHash = index;
+        lastIndex = index;
       }
 
       // Reset lastHash for use while copying incoming edges.
-      lastHash = undefined;
+      lastIndex = undefined;
       for (
         /** The next incoming edge to be copied. */
         let hash = this.nodes[from + FIRST_IN];
         hash;
-        hash = edges[hash - 1 + NEXT_IN]
+        hash = edges[indexOfEdge(hash) + NEXT_IN]
       ) {
         /** The node that the next incoming edge connects from. */
-        let from = edges[hash - 1 + FROM];
-        let type = edges[hash - 1 + TYPE];
+        let from = edges[indexOfEdge(hash) + FROM];
+        let type = edges[indexOfEdge(hash) + TYPE];
         /** The index at which to copy this edge. */
         let index = this.hash(toNodeId(from), toNodeId(from), type);
         // If there is a hash collision,
@@ -238,21 +245,21 @@ export default class EfficientGraph<TEdgeType: number = 1> {
         }
 
         // Copy the details of the edge into the new edge list.
-        this.edges[index + TYPE] = edges[hash - 1 + TYPE];
+        this.edges[index + TYPE] = type;
         this.edges[index + FROM] = from;
         this.edges[index + TO] = from;
-        if (lastHash != null) {
+        if (lastIndex != null) {
           // If this edge is not the first incoming edge to the current node,
           // link this edge to the last incoming edge copied.
-          this.edges[lastHash + NEXT_IN] = 1 + index;
+          this.edges[lastIndex + NEXT_IN] = edgeAt(index);
         } else {
           // If this edge is the first incoming edge from the current node,
           // link this edge to the current node.
-          this.nodes[from + FIRST_IN] = 1 + index;
+          this.nodes[from + FIRST_IN] = edgeAt(index);
         }
 
         // Keep track of the last edge copied.
-        lastHash = index;
+        lastIndex = index;
       }
     }
   }
@@ -313,12 +320,13 @@ export default class EfficientGraph<TEdgeType: number = 1> {
     this.edges[index + TYPE] = type;
     this.edges[index + FROM] = fromNodeId(from);
     this.edges[index + TO] = fromNodeId(to);
-    this.edges[index + NEXT_IN] = this.nodes[fromNodeId(to) + FIRST_IN];
-    this.edges[index + NEXT_OUT] = this.nodes[fromNodeId(from) + FIRST_OUT];
+    this.edges[index + NEXT_IN] = this.nodes[indexOfNode(to) + FIRST_IN];
+    this.edges[index + NEXT_OUT] = this.nodes[indexOfNode(from) + FIRST_OUT];
     // We store the hash of this edge as the `to` node's incoming edge
     // and as the `from` node's outgoing edge.
-    this.nodes[fromNodeId(to) + FIRST_IN] = edgeAt(index);
-    this.nodes[fromNodeId(from) + FIRST_OUT] = edgeAt(index);
+    this.nodes[indexOfNode(to) + FIRST_IN] = edgeAt(index);
+    this.nodes[indexOfNode(from) + FIRST_OUT] = edgeAt(index);
+
     return true;
   }
 
@@ -329,18 +337,17 @@ export default class EfficientGraph<TEdgeType: number = 1> {
    * otherwise, returns the index at which the edge should be added.
    *
    */
-  index(from: NodeId, to: NodeId, type: TEdgeType | NullEdgeType = 1): number {
-    // The index is most often simply the hash of edge.
-    let hash = indexOfEdge(this.hash(from, to, type));
-    // we scan the `edges` array for the next empty slot after the `hash` offset.
-    // We do this instead of simply using the `hash` as the index because
-    // it is possible for multiple edges to have the same hash.
-    while (this.edges[hash + TYPE]) {
+  index(from: NodeId, to: NodeId, type: TEdgeType | NullEdgeType): number {
+    let index = indexOfEdge(this.hash(from, to, type));
+    // we scan the `edges` array for the next empty slot after the `index`.
+    // We do this instead of simply using the `index` because it is possible
+    // for multiple edges to have the same hash.
+    while (this.edges[index + TYPE]) {
       if (
-        this.edges[hash + FROM] === from &&
-        this.edges[hash + TO] === to &&
+        this.edges[index + FROM] === from &&
+        this.edges[index + TO] === to &&
         // if type === ALL_EDGE_TYPES, return all edges
-        (type === ALL_EDGE_TYPES || this.edges[hash + TYPE] === type)
+        (type === ALL_EDGE_TYPES || this.edges[index + TYPE] === type)
       ) {
         // If this edge is already in the graph, bail out.
         return -1;
@@ -350,11 +357,11 @@ export default class EfficientGraph<TEdgeType: number = 1> {
         // Note that each 'slot' is of size `EDGE_SIZE`.
         // Also note that we handle overflow of `edges` by wrapping
         // back to the beginning of the `edges` array.
-        hash = (hash + EDGE_SIZE) % this.edges.length;
+        index = (index + EDGE_SIZE) % this.edges.length;
       }
     }
 
-    return hash;
+    return index;
   }
 
   // Probably not the best way to do this
@@ -404,36 +411,38 @@ export default class EfficientGraph<TEdgeType: number = 1> {
       return;
     }
 
-    let index = this.hash(from, to, type);
+    let index = indexOfEdge(this.hash(from, to, type));
 
-    // Update pointers to the removed edge to the next outgoing edge.
+    // Remove outgoing ref to this edge from incoming node.
     let nextOut = this.edges[index + NEXT_OUT];
-    let fromFirstOut = indexOfEdge(this.nodes[fromNodeId(from) + FIRST_OUT]);
-    if (fromFirstOut === index) {
-      this.nodes[fromNodeId(from) + FIRST_OUT] = nextOut;
+    let outIndex = indexOfEdge(this.nodes[indexOfNode(from) + FIRST_OUT]);
+    if (outIndex === index) {
+      this.nodes[indexOfNode(from) + FIRST_OUT] = nextOut;
     } else {
-      while (fromFirstOut) {
-        if (fromFirstOut === index) {
-          this.edges[fromFirstOut + NEXT_OUT] = nextOut;
+      let prevOut = outIndex;
+      do {
+        outIndex = indexOfEdge(this.edges[outIndex + NEXT_OUT]);
+        if (outIndex === index) {
+          this.edges[prevOut + NEXT_OUT] = nextOut;
           break;
         }
-        fromFirstOut = this.edges[fromFirstOut + NEXT_OUT];
-      }
+      } while (outIndex);
     }
 
-    // Update pointers to the removed edge to the next incoming edge.
+    // Remove incoming ref to this edge from to outgoing node.
     let nextIn = this.edges[index + NEXT_IN];
-    let fromFirstIn = indexOfEdge(this.nodes[fromNodeId(to) + FIRST_IN]);
-    if (fromFirstIn === index) {
-      this.nodes[fromNodeId(to) + FIRST_IN] = nextIn;
+    let inIndex = indexOfEdge(this.nodes[indexOfNode(to) + FIRST_IN]);
+    if (inIndex === index) {
+      this.nodes[indexOfNode(to) + FIRST_IN] = nextIn;
     } else {
-      while (fromFirstIn) {
-        if (fromFirstIn === index) {
-          this.edges[fromFirstIn + NEXT_IN] = nextIn;
+      let prevIn = inIndex;
+      do {
+        inIndex = indexOfEdge(this.edges[inIndex + NEXT_IN]);
+        if (inIndex === index) {
+          this.edges[prevIn + NEXT_IN] = nextIn;
           break;
         }
-        fromFirstIn = this.edges[fromFirstIn + NEXT_IN];
-      }
+      } while (inIndex);
     }
 
     // Free up this space in the edges list.
@@ -450,7 +459,7 @@ export default class EfficientGraph<TEdgeType: number = 1> {
     to: NodeId,
   ): Iterable<{|type: TEdgeType, from: NodeId|}> {
     for (
-      let i = indexOfEdge(this.nodes[fromNodeId(to) + FIRST_IN]);
+      let i = indexOfEdge(this.nodes[indexOfNode(to) + FIRST_IN]);
       i;
       i = indexOfEdge(this.edges[i + NEXT_IN])
     ) {
@@ -465,7 +474,7 @@ export default class EfficientGraph<TEdgeType: number = 1> {
     from: NodeId,
   ): Iterable<{|type: TEdgeType, to: NodeId|}> {
     for (
-      let i = indexOfEdge(this.nodes[fromNodeId(from) + FIRST_OUT]);
+      let i = indexOfEdge(this.nodes[indexOfNode(from) + FIRST_OUT]);
       i;
       i = indexOfEdge(this.edges[i + NEXT_OUT])
     ) {
@@ -477,14 +486,49 @@ export default class EfficientGraph<TEdgeType: number = 1> {
   }
 
   /**
+   *
+   */
+  getEdges(
+    from: NodeId,
+    type:
+      | AllEdgeTypes
+      | TEdgeType
+      | NullEdgeType
+      | Array<TEdgeType | NullEdgeType> = 1,
+  ): $ReadOnlySet<NodeId> {
+    return new Set(this.getNodesConnectedFrom(from, type));
+  }
+
+  /**
+   *
+   */
+  // getEdgesByType(from: NodeId): $ReadOnlyMap<number, $ReadOnlySet<NodeId>> {
+  //   let typeMap = new Map();
+  //   for (
+  //     let i = this.nodes[indexOfNode(from) + FIRST_OUT];
+  //     i;
+  //     i = this.edges[indexOfEdge(i) + NEXT_OUT]
+  //   ) {
+  //     let type = this.edges[indexOfEdge(i) + TYPE];
+  //     let nodeSet = typeMap.get(type) || new Set();
+  //     nodeSet.add(toNodeId(i));
+  //     typeMap.set(type, nodeSet);
+  //   }
+  //   return typeMap;
+  // }
+  /**
    * Get the list of nodes connected from this node.
    */
   *getNodesConnectedFrom(
     from: NodeId,
-    type: TEdgeType | NullEdgeType | Array<TEdgeType | NullEdgeType> = 1,
-  ): Iterable<NodeId> {
+    type:
+      | AllEdgeTypes
+      | TEdgeType
+      | NullEdgeType
+      | Array<TEdgeType | NullEdgeType> = 1,
+  ): Iterator<NodeId> {
     for (
-      let i = indexOfEdge(this.nodes[fromNodeId(from) + FIRST_OUT]);
+      let i = indexOfEdge(this.nodes[indexOfNode(from) + FIRST_OUT]);
       i;
       i = indexOfEdge(this.edges[i + NEXT_OUT])
     ) {
@@ -507,10 +551,14 @@ export default class EfficientGraph<TEdgeType: number = 1> {
    */
   *getNodesConnectedTo(
     to: NodeId,
-    type: TEdgeType | NullEdgeType | Array<TEdgeType | NullEdgeType> = 1,
-  ): Iterable<NodeId> {
+    type:
+      | AllEdgeTypes
+      | TEdgeType
+      | NullEdgeType
+      | Array<TEdgeType | NullEdgeType> = 1,
+  ): Iterator<NodeId> {
     for (
-      let i = indexOfEdge(this.nodes[fromNodeId(to) + FIRST_IN]);
+      let i = indexOfEdge(this.nodes[indexOfNode(to) + FIRST_IN]);
       i;
       i = indexOfEdge(this.edges[i + NEXT_IN])
     ) {
@@ -534,7 +582,7 @@ export default class EfficientGraph<TEdgeType: number = 1> {
    * This hash is used to index the edge in the `edges` array.
    *
    */
-  hash(from: NodeId, to: NodeId, type: TEdgeType | NullEdgeType = 1): number {
+  hash(from: NodeId, to: NodeId, type: TEdgeType | NullEdgeType): number {
     return (
       1 + // 1 is added to every hash to guarantee a truthy result.
       Math.abs(
@@ -597,36 +645,54 @@ function toDot<TEdgeType: number>(data: EfficientGraph<TEdgeType>): string {
   adjacencyList.setEdgeAttribut('fontcolor', edgeColor.color);
   adjacencyList.setEdgeAttribut('fontsize', 6);
 
-  for (let i = 0; i < data.edges.length; i++) {
-    let type = data.edges[i + TYPE];
-    if (type) {
-      let from = data.edges[i + FROM];
-      let to = data.edges[i + TO];
-      let nextIn = data.edges[i + NEXT_IN];
-      let nextOut = data.edges[i + NEXT_OUT];
-      // TODO: add type to label?
-      let label = String(edgeAt(i));
+  for (let i = 0; i < data.nodes.length; i += NODE_SIZE) {
+    let firstIn = data.nodes[i + FIRST_IN];
+    let firstOut = data.nodes[i + FIRST_OUT];
 
-      let fromFirstIn = data.nodes[from + FIRST_IN];
-      let fromFirstOut = data.nodes[from + FIRST_OUT];
-      let toFirstIn = data.nodes[to + FIRST_IN];
-      let toFirstOut = data.nodes[to + FIRST_OUT];
+    if (!firstIn && !firstOut) continue;
 
-      graph.addEdge(String(from), String(to), {label});
+    adjacencyList.addNode(`node${String(nodeAt(i))}`, {
+      label: `node ${String(
+        nodeAt(i),
+      )} | { <FIRST_IN> ${firstIn} | <FIRST_OUT> ${firstOut} }`,
+      ...nodeColor,
+    });
 
-      adjacencyList.addNode(`node${from}`, {
-        label: `node ${from} | { <FIRST_IN> ${fromFirstIn} | <FIRST_OUT> ${fromFirstOut} }`,
+    if (firstIn) {
+      adjacencyList.addEdge(`node${String(nodeAt(i))}`, `edge${firstIn}`, {
+        tailport: 'FIRST_IN',
+        label: 'FIRST_IN',
         ...nodeColor,
       });
+    }
+
+    if (firstOut) {
+      adjacencyList.addEdge(`node${String(nodeAt(i))}`, `edge${firstOut}`, {
+        tailport: 'FIRST_OUT',
+        label: 'FIRST_OUT',
+        ...nodeColor,
+      });
+    }
+
+    let nextEdge = firstOut;
+    while (nextEdge) {
+      let index = indexOfEdge(nextEdge);
+      let type = data.edges[index + TYPE];
+      let from = data.edges[index + FROM];
+      let to = data.edges[index + TO];
+      let nextIn = data.edges[index + NEXT_IN];
+      let nextOut = data.edges[index + NEXT_OUT];
+      // TODO: add type to label?
+      let label = String(nextEdge);
+
+      graph.addEdge(
+        String(nodeAt(i)),
+        String(data.edges[indexOfEdge(nextEdge) + TO]),
+        {label},
+      );
 
       adjacencyList.addNode(`edge${label}`, {
-        label: `edge ${label} | { <TYPE> ${type -
-          1} | <FROM> ${from} | <TO> ${to} | <NEXT_IN> ${nextIn} | <NEXT_OUT> ${nextOut} }`,
-      });
-
-      adjacencyList.addNode(`node${to}`, {
-        label: `node ${to} | { <FIRST_IN> ${toFirstIn} | <FIRST_OUT> ${toFirstOut} }`,
-        ...nodeColor,
+        label: `edge ${label} | { <TYPE> ${type} | <FROM> ${from} | <TO> ${to} | <NEXT_IN> ${nextIn} | <NEXT_OUT> ${nextOut} }`,
       });
 
       adjacencyList.addEdge(`edge${label}`, `node${from}`, {
@@ -655,39 +721,7 @@ function toDot<TEdgeType: number>(data: EfficientGraph<TEdgeType>): string {
         });
       }
 
-      if (fromFirstIn) {
-        adjacencyList.addEdge(`node${from}`, `edge${label}`, {
-          tailport: 'FIRST_IN',
-          label: 'FIRST_IN',
-          ...nodeColor,
-        });
-      }
-
-      if (fromFirstOut) {
-        adjacencyList.addEdge(`node${from}`, `edge${label}`, {
-          tailport: 'FIRST_OUT',
-          label: 'FIRST_OUT',
-          ...nodeColor,
-        });
-      }
-
-      if (toFirstIn) {
-        adjacencyList.addEdge(`node${to}`, `edge${label}`, {
-          tailport: 'FIRST_IN',
-          label: 'FIRST_IN',
-          ...nodeColor,
-        });
-      }
-
-      if (toFirstOut) {
-        adjacencyList.addEdge(`node${to}`, `edge${label}`, {
-          tailport: 'FIRST_OUT',
-          label: 'FIRST_OUT',
-          ...nodeColor,
-        });
-      }
-
-      i += EDGE_SIZE;
+      nextEdge = nextOut;
     }
   }
 
@@ -714,43 +748,45 @@ function nodesToDot<TEdgeType: number>(
   nodes.setEdgeAttribut('style', 'invis');
 
   let lastOut = 0;
-  for (let i = 0; i < data.nodes.length / NODE_SIZE; i++) {
+  for (let i = 0; i < data.nodes.length; i += NODE_SIZE) {
     let firstIn = data.nodes[i + FIRST_IN];
     let firstOut = data.nodes[i + FIRST_OUT];
     if (firstIn || firstOut) {
-      if (lastOut < i - FIRST_OUT) {
+      if (lastOut < i - NODE_SIZE) {
         if (lastOut === 0) {
           nodes.addNode(`node${lastOut}`, {
-            label: `${lastOut}…${i - 1} | `,
+            label: `${lastOut}…${i - NODE_SIZE} | `,
             ...emptyColor,
           });
         } else {
-          nodes.addNode(`node${lastOut + 1}`, {
-            label: `${lastOut + 1}…${i - 1} | `,
+          nodes.addNode(`node${lastOut + NODE_SIZE}`, {
+            label: `${lastOut + NODE_SIZE}…${i - NODE_SIZE} | `,
             ...emptyColor,
           });
-          nodes.addEdge(`node${lastOut}`, `node${lastOut + 1}`);
-          lastOut += 1;
+          nodes.addEdge(`node${lastOut}`, `node${lastOut + NODE_SIZE}`);
+          lastOut += NODE_SIZE;
         }
       }
+
       nodes.addNode(`node${i}`, {
-        label: `${i} | {${firstIn} | ${firstOut}}`,
+        label: `${fromNodeId(nodeAt(i))} | {${firstIn} | ${firstOut}}`,
       });
+
       nodes.addEdge(`node${lastOut}`, `node${i}`);
       lastOut = i;
-    } else if (i === data.nodes.length / NODE_SIZE - 1) {
-      if (lastOut < i - FIRST_OUT) {
+    } else if (i === data.nodes.length - NODE_SIZE) {
+      if (lastOut < i - NODE_SIZE) {
         if (lastOut === 0) {
           nodes.addNode(`node${lastOut}`, {
-            label: `${lastOut}…${i - 1} | `,
+            label: `${lastOut}…${i - NODE_SIZE} | `,
             ...emptyColor,
           });
         } else {
-          nodes.addNode(`node${lastOut + 1}`, {
-            label: `${lastOut + 1}…${i - 1} | `,
+          nodes.addNode(`node${lastOut + NODE_SIZE}`, {
+            label: `${lastOut + NODE_SIZE}…${i - NODE_SIZE} | `,
             ...emptyColor,
           });
-          nodes.addEdge(`node${lastOut}`, `node${lastOut + 1}`);
+          nodes.addEdge(`node${lastOut}`, `node${lastOut + NODE_SIZE}`);
         }
       }
     }
@@ -851,7 +887,7 @@ export function openGraphViz<TEdgeType: number>(
     });
   });
 
-  let dot = spawn('dot', ['-Tpng'], {stdio: ['pipe']});
+  let dot = spawn('dot', ['-T', 'png'], {stdio: ['pipe']});
   dot.stdout.pipe(preview.stdin);
   dot.stdin.write(data.toDot(type));
   dot.stdin.end();

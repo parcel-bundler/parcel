@@ -114,7 +114,7 @@ describe.only('Graph', () => {
     assert(graph.nodes.has(nodeD));
     assert(!graph.nodes.has(nodeB));
     assert(!graph.nodes.has(nodeC));
-    assert.deepEqual(graph.getAllEdges(), [{from: nodeA, to: nodeD, type: 0}]);
+    assert.deepEqual(graph.getAllEdges(), [{from: nodeA, to: nodeD, type: 1}]);
   });
 
   it('removing a node recursively deletes orphaned nodes', () => {
@@ -155,8 +155,8 @@ describe.only('Graph', () => {
 
     assert.deepEqual([...graph.nodes.keys()], [nodeA, nodeC, nodeF]);
     assert.deepEqual(graph.getAllEdges(), [
-      {from: nodeA, to: nodeC, type: 0},
-      {from: nodeC, to: nodeF, type: 0},
+      {from: nodeA, to: nodeC, type: 1},
+      {from: nodeC, to: nodeF, type: 1},
     ]);
   });
 
@@ -200,8 +200,8 @@ describe.only('Graph', () => {
 
     assert.deepEqual([...graph.nodes.keys()], [nodeA, nodeC, nodeF]);
     assert.deepEqual(graph.getAllEdges(), [
-      {from: nodeA, to: nodeC, type: 0},
-      {from: nodeC, to: nodeF, type: 0},
+      {from: nodeA, to: nodeC, type: 1},
+      {from: nodeC, to: nodeF, type: 1},
     ]);
   });
 
@@ -235,11 +235,11 @@ describe.only('Graph', () => {
 
     assert.deepEqual(nodesBefore, getNodeIds());
     assert.deepEqual(graph.getAllEdges(), [
-      {from: nodeA, to: nodeB, type: 0},
-      {from: nodeB, to: nodeC, type: 0},
-      {from: nodeB, to: nodeD, type: 0},
-      {from: nodeD, to: nodeE, type: 0},
-      {from: nodeE, to: nodeB, type: 0},
+      {from: nodeA, to: nodeB, type: 1},
+      {from: nodeB, to: nodeC, type: 1},
+      {from: nodeB, to: nodeD, type: 1},
+      {from: nodeD, to: nodeE, type: 1},
+      {from: nodeE, to: nodeB, type: 1},
     ]);
   });
 
@@ -262,7 +262,7 @@ describe.only('Graph', () => {
     }
   });
 
-  it.only("replaceNodeIdsConnectedTo should update a node's downstream nodes", () => {
+  it("replaceNodeIdsConnectedTo should update a node's downstream nodes", () => {
     let graph = new Graph();
     let nodeA = graph.addNode({id: 'a', type: 'mynode', value: 'a'});
     let nodeB = graph.addNode({id: 'b', type: 'mynode', value: 'b'});
@@ -278,8 +278,8 @@ describe.only('Graph', () => {
     assert(!graph.hasNode(nodeC));
     assert(graph.hasNode(nodeD));
     assert.deepEqual(graph.getAllEdges(), [
-      {from: nodeA, to: nodeB, type: 0},
-      {from: nodeA, to: nodeD, type: 0},
+      {from: nodeA, to: nodeB, type: 1},
+      {from: nodeA, to: nodeD, type: 1},
     ]);
   });
 
