@@ -50,7 +50,7 @@ describe('ts-validator', function() {
       assert.equal(entryDiagnostic.origin, '@parcel/validator-typescript');
       assert.equal(
         entryDiagnostic.message,
-        `Argument of type '"a string"' is not assignable to parameter of type 'Params'.`,
+        `Argument of type 'string' is not assignable to parameter of type 'Params'.`,
       );
       assert.equal(entryDiagnostic.filePath, entry);
 
@@ -92,7 +92,7 @@ describe('ts-validator', function() {
     assert.equal(buildEvent.diagnostics.length, 1);
     assert.equal(
       buildEvent.diagnostics[0].message,
-      "Type '\"This is a type error!\"' is not assignable to type 'number'.",
+      "Type 'string' is not assignable to type 'number'.",
     );
 
     await outputFS.writeFile(
@@ -106,14 +106,14 @@ describe('ts-validator', function() {
 
     await outputFS.writeFile(
       path.join(inputDir, '/index.ts'),
-      `export const message: boolean = "Now it is back!"`,
+      `export const message: boolean = {}`,
     );
     buildEvent = await getNextBuild(b);
     assert.equal(buildEvent.type, 'buildFailure');
     assert.equal(buildEvent.diagnostics.length, 1);
     assert.equal(
       buildEvent.diagnostics[0].message,
-      "Type '\"Now it is back!\"' is not assignable to type 'boolean'.",
+      "Type '{}' is not assignable to type 'boolean'.",
     );
   });
 
@@ -185,9 +185,9 @@ describe('ts-validator', function() {
 
     let buildEvent = await getNextBuild(b);
     assert.equal(buildEvent.type, 'buildFailure');
-    assert.equal(buildEvent.diagnostics.length, 1);
+    assert.equal(buildEvent.diagnostics.length, 2);
     assert.equal(
-      buildEvent.diagnostics[0].message,
+      buildEvent.diagnostics[1].message,
       "Argument of type 'string' is not assignable to parameter of type 'number'.",
     );
 
