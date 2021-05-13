@@ -36,6 +36,7 @@ pub struct DependencyDescriptor {
   pub specifier: swc_atoms::JsWord,
   pub attributes: Option<HashMap<swc_atoms::JsWord, bool>>,
   pub is_optional: bool,
+  pub is_helper: bool,
 }
 
 /// This pass collects dependencies in a module and compiles references as needed to work with Parcel's JSRuntime.
@@ -84,6 +85,7 @@ impl<'a> DependencyCollector<'a> {
       specifier,
       attributes,
       is_optional,
+      is_helper: span.is_dummy(),
     });
   }
 }
