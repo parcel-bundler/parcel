@@ -148,7 +148,6 @@ describe('transpilation', function() {
     );
 
     let file = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
-    console.log(file);
     assert(file.includes('React.createElement("div"'));
     assert(file.includes('...a'));
     assert(!file.includes('@swc/helpers'));
