@@ -71,8 +71,7 @@ describe('html', function() {
       'utf8',
     );
     for (let file of files) {
-      let ext = file.match(/\.([0-9a-z]+)(?:[?#]|$)/i)[0];
-      if (file !== 'index.html' && ext !== '.map') {
+      if (file !== 'index.html' && path.extname(file) !== '.map') {
         assert(html.includes(file));
       }
     }
