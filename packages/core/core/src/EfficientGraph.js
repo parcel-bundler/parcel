@@ -221,8 +221,9 @@ export default class EfficientGraph<TEdgeType: number = 1> {
       ) {
         /** The node that the next incoming edge connects from. */
         let from = edges[hash - 1 + FROM];
+        let type = edges[hash - 1 + TYPE];
         /** The index at which to copy this edge. */
-        let index = this.hash(toNodeId(from), toNodeId(from));
+        let index = this.hash(toNodeId(from), toNodeId(from), type);
         // If there is a hash collision,
         // scan the edges array for a space to copy the edge.
         while (this.edges[index + TYPE]) {
@@ -403,7 +404,7 @@ export default class EfficientGraph<TEdgeType: number = 1> {
       return;
     }
 
-    let index = this.hash(from, to /*, type*/);
+    let index = this.hash(from, to, type);
 
     // Update pointers to the removed edge to the next outgoing edge.
     let nextOut = this.edges[index + NEXT_OUT];
@@ -504,11 +505,15 @@ export default class EfficientGraph<TEdgeType: number = 1> {
    *
    * TODO: add type to hash function
    */
-  hash(from: NodeId, to: NodeId): number {
+  hash(from: NodeId, to: NodeId, type: TEdgeType | NullEdgeType = 1): number {
     return (
       1 + // 1 is added to every hash to guarantee a truthy result.
       Math.abs(
-        ((fromNodeId(from) + 111111) * (fromNodeId(to) - 333333) * EDGE_SIZE) %
+        // TODO: Look more into how this hash function works
+        ((type + 555555) *
+          (fromNodeId(from) + 111111) *
+          (fromNodeId(to) - 333333) *
+          EDGE_SIZE) %
           this.edges.length,
       )
     );
