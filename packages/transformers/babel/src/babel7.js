@@ -17,7 +17,7 @@ export default async function babel7(
   babelOptions: any,
   additionalPlugins: Array<any> = [],
 ): Promise<?AST> {
-  const babelCode = babelOptions.internal
+  const babelCore = babelOptions.internal
     ? internalBabelCore
     : await options.packageManager.require('@babel/core', asset.filePath, {
         range: '^7.12.0',
@@ -61,13 +61,13 @@ export default async function babel7(
   let ast = await asset.getAST();
   let res;
   if (ast) {
-    res = await babelCode.transformFromAstAsync(
+    res = await babelCore.transformFromAstAsync(
       ast.program,
       asset.isASTDirty() ? undefined : await asset.getCode(),
       config,
     );
   } else {
-    res = await babelCode.transformAsync(await asset.getCode(), config);
+    res = await babelCore.transformAsync(await asset.getCode(), config);
   }
 
   if (res.ast) {
