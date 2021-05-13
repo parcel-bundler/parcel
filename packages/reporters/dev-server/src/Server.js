@@ -174,7 +174,6 @@ export default class Server {
       if (htmlBundleFilePaths.length === 1) {
         indexFilePath = htmlBundleFilePaths[0];
       } else {
-        let reqDirectory = path.posix.dirname(req.url);
         indexFilePath = htmlBundleFilePaths
           .filter(v => {
             let dir = path.posix.dirname(v);
@@ -182,9 +181,7 @@ export default class Server {
               v,
               path.posix.extname(v),
             );
-            return (
-              withoutExtension === '/index' && reqDirectory.startsWith(dir)
-            );
+            return withoutExtension === 'index' && req.url.startsWith(dir);
           })
           .sort((a, b) => {
             return b.length - a.length;
