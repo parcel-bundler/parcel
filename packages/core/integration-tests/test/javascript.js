@@ -569,7 +569,7 @@ describe('javascript', function() {
     ]);
   });
 
-  it('should support bundling workers of type module', async function() {
+  it.skip('should support bundling workers of type module', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/workers-module/index.js'),
       {
@@ -818,11 +818,11 @@ describe('javascript', function() {
             codeHighlights: [
               {
                 end: {
-                  column: 51,
+                  column: 55,
                   line: 1,
                 },
                 start: {
-                  column: 12,
+                  column: 42,
                   line: 1,
                 },
               },
@@ -936,11 +936,11 @@ describe('javascript', function() {
             codeHighlights: [
               {
                 end: {
-                  column: 51,
+                  column: 33,
                   line: 1,
                 },
                 start: {
-                  column: 12,
+                  column: 20,
                   line: 1,
                 },
               },
@@ -1020,6 +1020,7 @@ describe('javascript', function() {
           'JSRuntime.js',
           'bundle-manifest.js',
           'relative-path.js',
+          'esmodule-helpers.js',
         ],
       },
       {
@@ -1069,6 +1070,7 @@ describe('javascript', function() {
           'get-worker-url.js',
           'JSRuntime.js',
           'lodash.js',
+          'esmodule-helpers.js',
         ],
       },
       {
@@ -1228,7 +1230,7 @@ describe('javascript', function() {
         ],
       },
       {
-        assets: ['local.js', 'JSRuntime.js'],
+        assets: ['local.js', 'JSRuntime.js', 'esmodule-helpers.js'],
       },
       {
         assets: ['test.txt'],
@@ -1595,11 +1597,11 @@ describe('javascript', function() {
             codeHighlights: [
               {
                 end: {
-                  column: 54,
+                  column: 36,
                   line: 1,
                 },
                 start: {
-                  column: 16,
+                  column: 24,
                   line: 1,
                 },
               },
@@ -1761,6 +1763,15 @@ describe('javascript', function() {
     assert.equal(output(), 'test:test');
   });
 
+  it('should not replace process.env.hasOwnProperty with undefined', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/env-hasOwnProperty/index.js'),
+    );
+
+    let output = await run(b);
+    assert.strictEqual(output, false);
+  });
+
   it('should not insert environment variables in electron-main environment', async function() {
     let b = await bundle(path.join(__dirname, '/integration/env/index.js'), {
       targets: {
@@ -1852,6 +1863,21 @@ describe('javascript', function() {
     let output = await run(b);
     assert.ok(!output.toString().includes('process.env'));
     assert.equal(output(), 'production:production');
+  });
+
+  it('should not inline computed accesses to process.env', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/env-computed/index.js'),
+      {
+        env: {name: 'abc'},
+      },
+    );
+
+    let contents = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(contents.includes('process.env'));
+
+    let output = await run(b);
+    assert.strictEqual(output, 'abc');
   });
 
   it('should insert environment variables from a file', async function() {
@@ -2945,7 +2971,9 @@ describe('javascript', function() {
 
     let jsBundle = b.getBundles()[0];
     let contents = await outputFS.readFile(jsBundle.filePath, 'utf8');
-    assert(/.then\(function \(\$parcel\$.*?\) {/.test(contents));
+    assert(
+      /.then\(function\(res\) {\n.*return __importStar\(res\)/.test(contents),
+    );
   });
 
   it('should detect typescript style async requires in commonjs with esModuleInterop flag and arrow functions', async () => {
@@ -2973,7 +3001,7 @@ describe('javascript', function() {
 
     let jsBundle = b.getBundles()[0];
     let contents = await outputFS.readFile(jsBundle.filePath, 'utf8');
-    assert(/.then\(\$parcel\$.*? =>/.test(contents));
+    assert(/.then\(\(res\)=>__importStar\(res\)/.test(contents));
   });
 
   it('should detect rollup style async requires in commonjs', async () => {
@@ -3585,5 +3613,69 @@ describe('javascript', function() {
     );
     let res = await run(b);
     assert.deepEqual(res.default, 'x: 123');
+  });
+
+  it('should support runtime module deduplication', async function() {
+    let b = await bundle(
+      path.join(__dirname, 'integration/js-runtime-dedup/index.js'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: [
+          'index.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'js-loader.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
+        ],
+      },
+      {
+        assets: ['async1.js', 'shared.js', 'esmodule-helpers.js'],
+      },
+      {
+        assets: ['async2.js', 'shared.js', 'esmodule-helpers.js'],
+      },
+    ]);
+
+    let res = await run(b);
+    assert.equal(await res, true);
+  });
+
+  it('should support runtime module deduplication with scope hoisting', async function() {
+    let b = await bundle(
+      path.join(__dirname, 'integration/js-runtime-dedup/index.js'),
+      {
+        mode: 'production',
+      },
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: [
+          'index.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'js-loader.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
+          'bundle-manifest.js',
+          'JSRuntime.js',
+          'relative-path.js',
+        ],
+      },
+      {
+        assets: ['async1.js', 'shared.js'],
+      },
+      {
+        assets: ['async2.js', 'shared.js'],
+      },
+    ]);
+
+    let res = await run(b);
+    assert.equal(await res, true);
   });
 });

@@ -67,12 +67,12 @@ jobs:
             yarn
           path: $(YARN_CACHE_FOLDER)
         displayName: Cache yarn directory
-      - script: node scripts/link-native.js
-        displayName: 'Link native dependencies'
       # use `--frozen-lockfile` to fail immediately if the committed yarn.lock needs updates
       # https://yarnpkg.com/lang/en/docs/cli/install/#toc-yarn-install-frozen-lockfile
       - script: yarn --frozen-lockfile
         displayName: 'Install dependencies'
+      - script: yarn build-native-release
+        displayName: 'Build native packages'
       - script: yarn test:unit
         displayName: 'Run unit tests'
       - script: yarn test:integration-ci

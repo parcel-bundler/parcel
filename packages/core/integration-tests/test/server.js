@@ -296,7 +296,7 @@ describe('server', function() {
       await get('/index.js', port);
     } catch (err) {
       statusCode = err.statusCode;
-      assert(err.data.includes('Expecting Unicode escape sequence'));
+      assert(err.data.includes('Expected unicode escape'));
     }
 
     assert.equal(statusCode, 500);

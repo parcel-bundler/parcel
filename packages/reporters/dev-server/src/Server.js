@@ -375,11 +375,12 @@ export default class Server {
     // avoid skipping project root
     const fileInRoot: string = path.join(this.options.projectRoot, '_');
 
-    const pkg = await loadConfig(this.options.inputFS, fileInRoot, [
-      '.proxyrc.js',
-      '.proxyrc',
-      '.proxyrc.json',
-    ]);
+    const pkg = await loadConfig(
+      this.options.inputFS,
+      fileInRoot,
+      ['.proxyrc.js', '.proxyrc', '.proxyrc.json'],
+      this.options.projectRoot,
+    );
 
     if (!pkg || !pkg.config || !pkg.files) {
       return this;

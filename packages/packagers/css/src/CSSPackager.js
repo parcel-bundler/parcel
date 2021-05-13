@@ -140,8 +140,7 @@ async function processCSSModule(
   let defaultImport = null;
   if (usedSymbols.has('default')) {
     let incoming = bundleGraph.getIncomingDependencies(asset);
-    // `import * as ns from ""; ns.default` is fine.
-    defaultImport = incoming.find(d => d.meta.hasDefaultImport);
+    defaultImport = incoming.find(d => d.symbols.hasExportSymbol('default'));
     if (defaultImport) {
       let loc = defaultImport.symbols.get('default')?.loc;
       logger.warn({

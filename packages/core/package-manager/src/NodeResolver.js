@@ -61,7 +61,11 @@ export class NodeResolver extends NodeResolverBase<Promise<ResolveResult>> {
     });
 
     let dir = path.dirname(sourceFile);
-    let pkgFile = this.fs.findAncestorFile(['package.json'], dir);
+    let pkgFile = this.fs.findAncestorFile(
+      ['package.json'],
+      dir,
+      this.projectRoot,
+    );
     if (pkgFile != null) {
       return this.readPackage(pkgFile, ctx);
     }

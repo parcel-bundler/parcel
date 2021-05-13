@@ -34,6 +34,7 @@ import invariant from 'assert';
 import ParcelConfigSchema from '../ParcelConfig.schema';
 import {optionsProxy} from '../utils';
 import ParcelConfig from '../ParcelConfig';
+import {createBuildCache} from '../buildCache';
 
 type ConfigMap<K, V> = {[K]: V, ...};
 
@@ -97,12 +98,7 @@ export default function createParcelConfigRequest(): ParcelConfigRequest {
   };
 }
 
-const parcelConfigCache = new Map();
-
-export function clearParcelConfigCache() {
-  parcelConfigCache.clear();
-}
-
+const parcelConfigCache = createBuildCache();
 export function getCachedParcelConfig(
   result: ConfigAndCachePath,
   options: ParcelOptions,
@@ -139,7 +135,12 @@ export async function resolveParcelConfig(
     options.config != null
       ? (await options.packageManager.resolve(options.config, resolveFrom))
           .resolved
-      : await resolveConfig(options.inputFS, resolveFrom, ['.parcelrc']);
+      : await resolveConfig(
+          options.inputFS,
+          resolveFrom,
+          ['.parcelrc'],
+          options.projectRoot,
+        );
 
   let usedDefault = false;
   if (configPath == null && options.defaultConfig != null) {
@@ -460,6 +461,7 @@ async function processExtendedConfig(
       options.inputFS,
       extendsSpecifier,
       path.dirname(resolvedExtendedConfigPath),
+      options.projectRoot,
     );
     throw new ThrowableDiagnostic({
       diagnostic: {

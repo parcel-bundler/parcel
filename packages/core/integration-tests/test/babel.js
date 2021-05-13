@@ -15,7 +15,6 @@ import {
 import Logger from '@parcel/logger';
 import os from 'os';
 import {spawnSync} from 'child_process';
-import {symlinkSync} from 'fs';
 import tempy from 'tempy';
 
 const parcelCli = require.resolve('parcel/src/bin.js');
@@ -116,39 +115,6 @@ describe('babel', function() {
     assert.deepEqual(messages, []);
   });
 
-  it('should not compile with babel if no targets are defined', async function() {
-    await bundle(path.join(__dirname, '/integration/babel-default/index.js'), {
-      defaultTargetOptions: {
-        engines: undefined,
-        shouldOptimize: false,
-      },
-    });
-    let file = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
-    assert(file.includes('class Foo'));
-    assert(file.includes('class Bar'));
-  });
-
-  it('should support compiling with babel using browserlist', async function() {
-    await bundle(
-      path.join(__dirname, '/integration/babel-browserslist/index.js'),
-    );
-
-    let file = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
-    assert(file.includes('function Foo'));
-    assert(file.includes('function Bar'));
-  });
-
-  it('should only include necessary parts of core-js using browserlist', async function() {
-    await bundle(path.join(__dirname, '/integration/babel-core-js/index.js'));
-
-    let file = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
-    assert(file.includes('async function Bar() {}'));
-    // Check that core-js's globalThis polyfill is referenced.
-    // NOTE: This may change if core-js internals change.
-    assert(file.includes('esnext.global-this'));
-    assert(!file.includes('es.array.concat'));
-  });
-
   it.skip('should support compiling with babel using browserslist for different environments', async function() {
     async function testBrowserListMultipleEnv(projectBasePath) {
       // Transpiled destructuring, like r = p.prop1, o = p.prop2, a = p.prop3;
@@ -180,35 +146,6 @@ describe('babel', function() {
     );
   });
 
-  it('can build using @babel/preset-env when engines have semver ranges', async () => {
-    let fixtureDir = path.join(__dirname, '/integration/babel-semver-engine');
-    await bundle(path.join(fixtureDir, 'index.js'));
-
-    let legacy = await outputFS.readFile(
-      path.join(fixtureDir, 'dist', 'legacy.js'),
-      'utf8',
-    );
-    assert(legacy.includes('function Foo'));
-    assert(legacy.includes('function Bar'));
-
-    let modern = await outputFS.readFile(
-      path.join(fixtureDir, 'dist', 'modern.js'),
-      'utf8',
-    );
-    assert(modern.includes('class Foo'));
-    assert(modern.includes('class Bar'));
-  });
-
-  it('should not compile node_modules by default', async function() {
-    await bundle(
-      path.join(__dirname, '/integration/babel-node-modules/index.js'),
-    );
-
-    let file = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
-    assert(/class \S+ \{\}/.test(file));
-    assert(file.includes('function Bar'));
-  });
-
   it.skip('should compile node_modules with browserslist to app target', async function() {
     await bundle(
       path.join(
@@ -220,84 +157,6 @@ describe('babel', function() {
     let file = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
     assert(file.includes('function Foo'));
     assert(file.includes('function Bar'));
-  });
-
-  it('should not compile node_modules with a source field in package.json when not symlinked', async function() {
-    await bundle(
-      path.join(
-        __dirname,
-        '/integration/babel-node-modules-source-unlinked/index.js',
-      ),
-    );
-
-    let file = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
-    assert(!file.includes('function Foo'));
-    assert(file.includes('function Bar'));
-  });
-
-  it('should support compiling JSX', async function() {
-    await bundle(path.join(__dirname, '/integration/jsx/index.jsx'));
-
-    let file = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
-    assert(file.includes('React.createElement("div"'));
-  });
-
-  it('should support compiling JSX in JS files with React dependency', async function() {
-    await bundle(path.join(__dirname, '/integration/jsx-react/index.js'));
-
-    let file = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
-    assert(file.includes('React.createElement("div"'));
-  });
-
-  it('should support compiling JSX with pure annotations', async function() {
-    let b = await bundle(
-      path.join(__dirname, '/integration/jsx-react/pure-comment.js'),
-    );
-
-    let file = await outputFS.readFile(
-      path.join(distDir, 'pure-comment.js'),
-      'utf8',
-    );
-    assert(file.includes('/*#__PURE__*/_reactDefault.default.createElement'));
-
-    let res = await run(b);
-    assert(res.Foo());
-  });
-
-  it('should support compiling JSX in JS files with React aliased to Preact', async function() {
-    await bundle(path.join(__dirname, '/integration/jsx-react-alias/index.js'));
-
-    let file = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
-    assert(file.includes('React.createElement("div"'));
-  });
-
-  it('should support compiling JSX in JS files with Preact dependency', async function() {
-    await bundle(path.join(__dirname, '/integration/jsx-preact/index.js'));
-
-    let file = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
-    assert(file.includes('h("div"'));
-  });
-
-  it('should support compiling JSX in TS files with Preact dependency', async function() {
-    let b = await bundle(
-      path.join(__dirname, '/integration/jsx-preact-ts/index.tsx'),
-    );
-
-    assert(typeof (await run(b)) === 'object');
-  });
-
-  it('should support compiling JSX in JS files with Nerv dependency', async function() {
-    await bundle(path.join(__dirname, '/integration/jsx-nervjs/index.js'));
-
-    let file = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
-    assert(file.includes('Nerv.createElement("div"'));
-  });
-
-  it('should support compiling JSX in JS files with Hyperapp dependency', async function() {
-    await bundle(path.join(__dirname, '/integration/jsx-hyperapp/index.js'));
-
-    let file = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
-    assert(file.includes('h("div"'));
   });
 
   it('should strip away flow types', async function() {
@@ -380,29 +239,6 @@ describe('babel', function() {
     await outputFS.rimraf(path.join(fixtureDir, 'dist'));
   });
 
-  it('should support building with default babel config when running parcel globally', async function() {
-    let tmpDir = tempy.directory();
-    let distDir = path.join(tmpDir, 'dist');
-    await fs.ncp(
-      path.join(__dirname, '/integration/babel-default'),
-      path.join(tmpDir, '/input'),
-    );
-    await bundle(path.join(tmpDir, '/input/index.js'), {
-      targets: {
-        modern: {
-          engines: {
-            node: '^4.0.0',
-          },
-          distDir,
-        },
-      },
-      shouldAutoInstall: true,
-    });
-    let file = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
-    assert(file.includes('function Foo'));
-    assert(file.includes('function Bar'));
-  });
-
   it('should support building with custom babel config when running parcel globally', async function() {
     let tmpDir = tempy.directory();
     let distDir = path.join(tmpDir, 'dist');
@@ -463,7 +299,7 @@ describe('babel', function() {
       await bundle(
         path.join(__dirname, '/integration/babel-env-name/index.js'),
         {
-          targets: {main: {distDir, engines: {browsers: ['ie 11']}}},
+          targets: {main: {distDir, engines: {}}},
           shouldDisableCache: false,
         },
       );
@@ -485,7 +321,7 @@ describe('babel', function() {
       await bundle(
         path.join(__dirname, '/integration/babel-env-name/index.js'),
         {
-          targets: {main: {distDir, engines: {browsers: ['ie 11']}}},
+          targets: {main: {distDir, engines: {}}},
           shouldDisableCache: false,
           env: {NODE_ENV: 'production'},
         },
@@ -499,7 +335,7 @@ describe('babel', function() {
       await bundle(
         path.join(__dirname, '/integration/babel-env-name/index.js'),
         {
-          targets: {main: {distDir, engines: {browsers: ['ie 11']}}},
+          targets: {main: {distDir, engines: {}}},
           shouldDisableCache: false,
           env: {BABEL_ENV: 'development'},
         },
@@ -534,31 +370,6 @@ describe('babel', function() {
           throw e;
         }
       }
-    });
-
-    it('should compile node_modules when symlinked with a source field in package.json', async function() {
-      const inputDir = path.join(__dirname, '/input');
-      await fs.rimraf(inputDir);
-      await fs.mkdirp(path.join(inputDir, 'node_modules'));
-      await fs.ncp(
-        path.join(
-          path.join(__dirname, '/integration/babel-node-modules-source'),
-        ),
-        inputDir,
-      );
-
-      // Create the symlink here to prevent cross platform and git issues
-      symlinkSync(
-        path.join(inputDir, 'packages/foo'),
-        path.join(inputDir, 'node_modules/foo'),
-        'dir',
-      );
-
-      await bundle(inputDir + '/index.js', {outputFS: fs});
-
-      let file = await fs.readFile(path.join(distDir, 'index.js'), 'utf8');
-      assert(file.includes('function Foo'));
-      assert(file.includes('function Bar'));
     });
 
     it('should rebuild when .babelrc changes', async function() {
@@ -662,7 +473,10 @@ describe('babel', function() {
         );
 
       build();
-      let file = await fs.readFile(path.join(distDir, 'index.js'), 'utf8');
+      let file = await fs.readFile(
+        path.join(inputDir, 'dist', 'index.js'),
+        'utf8',
+      );
       assert(!file.includes('REPLACE_ME'));
       assert(file.includes('hello there'));
 
@@ -680,24 +494,11 @@ describe('babel', function() {
       );
 
       build();
-      file = await fs.readFile(path.join(distDir, 'index.js'), 'utf8');
+      file = await fs.readFile(path.join(inputDir, 'dist', 'index.js'), 'utf8');
       assert(!file.includes('REPLACE_ME'));
       assert(!file.includes('hello there'));
       assert(file.includes('something different'));
     });
-  });
-
-  it('should support transpiling optional chaining', async function() {
-    let b = await bundle(
-      path.join(__dirname, '/integration/babel-optional-chaining/index.js'),
-    );
-
-    let file = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
-    assert(!file.includes('?.'));
-
-    let output = await run(b);
-    assert.equal(typeof output, 'object');
-    assert.deepEqual(output.default, [undefined, undefined]);
   });
 
   it('should enable shippedProposals with @parcel/babel-preset-env in custom babelrc', async function() {
@@ -714,5 +515,57 @@ describe('babel', function() {
     let output = await run(b);
     assert.strictEqual(typeof output, 'object');
     assert.strictEqual(output.default, 123);
+  });
+
+  it('should compile with custom babel plugin plus default transforms', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/babel-custom/index.js'),
+    );
+
+    let file = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(!file.includes('class Test'));
+    assert(!file.includes('REPLACE_ME'));
+    assert(!file.includes('#private'));
+
+    let output = await run(b);
+    assert.strictEqual(typeof output, 'object');
+    assert.strictEqual(output.default, 'hello');
+  });
+
+  it('should compile with custom babel plugin and jsx', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/babel-custom/jsx.js'),
+    );
+
+    let file = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(!file.includes('REPLACE_ME'));
+    assert(file.includes('React.createElement'));
+  });
+
+  it('should compile with custom babel plugin and typescript', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/babel-custom/ts.ts'),
+    );
+
+    let file = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(!file.includes('class Test'));
+    assert(!file.includes('REPLACE_ME'));
+    assert(!file.includes('#private'));
+    assert(!file.includes('interface'));
+
+    let output = await run(b);
+    assert.strictEqual(typeof output, 'object');
+    assert.strictEqual(output.default, 'hello');
+  });
+
+  it('should compile with custom babel plugin and tsx', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/babel-custom/tsx.tsx'),
+    );
+
+    let file = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(!file.includes('REPLACE_ME'));
+    assert(!file.includes('interface'));
+    assert(file.includes('React.createElement'));
   });
 });
