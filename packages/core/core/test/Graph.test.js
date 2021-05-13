@@ -262,7 +262,7 @@ describe.only('Graph', () => {
     }
   });
 
-  it("replaceNodeIdsConnectedTo should update a node's downstream nodes", () => {
+  it.only("replaceNodeIdsConnectedTo should update a node's downstream nodes", () => {
     let graph = new Graph();
     let nodeA = graph.addNode({id: 'a', type: 'mynode', value: 'a'});
     let nodeB = graph.addNode({id: 'b', type: 'mynode', value: 'b'});

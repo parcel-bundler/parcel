@@ -207,33 +207,51 @@ export default class Graph<TNode: Node, TEdgeType: number = 1> {
   removeNode(nodeId: NodeId) {
     this._assertHasNodeId(nodeId);
 
-    for (let from of [
-      ...this.adjacencyList.getNodesConnectedTo(
-        nodeId,
-        // $FlowFixMe
-        ALL_EDGE_TYPES,
-      ),
+    for (let {type, from} of [
+      ...this.adjacencyList.getInboundEdgesByType(nodeId),
     ]) {
       this.removeEdge(
         from,
         nodeId,
-        // $FlowFixMe
-        ALL_EDGE_TYPES /* any type */,
+        type,
         // Do not allow orphans to be removed as this node could be one
         // and is already being removed.
-        false /* removeOrphans */,
+        false,
       );
     }
+    // for (let from of [
+    //   ...this.adjacencyList.getNodesConnectedTo(
+    //     nodeId,
+    //     // $FlowFixMe
+    //     ALL_EDGE_TYPES,
+    //   ),
+    // ]) {
+    //   this.removeEdge(
+    //     from,
+    //     nodeId,
+    //     // $FlowFixMe
+    //     ALL_EDGE_TYPES /* any type */,
+    //     // Do not allow orphans to be removed as this node could be one
+    //     // and is already being removed.
+    //     false /* removeOrphans */,
+    //   );
+    // }
 
-    for (let to of [
-      ...this.adjacencyList.getNodesConnectedFrom(
-        nodeId,
-        // $FlowFixMe
-        ALL_EDGE_TYPES,
-      ),
+    for (let {type, to} of [
+      ...this.adjacencyList.getOutboundEdgesByType(nodeId),
     ]) {
-      this.removeEdge(nodeId, to);
+      this.removeEdge(nodeId, to, type);
     }
+
+    // for (let to of [
+    //   ...this.adjacencyList.getNodesConnectedFrom(
+    //     nodeId,
+    //     // $FlowFixMe
+    //     ALL_EDGE_TYPES,
+    //   ),
+    // ]) {
+    //   this.removeEdge(nodeId, to);
+    // }
 
     let wasRemoved = this.nodes.delete(nodeId);
     assert(wasRemoved);
@@ -279,7 +297,7 @@ export default class Graph<TNode: Node, TEdgeType: number = 1> {
       // for (let id of this.getNodeIdsConnectedTo(nodeId)) {
       //   if (this.hasNode(id)) return false;
       // }
-      if (this.getNodeIdsConnectedTo(nodeId, ALL_EDGE_TYPES).length) {
+      if ([...this.adjacencyList.getInboundEdgesByType(nodeId)].length) {
         return false;
       }
 

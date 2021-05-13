@@ -331,7 +331,7 @@ export default class EfficientGraph<TEdgeType: number = 1> {
    */
   index(from: NodeId, to: NodeId, type: TEdgeType | NullEdgeType = 1): number {
     // The index is most often simply the hash of edge.
-    let hash = indexOfEdge(this.hash(from, to));
+    let hash = indexOfEdge(this.hash(from, to, type));
     // we scan the `edges` array for the next empty slot after the `hash` offset.
     // We do this instead of simply using the `hash` as the index because
     // it is possible for multiple edges to have the same hash.
@@ -446,6 +446,36 @@ export default class EfficientGraph<TEdgeType: number = 1> {
     this.numEdges--;
   }
 
+  *getInboundEdgesByType(
+    to: NodeId,
+  ): Iterable<{|type: TEdgeType, from: NodeId|}> {
+    for (
+      let i = indexOfEdge(this.nodes[fromNodeId(to) + FIRST_IN]);
+      i;
+      i = indexOfEdge(this.edges[i + NEXT_IN])
+    ) {
+      yield {
+        type: (this.edges[i + TYPE]: any),
+        from: toNodeId(this.edges[i + FROM]),
+      };
+    }
+  }
+
+  *getOutboundEdgesByType(
+    from: NodeId,
+  ): Iterable<{|type: TEdgeType, to: NodeId|}> {
+    for (
+      let i = indexOfEdge(this.nodes[fromNodeId(from) + FIRST_OUT]);
+      i;
+      i = indexOfEdge(this.edges[i + NEXT_OUT])
+    ) {
+      yield {
+        type: (this.edges[i + TYPE]: any),
+        to: toNodeId(this.edges[i + TO]),
+      };
+    }
+  }
+
   /**
    * Get the list of nodes connected from this node.
    */
@@ -503,7 +533,6 @@ export default class EfficientGraph<TEdgeType: number = 1> {
    *
    * This hash is used to index the edge in the `edges` array.
    *
-   * TODO: add type to hash function
    */
   hash(from: NodeId, to: NodeId, type: TEdgeType | NullEdgeType = 1): number {
     return (

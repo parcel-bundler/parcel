@@ -102,9 +102,9 @@ describe.only('EfficientGraph', () => {
     assert.deepEqual(
       [...graph.getAllEdges()],
       [
-        {from: 1, to: 2, type: 2},
         {from: 1, to: 2, type: 3},
         {from: 4, to: 5, type: 1},
+        {from: 1, to: 2, type: 2},
       ],
     );
   });
@@ -120,14 +120,7 @@ describe.only('EfficientGraph', () => {
   it('hasEdge should return true for existing edges', () => {
     let graph = new EfficientGraph();
     graph.addEdge(toNodeId(2), toNodeId(3), 2);
-    assert(
-      graph.hasEdge(
-        toNodeId(2),
-        toNodeId(3),
-        // $FlowFixMe
-        ALL_EDGE_TYPES,
-      ),
-    );
+    assert(graph.hasEdge(toNodeId(2), toNodeId(3), 2));
     assert(graph.hasEdge(toNodeId(2), toNodeId(3), 2));
   });
 
@@ -196,9 +189,9 @@ describe.only('EfficientGraph', () => {
 
   it('getNodesConnectedTo returns correct node ids with multiple edge types', () => {
     let graph = new EfficientGraph();
-    graph.addEdge(toNodeId(1), toNodeId(5), 2);
-    graph.addEdge(toNodeId(2), toNodeId(5), 3);
-    graph.addEdge(toNodeId(3), toNodeId(5), 4);
+    assert(graph.addEdge(toNodeId(1), toNodeId(5), 2));
+    assert(graph.addEdge(toNodeId(2), toNodeId(5), 3));
+    assert(graph.addEdge(toNodeId(3), toNodeId(5), 4));
 
     assert.deepEqual([...graph.getNodesConnectedTo(toNodeId(5), [3])], [2]);
     assert.deepEqual(
