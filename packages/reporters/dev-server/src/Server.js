@@ -54,14 +54,6 @@ const TEMPLATE_500 = fs.readFileSync(
 );
 type NextFunction = (req: Request, res: Response, next?: (any) => any) => any;
 
-function getUrlDirectory(url: string) {
-  let chunks = url.split('/');
-  if (chunks[chunks.length - 1].includes('.')) {
-    chunks.pop();
-  }
-  return chunks.join('/');
-}
-
 export default class Server {
   pending: boolean;
   pendingRequests: Array<[Request, Response]>;
@@ -182,12 +174,14 @@ export default class Server {
       if (htmlBundleFilePaths.length === 1) {
         indexFilePath = htmlBundleFilePaths[0];
       } else {
-        let reqDirectory = getUrlDirectory(req.url);
+        let reqDirectory = path.posix.dirname(req.url);
         indexFilePath = htmlBundleFilePaths
           .filter(v => {
-            let dir = getUrlDirectory(v);
-            let filename = v.replace(dir, '');
-            let withoutExtension = filename.replace(path.extname(filename), '');
+            let dir = path.posix.dirname(v);
+            let withoutExtension = path.posix.basename(
+              v,
+              path.posix.extname(v),
+            );
             return (
               withoutExtension === '/index' && reqDirectory.startsWith(dir)
             );
