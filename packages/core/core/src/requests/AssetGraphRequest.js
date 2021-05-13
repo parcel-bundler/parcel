@@ -21,6 +21,7 @@ import type {
   NodeId,
   ParcelOptions,
   Target,
+  ContentKey, //Maybe this shouldn't be here?
 } from '../types';
 import type {StaticRunOpts, RunAPI} from '../RequestTracker';
 import type {EntryResult} from './EntryRequest';
@@ -51,6 +52,7 @@ type AssetGraphRequestInput = {|
 
 type AssetGraphRequestResult = AssetGraphBuilderResult & {|
   previousAssetGraphHash: ?string,
+  assetGraphTransformationSubGraph: AssetGraph,
 |};
 
 type AssetGraphBuilderResult = {|
@@ -80,19 +82,22 @@ export default function createAssetGraphRequest(
     run: async input => {
       let prevResult = await input.api.getPreviousResult<AssetGraphRequestResult>();
       let previousAssetGraphHash = prevResult?.assetGraph.getHash();
+      //want to avoid cloning  so just grab ids
+      let previousContentKeys = new Set<ContentKey>();
+      prevResult?.assetGraph.nodes.forEach((value) => {
+        previousContentKeys.add(value.id);
+      });
+
       let builder = new AssetGraphBuilder(input, prevResult);
       let assetGraphRequest = await await builder.build();
-      let isAssetGraphStructureSame = assetGraphRequest.assetGraph.isEqualStructure(
-        prevResult?.assetGraph,
-      );
       let isPrevResult =
+        assetGraphRequest.changedAssets.size > 0 &&
         prevResult &&
-        prevResult.assetGraph.nodes.size > 0 &&
-        !isAssetGraphStructureSame;
+        prevResult.assetGraph.nodes.size > 0;
+
       let assetGraphTransformationSubGraph = isPrevResult
         ? assetGraphRequest.assetGraph.getChangedAssetGraph(
-            prevResult,
-            isAssetGraphStructureSame,
+            previousContentKeys,
             assetGraphRequest.changedAssets,
           )
         : new AssetGraph(); //TODO: change this return value
@@ -100,7 +105,6 @@ export default function createAssetGraphRequest(
       return {
         ...assetGraphRequest,
         previousAssetGraphHash,
-        isAssetGraphStructureSame,
         assetGraphTransformationSubGraph,
       };
     },

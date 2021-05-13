@@ -1,3 +1,5 @@
+import bar from './bar';
+
 export default function() {
-  return 'hello!';
+  return 'hello1!';
 }
