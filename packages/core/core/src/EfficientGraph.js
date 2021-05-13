@@ -457,7 +457,11 @@ export default class EfficientGraph<TEdgeType: number = 1> {
    */
   *getNodesConnectedFrom(
     from: NodeId,
-    type: TEdgeType | NullEdgeType | Array<TEdgeType | NullEdgeType> = 1,
+    type:
+      | ALL_EDGE_TYPES
+      | TEdgeType
+      | NullEdgeType
+      | Array<TEdgeType | NullEdgeType> = 1,
   ): Iterable<NodeId> {
     for (
       let i = indexOfEdge(this.nodes[indexOfNode(from) + FIRST_OUT]);
@@ -483,7 +487,11 @@ export default class EfficientGraph<TEdgeType: number = 1> {
    */
   *getNodesConnectedTo(
     to: NodeId,
-    type: TEdgeType | NullEdgeType | Array<TEdgeType | NullEdgeType> = 1,
+    type:
+      | ALL_EDGE_TYPES
+      | TEdgeType
+      | NullEdgeType
+      | Array<TEdgeType | NullEdgeType> = 1,
   ): Iterable<NodeId> {
     for (
       let i = indexOfEdge(this.nodes[indexOfNode(to) + FIRST_IN]);

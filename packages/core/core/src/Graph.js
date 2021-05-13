@@ -275,15 +275,11 @@ export default class Graph<TNode: Node, TEdgeType: number = 1> {
     if (this.rootNodeId == null) {
       // If the graph does not have a root, and there are inbound edges,
       // this node should not be considered orphaned.
-      // return false;
-      // for (let id of this.getNodeIdsConnectedTo(nodeId)) {
-      //   if (this.hasNode(id)) return false;
-      // }
-      if (this.getNodeIdsConnectedTo(nodeId, ALL_EDGE_TYPES).length) {
-        return false;
-      }
-
-      return true;
+      // If the connected nodes iterator is immediately done,
+      // we'll know there are no inbound edges to the node in question.
+      return this.adjacencyList
+        .getNodesConnectedTo(nodeId, ALL_EDGE_TYPES)
+        .next().done;
     }
 
     // Otherwise, attempt to traverse backwards to the root. If there is a path,
