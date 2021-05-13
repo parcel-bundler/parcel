@@ -294,6 +294,14 @@ export default class EfficientGraph<TEdgeType: number = 1> {
     to: NodeId,
     type: TEdgeType | NullEdgeType = 1,
   ): boolean {
+    // We use the hash of the edge as the index for the edge.
+    let index = this.index(from, to, type);
+
+    if (index === -1) {
+      // The edge is already in the graph; do nothing.
+      return false;
+    }
+
     // The percentage of utilization of the total capacity of `edges`.
     let load = this.numEdges / (this.edges.length / EDGE_SIZE);
     // If we're in danger of overflowing the `edges` array, resize it.
@@ -305,14 +313,6 @@ export default class EfficientGraph<TEdgeType: number = 1> {
       this.resizeEdges((this.edges.length / EDGE_SIZE) * 2);
     }
 
-    // We use the hash of the edge as the index for the edge.
-    let index = this.index(from, to, type);
-
-    if (index === -1) {
-      // The edge is already in the graph; do nothing.
-      return false;
-    }
-
     this.numEdges++;
 
     // Each edge takes up `EDGE_SIZE` space in the `edges` array.
@@ -320,12 +320,37 @@ export default class EfficientGraph<TEdgeType: number = 1> {
     this.edges[index + TYPE] = type;
     this.edges[index + FROM] = fromNodeId(from);
     this.edges[index + TO] = fromNodeId(to);
-    this.edges[index + NEXT_IN] = this.nodes[indexOfNode(to) + FIRST_IN];
-    this.edges[index + NEXT_OUT] = this.nodes[indexOfNode(from) + FIRST_OUT];
-    // We store the hash of this edge as the `to` node's incoming edge
-    // and as the `from` node's outgoing edge.
-    this.nodes[indexOfNode(to) + FIRST_IN] = edgeAt(index);
-    this.nodes[indexOfNode(from) + FIRST_OUT] = edgeAt(index);
+
+    // Set this edge as the first incoming edge on the `to` node,
+    // Unless it already has a first incoming edge.
+    // In that case, append this edge as the next incoming edge
+    // after the last incoming edge to have been added.
+    let nextIn = this.nodes[indexOfNode(to) + FIRST_IN];
+    if (nextIn) {
+      let nextInIndex = indexOfEdge(nextIn);
+      for (let i = nextInIndex; i; i = indexOfEdge(this.edges[i + NEXT_IN])) {
+        nextInIndex = i;
+      }
+      this.edges[nextInIndex + NEXT_IN] = edgeAt(index);
+    } else {
+      // We store the hash of this edge as the `to` node's incoming edge.
+      this.nodes[indexOfNode(to) + FIRST_IN] = edgeAt(index);
+    }
+
+    // Set this edge as the first outgoing edge on the `from` node,
+    // Unless it already has a first outgoing edge.
+    // In that case, append this edge as the next outgoing edge
+    // after the last outgoing edge to have been added.
+    let nextOut = this.nodes[indexOfNode(from) + FIRST_OUT];
+    if (nextOut) {
+      let nextOutIndex = indexOfEdge(nextOut);
+      for (let i = nextOutIndex; i; i = indexOfEdge(this.edges[i + NEXT_OUT])) {
+        nextOutIndex = i;
+      }
+      this.edges[nextOutIndex + NEXT_OUT] = edgeAt(index);
+    } else {
+      this.nodes[indexOfNode(from) + FIRST_OUT] = edgeAt(index);
+    }
 
     return true;
   }
@@ -372,17 +397,17 @@ export default class EfficientGraph<TEdgeType: number = 1> {
   // graph.getAllEdges() only returns [{from: 1, to: 2, type: 2}]
   getAllEdges(): Array<Edge<TEdgeType | NullEdgeType>> {
     let edgeObjs = [];
-    let i = 0;
-    while (i < this.edges.length) {
-      if (this.edges[i + TYPE]) {
+    for (let i = 0; i < this.nodes.length; i += NODE_SIZE) {
+      let nextEdge = this.nodes[i + FIRST_OUT];
+      while (nextEdge) {
+        let edgeIndex = indexOfEdge(nextEdge);
         edgeObjs.push({
-          from: toNodeId(this.edges[i + FROM]),
-          to: toNodeId(this.edges[i + TO]),
-          type: (this.edges[i + TYPE]: any),
+          from: toNodeId(this.edges[edgeIndex + FROM]),
+          to: toNodeId(this.edges[edgeIndex + TO]),
+          type: (this.edges[edgeIndex + TYPE]: any),
         });
-        i += EDGE_SIZE;
+        nextEdge = this.edges[edgeIndex + NEXT_OUT];
       }
-      i++;
     }
     return edgeObjs;
   }
