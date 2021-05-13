@@ -56,6 +56,7 @@ type BundleGraphRequestInput = {|
   optionsRef: SharedReference,
   changedAssets: Map<string, Asset>,
   previousAssetGraphHash: ?string,
+  assetGraphTransformationSubGraph: AssetGraph,
   shouldBundle: boolean,
 |};
 
@@ -95,7 +96,7 @@ export default function createBundleGraphRequest(
       invalidateDevDeps(invalidDevDeps, input.options, parcelConfig);
 
       let builder = new BundlerRunner(input, parcelConfig, devDeps);
-
+      //if flag and subgraphs then update instead of bundle
       return builder.bundle({
         graph: input.input.assetGraph,
         previousAssetGraphHash: input.input.previousAssetGraphHash,
@@ -270,8 +271,6 @@ class BundlerRunner {
           internalBundleGraph,
           this.options,
         );
-      } else if (shouldUpdate && !isAssetGraphStructureSame && false) {
-        //import or export change, removal of import for now (assuming)
       } else {
         internalBundleGraph = InternalBundleGraph.fromAssetGraph(graph);
 

@@ -421,8 +421,6 @@ export default (new Bundler({
     // Remove assets that are duplicated between shared bundles.
     deduplicate(bundleGraph);
   },
-<<<<<<< HEAD
-=======
   update({bundleGraph, config, changedAssets, changedBundles}) {
     //want to create subgraphs for each changed bundle?
     // update mutable bundle graph by merging subgraphs in , and updating nonimport export nodes
@@ -688,7 +686,6 @@ export default (new Bundler({
 
     return [];
   },
->>>>>>> content hash fix, merge, start get changesAssetgraph
 }): Bundler);
 
 function deduplicate(bundleGraph: MutableBundleGraph) {

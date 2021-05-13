@@ -270,6 +270,7 @@ export type InitialParcelOptions = {|
   +shouldAutoInstall?: boolean,
   +logLevel?: LogLevel,
   +shouldProfile?: boolean,
+  +isIncremental?: boolean,
   +shouldPatchConsole?: boolean,
   +shouldBuildLazily?: boolean,
 
