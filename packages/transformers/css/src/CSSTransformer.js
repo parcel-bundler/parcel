@@ -194,7 +194,7 @@ export default (new Transformer({
     let originalSourceMap = await asset.getMap();
     if (result.map != null) {
       map = new SourceMap(options.projectRoot);
-      map.addRawMappings(result.map.toJSON());
+      map.addVLQMap(result.map.toJSON());
       if (originalSourceMap) {
         map.extends(originalSourceMap.toBuffer());
       }

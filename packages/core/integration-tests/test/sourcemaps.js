@@ -136,7 +136,7 @@ describe('sourcemaps', function() {
     let map = mapUrlData.map;
 
     let sourceMap = new SourceMap('/');
-    sourceMap.addRawMappings(map);
+    sourceMap.addVLQMap(map);
     let input = await inputFS.readFile(
       path.join(path.dirname(filename), map.sourceRoot, map.sources[0]),
       'utf8',
@@ -182,7 +182,7 @@ describe('sourcemaps', function() {
     let map = mapUrlData.map;
 
     let sourceMap = new SourceMap('/');
-    sourceMap.addRawMappings(map);
+    sourceMap.addVLQMap(map);
     assert.strictEqual(map.sourceRoot, '/__parcel_source_root/');
     let input = await inputFS.readFile(
       path.join(fixture, map.sources[0]),
@@ -238,7 +238,7 @@ describe('sourcemaps', function() {
     );
 
     let sourceMap = new SourceMap('/');
-    sourceMap.addRawMappings(map);
+    sourceMap.addVLQMap(map);
     let input = await inputFS.readFile(sourceFilename, 'utf8');
     let sourcePath = './index.js';
     let mapData = sourceMap.getMap();
@@ -296,7 +296,7 @@ describe('sourcemaps', function() {
     );
 
     let sourceMap = new SourceMap('/');
-    sourceMap.addRawMappings(map);
+    sourceMap.addVLQMap(map);
     let mapData = sourceMap.getMap();
     assert.equal(mapData.sources.length, 3);
 
@@ -387,7 +387,7 @@ describe('sourcemaps', function() {
     );
 
     let sourceMap = new SourceMap('/');
-    sourceMap.addRawMappings(map);
+    sourceMap.addVLQMap(map);
     let mapData = sourceMap.getMap();
     assert.equal(mapData.sources.length, 3);
 
@@ -472,7 +472,7 @@ describe('sourcemaps', function() {
     // assert.equal(map.sourceRoot, '/__parcel_source_root/');
 
     let sourceMap = new SourceMap('/');
-    sourceMap.addRawMappings(map);
+    sourceMap.addVLQMap(map);
 
     let mapData = sourceMap.getMap();
     assert.equal(mapData.sources.length, 2);
@@ -514,7 +514,7 @@ describe('sourcemaps', function() {
     assert(raw.includes('//# sourceMappingURL=index.js.map'));
 
     let sourceMap = new SourceMap('/');
-    sourceMap.addRawMappings(map);
+    sourceMap.addVLQMap(map);
 
     let mapData = sourceMap.getMap();
     assert.equal(mapData.sources.length, 3);
@@ -570,7 +570,7 @@ describe('sourcemaps', function() {
       assert(raw.includes('/*# sourceMappingURL=style.css.map */'));
 
       let sourceMap = new SourceMap('/');
-      sourceMap.addRawMappings(map);
+      sourceMap.addVLQMap(map);
 
       let input = await inputFS.readFile(
         path.join(path.dirname(filename), map.sourceRoot, map.sources[0]),
@@ -625,7 +625,7 @@ describe('sourcemaps', function() {
       assert(raw.includes('/*# sourceMappingURL=style.css.map */'));
 
       let sourceMap = new SourceMap('/');
-      sourceMap.addRawMappings(map);
+      sourceMap.addVLQMap(map);
 
       let mapData = sourceMap.getMap();
       assert.deepEqual(mapData.sources, [
@@ -731,7 +731,7 @@ describe('sourcemaps', function() {
       assert(raw.includes('/*# sourceMappingURL=style.css.map */'));
 
       let sourceMap = new SourceMap('/');
-      sourceMap.addRawMappings(map);
+      sourceMap.addVLQMap(map);
 
       let mapData = sourceMap.getMap();
       assert.equal(mapData.sources.length, shouldOptimize ? 2 : 1);
@@ -785,7 +785,7 @@ describe('sourcemaps', function() {
     assert(raw.includes('/*# sourceMappingURL=style.css.map */'));
 
     let sourceMap = new SourceMap('/');
-    sourceMap.addRawMappings(map);
+    sourceMap.addVLQMap(map);
 
     let mapData = sourceMap.getMap();
     // This should actually just be `./integration/scss-sourcemap-imports/with_url.scss`
@@ -842,7 +842,7 @@ describe('sourcemaps', function() {
       assert(raw.includes('/*# sourceMappingURL=style.css.map */'));
 
       let sourceMap = new SourceMap('/');
-      sourceMap.addRawMappings(map);
+      sourceMap.addVLQMap(map);
 
       let mapData = sourceMap.getMap();
       // TODO: htmlnano inserts `./<input css 1>`
@@ -928,7 +928,7 @@ describe('sourcemaps', function() {
       assert(raw.includes('/*# sourceMappingURL=style.css.map */'));
 
       let sourceMap = new SourceMap('/');
-      sourceMap.addRawMappings(map);
+      sourceMap.addVLQMap(map);
 
       let mapData = sourceMap.getMap();
       assert.equal(mapData.sources.length, shouldOptimize ? 2 : 1);
@@ -1248,7 +1248,7 @@ describe('sourcemaps', function() {
     let map = mapUrlData.map;
 
     let sourceMap = new SourceMap('/');
-    sourceMap.addRawMappings(map);
+    sourceMap.addVLQMap(map);
     let input = await inputFS.readFile(
       path.join(path.dirname(filename), map.sourceRoot, map.sources[0]),
       'utf8',

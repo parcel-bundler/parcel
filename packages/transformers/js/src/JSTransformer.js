@@ -456,7 +456,7 @@ export default (new Transformer({
     if (map) {
       let originalMap = await asset.getMapBuffer();
       let sourceMap = new SourceMap(options.projectRoot);
-      sourceMap.addRawMappings(JSON.parse(map));
+      sourceMap.addVLQMap(JSON.parse(map));
       if (originalMap) {
         sourceMap.extends(originalMap);
       }

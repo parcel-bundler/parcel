@@ -30,7 +30,7 @@
   "dependencies": {
     "@parcel/diagnostic": "2.0.0-beta.2",
     "@parcel/plugin": "2.0.0-beta.2",
-    "@parcel/source-map": "2.0.0-alpha.4.21",
+    "@parcel/source-map": "2.0.0-rc.1.0",
     "@parcel/utils": "2.0.0-beta.2",
     "@swc/helpers": "^0.2.11",
     "browserslist": "^4.6.6",
