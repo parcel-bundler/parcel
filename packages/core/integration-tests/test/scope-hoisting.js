@@ -4643,6 +4643,17 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, 9);
     });
 
+    it('can bundle browserify-produced umd bundles', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/browserify-compat/index.js',
+        ),
+      );
+
+      assert.equal(await run(b), 'foo');
+    });
+
     it('should support two aliases to the same module', async function() {
       let b = await bundle(
         path.join(
