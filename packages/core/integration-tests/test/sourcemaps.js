@@ -66,10 +66,28 @@ function checkSourceMapping({
   let sourceWhitespacePosition = indexToLineCol(source, matchWhitespaceIndex);
   let sourcePosition = indexToLineCol(source, matchIndex);
 
-  let mapping = map.findClosestMapping(
-    generatedPosition.line,
-    generatedPosition.column,
-  );
+  let mapContent = map.getMap();
+  let mapping = null;
+
+  // Find closest mapping...
+  let mappings = mapContent.mappings
+    .filter(m => m.generated.line === generatedPosition.line)
+    .sort((a, b) => a.generated.column - b.generated.column);
+  let closestIndex = -1;
+  let lastDistance = Number.MAX_SAFE_INTEGER;
+  for (let i = 0; i < mappings.length; i++) {
+    let currMapping = mappings[i];
+    let distance = Math.abs(
+      currMapping.generated.column - generatedPosition.column,
+    );
+    if (distance < lastDistance) {
+      lastDistance = distance;
+      closestIndex = i;
+    }
+  }
+  if (closestIndex > -1) {
+    mapping = map.indexedMappingToStringMapping(mappings[closestIndex]);
+  }
 
   assert(mapping, "no mapping for '" + str + "'" + msg);
 
@@ -438,15 +456,6 @@ describe('sourcemaps', function() {
       generated: raw,
       str: 'exports.count = function(a, b) {',
       generatedStr: 'o.count=function(e,n){',
-      sourcePath: 'utils/util.js',
-    });
-
-    checkSourceMapping({
-      map: sourceMap,
-      source: inputs[2],
-      generated: raw,
-      str: 'return a + b',
-      generatedStr: 'return e+n',
       sourcePath: 'utils/util.js',
     });
   });
