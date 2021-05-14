@@ -36,6 +36,7 @@ pub struct DependencyDescriptor {
   pub specifier: swc_atoms::JsWord,
   pub attributes: Option<HashMap<swc_atoms::JsWord, bool>>,
   pub is_optional: bool,
+  pub is_helper: bool,
 }
 
 /// This pass collects dependencies in a module and compiles references as needed to work with Parcel's JSRuntime.
@@ -84,6 +85,7 @@ impl<'a> DependencyCollector<'a> {
       specifier,
       attributes,
       is_optional,
+      is_helper: span.is_dummy(),
     });
   }
 }
@@ -298,12 +300,10 @@ impl<'a> Fold for DependencyCollector<'a> {
           attributes = Some(attrs);
         }
       }
-    }
-
-    // importScripts() accepts multiple arguments. Add dependencies for each
-    // and replace with require calls for each of the specifiers (which will
-    // return the resolved URL at runtime).
-    if kind == DependencyKind::ImportScripts {
+    } else if kind == DependencyKind::ImportScripts {
+      // importScripts() accepts multiple arguments. Add dependencies for each
+      // and replace with require calls for each of the specifiers (which will
+      // return the resolved URL at runtime).
       let mut node = node.clone();
       node.args = node
         .args
@@ -373,10 +373,31 @@ impl<'a> Fold for DependencyCollector<'a> {
 
       // Track the returned require call to be replaced with a promise chain.
       self.require_node = Some(call.clone());
-      return call;
+      call
+    } else if kind == DependencyKind::Require {
+      // Don't continue traversing so that the `require` isn't replaced with undefined
+      node
+    } else {
+      node.fold_children_with(self)
+    }
+  }
+
+  fn fold_unary_expr(&mut self, node: ast::UnaryExpr) -> ast::UnaryExpr {
+    // Don't traverse `typeof require` further to `require` with undefined
+    if let ast::UnaryExpr {
+      op: ast::UnaryOp::TypeOf,
+      arg,
+      ..
+    } = &node
+    {
+      if let ast::Expr::Ident(ast::Ident { sym, .. }) = &**arg {
+        if sym == &js_word!("require") && !self.decls.contains(&(sym.clone(), node.span.ctxt())) {
+          return node;
+        }
+      }
     }
 
-    return node.fold_children_with(self);
+    node.fold_children_with(self)
   }
 
   fn fold_new_expr(&mut self, node: ast::NewExpr) -> ast::NewExpr {
@@ -451,6 +472,13 @@ impl<'a> Fold for DependencyCollector<'a> {
       self.add_dependency(specifier.clone(), span, DependencyKind::URL, None, false);
 
       return ast::Expr::Call(create_require(specifier));
+    }
+
+    if let ast::Expr::Ident(ast::Ident { sym, span, .. }) = &node {
+      // Replace free usages of `require` with `undefined`
+      if sym == &js_word!("require") && !self.decls.contains(&(sym.clone(), span.ctxt())) {
+        return ast::Expr::Ident(ast::Ident::new("undefined".into(), DUMMY_SP));
+      }
     }
 
     node.fold_children_with(self)

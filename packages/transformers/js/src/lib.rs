@@ -216,6 +216,7 @@ fn transform(ctx: CallContext) -> Result<JsUnknown> {
           || {
             let mut react_options = react::Options::default();
             if config.is_jsx {
+              react_options.use_spread = true;
               if let Some(jsx_pragma) = config.jsx_pragma {
                 react_options.pragma = jsx_pragma;
               }

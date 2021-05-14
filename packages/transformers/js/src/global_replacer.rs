@@ -69,6 +69,7 @@ impl<'a> Fold for GlobalReplacer<'a> {
               specifier,
               attributes: None,
               is_optional: false,
+              is_helper: false,
             });
           }
           "Buffer" => {
@@ -93,6 +94,7 @@ impl<'a> Fold for GlobalReplacer<'a> {
               specifier,
               attributes: None,
               is_optional: false,
+              is_helper: false,
             });
           }
           "__filename" => {

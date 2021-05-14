@@ -2,11 +2,16 @@
 const fs = require('fs');
 const glob = require('glob');
 const path = require('path');
-const {spawn} = require('child_process');
+const {spawn, execSync} = require('child_process');
 
 let release = process.argv.includes('--release');
+build();
 
 async function build() {
+  if (process.platform === 'darwin') {
+    setupMacBuild();
+  }
+
   let packages = glob.sync('packages/*/*')
   for (let pkg of packages) {
     try {
@@ -35,4 +40,12 @@ async function build() {
   }
 }
 
-build();
+// This forces Clang/LLVM to be used as a C compiler instead of GCC.
+// This is necessary for cross-compilation for Apple Silicon in GitHub Actions.
+function setupMacBuild() {
+  let xcodeDir = execSync('xcode-select -p | head -1', {encoding: 'utf8'}).trim();
+  let sysRoot = execSync('xcrun --sdk macosx --show-sdk-path', {encoding: 'utf8'}).trim();
+  process.env.CC = `${xcodeDir}/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang`;
+  process.env.CXX = `${xcodeDir}/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++`;
+  process.env.CFLAGS = `-isysroot ${sysRoot} -isystem ${sysRoot}`;
+}

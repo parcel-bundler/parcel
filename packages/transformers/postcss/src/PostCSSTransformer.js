@@ -1,6 +1,6 @@
 // @flow
 
-import type {FilePath, MutableAsset} from '@parcel/types';
+import type {FilePath, MutableAsset, PluginOptions} from '@parcel/types';
 
 import {md5FromString} from '@parcel/utils';
 import {Transformer} from '@parcel/plugin';
@@ -9,8 +9,8 @@ import nullthrows from 'nullthrows';
 import path from 'path';
 import semver from 'semver';
 import valueParser from 'postcss-value-parser';
-import postcss from 'postcss';
 import postcssModules from 'postcss-modules';
+import typeof * as Postcss from 'postcss';
 
 import {load} from './loadConfig';
 
@@ -26,10 +26,12 @@ export default (new Transformer({
     return ast.type === 'postcss' && semver.satisfies(ast.version, '^8.2.1');
   },
 
-  async parse({asset, config}) {
+  async parse({asset, config, options}) {
     if (!config) {
       return;
     }
+
+    const postcss = await loadPostcss(options, asset.filePath);
 
     return {
       type: 'postcss',
@@ -47,6 +49,8 @@ export default (new Transformer({
     if (!config) {
       return [asset];
     }
+
+    const postcss: Postcss = await loadPostcss(options, asset.filePath);
 
     let plugins = [...config.hydrated.plugins];
     let cssModules: ?{|[string]: string|} = null;
@@ -149,7 +153,9 @@ export default (new Transformer({
     return assets;
   },
 
-  generate({ast}) {
+  async generate({asset, ast, options}) {
+    const postcss: Postcss = await loadPostcss(options, asset.filePath);
+
     let code = '';
     postcss.stringify(postcss.fromJSON(ast.program), c => {
       code += c;
@@ -191,4 +197,12 @@ function createLoader(
       return '';
     }
   };
+}
+
+function loadPostcss(options: PluginOptions, from: FilePath): Promise<Postcss> {
+  return options.packageManager.require('postcss', from, {
+    range: '^8.2.1',
+    saveDev: true,
+    shouldAutoInstall: options.shouldAutoInstall,
+  });
 }

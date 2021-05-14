@@ -23,15 +23,16 @@
     "node": ">= 12.0.0"
   },
   "files": [
-    "lib/*.js",
-    "*.node"
+    "lib",
+    "*.node",
+    "src"
   ],
   "dependencies": {
     "@parcel/diagnostic": "2.0.0-beta.2",
     "@parcel/plugin": "2.0.0-beta.2",
     "@parcel/source-map": "2.0.0-alpha.4.21",
     "@parcel/utils": "2.0.0-beta.2",
-    "@swc/helpers": "^0.2.10",
+    "@swc/helpers": "^0.2.11",
     "browserslist": "^4.6.6",
     "detect-libc": "^1.0.3",
     "micromatch": "^4.0.2",
