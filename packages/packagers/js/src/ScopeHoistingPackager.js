@@ -307,7 +307,7 @@ export class ScopeHoistingPackager {
       ? new SourceMap(this.options.projectRoot)
       : null;
     if (sourceMap && map) {
-      sourceMap?.addSourceMap(map);
+      sourceMap?.addBuffer(map);
     }
 
     // If this asset is skipped, just add dependencies and not the asset's content.
