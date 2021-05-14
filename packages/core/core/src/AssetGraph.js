@@ -572,6 +572,8 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
   ): AssetGraph {
     // Called when graph structure is not same or there are changed assets
     let subGraphChanges = new AssetGraph();
+    let newIdToOldNodeIdsMap = new Map<NodeId, NodeId>();
+    let oldIdToNewIdsMap = new Map<NodeId, NodeId>();
     changedAssets.forEach(value => {
       //add asset as node from new graph
       let changedNodeId = this.getNodeIdByContentKey(value.id);
@@ -581,26 +583,14 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
         if (assetGraphNode) {
           //this will only add teh existing node from old assetgraph I think ?
           subGraphChanges.addNode(assetGraphNode);
-          this.inboundEdges._listMap.forEach((value, key) => {
-            if (nodeId === key) {
-              subGraphChanges.inboundEdges._listMap.set(nodeId, value); //TODO clone or use AddEdge
-            }
-          });
-          this.outboundEdges._listMap.forEach((value, key) => {
-            if (nodeId === key) {
-              subGraphChanges.outboundEdges._listMap.set(nodeId, value);
-              // TODO
-              // value.get(null)?.forEach((value) => {
-              //   subGraphChanges.outboundEdges.addEdge(node.id, value, null);
-              // })
-              //this node id different ??
-            }
-          });
-          //stop as soon as node matched old graph after adding that node
-
+          let newNodeId = subGraphChanges.getNodeIdByContentKey(
+            assetGraphNode.id,
+          );
+          newIdToOldNodeIdsMap.set(newNodeId, nodeId);
+          oldIdToNewIdsMap.set(nodeId, newNodeId);
+          //stop as soon as node matched old graph after adding that node using map
           if (
-            //this should be checking the old assetgraph!
-            previousContentKeys.has(assetGraphNode.id) && //check new assetgraph is node exists
+            previousContentKeys.has(assetGraphNode.id) &&
             assetGraphNode.id &&
             !changedAssets.has(assetGraphNode.id)
           ) {
@@ -609,6 +599,19 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
           }
         }
       }, changedNodeId);
+    });
+
+    //Set all inbound and outbound nodes up
+    subGraphChanges.nodes.forEach((value, key) => {
+      let oldNodeId = newIdToOldNodeIdsMap.get(key);
+      if (oldNodeId) {
+        this.inboundEdges.getEdges(oldNodeId, null).forEach(value => {
+          let newNodeId = oldIdToNewIdsMap.get(value);
+          if (newNodeId) {
+            subGraphChanges.addEdge(key, newNodeId, null);
+          }
+        });
+      }
     });
 
     return subGraphChanges;

@@ -83,18 +83,18 @@ export default function createAssetGraphRequest(
       let previousAssetGraphHash = prevResult?.assetGraph.getHash();
       //want to avoid cloning  so just grab ids
       let previousContentKeys = new Set<ContentKey>();
-      prevResult?.assetGraph.nodes.forEach((value, key) => {
+      prevResult?.assetGraph.nodes.forEach(value => {
         previousContentKeys.add(value.id);
       });
 
+      let isPrevResult = prevResult && prevResult.assetGraph.nodes.size > 0;
+
       let builder = new AssetGraphBuilder(input, prevResult);
       let assetGraphRequest = await await builder.build();
-      let isPrevResult =
-        assetGraphRequest.changedAssets.size > 0 &&
-        prevResult &&
-        prevResult.assetGraph.nodes.size > 0;
+      let shouldGetAssetTransformations =
+        assetGraphRequest.changedAssets.size > 0 && isPrevResult; //and increment flag is on
 
-      let assetGraphTransformationSubGraph = isPrevResult
+      let assetGraphTransformationSubGraph = shouldGetAssetTransformations
         ? assetGraphRequest.assetGraph.getChangedAssetGraph(
             previousContentKeys,
             assetGraphRequest.changedAssets,

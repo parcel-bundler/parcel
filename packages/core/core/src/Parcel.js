@@ -275,17 +275,17 @@ export default class Parcel {
         shouldBuildLazily: options.shouldBuildLazily,
         requestedAssetIds: this.#requestedAssetIds,
       }); // ? should we create this on every build?
-      //return old content id set from request ?
+
       let {
         assetGraph,
         changedAssets,
         assetRequests,
         previousAssetGraphHash,
         shouldBundle,
+        assetGraphTransformationSubGraph,
       } = await this.#requestTracker.runRequest(request, {
         force: options.shouldBuildLazily && this.#requestedAssetIds.size > 0,
       });
-      //call get subgraph here with
 
       this.#requestedAssetIds.clear();
 
@@ -293,6 +293,7 @@ export default class Parcel {
         assetGraph,
         changedAssets,
         previousAssetGraphHash,
+        assetGraphTransformationSubGraph,
         shouldBundle,
         optionsRef: this.#optionsRef,
       });

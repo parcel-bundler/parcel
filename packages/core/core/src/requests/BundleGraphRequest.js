@@ -100,6 +100,8 @@ export default function createBundleGraphRequest(
       return builder.bundle({
         graph: input.input.assetGraph,
         previousAssetGraphHash: input.input.previousAssetGraphHash,
+        assetGraphTransformationSubGraph:
+          input.input.assetGraphTransformationSubGraph,
         changedAssets: input.input.changedAssets,
         shouldBundle: input.input.shouldBundle,
       });
@@ -182,11 +184,13 @@ class BundlerRunner {
   async bundle({
     graph,
     previousAssetGraphHash,
+    assetGraphTransformationSubGraph,
     changedAssets,
     shouldBundle,
   }: {|
     graph: AssetGraph,
     previousAssetGraphHash: ?string,
+    assetGraphTransformationSubGraph: AssetGraph,
     changedAssets: Map<string, Asset>,
     shouldBundle: boolean,
   |}): Promise<BundleGraphRequestResult> {
@@ -271,6 +275,33 @@ class BundlerRunner {
           internalBundleGraph,
           this.options,
         );
+      }
+      //inc flag should be enabled
+      else if (assetGraphTransformationSubGraph.nodes.size > 1) {
+        //If there are no transformations, a root node will still exist
+        //probably want old bundlegraph as well
+        let internalBundleGraphChunks = InternalBundleGraph.fromAssetGraph(
+          assetGraphTransformationSubGraph,
+        );
+
+        let mutableBundleGraphChunks = new MutableBundleGraph(
+          internalBundleGraphChunks,
+          this.options,
+        );
+
+        //** for debugging purposes so no errors occur, will be removed */
+        internalBundleGraph = InternalBundleGraph.fromAssetGraph(graph);
+
+        mutableBundleGraph = new MutableBundleGraph(
+          internalBundleGraph,
+          this.options,
+        );
+        await bundler.bundle({
+          bundleGraph: mutableBundleGraph,
+          config: this.configs.get(plugin.name)?.result,
+          options: this.pluginOptions,
+          logger,
+        });
       } else {
         internalBundleGraph = InternalBundleGraph.fromAssetGraph(graph);
 
