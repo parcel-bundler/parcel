@@ -1319,9 +1319,9 @@ describe('sourcemaps', function() {
     let map = mapUrlData.map;
 
     let sourceMap = new SourceMap('/');
-    sourceMap.addRawMappings(map);
+    sourceMap.addVLQMap(map);
     let sourceContent = map.sourcesContent[0];
-    let sourcePath = './index.js';
+    let sourcePath = 'index.js';
 
     checkSourceMapping({
       map: sourceMap,
