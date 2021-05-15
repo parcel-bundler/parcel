@@ -130,7 +130,7 @@ export class ScopeHoistingPackager {
 
       let [content, map, lines] = this.visitAsset(asset);
       if (sourceMap && map) {
-        sourceMap.addBufferMappings(map.toBuffer(), lineCount);
+        sourceMap.addSourceMap(map, lineCount);
       }
 
       res += content + '\n';
@@ -327,7 +327,7 @@ export class ScopeHoistingPackager {
       ? new SourceMap(this.options.projectRoot)
       : null;
     if (sourceMap && map) {
-      sourceMap?.addBufferMappings(map);
+      sourceMap?.addBuffer(map);
     }
 
     // If this asset is skipped, just add dependencies and not the asset's content.
@@ -351,7 +351,7 @@ export class ScopeHoistingPackager {
           let [code, map, lines] = this.visitAsset(resolved);
           depCode += code + '\n';
           if (sourceMap && map) {
-            sourceMap.addBufferMappings(map.toBuffer(), lineCount);
+            sourceMap.addSourceMap(map, lineCount);
           }
           lineCount += lines + 1;
         }
@@ -447,7 +447,7 @@ export class ScopeHoistingPackager {
             }
 
             if (map) {
-              sourceMap.addBufferMappings(map.toBuffer(), lineCount, 0);
+              sourceMap.addSourceMap(map, lineCount, 0);
             }
           }
 
@@ -496,7 +496,7 @@ ${code}
         if (!depCode) continue;
         code += depCode + '\n';
         if (sourceMap && map) {
-          sourceMap.addBufferMappings(map.toBuffer(), lineCount, 0);
+          sourceMap.addSourceMap(map, lineCount, 0);
         }
         lineCount += lines + 1;
       }

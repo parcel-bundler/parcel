@@ -38,7 +38,7 @@ async function getSourcemapSizes(
 
   let rawMap = mapUrlData.map;
   let sourceMap = new SourceMap(projectRoot);
-  sourceMap.addRawMappings(rawMap);
+  sourceMap.addVLQMap(rawMap);
   let parsedMapData = sourceMap.getMap();
 
   if (parsedMapData.mappings.length > 2) {
