@@ -125,7 +125,6 @@ export type Asset = {|
   stats: Stats,
   contentKey: ?string,
   mapKey: ?string,
-  sourcesContentKey: ?string,
   outputHash: ?string,
   pipeline: ?string,
   astKey: ?string,

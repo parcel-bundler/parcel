@@ -156,16 +156,6 @@ export async function generate({
     options,
   });
 
-  let sourcesContent = await asset.getSourcesContent();
-  if (sourcesContent) {
-    for (let sourcesContentFileName of Object.keys(sourcesContent)) {
-      map.setSourceContent(
-        sourcesContentFileName,
-        sourcesContent[sourcesContentFileName],
-      );
-    }
-  }
-
   return {content, map};
 }
 

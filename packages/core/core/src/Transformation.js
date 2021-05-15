@@ -27,7 +27,6 @@ import {
   md5FromOrderedObject,
   normalizeSeparators,
   objectSortedEntries,
-  relativeUrl,
 } from '@parcel/utils';
 import logger, {PluginLogger} from '@parcel/logger';
 import {init as initSourcemaps} from '@parcel/source-map';
@@ -138,10 +137,7 @@ export default class Transformation {
 
     let asset = await this.loadAsset();
 
-    if (asset.mapBuffer) {
-      // Extract sources content from existing map
-      await asset.extractSourcesContentFromMap();
-    } else if (SOURCEMAP_EXTENSIONS.has(asset.value.type)) {
+    if (!asset.mapBuffer && SOURCEMAP_EXTENSIONS.has(asset.value.type)) {
       // Load existing sourcemaps, this automatically runs the source contents extraction
       let existing;
       try {
@@ -165,14 +161,10 @@ export default class Transformation {
       }
 
       if (existing == null) {
-        // If no existing sourcemap was found, initialize sourcesContent with
-        // the asset's filepath and its original contents.
-        asset.sourcesContent = {
-          [relativeUrl(
-            this.options.projectRoot,
-            asset.value.filePath,
-          )]: await asset.getCode(),
-        };
+        // If no existing sourcemap was found, initialize asset.sourceContent
+        // with the original contents. This will be used when the transformer
+        // calls setMap to ensure the source content is in the sourcemap.
+        asset.sourceContent = await asset.getCode();
       }
     }
 
@@ -572,10 +564,6 @@ export default class Transformation {
               // $FlowFixMe[incompatible-call]
               await this.options.cache.getBlob(value.astKey)
             : null;
-        let sourcesContent =
-          value.sourcesContentKey != null
-            ? await this.options.cache.getBlob(value.sourcesContentKey)
-            : null;
 
         return new UncommittedAsset({
           value,
@@ -583,10 +571,6 @@ export default class Transformation {
           content,
           mapBuffer,
           ast,
-          sourcesContent:
-            sourcesContent != null
-              ? JSON.parse(sourcesContent.toString('utf-8'))
-              : null,
         });
       }),
     );

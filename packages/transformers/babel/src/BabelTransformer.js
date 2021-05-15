@@ -64,16 +64,6 @@ export default (new Transformer({
       map.addIndexedMappings(rawMappings);
     }
 
-    let sourcesContent = await asset.getSourcesContent();
-    if (sourcesContent) {
-      for (let sourcesContentFileName of Object.keys(sourcesContent)) {
-        map.setSourceContent(
-          sourcesContentFileName,
-          sourcesContent[sourcesContentFileName],
-        );
-      }
-    }
-
     if (originalSourceMap) {
       map.extends(originalSourceMap.toBuffer());
     }
