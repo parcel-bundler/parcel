@@ -20,6 +20,7 @@ import {
   createHTTPServer,
   loadConfig,
   prettyDiagnostic,
+  relativePath,
 } from '@parcel/utils';
 import serverErrors from './serverErrors';
 import fs from 'fs';
@@ -165,23 +166,30 @@ export default class Server {
         }
       });
 
-      let indexFilePath =
-        htmlBundleFilePaths.length > 1
-          ? htmlBundleFilePaths
-              .sort((a, b) => {
-                let lengthDiff = a.length - b.length;
-                if (lengthDiff === 0) {
-                  return a.localeCompare(b);
-                } else {
-                  return lengthDiff;
-                }
-              })
-              .find(f => {
-                return path.basename(f).startsWith('index');
-              })
-          : htmlBundleFilePaths[0];
+      htmlBundleFilePaths = htmlBundleFilePaths.map(p => {
+        return `/${relativePath(this.options.distDir, p, false)}`;
+      });
+
+      let indexFilePath = null;
+      if (htmlBundleFilePaths.length === 1) {
+        indexFilePath = htmlBundleFilePaths[0];
+      } else {
+        indexFilePath = htmlBundleFilePaths
+          .filter(v => {
+            let dir = path.posix.dirname(v);
+            let withoutExtension = path.posix.basename(
+              v,
+              path.posix.extname(v),
+            );
+            return withoutExtension === 'index' && req.url.startsWith(dir);
+          })
+          .sort((a, b) => {
+            return b.length - a.length;
+          })[0];
+      }
+
       if (indexFilePath) {
-        req.url = `/${path.relative(this.options.distDir, indexFilePath)}`;
+        req.url = indexFilePath;
         this.serveBundle(req, res, () => this.send404(req, res));
       } else {
         this.send404(req, res);

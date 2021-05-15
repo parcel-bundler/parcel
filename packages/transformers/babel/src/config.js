@@ -2,9 +2,10 @@
 
 import type {Config, PluginOptions} from '@parcel/types';
 import type {PluginLogger} from '@parcel/logger';
+import typeof * as BabelCore from '@babel/core';
 
 import path from 'path';
-import * as babelCore from '@babel/core';
+import * as internalBabelCore from '@babel/core';
 import {md5FromObject, relativePath, resolveConfig} from '@parcel/utils';
 
 import isJSX from './jsx';
@@ -58,6 +59,20 @@ export async function load(
     await buildDefaultBabelConfig(options, config);
     return;
   }
+
+  const babelCore: BabelCore = await options.packageManager.require(
+    '@babel/core',
+    config.searchPath,
+    {
+      range: '^7.12.0',
+      saveDev: true,
+      shouldAutoInstall: options.shouldAutoInstall,
+    },
+  );
+  config.addDevDependency({
+    moduleSpecifier: '@babel/core',
+    resolveFrom: config.searchPath,
+  });
 
   let babelOptions = {
     filename: config.searchPath,
@@ -197,13 +212,13 @@ async function buildDefaultBabelConfig(options: PluginOptions, config: Config) {
   }
 
   babelOptions.presets = (babelOptions.presets || []).map(preset =>
-    babelCore.createConfigItem(preset, {
+    internalBabelCore.createConfigItem(preset, {
       type: 'preset',
       dirname: BABEL_TRANSFORMER_DIR,
     }),
   );
   babelOptions.plugins = (babelOptions.plugins || []).map(plugin =>
-    babelCore.createConfigItem(plugin, {
+    internalBabelCore.createConfigItem(plugin, {
       type: 'plugin',
       dirname: BABEL_TRANSFORMER_DIR,
     }),

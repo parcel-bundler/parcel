@@ -1,6 +1,8 @@
 // @flow strict-local
 
 import type {JSONObject} from '@parcel/types';
+
+import logger from '@parcel/logger';
 import {Transform} from 'stream';
 
 // Transforms chunks of json strings to parsed objects.
@@ -17,7 +19,19 @@ export default class JSONParseStream extends Transform {
     callback: (err: ?Error, parsed: ?JSONObject) => mixed,
   ) {
     try {
-      callback(null, JSON.parse(chunk.toString()));
+      let parsed;
+      try {
+        parsed = JSON.parse(chunk.toString());
+      } catch (e) {
+        // Be permissive and ignoreJSON parse errors in case there was
+        // a non-JSON line in the package manager's stdout.
+        logger.verbose({
+          message: 'Ignored invalid JSON message: ' + chunk.toString(),
+          origin: '@parcel/package-manager',
+        });
+        return;
+      }
+      callback(null, parsed);
     } catch (err) {
       callback(err);
     }
