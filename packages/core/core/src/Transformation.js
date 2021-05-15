@@ -236,7 +236,6 @@ export default class Transformation {
       isSource: isSourceOverride,
       sideEffects,
       query,
-      mapBuffer,
     } = this.request;
     let {
       content,
@@ -273,7 +272,6 @@ export default class Transformation {
         },
         sideEffects,
       }),
-      mapBuffer,
       options: this.options,
       content,
       invalidations: this.invalidations,

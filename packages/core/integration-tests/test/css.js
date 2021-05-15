@@ -78,7 +78,6 @@ describe('css', () => {
           'css-loader.js',
           'index.js',
           'js-loader.js',
-          'JSRuntime.js',
         ],
       },
       {name: /local\.[0-9a-f]{8}\.js/, assets: ['local.js']},

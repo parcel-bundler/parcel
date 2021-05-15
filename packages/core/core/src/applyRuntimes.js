@@ -84,16 +84,9 @@ export default async function applyRuntimes({
               `runtime-${md5FromString(code)}.${bundle.type}`,
             );
 
-            let sourcemap = SourceMap.generateEmptyMap({
-              projectRoot: pluginOptions.projectRoot,
-              sourceName,
-              sourceContent: code,
-            });
-
             let assetGroup = {
               code,
-              mapBuffer: sourcemap.toBuffer(),
-              filePath,
+              filePath: sourceName,
               env: bundle.env,
               // Runtime assets should be considered source, as they should be
               // e.g. compiled to run in the target environment
