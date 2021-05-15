@@ -160,6 +160,7 @@ export default (new Transformer({
     }
 
     let code = await asset.getCode();
+    let originalMap = await asset.getMap();
 
     let targets;
     if (asset.isSource) {
@@ -251,17 +252,58 @@ export default (new Transformer({
       scope_hoist: asset.env.shouldScopeHoist,
     });
 
-    let convertLoc = loc => ({
-      filePath: relativePath,
-      start: {
-        line: loc.start_line,
-        column: loc.start_col,
-      },
-      end: {
-        line: loc.end_line,
-        column: loc.end_col,
-      },
-    });
+    let convertLoc = loc => {
+      let filePath = relativePath;
+      let {start_line, start_col, end_line, end_col} = loc;
+
+      // If there is an original source map, use it to remap to the original source location.
+      if (originalMap) {
+        let lineDiff = end_line - start_line;
+        let colDiff = end_col - start_col;
+        let start = originalMap.findClosestMapping(start_line, start_col);
+        let end = originalMap.findClosestMapping(end_line, end_col);
+
+        if (start) {
+          if (start.source) {
+            filePath = start.source;
+          }
+
+          ({line: start_line, column: start_col} = start.original);
+          start_col++; // source map columns are 0-based
+        }
+
+        if (end) {
+          ({line: end_line, column: end_col} = end.original);
+          end_col++;
+
+          if (end_line < start_line) {
+            end_line = start_line;
+            end_col = start_col;
+          } else if (
+            end_line === start_line &&
+            end_col < start_col &&
+            lineDiff === 0
+          ) {
+            end_col = start_col + colDiff;
+          }
+        } else {
+          end_line = start_line;
+          end_col = start_col;
+        }
+      }
+
+      return {
+        filePath,
+        start: {
+          line: start_line,
+          column: start_col,
+        },
+        end: {
+          line: end_line,
+          column: end_col,
+        },
+      };
+    };
 
     if (diagnostics) {
       throw new ThrowableDiagnostic({
@@ -455,7 +497,6 @@ export default (new Transformer({
     asset.setCode(compiledCode);
 
     if (map) {
-      let originalMap = await asset.getMapBuffer();
       let sourceMap = new SourceMap(options.projectRoot);
       sourceMap.addVLQMap(JSON.parse(map));
       if (originalMap) {
