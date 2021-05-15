@@ -108,7 +108,7 @@ export class DevPackager {
 
         if (this.bundle.env.sourceMap) {
           if (mapBuffer) {
-            map.addBufferMappings(mapBuffer, lineOffset);
+            map.addBuffer(mapBuffer, lineOffset);
           } else {
             map.addEmptyMap(
               path
