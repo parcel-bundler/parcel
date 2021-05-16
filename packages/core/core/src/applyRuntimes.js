@@ -25,7 +25,6 @@ import {NamedBundle} from './public/Bundle';
 import {PluginLogger} from '@parcel/logger';
 import {md5FromString} from '@parcel/utils';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
-import SourceMap from '@parcel/source-map';
 import {dependencyToInternalDependency} from './public/Dependency';
 import createAssetGraphRequest from './requests/AssetGraphRequest';
 import {createDevDependency, runDevDepRequest} from './requests/DevDepRequest';

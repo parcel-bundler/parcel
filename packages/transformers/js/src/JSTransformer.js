@@ -263,7 +263,7 @@ export default (new Transformer({
         let start = originalMap.findClosestMapping(start_line, start_col);
         let end = originalMap.findClosestMapping(end_line, end_col);
 
-        if (start) {
+        if (start?.original) {
           if (start.source) {
             filePath = start.source;
           }
@@ -272,7 +272,7 @@ export default (new Transformer({
           start_col++; // source map columns are 0-based
         }
 
-        if (end) {
+        if (end?.original) {
           ({line: end_line, column: end_col} = end.original);
           end_col++;
 
