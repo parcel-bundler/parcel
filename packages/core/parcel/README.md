@@ -331,6 +331,10 @@ Configure the directory where compiled assets are output. Default is `./dist`.
 Configure the cache directory with `--cache <dir>` or disable it altogether
 with `--no-cache`.
 
+#### `--config <path>`
+specify which config to use. can be a path or a package name.
+`--config ../.myparcelrc` or `--config @parcel/config-default`
+
 #### `--hot`, `--no-hot`
 
 Turn hot reloading on or off.
