@@ -3538,4 +3538,45 @@ describe('javascript', function() {
     let res = await run(b);
     assert.equal(await res, true);
   });
+
+  it('should remap locations in diagnostics using the input source map', async () => {
+    let fixture = path.join(
+      __dirname,
+      'integration/diagnostic-sourcemap/index.js',
+    );
+    let code = await inputFS.readFileSync(fixture, 'utf8');
+    await assert.rejects(
+      () =>
+        bundle(fixture, {
+          defaultTargetOptions: {
+            shouldOptimize: true,
+          },
+        }),
+      {
+        name: 'BuildError',
+        diagnostics: [
+          {
+            message: "Failed to resolve 'foo' from './index.js'",
+            origin: '@parcel/core',
+            filePath: fixture,
+            codeFrame: {
+              code,
+              codeHighlights: [
+                {
+                  start: {
+                    line: 11,
+                    column: 17,
+                  },
+                  end: {
+                    line: 11,
+                    column: 21,
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    );
+  });
 });

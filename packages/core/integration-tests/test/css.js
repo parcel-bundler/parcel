@@ -7,6 +7,7 @@ import {
   assertBundles,
   distDir,
   removeDistDirectory,
+  inputFS,
   outputFS,
 } from '@parcel/test-utils';
 
@@ -329,6 +330,53 @@ describe('css', () => {
     assert(
       css.startsWith(`.webp-img {
   background-image: url('data:image/webp;base64,UklGR`),
+    );
+  });
+
+  it('should remap locations in diagnostics using the input source map', async () => {
+    let fixture = path.join(
+      __dirname,
+      'integration/diagnostic-sourcemap/index.scss',
+    );
+    let code = await inputFS.readFileSync(fixture, 'utf8');
+    // $FlowFixMe
+    await assert.rejects(
+      () =>
+        bundle(fixture, {
+          defaultTargetOptions: {
+            shouldOptimize: true,
+          },
+        }),
+      {
+        name: 'BuildError',
+        diagnostics: [
+          {
+            message: "Failed to resolve 'x.png' from './index.scss'",
+            origin: '@parcel/core',
+            filePath: fixture,
+            codeFrame: {
+              code,
+              codeHighlights: [
+                {
+                  start: {
+                    line: 5,
+                    column: 3,
+                  },
+                  end: {
+                    line: 5,
+                    column: 3,
+                  },
+                },
+              ],
+            },
+          },
+          {
+            message: "Cannot load file './x.png' in './'.",
+            origin: '@parcel/resolver-default',
+            hints: [],
+          },
+        ],
+      },
     );
   });
 });
