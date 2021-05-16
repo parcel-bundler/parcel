@@ -25,7 +25,6 @@ import {NamedBundle} from './public/Bundle';
 import {PluginLogger} from '@parcel/logger';
 import {md5FromString} from '@parcel/utils';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
-import SourceMap from '@parcel/source-map';
 import {dependencyToInternalDependency} from './public/Dependency';
 import createAssetGraphRequest from './requests/AssetGraphRequest';
 import {createDevDependency, runDevDepRequest} from './requests/DevDepRequest';
@@ -84,16 +83,9 @@ export default async function applyRuntimes({
               `runtime-${md5FromString(code)}.${bundle.type}`,
             );
 
-            let sourcemap = SourceMap.generateEmptyMap({
-              projectRoot: pluginOptions.projectRoot,
-              sourceName,
-              sourceContent: code,
-            });
-
             let assetGroup = {
               code,
-              mapBuffer: sourcemap.toBuffer(),
-              filePath,
+              filePath: sourceName,
               env: bundle.env,
               // Runtime assets should be considered source, as they should be
               // e.g. compiled to run in the target environment

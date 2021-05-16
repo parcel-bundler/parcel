@@ -1,4 +1,5 @@
 // @flow
+import type {SourceLocation} from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
 import SourceMap from '@parcel/source-map';
 import path from 'path';
@@ -77,4 +78,55 @@ export async function loadSourceMap(
     });
     return sourcemapInstance;
   }
+}
+
+export function remapSourceLocation(
+  loc: SourceLocation,
+  originalMap: SourceMap,
+): SourceLocation {
+  let {
+    filePath,
+    start: {line: startLine, column: startCol},
+    end: {line: endLine, column: endCol},
+  } = loc;
+  let lineDiff = endLine - startLine;
+  let colDiff = endCol - startCol;
+  let start = originalMap.findClosestMapping(startLine, startCol);
+  let end = originalMap.findClosestMapping(endLine, endCol);
+
+  if (start?.original) {
+    if (start.source) {
+      filePath = start.source;
+    }
+
+    ({line: startLine, column: startCol} = start.original);
+    startCol++; // source map columns are 0-based
+  }
+
+  if (end?.original) {
+    ({line: endLine, column: endCol} = end.original);
+    endCol++;
+
+    if (endLine < startLine) {
+      endLine = startLine;
+      endCol = startCol;
+    } else if (endLine === startLine && endCol < startCol && lineDiff === 0) {
+      endCol = startCol + colDiff;
+    }
+  } else {
+    endLine = startLine;
+    endCol = startCol;
+  }
+
+  return {
+    filePath,
+    start: {
+      line: startLine,
+      column: startCol,
+    },
+    end: {
+      line: endLine,
+      column: endCol,
+    },
+  };
 }

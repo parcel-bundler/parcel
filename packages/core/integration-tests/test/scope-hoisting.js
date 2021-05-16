@@ -4230,7 +4230,7 @@ describe('scope hoisting', function() {
       assertBundles(b, [
         {
           type: 'js',
-          assets: ['a.js', 'b.js', 'bundle-url.js', 'JSRuntime.js'],
+          assets: ['a.js', 'b.js', 'bundle-url.js'],
         },
         {
           type: 'txt',
@@ -5194,13 +5194,7 @@ describe('scope hoisting', function() {
       },
       {
         type: 'js',
-        assets: [
-          'bundle-url.js',
-          'cacheLoader.js',
-          'index.js',
-          'js-loader.js',
-          'JSRuntime.js',
-        ],
+        assets: ['bundle-url.js', 'cacheLoader.js', 'index.js', 'js-loader.js'],
       },
       {
         type: 'js',
@@ -5397,8 +5391,6 @@ describe('scope hoisting', function() {
           'cacheLoader.js',
           'dep.js',
           'js-loader.js',
-          'JSRuntime.js',
-          'JSRuntime.js',
           'relative-path.js',
           'same-ancestry-scope-hoisting.js',
         ],
@@ -5426,15 +5418,12 @@ describe('scope hoisting', function() {
           'bundle-url.js',
           'cacheLoader.js',
           'js-loader.js',
-          'JSRuntime.js',
-          'JSRuntime.js',
-          'JSRuntime.js',
           'relative-path.js',
         ],
       },
       {assets: ['dep.js']},
       {assets: ['async-has-dep.js', 'dep.js', 'get-dep.js']},
-      {assets: ['get-dep.js', 'JSRuntime.js']},
+      {assets: ['get-dep.js']},
     ]);
 
     assert.deepEqual(await run(b), [42, 42]);
@@ -5470,8 +5459,6 @@ describe('scope hoisting', function() {
           'cacheLoader.js',
           'get-dep-scope-hoisting.js',
           'js-loader.js',
-          'JSRuntime.js',
-          'JSRuntime.js',
           'relative-path.js',
         ],
       },
@@ -5501,10 +5488,10 @@ describe('scope hoisting', function() {
         assets: ['wraps.js', 'lodash.js'],
       },
       {
-        assets: ['a.js', 'JSRuntime.js'],
+        assets: ['a.js'],
       },
       {
-        assets: ['child.js', 'JSRuntime.js'],
+        assets: ['child.js'],
       },
       {
         assets: ['grandchild.js'],
@@ -5520,9 +5507,6 @@ describe('scope hoisting', function() {
           'cacheLoader.js',
           'scope-hoisting.js',
           'js-loader.js',
-          'JSRuntime.js',
-          'JSRuntime.js',
-          'JSRuntime.js',
           'relative-path.js',
         ],
       },
@@ -5550,7 +5534,7 @@ describe('scope hoisting', function() {
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: ['index.js', 'JSRuntime.js'],
+        assets: ['index.js'],
       },
       {name: 'value.js', assets: ['value.js']},
       {assets: ['async.js']},
@@ -5572,8 +5556,6 @@ describe('scope hoisting', function() {
           'bundle-url.js',
           'cacheLoader.js',
           'js-loader.js',
-          'JSRuntime.js',
-          'JSRuntime.js',
         ],
       },
       {assets: ['value.js']},
@@ -5602,7 +5584,6 @@ describe('scope hoisting', function() {
           'bundle-url.js',
           'cacheLoader.js',
           'js-loader.js',
-          'JSRuntime.js',
         ],
       },
       {
@@ -5612,7 +5593,6 @@ describe('scope hoisting', function() {
           'bundle-url.js',
           'cacheLoader.js',
           'js-loader.js',
-          'JSRuntime.js',
         ],
       },
       {assets: ['a.js', 'value.js']},
