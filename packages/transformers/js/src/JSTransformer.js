@@ -8,7 +8,7 @@ import {isURL} from '@parcel/utils';
 import path from 'path';
 import browserslist from 'browserslist';
 import semverGt from 'semver/functions/gt';
-import semverMinVersion from 'semver/functions/minVersion';
+import semverMinVersion from 'semver/ranges/min-version';
 import nullthrows from 'nullthrows';
 import ThrowableDiagnostic, {encodeJSONKeyComponent} from '@parcel/diagnostic';
 import {validateSchema} from '@parcel/utils';
@@ -185,10 +185,7 @@ export default (new Transformer({
             .split('.');
           let semverVersion = `${major}.${minor}.${patch}`;
 
-          if (
-            targets[name] == null ||
-            semverGt(targets[name], semverVersion)
-          ) {
+          if (targets[name] == null || semverGt(targets[name], semverVersion)) {
             targets[name] = semverVersion;
           }
         }
