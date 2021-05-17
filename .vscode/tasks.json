@@ -1,0 +1,14 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "type": "npm",
+      "script": "compile",
+      "path": "packages/utils/parcelforvscode/",
+      "group": "build",
+      "problemMatcher": [],
+      "label": "npm: compile - packages/utils/parcelforvscode",
+      "detail": "tsc -p ./"
+    }
+  ]
+}
