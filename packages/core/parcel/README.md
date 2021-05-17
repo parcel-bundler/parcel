@@ -138,6 +138,7 @@ console.log("Hello World");
       - [`--key <path>`](#--key-path)
     - [`--dist-dir <dir>`](#--dist-dir-dir)
     - [`--cache-dir <dir>`, `--no-cache`](#--cache-dir-dir---no-cache)
+    - [`--config <path>`](#--config-path)
     - [`--hot`, `--no-hot`](#--hot---no-hot)
       - [`--hot-host <hostname>`](#--hot-host-hostname)
       - [`--hot-port <port>`](#--hot-port-port)
