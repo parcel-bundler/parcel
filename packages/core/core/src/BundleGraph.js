@@ -1173,16 +1173,6 @@ export default class BundleGraph {
     return this._graph.hasEdge(bundleNodeId, assetNodeId, 'contains');
   }
 
-  getBundlesContainingAssets(asset: Asset): Array<Bundle> {
-    let bundles = [];
-    this.traverseBundles(bundle => {
-      if (this.bundleHasAsset(bundle, asset)) {
-        bundles.push(bundle);
-      }
-    });
-    return bundles;
-  }
-
   bundleHasDependency(bundle: Bundle, dependency: Dependency): boolean {
     let bundleNodeId = this._graph.getNodeIdByContentKey(bundle.id);
     let dependencyNodeId = this._graph.getNodeIdByContentKey(dependency.id);
