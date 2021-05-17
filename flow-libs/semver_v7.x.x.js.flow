@@ -1,20 +1,20 @@
 // Generated from @types/semver using github.com/aminya/flowgen-package
 declare module "semver" {
-  import type semverParse from "semver/functions/parse"
-  import type semverValid from "semver/functions/valid"
-  import type semverClean from "semver/functions/clean"
-  import type semverInc from "semver/functions/inc"
-  import type semverDiff from "semver/functions/diff"
-  import type semverMajor from "semver/functions/major"
-  import type semverMinor from "semver/functions/minor"
-  import type semverPatch from "semver/functions/patch"
-  import type semverPrerelease from "semver/functions/prerelease"
-  import type semverCompare from "semver/functions/compare"
-  import type semverRcompare from "semver/functions/rcompare"
-  import type semverCompareLoose from "semver/functions/compare-loose"
-  import type semverCompareBuild from "semver/functions/compare-build"
-  import type semverSort from "semver/functions/sort"
-  import type semverRsort from "semver/functions/rsort"
+  import type * as semverParse from "semver/functions/parse"
+  import type * as semverValid from "semver/functions/valid"
+  import type * as semverClean from "semver/functions/clean"
+  import type * as semverInc from "semver/functions/inc"
+  import type * as semverDiff from "semver/functions/diff"
+  import type * as semverMajor from "semver/functions/major"
+  import type * as semverMinor from "semver/functions/minor"
+  import type * as semverPatch from "semver/functions/patch"
+  import type * as semverPrerelease from "semver/functions/prerelease"
+  import type * as semverCompare from "semver/functions/compare"
+  import type * as semverRcompare from "semver/functions/rcompare"
+  import type * as semverCompareLoose from "semver/functions/compare-loose"
+  import type * as semverCompareBuild from "semver/functions/compare-build"
+  import type * as semverSort from "semver/functions/sort"
+  import type * as semverRsort from "semver/functions/rsort"
   declare export {
     semverParse as parse,
     semverValid as valid,
@@ -32,14 +32,14 @@ declare module "semver" {
     semverSort as sort,
     semverRsort as rsort,
   };
-  import type semverGt from "semver/functions/gt"
-  import type semverLt from "semver/functions/lt"
-  import type semverEq from "semver/functions/eq"
-  import type semverNeq from "semver/functions/neq"
-  import type semverGte from "semver/functions/gte"
-  import type semverLte from "semver/functions/lte"
-  import type semverCmp from "semver/functions/cmp"
-  import type semverCoerce from "semver/functions/coerce"
+  import type * as semverGt from "semver/functions/gt"
+  import type * as semverLt from "semver/functions/lt"
+  import type * as semverEq from "semver/functions/eq"
+  import type * as semverNeq from "semver/functions/neq"
+  import type * as semverGte from "semver/functions/gte"
+  import type * as semverLte from "semver/functions/lte"
+  import type * as semverCmp from "semver/functions/cmp"
+  import type * as semverCoerce from "semver/functions/coerce"
   declare export {
     semverGt as gt,
     semverLt as lt,
@@ -50,18 +50,18 @@ declare module "semver" {
     semverCmp as cmp,
     semverCoerce as coerce,
   };
-  import type semverSatisfies from "semver/functions/satisfies"
-  import type semverMaxSatisfying from "semver/ranges/max-satisfying"
-  import type semverMinSatisfying from "semver/ranges/min-satisfying"
-  import type semverToComparators from "semver/ranges/to-comparators"
-  import type semverMinVersion from "semver/ranges/min-version"
-  import type semverValidRange from "semver/ranges/valid"
-  import type semverOutside from "semver/ranges/outside"
-  import type semverGtr from "semver/ranges/gtr"
-  import type semverLtr from "semver/ranges/ltr"
-  import type semverIntersects from "semver/ranges/intersects"
-  import type simplify from "semver/ranges/simplify"
-  import type rangeSubset from "semver/ranges/subset"
+  import type * as semverSatisfies from "semver/functions/satisfies"
+  import type * as semverMaxSatisfying from "semver/ranges/max-satisfying"
+  import type * as semverMinSatisfying from "semver/ranges/min-satisfying"
+  import type * as semverToComparators from "semver/ranges/to-comparators"
+  import type * as semverMinVersion from "semver/ranges/min-version"
+  import type * as semverValidRange from "semver/ranges/valid"
+  import type * as semverOutside from "semver/ranges/outside"
+  import type * as semverGtr from "semver/ranges/gtr"
+  import type * as semverLtr from "semver/ranges/ltr"
+  import type * as semverIntersects from "semver/ranges/intersects"
+  import type * as simplify from "semver/ranges/simplify"
+  import type * as rangeSubset from "semver/ranges/subset"
   declare export {
     semverSatisfies as satisfies,
     semverMaxSatisfying as maxSatisfying,
@@ -76,11 +76,11 @@ declare module "semver" {
     simplify as simplifyRange,
     rangeSubset as subset,
   };
-  import type SemVer from "semver/classes/semver"
-  import type Range from "semver/classes/range"
-  import type Comparator from "semver/classes/comparator"
+  import type * as SemVer from "semver/classes/semver"
+  import type * as Range from "semver/classes/range"
+  import type * as Comparator from "semver/classes/comparator"
   declare export { SemVer, Range, Comparator };
-  import type identifiers from "semver/internals/identifiers"
+  import type * as identifiers from "semver/internals/identifiers"
   declare export var compareIdentifiers: typeof identifiers.compareIdentifiers;
   declare export var rcompareIdentifiers: typeof identifiers.rcompareIdentifiers;
   declare export var SEMVER_SPEC_VERSION: "2.0.0";
@@ -123,30 +123,30 @@ declare module "semver" {
 
 // Generated from @types/semver/preload using github.com/aminya/flowgen-package
 declare module "semver/preload" {
-  import type semver from "semver/"
+  import type * as semver from "semver/"
   declare module.exports: typeof semver;
 
 }
 
 // Generated from @types/semver/classes/comparator using github.com/aminya/flowgen-package
 declare module "semver/classes/comparator" {
-  import type sermver from "semver"
-  import type SemVer from "semver/classes/semver"
+  import type * as semver from "semver"
+  import type * as SemVer from "semver/classes/semver"
   declare class Comparator {
     constructor(
       comp: string | Comparator,
-      optionsOrLoose?: boolean | sermver.Options
+      optionsOrLoose?: boolean | semver.Options
     ): this;
     semver: SemVer;
     operator: "" | "=" | "<" | ">" | "<=" | ">=";
     value: string;
     loose: boolean;
-    options: sermver.Options;
+    options: semver.Options;
     parse(comp: string): void;
     test(version: string | SemVer): boolean;
     intersects(
       comp: Comparator,
-      optionsOrLoose?: boolean | sermver.Options
+      optionsOrLoose?: boolean | semver.Options
     ): boolean;
   }
   declare module.exports: typeof Comparator;
@@ -155,9 +155,9 @@ declare module "semver/classes/comparator" {
 
 // Generated from @types/semver/classes/range using github.com/aminya/flowgen-package
 declare module "semver/classes/range" {
-  import type semver from "semver"
-  import type Comparator from "semver/classes/comparator"
-  import type SemVer from "semver/classes/semver"
+  import type * as semver from "semver"
+  import type * as Comparator from "semver/classes/comparator"
+  import type * as SemVer from "semver/classes/semver"
   declare class Range {
     constructor(
       range: string | Range,
@@ -181,7 +181,7 @@ declare module "semver/classes/range" {
 
 // Generated from @types/semver/classes/semver using github.com/aminya/flowgen-package
 declare module "semver/classes/semver" {
-  import type semver from "semver"
+  import type * as semver from "semver"
   declare class SemVer {
     constructor(
       version: string | SemVer,
@@ -238,7 +238,7 @@ declare module "semver/classes/semver" {
 
 // Generated from @types/semver/functions/clean using github.com/aminya/flowgen-package
 declare module "semver/functions/clean" {
-  import type semver from "semver"
+  import type * as semver from "semver"
   /**
    * Returns cleaned (removed leading/trailing whitespace, remove '=v' prefix) and parsed version, or null if version is invalid.
    */
@@ -252,8 +252,8 @@ declare module "semver/functions/clean" {
 
 // Generated from @types/semver/functions/cmp using github.com/aminya/flowgen-package
 declare module "semver/functions/cmp" {
-  import type semver from "semver"
-  import type SemVer from "semver/classes/semver"
+  import type * as semver from "semver"
+  import type * as SemVer from "semver/classes/semver"
   /**
    * Pass in a comparison string, and it'll call the corresponding semver comparison function.
    * "===" and "!==" do simple string comparison, but are included for completeness.
@@ -271,8 +271,8 @@ declare module "semver/functions/cmp" {
 
 // Generated from @types/semver/functions/coerce using github.com/aminya/flowgen-package
 declare module "semver/functions/coerce" {
-  import type semver from "semver"
-  import type SemVer from "semver/classes/semver"
+  import type * as semver from "semver"
+  import type * as SemVer from "semver/classes/semver"
   /**
    * Coerces a string to SemVer if possible
    */
@@ -286,7 +286,7 @@ declare module "semver/functions/coerce" {
 
 // Generated from @types/semver/functions/compare-build using github.com/aminya/flowgen-package
 declare module "semver/functions/compare-build" {
-  import type SemVer from "semver/classes/semver"
+  import type * as SemVer from "semver/classes/semver"
   /**
    * Compares two versions including build identifiers (the bit after `+` in the semantic version string).
    *
@@ -306,7 +306,7 @@ declare module "semver/functions/compare-build" {
 
 // Generated from @types/semver/functions/compare-loose using github.com/aminya/flowgen-package
 declare module "semver/functions/compare-loose" {
-  import type SemVer from "semver/classes/semver"
+  import type * as SemVer from "semver/classes/semver"
   declare function compareLoose(
     v1: string | SemVer,
     v2: string | SemVer
@@ -317,8 +317,8 @@ declare module "semver/functions/compare-loose" {
 
 // Generated from @types/semver/functions/compare using github.com/aminya/flowgen-package
 declare module "semver/functions/compare" {
-  import type semver from "semver"
-  import type SemVer from "semver/classes/semver"
+  import type * as semver from "semver"
+  import type * as SemVer from "semver/classes/semver"
   /**
    * Compares two versions excluding build identifiers (the bit after `+` in the semantic version string).
    *
@@ -338,8 +338,8 @@ declare module "semver/functions/compare" {
 
 // Generated from @types/semver/functions/diff using github.com/aminya/flowgen-package
 declare module "semver/functions/diff" {
-  import type semver from "semver"
-  import type SemVer from "semver/classes/semver"
+  import type * as semver from "semver"
+  import type * as SemVer from "semver/classes/semver"
   /**
    * Returns difference between two versions by the release type (major, premajor, minor, preminor, patch, prepatch, or prerelease), or null if the versions are the same.
    */
@@ -354,8 +354,8 @@ declare module "semver/functions/diff" {
 
 // Generated from @types/semver/functions/eq using github.com/aminya/flowgen-package
 declare module "semver/functions/eq" {
-  import type SemVer from "semver/classes/semver"
-  import type semver from "semver"
+  import type * as SemVer from "semver/classes/semver"
+  import type * as semver from "semver"
   /**
    * v1 == v2 This is true if they're logically equivalent, even if they're not the exact same string. You already know how to compare strings.
    */
@@ -370,8 +370,8 @@ declare module "semver/functions/eq" {
 
 // Generated from @types/semver/functions/gt using github.com/aminya/flowgen-package
 declare module "semver/functions/gt" {
-  import type SemVer from "semver/classes/semver"
-  import type semver from "semver"
+  import type * as SemVer from "semver/classes/semver"
+  import type * as semver from "semver"
   /**
    * v1 > v2
    */
@@ -386,8 +386,8 @@ declare module "semver/functions/gt" {
 
 // Generated from @types/semver/functions/gte using github.com/aminya/flowgen-package
 declare module "semver/functions/gte" {
-  import type SemVer from "semver/classes/semver"
-  import type semver from "semver"
+  import type * as SemVer from "semver/classes/semver"
+  import type * as semver from "semver"
   /**
    * v1 >= v2
    */
@@ -402,8 +402,8 @@ declare module "semver/functions/gte" {
 
 // Generated from @types/semver/functions/inc using github.com/aminya/flowgen-package
 declare module "semver/functions/inc" {
-  import type SemVer from "semver/classes/semver"
-  import type semver from "semver"
+  import type * as SemVer from "semver/classes/semver"
+  import type * as semver from "semver"
   /**
    * Return the version incremented by the release type (major, minor, patch, or prerelease), or null if it's not valid.
    */
@@ -424,8 +424,8 @@ declare module "semver/functions/inc" {
 
 // Generated from @types/semver/functions/lt using github.com/aminya/flowgen-package
 declare module "semver/functions/lt" {
-  import type SemVer from "semver/classes/semver"
-  import type semver from "semver"
+  import type * as SemVer from "semver/classes/semver"
+  import type * as semver from "semver"
   /**
    * v1 < v2
    */
@@ -440,8 +440,8 @@ declare module "semver/functions/lt" {
 
 // Generated from @types/semver/functions/lte using github.com/aminya/flowgen-package
 declare module "semver/functions/lte" {
-  import type SemVer from "semver/classes/semver"
-  import type semver from "semver"
+  import type * as SemVer from "semver/classes/semver"
+  import type * as semver from "semver"
   /**
    * v1 <= v2
    */
@@ -456,8 +456,8 @@ declare module "semver/functions/lte" {
 
 // Generated from @types/semver/functions/major using github.com/aminya/flowgen-package
 declare module "semver/functions/major" {
-  import type SemVer from "semver/classes/semver"
-  import type semver from "semver"
+  import type * as SemVer from "semver/classes/semver"
+  import type * as semver from "semver"
   /**
    * Return the major version number.
    */
@@ -471,8 +471,8 @@ declare module "semver/functions/major" {
 
 // Generated from @types/semver/functions/minor using github.com/aminya/flowgen-package
 declare module "semver/functions/minor" {
-  import type SemVer from "semver/classes/semver"
-  import type semver from "semver"
+  import type * as SemVer from "semver/classes/semver"
+  import type * as semver from "semver"
   /**
    * Return the minor version number.
    */
@@ -486,8 +486,8 @@ declare module "semver/functions/minor" {
 
 // Generated from @types/semver/functions/neq using github.com/aminya/flowgen-package
 declare module "semver/functions/neq" {
-  import type SemVer from "semver/classes/semver"
-  import type semver from "semver"
+  import type * as SemVer from "semver/classes/semver"
+  import type * as semver from "semver"
   /**
    * v1 != v2 The opposite of eq.
    */
@@ -502,8 +502,8 @@ declare module "semver/functions/neq" {
 
 // Generated from @types/semver/functions/parse using github.com/aminya/flowgen-package
 declare module "semver/functions/parse" {
-  import type SemVer from "semver/classes/semver"
-  import type semver from "semver"
+  import type * as SemVer from "semver/classes/semver"
+  import type * as semver from "semver"
   /**
    * Return the parsed version as a SemVer object, or null if it's not valid.
    */
@@ -517,8 +517,8 @@ declare module "semver/functions/parse" {
 
 // Generated from @types/semver/functions/patch using github.com/aminya/flowgen-package
 declare module "semver/functions/patch" {
-  import type SemVer from "semver/classes/semver"
-  import type semver from "semver"
+  import type * as SemVer from "semver/classes/semver"
+  import type * as semver from "semver"
   /**
    * Return the patch version number.
    */
@@ -532,8 +532,8 @@ declare module "semver/functions/patch" {
 
 // Generated from @types/semver/functions/prerelease using github.com/aminya/flowgen-package
 declare module "semver/functions/prerelease" {
-  import type SemVer from "semver/classes/semver"
-  import type semver from "semver"
+  import type * as SemVer from "semver/classes/semver"
+  import type * as semver from "semver"
   /**
    * Returns an array of prerelease components, or null if none exist.
    */
@@ -547,8 +547,8 @@ declare module "semver/functions/prerelease" {
 
 // Generated from @types/semver/functions/rcompare using github.com/aminya/flowgen-package
 declare module "semver/functions/rcompare" {
-  import type SemVer from "semver/classes/semver"
-  import type semver from "semver"
+  import type * as SemVer from "semver/classes/semver"
+  import type * as semver from "semver"
   /**
    * The reverse of compare.
    *
@@ -565,8 +565,8 @@ declare module "semver/functions/rcompare" {
 
 // Generated from @types/semver/functions/rsort using github.com/aminya/flowgen-package
 declare module "semver/functions/rsort" {
-  import type SemVer from "semver/classes/semver"
-  import type semver from "semver"
+  import type * as SemVer from "semver/classes/semver"
+  import type * as semver from "semver"
   /**
    * Sorts an array of semver entries in descending order using `compareBuild()`.
    */
@@ -580,9 +580,9 @@ declare module "semver/functions/rsort" {
 
 // Generated from @types/semver/functions/satisfies using github.com/aminya/flowgen-package
 declare module "semver/functions/satisfies" {
-  import type Range from "semver/classes/range"
-  import type SemVer from "semver/classes/semver"
-  import type semver from "semver"
+  import type * as Range from "semver/classes/range"
+  import type * as SemVer from "semver/classes/semver"
+  import type * as semver from "semver"
   /**
    * Return true if the version satisfies the range.
    */
@@ -597,8 +597,8 @@ declare module "semver/functions/satisfies" {
 
 // Generated from @types/semver/functions/sort using github.com/aminya/flowgen-package
 declare module "semver/functions/sort" {
-  import type SemVer from "semver/classes/semver"
-  import type semver from "semver"
+  import type * as SemVer from "semver/classes/semver"
+  import type * as semver from "semver"
   /**
    * Sorts an array of semver entries in ascending order using `compareBuild()`.
    */
@@ -612,8 +612,8 @@ declare module "semver/functions/sort" {
 
 // Generated from @types/semver/functions/valid using github.com/aminya/flowgen-package
 declare module "semver/functions/valid" {
-  import type semver from "semver"
-  import type SemVer from "semver/classes/semver"
+  import type * as semver from "semver"
+  import type * as SemVer from "semver/classes/semver"
   /**
    * Return the parsed version as a string, or null if it's not valid.
    */
@@ -651,9 +651,9 @@ declare module "semver/internals/identifiers" {
 
 // Generated from @types/semver/ranges/gtr using github.com/aminya/flowgen-package
 declare module "semver/ranges/gtr" {
-  import type Range from "semver/classes/range"
-  import type SemVer from "semver/classes/semver"
-  import type semver from "semver"
+  import type * as Range from "semver/classes/range"
+  import type * as SemVer from "semver/classes/semver"
+  import type * as semver from "semver"
   /**
    * Return true if version is greater than all the versions possible in the range.
    */
@@ -668,8 +668,8 @@ declare module "semver/ranges/gtr" {
 
 // Generated from @types/semver/ranges/intersects using github.com/aminya/flowgen-package
 declare module "semver/ranges/intersects" {
-  import type Range from "semver/classes/range"
-  import type semver from "semver"
+  import type * as Range from "semver/classes/range"
+  import type * as semver from "semver"
   /**
    * Return true if any of the ranges comparators intersect
    */
@@ -684,9 +684,9 @@ declare module "semver/ranges/intersects" {
 
 // Generated from @types/semver/ranges/ltr using github.com/aminya/flowgen-package
 declare module "semver/ranges/ltr" {
-  import type Range from "semver/classes/range"
-  import type SemVer from "semver/classes/semver"
-  import type semver from "semver"
+  import type * as Range from "semver/classes/range"
+  import type * as SemVer from "semver/classes/semver"
+  import type * as semver from "semver"
   /**
    * Return true if version is less than all the versions possible in the range.
    */
@@ -701,9 +701,9 @@ declare module "semver/ranges/ltr" {
 
 // Generated from @types/semver/ranges/max-satisfying using github.com/aminya/flowgen-package
 declare module "semver/ranges/max-satisfying" {
-  import type Range from "semver/classes/range"
-  import type SemVer from "semver/classes/semver"
-  import type semver from "semver"
+  import type * as Range from "semver/classes/range"
+  import type * as SemVer from "semver/classes/semver"
+  import type * as semver from "semver"
   /**
    * Return the highest version in the list that satisfies the range, or null if none of them do.
    */
@@ -718,9 +718,9 @@ declare module "semver/ranges/max-satisfying" {
 
 // Generated from @types/semver/ranges/min-satisfying using github.com/aminya/flowgen-package
 declare module "semver/ranges/min-satisfying" {
-  import type Range from "semver/classes/range"
-  import type SemVer from "semver/classes/semver"
-  import type semver from "semver"
+  import type * as Range from "semver/classes/range"
+  import type * as SemVer from "semver/classes/semver"
+  import type * as semver from "semver"
   /**
    * Return the lowest version in the list that satisfies the range, or null if none of them do.
    */
@@ -735,9 +735,9 @@ declare module "semver/ranges/min-satisfying" {
 
 // Generated from @types/semver/ranges/min-version using github.com/aminya/flowgen-package
 declare module "semver/ranges/min-version" {
-  import type Range from "semver/classes/range"
-  import type SemVer from "semver/classes/semver"
-  import type semver from "semver"
+  import type * as Range from "semver/classes/range"
+  import type * as SemVer from "semver/classes/semver"
+  import type * as semver from "semver"
   /**
    * Return the lowest version that can possibly match the given range.
    */
@@ -751,9 +751,9 @@ declare module "semver/ranges/min-version" {
 
 // Generated from @types/semver/ranges/outside using github.com/aminya/flowgen-package
 declare module "semver/ranges/outside" {
-  import type Range from "semver/classes/range"
-  import type SemVer from "semver/classes/semver"
-  import type semver from "semver"
+  import type * as Range from "semver/classes/range"
+  import type * as SemVer from "semver/classes/semver"
+  import type * as semver from "semver"
   /**
    * Return true if the version is outside the bounds of the range in either the high or low direction.
    * The hilo argument must be either the string '>' or '<'. (This is the function called by gtr and ltr.)
@@ -770,8 +770,8 @@ declare module "semver/ranges/outside" {
 
 // Generated from @types/semver/ranges/simplify using github.com/aminya/flowgen-package
 declare module "semver/ranges/simplify" {
-  import type Range from "semver/classes/range"
-  import type semver from "semver"
+  import type * as Range from "semver/classes/range"
+  import type * as semver from "semver"
   /**
    * Return a "simplified" range that matches the same items in `versions` list as the range specified.
    * Note that it does *not* guarantee that it would match the same versions in all cases,
@@ -791,8 +791,8 @@ declare module "semver/ranges/simplify" {
 
 // Generated from @types/semver/ranges/subset using github.com/aminya/flowgen-package
 declare module "semver/ranges/subset" {
-  import type Range from "semver/classes/range"
-  import type semver from "semver"
+  import type * as Range from "semver/classes/range"
+  import type * as semver from "semver"
   /**
    * Return true if the subRange range is entirely contained by the superRange range.
    */
@@ -807,8 +807,8 @@ declare module "semver/ranges/subset" {
 
 // Generated from @types/semver/ranges/to-comparators using github.com/aminya/flowgen-package
 declare module "semver/ranges/to-comparators" {
-  import type Range from "semver/classes/range"
-  import type semver from "semver"
+  import type * as Range from "semver/classes/range"
+  import type * as semver from "semver"
   /**
    * Mostly just for testing and legacy API reasons
    */
@@ -822,8 +822,8 @@ declare module "semver/ranges/to-comparators" {
 
 // Generated from @types/semver/ranges/valid using github.com/aminya/flowgen-package
 declare module "semver/ranges/valid" {
-  import type Range from "semver/classes/range"
-  import type semver from "semver"
+  import type * as Range from "semver/classes/range"
+  import type * as semver from "semver"
   /**
    * Return the valid range or null if it's not valid
    */
