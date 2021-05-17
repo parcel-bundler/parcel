@@ -34,7 +34,12 @@ parcel-transformer-b`,
       path.join(__dirname, '/integration/optimizer-changing-type/index.js'),
     );
 
-    assert.deepEqual(fs.readdirSync(distDir), ['index.test']);
+    assert.deepEqual(fs.readdirSync(distDir), [
+      'index.test',
+      // ATLASSIAN: This unconditionally includes a react-loadable.json and bundle-buddy.json for now
+      'react-loadable.json',
+      'bundle-buddy.json',
+    ]);
   });
 
   it('should allow resolver plugins to disable deferring', async function() {
