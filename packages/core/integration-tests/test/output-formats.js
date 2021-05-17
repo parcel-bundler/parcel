@@ -325,7 +325,7 @@ describe('output formats', function() {
       assertBundles(b, [
         {
           name: 'index.js',
-          assets: ['index.js', 'JSRuntime.js', 'JSRuntime.js'],
+          assets: ['index.js'],
         },
         {
           type: 'js',
@@ -650,7 +650,7 @@ describe('output formats', function() {
       assertBundles(b, [
         {
           type: 'js',
-          assets: ['a.js', 'c.js', 'JSRuntime.js'],
+          assets: ['a.js', 'c.js'],
         },
         {
           type: 'js',
@@ -1176,8 +1176,6 @@ describe('output formats', function() {
             'bundle-url.js',
             'get-worker-url.js',
             'index.js',
-            'JSRuntime.js',
-            'JSRuntime.js',
             'relative-path.js',
           ],
         },
