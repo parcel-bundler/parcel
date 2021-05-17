@@ -27,7 +27,10 @@ import {
   md5FromObject,
   md5FromString,
 } from '@parcel/utils';
-import ContentGraph, {type SerializedContentGraph} from './ContentGraph';
+import ContentGraph, {
+  type SerializedContentGraph,
+  type ContentGraphOpts,
+} from './ContentGraph';
 import {assertSignalNotAborted, hashFromOption} from './utils';
 import {
   PARCEL_VERSION,
@@ -52,6 +55,16 @@ export const requestGraphEdgeTypes = {
 };
 
 type RequestGraphEdgeType = $Values<typeof requestGraphEdgeTypes>;
+
+type RequestGraphOpts = {|
+  ...ContentGraphOpts<RequestGraphNode, RequestGraphEdgeType>,
+  invalidNodeIds: Set<NodeId>,
+  incompleteNodeIds: Set<NodeId>,
+  globNodeIds: Set<NodeId>,
+  envNodeIds: Set<NodeId>,
+  optionNodeIds: Set<NodeId>,
+  unpredicatableNodeIds: Set<NodeId>,
+|};
 type SerializedRequestGraph = {|
   ...SerializedContentGraph<RequestGraphNode, RequestGraphEdgeType>,
   invalidNodeIds: Set<NodeId>,
@@ -197,7 +210,7 @@ export class RequestGraph extends ContentGraph<
   unpredicatableNodeIds: Set<NodeId> = new Set();
 
   // $FlowFixMe[prop-missing]
-  static deserialize(opts: SerializedRequestGraph): RequestGraph {
+  static deserialize(opts: RequestGraphOpts): RequestGraph {
     // $FlowFixMe[prop-missing]
     let deserialized = new RequestGraph(opts);
     deserialized.invalidNodeIds = opts.invalidNodeIds;

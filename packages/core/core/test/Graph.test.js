@@ -6,7 +6,7 @@ import sinon from 'sinon';
 import Graph from '../src/Graph';
 import {toNodeId} from '../src/types';
 
-describe.only('Graph', () => {
+describe('Graph', () => {
   it('constructor should initialize an empty graph', () => {
     let graph = new Graph();
     assert.deepEqual(graph.nodes, new Map());

@@ -28,7 +28,10 @@ import {objectSortedEntriesDeep} from '@parcel/utils';
 
 import {getBundleGroupId, getPublicId} from './utils';
 import {ALL_EDGE_TYPES, mapVisitor} from './Graph';
-import ContentGraph, {type SerializedContentGraph} from './ContentGraph';
+import ContentGraph, {
+  type SerializedContentGraph,
+  type ContentGraphOpts,
+} from './ContentGraph';
 import Environment from './public/Environment';
 
 export const bundleGraphEdgeTypes = {
@@ -68,6 +71,13 @@ type InternalSymbolResolution = {|
 type InternalExportSymbolResolution = {|
   ...InternalSymbolResolution,
   +exportAs: Symbol | string,
+|};
+
+type BundleGraphOpts = {|
+  graph: ContentGraphOpts<BundleGraphNode, BundleGraphEdgeType>,
+  bundleContentHashes: Map<string, string>,
+  assetPublicIds: Set<string>,
+  publicIdByAssetId: Map<string, string>,
 |};
 
 type SerializedBundleGraph = {|
@@ -165,7 +175,7 @@ export default class BundleGraph {
       let fromIds;
       if (assetGroupIds.has(edge.from)) {
         fromIds = [
-          ...assetGraph.inboundEdges.getEdges(
+          ...assetGraph.getNodeIdsConnectedTo(
             edge.from,
             bundleGraphEdgeTypes.null,
           ),
@@ -176,7 +186,7 @@ export default class BundleGraph {
 
       for (let from of fromIds) {
         if (assetGroupIds.has(edge.to)) {
-          for (let to of assetGraph.outboundEdges.getEdges(
+          for (let to of assetGraph.getNodeIdsConnectedFrom(
             edge.to,
             bundleGraphEdgeTypes.null,
           )) {
@@ -212,7 +222,7 @@ export default class BundleGraph {
     };
   }
 
-  static deserialize(serialized: SerializedBundleGraph): BundleGraph {
+  static deserialize(serialized: BundleGraphOpts): BundleGraph {
     return new BundleGraph({
       graph: ContentGraph.deserialize(serialized.graph),
       assetPublicIds: serialized.assetPublicIds,
