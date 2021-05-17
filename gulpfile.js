@@ -4,6 +4,7 @@ const gulp = require('gulp');
 const path = require('path');
 const rimraf = require('rimraf');
 const babelConfig = require('./babel.config.json');
+const {execSync} = require('child_process');
 
 const IGNORED_PACKAGES = [
   '!packages/examples/**',
@@ -73,6 +74,8 @@ exports.default = exports.build = gulp.series(
   ),
 );
 
+exports.bundle = gulp.series(bundleBuild);
+
 function buildBabel() {
   return gulp
     .src(paths.packageSrc)
@@ -115,4 +118,17 @@ function renameStream(fn) {
     let relative = path.relative(vinyl.base, vinyl.path);
     vinyl.path = path.join(vinyl.base, fn(relative));
   });
+}
+
+function bundleBuild(done) {
+  if (process.env.PARCEL_BUILD_ENV == 'production') {
+    // link current parcel binary to node_modules
+    execSync('yarn link', {cwd: 'packages/core/parcel', stdio: 'inherit'});
+    // bundle packages
+    const packagesCustomBuild = ['packages/core/core', 'packages/core/parcel'];
+    for (const pack of packagesCustomBuild) {
+      execSync('yarn bundle', {cwd: pack, stdio: 'inherit'});
+    }
+  }
+  done();
 }

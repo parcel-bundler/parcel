@@ -14,6 +14,7 @@ import type {Diagnostic} from '@parcel/diagnostic';
 import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 
 import invariant from 'assert';
+import path from 'path';
 import ThrowableDiagnostic, {anyToDiagnostic} from '@parcel/diagnostic';
 import {assetFromValue} from './public/Asset';
 import {PackagedBundle} from './public/Bundle';
@@ -455,6 +456,13 @@ export function createWorkerFarm(
 ): WorkerFarm {
   return new WorkerFarm({
     ...options,
-    workerPath: require.resolve('./worker'),
+    workerPath: path
+      .join(
+        __dirname,
+        process.env.PARCEL_BUNDLE_ENV == 'worker'
+          ? 'worker.bundle.js'
+          : 'worker.js',
+      )
+      .replace(/\\/g, '/'),
   });
 }

@@ -15,12 +15,16 @@
   },
   "main": "lib/index.js",
   "source": "src/index.js",
+  "bundle": "lib/index.bundle.js",
+  "worker-bundle": "lib/worker.bundle.js",
   "engines": {
     "node": ">= 12.0.0"
   },
   "scripts": {
     "test": "mocha",
-    "test-ci": "mocha"
+    "test-ci": "mocha",
+    "worker-bundle": "cross-env NODE_ENV=production PARCEL_BUILD_ENV=worker parcel build --target worker-bundle src/worker.js --no-scope-hoist",
+    "bundle": "npm run worker-bundle && cross-env NODE_ENV=production PARCEL_BUILD_ENV=production parcel build --target bundle src/index.js --no-scope-hoist"
   },
   "dependencies": {
     "@parcel/cache": "2.0.0-beta.2",
@@ -50,5 +54,30 @@
   "devDependencies": {
     "graphviz": "^0.0.9",
     "tempy": "^0.2.1"
+  },
+  "targets": {
+    "bundle": {
+      "context": "node",
+      "includeNodeModules": {
+        "@parcel/workers": false,
+        "@parcel/fs": false,
+        "@parcel/package-manager": false,
+        "@parcel/fs-search": false,
+        "@parcel/source-map": false
+      },
+      "isLibrary": true,
+      "outputFormat": "commonjs"
+    },
+    "worker-bundle": {
+      "context": "node",
+      "includeNodeModules": {
+        "@parcel/fs": false,
+        "@parcel/package-manager": false,
+        "@parcel/fs-search": false,
+        "@parcel/source-map": false
+      },
+      "isLibrary": true,
+      "outputFormat": "commonjs"
+    }
   }
 }

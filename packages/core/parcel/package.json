@@ -14,8 +14,12 @@
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
-  "bin": "src/bin.js",
+  "bin": {
+    "parcel": "lib/bin.js",
+    "parcel-bundle": "lib/bin.bundle.js"
+  },
   "main": "lib/bin.js",
+  "bundle": "lib/bin.bundle.js",
   "source": "src/bin.js",
   "engines": {
     "node": ">= 12.0.0"
@@ -38,5 +42,25 @@
   },
   "devDependencies": {
     "@parcel/babel-register": "2.0.0-beta.2"
+  },
+  "scripts": {
+    "bundle": "cross-env NODE_ENV=production parcel build --target bundle src/bin.js --no-scope-hoist"
+  },
+  "targets": {
+    "bundle": {
+      "context": "node",
+      "includeNodeModules": {
+        "@parcel/core": false,
+        "@parcel/fs": false,
+        "@parcel/package-manager": false,
+        "@parcel/fs-search": false,
+        "@parcel/source-map": false
+      },
+      "isLibrary": true,
+      "outputFormat": "commonjs"
+    }
+  },
+  "alias": {
+    "@parcel/core": "@parcel/core/lib/index.bundle.js"
   }
 }
