@@ -9,5 +9,6 @@ jobs:
     steps:
       - name: PR Benchmarks
         uses: parcel-bundler/parcel-benchmark-action@master
+        shell: bash -leo pipefail {0}
         env:
           PARCEL_BENCHMARK_APIKEY: ${{ secrets.PARCEL_BENCHMARK_APIKEY }}
