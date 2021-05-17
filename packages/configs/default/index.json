@@ -71,6 +71,10 @@
   "resolvers": ["@parcel/resolver-default"],
   "reporters": [
     "@atlassian/parcel-reporter-analytics",
-    "@parcel/reporter-manifest"
+    "@parcel/reporter-manifest",
+    "@parcel/reporter-cli",
+    "@parcel/reporter-dev-server",
+    "@parcel/reporter-react-loadable",
+    "@parcel/reporter-bundle-buddy"
   ]
 }
