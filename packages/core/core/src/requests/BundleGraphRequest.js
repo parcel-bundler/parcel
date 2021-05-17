@@ -61,7 +61,6 @@ type BundleGraphRequestInput = {|
 
 type BundleGraphRequestResult = {|
   bundleGraph: InternalBundleGraph,
-  changedBundles: Set<ContentKey>,
   bundlerHash: string,
 |};
 
@@ -225,7 +224,6 @@ class BundlerRunner {
       }
     }
 
-    let changedBundles = new Set<ContentKey>();
     // TODO : determine if cache is disabled, should this happen?
     let cachedBundleGraph: ?BundleGraphRequestResult;
     if (
@@ -263,7 +261,6 @@ class BundlerRunner {
 
           for (let bundle of bundles) {
             internalBundleGraph._bundleContentHashes.delete(bundle.id);
-            changedBundles.add(bundle.id);
           }
         }
         mutableBundleGraph = new MutableBundleGraph(
@@ -352,7 +349,6 @@ class BundlerRunner {
 
     let result = {
       bundleGraph: internalBundleGraph,
-      changedBundles,
       bundlerHash,
     };
     this.api.storeResult(result, cacheKey);
