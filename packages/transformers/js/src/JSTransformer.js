@@ -10,7 +10,7 @@ import browserslist from 'browserslist';
 import semver from 'semver';
 import nullthrows from 'nullthrows';
 import ThrowableDiagnostic, {encodeJSONKeyComponent} from '@parcel/diagnostic';
-import {validateSchema} from '@parcel/utils';
+import {validateSchema, remapSourceLocation} from '@parcel/utils';
 import {isMatch} from 'micromatch';
 
 const JSX_EXTENSIONS = {
@@ -160,6 +160,7 @@ export default (new Transformer({
     }
 
     let code = await asset.getCode();
+    let originalMap = await asset.getMap();
 
     let targets;
     if (asset.isSource) {
@@ -251,17 +252,26 @@ export default (new Transformer({
       scope_hoist: asset.env.shouldScopeHoist,
     });
 
-    let convertLoc = loc => ({
-      filePath: relativePath,
-      start: {
-        line: loc.start_line,
-        column: loc.start_col,
-      },
-      end: {
-        line: loc.end_line,
-        column: loc.end_col,
-      },
-    });
+    let convertLoc = loc => {
+      let location = {
+        filePath: relativePath,
+        start: {
+          line: loc.start_line,
+          column: loc.start_col,
+        },
+        end: {
+          line: loc.end_line,
+          column: loc.end_col,
+        },
+      };
+
+      // If there is an original source map, use it to remap to the original source location.
+      if (originalMap) {
+        location = remapSourceLocation(location, originalMap);
+      }
+
+      return location;
+    };
 
     if (diagnostics) {
       throw new ThrowableDiagnostic({
@@ -455,9 +465,8 @@ export default (new Transformer({
     asset.setCode(compiledCode);
 
     if (map) {
-      let originalMap = await asset.getMapBuffer();
       let sourceMap = new SourceMap(options.projectRoot);
-      sourceMap.addRawMappings(JSON.parse(map));
+      sourceMap.addVLQMap(JSON.parse(map));
       if (originalMap) {
         sourceMap.extends(originalMap);
       }

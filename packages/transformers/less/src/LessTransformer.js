@@ -56,7 +56,7 @@ export default (new Transformer({
     if (result.map != null) {
       let map = new SourceMap(options.projectRoot);
       let rawMap = JSON.parse(result.map);
-      map.addRawMappings({
+      map.addVLQMap({
         ...rawMap,
         sources: rawMap.sources.map(s => path.relative(options.projectRoot, s)),
       });

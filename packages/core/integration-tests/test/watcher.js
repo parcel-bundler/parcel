@@ -413,13 +413,7 @@ describe('watcher', function() {
     assertBundles(bundleGraph, [
       {
         name: 'index.js',
-        assets: [
-          'index.js',
-          'bundle-url.js',
-          'cacheLoader.js',
-          'js-loader.js',
-          'JSRuntime.js',
-        ],
+        assets: ['index.js', 'bundle-url.js', 'cacheLoader.js', 'js-loader.js'],
       },
       {assets: ['local.js']},
     ]);
@@ -435,14 +429,7 @@ describe('watcher', function() {
     assertBundles(bundleGraph, [
       {
         name: 'index.js',
-        assets: [
-          'index.js',
-          'bundle-url.js',
-          'cacheLoader.js',
-          'js-loader.js',
-          'JSRuntime.js',
-          'JSRuntime.js',
-        ],
+        assets: ['index.js', 'bundle-url.js', 'cacheLoader.js', 'js-loader.js'],
       },
       {assets: ['local.js']},
       {assets: ['other.js']},

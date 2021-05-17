@@ -137,10 +137,11 @@ export default class Transformation {
 
     let asset = await this.loadAsset();
 
-    // Load existing sourcemaps
-    if (SOURCEMAP_EXTENSIONS.has(asset.value.type)) {
+    if (!asset.mapBuffer && SOURCEMAP_EXTENSIONS.has(asset.value.type)) {
+      // Load existing sourcemaps, this automatically runs the source contents extraction
+      let existing;
       try {
-        await asset.loadExistingSourcemap();
+        existing = await asset.loadExistingSourcemap();
       } catch (err) {
         logger.verbose([
           {
@@ -157,6 +158,13 @@ export default class Transformation {
             filePath: asset.value.filePath,
           },
         ]);
+      }
+
+      if (existing == null) {
+        // If no existing sourcemap was found, initialize asset.sourceContent
+        // with the original contents. This will be used when the transformer
+        // calls setMap to ensure the source content is in the sourcemap.
+        asset.sourceContent = await asset.getCode();
       }
     }
 
