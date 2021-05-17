@@ -97,7 +97,7 @@ export default (new Reporter({
         if (connection != null) {
           await Promise.all(
             filePaths.map(uri =>
-              connection.window.sendDiagnostics({uri, diagnostics: []}),
+              connection.sendDiagnostics({uri, diagnostics: []}),
             ),
           );
         }
