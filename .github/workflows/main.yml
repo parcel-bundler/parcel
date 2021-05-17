@@ -6,9 +6,11 @@ jobs:
   prBenchmarks:
     name: PR Benchmarks
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -leo pipefail {0}
     steps:
       - name: PR Benchmarks
         uses: parcel-bundler/parcel-benchmark-action@master
-        shell: bash -leo pipefail {0}
         env:
           PARCEL_BENCHMARK_APIKEY: ${{ secrets.PARCEL_BENCHMARK_APIKEY }}
