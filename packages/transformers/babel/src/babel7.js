@@ -5,18 +5,24 @@ import type {MutableAsset, AST, PluginOptions} from '@parcel/types';
 import invariant from 'assert';
 import * as internalBabelCore from '@babel/core';
 import {relativeUrl} from '@parcel/utils';
+import {remapAstLocations} from '@parcel/babel-ast-utils';
 
 import packageJson from '../package.json';
 
 const transformerVersion: mixed = packageJson.version;
 invariant(typeof transformerVersion === 'string');
 
-export default async function babel7(
+type Babel7TransformOptions = {|
   asset: MutableAsset,
   options: PluginOptions,
   babelOptions: any,
-  additionalPlugins: Array<any> = [],
+  additionalPlugins?: Array<any>,
+|};
+
+export default async function babel7(
+  opts: Babel7TransformOptions,
 ): Promise<?AST> {
+  let {asset, options, babelOptions, additionalPlugins = []} = opts;
   const babelCore = babelOptions.internal
     ? internalBabelCore
     : await options.packageManager.require('@babel/core', asset.filePath, {
@@ -68,6 +74,12 @@ export default async function babel7(
     );
   } else {
     res = await babelCore.transformAsync(await asset.getCode(), config);
+    if (res.ast) {
+      let map = await asset.getMap();
+      if (map) {
+        remapAstLocations(res.ast, map);
+      }
+    }
   }
 
   if (res.ast) {

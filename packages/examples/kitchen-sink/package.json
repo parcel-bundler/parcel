@@ -5,7 +5,7 @@
   "private": true,
   "scripts": {
     "serve": "parcel serve src/index.html --https --open",
-    "build": "rm -rf dist && parcel build src/index.html"
+    "build": "rm -rf dist && parcel build src/index.html --no-cache"
   },
   "devDependencies": {
     "@parcel/babel-register": "2.0.0-beta.2",

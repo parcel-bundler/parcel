@@ -1127,7 +1127,6 @@ describe('sourcemaps', function() {
         );
       }
     }
-
     assert.equal(map.sourcesContent[2], 'module.exports = (a, b) => a + b\n');
   });
 
@@ -1293,6 +1292,51 @@ describe('sourcemaps', function() {
       source: input,
       generated: raw,
       str: "console.log('idhf')",
+      sourcePath,
+    });
+  });
+
+  it('carries sourcesContent from the original sources through multiple transformations (babel and swc)', async () => {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        'integration/sourcemap-original-sourcecontents/index.js',
+      ),
+      {
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
+      },
+    );
+
+    let filename = b.getBundles()[0].filePath;
+    let raw = await outputFS.readFile(filename, 'utf8');
+
+    let mapUrlData = await loadSourceMapUrl(outputFS, filename, raw);
+    if (!mapUrlData) {
+      throw new Error('Could not load map');
+    }
+    let map = mapUrlData.map;
+
+    let sourceMap = new SourceMap('/');
+    sourceMap.addVLQMap(map);
+    let sourceContent = map.sourcesContent[0];
+    let sourcePath = 'index.js';
+
+    checkSourceMapping({
+      map: sourceMap,
+      source: sourceContent,
+      generated: raw,
+      str: 'bar="bar"' /* from jsx: <App bar="bar" /> */,
+      generatedStr: 'bar: "bar"',
+      sourcePath,
+    });
+
+    checkSourceMapping({
+      map: sourceMap,
+      source: sourceContent,
+      generated: raw,
+      str: 'document.getElementById(',
       sourcePath,
     });
   });

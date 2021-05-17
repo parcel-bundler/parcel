@@ -69,4 +69,5 @@ export {
   matchSourceMappingURL,
   loadSourceMapUrl,
   loadSourceMap,
+  remapSourceLocation,
 } from './sourcemap';
