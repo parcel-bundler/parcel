@@ -79,7 +79,6 @@ const commonOptions = {
     'output directory to write to when unspecified by targets',
   '--no-autoinstall': 'disable autoinstall',
   '--profile': 'enable build profiling',
-  '--incremental': 'enable incremental bundling',
   '-V, --version': 'output the version number',
   '--detailed-report [count]': [
     'print the asset timings and sizes in the build report',
@@ -133,7 +132,6 @@ let serve = program
     '--lazy',
     'Build async bundles on demand, when requested in the browser',
   )
-  .option('--incremental-bundling', 'incrementally bundle')
   .action(runCommand);
 
 applyOptions(serve, hmrOptions);
