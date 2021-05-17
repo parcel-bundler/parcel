@@ -8,7 +8,6 @@ import type {
   Asset,
   Bundle as InternalBundle,
   Config,
-  ContentKey,
   DevDepRequest,
   ParcelOptions,
 } from '../types';
