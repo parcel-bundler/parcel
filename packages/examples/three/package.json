@@ -4,8 +4,8 @@
   "license": "MIT",
   "private": true,
   "scripts": {
-    "setup": "make src",
-    "build": "rm -rf dist && parcel build src/entry.js --no-cache",
+    "setup": "node ./setup.js",
+    "build": "rimraf -rf dist && parcel build src/entry.js --no-cache",
     "get-size": "du -sh dist"
   },
   "browserLegacy": "dist/legacy/index.js",
@@ -28,6 +28,9 @@
   },
   "devDependencies": {
     "@parcel/config-default": "2.0.0-beta.2",
-    "parcel": "2.0.0-beta.2"
+    "fs-extra": "^10.0.0",
+    "gitly": "^2.0.3",
+    "parcel": "2.0.0-beta.2",
+    "rimraf": "^3.0.2"
   }
 }
