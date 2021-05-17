@@ -1,6 +1,7 @@
 {
   "name": "parcelforvscode",
   "displayName": "Parcel for VS Code",
+  "parcel-lsp.trace.server": "verbose",
   "description": "",
   "version": "0.0.1",
   "engines": {

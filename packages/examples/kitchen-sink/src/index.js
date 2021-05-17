@@ -4,7 +4,7 @@ import {message} from './message';
 import lodash from 'lodash';
 import react from 'react';
 import('./async');
-import('./async2');
+import('./asyn');
 // import('./async3');
 //
 //

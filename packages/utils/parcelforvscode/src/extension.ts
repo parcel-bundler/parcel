@@ -4,6 +4,8 @@ import * as os from 'os';
 import {ExtensionContext} from 'vscode';
 
 import {
+  CloseAction,
+  ErrorAction,
   LanguageClient,
   LanguageClientOptions,
   MessageTransports,
@@ -43,16 +45,22 @@ function createLanguageClientIfPossible(
       reader: new SocketMessageReader(socket),
       writer: new SocketMessageWriter(socket),
       //Detached true probably
+      detached: true,
     };
   }
 
   // Options to control the language client
-  let clientOptions: LanguageClientOptions = {};
+  let clientOptions: LanguageClientOptions = {
+    errorHandler: {
+      closed: () => CloseAction.DoNotRestart,
+      error: () => ErrorAction.Continue,
+    },
+  };
 
   // Create the language client and start the client.
   let client = new LanguageClient(
-    'languageServerExample',
-    'Language Server Example',
+    'parcel-lsp',
+    'Parcel LSP',
     serverOptions,
     clientOptions,
   );

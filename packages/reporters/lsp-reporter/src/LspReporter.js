@@ -34,6 +34,13 @@ let fileDiagnostics: DefaultMap<
 > = new DefaultMap(() => []);
 let pipeFilename;
 
+let exit = process.exit.bind(process);
+process.exit = (...args) => {
+  console.error(...args);
+  console.log('process.exit called');
+  exit(...args);
+};
+
 export default (new Reporter({
   async report({event, options}) {
     switch (event.type) {
@@ -63,7 +70,6 @@ export default (new Reporter({
             connection.onInitialized(() => {
               console.debug('Connection is initialized');
               invariant(connection != null);
-              connection.window.showInformationMessage('hi');
               resolve(connection);
             });
             invariant(connection != null);
