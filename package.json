@@ -29,8 +29,8 @@
     "test": "yarn test:unit && yarn test:integration",
     "update-readme-toc": "doctoc README.md",
     "nightly:release": "lerna publish -y --canary --preid nightly --dist-tag=nightly --exact --force-publish=* --no-git-tag-version --no-push",
-    "tag:prerelease": "lerna version --exact --force-publish=* --no-git-tag-version --no-push",
-    "tag:release": "lerna version --force-publish=* --no-git-tag-version --no-push",
+    "tag:prerelease": "lerna version --exact --force-publish=* --no-git-tag-version --no-push && node scripts/update-config-dependencies.js",
+    "tag:release": "lerna version --force-publish=* --no-git-tag-version --no-push && node scripts/update-config-dependencies.js",
     "release": "lerna publish -y from-package --dist-tag=next --no-git-tag-version --no-push",
     "prepare": "husky install"
   },
