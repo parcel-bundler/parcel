@@ -11,6 +11,6 @@ jobs:
         shell: bash -leo pipefail {0}
     steps:
       - name: PR Benchmarks
-        uses: parcel-bundler/parcel-benchmark-action@master
+        uses: Magi-KS/parcel-benchmark-action@fix-github-action-benchmark
         env:
           PARCEL_BENCHMARK_APIKEY: ${{ secrets.PARCEL_BENCHMARK_APIKEY }}
