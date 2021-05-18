@@ -2186,6 +2186,24 @@ mod tests {
     "#,
     );
     assert_eq!(collect.should_wrap, true);
+
+    let (collect, _code, _hoist) = parse(
+      r#"
+    const foo = {
+      get a() {
+        return 1;
+      },
+      set b(v) {
+        return;
+      },
+      run() {
+        return 3;
+      },
+    };
+    console.log(foo.a);
+    "#,
+    );
+    assert_eq!(collect.should_wrap, false);
   }
 
   #[test]
