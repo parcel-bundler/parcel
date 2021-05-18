@@ -1,6 +1,6 @@
 {
   "name": "@parcel/resolver-default",
-  "version": "2.0.0-beta.2",
+  "version": "2.0.0-beta.3",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -20,8 +20,8 @@
     "parcel": "^2.0.0-beta.1"
   },
   "dependencies": {
-    "@parcel/node-resolver-core": "2.0.0-beta.2",
-    "@parcel/plugin": "2.0.0-beta.2"
+    "@parcel/node-resolver-core": "2.0.0-beta.3",
+    "@parcel/plugin": "2.0.0-beta.3"
   },
   "devDependencies": {
     "@babel/core": "^7.12.2"

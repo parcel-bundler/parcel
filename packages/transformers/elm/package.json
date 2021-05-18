@@ -1,6 +1,6 @@
 {
   "name": "@parcel/transformer-elm",
-  "version": "2.0.0-beta.2",
+  "version": "2.0.0-beta.3",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -20,8 +20,8 @@
     "parcel": "^2.0.0-alpha.3.1"
   },
   "dependencies": {
-    "@parcel/diagnostic": "2.0.0-beta.2",
-    "@parcel/plugin": "2.0.0-beta.2",
+    "@parcel/diagnostic": "2.0.0-beta.3",
+    "@parcel/plugin": "2.0.0-beta.3",
     "command-exists": "^1.2.8",
     "cross-spawn": "^7.0.3",
     "elm-hot": "^1.1.5",

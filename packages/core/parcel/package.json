@@ -1,6 +1,6 @@
 {
   "name": "parcel",
-  "version": "2.0.0-beta.2",
+  "version": "2.0.0-beta.3",
   "description": "Blazing fast, zero configuration web application bundler",
   "license": "MIT",
   "publishConfig": {
@@ -21,22 +21,22 @@
     "node": ">= 12.0.0"
   },
   "dependencies": {
-    "@parcel/config-default": "2.0.0-beta.2",
-    "@parcel/core": "2.0.0-beta.2",
-    "@parcel/diagnostic": "2.0.0-beta.2",
-    "@parcel/events": "2.0.0-beta.2",
-    "@parcel/fs": "2.0.0-beta.2",
-    "@parcel/logger": "2.0.0-beta.2",
-    "@parcel/package-manager": "2.0.0-beta.2",
-    "@parcel/reporter-cli": "2.0.0-beta.2",
-    "@parcel/reporter-dev-server": "2.0.0-beta.2",
-    "@parcel/utils": "2.0.0-beta.2",
+    "@parcel/config-default": "2.0.0-beta.3",
+    "@parcel/core": "2.0.0-beta.3",
+    "@parcel/diagnostic": "2.0.0-beta.3",
+    "@parcel/events": "2.0.0-beta.3",
+    "@parcel/fs": "2.0.0-beta.3",
+    "@parcel/logger": "2.0.0-beta.3",
+    "@parcel/package-manager": "2.0.0-beta.3",
+    "@parcel/reporter-cli": "2.0.0-beta.3",
+    "@parcel/reporter-dev-server": "2.0.0-beta.3",
+    "@parcel/utils": "2.0.0-beta.3",
     "chalk": "^4.1.0",
     "commander": "^7.0.0",
     "get-port": "^4.2.0",
     "v8-compile-cache": "^2.0.0"
   },
   "devDependencies": {
-    "@parcel/babel-register": "2.0.0-beta.2"
+    "@parcel/babel-register": "2.0.0-beta.3"
   }
 }
