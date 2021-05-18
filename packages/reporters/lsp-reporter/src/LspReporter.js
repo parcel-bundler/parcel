@@ -16,6 +16,10 @@ import path from 'path';
 import nullthrows from 'nullthrows';
 import os from 'os';
 import fs from 'fs';
+import ps from 'ps-node';
+import {promisify} from 'util';
+
+const lookupPid = promisify(ps.lookup);
 
 // flowlint-next-line unclear-type:off
 type WorkDoneProgressServerReporter = any;
@@ -52,6 +56,17 @@ export default (new Reporter({
           // Create a file to ID the transport
           let pathname = path.join(os.tmpdir(), 'parcel-lsp');
           await fs.promises.mkdir(pathname, {recursive: true});
+
+          // For each existing file, check if the pid matches a running process.
+          // If no process matches, delete the file, assuming it was orphaned
+          // by a process that quit unexpectedly.
+          for (let filename of fs.readdirSync(pathname)) {
+            let pid = parseInt(filename, 10);
+            let resultList = await lookupPid({pid});
+            if (resultList.length) continue;
+            fs.unlinkSync(path.join(pathname, filename));
+          }
+
           pipeFilename = path.join(pathname, String(process.pid));
           await fs.promises.writeFile(
             pipeFilename,
