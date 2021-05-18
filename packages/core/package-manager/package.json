@@ -1,6 +1,6 @@
 {
   "name": "@parcel/package-manager",
-  "version": "2.0.0-beta.2",
+  "version": "2.0.0-beta.3",
   "description": "Blazing fast, zero configuration web application bundler",
   "license": "MIT",
   "publishConfig": {
@@ -20,11 +20,11 @@
     "node": ">= 12.0.0"
   },
   "dependencies": {
-    "@parcel/diagnostic": "2.0.0-beta.2",
-    "@parcel/fs": "2.0.0-beta.2",
-    "@parcel/logger": "2.0.0-beta.2",
-    "@parcel/utils": "2.0.0-beta.2",
-    "@parcel/workers": "2.0.0-beta.2",
+    "@parcel/diagnostic": "2.0.0-beta.3",
+    "@parcel/fs": "2.0.0-beta.3",
+    "@parcel/logger": "2.0.0-beta.3",
+    "@parcel/utils": "2.0.0-beta.3",
+    "@parcel/workers": "2.0.0-beta.3",
     "command-exists": "^1.2.6",
     "cross-spawn": "^6.0.4",
     "nullthrows": "^1.1.1",

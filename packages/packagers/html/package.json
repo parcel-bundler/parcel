@@ -1,6 +1,6 @@
 {
   "name": "@parcel/packager-html",
-  "version": "2.0.0-beta.2",
+  "version": "2.0.0-beta.3",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -20,9 +20,9 @@
     "parcel": "^2.0.0-beta.1"
   },
   "dependencies": {
-    "@parcel/plugin": "2.0.0-beta.2",
-    "@parcel/types": "2.0.0-beta.2",
-    "@parcel/utils": "2.0.0-beta.2",
+    "@parcel/plugin": "2.0.0-beta.3",
+    "@parcel/types": "2.0.0-beta.3",
+    "@parcel/utils": "2.0.0-beta.3",
     "nullthrows": "^1.1.1",
     "posthtml": "^0.15.1"
   }

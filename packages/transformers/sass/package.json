@@ -1,6 +1,6 @@
 {
   "name": "@parcel/transformer-sass",
-  "version": "2.0.0-beta.2",
+  "version": "2.0.0-beta.3",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -20,7 +20,7 @@
     "parcel": "^2.0.0-beta.1"
   },
   "dependencies": {
-    "@parcel/plugin": "2.0.0-beta.2",
+    "@parcel/plugin": "2.0.0-beta.3",
     "@parcel/source-map": "2.0.0-rc.1.0",
     "sass": "^1.32.4"
   }

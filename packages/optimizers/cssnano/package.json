@@ -1,6 +1,6 @@
 {
   "name": "@parcel/optimizer-cssnano",
-  "version": "2.0.0-beta.2",
+  "version": "2.0.0-beta.3",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -20,7 +20,7 @@
     "parcel": "^2.0.0-beta.1"
   },
   "dependencies": {
-    "@parcel/plugin": "2.0.0-beta.2",
+    "@parcel/plugin": "2.0.0-beta.3",
     "@parcel/source-map": "2.0.0-rc.1.0",
     "cssnano": "^4.1.10",
     "postcss": "^8.0.5"
