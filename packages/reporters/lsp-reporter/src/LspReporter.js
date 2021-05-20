@@ -9,7 +9,15 @@ import {
   generateRandomPipeName,
   createMessageConnection,
 } from 'vscode-jsonrpc';
-import {createConnection, DiagnosticSeverity} from 'vscode-languageserver/node';
+import {
+  createConnection,
+  DiagnosticSeverity,
+  WorkDoneProgressBegin,
+  WorkDoneProgressReport,
+  WorkDoneProgressEnd,
+  PublishDiagnosticsNotification,
+} from 'vscode-languageserver/node';
+
 import {DefaultMap, getProgressMessage} from '@parcel/utils';
 import {Reporter} from '@parcel/plugin';
 import invariant from 'assert';
@@ -31,7 +39,7 @@ type ParcelSeverity = 'error' | 'warn' | 'info' | 'verbose';
 
 let connectionPromise;
 let connection;
-let progressReporter: ?ProgressReporter;
+// let progressReporter: ?ProgressReporter;
 let watchEnded = false;
 let fileDiagnostics: DefaultMap<
   string,
@@ -86,23 +94,30 @@ export default (new Reporter({
             ...(await transport.onConnected()),
           );
 
-          return new Promise((resolve, reject) => {
-            connection.onInitialized(() => {
-              console.debug('Connection is initialized');
-              invariant(connection != null);
-              resolve(connection);
-            });
-            invariant(connection != null);
-            connection.listen();
-            console.debug('connection listening...');
-          });
+          // return new Promise((resolve, reject) => {
+          // connection.onInitialized(() => {
+          //   console.debug('Connection is initialized');
+          //   invariant(connection != null);
+          //   resolve(connection);
+          // });
+          invariant(connection != null);
+          connection.listen();
+          console.debug('connection listening...');
+          return connection;
+          // });
         })();
-        progressReporter = new ProgressReporter();
+        // progressReporter = new ProgressReporter();
         nullthrows(connectionPromise).then(connection => {
           if (fileDiagnostics.size > 0) {
             if (connection != null) {
               for (let [uri, diagnostics] of fileDiagnostics) {
-                connection.sendDiagnostics({uri, diagnostics});
+                connection.sendNotification(
+                  PublishDiagnosticsNotification.type,
+                  {
+                    uri,
+                    diagnostics,
+                  },
+                );
               }
             }
           }
@@ -116,27 +131,33 @@ export default (new Reporter({
         break;
       }
       case 'buildStart': {
-        nullthrows(progressReporter).begin();
-        let filePaths = [...fileDiagnostics.keys()];
-        fileDiagnostics.clear();
+        nullthrows(connectionPromise).then(async connection => {
+          connection.sendProgress(WorkDoneProgressBegin);
+          let filePaths = [...fileDiagnostics.keys()];
+          fileDiagnostics.clear();
 
-        if (connection != null) {
           await Promise.all(
             filePaths.map(uri =>
-              connection.sendDiagnostics({uri, diagnostics: []}),
+              connection.sendNotification(PublishDiagnosticsNotification.type, {
+                uri,
+                diagnostics: [],
+              }),
             ),
           );
-        }
+        });
 
         break;
       }
       case 'buildSuccess':
-        nullthrows(progressReporter).done();
-        if (connection != null) {
+        nullthrows(connectionPromise).then(connection => {
+          connection.sendProgress(WorkDoneProgressEnd);
           for (let [uri, diagnostics] of fileDiagnostics) {
-            connection.sendDiagnostics({uri, diagnostics});
+            connection.sendNotification(PublishDiagnosticsNotification.type, {
+              uri,
+              diagnostics,
+            });
           }
-        }
+        });
         break;
       case 'buildFailure': {
         updateDiagnostics(
@@ -146,13 +167,15 @@ export default (new Reporter({
           options.projectRoot,
         );
 
-        if (connection != null) {
-          const _connection = connection;
+        nullthrows(connectionPromise).then(connection => {
           for (let [uri, diagnostics] of fileDiagnostics) {
-            _connection.sendDiagnostics({uri, diagnostics});
+            connection.sendNotification(PublishDiagnosticsNotification.type, {
+              uri,
+              diagnostics,
+            });
           }
-        }
-        nullthrows(progressReporter).done();
+          connection.sendProgress(WorkDoneProgressEnd);
+        });
         break;
       }
       case 'log':
@@ -174,7 +197,9 @@ export default (new Reporter({
       case 'buildProgress': {
         let message = getProgressMessage(event);
         if (message != null) {
-          nullthrows(progressReporter).report(message);
+          connectionPromise.then(connection =>
+            connection.sendProgress(WorkDoneProgressReport, message),
+          );
         }
         break;
       }
@@ -197,39 +222,6 @@ export default (new Reporter({
     }
   },
 }): Reporter);
-
-class ProgressReporter {
-  progressReporterPromise: ?Promise<WorkDoneProgressServerReporter>;
-  lastMessage: ?string;
-  begin() {
-    this.progressReporterPromise = (async () => {
-      let connection = await nullthrows(connectionPromise);
-      let reporter = await connection.window.createWorkDoneProgress();
-      reporter.begin('Parcel');
-      return reporter;
-    })();
-    this.progressReporterPromise.then(reporter => {
-      if (this.lastMessage != null) {
-        reporter.report(this.lastMessage);
-      }
-    });
-  }
-  async done() {
-    if (this.progressReporterPromise == null) {
-      this.begin();
-    }
-    invariant(this.progressReporterPromise != null);
-    (await this.progressReporterPromise).done();
-  }
-  async report(message: string) {
-    if (this.progressReporterPromise == null) {
-      this.lastMessage = message;
-      this.begin();
-    } else {
-      (await this.progressReporterPromise).report(message);
-    }
-  }
-}
 
 function updateDiagnostics(
   fileDiagnostics: DefaultMap<string, Array<LspDiagnostic>>,

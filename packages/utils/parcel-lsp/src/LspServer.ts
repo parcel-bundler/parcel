@@ -38,6 +38,7 @@ import {
   TextDocumentPositionParams,
   TextDocumentSyncKind,
   InitializeResult,
+  WorkDoneProgressServerReporter,
 } from 'vscode-languageserver/node';
 
 import {
@@ -50,6 +51,8 @@ import {
 
 import {SocketMessageReader, SocketMessageWriter} from 'vscode-jsonrpc/node';
 import * as net from 'net';
+import * as invariant from 'assert';
+import nullthrows from 'nullthrows';
 
 import {TextDocument} from 'vscode-languageserver-textdocument';
 
@@ -116,6 +119,42 @@ connection.onInitialized(() => {
   }
 });
 
+class ProgressReporter {
+  progressReporterPromise?: Promise<WorkDoneProgressServerReporter> | null;
+  lastMessage?: string;
+  begin() {
+    this.progressReporterPromise = (async () => {
+      let reporter = await connection.window.createWorkDoneProgress();
+      reporter.begin('Parcel');
+      return reporter;
+    })();
+    this.progressReporterPromise.then(reporter => {
+      if (this.lastMessage != null) {
+        console.log('reporting last message', this.lastMessage);
+        reporter.report(this.lastMessage);
+      }
+    });
+  }
+  async done() {
+    if (this.progressReporterPromise == null) {
+      this.begin();
+    }
+    invariant(this.progressReporterPromise != null);
+    (await this.progressReporterPromise).done();
+    this.progressReporterPromise = null;
+  }
+  async report(message: string) {
+    if (this.progressReporterPromise == null) {
+      this.lastMessage = message;
+      this.begin();
+    } else {
+      let r = await this.progressReporterPromise;
+      console.log('reporting', message);
+      r.report(message);
+    }
+  }
+}
+
 function createLanguageClientIfPossible(
   parcelLspDir: string,
   filename: string,
@@ -146,38 +185,31 @@ function createLanguageClientIfPossible(
     //Detached true probably
     detached: true,
   };
-
-  // Options to control the language client
-  // let clientOptions: LanguageClientOptions = {
-  //   errorHandler: {
-  //     closed: () => CloseAction.DoNotRestart,
-  //     error: () => ErrorAction.Continue,
-  //   },
-  // };
-
-  // // Create the language client and start the client.
-  // let client = new LanguageClient(
-  //   'parcel-lsp',
-  //   'Parcel LSP',
-  //   serverOptions,
-  //   clientOptions,
-  // );
-  // client.onReady().then(() => console.log('ready'));
-  // // Start the client. This will also launch the server
-  // client.start();
-  // console.log('client started');
-  // return client;
 }
+
+let progressReporter = new ProgressReporter();
+
 let clients = [];
 
 let parcelLspDir = path.join(os.tmpdir(), 'parcel-lsp');
-console.log({parcelLspDir});
 for (let filename of fs.readdirSync(parcelLspDir)) {
-  console.log({filename});
   let client = createLanguageClientIfPossible(parcelLspDir, filename);
   client?.reader.listen(msg => {
-    console.log('MESSAG RECEIVED');
-    console.log(msg);
+    let {method, params} = msg as any;
+
+    if (method === '$/progress') {
+      if (params.token) {
+        progressReporter.report(params.token);
+      } else if (progressReporter.progressReporterPromise) {
+        progressReporter.done();
+      } else {
+        progressReporter.begin();
+      }
+    } else if (method === 'textDocument/publishDiagnostics') {
+      connection.sendDiagnostics(params);
+    }
+
+    // console.log(msg);
   });
 
   if (client) {
