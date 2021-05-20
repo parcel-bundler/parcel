@@ -1780,6 +1780,21 @@ describe('javascript', function() {
     assert.strictEqual(output, 'abc');
   });
 
+  it('should inline computed accesses with string literals to process.env', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/env-computed-string/index.js'),
+      {
+        env: {ABC: 'XYZ'},
+      },
+    );
+
+    let contents = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(!contents.includes('process.env'));
+
+    let output = await run(b);
+    assert.strictEqual(output, 'XYZ');
+  });
+
   it('should insert environment variables from a file', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/env-file/index.js'),
