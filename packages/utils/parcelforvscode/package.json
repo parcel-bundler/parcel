@@ -36,6 +36,7 @@
     "vscode-test": "^1.5.0"
   },
   "dependencies": {
+    "@parcel/lsp": "2.0.0-beta.2",
     "vscode-languageclient": "^7.0.0"
   }
 }

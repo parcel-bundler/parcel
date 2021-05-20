@@ -7,6 +7,7 @@ import type {FilePath} from '@parcel/types';
 import {
   createClientPipeTransport,
   generateRandomPipeName,
+  createMessageConnection,
 } from 'vscode-jsonrpc';
 import {createConnection, DiagnosticSeverity} from 'vscode-languageserver/node';
 import {DefaultMap, getProgressMessage} from '@parcel/utils';
@@ -77,7 +78,11 @@ export default (new Reporter({
             }),
           );
 
-          connection = await createConnection(
+          // connection = await createConnection(
+          //   ...(await transport.onConnected()),
+          // );
+
+          connection = createMessageConnection(
             ...(await transport.onConnected()),
           );
 
