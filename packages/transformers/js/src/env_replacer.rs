@@ -54,37 +54,20 @@ impl<'a> Fold for EnvReplacer<'a> {
       if let MemberExpr {
         obj: Expr(ref expr),
         ref prop,
-        computed: false,
+        computed,
         ..
       } = member
       {
         if let Member(member) = &**expr {
           if match_member_expr(member, vec!["process", "env"], self.decls) {
-            if let Lit(Lit::Str(Str { value: ref sym, .. })) | Ident(Ident { ref sym, .. }) =
-              &**prop
-            {
-              if let Some(val) = self.env.get(sym) {
-                self.used_env.insert(sym.clone());
-                return Lit(Lit::Str(ast::Str {
-                  span: DUMMY_SP,
-                  value: val.into(),
-                  has_escape: false,
-                  kind: ast::StrKind::Synthesized,
-                }));
-              } else {
-                match sym as &str {
-                  // don't replace process.env.hasOwnProperty with undefined
-                  "hasOwnProperty"
-                  | "isPrototypeOf"
-                  | "propertyIsEnumerable"
-                  | "toLocaleString"
-                  | "toSource"
-                  | "toString"
-                  | "valueOf" => {}
-                  _ => {
-                    self.used_env.insert(sym.clone());
-                    return Ident(Ident::new(js_word!("undefined"), DUMMY_SP));
-                  }
+            if let Lit(Lit::Str(Str { value: ref sym, .. })) = &**prop {
+              if let Some(replacement) = self.replace(sym) {
+                return replacement;
+              }
+            } else if let Ident(Ident { ref sym, .. }) = &**prop {
+              if !computed {
+                if let Some(replacement) = self.replace(sym) {
+                  return replacement;
                 }
               }
             }
@@ -94,5 +77,37 @@ impl<'a> Fold for EnvReplacer<'a> {
     }
 
     swc_ecmascript::visit::fold_expr(self, node)
+  }
+}
+
+impl<'a> EnvReplacer<'a> {
+  fn replace(&mut self, sym: &JsWord) -> Option<ast::Expr> {
+    use ast::{Expr::*, Ident, Lit};
+
+    if let Some(val) = self.env.get(sym) {
+      self.used_env.insert(sym.clone());
+      return Some(Lit(Lit::Str(ast::Str {
+        span: DUMMY_SP,
+        value: val.into(),
+        has_escape: false,
+        kind: ast::StrKind::Synthesized,
+      })));
+    } else {
+      match sym as &str {
+        // don't replace process.env.hasOwnProperty with undefined
+        "hasOwnProperty"
+        | "isPrototypeOf"
+        | "propertyIsEnumerable"
+        | "toLocaleString"
+        | "toSource"
+        | "toString"
+        | "valueOf" => {}
+        _ => {
+          self.used_env.insert(sym.clone());
+          return Some(Ident(Ident::new(js_word!("undefined"), DUMMY_SP)));
+        }
+      };
+    }
+    None
   }
 }
