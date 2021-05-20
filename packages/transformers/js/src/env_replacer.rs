@@ -39,69 +39,60 @@ impl<'a> Fold for EnvReplacer<'a> {
       }
     }
 
-    match node {
-      Member(ref member) => {
-        if self.is_browser && match_member_expr(member, vec!["process", "browser"], self.decls) {
-          return Lit(Lit::Bool(Bool {
-            value: true,
-            span: DUMMY_SP,
-          }));
-        }
+    if let Member(ref member) = node {
+      if self.is_browser && match_member_expr(member, vec!["process", "browser"], self.decls) {
+        return Lit(Lit::Bool(Bool {
+          value: true,
+          span: DUMMY_SP,
+        }));
+      }
 
-        if !self.replace_env {
-          return node;
-        }
+      if !self.replace_env {
+        return node;
+      }
 
-        match member {
-          MemberExpr {
-            obj: Expr(ref expr),
-            ref prop,
-            computed: false,
-            ..
-          } => {
-            match &**expr {
-              Member(member) => {
-                if match_member_expr(member, vec!["process", "env"], self.decls) {
-                  match &**prop {
-                    Lit(Lit::Str(Str { value: ref sym, .. })) | Ident(Ident { ref sym, .. }) => {
-                      if let Some(val) = self.env.get(sym) {
-                        self.used_env.insert(sym.clone());
-                        return Lit(Lit::Str(ast::Str {
-                          span: DUMMY_SP,
-                          value: val.into(),
-                          has_escape: false,
-                          kind: ast::StrKind::Synthesized,
-                        }));
-                      } else {
-                        match sym as &str {
-                          // don't replace process.env.hasOwnProperty with undefined
-                          "hasOwnProperty"
-                          | "isPrototypeOf"
-                          | "propertyIsEnumerable"
-                          | "toLocaleString"
-                          | "toSource"
-                          | "toString"
-                          | "valueOf" => {}
-                          _ => {
-                            self.used_env.insert(sym.clone());
-                            return Ident(Ident::new(js_word!("undefined"), DUMMY_SP));
-                          }
-                        }
-                      }
-                    }
-                    _ => {}
+      if let MemberExpr {
+        obj: Expr(ref expr),
+        ref prop,
+        computed: false,
+        ..
+      } = member
+      {
+        if let Member(member) = &**expr {
+          if match_member_expr(member, vec!["process", "env"], self.decls) {
+            if let Lit(Lit::Str(Str { value: ref sym, .. })) | Ident(Ident { ref sym, .. }) =
+              &**prop
+            {
+              if let Some(val) = self.env.get(sym) {
+                self.used_env.insert(sym.clone());
+                return Lit(Lit::Str(ast::Str {
+                  span: DUMMY_SP,
+                  value: val.into(),
+                  has_escape: false,
+                  kind: ast::StrKind::Synthesized,
+                }));
+              } else {
+                match sym as &str {
+                  // don't replace process.env.hasOwnProperty with undefined
+                  "hasOwnProperty"
+                  | "isPrototypeOf"
+                  | "propertyIsEnumerable"
+                  | "toLocaleString"
+                  | "toSource"
+                  | "toString"
+                  | "valueOf" => {}
+                  _ => {
+                    self.used_env.insert(sym.clone());
+                    return Ident(Ident::new(js_word!("undefined"), DUMMY_SP));
                   }
                 }
               }
-              _ => {}
             }
           }
-          _ => {}
         }
       }
-      _ => {}
     }
 
-    return swc_ecmascript::visit::fold_expr(self, node);
+    swc_ecmascript::visit::fold_expr(self, node)
   }
 }
