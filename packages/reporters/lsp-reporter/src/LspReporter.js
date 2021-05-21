@@ -38,7 +38,14 @@ export default (new Reporter({
         ipc.config.id = transportName;
         ipc.config.retry = 1500;
         ipc.config.logger = message => logger.verbose({message});
-        ipc.serve();
+        ipc.serve(() =>
+          ipc.server.on('init', (_, socket) =>
+            ipc.server.emit(socket, 'message', {
+              type: 'parcelFileDiagnostics',
+              fileDiagnostics: [...fileDiagnostics],
+            }),
+          ),
+        );
         ipc.server.start();
 
         // Create a file to ID the transport
