@@ -92,7 +92,6 @@ connection.onInitialize((params: InitializeParams) => {
     },
   };
 
-  console.log({result});
   if (hasWorkspaceFolderCapability) {
     result.capabilities.workspace = {
       workspaceFolders: {
@@ -104,7 +103,6 @@ connection.onInitialize((params: InitializeParams) => {
 });
 
 connection.onInitialized(() => {
-  console.log('initialized!');
   if (hasConfigurationCapability) {
     // Register for all configuration changes.
     connection.client.register(
@@ -130,7 +128,6 @@ class ProgressReporter {
     })();
     this.progressReporterPromise.then(reporter => {
       if (this.lastMessage != null) {
-        console.log('reporting last message', this.lastMessage);
         reporter.report(this.lastMessage);
       }
     });
@@ -149,7 +146,6 @@ class ProgressReporter {
       this.begin();
     } else {
       let r = await this.progressReporterPromise;
-      console.log('reporting', message);
       r.report(message);
     }
   }
@@ -175,35 +171,40 @@ function createLanguageClientIfPossible(
     console.log(e);
     return;
   }
-  // If the extension is launched in debug mode then the debug server options are used
-  // Otherwise the run options are used
 
-  // let socket = net.connect(transportName);
-  // return {
-  //   reader: new SocketMessageReader(socket),
-  //   writer: new SocketMessageWriter(socket),
-  //   //Detached true probably
-  //   detached: true,
-  // };
   let client = new IPC();
   client.config.id = `parcel-lsp-${process.pid}`;
   client.config.retry = 1500;
   client.connectTo(transportName, function() {
-    client.of[transportName].on('connect', function() {
-      client.log('## connected to world ##', (client.config as any).delay);
-      client.of[transportName].emit(
-        'message', //any event or message type your server listens for
-        'hello',
-      );
-    });
-    client.of[transportName].on('disconnect', function() {
-      client.log('disconnected from world');
-    });
     client.of[transportName].on(
       'message', //any event or message type your server listens for
       function(data: any) {
-        // connection.sendMessage(data);
-        client.log('got a message from world : ', data);
+        switch (data.type) {
+          case 'parcelBuildEnd':
+            progressReporter.done();
+            break;
+
+          case 'parcelFileDiagnostics':
+            for (let [uri, diagnostics] of data.fileDiagnostics) {
+              connection.sendDiagnostics({uri, diagnostics});
+            }
+            break;
+
+          case 'parcelBuildSuccess':
+            progressReporter.done();
+            break;
+
+          case 'parcelBuildStart':
+            progressReporter.begin();
+            break;
+
+          case 'parcelBuildProgress':
+            progressReporter.report(data.message);
+            break;
+
+          default:
+            throw new Error();
+        }
       },
     );
   });
@@ -218,23 +219,6 @@ let clients = [];
 let parcelLspDir = path.join(os.tmpdir(), 'parcel-lsp');
 for (let filename of fs.readdirSync(parcelLspDir)) {
   let client = createLanguageClientIfPossible(parcelLspDir, filename);
-  // client?.reader.listen(msg => {
-  //   let {method, params} = msg as any;
-
-  //   if (method === '$/progress') {
-  //     if (params.token) {
-  //       progressReporter.report(params.token);
-  //     } else if (progressReporter.progressReporterPromise) {
-  //       progressReporter.done();
-  //     } else {
-  //       progressReporter.begin();
-  //     }
-  //   } else if (method === 'textDocument/publishDiagnostics') {
-  //     connection.sendDiagnostics(params);
-  //   }
-
-  //   // console.log(msg);
-  // });
   if (client) {
     clients.push(client);
   }

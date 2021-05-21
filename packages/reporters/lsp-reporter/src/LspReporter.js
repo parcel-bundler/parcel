@@ -4,36 +4,20 @@
 import type {Diagnostic as ParcelDiagnostic} from '@parcel/diagnostic';
 import type {FilePath} from '@parcel/types';
 
-import {
-  createClientPipeTransport,
-  generateRandomPipeName,
-  createMessageConnection,
-} from 'vscode-jsonrpc';
-import {
-  createConnection,
-  DiagnosticSeverity,
-  WorkDoneProgressBegin,
-  WorkDoneProgressReport,
-  WorkDoneProgressEnd,
-  PublishDiagnosticsNotification,
-} from 'vscode-languageserver/node';
+import {DiagnosticSeverity} from 'vscode-languageserver/node';
 
 import {DefaultMap, getProgressMessage} from '@parcel/utils';
 import {Reporter} from '@parcel/plugin';
 import invariant from 'assert';
 import path from 'path';
-import nullthrows from 'nullthrows';
 import os from 'os';
 import fs from 'fs';
 import ps from 'ps-node';
 import {promisify} from 'util';
 import ipc from 'node-ipc';
-import {StreamMessageReader, StreamMessageWriter} from 'vscode-jsonrpc/node';
 
 const lookupPid = promisify(ps.lookup);
 
-// flowlint-next-line unclear-type:off
-type WorkDoneProgressServerReporter = any;
 // flowlint-next-line unclear-type:off
 type LspDiagnostic = any;
 
@@ -46,33 +30,15 @@ let fileDiagnostics: DefaultMap<
 > = new DefaultMap(() => []);
 let pipeFilename;
 
-let sockets = new Set();
-
-let clientConnection = createMessageConnection({
-  reader: new StreamMessageReader(),
-  writer: new StreamMessageWriter(),
-});
-
 export default (new Reporter({
-  async report({event, options}) {
+  async report({event, logger, options}) {
     switch (event.type) {
       case 'watchStart': {
         let transportName = `parcel-${process.pid}`;
         ipc.config.id = transportName;
         ipc.config.retry = 1500;
-
-        ipc.serve(() => {
-          ipc.server.on('message', (data, socket) => {
-            ipc.log('got a message : ', data);
-            sockets.add(socket);
-          });
-
-          ipc.server.on('socket.disconnected', (socket, id) => {
-            ipc.log(`client ${id} has disconnected!`);
-            sockets.delete(socket);
-          });
-        });
-
+        ipc.config.logger = message => logger.verbose({message});
+        ipc.serve();
         ipc.server.start();
 
         // Create a file to ID the transport
@@ -106,101 +72,66 @@ export default (new Reporter({
           invariant(pipeFilename);
           fs.unlinkSync(pipeFilename);
         } else if (fileDiagnostics.size > 0) {
-          // for (let [uri, diagnostics] of fileDiagnostics) {
-          //   ipc.server.connection.sendNotification(
-          //     PublishDiagnosticsNotification.type,
-          //     {
-          //       uri,
-          //       diagnostics,
-          //     },
-          //   );
-          // }
+          ipc.server.broadcast('message', {
+            type: 'parcelFileDiagnostics',
+            fileDiagnostics: [...fileDiagnostics],
+          });
         }
         break;
       }
       case 'buildStart': {
-        for (let socket of sockets.values()) {
-          ipc.server.emit(socket, WorkDoneProgressBegin);
-        }
-
-        // nullthrows(connectionPromise).then(async connection => {
-        //   connection.sendProgress(WorkDoneProgressBegin);
-        //   let filePaths = [...fileDiagnostics.keys()];
-        //   fileDiagnostics.clear();
-
-        //   await Promise.all(
-        //     filePaths.map(uri =>
-        //       connection.sendNotification(PublishDiagnosticsNotification.type, {
-        //         uri,
-        //         diagnostics: [],
-        //       }),
-        //     ),
-        //   );
-        // });
-
+        ipc.server.broadcast('message', {type: 'parcelBuildStart'});
+        ipc.server.broadcast('message', {
+          type: 'parcelFileDiagnostics',
+          fileDiagnostics: [...fileDiagnostics].map(([uri]) => [uri, []]),
+        });
+        fileDiagnostics.clear();
         break;
       }
       case 'buildSuccess':
-        for (let socket of sockets.values()) {
-          ipc.server.emit(socket, WorkDoneProgressEnd);
-        }
-        // nullthrows(connectionPromise).then(connection => {
-        //   connection.sendProgress(WorkDoneProgressEnd);
-        //   for (let [uri, diagnostics] of fileDiagnostics) {
-        //     connection.sendNotification(PublishDiagnosticsNotification.type, {
-        //       uri,
-        //       diagnostics,
-        //     });
-        //   }
-        // });
+        ipc.server.broadcast('message', {type: 'parcelBuildSuccess'});
+        ipc.server.broadcast('message', {
+          type: 'parcelFileDiagnostics',
+          fileDiagnostics: [...fileDiagnostics],
+        });
         break;
       case 'buildFailure': {
-        for (let socket of sockets.values()) {
-          ipc.server.emit(socket, WorkDoneProgressEnd);
-        }
-        // updateDiagnostics(
-        //   fileDiagnostics,
-        //   event.diagnostics,
-        //   'error',
-        //   options.projectRoot,
-        // );
-
-        // nullthrows(connectionPromise).then(connection => {
-        //   for (let [uri, diagnostics] of fileDiagnostics) {
-        //     connection.sendNotification(PublishDiagnosticsNotification.type, {
-        //       uri,
-        //       diagnostics,
-        //     });
-        //   }
-        //   connection.sendProgress(WorkDoneProgressEnd);
-        // });
+        updateDiagnostics(
+          fileDiagnostics,
+          event.diagnostics,
+          'error',
+          options.projectRoot,
+        );
+        ipc.server.broadcast('message', {type: 'parcelBuildEnd'});
+        ipc.server.broadcast('message', {
+          type: 'parcelFileDiagnostics',
+          fileDiagnostics: [...fileDiagnostics],
+        });
         break;
       }
       case 'log':
-        // if (
-        //   event.diagnostics != null &&
-        //   (event.level === 'error' ||
-        //     event.level === 'warn' ||
-        //     event.level === 'info' ||
-        //     event.level === 'verbose')
-        // ) {
-        //   updateDiagnostics(
-        //     fileDiagnostics,
-        //     event.diagnostics,
-        //     event.level,
-        //     options.projectRoot,
-        //   );
-        // }
+        if (
+          event.diagnostics != null &&
+          (event.level === 'error' ||
+            event.level === 'warn' ||
+            event.level === 'info' ||
+            event.level === 'verbose')
+        ) {
+          updateDiagnostics(
+            fileDiagnostics,
+            event.diagnostics,
+            event.level,
+            options.projectRoot,
+          );
+        }
         break;
       case 'buildProgress': {
         let message = getProgressMessage(event);
         if (message != null) {
-          //   connectionPromise.then(connection =>
-          //     connection.sendProgress(WorkDoneProgressReport, message),
-          //   );
-          for (let socket of sockets.values()) {
-            ipc.server.emit(socket, WorkDoneProgressReport, message);
-          }
+          ipc.server.broadcast('message', {
+            type: 'parcelBuildProgress',
+            message,
+          });
         }
         break;
       }
