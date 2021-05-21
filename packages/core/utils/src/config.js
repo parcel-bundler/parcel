@@ -15,6 +15,7 @@ export type ConfigOutput = {|
 
 export type ConfigOptions = {|
   parse?: boolean,
+  parser?: string => any,
 |};
 
 const configCache = new LRU<FilePath, ConfigOutput>({max: 500});
@@ -87,7 +88,7 @@ export async function loadConfig(
       if (parse === false) {
         config = configContent;
       } else {
-        let parse = getParser(extname);
+        let parse = opts?.parser ?? getParser(extname);
         config = parse(configContent);
       }
 
