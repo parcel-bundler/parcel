@@ -22,6 +22,7 @@
   "dependencies": {
     "@parcel/plugin": "2.0.0-beta.2",
     "@parcel/utils": "2.0.0-beta.2",
+    "node-ipc": "^9.1.4",
     "nullthrows": "^1.1.1",
     "ps-node": "^0.1.6",
     "vscode-jsonrpc": "^6.0.0",

@@ -27,6 +27,8 @@ import os from 'os';
 import fs from 'fs';
 import ps from 'ps-node';
 import {promisify} from 'util';
+import ipc from 'node-ipc';
+import {StreamMessageReader, StreamMessageWriter} from 'vscode-jsonrpc/node';
 
 const lookupPid = promisify(ps.lookup);
 
@@ -37,9 +39,6 @@ type LspDiagnostic = any;
 
 type ParcelSeverity = 'error' | 'warn' | 'info' | 'verbose';
 
-let connectionPromise;
-let connection;
-// let progressReporter: ?ProgressReporter;
 let watchEnded = false;
 let fileDiagnostics: DefaultMap<
   string,
@@ -47,176 +46,170 @@ let fileDiagnostics: DefaultMap<
 > = new DefaultMap(() => []);
 let pipeFilename;
 
-let exit = process.exit.bind(process);
-process.exit = (...args) => {
-  console.error(...args);
-  console.log('process.exit called');
-  exit(...args);
-};
+let sockets = new Set();
+
+let clientConnection = createMessageConnection({
+  reader: new StreamMessageReader(),
+  writer: new StreamMessageWriter(),
+});
 
 export default (new Reporter({
   async report({event, options}) {
     switch (event.type) {
       case 'watchStart': {
-        //TODO: include pid in createServerPipeTransport
-        connectionPromise = (async () => {
-          let transportName = generateRandomPipeName();
-          let transport = await createClientPipeTransport(transportName);
-          // Create a file to ID the transport
-          let pathname = path.join(os.tmpdir(), 'parcel-lsp');
-          await fs.promises.mkdir(pathname, {recursive: true});
+        let transportName = `parcel-${process.pid}`;
+        ipc.config.id = transportName;
+        ipc.config.retry = 1500;
 
-          // For each existing file, check if the pid matches a running process.
-          // If no process matches, delete the file, assuming it was orphaned
-          // by a process that quit unexpectedly.
-          for (let filename of fs.readdirSync(pathname)) {
-            let pid = parseInt(filename, 10);
-            let resultList = await lookupPid({pid});
-            if (resultList.length) continue;
-            fs.unlinkSync(path.join(pathname, filename));
-          }
+        ipc.serve(() => {
+          ipc.server.on('message', (data, socket) => {
+            ipc.log('got a message : ', data);
+            sockets.add(socket);
+          });
 
-          pipeFilename = path.join(pathname, String(process.pid));
-          await fs.promises.writeFile(
-            pipeFilename,
-            JSON.stringify({
-              transportName,
-              pid: process.pid,
-              argv: process.argv,
-            }),
-          );
-
-          // connection = await createConnection(
-          //   ...(await transport.onConnected()),
-          // );
-
-          connection = createMessageConnection(
-            ...(await transport.onConnected()),
-          );
-
-          // return new Promise((resolve, reject) => {
-          // connection.onInitialized(() => {
-          //   console.debug('Connection is initialized');
-          //   invariant(connection != null);
-          //   resolve(connection);
-          // });
-          invariant(connection != null);
-          connection.listen();
-          console.debug('connection listening...');
-          return connection;
-          // });
-        })();
-        // progressReporter = new ProgressReporter();
-        nullthrows(connectionPromise).then(connection => {
-          if (fileDiagnostics.size > 0) {
-            if (connection != null) {
-              for (let [uri, diagnostics] of fileDiagnostics) {
-                connection.sendNotification(
-                  PublishDiagnosticsNotification.type,
-                  {
-                    uri,
-                    diagnostics,
-                  },
-                );
-              }
-            }
-          }
-
-          if (watchEnded) {
-            connection.dispose();
-            invariant(pipeFilename);
-            fs.unlinkSync(pipeFilename);
-          }
+          ipc.server.on('socket.disconnected', (socket, id) => {
+            ipc.log(`client ${id} has disconnected!`);
+            sockets.delete(socket);
+          });
         });
+
+        ipc.server.start();
+
+        // Create a file to ID the transport
+        let pathname = path.join(os.tmpdir(), 'parcel-lsp');
+        await fs.promises.mkdir(pathname, {recursive: true});
+
+        // For each existing file, check if the pid matches a running process.
+        // If no process matches, delete the file, assuming it was orphaned
+        // by a process that quit unexpectedly.
+        for (let filename of fs.readdirSync(pathname)) {
+          let pid = parseInt(filename, 10);
+          let resultList = await lookupPid({pid});
+          if (resultList.length) continue;
+          fs.unlinkSync(path.join(pathname, filename));
+        }
+
+        pipeFilename = path.join(pathname, String(process.pid));
+        await fs.promises.writeFile(
+          pipeFilename,
+          JSON.stringify({
+            transportName,
+            pid: process.pid,
+            argv: process.argv,
+          }),
+        );
+
+        console.debug('connection listening...');
+
+        if (watchEnded) {
+          ipc.server.stop();
+          invariant(pipeFilename);
+          fs.unlinkSync(pipeFilename);
+        } else if (fileDiagnostics.size > 0) {
+          // for (let [uri, diagnostics] of fileDiagnostics) {
+          //   ipc.server.connection.sendNotification(
+          //     PublishDiagnosticsNotification.type,
+          //     {
+          //       uri,
+          //       diagnostics,
+          //     },
+          //   );
+          // }
+        }
         break;
       }
       case 'buildStart': {
-        nullthrows(connectionPromise).then(async connection => {
-          connection.sendProgress(WorkDoneProgressBegin);
-          let filePaths = [...fileDiagnostics.keys()];
-          fileDiagnostics.clear();
+        for (let socket of sockets.values()) {
+          ipc.server.emit(socket, WorkDoneProgressBegin);
+        }
 
-          await Promise.all(
-            filePaths.map(uri =>
-              connection.sendNotification(PublishDiagnosticsNotification.type, {
-                uri,
-                diagnostics: [],
-              }),
-            ),
-          );
-        });
+        // nullthrows(connectionPromise).then(async connection => {
+        //   connection.sendProgress(WorkDoneProgressBegin);
+        //   let filePaths = [...fileDiagnostics.keys()];
+        //   fileDiagnostics.clear();
+
+        //   await Promise.all(
+        //     filePaths.map(uri =>
+        //       connection.sendNotification(PublishDiagnosticsNotification.type, {
+        //         uri,
+        //         diagnostics: [],
+        //       }),
+        //     ),
+        //   );
+        // });
 
         break;
       }
       case 'buildSuccess':
-        nullthrows(connectionPromise).then(connection => {
-          connection.sendProgress(WorkDoneProgressEnd);
-          for (let [uri, diagnostics] of fileDiagnostics) {
-            connection.sendNotification(PublishDiagnosticsNotification.type, {
-              uri,
-              diagnostics,
-            });
-          }
-        });
+        for (let socket of sockets.values()) {
+          ipc.server.emit(socket, WorkDoneProgressEnd);
+        }
+        // nullthrows(connectionPromise).then(connection => {
+        //   connection.sendProgress(WorkDoneProgressEnd);
+        //   for (let [uri, diagnostics] of fileDiagnostics) {
+        //     connection.sendNotification(PublishDiagnosticsNotification.type, {
+        //       uri,
+        //       diagnostics,
+        //     });
+        //   }
+        // });
         break;
       case 'buildFailure': {
-        updateDiagnostics(
-          fileDiagnostics,
-          event.diagnostics,
-          'error',
-          options.projectRoot,
-        );
+        for (let socket of sockets.values()) {
+          ipc.server.emit(socket, WorkDoneProgressEnd);
+        }
+        // updateDiagnostics(
+        //   fileDiagnostics,
+        //   event.diagnostics,
+        //   'error',
+        //   options.projectRoot,
+        // );
 
-        nullthrows(connectionPromise).then(connection => {
-          for (let [uri, diagnostics] of fileDiagnostics) {
-            connection.sendNotification(PublishDiagnosticsNotification.type, {
-              uri,
-              diagnostics,
-            });
-          }
-          connection.sendProgress(WorkDoneProgressEnd);
-        });
+        // nullthrows(connectionPromise).then(connection => {
+        //   for (let [uri, diagnostics] of fileDiagnostics) {
+        //     connection.sendNotification(PublishDiagnosticsNotification.type, {
+        //       uri,
+        //       diagnostics,
+        //     });
+        //   }
+        //   connection.sendProgress(WorkDoneProgressEnd);
+        // });
         break;
       }
       case 'log':
-        if (
-          event.diagnostics != null &&
-          (event.level === 'error' ||
-            event.level === 'warn' ||
-            event.level === 'info' ||
-            event.level === 'verbose')
-        ) {
-          updateDiagnostics(
-            fileDiagnostics,
-            event.diagnostics,
-            event.level,
-            options.projectRoot,
-          );
-        }
+        // if (
+        //   event.diagnostics != null &&
+        //   (event.level === 'error' ||
+        //     event.level === 'warn' ||
+        //     event.level === 'info' ||
+        //     event.level === 'verbose')
+        // ) {
+        //   updateDiagnostics(
+        //     fileDiagnostics,
+        //     event.diagnostics,
+        //     event.level,
+        //     options.projectRoot,
+        //   );
+        // }
         break;
       case 'buildProgress': {
         let message = getProgressMessage(event);
         if (message != null) {
-          connectionPromise.then(connection =>
-            connection.sendProgress(WorkDoneProgressReport, message),
-          );
+          //   connectionPromise.then(connection =>
+          //     connection.sendProgress(WorkDoneProgressReport, message),
+          //   );
+          for (let socket of sockets.values()) {
+            ipc.server.emit(socket, WorkDoneProgressReport, message);
+          }
         }
         break;
       }
       case 'watchEnd':
         watchEnded = true;
-        if (connectionPromise == null) {
-          break;
-        }
-        if (connection != null) {
-          connection.dispose();
-        }
         if (pipeFilename != null) {
           fs.unlinkSync(pipeFilename);
         }
-
-        connectionPromise = null;
-        connection = null;
+        ipc.server.stop();
         console.debug('connection disposed of');
         break;
     }

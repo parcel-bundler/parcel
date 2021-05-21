@@ -49,10 +49,10 @@ import {
   MessageTransports,
 } from 'vscode-languageclient/node';
 
-import {SocketMessageReader, SocketMessageWriter} from 'vscode-jsonrpc/node';
 import * as net from 'net';
 import * as invariant from 'assert';
 import nullthrows from 'nullthrows';
+import {IPC} from 'node-ipc';
 
 import {TextDocument} from 'vscode-languageserver-textdocument';
 
@@ -158,7 +158,7 @@ class ProgressReporter {
 function createLanguageClientIfPossible(
   parcelLspDir: string,
   filename: string,
-): MessageTransports | undefined {
+): any {
   let pipeFilename = path.join(parcelLspDir, filename);
   if (!fs.existsSync(pipeFilename)) {
     return;
@@ -178,13 +178,37 @@ function createLanguageClientIfPossible(
   // If the extension is launched in debug mode then the debug server options are used
   // Otherwise the run options are used
 
-  let socket = net.connect(transportName);
-  return {
-    reader: new SocketMessageReader(socket),
-    writer: new SocketMessageWriter(socket),
-    //Detached true probably
-    detached: true,
-  };
+  // let socket = net.connect(transportName);
+  // return {
+  //   reader: new SocketMessageReader(socket),
+  //   writer: new SocketMessageWriter(socket),
+  //   //Detached true probably
+  //   detached: true,
+  // };
+  let client = new IPC();
+  client.config.id = `parcel-lsp-${process.pid}`;
+  client.config.retry = 1500;
+  client.connectTo(transportName, function() {
+    client.of[transportName].on('connect', function() {
+      client.log('## connected to world ##', (client.config as any).delay);
+      client.of[transportName].emit(
+        'message', //any event or message type your server listens for
+        'hello',
+      );
+    });
+    client.of[transportName].on('disconnect', function() {
+      client.log('disconnected from world');
+    });
+    client.of[transportName].on(
+      'message', //any event or message type your server listens for
+      function(data: any) {
+        // connection.sendMessage(data);
+        client.log('got a message from world : ', data);
+      },
+    );
+  });
+
+  return client;
 }
 
 let progressReporter = new ProgressReporter();
@@ -194,24 +218,23 @@ let clients = [];
 let parcelLspDir = path.join(os.tmpdir(), 'parcel-lsp');
 for (let filename of fs.readdirSync(parcelLspDir)) {
   let client = createLanguageClientIfPossible(parcelLspDir, filename);
-  client?.reader.listen(msg => {
-    let {method, params} = msg as any;
+  // client?.reader.listen(msg => {
+  //   let {method, params} = msg as any;
 
-    if (method === '$/progress') {
-      if (params.token) {
-        progressReporter.report(params.token);
-      } else if (progressReporter.progressReporterPromise) {
-        progressReporter.done();
-      } else {
-        progressReporter.begin();
-      }
-    } else if (method === 'textDocument/publishDiagnostics') {
-      connection.sendDiagnostics(params);
-    }
+  //   if (method === '$/progress') {
+  //     if (params.token) {
+  //       progressReporter.report(params.token);
+  //     } else if (progressReporter.progressReporterPromise) {
+  //       progressReporter.done();
+  //     } else {
+  //       progressReporter.begin();
+  //     }
+  //   } else if (method === 'textDocument/publishDiagnostics') {
+  //     connection.sendDiagnostics(params);
+  //   }
 
-    // console.log(msg);
-  });
-
+  //   // console.log(msg);
+  // });
   if (client) {
     clients.push(client);
   }
