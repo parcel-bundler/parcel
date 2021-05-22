@@ -10,7 +10,7 @@ import ThrowableDiagnostic, {
   md,
 } from '@parcel/diagnostic';
 import SourceMap from '@parcel/source-map';
-import semver from 'semver';
+import semverSatisfies from 'semver/functions/satisfies';
 import {basename, extname, relative, dirname} from 'path';
 // $FlowFixMe
 import * as compiler from '@vue/compiler-sfc';
@@ -46,7 +46,7 @@ export default (new Transformer({
     });
   },
   canReuseAST({ast}) {
-    return ast.type === 'vue' && semver.satisfies(ast.version, '^3.0.0');
+    return ast.type === 'vue' && semverSatisfies(ast.version, '^3.0.0');
   },
   async parse({asset}) {
     // TODO: This parses the vue component multiple times. Fix?

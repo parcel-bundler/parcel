@@ -7,7 +7,8 @@ import {transform} from './native';
 import {isURL} from '@parcel/utils';
 import path from 'path';
 import browserslist from 'browserslist';
-import semver from 'semver';
+import semverGt from 'semver/functions/gt';
+import semverMinVersion from 'semver/ranges/min-version';
 import nullthrows from 'nullthrows';
 import ThrowableDiagnostic, {encodeJSONKeyComponent} from '@parcel/diagnostic';
 import {validateSchema, remapSourceLocation} from '@parcel/utils';
@@ -166,7 +167,7 @@ export default (new Transformer({
     if (asset.isSource) {
       if (asset.env.isElectron() && asset.env.engines.electron) {
         targets = {
-          electron: semver.minVersion(asset.env.engines.electron)?.toString(),
+          electron: semverMinVersion(asset.env.engines.electron)?.toString(),
         };
       } else if (asset.env.isBrowser() && asset.env.engines.browsers) {
         targets = {};
@@ -185,15 +186,12 @@ export default (new Transformer({
             .split('.');
           let semverVersion = `${major}.${minor}.${patch}`;
 
-          if (
-            targets[name] == null ||
-            semver.gt(targets[name], semverVersion)
-          ) {
+          if (targets[name] == null || semverGt(targets[name], semverVersion)) {
             targets[name] = semverVersion;
           }
         }
       } else if (asset.env.isNode() && asset.env.engines.node) {
-        targets = {node: semver.minVersion(asset.env.engines.node)?.toString()};
+        targets = {node: semverMinVersion(asset.env.engines.node)?.toString()};
       }
     }
 

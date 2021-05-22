@@ -12,7 +12,7 @@ import type {FileSystem} from '@parcel/fs';
 import invariant from 'assert';
 import path from 'path';
 import nullthrows from 'nullthrows';
-import semver from 'semver';
+import semverSatisfies from 'semver/functions/satisfies';
 import ThrowableDiagnostic, {
   generateJSONCodeHighlights,
   encodeJSONKeyComponent,
@@ -108,7 +108,7 @@ async function installPeerDependencies(
     if (conflicts) {
       let {pkg} = await packageManager.resolve(name, from);
       invariant(pkg);
-      if (!semver.satisfies(pkg.version, range)) {
+      if (!semverSatisfies(pkg.version, range)) {
         throw new ThrowableDiagnostic({
           diagnostic: {
             message: md`Could not install the peer dependency "${name}" for "${module.name}", installed version ${pkg.version} is incompatible with ${range}`,

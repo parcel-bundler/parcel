@@ -4,7 +4,7 @@ import {babelErrorEnhancer} from '@parcel/babel-ast-utils';
 import {Transformer} from '@parcel/plugin';
 import {relativeUrl} from '@parcel/utils';
 import SourceMap from '@parcel/source-map';
-import semver from 'semver';
+import semverSatisfies from 'semver/functions/satisfies';
 import generate from '@babel/generator';
 import babel7 from './babel7';
 import {load} from './config';
@@ -15,7 +15,7 @@ export default (new Transformer({
   },
 
   canReuseAST({ast}) {
-    return ast.type === 'babel' && semver.satisfies(ast.version, '^7.0.0');
+    return ast.type === 'babel' && semverSatisfies(ast.version, '^7.0.0');
   },
 
   async transform({asset, config, options}) {

@@ -26,6 +26,6 @@
     "nullthrows": "^1.1.1",
     "postcss": "^8.2.1",
     "postcss-value-parser": "^4.1.0",
-    "semver": "^5.4.1"
+    "semver": "^7.3.5"
   }
 }

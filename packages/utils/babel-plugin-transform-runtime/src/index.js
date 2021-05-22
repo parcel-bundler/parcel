@@ -1,4 +1,4 @@
-const semver = require('semver');
+const semverSatisfies = require('semver/functions/satisfies');
 const pluginTransformRuntime = require('@babel/plugin-transform-runtime')
   .default;
 
@@ -11,7 +11,7 @@ module.exports = function parcelPluginTransformRuntime(api, opts, dirname) {
   if (
     name === 'parcel' &&
     typeof version === 'string' &&
-    semver.satisfies(version, COMPATIBLE_PARCEL_BABEL_TRANSFORMER_SEMVER)
+    semverSatisfies(version, COMPATIBLE_PARCEL_BABEL_TRANSFORMER_SEMVER)
   ) {
     let outputFormat = api.caller(caller => {
       return caller && caller.outputFormat;

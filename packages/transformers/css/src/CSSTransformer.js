@@ -13,7 +13,7 @@ import {
 import postcss from 'postcss';
 import nullthrows from 'nullthrows';
 import valueParser from 'postcss-value-parser';
-import semver from 'semver';
+import semverSatisfies from 'semver/functions/satisfies';
 
 const URL_RE = /url\s*\("?(?![a-z]+:)/;
 const IMPORT_RE = /@import/;
@@ -24,7 +24,7 @@ function canHaveDependencies(filePath: FilePath, code: string) {
 
 export default (new Transformer({
   canReuseAST({ast}) {
-    return ast.type === 'postcss' && semver.satisfies(ast.version, '^8.2.1');
+    return ast.type === 'postcss' && semverSatisfies(ast.version, '^8.2.1');
   },
 
   async parse({asset}) {

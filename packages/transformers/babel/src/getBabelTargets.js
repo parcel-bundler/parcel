@@ -4,7 +4,7 @@ import type {Config} from '@parcel/types';
 import type {Targets as BabelTargets} from '@babel/preset-env';
 
 import browserslist from 'browserslist';
-import semver from 'semver';
+import semverMinVersion from 'semver/ranges/min-version';
 
 const BROWSER_CONTEXT = new Set(['browser', 'web-worker', 'service-worker']);
 
@@ -38,7 +38,7 @@ export default async function getBabelTargets(
     if (typeof nodeVersion === 'string') {
       try {
         //$FlowFixMe catch error when minVersion() returned null
-        targets.node = semver.minVersion(nodeVersion).version;
+        targets.node = semverMinVersion(nodeVersion).version;
       } catch (e) {
         throw new Error("Expected 'node' engine to be a valid Semver Range");
       }
