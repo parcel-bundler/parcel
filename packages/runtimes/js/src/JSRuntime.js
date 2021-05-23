@@ -173,7 +173,7 @@ export default (new Runtime({
         assets.push({
           filePath: __filename,
           dependency,
-          code: `module.exports = require("./" + ${getRelativePathExpr(
+          code: `module.exports = __parcel__require__("./" + ${getRelativePathExpr(
             bundle,
             mainBundle,
             options,
@@ -315,7 +315,11 @@ function getLoaderRuntime({
 
   // Determine if we need to add a dynamic import() polyfill, or if all target browsers support it natively.
   let needsDynamicImportPolyfill = false;
-  if (bundle.env.isBrowser() && bundle.env.outputFormat === 'esmodule') {
+  if (
+    !bundle.env.isLibrary &&
+    bundle.env.isBrowser() &&
+    bundle.env.outputFormat === 'esmodule'
+  ) {
     needsDynamicImportPolyfill = !bundle.env.matchesEngines(
       DYNAMIC_IMPORT_BROWSERS,
     );
@@ -333,7 +337,7 @@ function getLoaderRuntime({
       // Use esmodule loader if possible
       if (to.type === 'js' && to.env.outputFormat === 'esmodule') {
         if (!needsDynamicImportPolyfill) {
-          return `import("./" + ${relativePathExpr})`;
+          return `__parcel__import__("./" + ${relativePathExpr})`;
         }
 
         loader = nullthrows(
@@ -341,7 +345,7 @@ function getLoaderRuntime({
           `No import() polyfill available for context '${bundle.env.context}'`,
         );
       } else if (to.type === 'js' && to.env.outputFormat === 'commonjs') {
-        return `Promise.resolve(require("./" + ${relativePathExpr}))`;
+        return `Promise.resolve(__parcel__require__("./" + ${relativePathExpr}))`;
       }
 
       let code = `require(${JSON.stringify(
@@ -394,27 +398,19 @@ function getLoaderRuntime({
   }
 
   let loaderCode = loaderModules.join(', ');
-  if (
-    loaderModules.length > 1 &&
-    (bundle.env.outputFormat === 'global' ||
-      !externalBundles.every(b => b.type === 'js'))
-  ) {
+  if (loaderModules.length > 1) {
     loaderCode = `Promise.all([${loaderCode}])`;
-    if (bundle.env.outputFormat !== 'global') {
-      loaderCode += `.then(r => r[r.length - 1])`;
-    }
   } else {
     loaderCode = `(${loaderCode})`;
   }
 
-  if (bundle.env.outputFormat === 'global' && mainBundle.type === 'js') {
-    loaderCode += `.then(() => module.bundle.root('${bundleGraph.getAssetPublicId(
+  if (mainBundle.type === 'js') {
+    let parcelRequire = bundle.env.shouldScopeHoist
+      ? 'parcelRequire'
+      : 'module.bundle.root';
+    loaderCode += `.then(() => ${parcelRequire}('${bundleGraph.getAssetPublicId(
       bundleGraph.getAssetById(bundleGroup.entryAssetId),
-    )}')${
-      // In global output with scope hoisting, functions return exports are
-      // always returned. Otherwise, the exports are returned.
-      bundle.env.shouldScopeHoist ? '()' : ''
-    })`;
+    )}'))`;
   }
 
   return {

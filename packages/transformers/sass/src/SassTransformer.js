@@ -12,9 +12,12 @@ const WEBPACK_ALIAS_RE = /^~[^/]/;
 
 export default (new Transformer({
   async loadConfig({config, options}) {
-    let configFile = await config.getConfig(['.sassrc', '.sassrc.js'], {
-      packageKey: 'sass',
-    });
+    let configFile = await config.getConfig(
+      ['.sassrc', '.sassrc.json', '.sassrc.js'],
+      {
+        packageKey: 'sass',
+      },
+    );
 
     let configResult = configFile ? configFile.contents : {};
 
@@ -79,7 +82,7 @@ export default (new Transformer({
 
       if (result.map != null) {
         let map = new SourceMap(options.projectRoot);
-        map.addRawMappings(JSON.parse(result.map));
+        map.addVLQMap(JSON.parse(result.map));
         asset.setMap(map);
       }
     } catch (err) {

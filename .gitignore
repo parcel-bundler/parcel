@@ -1,4 +1,5 @@
 node_modules/
+/target/
 .DS_Store
 package-lock.json
 coverage/
@@ -20,4 +21,3 @@ tmp
 parcel-bundle-reports/
 .verdaccio_storage/
 sourcemap-info.json
-packages/native-packages

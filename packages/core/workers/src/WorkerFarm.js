@@ -251,7 +251,11 @@ export default class WorkerFarm extends EventEmitter {
       this.startChild();
     }
 
-    for (let worker of this.workers.values()) {
+    let workers = [...this.workers.values()].sort(
+      (a, b) => a.calls.size - b.calls.size,
+    );
+
+    for (let worker of workers) {
       if (!this.callQueue.length) {
         break;
       }
@@ -557,7 +561,7 @@ export default class WorkerFarm extends EventEmitter {
   static getNumWorkers(): number {
     return process.env.PARCEL_WORKERS
       ? parseInt(process.env.PARCEL_WORKERS, 10)
-      : cpuCount();
+      : Math.ceil(cpuCount() / 2);
   }
 
   static isWorker(): boolean {
@@ -582,7 +586,7 @@ export default class WorkerFarm extends EventEmitter {
   }
 
   static getConcurrentCallsPerWorker(): number {
-    return parseInt(process.env.PARCEL_MAX_CONCURRENT_CALLS, 10) || 5;
+    return parseInt(process.env.PARCEL_MAX_CONCURRENT_CALLS, 10) || 30;
   }
 }
 

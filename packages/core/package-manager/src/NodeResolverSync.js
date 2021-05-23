@@ -48,7 +48,11 @@ export class NodeResolverSync extends NodeResolverBase<ResolveResult> {
 
     // Find the nearest package.json file within the current node_modules folder
     let dir = path.dirname(sourceFile);
-    let pkgFile = this.fs.findAncestorFile(['package.json'], dir);
+    let pkgFile = this.fs.findAncestorFile(
+      ['package.json'],
+      dir,
+      this.projectRoot,
+    );
     if (pkgFile != null) {
       return this.readPackage(pkgFile, ctx);
     }

@@ -137,10 +137,11 @@ export default class Transformation {
 
     let asset = await this.loadAsset();
 
-    // Load existing sourcemaps
-    if (SOURCEMAP_EXTENSIONS.has(asset.value.type)) {
+    if (!asset.mapBuffer && SOURCEMAP_EXTENSIONS.has(asset.value.type)) {
+      // Load existing sourcemaps, this automatically runs the source contents extraction
+      let existing;
       try {
-        await asset.loadExistingSourcemap();
+        existing = await asset.loadExistingSourcemap();
       } catch (err) {
         logger.verbose([
           {
@@ -157,6 +158,13 @@ export default class Transformation {
             filePath: asset.value.filePath,
           },
         ]);
+      }
+
+      if (existing == null) {
+        // If no existing sourcemap was found, initialize asset.sourceContent
+        // with the original contents. This will be used when the transformer
+        // calls setMap to ensure the source content is in the sourcemap.
+        asset.sourceContent = await asset.getCode();
       }
     }
 
@@ -208,7 +216,9 @@ export default class Transformation {
       }
     }
 
+    // $FlowFixMe
     return {
+      $$raw: true,
       assets,
       configRequests,
       invalidateOnFileCreate: this.invalidateOnFileCreate,
@@ -467,6 +477,10 @@ export default class Transformation {
           );
 
           for (let result of transformerResults) {
+            if (result instanceof UncommittedAsset) {
+              resultingAssets.push(result);
+              continue;
+            }
             resultingAssets.push(
               asset.createChildAsset(
                 result,
@@ -488,36 +502,30 @@ export default class Transformation {
       inputAssets = resultingAssets;
     }
 
-    // Make assets with ASTs generate unless they are js assets and target uses
-    // scope hoisting or we do CSS modules tree shaking. This parallelizes generation
+    // Make assets with ASTs generate unless they are CSS modules. This parallelizes generation
     // and distributes work more evenly across workers than if one worker needed to
     // generate all assets in a large bundle during packaging.
-    let generate = pipeline.generate;
-    if (generate != null) {
-      await Promise.all(
-        resultingAssets
-          .filter(
-            asset =>
-              asset.ast != null &&
-              !(
-                (asset.value.env.shouldScopeHoist &&
-                  asset.value.type === 'js') ||
-                (this.options.mode === 'production' &&
-                  asset.value.type === 'css' &&
-                  asset.value.symbols)
-              ),
-          )
-          .map(async asset => {
-            if (asset.isASTDirty) {
-              let output = await generate(asset);
-              asset.content = output.content;
-              asset.mapBuffer = output.map?.toBuffer();
-            }
+    await Promise.all(
+      resultingAssets
+        .filter(
+          asset =>
+            asset.ast != null &&
+            !(
+              this.options.mode === 'production' &&
+              asset.value.type === 'css' &&
+              asset.value.symbols
+            ),
+        )
+        .map(async asset => {
+          if (asset.isASTDirty && asset.generate) {
+            let output = await asset.generate();
+            asset.content = output.content;
+            asset.mapBuffer = output.map?.toBuffer();
+          }
 
-            asset.clearAST();
-          }),
-      );
-    }
+          asset.clearAST();
+        }),
+    );
 
     return finalAssets.concat(resultingAssets);
   }
@@ -758,9 +766,9 @@ export default class Transformation {
           options: pipeline.pluginOptions,
           logger,
         })) &&
-      pipeline.generate
+      asset.generate
     ) {
-      let output = await pipeline.generate(asset);
+      let output = await asset.generate();
       asset.content = output.content;
       asset.mapBuffer = output.map?.toBuffer();
     }
@@ -798,17 +806,16 @@ export default class Transformation {
     );
 
     // Create generate function that can be called later
-    pipeline.generate = (input: UncommittedAsset): Promise<GenerateOutput> => {
-      let ast = input.ast;
-      let asset = new Asset(input);
-      if (transformer.generate && ast) {
+    asset.generate = (): Promise<GenerateOutput> => {
+      let publicAsset = new Asset(asset);
+      if (transformer.generate && asset.ast) {
         let generated = transformer.generate({
-          asset,
-          ast,
+          asset: publicAsset,
+          ast: asset.ast,
           options: pipeline.pluginOptions,
           logger,
         });
-        input.clearAST();
+        asset.clearAST();
         return Promise.resolve(generated);
       }
 
@@ -839,35 +846,14 @@ type TransformerWithNameAndConfig = {|
   resolveFrom: FilePath,
 |};
 
-function normalizeAssets(
-  results: Array<TransformerResult | MutableAsset>,
-): Promise<Array<TransformerResult>> {
+function normalizeAssets(results: Array<TransformerResult | MutableAsset>) {
   return Promise.all(
-    results.map<Promise<TransformerResult>>(async result => {
-      if (!(result instanceof MutableAsset)) {
-        return result;
+    results.map(result => {
+      if (result instanceof MutableAsset) {
+        return mutableAssetToUncommittedAsset(result);
       }
 
-      let internalAsset = mutableAssetToUncommittedAsset(result);
-      // $FlowFixMe - ignore id already on env
-      return {
-        ast: internalAsset.ast,
-        content: await internalAsset.content,
-        query: internalAsset.value.query,
-        // $FlowFixMe
-        dependencies: [...internalAsset.value.dependencies.values()],
-        env: internalAsset.value.env,
-        filePath: result.filePath,
-        isInline: result.isInline,
-        isIsolated: result.isIsolated,
-        map: await internalAsset.getMap(),
-        meta: result.meta,
-        pipeline: internalAsset.value.pipeline,
-        // $FlowFixMe
-        symbols: internalAsset.value.symbols,
-        type: result.type,
-        uniqueKey: internalAsset.value.uniqueKey,
-      };
+      return result;
     }),
   );
 }
