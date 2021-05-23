@@ -784,6 +784,18 @@ describe('scope hoisting', function() {
       });
     });
 
+    it('supports importing from an empty asset', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/import-commonjs-missing/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.strictEqual(output, undefined);
+    });
+
     it('does not export reassigned CommonJS exports references', async function() {
       let b = await bundle(
         path.join(
