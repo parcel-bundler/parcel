@@ -784,7 +784,7 @@ describe('scope hoisting', function() {
       });
     });
 
-    it('supports importing from an empty asset', async function() {
+    it('falls back when importing missing symbols from CJS', async function() {
       let b = await bundle(
         path.join(
           __dirname,

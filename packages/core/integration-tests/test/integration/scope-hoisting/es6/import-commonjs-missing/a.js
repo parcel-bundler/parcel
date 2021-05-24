@@ -1,3 +1,3 @@
-import { x } from "./empty.js";
+import { x } from "./b.js";
 
 output = x;
