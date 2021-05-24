@@ -1,6 +1,6 @@
 {
   "name": "@parcel/transformer-sync-dynamic-import",
-  "version": "2.0.0-frontbucket.74",
+  "version": "2.0.0-frontbucket.75",
   "main": "lib/SyncDynamicImportTransformer.js",
   "source": "src/SyncDynamicImportTransformer.js",
   "engines": {
@@ -9,9 +9,9 @@
   },
   "dependencies": {
     "@babel/core": "^7.8.7",
-    "@parcel/babel-ast-utils": "2.0.0-frontbucket.74",
-    "@parcel/plugin": "2.0.0-frontbucket.74",
-    "@parcel/utils": "2.0.0-frontbucket.74",
+    "@parcel/babel-ast-utils": "2.0.0-frontbucket.75",
+    "@parcel/plugin": "2.0.0-frontbucket.75",
+    "@parcel/utils": "2.0.0-frontbucket.75",
     "react-loadable": "^5.5.0",
     "semver": "^7.3.2"
   }
