@@ -1,6 +1,6 @@
 {
   "name": "@atlassian/babel-plugin-transform-import-attributes-webpack",
-  "version": "2.0.0-frontbucket.73",
+  "version": "2.0.0-frontbucket.74",
   "main": "src/index.js",
   "scripts": {
     "test": "mocha"

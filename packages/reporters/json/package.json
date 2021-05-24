@@ -1,6 +1,6 @@
 {
   "name": "@parcel/reporter-json",
-  "version": "2.0.0-frontbucket.73",
+  "version": "2.0.0-frontbucket.74",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -20,9 +20,9 @@
     "parcel": "^2.0.0-beta.1"
   },
   "dependencies": {
-    "@parcel/plugin": "2.0.0-frontbucket.73",
-    "@parcel/types": "2.0.0-frontbucket.73",
-    "@parcel/utils": "2.0.0-frontbucket.73",
+    "@parcel/plugin": "2.0.0-frontbucket.74",
+    "@parcel/types": "2.0.0-frontbucket.74",
+    "@parcel/utils": "2.0.0-frontbucket.74",
     "nullthrows": "^1.1.1"
   }
 }

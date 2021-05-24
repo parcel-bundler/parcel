@@ -1,6 +1,6 @@
 {
   "name": "@atlassian/internal-parcel-utils",
-  "version": "2.0.0-frontbucket.73",
+  "version": "2.0.0-frontbucket.74",
   "publishConfig": {
     "access": "public"
   },
