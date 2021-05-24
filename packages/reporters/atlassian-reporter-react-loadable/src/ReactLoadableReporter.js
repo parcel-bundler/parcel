@@ -2,7 +2,6 @@
 import path from 'path';
 import type {
   BundleGraph,
-  NamedBundle,
   PackagedBundle,
   Dependency,
   Target,
@@ -12,11 +11,11 @@ import nullthrows from 'nullthrows';
 
 const manifest = {};
 const buildManifest = (
-  bundles: Set<NamedBundle>,
+  bundles: Set<PackagedBundle>,
   bundleGraph: BundleGraph<PackagedBundle>,
 ) => {
   const assets = {};
-  bundles.forEach((bundle: NamedBundle) => {
+  bundles.forEach((bundle: PackagedBundle) => {
     if (bundle.type !== 'js') {
       return;
     }
@@ -56,7 +55,7 @@ const buildManifest = (
   // convert set to array of obj with bundle name as file
   Object.keys(assets).forEach(key => {
     for (let bundle of assets[key]) {
-      const {name, id} = bundle;
+      const {filePath, id} = bundle;
 
       if (!manifest[key]) {
         manifest[key] = [];
@@ -64,9 +63,9 @@ const buildManifest = (
 
       manifest[key].push({
         id: id,
-        name,
-        file: name,
-        publicPath: name,
+        name: filePath,
+        file: filePath,
+        publicPath: filePath,
       });
     }
   });
@@ -90,7 +89,7 @@ exports.default = (new Reporter({
     let bundleGraph = event.bundleGraph;
     let entryBundlesByTarget: Map<
       string,
-      {|target: Target, entryBundles: Set<NamedBundle>|},
+      {|target: Target, entryBundles: Set<PackagedBundle>|},
     > = new Map();
     bundleGraph.traverseBundles((bundle, _, actions) => {
       let res = entryBundlesByTarget.get(bundle.target.name);

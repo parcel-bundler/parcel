@@ -38,7 +38,6 @@
   "reporters": [
     "@atlassian/parcel-reporter-analytics",
     "@parcel/reporter-manifest",
-    "@parcel/reporter-cli",
     "@parcel/reporter-dev-server",
     "@parcel/reporter-bundle-analyzer"
   ],
