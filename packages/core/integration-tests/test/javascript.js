@@ -3500,6 +3500,35 @@ describe('javascript', function() {
     assert.deepEqual(res.default, 'x: 123');
   });
 
+  it('should only replace free references to require', async () => {
+    let b = await bundle(
+      path.join(__dirname, 'integration/js-require-free/index.js'),
+    );
+    let output;
+    await run(b, {
+      output(v) {
+        output = v;
+      },
+    });
+    assert.strictEqual(output, 'a');
+  });
+
+  it('should only replace free references to require with scope hoisting', async () => {
+    let b = await bundle(
+      path.join(__dirname, 'integration/js-require-free/index.js'),
+      {
+        mode: 'production',
+      },
+    );
+    let output;
+    await run(b, {
+      output(v) {
+        output = v;
+      },
+    });
+    assert.strictEqual(output, 'a');
+  });
+
   it('should support runtime module deduplication', async function() {
     let b = await bundle(
       path.join(__dirname, 'integration/js-runtime-dedup/index.js'),
