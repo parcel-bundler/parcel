@@ -1438,6 +1438,8 @@ impl Visit for Collect {
         }
         _ => node.visit_children_with(self),
       }
+    } else {
+      node.visit_children_with(self);
     }
   }
 
