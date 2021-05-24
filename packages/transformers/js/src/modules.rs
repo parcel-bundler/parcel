@@ -225,6 +225,18 @@ impl ESMFold {
   }
 }
 
+macro_rules! modules_visit_fn {
+  ($name:ident, $type:ident) => {
+    fn $name(&mut self, node: $type) -> $type {
+      let in_function_scope = self.in_function_scope;
+      self.in_function_scope = true;
+      let res = node.fold_children_with(self);
+      self.in_function_scope = in_function_scope;
+      res
+    }
+  };
+}
+
 impl Fold for ESMFold {
   fn fold_module(&mut self, node: Module) -> Module {
     let mut is_esm = false;
@@ -542,21 +554,10 @@ impl Fold for ESMFold {
     node.fold_children_with(self)
   }
 
-  fn fold_function(&mut self, node: Function) -> Function {
-    let in_function_scope = self.in_function_scope;
-    self.in_function_scope = true;
-    let res = node.fold_children_with(self);
-    self.in_function_scope = in_function_scope;
-    res
-  }
-
-  fn fold_class(&mut self, node: Class) -> Class {
-    let in_function_scope = self.in_function_scope;
-    self.in_function_scope = true;
-    let res = node.fold_children_with(self);
-    self.in_function_scope = in_function_scope;
-    res
-  }
+  modules_visit_fn!(fold_function, Function);
+  modules_visit_fn!(fold_class, Class);
+  modules_visit_fn!(fold_getter_prop, GetterProp);
+  modules_visit_fn!(fold_setter_prop, SetterProp);
 
   fn fold_expr(&mut self, node: Expr) -> Expr {
     match &node {
