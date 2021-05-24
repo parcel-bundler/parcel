@@ -37,6 +37,7 @@
     "detect-libc": "^1.0.3",
     "micromatch": "^4.0.2",
     "nullthrows": "^1.1.1",
+    "regenerator-runtime": "^0.13.7",
     "semver": "^5.4.1"
   },
   "devDependencies": {
