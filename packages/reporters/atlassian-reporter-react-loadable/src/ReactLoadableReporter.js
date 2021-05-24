@@ -61,11 +61,13 @@ const buildManifest = (
         manifest[key] = [];
       }
 
+      let fileName = path.basename(filePath);
+
       manifest[key].push({
         id: id,
-        name: filePath,
-        file: filePath,
-        publicPath: filePath,
+        name: fileName,
+        file: fileName,
+        publicPath: fileName,
       });
     }
   });

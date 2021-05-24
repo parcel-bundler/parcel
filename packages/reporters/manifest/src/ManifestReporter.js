@@ -43,7 +43,7 @@ export default (new Reporter({
               manifest[path.basename(mainEntry.filePath)] = bundleGraph
                 .getReferencedBundles(entryBundle)
                 .concat([entryBundle])
-                .map(b => b.filePath);
+                .map(b => path.basename(b.filePath));
             }
           }
 
