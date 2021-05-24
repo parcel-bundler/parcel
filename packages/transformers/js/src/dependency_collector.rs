@@ -383,7 +383,7 @@ impl<'a> Fold for DependencyCollector<'a> {
   }
 
   fn fold_unary_expr(&mut self, node: ast::UnaryExpr) -> ast::UnaryExpr {
-    // Don't traverse `typeof require` further to `require` with undefined
+    // Don't traverse `typeof require` further to not replace `require` with undefined
     if let ast::UnaryExpr {
       op: ast::UnaryOp::TypeOf,
       arg,
@@ -465,6 +465,17 @@ impl<'a> Fold for DependencyCollector<'a> {
     }
 
     return node.fold_children_with(self);
+  }
+
+  fn fold_member_expr(&mut self, mut node: ast::MemberExpr) -> ast::MemberExpr {
+    node.obj = node.obj.fold_children_with(self);
+
+    // To ensure that fold_expr doesn't replace `require` in non-computed member expressions
+    if node.computed {
+      node.prop = node.prop.fold_children_with(self);
+    }
+
+    node
   }
 
   fn fold_expr(&mut self, node: ast::Expr) -> ast::Expr {
