@@ -177,6 +177,7 @@ jobs:
         run: yarn build-native-release
         env:
           RUST_TARGET: aarch64-apple-darwin
+          JEMALLOC_SYS_WITH_LG_PAGE: 14
       - name: Strip debug symbols
         run: strip -x packages/*/*/*.node
       - name: Upload artifacts
