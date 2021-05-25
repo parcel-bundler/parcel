@@ -67,7 +67,6 @@ type GenerateFunc = (input: UncommittedAsset) => Promise<GenerateOutput>;
 export type TransformationOpts = {|
   options: ParcelOptions,
   config: ParcelConfig,
-  report: ReportFn,
   request: TransformationRequest,
   workerApi: WorkerApi,
 |};
@@ -93,12 +92,10 @@ export default class Transformation {
   pluginOptions: PluginOptions;
   workerApi: WorkerApi;
   parcelConfig: ParcelConfig;
-  report: ReportFn;
   invalidations: Map<string, RequestInvalidation>;
   invalidateOnFileCreate: Array<FileCreateInvalidation>;
 
   constructor({
-    report,
     request,
     options,
     config,
@@ -107,7 +104,6 @@ export default class Transformation {
     this.configs = new Map();
     this.parcelConfig = config;
     this.options = options;
-    this.report = report;
     this.request = request;
     this.workerApi = workerApi;
     this.invalidations = new Map();
@@ -128,12 +124,6 @@ export default class Transformation {
 
   async run(): Promise<TransformationResult> {
     await initSourcemaps;
-
-    this.report({
-      type: 'buildProgress',
-      phase: 'transforming',
-      filePath: this.request.filePath,
-    });
 
     let asset = await this.loadAsset();
 
