@@ -529,12 +529,14 @@ export default class Transformation {
       return null;
     }
 
-    let cachedAssets = await this.options.cache.get<Array<AssetValue>>(
+    let cached = await this.options.cache.get<{|assets: Array<AssetValue>|}>(
       cacheKey,
     );
-    if (!cachedAssets) {
+    if (!cached) {
       return null;
     }
+
+    let cachedAssets = cached.assets;
 
     return Promise.all(
       cachedAssets.map(async (value: AssetValue) => {
@@ -573,7 +575,10 @@ export default class Transformation {
 
     this.options.cache.set(
       cacheKey,
-      assets.map(a => a.value),
+      {
+        $$raw: true,
+        assets: assets.map(a => a.value)
+      },
     );
   }
 
