@@ -263,9 +263,7 @@ export default class UncommittedAsset {
       let mapBuffer = this.mapBuffer ?? (await this.getMapBuffer());
       if (mapBuffer) {
         // Get sourcemap from flatbuffer
-        let map = new SourceMap(this.options.projectRoot);
-        map.addBuffer(mapBuffer);
-        this.map = map;
+        this.map = new SourceMap(mapBuffer);
       }
     }
 

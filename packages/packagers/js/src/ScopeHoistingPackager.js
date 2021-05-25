@@ -123,9 +123,7 @@ export class ScopeHoistingPackager {
     // by replacing `import` statements in the code.
     let res = '';
     let lineCount = 0;
-    let sourceMap = this.bundle.env.sourceMap
-      ? new SourceMap(this.options.projectRoot)
-      : null;
+    let sourceMap = null
     this.bundle.traverseAssets((asset, _, actions) => {
       if (this.seenAssets.has(asset.id)) {
         actions.skipChildren();
@@ -135,6 +133,8 @@ export class ScopeHoistingPackager {
       let [content, map, lines] = this.visitAsset(asset);
       if (sourceMap && map) {
         sourceMap.addSourceMap(map, lineCount);
+      } else if (this.bundle.env.sourceMap) {
+        sourceMap = map;
       }
 
       res += content + '\n';
@@ -307,12 +307,9 @@ export class ScopeHoistingPackager {
     let shouldWrap = this.wrappedAssets.has(asset.id);
     let deps = this.bundleGraph.getDependencies(asset);
 
-    let sourceMap = this.bundle.env.sourceMap
-      ? new SourceMap(this.options.projectRoot)
+    let sourceMap = this.bundle.env.sourceMap && map
+      ? new SourceMap(map)
       : null;
-    if (sourceMap && map) {
-      sourceMap?.addBuffer(map);
-    }
 
     // If this asset is skipped, just add dependencies and not the asset's content.
     if (this.shouldSkipAsset(asset)) {
@@ -473,7 +470,7 @@ ${code}
         if (!depCode) continue;
         code += depCode + '\n';
         if (sourceMap && map) {
-          sourceMap.addSourceMap(map, lineCount, 0);
+          sourceMap.addSourceMap(map, lineCount);
         }
         lineCount += lines + 1;
       }
