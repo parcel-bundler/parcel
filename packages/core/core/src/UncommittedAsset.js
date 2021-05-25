@@ -196,7 +196,9 @@ export default class UncommittedAsset {
     let content = await this.content;
     if (content == null) {
       return Buffer.alloc(0);
-    } else if (typeof content === 'string' || content instanceof Buffer) {
+    } else if (content instanceof Buffer) {
+      return content;
+    } else if (typeof content === 'string') {
       return Buffer.from(content);
     }
 

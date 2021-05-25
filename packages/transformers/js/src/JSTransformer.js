@@ -159,7 +159,7 @@ export default (new Transformer({
       asset.isSplittable = true;
     }
 
-    let code = await asset.getCode();
+    let code = await asset.getBuffer();
     let originalMap = await asset.getMap();
 
     let targets;
@@ -462,7 +462,7 @@ export default (new Transformer({
     }
 
     asset.type = 'js';
-    asset.setCode(compiledCode);
+    asset.setBuffer(compiledCode);
 
     if (map) {
       let sourceMap = new SourceMap(options.projectRoot);
@@ -470,7 +470,7 @@ export default (new Transformer({
       if (originalMap) {
         sourceMap.extends(originalMap);
       }
-      asset.setMap(sourceMap);
+        asset.setMap(sourceMap);
     }
 
     return [asset];
