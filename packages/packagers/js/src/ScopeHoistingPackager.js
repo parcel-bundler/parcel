@@ -123,7 +123,7 @@ export class ScopeHoistingPackager {
     // by replacing `import` statements in the code.
     let res = '';
     let lineCount = 0;
-    let sourceMap = null
+    let sourceMap = null;
     this.bundle.traverseAssets((asset, _, actions) => {
       if (this.seenAssets.has(asset.id)) {
         actions.skipChildren();
@@ -307,9 +307,8 @@ export class ScopeHoistingPackager {
     let shouldWrap = this.wrappedAssets.has(asset.id);
     let deps = this.bundleGraph.getDependencies(asset);
 
-    let sourceMap = this.bundle.env.sourceMap && map
-      ? new SourceMap(map)
-      : null;
+    let sourceMap =
+      this.bundle.env.sourceMap && map ? new SourceMap(map) : null;
 
     // If this asset is skipped, just add dependencies and not the asset's content.
     if (this.shouldSkipAsset(asset)) {
@@ -368,7 +367,7 @@ export class ScopeHoistingPackager {
       // in a single regex so that we only do one pass over the whole code.
       let offset = 0;
       let columnStartIndex = 0;
-      code = code.replace(REPLACEMENT_RE, (m, d, i, s, g) => {
+      code = code.replace(REPLACEMENT_RE, (m, d, i) => {
         if (m === '\n') {
           columnStartIndex = i + offset + 1;
           lineCount++;

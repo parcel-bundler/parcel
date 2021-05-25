@@ -147,12 +147,7 @@ fn transform(ctx: CallContext) -> Result<JsUnknown> {
 
   let code = unsafe { std::str::from_utf8_unchecked(&config.code) };
   let source_map = Lrc::new(SourceMap::default());
-  let module = parse(
-    code,
-    config.filename.as_str(),
-    &source_map,
-    &config,
-  );
+  let module = parse(code, config.filename.as_str(), &source_map, &config);
 
   match module {
     Err(err) => {

@@ -279,7 +279,7 @@ export default (new Transformer({
           filePath: asset.filePath,
           message: diagnostic.message,
           codeFrame: {
-            code,
+            code: code.toString(),
             codeHighlights: diagnostic.code_highlights?.map(highlight => {
               let {start, end} = convertLoc(highlight.loc);
               return {
@@ -470,7 +470,7 @@ export default (new Transformer({
       if (originalMap) {
         sourceMap.extends(originalMap);
       }
-        asset.setMap(sourceMap);
+      asset.setMap(sourceMap);
     }
 
     return [asset];

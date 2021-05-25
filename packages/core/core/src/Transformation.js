@@ -17,7 +17,6 @@ import type {
   Config,
   DevDepRequest,
   ParcelOptions,
-  ReportFn,
 } from './types';
 import type {LoadedPlugin} from './ParcelConfig';
 
@@ -95,12 +94,7 @@ export default class Transformation {
   invalidations: Map<string, RequestInvalidation>;
   invalidateOnFileCreate: Array<FileCreateInvalidation>;
 
-  constructor({
-    request,
-    options,
-    config,
-    workerApi,
-  }: TransformationOpts) {
+  constructor({request, options, config, workerApi}: TransformationOpts) {
     this.configs = new Map();
     this.parcelConfig = config;
     this.options = options;
@@ -573,13 +567,10 @@ export default class Transformation {
   ): Promise<void> {
     await Promise.all(assets.map(asset => asset.commit(pipelineHash)));
 
-    this.options.cache.set(
-      cacheKey,
-      {
-        $$raw: true,
-        assets: assets.map(a => a.value)
-      },
-    );
+    this.options.cache.set(cacheKey, {
+      $$raw: true,
+      assets: assets.map(a => a.value),
+    });
   }
 
   getCacheKey(
