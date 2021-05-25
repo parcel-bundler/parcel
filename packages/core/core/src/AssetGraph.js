@@ -495,19 +495,26 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
   }
 
   getIncomingDependencies(asset: Asset): Array<Dependency> {
-    if (!this.hasContentKey(asset.id)) {
-      return [];
+    let nodeId = this._contentKeyToNodeId.get(asset.id);
+    if (!nodeId) {
+      return;
     }
 
-    let nodeId = this.getNodeIdByContentKey(asset.id);
-    return this.findAncestors(nodeId, nodeId => {
-      let node = this.getNode(nodeId);
-      return node?.type === 'dependency';
-    }).map(nodeId => {
-      let node = this.getNode(nodeId);
-      invariant(node?.type === 'dependency');
-      return node.value;
-    });
+    let assetGroupIds = this.getNodeIdsConnectedTo(nodeId);
+    let dependencies = [];
+    for (let i = 0; i < assetGroupIds.length; i++) {
+      let assetIds = this.getNodeIdsConnectedTo(assetGroupIds[i]);
+      for (let j = 0; j < assetIds.length; j++) {
+        let node = this.getNode(assetIds[j]);
+        if (!node || node.type !== 'dependency') {
+          continue;
+        }
+
+        dependencies.push(node.value);
+      }
+    }
+
+    return dependencies;
   }
 
   traverseAssets<TContext>(
