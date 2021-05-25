@@ -64,7 +64,6 @@ use utils::{CodeHighlight, Diagnostic, SourceLocation};
 #[derive(Serialize, Debug, Deserialize)]
 struct Config {
   filename: String,
-  // code: String,
   #[serde(with = "serde_bytes")]
   code: Vec<u8>,
   module_id: String,
