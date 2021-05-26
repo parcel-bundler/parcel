@@ -34,6 +34,7 @@ import invariant from 'assert';
 import ParcelConfigSchema from '../ParcelConfig.schema';
 import {optionsProxy} from '../utils';
 import ParcelConfig from '../ParcelConfig';
+import {createBuildCache} from '../buildCache';
 
 type ConfigMap<K, V> = {[K]: V, ...};
 
@@ -44,7 +45,7 @@ export type ConfigAndCachePath = {|
 
 type RunOpts = {|
   input: null,
-  ...StaticRunOpts<ConfigAndCachePath>,
+  ...StaticRunOpts,
 |};
 
 export type ParcelConfigRequest = {|
@@ -97,12 +98,7 @@ export default function createParcelConfigRequest(): ParcelConfigRequest {
   };
 }
 
-const parcelConfigCache = new Map();
-
-export function clearParcelConfigCache() {
-  parcelConfigCache.clear();
-}
-
+const parcelConfigCache = createBuildCache();
 export function getCachedParcelConfig(
   result: ConfigAndCachePath,
   options: ParcelOptions,
@@ -139,7 +135,12 @@ export async function resolveParcelConfig(
     options.config != null
       ? (await options.packageManager.resolve(options.config, resolveFrom))
           .resolved
-      : await resolveConfig(options.inputFS, resolveFrom, ['.parcelrc']);
+      : await resolveConfig(
+          options.inputFS,
+          resolveFrom,
+          ['.parcelrc'],
+          options.projectRoot,
+        );
 
   let usedDefault = false;
   if (configPath == null && options.defaultConfig != null) {
@@ -302,7 +303,11 @@ export function processConfig(
           }
         : undefined,
     namers: processPipeline(configFile.namers, '/namers', configFile.filePath),
-    runtimes: processMap(configFile.runtimes, '/runtimes', configFile.filePath),
+    runtimes: processPipeline(
+      configFile.runtimes,
+      '/runtimes',
+      configFile.filePath,
+    ),
     packagers: processMap(
       configFile.packagers,
       '/packagers',
@@ -456,6 +461,7 @@ async function processExtendedConfig(
       options.inputFS,
       extendsSpecifier,
       path.dirname(resolvedExtendedConfigPath),
+      options.projectRoot,
     );
     throw new ThrowableDiagnostic({
       diagnostic: {
@@ -520,9 +526,7 @@ export function mergeConfigs(
     validators: mergeMaps(base.validators, ext.validators, mergePipelines),
     bundler: ext.bundler || base.bundler,
     namers: assertPurePipeline(mergePipelines(base.namers, ext.namers)),
-    runtimes: mergeMaps(base.runtimes, ext.runtimes, (a, b) =>
-      assertPurePipeline(mergePipelines(a, b)),
-    ),
+    runtimes: assertPurePipeline(mergePipelines(base.runtimes, ext.runtimes)),
     packagers: mergeMaps(base.packagers, ext.packagers),
     optimizers: mergeMaps(base.optimizers, ext.optimizers, mergePipelines),
     reporters: assertPurePipeline(

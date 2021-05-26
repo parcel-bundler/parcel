@@ -21,6 +21,7 @@ export default (new Optimizer({
       options.inputFS,
       path.join(options.entryRoot, 'index'),
       ['.terserrc', '.uglifyrc', '.uglifyrc.js', '.terserrc.js'],
+      options.projectRoot,
     );
 
     let originalMap = map ? await map.stringify({}) : null;
@@ -28,7 +29,10 @@ export default (new Optimizer({
       ...userConfig?.config,
       sourceMap: bundle.env.sourceMap
         ? {
-            filename: path.relative(options.projectRoot, bundle.filePath),
+            filename: path.relative(
+              options.projectRoot,
+              path.join(bundle.target.distDir, bundle.name),
+            ),
             asObject: true,
             content: originalMap,
           }
@@ -93,7 +97,7 @@ export default (new Optimizer({
     let resultMap = result.map;
     if (resultMap && typeof resultMap !== 'string') {
       sourceMap = new SourceMap(options.projectRoot);
-      sourceMap.addRawMappings(resultMap);
+      sourceMap.addVLQMap(resultMap);
       let sourcemapReference = await getSourceMapReference(sourceMap);
       if (sourcemapReference) {
         minifiedContents += `\n//# sourceMappingURL=${sourcemapReference}\n`;

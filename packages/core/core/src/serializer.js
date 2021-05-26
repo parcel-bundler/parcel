@@ -1,5 +1,6 @@
 // @flow
 import v8 from 'v8';
+import {createBuildCache} from './buildCache';
 
 const nameToCtor: Map<string, Class<*>> = new Map();
 const ctorToName: Map<Class<*>, string> = new Map();
@@ -219,7 +220,14 @@ export function restoreDeserializedObject(object: any): any {
   });
 }
 
+const serializeCache = createBuildCache();
+
 export function serialize(object: any): Buffer {
+  let cached = serializeCache.get(object);
+  if (cached) {
+    return cached;
+  }
+
   let mapped = prepareForSerialization(object);
   // $FlowFixMe - flow doesn't know about this method yet
   return v8.serialize(mapped);
@@ -229,4 +237,18 @@ export function deserialize(buffer: Buffer): any {
   // $FlowFixMe - flow doesn't know about this method yet
   let obj = v8.deserialize(buffer);
   return restoreDeserializedObject(obj);
+}
+
+export function cacheSerializedObject(object: any, buffer?: Buffer): void {
+  serializeCache.set(object, buffer || serialize(object));
+}
+
+export function deserializeToCache(buffer: Buffer): any {
+  let deserialized = deserialize(buffer);
+  serializeCache.set(deserialized, buffer);
+  return deserialized;
+}
+
+export function removeSerializedObjectFromCache(object: any) {
+  serializeCache.delete(object);
 }

@@ -90,14 +90,13 @@ export default class PublicConfig implements IConfig {
       exclude?: boolean,
     |},
   ): Promise<ConfigResultWithFilePath | null> {
-    let packageKey = options && options.packageKey;
+    let packageKey = options?.packageKey;
     if (packageKey != null) {
-      let pkg = await this.getPackage();
-      if (pkg && pkg[packageKey]) {
+      let pkg = await this.getConfigFrom(searchPath, ['package.json']);
+      if (pkg && pkg.contents[packageKey]) {
         return {
-          contents: pkg[packageKey],
-          // This should be fine as pkgFilePath should be defined by getPackage()
-          filePath: this.#pkgFilePath || '',
+          contents: pkg.contents[packageKey],
+          filePath: pkg.filePath,
         };
       }
     }
@@ -119,6 +118,7 @@ export default class PublicConfig implements IConfig {
       this.#options.inputFS,
       searchPath,
       fileNames,
+      this.#options.projectRoot,
       parse == null ? null : {parse},
     );
     if (conf == null) {

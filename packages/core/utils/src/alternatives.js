@@ -102,10 +102,16 @@ export async function findAlternativeFiles(
   fs: FileSystem,
   fileSpecifier: string,
   dir: string,
+  projectRoot: string,
 ): Promise<Array<string>> {
   let potentialFiles: Array<string> = [];
   // Find our root, we won't recommend files above the package root as that's bad practise
-  let pkg = await resolveConfig(fs, path.join(dir, 'index'), ['package.json']);
+  let pkg = await resolveConfig(
+    fs,
+    path.join(dir, 'index'),
+    ['package.json'],
+    projectRoot,
+  );
   if (!pkg) {
     return potentialFiles;
   }

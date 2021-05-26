@@ -1,6 +1,6 @@
 // @flow
 
-import type {FilePath, NamedBundle} from '@parcel/types';
+import type {FilePath, PackagedBundle} from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
 import SourceMap from '@parcel/source-map';
 import nullthrows from 'nullthrows';
@@ -38,7 +38,7 @@ async function getSourcemapSizes(
 
   let rawMap = mapUrlData.map;
   let sourceMap = new SourceMap(projectRoot);
-  sourceMap.addRawMappings(rawMap);
+  sourceMap.addVLQMap(rawMap);
   let parsedMapData = sourceMap.getMap();
 
   if (parsedMapData.mappings.length > 2) {
@@ -97,7 +97,7 @@ async function getSourcemapSizes(
 }
 
 async function createBundleStats(
-  bundle: NamedBundle,
+  bundle: PackagedBundle,
   fs: FileSystem,
   projectRoot: FilePath,
 ) {
@@ -144,7 +144,7 @@ async function createBundleStats(
 }
 
 export default async function generateBuildMetrics(
-  bundles: Array<NamedBundle>,
+  bundles: Array<PackagedBundle>,
   fs: FileSystem,
   projectRoot: FilePath,
 ): Promise<BuildMetrics> {

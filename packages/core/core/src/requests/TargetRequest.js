@@ -46,7 +46,7 @@ import {optionsProxy} from '../utils';
 
 type RunOpts = {|
   input: Entry,
-  ...StaticRunOpts<Array<Target>>,
+  ...StaticRunOpts,
 |};
 
 const DEFAULT_DIST_DIRNAME = 'dist';
@@ -297,7 +297,12 @@ export class TargetResolver {
     exclusiveTarget?: string,
   ): Promise<Map<string, Target>> {
     let rootFile = path.join(rootDir, 'index');
-    let conf = await loadConfig(this.fs, rootFile, ['package.json']);
+    let conf = await loadConfig(
+      this.fs,
+      rootFile,
+      ['package.json'],
+      this.options.projectRoot,
+    );
 
     // Invalidate whenever a package.json file is added.
     this.api.invalidateOnFileCreate({
@@ -364,6 +369,7 @@ export class TargetResolver {
           this.fs,
           path.join(rootDir, 'index'),
           ['browserslist', '.browserslistrc'],
+          this.options.projectRoot,
         );
 
         this.api.invalidateOnFileCreate({

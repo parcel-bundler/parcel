@@ -110,7 +110,7 @@ export default class CommittedAsset {
         if (mapBuffer) {
           // Get sourcemap from flatbuffer
           let map = new SourceMap(this.options.projectRoot);
-          map.addBufferMappings(mapBuffer);
+          map.addBuffer(mapBuffer);
           return map;
         }
       })();

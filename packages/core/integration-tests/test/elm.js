@@ -38,7 +38,7 @@ describe('elm', function() {
     assertBundles(b, [
       {
         type: 'js',
-        assets: ['HMRRuntime.js', 'Main.elm', 'index.js'],
+        assets: ['Main.elm', 'index.js'],
       },
     ]);
 

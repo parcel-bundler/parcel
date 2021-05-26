@@ -16,6 +16,7 @@ import path from 'path';
 import {parse as babelParse} from '@babel/parser';
 import SourceMap from '@parcel/source-map';
 import {relativeUrl} from '@parcel/utils';
+import {traverseAll} from '@parcel/babylon-walk';
 import {babelErrorEnhancer} from './babelErrorUtils';
 // $FlowFixMe
 import {generate as astringGenerate} from 'astring';
@@ -23,6 +24,42 @@ import {generate as astringGenerate} from 'astring';
 import {generator, expressionsPrecedence} from './generator';
 
 export {babelErrorEnhancer};
+
+export function remapAstLocations(ast: BabelNodeFile, map: SourceMap) {
+  // remap ast to original mappings
+  // This improves sourcemap accuracy and fixes sourcemaps when scope-hoisting
+  traverseAll(ast.program, node => {
+    if (node.loc) {
+      if (node.loc?.start) {
+        let mapping = map.findClosestMapping(
+          node.loc.start.line,
+          node.loc.start.column,
+        );
+
+        if (mapping?.original) {
+          // $FlowFixMe
+          node.loc.start.line = mapping.original.line;
+          // $FlowFixMe
+          node.loc.start.column = mapping.original.column;
+
+          // $FlowFixMe
+          let length = node.loc.end.column - node.loc.start.column;
+
+          // $FlowFixMe
+          node.loc.end.line = mapping.original.line;
+          // $FlowFixMe
+          node.loc.end.column = mapping.original.column + length;
+
+          // $FlowFixMe
+          node.loc.filename = mapping.source;
+        } else {
+          // Maintain null mappings?
+          node.loc = null;
+        }
+      }
+    }
+  });
+}
 
 export async function parse({
   asset,
@@ -34,15 +71,22 @@ export async function parse({
   options: PluginOptions,
 |}): Promise<AST> {
   try {
+    let program = babelParse(code, {
+      sourceFilename: relativeUrl(options.projectRoot, asset.filePath),
+      allowReturnOutsideFunction: true,
+      strictMode: false,
+      sourceType: 'module',
+    });
+
+    let map = await asset.getMap();
+    if (map) {
+      remapAstLocations(program, map);
+    }
+
     return {
       type: 'babel',
       version: '7.0.0',
-      program: babelParse(code, {
-        sourceFilename: relativeUrl(options.projectRoot, asset.filePath),
-        allowReturnOutsideFunction: true,
-        strictMode: false,
-        sourceType: 'module',
-      }),
+      program,
     };
   } catch (e) {
     throw await babelErrorEnhancer(e, asset);
@@ -55,15 +99,13 @@ export function generateAST({
   ast,
   sourceFileName,
   sourceMaps,
-  originalSourceMap,
   options,
 }: {|
   ast: BabelNodeFile,
   sourceFileName?: FilePath,
   sourceMaps?: boolean,
-  originalSourceMap?: ?SourceMap,
   options: PluginOptions,
-|}): {|content: string, map: ?SourceMap|} {
+|}): {|content: string, map: SourceMap|} {
   let map = new SourceMap(options.projectRoot);
   let mappings = [];
   let generated = astringGenerate(ast.program, {
@@ -91,10 +133,6 @@ export function generateAST({
 
   map.addIndexedMappings(mappings);
 
-  if (originalSourceMap) {
-    map.extends(originalSourceMap.toBuffer());
-  }
-
   return {
     content: generated,
     map,
@@ -111,13 +149,27 @@ export async function generate({
   options: PluginOptions,
 |}): Promise<{|content: string, map: ?SourceMap|}> {
   let sourceFileName: string = relativeUrl(options.projectRoot, asset.filePath);
-  return generateAST({
+  let {content, map} = generateAST({
     ast: ast.program,
     sourceFileName,
     sourceMaps: !!asset.env.sourceMap,
-    originalSourceMap: await asset.getMap(),
     options,
   });
+
+  let originalSourceMap = await asset.getMap();
+  if (originalSourceMap) {
+    // The babel AST already contains the correct mappings, but not the source contents.
+    // We need to copy over the source contents from the original map.
+    let sourcesContent = originalSourceMap.getSourcesContentMap();
+    for (let filePath in sourcesContent) {
+      let content = sourcesContent[filePath];
+      if (content != null) {
+        map.setSourceContent(filePath, content);
+      }
+    }
+  }
+
+  return {content, map};
 }
 
 export function convertBabelLoc(loc: ?BabelSourceLocation): ?SourceLocation {

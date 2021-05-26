@@ -2,7 +2,6 @@
 
 import type {InitialParcelOptions} from '@parcel/types';
 import {BuildError} from '@parcel/core';
-import {NodePackageManager} from '@parcel/package-manager';
 import {NodeFS} from '@parcel/fs';
 import ThrowableDiagnostic from '@parcel/diagnostic';
 import {prettyDiagnostic, openInBrowser} from '@parcel/utils';
@@ -28,7 +27,8 @@ async function logUncaughtError(e: mixed) {
     for (let diagnostic of e.diagnostics) {
       let out = await prettyDiagnostic(diagnostic);
       INTERNAL_ORIGINAL_CONSOLE.error(out.message);
-      INTERNAL_ORIGINAL_CONSOLE.error(out.codeframe || out.stack);
+      INTERNAL_ORIGINAL_CONSOLE.error(out.codeframe);
+      INTERNAL_ORIGINAL_CONSOLE.error(out.stack);
       for (let h of out.hints) {
         INTERNAL_ORIGINAL_CONSOLE.error(h);
       }
@@ -83,7 +83,6 @@ const commonOptions = {
   '--detailed-report [count]': [
     'print the asset timings and sizes in the build report',
     parseOptionInt,
-    '10',
   ],
   '--reporter <name>': [
     'additional reporters to run',
@@ -191,6 +190,7 @@ commander.Command.prototype.optionMissingArgument = function(option) {
 // Make serve the default command except for --help
 var args = process.argv;
 if (args[2] === '--help' || args[2] === '-h') args[2] = 'help';
+
 if (!args[2] || !program.commands.some(c => c.name() === args[2])) {
   args.splice(2, 0, 'serve');
 }
@@ -216,10 +216,8 @@ async function run(
   let Parcel = require('@parcel/core').default;
   let fs = new NodeFS();
   let options = await normalizeOptions(command, fs);
-  let packageManager = new NodePackageManager(fs);
   let parcel = new Parcel({
     entries,
-    packageManager,
     // $FlowFixMe[extra-arg] - flow doesn't know about the `paths` option (added in Node v8.9.0)
     defaultConfig: require.resolve('@parcel/config-default', {
       paths: [fs.cwd(), __dirname],
@@ -399,7 +397,18 @@ async function normalizeOptions(
   let port = parsePort(command.port || '1234');
   let originalPort = port;
   if (command.name() === 'serve' || command.hmr) {
-    port = await getPort({port, host});
+    try {
+      port = await getPort({port, host});
+    } catch (err) {
+      throw new ThrowableDiagnostic({
+        diagnostic: {
+          message: `Could not get available port: ${err.message}`,
+          origin: 'parcel',
+          filePath: __filename,
+          stack: err.stack,
+        },
+      });
+    }
 
     if (port !== originalPort) {
       let errorMessage = `Port "${originalPort}" could not be used`;
@@ -437,7 +446,6 @@ async function normalizeOptions(
 
   let additionalReporters = [
     {packageName: '@parcel/reporter-cli', resolveFrom: __filename},
-    {packageName: '@parcel/reporter-dev-server', resolveFrom: __filename},
     ...(command.reporter: Array<string>).map(packageName => ({
       packageName,
       resolveFrom: path.join(inputFS.cwd(), 'index'),

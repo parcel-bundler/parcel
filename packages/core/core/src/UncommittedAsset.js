@@ -7,6 +7,7 @@ import type {
   DependencyOptions,
   FilePath,
   FileCreateInvalidation,
+  GenerateOutput,
   PackageJSON,
   PackageName,
   TransformerResult,
@@ -36,6 +37,7 @@ import {mergeEnvironments} from './Environment';
 import {PARCEL_VERSION} from './constants';
 import {
   createAsset,
+  createAssetIdFromOptions,
   getConfig,
   getInvalidationId,
   getInvalidationHash,
@@ -58,12 +60,14 @@ export default class UncommittedAsset {
   options: ParcelOptions;
   content: ?(Blob | Promise<Buffer>);
   mapBuffer: ?Buffer;
+  sourceContent: ?string;
   map: ?SourceMap;
   ast: ?AST;
   isASTDirty: boolean;
   idBase: ?string;
   invalidations: Map<string, RequestInvalidation>;
   fileCreateInvalidations: Array<FileCreateInvalidation>;
+  generate: ?() => Promise<GenerateOutput>;
 
   constructor({
     value,
@@ -260,7 +264,7 @@ export default class UncommittedAsset {
       if (mapBuffer) {
         // Get sourcemap from flatbuffer
         let map = new SourceMap(this.options.projectRoot);
-        map.addBufferMappings(mapBuffer);
+        map.addBuffer(mapBuffer);
         this.map = map;
       }
     }
@@ -269,7 +273,15 @@ export default class UncommittedAsset {
   }
 
   setMap(map: ?SourceMap): void {
-    this.mapBuffer = map?.toBuffer();
+    // If we have sourceContent available, it means this asset is source code without
+    // a previous source map. Ensure that the map set by the transformer has the original
+    // source content available.
+    if (map && this.sourceContent != null) {
+      map.setSourceContent(this.value.filePath, this.sourceContent);
+    }
+
+    this.map = map;
+    this.mapBuffer = this.map?.toBuffer();
   }
 
   getAST(): Promise<?AST> {
@@ -434,5 +446,10 @@ export default class UncommittedAsset {
 
   getPackage(): Promise<PackageJSON | null> {
     return this.getConfig(['package.json']);
+  }
+
+  updateId() {
+    // $FlowFixMe - this is fine
+    this.value.id = createAssetIdFromOptions(this.value);
   }
 }

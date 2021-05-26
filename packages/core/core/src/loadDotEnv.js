@@ -1,7 +1,7 @@
 // @flow strict-local
 
 import type {FileSystem} from '@parcel/fs';
-import type {EnvMap} from '@parcel/types';
+import type {EnvMap, FilePath} from '@parcel/types';
 
 import {resolveConfig} from '@parcel/utils';
 import dotenv from 'dotenv';
@@ -10,7 +10,8 @@ import variableExpansion from 'dotenv-expand';
 export default async function loadEnv(
   env: EnvMap,
   fs: FileSystem,
-  filePath: string,
+  filePath: FilePath,
+  projectRoot: FilePath,
 ): Promise<EnvMap> {
   const NODE_ENV = env.NODE_ENV ?? 'development';
 
@@ -26,7 +27,12 @@ export default async function loadEnv(
 
   let envs = await Promise.all(
     dotenvFiles.map(async dotenvFile => {
-      const envPath = await resolveConfig(fs, filePath, [dotenvFile]);
+      const envPath = await resolveConfig(
+        fs,
+        filePath,
+        [dotenvFile],
+        projectRoot,
+      );
       if (envPath == null) {
         return;
       }

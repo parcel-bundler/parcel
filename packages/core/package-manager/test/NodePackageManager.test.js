@@ -27,7 +27,7 @@ describe('NodePackageManager', function() {
     });
     fs = new OverlayFS(new MemoryFS(workerFarm), new NodeFS());
     packageInstaller = new MockPackageInstaller();
-    packageManager = new NodePackageManager(fs, packageInstaller);
+    packageManager = new NodePackageManager(fs, '/', packageInstaller);
   });
 
   afterEach(async () => {

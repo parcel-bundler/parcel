@@ -4,6 +4,7 @@ import type {PluginLogger} from '@parcel/logger';
 import path from 'path';
 import {relativePath} from '@parcel/utils';
 import nullthrows from 'nullthrows';
+import clone from 'clone';
 
 import loadExternalPlugins from './loadPlugins';
 
@@ -32,7 +33,7 @@ async function configHydrator(
 
   // Load the custom config...
   let modulesConfig;
-  let configFilePlugins = configFile.plugins;
+  let configFilePlugins = clone(configFile.plugins);
   if (
     configFilePlugins != null &&
     typeof configFilePlugins === 'object' &&
@@ -95,6 +96,11 @@ export async function load({
 
   let contents = null;
   if (configFile) {
+    config.addDevDependency({
+      moduleSpecifier: 'postcss',
+      resolveFrom: config.searchPath,
+    });
+
     contents = configFile.contents;
     let isDynamic = configFile && path.extname(configFile.filePath) === '.js';
     if (isDynamic) {

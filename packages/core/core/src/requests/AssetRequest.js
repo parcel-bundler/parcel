@@ -5,6 +5,7 @@ import type {StaticRunOpts} from '../RequestTracker';
 import type {
   AssetRequestInput,
   AssetRequestResult,
+  ContentKey,
   DevDepRequest,
   TransformationRequest,
 } from '../types';
@@ -14,14 +15,16 @@ import type {TransformationResult} from '../Transformation';
 import {md5FromOrderedObject, objectSortedEntries} from '@parcel/utils';
 import nullthrows from 'nullthrows';
 import createParcelConfigRequest from './ParcelConfigRequest';
+import {runDevDepRequest} from './DevDepRequest';
+import {runConfigRequest} from './ConfigRequest';
 
 type RunInput = {|
   input: AssetRequestInput,
-  ...StaticRunOpts<AssetRequestResult>,
+  ...StaticRunOpts,
 |};
 
 export type AssetRequest = {|
-  id: string,
+  id: ContentKey,
   +type: 'asset_request',
   run: RunInput => Async<AssetRequestResult>,
   input: AssetRequestInput,
@@ -148,62 +151,11 @@ async function run({input, api, farm, invalidateReason}: RunInput) {
   }
 
   for (let devDepRequest of devDepRequests) {
-    await api.runRequest<null, void>({
-      id:
-        'dev_dep_request:' +
-        devDepRequest.moduleSpecifier +
-        ':' +
-        devDepRequest.hash,
-      type: 'dev_dep_request',
-      run: ({api}) => {
-        for (let filePath of nullthrows(devDepRequest.invalidateOnFileChange)) {
-          api.invalidateOnFileUpdate(filePath);
-          api.invalidateOnFileDelete(filePath);
-        }
-
-        for (let invalidation of nullthrows(
-          devDepRequest.invalidateOnFileCreate,
-        )) {
-          api.invalidateOnFileCreate(invalidation);
-        }
-
-        api.storeResult({
-          moduleSpecifier: devDepRequest.moduleSpecifier,
-          resolveFrom: devDepRequest.resolveFrom,
-          hash: devDepRequest.hash,
-          additionalInvalidations: devDepRequest.additionalInvalidations,
-        });
-      },
-      input: null,
-    });
+    await runDevDepRequest(api, devDepRequest);
   }
 
-  // Add config requests
   for (let configRequest of configRequests) {
-    await api.runRequest<null, void>({
-      id: 'config_request:' + configRequest.id,
-      type: 'config_request',
-      run: ({api}) => {
-        let {
-          includedFiles,
-          invalidateOnFileCreate,
-          shouldInvalidateOnStartup,
-        } = configRequest;
-        for (let filePath of includedFiles) {
-          api.invalidateOnFileUpdate(filePath);
-          api.invalidateOnFileDelete(filePath);
-        }
-
-        for (let invalidation of invalidateOnFileCreate) {
-          api.invalidateOnFileCreate(invalidation);
-        }
-
-        if (shouldInvalidateOnStartup) {
-          api.invalidateOnStartup();
-        }
-      },
-      input: null,
-    });
+    await runConfigRequest(api, configRequest);
   }
 
   return assets;
