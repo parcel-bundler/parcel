@@ -1,5 +1,9 @@
 [workspace]
-members = ["packages/transformers/js", "packages/utils/fs-search"]
+members = [
+  "packages/transformers/js/core",
+  "packages/transformers/js/napi",
+  "packages/utils/fs-search",
+]
 
 [profile.release]
 opt-level = 3

@@ -562,24 +562,31 @@ dependencies = [
 ]
 
 [[package]]
-name = "parcel-js-swc"
+name = "parcel-js-swc-core"
 version = "0.1.0"
 dependencies = [
  "Inflector",
  "data-encoding",
  "dunce",
  "indoc",
- "jemallocator",
- "mimalloc",
- "napi",
- "napi-build",
- "napi-derive",
  "serde",
  "sha-1",
  "swc_atoms",
  "swc_common",
  "swc_ecma_preset_env",
  "swc_ecmascript",
+]
+
+[[package]]
+name = "parcel-js-swc-napi"
+version = "0.1.0"
+dependencies = [
+ "jemallocator",
+ "mimalloc",
+ "napi",
+ "napi-build",
+ "napi-derive",
+ "parcel-js-swc-core",
 ]
 
 [[package]]

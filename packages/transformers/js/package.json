@@ -46,7 +46,7 @@
     "tiny-benchy": "^1.0.1"
   },
   "scripts": {
-    "build": "napi build --platform",
-    "build-release": "napi build --platform --release"
+    "build": "napi build --platform --cargo-cwd napi",
+    "build-release": "napi build --platform --release --cargo-cwd napi"
   }
 }

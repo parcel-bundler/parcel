@@ -1,6 +1,3 @@
-extern crate napi;
-#[macro_use]
-extern crate napi_derive;
 extern crate swc_common;
 extern crate swc_ecma_preset_env;
 extern crate swc_ecmascript;
@@ -12,14 +9,6 @@ extern crate inflector;
 extern crate serde;
 extern crate sha1;
 
-#[cfg(target_os = "macos")]
-#[global_allocator]
-static GLOBAL: jemallocator::Jemalloc = jemallocator::Jemalloc;
-
-#[cfg(windows)]
-#[global_allocator]
-static ALLOC: mimalloc::MiMalloc = mimalloc::MiMalloc;
-
 mod decl_collector;
 mod dependency_collector;
 mod env_replacer;
@@ -29,7 +18,6 @@ mod hoist;
 mod modules;
 mod utils;
 
-use napi::{CallContext, JsObject, JsUnknown, Result};
 use std::collections::{HashMap, HashSet};
 use std::str::FromStr;
 
@@ -38,7 +26,6 @@ use swc_common::comments::SingleThreadedComments;
 use swc_common::errors::{DiagnosticBuilder, Emitter, Handler};
 use swc_common::{chain, sync::Lrc, FileName, Globals, Mark, SourceMap};
 use swc_ecma_preset_env::{preset_env, Mode::Entry, Targets, Version, Versions};
-use swc_ecmascript::ast;
 use swc_ecmascript::ast::Module;
 use swc_ecmascript::codegen::text_writer::JsWriter;
 use swc_ecmascript::parser::lexer::Lexer;
@@ -61,7 +48,7 @@ use modules::esm2cjs;
 use utils::{CodeHighlight, Diagnostic, SourceLocation};
 
 #[derive(Serialize, Debug, Deserialize)]
-struct Config {
+pub struct Config {
   filename: String,
   code: String,
   module_id: String,
@@ -83,7 +70,7 @@ struct Config {
 }
 
 #[derive(Serialize, Debug, Deserialize, Default)]
-struct TransformResult {
+pub struct TransformResult {
   code: String,
   map: Option<String>,
   shebang: Option<String>,
@@ -133,10 +120,7 @@ impl Emitter for ErrorBuffer {
   }
 }
 
-#[js_function(1)]
-fn transform(ctx: CallContext) -> Result<JsUnknown> {
-  let opts = ctx.get::<JsObject>(0)?;
-  let config: Config = ctx.env.from_js_value(opts)?;
+pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
   let mut result = TransformResult::default();
 
   let source_map = Lrc::new(SourceMap::default());
@@ -196,7 +180,7 @@ fn transform(ctx: CallContext) -> Result<JsUnknown> {
         .collect();
 
       result.diagnostics = Some(diagnostics);
-      ctx.env.to_js_value(&result)
+      Ok(result)
     }
     Ok((module, comments)) => {
       let mut module = module;
@@ -331,7 +315,7 @@ fn transform(ctx: CallContext) -> Result<JsUnknown> {
                 }
                 Err(diagnostics) => {
                   result.diagnostics = Some(diagnostics);
-                  return ctx.env.to_js_value(&result);
+                  return Ok(result);
                 }
               }
             } else {
@@ -360,7 +344,7 @@ fn transform(ctx: CallContext) -> Result<JsUnknown> {
               }
             }
             result.code = String::from_utf8(buf).unwrap();
-            ctx.env.to_js_value(&result)
+            Ok(result)
           },
         )
       })
@@ -411,7 +395,7 @@ fn emit(
   comments: SingleThreadedComments,
   program: &Module,
   source_maps: bool,
-) -> Result<(Vec<u8>, Vec<(swc_common::BytePos, swc_common::LineCol)>)> {
+) -> Result<(Vec<u8>, Vec<(swc_common::BytePos, swc_common::LineCol)>), std::io::Error> {
   let mut src_map_buf = vec![];
   let mut buf = vec![];
   {
@@ -437,11 +421,4 @@ fn emit(
   }
 
   return Ok((buf, src_map_buf));
-}
-
-#[module_exports]
-fn init(mut exports: JsObject) -> Result<()> {
-  exports.create_named_method("transform", transform)?;
-
-  Ok(())
 }
