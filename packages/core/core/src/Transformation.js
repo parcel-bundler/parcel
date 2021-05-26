@@ -37,7 +37,6 @@ import ThrowableDiagnostic, {
 } from '@parcel/diagnostic';
 import {SOURCEMAP_EXTENSIONS} from '@parcel/utils';
 import crypto from 'crypto';
-import v8 from 'v8';
 
 import {createDependency} from './Dependency';
 import ParcelConfig from './ParcelConfig';
@@ -60,6 +59,7 @@ import {PARCEL_VERSION, FILE_CREATE} from './constants';
 import {optionsProxy} from './utils';
 import {createBuildCache} from './buildCache';
 import {createConfig} from './InternalConfig';
+import {getConfigHash, type ConfigRequest} from './requests/ConfigRequest';
 import PublicConfig from './public/Config';
 
 type GenerateFunc = (input: UncommittedAsset) => Promise<GenerateOutput>;
@@ -70,13 +70,6 @@ export type TransformationOpts = {|
   report: ReportFn,
   request: TransformationRequest,
   workerApi: WorkerApi,
-|};
-
-export type ConfigRequest = {|
-  id: string,
-  includedFiles: Set<FilePath>,
-  invalidateOnFileCreate: Array<FileCreateInvalidation>,
-  shouldInvalidateOnStartup: boolean,
 |};
 
 export type TransformationResult = {|
@@ -190,6 +183,7 @@ export default class Transformation {
         return (
           config.includedFiles.size > 0 ||
           config.invalidateOnFileCreate.length > 0 ||
+          config.invalidateOnOptionChange.size > 0 ||
           config.shouldInvalidateOnStartup
         );
       })
@@ -197,6 +191,7 @@ export default class Transformation {
         id: config.id,
         includedFiles: config.includedFiles,
         invalidateOnFileCreate: config.invalidateOnFileCreate,
+        invalidateOnOptionChange: config.invalidateOnOptionChange,
         shouldInvalidateOnStartup: config.shouldInvalidateOnStartup,
       }));
 
@@ -312,6 +307,11 @@ export default class Transformation {
         pipelineHash,
       );
       await this.writeToCache(resultCacheKey, assets, pipelineHash);
+    } else {
+      // See above TODO, this should be per-pipeline
+      for (let i of this.request.invalidations) {
+        this.invalidations.set(getInvalidationId(i), i);
+      }
     }
 
     let finalAssets: Array<UncommittedAsset> = [];
@@ -350,38 +350,9 @@ export default class Transformation {
 
       let config = this.configs.get(transformer.name);
       if (config) {
-        hash.update(config.id);
-
-        // If there is no result hash set by the transformer, default to hashing the included
-        // files if any, otherwise try to hash the config result itself.
-        if (config.resultHash == null) {
-          if (config.includedFiles.size > 0) {
-            hash.update(
-              await getInvalidationHash(
-                [...config.includedFiles].map(filePath => ({
-                  type: 'file',
-                  filePath,
-                })),
-                this.options,
-              ),
-            );
-          } else if (config.result != null) {
-            try {
-              // $FlowFixMe
-              hash.update(v8.serialize(config.result));
-            } catch (err) {
-              throw new ThrowableDiagnostic({
-                diagnostic: {
-                  message:
-                    'Config result is not hashable because it contains non-serializable objects. Please use config.setResultHash to set the hash manually.',
-                  origin: transformer.name,
-                },
-              });
-            }
-          }
-        } else {
-          hash.update(config.resultHash ?? '');
-        }
+        hash.update(
+          await getConfigHash(config, transformer.name, this.options),
+        );
 
         for (let devDep of config.devDeps) {
           let key = `${devDep.moduleSpecifier}:${devDep.resolveFrom}`;

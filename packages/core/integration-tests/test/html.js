@@ -32,6 +32,10 @@ describe('html', function() {
 
     assertBundles(b, [
       {
+        type: 'css',
+        assets: ['index.html'],
+      },
+      {
         name: 'index.html',
         assets: ['index.html'],
       },
@@ -952,7 +956,11 @@ describe('html', function() {
     let urls = [...html.matchAll(/url\(([^)]*)\)/g)].map(m => m[1]);
     assert.strictEqual(urls.length, 2);
     for (let url of urls) {
-      assert(bundles.find(bundle => path.basename(bundle.filePath) === url));
+      assert(
+        bundles.find(
+          bundle => !bundle.isInline && path.basename(bundle.filePath) === url,
+        ),
+      );
     }
   });
 

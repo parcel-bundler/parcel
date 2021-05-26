@@ -1,6 +1,6 @@
 {
   "name": "@parcel/three-js-stresstest",
-  "version": "2.0.0-frontbucket.37",
+  "version": "2.0.0-frontbucket.76",
   "license": "MIT",
   "private": true,
   "scripts": {
@@ -27,7 +27,7 @@
     }
   },
   "devDependencies": {
-    "@parcel/config-default": "2.0.0-frontbucket.66",
-    "parcel": "2.0.0-frontbucket.66"
+    "@parcel/config-default": "2.0.0-frontbucket.76",
+    "parcel": "2.0.0-frontbucket.76"
   }
 }

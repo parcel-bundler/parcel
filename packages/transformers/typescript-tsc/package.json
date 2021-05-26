@@ -1,6 +1,6 @@
 {
   "name": "@parcel/transformer-typescript-tsc",
-  "version": "2.0.0-frontbucket.43",
+  "version": "2.0.0-frontbucket.76",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -20,8 +20,8 @@
     "parcel": "^2.0.0-beta.1"
   },
   "dependencies": {
-    "@parcel/plugin": "2.0.0-frontbucket.42",
-    "@parcel/ts-utils": "2.0.0-frontbucket.25"
+    "@parcel/plugin": "2.0.0-frontbucket.76",
+    "@parcel/ts-utils": "2.0.0-frontbucket.76"
   },
   "devDependencies": {
     "typescript": "^3.0.0"

@@ -1,6 +1,6 @@
 {
   "name": "@parcel/transformer-workerize",
-  "version": "2.0.0-frontbucket.48",
+  "version": "2.0.0-frontbucket.76",
   "engines": {
     "node": ">= 10.0.0",
     "parcel": "^2.0.0-alpha.1.1"
@@ -8,6 +8,6 @@
   "main": "lib/WorkerizeTransformer.js",
   "source": "src/WorkerizeTransformer.js",
   "dependencies": {
-    "@parcel/plugin": "2.0.0-frontbucket.42"
+    "@parcel/plugin": "2.0.0-frontbucket.76"
   }
 }

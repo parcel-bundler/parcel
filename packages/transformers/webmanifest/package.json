@@ -1,6 +1,6 @@
 {
   "name": "@parcel/transformer-webmanifest",
-  "version": "2.0.0-frontbucket.0",
+  "version": "2.0.0-frontbucket.76",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -19,9 +19,9 @@
     "parcel": "^2.0.0-alpha.1.1"
   },
   "dependencies": {
-    "@parcel/diagnostic": "2.0.0-frontbucket.26",
-    "@parcel/plugin": "2.0.0-frontbucket.42",
-    "@parcel/utils": "2.0.0-frontbucket.38",
+    "@parcel/diagnostic": "2.0.0-frontbucket.76",
+    "@parcel/plugin": "2.0.0-frontbucket.76",
+    "@parcel/utils": "2.0.0-frontbucket.76",
     "json-source-map": "^0.6.1"
   }
 }

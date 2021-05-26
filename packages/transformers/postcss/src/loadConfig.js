@@ -4,6 +4,7 @@ import type {PluginLogger} from '@parcel/logger';
 import path from 'path';
 import {relativePath} from '@parcel/utils';
 import nullthrows from 'nullthrows';
+import clone from 'clone';
 
 import loadExternalPlugins from './loadPlugins';
 
@@ -32,7 +33,7 @@ async function configHydrator(
 
   // Load the custom config...
   let modulesConfig;
-  let configFilePlugins = configFile.plugins;
+  let configFilePlugins = clone(configFile.plugins);
   if (
     configFilePlugins != null &&
     typeof configFilePlugins === 'object' &&

@@ -5,9 +5,24 @@ if (parcelRequire == null) {
   parcelRequire = function(name) {
     // Execute the bundle wrapper function if there is one registered.
     if (name in $parcel$bundles) {
-      let wrapper = $parcel$bundles[name];
-      delete $parcel$bundles[name];
-      wrapper();
+      if (
+        parcelRequire._loadedBundles == null ||
+        typeof parcelRequire._loadedBundles !== 'object'
+      ) {
+        throw new Error(
+          'Expected parcelRequire._loadedBundles to be initialized',
+        );
+      }
+
+      for (var i = 0; i < $parcel$bundles[name].length; i++) {
+        var tuple = $parcel$bundles[name][i];
+        if (parcelRequire._loadedBundles[tuple[0]]) {
+          var wrapper = tuple[1];
+          delete $parcel$bundles[name];
+          wrapper();
+          break;
+        }
+      }
     }
 
     if (name in $parcel$modules) {
@@ -29,8 +44,12 @@ if (parcelRequire == null) {
     $parcel$modules[id] = exports;
   };
 
-  parcelRequire.registerBundle = function registerBundle(id, fn) {
-    $parcel$bundles[id] = fn;
+  parcelRequire.registerBundle = function registerBundle(id, fn, bundleId) {
+    if (id in $parcel$modules) {
+      return;
+    }
+    $parcel$bundles[id] = $parcel$bundles[id] || [];
+    $parcel$bundles[id].push([bundleId, fn]);
     $parcel$modules[id] = {};
   };
 

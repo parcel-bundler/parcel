@@ -1,6 +1,6 @@
 {
   "name": "parcel",
-  "version": "2.0.0-frontbucket.66",
+  "version": "2.0.0-frontbucket.76",
   "description": "Blazing fast, zero configuration web application bundler",
   "license": "MIT",
   "publishConfig": {
@@ -21,23 +21,23 @@
     "node": ">= 12.0.0"
   },
   "dependencies": {
-    "@atlassian/internal-parcel-utils": "2.0.0-frontbucket.47",
-    "@parcel/config-default": "2.0.0-frontbucket.66",
-    "@parcel/core": "2.0.0-frontbucket.53",
-    "@parcel/diagnostic": "2.0.0-frontbucket.26",
-    "@parcel/events": "2.0.0-frontbucket.21",
-    "@parcel/fs": "2.0.0-frontbucket.41",
-    "@parcel/logger": "2.0.0-frontbucket.28",
-    "@parcel/package-manager": "2.0.0-frontbucket.42",
-    "@parcel/reporter-cli": "2.0.0-frontbucket.46",
-    "@parcel/reporter-dev-server": "2.0.0-frontbucket.46",
-    "@parcel/utils": "2.0.0-frontbucket.38",
+    "@atlassian/internal-parcel-utils": "2.0.0-frontbucket.76",
+    "@parcel/config-default": "2.0.0-frontbucket.76",
+    "@parcel/core": "2.0.0-frontbucket.76",
+    "@parcel/diagnostic": "2.0.0-frontbucket.76",
+    "@parcel/events": "2.0.0-frontbucket.76",
+    "@parcel/fs": "2.0.0-frontbucket.76",
+    "@parcel/logger": "2.0.0-frontbucket.76",
+    "@parcel/package-manager": "2.0.0-frontbucket.76",
+    "@parcel/reporter-cli": "2.0.0-frontbucket.76",
+    "@parcel/reporter-dev-server": "2.0.0-frontbucket.76",
+    "@parcel/utils": "2.0.0-frontbucket.76",
     "chalk": "^4.1.0",
     "commander": "^7.0.0",
     "get-port": "^4.2.0",
     "v8-compile-cache": "^2.0.0"
   },
   "devDependencies": {
-    "@parcel/babel-register": "2.0.0-frontbucket.25"
+    "@parcel/babel-register": "2.0.0-frontbucket.76"
   }
 }

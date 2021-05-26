@@ -1,12 +1,12 @@
 // @flow
-import nullthrows from 'nullthrows';
-import {TSModule} from './TSModule';
 import type {TSModuleGraph} from './TSModuleGraph';
-import typeof TypeScriptModule from 'typescript'; // eslint-disable-line import/no-extraneous-dependencies
+
+import nullthrows from 'nullthrows';
+import ts from 'typescript';
+import {TSModule} from './TSModule';
 import {getExportedName, isDeclaration} from './utils';
 
 export function collect(
-  ts: TypeScriptModule,
   moduleGraph: TSModuleGraph,
   context: any,
   sourceFile: any,

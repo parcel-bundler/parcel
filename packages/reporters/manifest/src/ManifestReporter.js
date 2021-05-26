@@ -1,6 +1,6 @@
 // @flow strict-local
 
-import type {Bundle, Target} from '@parcel/types';
+import type {PackagedBundle, Target} from '@parcel/types';
 
 import path from 'path';
 import {Reporter} from '@parcel/plugin';
@@ -14,7 +14,7 @@ export default (new Reporter({
     let bundleGraph = event.bundleGraph;
     let entryBundlesByTarget: Map<
       string,
-      {|target: Target, entryBundles: Set<Bundle>|},
+      {|target: Target, entryBundles: Set<PackagedBundle>|},
     > = new Map();
     bundleGraph.traverseBundles((bundle, _, actions) => {
       let res = entryBundlesByTarget.get(bundle.target.name);
@@ -43,7 +43,7 @@ export default (new Reporter({
               manifest[path.basename(mainEntry.filePath)] = bundleGraph
                 .getReferencedBundles(entryBundle)
                 .concat([entryBundle])
-                .map(b => b.name);
+                .map(b => path.basename(b.filePath));
             }
           }
 

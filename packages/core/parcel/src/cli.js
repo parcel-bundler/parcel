@@ -29,7 +29,8 @@ async function logUncaughtError(e: mixed) {
     for (let diagnostic of e.diagnostics) {
       let out = await prettyDiagnostic(diagnostic);
       INTERNAL_ORIGINAL_CONSOLE.error(out.message);
-      INTERNAL_ORIGINAL_CONSOLE.error(out.codeframe || out.stack);
+      INTERNAL_ORIGINAL_CONSOLE.error(out.codeframe);
+      INTERNAL_ORIGINAL_CONSOLE.error(out.stack);
       for (let h of out.hints) {
         INTERNAL_ORIGINAL_CONSOLE.error(h);
       }
@@ -400,7 +401,18 @@ async function normalizeOptions(
   let port = parsePort(command.port || '1234');
   let originalPort = port;
   if (command.name() === 'serve' || command.hmr) {
-    port = await getPort({port, host});
+    try {
+      port = await getPort({port, host});
+    } catch (err) {
+      throw new ThrowableDiagnostic({
+        diagnostic: {
+          message: `Could not get available port: ${err.message}`,
+          origin: 'parcel',
+          filePath: __filename,
+          stack: err.stack,
+        },
+      });
+    }
 
     if (port !== originalPort) {
       let errorMessage = `Port "${originalPort}" could not be used`;

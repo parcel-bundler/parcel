@@ -105,6 +105,7 @@ const REGISTER_TEMPLATE = template.statements<
     REFERENCED_IDS: ArrayExpression,
     STATEMENTS: Array<Statement>,
     PARCEL_REQUIRE: Identifier,
+    BUNDLE_ID: StringLiteral,
   |},
   Array<Statement>,
 >(`function $parcel$bundleWrapper() {
@@ -114,7 +115,7 @@ const REGISTER_TEMPLATE = template.statements<
 }
 var $parcel$referencedAssets = REFERENCED_IDS;
 for (var $parcel$i = 0; $parcel$i < $parcel$referencedAssets.length; $parcel$i++) {
-  PARCEL_REQUIRE.registerBundle($parcel$referencedAssets[$parcel$i], $parcel$bundleWrapper);
+  PARCEL_REQUIRE.registerBundle($parcel$referencedAssets[$parcel$i], $parcel$bundleWrapper, BUNDLE_ID);
 }
 `);
 const WRAPPER_TEMPLATE = template.statement<
@@ -160,7 +161,7 @@ export function link({
   if (bundle.env.isLibrary) {
     let bundles = bundleGraph.getReferencedBundles(bundle);
     for (let b of bundles) {
-      importedFiles.set(nullthrows(b.filePath), {
+      importedFiles.set(b.id, {
         bundle: b,
         assets: new Set(),
       });
@@ -620,15 +621,14 @@ export function link({
       );
     }
 
-    let filePath = nullthrows(importedBundle.filePath);
-    let imported = importedFiles.get(filePath);
+    let imported = importedFiles.get(importedBundle.id);
     if (!imported) {
       imported = {
         bundle: importedBundle,
         assets: new Set(),
         loc: convertBabelLoc(node.loc),
       };
-      importedFiles.set(filePath, imported);
+      importedFiles.set(importedBundle.id, imported);
     }
 
     invariant(imported.assets != null);
@@ -1036,6 +1036,7 @@ export function link({
                   ),
               ),
               PARCEL_REQUIRE: t.identifier(parcelRequireName),
+              BUNDLE_ID: t.stringLiteral(bundle.publicId),
             });
           }
 

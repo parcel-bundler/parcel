@@ -68,6 +68,44 @@ describe('typescript types', function() {
     assert.equal(dist, expected);
   });
 
+  it('should generate ts declarations with imports and naming collisions', async function() {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/ts-types/importing-collision/index.ts',
+      ),
+    );
+
+    assertBundles(b, [
+      {
+        type: 'js',
+        assets: ['index.ts', 'other1.ts', 'other2.ts', 'esmodule-helpers.js'],
+      },
+      {
+        type: 'ts',
+        assets: ['index.ts'],
+      },
+    ]);
+
+    let dist = (
+      await outputFS.readFile(
+        path.join(
+          __dirname,
+          '/integration/ts-types/importing-collision/dist/types.d.ts',
+        ),
+        'utf8',
+      )
+    ).replace(/\r\n/g, '\n');
+    let expected = await inputFS.readFile(
+      path.join(
+        __dirname,
+        '/integration/ts-types/importing-collision/expected.d.ts',
+      ),
+      'utf8',
+    );
+    assert.equal(dist, expected);
+  });
+
   it('should generate ts declarations with exports', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/ts-types/exporting/index.ts'),
@@ -127,6 +165,44 @@ describe('typescript types', function() {
     ).replace(/\r\n/g, '\n');
     let expected = await inputFS.readFile(
       path.join(__dirname, '/integration/ts-types/externals/expected.d.ts'),
+      'utf8',
+    );
+    assert.equal(dist, expected);
+  });
+
+  it('should generate ts declarations with externals that conflict with exported names', async function() {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/ts-types/import-export-collision/index.ts',
+      ),
+    );
+
+    assertBundles(b, [
+      {
+        type: 'js',
+        assets: ['index.ts', 'esmodule-helpers.js'],
+      },
+      {
+        type: 'ts',
+        assets: ['index.ts'],
+      },
+    ]);
+
+    let dist = (
+      await outputFS.readFile(
+        path.join(
+          __dirname,
+          '/integration/ts-types/import-export-collision/dist/types.d.ts',
+        ),
+        'utf8',
+      )
+    ).replace(/\r\n/g, '\n');
+    let expected = await inputFS.readFile(
+      path.join(
+        __dirname,
+        '/integration/ts-types/import-export-collision/expected.d.ts',
+      ),
       'utf8',
     );
     assert.equal(dist, expected);

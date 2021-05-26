@@ -408,12 +408,21 @@ function getLoaderRuntime({
   }
 
   if (bundle.env.outputFormat === 'global' && mainBundle.type === 'js') {
-    loaderCode += `.then(() => module.bundle.root('${bundleGraph.getAssetPublicId(
-      bundleGraph.getAssetById(bundleGroup.entryAssetId),
-    )}')${
+    loaderCode += `.then(() => {
+      module.bundle.root._loadedBundles = module.bundle.root._loadedBundles || {};
+      var externalBundleIds = [${externalBundles
+        .map(b => "'" + b.publicId + "'")
+        .join(',')}];
+      for(var j = 0; j < externalBundleIds.length; j++){
+        module.bundle.root._loadedBundles[externalBundleIds[j]] = true;
+      };
+      return module.bundle.root('${bundleGraph.getAssetPublicId(
+        bundleGraph.getAssetById(bundleGroup.entryAssetId),
+      )}')${
       // In global output with scope hoisting, functions return exports are
       // always returned. Otherwise, the exports are returned.
       bundle.env.shouldScopeHoist ? '()' : ''
+    };
     })`;
   }
 
