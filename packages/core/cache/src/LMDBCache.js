@@ -18,8 +18,8 @@ export class LMDBCache implements Cache {
   constructor(cacheDir: FilePath) {
     this.dir = cacheDir;
 
-    this.store = lmdb.open({
-      path: cacheDir,
+    this.store = lmdb.open(cacheDir, {
+      name: 'parcel-cache',
       encoding: 'binary',
     });
   }
@@ -69,6 +69,10 @@ export class LMDBCache implements Cache {
 
   async setBlob(key: string, contents: Buffer | string): Promise<void> {
     await this.store.put(key, contents);
+  }
+
+  async getBuffer(key: string): Promise<?Buffer> {
+    return Promise.resolve(this.store.get(key));
   }
 }
 

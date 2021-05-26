@@ -65,6 +65,18 @@ export class FSCache implements Cache {
     await this.fs.writeFile(this._getCachePath(key), contents);
   }
 
+  async getBuffer(key: string): Promise<?Buffer> {
+    try {
+      return await this.fs.readFile(this._getCachePath(key));
+    } catch (err) {
+      if (err.code === 'ENOENT') {
+        return null;
+      } else {
+        throw err;
+      }
+    }
+  }
+
   async get<T>(key: string): Promise<?T> {
     try {
       let data = await this.fs.readFile(this._getCachePath(key));

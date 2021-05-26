@@ -10,4 +10,5 @@ export interface Cache {
   setStream(key: string, stream: Readable): Promise<void>;
   getBlob(key: string): Promise<Buffer>;
   setBlob(key: string, contents: Buffer | string): Promise<void>;
+  getBuffer(key: string): Promise<?Buffer>;
 }
