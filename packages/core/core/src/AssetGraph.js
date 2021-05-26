@@ -503,7 +503,18 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
     let assetGroupIds = this.getNodeIdsConnectedTo(nodeId);
     let dependencies = [];
     for (let i = 0; i < assetGroupIds.length; i++) {
-      let assetIds = this.getNodeIdsConnectedTo(assetGroupIds[i]);
+      let assetGroupId = assetGroupIds[i];
+
+      // Sometimes assets are connected directly to dependencies
+      // rather than through an asset group. This happens due to 
+      // inline dependencies on assets via uniqueKey. See resolveAsset.
+      let node = this.getNode(assetGroupId);
+      if (node?.type === 'dependency') {
+        dependencies.push(node.value);
+        continue;
+      }
+
+      let assetIds = this.getNodeIdsConnectedTo(assetGroupId);
       for (let j = 0; j < assetIds.length; j++) {
         let node = this.getNode(assetIds[j]);
         if (!node || node.type !== 'dependency') {
