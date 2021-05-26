@@ -47,6 +47,7 @@
   },
   "scripts": {
     "build": "napi build --platform --cargo-cwd napi",
-    "build-release": "napi build --platform --release --cargo-cwd napi"
+    "build-release": "napi build --platform --release --cargo-cwd napi",
+    "build:wasm": "wasm-pack build wasm --target nodejs --no-typescript --release"
   }
 }

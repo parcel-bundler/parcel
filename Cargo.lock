@@ -590,6 +590,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "parcel-js-swc-wasm"
+version = "0.1.0"
+dependencies = [
+ "js-sys",
+ "parcel-js-swc-core",
+ "wasm-bindgen",
+]
+
+[[package]]
 name = "percent-encoding"
 version = "2.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1525,6 +1534,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8fe8f61dba8e5d645a4d8132dc7a0a66861ed5e1045d2c0ed940fab33bac0fbe"
 dependencies = [
  "cfg-if 1.0.0",
+ "serde",
+ "serde_json",
  "wasm-bindgen-macro",
 ]
 

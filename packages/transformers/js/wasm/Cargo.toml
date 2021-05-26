@@ -1,0 +1,13 @@
+[package]
+authors = ["Devon Govett <devongovett@gmail.com>"]
+name = "parcel-js-swc-wasm"
+version = "0.1.0"
+edition = "2018"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+js-sys = "0.3"
+parcel-js-swc-core = { path = "../core" }
+wasm-bindgen = { version = "0.2", features = ["serde-serialize"] }

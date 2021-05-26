@@ -2,6 +2,7 @@
 members = [
   "packages/transformers/js/core",
   "packages/transformers/js/napi",
+  "packages/transformers/js/wasm",
   "packages/utils/fs-search",
 ]
 
