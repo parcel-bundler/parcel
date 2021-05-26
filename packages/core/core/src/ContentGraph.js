@@ -1,11 +1,15 @@
 // @flow strict-local
 
-import Graph, {type GraphOpts} from './Graph';
+import Graph, {type SerializedGraph, type GraphOpts} from './Graph';
 import type {ContentKey, Node, NodeId} from './types';
 import nullthrows from 'nullthrows';
 
-export type SerializedContentGraph<TNode: Node, TEdgeType: number = 1> = {|
+export type ContentGraphOpts<TNode: Node, TEdgeType: number = 1> = {|
   ...GraphOpts<TNode, TEdgeType>,
+  _contentKeyToNodeId: Map<ContentKey, NodeId>,
+|};
+export type SerializedContentGraph<TNode: Node, TEdgeType: number = 1> = {|
+  ...SerializedGraph<TNode>,
   _contentKeyToNodeId: Map<ContentKey, NodeId>,
 |};
 
@@ -15,7 +19,7 @@ export default class ContentGraph<
 > extends Graph<TNode, TEdgeType> {
   _contentKeyToNodeId: Map<ContentKey, NodeId>;
 
-  constructor(opts: ?SerializedContentGraph<TNode, TEdgeType>) {
+  constructor(opts: ?ContentGraphOpts<TNode, TEdgeType>) {
     if (opts) {
       let {_contentKeyToNodeId, ...rest} = opts;
       super(rest);
@@ -28,7 +32,7 @@ export default class ContentGraph<
 
   // $FlowFixMe[prop-missing]
   static deserialize(
-    opts: SerializedContentGraph<TNode, TEdgeType>,
+    opts: ContentGraphOpts<TNode, TEdgeType>,
   ): ContentGraph<TNode, TEdgeType> {
     return new ContentGraph(opts);
   }

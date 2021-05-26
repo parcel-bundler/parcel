@@ -146,7 +146,7 @@ export default (new Transformer({
     let sourceMap = null;
     if (map.mappings) {
       sourceMap = new SourceMap(options.projectRoot);
-      sourceMap.addRawMappings(map);
+      sourceMap.addVLQMap(map);
     }
 
     return [

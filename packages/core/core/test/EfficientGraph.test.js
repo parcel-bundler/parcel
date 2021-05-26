@@ -10,7 +10,7 @@ import EfficientGraph, {
 } from '../src/EfficientGraph';
 import {toNodeId} from '../src/types';
 
-describe.only('EfficientGraph', () => {
+describe('EfficientGraph', () => {
   it('constructor should initialize an empty graph', () => {
     let graph = new EfficientGraph(1, 1);
     assert.deepEqual(graph.nodes, new Uint32Array(1 * NODE_SIZE));

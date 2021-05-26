@@ -16,7 +16,7 @@ import syncPromise from './syncPromise';
 
 let hooks = {};
 let lastDisposable;
-let packageManager = new NodePackageManager(new NodeFS());
+let packageManager = new NodePackageManager(new NodeFS(), '/');
 let defaultConfig = {
   ...defaultConfigContents,
   filePath: packageManager.resolveSync('@parcel/config-default', __filename)

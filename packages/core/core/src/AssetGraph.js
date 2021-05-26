@@ -26,13 +26,21 @@ import {
   objectSortedEntries,
 } from '@parcel/utils';
 import nullthrows from 'nullthrows';
-import ContentGraph, {type SerializedContentGraph} from './ContentGraph';
+import ContentGraph, {
+  type SerializedContentGraph,
+  type ContentGraphOpts,
+} from './ContentGraph';
 import {createDependency} from './Dependency';
 
 type InitOpts = {|
   entries?: Array<string>,
   targets?: Array<Target>,
   assetGroups?: Array<AssetGroup>,
+|};
+
+type AssetGraphOpts = {|
+  ...ContentGraphOpts<AssetGraphNode>,
+  hash?: ?string,
 |};
 
 type SerializedAssetGraph = {|
@@ -104,7 +112,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
   hash: ?string;
   envCache: Map<string, Environment>;
 
-  constructor(opts: ?SerializedAssetGraph) {
+  constructor(opts: ?AssetGraphOpts) {
     if (opts) {
       let {hash, ...rest} = opts;
       super(rest);
@@ -123,7 +131,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
   }
 
   // $FlowFixMe[prop-missing]
-  static deserialize(opts: SerializedAssetGraph): AssetGraph {
+  static deserialize(opts: AssetGraphOpts): AssetGraph {
     return new AssetGraph(opts);
   }
 

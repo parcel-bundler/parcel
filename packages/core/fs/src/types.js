@@ -64,7 +64,11 @@ export interface FileSystem {
     snapshot: FilePath,
     opts: WatcherOptions,
   ): Promise<void>;
-  findAncestorFile(fileNames: Array<string>, fromDir: FilePath): ?FilePath;
+  findAncestorFile(
+    fileNames: Array<string>,
+    fromDir: FilePath,
+    root: FilePath,
+  ): ?FilePath;
   findNodeModule(moduleName: string, fromDir: FilePath): ?FilePath;
   findFirstFile(filePaths: Array<FilePath>): ?FilePath;
 }

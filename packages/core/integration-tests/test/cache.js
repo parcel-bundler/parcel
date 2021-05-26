@@ -21,7 +21,7 @@ import {NodePackageManager} from '@parcel/package-manager';
 import {createWorkerFarm} from '@parcel/core';
 
 let inputDir: string;
-let packageManager = new NodePackageManager(inputFS);
+let packageManager = new NodePackageManager(inputFS, '/');
 
 function runBundle(entries = 'src/index.js', opts) {
   entries = (Array.isArray(entries) ? entries : [entries]).map(entry =>
@@ -1141,10 +1141,18 @@ describe('cache', function() {
   describe('transformations', function() {
     it('should invalidate when included files changes', async function() {
       let b = await testCache({
+        // TODO: update when the fs transform supports the MemoryFS
+        inputFS,
+        outputFS: inputFS,
         async setup() {
-          await overlayFS.writeFile(path.join(inputDir, 'src/test.txt'), 'hi');
+          await inputFS.mkdirp(inputDir);
+          await inputFS.ncp(
+            path.join(__dirname, '/integration/cache'),
+            inputDir,
+          );
+          await inputFS.writeFile(path.join(inputDir, 'src/test.txt'), 'hi');
 
-          await overlayFS.writeFile(
+          await inputFS.writeFile(
             path.join(inputDir, 'src/index.js'),
             'module.exports = require("fs").readFileSync(__dirname + "/test.txt", "utf8")',
           );
@@ -1152,10 +1160,12 @@ describe('cache', function() {
         async update(b) {
           assert.equal(await run(b.bundleGraph), 'hi');
 
-          await overlayFS.writeFile(
+          await inputFS.writeFile(
             path.join(inputDir, 'src/test.txt'),
             'updated',
           );
+
+          await sleep(100);
         },
       });
 
@@ -1379,10 +1389,7 @@ describe('cache', function() {
             b.bundleGraph.getBundles()[0].filePath,
             'utf8',
           );
-          assert(
-            !contents.includes('export default'),
-            'should not include export default',
-          );
+          assert(!contents.includes('export '), 'should not include export');
 
           let pkgFile = path.join(inputDir, 'package.json');
           let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
@@ -1404,10 +1411,7 @@ describe('cache', function() {
         b.bundleGraph.getBundles()[0].filePath,
         'utf8',
       );
-      assert(
-        contents.includes('export default'),
-        'should include export default',
-      );
+      assert(contents.includes('export '), 'should include export');
     });
 
     it('should support adding a second target', async function() {
@@ -1568,10 +1572,7 @@ describe('cache', function() {
             b.bundleGraph.getBundles()[0].filePath,
             'utf8',
           );
-          assert(
-            contents.includes('export default'),
-            'should include export default',
-          );
+          assert(contents.includes('export '), 'should include export');
 
           let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
           await overlayFS.writeFile(
@@ -1701,10 +1702,7 @@ describe('cache', function() {
             b.bundleGraph.getBundles()[0].filePath,
             'utf8',
           );
-          assert(
-            contents.includes('export default'),
-            'should include export default',
-          );
+          assert(contents.includes('export '), 'should include export');
 
           contents = await overlayFS.readFile(
             b.bundleGraph.getBundles()[1].filePath,
@@ -1737,10 +1735,7 @@ describe('cache', function() {
         b.bundleGraph.getBundles()[0].filePath,
         'utf8',
       );
-      assert(
-        !contents.includes('export default'),
-        'should not include export default',
-      );
+      assert(!contents.includes('export '), 'should not include export');
       assert(
         !contents.includes('module.exports ='),
         'should not include module.exports',
@@ -1876,10 +1871,7 @@ describe('cache', function() {
             b.bundleGraph.getBundles()[0].filePath,
             'utf8',
           );
-          assert(
-            !contents.includes('export default'),
-            'does not include export default',
-          );
+          assert(!contents.includes('export '), 'does not include export');
 
           await overlayFS.writeFile(
             pkgFile,
@@ -1899,10 +1891,7 @@ describe('cache', function() {
         b.bundleGraph.getBundles()[0].filePath,
         'utf8',
       );
-      assert(
-        contents.includes('export default'),
-        'should include export default',
-      );
+      assert(contents.includes('export '), 'should include export');
     });
 
     it('should update when a package.json is deleted', async function() {
@@ -1930,10 +1919,7 @@ describe('cache', function() {
             b.bundleGraph.getBundles()[0].filePath,
             'utf8',
           );
-          assert(
-            contents.includes('export default'),
-            'should include export default',
-          );
+          assert(contents.includes('export '), 'should include export');
           await overlayFS.unlink(pkgFile);
         },
       });
@@ -1942,10 +1928,7 @@ describe('cache', function() {
         b.bundleGraph.getBundles()[0].filePath,
         'utf8',
       );
-      assert(
-        !contents.includes('export default'),
-        'does not include export default',
-      );
+      assert(!contents.includes('export '), 'does not include export');
     });
 
     describe('browserslist', function() {
@@ -4287,7 +4270,7 @@ describe('cache', function() {
                   ?.filePath,
                 'utf8',
               );
-              assert.equal(html.match(/<script/g)?.length, 5);
+              assert.equal(html.match(/<script/g)?.length, 6);
 
               let pkgFile = path.join(inputDir, 'package.json');
               let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
@@ -4345,7 +4328,7 @@ describe('cache', function() {
           b.bundleGraph.getBundles().find(b => b.name === 'b.html')?.filePath,
           'utf8',
         );
-        assert.equal(html.match(/<script/g)?.length, 5);
+        assert.equal(html.match(/<script/g)?.length, 6);
       });
 
       it('should support removing bundler config', async function() {
@@ -4379,7 +4362,7 @@ describe('cache', function() {
           b.bundleGraph.getBundles().find(b => b.name === 'b.html')?.filePath,
           'utf8',
         );
-        assert.equal(html.match(/<script/g)?.length, 5);
+        assert.equal(html.match(/<script/g)?.length, 6);
       });
     });
   });

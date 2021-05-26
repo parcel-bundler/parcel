@@ -1,7 +1,7 @@
 // @flow strict-local
 
 import {fromNodeId} from './types';
-import EfficientGraph from './EfficientGraph';
+import EfficientGraph, {type SerializedEfficientGraph} from './EfficientGraph';
 import type {Edge, Node, NodeId} from './types';
 import type {TraversalActions, GraphVisitor} from '@parcel/types';
 
@@ -11,9 +11,16 @@ import nullthrows from 'nullthrows';
 export type NullEdgeType = 1;
 export type GraphOpts<TNode, TEdgeType: number = 1> = {|
   nodes?: Map<NodeId, TNode>,
-  edges?: AdjacencyListMap<TEdgeType | NullEdgeType>,
+  adjacencyList?: EfficientGraph<TEdgeType>,
   rootNodeId?: ?NodeId,
   nextNodeId?: ?number,
+|};
+
+export type SerializedGraph<TNode, TEdgeType: number = 1> = {|
+  nodes: Map<NodeId, TNode>,
+  adjacencyList: SerializedEfficientGraph,
+  rootNodeId: ?NodeId,
+  nextNodeId: number,
 |};
 
 export type AllEdgeTypes = '@@all_edge_types';
@@ -21,8 +28,6 @@ export const ALL_EDGE_TYPES: AllEdgeTypes = '@@all_edge_types';
 
 export default class Graph<TNode: Node, TEdgeType: number = 1> {
   nodes: Map<NodeId, TNode>;
-  inboundEdges: AdjacencyList<TEdgeType | NullEdgeType>;
-  outboundEdges: AdjacencyList<TEdgeType | NullEdgeType>;
   adjacencyList: EfficientGraph<TEdgeType>;
   rootNodeId: ?NodeId;
   nextNodeId: number = 0;
@@ -32,24 +37,10 @@ export default class Graph<TNode: Node, TEdgeType: number = 1> {
     this.setRootNodeId(opts?.rootNodeId);
     this.nextNodeId = opts?.nextNodeId ?? 0;
 
-    let edges = opts?.edges;
-    if (edges != null) {
-      // this.inboundEdges = new AdjacencyList();
-      // this.outboundEdges = new AdjacencyList(edges);
-      this.adjacencyList = new EfficientGraph<TEdgeType>();
-      for (let [from, edgeList] of edges) {
-        for (let [type, toNodes] of edgeList) {
-          for (let to of toNodes) {
-            // this.inboundEdges.addEdge(to, from, type);
-            this.adjacencyList.addEdge(to, from, type);
-          }
-        }
-      }
-    } else {
-      // this.inboundEdges = new AdjacencyList();
-      // this.outboundEdges = new AdjacencyList();
-      this.adjacencyList = new EfficientGraph<TEdgeType>();
-    }
+    let adjacencyList = opts?.adjacencyList;
+    this.adjacencyList = adjacencyList
+      ? adjacencyList
+      : new EfficientGraph<TEdgeType>();
   }
 
   setRootNodeId(id: ?NodeId) {
@@ -61,16 +52,16 @@ export default class Graph<TNode: Node, TEdgeType: number = 1> {
   ): Graph<TNode, TEdgeType> {
     return new this({
       nodes: opts.nodes,
-      edges: opts.edges,
+      adjacencyList: opts.adjacencyList,
       rootNodeId: opts.rootNodeId,
       nextNodeId: opts.nextNodeId,
     });
   }
 
-  serialize(): GraphOpts<TNode, TEdgeType> {
+  serialize(): SerializedGraph<TNode, TEdgeType> {
     return {
       nodes: this.nodes,
-      edges: this.outboundEdges.getListMap(),
+      adjacencyList: this.adjacencyList.serialize(),
       rootNodeId: this.rootNodeId,
       nextNodeId: this.nextNodeId,
     };
@@ -605,56 +596,4 @@ export function mapVisitor<NodeId, TValue, TContext>(
       }
     },
   };
-}
-
-type AdjacencyListMap<TEdgeType> = Map<NodeId, Map<TEdgeType, Set<NodeId>>>;
-class AdjacencyList<TEdgeType> {
-  _listMap: AdjacencyListMap<TEdgeType>;
-
-  constructor(listMap?: AdjacencyListMap<TEdgeType>) {
-    this._listMap = listMap ?? new Map();
-  }
-
-  getListMap(): AdjacencyListMap<TEdgeType> {
-    return this._listMap;
-  }
-
-  getEdges(from: NodeId, type: TEdgeType): $ReadOnlySet<NodeId> {
-    return this._listMap.get(from)?.get(type) ?? new Set();
-  }
-
-  getEdgesByType(from: NodeId): $ReadOnlyMap<TEdgeType, $ReadOnlySet<NodeId>> {
-    return this._listMap.get(from) ?? new Map();
-  }
-
-  hasEdge(from: NodeId, to: NodeId, type: TEdgeType): boolean {
-    return Boolean(
-      this._listMap
-        .get(from)
-        ?.get(type)
-        ?.has(to),
-    );
-  }
-
-  addEdge(from: NodeId, to: NodeId, type: TEdgeType): void {
-    let types = this._listMap.get(from);
-    if (types == null) {
-      types = new Map<TEdgeType, Set<NodeId>>();
-      this._listMap.set(from, types);
-    }
-
-    let adjacent = types.get(type);
-    if (adjacent == null) {
-      adjacent = new Set<NodeId>();
-      types.set(type, adjacent);
-    }
-    adjacent.add(to);
-  }
-
-  removeEdge(from: NodeId, to: NodeId, type: TEdgeType): void {
-    this._listMap
-      .get(from)
-      ?.get(type)
-      ?.delete(to);
-  }
 }
