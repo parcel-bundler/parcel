@@ -10,6 +10,17 @@
         "url": "/platform/parcel/",
         "subcategories": [
           {
+            "title": "Getting started",
+            "name": "getting-started",
+            "expandAlways": true,
+            "items": [
+              {
+                "title": "In the Monorepo",
+                "url": "/platform/parcel/getting-started/monorepo/"
+              }
+            ]
+          },
+          {
             "title": "Atlassian plugins",
             "name": "plugins",
             "expandAlways": true,
@@ -36,6 +47,10 @@
               {
                 "title": "Getting Support",
                 "url": "/platform/parcel/support/getting-support/"
+              },
+              {
+                "title": "Troubleshooting",
+                "url": "/platform/parcel/support/troubleshooting/"
               }
             ]
           }
