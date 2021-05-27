@@ -28,7 +28,6 @@
     "@parcel/packager-html": "2.0.0-frontbucket.76",
     "@parcel/packager-js": "2.0.0-frontbucket.76",
     "@parcel/packager-raw": "2.0.0-frontbucket.76",
-    "@parcel/reporter-bundle-buddy": "2.0.0-frontbucket.76",
     "@parcel/reporter-manifest": "2.0.0-frontbucket.76",
     "@parcel/reporter-react-loadable": "2.0.0-frontbucket.76",
     "@parcel/resolver-default": "2.0.0-frontbucket.76",
