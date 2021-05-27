@@ -72,7 +72,7 @@ export class LMDBCache implements Cache {
     await this.store.put(key, contents);
   }
 
-  async getBuffer(key: string): Promise<?Buffer> {
+  getBuffer(key: string): Promise<?Buffer> {
     return Promise.resolve(this.store.get(key));
   }
 }
