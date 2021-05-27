@@ -35,6 +35,10 @@ const JSX_PRAGMA = {
     pragma: 'h',
     pragmaFrag: undefined,
   },
+  mithril: {
+    pragma: 'm',
+    pragmaFrag: 'm.Fragment',
+  },
 };
 
 const BROWSER_MAPPING = {
