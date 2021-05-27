@@ -16,6 +16,7 @@ import {
   normalizeSeparators,
   findAlternativeNodeModules,
   findAlternativeFiles,
+  loadConfig,
 } from '@parcel/utils';
 import ThrowableDiagnostic, {
   generateJSONCodeHighlights,
@@ -645,6 +646,13 @@ export default class NodeResolver {
     ctx.invalidateOnFileChange.add(file);
     let pkg = JSON.parse(json);
 
+    await this.processPackage(pkg, file, dir);
+
+    this.packageCache.set(file, pkg);
+    return pkg;
+  }
+
+  async processPackage(pkg: InternalPackageJSON, file: string, dir: string) {
     pkg.pkgfile = file;
     pkg.pkgdir = dir;
 
@@ -656,9 +664,6 @@ export default class NodeResolver {
         delete pkg.source;
       }
     }
-
-    this.packageCache.set(file, pkg);
-    return pkg;
   }
 
   getPackageEntries(
@@ -798,18 +803,27 @@ export default class NodeResolver {
       return null;
     }
 
-    let pkgKeys = ['source', 'alias'];
-    if (env.isBrowser()) pkgKeys.push('browser');
-
-    for (let pkgKey of pkgKeys) {
-      let pkgKeyValue = pkg[pkgKey];
-      if (!Array.isArray(pkgKeyValue)) {
-        let alias = await this.getAlias(filename, pkg, pkgKeyValue);
-        if (alias != null) {
-          return alias;
-        }
+    if (pkg.source && !Array.isArray(pkg.source)) {
+      let alias = await this.getAlias(filename, pkg, pkg.source);
+      if (alias != null) {
+        return alias;
       }
     }
+
+    if (pkg.alias) {
+      let alias = await this.getAlias(filename, pkg, pkg.alias);
+      if (alias != null) {
+        return alias;
+      }
+    }
+
+    if (pkg.browser && env.isBrowser()) {
+      let alias = await this.getAlias(filename, pkg, pkg.browser);
+      if (alias != null) {
+        return alias;
+      }
+    }
+
     return null;
   }
 
@@ -911,7 +925,7 @@ export default class NodeResolver {
     return alias;
   }
 
-  findPackage(
+  async findPackage(
     sourceFile: string,
     ctx: ResolverContext,
   ): Promise<InternalPackageJSON | null> {
@@ -921,17 +935,26 @@ export default class NodeResolver {
     });
 
     // Find the nearest package.json file within the current node_modules folder
-    let dir = path.dirname(sourceFile);
-    let pkgFile = this.fs.findAncestorFile(
+    let res = await loadConfig(
+      this.fs,
+      sourceFile,
       ['package.json'],
-      dir,
       this.projectRoot,
+      // By default, loadConfig uses JSON5. Use normal JSON for package.json files
+      // since they don't support comments and JSON.parse is faster.
+      {parser: JSON.parse},
     );
-    if (pkgFile) {
-      return this.readPackage(path.dirname(pkgFile), ctx);
+
+    if (res != null) {
+      let file = res.files[0].filePath;
+      let dir = path.dirname(file);
+      ctx.invalidateOnFileChange.add(file);
+      let pkg = res.config;
+      await this.processPackage(pkg, file, dir);
+      return pkg;
     }
 
-    return Promise.resolve(null);
+    return null;
   }
 
   async loadAlias(
