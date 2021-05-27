@@ -376,7 +376,11 @@ export class ScopeHoistingPackager {
 
         // If we matched an import, replace with the source code for the dependency.
         if (d != null) {
-          let dep = nullthrows(depMap.get(d));
+          let dep = depMap.get(d);
+          if (!dep) {
+            return m;
+          }
+
           let resolved = this.bundleGraph.getDependencyResolution(
             dep,
             this.bundle,

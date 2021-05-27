@@ -506,7 +506,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
       let assetGroupId = assetGroupIds[i];
 
       // Sometimes assets are connected directly to dependencies
-      // rather than through an asset group. This happens due to 
+      // rather than through an asset group. This happens due to
       // inline dependencies on assets via uniqueKey. See resolveAsset.
       let node = this.getNode(assetGroupId);
       if (node?.type === 'dependency') {
