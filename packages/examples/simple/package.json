@@ -1,6 +1,6 @@
 {
   "name": "@parcel/simple-example",
-  "version": "2.0.0-frontbucket.75",
+  "version": "2.0.0-frontbucket.76",
   "license": "MIT",
   "private": true,
   "scripts": {
@@ -8,8 +8,8 @@
     "clean-demo": "rm -rf .parcel-cache dist && yarn demo"
   },
   "devDependencies": {
-    "@parcel/babel-register": "2.0.0-frontbucket.75",
-    "@parcel/core": "2.0.0-frontbucket.75"
+    "@parcel/babel-register": "2.0.0-frontbucket.76",
+    "@parcel/core": "2.0.0-frontbucket.76"
   },
   "browser": "dist/legacy/index.js",
   "browserModern": "dist/modern/index.js",
