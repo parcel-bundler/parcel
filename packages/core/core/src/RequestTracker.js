@@ -230,13 +230,9 @@ export class RequestGraph extends ContentGraph<
     nodeId = super.addNodeByContentKey(node.id, node);
     if (node.type === 'glob') {
       this.globNodeIds.add(nodeId);
-    }
-
-    if (node.type === 'env') {
+    } else if (node.type === 'env') {
       this.envNodeIds.add(nodeId);
-    }
-
-    if (node.type === 'option') {
+    } else if (node.type === 'option') {
       this.optionNodeIds.add(nodeId);
     }
 
@@ -249,11 +245,9 @@ export class RequestGraph extends ContentGraph<
     let node = nullthrows(this.getNode(nodeId));
     if (node.type === 'glob') {
       this.globNodeIds.delete(nodeId);
-    }
-    if (node.type === 'env') {
+    } else if (node.type === 'env') {
       this.envNodeIds.delete(nodeId);
-    }
-    if (node.type === 'option') {
+    } else if (node.type === 'option') {
       this.optionNodeIds.delete(nodeId);
     }
     return super.removeNode(nodeId);
