@@ -21,6 +21,7 @@ export class LMDBCache implements Cache {
     this.store = lmdb.open(cacheDir, {
       name: 'parcel-cache',
       encoding: 'binary',
+      compression: true,
     });
   }
 
