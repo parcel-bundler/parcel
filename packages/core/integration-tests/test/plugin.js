@@ -36,9 +36,8 @@ parcel-transformer-b`,
 
     assert.deepEqual(fs.readdirSync(distDir), [
       'index.test',
-      // ATLASSIAN: This unconditionally includes a react-loadable.json and bundle-buddy.json for now
+      // ATLASSIAN: This unconditionally includes a react-loadable.json for now
       'react-loadable.json',
-      'bundle-buddy.json',
     ]);
   });
 
