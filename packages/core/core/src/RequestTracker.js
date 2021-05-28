@@ -872,7 +872,7 @@ export default class RequestTracker {
     promises.push(this.options.cache.set(requestGraphKey, this.graph));
 
     let opts = getWatcherOptions(this.options);
-    let snapshotPath = this.options.cache._getCachePath(snapshotKey, '.txt');
+    let snapshotPath = path.join(this.options.cacheDir, snapshotKey + '.txt');
     promises.push(
       this.options.inputFS.writeSnapshot(
         this.options.projectRoot,
@@ -918,7 +918,7 @@ async function loadRequestGraph(options): Async<RequestGraph> {
   if (requestGraph) {
     let opts = getWatcherOptions(options);
     let snapshotKey = md5FromString(`${cacheKey}:snapshot`);
-    let snapshotPath = options.cache._getCachePath(snapshotKey, '.txt');
+    let snapshotPath = path.join(options.cacheDir, snapshotKey + '.txt');
     let events = await options.inputFS.getEventsSince(
       options.projectRoot,
       snapshotPath,
