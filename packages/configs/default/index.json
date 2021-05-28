@@ -72,8 +72,6 @@
   "reporters": [
     "@atlassian/parcel-reporter-analytics",
     "@parcel/reporter-manifest",
-    "@parcel/reporter-dev-server",
-    "@parcel/reporter-react-loadable",
-    "@parcel/reporter-bundle-buddy"
+    "@parcel/reporter-react-loadable"
   ]
 }
