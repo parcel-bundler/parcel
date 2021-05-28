@@ -17,7 +17,6 @@ import type {
   Config,
   DevDepRequest,
   ParcelOptions,
-  ReportFn,
 } from './types';
 import type {LoadedPlugin} from './ParcelConfig';
 
@@ -67,7 +66,6 @@ type GenerateFunc = (input: UncommittedAsset) => Promise<GenerateOutput>;
 export type TransformationOpts = {|
   options: ParcelOptions,
   config: ParcelConfig,
-  report: ReportFn,
   request: TransformationRequest,
   workerApi: WorkerApi,
 |};
@@ -93,21 +91,13 @@ export default class Transformation {
   pluginOptions: PluginOptions;
   workerApi: WorkerApi;
   parcelConfig: ParcelConfig;
-  report: ReportFn;
   invalidations: Map<string, RequestInvalidation>;
   invalidateOnFileCreate: Array<FileCreateInvalidation>;
 
-  constructor({
-    report,
-    request,
-    options,
-    config,
-    workerApi,
-  }: TransformationOpts) {
+  constructor({request, options, config, workerApi}: TransformationOpts) {
     this.configs = new Map();
     this.parcelConfig = config;
     this.options = options;
-    this.report = report;
     this.request = request;
     this.workerApi = workerApi;
     this.invalidations = new Map();
@@ -128,12 +118,6 @@ export default class Transformation {
 
   async run(): Promise<TransformationResult> {
     await initSourcemaps;
-
-    this.report({
-      type: 'buildProgress',
-      phase: 'transforming',
-      filePath: this.request.filePath,
-    });
 
     let asset = await this.loadAsset();
 
@@ -539,12 +523,14 @@ export default class Transformation {
       return null;
     }
 
-    let cachedAssets = await this.options.cache.get<Array<AssetValue>>(
+    let cached = await this.options.cache.get<{|assets: Array<AssetValue>|}>(
       cacheKey,
     );
-    if (!cachedAssets) {
+    if (!cached) {
       return null;
     }
+
+    let cachedAssets = cached.assets;
 
     return Promise.all(
       cachedAssets.map(async (value: AssetValue) => {
@@ -581,10 +567,10 @@ export default class Transformation {
   ): Promise<void> {
     await Promise.all(assets.map(asset => asset.commit(pipelineHash)));
 
-    this.options.cache.set(
-      cacheKey,
-      assets.map(a => a.value),
-    );
+    this.options.cache.set(cacheKey, {
+      $$raw: true,
+      assets: assets.map(a => a.value),
+    });
   }
 
   getCacheKey(
