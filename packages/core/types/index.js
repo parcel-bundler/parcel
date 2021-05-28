@@ -365,7 +365,7 @@ export type Meta = JSONObject;
 export type Symbol = string;
 
 /**
- * A map from extert names to the corespinding asset's lcoal variable name.
+ * A map of export names to the corresponding asset's local variable names.
  */
 export interface AssetSymbols // eslint-disable-next-line no-undef
   extends Iterable<
