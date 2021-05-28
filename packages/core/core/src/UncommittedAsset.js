@@ -196,7 +196,9 @@ export default class UncommittedAsset {
     let content = await this.content;
     if (content == null) {
       return Buffer.alloc(0);
-    } else if (typeof content === 'string' || content instanceof Buffer) {
+    } else if (content instanceof Buffer) {
+      return content;
+    } else if (typeof content === 'string') {
       return Buffer.from(content);
     }
 
@@ -263,9 +265,7 @@ export default class UncommittedAsset {
       let mapBuffer = this.mapBuffer ?? (await this.getMapBuffer());
       if (mapBuffer) {
         // Get sourcemap from flatbuffer
-        let map = new SourceMap(this.options.projectRoot);
-        map.addBuffer(mapBuffer);
-        this.map = map;
+        this.map = new SourceMap(mapBuffer);
       }
     }
 

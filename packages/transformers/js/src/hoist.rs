@@ -103,6 +103,18 @@ impl<'a> Hoist<'a> {
   }
 }
 
+macro_rules! hoist_visit_fn {
+  ($name:ident, $type:ident) => {
+    fn $name(&mut self, node: $type) -> $type {
+      let in_function_scope = self.in_function_scope;
+      self.in_function_scope = true;
+      let res = node.fold_children_with(self);
+      self.in_function_scope = in_function_scope;
+      res
+    }
+  };
+}
+
 impl<'a> Fold for Hoist<'a> {
   fn fold_module(&mut self, node: Module) -> Module {
     let mut node = node;
@@ -485,21 +497,10 @@ impl<'a> Fold for Hoist<'a> {
     node
   }
 
-  fn fold_function(&mut self, node: Function) -> Function {
-    let in_function_scope = self.in_function_scope;
-    self.in_function_scope = true;
-    let res = node.fold_children_with(self);
-    self.in_function_scope = in_function_scope;
-    res
-  }
-
-  fn fold_class(&mut self, node: Class) -> Class {
-    let in_function_scope = self.in_function_scope;
-    self.in_function_scope = true;
-    let res = node.fold_children_with(self);
-    self.in_function_scope = in_function_scope;
-    res
-  }
+  hoist_visit_fn!(fold_function, Function);
+  hoist_visit_fn!(fold_class, Class);
+  hoist_visit_fn!(fold_getter_prop, GetterProp);
+  hoist_visit_fn!(fold_setter_prop, SetterProp);
 
   fn fold_expr(&mut self, node: Expr) -> Expr {
     match node {
@@ -1063,15 +1064,17 @@ impl<'a> Hoist<'a> {
   }
 }
 
-macro_rules! visit_fn {
-  ($self: ident, $node: ident) => {
-    let in_module_this = $self.in_module_this;
-    let in_function = $self.in_function;
-    $self.in_module_this = false;
-    $self.in_function = true;
-    $node.visit_children_with($self);
-    $self.in_module_this = in_module_this;
-    $self.in_function = in_function;
+macro_rules! collect_visit_fn {
+  ($name:ident, $type:ident) => {
+    fn $name(&mut self, node: &$type, _parent: &dyn Node) {
+      let in_module_this = self.in_module_this;
+      let in_function = self.in_function;
+      self.in_module_this = false;
+      self.in_function = true;
+      node.visit_children_with(self);
+      self.in_module_this = in_module_this;
+      self.in_function = in_function;
+    }
   };
 }
 
@@ -1151,13 +1154,10 @@ impl Visit for Collect {
     self.in_module_this = false;
   }
 
-  fn visit_function(&mut self, node: &Function, _parent: &dyn Node) {
-    visit_fn!(self, node);
-  }
-
-  fn visit_class(&mut self, node: &Class, _parent: &dyn Node) {
-    visit_fn!(self, node);
-  }
+  collect_visit_fn!(visit_function, Function);
+  collect_visit_fn!(visit_class, Class);
+  collect_visit_fn!(visit_getter_prop, GetterProp);
+  collect_visit_fn!(visit_setter_prop, SetterProp);
 
   fn visit_arrow_expr(&mut self, node: &ArrowExpr, _parent: &dyn Node) {
     let in_function = self.in_function;
@@ -1438,6 +1438,8 @@ impl Visit for Collect {
         }
         _ => node.visit_children_with(self),
       }
+    } else {
+      node.visit_children_with(self);
     }
   }
 
@@ -2186,6 +2188,24 @@ mod tests {
     "#,
     );
     assert_eq!(collect.should_wrap, true);
+
+    let (collect, _code, _hoist) = parse(
+      r#"
+    const foo = {
+      get a() {
+        return 1;
+      },
+      set b(v) {
+        return;
+      },
+      run() {
+        return 3;
+      },
+    };
+    console.log(foo.a);
+    "#,
+    );
+    assert_eq!(collect.should_wrap, false);
   }
 
   #[test]

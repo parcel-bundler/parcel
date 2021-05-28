@@ -161,6 +161,10 @@ function mapObject(object: any, fn: (val: any) => any, preOrder = false): any {
 }
 
 export function prepareForSerialization(object: any): any {
+  if (object?.$$raw) {
+    return object;
+  }
+
   return mapObject(
     object,
     value => {

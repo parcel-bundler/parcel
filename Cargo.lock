@@ -536,9 +536,9 @@ checksum = "624a8340c38c1b80fd549087862da4ba43e08858af025b236e509b6649fc13d5"
 
 [[package]]
 name = "ordered-float"
-version = "2.2.0"
+version = "2.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b50b8919aecb97e5ee9aceef27e24f39c46b11831130f4a6b7b091ec5de0de12"
+checksum = "76d99537dd7019c4dabfcf3898a43ee685412f76e6bee1ecc48785d730c1a275"
 dependencies = [
  "num-traits",
 ]
@@ -575,6 +575,7 @@ dependencies = [
  "napi-build",
  "napi-derive",
  "serde",
+ "serde_bytes",
  "sha-1",
  "swc_atoms",
  "swc_common",
@@ -663,9 +664,9 @@ checksum = "dbf0c48bc1d91375ae5c3cd81e3722dff1abcf81a30960240640d223f59fe0e5"
 
 [[package]]
 name = "proc-macro2"
-version = "1.0.26"
+version = "1.0.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a152013215dca273577e18d2bf00fa862b89b24169fb78c4c95aeb07992c9cec"
+checksum = "f0d8caf72986c1a598726adc988bb5984792ef84f5ee5aa50209145ee8077038"
 dependencies = [
  "unicode-xid",
 ]
@@ -847,6 +848,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde_bytes"
+version = "0.11.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "16ae07dd2f88a366f15bd0632ba725227018c69a1c8550a927324f8eb8368bb9"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "serde_derive"
 version = "1.0.126"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -999,9 +1009,9 @@ dependencies = [
 
 [[package]]
 name = "swc_common"
-version = "0.10.19"
+version = "0.10.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2061abb9f67dcef7abd6c874c72be6c90e8eca8b799fd769fd696c14af526929"
+checksum = "d02578ed17d73cb0233cf27aa6c59220a1910f5f335196dced75c9b2be2900fb"
 dependencies = [
  "ast_node",
  "atty",
@@ -1039,9 +1049,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_codegen"
-version = "0.55.1"
+version = "0.55.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ae3084419db115abde69a07de264df672990f18990101d6c87728cc2818a493d"
+checksum = "1ee2a49373c24a7a2b5b5a4b311c89b480bec43faf68e278672d6e6d02fddfc6"
 dependencies = [
  "bitflags",
  "num-bigint",
@@ -1088,9 +1098,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_preset_env"
-version = "0.20.0"
+version = "0.20.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9df26eb81b34a8494871a4f64751be5eac458c4e179a8030251cf4f9ca3c4c51"
+checksum = "397ffd052931f737aa38dbd7d8c879d2cafd19cc5f9d4b46d366a62a15fe06d0"
 dependencies = [
  "dashmap",
  "fxhash",
@@ -1134,9 +1144,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_transforms_base"
-version = "0.15.1"
+version = "0.15.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "af6b801101fd5bab0d70c221ae142d6ffef195c297a07376c3a02d4665ee6fdb"
+checksum = "cf55207e36eaa746e474bbf57ae2ee7455626f6711d0e7c14065bfc13bc59ed5"
 dependencies = [
  "fxhash",
  "once_cell",
@@ -1153,9 +1163,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_transforms_compat"
-version = "0.17.2"
+version = "0.17.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fb2495f3af904052ada761e9a0757e41da71e43e92a1f484377e653e8ec9566f"
+checksum = "1994d8b1c1c0bee81844d22549b9d6c3164adfa6d7fa1a89781081238c12be11"
 dependencies = [
  "arrayvec",
  "fxhash",
@@ -1208,9 +1218,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_transforms_optimization"
-version = "0.20.0"
+version = "0.20.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5f5ee19ef905f78b09838c781e3e57f7934cd56d9218422dc99c65098caf344c"
+checksum = "217679ab1534a43a31c2890e94266abd627ebf898955bf25e57ccca1fe5c4879"
 dependencies = [
  "dashmap",
  "fxhash",
@@ -1272,9 +1282,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_transforms_typescript"
-version = "0.19.1"
+version = "0.19.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c1249d66b01ef36d21fddfef8c76b2ce2d7a5dcb5e8b0aae6b928059fc694910"
+checksum = "83332a6f75268a1240694e5b1ae21c91da170b1609b830cf2bb544575d255567"
 dependencies = [
  "fxhash",
  "serde",
