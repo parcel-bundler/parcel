@@ -222,24 +222,21 @@ export class RequestGraph extends ContentGraph<
 
   // addNode for RequestGraph should not override the value if added multiple times
   addNode(node: RequestGraphNode): NodeId {
-    let didNodeExist = this.hasContentKey(node.id);
-
-    if (!didNodeExist) {
-      let nodeId = super.addNodeByContentKey(node.id, node);
-      if (node.type === 'glob') {
-        this.globNodeIds.add(nodeId);
-      }
-
-      if (node.type === 'env') {
-        this.envNodeIds.add(nodeId);
-      }
-
-      if (node.type === 'option') {
-        this.optionNodeIds.add(nodeId);
-      }
+    let nodeId = this._contentKeyToNodeId.get(node.id);
+    if (nodeId != null) {
+      return nodeId;
     }
 
-    return this.getNodeIdByContentKey(node.id);
+    nodeId = super.addNodeByContentKey(node.id, node);
+    if (node.type === 'glob') {
+      this.globNodeIds.add(nodeId);
+    } else if (node.type === 'env') {
+      this.envNodeIds.add(nodeId);
+    } else if (node.type === 'option') {
+      this.optionNodeIds.add(nodeId);
+    }
+
+    return nodeId;
   }
 
   removeNode(nodeId: NodeId): void {
@@ -248,11 +245,9 @@ export class RequestGraph extends ContentGraph<
     let node = nullthrows(this.getNode(nodeId));
     if (node.type === 'glob') {
       this.globNodeIds.delete(nodeId);
-    }
-    if (node.type === 'env') {
+    } else if (node.type === 'env') {
       this.envNodeIds.delete(nodeId);
-    }
-    if (node.type === 'option') {
+    } else if (node.type === 'option') {
       this.optionNodeIds.delete(nodeId);
     }
     return super.removeNode(nodeId);
