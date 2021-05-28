@@ -25,6 +25,10 @@ const IDENTIFIER_RE = /^[$_\p{ID_Start}][$_\u200C\u200D\p{ID_Continue}]*$/u;
 const ID_START_RE = /^[$_\p{ID_Start}]/u;
 const NON_ID_CONTINUE_RE = /[^$_\u200C\u200D\p{ID_Continue}]/gu;
 
+// General regex used to replace imports with the resolved code, references with resolutions,
+// and count the number of newlines in the file for source maps.
+const REPLACEMENT_RE = /\n|import\s+"([0-9a-f]{32}:.+?)";|(?:\$[0-9a-f]{32}\$exports)|(?:\$[0-9a-f]{32}\$(?:import|importAsync|require)\$[0-9a-f]+(?:\$[0-9a-f]+)?)/g;
+
 const BUILTINS = Object.keys(globals.builtin);
 const GLOBALS_BY_CONTEXT = {
   browser: new Set([...BUILTINS, ...Object.keys(globals.browser)]),
@@ -119,9 +123,7 @@ export class ScopeHoistingPackager {
     // by replacing `import` statements in the code.
     let res = '';
     let lineCount = 0;
-    let sourceMap = this.bundle.env.sourceMap
-      ? new SourceMap(this.options.projectRoot)
-      : null;
+    let sourceMap = null;
     this.bundle.traverseAssets((asset, _, actions) => {
       if (this.seenAssets.has(asset.id)) {
         actions.skipChildren();
@@ -131,6 +133,8 @@ export class ScopeHoistingPackager {
       let [content, map, lines] = this.visitAsset(asset);
       if (sourceMap && map) {
         sourceMap.addSourceMap(map, lineCount);
+      } else if (this.bundle.env.sourceMap) {
+        sourceMap = map;
       }
 
       res += content + '\n';
@@ -303,12 +307,8 @@ export class ScopeHoistingPackager {
     let shouldWrap = this.wrappedAssets.has(asset.id);
     let deps = this.bundleGraph.getDependencies(asset);
 
-    let sourceMap = this.bundle.env.sourceMap
-      ? new SourceMap(this.options.projectRoot)
-      : null;
-    if (sourceMap && map) {
-      sourceMap?.addBuffer(map);
-    }
+    let sourceMap =
+      this.bundle.env.sourceMap && map ? new SourceMap(map) : null;
 
     // If this asset is skipped, just add dependencies and not the asset's content.
     if (this.shouldSkipAsset(asset)) {
@@ -354,107 +354,104 @@ export class ScopeHoistingPackager {
 
     code += append;
 
-    // Build a regular expression for all the replacements we need to do.
-    // We need to track how many newlines there are for source maps, replace
-    // all import statements with dependency code, and perform inline replacements
-    // of all imported symbols with their resolved export symbols. This is all done
-    // in a single regex so that we only do one pass over the whole code.
-    let regex = new RegExp(
-      '\n|import\\s+"([0-9a-f]{32}:.+?)";' +
-        (replacements.size > 0
-          ? '|' +
-            [...replacements.keys()]
-              .sort((a, b) => b.length - a.length)
-              .map(k => k.replace(/[$]/g, '\\$&'))
-              .join('|')
-          : ''),
-      'g',
-    );
-
     let lineCount = 0;
-    let offset = 0;
-    let columnStartIndex = 0;
     let depContent = [];
-    code = code.replace(regex, (m, d, i) => {
-      if (m === '\n') {
-        columnStartIndex = i + offset + 1;
-        lineCount++;
-        return '\n';
-      }
+    if (depMap.size === 0 && replacements.size === 0) {
+      // If there are no dependencies or replacements, use a simple function to count the number of lines.
+      lineCount = countLines(code) - 1;
+    } else {
+      // Otherwise, use a regular expression to perform replacements.
+      // We need to track how many newlines there are for source maps, replace
+      // all import statements with dependency code, and perform inline replacements
+      // of all imported symbols with their resolved export symbols. This is all done
+      // in a single regex so that we only do one pass over the whole code.
+      let offset = 0;
+      let columnStartIndex = 0;
+      code = code.replace(REPLACEMENT_RE, (m, d, i) => {
+        if (m === '\n') {
+          columnStartIndex = i + offset + 1;
+          lineCount++;
+          return '\n';
+        }
 
-      // If we matched an import, replace with the source code for the dependency.
-      if (d != null) {
-        let dep = nullthrows(depMap.get(d));
-        let resolved = this.bundleGraph.getDependencyResolution(
-          dep,
-          this.bundle,
-        );
-        let skipped = this.bundleGraph.isDependencySkipped(dep);
-        if (resolved && !skipped) {
-          // Hoist variable declarations for the referenced parcelRequire dependencies
-          // after the dependency is declared. This handles the case where the resulting asset
-          // is wrapped, but the dependency in this asset is not marked as wrapped. This means
-          // that it was imported/required at the top-level, so its side effects should run immediately.
-          let [res, lines] = this.getHoistedParcelRequires(
-            asset,
+        // If we matched an import, replace with the source code for the dependency.
+        if (d != null) {
+          let dep = depMap.get(d);
+          if (!dep) {
+            return m;
+          }
+
+          let resolved = this.bundleGraph.getDependencyResolution(
             dep,
-            resolved,
+            this.bundle,
           );
-          let map;
-          if (
-            this.bundle.hasAsset(resolved) &&
-            !this.seenAssets.has(resolved.id)
-          ) {
-            // If this asset is wrapped, we need to hoist the code for the dependency
-            // outside our parcelRequire.register wrapper. This is safe because all
-            // assets referenced by this asset will also be wrapped. Otherwise, inline the
-            // asset content where the import statement was.
-            if (shouldWrap) {
-              depContent.push(this.visitAsset(resolved));
-            } else {
-              let [depCode, depMap, depLines] = this.visitAsset(resolved);
-              res = depCode + '\n' + res;
-              lines += 1 + depLines;
-              map = depMap;
+          let skipped = this.bundleGraph.isDependencySkipped(dep);
+          if (resolved && !skipped) {
+            // Hoist variable declarations for the referenced parcelRequire dependencies
+            // after the dependency is declared. This handles the case where the resulting asset
+            // is wrapped, but the dependency in this asset is not marked as wrapped. This means
+            // that it was imported/required at the top-level, so its side effects should run immediately.
+            let [res, lines] = this.getHoistedParcelRequires(
+              asset,
+              dep,
+              resolved,
+            );
+            let map;
+            if (
+              this.bundle.hasAsset(resolved) &&
+              !this.seenAssets.has(resolved.id)
+            ) {
+              // If this asset is wrapped, we need to hoist the code for the dependency
+              // outside our parcelRequire.register wrapper. This is safe because all
+              // assets referenced by this asset will also be wrapped. Otherwise, inline the
+              // asset content where the import statement was.
+              if (shouldWrap) {
+                depContent.push(this.visitAsset(resolved));
+              } else {
+                let [depCode, depMap, depLines] = this.visitAsset(resolved);
+                res = depCode + '\n' + res;
+                lines += 1 + depLines;
+                map = depMap;
+              }
             }
+
+            // Push this asset's source mappings down by the number of lines in the dependency
+            // plus the number of hoisted parcelRequires. Then insert the source map for the dependency.
+            if (sourceMap) {
+              if (lines > 0) {
+                sourceMap.offsetLines(lineCount + 1, lines);
+              }
+
+              if (map) {
+                sourceMap.addSourceMap(map, lineCount);
+              }
+            }
+
+            lineCount += lines;
+            return res;
           }
 
-          // Push this asset's source mappings down by the number of lines in the dependency
-          // plus the number of hoisted parcelRequires. Then insert the source map for the dependency.
-          if (sourceMap) {
-            if (lines > 0) {
-              sourceMap.offsetLines(lineCount + 1, lines);
-            }
+          return '';
+        }
 
-            if (map) {
-              sourceMap.addSourceMap(map, lineCount, 0);
-            }
+        // If it wasn't a dependency, then it was an inline replacement (e.g. $id$import$foo -> $id$export$foo).
+        let replacement = replacements.get(m) ?? m;
+        if (sourceMap) {
+          // Offset the source map columns for this line if the replacement was a different length.
+          // This assumes that the match and replacement both do not contain any newlines.
+          let lengthDifference = replacement.length - m.length;
+          if (lengthDifference !== 0) {
+            sourceMap.offsetColumns(
+              lineCount + 1,
+              i + offset - columnStartIndex + m.length,
+              lengthDifference,
+            );
+            offset += lengthDifference;
           }
-
-          lineCount += lines;
-          return res;
         }
-
-        return '';
-      }
-
-      // If it wasn't a dependency, then it was an inline replacement (e.g. $id$import$foo -> $id$export$foo).
-      let replacement = replacements.get(m) ?? '';
-      if (sourceMap) {
-        // Offset the source map columns for this line if the replacement was a different length.
-        // This assumes that the match and replacement both do not contain any newlines.
-        let lengthDifference = replacement.length - m.length;
-        if (lengthDifference !== 0) {
-          sourceMap.offsetColumns(
-            lineCount + 1,
-            i + offset - columnStartIndex + m.length,
-            lengthDifference,
-          );
-          offset += lengthDifference;
-        }
-      }
-      return replacement;
-    });
+        return replacement;
+      });
+    }
 
     // If the asset is wrapped, we need to insert the dependency code outside the parcelRequire.register
     // wrapper. Dependencies must be inserted AFTER the asset is registered so that circular dependencies work.
@@ -476,7 +473,7 @@ ${code}
         if (!depCode) continue;
         code += depCode + '\n';
         if (sourceMap && map) {
-          sourceMap.addSourceMap(map, lineCount, 0);
+          sourceMap.addSourceMap(map, lineCount);
         }
         lineCount += lines + 1;
       }

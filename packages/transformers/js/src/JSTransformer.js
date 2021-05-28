@@ -159,7 +159,7 @@ export default (new Transformer({
       asset.isSplittable = true;
     }
 
-    let code = await asset.getCode();
+    let code = await asset.getBuffer();
     let originalMap = await asset.getMap();
 
     let targets;
@@ -279,7 +279,7 @@ export default (new Transformer({
           filePath: asset.filePath,
           message: diagnostic.message,
           codeFrame: {
-            code,
+            code: code.toString(),
             codeHighlights: diagnostic.code_highlights?.map(highlight => {
               let {start, end} = convertLoc(highlight.loc);
               return {
@@ -462,7 +462,7 @@ export default (new Transformer({
     }
 
     asset.type = 'js';
-    asset.setCode(compiledCode);
+    asset.setBuffer(compiledCode);
 
     if (map) {
       let sourceMap = new SourceMap(options.projectRoot);

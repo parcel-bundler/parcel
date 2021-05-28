@@ -30,6 +30,8 @@ const HTTP_OPTIONS = {
   },
 };
 
+let skipOptimize = false;
+
 export default (new Bundler({
   // RULES:
   // 1. If dep.isAsync or dep.isEntry, start a new bundle group.
@@ -183,6 +185,13 @@ export default (new Bundler({
         bundleGraph.addEntryToBundle(asset, bundle);
       }
     }
+
+    // If there's only one bundle, we can skip the rest of the steps.
+    skipOptimize = bundleRoots.size === 1;
+    if (skipOptimize) {
+      return;
+    }
+
     invariant(config != null);
 
     // Step 2: Remove asset graphs that begin with entries to other bundles.
@@ -288,6 +297,11 @@ export default (new Bundler({
     }
   },
   optimize({bundleGraph, config}) {
+    // if only one bundle, no need to optimize
+    if (skipOptimize) {
+      return;
+    }
+
     invariant(config != null);
 
     // Step 5: Find duplicated assets in different bundle groups, and separate them into their own parallel bundles.
