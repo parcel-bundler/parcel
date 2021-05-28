@@ -1,6 +1,6 @@
 {
   "name": "@parcel/fs-write-stream-atomic",
-  "version": "2.0.0-frontbucket.76",
+  "version": "2.0.0-frontbucket.77",
   "description": "Like `fs.createWriteStream(...)`, but atomic.",
   "main": "index.js",
   "directories": {

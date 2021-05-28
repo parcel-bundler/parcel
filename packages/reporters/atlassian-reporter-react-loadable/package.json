@@ -1,6 +1,6 @@
 {
   "name": "@parcel/reporter-react-loadable",
-  "version": "2.0.0-frontbucket.76",
+  "version": "2.0.0-frontbucket.77",
   "description": "parcel reporter plugin for generating a manifest for react loadable",
   "main": "lib/ReactLoadableReporter.js",
   "source": "src/ReactLoadableReporter.js",
@@ -8,8 +8,8 @@
     "parcel": "^2.0.0-alpha.1.1"
   },
   "dependencies": {
-    "@parcel/plugin": "2.0.0-frontbucket.76",
-    "@parcel/types": "2.0.0-frontbucket.76",
+    "@parcel/plugin": "2.0.0-frontbucket.77",
+    "@parcel/types": "2.0.0-frontbucket.77",
     "nullthrows": "^1.1.1"
   }
 }

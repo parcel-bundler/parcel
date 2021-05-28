@@ -1,6 +1,6 @@
 {
   "name": "@parcel/babylon-walk",
-  "version": "2.0.0-frontbucket.76",
+  "version": "2.0.0-frontbucket.77",
   "license": "MIT",
   "publishConfig": {
     "access": "public"

@@ -1,6 +1,6 @@
 {
   "name": "@parcel/reporter-sourcemap-visualiser",
-  "version": "2.0.0-frontbucket.76",
+  "version": "2.0.0-frontbucket.77",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -20,11 +20,11 @@
     "parcel": "^2.0.0-alpha.3.1"
   },
   "dependencies": {
-    "@parcel/plugin": "2.0.0-frontbucket.76",
-    "@parcel/utils": "2.0.0-frontbucket.76",
+    "@parcel/plugin": "2.0.0-frontbucket.77",
+    "@parcel/utils": "2.0.0-frontbucket.77",
     "nullthrows": "^1.1.1"
   },
   "devDependencies": {
-    "@parcel/types": "2.0.0-frontbucket.76"
+    "@parcel/types": "2.0.0-frontbucket.77"
   }
 }

@@ -1,6 +1,6 @@
 {
   "name": "@parcel/markdown-ansi",
-  "version": "2.0.0-frontbucket.76",
+  "version": "2.0.0-frontbucket.77",
   "description": "Blazing fast, zero configuration web application bundler",
   "publishConfig": {
     "access": "public"
