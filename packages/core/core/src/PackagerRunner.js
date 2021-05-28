@@ -523,12 +523,12 @@ export default class PackagerRunner {
     let contentKey = PackagerRunner.getContentKey(cacheKey);
     let mapKey = PackagerRunner.getMapKey(cacheKey);
 
-    let contentExists = await this.options.cache.blobExists(contentKey);
+    let contentExists = await this.options.cache.has(contentKey);
     if (!contentExists) {
       return null;
     }
 
-    let mapExists = await this.options.cache.blobExists(mapKey);
+    let mapExists = await this.options.cache.has(mapKey);
 
     return {
       contents: this.options.cache.getStream(contentKey),
@@ -596,7 +596,7 @@ export default class PackagerRunner {
     if (
       bundle.env.sourceMap &&
       !bundle.env.sourceMap.inline &&
-      (await this.options.cache.blobExists(mapKey))
+      (await this.options.cache.has(mapKey))
     ) {
       let mapStream = this.options.cache.getStream(mapKey);
       await writeFileStream(
@@ -613,29 +613,43 @@ export default class PackagerRunner {
     cacheKeys: CacheKeyMap,
     type: string,
     contents: Blob,
-    map: ?Blob,
+    map: ?string,
   ): Promise<BundleInfo> {
     let size = 0;
     let hash = crypto.createHash('md5');
-    let boundaryStr = '';
     let hashReferences = [];
-    await this.options.cache.setStream(
-      cacheKeys.content,
-      blobToStream(contents).pipe(
-        new TapStream(buf => {
-          let str = boundaryStr + buf.toString();
-          hashReferences = hashReferences.concat(
-            str.match(HASH_REF_REGEX) ?? [],
-          );
-          size += buf.length;
-          hash.update(buf);
-          boundaryStr = str.slice(str.length - BOUNDARY_LENGTH);
-        }),
-      ),
-    );
+
+    // TODO: don't replace hash references in binary files??
+    if (contents instanceof Readable) {
+      let boundaryStr = '';
+      await this.options.cache.setStream(
+        cacheKeys.content,
+        blobToStream(contents).pipe(
+          new TapStream(buf => {
+            let str = boundaryStr + buf.toString();
+            hashReferences = hashReferences.concat(
+              str.match(HASH_REF_REGEX) ?? [],
+            );
+            size += buf.length;
+            hash.update(buf);
+            boundaryStr = str.slice(str.length - BOUNDARY_LENGTH);
+          }),
+        ),
+      );
+    } else if (typeof contents === 'string') {
+      size = Buffer.byteLength(contents);
+      hash.update(contents);
+      hashReferences = contents.match(HASH_REF_REGEX) ?? [];
+      await this.options.cache.setBlob(cacheKeys.content, contents);
+    } else {
+      size = contents.length;
+      hash.update(contents);
+      hashReferences = contents.toString().match(HASH_REF_REGEX) ?? [];
+      await this.options.cache.setBlob(cacheKeys.content, contents);
+    }
 
     if (map != null) {
-      await this.options.cache.setStream(cacheKeys.map, blobToStream(map));
+      await this.options.cache.setBlob(cacheKeys.map, map);
     }
     let info = {
       type,

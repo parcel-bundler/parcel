@@ -8,7 +8,7 @@ import loadDotEnv from './loadDotEnv';
 import path from 'path';
 import {resolveConfig, md5FromString} from '@parcel/utils';
 import {NodeFS} from '@parcel/fs';
-import Cache from '@parcel/cache';
+import {LMDBCache, FSCache} from '@parcel/cache';
 import {NodePackageManager} from '@parcel/package-manager';
 
 // Default cache directory name
@@ -71,7 +71,10 @@ export default async function resolveOptions(
       ? path.resolve(outputCwd, initialOptions.cacheDir)
       : path.resolve(projectRoot, DEFAULT_CACHE_DIRNAME);
 
-  let cache = new Cache(outputFS, cacheDir);
+  let cache =
+    initialOptions.cache ?? outputFS instanceof NodeFS
+      ? new LMDBCache(cacheDir)
+      : new FSCache(outputFS, cacheDir);
 
   let mode = initialOptions.mode ?? 'development';
   let shouldOptimize =
