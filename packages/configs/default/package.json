@@ -39,13 +39,15 @@
     "@parcel/transformer-babel": "2.0.0-frontbucket.76",
     "@parcel/transformer-css": "2.0.0-frontbucket.76",
     "@parcel/transformer-html": "2.0.0-frontbucket.76",
+    "@parcel/transformer-image": "2.0.0-frontbucket.76",
     "@parcel/transformer-js": "2.0.0-frontbucket.76",
     "@parcel/transformer-json": "2.0.0-frontbucket.76",
     "@parcel/transformer-postcss": "2.0.0-frontbucket.76",
     "@parcel/transformer-posthtml": "2.0.0-frontbucket.76",
     "@parcel/transformer-raw": "2.0.0-frontbucket.76",
     "@parcel/transformer-react-refresh-babel": "2.0.0-frontbucket.76",
-    "@parcel/transformer-react-refresh-wrap": "2.0.0-frontbucket.76"
+    "@parcel/transformer-react-refresh-wrap": "2.0.0-frontbucket.76",
+    "@parcel/transformer-workerize": "2.0.0-frontbucket.76"
   },
   "parcelDependencies": {
     "@parcel/optimizer-data-url": "2.0.0-frontbucket.75",
@@ -55,7 +57,6 @@
     "@parcel/transformer-elm": "2.0.0-frontbucket.75",
     "@parcel/transformer-glsl": "2.0.0-frontbucket.75",
     "@parcel/transformer-graphql": "2.0.0-frontbucket.75",
-    "@parcel/transformer-image": "2.0.0-frontbucket.75",
     "@parcel/transformer-inline-string": "2.0.0-frontbucket.75",
     "@parcel/transformer-jsonld": "2.0.0-frontbucket.75",
     "@parcel/transformer-less": "2.0.0-frontbucket.75",
@@ -68,7 +69,6 @@
     "@parcel/transformer-typescript-types": "2.0.0-frontbucket.75",
     "@parcel/transformer-vue": "2.0.0-frontbucket.75",
     "@parcel/transformer-webmanifest": "2.0.0-frontbucket.75",
-    "@parcel/transformer-workerize": "2.0.0-frontbucket.75",
     "@parcel/transformer-yaml": "2.0.0-frontbucket.75"
   },
   "peerDependencies": {
