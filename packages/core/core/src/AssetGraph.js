@@ -495,19 +495,37 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
   }
 
   getIncomingDependencies(asset: Asset): Array<Dependency> {
-    if (!this.hasContentKey(asset.id)) {
+    let nodeId = this._contentKeyToNodeId.get(asset.id);
+    if (!nodeId) {
       return [];
     }
 
-    let nodeId = this.getNodeIdByContentKey(asset.id);
-    return this.findAncestors(nodeId, nodeId => {
-      let node = this.getNode(nodeId);
-      return node?.type === 'dependency';
-    }).map(nodeId => {
-      let node = this.getNode(nodeId);
-      invariant(node?.type === 'dependency');
-      return node.value;
-    });
+    let assetGroupIds = this.getNodeIdsConnectedTo(nodeId);
+    let dependencies = [];
+    for (let i = 0; i < assetGroupIds.length; i++) {
+      let assetGroupId = assetGroupIds[i];
+
+      // Sometimes assets are connected directly to dependencies
+      // rather than through an asset group. This happens due to
+      // inline dependencies on assets via uniqueKey. See resolveAsset.
+      let node = this.getNode(assetGroupId);
+      if (node?.type === 'dependency') {
+        dependencies.push(node.value);
+        continue;
+      }
+
+      let assetIds = this.getNodeIdsConnectedTo(assetGroupId);
+      for (let j = 0; j < assetIds.length; j++) {
+        let node = this.getNode(assetIds[j]);
+        if (!node || node.type !== 'dependency') {
+          continue;
+        }
+
+        dependencies.push(node.value);
+      }
+    }
+
+    return dependencies;
   }
 
   traverseAssets<TContext>(

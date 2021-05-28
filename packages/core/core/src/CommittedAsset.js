@@ -52,7 +52,13 @@ export default class CommittedAsset {
   }
 
   async getCode(): Promise<string> {
-    let content = await this.getContent();
+    let content;
+    if (this.content == null && this.value.contentKey != null) {
+      this.content = this.options.cache.getBlob(this.value.contentKey);
+      content = await this.content;
+    } else {
+      content = await this.getContent();
+    }
 
     if (typeof content === 'string' || content instanceof Buffer) {
       return content.toString();
@@ -109,9 +115,7 @@ export default class CommittedAsset {
         let mapBuffer = await this.getMapBuffer();
         if (mapBuffer) {
           // Get sourcemap from flatbuffer
-          let map = new SourceMap(this.options.projectRoot);
-          map.addBuffer(mapBuffer);
-          return map;
+          return new SourceMap(mapBuffer);
         }
       })();
     }

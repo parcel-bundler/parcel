@@ -7,6 +7,7 @@ extern crate data_encoding;
 extern crate dunce;
 extern crate inflector;
 extern crate serde;
+extern crate serde_bytes;
 extern crate sha1;
 
 mod decl_collector;
@@ -50,7 +51,8 @@ use utils::{CodeHighlight, Diagnostic, SourceLocation};
 #[derive(Serialize, Debug, Deserialize)]
 pub struct Config {
   filename: String,
-  code: String,
+  #[serde(with = "serde_bytes")]
+  code: Vec<u8>,
   module_id: String,
   project_root: String,
   replace_env: bool,
@@ -70,8 +72,9 @@ pub struct Config {
 }
 
 #[derive(Serialize, Debug, Deserialize, Default)]
-pub struct TransformResult {
-  code: String,
+pub struct TransformResult<'a> {
+  #[serde(with = "serde_bytes")]
+  code: &'a [u8],
   map: Option<String>,
   shebang: Option<String>,
   dependencies: Vec<DependencyDescriptor>,
@@ -122,14 +125,12 @@ impl Emitter for ErrorBuffer {
 
 pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
   let mut result = TransformResult::default();
+  let mut code_buf = vec![];
+  let mut map_buf = vec![];
 
+  let code = unsafe { std::str::from_utf8_unchecked(&config.code) };
   let source_map = Lrc::new(SourceMap::default());
-  let module = parse(
-    config.code.as_str(),
-    config.filename.as_str(),
-    &source_map,
-    &config,
-  );
+  let module = parse(code, config.filename.as_str(), &source_map, &config);
 
   match module {
     Err(err) => {
@@ -194,6 +195,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
 
       let mut global_deps = vec![];
       let mut fs_deps = vec![];
+      let should_inline_fs = config.inline_fs && code.contains("readFileSync");
       swc_common::GLOBALS.set(&Globals::new(), || {
         helpers::HELPERS.set(
           &helpers::Helpers::new(/* external helpers from @swc/helpers */ true),
@@ -264,7 +266,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                     config.project_root,
                     &mut fs_deps,
                   ),
-                  config.inline_fs && config.code.contains("readFileSync")
+                  should_inline_fs
                 ),
                 // Insert dependencies for node globals
                 Optional::new(
@@ -335,7 +337,6 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
             let (buf, mut src_map_buf) =
               emit(source_map.clone(), comments, &program, config.source_maps)?;
             if config.source_maps {
-              let mut map_buf = vec![];
               if let Ok(_) = source_map
                 .build_source_map(&mut src_map_buf)
                 .to_writer(&mut map_buf)
@@ -343,7 +344,8 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                 result.map = Some(String::from_utf8(map_buf).unwrap());
               }
             }
-            result.code = String::from_utf8(buf).unwrap();
+            code_buf = buf;
+            result.code = &code_buf;
             Ok(result)
           },
         )
