@@ -72,9 +72,9 @@ pub struct Config {
 }
 
 #[derive(Serialize, Debug, Deserialize, Default)]
-pub struct TransformResult<'a> {
+pub struct TransformResult {
   #[serde(with = "serde_bytes")]
-  code: &'a [u8],
+  code: Vec<u8>,
   map: Option<String>,
   shebang: Option<String>,
   dependencies: Vec<DependencyDescriptor>,
@@ -125,7 +125,6 @@ impl Emitter for ErrorBuffer {
 
 pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
   let mut result = TransformResult::default();
-  let mut code_buf = vec![];
   let mut map_buf = vec![];
 
   let code = unsafe { std::str::from_utf8_unchecked(&config.code) };
@@ -344,8 +343,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                 result.map = Some(String::from_utf8(map_buf).unwrap());
               }
             }
-            code_buf = buf;
-            result.code = &code_buf;
+            result.code = buf;
             Ok(result)
           },
         )
