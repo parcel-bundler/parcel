@@ -884,7 +884,7 @@ ${code}
           continue;
         }
 
-        let isWrapped = resolved && this.wrappedAssets.has(resolved.id);
+        let isWrapped = resolved && resolved.meta.shouldWrap;
 
         for (let [imported, {local}] of dep.symbols) {
           if (imported === '*' && local === '*') {
