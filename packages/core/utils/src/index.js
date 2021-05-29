@@ -38,13 +38,7 @@ export {resolveConfig, resolveConfigSync, loadConfig} from './config';
 export {DefaultMap, DefaultWeakMap} from './DefaultMap';
 export {makeDeferredWithPromise} from './Deferred';
 export {isGlob, isGlobMatch, globSync, glob} from './glob';
-export {
-  md5FromString,
-  md5FromReadableStream,
-  md5FromObject,
-  md5FromOrderedObject,
-  md5FromFilePath,
-} from './md5';
+export {hashStream, hashObject, hashFile} from './hash';
 export {fuzzySearch} from './schema';
 export {createHTTPServer} from './http-server';
 export {normalizeSeparators, normalizePath, relativePath} from './path';

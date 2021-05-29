@@ -2,7 +2,7 @@
 
 import type {FilePath, MutableAsset, PluginOptions} from '@parcel/types';
 
-import {md5FromString} from '@parcel/utils';
+import {hashString} from '@parcel/hash';
 import {Transformer} from '@parcel/plugin';
 import FileSystemLoader from 'css-modules-loader-core/lib/file-system-loader';
 import nullthrows from 'nullthrows';
@@ -60,7 +60,7 @@ export default (new Transformer({
           getJSON: (filename, json) => (cssModules = json),
           Loader: createLoader(asset, resolve),
           generateScopedName: (name, filename) =>
-            `_${name}_${md5FromString(
+            `_${name}_${hashString(
               path.relative(options.projectRoot, filename),
             ).substr(0, 6)}`,
           ...config.hydrated.modules,
