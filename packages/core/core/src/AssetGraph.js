@@ -59,7 +59,9 @@ export function nodeFromAssetGroup(assetGroup: AssetGroup): AssetGroupNode {
         String(assetGroup.isSource) +
         String(assetGroup.sideEffects) +
         (assetGroup.code ?? '') +
+        ':' +
         (assetGroup.pipeline ?? '') +
+        ':' +
         (assetGroup.query
           ? JSON.stringify(objectSortedEntries(assetGroup.query))
           : ''),

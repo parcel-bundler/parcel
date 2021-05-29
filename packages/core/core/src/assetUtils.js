@@ -77,7 +77,9 @@ export function createAssetIdFromOptions(options: AssetOptions): string {
       options.type +
       options.env.id +
       uniqueKey +
+      ':' +
       (options.pipeline ?? '') +
+      ':' +
       queryString,
   );
 }

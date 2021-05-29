@@ -55,7 +55,9 @@ function getId(input: AssetRequestInput) {
       String(input.isSource) +
       String(input.sideEffects) +
       (input.code ?? '') +
+      ':' +
       (input.pipeline ?? '') +
+      ':' +
       (input.query ? JSON.stringify(objectSortedEntries(input.query)) : ''),
   );
 }
