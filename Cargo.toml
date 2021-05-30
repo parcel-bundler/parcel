@@ -5,7 +5,3 @@ members = [
   "packages/transformers/js/wasm",
   "packages/utils/fs-search",
 ]
-
-[profile.release]
-opt-level = 3
-# lto = true
