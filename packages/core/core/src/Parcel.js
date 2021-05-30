@@ -21,7 +21,6 @@ import BundleGraph from './public/BundleGraph';
 import WorkerFarm from '@parcel/workers';
 import nullthrows from 'nullthrows';
 import {assertSignalNotAborted, BuildAbortError} from './utils';
-import PackagerRunner from './PackagerRunner';
 import {loadParcelConfig} from './requests/ParcelConfigRequest';
 import ReporterRunner, {report} from './ReporterRunner';
 import dumpGraphToGraphViz from './dumpGraphToGraphViz';
@@ -36,6 +35,7 @@ import RequestTracker, {getWatcherOptions} from './RequestTracker';
 import createAssetGraphRequest from './requests/AssetGraphRequest';
 import createValidationRequest from './requests/ValidationRequest';
 import createBundleGraphRequest from './requests/BundleGraphRequest';
+import createWriteBundlesRequest from './requests/WriteBundlesRequest';
 import {Disposable} from '@parcel/events';
 
 registerCoreWithSerializer();
@@ -45,7 +45,6 @@ export const INTERNAL_RESOLVE: symbol = Symbol('internal_resolve');
 
 export default class Parcel {
   #requestTracker /*: RequestTracker*/;
-  #packagerRunner /*: PackagerRunner*/;
   #config /*: ParcelConfig*/;
   #farm /*: WorkerFarm*/;
   #initialized /*: boolean*/ = false;
@@ -54,6 +53,7 @@ export default class Parcel {
   #reporterRunner /*: ReporterRunner*/;
   #resolvedOptions /*: ?ParcelOptions*/ = null;
   #optionsRef /*: SharedReference */;
+  #configRef /*: SharedReference */;
   #watchAbortController /*: AbortController*/;
   #watchQueue /*: PromiseQueue<?BuildEvent>*/ = new PromiseQueue<?BuildEvent>({
     maxConcurrent: 1,
@@ -114,6 +114,7 @@ export default class Parcel {
       ref: configRef,
     } = await this.#farm.createSharedReference(config);
     this.#optionsRef = optionsRef;
+    this.#configRef = configRef;
 
     this.#disposable = new Disposable();
     if (this.#initialOptions.workerFarm) {
@@ -139,15 +140,6 @@ export default class Parcel {
       workerFarm: this.#farm,
     });
     this.#disposable.add(this.#reporterRunner);
-
-    this.#packagerRunner = new PackagerRunner({
-      config: this.#config,
-      farm: this.#farm,
-      options: resolvedOptions,
-      optionsRef,
-      configRef,
-      report,
-    });
 
     this.#initialized = true;
   }
@@ -300,7 +292,14 @@ export default class Parcel {
       // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381 (Windows only)
       dumpGraphToGraphViz(bundleGraph._graph, 'BundleGraph');
 
-      await this.#packagerRunner.writeBundles(bundleGraph);
+      let writeBundlesRequest = createWriteBundlesRequest({
+        bundleGraph,
+        configRef: this.#configRef,
+        optionsRef: this.#optionsRef,
+      });
+
+      await this.#requestTracker.runRequest(writeBundlesRequest);
+
       assertSignalNotAborted(signal);
 
       // $FlowFixMe
