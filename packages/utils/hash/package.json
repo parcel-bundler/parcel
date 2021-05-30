@@ -2,6 +2,8 @@
   "name": "@parcel/hash",
   "version": "2.0.0-beta.3.1",
   "license": "MIT",
+  "main": "index.js",
+  "browser": "browser.js",
   "publishConfig": {
     "access": "public"
   },
@@ -17,7 +19,9 @@
     "node": ">= 12.0.0"
   },
   "files": [
+    "browser.js",
     "index.js",
+    "index.js.flow",
     "*.node"
   ],
   "napi": {
@@ -28,7 +32,8 @@
     "build-release": "napi build --platform --release"
   },
   "dependencies": {
-    "detect-libc": "^1.0.3"
+    "detect-libc": "^1.0.3",
+    "xxhash-wasm": "^0.4.1"
   },
   "devDependencies": {
     "@napi-rs/cli": "1.0.4"
