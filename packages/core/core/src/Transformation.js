@@ -335,7 +335,7 @@ export default class Transformation {
       hashes +=
         this.request.devDeps.get(key) ??
         this.devDepRequests.get(key)?.hash ??
-        '';
+        ':';
 
       let config = this.configs.get(transformer.name);
       if (config) {

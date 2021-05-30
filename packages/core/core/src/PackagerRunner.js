@@ -488,9 +488,9 @@ export default class PackagerRunner {
     let name = nullthrows(bundle.name);
     // TODO: include packagers and optimizers used in inline bundles as well
     let {version: packager} = await this.config.getPackager(name);
-    let optimizers = (
-      await this.config.getOptimizers(name)
-    ).map(({name, version}) => name + version).join('');
+    let optimizers = (await this.config.getOptimizers(name))
+      .map(({name, version}) => name + version)
+      .join('');
 
     let configResults = {};
     for (let [id, config] of configs) {
