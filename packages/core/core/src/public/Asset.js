@@ -35,7 +35,8 @@ import {createEnvironment} from '../Environment';
 
 const inspect = Symbol.for('nodejs.util.inspect.custom');
 
-const assetValueToAsset: WeakMap<AssetValue, Asset> = new WeakMap();
+const uncommittedAssetValueToAsset: WeakMap<AssetValue, Asset> = new WeakMap();
+const committedAssetValueToAsset: WeakMap<AssetValue, Asset> = new WeakMap();
 const assetValueToMutableAsset: WeakMap<
   AssetValue,
   MutableAsset,
@@ -199,6 +200,9 @@ export class Asset extends BaseAsset implements IAsset {
   #asset /*: CommittedAsset | UncommittedAsset */;
 
   constructor(asset: CommittedAsset | UncommittedAsset): Asset {
+    let assetValueToAsset = asset.value.committed
+      ? committedAssetValueToAsset
+      : uncommittedAssetValueToAsset;
     let existing = assetValueToAsset.get(asset.value);
     if (existing != null) {
       return existing;

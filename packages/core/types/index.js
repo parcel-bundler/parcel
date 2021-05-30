@@ -7,6 +7,7 @@ import type WorkerFarm from '@parcel/workers';
 import type {PackageManager} from '@parcel/package-manager';
 import type {Diagnostic} from '@parcel/diagnostic';
 import type {PluginLogger} from '@parcel/logger';
+import type {Cache} from '@parcel/cache';
 
 import type {AST as _AST, ConfigResult as _ConfigResult} from './unsafe';
 
@@ -275,6 +276,7 @@ export type InitialParcelOptions = {|
 
   +inputFS?: FileSystem,
   +outputFS?: FileSystem,
+  +cache?: Cache,
   +workerFarm?: WorkerFarm,
   +packageManager?: PackageManager,
   +detailedReport?: ?DetailedReportOptions,
@@ -363,7 +365,7 @@ export type Meta = JSONObject;
 export type Symbol = string;
 
 /**
- * A map from extert names to the corespinding asset's lcoal variable name.
+ * A map of export names to the corresponding asset's local variable names.
  */
 export interface AssetSymbols // eslint-disable-next-line no-undef
   extends Iterable<
