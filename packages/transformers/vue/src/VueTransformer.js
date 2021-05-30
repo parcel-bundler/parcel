@@ -457,6 +457,6 @@ export default script => {
 
 function createMap(rawMap, projectRoot: string) {
   let newMap = new SourceMap(projectRoot);
-  newMap.addRawMappings(rawMap);
+  newMap.addVLQMap(rawMap);
   return newMap;
 }

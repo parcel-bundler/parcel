@@ -47,9 +47,8 @@ export default async function dumpGraphToGraphViz(
   const graphviz = require('graphviz');
   const tempy = require('tempy');
   let g = graphviz.digraph('G');
-  let nodes = Array.from(graph.nodes.values());
-  for (let node of nodes) {
-    let n = g.addNode(node.id);
+  for (let [id, node] of graph.nodes) {
+    let n = g.addNode(nodeId(id));
     // $FlowFixMe default is fine. Not every type needs to be in the map.
     n.set('color', COLORS[node.type || 'default']);
     n.set('shape', 'box');
@@ -136,8 +135,8 @@ export default async function dumpGraphToGraphViz(
     );
   }
   for (let edge of graph.getAllEdges()) {
-    let gEdge = g.addEdge(edge.from, edge.to);
-    let color = edgeNames ? TYPE_COLORS[edgeNames[edge.type]] : null;
+    let gEdge = g.addEdge(nodeId(edge.from), nodeId(edge.to));
+    let color = edge.type != null ? TYPE_COLORS[edge.type] : null;
     if (color != null) {
       gEdge.set('color', color);
     }
@@ -146,6 +145,11 @@ export default async function dumpGraphToGraphViz(
   await g.output('png', tmp);
   // eslint-disable-next-line no-console
   console.log('Dumped', tmp);
+}
+
+function nodeId(id) {
+  // $FlowFixMe
+  return `node${id}`;
 }
 
 function getEnvDescription(env: Environment) {

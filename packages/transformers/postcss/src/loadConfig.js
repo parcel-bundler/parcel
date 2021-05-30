@@ -96,6 +96,11 @@ export async function load({
 
   let contents = null;
   if (configFile) {
+    config.addDevDependency({
+      moduleSpecifier: 'postcss',
+      resolveFrom: config.searchPath,
+    });
+
     contents = configFile.contents;
     let isDynamic = configFile && path.extname(configFile.filePath) === '.js';
     if (isDynamic) {

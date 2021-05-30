@@ -388,10 +388,11 @@ describe('postcss', () => {
   });
 
   it('should automatically install postcss plugins if needed', async () => {
-    await outputFS.rimraf(path.join(__dirname, '/input'));
+    let inputDir = path.join(__dirname, '/input');
+    await outputFS.rimraf(inputDir);
     await ncp(
       path.join(__dirname, '/integration/postcss-autoinstall/npm'),
-      path.join(__dirname, '/input'),
+      inputDir,
     );
 
     let packageInstaller = new MockPackageInstaller();
@@ -403,7 +404,11 @@ describe('postcss', () => {
 
     // The package manager uses an overlay filesystem, which performs writes to
     // an in-memory fs and reads first from memory, then falling back to the real fs.
-    let packageManager = new NodePackageManager(overlayFS, packageInstaller);
+    let packageManager = new NodePackageManager(
+      overlayFS,
+      inputDir,
+      packageInstaller,
+    );
 
     let distDir = path.join(outputFS.cwd(), 'dist');
 

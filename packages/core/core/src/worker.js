@@ -80,7 +80,6 @@ export async function runTransform(
 
   return new Transformation({
     workerApi,
-    report: reportWorker.bind(null, workerApi),
     options,
     config,
     ...rest,

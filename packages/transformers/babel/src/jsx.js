@@ -1,76 +1,39 @@
 // @flow strict-local
 
 import type {Config, PluginOptions} from '@parcel/types';
-import type {BabelConfig} from './types';
 
 import path from 'path';
 
-const JSX_EXTENSIONS = {
-  '.jsx': true,
-  '.tsx': true,
-};
-
-const JSX_PRAGMA = {
-  react: {
-    pragma: 'React.createElement',
-    pragmaFrag: 'React.Fragment',
-  },
-  preact: {
-    pragma: 'h',
-    pragmaFrag: 'Fragment',
-  },
-  nervjs: {
-    pragma: 'Nerv.createElement',
-    pragmaFrag: undefined,
-  },
-  hyperapp: {
-    pragma: 'h',
-    pragmaFrag: undefined,
-  },
-};
+const JSX_EXTENSIONS = new Set(['.jsx', '.tsx']);
+const JSX_LIBRARIES = ['react', 'preact', 'nervejs', 'hyperapp'];
 
 /**
- * Generates a babel config for JSX. Attempts to detect react or react-like libraries
- * and changes the pragma accordingly.
+ * Returns whether an asset is likely JSX. Attempts to detect react or react-like libraries
+ * along with
  */
-export default async function getJSXOptions(
+export default async function isJSX(
   options: PluginOptions,
   config: Config,
-): Promise<?{|config: BabelConfig, pragma: ?string, pragmaFrag: ?string|}> {
+): Promise<boolean> {
   if (!config.isSource) {
-    return null;
+    return false;
+  }
+
+  if (JSX_EXTENSIONS.has(path.extname(config.searchPath))) {
+    return true;
   }
 
   let pkg = await config.getPackage();
-  let reactLib;
   if (pkg?.alias && pkg.alias['react']) {
     // e.g.: `{ alias: { "react": "preact/compat" } }`
-    reactLib = 'react';
+    return true;
   } else {
-    // Find a dependency that we can map to a JSX pragma
-    reactLib = Object.keys(JSX_PRAGMA).find(
+    // Find a dependency that implies JSX syntax.
+    return JSX_LIBRARIES.some(
       libName =>
         pkg &&
         ((pkg.dependencies && pkg.dependencies[libName]) ||
           (pkg.devDependencies && pkg.devDependencies[libName])),
     );
-  }
-
-  let pragma = reactLib ? JSX_PRAGMA[reactLib].pragma : undefined;
-  let pragmaFrag = reactLib ? JSX_PRAGMA[reactLib].pragmaFrag : undefined;
-
-  if (pragma || JSX_EXTENSIONS[path.extname(config.searchPath)]) {
-    return {
-      config: {
-        presets: [
-          [
-            '@babel/preset-react',
-            {pragma, pragmaFrag, development: options.mode === 'development'},
-          ],
-        ],
-      },
-      pragma,
-      pragmaFrag,
-    };
   }
 }

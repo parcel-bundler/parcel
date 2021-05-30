@@ -5,7 +5,6 @@
     "bundle-text:*": ["@parcel/transformer-inline-string", "..."],
     "data-url:*": ["@parcel/transformer-inline-string", "..."],
     "*.{js,mjs,jsm,jsx,es6,cjs,ts,tsx}": [
-      "@parcel/transformer-react-refresh-babel",
       "@parcel/transformer-babel",
       "@parcel/transformer-js",
       "@parcel/transformer-react-refresh-wrap"
@@ -58,5 +57,6 @@
     "*.{jsonld,webmanifest}": "@parcel/packager-raw-url",
     "*": "@parcel/packager-raw"
   },
-  "resolvers": ["@parcel/resolver-default"]
+  "resolvers": ["@parcel/resolver-default"],
+  "reporters": ["@parcel/reporter-dev-server"]
 }

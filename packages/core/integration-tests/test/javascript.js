@@ -42,7 +42,7 @@ describe('javascript', function() {
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: ['index.js', 'JSRuntime.js'],
+        assets: ['index.js'],
       },
       {
         assets: ['local.js'],
@@ -62,12 +62,7 @@ describe('javascript', function() {
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: [
-          'bundle-url.js',
-          'index.js',
-          'JSRuntime.js',
-          'esmodule-helpers.js',
-        ],
+        assets: ['bundle-url.js', 'index.js', 'esmodule-helpers.js'],
       },
       {
         type: 'txt',
@@ -331,13 +326,7 @@ describe('javascript', function() {
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: [
-          'index.js',
-          'bundle-url.js',
-          'cacheLoader.js',
-          'js-loader.js',
-          'JSRuntime.js',
-        ],
+        assets: ['index.js', 'bundle-url.js', 'cacheLoader.js', 'js-loader.js'],
       },
       {
         assets: ['local.js'],
@@ -453,7 +442,7 @@ describe('javascript', function() {
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: ['index.js', 'JSRuntime.js'],
+        assets: ['index.js'],
       },
       {
         assets: ['local.js'],
@@ -473,7 +462,7 @@ describe('javascript', function() {
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: ['index.js', 'JSRuntime.js'],
+        assets: ['index.js'],
       },
       {
         assets: ['local.js'],
@@ -493,7 +482,7 @@ describe('javascript', function() {
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: ['index.js', 'JSRuntime.js'],
+        assets: ['index.js'],
       },
       {
         assets: ['local.js'],
@@ -552,9 +541,6 @@ describe('javascript', function() {
           'feature.js',
           'get-worker-url.js',
           'bundle-url.js',
-          'JSRuntime.js',
-          'JSRuntime.js',
-          'JSRuntime.js',
         ],
       },
       {
@@ -569,7 +555,7 @@ describe('javascript', function() {
     ]);
   });
 
-  it('should support bundling workers of type module', async function() {
+  it.skip('should support bundling workers of type module', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/workers-module/index.js'),
       {
@@ -585,13 +571,7 @@ describe('javascript', function() {
       },
       {
         name: 'index.js',
-        assets: [
-          'index.js',
-          'bundle-url.js',
-          'JSRuntime.js',
-          'JSRuntime.js',
-          'get-worker-url.js',
-        ],
+        assets: ['index.js', 'bundle-url.js', 'get-worker-url.js'],
       },
       {
         assets: ['shared-worker.js'],
@@ -634,9 +614,6 @@ describe('javascript', function() {
           'feature.js',
           'bundle-url.js',
           'get-worker-url.js',
-          'JSRuntime.js',
-          'JSRuntime.js',
-          'JSRuntime.js',
         ],
       },
       {
@@ -662,20 +639,13 @@ describe('javascript', function() {
 
       assertBundles(b, [
         {
-          assets: [
-            'importScripts.js',
-            'bundle-url.js',
-            'JSRuntime.js',
-            'JSRuntime.js',
-          ],
+          assets: ['importScripts.js', 'bundle-url.js'],
         },
         {
           name: `index-${workerType}.js`,
-          assets: [
-            `index-${workerType}.js`,
-            'bundle-url.js',
-            'JSRuntime.js',
-          ].concat(workerType === 'webworker' ? ['get-worker-url.js'] : []),
+          assets: [`index-${workerType}.js`, 'bundle-url.js'].concat(
+            workerType === 'webworker' ? ['get-worker-url.js'] : [],
+          ),
         },
         {
           assets: ['imported.js'],
@@ -720,14 +690,9 @@ describe('javascript', function() {
     assertBundles(b, [
       {
         name: 'index-external.js',
-        assets: [
-          'index-external.js',
-          'bundle-url.js',
-          'get-worker-url.js',
-          'JSRuntime.js',
-        ],
+        assets: ['index-external.js', 'bundle-url.js', 'get-worker-url.js'],
       },
-      {assets: ['external.js', 'JSRuntime.js']},
+      {assets: ['external.js']},
     ]);
 
     let workerBundleFile = path.join(
@@ -761,13 +726,7 @@ describe('javascript', function() {
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: [
-          'index.js',
-          'index.js',
-          'bundle-url.js',
-          'JSRuntime.js',
-          'JSRuntime.js',
-        ],
+        assets: ['index.js', 'index.js', 'bundle-url.js'],
       },
       {
         assets: ['worker-nested.js'],
@@ -789,7 +748,7 @@ describe('javascript', function() {
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: ['index.js', 'bundle-url.js', 'JSRuntime.js'],
+        assets: ['index.js', 'bundle-url.js'],
       },
       {
         assets: ['worker.js'],
@@ -818,11 +777,11 @@ describe('javascript', function() {
             codeHighlights: [
               {
                 end: {
-                  column: 51,
+                  column: 55,
                   line: 1,
                 },
                 start: {
-                  column: 12,
+                  column: 42,
                   line: 1,
                 },
               },
@@ -849,12 +808,7 @@ describe('javascript', function() {
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: [
-          'index.js',
-          'bundle-url.js',
-          'JSRuntime.js',
-          'get-worker-url.js',
-        ],
+        assets: ['index.js', 'bundle-url.js', 'get-worker-url.js'],
       },
       {
         assets: ['worker.js', 'worker-dep.js'],
@@ -870,12 +824,7 @@ describe('javascript', function() {
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: [
-          'index.js',
-          'bundle-url.js',
-          'JSRuntime.js',
-          'get-worker-url.js',
-        ],
+        assets: ['index.js', 'bundle-url.js', 'get-worker-url.js'],
       },
       {
         assets: ['worker.js'],
@@ -936,11 +885,11 @@ describe('javascript', function() {
             codeHighlights: [
               {
                 end: {
-                  column: 51,
+                  column: 33,
                   line: 1,
                 },
                 start: {
-                  column: 12,
+                  column: 20,
                   line: 1,
                 },
               },
@@ -1016,20 +965,17 @@ describe('javascript', function() {
           'lodash.js',
           'bundle-url.js',
           'get-worker-url.js',
-          'JSRuntime.js',
-          'JSRuntime.js',
           'bundle-manifest.js',
           'relative-path.js',
+          'esmodule-helpers.js',
         ],
       },
       {
         assets: [
           'worker-a.js',
-          'JSRuntime.js',
           'bundle-url.js',
           'get-worker-url.js',
           'bundle-manifest.js',
-          'JSRuntime.js',
           'relative-path.js',
         ],
       },
@@ -1067,14 +1013,13 @@ describe('javascript', function() {
           'index.js',
           'bundle-url.js',
           'get-worker-url.js',
-          'JSRuntime.js',
           'lodash.js',
+          'esmodule-helpers.js',
         ],
       },
       {
         assets: [
           'worker-a.js',
-          'JSRuntime.js',
           'bundle-url.js',
           'esmodule-helpers.js',
           'get-worker-url.js',
@@ -1106,11 +1051,10 @@ describe('javascript', function() {
           'esmodule-helpers.js',
           'foo.js',
           'js-loader.js',
-          'JSRuntime.js',
         ],
       },
       {
-        assets: ['async.js', 'JSRuntime.js'],
+        assets: ['async.js'],
       },
     ]);
 
@@ -1128,18 +1072,12 @@ describe('javascript', function() {
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: [
-          'bundle-url.js',
-          'get-worker-url.js',
-          'index.js',
-          'JSRuntime.js',
-        ],
+        assets: ['bundle-url.js', 'get-worker-url.js', 'index.js'],
       },
       {
         assets: [
           'bundle-url.js',
           'get-worker-url.js',
-          'JSRuntime.js',
           'worker1.js',
           'worker2.js',
           'worker3.js',
@@ -1165,10 +1103,8 @@ describe('javascript', function() {
         assets: [
           'index.js',
           'bundle-url.js',
-          'JSRuntime.js',
           'get-worker-url.js',
           'bundle-manifest.js',
-          'JSRuntime.js',
           'relative-path.js',
         ],
       },
@@ -1219,16 +1155,10 @@ describe('javascript', function() {
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: [
-          'index.js',
-          'bundle-url.js',
-          'cacheLoader.js',
-          'js-loader.js',
-          'JSRuntime.js',
-        ],
+        assets: ['index.js', 'bundle-url.js', 'cacheLoader.js', 'js-loader.js'],
       },
       {
-        assets: ['local.js', 'JSRuntime.js'],
+        assets: ['local.js', 'esmodule-helpers.js'],
       },
       {
         assets: ['test.txt'],
@@ -1254,7 +1184,6 @@ describe('javascript', function() {
           'cacheLoader.js',
           'esmodule-helpers.js',
           'js-loader.js',
-          'JSRuntime.js',
         ],
       },
       {
@@ -1281,14 +1210,7 @@ describe('javascript', function() {
       },
       {
         name: 'index.js',
-        assets: [
-          'index.js',
-          'bundle-url.js',
-          'cacheLoader.js',
-          'js-loader.js',
-          'JSRuntime.js',
-          'JSRuntime.js',
-        ],
+        assets: ['index.js', 'bundle-url.js', 'cacheLoader.js', 'js-loader.js'],
       },
     ]);
 
@@ -1323,10 +1245,7 @@ describe('javascript', function() {
           'bundle-url.js',
           'cacheLoader.js',
           'js-loader.js',
-          'JSRuntime.js',
-          'JSRuntime.js',
           'bundle-manifest.js',
-          'JSRuntime.js',
           'relative-path.js',
         ],
       },
@@ -1354,7 +1273,6 @@ describe('javascript', function() {
           'bundle-url.js',
           'cacheLoader.js',
           'js-loader.js',
-          'JSRuntime.js',
         ],
       },
       {
@@ -1379,13 +1297,7 @@ describe('javascript', function() {
       },
       {
         name: 'b.js',
-        assets: [
-          'b.js',
-          'bundle-url.js',
-          'cacheLoader.js',
-          'js-loader.js',
-          'JSRuntime.js',
-        ],
+        assets: ['b.js', 'bundle-url.js', 'cacheLoader.js', 'js-loader.js'],
       },
       {
         name: 'a.js',
@@ -1396,7 +1308,6 @@ describe('javascript', function() {
           'cacheLoader.js',
           'esmodule-helpers.js',
           'js-loader.js',
-          'JSRuntime.js',
         ],
       },
     ]);
@@ -1418,19 +1329,17 @@ describe('javascript', function() {
           'bundle-url.js',
           'cacheLoader.js',
           'js-loader.js',
-          'JSRuntime.js',
-          'JSRuntime.js',
           'esmodule-helpers.js',
         ],
       },
       {
-        assets: ['a.js', 'common.js', 'JSRuntime.js'],
+        assets: ['a.js', 'common.js'],
       },
       {
-        assets: ['b.js', 'JSRuntime.js'],
+        assets: ['b.js'],
       },
       {
-        assets: ['c.js', 'JSRuntime.js'],
+        assets: ['c.js'],
       },
       {
         assets: ['d.js', 'common.js'],
@@ -1455,15 +1364,13 @@ describe('javascript', function() {
           'cacheLoader.js',
           'esmodule-helpers.js',
           'js-loader.js',
-          'JSRuntime.js',
-          'JSRuntime.js',
         ],
       },
       {
-        assets: ['a.js', 'c.js', 'JSRuntime.js'],
+        assets: ['a.js', 'c.js'],
       },
       {
-        assets: ['b.js', 'c.js', 'JSRuntime.js'],
+        assets: ['b.js', 'c.js'],
       },
       {
         assets: ['1.js'],
@@ -1512,7 +1419,7 @@ describe('javascript', function() {
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: ['index.js', 'bundle-url.js', 'JSRuntime.js'],
+        assets: ['index.js', 'bundle-url.js'],
       },
       {
         type: 'txt',
@@ -1537,12 +1444,7 @@ describe('javascript', function() {
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: [
-          'index.js',
-          'bundle-url.js',
-          'esmodule-helpers.js',
-          'JSRuntime.js',
-        ],
+        assets: ['index.js', 'bundle-url.js', 'esmodule-helpers.js'],
       },
       {
         type: 'txt',
@@ -1595,11 +1497,11 @@ describe('javascript', function() {
             codeHighlights: [
               {
                 end: {
-                  column: 54,
+                  column: 36,
                   line: 1,
                 },
                 start: {
-                  column: 16,
+                  column: 24,
                   line: 1,
                 },
               },
@@ -1642,7 +1544,7 @@ describe('javascript', function() {
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: ['index.js', 'JSRuntime.js', 'bundle-url.js'],
+        assets: ['index.js', 'bundle-url.js'],
       },
       {
         type: 'txt',
@@ -1761,6 +1663,15 @@ describe('javascript', function() {
     assert.equal(output(), 'test:test');
   });
 
+  it('should not replace process.env.hasOwnProperty with undefined', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/env-hasOwnProperty/index.js'),
+    );
+
+    let output = await run(b);
+    assert.strictEqual(output, false);
+  });
+
   it('should not insert environment variables in electron-main environment', async function() {
     let b = await bundle(path.join(__dirname, '/integration/env/index.js'), {
       targets: {
@@ -1852,6 +1763,36 @@ describe('javascript', function() {
     let output = await run(b);
     assert.ok(!output.toString().includes('process.env'));
     assert.equal(output(), 'production:production');
+  });
+
+  it('should not inline computed accesses to process.env', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/env-computed/index.js'),
+      {
+        env: {name: 'abc'},
+      },
+    );
+
+    let contents = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(contents.includes('process.env'));
+
+    let output = await run(b);
+    assert.strictEqual(output, 'abc');
+  });
+
+  it('should inline computed accesses with string literals to process.env', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/env-computed-string/index.js'),
+      {
+        env: {ABC: 'XYZ'},
+      },
+    );
+
+    let contents = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(!contents.includes('process.env'));
+
+    let output = await run(b);
+    assert.strictEqual(output, 'XYZ');
   });
 
   it('should insert environment variables from a file', async function() {
@@ -2775,8 +2716,6 @@ describe('javascript', function() {
         name: 'index.js',
         assets: [
           'index.js',
-          'JSRuntime.js',
-          'JSRuntime.js',
           'bundle-url.js',
           'cacheLoader.js',
           'esmodule-helpers.js',
@@ -2784,10 +2723,10 @@ describe('javascript', function() {
         ],
       },
       {
-        assets: ['a.js', 'JSRuntime.js'],
+        assets: ['a.js'],
       },
       {
-        assets: ['b.js', 'JSRuntime.js'],
+        assets: ['b.js'],
       },
       {
         assets: ['c.js'],
@@ -2877,11 +2816,7 @@ describe('javascript', function() {
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: [
-          'index.js',
-          b.getBundles().find(b => b.isInline).id + '.js',
-          'esmodule-helpers.js',
-        ],
+        assets: ['index.js', 'esmodule-helpers.js'],
       },
       {
         name: 'index.css',
@@ -2904,13 +2839,7 @@ describe('javascript', function() {
     assertBundles(b, [
       {
         name: 'ts.js',
-        assets: [
-          'ts.js',
-          'bundle-url.js',
-          'cacheLoader.js',
-          'js-loader.js',
-          'JSRuntime.js',
-        ],
+        assets: ['ts.js', 'bundle-url.js', 'cacheLoader.js', 'js-loader.js'],
       },
       {
         assets: ['async.js'],
@@ -2933,7 +2862,6 @@ describe('javascript', function() {
           'bundle-url.js',
           'cacheLoader.js',
           'js-loader.js',
-          'JSRuntime.js',
         ],
       },
       {
@@ -2945,7 +2873,9 @@ describe('javascript', function() {
 
     let jsBundle = b.getBundles()[0];
     let contents = await outputFS.readFile(jsBundle.filePath, 'utf8');
-    assert(/.then\(function \(\$parcel\$.*?\) {/.test(contents));
+    assert(
+      /.then\(function\(res\) {\n.*return __importStar\(res\)/.test(contents),
+    );
   });
 
   it('should detect typescript style async requires in commonjs with esModuleInterop flag and arrow functions', async () => {
@@ -2961,7 +2891,6 @@ describe('javascript', function() {
           'bundle-url.js',
           'cacheLoader.js',
           'js-loader.js',
-          'JSRuntime.js',
         ],
       },
       {
@@ -2973,7 +2902,7 @@ describe('javascript', function() {
 
     let jsBundle = b.getBundles()[0];
     let contents = await outputFS.readFile(jsBundle.filePath, 'utf8');
-    assert(/.then\(\$parcel\$.*? =>/.test(contents));
+    assert(/.then\(\(res\)=>__importStar\(res\)/.test(contents));
   });
 
   it('should detect rollup style async requires in commonjs', async () => {
@@ -2989,7 +2918,6 @@ describe('javascript', function() {
           'bundle-url.js',
           'cacheLoader.js',
           'js-loader.js',
-          'JSRuntime.js',
         ],
       },
       {
@@ -3013,7 +2941,6 @@ describe('javascript', function() {
           'bundle-url.js',
           'cacheLoader.js',
           'js-loader.js',
-          'JSRuntime.js',
         ],
       },
       {
@@ -3091,7 +3018,6 @@ describe('javascript', function() {
           'get-dep.js',
           'get-dep-2.js',
           'dep.js',
-          'JSRuntime.js',
           'esmodule-helpers.js',
         ],
       },
@@ -3115,15 +3041,13 @@ describe('javascript', function() {
           'cacheLoader.js',
           'dep.js',
           'js-loader.js',
-          'JSRuntime.js',
-          'JSRuntime.js',
           'relative-path.js',
           'same-ancestry.js',
           'esmodule-helpers.js',
         ],
       },
       {
-        assets: ['get-dep.js', 'JSRuntime.js'],
+        assets: ['get-dep.js'],
       },
     ]);
 
@@ -3154,7 +3078,6 @@ describe('javascript', function() {
           'get-dep.js',
           'get-dep-2.js',
           'dep.js',
-          'JSRuntime.js',
           'esmodule-helpers.js',
         ],
       },
@@ -3166,8 +3089,6 @@ describe('javascript', function() {
           'cacheLoader.js',
           'get-dep.js',
           'js-loader.js',
-          'JSRuntime.js',
-          'JSRuntime.js',
           'relative-path.js',
           'esmodule-helpers.js',
         ],
@@ -3205,10 +3126,10 @@ describe('javascript', function() {
         assets: ['wraps.js', 'lodash.js'],
       },
       {
-        assets: ['a.js', 'JSRuntime.js'],
+        assets: ['a.js'],
       },
       {
-        assets: ['child.js', 'JSRuntime.js'],
+        assets: ['child.js'],
       },
       {
         assets: ['grandchild.js'],
@@ -3224,9 +3145,6 @@ describe('javascript', function() {
           'cacheLoader.js',
           'index.js',
           'js-loader.js',
-          'JSRuntime.js',
-          'JSRuntime.js',
-          'JSRuntime.js',
           'relative-path.js',
           'esmodule-helpers.js',
         ],
@@ -3251,7 +3169,6 @@ describe('javascript', function() {
           'bundle-url.js',
           'cacheLoader.js',
           'js-loader.js',
-          'JSRuntime.js',
           'esmodule-helpers.js',
         ],
       },
@@ -3275,8 +3192,6 @@ describe('javascript', function() {
           'bundle-url.js',
           'cacheLoader.js',
           'js-loader.js',
-          'JSRuntime.js',
-          'JSRuntime.js',
           'esmodule-helpers.js',
         ],
       },
@@ -3347,7 +3262,6 @@ describe('javascript', function() {
           'bundle-url.js',
           'cacheLoader.js',
           'js-loader.js',
-          'JSRuntime.js',
           'esmodule-helpers.js',
         ],
       },
@@ -3358,7 +3272,6 @@ describe('javascript', function() {
           'bundle-url.js',
           'cacheLoader.js',
           'js-loader.js',
-          'JSRuntime.js',
         ],
       },
       {assets: ['a.js', 'value.js', 'esmodule-helpers.js']},
@@ -3585,5 +3498,129 @@ describe('javascript', function() {
     );
     let res = await run(b);
     assert.deepEqual(res.default, 'x: 123');
+  });
+
+  it('should only replace free references to require', async () => {
+    let b = await bundle(
+      path.join(__dirname, 'integration/js-require-free/index.js'),
+    );
+    let output;
+    await run(b, {
+      output(v) {
+        output = v;
+      },
+    });
+    assert.strictEqual(output, 'a');
+  });
+
+  it('should only replace free references to require with scope hoisting', async () => {
+    let b = await bundle(
+      path.join(__dirname, 'integration/js-require-free/index.js'),
+      {
+        mode: 'production',
+      },
+    );
+    let output;
+    await run(b, {
+      output(v) {
+        output = v;
+      },
+    });
+    assert.strictEqual(output, 'a');
+  });
+
+  it('should support runtime module deduplication', async function() {
+    let b = await bundle(
+      path.join(__dirname, 'integration/js-runtime-dedup/index.js'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js', 'bundle-url.js', 'cacheLoader.js', 'js-loader.js'],
+      },
+      {
+        assets: ['async1.js', 'shared.js', 'esmodule-helpers.js'],
+      },
+      {
+        assets: ['async2.js', 'shared.js', 'esmodule-helpers.js'],
+      },
+    ]);
+
+    let res = await run(b);
+    assert.equal(await res, true);
+  });
+
+  it('should support runtime module deduplication with scope hoisting', async function() {
+    let b = await bundle(
+      path.join(__dirname, 'integration/js-runtime-dedup/index.js'),
+      {
+        mode: 'production',
+      },
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: [
+          'index.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'js-loader.js',
+          'bundle-manifest.js',
+          'relative-path.js',
+        ],
+      },
+      {
+        assets: ['async1.js', 'shared.js'],
+      },
+      {
+        assets: ['async2.js', 'shared.js'],
+      },
+    ]);
+
+    let res = await run(b);
+    assert.equal(await res, true);
+  });
+
+  it('should remap locations in diagnostics using the input source map', async () => {
+    let fixture = path.join(
+      __dirname,
+      'integration/diagnostic-sourcemap/index.js',
+    );
+    let code = await inputFS.readFileSync(fixture, 'utf8');
+    await assert.rejects(
+      () =>
+        bundle(fixture, {
+          defaultTargetOptions: {
+            shouldOptimize: true,
+          },
+        }),
+      {
+        name: 'BuildError',
+        diagnostics: [
+          {
+            message: "Failed to resolve 'foo' from './index.js'",
+            origin: '@parcel/core',
+            filePath: fixture,
+            codeFrame: {
+              code,
+              codeHighlights: [
+                {
+                  start: {
+                    line: 11,
+                    column: 17,
+                  },
+                  end: {
+                    line: 11,
+                    column: 21,
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    );
   });
 });

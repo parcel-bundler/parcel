@@ -129,7 +129,7 @@ describe('monorepos', function() {
         path.join(distDir, '/pkg-a/src/index.js'),
         'utf8',
       );
-      assert(contents.includes('exports.default ='));
+      assert(contents.includes('$parcel$export(module.exports, "default"'));
 
       contents = await outputFS.readFile(
         path.join(distDir, '/pkg-b/src/index.js'),
@@ -190,7 +190,7 @@ describe('monorepos', function() {
       ),
       'utf8',
     );
-    assert(contents.includes('exports.default ='));
+    assert(contents.includes('$parcel$export(module.exports, "default"'));
 
     contents = await outputFS.readFile(
       path.join(
@@ -199,7 +199,7 @@ describe('monorepos', function() {
       ),
       'utf8',
     );
-    assert(contents.includes('export default function'));
+    assert(contents.includes('export {'));
 
     contents = await outputFS.readFile(
       path.join(
@@ -261,7 +261,7 @@ describe('monorepos', function() {
         path.join(distDir, '/pkg-a/src/index.js'),
         'utf8',
       );
-      assert(contents.includes('exports.default ='));
+      assert(contents.includes('$parcel$export(module.exports, "default"'));
 
       contents = await outputFS.readFile(
         path.join(distDir, '/pkg-b/src/index.js'),
@@ -313,7 +313,7 @@ describe('monorepos', function() {
         path.join(distDir, '/pkg-a/src/index.js'),
         'utf8',
       );
-      assert(contents.includes('exports.default ='));
+      assert(contents.includes('$parcel$export(module.exports, "default"'));
 
       contents = await outputFS.readFile(
         path.join(distDir, '/pkg-b/src/index.js'),
@@ -362,7 +362,7 @@ describe('monorepos', function() {
         ),
         'utf8',
       );
-      assert(contents.includes('exports.default ='));
+      assert(contents.includes('$parcel$export(module.exports, "default"'));
 
       contents = await outputFS.readFile(
         path.join(
@@ -371,7 +371,7 @@ describe('monorepos', function() {
         ),
         'utf8',
       );
-      assert(contents.includes('export default function'));
+      assert(contents.includes('export {'));
     } finally {
       inputFS.chdir(oldcwd);
     }
@@ -411,7 +411,7 @@ describe('monorepos', function() {
         ),
         'utf8',
       );
-      assert(contents.includes('exports.default ='));
+      assert(contents.includes('$parcel$export(module.exports, "default"'));
 
       contents = await outputFS.readFile(
         path.join(
@@ -420,7 +420,7 @@ describe('monorepos', function() {
         ),
         'utf8',
       );
-      assert(contents.includes('export default function'));
+      assert(contents.includes('export {'));
     } finally {
       inputFS.chdir(oldcwd);
     }
@@ -466,7 +466,7 @@ describe('monorepos', function() {
       ),
       'utf8',
     );
-    assert(contents.includes('exports.default ='));
+    assert(contents.includes('$parcel$export(module.exports, "default"'));
 
     contents = await outputFS.readFile(
       path.join(
@@ -475,7 +475,7 @@ describe('monorepos', function() {
       ),
       'utf8',
     );
-    assert(contents.includes('export default function'));
+    assert(contents.includes('export {'));
 
     contents = await outputFS.readFile(
       path.join(
@@ -735,7 +735,7 @@ describe('monorepos', function() {
       ),
       'utf8',
     );
-    assert(contents.includes('exports.default ='));
+    assert(contents.includes('$parcel$export(module.exports, "default"'));
     assert(contents.includes('require("./pkg-a.cjs.css")'));
 
     contents = await outputFS.readFile(
@@ -745,7 +745,7 @@ describe('monorepos', function() {
       ),
       'utf8',
     );
-    assert(contents.includes('export default function'));
+    assert(contents.includes('export {'));
     assert(contents.includes('import "./pkg-a.cjs.css"'));
 
     contents = await outputFS.readFile(

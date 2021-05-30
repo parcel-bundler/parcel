@@ -274,7 +274,7 @@ for (let key in generator) {
     // These are printed by astring itself
     if (node.trailingComments) {
       for (let c of node.trailingComments) {
-        if (c.type === 'CommentLine') {
+        if (c.type === 'CommentLine' || c.type === 'LineComment') {
           c.type = 'LineComment';
         } else {
           c.type = 'BlockComment';

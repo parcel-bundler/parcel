@@ -5,7 +5,11 @@ import type {FilePath} from '@parcel/types';
 
 import SourceMap from '@parcel/source-map';
 import {Transformer} from '@parcel/plugin';
-import {createDependencyLocation, isURL} from '@parcel/utils';
+import {
+  createDependencyLocation,
+  isURL,
+  remapSourceLocation,
+} from '@parcel/utils';
 import postcss from 'postcss';
 import nullthrows from 'nullthrows';
 import valueParser from 'postcss-value-parser';
@@ -77,6 +81,19 @@ export default (new Transformer({
     }
 
     let program: Root = postcss.fromJSON(ast.program);
+    let originalSourceMap = await asset.getMap();
+    let createLoc = (start, specifier, lineOffset, colOffset) => {
+      let loc = createDependencyLocation(
+        start,
+        specifier,
+        lineOffset,
+        colOffset,
+      );
+      if (originalSourceMap) {
+        loc = remapSourceLocation(loc, originalSourceMap);
+      }
+      return loc;
+    };
 
     let isDirty = false;
     program.walkAtRules('import', rule => {
@@ -99,12 +116,7 @@ export default (new Transformer({
 
       if (isURL(moduleSpecifier)) {
         name.value = asset.addURLDependency(moduleSpecifier, {
-          loc: createDependencyLocation(
-            nullthrows(rule.source.start),
-            asset.filePath,
-            0,
-            8,
-          ),
+          loc: createLoc(nullthrows(rule.source.start), asset.filePath, 0, 8),
         });
       } else {
         // If this came from an inline <style> tag, don't inline the imported file. Replace with the correct URL instead.
@@ -119,12 +131,7 @@ export default (new Transformer({
         let dep = {
           moduleSpecifier,
           // Offset by 8 as it does not include `@import `
-          loc: createDependencyLocation(
-            nullthrows(rule.source.start),
-            moduleSpecifier,
-            0,
-            8,
-          ),
+          loc: createLoc(nullthrows(rule.source.start), moduleSpecifier, 0, 8),
           meta: {
             media,
           },
@@ -149,9 +156,11 @@ export default (new Transformer({
             !node.nodes[0].value.startsWith('#') // IE's `behavior: url(#default#VML)`
           ) {
             let url = asset.addURLDependency(node.nodes[0].value, {
-              loc: createDependencyLocation(
+              loc: createLoc(
                 nullthrows(decl.source.start),
                 node.nodes[0].value,
+                0,
+                node.nodes[0].sourceIndex,
               ),
             });
             isDeclDirty = node.nodes[0].value !== url;
@@ -194,7 +203,7 @@ export default (new Transformer({
     let originalSourceMap = await asset.getMap();
     if (result.map != null) {
       map = new SourceMap(options.projectRoot);
-      map.addRawMappings(result.map.toJSON());
+      map.addVLQMap(result.map.toJSON());
       if (originalSourceMap) {
         map.extends(originalSourceMap.toBuffer());
       }
