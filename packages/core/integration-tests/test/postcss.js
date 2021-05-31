@@ -453,8 +453,7 @@ describe('postcss', () => {
     ]);
 
     let css = await outputFS.readFile(path.join(distDir, 'style.css'), 'utf8');
-
-    assert.equal(css.split('red').length - 1, 2);
+    assert.equal(css.split('red').length - 1, 1);
   });
 
   it('should support using a postcss config in package.json', async function() {
