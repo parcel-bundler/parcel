@@ -8,21 +8,27 @@ import type {
   BundleGraph as BundleGraphType,
   NamedBundle as NamedBundleType,
   Async,
-  ConfigOutput,
 } from '@parcel/types';
 import type SourceMap from '@parcel/source-map';
-import type WorkerFarm, {SharedReference} from '@parcel/workers';
-import type {Bundle as InternalBundle, ParcelOptions, ReportFn} from './types';
-import type ParcelConfig from './ParcelConfig';
+import type {
+  Bundle as InternalBundle,
+  Config,
+  DevDepRequest,
+  ParcelOptions,
+  ReportFn,
+  RequestInvalidation,
+} from './types';
+import type ParcelConfig, {LoadedPlugin} from './ParcelConfig';
 import type InternalBundleGraph from './BundleGraph';
-import type {FileSystem, FileOptions} from '@parcel/fs';
+import type {ConfigRequest} from './requests/ConfigRequest';
+import type {DevDepSpecifier} from './requests/DevDepRequest';
 
 import invariant from 'assert';
 import {blobToStream, TapStream} from '@parcel/utils';
 import {PluginLogger} from '@parcel/logger';
 import {init as initSourcemaps} from '@parcel/source-map';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
-import {Readable, Transform} from 'stream';
+import {Readable} from 'stream';
 import nullthrows from 'nullthrows';
 import path from 'path';
 import url from 'url';
@@ -34,12 +40,31 @@ import BundleGraph, {
 } from './public/BundleGraph';
 import PluginOptions from './public/PluginOptions';
 import {PARCEL_VERSION, HASH_REF_PREFIX, HASH_REF_REGEX} from './constants';
-import {serialize} from './serializer';
+import {createConfig} from './InternalConfig';
+import {
+  loadPluginConfig,
+  getConfigHash,
+  type PluginWithLoadConfig,
+} from './requests/ConfigRequest';
+import {createDevDependency} from './requests/DevDepRequest';
+import {createBuildCache} from './buildCache';
+import {getInvalidationId, getInvalidationHash} from './assetUtils';
+import {optionsProxy} from './utils';
+import {invalidateDevDeps} from './requests/DevDepRequest';
 
 type Opts = {|
   config: ParcelConfig,
   options: ParcelOptions,
   report: ReportFn,
+  previousDevDeps: Map<string, string>,
+  previousInvalidations: Array<RequestInvalidation>,
+|};
+
+export type PackageRequestResult = {|
+  bundleInfo: BundleInfo,
+  configRequests: Array<ConfigRequest>,
+  devDepRequests: Array<DevDepRequest>,
+  invalidations: Array<RequestInvalidation>,
 |};
 
 export type BundleInfo = {|
@@ -59,6 +84,14 @@ type CacheKeyMap = {|
 
 const BOUNDARY_LENGTH = HASH_REF_PREFIX.length + 32 - 1;
 
+// Packager/optimizer configs are not bundle-specific, so we only need to
+// load them once per build.
+const pluginConfigs = createBuildCache();
+
+// A cache of plugin dependency hashes that we've already sent to the main thread.
+// Automatically cleared before each build.
+const pluginCache = createBuildCache();
+
 export default class PackagerRunner {
   config: ParcelConfig;
   options: ParcelOptions;
@@ -66,71 +99,180 @@ export default class PackagerRunner {
   distDir: FilePath;
   distExists: Set<FilePath>;
   report: ReportFn;
+  previousDevDeps: Map<string, string>;
+  devDepRequests: Map<string, DevDepRequest>;
+  invalidations: Map<string, RequestInvalidation>;
+  previousInvalidations: Array<RequestInvalidation>;
 
-  constructor({config, options, report}: Opts) {
+  constructor({
+    config,
+    options,
+    report,
+    previousDevDeps,
+    previousInvalidations,
+  }: Opts) {
     this.config = config;
     this.options = options;
-    this.pluginOptions = new PluginOptions(this.options);
     this.report = report;
+    this.previousDevDeps = previousDevDeps;
+    this.devDepRequests = new Map();
+    this.previousInvalidations = previousInvalidations;
+    this.invalidations = new Map();
+    this.pluginOptions = new PluginOptions(
+      optionsProxy(this.options, option => {
+        let invalidation: RequestInvalidation = {
+          type: 'option',
+          key: option,
+        };
+
+        this.invalidations.set(getInvalidationId(invalidation), invalidation);
+      }),
+    );
+  }
+
+  async run(
+    bundleGraph: InternalBundleGraph,
+    bundle: InternalBundle,
+    invalidDevDeps: Array<DevDepSpecifier>,
+  ): Promise<PackageRequestResult> {
+    invalidateDevDeps(invalidDevDeps, this.options, this.config);
+
+    let configs = await this.loadConfigs(bundleGraph, bundle);
+    let bundleInfo =
+      (await this.getBundleInfoFromCache(bundleGraph, bundle, configs)) ??
+      (await this.getBundleInfo(bundle, bundleGraph, configs));
+
+    let configRequests = [...configs.values()]
+      .filter(Boolean)
+      .filter(config => {
+        // No need to send to the graph if there are no invalidations.
+        return (
+          config.includedFiles.size > 0 ||
+          config.invalidateOnFileCreate.length > 0 ||
+          config.invalidateOnOptionChange.size > 0 ||
+          config.shouldInvalidateOnStartup
+        );
+      })
+      .map(config => ({
+        id: config.id,
+        includedFiles: config.includedFiles,
+        invalidateOnFileCreate: config.invalidateOnFileCreate,
+        invalidateOnOptionChange: config.invalidateOnOptionChange,
+        shouldInvalidateOnStartup: config.shouldInvalidateOnStartup,
+      }));
+
+    let devDepRequests = [];
+    for (let devDepRequest of this.devDepRequests.values()) {
+      // If we've already sent a matching transformer + hash to the main thread during this build,
+      // there's no need to repeat ourselves.
+      let {moduleSpecifier, resolveFrom, hash} = devDepRequest;
+      if (hash === pluginCache.get(moduleSpecifier)) {
+        devDepRequests.push({moduleSpecifier, resolveFrom, hash});
+      } else {
+        pluginCache.set(moduleSpecifier, hash);
+        devDepRequests.push(devDepRequest);
+      }
+    }
+
+    return {
+      bundleInfo,
+      configRequests,
+      devDepRequests,
+      invalidations: [...this.invalidations.values()],
+    };
   }
 
   async loadConfigs(
     bundleGraph: InternalBundleGraph,
     bundle: InternalBundle,
-  ): Promise<Map<string, ?ConfigOutput>> {
+  ): Promise<Map<string, ?Config>> {
     let configs = new Map();
 
-    configs.set(bundle.id, await this.loadConfig(bundleGraph, bundle));
+    await this.loadConfig(bundle, configs);
     for (let inlineBundle of bundleGraph.getInlineBundles(bundle)) {
-      configs.set(
-        inlineBundle.id,
-        await this.loadConfig(bundleGraph, inlineBundle),
-      );
+      await this.loadConfig(inlineBundle, configs);
     }
 
     return configs;
   }
 
   async loadConfig(
-    bundleGraph: InternalBundleGraph,
     bundle: InternalBundle,
-  ): Promise<?ConfigOutput> {
-    let config: ?ConfigOutput;
+    configs: Map<string, ?Config>,
+  ): Promise<?Config> {
+    let name = nullthrows(bundle.name);
+    let plugin = await this.config.getPackager(name);
+    await this.loadPluginConfig(plugin, configs);
 
-    let {plugin} = await this.config.getPackager(nullthrows(bundle.name));
-    if (plugin.loadConfig != null) {
-      try {
-        config = await nullthrows(plugin.loadConfig)({
-          bundle: NamedBundle.get(bundle, bundleGraph, this.options),
-          options: this.pluginOptions,
-          logger: new PluginLogger({origin: this.config.getBundlerName()}),
-        });
-      } catch (e) {
-        throw new ThrowableDiagnostic({
-          diagnostic: errorToDiagnostic(e, {
-            origin: this.config.getBundlerName(),
-            filePath: bundle.filePath,
-          }),
-        });
-      }
+    let optimizers = await this.config.getOptimizers(name, bundle.pipeline);
+
+    for (let optimizer of optimizers) {
+      await this.loadPluginConfig(optimizer, configs);
     }
-
-    return config;
   }
 
-  getBundleInfoFromCache(infoKey: string): Async<?BundleInfo> {
+  async loadPluginConfig<T: PluginWithLoadConfig>(
+    plugin: LoadedPlugin<T>,
+    configs: Map<string, ?Config>,
+  ): Promise<?Config> {
+    if (configs.has(plugin.name)) {
+      return;
+    }
+
+    // Only load config for a plugin once per build.
+    let existing = pluginConfigs.get(plugin.name);
+    if (existing != null) {
+      configs.set(plugin.name, existing);
+      return;
+    }
+
+    if (plugin.plugin.loadConfig != null) {
+      let config = createConfig({
+        plugin: plugin.name,
+        searchPath: path.join(this.options.projectRoot, 'index'),
+      });
+
+      await loadPluginConfig(plugin, config, this.options);
+
+      for (let devDep of config.devDeps) {
+        let devDepRequest = await createDevDependency(
+          devDep,
+          plugin,
+          this.previousDevDeps,
+          this.options,
+        );
+        let key = `${devDep.moduleSpecifier}:${devDep.resolveFrom}`;
+        this.devDepRequests.set(key, devDepRequest);
+      }
+
+      pluginConfigs.set(plugin.name, config);
+      configs.set(plugin.name, config);
+    }
+  }
+
+  async getBundleInfoFromCache(
+    bundleGraph: InternalBundleGraph,
+    bundle: InternalBundle,
+    configs: Map<string, ?Config>,
+  ): Async<?BundleInfo> {
     if (this.options.shouldDisableCache) {
       return;
     }
 
+    let cacheKey = await this.getCacheKey(
+      bundle,
+      bundleGraph,
+      configs,
+      this.previousInvalidations,
+    );
+    let infoKey = PackagerRunner.getInfoKey(cacheKey);
     return this.options.cache.get<BundleInfo>(infoKey);
   }
 
   async getBundleInfo(
     bundle: InternalBundle,
     bundleGraph: InternalBundleGraph,
-    cacheKeys: CacheKeyMap,
-    configs: Map<string, ?ConfigOutput>,
+    configs: Map<string, ?Config>,
   ): Promise<BundleInfo> {
     let {type, contents, map} = await this.getBundleResult(
       bundle,
@@ -138,13 +280,23 @@ export default class PackagerRunner {
       configs,
     );
 
+    // Recompute cache keys as they may have changed due to dev dependencies.
+    let cacheKey = await this.getCacheKey(bundle, bundleGraph, configs, [
+      ...this.invalidations.values(),
+    ]);
+    let cacheKeys = {
+      content: PackagerRunner.getContentKey(cacheKey),
+      map: PackagerRunner.getMapKey(cacheKey),
+      info: PackagerRunner.getInfoKey(cacheKey),
+    };
+
     return this.writeToCache(cacheKeys, type, contents, map);
   }
 
   async getBundleResult(
     bundle: InternalBundle,
     bundleGraph: InternalBundleGraph,
-    configs: Map<string, ?ConfigOutput>,
+    configs: Map<string, ?Config>,
   ): Promise<{|
     type: string,
     contents: Blob,
@@ -160,6 +312,7 @@ export default class PackagerRunner {
       type,
       packaged.contents,
       packaged.map,
+      configs,
     );
 
     let map =
@@ -186,7 +339,7 @@ export default class PackagerRunner {
   async package(
     internalBundle: InternalBundle,
     bundleGraph: InternalBundleGraph,
-    configs: Map<string, ?ConfigOutput>,
+    configs: Map<string, ?Config>,
   ): Promise<BundleResult> {
     let bundle = NamedBundle.get(internalBundle, bundleGraph, this.options);
     this.report({
@@ -195,10 +348,11 @@ export default class PackagerRunner {
       bundle,
     });
 
-    let {name, plugin} = await this.config.getPackager(bundle.name);
+    let packager = await this.config.getPackager(bundle.name);
+    let {name, resolveFrom, plugin} = packager;
     try {
       return await plugin.package({
-        config: configs.get(bundle.id)?.config,
+        config: configs.get(name)?.result,
         bundle,
         bundleGraph: new BundleGraph<NamedBundleType>(
           bundleGraph,
@@ -237,6 +391,19 @@ export default class PackagerRunner {
           filePath: path.join(bundle.target.distDir, bundle.name),
         }),
       });
+    } finally {
+      // Add dev dependency for the packager. This must be done AFTER running it due to
+      // the potential for lazy require() that aren't executed until the request runs.
+      let devDepRequest = await createDevDependency(
+        {
+          moduleSpecifier: name,
+          resolveFrom,
+        },
+        packager,
+        this.previousDevDeps,
+        this.options,
+      );
+      this.devDepRequests.set(`${name}:${resolveFrom}`, devDepRequest);
     }
   }
 
@@ -246,6 +413,7 @@ export default class PackagerRunner {
     type: string,
     contents: Blob,
     map?: ?SourceMap,
+    configs: Map<string, ?Config>,
   ): Promise<BundleResult> {
     let bundle = NamedBundle.get(
       internalBundle,
@@ -280,6 +448,7 @@ export default class PackagerRunner {
     for (let optimizer of optimizers) {
       try {
         let next = await optimizer.plugin.optimize({
+          config: configs.get(optimizer.name)?.result,
           bundle,
           bundleGraph,
           contents: optimized.contents,
@@ -301,6 +470,22 @@ export default class PackagerRunner {
             filePath: path.join(bundle.target.distDir, bundle.name),
           }),
         });
+      } finally {
+        // Add dev dependency for the optimizer. This must be done AFTER running it due to
+        // the potential for lazy require() that aren't executed until the request runs.
+        let devDepRequest = await createDevDependency(
+          {
+            moduleSpecifier: optimizer.name,
+            resolveFrom: optimizer.resolveFrom,
+          },
+          optimizer,
+          this.previousDevDeps,
+          this.options,
+        );
+        this.devDepRequests.set(
+          `${optimizer.name}:${optimizer.resolveFrom}`,
+          devDepRequest,
+        );
       }
     }
 
@@ -365,30 +550,57 @@ export default class PackagerRunner {
   async getCacheKey(
     bundle: InternalBundle,
     bundleGraph: InternalBundleGraph,
-    configs: Map<string, ?ConfigOutput>,
+    configs: Map<string, ?Config>,
+    invalidations: Array<RequestInvalidation>,
   ): Promise<string> {
-    let name = nullthrows(bundle.name);
-    // TODO: include packagers and optimizers used in inline bundles as well
-    let {version: packager} = await this.config.getPackager(name);
-    let optimizers = (await this.config.getOptimizers(name))
-      .map(({name, version}) => name + version)
-      .join('');
-
     let configResults = {};
-    for (let [id, config] of configs) {
-      configResults[id] = config?.config;
+    for (let [pluginName, config] of configs) {
+      if (config) {
+        configResults[pluginName] = await getConfigHash(
+          config,
+          pluginName,
+          this.options,
+        );
+      }
     }
 
-    // TODO: add third party configs to the cache key
-    let {publicUrl} = bundle.target;
+    let devDepHashes = await this.getDevDepHashes(bundle);
+    for (let inlineBundle of bundleGraph.getInlineBundles(bundle)) {
+      devDepHashes += await this.getDevDepHashes(inlineBundle);
+    }
+
+    let invalidationHash = await getInvalidationHash(
+      invalidations,
+      this.options,
+    );
+
     return hashString(
       PARCEL_VERSION +
-        packager +
-        optimizers +
-        publicUrl +
+        devDepHashes +
+        invalidationHash +
+        bundle.target.publicUrl +
         bundleGraph.getHash(bundle) +
         JSON.stringify(configResults),
     );
+  }
+
+  async getDevDepHashes(bundle: InternalBundle): Promise<string> {
+    let name = nullthrows(bundle.name);
+    let packager = await this.config.getPackager(name);
+    let optimizers = await this.config.getOptimizers(name);
+
+    let key = `${packager.name}:${packager.resolveFrom}`;
+    let devDepHashes =
+      this.devDepRequests.get(key)?.hash ?? this.previousDevDeps.get(key) ?? '';
+    for (let {name, resolveFrom} of optimizers) {
+      let key = `${name}:${resolveFrom}`;
+      devDepHashes +=
+        this.devDepRequests.get(key)?.hash ??
+        this.previousDevDeps.get(key) ??
+        '';
+    }
+
+    return devDepHashes;
   }
 
   async readFromCache(

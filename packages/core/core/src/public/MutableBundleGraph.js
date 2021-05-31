@@ -192,7 +192,6 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
         entryAssetIds: entryAsset ? [entryAsset.id] : [],
         mainEntryId: entryAsset?.id,
         pipeline: opts.pipeline ?? entryAsset?.pipeline,
-        filePath: null,
         isEntry: opts.isEntry,
         isInline: opts.isInline,
         isSplittable: opts.isSplittable ?? entryAsset?.isSplittable,
@@ -201,7 +200,6 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
         name: null,
         displayName: null,
         publicId,
-        stats: {size: 0, time: 0},
       },
     };
 

@@ -269,21 +269,9 @@ export default class ParcelConfig {
     return this._getPackagerNode(filePath).packageName;
   }
 
-  async getPackager(
-    filePath: FilePath,
-  ): Promise<{|
-    name: string,
-    version: Semver,
-    plugin: Packager,
-  |}> {
+  getPackager(filePath: FilePath): Promise<LoadedPlugin<Packager>> {
     let packager = this._getPackagerNode(filePath);
-
-    let {plugin, version} = await this.loadPlugin<Packager>(packager);
-    return {
-      name: packager.packageName,
-      version,
-      plugin,
-    };
+    return this.loadPlugin<Packager>(packager);
   }
 
   _getOptimizerNodes(

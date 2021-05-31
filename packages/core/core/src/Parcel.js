@@ -20,9 +20,9 @@ import {PackagedBundle} from './public/Bundle';
 import BundleGraph from './public/BundleGraph';
 import WorkerFarm from '@parcel/workers';
 import nullthrows from 'nullthrows';
-import {assertSignalNotAborted, BuildAbortError} from './utils';
+import {BuildAbortError} from './utils';
 import {loadParcelConfig} from './requests/ParcelConfigRequest';
-import ReporterRunner, {report} from './ReporterRunner';
+import ReporterRunner from './ReporterRunner';
 import dumpGraphToGraphViz from './dumpGraphToGraphViz';
 import resolveOptions from './resolveOptions';
 import {ValueEmitter} from '@parcel/events';
@@ -32,10 +32,8 @@ import {PromiseQueue} from '@parcel/utils';
 import ParcelConfig from './ParcelConfig';
 import logger from '@parcel/logger';
 import RequestTracker, {getWatcherOptions} from './RequestTracker';
-import createAssetGraphRequest from './requests/AssetGraphRequest';
 import createValidationRequest from './requests/ValidationRequest';
-import createBundleGraphRequest from './requests/BundleGraphRequest';
-import createWriteBundlesRequest from './requests/WriteBundlesRequest';
+import createParcelBuildRequest from './requests/ParcelBuildRequest';
 import {Disposable} from '@parcel/events';
 
 registerCoreWithSerializer();
@@ -53,7 +51,6 @@ export default class Parcel {
   #reporterRunner /*: ReporterRunner*/;
   #resolvedOptions /*: ?ParcelOptions*/ = null;
   #optionsRef /*: SharedReference */;
-  #configRef /*: SharedReference */;
   #watchAbortController /*: AbortController*/;
   #watchQueue /*: PromiseQueue<?BuildEvent>*/ = new PromiseQueue<?BuildEvent>({
     maxConcurrent: 1,
@@ -109,18 +106,13 @@ export default class Parcel {
       dispose: disposeOptions,
       ref: optionsRef,
     } = await this.#farm.createSharedReference(resolvedOptions);
-    let {
-      dispose: disposeConfig,
-      ref: configRef,
-    } = await this.#farm.createSharedReference(config);
     this.#optionsRef = optionsRef;
-    this.#configRef = configRef;
 
     this.#disposable = new Disposable();
     if (this.#initialOptions.workerFarm) {
       // If we don't own the farm, dispose of only these references when
       // Parcel ends.
-      this.#disposable.add(disposeOptions, disposeConfig);
+      this.#disposable.add(disposeOptions);
     } else {
       // Otherwise, when shutting down, end the entire farm we created.
       this.#disposable.add(() => this.#farm.end());
@@ -262,45 +254,19 @@ export default class Parcel {
       this.#reporterRunner.report({
         type: 'buildStart',
       });
-      let request = createAssetGraphRequest({
-        name: 'Main',
-        entries: options.entries,
+
+      let request = createParcelBuildRequest({
         optionsRef: this.#optionsRef,
-        shouldBuildLazily: options.shouldBuildLazily,
         requestedAssetIds: this.#requestedAssetIds,
-      }); // ? should we create this on every build?
+        signal,
+      });
+
       let {
-        assetGraph,
+        bundleGraph,
+        bundleInfo,
         changedAssets,
         assetRequests,
-      } = await this.#requestTracker.runRequest(request, {
-        force: options.shouldBuildLazily && this.#requestedAssetIds.size > 0,
-      });
-
-      this.#requestedAssetIds.clear();
-
-      let bundleGraphRequest = createBundleGraphRequest({
-        assetGraph,
-        optionsRef: this.#optionsRef,
-      });
-
-      // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
-      let bundleGraph = await this.#requestTracker.runRequest(
-        bundleGraphRequest,
-      );
-
-      // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381 (Windows only)
-      dumpGraphToGraphViz(bundleGraph._graph, 'BundleGraph');
-
-      let writeBundlesRequest = createWriteBundlesRequest({
-        bundleGraph,
-        configRef: this.#configRef,
-        optionsRef: this.#optionsRef,
-      });
-
-      await this.#requestTracker.runRequest(writeBundlesRequest);
-
-      assertSignalNotAborted(signal);
+      } = await this.#requestTracker.runRequest(request, {force: true});
 
       // $FlowFixMe
       dumpGraphToGraphViz(this.#requestTracker.graph, 'RequestGraph');
@@ -315,7 +281,13 @@ export default class Parcel {
         ),
         bundleGraph: new BundleGraph<IPackagedBundle>(
           bundleGraph,
-          PackagedBundle.get,
+          (bundle, bundleGraph, options) =>
+            PackagedBundle.getWithInfo(
+              bundle,
+              bundleGraph,
+              options,
+              bundleInfo.get(bundle.id),
+            ),
           options,
         ),
         buildTime: Date.now() - startTime,

@@ -70,7 +70,7 @@ export async function createDevDependency(
   return devDepRequest;
 }
 
-type DevDepSpecifier = {|
+export type DevDepSpecifier = {|
   moduleSpecifier: ModuleSpecifier,
   resolveFrom: FilePath,
 |};
