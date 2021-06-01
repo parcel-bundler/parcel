@@ -5253,7 +5253,7 @@ describe('scope hoisting', function() {
       },
       {
         type: 'js',
-        assets: ['bundle-url.js', 'cacheLoader.js', 'index.js', 'js-loader.js'],
+        assets: ['index.js'],
       },
       {
         type: 'js',

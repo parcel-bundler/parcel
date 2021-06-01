@@ -176,8 +176,7 @@ export class DevPackager {
       let entryMap;
       let mapBuffer = script.mapBuffer;
       if (mapBuffer) {
-        entryMap = new SourceMap(this.options.projectRoot);
-        entryMap.addBufferMappings(mapBuffer);
+        entryMap = new SourceMap(mapBuffer);
       }
       contents += replaceScriptDependencies(
         this.bundleGraph,
@@ -187,7 +186,7 @@ export class DevPackager {
         this.parcelRequireName,
       );
       if (this.bundle.env.sourceMap && entryMap) {
-        map.addBufferMappings(entryMap.toBuffer(), lineOffset);
+        map.addSourceMap(entryMap, lineOffset);
       }
     }
 

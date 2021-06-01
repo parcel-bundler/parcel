@@ -199,8 +199,7 @@ export class ScopeHoistingPackager {
       );
       let map;
       if (mapBuffer) {
-        map = new SourceMap(this.options.projectRoot);
-        map.addBufferMappings(mapBuffer);
+        map = new SourceMap(mapBuffer);
       }
       res += replaceScriptDependencies(
         this.bundleGraph,
@@ -210,7 +209,7 @@ export class ScopeHoistingPackager {
         this.parcelRequireName,
       );
       if (sourceMap && map) {
-        sourceMap.addBufferMappings(map.toBuffer(), lineCount);
+        sourceMap.addSourceMap(map, lineCount);
       }
     }
 

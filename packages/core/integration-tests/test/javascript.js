@@ -622,13 +622,7 @@ describe('javascript', function() {
         },
         {
           name: 'index.js',
-          assets: [
-            'index.js',
-            'bundle-url.js',
-            'JSRuntime.js',
-            'JSRuntime.js',
-            'get-worker-url.js',
-          ],
+          assets: ['index.js', 'bundle-url.js', 'get-worker-url.js'],
         },
         {
           assets: ['shared-worker.js', 'index.js'],
@@ -882,7 +876,7 @@ describe('javascript', function() {
     assertBundles(b, [
       {
         name: 'module.js',
-        assets: ['module.js', 'bundle-url.js', 'JSRuntime.js'],
+        assets: ['module.js', 'bundle-url.js'],
       },
       {
         assets: ['module-worker.js'],
@@ -911,7 +905,7 @@ describe('javascript', function() {
     assertBundles(b, [
       {
         name: 'scope.js',
-        assets: ['bundle-url.js', 'scope.js', 'JSRuntime.js'],
+        assets: ['bundle-url.js', 'scope.js'],
       },
       {
         assets: ['module-worker.js'],

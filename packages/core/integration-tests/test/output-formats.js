@@ -1172,12 +1172,7 @@ describe('output formats', function() {
       assertBundles(b, [
         {
           type: 'js',
-          assets: [
-            'bundle-url.js',
-            'get-worker-url.js',
-            'index.js',
-            'relative-path.js',
-          ],
+          assets: ['bundle-url.js', 'get-worker-url.js', 'index.js'],
         },
         {type: 'html', assets: ['index.html']},
         {type: 'js', assets: ['lodash.js']},

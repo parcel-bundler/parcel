@@ -1552,7 +1552,7 @@ describe('html', function() {
       },
       {
         type: 'js',
-        assets: ['index.js', 'index.js', 'index.js', 'JSRuntime.js'],
+        assets: ['index.js', 'index.js', 'index.js'],
       },
       {
         name: 'index.html',
@@ -1631,13 +1631,7 @@ describe('html', function() {
       },
       {
         type: 'js',
-        assets: [
-          'bundle-url.js',
-          'get-worker-url.js',
-          'index.js',
-          'js-loader.js',
-          'relative-path.js',
-        ],
+        assets: ['bundle-url.js', 'get-worker-url.js', 'index.js'],
       },
       {
         name: 'index.html',
@@ -1692,13 +1686,7 @@ describe('html', function() {
       },
       {
         type: 'js',
-        assets: [
-          'bundle-url.js',
-          'get-worker-url.js',
-          'index.js',
-          'js-loader.js',
-          'relative-path.js',
-        ],
+        assets: ['bundle-url.js', 'get-worker-url.js', 'index.js'],
       },
       {
         name: 'index.html',
