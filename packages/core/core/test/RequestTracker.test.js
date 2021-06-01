@@ -230,4 +230,52 @@ describe('RequestTracker', () => {
     });
     assert.strictEqual(cachedResult, 'a');
   });
+
+  it('should requeue requests if the previous request is still running but failed', async () => {
+    let tracker = new RequestTracker({farm, options});
+
+    let lockA = makeDeferredWithPromise();
+    let lockB = makeDeferredWithPromise();
+
+    let requestA = tracker
+      .runRequest({
+        id: 'abc',
+        type: 'mock_request',
+        run: async () => {
+          await lockA.promise;
+          throw new Error('whoops');
+        },
+        input: null,
+      })
+      .catch(() => {
+        // ignore
+      });
+
+    let requestB = tracker.runRequest({
+      id: 'abc',
+      type: 'mock_request',
+      run: async ({api}) => {
+        await lockB.promise;
+        api.storeResult('b');
+      },
+      input: null,
+    });
+
+    lockA.deferred.resolve();
+    lockB.deferred.resolve();
+    await requestA;
+    await requestB;
+
+    let called = false;
+    let cachedResult = await tracker.runRequest({
+      id: 'abc',
+      type: 'mock_request',
+      run: () => {
+        called = true;
+      },
+      input: null,
+    });
+    assert.strictEqual(cachedResult, 'b');
+    assert.strictEqual(called, false);
+  });
 });
