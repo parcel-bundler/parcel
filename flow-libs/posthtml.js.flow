@@ -11,7 +11,7 @@ declare module 'posthtml' {
     tag: string,
     attrs?: {[string]: string, ...},
     content?: Array<string>,
-    loc?: {
+    location?: {
        start: {|line: number, column: number|},
        end: {|line: number, column: number|},
        ...
