@@ -554,18 +554,6 @@ export interface BaseAsset {
   /** A buffer representation of the sourcemap (if existent). */
   getMapBuffer(): Promise<?Buffer>;
   getDependencies(): $ReadOnlyArray<Dependency>;
-  /** Used to load config files, (looks in every parent folder until a module root) \
-   * for the specified filenames. <code>packageKey</code> can be used to also check <code>pkg#[packageKey]</code>.
-   */
-  getConfig(
-    filePaths: Array<FilePath>,
-    options: ?{|
-      packageKey?: string,
-      parse?: boolean,
-    |},
-  ): Promise<ConfigResult | null>;
-  /** Returns the package.json this file belongs to. */
-  getPackage(): Promise<PackageJSON | null>;
 }
 
 /**

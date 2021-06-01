@@ -10,7 +10,7 @@ import type {LanguageService, Diagnostic} from 'typescript'; // eslint-disable-l
 import path from 'path';
 import ts from 'typescript';
 import {type DiagnosticCodeFrame, escapeMarkdown} from '@parcel/diagnostic';
-import {hashObject} from '@parcel/utils';
+import {hashObject, loadConfig} from '@parcel/utils';
 import {Validator} from '@parcel/plugin';
 import {LanguageServiceHost, ParseConfigHost} from '@parcel/ts-utils';
 
@@ -84,7 +84,12 @@ async function getConfig(
   resolveConfigWithPath,
 ): Promise<TSValidatorConfig> {
   let configNames = ['tsconfig.json'];
-  let tsconfig = await asset.getConfig(configNames);
+  let tsconfig = await loadConfig(
+    asset.fs,
+    asset.filePath,
+    configNames,
+    options.projectRoot,
+  );
   let configPath: ?string = await resolveConfigWithPath(
     configNames,
     asset.filePath,

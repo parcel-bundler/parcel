@@ -140,18 +140,4 @@ export default class CommittedAsset {
   getDependencies(): Array<Dependency> {
     return Array.from(this.value.dependencies.values());
   }
-
-  async getConfig(
-    filePaths: Array<FilePath>,
-    options: ?{|
-      packageKey?: string,
-      parse?: boolean,
-    |},
-  ): Promise<ConfigResult | null> {
-    return (await getConfig(this, filePaths, options))?.config;
-  }
-
-  getPackage(): Promise<PackageJSON | null> {
-    return this.getConfig(['package.json']);
-  }
 }

@@ -419,29 +419,6 @@ export default class UncommittedAsset {
     return asset;
   }
 
-  async getConfig(
-    filePaths: Array<FilePath>,
-    options: ?{|
-      packageKey?: string,
-      parse?: boolean,
-    |},
-  ): Promise<ConfigResult | null> {
-    let conf = await getConfig(this, filePaths, options);
-    if (conf == null) {
-      return null;
-    }
-
-    for (let file of conf.files) {
-      this.addIncludedFile(file.filePath);
-    }
-
-    return conf.config;
-  }
-
-  getPackage(): Promise<PackageJSON | null> {
-    return this.getConfig(['package.json']);
-  }
-
   updateId() {
     // $FlowFixMe - this is fine
     this.value.id = createAssetIdFromOptions(this.value);

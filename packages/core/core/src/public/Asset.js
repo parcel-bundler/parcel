@@ -153,22 +153,8 @@ class BaseAsset {
     return this.#asset.value.pipeline;
   }
 
-  getConfig(
-    filePaths: Array<FilePath>,
-    options: ?{|
-      packageKey?: string,
-      parse?: boolean,
-    |},
-  ): Promise<ConfigResult | null> {
-    return this.#asset.getConfig(filePaths, options);
-  }
-
   getDependencies(): $ReadOnlyArray<IDependency> {
     return this.#asset.getDependencies().map(dep => new Dependency(dep));
-  }
-
-  getPackage(): Promise<PackageJSON | null> {
-    return this.#asset.getPackage();
   }
 
   getCode(): Promise<string> {
