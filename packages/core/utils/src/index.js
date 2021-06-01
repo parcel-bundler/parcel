@@ -1,5 +1,6 @@
 // @flow strict-local
 export type * from './config';
+export type * from './Deferred';
 export type * from './generateBuildMetrics';
 export type * from './prettyDiagnostic';
 export type * from './schema';

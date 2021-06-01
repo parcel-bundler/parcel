@@ -17,6 +17,7 @@ import type {
   ParcelOptions,
   RequestInvalidation,
 } from './types';
+import type {Deferred} from '@parcel/utils';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
@@ -24,6 +25,7 @@ import path from 'path';
 import {
   isGlobMatch,
   isDirectoryInside,
+  makeDeferredWithPromise,
   md5FromObject,
   md5FromString,
 } from '@parcel/utils';
@@ -45,7 +47,7 @@ import {
 type SerializedRequestGraph = {|
   ...SerializedContentGraph<RequestGraphNode, RequestGraphEdgeType>,
   invalidNodeIds: Set<NodeId>,
-  incompleteNodeIds: Set<NodeId>,
+  incompleteNodeIds: Map<NodeId, Promise<void>>,
   globNodeIds: Set<NodeId>,
   envNodeIds: Set<NodeId>,
   optionNodeIds: Set<NodeId>,
@@ -186,7 +188,7 @@ export class RequestGraph extends ContentGraph<
   RequestGraphEdgeType,
 > {
   invalidNodeIds: Set<NodeId> = new Set();
-  incompleteNodeIds: Set<NodeId> = new Set();
+  incompleteNodeIds: Map<NodeId, Promise<void>> = new Map();
   globNodeIds: Set<NodeId> = new Set();
   envNodeIds: Set<NodeId> = new Set();
   optionNodeIds: Set<NodeId> = new Set();
@@ -641,7 +643,9 @@ export default class RequestTracker {
     this.signal = signal;
   }
 
-  startRequest(request: StoredRequest): NodeId {
+  startRequest(
+    request: StoredRequest,
+  ): {|requestNodeId: NodeId, deferred: Deferred<void>|} {
     let didPreviouslyExist = this.graph.hasContentKey(request.id);
     let requestNodeId;
     if (didPreviouslyExist) {
@@ -653,9 +657,11 @@ export default class RequestTracker {
       requestNodeId = this.graph.addNode(nodeFromRequest(request));
     }
 
-    this.graph.incompleteNodeIds.add(requestNodeId);
+    const {promise, deferred} = makeDeferredWithPromise();
+
+    this.graph.incompleteNodeIds.set(requestNodeId, promise);
     this.graph.invalidNodeIds.delete(requestNodeId);
-    return requestNodeId;
+    return {requestNodeId, deferred};
   }
 
   // If a cache key is provided, the result will be removed from the node and stored in a separate cache entry
@@ -757,7 +763,21 @@ export default class RequestTracker {
       return this.getRequestResult<TResult>(request.id);
     }
 
-    let requestNodeId = this.startRequest({
+    if (requestId != null) {
+      let incompletePromise = this.graph.incompleteNodeIds.get(requestId);
+      if (incompletePromise != null) {
+        // There is a another instance of this request already running, wait for its completion and reuse its result
+        try {
+          await incompletePromise;
+          // $FlowFixMe[incompatible-type]
+          return this.getRequestResult<TResult>(request.id);
+        } catch (e) {
+          // Rerun this request
+        }
+      }
+    }
+
+    let {requestNodeId, deferred} = this.startRequest({
       id: request.id,
       type: request.type,
     });
@@ -778,9 +798,11 @@ export default class RequestTracker {
       assertSignalNotAborted(this.signal);
       this.completeRequest(requestNodeId);
 
+      deferred.resolve();
       return result;
     } catch (err) {
       this.rejectRequest(requestNodeId);
+      deferred.reject();
       throw err;
     } finally {
       this.graph.replaceSubrequests(requestNodeId, [...subRequestContentKeys]);
