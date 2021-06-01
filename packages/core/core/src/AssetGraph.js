@@ -605,7 +605,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
     subGraphChanges.nodes.forEach((value, key) => {
       let oldNodeId = newIdToOldNodeIdsMap.get(key);
       if (oldNodeId) {
-        this.inboundEdges.getEdges(oldNodeId, null).forEach(value => {
+        this.outboundEdges.getEdges(oldNodeId, null).forEach(value => {
           let newNodeId = oldIdToNewIdsMap.get(value);
           if (newNodeId) {
             subGraphChanges.addEdge(key, newNodeId, null);

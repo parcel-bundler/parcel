@@ -319,4 +319,8 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
       ),
     );
   }
+
+  updateAsset(asset: IAsset, subGraph: AssetGraph) {
+    this.#graph.updateAssetGraph(asset, subGraph);
+  }
 }

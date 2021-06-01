@@ -100,7 +100,15 @@ export default function createAssetGraphRequest(
             assetGraphRequest.changedAssets,
           )
         : new AssetGraph(); //TODO: change this return value
-
+      if (
+        assetGraphTransformationSubGraph &&
+        assetGraphTransformationSubGraph.nodes.size > 1
+      ) {
+        await dumpToGraphViz(
+          assetGraphTransformationSubGraph,
+          'AssetGraph_Transformation',
+        );
+      }
       return {
         ...assetGraphRequest,
         previousAssetGraphHash,
