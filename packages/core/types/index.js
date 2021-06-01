@@ -7,8 +7,6 @@ import type WorkerFarm from '@parcel/workers';
 import type {PackageManager} from '@parcel/package-manager';
 import type {Diagnostic} from '@parcel/diagnostic';
 import type {PluginLogger} from '@parcel/logger';
-import type {Cache} from '@parcel/cache';
-
 import type {AST as _AST, ConfigResult as _ConfigResult} from './unsafe';
 
 /** Plugin-specific AST, <code>any</code> */
@@ -1156,11 +1154,9 @@ export type Bundler = {|
     bundleGraph: MutableBundleGraph,
     config: ?ConfigResult,
     options: PluginOptions,
-    logger: PluginLogger,
+    assetGraphTransformationSubGraph: AssetGraph,
     changedAssets: Map<string, Asset>,
-    isAssetGraphStructureSame: boolean,
-    changedBundles: Array<Bundle>, //should this be internal? or is that not accessible from here
-  |}): Array<void>,
+  |}): Async<void>,
 |};
 
 /**

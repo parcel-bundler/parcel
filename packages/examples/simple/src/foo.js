@@ -1,5 +1,5 @@
 import bar from './bar';
 
 export default function() {
-  return 'hello1!';
+  return 'hello12!';
 }
