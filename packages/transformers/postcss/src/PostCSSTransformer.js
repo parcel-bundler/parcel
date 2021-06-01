@@ -110,12 +110,12 @@ export default (new Transformer({
       if (msg.type === 'dependency') {
         asset.addIncludedFile(msg.file);
       } else if (msg.type === 'dir-dependency') {
-        let dirGlob = `${msg.dir}/**/*`;
-        let files = await glob(dirGlob, asset.fs, {onlyFiles: true});
+        let pattern = `${msg.dir}/${msg.glob ?? '**/*'}`;
+        let files = await glob(pattern, asset.fs, {onlyFiles: true});
         for (let file of files) {
           asset.addIncludedFile(file);
         }
-        asset.invalidateOnFileCreate({glob: dirGlob});
+        asset.invalidateOnFileCreate({glob: pattern});
       }
     }
 
