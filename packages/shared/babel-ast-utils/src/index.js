@@ -21,7 +21,10 @@ import {babelErrorEnhancer} from './babelErrorUtils';
 // $FlowFixMe
 import {generate as astringGenerate} from 'astring';
 // $FlowFixMe
-import {generator, expressionsPrecedence} from './generator';
+import {
+  generator,
+  expressionsPrecedence,
+} from '@parcel/babel-astring-generator';
 
 export {babelErrorEnhancer};
 
