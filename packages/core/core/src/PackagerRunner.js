@@ -44,9 +44,13 @@ import {createConfig} from './InternalConfig';
 import {
   loadPluginConfig,
   getConfigHash,
+  getConfigRequests,
   type PluginWithLoadConfig,
 } from './requests/ConfigRequest';
-import {createDevDependency} from './requests/DevDepRequest';
+import {
+  createDevDependency,
+  getWorkerDevDepRequests,
+} from './requests/DevDepRequest';
 import {createBuildCache} from './buildCache';
 import {getInvalidationId, getInvalidationHash} from './assetUtils';
 import {optionsProxy} from './utils';
@@ -87,10 +91,6 @@ const BOUNDARY_LENGTH = HASH_REF_PREFIX.length + 32 - 1;
 // Packager/optimizer configs are not bundle-specific, so we only need to
 // load them once per build.
 const pluginConfigs = createBuildCache();
-
-// A cache of plugin dependency hashes that we've already sent to the main thread.
-// Automatically cleared before each build.
-const pluginCache = createBuildCache();
 
 export default class PackagerRunner {
   config: ParcelConfig;
@@ -142,37 +142,10 @@ export default class PackagerRunner {
       (await this.getBundleInfoFromCache(bundleGraph, bundle, configs)) ??
       (await this.getBundleInfo(bundle, bundleGraph, configs));
 
-    let configRequests = [...configs.values()]
-      .filter(Boolean)
-      .filter(config => {
-        // No need to send to the graph if there are no invalidations.
-        return (
-          config.includedFiles.size > 0 ||
-          config.invalidateOnFileCreate.length > 0 ||
-          config.invalidateOnOptionChange.size > 0 ||
-          config.shouldInvalidateOnStartup
-        );
-      })
-      .map(config => ({
-        id: config.id,
-        includedFiles: config.includedFiles,
-        invalidateOnFileCreate: config.invalidateOnFileCreate,
-        invalidateOnOptionChange: config.invalidateOnOptionChange,
-        shouldInvalidateOnStartup: config.shouldInvalidateOnStartup,
-      }));
-
-    let devDepRequests = [];
-    for (let devDepRequest of this.devDepRequests.values()) {
-      // If we've already sent a matching transformer + hash to the main thread during this build,
-      // there's no need to repeat ourselves.
-      let {moduleSpecifier, resolveFrom, hash} = devDepRequest;
-      if (hash === pluginCache.get(moduleSpecifier)) {
-        devDepRequests.push({moduleSpecifier, resolveFrom, hash});
-      } else {
-        pluginCache.set(moduleSpecifier, hash);
-        devDepRequests.push(devDepRequest);
-      }
-    }
+    let configRequests = getConfigRequests([...configs.values()]);
+    let devDepRequests = getWorkerDevDepRequests([
+      ...this.devDepRequests.values(),
+    ]);
 
     return {
       bundleInfo,
@@ -185,7 +158,7 @@ export default class PackagerRunner {
   async loadConfigs(
     bundleGraph: InternalBundleGraph,
     bundle: InternalBundle,
-  ): Promise<Map<string, ?Config>> {
+  ): Promise<Map<string, Config>> {
     let configs = new Map();
 
     await this.loadConfig(bundle, configs);
@@ -198,8 +171,8 @@ export default class PackagerRunner {
 
   async loadConfig(
     bundle: InternalBundle,
-    configs: Map<string, ?Config>,
-  ): Promise<?Config> {
+    configs: Map<string, Config>,
+  ): Promise<void> {
     let name = nullthrows(bundle.name);
     let plugin = await this.config.getPackager(name);
     await this.loadPluginConfig(plugin, configs);
@@ -213,8 +186,8 @@ export default class PackagerRunner {
 
   async loadPluginConfig<T: PluginWithLoadConfig>(
     plugin: LoadedPlugin<T>,
-    configs: Map<string, ?Config>,
-  ): Promise<?Config> {
+    configs: Map<string, Config>,
+  ): Promise<void> {
     if (configs.has(plugin.name)) {
       return;
     }
@@ -253,7 +226,7 @@ export default class PackagerRunner {
   async getBundleInfoFromCache(
     bundleGraph: InternalBundleGraph,
     bundle: InternalBundle,
-    configs: Map<string, ?Config>,
+    configs: Map<string, Config>,
   ): Async<?BundleInfo> {
     if (this.options.shouldDisableCache) {
       return;
@@ -272,7 +245,7 @@ export default class PackagerRunner {
   async getBundleInfo(
     bundle: InternalBundle,
     bundleGraph: InternalBundleGraph,
-    configs: Map<string, ?Config>,
+    configs: Map<string, Config>,
   ): Promise<BundleInfo> {
     let {type, contents, map} = await this.getBundleResult(
       bundle,
@@ -296,7 +269,7 @@ export default class PackagerRunner {
   async getBundleResult(
     bundle: InternalBundle,
     bundleGraph: InternalBundleGraph,
-    configs: Map<string, ?Config>,
+    configs: Map<string, Config>,
   ): Promise<{|
     type: string,
     contents: Blob,
@@ -339,7 +312,7 @@ export default class PackagerRunner {
   async package(
     internalBundle: InternalBundle,
     bundleGraph: InternalBundleGraph,
-    configs: Map<string, ?Config>,
+    configs: Map<string, Config>,
   ): Promise<BundleResult> {
     let bundle = NamedBundle.get(internalBundle, bundleGraph, this.options);
     this.report({
@@ -413,7 +386,7 @@ export default class PackagerRunner {
     type: string,
     contents: Blob,
     map?: ?SourceMap,
-    configs: Map<string, ?Config>,
+    configs: Map<string, Config>,
   ): Promise<BundleResult> {
     let bundle = NamedBundle.get(
       internalBundle,
@@ -550,7 +523,7 @@ export default class PackagerRunner {
   async getCacheKey(
     bundle: InternalBundle,
     bundleGraph: InternalBundleGraph,
-    configs: Map<string, ?Config>,
+    configs: Map<string, Config>,
     invalidations: Array<RequestInvalidation>,
   ): Promise<string> {
     let configResults = {};

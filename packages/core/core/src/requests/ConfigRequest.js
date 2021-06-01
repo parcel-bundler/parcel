@@ -157,3 +157,25 @@ export async function getConfigHash(
 
   return hash.finish();
 }
+
+export function getConfigRequests(
+  configs: Array<Config>,
+): Array<ConfigRequest> {
+  return configs
+    .filter(config => {
+      // No need to send to the graph if there are no invalidations.
+      return (
+        config.includedFiles.size > 0 ||
+        config.invalidateOnFileCreate.length > 0 ||
+        config.invalidateOnOptionChange.size > 0 ||
+        config.shouldInvalidateOnStartup
+      );
+    })
+    .map(config => ({
+      id: config.id,
+      includedFiles: config.includedFiles,
+      invalidateOnFileCreate: config.invalidateOnFileCreate,
+      invalidateOnOptionChange: config.invalidateOnOptionChange,
+      shouldInvalidateOnStartup: config.shouldInvalidateOnStartup,
+    }));
+}
