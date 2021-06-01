@@ -214,7 +214,9 @@ fn transform(ctx: CallContext) -> Result<JsUnknown> {
 
       let mut global_deps = vec![];
       let mut fs_deps = vec![];
-      let should_inline_fs = config.inline_fs && config.source_type != SourceType::Script && code.contains("readFileSync");
+      let should_inline_fs = config.inline_fs
+        && config.source_type != SourceType::Script
+        && code.contains("readFileSync");
       swc_common::GLOBALS.set(&Globals::new(), || {
         helpers::HELPERS.set(
           &helpers::Helpers::new(/* external helpers from @swc/helpers */ true),

@@ -85,7 +85,7 @@ export default async function applyRuntimes({
             isEntry,
             env,
           } of runtimeAssets) {
-						let sourceName = path.join(
+            let sourceName = path.join(
               path.dirname(filePath),
               `runtime-${md5FromString(code)}.${bundle.type}`,
             );
