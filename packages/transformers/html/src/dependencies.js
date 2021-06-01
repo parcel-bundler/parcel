@@ -153,11 +153,11 @@ export default function collectDependencies(
 
     if (tag === 'script' && attrs.src) {
       let sourceType = attrs.type === 'module' ? 'module' : 'script';
-      let loc = node.loc
+      let loc = node.location
         ? {
             filePath: asset.filePath,
-            start: node.loc.start,
-            end: node.loc.end,
+            start: node.location.start,
+            end: node.location.end,
           }
         : undefined;
 

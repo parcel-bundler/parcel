@@ -117,7 +117,7 @@ export default function extractInlineAssets(
             type: 'tag',
             // $FlowFixMe
             node,
-            startLine: node.loc?.start.line,
+            startLine: node.location?.start.line,
           },
         });
 

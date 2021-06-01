@@ -4,7 +4,7 @@ import {Transformer} from '@parcel/plugin';
 
 import path from 'path';
 import posthtml from 'posthtml';
-import parse from '@parcel/posthtml-parser';
+import parse from 'posthtml-parser';
 import render from 'posthtml-render';
 import nullthrows from 'nullthrows';
 import semver from 'semver';
@@ -87,6 +87,7 @@ export default (new Transformer({
       version: '0.4.1',
       program: parse(await asset.getCode(), {
         lowerCaseAttributeNames: true,
+        sourceLocations: true,
       }),
     };
   },
