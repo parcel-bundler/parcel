@@ -7,8 +7,6 @@ import type WorkerFarm from '@parcel/workers';
 import type {PackageManager} from '@parcel/package-manager';
 import type {Diagnostic} from '@parcel/diagnostic';
 import type {PluginLogger} from '@parcel/logger';
-import type {Cache} from '@parcel/cache';
-
 import type {AST as _AST, ConfigResult as _ConfigResult} from './unsafe';
 
 /** Plugin-specific AST, <code>any</code> */
@@ -1000,6 +998,7 @@ export interface MutableBundleGraph extends BundleGraph<Bundle> {
   traverseContents<TContext>(
     GraphVisitor<BundlerBundleGraphTraversable, TContext>,
   ): ?TContext;
+  updateAsset(Asset, AssetGraph): void;
 }
 
 /**
@@ -1027,6 +1026,7 @@ export interface BundleGraph<TBundle: Bundle> {
   /** Get the asset that created the dependency. */
   getAssetWithDependency(dep: Dependency): ?Asset;
   isEntryBundleGroup(bundleGroup: BundleGroup): boolean;
+  updateAssetGraph(asset, AssetGraph): void;
   /**
    * Returns undefined if the specified dependency was excluded or wasn't async \
    * and otherwise the BundleGroup or Asset that the dependency resolves to.
@@ -1161,11 +1161,9 @@ export type Bundler = {|
     bundleGraph: MutableBundleGraph,
     config: ?ConfigResult,
     options: PluginOptions,
-    logger: PluginLogger,
+    assetGraphTransformationSubGraph: AssetGraph,
     changedAssets: Map<string, Asset>,
-    isAssetGraphStructureSame: boolean,
-    changedBundles: Array<Bundle>, //should this be internal? or is that not accessible from here
-  |}): Array<void>,
+  |}): Async<void>,
 |};
 
 /**

@@ -231,6 +231,11 @@ class BundlerRunner {
 
     // TODO : determine if cache is disabled, should this happen?
     let cachedBundleGraph: ?BundleGraphRequestResult;
+    if (previousAssetGraphHash != null) {
+      cachedBundleGraph = await this.api.getRequestResult<BundleGraphRequestResult>(
+        'BundleGraph:' + previousAssetGraphHash,
+      );
+    }
     if (
       !mutableShouldBundle &&
       previousAssetGraphHash != null &&
@@ -273,19 +278,21 @@ class BundlerRunner {
           this.options,
         );
       }
-      //inc flag should be enabled
-      else if (assetGraphTransformationSubGraph.nodes.size > 1) {
+      //TODO: AND inc flag should be enabled
+      else if (
+        assetGraphTransformationSubGraph.nodes.size > 1 &&
+        cachedBundleGraph?.bundleGraph != null
+      ) {
         //If there are no transformations, a root node will still exist
         //probably want old bundlegraph as well
-        let internalBundleGraphChunks = InternalBundleGraph.fromAssetGraph(
-          assetGraphTransformationSubGraph,
-        );
 
-        let mutableBundleGraphChunks = new MutableBundleGraph(
-          internalBundleGraphChunks,
-          this.options,
-        );
-
+        await bundler.update({
+          bundleGraph: cachedBundleGraph?.bundleGraph,
+          config: this.configs.get(plugin.name)?.result,
+          options: this.pluginOptions,
+          assetGraphTransformationSubGraph, //TODO need to be public facing assetgraph
+          changedAssets,
+        });
         //** for debugging purposes so no errors occur, will be removed */
         internalBundleGraph = InternalBundleGraph.fromAssetGraph(graph);
 
