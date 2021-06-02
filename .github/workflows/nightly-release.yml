@@ -119,9 +119,8 @@ jobs:
         include:
           - target: x86_64-unknown-linux-musl
             strip: strip
-          # Disabled for now because https://musl.cc has an expired HTPTS cert
-          # - target: aarch64-unknown-linux-musl
-          #   strip: aarch64-linux-musl-strip
+          - target: aarch64-unknown-linux-musl
+            strip: aarch64-linux-musl-strip
     name: ${{ matrix.target }}
     runs-on: ubuntu-latest
     container:
@@ -143,7 +142,7 @@ jobs:
       - name: Install cross compile toolchains
         if: ${{ matrix.target == 'aarch64-unknown-linux-musl' }}
         run: |
-          curl -O https://musl.cc/aarch64-linux-musl-cross.tgz
+          curl -O http://musl.cc/aarch64-linux-musl-cross.tgz
           tar xzf aarch64-linux-musl-cross.tgz
           cp -R aarch64-linux-musl-cross/* /usr
       - uses: bahmutov/npm-install@v1.1.0
