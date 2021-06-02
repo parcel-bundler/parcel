@@ -231,14 +231,14 @@ export default class Transformation {
     // Prefer `isSource` originating from the AssetRequest.
     let isSource = isSourceOverride ?? summarizedIsSource;
 
-    // If the transformer request passed code rather than a filename,
-    // use a hash as the base for the id to ensure it is unique.
-    let idBase =
-      code != null
-        ? hash
-        : normalizeSeparators(
-            path.relative(this.options.projectRoot, filePath),
-          );
+    // If the transformer request passed code, use a hash in addition
+    // to the filename as the base for the id to ensure it is unique.
+    let idBase = normalizeSeparators(
+      path.relative(this.options.projectRoot, filePath),
+    );
+    if (code != null) {
+      idBase += hash;
+    }
     return new UncommittedAsset({
       idBase,
       value: createAsset({
