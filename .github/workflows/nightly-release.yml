@@ -119,8 +119,9 @@ jobs:
         include:
           - target: x86_64-unknown-linux-musl
             strip: strip
-          - target: aarch64-unknown-linux-musl
-            strip: aarch64-linux-musl-strip
+          # Disabled for now because https://musl.cc has an expired HTPTS cert
+          # - target: aarch64-unknown-linux-musl
+          #   strip: aarch64-linux-musl-strip
     name: ${{ matrix.target }}
     runs-on: ubuntu-latest
     container:
