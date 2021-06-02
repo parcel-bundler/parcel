@@ -28,6 +28,8 @@ const BABEL_CONFIG_FILENAMES = [
   'babel.config.cjs',
 ];
 
+const BABEL_CORE_RANGE = '^7.12.0';
+
 export async function load(
   config: Config,
   options: PluginOptions,
@@ -64,7 +66,7 @@ export async function load(
     '@babel/core',
     config.searchPath,
     {
-      range: '^7.12.0',
+      range: BABEL_CORE_RANGE,
       saveDev: true,
       shouldAutoInstall: options.shouldAutoInstall,
     },
@@ -72,6 +74,7 @@ export async function load(
   config.addDevDependency({
     moduleSpecifier: '@babel/core',
     resolveFrom: config.searchPath,
+    range: BABEL_CORE_RANGE,
   });
 
   let babelOptions = {

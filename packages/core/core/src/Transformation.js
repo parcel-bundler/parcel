@@ -8,6 +8,7 @@ import type {
   TransformerResult,
   PackageName,
   DevDepOptions,
+  SemverRange,
 } from '@parcel/types';
 import type {WorkerApi} from '@parcel/workers';
 import type {
@@ -285,6 +286,7 @@ export default class Transformation {
         {
           moduleSpecifier: transformer.name,
           resolveFrom: transformer.resolveFrom,
+          range: transformer.range,
         },
         transformer,
       );
@@ -362,7 +364,7 @@ export default class Transformation {
     opts: DevDepOptions,
     transformer: LoadedPlugin<Transformer> | TransformerWithNameAndConfig,
   ): Promise<void> {
-    let {moduleSpecifier, resolveFrom, invalidateParcelPlugin} = opts;
+    let {moduleSpecifier, resolveFrom, range, invalidateParcelPlugin} = opts;
     let key = `${moduleSpecifier}:${resolveFrom}`;
     if (this.devDepRequests.has(key)) {
       return;
@@ -382,7 +384,9 @@ export default class Transformation {
     }
 
     // Ensure that the package manager has an entry for this resolution.
-    await this.options.packageManager.resolve(moduleSpecifier, resolveFrom);
+    await this.options.packageManager.resolve(moduleSpecifier, resolveFrom, {
+      range,
+    });
     let invalidations = this.options.packageManager.getInvalidations(
       moduleSpecifier,
       resolveFrom,
@@ -830,6 +834,7 @@ type TransformerWithNameAndConfig = {|
   config: ?Config,
   configKeyPath?: string,
   resolveFrom: FilePath,
+  range?: ?SemverRange,
 |};
 
 function normalizeAssets(results: Array<TransformerResult | MutableAsset>) {

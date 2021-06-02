@@ -80,7 +80,7 @@ export class NodePackageManager implements PackageManager {
     name: ModuleSpecifier,
     from: FilePath,
     opts: ?{|
-      range?: SemverRange,
+      range?: ?SemverRange,
       shouldAutoInstall?: boolean,
       saveDev?: boolean,
     |},
@@ -137,13 +137,13 @@ export class NodePackageManager implements PackageManager {
     name: ModuleSpecifier,
     from: FilePath,
     options?: ?{|
-      range?: string,
+      range?: ?SemverRange,
       shouldAutoInstall?: boolean,
       saveDev?: boolean,
     |},
   ): Promise<ResolveResult> {
     let basedir = path.dirname(from);
-    let key = basedir + ':' + name + ':' + options?.range;
+    let key = basedir + ':' + name;
     let resolved = cache.get(key);
     if (!resolved) {
       try {

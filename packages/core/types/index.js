@@ -605,6 +605,7 @@ export interface Asset extends BaseAsset {
 export type DevDepOptions = {|
   moduleSpecifier: ModuleSpecifier,
   resolveFrom: FilePath,
+  range?: ?SemverRange,
   /**
    * Whether to also invalidate the parcel plugin that loaded this dev dependency
    * when it changes. This is useful if the parcel plugin or another parent dependency
