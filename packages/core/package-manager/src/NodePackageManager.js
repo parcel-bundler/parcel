@@ -143,7 +143,7 @@ export class NodePackageManager implements PackageManager {
     |},
   ): Promise<ResolveResult> {
     let basedir = path.dirname(from);
-    let key = basedir + ':' + name;
+    let key = basedir + ':' + name + ':' + options?.range;
     let resolved = cache.get(key);
     if (!resolved) {
       try {
