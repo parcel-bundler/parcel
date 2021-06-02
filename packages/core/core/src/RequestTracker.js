@@ -17,6 +17,7 @@ import type {
   ParcelOptions,
   RequestInvalidation,
 } from './types';
+import type {Deferred} from '@parcel/utils';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
@@ -24,6 +25,7 @@ import path from 'path';
 import {
   isGlobMatch,
   isDirectoryInside,
+  makeDeferredWithPromise,
   md5FromObject,
   md5FromString,
 } from '@parcel/utils';
@@ -187,6 +189,7 @@ export class RequestGraph extends ContentGraph<
 > {
   invalidNodeIds: Set<NodeId> = new Set();
   incompleteNodeIds: Set<NodeId> = new Set();
+  incompleteNodePromises: Map<NodeId, Promise<boolean>> = new Map();
   globNodeIds: Set<NodeId> = new Set();
   envNodeIds: Set<NodeId> = new Set();
   optionNodeIds: Set<NodeId> = new Set();
@@ -242,6 +245,7 @@ export class RequestGraph extends ContentGraph<
   removeNode(nodeId: NodeId): void {
     this.invalidNodeIds.delete(nodeId);
     this.incompleteNodeIds.delete(nodeId);
+    this.incompleteNodePromises.delete(nodeId);
     let node = nullthrows(this.getNode(nodeId));
     if (node.type === 'glob') {
       this.globNodeIds.delete(nodeId);
@@ -257,12 +261,6 @@ export class RequestGraph extends ContentGraph<
     let node = nullthrows(this.getNode(nodeId));
     invariant(node.type === 'request');
     return node;
-  }
-
-  completeRequest(request: StoredRequest) {
-    let nodeId = this.getNodeIdByContentKey(request.id);
-    this.invalidNodeIds.delete(nodeId);
-    this.incompleteNodeIds.delete(nodeId);
   }
 
   replaceSubrequests(
@@ -641,7 +639,9 @@ export default class RequestTracker {
     this.signal = signal;
   }
 
-  startRequest(request: StoredRequest): NodeId {
+  startRequest(
+    request: StoredRequest,
+  ): {|requestNodeId: NodeId, deferred: Deferred<boolean>|} {
     let didPreviouslyExist = this.graph.hasContentKey(request.id);
     let requestNodeId;
     if (didPreviouslyExist) {
@@ -655,7 +655,11 @@ export default class RequestTracker {
 
     this.graph.incompleteNodeIds.add(requestNodeId);
     this.graph.invalidNodeIds.delete(requestNodeId);
-    return requestNodeId;
+
+    let {promise, deferred} = makeDeferredWithPromise();
+    this.graph.incompleteNodePromises.set(requestNodeId, promise);
+
+    return {requestNodeId, deferred};
   }
 
   // If a cache key is provided, the result will be removed from the node and stored in a separate cache entry
@@ -703,6 +707,7 @@ export default class RequestTracker {
   completeRequest(nodeId: NodeId) {
     this.graph.invalidNodeIds.delete(nodeId);
     this.graph.incompleteNodeIds.delete(nodeId);
+    this.graph.incompleteNodePromises.delete(nodeId);
     let node = this.graph.getNode(nodeId);
     if (node?.type === 'request') {
       node.invalidateReason = VALID;
@@ -711,6 +716,7 @@ export default class RequestTracker {
 
   rejectRequest(nodeId: NodeId) {
     this.graph.incompleteNodeIds.delete(nodeId);
+    this.graph.incompleteNodePromises.delete(nodeId);
 
     let node = this.graph.getNode(nodeId);
     if (node?.type === 'request') {
@@ -757,7 +763,22 @@ export default class RequestTracker {
       return this.getRequestResult<TResult>(request.id);
     }
 
-    let requestNodeId = this.startRequest({
+    if (requestId != null) {
+      let incompletePromise = this.graph.incompleteNodePromises.get(requestId);
+      if (incompletePromise != null) {
+        // There is a another instance of this request already running, wait for its completion and reuse its result
+        try {
+          if (await incompletePromise) {
+            // $FlowFixMe[incompatible-type]
+            return this.getRequestResult<TResult>(request.id);
+          }
+        } catch (e) {
+          // Rerun this request
+        }
+      }
+    }
+
+    let {requestNodeId, deferred} = this.startRequest({
       id: request.id,
       type: request.type,
     });
@@ -778,9 +799,11 @@ export default class RequestTracker {
       assertSignalNotAborted(this.signal);
       this.completeRequest(requestNodeId);
 
+      deferred.resolve(true);
       return result;
     } catch (err) {
       this.rejectRequest(requestNodeId);
+      deferred.resolve(false);
       throw err;
     } finally {
       this.graph.replaceSubrequests(requestNodeId, [...subRequestContentKeys]);
