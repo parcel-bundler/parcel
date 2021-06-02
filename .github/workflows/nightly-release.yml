@@ -130,6 +130,8 @@ jobs:
         password: ${{ secrets.GHCR_TOKEN }}
     steps:
       - uses: actions/checkout@v1
+      - name: Install build tools
+        run: apk add --no-cache python3 make gcc g++ musl-dev
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
