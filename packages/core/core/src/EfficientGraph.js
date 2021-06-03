@@ -472,7 +472,7 @@ export default class EfficientGraph<TEdgeType: number = 1> {
     to: NodeId,
     type: TEdgeType | NullEdgeType = 1,
   ): boolean {
-    return this.indexFor(from, to, type) === -1;
+    return this.indexOf(from, to, type) !== -1;
   }
 
   /**
