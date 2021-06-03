@@ -141,7 +141,7 @@ jobs:
       - name: Install cross compile toolchains
         if: ${{ matrix.target == 'aarch64-unknown-linux-musl' }}
         run: |
-          curl -O https://musl.cc/aarch64-linux-musl-cross.tgz
+          curl -O http://musl.cc/aarch64-linux-musl-cross.tgz
           tar xzf aarch64-linux-musl-cross.tgz
           cp -R aarch64-linux-musl-cross/* /usr
       - uses: bahmutov/npm-install@v1.1.0
