@@ -6,7 +6,8 @@ import type {ParcelOptions} from './types';
 import {getRootDir} from '@parcel/utils';
 import loadDotEnv from './loadDotEnv';
 import path from 'path';
-import {resolveConfig, md5FromString} from '@parcel/utils';
+import {resolveConfig} from '@parcel/utils';
+import {hashString} from '@parcel/hash';
 import {NodeFS} from '@parcel/fs';
 import {LMDBCache, FSCache} from '@parcel/cache';
 import {NodePackageManager} from '@parcel/package-manager';
@@ -17,7 +18,7 @@ const LOCK_FILE_NAMES = ['yarn.lock', 'package-lock.json', 'pnpm-lock.yaml'];
 
 // Generate a unique instanceId, will change on every run of parcel
 function generateInstanceId(entries: Array<FilePath>): string {
-  return md5FromString(
+  return hashString(
     `${entries.join(',')}-${Date.now()}-${Math.round(Math.random() * 100)}`,
   );
 }

@@ -23,7 +23,7 @@ import BundleGraph from './public/BundleGraph';
 import InternalBundleGraph from './BundleGraph';
 import {NamedBundle} from './public/Bundle';
 import {PluginLogger} from '@parcel/logger';
-import {md5FromString} from '@parcel/utils';
+import {hashString} from '@parcel/hash';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import {dependencyToInternalDependency} from './public/Dependency';
 import createAssetGraphRequest from './requests/AssetGraphRequest';
@@ -80,7 +80,7 @@ export default async function applyRuntimes({
           for (let {code, dependency, filePath, isEntry} of runtimeAssets) {
             let sourceName = path.join(
               path.dirname(filePath),
-              `runtime-${md5FromString(code)}.${bundle.type}`,
+              `runtime-${hashString(code)}.${bundle.type}`,
             );
 
             let assetGroup = {

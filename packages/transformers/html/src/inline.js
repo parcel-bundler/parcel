@@ -1,7 +1,7 @@
 // @flow strict-local
 
 import type {AST, MutableAsset, TransformerResult} from '@parcel/types';
-import {md5FromString} from '@parcel/utils';
+import {hashString} from '@parcel/hash';
 import type {PostHTMLNode} from 'posthtml';
 
 import PostHTML from 'posthtml';
@@ -31,7 +31,7 @@ export default function extractInlineAssets(
   let parts: Array<TransformerResult> = [];
   let hasScripts = false;
   PostHTML().walk.call(program, (node: PostHTMLNode) => {
-    let parcelKey = md5FromString(`${asset.id}:${key++}`);
+    let parcelKey = hashString(`${asset.id}:${key++}`);
     if (node.tag === 'script' || node.tag === 'style') {
       let value = node.content && node.content.join('').trim();
       if (value != null) {

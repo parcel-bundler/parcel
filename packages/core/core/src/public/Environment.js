@@ -87,6 +87,10 @@ export default class Environment implements IEnvironment {
     return this;
   }
 
+  get id(): string {
+    return this.#environment.id;
+  }
+
   get context(): EnvironmentContext {
     return this.#environment.context;
   }
