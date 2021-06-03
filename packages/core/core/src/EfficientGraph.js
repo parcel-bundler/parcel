@@ -311,14 +311,6 @@ export default class EfficientGraph<TEdgeType: number = 1> {
     to: NodeId,
     type: TEdgeType | NullEdgeType = 1,
   ): boolean {
-    // We use the hash of the edge as the index for the edge.
-    let index = this.indexFor(from, to, type);
-
-    if (index === -1) {
-      // The edge is already in the graph; do nothing.
-      return false;
-    }
-
     // The percentage of utilization of the total capacity of `edges`.
     let load = this.numEdges / (this.edges.length / EDGE_SIZE);
     // If we're in danger of overflowing the `edges` array, resize it.
@@ -328,6 +320,14 @@ export default class EfficientGraph<TEdgeType: number = 1> {
       // space allocated where `n` is a number edges that is 1 more
       // than the previous capacity.
       this.resizeEdges((this.edges.length / EDGE_SIZE) * 2);
+    }
+
+    // We use the hash of the edge as the index for the edge.
+    let index = this.indexFor(from, to, type);
+
+    if (index === -1) {
+      // The edge is already in the graph; do nothing.
+      return false;
     }
 
     this.numEdges++;
