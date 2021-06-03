@@ -49,9 +49,7 @@ if (process.env.PARCEL_BUILD_ENV === 'production') {
           : undefined,
     };
   };
-} else if (
-  require('fs').existsSync(require('path').join(__dirname, '..', name))
-) {
+} else if (require('fs').existsSync(require('path').join(__dirname, name))) {
   module.exports = require(`./${name}`);
 } else {
   module.exports = require(`self-published/${name}`);
