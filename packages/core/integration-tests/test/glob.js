@@ -80,13 +80,7 @@ describe('glob', function() {
     await assertBundles(b, [
       {
         name: 'index.js',
-        assets: [
-          'index.js',
-          '*.js',
-          'bundle-url.js',
-          'JSRuntime.js',
-          'JSRuntime.js',
-        ],
+        assets: ['index.js', '*.js', 'bundle-url.js'],
       },
       {
         type: 'txt',
@@ -100,12 +94,12 @@ describe('glob', function() {
 
     let output = await run(b);
     assert.deepEqual(output, {
-      a: `http://localhost/${
-        nullthrows(b.getBundles().find(b => b.name.startsWith('a'))).name
-      }`,
-      b: `http://localhost/${
-        nullthrows(b.getBundles().find(b => b.name.startsWith('b'))).name
-      }`,
+      a: `http://localhost/${path.basename(
+        nullthrows(b.getBundles().find(b => b.name.startsWith('a'))).filePath,
+      )}`,
+      b: `http://localhost/${path.basename(
+        nullthrows(b.getBundles().find(b => b.name.startsWith('b'))).filePath,
+      )}`,
     });
   });
 
@@ -121,8 +115,6 @@ describe('glob', function() {
           'index.js',
           '*.js',
           'bundle-url.js',
-          'JSRuntime.js',
-          'JSRuntime.js',
           'cacheLoader.js',
           'js-loader.js',
         ],
@@ -154,6 +146,7 @@ describe('glob', function() {
         {
           message: 'Glob imports are not supported in html files.',
           origin: '@parcel/resolver-glob',
+          codeFrame: undefined,
         },
       ],
     });
@@ -174,11 +167,11 @@ describe('glob', function() {
             codeHighlights: [
               {
                 start: {
-                  column: 3,
+                  column: 7,
                   line: 2,
                 },
                 end: {
-                  column: 16,
+                  column: 20,
                   line: 2,
                 },
               },
@@ -188,6 +181,20 @@ describe('glob', function() {
         {
           message: 'Glob imports are not supported in URL dependencies.',
           origin: '@parcel/resolver-glob',
+          codeFrame: {
+            codeHighlights: [
+              {
+                start: {
+                  column: 7,
+                  line: 2,
+                },
+                end: {
+                  column: 20,
+                  line: 2,
+                },
+              },
+            ],
+          },
         },
       ],
     });

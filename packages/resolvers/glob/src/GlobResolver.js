@@ -28,6 +28,16 @@ export default (new Resolver({
       throw new ThrowableDiagnostic({
         diagnostic: {
           message: error,
+          codeFrame: dependency.loc
+            ? {
+                codeHighlights: [
+                  {
+                    start: dependency.loc.start,
+                    end: dependency.loc.end,
+                  },
+                ],
+              }
+            : undefined,
         },
       });
     }
@@ -75,7 +85,6 @@ export default (new Resolver({
         path.basename(filePath, path.extname(filePath)) + '.' + sourceAssetType,
       ),
       code,
-      // TODO: should be relative to the project root once #5900 lands.
       invalidateOnFileCreate: [{glob: normalized}],
       pipeline: null,
       isAsync: false,
