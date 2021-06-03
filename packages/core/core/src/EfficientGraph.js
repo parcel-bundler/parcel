@@ -179,34 +179,32 @@ export default class EfficientGraph<TEdgeType: number = 1> {
     this.edges = new Uint32Array(size * EDGE_SIZE);
 
     // For each node in the graph, copy the existing edges into the new array.
-    for (
+    for (let i = 0; i < this.nodes.length; i += NODE_SIZE) {
       /** The next node with edges to copy. */
-      let from = 0;
-      from < this.nodes.length;
-      from += NODE_SIZE
-    ) {
+      let from = nodeAt(i);
       /** The last edge copied. */
       let lastIndex = null;
       for (
-        /** The next edge to be copied. */
-        let hash = this.nodes[from + FIRST_OUT];
+        /** The next outgoing edge to be copied. */
+        let hash = this.nodes[i + FIRST_OUT];
         hash;
         hash = edges[hashToIndex(hash) + NEXT_OUT]
       ) {
         /** The node that the next outgoing edge connects to. */
-        let to = edges[hashToIndex(hash) + TO];
+        let to = toNodeId(edges[hashToIndex(hash) + TO]);
         let type = (edges[hashToIndex(hash) + TYPE]: any);
         /** The index at which to copy this edge. */
-        let index = this.indexFor(toNodeId(from), toNodeId(to), type);
+        let index = this.indexFor(from, to, type);
         if (index === -1) {
           // Edge already copied?
-          continue;
+          index = this.indexOf(from, to, type);
+        } else {
+          // Copy the details of the edge into the new edge list.
+          this.edges[index + TYPE] = type;
+          this.edges[index + FROM] = fromNodeId(from);
+          this.edges[index + TO] = fromNodeId(to);
         }
 
-        // Copy the details of the edge into the new edge list.
-        this.edges[index + TYPE] = type;
-        this.edges[index + FROM] = from;
-        this.edges[index + TO] = to;
         if (lastIndex != null) {
           // If this edge is not the first outgoing edge from the current node,
           // link this edge to the last outgoing edge copied.
@@ -214,7 +212,7 @@ export default class EfficientGraph<TEdgeType: number = 1> {
         } else {
           // If this edge is the first outgoing edge from the current node,
           // link this edge to the current node.
-          this.nodes[from + FIRST_OUT] = indexToHash(index);
+          this.nodes[i + FIRST_OUT] = indexToHash(index);
         }
         // Keep track of the last outgoing edge copied.
         lastIndex = index;
@@ -222,34 +220,29 @@ export default class EfficientGraph<TEdgeType: number = 1> {
 
       // Reset lastHash for use while copying incoming edges.
       lastIndex = undefined;
+
+      // Now we're copying incoming edges, so `from` becomes `to`.
+      let to = from;
       for (
         /** The next incoming edge to be copied. */
-        let hash = this.nodes[from + FIRST_IN];
+        let hash = this.nodes[i + FIRST_IN];
         hash;
         hash = edges[hashToIndex(hash) + NEXT_IN]
       ) {
         /** The node that the next incoming edge connects from. */
-        let from = edges[hashToIndex(hash) + FROM];
+        let from = toNodeId(edges[hashToIndex(hash) + FROM]);
         let type = (edges[hashToIndex(hash) + TYPE]: any);
         /** The index at which to copy this edge. */
-        let index = this.hash(toNodeId(from), toNodeId(from), type);
-        // If there is a hash collision,
-        // scan the edges array for a space to copy the edge.
-        while (this.edges[index + TYPE]) {
-          if (
-            this.edges[index + FROM] === from &&
-            this.edges[index + TO] === from
-          ) {
-            break;
-          } else {
-            index = (index + EDGE_SIZE) % this.edges.length;
-          }
+        let index = this.indexFor(from, to, type);
+        if (index === -1) {
+          // Edge already copied?
+          index = this.indexOf(from, to, type);
+        } else {
+          // Copy the details of the edge into the new edge list.
+          this.edges[index + TYPE] = type;
+          this.edges[index + FROM] = fromNodeId(from);
+          this.edges[index + TO] = fromNodeId(to);
         }
-
-        // Copy the details of the edge into the new edge list.
-        this.edges[index + TYPE] = type;
-        this.edges[index + FROM] = from;
-        this.edges[index + TO] = from;
         if (lastIndex != null) {
           // If this edge is not the first incoming edge to the current node,
           // link this edge to the last incoming edge copied.
@@ -257,7 +250,7 @@ export default class EfficientGraph<TEdgeType: number = 1> {
         } else {
           // If this edge is the first incoming edge from the current node,
           // link this edge to the current node.
-          this.nodes[from + FIRST_IN] = indexToHash(index);
+          this.nodes[i + FIRST_IN] = indexToHash(index);
         }
 
         // Keep track of the last edge copied.
