@@ -113,7 +113,7 @@ export default (new Transformer({
         let pattern = `${msg.dir}/${msg.glob ?? '**/*'}`;
         let files = await glob(pattern, asset.fs, {onlyFiles: true});
         for (let file of files) {
-          asset.addIncludedFile(file);
+          asset.addIncludedFile(path.normalize(file));
         }
         asset.invalidateOnFileCreate({glob: pattern});
       }
