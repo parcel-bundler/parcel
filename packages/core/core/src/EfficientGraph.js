@@ -105,9 +105,13 @@ const nodeAt = (index: number): NodeId =>
 const indexOfNode = (id: NodeId): number => fromNodeId(id) * NODE_SIZE;
 
 export default class EfficientGraph<TEdgeType: number = 1> {
-  /** An array of nodes, which each node occupying `NODE_SIZE` adjacent indices. */
+  /** The number of nodes that can fit in the nodes array. */
+  nodeCapacity: number;
+  /** The number of edges that can fit in the edges array. */
+  edgeCapacity: number;
+  /** An array of nodes, with each node occupying `NODE_SIZE` adjacent indices. */
   nodes: Uint32Array;
-  /** An array of edges, which each edge occupying `EDGE_SIZE` adjacent indices. */
+  /** An array of edges, with each edge occupying `EDGE_SIZE` adjacent indices. */
   edges: Uint32Array;
   /** The count of the number of nodes in the graph. */
   numNodes: number;
@@ -115,6 +119,8 @@ export default class EfficientGraph<TEdgeType: number = 1> {
   numEdges: number;
 
   constructor(nodeCapacity: number = 128, edgeCapacity: number = 256) {
+    this.nodeCapacity = nodeCapacity;
+    this.edgeCapacity = edgeCapacity;
     // Allocate two TypedArrays, one for nodes, and one for edges.
     // These are created with reasonable initial sizes,
     // but will be resized as necessary.
@@ -152,6 +158,67 @@ export default class EfficientGraph<TEdgeType: number = 1> {
     };
   }
 
+  get stats(): {|
+    /** The number of nodes in the graph. */
+    nodes: number,
+    /** The number of edges in the graph. */
+    edges: number,
+    /** The number of edge hash collisions. */
+    collisions: number,
+    /** The likelihood of uniform distribution. ~1.0 indicates certainty. */
+    uniformity: number,
+  |} {
+    let {numNodes, nodes, numEdges, edges, edgeCapacity} = this;
+    let buckets = new Map();
+    for (let i = 0; i < nodes.length; i += NODE_SIZE) {
+      let from = nodeAt(i);
+      for (
+        let hash = nodes[i + FIRST_OUT];
+        hash;
+        hash = edges[hashToIndex(hash) + NEXT_OUT]
+      ) {
+        let to = toNodeId(edges[hashToIndex(hash) + TO]);
+        let type = (edges[hashToIndex(hash) + TYPE]: any);
+        let bucketHash = this.hash(from, to, type);
+        let bucket = buckets.get(bucketHash) || new Set();
+        bucket.add(`${fromNodeId(from)}, ${fromNodeId(to)}, ${type}`);
+        buckets.set(bucketHash, bucket);
+      }
+      let to = from;
+      for (
+        let hash = nodes[i + FIRST_IN];
+        hash;
+        hash = edges[hashToIndex(hash) + NEXT_IN]
+      ) {
+        let from = toNodeId(edges[hashToIndex(hash) + FROM]);
+        let type = (edges[hashToIndex(hash) + TYPE]: any);
+        let bucketHash = this.hash(from, to, type);
+        let bucket = buckets.get(bucketHash) || new Set();
+        bucket.add(`${fromNodeId(from)}, ${fromNodeId(to)}, ${type}`);
+        buckets.set(bucketHash, bucket);
+      }
+    }
+
+    let collisions = 0;
+    let distribution = 0;
+
+    for (let bucket of buckets.values()) {
+      collisions += bucket.size > 1 ? 1 : 0;
+      distribution += (bucket.size * (bucket.size + 1)) / 2;
+    }
+
+    let uniformity =
+      distribution /
+      ((numEdges / (2 * edgeCapacity)) * (numEdges + 2 * edgeCapacity - 1));
+
+    return {
+      nodes: numNodes,
+      edges: numEdges,
+      collisions,
+      uniformity,
+    };
+  }
+
   /**
    * Resize the internal nodes array.
    *
@@ -164,6 +231,7 @@ export default class EfficientGraph<TEdgeType: number = 1> {
     this.nodes = new Uint32Array(size * NODE_SIZE);
     // Copy the existing nodes into the new array.
     this.nodes.set(nodes);
+    this.nodeCapacity = size;
   }
 
   /**
@@ -177,6 +245,7 @@ export default class EfficientGraph<TEdgeType: number = 1> {
     let edges = this.edges;
     // Allocate the required space for an `edges` array of the given `size`.
     this.edges = new Uint32Array(size * EDGE_SIZE);
+    this.edgeCapacity = size;
 
     // For each node in the graph, copy the existing edges into the new array.
     for (let i = 0; i < this.nodes.length; i += NODE_SIZE) {
