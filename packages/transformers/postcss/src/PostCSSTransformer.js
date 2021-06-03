@@ -3,6 +3,7 @@
 import type {FilePath, MutableAsset, PluginOptions} from '@parcel/types';
 
 import {hashString} from '@parcel/hash';
+import {glob} from '@parcel/utils';
 import {Transformer} from '@parcel/plugin';
 import FileSystemLoader from 'css-modules-loader-core/lib/file-system-loader';
 import nullthrows from 'nullthrows';
@@ -109,6 +110,13 @@ export default (new Transformer({
     for (let msg of messages) {
       if (msg.type === 'dependency') {
         asset.addIncludedFile(msg.file);
+      } else if (msg.type === 'dir-dependency') {
+        let pattern = `${msg.dir}/${msg.glob ?? '**/*'}`;
+        let files = await glob(pattern, asset.fs, {onlyFiles: true});
+        for (let file of files) {
+          asset.addIncludedFile(path.normalize(file));
+        }
+        asset.invalidateOnFileCreate({glob: pattern});
       }
     }
 

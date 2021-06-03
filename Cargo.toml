@@ -1,6 +1,8 @@
 [workspace]
-members = ["packages/transformers/js", "packages/utils/fs-search", "packages/utils/hash"]
-
-[profile.release]
-opt-level = 3
-# lto = true
+members = [
+  "packages/transformers/js/core",
+  "packages/transformers/js/napi",
+  "packages/transformers/js/wasm",
+  "packages/utils/fs-search",
+  "packages/utils/hash",
+]

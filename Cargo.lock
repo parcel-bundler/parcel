@@ -572,18 +572,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "parcel-js-swc"
+name = "parcel-js-swc-core"
 version = "0.1.0"
 dependencies = [
  "Inflector",
  "data-encoding",
  "dunce",
  "indoc",
- "jemallocator",
- "mimalloc",
- "napi",
- "napi-build",
- "napi-derive",
  "serde",
  "serde_bytes",
  "sha-1",
@@ -591,6 +586,28 @@ dependencies = [
  "swc_common",
  "swc_ecma_preset_env",
  "swc_ecmascript",
+]
+
+[[package]]
+name = "parcel-js-swc-napi"
+version = "0.1.0"
+dependencies = [
+ "jemallocator",
+ "mimalloc",
+ "napi",
+ "napi-build",
+ "napi-derive",
+ "parcel-js-swc-core",
+]
+
+[[package]]
+name = "parcel-js-swc-wasm"
+version = "0.1.0"
+dependencies = [
+ "js-sys",
+ "parcel-js-swc-core",
+ "serde-wasm-bindgen",
+ "wasm-bindgen",
 ]
 
 [[package]]
@@ -855,6 +872,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ec7505abeacaec74ae4778d9d9328fe5a5d04253220a85c4ee022239fc996d03"
 dependencies = [
  "serde_derive",
+]
+
+[[package]]
+name = "serde-wasm-bindgen"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1515286919c7a28f96c362f42cd42aec7ef6d417334118be69d1ad96160aa5f5"
+dependencies = [
+ "fnv",
+ "js-sys",
+ "serde",
+ "wasm-bindgen",
 ]
 
 [[package]]

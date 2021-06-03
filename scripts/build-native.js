@@ -12,7 +12,7 @@ async function build() {
     setupMacBuild();
   }
 
-  let packages = glob.sync('packages/*/*')
+  let packages = glob.sync('packages/*/*');
   for (let pkg of packages) {
     try {
       let pkgJSON = JSON.parse(fs.readFileSync(path.join(pkg, 'package.json')));
@@ -43,9 +43,11 @@ async function build() {
 // This forces Clang/LLVM to be used as a C compiler instead of GCC.
 // This is necessary for cross-compilation for Apple Silicon in GitHub Actions.
 function setupMacBuild() {
-  let xcodeDir = execSync('xcode-select -p | head -1', {encoding: 'utf8'}).trim();
-  let sysRoot = execSync('xcrun --sdk macosx --show-sdk-path', {encoding: 'utf8'}).trim();
-  process.env.CC = `${xcodeDir}/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang`;
-  process.env.CXX = `${xcodeDir}/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++`;
+  process.env.CC = execSync('xcrun -f clang', {encoding: 'utf8'}).trim();
+  process.env.CXX = execSync('xcrun -f clang++', {encoding: 'utf8'}).trim();
+
+  let sysRoot = execSync('xcrun --sdk macosx --show-sdk-path', {
+    encoding: 'utf8',
+  }).trim();
   process.env.CFLAGS = `-isysroot ${sysRoot} -isystem ${sysRoot}`;
 }
