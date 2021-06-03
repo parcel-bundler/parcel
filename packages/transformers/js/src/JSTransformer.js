@@ -3,7 +3,7 @@ import type {JSONObject, EnvMap} from '@parcel/types';
 import type {SchemaEntity} from '@parcel/utils';
 import SourceMap from '@parcel/source-map';
 import {Transformer} from '@parcel/plugin';
-import {transform} from './native';
+import {init, transform} from '../native';
 import {isURL} from '@parcel/utils';
 import path from 'path';
 import browserslist from 'browserslist';
@@ -159,8 +159,11 @@ export default (new Transformer({
       asset.isSplittable = true;
     }
 
-    let code = await asset.getBuffer();
-    let originalMap = await asset.getMap();
+    let [code, originalMap] = await Promise.all([
+      asset.getBuffer(),
+      asset.getMap(),
+      init,
+    ]);
 
     let targets;
     if (asset.isSource) {

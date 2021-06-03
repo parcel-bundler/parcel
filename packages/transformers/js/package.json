@@ -48,8 +48,11 @@
   "scripts": {
     "build": "napi build --platform --cargo-cwd napi",
     "build-release": "napi build --platform --release --cargo-cwd napi",
-    "build:wasm-base": "wasm-pack build wasm --no-typescript --profiling",
+    "build:wasm-base": "wasm-pack build wasm --no-typescript --release",
     "build:wasm-node": "yarn build:wasm-base --target nodejs --out-dir dist-node",
     "build:wasm-web": "CARGO_PROFILE_RELEASE_LTO=true CARGO_PROFILE_RELEASE_PANIC=abort CARGO_PROFILE_RELEASE_OPT_LEVEL=z yarn build:wasm-base --target web --out-dir dist-web"
+  },
+  "browser": {
+    "./native.js": "./native-browser.js"
   }
 }
