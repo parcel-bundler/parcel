@@ -41,29 +41,37 @@ const children = new Map<FilePath, Set<ModuleSpecifier>>();
 // for reference to Node internals.
 export class NodePackageManager implements PackageManager {
   fs: FileSystem;
+  projectRoot: FilePath;
   installer: ?PackageInstaller;
   resolver: NodeResolver;
   syncResolver: NodeResolverSync;
 
-  constructor(fs: FileSystem, installer?: ?PackageInstaller) {
+  constructor(
+    fs: FileSystem,
+    projectRoot: FilePath,
+    installer?: ?PackageInstaller,
+  ) {
     this.fs = fs;
+    this.projectRoot = projectRoot;
     this.installer = installer;
-    this.resolver = new NodeResolver(this.fs);
-    this.syncResolver = new NodeResolverSync(this.fs);
+    this.resolver = new NodeResolver(this.fs, projectRoot);
+    this.syncResolver = new NodeResolverSync(this.fs, projectRoot);
   }
 
   static deserialize(opts: any): NodePackageManager {
-    return new NodePackageManager(opts.fs, opts.installer);
+    return new NodePackageManager(opts.fs, opts.projectRoot, opts.installer);
   }
 
   serialize(): {|
     $$raw: boolean,
     fs: FileSystem,
+    projectRoot: FilePath,
     installer: ?PackageInstaller,
   |} {
     return {
       $$raw: false,
       fs: this.fs,
+      projectRoot: this.projectRoot,
       installer: this.installer,
     };
   }
@@ -169,6 +177,7 @@ export class NodePackageManager implements PackageManager {
           this.fs,
           name,
           from,
+          this.projectRoot,
         );
 
         if (conflicts == null) {
@@ -210,6 +219,7 @@ export class NodePackageManager implements PackageManager {
             this.fs,
             name,
             from,
+            this.projectRoot,
           );
 
           if (conflicts == null && options?.shouldAutoInstall === true) {
@@ -303,7 +313,7 @@ export class NodePackageManager implements PackageManager {
     from: FilePath,
     opts?: InstallOptions,
   ) {
-    await installPackage(this.fs, this, modules, from, {
+    await installPackage(this.fs, this, modules, from, this.projectRoot, {
       packageInstaller: this.installer,
       ...opts,
     });

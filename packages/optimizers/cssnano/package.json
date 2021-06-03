@@ -21,8 +21,8 @@
   },
   "dependencies": {
     "@parcel/plugin": "2.0.0-frontbucket.77",
-    "@parcel/source-map": "2.0.0-alpha.4.21",
-    "cssnano": "^4.1.10",
+    "@parcel/source-map": "2.0.0-rc.4",
+    "cssnano": "^5.0.3",
     "postcss": "^8.0.5"
   }
 }

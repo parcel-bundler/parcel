@@ -5,6 +5,7 @@ import type {StaticRunOpts} from '../RequestTracker';
 import type {
   AssetRequestInput,
   AssetRequestResult,
+  ContentKey,
   DevDepRequest,
   TransformationRequest,
 } from '../types';
@@ -16,6 +17,7 @@ import nullthrows from 'nullthrows';
 import createParcelConfigRequest from './ParcelConfigRequest';
 import {runDevDepRequest} from './DevDepRequest';
 import {runConfigRequest} from './ConfigRequest';
+import {report} from '../ReporterRunner';
 
 type RunInput = {|
   input: AssetRequestInput,
@@ -23,7 +25,7 @@ type RunInput = {|
 |};
 
 export type AssetRequest = {|
-  id: string,
+  id: ContentKey,
   +type: 'asset_request',
   run: RunInput => Async<AssetRequestResult>,
   input: AssetRequestInput,
@@ -58,6 +60,12 @@ function getId(input: AssetRequestInput) {
 }
 
 async function run({input, api, farm, invalidateReason}: RunInput) {
+  report({
+    type: 'buildProgress',
+    phase: 'transforming',
+    filePath: input.filePath,
+  });
+
   api.invalidateOnFileUpdate(input.filePath);
   let start = Date.now();
   let {optionsRef, ...rest} = input;

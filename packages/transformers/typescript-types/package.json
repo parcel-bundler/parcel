@@ -21,14 +21,14 @@
   },
   "dependencies": {
     "@parcel/plugin": "2.0.0-frontbucket.77",
-    "@parcel/source-map": "2.0.0-alpha.4.21",
+    "@parcel/source-map": "2.0.0-rc.4",
     "@parcel/ts-utils": "2.0.0-frontbucket.77",
     "nullthrows": "^1.1.1"
   },
   "devDependencies": {
-    "typescript": "^3.0.0"
+    "typescript": ">=3.0.0"
   },
   "peerDependencies": {
-    "typescript": "^3.0.0"
+    "typescript": ">=3.0.0"
   }
 }

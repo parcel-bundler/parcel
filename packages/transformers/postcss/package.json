@@ -31,8 +31,5 @@
   },
   "devDependencies": {
     "postcss": "^8.2.1"
-  },
-  "peerDependencies": {
-    "postcss": "^8.2.1"
   }
 }

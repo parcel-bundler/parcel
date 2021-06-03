@@ -43,7 +43,6 @@
     "@parcel/transformer-postcss": "2.0.0-frontbucket.77",
     "@parcel/transformer-posthtml": "2.0.0-frontbucket.77",
     "@parcel/transformer-raw": "2.0.0-frontbucket.77",
-    "@parcel/transformer-react-refresh-babel": "2.0.0-frontbucket.77",
     "@parcel/transformer-react-refresh-wrap": "2.0.0-frontbucket.77",
     "@parcel/transformer-workerize": "2.0.0-frontbucket.77"
   },

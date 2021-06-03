@@ -22,7 +22,7 @@
   "dependencies": {
     "@parcel/diagnostic": "2.0.0-frontbucket.77",
     "@parcel/plugin": "2.0.0-frontbucket.77",
-    "@parcel/source-map": "2.0.0-alpha.4.21",
+    "@parcel/source-map": "2.0.0-rc.4",
     "@parcel/utils": "2.0.0-frontbucket.77",
     "nullthrows": "^1.1.1",
     "terser": "^5.2.0"

@@ -1,1 +1,1 @@
-output = import('./async').then(a => a.foo + 2);
+module.exports = import('./async').then(a => a.foo + 2);

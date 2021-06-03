@@ -2,15 +2,15 @@
 
 import type {Environment, ParcelOptions} from '../src/types';
 
-import Cache, {createCacheDir} from '@parcel/cache';
+import {FSCache} from '@parcel/cache';
 import tempy from 'tempy';
 import {inputFS, outputFS} from '@parcel/test-utils';
 import {NodePackageManager} from '@parcel/package-manager';
 import {createEnvironment} from '../src/Environment';
 
 let cacheDir = tempy.directory();
-createCacheDir(outputFS, cacheDir);
-export let cache: Cache = new Cache(outputFS, cacheDir);
+export let cache: FSCache = new FSCache(outputFS, cacheDir);
+cache.ensure();
 
 export const DEFAULT_OPTIONS: ParcelOptions = {
   cacheDir: '.parcel-cache',
@@ -33,7 +33,7 @@ export const DEFAULT_OPTIONS: ParcelOptions = {
   outputFS,
   cache,
   shouldPatchConsole: false,
-  packageManager: new NodePackageManager(inputFS),
+  packageManager: new NodePackageManager(inputFS, '/'),
   additionalReporters: [],
   instanceId: 'test',
   defaultTargetOptions: {

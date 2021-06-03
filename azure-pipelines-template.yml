@@ -9,6 +9,10 @@ jobs:
         node_14_x:
           node_version: 14.x
       maxParallel: 3
+    variables:
+      # From https://docs.microsoft.com/en-us/azure/devops/pipelines/release/caching?view=azure-devops
+      CARGO_HOME: $(Pipeline.Workspace)/.cargo
+      YARN_CACHE_FOLDER: $(Pipeline.Workspace)/.yarn
     steps:
       - task: NodeTool@0
         inputs:
@@ -39,13 +43,36 @@ jobs:
               echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p;
             displayName: Bump max inotify watches
 
-      - script: node scripts/link-native.js
-        displayName: 'Link native dependencies'
+      # From https://docs.microsoft.com/en-us/azure/devops/pipelines/release/caching?view=azure-devops
+      - task: Cache@2
+        inputs:
+          key: 'cargo | "$(Agent.OS)" | Cargo.lock'
+          restoreKeys: |
+            cargo | "$(Agent.OS)"
+            cargo
+          path: $(CARGO_HOME)
+        displayName: Cache Cargo directory
+      # Like yarn --frozen-lockfile, fails immediately if lockfile needs updates
+      - script: cargo fetch --locked
+        displayName: 'Fetch cargo dependencies'
+      - script: cargo test --all
+        displayName: 'Run Rust tests'
 
+      # From https://docs.microsoft.com/en-us/azure/devops/pipelines/release/caching?view=azure-devops
+      - task: Cache@2
+        inputs:
+          key: 'yarn | "$(Agent.OS)" | yarn.lock'
+          restoreKeys: |
+            yarn | "$(Agent.OS)"
+            yarn
+          path: $(YARN_CACHE_FOLDER)
+        displayName: Cache yarn directory
       # use `--frozen-lockfile` to fail immediately if the committed yarn.lock needs updates
       # https://yarnpkg.com/lang/en/docs/cli/install/#toc-yarn-install-frozen-lockfile
       - script: yarn --frozen-lockfile
         displayName: 'Install dependencies'
+      - script: yarn build-native-release
+        displayName: 'Build native packages'
       - script: yarn test:unit
         displayName: 'Run unit tests'
       - script: yarn test:integration-ci

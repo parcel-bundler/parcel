@@ -79,7 +79,7 @@ export default (new Packager({
       contents += code + '\n';
       if (bundle.env.sourceMap) {
         if (mapBuffer) {
-          map.addBufferMappings(mapBuffer, lineOffset);
+          map.addBuffer(mapBuffer, lineOffset);
         } else {
           map.addEmptyMap(
             path
@@ -140,8 +140,7 @@ async function processCSSModule(
   let defaultImport = null;
   if (usedSymbols.has('default')) {
     let incoming = bundleGraph.getIncomingDependencies(asset);
-    // `import * as ns from ""; ns.default` is fine.
-    defaultImport = incoming.find(d => d.meta.hasDefaultImport);
+    defaultImport = incoming.find(d => d.symbols.hasExportSymbol('default'));
     if (defaultImport) {
       let loc = defaultImport.symbols.get('default')?.loc;
       logger.warn({
@@ -191,7 +190,7 @@ async function processCSSModule(
   let sourceMap;
   if (bundle.env.sourceMap && map != null) {
     sourceMap = new SourceMap(options.projectRoot);
-    sourceMap.addRawMappings(map.toJSON());
+    sourceMap.addVLQMap(map.toJSON());
   }
 
   if (media.length) {
