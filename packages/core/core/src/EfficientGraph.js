@@ -576,23 +576,6 @@ export default class EfficientGraph<TEdgeType: number = 1> {
   }
 
   /**
-   *
-   */
-  // getEdgesByType(from: NodeId): $ReadOnlyMap<number, $ReadOnlySet<NodeId>> {
-  //   let typeMap = new Map();
-  //   for (
-  //     let i = this.nodes[indexOfNode(from) + FIRST_OUT];
-  //     i;
-  //     i = this.edges[indexOfEdge(i) + NEXT_OUT]
-  //   ) {
-  //     let type = this.edges[indexOfEdge(i) + TYPE];
-  //     let nodeSet = typeMap.get(type) || new Set();
-  //     nodeSet.add(toNodeId(i));
-  //     typeMap.set(type, nodeSet);
-  //   }
-  //   return typeMap;
-  // }
-  /**
    * Get the list of nodes connected from this node.
    */
   *getNodesConnectedFrom(
@@ -682,16 +665,6 @@ export default class EfficientGraph<TEdgeType: number = 1> {
         return toDot(this);
     }
   }
-
-  // Need to be updated to support `type`
-  // TODO: hasEdge(from: NodeId, to: NodeId, type?: TEdgeType | NullEdgeType = 0): boolean {
-  // TODO: getNodesConnectedFrom()
-  // TODO: getNodesConnectedTo()
-
-  // AdjacencyList
-  // removeEdge(from: NodeId, to: NodeId, type: TEdgeType): void {
-  // getEdges(from: NodeId, type: TEdgeType): $ReadOnlySet<NodeId> {
-  // getEdgesByType(from: NodeId): $ReadOnlyMap<TEdgeType, $ReadOnlySet<NodeId>> {
 }
 
 let nodeColor = {color: 'black', fontcolor: 'black'};
