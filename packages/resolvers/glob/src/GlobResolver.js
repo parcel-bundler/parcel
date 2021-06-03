@@ -72,7 +72,8 @@ export default (new Resolver({
         set(matches, parts, relative);
       }
 
-      code = 'module.exports = ' + generate(matches, dependency.isAsync);
+      let {value, imports} = generate(matches, dependency.isAsync);
+      code = imports + 'module.exports = ' + value;
     } else if (sourceAssetType === 'css') {
       for (let [, relative] of results) {
         code += `@import "${relative}";\n`;
@@ -106,13 +107,25 @@ function set(obj, path, value) {
   obj[path[path.length - 1]] = value;
 }
 
-function generate(matches, isAsync, indent = '') {
+function generate(matches, isAsync, indent = '', count = 0) {
   if (typeof matches === 'string') {
-    return isAsync
-      ? `() => import(${JSON.stringify(matches)})`
-      : `require(${JSON.stringify(matches)})`;
+    if (isAsync) {
+      return {
+        imports: '',
+        value: `() => import(${JSON.stringify(matches)})`,
+        count,
+      };
+    }
+
+    let key = `_temp${count++}`;
+    return {
+      imports: `const ${key} = require(${JSON.stringify(matches)});`,
+      value: key,
+      count,
+    };
   }
 
+  let imports = '';
   let res = indent + '{';
 
   let first = true;
@@ -121,14 +134,19 @@ function generate(matches, isAsync, indent = '') {
       res += ',';
     }
 
-    res += `\n${indent}  ${JSON.stringify(key)}: ${generate(
+    let {imports: i, value, count: c} = generate(
       matches[key],
       isAsync,
       indent + '  ',
-    )}`;
+      count,
+    );
+    imports += `${i}\n`;
+    count = c;
+
+    res += `\n${indent}  ${JSON.stringify(key)}: ${value}`;
     first = false;
   }
 
   res += '\n' + indent + '}';
-  return res;
+  return {imports, value: res, count};
 }
