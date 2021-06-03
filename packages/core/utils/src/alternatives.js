@@ -24,7 +24,7 @@ export async function findAlternativeNodeModules(
       let modulesDir = path.join(dir, 'node_modules');
       let stats = await fs.stat(modulesDir);
       if (stats.isDirectory()) {
-        let dirContent = await fs.readdir(modulesDir);
+        let dirContent = (await fs.readdir(modulesDir)).sort();
 
         // Filter out the modules that interest us
         let modules = dirContent.filter(i =>
@@ -36,7 +36,7 @@ export async function findAlternativeNodeModules(
           await Promise.all(
             modules.map(async item => {
               let orgDirPath = path.join(modulesDir, item);
-              let orgDirContent = await fs.readdir(orgDirPath);
+              let orgDirContent = (await fs.readdir(orgDirPath)).sort();
 
               // Add all org packages
               potentialModules.push(...orgDirContent.map(i => `${item}/${i}`));
@@ -70,7 +70,7 @@ async function findAllFilesUp({
   maxlength: number,
   collected: Array<string>,
 |}): Promise<mixed> {
-  let dirContent = await fs.readdir(dir);
+  let dirContent = (await fs.readdir(dir)).sort();
   return Promise.all(
     dirContent.map(async item => {
       let fullPath = path.join(dir, item);
@@ -102,10 +102,16 @@ export async function findAlternativeFiles(
   fs: FileSystem,
   fileSpecifier: string,
   dir: string,
+  projectRoot: string,
 ): Promise<Array<string>> {
   let potentialFiles: Array<string> = [];
   // Find our root, we won't recommend files above the package root as that's bad practise
-  let pkg = await resolveConfig(fs, path.join(dir, 'index'), ['package.json']);
+  let pkg = await resolveConfig(
+    fs,
+    path.join(dir, 'index'),
+    ['package.json'],
+    projectRoot,
+  );
   if (!pkg) {
     return potentialFiles;
   }

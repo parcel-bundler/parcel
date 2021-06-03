@@ -20,7 +20,7 @@ export default (new Optimizer({
 
     let relativeBundlePath = path.relative(
       options.projectRoot,
-      bundle.filePath,
+      path.join(bundle.target.distDir, bundle.name),
     );
     let code = await blobToString(contents);
     if (map) {
@@ -43,7 +43,7 @@ export default (new Optimizer({
     if (jsSourceMap) {
       sourcemap = new SourceMap(options.projectRoot);
       let parsedMap = JSON.parse(jsSourceMap);
-      sourcemap.addRawMappings(parsedMap);
+      sourcemap.addVLQMap(parsedMap);
 
       let sourcemapReference = await getSourceMapReference(sourcemap);
       if (sourcemapReference) {

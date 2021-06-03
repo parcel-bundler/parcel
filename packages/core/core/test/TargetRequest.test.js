@@ -86,6 +86,11 @@ describe('TargetResolver', () => {
     canSkipSubrequest() {
       return false;
     },
+    getPreviousResult() {},
+    getRequestResult() {},
+    getSubRequests() {
+      return [];
+    },
   };
 
   it('resolves exactly specified targets', async () => {

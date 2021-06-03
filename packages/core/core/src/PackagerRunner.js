@@ -39,6 +39,7 @@ import BundleGraph, {
 } from './public/BundleGraph';
 import PluginOptions from './public/PluginOptions';
 import {PARCEL_VERSION, HASH_REF_PREFIX, HASH_REF_REGEX} from './constants';
+import {serialize} from './serializer';
 
 type Opts = {|
   config: ParcelConfig,
@@ -101,14 +102,11 @@ export default class PackagerRunner {
         };
   }
 
-  async writeBundles(
-    bundleGraph: InternalBundleGraph,
-    serializedBundleGraph: Buffer,
-  ) {
+  async writeBundles(bundleGraph: InternalBundleGraph) {
     let farm = nullthrows(this.farm);
     let {ref, dispose} = await farm.createSharedReference(
       bundleGraph,
-      serializedBundleGraph,
+      serialize(bundleGraph),
     );
 
     let bundleInfoMap: {|
@@ -125,14 +123,8 @@ export default class PackagerRunner {
       if (bundle.isPlaceholder) {
         let hash = bundle.id.slice(-8);
         hashRefToNameHash.set(bundle.hashReference, hash);
-        bundle.filePath = nullthrows(bundle.filePath).replace(
-          bundle.hashReference,
-          hash,
-        );
-        bundle.name = nullthrows(bundle.name).replace(
-          bundle.hashReference,
-          hash,
-        );
+        let name = nullthrows(bundle.name).replace(bundle.hashReference, hash);
+        bundle.filePath = path.join(bundle.target.distDir, name);
         return false;
       }
 
@@ -228,7 +220,7 @@ export default class PackagerRunner {
   ): Promise<?ConfigOutput> {
     let config: ?ConfigOutput;
 
-    let {plugin} = await this.config.getPackager(nullthrows(bundle.filePath));
+    let {plugin} = await this.config.getPackager(nullthrows(bundle.name));
     if (plugin.loadConfig != null) {
       try {
         config = await nullthrows(plugin.loadConfig)({
@@ -307,7 +299,7 @@ export default class PackagerRunner {
       if (bundle.env.sourceMap && bundle.env.sourceMap.inline) {
         return this.generateSourceMap(bundleToInternalBundle(bundle), map);
       } else {
-        return path.basename(bundle.filePath) + '.map';
+        return path.basename(bundle.name) + '.map';
       }
     } else {
       return null;
@@ -326,7 +318,7 @@ export default class PackagerRunner {
       bundle,
     });
 
-    let {name, plugin} = await this.config.getPackager(bundle.filePath);
+    let {name, plugin} = await this.config.getPackager(bundle.name);
     try {
       return await plugin.package({
         config: configs.get(bundle.id)?.config,
@@ -365,7 +357,7 @@ export default class PackagerRunner {
       throw new ThrowableDiagnostic({
         diagnostic: errorToDiagnostic(e, {
           origin: name,
-          filePath: bundle.filePath,
+          filePath: path.join(bundle.target.distDir, bundle.name),
         }),
       });
     }
@@ -389,7 +381,7 @@ export default class PackagerRunner {
       this.options,
     );
     let optimizers = await this.config.getOptimizers(
-      bundle.filePath,
+      bundle.name,
       internalBundle.pipeline,
     );
     if (!optimizers.length) {
@@ -429,7 +421,7 @@ export default class PackagerRunner {
         throw new ThrowableDiagnostic({
           diagnostic: errorToDiagnostic(e, {
             origin: optimizer.name,
-            filePath: bundle.filePath,
+            filePath: path.join(bundle.target.distDir, bundle.name),
           }),
         });
       }
@@ -443,7 +435,7 @@ export default class PackagerRunner {
     map: SourceMap,
   ): Promise<string> {
     // sourceRoot should be a relative path between outDir and rootDir for node.js targets
-    let filePath = nullthrows(bundle.filePath);
+    let filePath = path.join(bundle.target.distDir, nullthrows(bundle.name));
     let sourceRoot: string = path.relative(
       path.dirname(filePath),
       this.options.projectRoot,
@@ -498,11 +490,11 @@ export default class PackagerRunner {
     bundleGraph: InternalBundleGraph,
     configs: Map<string, ?ConfigOutput>,
   ): Promise<string> {
-    let filePath = nullthrows(bundle.filePath);
+    let name = nullthrows(bundle.name);
     // TODO: include packagers and optimizers used in inline bundles as well
-    let {version: packager} = await this.config.getPackager(filePath);
+    let {version: packager} = await this.config.getPackager(name);
     let optimizers = (
-      await this.config.getOptimizers(filePath)
+      await this.config.getOptimizers(name)
     ).map(({name, version}) => [name, version]);
 
     let configResults = {};
@@ -531,12 +523,12 @@ export default class PackagerRunner {
     let contentKey = PackagerRunner.getContentKey(cacheKey);
     let mapKey = PackagerRunner.getMapKey(cacheKey);
 
-    let contentExists = await this.options.cache.blobExists(contentKey);
+    let contentExists = await this.options.cache.has(contentKey);
     if (!contentExists) {
       return null;
     }
 
-    let mapExists = await this.options.cache.blobExists(mapKey);
+    let mapExists = await this.options.cache.has(mapKey);
 
     return {
       contents: this.options.cache.getStream(contentKey),
@@ -556,25 +548,21 @@ export default class PackagerRunner {
     hashRefToNameHash: Map<string, string>,
   |}) {
     let {inputFS, outputFS} = this.options;
-    let filePath = nullthrows(bundle.filePath);
     let name = nullthrows(bundle.name);
     let thisHashReference = bundle.hashReference;
 
     if (info.type !== bundle.type) {
-      filePath =
-        filePath.slice(0, -path.extname(filePath).length) + '.' + info.type;
       name = name.slice(0, -path.extname(name).length) + '.' + info.type;
       bundle.type = info.type;
     }
 
-    if (filePath.includes(thisHashReference)) {
+    if (name.includes(thisHashReference)) {
       let thisNameHash = nullthrows(hashRefToNameHash.get(thisHashReference));
-      filePath = filePath.replace(thisHashReference, thisNameHash);
       name = name.replace(thisHashReference, thisNameHash);
     }
 
+    let filePath = path.join(bundle.target.distDir, name);
     bundle.filePath = filePath;
-    bundle.name = name;
 
     let dir = path.dirname(filePath);
     await outputFS.mkdirp(dir); // ? Got rid of dist exists, is this an expensive operation
@@ -608,7 +596,7 @@ export default class PackagerRunner {
     if (
       bundle.env.sourceMap &&
       !bundle.env.sourceMap.inline &&
-      (await this.options.cache.blobExists(mapKey))
+      (await this.options.cache.has(mapKey))
     ) {
       let mapStream = this.options.cache.getStream(mapKey);
       await writeFileStream(
@@ -625,29 +613,43 @@ export default class PackagerRunner {
     cacheKeys: CacheKeyMap,
     type: string,
     contents: Blob,
-    map: ?Blob,
+    map: ?string,
   ): Promise<BundleInfo> {
     let size = 0;
     let hash = crypto.createHash('md5');
-    let boundaryStr = '';
     let hashReferences = [];
-    await this.options.cache.setStream(
-      cacheKeys.content,
-      blobToStream(contents).pipe(
-        new TapStream(buf => {
-          let str = boundaryStr + buf.toString();
-          hashReferences = hashReferences.concat(
-            str.match(HASH_REF_REGEX) ?? [],
-          );
-          size += buf.length;
-          hash.update(buf);
-          boundaryStr = str.slice(str.length - BOUNDARY_LENGTH);
-        }),
-      ),
-    );
+
+    // TODO: don't replace hash references in binary files??
+    if (contents instanceof Readable) {
+      let boundaryStr = '';
+      await this.options.cache.setStream(
+        cacheKeys.content,
+        blobToStream(contents).pipe(
+          new TapStream(buf => {
+            let str = boundaryStr + buf.toString();
+            hashReferences = hashReferences.concat(
+              str.match(HASH_REF_REGEX) ?? [],
+            );
+            size += buf.length;
+            hash.update(buf);
+            boundaryStr = str.slice(str.length - BOUNDARY_LENGTH);
+          }),
+        ),
+      );
+    } else if (typeof contents === 'string') {
+      size = Buffer.byteLength(contents);
+      hash.update(contents);
+      hashReferences = contents.match(HASH_REF_REGEX) ?? [];
+      await this.options.cache.setBlob(cacheKeys.content, contents);
+    } else {
+      size = contents.length;
+      hash.update(contents);
+      hashReferences = contents.toString().match(HASH_REF_REGEX) ?? [];
+      await this.options.cache.setBlob(cacheKeys.content, contents);
+    }
 
     if (map != null) {
-      await this.options.cache.setStream(cacheKeys.map, blobToStream(map));
+      await this.options.cache.setBlob(cacheKeys.map, map);
     }
     let info = {
       type,

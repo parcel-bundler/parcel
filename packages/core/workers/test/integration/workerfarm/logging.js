@@ -1,4 +1,4 @@
-const WorkerFarm = require('../../../').default;
+const WorkerFarm = require('../../../src/WorkerFarm').default;
 const Logger = require('@parcel/logger').default;
 
 function run() {

@@ -12,14 +12,6 @@ const COMMON_NAMES = new Set(['index', 'src', 'lib']);
 
 export default (new Namer({
   name({bundle, bundleGraph, options}) {
-    // If the bundle has an explicit file path given (e.g. by a target), use that.
-    if (bundle.filePath != null) {
-      // TODO: what about multiple assets in the same dep?
-      // e.g. input is a Vue file, output is JS + CSS
-      // which is defined as a target in package.json?
-      return bundle.filePath;
-    }
-
     let bundleGroup = bundleGraph.getBundleGroupsContainingBundle(bundle)[0];
     let bundleGroupBundles = bundleGraph.getBundlesInBundleGroup(bundleGroup);
 
@@ -122,7 +114,7 @@ function nameFromContent(
 
     return path
       .join(path.relative(entryRoot, path.dirname(entryFilePath)), name)
-      .replace(/\.\.(\/|\\)/g, '__$1');
+      .replace(/\.\.(\/|\\)/g, 'up_$1');
   } else {
     // If this is an index file or common directory name, use the parent
     // directory name instead, which is probably more descriptive.

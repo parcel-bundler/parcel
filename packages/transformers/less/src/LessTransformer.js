@@ -5,7 +5,7 @@ import {Transformer} from '@parcel/plugin';
 import SourceMap from '@parcel/source-map';
 import less from 'less';
 
-import {load, preSerialize} from './loadConfig';
+import {load} from './loadConfig';
 
 // E.g: ~library/file.less
 const WEBPACK_ALIAS_RE = /^~[^/]/;
@@ -20,10 +20,6 @@ type LessConfig = {
 export default (new Transformer({
   loadConfig({config}) {
     return load({config});
-  },
-
-  preSerializeConfig({config}) {
-    return preSerialize(config);
   },
 
   async transform({asset, options, config, resolve}) {
@@ -60,7 +56,7 @@ export default (new Transformer({
     if (result.map != null) {
       let map = new SourceMap(options.projectRoot);
       let rawMap = JSON.parse(result.map);
-      map.addRawMappings({
+      map.addVLQMap({
         ...rawMap,
         sources: rawMap.sources.map(s => path.relative(options.projectRoot, s)),
       });

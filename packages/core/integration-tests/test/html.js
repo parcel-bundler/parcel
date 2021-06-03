@@ -32,6 +32,14 @@ describe('html', function() {
 
     assertBundles(b, [
       {
+        type: 'css',
+        assets: ['index.html'],
+      },
+      {
+        name: 'index.html',
+        assets: ['index.html'],
+      },
+      {
         name: 'index.html',
         assets: ['index.html'],
       },
@@ -63,8 +71,7 @@ describe('html', function() {
       'utf8',
     );
     for (let file of files) {
-      let ext = file.match(/\.([0-9a-z]+)(?:[?#]|$)/i)[0];
-      if (file !== 'index.html' && ext !== '.map') {
+      if (file !== 'index.html' && path.extname(file) !== '.map') {
         assert(html.includes(file));
       }
     }
@@ -133,12 +140,12 @@ describe('html', function() {
 
     assertBundles(b, [
       {
-        name: 'index.html',
+        type: 'js',
         assets: ['index.html'],
       },
       {
-        type: 'js',
-        assets: ['HMRRuntime.js', 'index.html'],
+        name: 'index.html',
+        assets: ['index.html'],
       },
     ]);
   });
@@ -952,7 +959,11 @@ describe('html', function() {
     let urls = [...html.matchAll(/url\(([^)]*)\)/g)].map(m => m[1]);
     assert.strictEqual(urls.length, 2);
     for (let url of urls) {
-      assert(bundles.find(bundle => path.basename(bundle.filePath) === url));
+      assert(
+        bundles.find(
+          bundle => !bundle.isInline && path.basename(bundle.filePath) === url,
+        ),
+      );
     }
   });
 
@@ -1186,8 +1197,6 @@ describe('html', function() {
           'index.js',
           'index.js',
           'js-loader.js',
-          'JSRuntime.js',
-          'JSRuntime.js',
           'relative-path.js',
         ],
       },
@@ -1271,9 +1280,6 @@ describe('html', function() {
           'get-worker-url.js',
           'index.js',
           'js-loader.js',
-          'JSRuntime.js',
-          'JSRuntime.js',
-          'JSRuntime.js',
           'relative-path.js',
         ],
       },
@@ -1337,9 +1343,6 @@ describe('html', function() {
           'get-worker-url.js',
           'index.js',
           'js-loader.js',
-          'JSRuntime.js',
-          'JSRuntime.js',
-          'JSRuntime.js',
           'relative-path.js',
         ],
       },
@@ -1539,16 +1542,16 @@ describe('html', function() {
     });
 
     let html = await outputFS.readFile(path.join(distDir, 'a.html'), 'utf8');
-    assert.equal(html.match(/<script/g).length, 3);
+    assert.equal(html.match(/<script/g).length, 2);
 
     html = await outputFS.readFile(path.join(distDir, 'b.html'), 'utf8');
-    assert.equal(html.match(/<script/g).length, 5);
-
-    html = await outputFS.readFile(path.join(distDir, 'c.html'), 'utf8');
     assert.equal(html.match(/<script/g).length, 4);
 
-    html = await outputFS.readFile(path.join(distDir, 'd.html'), 'utf8');
+    html = await outputFS.readFile(path.join(distDir, 'c.html'), 'utf8');
     assert.equal(html.match(/<script/g).length, 3);
+
+    html = await outputFS.readFile(path.join(distDir, 'd.html'), 'utf8');
+    assert.equal(html.match(/<script/g).length, 2);
 
     html = await outputFS.readFile(path.join(distDir, 'e.html'), 'utf8');
     assert.equal(html.match(/<script/g).length, 1);
@@ -1587,7 +1590,6 @@ describe('html', function() {
           'esmodule-helpers.js',
           'get-worker-url.js',
           'index.js',
-          'JSRuntime.js',
         ],
       },
     ]);

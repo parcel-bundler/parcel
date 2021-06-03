@@ -7,6 +7,7 @@ import type WorkerFarm from '@parcel/workers';
 import type {PackageManager} from '@parcel/package-manager';
 import type {Diagnostic} from '@parcel/diagnostic';
 import type {PluginLogger} from '@parcel/logger';
+import type {Cache} from '@parcel/cache';
 
 import type {AST as _AST, ConfigResult as _ConfigResult} from './unsafe';
 
@@ -57,7 +58,7 @@ export type RawParcelConfig = {|
   transformers?: {[Glob]: RawParcelConfigPipeline, ...},
   bundler?: PackageName,
   namers?: RawParcelConfigPipeline,
-  runtimes?: {[EnvironmentContext]: RawParcelConfigPipeline, ...},
+  runtimes?: RawParcelConfigPipeline,
   packagers?: {[Glob]: PackageName, ...},
   optimizers?: {[Glob]: RawParcelConfigPipeline, ...},
   reporters?: RawParcelConfigPipeline,
@@ -275,6 +276,7 @@ export type InitialParcelOptions = {|
 
   +inputFS?: FileSystem,
   +outputFS?: FileSystem,
+  +cache?: Cache,
   +workerFarm?: WorkerFarm,
   +packageManager?: PackageManager,
   +detailedReport?: ?DetailedReportOptions,
@@ -287,6 +289,11 @@ export type InitialParcelOptions = {|
     +distDir?: FilePath,
     +engines?: Engines,
   |},
+
+  +additionalReporters?: Array<{|
+    packageName: ModuleSpecifier,
+    resolveFrom: FilePath,
+  |}>,
 
   // throwErrors
   // global?
@@ -358,7 +365,7 @@ export type Meta = JSONObject;
 export type Symbol = string;
 
 /**
- * A map from extert names to the corespinding asset's lcoal variable name.
+ * A map of export names to the corresponding asset's local variable names.
  */
 export interface AssetSymbols // eslint-disable-next-line no-undef
   extends Iterable<
@@ -597,6 +604,17 @@ export interface Asset extends BaseAsset {
   +stats: Stats;
 }
 
+export type DevDepOptions = {|
+  moduleSpecifier: ModuleSpecifier,
+  resolveFrom: FilePath,
+  /**
+   * Whether to also invalidate the parcel plugin that loaded this dev dependency
+   * when it changes. This is useful if the parcel plugin or another parent dependency
+   * has its own cache for this dev dependency other than Node's require cache.
+   */
+  invalidateParcelPlugin?: boolean,
+|};
+
 /**
  * @section transformer
  */
@@ -610,7 +628,7 @@ export interface Config {
   setResult(result: ConfigResult): void; // TODO: fix
   setResultHash(resultHash: string): void;
   addIncludedFile(filePath: FilePath): void;
-  addDevDependency(name: PackageName, version?: Semver): void;
+  addDevDependency(devDep: DevDepOptions): void;
   invalidateOnFileCreate(invalidation: FileCreateInvalidation): void;
   getConfigFrom(
     searchPath: FilePath,
@@ -630,8 +648,6 @@ export interface Config {
     |},
   ): Promise<ConfigResultWithFilePath | null>;
   getPackage(): Promise<PackageJSON | null>;
-  shouldRehydrate(): void;
-  shouldReload(): void;
   shouldInvalidateOnStartup(): void;
 }
 
@@ -747,10 +763,6 @@ export type Transformer = {|
     config: Config,
     options: PluginOptions,
     logger: PluginLogger,
-  |}) => Async<void>,
-  preSerializeConfig?: ({|
-    config: Config,
-    options: PluginOptions,
   |}) => Async<void>,
   /** Whether an AST from a previous transformer can be reused (to prevent double-parsing) */
   canReuseAST?: ({|
@@ -905,8 +917,6 @@ export interface Bundle {
   +hashReference: string;
   +type: string;
   +env: Environment;
-  /** The output filespath (if not inline), can contain <code>hashReference</code> before the optimizer ran. */
-  +filePath: ?FilePath;
   /** Whether this is an entry (e.g. should not be hashed). */
   +isEntry: ?boolean;
   /** Whether this bundle should be inlined into the parent bundle(s), */
@@ -934,9 +944,12 @@ export interface Bundle {
  */
 export interface NamedBundle extends Bundle {
   +publicId: string;
-  +filePath: FilePath;
   +name: string;
   +displayName: string;
+}
+
+export interface PackagedBundle extends NamedBundle {
+  +filePath: FilePath;
 }
 
 /**
@@ -1125,9 +1138,10 @@ export type ConfigOutput = {|
  */
 export type Bundler = {|
   loadConfig?: ({|
+    config: Config,
     options: PluginOptions,
     logger: PluginLogger,
-  |}) => Async<ConfigOutput>,
+  |}) => Async<void>,
   bundle({|
     bundleGraph: MutableBundleGraph,
     config: ?ConfigResult,
@@ -1146,10 +1160,16 @@ export type Bundler = {|
  * @section namer
  */
 export type Namer = {|
+  loadConfig?: ({|
+    config: Config,
+    options: PluginOptions,
+    logger: PluginLogger,
+  |}) => Async<void>,
   /** Return a filename/-path for <code>bundle</code> or nullish to leave it to the next namer plugin. */
   name({|
     bundle: Bundle,
     bundleGraph: BundleGraph<Bundle>,
+    config: ?ConfigResult,
     options: PluginOptions,
     logger: PluginLogger,
   |}): Async<?FilePath>,
@@ -1170,9 +1190,15 @@ export type RuntimeAsset = {|
  * @section runtime
  */
 export type Runtime = {|
+  loadConfig?: ({|
+    config: Config,
+    options: PluginOptions,
+    logger: PluginLogger,
+  |}) => Async<void>,
   apply({|
     bundle: NamedBundle,
     bundleGraph: BundleGraph<NamedBundle>,
+    config: ?ConfigResult,
     options: PluginOptions,
     logger: PluginLogger,
   |}): Async<void | RuntimeAsset | Array<RuntimeAsset>>,
@@ -1352,7 +1378,7 @@ export type BuildProgressEvent =
  */
 export type BuildSuccessEvent = {|
   +type: 'buildSuccess',
-  +bundleGraph: BundleGraph<NamedBundle>,
+  +bundleGraph: BundleGraph<PackagedBundle>,
   +buildTime: number,
   +changedAssets: Map<string, Asset>,
   +requestBundle: (bundle: NamedBundle) => Promise<BuildSuccessEvent>,

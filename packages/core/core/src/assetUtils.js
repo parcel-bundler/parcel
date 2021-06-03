@@ -38,6 +38,7 @@ import {
   md5FromFilePath,
 } from '@parcel/utils';
 import {hashFromOption} from './utils';
+import {createBuildCache} from './buildCache';
 
 type AssetOptions = {|
   id?: string,
@@ -69,7 +70,7 @@ type AssetOptions = {|
   configKeyPath?: string,
 |};
 
-function createAssetIdFromOptions(options: AssetOptions): string {
+export function createAssetIdFromOptions(options: AssetOptions): string {
   let uniqueKey = options.uniqueKey ?? '';
   let idBase = options.idBase != null ? options.idBase : options.filePath;
   let queryString = options.query ? objectSortedEntries(options.query) : '';
@@ -141,11 +142,12 @@ async function _generateFromAST(asset: CommittedAsset | UncommittedAsset) {
     nullthrows(asset.value.configKeyPath),
     asset.options,
   );
-  if (!plugin.generate) {
+  let generate = plugin.generate?.bind(plugin);
+  if (!generate) {
     throw new Error(`${pluginName} does not have a generate method`);
   }
 
-  let {content, map} = await plugin.generate({
+  let {content, map} = await generate({
     asset: new PublicAsset(asset),
     ast,
     options: new PluginOptions(asset.options),
@@ -198,6 +200,7 @@ export async function getConfig(
     asset.options.inputFS,
     asset.value.filePath,
     filePaths,
+    asset.options.projectRoot,
     parse == null ? null : {parse},
   );
   if (!conf) {
@@ -220,6 +223,8 @@ export function getInvalidationId(invalidation: RequestInvalidation): string {
   }
 }
 
+const hashCache = createBuildCache();
+
 export async function getInvalidationHash(
   invalidations: Array<RequestInvalidation>,
   options: ParcelOptions,
@@ -235,11 +240,16 @@ export async function getInvalidationHash(
   let hash = crypto.createHash('md5');
   for (let invalidation of sortedInvalidations) {
     switch (invalidation.type) {
-      case 'file':
-        hash.update(
-          await md5FromFilePath(options.inputFS, invalidation.filePath),
-        );
+      case 'file': {
+        // Only recompute the hash of this file if we haven't seen it already during this build.
+        let fileHash = hashCache.get(invalidation.filePath);
+        if (fileHash == null) {
+          fileHash = md5FromFilePath(options.inputFS, invalidation.filePath);
+          hashCache.set(invalidation.filePath, fileHash);
+        }
+        hash.update(await fileHash);
         break;
+      }
       case 'env':
         hash.update(
           invalidation.key + ':' + (options.env[invalidation.key] || ''),

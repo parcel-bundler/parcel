@@ -2,29 +2,34 @@
 
 import type {Async} from '@parcel/types';
 import type {StaticRunOpts} from '../RequestTracker';
-import type {AssetRequestInput, AssetRequestResult} from '../types';
+import type {
+  AssetRequestInput,
+  AssetRequestResult,
+  ContentKey,
+  DevDepRequest,
+  TransformationRequest,
+} from '../types';
 import type {ConfigAndCachePath} from './ParcelConfigRequest';
 import type {TransformationResult} from '../Transformation';
 
 import {md5FromOrderedObject, objectSortedEntries} from '@parcel/utils';
 import nullthrows from 'nullthrows';
 import createParcelConfigRequest from './ParcelConfigRequest';
+import {runDevDepRequest} from './DevDepRequest';
+import {runConfigRequest} from './ConfigRequest';
+import {report} from '../ReporterRunner';
 
 type RunInput = {|
   input: AssetRequestInput,
-  ...StaticRunOpts<AssetRequestResult>,
+  ...StaticRunOpts,
 |};
 
 export type AssetRequest = {|
-  id: string,
+  id: ContentKey,
   +type: 'asset_request',
   run: RunInput => Async<AssetRequestResult>,
   input: AssetRequestInput,
 |};
-
-function generateRequestId(type, obj) {
-  return `${type}:${md5FromOrderedObject(obj)}`;
-}
 
 export default function createAssetRequest(
   input: AssetRequestInput,
@@ -51,34 +56,75 @@ function getId(input: AssetRequestInput) {
     code: input.code,
     pipeline: input.pipeline,
     query: input.query ? objectSortedEntries(input.query) : null,
-    invalidations: input.invalidations,
   });
 }
 
-async function run({input, api, options, farm, invalidateReason}: RunInput) {
+async function run({input, api, farm, invalidateReason}: RunInput) {
+  report({
+    type: 'buildProgress',
+    phase: 'transforming',
+    filePath: input.filePath,
+  });
+
   api.invalidateOnFileUpdate(input.filePath);
   let start = Date.now();
-  let {optionsRef, ...request} = input;
+  let {optionsRef, ...rest} = input;
   let {cachePath} = nullthrows(
     await api.runRequest<null, ConfigAndCachePath>(createParcelConfigRequest()),
   );
 
-  // Add invalidations to the request if a node already exists in the graph.
-  // These are used to compute the cache key for assets during transformation.
-  request.invalidations = api.getInvalidations().filter(invalidation => {
-    // Filter out invalidation node for the input file itself.
-    return (
-      invalidation.type !== 'file' || invalidation.filePath !== input.filePath
-    );
-  });
+  let previousDevDepRequests = new Map(
+    await Promise.all(
+      api
+        .getSubRequests()
+        .filter(req => req.type === 'dev_dep_request')
+        .map(async req => [
+          req.id,
+          nullthrows(await api.getRequestResult<DevDepRequest>(req.id)),
+        ]),
+    ),
+  );
 
-  request.invalidateReason = invalidateReason;
+  let request: TransformationRequest = {
+    ...rest,
+    invalidateReason,
+    // Add invalidations to the request if a node already exists in the graph.
+    // These are used to compute the cache key for assets during transformation.
+    invalidations: api.getInvalidations().filter(invalidation => {
+      // Filter out invalidation node for the input file itself.
+      return (
+        invalidation.type !== 'file' || invalidation.filePath !== input.filePath
+      );
+    }),
+    devDeps: new Map(
+      [...previousDevDepRequests.entries()]
+        .filter(([id]) => api.canSkipSubrequest(id))
+        .map(([, req]) => [
+          `${req.moduleSpecifier}:${req.resolveFrom}`,
+          req.hash,
+        ]),
+    ),
+    invalidDevDeps: await Promise.all(
+      [...previousDevDepRequests.entries()]
+        .filter(([id]) => !api.canSkipSubrequest(id))
+        .flatMap(([, req]) => {
+          return [
+            {
+              moduleSpecifier: req.moduleSpecifier,
+              resolveFrom: req.resolveFrom,
+            },
+            ...(req.additionalInvalidations ?? []),
+          ];
+        }),
+    ),
+  };
 
   let {
     assets,
     configRequests,
     invalidations,
     invalidateOnFileCreate,
+    devDepRequests,
   } = (await farm.createHandle('runTransform')({
     configCachePath: cachePath,
     optionsRef,
@@ -111,53 +157,12 @@ async function run({input, api, options, farm, invalidateReason}: RunInput) {
     }
   }
 
-  // Add config requests
-  for (let {request, result} of configRequests) {
-    let id = generateRequestId('config_request', request);
-    await api.runRequest<null, void>({
-      id,
-      type: 'config_request',
-      run: ({api}) => {
-        let {
-          includedFiles,
-          invalidateOnFileCreate,
-          shouldInvalidateOnStartup,
-        } = result;
-        for (let filePath of includedFiles) {
-          api.invalidateOnFileUpdate(filePath);
-          api.invalidateOnFileDelete(filePath);
-        }
+  for (let devDepRequest of devDepRequests) {
+    await runDevDepRequest(api, devDepRequest);
+  }
 
-        for (let invalidation of invalidateOnFileCreate) {
-          api.invalidateOnFileCreate(invalidation);
-        }
-
-        if (shouldInvalidateOnStartup) {
-          api.invalidateOnStartup();
-        }
-      },
-      input: null,
-    });
-
-    // Add dep version requests
-    for (let [moduleSpecifier] of result.devDeps) {
-      let depVersionRequst = {
-        moduleSpecifier,
-        resolveFrom:
-          result.pkgFilePath != null ? result.pkgFilePath : result.searchPath,
-      };
-      let id = generateRequestId('dep_version_request', depVersionRequst);
-      await api.runRequest<null, void>({
-        id,
-        type: 'version_request',
-        run: ({api}) => {
-          if (options.lockFile != null) {
-            api.invalidateOnFileUpdate(options.lockFile);
-          }
-        },
-        input: null,
-      });
-    }
+  for (let configRequest of configRequests) {
+    await runConfigRequest(api, configRequest);
   }
 
   return assets;

@@ -22,6 +22,7 @@ export default (new Optimizer({
       options.inputFS,
       path.join(options.entryRoot, 'index.html'),
       ['.htmlnanorc', '.htmlnanorc.js'],
+      options.projectRoot,
     );
 
     const htmlNanoConfig = {

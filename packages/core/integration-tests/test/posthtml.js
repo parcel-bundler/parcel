@@ -4,9 +4,16 @@ import {
   assertBundles,
   removeDistDirectory,
   distDir,
+  inputFS,
   outputFS,
+  overlayFS,
+  ncp,
 } from '@parcel/test-utils';
 import path from 'path';
+import {
+  NodePackageManager,
+  MockPackageInstaller,
+} from '@parcel/package-manager';
 
 describe('posthtml', function() {
   afterEach(async () => {
@@ -94,5 +101,56 @@ describe('posthtml', function() {
     );
     assert(asset.dependencies.has(other));
     assert(asset.dependencies.get(other).includedInParent);
+  });
+
+  it('should automatically install posthtml plugins if needed', async () => {
+    let inputDir = path.join(__dirname, '/input');
+    await outputFS.rimraf(inputDir);
+    await ncp(
+      path.join(__dirname, '/integration/posthtml-autoinstall'),
+      inputDir,
+    );
+
+    let packageInstaller = new MockPackageInstaller();
+    packageInstaller.register(
+      'posthtml-test',
+      inputFS,
+      path.join(__dirname, '/integration/posthtml-autoinstall/posthtml-test'),
+    );
+
+    // The package manager uses an overlay filesystem, which performs writes to
+    // an in-memory fs and reads first from memory, then falling back to the real fs.
+    let packageManager = new NodePackageManager(
+      overlayFS,
+      inputDir,
+      packageInstaller,
+    );
+
+    let distDir = path.join(outputFS.cwd(), 'dist');
+
+    await bundle(path.join(__dirname, '/input/index.html'), {
+      inputFS: overlayFS,
+      packageManager,
+      shouldAutoInstall: true,
+      defaultTargetOptions: {
+        distDir,
+      },
+    });
+
+    // posthtml-test was installed
+    let pkg = JSON.parse(
+      await outputFS.readFile(
+        path.join(__dirname, '/input/package.json'),
+        'utf8',
+      ),
+    );
+    assert(pkg.devDependencies['posthtml-test']);
+
+    // posthtml-test is applied
+    let html = await outputFS.readFile(
+      path.join(distDir, 'index.html'),
+      'utf8',
+    );
+    assert(html.includes('<span id="test">Test</span>'));
   });
 });

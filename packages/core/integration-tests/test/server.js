@@ -111,6 +111,33 @@ describe('server', function() {
     assert.equal(data, inputFile);
   });
 
+  it('should serve sourcemaps', async function() {
+    let port = await getPort();
+    let inputPath = path.join(__dirname, '/integration/commonjs/index.js');
+    let b = bundler(inputPath, {
+      defaultTargetOptions: {
+        distDir,
+      },
+      config,
+      serveOptions: {
+        https: false,
+        port: port,
+        host: 'localhost',
+      },
+    });
+
+    subscription = await b.watch();
+    await getNextBuild(b);
+
+    let data = await get('/index.js.map', port);
+    let distFile = await outputFS.readFile(
+      path.join(distDir, 'index.js.map'),
+      'utf8',
+    );
+
+    assert.equal(data, distFile);
+  });
+
   it('should serve a default page if the main bundle is an HTML asset', async function() {
     let port = await getPort();
     let b = bundler(
@@ -134,16 +161,24 @@ describe('server', function() {
     subscription = await b.watch();
     await getNextBuild(b);
 
-    let outputFile = await outputFS.readFile(
+    let rootIndexFile = await outputFS.readFile(
       path.join(distDir, 'index.html'),
       'utf8',
     );
 
     let data = await get('/', port);
-    assert.equal(data, outputFile);
+    assert.equal(data, rootIndexFile);
+
+    let fooIndexFile = await outputFS.readFile(
+      path.join(distDir, 'foo/index.html'),
+      'utf8',
+    );
+
+    data = await get('/foo', port);
+    assert.equal(data, fooIndexFile);
 
     data = await get('/foo/bar', port);
-    assert.equal(data, outputFile);
+    assert.equal(data, fooIndexFile);
   });
 
   it('should serve a default page if the main bundle is an HTML asset even if it is not called index', async function() {
@@ -164,16 +199,19 @@ describe('server', function() {
     subscription = await b.watch();
     await getNextBuild(b);
 
-    let outputFile = await outputFS.readFile(
+    let rootIndexFile = await outputFS.readFile(
       path.join(distDir, 'other.html'),
       'utf8',
     );
 
     let data = await get('/', port);
-    assert.equal(data, outputFile);
+    assert.equal(data, rootIndexFile);
+
+    data = await get('/foo', port);
+    assert.equal(data, rootIndexFile);
 
     data = await get('/foo/bar', port);
-    assert.equal(data, outputFile);
+    assert.equal(data, rootIndexFile);
   });
 
   it('should serve a default page if the main bundle is an HTML asset with package.json#source', async function() {
@@ -264,7 +302,7 @@ describe('server', function() {
       await get('/index.js', port);
     } catch (err) {
       statusCode = err.statusCode;
-      assert(err.data.includes('Expecting Unicode escape sequence'));
+      assert(err.data.includes('Expected unicode escape'));
     }
 
     assert.equal(statusCode, 500);
@@ -422,6 +460,10 @@ describe('server', function() {
     invariant(build.type === 'buildSuccess');
     assertBundles(build.bundleGraph, [
       {
+        type: 'css',
+        assets: ['index.html'],
+      },
+      {
         name: 'index.html',
         assets: ['index.html'],
       },
@@ -442,6 +484,16 @@ describe('server', function() {
     invariant(build?.type === 'buildSuccess');
     assertBundles(build.bundleGraph, [
       {
+        type: 'css',
+        assets: ['index.html'],
+      },
+      {
+        // index.html
+        name: 'index.html',
+        assets: ['index.html'],
+      },
+      {
+        // foo/index.html
         name: 'index.html',
         assets: ['index.html'],
       },
@@ -469,7 +521,7 @@ describe('server', function() {
 
     // Sibling bundles should have been fully written to disk, but not async bundles.
     dir = await outputFS.readdir(distDir);
-    assert.deepEqual(dir.length, 7);
+    assert.deepEqual(dir.length, 8);
     assert(!dir.includes('other.html'));
   });
 
@@ -528,8 +580,6 @@ describe('server', function() {
           'css-loader.js',
           'index.js',
           'js-loader.js',
-          'JSRuntime.js',
-          'JSRuntime.js',
         ],
       },
       {name: /local\.[0-9a-f]{8}\.js/, assets: ['local.js']},
@@ -545,12 +595,17 @@ describe('server', function() {
 
     let local = build.bundleGraph
       .getBundles()
-      .find(b => b.type === 'js' && b.name.startsWith('local'));
+      .find(
+        b => b.type === 'js' && path.basename(b.filePath).startsWith('local'),
+      );
     invariant(local);
-    data = await get(`/${local.name}`, port);
+    data = await get(`/${path.basename(local.filePath)}`, port);
     assert.equal(
       data,
-      await outputFS.readFile(path.join(distDir, local.name), 'utf8'),
+      await outputFS.readFile(
+        path.join(distDir, path.basename(local.filePath)),
+        'utf8',
+      ),
     );
 
     assert.equal(builds.length, 3);
@@ -565,12 +620,10 @@ describe('server', function() {
           'css-loader.js',
           'index.js',
           'js-loader.js',
-          'JSRuntime.js',
-          'JSRuntime.js',
         ],
       },
       {name: 'index.css', assets: ['index.css']},
-      {name: /local\.[0-9a-f]{8}\.js/, assets: ['local.js', 'JSRuntime.js']},
+      {name: /local\.[0-9a-f]{8}\.js/, assets: ['local.js']},
       {name: /local\.[0-9a-f]{8}\.css/, assets: ['local.css']},
     ]);
 
@@ -579,10 +632,12 @@ describe('server', function() {
 
     let localCSS = build.bundleGraph
       .getBundles()
-      .find(b => b.type === 'css' && b.name.startsWith('local'));
+      .find(
+        b => b.type === 'css' && path.basename(b.filePath).startsWith('local'),
+      );
     invariant(localCSS);
 
-    assert(data.includes(localCSS.name));
+    assert(data.includes(path.basename(localCSS.filePath)));
     assert(data.includes('css-loader'));
   });
 });

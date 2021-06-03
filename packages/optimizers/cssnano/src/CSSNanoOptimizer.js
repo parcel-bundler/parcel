@@ -37,7 +37,7 @@ export default (new Optimizer({
     let map;
     if (result.map != null) {
       map = new SourceMap(options.projectRoot);
-      map.addRawMappings(result.map.toJSON());
+      map.addVLQMap(result.map.toJSON());
     }
 
     let contents = result.css;

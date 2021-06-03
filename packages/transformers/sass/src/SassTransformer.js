@@ -12,59 +12,44 @@ const WEBPACK_ALIAS_RE = /^~[^/]/;
 
 export default (new Transformer({
   async loadConfig({config, options}) {
-    let configFile = await config.getConfig(['.sassrc', '.sassrc.js'], {
-      packageKey: 'sass',
-    });
+    let configFile = await config.getConfig(
+      ['.sassrc', '.sassrc.json', '.sassrc.js'],
+      {
+        packageKey: 'sass',
+      },
+    );
 
-    let configResult = {
-      contents: configFile ? configFile.contents : {},
-      isSerialisable: true,
-    };
+    let configResult = configFile ? configFile.contents : {};
 
     // Resolve relative paths from config file
-    if (configFile && configResult.contents.includePaths) {
-      configResult.contents.includePaths = configResult.contents.includePaths.map(
-        p => path.resolve(path.dirname(configFile.filePath), p),
+    if (configFile && configResult.includePaths) {
+      configResult.includePaths = configResult.includePaths.map(p =>
+        path.resolve(path.dirname(configFile.filePath), p),
       );
     }
 
     if (configFile && path.extname(configFile.filePath) === '.js') {
       config.shouldInvalidateOnStartup();
-      config.shouldReload();
-
-      configResult.isSerialisable = false;
     }
 
-    if (configResult.contents.importer === undefined) {
-      configResult.contents.importer = [];
-    } else if (!Array.isArray(configResult.contents.importer)) {
-      configResult.contents.importer = [configResult.contents.importer];
+    if (configResult.importer === undefined) {
+      configResult.importer = [];
+    } else if (!Array.isArray(configResult.importer)) {
+      configResult.importer = [configResult.importer];
     }
 
     // Always emit sourcemap
-    configResult.contents.sourceMap = true;
+    configResult.sourceMap = true;
     // sources are created relative to the directory of outFile
-    configResult.contents.outFile = path.join(
-      options.projectRoot,
-      'style.css.map',
-    );
-    configResult.contents.omitSourceMapUrl = true;
-    configResult.contents.sourceMapContents = false;
+    configResult.outFile = path.join(options.projectRoot, 'style.css.map');
+    configResult.omitSourceMapUrl = true;
+    configResult.sourceMapContents = false;
 
     config.setResult(configResult);
   },
 
-  preSerializeConfig({config}) {
-    if (!config.result) return;
-
-    // Ensure we dont try to serialise functions
-    if (!config.result.isSerialisable) {
-      config.result.contents = {};
-    }
-  },
-
   async transform({asset, options, config, resolve}) {
-    let rawConfig = config ? config.contents : {};
+    let rawConfig = config ?? {};
     let sassRender = promisify(sass.render.bind(sass));
     let css;
     try {
@@ -97,7 +82,7 @@ export default (new Transformer({
 
       if (result.map != null) {
         let map = new SourceMap(options.projectRoot);
-        map.addRawMappings(JSON.parse(result.map));
+        map.addVLQMap(JSON.parse(result.map));
         asset.setMap(map);
       }
     } catch (err) {

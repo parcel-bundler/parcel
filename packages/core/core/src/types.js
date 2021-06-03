@@ -10,12 +10,10 @@ import type {
   FileCreateInvalidation,
   FilePath,
   Glob,
-  JSONObject,
   LogLevel,
   Meta,
   ModuleSpecifier,
   PackageName,
-  PackageJSON,
   ReporterEvent,
   Semver,
   ServerOptions,
@@ -29,16 +27,17 @@ import type {
   HMROptions,
   QueryParameters,
   DetailedReportOptions,
+  DevDepOptions,
 } from '@parcel/types';
 import type {SharedReference} from '@parcel/workers';
 import type {FileSystem} from '@parcel/fs';
-import type Cache from '@parcel/cache';
+import type {Cache} from '@parcel/cache';
 import type {PackageManager} from '@parcel/package-manager';
 
 export type ParcelPluginNode = {|
   packageName: PackageName,
   resolveFrom: FilePath,
-  keyPath: string,
+  keyPath?: string,
 |};
 
 export type PureParcelConfigPipeline = $ReadOnlyArray<ParcelPluginNode>;
@@ -52,7 +51,7 @@ export type ProcessedParcelConfig = {|
   transformers?: {[Glob]: ExtendableParcelConfigPipeline, ...},
   bundler: ?ParcelPluginNode,
   namers?: PureParcelConfigPipeline,
-  runtimes?: {[EnvironmentContext]: PureParcelConfigPipeline, ...},
+  runtimes?: PureParcelConfigPipeline,
   packagers?: {[Glob]: ParcelPluginNode, ...},
   optimizers?: {[Glob]: ExtendableParcelConfigPipeline, ...},
   reporters?: PureParcelConfigPipeline,
@@ -111,7 +110,7 @@ export type Dependency = {|
 |};
 
 export type Asset = {|
-  id: string,
+  id: ContentKey,
   committed: boolean,
   hash: ?string,
   filePath: FilePath,
@@ -159,6 +158,18 @@ export type RequestInvalidation =
   | EnvInvalidation
   | OptionInvalidation;
 
+export type DevDepRequest = {|
+  moduleSpecifier: ModuleSpecifier,
+  resolveFrom: FilePath,
+  hash: string,
+  invalidateOnFileCreate?: Array<FileCreateInvalidation>,
+  invalidateOnFileChange?: Set<FilePath>,
+  additionalInvalidations?: Array<{|
+    moduleSpecifier: ModuleSpecifier,
+    resolveFrom: FilePath,
+  |}>,
+|};
+
 export type ParcelOptions = {|
   entries: Array<FilePath>,
   entryRoot: FilePath,
@@ -186,6 +197,10 @@ export type ParcelOptions = {|
   outputFS: FileSystem,
   cache: Cache,
   packageManager: PackageManager,
+  additionalReporters: Array<{|
+    packageName: ModuleSpecifier,
+    resolveFrom: FilePath,
+  |}>,
 
   instanceId: string,
 
@@ -199,7 +214,16 @@ export type ParcelOptions = {|
   |},
 |};
 
-export type NodeId = string;
+// forcing NodeId to be opaque as it should only be created once
+export opaque type NodeId = number;
+export function toNodeId(x: number): NodeId {
+  return x;
+}
+export function fromNodeId(x: NodeId): number {
+  return x;
+}
+
+export type ContentKey = string;
 
 export type Edge<TEdgeType: string | null> = {|
   from: NodeId,
@@ -208,14 +232,14 @@ export type Edge<TEdgeType: string | null> = {|
 |};
 
 export interface Node {
-  id: string;
+  id: ContentKey;
   +type: string;
   // $FlowFixMe
   value: any;
 }
 
 export type AssetNode = {|
-  id: string,
+  id: ContentKey,
   +type: 'asset',
   value: Asset,
   usedSymbols: Set<Symbol>,
@@ -226,7 +250,7 @@ export type AssetNode = {|
 |};
 
 export type DependencyNode = {|
-  id: string,
+  id: ContentKey,
   type: 'dependency',
   value: Dependency,
   complete?: boolean,
@@ -245,7 +269,7 @@ export type DependencyNode = {|
   excluded: boolean,
 |};
 
-export type RootNode = {|id: string, +type: 'root', value: string | null|};
+export type RootNode = {|id: ContentKey, +type: 'root', value: string | null|};
 
 export type AssetRequestInput = {|
   name?: string, // AssetGraph name, needed so that different graphs can isolated requests since the results are not stored
@@ -259,8 +283,6 @@ export type AssetRequestInput = {|
   optionsRef: SharedReference,
   isURL?: boolean,
   query?: ?QueryParameters,
-  invalidations?: Array<RequestInvalidation>,
-  invalidateReason?: number,
 |};
 
 export type AssetRequestResult = Array<Asset>;
@@ -270,7 +292,7 @@ export type AssetGroup = $Rest<
   {|optionsRef: SharedReference|},
 >;
 export type AssetGroupNode = {|
-  id: string,
+  id: ContentKey,
   +type: 'asset_group',
   value: AssetGroup,
   correspondingRequest?: string,
@@ -280,20 +302,31 @@ export type AssetGroupNode = {|
   usedSymbolsDownDirty: boolean,
 |};
 
+export type TransformationRequest = {|
+  ...AssetGroup,
+  invalidations: Array<RequestInvalidation>,
+  invalidateReason: number,
+  devDeps: Map<PackageName, string>,
+  invalidDevDeps: Array<{|
+    moduleSpecifier: ModuleSpecifier,
+    resolveFrom: FilePath,
+  |}>,
+|};
+
 export type DepPathRequestNode = {|
-  id: string,
+  id: ContentKey,
   +type: 'dep_path_request',
   value: Dependency,
 |};
 
 export type AssetRequestNode = {|
-  id: string,
+  id: ContentKey,
   +type: 'asset_request',
   value: AssetRequestInput,
 |};
 
 export type EntrySpecifierNode = {|
-  id: string,
+  id: ContentKey,
   +type: 'entry_specifier',
   value: ModuleSpecifier,
   correspondingRequest?: string,
@@ -306,7 +339,7 @@ export type Entry = {|
 |};
 
 export type EntryFileNode = {|
-  id: string,
+  id: ContentKey,
   +type: 'entry_file',
   value: Entry,
   correspondingRequest?: string,
@@ -329,40 +362,22 @@ export type BundleGraphNode =
   | BundleGroupNode
   | BundleNode;
 
-export type ConfigRequestNode = {|
-  id: string,
-  +type: 'config_request',
-  value: ConfigRequestDesc,
-|};
-
 export type Config = {|
+  id: string,
   isSource: boolean,
   searchPath: FilePath,
   env: Environment,
   resultHash: ?string,
   result: ConfigResult,
   includedFiles: Set<FilePath>,
-  pkg: ?PackageJSON,
-  pkgFilePath: ?FilePath,
   invalidateOnFileCreate: Array<FileCreateInvalidation>,
-  devDeps: Map<PackageName, ?string>,
-  shouldRehydrate: boolean,
-  shouldReload: boolean,
+  invalidateOnOptionChange: Set<string>,
+  devDeps: Array<DevDepOptions>,
   shouldInvalidateOnStartup: boolean,
 |};
 
-export type ConfigRequestDesc = {|
-  filePath: FilePath,
-  env: Environment,
-  isSource: boolean,
-  pipeline?: ?string,
-  isURL?: boolean,
-  plugin?: PackageName,
-  meta: JSONObject,
-|};
-
 export type DepVersionRequestNode = {|
-  id: string,
+  id: ContentKey,
   +type: 'dep_version_request',
   value: DepVersionRequestDesc,
 |};
@@ -379,13 +394,13 @@ export type EntryRequest = {|
 |};
 
 export type EntryRequestNode = {|
-  id: string,
+  id: ContentKey,
   +type: 'entry_request',
   value: string,
 |};
 
 export type TargetRequestNode = {|
-  id: string,
+  id: ContentKey,
   +type: 'target_request',
   value: FilePath,
 |};
@@ -400,13 +415,13 @@ export type CacheEntry = {|
 |};
 
 export type Bundle = {|
-  id: string,
+  id: ContentKey,
   publicId: ?string,
   hashReference: string,
   type: string,
   env: Environment,
-  entryAssetIds: Array<string>,
-  mainEntryId: ?string,
+  entryAssetIds: Array<ContentKey>,
+  mainEntryId: ?ContentKey,
   isEntry: ?boolean,
   isInline: ?boolean,
   isSplittable: ?boolean,
@@ -420,13 +435,13 @@ export type Bundle = {|
 |};
 
 export type BundleNode = {|
-  id: string,
+  id: ContentKey,
   +type: 'bundle',
   value: Bundle,
 |};
 
 export type BundleGroupNode = {|
-  id: string,
+  id: ContentKey,
   +type: 'bundle_group',
   value: BundleGroup,
 |};

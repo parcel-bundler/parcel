@@ -6,7 +6,7 @@ import type {
   BundleGraph,
   FilePath,
   PluginOptions,
-  NamedBundle,
+  PackagedBundle,
 } from '@parcel/types';
 import type {Diagnostic} from '@parcel/diagnostic';
 import type {FileSystem} from '@parcel/fs';
@@ -20,6 +20,7 @@ import {
   createHTTPServer,
   loadConfig,
   prettyDiagnostic,
+  relativePath,
 } from '@parcel/utils';
 import serverErrors from './serverErrors';
 import fs from 'fs';
@@ -58,8 +59,8 @@ export default class Server {
   pendingRequests: Array<[Request, Response]>;
   options: DevServerOptions;
   rootPath: string;
-  bundleGraph: BundleGraph<NamedBundle> | null;
-  requestBundle: ?(bundle: NamedBundle) => Promise<BuildSuccessEvent>;
+  bundleGraph: BundleGraph<PackagedBundle> | null;
+  requestBundle: ?(bundle: PackagedBundle) => Promise<BuildSuccessEvent>;
   errors: Array<{|
     message: string,
     stack: string,
@@ -86,8 +87,8 @@ export default class Server {
   }
 
   buildSuccess(
-    bundleGraph: BundleGraph<NamedBundle>,
-    requestBundle: (bundle: NamedBundle) => Promise<BuildSuccessEvent>,
+    bundleGraph: BundleGraph<PackagedBundle>,
+    requestBundle: (bundle: PackagedBundle) => Promise<BuildSuccessEvent>,
   ) {
     this.bundleGraph = bundleGraph;
     this.requestBundle = requestBundle;
@@ -165,23 +166,30 @@ export default class Server {
         }
       });
 
-      let indexFilePath =
-        htmlBundleFilePaths.length > 1
-          ? htmlBundleFilePaths
-              .sort((a, b) => {
-                let lengthDiff = a.length - b.length;
-                if (lengthDiff === 0) {
-                  return a.localeCompare(b);
-                } else {
-                  return lengthDiff;
-                }
-              })
-              .find(f => {
-                return path.basename(f).startsWith('index');
-              })
-          : htmlBundleFilePaths[0];
+      htmlBundleFilePaths = htmlBundleFilePaths.map(p => {
+        return `/${relativePath(this.options.distDir, p, false)}`;
+      });
+
+      let indexFilePath = null;
+      if (htmlBundleFilePaths.length === 1) {
+        indexFilePath = htmlBundleFilePaths[0];
+      } else {
+        indexFilePath = htmlBundleFilePaths
+          .filter(v => {
+            let dir = path.posix.dirname(v);
+            let withoutExtension = path.posix.basename(
+              v,
+              path.posix.extname(v),
+            );
+            return withoutExtension === 'index' && req.url.startsWith(dir);
+          })
+          .sort((a, b) => {
+            return b.length - a.length;
+          })[0];
+      }
+
       if (indexFilePath) {
-        req.url = `/${path.relative(this.options.distDir, indexFilePath)}`;
+        req.url = indexFilePath;
         this.serveBundle(req, res, () => this.send404(req, res));
       } else {
         this.send404(req, res);
@@ -207,12 +215,14 @@ export default class Server {
       let requestedPath = path.normalize(pathname.slice(1));
       let bundle = bundleGraph
         .getBundles()
+        .filter(b => !b.isInline)
         .find(
           b =>
             path.relative(this.options.distDir, b.filePath) === requestedPath,
         );
       if (!bundle) {
-        return next(req, res);
+        this.serveDist(req, res, next);
+        return;
       }
 
       invariant(this.requestBundle != null);
@@ -356,11 +366,12 @@ export default class Server {
     // avoid skipping project root
     const fileInRoot: string = path.join(this.options.projectRoot, '_');
 
-    const pkg = await loadConfig(this.options.inputFS, fileInRoot, [
-      '.proxyrc.js',
-      '.proxyrc',
-      '.proxyrc.json',
-    ]);
+    const pkg = await loadConfig(
+      this.options.inputFS,
+      fileInRoot,
+      ['.proxyrc.js', '.proxyrc', '.proxyrc.json'],
+      this.options.projectRoot,
+    );
 
     if (!pkg || !pkg.config || !pkg.files) {
       return this;

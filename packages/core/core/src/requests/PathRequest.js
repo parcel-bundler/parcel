@@ -39,7 +39,7 @@ export type PathRequestInput = {|
 
 type RunOpts = {|
   input: PathRequestInput,
-  ...StaticRunOpts<?AssetGroup>,
+  ...StaticRunOpts,
 |};
 
 const type = 'path_request';

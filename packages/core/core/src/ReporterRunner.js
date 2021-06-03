@@ -1,14 +1,15 @@
 // @flow strict-local
 
-import type {ReporterEvent} from '@parcel/types';
+import type {ReporterEvent, Reporter} from '@parcel/types';
 import type {WorkerApi} from '@parcel/workers';
 import type {Bundle as InternalBundle, ParcelOptions} from './types';
+import type {LoadedPlugin} from './ParcelConfig';
 
 import invariant from 'assert';
 import {
   bundleToInternalBundle,
   bundleToInternalBundleGraph,
-  NamedBundle,
+  PackagedBundle,
 } from './public/Bundle';
 import WorkerFarm, {bus} from '@parcel/workers';
 import ParcelConfig from './ParcelConfig';
@@ -32,6 +33,7 @@ export default class ReporterRunner {
   config: ParcelConfig;
   options: ParcelOptions;
   pluginOptions: PluginOptions;
+  reporters: Array<LoadedPlugin<Reporter>>;
 
   constructor(opts: Opts) {
     this.config = opts.config;
@@ -54,7 +56,7 @@ export default class ReporterRunner {
     if (
       event.type === 'buildProgress' &&
       (event.phase === 'optimizing' || event.phase === 'packaging') &&
-      !(event.bundle instanceof NamedBundle)
+      !(event.bundle instanceof PackagedBundle)
     ) {
       // $FlowFixMe[prop-missing]
       let bundleGraphRef = event.bundleGraphRef;
@@ -70,7 +72,7 @@ export default class ReporterRunner {
       // $FlowFixMe[incompatible-call]
       this.report({
         ...event,
-        bundle: NamedBundle.get(bundle, bundleGraph, this.options),
+        bundle: PackagedBundle.get(bundle, bundleGraph, this.options),
       });
       return;
     }
@@ -79,9 +81,13 @@ export default class ReporterRunner {
   };
 
   async report(event: ReporterEvent) {
-    let reporters = await this.config.getReporters();
+    let reporters = this.reporters;
+    if (!reporters) {
+      this.reporters = await this.config.getReporters();
+      reporters = this.reporters;
+    }
 
-    for (let reporter of reporters) {
+    for (let reporter of this.reporters) {
       try {
         await reporter.plugin.report({
           event,

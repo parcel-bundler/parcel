@@ -2,7 +2,6 @@
 
 import type {InitialParcelOptions} from '@parcel/types';
 import {BuildError} from '@parcel/core';
-import {NodePackageManager} from '@parcel/package-manager';
 import {NodeFS} from '@parcel/fs';
 import ThrowableDiagnostic from '@parcel/diagnostic';
 import {prettyDiagnostic, openInBrowser} from '@parcel/utils';
@@ -28,7 +27,8 @@ async function logUncaughtError(e: mixed) {
     for (let diagnostic of e.diagnostics) {
       let out = await prettyDiagnostic(diagnostic);
       INTERNAL_ORIGINAL_CONSOLE.error(out.message);
-      INTERNAL_ORIGINAL_CONSOLE.error(out.codeframe || out.stack);
+      INTERNAL_ORIGINAL_CONSOLE.error(out.codeframe);
+      INTERNAL_ORIGINAL_CONSOLE.error(out.stack);
       for (let h of out.hints) {
         INTERNAL_ORIGINAL_CONSOLE.error(h);
       }
@@ -81,9 +81,16 @@ const commonOptions = {
   '--profile': 'enable build profiling',
   '-V, --version': 'output the version number',
   '--detailed-report [count]': [
-    'Print the asset timings and sizes in the build report',
+    'print the asset timings and sizes in the build report',
     parseOptionInt,
-    '10',
+  ],
+  '--reporter <name>': [
+    'additional reporters to run',
+    (val, acc) => {
+      acc.push(val);
+      return acc;
+    },
+    [],
   ],
 };
 
@@ -183,6 +190,7 @@ commander.Command.prototype.optionMissingArgument = function(option) {
 // Make serve the default command except for --help
 var args = process.argv;
 if (args[2] === '--help' || args[2] === '-h') args[2] = 'help';
+
 if (!args[2] || !program.commands.some(c => c.name() === args[2])) {
   args.splice(2, 0, 'serve');
 }
@@ -201,17 +209,16 @@ async function run(
   entries = entries.map(entry => path.resolve(entry));
 
   if (entries.length === 0) {
+    // TODO move this into core, a glob could still lead to no entries
     INTERNAL_ORIGINAL_CONSOLE.log('No entries found');
     return;
   }
   let Parcel = require('@parcel/core').default;
-  let options = await normalizeOptions(command);
   let fs = new NodeFS();
-  let packageManager = new NodePackageManager(fs);
+  let options = await normalizeOptions(command, fs);
   let parcel = new Parcel({
     entries,
-    packageManager,
-    // $FlowFixMe - flow doesn't know about the `paths` option (added in Node v8.9.0)
+    // $FlowFixMe[extra-arg] - flow doesn't know about the `paths` option (added in Node v8.9.0)
     defaultConfig: require.resolve('@parcel/config-default', {
       paths: [fs.cwd(), __dirname],
     }),
@@ -358,7 +365,10 @@ function parseOptionInt(value) {
   return parsedValue;
 }
 
-async function normalizeOptions(command): Promise<InitialParcelOptions> {
+async function normalizeOptions(
+  command,
+  inputFS,
+): Promise<InitialParcelOptions> {
   let nodeEnv;
   if (command.name() === 'build') {
     nodeEnv = process.env.NODE_ENV || 'production';
@@ -387,7 +397,18 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
   let port = parsePort(command.port || '1234');
   let originalPort = port;
   if (command.name() === 'serve' || command.hmr) {
-    port = await getPort({port, host});
+    try {
+      port = await getPort({port, host});
+    } catch (err) {
+      throw new ThrowableDiagnostic({
+        diagnostic: {
+          message: `Could not get available port: ${err.message}`,
+          origin: 'parcel',
+          filePath: __filename,
+          stack: err.stack,
+        },
+      });
+    }
 
     if (port !== originalPort) {
       let errorMessage = `Port "${originalPort}" could not be used`;
@@ -423,10 +444,19 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
     command.detailedReport = '10';
   }
 
+  let additionalReporters = [
+    {packageName: '@parcel/reporter-cli', resolveFrom: __filename},
+    ...(command.reporter: Array<string>).map(packageName => ({
+      packageName,
+      resolveFrom: path.join(inputFS.cwd(), 'index'),
+    })),
+  ];
+
   let mode = command.name() === 'build' ? 'production' : 'development';
   return {
     shouldDisableCache: command.cache === false,
     cacheDir: command.cacheDir,
+    config: command.config,
     mode,
     hmrOptions,
     shouldContentHash: hmrOptions ? false : command.contentHash,
@@ -445,6 +475,7 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
     env: {
       NODE_ENV: nodeEnv,
     },
+    additionalReporters,
     defaultTargetOptions: {
       shouldOptimize:
         command.optimize != null ? command.optimize : mode === 'production',

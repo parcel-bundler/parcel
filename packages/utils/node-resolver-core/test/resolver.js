@@ -1,9 +1,10 @@
 // @flow strict-local
-import NodeResolver from '..';
+import NodeResolver from '../src/NodeResolver';
 import path from 'path';
 import assert from 'assert';
 import nullthrows from 'nullthrows';
 import {ncp, overlayFS, outputFS} from '@parcel/test-utils';
+import {loadConfig as configCache} from '@parcel/utils';
 
 const rootDir = path.join(__dirname, 'fixture');
 
@@ -67,6 +68,8 @@ describe('resolver', function() {
       mainFields: ['browser', 'source', 'module', 'main'],
       extensions: ['.js', '.json'],
     });
+
+    configCache.clear();
   });
 
   describe('file paths', function() {
@@ -619,6 +622,202 @@ describe('resolver', function() {
           path.join(rootDir, 'package.json'),
           path.join(rootDir, 'node_modules', '@scope', 'pkg', 'package.json'),
         ],
+      });
+    });
+
+    describe('sideEffects: false', function() {
+      it('should determine sideEffects correctly (file)', async function() {
+        let resolved = await resolver.resolve({
+          env: BROWSER_ENV,
+          filename: 'side-effects-false/src/index.js',
+          isURL: false,
+          parent: path.join(rootDir, 'foo.js'),
+        });
+        assert.deepEqual(resolved, {
+          filePath: path.resolve(
+            rootDir,
+            'node_modules/side-effects-false/src/index.js',
+          ),
+          sideEffects: false,
+          invalidateOnFileCreate: [
+            {
+              fileName: 'package.json',
+              aboveFilePath: path.join(rootDir, 'index'),
+            },
+            {
+              fileName: 'package.json',
+              aboveFilePath: path.join(rootDir, 'foo.js'),
+            },
+            {
+              fileName: 'node_modules/side-effects-false',
+              aboveFilePath: path.join(rootDir, 'foo.js'),
+            },
+          ],
+          invalidateOnFileChange: [
+            path.join(rootDir, 'package.json'),
+            path.join(
+              rootDir,
+              'node_modules',
+              'side-effects-false',
+              'package.json',
+            ),
+          ],
+        });
+      });
+
+      it('should determine sideEffects correctly (extensionless file)', async function() {
+        let resolved = await resolver.resolve({
+          env: BROWSER_ENV,
+          filename: 'side-effects-false/src/index',
+          isURL: false,
+          parent: path.join(rootDir, 'foo.js'),
+        });
+        assert.deepEqual(resolved, {
+          filePath: path.resolve(
+            rootDir,
+            'node_modules/side-effects-false/src/index.js',
+          ),
+          sideEffects: false,
+          invalidateOnFileCreate: [
+            {
+              fileName: 'package.json',
+              aboveFilePath: path.join(rootDir, 'index'),
+            },
+            {
+              fileName: 'package.json',
+              aboveFilePath: path.join(rootDir, 'foo.js'),
+            },
+            {
+              fileName: 'node_modules/side-effects-false',
+              aboveFilePath: path.join(rootDir, 'foo.js'),
+            },
+          ],
+          invalidateOnFileChange: [
+            path.join(rootDir, 'package.json'),
+            path.join(
+              rootDir,
+              'node_modules',
+              'side-effects-false',
+              'package.json',
+            ),
+          ],
+        });
+      });
+
+      it('should determine sideEffects correctly (sub folder)', async function() {
+        let resolved = await resolver.resolve({
+          env: BROWSER_ENV,
+          filename: 'side-effects-false/src/',
+          isURL: false,
+          parent: path.join(rootDir, 'foo.js'),
+        });
+        assert.deepEqual(resolved, {
+          filePath: path.resolve(
+            rootDir,
+            'node_modules/side-effects-false/src/index.js',
+          ),
+          sideEffects: false,
+          invalidateOnFileCreate: [
+            {
+              fileName: 'package.json',
+              aboveFilePath: path.join(rootDir, 'index'),
+            },
+            {
+              fileName: 'package.json',
+              aboveFilePath: path.join(rootDir, 'foo.js'),
+            },
+            {
+              fileName: 'node_modules/side-effects-false',
+              aboveFilePath: path.join(rootDir, 'foo.js'),
+            },
+            {
+              filePath: path.join(
+                rootDir,
+                'node_modules',
+                'side-effects-false',
+                'src',
+                'package.json',
+              ),
+            },
+            {
+              aboveFilePath: path.join(
+                rootDir,
+                'node_modules',
+                'side-effects-false',
+                'src',
+                'index',
+              ),
+              fileName: 'package.json',
+            },
+          ],
+          invalidateOnFileChange: [
+            path.join(rootDir, 'package.json'),
+            path.join(
+              rootDir,
+              'node_modules',
+              'side-effects-false',
+              'package.json',
+            ),
+          ],
+        });
+      });
+
+      it('should determine sideEffects correctly (main field)', async function() {
+        let resolved = await resolver.resolve({
+          env: BROWSER_ENV,
+          filename: 'side-effects-false/src/',
+          isURL: false,
+          parent: path.join(rootDir, 'foo.js'),
+        });
+        assert.deepEqual(resolved, {
+          filePath: path.resolve(
+            rootDir,
+            'node_modules/side-effects-false/src/index.js',
+          ),
+          sideEffects: false,
+          invalidateOnFileCreate: [
+            {
+              fileName: 'package.json',
+              aboveFilePath: path.join(rootDir, 'index'),
+            },
+            {
+              fileName: 'package.json',
+              aboveFilePath: path.join(rootDir, 'foo.js'),
+            },
+            {
+              fileName: 'node_modules/side-effects-false',
+              aboveFilePath: path.join(rootDir, 'foo.js'),
+            },
+            {
+              filePath: path.join(
+                rootDir,
+                'node_modules',
+                'side-effects-false',
+                'src',
+                'package.json',
+              ),
+            },
+            {
+              aboveFilePath: path.join(
+                rootDir,
+                'node_modules',
+                'side-effects-false',
+                'src',
+                'index',
+              ),
+              fileName: 'package.json',
+            },
+          ],
+          invalidateOnFileChange: [
+            path.join(rootDir, 'package.json'),
+            path.join(
+              rootDir,
+              'node_modules',
+              'side-effects-false',
+              'package.json',
+            ),
+          ],
+        });
       });
     });
   });

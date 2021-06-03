@@ -137,7 +137,7 @@ async function replaceInlineAssetContent(
         : contents
       ).toString();
 
-      if (bundle.env.outputFormat === 'esmodule') {
+      if (nullthrows(bundle).env.outputFormat === 'esmodule') {
         node.attrs.type = 'module';
       }
 

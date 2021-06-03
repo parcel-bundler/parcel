@@ -1,5 +1,5 @@
 import { b } from "./library/index.js";
 
-if(false){
+if(Date.now() < 0){
   b();
 }

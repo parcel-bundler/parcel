@@ -5,6 +5,7 @@ import type {
   BuildEvent,
   BuildSuccessEvent,
   InitialParcelOptions,
+  PackagedBundle as IPackagedBundle,
 } from '@parcel/types';
 import type {ParcelOptions} from './types';
 // eslint-disable-next-line no-unused-vars
@@ -15,9 +16,8 @@ import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import invariant from 'assert';
 import ThrowableDiagnostic, {anyToDiagnostic} from '@parcel/diagnostic';
 import {assetFromValue} from './public/Asset';
-import {NamedBundle} from './public/Bundle';
+import {PackagedBundle} from './public/Bundle';
 import BundleGraph from './public/BundleGraph';
-import BundlerRunner from './BundlerRunner';
 import WorkerFarm from '@parcel/workers';
 import nullthrows from 'nullthrows';
 import {assertSignalNotAborted, BuildAbortError} from './utils';
@@ -28,7 +28,6 @@ import dumpGraphToGraphViz from './dumpGraphToGraphViz';
 import resolveOptions from './resolveOptions';
 import {ValueEmitter} from '@parcel/events';
 import {registerCoreWithSerializer} from './utils';
-import {createCacheDir} from '@parcel/cache';
 import {AbortController} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import {PromiseQueue} from '@parcel/utils';
 import ParcelConfig from './ParcelConfig';
@@ -36,6 +35,7 @@ import logger from '@parcel/logger';
 import RequestTracker, {getWatcherOptions} from './RequestTracker';
 import createAssetGraphRequest from './requests/AssetGraphRequest';
 import createValidationRequest from './requests/ValidationRequest';
+import createBundleGraphRequest from './requests/BundleGraphRequest';
 import {Disposable} from '@parcel/events';
 
 registerCoreWithSerializer();
@@ -45,7 +45,6 @@ export const INTERNAL_RESOLVE: symbol = Symbol('internal_resolve');
 
 export default class Parcel {
   #requestTracker /*: RequestTracker*/;
-  #bundlerRunner /*: BundlerRunner*/;
   #packagerRunner /*: PackagerRunner*/;
   #config /*: ParcelConfig*/;
   #farm /*: WorkerFarm*/;
@@ -88,7 +87,6 @@ export default class Parcel {
       this.#initialOptions,
     );
     this.#resolvedOptions = resolvedOptions;
-    await createCacheDir(resolvedOptions.outputFS, resolvedOptions.cacheDir);
     let {config} = await loadParcelConfig(resolvedOptions);
     this.#config = new ParcelConfig(config, resolvedOptions);
 
@@ -101,6 +99,10 @@ export default class Parcel {
       this.#farm = createWorkerFarm({
         shouldPatchConsole: resolvedOptions.shouldPatchConsole,
       });
+    }
+
+    if (resolvedOptions.cache.ensure) {
+      await resolvedOptions.cache.ensure();
     }
 
     let {
@@ -129,14 +131,6 @@ export default class Parcel {
     this.#requestTracker = await RequestTracker.init({
       farm: this.#farm,
       options: resolvedOptions,
-    });
-
-    this.#bundlerRunner = new BundlerRunner({
-      options: resolvedOptions,
-      optionsRef: optionsRef,
-      requestTracker: this.#requestTracker,
-      config: this.#config,
-      workerFarm: this.#farm,
     });
 
     this.#reporterRunner = new ReporterRunner({
@@ -293,21 +287,20 @@ export default class Parcel {
 
       this.#requestedAssetIds.clear();
 
-      dumpGraphToGraphViz(assetGraph, 'MainAssetGraph');
-
-      let [
-        bundleGraph,
-        serializedBundleGraph,
-        // $FlowFixMe[incompatible-call] Due to dumpGraphToGraphViz usage below
-      ] = await this.#bundlerRunner.bundle(assetGraph, {
-        signal,
+      let bundleGraphRequest = createBundleGraphRequest({
+        assetGraph,
+        optionsRef: this.#optionsRef,
       });
+
+      // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
+      let bundleGraph = await this.#requestTracker.runRequest(
+        bundleGraphRequest,
+      );
+
+      // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381 (Windows only)
       dumpGraphToGraphViz(bundleGraph._graph, 'BundleGraph');
 
-      await this.#packagerRunner.writeBundles(
-        bundleGraph,
-        serializedBundleGraph,
-      );
+      await this.#packagerRunner.writeBundles(bundleGraph);
       assertSignalNotAborted(signal);
 
       // $FlowFixMe
@@ -321,10 +314,14 @@ export default class Parcel {
             assetFromValue(asset, options),
           ]),
         ),
-        bundleGraph: new BundleGraph(bundleGraph, NamedBundle.get, options),
+        bundleGraph: new BundleGraph<IPackagedBundle>(
+          bundleGraph,
+          PackagedBundle.get,
+          options,
+        ),
         buildTime: Date.now() - startTime,
         requestBundle: async bundle => {
-          let bundleNode = bundleGraph._graph.getNode(bundle.id);
+          let bundleNode = bundleGraph._graph.getNodeByContentKey(bundle.id);
           invariant(bundleNode?.type === 'bundle', 'Bundle does not exist');
 
           if (!bundleNode.value.isPlaceholder) {
