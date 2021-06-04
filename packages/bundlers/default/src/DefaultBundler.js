@@ -12,7 +12,8 @@ import type {SchemaEntity} from '@parcel/utils';
 
 import invariant from 'assert';
 import {Bundler} from '@parcel/plugin';
-import {md5FromString, validateSchema} from '@parcel/utils';
+import {validateSchema} from '@parcel/utils';
+import {hashString} from '@parcel/hash';
 import nullthrows from 'nullthrows';
 import {encodeJSONKeyComponent} from '@parcel/diagnostic';
 
@@ -398,7 +399,7 @@ export default (new Bundler({
 
       let [firstBundle] = [...eligibleSourceBundles];
       let sharedBundle = bundleGraph.createBundle({
-        uniqueKey: md5FromString(
+        uniqueKey: hashString(
           [...eligibleSourceBundles].map(b => b.id).join(':'),
         ),
         // Allow this bundle to be deduplicated. It shouldn't be further split.

@@ -26,9 +26,8 @@ import {
   isGlobMatch,
   isDirectoryInside,
   makeDeferredWithPromise,
-  md5FromObject,
-  md5FromString,
 } from '@parcel/utils';
+import {hashString} from '@parcel/hash';
 import ContentGraph, {type SerializedContentGraph} from './ContentGraph';
 import {assertSignalNotAborted, hashFromOption} from './utils';
 import {
@@ -865,13 +864,9 @@ export default class RequestTracker {
   }
 
   async writeToCache() {
-    let cacheKey = md5FromObject({
-      parcelVersion: PARCEL_VERSION,
-      entries: this.options.entries,
-    });
-
-    let requestGraphKey = md5FromString(`${cacheKey}:requestGraph`);
-    let snapshotKey = md5FromString(`${cacheKey}:snapshot`);
+    let cacheKey = `${PARCEL_VERSION}:${JSON.stringify(this.options.entries)}`;
+    let requestGraphKey = hashString(`${cacheKey}:requestGraph`);
+    let snapshotKey = hashString(`${cacheKey}:snapshot`);
 
     if (this.options.shouldDisableCache) {
       return;
@@ -930,17 +925,13 @@ async function loadRequestGraph(options): Async<RequestGraph> {
     return new RequestGraph();
   }
 
-  let cacheKey = md5FromObject({
-    parcelVersion: PARCEL_VERSION,
-    entries: options.entries,
-  });
-
-  let requestGraphKey = md5FromString(`${cacheKey}:requestGraph`);
+  let cacheKey = `${PARCEL_VERSION}:${JSON.stringify(options.entries)}`;
+  let requestGraphKey = hashString(`${cacheKey}:requestGraph`);
   let requestGraph = await options.cache.get<RequestGraph>(requestGraphKey);
 
   if (requestGraph) {
     let opts = getWatcherOptions(options);
-    let snapshotKey = md5FromString(`${cacheKey}:snapshot`);
+    let snapshotKey = hashString(`${cacheKey}:snapshot`);
     let snapshotPath = path.join(options.cacheDir, snapshotKey + '.txt');
     let events = await options.inputFS.getEventsSince(
       options.projectRoot,

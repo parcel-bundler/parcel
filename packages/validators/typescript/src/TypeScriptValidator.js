@@ -10,7 +10,7 @@ import type {LanguageService, Diagnostic} from 'typescript'; // eslint-disable-l
 import path from 'path';
 import ts from 'typescript';
 import {type DiagnosticCodeFrame, escapeMarkdown} from '@parcel/diagnostic';
-import {md5FromObject} from '@parcel/utils';
+import {hashObject} from '@parcel/utils';
 import {Validator} from '@parcel/plugin';
 import {LanguageServiceHost, ParseConfigHost} from '@parcel/ts-utils';
 
@@ -90,7 +90,7 @@ async function getConfig(
     asset.filePath,
   );
   let baseDir = configPath ? path.dirname(configPath) : options.projectRoot;
-  let configHash = (tsconfig ? md5FromObject(tsconfig) : '') + '-' + baseDir;
+  let configHash = (tsconfig ? hashObject(tsconfig) : '') + '-' + baseDir;
 
   return {
     filepath: configPath,

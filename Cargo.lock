@@ -551,6 +551,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "parcel-hash"
+version = "0.1.0"
+dependencies = [
+ "napi",
+ "napi-build",
+ "napi-derive",
+ "xxhash-rust",
+]
+
+[[package]]
 name = "parcel-js-swc-core"
 version = "0.1.0"
 dependencies = [
@@ -1572,3 +1582,9 @@ name = "winapi-x86_64-pc-windows-gnu"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
+
+[[package]]
+name = "xxhash-rust"
+version = "0.8.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e575e15bedf6e57b5c2d763ffc6c3c760143466cbd09d762d539680ab5992ded"

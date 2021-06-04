@@ -23,7 +23,6 @@ import {objectSortedEntries} from '@parcel/utils';
 import type {ConfigOutput} from '@parcel/utils';
 
 import {Readable} from 'stream';
-import crypto from 'crypto';
 import {PluginLogger} from '@parcel/logger';
 import nullthrows from 'nullthrows';
 import CommittedAsset from './CommittedAsset';
@@ -31,14 +30,10 @@ import UncommittedAsset from './UncommittedAsset';
 import loadPlugin from './loadParcelPlugin';
 import {Asset as PublicAsset} from './public/Asset';
 import PluginOptions from './public/PluginOptions';
-import {
-  blobToStream,
-  loadConfig,
-  md5FromOrderedObject,
-  md5FromFilePath,
-} from '@parcel/utils';
+import {blobToStream, loadConfig, hashFile} from '@parcel/utils';
 import {hashFromOption} from './utils';
 import {createBuildCache} from './buildCache';
+import {hashString} from '@parcel/hash';
 
 type AssetOptions = {|
   id?: string,
@@ -73,16 +68,20 @@ type AssetOptions = {|
 export function createAssetIdFromOptions(options: AssetOptions): string {
   let uniqueKey = options.uniqueKey ?? '';
   let idBase = options.idBase != null ? options.idBase : options.filePath;
-  let queryString = options.query ? objectSortedEntries(options.query) : '';
+  let queryString = options.query
+    ? JSON.stringify(objectSortedEntries(options.query))
+    : '';
 
-  return md5FromOrderedObject({
-    idBase,
-    type: options.type,
-    env: options.env.id,
-    uniqueKey,
-    pipeline: options.pipeline ?? '',
-    queryString,
-  });
+  return hashString(
+    idBase +
+      options.type +
+      options.env.id +
+      uniqueKey +
+      ':' +
+      (options.pipeline ?? '') +
+      ':' +
+      queryString,
+  );
 }
 
 export function createAsset(options: AssetOptions): Asset {
@@ -237,33 +236,31 @@ export async function getInvalidationHash(
     .slice()
     .sort((a, b) => (getInvalidationId(a) < getInvalidationId(b) ? -1 : 1));
 
-  let hash = crypto.createHash('md5');
+  let hashes = '';
   for (let invalidation of sortedInvalidations) {
     switch (invalidation.type) {
       case 'file': {
         // Only recompute the hash of this file if we haven't seen it already during this build.
         let fileHash = hashCache.get(invalidation.filePath);
         if (fileHash == null) {
-          fileHash = md5FromFilePath(options.inputFS, invalidation.filePath);
+          fileHash = hashFile(options.inputFS, invalidation.filePath);
           hashCache.set(invalidation.filePath, fileHash);
         }
-        hash.update(await fileHash);
+        hashes += await fileHash;
         break;
       }
       case 'env':
-        hash.update(
-          invalidation.key + ':' + (options.env[invalidation.key] || ''),
-        );
+        hashes +=
+          invalidation.key + ':' + (options.env[invalidation.key] || '');
         break;
       case 'option':
-        hash.update(
-          invalidation.key + ':' + hashFromOption(options[invalidation.key]),
-        );
+        hashes +=
+          invalidation.key + ':' + hashFromOption(options[invalidation.key]);
         break;
       default:
         throw new Error('Unknown invalidation type: ' + invalidation.type);
     }
   }
 
-  return hash.digest('hex');
+  return hashString(hashes);
 }
