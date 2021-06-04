@@ -116,6 +116,8 @@ export default async function resolveOptions(
     shouldAutoInstall: initialOptions.shouldAutoInstall ?? false,
     hmrOptions: initialOptions.hmrOptions ?? null,
     shouldBuildLazily,
+    shouldIncrementallyBundle:
+      initialOptions.shouldIncrementallyBundle ?? false,
     shouldContentHash,
     serveOptions: initialOptions.serveOptions
       ? {

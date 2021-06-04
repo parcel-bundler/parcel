@@ -30,6 +30,7 @@ import {getBundleGroupId, getPublicId} from './utils';
 import {ALL_EDGE_TYPES, mapVisitor} from './Graph';
 import ContentGraph, {type SerializedContentGraph} from './ContentGraph';
 import Environment from './public/Environment';
+import dumpGraphToGraphViz from './dumpGraphToGraphViz';
 
 type BundleGraphEdgeTypes =
   // A lack of an edge type indicates to follow the edge while traversing
@@ -1554,6 +1555,12 @@ export default class BundleGraph {
         edge.type,
       );
     }
+    other._assetPublicIds.forEach(value => {
+      this._assetPublicIds.add(value);
+    });
+    other._publicIdByAssetId.forEach((value, key) => {
+      this._publicIdByAssetId.set(key, value);
+    });
   }
 
   isEntryBundleGroup(bundleGroup: BundleGroup): boolean {
@@ -1568,58 +1575,32 @@ export default class BundleGraph {
       .some(n => n.type === 'root');
   }
   //updates value of existing assetnode and adds any new children
-  updateAssetGraph(assetNode: AssetNode, assetSubGraph: AssetGraph) {
-    let assetNodeId = assetSubGraph.getNodeIdByContentKey(assetNode.value.id);
+  updateAssetGraph(assetNode: Asset, assetSubGraph: BundleGraph) {
+    let assetNodeId = assetSubGraph._graph.getNodeIdByContentKey(assetNode.id);
 
     let assetGraphToBundleGraphNodeIds = new Map<NodeId, NodeId>();
     let bundleGraphToAssetGraphNodeIds = new Map<NodeId, NodeId>();
 
-    assetSubGraph.traverse(assetnodeId => {
-      let node = assetSubGraph.getNode(assetnodeId);
-      if (node && node?.type !== 'asset_group') {
-        let bundlegraphnode = this._graph.getNodeByContentKey(node?.id);
-        let bundlegraphnodeNodeId = this._graph.getNodeIdByContentKey(node?.id);
-        let newId;
-        if (bundlegraphnode != null) {
-          newId = this._graph.addNode(node);
-          this._graph.replaceNode(bundlegraphnodeNodeId, newId);
-        } else {
-          newId = this._graph.addNode(node);
-        }
-        assetGraphToBundleGraphNodeIds.set(assetnodeId, newId);
-        bundleGraphToAssetGraphNodeIds.set(newId, assetnodeId);
-      }
+    assetSubGraph._graph.traverse(assetnodeId => {
+      let node = nullthrows(assetSubGraph._graph.getNode(assetnodeId));
+      let bundleGraphNodeId = this._graph.addNodeByContentKey(node.id, node);
+      assetGraphToBundleGraphNodeIds.set(assetnodeId, bundleGraphNodeId);
+      bundleGraphToAssetGraphNodeIds.set(bundleGraphNodeId, assetnodeId);
     }, assetNodeId);
     //add its edges inbound and outbound to bundlegraph
     assetGraphToBundleGraphNodeIds.forEach(
       (bundleGraphIdValue, assetGraphIdKey) => {
-        assetSubGraph.outboundEdges
+        assetSubGraph._graph.outboundEdges
           .getEdges(assetGraphIdKey, null)
           .forEach(value => {
             let newToNode = assetGraphToBundleGraphNodeIds.get(value);
             if (newToNode) {
-              if (assetSubGraph.getNode(value)?.type === 'asset_group') {
-                //add edge to its child instead :(
-                assetSubGraph.outboundEdges
-                  .getEdges(value, null)
-                  .forEach(val => {
-                    let childOfAssetGroup = assetGraphToBundleGraphNodeIds.get(
-                      val,
-                    );
-                    if (childOfAssetGroup) {
-                      this._graph.addEdge(
-                        bundleGraphIdValue,
-                        childOfAssetGroup,
-                      );
-                    }
-                  });
-              } else {
-                this._graph.addEdge(bundleGraphIdValue, newToNode);
-              }
+              this._graph.addEdge(bundleGraphIdValue, newToNode);
             }
           });
       },
     );
+    dumpGraphToGraphViz(this._graph, 'after_adding_changed_asset');
     //Update bundles after this (not in this function)
   }
 }

@@ -270,7 +270,7 @@ export type InitialParcelOptions = {|
   +shouldAutoInstall?: boolean,
   +logLevel?: LogLevel,
   +shouldProfile?: boolean,
-  +isIncremental?: boolean,
+  +shouldIncrementallyBundle?: boolean,
   +shouldPatchConsole?: boolean,
   +shouldBuildLazily?: boolean,
 
@@ -998,7 +998,8 @@ export interface MutableBundleGraph extends BundleGraph<Bundle> {
   traverseContents<TContext>(
     GraphVisitor<BundlerBundleGraphTraversable, TContext>,
   ): ?TContext;
-  updateAsset(Asset, AssetGraph): void;
+  updateAssetGraph(Asset, AssetGraph): void;
+  merge(MutableBundleGraph): void;
 }
 
 /**
@@ -1026,7 +1027,7 @@ export interface BundleGraph<TBundle: Bundle> {
   /** Get the asset that created the dependency. */
   getAssetWithDependency(dep: Dependency): ?Asset;
   isEntryBundleGroup(bundleGroup: BundleGroup): boolean;
-  updateAssetGraph(asset, AssetGraph): void;
+  updateAssetGraph(Asset, AssetGraph): void;
   /**
    * Returns undefined if the specified dependency was excluded or wasn't async \
    * and otherwise the BundleGroup or Asset that the dependency resolves to.
@@ -1161,7 +1162,7 @@ export type Bundler = {|
     bundleGraph: MutableBundleGraph,
     config: ?ConfigResult,
     options: PluginOptions,
-    assetGraphTransformationSubGraph: AssetGraph,
+    assetGraphTransformationSubGraph: MutableBundleGraph,
     changedAssets: Map<string, Asset>,
   |}): Async<void>,
 |};

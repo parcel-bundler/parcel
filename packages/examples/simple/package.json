@@ -6,7 +6,7 @@
   "scripts": {
     "build": "PARCEL_WORKERS=0 parcel src/index.js --no-cache",
     "demo": "PARCEL_WORKERS=0 parcel src/index.js",
-    "inc-demo": "PARCEL_WORKERS=0 parcel src/index.js --incremental",
+    "inc-demo": "PARCEL_WORKERS=0 parcel src/index.js",
     "clean-demo": "rm -rf .parcel-cache dist && yarn demo"
   },
   "devDependencies": {
