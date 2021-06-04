@@ -409,7 +409,14 @@ export default class BundleGraph {
 
     // Remove all contains edges from the bundle to the nodes in the asset's
     // subgraph.
+    let entryNodes = new Set(this._graph.getNodeIdsConnectedFrom(bundleNodeId));
+
     this._graph.traverse((nodeId, context, actions) => {
+      if (entryNodes.has(nodeId)) {
+        actions.skipChildren();
+        return;
+      }
+
       let node = nullthrows(this._graph.getNode(nodeId));
 
       if (node.type === 'bundle_group') {
