@@ -595,6 +595,7 @@ version = "0.1.0"
 dependencies = [
  "js-sys",
  "parcel-js-swc-core",
+ "serde",
  "serde-wasm-bindgen",
  "wasm-bindgen",
 ]
@@ -827,9 +828,9 @@ dependencies = [
 
 [[package]]
 name = "serde-wasm-bindgen"
-version = "0.2.0"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1515286919c7a28f96c362f42cd42aec7ef6d417334118be69d1ad96160aa5f5"
+checksum = "1102fa7714968fcf70fd8efa29fb3b189e20ef0e7701fbab9634384dda034bf3"
 dependencies = [
  "fnv",
  "js-sys",
