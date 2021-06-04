@@ -68,7 +68,7 @@ export default class ContentGraph<
   getNodeIdByContentKey(contentKey: ContentKey): NodeId {
     return nullthrows(
       this._contentKeyToNodeId.get(contentKey),
-      'Expected content key to exist',
+      `Expected content key ${contentKey} to exist`,
     );
   }
 

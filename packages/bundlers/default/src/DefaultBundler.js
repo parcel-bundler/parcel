@@ -391,7 +391,7 @@ export default (new Bundler({
         }
       }
 
-      // Do not create a shared bundle from a single source bundle
+      // Do not create a shared bundle unless there are at least 2 source bundles
       if (eligibleSourceBundles.size < 2) {
         continue;
       }

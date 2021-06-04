@@ -3623,4 +3623,45 @@ describe('javascript', function() {
       },
     );
   });
+
+  it('should create a shared bundle from a minimum of 2 source bundles', async function() {
+    let b = await bundle(
+      path.join(__dirname, 'integration/shared-bundle-single-source/index.js'),
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: false,
+        },
+      },
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: [
+          'index.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'css-loader.js',
+          'esmodule-helpers.js',
+          'html-loader.js',
+          'js-loader.js',
+          'bundle-manifest.js',
+          'relative-path.js',
+        ],
+      },
+      {
+        assets: ['a.js', 'b.js', 'bar.js', 'foo.js'],
+      },
+      {
+        assets: ['a.js', 'b.js', 'foo.js'],
+      },
+      {
+        assets: ['styles.css'],
+      },
+      {
+        assets: ['local.html'],
+      },
+    ]);
+  });
 });
