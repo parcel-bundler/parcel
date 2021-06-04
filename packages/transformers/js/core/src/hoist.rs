@@ -1022,7 +1022,7 @@ impl<'a> Hoist<'a> {
     self
       .imported_symbols
       .insert(new_name.clone(), (source.clone(), local.clone(), loc));
-    return Ident::new(new_name, span);
+    Ident::new(new_name, span)
   }
 
   fn get_require_ident(&self, local: &JsWord) -> Ident {
@@ -1046,7 +1046,7 @@ impl<'a> Hoist<'a> {
 
     let mut span = span;
     span.ctxt = SyntaxContext::empty();
-    return Ident::new(new_name, span);
+    Ident::new(new_name, span)
   }
 
   fn handle_non_const_require(&mut self, v: &VarDeclarator, source: &JsWord) {
@@ -1949,7 +1949,7 @@ mod tests {
       emitter.emit_module(&program).unwrap();
     }
 
-    return String::from_utf8(buf).unwrap();
+    String::from_utf8(buf).unwrap()
   }
 
   macro_rules! map(

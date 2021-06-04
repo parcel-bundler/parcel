@@ -123,7 +123,7 @@ impl<'a> InlineFS<'a> {
       _ => {}
     }
 
-    return None;
+    None
   }
 
   fn evaluate_fs_arg(
@@ -234,7 +234,7 @@ impl<'a> InlineFS<'a> {
           Some(contents)
         }
       }
-      _ => return None,
+      _ => None,
     }
   }
 }
@@ -332,7 +332,7 @@ impl<'a> Fold for Evaluator<'a> {
           }
         }
 
-        return node;
+        node
       }
       _ => node,
     }
