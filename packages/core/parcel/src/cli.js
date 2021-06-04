@@ -133,7 +133,7 @@ let serve = program
     '--lazy',
     'Build async bundles on demand, when requested in the browser',
   )
-  .option('--incremental-bundling', 'incrementally bundle')
+  .option('--incremental', 'incrementally bundle')
   .action(runCommand);
 
 applyOptions(serve, hmrOptions);
@@ -466,7 +466,7 @@ async function normalizeOptions(
     shouldAutoInstall: command.autoinstall ?? true,
     logLevel: command.logLevel,
     shouldProfile: command.profile,
-    isIncremental: command.incremental ?? false,
+    shouldIncrementallyBundle: command.incremental ?? false,
     shouldBuildLazily: command.lazy,
     detailedReport:
       command.detailedReport != null
