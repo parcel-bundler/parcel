@@ -64,7 +64,7 @@ const FIRST_OUT: 1 = 1;
 
 export const ALL_EDGE_TYPES: AllEdgeTypes = '@@all_edge_types';
 
-export type SerializedEfficientGraph = {|
+export type SerializedEfficientGraph<TEdgeType> = {|
   nodes: Uint32Array,
   edges: Uint32Array,
   numNodes: number,
@@ -136,7 +136,7 @@ export default class EfficientGraph<TEdgeType: number = 1> {
    * The options should match the format returned by the `serialize` method.
    */
   static deserialize(
-    opts: SerializedEfficientGraph,
+    opts: SerializedEfficientGraph<TEdgeType>,
   ): EfficientGraph<TEdgeType> {
     let res = Object.create(EfficientGraph.prototype);
     res.nodes = opts.nodes;
@@ -149,7 +149,7 @@ export default class EfficientGraph<TEdgeType: number = 1> {
   /**
    * Returns a JSON-serializable object of the nodes and edges in the graph.
    */
-  serialize(): SerializedEfficientGraph {
+  serialize(): SerializedEfficientGraph<TEdgeType> {
     return {
       nodes: this.nodes,
       edges: this.edges,

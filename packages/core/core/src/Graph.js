@@ -11,14 +11,14 @@ import nullthrows from 'nullthrows';
 export type NullEdgeType = 1;
 export type GraphOpts<TNode, TEdgeType: number = 1> = {|
   nodes?: Map<NodeId, TNode>,
-  adjacencyList?: EfficientGraph<TEdgeType>,
+  adjacencyList?: SerializedEfficientGraph<TEdgeType>,
   rootNodeId?: ?NodeId,
   nextNodeId?: ?number,
 |};
 
 export type SerializedGraph<TNode, TEdgeType: number = 1> = {|
   nodes: Map<NodeId, TNode>,
-  adjacencyList: SerializedEfficientGraph,
+  adjacencyList: SerializedEfficientGraph<TEdgeType>,
   rootNodeId: ?NodeId,
   nextNodeId: number,
 |};
@@ -39,7 +39,7 @@ export default class Graph<TNode: Node, TEdgeType: number = 1> {
 
     let adjacencyList = opts?.adjacencyList;
     this.adjacencyList = adjacencyList
-      ? adjacencyList
+      ? EfficientGraph.deserialize(adjacencyList)
       : new EfficientGraph<TEdgeType>();
   }
 
