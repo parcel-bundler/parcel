@@ -24,8 +24,10 @@
   },
   "files": [
     "lib",
-    "*.node",
-    "src"
+    "native-browser.js",
+    "native.js",
+    "src",
+    "*.node"
   ],
   "dependencies": {
     "@parcel/diagnostic": "2.0.0-beta.3.1",
