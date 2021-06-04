@@ -1536,7 +1536,7 @@ describe('html', function() {
     assert(css.includes('.b {'));
   });
 
-  it('should support split bundles with many pages', async function() {
+  it.only('should support split bundles with many pages', async function() {
     await bundle(path.join(__dirname, '/integration/shared-many/*.html'), {
       mode: 'production',
     });
