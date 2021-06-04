@@ -7,12 +7,7 @@ import type {ServerError, HMRServerOptions} from './types.js.flow';
 
 import WebSocket from 'ws';
 import invariant from 'assert';
-import {
-  ansiHtml,
-  md5FromObject,
-  prettyDiagnostic,
-  PromiseQueue,
-} from '@parcel/utils';
+import {ansiHtml, prettyDiagnostic, PromiseQueue} from '@parcel/utils';
 
 export type HMRAsset = {|
   id: string,
@@ -127,7 +122,7 @@ export default class HMRServer {
           id: event.bundleGraph.getAssetPublicId(asset),
           type: asset.type,
           output: await asset.getCode(),
-          envHash: md5FromObject(asset.env),
+          envHash: asset.env.id,
           depsByBundle,
         };
       });

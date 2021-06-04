@@ -455,7 +455,7 @@ export function assertBundles(
         return;
       }
 
-      if (/runtime-[a-z0-9]{32}\.js/.test(asset.filePath)) {
+      if (/runtime-[a-z0-9]{16}\.js/.test(asset.filePath)) {
         // Skip runtime assets, which have hashed filenames for source maps.
         return;
       }
