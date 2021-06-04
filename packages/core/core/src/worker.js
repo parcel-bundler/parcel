@@ -17,6 +17,8 @@ import Validation, {type ValidationOpts} from './Validation';
 import ParcelConfig from './ParcelConfig';
 import {registerCoreWithSerializer} from './utils';
 import {clearBuildCaches} from './buildCache';
+import {init as initSourcemaps} from '@parcel/source-map';
+import {init as initHash} from '@parcel/hash';
 
 import '@parcel/cache'; // register with serializer
 import '@parcel/package-manager';
@@ -50,6 +52,8 @@ function loadOptions(ref, workerApi) {
 }
 
 async function loadConfig(cachePath, options) {
+  await initSourcemaps;
+  await initHash;
   let config = parcelConfigCache.get(cachePath);
   if (config && config.options === options) {
     return config;
@@ -74,6 +78,8 @@ export async function runTransform(
   workerApi: WorkerApi,
   opts: WorkerTransformationOpts,
 ): Promise<TransformationResult> {
+  await initSourcemaps;
+  await initHash;
   let {optionsRef, configCachePath, ...rest} = opts;
   let options = loadOptions(optionsRef, workerApi);
   let config = await loadConfig(configCachePath, options);
@@ -90,6 +96,8 @@ export async function runValidate(
   workerApi: WorkerApi,
   opts: WorkerValidationOpts,
 ): Promise<void> {
+  await initSourcemaps;
+  await initHash;
   let {optionsRef, configCachePath, ...rest} = opts;
   let options = loadOptions(optionsRef, workerApi);
   let config = await loadConfig(configCachePath, options);
@@ -122,6 +130,8 @@ export async function runPackage(
     optionsRef: SharedReference,
   |},
 ): Promise<BundleInfo> {
+  await initSourcemaps;
+  await initHash;
   let bundleGraph = workerApi.getSharedReference(bundleGraphReference);
   invariant(bundleGraph instanceof BundleGraph);
   let options = loadOptions(optionsRef, workerApi);
