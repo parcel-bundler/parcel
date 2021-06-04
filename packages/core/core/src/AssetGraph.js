@@ -611,7 +611,8 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
           if (
             previousContentKeys.has(assetGraphNode.id) &&
             assetGraphNode.id &&
-            !changedAssets.has(assetGraphNode.id)
+            !changedAssets.has(assetGraphNode.id) &&
+            assetGraphNode.type != 'asset_group' //added so that we don't lose a new edge in the process
           ) {
             actions.skipChildren();
             return;

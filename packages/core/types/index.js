@@ -270,7 +270,7 @@ export type InitialParcelOptions = {|
   +shouldAutoInstall?: boolean,
   +logLevel?: LogLevel,
   +shouldProfile?: boolean,
-  +isIncremental?: boolean,
+  +shouldIncrementallyBundle?: boolean,
   +shouldPatchConsole?: boolean,
   +shouldBuildLazily?: boolean,
 
@@ -1154,7 +1154,7 @@ export type Bundler = {|
     bundleGraph: MutableBundleGraph,
     config: ?ConfigResult,
     options: PluginOptions,
-    assetGraphTransformationSubGraph: AssetGraph,
+    assetGraphTransformationSubGraph: MutableBundleGraph,
     changedAssets: Map<string, Asset>,
   |}): Async<void>,
 |};

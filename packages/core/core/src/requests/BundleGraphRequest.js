@@ -281,30 +281,29 @@ class BundlerRunner {
       //TODO: AND inc flag should be enabled
       else if (
         assetGraphTransformationSubGraph.nodes.size > 1 &&
-        cachedBundleGraph?.bundleGraph != null
+        cachedBundleGraph?.bundleGraph != null &&
+        this.options.shouldIncrementallyBundle
       ) {
-        //If there are no transformations, a root node will still exist
-        //probably want old bundlegraph as well
-
-        await bundler.update({
-          bundleGraph: cachedBundleGraph?.bundleGraph,
-          config: this.configs.get(plugin.name)?.result,
-          options: this.pluginOptions,
-          assetGraphTransformationSubGraph, //TODO need to be public facing assetgraph
-          changedAssets,
-        });
-        //** for debugging purposes so no errors occur, will be removed */
-        internalBundleGraph = InternalBundleGraph.fromAssetGraph(graph);
-
-        mutableBundleGraph = new MutableBundleGraph(
-          internalBundleGraph,
-          this.options,
+        internalBundleGraph = cachedBundleGraph.bundleGraph;
+        await dumpGraphToGraphViz(
+          internalBundleGraph._graph,
+          'before_bundle_update',
         );
-        await bundler.bundle({
-          bundleGraph: mutableBundleGraph,
+        let transformationSubGraph = InternalBundleGraph.fromAssetGraph(
+          assetGraphTransformationSubGraph,
+        );
+        //can I call merge here?
+        internalBundleGraph.merge(transformationSubGraph);
+        await dumpGraphToGraphViz(
+          internalBundleGraph._graph,
+          'after_bundle_update_merge',
+        );
+        await bundler.update({
+          bundleGraph: internalBundleGraph,
           config: this.configs.get(plugin.name)?.result,
           options: this.pluginOptions,
-          logger,
+          assetGraphTransformationSubGraph: transformationSubGraph, //TODO need to be public facing assetgraph
+          changedAssets,
         });
       } else {
         internalBundleGraph = InternalBundleGraph.fromAssetGraph(graph);
