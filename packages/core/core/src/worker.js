@@ -52,8 +52,6 @@ function loadOptions(ref, workerApi) {
 }
 
 async function loadConfig(cachePath, options) {
-  await initSourcemaps;
-  await initHash;
   let config = parcelConfigCache.get(cachePath);
   if (config && config.options === options) {
     return config;
@@ -78,8 +76,6 @@ export async function runTransform(
   workerApi: WorkerApi,
   opts: WorkerTransformationOpts,
 ): Promise<TransformationResult> {
-  await initSourcemaps;
-  await initHash;
   let {optionsRef, configCachePath, ...rest} = opts;
   let options = loadOptions(optionsRef, workerApi);
   let config = await loadConfig(configCachePath, options);
@@ -96,8 +92,6 @@ export async function runValidate(
   workerApi: WorkerApi,
   opts: WorkerValidationOpts,
 ): Promise<void> {
-  await initSourcemaps;
-  await initHash;
   let {optionsRef, configCachePath, ...rest} = opts;
   let options = loadOptions(optionsRef, workerApi);
   let config = await loadConfig(configCachePath, options);
@@ -130,8 +124,6 @@ export async function runPackage(
     optionsRef: SharedReference,
   |},
 ): Promise<BundleInfo> {
-  await initSourcemaps;
-  await initHash;
   let bundleGraph = workerApi.getSharedReference(bundleGraphReference);
   invariant(bundleGraph instanceof BundleGraph);
   let options = loadOptions(optionsRef, workerApi);
@@ -161,6 +153,11 @@ export async function runPackage(
     (await runner.getBundleInfoFromCache(cacheKeys.info)) ??
     runner.getBundleInfo(bundle, bundleGraph, cacheKeys, configs)
   );
+}
+
+export async function childInit() {
+  await initSourcemaps;
+  await initHash;
 }
 
 const PKG_RE = /node_modules[/\\]((?:@[^/\\]+[/\\][^/\\]+)|[^/\\]+)(?!.*[/\\]node_modules[/\\])/;
