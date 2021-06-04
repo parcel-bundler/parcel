@@ -704,17 +704,21 @@ export default class EfficientGraph<TEdgeType: number = 1> {
    *
    */
   hash(from: NodeId, to: NodeId, type: TEdgeType | NullEdgeType): number {
-    return (
-      1 + // 1 is added to every hash to guarantee a truthy result.
-      Math.abs(
-        // TODO: Look more into how this hash function works
-        ((type + 555555) *
-          (fromNodeId(from) + 111111) *
-          (fromNodeId(to) - 333333) *
-          EDGE_SIZE) %
-          this.edges.length,
-      )
-    );
+    // A crude multiplicative hash, in 4 steps:
+    // 1. Serialize the args into an integer that reflects the argument order,
+    // using the node capacity to roughly shift and then add each argument,
+    // .e.g., `hash(1, 2, 4) =>  1 * 128 + 2 * 10 + 4 => 152`.
+    // Note: we assume that `type` will be a very small integer.
+    let hash =
+      fromNodeId(from) * Math.max(this.nodeCapacity, 100) +
+      fromNodeId(to) * 10 +
+      type;
+    // 2. Map the hash to a value modulo the edge capacity.
+    hash %= this.edgeCapacity;
+    // 3. Multiply by EDGE_SIZE to select a valid index.
+    hash *= EDGE_SIZE;
+    // 4. Add 1 to guarantee a truthy result.
+    return hash + 1;
   }
 
   toDot(type: 'graph' | 'edges' | 'nodes' = 'graph'): string {
