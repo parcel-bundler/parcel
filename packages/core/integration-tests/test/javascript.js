@@ -3623,4 +3623,16 @@ describe('javascript', function() {
       },
     );
   });
+
+  it("should not remove a bundle's entry asset during deduplication", async function() {
+    let b = await bundle(
+      path.join(__dirname, 'integration/shared-asset-removes-bundle/index.js'),
+      {
+        mode: 'production',
+      },
+    );
+
+    let res = await run(b);
+    assert.equal(await res, 'target');
+  });
 });
