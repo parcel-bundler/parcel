@@ -10,7 +10,6 @@ import type {Config, ParcelOptions} from '../types';
 import type {LoadedPlugin} from '../ParcelConfig';
 import type {RunAPI} from '../RequestTracker';
 
-import crypto from 'crypto';
 import v8 from 'v8';
 import {PluginLogger} from '@parcel/logger';
 import PluginOptions from '../public/PluginOptions';
@@ -18,6 +17,7 @@ import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import PublicConfig from '../public/Config';
 import {optionsProxy} from '../utils';
 import {getInvalidationHash} from '../assetUtils';
+import {Hash} from '@parcel/hash';
 
 export type PluginWithLoadConfig = {
   loadConfig?: ({|
@@ -121,14 +121,14 @@ export async function getConfigHash(
     return '';
   }
 
-  let hash = crypto.createHash('md5');
-  hash.update(config.id);
+  let hash = new Hash();
+  hash.writeString(config.id);
 
   // If there is no result hash set by the transformer, default to hashing the included
   // files if any, otherwise try to hash the config result itself.
   if (config.resultHash == null) {
     if (config.includedFiles.size > 0) {
-      hash.update(
+      hash.writeString(
         await getInvalidationHash(
           [...config.includedFiles].map(filePath => ({
             type: 'file',
@@ -140,7 +140,7 @@ export async function getConfigHash(
     } else if (config.result != null) {
       try {
         // $FlowFixMe
-        hash.update(v8.serialize(config.result));
+        hash.writeBuffer(v8.serialize(config.result));
       } catch (err) {
         throw new ThrowableDiagnostic({
           diagnostic: {
@@ -152,8 +152,8 @@ export async function getConfigHash(
       }
     }
   } else {
-    hash.update(config.resultHash ?? '');
+    hash.writeString(config.resultHash ?? '');
   }
 
-  return hash.digest('hex');
+  return hash.finish();
 }
