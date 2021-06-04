@@ -232,6 +232,11 @@ export default class EfficientGraph<TEdgeType: number = 1> {
     // Copy the existing nodes into the new array.
     this.nodes.set(nodes);
     this.nodeCapacity = size;
+    // We have to rehash the edges when the node capacity changes
+    // since they used the previous node capacity as a multiplier.
+    let edges = this.edges;
+    this.edges = new Uint32Array(this.edgeCapacity * EDGE_SIZE);
+    this.copyEdges(edges);
   }
 
   /**
@@ -246,7 +251,13 @@ export default class EfficientGraph<TEdgeType: number = 1> {
     // Allocate the required space for an `edges` array of the given `size`.
     this.edges = new Uint32Array(size * EDGE_SIZE);
     this.edgeCapacity = size;
+    this.copyEdges(edges);
+  }
 
+  /**
+   * Copy the edges in the given array into the internal edges array.
+   */
+  copyEdges(edges: Uint32Array) {
     // For each node in the graph, copy the existing edges into the new array.
     for (let i = 0; i < this.nodes.length; i += NODE_SIZE) {
       /** The next node with edges to copy. */
