@@ -40,7 +40,7 @@ function setHeaders(res: Response) {
     'Access-Control-Allow-Headers',
     'Origin, X-Requested-With, Content-Type, Accept, Content-Type',
   );
-  res.setHeader('Cross-origin-Opener-Policy', 'same-origin');
+  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
   res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
   res.setHeader('Cross-Origin-Embedded-Policy', 'require-corp');
 }
