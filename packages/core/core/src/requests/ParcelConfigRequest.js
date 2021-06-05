@@ -267,7 +267,7 @@ function processMap(
       throw new ThrowableDiagnostic({
         diagnostic: {
           message:
-            'Named pipeline node: is reserved for builtin NodeJS libraries',
+            'Named pipeline node: is reserved for builtin Node.js libraries',
           origin: '@parcel/core',
           filePath,
         },
