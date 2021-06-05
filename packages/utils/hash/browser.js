@@ -1,35 +1,38 @@
 // @flow
-import xxhash from 'xxhash-wasm';
+const xxhash = require('xxhash-wasm');
 
 let h64, h64Raw;
-export const init: Promise<void> = xxhash().then(xxh => {
+module.exports.init = (xxhash().then(xxh => {
   ({h64, h64Raw} = xxh);
-});
+}) /*: Promise<void> */);
 
 const encoder = new TextEncoder();
-export function hashString(s: string): string {
+function hashString(s /*: string */) /*: string */ {
   return h64(s);
 }
-export function hashBuffer(b: Uint8Array): string {
+module.exports.hashString = hashString;
+function hashBuffer(b /*: Uint8Array */) /*: string */ {
   return toHex(h64Raw(b));
 }
-export class Hash {
-  data: Array<Uint8Array>;
+module.exports.hashBuffer = hashBuffer;
+class Hash {
+  /*:: data: Array<Uint8Array>; */
   constructor() {
     this.data = [];
   }
-  writeString(s: string) {
+  writeString(s /*: string */) {
     this.data.push(encoder.encode(s));
   }
-  writeBuffer(b: Uint8Array) {
+  writeBuffer(b /*: Uint8Array */) {
     this.data.push(b);
   }
-  finish(): string {
+  finish() /*: string */ {
     return hashBuffer(concatUint8Arrays(this.data));
   }
 }
+module.exports.Hash = Hash;
 
-function concatUint8Arrays(arrays: Array<Uint8Array>): Uint8Array {
+function concatUint8Arrays(arrays) {
   let totalLength = 0;
   for (let a of arrays) {
     totalLength += a.byteLength;
