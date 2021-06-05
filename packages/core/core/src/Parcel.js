@@ -37,6 +37,8 @@ import createAssetGraphRequest from './requests/AssetGraphRequest';
 import createValidationRequest from './requests/ValidationRequest';
 import createBundleGraphRequest from './requests/BundleGraphRequest';
 import {Disposable} from '@parcel/events';
+import {init as initSourcemaps} from '@parcel/source-map';
+import {init as initHash} from '@parcel/hash';
 
 registerCoreWithSerializer();
 
@@ -82,6 +84,9 @@ export default class Parcel {
     if (this.#initialized) {
       return;
     }
+
+    await initSourcemaps;
+    await initHash;
 
     let resolvedOptions: ParcelOptions = await resolveOptions(
       this.#initialOptions,

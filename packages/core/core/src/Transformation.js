@@ -24,7 +24,6 @@ import path from 'path';
 import nullthrows from 'nullthrows';
 import {normalizeSeparators, objectSortedEntries} from '@parcel/utils';
 import logger, {PluginLogger} from '@parcel/logger';
-import {init as initSourcemaps} from '@parcel/source-map';
 import ThrowableDiagnostic, {
   errorToDiagnostic,
   escapeMarkdown,
@@ -113,8 +112,6 @@ export default class Transformation {
   }
 
   async run(): Promise<TransformationResult> {
-    await initSourcemaps;
-
     let asset = await this.loadAsset();
 
     if (!asset.mapBuffer && SOURCEMAP_EXTENSIONS.has(asset.value.type)) {
