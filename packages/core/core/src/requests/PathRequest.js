@@ -157,17 +157,21 @@ export class ResolverRunner {
       !path.isAbsolute(dependency.moduleSpecifier) &&
       dependency.moduleSpecifier.includes(':')
     ) {
-      [pipeline, filePath] = dependency.moduleSpecifier.split(':');
-      if (!validPipelines.has(pipeline)) {
-        if (dep.isURL) {
-          // This may be a url protocol or scheme rather than a pipeline, such as
-          // `url('http://example.com/foo.png')`
-          return null;
-        } else {
-          throw await this.getThrowableDiagnostic(
-            dependency,
-            md`Unknown pipeline: ${pipeline}.`,
-          );
+      if (dependency.moduleSpecifier.startsWith('node:')) {
+        filePath = dependency.moduleSpecifier;
+      } else {
+        [pipeline, filePath] = dependency.moduleSpecifier.split(':');
+        if (!validPipelines.has(pipeline)) {
+          if (dep.isURL) {
+            // This may be a url protocol or scheme rather than a pipeline, such as
+            // `url('http://example.com/foo.png')`
+            return null;
+          } else {
+            throw await this.getThrowableDiagnostic(
+              dependency,
+              md`Unknown pipeline: ${pipeline}.`,
+            );
+          }
         }
       }
     } else {
