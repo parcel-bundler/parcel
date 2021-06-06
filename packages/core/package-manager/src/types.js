@@ -37,12 +37,12 @@ export interface PackageManager {
   require(
     id: ModuleSpecifier,
     from: FilePath,
-    ?{|range?: SemverRange, shouldAutoInstall?: boolean, saveDev?: boolean|},
+    ?{|range?: ?SemverRange, shouldAutoInstall?: boolean, saveDev?: boolean|},
   ): Promise<any>;
   resolve(
     id: ModuleSpecifier,
     from: FilePath,
-    ?{|range?: SemverRange, shouldAutoInstall?: boolean, saveDev?: boolean|},
+    ?{|range?: ?SemverRange, shouldAutoInstall?: boolean, saveDev?: boolean|},
   ): Promise<ResolveResult>;
   getInvalidations(id: ModuleSpecifier, from: FilePath): Invalidations;
   invalidate(id: ModuleSpecifier, from: FilePath): void;
