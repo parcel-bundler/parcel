@@ -3,12 +3,10 @@
 import type {
   AST,
   Blob,
-  ConfigResult,
   DependencyOptions,
   FilePath,
   FileCreateInvalidation,
   GenerateOutput,
-  PackageJSON,
   PackageName,
   TransformerResult,
 } from '@parcel/types';
@@ -38,7 +36,6 @@ import {PARCEL_VERSION} from './constants';
 import {
   createAsset,
   createAssetIdFromOptions,
-  getConfig,
   getInvalidationId,
   getInvalidationHash,
 } from './assetUtils';

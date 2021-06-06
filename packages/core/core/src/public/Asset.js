@@ -8,7 +8,6 @@ import type {
   Asset as IAsset,
   AST,
   ASTGenerator,
-  ConfigResult,
   Dependency as IDependency,
   DependencyOptions,
   Environment as IEnvironment,
@@ -17,7 +16,6 @@ import type {
   FilePath,
   Meta,
   MutableAsset as IMutableAsset,
-  PackageJSON,
   Stats,
   MutableAssetSymbols as IMutableAssetSymbols,
   AssetSymbols as IAssetSymbols,
@@ -302,9 +300,9 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
 
   addURLDependency(url: string, opts: $Shape<DependencyOptions>): string {
     return this.addDependency({
-      moduleSpecifier: url,
-      isURL: true,
-      isAsync: true, // The browser has native loaders for url dependencies
+      specifier: url,
+      specifierType: 'url',
+      priority: 'lazy',
       ...opts,
     });
   }

@@ -93,7 +93,7 @@ function register(inputOpts?: InitialParcelOptions): IDisposable {
       let resolved = syncPromise(
         // $FlowFixMe
         parcel[INTERNAL_RESOLVE]({
-          moduleSpecifier: targetFile,
+          specifier: targetFile,
           sourcePath: currFile,
           env,
         }),

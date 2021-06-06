@@ -92,7 +92,8 @@ export default function extractInlineAssets(
         asset.setAST(ast); // mark dirty
 
         asset.addDependency({
-          moduleSpecifier: parcelKey,
+          specifier: parcelKey,
+          specifierType: 'esm',
         });
 
         parts.push({
@@ -100,6 +101,7 @@ export default function extractInlineAssets(
           content: value,
           uniqueKey: parcelKey,
           isInline: true,
+          isIsolated: false,
           env,
           meta: {
             type: 'tag',
@@ -119,7 +121,8 @@ export default function extractInlineAssets(
     let style = attrs?.style;
     if (attrs != null && style != null) {
       attrs.style = asset.addDependency({
-        moduleSpecifier: parcelKey,
+        specifier: parcelKey,
+        specifierType: 'esm',
       });
       asset.setAST(ast); // mark dirty
 
@@ -128,6 +131,7 @@ export default function extractInlineAssets(
         content: style,
         uniqueKey: parcelKey,
         isInline: true,
+        isIsolated: false,
         meta: {
           type: 'attr',
           // $FlowFixMe

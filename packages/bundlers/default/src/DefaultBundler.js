@@ -70,24 +70,24 @@ export default (new Bundler({
 
         let assets = bundleGraph.getDependencyAssets(dependency);
         let resolution = bundleGraph.getDependencyResolution(dependency);
-        // Create a new bundle for entries, async deps, isolated assets, and inline assets.
+        let bundleGroup = context?.bundleGroup;
+        // Create a new bundle for entries, lazy/parallel dependencies, isolated assets, and inline assets.
         if (
-          (dependency.isEntry && resolution) ||
-          (dependency.isAsync && resolution) ||
-          (dependency.isIsolated && resolution) ||
-          resolution?.isIsolated ||
-          resolution?.isInline
+          resolution &&
+          (!bundleGroup ||
+            dependency.priority === 'lazy' ||
+            dependency.priority === 'parallel' ||
+            resolution.isIsolated ||
+            resolution.isInline)
         ) {
-          let bundleGroup = context?.bundleGroup;
           let bundleByType: Map<string, Bundle> =
             context?.bundleByType ?? new Map();
 
-          // Only create a new bundle group for entries, async dependencies, and isolated assets.
+          // Only create a new bundle group for entries, lazy dependencies, and isolated assets.
           // Otherwise, the bundle is loaded together with the parent bundle.
           if (
             !bundleGroup ||
-            dependency.isEntry ||
-            dependency.isAsync ||
+            dependency.priority === 'lazy' ||
             resolution.isIsolated
           ) {
             bundleGroup = bundleGraph.createBundleGroup(
@@ -101,7 +101,9 @@ export default (new Bundler({
           for (let asset of assets) {
             let bundle = bundleGraph.createBundle({
               entryAsset: asset,
-              isEntry: asset.isInline ? false : Boolean(dependency.isEntry),
+              isEntry: asset.isInline
+                ? false
+                : dependency.isEntry || dependency.needsStableName,
               isInline: asset.isInline,
               target: bundleGroup.target,
             });
@@ -132,9 +134,9 @@ export default (new Bundler({
         invariant(context != null);
         invariant(context.parentNode.type === 'asset');
         invariant(context.parentBundle != null);
+        invariant(bundleGroup != null);
         let parentAsset = context.parentNode.value;
         let parentBundle = context.parentBundle;
-        let bundleGroup = nullthrows(context.bundleGroup);
         let bundleByType = nullthrows(context.bundleByType);
 
         for (let asset of assets) {
@@ -156,7 +158,9 @@ export default (new Bundler({
               type: asset.type,
               target: bundleGroup.target,
               isEntry:
-                asset.isInline || dependency.isEntry === false
+                asset.isInline ||
+                (dependency.priority === 'parallel' &&
+                  !dependency.needsStableName)
                   ? false
                   : parentBundle.isEntry,
               isInline: asset.isInline,
@@ -254,7 +258,7 @@ export default (new Bundler({
       if (
         node.type !== 'dependency' ||
         node.value.isEntry ||
-        !node.value.isAsync
+        node.value.priority !== 'lazy'
       ) {
         return;
       }
@@ -265,7 +269,7 @@ export default (new Bundler({
       }
 
       let dependency = node.value;
-      if (dependency.isURL) {
+      if (dependency.specifierType === 'url') {
         // Don't internalize dependencies on URLs, e.g. `new Worker('foo.js')`
         return;
       }

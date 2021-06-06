@@ -95,13 +95,14 @@ async function getConfig(
     asset.filePath,
   );
   let baseDir = configPath ? path.dirname(configPath) : options.projectRoot;
-  let configHash = (tsconfig ? hashObject(tsconfig) : '') + '-' + baseDir;
+  let configHash =
+    (tsconfig ? hashObject(tsconfig.config) : '') + '-' + baseDir;
 
   return {
     filepath: configPath,
     baseDir,
     configHash,
-    tsconfig,
+    tsconfig: tsconfig?.config,
   };
 }
 

@@ -173,42 +173,6 @@ async function _generateFromAST(asset: CommittedAsset | UncommittedAsset) {
   };
 }
 
-export async function getConfig(
-  asset: CommittedAsset | UncommittedAsset,
-  filePaths: Array<FilePath>,
-  options: ?{|
-    packageKey?: string,
-    parse?: boolean,
-  |},
-): Promise<ConfigOutput | null> {
-  let packageKey = options?.packageKey;
-  let parse = options && options.parse;
-
-  if (packageKey != null) {
-    let pkg = await asset.getPackage();
-    if (pkg && pkg[packageKey]) {
-      return {
-        config: pkg[packageKey],
-        // The package.json file was already registered by asset.getPackage() -> asset.getConfig()
-        files: [],
-      };
-    }
-  }
-
-  let conf = await loadConfig(
-    asset.options.inputFS,
-    asset.value.filePath,
-    filePaths,
-    asset.options.projectRoot,
-    parse == null ? null : {parse},
-  );
-  if (!conf) {
-    return null;
-  }
-
-  return conf;
-}
-
 export function getInvalidationId(invalidation: RequestInvalidation): string {
   switch (invalidation.type) {
     case 'file':

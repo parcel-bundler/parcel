@@ -42,7 +42,7 @@ export type Glob = string;
 export type Semver = string;
 export type SemverRange = string;
 /** See Dependency */
-export type ModuleSpecifier = string;
+export type DependencySpecifier = string;
 
 /** A pipeline as specified in the config mapping to <code>T</code>  */
 export type GlobMap<T> = {[Glob]: T, ...};
@@ -258,8 +258,8 @@ export type DetailedReportOptions = {|
 export type InitialParcelOptions = {|
   +entries?: FilePath | Array<FilePath>,
   +entryRoot?: FilePath,
-  +config?: ModuleSpecifier,
-  +defaultConfig?: ModuleSpecifier,
+  +config?: DependencySpecifier,
+  +defaultConfig?: DependencySpecifier,
   +env?: EnvMap,
   +targets?: ?(Array<string> | {+[string]: TargetDescriptor, ...}),
 
@@ -292,7 +292,7 @@ export type InitialParcelOptions = {|
   |},
 
   +additionalReporters?: Array<{|
-    packageName: ModuleSpecifier,
+    packageName: DependencySpecifier,
     resolveFrom: FilePath,
   |}>,
 
@@ -431,24 +431,59 @@ export interface MutableDependencySymbols // eslint-disable-next-line no-undef
   delete(exportSymbol: Symbol): void;
 }
 
+export type DependencyPriority = 'sync' | 'parallel' | 'lazy';
+export type SpecifierType = 'commonjs' | 'esm' | 'url' | 'custom';
+
 /**
  * Usen when creating a Dependency, see that.
  * @section transformer
  */
 export type DependencyOptions = {|
-  +moduleSpecifier: ModuleSpecifier,
-  +isAsync?: boolean,
-  /** Is merged with the environment of the importer */
-  +isEntry?: boolean,
+  /** The specifier used to resolve the dependency. */
+  +specifier: DependencySpecifier,
+  /**
+   * How the specifier should be interpreted.
+   *   - esm: An ES module specifier. It is parsed as a URL, but bare specifiers are treated as node_modules.
+   *   - commonjs: A CommonJS specifier. It is not parsed as a URL.
+   *   - url: A URL that works as in a browser. Bare specifiers are treated as relative URLs.
+   *   - custom: A custom specifier. Must be handled by a custom resolver plugin.
+   */
+  +specifierType: SpecifierType,
+  /**
+   * When the dependency should be loaded.
+   *   - sync: The dependency should be resolvable synchronously. The resolved asset will be placed
+   *       in the same bundle as the parent, or another bundle that's already on the page.
+   *   - parallel: The dependency should be placed in a separate bundle that's loaded in parallel
+   *       with the current bundle.
+   *   - lazy: The dependency should be placed in a separate bundle that's loaded later.
+   * @default 'sync'
+   */
+  +priority?: DependencyPriority,
+  /**
+   * When the dependency is a bundle entry (priority is "parallel" or "lazy"), this controls the naming
+   * of that bundle. `needsStableName` indicates that the name should be stable over time, even when the
+   * content of the bundle changes. This is useful for entries that a user would manually enter the URL
+   * for, as well as for things like service workers or RSS feeds, where the URL must remain consistent
+   * over time.
+   */
+  +needsStableName?: boolean,
+  /** Whether the dependency is optional. If the dependency cannot be resolved, this will not fail the build. */
   +isOptional?: boolean,
-  +isURL?: boolean,
-  +isIsolated?: boolean,
+  /** The location within the source file where the dependency was found. */
   +loc?: SourceLocation,
+  /** The environment of the dependency. */
   +env?: EnvironmentOptions,
+  /** Plugin-specific metadata for the dependency. */
   +meta?: Meta,
+  /** The pipeline defined in .parcelrc that the dependency should be processed with. */
   +pipeline?: string,
+  /**
+   * The file path where the dependency should be resolved from.
+   * By default, this is the path of the source file where the dependency was specified.
+   */
   +resolveFrom?: FilePath,
   +target?: Target,
+  /** The symbols within the resolved module that the source file depends on. */
   +symbols?: $ReadOnlyMap<
     Symbol,
     {|local: Symbol, loc: ?SourceLocation, isWeak: boolean|},
@@ -462,34 +497,64 @@ export type DependencyOptions = {|
  * @section transformer
  */
 export interface Dependency {
+  /** The id of the dependency. */
   +id: string;
-  /** E.g. "lodash" in <code>import {add} from "lodash";</code>  */
-  +moduleSpecifier: ModuleSpecifier;
-  +isAsync: boolean;
-  /** Whether this should become a entry in a bundle. */
-  +isEntry: ?boolean;
-  /** Whether a failed resolution should not cause a build error. */
+  /** The specifier used to resolve the dependency. */
+  +specifier: DependencySpecifier;
+  /**
+   * How the specifier should be interpreted.
+   *   - esm: An ES module specifier. It is parsed as a URL, but bare specifiers are treated as node_modules.
+   *   - commonjs: A CommonJS specifier. It is not parsed as a URL.
+   *   - url: A URL that works as in a browser. Bare specifiers are treated as relative URLs.
+   *   - custom: A custom specifier. Must be handled by a custom resolver plugin.
+   */
+  +specifierType: SpecifierType;
+  /**
+   * When the dependency should be loaded.
+   *   - sync: The dependency should be resolvable synchronously. The resolved asset will be placed
+   *       in the same bundle as the parent, or another bundle that's already on the page.
+   *   - parallel: The dependency should be placed in a separate bundle that's loaded in parallel
+   *       with the current bundle.
+   *   - lazy: The dependency should be placed in a separate bundle that's loaded later.
+   * @default 'sync'
+   */
+  +priority: DependencyPriority;
+  /**
+   * When the dependency is a bundle entry (priority is "parallel" or "lazy"), this controls the naming
+   * of that bundle. `needsStableName` indicates that the name should be stable over time, even when the
+   * content of the bundle changes. This is useful for entries that a user would manually enter the URL
+   * for, as well as for things like service workers or RSS feeds, where the URL must remain consistent
+   * over time.
+   */
+  +needsStableName: boolean;
+  /** Whether the dependency is optional. If the dependency cannot be resolved, this will not fail the build. */
   +isOptional: boolean;
-  /** Whether an URL is expected (rather than the language-specific behaviour). */
-  +isURL: boolean;
-  +isIsolated: boolean;
-  /** Used for error messages, the code location that caused this dependency. */
+  /** Whether the dependency is an entry. */
+  +isEntry: boolean;
+  /** The location within the source file where the dependency was found. */
   +loc: ?SourceLocation;
+  /** The environment of the dependency. */
   +env: Environment;
+  /** Plugin-specific metadata for the dependency. */
   +meta: Meta;
+  /** If this is an entry, this is the target that is associated with that entry. */
   +target: ?Target;
-  /** Used for error messages, the importer. */
+  /** The id of the asset with this dependency. */
   +sourceAssetId: ?string;
-  /** Used for error messages, the importer. */
-  +sourcePath: ?string;
+  /** The file path of the asset with this dependency. */
+  +sourcePath: ?FilePath;
   /** The type of the asset that referenced this dependency. */
   +sourceAssetType: ?string;
-  +resolveFrom: ?string;
-  /** a named pipeline (if the <code>moduleSpecifier</code> didn't specify one). */
+  /**
+   * The file path where the dependency should be resolved from.
+   * By default, this is the path of the source file where the dependency was specified.
+   */
+  +resolveFrom: ?FilePath;
+  /** The pipeline defined in .parcelrc that the dependency should be processed with. */
   +pipeline: ?string;
 
   // TODO make immutable
-  /** a <code>Map&lt;export name of importee, placeholder in importer&gt;</code>. */
+  /** The symbols within the resolved module that the source file depends on. */
   +symbols: MutableDependencySymbols;
 }
 
@@ -594,7 +659,7 @@ export interface Asset extends BaseAsset {
 }
 
 export type DevDepOptions = {|
-  moduleSpecifier: ModuleSpecifier,
+  specifier: DependencySpecifier,
   resolveFrom: FilePath,
   range?: ?SemverRange,
   /**
@@ -690,11 +755,13 @@ export type ResolveFn = (from: FilePath, to: string) => Promise<FilePath>;
 
 /**
  * @section validator
+ * @experimental
  */
 type ResolveConfigFn = (configNames: Array<FilePath>) => Promise<?FilePath>;
 
 /**
  * @section validator
+ * @experimental
  */
 type ResolveConfigWithPathFn = (
   configNames: Array<FilePath>,
@@ -703,6 +770,7 @@ type ResolveConfigWithPathFn = (
 
 /**
  * @section validator
+ * @experimental
  */
 export type ValidateResult = {|
   warnings: Array<Diagnostic>,
@@ -711,6 +779,7 @@ export type ValidateResult = {|
 
 /**
  * @section validator
+ * @experimental
  */
 export type DedicatedThreadValidator = {|
   validateAll: ({|
@@ -723,6 +792,7 @@ export type DedicatedThreadValidator = {|
 
 /**
  * @section validator
+ * @experimental
  */
 export type MultiThreadValidator = {|
   validate: ({|

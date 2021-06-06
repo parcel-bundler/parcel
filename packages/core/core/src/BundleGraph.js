@@ -25,6 +25,7 @@ import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import {objectSortedEntriesDeep} from '@parcel/utils';
 import {Hash, hashString} from '@parcel/hash';
+import {Priority} from './types';
 
 import {getBundleGroupId, getPublicId} from './utils';
 import {ALL_EDGE_TYPES, mapVisitor} from './Graph';
@@ -274,7 +275,7 @@ export default class BundleGraph {
   }
 
   internalizeAsyncDependency(bundle: Bundle, dependency: Dependency) {
-    if (!dependency.isAsync) {
+    if (dependency.priority === Priority.sync) {
       throw new Error('Expected an async dependency');
     }
 
@@ -688,8 +689,11 @@ export default class BundleGraph {
       this._graph
         .getNodeIdsConnectedTo(assetNodeId, 'references')
         .map(id => this._graph.getNode(id))
-        .filter(node => node?.type === 'dependency' && node.value.isAsync)
-        .length > 0
+        .filter(
+          node =>
+            node?.type === 'dependency' &&
+            node.value.priority === Priority.lazy,
+        ).length > 0
     ) {
       // If this asset is referenced by any async dependency, it's referenced.
       return true;
