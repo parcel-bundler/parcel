@@ -174,11 +174,11 @@ export function getWorkerDevDepRequests(
   return devDepRequests.map(devDepRequest => {
     // If we've already sent a matching transformer + hash to the main thread during this build,
     // there's no need to repeat ourselves.
-    let {moduleSpecifier, resolveFrom, hash} = devDepRequest;
-    if (hash === pluginCache.get(moduleSpecifier)) {
-      return {moduleSpecifier, resolveFrom, hash};
+    let {specifier, resolveFrom, hash} = devDepRequest;
+    if (hash === pluginCache.get(specifier)) {
+      return {specifier, resolveFrom, hash};
     } else {
-      pluginCache.set(moduleSpecifier, hash);
+      pluginCache.set(specifier, hash);
       return devDepRequest;
     }
   });
