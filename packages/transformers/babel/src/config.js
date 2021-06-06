@@ -6,7 +6,7 @@ import typeof * as BabelCore from '@babel/core';
 
 import path from 'path';
 import * as internalBabelCore from '@babel/core';
-import {md5FromObject, relativePath, resolveConfig} from '@parcel/utils';
+import {hashObject, relativePath, resolveConfig} from '@parcel/utils';
 
 import isJSX from './jsx';
 import getFlowOptions from './flow';
@@ -189,7 +189,7 @@ export async function load(
       config.shouldInvalidateOnStartup();
     } else {
       definePluginDependencies(config, options);
-      config.setResultHash(md5FromObject(partialConfig.options));
+      config.setResultHash(hashObject(partialConfig.options));
     }
   } else {
     await buildDefaultBabelConfig(options, config);

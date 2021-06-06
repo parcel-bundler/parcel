@@ -12,13 +12,14 @@ if (process.platform === 'linux') {
   parts.push('msvc');
 }
 
-let name = `parcel-swc.${parts.join('-')}.node`;
+let name = `./parcel-hash.${parts.join('-')}.node`;
 if (process.env.PARCEL_BUILD_ENV === 'production') {
-  module.exports = require(`../${name}`);
-} else if (
-  require('fs').existsSync(require('path').join(__dirname, '..', name))
-) {
-  module.exports = require(`../${name}`);
+  module.exports = require(name);
+} else if (require('fs').existsSync(require('path').join(__dirname, name))) {
+  module.exports = require(name);
 } else {
-  module.exports = require(`self-published/${name}`);
+  // This has to be published first...
+  // module.exports = require('self-published');
 }
+
+module.exports.init = Promise.resolve();

@@ -7,9 +7,9 @@ import type {
   ConfigResult,
   DevDepOptions,
 } from '@parcel/types';
-import {md5FromString} from '@parcel/utils';
 import type {Config, Environment} from './types';
 import {createEnvironment} from './Environment';
+import {hashString} from '@parcel/hash';
 
 type ConfigOpts = {|
   plugin: PackageName,
@@ -38,7 +38,7 @@ export function createConfig({
 }: ConfigOpts): Config {
   let environment = env ?? createEnvironment();
   return {
-    id: md5FromString(plugin + searchPath + environment.id + String(isSource)),
+    id: hashString(plugin + searchPath + environment.id + String(isSource)),
     isSource: isSource ?? false,
     searchPath,
     env: environment,
