@@ -29,9 +29,9 @@ export default (new Runtime({
     for (let entry of entries) {
       let pkg = await entry.getPackage();
       if (
-        pkg &&
-        ((pkg.dependencies && pkg.dependencies['react']) ||
-          (pkg.devDependencies && pkg.devDependencies['react']))
+        pkg?.dependencies?.react ||
+        pkg?.devDependencies?.react ||
+        pkg?.peerDependencies?.react
       ) {
         return {
           filePath: __filename,
