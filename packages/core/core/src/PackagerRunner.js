@@ -20,7 +20,6 @@ import type {FileSystem, FileOptions} from '@parcel/fs';
 import invariant from 'assert';
 import {blobToStream, TapStream} from '@parcel/utils';
 import {PluginLogger} from '@parcel/logger';
-import {init as initSourcemaps} from '@parcel/source-map';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import {Readable, Transform} from 'stream';
 import nullthrows from 'nullthrows';
@@ -268,8 +267,6 @@ export default class PackagerRunner {
     contents: Blob,
     map: ?string,
   |}> {
-    await initSourcemaps;
-
     let packaged = await this.package(bundle, bundleGraph, configs);
     let type = packaged.type ?? bundle.type;
     let res = await this.optimize(
