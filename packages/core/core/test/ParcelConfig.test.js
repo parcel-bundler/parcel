@@ -279,7 +279,7 @@ describe('ParcelConfig', () => {
           diagnostics: [
             {
               message:
-                'Named pipeline node: is reserved for builtin NodeJS libraries',
+                'Named pipeline node: is reserved for builtin Node.js libraries',
               origin: '@parcel/core',
               filePath: configFilePath,
             },
