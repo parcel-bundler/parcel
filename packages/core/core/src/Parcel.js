@@ -9,7 +9,7 @@ import type {
   InitialParcelOptions,
   PackagedBundle as IPackagedBundle,
 } from '@parcel/types';
-import type {ParcelOptions, AssetRequestInput, AssetGroup} from './types';
+import type {ParcelOptions, AssetRequestInput, AssetGroup, ParcelTransformOptions, ParcelResolveOptions} from './types';
 // eslint-disable-next-line no-unused-vars
 import type {FarmOptions, SharedReference} from '@parcel/workers';
 import type {Diagnostic} from '@parcel/diagnostic';
@@ -454,29 +454,37 @@ export default class Parcel {
     return this.#farm.takeHeapSnapshot();
   }
 
-  async transform(request: AssetRequestInput): Promise<Array<Asset>> {
+  async transform(options: ParcelTransformOptions): Promise<Array<Asset>> {
     if (!this.#initialized) {
       await this._init();
     }
 
-    request.optionsRef = this.#optionsRef;
-    let req = createAssetRequest(request);
-    let res = await this.#requestTracker.runRequest(req, {force: true});
+    let request = createAssetRequest({
+      ...options,
+      optionsRef: this.#optionsRef,
+      env: createEnvironment(options.env)
+    });
+
+    let res = await this.#requestTracker.runRequest(request, {force: true});
     return res.map(asset => assetFromValue(asset, nullthrows(this.#resolvedOptions)));
   }
 
-  async resolve(request: DependencyOptions): Promise<?AssetGroup> {
+  async resolve(request: ParcelResolveOptions): Promise<?AssetGroup> {
     if (!this.#initialized) {
       await this._init();
     }
 
-    let dep = createDependency(request);
+    let dependency = createDependency({
+      ...request,
+      env: createEnvironment(request.env)
+    });
+
     let req = createPathRequest({
-      dependency: dep,
+      dependency,
       name: 'test'
     });
-    let res = await this.#requestTracker.runRequest(req, {force: true});
-    return res;
+    
+    return await this.#requestTracker.runRequest(req, {force: true});
   }
 }
 

@@ -1,6 +1,6 @@
 {
   "name": "@parcel/node",
-  "version": "2.0.0-beta.2",
+  "version": "2.0.0-beta.3.1",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -19,10 +19,9 @@
   "main": "lib/ParcelNode.js",
   "source": "src/ParcelNode.js",
   "dependencies": {
-    "@parcel/config-default": "2.0.0-beta.2",
-    "@parcel/core": "2.0.0-beta.2",
-    "@parcel/fs": "2.0.0-beta.2",
-    "@parcel/package-manager": "2.0.0-beta.2",
-    "deasync": "^0.1.14"
+    "@parcel/config-default": "2.0.0-beta.3.1",
+    "@parcel/core": "2.0.0-beta.3.1",
+    "@parcel/fs": "2.0.0-beta.3.1",
+    "@parcel/package-manager": "2.0.0-beta.3.1"
   }
 }

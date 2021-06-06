@@ -4,8 +4,10 @@ import type {
   ASTGenerator,
   BuildMode,
   BundleGroup,
+  DependencyOptions,
   Engines,
   EnvironmentContext,
+  EnvironmentOptions,
   EnvMap,
   FileCreateInvalidation,
   FilePath,
@@ -282,6 +284,19 @@ export type AssetRequestInput = {|
   optionsRef: SharedReference,
   isURL?: boolean,
   query?: ?QueryParameters,
+|};
+
+export type ParcelTransformOptions = {|
+  ...$Rest<AssetRequestInput, {|optionsRef: SharedReference|}>,
+  env: EnvironmentOptions
+|};
+
+export type ParcelResolveOptions = {|
+  ...$Rest<DependencyOptions, {|target: Target|}>,
+  symbols?: Map<
+    Symbol,
+    {|local: Symbol, loc: ?SourceLocation, isWeak: boolean, meta?: ?Meta|},
+  >,
 |};
 
 export type AssetRequestResult = Array<Asset>;
