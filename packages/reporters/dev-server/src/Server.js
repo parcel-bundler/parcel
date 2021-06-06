@@ -41,8 +41,7 @@ function setHeaders(res: Response) {
     'Origin, X-Requested-With, Content-Type, Accept, Content-Type',
   );
   res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
-  res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
-  res.setHeader('Cross-Origin-Embedded-Policy', 'require-corp');
+  res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
 }
 
 const SOURCES_ENDPOINT = '/__parcel_source_root';
