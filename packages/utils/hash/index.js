@@ -21,3 +21,5 @@ if (process.env.PARCEL_BUILD_ENV === 'production') {
   // This has to be published first...
   // module.exports = require('self-published');
 }
+
+module.exports.init = Promise.resolve();
