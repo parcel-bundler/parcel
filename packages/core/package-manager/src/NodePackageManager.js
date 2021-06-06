@@ -80,7 +80,7 @@ export class NodePackageManager implements PackageManager {
     name: ModuleSpecifier,
     from: FilePath,
     opts: ?{|
-      range?: SemverRange,
+      range?: ?SemverRange,
       shouldAutoInstall?: boolean,
       saveDev?: boolean,
     |},
@@ -137,7 +137,7 @@ export class NodePackageManager implements PackageManager {
     name: ModuleSpecifier,
     from: FilePath,
     options?: ?{|
-      range?: string,
+      range?: ?SemverRange,
       shouldAutoInstall?: boolean,
       saveDev?: boolean,
     |},

@@ -10,7 +10,7 @@ import type {Config, ParcelOptions} from '../types';
 import type {LoadedPlugin} from '../ParcelConfig';
 import type {RunAPI} from '../RequestTracker';
 
-import v8 from 'v8';
+import {serializeRaw} from '../serializer.js';
 import {PluginLogger} from '@parcel/logger';
 import PluginOptions from '../public/PluginOptions';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
@@ -139,8 +139,7 @@ export async function getConfigHash(
       );
     } else if (config.result != null) {
       try {
-        // $FlowFixMe
-        hash.writeBuffer(v8.serialize(config.result));
+        hash.writeBuffer(serializeRaw(config.result));
       } catch (err) {
         throw new ThrowableDiagnostic({
           diagnostic: {

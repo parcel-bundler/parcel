@@ -96,12 +96,12 @@ export default (new Transformer({
     let reactRefresh =
       config.isSource &&
       options.hmrOptions &&
-      config.env.isBrowser() &&
-      !config.env.isWorker() &&
       options.mode === 'development' &&
-      (pkg?.dependencies?.react ||
-        pkg?.devDependencies?.react ||
-        pkg?.peerDependencies?.react);
+      Boolean(
+        pkg?.dependencies?.react ||
+          pkg?.devDependencies?.react ||
+          pkg?.peerDependencies?.react,
+      );
 
     // Check if we should ignore fs calls
     // See https://github.com/defunctzombie/node-browser-resolve#skip
@@ -249,7 +249,10 @@ export default (new Transformer({
       jsx_pragma: config?.pragma,
       jsx_pragma_frag: config?.pragmaFrag,
       is_development: options.mode === 'development',
-      react_refresh: Boolean(config?.reactRefresh),
+      react_refresh:
+        asset.env.isBrowser() &&
+        !asset.env.isWorker() &&
+        Boolean(config?.reactRefresh),
       targets,
       source_maps: !!asset.env.sourceMap,
       scope_hoist: asset.env.shouldScopeHoist,
