@@ -12,6 +12,7 @@ import type {
   Packager,
   Reporter,
   Semver,
+  SemverRange,
   Validator,
 } from '@parcel/types';
 import type {
@@ -38,6 +39,7 @@ export type LoadedPlugin<T> = {|
   plugin: T,
   resolveFrom: FilePath,
   keyPath?: string,
+  range?: ?SemverRange,
 |};
 
 export default class ParcelConfig {
@@ -100,7 +102,12 @@ export default class ParcelConfig {
 
   _loadPlugin<T>(
     node: ParcelPluginNode,
-  ): Promise<{|plugin: T, version: Semver, resolveFrom: FilePath|}> {
+  ): Promise<{|
+    plugin: T,
+    version: Semver,
+    resolveFrom: FilePath,
+    range: ?SemverRange,
+  |}> {
     let plugin = this.pluginCache.get(node.packageName);
     if (plugin) {
       return plugin;

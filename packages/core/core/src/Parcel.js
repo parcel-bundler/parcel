@@ -35,6 +35,8 @@ import RequestTracker, {getWatcherOptions} from './RequestTracker';
 import createValidationRequest from './requests/ValidationRequest';
 import createParcelBuildRequest from './requests/ParcelBuildRequest';
 import {Disposable} from '@parcel/events';
+import {init as initSourcemaps} from '@parcel/source-map';
+import {init as initHash} from '@parcel/hash';
 
 registerCoreWithSerializer();
 
@@ -79,6 +81,9 @@ export default class Parcel {
     if (this.#initialized) {
       return;
     }
+
+    await initSourcemaps;
+    await initHash;
 
     let resolvedOptions: ParcelOptions = await resolveOptions(
       this.#initialOptions,

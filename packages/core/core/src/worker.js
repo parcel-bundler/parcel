@@ -23,6 +23,8 @@ import Validation, {type ValidationOpts} from './Validation';
 import ParcelConfig from './ParcelConfig';
 import {registerCoreWithSerializer} from './utils';
 import {clearBuildCaches} from './buildCache';
+import {init as initSourcemaps} from '@parcel/source-map';
+import {init as initHash} from '@parcel/hash';
 
 import '@parcel/cache'; // register with serializer
 import '@parcel/package-manager';
@@ -143,6 +145,11 @@ export async function runPackage(
   });
 
   return runner.run(bundleGraph, bundle, invalidDevDeps);
+}
+
+export async function childInit() {
+  await initSourcemaps;
+  await initHash;
 }
 
 const PKG_RE = /node_modules[/\\]((?:@[^/\\]+[/\\][^/\\]+)|[^/\\]+)(?!.*[/\\]node_modules[/\\])/;

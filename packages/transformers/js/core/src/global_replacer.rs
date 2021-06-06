@@ -6,8 +6,8 @@ use swc_common::{SourceMap, SyntaxContext, DUMMY_SP};
 use swc_ecmascript::ast;
 use swc_ecmascript::visit::{Fold, FoldWith};
 
-use dependency_collector::{DependencyDescriptor, DependencyKind};
-use utils::{create_require, SourceLocation};
+use crate::dependency_collector::{DependencyDescriptor, DependencyKind};
+use crate::utils::{create_require, SourceLocation};
 
 pub struct GlobalReplacer<'a> {
   pub source_map: &'a SourceMap,

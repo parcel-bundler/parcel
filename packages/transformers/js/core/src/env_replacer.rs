@@ -5,7 +5,7 @@ use swc_common::{SyntaxContext, DUMMY_SP};
 use swc_ecmascript::ast;
 use swc_ecmascript::visit::Fold;
 
-use utils::*;
+use crate::utils::*;
 
 pub struct EnvReplacer<'a> {
   pub replace_env: bool,

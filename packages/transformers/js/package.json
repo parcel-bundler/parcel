@@ -24,13 +24,15 @@
   },
   "files": [
     "lib",
-    "*.node",
-    "src"
+    "native-browser.js",
+    "native.js",
+    "src",
+    "*.node"
   ],
   "dependencies": {
     "@parcel/diagnostic": "2.0.0-beta.3.1",
     "@parcel/plugin": "2.0.0-beta.3.1",
-    "@parcel/source-map": "2.0.0-rc.1.0",
+    "@parcel/source-map": "2.0.0-rc.4",
     "@parcel/utils": "2.0.0-beta.3.1",
     "@swc/helpers": "^0.2.11",
     "browserslist": "^4.6.6",
@@ -42,11 +44,16 @@
   },
   "devDependencies": {
     "@napi-rs/cli": "1.0.4",
-    "self-published": "npm:@parcel/transformer-js@2.0.0-beta.2",
-    "tiny-benchy": "^1.0.1"
+    "self-published": "npm:@parcel/transformer-js@2.0.0-beta.3.1"
   },
   "scripts": {
-    "build": "napi build --platform",
-    "build-release": "napi build --platform --release"
+    "build": "napi build --platform --cargo-cwd napi",
+    "build-release": "napi build --platform --release --cargo-cwd napi",
+    "build:wasm-base": "wasm-pack build wasm --no-typescript --release",
+    "build:wasm-node": "yarn build:wasm-base --target nodejs --out-dir dist-node",
+    "build:wasm-web": "CARGO_PROFILE_RELEASE_LTO=true CARGO_PROFILE_RELEASE_PANIC=abort CARGO_PROFILE_RELEASE_OPT_LEVEL=z yarn build:wasm-base --target web --out-dir dist-web"
+  },
+  "browser": {
+    "./native.js": "./native-browser.js"
   }
 }
