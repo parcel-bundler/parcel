@@ -18,20 +18,14 @@ import type InternalBundleGraph from './BundleGraph';
 import type {FileSystem, FileOptions} from '@parcel/fs';
 
 import invariant from 'assert';
-import {
-  md5FromOrderedObject,
-  md5FromString,
-  blobToStream,
-  TapStream,
-} from '@parcel/utils';
+import {blobToStream, TapStream} from '@parcel/utils';
 import {PluginLogger} from '@parcel/logger';
-import {init as initSourcemaps} from '@parcel/source-map';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import {Readable, Transform} from 'stream';
 import nullthrows from 'nullthrows';
 import path from 'path';
 import url from 'url';
-import crypto from 'crypto';
+import {hashString, hashBuffer, Hash} from '@parcel/hash';
 
 import {NamedBundle, bundleToInternalBundle} from './public/Bundle';
 import BundleGraph, {
@@ -273,8 +267,6 @@ export default class PackagerRunner {
     contents: Blob,
     map: ?string,
   |}> {
-    await initSourcemaps;
-
     let packaged = await this.package(bundle, bundleGraph, configs);
     let type = packaged.type ?? bundle.type;
     let res = await this.optimize(
@@ -493,9 +485,9 @@ export default class PackagerRunner {
     let name = nullthrows(bundle.name);
     // TODO: include packagers and optimizers used in inline bundles as well
     let {version: packager} = await this.config.getPackager(name);
-    let optimizers = (
-      await this.config.getOptimizers(name)
-    ).map(({name, version}) => [name, version]);
+    let optimizers = (await this.config.getOptimizers(name))
+      .map(({name, version}) => name + version)
+      .join('');
 
     let configResults = {};
     for (let [id, config] of configs) {
@@ -504,14 +496,14 @@ export default class PackagerRunner {
 
     // TODO: add third party configs to the cache key
     let {publicUrl} = bundle.target;
-    return md5FromOrderedObject({
-      parcelVersion: PARCEL_VERSION,
-      packager,
-      optimizers,
-      target: {publicUrl},
-      hash: bundleGraph.getHash(bundle),
-      configResults,
-    });
+    return hashString(
+      PARCEL_VERSION +
+        packager +
+        optimizers +
+        publicUrl +
+        bundleGraph.getHash(bundle) +
+        JSON.stringify(configResults),
+    );
   }
 
   async readFromCache(
@@ -523,12 +515,12 @@ export default class PackagerRunner {
     let contentKey = PackagerRunner.getContentKey(cacheKey);
     let mapKey = PackagerRunner.getMapKey(cacheKey);
 
-    let contentExists = await this.options.cache.blobExists(contentKey);
+    let contentExists = await this.options.cache.has(contentKey);
     if (!contentExists) {
       return null;
     }
 
-    let mapExists = await this.options.cache.blobExists(mapKey);
+    let mapExists = await this.options.cache.has(mapKey);
 
     return {
       contents: this.options.cache.getStream(contentKey),
@@ -596,7 +588,7 @@ export default class PackagerRunner {
     if (
       bundle.env.sourceMap &&
       !bundle.env.sourceMap.inline &&
-      (await this.options.cache.blobExists(mapKey))
+      (await this.options.cache.has(mapKey))
     ) {
       let mapStream = this.options.cache.getStream(mapKey);
       await writeFileStream(
@@ -613,34 +605,50 @@ export default class PackagerRunner {
     cacheKeys: CacheKeyMap,
     type: string,
     contents: Blob,
-    map: ?Blob,
+    map: ?string,
   ): Promise<BundleInfo> {
     let size = 0;
-    let hash = crypto.createHash('md5');
-    let boundaryStr = '';
+    let hash;
     let hashReferences = [];
-    await this.options.cache.setStream(
-      cacheKeys.content,
-      blobToStream(contents).pipe(
-        new TapStream(buf => {
-          let str = boundaryStr + buf.toString();
-          hashReferences = hashReferences.concat(
-            str.match(HASH_REF_REGEX) ?? [],
-          );
-          size += buf.length;
-          hash.update(buf);
-          boundaryStr = str.slice(str.length - BOUNDARY_LENGTH);
-        }),
-      ),
-    );
+
+    // TODO: don't replace hash references in binary files??
+    if (contents instanceof Readable) {
+      let boundaryStr = '';
+      let h = new Hash();
+      await this.options.cache.setStream(
+        cacheKeys.content,
+        blobToStream(contents).pipe(
+          new TapStream(buf => {
+            let str = boundaryStr + buf.toString();
+            hashReferences = hashReferences.concat(
+              str.match(HASH_REF_REGEX) ?? [],
+            );
+            size += buf.length;
+            h.writeBuffer(buf);
+            boundaryStr = str.slice(str.length - BOUNDARY_LENGTH);
+          }),
+        ),
+      );
+      hash = h.finish();
+    } else if (typeof contents === 'string') {
+      size = Buffer.byteLength(contents);
+      hash = hashString(contents);
+      hashReferences = contents.match(HASH_REF_REGEX) ?? [];
+      await this.options.cache.setBlob(cacheKeys.content, contents);
+    } else {
+      size = contents.length;
+      hash = hashBuffer(contents);
+      hashReferences = contents.toString().match(HASH_REF_REGEX) ?? [];
+      await this.options.cache.setBlob(cacheKeys.content, contents);
+    }
 
     if (map != null) {
-      await this.options.cache.setStream(cacheKeys.map, blobToStream(map));
+      await this.options.cache.setBlob(cacheKeys.map, map);
     }
     let info = {
       type,
       size,
-      hash: hash.digest('hex'),
+      hash,
       hashReferences,
       cacheKeys,
     };
@@ -649,15 +657,15 @@ export default class PackagerRunner {
   }
 
   static getContentKey(cacheKey: string): string {
-    return md5FromString(`${cacheKey}:content`);
+    return hashString(`${cacheKey}:content`);
   }
 
   static getMapKey(cacheKey: string): string {
-    return md5FromString(`${cacheKey}:map`);
+    return hashString(`${cacheKey}:map`);
   }
 
   static getInfoKey(cacheKey: string): string {
-    return md5FromString(`${cacheKey}:info`);
+    return hashString(`${cacheKey}:info`);
   }
 }
 
@@ -726,7 +734,7 @@ function assignComplexNameHashes(
     hashRefToNameHash.set(
       bundle.hashReference,
       options.shouldContentHash
-        ? md5FromString(
+        ? hashString(
             [...getBundlesIncludedInHash(bundle.id, bundleInfoMap)]
               .map(bundleId => bundleInfoMap[bundleId].hash)
               .join(':'),

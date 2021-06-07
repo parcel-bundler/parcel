@@ -456,6 +456,7 @@ async function normalizeOptions(
   return {
     shouldDisableCache: command.cache === false,
     cacheDir: command.cacheDir,
+    config: command.config,
     mode,
     hmrOptions,
     shouldContentHash: hmrOptions ? false : command.contentHash,

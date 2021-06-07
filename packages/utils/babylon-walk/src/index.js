@@ -7,6 +7,7 @@ import explode from './explode.js';
 import traverse from './traverse';
 
 export * from './traverse2';
+export * from './traverse-all';
 export * from './scope';
 export * from './types';
 

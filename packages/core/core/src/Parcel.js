@@ -28,7 +28,6 @@ import dumpGraphToGraphViz from './dumpGraphToGraphViz';
 import resolveOptions from './resolveOptions';
 import {ValueEmitter} from '@parcel/events';
 import {registerCoreWithSerializer} from './utils';
-import {createCacheDir} from '@parcel/cache';
 import {AbortController} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import {PromiseQueue} from '@parcel/utils';
 import ParcelConfig from './ParcelConfig';
@@ -38,6 +37,8 @@ import createAssetGraphRequest from './requests/AssetGraphRequest';
 import createValidationRequest from './requests/ValidationRequest';
 import createBundleGraphRequest from './requests/BundleGraphRequest';
 import {Disposable} from '@parcel/events';
+import {init as initSourcemaps} from '@parcel/source-map';
+import {init as initHash} from '@parcel/hash';
 
 registerCoreWithSerializer();
 
@@ -84,11 +85,13 @@ export default class Parcel {
       return;
     }
 
+    await initSourcemaps;
+    await initHash;
+
     let resolvedOptions: ParcelOptions = await resolveOptions(
       this.#initialOptions,
     );
     this.#resolvedOptions = resolvedOptions;
-    await createCacheDir(resolvedOptions.outputFS, resolvedOptions.cacheDir);
     let {config} = await loadParcelConfig(resolvedOptions);
     this.#config = new ParcelConfig(config, resolvedOptions);
 
@@ -101,6 +104,10 @@ export default class Parcel {
       this.#farm = createWorkerFarm({
         shouldPatchConsole: resolvedOptions.shouldPatchConsole,
       });
+    }
+
+    if (resolvedOptions.cache.ensure) {
+      await resolvedOptions.cache.ensure();
     }
 
     let {

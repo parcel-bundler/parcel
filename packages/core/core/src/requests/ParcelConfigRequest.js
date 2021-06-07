@@ -16,7 +16,7 @@ import type {
 
 import {
   isDirectoryInside,
-  md5FromObject,
+  hashObject,
   resolveConfig,
   validateSchema,
   findAlternativeNodeModules,
@@ -34,6 +34,7 @@ import invariant from 'assert';
 import ParcelConfigSchema from '../ParcelConfig.schema';
 import {optionsProxy} from '../utils';
 import ParcelConfig from '../ParcelConfig';
+import {createBuildCache} from '../buildCache';
 
 type ConfigMap<K, V> = {[K]: V, ...};
 
@@ -86,7 +87,7 @@ export default function createParcelConfigRequest(): ParcelConfigRequest {
         });
       }
 
-      let cachePath = md5FromObject(config);
+      let cachePath = hashObject(config);
       await options.cache.set(cachePath, config);
       let result = {config, cachePath};
       // TODO: don't store config twice (once in the graph and once in a separate cache entry)
@@ -97,12 +98,7 @@ export default function createParcelConfigRequest(): ParcelConfigRequest {
   };
 }
 
-const parcelConfigCache = new Map();
-
-export function clearParcelConfigCache() {
-  parcelConfigCache.clear();
-}
-
+const parcelConfigCache = createBuildCache();
 export function getCachedParcelConfig(
   result: ConfigAndCachePath,
   options: ParcelOptions,

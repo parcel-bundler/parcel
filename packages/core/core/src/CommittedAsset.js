@@ -9,11 +9,11 @@ import type {
 } from '@parcel/types';
 import type {Asset, Dependency, ParcelOptions} from './types';
 
-import v8 from 'v8';
 import {Readable} from 'stream';
 import SourceMap from '@parcel/source-map';
 import {bufferStream, blobToStream, streamFromPromise} from '@parcel/utils';
 import {getConfig, generateFromAST} from './assetUtils';
+import {deserializeRaw} from './serializer';
 
 export default class CommittedAsset {
   value: Asset;
@@ -52,7 +52,13 @@ export default class CommittedAsset {
   }
 
   async getCode(): Promise<string> {
-    let content = await this.getContent();
+    let content;
+    if (this.content == null && this.value.contentKey != null) {
+      this.content = this.options.cache.getBlob(this.value.contentKey);
+      content = await this.content;
+    } else {
+      content = await this.getContent();
+    }
 
     if (typeof content === 'string' || content instanceof Buffer) {
       return content.toString();
@@ -109,9 +115,7 @@ export default class CommittedAsset {
         let mapBuffer = await this.getMapBuffer();
         if (mapBuffer) {
           // Get sourcemap from flatbuffer
-          let map = new SourceMap(this.options.projectRoot);
-          map.addBufferMappings(mapBuffer);
-          return map;
+          return new SourceMap(mapBuffer);
         }
       })();
     }
@@ -127,10 +131,7 @@ export default class CommittedAsset {
     if (this.ast == null) {
       this.ast = this.options.cache
         .getBlob(this.value.astKey)
-        .then(serializedAst =>
-          // $FlowFixMe
-          v8.deserialize(serializedAst),
-        );
+        .then(serializedAst => deserializeRaw(serializedAst));
     }
 
     return this.ast;

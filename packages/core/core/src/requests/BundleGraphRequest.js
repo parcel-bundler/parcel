@@ -24,7 +24,8 @@ import MutableBundleGraph from '../public/MutableBundleGraph';
 import {Bundle, NamedBundle} from '../public/Bundle';
 import {report} from '../ReporterRunner';
 import dumpGraphToGraphViz from '../dumpGraphToGraphViz';
-import {unique, md5FromOrderedObject} from '@parcel/utils';
+import {unique} from '@parcel/utils';
+import {hashString} from '@parcel/hash';
 import PluginOptions from '../public/PluginOptions';
 import applyRuntimes from '../applyRuntimes';
 import {PARCEL_VERSION} from '../constants';
@@ -284,18 +285,26 @@ class BundlerRunner {
   }
 
   async getCacheKey(assetGraph: AssetGraph): Promise<string> {
-    return md5FromOrderedObject({
-      parcelVersion: PARCEL_VERSION,
-      hash: assetGraph.getHash(),
-      configs: [...this.configs].map(([pluginName, config]) =>
+    let configs = [...this.configs]
+      .map(([pluginName, config]) =>
         getConfigHash(config, pluginName, this.options),
-      ),
-      devDepRequests: [...this.devDepRequests.values()].map(d => d.hash),
-      invalidations: await getInvalidationHash(
-        this.api.getInvalidations(),
-        this.options,
-      ),
-    });
+      )
+      .join('');
+    let devDepRequests = [...this.devDepRequests.values()]
+      .map(d => d.hash)
+      .join('');
+    let invalidations = await getInvalidationHash(
+      this.api.getInvalidations(),
+      this.options,
+    );
+
+    return hashString(
+      PARCEL_VERSION +
+        assetGraph.getHash() +
+        configs +
+        devDepRequests +
+        invalidations,
+    );
   }
 
   async nameBundles(bundleGraph: InternalBundleGraph): Promise<void> {
@@ -352,12 +361,6 @@ class BundlerRunner {
         });
 
         if (name != null) {
-          if (path.extname(name).slice(1) !== bundle.type) {
-            throw new Error(
-              `Destination name ${name} extension does not match bundle type "${bundle.type}"`,
-            );
-          }
-
           internalBundle.name = name;
           let {hashReference} = internalBundle;
           internalBundle.displayName = name.includes(hashReference)

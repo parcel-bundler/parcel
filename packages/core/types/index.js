@@ -7,6 +7,7 @@ import type WorkerFarm from '@parcel/workers';
 import type {PackageManager} from '@parcel/package-manager';
 import type {Diagnostic} from '@parcel/diagnostic';
 import type {PluginLogger} from '@parcel/logger';
+import type {Cache} from '@parcel/cache';
 
 import type {AST as _AST, ConfigResult as _ConfigResult} from './unsafe';
 
@@ -185,6 +186,7 @@ export type VersionMap = {
  * Defines the environment in for the output bundle
  */
 export interface Environment {
+  +id: string;
   +context: EnvironmentContext;
   +engines: Engines;
   /** Whether to include all/none packages \
@@ -275,6 +277,7 @@ export type InitialParcelOptions = {|
 
   +inputFS?: FileSystem,
   +outputFS?: FileSystem,
+  +cache?: Cache,
   +workerFarm?: WorkerFarm,
   +packageManager?: PackageManager,
   +detailedReport?: ?DetailedReportOptions,
@@ -363,7 +366,7 @@ export type Meta = JSONObject;
 export type Symbol = string;
 
 /**
- * A map from extert names to the corespinding asset's lcoal variable name.
+ * A map of export names to the corresponding asset's local variable names.
  */
 export interface AssetSymbols // eslint-disable-next-line no-undef
   extends Iterable<
@@ -603,6 +606,7 @@ export interface Asset extends BaseAsset {
 export type DevDepOptions = {|
   moduleSpecifier: ModuleSpecifier,
   resolveFrom: FilePath,
+  range?: ?SemverRange,
   /**
    * Whether to also invalidate the parcel plugin that loaded this dev dependency
    * when it changes. This is useful if the parcel plugin or another parent dependency

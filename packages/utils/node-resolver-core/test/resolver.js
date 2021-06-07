@@ -4,6 +4,7 @@ import path from 'path';
 import assert from 'assert';
 import nullthrows from 'nullthrows';
 import {ncp, overlayFS, outputFS} from '@parcel/test-utils';
+import {loadConfig as configCache} from '@parcel/utils';
 
 const rootDir = path.join(__dirname, 'fixture');
 
@@ -67,6 +68,8 @@ describe('resolver', function() {
       mainFields: ['browser', 'source', 'module', 'main'],
       extensions: ['.js', '.json'],
     });
+
+    configCache.clear();
   });
 
   describe('file paths', function() {
