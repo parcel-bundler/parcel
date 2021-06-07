@@ -546,7 +546,7 @@ ${code}
         }
       }
 
-      if (!resolved || resolved === asset) {
+      if (!resolved) {
         continue;
       }
 

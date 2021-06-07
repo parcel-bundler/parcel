@@ -1779,6 +1779,18 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, 'foo');
     });
 
+    it('should support assets importing themselves', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/import-self/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.strictEqual(output, 4);
+    });
+
     it('should support named imports on wrapped modules', async function() {
       let b = await bundle(
         path.join(
@@ -4412,6 +4424,18 @@ describe('scope hoisting', function() {
         },
       });
       assert.deepEqual(output, 'my-resolved-fs');
+    });
+
+    it('should support assets requiring themselves', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/require-self/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.strictEqual(output, 4);
     });
 
     it('supports requiring a re-exported ES6 import', async function() {
