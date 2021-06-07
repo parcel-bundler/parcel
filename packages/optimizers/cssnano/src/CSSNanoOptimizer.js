@@ -4,6 +4,8 @@ import SourceMap from '@parcel/source-map';
 import {Optimizer} from '@parcel/plugin';
 import postcss from 'postcss';
 import cssnano from 'cssnano';
+import {loadConfig} from '@parcel/utils';
+import path from 'path';
 
 export default (new Optimizer({
   async optimize({
@@ -23,7 +25,14 @@ export default (new Optimizer({
       );
     }
 
-    const result = await postcss([cssnano]).process(prevContents, {
+    const userConfig = await loadConfig(
+      options.inputFS,
+      path.join(options.entryRoot, 'index.css'),
+      ['.cssnanorc ', 'cssnano.config.json', 'cssnano.config.js'],
+      options.projectRoot,
+    );
+
+    const result = await postcss([cssnano(userConfig)]).process(prevContents, {
       // Suppress postcss's warning about a missing `from` property. In this
       // case, the input map contains all of the sources.
       from: undefined,
