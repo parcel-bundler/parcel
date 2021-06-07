@@ -476,6 +476,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
         depNode.complete = true;
         depNodesWithAssets.push([depNode, nodeFromAsset(dependentAsset)]);
       }
+      depNode.value.sourceAssetType = assetNode.value.type;
       depNodeIds.push(this.addNode(depNode));
     }
 
