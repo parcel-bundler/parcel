@@ -332,7 +332,7 @@ export default (new Transformer({
           loc: convertLoc(dep.loc),
         });
       } else if (dep.kind === 'File') {
-        asset.addIncludedFile(dep.specifier);
+        asset.invalidateOnFileChange(dep.specifier);
       } else {
         if (dep.kind === 'DynamicImport' && isURL(dep.specifier)) {
           continue;

@@ -686,11 +686,11 @@ export interface MutableAsset extends BaseAsset {
    * This is a shortcut for addDependency that sets the specifierType to 'url' and priority to 'lazy'.
    */
   addURLDependency(url: string, opts: $Shape<DependencyOptions>): string;
-  /** Invalidates the asset when the given file is modified or deleted. */
-  addIncludedFile(FilePath): void;
-  /** Invalidates the asset when matched files are created. */
+  /** Invalidates the transformation when the given file is modified or deleted. */
+  invalidateOnFileChange(FilePath): void;
+  /** Invalidates the transformation when matched files are created. */
   invalidateOnFileCreate(FileCreateInvalidation): void;
-  /** Invalidates the asset when the given environment variable changes. */
+  /** Invalidates the transformation when the given environment variable changes. */
   invalidateOnEnvChange(string): void;
   /** Sets the asset contents as a string. */
   setCode(string): void;
@@ -736,13 +736,12 @@ export interface Config {
   +searchPath: FilePath;
   +result: ConfigResult;
   +env: Environment;
-  +includedFiles: Set<FilePath>;
 
   setResult(result: ConfigResult): void; // TODO: fix
   setResultHash(resultHash: string): void;
-  addIncludedFile(filePath: FilePath): void;
-  addDevDependency(devDep: DevDepOptions): void;
+  invalidateOnFileChange(filePath: FilePath): void;
   invalidateOnFileCreate(invalidation: FileCreateInvalidation): void;
+  addDevDependency(devDep: DevDepOptions): void;
   getConfigFrom(
     searchPath: FilePath,
     filePaths: Array<FilePath>,

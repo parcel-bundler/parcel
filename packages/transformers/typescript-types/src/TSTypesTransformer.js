@@ -44,7 +44,7 @@ export default (new Transformer({
 
     for (let file of program.getSourceFiles()) {
       if (path.normalize(file.fileName) !== asset.filePath) {
-        asset.addIncludedFile(
+        asset.invalidateOnFileChange(
           host.redirectTypes.get(file.fileName) ?? file.fileName,
         );
       }

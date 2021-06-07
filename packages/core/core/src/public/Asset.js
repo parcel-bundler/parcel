@@ -271,8 +271,8 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
     return this.#asset.addDependency(dep);
   }
 
-  addIncludedFile(filePath: FilePath): void {
-    this.#asset.addIncludedFile(filePath);
+  invalidateOnFileChange(filePath: FilePath): void {
+    this.#asset.invalidateOnFileChange(filePath);
   }
 
   invalidateOnFileCreate(invalidation: FileCreateInvalidation): void {
