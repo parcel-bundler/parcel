@@ -384,6 +384,7 @@ export interface AssetSymbols // eslint-disable-next-line no-undef
   hasLocalSymbol(local: Symbol): boolean;
   exportSymbols(): Iterable<Symbol>;
 }
+
 export interface MutableAssetSymbols extends AssetSymbols {
   /**
    * Initilizes the map, sets isCleared to false.
@@ -397,6 +398,7 @@ export interface MutableAssetSymbols extends AssetSymbols {
   ): void;
   delete(exportSymbol: Symbol): void;
 }
+
 /**
  * isWeak means: the symbol is not used by the parent asset itself and is merely reexported
  */
@@ -482,7 +484,6 @@ export type DependencyOptions = {|
    * By default, this is the path of the source file where the dependency was specified.
    */
   +resolveFrom?: FilePath,
-  +target?: Target,
   /** The symbols within the resolved module that the source file depends on. */
   +symbols?: $ReadOnlyMap<
     Symbol,
