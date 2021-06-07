@@ -482,6 +482,8 @@ export interface Dependency {
   +sourceAssetId: ?string;
   /** Used for error messages, the importer. */
   +sourcePath: ?string;
+  /** The type of the asset that referenced this dependency. */
+  +sourceAssetType: ?string;
   +resolveFrom: ?string;
   /** a named pipeline (if the <code>moduleSpecifier</code> didn't specify one). */
   +pipeline: ?string;
@@ -1108,7 +1110,9 @@ export type FileCreateInvalidation =
  */
 export type ResolveResult = {|
   +filePath?: FilePath,
+  +pipeline?: ?string,
   +isExcluded?: boolean,
+  +isAsync?: boolean,
   /** Corresponds to BaseAsset's <code>sideEffects</code>. */
   +sideEffects?: boolean,
   /** A resolver might want to resolve to a dummy, in this case <code>filePath</code> is rather "resolve from". */
@@ -1255,6 +1259,7 @@ export type Resolver = {|
     options: PluginOptions,
     logger: PluginLogger,
     filePath: FilePath,
+    pipeline: ?string,
   |}): Async<?ResolveResult>,
 |};
 

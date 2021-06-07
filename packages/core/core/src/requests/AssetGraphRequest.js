@@ -523,8 +523,10 @@ export class AssetGraphBuilder {
           if (assetGroups.length === 1) {
             let [assetGroupId] = assetGroups;
             let assetGroup = nullthrows(this.assetGraph.getNode(assetGroupId));
-            invariant(assetGroup.type === 'asset_group');
-            if (assetGroup.value.sideEffects === false) {
+            if (
+              assetGroup.type === 'asset_group' &&
+              assetGroup.value.sideEffects === false
+            ) {
               incomingDep.excluded = true;
             }
           } else {
