@@ -14,6 +14,7 @@ import postcssModules from 'postcss-modules';
 import typeof * as Postcss from 'postcss';
 
 import {load} from './loadConfig';
+import {POSTCSS_RANGE} from './constants';
 
 const COMPOSES_RE = /composes:.+from\s*("|').*("|')\s*;?/;
 const FROM_IMPORT_RE = /.+from\s*(?:"|')(.*)(?:"|')\s*;?/;
@@ -24,7 +25,9 @@ export default (new Transformer({
   },
 
   canReuseAST({ast}) {
-    return ast.type === 'postcss' && semver.satisfies(ast.version, '^8.2.1');
+    return (
+      ast.type === 'postcss' && semver.satisfies(ast.version, POSTCSS_RANGE)
+    );
   },
 
   async parse({asset, config, options}) {
@@ -209,7 +212,7 @@ function createLoader(
 
 function loadPostcss(options: PluginOptions, from: FilePath): Promise<Postcss> {
   return options.packageManager.require('postcss', from, {
-    range: '^8.2.1',
+    range: POSTCSS_RANGE,
     saveDev: true,
     shouldAutoInstall: options.shouldAutoInstall,
   });

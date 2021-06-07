@@ -8,6 +8,7 @@ import type {
   TransformerResult,
   PackageName,
   DevDepOptions,
+  SemverRange,
 } from '@parcel/types';
 import type {WorkerApi} from '@parcel/workers';
 import type {
@@ -24,7 +25,6 @@ import path from 'path';
 import nullthrows from 'nullthrows';
 import {normalizeSeparators, objectSortedEntries} from '@parcel/utils';
 import logger, {PluginLogger} from '@parcel/logger';
-import {init as initSourcemaps} from '@parcel/source-map';
 import ThrowableDiagnostic, {
   errorToDiagnostic,
   escapeMarkdown,
@@ -113,8 +113,6 @@ export default class Transformation {
   }
 
   async run(): Promise<TransformationResult> {
-    await initSourcemaps;
-
     let asset = await this.loadAsset();
 
     if (!asset.mapBuffer && SOURCEMAP_EXTENSIONS.has(asset.value.type)) {
@@ -227,14 +225,14 @@ export default class Transformation {
     // Prefer `isSource` originating from the AssetRequest.
     let isSource = isSourceOverride ?? summarizedIsSource;
 
-    // If the transformer request passed code rather than a filename,
-    // use a hash as the base for the id to ensure it is unique.
-    let idBase =
-      code != null
-        ? hash
-        : normalizeSeparators(
-            path.relative(this.options.projectRoot, filePath),
-          );
+    // If the transformer request passed code, use a hash in addition
+    // to the filename as the base for the id to ensure it is unique.
+    let idBase = normalizeSeparators(
+      path.relative(this.options.projectRoot, filePath),
+    );
+    if (code != null) {
+      idBase += hash;
+    }
     return new UncommittedAsset({
       idBase,
       value: createAsset({
@@ -281,6 +279,7 @@ export default class Transformation {
         {
           moduleSpecifier: transformer.name,
           resolveFrom: transformer.resolveFrom,
+          range: transformer.range,
         },
         transformer,
       );
@@ -355,7 +354,7 @@ export default class Transformation {
     opts: DevDepOptions,
     transformer: LoadedPlugin<Transformer> | TransformerWithNameAndConfig,
   ): Promise<void> {
-    let {moduleSpecifier, resolveFrom, invalidateParcelPlugin} = opts;
+    let {moduleSpecifier, resolveFrom, range, invalidateParcelPlugin} = opts;
     let key = `${moduleSpecifier}:${resolveFrom}`;
     if (this.devDepRequests.has(key)) {
       return;
@@ -375,7 +374,9 @@ export default class Transformation {
     }
 
     // Ensure that the package manager has an entry for this resolution.
-    await this.options.packageManager.resolve(moduleSpecifier, resolveFrom);
+    await this.options.packageManager.resolve(moduleSpecifier, resolveFrom, {
+      range,
+    });
     let invalidations = this.options.packageManager.getInvalidations(
       moduleSpecifier,
       resolveFrom,
@@ -825,6 +826,7 @@ type TransformerWithNameAndConfig = {|
   config: ?Config,
   configKeyPath?: string,
   resolveFrom: FilePath,
+  range?: ?SemverRange,
 |};
 
 function normalizeAssets(results: Array<TransformerResult | MutableAsset>) {
