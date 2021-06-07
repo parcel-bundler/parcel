@@ -42,12 +42,13 @@ export default (new Transformer({
     // $FlowFixMe
     let program = ts.createProgram([asset.filePath], opts, host);
 
-    let includedFiles = program
-      .getSourceFiles()
-      .filter(file => path.normalize(file.fileName) !== asset.filePath)
-      .map(file => ({
-        filePath: host.redirectTypes.get(file.fileName) ?? file.fileName,
-      }));
+    for (let file of program.getSourceFiles()) {
+      if (path.normalize(file.fileName) !== asset.filePath) {
+        asset.addIncludedFile(
+          host.redirectTypes.get(file.fileName) ?? file.fileName,
+        );
+      }
+    }
 
     let mainModuleName = path
       .relative(program.getCommonSourceDirectory(), asset.filePath)
@@ -149,15 +150,9 @@ export default (new Transformer({
       sourceMap.addVLQMap(map);
     }
 
-    return [
-      {
-        type: 'ts',
-        // Stay on the types pipeline, even if the type changes
-        pipeline: asset.pipeline,
-        content: code,
-        map: sourceMap,
-        includedFiles,
-      },
-    ];
+    asset.type = 'ts';
+    asset.setCode(code);
+    asset.setMap(sourceMap);
+    return [asset];
   },
 }): Transformer);

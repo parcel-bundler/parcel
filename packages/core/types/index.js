@@ -780,26 +780,53 @@ export type GenerateOutput = {|
 export type Blob = string | Buffer | Readable;
 
 /**
- * Will be used to generate a new BaseAsset, see that.
+ * Transformers can return multiple result objects to create new assets.
+ * For example, a file may contain multiple parts of different types,
+ * which should be processed by their respective transformation pipelines.
+ *
  * @section transformer
  */
 export type TransformerResult = {|
-  +content?: ?Blob,
-  +ast?: ?AST,
-  +dependencies?: $ReadOnlyArray<DependencyOptions>,
-  +env?: EnvironmentOptions,
-  +filePath?: FilePath,
-  +query?: ?QueryParameters,
-  +includedFiles?: $ReadOnlyArray<File>,
-  +bundleBehavior?: ?BundleBehavior,
-  +isBundleSplittable?: boolean,
-  +isSource?: boolean,
-  +map?: ?SourceMap,
-  +meta?: Meta,
-  +pipeline?: ?string,
-  +sideEffects?: boolean,
-  +symbols?: $ReadOnlyMap<Symbol, {|local: Symbol, loc: ?SourceLocation|}>,
+  /** The asset's type. */
   +type: string,
+  /** The content of the asset. Either content or an AST is required. */
+  +content?: ?Blob,
+  /** The asset's AST. Either content or an AST is required. */
+  +ast?: ?AST,
+  /** The source map for the asset. */
+  +map?: ?SourceMap,
+  /** The dependencies of the asset. */
+  +dependencies?: $ReadOnlyArray<DependencyOptions>,
+  /** The environment of the asset. The options are merged with the input asset's environment. */
+  +env?: EnvironmentOptions,
+  /**
+   * Controls which bundle the asset is placed into.
+   *   - inline: The asset will be placed into a new inline bundle. Inline bundles are not written
+   *       to a separate file, but embedded into the parent bundle.
+   *   - isolated: The asset will be placed into a separate bundle.
+   */
+  +bundleBehavior?: ?BundleBehavior,
+  /**
+   * If the asset is used as a bundle entry, this controls whether that bundle can be split
+   * into multiple, or whether all of the dependencies must be placed in a single bundle.
+   */
+  +isBundleSplittable?: boolean,
+  /** Plugin-specific metadata for the asset. */
+  +meta?: Meta,
+  /** The pipeline defined in .parcelrc that the asset should be processed with. */
+  +pipeline?: ?string,
+  /**
+   * Whether this asset can be omitted if none of its exports are being used.
+   * This is initially set by the resolver, but can be overridden by transformers.
+   */
+  +sideEffects?: boolean,
+  /** The symbols that the asset exports. */
+  +symbols?: $ReadOnlyMap<Symbol, {|local: Symbol, loc: ?SourceLocation|}>,
+  /**
+   * When a transformer returns multiple assets, it can give them unique keys to identify them.
+   * This can be used to find assets during packaging, or to create dependencies between multiple
+   * assets returned by a transformer by using the unique key as the dependency specifier.
+   */
   +uniqueKey?: ?string,
 |};
 
