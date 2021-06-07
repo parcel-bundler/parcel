@@ -25,12 +25,13 @@ export default (new Optimizer({
       );
     }
 
-    const userConfig = await loadConfig(
-      options.inputFS,
-      path.join(options.entryRoot, 'index.css'),
-      ['.cssnanorc ', 'cssnano.config.json', 'cssnano.config.js'],
-      options.projectRoot,
-    );
+    const userConfig =
+      (await loadConfig(
+        options.inputFS,
+        path.join(options.entryRoot, 'index.css'),
+        ['.cssnanorc ', 'cssnano.config.json', 'cssnano.config.js'],
+        options.projectRoot,
+      )) ?? {};
 
     const result = await postcss([cssnano(userConfig)]).process(prevContents, {
       // Suppress postcss's warning about a missing `from` property. In this
