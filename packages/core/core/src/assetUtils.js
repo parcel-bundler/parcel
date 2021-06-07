@@ -20,7 +20,6 @@ import type {
   ParcelOptions,
 } from './types';
 import {objectSortedEntries} from '@parcel/utils';
-import type {ConfigOutput} from '@parcel/utils';
 
 import {Readable} from 'stream';
 import {PluginLogger} from '@parcel/logger';
@@ -30,7 +29,7 @@ import UncommittedAsset from './UncommittedAsset';
 import loadPlugin from './loadParcelPlugin';
 import {Asset as PublicAsset} from './public/Asset';
 import PluginOptions from './public/PluginOptions';
-import {blobToStream, loadConfig, hashFile} from '@parcel/utils';
+import {blobToStream, hashFile} from '@parcel/utils';
 import {hashFromOption} from './utils';
 import {createBuildCache} from './buildCache';
 import {hashString} from '@parcel/hash';
