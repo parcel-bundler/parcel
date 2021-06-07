@@ -9,11 +9,11 @@ import type {
 } from '@parcel/types';
 import type {Asset, Dependency, ParcelOptions} from './types';
 
-import v8 from 'v8';
 import {Readable} from 'stream';
 import SourceMap from '@parcel/source-map';
 import {bufferStream, blobToStream, streamFromPromise} from '@parcel/utils';
 import {getConfig, generateFromAST} from './assetUtils';
+import {deserializeRaw} from './serializer';
 
 export default class CommittedAsset {
   value: Asset;
@@ -131,10 +131,7 @@ export default class CommittedAsset {
     if (this.ast == null) {
       this.ast = this.options.cache
         .getBlob(this.value.astKey)
-        .then(serializedAst =>
-          // $FlowFixMe
-          v8.deserialize(serializedAst),
-        );
+        .then(serializedAst => deserializeRaw(serializedAst));
     }
 
     return this.ast;

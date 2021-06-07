@@ -5,6 +5,7 @@ import path from 'path';
 import {relativePath} from '@parcel/utils';
 import nullthrows from 'nullthrows';
 import clone from 'clone';
+import {POSTCSS_RANGE} from './constants';
 
 import loadExternalPlugins from './loadPlugins';
 
@@ -99,6 +100,7 @@ export async function load({
     config.addDevDependency({
       moduleSpecifier: 'postcss',
       resolveFrom: config.searchPath,
+      range: POSTCSS_RANGE,
     });
 
     contents = configFile.contents;

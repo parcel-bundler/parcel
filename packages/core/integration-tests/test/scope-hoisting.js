@@ -3645,6 +3645,18 @@ describe('scope hoisting', function() {
       let res = await Promise.all(await run(b));
       assert.deepEqual(res, [42, 42]);
     });
+
+    it('should treat type-only TypeScript modules as ESM', async () => {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          'integration/scope-hoisting/es6/empty-ts/index.ts',
+        ),
+      );
+
+      let test = await run(b);
+      assert.equal(test({foo: 2}), 2);
+    });
   });
 
   describe('commonjs', function() {
