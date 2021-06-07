@@ -121,6 +121,15 @@ export type Dependency = {|
   pipeline?: ?string,
 |};
 
+export const BundleBehavior = {
+  inline: 0,
+  isolated: 1,
+};
+
+export const BundleBehaviorNames: Array<
+  $Keys<typeof BundleBehavior>,
+> = Object.keys(BundleBehavior);
+
 export type Asset = {|
   id: ContentKey,
   committed: boolean,
@@ -129,9 +138,8 @@ export type Asset = {|
   query: ?QueryParameters,
   type: string,
   dependencies: Map<string, Dependency>,
-  isIsolated: boolean,
-  isInline: boolean,
-  isSplittable: ?boolean,
+  bundleBehavior: ?$Values<typeof BundleBehavior>,
+  isBundleSplittable: boolean,
   isSource: boolean,
   env: Environment,
   meta: Meta,

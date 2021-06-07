@@ -26,7 +26,7 @@ export default (new Transformer({
   async transform({asset, options}) {
     // Handle .htm
     asset.type = 'html';
-    asset.isIsolated = true;
+    asset.bundleBehavior = 'isolated';
     let ast = nullthrows(await asset.getAST());
     let hasScripts = collectDependencies(asset, ast);
 

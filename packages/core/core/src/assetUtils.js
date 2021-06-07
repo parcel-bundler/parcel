@@ -2,6 +2,7 @@
 
 import type {
   ASTGenerator,
+  BundleBehavior,
   FilePath,
   GenerateOutput,
   Meta,
@@ -33,6 +34,7 @@ import {blobToStream, hashFile} from '@parcel/utils';
 import {hashFromOption} from './utils';
 import {createBuildCache} from './buildCache';
 import {hashString} from '@parcel/hash';
+import {BundleBehavior as BundleBehaviorMap} from './types';
 
 type AssetOptions = {|
   id?: string,
@@ -47,9 +49,8 @@ type AssetOptions = {|
   astKey?: ?string,
   astGenerator?: ?ASTGenerator,
   dependencies?: Map<string, Dependency>,
-  isIsolated?: boolean,
-  isInline?: boolean,
-  isSplittable?: ?boolean,
+  bundleBehavior?: ?BundleBehavior,
+  isBundleSplittable?: ?boolean,
   isSource: boolean,
   env: Environment,
   meta?: Meta,
@@ -90,9 +91,10 @@ export function createAsset(options: AssetOptions): Asset {
     hash: options.hash,
     filePath: options.filePath,
     query: options.query,
-    isIsolated: options.isIsolated ?? false,
-    isInline: options.isInline ?? false,
-    isSplittable: options.isSplittable,
+    bundleBehavior: options.bundleBehavior
+      ? BundleBehaviorMap[options.bundleBehavior]
+      : null,
+    isBundleSplittable: options.isBundleSplittable ?? true,
     type: options.type,
     contentKey: options.contentKey,
     mapKey: options.mapKey,

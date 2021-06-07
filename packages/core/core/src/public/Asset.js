@@ -20,6 +20,7 @@ import type {
   MutableAssetSymbols as IMutableAssetSymbols,
   AssetSymbols as IAssetSymbols,
   QueryParameters,
+  BundleBehavior,
 } from '@parcel/types';
 import type {Asset as AssetValue, ParcelOptions} from '../types';
 
@@ -30,6 +31,10 @@ import {AssetSymbols, MutableAssetSymbols} from './Symbols';
 import UncommittedAsset from '../UncommittedAsset';
 import CommittedAsset from '../CommittedAsset';
 import {createEnvironment} from '../Environment';
+import {
+  BundleBehavior as BundleBehaviorMap,
+  BundleBehaviorNames,
+} from '../types';
 
 const inspect = Symbol.for('nodejs.util.inspect.custom');
 
@@ -115,16 +120,13 @@ class BaseAsset {
     return this.#asset.value.meta;
   }
 
-  get isIsolated(): boolean {
-    return this.#asset.value.isIsolated;
+  get bundleBehavior(): ?BundleBehavior {
+    let bundleBehavior = this.#asset.value.bundleBehavior;
+    return bundleBehavior == null ? null : BundleBehaviorNames[bundleBehavior];
   }
 
-  get isInline(): boolean {
-    return this.#asset.value.isInline;
-  }
-
-  get isSplittable(): ?boolean {
-    return this.#asset.value.isSplittable;
+  get isBundleSplittable(): boolean {
+    return this.#asset.value.isBundleSplittable;
   }
 
   get isSource(): boolean {
@@ -234,28 +236,31 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
     }
   }
 
-  get isIsolated(): boolean {
-    return this.#asset.value.isIsolated;
+  get bundleBehavior(): ?BundleBehavior {
+    let bundleBehavior = this.#asset.value.bundleBehavior;
+    return bundleBehavior == null ? null : BundleBehaviorNames[bundleBehavior];
   }
 
-  set isIsolated(isIsolated: boolean): void {
-    this.#asset.value.isIsolated = isIsolated;
+  set bundleBehavior(bundleBehavior: ?BundleBehavior): void {
+    this.#asset.value.bundleBehavior = bundleBehavior
+      ? BundleBehaviorMap[bundleBehavior]
+      : null;
   }
 
-  get isInline(): boolean {
-    return this.#asset.value.isInline;
+  get isBundleSplittable(): boolean {
+    return this.#asset.value.isBundleSplittable;
   }
 
-  set isInline(isInline: boolean): void {
-    this.#asset.value.isInline = isInline;
+  set isBundleSplittable(isBundleSplittable: boolean): void {
+    this.#asset.value.isBundleSplittable = isBundleSplittable;
   }
 
-  get isSplittable(): ?boolean {
-    return this.#asset.value.isSplittable;
+  get sideEffects(): boolean {
+    return this.#asset.value.sideEffects;
   }
 
-  set isSplittable(isSplittable: ?boolean): void {
-    this.#asset.value.isSplittable = isSplittable;
+  set sideEffects(sideEffects: boolean): void {
+    this.#asset.value.sideEffects = sideEffects;
   }
 
   get symbols(): IMutableAssetSymbols {

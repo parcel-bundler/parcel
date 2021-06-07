@@ -569,93 +569,150 @@ export type File = {|
  */
 export type ASTGenerator = {|
   type: string,
-  version: string,
+  version: Semver,
 |};
 
+export type BundleBehavior = 'inline' | 'isolated';
+
 /**
- * An asset (usually represents one source file).
+ * An asset represents a file or part of a file. It may represent any data type, including source code,
+ * binary data, etc. Assets may exist in the file system or may be virtual.
  *
  * @section transformer
  */
 export interface BaseAsset {
-  +env: Environment;
+  /** The id of the asset. */
+  +id: string;
   /** The file system where the source is located. */
   +fs: FileSystem;
+  /** The file path of the asset. */
   +filePath: FilePath;
-  +query: QueryParameters;
-  +id: string;
-  +meta: Meta;
-  +isIsolated: boolean;
-  /** Whether this asset will/should later be inserted back into the importer. */
-  +isInline: boolean;
-  +isSplittable: ?boolean;
-  /** Whether this is asset is part of the users project (and not of an external dependencies) and should be transpiled. */
-  +isSource: boolean;
-  /** Usually corresponds to the file extension */
+  /**
+   * The asset's type. This initially corresponds to the source file extension,
+   * but it may be changed during transformation.
+   */
   +type: string;
-  /** Whether this asset can be omitted if none of its exports are being used (set by ResolveResult) */
+  /** The transformer options for the asset from the dependency query string. */
+  +query: QueryParameters;
+  /** The environment of the asset. */
+  +env: Environment;
+  /**
+   * Whether this asset is part of the project, and not an external dependency (e.g. in node_modules).
+   * This indicates that transformation using the project's configuration should be applied.
+   */
+  +isSource: boolean;
+  /** Plugin-specific metadata for the asset. */
+  +meta: Meta;
+  /**
+   * Controls which bundle the asset is placed into.
+   *   - inline: The asset will be placed into a new inline bundle. Inline bundles are not written
+   *       to a separate file, but embedded into the parent bundle.
+   *   - isolated: The asset will be placed into a separate bundle.
+   */
+  +bundleBehavior: ?BundleBehavior;
+  /**
+   * If the asset is used as a bundle entry, this controls whether that bundle can be split
+   * into multiple, or whether all of the dependencies must be placed in a single bundle.
+   */
+  +isBundleSplittable: boolean;
+  /**
+   * Whether this asset can be omitted if none of its exports are being used.
+   * This is initially set by the resolver, but can be overridden by transformers.
+   */
   +sideEffects: boolean;
   /**
-   * Inline assets inheirit the parent's <code>id</code>, making it not be enough for a unique identification
-   * (this could be a counter that is unique per asset)
+   * When a transformer returns multiple assets, it can give them unique keys to identify them.
+   * This can be used to find assets during packaging, or to create dependencies between multiple
+   * assets returned by a transformer by using the unique key as the dependency specifier.
    */
   +uniqueKey: ?string;
   /** The type of the AST. */
   +astGenerator: ?ASTGenerator;
+  /** The pipeline defined in .parcelrc that the asset should be processed with. */
   +pipeline: ?string;
-
-  /** a <code>Map&lt;export name, name of binding&gt;</code> */
+  /** The symbols that the asset exports. */
   +symbols: AssetSymbols;
-
-  /** Returns to current AST. See notes in subclasses (Asset, MutableAsset).*/
+  /** Returns the current AST. */
   getAST(): Promise<?AST>;
-  /** Returns to current source code. See notes in MutableAsset. */
+  /** Returns the asset contents as a string. */
   getCode(): Promise<string>;
-  /** Returns the contents as a buffer. */
+  /** Returns the asset contents as a buffer. */
   getBuffer(): Promise<Buffer>;
-  /** Returns the contents as a stream. */
+  /** Returns the asset contents as a stream. */
   getStream(): Readable;
-  /** Returns the sourcemap (if existent). */
+  /** Returns the source map for the asset, if available. */
   getMap(): Promise<?SourceMap>;
-  /** A buffer representation of the sourcemap (if existent). */
+  /** Returns a buffer representation of the source map, if available. */
   getMapBuffer(): Promise<?Buffer>;
+  /** Returns a list of dependencies for the asset. */
   getDependencies(): $ReadOnlyArray<Dependency>;
 }
 
 /**
- * A somewhat modifiable version of BaseAsset (for transformers)
+ * A mutable Asset, available during transformation.
  * @section transformer
  */
 export interface MutableAsset extends BaseAsset {
-  isIsolated: boolean;
-  isInline: boolean;
-  isSplittable: ?boolean;
+  /**
+   * The asset's type. This initially corresponds to the source file extension,
+   * but it may be changed during transformation.
+   */
   type: string;
-
-  addDependency(dep: DependencyOptions): string;
-  addIncludedFile(filePath: FilePath): void;
-  invalidateOnFileCreate(invalidation: FileCreateInvalidation): void;
-  addURLDependency(url: string, opts: $Shape<DependencyOptions>): string;
-  invalidateOnEnvChange(env: string): void;
-
+  /**
+   * Controls which bundle the asset is placed into.
+   *   - inline: The asset will be placed into a new inline bundle. Inline bundles are not written
+   *       to a separate file, but embedded into the parent bundle.
+   *   - isolated: The asset will be placed into a separate bundle.
+   */
+  bundleBehavior: ?BundleBehavior;
+  /**
+   * If the asset is used as a bundle entry, this controls whether that bundle can be split
+   * into multiple, or whether all of the dependencies must be placed in a single bundle.
+   * @default true
+   */
+  isBundleSplittable: boolean;
+  /**
+   * Whether this asset can be omitted if none of its exports are being used.
+   * This is initially set by the resolver, but can be overridden by transformers.
+   */
+  sideEffects: boolean;
+  /** The symbols that the asset exports. */
   +symbols: MutableAssetSymbols;
 
-  isASTDirty(): boolean;
-  getAST(): Promise<?AST>;
-  setAST(AST): void;
-  setBuffer(Buffer): void;
+  /** Adds a dependency to the asset. */
+  addDependency(DependencyOptions): string;
+  /**
+   * Adds a url dependency to the asset.
+   * This is a shortcut for addDependency that sets the specifierType to 'url' and priority to 'lazy'.
+   */
+  addURLDependency(url: string, opts: $Shape<DependencyOptions>): string;
+  /** Invalidates the asset when the given file is modified or deleted. */
+  addIncludedFile(FilePath): void;
+  /** Invalidates the asset when matched files are created. */
+  invalidateOnFileCreate(FileCreateInvalidation): void;
+  /** Invalidates the asset when the given environment variable changes. */
+  invalidateOnEnvChange(string): void;
+  /** Sets the asset contents as a string. */
   setCode(string): void;
-  /** Throws if the AST is dirty (meaning: this won't implicity stringify the AST). */
-  getCode(): Promise<string>;
-  setEnvironment(opts: EnvironmentOptions): void;
-  setMap(?SourceMap): void;
+  /** Sets the asset contents as a buffer. */
+  setBuffer(Buffer): void;
+  /** Sets the asset contents as a stream. */
   setStream(Readable): void;
+  /** Returns whether the AST has been modified. */
+  setAST(AST): void;
+  /** Sets the asset's AST. */
+  isASTDirty(): boolean;
+  /** Sets the asset's source map. */
+  setMap(?SourceMap): void;
+  setEnvironment(opts: EnvironmentOptions): void;
 }
 
 /**
+ * An immutable Asset, available after transformation.
  * @section transformer
  */
 export interface Asset extends BaseAsset {
+  /** Statistics about the asset. */
   +stats: Stats;
 }
 
@@ -727,17 +784,16 @@ export type Blob = string | Buffer | Readable;
  * @section transformer
  */
 export type TransformerResult = {|
-  +ast?: ?AST,
   +content?: ?Blob,
+  +ast?: ?AST,
   +dependencies?: $ReadOnlyArray<DependencyOptions>,
   +env?: EnvironmentOptions,
   +filePath?: FilePath,
   +query?: ?QueryParameters,
   +includedFiles?: $ReadOnlyArray<File>,
-  +isInline?: boolean,
-  +isIsolated?: boolean,
+  +bundleBehavior?: ?BundleBehavior,
+  +isBundleSplittable?: boolean,
   +isSource?: boolean,
-  +isSplittable?: boolean,
   +map?: ?SourceMap,
   +meta?: Meta,
   +pipeline?: ?string,

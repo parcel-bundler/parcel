@@ -153,12 +153,6 @@ export default (new Transformer({
     });
   },
   async transform({asset, config, options}) {
-    // When this asset is an bundle entry, allow that bundle to be split to load shared assets separately.
-    // Only set here if it is null to allow previous transformers to override this behavior.
-    if (asset.isSplittable == null) {
-      asset.isSplittable = true;
-    }
-
     let [code, originalMap] = await Promise.all([
       asset.getBuffer(),
       asset.getMap(),

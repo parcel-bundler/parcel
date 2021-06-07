@@ -39,6 +39,7 @@ import {
   getInvalidationId,
   getInvalidationHash,
 } from './assetUtils';
+import {BundleBehaviorNames} from './types';
 
 type UncommittedAssetOptions = {|
   value: Asset,
@@ -365,9 +366,13 @@ export default class UncommittedAsset {
         filePath: this.value.filePath,
         type: result.type,
         query: result.query,
-        isIsolated: result.isIsolated ?? this.value.isIsolated,
-        isInline: result.isInline ?? this.value.isInline,
-        isSplittable: result.isSplittable ?? this.value.isSplittable,
+        bundleBehavior:
+          result.bundleBehavior ??
+          (this.value.bundleBehavior == null
+            ? null
+            : BundleBehaviorNames[this.value.bundleBehavior]),
+        isBundleSplittable:
+          result.isBundleSplittable ?? this.value.isBundleSplittable,
         isSource: result.isSource ?? this.value.isSource,
         env: mergeEnvironments(this.value.env, result.env),
         dependencies:

@@ -190,7 +190,7 @@ export class DevPackager {
     return (
       !this.bundleGraph.hasParentBundleOfType(this.bundle, 'js') ||
       this.bundle.env.isIsolated() ||
-      !!this.bundle.getMainEntry()?.isIsolated
+      !!this.bundle.getMainEntry()?.bundleBehavior === 'isolated'
     );
   }
 }
