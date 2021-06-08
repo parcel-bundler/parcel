@@ -412,7 +412,7 @@ export default class BundleGraph {
     let entryNodes = new Set(this._graph.getNodeIdsConnectedFrom(bundleNodeId));
 
     this._graph.traverse((nodeId, context, actions) => {
-      if (entryNodes.has(nodeId)) {
+      if (entryNodes.has(nodeId) && assetNodeId !== nodeId) {
         actions.skipChildren();
         return;
       }

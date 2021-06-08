@@ -1474,7 +1474,7 @@ describe('html', function() {
     assert.deepEqual(output, ['client', 'client', 'viewer']);
   });
 
-  it.only('should not point to unrelated sibling bundles', async function() {
+  it('should not point to unrelated sibling bundles', async function() {
     await bundle(
       path.join(
         __dirname,
@@ -1536,7 +1536,7 @@ describe('html', function() {
     assert(css.includes('.b {'));
   });
 
-  it.only('should support split bundles with many pages', async function() {
+  it('should support split bundles with many pages', async function() {
     await bundle(path.join(__dirname, '/integration/shared-many/*.html'), {
       mode: 'production',
     });

@@ -122,7 +122,7 @@ describe('cache', function() {
     assert.equal(await run(b.bundleGraph), 8);
   });
 
-  it.only('should support adding a dependency which changes the referenced bundles of a parent bundle', async function() {
+  it('should support adding a dependency which changes the referenced bundles of a parent bundle', async function() {
     async function exec(bundleGraph) {
       let calls = [];
       await run(bundleGraph, {
@@ -4248,7 +4248,7 @@ describe('cache', function() {
     });
 
     describe('bundler config', function() {
-      it.only('should support adding bundler config', async function() {
+      it('should support adding bundler config', async function() {
         let b = await testCache(
           {
             entries: ['*.html'],
@@ -4295,7 +4295,7 @@ describe('cache', function() {
         assert.equal(html.match(/<script/g)?.length, 4);
       });
 
-      it.only('should support updating bundler config', async function() {
+      it('should support updating bundler config', async function() {
         let b = await testCache(
           {
             entries: ['*.html'],
@@ -4331,7 +4331,7 @@ describe('cache', function() {
         assert.equal(html.match(/<script/g)?.length, 5);
       });
 
-      it.only('should support removing bundler config', async function() {
+      it('should support removing bundler config', async function() {
         let b = await testCache(
           {
             entries: ['*.html'],
