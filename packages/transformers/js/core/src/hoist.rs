@@ -68,6 +68,7 @@ pub struct HoistResult {
   dynamic_imports: HashMap<JsWord, JsWord>,
   static_cjs_exports: bool,
   has_cjs_exports: bool,
+  is_esm: bool,
   should_wrap: bool,
 }
 
@@ -98,6 +99,7 @@ impl<'a> Hoist<'a> {
       wrapped_requires: self.collect.wrapped_requires.clone(),
       static_cjs_exports: self.collect.static_cjs_exports,
       has_cjs_exports: self.collect.has_cjs_exports,
+      is_esm: self.collect.is_esm,
       should_wrap: self.collect.should_wrap,
     }
   }

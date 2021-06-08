@@ -108,6 +108,10 @@ export default class Dependency implements IDependency {
     return this.#dep.sourcePath;
   }
 
+  get sourceAssetType(): ?string {
+    return this.#dep.sourceAssetType;
+  }
+
   get resolveFrom(): ?string {
     return this.#dep.resolveFrom ?? this.#dep.sourcePath;
   }

@@ -10,11 +10,7 @@ import type {StaticRunOpts} from '../RequestTracker';
 import type {AssetGroup, Dependency, ParcelOptions} from '../types';
 import type {ConfigAndCachePath} from './ParcelConfigRequest';
 
-import ThrowableDiagnostic, {
-  errorToDiagnostic,
-  escapeMarkdown,
-  md,
-} from '@parcel/diagnostic';
+import ThrowableDiagnostic, {errorToDiagnostic, md} from '@parcel/diagnostic';
 import {PluginLogger} from '@parcel/logger';
 import {relativePath} from '@parcel/utils';
 import nullthrows from 'nullthrows';
@@ -211,6 +207,7 @@ export class ResolverRunner {
       try {
         let result = await resolver.plugin.resolve({
           filePath,
+          pipeline,
           dependency: dep,
           options: this.pluginOptions,
           logger: new PluginLogger({origin: resolver.name}),
@@ -222,6 +219,10 @@ export class ResolverRunner {
               ...dependency.meta,
               ...result.meta,
             };
+          }
+
+          if (result.isAsync != null) {
+            dependency.isAsync = result.isAsync;
           }
 
           if (result.isExcluded) {
@@ -237,7 +238,10 @@ export class ResolverRunner {
                 sideEffects: result.sideEffects,
                 code: result.code,
                 env: dependency.env,
-                pipeline: pipeline ?? dependency.pipeline,
+                pipeline:
+                  result.pipeline === undefined
+                    ? pipeline ?? dependency.pipeline
+                    : result.pipeline,
                 isURL: dependency.isURL,
               },
               invalidateOnFileCreate: result.invalidateOnFileCreate,
@@ -279,15 +283,15 @@ export class ResolverRunner {
     let resolveFrom = dependency.resolveFrom ?? dependency.sourcePath;
     let dir =
       resolveFrom != null
-        ? escapeMarkdown(relativePath(this.options.projectRoot, resolveFrom))
+        ? relativePath(this.options.projectRoot, resolveFrom)
         : '';
-
-    let specifier = escapeMarkdown(dependency.moduleSpecifier || '');
 
     // $FlowFixMe because of the err.code assignment
     let err = await this.getThrowableDiagnostic(
       dependency,
-      md`Failed to resolve '${specifier}' ${dir ? `from '${dir}'` : ''}`,
+      md`Failed to resolve '${dependency.moduleSpecifier}' ${
+        dir ? `from '${dir}'` : ''
+      }`,
     );
 
     // Merge diagnostics

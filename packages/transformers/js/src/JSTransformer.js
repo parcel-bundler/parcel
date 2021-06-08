@@ -444,7 +444,8 @@ export default (new Transformer({
       // This allows accessing symbols that don't exist without errors in symbol propagation.
       if (
         hoist_result.has_cjs_exports ||
-        (deps.size === 0 &&
+        (!hoist_result.is_esm &&
+          deps.size === 0 &&
           Object.keys(hoist_result.exported_symbols).length === 0) ||
         (hoist_result.should_wrap && !asset.symbols.hasExportSymbol('*'))
       ) {
