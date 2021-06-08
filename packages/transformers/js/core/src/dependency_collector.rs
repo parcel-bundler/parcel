@@ -90,6 +90,11 @@ impl<'a> DependencyCollector<'a> {
   }
 }
 
+fn rewrite_require_specifier(call: ast::CallExpr) -> ast::CallExpr {
+  // TODO: Remove node: from specifier
+  return call;
+}
+
 impl<'a> Fold for DependencyCollector<'a> {
   fn fold_import_decl(&mut self, node: ast::ImportDecl) -> ast::ImportDecl {
     if node.type_only {
@@ -373,10 +378,10 @@ impl<'a> Fold for DependencyCollector<'a> {
 
       // Track the returned require call to be replaced with a promise chain.
       self.require_node = Some(call.clone());
-      call
+      rewrite_require_specifier(call)
     } else if kind == DependencyKind::Require {
       // Don't continue traversing so that the `require` isn't replaced with undefined
-      node
+      rewrite_require_specifier(node)
     } else {
       node.fold_children_with(self)
     }

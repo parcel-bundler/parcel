@@ -2,7 +2,7 @@ import assert from 'assert';
 import path from 'path';
 import {bundle, run, ncp, overlayFS, outputFS} from '@parcel/test-utils';
 
-describe('resolver', function() {
+describe.only('resolver', function() {
   it('should support resolving tilde in monorepo packages', async function() {
     let b = await bundle(
       path.join(
@@ -15,7 +15,7 @@ describe('resolver', function() {
     assert.strictEqual(output.default, 1234);
   });
 
-  it('should support node: prefix for node_modules', async function() {
+  it.only('should support node: prefix for node_modules', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/resolve-node-prefix/src/index.js'),
     );
