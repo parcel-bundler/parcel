@@ -614,10 +614,11 @@ export default class EfficientGraph<TEdgeType: number = 1> {
     to: NodeId,
   ): Iterable<{|type: TEdgeType, from: NodeId|}> {
     for (
-      let i = hashToIndex(this.nodes[indexOfNode(to) + FIRST_IN]);
-      i;
-      i = hashToIndex(this.edges[i + NEXT_IN])
+      let hash = this.nodes[indexOfNode(to) + FIRST_IN];
+      hash;
+      hash = this.edges[hashToIndex(hash) + NEXT_IN]
     ) {
+      let i = hashToIndex(hash);
       yield {
         type: (this.edges[i + TYPE]: any),
         from: toNodeId(this.edges[i + FROM]),
@@ -629,10 +630,11 @@ export default class EfficientGraph<TEdgeType: number = 1> {
     from: NodeId,
   ): Iterable<{|type: TEdgeType, to: NodeId|}> {
     for (
-      let i = hashToIndex(this.nodes[indexOfNode(from) + FIRST_OUT]);
-      i;
-      i = hashToIndex(this.edges[i + NEXT_OUT])
+      let hash = this.nodes[indexOfNode(from) + FIRST_OUT];
+      hash;
+      hash = this.edges[hashToIndex(hash) + NEXT_OUT]
     ) {
+      let i = hashToIndex(hash);
       yield {
         type: (this.edges[i + TYPE]: any),
         to: toNodeId(this.edges[i + TO]),
@@ -666,10 +668,11 @@ export default class EfficientGraph<TEdgeType: number = 1> {
       | Array<TEdgeType | NullEdgeType> = 1,
   ): Iterator<NodeId> {
     for (
-      let i = hashToIndex(this.nodes[indexOfNode(from) + FIRST_OUT]);
-      i;
-      i = hashToIndex(this.edges[i + NEXT_OUT])
+      let hash = this.nodes[indexOfNode(from) + FIRST_OUT];
+      hash;
+      hash = this.edges[hashToIndex(hash) + NEXT_OUT]
     ) {
+      let i = hashToIndex(hash);
       if (Array.isArray(type)) {
         for (let typeNum of type) {
           if (typeNum === ALL_EDGE_TYPES || this.edges[i + TYPE] === typeNum) {
@@ -696,10 +699,11 @@ export default class EfficientGraph<TEdgeType: number = 1> {
       | Array<TEdgeType | NullEdgeType> = 1,
   ): Iterator<NodeId> {
     for (
-      let i = hashToIndex(this.nodes[indexOfNode(to) + FIRST_IN]);
-      i;
-      i = hashToIndex(this.edges[i + NEXT_IN])
+      let hash = this.nodes[indexOfNode(to) + FIRST_IN];
+      hash;
+      hash = this.edges[hashToIndex(hash) + NEXT_IN]
     ) {
+      let i = hashToIndex(hash);
       if (Array.isArray(type)) {
         for (let typeNum of type) {
           if (typeNum === ALL_EDGE_TYPES || this.edges[i + TYPE] === typeNum) {
