@@ -69,6 +69,8 @@ export type SerializedEfficientGraph<TEdgeType> = {|
   edges: Uint32Array,
   numNodes: number,
   numEdges: number,
+  edgeCapacity: number,
+  nodeCapacity: number,
 |};
 
 type EdgeAttr =
@@ -143,6 +145,8 @@ export default class EfficientGraph<TEdgeType: number = 1> {
     res.edges = opts.edges;
     res.numNodes = opts.numNodes;
     res.numEdges = opts.numEdges;
+    res.nodeCapacity = opts.nodeCapacity;
+    res.edgeCapacity = opts.edgeCapacity;
     return res;
   }
 
@@ -155,6 +159,8 @@ export default class EfficientGraph<TEdgeType: number = 1> {
       edges: this.edges,
       numNodes: this.numNodes,
       numEdges: this.numEdges,
+      edgeCapacity: this.edgeCapacity,
+      nodeCapacity: this.nodeCapacity,
     };
   }
 
