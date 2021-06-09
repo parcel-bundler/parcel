@@ -6,7 +6,7 @@ import typeof * as BabelCore from '@babel/core';
 
 import path from 'path';
 import * as internalBabelCore from '@babel/core';
-import {md5FromObject, relativePath, resolveConfig} from '@parcel/utils';
+import {hashObject, relativePath, resolveConfig} from '@parcel/utils';
 
 import isJSX from './jsx';
 import getFlowOptions from './flow';
@@ -27,6 +27,8 @@ const BABEL_CONFIG_FILENAMES = [
   'babel.config.mjs',
   'babel.config.cjs',
 ];
+
+const BABEL_CORE_RANGE = '^7.12.0';
 
 export async function load(
   config: Config,
@@ -64,7 +66,7 @@ export async function load(
     '@babel/core',
     config.searchPath,
     {
-      range: '^7.12.0',
+      range: BABEL_CORE_RANGE,
       saveDev: true,
       shouldAutoInstall: options.shouldAutoInstall,
     },
@@ -72,6 +74,7 @@ export async function load(
   config.addDevDependency({
     moduleSpecifier: '@babel/core',
     resolveFrom: config.searchPath,
+    range: BABEL_CORE_RANGE,
   });
 
   let babelOptions = {
@@ -186,7 +189,7 @@ export async function load(
       config.shouldInvalidateOnStartup();
     } else {
       definePluginDependencies(config, options);
-      config.setResultHash(md5FromObject(partialConfig.options));
+      config.setResultHash(hashObject(partialConfig.options));
     }
   } else {
     await buildDefaultBabelConfig(options, config);

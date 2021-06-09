@@ -4281,7 +4281,7 @@ describe('cache', function() {
                 'utf8',
               );
               // ATLASSIAN : bundler has a bit different logic
-              assert.equal(html.match(/<script/g)?.length, 7);
+              assert.equal(html.match(/<script/g)?.length, 6);
 
               let pkgFile = path.join(inputDir, 'package.json');
               let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
@@ -4342,7 +4342,7 @@ describe('cache', function() {
           'utf8',
         );
         // ATLASSIAN : bundler has a bit different logic
-        assert.equal(html.match(/<script/g)?.length, 7);
+        assert.equal(html.match(/<script/g)?.length, 6);
       });
 
       it('should support removing bundler config', async function() {
@@ -4379,7 +4379,7 @@ describe('cache', function() {
           'utf8',
         );
         // ATLASSIAN : bundler has a bit different logic
-        assert.equal(html.match(/<script/g)?.length, 7);
+        assert.equal(html.match(/<script/g)?.length, 6);
       });
     });
   });

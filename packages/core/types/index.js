@@ -188,6 +188,7 @@ export type VersionMap = {
  * Defines the environment in for the output bundle
  */
 export interface Environment {
+  +id: string;
   +context: EnvironmentContext;
   +engines: Engines;
   /** Whether to include all/none packages \
@@ -483,6 +484,8 @@ export interface Dependency {
   +sourceAssetId: ?string;
   /** Used for error messages, the importer. */
   +sourcePath: ?string;
+  /** The type of the asset that referenced this dependency. */
+  +sourceAssetType: ?string;
   +resolveFrom: ?string;
   /** a named pipeline (if the <code>moduleSpecifier</code> didn't specify one). */
   +pipeline: ?string;
@@ -607,6 +610,7 @@ export interface Asset extends BaseAsset {
 export type DevDepOptions = {|
   moduleSpecifier: ModuleSpecifier,
   resolveFrom: FilePath,
+  range?: ?SemverRange,
   /**
    * Whether to also invalidate the parcel plugin that loaded this dev dependency
    * when it changes. This is useful if the parcel plugin or another parent dependency
@@ -1111,7 +1115,9 @@ export type FileCreateInvalidation =
  */
 export type ResolveResult = {|
   +filePath?: FilePath,
+  +pipeline?: ?string,
   +isExcluded?: boolean,
+  +isAsync?: boolean,
   /** Corresponds to BaseAsset's <code>sideEffects</code>. */
   +sideEffects?: boolean,
   /** A resolver might want to resolve to a dummy, in this case <code>filePath</code> is rather "resolve from". */
@@ -1252,6 +1258,7 @@ export type Resolver = {|
     options: PluginOptions,
     logger: PluginLogger,
     filePath: FilePath,
+    pipeline: ?string,
   |}): Async<?ResolveResult>,
 |};
 

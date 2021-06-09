@@ -8,6 +8,7 @@ import type {
   TransformerResult,
   PackageName,
   DevDepOptions,
+  SemverRange,
 } from '@parcel/types';
 import type {WorkerApi} from '@parcel/workers';
 import type {
@@ -22,20 +23,15 @@ import type {LoadedPlugin} from './ParcelConfig';
 
 import path from 'path';
 import nullthrows from 'nullthrows';
-import {
-  md5FromOrderedObject,
-  normalizeSeparators,
-  objectSortedEntries,
-} from '@parcel/utils';
+import {normalizeSeparators, objectSortedEntries} from '@parcel/utils';
 import logger, {PluginLogger} from '@parcel/logger';
-import {init as initSourcemaps} from '@parcel/source-map';
 import ThrowableDiagnostic, {
   errorToDiagnostic,
   escapeMarkdown,
   md,
 } from '@parcel/diagnostic';
 import {SOURCEMAP_EXTENSIONS} from '@parcel/utils';
-import crypto from 'crypto';
+import {hashString} from '@parcel/hash';
 
 import {createDependency} from './Dependency';
 import ParcelConfig from './ParcelConfig';
@@ -117,8 +113,6 @@ export default class Transformation {
   }
 
   async run(): Promise<TransformationResult> {
-    await initSourcemaps;
-
     let asset = await this.loadAsset();
 
     if (!asset.mapBuffer && SOURCEMAP_EXTENSIONS.has(asset.value.type)) {
@@ -231,14 +225,14 @@ export default class Transformation {
     // Prefer `isSource` originating from the AssetRequest.
     let isSource = isSourceOverride ?? summarizedIsSource;
 
-    // If the transformer request passed code rather than a filename,
-    // use a hash as the base for the id to ensure it is unique.
-    let idBase =
-      code != null
-        ? hash
-        : normalizeSeparators(
-            path.relative(this.options.projectRoot, filePath),
-          );
+    // If the transformer request passed code, use a hash in addition
+    // to the filename as the base for the id to ensure it is unique.
+    let idBase = normalizeSeparators(
+      path.relative(this.options.projectRoot, filePath),
+    );
+    if (code != null) {
+      idBase += hash;
+    }
     return new UncommittedAsset({
       idBase,
       value: createAsset({
@@ -285,6 +279,7 @@ export default class Transformation {
         {
           moduleSpecifier: transformer.name,
           resolveFrom: transformer.resolveFrom,
+          range: transformer.range,
         },
         transformer,
       );
@@ -333,36 +328,33 @@ export default class Transformation {
   }
 
   async getPipelineHash(pipeline: Pipeline): Promise<string> {
-    let hash = crypto.createHash('md5');
+    let hashes = '';
     for (let transformer of pipeline.transformers) {
       let key = `${transformer.name}:${transformer.resolveFrom}`;
-      hash.update(
+      hashes +=
         this.request.devDeps.get(key) ??
-          this.devDepRequests.get(key)?.hash ??
-          '',
-      );
+        this.devDepRequests.get(key)?.hash ??
+        ':';
 
       let config = this.configs.get(transformer.name);
       if (config) {
-        hash.update(
-          await getConfigHash(config, transformer.name, this.options),
-        );
+        hashes += await getConfigHash(config, transformer.name, this.options);
 
         for (let devDep of config.devDeps) {
           let key = `${devDep.moduleSpecifier}:${devDep.resolveFrom}`;
-          hash.update(nullthrows(this.devDepRequests.get(key)).hash);
+          hashes += nullthrows(this.devDepRequests.get(key)).hash;
         }
       }
     }
 
-    return hash.digest('hex');
+    return hashString(hashes);
   }
 
   async addDevDependency(
     opts: DevDepOptions,
     transformer: LoadedPlugin<Transformer> | TransformerWithNameAndConfig,
   ): Promise<void> {
-    let {moduleSpecifier, resolveFrom, invalidateParcelPlugin} = opts;
+    let {moduleSpecifier, resolveFrom, range, invalidateParcelPlugin} = opts;
     let key = `${moduleSpecifier}:${resolveFrom}`;
     if (this.devDepRequests.has(key)) {
       return;
@@ -382,7 +374,9 @@ export default class Transformation {
     }
 
     // Ensure that the package manager has an entry for this resolution.
-    await this.options.packageManager.resolve(moduleSpecifier, resolveFrom);
+    await this.options.packageManager.resolve(moduleSpecifier, resolveFrom, {
+      range,
+    });
     let invalidations = this.options.packageManager.getInvalidations(
       moduleSpecifier,
       resolveFrom,
@@ -578,21 +572,23 @@ export default class Transformation {
     invalidationHash: string,
     pipelineHash: string,
   ): string {
-    let assetsKeyInfo = assets.map(a => ({
-      filePath: a.value.filePath,
-      pipeline: a.value.pipeline,
-      hash: a.value.hash,
-      uniqueKey: a.value.uniqueKey,
-      query: a.value.query ? objectSortedEntries(a.value.query) : '',
-    }));
+    let assetsKeyInfo = assets
+      .map(a => [
+        a.value.filePath,
+        a.value.pipeline,
+        a.value.hash,
+        a.value.uniqueKey,
+        a.value.query ? JSON.stringify(objectSortedEntries(a.value.query)) : '',
+      ])
+      .join('');
 
-    return md5FromOrderedObject({
-      parcelVersion: PARCEL_VERSION,
-      assets: assetsKeyInfo,
-      env: this.request.env,
-      invalidationHash,
-      pipelineHash,
-    });
+    return hashString(
+      PARCEL_VERSION +
+        assetsKeyInfo +
+        this.request.env.id +
+        invalidationHash +
+        pipelineHash,
+    );
   }
 
   async loadPipeline(
@@ -830,6 +826,7 @@ type TransformerWithNameAndConfig = {|
   config: ?Config,
   configKeyPath?: string,
   resolveFrom: FilePath,
+  range?: ?SemverRange,
 |};
 
 function normalizeAssets(results: Array<TransformerResult | MutableAsset>) {

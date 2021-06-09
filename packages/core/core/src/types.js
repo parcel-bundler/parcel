@@ -101,6 +101,7 @@ export type Dependency = {|
   target: ?Target,
   sourceAssetId: ?string,
   sourcePath: ?string,
+  sourceAssetType?: ?string,
   resolveFrom: ?string,
   symbols: ?Map<
     Symbol,

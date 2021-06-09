@@ -2,11 +2,8 @@
 import type {Async} from '@parcel/types';
 import type SourceMap from '@parcel/source-map';
 import {Packager} from '@parcel/plugin';
-import {
-  replaceInlineReferences,
-  md5FromString,
-  loadConfig,
-} from '@parcel/utils';
+import {replaceInlineReferences, loadConfig} from '@parcel/utils';
+import {hashString} from '@parcel/hash';
 import path from 'path';
 import nullthrows from 'nullthrows';
 import {DevPackager} from './DevPackager';
@@ -25,7 +22,7 @@ export default (new Packager({
     let name = pkg?.config.name ?? '';
     return {
       config: {
-        parcelRequireName: 'parcelRequire' + md5FromString(name).slice(-4),
+        parcelRequireName: 'parcelRequire' + hashString(name).slice(-4),
       },
       files: pkg?.files ?? [],
     };

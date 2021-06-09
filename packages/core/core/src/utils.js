@@ -4,9 +4,8 @@ import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import type {BundleGroup} from '@parcel/types';
 import type {ParcelOptions} from './types';
 
-import assert from 'assert';
 import baseX from 'base-x';
-import {md5FromObject} from '@parcel/utils';
+import {hashObject} from '@parcel/utils';
 import {registerSerializableClass} from './serializer';
 import AssetGraph from './AssetGraph';
 import BundleGraph from './BundleGraph';
@@ -65,11 +64,6 @@ export function getPublicId(
   id: string,
   alreadyExists: string => boolean,
 ): string {
-  assert(
-    id.match(/^[0-9a-f]{32}$/),
-    `id ${id} must be a 32-character hexadecimal string`,
-  );
-
   let encoded = base62.encode(Buffer.from(id, 'hex'));
   for (let end = 5; end <= encoded.length; end++) {
     let candidate = encoded.slice(0, end);
@@ -116,7 +110,7 @@ export function optionsProxy(
 
 export function hashFromOption(value: mixed): string {
   if (typeof value === 'object' && value != null) {
-    return md5FromObject(value);
+    return hashObject(value);
   }
 
   return String(value);

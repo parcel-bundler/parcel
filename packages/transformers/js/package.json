@@ -24,8 +24,10 @@
   },
   "files": [
     "lib",
-    "*.node",
-    "src"
+    "native-browser.js",
+    "native.js",
+    "src",
+    "*.node"
   ],
   "dependencies": {
     "@parcel/diagnostic": "2.0.0-frontbucket.77",
@@ -41,8 +43,7 @@
     "semver": "^5.4.1"
   },
   "devDependencies": {
-    "@napi-rs/cli": "1.0.4",
-    "tiny-benchy": "^1.0.1"
+    "@napi-rs/cli": "1.0.4"
   },
   "scripts": {
     "build": "napi build --platform --cargo-cwd napi",

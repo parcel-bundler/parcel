@@ -16,7 +16,7 @@ import type {ParcelOptions} from '../types';
 import invariant from 'assert';
 import path from 'path';
 import nullthrows from 'nullthrows';
-import {md5FromString} from '@parcel/utils';
+import {hashString} from '@parcel/hash';
 import BundleGraph from './BundleGraph';
 import InternalBundleGraph from '../BundleGraph';
 import {Bundle, bundleToInternalBundle} from './Bundle';
@@ -153,7 +153,7 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
       : null;
 
     let target = targetToInternalTarget(opts.target);
-    let bundleId = md5FromString(
+    let bundleId = hashString(
       'bundle:' +
         (opts.uniqueKey ?? nullthrows(entryAsset?.id)) +
         path.relative(this.#options.projectRoot, target.distDir),
