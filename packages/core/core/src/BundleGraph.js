@@ -1513,11 +1513,14 @@ export default class BundleGraph {
     let otherGraphIdToThisNodeId = new Map<NodeId, NodeId>();
     for (let [otherNodeId, otherNode] of other._graph.nodes) {
       if (this._graph.hasContentKey(otherNode.id)) {
-        let existingNodeId = this._graph.getNodeIdByContentKey(otherNode.id);
+        let existingNodeId = this._graph.addNodeByContentKey(
+          otherNode.id,
+          otherNode,
+        );
         otherGraphIdToThisNodeId.set(otherNodeId, existingNodeId);
 
         let existingNode = nullthrows(this._graph.getNode(existingNodeId));
-        // Merge symbols, recompute dep.exluded based on that
+        // Merge symbols, recompute dep.excluded based on that
         if (existingNode.type === 'asset') {
           invariant(otherNode.type === 'asset');
           existingNode.usedSymbols = new Set([

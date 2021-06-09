@@ -19,7 +19,7 @@ import path from 'path';
 import nullthrows from 'nullthrows';
 import {PluginLogger} from '@parcel/logger';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
-import AssetGraph, {nodeFromAsset} from '../AssetGraph';
+import AssetGraph from '../AssetGraph';
 import BundleGraph from '../public/BundleGraph';
 import InternalBundleGraph from '../BundleGraph';
 import MutableBundleGraph from '../public/MutableBundleGraph';
@@ -57,7 +57,6 @@ type BundleGraphRequestInput = {|
   changedAssets: Map<string, Asset>,
   previousAssetGraphHash: ?string,
   assetGraphTransformationSubGraph: AssetGraph,
-  shouldBundle: boolean,
 |};
 
 type BundleGraphRequestResult = {|
@@ -102,7 +101,6 @@ export default function createBundleGraphRequest(
         assetGraphTransformationSubGraph:
           input.input.assetGraphTransformationSubGraph,
         changedAssets: input.input.changedAssets,
-        shouldBundle: input.input.shouldBundle,
       });
     },
     input,
@@ -185,19 +183,17 @@ class BundlerRunner {
     previousAssetGraphHash,
     assetGraphTransformationSubGraph,
     changedAssets,
-    shouldBundle,
   }: {|
     graph: AssetGraph,
     previousAssetGraphHash: ?string,
     assetGraphTransformationSubGraph: AssetGraph,
     changedAssets: Map<string, Asset>,
-    shouldBundle: boolean,
   |}): Promise<BundleGraphRequestResult> {
     report({
       type: 'buildProgress',
       phase: 'bundling',
     });
-    let mutableShouldBundle = shouldBundle;
+    let shouldForceFullBundle = false;
 
     await this.loadConfigs();
 
@@ -229,15 +225,18 @@ class BundlerRunner {
       }
     }
 
-    // TODO : determine if cache is disabled, should this happen?
+    // TODO : determine if cache is disabled, would this prevent incremental bundling as it relies on the cache?
     let cachedBundleGraph: ?BundleGraphRequestResult;
-    if (previousAssetGraphHash != null) {
+    if (
+      previousAssetGraphHash != null &&
+      this.options.shouldIncrementallyBundle
+    ) {
       cachedBundleGraph = await this.api.getRequestResult<BundleGraphRequestResult>(
         'BundleGraph:' + previousAssetGraphHash,
       );
     }
+
     if (
-      !mutableShouldBundle &&
       previousAssetGraphHash != null &&
       this.pluginOptions.mode !== 'production'
     ) {
@@ -247,7 +246,7 @@ class BundlerRunner {
 
       // should re-bundle if using a different bundle from previously
       if (cachedBundleGraph?.bundlerHash !== bundlerHash) {
-        mutableShouldBundle = true;
+        shouldForceFullBundle = true;
       }
     }
 
@@ -256,57 +255,40 @@ class BundlerRunner {
     let internalBundleGraph: InternalBundleGraph;
     let mutableBundleGraph;
     try {
-      if (!mutableShouldBundle && cachedBundleGraph?.bundleGraph != null) {
-        internalBundleGraph = cachedBundleGraph.bundleGraph;
-        await dumpGraphToGraphViz(internalBundleGraph._graph, 'before_bundle');
-
-        // if no changes to the dependency structure, we invalidate the bundle.
-        // when the bundle hash is invalidated, the bundle graph will re-hash for packaging
-        for (let asset of changedAssets.values()) {
-          internalBundleGraph._graph.addNodeByContentKey(
-            asset.id,
-            nodeFromAsset(asset),
-          );
-          let bundles = internalBundleGraph.findBundlesWithAsset(asset);
-
-          for (let bundle of bundles) {
-            internalBundleGraph._bundleContentHashes.delete(bundle.id);
-          }
-        }
-        mutableBundleGraph = new MutableBundleGraph(
-          internalBundleGraph,
-          this.options,
-        );
-      }
-      //TODO: AND inc flag should be enabled
-      else if (
-        assetGraphTransformationSubGraph.nodes.size > 1 &&
+      if (
+        !shouldForceFullBundle &&
+        assetGraphTransformationSubGraph.nodes.size > 1 && // if only the root, no assets changed
         cachedBundleGraph?.bundleGraph != null &&
         this.options.shouldIncrementallyBundle
       ) {
         internalBundleGraph = cachedBundleGraph.bundleGraph;
         await dumpGraphToGraphViz(
           internalBundleGraph._graph,
-          'before_bundle_update',
+          'before_bundler_update',
         );
         let transformationSubGraph = InternalBundleGraph.fromAssetGraph(
           assetGraphTransformationSubGraph,
         );
-        //can I call merge here?
+
         internalBundleGraph.merge(transformationSubGraph);
         await dumpGraphToGraphViz(
           internalBundleGraph._graph,
-          'after_bundle_update_merge',
+          'bundle_bundler_update_after_merge',
         );
+
         await bundler.update({
           bundleGraph: internalBundleGraph,
           config: this.configs.get(plugin.name)?.result,
           options: this.pluginOptions,
-          assetGraphTransformationSubGraph: transformationSubGraph, //TODO need to be public facing assetgraph
+          assetGraphTransformationSubGraph: transformationSubGraph, // TODO: need to be public facing asset graph
           changedAssets,
         });
       } else {
         internalBundleGraph = InternalBundleGraph.fromAssetGraph(graph);
+        await dumpGraphToGraphViz(
+          internalBundleGraph._graph,
+          'before_bundler_bundle',
+        );
 
         mutableBundleGraph = new MutableBundleGraph(
           internalBundleGraph,
@@ -327,7 +309,7 @@ class BundlerRunner {
       });
     } finally {
       invariant(internalBundleGraph != null);
-      await dumpGraphToGraphViz(internalBundleGraph._graph, 'after_bundle');
+      await dumpGraphToGraphViz(internalBundleGraph._graph, 'after_bundler');
     }
 
     if (this.pluginOptions.mode === 'production') {
