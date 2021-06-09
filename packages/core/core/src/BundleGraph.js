@@ -1481,7 +1481,9 @@ export default class BundleGraph {
         if (!resolved) continue;
         let exported = this.getExportedSymbols(resolved, boundary)
           .filter(s => s.exportSymbol !== 'default')
-          .map(s => ({...s, exportAs: s.exportSymbol}));
+          .map(s =>
+            s.exportSymbol !== '*' ? {...s, exportAs: s.exportSymbol} : s,
+          );
         symbols.push(...exported);
       }
     }
