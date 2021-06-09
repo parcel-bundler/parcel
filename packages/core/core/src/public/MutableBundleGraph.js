@@ -6,9 +6,7 @@ import type {
   BundleGroup,
   CreateBundleOpts,
   Dependency as IDependency,
-  GraphVisitor,
   MutableBundleGraph as IMutableBundleGraph,
-  BundlerBundleGraphTraversable,
   Target,
 } from '@parcel/types';
 import type {ParcelOptions} from '../types';
@@ -20,7 +18,6 @@ import {hashString} from '@parcel/hash';
 import BundleGraph from './BundleGraph';
 import InternalBundleGraph from '../BundleGraph';
 import {Bundle, bundleToInternalBundle} from './Bundle';
-import {mapVisitor, ALL_EDGE_TYPES} from '../Graph';
 import {assetFromValue, assetToAssetValue} from './Asset';
 import {getBundleGroupId, getPublicId} from '../utils';
 import Dependency, {dependencyToInternalDependency} from './Dependency';
@@ -251,28 +248,6 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
       .map(asset => assetFromValue(asset, this.#options));
   }
 
-  traverse<TContext>(
-    visit: GraphVisitor<BundlerBundleGraphTraversable, TContext>,
-  ): ?TContext {
-    return this.#graph._graph.filteredTraverse(
-      nodeId => {
-        let node = nullthrows(this.#graph._graph.getNode(nodeId));
-        if (node.type === 'asset') {
-          return {
-            type: 'asset',
-            value: assetFromValue(node.value, this.#options),
-          };
-        } else if (node.type === 'dependency') {
-          return {type: 'dependency', value: new Dependency(node.value)};
-        }
-      },
-      visit,
-      undefined, // start with root
-      // $FlowFixMe
-      ALL_EDGE_TYPES,
-    );
-  }
-
   getBundleGroupsContainingBundle(bundle: IBundle): Array<BundleGroup> {
     return this.#graph.getBundleGroupsContainingBundle(
       bundleToInternalBundle(bundle),
@@ -300,23 +275,6 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
     this.#graph.removeAssetGraphFromBundle(
       assetToAssetValue(asset),
       bundleToInternalBundle(bundle),
-    );
-  }
-
-  traverseContents<TContext>(
-    visit: GraphVisitor<BundlerBundleGraphTraversable, TContext>,
-  ): ?TContext {
-    return this.#graph.traverseContents(
-      mapVisitor(
-        node =>
-          node.type === 'asset'
-            ? {type: 'asset', value: assetFromValue(node.value, this.#options)}
-            : {
-                type: 'dependency',
-                value: new Dependency(node.value),
-              },
-        visit,
-      ),
     );
   }
 }
