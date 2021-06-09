@@ -998,7 +998,6 @@ export interface MutableBundleGraph extends BundleGraph<Bundle> {
   traverseContents<TContext>(
     GraphVisitor<BundlerBundleGraphTraversable, TContext>,
   ): ?TContext;
-  updateAssetGraph(Asset, AssetGraph): void;
   merge(MutableBundleGraph): void;
 }
 
@@ -1027,7 +1026,6 @@ export interface BundleGraph<TBundle: Bundle> {
   /** Get the asset that created the dependency. */
   getAssetWithDependency(dep: Dependency): ?Asset;
   isEntryBundleGroup(bundleGroup: BundleGroup): boolean;
-  updateAssetGraph(Asset, AssetGraph): void;
   /**
    * Returns undefined if the specified dependency was excluded or wasn't async \
    * and otherwise the BundleGroup or Asset that the dependency resolves to.

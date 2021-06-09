@@ -1,4 +1,7 @@
 {
+  "name": "parcel-incremental-bundling-tests",
+  "version": "1.0.0",
+  "private": true,
 	"@parcel/bundler-default": {
 		"minBundleSize": 0
 	}
