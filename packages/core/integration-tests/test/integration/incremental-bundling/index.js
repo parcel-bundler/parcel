@@ -1,3 +1,4 @@
-import foo from './foo';
+const a = import('./a');
 
-console.log(foo());
+console.log('index.js');
+console.log(a);
