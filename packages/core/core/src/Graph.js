@@ -422,7 +422,12 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
         }
       }
 
-      if (typeof visit !== 'function' && visit.exit) {
+      if (
+        typeof visit !== 'function' &&
+        visit.exit &&
+        // Make sure the graph still has the node: it may have been removed between enter and exit
+        this.hasNode(nodeId)
+      ) {
         let newContext = visit.exit(nodeId, context, actions);
         if (typeof newContext !== 'undefined') {
           // $FlowFixMe[reassign-const]
