@@ -27,15 +27,15 @@ export const NODE_SIZE = 2;
  * The first 4 bytes are the edge type.
  * The second 4 bytes are the id of the 'from' node.
  * The third 4 bytes are the id of the 'to' node.
- * The fourth 4 bytes are the hash of the 'to' node's incoming edge.
- * The fifth 4 bytes are the hash of the 'from' node's outgoing edge.
+ * The fourth 4 bytes are the hash of the 'to' node's next incoming edge.
+ * The fifth 4 bytes are the hash of the 'from' node's next outgoing edge.
  *
  * struct Edge {
  *   int type;
  *   int from;
  *   int to;
  *   int nextIn;
- *   int nextOut
+ *   int nextOut;
  * }
  *
  * ┌────────────────────────────────────────────────────────────────┐
@@ -46,20 +46,20 @@ export const NODE_SIZE = 2;
  */
 export const EDGE_SIZE = 5;
 
-/** The offset to `EDGE_SIZE` at which the edge type is stored. */
+/** The offset from an edge index at which the edge type is stored. */
 const TYPE: 0 = 0;
-/** The offset to `EDGE_SIZE` at which the 'from' node id is stored. */
+/** The offset from an edge index at which the 'from' node id is stored. */
 const FROM: 1 = 1;
-/** The offset to `EDGE_SIZE` at which the 'to' node id is stored. */
+/** The offset from an edge index at which the 'to' node id is stored. */
 const TO: 2 = 2;
-/** The offset to `EDGE_SIZE` at which the hash of the 'to' node's incoming edge is stored. */
+/** The offset from an edge index at which the hash of the 'to' node's next incoming edge is stored. */
 const NEXT_IN: 3 = 3;
-/** The offset to `EDGE_SIZE` at which the hash of the 'from' node's incoming edge is stored. */
+/** The offset from an edge index at which the hash of the 'from' node's next incoming edge is stored. */
 const NEXT_OUT: 4 = 4;
 
-/** The offset to `NODE_SIZE` at which the hash of the first incoming edge is stored. */
+/** The offset from a node index at which the hash of the first incoming edge is stored. */
 const FIRST_IN: 0 = 0;
-/** The offset to `NODE_SIZE` at which the hash of the first outgoing edge is stored. */
+/** The offset from a node index at which the hash of the first outgoing edge is stored. */
 const FIRST_OUT: 1 = 1;
 
 export const ALL_EDGE_TYPES: AllEdgeTypes = '@@all_edge_types';
