@@ -593,35 +593,34 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
     let subGraphChanges = new AssetGraph();
     let newIdToOldNodeIdsMap = new Map<NodeId, NodeId>();
     let oldIdToNewIdsMap = new Map<NodeId, NodeId>();
-    changedAssets.forEach(value => {
+
+    changedAssets.forEach(changedAsset => {
       //add asset as node from new graph
-      let changedNodeId = this.getNodeIdByContentKey(value.id);
+      let changedNodeId = this.getNodeIdByContentKey(changedAsset.id);
       this.traverse((nodeId, _, actions) => {
-        // add all inbound and outbound edges and nodes to subGraphchanges
-        let assetGraphNode = this.getNode(nodeId); //get assetgraph node by its number id from original assetgraph
-        if (assetGraphNode) {
-          //this will only add teh existing node from old assetgraph I think ?
-          subGraphChanges.addNode(assetGraphNode);
-          let newNodeId = subGraphChanges.getNodeIdByContentKey(
-            assetGraphNode.id,
-          );
-          newIdToOldNodeIdsMap.set(newNodeId, nodeId);
-          oldIdToNewIdsMap.set(nodeId, newNodeId);
-          //stop as soon as node matched old graph after adding that node using map
-          if (
-            previousContentKeys.has(assetGraphNode.id) &&
-            assetGraphNode.id &&
-            !changedAssets.has(assetGraphNode.id) &&
-            assetGraphNode.type != 'asset_group' //added so that we don't lose a new edge in the process
-          ) {
-            actions.skipChildren();
-            return;
-          }
+        // add all inbound and outbound edges and nodes to the sub-graph
+        let assetGraphNode = nullthrows(this.getNode(nodeId)); // get node from the original asset graph
+        subGraphChanges.addNode(assetGraphNode);
+
+        let newNodeId = subGraphChanges.getNodeIdByContentKey(
+          assetGraphNode.id,
+        );
+        newIdToOldNodeIdsMap.set(newNodeId, nodeId);
+        oldIdToNewIdsMap.set(nodeId, newNodeId);
+
+        // stop as soon as node matched old graph after adding that node using map
+        if (
+          previousContentKeys.has(assetGraphNode.id) &&
+          !changedAssets.has(assetGraphNode.id) &&
+          assetGraphNode.type != 'asset_group' // added so that we don't lose a new edge in the process
+        ) {
+          actions.skipChildren();
+          return;
         }
       }, changedNodeId);
     });
 
-    //Set all inbound and outbound nodes up
+    // set all inbound and outbound nodes up
     subGraphChanges.nodes.forEach((value, key) => {
       let oldNodeId = newIdToOldNodeIdsMap.get(key);
       if (oldNodeId) {

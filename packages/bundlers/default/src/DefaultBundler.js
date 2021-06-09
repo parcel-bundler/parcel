@@ -442,11 +442,6 @@ export default (new Bundler({
     assetGraphTransformationSubGraph,
     changedAssets,
   }) {
-    //can updateAssetgraph here or bundle ?
-    // changedAssets.forEach(value => {
-    //   bundleGraph.updateAssetGraph(value, assetGraphTransformationSubGraph);
-    // });
-    //bundleGraph.merge(assetGraphTransformationSubGraph);
     changedAssets.forEach(value => {
       bundleGraph.findBundlesWithAsset(value).forEach(bundle => {
         bundleGraph.addAssetGraphToBundle(value, bundle);
