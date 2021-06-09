@@ -62,6 +62,23 @@ const FIRST_IN: 0 = 0;
 /** The offset from a node index at which the hash of the first outgoing edge is stored. */
 const FIRST_OUT: 1 = 1;
 
+/**
+ * A sentinel that indicates that an edge was deleted.
+ *
+ * Because our (open-addressed) table resolves hash collisions
+ * by scanning forward for the next open slot when inserting,
+ * and stops scanning at the next open slot when fetching,
+ * we use this sentinel (instead of `0`) to maintain contiguity.
+ */
+const DELETED: 0xffffffff = 0xffffffff;
+
+const isDeleted = (type: number): boolean => type === DELETED;
+
+const deletedThrows = (type: number): number => {
+  if (isDeleted(type)) throw new Error('Edge was deleted!');
+  return type;
+};
+
 export const ALL_EDGE_TYPES: AllEdgeTypes = '@@all_edge_types';
 
 export type SerializedEfficientGraph<TEdgeType> = {|
@@ -499,6 +516,8 @@ export default class EfficientGraph<TEdgeType: number = 1> {
     // We do this instead of simply using the `index` because it is possible
     // for multiple edges to have the same hash.
     while (this.edges[index + TYPE]) {
+      // If the edge at this index was deleted, we can reuse the slot.
+      if (isDeleted(this.edges[index + TYPE])) break;
       if (
         this.edges[index + FROM] === from &&
         this.edges[index + TO] === to &&
@@ -535,7 +554,7 @@ export default class EfficientGraph<TEdgeType: number = 1> {
         edgeObjs.push({
           from: toNodeId(this.edges[edgeIndex + FROM]),
           to: toNodeId(this.edges[edgeIndex + TO]),
-          type: (this.edges[edgeIndex + TYPE]: any),
+          type: deletedThrows(this.edges[edgeIndex + TYPE]),
         });
         nextEdge = this.edges[edgeIndex + NEXT_OUT];
       }
@@ -600,8 +619,11 @@ export default class EfficientGraph<TEdgeType: number = 1> {
       } while (inIndex);
     }
 
-    // Free up this space in the edges list.
-    this.edges[index + TYPE] = 0;
+    // Mark this slot as DELETED.
+    // We do this so that clustered edges can still be found
+    // by scanning forward in the array from the first index for
+    // the cluster.
+    this.edges[index + TYPE] = DELETED;
     this.edges[index + FROM] = 0;
     this.edges[index + TO] = 0;
     this.edges[index + NEXT_IN] = 0;
@@ -620,7 +642,7 @@ export default class EfficientGraph<TEdgeType: number = 1> {
     ) {
       let i = hashToIndex(hash);
       yield {
-        type: (this.edges[i + TYPE]: any),
+        type: deletedThrows(this.edges[i + TYPE]),
         from: toNodeId(this.edges[i + FROM]),
       };
     }
@@ -636,7 +658,7 @@ export default class EfficientGraph<TEdgeType: number = 1> {
     ) {
       let i = hashToIndex(hash);
       yield {
-        type: (this.edges[i + TYPE]: any),
+        type: deletedThrows(this.edges[i + TYPE]),
         to: toNodeId(this.edges[i + TO]),
       };
     }
@@ -673,14 +695,15 @@ export default class EfficientGraph<TEdgeType: number = 1> {
       hash = this.edges[hashToIndex(hash) + NEXT_OUT]
     ) {
       let i = hashToIndex(hash);
+      let edgeType = deletedThrows(this.edges[i + TYPE]);
       if (Array.isArray(type)) {
         for (let typeNum of type) {
-          if (typeNum === ALL_EDGE_TYPES || this.edges[i + TYPE] === typeNum) {
+          if (typeNum === ALL_EDGE_TYPES || edgeType === typeNum) {
             yield toNodeId(this.edges[i + TO]);
           }
         }
       } else {
-        if (type === ALL_EDGE_TYPES || this.edges[i + TYPE] === type) {
+        if (type === ALL_EDGE_TYPES || edgeType === type) {
           yield toNodeId(this.edges[i + TO]);
         }
       }
@@ -704,14 +727,15 @@ export default class EfficientGraph<TEdgeType: number = 1> {
       hash = this.edges[hashToIndex(hash) + NEXT_IN]
     ) {
       let i = hashToIndex(hash);
+      let edgeType = deletedThrows(this.edges[i + TYPE]);
       if (Array.isArray(type)) {
         for (let typeNum of type) {
-          if (typeNum === ALL_EDGE_TYPES || this.edges[i + TYPE] === typeNum) {
+          if (typeNum === ALL_EDGE_TYPES || edgeType === typeNum) {
             yield toNodeId(this.edges[i + FROM]);
           }
         }
       } else {
-        if (type === ALL_EDGE_TYPES || this.edges[i + TYPE] === type) {
+        if (type === ALL_EDGE_TYPES || edgeType === type) {
           yield toNodeId(this.edges[i + FROM]);
         }
       }
@@ -953,7 +977,7 @@ function edgesToDot<TEdgeType: number>(
   let lastOut = 0;
   for (let i = 0; i < data.edges.length; i += EDGE_SIZE) {
     let type = data.edges[i + TYPE];
-    if (type) {
+    if (type && !isDeleted(type)) {
       let from = data.edges[i + FROM];
       let to = data.edges[i + TO];
       let nextIn = data.edges[i + NEXT_IN];
