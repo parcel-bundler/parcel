@@ -407,6 +407,11 @@ export default class EfficientGraph<TEdgeType: number = 1> {
     to: NodeId,
     type: TEdgeType | NullEdgeType = 1,
   ): boolean {
+    if (from < 0 || from >= this.numNodes)
+      throw new Error(`Unknown node ${from}`);
+    if (to < 0 || to >= this.numNodes) throw new Error(`Unknown node ${to}`);
+    if (type <= 0) throw new Error(`Unsupported edge type ${0}`);
+
     // The percentage of utilization of the total capacity of `edges`.
     let load = this.numEdges / (this.edges.length / EDGE_SIZE);
     // If we're in danger of overflowing the `edges` array, resize it.
