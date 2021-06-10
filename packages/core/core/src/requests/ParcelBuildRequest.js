@@ -65,15 +65,11 @@ async function run({input, api, options}: RunInput) {
     },
   );
 
-  // TODO: should we be mutating this here?
-  requestedAssetIds.clear();
-
   let bundleGraphRequest = createBundleGraphRequest({
     assetGraph,
     optionsRef,
   });
 
-  // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
   let bundleGraph = await api.runRequest(bundleGraphRequest);
 
   // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381 (Windows only)

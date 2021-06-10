@@ -273,6 +273,8 @@ export default class Parcel {
         assetRequests,
       } = await this.#requestTracker.runRequest(request, {force: true});
 
+      this.#requestedAssetIds.clear();
+
       // $FlowFixMe
       dumpGraphToGraphViz(this.#requestTracker.graph, 'RequestGraph');
 
