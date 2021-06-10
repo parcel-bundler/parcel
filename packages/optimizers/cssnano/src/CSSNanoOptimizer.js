@@ -5,15 +5,25 @@ import {Optimizer} from '@parcel/plugin';
 import postcss from 'postcss';
 import cssnano from 'cssnano';
 import type {CSSNanoOptions} from 'cssnano'; // TODO the type is based on cssnano 4
-import {loadConfig} from '@parcel/utils';
 import path from 'path';
 
 export default (new Optimizer({
+  async loadConfig({config, options}) {
+    return (
+      (await config.getConfigFrom(path.join(options.entryRoot, 'index.css'), [
+        '.cssnanorc',
+        'cssnano.config.json',
+        'cssnano.config.js',
+      ])) ?? {}
+    );
+  },
+
   async optimize({
     bundle,
     contents: prevContents,
     getSourceMapReference,
     map: prevMap,
+    config,
     options,
   }) {
     if (!bundle.env.shouldOptimize) {
@@ -26,14 +36,7 @@ export default (new Optimizer({
       );
     }
 
-    const userConfig = ((await loadConfig(
-      options.inputFS,
-      path.join(options.entryRoot, 'index.css'),
-      ['.cssnanorc ', 'cssnano.config.json', 'cssnano.config.js'],
-      options.projectRoot,
-    )) ?? {}: CSSNanoOptions);
-
-    const result = await postcss([cssnano(userConfig)]).process(prevContents, {
+    const result = await postcss([cssnano(config)]).process(prevContents, {
       // Suppress postcss's warning about a missing `from` property. In this
       // case, the input map contains all of the sources.
       from: undefined,
