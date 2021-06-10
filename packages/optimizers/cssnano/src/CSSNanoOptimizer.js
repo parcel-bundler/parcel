@@ -8,14 +8,29 @@ import type {CSSNanoOptions} from 'cssnano'; // TODO the type is based on cssnan
 import path from 'path';
 
 export default (new Optimizer({
-  async loadConfig({config, options}) {
-    return (
-      (await config.getConfigFrom(path.join(options.entryRoot, 'index.css'), [
-        '.cssnanorc',
-        'cssnano.config.json',
-        'cssnano.config.js',
-      ])) ?? {}
+  async loadConfig({config}) {
+    const configFile = await config.getConfig(
+      ['.cssnanorc', 'cssnano.config.json', 'cssnano.config.js'],
+      {
+        packageKey: 'cssnano',
+      },
     );
+    // TODO copied from stylus package. make this a utility function
+    if (configFile) {
+      let isJavascript = path.extname(configFile.filePath) === '.js';
+      if (isJavascript) {
+        config.shouldInvalidateOnStartup();
+      }
+
+      // Resolve relative paths from config file
+      if (configFile.contents.paths) {
+        configFile.contents.paths = configFile.contents.paths.map(p =>
+          path.resolve(path.dirname(configFile.filePath), p),
+        );
+      }
+
+      config.setResult(configFile.contents);
+    }
   },
 
   async optimize({
@@ -36,7 +51,9 @@ export default (new Optimizer({
       );
     }
 
-    const result = await postcss([cssnano(config)]).process(prevContents, {
+    const result = await postcss([
+      cssnano((config ?? {}: CSSNanoOptions)),
+    ]).process(prevContents, {
       // Suppress postcss's warning about a missing `from` property. In this
       // case, the input map contains all of the sources.
       from: undefined,
