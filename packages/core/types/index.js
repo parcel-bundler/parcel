@@ -925,7 +925,6 @@ export interface Bundle {
   +isInline: ?boolean;
   +isSplittable: ?boolean;
   +target: Target;
-  +stats: Stats;
   /** Assets that run when the bundle is loaded (e.g. runtimes could be added). VERIFY */
   getEntryAssets(): Array<Asset>;
   /** The actual entry (which won't be a runtime). */
@@ -952,6 +951,7 @@ export interface NamedBundle extends Bundle {
 
 export interface PackagedBundle extends NamedBundle {
   +filePath: FilePath;
+  +stats: Stats;
 }
 
 /**
@@ -1206,10 +1206,10 @@ export type Runtime = {|
  */
 export type Packager = {|
   loadConfig?: ({|
-    bundle: NamedBundle,
+    config: Config,
     options: PluginOptions,
     logger: PluginLogger,
-  |}) => Async<?ConfigOutput>,
+  |}) => Async<void>,
   package({|
     bundle: NamedBundle,
     bundleGraph: BundleGraph<NamedBundle>,
@@ -1228,6 +1228,11 @@ export type Packager = {|
  * @section optimizer
  */
 export type Optimizer = {|
+  loadConfig?: ({|
+    config: Config,
+    options: PluginOptions,
+    logger: PluginLogger,
+  |}) => Async<void>,
   optimize({|
     bundle: NamedBundle,
     bundleGraph: BundleGraph<NamedBundle>,
@@ -1235,6 +1240,7 @@ export type Optimizer = {|
     map: ?SourceMap,
     options: PluginOptions,
     logger: PluginLogger,
+    config: ?ConfigResult,
     getSourceMapReference: (map: ?SourceMap) => Async<?string>,
   |}): Async<BundleResult>,
 |};

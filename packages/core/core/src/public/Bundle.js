@@ -1,6 +1,10 @@
 // @flow strict-local
 
-import type {Bundle as InternalBundle, ParcelOptions} from '../types';
+import type {
+  Bundle as InternalBundle,
+  ParcelOptions,
+  PackagedBundleInfo,
+} from '../types';
 import type {
   Asset as IAsset,
   Bundle as IBundle,
@@ -127,10 +131,6 @@ export class Bundle implements IBundle {
     return new Target(this.#bundle.target);
   }
 
-  get stats(): Stats {
-    return this.#bundle.stats;
-  }
-
   hasAsset(asset: IAsset): boolean {
     return this.#bundleGraph.bundleHasAsset(
       this.#bundle,
@@ -244,6 +244,7 @@ export class NamedBundle extends Bundle implements INamedBundle {
 export class PackagedBundle extends NamedBundle implements IPackagedBundle {
   #bundle /*: InternalBundle */;
   #bundleGraph /*: BundleGraph */;
+  #bundleInfo /*: ?PackagedBundleInfo */;
 
   constructor(
     sentinel: mixed,
@@ -282,7 +283,26 @@ export class PackagedBundle extends NamedBundle implements IPackagedBundle {
     return packagedBundle;
   }
 
+  static getWithInfo(
+    internalBundle: InternalBundle,
+    bundleGraph: BundleGraph,
+    options: ParcelOptions,
+    bundleInfo: ?PackagedBundleInfo,
+  ): PackagedBundle {
+    let packagedBundle = PackagedBundle.get(
+      internalBundle,
+      bundleGraph,
+      options,
+    );
+    packagedBundle.#bundleInfo = bundleInfo;
+    return packagedBundle;
+  }
+
   get filePath(): string {
-    return nullthrows(this.#bundle.filePath);
+    return nullthrows(this.#bundleInfo).filePath;
+  }
+
+  get stats(): Stats {
+    return nullthrows(this.#bundleInfo).stats;
   }
 }

@@ -24,7 +24,7 @@ import assert from 'assert';
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import {objectSortedEntriesDeep} from '@parcel/utils';
-import {Hash} from '@parcel/hash';
+import {Hash, hashString} from '@parcel/hash';
 
 import {getBundleGroupId, getPublicId} from './utils';
 import {ALL_EDGE_TYPES, mapVisitor} from './Graph';
@@ -234,10 +234,6 @@ export default class BundleGraph {
         return;
       }
 
-      if (node.type === 'asset' && !this.bundleHasAsset(bundle, node.value)) {
-        bundle.stats.size += node.value.stats.size;
-      }
-
       if (node.type === 'asset' || node.type === 'dependency') {
         this._graph.addEdge(bundleNodeId, nodeId, 'contains');
       }
@@ -432,10 +428,6 @@ export default class BundleGraph {
           // aggregate.
           false /* removeOrphans */,
         );
-
-        if (node.type === 'asset') {
-          bundle.stats.size -= asset.stats.size;
-        }
       } else {
         actions.skipChildren();
       }
@@ -1466,7 +1458,9 @@ export default class BundleGraph {
 
   getHash(bundle: Bundle): string {
     let hash = new Hash();
-    hash.writeString(bundle.id + this.getContentHash(bundle));
+    hash.writeString(
+      bundle.id + bundle.target.publicUrl + this.getContentHash(bundle),
+    );
 
     let inlineBundles = this.getInlineBundles(bundle);
     for (let inlineBundle of inlineBundles) {
@@ -1481,6 +1475,15 @@ export default class BundleGraph {
 
     hash.writeString(JSON.stringify(objectSortedEntriesDeep(bundle.env)));
     return hash.finish();
+  }
+
+  getBundleGraphHash(): string {
+    let hashes = '';
+    for (let bundle of this.getBundles()) {
+      hashes += this.getHash(bundle);
+    }
+
+    return hashString(hashes);
   }
 
   addBundleToBundleGroup(bundle: Bundle, bundleGroup: BundleGroup) {
