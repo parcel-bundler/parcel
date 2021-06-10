@@ -275,7 +275,6 @@ export default class Parcel {
 
       this.#requestedAssetIds.clear();
 
-      // $FlowFixMe
       dumpGraphToGraphViz(this.#requestTracker.graph, 'RequestGraph');
 
       let event = {

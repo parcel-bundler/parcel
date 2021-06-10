@@ -357,7 +357,6 @@ class BundlerRunner {
       devDepRequests: this.devDepRequests,
       configs: this.configs,
     });
-    // $FlowFixMe
     await dumpGraphToGraphViz(internalBundleGraph._graph, 'after_runtimes');
 
     // Store the serialized bundle graph in an in memory cache so that we avoid serializing it
