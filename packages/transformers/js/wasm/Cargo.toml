@@ -10,5 +10,6 @@ crate-type = ["cdylib"]
 [dependencies]
 js-sys = "0.3"
 parcel-js-swc-core = { path = "../core" }
-serde-wasm-bindgen = "0.2.0"
+serde = "1"
+serde-wasm-bindgen = "0.3.0"
 wasm-bindgen = "0.2"

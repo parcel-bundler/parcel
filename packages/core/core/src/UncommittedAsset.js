@@ -19,7 +19,6 @@ import type {
   ParcelOptions,
 } from './types';
 
-import v8 from 'v8';
 import invariant from 'assert';
 import {Readable} from 'stream';
 import SourceMap from '@parcel/source-map';
@@ -32,6 +31,7 @@ import {
   SOURCEMAP_RE,
 } from '@parcel/utils';
 import {hashString} from '@parcel/hash';
+import {serializeRaw} from './serializer';
 import {createDependency, mergeDependencies} from './Dependency';
 import {mergeEnvironments} from './Environment';
 import {PARCEL_VERSION} from './constants';
@@ -120,11 +120,7 @@ export default class UncommittedAsset {
         mapKey != null &&
         this.options.cache.setBlob(mapKey, this.mapBuffer),
       astKey != null &&
-        this.options.cache.setBlob(
-          astKey,
-          // $FlowFixMe
-          v8.serialize(this.ast),
-        ),
+        this.options.cache.setBlob(astKey, serializeRaw(this.ast)),
     ]);
     this.value.contentKey = contentKey;
     this.value.mapKey = mapKey;

@@ -276,6 +276,8 @@ class BundlerRunner {
 
     // Store the serialized bundle graph in an in memory cache so that we avoid serializing it
     // many times to send to each worker, and in build mode, when writing to cache on shutdown.
+    // Also, pre-compute the hashes for each bundle so they are only computed once and shared between workers.
+    internalBundleGraph.getBundleGraphHash();
     cacheSerializedObject(internalBundleGraph);
 
     // Recompute the cache key to account for new dev dependencies and invalidations.
@@ -361,12 +363,6 @@ class BundlerRunner {
         });
 
         if (name != null) {
-          if (path.extname(name).slice(1) !== bundle.type) {
-            throw new Error(
-              `Destination name ${name} extension does not match bundle type "${bundle.type}"`,
-            );
-          }
-
           internalBundle.name = name;
           let {hashReference} = internalBundle;
           internalBundle.displayName = name.includes(hashReference)
