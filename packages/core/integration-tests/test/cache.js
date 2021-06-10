@@ -4271,7 +4271,7 @@ describe('cache', function() {
                   ?.filePath,
                 'utf8',
               );
-              assert.equal(html.match(/<script/g)?.length, 5);
+              assert.equal(html.match(/<script/g)?.length, 7);
 
               let pkgFile = path.join(inputDir, 'package.json');
               let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
@@ -4293,7 +4293,7 @@ describe('cache', function() {
           b.bundleGraph.getBundles().find(b => b.name === 'b.html')?.filePath,
           'utf8',
         );
-        assert.equal(html.match(/<script/g)?.length, 4);
+        assert.equal(html.match(/<script/g)?.length, 5);
       });
 
       it('should support updating bundler config', async function() {
@@ -4307,7 +4307,7 @@ describe('cache', function() {
                   ?.filePath,
                 'utf8',
               );
-              assert.equal(html.match(/<script/g)?.length, 4);
+              assert.equal(html.match(/<script/g)?.length, 5);
 
               let pkgFile = path.join(inputDir, 'package.json');
               let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
@@ -4329,7 +4329,7 @@ describe('cache', function() {
           b.bundleGraph.getBundles().find(b => b.name === 'b.html')?.filePath,
           'utf8',
         );
-        assert.equal(html.match(/<script/g)?.length, 5);
+        assert.equal(html.match(/<script/g)?.length, 7);
       });
 
       it('should support removing bundler config', async function() {
@@ -4343,7 +4343,7 @@ describe('cache', function() {
                   ?.filePath,
                 'utf8',
               );
-              assert.equal(html.match(/<script/g)?.length, 4);
+              assert.equal(html.match(/<script/g)?.length, 5);
 
               let pkgFile = path.join(inputDir, 'package.json');
               let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
@@ -4363,7 +4363,7 @@ describe('cache', function() {
           b.bundleGraph.getBundles().find(b => b.name === 'b.html')?.filePath,
           'utf8',
         );
-        assert.equal(html.match(/<script/g)?.length, 5);
+        assert.equal(html.match(/<script/g)?.length, 7);
       });
     });
   });
