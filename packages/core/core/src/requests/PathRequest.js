@@ -24,6 +24,7 @@ import ParcelConfig from '../ParcelConfig';
 import createParcelConfigRequest, {
   getCachedParcelConfig,
 } from './ParcelConfigRequest';
+import {Priority} from '../types';
 
 export type PathRequest = {|
   id: string,
@@ -220,8 +221,8 @@ export class ResolverRunner {
             };
           }
 
-          if (result.isAsync != null) {
-            dependency.isAsync = result.isAsync;
+          if (result.priority != null) {
+            dependency.priority = Priority[result.priority];
           }
 
           if (result.isExcluded) {

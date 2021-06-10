@@ -134,6 +134,8 @@ export default (new Transformer({
           // Offset by 8 as it does not include `@import `
           loc: createLoc(nullthrows(rule.source.start), specifier, 0, 8),
           meta: {
+            // For the glob resolver to distinguish between `@import` and other URL dependencies.
+            isCSSImport: true,
             media,
           },
         };
