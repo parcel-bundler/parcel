@@ -9,7 +9,7 @@ import {CONFIG} from '@parcel/plugin';
 
 // TODO : Determine how to spy on the custom bundler
 
-describe.only('incremental bundling', function() {
+describe('incremental bundling', function() {
   // $FlowFixMe[prop-missing]
   let defaultBundlerSpy = sinon.spy(Bundler[CONFIG], 'bundle');
   // let customBundlerSpy = sinon.spy(CustomBundler[CONFIG], 'bundle');

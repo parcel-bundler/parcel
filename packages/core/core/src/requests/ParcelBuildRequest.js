@@ -76,7 +76,7 @@ async function run({input, api, options}: RunInput) {
     assetGraphTransformationSubGraph,
   });
 
-  let bundleGraph = await api.runRequest(bundleGraphRequest);
+  let {bundleGraph} = await api.runRequest(bundleGraphRequest);
 
   dumpGraphToGraphViz(bundleGraph._graph, 'BundleGraph');
 

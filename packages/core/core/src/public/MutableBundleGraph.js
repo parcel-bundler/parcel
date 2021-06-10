@@ -279,4 +279,8 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
   merge(bundleGraph: IMutableBundleGraph) {
     this.#graph.merge(bundleGraph);
   }
+
+  updateAssetGraph(asset: IAsset, subGraph: AssetGraph): void {
+    this.#graph.updateAssetGraph(assetToAssetValue(asset), subGraph);
+  }
 }

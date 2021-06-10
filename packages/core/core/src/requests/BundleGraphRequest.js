@@ -26,7 +26,7 @@ import MutableBundleGraph from '../public/MutableBundleGraph';
 import {Bundle, NamedBundle} from '../public/Bundle';
 import {report} from '../ReporterRunner';
 import dumpGraphToGraphViz from '../dumpGraphToGraphViz';
-import {unique, hashObject} from '@parcel/utils';
+import {unique} from '@parcel/utils';
 import {hashString} from '@parcel/hash';
 import PluginOptions from '../public/PluginOptions';
 import applyRuntimes from '../applyRuntimes';
@@ -229,6 +229,7 @@ class BundlerRunner {
     let cachedBundleGraph: ?BundleGraphRequestResult;
     if (
       previousAssetGraphHash != null &&
+      this.pluginOptions.mode !== 'production' &&
       this.options.shouldIncrementallyBundle
     ) {
       cachedBundleGraph = await this.api.getRequestResult<BundleGraphRequestResult>(
@@ -236,18 +237,12 @@ class BundlerRunner {
       );
     }
 
+    // should re-bundle if using a different bundle from previous
     if (
-      previousAssetGraphHash != null &&
-      this.pluginOptions.mode !== 'production'
+      cachedBundleGraph?.bundleGraph == null ||
+      cachedBundleGraph?.bundlerHash !== bundlerHash
     ) {
-      cachedBundleGraph = await this.api.getRequestResult<BundleGraphRequestResult>(
-        'BundleGraph:' + previousAssetGraphHash,
-      );
-
-      // should re-bundle if using a different bundle from previously
-      if (cachedBundleGraph?.bundlerHash !== bundlerHash) {
-        shouldForceFullBundle = true;
-      }
+      shouldForceFullBundle = true;
     }
 
     let logger = new PluginLogger({origin: this.config.getBundlerName()});
@@ -255,13 +250,9 @@ class BundlerRunner {
     let internalBundleGraph: InternalBundleGraph;
     let mutableBundleGraph;
     try {
-      if (
-        !shouldForceFullBundle &&
-        assetGraphTransformationSubGraph.nodes.size > 1 && // if only the root, no assets changed
-        cachedBundleGraph?.bundleGraph != null &&
-        this.options.shouldIncrementallyBundle
-      ) {
-        internalBundleGraph = cachedBundleGraph.bundleGraph;
+      if (!shouldForceFullBundle) {
+        console.log('isUpdating');
+        internalBundleGraph = nullthrows(cachedBundleGraph).bundleGraph;
         await dumpGraphToGraphViz(
           internalBundleGraph._graph,
           'before_bundler_update',
@@ -378,10 +369,12 @@ class BundlerRunner {
   }
 
   getBundlerHash(): string {
-    return hashObject({
-      bundlerName: this.config.getBundlerName(),
-      config: this.configs.get(this.config.getBundlerName())?.result,
-    });
+    let configs = [...this.configs]
+      .map(([pluginName, config]) =>
+        getConfigHash(config, pluginName, this.options),
+      )
+      .join('');
+    return hashString(PARCEL_VERSION + this.config.getBundlerName() + configs);
   }
 
   async getCacheKey(assetGraph: AssetGraph): Promise<string> {
