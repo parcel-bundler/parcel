@@ -992,6 +992,7 @@ export interface MutableBundleGraph extends BundleGraph<Bundle> {
   removeBundleGroup(bundleGroup: BundleGroup): void;
   /** Turns a dependency to a different bundle into a dependency to an asset inside <code>bundle</code>. */
   internalizeAsyncDependency(bundle: Bundle, dependency: Dependency): void;
+  merge(MutableBundleGraph): void;
 }
 
 /**

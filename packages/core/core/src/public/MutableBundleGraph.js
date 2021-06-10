@@ -275,4 +275,8 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
       bundleToInternalBundle(bundle),
     );
   }
+
+  merge(bundleGraph: IMutableBundleGraph) {
+    this.#graph.merge(bundleGraph);
+  }
 }
