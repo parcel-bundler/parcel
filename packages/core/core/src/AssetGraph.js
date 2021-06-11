@@ -216,11 +216,13 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
     let depNodes = targets.map(target => {
       let node = nodeFromDep(
         createDependency({
-          moduleSpecifier: entry.filePath,
+          specifier: entry.filePath,
+          specifierType: 'esm', // ???
           pipeline: target.pipeline,
           target: target,
           env: target.env,
           isEntry: true,
+          needsStableName: true,
           symbols: target.env.isLibrary
             ? new Map([['*', {local: '*', isWeak: true, loc: null}]])
             : undefined,
@@ -423,9 +425,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
 
       let dependentAssets = [];
       for (let dep of asset.dependencies.values()) {
-        let dependentAsset = assets.find(
-          a => a.uniqueKey === dep.moduleSpecifier,
-        );
+        let dependentAsset = assets.find(a => a.uniqueKey === dep.specifier);
         if (dependentAsset) {
           dependentAssetKeys.push(dependentAsset.uniqueKey);
           dependentAssets.push(dependentAsset);
@@ -470,7 +470,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
         depNode.value.meta = existing.value.meta;
       }
       let dependentAsset = dependentAssets.find(
-        a => a.uniqueKey === dep.moduleSpecifier,
+        a => a.uniqueKey === dep.specifier,
       );
       if (dependentAsset) {
         depNode.complete = true;

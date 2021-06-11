@@ -172,8 +172,8 @@ class BundlerRunner {
   }
 
   async runDevDepRequest(devDepRequest: DevDepRequest) {
-    let {moduleSpecifier, resolveFrom} = devDepRequest;
-    let key = `${moduleSpecifier}:${resolveFrom}`;
+    let {specifier, resolveFrom} = devDepRequest;
+    let key = `${specifier}:${resolveFrom}`;
     this.devDepRequests.set(key, devDepRequest);
     await runDevDepRequest(this.api, devDepRequest);
   }
@@ -326,7 +326,7 @@ class BundlerRunner {
     // the potential for lazy require() that aren't executed until the request runs.
     let devDepRequest = await createDevDependency(
       {
-        moduleSpecifier: name,
+        specifier: name,
         resolveFrom,
       },
       plugin,
@@ -411,7 +411,7 @@ class BundlerRunner {
     for (let namer of namers) {
       let devDepRequest = await createDevDependency(
         {
-          moduleSpecifier: namer.name,
+          specifier: namer.name,
           resolveFrom: namer.resolveFrom,
         },
         namer,

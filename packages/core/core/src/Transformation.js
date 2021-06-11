@@ -251,7 +251,7 @@ export default class Transformation {
     for (let transformer of pipeline.transformers) {
       await this.addDevDependency(
         {
-          moduleSpecifier: transformer.name,
+          specifier: transformer.name,
           resolveFrom: transformer.resolveFrom,
           range: transformer.range,
         },
@@ -315,7 +315,7 @@ export default class Transformation {
         hashes += await getConfigHash(config, transformer.name, this.options);
 
         for (let devDep of config.devDeps) {
-          let key = `${devDep.moduleSpecifier}:${devDep.resolveFrom}`;
+          let key = `${devDep.specifier}:${devDep.resolveFrom}`;
           hashes += nullthrows(this.devDepRequests.get(key)).hash;
         }
       }
@@ -328,14 +328,14 @@ export default class Transformation {
     opts: DevDepOptions,
     transformer: LoadedPlugin<Transformer> | TransformerWithNameAndConfig,
   ): Promise<void> {
-    let {moduleSpecifier, resolveFrom, range} = opts;
-    let key = `${moduleSpecifier}:${resolveFrom}`;
+    let {specifier, resolveFrom, range} = opts;
+    let key = `${specifier}:${resolveFrom}`;
     if (this.devDepRequests.has(key)) {
       return;
     }
 
     // Ensure that the package manager has an entry for this resolution.
-    await this.options.packageManager.resolve(moduleSpecifier, resolveFrom, {
+    await this.options.packageManager.resolve(specifier, resolveFrom, {
       range,
     });
 
@@ -633,7 +633,8 @@ export default class Transformation {
         await pipeline.resolverRunner.resolve(
           createDependency({
             env: asset.value.env,
-            moduleSpecifier: to,
+            specifier: to,
+            specifierType: 'esm', // ???
             sourcePath: from,
           }),
         ),

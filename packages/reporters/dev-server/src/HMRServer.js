@@ -110,7 +110,7 @@ export default class HMRServer {
               bundle,
             );
             if (resolved) {
-              deps[dep.moduleSpecifier] = event.bundleGraph.getAssetPublicId(
+              deps[dep.specifier] = event.bundleGraph.getAssetPublicId(
                 resolved,
               );
             }
