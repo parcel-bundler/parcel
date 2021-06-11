@@ -840,7 +840,7 @@ export type BundleTraversable =
 /**
  * @section bundler
  */
-export type BundlerBundleGraphTraversable =
+export type BundleGraphTraversable =
   | {|+type: 'asset', value: Asset|}
   | {|+type: 'dependency', value: Dependency|};
 
@@ -924,7 +924,6 @@ export interface Bundle {
   +isInline: ?boolean;
   +isSplittable: ?boolean;
   +target: Target;
-  +stats: Stats;
   /** Assets that run when the bundle is loaded (e.g. runtimes could be added). VERIFY */
   getEntryAssets(): Array<Asset>;
   /** The actual entry (which won't be a runtime). */
@@ -951,6 +950,7 @@ export interface NamedBundle extends Bundle {
 
 export interface PackagedBundle extends NamedBundle {
   +filePath: FilePath;
+  +stats: Stats;
 }
 
 /**
@@ -992,13 +992,8 @@ export interface MutableBundleGraph extends BundleGraph<Bundle> {
   removeBundleGroup(bundleGroup: BundleGroup): void;
   /** Turns a dependency to a different bundle into a dependency to an asset inside <code>bundle</code>. */
   internalizeAsyncDependency(bundle: Bundle, dependency: Dependency): void;
-  traverse<TContext>(
-    GraphVisitor<BundlerBundleGraphTraversable, TContext>,
-  ): ?TContext;
-  traverseContents<TContext>(
-    GraphVisitor<BundlerBundleGraphTraversable, TContext>,
-  ): ?TContext;
   merge(MutableBundleGraph): void;
+  cleanup(MutableBundleGraph): void;
 }
 
 /**
@@ -1070,6 +1065,7 @@ export interface BundleGraph<TBundle: Bundle> {
     asset: Asset,
     boundary: ?Bundle,
   ): Array<ExportSymbolResolution>;
+  traverse<TContext>(GraphVisitor<BundleGraphTraversable, TContext>): ?TContext;
   traverseBundles<TContext>(
     visit: GraphVisitor<TBundle, TContext>,
     startBundle: ?Bundle,
@@ -1218,10 +1214,10 @@ export type Runtime = {|
  */
 export type Packager = {|
   loadConfig?: ({|
-    bundle: NamedBundle,
+    config: Config,
     options: PluginOptions,
     logger: PluginLogger,
-  |}) => Async<?ConfigOutput>,
+  |}) => Async<void>,
   package({|
     bundle: NamedBundle,
     bundleGraph: BundleGraph<NamedBundle>,
@@ -1240,6 +1236,11 @@ export type Packager = {|
  * @section optimizer
  */
 export type Optimizer = {|
+  loadConfig?: ({|
+    config: Config,
+    options: PluginOptions,
+    logger: PluginLogger,
+  |}) => Async<void>,
   optimize({|
     bundle: NamedBundle,
     bundleGraph: BundleGraph<NamedBundle>,
@@ -1247,6 +1248,7 @@ export type Optimizer = {|
     map: ?SourceMap,
     options: PluginOptions,
     logger: PluginLogger,
+    config: ?ConfigResult,
     getSourceMapReference: (map: ?SourceMap) => Async<?string>,
   |}): Async<BundleResult>,
 |};

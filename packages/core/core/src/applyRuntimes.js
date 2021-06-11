@@ -104,7 +104,6 @@ export default async function applyRuntimes({
         throw new ThrowableDiagnostic({
           diagnostic: errorToDiagnostic(e, {
             origin: runtime.name,
-            filePath: bundle.filePath,
           }),
         });
       }
@@ -236,6 +235,17 @@ export default async function applyRuntimes({
         dependency.id,
       );
       bundleGraph._graph.addEdge(dependencyNodeId, bundleGraphRuntimeNodeId);
+    }
+    if (
+      bundleGraph._graph.hasEdge(
+        nullthrows(bundleGraph._graph.rootNodeId),
+        bundleGraphRuntimeNodeId,
+      )
+    ) {
+      bundleGraph._graph.removeEdge(
+        nullthrows(bundleGraph._graph.rootNodeId),
+        bundleGraphRuntimeNodeId,
+      );
     }
   }
 }

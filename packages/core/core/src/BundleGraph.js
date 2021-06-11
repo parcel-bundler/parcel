@@ -24,7 +24,7 @@ import assert from 'assert';
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import {objectSortedEntriesDeep} from '@parcel/utils';
-import {Hash} from '@parcel/hash';
+import {Hash, hashString} from '@parcel/hash';
 
 import {getBundleGroupId, getPublicId} from './utils';
 import {ALL_EDGE_TYPES, mapVisitor} from './Graph';
@@ -222,7 +222,11 @@ export default class BundleGraph {
 
     // The root asset should be reached directly from the bundle in traversal.
     // Its children will be traversed from there.
-    this._graph.addEdge(bundleNodeId, assetNodeId);
+    if (
+      this.getIncomingDependencies(asset).some(dependency => dependency.isEntry)
+    ) {
+      this._graph.addEdge(bundleNodeId, assetNodeId);
+    }
     this._graph.traverse((nodeId, _, actions) => {
       let node = nullthrows(this._graph.getNode(nodeId));
       if (node.type === 'bundle_group') {
@@ -233,10 +237,6 @@ export default class BundleGraph {
       if (node.type === 'dependency' && shouldSkipDependency(node.value)) {
         actions.skipChildren();
         return;
-      }
-
-      if (node.type === 'asset' && !this.bundleHasAsset(bundle, node.value)) {
-        bundle.stats.size += node.value.stats.size;
       }
 
       if (node.type === 'asset' || node.type === 'dependency') {
@@ -433,10 +433,6 @@ export default class BundleGraph {
           // aggregate.
           false /* removeOrphans */,
         );
-
-        if (node.type === 'asset') {
-          bundle.stats.size -= asset.stats.size;
-        }
       } else {
         actions.skipChildren();
       }
@@ -969,13 +965,21 @@ export default class BundleGraph {
     });
   }
 
-  traverseContents<TContext>(
+  traverse<TContext>(
     visit: GraphVisitor<AssetNode | DependencyNode, TContext>,
   ): ?TContext {
-    return this._graph.filteredTraverse(nodeId => {
-      let node = nullthrows(this._graph.getNode(nodeId));
-      return node.type === 'asset' || node.type === 'dependency' ? node : null;
-    }, visit);
+    return this._graph.filteredTraverse(
+      nodeId => {
+        let node = nullthrows(this._graph.getNode(nodeId));
+        if (node.type === 'asset' || node.type === 'dependency') {
+          return node;
+        }
+      },
+      visit,
+      undefined, // start with root
+      // $FlowFixMe
+      ALL_EDGE_TYPES,
+    );
   }
 
   getChildBundles(bundle: Bundle): Array<Bundle> {
@@ -1459,7 +1463,9 @@ export default class BundleGraph {
 
   getHash(bundle: Bundle): string {
     let hash = new Hash();
-    hash.writeString(bundle.id + this.getContentHash(bundle));
+    hash.writeString(
+      bundle.id + bundle.target.publicUrl + this.getContentHash(bundle),
+    );
 
     let inlineBundles = this.getInlineBundles(bundle);
     for (let inlineBundle of inlineBundles) {
@@ -1474,6 +1480,15 @@ export default class BundleGraph {
 
     hash.writeString(JSON.stringify(objectSortedEntriesDeep(bundle.env)));
     return hash.finish();
+  }
+
+  getBundleGraphHash(): string {
+    let hashes = '';
+    for (let bundle of this.getBundles()) {
+      hashes += this.getHash(bundle);
+    }
+
+    return hashString(hashes);
   }
 
   addBundleToBundleGroup(bundle: Bundle, bundleGroup: BundleGroup) {
@@ -1565,6 +1580,46 @@ export default class BundleGraph {
       this._publicIdByAssetId.set(key, value);
     });
   }
+  cleanup(other: BundleGraph, changedAssets: Map<string, Asset>) {
+    // basically want the left join (if that makes sense) on the bundlegraph from current
+    let nodeIdsToRemove = [];
+    changedAssets.forEach(changedAsset => {
+      let changedNodeId = this._graph.getNodeIdByContentKey(changedAsset.id);
+
+      this._graph.traverse((nodeId, _, actions) => {
+        // if a child here exists that DOESNOT exist in other, then remove it
+        //if its NOT removed, skip children, if it is, continue with removal
+        let bundlegraphnode = nullthrows(this._graph.getNode(nodeId));
+        let updatedNode = other._graph.getNodeByContentKey(bundlegraphnode.id);
+        if (bundlegraphnode.id != changedAsset.id) {
+          //do not want to remove the parent
+          if (updatedNode) {
+            //want to visit children of the changedAsset
+            actions.skipChildren();
+          } else {
+            //Removal of dependency (or other) node
+            if (this._graph.getNodeIdsConnectedTo(nodeId).length === 1) {
+              //does this make sense?
+              // only remove if we just came from the parent we intend to remove
+              nodeIdsToRemove.push(nodeId);
+              //this will remove all edges so we need to check that none are important
+            } else {
+              actions.skipChildren();
+            }
+          }
+        }
+      }, changedNodeId);
+    });
+    try {
+      nodeIdsToRemove.forEach(nodeId => {
+        if (this._graph.hasNode(nodeId)) {
+          this._graph.removeNode(nodeId);
+        }
+      });
+    } catch (e) {
+      console.log('here is an error: ', e);
+    }
+  }
 
   isEntryBundleGroup(bundleGroup: BundleGroup): boolean {
     return this._graph
@@ -1576,34 +1631,5 @@ export default class BundleGraph {
       )
       .map(id => nullthrows(this._graph.getNode(id)))
       .some(n => n.type === 'root');
-  }
-  //updates value of existing assetnode and adds any new children
-  updateAssetGraph(assetNode: Asset, assetSubGraph: BundleGraph) {
-    let assetNodeId = assetSubGraph._graph.getNodeIdByContentKey(assetNode.id);
-
-    let assetGraphToBundleGraphNodeIds = new Map<NodeId, NodeId>();
-    let bundleGraphToAssetGraphNodeIds = new Map<NodeId, NodeId>();
-
-    assetSubGraph._graph.traverse(assetnodeId => {
-      let node = nullthrows(assetSubGraph._graph.getNode(assetnodeId));
-      let bundleGraphNodeId = this._graph.addNodeByContentKey(node.id, node);
-      assetGraphToBundleGraphNodeIds.set(assetnodeId, bundleGraphNodeId);
-      bundleGraphToAssetGraphNodeIds.set(bundleGraphNodeId, assetnodeId);
-    }, assetNodeId);
-    //add its edges inbound and outbound to bundlegraph
-    assetGraphToBundleGraphNodeIds.forEach(
-      (bundleGraphIdValue, assetGraphIdKey) => {
-        assetSubGraph._graph.outboundEdges
-          .getEdges(assetGraphIdKey, null)
-          .forEach(value => {
-            let newToNode = assetGraphToBundleGraphNodeIds.get(value);
-            if (newToNode) {
-              this._graph.addEdge(bundleGraphIdValue, newToNode);
-            }
-          });
-      },
-    );
-    dumpGraphToGraphViz(this._graph, 'after_adding_changed_asset');
-    //Update bundles after this (not in this function)
   }
 }

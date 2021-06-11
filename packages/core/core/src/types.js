@@ -428,11 +428,9 @@ export type Bundle = {|
   isSplittable: ?boolean,
   isPlaceholder?: boolean,
   target: Target,
-  filePath: ?FilePath,
   name: ?string,
   displayName: ?string,
   pipeline: ?string,
-  stats: Stats,
 |};
 
 export type BundleNode = {|
@@ -446,6 +444,12 @@ export type BundleGroupNode = {|
   +type: 'bundle_group',
   value: BundleGroup,
 |};
+
+export type PackagedBundleInfo = {|
+  filePath: FilePath,
+  stats: Stats,
+|};
+
 export type TransformationOpts = {|
   request: AssetGroup,
   optionsRef: SharedReference,

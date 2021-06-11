@@ -1,18 +1,25 @@
 // @flow strict-local
-import {bundler, getNextBuildSuccess, overlayFS} from '@parcel/test-utils';
+import {
+  bundler,
+  getNextBuildSuccess,
+  overlayFS,
+  bundle,
+  assertBundles,
+} from '@parcel/test-utils';
 import assert from 'assert';
 import path from 'path';
 import sinon from 'sinon';
 import Bundler from '@parcel/bundler-default';
 import {CONFIG} from '@parcel/plugin';
-// import CustomBundler from './integration/incremental-bundling/node_modules/parcel-bundler-test/index';
+//import CustomBundler from './integration/incremental-bundling/node_modules/parcel-bundler-test/index';
 
 // TODO : Determine how to spy on the custom bundler
 
-describe.only('incremental bundling', function() {
+describe('incremental bundling', function() {
   // $FlowFixMe[prop-missing]
   let defaultBundlerSpy = sinon.spy(Bundler[CONFIG], 'bundle');
-  // let customBundlerSpy = sinon.spy(CustomBundler[CONFIG], 'bundle');
+  let incrementalBundlerSpy = sinon.spy(Bundler[CONFIG], 'update');
+  //let customBundlerSpy = sinon.spy(CustomBundler[CONFIG], 'update');
 
   let assertChangedAssets = (actual: number, expected: number) => {
     assert.equal(
@@ -30,13 +37,23 @@ describe.only('incremental bundling', function() {
     );
   };
 
+  let assertTimesUpdated = (actual: number, expected: number) => {
+    assert.equal(
+      actual,
+      expected,
+      `the bundler should have updated ${expected} time(s), not ${actual}`,
+    );
+  };
+
   beforeEach(() => {
     defaultBundlerSpy.resetHistory();
+    incrementalBundlerSpy.resetHistory();
     // customBundlerSpy.resetHistory();
   });
 
   after(() => {
     defaultBundlerSpy.restore();
+    incrementalBundlerSpy.resetHistory();
     // customBundlerSpy.restore();
   });
 
@@ -171,7 +188,7 @@ console.log(a);`,
 
   describe('dependency based changes should run the bundler', () => {
     // TODO - need to update this test
-    it.only('adding a new dependency', async () => {
+    it('adding a new dependency', async () => {
       let subscription;
       let fixture = path.join(__dirname, '/integration/incremental-bundling');
       try {
@@ -214,7 +231,7 @@ console.log(a);
       }
     });
 
-    it.skip('removing a dependency', async () => {
+    it('removing a dependency', async () => {
       let subscription;
       let fixture = path.join(__dirname, '/integration/incremental-bundling');
       try {
@@ -357,7 +374,7 @@ console.log('index.js');`,
 
   describe('incremental bundling for dependency changes', function() {
     // TODO - need to update this test
-    it.only('should update not bundle when adding a new dependency', async () => {
+    it('should update, not bundle, when adding a new dependency after save', async () => {
       let subscription;
       let fixture = path.join(__dirname, '/integration/incremental-bundling');
       try {
@@ -372,7 +389,7 @@ console.log('index.js');`,
 
         let event = await getNextBuildSuccess(b);
         assertTimesBundled(defaultBundlerSpy.callCount, 1); //no bundling
-        //asset times update called
+
         await overlayFS.writeFile(
           path.join(fixture, 'index.js'),
           `const a = import('./a');
@@ -386,6 +403,7 @@ console.log(a);
         event = await getNextBuildSuccess(b);
         assertChangedAssets(event.changedAssets.size, 2);
         assertTimesBundled(defaultBundlerSpy.callCount, 1);
+        assertTimesUpdated(incrementalBundlerSpy.callCount, 1);
 
         let output = await overlayFS.readFile(
           path.join(fixture, 'index.js'),
@@ -400,7 +418,51 @@ console.log(a);
       }
     });
 
-    it.skip('should produce the same result when adding a new dependency', async () => {
+    it('should update when removing a dependency', async () => {
+      let subscription;
+      let fixture = path.join(__dirname, '/integration/incremental-bundling');
+      try {
+        let b = bundler(path.join(fixture, 'index.js'), {
+          inputFS: overlayFS,
+          shouldDisableCache: false,
+          shouldIncrementallyBundle: true,
+        });
+
+        await overlayFS.mkdirp(fixture);
+        subscription = await b.watch();
+
+        let event = await getNextBuildSuccess(b);
+        assertTimesBundled(defaultBundlerSpy.callCount, 1);
+
+        await overlayFS.writeFile(
+          path.join(fixture, 'index.js'),
+          `// const a = import('./a');
+
+console.log('index.js');`,
+        );
+
+        event = await getNextBuildSuccess(b);
+        assertChangedAssets(event.changedAssets.size, 1);
+        assertTimesBundled(defaultBundlerSpy.callCount, 1);
+        assertTimesUpdated(incrementalBundlerSpy.callCount, 1);
+        let output = await overlayFS.readFile(
+          path.join(fixture, 'index.js'),
+          'utf8',
+        );
+        assert(output.includes(`// const a = import('./a')`));
+      } finally {
+        if (subscription) {
+          await subscription.unsubscribe();
+          subscription = null;
+        }
+      }
+    });
+
+    it(
+      'on update, it should remove a dependency from an asset, but not remove that asset if it is used elsewhere',
+    );
+    it('should update after a combination of adds and saves');
+    it.skip('should produce the same graph and bundle result when adding a new dependency', async () => {
       let subscription;
       let fixture = path.join(__dirname, '/integration/incremental-bundling');
       try {
@@ -413,7 +475,7 @@ console.log(a);
           inputFS: overlayFS,
           shouldDisableCache: false,
           shouldIncrementallyBundle: true,
-        });
+        }); //should be using custom plugin ? and with a different file system probably
 
         await overlayFS.mkdirp(fixture);
         subscription = await b.watch();

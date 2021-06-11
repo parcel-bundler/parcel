@@ -70,7 +70,7 @@ export async function createDevDependency(
   return devDepRequest;
 }
 
-type DevDepSpecifier = {|
+export type DevDepSpecifier = {|
   moduleSpecifier: ModuleSpecifier,
   resolveFrom: FilePath,
 |};
@@ -168,5 +168,25 @@ export async function runDevDepRequest(
       });
     },
     input: null,
+  });
+}
+
+// A cache of plugin dependency hashes that we've already sent to the main thread.
+// Automatically cleared before each build.
+const pluginCache = createBuildCache();
+
+export function getWorkerDevDepRequests(
+  devDepRequests: Array<DevDepRequest>,
+): Array<DevDepRequest> {
+  return devDepRequests.map(devDepRequest => {
+    // If we've already sent a matching transformer + hash to the main thread during this build,
+    // there's no need to repeat ourselves.
+    let {moduleSpecifier, resolveFrom, hash} = devDepRequest;
+    if (hash === pluginCache.get(moduleSpecifier)) {
+      return {moduleSpecifier, resolveFrom, hash};
+    } else {
+      pluginCache.set(moduleSpecifier, hash);
+      return devDepRequest;
+    }
   });
 }
