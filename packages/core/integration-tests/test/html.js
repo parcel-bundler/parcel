@@ -1536,13 +1536,13 @@ describe('html', function() {
     assert(css.includes('.b {'));
   });
 
-  it.only('should support split bundles with many pages', async function() {
+  it('should support split bundles with many pages', async function() {
     await bundle(path.join(__dirname, '/integration/shared-many/*.html'), {
       mode: 'production',
     });
 
     let html = await outputFS.readFile(path.join(distDir, 'a.html'), 'utf8');
-    assert.equal(html.match(/<script/g).length, 4);
+    assert.equal(html.match(/<script/g).length, 3);
 
     html = await outputFS.readFile(path.join(distDir, 'b.html'), 'utf8');
     assert.equal(html.match(/<script/g).length, 5);
@@ -1561,7 +1561,7 @@ describe('html', function() {
 
     // b.html hitting the parallel request limit should not prevent g.html from being optimized
     html = await outputFS.readFile(path.join(distDir, 'g.html'), 'utf8');
-    assert.equal(html.match(/<script/g).length, 5);
+    assert.equal(html.match(/<script/g).length, 4);
   });
 
   it('should not add CSS to a worker bundle group', async function() {
