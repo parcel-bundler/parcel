@@ -92,14 +92,15 @@ export default function extractInlineAssets(
         asset.setAST(ast); // mark dirty
 
         asset.addDependency({
-          moduleSpecifier: parcelKey,
+          specifier: parcelKey,
+          specifierType: 'esm',
         });
 
         parts.push({
           type,
           content: value,
           uniqueKey: parcelKey,
-          isInline: true,
+          bundleBehavior: 'inline',
           env,
           meta: {
             type: 'tag',
@@ -119,7 +120,8 @@ export default function extractInlineAssets(
     let style = attrs?.style;
     if (attrs != null && style != null) {
       attrs.style = asset.addDependency({
-        moduleSpecifier: parcelKey,
+        specifier: parcelKey,
+        specifierType: 'esm',
       });
       asset.setAST(ast); // mark dirty
 
@@ -127,7 +129,7 @@ export default function extractInlineAssets(
         type: 'css',
         content: style,
         uniqueKey: parcelKey,
-        isInline: true,
+        bundleBehavior: 'inline',
         meta: {
           type: 'attr',
           // $FlowFixMe

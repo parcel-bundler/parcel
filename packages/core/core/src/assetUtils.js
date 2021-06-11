@@ -2,6 +2,7 @@
 
 import type {
   ASTGenerator,
+  BundleBehavior,
   FilePath,
   GenerateOutput,
   Meta,
@@ -20,7 +21,6 @@ import type {
   ParcelOptions,
 } from './types';
 import {objectSortedEntries} from '@parcel/utils';
-import type {ConfigOutput} from '@parcel/utils';
 
 import {Readable} from 'stream';
 import {PluginLogger} from '@parcel/logger';
@@ -30,10 +30,11 @@ import UncommittedAsset from './UncommittedAsset';
 import loadPlugin from './loadParcelPlugin';
 import {Asset as PublicAsset} from './public/Asset';
 import PluginOptions from './public/PluginOptions';
-import {blobToStream, loadConfig, hashFile} from '@parcel/utils';
+import {blobToStream, hashFile} from '@parcel/utils';
 import {hashFromOption} from './utils';
 import {createBuildCache} from './buildCache';
 import {hashString} from '@parcel/hash';
+import {BundleBehavior as BundleBehaviorMap} from './types';
 
 type AssetOptions = {|
   id?: string,
@@ -48,9 +49,8 @@ type AssetOptions = {|
   astKey?: ?string,
   astGenerator?: ?ASTGenerator,
   dependencies?: Map<string, Dependency>,
-  isIsolated?: boolean,
-  isInline?: boolean,
-  isSplittable?: ?boolean,
+  bundleBehavior?: ?BundleBehavior,
+  isBundleSplittable?: ?boolean,
   isSource: boolean,
   env: Environment,
   meta?: Meta,
@@ -91,9 +91,10 @@ export function createAsset(options: AssetOptions): Asset {
     hash: options.hash,
     filePath: options.filePath,
     query: options.query,
-    isIsolated: options.isIsolated ?? false,
-    isInline: options.isInline ?? false,
-    isSplittable: options.isSplittable,
+    bundleBehavior: options.bundleBehavior
+      ? BundleBehaviorMap[options.bundleBehavior]
+      : null,
+    isBundleSplittable: options.isBundleSplittable ?? true,
     type: options.type,
     contentKey: options.contentKey,
     mapKey: options.mapKey,
@@ -171,42 +172,6 @@ async function _generateFromAST(asset: CommittedAsset | UncommittedAsset) {
         : content,
     map,
   };
-}
-
-export async function getConfig(
-  asset: CommittedAsset | UncommittedAsset,
-  filePaths: Array<FilePath>,
-  options: ?{|
-    packageKey?: string,
-    parse?: boolean,
-  |},
-): Promise<ConfigOutput | null> {
-  let packageKey = options?.packageKey;
-  let parse = options && options.parse;
-
-  if (packageKey != null) {
-    let pkg = await asset.getPackage();
-    if (pkg && pkg[packageKey]) {
-      return {
-        config: pkg[packageKey],
-        // The package.json file was already registered by asset.getPackage() -> asset.getConfig()
-        files: [],
-      };
-    }
-  }
-
-  let conf = await loadConfig(
-    asset.options.inputFS,
-    asset.value.filePath,
-    filePaths,
-    asset.options.projectRoot,
-    parse == null ? null : {parse},
-  );
-  if (!conf) {
-    return null;
-  }
-
-  return conf;
 }
 
 export function getInvalidationId(invalidation: RequestInvalidation): string {

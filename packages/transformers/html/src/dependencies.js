@@ -67,27 +67,23 @@ const META = {
 // Options to be passed to `addDependency` for certain tags + attributes
 const OPTIONS = {
   a: {
-    href: {isEntry: true},
+    href: {needsStableName: true},
   },
   iframe: {
-    src: {isEntry: true},
+    src: {needsStableName: true},
   },
   link(attrs) {
     if (attrs.rel === 'stylesheet') {
       return {
         // Keep in the same bundle group as the HTML.
-        isAsync: false,
-        isEntry: false,
-        isIsolated: true,
+        priority: 'parallel',
       };
     }
   },
   script(attrs, env: Environment) {
     return {
       // Keep in the same bundle group as the HTML.
-      isAsync: false,
-      isEntry: false,
-      isIsolated: true,
+      priority: 'parallel',
       env: {
         outputFormat:
           attrs.type === 'module' && env.shouldScopeHoist
@@ -155,7 +151,7 @@ export default function collectDependencies(
       attrs.href
     ) {
       attrs.href = asset.addURLDependency(attrs.href, {
-        isEntry: true,
+        needsStableName: true,
       });
       isDirty = true;
       return node;

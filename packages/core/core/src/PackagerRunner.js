@@ -213,7 +213,7 @@ export default class PackagerRunner {
           this.previousDevDeps,
           this.options,
         );
-        let key = `${devDep.moduleSpecifier}:${devDep.resolveFrom}`;
+        let key = `${devDep.specifier}:${devDep.resolveFrom}`;
         this.devDepRequests.set(key, devDepRequest);
       }
 
@@ -366,7 +366,7 @@ export default class PackagerRunner {
       // the potential for lazy require() that aren't executed until the request runs.
       let devDepRequest = await createDevDependency(
         {
-          moduleSpecifier: name,
+          specifier: name,
           resolveFrom,
         },
         packager,
@@ -445,7 +445,7 @@ export default class PackagerRunner {
         // the potential for lazy require() that aren't executed until the request runs.
         let devDepRequest = await createDevDependency(
           {
-            moduleSpecifier: optimizer.name,
+            specifier: optimizer.name,
             resolveFrom: optimizer.resolveFrom,
           },
           optimizer,
