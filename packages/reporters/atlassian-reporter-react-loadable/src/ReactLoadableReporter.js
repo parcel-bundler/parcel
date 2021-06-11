@@ -44,11 +44,11 @@ const buildManifest = (
         ),
       );
 
-      if (!assets[dependency.moduleSpecifier]) {
-        assets[dependency.moduleSpecifier] = new Set();
+      if (!assets[dependency.specifier]) {
+        assets[dependency.specifier] = new Set();
       }
 
-      assets[dependency.moduleSpecifier].add(entryBundle);
+      assets[dependency.specifier].add(entryBundle);
     }
   });
 

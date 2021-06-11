@@ -14,7 +14,8 @@ if (process.platform === 'linux') {
 
 let name = `parcel-swc.${parts.join('-')}.node`;
 if (process.env.PARCEL_BUILD_ENV === 'production') {
-  module.exports = require(`./${name}`);
+  // ATLASSIAN: Used upstream published builds
+  module.exports = require(`self-published/${name}`);
 } else if (process.env.PARCEL_SWC_WASM) {
   const {transform} = require('./wasm/dist-node/parcel_js_swc_wasm.js');
 

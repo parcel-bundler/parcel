@@ -20,9 +20,9 @@
     "parcel": "^2.0.0-beta.1"
   },
   "dependencies": {
-    "@parcel/diagnostic": "2.0.0-beta.3.1",
-    "@parcel/plugin": "2.0.0-beta.3.1",
-    "@parcel/utils": "2.0.0-beta.3.1",
+    "@parcel/diagnostic": "2.0.0-frontbucket.77",
+    "@parcel/plugin": "2.0.0-frontbucket.77",
+    "@parcel/utils": "2.0.0-frontbucket.77",
     "micromatch": "^4.0.2",
     "nullthrows": "^1.1.1"
   }

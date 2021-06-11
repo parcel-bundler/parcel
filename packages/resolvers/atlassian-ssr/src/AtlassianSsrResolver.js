@@ -9,9 +9,9 @@ const WEBPACK_IMPORT_REGEX = /\S+-loader\S*!\S+/g;
 
 export default (new Resolver({
   resolve({dependency, options, filePath}) {
-    if (WEBPACK_IMPORT_REGEX.test(dependency.moduleSpecifier)) {
+    if (WEBPACK_IMPORT_REGEX.test(dependency.specifier)) {
       throw new Error(
-        `The import path: ${dependency.moduleSpecifier} is using webpack specific loader import syntax, which isn't supported by Parcel.`,
+        `The import path: ${dependency.specifier} is using webpack specific loader import syntax, which isn't supported by Parcel.`,
       );
     }
 
@@ -28,7 +28,7 @@ export default (new Resolver({
 
     return resolver.resolve({
       filename: filePath,
-      isURL: dependency.isURL,
+      isURL: dependency.specifierType === 'url',
       parent: dependency.sourcePath,
       env: dependency.env,
     });

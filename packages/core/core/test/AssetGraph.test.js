@@ -105,7 +105,8 @@ describe('AssetGraph', () => {
     assert(
       graph.hasContentKey(
         createDependency({
-          moduleSpecifier: '/path/to/index1/src/main.js',
+          specifier: '/path/to/index1/src/main.js',
+          specifierType: 'esm',
           target: DEFAULT_TARGETS[0],
           env: DEFAULT_ENV,
         }).id,
@@ -114,7 +115,8 @@ describe('AssetGraph', () => {
     assert(
       graph.hasContentKey(
         createDependency({
-          moduleSpecifier: '/path/to/index2/src/main.js',
+          specifier: '/path/to/index2/src/main.js',
+          specifierType: 'esm',
           target: DEFAULT_TARGETS[0],
           env: DEFAULT_ENV,
         }).id,
@@ -160,7 +162,8 @@ describe('AssetGraph', () => {
         ),
         to: graph.getNodeIdByContentKey(
           createDependency({
-            moduleSpecifier: '/path/to/index1/src/main.js',
+            specifier: '/path/to/index1/src/main.js',
+            specifierType: 'esm',
             target: DEFAULT_TARGETS[0],
             env: DEFAULT_ENV,
           }).id,
@@ -176,7 +179,8 @@ describe('AssetGraph', () => {
         ),
         to: graph.getNodeIdByContentKey(
           createDependency({
-            moduleSpecifier: '/path/to/index2/src/main.js',
+            specifier: '/path/to/index2/src/main.js',
+            specifierType: 'esm',
             target: DEFAULT_TARGETS[0],
             env: DEFAULT_ENV,
           }).id,
@@ -205,7 +209,8 @@ describe('AssetGraph', () => {
     );
 
     let dep = createDependency({
-      moduleSpecifier: '/path/to/index/src/main.js',
+      specifier: '/path/to/index/src/main.js',
+      specifierType: 'esm',
       target: DEFAULT_TARGETS[0],
       env: DEFAULT_ENV,
     });
@@ -254,7 +259,8 @@ describe('AssetGraph', () => {
     );
 
     let dep = createDependency({
-      moduleSpecifier: '/path/to/index/src/main.js',
+      specifier: '/path/to/index/src/main.js',
+      specifierType: 'esm',
       target: DEFAULT_TARGETS[0],
       env: DEFAULT_ENV,
       sourcePath: '',
@@ -275,7 +281,8 @@ describe('AssetGraph', () => {
           [
             'utils',
             createDependency({
-              moduleSpecifier: './utils',
+              specifier: './utils',
+              specifierType: 'esm',
               env: DEFAULT_ENV,
               sourcePath,
             }),
@@ -294,7 +301,8 @@ describe('AssetGraph', () => {
           [
             'styles',
             createDependency({
-              moduleSpecifier: './styles',
+              specifier: './styles',
+              specifierType: 'esm',
               env: DEFAULT_ENV,
               sourcePath,
             }),
@@ -354,7 +362,8 @@ describe('AssetGraph', () => {
           [
             'utils',
             createDependency({
-              moduleSpecifier: './utils',
+              specifier: './utils',
+              specifierType: 'esm',
               env: DEFAULT_ENV,
               sourcePath,
             }),
@@ -407,7 +416,8 @@ describe('AssetGraph', () => {
     );
 
     let dep = createDependency({
-      moduleSpecifier: '/path/to/index/src/main.js',
+      specifier: '/path/to/index/src/main.js',
+      specifierType: 'esm',
       env: DEFAULT_ENV,
       target: DEFAULT_TARGETS[0],
     });
@@ -416,12 +426,14 @@ describe('AssetGraph', () => {
     graph.resolveDependency(dep, req, '123');
     let sourcePath = filePath;
     let dep1 = createDependency({
-      moduleSpecifier: 'dependent-asset-1',
+      specifier: 'dependent-asset-1',
+      specifierType: 'esm',
       env: DEFAULT_ENV,
       sourcePath,
     });
     let dep2 = createDependency({
-      moduleSpecifier: 'dependent-asset-2',
+      specifier: 'dependent-asset-2',
+      specifierType: 'esm',
       env: DEFAULT_ENV,
       sourcePath,
     });
@@ -491,12 +503,14 @@ describe('AssetGraph', () => {
     let indexAssetGroup = {filePath: '/index.js', env: DEFAULT_ENV, query: {}};
     graph.setRootConnections({assetGroups: [indexAssetGroup]});
     let indexFooDep = createDependency({
-      moduleSpecifier: './foo',
+      specifier: './foo',
+      specifierType: 'esm',
       env: DEFAULT_ENV,
       sourcePath: '/index.js',
     });
     let indexBarDep = createDependency({
-      moduleSpecifier: './bar',
+      specifier: './bar',
+      specifierType: 'esm',
       env: DEFAULT_ENV,
       sourcePath: '/index.js',
     });
@@ -520,7 +534,8 @@ describe('AssetGraph', () => {
     graph.resolveDependency(indexFooDep, fooAssetGroup, '0');
     let fooAssetGroupNode = nodeFromAssetGroup(fooAssetGroup);
     let fooUtilsDep = createDependency({
-      moduleSpecifier: './utils',
+      specifier: './utils',
+      specifierType: 'esm',
       env: DEFAULT_ENV,
       sourcePath: '/foo.js',
     });
@@ -557,7 +572,8 @@ describe('AssetGraph', () => {
     graph.resolveDependency(indexBarDep, barAssetGroup, '0');
     let barAssetGroupNode = nodeFromAssetGroup(barAssetGroup);
     let barUtilsDep = createDependency({
-      moduleSpecifier: './utils',
+      specifier: './utils',
+      specifierType: 'esm',
       env: DEFAULT_ENV,
       sourcePath: '/bar.js',
     });

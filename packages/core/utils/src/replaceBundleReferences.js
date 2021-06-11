@@ -22,7 +22,7 @@ type ReplacementMap = Map<
 
 /*
  * Replaces references to dependency ids for URL dependencies with:
- *   - in the case of an unresolvable url dependency, the original moduleSpecifier.
+ *   - in the case of an unresolvable url dependency, the original specifier.
  *     These are external requests that Parcel did not bundle.
  *   - in the case of a reference to another bundle, the relative url to that
  *     bundle from the current bundle.
@@ -43,13 +43,13 @@ export function replaceURLReferences({
   let replacements = new Map();
   let urlDependencies = [];
   bundle.traverse(node => {
-    if (node.type === 'dependency' && node.value.isURL) {
+    if (node.type === 'dependency' && node.value.specifierType === 'url') {
       urlDependencies.push(node.value);
     }
   });
 
   for (let dependency of urlDependencies) {
-    if (!dependency.isURL) {
+    if (dependency.specifierType !== 'url') {
       continue;
     }
 
@@ -57,7 +57,7 @@ export function replaceURLReferences({
     if (resolved == null) {
       replacements.set(dependency.id, {
         from: dependency.id,
-        to: dependency.moduleSpecifier,
+        to: dependency.specifier,
       });
       continue;
     }

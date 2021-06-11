@@ -52,10 +52,18 @@ import summarizeRequest from './summarizeRequest';
 import PluginOptions from './public/PluginOptions';
 import {PARCEL_VERSION, FILE_CREATE} from './constants';
 import {optionsProxy} from './utils';
-import {createBuildCache} from './buildCache';
 import {createConfig} from './InternalConfig';
-import {getConfigHash, type ConfigRequest} from './requests/ConfigRequest';
-import PublicConfig from './public/Config';
+import {
+  getConfigHash,
+  loadPluginConfig,
+  getConfigRequests,
+  type ConfigRequest,
+} from './requests/ConfigRequest';
+import {
+  createDevDependency,
+  invalidateDevDeps,
+  getWorkerDevDepRequests,
+} from './requests/DevDepRequest';
 
 type GenerateFunc = (input: UncommittedAsset) => Promise<GenerateOutput>;
 
@@ -73,11 +81,6 @@ export type TransformationResult = {|
   invalidateOnFileCreate: Array<FileCreateInvalidation>,
   devDepRequests: Array<DevDepRequest>,
 |};
-
-// A cache of plugin dependency hashes that we've already sent to the main thread.
-// Automatically cleared before each build.
-const pluginCache = createBuildCache();
-const invalidatedPlugins = createBuildCache();
 
 export default class Transformation {
   request: TransformationRequest;
@@ -146,14 +149,11 @@ export default class Transformation {
       }
     }
 
-    for (let {moduleSpecifier, resolveFrom} of this.request.invalidDevDeps) {
-      let key = `${moduleSpecifier}:${resolveFrom}`;
-      if (!invalidatedPlugins.has(key)) {
-        this.parcelConfig.invalidatePlugin(moduleSpecifier);
-        this.options.packageManager.invalidate(moduleSpecifier, resolveFrom);
-        invalidatedPlugins.set(key, true);
-      }
-    }
+    invalidateDevDeps(
+      this.request.invalidDevDeps,
+      this.options,
+      this.parcelConfig,
+    );
 
     let pipeline = await this.loadPipeline(
       this.request.filePath,
@@ -163,36 +163,10 @@ export default class Transformation {
     let results = await this.runPipelines(pipeline, asset);
     let assets = results.map(a => a.value);
 
-    let configRequests = [...this.configs.values()]
-      .filter(config => {
-        // No need to send to the graph if there are no invalidations.
-        return (
-          config.includedFiles.size > 0 ||
-          config.invalidateOnFileCreate.length > 0 ||
-          config.invalidateOnOptionChange.size > 0 ||
-          config.shouldInvalidateOnStartup
-        );
-      })
-      .map(config => ({
-        id: config.id,
-        includedFiles: config.includedFiles,
-        invalidateOnFileCreate: config.invalidateOnFileCreate,
-        invalidateOnOptionChange: config.invalidateOnOptionChange,
-        shouldInvalidateOnStartup: config.shouldInvalidateOnStartup,
-      }));
-
-    let devDepRequests = [];
-    for (let devDepRequest of this.devDepRequests.values()) {
-      // If we've already sent a matching transformer + hash to the main thread during this build,
-      // there's no need to repeat ourselves.
-      let {moduleSpecifier, resolveFrom, hash} = devDepRequest;
-      if (hash === pluginCache.get(moduleSpecifier)) {
-        devDepRequests.push({moduleSpecifier, resolveFrom, hash});
-      } else {
-        pluginCache.set(moduleSpecifier, hash);
-        devDepRequests.push(devDepRequest);
-      }
-    }
+    let configRequests = getConfigRequests([...this.configs.values()]);
+    let devDepRequests = getWorkerDevDepRequests([
+      ...this.devDepRequests.values(),
+    ]);
 
     // $FlowFixMe
     return {
@@ -277,7 +251,7 @@ export default class Transformation {
     for (let transformer of pipeline.transformers) {
       await this.addDevDependency(
         {
-          moduleSpecifier: transformer.name,
+          specifier: transformer.name,
           resolveFrom: transformer.resolveFrom,
           range: transformer.range,
         },
@@ -341,7 +315,7 @@ export default class Transformation {
         hashes += await getConfigHash(config, transformer.name, this.options);
 
         for (let devDep of config.devDeps) {
-          let key = `${devDep.moduleSpecifier}:${devDep.resolveFrom}`;
+          let key = `${devDep.specifier}:${devDep.resolveFrom}`;
           hashes += nullthrows(this.devDepRequests.get(key)).hash;
         }
       }
@@ -354,65 +328,23 @@ export default class Transformation {
     opts: DevDepOptions,
     transformer: LoadedPlugin<Transformer> | TransformerWithNameAndConfig,
   ): Promise<void> {
-    let {moduleSpecifier, resolveFrom, range, invalidateParcelPlugin} = opts;
-    let key = `${moduleSpecifier}:${resolveFrom}`;
+    let {specifier, resolveFrom, range} = opts;
+    let key = `${specifier}:${resolveFrom}`;
     if (this.devDepRequests.has(key)) {
       return;
     }
 
-    // If the request sent us a hash, we know the dev dep and all of its dependencies didn't change.
-    // Reuse the same hash in the response. No need to send back invalidations as the request won't
-    // be re-run anyway.
-    let hash = this.request.devDeps.get(key);
-    if (hash != null) {
-      this.devDepRequests.set(key, {
-        moduleSpecifier,
-        resolveFrom,
-        hash,
-      });
-      return;
-    }
-
     // Ensure that the package manager has an entry for this resolution.
-    await this.options.packageManager.resolve(moduleSpecifier, resolveFrom, {
+    await this.options.packageManager.resolve(specifier, resolveFrom, {
       range,
     });
-    let invalidations = this.options.packageManager.getInvalidations(
-      moduleSpecifier,
-      resolveFrom,
-    );
 
-    // It is possible for a transformer to have multiple different hashes due to
-    // different dependencies (e.g. conditional requires) so we must always
-    // recompute the hash and compare rather than only sending a transformer
-    // dev dependency once.
-    hash = await getInvalidationHash(
-      [...invalidations.invalidateOnFileChange].map(f => ({
-        type: 'file',
-        filePath: f,
-      })),
+    let devDepRequest = await createDevDependency(
+      opts,
+      transformer,
+      this.request.devDeps,
       this.options,
     );
-
-    let devDepRequest: DevDepRequest = {
-      moduleSpecifier,
-      resolveFrom,
-      hash,
-      invalidateOnFileCreate: invalidations.invalidateOnFileCreate,
-      invalidateOnFileChange: invalidations.invalidateOnFileChange,
-    };
-
-    // Optionally also invalidate the parcel plugin that is loading the config
-    // when this dev dep changes (e.g. to invalidate local caches).
-    if (invalidateParcelPlugin) {
-      devDepRequest.additionalInvalidations = [
-        {
-          moduleSpecifier: transformer.name,
-          resolveFrom: transformer.resolveFrom,
-        },
-      ];
-    }
-
     this.devDepRequests.set(key, devDepRequest);
   }
 
@@ -678,19 +610,7 @@ export default class Transformation {
       env: this.request.env,
     });
 
-    try {
-      await loadConfig({
-        config: new PublicConfig(config, this.options),
-        options: this.options,
-        logger: new PluginLogger({origin: transformer.name}),
-      });
-    } catch (e) {
-      throw new ThrowableDiagnostic({
-        diagnostic: errorToDiagnostic(e, {
-          origin: transformer.name,
-        }),
-      });
-    }
+    await loadPluginConfig(transformer, config, this.options);
 
     for (let devDep of config.devDeps) {
       await this.addDevDependency(devDep, transformer);
@@ -713,7 +633,8 @@ export default class Transformation {
         await pipeline.resolverRunner.resolve(
           createDependency({
             env: asset.value.env,
-            moduleSpecifier: to,
+            specifier: to,
+            specifierType: 'esm', // ???
             sourcePath: from,
           }),
         ),
