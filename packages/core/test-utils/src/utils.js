@@ -149,7 +149,7 @@ export function findAsset(
 export function findDependency(
   bundleGraph: BundleGraph<PackagedBundle>,
   assetFileName: string,
-  moduleSpecifier: string,
+  specifier: string,
 ): Dependency {
   let asset = nullthrows(
     findAsset(bundleGraph, assetFileName),
@@ -158,10 +158,10 @@ export function findDependency(
 
   let dependency = bundleGraph
     .getDependencies(asset)
-    .find(d => d.moduleSpecifier === moduleSpecifier);
+    .find(d => d.specifier === specifier);
   invariant(
     dependency != null,
-    `Couldn't find dependency ${assetFileName} -> ${moduleSpecifier}`,
+    `Couldn't find dependency ${assetFileName} -> ${specifier}`,
   );
   return dependency;
 }
@@ -189,9 +189,9 @@ export function mergeParcelOptions(
 export function assertDependencyWasDeferred(
   bundleGraph: BundleGraph<PackagedBundle>,
   assetFileName: string,
-  moduleSpecifier: string,
+  specifier: string,
 ): void {
-  let dep = findDependency(bundleGraph, assetFileName, moduleSpecifier);
+  let dep = findDependency(bundleGraph, assetFileName, specifier);
   invariant(
     bundleGraph.isDependencySkipped(dep),
     util.inspect(dep) + " wasn't deferred",

@@ -99,7 +99,7 @@ export default (new Transformer({
     program.walkAtRules('import', rule => {
       let params = valueParser(rule.params);
       let [name, ...media] = params.nodes;
-      let moduleSpecifier;
+      let specifier;
       if (
         name.type === 'function' &&
         name.value === 'url' &&
@@ -108,14 +108,14 @@ export default (new Transformer({
         name = name.nodes[0];
       }
 
-      moduleSpecifier = name.value;
+      specifier = name.value;
 
-      if (!moduleSpecifier) {
+      if (!specifier) {
         throw new Error('Could not find import name for ' + String(rule));
       }
 
-      if (isURL(moduleSpecifier)) {
-        name.value = asset.addURLDependency(moduleSpecifier, {
+      if (isURL(specifier)) {
+        name.value = asset.addURLDependency(specifier, {
           loc: createLoc(nullthrows(rule.source.start), asset.filePath, 0, 8),
         });
       } else {
@@ -129,10 +129,13 @@ export default (new Transformer({
         // } else {
         media = valueParser.stringify(media).trim();
         let dep = {
-          moduleSpecifier,
+          specifier,
+          specifierType: 'url',
           // Offset by 8 as it does not include `@import `
-          loc: createLoc(nullthrows(rule.source.start), moduleSpecifier, 0, 8),
+          loc: createLoc(nullthrows(rule.source.start), specifier, 0, 8),
           meta: {
+            // For the glob resolver to distinguish between `@import` and other URL dependencies.
+            isCSSImport: true,
             media,
           },
         };

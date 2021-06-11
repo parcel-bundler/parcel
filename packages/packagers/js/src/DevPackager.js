@@ -90,9 +90,7 @@ export class DevPackager {
             this.bundle,
           );
           if (resolved) {
-            deps[dep.moduleSpecifier] = this.bundleGraph.getAssetPublicId(
-              resolved,
-            );
+            deps[dep.specifier] = this.bundleGraph.getAssetPublicId(resolved);
           }
         }
 
