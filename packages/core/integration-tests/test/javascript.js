@@ -3659,14 +3659,13 @@ describe('javascript', function() {
           'cacheLoader.js',
           'css-loader.js',
           'esmodule-helpers.js',
-          'html-loader.js',
           'js-loader.js',
           'bundle-manifest.js',
           'relative-path.js',
         ],
       },
       {
-        assets: ['a.js', 'b.js', 'bar.js', 'foo.js'],
+        assets: ['bar.js'],
       },
       {
         assets: ['a.js', 'b.js', 'foo.js'],
