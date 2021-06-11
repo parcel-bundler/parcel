@@ -100,8 +100,7 @@ export default function extractInlineAssets(
           type,
           content: value,
           uniqueKey: parcelKey,
-          isInline: true,
-          isIsolated: false,
+          bundleBehavior: 'inline',
           env,
           meta: {
             type: 'tag',
@@ -130,8 +129,7 @@ export default function extractInlineAssets(
         type: 'css',
         content: style,
         uniqueKey: parcelKey,
-        isInline: true,
-        isIsolated: false,
+        bundleBehavior: 'inline',
         meta: {
           type: 'attr',
           // $FlowFixMe

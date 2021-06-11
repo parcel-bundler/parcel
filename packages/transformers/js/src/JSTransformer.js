@@ -153,12 +153,6 @@ export default (new Transformer({
     });
   },
   async transform({asset, config, options}) {
-    // When this asset is an bundle entry, allow that bundle to be split to load shared assets separately.
-    // Only set here if it is null to allow previous transformers to override this behavior.
-    if (asset.isSplittable == null) {
-      asset.isSplittable = true;
-    }
-
     let [code, originalMap] = await Promise.all([
       asset.getBuffer(),
       asset.getMap(),
@@ -338,7 +332,7 @@ export default (new Transformer({
           loc: convertLoc(dep.loc),
         });
       } else if (dep.kind === 'File') {
-        asset.addIncludedFile(dep.specifier);
+        asset.invalidateOnFileChange(dep.specifier);
       } else {
         if (dep.kind === 'DynamicImport' && isURL(dep.specifier)) {
           continue;

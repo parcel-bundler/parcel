@@ -115,7 +115,7 @@ export async function load(
         invalidateParcelPlugin: true,
       });
     } else {
-      config.addIncludedFile(file);
+      config.invalidateOnFileChange(file);
     }
   };
 

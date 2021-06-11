@@ -71,14 +71,14 @@ export default (new Bundler({
         let assets = bundleGraph.getDependencyAssets(dependency);
         let resolution = bundleGraph.getDependencyResolution(dependency);
         let bundleGroup = context?.bundleGroup;
-        // Create a new bundle for entries, lazy/parallel dependencies, isolated assets, and inline assets.
+        // Create a new bundle for entries, lazy/parallel dependencies, isolated/inline assets.
         if (
           resolution &&
           (!bundleGroup ||
             dependency.priority === 'lazy' ||
             dependency.priority === 'parallel' ||
-            resolution.isIsolated ||
-            resolution.isInline)
+            resolution.bundleBehavior === 'isolated' ||
+            resolution.bundleBehavior === 'inline')
         ) {
           let bundleByType: Map<string, Bundle> =
             context?.bundleByType ?? new Map();
@@ -88,7 +88,7 @@ export default (new Bundler({
           if (
             !bundleGroup ||
             dependency.priority === 'lazy' ||
-            resolution.isIsolated
+            resolution.bundleBehavior === 'isolated'
           ) {
             bundleGroup = bundleGraph.createBundleGroup(
               dependency,
@@ -101,10 +101,11 @@ export default (new Bundler({
           for (let asset of assets) {
             let bundle = bundleGraph.createBundle({
               entryAsset: asset,
-              isEntry: asset.isInline
-                ? false
-                : dependency.isEntry || dependency.needsStableName,
-              isInline: asset.isInline,
+              isEntry:
+                asset.bundleBehavior === 'inline'
+                  ? false
+                  : dependency.isEntry || dependency.needsStableName,
+              isInline: asset.bundleBehavior === 'inline',
               target: bundleGroup.target,
             });
             bundleByType.set(bundle.type, bundle);
@@ -158,13 +159,13 @@ export default (new Bundler({
               type: asset.type,
               target: bundleGroup.target,
               isEntry:
-                asset.isInline ||
+                asset.bundleBehavior === 'inline' ||
                 (dependency.priority === 'parallel' &&
                   !dependency.needsStableName)
                   ? false
                   : parentBundle.isEntry,
-              isInline: asset.isInline,
-              isSplittable: asset.isSplittable ?? true,
+              isInline: asset.bundleBehavior === 'inline',
+              isSplittable: asset.isBundleSplittable ?? true,
               pipeline: asset.pipeline,
             });
             bundleByType.set(bundle.type, bundle);

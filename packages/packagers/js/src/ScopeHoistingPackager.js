@@ -95,7 +95,7 @@ export class ScopeHoistingPackager {
     this.isAsyncBundle =
       this.bundleGraph.hasParentBundleOfType(this.bundle, 'js') &&
       !this.bundle.env.isIsolated() &&
-      !this.bundle.getMainEntry()?.isIsolated;
+      this.bundle.getMainEntry()?.bundleBehavior !== 'isolated';
 
     this.globalNames = GLOBALS_BY_CONTEXT[bundle.env.context];
   }
@@ -987,7 +987,7 @@ ${code}
           .getBundleGroupsContainingBundle(this.bundle)
           .some(g => this.bundleGraph.isEntryBundleGroup(g)) ||
         this.bundle.env.isIsolated() ||
-        !!this.bundle.getMainEntry()?.isIsolated;
+        this.bundle.getMainEntry()?.bundleBehavior === 'isolated';
 
       if (mightBeFirstJS) {
         let preludeCode = prelude(this.parcelRequireName);

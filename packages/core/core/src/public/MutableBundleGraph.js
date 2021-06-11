@@ -24,6 +24,7 @@ import Dependency, {dependencyToInternalDependency} from './Dependency';
 import {environmentToInternalEnvironment} from './Environment';
 import {targetToInternalTarget} from './Target';
 import {HASH_REF_PREFIX} from '../constants';
+import {BundleBehavior} from '../types';
 
 export default class MutableBundleGraph extends BundleGraph<IBundle>
   implements IMutableBundleGraph {
@@ -107,7 +108,10 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
     this.#graph._graph.addEdge(dependencyNodeId, resolvedNodeId, 'references');
     this.#graph._graph.removeEdge(dependencyNodeId, resolvedNodeId);
 
-    if (dependency.isEntry || resolved.isIsolated) {
+    if (
+      dependency.isEntry ||
+      resolved.bundleBehavior === BundleBehavior.isolated
+    ) {
       this.#graph._graph.addEdge(
         nullthrows(this.#graph._graph.rootNodeId),
         bundleGroupNodeId,
@@ -191,7 +195,7 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
         pipeline: opts.pipeline ?? entryAsset?.pipeline,
         isEntry: opts.isEntry,
         isInline: opts.isInline,
-        isSplittable: opts.isSplittable ?? entryAsset?.isSplittable,
+        isSplittable: opts.isSplittable ?? entryAsset?.isBundleSplittable,
         isPlaceholder,
         target,
         name: null,

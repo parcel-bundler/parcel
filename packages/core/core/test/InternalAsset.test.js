@@ -20,8 +20,8 @@ describe('InternalAsset', () => {
       }),
       options: DEFAULT_OPTIONS,
     });
-    asset.addIncludedFile('/foo/file');
-    asset.addIncludedFile('/foo/file');
+    asset.invalidateOnFileChange('/foo/file');
+    asset.invalidateOnFileChange('/foo/file');
     assert.deepEqual(asset.getInvalidations(), [
       {
         type: 'file',

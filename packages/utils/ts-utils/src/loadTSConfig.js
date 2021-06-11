@@ -20,7 +20,7 @@ export async function loadTSConfig(config: Config, options: PluginOptions) {
 
   // Add all of the extended config files to be watched
   for (let file of host.filesRead) {
-    config.addIncludedFile(path.resolve(file));
+    config.invalidateOnFileChange(path.resolve(file));
   }
 
   config.setResult(parsedConfig.options);

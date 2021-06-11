@@ -39,6 +39,7 @@ import {
   getInvalidationId,
   getInvalidationHash,
 } from './assetUtils';
+import {BundleBehaviorNames} from './types';
 
 type UncommittedAssetOptions = {|
   value: Asset,
@@ -320,7 +321,7 @@ export default class UncommittedAsset {
     return dep.id;
   }
 
-  addIncludedFile(filePath: FilePath) {
+  invalidateOnFileChange(filePath: FilePath) {
     let invalidation: RequestInvalidation = {
       type: 'file',
       filePath,
@@ -364,11 +365,14 @@ export default class UncommittedAsset {
         hash: this.value.hash,
         filePath: this.value.filePath,
         type: result.type,
-        query: result.query,
-        isIsolated: result.isIsolated ?? this.value.isIsolated,
-        isInline: result.isInline ?? this.value.isInline,
-        isSplittable: result.isSplittable ?? this.value.isSplittable,
-        isSource: result.isSource ?? this.value.isSource,
+        bundleBehavior:
+          result.bundleBehavior ??
+          (this.value.bundleBehavior == null
+            ? null
+            : BundleBehaviorNames[this.value.bundleBehavior]),
+        isBundleSplittable:
+          result.isBundleSplittable ?? this.value.isBundleSplittable,
+        isSource: this.value.isSource,
         env: mergeEnvironments(this.value.env, result.env),
         dependencies:
           this.value.type === result.type
