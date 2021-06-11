@@ -26,13 +26,18 @@ export default new Transformer({
     } else if (asset.env.context === 'web-worker') {
       generatedCode = generateWorkerCode(originalSpecifier);
       asset.setCode(generatedCode);
-      let secondAsset = {
-        type: 'js',
-        content: code,
-        uniqueKey: 'workerize-original-worker',
-        isInline: false,
-      };
-      return [asset, secondAsset];
+      let originalAssetType = asset.type;
+      asset.type = 'js';
+
+      return [
+        asset,
+        {
+          type: originalAssetType,
+          content: code,
+          uniqueKey: 'workerize-original-worker',
+          isInline: false,
+        },
+      ];
     }
   },
 });
