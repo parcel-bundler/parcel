@@ -403,7 +403,9 @@ export default class BundleGraph {
   bundlesWithCycles: Set<NodeId> = new Set();
 
   shouldExitEarly(assetNodeId: NodeId, bundleNodeId: NodeId): boolean {
-    // Detects whether bundle has a cycle
+    // Detects whether a bundle has a cycle.
+    // If so, exit traversal early when removing the asset's subgraph.
+    // NOTE: this is not an ideal solution. See https://github.com/parcel-bundler/parcel/issues/6446
     if (this.bundlesWithCycles.has(bundleNodeId)) {
       return true;
     }
