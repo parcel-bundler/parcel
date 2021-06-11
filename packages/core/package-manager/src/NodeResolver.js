@@ -1,12 +1,15 @@
 // @flow
 
-import type {FilePath, ModuleSpecifier, PackageJSON} from '@parcel/types';
+import type {FilePath, DependencySpecifier, PackageJSON} from '@parcel/types';
 import type {ResolveResult, ResolverContext} from './NodeResolverBase';
 import path from 'path';
 import {NodeResolverBase} from './NodeResolverBase';
 
 export class NodeResolver extends NodeResolverBase<Promise<ResolveResult>> {
-  async resolve(id: ModuleSpecifier, from: FilePath): Promise<ResolveResult> {
+  async resolve(
+    id: DependencySpecifier,
+    from: FilePath,
+  ): Promise<ResolveResult> {
     let ctx = {
       invalidateOnFileCreate: [],
       invalidateOnFileChange: new Set(),
@@ -166,7 +169,7 @@ export class NodeResolver extends NodeResolverBase<Promise<ResolveResult>> {
   }
 
   async loadNodeModules(
-    id: ModuleSpecifier,
+    id: DependencySpecifier,
     from: FilePath,
     ctx: ResolverContext,
   ): Promise<?ResolveResult> {

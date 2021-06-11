@@ -155,8 +155,8 @@ class BundlerRunner {
   }
 
   async runDevDepRequest(devDepRequest: DevDepRequest) {
-    let {moduleSpecifier, resolveFrom} = devDepRequest;
-    let key = `${moduleSpecifier}:${resolveFrom}`;
+    let {specifier, resolveFrom} = devDepRequest;
+    let key = `${specifier}:${resolveFrom}`;
     this.devDepRequests.set(key, devDepRequest);
     await runDevDepRequest(this.api, devDepRequest);
   }
@@ -248,7 +248,7 @@ class BundlerRunner {
     // the potential for lazy require() that aren't executed until the request runs.
     let devDepRequest = await createDevDependency(
       {
-        moduleSpecifier: name,
+        specifier: name,
         resolveFrom,
       },
       plugin,
@@ -276,6 +276,8 @@ class BundlerRunner {
 
     // Store the serialized bundle graph in an in memory cache so that we avoid serializing it
     // many times to send to each worker, and in build mode, when writing to cache on shutdown.
+    // Also, pre-compute the hashes for each bundle so they are only computed once and shared between workers.
+    internalBundleGraph.getBundleGraphHash();
     cacheSerializedObject(internalBundleGraph);
 
     // Recompute the cache key to account for new dev dependencies and invalidations.
@@ -318,7 +320,7 @@ class BundlerRunner {
     for (let namer of namers) {
       let devDepRequest = await createDevDependency(
         {
-          moduleSpecifier: namer.name,
+          specifier: namer.name,
           resolveFrom: namer.resolveFrom,
         },
         namer,

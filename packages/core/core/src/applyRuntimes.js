@@ -104,7 +104,6 @@ export default async function applyRuntimes({
         throw new ThrowableDiagnostic({
           diagnostic: errorToDiagnostic(e, {
             origin: runtime.name,
-            filePath: bundle.filePath,
           }),
         });
       }
@@ -115,7 +114,7 @@ export default async function applyRuntimes({
   for (let runtime of runtimes) {
     let devDepRequest = await createDevDependency(
       {
-        moduleSpecifier: runtime.name,
+        specifier: runtime.name,
         resolveFrom: runtime.resolveFrom,
       },
       runtime,
@@ -123,7 +122,7 @@ export default async function applyRuntimes({
       options,
     );
     devDepRequests.set(
-      `${devDepRequest.moduleSpecifier}:${devDepRequest.resolveFrom}`,
+      `${devDepRequest.specifier}:${devDepRequest.resolveFrom}`,
       devDepRequest,
     );
     await runDevDepRequest(api, devDepRequest);

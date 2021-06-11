@@ -3,7 +3,7 @@
 import type {
   Async,
   FilePath,
-  ModuleSpecifier,
+  DependencySpecifier,
   Symbol,
   SourceLocation,
   Meta,
@@ -25,12 +25,14 @@ import type {
 import type {StaticRunOpts, RunAPI} from '../RequestTracker';
 import type {EntryResult} from './EntryRequest';
 import type {PathRequestInput} from './PathRequest';
+
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import path from 'path';
 import {PromiseQueue} from '@parcel/utils';
 import {hashString} from '@parcel/hash';
 import ThrowableDiagnostic, {md} from '@parcel/diagnostic';
+import {Priority} from '../types';
 import AssetGraph from '../AssetGraph';
 import {PARCEL_VERSION} from '../constants';
 import createEntryRequest from './EntryRequest';
@@ -230,7 +232,7 @@ export class AssetGraphBuilder {
         } else if (!node.requested) {
           let isAsyncChild = this.assetGraph
             .getIncomingDependencies(node.value)
-            .every(dep => dep.isEntry || dep.isAsync);
+            .every(dep => dep.isEntry || dep.priority !== Priority.sync);
           if (isAsyncChild) {
             node.requested = false;
           } else {
@@ -775,7 +777,7 @@ export class AssetGraphBuilder {
     );
   }
 
-  async runEntryRequest(input: ModuleSpecifier) {
+  async runEntryRequest(input: DependencySpecifier) {
     let request = createEntryRequest(input);
     let result = await this.api.runRequest<FilePath, EntryResult>(request, {
       force: true,

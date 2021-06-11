@@ -24,7 +24,8 @@ import assert from 'assert';
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import {objectSortedEntriesDeep} from '@parcel/utils';
-import {Hash} from '@parcel/hash';
+import {Hash, hashString} from '@parcel/hash';
+import {Priority} from './types';
 
 import {getBundleGroupId, getPublicId} from './utils';
 import {ALL_EDGE_TYPES, mapVisitor} from './Graph';
@@ -234,10 +235,6 @@ export default class BundleGraph {
         return;
       }
 
-      if (node.type === 'asset' && !this.bundleHasAsset(bundle, node.value)) {
-        bundle.stats.size += node.value.stats.size;
-      }
-
       if (node.type === 'asset' || node.type === 'dependency') {
         this._graph.addEdge(bundleNodeId, nodeId, 'contains');
       }
@@ -278,7 +275,7 @@ export default class BundleGraph {
   }
 
   internalizeAsyncDependency(bundle: Bundle, dependency: Dependency) {
-    if (!dependency.isAsync) {
+    if (dependency.priority === Priority.sync) {
       throw new Error('Expected an async dependency');
     }
 
@@ -467,10 +464,6 @@ export default class BundleGraph {
           // aggregate.
           false /* removeOrphans */,
         );
-
-        if (node.type === 'asset') {
-          bundle.stats.size -= asset.stats.size;
-        }
       } else {
         actions.skipChildren();
       }
@@ -731,8 +724,11 @@ export default class BundleGraph {
       this._graph
         .getNodeIdsConnectedTo(assetNodeId, 'references')
         .map(id => this._graph.getNode(id))
-        .filter(node => node?.type === 'dependency' && node.value.isAsync)
-        .length > 0
+        .filter(
+          node =>
+            node?.type === 'dependency' &&
+            node.value.priority === Priority.lazy,
+        ).length > 0
     ) {
       // If this asset is referenced by any async dependency, it's referenced.
       return true;
@@ -1003,13 +999,21 @@ export default class BundleGraph {
     });
   }
 
-  traverseContents<TContext>(
+  traverse<TContext>(
     visit: GraphVisitor<AssetNode | DependencyNode, TContext>,
   ): ?TContext {
-    return this._graph.filteredTraverse(nodeId => {
-      let node = nullthrows(this._graph.getNode(nodeId));
-      return node.type === 'asset' || node.type === 'dependency' ? node : null;
-    }, visit);
+    return this._graph.filteredTraverse(
+      nodeId => {
+        let node = nullthrows(this._graph.getNode(nodeId));
+        if (node.type === 'asset' || node.type === 'dependency') {
+          return node;
+        }
+      },
+      visit,
+      undefined, // start with root
+      // $FlowFixMe
+      ALL_EDGE_TYPES,
+    );
   }
 
   getChildBundles(bundle: Bundle): Array<Bundle> {
@@ -1493,7 +1497,9 @@ export default class BundleGraph {
 
   getHash(bundle: Bundle): string {
     let hash = new Hash();
-    hash.writeString(bundle.id + this.getContentHash(bundle));
+    hash.writeString(
+      bundle.id + bundle.target.publicUrl + this.getContentHash(bundle),
+    );
 
     let inlineBundles = this.getInlineBundles(bundle);
     for (let inlineBundle of inlineBundles) {
@@ -1508,6 +1514,15 @@ export default class BundleGraph {
 
     hash.writeString(JSON.stringify(objectSortedEntriesDeep(bundle.env)));
     return hash.finish();
+  }
+
+  getBundleGraphHash(): string {
+    let hashes = '';
+    for (let bundle of this.getBundles()) {
+      hashes += this.getHash(bundle);
+    }
+
+    return hashString(hashes);
   }
 
   addBundleToBundleGroup(bundle: Bundle, bundleGroup: BundleGroup) {

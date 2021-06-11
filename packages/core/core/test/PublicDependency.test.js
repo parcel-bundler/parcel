@@ -8,7 +8,8 @@ import Dependency from '../src/public/Dependency';
 describe('Public Dependency', () => {
   it('returns the same public Dependency given an internal dependency', () => {
     let internalDependency = createDependency({
-      moduleSpecifier: 'foo',
+      specifier: 'foo',
+      specifierType: 'esm',
       env: createEnvironment({}),
     });
 
