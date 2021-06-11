@@ -1554,14 +1554,14 @@ describe('html', function() {
     assert.equal(html.match(/<script/g).length, 4);
 
     html = await outputFS.readFile(path.join(distDir, 'e.html'), 'utf8');
-    assert.equal(html.match(/<script/g).length, 2);
+    assert.equal(html.match(/<script/g).length, 4);
 
     html = await outputFS.readFile(path.join(distDir, 'f.html'), 'utf8');
     assert.equal(html.match(/<script/g).length, 3);
 
     // b.html hitting the parallel request limit should not prevent g.html from being optimized
     html = await outputFS.readFile(path.join(distDir, 'g.html'), 'utf8');
-    assert.equal(html.match(/<script/g).length, 4);
+    assert.equal(html.match(/<script/g).length, 5);
   });
 
   it('should not add CSS to a worker bundle group', async function() {
