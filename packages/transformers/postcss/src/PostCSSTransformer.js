@@ -84,7 +84,8 @@ export default (new Transformer({
           parsed.walk(node => {
             if (node.type === 'string') {
               asset.addDependency({
-                moduleSpecifier: importPath,
+                specifier: importPath,
+                specifierType: 'url',
                 loc: {
                   filePath: asset.filePath,
                   start: decl.source.start,
@@ -112,12 +113,12 @@ export default (new Transformer({
     });
     for (let msg of messages) {
       if (msg.type === 'dependency') {
-        asset.addIncludedFile(msg.file);
+        asset.invalidateOnFileChange(msg.file);
       } else if (msg.type === 'dir-dependency') {
         let pattern = `${msg.dir}/${msg.glob ?? '**/*'}`;
         let files = await glob(pattern, asset.fs, {onlyFiles: true});
         for (let file of files) {
-          asset.addIncludedFile(path.normalize(file));
+          asset.invalidateOnFileChange(path.normalize(file));
         }
         asset.invalidateOnFileCreate({glob: pattern});
       }
@@ -129,12 +130,12 @@ export default (new Transformer({
       let cssModulesList = (Object.entries(cssModules): Array<
         [string, string],
       >);
-      let deps = asset.getDependencies().filter(dep => !dep.isURL);
+      let deps = asset.getDependencies().filter(dep => dep.priority === 'sync');
       let code: string;
       if (deps.length > 0) {
         code = `
           module.exports = Object.assign({}, ${deps
-            .map(dep => `require(${JSON.stringify(dep.moduleSpecifier)})`)
+            .map(dep => `require(${JSON.stringify(dep.specifier)})`)
             .join(', ')}, ${JSON.stringify(cssModules, null, 2)});
         `;
       } else {
@@ -157,7 +158,6 @@ export default (new Transformer({
 
       assets.push({
         type: 'js',
-        filePath: asset.filePath + '.js',
         content: code,
       });
     }

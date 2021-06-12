@@ -64,7 +64,7 @@ async function configHydrator(
   for (let p of pluginArray) {
     if (typeof p === 'string') {
       config.addDevDependency({
-        moduleSpecifier: p,
+        specifier: p,
         resolveFrom: nullthrows(resolveFrom),
       });
     }
@@ -98,7 +98,7 @@ export async function load({
   let contents = null;
   if (configFile) {
     config.addDevDependency({
-      moduleSpecifier: 'postcss',
+      specifier: 'postcss',
       resolveFrom: config.searchPath,
       range: POSTCSS_RANGE,
     });
@@ -117,7 +117,7 @@ export async function load({
 
       // Also add the config as a dev dependency so we attempt to reload in watch mode.
       config.addDevDependency({
-        moduleSpecifier: relativePath(
+        specifier: relativePath(
           path.dirname(config.searchPath),
           configFile.filePath,
         ),

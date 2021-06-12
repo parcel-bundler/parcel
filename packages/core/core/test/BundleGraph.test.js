@@ -59,7 +59,8 @@ function createMockAssetGraph(ids: [string, string]) {
   );
 
   let dep = createDependency({
-    moduleSpecifier: '/path/to/index/src/main.js',
+    specifier: '/path/to/index/src/main.js',
+    specifierType: 'esm',
     env: DEFAULT_ENV,
     target: DEFAULT_TARGETS[0],
   });
@@ -68,7 +69,8 @@ function createMockAssetGraph(ids: [string, string]) {
   graph.resolveDependency(dep, nodeFromAssetGroup(req).value, '3');
 
   let dep1 = createDependency({
-    moduleSpecifier: 'dependent-asset-1',
+    specifier: 'dependent-asset-1',
+    specifierType: 'esm',
     env: DEFAULT_ENV,
     sourcePath: filePath,
   });
