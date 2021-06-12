@@ -2,7 +2,7 @@
 import type {Async} from '@parcel/types';
 import type SourceMap from '@parcel/source-map';
 import {Packager} from '@parcel/plugin';
-import {replaceInlineReferences, loadConfig} from '@parcel/utils';
+import {replaceInlineReferences} from '@parcel/utils';
 import {hashString} from '@parcel/hash';
 import path from 'path';
 import nullthrows from 'nullthrows';
@@ -10,22 +10,17 @@ import {DevPackager} from './DevPackager';
 import {ScopeHoistingPackager} from './ScopeHoistingPackager';
 
 export default (new Packager({
-  async loadConfig({options}) {
+  async loadConfig({config, options}) {
     // Generate a name for the global parcelRequire function that is unique to this project.
     // This allows multiple parcel builds to coexist on the same page.
-    let pkg = await loadConfig(
-      options.inputFS,
+    let pkg = await config.getConfigFrom(
       path.join(options.entryRoot, 'index'),
       ['package.json'],
-      options.projectRoot,
     );
-    let name = pkg?.config.name ?? '';
-    return {
-      config: {
-        parcelRequireName: 'parcelRequire' + hashString(name).slice(-4),
-      },
-      files: pkg?.files ?? [],
-    };
+    let name = pkg?.contents?.name ?? '';
+    config.setResult({
+      parcelRequireName: 'parcelRequire' + hashString(name).slice(-4),
+    });
   },
   async package({
     bundle,

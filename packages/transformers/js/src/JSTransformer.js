@@ -153,12 +153,6 @@ export default (new Transformer({
     });
   },
   async transform({asset, config, options}) {
-    // When this asset is an bundle entry, allow that bundle to be split to load shared assets separately.
-    // Only set here if it is null to allow previous transformers to override this behavior.
-    if (asset.isSplittable == null) {
-      asset.isSplittable = true;
-    }
-
     let [code, originalMap] = await Promise.all([
       asset.getBuffer(),
       asset.getMap(),
@@ -324,7 +318,7 @@ export default (new Transformer({
       } else if (dep.kind === 'ServiceWorker') {
         asset.addURLDependency(dep.specifier, {
           loc: convertLoc(dep.loc),
-          isEntry: true,
+          needsStableName: true,
           env: {context: 'service-worker'},
         });
       } else if (dep.kind === 'ImportScripts') {
@@ -338,7 +332,7 @@ export default (new Transformer({
           loc: convertLoc(dep.loc),
         });
       } else if (dep.kind === 'File') {
-        asset.addIncludedFile(dep.specifier);
+        asset.invalidateOnFileChange(dep.specifier);
       } else {
         if (dep.kind === 'DynamicImport' && isURL(dep.specifier)) {
           continue;
@@ -350,9 +344,10 @@ export default (new Transformer({
         }
 
         asset.addDependency({
-          moduleSpecifier: dep.specifier,
+          specifier: dep.specifier,
+          specifierType: dep.kind === 'Require' ? 'commonjs' : 'esm',
           loc: convertLoc(dep.loc),
-          isAsync: dep.kind === 'DynamicImport',
+          priority: dep.kind === 'DynamicImport' ? 'lazy' : 'sync',
           isOptional: dep.is_optional,
           meta,
           resolveFrom: dep.is_helper ? __filename : undefined,
@@ -368,28 +363,21 @@ export default (new Transformer({
       }
 
       let deps = new Map(
-        asset.getDependencies().map(dep => [dep.moduleSpecifier, dep]),
+        asset.getDependencies().map(dep => [dep.specifier, dep]),
       );
       for (let dep of deps.values()) {
         dep.symbols.ensure();
       }
 
       for (let name in hoist_result.imported_symbols) {
-        let [moduleSpecifier, exported, loc] = hoist_result.imported_symbols[
-          name
-        ];
-        let dep = deps.get(moduleSpecifier);
+        let [specifier, exported, loc] = hoist_result.imported_symbols[name];
+        let dep = deps.get(specifier);
         if (!dep) continue;
         dep.symbols.set(exported, name, convertLoc(loc));
       }
 
-      for (let [
-        name,
-        moduleSpecifier,
-        exported,
-        loc,
-      ] of hoist_result.re_exports) {
-        let dep = deps.get(moduleSpecifier);
+      for (let [name, specifier, exported, loc] of hoist_result.re_exports) {
+        let dep = deps.get(specifier);
         if (!dep) continue;
 
         if (name === '*' && exported === '*') {
@@ -403,8 +391,8 @@ export default (new Transformer({
         }
       }
 
-      for (let moduleSpecifier of hoist_result.wrapped_requires) {
-        let dep = deps.get(moduleSpecifier);
+      for (let specifier of hoist_result.wrapped_requires) {
+        let dep = deps.get(specifier);
         if (!dep) continue;
         dep.meta.shouldWrap = true;
       }
@@ -435,7 +423,8 @@ export default (new Transformer({
         }
 
         asset.addDependency({
-          moduleSpecifier: `./${path.basename(asset.filePath)}`,
+          specifier: `./${path.basename(asset.filePath)}`,
+          specifierType: 'esm',
           symbols,
         });
       }
@@ -458,7 +447,8 @@ export default (new Transformer({
       asset.meta.id = asset.id;
     } else if (needs_esm_helpers) {
       asset.addDependency({
-        moduleSpecifier: '@parcel/transformer-js/src/esmodule-helpers.js',
+        specifier: '@parcel/transformer-js/src/esmodule-helpers.js',
+        specifierType: 'esm',
         resolveFrom: __filename,
         env: {
           includeNodeModules: {

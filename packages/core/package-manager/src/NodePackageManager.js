@@ -1,5 +1,5 @@
 // @flow
-import type {FilePath, ModuleSpecifier, SemverRange} from '@parcel/types';
+import type {FilePath, DependencySpecifier, SemverRange} from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
 import type {
   ModuleRequest,
@@ -31,8 +31,8 @@ import {NodeResolverSync} from './NodeResolverSync';
 
 // There can be more than one instance of NodePackageManager, but node has only a single module cache.
 // Therefore, the resolution cache and the map of parent to child modules should also be global.
-const cache = new Map<ModuleSpecifier, ResolveResult>();
-const children = new Map<FilePath, Set<ModuleSpecifier>>();
+const cache = new Map<DependencySpecifier, ResolveResult>();
+const children = new Map<FilePath, Set<DependencySpecifier>>();
 
 // This implements a package manager for Node by monkey patching the Node require
 // algorithm so that it uses the specified FileSystem instead of the native one.
@@ -77,7 +77,7 @@ export class NodePackageManager implements PackageManager {
   }
 
   async require(
-    name: ModuleSpecifier,
+    name: DependencySpecifier,
     from: FilePath,
     opts: ?{|
       range?: ?SemverRange,
@@ -89,7 +89,7 @@ export class NodePackageManager implements PackageManager {
     return this.load(resolved, from);
   }
 
-  requireSync(name: ModuleSpecifier, from: FilePath): any {
+  requireSync(name: DependencySpecifier, from: FilePath): any {
     let {resolved} = this.resolveSync(name, from);
     return this.load(resolved, from);
   }
@@ -134,7 +134,7 @@ export class NodePackageManager implements PackageManager {
   }
 
   async resolve(
-    name: ModuleSpecifier,
+    name: DependencySpecifier,
     from: FilePath,
     options?: ?{|
       range?: ?SemverRange,
@@ -286,7 +286,7 @@ export class NodePackageManager implements PackageManager {
     return resolved;
   }
 
-  resolveSync(name: ModuleSpecifier, from: FilePath): ResolveResult {
+  resolveSync(name: DependencySpecifier, from: FilePath): ResolveResult {
     let basedir = path.dirname(from);
     let key = basedir + ':' + name;
     let resolved = cache.get(key);
@@ -319,7 +319,7 @@ export class NodePackageManager implements PackageManager {
     });
   }
 
-  getInvalidations(name: ModuleSpecifier, from: FilePath): Invalidations {
+  getInvalidations(name: DependencySpecifier, from: FilePath): Invalidations {
     let res = {
       invalidateOnFileCreate: [],
       invalidateOnFileChange: new Set(),
@@ -358,7 +358,7 @@ export class NodePackageManager implements PackageManager {
     return res;
   }
 
-  invalidate(name: ModuleSpecifier, from: FilePath) {
+  invalidate(name: DependencySpecifier, from: FilePath) {
     let seen = new Set();
 
     let invalidate = (name, from) => {

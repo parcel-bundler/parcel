@@ -30,7 +30,7 @@ export type PluginWithLoadConfig = {
 
 export type ConfigRequest = {
   id: string,
-  includedFiles: Set<FilePath>,
+  invalidateOnFileChange: Set<FilePath>,
   invalidateOnFileCreate: Array<FileCreateInvalidation>,
   invalidateOnOptionChange: Set<string>,
   shouldInvalidateOnStartup: boolean,
@@ -71,7 +71,7 @@ export async function runConfigRequest(
   configRequest: ConfigRequest,
 ) {
   let {
-    includedFiles,
+    invalidateOnFileChange,
     invalidateOnFileCreate,
     invalidateOnOptionChange,
     shouldInvalidateOnStartup,
@@ -79,7 +79,7 @@ export async function runConfigRequest(
 
   // If there are no invalidations, then no need to create a node.
   if (
-    includedFiles.size === 0 &&
+    invalidateOnFileChange.size === 0 &&
     invalidateOnFileCreate.length === 0 &&
     invalidateOnOptionChange.size === 0 &&
     !shouldInvalidateOnStartup
@@ -91,7 +91,7 @@ export async function runConfigRequest(
     id: 'config_request:' + configRequest.id,
     type: 'config_request',
     run: ({api}) => {
-      for (let filePath of includedFiles) {
+      for (let filePath of invalidateOnFileChange) {
         api.invalidateOnFileUpdate(filePath);
         api.invalidateOnFileDelete(filePath);
       }
@@ -127,10 +127,10 @@ export async function getConfigHash(
   // If there is no result hash set by the transformer, default to hashing the included
   // files if any, otherwise try to hash the config result itself.
   if (config.resultHash == null) {
-    if (config.includedFiles.size > 0) {
+    if (config.invalidateOnFileChange.size > 0) {
       hash.writeString(
         await getInvalidationHash(
-          [...config.includedFiles].map(filePath => ({
+          [...config.invalidateOnFileChange].map(filePath => ({
             type: 'file',
             filePath,
           })),
@@ -155,4 +155,26 @@ export async function getConfigHash(
   }
 
   return hash.finish();
+}
+
+export function getConfigRequests(
+  configs: Array<Config>,
+): Array<ConfigRequest> {
+  return configs
+    .filter(config => {
+      // No need to send to the graph if there are no invalidations.
+      return (
+        config.invalidateOnFileChange.size > 0 ||
+        config.invalidateOnFileCreate.length > 0 ||
+        config.invalidateOnOptionChange.size > 0 ||
+        config.shouldInvalidateOnStartup
+      );
+    })
+    .map(config => ({
+      id: config.id,
+      invalidateOnFileChange: config.invalidateOnFileChange,
+      invalidateOnFileCreate: config.invalidateOnFileCreate,
+      invalidateOnOptionChange: config.invalidateOnOptionChange,
+      shouldInvalidateOnStartup: config.shouldInvalidateOnStartup,
+    }));
 }

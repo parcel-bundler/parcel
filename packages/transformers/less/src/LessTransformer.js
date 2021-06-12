@@ -156,7 +156,7 @@ function resolvePathPlugin({asset, resolve}) {
           }
 
           if (filePath) {
-            asset.addIncludedFile(filePath);
+            asset.invalidateOnFileChange(filePath);
           }
 
           return {
