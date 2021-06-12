@@ -31,7 +31,7 @@ export default (new Transformer({
       let inputBuffer = await asset.getBuffer();
       let imagePipeline = sharp(inputBuffer);
       if (width || height) {
-        imagePipeline.rotate().resize(width, height);
+        imagePipeline.resize(width, height);
       }
 
       if (format) {
@@ -45,6 +45,8 @@ export default (new Transformer({
           quality,
         });
       }
+      
+      imagePipeline.rotate();
 
       asset.setStream(imagePipeline);
     }
