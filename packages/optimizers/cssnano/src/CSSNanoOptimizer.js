@@ -15,20 +15,11 @@ export default (new Optimizer({
         packageKey: 'cssnano',
       },
     );
-    // TODO copied from stylus package. make this a utility function
     if (configFile) {
       let isJavascript = path.extname(configFile.filePath) === '.js';
       if (isJavascript) {
         config.shouldInvalidateOnStartup();
       }
-
-      // Resolve relative paths from config file
-      if (configFile.contents.paths) {
-        configFile.contents.paths = configFile.contents.paths.map(p =>
-          path.resolve(path.dirname(configFile.filePath), p),
-        );
-      }
-
       config.setResult(configFile.contents);
     }
   },
