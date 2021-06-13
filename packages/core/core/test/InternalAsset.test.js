@@ -20,8 +20,8 @@ describe('InternalAsset', () => {
       }),
       options: DEFAULT_OPTIONS,
     });
-    asset.addIncludedFile('/foo/file');
-    asset.addIncludedFile('/foo/file');
+    asset.invalidateOnFileChange('/foo/file');
+    asset.invalidateOnFileChange('/foo/file');
     assert.deepEqual(asset.getInvalidations(), [
       {
         type: 'file',
@@ -42,11 +42,11 @@ describe('InternalAsset', () => {
       options: DEFAULT_OPTIONS,
     });
 
-    asset.addDependency({moduleSpecifier: './foo'});
-    asset.addDependency({moduleSpecifier: './foo'});
+    asset.addDependency({specifier: './foo', specifierType: 'esm'});
+    asset.addDependency({specifier: './foo', specifierType: 'esm'});
     let dependencies = asset.getDependencies();
     assert(dependencies.length === 1);
-    assert(dependencies[0].moduleSpecifier === './foo');
+    assert(dependencies[0].specifier === './foo');
   });
 
   it('includes different dependencies if their id differs', () => {
@@ -61,9 +61,10 @@ describe('InternalAsset', () => {
       options: DEFAULT_OPTIONS,
     });
 
-    asset.addDependency({moduleSpecifier: './foo'});
+    asset.addDependency({specifier: './foo', specifierType: 'esm'});
     asset.addDependency({
-      moduleSpecifier: './foo',
+      specifier: './foo',
+      specifierType: 'esm',
       env: {context: 'web-worker', engines: {}},
     });
     let dependencies = asset.getDependencies();

@@ -24,6 +24,7 @@ import ParcelConfig from '../ParcelConfig';
 import createParcelConfigRequest, {
   getCachedParcelConfig,
 } from './ParcelConfigRequest';
+import {Priority} from '../types';
 
 export type PathRequest = {|
   id: string,
@@ -150,15 +151,15 @@ export class ResolverRunner {
     if (
       // Don't consider absolute paths. Absolute paths are only supported for entries,
       // and include e.g. `C:\` on Windows, conflicting with pipelines.
-      !path.isAbsolute(dependency.moduleSpecifier) &&
-      dependency.moduleSpecifier.includes(':')
+      !path.isAbsolute(dependency.specifier) &&
+      dependency.specifier.includes(':')
     ) {
-      if (dependency.moduleSpecifier.startsWith('node:')) {
-        filePath = dependency.moduleSpecifier;
+      if (dependency.specifier.startsWith('node:')) {
+        filePath = dependency.specifier;
       } else {
-        [pipeline, filePath] = dependency.moduleSpecifier.split(':');
+        [pipeline, filePath] = dependency.specifier.split(':');
         if (!validPipelines.has(pipeline)) {
-          if (dep.isURL) {
+          if (dep.specifierType === 'url') {
             // This may be a url protocol or scheme rather than a pipeline, such as
             // `url('http://example.com/foo.png')`
             return null;
@@ -171,15 +172,18 @@ export class ResolverRunner {
         }
       }
     } else {
-      if (dependency.isURL && dependency.moduleSpecifier.startsWith('//')) {
+      if (
+        dep.specifierType === 'url' &&
+        dependency.specifier.startsWith('//')
+      ) {
         // A protocol-relative URL, e.g `url('//example.com/foo.png')`
         return null;
       }
-      filePath = dependency.moduleSpecifier;
+      filePath = dependency.specifier;
     }
 
     let queryPart = null;
-    if (dependency.isURL) {
+    if (dep.specifierType === 'url') {
       let parsed = URL.parse(filePath);
       if (typeof parsed.pathname !== 'string') {
         throw await this.getThrowableDiagnostic(
@@ -221,8 +225,8 @@ export class ResolverRunner {
             };
           }
 
-          if (result.isAsync != null) {
-            dependency.isAsync = result.isAsync;
+          if (result.priority != null) {
+            dependency.priority = Priority[result.priority];
           }
 
           if (result.isExcluded) {
@@ -242,7 +246,7 @@ export class ResolverRunner {
                   result.pipeline === undefined
                     ? pipeline ?? dependency.pipeline
                     : result.pipeline,
-                isURL: dependency.isURL,
+                isURL: dep.specifierType === 'url',
               },
               invalidateOnFileCreate: result.invalidateOnFileCreate,
               invalidateOnFileChange: result.invalidateOnFileChange,
@@ -289,7 +293,7 @@ export class ResolverRunner {
     // $FlowFixMe because of the err.code assignment
     let err = await this.getThrowableDiagnostic(
       dependency,
-      md`Failed to resolve '${dependency.moduleSpecifier}' ${
+      md`Failed to resolve '${dependency.specifier}' ${
         dir ? `from '${dir}'` : ''
       }`,
     );

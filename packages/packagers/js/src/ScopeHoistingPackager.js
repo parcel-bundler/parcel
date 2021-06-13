@@ -95,7 +95,7 @@ export class ScopeHoistingPackager {
     this.isAsyncBundle =
       this.bundleGraph.hasParentBundleOfType(this.bundle, 'js') &&
       !this.bundle.env.isIsolated() &&
-      !this.bundle.getMainEntry()?.isIsolated;
+      this.bundle.getMainEntry()?.bundleBehavior !== 'isolated';
 
     this.globalNames = GLOBALS_BY_CONTEXT[bundle.env.context];
   }
@@ -498,7 +498,7 @@ ${code}
     let depMap = new Map();
     let replacements = new Map();
     for (let dep of deps) {
-      depMap.set(`${assetId}:${dep.moduleSpecifier}`, dep);
+      depMap.set(`${assetId}:${dep.specifier}`, dep);
 
       let asyncResolution = this.bundleGraph.resolveAsyncDependency(
         dep,
@@ -531,7 +531,7 @@ ${code}
             renamed = local;
           } else if (imported === 'default' || imported === '*') {
             renamed = this.getTopLevelName(
-              `$${this.bundle.publicId}$${dep.moduleSpecifier}`,
+              `$${this.bundle.publicId}$${dep.specifier}`,
             );
           } else {
             renamed = this.getTopLevelName(
@@ -568,7 +568,7 @@ ${code}
       // Async dependencies need a namespace object even if all used symbols were statically analyzed.
       // This is recorded in the promiseSymbol meta property set by the transformer rather than in
       // symbols so that we don't mark all symbols as used.
-      if (dep.isAsync && dep.meta.promiseSymbol) {
+      if (dep.priority === 'lazy' && dep.meta.promiseSymbol) {
         let promiseSymbol = dep.meta.promiseSymbol;
         invariant(typeof promiseSymbol === 'string');
         let symbol = this.resolveSymbol(asset, resolved, '*', dep);
@@ -616,11 +616,11 @@ ${code}
       });
     }
 
-    // Map of ModuleSpecifier -> Map<ExportedSymbol, Identifier>>
-    let external = this.externals.get(dep.moduleSpecifier);
+    // Map of DependencySpecifier -> Map<ExportedSymbol, Identifier>>
+    let external = this.externals.get(dep.specifier);
     if (!external) {
       external = new Map();
-      this.externals.set(dep.moduleSpecifier, external);
+      this.externals.set(dep.specifier, external);
     }
 
     return external;
@@ -893,7 +893,7 @@ ${code}
             if (!resolved) {
               // Re-exporting an external module. This should have already been handled in buildReplacements.
               let external = nullthrows(
-                nullthrows(this.externals.get(dep.moduleSpecifier)).get('*'),
+                nullthrows(this.externals.get(dep.specifier)).get('*'),
               );
               append += `$parcel$exportWildcard($${assetId}$exports, ${external});\n`;
               this.usedHelpers.add('$parcel$exportWildcard');
@@ -987,7 +987,7 @@ ${code}
           .getBundleGroupsContainingBundle(this.bundle)
           .some(g => this.bundleGraph.isEntryBundleGroup(g)) ||
         this.bundle.env.isIsolated() ||
-        !!this.bundle.getMainEntry()?.isIsolated;
+        this.bundle.getMainEntry()?.bundleBehavior === 'isolated';
 
       if (mightBeFirstJS) {
         let preludeCode = prelude(this.parcelRequireName);

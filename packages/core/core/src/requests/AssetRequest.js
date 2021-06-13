@@ -102,10 +102,7 @@ async function run({input, api, farm, invalidateReason}: RunInput) {
     devDeps: new Map(
       [...previousDevDepRequests.entries()]
         .filter(([id]) => api.canSkipSubrequest(id))
-        .map(([, req]) => [
-          `${req.moduleSpecifier}:${req.resolveFrom}`,
-          req.hash,
-        ]),
+        .map(([, req]) => [`${req.specifier}:${req.resolveFrom}`, req.hash]),
     ),
     invalidDevDeps: await Promise.all(
       [...previousDevDepRequests.entries()]
@@ -113,7 +110,7 @@ async function run({input, api, farm, invalidateReason}: RunInput) {
         .flatMap(([, req]) => {
           return [
             {
-              moduleSpecifier: req.moduleSpecifier,
+              specifier: req.specifier,
               resolveFrom: req.resolveFrom,
             },
             ...(req.additionalInvalidations ?? []),

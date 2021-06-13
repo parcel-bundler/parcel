@@ -1,18 +1,12 @@
 // @flow strict-local
 
-import type {
-  AST,
-  Blob,
-  ConfigResult,
-  FilePath,
-  PackageJSON,
-} from '@parcel/types';
+import type {AST, Blob} from '@parcel/types';
 import type {Asset, Dependency, ParcelOptions} from './types';
 
 import {Readable} from 'stream';
 import SourceMap from '@parcel/source-map';
 import {bufferStream, blobToStream, streamFromPromise} from '@parcel/utils';
-import {getConfig, generateFromAST} from './assetUtils';
+import {generateFromAST} from './assetUtils';
 import {deserializeRaw} from './serializer';
 
 export default class CommittedAsset {
@@ -139,19 +133,5 @@ export default class CommittedAsset {
 
   getDependencies(): Array<Dependency> {
     return Array.from(this.value.dependencies.values());
-  }
-
-  async getConfig(
-    filePaths: Array<FilePath>,
-    options: ?{|
-      packageKey?: string,
-      parse?: boolean,
-    |},
-  ): Promise<ConfigResult | null> {
-    return (await getConfig(this, filePaths, options))?.config;
-  }
-
-  getPackage(): Promise<PackageJSON | null> {
-    return this.getConfig(['package.json']);
   }
 }
