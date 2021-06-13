@@ -34,6 +34,8 @@ export default (new Transformer({
         imagePipeline.resize(width, height);
       }
 
+      imagePipeline.rotate();
+
       if (format) {
         if (!FORMATS.has(format)) {
           throw new Error(`Sharp does not support ${format} images.`);
@@ -45,8 +47,6 @@ export default (new Transformer({
           quality,
         });
       }
-      
-      imagePipeline.rotate();
 
       asset.setStream(imagePipeline);
     }
