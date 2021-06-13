@@ -201,6 +201,7 @@ export default function collectDependencies(
       });
 
       asset.setAST(ast);
+      hasScripts = true;
       return copy ? [node, copy] : node;
     }
 
@@ -225,10 +226,6 @@ export default function collectDependencies(
             : depOptionsHandler && depOptionsHandler[attr];
         attrs[attr] = depHandler(asset, attrs[attr], depOptions);
         isDirty = true;
-
-        if (node.tag === 'script') {
-          hasScripts = true;
-        }
       }
     }
 

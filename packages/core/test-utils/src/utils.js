@@ -909,7 +909,7 @@ export async function runESM(
 
   async function _entry(m) {
     if (m.status === 'unlinked') {
-      await m.link(load);
+      await m.link((specifier, referrer) => load(specifier, referrer));
     }
     if (m.status === 'linked') {
       await m.evaluate();
