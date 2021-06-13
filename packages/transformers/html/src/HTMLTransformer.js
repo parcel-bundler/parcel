@@ -27,6 +27,7 @@ export default (new Transformer({
   async transform({asset, options}) {
     // Handle .htm
     asset.type = 'html';
+    asset.bundleBehavior = 'isolated';
     let ast = nullthrows(await asset.getAST());
     let hasScripts = collectDependencies(asset, ast);
 
@@ -45,9 +46,7 @@ export default (new Transformer({
         tag: 'script',
         attrs: {
           src: asset.addURLDependency('hmr.js', {
-            isAsync: false,
-            isEntry: false,
-            isIsolated: true,
+            priority: 'parallel',
           }),
         },
         content: [],

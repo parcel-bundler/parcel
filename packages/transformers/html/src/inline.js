@@ -1,7 +1,7 @@
 // @flow strict-local
 
 import type {AST, MutableAsset, TransformerResult} from '@parcel/types';
-import {md5FromString} from '@parcel/utils';
+import {hashString} from '@parcel/hash';
 import type {PostHTMLNode} from 'posthtml';
 
 import PostHTML from 'posthtml';
@@ -31,7 +31,7 @@ export default function extractInlineAssets(
   let parts: Array<TransformerResult> = [];
   let hasScripts = false;
   PostHTML().walk.call(program, (node: PostHTMLNode) => {
-    let parcelKey = md5FromString(`${asset.id}:${key++}`);
+    let parcelKey = hashString(`${asset.id}:${key++}`);
     if (node.tag === 'script' || node.tag === 'style') {
       let value = node.content && node.content.join('');
       if (value != null) {
@@ -104,14 +104,15 @@ export default function extractInlineAssets(
         asset.setAST(ast); // mark dirty
 
         asset.addDependency({
-          moduleSpecifier: parcelKey,
+          specifier: parcelKey,
+          specifierType: 'esm',
         });
 
         parts.push({
           type,
           content: value,
           uniqueKey: parcelKey,
-          isInline: true,
+          bundleBehavior: 'inline',
           env,
           meta: {
             type: 'tag',
@@ -132,7 +133,8 @@ export default function extractInlineAssets(
     let style = attrs?.style;
     if (attrs != null && style != null) {
       attrs.style = asset.addDependency({
-        moduleSpecifier: parcelKey,
+        specifier: parcelKey,
+        specifierType: 'esm',
       });
       asset.setAST(ast); // mark dirty
 
@@ -140,7 +142,7 @@ export default function extractInlineAssets(
         type: 'css',
         content: style,
         uniqueKey: parcelKey,
-        isInline: true,
+        bundleBehavior: 'inline',
         meta: {
           type: 'attr',
           // $FlowFixMe

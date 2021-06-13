@@ -3,7 +3,7 @@ import type {JSONObject, EnvMap} from '@parcel/types';
 import type {SchemaEntity} from '@parcel/utils';
 import SourceMap from '@parcel/source-map';
 import {Transformer} from '@parcel/plugin';
-import {transform} from './native';
+import {init, transform} from '../native';
 import {isURL} from '@parcel/utils';
 import path from 'path';
 import browserslist from 'browserslist';
@@ -129,12 +129,12 @@ export default (new Transformer({
     let reactRefresh =
       config.isSource &&
       options.hmrOptions &&
-      config.env.isBrowser() &&
-      !config.env.isWorker() &&
       options.mode === 'development' &&
-      (pkg?.dependencies?.react ||
-        pkg?.devDependencies?.react ||
-        pkg?.peerDependencies?.react);
+      Boolean(
+        pkg?.dependencies?.react ||
+          pkg?.devDependencies?.react ||
+          pkg?.peerDependencies?.react,
+      );
 
     // Check if we should ignore fs calls
     // See https://github.com/defunctzombie/node-browser-resolve#skip
@@ -186,14 +186,11 @@ export default (new Transformer({
     });
   },
   async transform({asset, config, options}) {
-    // When this asset is an bundle entry, allow that bundle to be split to load shared assets separately.
-    // Only set here if it is null to allow previous transformers to override this behavior.
-    if (asset.isSplittable == null) {
-      asset.isSplittable = true;
-    }
-
-    let code = await asset.getBuffer();
-    let originalMap = await asset.getMap();
+    let [code, originalMap] = await Promise.all([
+      asset.getBuffer(),
+      asset.getMap(),
+      init,
+    ]);
 
     let targets;
     if (asset.isSource) {
@@ -293,7 +290,10 @@ export default (new Transformer({
       jsx_pragma: config?.pragma,
       jsx_pragma_frag: config?.pragmaFrag,
       is_development: options.mode === 'development',
-      react_refresh: Boolean(config?.reactRefresh),
+      react_refresh:
+        asset.env.isBrowser() &&
+        !asset.env.isWorker() &&
+        Boolean(config?.reactRefresh),
       targets,
       source_maps: !!asset.env.sourceMap,
       scope_hoist:
@@ -424,7 +424,7 @@ export default (new Transformer({
         let loc = convertLoc(dep.loc);
         asset.addURLDependency(dep.specifier, {
           loc,
-          isEntry: true,
+          needsStableName: true,
           env: {
             context: 'service-worker',
             sourceType: dep.source_type === 'Module' ? 'module' : 'script',
@@ -468,7 +468,7 @@ export default (new Transformer({
           loc: convertLoc(dep.loc),
         });
       } else if (dep.kind === 'File') {
-        asset.addIncludedFile(dep.specifier);
+        asset.invalidateOnFileChange(dep.specifier);
       } else {
         if (dep.kind === 'DynamicImport' && isURL(dep.specifier)) {
           continue;
@@ -502,9 +502,10 @@ export default (new Transformer({
         }
 
         asset.addDependency({
-          moduleSpecifier: dep.specifier,
+          specifier: dep.specifier,
+          specifierType: dep.kind === 'Require' ? 'commonjs' : 'esm',
           loc: convertLoc(dep.loc),
-          isAsync: dep.kind === 'DynamicImport',
+          priority: dep.kind === 'DynamicImport' ? 'lazy' : 'sync',
           isOptional: dep.is_optional,
           meta,
           resolveFrom: dep.is_helper ? __filename : undefined,
@@ -522,28 +523,21 @@ export default (new Transformer({
       }
 
       let deps = new Map(
-        asset.getDependencies().map(dep => [dep.moduleSpecifier, dep]),
+        asset.getDependencies().map(dep => [dep.specifier, dep]),
       );
       for (let dep of deps.values()) {
         dep.symbols.ensure();
       }
 
       for (let name in hoist_result.imported_symbols) {
-        let [moduleSpecifier, exported, loc] = hoist_result.imported_symbols[
-          name
-        ];
-        let dep = deps.get(moduleSpecifier);
+        let [specifier, exported, loc] = hoist_result.imported_symbols[name];
+        let dep = deps.get(specifier);
         if (!dep) continue;
         dep.symbols.set(exported, name, convertLoc(loc));
       }
 
-      for (let [
-        name,
-        moduleSpecifier,
-        exported,
-        loc,
-      ] of hoist_result.re_exports) {
-        let dep = deps.get(moduleSpecifier);
+      for (let [name, specifier, exported, loc] of hoist_result.re_exports) {
+        let dep = deps.get(specifier);
         if (!dep) continue;
 
         if (name === '*' && exported === '*') {
@@ -557,8 +551,8 @@ export default (new Transformer({
         }
       }
 
-      for (let moduleSpecifier of hoist_result.wrapped_requires) {
-        let dep = deps.get(moduleSpecifier);
+      for (let specifier of hoist_result.wrapped_requires) {
+        let dep = deps.get(specifier);
         if (!dep) continue;
         dep.meta.shouldWrap = true;
       }
@@ -589,7 +583,8 @@ export default (new Transformer({
         }
 
         asset.addDependency({
-          moduleSpecifier: `./${path.basename(asset.filePath)}`,
+          specifier: `./${path.basename(asset.filePath)}`,
+          specifierType: 'esm',
           symbols,
         });
       }
@@ -598,7 +593,8 @@ export default (new Transformer({
       // This allows accessing symbols that don't exist without errors in symbol propagation.
       if (
         hoist_result.has_cjs_exports ||
-        (deps.size === 0 &&
+        (!hoist_result.is_esm &&
+          deps.size === 0 &&
           Object.keys(hoist_result.exported_symbols).length === 0) ||
         (hoist_result.should_wrap && !asset.symbols.hasExportSymbol('*'))
       ) {
@@ -610,7 +606,8 @@ export default (new Transformer({
       asset.meta.shouldWrap = hoist_result.should_wrap;
     } else if (needs_esm_helpers) {
       asset.addDependency({
-        moduleSpecifier: '@parcel/transformer-js/src/esmodule-helpers.js',
+        specifier: '@parcel/transformer-js/src/esmodule-helpers.js',
+        specifierType: 'esm',
         resolveFrom: __filename,
         env: {
           includeNodeModules: {

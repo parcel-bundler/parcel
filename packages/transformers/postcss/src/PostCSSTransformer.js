@@ -2,7 +2,8 @@
 
 import type {FilePath, MutableAsset, PluginOptions} from '@parcel/types';
 
-import {md5FromString} from '@parcel/utils';
+import {hashString} from '@parcel/hash';
+import {glob} from '@parcel/utils';
 import {Transformer} from '@parcel/plugin';
 import FileSystemLoader from 'css-modules-loader-core/lib/file-system-loader';
 import nullthrows from 'nullthrows';
@@ -13,6 +14,7 @@ import postcssModules from 'postcss-modules';
 import typeof * as Postcss from 'postcss';
 
 import {load} from './loadConfig';
+import {POSTCSS_RANGE} from './constants';
 
 const COMPOSES_RE = /composes:.+from\s*("|').*("|')\s*;?/;
 const FROM_IMPORT_RE = /.+from\s*(?:"|')(.*)(?:"|')\s*;?/;
@@ -23,7 +25,9 @@ export default (new Transformer({
   },
 
   canReuseAST({ast}) {
-    return ast.type === 'postcss' && semver.satisfies(ast.version, '^8.2.1');
+    return (
+      ast.type === 'postcss' && semver.satisfies(ast.version, POSTCSS_RANGE)
+    );
   },
 
   async parse({asset, config, options}) {
@@ -60,7 +64,7 @@ export default (new Transformer({
           getJSON: (filename, json) => (cssModules = json),
           Loader: createLoader(asset, resolve),
           generateScopedName: (name, filename) =>
-            `_${name}_${md5FromString(
+            `_${name}_${hashString(
               path.relative(options.projectRoot, filename),
             ).substr(0, 6)}`,
           ...config.hydrated.modules,
@@ -80,7 +84,8 @@ export default (new Transformer({
           parsed.walk(node => {
             if (node.type === 'string') {
               asset.addDependency({
-                moduleSpecifier: importPath,
+                specifier: importPath,
+                specifierType: 'url',
                 loc: {
                   filePath: asset.filePath,
                   start: decl.source.start,
@@ -108,7 +113,14 @@ export default (new Transformer({
     });
     for (let msg of messages) {
       if (msg.type === 'dependency') {
-        asset.addIncludedFile(msg.file);
+        asset.invalidateOnFileChange(msg.file);
+      } else if (msg.type === 'dir-dependency') {
+        let pattern = `${msg.dir}/${msg.glob ?? '**/*'}`;
+        let files = await glob(pattern, asset.fs, {onlyFiles: true});
+        for (let file of files) {
+          asset.invalidateOnFileChange(path.normalize(file));
+        }
+        asset.invalidateOnFileCreate({glob: pattern});
       }
     }
 
@@ -118,12 +130,12 @@ export default (new Transformer({
       let cssModulesList = (Object.entries(cssModules): Array<
         [string, string],
       >);
-      let deps = asset.getDependencies().filter(dep => !dep.isURL);
+      let deps = asset.getDependencies().filter(dep => dep.priority === 'sync');
       let code: string;
       if (deps.length > 0) {
         code = `
           module.exports = Object.assign({}, ${deps
-            .map(dep => `require(${JSON.stringify(dep.moduleSpecifier)})`)
+            .map(dep => `require(${JSON.stringify(dep.specifier)})`)
             .join(', ')}, ${JSON.stringify(cssModules, null, 2)});
         `;
       } else {
@@ -146,7 +158,6 @@ export default (new Transformer({
 
       assets.push({
         type: 'js',
-        filePath: asset.filePath + '.js',
         content: code,
       });
     }
@@ -201,7 +212,7 @@ function createLoader(
 
 function loadPostcss(options: PluginOptions, from: FilePath): Promise<Postcss> {
   return options.packageManager.require('postcss', from, {
-    range: '^8.2.1',
+    range: POSTCSS_RANGE,
     saveDev: true,
     shouldAutoInstall: options.shouldAutoInstall,
   });

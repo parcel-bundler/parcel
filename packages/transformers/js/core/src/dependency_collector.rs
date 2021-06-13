@@ -7,7 +7,7 @@ use swc_common::{SourceMap, SyntaxContext, DUMMY_SP};
 use swc_ecmascript::ast;
 use swc_ecmascript::visit::{Fold, FoldWith};
 
-use utils::*;
+use crate::utils::*;
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum DependencyKind {

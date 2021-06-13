@@ -422,7 +422,12 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
         }
       }
 
-      if (typeof visit !== 'function' && visit.exit) {
+      if (
+        typeof visit !== 'function' &&
+        visit.exit &&
+        // Make sure the graph still has the node: it may have been removed between enter and exit
+        this.hasNode(nodeId)
+      ) {
         let newContext = visit.exit(nodeId, context, actions);
         if (typeof newContext !== 'undefined') {
           // $FlowFixMe[reassign-const]
@@ -530,23 +535,26 @@ export function mapVisitor<NodeId, TValue, TContext>(
   filter: (NodeId, TraversalActions) => ?TValue,
   visit: GraphVisitor<TValue, TContext>,
 ): GraphVisitor<NodeId, TContext> {
-  return {
-    enter: (nodeId, context, actions) => {
-      let enter = typeof visit === 'function' ? visit : visit.enter;
-      if (!enter) {
-        return;
-      }
-
+  function makeEnter(visit) {
+    return function mappedEnter(nodeId, context, actions) {
       let value = filter(nodeId, actions);
       if (value != null) {
-        return enter(value, context, actions);
+        return visit(value, context, actions);
       }
-    },
-    exit: (nodeId, context, actions) => {
-      if (typeof visit === 'function') {
-        return;
-      }
+    };
+  }
 
+  if (typeof visit === 'function') {
+    return makeEnter(visit);
+  }
+
+  let mapped = {};
+  if (visit.enter != null) {
+    mapped.enter = makeEnter(visit.enter);
+  }
+
+  if (visit.exit != null) {
+    mapped.exit = function mappedExit(nodeId, context, actions) {
       let exit = visit.exit;
       if (!exit) {
         return;
@@ -556,8 +564,10 @@ export function mapVisitor<NodeId, TValue, TContext>(
       if (value != null) {
         return exit(value, context, actions);
       }
-    },
-  };
+    };
+  }
+
+  return mapped;
 }
 
 type AdjacencyListMap<TEdgeType> = Map<NodeId, Map<TEdgeType, Set<NodeId>>>;

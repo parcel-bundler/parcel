@@ -153,7 +153,7 @@ async function processCSSModule(
           },
         }),
         hints: [
-          `Instead do: import * as style from "${defaultImport.moduleSpecifier}";`,
+          `Instead do: import * as style from "${defaultImport.specifier}";`,
         ],
       });
     }

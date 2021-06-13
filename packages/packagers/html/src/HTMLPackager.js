@@ -27,7 +27,18 @@ const metadataContent = new Set([
 ]);
 
 export default (new Packager({
-  async package({bundle, bundleGraph, getInlineBundleContents}) {
+  async loadConfig({config}) {
+    let posthtmlConfig = await config.getConfig(
+      ['.posthtmlrc', '.posthtmlrc.js', 'posthtml.config.js'],
+      {
+        packageKey: 'posthtml',
+      },
+    );
+    config.setResult({
+      render: posthtmlConfig?.contents?.render,
+    });
+  },
+  async package({bundle, bundleGraph, getInlineBundleContents, config}) {
     let assets = [];
     bundle.traverseAssets(asset => {
       assets.push(asset);
@@ -46,13 +57,7 @@ export default (new Packager({
         new Set(bundleGraph.getReferencedBundles(bundle, {recursive: false})),
       ),
     ].filter(b => !b.isInline);
-    let posthtmlConfig = await asset.getConfig(
-      ['.posthtmlrc', '.posthtmlrc.js', 'posthtml.config.js'],
-      {
-        packageKey: 'posthtml',
-      },
-    );
-    let renderConfig = posthtmlConfig?.render;
+    let renderConfig = config?.render;
 
     let {html} = await posthtml([
       insertBundleReferences.bind(this, referencedBundles),

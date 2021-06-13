@@ -23,7 +23,7 @@ import BundleGraph from './public/BundleGraph';
 import InternalBundleGraph from './BundleGraph';
 import {NamedBundle} from './public/Bundle';
 import {PluginLogger} from '@parcel/logger';
-import {md5FromString} from '@parcel/utils';
+import {hashString} from '@parcel/hash';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import {dependencyToInternalDependency} from './public/Dependency';
 import {mergeEnvironments} from './Environment';
@@ -87,7 +87,7 @@ export default async function applyRuntimes({
           } of runtimeAssets) {
             let sourceName = path.join(
               path.dirname(filePath),
-              `runtime-${md5FromString(code)}.${bundle.type}`,
+              `runtime-${hashString(code)}.${bundle.type}`,
             );
 
             let assetGroup = {
@@ -111,7 +111,6 @@ export default async function applyRuntimes({
         throw new ThrowableDiagnostic({
           diagnostic: errorToDiagnostic(e, {
             origin: runtime.name,
-            filePath: bundle.filePath,
           }),
         });
       }
@@ -122,7 +121,7 @@ export default async function applyRuntimes({
   for (let runtime of runtimes) {
     let devDepRequest = await createDevDependency(
       {
-        moduleSpecifier: runtime.name,
+        specifier: runtime.name,
         resolveFrom: runtime.resolveFrom,
       },
       runtime,
@@ -130,7 +129,7 @@ export default async function applyRuntimes({
       options,
     );
     devDepRequests.set(
-      `${devDepRequest.moduleSpecifier}:${devDepRequest.resolveFrom}`,
+      `${devDepRequest.specifier}:${devDepRequest.resolveFrom}`,
       devDepRequest,
     );
     await runDevDepRequest(api, devDepRequest);

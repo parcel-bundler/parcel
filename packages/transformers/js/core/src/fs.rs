@@ -1,7 +1,7 @@
+use crate::dependency_collector::{DependencyDescriptor, DependencyKind};
 use crate::hoist::{Collect, Import};
 use crate::utils::SourceLocation;
 use data_encoding::{BASE64, HEXLOWER};
-use dependency_collector::{DependencyDescriptor, DependencyKind};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use swc_atoms::JsWord;

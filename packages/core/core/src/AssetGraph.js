@@ -19,12 +19,8 @@ import type {
 } from './types';
 
 import invariant from 'assert';
-import crypto from 'crypto';
-import {
-  md5FromObject,
-  md5FromOrderedObject,
-  objectSortedEntries,
-} from '@parcel/utils';
+import {hashString, Hash} from '@parcel/hash';
+import {hashObject, objectSortedEntries} from '@parcel/utils';
 import nullthrows from 'nullthrows';
 import ContentGraph, {type SerializedContentGraph} from './ContentGraph';
 import {createDependency} from './Dependency';
@@ -57,15 +53,19 @@ export function nodeFromDep(dep: Dependency): DependencyNode {
 
 export function nodeFromAssetGroup(assetGroup: AssetGroup): AssetGroupNode {
   return {
-    id: md5FromOrderedObject({
-      filePath: assetGroup.filePath,
-      env: assetGroup.env.id,
-      isSource: assetGroup.isSource,
-      sideEffects: assetGroup.sideEffects,
-      code: assetGroup.code,
-      pipeline: assetGroup.pipeline,
-      query: assetGroup.query ? objectSortedEntries(assetGroup.query) : null,
-    }),
+    id: hashString(
+      assetGroup.filePath +
+        assetGroup.env.id +
+        String(assetGroup.isSource) +
+        String(assetGroup.sideEffects) +
+        (assetGroup.code ?? '') +
+        ':' +
+        (assetGroup.pipeline ?? '') +
+        ':' +
+        (assetGroup.query
+          ? JSON.stringify(objectSortedEntries(assetGroup.query))
+          : ''),
+    ),
     type: 'asset_group',
     value: assetGroup,
     usedSymbolsDownDirty: true,
@@ -93,7 +93,7 @@ export function nodeFromEntrySpecifier(entry: string): EntrySpecifierNode {
 
 export function nodeFromEntryFile(entry: Entry): EntryFileNode {
   return {
-    id: 'entry_file:' + md5FromObject(entry),
+    id: 'entry_file:' + hashObject(entry),
     type: 'entry_file',
     value: entry,
   };
@@ -216,11 +216,13 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
     let depNodes = targets.map(target => {
       let node = nodeFromDep(
         createDependency({
-          moduleSpecifier: entry.filePath,
+          specifier: entry.filePath,
+          specifierType: 'esm', // ???
           pipeline: target.pipeline,
           target: target,
           env: target.env,
           isEntry: true,
+          needsStableName: true,
           symbols: target.env.isLibrary
             ? new Map([['*', {local: '*', isWeak: true, loc: null}]])
             : undefined,
@@ -423,9 +425,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
 
       let dependentAssets = [];
       for (let dep of asset.dependencies.values()) {
-        let dependentAsset = assets.find(
-          a => a.uniqueKey === dep.moduleSpecifier,
-        );
+        let dependentAsset = assets.find(a => a.uniqueKey === dep.specifier);
         if (dependentAsset) {
           dependentAssetKeys.push(dependentAsset.uniqueKey);
           dependentAssets.push(dependentAsset);
@@ -470,12 +470,13 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
         depNode.value.meta = existing.value.meta;
       }
       let dependentAsset = dependentAssets.find(
-        a => a.uniqueKey === dep.moduleSpecifier,
+        a => a.uniqueKey === dep.specifier,
       );
       if (dependentAsset) {
         depNode.complete = true;
         depNodesWithAssets.push([depNode, nodeFromAsset(dependentAsset)]);
       }
+      depNode.value.sourceAssetType = assetNode.value.type;
       depNodeIds.push(this.addNode(depNode));
     }
 
@@ -569,18 +570,18 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
       return this.hash;
     }
 
-    let hash = crypto.createHash('md5');
+    let hash = new Hash();
     // TODO: sort??
     this.traverse(nodeId => {
       let node = nullthrows(this.getNode(nodeId));
       if (node.type === 'asset') {
-        hash.update(nullthrows(node.value.outputHash));
+        hash.writeString(nullthrows(node.value.outputHash));
       } else if (node.type === 'dependency' && node.value.target) {
-        hash.update(JSON.stringify(node.value.target));
+        hash.writeString(JSON.stringify(node.value.target));
       }
     });
 
-    this.hash = hash.digest('hex');
+    this.hash = hash.finish();
     return this.hash;
   }
 }

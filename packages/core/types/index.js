@@ -42,7 +42,7 @@ export type Glob = string;
 export type Semver = string;
 export type SemverRange = string;
 /** See Dependency */
-export type ModuleSpecifier = string;
+export type DependencySpecifier = string;
 
 /** A pipeline as specified in the config mapping to <code>T</code>  */
 export type GlobMap<T> = {[Glob]: T, ...};
@@ -196,6 +196,7 @@ export type EnvironmentFeature =
  * Defines the environment in for the output bundle
  */
 export interface Environment {
+  +id: string;
   +context: EnvironmentContext;
   +engines: Engines;
   /** Whether to include all/none packages \
@@ -270,8 +271,8 @@ export type DetailedReportOptions = {|
 export type InitialParcelOptions = {|
   +entries?: FilePath | Array<FilePath>,
   +entryRoot?: FilePath,
-  +config?: ModuleSpecifier,
-  +defaultConfig?: ModuleSpecifier,
+  +config?: DependencySpecifier,
+  +defaultConfig?: DependencySpecifier,
   +env?: EnvMap,
   +targets?: ?(Array<string> | {+[string]: TargetDescriptor, ...}),
 
@@ -304,7 +305,7 @@ export type InitialParcelOptions = {|
   |},
 
   +additionalReporters?: Array<{|
-    packageName: ModuleSpecifier,
+    packageName: DependencySpecifier,
     resolveFrom: FilePath,
   |}>,
 
@@ -396,6 +397,7 @@ export interface AssetSymbols // eslint-disable-next-line no-undef
   hasLocalSymbol(local: Symbol): boolean;
   exportSymbols(): Iterable<Symbol>;
 }
+
 export interface MutableAssetSymbols extends AssetSymbols {
   /**
    * Initilizes the map, sets isCleared to false.
@@ -409,6 +411,7 @@ export interface MutableAssetSymbols extends AssetSymbols {
   ): void;
   delete(exportSymbol: Symbol): void;
 }
+
 /**
  * isWeak means: the symbol is not used by the parent asset itself and is merely reexported
  */
@@ -443,24 +446,58 @@ export interface MutableDependencySymbols // eslint-disable-next-line no-undef
   delete(exportSymbol: Symbol): void;
 }
 
+export type DependencyPriority = 'sync' | 'parallel' | 'lazy';
+export type SpecifierType = 'commonjs' | 'esm' | 'url' | 'custom';
+
 /**
  * Usen when creating a Dependency, see that.
  * @section transformer
  */
 export type DependencyOptions = {|
-  +moduleSpecifier: ModuleSpecifier,
-  +isAsync?: boolean,
-  /** Is merged with the environment of the importer */
-  +isEntry?: boolean,
+  /** The specifier used to resolve the dependency. */
+  +specifier: DependencySpecifier,
+  /**
+   * How the specifier should be interpreted.
+   *   - esm: An ES module specifier. It is parsed as a URL, but bare specifiers are treated as node_modules.
+   *   - commonjs: A CommonJS specifier. It is not parsed as a URL.
+   *   - url: A URL that works as in a browser. Bare specifiers are treated as relative URLs.
+   *   - custom: A custom specifier. Must be handled by a custom resolver plugin.
+   */
+  +specifierType: SpecifierType,
+  /**
+   * When the dependency should be loaded.
+   *   - sync: The dependency should be resolvable synchronously. The resolved asset will be placed
+   *       in the same bundle as the parent, or another bundle that's already on the page.
+   *   - parallel: The dependency should be placed in a separate bundle that's loaded in parallel
+   *       with the current bundle.
+   *   - lazy: The dependency should be placed in a separate bundle that's loaded later.
+   * @default 'sync'
+   */
+  +priority?: DependencyPriority,
+  /**
+   * When the dependency is a bundle entry (priority is "parallel" or "lazy"), this controls the naming
+   * of that bundle. `needsStableName` indicates that the name should be stable over time, even when the
+   * content of the bundle changes. This is useful for entries that a user would manually enter the URL
+   * for, as well as for things like service workers or RSS feeds, where the URL must remain consistent
+   * over time.
+   */
+  +needsStableName?: boolean,
+  /** Whether the dependency is optional. If the dependency cannot be resolved, this will not fail the build. */
   +isOptional?: boolean,
-  +isURL?: boolean,
-  +isIsolated?: boolean,
+  /** The location within the source file where the dependency was found. */
   +loc?: SourceLocation,
+  /** The environment of the dependency. */
   +env?: EnvironmentOptions,
+  /** Plugin-specific metadata for the dependency. */
   +meta?: Meta,
+  /** The pipeline defined in .parcelrc that the dependency should be processed with. */
   +pipeline?: string,
+  /**
+   * The file path where the dependency should be resolved from.
+   * By default, this is the path of the source file where the dependency was specified.
+   */
   +resolveFrom?: FilePath,
-  +target?: Target,
+  /** The symbols within the resolved module that the source file depends on. */
   +symbols?: $ReadOnlyMap<
     Symbol,
     {|local: Symbol, loc: ?SourceLocation, isWeak: boolean|},
@@ -474,32 +511,64 @@ export type DependencyOptions = {|
  * @section transformer
  */
 export interface Dependency {
+  /** The id of the dependency. */
   +id: string;
-  /** E.g. "lodash" in <code>import {add} from "lodash";</code>  */
-  +moduleSpecifier: ModuleSpecifier;
-  +isAsync: boolean;
-  /** Whether this should become a entry in a bundle. */
-  +isEntry: ?boolean;
-  /** Whether a failed resolution should not cause a build error. */
+  /** The specifier used to resolve the dependency. */
+  +specifier: DependencySpecifier;
+  /**
+   * How the specifier should be interpreted.
+   *   - esm: An ES module specifier. It is parsed as a URL, but bare specifiers are treated as node_modules.
+   *   - commonjs: A CommonJS specifier. It is not parsed as a URL.
+   *   - url: A URL that works as in a browser. Bare specifiers are treated as relative URLs.
+   *   - custom: A custom specifier. Must be handled by a custom resolver plugin.
+   */
+  +specifierType: SpecifierType;
+  /**
+   * When the dependency should be loaded.
+   *   - sync: The dependency should be resolvable synchronously. The resolved asset will be placed
+   *       in the same bundle as the parent, or another bundle that's already on the page.
+   *   - parallel: The dependency should be placed in a separate bundle that's loaded in parallel
+   *       with the current bundle.
+   *   - lazy: The dependency should be placed in a separate bundle that's loaded later.
+   * @default 'sync'
+   */
+  +priority: DependencyPriority;
+  /**
+   * When the dependency is a bundle entry (priority is "parallel" or "lazy"), this controls the naming
+   * of that bundle. `needsStableName` indicates that the name should be stable over time, even when the
+   * content of the bundle changes. This is useful for entries that a user would manually enter the URL
+   * for, as well as for things like service workers or RSS feeds, where the URL must remain consistent
+   * over time.
+   */
+  +needsStableName: boolean;
+  /** Whether the dependency is optional. If the dependency cannot be resolved, this will not fail the build. */
   +isOptional: boolean;
-  /** Whether an URL is expected (rather than the language-specific behaviour). */
-  +isURL: boolean;
-  +isIsolated: boolean;
-  /** Used for error messages, the code location that caused this dependency. */
+  /** Whether the dependency is an entry. */
+  +isEntry: boolean;
+  /** The location within the source file where the dependency was found. */
   +loc: ?SourceLocation;
+  /** The environment of the dependency. */
   +env: Environment;
+  /** Plugin-specific metadata for the dependency. */
   +meta: Meta;
+  /** If this is an entry, this is the target that is associated with that entry. */
   +target: ?Target;
-  /** Used for error messages, the importer. */
+  /** The id of the asset with this dependency. */
   +sourceAssetId: ?string;
-  /** Used for error messages, the importer. */
-  +sourcePath: ?string;
-  +resolveFrom: ?string;
-  /** a named pipeline (if the <code>moduleSpecifier</code> didn't specify one). */
+  /** The file path of the asset with this dependency. */
+  +sourcePath: ?FilePath;
+  /** The type of the asset that referenced this dependency. */
+  +sourceAssetType: ?string;
+  /**
+   * The file path where the dependency should be resolved from.
+   * By default, this is the path of the source file where the dependency was specified.
+   */
+  +resolveFrom: ?FilePath;
+  /** The pipeline defined in .parcelrc that the dependency should be processed with. */
   +pipeline: ?string;
 
   // TODO make immutable
-  /** a <code>Map&lt;export name of importee, placeholder in importer&gt;</code>. */
+  /** The symbols within the resolved module that the source file depends on. */
   +symbols: MutableDependencySymbols;
 }
 
@@ -513,111 +582,157 @@ export type File = {|
  */
 export type ASTGenerator = {|
   type: string,
-  version: string,
+  version: Semver,
 |};
 
+export type BundleBehavior = 'inline' | 'isolated';
+
 /**
- * An asset (usually represents one source file).
+ * An asset represents a file or part of a file. It may represent any data type, including source code,
+ * binary data, etc. Assets may exist in the file system or may be virtual.
  *
  * @section transformer
  */
 export interface BaseAsset {
-  +env: Environment;
+  /** The id of the asset. */
+  +id: string;
   /** The file system where the source is located. */
   +fs: FileSystem;
+  /** The file path of the asset. */
   +filePath: FilePath;
-  +query: QueryParameters;
-  +id: string;
-  +meta: Meta;
-  +isIsolated: boolean;
-  /** Whether this asset will/should later be inserted back into the importer. */
-  +isInline: boolean;
-  +isSplittable: ?boolean;
-  /** Whether this is asset is part of the users project (and not of an external dependencies) and should be transpiled. */
-  +isSource: boolean;
-  /** Usually corresponds to the file extension */
+  /**
+   * The asset's type. This initially corresponds to the source file extension,
+   * but it may be changed during transformation.
+   */
   +type: string;
-  /** Whether this asset can be omitted if none of its exports are being used (set by ResolveResult) */
+  /** The transformer options for the asset from the dependency query string. */
+  +query: QueryParameters;
+  /** The environment of the asset. */
+  +env: Environment;
+  /**
+   * Whether this asset is part of the project, and not an external dependency (e.g. in node_modules).
+   * This indicates that transformation using the project's configuration should be applied.
+   */
+  +isSource: boolean;
+  /** Plugin-specific metadata for the asset. */
+  +meta: Meta;
+  /**
+   * Controls which bundle the asset is placed into.
+   *   - inline: The asset will be placed into a new inline bundle. Inline bundles are not written
+   *       to a separate file, but embedded into the parent bundle.
+   *   - isolated: The asset will be placed into a separate bundle.
+   */
+  +bundleBehavior: ?BundleBehavior;
+  /**
+   * If the asset is used as a bundle entry, this controls whether that bundle can be split
+   * into multiple, or whether all of the dependencies must be placed in a single bundle.
+   */
+  +isBundleSplittable: boolean;
+  /**
+   * Whether this asset can be omitted if none of its exports are being used.
+   * This is initially set by the resolver, but can be overridden by transformers.
+   */
   +sideEffects: boolean;
   /**
-   * Inline assets inheirit the parent's <code>id</code>, making it not be enough for a unique identification
-   * (this could be a counter that is unique per asset)
+   * When a transformer returns multiple assets, it can give them unique keys to identify them.
+   * This can be used to find assets during packaging, or to create dependencies between multiple
+   * assets returned by a transformer by using the unique key as the dependency specifier.
    */
   +uniqueKey: ?string;
   /** The type of the AST. */
   +astGenerator: ?ASTGenerator;
+  /** The pipeline defined in .parcelrc that the asset should be processed with. */
   +pipeline: ?string;
-
-  /** a <code>Map&lt;export name, name of binding&gt;</code> */
+  /** The symbols that the asset exports. */
   +symbols: AssetSymbols;
-
-  /** Returns to current AST. See notes in subclasses (Asset, MutableAsset).*/
+  /** Returns the current AST. */
   getAST(): Promise<?AST>;
-  /** Returns to current source code. See notes in MutableAsset. */
+  /** Returns the asset contents as a string. */
   getCode(): Promise<string>;
-  /** Returns the contents as a buffer. */
+  /** Returns the asset contents as a buffer. */
   getBuffer(): Promise<Buffer>;
-  /** Returns the contents as a stream. */
+  /** Returns the asset contents as a stream. */
   getStream(): Readable;
-  /** Returns the sourcemap (if existent). */
+  /** Returns the source map for the asset, if available. */
   getMap(): Promise<?SourceMap>;
-  /** A buffer representation of the sourcemap (if existent). */
+  /** Returns a buffer representation of the source map, if available. */
   getMapBuffer(): Promise<?Buffer>;
+  /** Returns a list of dependencies for the asset. */
   getDependencies(): $ReadOnlyArray<Dependency>;
-  /** Used to load config files, (looks in every parent folder until a module root) \
-   * for the specified filenames. <code>packageKey</code> can be used to also check <code>pkg#[packageKey]</code>.
-   */
-  getConfig(
-    filePaths: Array<FilePath>,
-    options: ?{|
-      packageKey?: string,
-      parse?: boolean,
-    |},
-  ): Promise<ConfigResult | null>;
-  /** Returns the package.json this file belongs to. */
-  getPackage(): Promise<PackageJSON | null>;
 }
 
 /**
- * A somewhat modifiable version of BaseAsset (for transformers)
+ * A mutable Asset, available during transformation.
  * @section transformer
  */
 export interface MutableAsset extends BaseAsset {
-  isIsolated: boolean;
-  isInline: boolean;
-  isSplittable: ?boolean;
+  /**
+   * The asset's type. This initially corresponds to the source file extension,
+   * but it may be changed during transformation.
+   */
   type: string;
-
-  addDependency(dep: DependencyOptions): string;
-  addIncludedFile(filePath: FilePath): void;
-  invalidateOnFileCreate(invalidation: FileCreateInvalidation): void;
-  addURLDependency(url: string, opts: $Shape<DependencyOptions>): string;
-  invalidateOnEnvChange(env: string): void;
-
+  /**
+   * Controls which bundle the asset is placed into.
+   *   - inline: The asset will be placed into a new inline bundle. Inline bundles are not written
+   *       to a separate file, but embedded into the parent bundle.
+   *   - isolated: The asset will be placed into a separate bundle.
+   */
+  bundleBehavior: ?BundleBehavior;
+  /**
+   * If the asset is used as a bundle entry, this controls whether that bundle can be split
+   * into multiple, or whether all of the dependencies must be placed in a single bundle.
+   * @default true
+   */
+  isBundleSplittable: boolean;
+  /**
+   * Whether this asset can be omitted if none of its exports are being used.
+   * This is initially set by the resolver, but can be overridden by transformers.
+   */
+  sideEffects: boolean;
+  /** The symbols that the asset exports. */
   +symbols: MutableAssetSymbols;
 
-  isASTDirty(): boolean;
-  getAST(): Promise<?AST>;
-  setAST(AST): void;
-  setBuffer(Buffer): void;
+  /** Adds a dependency to the asset. */
+  addDependency(DependencyOptions): string;
+  /**
+   * Adds a url dependency to the asset.
+   * This is a shortcut for addDependency that sets the specifierType to 'url' and priority to 'lazy'.
+   */
+  addURLDependency(url: string, opts: $Shape<DependencyOptions>): string;
+  /** Invalidates the transformation when the given file is modified or deleted. */
+  invalidateOnFileChange(FilePath): void;
+  /** Invalidates the transformation when matched files are created. */
+  invalidateOnFileCreate(FileCreateInvalidation): void;
+  /** Invalidates the transformation when the given environment variable changes. */
+  invalidateOnEnvChange(string): void;
+  /** Sets the asset contents as a string. */
   setCode(string): void;
-  /** Throws if the AST is dirty (meaning: this won't implicity stringify the AST). */
-  getCode(): Promise<string>;
-  setEnvironment(opts: EnvironmentOptions): void;
-  setMap(?SourceMap): void;
+  /** Sets the asset contents as a buffer. */
+  setBuffer(Buffer): void;
+  /** Sets the asset contents as a stream. */
   setStream(Readable): void;
+  /** Returns whether the AST has been modified. */
+  setAST(AST): void;
+  /** Sets the asset's AST. */
+  isASTDirty(): boolean;
+  /** Sets the asset's source map. */
+  setMap(?SourceMap): void;
+  setEnvironment(opts: EnvironmentOptions): void;
 }
 
 /**
+ * An immutable Asset, available after transformation.
  * @section transformer
  */
 export interface Asset extends BaseAsset {
+  /** Statistics about the asset. */
   +stats: Stats;
 }
 
 export type DevDepOptions = {|
-  moduleSpecifier: ModuleSpecifier,
+  specifier: DependencySpecifier,
   resolveFrom: FilePath,
+  range?: ?SemverRange,
   /**
    * Whether to also invalidate the parcel plugin that loaded this dev dependency
    * when it changes. This is useful if the parcel plugin or another parent dependency
@@ -634,13 +749,12 @@ export interface Config {
   +searchPath: FilePath;
   +result: ConfigResult;
   +env: Environment;
-  +includedFiles: Set<FilePath>;
 
   setResult(result: ConfigResult): void; // TODO: fix
   setResultHash(resultHash: string): void;
-  addIncludedFile(filePath: FilePath): void;
-  addDevDependency(devDep: DevDepOptions): void;
+  invalidateOnFileChange(filePath: FilePath): void;
   invalidateOnFileCreate(invalidation: FileCreateInvalidation): void;
+  addDevDependency(devDep: DevDepOptions): void;
   getConfigFrom(
     searchPath: FilePath,
     filePaths: Array<FilePath>,
@@ -678,27 +792,53 @@ export type GenerateOutput = {|
 export type Blob = string | Buffer | Readable;
 
 /**
- * Will be used to generate a new BaseAsset, see that.
+ * Transformers can return multiple result objects to create new assets.
+ * For example, a file may contain multiple parts of different types,
+ * which should be processed by their respective transformation pipelines.
+ *
  * @section transformer
  */
 export type TransformerResult = {|
-  +ast?: ?AST,
-  +content?: ?Blob,
-  +dependencies?: $ReadOnlyArray<DependencyOptions>,
-  +env?: EnvironmentOptions,
-  +filePath?: FilePath,
-  +query?: ?QueryParameters,
-  +includedFiles?: $ReadOnlyArray<File>,
-  +isInline?: boolean,
-  +isIsolated?: boolean,
-  +isSource?: boolean,
-  +isSplittable?: boolean,
-  +map?: ?SourceMap,
-  +meta?: Meta,
-  +pipeline?: ?string,
-  +sideEffects?: boolean,
-  +symbols?: $ReadOnlyMap<Symbol, {|local: Symbol, loc: ?SourceLocation|}>,
+  /** The asset's type. */
   +type: string,
+  /** The content of the asset. Either content or an AST is required. */
+  +content?: ?Blob,
+  /** The asset's AST. Either content or an AST is required. */
+  +ast?: ?AST,
+  /** The source map for the asset. */
+  +map?: ?SourceMap,
+  /** The dependencies of the asset. */
+  +dependencies?: $ReadOnlyArray<DependencyOptions>,
+  /** The environment of the asset. The options are merged with the input asset's environment. */
+  +env?: EnvironmentOptions,
+  /**
+   * Controls which bundle the asset is placed into.
+   *   - inline: The asset will be placed into a new inline bundle. Inline bundles are not written
+   *       to a separate file, but embedded into the parent bundle.
+   *   - isolated: The asset will be placed into a separate bundle.
+   */
+  +bundleBehavior?: ?BundleBehavior,
+  /**
+   * If the asset is used as a bundle entry, this controls whether that bundle can be split
+   * into multiple, or whether all of the dependencies must be placed in a single bundle.
+   */
+  +isBundleSplittable?: boolean,
+  /** Plugin-specific metadata for the asset. */
+  +meta?: Meta,
+  /** The pipeline defined in .parcelrc that the asset should be processed with. */
+  +pipeline?: ?string,
+  /**
+   * Whether this asset can be omitted if none of its exports are being used.
+   * This is initially set by the resolver, but can be overridden by transformers.
+   */
+  +sideEffects?: boolean,
+  /** The symbols that the asset exports. */
+  +symbols?: $ReadOnlyMap<Symbol, {|local: Symbol, loc: ?SourceLocation|}>,
+  /**
+   * When a transformer returns multiple assets, it can give them unique keys to identify them.
+   * This can be used to find assets during packaging, or to create dependencies between multiple
+   * assets returned by a transformer by using the unique key as the dependency specifier.
+   */
   +uniqueKey?: ?string,
 |};
 
@@ -711,11 +851,13 @@ export type ResolveFn = (from: FilePath, to: string) => Promise<FilePath>;
 
 /**
  * @section validator
+ * @experimental
  */
 type ResolveConfigFn = (configNames: Array<FilePath>) => Promise<?FilePath>;
 
 /**
  * @section validator
+ * @experimental
  */
 type ResolveConfigWithPathFn = (
   configNames: Array<FilePath>,
@@ -724,6 +866,7 @@ type ResolveConfigWithPathFn = (
 
 /**
  * @section validator
+ * @experimental
  */
 export type ValidateResult = {|
   warnings: Array<Diagnostic>,
@@ -732,6 +875,7 @@ export type ValidateResult = {|
 
 /**
  * @section validator
+ * @experimental
  */
 export type DedicatedThreadValidator = {|
   validateAll: ({|
@@ -744,6 +888,7 @@ export type DedicatedThreadValidator = {|
 
 /**
  * @section validator
+ * @experimental
  */
 export type MultiThreadValidator = {|
   validate: ({|
@@ -850,7 +995,7 @@ export type BundleTraversable =
 /**
  * @section bundler
  */
-export type BundlerBundleGraphTraversable =
+export type BundleGraphTraversable =
   | {|+type: 'asset', value: Asset|}
   | {|+type: 'dependency', value: Dependency|};
 
@@ -934,7 +1079,6 @@ export interface Bundle {
   +isInline: ?boolean;
   +isSplittable: ?boolean;
   +target: Target;
-  +stats: Stats;
   /** Assets that run when the bundle is loaded (e.g. runtimes could be added). VERIFY */
   getEntryAssets(): Array<Asset>;
   /** The actual entry (which won't be a runtime). */
@@ -961,6 +1105,7 @@ export interface NamedBundle extends Bundle {
 
 export interface PackagedBundle extends NamedBundle {
   +filePath: FilePath;
+  +stats: Stats;
 }
 
 /**
@@ -1002,12 +1147,6 @@ export interface MutableBundleGraph extends BundleGraph<Bundle> {
   removeBundleGroup(bundleGroup: BundleGroup): void;
   /** Turns a dependency to a different bundle into a dependency to an asset inside <code>bundle</code>. */
   internalizeAsyncDependency(bundle: Bundle, dependency: Dependency): void;
-  traverse<TContext>(
-    GraphVisitor<BundlerBundleGraphTraversable, TContext>,
-  ): ?TContext;
-  traverseContents<TContext>(
-    GraphVisitor<BundlerBundleGraphTraversable, TContext>,
-  ): ?TContext;
 }
 
 /**
@@ -1079,6 +1218,7 @@ export interface BundleGraph<TBundle: Bundle> {
     asset: Asset,
     boundary: ?Bundle,
   ): Array<ExportSymbolResolution>;
+  traverse<TContext>(GraphVisitor<BundleGraphTraversable, TContext>): ?TContext;
   traverseBundles<TContext>(
     visit: GraphVisitor<TBundle, TContext>,
     startBundle: ?Bundle,
@@ -1119,7 +1259,9 @@ export type FileCreateInvalidation =
  */
 export type ResolveResult = {|
   +filePath?: FilePath,
+  +pipeline?: ?string,
   +isExcluded?: boolean,
+  +priority?: DependencyPriority,
   /** Corresponds to BaseAsset's <code>sideEffects</code>. */
   +sideEffects?: boolean,
   /** A resolver might want to resolve to a dummy, in this case <code>filePath</code> is rather "resolve from". */
@@ -1219,10 +1361,10 @@ export type Runtime = {|
  */
 export type Packager = {|
   loadConfig?: ({|
-    bundle: NamedBundle,
+    config: Config,
     options: PluginOptions,
     logger: PluginLogger,
-  |}) => Async<?ConfigOutput>,
+  |}) => Async<void>,
   package({|
     bundle: NamedBundle,
     bundleGraph: BundleGraph<NamedBundle>,
@@ -1241,6 +1383,11 @@ export type Packager = {|
  * @section optimizer
  */
 export type Optimizer = {|
+  loadConfig?: ({|
+    config: Config,
+    options: PluginOptions,
+    logger: PluginLogger,
+  |}) => Async<void>,
   optimize({|
     bundle: NamedBundle,
     bundleGraph: BundleGraph<NamedBundle>,
@@ -1248,6 +1395,7 @@ export type Optimizer = {|
     map: ?SourceMap,
     options: PluginOptions,
     logger: PluginLogger,
+    config: ?ConfigResult,
     getSourceMapReference: (map: ?SourceMap) => Async<?string>,
   |}): Async<BundleResult>,
 |};
@@ -1261,6 +1409,7 @@ export type Resolver = {|
     options: PluginOptions,
     logger: PluginLogger,
     filePath: FilePath,
+    pipeline: ?string,
   |}): Async<?ResolveResult>,
 |};
 

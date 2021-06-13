@@ -12,10 +12,9 @@ import type {
   Glob,
   LogLevel,
   Meta,
-  ModuleSpecifier,
+  DependencySpecifier,
   PackageName,
   ReporterEvent,
-  Semver,
   ServerOptions,
   SourceLocation,
   SourceType,
@@ -89,20 +88,34 @@ export type Target = {|
   source?: FilePath | Array<FilePath>,
 |};
 
+export const SpecifierType = {
+  esm: 0,
+  commonjs: 1,
+  url: 2,
+  custom: 3,
+};
+
+export const Priority = {
+  sync: 0,
+  parallel: 1,
+  lazy: 2,
+};
+
 export type Dependency = {|
   id: string,
-  moduleSpecifier: ModuleSpecifier,
-  isAsync: boolean,
-  isEntry: ?boolean,
+  specifier: DependencySpecifier,
+  specifierType: $Values<typeof SpecifierType>,
+  priority: $Values<typeof Priority>,
+  needsStableName: boolean,
+  isEntry: boolean,
   isOptional: boolean,
-  isURL: boolean,
-  isIsolated: boolean,
   loc: ?SourceLocation,
   env: Environment,
   meta: Meta,
   target: ?Target,
   sourceAssetId: ?string,
   sourcePath: ?string,
+  sourceAssetType?: ?string,
   resolveFrom: ?string,
   symbols: ?Map<
     Symbol,
@@ -110,6 +123,15 @@ export type Dependency = {|
   >,
   pipeline?: ?string,
 |};
+
+export const BundleBehavior = {
+  inline: 0,
+  isolated: 1,
+};
+
+export const BundleBehaviorNames: Array<
+  $Keys<typeof BundleBehavior>,
+> = Object.keys(BundleBehavior);
 
 export type Asset = {|
   id: ContentKey,
@@ -119,9 +141,8 @@ export type Asset = {|
   query: ?QueryParameters,
   type: string,
   dependencies: Map<string, Dependency>,
-  isIsolated: boolean,
-  isInline: boolean,
-  isSplittable: ?boolean,
+  bundleBehavior: ?$Values<typeof BundleBehavior>,
+  isBundleSplittable: boolean,
   isSource: boolean,
   env: Environment,
   meta: Meta,
@@ -161,13 +182,13 @@ export type RequestInvalidation =
   | OptionInvalidation;
 
 export type DevDepRequest = {|
-  moduleSpecifier: ModuleSpecifier,
+  specifier: DependencySpecifier,
   resolveFrom: FilePath,
   hash: string,
   invalidateOnFileCreate?: Array<FileCreateInvalidation>,
   invalidateOnFileChange?: Set<FilePath>,
   additionalInvalidations?: Array<{|
-    moduleSpecifier: ModuleSpecifier,
+    specifier: DependencySpecifier,
     resolveFrom: FilePath,
   |}>,
 |};
@@ -175,8 +196,8 @@ export type DevDepRequest = {|
 export type ParcelOptions = {|
   entries: Array<FilePath>,
   entryRoot: FilePath,
-  config?: ModuleSpecifier,
-  defaultConfig?: ModuleSpecifier,
+  config?: DependencySpecifier,
+  defaultConfig?: DependencySpecifier,
   env: EnvMap,
   targets: ?(Array<string> | {+[string]: TargetDescriptor, ...}),
 
@@ -200,7 +221,7 @@ export type ParcelOptions = {|
   cache: Cache,
   packageManager: PackageManager,
   additionalReporters: Array<{|
-    packageName: ModuleSpecifier,
+    packageName: DependencySpecifier,
     resolveFrom: FilePath,
   |}>,
 
@@ -310,7 +331,7 @@ export type TransformationRequest = {|
   invalidateReason: number,
   devDeps: Map<PackageName, string>,
   invalidDevDeps: Array<{|
-    moduleSpecifier: ModuleSpecifier,
+    specifier: DependencySpecifier,
     resolveFrom: FilePath,
   |}>,
 |};
@@ -330,7 +351,7 @@ export type AssetRequestNode = {|
 export type EntrySpecifierNode = {|
   id: ContentKey,
   +type: 'entry_specifier',
-  value: ModuleSpecifier,
+  value: DependencySpecifier,
   correspondingRequest?: string,
 |};
 
@@ -371,27 +392,15 @@ export type Config = {|
   env: Environment,
   resultHash: ?string,
   result: ConfigResult,
-  includedFiles: Set<FilePath>,
+  invalidateOnFileChange: Set<FilePath>,
   invalidateOnFileCreate: Array<FileCreateInvalidation>,
   invalidateOnOptionChange: Set<string>,
   devDeps: Array<DevDepOptions>,
   shouldInvalidateOnStartup: boolean,
 |};
 
-export type DepVersionRequestNode = {|
-  id: ContentKey,
-  +type: 'dep_version_request',
-  value: DepVersionRequestDesc,
-|};
-
-export type DepVersionRequestDesc = {|
-  moduleSpecifier: PackageName,
-  resolveFrom: FilePath,
-  result?: Semver,
-|};
-
 export type EntryRequest = {|
-  specifier: ModuleSpecifier,
+  specifier: DependencySpecifier,
   result?: FilePath,
 |};
 
@@ -429,11 +438,9 @@ export type Bundle = {|
   isSplittable: ?boolean,
   isPlaceholder?: boolean,
   target: Target,
-  filePath: ?FilePath,
   name: ?string,
   displayName: ?string,
   pipeline: ?string,
-  stats: Stats,
 |};
 
 export type BundleNode = {|
@@ -446,6 +453,11 @@ export type BundleGroupNode = {|
   id: ContentKey,
   +type: 'bundle_group',
   value: BundleGroup,
+|};
+
+export type PackagedBundleInfo = {|
+  filePath: FilePath,
+  stats: Stats,
 |};
 
 export type TransformationOpts = {|

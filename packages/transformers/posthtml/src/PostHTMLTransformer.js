@@ -34,7 +34,7 @@ export default (new Transformer({
 
         // Also add the config as a dev dependency so we attempt to reload in watch mode.
         config.addDevDependency({
-          moduleSpecifier: relativePath(
+          specifier: relativePath(
             path.dirname(config.searchPath),
             configFile.filePath,
           ),
@@ -56,7 +56,7 @@ export default (new Transformer({
       for (let p of pluginArray) {
         if (typeof p === 'string') {
           config.addDevDependency({
-            moduleSpecifier: p,
+            specifier: p,
             resolveFrom: configFile.filePath,
           });
         }
@@ -107,7 +107,7 @@ export default (new Transformer({
       await Promise.all(
         res.messages.map(({type, file: filePath}) => {
           if (type === 'dependency') {
-            return asset.addIncludedFile(filePath);
+            return asset.invalidateOnFileChange(filePath);
           }
           return Promise.resolve();
         }),

@@ -102,9 +102,7 @@ export class DevPackager {
             this.bundle,
           );
           if (resolved) {
-            deps[dep.moduleSpecifier] = this.bundleGraph.getAssetPublicId(
-              resolved,
-            );
+            deps[dep.specifier] = this.bundleGraph.getAssetPublicId(resolved);
           }
         }
 
@@ -228,7 +226,7 @@ export class DevPackager {
     return (
       !this.bundleGraph.hasParentBundleOfType(this.bundle, 'js') ||
       this.bundle.env.isIsolated() ||
-      !!this.bundle.getMainEntry()?.isIsolated
+      !!this.bundle.getMainEntry()?.bundleBehavior === 'isolated'
     );
   }
 }

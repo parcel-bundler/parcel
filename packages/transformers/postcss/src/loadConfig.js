@@ -5,6 +5,7 @@ import path from 'path';
 import {relativePath} from '@parcel/utils';
 import nullthrows from 'nullthrows';
 import clone from 'clone';
+import {POSTCSS_RANGE} from './constants';
 
 import loadExternalPlugins from './loadPlugins';
 
@@ -63,7 +64,7 @@ async function configHydrator(
   for (let p of pluginArray) {
     if (typeof p === 'string') {
       config.addDevDependency({
-        moduleSpecifier: p,
+        specifier: p,
         resolveFrom: nullthrows(resolveFrom),
       });
     }
@@ -97,8 +98,9 @@ export async function load({
   let contents = null;
   if (configFile) {
     config.addDevDependency({
-      moduleSpecifier: 'postcss',
+      specifier: 'postcss',
       resolveFrom: config.searchPath,
+      range: POSTCSS_RANGE,
     });
 
     contents = configFile.contents;
@@ -115,7 +117,7 @@ export async function load({
 
       // Also add the config as a dev dependency so we attempt to reload in watch mode.
       config.addDevDependency({
-        moduleSpecifier: relativePath(
+        specifier: relativePath(
           path.dirname(config.searchPath),
           configFile.filePath,
         ),
