@@ -2,8 +2,9 @@
 import type {Blob, FilePath} from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
 
-import {md5FromReadableStream, md5FromString} from '@parcel/utils';
+import {hashStream} from '@parcel/utils';
 import path from 'path';
+import {hashString, hashBuffer} from '@parcel/hash';
 
 const NODE_MODULES = `${path.sep}node_modules${path.sep}`;
 
@@ -39,7 +40,7 @@ async function summarizeDiskRequest(
       return new Promise((resolve, reject) => {
         let stream = fs.createReadStream(req.filePath);
         stream.on('error', reject);
-        md5FromReadableStream(stream).then(
+        hashStream(stream).then(
           hash =>
             resolve({
               content: fs.createReadStream(req.filePath),
@@ -51,11 +52,11 @@ async function summarizeDiskRequest(
       });
     } else {
       content = await fs.readFile(req.filePath);
-      hash = md5FromString(content);
+      hash = hashBuffer(content);
     }
   } else {
     content = code;
-    hash = md5FromString(code);
+    hash = hashString(code);
     size = Buffer.byteLength(code);
   }
 

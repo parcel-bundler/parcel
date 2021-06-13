@@ -130,6 +130,8 @@ jobs:
         password: ${{ secrets.GHCR_TOKEN }}
     steps:
       - uses: actions/checkout@v1
+      - name: Install build tools
+        run: apk add --no-cache python3 make gcc g++ musl-dev
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
@@ -140,7 +142,7 @@ jobs:
       - name: Install cross compile toolchains
         if: ${{ matrix.target == 'aarch64-unknown-linux-musl' }}
         run: |
-          curl -O https://musl.cc/aarch64-linux-musl-cross.tgz
+          curl -O http://musl.cc/aarch64-linux-musl-cross.tgz
           tar xzf aarch64-linux-musl-cross.tgz
           cp -R aarch64-linux-musl-cross/* /usr
       - uses: bahmutov/npm-install@v1.1.0
@@ -178,6 +180,7 @@ jobs:
         run: yarn build-native-release
         env:
           RUST_TARGET: aarch64-apple-darwin
+          JEMALLOC_SYS_WITH_LG_PAGE: 14
       - name: Strip debug symbols
         run: strip -x packages/*/*/*.node
       - name: Upload artifacts

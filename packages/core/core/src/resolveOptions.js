@@ -3,13 +3,13 @@
 import type {FilePath, InitialParcelOptions} from '@parcel/types';
 import type {ParcelOptions} from './types';
 
-import {getRootDir} from '@parcel/utils';
-import loadDotEnv from './loadDotEnv';
 import path from 'path';
-import {resolveConfig, md5FromString} from '@parcel/utils';
+import {hashString} from '@parcel/hash';
 import {NodeFS} from '@parcel/fs';
-import Cache from '@parcel/cache';
+import {LMDBCache, FSCache} from '@parcel/cache';
 import {NodePackageManager} from '@parcel/package-manager';
+import {getRootDir, resolveConfig} from '@parcel/utils';
+import loadDotEnv from './loadDotEnv';
 import {toProjectPath} from './projectPath';
 
 // Default cache directory name
@@ -18,7 +18,7 @@ const LOCK_FILE_NAMES = ['yarn.lock', 'package-lock.json', 'pnpm-lock.yaml'];
 
 // Generate a unique instanceId, will change on every run of parcel
 function generateInstanceId(entries: Array<FilePath>): string {
-  return md5FromString(
+  return hashString(
     `${entries.join(',')}-${Date.now()}-${Math.round(Math.random() * 100)}`,
   );
 }
@@ -26,21 +26,26 @@ function generateInstanceId(entries: Array<FilePath>): string {
 export default async function resolveOptions(
   initialOptions: InitialParcelOptions,
 ): Promise<ParcelOptions> {
+  let inputFS = initialOptions.inputFS || new NodeFS();
+  let outputFS = initialOptions.outputFS || new NodeFS();
+
+  let inputCwd = inputFS.cwd();
+  let outputCwd = outputFS.cwd();
+
   let entries: Array<FilePath>;
   if (initialOptions.entries == null || initialOptions.entries === '') {
     entries = [];
   } else if (Array.isArray(initialOptions.entries)) {
-    entries = initialOptions.entries.map(entry => path.resolve(entry));
+    entries = initialOptions.entries.map(entry =>
+      path.resolve(inputCwd, entry),
+    );
   } else {
-    entries = [path.resolve(initialOptions.entries)];
+    entries = [path.resolve(inputCwd, initialOptions.entries)];
   }
-
-  let inputFS = initialOptions.inputFS || new NodeFS();
-  let outputFS = initialOptions.outputFS || new NodeFS();
 
   let entryRoot =
     initialOptions.entryRoot != null
-      ? path.resolve(initialOptions.entryRoot)
+      ? path.resolve(inputCwd, initialOptions.entryRoot)
       : getRootDir(entries);
 
   let projectRootFile =
@@ -49,16 +54,13 @@ export default async function resolveOptions(
       path.join(entryRoot, 'index'),
       [...LOCK_FILE_NAMES, '.git', '.hg'],
       path.parse(entryRoot).root,
-    )) || path.join(inputFS.cwd(), 'index'); // ? Should this just be rootDir
+    )) || path.join(inputCwd, 'index'); // ? Should this just be rootDir
 
   let projectRoot = path.dirname(projectRootFile);
 
   let packageManager =
     initialOptions.packageManager ||
     new NodePackageManager(inputFS, projectRoot);
-
-  let inputCwd = inputFS.cwd();
-  let outputCwd = outputFS.cwd();
 
   let cacheDir =
     // If a cacheDir is provided, resolve it relative to cwd. Otherwise,
@@ -67,7 +69,11 @@ export default async function resolveOptions(
       ? path.resolve(outputCwd, initialOptions.cacheDir)
       : path.resolve(projectRoot, DEFAULT_CACHE_DIRNAME);
 
-  let cache = new Cache(outputFS, cacheDir);
+  let cache =
+    initialOptions.cache ??
+    (outputFS instanceof NodeFS
+      ? new LMDBCache(cacheDir)
+      : new FSCache(outputFS, cacheDir));
 
   let mode = initialOptions.mode ?? 'development';
   let shouldOptimize =

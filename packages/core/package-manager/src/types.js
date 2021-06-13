@@ -4,7 +4,7 @@ import type {
   FilePath,
   FileCreateInvalidation,
   SemverRange,
-  ModuleSpecifier,
+  DependencySpecifier,
 } from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
 import type {ResolveResult} from './NodeResolverBase';
@@ -35,17 +35,17 @@ export type Invalidations = {|
 
 export interface PackageManager {
   require(
-    id: ModuleSpecifier,
+    id: DependencySpecifier,
     from: FilePath,
-    ?{|range?: SemverRange, shouldAutoInstall?: boolean, saveDev?: boolean|},
+    ?{|range?: ?SemverRange, shouldAutoInstall?: boolean, saveDev?: boolean|},
   ): Promise<any>;
   resolve(
-    id: ModuleSpecifier,
+    id: DependencySpecifier,
     from: FilePath,
-    ?{|range?: SemverRange, shouldAutoInstall?: boolean, saveDev?: boolean|},
+    ?{|range?: ?SemverRange, shouldAutoInstall?: boolean, saveDev?: boolean|},
   ): Promise<ResolveResult>;
-  getInvalidations(id: ModuleSpecifier, from: FilePath): Invalidations;
-  invalidate(id: ModuleSpecifier, from: FilePath): void;
+  getInvalidations(id: DependencySpecifier, from: FilePath): Invalidations;
+  invalidate(id: DependencySpecifier, from: FilePath): void;
 }
 
 export type ModuleRequest = {|

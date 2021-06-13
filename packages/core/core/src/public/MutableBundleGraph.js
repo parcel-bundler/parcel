@@ -6,20 +6,17 @@ import type {
   BundleGroup,
   CreateBundleOpts,
   Dependency as IDependency,
-  GraphVisitor,
   MutableBundleGraph as IMutableBundleGraph,
-  BundlerBundleGraphTraversable,
   Target,
 } from '@parcel/types';
 import type {ParcelOptions} from '../types';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
-import {md5FromString} from '@parcel/utils';
+import {hashString} from '@parcel/hash';
 import BundleGraph from './BundleGraph';
 import InternalBundleGraph from '../BundleGraph';
 import {Bundle, bundleToInternalBundle} from './Bundle';
-import {mapVisitor, ALL_EDGE_TYPES} from '../Graph';
 import {assetFromValue, assetToAssetValue} from './Asset';
 import {getBundleGroupId, getPublicId} from '../utils';
 import Dependency, {dependencyToInternalDependency} from './Dependency';
@@ -27,6 +24,7 @@ import {environmentToInternalEnvironment} from './Environment';
 import {targetToInternalTarget} from './Target';
 import {HASH_REF_PREFIX} from '../constants';
 import {fromProjectPathRelative} from '../projectPath';
+import {BundleBehavior} from '../types';
 
 export default class MutableBundleGraph extends BundleGraph<IBundle>
   implements IMutableBundleGraph {
@@ -110,7 +108,10 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
     this.#graph._graph.addEdge(dependencyNodeId, resolvedNodeId, 'references');
     this.#graph._graph.removeEdge(dependencyNodeId, resolvedNodeId);
 
-    if (dependency.isEntry) {
+    if (
+      dependency.isEntry ||
+      resolved.bundleBehavior === BundleBehavior.isolated
+    ) {
       this.#graph._graph.addEdge(
         nullthrows(this.#graph._graph.rootNodeId),
         bundleGroupNodeId,
@@ -153,7 +154,7 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
       : null;
 
     let target = targetToInternalTarget(opts.target);
-    let bundleId = md5FromString(
+    let bundleId = hashString(
       'bundle:' +
         (opts.uniqueKey ?? nullthrows(entryAsset?.id)) +
         fromProjectPathRelative(target.distDir),
@@ -192,16 +193,14 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
         entryAssetIds: entryAsset ? [entryAsset.id] : [],
         mainEntryId: entryAsset?.id,
         pipeline: opts.pipeline ?? entryAsset?.pipeline,
-        filePath: null,
         isEntry: opts.isEntry,
         isInline: opts.isInline,
-        isSplittable: opts.isSplittable ?? entryAsset?.isSplittable,
+        isSplittable: opts.isSplittable ?? entryAsset?.isBundleSplittable,
         isPlaceholder,
         target,
         name: null,
         displayName: null,
         publicId,
-        stats: {size: 0, time: 0},
       },
     };
 
@@ -251,31 +250,6 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
       .map(asset => assetFromValue(asset, this.#options));
   }
 
-  traverse<TContext>(
-    visit: GraphVisitor<BundlerBundleGraphTraversable, TContext>,
-  ): ?TContext {
-    return this.#graph._graph.filteredTraverse(
-      nodeId => {
-        let node = nullthrows(this.#graph._graph.getNode(nodeId));
-        if (node.type === 'asset') {
-          return {
-            type: 'asset',
-            value: assetFromValue(node.value, this.#options),
-          };
-        } else if (node.type === 'dependency') {
-          return {
-            type: 'dependency',
-            value: new Dependency(node.value, this.#options),
-          };
-        }
-      },
-      visit,
-      undefined, // start with root
-      // $FlowFixMe
-      ALL_EDGE_TYPES,
-    );
-  }
-
   getBundleGroupsContainingBundle(bundle: IBundle): Array<BundleGroup> {
     return this.#graph.getBundleGroupsContainingBundle(
       bundleToInternalBundle(bundle),
@@ -303,23 +277,6 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
     this.#graph.removeAssetGraphFromBundle(
       assetToAssetValue(asset),
       bundleToInternalBundle(bundle),
-    );
-  }
-
-  traverseContents<TContext>(
-    visit: GraphVisitor<BundlerBundleGraphTraversable, TContext>,
-  ): ?TContext {
-    return this.#graph.traverseContents(
-      mapVisitor(
-        node =>
-          node.type === 'asset'
-            ? {type: 'asset', value: assetFromValue(node.value, this.#options)}
-            : {
-                type: 'dependency',
-                value: new Dependency(node.value, this.#options),
-              },
-        visit,
-      ),
     );
   }
 }

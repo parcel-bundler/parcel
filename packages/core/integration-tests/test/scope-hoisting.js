@@ -786,6 +786,18 @@ describe('scope hoisting', function() {
       });
     });
 
+    it('falls back when importing missing symbols from CJS', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/import-commonjs-missing/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.strictEqual(output, undefined);
+    });
+
     it('does not export reassigned CommonJS exports references', async function() {
       let b = await bundle(
         path.join(
@@ -1102,8 +1114,7 @@ describe('scope hoisting', function() {
       assert(!/.-./.test(contents));
     });
 
-    it.skip('removes unused transpiled classes using terser when minified', async function() {
-      // TODO: SWC needs to add PURE annotations
+    it('removes unused transpiled classes using terser when minified', async function() {
       let b = await bundle(
         path.join(
           __dirname,
@@ -1744,6 +1755,18 @@ describe('scope hoisting', function() {
 
       let output = await run(b);
       assert.deepEqual(output, 'foo');
+    });
+
+    it('should support assets importing themselves', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/import-self/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.strictEqual(output, 4);
     });
 
     it('should support named imports on wrapped modules', async function() {
@@ -3577,6 +3600,41 @@ describe('scope hoisting', function() {
       let res = await run(b);
       assert.deepEqual(res, 'default');
     });
+
+    it('can dynamically import a side-effect-free reexport', async () => {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          'integration/scope-hoisting/es6/conditional-import-side-effect-free-reexport/index.mjs',
+        ),
+      );
+
+      assert.deepEqual(await run(b), 42);
+    });
+
+    it('individually exports symbols from intermediately wrapped reexports', async () => {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          'integration/scope-hoisting/es6/export-intermediate-wrapped-reexports/index.mjs',
+        ),
+      );
+
+      let res = await Promise.all(await run(b));
+      assert.deepEqual(res, [42, 42]);
+    });
+
+    it('should treat type-only TypeScript modules as ESM', async () => {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          'integration/scope-hoisting/es6/empty-ts/index.ts',
+        ),
+      );
+
+      let test = await run(b);
+      assert.equal(test({foo: 2}), 2);
+    });
   });
 
   describe('commonjs', function() {
@@ -4209,7 +4267,7 @@ describe('scope hoisting', function() {
       assertBundles(b, [
         {
           type: 'js',
-          assets: ['a.js', 'b.js', 'bundle-url.js', 'JSRuntime.js'],
+          assets: ['a.js', 'b.js', 'bundle-url.js'],
         },
         {
           type: 'txt',
@@ -4344,6 +4402,18 @@ describe('scope hoisting', function() {
         },
       });
       assert.deepEqual(output, 'my-resolved-fs');
+    });
+
+    it('should support assets requiring themselves', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/require-self/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.strictEqual(output, 4);
     });
 
     it('supports requiring a re-exported ES6 import', async function() {
@@ -4620,6 +4690,17 @@ describe('scope hoisting', function() {
 
       let output = await run(b);
       assert.deepEqual(output, 9);
+    });
+
+    it('can bundle browserify-produced umd bundles', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/browserify-compat/index.js',
+        ),
+      );
+
+      assert.equal(await run(b), 'foo');
     });
 
     it('should support two aliases to the same module', async function() {
@@ -5162,13 +5243,7 @@ describe('scope hoisting', function() {
       },
       {
         type: 'js',
-        assets: [
-          'bundle-url.js',
-          'cacheLoader.js',
-          'index.js',
-          'js-loader.js',
-          'JSRuntime.js',
-        ],
+        assets: ['bundle-url.js', 'cacheLoader.js', 'index.js', 'js-loader.js'],
       },
       {
         type: 'js',
@@ -5365,8 +5440,6 @@ describe('scope hoisting', function() {
           'cacheLoader.js',
           'dep.js',
           'js-loader.js',
-          'JSRuntime.js',
-          'JSRuntime.js',
           'relative-path.js',
           'same-ancestry-scope-hoisting.js',
         ],
@@ -5394,15 +5467,12 @@ describe('scope hoisting', function() {
           'bundle-url.js',
           'cacheLoader.js',
           'js-loader.js',
-          'JSRuntime.js',
-          'JSRuntime.js',
-          'JSRuntime.js',
           'relative-path.js',
         ],
       },
       {assets: ['dep.js']},
       {assets: ['async-has-dep.js', 'dep.js', 'get-dep.js']},
-      {assets: ['get-dep.js', 'JSRuntime.js']},
+      {assets: ['get-dep.js']},
     ]);
 
     assert.deepEqual(await run(b), [42, 42]);
@@ -5438,8 +5508,6 @@ describe('scope hoisting', function() {
           'cacheLoader.js',
           'get-dep-scope-hoisting.js',
           'js-loader.js',
-          'JSRuntime.js',
-          'JSRuntime.js',
           'relative-path.js',
         ],
       },
@@ -5469,10 +5537,10 @@ describe('scope hoisting', function() {
         assets: ['wraps.js', 'lodash.js'],
       },
       {
-        assets: ['a.js', 'JSRuntime.js'],
+        assets: ['a.js'],
       },
       {
-        assets: ['child.js', 'JSRuntime.js'],
+        assets: ['child.js'],
       },
       {
         assets: ['grandchild.js'],
@@ -5488,9 +5556,6 @@ describe('scope hoisting', function() {
           'cacheLoader.js',
           'scope-hoisting.js',
           'js-loader.js',
-          'JSRuntime.js',
-          'JSRuntime.js',
-          'JSRuntime.js',
           'relative-path.js',
         ],
       },
@@ -5518,7 +5583,7 @@ describe('scope hoisting', function() {
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: ['index.js', 'JSRuntime.js'],
+        assets: ['index.js'],
       },
       {name: 'value.js', assets: ['value.js']},
       {assets: ['async.js']},
@@ -5540,8 +5605,6 @@ describe('scope hoisting', function() {
           'bundle-url.js',
           'cacheLoader.js',
           'js-loader.js',
-          'JSRuntime.js',
-          'JSRuntime.js',
         ],
       },
       {assets: ['value.js']},
@@ -5570,7 +5633,6 @@ describe('scope hoisting', function() {
           'bundle-url.js',
           'cacheLoader.js',
           'js-loader.js',
-          'JSRuntime.js',
         ],
       },
       {
@@ -5580,7 +5642,6 @@ describe('scope hoisting', function() {
           'bundle-url.js',
           'cacheLoader.js',
           'js-loader.js',
-          'JSRuntime.js',
         ],
       },
       {assets: ['a.js', 'value.js']},

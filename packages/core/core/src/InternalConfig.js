@@ -1,15 +1,15 @@
 // @flow strict-local
 
-import type {PackageName, ConfigResult} from '@parcel/types';
-import {md5FromString} from '@parcel/utils';
-import {createEnvironment} from './Environment';
 import type {
-  Config,
-  Environment,
-  InternalFileCreateInvalidation,
-  InternalDevDepOptions,
-} from './types';
-import {type ProjectPath, fromProjectPathRelative} from './projectPath';
+  FileCreateInvalidation,
+  FilePath,
+  PackageName,
+  ConfigResult,
+  DevDepOptions,
+} from '@parcel/types';
+import type {Config, Environment, InternalFileCreateInvalidation} from './types';
+import {createEnvironment} from './Environment';
+import {hashString} from '@parcel/hash';
 
 type ConfigOpts = {|
   plugin: PackageName,
@@ -17,7 +17,7 @@ type ConfigOpts = {|
   isSource?: boolean,
   env?: Environment,
   result?: ConfigResult,
-  includedFiles?: Set<ProjectPath>,
+  invalidateOnFileChange?: Set<ProjectPath>,
   invalidateOnFileCreate?: Array<InternalFileCreateInvalidation>,
   invalidateOnOptionChange?: Set<string>,
   devDeps?: Array<InternalDevDepOptions>,
@@ -30,7 +30,7 @@ export function createConfig({
   searchPath,
   env,
   result,
-  includedFiles,
+  invalidateOnFileChange,
   invalidateOnFileCreate,
   invalidateOnOptionChange,
   devDeps,
@@ -38,18 +38,13 @@ export function createConfig({
 }: ConfigOpts): Config {
   let environment = env ?? createEnvironment();
   return {
-    id: md5FromString(
-      plugin +
-        fromProjectPathRelative(searchPath) +
-        environment.id +
-        String(isSource),
-    ),
+    id: hashString(plugin + fromProjectPathRelative(searchPath) + environment.id + String(isSource)),
     isSource: isSource ?? false,
     searchPath,
     env: environment,
     result: result ?? null,
     resultHash: null,
-    includedFiles: includedFiles ?? new Set(),
+    invalidateOnFileChange: invalidateOnFileChange ?? new Set(),
     invalidateOnFileCreate: invalidateOnFileCreate ?? [],
     invalidateOnOptionChange: invalidateOnOptionChange ?? new Set(),
     devDeps: devDeps ?? [],

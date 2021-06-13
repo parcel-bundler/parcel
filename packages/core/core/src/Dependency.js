@@ -2,11 +2,13 @@
 import type {
   FilePath,
   Meta,
-  ModuleSpecifier,
+  DependencySpecifier,
   SourceLocation,
   Symbol,
 } from '@parcel/types';
 import type {Dependency, Environment, Target} from './types';
+import {hashString} from '@parcel/hash';
+import {SpecifierType, Priority} from './types';
 
 import {md5FromOrderedObject} from '@parcel/utils';
 import {toInternalSourceLocation} from './utils';
@@ -16,12 +18,12 @@ type DependencyOpts = {|
   id?: string,
   sourcePath?: FilePath,
   sourceAssetId?: string,
-  moduleSpecifier: ModuleSpecifier,
-  isAsync?: boolean,
+  specifier: DependencySpecifier,
+  specifierType: $Keys<typeof SpecifierType>,
+  priority?: $Keys<typeof Priority>,
+  needsStableName?: boolean,
   isEntry?: boolean,
   isOptional?: boolean,
-  isURL?: boolean,
-  isIsolated?: boolean,
   loc?: SourceLocation,
   env: Environment,
   meta?: Meta,
@@ -40,13 +42,13 @@ export function createDependency(
 ): Dependency {
   let id =
     opts.id ||
-    md5FromOrderedObject({
-      sourceAssetId: opts.sourceAssetId,
-      moduleSpecifier: opts.moduleSpecifier,
-      env: opts.env.id,
-      target: opts.target,
-      pipeline: opts.pipeline,
-    });
+    hashString(
+      (opts.sourceAssetId ?? '') +
+        opts.specifier +
+        opts.env.id +
+        (opts.target ? JSON.stringify(opts.target) : '') +
+        (opts.pipeline ?? ''),
+    );
 
   return {
     ...opts,
@@ -54,11 +56,11 @@ export function createDependency(
     sourcePath: toProjectPath(projectRoot, opts.sourcePath),
     id,
     loc: toInternalSourceLocation(projectRoot, opts.loc),
-    isAsync: opts.isAsync ?? false,
-    isEntry: opts.isEntry,
+    specifierType: SpecifierType[opts.specifierType],
+    priority: Priority[opts.priority ?? 'sync'],
+    needsStableName: opts.needsStableName ?? false,
+    isEntry: opts.isEntry ?? false,
     isOptional: opts.isOptional ?? false,
-    isURL: opts.isURL ?? false,
-    isIsolated: opts.isIsolated ?? false,
     meta: opts.meta || {},
     symbols:
       opts.symbols &&

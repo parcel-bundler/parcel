@@ -1,5 +1,5 @@
 // @flow
-import type {FilePath, PackageName, Semver} from '@parcel/types';
+import type {FilePath, PackageName, Semver, SemverRange} from '@parcel/types';
 import type {ParcelOptions} from './types';
 
 import path from 'path';
@@ -26,7 +26,12 @@ export default async function loadPlugin<T>(
   configPath: FilePath,
   keyPath?: string,
   options: ParcelOptions,
-): Promise<{|plugin: T, version: Semver, resolveFrom: ProjectPath|}> {
+): Promise<{|
+  plugin: T,
+  version: Semver,
+  resolveFrom: ProjectPath,
+  range: ?SemverRange,
+|}> {
   let resolveFrom = configPath;
   let range;
   if (resolveFrom.includes(NODE_MODULES)) {
@@ -186,5 +191,6 @@ export default async function loadPlugin<T>(
     plugin,
     version: nullthrows(pkg).version,
     resolveFrom: toProjectPath(options.projectRoot, resolveFrom),
+    range,
   };
 }

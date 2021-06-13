@@ -16,7 +16,7 @@ import type {
 
 import {
   isDirectoryInside,
-  md5FromObject,
+  hashObject,
   resolveConfig,
   validateSchema,
   findAlternativeNodeModules,
@@ -96,7 +96,7 @@ export default function createParcelConfigRequest(): ParcelConfigRequest {
         });
       }
 
-      let cachePath = md5FromObject(config);
+      let cachePath = hashObject(config);
       await options.cache.set(cachePath, config);
       let result = {config, cachePath};
       // TODO: don't store config twice (once in the graph and once in a separate cache entry)

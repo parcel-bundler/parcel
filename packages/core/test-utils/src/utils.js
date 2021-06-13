@@ -149,7 +149,7 @@ export function findAsset(
 export function findDependency(
   bundleGraph: BundleGraph<PackagedBundle>,
   assetFileName: string,
-  moduleSpecifier: string,
+  specifier: string,
 ): Dependency {
   let asset = nullthrows(
     findAsset(bundleGraph, assetFileName),
@@ -158,10 +158,10 @@ export function findDependency(
 
   let dependency = bundleGraph
     .getDependencies(asset)
-    .find(d => d.moduleSpecifier === moduleSpecifier);
+    .find(d => d.specifier === specifier);
   invariant(
     dependency != null,
-    `Couldn't find dependency ${assetFileName} -> ${moduleSpecifier}`,
+    `Couldn't find dependency ${assetFileName} -> ${specifier}`,
   );
   return dependency;
 }
@@ -189,9 +189,9 @@ export function mergeParcelOptions(
 export function assertDependencyWasDeferred(
   bundleGraph: BundleGraph<PackagedBundle>,
   assetFileName: string,
-  moduleSpecifier: string,
+  specifier: string,
 ): void {
-  let dep = findDependency(bundleGraph, assetFileName, moduleSpecifier);
+  let dep = findDependency(bundleGraph, assetFileName, specifier);
   invariant(
     bundleGraph.isDependencySkipped(dep),
     util.inspect(dep) + " wasn't deferred",
@@ -455,6 +455,11 @@ export function assertBundles(
         return;
       }
 
+      if (/runtime-[a-z0-9]{16}\.js/.test(asset.filePath)) {
+        // Skip runtime assets, which have hashed filenames for source maps.
+        return;
+      }
+
       const name = path.basename(asset.filePath);
       assets.push(name);
     });
@@ -501,7 +506,11 @@ export function assertBundles(
     let actualName = actualBundle.name;
     if (name != null && actualName != null) {
       if (typeof name === 'string') {
-        assert.equal(actualName, name);
+        assert.equal(
+          actualName,
+          name,
+          `Bundle name "${actualName}", does not match expected name "${name}"`,
+        );
       } else if (name instanceof RegExp) {
         assert(
           actualName.match(name),
@@ -509,7 +518,7 @@ export function assertBundles(
         );
       } else {
         // $FlowFixMe[incompatible-call]
-        assert.fail();
+        assert.fail('Expected bundle name has invalid type');
       }
     }
 

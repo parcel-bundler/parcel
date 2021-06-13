@@ -23,7 +23,7 @@ import path from 'path';
 import {
   loadConfig,
   resolveConfig,
-  md5FromObject,
+  hashObject,
   validateSchema,
 } from '@parcel/utils';
 import {createEnvironment} from '../Environment';
@@ -64,7 +64,7 @@ const type = 'target_request';
 
 export default function createTargetRequest(input: Entry): TargetRequest {
   return {
-    id: `${type}:${md5FromObject(input)}`,
+    id: `${type}:${hashObject(input)}`,
     type,
     run,
     input,

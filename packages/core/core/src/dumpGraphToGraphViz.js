@@ -2,6 +2,8 @@
 
 import type {AssetGraphNode, BundleGraphNode, Environment} from './types';
 import type Graph from './Graph';
+import type {AssetGraphNode, BundleGraphNode} from './types';
+import {SpecifierType, Priority} from './types';
 
 import path from 'path';
 import {fromProjectPathRelative} from './projectPath';
@@ -53,13 +55,12 @@ export default async function dumpGraphToGraphViz(
     n.set('style', 'filled');
     let label = `${node.type || 'No Type'}: [${node.id}]: `;
     if (node.type === 'dependency') {
-      label += node.value.moduleSpecifier;
+      label += node.value.specifier;
       let parts = [];
-      if (node.value.isEntry) parts.push('entry');
-      if (node.value.isAsync) parts.push('async');
+      if (node.value.priority !== Priority.sync)
+        parts.push(node.value.priority);
       if (node.value.isOptional) parts.push('optional');
-      if (node.value.isIsolated) parts.push('isolated');
-      if (node.value.isURL) parts.push('url');
+      if (node.value.specifierType === SpecifierType.url) parts.push('url');
       if (node.hasDeferred) parts.push('deferred');
       if (node.excluded) parts.push('excluded');
       if (parts.length) label += ' (' + parts.join(', ') + ')';

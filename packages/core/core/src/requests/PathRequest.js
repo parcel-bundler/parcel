@@ -10,11 +10,7 @@ import type {StaticRunOpts} from '../RequestTracker';
 import type {AssetGroup, Dependency, ParcelOptions} from '../types';
 import type {ConfigAndCachePath} from './ParcelConfigRequest';
 
-import ThrowableDiagnostic, {
-  errorToDiagnostic,
-  escapeMarkdown,
-  md,
-} from '@parcel/diagnostic';
+import ThrowableDiagnostic, {errorToDiagnostic, md} from '@parcel/diagnostic';
 import {PluginLogger} from '@parcel/logger';
 import nullthrows from 'nullthrows';
 import path from 'path';
@@ -33,6 +29,7 @@ import {
   fromProjectPathRelative,
   toProjectPath,
 } from '../projectPath';
+import {Priority} from '../types';
 
 export type PathRequest = {|
   id: string,
@@ -162,12 +159,12 @@ export class ResolverRunner {
     if (
       // Don't consider absolute paths. Absolute paths are only supported for entries,
       // and include e.g. `C:\` on Windows, conflicting with pipelines.
-      !path.isAbsolute(dependency.moduleSpecifier) &&
-      dependency.moduleSpecifier.includes(':')
+      !path.isAbsolute(dependency.specifier) &&
+      dependency.specifier.includes(':')
     ) {
-      [pipeline, filePath] = dependency.moduleSpecifier.split(':');
+      [pipeline, filePath] = dependency.specifier.split(':');
       if (!validPipelines.has(pipeline)) {
-        if (dep.isURL) {
+        if (dep.specifierType === 'url') {
           // This may be a url protocol or scheme rather than a pipeline, such as
           // `url('http://example.com/foo.png')`
           return null;
@@ -179,15 +176,18 @@ export class ResolverRunner {
         }
       }
     } else {
-      if (dependency.isURL && dependency.moduleSpecifier.startsWith('//')) {
+      if (
+        dep.specifierType === 'url' &&
+        dependency.specifier.startsWith('//')
+      ) {
         // A protocol-relative URL, e.g `url('//example.com/foo.png')`
         return null;
       }
-      filePath = dependency.moduleSpecifier;
+      filePath = dependency.specifier;
     }
 
     let queryPart = null;
-    if (dependency.isURL) {
+    if (dep.specifierType === 'url') {
       let parsed = URL.parse(filePath);
       if (typeof parsed.pathname !== 'string') {
         throw await this.getThrowableDiagnostic(
@@ -219,6 +219,7 @@ export class ResolverRunner {
       try {
         let result = await resolver.plugin.resolve({
           filePath,
+          pipeline,
           dependency: dep,
           options: this.pluginOptions,
           logger: new PluginLogger({origin: resolver.name}),
@@ -230,6 +231,10 @@ export class ResolverRunner {
               ...dependency.meta,
               ...result.meta,
             };
+          }
+
+          if (result.priority != null) {
+            dependency.priority = Priority[result.priority];
           }
 
           if (result.isExcluded) {
@@ -255,8 +260,11 @@ export class ResolverRunner {
                 sideEffects: result.sideEffects,
                 code: result.code,
                 env: dependency.env,
-                pipeline: pipeline ?? dependency.pipeline,
-                isURL: dependency.isURL,
+                pipeline:
+                  result.pipeline === undefined
+                    ? pipeline ?? dependency.pipeline
+                    : result.pipeline,
+                isURL: dep.specifierType === 'url',
               },
               invalidateOnFileCreate: result.invalidateOnFileCreate,
               invalidateOnFileChange: result.invalidateOnFileChange,
@@ -297,13 +305,16 @@ export class ResolverRunner {
     let resolveFrom = dependency.resolveFrom ?? dependency.sourcePath;
     let dir =
       resolveFrom != null
-        ? escapeMarkdown(fromProjectPathRelative(resolveFrom))
+        ? relativePath(this.options.projectRoot, fromProjectPathRelative(resolveFrom))
         : '';
     let specifier = escapeMarkdown(dep.moduleSpecifier || '');
 
-    let err: ThrowableDiagnostic = await this.getThrowableDiagnostic(
+    // $FlowFixMe because of the err.code assignment
+    let err = await this.getThrowableDiagnostic(
       dependency,
-      md`Failed to resolve '${specifier}' ${dir ? `from './${dir}'` : ''}`,
+      md`Failed to resolve '${dependency.specifier}' ${
+        dir ? `from '${dir}'` : ''
+      }`,
     );
 
     // Merge diagnostics

@@ -11,6 +11,7 @@ import type {
   Packager,
   Reporter,
   Semver,
+  SemverRange,
   Validator,
   FilePath,
 } from '@parcel/types';
@@ -45,6 +46,7 @@ export type LoadedPlugin<T> = {|
   plugin: T,
   resolveFrom: ProjectPath,
   keyPath?: string,
+  range?: ?SemverRange,
 |};
 
 export default class ParcelConfig {
@@ -107,7 +109,12 @@ export default class ParcelConfig {
 
   _loadPlugin<T>(
     node: ParcelPluginNode,
-  ): Promise<{|plugin: T, version: Semver, resolveFrom: ProjectPath|}> {
+  ): Promise<{|
+    plugin: T,
+    version: Semver,
+    resolveFrom: ProjectPath,
+    range: ?SemverRange,
+  |}> {
     let plugin = this.pluginCache.get(node.packageName);
     if (plugin) {
       return plugin;
@@ -281,27 +288,24 @@ export default class ParcelConfig {
     return this._getPackagerNode(filePath).packageName;
   }
 
-  async getPackager(
-    filePath: FilePath,
-  ): Promise<{|
-    name: string,
-    version: Semver,
-    plugin: Packager,
-  |}> {
+  getPackager(filePath: FilePath): Promise<LoadedPlugin<Packager>> {
     let packager = this._getPackagerNode(filePath);
-
-    let {plugin, version} = await this.loadPlugin<Packager>(packager);
-    return {
-      name: packager.packageName,
-      version,
-      plugin,
-    };
+    return this.loadPlugin<Packager>(packager);
   }
 
   _getOptimizerNodes(
     filePath: FilePath,
     pipeline: ?string,
   ): PureParcelConfigPipeline {
+    // If a pipeline is specified, but it doesn't exist in the optimizers config, ignore it.
+    // Pipelines for bundles come from their entry assets, so the pipeline likely exists in transformers.
+    if (pipeline) {
+      let prefix = pipeline + ':';
+      if (!Object.keys(this.optimizers).some(glob => glob.startsWith(prefix))) {
+        pipeline = null;
+      }
+    }
+
     return (
       this.matchGlobMapPipelines(
         toProjectPathUnsafe(filePath),

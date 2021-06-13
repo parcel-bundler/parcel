@@ -21,7 +21,6 @@ describe('Public Bundle', () => {
       mainEntryId: null,
       type: 'js',
       env,
-      filePath: null,
       name: null,
       displayName: null,
       publicId: null,
@@ -35,7 +34,6 @@ describe('Public Bundle', () => {
         name: '',
         publicUrl: '',
       },
-      stats: {size: 0, time: 0},
     };
 
     bundleGraph = new BundleGraph({

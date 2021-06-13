@@ -54,14 +54,6 @@ export default class PublicConfig implements IConfig {
     return this.#config.isSource;
   }
 
-  get includedFiles(): Set<FilePath> {
-    return new Set(
-      [...this.#config.includedFiles].map(f =>
-        fromProjectPath(this.#options.projectRoot, f),
-      ),
-    );
-  }
-
   // $FlowFixMe
   setResult(result: any): void {
     this.#config.result = result;
@@ -71,10 +63,8 @@ export default class PublicConfig implements IConfig {
     this.#config.resultHash = resultHash;
   }
 
-  addIncludedFile(filePath: FilePath) {
-    this.#config.includedFiles.add(
-      toProjectPath(this.#options.projectRoot, filePath),
-    );
+  invalidateOnFileChange(filePath: FilePath) {
+    this.#config.invalidateOnFileChange.add(toProjectPath(this.#options.projectRoot, filePath));
   }
 
   addDevDependency(devDep: DevDepOptions) {
@@ -158,7 +148,7 @@ export default class PublicConfig implements IConfig {
 
     let configFilePath = conf.files[0].filePath;
     if (!options || !options.exclude) {
-      this.addIncludedFile(configFilePath);
+      this.invalidateOnFileChange(configFilePath);
     }
 
     return {

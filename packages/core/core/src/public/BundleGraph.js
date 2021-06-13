@@ -4,6 +4,7 @@ import type {
   Asset as IAsset,
   Bundle as IBundle,
   BundleGraph as IBundleGraph,
+  BundleGraphTraversable,
   BundleGroup,
   Dependency as IDependency,
   ExportSymbolResolution,
@@ -269,6 +270,23 @@ export default class BundleGraph<TBundle: IBundle>
       loc: fromInternalSourceLocation(this.#options.projectRoot, e.loc),
       exportAs: e.exportAs,
     }));
+  }
+
+  traverse<TContext>(
+    visit: GraphVisitor<BundleGraphTraversable, TContext>,
+  ): ?TContext {
+    return this.#graph.traverse(
+      mapVisitor(
+        node =>
+          node.type === 'asset'
+            ? {type: 'asset', value: assetFromValue(node.value, this.#options)}
+            : {
+                type: 'dependency',
+                value: new Dependency(node.value),
+              },
+        visit,
+      ),
+    );
   }
 
   traverseBundles<TContext>(

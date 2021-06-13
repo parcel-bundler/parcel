@@ -6,7 +6,9 @@ import {
   distDir,
   inputFS as fs,
   outputFS,
+  overlayFS,
   run,
+  ncp,
 } from '@parcel/test-utils';
 import {symlinkSync} from 'fs';
 
@@ -142,6 +144,17 @@ describe('transpilation', function() {
     assert(file.includes('h("div"'));
   });
 
+  it('should not transpile spread in JSX with modern targets', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/jsx-spread/index.jsx'),
+    );
+
+    let file = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(file.includes('React.createElement("div"'));
+    assert(file.includes('...a'));
+    assert(!file.includes('@swc/helpers'));
+  });
+
   it('should support transpiling optional chaining', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/babel-optional-chaining/index.js'),
@@ -165,6 +178,26 @@ describe('transpilation', function() {
     // NOTE: This may change if core-js internals change.
     assert(file.includes('esnext.global-this'));
     assert(!file.includes('es.array.concat'));
+  });
+
+  it('should resolve @swc/helpers and regenerator-runtime relative to parcel', async function() {
+    let dir = path.join(
+      '/tmp/' +
+        Math.random()
+          .toString(36)
+          .slice(2),
+    );
+    await outputFS.mkdirp(dir);
+    ncp(path.join(__dirname, '/integration/swc-helpers'), dir);
+    await bundle(path.join(dir, 'index.js'), {
+      mode: 'production',
+      inputFS: overlayFS,
+      defaultTargetOptions: {
+        engines: {
+          browsers: '>= 0.25%',
+        },
+      },
+    });
   });
 
   describe('tests needing the real filesystem', () => {
