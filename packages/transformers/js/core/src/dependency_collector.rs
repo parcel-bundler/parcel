@@ -90,9 +90,18 @@ impl<'a> DependencyCollector<'a> {
   }
 }
 
-fn rewrite_require_specifier(call: ast::CallExpr) -> ast::CallExpr {
-  // TODO: Remove node: from specifier
-  return call;
+fn rewrite_require_specifier(node: ast::CallExpr) -> ast::CallExpr {
+  if let Some(arg) = node.args.get(0) {
+    if let ast::Expr::Lit(lit) = &*arg.expr {
+      if let ast::Lit::Str(str_) = lit {
+        if str_.value.starts_with("node:") {
+          // create_require will take care of replacing the node: prefix...
+          return create_require(str_.value.clone());
+        }
+      }
+    }
+  }
+  node
 }
 
 impl<'a> Fold for DependencyCollector<'a> {
@@ -377,8 +386,9 @@ impl<'a> Fold for DependencyCollector<'a> {
       call.args.truncate(1);
 
       // Track the returned require call to be replaced with a promise chain.
-      self.require_node = Some(call.clone());
-      rewrite_require_specifier(call)
+      let rewritten_call = rewrite_require_specifier(call);
+      self.require_node = Some(rewritten_call.clone());
+      rewritten_call
     } else if kind == DependencyKind::Require {
       // Don't continue traversing so that the `require` isn't replaced with undefined
       rewrite_require_specifier(node)
