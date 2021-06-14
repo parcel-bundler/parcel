@@ -1,9 +1,6 @@
 // @flow strict-local
 
-import type {
-  PackageName,
-  ConfigResult,
-} from '@parcel/types';
+import type {PackageName, ConfigResult} from '@parcel/types';
 import type {
   Config,
   Environment,

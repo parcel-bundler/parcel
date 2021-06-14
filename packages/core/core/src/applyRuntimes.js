@@ -28,10 +28,7 @@ import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import {dependencyToInternalDependency} from './public/Dependency';
 import createAssetGraphRequest from './requests/AssetGraphRequest';
 import {createDevDependency, runDevDepRequest} from './requests/DevDepRequest';
-import {
-  toProjectPath,
-  fromProjectPathRelative,
-} from './projectPath';
+import {toProjectPath, fromProjectPathRelative} from './projectPath';
 
 type RuntimeConnection = {|
   bundle: InternalBundle,

@@ -1,10 +1,6 @@
 // @flow strict-local
 
-import type {
-  Async,
-  Symbol,
-  Meta,
-} from '@parcel/types';
+import type {Async, Symbol, Meta} from '@parcel/types';
 import type {SharedReference} from '@parcel/workers';
 import type {Diagnostic} from '@parcel/diagnostic';
 import type {
