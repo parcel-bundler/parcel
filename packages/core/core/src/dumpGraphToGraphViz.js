@@ -2,7 +2,6 @@
 
 import type {AssetGraphNode, BundleGraphNode, Environment} from './types';
 import type Graph from './Graph';
-import type {AssetGraphNode, BundleGraphNode} from './types';
 import {SpecifierType, Priority} from './types';
 
 import path from 'path';

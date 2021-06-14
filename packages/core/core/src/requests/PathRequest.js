@@ -15,6 +15,7 @@ import {PluginLogger} from '@parcel/logger';
 import nullthrows from 'nullthrows';
 import path from 'path';
 import URL from 'url';
+import {normalizePath} from '@parcel/utils';
 import querystring from 'querystring';
 import {report} from '../ReporterRunner';
 import PublicDependency from '../public/Dependency';
@@ -305,9 +306,8 @@ export class ResolverRunner {
     let resolveFrom = dependency.resolveFrom ?? dependency.sourcePath;
     let dir =
       resolveFrom != null
-        ? relativePath(this.options.projectRoot, fromProjectPathRelative(resolveFrom))
+        ? normalizePath(fromProjectPathRelative(resolveFrom))
         : '';
-    let specifier = escapeMarkdown(dep.moduleSpecifier || '');
 
     // $FlowFixMe because of the err.code assignment
     let err = await this.getThrowableDiagnostic(

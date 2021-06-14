@@ -5,6 +5,7 @@ import type {
   FilePath,
   Meta,
   MutableDependencySymbols as IMutableDependencySymbols,
+  SourceLocation,
   SpecifierType,
   DependencyPriority,
 } from '@parcel/types';
@@ -14,7 +15,6 @@ import nullthrows from 'nullthrows';
 import Environment from './Environment';
 import Target from './Target';
 import {MutableDependencySymbols} from './Symbols';
-import nullthrows from 'nullthrows';
 import {SpecifierType as SpecifierTypeMap, Priority} from '../types';
 import {fromProjectPath} from '../projectPath';
 import {fromInternalSourceLocation} from '../utils';

@@ -11,7 +11,6 @@ import type {
   BundleTraversable,
   Dependency as IDependency,
   Environment as IEnvironment,
-  FilePath,
   GraphVisitor,
   NamedBundle as INamedBundle,
   PackagedBundle as IPackagedBundle,
@@ -251,6 +250,7 @@ export class NamedBundle extends Bundle implements INamedBundle {
 export class PackagedBundle extends NamedBundle implements IPackagedBundle {
   #bundle /*: InternalBundle */;
   #bundleGraph /*: BundleGraph */;
+  #options /*: ParcelOptions */;
   #bundleInfo /*: ?PackagedBundleInfo */;
 
   constructor(
@@ -309,7 +309,7 @@ export class PackagedBundle extends NamedBundle implements IPackagedBundle {
   get filePath(): string {
     return fromProjectPath(
       this.#options.projectRoot,
-      nullthrows(this.#bundleInfo).filePath
+      nullthrows(this.#bundleInfo).filePath,
     );
   }
 

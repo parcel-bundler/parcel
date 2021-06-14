@@ -278,7 +278,9 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
   }
 
   invalidateOnFileChange(filePath: FilePath): void {
-    this.#asset.invalidateOnFileChange(toProjectPath(this.#asset.options.projectRoot, filePath));
+    this.#asset.invalidateOnFileChange(
+      toProjectPath(this.#asset.options.projectRoot, filePath),
+    );
   }
 
   invalidateOnFileCreate(invalidation: FileCreateInvalidation): void {

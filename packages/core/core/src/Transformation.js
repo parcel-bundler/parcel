@@ -7,12 +7,12 @@ import type {
   Transformer,
   TransformerResult,
   PackageName,
-  DevDepOptions,
   SemverRange,
 } from '@parcel/types';
 import type {WorkerApi} from '@parcel/workers';
 import type {
   Asset as AssetValue,
+  AssetGroup,
   TransformationRequest,
   RequestInvalidation,
   Config,
@@ -25,7 +25,7 @@ import type {LoadedPlugin} from './ParcelConfig';
 
 import path from 'path';
 import nullthrows from 'nullthrows';
-import {normalizeSeparators, objectSortedEntries} from '@parcel/utils';
+import {objectSortedEntries} from '@parcel/utils';
 import logger, {PluginLogger} from '@parcel/logger';
 import ThrowableDiagnostic, {
   errorToDiagnostic,
@@ -73,6 +73,7 @@ import {
   toProjectPathUnsafe,
   toProjectPath,
 } from './projectPath';
+import {invalidateOnFileCreateToInternal} from './utils';
 
 type GenerateFunc = (input: UncommittedAsset) => Promise<GenerateOutput>;
 
@@ -317,7 +318,9 @@ export default class Transformation {
   async getPipelineHash(pipeline: Pipeline): Promise<string> {
     let hashes = '';
     for (let transformer of pipeline.transformers) {
-      let key = `${transformer.name}:${fromProjectPathRelative(transformer.resolveFrom)}`;
+      let key = `${transformer.name}:${fromProjectPathRelative(
+        transformer.resolveFrom,
+      )}`;
       hashes +=
         this.request.devDeps.get(key) ??
         this.devDepRequests.get(key)?.hash ??
@@ -328,7 +331,9 @@ export default class Transformation {
         hashes += await getConfigHash(config, transformer.name, this.options);
 
         for (let devDep of config.devDeps) {
-          let key = `${devDep.specifier}:${fromProjectPathRelative(devDep.resolveFrom)}`;
+          let key = `${devDep.specifier}:${fromProjectPathRelative(
+            devDep.resolveFrom,
+          )}`;
           hashes += nullthrows(this.devDepRequests.get(key)).hash;
         }
       }
@@ -348,9 +353,13 @@ export default class Transformation {
     }
 
     // Ensure that the package manager has an entry for this resolution.
-    await this.options.packageManager.resolve(specifier, fromProjectPath(this.options.projectRoot, opts.resolveFrom), {
-      range,
-    });
+    await this.options.packageManager.resolve(
+      specifier,
+      fromProjectPath(this.options.projectRoot, opts.resolveFrom),
+      {
+        range,
+      },
+    );
 
     let devDepRequest = await createDevDependency(
       opts,

@@ -29,7 +29,6 @@ import {dependencyToInternalDependency} from './public/Dependency';
 import createAssetGraphRequest from './requests/AssetGraphRequest';
 import {createDevDependency, runDevDepRequest} from './requests/DevDepRequest';
 import {
-  fromProjectPath,
   toProjectPath,
   fromProjectPathRelative,
 } from './projectPath';
@@ -127,7 +126,9 @@ export default async function applyRuntimes({
       options,
     );
     devDepRequests.set(
-      `${devDepRequest.specifier}:${fromProjectPathRelative(devDepRequest.resolveFrom)}`,
+      `${devDepRequest.specifier}:${fromProjectPathRelative(
+        devDepRequest.resolveFrom,
+      )}`,
       devDepRequest,
     );
     await runDevDepRequest(api, devDepRequest);

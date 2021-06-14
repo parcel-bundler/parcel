@@ -1,13 +1,18 @@
 // @flow strict-local
 
 import type {
-  FileCreateInvalidation,
-  FilePath,
   PackageName,
   ConfigResult,
-  DevDepOptions,
 } from '@parcel/types';
-import type {Config, Environment, InternalFileCreateInvalidation} from './types';
+import type {
+  Config,
+  Environment,
+  InternalFileCreateInvalidation,
+  InternalDevDepOptions,
+} from './types';
+import type {ProjectPath} from './projectPath';
+
+import {fromProjectPathRelative} from './projectPath';
 import {createEnvironment} from './Environment';
 import {hashString} from '@parcel/hash';
 
@@ -38,7 +43,12 @@ export function createConfig({
 }: ConfigOpts): Config {
   let environment = env ?? createEnvironment();
   return {
-    id: hashString(plugin + fromProjectPathRelative(searchPath) + environment.id + String(isSource)),
+    id: hashString(
+      plugin +
+        fromProjectPathRelative(searchPath) +
+        environment.id +
+        String(isSource),
+    ),
     isSource: isSource ?? false,
     searchPath,
     env: environment,

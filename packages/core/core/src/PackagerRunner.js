@@ -39,7 +39,12 @@ import BundleGraph, {
 } from './public/BundleGraph';
 import PluginOptions from './public/PluginOptions';
 import {PARCEL_VERSION, HASH_REF_PREFIX, HASH_REF_REGEX} from './constants';
-import {fromProjectPath, joinProjectPath} from './projectPath';
+import {
+  fromProjectPath,
+  toProjectPathUnsafe,
+  fromProjectPathRelative,
+  joinProjectPath,
+} from './projectPath';
 import {createConfig} from './InternalConfig';
 import {
   loadPluginConfig,
@@ -202,7 +207,7 @@ export default class PackagerRunner {
     if (plugin.plugin.loadConfig != null) {
       let config = createConfig({
         plugin: plugin.name,
-        searchPath: path.join(this.options.projectRoot, 'index'),
+        searchPath: toProjectPathUnsafe('index'),
       });
 
       await loadPluginConfig(plugin, config, this.options);
@@ -214,7 +219,10 @@ export default class PackagerRunner {
           this.previousDevDeps,
           this.options,
         );
-        let key = `${devDep.specifier}:${devDep.resolveFrom}`;
+        let key = `${devDep.specifier}:${fromProjectPath(
+          this.options.projectRoot,
+          devDep.resolveFrom,
+        )}`;
         this.devDepRequests.set(key, devDepRequest);
       }
 
@@ -374,7 +382,10 @@ export default class PackagerRunner {
         this.previousDevDeps,
         this.options,
       );
-      this.devDepRequests.set(`${name}:${resolveFrom}`, devDepRequest);
+      this.devDepRequests.set(
+        `${name}:${fromProjectPathRelative(resolveFrom)}`,
+        devDepRequest,
+      );
     }
   }
 
@@ -454,7 +465,7 @@ export default class PackagerRunner {
           this.options,
         );
         this.devDepRequests.set(
-          `${optimizer.name}:${optimizer.resolveFrom}`,
+          `${optimizer.name}:${fromProjectPathRelative(optimizer.resolveFrom)}`,
           devDepRequest,
         );
       }
@@ -564,11 +575,13 @@ export default class PackagerRunner {
     let packager = await this.config.getPackager(name);
     let optimizers = await this.config.getOptimizers(name);
 
-    let key = `${packager.name}:${packager.resolveFrom}`;
+    let key = `${packager.name}:${fromProjectPathRelative(
+      packager.resolveFrom,
+    )}`;
     let devDepHashes =
       this.devDepRequests.get(key)?.hash ?? this.previousDevDeps.get(key) ?? '';
     for (let {name, resolveFrom} of optimizers) {
-      let key = `${name}:${resolveFrom}`;
+      let key = `${name}:${fromProjectPathRelative(resolveFrom)}`;
       devDepHashes +=
         this.devDepRequests.get(key)?.hash ??
         this.previousDevDeps.get(key) ??

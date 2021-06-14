@@ -2,10 +2,7 @@
 
 import type {
   Async,
-  FilePath,
-  DependencySpecifier,
   Symbol,
-  SourceLocation,
   Meta,
 } from '@parcel/types';
 import type {SharedReference} from '@parcel/workers';
@@ -29,7 +26,6 @@ import type {PathRequestInput} from './PathRequest';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
-import path from 'path';
 import {PromiseQueue} from '@parcel/utils';
 import {hashString} from '@parcel/hash';
 import ThrowableDiagnostic, {md} from '@parcel/diagnostic';

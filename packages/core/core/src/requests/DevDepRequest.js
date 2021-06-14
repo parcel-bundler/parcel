@@ -1,5 +1,5 @@
 // @flow
-import type {DevDepOptions, DependencySpecifier, FilePath} from '@parcel/types';
+import type {DependencySpecifier} from '@parcel/types';
 import type ParcelConfig from '../ParcelConfig';
 import type {
   DevDepRequest,
@@ -43,7 +43,7 @@ export async function createDevDependency(
   let resolveFromAbsolute = fromProjectPath(options.projectRoot, resolveFrom);
 
   // Ensure that the package manager has an entry for this resolution.
-  await options.packageManager.resolve(moduleSpecifier, resolveFromAbsolute);
+  await options.packageManager.resolve(specifier, resolveFromAbsolute);
   let invalidations = options.packageManager.getInvalidations(
     specifier,
     resolveFromAbsolute,
@@ -150,7 +150,10 @@ export function invalidateDevDeps(
     let key = `${specifier}:${fromProjectPathRelative(resolveFrom)}`;
     if (!invalidatedDevDeps.has(key)) {
       config.invalidatePlugin(specifier);
-      options.packageManager.invalidate(specifier, fromProjectPath(options.projectRoot, resolveFrom));
+      options.packageManager.invalidate(
+        specifier,
+        fromProjectPath(options.projectRoot, resolveFrom),
+      );
       invalidatedDevDeps.set(key, true);
     }
   }

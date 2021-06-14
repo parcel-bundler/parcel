@@ -1,13 +1,19 @@
 // @flow strict-local
 
 import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
-import type {BundleGroup} from '@parcel/types';
+import type {
+  BundleGroup,
+  FilePath,
+  FileCreateInvalidation,
+  SourceLocation,
+} from '@parcel/types';
 import type {
   ParcelOptions,
   InternalFileCreateInvalidation,
   InternalSourceLocation,
 } from './types';
 
+import invariant from 'assert';
 import baseX from 'base-x';
 import {hashObject} from '@parcel/utils';
 import {registerSerializableClass} from './serializer';

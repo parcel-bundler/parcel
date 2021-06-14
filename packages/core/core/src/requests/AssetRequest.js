@@ -18,7 +18,7 @@ import {hashString} from '@parcel/hash';
 import createParcelConfigRequest from './ParcelConfigRequest';
 import {runDevDepRequest} from './DevDepRequest';
 import {runConfigRequest} from './ConfigRequest';
-import {fromProjectPathRelative} from '../projectPath';
+import {fromProjectPath, fromProjectPathRelative} from '../projectPath';
 import {report} from '../ReporterRunner';
 
 type RunInput = {|
@@ -51,7 +51,7 @@ function getId(input: AssetRequestInput) {
   let {optionsRef, ...hashInput} = input;
   return hashString(
     type +
-      input.filePath +
+      fromProjectPathRelative(input.filePath) +
       input.env.id +
       String(input.isSource) +
       String(input.sideEffects) +
@@ -63,11 +63,11 @@ function getId(input: AssetRequestInput) {
   );
 }
 
-async function run({input, api, farm, invalidateReason}: RunInput) {
+async function run({input, api, farm, invalidateReason, options}: RunInput) {
   report({
     type: 'buildProgress',
     phase: 'transforming',
-    filePath: input.filePath,
+    filePath: fromProjectPath(options.projectRoot, input.filePath),
   });
 
   api.invalidateOnFileUpdate(input.filePath);

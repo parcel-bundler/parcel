@@ -4,7 +4,6 @@ import type {
   AST,
   Blob,
   DependencyOptions,
-  FilePath,
   FileCreateInvalidation,
   GenerateOutput,
   PackageName,
@@ -24,9 +23,10 @@ import SourceMap from '@parcel/source-map';
 import {
   blobToStream,
   bufferStream,
-  blobToStream,
   streamFromPromise,
   TapStream,
+  loadSourceMap,
+  SOURCEMAP_RE,
 } from '@parcel/utils';
 import {hashString} from '@parcel/hash';
 import {serializeRaw} from './serializer';
@@ -41,7 +41,7 @@ import {
 } from './assetUtils';
 import {BundleBehaviorNames} from './types';
 import {invalidateOnFileCreateToInternal} from './utils';
-import {type ProjectPath, fromProjectPath, toProjectPath} from './projectPath';
+import {type ProjectPath, fromProjectPath} from './projectPath';
 
 type UncommittedAssetOptions = {|
   value: Asset,
@@ -274,8 +274,12 @@ export default class UncommittedAsset {
     // If we have sourceContent available, it means this asset is source code without
     // a previous source map. Ensure that the map set by the transformer has the original
     // source content available.
-    if (map && this.sourceContent != null) {
-      map.setSourceContent(this.value.filePath, this.sourceContent);
+    let sourceContent = this.sourceContent;
+    if (map && sourceContent != null) {
+      map.setSourceContent(
+        fromProjectPath(this.options.projectRoot, this.value.filePath),
+        sourceContent,
+      );
     }
 
     this.map = map;
@@ -312,7 +316,6 @@ export default class UncommittedAsset {
     let {env, symbols, ...rest} = opts;
     let dep = createDependency(this.options.projectRoot, {
       ...rest,
-      resolveFrom: resolveFrom,
       // $FlowFixMe "convert" the $ReadOnlyMaps to the interal mutable one
       symbols,
       env: mergeEnvironments(this.value.env, env),

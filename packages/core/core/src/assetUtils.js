@@ -72,7 +72,10 @@ type AssetOptions = {|
 
 export function createAssetIdFromOptions(options: AssetOptions): string {
   let uniqueKey = options.uniqueKey ?? '';
-  let idBase = options.idBase != null ? options.idBase : options.filePath;
+  let idBase =
+    options.idBase != null
+      ? options.idBase
+      : fromProjectPathRelative(options.filePath);
   let queryString = options.query
     ? JSON.stringify(objectSortedEntries(options.query))
     : '';
@@ -230,7 +233,10 @@ export async function getInvalidationHash(
         // Only recompute the hash of this file if we haven't seen it already during this build.
         let fileHash = hashCache.get(invalidation.filePath);
         if (fileHash == null) {
-          fileHash = hashFile(options.inputFS, fromProjectPath(options.projectRoot, invalidation.filePath));
+          fileHash = hashFile(
+            options.inputFS,
+            fromProjectPath(options.projectRoot, invalidation.filePath),
+          );
           hashCache.set(invalidation.filePath, fileHash);
         }
         hashes += await fileHash;

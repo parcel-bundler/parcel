@@ -14,6 +14,7 @@ import type {
   DependencySpecifier,
   PackageName,
   ReporterEvent,
+  SemverRange,
   ServerOptions,
   Stats,
   Symbol,
@@ -426,8 +427,9 @@ export type BundleGraphNode =
   | BundleNode;
 
 export type InternalDevDepOptions = {|
-  moduleSpecifier: ModuleSpecifier,
+  specifier: DependencySpecifier,
   resolveFrom: ProjectPath,
+  range?: ?SemverRange,
   invalidateParcelPlugin?: boolean,
 |};
 
@@ -502,7 +504,7 @@ export type BundleGroupNode = {|
 |};
 
 export type PackagedBundleInfo = {|
-  filePath: FilePath,
+  filePath: ProjectPath,
   stats: Stats,
 |};
 

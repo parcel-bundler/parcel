@@ -156,7 +156,6 @@ export default (new Transformer({
               loc: createLoc(
                 nullthrows(decl.source.start),
                 decl.source.input.file ?? asset.filePath,
-                node.nodes[0].value,
                 0,
                 node.nodes[0].sourceIndex,
               ),

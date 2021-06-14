@@ -64,7 +64,9 @@ export default class PublicConfig implements IConfig {
   }
 
   invalidateOnFileChange(filePath: FilePath) {
-    this.#config.invalidateOnFileChange.add(toProjectPath(this.#options.projectRoot, filePath));
+    this.#config.invalidateOnFileChange.add(
+      toProjectPath(this.#options.projectRoot, filePath),
+    );
   }
 
   addDevDependency(devDep: DevDepOptions) {

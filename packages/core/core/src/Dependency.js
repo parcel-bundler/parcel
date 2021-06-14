@@ -10,7 +10,6 @@ import type {Dependency, Environment, Target} from './types';
 import {hashString} from '@parcel/hash';
 import {SpecifierType, Priority} from './types';
 
-import {md5FromOrderedObject} from '@parcel/utils';
 import {toInternalSourceLocation} from './utils';
 import {toProjectPath} from './projectPath';
 

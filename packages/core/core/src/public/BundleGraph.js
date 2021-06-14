@@ -282,7 +282,7 @@ export default class BundleGraph<TBundle: IBundle>
             ? {type: 'asset', value: assetFromValue(node.value, this.#options)}
             : {
                 type: 'dependency',
-                value: new Dependency(node.value),
+                value: new Dependency(node.value, this.#options),
               },
         visit,
       ),

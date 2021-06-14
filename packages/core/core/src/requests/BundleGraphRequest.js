@@ -13,7 +13,6 @@ import type {
 import type {ConfigAndCachePath} from './ParcelConfigRequest';
 
 import assert from 'assert';
-import path from 'path';
 import nullthrows from 'nullthrows';
 import {PluginLogger} from '@parcel/logger';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';

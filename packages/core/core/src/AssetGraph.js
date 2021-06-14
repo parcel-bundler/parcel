@@ -55,7 +55,7 @@ export function nodeFromDep(dep: Dependency): DependencyNode {
 export function nodeFromAssetGroup(assetGroup: AssetGroup): AssetGroupNode {
   return {
     id: hashString(
-      assetGroup.filePath +
+      fromProjectPathRelative(assetGroup.filePath) +
         assetGroup.env.id +
         String(assetGroup.isSource) +
         String(assetGroup.sideEffects) +
@@ -216,7 +216,8 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
   ) {
     let depNodes = targets.map(target => {
       let node = nodeFromDep(
-        createDependency({
+        // The passed project path is ignored in this case, because there is no `loc`
+        createDependency('', {
           specifier: fromProjectPathRelative(entry.filePath),
           specifierType: 'esm', // ???
           pipeline: target.pipeline,
