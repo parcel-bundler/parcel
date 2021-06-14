@@ -155,7 +155,7 @@ export default (new Transformer({
             let url = asset.addURLDependency(node.nodes[0].value, {
               loc: createLoc(
                 nullthrows(decl.source.start),
-                decl.source.input.file ?? asset.filePath,
+                node.nodes[0].value,
                 0,
                 node.nodes[0].sourceIndex,
               ),
