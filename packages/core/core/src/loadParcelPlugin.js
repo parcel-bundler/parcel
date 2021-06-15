@@ -1,5 +1,5 @@
 // @flow
-import type {FilePath, PackageName, Semver} from '@parcel/types';
+import type {FilePath, PackageName, Semver, SemverRange} from '@parcel/types';
 import type {ParcelOptions} from './types';
 
 import semver from 'semver';
@@ -25,13 +25,21 @@ export default async function loadPlugin<T>(
   configPath: FilePath,
   keyPath?: string,
   options: ParcelOptions,
-): Promise<{|plugin: T, version: Semver, resolveFrom: FilePath|}> {
+): Promise<{|
+  plugin: T,
+  version: Semver,
+  resolveFrom: FilePath,
+  range: ?SemverRange,
+|}> {
   let resolveFrom = configPath;
   let range;
   if (resolveFrom.includes(NODE_MODULES)) {
-    let configPkg = await loadConfig(options.inputFS, resolveFrom, [
-      'package.json',
-    ]);
+    let configPkg = await loadConfig(
+      options.inputFS,
+      resolveFrom,
+      ['package.json'],
+      options.projectRoot,
+    );
     if (
       configPkg != null &&
       configPkg.config.dependencies?.[pluginName] == null
@@ -139,7 +147,12 @@ export default async function loadPlugin<T>(
     !semver.satisfies(PARCEL_VERSION, parcelVersionRange)
   ) {
     let pkgFile = nullthrows(
-      await resolveConfig(options.inputFS, resolved, ['package.json']),
+      await resolveConfig(
+        options.inputFS,
+        resolved,
+        ['package.json'],
+        options.projectRoot,
+      ),
     );
     let pkgContents = await options.inputFS.readFile(pkgFile, 'utf8');
     throw new ThrowableDiagnostic({
@@ -173,5 +186,5 @@ export default async function loadPlugin<T>(
       `Plugin ${pluginName} is not a valid Parcel plugin, should export an instance of a Parcel plugin ex. "export default new Reporter({ ... })".`,
     );
   }
-  return {plugin, version: nullthrows(pkg).version, resolveFrom};
+  return {plugin, version: nullthrows(pkg).version, resolveFrom, range};
 }

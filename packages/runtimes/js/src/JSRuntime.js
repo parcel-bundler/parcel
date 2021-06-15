@@ -144,14 +144,12 @@ export default (new Runtime({
       // Otherwise, try to resolve the dependency to an external bundle group
       // and insert a URL to that bundle.
       let resolved = bundleGraph.resolveAsyncDependency(dependency, bundle);
-      if (dependency.isURL && resolved == null) {
+      if (dependency.specifierType === 'url' && resolved == null) {
         // If a URL dependency was not able to be resolved, add a runtime that
-        // exports the original moduleSpecifier.
+        // exports the original specifier.
         assets.push({
           filePath: __filename,
-          code: `module.exports = ${JSON.stringify(
-            dependency.moduleSpecifier,
-          )}`,
+          code: `module.exports = ${JSON.stringify(dependency.specifier)}`,
           dependency,
         });
         continue;
@@ -173,7 +171,7 @@ export default (new Runtime({
         assets.push({
           filePath: __filename,
           dependency,
-          code: `module.exports = require("./" + ${getRelativePathExpr(
+          code: `module.exports = __parcel__require__("./" + ${getRelativePathExpr(
             bundle,
             mainBundle,
             options,
@@ -255,7 +253,10 @@ function getDependencies(
       }
 
       let dependency = node.value;
-      if (dependency.isAsync && !dependency.isURL) {
+      if (
+        dependency.priority === 'lazy' &&
+        dependency.specifierType !== 'url'
+      ) {
         asyncDependencies.push(dependency);
       } else {
         otherDependencies.push(dependency);
@@ -315,7 +316,11 @@ function getLoaderRuntime({
 
   // Determine if we need to add a dynamic import() polyfill, or if all target browsers support it natively.
   let needsDynamicImportPolyfill = false;
-  if (bundle.env.isBrowser() && bundle.env.outputFormat === 'esmodule') {
+  if (
+    !bundle.env.isLibrary &&
+    bundle.env.isBrowser() &&
+    bundle.env.outputFormat === 'esmodule'
+  ) {
     needsDynamicImportPolyfill = !bundle.env.matchesEngines(
       DYNAMIC_IMPORT_BROWSERS,
     );
@@ -333,7 +338,7 @@ function getLoaderRuntime({
       // Use esmodule loader if possible
       if (to.type === 'js' && to.env.outputFormat === 'esmodule') {
         if (!needsDynamicImportPolyfill) {
-          return `import("./" + ${relativePathExpr})`;
+          return `__parcel__import__("./" + ${relativePathExpr})`;
         }
 
         loader = nullthrows(
@@ -341,7 +346,7 @@ function getLoaderRuntime({
           `No import() polyfill available for context '${bundle.env.context}'`,
         );
       } else if (to.type === 'js' && to.env.outputFormat === 'commonjs') {
-        return `Promise.resolve(require("./" + ${relativePathExpr}))`;
+        return `Promise.resolve(__parcel__require__("./" + ${relativePathExpr}))`;
       }
 
       let code = `require(${JSON.stringify(
@@ -394,36 +399,19 @@ function getLoaderRuntime({
   }
 
   let loaderCode = loaderModules.join(', ');
-  if (
-    loaderModules.length > 1 &&
-    (bundle.env.outputFormat === 'global' ||
-      !externalBundles.every(b => b.type === 'js'))
-  ) {
+  if (loaderModules.length > 1) {
     loaderCode = `Promise.all([${loaderCode}])`;
-    if (bundle.env.outputFormat !== 'global') {
-      loaderCode += `.then(r => r[r.length - 1])`;
-    }
   } else {
     loaderCode = `(${loaderCode})`;
   }
 
-  if (bundle.env.outputFormat === 'global' && mainBundle.type === 'js') {
-    loaderCode += `.then(() => {
-      module.bundle.root._loadedBundles = module.bundle.root._loadedBundles || {};
-      var externalBundleIds = [${externalBundles
-        .map(b => "'" + b.publicId + "'")
-        .join(',')}];
-      for(var j = 0; j < externalBundleIds.length; j++){
-        module.bundle.root._loadedBundles[externalBundleIds[j]] = true;
-      };
-      return module.bundle.root('${bundleGraph.getAssetPublicId(
-        bundleGraph.getAssetById(bundleGroup.entryAssetId),
-      )}')${
-      // In global output with scope hoisting, functions return exports are
-      // always returned. Otherwise, the exports are returned.
-      bundle.env.shouldScopeHoist ? '()' : ''
-    };
-    })`;
+  if (mainBundle.type === 'js') {
+    let parcelRequire = bundle.env.shouldScopeHoist
+      ? 'parcelRequire'
+      : 'module.bundle.root';
+    loaderCode += `.then(() => ${parcelRequire}('${bundleGraph.getAssetPublicId(
+      bundleGraph.getAssetById(bundleGroup.entryAssetId),
+    )}'))`;
   }
 
   return {

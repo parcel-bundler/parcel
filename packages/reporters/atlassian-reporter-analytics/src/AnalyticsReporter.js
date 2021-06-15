@@ -68,7 +68,6 @@ to send us your feedback or questions!
                 bundle = {
                   filePath: path.relative(options.projectRoot, filePath),
                   name: event.bundle.name,
-                  stats: event.bundle.stats,
                 };
             }
 

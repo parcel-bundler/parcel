@@ -40,6 +40,10 @@ describe('html', function() {
         assets: ['index.html'],
       },
       {
+        name: 'index.html',
+        assets: ['index.html'],
+      },
+      {
         type: 'png',
         assets: ['100x100.png'],
       },
@@ -67,8 +71,7 @@ describe('html', function() {
       'utf8',
     );
     for (let file of files) {
-      let ext = file.match(/\.([0-9a-z]+)(?:[?#]|$)/i)[0];
-      if (file !== 'index.html' && ext !== '.map') {
+      if (file !== 'index.html' && path.extname(file) !== '.map') {
         assert(html.includes(file));
       }
     }
@@ -137,12 +140,12 @@ describe('html', function() {
 
     assertBundles(b, [
       {
-        name: 'index.html',
+        type: 'js',
         assets: ['index.html'],
       },
       {
-        type: 'js',
-        assets: ['HMRRuntime.js', 'index.html'],
+        name: 'index.html',
+        assets: ['index.html'],
       },
     ]);
   });
@@ -1194,8 +1197,6 @@ describe('html', function() {
           'index.js',
           'index.js',
           'js-loader.js',
-          'JSRuntime.js',
-          'JSRuntime.js',
           'relative-path.js',
         ],
       },
@@ -1280,9 +1281,6 @@ describe('html', function() {
           'get-worker-url.js',
           'index.js',
           'js-loader.js',
-          'JSRuntime.js',
-          'JSRuntime.js',
-          'JSRuntime.js',
           'relative-path.js',
         ],
       },
@@ -1347,9 +1345,6 @@ describe('html', function() {
           'get-worker-url.js',
           'index.js',
           'js-loader.js',
-          'JSRuntime.js',
-          'JSRuntime.js',
-          'JSRuntime.js',
           'relative-path.js',
         ],
       },
@@ -1549,30 +1544,30 @@ describe('html', function() {
     });
 
     let html = await outputFS.readFile(path.join(distDir, 'a.html'), 'utf8');
-    // ATLASSIAN : number of bundles are different due to additional rules
+    // ATLASSIAN: We don't create shared bundles across contexts yet
     assert.equal(html.match(/<script/g).length, 3);
 
     html = await outputFS.readFile(path.join(distDir, 'b.html'), 'utf8');
-    // ATLASSIAN : number of bundles are different due to additional rules
-    assert.equal(html.match(/<script/g).length, 5);
-
-    html = await outputFS.readFile(path.join(distDir, 'c.html'), 'utf8');
-    // ATLASSIAN : number of bundles are different due to additional rules
+    // ATLASSIAN: We don't create shared bundles across contexts yet
     assert.equal(html.match(/<script/g).length, 4);
 
+    // ATLASSIAN: We don't create shared bundles across contexts yet
+    html = await outputFS.readFile(path.join(distDir, 'c.html'), 'utf8');
+    assert.equal(html.match(/<script/g).length, 4);
+
+    // ATLASSIAN: We don't create shared bundles across contexts yet
     html = await outputFS.readFile(path.join(distDir, 'd.html'), 'utf8');
-    // ATLASSIAN : number of bundles are different due to additional rules
     assert.equal(html.match(/<script/g).length, 3);
 
     html = await outputFS.readFile(path.join(distDir, 'e.html'), 'utf8');
-    assert.equal(html.match(/<script/g).length, 1);
+    assert.equal(html.match(/<script/g).length, 2);
 
     html = await outputFS.readFile(path.join(distDir, 'f.html'), 'utf8');
-    assert.equal(html.match(/<script/g).length, 1);
+    assert.equal(html.match(/<script/g).length, 3);
 
     // b.html hitting the parallel request limit should not prevent g.html from being optimized
     html = await outputFS.readFile(path.join(distDir, 'g.html'), 'utf8');
-    assert.equal(html.match(/<script/g).length, 2);
+    assert.equal(html.match(/<script/g).length, 5);
   });
 
   it('should not add CSS to a worker bundle group', async function() {
@@ -1601,7 +1596,6 @@ describe('html', function() {
           'esmodule-helpers.js',
           'get-worker-url.js',
           'index.js',
-          'JSRuntime.js',
         ],
       },
     ]);

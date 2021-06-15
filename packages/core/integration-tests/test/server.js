@@ -161,16 +161,24 @@ describe('server', function() {
     subscription = await b.watch();
     await getNextBuild(b);
 
-    let outputFile = await outputFS.readFile(
+    let rootIndexFile = await outputFS.readFile(
       path.join(distDir, 'index.html'),
       'utf8',
     );
 
     let data = await get('/', port);
-    assert.equal(data, outputFile);
+    assert.equal(data, rootIndexFile);
+
+    let fooIndexFile = await outputFS.readFile(
+      path.join(distDir, 'foo/index.html'),
+      'utf8',
+    );
+
+    data = await get('/foo', port);
+    assert.equal(data, fooIndexFile);
 
     data = await get('/foo/bar', port);
-    assert.equal(data, outputFile);
+    assert.equal(data, fooIndexFile);
   });
 
   it('should serve a default page if the main bundle is an HTML asset even if it is not called index', async function() {
@@ -191,16 +199,19 @@ describe('server', function() {
     subscription = await b.watch();
     await getNextBuild(b);
 
-    let outputFile = await outputFS.readFile(
+    let rootIndexFile = await outputFS.readFile(
       path.join(distDir, 'other.html'),
       'utf8',
     );
 
     let data = await get('/', port);
-    assert.equal(data, outputFile);
+    assert.equal(data, rootIndexFile);
+
+    data = await get('/foo', port);
+    assert.equal(data, rootIndexFile);
 
     data = await get('/foo/bar', port);
-    assert.equal(data, outputFile);
+    assert.equal(data, rootIndexFile);
   });
 
   it('should serve a default page if the main bundle is an HTML asset with package.json#source', async function() {
@@ -291,7 +302,7 @@ describe('server', function() {
       await get('/index.js', port);
     } catch (err) {
       statusCode = err.statusCode;
-      assert(err.data.includes('Expecting Unicode escape sequence'));
+      assert(err.data.includes('Expected unicode escape'));
     }
 
     assert.equal(statusCode, 500);
@@ -477,6 +488,12 @@ describe('server', function() {
         assets: ['index.html'],
       },
       {
+        // index.html
+        name: 'index.html',
+        assets: ['index.html'],
+      },
+      {
+        // foo/index.html
         name: 'index.html',
         assets: ['index.html'],
       },
@@ -504,7 +521,7 @@ describe('server', function() {
 
     // Sibling bundles should have been fully written to disk, but not async bundles.
     dir = await outputFS.readdir(distDir);
-    assert.deepEqual(dir.length, 7);
+    assert.deepEqual(dir.length, 8);
     assert(!dir.includes('other.html'));
   });
 
@@ -563,8 +580,6 @@ describe('server', function() {
           'css-loader.js',
           'index.js',
           'js-loader.js',
-          'JSRuntime.js',
-          'JSRuntime.js',
         ],
       },
       {name: /local\.[0-9a-f]{8}\.js/, assets: ['local.js']},
@@ -605,12 +620,10 @@ describe('server', function() {
           'css-loader.js',
           'index.js',
           'js-loader.js',
-          'JSRuntime.js',
-          'JSRuntime.js',
         ],
       },
       {name: 'index.css', assets: ['index.css']},
-      {name: /local\.[0-9a-f]{8}\.js/, assets: ['local.js', 'JSRuntime.js']},
+      {name: /local\.[0-9a-f]{8}\.js/, assets: ['local.js']},
       {name: /local\.[0-9a-f]{8}\.css/, assets: ['local.css']},
     ]);
 

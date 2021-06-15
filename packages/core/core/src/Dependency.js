@@ -2,22 +2,23 @@
 import type {
   SourceLocation,
   Meta,
-  ModuleSpecifier,
+  DependencySpecifier,
   Symbol,
 } from '@parcel/types';
-import {md5FromOrderedObject} from '@parcel/utils';
 import type {Dependency, Environment, Target} from './types';
+import {hashString} from '@parcel/hash';
+import {SpecifierType, Priority} from './types';
 
 type DependencyOpts = {|
   id?: string,
   sourcePath?: string,
   sourceAssetId?: string,
-  moduleSpecifier: ModuleSpecifier,
-  isAsync?: boolean,
+  specifier: DependencySpecifier,
+  specifierType: $Keys<typeof SpecifierType>,
+  priority?: $Keys<typeof Priority>,
+  needsStableName?: boolean,
   isEntry?: boolean,
   isOptional?: boolean,
-  isURL?: boolean,
-  isIsolated?: boolean,
   loc?: SourceLocation,
   env: Environment,
   meta?: Meta,
@@ -33,22 +34,22 @@ type DependencyOpts = {|
 export function createDependency(opts: DependencyOpts): Dependency {
   let id =
     opts.id ||
-    md5FromOrderedObject({
-      sourceAssetId: opts.sourceAssetId,
-      moduleSpecifier: opts.moduleSpecifier,
-      env: opts.env.id,
-      target: opts.target,
-      pipeline: opts.pipeline,
-    });
+    hashString(
+      (opts.sourceAssetId ?? '') +
+        opts.specifier +
+        opts.env.id +
+        (opts.target ? JSON.stringify(opts.target) : '') +
+        (opts.pipeline ?? ''),
+    );
 
   return {
     ...opts,
     id,
-    isAsync: opts.isAsync ?? false,
-    isEntry: opts.isEntry,
+    specifierType: SpecifierType[opts.specifierType],
+    priority: Priority[opts.priority ?? 'sync'],
+    needsStableName: opts.needsStableName ?? false,
+    isEntry: opts.isEntry ?? false,
     isOptional: opts.isOptional ?? false,
-    isURL: opts.isURL ?? false,
-    isIsolated: opts.isIsolated ?? false,
     meta: opts.meta || {},
     symbols: opts.symbols,
   };

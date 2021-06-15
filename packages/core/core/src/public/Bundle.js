@@ -1,6 +1,10 @@
 // @flow strict-local
 
-import type {Bundle as InternalBundle, ParcelOptions} from '../types';
+import type {
+  Bundle as InternalBundle,
+  ParcelOptions,
+  PackagedBundleInfo,
+} from '../types';
 import type {
   Asset as IAsset,
   Bundle as IBundle,
@@ -127,22 +131,6 @@ export class Bundle implements IBundle {
     return new Target(this.#bundle.target);
   }
 
-  get name(): ?string {
-    return this.#bundle.name;
-  }
-
-  get displayName(): ?string {
-    return this.#bundle.displayName;
-  }
-
-  get stats(): Stats {
-    return this.#bundle.stats;
-  }
-
-  get pipeline(): ?string {
-    return this.#bundle.pipeline;
-  }
-
   hasAsset(asset: IAsset): boolean {
     return this.#bundleGraph.bundleHasAsset(
       this.#bundle,
@@ -159,7 +147,7 @@ export class Bundle implements IBundle {
 
   getEntryAssets(): Array<IAsset> {
     return this.#bundle.entryAssetIds.map(id => {
-      let assetNode = this.#bundleGraph._graph.getNode(id);
+      let assetNode = this.#bundleGraph._graph.getNodeByContentKey(id);
       invariant(assetNode != null && assetNode.type === 'asset');
       return assetFromValue(assetNode.value, this.#options);
     });
@@ -167,7 +155,7 @@ export class Bundle implements IBundle {
 
   getMainEntry(): ?IAsset {
     if (this.#bundle.mainEntryId != null) {
-      let assetNode = this.#bundleGraph._graph.getNode(
+      let assetNode = this.#bundleGraph._graph.getNodeByContentKey(
         this.#bundle.mainEntryId,
       );
       invariant(assetNode != null && assetNode.type === 'asset');
@@ -256,6 +244,7 @@ export class NamedBundle extends Bundle implements INamedBundle {
 export class PackagedBundle extends NamedBundle implements IPackagedBundle {
   #bundle /*: InternalBundle */;
   #bundleGraph /*: BundleGraph */;
+  #bundleInfo /*: ?PackagedBundleInfo */;
 
   constructor(
     sentinel: mixed,
@@ -294,7 +283,26 @@ export class PackagedBundle extends NamedBundle implements IPackagedBundle {
     return packagedBundle;
   }
 
+  static getWithInfo(
+    internalBundle: InternalBundle,
+    bundleGraph: BundleGraph,
+    options: ParcelOptions,
+    bundleInfo: ?PackagedBundleInfo,
+  ): PackagedBundle {
+    let packagedBundle = PackagedBundle.get(
+      internalBundle,
+      bundleGraph,
+      options,
+    );
+    packagedBundle.#bundleInfo = bundleInfo;
+    return packagedBundle;
+  }
+
   get filePath(): string {
-    return nullthrows(this.#bundle.filePath);
+    return nullthrows(this.#bundleInfo).filePath;
+  }
+
+  get stats(): Stats {
+    return nullthrows(this.#bundleInfo).stats;
   }
 }

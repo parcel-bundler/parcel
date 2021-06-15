@@ -5,7 +5,7 @@ import {Bundle, NamedBundle, PackagedBundle} from '../src/public/Bundle';
 import BundleGraph from '../src/BundleGraph';
 import {createEnvironment} from '../src/Environment';
 import {DEFAULT_OPTIONS} from './test-utils';
-import Graph from '../src/Graph';
+import ContentGraph from '../src/ContentGraph';
 
 describe('Public Bundle', () => {
   let internalBundle;
@@ -19,7 +19,6 @@ describe('Public Bundle', () => {
       mainEntryId: null,
       type: 'js',
       env,
-      filePath: null,
       name: null,
       displayName: null,
       publicId: null,
@@ -33,11 +32,10 @@ describe('Public Bundle', () => {
         name: '',
         publicUrl: '',
       },
-      stats: {size: 0, time: 0},
     };
 
     bundleGraph = new BundleGraph({
-      graph: new Graph(),
+      graph: new ContentGraph(),
       assetPublicIds: new Set(),
       publicIdByAssetId: new Map(),
       bundleContentHashes: new Map(),

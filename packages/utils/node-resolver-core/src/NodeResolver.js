@@ -16,6 +16,7 @@ import {
   normalizeSeparators,
   findAlternativeNodeModules,
   findAlternativeFiles,
+  loadConfig,
 } from '@parcel/utils';
 import ThrowableDiagnostic, {
   generateJSONCodeHighlights,
@@ -426,6 +427,7 @@ export default class NodeResolver {
         this.fs,
         relativeFileSpecifier,
         parentdir,
+        this.projectRoot,
       );
 
       throw new ThrowableDiagnostic({
@@ -578,6 +580,7 @@ export default class NodeResolver {
           this.fs,
           fileSpecifier,
           pkg.pkgdir,
+          this.projectRoot,
         );
 
         let alternative = alternatives[0];
@@ -651,6 +654,13 @@ export default class NodeResolver {
     ctx.invalidateOnFileChange.add(file);
     let pkg = JSON.parse(json);
 
+    await this.processPackage(pkg, file, dir);
+
+    this.packageCache.set(file, pkg);
+    return pkg;
+  }
+
+  async processPackage(pkg: InternalPackageJSON, file: string, dir: string) {
     pkg.pkgfile = file;
     pkg.pkgdir = dir;
 
@@ -662,9 +672,6 @@ export default class NodeResolver {
         delete pkg.source;
       }
     }
-
-    this.packageCache.set(file, pkg);
-    return pkg;
   }
 
   getPackageEntries(
@@ -804,23 +811,28 @@ export default class NodeResolver {
       return null;
     }
 
-    // Resolve aliases in the package.source, package.alias, and package.browser fields.
-    let pkgKeys = [
-      'source',
-      // ATLASSIAN: Allow a custom fieldname to be specified so that we can have different aliases for different builds (i.e. SSR and client side builds)
-      this.aliasField,
-    ];
-    if (env.isBrowser()) pkgKeys.push('browser');
-
-    for (let pkgKey of pkgKeys) {
-      let pkgKeyValue = pkg[pkgKey];
-      if (!Array.isArray(pkgKeyValue)) {
-        let alias = await this.getAlias(filename, pkg, pkgKeyValue);
-        if (alias != null) {
-          return alias;
-        }
+    if (pkg.source && !Array.isArray(pkg.source)) {
+      let alias = await this.getAlias(filename, pkg, pkg.source);
+      if (alias != null) {
+        return alias;
       }
     }
+
+    // ATLASSIAN: Allow a custom fieldname to be specified so that we can have different aliases for different builds (i.e. SSR and client side builds)
+    if (pkg[this.aliasField]) {
+      let alias = await this.getAlias(filename, pkg, pkg[this.aliasField]);
+      if (alias != null) {
+        return alias;
+      }
+    }
+
+    if (pkg.browser && env.isBrowser()) {
+      let alias = await this.getAlias(filename, pkg, pkg.browser);
+      if (alias != null) {
+        return alias;
+      }
+    }
+
     return null;
   }
 
@@ -922,7 +934,7 @@ export default class NodeResolver {
     return alias;
   }
 
-  findPackage(
+  async findPackage(
     sourceFile: string,
     ctx: ResolverContext,
   ): Promise<InternalPackageJSON | null> {
@@ -932,13 +944,26 @@ export default class NodeResolver {
     });
 
     // Find the nearest package.json file within the current node_modules folder
-    let dir = path.dirname(sourceFile);
-    let pkgFile = this.fs.findAncestorFile(['package.json'], dir);
-    if (pkgFile) {
-      return this.readPackage(path.dirname(pkgFile), ctx);
+    let res = await loadConfig(
+      this.fs,
+      sourceFile,
+      ['package.json'],
+      this.projectRoot,
+      // By default, loadConfig uses JSON5. Use normal JSON for package.json files
+      // since they don't support comments and JSON.parse is faster.
+      {parser: JSON.parse},
+    );
+
+    if (res != null) {
+      let file = res.files[0].filePath;
+      let dir = path.dirname(file);
+      ctx.invalidateOnFileChange.add(file);
+      let pkg = res.config;
+      await this.processPackage(pkg, file, dir);
+      return pkg;
     }
 
-    return Promise.resolve(null);
+    return null;
   }
 
   async loadAlias(

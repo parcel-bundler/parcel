@@ -60,8 +60,9 @@ function traverseWalk<T>(
   listkey,
   key,
 ) {
-  if (!node || (visitors.shouldSkip && visitors.shouldSkip(node) === true))
+  if (!node || (visitors.shouldSkip && visitors.shouldSkip(node) === true)) {
     return;
+  }
 
   const {enter, exit} = visitors[node.type] || {};
 

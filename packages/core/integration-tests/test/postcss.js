@@ -2,6 +2,7 @@ import assert from 'assert';
 import path from 'path';
 import {
   bundle,
+  bundler,
   run,
   assertBundles,
   distDir,
@@ -9,6 +10,7 @@ import {
   outputFS,
   overlayFS,
   ncp,
+  getNextBuild,
 } from '@parcel/test-utils';
 import {
   NodePackageManager,
@@ -388,10 +390,11 @@ describe('postcss', () => {
   });
 
   it('should automatically install postcss plugins if needed', async () => {
-    await outputFS.rimraf(path.join(__dirname, '/input'));
+    let inputDir = path.join(__dirname, '/input');
+    await outputFS.rimraf(inputDir);
     await ncp(
       path.join(__dirname, '/integration/postcss-autoinstall/npm'),
-      path.join(__dirname, '/input'),
+      inputDir,
     );
 
     let packageInstaller = new MockPackageInstaller();
@@ -403,7 +406,11 @@ describe('postcss', () => {
 
     // The package manager uses an overlay filesystem, which performs writes to
     // an in-memory fs and reads first from memory, then falling back to the real fs.
-    let packageManager = new NodePackageManager(overlayFS, packageInstaller);
+    let packageManager = new NodePackageManager(
+      overlayFS,
+      inputDir,
+      packageInstaller,
+    );
 
     let distDir = path.join(outputFS.cwd(), 'dist');
 
@@ -448,8 +455,7 @@ describe('postcss', () => {
     ]);
 
     let css = await outputFS.readFile(path.join(distDir, 'style.css'), 'utf8');
-
-    assert.equal(css.split('red').length - 1, 2);
+    assert.equal(css.split('red').length - 1, 1);
   });
 
   it('should support using a postcss config in package.json', async function() {
@@ -496,5 +502,76 @@ describe('postcss', () => {
         assets: ['style.css'],
       },
     ]);
+  });
+
+  it('should support dir-dependency messages from plugins', async function() {
+    let inputDir = path.join(
+      __dirname,
+      '/input',
+      Math.random()
+        .toString(36)
+        .slice(2),
+    );
+    await inputFS.mkdirp(inputDir);
+    await inputFS.ncp(
+      path.join(__dirname, '/integration/postcss-dir-dependency'),
+      inputDir,
+    );
+
+    let b = await bundler(path.join(inputDir, 'index.css'));
+
+    let subscription = await b.watch();
+    let buildEvent = await getNextBuild(b);
+    assert.equal(buildEvent.type, 'buildSuccess');
+
+    let contents = await outputFS.readFile(
+      buildEvent.bundleGraph.getBundles()[0].filePath,
+      'utf8',
+    );
+    assert(contents.includes('background: green, red'));
+
+    // update
+    await inputFS.writeFile(
+      path.join(inputDir, 'backgrounds', 'green.txt'),
+      'yellow',
+    );
+
+    buildEvent = await getNextBuild(b);
+    assert.equal(buildEvent.type, 'buildSuccess');
+
+    contents = await outputFS.readFile(
+      buildEvent.bundleGraph.getBundles()[0].filePath,
+      'utf8',
+    );
+    assert(contents.includes('background: yellow, red'));
+
+    // create
+    await inputFS.writeFile(
+      path.join(inputDir, 'backgrounds', 'orange.txt'),
+      'orange',
+    );
+
+    buildEvent = await getNextBuild(b);
+    assert.equal(buildEvent.type, 'buildSuccess');
+
+    contents = await outputFS.readFile(
+      buildEvent.bundleGraph.getBundles()[0].filePath,
+      'utf8',
+    );
+    assert(contents.includes('background: yellow, orange, red'));
+
+    // delete
+    await inputFS.unlink(path.join(inputDir, 'backgrounds', 'red.txt'));
+
+    buildEvent = await getNextBuild(b);
+    assert.equal(buildEvent.type, 'buildSuccess');
+
+    contents = await outputFS.readFile(
+      buildEvent.bundleGraph.getBundles()[0].filePath,
+      'utf8',
+    );
+    assert(contents.includes('background: yellow, orange'));
+
+    await subscription.unsubscribe();
   });
 });

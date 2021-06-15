@@ -23,7 +23,7 @@ import path from 'path';
 import {
   loadConfig,
   resolveConfig,
-  md5FromObject,
+  hashObject,
   validateSchema,
 } from '@parcel/utils';
 import {createEnvironment} from '../Environment';
@@ -63,7 +63,7 @@ const type = 'target_request';
 
 export default function createTargetRequest(input: Entry): TargetRequest {
   return {
-    id: `${type}:${md5FromObject(input)}`,
+    id: `${type}:${hashObject(input)}`,
     type,
     run,
     input,
@@ -297,7 +297,12 @@ export class TargetResolver {
     exclusiveTarget?: string,
   ): Promise<Map<string, Target>> {
     let rootFile = path.join(rootDir, 'index');
-    let conf = await loadConfig(this.fs, rootFile, ['package.json']);
+    let conf = await loadConfig(
+      this.fs,
+      rootFile,
+      ['package.json'],
+      this.options.projectRoot,
+    );
 
     // Invalidate whenever a package.json file is added.
     this.api.invalidateOnFileCreate({
@@ -364,6 +369,7 @@ export class TargetResolver {
           this.fs,
           path.join(rootDir, 'index'),
           ['browserslist', '.browserslistrc'],
+          this.options.projectRoot,
         );
 
         this.api.invalidateOnFileCreate({

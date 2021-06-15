@@ -24,9 +24,9 @@
     "@parcel/ts-utils": "2.0.0-frontbucket.77"
   },
   "devDependencies": {
-    "typescript": "^3.0.0"
+    "typescript": ">=3.0.0"
   },
   "peerDependencies": {
-    "typescript": "^3.0.0"
+    "typescript": ">=3.0.0"
   }
 }

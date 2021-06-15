@@ -1,5 +1,5 @@
 // @flow
-import type {FilePath, ModuleSpecifier, SemverRange} from '@parcel/types';
+import type {FilePath, DependencySpecifier, SemverRange} from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
 import type {
   ModuleRequest,
@@ -31,8 +31,8 @@ import {NodeResolverSync} from './NodeResolverSync';
 
 // There can be more than one instance of NodePackageManager, but node has only a single module cache.
 // Therefore, the resolution cache and the map of parent to child modules should also be global.
-const cache = new Map<ModuleSpecifier, ResolveResult>();
-const children = new Map<FilePath, Set<ModuleSpecifier>>();
+const cache = new Map<DependencySpecifier, ResolveResult>();
+const children = new Map<FilePath, Set<DependencySpecifier>>();
 
 // This implements a package manager for Node by monkey patching the Node require
 // algorithm so that it uses the specified FileSystem instead of the native one.
@@ -41,38 +41,46 @@ const children = new Map<FilePath, Set<ModuleSpecifier>>();
 // for reference to Node internals.
 export class NodePackageManager implements PackageManager {
   fs: FileSystem;
+  projectRoot: FilePath;
   installer: ?PackageInstaller;
   resolver: NodeResolver;
   syncResolver: NodeResolverSync;
 
-  constructor(fs: FileSystem, installer?: ?PackageInstaller) {
+  constructor(
+    fs: FileSystem,
+    projectRoot: FilePath,
+    installer?: ?PackageInstaller,
+  ) {
     this.fs = fs;
+    this.projectRoot = projectRoot;
     this.installer = installer;
-    this.resolver = new NodeResolver(this.fs);
-    this.syncResolver = new NodeResolverSync(this.fs);
+    this.resolver = new NodeResolver(this.fs, projectRoot);
+    this.syncResolver = new NodeResolverSync(this.fs, projectRoot);
   }
 
   static deserialize(opts: any): NodePackageManager {
-    return new NodePackageManager(opts.fs, opts.installer);
+    return new NodePackageManager(opts.fs, opts.projectRoot, opts.installer);
   }
 
   serialize(): {|
     $$raw: boolean,
     fs: FileSystem,
+    projectRoot: FilePath,
     installer: ?PackageInstaller,
   |} {
     return {
       $$raw: false,
       fs: this.fs,
+      projectRoot: this.projectRoot,
       installer: this.installer,
     };
   }
 
   async require(
-    name: ModuleSpecifier,
+    name: DependencySpecifier,
     from: FilePath,
     opts: ?{|
-      range?: SemverRange,
+      range?: ?SemverRange,
       shouldAutoInstall?: boolean,
       saveDev?: boolean,
     |},
@@ -81,7 +89,7 @@ export class NodePackageManager implements PackageManager {
     return this.load(resolved, from);
   }
 
-  requireSync(name: ModuleSpecifier, from: FilePath): any {
+  requireSync(name: DependencySpecifier, from: FilePath): any {
     let {resolved} = this.resolveSync(name, from);
     return this.load(resolved, from);
   }
@@ -126,10 +134,10 @@ export class NodePackageManager implements PackageManager {
   }
 
   async resolve(
-    name: ModuleSpecifier,
+    name: DependencySpecifier,
     from: FilePath,
     options?: ?{|
-      range?: string,
+      range?: ?SemverRange,
       shouldAutoInstall?: boolean,
       saveDev?: boolean,
     |},
@@ -169,6 +177,7 @@ export class NodePackageManager implements PackageManager {
           this.fs,
           name,
           from,
+          this.projectRoot,
         );
 
         if (conflicts == null) {
@@ -210,6 +219,7 @@ export class NodePackageManager implements PackageManager {
             this.fs,
             name,
             from,
+            this.projectRoot,
           );
 
           if (conflicts == null && options?.shouldAutoInstall === true) {
@@ -276,7 +286,7 @@ export class NodePackageManager implements PackageManager {
     return resolved;
   }
 
-  resolveSync(name: ModuleSpecifier, from: FilePath): ResolveResult {
+  resolveSync(name: DependencySpecifier, from: FilePath): ResolveResult {
     let basedir = path.dirname(from);
     let key = basedir + ':' + name;
     let resolved = cache.get(key);
@@ -303,13 +313,13 @@ export class NodePackageManager implements PackageManager {
     from: FilePath,
     opts?: InstallOptions,
   ) {
-    await installPackage(this.fs, this, modules, from, {
+    await installPackage(this.fs, this, modules, from, this.projectRoot, {
       packageInstaller: this.installer,
       ...opts,
     });
   }
 
-  getInvalidations(name: ModuleSpecifier, from: FilePath): Invalidations {
+  getInvalidations(name: DependencySpecifier, from: FilePath): Invalidations {
     let res = {
       invalidateOnFileCreate: [],
       invalidateOnFileChange: new Set(),
@@ -348,7 +358,7 @@ export class NodePackageManager implements PackageManager {
     return res;
   }
 
-  invalidate(name: ModuleSpecifier, from: FilePath) {
+  invalidate(name: DependencySpecifier, from: FilePath) {
     let seen = new Set();
 
     let invalidate = (name, from) => {

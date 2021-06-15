@@ -618,8 +618,12 @@ export class MemoryFS implements FileSystem {
     await this.writeFile(snapshot, '' + this.events.length);
   }
 
-  findAncestorFile(fileNames: Array<string>, fromDir: FilePath): ?FilePath {
-    return findAncestorFile(this, fileNames, fromDir);
+  findAncestorFile(
+    fileNames: Array<string>,
+    fromDir: FilePath,
+    root: FilePath,
+  ): ?FilePath {
+    return findAncestorFile(this, fileNames, fromDir, root);
   }
 
   findNodeModule(moduleName: string, fromDir: FilePath): ?FilePath {
@@ -665,7 +669,7 @@ class FSError extends Error {
     this.name = 'FSError';
     this.code = code;
     this.path = path;
-    Error.captureStackTrace(this, this.constructor);
+    Error.captureStackTrace?.(this, this.constructor);
   }
 }
 
@@ -916,7 +920,7 @@ function makeShared(contents: Buffer | string): Buffer {
   if (typeof contents === 'string') {
     buffer.write(contents);
   } else {
-    contents.copy(buffer);
+    buffer.set(contents);
   }
 
   return buffer;

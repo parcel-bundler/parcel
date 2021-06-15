@@ -3,7 +3,7 @@ import type {TransformerResult} from '@parcel/types';
 
 import {Transformer} from '@parcel/plugin';
 import nullthrows from 'nullthrows';
-import {md5FromObject} from '@parcel/utils';
+import {hashObject} from '@parcel/utils';
 import ThrowableDiagnostic, {
   type Diagnostic,
   escapeMarkdown,
@@ -70,7 +70,7 @@ export default (new Transformer({
     };
   },
   async transform({asset, options, resolve, config}) {
-    let id = md5FromObject({
+    let id = hashObject({
       filePath: asset.filePath,
     }).slice(-6);
     let scopeId = 'data-v-' + id;
@@ -457,6 +457,6 @@ export default script => {
 
 function createMap(rawMap, projectRoot: string) {
   let newMap = new SourceMap(projectRoot);
-  newMap.addRawMappings(rawMap);
+  newMap.addVLQMap(rawMap);
   return newMap;
 }

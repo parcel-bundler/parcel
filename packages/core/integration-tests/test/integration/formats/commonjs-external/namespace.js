@@ -1,3 +1,4 @@
 import * as _ from 'lodash';
 
-export const bar = _['ad'+'d'](1, 2);
+const add = 'add';
+export const bar = _[add](1, 2);

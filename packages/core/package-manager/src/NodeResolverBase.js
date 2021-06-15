@@ -4,7 +4,7 @@ import type {
   PackageJSON,
   FileCreateInvalidation,
   FilePath,
-  ModuleSpecifier,
+  DependencySpecifier,
 } from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
 // $FlowFixMe
@@ -19,7 +19,7 @@ for (let builtin of Module.builtinModules) {
 }
 
 export type ResolveResult = {|
-  resolved: FilePath | ModuleSpecifier,
+  resolved: FilePath | DependencySpecifier,
   pkg?: ?PackageJSON,
   invalidateOnFileCreate: Array<FileCreateInvalidation>,
   invalidateOnFileChange: Set<FilePath>,
@@ -44,14 +44,20 @@ export class NodeResolverBase<T> {
   fs: FileSystem;
   extensions: Array<string>;
   packageCache: Map<string, PackageJSON>;
+  projectRoot: FilePath;
 
-  constructor(fs: FileSystem, extensions?: Array<string>) {
+  constructor(
+    fs: FileSystem,
+    projectRoot: FilePath,
+    extensions?: Array<string>,
+  ) {
     this.fs = fs;
+    this.projectRoot = projectRoot;
     this.extensions = extensions || Object.keys(Module._extensions);
     this.packageCache = new Map();
   }
 
-  resolve(id: ModuleSpecifier, from: FilePath): T {
+  resolve(id: DependencySpecifier, from: FilePath): T {
     throw new Error(`Could not resolve "${id}" from "${from}"`);
   }
 
@@ -112,12 +118,12 @@ export class NodeResolverBase<T> {
     }
   }
 
-  isBuiltin(name: ModuleSpecifier): boolean {
+  isBuiltin(name: DependencySpecifier): boolean {
     return !!builtins[name];
   }
 
   findNodeModulePath(
-    id: ModuleSpecifier,
+    id: DependencySpecifier,
     sourceFile: FilePath,
     ctx: ResolverContext,
   ): ?ResolveResult | ?ModuleInfo {

@@ -16,7 +16,7 @@ import syncPromise from './syncPromise';
 
 let hooks = {};
 let lastDisposable;
-let packageManager = new NodePackageManager(new NodeFS());
+let packageManager = new NodePackageManager(new NodeFS(), '/');
 let defaultConfig = {
   ...defaultConfigContents,
   filePath: packageManager.resolveSync('@parcel/config-default', __filename)
@@ -93,7 +93,7 @@ function register(inputOpts?: InitialParcelOptions): IDisposable {
       let resolved = syncPromise(
         // $FlowFixMe
         parcel[INTERNAL_RESOLVE]({
-          moduleSpecifier: targetFile,
+          specifier: targetFile,
           sourcePath: currFile,
           env,
         }),

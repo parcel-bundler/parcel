@@ -119,7 +119,7 @@ describe('TargetResolver', () => {
           publicUrl: '/',
           distDir: path.resolve('customA'),
           env: {
-            id: '1c8faadcd7aa7f220fe2e7aa726b28ea', // ATLASSIAN: env id is different because of stable entries
+            id: '36e8ffa4ed2bd0c2',
             context: 'browser',
             includeNodeModules: true,
             engines: {
@@ -138,7 +138,7 @@ describe('TargetResolver', () => {
           distEntry: 'b.js',
           distDir: path.resolve('customB'),
           env: {
-            id: 'dc9a4a2483865510f066a3e49cc2471c',
+            id: 'a040e8da04eef6ea',
             context: 'node',
             includeNodeModules: false,
             engines: {
@@ -167,7 +167,7 @@ describe('TargetResolver', () => {
           distEntry: 'index.js',
           publicUrl: '/',
           env: {
-            id: 'fe07c14b7535066dde2888f40042458f',
+            id: '3e2ae13a8053d0fe',
             context: 'node',
             engines: {
               node: '>= 8.0.0',
@@ -197,7 +197,7 @@ describe('TargetResolver', () => {
           distEntry: 'index.js',
           publicUrl: '/',
           env: {
-            id: '940e78349973f342d8f7dd828fc8e48a',
+            id: 'df5abacc434d5c3a',
             context: 'browser',
             engines: {
               browsers: ['last 1 version'],
@@ -229,7 +229,7 @@ describe('TargetResolver', () => {
           distEntry: 'index.js',
           publicUrl: '/assets',
           env: {
-            id: 'b03ffef03e4414d90f51ae18744452d0',
+            id: 'b49ab911e0ea41b5',
             context: 'browser',
             engines: {
               browsers: ['last 1 version'],
@@ -270,7 +270,7 @@ describe('TargetResolver', () => {
           publicUrl: '/',
           stableEntries: undefined,
           env: {
-            id: '3586553556d47b982077a1832d4bbcb7',
+            id: '4d1c0b1ba11356cb',
             context: 'node',
             engines: {
               node: '>= 8.0.0',
@@ -312,7 +312,7 @@ describe('TargetResolver', () => {
           distEntry: 'index.js',
           publicUrl: '/',
           env: {
-            id: 'fe07c14b7535066dde2888f40042458f',
+            id: '3e2ae13a8053d0fe',
             context: 'node',
             engines: {
               node: '>= 8.0.0',
@@ -346,7 +346,7 @@ describe('TargetResolver', () => {
           publicUrl: '/',
           stableEntries: undefined,
           env: {
-            id: '0a5943110ae4c7409297a8354eda8472',
+            id: '6aded565672582e3',
             context: 'browser',
             engines: {
               browsers: ['last 1 version'],
@@ -380,7 +380,7 @@ describe('TargetResolver', () => {
           publicUrl: '/',
           stableEntries: undefined,
           env: {
-            id: '05807bcdb63dc13bac45ec42c6b60f3f',
+            id: '55a8772848508bb0',
             context: 'browser',
             engines: {
               browsers: ['ie11'],
@@ -419,7 +419,7 @@ describe('TargetResolver', () => {
           distEntry: undefined,
           publicUrl: 'www',
           env: {
-            id: '8946d45796e0b98a1f2a0bd41399753c',
+            id: '3762437f35386994',
             context: 'browser',
             engines: {
               browsers: '> 0.25%',
@@ -461,7 +461,7 @@ describe('TargetResolver', () => {
           distDir: path.resolve('customB'),
           publicUrl: '/',
           env: {
-            id: '1c8faadcd7aa7f220fe2e7aa726b28ea', // ATLASSIAN: env id is different because of stable entries
+            id: '36e8ffa4ed2bd0c2',
             context: 'browser',
             engines: {
               browsers: ['> 0.25%'],
@@ -501,7 +501,7 @@ describe('TargetResolver', () => {
           distDir: path.resolve('customA'),
           publicUrl: '/',
           env: {
-            id: '1c8faadcd7aa7f220fe2e7aa726b28ea', // ATLASSIAN: env id is different because of stable entries
+            id: '36e8ffa4ed2bd0c2',
             context: 'browser',
             engines: {
               browsers: ['> 0.25%'],
@@ -528,7 +528,7 @@ describe('TargetResolver', () => {
         distEntry: 'index.js',
         publicUrl: '/',
         env: {
-          id: 'c4fa7024d613d610ab00f97462639b5c',
+          id: '4e67d6eb2a8f1da3',
           context: 'node',
           engines: {},
           includeNodeModules: false,
@@ -563,7 +563,7 @@ describe('TargetResolver', () => {
         distEntry: 'index.html',
         publicUrl: '/',
         env: {
-          id: '1be6b89f22ec2d705ed9f68c4af45288',
+          id: '52ea35ebf9930c8d',
           context: 'browser',
           engines: {},
           includeNodeModules: true,
@@ -603,7 +603,7 @@ describe('TargetResolver', () => {
           distEntry: 'index.js',
           publicUrl: '/',
           env: {
-            id: 'fe07c14b7535066dde2888f40042458f',
+            id: '3e2ae13a8053d0fe',
             context: 'node',
             engines: {
               node: '>= 8.0.0',
@@ -633,7 +633,7 @@ describe('TargetResolver', () => {
           distEntry: 'index.js',
           publicUrl: '/assets',
           env: {
-            id: 'b03ffef03e4414d90f51ae18744452d0',
+            id: 'b49ab911e0ea41b5',
             context: 'browser',
             engines: {
               browsers: ['last 1 version'],
@@ -677,7 +677,7 @@ describe('TargetResolver', () => {
           distDir: serveDistDir,
           publicUrl: '/',
           env: {
-            id: '1be6b89f22ec2d705ed9f68c4af45288',
+            id: '52ea35ebf9930c8d',
             context: 'browser',
             engines: {},
             includeNodeModules: true,
@@ -703,7 +703,7 @@ describe('TargetResolver', () => {
           distDir: path.join(DEFAULT_DISTPATH_FIXTURE_PATHS.none, 'dist'),
           publicUrl: '/',
           env: {
-            id: '245496e01cea968d2cab3768ff9aaacf',
+            id: '6cad8bbf253c9207',
             context: 'browser',
             engines: {
               browsers: ['Chrome 80'],
@@ -732,7 +732,7 @@ describe('TargetResolver', () => {
           distEntry: undefined,
           publicUrl: '/',
           env: {
-            id: '245496e01cea968d2cab3768ff9aaacf',
+            id: '6cad8bbf253c9207',
             context: 'browser',
             engines: {
               browsers: ['Chrome 80'],
@@ -767,7 +767,7 @@ describe('TargetResolver', () => {
           distEntry: undefined,
           publicUrl: '/',
           env: {
-            id: '0a5943110ae4c7409297a8354eda8472',
+            id: '6aded565672582e3',
             context: 'browser',
             engines: {
               browsers: ['last 1 version'],
@@ -792,7 +792,7 @@ describe('TargetResolver', () => {
           distEntry: undefined,
           publicUrl: '/',
           env: {
-            id: '0968da8dca39c8653179c67b2753046a',
+            id: 'edd8469649fac325',
             context: 'browser',
             engines: {
               browsers: ['IE 11'],

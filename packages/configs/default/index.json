@@ -4,14 +4,7 @@
     "types:*.{ts,tsx}": ["@parcel/transformer-typescript-types"],
     "bundle-text:*": ["@parcel/transformer-inline-string", "..."],
     "data-url:*": ["@parcel/transformer-inline-string", "..."],
-    "preload:*": ["..."],
-    "prefetch:*": ["..."],
-    "*.worker.{js,mjs,jsm,jsx,es6,ts,tsx}": [
-      "@parcel/transformer-workerize",
-      "..."
-    ],
     "*.{js,mjs,jsm,jsx,es6,cjs,ts,tsx}": [
-      "@parcel/transformer-react-refresh-babel",
       "@parcel/transformer-babel",
       "@parcel/transformer-js",
       "@parcel/transformer-react-refresh-wrap"
@@ -36,10 +29,6 @@
     "*.coffee": ["@parcel/transformer-coffeescript"],
     "*.elm": ["@parcel/transformer-elm"],
     "*.mdx": ["@parcel/transformer-mdx"],
-    "*.{eot,gif,jpg,jpeg,ico,mp4,png,svg,ttf,woff}": [
-      "@parcel/transformer-image",
-      "@parcel/transformer-raw"
-    ],
     "*.vue": ["@parcel/transformer-vue"],
     "template:*.vue": ["@parcel/transformer-vue"],
     "script:*.vue": ["@parcel/transformer-vue"],
@@ -69,9 +58,5 @@
     "*": "@parcel/packager-raw"
   },
   "resolvers": ["@parcel/resolver-default"],
-  "reporters": [
-    "@atlassian/parcel-reporter-analytics",
-    "@parcel/reporter-manifest",
-    "@parcel/reporter-react-loadable"
-  ]
+  "reporters": ["@parcel/reporter-dev-server"]
 }

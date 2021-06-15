@@ -7,9 +7,9 @@ import type {
   ConfigResult,
   DevDepOptions,
 } from '@parcel/types';
-import {md5FromString} from '@parcel/utils';
 import type {Config, Environment} from './types';
 import {createEnvironment} from './Environment';
+import {hashString} from '@parcel/hash';
 
 type ConfigOpts = {|
   plugin: PackageName,
@@ -17,7 +17,7 @@ type ConfigOpts = {|
   isSource?: boolean,
   env?: Environment,
   result?: ConfigResult,
-  includedFiles?: Set<FilePath>,
+  invalidateOnFileChange?: Set<FilePath>,
   invalidateOnFileCreate?: Array<FileCreateInvalidation>,
   invalidateOnOptionChange?: Set<string>,
   devDeps?: Array<DevDepOptions>,
@@ -30,7 +30,7 @@ export function createConfig({
   searchPath,
   env,
   result,
-  includedFiles,
+  invalidateOnFileChange,
   invalidateOnFileCreate,
   invalidateOnOptionChange,
   devDeps,
@@ -38,13 +38,13 @@ export function createConfig({
 }: ConfigOpts): Config {
   let environment = env ?? createEnvironment();
   return {
-    id: md5FromString(plugin + searchPath + environment.id + String(isSource)),
+    id: hashString(plugin + searchPath + environment.id + String(isSource)),
     isSource: isSource ?? false,
     searchPath,
     env: environment,
     result: result ?? null,
     resultHash: null,
-    includedFiles: includedFiles ?? new Set(),
+    invalidateOnFileChange: invalidateOnFileChange ?? new Set(),
     invalidateOnFileCreate: invalidateOnFileCreate ?? [],
     invalidateOnOptionChange: invalidateOnOptionChange ?? new Set(),
     devDeps: devDeps ?? [],
