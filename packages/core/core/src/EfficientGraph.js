@@ -381,21 +381,6 @@ export default class EfficientGraph<TEdgeType: number = 1> {
     return toNodeId(id);
   }
 
-  removeNode(node: NodeId): boolean {
-    if (
-      !this.getNodesConnectedFrom(node).next().done ||
-      !this.getNodesConnectedTo(node).next().done
-    ) {
-      throw new Error(`Cannot remove node ${String(node)}, it has edges!`);
-    }
-    let index = fromNodeId(node);
-    if (index >= 0 && this.numNodes > index) {
-      this.numNodes--;
-      return true;
-    }
-    return false;
-  }
-
   /**
    * Adds an edge to the graph.
    *

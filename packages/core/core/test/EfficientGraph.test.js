@@ -33,31 +33,6 @@ describe('EfficientGraph', () => {
     assert.deepEqual(graph.nodes, new Uint32Array(8 * NODE_SIZE));
   });
 
-  it('removeNode should remove a node from the graph', () => {
-    let graph = new EfficientGraph();
-    let id = graph.addNode();
-    assert.equal(graph.numNodes, 1);
-    assert.ok(graph.removeNode(id));
-    assert.equal(graph.numNodes, 0);
-  });
-
-  it('removeNode should not remove a node that is not in the graph', () => {
-    let graph = new EfficientGraph();
-    graph.addNode();
-    assert.equal(graph.numNodes, 1);
-    assert.equal(graph.removeNode(toNodeId(-1)), false);
-    assert.equal(graph.numNodes, 1);
-  });
-
-  it('removeNode should error when a node still has edges in the graph', () => {
-    let graph = new EfficientGraph();
-    let a = graph.addNode();
-    let b = graph.addNode();
-    graph.addEdge(a, b);
-    assert.throws(() => graph.removeNode(a));
-    assert.throws(() => graph.removeNode(b));
-  });
-
   it('removeEdge should remove an edge from the graph', () => {
     let graph = new EfficientGraph();
     let node0 = graph.addNode();
