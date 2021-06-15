@@ -75,9 +75,9 @@ describe('EfficientGraph', () => {
     graph.addEdge(node5, node1);
     graph.addEdge(node6, node1);
 
-    assert.equal([...graph.getNodesConnectedTo(node1)], [0, 2, 3, 4, 5, 6]);
+    assert.deepEqual([...graph.getNodesConnectedTo(node1)], [0, 2, 3, 4, 5, 6]);
 
     graph.removeEdge(node3, node1);
-    assert.equal([...graph.getNodesConnectedTo(node1)], [0, 2, 4, 5, 6]);
+    assert.deepEqual([...graph.getNodesConnectedTo(node1)], [0, 2, 4, 5, 6]);
   });
 });
