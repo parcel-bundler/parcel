@@ -600,6 +600,7 @@ export default class EfficientGraph<TEdgeType: number = 1> {
           this.edges[prevOut + NEXT_OUT] = nextOut;
           break;
         }
+        prevOut = outIndex;
       } while (outIndex);
     }
 
@@ -616,6 +617,7 @@ export default class EfficientGraph<TEdgeType: number = 1> {
           this.edges[prevIn + NEXT_IN] = nextIn;
           break;
         }
+        prevIn = inIndex;
       } while (inIndex);
     }
 

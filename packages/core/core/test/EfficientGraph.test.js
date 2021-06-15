@@ -57,4 +57,27 @@ describe('EfficientGraph', () => {
     assert.throws(() => graph.removeNode(a));
     assert.throws(() => graph.removeNode(b));
   });
+
+  it('removeEdge should remove an edge from the graph', () => {
+    let graph = new EfficientGraph();
+    let node0 = graph.addNode();
+    let node1 = graph.addNode();
+    let node2 = graph.addNode();
+    let node3 = graph.addNode();
+    let node4 = graph.addNode();
+    let node5 = graph.addNode();
+    let node6 = graph.addNode();
+    graph.addEdge(node0, node1);
+    graph.addEdge(node2, node1);
+    // this will get removed
+    graph.addEdge(node3, node1);
+    graph.addEdge(node4, node1);
+    graph.addEdge(node5, node1);
+    graph.addEdge(node6, node1);
+
+    assert.equal([...graph.getNodesConnectedTo(node1)], [0, 2, 3, 4, 5, 6]);
+
+    graph.removeEdge(node3, node1);
+    assert.equal([...graph.getNodesConnectedTo(node1)], [0, 2, 4, 5, 6]);
+  });
 });
