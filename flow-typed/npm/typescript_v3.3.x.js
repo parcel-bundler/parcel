@@ -3300,7 +3300,7 @@ declare module "typescript" {
     ...
   };
 
-  declare type ParseConfigHost = {
+  declare interface ParseConfigHost {
     useCaseSensitiveFileNames: boolean,
     readDirectory(
       rootDir: string,
@@ -3311,9 +3311,8 @@ declare module "typescript" {
     ): $ReadOnlyArray<string>,
     fileExists(path: string): boolean,
     readFile(path: string): string | void,
-    trace?: (s: string) => void,
-    ...
-  };
+    trace?: (s: string) => void
+  }
 
   declare type ResolvedConfigFileName = string & { _isResolvedConfigFileName: empty, ... };
   declare type WriteFileCallback = (
@@ -4903,11 +4902,10 @@ declare module "typescript" {
     ...
   };
 
-  declare type GetEffectiveTypeRootsHost = {
-    directoryExists?: (directoryName: string) => boolean,
-    getCurrentDirectory?: () => string,
-    ...
-  };
+  declare interface GetEffectiveTypeRootsHost {
+    +directoryExists?: (directoryName: string) => boolean,
+    +getCurrentDirectory?: () => string
+  }
 
   declare type TextSpan = {
     start: number,
@@ -8435,59 +8433,57 @@ declare module "typescript" {
     ...
   };
 
-  declare type LanguageServiceHost = {
-    ...$Exact<GetEffectiveTypeRootsHost>,
+  declare interface LanguageServiceHost extends GetEffectiveTypeRootsHost {
     getCompilationSettings(): CompilerOptions,
-    getNewLine?: () => string,
-    getProjectVersion?: () => string,
+    +getNewLine?: () => string,
+    +getProjectVersion?: () => string,
     getScriptFileNames(): string[],
-    getScriptKind?: (fileName: string) => $Values<typeof ScriptKind>,
+    +getScriptKind?: (fileName: string) => $Values<typeof ScriptKind>,
     getScriptVersion(fileName: string): string,
     getScriptSnapshot(fileName: string): IScriptSnapshot | void,
-    getProjectReferences?: () => $ReadOnlyArray<ProjectReference> | void,
-    getLocalizedDiagnosticMessages?: () => any,
-    getCancellationToken?: () => HostCancellationToken,
+    +getProjectReferences?: () => $ReadOnlyArray<ProjectReference> | void,
+    +getLocalizedDiagnosticMessages?: () => any,
+    +getCancellationToken?: () => HostCancellationToken,
     getCurrentDirectory(): string,
     getDefaultLibFileName(options: CompilerOptions): string,
-    log?: (s: string) => void,
-    trace?: (s: string) => void,
-    error?: (s: string) => void,
-    useCaseSensitiveFileNames?: () => boolean,
-    readDirectory?: (
+    +log?: (s: string) => void,
+    +trace?: (s: string) => void,
+    +error?: (s: string) => void,
+    +useCaseSensitiveFileNames?: () => boolean,
+    +readDirectory?: (
       path: string,
       extensions?: $ReadOnlyArray<string>,
       exclude?: $ReadOnlyArray<string>,
       include?: $ReadOnlyArray<string>,
       depth?: number
     ) => string[],
-    readFile?: (path: string, encoding?: string) => string | void,
-    realpath?: (path: string) => string,
-    fileExists?: (path: string) => boolean,
-    getTypeRootsVersion?: () => number,
-    resolveModuleNames?: (
+    +readFile?: (path: string, encoding?: string) => string | void,
+    +realpath?: (path: string) => string,
+    +fileExists?: (path: string) => boolean,
+    +getTypeRootsVersion?: () => number,
+    +resolveModuleNames?: (
       moduleNames: string[],
       containingFile: string,
       reusedNames?: string[],
       redirectedReference?: ResolvedProjectReference
     ) => (ResolvedModule | void)[],
-    getResolvedModuleWithFailedLookupLocationsFromCache?: (
+    +getResolvedModuleWithFailedLookupLocationsFromCache?: (
       modulename: string,
       containingFile: string
     ) => ResolvedModuleWithFailedLookupLocations | void,
-    resolveTypeReferenceDirectives?: (
+    +resolveTypeReferenceDirectives?: (
       typeDirectiveNames: string[],
       containingFile: string,
       redirectedReference?: ResolvedProjectReference
     ) => (ResolvedTypeReferenceDirective | void)[],
-    getDirectories?: (directoryName: string) => string[],
-    getCustomTransformers?: () => CustomTransformers | void,
-    isKnownTypesPackageName?: (name: string) => boolean,
-    installPackage?: (
+    +getDirectories?: (directoryName: string) => string[],
+    +getCustomTransformers?: () => CustomTransformers | void,
+    +isKnownTypesPackageName?: (name: string) => boolean,
+    +installPackage?: (
       options: InstallPackageOptions
     ) => Promise<ApplyCodeActionCommandResult>,
-    writeFile?: (fileName: string, content: string) => void,
-    ...
-  };
+    +writeFile?: (fileName: string, content: string) => void
+  }
 
   declare type WithMetadata<T> = T & { metadata?: mixed, ... };
   declare type LanguageService = {

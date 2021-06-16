@@ -147,12 +147,15 @@ describe('ParcelConfig', () => {
       });
       assert(plugin);
       assert.equal(typeof plugin.transform, 'function');
+      // $FlowFixMe[method-unbinding]
       assert(logger.warn.calledOnce);
+      // $FlowFixMe[method-unbinding]
       assert.deepEqual(logger.warn.getCall(0).args[0], {
         origin: '@parcel/core',
         message:
           'The plugin "parcel-transformer-no-engines" needs to specify a `package.json#engines.parcel` field with the supported Parcel version range.',
       });
+      // $FlowFixMe[method-unbinding]
       logger.warn.restore();
     });
 
