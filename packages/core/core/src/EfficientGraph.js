@@ -321,7 +321,7 @@ export default class EfficientGraph<TEdgeType: number = 1> {
         lastIndex = index;
       }
 
-      // Reset lastHash for use while copying incoming edges.
+      // Reset lastIndex for use while copying incoming edges.
       lastIndex = undefined;
 
       // Now we're copying incoming edges, so `from` becomes `to`.
