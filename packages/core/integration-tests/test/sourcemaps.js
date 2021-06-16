@@ -1296,11 +1296,11 @@ describe('sourcemaps', function() {
     });
   });
 
-  it('carries sourcesContent from the original sources through multiple transformations (babel and swc)', async () => {
+  it.only('carries sourcesContent from the original sources through multiple transformations (babel and swc)', async () => {
     let b = await bundle(
       path.join(
         __dirname,
-        'integration/sourcemap-original-sourcecontents/index.js',
+        'integration/sourcemap-original-sourcecontents/index.tsx',
       ),
       {
         defaultTargetOptions: {
@@ -1327,7 +1327,7 @@ describe('sourcemaps', function() {
       map: sourceMap,
       source: sourceContent,
       generated: raw,
-      str: 'bar="bar"' /* from jsx: <App bar="bar" /> */,
+      str: 'bar="bar"' /* from tsx: <App bar="bar" /> */,
       generatedStr: 'bar: "bar"',
       sourcePath,
     });
