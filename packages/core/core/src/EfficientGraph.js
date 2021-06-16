@@ -184,14 +184,22 @@ export default class EfficientGraph<TEdgeType: number = 1> {
   get stats(): {|
     /** The number of nodes in the graph. */
     nodes: number,
+    /** The maximum number of nodes the graph can contain. */
+    nodeCapacity: number,
+    /** The current load on the nodes array. */
+    nodeLoad: number,
     /** The number of edges in the graph. */
     edges: number,
+    /** The maximum number of edges the graph can contain. */
+    edgeCapacity: number,
+    /** The current load on the edges array. */
+    edgeLoad: number,
     /** The number of edge hash collisions. */
     collisions: number,
     /** The likelihood of uniform distribution. ~1.0 indicates certainty. */
     uniformity: number,
   |} {
-    let {numNodes, nodes, numEdges, edges, edgeCapacity} = this;
+    let {numNodes, nodes, nodeCapacity, numEdges, edges, edgeCapacity} = this;
     let buckets = new Map();
     for (let i = 0; i < nodes.length; i += NODE_SIZE) {
       let from = nodeAt(i);
@@ -226,7 +234,7 @@ export default class EfficientGraph<TEdgeType: number = 1> {
     let distribution = 0;
 
     for (let bucket of buckets.values()) {
-      collisions += bucket.size > 1 ? 1 : 0;
+      collisions += bucket.size - 1;
       distribution += (bucket.size * (bucket.size + 1)) / 2;
     }
 
@@ -237,6 +245,10 @@ export default class EfficientGraph<TEdgeType: number = 1> {
     return {
       nodes: numNodes,
       edges: numEdges,
+      nodeCapacity,
+      nodeLoad: numNodes / nodeCapacity,
+      edgeCapacity,
+      edgeLoad: numEdges / edgeCapacity,
       collisions,
       uniformity,
     };
@@ -255,11 +267,6 @@ export default class EfficientGraph<TEdgeType: number = 1> {
     // Copy the existing nodes into the new array.
     this.nodes.set(nodes);
     this.nodeCapacity = size;
-    // We have to rehash the edges when the node capacity changes
-    // since they used the previous node capacity as a multiplier.
-    let edges = this.edges;
-    this.edges = new Uint32Array(this.edgeCapacity * EDGE_SIZE);
-    this.copyEdges(edges);
   }
 
   /**
@@ -371,12 +378,12 @@ export default class EfficientGraph<TEdgeType: number = 1> {
     let id = this.numNodes;
     this.numNodes++;
     // If we're in danger of overflowing the `nodes` array, resize it.
-    if (this.numNodes >= this.nodes.length / NODE_SIZE) {
+    if (this.numNodes >= this.nodeCapacity) {
       // The size of `nodes` doubles every time we reach the current capacity.
       // This means in the worst case, we will have `O(n - 1)` _extra_
       // space allocated where `n` is a number nodes that is 1 more
       // than the previous capacity.
-      this.resizeNodes((this.nodes.length / NODE_SIZE) * 2);
+      this.resizeNodes(this.nodeCapacity * 2);
     }
     return toNodeId(id);
   }
@@ -398,14 +405,14 @@ export default class EfficientGraph<TEdgeType: number = 1> {
     if (type <= 0) throw new Error(`Unsupported edge type ${0}`);
 
     // The percentage of utilization of the total capacity of `edges`.
-    let load = this.numEdges / (this.edges.length / EDGE_SIZE);
+    let load = (this.numEdges + 1) / this.edgeCapacity;
     // If we're in danger of overflowing the `edges` array, resize it.
     if (load > 0.7) {
       // The size of `edges` doubles every time we reach the current capacity.
       // This means in the worst case, we will have `O(n - 1)` _extra_
       // space allocated where `n` is a number edges that is 1 more
       // than the previous capacity.
-      this.resizeEdges((this.edges.length / EDGE_SIZE) * 2);
+      this.resizeEdges(this.edgeCapacity * 2);
     }
 
     // We use the hash of the edge as the index for the edge.
@@ -743,13 +750,12 @@ export default class EfficientGraph<TEdgeType: number = 1> {
   hash(from: NodeId, to: NodeId, type: TEdgeType | NullEdgeType): number {
     // A crude multiplicative hash, in 4 steps:
     // 1. Serialize the args into an integer that reflects the argument order,
-    // using the node capacity to roughly shift and then add each argument,
-    // .e.g., `hash(1, 2, 4) =>  1 * 128 + 2 * 10 + 4 => 152`.
-    // Note: we assume that `type` will be a very small integer.
-    let hash =
-      fromNodeId(from) * Math.max(this.nodeCapacity, 100) +
-      fromNodeId(to) * 10 +
-      type;
+    // shifting the magnitude of each argument by the sum
+    // of the significant digits of the following arguments,
+    // .e.g., `hash(10, 24, 4) => 10244`.
+    // $FlowFixMe[unsafe-addition]
+    // $FlowFixMe[incompatible-type]
+    let hash = '' + from + to + type - 0;
     // 2. Map the hash to a value modulo the edge capacity.
     hash %= this.edgeCapacity;
     // 3. Multiply by EDGE_SIZE to select a valid index.
