@@ -9,9 +9,8 @@ module.exports = () => ({
         },
       },
     ],
-    require('@babel/preset-flow'),
     require('@babel/preset-react'),
-    require('@babel/preset-typescript'),
+    require('@babel/preset-flow'),
   ],
   plugins: [
     require('@babel/plugin-proposal-class-properties'),
