@@ -117,10 +117,10 @@ export default class Transformation {
 
   async run(): Promise<TransformationResult> {
     let asset = await this.loadAsset();
+    let existing;
 
     if (!asset.mapBuffer && SOURCEMAP_EXTENSIONS.has(asset.value.type)) {
       // Load existing sourcemaps, this automatically runs the source contents extraction
-      let existing;
       try {
         existing = await asset.loadExistingSourcemap();
       } catch (err) {
@@ -140,13 +140,13 @@ export default class Transformation {
           },
         ]);
       }
+    }
 
-      if (existing == null) {
-        // If no existing sourcemap was found, initialize asset.sourceContent
-        // with the original contents. This will be used when the transformer
-        // calls setMap to ensure the source content is in the sourcemap.
-        asset.sourceContent = await asset.getCode();
-      }
+    if (existing == null) {
+      // If no existing sourcemap was found, initialize asset.sourceContent
+      // with the original contents. This will be used when the transformer
+      // calls setMap to ensure the source content is in the sourcemap.
+      asset.sourceContent = await asset.getCode();
     }
 
     invalidateDevDeps(
