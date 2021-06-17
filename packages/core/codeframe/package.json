@@ -23,7 +23,8 @@
     "chalk": "^4.1.0",
     "emphasize": "^4.2.0",
     "slice-ansi": "^4.0.0",
-    "string-width": "^4.2.0"
+    "string-width": "^4.2.0",
+    "highlight.js": "~10.4.0"
   },
   "devDependencies": {
     "strip-ansi": "^6.0.0"
