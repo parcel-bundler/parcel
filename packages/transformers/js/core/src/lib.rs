@@ -335,13 +335,13 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
 
             let (buf, mut src_map_buf) =
               emit(source_map.clone(), comments, &program, config.source_maps)?;
-            if config.source_maps {
-              if let Ok(_) = source_map
+            if config.source_maps
+              && source_map
                 .build_source_map(&mut src_map_buf)
                 .to_writer(&mut map_buf)
-              {
-                result.map = Some(String::from_utf8(map_buf).unwrap());
-              }
+                .is_ok()
+            {
+              result.map = Some(String::from_utf8(map_buf).unwrap());
             }
             result.code = buf;
             Ok(result)
@@ -362,18 +362,20 @@ fn parse(
 
   let comments = SingleThreadedComments::default();
   let syntax = if config.is_type_script {
-    let mut tsconfig = TsConfig::default();
-    tsconfig.tsx = config.is_jsx;
-    tsconfig.dynamic_import = true;
-    Syntax::Typescript(tsconfig)
+    Syntax::Typescript(TsConfig {
+      tsx: config.is_jsx,
+      dynamic_import: true,
+      ..Default::default()
+    })
   } else {
-    let mut esconfig = EsConfig::default();
-    esconfig.jsx = config.is_jsx;
-    esconfig.dynamic_import = true;
-    esconfig.export_default_from = true;
-    esconfig.export_namespace_from = true;
-    esconfig.import_meta = true;
-    Syntax::Es(esconfig)
+    Syntax::Es(EsConfig {
+      jsx: config.is_jsx,
+      dynamic_import: true,
+      export_default_from: true,
+      export_namespace_from: true,
+      import_meta: true,
+      ..Default::default()
+    })
   };
 
   let lexer = Lexer::new(
@@ -390,12 +392,14 @@ fn parse(
   }
 }
 
+type EmitResult = (Vec<u8>, Vec<(swc_common::BytePos, swc_common::LineCol)>);
+
 fn emit(
   source_map: Lrc<SourceMap>,
   comments: SingleThreadedComments,
   program: &Module,
   source_maps: bool,
-) -> Result<(Vec<u8>, Vec<(swc_common::BytePos, swc_common::LineCol)>), std::io::Error> {
+) -> Result<EmitResult, std::io::Error> {
   let mut src_map_buf = vec![];
   let mut buf = vec![];
   {
@@ -413,12 +417,12 @@ fn emit(
     let mut emitter = swc_ecmascript::codegen::Emitter {
       cfg: config,
       comments: Some(&comments),
-      cm: source_map.clone(),
+      cm: source_map,
       wr: writer,
     };
 
     emitter.emit_module(&program)?;
   }
 
-  return Ok((buf, src_map_buf));
+  Ok((buf, src_map_buf))
 }

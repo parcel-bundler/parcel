@@ -327,7 +327,7 @@ export default (new Transformer({
             loc: convertLoc(dep.loc),
           });
         }
-      } else if (dep.kind === 'URL') {
+      } else if (dep.kind === 'Url') {
         asset.addURLDependency(dep.specifier, {
           loc: convertLoc(dep.loc),
         });

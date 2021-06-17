@@ -13,5 +13,5 @@ pub fn transform(config_val: JsValue) -> Result<JsValue, JsValue> {
     .map_err(|e| Error::from(JsValue::from_str(&e.to_string())))?;
 
   let serializer = Serializer::new().serialize_maps_as_objects(true);
-  Ok(result.serialize(&serializer).map_err(JsValue::from)?)
+  result.serialize(&serializer).map_err(JsValue::from)
 }
