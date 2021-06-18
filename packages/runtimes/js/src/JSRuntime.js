@@ -500,7 +500,7 @@ function getURLRuntime(
   if (dependency.meta.webworker === true) {
     return {
       filePath: __filename,
-      code: `module.exports = require('./get-worker-url')(${relativePathExpr});`,
+      code: `module.exports = require('./get-worker-url')(${relativePathExpr}, ${from.env.outputFormat === 'esmodule'});`,
       dependency,
       env: {sourceType: 'module'},
     };
