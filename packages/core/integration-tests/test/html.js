@@ -479,7 +479,7 @@ describe('html', function() {
     // mergeStyles
     assert(
       html.includes(
-        '<style>h1{color:red}div{font-size:20px}</style><style media="print">div{color:blue}</style>',
+        '<style>h1{color:red}div{font-size:20px}</style><style media="print">div{color:#00f}</style>',
       ),
     );
 
@@ -1021,7 +1021,7 @@ describe('html', function() {
       path.join(distDir, 'index.html'),
       'utf8',
     );
-    assert(html.includes('<style>.index{color:blue}</style>'));
+    assert(html.includes('<style>.index{color:#00f}</style>'));
     assert(!html.includes('sourceMappingURL'));
   });
 
