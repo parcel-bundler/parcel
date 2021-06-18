@@ -137,7 +137,7 @@ export default class Environment implements IEnvironment {
     return this.#environment.outputFormat;
   }
 
-  get sourceType(): ?SourceType {
+  get sourceType(): SourceType {
     return this.#environment.sourceType;
   }
 

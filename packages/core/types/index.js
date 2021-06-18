@@ -208,7 +208,7 @@ export interface Environment {
     | Array<PackageName>
     | {[PackageName]: boolean, ...};
   +outputFormat: OutputFormat;
-  +sourceType: ?SourceType;
+  +sourceType: SourceType;
   /** Whether this is a library build (e.g. less loaders) */
   +isLibrary: boolean;
   /** Whether the output should be minified. */

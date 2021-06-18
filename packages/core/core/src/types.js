@@ -69,7 +69,7 @@ export type Environment = {|
     | Array<PackageName>
     | {[PackageName]: boolean, ...},
   outputFormat: OutputFormat,
-  sourceType: ?SourceType,
+  sourceType: SourceType,
   isLibrary: boolean,
   shouldOptimize: boolean,
   shouldScopeHoist: boolean,
