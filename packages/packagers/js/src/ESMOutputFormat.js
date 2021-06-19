@@ -70,8 +70,9 @@ export class ESMOutputFormat implements OutputFormat {
     return [res, lines];
   }
 
-  buildBundlePostlude(): string {
+  buildBundlePostlude(): [string, number] {
     let res = '';
+    let lines = 0;
     let exportSpecifiers = [];
     for (let exported of this.packager.exportedSymbols.values()) {
       for (let {exportAs, local} of exported) {
@@ -86,8 +87,9 @@ export class ESMOutputFormat implements OutputFormat {
 
     if (exportSpecifiers.length > 0) {
       res += `\nexport {${exportSpecifiers.join(', ')}};`;
+      lines++;
     }
 
-    return res;
+    return [res, lines];
   }
 }

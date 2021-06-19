@@ -87,6 +87,7 @@ export default (new Transformer({
       version: '0.4.1',
       program: parse(await asset.getCode(), {
         lowerCaseAttributeNames: true,
+        sourceLocations: true,
       }),
     };
   },

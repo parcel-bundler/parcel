@@ -861,7 +861,8 @@ describe('output formats', function() {
         entry.includes(`import("./${path.basename(asyncBundle.filePath)}")`),
       );
 
-      assert.equal(await (await run(b)).default, 4);
+      let res = await run(b, {output: null}, {require: false});
+      assert.equal(await res.output, 4);
     });
 
     it('should support use an import polyfill for older browsers', async function() {
@@ -1171,13 +1172,7 @@ describe('output formats', function() {
       assertBundles(b, [
         {
           type: 'js',
-          assets: [
-            'bundle-manifest.js',
-            'bundle-url.js',
-            'get-worker-url.js',
-            'index.js',
-            'relative-path.js',
-          ],
+          assets: ['bundle-url.js', 'get-worker-url.js', 'index.js'],
         },
         {type: 'html', assets: ['index.html']},
         {type: 'js', assets: ['lodash.js']},
@@ -1185,8 +1180,10 @@ describe('output formats', function() {
       ]);
 
       let workerBundle;
-      assert.strictEqual(
-        await run(b, {
+      let res = await run(
+        b,
+        {
+          output: null,
           Worker: class {
             constructor(url) {
               workerBundle = nullthrows(
@@ -1198,10 +1195,12 @@ describe('output formats', function() {
               );
             }
           },
-        }),
-        3,
+        },
+        {require: false},
       );
-      assert.strictEqual(await runBundle(b, workerBundle), 30);
+      assert.strictEqual(res.output, 3);
+      res = await runBundle(b, workerBundle, {output: null}, {require: false});
+      assert.strictEqual(res.output, 30);
     });
 
     it('should support async split bundles for workers', async function() {
