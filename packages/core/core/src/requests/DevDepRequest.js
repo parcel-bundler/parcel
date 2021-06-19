@@ -19,6 +19,12 @@ import {
   toProjectPath,
 } from '../projectPath';
 
+// A cache of dev dep requests keyed by invalidations.
+// If the package manager returns the same invalidation object, then
+// we can reuse the dev dep request rather than recomputing the project
+// paths and hashes.
+const devDepRequestCache = new WeakMap();
+
 export async function createDevDependency(
   opts: InternalDevDepOptions,
   plugin: {name: DependencySpecifier, resolveFrom: ProjectPath, ...},
@@ -48,6 +54,11 @@ export async function createDevDependency(
     specifier,
     resolveFromAbsolute,
   );
+
+  let cached = devDepRequestCache.get(invalidations);
+  if (cached != null) {
+    return cached;
+  }
 
   let invalidateOnFileChangeProject = [
     ...invalidations.invalidateOnFileChange,
@@ -86,6 +97,7 @@ export async function createDevDependency(
     ];
   }
 
+  devDepRequestCache.set(invalidations, devDepRequest);
   return devDepRequest;
 }
 
