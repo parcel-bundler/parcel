@@ -39,5 +39,10 @@ export function relativePath(
   to: string,
   leadingDotSlash: boolean = true,
 ): FilePath {
+  // Fast path
+  if (to.startsWith(from + '/')) {
+    return (leadingDotSlash ? './' : '') + to.slice(from.length + 1);
+  }
+
   return normalizePath(path.relative(from, to), leadingDotSlash);
 }

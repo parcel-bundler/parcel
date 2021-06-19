@@ -9,7 +9,16 @@ import {relativePath} from '@parcel/utils';
 export opaque type ProjectPath = string;
 
 function toProjectPath_(projectRoot: FilePath, p: FilePath): ProjectPath {
-  return p != null ? relativePath(projectRoot, p, false) : p;
+  if (p == null) {
+    return p;
+  }
+
+  // If the file is outside the project root, store an absolute path rather
+  // than a relative one. This way if the project root is moved, the file
+  // references still work. Accessing files outside the project root is not
+  // portable anyway.
+  let relative = relativePath(projectRoot, p, false);
+  return relative.startsWith('..') ? p : relative;
 }
 
 export const toProjectPath: ((
@@ -21,7 +30,25 @@ export const toProjectPath: ((
   ((projectRoot: FilePath, p: ?FilePath) => ?ProjectPath) = toProjectPath_;
 
 function fromProjectPath_(projectRoot: FilePath, p: ?ProjectPath): ?FilePath {
-  return p != null ? path.join(projectRoot, p) : p;
+  if (p == null) {
+    return null;
+  }
+
+  // If the path is absolute (e.g. outside the project root), just return it.
+  if (path.isAbsolute(p)) {
+    return p;
+  }
+
+  // Project paths use normalized unix separators, so we only need to
+  // convert them on Windows.
+  let projectPath = process.platform === 'win32' ? path.normalize(p) : p;
+
+  // Add separator if needed. Doing this manunally is much faster than path.join.
+  if (projectRoot[projectRoot.length - 1] !== path.sep) {
+    return projectRoot + path.sep + projectPath;
+  }
+
+  return projectRoot + projectPath;
 }
 
 export const fromProjectPath: ((
