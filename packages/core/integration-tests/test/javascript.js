@@ -965,7 +965,7 @@ describe('javascript', function() {
         },
         {
           message: 'The environment was originally created here:',
-          filePath: 'integration/service-worker/error.js',
+          filePath: path.normalize('integration/service-worker/error.js'),
           origin: '@parcel/transformer-js',
           codeFrame: {
             codeHighlights: [
