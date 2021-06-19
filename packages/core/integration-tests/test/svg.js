@@ -1,26 +1,32 @@
 import assert from 'assert';
-import {
-  bundle,
-  removeDistDirectory,
-  distDir,
-  outputFS,
-} from '@parcel/test-utils';
+import {bundle, outputFS} from '@parcel/test-utils';
 import path from 'path';
 
 describe('svg', function() {
-  afterEach(async () => {
-    await removeDistDirectory();
+  it('should minify SVG bundles', async function() {
+    let b = await bundle(path.join(__dirname, '/integration/svg/index.html'), {
+      defaultTargetOptions: {
+        shouldOptimize: true,
+      },
+    });
+
+    let file = await outputFS.readFile(
+      b.getBundles().find(b => b.type === 'svg').filePath,
+      'utf-8',
+    );
+    assert(!file.includes('inkscape'));
   });
 
   it('should support transforming SVGs to react components', async function() {
-    await bundle(path.join(__dirname, '/integration/svg/index.js'), {
+    let b = await bundle(path.join(__dirname, '/integration/svg/react.js'), {
       defaultConfig: path.join(
         __dirname,
         'integration/custom-configs/.parcelrc-svg',
       ),
     });
 
-    let file = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf-8');
+    let file = await outputFS.readFile(b.getBundles()[0].filePath, 'utf-8');
+    assert(!file.includes('inkscape'));
     assert(file.includes('function SvgIcon'));
     assert(file.includes('_react.createElement("svg"'));
   });
