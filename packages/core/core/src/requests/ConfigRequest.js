@@ -24,7 +24,7 @@ export type PluginWithLoadConfig = {
     config: IConfig,
     options: IPluginOptions,
     logger: PluginLogger,
-  |}) => Async<void>,
+  |}) => Async<mixed>,
   ...
 };
 
@@ -48,7 +48,7 @@ export async function loadPluginConfig<T: PluginWithLoadConfig>(
   }
 
   try {
-    await loadConfig({
+    config.result = await loadConfig({
       config: new PublicConfig(config, options),
       options: new PluginOptions(
         optionsProxy(options, option => {

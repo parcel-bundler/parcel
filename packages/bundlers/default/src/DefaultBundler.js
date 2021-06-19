@@ -487,8 +487,7 @@ async function loadBundlerConfig(config: Config, options: PluginOptions) {
     packageKey: '@parcel/bundler-default',
   });
   if (!conf) {
-    config.setResult(HTTP_OPTIONS['2']);
-    return;
+    return HTTP_OPTIONS['2'];
   }
 
   invariant(conf?.contents != null);
@@ -508,10 +507,10 @@ async function loadBundlerConfig(config: Config, options: PluginOptions) {
   let http = conf.contents.http ?? 2;
   let defaults = HTTP_OPTIONS[http];
 
-  config.setResult({
+  return {
     minBundles: conf.contents.minBundles ?? defaults.minBundles,
     minBundleSize: conf.contents.minBundleSize ?? defaults.minBundleSize,
     maxParallelRequests:
       conf.contents.maxParallelRequests ?? defaults.maxParallelRequests,
-  });
+  };
 }

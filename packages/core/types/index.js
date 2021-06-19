@@ -747,10 +747,8 @@ export type DevDepOptions = {|
 export interface Config {
   +isSource: boolean;
   +searchPath: FilePath;
-  +result: ConfigResult;
   +env: Environment;
 
-  setResult(result: ConfigResult): void; // TODO: fix
   setResultHash(resultHash: string): void;
   invalidateOnFileChange(filePath: FilePath): void;
   invalidateOnFileCreate(invalidation: FileCreateInvalidation): void;
@@ -914,12 +912,12 @@ export type Validator = DedicatedThreadValidator | MultiThreadValidator;
  * The methods for a transformer plugin.
  * @section transformer
  */
-export type Transformer = {|
+export type Transformer<ConfigType> = {|
   loadConfig?: ({|
     config: Config,
     options: PluginOptions,
     logger: PluginLogger,
-  |}) => Async<void>,
+  |}) => Promise<ConfigType> | ConfigType,
   /** Whether an AST from a previous transformer can be reused (to prevent double-parsing) */
   canReuseAST?: ({|
     ast: AST,
@@ -929,7 +927,7 @@ export type Transformer = {|
   /** Parse the contents into an ast */
   parse?: ({|
     asset: MutableAsset,
-    config: ?ConfigResult,
+    config: ConfigType,
     resolve: ResolveFn,
     options: PluginOptions,
     logger: PluginLogger,
@@ -937,7 +935,7 @@ export type Transformer = {|
   /** Transform the asset and/or add new assets */
   transform({|
     asset: MutableAsset,
-    config: ?ConfigResult,
+    config: ConfigType,
     resolve: ResolveFn,
     options: PluginOptions,
     logger: PluginLogger,
@@ -1276,32 +1274,27 @@ export type ResolveResult = {|
   +invalidateOnFileChange?: Array<FilePath>,
 |};
 
-export type ConfigOutput = {|
-  config: ConfigResult,
-  files: Array<File>,
-|};
-
 /**
  * Turns an asset graph into a BundleGraph.
  *
  * bundle and optimize run in series and are functionally identitical.
  * @section bundler
  */
-export type Bundler = {|
+export type Bundler<ConfigType> = {|
   loadConfig?: ({|
     config: Config,
     options: PluginOptions,
     logger: PluginLogger,
-  |}) => Async<void>,
+  |}) => Promise<ConfigType> | ConfigType,
   bundle({|
     bundleGraph: MutableBundleGraph,
-    config: ?ConfigResult,
+    config: ConfigType,
     options: PluginOptions,
     logger: PluginLogger,
   |}): Async<void>,
   optimize({|
     bundleGraph: MutableBundleGraph,
-    config: ?ConfigResult,
+    config: ConfigType,
     options: PluginOptions,
     logger: PluginLogger,
   |}): Async<void>,
@@ -1310,17 +1303,17 @@ export type Bundler = {|
 /**
  * @section namer
  */
-export type Namer = {|
+export type Namer<ConfigType> = {|
   loadConfig?: ({|
     config: Config,
     options: PluginOptions,
     logger: PluginLogger,
-  |}) => Async<void>,
+  |}) => Promise<ConfigType> | ConfigType,
   /** Return a filename/-path for <code>bundle</code> or nullish to leave it to the next namer plugin. */
   name({|
     bundle: Bundle,
     bundleGraph: BundleGraph<Bundle>,
-    config: ?ConfigResult,
+    config: ConfigType,
     options: PluginOptions,
     logger: PluginLogger,
   |}): Async<?FilePath>,
@@ -1341,16 +1334,16 @@ export type RuntimeAsset = {|
 /**
  * @section runtime
  */
-export type Runtime = {|
+export type Runtime<ConfigType> = {|
   loadConfig?: ({|
     config: Config,
     options: PluginOptions,
     logger: PluginLogger,
-  |}) => Async<void>,
+  |}) => Promise<ConfigType> | ConfigType,
   apply({|
     bundle: NamedBundle,
     bundleGraph: BundleGraph<NamedBundle>,
-    config: ?ConfigResult,
+    config: ConfigType,
     options: PluginOptions,
     logger: PluginLogger,
   |}): Async<void | RuntimeAsset | Array<RuntimeAsset>>,
@@ -1359,18 +1352,18 @@ export type Runtime = {|
 /**
  * @section packager
  */
-export type Packager = {|
+export type Packager<ConfigType> = {|
   loadConfig?: ({|
     config: Config,
     options: PluginOptions,
     logger: PluginLogger,
-  |}) => Async<void>,
+  |}) => Promise<ConfigType> | ConfigType,
   package({|
     bundle: NamedBundle,
     bundleGraph: BundleGraph<NamedBundle>,
     options: PluginOptions,
     logger: PluginLogger,
-    config: ?ConfigResult,
+    config: ConfigType,
     getInlineBundleContents: (
       Bundle,
       BundleGraph<NamedBundle>,
@@ -1382,12 +1375,12 @@ export type Packager = {|
 /**
  * @section optimizer
  */
-export type Optimizer = {|
+export type Optimizer<ConfigType> = {|
   loadConfig?: ({|
     config: Config,
     options: PluginOptions,
     logger: PluginLogger,
-  |}) => Async<void>,
+  |}) => Promise<ConfigType> | ConfigType,
   optimize({|
     bundle: NamedBundle,
     bundleGraph: BundleGraph<NamedBundle>,
@@ -1395,7 +1388,7 @@ export type Optimizer = {|
     map: ?SourceMap,
     options: PluginOptions,
     logger: PluginLogger,
-    config: ?ConfigResult,
+    config: ConfigType,
     getSourceMapReference: (map: ?SourceMap) => Async<?string>,
   |}): Async<BundleResult>,
 |};

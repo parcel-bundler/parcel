@@ -32,7 +32,7 @@ export default (new Transformer({
         );
       }
 
-      config.setResult(configFile.contents);
+      return configFile.contents;
     }
   },
 

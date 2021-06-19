@@ -45,7 +45,7 @@ export default (new Transformer({
     configResult.omitSourceMapUrl = true;
     configResult.sourceMapContents = false;
 
-    config.setResult(configResult);
+    return configResult;
   },
 
   async transform({asset, options, config, resolve}) {

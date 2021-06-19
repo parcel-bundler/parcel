@@ -10,8 +10,8 @@ import babel7 from './babel7';
 import {load} from './config';
 
 export default (new Transformer({
-  async loadConfig({config, options, logger}) {
-    await load(config, options, logger);
+  loadConfig({config, options, logger}) {
+    return load(config, options, logger);
   },
 
   canReuseAST({ast}) {

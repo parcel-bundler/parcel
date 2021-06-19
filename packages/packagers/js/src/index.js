@@ -18,9 +18,9 @@ export default (new Packager({
       ['package.json'],
     );
     let name = pkg?.contents?.name ?? '';
-    config.setResult({
+    return {
       parcelRequireName: 'parcelRequire' + hashString(name).slice(-4),
-    });
+    };
   },
   async package({
     bundle,

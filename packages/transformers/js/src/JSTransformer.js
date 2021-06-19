@@ -176,14 +176,14 @@ export default (new Transformer({
     let pragma = reactLib ? JSX_PRAGMA[reactLib].pragma : undefined;
     let pragmaFrag = reactLib ? JSX_PRAGMA[reactLib].pragmaFrag : undefined;
     let isJSX = pragma || JSX_EXTENSIONS[path.extname(config.searchPath)];
-    config.setResult({
+    return {
       isJSX,
       pragma,
       pragmaFrag,
       inlineEnvironment,
       inlineFS,
       reactRefresh,
-    });
+    };
   },
   async transform({asset, config, options}) {
     let [code, originalMap] = await Promise.all([

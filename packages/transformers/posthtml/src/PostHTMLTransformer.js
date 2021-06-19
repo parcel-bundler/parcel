@@ -68,7 +68,7 @@ export default (new Transformer({
       configFile.contents.skipParse = true;
       delete configFile.contents.render;
 
-      config.setResult(configFile.contents);
+      return configFile.contents;
     }
   },
 

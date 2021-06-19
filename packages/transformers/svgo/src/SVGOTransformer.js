@@ -31,7 +31,7 @@ export default (new Transformer({
         config.shouldInvalidateOnStartup();
       }
 
-      config.setResult(configFile.contents);
+      return configFile.contents;
     }
   },
 

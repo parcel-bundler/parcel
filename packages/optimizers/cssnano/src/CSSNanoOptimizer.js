@@ -20,7 +20,7 @@ export default (new Optimizer({
       if (isJavascript) {
         config.shouldInvalidateOnStartup();
       }
-      config.setResult(configFile.contents);
+      return configFile.contents;
     }
   },
 

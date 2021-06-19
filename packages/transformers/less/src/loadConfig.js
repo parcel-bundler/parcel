@@ -2,7 +2,16 @@
 import type {Config} from '@parcel/types';
 import path from 'path';
 
-export async function load({config}: {|config: Config|}): Promise<void> {
+type ConfigResult = {|
+  isStatic: boolean,
+  config: any,
+|};
+
+export async function load({
+  config,
+}: {|
+  config: Config,
+|}): Promise<ConfigResult> {
   let configFile = await config.getConfig(['.lessrc', '.lessrc.js'], {
     packageKey: 'less',
   });
@@ -29,5 +38,5 @@ export async function load({config}: {|config: Config|}): Promise<void> {
     config.shouldInvalidateOnStartup();
   }
 
-  return config.setResult({isStatic: !isDynamic, config: configContents});
+  return {isStatic: !isDynamic, config: configContents};
 }
