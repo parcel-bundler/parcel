@@ -17,6 +17,13 @@ import {hashString} from '@parcel/hash';
 import nullthrows from 'nullthrows';
 import {encodeJSONKeyComponent} from '@parcel/diagnostic';
 
+type BundlerConfig = {|
+  http?: number,
+  minBundles?: number,
+  minBundleSize?: number,
+  maxParallelRequests?: number,
+|};
+
 // Default options by http version.
 const HTTP_OPTIONS = {
   '1': {
@@ -483,7 +490,7 @@ const CONFIG_SCHEMA: SchemaEntity = {
 };
 
 async function loadBundlerConfig(config: Config, options: PluginOptions) {
-  let conf = await config.getConfig([], {
+  let conf = await config.getConfig<BundlerConfig>([], {
     packageKey: '@parcel/bundler-default',
   });
   if (!conf) {

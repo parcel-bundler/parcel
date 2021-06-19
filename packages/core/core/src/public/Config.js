@@ -77,7 +77,7 @@ export default class PublicConfig implements IConfig {
     this.#config.shouldInvalidateOnStartup = true;
   }
 
-  async getConfigFrom(
+  async getConfigFrom<T>(
     searchPath: FilePath,
     fileNames: Array<string>,
     options: ?{|
@@ -85,7 +85,7 @@ export default class PublicConfig implements IConfig {
       parse?: boolean,
       exclude?: boolean,
     |},
-  ): Promise<ConfigResultWithFilePath | null> {
+  ): Promise<?ConfigResultWithFilePath<T>> {
     let packageKey = options?.packageKey;
     if (packageKey != null) {
       let pkg = await this.getConfigFrom(searchPath, ['package.json']);
@@ -132,23 +132,23 @@ export default class PublicConfig implements IConfig {
     };
   }
 
-  getConfig(
+  getConfig<T>(
     filePaths: Array<FilePath>,
     options: ?{|
       packageKey?: string,
       parse?: boolean,
       exclude?: boolean,
     |},
-  ): Promise<ConfigResultWithFilePath | null> {
+  ): Promise<?ConfigResultWithFilePath<T>> {
     return this.getConfigFrom(this.searchPath, filePaths, options);
   }
 
-  async getPackage(): Promise<PackageJSON | null> {
+  async getPackage(): Promise<?PackageJSON> {
     if (this.#pkg) {
       return this.#pkg;
     }
 
-    let pkgConfig = await this.getConfig(['package.json']);
+    let pkgConfig = await this.getConfig<PackageJSON>(['package.json']);
     if (!pkgConfig) {
       return null;
     }

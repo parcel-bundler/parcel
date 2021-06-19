@@ -15,8 +15,8 @@ import type {AST as _AST, ConfigResult as _ConfigResult} from './unsafe';
 export type AST = _AST;
 export type ConfigResult = _ConfigResult;
 /** Plugin-specific config result, <code>any</code> */
-export type ConfigResultWithFilePath = {|
-  contents: ConfigResult,
+export type ConfigResultWithFilePath<T> = {|
+  contents: T,
   filePath: FilePath,
 |};
 /** <code>process.env</code> */
@@ -753,7 +753,7 @@ export interface Config {
   invalidateOnFileChange(filePath: FilePath): void;
   invalidateOnFileCreate(invalidation: FileCreateInvalidation): void;
   addDevDependency(devDep: DevDepOptions): void;
-  getConfigFrom(
+  getConfigFrom<T>(
     searchPath: FilePath,
     filePaths: Array<FilePath>,
     options: ?{|
@@ -761,16 +761,16 @@ export interface Config {
       parse?: boolean,
       exclude?: boolean,
     |},
-  ): Promise<ConfigResultWithFilePath | null>;
-  getConfig(
+  ): Promise<?ConfigResultWithFilePath<T>>;
+  getConfig<T>(
     filePaths: Array<FilePath>,
     options: ?{|
       packageKey?: string,
       parse?: boolean,
       exclude?: boolean,
     |},
-  ): Promise<ConfigResultWithFilePath | null>;
-  getPackage(): Promise<PackageJSON | null>;
+  ): Promise<?ConfigResultWithFilePath<T>>;
+  getPackage(): Promise<?PackageJSON>;
   shouldInvalidateOnStartup(): void;
 }
 
