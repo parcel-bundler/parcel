@@ -15,21 +15,11 @@ export default (new Resolver({
       );
     }
 
-    let mainFields = ['source', 'browser'];
-
-    // If scope hoisting is enabled, we can get smaller builds using esmodule input, so choose `module` over `main`.
-    // Otherwise, we'd be wasting time transforming esmodules to commonjs, so choose `main` over `module`.
-    if (dependency.env.shouldScopeHoist) {
-      mainFields.push('module', 'main');
-    } else {
-      mainFields.push('main', 'module');
-    }
-
     const resolver = new NodeResolver({
       fs: options.inputFS,
       projectRoot: options.projectRoot,
       extensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'css', 'styl', 'vue'],
-      mainFields,
+      mainFields: ['source', 'browser', 'module', 'main'],
     });
 
     return resolver.resolve({

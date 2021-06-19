@@ -148,7 +148,7 @@ export class CJSOutputFormat implements OutputFormat {
     return [res, lines];
   }
 
-  buildBundlePostlude(): string {
-    return '';
+  buildBundlePostlude(): [string, number] {
+    return ['', 0];
   }
 }

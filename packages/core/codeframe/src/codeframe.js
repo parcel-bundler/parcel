@@ -2,7 +2,7 @@
 import type {DiagnosticCodeHighlight} from '@parcel/diagnostic';
 
 import chalk from 'chalk';
-import emphasize from 'emphasize';
+import emphasize from 'emphasize/lib/core';
 import stringWidth from 'string-width';
 import sliceAnsi from 'slice-ansi';
 
@@ -27,9 +27,18 @@ const TAB_REPLACE_REGEX = /\t/g;
 const TAB_REPLACEMENT = '  ';
 const DEFAULT_TERMINAL_WIDTH = 80;
 
+const registeredLanguages = new Map();
+
 const highlightSyntax = (txt: string, lang?: string): string => {
   if (lang) {
     try {
+      if (!registeredLanguages.get(lang)) {
+        // TODO use dynamic import
+        // $FlowFixMe flow doesn't support string interpolation inside require!
+        const syntax = require(`highlight.js/lib/languages/${lang}`);
+        emphasize.registerLanguage(lang, syntax);
+        registeredLanguages.set(lang, true);
+      }
       return emphasize.highlight(lang, txt).value;
     } catch (e) {
       // fallback for unknown languages...

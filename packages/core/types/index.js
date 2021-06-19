@@ -148,6 +148,8 @@ export type TargetDescriptor = {|
   +distEntry?: FilePath,
 |};
 
+export type SourceType = 'script' | 'module';
+
 /**
  * This is used when creating an Environment (see that).
  */
@@ -159,10 +161,12 @@ export type EnvironmentOptions = {|
     | Array<PackageName>
     | {[PackageName]: boolean, ...},
   +outputFormat?: OutputFormat,
+  +sourceType?: SourceType,
   +isLibrary?: boolean,
   +shouldOptimize?: boolean,
   +shouldScopeHoist?: boolean,
   +sourceMap?: ?TargetSourceMapOptions,
+  +loc?: ?SourceLocation,
 |};
 
 /**
@@ -182,6 +186,12 @@ export type VersionMap = {
   ...,
 };
 
+export type EnvironmentFeature =
+  | 'esmodules'
+  | 'dynamic-import'
+  | 'worker-module'
+  | 'service-worker-module';
+
 /**
  * Defines the environment in for the output bundle
  */
@@ -198,6 +208,7 @@ export interface Environment {
     | Array<PackageName>
     | {[PackageName]: boolean, ...};
   +outputFormat: OutputFormat;
+  +sourceType: SourceType;
   /** Whether this is a library build (e.g. less loaders) */
   +isLibrary: boolean;
   /** Whether the output should be minified. */
@@ -205,6 +216,7 @@ export interface Environment {
   /** Whether scope hoisting is enabled. */
   +shouldScopeHoist: boolean;
   +sourceMap: ?TargetSourceMapOptions;
+  +loc: ?SourceLocation;
 
   /** Whether <code>context</code> specifies a browser context. */
   isBrowser(): boolean;
@@ -216,7 +228,8 @@ export interface Environment {
   isWorker(): boolean;
   /** Whether <code>context</code> specifies an isolated context (can't access other loaded ancestor bundles). */
   isIsolated(): boolean;
-  matchesEngines(minVersions: VersionMap): boolean;
+  matchesEngines(minVersions: VersionMap, defaultValue?: boolean): boolean;
+  supports(feature: EnvironmentFeature, defaultValue?: boolean): boolean;
 }
 
 /**
@@ -1323,6 +1336,7 @@ export type RuntimeAsset = {|
   +code: string,
   +dependency?: Dependency,
   +isEntry?: boolean,
+  +env?: EnvironmentOptions,
 |};
 
 /**

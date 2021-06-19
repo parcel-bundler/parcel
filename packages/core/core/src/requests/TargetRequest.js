@@ -403,7 +403,7 @@ export class TargetResolver {
           let config = browserslist.parseConfig(contents);
           let browserslistBrowsers = config[env] || config.defaults;
 
-          if (browserslistBrowsers) {
+          if (browserslistBrowsers?.length > 0) {
             pkgEngines = {
               ...pkgEngines,
               browsers: browserslistBrowsers,

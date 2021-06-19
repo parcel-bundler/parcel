@@ -26,6 +26,7 @@ import {PluginLogger} from '@parcel/logger';
 import {hashString} from '@parcel/hash';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import {dependencyToInternalDependency} from './public/Dependency';
+import {mergeEnvironments} from './Environment';
 import createAssetGraphRequest from './requests/AssetGraphRequest';
 import {createDevDependency, runDevDepRequest} from './requests/DevDepRequest';
 import {toProjectPath, fromProjectPathRelative} from './projectPath';
@@ -78,7 +79,13 @@ export default async function applyRuntimes({
 
         if (applied) {
           let runtimeAssets = Array.isArray(applied) ? applied : [applied];
-          for (let {code, dependency, filePath, isEntry} of runtimeAssets) {
+          for (let {
+            code,
+            dependency,
+            filePath,
+            isEntry,
+            env,
+          } of runtimeAssets) {
             let sourceName = path.join(
               path.dirname(filePath),
               `runtime-${hashString(code)}.${bundle.type}`,
@@ -87,7 +94,7 @@ export default async function applyRuntimes({
             let assetGroup = {
               code,
               filePath: toProjectPath(options.projectRoot, sourceName),
-              env: bundle.env,
+              env: mergeEnvironments(bundle.env, env),
               // Runtime assets should be considered source, as they should be
               // e.g. compiled to run in the target environment
               isSource: true,

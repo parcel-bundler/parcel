@@ -30,21 +30,38 @@ export default (new Packager({
     config,
     options,
   }) {
-    let packager = bundle.env.shouldScopeHoist
-      ? new ScopeHoistingPackager(
-          options,
-          bundleGraph,
-          bundle,
-          nullthrows(config).parcelRequireName,
-        )
-      : new DevPackager(
-          options,
-          bundleGraph,
-          bundle,
-          nullthrows(config).parcelRequireName,
-        );
+    // If this is a non-module script, and there is only one asset with no dependencies,
+    // then we don't need to package at all and can pass through the original code un-wrapped.
+    let contents, map;
+    if (bundle.env.sourceType === 'script') {
+      let entries = bundle.getEntryAssets();
+      if (
+        entries.length === 1 &&
+        bundleGraph.getDependencies(entries[0]).length === 0
+      ) {
+        contents = await entries[0].getCode();
+        map = await entries[0].getMap();
+      }
+    }
 
-    let {contents, map} = await packager.package();
+    if (contents == null) {
+      let packager = bundle.env.shouldScopeHoist
+        ? new ScopeHoistingPackager(
+            options,
+            bundleGraph,
+            bundle,
+            nullthrows(config).parcelRequireName,
+          )
+        : new DevPackager(
+            options,
+            bundleGraph,
+            bundle,
+            nullthrows(config).parcelRequireName,
+          );
+
+      ({contents, map} = await packager.package());
+    }
+
     contents += '\n' + (await getSourceMapSuffix(getSourceMapReference, map));
 
     return replaceInlineReferences({

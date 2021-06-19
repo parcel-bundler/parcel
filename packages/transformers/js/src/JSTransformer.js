@@ -51,6 +51,30 @@ const BROWSER_MAPPING = {
   op_mini: null,
 };
 
+// List of browsers to exclude when the esmodule target is specified.
+// Based on https://caniuse.com/#feat=es6-module
+const ESMODULE_BROWSERS = [
+  'not ie <= 11',
+  'not edge < 16',
+  'not firefox < 60',
+  'not chrome < 61',
+  'not safari < 11',
+  'not opera < 48',
+  'not ios_saf < 11',
+  'not op_mini all',
+  'not android < 76',
+  'not blackberry > 0',
+  'not op_mob > 0',
+  'not and_chr < 76',
+  'not and_ff < 68',
+  'not ie_mob > 0',
+  'not and_uc > 0',
+  'not samsung < 8.2',
+  'not and_qq > 0',
+  'not baidu > 0',
+  'not kaios > 0',
+];
+
 const CONFIG_SCHEMA: SchemaEntity = {
   type: 'object',
   properties: {
@@ -72,6 +96,15 @@ const CONFIG_SCHEMA: SchemaEntity = {
     },
   },
   additionalProperties: false,
+};
+
+const SCRIPT_ERRORS = {
+  browser:
+    'Browser scripts cannot have imports or exports. Use a <script type="module"> instead.',
+  'web-worker':
+    'Web workers cannot have imports or exports. Use the `type: "module"` option instead.',
+  'service-worker':
+    'Service workers cannot have imports or exports. Use the `type: "module"` option instead.',
 };
 
 export default (new Transformer({
@@ -167,7 +200,18 @@ export default (new Transformer({
         };
       } else if (asset.env.isBrowser() && asset.env.engines.browsers) {
         targets = {};
-        let browsers = browserslist(asset.env.engines.browsers);
+
+        let browsers = Array.isArray(asset.env.engines.browsers)
+          ? asset.env.engines.browsers
+          : [asset.env.engines.browsers];
+
+        // If the output format is esmodule, exclude browsers
+        // that support them natively so that we transpile less.
+        if (asset.env.outputFormat === 'esmodule') {
+          browsers = [...browsers, ...ESMODULE_BROWSERS];
+        }
+
+        browsers = browserslist(browsers);
         for (let browser of browsers) {
           let [name, version] = browser.split(' ');
           if (BROWSER_MAPPING.hasOwnProperty(name)) {
@@ -218,6 +262,8 @@ export default (new Transformer({
       }
     }
 
+    let supportsModuleWorkers =
+      asset.env.shouldScopeHoist && asset.env.supports('worker-module', true);
     let {
       dependencies,
       code: compiledCode,
@@ -227,6 +273,7 @@ export default (new Transformer({
       needs_esm_helpers,
       diagnostics,
       used_env,
+      script_error_loc,
     } = transform({
       filename: asset.filePath,
       code,
@@ -248,18 +295,21 @@ export default (new Transformer({
         Boolean(config?.reactRefresh),
       targets,
       source_maps: !!asset.env.sourceMap,
-      scope_hoist: asset.env.shouldScopeHoist,
+      scope_hoist:
+        asset.env.shouldScopeHoist && asset.env.sourceType !== 'script',
+      source_type: asset.env.sourceType === 'script' ? 'Script' : 'Module',
+      supports_module_workers: supportsModuleWorkers,
     });
 
     let convertLoc = loc => {
       let location = {
         filePath: asset.filePath,
         start: {
-          line: loc.start_line,
+          line: loc.start_line + Number(asset.meta.startLine ?? 1) - 1,
           column: loc.start_col,
         },
         end: {
-          line: loc.end_line,
+          line: loc.end_line + Number(asset.meta.startLine ?? 1) - 1,
           column: loc.end_col,
         },
       };
@@ -293,6 +343,47 @@ export default (new Transformer({
       });
     }
 
+    // Throw an error for imports/exports within a script if needed.
+    if (script_error_loc) {
+      let message = SCRIPT_ERRORS[(asset.env.context: string)];
+      if (message) {
+        let loc = convertLoc(script_error_loc);
+        let diagnostic = [
+          {
+            message,
+            filePath: asset.filePath,
+            codeFrame: {
+              codeHighlights: [
+                {
+                  start: loc.start,
+                  end: loc.end,
+                },
+              ],
+            },
+          },
+        ];
+
+        if (asset.env.loc) {
+          diagnostic.push({
+            message: 'The environment was originally created here:',
+            filePath: asset.env.loc.filePath,
+            codeFrame: {
+              codeHighlights: [
+                {
+                  start: asset.env.loc.start,
+                  end: asset.env.loc.end,
+                },
+              ],
+            },
+          });
+        }
+
+        throw new ThrowableDiagnostic({
+          diagnostic,
+        });
+      }
+    }
+
     if (shebang) {
       asset.meta.interpreter = shebang;
     }
@@ -303,25 +394,70 @@ export default (new Transformer({
 
     for (let dep of dependencies) {
       if (dep.kind === 'WebWorker') {
+        // Use native ES module output if the worker was created with `type: 'module'` and all targets
+        // support native module workers. Only do this if the source type is changing from script to module
+        // though so that assets can be shared between workers and the main thread in the global output format.
+        let outputFormat = asset.env.outputFormat;
+        if (
+          asset.env.sourceType === 'script' &&
+          dep.source_type === 'Module' &&
+          supportsModuleWorkers
+        ) {
+          outputFormat = 'esmodule';
+        }
+
+        let loc = convertLoc(dep.loc);
         asset.addURLDependency(dep.specifier, {
-          loc: convertLoc(dep.loc),
+          loc,
           env: {
             context: 'web-worker',
-            // outputFormat:
-            //   isModule && asset.env.scopeHoist ? 'esmodule' : undefined,
+            sourceType: dep.source_type === 'Module' ? 'module' : 'script',
+            outputFormat,
+            loc,
           },
           meta: {
             webworker: true,
           },
         });
       } else if (dep.kind === 'ServiceWorker') {
+        let loc = convertLoc(dep.loc);
         asset.addURLDependency(dep.specifier, {
-          loc: convertLoc(dep.loc),
+          loc,
           needsStableName: true,
-          env: {context: 'service-worker'},
+          env: {
+            context: 'service-worker',
+            sourceType: dep.source_type === 'Module' ? 'module' : 'script',
+            outputFormat: 'global', // TODO: module service worker support
+            loc,
+          },
         });
       } else if (dep.kind === 'ImportScripts') {
         if (asset.env.isWorker()) {
+          if (asset.env.sourceType !== 'script') {
+            let loc = convertLoc(dep.loc);
+            let diagnostic = [
+              {
+                message: 'importScripts() is not supported in module workers.',
+                filePath: asset.filePath,
+                codeFrame: {
+                  codeHighlights: [
+                    {
+                      start: loc.start,
+                      end: loc.end,
+                    },
+                  ],
+                },
+                hints: [
+                  'Try using a static `import`, or dynamic `import()` instead.',
+                ],
+              },
+            ];
+
+            throw new ThrowableDiagnostic({
+              diagnostic,
+            });
+          }
+
           asset.addURLDependency(dep.specifier, {
             loc: convertLoc(dep.loc),
           });
@@ -342,6 +478,28 @@ export default (new Transformer({
           meta.importAttributes = dep.attributes;
         }
 
+        let env;
+        if (dep.kind === 'DynamicImport') {
+          // If all of the target engines support dynamic import natively,
+          // we can output native ESM if scope hoisting is enabled.
+          // Only do this for scripts, rather than modules in the global
+          // output format so that assets can be shared between the bundles.
+          let outputFormat = asset.env.outputFormat;
+          if (
+            asset.env.sourceType === 'script' &&
+            asset.env.shouldScopeHoist &&
+            asset.env.supports('dynamic-import', true)
+          ) {
+            outputFormat = 'esmodule';
+          }
+
+          env = {
+            sourceType: 'module',
+            outputFormat,
+            loc: convertLoc(dep.loc),
+          };
+        }
+
         asset.addDependency({
           specifier: dep.specifier,
           specifierType: dep.kind === 'Require' ? 'commonjs' : 'esm',
@@ -350,10 +508,12 @@ export default (new Transformer({
           isOptional: dep.is_optional,
           meta,
           resolveFrom: dep.is_helper ? __filename : undefined,
+          env,
         });
       }
     }
 
+    asset.meta.id = asset.id;
     if (hoist_result) {
       asset.symbols.ensure();
       for (let symbol in hoist_result.exported_symbols) {
@@ -443,7 +603,6 @@ export default (new Transformer({
       asset.meta.hasCJSExports = hoist_result.has_cjs_exports;
       asset.meta.staticExports = hoist_result.static_cjs_exports;
       asset.meta.shouldWrap = hoist_result.should_wrap;
-      asset.meta.id = asset.id;
     } else if (needs_esm_helpers) {
       asset.addDependency({
         specifier: '@parcel/transformer-js/src/esmodule-helpers.js',
