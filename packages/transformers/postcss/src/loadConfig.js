@@ -123,7 +123,7 @@ export async function load({
           'WARNING: Using a JavaScript PostCSS config file means losing out on caching features of Parcel. Use a .postcssrc(.json) file whenever possible.',
       });
 
-      config.shouldInvalidateOnStartup();
+      config.invalidateOnStartup();
 
       // Also add the config as a dev dependency so we attempt to reload in watch mode.
       config.addDevDependency({

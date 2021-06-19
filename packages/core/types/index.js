@@ -745,14 +745,55 @@ export type DevDepOptions = {|
  * @section transformer
  */
 export interface Config {
+  /**
+   * Whether this config is part of the project, and not an external dependency (e.g. in node_modules).
+   * This indicates that transformation using the project's configuration should be applied.
+   */
   +isSource: boolean;
+  /** The path of the file to start searching for config from. */
   +searchPath: FilePath;
+  /** The environment */
   +env: Environment;
 
-  setResultHash(resultHash: string): void;
-  invalidateOnFileChange(filePath: FilePath): void;
-  invalidateOnFileCreate(invalidation: FileCreateInvalidation): void;
-  addDevDependency(devDep: DevDepOptions): void;
+  /** Invalidates the config when the given file is modified or deleted. */
+  invalidateOnFileChange(FilePath): void;
+  /** Invalidates the config when matched files are created. */
+  invalidateOnFileCreate(FileCreateInvalidation): void;
+  /** Invalidates the config when the given environment variable changes. */
+  invalidateOnEnvChange(string): void;
+  /** Invalidates the config when Parcel restarts. */
+  invalidateOnStartup(): void;
+  /**
+   * Adds a dev dependency to the config. If the dev dependency or any of its
+   * dependencies change, the config will be invalidated.
+   */
+  addDevDependency(DevDepOptions): void;
+  /**
+   * Sets the cache key for the config. By default, this is computed as a hash of the
+   * files passed to invalidateOnFileChange or loaded by getConfig. If none, then a
+   * hash of the result returned from loadConfig is used. This method can be used to
+   * override this behavior and explicitly control the cache key. This can be useful
+   * in cases where only part of a file is used to avoid unnecessary invalidations,
+   * or when the result is not hashable (i.e. contains non-serializable properties like functions).
+   */
+  setCacheKey(string): void;
+
+  /**
+   * Searches for config files with the given names in all parent directories
+   * of the config's searchPath.
+   */
+  getConfig<T>(
+    filePaths: Array<FilePath>,
+    options: ?{|
+      packageKey?: string,
+      parse?: boolean,
+      exclude?: boolean,
+    |},
+  ): Promise<?ConfigResultWithFilePath<T>>;
+  /**
+   * Searches for config files with the given names in all parent directories
+   * of the passed searchPath.
+   */
   getConfigFrom<T>(
     searchPath: FilePath,
     filePaths: Array<FilePath>,
@@ -762,16 +803,8 @@ export interface Config {
       exclude?: boolean,
     |},
   ): Promise<?ConfigResultWithFilePath<T>>;
-  getConfig<T>(
-    filePaths: Array<FilePath>,
-    options: ?{|
-      packageKey?: string,
-      parse?: boolean,
-      exclude?: boolean,
-    |},
-  ): Promise<?ConfigResultWithFilePath<T>>;
+  /** Finds the nearest package.json from the config's searchPath. */
   getPackage(): Promise<?PackageJSON>;
-  shouldInvalidateOnStartup(): void;
 }
 
 export type Stats = {|
@@ -926,7 +959,7 @@ export type Transformer<ConfigType> = {|
   |}) => boolean,
   /** Parse the contents into an ast */
   parse?: ({|
-    asset: MutableAsset,
+    asset: Asset,
     config: ConfigType,
     resolve: ResolveFn,
     options: PluginOptions,

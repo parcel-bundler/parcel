@@ -28,7 +28,7 @@ export default (new Transformer({
     );
     let contents = {};
     if (conf) {
-      config.shouldInvalidateOnStartup();
+      config.invalidateOnStartup();
       contents = conf.contents;
       if (typeof contents !== 'object') {
         throw new ThrowableDiagnostic({

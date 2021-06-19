@@ -18,7 +18,7 @@ export default (new Optimizer({
     if (configFile) {
       let isJavascript = path.extname(configFile.filePath) === '.js';
       if (isJavascript) {
-        config.shouldInvalidateOnStartup();
+        config.invalidateOnStartup();
       }
       return configFile.contents;
     }

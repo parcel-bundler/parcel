@@ -57,8 +57,8 @@ export default class PublicConfig implements IConfig {
     this.#config.result = result;
   }
 
-  setResultHash(resultHash: string) {
-    this.#config.resultHash = resultHash;
+  setCacheKey(cacheKey: string) {
+    this.#config.cacheKey = cacheKey;
   }
 
   invalidateOnFileChange(filePath: FilePath) {
@@ -73,8 +73,12 @@ export default class PublicConfig implements IConfig {
     this.#config.invalidateOnFileCreate.push(invalidation);
   }
 
-  shouldInvalidateOnStartup() {
-    this.#config.shouldInvalidateOnStartup = true;
+  invalidateOnEnvChange(env: string) {
+    this.#config.invalidateOnEnvChange.add(env);
+  }
+
+  invalidateOnStartup() {
+    this.#config.invalidateOnStartup = true;
   }
 
   async getConfigFrom<T>(

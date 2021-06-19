@@ -35,7 +35,7 @@ export async function load({
   // This should enforce the config to be reloaded on every run as it's JS
   let isDynamic = configFile && path.extname(configFile.filePath) === '.js';
   if (isDynamic) {
-    config.shouldInvalidateOnStartup();
+    config.invalidateOnStartup();
   }
 
   return {isStatic: !isDynamic, config: configContents};

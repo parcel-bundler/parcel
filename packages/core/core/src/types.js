@@ -390,13 +390,14 @@ export type Config = {|
   isSource: boolean,
   searchPath: FilePath,
   env: Environment,
-  resultHash: ?string,
+  cacheKey: ?string,
   result: ConfigResult,
   invalidateOnFileChange: Set<FilePath>,
   invalidateOnFileCreate: Array<FileCreateInvalidation>,
+  invalidateOnEnvChange: Set<string>,
   invalidateOnOptionChange: Set<string>,
   devDeps: Array<DevDepOptions>,
-  shouldInvalidateOnStartup: boolean,
+  invalidateOnStartup: boolean,
 |};
 
 export type EntryRequest = {|

@@ -84,6 +84,8 @@ export async function load(
     range: BABEL_CORE_RANGE,
   });
 
+  config.invalidateOnEnvChange('BABEL_ENV');
+  config.invalidateOnEnvChange('NODE_ENV');
   let babelOptions = {
     filename: config.searchPath,
     cwd: options.projectRoot,
@@ -111,7 +113,7 @@ export async function load(
           path.extname(file),
         ) + '.json'} file instead.`,
       });
-      config.shouldInvalidateOnStartup();
+      config.invalidateOnStartup();
 
       // But also add the config as a dev dependency so we can at least attempt invalidation in watch mode.
       config.addDevDependency({
@@ -131,7 +133,7 @@ export async function load(
       message:
         'You are using an old version of @babel/core which does not support the necessary features for Parcel to cache and watch babel config files safely. You may need to restart Parcel for config changes to take effect. Please upgrade to @babel/core 7.12.0 or later to resolve this issue.',
     });
-    config.shouldInvalidateOnStartup();
+    config.invalidateOnStartup();
   };
 
   // Old versions of @babel/core return null from loadPartialConfig when the file should explicitly not be run through babel (ignore/exclude)
@@ -185,11 +187,11 @@ export async function load(
           'It looks like you are using `require` to configure Babel plugins or presets. This means Babel transformations cannot be cached and will run on each build. Please use strings to configure Babel instead.',
       });
 
-      config.setResultHash(JSON.stringify(Date.now()));
-      config.shouldInvalidateOnStartup();
+      config.setCacheKey(JSON.stringify(Date.now()));
+      config.invalidateOnStartup();
     } else {
       definePluginDependencies(config, partialConfig.options, options);
-      config.setResultHash(hashObject(partialConfig.options));
+      config.setCacheKey(hashObject(partialConfig.options));
     }
 
     return {

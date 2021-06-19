@@ -29,7 +29,7 @@ export default (new Transformer({
     }
 
     if (configFile && path.extname(configFile.filePath) === '.js') {
-      config.shouldInvalidateOnStartup();
+      config.invalidateOnStartup();
     }
 
     if (configResult.importer === undefined) {

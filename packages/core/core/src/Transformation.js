@@ -685,7 +685,7 @@ export default class Transformation {
     let parse = transformer.parse?.bind(transformer);
     if (!asset.ast && parse) {
       let ast = await parse({
-        asset: new MutableAsset(asset),
+        asset: new Asset(asset),
         config,
         options: pipeline.pluginOptions,
         resolve,
