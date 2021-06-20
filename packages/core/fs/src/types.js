@@ -13,11 +13,23 @@ export type ReaddirOptions =
   | {withFileTypes?: false, ...}
   | {withFileTypes: true, ...};
 
+export type Encoding =
+  | 'hex'
+  | 'utf8'
+  | 'utf-8'
+  | 'ascii'
+  | 'binary'
+  | 'base64'
+  | 'ucs2'
+  | 'ucs-2'
+  | 'utf16le'
+  | 'latin1';
+
 export interface FileSystem {
   readFile(filePath: FilePath): Promise<Buffer>;
-  readFile(filePath: FilePath, encoding: buffer$Encoding): Promise<string>;
+  readFile(filePath: FilePath, encoding: Encoding): Promise<string>;
   readFileSync(filePath: FilePath): Buffer;
-  readFileSync(filePath: FilePath, encoding: buffer$Encoding): string;
+  readFileSync(filePath: FilePath, encoding: Encoding): string;
   writeFile(
     filePath: FilePath,
     contents: Buffer | string,
@@ -45,8 +57,8 @@ export interface FileSystem {
   mkdirp(path: FilePath): Promise<void>;
   rimraf(path: FilePath): Promise<void>;
   ncp(source: FilePath, destination: FilePath): Promise<void>;
-  createReadStream(path: FilePath, options: ?FileOptions): Readable;
-  createWriteStream(path: FilePath, options: ?FileOptions): Writable;
+  createReadStream(path: FilePath, options?: ?FileOptions): Readable;
+  createWriteStream(path: FilePath, options?: ?FileOptions): Writable;
   cwd(): FilePath;
   chdir(dir: FilePath): void;
   watch(

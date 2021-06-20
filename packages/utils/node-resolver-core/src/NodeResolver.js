@@ -303,7 +303,7 @@ export default class NodeResolver {
       if (alternativeModules.length) {
         throw new ThrowableDiagnostic({
           diagnostic: {
-            message: md`Cannot find module ${nullthrows(resolved).moduleName}`,
+            message: md`Cannot find module ${nullthrows(resolved?.moduleName)}`,
             hints: alternativeModules.map(r => {
               return `Did you mean __${r}__?`;
             }),

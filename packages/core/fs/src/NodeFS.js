@@ -1,7 +1,7 @@
 // @flow
 import type {ReadStream, Stats} from 'fs';
 import type {Writable} from 'stream';
-import type {FileOptions, FileSystem} from './types';
+import type {FileOptions, FileSystem, Encoding} from './types';
 import type {FilePath} from '@parcel/types';
 import type {
   Event,
@@ -79,7 +79,7 @@ export class NodeFS implements FileSystem {
     await fs.promises.rename(tmpFilePath, filePath);
   }
 
-  readFileSync(filePath: FilePath, encoding?: buffer$Encoding): any {
+  readFileSync(filePath: FilePath, encoding?: Encoding): any {
     if (encoding != null) {
       return fs.readFileSync(filePath, encoding);
     }
