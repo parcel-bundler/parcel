@@ -117,7 +117,7 @@ export default async function dumpGraphToGraphViz(
       // $FlowFixMe
     } else if (node.type === 'bundle') {
       let parts = [];
-      if (node.value.isEntry) parts.push('entry');
+      if (node.value.needsStableName) parts.push('stable name');
       if (node.value.isInline) parts.push('inline');
       if (parts.length) label += ' (' + parts.join(', ') + ')';
       if (node.value.env) label += ` (${getEnvDescription(node.value.env)})`;

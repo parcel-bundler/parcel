@@ -1046,27 +1046,43 @@ export type CreateBundleOpts =
   // If an entryAsset is provided, a bundle id, type, and environment will be
   // inferred from the entryAsset.
   | {|
-      +uniqueKey?: string,
+      /** The entry asset of the bundle. If provided, many bundle properties will be inferred from it. */
       +entryAsset: Asset,
+      /** The target of the bundle. Should come from the dependency that created the bundle. */
       +target: Target,
-      +isEntry?: ?boolean,
-      +isInline?: ?boolean,
-      +isSplittable?: ?boolean,
-      +type?: ?string,
-      +env?: ?Environment,
-      +pipeline?: ?string,
+      /**
+       * Indicates that the bundle's file name should be stable over time, even when the content of the bundle
+       * changes. This is useful for entries that a user would manually enter the URL for, as well as for things
+       * like service workers or RSS feeds, where the URL must remain consistent over time.
+       */
+      +needsStableName?: ?boolean,
     |}
   // If an entryAsset is not provided, a bundle id, type, and environment must
   // be provided.
   | {|
-      +uniqueKey: string,
-      +entryAsset?: Asset,
-      +target: Target,
-      +isEntry?: ?boolean,
-      +isInline?: ?boolean,
-      +isSplittable?: ?boolean,
+      /** The type of the bundle. */
       +type: string,
+      /** The environment of the bundle. */
       +env: Environment,
+      /** A unique value for the bundle to be used in its id. */
+      +uniqueKey: string,
+      /** The target of the bundle. Should come from the dependency that created the bundle. */
+      +target: Target,
+      /**
+       * Indicates that the bundle's file name should be stable over time, even when the content of the bundle
+       * changes. This is useful for entries that a user would manually enter the URL for, as well as for things
+       * like service workers or RSS feeds, where the URL must remain consistent over time.
+       */
+      +needsStableName?: ?boolean,
+      /** Whether this bundle should be inlined into the parent bundle(s), */
+      +isInline?: ?boolean,
+      /**
+       * Whether the bundle can be split. If false, then all dependencies of the bundle will be kept
+       * internal to the bundle, rather than referring to other bundles. This may result in assets
+       * being duplicated between multiple bundles, but can be useful for things like server side rendering.
+       */
+      +isSplittable?: ?boolean,
+      /** The bundle's pipeline, to be used for optimization. Usually based on the pipeline of the entry asset. */
       +pipeline?: ?string,
     |};
 
@@ -1099,26 +1115,50 @@ export type ExportSymbolResolution = {|
  * @section bundler
  */
 export interface Bundle {
+  /** The bundle id. */
   +id: string;
-  /** Whether this value is inside <code>filePath</code> it will be replace with the real hash at the end. */
-  +hashReference: string;
+  /** The type of the bundle. */
   +type: string;
+  /** The environment of the bundle. */
   +env: Environment;
-  /** Whether this is an entry (e.g. should not be hashed). */
-  +isEntry: ?boolean;
+  /** The bundle's target. */
+  +target: Target;
+  /**
+   * Indicates that the bundle's file name should be stable over time, even when the content of the bundle
+   * changes. This is useful for entries that a user would manually enter the URL for, as well as for things
+   * like service workers or RSS feeds, where the URL must remain consistent over time.
+   */
+  +needsStableName: ?boolean;
   /** Whether this bundle should be inlined into the parent bundle(s), */
   +isInline: ?boolean;
+  /**
+   * Whether the bundle can be split. If false, then all dependencies of the bundle will be kept
+   * internal to the bundle, rather than referring to other bundles. This may result in assets
+   * being duplicated between multiple bundles, but can be useful for things like server side rendering.
+   */
   +isSplittable: ?boolean;
-  +target: Target;
-  /** Assets that run when the bundle is loaded (e.g. runtimes could be added). VERIFY */
+  /**
+   * A placeholder for the bundle's content hash that can be used in the bundle's name or the contents of another
+   * bundle. Hash references are replaced with a content hash of the bundle after packaging and optimizing.
+   */
+  +hashReference: string;
+  /**
+   * Returns the assets that are executed immediately when the bundle is loaded.
+   * Some bundles may not have any entry assets, for example, shared bundles.
+   */
   getEntryAssets(): Array<Asset>;
-  /** The actual entry (which won't be a runtime). */
+  /**
+   * Returns the main entry of the bundle, which will provide the bundle's exports.
+   * Some bundles do not have a main entry, for example, shared bundles.
+   */
   getMainEntry(): ?Asset;
+  /** Returns whether the bundle includes the given asset. */
   hasAsset(Asset): boolean;
+  /** Returns whether the bundle includes the given dependency. */
   hasDependency(Dependency): boolean;
   /** Traverses the assets in the bundle. */
   traverseAssets<TContext>(visit: GraphVisitor<Asset, TContext>): ?TContext;
-  /** Traverses assets and dependencies (see BundleTraversable). */
+  /** Traverses assets and dependencies in the bundle. */
   traverse<TContext>(
     visit: GraphVisitor<BundleTraversable, TContext>,
   ): ?TContext;
@@ -1129,13 +1169,21 @@ export interface Bundle {
  * @section bundler
  */
 export interface NamedBundle extends Bundle {
+  /** A shortened version of the bundle id that is used to refer to the bundle at runtime. */
   +publicId: string;
+  /**
+   * The bundle's name. This is a file path relative to the bundle's target directory.
+   * The bundle name may include a hash reference, but not the final content hash.
+   */
   +name: string;
+  /** A version of the bundle's name with hash references removed for display. */
   +displayName: string;
 }
 
 export interface PackagedBundle extends NamedBundle {
+  /** The absolute file path of the written bundle, including the final content hash if any. */
   +filePath: FilePath;
+  /** Statistics about the bundle. */
   +stats: Stats;
 }
 
@@ -1144,7 +1192,9 @@ export interface PackagedBundle extends NamedBundle {
  * @section bundler
  */
 export type BundleGroup = {|
+  /** The target of the bundle group. */
   +target: Target,
+  /** The id of the entry asset in the bundle group, which is executed immediately when the bundle group is loaded. */
   +entryAssetId: string,
 |};
 

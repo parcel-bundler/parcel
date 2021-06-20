@@ -108,11 +108,10 @@ export default (new Bundler({
           for (let asset of assets) {
             let bundle = bundleGraph.createBundle({
               entryAsset: asset,
-              isEntry:
+              needsStableName:
                 asset.bundleBehavior === 'inline'
                   ? false
                   : dependency.isEntry || dependency.needsStableName,
-              isInline: asset.bundleBehavior === 'inline',
               target: bundleGroup.target,
             });
             bundleByType.set(bundle.type, bundle);
@@ -165,12 +164,12 @@ export default (new Bundler({
               env: asset.env,
               type: asset.type,
               target: bundleGroup.target,
-              isEntry:
+              needsStableName:
                 asset.bundleBehavior === 'inline' ||
                 (dependency.priority === 'parallel' &&
                   !dependency.needsStableName)
                   ? false
-                  : parentBundle.isEntry,
+                  : parentBundle.needsStableName,
               isInline: asset.bundleBehavior === 'inline',
               isSplittable: asset.isBundleSplittable ?? true,
               pipeline: asset.pipeline,
@@ -231,7 +230,8 @@ export default (new Bundler({
           // Don't add to BundleGroups for entry bundles, as that would require
           // another entry bundle depending on these conditions, making it difficult
           // to predict and reference.
-          !containingBundle.isEntry &&
+          // TODO: reconsider this. This is only true for the global output format.
+          !containingBundle.needsStableName &&
           !containingBundle.isInline &&
           containingBundle.isSplittable,
       );
@@ -340,11 +340,13 @@ export default (new Bundler({
         // Don't create shared bundles from entry bundles, as that would require
         // another entry bundle depending on these conditions, making it difficult
         // to predict and reference.
+        // TODO: reconsider this. This is only true for the global output format.
+        // This also currently affects other bundles with stable names, e.g. service workers.
         .filter(b => {
           let entries = b.getEntryAssets();
 
           return (
-            !b.isEntry &&
+            !b.needsStableName &&
             b.isSplittable &&
             entries.every(entry => entry.id !== asset.id)
           );
