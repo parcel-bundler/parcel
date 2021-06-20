@@ -76,6 +76,33 @@ describe('javascript', function() {
     assert.strictEqual(path.basename(output), path.basename(txtBundle));
   });
 
+  it('should support url: imports of another javascript file', async function() {
+    let b = await bundle(path.join(__dirname, '/integration/worklet/url.js'));
+
+    assertBundles(b, [
+      {
+        name: 'url.js',
+        assets: ['bundle-url.js', 'url.js', 'esmodule-helpers.js'],
+      },
+      {
+        type: 'js',
+        assets: ['worklet.js'],
+      },
+    ]);
+
+    let url;
+    let output = await run(b, {
+      CSS: {
+        paintWorklet: {
+          addModule(u) {
+            url = u;
+          },
+        },
+      },
+    });
+    assert(/^http:\/\/localhost\/worklet\.[0-9a-f]+\.js$/.test(url));
+  });
+
   it('should produce a basic JS bundle with ES6 imports', async function() {
     let b = await bundle(path.join(__dirname, '/integration/es6/index.js'));
 
