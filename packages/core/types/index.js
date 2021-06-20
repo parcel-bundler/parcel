@@ -15,8 +15,8 @@ import type {AST as _AST, ConfigResult as _ConfigResult} from './unsafe';
 export type AST = _AST;
 export type ConfigResult = _ConfigResult;
 /** Plugin-specific config result, <code>any</code> */
-export type ConfigResultWithFilePath = {|
-  contents: ConfigResult,
+export type ConfigResultWithFilePath<T> = {|
+  contents: T,
   filePath: FilePath,
 |};
 /** <code>process.env</code> */
@@ -745,17 +745,56 @@ export type DevDepOptions = {|
  * @section transformer
  */
 export interface Config {
+  /**
+   * Whether this config is part of the project, and not an external dependency (e.g. in node_modules).
+   * This indicates that transformation using the project's configuration should be applied.
+   */
   +isSource: boolean;
+  /** The path of the file to start searching for config from. */
   +searchPath: FilePath;
-  +result: ConfigResult;
+  /** The environment */
   +env: Environment;
 
-  setResult(result: ConfigResult): void; // TODO: fix
-  setResultHash(resultHash: string): void;
-  invalidateOnFileChange(filePath: FilePath): void;
-  invalidateOnFileCreate(invalidation: FileCreateInvalidation): void;
-  addDevDependency(devDep: DevDepOptions): void;
-  getConfigFrom(
+  /** Invalidates the config when the given file is modified or deleted. */
+  invalidateOnFileChange(FilePath): void;
+  /** Invalidates the config when matched files are created. */
+  invalidateOnFileCreate(FileCreateInvalidation): void;
+  /** Invalidates the config when the given environment variable changes. */
+  invalidateOnEnvChange(string): void;
+  /** Invalidates the config when Parcel restarts. */
+  invalidateOnStartup(): void;
+  /**
+   * Adds a dev dependency to the config. If the dev dependency or any of its
+   * dependencies change, the config will be invalidated.
+   */
+  addDevDependency(DevDepOptions): void;
+  /**
+   * Sets the cache key for the config. By default, this is computed as a hash of the
+   * files passed to invalidateOnFileChange or loaded by getConfig. If none, then a
+   * hash of the result returned from loadConfig is used. This method can be used to
+   * override this behavior and explicitly control the cache key. This can be useful
+   * in cases where only part of a file is used to avoid unnecessary invalidations,
+   * or when the result is not hashable (i.e. contains non-serializable properties like functions).
+   */
+  setCacheKey(string): void;
+
+  /**
+   * Searches for config files with the given names in all parent directories
+   * of the config's searchPath.
+   */
+  getConfig<T>(
+    filePaths: Array<FilePath>,
+    options: ?{|
+      packageKey?: string,
+      parse?: boolean,
+      exclude?: boolean,
+    |},
+  ): Promise<?ConfigResultWithFilePath<T>>;
+  /**
+   * Searches for config files with the given names in all parent directories
+   * of the passed searchPath.
+   */
+  getConfigFrom<T>(
     searchPath: FilePath,
     filePaths: Array<FilePath>,
     options: ?{|
@@ -763,17 +802,9 @@ export interface Config {
       parse?: boolean,
       exclude?: boolean,
     |},
-  ): Promise<ConfigResultWithFilePath | null>;
-  getConfig(
-    filePaths: Array<FilePath>,
-    options: ?{|
-      packageKey?: string,
-      parse?: boolean,
-      exclude?: boolean,
-    |},
-  ): Promise<ConfigResultWithFilePath | null>;
-  getPackage(): Promise<PackageJSON | null>;
-  shouldInvalidateOnStartup(): void;
+  ): Promise<?ConfigResultWithFilePath<T>>;
+  /** Finds the nearest package.json from the config's searchPath. */
+  getPackage(): Promise<?PackageJSON>;
 }
 
 export type Stats = {|
@@ -914,12 +945,12 @@ export type Validator = DedicatedThreadValidator | MultiThreadValidator;
  * The methods for a transformer plugin.
  * @section transformer
  */
-export type Transformer = {|
+export type Transformer<ConfigType> = {|
   loadConfig?: ({|
     config: Config,
     options: PluginOptions,
     logger: PluginLogger,
-  |}) => Async<void>,
+  |}) => Promise<ConfigType> | ConfigType,
   /** Whether an AST from a previous transformer can be reused (to prevent double-parsing) */
   canReuseAST?: ({|
     ast: AST,
@@ -928,8 +959,8 @@ export type Transformer = {|
   |}) => boolean,
   /** Parse the contents into an ast */
   parse?: ({|
-    asset: MutableAsset,
-    config: ?ConfigResult,
+    asset: Asset,
+    config: ConfigType,
     resolve: ResolveFn,
     options: PluginOptions,
     logger: PluginLogger,
@@ -937,7 +968,7 @@ export type Transformer = {|
   /** Transform the asset and/or add new assets */
   transform({|
     asset: MutableAsset,
-    config: ?ConfigResult,
+    config: ConfigType,
     resolve: ResolveFn,
     options: PluginOptions,
     logger: PluginLogger,
@@ -1276,32 +1307,27 @@ export type ResolveResult = {|
   +invalidateOnFileChange?: Array<FilePath>,
 |};
 
-export type ConfigOutput = {|
-  config: ConfigResult,
-  files: Array<File>,
-|};
-
 /**
  * Turns an asset graph into a BundleGraph.
  *
  * bundle and optimize run in series and are functionally identitical.
  * @section bundler
  */
-export type Bundler = {|
+export type Bundler<ConfigType> = {|
   loadConfig?: ({|
     config: Config,
     options: PluginOptions,
     logger: PluginLogger,
-  |}) => Async<void>,
+  |}) => Promise<ConfigType> | ConfigType,
   bundle({|
     bundleGraph: MutableBundleGraph,
-    config: ?ConfigResult,
+    config: ConfigType,
     options: PluginOptions,
     logger: PluginLogger,
   |}): Async<void>,
   optimize({|
     bundleGraph: MutableBundleGraph,
-    config: ?ConfigResult,
+    config: ConfigType,
     options: PluginOptions,
     logger: PluginLogger,
   |}): Async<void>,
@@ -1310,17 +1336,17 @@ export type Bundler = {|
 /**
  * @section namer
  */
-export type Namer = {|
+export type Namer<ConfigType> = {|
   loadConfig?: ({|
     config: Config,
     options: PluginOptions,
     logger: PluginLogger,
-  |}) => Async<void>,
+  |}) => Promise<ConfigType> | ConfigType,
   /** Return a filename/-path for <code>bundle</code> or nullish to leave it to the next namer plugin. */
   name({|
     bundle: Bundle,
     bundleGraph: BundleGraph<Bundle>,
-    config: ?ConfigResult,
+    config: ConfigType,
     options: PluginOptions,
     logger: PluginLogger,
   |}): Async<?FilePath>,
@@ -1341,16 +1367,16 @@ export type RuntimeAsset = {|
 /**
  * @section runtime
  */
-export type Runtime = {|
+export type Runtime<ConfigType> = {|
   loadConfig?: ({|
     config: Config,
     options: PluginOptions,
     logger: PluginLogger,
-  |}) => Async<void>,
+  |}) => Promise<ConfigType> | ConfigType,
   apply({|
     bundle: NamedBundle,
     bundleGraph: BundleGraph<NamedBundle>,
-    config: ?ConfigResult,
+    config: ConfigType,
     options: PluginOptions,
     logger: PluginLogger,
   |}): Async<void | RuntimeAsset | Array<RuntimeAsset>>,
@@ -1359,18 +1385,18 @@ export type Runtime = {|
 /**
  * @section packager
  */
-export type Packager = {|
+export type Packager<ConfigType> = {|
   loadConfig?: ({|
     config: Config,
     options: PluginOptions,
     logger: PluginLogger,
-  |}) => Async<void>,
+  |}) => Promise<ConfigType> | ConfigType,
   package({|
     bundle: NamedBundle,
     bundleGraph: BundleGraph<NamedBundle>,
     options: PluginOptions,
     logger: PluginLogger,
-    config: ?ConfigResult,
+    config: ConfigType,
     getInlineBundleContents: (
       Bundle,
       BundleGraph<NamedBundle>,
@@ -1382,12 +1408,12 @@ export type Packager = {|
 /**
  * @section optimizer
  */
-export type Optimizer = {|
+export type Optimizer<ConfigType> = {|
   loadConfig?: ({|
     config: Config,
     options: PluginOptions,
     logger: PluginLogger,
-  |}) => Async<void>,
+  |}) => Promise<ConfigType> | ConfigType,
   optimize({|
     bundle: NamedBundle,
     bundleGraph: BundleGraph<NamedBundle>,
@@ -1395,7 +1421,7 @@ export type Optimizer = {|
     map: ?SourceMap,
     options: PluginOptions,
     logger: PluginLogger,
-    config: ?ConfigResult,
+    config: ConfigType,
     getSourceMapReference: (map: ?SourceMap) => Async<?string>,
   |}): Async<BundleResult>,
 |};

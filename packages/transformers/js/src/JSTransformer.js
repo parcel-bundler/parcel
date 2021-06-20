@@ -98,6 +98,13 @@ const CONFIG_SCHEMA: SchemaEntity = {
   additionalProperties: false,
 };
 
+type PackageJSONConfig = {|
+  '@parcel/transformer-js'?: {|
+    inlineFS?: boolean,
+    inlineEnvironment?: boolean | Array<string>,
+  |},
+|};
+
 const SCRIPT_ERRORS = {
   browser:
     'Browser scripts cannot have imports or exports. Use a <script type="module"> instead.',
@@ -144,7 +151,7 @@ export default (new Transformer({
       typeof pkg.browser === 'object' &&
       pkg.browser.fs === false;
 
-    let result = await config.getConfigFrom(
+    let result = await config.getConfigFrom<PackageJSONConfig>(
       path.join(options.projectRoot, 'index'),
       ['package.json'],
     );
@@ -168,22 +175,22 @@ export default (new Transformer({
       );
 
       inlineEnvironment =
-        rootPkg['@parcel/transformer-js'].inlineEnvironment ??
+        rootPkg['@parcel/transformer-js']?.inlineEnvironment ??
         inlineEnvironment;
-      inlineFS = rootPkg['@parcel/transformer-js'].inlineFS ?? inlineFS;
+      inlineFS = rootPkg['@parcel/transformer-js']?.inlineFS ?? inlineFS;
     }
 
     let pragma = reactLib ? JSX_PRAGMA[reactLib].pragma : undefined;
     let pragmaFrag = reactLib ? JSX_PRAGMA[reactLib].pragmaFrag : undefined;
     let isJSX = pragma || JSX_EXTENSIONS[path.extname(config.searchPath)];
-    config.setResult({
+    return {
       isJSX,
       pragma,
       pragmaFrag,
       inlineEnvironment,
       inlineFS,
       reactRefresh,
-    });
+    };
   },
   async transform({asset, config, options}) {
     let [code, originalMap] = await Promise.all([

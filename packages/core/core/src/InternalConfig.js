@@ -19,9 +19,10 @@ type ConfigOpts = {|
   result?: ConfigResult,
   invalidateOnFileChange?: Set<FilePath>,
   invalidateOnFileCreate?: Array<FileCreateInvalidation>,
+  invalidateOnEnvChange?: Set<string>,
   invalidateOnOptionChange?: Set<string>,
   devDeps?: Array<DevDepOptions>,
-  shouldInvalidateOnStartup?: boolean,
+  invalidateOnStartup?: boolean,
 |};
 
 export function createConfig({
@@ -32,9 +33,10 @@ export function createConfig({
   result,
   invalidateOnFileChange,
   invalidateOnFileCreate,
+  invalidateOnEnvChange,
   invalidateOnOptionChange,
   devDeps,
-  shouldInvalidateOnStartup,
+  invalidateOnStartup,
 }: ConfigOpts): Config {
   let environment = env ?? createEnvironment();
   return {
@@ -43,11 +45,12 @@ export function createConfig({
     searchPath,
     env: environment,
     result: result ?? null,
-    resultHash: null,
+    cacheKey: null,
     invalidateOnFileChange: invalidateOnFileChange ?? new Set(),
     invalidateOnFileCreate: invalidateOnFileCreate ?? [],
+    invalidateOnEnvChange: invalidateOnEnvChange ?? new Set(),
     invalidateOnOptionChange: invalidateOnOptionChange ?? new Set(),
     devDeps: devDeps ?? [],
-    shouldInvalidateOnStartup: shouldInvalidateOnStartup ?? false,
+    invalidateOnStartup: invalidateOnStartup ?? false,
   };
 }
