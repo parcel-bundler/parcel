@@ -12,7 +12,7 @@
   ],
   "scripts": {
     "build": "cross-env NODE_ENV=production PARCEL_BUILD_ENV=production gulp",
-    "build-ts": "lerna run build-ts && lerna run build-ts2 && lerna run check-ts",
+    "build-ts": "lerna run build-ts && lerna run check-ts",
     "build-native": "node scripts/build-native.js",
     "build-native-release": "node scripts/build-native.js --release",
     "clean-test": "rimraf packages/core/integration-tests/.parcel-cache && rimraf packages/core/integration-tests/dist",
