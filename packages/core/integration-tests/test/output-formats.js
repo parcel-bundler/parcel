@@ -825,7 +825,7 @@ describe('output formats', function() {
         .find(b => !b.filePath.includes('async'));
       assert(
         workerBundleContents.includes(
-          `importScripts("./${path.basename(syncBundle.filePath)}")`,
+          `import "./${path.basename(syncBundle.filePath)}"`,
         ),
       );
       assert(
