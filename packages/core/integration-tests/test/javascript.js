@@ -3056,6 +3056,15 @@ describe('javascript', function() {
     assert(!cssBundleContent.includes('sourceMappingURL'));
   });
 
+  it("should inline an HTML bundle's compiled text with `bundle-text`", async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/bundle-text/index.html'),
+    );
+
+    let res = await run(b);
+    assert.equal(res.default, '<p>test</p>\n');
+  });
+
   it('should inline text content as url-encoded text and mime type with `data-url:*` imports', async () => {
     let b = await bundle(path.join(__dirname, '/integration/data-url/text.js'));
 
