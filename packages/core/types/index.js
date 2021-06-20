@@ -1255,6 +1255,7 @@ export interface BundleGraph<TBundle: Bundle> {
     startBundle: ?Bundle,
   ): ?TContext;
   getUsedSymbols(Asset | Dependency): $ReadOnlySet<Symbol>;
+  getMainBundle(bundleGroup: BundleGroup): TBundle;
 }
 
 /**

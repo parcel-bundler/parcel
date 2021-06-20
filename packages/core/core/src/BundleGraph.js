@@ -1582,4 +1582,12 @@ export default class BundleGraph {
       .map(id => nullthrows(this._graph.getNode(id)))
       .some(n => n.type === 'root');
   }
+
+  getMainBundle(bundleGroup: BundleGroup): Bundle {
+    return nullthrows(
+      this.getBundlesInBundleGroup(bundleGroup).find(
+        b => b.mainEntryId === bundleGroup.entryAssetId,
+      ),
+    );
+  }
 }

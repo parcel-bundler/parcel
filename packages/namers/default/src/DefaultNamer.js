@@ -4,7 +4,6 @@ import type {Bundle, FilePath} from '@parcel/types';
 
 import {Namer} from '@parcel/plugin';
 import ThrowableDiagnostic, {md} from '@parcel/diagnostic';
-import assert from 'assert';
 import path from 'path';
 import nullthrows from 'nullthrows';
 
@@ -13,24 +12,7 @@ const COMMON_NAMES = new Set(['index', 'src', 'lib']);
 export default (new Namer({
   name({bundle, bundleGraph, options}) {
     let bundleGroup = bundleGraph.getBundleGroupsContainingBundle(bundle)[0];
-    let bundleGroupBundles = bundleGraph.getBundlesInBundleGroup(bundleGroup);
-
-    if (bundle.isEntry) {
-      let entryBundlesOfType = bundleGroupBundles.filter(
-        b => b.isEntry && b.type === bundle.type,
-      );
-      assert(
-        entryBundlesOfType.length === 1,
-        // Otherwise, we'd end up naming two bundles the same thing.
-        'Bundle group cannot have more than one entry bundle of the same type',
-      );
-    }
-
-    let mainBundle = nullthrows(
-      bundleGroupBundles.find(b =>
-        b.getEntryAssets().some(a => a.id === bundleGroup.entryAssetId),
-      ),
-    );
+    let mainBundle = bundleGraph.getMainBundle(bundleGroup);
 
     if (
       bundle.id === mainBundle.id &&
