@@ -8101,10 +8101,10 @@ listr2@^2.1.0:
     rxjs "^6.5.5"
     through "^2.3.8"
 
-lmdb-store@^1.5.2:
-  version "1.5.2"
-  resolved "https://registry.yarnpkg.com/lmdb-store/-/lmdb-store-1.5.2.tgz#11f4bef7f20b804f8b95e5984a2a153dc314708d"
-  integrity sha512-xQcy1Mk86SN1f+viX3YqTkNsRAiawSeUv27B36H2syK2TsNQyBPqk72QHqTdoIsFqdO7KeXK2a8Ch5cG/viHaA==
+lmdb-store@^1.5.4:
+  version "1.5.5"
+  resolved "https://registry.yarnpkg.com/lmdb-store/-/lmdb-store-1.5.5.tgz#b51f5d045bf0fbae205e31eab781900be3b25ad9"
+  integrity sha512-EwCn+eSGH1XD35qaDzbHTYMig+Aj+kBbCpxWHzhtrIBJpFYq5uoBo4zWG4JRFxsbfonFELhuiyX0QokISIxzsQ==
   dependencies:
     mkdirp "^1.0.4"
     nan "^2.14.2"
