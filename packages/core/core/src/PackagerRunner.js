@@ -176,10 +176,11 @@ export default class PackagerRunner {
     let plugin = await this.config.getPackager(name);
     await this.loadPluginConfig(plugin, configs);
 
-    let optimizers = await this.config.getOptimizers(name, bundle.pipeline);
-
-    for (let optimizer of optimizers) {
-      await this.loadPluginConfig(optimizer, configs);
+    if (bundle.env.shouldOptimize) {
+      let optimizers = await this.config.getOptimizers(name, bundle.pipeline);
+      for (let optimizer of optimizers) {
+        await this.loadPluginConfig(optimizer, configs);
+      }
     }
   }
 
@@ -276,7 +277,7 @@ export default class PackagerRunner {
   |}> {
     let packaged = await this.package(bundle, bundleGraph, configs);
     let type = packaged.type ?? bundle.type;
-    let res = await this.optimize(
+    let res = await this.postProcessPackage(
       bundle,
       bundleGraph,
       type,
@@ -377,7 +378,7 @@ export default class PackagerRunner {
     }
   }
 
-  async optimize(
+  async postProcessPackage(
     internalBundle: InternalBundle,
     internalBundleGraph: InternalBundleGraph,
     type: string,
@@ -395,71 +396,76 @@ export default class PackagerRunner {
       NamedBundle.get,
       this.options,
     );
-    let optimizers = await this.config.getOptimizers(
-      bundle.name,
-      internalBundle.pipeline,
-    );
-    if (!optimizers.length) {
-      return {type: bundle.type, contents, map};
-    }
 
-    this.report({
-      type: 'buildProgress',
-      phase: 'optimizing',
-      bundle,
-    });
-
-    let optimized = {
+    // $FlowFixMe, flow is so weird
+    let result: any = {
       type,
       contents,
       map,
     };
 
-    for (let optimizer of optimizers) {
-      try {
-        let next = await optimizer.plugin.optimize({
-          config: configs.get(optimizer.name)?.result,
-          bundle,
-          bundleGraph,
-          contents: optimized.contents,
-          map: optimized.map,
-          getSourceMapReference: map => {
-            return this.getSourceMapReference(bundle, map);
-          },
-          options: this.pluginOptions,
-          logger: new PluginLogger({origin: optimizer.name}),
-        });
+    if (bundle.env.shouldOptimize) {
+      let optimizers = await this.config.getOptimizers(
+        bundle.name,
+        internalBundle.pipeline,
+      );
 
-        optimized.type = next.type ?? optimized.type;
-        optimized.contents = next.contents;
-        optimized.map = next.map;
-      } catch (e) {
-        throw new ThrowableDiagnostic({
-          diagnostic: errorToDiagnostic(e, {
-            origin: optimizer.name,
-            filePath: path.join(bundle.target.distDir, bundle.name),
-          }),
-        });
-      } finally {
-        // Add dev dependency for the optimizer. This must be done AFTER running it due to
-        // the potential for lazy require() that aren't executed until the request runs.
-        let devDepRequest = await createDevDependency(
-          {
-            specifier: optimizer.name,
-            resolveFrom: optimizer.resolveFrom,
-          },
-          optimizer,
-          this.previousDevDeps,
-          this.options,
-        );
-        this.devDepRequests.set(
-          `${optimizer.name}:${optimizer.resolveFrom}`,
-          devDepRequest,
-        );
+      if (!optimizers.length) {
+        return result;
+      }
+
+      this.report({
+        type: 'buildProgress',
+        phase: 'optimizing',
+        bundle,
+      });
+
+      for (let optimizer of optimizers) {
+        try {
+          let next = await optimizer.plugin.optimize({
+            config: configs.get(optimizer.name)?.result,
+            bundle,
+            bundleGraph,
+            contents: result.contents,
+            map: result.map,
+            getSourceMapReference: map => {
+              return this.getSourceMapReference(bundle, map);
+            },
+            options: this.pluginOptions,
+            logger: new PluginLogger({origin: optimizer.name}),
+          });
+
+          result.type = next.type ?? result.type;
+          result.contents = next.contents;
+          result.map = next.map;
+        } catch (e) {
+          throw new ThrowableDiagnostic({
+            diagnostic: errorToDiagnostic(e, {
+              origin: optimizer.name,
+              filePath: path.join(bundle.target.distDir, bundle.name),
+            }),
+          });
+        } finally {
+          // Add dev dependency for the optimizer. This must be done AFTER running it due to
+          // the potential for lazy require() that aren't executed until the request runs.
+          let devDepRequest = await createDevDependency(
+            {
+              specifier: optimizer.name,
+              resolveFrom: optimizer.resolveFrom,
+            },
+            optimizer,
+            this.previousDevDeps,
+            this.options,
+          );
+          this.devDepRequests.set(
+            `${optimizer.name}:${optimizer.resolveFrom}`,
+            devDepRequest,
+          );
+        }
       }
     }
 
-    return optimized;
+    return result;
   }
 
   async generateSourceMap(

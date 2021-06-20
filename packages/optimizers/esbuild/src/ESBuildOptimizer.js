@@ -10,10 +10,6 @@ import invariant from 'assert';
 let service = null;
 export default (new Optimizer({
   async optimize({contents, map, bundle, options, getSourceMapReference}) {
-    if (!bundle.env.shouldOptimize) {
-      return {contents, map};
-    }
-
     if (!service) {
       service = await startService();
     }

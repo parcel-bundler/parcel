@@ -54,6 +54,7 @@ export type ProcessedParcelConfig = {|
   runtimes?: PureParcelConfigPipeline,
   packagers?: {[Glob]: ParcelPluginNode, ...},
   optimizers?: {[Glob]: ExtendableParcelConfigPipeline, ...},
+  'bundle-transformers'?: {[Glob]: ExtendableParcelConfigPipeline, ...},
   reporters?: PureParcelConfigPipeline,
   validators?: {[Glob]: ExtendableParcelConfigPipeline, ...},
   filePath: FilePath,

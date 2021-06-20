@@ -32,10 +32,6 @@ export default (new Optimizer({
     config,
     options,
   }) {
-    if (!bundle.env.shouldOptimize) {
-      return {contents: prevContents, map: prevMap};
-    }
-
     if (typeof prevContents !== 'string') {
       throw new Error(
         'CSSNanoOptimizer: Only string contents are currently supported',

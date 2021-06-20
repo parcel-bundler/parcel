@@ -7,11 +7,7 @@ import posthtml from 'posthtml';
 import path from 'path';
 
 export default (new Optimizer({
-  async optimize({bundle, contents, map, options}) {
-    if (!bundle.env.shouldOptimize) {
-      return {contents, map};
-    }
-
+  async optimize({contents, options}) {
     if (typeof contents !== 'string') {
       throw new Error(
         'HTMLNanoOptimizer: Only string contents are currently supported',

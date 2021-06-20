@@ -11,10 +11,6 @@ import path from 'path';
 
 export default (new Optimizer({
   async optimize({contents, map, bundle, options, getSourceMapReference}) {
-    if (!bundle.env.shouldOptimize) {
-      return {contents, map};
-    }
-
     let code = await blobToString(contents);
 
     let userConfig = await loadConfig(

@@ -9,6 +9,7 @@ import type {
   Runtime,
   PackageName,
   Optimizer,
+  BundleTransformer,
   Packager,
   Reporter,
   Semver,
@@ -53,6 +54,7 @@ export default class ParcelConfig {
   packagers: GlobMap<ParcelPluginNode>;
   validators: GlobMap<ExtendableParcelConfigPipeline>;
   optimizers: GlobMap<ExtendableParcelConfigPipeline>;
+  bundleTransformers: GlobMap<ExtendableParcelConfigPipeline>;
   reporters: PureParcelConfigPipeline;
   pluginCache: Map<PackageName, any>;
   regexCache: Map<string, RegExp>;
@@ -69,6 +71,7 @@ export default class ParcelConfig {
     this.optimizers = config.optimizers || {};
     this.reporters = config.reporters || [];
     this.validators = config.validators || {};
+    this.bundleTransformers = config['bundle-transformers'] || {};
     this.pluginCache = new Map();
     this.regexCache = new Map();
   }
@@ -314,6 +317,55 @@ export default class ParcelConfig {
     }
 
     return this.loadPlugins<Optimizer<mixed>>(optimizers);
+  }
+
+  _getBundleTransformerNodes(
+    filePath: FilePath,
+    pipeline: ?string,
+  ): PureParcelConfigPipeline {
+    // If a pipeline is specified, but it doesn't exist in the bundleTransformers config, ignore it.
+    // Pipelines for bundles come from their entry assets, so the pipeline likely exists in transformers.
+    if (pipeline) {
+      let prefix = pipeline + ':';
+      if (
+        !Object.keys(this.bundleTransformers).some(glob =>
+          glob.startsWith(prefix),
+        )
+      ) {
+        pipeline = null;
+      }
+    }
+
+    return (
+      this.matchGlobMapPipelines(filePath, this.bundleTransformers, pipeline) ??
+      []
+    );
+  }
+
+  getBundleTransformerNames(
+    filePath: FilePath,
+    pipeline: ?string,
+  ): Array<string> {
+    let bundleTransformers = this._getBundleTransformerNodes(
+      filePath,
+      pipeline,
+    );
+    return bundleTransformers.map(o => o.packageName);
+  }
+
+  getBundleTransformers(
+    filePath: FilePath,
+    pipeline: ?string,
+  ): Promise<Array<LoadedPlugin<BundleTransformer<mixed>>>> {
+    let bundleTransformers = this._getBundleTransformerNodes(
+      filePath,
+      pipeline,
+    );
+    if (bundleTransformers.length === 0) {
+      return Promise.resolve([]);
+    }
+
+    return this.loadPlugins<BundleTransformer<mixed>>(bundleTransformers);
   }
 
   getReporters(): Promise<Array<LoadedPlugin<Reporter>>> {

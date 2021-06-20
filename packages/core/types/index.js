@@ -1427,6 +1427,27 @@ export type Optimizer<ConfigType> = {|
 |};
 
 /**
+ * @section bundle-transformer
+ */
+export type BundleTransformer<ConfigType> = {|
+  loadConfig?: ({|
+    config: Config,
+    options: PluginOptions,
+    logger: PluginLogger,
+  |}) => Promise<ConfigType> | ConfigType,
+  transformBundle({|
+    bundle: NamedBundle,
+    bundleGraph: BundleGraph<NamedBundle>,
+    contents: Blob,
+    map: ?SourceMap,
+    options: PluginOptions,
+    logger: PluginLogger,
+    config: ConfigType,
+    getSourceMapReference: (map: ?SourceMap) => Async<?string>,
+  |}): Async<BundleResult>,
+|};
+
+/**
  * @section resolver
  */
 export type Resolver = {|

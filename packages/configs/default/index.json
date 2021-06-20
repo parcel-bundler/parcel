@@ -44,10 +44,12 @@
     "@parcel/runtime-react-refresh"
   ],
   "optimizers": {
-    "data-url:*": ["...", "@parcel/optimizer-data-url"],
     "*.css": ["@parcel/optimizer-cssnano"],
     "*.js": ["@parcel/optimizer-terser"],
     "*.html": ["@parcel/optimizer-htmlnano"]
+  },
+  "bundler-transformers": {
+    "data-url:*": ["...", "@parcel/optimizer-data-url"]
   },
   "packagers": {
     "*.html": "@parcel/packager-html",
