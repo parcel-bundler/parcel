@@ -100,10 +100,9 @@ export default function createAssetGraphRequest(
       let builder = new AssetGraphBuilder(input, prevResult);
       let assetGraphRequest = await await builder.build();
       let shouldGetAssetTransformations =
-        (assetGraphRequest.changedAssets.size > 0 &&
-          isPrevResult &&
-          input.options.shouldIncrementallyBundle) ||
-        true;
+        assetGraphRequest.changedAssets.size > 0 &&
+        isPrevResult &&
+        input.options.shouldIncrementallyBundle;
 
       let assetGraphTransformationSubGraph = shouldGetAssetTransformations
         ? assetGraphRequest.assetGraph.getChangedAssetGraph(
