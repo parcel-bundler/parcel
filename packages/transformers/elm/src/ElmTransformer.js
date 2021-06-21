@@ -35,7 +35,7 @@ export default (new Transformer({
         },
       });
     }
-    config.setResult(elmConfig.contents);
+    return elmConfig.contents;
   },
 
   async transform({asset, options}) {
@@ -49,7 +49,7 @@ export default (new Transformer({
     };
     asset.invalidateOnEnvChange('PARCEL_ELM_NO_DEBUG');
     for (const filePath of await elm.findAllDependencies(asset.filePath)) {
-      asset.addIncludedFile(filePath);
+      asset.invalidateOnFileChange(filePath);
     }
 
     // Workaround for `chdir` not working in workers

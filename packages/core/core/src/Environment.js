@@ -1,7 +1,7 @@
 // @flow
 import type {EnvironmentOptions} from '@parcel/types';
 import type {Environment} from './types';
-import {md5FromOrderedObject} from '@parcel/utils';
+import {hashString} from '@parcel/hash';
 
 const DEFAULT_ENGINES = {
   browsers: ['> 0.25%'],
@@ -13,10 +13,12 @@ export function createEnvironment({
   engines,
   includeNodeModules,
   outputFormat,
+  sourceType = 'module',
   shouldOptimize = false,
   isLibrary = false,
   shouldScopeHoist = false,
   sourceMap,
+  loc,
 }: EnvironmentOptions = {}): Environment {
   if (context == null) {
     if (engines?.node) {
@@ -84,10 +86,12 @@ export function createEnvironment({
     engines,
     includeNodeModules,
     outputFormat,
+    sourceType,
     isLibrary,
     shouldOptimize,
     shouldScopeHoist,
     sourceMap,
+    loc,
   };
 
   res.id = getEnvironmentHash(res);
@@ -113,12 +117,15 @@ export function mergeEnvironments(
 function getEnvironmentHash(env: Environment): string {
   // context is excluded from hash so that assets can be shared between e.g. workers and browser.
   // Different engines should be sufficient to distinguish multi-target builds.
-  return md5FromOrderedObject({
-    engines: env.engines,
-    includeNodeModules: env.includeNodeModules,
-    outputFormat: env.outputFormat,
-    isLibrary: env.isLibrary,
-    shouldScopeHoist: env.shouldScopeHoist,
-    sourceMap: env.sourceMap,
-  });
+  return hashString(
+    JSON.stringify([
+      env.engines,
+      env.includeNodeModules,
+      env.outputFormat,
+      env.sourceType,
+      env.isLibrary,
+      env.shouldScopeHoist,
+      env.sourceMap,
+    ]),
+  );
 }

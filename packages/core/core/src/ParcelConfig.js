@@ -12,6 +12,7 @@ import type {
   Packager,
   Reporter,
   Semver,
+  SemverRange,
   Validator,
 } from '@parcel/types';
 import type {
@@ -38,6 +39,7 @@ export type LoadedPlugin<T> = {|
   plugin: T,
   resolveFrom: FilePath,
   keyPath?: string,
+  range?: ?SemverRange,
 |};
 
 export default class ParcelConfig {
@@ -100,7 +102,12 @@ export default class ParcelConfig {
 
   _loadPlugin<T>(
     node: ParcelPluginNode,
-  ): Promise<{|plugin: T, version: Semver, resolveFrom: FilePath|}> {
+  ): Promise<{|
+    plugin: T,
+    version: Semver,
+    resolveFrom: FilePath,
+    range: ?SemverRange,
+  |}> {
     let plugin = this.pluginCache.get(node.packageName);
     if (plugin) {
       return plugin;
@@ -219,8 +226,8 @@ export default class ParcelConfig {
     filePath: FilePath,
     pipeline?: ?string,
     allowEmpty?: boolean,
-  ): Promise<Array<LoadedPlugin<Transformer>>> {
-    return this.loadPlugins<Transformer>(
+  ): Promise<Array<LoadedPlugin<Transformer<mixed>>>> {
+    return this.loadPlugins<Transformer<mixed>>(
       this._getTransformerNodes(filePath, pipeline, allowEmpty),
     );
   }
@@ -233,28 +240,28 @@ export default class ParcelConfig {
     return this.bundler.packageName;
   }
 
-  getBundler(): Promise<LoadedPlugin<Bundler>> {
+  getBundler(): Promise<LoadedPlugin<Bundler<mixed>>> {
     if (!this.bundler) {
       throw new Error('No bundler specified in .parcelrc config');
     }
 
-    return this.loadPlugin<Bundler>(this.bundler);
+    return this.loadPlugin<Bundler<mixed>>(this.bundler);
   }
 
-  getNamers(): Promise<Array<LoadedPlugin<Namer>>> {
+  getNamers(): Promise<Array<LoadedPlugin<Namer<mixed>>>> {
     if (this.namers.length === 0) {
       throw new Error('No namer plugins specified in .parcelrc config');
     }
 
-    return this.loadPlugins<Namer>(this.namers);
+    return this.loadPlugins<Namer<mixed>>(this.namers);
   }
 
-  getRuntimes(): Promise<Array<LoadedPlugin<Runtime>>> {
+  getRuntimes(): Promise<Array<LoadedPlugin<Runtime<mixed>>>> {
     if (!this.runtimes) {
       return Promise.resolve([]);
     }
 
-    return this.loadPlugins<Runtime>(this.runtimes);
+    return this.loadPlugins<Runtime<mixed>>(this.runtimes);
   }
 
   _getPackagerNode(filePath: FilePath): ParcelPluginNode {
@@ -269,27 +276,24 @@ export default class ParcelConfig {
     return this._getPackagerNode(filePath).packageName;
   }
 
-  async getPackager(
-    filePath: FilePath,
-  ): Promise<{|
-    name: string,
-    version: Semver,
-    plugin: Packager,
-  |}> {
+  getPackager(filePath: FilePath): Promise<LoadedPlugin<Packager<mixed>>> {
     let packager = this._getPackagerNode(filePath);
-
-    let {plugin, version} = await this.loadPlugin<Packager>(packager);
-    return {
-      name: packager.packageName,
-      version,
-      plugin,
-    };
+    return this.loadPlugin<Packager<mixed>>(packager);
   }
 
   _getOptimizerNodes(
     filePath: FilePath,
     pipeline: ?string,
   ): PureParcelConfigPipeline {
+    // If a pipeline is specified, but it doesn't exist in the optimizers config, ignore it.
+    // Pipelines for bundles come from their entry assets, so the pipeline likely exists in transformers.
+    if (pipeline) {
+      let prefix = pipeline + ':';
+      if (!Object.keys(this.optimizers).some(glob => glob.startsWith(prefix))) {
+        pipeline = null;
+      }
+    }
+
     return (
       this.matchGlobMapPipelines(filePath, this.optimizers, pipeline) ?? []
     );
@@ -303,13 +307,13 @@ export default class ParcelConfig {
   getOptimizers(
     filePath: FilePath,
     pipeline: ?string,
-  ): Promise<Array<LoadedPlugin<Optimizer>>> {
+  ): Promise<Array<LoadedPlugin<Optimizer<mixed>>>> {
     let optimizers = this._getOptimizerNodes(filePath, pipeline);
     if (optimizers.length === 0) {
       return Promise.resolve([]);
     }
 
-    return this.loadPlugins<Optimizer>(optimizers);
+    return this.loadPlugins<Optimizer<mixed>>(optimizers);
   }
 
   getReporters(): Promise<Array<LoadedPlugin<Reporter>>> {

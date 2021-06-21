@@ -1,7 +1,7 @@
 // @flow strict-local
 
 import type {AST, MutableAsset, TransformerResult} from '@parcel/types';
-import {md5FromString} from '@parcel/utils';
+import {hashString} from '@parcel/hash';
 import type {PostHTMLNode} from 'posthtml';
 
 import PostHTML from 'posthtml';
@@ -31,19 +31,19 @@ export default function extractInlineAssets(
   let parts: Array<TransformerResult> = [];
   let hasScripts = false;
   PostHTML().walk.call(program, (node: PostHTMLNode) => {
-    let parcelKey = md5FromString(`${asset.id}:${key++}`);
+    let parcelKey = hashString(`${asset.id}:${key++}`);
     if (node.tag === 'script' || node.tag === 'style') {
-      let value = node.content && node.content.join('').trim();
+      let value = node.content && node.content.join('');
       if (value != null) {
         let type, env;
 
         if (node.tag === 'style') {
-          if (node.attrs && node.attrs.type) {
+          if (node.attrs && node.attrs.type != null) {
             type = node.attrs.type.split('/')[1];
           } else {
             type = 'css';
           }
-        } else if (node.attrs && node.attrs.type) {
+        } else if (node.attrs && node.attrs.type != null) {
           // Skip JSON
           if (SCRIPT_TYPES[node.attrs.type] === false) {
             return node;
@@ -55,13 +55,30 @@ export default function extractInlineAssets(
             type = node.attrs.type.split('/')[1];
           }
 
-          if (node.attrs.type === 'module' && asset.env.shouldScopeHoist) {
-            env = {
-              outputFormat: 'esmodule',
-            };
+          let outputFormat = 'global';
+          let sourceType = 'script';
+          if (node.attrs.type === 'module') {
+            if (
+              asset.env.shouldScopeHoist &&
+              asset.env.supports('esmodules', true)
+            ) {
+              outputFormat = 'esmodule';
+            } else {
+              delete node.attrs.type;
+            }
+
+            sourceType = 'module';
           }
+
+          env = {
+            sourceType,
+            outputFormat,
+          };
         } else {
           type = 'js';
+          env = {
+            sourceType: 'script',
+          };
         }
 
         if (!type) {
@@ -78,12 +95,7 @@ export default function extractInlineAssets(
         }
 
         // Inform packager to remove type, since CSS and JS are the defaults.
-        // Unless it's application/ld+json
-        if (
-          node.attrs &&
-          (node.tag === 'style' ||
-            (node.attrs.type && SCRIPT_TYPES[node.attrs.type] === 'js'))
-        ) {
+        if (node.attrs?.type && node.tag === 'style') {
           delete node.attrs.type;
         }
 
@@ -92,19 +104,21 @@ export default function extractInlineAssets(
         asset.setAST(ast); // mark dirty
 
         asset.addDependency({
-          moduleSpecifier: parcelKey,
+          specifier: parcelKey,
+          specifierType: 'esm',
         });
 
         parts.push({
           type,
           content: value,
           uniqueKey: parcelKey,
-          isInline: true,
+          bundleBehavior: 'inline',
           env,
           meta: {
             type: 'tag',
             // $FlowFixMe
             node,
+            startLine: node.location?.start.line,
           },
         });
 
@@ -119,7 +133,8 @@ export default function extractInlineAssets(
     let style = attrs?.style;
     if (attrs != null && style != null) {
       attrs.style = asset.addDependency({
-        moduleSpecifier: parcelKey,
+        specifier: parcelKey,
+        specifierType: 'esm',
       });
       asset.setAST(ast); // mark dirty
 
@@ -127,7 +142,7 @@ export default function extractInlineAssets(
         type: 'css',
         content: style,
         uniqueKey: parcelKey,
-        isInline: true,
+        bundleBehavior: 'inline',
         meta: {
           type: 'attr',
           // $FlowFixMe

@@ -19,11 +19,16 @@ import {ESMOutputFormat} from './ESMOutputFormat';
 import {CJSOutputFormat} from './CJSOutputFormat';
 import {GlobalOutputFormat} from './GlobalOutputFormat';
 import {prelude, helpers} from './helpers';
+import {replaceScriptDependencies} from './utils';
 
 // https://262.ecma-international.org/6.0/#sec-names-and-keywords
 const IDENTIFIER_RE = /^[$_\p{ID_Start}][$_\u200C\u200D\p{ID_Continue}]*$/u;
 const ID_START_RE = /^[$_\p{ID_Start}]/u;
 const NON_ID_CONTINUE_RE = /[^$_\u200C\u200D\p{ID_Continue}]/gu;
+
+// General regex used to replace imports with the resolved code, references with resolutions,
+// and count the number of newlines in the file for source maps.
+const REPLACEMENT_RE = /\n|import\s+"([0-9a-f]{16}:.+?)";|(?:\$[0-9a-f]{16}\$exports)|(?:\$[0-9a-f]{16}\$(?:import|importAsync|require)\$[0-9a-f]+(?:\$[0-9a-f]+)?)/g;
 
 const BUILTINS = Object.keys(globals.builtin);
 const GLOBALS_BY_CONTEXT = {
@@ -50,7 +55,7 @@ const OUTPUT_FORMATS = {
 
 export interface OutputFormat {
   buildBundlePrelude(): [string, number];
-  buildBundlePostlude(): string;
+  buildBundlePostlude(): [string, number];
 }
 
 export class ScopeHoistingPackager {
@@ -91,7 +96,7 @@ export class ScopeHoistingPackager {
     this.isAsyncBundle =
       this.bundleGraph.hasParentBundleOfType(this.bundle, 'js') &&
       !this.bundle.env.isIsolated() &&
-      !this.bundle.getMainEntry()?.isIsolated;
+      this.bundle.getMainEntry()?.bundleBehavior !== 'isolated';
 
     this.globalNames = GLOBALS_BY_CONTEXT[bundle.env.context];
   }
@@ -109,7 +114,9 @@ export class ScopeHoistingPackager {
       this.bundle.env.isLibrary ||
       this.bundle.env.outputFormat === 'commonjs'
     ) {
-      let bundles = this.bundleGraph.getReferencedBundles(this.bundle);
+      let bundles = this.bundleGraph
+        .getReferencedBundles(this.bundle)
+        .filter(b => !b.isInline);
       for (let b of bundles) {
         this.externals.set(relativeBundlePath(this.bundle, b), new Map());
       }
@@ -119,9 +126,7 @@ export class ScopeHoistingPackager {
     // by replacing `import` statements in the code.
     let res = '';
     let lineCount = 0;
-    let sourceMap = this.bundle.env.sourceMap
-      ? new SourceMap(this.options.projectRoot)
-      : null;
+    let sourceMap = null;
     this.bundle.traverseAssets((asset, _, actions) => {
       if (this.seenAssets.has(asset.id)) {
         actions.skipChildren();
@@ -131,6 +136,8 @@ export class ScopeHoistingPackager {
       let [content, map, lines] = this.visitAsset(asset);
       if (sourceMap && map) {
         sourceMap.addSourceMap(map, lineCount);
+      } else if (this.bundle.env.sourceMap) {
+        sourceMap = map;
       }
 
       res += content + '\n';
@@ -140,6 +147,7 @@ export class ScopeHoistingPackager {
 
     let [prelude, preludeLines] = this.buildBundlePrelude();
     res = prelude + res;
+    lineCount += preludeLines;
     sourceMap?.offsetLines(1, preludeLines);
 
     let entries = this.bundle.getEntryAssets();
@@ -153,7 +161,7 @@ export class ScopeHoistingPackager {
 
     // If any of the entry assets are wrapped, call parcelRequire so they are executed.
     for (let entry of entries) {
-      if (this.wrappedAssets.has(entry.id)) {
+      if (this.wrappedAssets.has(entry.id) && !this.isScriptEntry(entry)) {
         let parcelRequire = `parcelRequire(${JSON.stringify(
           this.bundleGraph.getAssetPublicId(entry),
         )});\n`;
@@ -168,10 +176,44 @@ export class ScopeHoistingPackager {
         } else {
           res += `\n${parcelRequire}`;
         }
+
+        lineCount += 2;
       }
     }
 
-    res += this.outputFormat.buildBundlePostlude();
+    let [postlude, postludeLines] = this.outputFormat.buildBundlePostlude();
+    res += postlude;
+    lineCount += postludeLines;
+
+    // The entry asset of a script bundle gets hoisted outside the bundle wrapper so that
+    // its top-level variables become globals like a real browser script. We need to replace
+    // all dependency references for runtimes with a parcelRequire call.
+    if (
+      this.bundle.env.outputFormat === 'global' &&
+      this.bundle.env.sourceType === 'script'
+    ) {
+      res += '\n';
+      lineCount++;
+
+      let mainEntry = nullthrows(this.bundle.getMainEntry());
+      let {code, map: mapBuffer} = nullthrows(
+        this.assetOutputs.get(mainEntry.id),
+      );
+      let map;
+      if (mapBuffer) {
+        map = new SourceMap(mapBuffer);
+      }
+      res += replaceScriptDependencies(
+        this.bundleGraph,
+        this.bundle,
+        code,
+        map,
+        this.parcelRequireName,
+      );
+      if (sourceMap && map) {
+        sourceMap.addSourceMap(map, lineCount);
+      }
+    }
 
     return {
       contents: res,
@@ -209,6 +251,7 @@ export class ScopeHoistingPackager {
             shouldWrap ||
             node.value.meta.shouldWrap ||
             this.isAsyncBundle ||
+            this.bundle.env.sourceType === 'script' ||
             this.bundleGraph.isAssetReferencedByDependant(
               this.bundle,
               node.value,
@@ -228,8 +271,9 @@ export class ScopeHoistingPackager {
       return;
     }
 
+    // TODO: handle ESM exports of wrapped entry assets...
     let entry = this.bundle.getMainEntry();
-    if (entry) {
+    if (entry && !this.wrappedAssets.has(entry.id)) {
       for (let {exportAs, symbol} of this.bundleGraph.getExportedSymbols(
         entry,
       )) {
@@ -303,12 +347,8 @@ export class ScopeHoistingPackager {
     let shouldWrap = this.wrappedAssets.has(asset.id);
     let deps = this.bundleGraph.getDependencies(asset);
 
-    let sourceMap = this.bundle.env.sourceMap
-      ? new SourceMap(this.options.projectRoot)
-      : null;
-    if (sourceMap && map) {
-      sourceMap?.addBuffer(map);
-    }
+    let sourceMap =
+      this.bundle.env.sourceMap && map ? new SourceMap(map) : null;
 
     // If this asset is skipped, just add dependencies and not the asset's content.
     if (this.shouldSkipAsset(asset)) {
@@ -354,107 +394,104 @@ export class ScopeHoistingPackager {
 
     code += append;
 
-    // Build a regular expression for all the replacements we need to do.
-    // We need to track how many newlines there are for source maps, replace
-    // all import statements with dependency code, and perform inline replacements
-    // of all imported symbols with their resolved export symbols. This is all done
-    // in a single regex so that we only do one pass over the whole code.
-    let regex = new RegExp(
-      '\n|import\\s+"([0-9a-f]{32}:.+?)";' +
-        (replacements.size > 0
-          ? '|' +
-            [...replacements.keys()]
-              .sort((a, b) => b.length - a.length)
-              .map(k => k.replace(/[$]/g, '\\$&'))
-              .join('|')
-          : ''),
-      'g',
-    );
-
     let lineCount = 0;
-    let offset = 0;
-    let columnStartIndex = 0;
     let depContent = [];
-    code = code.replace(regex, (m, d, i) => {
-      if (m === '\n') {
-        columnStartIndex = i + offset + 1;
-        lineCount++;
-        return '\n';
-      }
+    if (depMap.size === 0 && replacements.size === 0) {
+      // If there are no dependencies or replacements, use a simple function to count the number of lines.
+      lineCount = countLines(code) - 1;
+    } else {
+      // Otherwise, use a regular expression to perform replacements.
+      // We need to track how many newlines there are for source maps, replace
+      // all import statements with dependency code, and perform inline replacements
+      // of all imported symbols with their resolved export symbols. This is all done
+      // in a single regex so that we only do one pass over the whole code.
+      let offset = 0;
+      let columnStartIndex = 0;
+      code = code.replace(REPLACEMENT_RE, (m, d, i) => {
+        if (m === '\n') {
+          columnStartIndex = i + offset + 1;
+          lineCount++;
+          return '\n';
+        }
 
-      // If we matched an import, replace with the source code for the dependency.
-      if (d != null) {
-        let dep = nullthrows(depMap.get(d));
-        let resolved = this.bundleGraph.getDependencyResolution(
-          dep,
-          this.bundle,
-        );
-        let skipped = this.bundleGraph.isDependencySkipped(dep);
-        if (resolved && !skipped) {
-          // Hoist variable declarations for the referenced parcelRequire dependencies
-          // after the dependency is declared. This handles the case where the resulting asset
-          // is wrapped, but the dependency in this asset is not marked as wrapped. This means
-          // that it was imported/required at the top-level, so its side effects should run immediately.
-          let [res, lines] = this.getHoistedParcelRequires(
-            asset,
+        // If we matched an import, replace with the source code for the dependency.
+        if (d != null) {
+          let dep = depMap.get(d);
+          if (!dep) {
+            return m;
+          }
+
+          let resolved = this.bundleGraph.getDependencyResolution(
             dep,
-            resolved,
+            this.bundle,
           );
-          let map;
-          if (
-            this.bundle.hasAsset(resolved) &&
-            !this.seenAssets.has(resolved.id)
-          ) {
-            // If this asset is wrapped, we need to hoist the code for the dependency
-            // outside our parcelRequire.register wrapper. This is safe because all
-            // assets referenced by this asset will also be wrapped. Otherwise, inline the
-            // asset content where the import statement was.
-            if (shouldWrap) {
-              depContent.push(this.visitAsset(resolved));
-            } else {
-              let [depCode, depMap, depLines] = this.visitAsset(resolved);
-              res = depCode + '\n' + res;
-              lines += 1 + depLines;
-              map = depMap;
+          let skipped = this.bundleGraph.isDependencySkipped(dep);
+          if (resolved && !skipped) {
+            // Hoist variable declarations for the referenced parcelRequire dependencies
+            // after the dependency is declared. This handles the case where the resulting asset
+            // is wrapped, but the dependency in this asset is not marked as wrapped. This means
+            // that it was imported/required at the top-level, so its side effects should run immediately.
+            let [res, lines] = this.getHoistedParcelRequires(
+              asset,
+              dep,
+              resolved,
+            );
+            let map;
+            if (
+              this.bundle.hasAsset(resolved) &&
+              !this.seenAssets.has(resolved.id)
+            ) {
+              // If this asset is wrapped, we need to hoist the code for the dependency
+              // outside our parcelRequire.register wrapper. This is safe because all
+              // assets referenced by this asset will also be wrapped. Otherwise, inline the
+              // asset content where the import statement was.
+              if (shouldWrap) {
+                depContent.push(this.visitAsset(resolved));
+              } else {
+                let [depCode, depMap, depLines] = this.visitAsset(resolved);
+                res = depCode + '\n' + res;
+                lines += 1 + depLines;
+                map = depMap;
+              }
             }
+
+            // Push this asset's source mappings down by the number of lines in the dependency
+            // plus the number of hoisted parcelRequires. Then insert the source map for the dependency.
+            if (sourceMap) {
+              if (lines > 0) {
+                sourceMap.offsetLines(lineCount + 1, lines);
+              }
+
+              if (map) {
+                sourceMap.addSourceMap(map, lineCount);
+              }
+            }
+
+            lineCount += lines;
+            return res;
           }
 
-          // Push this asset's source mappings down by the number of lines in the dependency
-          // plus the number of hoisted parcelRequires. Then insert the source map for the dependency.
-          if (sourceMap) {
-            if (lines > 0) {
-              sourceMap.offsetLines(lineCount + 1, lines);
-            }
+          return '';
+        }
 
-            if (map) {
-              sourceMap.addSourceMap(map, lineCount, 0);
-            }
+        // If it wasn't a dependency, then it was an inline replacement (e.g. $id$import$foo -> $id$export$foo).
+        let replacement = replacements.get(m) ?? m;
+        if (sourceMap) {
+          // Offset the source map columns for this line if the replacement was a different length.
+          // This assumes that the match and replacement both do not contain any newlines.
+          let lengthDifference = replacement.length - m.length;
+          if (lengthDifference !== 0) {
+            sourceMap.offsetColumns(
+              lineCount + 1,
+              i + offset - columnStartIndex + m.length,
+              lengthDifference,
+            );
+            offset += lengthDifference;
           }
-
-          lineCount += lines;
-          return res;
         }
-
-        return '';
-      }
-
-      // If it wasn't a dependency, then it was an inline replacement (e.g. $id$import$foo -> $id$export$foo).
-      let replacement = replacements.get(m) ?? '';
-      if (sourceMap) {
-        // Offset the source map columns for this line if the replacement was a different length.
-        // This assumes that the match and replacement both do not contain any newlines.
-        let lengthDifference = replacement.length - m.length;
-        if (lengthDifference !== 0) {
-          sourceMap.offsetColumns(
-            lineCount + 1,
-            i + offset - columnStartIndex + m.length,
-            lengthDifference,
-          );
-          offset += lengthDifference;
-        }
-      }
-      return replacement;
-    });
+        return replacement;
+      });
+    }
 
     // If the asset is wrapped, we need to insert the dependency code outside the parcelRequire.register
     // wrapper. Dependencies must be inserted AFTER the asset is registered so that circular dependencies work.
@@ -476,7 +513,7 @@ ${code}
         if (!depCode) continue;
         code += depCode + '\n';
         if (sourceMap && map) {
-          sourceMap.addSourceMap(map, lineCount, 0);
+          sourceMap.addSourceMap(map, lineCount);
         }
         lineCount += lines + 1;
       }
@@ -499,7 +536,7 @@ ${code}
     let depMap = new Map();
     let replacements = new Map();
     for (let dep of deps) {
-      depMap.set(`${assetId}:${dep.moduleSpecifier}`, dep);
+      depMap.set(`${assetId}:${dep.specifier}`, dep);
 
       let asyncResolution = this.bundleGraph.resolveAsyncDependency(
         dep,
@@ -532,7 +569,7 @@ ${code}
             renamed = local;
           } else if (imported === 'default' || imported === '*') {
             renamed = this.getTopLevelName(
-              `$${this.bundle.publicId}$${dep.moduleSpecifier}`,
+              `$${this.bundle.publicId}$${dep.specifier}`,
             );
           } else {
             renamed = this.getTopLevelName(
@@ -547,7 +584,7 @@ ${code}
         }
       }
 
-      if (!resolved || resolved === asset) {
+      if (!resolved) {
         continue;
       }
 
@@ -569,7 +606,7 @@ ${code}
       // Async dependencies need a namespace object even if all used symbols were statically analyzed.
       // This is recorded in the promiseSymbol meta property set by the transformer rather than in
       // symbols so that we don't mark all symbols as used.
-      if (dep.isAsync && dep.meta.promiseSymbol) {
+      if (dep.priority === 'lazy' && dep.meta.promiseSymbol) {
         let promiseSymbol = dep.meta.promiseSymbol;
         invariant(typeof promiseSymbol === 'string');
         let symbol = this.resolveSymbol(asset, resolved, '*', dep);
@@ -617,11 +654,11 @@ ${code}
       });
     }
 
-    // Map of ModuleSpecifier -> Map<ExportedSymbol, Identifier>>
-    let external = this.externals.get(dep.moduleSpecifier);
+    // Map of DependencySpecifier -> Map<ExportedSymbol, Identifier>>
+    let external = this.externals.get(dep.specifier);
     if (!external) {
       external = new Map();
-      this.externals.set(dep.moduleSpecifier, external);
+      this.externals.set(dep.specifier, external);
     }
 
     return external;
@@ -785,21 +822,25 @@ ${code}
       usedSymbols.has('default') &&
       !asset.symbols.hasExportSymbol('__esModule');
 
-    // If the asset has * in its used symbols, we might need the exports namespace.
-    // The one case where this isn't true is in ESM library entries, where the only
-    // dependency on * is the entry dependency. In this case, we will use ESM exports
-    // instead of the namespace object.
     let usedNamespace =
-      usedSymbols.has('*') &&
-      (this.bundle.env.outputFormat !== 'esmodule' ||
-        !this.bundle.env.isLibrary ||
-        asset !== this.bundle.getMainEntry() ||
-        this.bundleGraph
-          .getIncomingDependencies(asset)
-          .some(
-            dep =>
-              !dep.isEntry && this.bundleGraph.getUsedSymbols(dep).has('*'),
-          ));
+      // If the asset has * in its used symbols, we might need the exports namespace.
+      // The one case where this isn't true is in ESM library entries, where the only
+      // dependency on * is the entry dependency. In this case, we will use ESM exports
+      // instead of the namespace object.
+      (usedSymbols.has('*') &&
+        (this.bundle.env.outputFormat !== 'esmodule' ||
+          !this.bundle.env.isLibrary ||
+          asset !== this.bundle.getMainEntry() ||
+          this.bundleGraph
+            .getIncomingDependencies(asset)
+            .some(
+              dep =>
+                !dep.isEntry && this.bundleGraph.getUsedSymbols(dep).has('*'),
+            ))) ||
+      // If a symbol is imported (used) from a CJS asset but isn't listed in the symbols,
+      // we fallback on the namespace object.
+      (asset.symbols.hasExportSymbol('*') &&
+        [...usedSymbols].some(s => !asset.symbols.hasExportSymbol(s)));
 
     // If the asset doesn't have static exports, should wrap, the namespace is used,
     // or we need default interop, then we need to synthesize a namespace object for
@@ -883,14 +924,14 @@ ${code}
           continue;
         }
 
-        let isWrapped = resolved && this.wrappedAssets.has(resolved.id);
+        let isWrapped = resolved && resolved.meta.shouldWrap;
 
         for (let [imported, {local}] of dep.symbols) {
           if (imported === '*' && local === '*') {
             if (!resolved) {
               // Re-exporting an external module. This should have already been handled in buildReplacements.
               let external = nullthrows(
-                nullthrows(this.externals.get(dep.moduleSpecifier)).get('*'),
+                nullthrows(this.externals.get(dep.specifier)).get('*'),
               );
               append += `$parcel$exportWildcard($${assetId}$exports, ${external});\n`;
               this.usedHelpers.add('$parcel$exportWildcard');
@@ -984,7 +1025,7 @@ ${code}
           .getBundleGroupsContainingBundle(this.bundle)
           .some(g => this.bundleGraph.isEntryBundleGroup(g)) ||
         this.bundle.env.isIsolated() ||
-        !!this.bundle.getMainEntry()?.isIsolated;
+        this.bundle.getMainEntry()?.bundleBehavior === 'isolated';
 
       if (mightBeFirstJS) {
         let preludeCode = prelude(this.parcelRequireName);
@@ -1037,10 +1078,22 @@ ${code}
   }
 
   shouldSkipAsset(asset: Asset): boolean {
+    if (this.isScriptEntry(asset)) {
+      return true;
+    }
+
     return (
       asset.sideEffects === false &&
       this.bundleGraph.getUsedSymbols(asset).size == 0 &&
       !this.bundleGraph.isAssetReferencedByDependant(this.bundle, asset)
+    );
+  }
+
+  isScriptEntry(asset: Asset): boolean {
+    return (
+      this.bundle.env.outputFormat === 'global' &&
+      this.bundle.env.sourceType === 'script' &&
+      asset === this.bundle.getMainEntry()
     );
   }
 }

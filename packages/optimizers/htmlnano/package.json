@@ -22,7 +22,7 @@
   "dependencies": {
     "@parcel/plugin": "2.0.0-beta.3.1",
     "@parcel/utils": "2.0.0-beta.3.1",
-    "htmlnano": "^0.2.2",
+    "htmlnano": "^1.0.0",
     "nullthrows": "^1.1.1",
     "posthtml": "^0.15.1"
   }

@@ -3,10 +3,11 @@
 import type {Config, PluginOptions} from '@parcel/types';
 import type {PluginLogger} from '@parcel/logger';
 import typeof * as BabelCore from '@babel/core';
+import type {BabelConfig} from './types';
 
 import path from 'path';
 import * as internalBabelCore from '@babel/core';
-import {md5FromObject, relativePath, resolveConfig} from '@parcel/utils';
+import {hashObject, relativePath, resolveConfig} from '@parcel/utils';
 
 import isJSX from './jsx';
 import getFlowOptions from './flow';
@@ -28,11 +29,20 @@ const BABEL_CONFIG_FILENAMES = [
   'babel.config.cjs',
 ];
 
+const BABEL_CORE_RANGE = '^7.12.0';
+
+type BabelConfigResult = {|
+  internal: boolean,
+  config: BabelConfig,
+  targets?: mixed,
+  syntaxPlugins?: mixed,
+|};
+
 export async function load(
   config: Config,
   options: PluginOptions,
   logger: PluginLogger,
-): Promise<void> {
+): Promise<?BabelConfigResult> {
   // Don't transpile inside node_modules
   if (!config.isSource) {
     return;
@@ -56,24 +66,26 @@ export async function load(
       options.projectRoot,
     ))
   ) {
-    await buildDefaultBabelConfig(options, config);
-    return;
+    return buildDefaultBabelConfig(options, config);
   }
 
   const babelCore: BabelCore = await options.packageManager.require(
     '@babel/core',
     config.searchPath,
     {
-      range: '^7.12.0',
+      range: BABEL_CORE_RANGE,
       saveDev: true,
       shouldAutoInstall: options.shouldAutoInstall,
     },
   );
   config.addDevDependency({
-    moduleSpecifier: '@babel/core',
+    specifier: '@babel/core',
     resolveFrom: config.searchPath,
+    range: BABEL_CORE_RANGE,
   });
 
+  config.invalidateOnEnvChange('BABEL_ENV');
+  config.invalidateOnEnvChange('NODE_ENV');
   let babelOptions = {
     filename: config.searchPath,
     cwd: options.projectRoot,
@@ -101,18 +113,18 @@ export async function load(
           path.extname(file),
         ) + '.json'} file instead.`,
       });
-      config.shouldInvalidateOnStartup();
+      config.invalidateOnStartup();
 
       // But also add the config as a dev dependency so we can at least attempt invalidation in watch mode.
       config.addDevDependency({
-        moduleSpecifier: relativePath(options.projectRoot, file),
+        specifier: relativePath(options.projectRoot, file),
         resolveFrom: path.join(options.projectRoot, 'index'),
         // Also invalidate @parcel/transformer-babel when the config or a dependency updates.
         // This ensures that the caches in @babel/core are also invalidated.
         invalidateParcelPlugin: true,
       });
     } else {
-      config.addIncludedFile(file);
+      config.invalidateOnFileChange(file);
     }
   };
 
@@ -121,7 +133,7 @@ export async function load(
       message:
         'You are using an old version of @babel/core which does not support the necessary features for Parcel to cache and watch babel config files safely. You may need to restart Parcel for config changes to take effect. Please upgrade to @babel/core 7.12.0 or later to resolve this issue.',
     });
-    config.shouldInvalidateOnStartup();
+    config.invalidateOnStartup();
   };
 
   // Old versions of @babel/core return null from loadPartialConfig when the file should explicitly not be run through babel (ignore/exclude)
@@ -167,13 +179,6 @@ export async function load(
       syntaxPlugins.push('jsx');
     }
 
-    config.setResult({
-      internal: false,
-      config: partialConfig.options,
-      targets: enginesToBabelTargets(config.env),
-      syntaxPlugins,
-    });
-
     // If the config has plugins loaded with require(), or inline plugins in the config,
     // we can't cache the result of the compilation because we don't know where they came from.
     if (hasRequire(partialConfig.options)) {
@@ -182,18 +187,28 @@ export async function load(
           'It looks like you are using `require` to configure Babel plugins or presets. This means Babel transformations cannot be cached and will run on each build. Please use strings to configure Babel instead.',
       });
 
-      config.setResultHash(JSON.stringify(Date.now()));
-      config.shouldInvalidateOnStartup();
+      config.setCacheKey(JSON.stringify(Date.now()));
+      config.invalidateOnStartup();
     } else {
-      definePluginDependencies(config, options);
-      config.setResultHash(md5FromObject(partialConfig.options));
+      definePluginDependencies(config, partialConfig.options, options);
+      config.setCacheKey(hashObject(partialConfig.options));
     }
+
+    return {
+      internal: false,
+      config: partialConfig.options,
+      targets: enginesToBabelTargets(config.env),
+      syntaxPlugins,
+    };
   } else {
-    await buildDefaultBabelConfig(options, config);
+    return buildDefaultBabelConfig(options, config);
   }
 }
 
-async function buildDefaultBabelConfig(options: PluginOptions, config: Config) {
+async function buildDefaultBabelConfig(
+  options: PluginOptions,
+  config: Config,
+): Promise<?BabelConfigResult> {
   // If this is a .ts or .tsx file, we don't need to enable flow.
   if (TYPESCRIPT_EXTNAME_RE.test(config.searchPath)) {
     return;
@@ -224,12 +239,12 @@ async function buildDefaultBabelConfig(options: PluginOptions, config: Config) {
     }),
   );
 
-  config.setResult({
+  definePluginDependencies(config, babelOptions, options);
+  return {
     internal: true,
     config: babelOptions,
     syntaxPlugins,
-  });
-  definePluginDependencies(config, options);
+  };
 }
 
 function hasRequire(options) {
@@ -237,22 +252,21 @@ function hasRequire(options) {
   return configItems.some(item => !item.file);
 }
 
-function definePluginDependencies(config, options) {
-  let babelConfig = config.result.config;
+function definePluginDependencies(config, babelConfig: ?BabelConfig, options) {
   if (babelConfig == null) {
     return;
   }
 
-  let configItems = [...babelConfig.presets, ...babelConfig.plugins];
+  let configItems = [
+    ...(babelConfig.presets || []),
+    ...(babelConfig.plugins || []),
+  ];
   for (let configItem of configItems) {
     // FIXME: this uses a relative path from the project root rather than resolving
     // from the config location because configItem.file.request can be a shorthand
     // rather than a full package name.
     config.addDevDependency({
-      moduleSpecifier: relativePath(
-        options.projectRoot,
-        configItem.file.resolved,
-      ),
+      specifier: relativePath(options.projectRoot, configItem.file.resolved),
       resolveFrom: path.join(options.projectRoot, 'index'),
       // Also invalidate @parcel/transformer-babel when the plugin or a dependency updates.
       // This ensures that the caches in @babel/core are also invalidated.

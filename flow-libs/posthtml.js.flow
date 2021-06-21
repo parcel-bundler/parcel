@@ -11,6 +11,11 @@ declare module 'posthtml' {
     tag: string,
     attrs?: {[string]: string, ...},
     content?: Array<string>,
+    location?: {
+       start: {|line: number, column: number|},
+       end: {|line: number, column: number|},
+       ...
+     },
     ...
   };
 
@@ -26,7 +31,7 @@ declare module 'posthtml' {
     ...
   };
 
-  declare var walk: (fn: (node: PostHTMLNode) => PostHTMLNode) => void;
+  declare var walk: (fn: (node: PostHTMLNode) => PostHTMLNode | PostHTMLNode[]) => void;
   declare var process: (
     tree: PostHTMLTree | string,
     options: ?PostHTMLOptions,

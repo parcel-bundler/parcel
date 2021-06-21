@@ -5,7 +5,10 @@ import path from 'path';
 import nullthrows from 'nullthrows';
 import ts from 'typescript';
 
-export async function loadTSConfig(config: Config, options: PluginOptions) {
+export async function loadTSConfig(
+  config: Config,
+  options: PluginOptions,
+): any {
   let configResult = await config.getConfig(['tsconfig.json']);
   if (!configResult) {
     return;
@@ -20,8 +23,8 @@ export async function loadTSConfig(config: Config, options: PluginOptions) {
 
   // Add all of the extended config files to be watched
   for (let file of host.filesRead) {
-    config.addIncludedFile(path.resolve(file));
+    config.invalidateOnFileChange(path.resolve(file));
   }
 
-  config.setResult(parsedConfig.options);
+  return parsedConfig.options;
 }

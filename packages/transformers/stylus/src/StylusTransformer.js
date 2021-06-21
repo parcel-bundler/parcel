@@ -22,7 +22,7 @@ export default (new Transformer({
     if (configFile) {
       let isJavascript = path.extname(configFile.filePath) === '.js';
       if (isJavascript) {
-        config.shouldInvalidateOnStartup();
+        config.invalidateOnStartup();
       }
 
       // Resolve relative paths from config file
@@ -32,7 +32,7 @@ export default (new Transformer({
         );
       }
 
-      config.setResult(configFile.contents);
+      return configFile.contents;
     }
   },
 
@@ -180,7 +180,7 @@ async function getDependencies(
       // Recursively process resolved files as well to get nested deps
       for (let resolved of found) {
         if (!seen.has(resolved)) {
-          await asset.addIncludedFile(resolved);
+          await asset.invalidateOnFileChange(resolved);
 
           let code = await asset.fs.readFile(resolved, 'utf8');
           for (let [path, resolvedPath] of await getDependencies(

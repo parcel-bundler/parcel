@@ -1,6 +1,7 @@
 // @flow
 
-import type {AST, Environment, MutableAsset} from '@parcel/types';
+import type {AST, MutableAsset} from '@parcel/types';
+import type {PostHTMLNode} from 'posthtml';
 import PostHTML from 'posthtml';
 
 // A list of all attributes that may produce a dependency
@@ -67,34 +68,18 @@ const META = {
 // Options to be passed to `addDependency` for certain tags + attributes
 const OPTIONS = {
   a: {
-    href: {isEntry: true},
+    href: {needsStableName: true},
   },
   iframe: {
-    src: {isEntry: true},
+    src: {needsStableName: true},
   },
   link(attrs) {
     if (attrs.rel === 'stylesheet') {
       return {
         // Keep in the same bundle group as the HTML.
-        isAsync: false,
-        isEntry: false,
-        isIsolated: true,
+        priority: 'parallel',
       };
     }
-  },
-  script(attrs, env: Environment) {
-    return {
-      // Keep in the same bundle group as the HTML.
-      isAsync: false,
-      isEntry: false,
-      isIsolated: true,
-      env: {
-        outputFormat:
-          attrs.type === 'module' && env.shouldScopeHoist
-            ? 'esmodule'
-            : undefined,
-      },
-    };
   },
 };
 
@@ -127,11 +112,14 @@ export default function collectDependencies(
 ): boolean {
   let isDirty = false;
   let hasScripts = false;
+  let seen = new Set();
   PostHTML().walk.call(ast.program, node => {
     let {tag, attrs} = node;
-    if (!attrs) {
+    if (!attrs || seen.has(node)) {
       return node;
     }
+
+    seen.add(node);
 
     if (tag === 'meta') {
       if (
@@ -155,10 +143,66 @@ export default function collectDependencies(
       attrs.href
     ) {
       attrs.href = asset.addURLDependency(attrs.href, {
-        isEntry: true,
+        needsStableName: true,
       });
       isDirty = true;
       return node;
+    }
+
+    if (tag === 'script' && attrs.src) {
+      let sourceType = attrs.type === 'module' ? 'module' : 'script';
+      let loc = node.location
+        ? {
+            filePath: asset.filePath,
+            start: node.location.start,
+            end: node.location.end,
+          }
+        : undefined;
+
+      let outputFormat = 'global';
+      if (attrs.type === 'module' && asset.env.shouldScopeHoist) {
+        outputFormat = 'esmodule';
+      } else {
+        delete attrs.type;
+      }
+
+      // If this is a <script type="module">, and not all of the browser targets support ESM natively,
+      // add a copy of the script tag with a nomodule attribute.
+      let copy: ?PostHTMLNode;
+      if (
+        outputFormat === 'esmodule' &&
+        !asset.env.supports('esmodules', true)
+      ) {
+        let attrs = Object.assign({}, node.attrs);
+        copy = {...node, attrs};
+        delete attrs.type;
+        attrs.nomodule = '';
+        attrs.src = asset.addURLDependency(attrs.src, {
+          // Keep in the same bundle group as the HTML.
+          priority: 'parallel',
+          env: {
+            sourceType,
+            outputFormat: 'global',
+            loc,
+          },
+        });
+
+        seen.add(copy);
+      }
+
+      attrs.src = asset.addURLDependency(attrs.src, {
+        // Keep in the same bundle group as the HTML.
+        priority: 'parallel',
+        env: {
+          sourceType,
+          outputFormat,
+          loc,
+        },
+      });
+
+      asset.setAST(ast);
+      hasScripts = true;
+      return copy ? [node, copy] : node;
     }
 
     for (let attr in attrs) {
@@ -182,10 +226,6 @@ export default function collectDependencies(
             : depOptionsHandler && depOptionsHandler[attr];
         attrs[attr] = depHandler(asset, attrs[attr], depOptions);
         isDirty = true;
-
-        if (node.tag === 'script') {
-          hasScripts = true;
-        }
       }
     }
 

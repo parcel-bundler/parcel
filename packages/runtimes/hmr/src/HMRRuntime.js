@@ -2,7 +2,6 @@
 
 import {Runtime} from '@parcel/plugin';
 import fs from 'fs';
-import {md5FromObject} from '@parcel/utils';
 import path from 'path';
 
 const HMR_RUNTIME = fs.readFileSync(
@@ -32,7 +31,7 @@ export default (new Runtime({
         `var HMR_SECURE = ${JSON.stringify(
           !!(options.serveOptions && options.serveOptions.https),
         )};` +
-        `var HMR_ENV_HASH = "${md5FromObject(bundle.env)}";` +
+        `var HMR_ENV_HASH = "${bundle.env.id}";` +
         `module.bundle.HMR_BUNDLE_ID = ${JSON.stringify(bundle.id)};` +
         HMR_RUNTIME,
       isEntry: true,

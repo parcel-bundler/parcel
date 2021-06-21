@@ -3,7 +3,7 @@
 import type {
   Async,
   FilePath,
-  ModuleSpecifier,
+  DependencySpecifier,
   Symbol,
   SourceLocation,
   Meta,
@@ -25,11 +25,14 @@ import type {
 import type {StaticRunOpts, RunAPI} from '../RequestTracker';
 import type {EntryResult} from './EntryRequest';
 import type {PathRequestInput} from './PathRequest';
+
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import path from 'path';
-import {md5FromOrderedObject, PromiseQueue} from '@parcel/utils';
+import {PromiseQueue} from '@parcel/utils';
+import {hashString} from '@parcel/hash';
 import ThrowableDiagnostic, {md} from '@parcel/diagnostic';
+import {Priority} from '../types';
 import AssetGraph from '../AssetGraph';
 import {PARCEL_VERSION} from '../constants';
 import createEntryRequest from './EntryRequest';
@@ -130,12 +133,9 @@ export class AssetGraphBuilder {
     this.name = name;
     this.requestedAssetIds = requestedAssetIds ?? new Set();
     this.shouldBuildLazily = shouldBuildLazily ?? false;
-
-    this.cacheKey = md5FromOrderedObject({
-      parcelVersion: PARCEL_VERSION,
-      name,
-      entries,
-    });
+    this.cacheKey = hashString(
+      `${PARCEL_VERSION}${name}${JSON.stringify(entries) ?? ''}`,
+    );
 
     this.queue = new PromiseQueue();
   }
@@ -232,7 +232,7 @@ export class AssetGraphBuilder {
         } else if (!node.requested) {
           let isAsyncChild = this.assetGraph
             .getIncomingDependencies(node.value)
-            .every(dep => dep.isEntry || dep.isAsync);
+            .every(dep => dep.isEntry || dep.priority !== Priority.sync);
           if (isAsyncChild) {
             node.requested = false;
           } else {
@@ -525,8 +525,10 @@ export class AssetGraphBuilder {
           if (assetGroups.length === 1) {
             let [assetGroupId] = assetGroups;
             let assetGroup = nullthrows(this.assetGraph.getNode(assetGroupId));
-            invariant(assetGroup.type === 'asset_group');
-            if (assetGroup.value.sideEffects === false) {
+            if (
+              assetGroup.type === 'asset_group' &&
+              assetGroup.value.sideEffects === false
+            ) {
               incomingDep.excluded = true;
             }
           } else {
@@ -775,7 +777,7 @@ export class AssetGraphBuilder {
     );
   }
 
-  async runEntryRequest(input: ModuleSpecifier) {
+  async runEntryRequest(input: DependencySpecifier) {
     let request = createEntryRequest(input);
     let result = await this.api.runRequest<FilePath, EntryResult>(request, {
       force: true,

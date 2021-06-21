@@ -2,32 +2,24 @@
 import type {Async} from '@parcel/types';
 import type SourceMap from '@parcel/source-map';
 import {Packager} from '@parcel/plugin';
-import {
-  replaceInlineReferences,
-  md5FromString,
-  loadConfig,
-} from '@parcel/utils';
+import {replaceInlineReferences} from '@parcel/utils';
+import {hashString} from '@parcel/hash';
 import path from 'path';
 import nullthrows from 'nullthrows';
 import {DevPackager} from './DevPackager';
 import {ScopeHoistingPackager} from './ScopeHoistingPackager';
 
 export default (new Packager({
-  async loadConfig({options}) {
+  async loadConfig({config, options}) {
     // Generate a name for the global parcelRequire function that is unique to this project.
     // This allows multiple parcel builds to coexist on the same page.
-    let pkg = await loadConfig(
-      options.inputFS,
+    let pkg = await config.getConfigFrom(
       path.join(options.entryRoot, 'index'),
       ['package.json'],
-      options.projectRoot,
     );
-    let name = pkg?.config.name ?? '';
+    let name = pkg?.contents?.name ?? '';
     return {
-      config: {
-        parcelRequireName: 'parcelRequire' + md5FromString(name).slice(-4),
-      },
-      files: pkg?.files ?? [],
+      parcelRequireName: 'parcelRequire' + hashString(name).slice(-4),
     };
   },
   async package({
@@ -38,21 +30,38 @@ export default (new Packager({
     config,
     options,
   }) {
-    let packager = bundle.env.shouldScopeHoist
-      ? new ScopeHoistingPackager(
-          options,
-          bundleGraph,
-          bundle,
-          nullthrows(config).parcelRequireName,
-        )
-      : new DevPackager(
-          options,
-          bundleGraph,
-          bundle,
-          nullthrows(config).parcelRequireName,
-        );
+    // If this is a non-module script, and there is only one asset with no dependencies,
+    // then we don't need to package at all and can pass through the original code un-wrapped.
+    let contents, map;
+    if (bundle.env.sourceType === 'script') {
+      let entries = bundle.getEntryAssets();
+      if (
+        entries.length === 1 &&
+        bundleGraph.getDependencies(entries[0]).length === 0
+      ) {
+        contents = await entries[0].getCode();
+        map = await entries[0].getMap();
+      }
+    }
 
-    let {contents, map} = await packager.package();
+    if (contents == null) {
+      let packager = bundle.env.shouldScopeHoist
+        ? new ScopeHoistingPackager(
+            options,
+            bundleGraph,
+            bundle,
+            nullthrows(config).parcelRequireName,
+          )
+        : new DevPackager(
+            options,
+            bundleGraph,
+            bundle,
+            nullthrows(config).parcelRequireName,
+          );
+
+      ({contents, map} = await packager.package());
+    }
+
     contents += '\n' + (await getSourceMapSuffix(getSourceMapReference, map));
 
     return replaceInlineReferences({

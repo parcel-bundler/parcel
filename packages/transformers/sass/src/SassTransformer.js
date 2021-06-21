@@ -29,7 +29,7 @@ export default (new Transformer({
     }
 
     if (configFile && path.extname(configFile.filePath) === '.js') {
-      config.shouldInvalidateOnStartup();
+      config.invalidateOnStartup();
     }
 
     if (configResult.importer === undefined) {
@@ -45,7 +45,7 @@ export default (new Transformer({
     configResult.omitSourceMapUrl = true;
     configResult.sourceMapContents = false;
 
-    config.setResult(configResult);
+    return configResult;
   },
 
   async transform({asset, options, config, resolve}) {
@@ -76,7 +76,7 @@ export default (new Transformer({
       css = result.css;
       for (let included of result.stats.includedFiles) {
         if (included !== asset.filePath) {
-          asset.addIncludedFile(included);
+          asset.invalidateOnFileChange(included);
         }
       }
 

@@ -5,6 +5,8 @@ import type {
   SourceLocation,
   Meta,
   MutableDependencySymbols as IMutableDependencySymbols,
+  SpecifierType,
+  DependencyPriority,
 } from '@parcel/types';
 import type {Dependency as InternalDependency} from '../types';
 
@@ -12,6 +14,10 @@ import Environment from './Environment';
 import Target from './Target';
 import {MutableDependencySymbols} from './Symbols';
 import nullthrows from 'nullthrows';
+import {SpecifierType as SpecifierTypeMap, Priority} from '../types';
+
+const SpecifierTypeNames = Object.keys(SpecifierTypeMap);
+const PriorityNames = Object.keys(Priority);
 
 const inspect = Symbol.for('nodejs.util.inspect.custom');
 
@@ -46,35 +52,35 @@ export default class Dependency implements IDependency {
 
   // $FlowFixMe
   [inspect](): string {
-    return `Dependency(${String(this.sourcePath)} -> ${this.moduleSpecifier})`;
+    return `Dependency(${String(this.sourcePath)} -> ${this.specifier})`;
   }
 
   get id(): string {
     return this.#dep.id;
   }
 
-  get moduleSpecifier(): string {
-    return this.#dep.moduleSpecifier;
+  get specifier(): string {
+    return this.#dep.specifier;
   }
 
-  get isAsync(): boolean {
-    return !!this.#dep.isAsync;
+  get specifierType(): SpecifierType {
+    return SpecifierTypeNames[this.#dep.specifierType];
   }
 
-  get isEntry(): ?boolean {
+  get priority(): DependencyPriority {
+    return PriorityNames[this.#dep.priority];
+  }
+
+  get needsStableName(): boolean {
+    return this.#dep.needsStableName;
+  }
+
+  get isEntry(): boolean {
     return this.#dep.isEntry;
   }
 
   get isOptional(): boolean {
-    return !!this.#dep.isOptional;
-  }
-
-  get isURL(): boolean {
-    return !!this.#dep.isURL;
-  }
-
-  get isIsolated(): boolean {
-    return !!this.#dep.isIsolated;
+    return this.#dep.isOptional;
   }
 
   get loc(): ?SourceLocation {
@@ -106,6 +112,10 @@ export default class Dependency implements IDependency {
   get sourcePath(): ?string {
     // TODO: does this need to be public?
     return this.#dep.sourcePath;
+  }
+
+  get sourceAssetType(): ?string {
+    return this.#dep.sourceAssetType;
   }
 
   get resolveFrom(): ?string {
