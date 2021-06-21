@@ -253,6 +253,79 @@ describe('javascript', function() {
     assert(errored);
   });
 
+  it('should support audio worklets via a pipeline', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/worklet/worklet-pipeline.js'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'worklet-pipeline.js',
+        assets: ['bundle-url.js', 'esmodule-helpers.js', 'worklet-pipeline.js'],
+      },
+      {
+        type: 'js',
+        assets: ['worklet.js'],
+      },
+    ]);
+
+    let res = await run(b);
+    assert(/^http:\/\/localhost\/worklet\.[0-9a-f]+\.js$/.test(res.default));
+
+    let name;
+    await runBundle(
+      b,
+      b.getBundles()[1],
+      {
+        registerPaint(n) {
+          name = n;
+        },
+      },
+      {require: false},
+    );
+
+    assert.equal(name, 'checkerboard');
+  });
+
+  it('should error on dynamic import() inside worklets imported via a pipeline', async function() {
+    let errored = false;
+    try {
+      await bundle(
+        path.join(__dirname, '/integration/worklet/worklet-pipeline-error.js'),
+      );
+    } catch (err) {
+      errored = true;
+      assert.equal(err.message, 'import() is not allowed in worklets.');
+      assert.deepEqual(err.diagnostics, [
+        {
+          message: 'import() is not allowed in worklets.',
+          filePath: path.join(
+            __dirname,
+            '/integration/worklet/worklet-error.js',
+          ),
+          origin: '@parcel/transformer-js',
+          codeFrame: {
+            codeHighlights: [
+              {
+                start: {
+                  line: 1,
+                  column: 8,
+                },
+                end: {
+                  line: 1,
+                  column: 18,
+                },
+              },
+            ],
+          },
+          hints: ['Try using a static `import`.'],
+        },
+      ]);
+    }
+
+    assert(errored);
+  });
+
   it('should produce a basic JS bundle with ES6 imports', async function() {
     let b = await bundle(path.join(__dirname, '/integration/es6/index.js'));
 
