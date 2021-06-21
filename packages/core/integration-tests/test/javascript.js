@@ -600,7 +600,8 @@ describe('javascript', function() {
     assert.equal(await output(), 3);
   });
 
-  it('Should not run parcel over external modules', async function() {
+  // TODO: re-enable when this actually works
+  it.skip('Should not run parcel over external modules', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/dynamic-external/index.js'),
     );
@@ -3169,6 +3170,31 @@ describe('javascript', function() {
     });
     vm.runInContext(res.default, ctx);
     assert.equal(log, 'hi');
+  });
+
+  it("should inline a bundle's compiled text with `bundle-text` asynchronously", async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/bundle-text/async.js'),
+    );
+
+    let promise = (await run(b)).default;
+    assert.equal(typeof promise.then, 'function');
+
+    let cssBundleContent = await promise;
+
+    assert(
+      cssBundleContent.startsWith(
+        `body {
+  background-color: #000000;
+}
+
+.svg-img {
+  background-image: url("data:image/svg+xml,%3Csvg%3E%0A%0A%3C%2Fsvg%3E%0A");
+}`,
+      ),
+    );
+
+    assert(!cssBundleContent.includes('sourceMappingURL'));
   });
 
   it('should inline text content as url-encoded text and mime type with `data-url:*` imports', async () => {

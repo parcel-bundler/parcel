@@ -102,6 +102,27 @@ export default (new Runtime({
           });
         }
       } else {
+        // Resolve the dependency to a bundle. If inline, export the dependency id,
+        // which will be replaced with the contents of that bundle later.
+        let referencedBundle = bundleGraph.getReferencedBundle(
+          dependency,
+          bundle,
+        );
+        if (referencedBundle?.bundleBehavior === 'inline') {
+          assets.push({
+            filePath: path.join(
+              __dirname,
+              `/bundles/${referencedBundle.id}.js`,
+            ),
+            code: `module.exports = Promise.resolve(${JSON.stringify(
+              dependency.id,
+            )});`,
+            dependency,
+            env: {sourceType: 'module'},
+          });
+          continue;
+        }
+
         let loaderRuntime = getLoaderRuntime({
           bundle,
           dependency,

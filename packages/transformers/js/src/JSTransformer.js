@@ -4,7 +4,6 @@ import type {SchemaEntity} from '@parcel/utils';
 import SourceMap from '@parcel/source-map';
 import {Transformer} from '@parcel/plugin';
 import {init, transform} from '../native';
-import {isURL} from '@parcel/utils';
 import path from 'path';
 import browserslist from 'browserslist';
 import semver from 'semver';
@@ -478,10 +477,6 @@ export default (new Transformer({
       } else if (dep.kind === 'File') {
         asset.invalidateOnFileChange(dep.specifier);
       } else {
-        if (dep.kind === 'DynamicImport' && isURL(dep.specifier)) {
-          continue;
-        }
-
         let meta: JSONObject = {kind: dep.kind};
         if (dep.attributes) {
           meta.importAttributes = dep.attributes;
