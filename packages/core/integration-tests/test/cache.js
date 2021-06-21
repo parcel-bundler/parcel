@@ -2662,7 +2662,7 @@ describe('cache', function() {
   });
 
   describe('resolver', function() {
-    it('should support updating a package.json#main field', async function() {
+    it.only('should support updating a package.json#main field', async function() {
       let b = await testCache(async b => {
         assert.equal(await run(b.bundleGraph), 4);
         await overlayFS.writeFile(

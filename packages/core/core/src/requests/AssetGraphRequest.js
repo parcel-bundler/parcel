@@ -84,9 +84,15 @@ export default function createAssetGraphRequest(
       let prevResult = await input.api.getPreviousResult<AssetGraphRequestResult>();
       let previousAssetGraphHash = prevResult?.assetGraph.getHash();
       //want to avoid cloning  so just grab ids
-      let previousContentKeys = new Set<ContentKey>();
+      let previousContentKeys = new Map<
+        ContentKey,
+        {|type: string, hash: string|},
+      >();
       prevResult?.assetGraph.nodes.forEach(value => {
-        previousContentKeys.add(value.id);
+        previousContentKeys.set(value.id, {
+          type: value.type,
+          hash: value.value?.hash || value.value?.sourceAssetId,
+        });
       });
 
       let isPrevResult = prevResult && prevResult.assetGraph.nodes.size > 0;
@@ -94,15 +100,16 @@ export default function createAssetGraphRequest(
       let builder = new AssetGraphBuilder(input, prevResult);
       let assetGraphRequest = await await builder.build();
       let shouldGetAssetTransformations =
-        assetGraphRequest.changedAssets.size > 0 &&
-        isPrevResult &&
-        input.options.shouldIncrementallyBundle;
+        (assetGraphRequest.changedAssets.size > 0 &&
+          isPrevResult &&
+          input.options.shouldIncrementallyBundle) ||
+        true;
 
       let assetGraphTransformationSubGraph = shouldGetAssetTransformations
         ? assetGraphRequest.assetGraph.getChangedAssetGraph(
             previousContentKeys,
             assetGraphRequest.changedAssets,
-          )
+          ).transformationSubgraph
         : new AssetGraph(); //TODO: change this return value
       if (
         assetGraphTransformationSubGraph &&

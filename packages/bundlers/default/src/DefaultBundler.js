@@ -72,7 +72,6 @@ export default (new Bundler({
             };
           }
 
-          console.log(context);
           let dependency = node.value;
           if (bundleGraph.isDependencySkipped(dependency)) {
             actions.skipChildren();
