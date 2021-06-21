@@ -230,7 +230,7 @@ describe('javascript', function() {
         },
         {
           message: 'The environment was originally created here:',
-          filePath: 'integration/worklet/url-worklet-error.js',
+          filePath: path.normalize('integration/worklet/url-worklet-error.js'),
           origin: '@parcel/transformer-js',
           codeFrame: {
             codeHighlights: [
