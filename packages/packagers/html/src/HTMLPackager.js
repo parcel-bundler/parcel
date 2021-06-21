@@ -34,9 +34,9 @@ export default (new Packager({
         packageKey: 'posthtml',
       },
     );
-    config.setResult({
+    return {
       render: posthtmlConfig?.contents?.render,
-    });
+    };
   },
   async package({bundle, bundleGraph, getInlineBundleContents, config}) {
     let assets = [];

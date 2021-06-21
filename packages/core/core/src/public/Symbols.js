@@ -70,7 +70,7 @@ export class AssetSymbols implements IAssetSymbols {
 
   exportSymbols(): Iterable<ISymbol> {
     // $FlowFixMe
-    return this.#value.symbols.keys();
+    return this.#value.symbols?.keys() ?? [];
   }
   // $FlowFixMe
   [Symbol.iterator]() {

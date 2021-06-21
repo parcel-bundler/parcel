@@ -30,7 +30,7 @@ export default (new Transformer({
             'WARNING: Using a JavaScript PostHTML config file means losing out on caching features of Parcel. Use a .posthtmlrc (JSON) file whenever possible.',
         });
 
-        config.shouldInvalidateOnStartup();
+        config.invalidateOnStartup();
 
         // Also add the config as a dev dependency so we attempt to reload in watch mode.
         config.addDevDependency({
@@ -68,7 +68,7 @@ export default (new Transformer({
       configFile.contents.skipParse = true;
       delete configFile.contents.render;
 
-      config.setResult(configFile.contents);
+      return configFile.contents;
     }
   },
 
@@ -87,6 +87,7 @@ export default (new Transformer({
       version: '0.4.1',
       program: parse(await asset.getCode(), {
         lowerCaseAttributeNames: true,
+        sourceLocations: true,
       }),
     };
   },

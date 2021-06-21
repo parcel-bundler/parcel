@@ -8,7 +8,7 @@ export function generateMainCode(originalSpecifier, methods) {
       let callbacks = {};
       let worker = new Worker(new URL(${JSON.stringify(
         originalSpecifier,
-      )}, import.meta.url));
+      )}, import.meta.url), {type: 'module'});
       let term = worker.terminate;
       worker.kill = signal => {
         worker.postMessage({ type: 'KILL', signal });
