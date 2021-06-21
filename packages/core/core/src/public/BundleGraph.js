@@ -273,7 +273,16 @@ export default class BundleGraph<TBundle: IBundle>
 
   traverse<TContext>(
     visit: GraphVisitor<BundleGraphTraversable, TContext>,
+    start: ?(IAsset | IDependency),
   ): ?TContext {
+    let startValue = null;
+    if (start != null) {
+      if (start instanceof Asset) {
+        startValue = assetToAssetValue(start);
+      } else if (start instanceof Dependency) {
+        startValue = dependencyToInternalDependency(start);
+      }
+    }
     return this.#graph.traverse(
       mapVisitor(
         node =>
@@ -285,6 +294,7 @@ export default class BundleGraph<TBundle: IBundle>
               },
         visit,
       ),
+      startValue,
     );
   }
 

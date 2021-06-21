@@ -7,6 +7,7 @@ import type WorkerFarm from '@parcel/workers';
 import type {PackageManager} from '@parcel/package-manager';
 import type {Diagnostic} from '@parcel/diagnostic';
 import type {PluginLogger} from '@parcel/logger';
+import type {Cache} from '@parcel/cache';
 import type {AST as _AST, ConfigResult as _ConfigResult} from './unsafe';
 
 /** Plugin-specific AST, <code>any</code> */
@@ -1133,7 +1134,6 @@ export interface MutableBundleGraph extends BundleGraph<Bundle> {
   removeBundleGroup(bundleGroup: BundleGroup): void;
   /** Turns a dependency to a different bundle into a dependency to an asset inside <code>bundle</code>. */
   internalizeAsyncDependency(bundle: Bundle, dependency: Dependency): void;
-  merge(MutableBundleGraph): void;
 }
 
 /**
@@ -1205,7 +1205,10 @@ export interface BundleGraph<TBundle: Bundle> {
     asset: Asset,
     boundary: ?Bundle,
   ): Array<ExportSymbolResolution>;
-  traverse<TContext>(GraphVisitor<BundleGraphTraversable, TContext>): ?TContext;
+  traverse<TContext>(
+    GraphVisitor<BundleGraphTraversable, TContext>,
+    start: ?(Asset | Dependency),
+  ): ?TContext;
   traverseBundles<TContext>(
     visit: GraphVisitor<TBundle, TContext>,
     startBundle: ?Bundle,
@@ -1285,6 +1288,7 @@ export type Bundler = {|
     config: ?ConfigResult,
     options: PluginOptions,
     logger: PluginLogger,
+    startValue: ?(Asset | Dependency),
   |}): Async<void>,
   optimize({|
     bundleGraph: MutableBundleGraph,

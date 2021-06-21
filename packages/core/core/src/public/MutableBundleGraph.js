@@ -10,7 +10,6 @@ import type {
   Target,
 } from '@parcel/types';
 import type {ParcelOptions} from '../types';
-import type AssetGraph from '../AssetGraph'; //shouldnt do this
 import invariant from 'assert';
 import path from 'path';
 import nullthrows from 'nullthrows';
@@ -278,13 +277,5 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
       assetToAssetValue(asset),
       bundleToInternalBundle(bundle),
     );
-  }
-
-  merge(bundleGraph: IMutableBundleGraph) {
-    this.#graph.merge(bundleGraph);
-  }
-
-  updateAssetGraph(asset: IAsset, subGraph: AssetGraph): void {
-    this.#graph.updateAssetGraph(assetToAssetValue(asset), subGraph);
   }
 }

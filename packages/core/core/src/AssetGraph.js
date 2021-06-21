@@ -103,6 +103,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
   onNodeRemoved: ?(nodeId: NodeId) => mixed;
   hash: ?string;
   envCache: Map<string, Environment>;
+  shouldForceBundle: boolean = false;
 
   constructor(opts: ?SerializedAssetGraph) {
     if (opts) {
@@ -600,11 +601,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
       this.traverse((nodeId, _, actions) => {
         // add all inbound and outbound edges and nodes to the sub-graph
         let assetGraphNode = nullthrows(this.getNode(nodeId)); // get node from the original asset graph
-        subGraphChanges.addNode(assetGraphNode);
-
-        let newNodeId = subGraphChanges.getNodeIdByContentKey(
-          assetGraphNode.id,
-        );
+        let newNodeId = subGraphChanges.addNode(assetGraphNode);
         newIdToOldNodeIdsMap.set(newNodeId, nodeId);
         oldIdToNewIdsMap.set(nodeId, newNodeId);
 
@@ -618,6 +615,19 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
           return;
         }
       }, changedNodeId);
+
+      // if the dependency now resolves to a new asset, go up the tree until you see the dependency
+      this.traverseAncestors(changedNodeId, (ancestorId, _, actions) => {
+        let assetGraphNode = nullthrows(this.getNode(ancestorId)); // get node from the original asset graph
+
+        let newNodeId = subGraphChanges.addNode(assetGraphNode);
+        newIdToOldNodeIdsMap.set(newNodeId, ancestorId);
+        oldIdToNewIdsMap.set(ancestorId, newNodeId);
+
+        if (assetGraphNode.type === 'dependency') {
+          actions.skipChildren();
+        }
+      });
     });
 
     // set all inbound and outbound nodes up

@@ -31,7 +31,6 @@ import {getBundleGroupId, getPublicId} from './utils';
 import {ALL_EDGE_TYPES, mapVisitor} from './Graph';
 import ContentGraph, {type SerializedContentGraph} from './ContentGraph';
 import Environment from './public/Environment';
-import dumpGraphToGraphViz from './dumpGraphToGraphViz';
 
 type BundleGraphEdgeTypes =
   // A lack of an edge type indicates to follow the edge while traversing
@@ -223,7 +222,12 @@ export default class BundleGraph {
 
     // The root asset should be reached directly from the bundle in traversal.
     // Its children will be traversed from there.
-    this._graph.addEdge(bundleNodeId, assetNodeId);
+    if (
+      this.getIncomingDependencies(asset).some(dependency => dependency.isEntry)
+    ) {
+      this._graph.addEdge(bundleNodeId, assetNodeId);
+    }
+
     this._graph.traverse((nodeId, _, actions) => {
       let node = nullthrows(this._graph.getNode(nodeId));
       if (node.type === 'bundle_group') {
@@ -967,6 +971,7 @@ export default class BundleGraph {
 
   traverse<TContext>(
     visit: GraphVisitor<AssetNode | DependencyNode, TContext>,
+    start: ?(Asset | Dependency),
   ): ?TContext {
     return this._graph.filteredTraverse(
       nodeId => {
@@ -976,7 +981,7 @@ export default class BundleGraph {
         }
       },
       visit,
-      undefined, // start with root
+      start ? this._graph._contentKeyToNodeId.get(start.id) : undefined, // start with root
       // $FlowFixMe
       ALL_EDGE_TYPES,
     );
@@ -1556,6 +1561,37 @@ export default class BundleGraph {
           existingNode.excluded =
             (existingNode.excluded || Boolean(existingNode.hasDeferred)) &&
             (otherNode.excluded || Boolean(otherNode.hasDeferred));
+
+          // When merging a dependency, replace the existing asset with the new asset;
+          // TODO : determine if this can be simpler
+          let connectedNodes = other._graph.getNodeIdsConnectedFrom(
+            otherNodeId,
+          );
+          if (connectedNodes.length > 0) {
+            let assetNodeId = connectedNodes[0];
+            let assetNode = nullthrows(other._graph.getNode(assetNodeId));
+            let assetNodeMergedId = this._graph.addNodeByContentKey(
+              assetNode.id,
+              assetNode,
+            );
+
+            let nodesConnectedFrom = this._graph.getNodeIdsConnectedFrom(
+              existingNodeId,
+            );
+
+            nodesConnectedFrom.forEach(nodeId => {
+              let node = nullthrows(this._graph.getNode(nodeId));
+              if (node.type === 'asset') {
+                // don't remove the edge if the node is the same as the new node
+                if (assetNodeMergedId !== nodeId) {
+                  this._graph.removeEdge(existingNodeId, nodeId);
+                  if (this._graph.getNodeIdsConnectedFrom(nodeId).length < 1) {
+                    this._graph.removeNode(nodeId);
+                  }
+                }
+              }
+            });
+          }
         }
       } else {
         let updateNodeId = this._graph.addNodeByContentKey(
@@ -1592,33 +1628,40 @@ export default class BundleGraph {
       .map(id => nullthrows(this._graph.getNode(id)))
       .some(n => n.type === 'root');
   }
-  //updates value of existing assetnode and adds any new children
-  updateAssetGraph(assetNode: Asset, assetSubGraph: BundleGraph) {
-    let assetNodeId = assetSubGraph._graph.getNodeIdByContentKey(assetNode.id);
+  cleanup(other: BundleGraph, changedAssets: Map<string, Asset>) {
+    // basically want the left join (if that makes sense) on the bundlegraph from current
+    let nodeIdsToRemove = [];
+    changedAssets.forEach(changedAsset => {
+      let changedNodeId = this._graph.getNodeIdByContentKey(changedAsset.id);
 
-    let assetGraphToBundleGraphNodeIds = new Map<NodeId, NodeId>();
-    let bundleGraphToAssetGraphNodeIds = new Map<NodeId, NodeId>();
-
-    assetSubGraph._graph.traverse(assetnodeId => {
-      let node = nullthrows(assetSubGraph._graph.getNode(assetnodeId));
-      let bundleGraphNodeId = this._graph.addNodeByContentKey(node.id, node);
-      assetGraphToBundleGraphNodeIds.set(assetnodeId, bundleGraphNodeId);
-      bundleGraphToAssetGraphNodeIds.set(bundleGraphNodeId, assetnodeId);
-    }, assetNodeId);
-    //add its edges inbound and outbound to bundlegraph
-    assetGraphToBundleGraphNodeIds.forEach(
-      (bundleGraphIdValue, assetGraphIdKey) => {
-        assetSubGraph._graph.outboundEdges
-          .getEdges(assetGraphIdKey, null)
-          .forEach(value => {
-            let newToNode = assetGraphToBundleGraphNodeIds.get(value);
-            if (newToNode) {
-              this._graph.addEdge(bundleGraphIdValue, newToNode);
+      this._graph.traverse((nodeId, _, actions) => {
+        // if a child here exists that DOESNOT exist in other, then remove it
+        //if its NOT removed, skip children, if it is, continue with removal
+        let bundlegraphnode = nullthrows(this._graph.getNode(nodeId));
+        let updatedNode = other._graph.getNodeByContentKey(bundlegraphnode.id);
+        if (bundlegraphnode.id != changedAsset.id) {
+          //do not want to remove the parent
+          if (updatedNode) {
+            //want to visit children of the changedAsset
+            actions.skipChildren();
+          } else {
+            //Removal of dependency (or other) node
+            if (this._graph.getNodeIdsConnectedTo(nodeId).length === 1) {
+              //does this make sense?
+              // only remove if we just came from the parent we intend to remove
+              nodeIdsToRemove.push(nodeId);
+              //this will remove all edges so we need to check that none are important
+            } else {
+              actions.skipChildren();
             }
-          });
-      },
-    );
-    dumpGraphToGraphViz(this._graph, 'after_adding_changed_asset');
-    //Update bundles after this (not in this function)
+          }
+        }
+      }, changedNodeId);
+    });
+    nodeIdsToRemove.forEach(nodeId => {
+      if (this._graph.hasNode(nodeId)) {
+        this._graph.removeNode(nodeId);
+      }
+    });
   }
 }

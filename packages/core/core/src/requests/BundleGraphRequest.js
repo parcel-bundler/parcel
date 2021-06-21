@@ -29,6 +29,8 @@ import dumpGraphToGraphViz from '../dumpGraphToGraphViz';
 import {unique} from '@parcel/utils';
 import {hashString} from '@parcel/hash';
 import PluginOptions from '../public/PluginOptions';
+import Dependency from '../public/Dependency';
+
 import applyRuntimes from '../applyRuntimes';
 import {PARCEL_VERSION} from '../constants';
 import {optionsProxy} from '../utils';
@@ -193,16 +195,14 @@ class BundlerRunner {
       type: 'buildProgress',
       phase: 'bundling',
     });
-    let shouldForceFullBundle = false;
+    let shouldForceFullBundle = graph.shouldForceBundle;
 
     await this.loadConfigs();
 
     let plugin = await await this.config.getBundler();
     let {plugin: bundler, name, resolveFrom} = plugin;
-    let bundlerHash = this.getBundlerHash();
 
-    let cacheKey = await this.getCacheKey(graph);
-
+    let {cacheKey, bundlerHash} = await this.getHashes(graph);
     // Check if the cacheKey matches the one already stored in the graph.
     // This can save time deserializing from cache if the graph is already in memory.
     // This will only happen in watch mode. In this case, serialization will occur once
@@ -232,9 +232,13 @@ class BundlerRunner {
       this.pluginOptions.mode !== 'production' &&
       this.options.shouldIncrementallyBundle
     ) {
-      cachedBundleGraph = await this.api.getRequestResult<BundleGraphRequestResult>(
-        'BundleGraph:' + previousAssetGraphHash,
-      );
+      try {
+        cachedBundleGraph = await this.api.getRequestResult<BundleGraphRequestResult>(
+          'BundleGraph:' + previousAssetGraphHash,
+        );
+      } catch {
+        // there can be previous asset graph keys that did not have a valid BundleGraph
+      }
     }
 
     // should re-bundle if using a different bundle from previous
@@ -251,7 +255,6 @@ class BundlerRunner {
     let mutableBundleGraph;
     try {
       if (!shouldForceFullBundle) {
-        console.log('isUpdating');
         internalBundleGraph = nullthrows(cachedBundleGraph).bundleGraph;
         await dumpGraphToGraphViz(
           internalBundleGraph._graph,
@@ -262,18 +265,34 @@ class BundlerRunner {
         );
 
         internalBundleGraph.merge(transformationSubGraph);
+        internalBundleGraph.cleanup(transformationSubGraph, changedAssets);
+
         await dumpGraphToGraphViz(
           internalBundleGraph._graph,
           'bundle_bundler_update_after_merge',
         );
 
-        await bundler.update({
-          bundleGraph: internalBundleGraph,
-          config: this.configs.get(plugin.name)?.result,
-          options: this.pluginOptions,
-          assetGraphTransformationSubGraph: transformationSubGraph, // TODO: need to be public facing asset graph
-          changedAssets,
+        mutableBundleGraph = new MutableBundleGraph(
+          internalBundleGraph,
+          this.options,
+        );
+        let updates = [];
+        changedAssets.forEach(asset => {
+          let dependencies = internalBundleGraph.getIncomingDependencies(asset);
+          dependencies.forEach(dependency => {
+            updates.push(
+              bundler.bundle({
+                bundleGraph: mutableBundleGraph,
+                config: this.configs.get(plugin.name)?.result,
+                options: this.pluginOptions,
+                logger,
+                startValue: new Dependency(dependency),
+              }),
+            );
+          });
         });
+
+        await Promise.all(updates);
       } else {
         internalBundleGraph = InternalBundleGraph.fromAssetGraph(graph);
         await dumpGraphToGraphViz(
@@ -358,7 +377,7 @@ class BundlerRunner {
     cacheSerializedObject(internalBundleGraph);
 
     // Recompute the cache key to account for new dev dependencies and invalidations.
-    cacheKey = await this.getCacheKey(graph);
+    cacheKey = (await this.getHashes(graph)).cacheKey;
 
     let result = {
       bundleGraph: internalBundleGraph,
@@ -368,21 +387,20 @@ class BundlerRunner {
     return result;
   }
 
-  getBundlerHash(): string {
-    let configs = [...this.configs]
-      .map(([pluginName, config]) =>
-        getConfigHash(config, pluginName, this.options),
+  // calculating hashes that use similar dependencies (configs)
+  async getHashes(
+    assetGraph: AssetGraph,
+  ): Promise<{|
+    cacheKey: string,
+    bundlerHash: string,
+  |}> {
+    let configs = (
+      await Promise.all(
+        [...this.configs].map(([pluginName, config]) =>
+          getConfigHash(config, pluginName, this.options),
+        ),
       )
-      .join('');
-    return hashString(PARCEL_VERSION + this.config.getBundlerName() + configs);
-  }
-
-  async getCacheKey(assetGraph: AssetGraph): Promise<string> {
-    let configs = [...this.configs]
-      .map(([pluginName, config]) =>
-        getConfigHash(config, pluginName, this.options),
-      )
-      .join('');
+    ).join('');
     let devDepRequests = [...this.devDepRequests.values()]
       .map(d => d.hash)
       .join('');
@@ -391,13 +409,19 @@ class BundlerRunner {
       this.options,
     );
 
-    return hashString(
-      PARCEL_VERSION +
-        assetGraph.getHash() +
-        configs +
-        devDepRequests +
-        invalidations,
-    );
+    return {
+      cacheKey: hashString(
+        PARCEL_VERSION +
+          assetGraph.getHash() +
+          configs +
+          devDepRequests +
+          invalidations,
+      ),
+      // do not use the asset graph hash for the bundler hash as the asset graph is expected to be different when doing updates
+      bundlerHash: hashString(
+        PARCEL_VERSION + this.config.getBundlerName() + configs,
+      ),
+    };
   }
 
   async nameBundles(bundleGraph: InternalBundleGraph): Promise<void> {

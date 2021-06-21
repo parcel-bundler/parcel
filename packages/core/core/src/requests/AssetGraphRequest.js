@@ -21,7 +21,7 @@ import type {
   NodeId,
   ParcelOptions,
   Target,
-  ContentKey, //Maybe this shouldn't be here?
+  ContentKey,
 } from '../types';
 import type {StaticRunOpts, RunAPI} from '../RequestTracker';
 import type {EntryResult} from './EntryRequest';
@@ -113,6 +113,7 @@ export default function createAssetGraphRequest(
           'AssetGraph_Transformation',
         );
       }
+
       return {
         ...assetGraphRequest,
         previousAssetGraphHash,
@@ -820,6 +821,7 @@ export class AssetGraphBuilder {
     let result = await this.api.runRequest<FilePath, EntryResult>(request, {
       force: true,
     });
+    this.assetGraph.shouldForceBundle = true;
     this.assetGraph.resolveEntry(request.input, result.entries, request.id);
   }
 
@@ -828,6 +830,8 @@ export class AssetGraphBuilder {
     let targets = await this.api.runRequest<Entry, Array<Target>>(request, {
       force: true,
     });
+
+    this.assetGraph.shouldForceBundle = true;
     this.assetGraph.resolveTargets(request.input, targets, request.id);
   }
 
@@ -846,7 +850,7 @@ export class AssetGraphBuilder {
       ...input,
       name: this.name,
       optionsRef: this.optionsRef,
-    }); //access to old graph
+    });
     let assets = await this.api.runRequest<AssetRequestInput, Array<Asset>>(
       request,
       {force: true},

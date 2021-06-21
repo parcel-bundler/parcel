@@ -215,7 +215,6 @@ export default async function applyRuntimes({
 
     if (isEntry) {
       bundleGraph._graph.addEdge(bundleNodeId, bundleGraphRuntimeNodeId);
-      // add entry to the front, remove previous runtime
       if (bundle.entryAssetIds.includes(runtimeNode.id)) {
         let index = bundle.entryAssetIds.indexOf(runtimeNode.id);
         bundle.entryAssetIds.splice(index, 1);
@@ -235,6 +234,18 @@ export default async function applyRuntimes({
         dependency.id,
       );
       bundleGraph._graph.addEdge(dependencyNodeId, bundleGraphRuntimeNodeId);
+    }
+
+    if (
+      bundleGraph._graph.hasEdge(
+        nullthrows(bundleGraph._graph.rootNodeId),
+        bundleGraphRuntimeNodeId,
+      )
+    ) {
+      bundleGraph._graph.removeEdge(
+        nullthrows(bundleGraph._graph.rootNodeId),
+        bundleGraphRuntimeNodeId,
+      );
     }
   }
 }
