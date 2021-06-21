@@ -35,7 +35,7 @@ export default (new Transformer({
         },
       });
     }
-    config.setResult(elmConfig.contents);
+    return elmConfig.contents;
   },
 
   async transform({asset, options}) {

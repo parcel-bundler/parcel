@@ -1827,7 +1827,7 @@ describe('cache', function() {
             'utf8',
           );
           assert(
-            contents.includes('<script src="http://example.com'),
+            contents.includes('<script type="module" src="http://example.com'),
             'should include example.com',
           );
 
@@ -1851,7 +1851,9 @@ describe('cache', function() {
         'utf8',
       );
       assert(
-        contents.includes('<script src="http://mygreatwebsite.com'),
+        contents.includes(
+          '<script type="module" src="http://mygreatwebsite.com',
+        ),
         'should include example.com',
       );
     });
@@ -2082,6 +2084,8 @@ describe('cache', function() {
             last 1 Chrome version
             `,
             );
+
+            process.env.BROWSERSLIST_ENV = 'production';
           },
           async update(b) {
             // "production" is the default environment for browserslist
@@ -2127,6 +2131,8 @@ describe('cache', function() {
             last 1 Chrome version
             `,
             );
+
+            process.env.NODE_ENV = 'production';
           },
           async update(b) {
             // "production" is the default environment for browserslist
@@ -2171,7 +2177,7 @@ describe('cache', function() {
             'utf8',
           );
           assert(
-            contents.includes('<script src="http://example.com'),
+            contents.includes('<script type="module" src="http://example.com'),
             'should include example.com',
           );
 
@@ -2188,7 +2194,9 @@ describe('cache', function() {
         'utf8',
       );
       assert(
-        contents.includes('<script src="http://mygreatwebsite.com'),
+        contents.includes(
+          '<script type="module" src="http://mygreatwebsite.com',
+        ),
         'should include example.com',
       );
     });

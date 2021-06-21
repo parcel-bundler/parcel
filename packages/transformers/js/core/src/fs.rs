@@ -196,6 +196,7 @@ impl<'a> InlineFS<'a> {
           attributes: None,
           is_optional: false,
           is_helper: false,
+          source_type: None,
         });
 
         // If buffer, wrap in Buffer.from(base64String, 'base64')

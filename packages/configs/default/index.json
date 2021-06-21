@@ -2,8 +2,8 @@
   "bundler": "@parcel/bundler-default",
   "transformers": {
     "types:*.{ts,tsx}": ["@parcel/transformer-typescript-types"],
-    "bundle-text:*": ["@parcel/transformer-inline-string", "..."],
-    "data-url:*": ["@parcel/transformer-inline-string", "..."],
+    "bundle-text:*": ["...", "@parcel/transformer-inline-string"],
+    "data-url:*": ["...", "@parcel/transformer-inline-string"],
     "*.{js,mjs,jsm,jsx,es6,cjs,ts,tsx}": [
       "@parcel/transformer-babel",
       "@parcel/transformer-js",

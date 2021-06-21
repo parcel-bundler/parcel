@@ -8456,10 +8456,10 @@ listr2@^2.1.0:
     rxjs "^6.5.5"
     through "^2.3.8"
 
-lmdb-store@^1.5.2:
-  version "1.5.2"
-  resolved "https://registry.yarnpkg.com/lmdb-store/-/lmdb-store-1.5.2.tgz#11f4bef7f20b804f8b95e5984a2a153dc314708d"
-  integrity sha512-xQcy1Mk86SN1f+viX3YqTkNsRAiawSeUv27B36H2syK2TsNQyBPqk72QHqTdoIsFqdO7KeXK2a8Ch5cG/viHaA==
+lmdb-store@^1.5.4:
+  version "1.5.5"
+  resolved "https://registry.yarnpkg.com/lmdb-store/-/lmdb-store-1.5.5.tgz#b51f5d045bf0fbae205e31eab781900be3b25ad9"
+  integrity sha512-EwCn+eSGH1XD35qaDzbHTYMig+Aj+kBbCpxWHzhtrIBJpFYq5uoBo4zWG4JRFxsbfonFELhuiyX0QokISIxzsQ==
   dependencies:
     mkdirp "^1.0.4"
     nan "^2.14.2"
@@ -10705,6 +10705,13 @@ posthtml-parser@^0.7.2:
   version "0.7.2"
   resolved "https://registry.yarnpkg.com/posthtml-parser/-/posthtml-parser-0.7.2.tgz#3fba3375544d824bb1c8504f0d69f6e0b95774db"
   integrity sha512-LjEEG/3fNcWZtBfsOE3Gbyg1Li4CmsZRkH1UmbMR7nKdMXVMYI3B4/ZMiCpaq8aI1Aym4FRMMW9SAOLSwOnNsQ==
+  dependencies:
+    htmlparser2 "^6.0.0"
+
+posthtml-parser@^0.9.0:
+  version "0.9.0"
+  resolved "https://registry.yarnpkg.com/posthtml-parser/-/posthtml-parser-0.9.0.tgz#8e7d817eb6c27885b9c7395007371d4363a5867d"
+  integrity sha512-Ybw75S+aNJuXCoCUBF2drLRip18cwbT4IBKAT6Xx7VU6FxjuDIV5VofPZRQzgwzGsASZ++5JpRhK3vagPZ4JIQ==
   dependencies:
     htmlparser2 "^6.0.0"
 

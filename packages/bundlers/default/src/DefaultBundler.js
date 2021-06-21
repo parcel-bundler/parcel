@@ -17,6 +17,13 @@ import {hashString} from '@parcel/hash';
 import nullthrows from 'nullthrows';
 import {encodeJSONKeyComponent} from '@parcel/diagnostic';
 
+type BundlerConfig = {|
+  http?: number,
+  minBundles?: number,
+  minBundleSize?: number,
+  maxParallelRequests?: number,
+|};
+
 // Default options by http version.
 const HTTP_OPTIONS = {
   '1': {
@@ -483,12 +490,11 @@ const CONFIG_SCHEMA: SchemaEntity = {
 };
 
 async function loadBundlerConfig(config: Config, options: PluginOptions) {
-  let conf = await config.getConfig([], {
+  let conf = await config.getConfig<BundlerConfig>([], {
     packageKey: '@parcel/bundler-default',
   });
   if (!conf) {
-    config.setResult(HTTP_OPTIONS['2']);
-    return;
+    return HTTP_OPTIONS['2'];
   }
 
   invariant(conf?.contents != null);
@@ -508,10 +514,10 @@ async function loadBundlerConfig(config: Config, options: PluginOptions) {
   let http = conf.contents.http ?? 2;
   let defaults = HTTP_OPTIONS[http];
 
-  config.setResult({
+  return {
     minBundles: conf.contents.minBundles ?? defaults.minBundles,
     minBundleSize: conf.contents.minBundleSize ?? defaults.minBundleSize,
     maxParallelRequests:
       conf.contents.maxParallelRequests ?? defaults.maxParallelRequests,
-  });
+  };
 }

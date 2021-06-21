@@ -7,8 +7,8 @@ import {loadTSConfig} from '@parcel/ts-utils';
 import typescript from 'typescript';
 
 export default (new Transformer({
-  async loadConfig({config, options}) {
-    await loadTSConfig(config, options);
+  loadConfig({config, options}) {
+    return loadTSConfig(config, options);
   },
 
   async transform({asset, config}) {
