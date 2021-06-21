@@ -132,8 +132,7 @@ export async function replaceInlineReferences({
       : packagedBundle.contents
     ).toString();
 
-    let inlineType = nullthrows(entryBundle.getEntryAssets()[0]).meta
-      .inlineType;
+    let inlineType = nullthrows(entryBundle.getMainEntry()).meta.inlineType;
     if (inlineType == null || inlineType === 'string') {
       replacements.set(
         dependency.id,

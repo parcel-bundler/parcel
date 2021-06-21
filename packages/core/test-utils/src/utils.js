@@ -640,7 +640,11 @@ function prepareBrowserContext(
       document: fakeDocument,
       WebSocket,
       console: {...console, clear: () => {}},
-      location: {hostname: 'localhost', origin: 'http://localhost'},
+      location: {
+        hostname: 'localhost',
+        origin: 'http://localhost',
+        protocol: 'http',
+      },
       fetch(url) {
         return Promise.resolve({
           async arrayBuffer() {

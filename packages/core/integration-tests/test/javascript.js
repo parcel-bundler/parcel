@@ -15,6 +15,7 @@ import {
   inputFS,
 } from '@parcel/test-utils';
 import {makeDeferredWithPromise} from '@parcel/utils';
+import vm from 'vm';
 
 describe('javascript', function() {
   beforeEach(async () => {
@@ -3147,6 +3148,27 @@ describe('javascript', function() {
 
     let res = await run(b);
     assert.equal(res.default, '<p>test</p>\n');
+  });
+
+  it("should inline a JS bundle's compiled text with `bundle-text` and HMR enabled", async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/bundle-text/javascript.js'),
+      {
+        hmrOptions: {},
+      },
+    );
+
+    let res = await run(b);
+    let log;
+    let ctx = vm.createContext({
+      console: {
+        log(x) {
+          log = x;
+        },
+      },
+    });
+    vm.runInContext(res.default, ctx);
+    assert.equal(log, 'hi');
   });
 
   it('should inline text content as url-encoded text and mime type with `data-url:*` imports', async () => {
