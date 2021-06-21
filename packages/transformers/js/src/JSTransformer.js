@@ -472,6 +472,7 @@ export default (new Transformer({
         }
       } else if (dep.kind === 'URL') {
         asset.addURLDependency(dep.specifier, {
+          bundleBehavior: 'isolated',
           loc: convertLoc(dep.loc),
         });
       } else if (dep.kind === 'File') {

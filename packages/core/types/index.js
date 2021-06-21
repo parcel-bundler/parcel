@@ -475,6 +475,15 @@ export type DependencyOptions = {|
    */
   +priority?: DependencyPriority,
   /**
+   * Controls the behavior of the bundle the resolved asset is placed into. Use in combination with `priority`
+   * to determine when the bundle is loaded.
+   *   - inline: The resolved asset will be placed into a new inline bundle. Inline bundles are not written
+   *       to a separate file, but embedded into the parent bundle.
+   *   - isolated: The resolved asset will be isolated from its parents in a separate bundle.
+   *       Shared assets will be duplicated.
+   */
+  +bundleBehavior?: BundleBehavior,
+  /**
    * When the dependency is a bundle entry (priority is "parallel" or "lazy"), this controls the naming
    * of that bundle. `needsStableName` indicates that the name should be stable over time, even when the
    * content of the bundle changes. This is useful for entries that a user would manually enter the URL
@@ -533,6 +542,15 @@ export interface Dependency {
    * @default 'sync'
    */
   +priority: DependencyPriority;
+  /**
+   * Controls the behavior of the bundle the resolved asset is placed into. Use in combination with `priority`
+   * to determine when the bundle is loaded.
+   *   - inline: The resolved asset will be placed into a new inline bundle. Inline bundles are not written
+   *       to a separate file, but embedded into the parent bundle.
+   *   - isolated: The resolved asset will be isolated from its parents in a separate bundle.
+   *       Shared assets will be duplicated.
+   */
+  +bundleBehavior: ?BundleBehavior;
   /**
    * When the dependency is a bundle entry (priority is "parallel" or "lazy"), this controls the naming
    * of that bundle. `needsStableName` indicates that the name should be stable over time, even when the
@@ -620,7 +638,8 @@ export interface BaseAsset {
    * Controls which bundle the asset is placed into.
    *   - inline: The asset will be placed into a new inline bundle. Inline bundles are not written
    *       to a separate file, but embedded into the parent bundle.
-   *   - isolated: The asset will be placed into a separate bundle.
+   *   - isolated: The asset will be isolated from its parents in a separate bundle. Shared assets
+   *       will be duplicated.
    */
   +bundleBehavior: ?BundleBehavior;
   /**
@@ -675,7 +694,8 @@ export interface MutableAsset extends BaseAsset {
    * Controls which bundle the asset is placed into.
    *   - inline: The asset will be placed into a new inline bundle. Inline bundles are not written
    *       to a separate file, but embedded into the parent bundle.
-   *   - isolated: The asset will be placed into a separate bundle.
+   *   - isolated: The asset will be isolated from its parents in a separate bundle. Shared assets
+   *       will be duplicated.
    */
   bundleBehavior: ?BundleBehavior;
   /**
@@ -846,7 +866,8 @@ export type TransformerResult = {|
    * Controls which bundle the asset is placed into.
    *   - inline: The asset will be placed into a new inline bundle. Inline bundles are not written
    *       to a separate file, but embedded into the parent bundle.
-   *   - isolated: The asset will be placed into a separate bundle.
+   *   - isolated: The asset will be isolated from its parents in a separate bundle. Shared assets
+   *       will be duplicated.
    */
   +bundleBehavior?: ?BundleBehavior,
   /**
@@ -1050,7 +1071,7 @@ export type CreateBundleOpts =
       +entryAsset: Asset,
       +target: Target,
       +isEntry?: ?boolean,
-      +isInline?: ?boolean,
+      +bundleBehavior?: ?BundleBehavior,
       +isSplittable?: ?boolean,
       +type?: ?string,
       +env?: ?Environment,
@@ -1063,7 +1084,7 @@ export type CreateBundleOpts =
       +entryAsset?: Asset,
       +target: Target,
       +isEntry?: ?boolean,
-      +isInline?: ?boolean,
+      +bundleBehavior?: ?BundleBehavior,
       +isSplittable?: ?boolean,
       +type: string,
       +env: Environment,
@@ -1106,8 +1127,7 @@ export interface Bundle {
   +env: Environment;
   /** Whether this is an entry (e.g. should not be hashed). */
   +isEntry: ?boolean;
-  /** Whether this bundle should be inlined into the parent bundle(s), */
-  +isInline: ?boolean;
+  +bundleBehavior: ?BundleBehavior;
   +isSplittable: ?boolean;
   +target: Target;
   /** Assets that run when the bundle is loaded (e.g. runtimes could be added). VERIFY */

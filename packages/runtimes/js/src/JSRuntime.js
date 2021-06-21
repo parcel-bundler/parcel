@@ -123,7 +123,7 @@ export default (new Runtime({
         dependency,
         bundle,
       );
-      if (referencedBundle?.isInline) {
+      if (referencedBundle?.bundleBehavior === 'inline') {
         assets.push({
           filePath: path.join(__dirname, `/bundles/${referencedBundle.id}.js`),
           code: `module.exports = ${JSON.stringify(dependency.id)};`,
@@ -184,7 +184,7 @@ export default (new Runtime({
     if (options.shouldBuildLazily && bundle.env.outputFormat === 'global') {
       let referenced = bundleGraph
         .getReferencedBundles(bundle)
-        .filter(b => !b.isInline);
+        .filter(b => b.bundleBehavior !== 'inline');
       for (let referencedBundle of referenced) {
         let loaders = getLoaders(bundle.env);
         if (!loaders) {
@@ -283,7 +283,7 @@ function getLoaderRuntime({
 
   let externalBundles = bundleGraph
     .getBundlesInBundleGroup(bundleGroup)
-    .filter(bundle => !bundle.isInline);
+    .filter(bundle => bundle.bundleBehavior !== 'inline');
 
   let mainBundle = nullthrows(
     externalBundles.find(
@@ -522,7 +522,7 @@ function getRegisterCode(
 ): string {
   let idToName = {};
   bundleGraph.traverseBundles((bundle, _, actions) => {
-    if (bundle.isInline) {
+    if (bundle.bundleBehavior === 'inline') {
       return;
     }
 
@@ -562,7 +562,7 @@ function shouldUseRuntimeManifest(
   let env = bundle.env;
   return (
     !env.isLibrary &&
-    !bundle.isInline &&
+    bundle.bundleBehavior !== 'inline' &&
     env.outputFormat === 'global' &&
     env.isBrowser() &&
     options.mode === 'production'

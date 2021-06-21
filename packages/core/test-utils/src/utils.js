@@ -411,7 +411,9 @@ export async function runBundle(
         }
       } else if (node.tag === 'script' && node.content && !node.attrs?.src) {
         let content = node.content.join('');
-        let inline = bundles.filter(b => b.isInline && b.type === 'js');
+        let inline = bundles.filter(
+          b => b.bundleBehavior === 'inline' && b.type === 'js',
+        );
         scripts.push([content, inline[0]]);
       }
       return node;
@@ -484,7 +486,10 @@ export function assertBundles(
 
     assets.sort(byAlphabet);
     actualBundles.push({
-      name: bundle.isInline ? bundle.name : path.basename(bundle.filePath),
+      name:
+        bundle.bundleBehavior === 'inline'
+          ? bundle.name
+          : path.basename(bundle.filePath),
       type: bundle.type,
       assets,
     });

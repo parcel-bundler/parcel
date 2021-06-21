@@ -109,10 +109,11 @@ export default (new Bundler({
             let bundle = bundleGraph.createBundle({
               entryAsset: asset,
               isEntry:
+                dependency.bundleBehavior === 'inline' ||
                 asset.bundleBehavior === 'inline'
                   ? false
                   : dependency.isEntry || dependency.needsStableName,
-              isInline: asset.bundleBehavior === 'inline',
+              bundleBehavior: dependency.bundleBehavior ?? asset.bundleBehavior,
               target: bundleGroup.target,
             });
             bundleByType.set(bundle.type, bundle);
@@ -167,11 +168,12 @@ export default (new Bundler({
               target: bundleGroup.target,
               isEntry:
                 asset.bundleBehavior === 'inline' ||
+                dependency.bundleBehavior === 'inline' ||
                 (dependency.priority === 'parallel' &&
                   !dependency.needsStableName)
                   ? false
                   : parentBundle.isEntry,
-              isInline: asset.bundleBehavior === 'inline',
+              bundleBehavior: dependency.bundleBehavior ?? asset.bundleBehavior,
               isSplittable: asset.isBundleSplittable ?? true,
               pipeline: asset.pipeline,
             });
@@ -209,7 +211,12 @@ export default (new Bundler({
 
     // Step 2: Remove asset graphs that begin with entries to other bundles.
     bundleGraph.traverseBundles(bundle => {
-      if (bundle.isInline || !bundle.isSplittable || bundle.env.isIsolated()) {
+      if (
+        bundle.bundleBehavior === 'inline' ||
+        bundle.bundleBehavior === 'isolated' ||
+        !bundle.isSplittable ||
+        bundle.env.isIsolated()
+      ) {
         return;
       }
 
@@ -232,7 +239,8 @@ export default (new Bundler({
           // another entry bundle depending on these conditions, making it difficult
           // to predict and reference.
           !containingBundle.isEntry &&
-          !containingBundle.isInline &&
+          containingBundle.bundleBehavior !== 'inline' &&
+          containingBundle.bundleBehavior !== 'isolated' &&
           containingBundle.isSplittable,
       );
 
@@ -245,7 +253,8 @@ export default (new Bundler({
             group =>
               bundleGraph
                 .getBundlesInBundleGroup(group)
-                .filter(b => !b.isInline).length < config.maxParallelRequests,
+                .filter(b => b.bundleBehavior !== 'inline').length <
+              config.maxParallelRequests,
           )
         ) {
           bundleGraph.createBundleReference(candidate, bundle);
@@ -401,8 +410,10 @@ export default (new Bundler({
       if (
         Array.from(bundleGroups).every(
           group =>
-            bundleGraph.getBundlesInBundleGroup(group).filter(b => !b.isInline)
-              .length >= config.maxParallelRequests,
+            bundleGraph
+              .getBundlesInBundleGroup(group)
+              .filter(b => b.bundleBehavior !== 'inline').length >=
+            config.maxParallelRequests,
         )
       ) {
         continue;
@@ -435,7 +446,8 @@ export default (new Bundler({
               bundleGroup =>
                 bundleGraph
                   .getBundlesInBundleGroup(bundleGroup)
-                  .filter(b => !b.isInline).length < config.maxParallelRequests,
+                  .filter(b => b.bundleBehavior !== 'inline').length <
+                config.maxParallelRequests,
             )
           ) {
             bundleGraph.createBundleReference(bundle, sharedBundle);

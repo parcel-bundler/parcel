@@ -1,3 +1,1 @@
-import workletUrl from 'url:./worklet.js';
-
-CSS.paintWorklet.addModule(workletUrl);
+CSS.paintWorklet.addModule(new URL('worklet.js', import.meta.url));

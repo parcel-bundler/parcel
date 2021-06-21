@@ -72,6 +72,8 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
       throw new Error('Dependency not found');
     }
 
+    invariant(dependencyNode.type === 'dependency');
+
     let resolved = this.#graph.getDependencyResolution(
       dependencyToInternalDependency(dependency),
     );
@@ -108,10 +110,7 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
     this.#graph._graph.addEdge(dependencyNodeId, resolvedNodeId, 'references');
     this.#graph._graph.removeEdge(dependencyNodeId, resolvedNodeId);
 
-    if (
-      dependency.isEntry ||
-      resolved.bundleBehavior === BundleBehavior.isolated
-    ) {
+    if (dependency.isEntry) {
       this.#graph._graph.addEdge(
         nullthrows(this.#graph._graph.rootNodeId),
         bundleGroupNodeId,
@@ -194,7 +193,10 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
         mainEntryId: entryAsset?.id,
         pipeline: opts.pipeline ?? entryAsset?.pipeline,
         isEntry: opts.isEntry,
-        isInline: opts.isInline,
+        bundleBehavior:
+          opts.bundleBehavior != null
+            ? BundleBehavior[opts.bundleBehavior]
+            : null,
         isSplittable: opts.isSplittable ?? entryAsset?.isBundleSplittable,
         isPlaceholder,
         target,

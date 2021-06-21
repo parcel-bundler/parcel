@@ -77,12 +77,14 @@ describe('javascript', function() {
   });
 
   it('should support url: imports of another javascript file', async function() {
-    let b = await bundle(path.join(__dirname, '/integration/worklet/url.js'));
+    let b = await bundle(
+      path.join(__dirname, '/integration/worklet/pipeline.js'),
+    );
 
     assertBundles(b, [
       {
-        name: 'url.js',
-        assets: ['bundle-url.js', 'url.js', 'esmodule-helpers.js'],
+        name: 'pipeline.js',
+        assets: ['bundle-url.js', 'pipeline.js', 'esmodule-helpers.js'],
       },
       {
         type: 'js',
@@ -91,7 +93,7 @@ describe('javascript', function() {
     ]);
 
     let url;
-    let output = await run(b, {
+    await run(b, {
       CSS: {
         paintWorklet: {
           addModule(u) {
@@ -101,6 +103,61 @@ describe('javascript', function() {
       },
     });
     assert(/^http:\/\/localhost\/worklet\.[0-9a-f]+\.js$/.test(url));
+
+    let name;
+    await runBundle(
+      b,
+      b.getBundles()[1],
+      {
+        registerPaint(n) {
+          name = n;
+        },
+      },
+      {require: false},
+    );
+
+    assert.equal(name, 'checkerboard');
+  });
+
+  it('should support new URL() of another javascript file', async function() {
+    let b = await bundle(path.join(__dirname, '/integration/worklet/url.js'));
+
+    assertBundles(b, [
+      {
+        name: 'url.js',
+        assets: ['bundle-url.js', 'url.js'],
+      },
+      {
+        type: 'js',
+        assets: ['worklet.js'],
+      },
+    ]);
+
+    let url;
+    await run(b, {
+      CSS: {
+        paintWorklet: {
+          addModule(u) {
+            url = u;
+          },
+        },
+      },
+    });
+    assert(/^http:\/\/localhost\/worklet\.[0-9a-f]+\.js$/.test(url));
+
+    let name;
+    await runBundle(
+      b,
+      b.getBundles()[1],
+      {
+        registerPaint(n) {
+          name = n;
+        },
+      },
+      {require: false},
+    );
+
+    assert.equal(name, 'checkerboard');
   });
 
   it('should produce a basic JS bundle with ES6 imports', async function() {

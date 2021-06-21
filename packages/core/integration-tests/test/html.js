@@ -961,7 +961,9 @@ describe('html', function() {
     for (let url of urls) {
       assert(
         bundles.find(
-          bundle => !bundle.isInline && path.basename(bundle.filePath) === url,
+          bundle =>
+            bundle.bundleBehavior !== 'inline' &&
+            path.basename(bundle.filePath) === url,
         ),
       );
     }

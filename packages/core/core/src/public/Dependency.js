@@ -7,8 +7,10 @@ import type {
   MutableDependencySymbols as IMutableDependencySymbols,
   SpecifierType,
   DependencyPriority,
+  BundleBehavior,
 } from '@parcel/types';
 import type {Dependency as InternalDependency} from '../types';
+import {BundleBehaviorNames} from '../types';
 
 import Environment from './Environment';
 import Target from './Target';
@@ -73,6 +75,11 @@ export default class Dependency implements IDependency {
 
   get needsStableName(): boolean {
     return this.#dep.needsStableName;
+  }
+
+  get bundleBehavior(): ?BundleBehavior {
+    let bundleBehavior = this.#dep.bundleBehavior;
+    return bundleBehavior == null ? null : BundleBehaviorNames[bundleBehavior];
   }
 
   get isEntry(): boolean {
