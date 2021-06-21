@@ -38,6 +38,7 @@ const GLOBALS_BY_CONTEXT = {
     ...BUILTINS,
     ...Object.keys(globals.serviceworker),
   ]),
+  worklet: new Set([...BUILTINS]),
   node: new Set([...BUILTINS, ...Object.keys(globals.node)]),
   'electron-main': new Set([...BUILTINS, ...Object.keys(globals.node)]),
   'electron-renderer': new Set([

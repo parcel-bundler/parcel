@@ -309,6 +309,10 @@ export async function runBundles(
       promises = prepared.promises;
       break;
     }
+    case 'worklet': {
+      ctx = Object.assign({}, globals);
+      break;
+    }
     default:
       throw new Error('Unknown target ' + target);
   }

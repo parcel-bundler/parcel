@@ -126,7 +126,41 @@ describe('javascript', function() {
     assertBundles(b, [
       {
         name: 'url.js',
-        assets: ['bundle-url.js', 'url.js'],
+        assets: ['bundle-url.js', 'esmodule-helpers.js', 'url.js'],
+      },
+      {
+        type: 'js',
+        assets: ['worklet.js'],
+      },
+    ]);
+
+    let res = await run(b);
+    assert(/^http:\/\/localhost\/worklet\.[0-9a-f]+\.js$/.test(res.default));
+
+    let name;
+    await runBundle(
+      b,
+      b.getBundles()[1],
+      {
+        registerPaint(n) {
+          name = n;
+        },
+      },
+      {require: false},
+    );
+
+    assert.equal(name, 'checkerboard');
+  });
+
+  it('should support CSS paint worklets', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/worklet/url-worklet.js'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'url-worklet.js',
+        assets: ['bundle-url.js', 'url-worklet.js'],
       },
       {
         type: 'js',
@@ -159,6 +193,64 @@ describe('javascript', function() {
     );
 
     assert.equal(name, 'checkerboard');
+  });
+
+  it('should error on dynamic import() inside worklets', async function() {
+    let errored = false;
+    try {
+      await bundle(
+        path.join(__dirname, '/integration/worklet/url-worklet-error.js'),
+      );
+    } catch (err) {
+      errored = true;
+      assert.equal(err.message, 'import() is not allowed in worklets.');
+      assert.deepEqual(err.diagnostics, [
+        {
+          message: 'import() is not allowed in worklets.',
+          filePath: path.join(
+            __dirname,
+            '/integration/worklet/worklet-error.js',
+          ),
+          origin: '@parcel/transformer-js',
+          codeFrame: {
+            codeHighlights: [
+              {
+                start: {
+                  line: 1,
+                  column: 8,
+                },
+                end: {
+                  line: 1,
+                  column: 18,
+                },
+              },
+            ],
+          },
+          hints: ['Try using a static `import`.'],
+        },
+        {
+          message: 'The environment was originally created here:',
+          filePath: 'integration/worklet/url-worklet-error.js',
+          origin: '@parcel/transformer-js',
+          codeFrame: {
+            codeHighlights: [
+              {
+                start: {
+                  line: 1,
+                  column: 36,
+                },
+                end: {
+                  line: 1,
+                  column: 53,
+                },
+              },
+            ],
+          },
+        },
+      ]);
+    }
+
+    assert(errored);
   });
 
   it('should produce a basic JS bundle with ES6 imports', async function() {

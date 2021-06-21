@@ -1,1 +1,1 @@
-CSS.paintWorklet.addModule(new URL('worklet.js', import.meta.url));
+export default new URL('worklet.js', import.meta.url);

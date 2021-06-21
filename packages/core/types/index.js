@@ -108,6 +108,7 @@ export type EnvironmentContext =
   | 'browser'
   | 'web-worker'
   | 'service-worker'
+  | 'worklet'
   | 'node'
   | 'electron-main'
   | 'electron-renderer';
@@ -226,6 +227,8 @@ export interface Environment {
   isElectron(): boolean;
   /** Whether <code>context</code> specifies a worker context. */
   isWorker(): boolean;
+  /** Whether <code>context</code> specifies a worklet context. */
+  isWorklet(): boolean;
   /** Whether <code>context</code> specifies an isolated context (can't access other loaded ancestor bundles). */
   isIsolated(): boolean;
   matchesEngines(minVersions: VersionMap, defaultValue?: boolean): boolean;
