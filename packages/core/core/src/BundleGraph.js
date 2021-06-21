@@ -812,7 +812,10 @@ export default class BundleGraph {
       // Check that every parent bundle has a bundle group in its ancestry that contains the asset.
       return parentBundleNodes.every(bundleNodeId => {
         let bundleNode = nullthrows(this._graph.getNode(bundleNodeId));
-        if (bundleNode.type === 'root') {
+        if (
+          bundleNode.type === 'root' ||
+          bundleNode.value.bundleBehavior === BundleBehavior.isolated
+        ) {
           return false;
         }
 
@@ -826,8 +829,7 @@ export default class BundleGraph {
             if (
               node.type === 'root' ||
               (node.type === 'bundle' &&
-                (node.value.env.context !== bundle.env.context ||
-                  node.value.bundleBehavior === BundleBehavior.isolated))
+                node.value.env.context !== bundle.env.context)
             ) {
               isReachable = false;
               actions.stop();
@@ -838,7 +840,10 @@ export default class BundleGraph {
               let childBundles = this.getBundlesInBundleGroup(node.value);
               if (
                 childBundles.some(
-                  b => b.id !== bundle.id && this.bundleHasAsset(b, asset),
+                  b =>
+                    b.id !== bundle.id &&
+                    b.bundleBehavior !== BundleBehavior.isolated &&
+                    this.bundleHasAsset(b, asset),
                 )
               ) {
                 actions.skipChildren();
