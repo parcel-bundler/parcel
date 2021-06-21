@@ -269,7 +269,7 @@ export default class UncommittedAsset {
     // a previous source map. Ensure that the map set by the transformer has the original
     // source content available.
     if (map && this.sourceContent != null) {
-      map.setSourceContent(this.value.filePath, this.sourceContent);
+      map.setSourceContent(this.value.filePath, this.sourceContent.toString());
     }
 
     this.map = map;
