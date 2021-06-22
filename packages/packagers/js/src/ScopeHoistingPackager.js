@@ -1047,10 +1047,15 @@ ${code}
       let importScripts = '';
       let bundles = this.bundleGraph.getReferencedBundles(this.bundle);
       for (let b of bundles) {
-        importScripts += `importScripts("${relativeBundlePath(
-          this.bundle,
-          b,
-        )}");\n`;
+        if (this.bundle.env.outputFormat === 'esmodule') {
+          // importScripts() is not allowed in native ES module workers.
+          importScripts += `import "${relativeBundlePath(this.bundle, b)}";\n`;
+        } else {
+          importScripts += `importScripts("${relativeBundlePath(
+            this.bundle,
+            b,
+          )}");\n`;
+        }
       }
 
       res += importScripts;
