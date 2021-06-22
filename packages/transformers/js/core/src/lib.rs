@@ -46,7 +46,7 @@ use fs::inline_fs;
 use global_replacer::GlobalReplacer;
 use hoist::hoist;
 use modules::esm2cjs;
-use utils::{CodeHighlight, Diagnostic, SourceLocation};
+use utils::{CodeHighlight, Diagnostic, SourceLocation, SourceType};
 
 #[derive(Serialize, Debug, Deserialize)]
 pub struct Config {
@@ -69,6 +69,8 @@ pub struct Config {
   targets: Option<HashMap<String, String>>,
   source_maps: bool,
   scope_hoist: bool,
+  source_type: SourceType,
+  supports_module_workers: bool,
 }
 
 #[derive(Serialize, Debug, Deserialize, Default)]
@@ -82,6 +84,7 @@ pub struct TransformResult {
   diagnostics: Option<Vec<Diagnostic>>,
   needs_esm_helpers: bool,
   used_env: HashSet<swc_atoms::JsWord>,
+  script_error_loc: Option<SourceLocation>,
 }
 
 fn targets_to_versions(targets: &Option<HashMap<String, String>>) -> Option<Versions> {
@@ -194,7 +197,9 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
 
       let mut global_deps = vec![];
       let mut fs_deps = vec![];
-      let should_inline_fs = config.inline_fs && code.contains("readFileSync");
+      let should_inline_fs = config.inline_fs
+        && config.source_type != SourceType::Script
+        && code.contains("readFileSync");
       swc_common::GLOBALS.set(&Globals::new(), || {
         helpers::HELPERS.set(
           &helpers::Helpers::new(/* external helpers from @swc/helpers */ true),
@@ -244,13 +249,16 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
             let module = {
               let mut passes = chain!(
                 // Inline process.env and process.browser
-                EnvReplacer {
-                  replace_env: config.replace_env,
-                  env: config.env,
-                  is_browser: config.is_browser,
-                  decls: &decls,
-                  used_env: &mut result.used_env
-                },
+                Optional::new(
+                  EnvReplacer {
+                    replace_env: config.replace_env,
+                    env: config.env,
+                    is_browser: config.is_browser,
+                    decls: &decls,
+                    used_env: &mut result.used_env
+                  },
+                  config.source_type != SourceType::Script
+                ),
                 // Simplify expressions and remove dead branches so that we
                 // don't include dependencies inside conditionals that are always false.
                 expr_simplifier(),
@@ -278,7 +286,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                     global_mark,
                     scope_hoist: config.scope_hoist
                   },
-                  config.insert_node_globals
+                  config.insert_node_globals && config.source_type != SourceType::Script
                 ),
                 // Transpile new syntax to older syntax if needed
                 Optional::new(
@@ -293,7 +301,10 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                   &mut result.dependencies,
                   &decls,
                   ignore_mark,
-                  config.scope_hoist
+                  config.scope_hoist,
+                  config.source_type,
+                  config.supports_module_workers,
+                  &mut result.script_error_loc,
                 ),
               );
 

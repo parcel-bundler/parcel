@@ -15,8 +15,8 @@ import type {AST as _AST, ConfigResult as _ConfigResult} from './unsafe';
 export type AST = _AST;
 export type ConfigResult = _ConfigResult;
 /** Plugin-specific config result, <code>any</code> */
-export type ConfigResultWithFilePath = {|
-  contents: ConfigResult,
+export type ConfigResultWithFilePath<T> = {|
+  contents: T,
   filePath: FilePath,
 |};
 /** <code>process.env</code> */
@@ -148,6 +148,8 @@ export type TargetDescriptor = {|
   +distEntry?: FilePath,
 |};
 
+export type SourceType = 'script' | 'module';
+
 /**
  * This is used when creating an Environment (see that).
  */
@@ -159,10 +161,12 @@ export type EnvironmentOptions = {|
     | Array<PackageName>
     | {[PackageName]: boolean, ...},
   +outputFormat?: OutputFormat,
+  +sourceType?: SourceType,
   +isLibrary?: boolean,
   +shouldOptimize?: boolean,
   +shouldScopeHoist?: boolean,
   +sourceMap?: ?TargetSourceMapOptions,
+  +loc?: ?SourceLocation,
 |};
 
 /**
@@ -182,6 +186,12 @@ export type VersionMap = {
   ...,
 };
 
+export type EnvironmentFeature =
+  | 'esmodules'
+  | 'dynamic-import'
+  | 'worker-module'
+  | 'service-worker-module';
+
 /**
  * Defines the environment in for the output bundle
  */
@@ -198,6 +208,7 @@ export interface Environment {
     | Array<PackageName>
     | {[PackageName]: boolean, ...};
   +outputFormat: OutputFormat;
+  +sourceType: SourceType;
   /** Whether this is a library build (e.g. less loaders) */
   +isLibrary: boolean;
   /** Whether the output should be minified. */
@@ -205,6 +216,7 @@ export interface Environment {
   /** Whether scope hoisting is enabled. */
   +shouldScopeHoist: boolean;
   +sourceMap: ?TargetSourceMapOptions;
+  +loc: ?SourceLocation;
 
   /** Whether <code>context</code> specifies a browser context. */
   isBrowser(): boolean;
@@ -216,7 +228,8 @@ export interface Environment {
   isWorker(): boolean;
   /** Whether <code>context</code> specifies an isolated context (can't access other loaded ancestor bundles). */
   isIsolated(): boolean;
-  matchesEngines(minVersions: VersionMap): boolean;
+  matchesEngines(minVersions: VersionMap, defaultValue?: boolean): boolean;
+  supports(feature: EnvironmentFeature, defaultValue?: boolean): boolean;
 }
 
 /**
@@ -732,17 +745,56 @@ export type DevDepOptions = {|
  * @section transformer
  */
 export interface Config {
+  /**
+   * Whether this config is part of the project, and not an external dependency (e.g. in node_modules).
+   * This indicates that transformation using the project's configuration should be applied.
+   */
   +isSource: boolean;
+  /** The path of the file to start searching for config from. */
   +searchPath: FilePath;
-  +result: ConfigResult;
+  /** The environment */
   +env: Environment;
 
-  setResult(result: ConfigResult): void; // TODO: fix
-  setResultHash(resultHash: string): void;
-  invalidateOnFileChange(filePath: FilePath): void;
-  invalidateOnFileCreate(invalidation: FileCreateInvalidation): void;
-  addDevDependency(devDep: DevDepOptions): void;
-  getConfigFrom(
+  /** Invalidates the config when the given file is modified or deleted. */
+  invalidateOnFileChange(FilePath): void;
+  /** Invalidates the config when matched files are created. */
+  invalidateOnFileCreate(FileCreateInvalidation): void;
+  /** Invalidates the config when the given environment variable changes. */
+  invalidateOnEnvChange(string): void;
+  /** Invalidates the config when Parcel restarts. */
+  invalidateOnStartup(): void;
+  /**
+   * Adds a dev dependency to the config. If the dev dependency or any of its
+   * dependencies change, the config will be invalidated.
+   */
+  addDevDependency(DevDepOptions): void;
+  /**
+   * Sets the cache key for the config. By default, this is computed as a hash of the
+   * files passed to invalidateOnFileChange or loaded by getConfig. If none, then a
+   * hash of the result returned from loadConfig is used. This method can be used to
+   * override this behavior and explicitly control the cache key. This can be useful
+   * in cases where only part of a file is used to avoid unnecessary invalidations,
+   * or when the result is not hashable (i.e. contains non-serializable properties like functions).
+   */
+  setCacheKey(string): void;
+
+  /**
+   * Searches for config files with the given names in all parent directories
+   * of the config's searchPath.
+   */
+  getConfig<T>(
+    filePaths: Array<FilePath>,
+    options: ?{|
+      packageKey?: string,
+      parse?: boolean,
+      exclude?: boolean,
+    |},
+  ): Promise<?ConfigResultWithFilePath<T>>;
+  /**
+   * Searches for config files with the given names in all parent directories
+   * of the passed searchPath.
+   */
+  getConfigFrom<T>(
     searchPath: FilePath,
     filePaths: Array<FilePath>,
     options: ?{|
@@ -750,17 +802,9 @@ export interface Config {
       parse?: boolean,
       exclude?: boolean,
     |},
-  ): Promise<ConfigResultWithFilePath | null>;
-  getConfig(
-    filePaths: Array<FilePath>,
-    options: ?{|
-      packageKey?: string,
-      parse?: boolean,
-      exclude?: boolean,
-    |},
-  ): Promise<ConfigResultWithFilePath | null>;
-  getPackage(): Promise<PackageJSON | null>;
-  shouldInvalidateOnStartup(): void;
+  ): Promise<?ConfigResultWithFilePath<T>>;
+  /** Finds the nearest package.json from the config's searchPath. */
+  getPackage(): Promise<?PackageJSON>;
 }
 
 export type Stats = {|
@@ -901,12 +945,12 @@ export type Validator = DedicatedThreadValidator | MultiThreadValidator;
  * The methods for a transformer plugin.
  * @section transformer
  */
-export type Transformer = {|
+export type Transformer<ConfigType> = {|
   loadConfig?: ({|
     config: Config,
     options: PluginOptions,
     logger: PluginLogger,
-  |}) => Async<void>,
+  |}) => Promise<ConfigType> | ConfigType,
   /** Whether an AST from a previous transformer can be reused (to prevent double-parsing) */
   canReuseAST?: ({|
     ast: AST,
@@ -915,8 +959,8 @@ export type Transformer = {|
   |}) => boolean,
   /** Parse the contents into an ast */
   parse?: ({|
-    asset: MutableAsset,
-    config: ?ConfigResult,
+    asset: Asset,
+    config: ConfigType,
     resolve: ResolveFn,
     options: PluginOptions,
     logger: PluginLogger,
@@ -924,7 +968,7 @@ export type Transformer = {|
   /** Transform the asset and/or add new assets */
   transform({|
     asset: MutableAsset,
-    config: ?ConfigResult,
+    config: ConfigType,
     resolve: ResolveFn,
     options: PluginOptions,
     logger: PluginLogger,
@@ -1002,27 +1046,43 @@ export type CreateBundleOpts =
   // If an entryAsset is provided, a bundle id, type, and environment will be
   // inferred from the entryAsset.
   | {|
-      +uniqueKey?: string,
+      /** The entry asset of the bundle. If provided, many bundle properties will be inferred from it. */
       +entryAsset: Asset,
+      /** The target of the bundle. Should come from the dependency that created the bundle. */
       +target: Target,
-      +isEntry?: ?boolean,
-      +isInline?: ?boolean,
-      +isSplittable?: ?boolean,
-      +type?: ?string,
-      +env?: ?Environment,
-      +pipeline?: ?string,
+      /**
+       * Indicates that the bundle's file name should be stable over time, even when the content of the bundle
+       * changes. This is useful for entries that a user would manually enter the URL for, as well as for things
+       * like service workers or RSS feeds, where the URL must remain consistent over time.
+       */
+      +needsStableName?: ?boolean,
     |}
   // If an entryAsset is not provided, a bundle id, type, and environment must
   // be provided.
   | {|
-      +uniqueKey: string,
-      +entryAsset?: Asset,
-      +target: Target,
-      +isEntry?: ?boolean,
-      +isInline?: ?boolean,
-      +isSplittable?: ?boolean,
+      /** The type of the bundle. */
       +type: string,
+      /** The environment of the bundle. */
       +env: Environment,
+      /** A unique value for the bundle to be used in its id. */
+      +uniqueKey: string,
+      /** The target of the bundle. Should come from the dependency that created the bundle. */
+      +target: Target,
+      /**
+       * Indicates that the bundle's file name should be stable over time, even when the content of the bundle
+       * changes. This is useful for entries that a user would manually enter the URL for, as well as for things
+       * like service workers or RSS feeds, where the URL must remain consistent over time.
+       */
+      +needsStableName?: ?boolean,
+      /** Whether this bundle should be inlined into the parent bundle(s), */
+      +isInline?: ?boolean,
+      /**
+       * Whether the bundle can be split. If false, then all dependencies of the bundle will be kept
+       * internal to the bundle, rather than referring to other bundles. This may result in assets
+       * being duplicated between multiple bundles, but can be useful for things like server side rendering.
+       */
+      +isSplittable?: ?boolean,
+      /** The bundle's pipeline, to be used for optimization. Usually based on the pipeline of the entry asset. */
       +pipeline?: ?string,
     |};
 
@@ -1055,26 +1115,50 @@ export type ExportSymbolResolution = {|
  * @section bundler
  */
 export interface Bundle {
+  /** The bundle id. */
   +id: string;
-  /** Whether this value is inside <code>filePath</code> it will be replace with the real hash at the end. */
-  +hashReference: string;
+  /** The type of the bundle. */
   +type: string;
+  /** The environment of the bundle. */
   +env: Environment;
-  /** Whether this is an entry (e.g. should not be hashed). */
-  +isEntry: ?boolean;
+  /** The bundle's target. */
+  +target: Target;
+  /**
+   * Indicates that the bundle's file name should be stable over time, even when the content of the bundle
+   * changes. This is useful for entries that a user would manually enter the URL for, as well as for things
+   * like service workers or RSS feeds, where the URL must remain consistent over time.
+   */
+  +needsStableName: ?boolean;
   /** Whether this bundle should be inlined into the parent bundle(s), */
   +isInline: ?boolean;
+  /**
+   * Whether the bundle can be split. If false, then all dependencies of the bundle will be kept
+   * internal to the bundle, rather than referring to other bundles. This may result in assets
+   * being duplicated between multiple bundles, but can be useful for things like server side rendering.
+   */
   +isSplittable: ?boolean;
-  +target: Target;
-  /** Assets that run when the bundle is loaded (e.g. runtimes could be added). VERIFY */
+  /**
+   * A placeholder for the bundle's content hash that can be used in the bundle's name or the contents of another
+   * bundle. Hash references are replaced with a content hash of the bundle after packaging and optimizing.
+   */
+  +hashReference: string;
+  /**
+   * Returns the assets that are executed immediately when the bundle is loaded.
+   * Some bundles may not have any entry assets, for example, shared bundles.
+   */
   getEntryAssets(): Array<Asset>;
-  /** The actual entry (which won't be a runtime). */
+  /**
+   * Returns the main entry of the bundle, which will provide the bundle's exports.
+   * Some bundles do not have a main entry, for example, shared bundles.
+   */
   getMainEntry(): ?Asset;
+  /** Returns whether the bundle includes the given asset. */
   hasAsset(Asset): boolean;
+  /** Returns whether the bundle includes the given dependency. */
   hasDependency(Dependency): boolean;
   /** Traverses the assets in the bundle. */
   traverseAssets<TContext>(visit: GraphVisitor<Asset, TContext>): ?TContext;
-  /** Traverses assets and dependencies (see BundleTraversable). */
+  /** Traverses assets and dependencies in the bundle. */
   traverse<TContext>(
     visit: GraphVisitor<BundleTraversable, TContext>,
   ): ?TContext;
@@ -1085,13 +1169,21 @@ export interface Bundle {
  * @section bundler
  */
 export interface NamedBundle extends Bundle {
+  /** A shortened version of the bundle id that is used to refer to the bundle at runtime. */
   +publicId: string;
+  /**
+   * The bundle's name. This is a file path relative to the bundle's target directory.
+   * The bundle name may include a hash reference, but not the final content hash.
+   */
   +name: string;
+  /** A version of the bundle's name with hash references removed for display. */
   +displayName: string;
 }
 
 export interface PackagedBundle extends NamedBundle {
+  /** The absolute file path of the written bundle, including the final content hash if any. */
   +filePath: FilePath;
+  /** Statistics about the bundle. */
   +stats: Stats;
 }
 
@@ -1100,7 +1192,9 @@ export interface PackagedBundle extends NamedBundle {
  * @section bundler
  */
 export type BundleGroup = {|
+  /** The target of the bundle group. */
   +target: Target,
+  /** The id of the entry asset in the bundle group, which is executed immediately when the bundle group is loaded. */
   +entryAssetId: string,
 |};
 
@@ -1263,32 +1357,27 @@ export type ResolveResult = {|
   +invalidateOnFileChange?: Array<FilePath>,
 |};
 
-export type ConfigOutput = {|
-  config: ConfigResult,
-  files: Array<File>,
-|};
-
 /**
  * Turns an asset graph into a BundleGraph.
  *
  * bundle and optimize run in series and are functionally identitical.
  * @section bundler
  */
-export type Bundler = {|
+export type Bundler<ConfigType> = {|
   loadConfig?: ({|
     config: Config,
     options: PluginOptions,
     logger: PluginLogger,
-  |}) => Async<void>,
+  |}) => Promise<ConfigType> | ConfigType,
   bundle({|
     bundleGraph: MutableBundleGraph,
-    config: ?ConfigResult,
+    config: ConfigType,
     options: PluginOptions,
     logger: PluginLogger,
   |}): Async<void>,
   optimize({|
     bundleGraph: MutableBundleGraph,
-    config: ?ConfigResult,
+    config: ConfigType,
     options: PluginOptions,
     logger: PluginLogger,
   |}): Async<void>,
@@ -1297,17 +1386,17 @@ export type Bundler = {|
 /**
  * @section namer
  */
-export type Namer = {|
+export type Namer<ConfigType> = {|
   loadConfig?: ({|
     config: Config,
     options: PluginOptions,
     logger: PluginLogger,
-  |}) => Async<void>,
+  |}) => Promise<ConfigType> | ConfigType,
   /** Return a filename/-path for <code>bundle</code> or nullish to leave it to the next namer plugin. */
   name({|
     bundle: Bundle,
     bundleGraph: BundleGraph<Bundle>,
-    config: ?ConfigResult,
+    config: ConfigType,
     options: PluginOptions,
     logger: PluginLogger,
   |}): Async<?FilePath>,
@@ -1322,21 +1411,22 @@ export type RuntimeAsset = {|
   +code: string,
   +dependency?: Dependency,
   +isEntry?: boolean,
+  +env?: EnvironmentOptions,
 |};
 
 /**
  * @section runtime
  */
-export type Runtime = {|
+export type Runtime<ConfigType> = {|
   loadConfig?: ({|
     config: Config,
     options: PluginOptions,
     logger: PluginLogger,
-  |}) => Async<void>,
+  |}) => Promise<ConfigType> | ConfigType,
   apply({|
     bundle: NamedBundle,
     bundleGraph: BundleGraph<NamedBundle>,
-    config: ?ConfigResult,
+    config: ConfigType,
     options: PluginOptions,
     logger: PluginLogger,
   |}): Async<void | RuntimeAsset | Array<RuntimeAsset>>,
@@ -1345,18 +1435,18 @@ export type Runtime = {|
 /**
  * @section packager
  */
-export type Packager = {|
+export type Packager<ConfigType> = {|
   loadConfig?: ({|
     config: Config,
     options: PluginOptions,
     logger: PluginLogger,
-  |}) => Async<void>,
+  |}) => Promise<ConfigType> | ConfigType,
   package({|
     bundle: NamedBundle,
     bundleGraph: BundleGraph<NamedBundle>,
     options: PluginOptions,
     logger: PluginLogger,
-    config: ?ConfigResult,
+    config: ConfigType,
     getInlineBundleContents: (
       Bundle,
       BundleGraph<NamedBundle>,
@@ -1368,12 +1458,12 @@ export type Packager = {|
 /**
  * @section optimizer
  */
-export type Optimizer = {|
+export type Optimizer<ConfigType> = {|
   loadConfig?: ({|
     config: Config,
     options: PluginOptions,
     logger: PluginLogger,
-  |}) => Async<void>,
+  |}) => Promise<ConfigType> | ConfigType,
   optimize({|
     bundle: NamedBundle,
     bundleGraph: BundleGraph<NamedBundle>,
@@ -1381,7 +1471,7 @@ export type Optimizer = {|
     map: ?SourceMap,
     options: PluginOptions,
     logger: PluginLogger,
-    config: ?ConfigResult,
+    config: ConfigType,
     getSourceMapReference: (map: ?SourceMap) => Async<?string>,
   |}): Async<BundleResult>,
 |};

@@ -17,6 +17,7 @@ import type {
   ReporterEvent,
   ServerOptions,
   SourceLocation,
+  SourceType,
   Stats,
   Symbol,
   TargetSourceMapOptions,
@@ -68,10 +69,12 @@ export type Environment = {|
     | Array<PackageName>
     | {[PackageName]: boolean, ...},
   outputFormat: OutputFormat,
+  sourceType: SourceType,
   isLibrary: boolean,
   shouldOptimize: boolean,
   shouldScopeHoist: boolean,
   sourceMap: ?TargetSourceMapOptions,
+  loc: ?SourceLocation,
 |};
 
 export type Target = {|
@@ -387,13 +390,14 @@ export type Config = {|
   isSource: boolean,
   searchPath: FilePath,
   env: Environment,
-  resultHash: ?string,
+  cacheKey: ?string,
   result: ConfigResult,
   invalidateOnFileChange: Set<FilePath>,
   invalidateOnFileCreate: Array<FileCreateInvalidation>,
+  invalidateOnEnvChange: Set<string>,
   invalidateOnOptionChange: Set<string>,
   devDeps: Array<DevDepOptions>,
-  shouldInvalidateOnStartup: boolean,
+  invalidateOnStartup: boolean,
 |};
 
 export type EntryRequest = {|
@@ -430,7 +434,7 @@ export type Bundle = {|
   env: Environment,
   entryAssetIds: Array<ContentKey>,
   mainEntryId: ?ContentKey,
-  isEntry: ?boolean,
+  needsStableName: ?boolean,
   isInline: ?boolean,
   isSplittable: ?boolean,
   isPlaceholder?: boolean,

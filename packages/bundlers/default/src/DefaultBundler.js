@@ -17,6 +17,13 @@ import {hashString} from '@parcel/hash';
 import nullthrows from 'nullthrows';
 import {encodeJSONKeyComponent} from '@parcel/diagnostic';
 
+type BundlerConfig = {|
+  http?: number,
+  minBundles?: number,
+  minBundleSize?: number,
+  maxParallelRequests?: number,
+|};
+
 // Default options by http version.
 const HTTP_OPTIONS = {
   '1': {
@@ -101,11 +108,10 @@ export default (new Bundler({
           for (let asset of assets) {
             let bundle = bundleGraph.createBundle({
               entryAsset: asset,
-              isEntry:
+              needsStableName:
                 asset.bundleBehavior === 'inline'
                   ? false
                   : dependency.isEntry || dependency.needsStableName,
-              isInline: asset.bundleBehavior === 'inline',
               target: bundleGroup.target,
             });
             bundleByType.set(bundle.type, bundle);
@@ -158,12 +164,12 @@ export default (new Bundler({
               env: asset.env,
               type: asset.type,
               target: bundleGroup.target,
-              isEntry:
+              needsStableName:
                 asset.bundleBehavior === 'inline' ||
                 (dependency.priority === 'parallel' &&
                   !dependency.needsStableName)
                   ? false
-                  : parentBundle.isEntry,
+                  : parentBundle.needsStableName,
               isInline: asset.bundleBehavior === 'inline',
               isSplittable: asset.isBundleSplittable ?? true,
               pipeline: asset.pipeline,
@@ -224,7 +230,8 @@ export default (new Bundler({
           // Don't add to BundleGroups for entry bundles, as that would require
           // another entry bundle depending on these conditions, making it difficult
           // to predict and reference.
-          !containingBundle.isEntry &&
+          // TODO: reconsider this. This is only true for the global output format.
+          !containingBundle.needsStableName &&
           !containingBundle.isInline &&
           containingBundle.isSplittable,
       );
@@ -333,11 +340,13 @@ export default (new Bundler({
         // Don't create shared bundles from entry bundles, as that would require
         // another entry bundle depending on these conditions, making it difficult
         // to predict and reference.
+        // TODO: reconsider this. This is only true for the global output format.
+        // This also currently affects other bundles with stable names, e.g. service workers.
         .filter(b => {
           let entries = b.getEntryAssets();
 
           return (
-            !b.isEntry &&
+            !b.needsStableName &&
             b.isSplittable &&
             entries.every(entry => entry.id !== asset.id)
           );
@@ -474,12 +483,11 @@ const CONFIG_SCHEMA: SchemaEntity = {
 };
 
 async function loadBundlerConfig(config: Config, options: PluginOptions) {
-  let conf = await config.getConfig([], {
+  let conf = await config.getConfig<BundlerConfig>([], {
     packageKey: '@parcel/bundler-default',
   });
   if (!conf) {
-    config.setResult(HTTP_OPTIONS['2']);
-    return;
+    return HTTP_OPTIONS['2'];
   }
 
   invariant(conf?.contents != null);
@@ -499,10 +507,10 @@ async function loadBundlerConfig(config: Config, options: PluginOptions) {
   let http = conf.contents.http ?? 2;
   let defaults = HTTP_OPTIONS[http];
 
-  config.setResult({
+  return {
     minBundles: conf.contents.minBundles ?? defaults.minBundles,
     minBundleSize: conf.contents.minBundleSize ?? defaults.minBundleSize,
     maxParallelRequests:
       conf.contents.maxParallelRequests ?? defaults.maxParallelRequests,
-  });
+  };
 }

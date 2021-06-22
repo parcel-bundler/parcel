@@ -24,7 +24,7 @@
     "@parcel/plugin": "2.0.0-beta.3.1",
     "nullthrows": "^1.1.1",
     "posthtml": "^0.15.1",
-    "posthtml-parser": "^0.6.0",
+    "posthtml-parser": "^0.9.0",
     "posthtml-render": "^1.4.0",
     "semver": "^5.4.1"
   }
