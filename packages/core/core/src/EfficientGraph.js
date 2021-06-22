@@ -761,6 +761,9 @@ export default class EfficientGraph<TEdgeType: number = 1> {
     // 3. Multiply by EDGE_SIZE to select a valid index.
     hash *= EDGE_SIZE;
     // 4. Add 1 to guarantee a truthy result.
+    if (hash < 5) {
+      return 6;
+    }
     return hash + 1;
   }
 
