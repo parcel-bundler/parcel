@@ -425,7 +425,7 @@ describe('javascript', function() {
       path.join(__dirname, '/integration/dynamic-import-attributes/index.js'),
     );
 
-    let mainBundle = b.getBundles().find(b => b.isEntry);
+    let mainBundle = b.getBundles()[0];
     let mainBundleContent = await outputFS.readFile(
       mainBundle.filePath,
       'utf8',
@@ -1006,10 +1006,7 @@ describe('javascript', function() {
       },
     ]);
 
-    let contents = await outputFS.readFile(
-      b.getBundles().find(b => b.isEntry).filePath,
-      'utf8',
-    );
+    let contents = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
     assert(!contents.includes('import.meta.url'));
   });
 
@@ -1082,10 +1079,7 @@ describe('javascript', function() {
       },
     ]);
 
-    let contents = await outputFS.readFile(
-      b.getBundles().find(b => b.isEntry).filePath,
-      'utf8',
-    );
+    let contents = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
     assert(!contents.includes('import.meta.url'));
   });
 
@@ -3565,7 +3559,9 @@ describe('javascript', function() {
     );
 
     let bundles = b.getBundles();
-    let asyncJsBundles = bundles.filter(b => !b.isEntry && b.type === 'js');
+    let asyncJsBundles = bundles.filter(
+      b => !b.needsStableName && b.type === 'js',
+    );
     assert.equal(asyncJsBundles.length, 2);
 
     // Every bundlegroup with an async js bundle should have the corresponding css

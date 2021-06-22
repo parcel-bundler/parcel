@@ -156,7 +156,7 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
     let target = targetToInternalTarget(opts.target);
     let bundleId = hashString(
       'bundle:' +
-        (opts.uniqueKey ?? nullthrows(entryAsset?.id)) +
+        (opts.entryAsset ? opts.entryAsset.id : opts.uniqueKey) +
         path.relative(this.#options.projectRoot, target.distDir),
     );
 
@@ -186,16 +186,20 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
       value: {
         id: bundleId,
         hashReference: HASH_REF_PREFIX + bundleId,
-        type: opts.type ?? nullthrows(entryAsset).type,
+        type: opts.entryAsset ? opts.entryAsset.type : opts.type,
         env: opts.env
           ? environmentToInternalEnvironment(opts.env)
           : nullthrows(entryAsset).env,
         entryAssetIds: entryAsset ? [entryAsset.id] : [],
         mainEntryId: entryAsset?.id,
-        pipeline: opts.pipeline ?? entryAsset?.pipeline,
-        isEntry: opts.isEntry,
-        isInline: opts.isInline,
-        isSplittable: opts.isSplittable ?? entryAsset?.isBundleSplittable,
+        pipeline: opts.entryAsset ? opts.entryAsset.pipeline : opts.pipeline,
+        needsStableName: opts.needsStableName,
+        isInline: opts.entryAsset
+          ? opts.entryAsset.bundleBehavior === 'inline'
+          : opts.isInline,
+        isSplittable: opts.entryAsset
+          ? opts.entryAsset.isBundleSplittable
+          : opts.isSplittable,
         isPlaceholder,
         target,
         name: null,

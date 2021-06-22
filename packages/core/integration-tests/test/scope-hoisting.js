@@ -4333,14 +4333,7 @@ describe('scope hoisting', function() {
         ),
       );
 
-      let entryBundle;
-      b.traverseBundles((bundle, ctx, traversal) => {
-        if (bundle.isEntry) {
-          entryBundle = bundle;
-          traversal.stop();
-        }
-      });
-      let entryAsset = entryBundle.getMainEntry();
+      let entryAsset = b.getBundles()[0].getMainEntry();
 
       // TODO: this test doesn't currently work in older browsers since babel
       // replaces the typeof calls before we can get to them.
@@ -5426,10 +5419,7 @@ describe('scope hoisting', function() {
       ),
     );
 
-    let contents = await outputFS.readFile(
-      b.getBundles().find(bundle => bundle.isEntry).filePath,
-      'utf8',
-    );
+    let contents = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
     assert(contents.includes('=>'));
 
     let calls = [];

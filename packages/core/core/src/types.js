@@ -434,7 +434,7 @@ export type Bundle = {|
   env: Environment,
   entryAssetIds: Array<ContentKey>,
   mainEntryId: ?ContentKey,
-  isEntry: ?boolean,
+  needsStableName: ?boolean,
   isInline: ?boolean,
   isSplittable: ?boolean,
   isPlaceholder?: boolean,
