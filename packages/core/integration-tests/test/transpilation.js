@@ -194,6 +194,26 @@ describe('transpilation', function() {
     assert(file.includes('React.createElement("div"'));
   });
 
+  it('should support enabling decorators in tsconfig.json', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/decorators/index.ts'),
+    );
+
+    let output = [];
+    await run(b, {
+      output(o) {
+        output.push(o);
+      },
+    });
+
+    assert.deepEqual(output, [
+      'first(): factory evaluated',
+      'second(): factory evaluated',
+      'second(): called',
+      'first(): called',
+    ]);
+  });
+
   it('should support transpiling optional chaining', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/babel-optional-chaining/index.js'),

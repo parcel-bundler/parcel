@@ -124,6 +124,8 @@ type TSConfig = {
     jsxFragmentFactory?: string,
     // https://www.typescriptlang.org/tsconfig#jsxImportSource
     jsxImportSource?: string,
+    // https://www.typescriptlang.org/tsconfig#experimentalDecorators
+    experimentalDecorators?: boolean,
     ...
   },
   ...
@@ -137,7 +139,8 @@ export default (new Transformer({
       pragmaFrag,
       jsxImportSource,
       automaticJSXRuntime,
-      reactRefresh;
+      reactRefresh,
+      decorators;
     if (config.isSource) {
       let reactLib;
       if (pkg?.alias && pkg.alias['react']) {
@@ -173,6 +176,7 @@ export default (new Transformer({
       pragmaFrag =
         compilerOptions?.jsxFragmentFactory ||
         (reactLib ? JSX_PRAGMA[reactLib].pragmaFrag : undefined);
+
       if (
         compilerOptions?.jsx === 'react-jsx' ||
         compilerOptions?.jsx === 'react-jsxdev' ||
@@ -194,6 +198,8 @@ export default (new Transformer({
           pragma ||
           JSX_EXTENSIONS[path.extname(config.searchPath)],
       );
+
+      decorators = compilerOptions?.experimentalDecorators;
     }
 
     // Check if we should ignore fs calls
@@ -242,6 +248,7 @@ export default (new Transformer({
       inlineEnvironment,
       inlineFS,
       reactRefresh,
+      decorators,
     };
   },
   async transform({asset, config, options}) {
@@ -355,6 +362,7 @@ export default (new Transformer({
         asset.env.isBrowser() &&
         !asset.env.isWorker() &&
         Boolean(config?.reactRefresh),
+      decorators: Boolean(config?.decorators),
       targets,
       source_maps: !!asset.env.sourceMap,
       scope_hoist:

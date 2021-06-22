@@ -35,7 +35,7 @@ use swc_ecmascript::transforms::resolver::resolver_with_mark;
 use swc_ecmascript::transforms::{
   compat::reserved_words::reserved_words, fixer, helpers, hygiene,
   optimization::simplify::dead_branch_remover, optimization::simplify::expr_simplifier,
-  pass::Optional, react, typescript,
+  pass::Optional, proposals::decorators, react, typescript,
 };
 use swc_ecmascript::visit::FoldWith;
 
@@ -66,6 +66,7 @@ pub struct Config {
   jsx_pragma_frag: Option<String>,
   automatic_jsx_runtime: bool,
   jsx_import_source: Option<String>,
+  decorators: bool,
   is_development: bool,
   react_refresh: bool,
   targets: Option<HashMap<String, String>>,
@@ -238,6 +239,15 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                   react::react(source_map.clone(), Some(&comments), react_options),
                   config.is_jsx
                 ),
+                // Decorators can use type information, so must run before the TypeScript pass.
+                Optional::new(
+                  decorators::decorators(decorators::Config {
+                    legacy: true,
+                    // Always disabled for now, SWC's implementation doesn't match TSC.
+                    emit_metadata: false
+                  }),
+                  config.decorators
+                ),
                 Optional::new(typescript::strip(), config.is_type_script)
               );
 
@@ -387,6 +397,7 @@ fn parse(
     let mut tsconfig = TsConfig::default();
     tsconfig.tsx = config.is_jsx;
     tsconfig.dynamic_import = true;
+    tsconfig.decorators = config.decorators;
     Syntax::Typescript(tsconfig)
   } else {
     let mut esconfig = EsConfig::default();
@@ -395,6 +406,7 @@ fn parse(
     esconfig.export_default_from = true;
     esconfig.export_namespace_from = true;
     esconfig.import_meta = true;
+    esconfig.decorators = config.decorators;
     Syntax::Es(esconfig)
   };
 
