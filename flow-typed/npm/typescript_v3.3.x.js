@@ -1,5 +1,5 @@
-// flow-typed signature: a73d5be820ce9376397c9110a4a02d9e
-// flow-typed version: c6154227d1/typescript_v3.3.x/flow_>=v0.104.x
+// flow-typed signature: 8ef93f972fa1514991dd699880b244bf
+// flow-typed version: 80b11313ee/typescript_v3.3.x/flow_>=v0.104.x
 
 declare module "typescript" {
   declare var versionMajorMinor: "3.3"; // "3.3";
