@@ -166,7 +166,10 @@ export default (new Transformer({
         options.mode === 'development' &&
         Boolean(reactVersion);
 
-      let tsconfig = await config.getConfig<TSConfig>(['tsconfig.json']);
+      let tsconfig = await config.getConfigFrom<TSConfig>(
+        options.projectRoot + '/index',
+        ['tsconfig.json'],
+      );
       let compilerOptions = tsconfig?.contents?.compilerOptions;
 
       // Use explicitly defined JSX options in tsconfig.json over inferred values from dependencies.
