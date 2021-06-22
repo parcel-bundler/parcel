@@ -980,18 +980,18 @@ function edgesToDot<TEdgeType: number>(
       let nextOut = data.edges[i + NEXT_OUT];
 
       if (lastOut < i - EDGE_SIZE) {
-        if (lastOut === 0) {
-          edges.addNode(`edge${lastOut}`, {
-            label: `${lastOut}…${i - EDGE_SIZE} | `,
-            ...emptyColor,
-          });
-        } else {
+        if (lastOut || data.edges[lastOut + TYPE]) {
           edges.addNode(`edge${lastOut + EDGE_SIZE}`, {
-            label: `${lastOut + EDGE_SIZE}…${i - EDGE_SIZE} | `,
+            label: `${lastOut + EDGE_SIZE}…${i - 1} | `,
             ...emptyColor,
           });
           edges.addEdge(`edge${lastOut}`, `edge${lastOut + EDGE_SIZE}`);
           lastOut += EDGE_SIZE;
+        } else if (i && !data.edges[lastOut + TYPE]) {
+          edges.addNode(`edge${lastOut}`, {
+            label: `${lastOut}…${i - 1} | `,
+            ...emptyColor,
+          });
         }
       }
 
@@ -1001,21 +1001,23 @@ function edgesToDot<TEdgeType: number>(
         )} | {${type} | ${from} | ${to} | ${nextIn} | ${nextOut}}`,
       });
 
-      edges.addEdge(`edge${lastOut}`, `edge${i}`);
-      lastOut = i;
+      if (lastOut !== i) {
+        edges.addEdge(`edge${lastOut}`, `edge${i}`);
+        lastOut = i;
+      }
     } else if (i === data.edges.length - EDGE_SIZE) {
-      if (lastOut < i - EDGE_SIZE) {
-        if (lastOut === 0) {
-          edges.addNode(`edge${lastOut}`, {
-            label: `${lastOut}…${i - EDGE_SIZE} | `,
-            ...emptyColor,
-          });
-        } else {
+      if (lastOut <= i - EDGE_SIZE) {
+        if (lastOut || data.edges[lastOut + TYPE]) {
           edges.addNode(`edge${lastOut + EDGE_SIZE}`, {
-            label: `${lastOut + EDGE_SIZE}…${i - EDGE_SIZE} | `,
+            label: `${lastOut + EDGE_SIZE}…${i + EDGE_SIZE - 1} | `,
             ...emptyColor,
           });
           edges.addEdge(`edge${lastOut}`, `edge${lastOut + EDGE_SIZE}`);
+        } else {
+          edges.addNode(`edge${lastOut}`, {
+            label: `${lastOut}…${i + EDGE_SIZE - 1} | `,
+            ...emptyColor,
+          });
         }
       }
     }
