@@ -168,7 +168,7 @@ export default (new Transformer({
 
       let tsconfig = await config.getConfigFrom<TSConfig>(
         options.projectRoot + '/index',
-        ['tsconfig.json'],
+        ['tsconfig.json', 'jsconfig.json'],
       );
       let compilerOptions = tsconfig?.contents?.compilerOptions;
 
