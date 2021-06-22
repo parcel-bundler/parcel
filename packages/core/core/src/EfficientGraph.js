@@ -686,6 +686,7 @@ export default class EfficientGraph<TEdgeType: number = 1> {
       | NullEdgeType
       | Array<TEdgeType | NullEdgeType> = 1,
   ): Iterator<NodeId> {
+    let seen = new Set();
     for (
       let hash = this.nodes[indexOfNode(from) + FIRST_OUT];
       hash;
@@ -693,15 +694,20 @@ export default class EfficientGraph<TEdgeType: number = 1> {
     ) {
       let i = hashToIndex(hash);
       let edgeType = deletedThrows(this.edges[i + TYPE]);
+      let to = this.edges[i + TO];
+      if (seen.has(to)) continue;
       if (Array.isArray(type)) {
         for (let typeNum of type) {
           if (typeNum === ALL_EDGE_TYPES || edgeType === typeNum) {
-            yield toNodeId(this.edges[i + TO]);
+            seen.add(to);
+            yield toNodeId(to);
+            break;
           }
         }
       } else {
         if (type === ALL_EDGE_TYPES || edgeType === type) {
-          yield toNodeId(this.edges[i + TO]);
+          seen.add(to);
+          yield toNodeId(to);
         }
       }
     }
@@ -718,6 +724,7 @@ export default class EfficientGraph<TEdgeType: number = 1> {
       | NullEdgeType
       | Array<TEdgeType | NullEdgeType> = 1,
   ): Iterator<NodeId> {
+    let seen = new Set();
     for (
       let hash = this.nodes[indexOfNode(to) + FIRST_IN];
       hash;
@@ -725,15 +732,20 @@ export default class EfficientGraph<TEdgeType: number = 1> {
     ) {
       let i = hashToIndex(hash);
       let edgeType = deletedThrows(this.edges[i + TYPE]);
+      let from = this.edges[i + FROM];
+      if (seen.has(from)) continue;
       if (Array.isArray(type)) {
         for (let typeNum of type) {
           if (typeNum === ALL_EDGE_TYPES || edgeType === typeNum) {
-            yield toNodeId(this.edges[i + FROM]);
+            seen.add(from);
+            yield toNodeId(from);
+            break;
           }
         }
       } else {
         if (type === ALL_EDGE_TYPES || edgeType === type) {
-          yield toNodeId(this.edges[i + FROM]);
+          seen.add(from);
+          yield toNodeId(from);
         }
       }
     }
