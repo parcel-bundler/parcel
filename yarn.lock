@@ -1969,6 +1969,11 @@
   resolved "https://registry.yarnpkg.com/@octokit/openapi-types/-/openapi-types-4.0.0.tgz#40af33247d6acb17d942c513ec361ba9fe37d38f"
   integrity sha512-o4Q9VPYaIdzxskfVuWk7Dcb6Ldq2xbd1QKmPCRx29nFdFxm+2Py74QLfbB3CgankZerHnNJ9wgINOkwa/O2qRg==
 
+"@octokit/openapi-types@^6.0.0":
+  version "6.2.1"
+  resolved "https://packages.atlassian.com/api/npm/npm-remote/@octokit/openapi-types/-/openapi-types-6.2.1.tgz#5830395622ca0d8e945532c7ace722aec3670508"
+  integrity sha1-WDA5ViLKDY6UVTLHrOcirsNnBQg=
+
 "@octokit/openapi-types@^6.2.0":
   version "6.2.0"
   resolved "https://registry.yarnpkg.com/@octokit/openapi-types/-/openapi-types-6.2.0.tgz#6ea796b20c7111b9e422a4d607f796c1179622cd"
