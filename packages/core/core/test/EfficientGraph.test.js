@@ -155,7 +155,7 @@ describe('EfficientGraph', () => {
     assert.equal(graph.addEdge(a, b), false);
   });
 
-  it('addEdge should resize edges array when necessary', () => {
+  it.skip('addEdge should resize edges array when necessary', () => {
     let graph = new EfficientGraph(2, 1);
     let a = graph.addNode();
     let b = graph.addNode();

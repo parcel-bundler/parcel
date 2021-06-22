@@ -435,13 +435,12 @@ export default class EfficientGraph<TEdgeType: number = 1> {
     // Unless it already has a first incoming edge.
     // In that case, append this edge as the next incoming edge
     // after the last incoming edge to have been added.
-    let nextIn = this.nodes[indexOfNode(to) + FIRST_IN];
-    if (nextIn) {
-      let nextInIndex = hashToIndex(nextIn);
-      for (let i = nextInIndex; i; i = hashToIndex(this.edges[i + NEXT_IN])) {
-        nextInIndex = i;
+    let nextInHash = this.nodes[indexOfNode(to) + FIRST_IN];
+    if (nextInHash) {
+      for (let i = nextInHash; i; i = this.edges[hashToIndex(i) + NEXT_IN]) {
+        nextInHash = i;
       }
-      this.edges[nextInIndex + NEXT_IN] = indexToHash(index);
+      this.edges[hashToIndex(nextInHash) + NEXT_IN] = indexToHash(index);
     } else {
       // We store the hash of this edge as the `to` node's incoming edge.
       this.nodes[indexOfNode(to) + FIRST_IN] = indexToHash(index);
@@ -451,13 +450,12 @@ export default class EfficientGraph<TEdgeType: number = 1> {
     // Unless it already has a first outgoing edge.
     // In that case, append this edge as the next outgoing edge
     // after the last outgoing edge to have been added.
-    let nextOut = this.nodes[indexOfNode(from) + FIRST_OUT];
-    if (nextOut) {
-      let nextOutIndex = hashToIndex(nextOut);
-      for (let i = nextOutIndex; i; i = hashToIndex(this.edges[i + NEXT_OUT])) {
-        nextOutIndex = i;
+    let nextOutHash = this.nodes[indexOfNode(from) + FIRST_OUT];
+    if (nextOutHash) {
+      for (let i = nextOutHash; i; i = this.edges[hashToIndex(i) + NEXT_OUT]) {
+        nextOutHash = i;
       }
-      this.edges[nextOutIndex + NEXT_OUT] = indexToHash(index);
+      this.edges[hashToIndex(nextOutHash) + NEXT_OUT] = indexToHash(index);
     } else {
       this.nodes[indexOfNode(from) + FIRST_OUT] = indexToHash(index);
     }
@@ -585,37 +583,37 @@ export default class EfficientGraph<TEdgeType: number = 1> {
     }
 
     // Remove outgoing ref to this edge from incoming node.
-    let nextOut = this.edges[index + NEXT_OUT];
-    let outIndex = hashToIndex(this.nodes[indexOfNode(from) + FIRST_OUT]);
-    if (outIndex === index) {
-      this.nodes[indexOfNode(from) + FIRST_OUT] = nextOut;
+    let nextOutHash = this.edges[index + NEXT_OUT];
+    let outHash = this.nodes[indexOfNode(from) + FIRST_OUT];
+    if (hashToIndex(outHash) === index) {
+      this.nodes[indexOfNode(from) + FIRST_OUT] = nextOutHash;
     } else {
-      let prevOut = outIndex;
+      let prevOutHash = outHash;
       do {
-        outIndex = hashToIndex(this.edges[outIndex + NEXT_OUT]);
-        if (outIndex === index) {
-          this.edges[prevOut + NEXT_OUT] = nextOut;
+        outHash = this.edges[hashToIndex(outHash) + NEXT_OUT];
+        if (hashToIndex(outHash) === index) {
+          this.edges[hashToIndex(prevOutHash) + NEXT_OUT] = nextOutHash;
           break;
         }
-        prevOut = outIndex;
-      } while (outIndex);
+        prevOutHash = outHash;
+      } while (outHash);
     }
 
     // Remove incoming ref to this edge from to outgoing node.
-    let nextIn = this.edges[index + NEXT_IN];
-    let inIndex = hashToIndex(this.nodes[indexOfNode(to) + FIRST_IN]);
-    if (inIndex === index) {
-      this.nodes[indexOfNode(to) + FIRST_IN] = nextIn;
+    let nextInHash = this.edges[index + NEXT_IN];
+    let inHash = this.nodes[indexOfNode(to) + FIRST_IN];
+    if (hashToIndex(inHash) === index) {
+      this.nodes[indexOfNode(to) + FIRST_IN] = nextInHash;
     } else {
-      let prevIn = inIndex;
+      let prevInHash = inHash;
       do {
-        inIndex = hashToIndex(this.edges[inIndex + NEXT_IN]);
-        if (inIndex === index) {
-          this.edges[prevIn + NEXT_IN] = nextIn;
+        inHash = this.edges[hashToIndex(inHash) + NEXT_IN];
+        if (hashToIndex(inHash) === index) {
+          this.edges[hashToIndex(prevInHash) + NEXT_IN] = nextInHash;
           break;
         }
-        prevIn = inIndex;
-      } while (inIndex);
+        prevInHash = inHash;
+      } while (inHash);
     }
 
     // Mark this slot as DELETED.
