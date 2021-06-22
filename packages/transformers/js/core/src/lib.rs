@@ -65,6 +65,7 @@ pub struct Config {
   jsx_pragma: Option<String>,
   jsx_pragma_frag: Option<String>,
   automatic_jsx_runtime: bool,
+  jsx_import_source: Option<String>,
   is_development: bool,
   react_refresh: bool,
   targets: Option<HashMap<String, String>>,
@@ -222,6 +223,9 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
               };
 
               react_options.runtime = if config.automatic_jsx_runtime {
+                if let Some(import_source) = config.jsx_import_source {
+                  react_options.import_source = import_source;
+                }
                 Some(react::Runtime::Automatic)
               } else {
                 Some(react::Runtime::Classic)

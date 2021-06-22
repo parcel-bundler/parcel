@@ -114,11 +114,32 @@ const SCRIPT_ERRORS = {
     'Service workers cannot have imports or exports. Use the `type: "module"` option instead.',
 };
 
+type TSConfig = {
+  compilerOptions?: {
+    // https://www.typescriptlang.org/tsconfig#jsx
+    jsx?: 'react' | 'react-jsx' | 'react-jsxdev' | 'preserve' | 'react-native',
+    // https://www.typescriptlang.org/tsconfig#jsxFactory
+    jsxFactory?: string,
+    // https://www.typescriptlang.org/tsconfig#jsxFragmentFactory
+    jsxFragmentFactory?: string,
+    // https://www.typescriptlang.org/tsconfig#jsxImportSource
+    jsxImportSource?: string,
+    ...
+  },
+  ...
+};
+
 export default (new Transformer({
   async loadConfig({config, options}) {
     let pkg = await config.getPackage();
-    let reactLib;
+    let isJSX,
+      pragma,
+      pragmaFrag,
+      jsxImportSource,
+      automaticJSXRuntime,
+      reactRefresh;
     if (config.isSource) {
+      let reactLib;
       if (pkg?.alias && pkg.alias['react']) {
         // e.g.: `{ alias: { "react": "preact/compat" } }`
         reactLib = 'react';
@@ -131,24 +152,49 @@ export default (new Transformer({
             pkg?.peerDependencies?.[libName],
         );
       }
+
+      let reactVersion =
+        pkg?.dependencies?.react ||
+        pkg?.devDependencies?.react ||
+        pkg?.peerDependencies?.react;
+
+      reactRefresh =
+        options.hmrOptions &&
+        options.mode === 'development' &&
+        Boolean(reactVersion);
+
+      let tsconfig = await config.getConfig<TSConfig>(['tsconfig.json']);
+      let compilerOptions = tsconfig?.contents?.compilerOptions;
+
+      // Use explicitly defined JSX options in tsconfig.json over inferred values from dependencies.
+      pragma =
+        compilerOptions?.jsxFactory ||
+        (reactLib ? JSX_PRAGMA[reactLib].pragma : undefined);
+      pragmaFrag =
+        compilerOptions?.jsxFragmentFactory ||
+        (reactLib ? JSX_PRAGMA[reactLib].pragmaFrag : undefined);
+      if (
+        compilerOptions?.jsx === 'react-jsx' ||
+        compilerOptions?.jsx === 'react-jsxdev' ||
+        compilerOptions?.jsxImportSource
+      ) {
+        jsxImportSource = compilerOptions?.jsxImportSource;
+        automaticJSXRuntime = true;
+      } else {
+        automaticJSXRuntime =
+          reactLib === 'react' &&
+          !compilerOptions?.jsxFactory &&
+          reactVersion != null &&
+          reactVersion !== '*' &&
+          semver.intersects(reactVersion, '>= 17.0.0');
+      }
+
+      isJSX = Boolean(
+        compilerOptions?.jsx ||
+          pragma ||
+          JSX_EXTENSIONS[path.extname(config.searchPath)],
+      );
     }
-
-    let reactVersion =
-      pkg?.dependencies?.react ||
-      pkg?.devDependencies?.react ||
-      pkg?.peerDependencies?.react;
-
-    let reactRefresh =
-      config.isSource &&
-      options.hmrOptions &&
-      options.mode === 'development' &&
-      Boolean(reactVersion);
-
-    let automaticJSXRuntime =
-      reactLib === 'react' &&
-      reactVersion != null &&
-      reactVersion !== '*' &&
-      semver.intersects(reactVersion, '>= 17.0.0');
 
     // Check if we should ignore fs calls
     // See https://github.com/defunctzombie/node-browser-resolve#skip
@@ -187,12 +233,10 @@ export default (new Transformer({
       inlineFS = rootPkg['@parcel/transformer-js']?.inlineFS ?? inlineFS;
     }
 
-    let pragma = reactLib ? JSX_PRAGMA[reactLib].pragma : undefined;
-    let pragmaFrag = reactLib ? JSX_PRAGMA[reactLib].pragmaFrag : undefined;
-    let isJSX = pragma || JSX_EXTENSIONS[path.extname(config.searchPath)];
     return {
       isJSX,
       automaticJSXRuntime,
+      jsxImportSource,
       pragma,
       pragmaFrag,
       inlineEnvironment,
@@ -305,6 +349,7 @@ export default (new Transformer({
       jsx_pragma: config?.pragma,
       jsx_pragma_frag: config?.pragmaFrag,
       automatic_jsx_runtime: Boolean(config?.automaticJSXRuntime),
+      jsx_import_source: config?.jsxImportSource,
       is_development: options.mode === 'development',
       react_refresh:
         asset.env.isBrowser() &&

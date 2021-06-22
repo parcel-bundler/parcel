@@ -165,6 +165,35 @@ describe('transpilation', function() {
     assert(file.includes('_jsxRuntime.jsx("div"'));
   });
 
+  it('should support the automatic JSX runtime with explicit tsconfig.json', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/jsx-automatic-tsconfig/index.js'),
+    );
+
+    let file = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(file.includes('preact/jsx-runtime'));
+    assert(file.includes('_jsxRuntime.jsx("div"'));
+  });
+
+  it('should support explicit JSX pragma in tsconfig.json', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/jsx-pragma-tsconfig/index.js'),
+    );
+
+    let file = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(file.includes('JSX(JSXFragment'));
+    assert(file.includes('JSX("div"'));
+  });
+
+  it('should support explicitly enabling JSX in tsconfig.json', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/jsx-tsconfig/index.js'),
+    );
+
+    let file = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(file.includes('React.createElement("div"'));
+  });
+
   it('should support transpiling optional chaining', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/babel-optional-chaining/index.js'),
