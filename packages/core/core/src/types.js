@@ -31,7 +31,7 @@ import type {
 } from '@parcel/types';
 import type {SharedReference} from '@parcel/workers';
 import type {FileSystem} from '@parcel/fs';
-import type Cache from '@parcel/cache';
+import type {Cache} from '@parcel/cache';
 import type {PackageManager} from '@parcel/package-manager';
 
 export type ParcelPluginNode = {|
@@ -100,6 +100,7 @@ export type Dependency = {|
   target: ?Target,
   sourceAssetId: ?string,
   sourcePath: ?string,
+  sourceAssetType?: ?string,
   resolveFrom: ?string,
   symbols: ?Map<
     Symbol,
@@ -427,11 +428,9 @@ export type Bundle = {|
   isSplittable: ?boolean,
   isPlaceholder?: boolean,
   target: Target,
-  filePath: ?FilePath,
   name: ?string,
   displayName: ?string,
   pipeline: ?string,
-  stats: Stats,
 |};
 
 export type BundleNode = {|
@@ -445,6 +444,12 @@ export type BundleGroupNode = {|
   +type: 'bundle_group',
   value: BundleGroup,
 |};
+
+export type PackagedBundleInfo = {|
+  filePath: FilePath,
+  stats: Stats,
+|};
+
 export type TransformationOpts = {|
   request: AssetGroup,
   optionsRef: SharedReference,

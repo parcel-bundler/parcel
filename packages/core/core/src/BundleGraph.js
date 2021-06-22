@@ -22,9 +22,9 @@ import type AssetGraph from './AssetGraph';
 
 import assert from 'assert';
 import invariant from 'assert';
-import crypto from 'crypto';
 import nullthrows from 'nullthrows';
 import {objectSortedEntriesDeep} from '@parcel/utils';
+import {Hash, hashString} from '@parcel/hash';
 
 import {getBundleGroupId, getPublicId} from './utils';
 import {ALL_EDGE_TYPES, mapVisitor} from './Graph';
@@ -222,7 +222,11 @@ export default class BundleGraph {
 
     // The root asset should be reached directly from the bundle in traversal.
     // Its children will be traversed from there.
-    this._graph.addEdge(bundleNodeId, assetNodeId);
+    if (
+      this.getIncomingDependencies(asset).some(dependency => dependency.isEntry)
+    ) {
+      this._graph.addEdge(bundleNodeId, assetNodeId);
+    }
     this._graph.traverse((nodeId, _, actions) => {
       let node = nullthrows(this._graph.getNode(nodeId));
       if (node.type === 'bundle_group') {
@@ -233,10 +237,6 @@ export default class BundleGraph {
       if (node.type === 'dependency' && shouldSkipDependency(node.value)) {
         actions.skipChildren();
         return;
-      }
-
-      if (node.type === 'asset' && !this.bundleHasAsset(bundle, node.value)) {
-        bundle.stats.size += node.value.stats.size;
       }
 
       if (node.type === 'asset' || node.type === 'dependency') {
@@ -433,10 +433,6 @@ export default class BundleGraph {
           // aggregate.
           false /* removeOrphans */,
         );
-
-        if (node.type === 'asset') {
-          bundle.stats.size -= asset.stats.size;
-        }
       } else {
         actions.skipChildren();
       }
@@ -692,6 +688,18 @@ export default class BundleGraph {
 
   isAssetReferencedByDependant(bundle: Bundle, asset: Asset): boolean {
     let assetNodeId = nullthrows(this._graph.getNodeIdByContentKey(asset.id));
+
+    if (
+      this._graph
+        .getNodeIdsConnectedTo(assetNodeId, 'references')
+        .map(id => this._graph.getNode(id))
+        .filter(node => node?.type === 'dependency' && node.value.isAsync)
+        .length > 0
+    ) {
+      // If this asset is referenced by any async dependency, it's referenced.
+      return true;
+    }
+
     let dependencies = this._graph
       .getNodeIdsConnectedTo(assetNodeId)
       .map(id => nullthrows(this._graph.getNode(id)))
@@ -701,50 +709,26 @@ export default class BundleGraph {
         return node.value;
       });
 
-    // Collect bundles that depend on this asset being available to reference
-    // asynchronously. If any of them appear in our traversal, this asset is
-    // referenced.
-    let asyncInternalReferencingBundles = new Set(
-      this._graph
-        .getNodeIdsConnectedTo(assetNodeId, 'references')
-        .map(id => nullthrows(this._graph.getNode(id)))
-        .filter(node => node.type === 'dependency')
-        .map(node => {
-          invariant(node.type === 'dependency');
-          return node;
-        })
-        .flatMap(dependencyNode =>
-          this._graph
-            .getNodeIdsConnectedTo(
-              this._graph.getNodeIdByContentKey(dependencyNode.id),
-              'internal_async',
-            )
-            .map(id => {
-              let node = nullthrows(this._graph.getNode(id));
-              invariant(node.type === 'bundle');
-              return node.value;
-            }),
-        ),
-    );
-
     const bundleHasReference = (bundle: Bundle) => {
       return (
         !this.bundleHasAsset(bundle, asset) &&
-        (asyncInternalReferencingBundles.has(bundle) ||
-          dependencies.some(dependency =>
-            this.bundleHasDependency(bundle, dependency),
-          ))
+        dependencies.some(dependency =>
+          this.bundleHasDependency(bundle, dependency),
+        )
       );
     };
 
     let visitedBundles: Set<Bundle> = new Set();
-    // Check if any of this bundle's descendants, referencers, bundles referenced
-    // by referencers, or descendants of its referencers reference the asset.
     let siblingBundles = new Set(
       this.getBundleGroupsContainingBundle(bundle).flatMap(bundleGroup =>
         this.getBundlesInBundleGroup(bundleGroup),
       ),
     );
+
+    // Check if any of this bundle's descendants, referencers, bundles referenced
+    // by referencers, or descendants of its referencers use the asset without
+    // an explicit reference edge. This can happen if e.g. the asset has been
+    // deduplicated.
     return [...siblingBundles].some(referencer => {
       let isReferenced = false;
       this.traverseBundles((descendant, _, actions) => {
@@ -981,13 +965,21 @@ export default class BundleGraph {
     });
   }
 
-  traverseContents<TContext>(
+  traverse<TContext>(
     visit: GraphVisitor<AssetNode | DependencyNode, TContext>,
   ): ?TContext {
-    return this._graph.filteredTraverse(nodeId => {
-      let node = nullthrows(this._graph.getNode(nodeId));
-      return node.type === 'asset' || node.type === 'dependency' ? node : null;
-    }, visit);
+    return this._graph.filteredTraverse(
+      nodeId => {
+        let node = nullthrows(this._graph.getNode(nodeId));
+        if (node.type === 'asset' || node.type === 'dependency') {
+          return node;
+        }
+      },
+      visit,
+      undefined, // start with root
+      // $FlowFixMe
+      ALL_EDGE_TYPES,
+    );
   }
 
   getChildBundles(bundle: Bundle): Array<Bundle> {
@@ -1427,10 +1419,10 @@ export default class BundleGraph {
       return existingHash;
     }
 
-    let hash = crypto.createHash('md5');
+    let hash = new Hash();
     // TODO: sort??
     this.traverseAssets(bundle, asset => {
-      hash.update(
+      hash.writeString(
         [
           this.getAssetPublicId(asset),
           asset.outputHash,
@@ -1442,7 +1434,7 @@ export default class BundleGraph {
       );
     });
 
-    let hashHex = hash.digest('hex');
+    let hashHex = hash.finish();
     this._bundleContentHashes.set(bundle.id, hashHex);
     return hashHex;
   }
@@ -1480,23 +1472,33 @@ export default class BundleGraph {
   }
 
   getHash(bundle: Bundle): string {
-    let hash = crypto.createHash('md5');
-    hash.update(bundle.id);
-    hash.update(this.getContentHash(bundle));
+    let hash = new Hash();
+    hash.writeString(
+      bundle.id + bundle.target.publicUrl + this.getContentHash(bundle),
+    );
 
     let inlineBundles = this.getInlineBundles(bundle);
     for (let inlineBundle of inlineBundles) {
-      hash.update(this.getContentHash(inlineBundle));
+      hash.writeString(this.getContentHash(inlineBundle));
     }
 
     for (let referencedBundle of this.getReferencedBundles(bundle)) {
       if (!referencedBundle.isInline) {
-        hash.update(referencedBundle.id);
+        hash.writeString(referencedBundle.id);
       }
     }
 
-    hash.update(JSON.stringify(objectSortedEntriesDeep(bundle.env)));
-    return hash.digest('hex');
+    hash.writeString(JSON.stringify(objectSortedEntriesDeep(bundle.env)));
+    return hash.finish();
+  }
+
+  getBundleGraphHash(): string {
+    let hashes = '';
+    for (let bundle of this.getBundles()) {
+      hashes += this.getHash(bundle);
+    }
+
+    return hashString(hashes);
   }
 
   addBundleToBundleGroup(bundle: Bundle, bundleGroup: BundleGroup) {
@@ -1536,11 +1538,14 @@ export default class BundleGraph {
     let otherGraphIdToThisNodeId = new Map<NodeId, NodeId>();
     for (let [otherNodeId, otherNode] of other._graph.nodes) {
       if (this._graph.hasContentKey(otherNode.id)) {
-        let existingNodeId = this._graph.getNodeIdByContentKey(otherNode.id);
+        let existingNodeId = this._graph.addNodeByContentKey(
+          otherNode.id,
+          otherNode,
+        );
         otherGraphIdToThisNodeId.set(otherNodeId, existingNodeId);
 
         let existingNode = nullthrows(this._graph.getNode(existingNodeId));
-        // Merge symbols, recompute dep.exluded based on that
+        // Merge symbols, recompute dep.excluded based on that
         if (existingNode.type === 'asset') {
           invariant(otherNode.type === 'asset');
           existingNode.usedSymbols = new Set([
@@ -1584,6 +1589,46 @@ export default class BundleGraph {
     other._publicIdByAssetId.forEach((value, key) => {
       this._publicIdByAssetId.set(key, value);
     });
+  }
+  cleanup(other: BundleGraph, changedAssets: Map<string, Asset>) {
+    // basically want the left join (if that makes sense) on the bundlegraph from current
+    let nodeIdsToRemove = [];
+    changedAssets.forEach(changedAsset => {
+      let changedNodeId = this._graph.getNodeIdByContentKey(changedAsset.id);
+
+      this._graph.traverse((nodeId, _, actions) => {
+        // if a child here exists that DOESNOT exist in other, then remove it
+        //if its NOT removed, skip children, if it is, continue with removal
+        let bundlegraphnode = nullthrows(this._graph.getNode(nodeId));
+        let updatedNode = other._graph.getNodeByContentKey(bundlegraphnode.id);
+        if (bundlegraphnode.id != changedAsset.id) {
+          //do not want to remove the parent
+          if (updatedNode) {
+            //want to visit children of the changedAsset
+            actions.skipChildren();
+          } else {
+            //Removal of dependency (or other) node
+            if (this._graph.getNodeIdsConnectedTo(nodeId).length === 1) {
+              //does this make sense?
+              // only remove if we just came from the parent we intend to remove
+              nodeIdsToRemove.push(nodeId);
+              //this will remove all edges so we need to check that none are important
+            } else {
+              actions.skipChildren();
+            }
+          }
+        }
+      }, changedNodeId);
+    });
+    try {
+      nodeIdsToRemove.forEach(nodeId => {
+        if (this._graph.hasNode(nodeId)) {
+          this._graph.removeNode(nodeId);
+        }
+      });
+    } catch (e) {
+      console.log('here is an error: ', e);
+    }
   }
 
   isEntryBundleGroup(bundleGroup: BundleGroup): boolean {

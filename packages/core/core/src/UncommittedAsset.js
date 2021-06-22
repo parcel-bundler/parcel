@@ -19,19 +19,19 @@ import type {
   ParcelOptions,
 } from './types';
 
-import v8 from 'v8';
 import invariant from 'assert';
 import {Readable} from 'stream';
 import SourceMap from '@parcel/source-map';
 import {
   bufferStream,
-  md5FromString,
   blobToStream,
   streamFromPromise,
   TapStream,
   loadSourceMap,
   SOURCEMAP_RE,
 } from '@parcel/utils';
+import {hashString} from '@parcel/hash';
+import {serializeRaw} from './serializer';
 import {createDependency, mergeDependencies} from './Dependency';
 import {mergeEnvironments} from './Environment';
 import {PARCEL_VERSION} from './constants';
@@ -120,21 +120,15 @@ export default class UncommittedAsset {
         mapKey != null &&
         this.options.cache.setBlob(mapKey, this.mapBuffer),
       astKey != null &&
-        this.options.cache.setBlob(
-          astKey,
-          // $FlowFixMe
-          v8.serialize(this.ast),
-        ),
+        this.options.cache.setBlob(astKey, serializeRaw(this.ast)),
     ]);
     this.value.contentKey = contentKey;
     this.value.mapKey = mapKey;
     this.value.astKey = astKey;
-    this.value.outputHash = md5FromString(
-      [
-        this.value.hash,
-        pipelineKey,
-        await getInvalidationHash(this.getInvalidations(), this.options),
-      ].join(':'),
+    this.value.outputHash = hashString(
+      (this.value.hash ?? '') +
+        pipelineKey +
+        (await getInvalidationHash(this.getInvalidations(), this.options)),
     );
 
     if (this.content != null) {
@@ -196,7 +190,9 @@ export default class UncommittedAsset {
     let content = await this.content;
     if (content == null) {
       return Buffer.alloc(0);
-    } else if (typeof content === 'string' || content instanceof Buffer) {
+    } else if (content instanceof Buffer) {
+      return content;
+    } else if (typeof content === 'string') {
       return Buffer.from(content);
     }
 
@@ -263,9 +259,7 @@ export default class UncommittedAsset {
       let mapBuffer = this.mapBuffer ?? (await this.getMapBuffer());
       if (mapBuffer) {
         // Get sourcemap from flatbuffer
-        let map = new SourceMap(this.options.projectRoot);
-        map.addBuffer(mapBuffer);
-        this.map = map;
+        this.map = new SourceMap(mapBuffer);
       }
     }
 
@@ -304,7 +298,7 @@ export default class UncommittedAsset {
   }
 
   getCacheKey(key: string): string {
-    return md5FromString(
+    return hashString(
       PARCEL_VERSION + key + this.value.id + (this.value.hash || ''),
     );
   }

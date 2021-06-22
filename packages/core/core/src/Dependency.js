@@ -5,8 +5,8 @@ import type {
   ModuleSpecifier,
   Symbol,
 } from '@parcel/types';
-import {md5FromOrderedObject} from '@parcel/utils';
 import type {Dependency, Environment, Target} from './types';
+import {hashString} from '@parcel/hash';
 
 type DependencyOpts = {|
   id?: string,
@@ -33,13 +33,13 @@ type DependencyOpts = {|
 export function createDependency(opts: DependencyOpts): Dependency {
   let id =
     opts.id ||
-    md5FromOrderedObject({
-      sourceAssetId: opts.sourceAssetId,
-      moduleSpecifier: opts.moduleSpecifier,
-      env: opts.env.id,
-      target: opts.target,
-      pipeline: opts.pipeline,
-    });
+    hashString(
+      (opts.sourceAssetId ?? '') +
+        opts.moduleSpecifier +
+        opts.env.id +
+        (opts.target ? JSON.stringify(opts.target) : '') +
+        (opts.pipeline ?? ''),
+    );
 
   return {
     ...opts,

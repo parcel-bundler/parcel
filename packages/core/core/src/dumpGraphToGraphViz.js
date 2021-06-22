@@ -20,7 +20,7 @@ const COLORS = {
 
 const TYPE_COLORS = {
   bundle: 'blue',
-  contains: 'grey',
+  contains: 'yellow',
   internal_async: 'orange',
   references: 'red',
   sibling: 'green',
@@ -48,8 +48,9 @@ export default async function dumpGraphToGraphViz<
   const graphviz = require('graphviz');
   const tempy = require('tempy');
   let g = graphviz.digraph('G');
-  for (let [id, node] of graph.nodes) {
-    let n = g.addNode(nodeId(id));
+  let nodes = Array.from(graph.nodes.entries());
+  for (let [id, node] of nodes) {
+    let n = g.addNode(`${fromNodeId(id)}`);
     // $FlowFixMe default is fine. Not every type needs to be in the map.
     n.set('color', COLORS[node.type || 'default']);
     n.set('shape', 'box');
@@ -124,7 +125,7 @@ export default async function dumpGraphToGraphViz<
     n.set('label', label);
   }
   for (let edge of graph.getAllEdges()) {
-    let gEdge = g.addEdge(nodeId(edge.from), nodeId(edge.to));
+    let gEdge = g.addEdge(`${fromNodeId(edge.from)}`, `${fromNodeId(edge.to)}`);
     let color = edge.type != null ? TYPE_COLORS[edge.type] : null;
     if (color != null) {
       gEdge.set('color', color);
@@ -134,11 +135,6 @@ export default async function dumpGraphToGraphViz<
   await g.output('png', tmp);
   // eslint-disable-next-line no-console
   console.log('Dumped', tmp);
-}
-
-function nodeId(id) {
-  // $FlowFixMe
-  return `node${id}`;
 }
 
 function getEnvDescription(env: Environment) {

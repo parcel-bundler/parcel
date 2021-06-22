@@ -32,6 +32,6 @@
   },
   "devDependencies": {
     "@napi-rs/cli": "1.0.4",
-    "self-published": "npm:@parcel/fs-search@2.0.0-beta.2"
+    "self-published": "npm:@parcel/fs-search@2.0.0-beta.3.1"
   }
 }

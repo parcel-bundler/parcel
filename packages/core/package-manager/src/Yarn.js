@@ -60,7 +60,7 @@ export class Yarn implements PackageInstaller {
     );
 
     if (saveDev) {
-      args.push('-D');
+      args.push('-D', '-W');
     }
 
     // When Parcel is run by Yarn (e.g. via package.json scripts), several environment variables are

@@ -138,6 +138,7 @@ console.log("Hello World");
       - [`--key <path>`](#--key-path)
     - [`--dist-dir <dir>`](#--dist-dir-dir)
     - [`--cache-dir <dir>`, `--no-cache`](#--cache-dir-dir---no-cache)
+    - [`--config <path>`](#--config-path)
     - [`--hot`, `--no-hot`](#--hot---no-hot)
       - [`--hot-host <hostname>`](#--hot-host-hostname)
       - [`--hot-port <port>`](#--hot-port-port)
@@ -330,6 +331,10 @@ Configure the directory where compiled assets are output. Default is `./dist`.
 
 Configure the cache directory with `--cache <dir>` or disable it altogether
 with `--no-cache`.
+
+#### `--config <path>`
+specify which config to use. can be a path or a package name.
+`--config ../.myparcelrc` or `--config @parcel/config-default`
 
 #### `--hot`, `--no-hot`
 

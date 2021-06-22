@@ -1061,6 +1061,21 @@ describe('javascript', function() {
     assert.deepEqual(await Promise.all((await run(b)).default), [5, 4]);
   });
 
+  it('does not create bundles for dynamic imports when assets are available up the graph', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/internalize-no-bundle-split/index.js'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js', 'bar.js', 'foo.js', 'esmodule-helpers.js'],
+      },
+    ]);
+
+    assert.deepEqual(await (await run(b)).default, [3, 3]);
+  });
+
   it('async dependency internalization successfully removes unneeded bundlegroups and their bundles', async () => {
     let b = await bundle(
       path.join(
@@ -1778,6 +1793,21 @@ describe('javascript', function() {
 
     let output = await run(b);
     assert.strictEqual(output, 'abc');
+  });
+
+  it('should inline computed accesses with string literals to process.env', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/env-computed-string/index.js'),
+      {
+        env: {ABC: 'XYZ'},
+      },
+    );
+
+    let contents = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(!contents.includes('process.env'));
+
+    let output = await run(b);
+    assert.strictEqual(output, 'XYZ');
   });
 
   it('should insert environment variables from a file', async function() {
@@ -3483,6 +3513,35 @@ describe('javascript', function() {
     );
     let res = await run(b);
     assert.deepEqual(res.default, 'x: 123');
+  });
+
+  it('should only replace free references to require', async () => {
+    let b = await bundle(
+      path.join(__dirname, 'integration/js-require-free/index.js'),
+    );
+    let output;
+    await run(b, {
+      output(v) {
+        output = v;
+      },
+    });
+    assert.strictEqual(output, 'a');
+  });
+
+  it('should only replace free references to require with scope hoisting', async () => {
+    let b = await bundle(
+      path.join(__dirname, 'integration/js-require-free/index.js'),
+      {
+        mode: 'production',
+      },
+    );
+    let output;
+    await run(b, {
+      output(v) {
+        output = v;
+      },
+    });
+    assert.strictEqual(output, 'a');
   });
 
   it('should support runtime module deduplication', async function() {

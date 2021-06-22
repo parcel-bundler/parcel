@@ -243,7 +243,7 @@ function getDependencies(
   otherDependencies: Array<Dependency>,
 |} {
   let cachedDependencies = bundleDependencies.get(bundle);
-
+  cachedDependencies = null;
   if (cachedDependencies) {
     return cachedDependencies;
   } else {

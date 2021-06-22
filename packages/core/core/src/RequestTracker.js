@@ -17,6 +17,7 @@ import type {
   ParcelOptions,
   RequestInvalidation,
 } from './types';
+import type {Deferred} from '@parcel/utils';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
@@ -24,9 +25,9 @@ import path from 'path';
 import {
   isGlobMatch,
   isDirectoryInside,
-  md5FromObject,
-  md5FromString,
+  makeDeferredWithPromise,
 } from '@parcel/utils';
+import {hashString} from '@parcel/hash';
 import ContentGraph, {type SerializedContentGraph} from './ContentGraph';
 import {assertSignalNotAborted, hashFromOption} from './utils';
 import {
@@ -187,6 +188,7 @@ export class RequestGraph extends ContentGraph<
 > {
   invalidNodeIds: Set<NodeId> = new Set();
   incompleteNodeIds: Set<NodeId> = new Set();
+  incompleteNodePromises: Map<NodeId, Promise<boolean>> = new Map();
   globNodeIds: Set<NodeId> = new Set();
   envNodeIds: Set<NodeId> = new Set();
   optionNodeIds: Set<NodeId> = new Set();
@@ -222,37 +224,33 @@ export class RequestGraph extends ContentGraph<
 
   // addNode for RequestGraph should not override the value if added multiple times
   addNode(node: RequestGraphNode): NodeId {
-    let didNodeExist = this.hasContentKey(node.id);
-
-    if (!didNodeExist) {
-      let nodeId = super.addNodeByContentKey(node.id, node);
-      if (node.type === 'glob') {
-        this.globNodeIds.add(nodeId);
-      }
-
-      if (node.type === 'env') {
-        this.envNodeIds.add(nodeId);
-      }
-
-      if (node.type === 'option') {
-        this.optionNodeIds.add(nodeId);
-      }
+    let nodeId = this._contentKeyToNodeId.get(node.id);
+    if (nodeId != null) {
+      return nodeId;
     }
 
-    return this.getNodeIdByContentKey(node.id);
+    nodeId = super.addNodeByContentKey(node.id, node);
+    if (node.type === 'glob') {
+      this.globNodeIds.add(nodeId);
+    } else if (node.type === 'env') {
+      this.envNodeIds.add(nodeId);
+    } else if (node.type === 'option') {
+      this.optionNodeIds.add(nodeId);
+    }
+
+    return nodeId;
   }
 
   removeNode(nodeId: NodeId): void {
     this.invalidNodeIds.delete(nodeId);
     this.incompleteNodeIds.delete(nodeId);
+    this.incompleteNodePromises.delete(nodeId);
     let node = nullthrows(this.getNode(nodeId));
     if (node.type === 'glob') {
       this.globNodeIds.delete(nodeId);
-    }
-    if (node.type === 'env') {
+    } else if (node.type === 'env') {
       this.envNodeIds.delete(nodeId);
-    }
-    if (node.type === 'option') {
+    } else if (node.type === 'option') {
       this.optionNodeIds.delete(nodeId);
     }
     return super.removeNode(nodeId);
@@ -262,12 +260,6 @@ export class RequestGraph extends ContentGraph<
     let node = nullthrows(this.getNode(nodeId));
     invariant(node.type === 'request');
     return node;
-  }
-
-  completeRequest(request: StoredRequest) {
-    let nodeId = this.getNodeIdByContentKey(request.id);
-    this.invalidNodeIds.delete(nodeId);
-    this.incompleteNodeIds.delete(nodeId);
   }
 
   replaceSubrequests(
@@ -646,7 +638,9 @@ export default class RequestTracker {
     this.signal = signal;
   }
 
-  startRequest(request: StoredRequest): NodeId {
+  startRequest(
+    request: StoredRequest,
+  ): {|requestNodeId: NodeId, deferred: Deferred<boolean>|} {
     let didPreviouslyExist = this.graph.hasContentKey(request.id);
     let requestNodeId;
     if (didPreviouslyExist) {
@@ -660,7 +654,11 @@ export default class RequestTracker {
 
     this.graph.incompleteNodeIds.add(requestNodeId);
     this.graph.invalidNodeIds.delete(requestNodeId);
-    return requestNodeId;
+
+    let {promise, deferred} = makeDeferredWithPromise();
+    this.graph.incompleteNodePromises.set(requestNodeId, promise);
+
+    return {requestNodeId, deferred};
   }
 
   // If a cache key is provided, the result will be removed from the node and stored in a separate cache entry
@@ -708,6 +706,7 @@ export default class RequestTracker {
   completeRequest(nodeId: NodeId) {
     this.graph.invalidNodeIds.delete(nodeId);
     this.graph.incompleteNodeIds.delete(nodeId);
+    this.graph.incompleteNodePromises.delete(nodeId);
     let node = this.graph.getNode(nodeId);
     if (node?.type === 'request') {
       node.invalidateReason = VALID;
@@ -716,6 +715,7 @@ export default class RequestTracker {
 
   rejectRequest(nodeId: NodeId) {
     this.graph.incompleteNodeIds.delete(nodeId);
+    this.graph.incompleteNodePromises.delete(nodeId);
 
     let node = this.graph.getNode(nodeId);
     if (node?.type === 'request') {
@@ -762,7 +762,22 @@ export default class RequestTracker {
       return this.getRequestResult<TResult>(request.id);
     }
 
-    let requestNodeId = this.startRequest({
+    if (requestId != null) {
+      let incompletePromise = this.graph.incompleteNodePromises.get(requestId);
+      if (incompletePromise != null) {
+        // There is a another instance of this request already running, wait for its completion and reuse its result
+        try {
+          if (await incompletePromise) {
+            // $FlowFixMe[incompatible-type]
+            return this.getRequestResult<TResult>(request.id);
+          }
+        } catch (e) {
+          // Rerun this request
+        }
+      }
+    }
+
+    let {requestNodeId, deferred} = this.startRequest({
       id: request.id,
       type: request.type,
     });
@@ -783,9 +798,11 @@ export default class RequestTracker {
       assertSignalNotAborted(this.signal);
       this.completeRequest(requestNodeId);
 
+      deferred.resolve(true);
       return result;
     } catch (err) {
       this.rejectRequest(requestNodeId);
+      deferred.resolve(false);
       throw err;
     } finally {
       this.graph.replaceSubrequests(requestNodeId, [...subRequestContentKeys]);
@@ -847,13 +864,9 @@ export default class RequestTracker {
   }
 
   async writeToCache() {
-    let cacheKey = md5FromObject({
-      parcelVersion: PARCEL_VERSION,
-      entries: this.options.entries,
-    });
-
-    let requestGraphKey = md5FromString(`${cacheKey}:requestGraph`);
-    let snapshotKey = md5FromString(`${cacheKey}:snapshot`);
+    let cacheKey = `${PARCEL_VERSION}:${JSON.stringify(this.options.entries)}`;
+    let requestGraphKey = hashString(`${cacheKey}:requestGraph`);
+    let snapshotKey = hashString(`${cacheKey}:snapshot`);
 
     if (this.options.shouldDisableCache) {
       return;
@@ -877,7 +890,7 @@ export default class RequestTracker {
     promises.push(this.options.cache.set(requestGraphKey, this.graph));
 
     let opts = getWatcherOptions(this.options);
-    let snapshotPath = this.options.cache._getCachePath(snapshotKey, '.txt');
+    let snapshotPath = path.join(this.options.cacheDir, snapshotKey + '.txt');
     promises.push(
       this.options.inputFS.writeSnapshot(
         this.options.projectRoot,
@@ -912,18 +925,14 @@ async function loadRequestGraph(options): Async<RequestGraph> {
     return new RequestGraph();
   }
 
-  let cacheKey = md5FromObject({
-    parcelVersion: PARCEL_VERSION,
-    entries: options.entries,
-  });
-
-  let requestGraphKey = md5FromString(`${cacheKey}:requestGraph`);
+  let cacheKey = `${PARCEL_VERSION}:${JSON.stringify(options.entries)}`;
+  let requestGraphKey = hashString(`${cacheKey}:requestGraph`);
   let requestGraph = await options.cache.get<RequestGraph>(requestGraphKey);
 
   if (requestGraph) {
     let opts = getWatcherOptions(options);
-    let snapshotKey = md5FromString(`${cacheKey}:snapshot`);
-    let snapshotPath = options.cache._getCachePath(snapshotKey, '.txt');
+    let snapshotKey = hashString(`${cacheKey}:snapshot`);
+    let snapshotPath = path.join(options.cacheDir, snapshotKey + '.txt');
     let events = await options.inputFS.getEventsSince(
       options.projectRoot,
       snapshotPath,

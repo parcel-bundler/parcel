@@ -7,7 +7,6 @@ import type WorkerFarm from '@parcel/workers';
 import type {PackageManager} from '@parcel/package-manager';
 import type {Diagnostic} from '@parcel/diagnostic';
 import type {PluginLogger} from '@parcel/logger';
-import AssetGraph from '../core/src/AssetGraph.js'; //TODO change this
 import type {AST as _AST, ConfigResult as _ConfigResult} from './unsafe';
 
 /** Plugin-specific AST, <code>any</code> */
@@ -185,6 +184,7 @@ export type VersionMap = {
  * Defines the environment in for the output bundle
  */
 export interface Environment {
+  +id: string;
   +context: EnvironmentContext;
   +engines: Engines;
   /** Whether to include all/none packages \
@@ -276,6 +276,7 @@ export type InitialParcelOptions = {|
 
   +inputFS?: FileSystem,
   +outputFS?: FileSystem,
+  +cache?: Cache,
   +workerFarm?: WorkerFarm,
   +packageManager?: PackageManager,
   +detailedReport?: ?DetailedReportOptions,
@@ -364,7 +365,7 @@ export type Meta = JSONObject;
 export type Symbol = string;
 
 /**
- * A map from extert names to the corespinding asset's lcoal variable name.
+ * A map of export names to the corresponding asset's local variable names.
  */
 export interface AssetSymbols // eslint-disable-next-line no-undef
   extends Iterable<
@@ -480,6 +481,8 @@ export interface Dependency {
   +sourceAssetId: ?string;
   /** Used for error messages, the importer. */
   +sourcePath: ?string;
+  /** The type of the asset that referenced this dependency. */
+  +sourceAssetType: ?string;
   +resolveFrom: ?string;
   /** a named pipeline (if the <code>moduleSpecifier</code> didn't specify one). */
   +pipeline: ?string;
@@ -604,6 +607,7 @@ export interface Asset extends BaseAsset {
 export type DevDepOptions = {|
   moduleSpecifier: ModuleSpecifier,
   resolveFrom: FilePath,
+  range?: ?SemverRange,
   /**
    * Whether to also invalidate the parcel plugin that loaded this dev dependency
    * when it changes. This is useful if the parcel plugin or another parent dependency
@@ -836,7 +840,7 @@ export type BundleTraversable =
 /**
  * @section bundler
  */
-export type BundlerBundleGraphTraversable =
+export type BundleGraphTraversable =
   | {|+type: 'asset', value: Asset|}
   | {|+type: 'dependency', value: Dependency|};
 
@@ -920,7 +924,6 @@ export interface Bundle {
   +isInline: ?boolean;
   +isSplittable: ?boolean;
   +target: Target;
-  +stats: Stats;
   /** Assets that run when the bundle is loaded (e.g. runtimes could be added). VERIFY */
   getEntryAssets(): Array<Asset>;
   /** The actual entry (which won't be a runtime). */
@@ -947,6 +950,7 @@ export interface NamedBundle extends Bundle {
 
 export interface PackagedBundle extends NamedBundle {
   +filePath: FilePath;
+  +stats: Stats;
 }
 
 /**
@@ -988,14 +992,8 @@ export interface MutableBundleGraph extends BundleGraph<Bundle> {
   removeBundleGroup(bundleGroup: BundleGroup): void;
   /** Turns a dependency to a different bundle into a dependency to an asset inside <code>bundle</code>. */
   internalizeAsyncDependency(bundle: Bundle, dependency: Dependency): void;
-  traverse<TContext>(
-    GraphVisitor<BundlerBundleGraphTraversable, TContext>,
-  ): ?TContext;
-  traverseContents<TContext>(
-    GraphVisitor<BundlerBundleGraphTraversable, TContext>,
-  ): ?TContext;
-  updateAssetGraph(Asset, AssetGraph): void;
   merge(MutableBundleGraph): void;
+  cleanup(MutableBundleGraph): void;
 }
 
 /**
@@ -1068,6 +1066,7 @@ export interface BundleGraph<TBundle: Bundle> {
     asset: Asset,
     boundary: ?Bundle,
   ): Array<ExportSymbolResolution>;
+  traverse<TContext>(GraphVisitor<BundleGraphTraversable, TContext>): ?TContext;
   traverseBundles<TContext>(
     visit: GraphVisitor<TBundle, TContext>,
     startBundle: ?Bundle,
@@ -1108,7 +1107,9 @@ export type FileCreateInvalidation =
  */
 export type ResolveResult = {|
   +filePath?: FilePath,
+  +pipeline?: ?string,
   +isExcluded?: boolean,
+  +isAsync?: boolean,
   /** Corresponds to BaseAsset's <code>sideEffects</code>. */
   +sideEffects?: boolean,
   /** A resolver might want to resolve to a dummy, in this case <code>filePath</code> is rather "resolve from". */
@@ -1214,10 +1215,10 @@ export type Runtime = {|
  */
 export type Packager = {|
   loadConfig?: ({|
-    bundle: NamedBundle,
+    config: Config,
     options: PluginOptions,
     logger: PluginLogger,
-  |}) => Async<?ConfigOutput>,
+  |}) => Async<void>,
   package({|
     bundle: NamedBundle,
     bundleGraph: BundleGraph<NamedBundle>,
@@ -1236,6 +1237,11 @@ export type Packager = {|
  * @section optimizer
  */
 export type Optimizer = {|
+  loadConfig?: ({|
+    config: Config,
+    options: PluginOptions,
+    logger: PluginLogger,
+  |}) => Async<void>,
   optimize({|
     bundle: NamedBundle,
     bundleGraph: BundleGraph<NamedBundle>,
@@ -1243,6 +1249,7 @@ export type Optimizer = {|
     map: ?SourceMap,
     options: PluginOptions,
     logger: PluginLogger,
+    config: ?ConfigResult,
     getSourceMapReference: (map: ?SourceMap) => Async<?string>,
   |}): Async<BundleResult>,
 |};
@@ -1256,6 +1263,7 @@ export type Resolver = {|
     options: PluginOptions,
     logger: PluginLogger,
     filePath: FilePath,
+    pipeline: ?string,
   |}): Async<?ResolveResult>,
 |};
 

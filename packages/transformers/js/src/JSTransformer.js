@@ -3,7 +3,7 @@ import type {JSONObject, EnvMap} from '@parcel/types';
 import type {SchemaEntity} from '@parcel/utils';
 import SourceMap from '@parcel/source-map';
 import {Transformer} from '@parcel/plugin';
-import {transform} from './native';
+import {init, transform} from '../native';
 import {isURL} from '@parcel/utils';
 import path from 'path';
 import browserslist from 'browserslist';
@@ -96,12 +96,12 @@ export default (new Transformer({
     let reactRefresh =
       config.isSource &&
       options.hmrOptions &&
-      config.env.isBrowser() &&
-      !config.env.isWorker() &&
       options.mode === 'development' &&
-      (pkg?.dependencies?.react ||
-        pkg?.devDependencies?.react ||
-        pkg?.peerDependencies?.react);
+      Boolean(
+        pkg?.dependencies?.react ||
+          pkg?.devDependencies?.react ||
+          pkg?.peerDependencies?.react,
+      );
 
     // Check if we should ignore fs calls
     // See https://github.com/defunctzombie/node-browser-resolve#skip
@@ -159,8 +159,11 @@ export default (new Transformer({
       asset.isSplittable = true;
     }
 
-    let code = await asset.getCode();
-    let originalMap = await asset.getMap();
+    let [code, originalMap] = await Promise.all([
+      asset.getBuffer(),
+      asset.getMap(),
+      init,
+    ]);
 
     let targets;
     if (asset.isSource) {
@@ -246,7 +249,10 @@ export default (new Transformer({
       jsx_pragma: config?.pragma,
       jsx_pragma_frag: config?.pragmaFrag,
       is_development: options.mode === 'development',
-      react_refresh: Boolean(config?.reactRefresh),
+      react_refresh:
+        asset.env.isBrowser() &&
+        !asset.env.isWorker() &&
+        Boolean(config?.reactRefresh),
       targets,
       source_maps: !!asset.env.sourceMap,
       scope_hoist: asset.env.shouldScopeHoist,
@@ -279,7 +285,7 @@ export default (new Transformer({
           filePath: asset.filePath,
           message: diagnostic.message,
           codeFrame: {
-            code,
+            code: code.toString(),
             codeHighlights: diagnostic.code_highlights?.map(highlight => {
               let {start, end} = convertLoc(highlight.loc);
               return {
@@ -438,7 +444,8 @@ export default (new Transformer({
       // This allows accessing symbols that don't exist without errors in symbol propagation.
       if (
         hoist_result.has_cjs_exports ||
-        (deps.size === 0 &&
+        (!hoist_result.is_esm &&
+          deps.size === 0 &&
           Object.keys(hoist_result.exported_symbols).length === 0) ||
         (hoist_result.should_wrap && !asset.symbols.hasExportSymbol('*'))
       ) {
@@ -462,7 +469,7 @@ export default (new Transformer({
     }
 
     asset.type = 'js';
-    asset.setCode(compiledCode);
+    asset.setBuffer(compiledCode);
 
     if (map) {
       let sourceMap = new SourceMap(options.projectRoot);

@@ -12,7 +12,8 @@ import type {SchemaEntity} from '@parcel/utils';
 
 import invariant from 'assert';
 import {Bundler} from '@parcel/plugin';
-import {md5FromString, validateSchema} from '@parcel/utils';
+import {validateSchema} from '@parcel/utils';
+import {hashString} from '@parcel/hash';
 import nullthrows from 'nullthrows';
 import {encodeJSONKeyComponent} from '@parcel/diagnostic';
 
@@ -29,6 +30,8 @@ const HTTP_OPTIONS = {
     maxParallelRequests: 25,
   },
 };
+
+let skipOptimize = false;
 
 export default (new Bundler({
   // RULES:
@@ -183,6 +186,13 @@ export default (new Bundler({
         bundleGraph.addEntryToBundle(asset, bundle);
       }
     }
+
+    // If there's only one bundle, we can skip the rest of the steps.
+    skipOptimize = bundleRoots.size === 1;
+    if (skipOptimize) {
+      return;
+    }
+
     invariant(config != null);
 
     // Step 2: Remove asset graphs that begin with entries to other bundles.
@@ -288,6 +298,11 @@ export default (new Bundler({
     }
   },
   optimize({bundleGraph, config}) {
+    // if only one bundle, no need to optimize
+    if (skipOptimize) {
+      return;
+    }
+
     invariant(config != null);
 
     // Step 5: Find duplicated assets in different bundle groups, and separate them into their own parallel bundles.
@@ -302,7 +317,7 @@ export default (new Bundler({
       |},
     > = new Map();
 
-    bundleGraph.traverseContents((node, ctx, actions) => {
+    bundleGraph.traverse((node, ctx, actions) => {
       if (node.type !== 'asset') {
         return;
       }
@@ -383,7 +398,7 @@ export default (new Bundler({
 
       let [firstBundle] = [...sourceBundles];
       let sharedBundle = bundleGraph.createBundle({
-        uniqueKey: md5FromString([...sourceBundles].map(b => b.id).join(':')),
+        uniqueKey: hashString([...sourceBundles].map(b => b.id).join(':')),
         // Allow this bundle to be deduplicated. It shouldn't be further split.
         // TODO: Reconsider bundle/asset flags.
         isSplittable: true,

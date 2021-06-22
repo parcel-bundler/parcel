@@ -29,7 +29,8 @@ import type {PathRequestInput} from './PathRequest';
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import path from 'path';
-import {md5FromOrderedObject, PromiseQueue} from '@parcel/utils';
+import {PromiseQueue} from '@parcel/utils';
+import {hashString} from '@parcel/hash';
 import ThrowableDiagnostic, {md} from '@parcel/diagnostic';
 import AssetGraph from '../AssetGraph';
 import {PARCEL_VERSION} from '../constants';
@@ -92,7 +93,9 @@ export default function createAssetGraphRequest(
       let builder = new AssetGraphBuilder(input, prevResult);
       let assetGraphRequest = await await builder.build();
       let shouldGetAssetTransformations =
-        assetGraphRequest.changedAssets.size > 0 && isPrevResult; //and increment flag is on
+        input.options.shouldIncrementallyBundle &&
+        assetGraphRequest.changedAssets.size > 0 &&
+        isPrevResult;
 
       let assetGraphTransformationSubGraph = shouldGetAssetTransformations
         ? assetGraphRequest.assetGraph.getChangedAssetGraph(
@@ -165,13 +168,9 @@ export class AssetGraphBuilder {
     this.name = name;
     this.requestedAssetIds = requestedAssetIds ?? new Set();
     this.shouldBuildLazily = shouldBuildLazily ?? false;
-    this.shouldBundle = false;
-
-    this.cacheKey = md5FromOrderedObject({
-      parcelVersion: PARCEL_VERSION,
-      name,
-      entries,
-    });
+    this.cacheKey = hashString(
+      `${PARCEL_VERSION}${name}${JSON.stringify(entries) ?? ''}`,
+    );
 
     this.queue = new PromiseQueue();
   }
@@ -565,8 +564,10 @@ export class AssetGraphBuilder {
           if (assetGroups.length === 1) {
             let [assetGroupId] = assetGroups;
             let assetGroup = nullthrows(this.assetGraph.getNode(assetGroupId));
-            invariant(assetGroup.type === 'asset_group');
-            if (assetGroup.value.sideEffects === false) {
+            if (
+              assetGroup.type === 'asset_group' &&
+              assetGroup.value.sideEffects === false
+            ) {
               incomingDep.excluded = true;
             }
           } else {
@@ -866,55 +867,11 @@ export class AssetGraphBuilder {
       {force: true},
     );
 
-    if (assets != null) {
-      for (let asset of assets) {
-        if (!this.shouldBundle) {
-          let otherAsset = this.assetGraph.getNodeByContentKey(asset.id);
-          if (otherAsset != null) {
-            invariant(otherAsset.type === 'asset');
-            this.shouldBundle = !this._areDependenciesEqualForAssets(
-              asset,
-              otherAsset.value,
-            );
-          } else {
-            // adding a new entry or dependency
-            this.shouldBundle = true;
-          }
-        }
-
-        this.changedAssets.set(asset.id, asset);
-      }
-      this.assetGraph.resolveAssetGroup(input, assets, request.id);
-    } else {
-      // bold assumption that something changed
-      this.shouldBundle = true;
-    }
-  }
-
-  _areDependenciesEqualForAssets(asset: Asset, otherAsset: Asset): boolean {
-    if (otherAsset == null) {
-      return false;
+    for (let asset of assets) {
+      this.changedAssets.set(asset.id, asset);
     }
 
-    let assetDependencies = Array.from(asset?.dependencies.keys()).sort();
-    let otherAssetDependencies = Array.from(
-      otherAsset?.dependencies.keys(),
-    ).sort();
-
-    if (assetDependencies.length !== otherAssetDependencies.length) {
-      return false;
-    }
-
-    return assetDependencies.every((key, index) => {
-      if (key !== otherAssetDependencies[index]) {
-        return false;
-      }
-
-      return equalSet(
-        new Set(asset?.dependencies.get(key)?.symbols?.keys()),
-        new Set(otherAsset?.dependencies.get(key)?.symbols?.keys()),
-      );
-    });
+    this.assetGraph.resolveAssetGroup(input, assets, request.id);
   }
 }
 
