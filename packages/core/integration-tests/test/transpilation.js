@@ -165,6 +165,16 @@ describe('transpilation', function() {
     assert(file.includes('_jsxRuntime.jsx("div"'));
   });
 
+  it('should support the automatic JSX runtime with preact >= 10.5', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/jsx-automatic-preact/index.js'),
+    );
+
+    let file = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(file.includes('preact/jsx-runtime'));
+    assert(file.includes('_jsxRuntime.jsx("div"'));
+  });
+
   it('should support the automatic JSX runtime with explicit tsconfig.json', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/jsx-automatic-tsconfig/index.js'),

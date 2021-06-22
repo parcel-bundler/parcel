@@ -22,18 +22,22 @@ const JSX_PRAGMA = {
   react: {
     pragma: 'React.createElement',
     pragmaFrag: 'React.Fragment',
+    automatic: '>= 17.0.0',
   },
   preact: {
     pragma: 'h',
     pragmaFrag: 'Fragment',
+    automatic: '>= 10.5.0',
   },
   nervjs: {
     pragma: 'Nerv.createElement',
     pragmaFrag: undefined,
+    automatic: undefined,
   },
   hyperapp: {
     pragma: 'h',
     pragmaFrag: undefined,
+    automatic: undefined,
   },
 };
 
@@ -156,15 +160,14 @@ export default (new Transformer({
         );
       }
 
-      let reactVersion =
-        pkg?.dependencies?.react ||
-        pkg?.devDependencies?.react ||
-        pkg?.peerDependencies?.react;
-
       reactRefresh =
         options.hmrOptions &&
         options.mode === 'development' &&
-        Boolean(reactVersion);
+        Boolean(
+          pkg?.dependencies?.react ||
+            pkg?.devDependencies?.react ||
+            pkg?.peerDependencies?.react,
+        );
 
       let tsconfig = await config.getConfigFrom<TSConfig>(
         options.projectRoot + '/index',
@@ -188,12 +191,27 @@ export default (new Transformer({
         jsxImportSource = compilerOptions?.jsxImportSource;
         automaticJSXRuntime = true;
       } else {
+        let automaticVersion = reactLib
+          ? JSX_PRAGMA[reactLib]?.automatic
+          : null;
+        let reactLibVersion =
+          pkg?.dependencies?.[reactLib] ||
+          pkg?.devDependencies?.[reactLib] ||
+          pkg?.peerDependencies?.[reactLib];
+        let minReactLibVersion =
+          reactLibVersion != null && reactLibVersion !== '*'
+            ? semver.minVersion(reactLibVersion)?.toString()
+            : null;
+
         automaticJSXRuntime =
-          reactLib === 'react' &&
+          automaticVersion &&
           !compilerOptions?.jsxFactory &&
-          reactVersion != null &&
-          reactVersion !== '*' &&
-          semver.intersects(reactVersion, '>= 17.0.0');
+          minReactLibVersion != null &&
+          semver.satisfies(minReactLibVersion, automaticVersion);
+
+        if (automaticJSXRuntime) {
+          jsxImportSource = reactLib;
+        }
       }
 
       isJSX = Boolean(
