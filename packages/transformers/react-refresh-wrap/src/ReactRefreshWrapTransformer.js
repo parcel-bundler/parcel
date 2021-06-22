@@ -13,7 +13,7 @@ function shouldExclude(asset, options) {
     !asset.env.isBrowser() ||
     asset.env.isWorker() ||
     options.mode !== 'development' ||
-    !asset.getDependencies().find(v => v.moduleSpecifier === 'react')
+    !asset.getDependencies().find(v => v.specifier === 'react')
   );
 }
 
@@ -52,7 +52,8 @@ ${code}
 
     // The JSTransformer has already run, do it manually
     asset.addDependency({
-      moduleSpecifier: wrapperPath,
+      specifier: wrapperPath,
+      specifierType: 'esm',
     });
 
     return [asset];

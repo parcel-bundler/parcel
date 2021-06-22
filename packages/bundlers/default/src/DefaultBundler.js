@@ -44,142 +44,163 @@ export default (new Bundler({
     return loadBundlerConfig(config, options);
   },
 
-  bundle({bundleGraph, config}) {
+  bundle({bundleGraph, config, startValue}) {
     let bundleRoots: Map<Bundle, Array<Asset>> = new Map();
     let bundlesByEntryAsset: Map<Asset, Bundle> = new Map();
 
+    // recreate the bundle roots if the bundle graph has bundles
+    bundleGraph.getBundles().forEach(bundle => {
+      let entryAssets = bundle.getEntryAssets();
+      bundleRoots.set(bundle, entryAssets);
+      entryAssets.forEach(asset => {
+        bundlesByEntryAsset.set(asset, bundle);
+      });
+    });
+
     // Step 1: create bundles for each of the explicit code split points.
-    bundleGraph.traverse({
-      enter: (node, context, actions) => {
-        if (node.type !== 'dependency') {
-          return {
-            ...context,
-            bundleGroup: context?.bundleGroup,
-            bundleByType: context?.bundleByType,
-            parentNode: node,
-            parentBundle:
-              bundlesByEntryAsset.get(node.value) ?? context?.parentBundle,
-          };
-        }
-
-        let dependency = node.value;
-        if (bundleGraph.isDependencySkipped(dependency)) {
-          actions.skipChildren();
-          return;
-        }
-
-        let assets = bundleGraph.getDependencyAssets(dependency);
-        let resolution = bundleGraph.getDependencyResolution(dependency);
-        // Create a new bundle for entries, async deps, isolated assets, and inline assets.
-        if (
-          (dependency.isEntry && resolution) ||
-          (dependency.isAsync && resolution) ||
-          (dependency.isIsolated && resolution) ||
-          resolution?.isIsolated ||
-          resolution?.isInline
-        ) {
-          let bundleGroup = context?.bundleGroup;
-          let bundleByType: Map<string, Bundle> =
-            context?.bundleByType ?? new Map();
-
-          // Only create a new bundle group for entries, async dependencies, and isolated assets.
-          // Otherwise, the bundle is loaded together with the parent bundle.
-          if (
-            !bundleGroup ||
-            dependency.isEntry ||
-            dependency.isAsync ||
-            resolution.isIsolated
-          ) {
-            bundleGroup = bundleGraph.createBundleGroup(
-              dependency,
-              nullthrows(dependency.target ?? context?.bundleGroup?.target),
-            );
-
-            bundleByType = new Map();
+    bundleGraph.traverse(
+      {
+        enter: (node, context, actions) => {
+          if (node.type !== 'dependency') {
+            return {
+              ...context,
+              bundleGroup: context?.bundleGroup,
+              bundleByType: context?.bundleByType,
+              parentNode: node,
+              parentBundle:
+                bundlesByEntryAsset.get(node.value) ?? context?.parentBundle,
+            };
           }
+
+          let dependency = node.value;
+          if (bundleGraph.isDependencySkipped(dependency)) {
+            actions.skipChildren();
+            return;
+          }
+
+          let assets = bundleGraph.getDependencyAssets(dependency);
+          let resolution = bundleGraph.getDependencyResolution(dependency);
+          let bundleGroup = context?.bundleGroup;
+          // Create a new bundle for entries, lazy/parallel dependencies, isolated/inline assets.
+          if (
+            resolution &&
+            (!bundleGroup ||
+              dependency.priority === 'lazy' ||
+              dependency.priority === 'parallel' ||
+              resolution.bundleBehavior === 'isolated' ||
+              resolution.bundleBehavior === 'inline')
+          ) {
+            let bundleByType: Map<string, Bundle> =
+              context?.bundleByType ?? new Map();
+
+            // Only create a new bundle group for entries, lazy dependencies, and isolated assets.
+            // Otherwise, the bundle is loaded together with the parent bundle.
+            if (
+              !bundleGroup ||
+              dependency.priority === 'lazy' ||
+              resolution.bundleBehavior === 'isolated'
+            ) {
+              bundleGroup = bundleGraph.createBundleGroup(
+                dependency,
+                nullthrows(dependency.target ?? context?.bundleGroup?.target),
+              );
+
+              bundleByType = new Map();
+            }
+
+            for (let asset of assets) {
+              let bundle = bundleGraph.createBundle({
+                entryAsset: asset,
+                isEntry:
+                  asset.bundleBehavior === 'inline'
+                    ? false
+                    : dependency.isEntry || dependency.needsStableName,
+                isInline: asset.bundleBehavior === 'inline',
+                target: bundleGroup.target,
+              });
+              bundleByType.set(bundle.type, bundle);
+              bundlesByEntryAsset.set(asset, bundle);
+              bundleGraph.addBundleToBundleGroup(bundle, bundleGroup);
+
+              // The bundle may have already been created, and the graph gave us back the original one...
+              if (!bundleRoots.has(bundle)) {
+                bundleRoots.set(bundle, [asset]);
+              }
+
+              // If the bundle is in the same bundle group as the parent, create an asset reference
+              // between the dependency, the asset, and the target bundle.
+              if (bundleGroup === context?.bundleGroup) {
+                bundleGraph.createAssetReference(dependency, asset, bundle);
+              }
+            }
+
+            return {
+              bundleGroup,
+              bundleByType,
+              parentNode: node,
+              parentBundle: context?.parentBundle,
+            };
+          }
+
+          invariant(context != null);
+          invariant(context.parentNode.type === 'asset');
+          invariant(context.parentBundle != null);
+          invariant(bundleGroup != null);
+          let parentAsset = context.parentNode.value;
+          let parentBundle = context.parentBundle;
+          let bundleByType = nullthrows(context.bundleByType);
 
           for (let asset of assets) {
-            let bundle = bundleGraph.createBundle({
-              entryAsset: asset,
-              isEntry: asset.isInline ? false : Boolean(dependency.isEntry),
-              isInline: asset.isInline,
-              target: bundleGroup.target,
-            });
-            bundleByType.set(bundle.type, bundle);
-            bundlesByEntryAsset.set(asset, bundle);
-            bundleGraph.addBundleToBundleGroup(bundle, bundleGroup);
-
-            // The bundle may have already been created, and the graph gave us back the original one...
-            if (!bundleRoots.has(bundle)) {
-              bundleRoots.set(bundle, [asset]);
+            if (parentAsset.type === asset.type) {
+              continue;
             }
 
-            // If the bundle is in the same bundle group as the parent, create an asset reference
-            // between the dependency, the asset, and the target bundle.
-            if (bundleGroup === context?.bundleGroup) {
+            let existingBundle = bundleByType.get(asset.type);
+            if (existingBundle) {
+              // If a bundle of this type has already been created in this group,
+              // merge this subgraph into it.
+              nullthrows(bundleRoots.get(existingBundle)).push(asset);
+              bundlesByEntryAsset.set(asset, existingBundle);
+              bundleGraph.createAssetReference(
+                dependency,
+                asset,
+                existingBundle,
+              );
+            } else {
+              let bundle = bundleGraph.createBundle({
+                uniqueKey: asset.id,
+                env: asset.env,
+                type: asset.type,
+                target: bundleGroup.target,
+                isEntry:
+                  asset.bundleBehavior === 'inline' ||
+                  (dependency.priority === 'parallel' &&
+                    !dependency.needsStableName)
+                    ? false
+                    : parentBundle.isEntry,
+                isInline: asset.bundleBehavior === 'inline',
+                isSplittable: asset.isBundleSplittable ?? true,
+                pipeline: asset.pipeline,
+              });
+              bundleByType.set(bundle.type, bundle);
+              bundlesByEntryAsset.set(asset, bundle);
               bundleGraph.createAssetReference(dependency, asset, bundle);
+
+              // The bundle may have already been created, and the graph gave us back the original one...
+              if (!bundleRoots.has(bundle)) {
+                bundleRoots.set(bundle, [asset]);
+              }
             }
           }
 
           return {
-            bundleGroup,
-            bundleByType,
+            ...context,
             parentNode: node,
-            parentBundle: context?.parentBundle,
           };
-        }
-
-        invariant(context != null);
-        invariant(context.parentNode.type === 'asset');
-        invariant(context.parentBundle != null);
-        let parentAsset = context.parentNode.value;
-        let parentBundle = context.parentBundle;
-        let bundleGroup = nullthrows(context.bundleGroup);
-        let bundleByType = nullthrows(context.bundleByType);
-
-        for (let asset of assets) {
-          if (parentAsset.type === asset.type) {
-            continue;
-          }
-
-          let existingBundle = bundleByType.get(asset.type);
-          if (existingBundle) {
-            // If a bundle of this type has already been created in this group,
-            // merge this subgraph into it.
-            nullthrows(bundleRoots.get(existingBundle)).push(asset);
-            bundlesByEntryAsset.set(asset, existingBundle);
-            bundleGraph.createAssetReference(dependency, asset, existingBundle);
-          } else {
-            let bundle = bundleGraph.createBundle({
-              uniqueKey: asset.id,
-              env: asset.env,
-              type: asset.type,
-              target: bundleGroup.target,
-              isEntry:
-                asset.isInline || dependency.isEntry === false
-                  ? false
-                  : parentBundle.isEntry,
-              isInline: asset.isInline,
-              isSplittable: asset.isSplittable ?? true,
-              pipeline: asset.pipeline,
-            });
-            bundleByType.set(bundle.type, bundle);
-            bundlesByEntryAsset.set(asset, bundle);
-            bundleGraph.createAssetReference(dependency, asset, bundle);
-
-            // The bundle may have already been created, and the graph gave us back the original one...
-            if (!bundleRoots.has(bundle)) {
-              bundleRoots.set(bundle, [asset]);
-            }
-          }
-        }
-
-        return {
-          ...context,
-          parentNode: node,
-        };
+        },
       },
-    });
+      startValue,
+    );
 
     for (let [bundle, rootAssets] of bundleRoots) {
       for (let asset of rootAssets) {
@@ -254,7 +275,7 @@ export default (new Bundler({
       if (
         node.type !== 'dependency' ||
         node.value.isEntry ||
-        !node.value.isAsync
+        node.value.priority !== 'lazy'
       ) {
         return;
       }
@@ -265,7 +286,7 @@ export default (new Bundler({
       }
 
       let dependency = node.value;
-      if (dependency.isURL) {
+      if (dependency.specifierType === 'url') {
         // Don't internalize dependencies on URLs, e.g. `new Worker('foo.js')`
         return;
       }
@@ -436,21 +457,25 @@ export default (new Bundler({
     // Remove assets that are duplicated between shared bundles.
     deduplicate(bundleGraph);
   },
-  update({
-    bundleGraph,
-    config,
-    assetGraphTransformationSubGraph,
-    changedAssets,
-  }) {
-    //can updateAssetgraph here or bundle ?
-    // changedAssets.forEach(value => {
-    //   bundleGraph.updateAssetGraph(value, assetGraphTransformationSubGraph);
-    // });
-    //bundleGraph.merge(assetGraphTransformationSubGraph);
+  update({bundleGraph, changedAssets}) {
+    // for each changed asset, check if the asset is already in a bundle
+    // if so, then re-add it to clear the bundle hash
+    // else grab the asset's dependencies and add the asset to the dependency's bundles
+    console.log('Im Updating');
     changedAssets.forEach(value => {
-      bundleGraph.findBundlesWithAsset(value).forEach(bundle => {
-        bundleGraph.addAssetGraphToBundle(value, bundle);
-      });
+      let connectedBundles = bundleGraph.findBundlesWithAsset(value);
+      if (connectedBundles.length > 0) {
+        connectedBundles.forEach(bundle => {
+          bundleGraph.addAssetGraphToBundle(value, bundle);
+        });
+      } else {
+        let dependencies = bundleGraph.getIncomingDependencies(value);
+        dependencies.forEach(dependency => {
+          bundleGraph.findBundlesWithDependency(dependency).forEach(bundle => {
+            bundleGraph.addAssetGraphToBundle(value, bundle);
+          });
+        });
+      }
     });
   },
 }): Bundler);

@@ -10,7 +10,6 @@ import type {
   Target,
 } from '@parcel/types';
 import type {ParcelOptions} from '../types';
-import type AssetGraph from '../AssetGraph'; //shouldnt do this
 import invariant from 'assert';
 import path from 'path';
 import nullthrows from 'nullthrows';
@@ -24,6 +23,7 @@ import Dependency, {dependencyToInternalDependency} from './Dependency';
 import {environmentToInternalEnvironment} from './Environment';
 import {targetToInternalTarget} from './Target';
 import {HASH_REF_PREFIX} from '../constants';
+import {BundleBehavior} from '../types';
 
 export default class MutableBundleGraph extends BundleGraph<IBundle>
   implements IMutableBundleGraph {
@@ -107,7 +107,10 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
     this.#graph._graph.addEdge(dependencyNodeId, resolvedNodeId, 'references');
     this.#graph._graph.removeEdge(dependencyNodeId, resolvedNodeId);
 
-    if (dependency.isEntry) {
+    if (
+      dependency.isEntry ||
+      resolved.bundleBehavior === BundleBehavior.isolated
+    ) {
       this.#graph._graph.addEdge(
         nullthrows(this.#graph._graph.rootNodeId),
         bundleGroupNodeId,
@@ -191,7 +194,7 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
         pipeline: opts.pipeline ?? entryAsset?.pipeline,
         isEntry: opts.isEntry,
         isInline: opts.isInline,
-        isSplittable: opts.isSplittable ?? entryAsset?.isSplittable,
+        isSplittable: opts.isSplittable ?? entryAsset?.isBundleSplittable,
         isPlaceholder,
         target,
         name: null,
@@ -274,17 +277,5 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
       assetToAssetValue(asset),
       bundleToInternalBundle(bundle),
     );
-  }
-
-  merge(bundleGraph: IMutableBundleGraph) {
-    this.#graph.merge(bundleGraph);
-  }
-
-  merge(bundleGraph: IMutableBundleGraph) {
-    this.#graph.merge(bundleGraph);
-  }
-
-  updateAssetGraph(asset: IAsset, subGraph: AssetGraph): void {
-    this.#graph.updateAssetGraph(assetToAssetValue(asset), subGraph);
   }
 }

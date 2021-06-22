@@ -24,6 +24,7 @@ import {hashObject, objectSortedEntries} from '@parcel/utils';
 import nullthrows from 'nullthrows';
 import ContentGraph, {type SerializedContentGraph} from './ContentGraph';
 import {createDependency} from './Dependency';
+import Delta from './Delta';
 
 type InitOpts = {|
   entries?: Array<string>,
@@ -103,6 +104,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
   onNodeRemoved: ?(nodeId: NodeId) => mixed;
   hash: ?string;
   envCache: Map<string, Environment>;
+  shouldForceBundle: boolean = false;
 
   constructor(opts: ?SerializedAssetGraph) {
     if (opts) {
@@ -216,11 +218,13 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
     let depNodes = targets.map(target => {
       let node = nodeFromDep(
         createDependency({
-          moduleSpecifier: entry.filePath,
+          specifier: entry.filePath,
+          specifierType: 'esm', // ???
           pipeline: target.pipeline,
           target: target,
           env: target.env,
           isEntry: true,
+          needsStableName: true,
           symbols: target.env.isLibrary
             ? new Map([['*', {local: '*', isWeak: true, loc: null}]])
             : undefined,
@@ -423,9 +427,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
 
       let dependentAssets = [];
       for (let dep of asset.dependencies.values()) {
-        let dependentAsset = assets.find(
-          a => a.uniqueKey === dep.moduleSpecifier,
-        );
+        let dependentAsset = assets.find(a => a.uniqueKey === dep.specifier);
         if (dependentAsset) {
           dependentAssetKeys.push(dependentAsset.uniqueKey);
           dependentAssets.push(dependentAsset);
@@ -470,7 +472,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
         depNode.value.meta = existing.value.meta;
       }
       let dependentAsset = dependentAssets.find(
-        a => a.uniqueKey === dep.moduleSpecifier,
+        a => a.uniqueKey === dep.specifier,
       );
       if (dependentAsset) {
         depNode.complete = true;
@@ -586,13 +588,53 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
   }
 
   getChangedAssetGraph(
-    previousContentKeys: Set<ContentKey>,
+    previousContentKeys: Map<ContentKey, {|type: string, hash: string|}>,
     changedAssets: Map<string, Asset>,
-  ): AssetGraph {
+  ): {|
+    transformationSubgraph: AssetGraph,
+    dependencyDelta: Delta,
+    assetDelta: Delta,
+  |} {
+    let assetDelta = new Delta();
+    let dependencyDelta = new Delta();
+
     // Called when graph structure is not same or there are changed assets
-    let subGraphChanges = new AssetGraph();
+    let transformationSubgraph = new AssetGraph();
     let newIdToOldNodeIdsMap = new Map<NodeId, NodeId>();
     let oldIdToNewIdsMap = new Map<NodeId, NodeId>();
+
+    // TODO : don't use the private map
+    let currentContentKeys = [...this._contentKeyToNodeId.keys()];
+
+    // TODO : likely won't scale for large applications, perhaps utilize invalidations
+    [...previousContentKeys.entries()].forEach(([key, value]) => {
+      if (!currentContentKeys.includes(key)) {
+        if (value.type === 'asset') {
+          assetDelta.removed.add(key);
+        } else if (value.type === 'dependency') {
+          dependencyDelta.removed.add(key);
+        }
+      }
+    });
+    currentContentKeys.forEach(key => {
+      // adding a node to the graph
+      let value = previousContentKeys.get(key);
+      let node = this.getNodeByContentKey(key);
+
+      if (value == null) {
+        if (node?.type === 'asset') {
+          assetDelta.added.add(key);
+        } else if (node?.type === 'dependency') {
+          dependencyDelta.added.add(key);
+        }
+      } else {
+        // if it wasn't added, it may be modified
+        if (node?.type === 'asset' && node.value.hash !== value.hash) {
+          assetDelta.modified.add(key);
+        }
+        // TODO : Determine if a dependency was updated
+      }
+    });
 
     changedAssets.forEach(changedAsset => {
       //add asset as node from new graph
@@ -600,11 +642,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
       this.traverse((nodeId, _, actions) => {
         // add all inbound and outbound edges and nodes to the sub-graph
         let assetGraphNode = nullthrows(this.getNode(nodeId)); // get node from the original asset graph
-        subGraphChanges.addNode(assetGraphNode);
-
-        let newNodeId = subGraphChanges.getNodeIdByContentKey(
-          assetGraphNode.id,
-        );
+        let newNodeId = transformationSubgraph.addNode(assetGraphNode);
         newIdToOldNodeIdsMap.set(newNodeId, nodeId);
         oldIdToNewIdsMap.set(nodeId, newNodeId);
 
@@ -618,21 +656,38 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
           return;
         }
       }, changedNodeId);
+
+      // if the dependency now resolves to a new asset, go up the tree until you see the dependency
+      this.traverseAncestors(changedNodeId, (ancestorId, _, actions) => {
+        let assetGraphNode = nullthrows(this.getNode(ancestorId)); // get node from the original asset graph
+
+        let newNodeId = transformationSubgraph.addNode(assetGraphNode);
+        newIdToOldNodeIdsMap.set(newNodeId, ancestorId);
+        oldIdToNewIdsMap.set(ancestorId, newNodeId);
+
+        if (assetGraphNode.type === 'dependency') {
+          actions.skipChildren();
+        }
+      });
     });
 
-    //Set all inbound and outbound nodes up
-    subGraphChanges.nodes.forEach((value, key) => {
+    // set all inbound and outbound nodes up
+    transformationSubgraph.nodes.forEach((value, key) => {
       let oldNodeId = newIdToOldNodeIdsMap.get(key);
       if (oldNodeId) {
         this.outboundEdges.getEdges(oldNodeId, null).forEach(value => {
           let newNodeId = oldIdToNewIdsMap.get(value);
           if (newNodeId) {
-            subGraphChanges.addEdge(key, newNodeId, null);
+            transformationSubgraph.addEdge(key, newNodeId, null);
           }
         });
       }
     });
 
-    return subGraphChanges;
+    return {
+      transformationSubgraph,
+      assetDelta,
+      dependencyDelta,
+    };
   }
 }

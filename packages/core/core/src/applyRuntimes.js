@@ -114,7 +114,7 @@ export default async function applyRuntimes({
   for (let runtime of runtimes) {
     let devDepRequest = await createDevDependency(
       {
-        moduleSpecifier: runtime.name,
+        specifier: runtime.name,
         resolveFrom: runtime.resolveFrom,
       },
       runtime,
@@ -122,7 +122,7 @@ export default async function applyRuntimes({
       options,
     );
     devDepRequests.set(
-      `${devDepRequest.moduleSpecifier}:${devDepRequest.resolveFrom}`,
+      `${devDepRequest.specifier}:${devDepRequest.resolveFrom}`,
       devDepRequest,
     );
     await runDevDepRequest(api, devDepRequest);
@@ -215,7 +215,6 @@ export default async function applyRuntimes({
 
     if (isEntry) {
       bundleGraph._graph.addEdge(bundleNodeId, bundleGraphRuntimeNodeId);
-      // add entry to the front, remove previous runtime
       if (bundle.entryAssetIds.includes(runtimeNode.id)) {
         let index = bundle.entryAssetIds.indexOf(runtimeNode.id);
         bundle.entryAssetIds.splice(index, 1);

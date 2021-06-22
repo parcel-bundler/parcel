@@ -20,7 +20,10 @@ export default (new Resolver({
     let error;
     if (sourceAssetType !== 'js' && sourceAssetType !== 'css') {
       error = `Glob imports are not supported in ${sourceAssetType} files.`;
-    } else if (dependency.isURL) {
+    } else if (
+      dependency.specifierType === 'url' &&
+      !dependency.meta?.isCSSImport
+    ) {
       error = 'Glob imports are not supported in URL dependencies.';
     }
 
@@ -72,7 +75,7 @@ export default (new Resolver({
         set(matches, parts, relative);
       }
 
-      let {value, imports} = generate(matches, dependency.isAsync);
+      let {value, imports} = generate(matches, dependency.priority === 'lazy');
       code = imports + 'module.exports = ' + value;
     } else if (sourceAssetType === 'css') {
       for (let [, relative] of results) {
@@ -88,7 +91,7 @@ export default (new Resolver({
       code,
       invalidateOnFileCreate: [{glob: normalized}],
       pipeline: null,
-      isAsync: false,
+      priority: 'sync',
     };
   },
 }): Resolver);

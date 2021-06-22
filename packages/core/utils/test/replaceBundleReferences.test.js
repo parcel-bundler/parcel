@@ -33,7 +33,8 @@ describe('replace bundle references', () => {
     // $FlowFixMe
     let dependency: Dependency = {
       id: '074b36596e3147e900a8ad17ceb5c90b',
-      moduleSpecifier: 'url:./image.jpg?as=webp',
+      specifier: 'url:./image.jpg?as=webp',
+      specifierType: 'esm',
     };
 
     let result = getURLReplacement({
@@ -77,7 +78,8 @@ describe('replace bundle references', () => {
     // $FlowFixMe
     let dependency: Dependency = {
       id: '074b36596e3147e900a8ad17ceb5c90b',
-      moduleSpecifier: 'url:./image.jpg?as=webp',
+      specifier: 'url:./image.jpg?as=webp',
+      specifierType: 'esm',
     };
 
     let result = getURLReplacement({
@@ -121,7 +123,8 @@ describe('replace bundle references', () => {
     // $FlowFixMe
     let dependency: Dependency = {
       id: '074b36596e314797845a8ad17ceb5c9b',
-      moduleSpecifier: './image.jpg',
+      specifier: './image.jpg',
+      specifierType: 'esm',
     };
 
     let result = getURLReplacement({
@@ -165,7 +168,8 @@ describe('replace bundle references', () => {
     // $FlowFixMe
     let dependency: Dependency = {
       id: '074b36596e3147e900a8ad17ceb5c90b',
-      moduleSpecifier: 'url:./image.jpg?as=webp',
+      specifier: 'url:./image.jpg?as=webp',
+      specifierType: 'esm',
     };
 
     let result = getURLReplacement({

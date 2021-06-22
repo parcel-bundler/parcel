@@ -144,14 +144,12 @@ export default (new Runtime({
       // Otherwise, try to resolve the dependency to an external bundle group
       // and insert a URL to that bundle.
       let resolved = bundleGraph.resolveAsyncDependency(dependency, bundle);
-      if (dependency.isURL && resolved == null) {
+      if (dependency.specifierType === 'url' && resolved == null) {
         // If a URL dependency was not able to be resolved, add a runtime that
-        // exports the original moduleSpecifier.
+        // exports the original specifier.
         assets.push({
           filePath: __filename,
-          code: `module.exports = ${JSON.stringify(
-            dependency.moduleSpecifier,
-          )}`,
+          code: `module.exports = ${JSON.stringify(dependency.specifier)}`,
           dependency,
         });
         continue;
@@ -255,7 +253,10 @@ function getDependencies(
       }
 
       let dependency = node.value;
-      if (dependency.isAsync && !dependency.isURL) {
+      if (
+        dependency.priority === 'lazy' &&
+        dependency.specifierType !== 'url'
+      ) {
         asyncDependencies.push(dependency);
       } else {
         otherDependencies.push(dependency);

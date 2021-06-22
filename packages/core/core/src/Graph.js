@@ -287,15 +287,12 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
     this.nodes.set(nodeId, node);
   }
 
-  replaceNode(
-    fromNodeId: NodeId,
-    toNodeId: NodeId,
-    type: TEdgeType | null = null,
-  ): void {
+  replaceNode(fromNodeId: NodeId, toNodeId: NodeId): void {
     this._assertHasNodeId(fromNodeId);
-    for (let parent of this.inboundEdges.getEdges(fromNodeId, type)) {
-      this.addEdge(parent, toNodeId, type);
-      this.removeEdge(parent, fromNodeId, type);
+    for (let [type, nodeIds] of this.inboundEdges.getEdgesByType(fromNodeId)) {
+      for (let nodeId of nodeIds) {
+        this.addEdge(nodeId, toNodeId, type);
+      }
     }
     this.removeNode(fromNodeId);
   }
