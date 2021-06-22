@@ -133,15 +133,22 @@ export default (new Transformer({
       }
     }
 
+    let reactVersion =
+      pkg?.dependencies?.react ||
+      pkg?.devDependencies?.react ||
+      pkg?.peerDependencies?.react;
+
     let reactRefresh =
       config.isSource &&
       options.hmrOptions &&
       options.mode === 'development' &&
-      Boolean(
-        pkg?.dependencies?.react ||
-          pkg?.devDependencies?.react ||
-          pkg?.peerDependencies?.react,
-      );
+      Boolean(reactVersion);
+
+    let automaticJSXRuntime =
+      reactLib === 'react' &&
+      reactVersion != null &&
+      reactVersion !== '*' &&
+      semver.intersects(reactVersion, '>= 17.0.0');
 
     // Check if we should ignore fs calls
     // See https://github.com/defunctzombie/node-browser-resolve#skip
@@ -185,6 +192,7 @@ export default (new Transformer({
     let isJSX = pragma || JSX_EXTENSIONS[path.extname(config.searchPath)];
     return {
       isJSX,
+      automaticJSXRuntime,
       pragma,
       pragmaFrag,
       inlineEnvironment,
@@ -296,6 +304,7 @@ export default (new Transformer({
       is_jsx: Boolean(config?.isJSX),
       jsx_pragma: config?.pragma,
       jsx_pragma_frag: config?.pragmaFrag,
+      automatic_jsx_runtime: Boolean(config?.automaticJSXRuntime),
       is_development: options.mode === 'development',
       react_refresh:
         asset.env.isBrowser() &&
@@ -515,7 +524,10 @@ export default (new Transformer({
           priority: dep.kind === 'DynamicImport' ? 'lazy' : 'sync',
           isOptional: dep.is_optional,
           meta,
-          resolveFrom: dep.is_helper ? __filename : undefined,
+          resolveFrom:
+            dep.is_helper && !dep.specifier.endsWith('/jsx-runtime')
+              ? __filename
+              : undefined,
           env,
         });
       }

@@ -155,6 +155,16 @@ describe('transpilation', function() {
     assert(!file.includes('@swc/helpers'));
   });
 
+  it('should support the automatic JSX runtime with React >= 17', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/jsx-automatic/index.js'),
+    );
+
+    let file = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(file.includes('react/jsx-runtime'));
+    assert(file.includes('_jsxRuntime.jsx("div"'));
+  });
+
   it('should support transpiling optional chaining', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/babel-optional-chaining/index.js'),

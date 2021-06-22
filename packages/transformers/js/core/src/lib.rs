@@ -64,6 +64,7 @@ pub struct Config {
   is_jsx: bool,
   jsx_pragma: Option<String>,
   jsx_pragma_frag: Option<String>,
+  automatic_jsx_runtime: bool,
   is_development: bool,
   react_refresh: bool,
   targets: Option<HashMap<String, String>>,
@@ -218,6 +219,12 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                 Some(react::RefreshOptions::default())
               } else {
                 None
+              };
+
+              react_options.runtime = if config.automatic_jsx_runtime {
+                Some(react::Runtime::Automatic)
+              } else {
+                Some(react::Runtime::Classic)
               };
             }
 
