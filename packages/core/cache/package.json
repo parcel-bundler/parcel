@@ -21,7 +21,7 @@
   "dependencies": {
     "@parcel/logger": "2.0.0-frontbucket.77",
     "@parcel/utils": "2.0.0-frontbucket.77",
-    "lmdb-store": "^1.5.2"
+    "lmdb-store": "^1.5.4"
   },
   "peerDependencies": {
     "@parcel/core": "^2.0.0-alpha.3.1"

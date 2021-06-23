@@ -428,7 +428,6 @@ describe('sourcemaps', function() {
       source: inputs[0],
       generated: raw,
       str: 'const local',
-      // ATLASSIAN `o` and `t` switch places when minified
       generatedStr: 'const t',
       sourcePath: 'index.js',
     });
@@ -438,7 +437,6 @@ describe('sourcemaps', function() {
       source: inputs[0],
       generated: raw,
       str: 'local.a',
-      // ATLASSIAN `o` and `t` switch places when minified
       generatedStr: 't.a',
       sourcePath: 'index.js',
     });
@@ -448,7 +446,6 @@ describe('sourcemaps', function() {
       source: inputs[1],
       generated: raw,
       str: 'exports.a',
-      // ATLASSIAN `o` and `t` switch places when minified
       generatedStr: 'o.a',
       sourcePath: 'local.js',
     });
@@ -458,7 +455,6 @@ describe('sourcemaps', function() {
       source: inputs[2],
       generated: raw,
       str: 'exports.count = function(a, b) {',
-      // ATLASSIAN `o` and `t` switch places when minified
       generatedStr: 'o.count=function(e,n){',
       sourcePath: 'utils/util.js',
     });

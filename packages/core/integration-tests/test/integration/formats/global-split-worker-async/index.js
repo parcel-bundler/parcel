@@ -1,1 +1,1 @@
-new Worker("./main-worker");
+new Worker("./main-worker", {type: 'module'});

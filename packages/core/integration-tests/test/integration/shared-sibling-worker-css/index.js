@@ -1,4 +1,4 @@
 import "./a.js";
 import "./style.css";
 
-new Worker("./worker");
+new Worker("./worker", {type: 'module'});

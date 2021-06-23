@@ -41,7 +41,7 @@
     "nullthrows": "^1.1.1",
     "regenerator-runtime": "^0.13.7",
     "semver": "^5.4.1",
-    "self-published": "npm:@parcel/transformer-js@2.0.0-nightly.722"
+    "self-published": "npm:@parcel/transformer-js@2.0.0-nightly.731"
   },
   "devDependencies": {
     "@napi-rs/cli": "1.0.4"
