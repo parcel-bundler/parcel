@@ -388,31 +388,34 @@ export default (new Bundler({
       .sort((a, b) => b.size - a.size);
 
     for (let {assets, sourceBundles} of sortedCandidates) {
-      // Find all bundle groups connected to the original bundles
-      let bundleGroups = new Set();
+      let eligibleSourceBundles = new Set();
 
       for (let bundle of sourceBundles) {
-        for (let bundleGroup of bundleGraph.getBundleGroupsContainingBundle(
-          bundle,
-        )) {
-          bundleGroups.add(bundleGroup);
+        // Find all bundle groups connected to the original bundles
+        let bundleGroups = bundleGraph.getBundleGroupsContainingBundle(bundle);
+        // Check if all bundle groups are within the parallel request limit
+        if (
+          bundleGroups.every(
+            group =>
+              bundleGraph
+                .getBundlesInBundleGroup(group)
+                .filter(b => !b.isInline).length < config.maxParallelRequests,
+          )
+        ) {
+          eligibleSourceBundles.add(bundle);
         }
       }
 
-      // If all bundle groups have already met the max parallel request limit, then they cannot be split.
-      if (
-        Array.from(bundleGroups).every(
-          group =>
-            bundleGraph.getBundlesInBundleGroup(group).filter(b => !b.isInline)
-              .length >= config.maxParallelRequests,
-        )
-      ) {
+      // Do not create a shared bundle unless there are at least 2 source bundles
+      if (eligibleSourceBundles.size < 2) {
         continue;
       }
 
-      let [firstBundle] = [...sourceBundles];
+      let [firstBundle] = [...eligibleSourceBundles];
       let sharedBundle = bundleGraph.createBundle({
-        uniqueKey: hashString([...sourceBundles].map(b => b.id).join(':')),
+        uniqueKey: hashString(
+          [...eligibleSourceBundles].map(b => b.id).join(':'),
+        ),
         // Allow this bundle to be deduplicated. It shouldn't be further split.
         // TODO: Reconsider bundle/asset flags.
         isSplittable: true,
@@ -426,20 +429,8 @@ export default (new Bundler({
       for (let asset of assets) {
         bundleGraph.addAssetGraphToBundle(asset, sharedBundle);
 
-        for (let bundle of sourceBundles) {
-          // Remove the asset graph from the bundle if all bundle groups are
-          // within the parallel request limit and will include the shared bundle.
-          let bundleGroups = bundleGraph.getBundleGroupsContainingBundle(
-            bundle,
-          );
-          if (
-            bundleGroups.every(
-              bundleGroup =>
-                bundleGraph
-                  .getBundlesInBundleGroup(bundleGroup)
-                  .filter(b => !b.isInline).length < config.maxParallelRequests,
-            )
-          ) {
+        for (let bundle of eligibleSourceBundles) {
+          {
             bundleGraph.createBundleReference(bundle, sharedBundle);
             bundleGraph.removeAssetGraphFromBundle(asset, bundle);
           }
