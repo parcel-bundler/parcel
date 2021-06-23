@@ -843,7 +843,7 @@ export type GenerateOutput = {|
   +map?: ?SourceMap,
 |};
 
-export type Blob = string | Buffer | Readable;
+export type Blob = string | Buffer | (() => Readable);
 
 /**
  * Transformers can return multiple result objects to create new assets.

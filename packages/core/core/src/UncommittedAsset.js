@@ -18,6 +18,7 @@ import type {
 } from './types';
 
 import invariant from 'assert';
+import fs from 'fs';
 import {Readable} from 'stream';
 import SourceMap from '@parcel/source-map';
 import {
@@ -44,7 +45,7 @@ import {BundleBehaviorNames} from './types';
 type UncommittedAssetOptions = {|
   value: Asset,
   options: ParcelOptions,
-  content?: ?Blob,
+  content?: ?(string | Buffer),
   mapBuffer?: ?Buffer,
   ast?: ?AST,
   isASTDirty?: ?boolean,
@@ -56,7 +57,7 @@ type UncommittedAssetOptions = {|
 export default class UncommittedAsset {
   value: Asset;
   options: ParcelOptions;
-  content: ?(Blob | Promise<Buffer>);
+  content: ?(string | Buffer | Promise<Buffer> | (() => Readable));
   mapBuffer: ?Buffer;
   sourceContent: ?string;
   map: ?SourceMap;
@@ -177,7 +178,7 @@ export default class UncommittedAsset {
     if (typeof content === 'string' || content instanceof Buffer) {
       return content.toString();
     } else if (content != null) {
-      this.content = bufferStream(content);
+      this.content = bufferStream(content());
       return (await this.content).toString();
     }
 
@@ -194,16 +195,13 @@ export default class UncommittedAsset {
       return Buffer.from(content);
     }
 
-    this.content = bufferStream(content);
+    this.content = bufferStream(content());
     return this.content;
   }
 
   getStream(): Readable {
-    if (this.content instanceof Readable) {
-      // Remove content if it's a stream, as it should not be reused.
-      let content = this.content;
-      this.content = null;
-      return content;
+    if (typeof this.content === 'function') {
+      return this.content();
     }
 
     if (this.content instanceof Promise) {
@@ -211,6 +209,10 @@ export default class UncommittedAsset {
     }
 
     return blobToStream(this.content ?? Buffer.alloc(0));
+  }
+
+  makeStream(): Readable {
+    return fs.createReadStream('stream.txt');
   }
 
   setCode(code: string) {
@@ -223,7 +225,7 @@ export default class UncommittedAsset {
     this.clearAST();
   }
 
-  setStream(stream: Readable) {
+  setStream(stream: () => Readable) {
     this.content = stream;
     this.clearAST();
   }
