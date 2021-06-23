@@ -34,7 +34,20 @@
     "script:*.vue": ["@parcel/transformer-vue"],
     "style:*.vue": ["@parcel/transformer-vue"],
     "custom:*.vue": ["@parcel/transformer-vue"],
+    "url:*.{js,mjs,jsm,jsx,es6,cjs,ts,tsx}": [
+      "@parcel/transformer-babel",
+      "@parcel/transformer-js",
+      "@parcel/transformer-react-refresh-wrap"
+    ],
     "url:*.{png,jpg,jpeg,webp}": ["@parcel/transformer-image"],
+    "url:*.{styl,stylus}": ["@parcel/transformer-stylus"],
+    "url:*.{sass,scss}": ["@parcel/transformer-sass"],
+    "url:*.less": ["@parcel/transformer-less"],
+    "url:*.{css,pcss}": [
+      "@parcel/transformer-postcss",
+      "@parcel/transformer-css"
+    ],
+    "url:*.sss": ["@parcel/transformer-sugarss"],
     "url:*": ["@parcel/transformer-raw"]
   },
   "namers": ["@parcel/namer-default"],
