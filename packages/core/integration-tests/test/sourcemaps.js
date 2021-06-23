@@ -119,6 +119,8 @@ function checkSourceMapping({
     source: sourcePath,
   };
 
+  console.log('computedMapping', computedMapping);
+
   assert(
     shallowEqual(computedMapping, sourceMapping) ||
       shallowEqual(computedMapping, sourceWhitespaceMapping),
@@ -1384,5 +1386,59 @@ describe('sourcemaps', function() {
       str: 'document.getElementById(',
       sourcePath,
     });
+  });
+
+  it.only('carries sourcesContent from the original sources (large text file) through multiple transformations (babel and swc)', async () => {
+    let text = 'Lorem ipsum dolor sit amet';
+    text = text.repeat(230);
+
+    let baseStr = 'const foo = ';
+    let largeString = baseStr + `'${text}';`;
+
+    let testDir = path.join(
+      __dirname,
+      'integration/sourcemap-original-sourcecontents-txt',
+    );
+
+    await outputFS.mkdirp(testDir);
+    await outputFS.writeFile(path.join(testDir, 'index.js'), largeString);
+
+    let b = await bundle(path.join(testDir, 'index.js'), {
+      //outputFS: inputFS,
+      defaultTargetOptions: {
+        shouldScopeHoist: true,
+      },
+    });
+
+    let filename = b.getBundles()[0].filePath;
+    let raw = await outputFS.readFile(filename, 'utf8');
+
+    let mapUrlData = await loadSourceMapUrl(outputFS, filename, raw);
+    if (!mapUrlData) {
+      throw new Error('Could not load map');
+    }
+    let map = mapUrlData.map;
+
+    let sourceMap = new SourceMap('/');
+    sourceMap.addVLQMap(map);
+    let sourceContent = map.sourcesContent[0];
+    let sourcePath = 'index.js';
+
+    checkSourceMapping({
+      map: sourceMap,
+      source: sourceContent,
+      generated: raw,
+      str: "const c = 'c'" /* from index.js: const c = 'c' */,
+      generatedStr: "var$c = 'c'",
+      sourcePath,
+    });
+
+    // checkSourceMapping({
+    //   map: sourceMap,
+    //   source: sourceContent,
+    //   generated: raw,
+    //   str: 'document.getElementById(',
+    //   sourcePath,
+    // });
   });
 });
