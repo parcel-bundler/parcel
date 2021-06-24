@@ -237,7 +237,7 @@ export default class Graph<TNode: Node, TEdgeType: number = 1> {
     let outboundEdges = this.getNodeIdsConnectedFrom(fromNodeId, type);
     let childrenToRemove = new Set(
       replaceFilter
-        ? [...outboundEdges].filter(toNodeId => replaceFilter(toNodeId))
+        ? outboundEdges.filter(toNodeId => replaceFilter(toNodeId))
         : outboundEdges,
     );
     for (let toNodeId of toNodeIds) {
