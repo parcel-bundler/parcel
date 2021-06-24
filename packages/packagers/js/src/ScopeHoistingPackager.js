@@ -676,6 +676,10 @@ ${code}
       exportSymbol,
       symbol,
     } = this.bundleGraph.resolveSymbol(resolved, imported, this.bundle);
+    if (resolvedAsset.type !== 'js') {
+      // Graceful fallback for non-js imports
+      return '{}';
+    }
     let isWrapped =
       !this.bundle.hasAsset(resolvedAsset) ||
       (this.wrappedAssets.has(resolvedAsset.id) &&
