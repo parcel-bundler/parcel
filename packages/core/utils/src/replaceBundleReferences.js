@@ -62,7 +62,7 @@ export function replaceURLReferences({
       continue;
     }
 
-    if (!resolved || resolved.isInline) {
+    if (!resolved || resolved.bundleBehavior === 'inline') {
       // If a bundle is inline, it should be replaced with inline contents,
       // not a URL.
       continue;
@@ -119,7 +119,7 @@ export async function replaceInlineReferences({
 
   for (let dependency of dependencies) {
     let entryBundle = bundleGraph.getReferencedBundle(dependency, bundle);
-    if (!entryBundle?.isInline) {
+    if (entryBundle?.bundleBehavior !== 'inline') {
       continue;
     }
 
@@ -132,8 +132,7 @@ export async function replaceInlineReferences({
       : packagedBundle.contents
     ).toString();
 
-    let inlineType = nullthrows(entryBundle.getEntryAssets()[0]).meta
-      .inlineType;
+    let inlineType = nullthrows(entryBundle.getMainEntry()).meta.inlineType;
     if (inlineType == null || inlineType === 'string') {
       replacements.set(
         dependency.id,

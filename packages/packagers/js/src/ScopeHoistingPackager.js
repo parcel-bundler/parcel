@@ -38,6 +38,7 @@ const GLOBALS_BY_CONTEXT = {
     ...BUILTINS,
     ...Object.keys(globals.serviceworker),
   ]),
+  worklet: new Set([...BUILTINS]),
   node: new Set([...BUILTINS, ...Object.keys(globals.node)]),
   'electron-main': new Set([...BUILTINS, ...Object.keys(globals.node)]),
   'electron-renderer': new Set([
@@ -96,7 +97,7 @@ export class ScopeHoistingPackager {
     this.isAsyncBundle =
       this.bundleGraph.hasParentBundleOfType(this.bundle, 'js') &&
       !this.bundle.env.isIsolated() &&
-      this.bundle.getMainEntry()?.bundleBehavior !== 'isolated';
+      this.bundle.bundleBehavior !== 'isolated';
 
     this.globalNames = GLOBALS_BY_CONTEXT[bundle.env.context];
   }
@@ -116,7 +117,7 @@ export class ScopeHoistingPackager {
     ) {
       let bundles = this.bundleGraph
         .getReferencedBundles(this.bundle)
-        .filter(b => !b.isInline);
+        .filter(b => b.bundleBehavior !== 'inline');
       for (let b of bundles) {
         this.externals.set(relativeBundlePath(this.bundle, b), new Map());
       }
@@ -1025,7 +1026,7 @@ ${code}
           .getBundleGroupsContainingBundle(this.bundle)
           .some(g => this.bundleGraph.isEntryBundleGroup(g)) ||
         this.bundle.env.isIsolated() ||
-        this.bundle.getMainEntry()?.bundleBehavior === 'isolated';
+        this.bundle.bundleBehavior === 'isolated';
 
       if (mightBeFirstJS) {
         let preludeCode = prelude(this.parcelRequireName);

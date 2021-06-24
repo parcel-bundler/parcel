@@ -102,6 +102,27 @@ export default (new Runtime({
           });
         }
       } else {
+        // Resolve the dependency to a bundle. If inline, export the dependency id,
+        // which will be replaced with the contents of that bundle later.
+        let referencedBundle = bundleGraph.getReferencedBundle(
+          dependency,
+          bundle,
+        );
+        if (referencedBundle?.bundleBehavior === 'inline') {
+          assets.push({
+            filePath: path.join(
+              __dirname,
+              `/bundles/${referencedBundle.id}.js`,
+            ),
+            code: `module.exports = Promise.resolve(${JSON.stringify(
+              dependency.id,
+            )});`,
+            dependency,
+            env: {sourceType: 'module'},
+          });
+          continue;
+        }
+
         let loaderRuntime = getLoaderRuntime({
           bundle,
           dependency,
@@ -123,7 +144,7 @@ export default (new Runtime({
         dependency,
         bundle,
       );
-      if (referencedBundle?.isInline) {
+      if (referencedBundle?.bundleBehavior === 'inline') {
         assets.push({
           filePath: path.join(__dirname, `/bundles/${referencedBundle.id}.js`),
           code: `module.exports = ${JSON.stringify(dependency.id)};`,
@@ -184,7 +205,7 @@ export default (new Runtime({
     if (options.shouldBuildLazily && bundle.env.outputFormat === 'global') {
       let referenced = bundleGraph
         .getReferencedBundles(bundle)
-        .filter(b => !b.isInline);
+        .filter(b => b.bundleBehavior !== 'inline');
       for (let referencedBundle of referenced) {
         let loaders = getLoaders(bundle.env);
         if (!loaders) {
@@ -283,7 +304,7 @@ function getLoaderRuntime({
 
   let externalBundles = bundleGraph
     .getBundlesInBundleGroup(bundleGroup)
-    .filter(bundle => !bundle.isInline);
+    .filter(bundle => bundle.bundleBehavior !== 'inline');
 
   let mainBundle = nullthrows(
     externalBundles.find(
@@ -525,7 +546,7 @@ function getRegisterCode(
 ): string {
   let idToName = {};
   bundleGraph.traverseBundles((bundle, _, actions) => {
-    if (bundle.isInline) {
+    if (bundle.bundleBehavior === 'inline') {
       return;
     }
 
@@ -565,7 +586,7 @@ function shouldUseRuntimeManifest(
   let env = bundle.env;
   return (
     !env.isLibrary &&
-    !bundle.isInline &&
+    bundle.bundleBehavior !== 'inline' &&
     env.outputFormat === 'global' &&
     env.isBrowser() &&
     options.mode === 'production'

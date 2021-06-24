@@ -11,7 +11,7 @@ const HMR_RUNTIME = fs.readFileSync(
 
 export default (new Runtime({
   apply({bundle, options}) {
-    if (bundle.type !== 'js' || !options.hmrOptions) {
+    if (bundle.type !== 'js' || !options.hmrOptions || bundle.env.isWorklet()) {
       return;
     }
 

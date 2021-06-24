@@ -108,6 +108,7 @@ export type EnvironmentContext =
   | 'browser'
   | 'web-worker'
   | 'service-worker'
+  | 'worklet'
   | 'node'
   | 'electron-main'
   | 'electron-renderer';
@@ -226,6 +227,8 @@ export interface Environment {
   isElectron(): boolean;
   /** Whether <code>context</code> specifies a worker context. */
   isWorker(): boolean;
+  /** Whether <code>context</code> specifies a worklet context. */
+  isWorklet(): boolean;
   /** Whether <code>context</code> specifies an isolated context (can't access other loaded ancestor bundles). */
   isIsolated(): boolean;
   matchesEngines(minVersions: VersionMap, defaultValue?: boolean): boolean;
@@ -475,6 +478,15 @@ export type DependencyOptions = {|
    */
   +priority?: DependencyPriority,
   /**
+   * Controls the behavior of the bundle the resolved asset is placed into. Use in combination with `priority`
+   * to determine when the bundle is loaded.
+   *   - inline: The resolved asset will be placed into a new inline bundle. Inline bundles are not written
+   *       to a separate file, but embedded into the parent bundle.
+   *   - isolated: The resolved asset will be isolated from its parents in a separate bundle.
+   *       Shared assets will be duplicated.
+   */
+  +bundleBehavior?: BundleBehavior,
+  /**
    * When the dependency is a bundle entry (priority is "parallel" or "lazy"), this controls the naming
    * of that bundle. `needsStableName` indicates that the name should be stable over time, even when the
    * content of the bundle changes. This is useful for entries that a user would manually enter the URL
@@ -533,6 +545,15 @@ export interface Dependency {
    * @default 'sync'
    */
   +priority: DependencyPriority;
+  /**
+   * Controls the behavior of the bundle the resolved asset is placed into. Use in combination with `priority`
+   * to determine when the bundle is loaded.
+   *   - inline: The resolved asset will be placed into a new inline bundle. Inline bundles are not written
+   *       to a separate file, but embedded into the parent bundle.
+   *   - isolated: The resolved asset will be isolated from its parents in a separate bundle.
+   *       Shared assets will be duplicated.
+   */
+  +bundleBehavior: ?BundleBehavior;
   /**
    * When the dependency is a bundle entry (priority is "parallel" or "lazy"), this controls the naming
    * of that bundle. `needsStableName` indicates that the name should be stable over time, even when the
@@ -620,7 +641,8 @@ export interface BaseAsset {
    * Controls which bundle the asset is placed into.
    *   - inline: The asset will be placed into a new inline bundle. Inline bundles are not written
    *       to a separate file, but embedded into the parent bundle.
-   *   - isolated: The asset will be placed into a separate bundle.
+   *   - isolated: The asset will be isolated from its parents in a separate bundle. Shared assets
+   *       will be duplicated.
    */
   +bundleBehavior: ?BundleBehavior;
   /**
@@ -675,7 +697,8 @@ export interface MutableAsset extends BaseAsset {
    * Controls which bundle the asset is placed into.
    *   - inline: The asset will be placed into a new inline bundle. Inline bundles are not written
    *       to a separate file, but embedded into the parent bundle.
-   *   - isolated: The asset will be placed into a separate bundle.
+   *   - isolated: The asset will be isolated from its parents in a separate bundle. Shared assets
+   *       will be duplicated.
    */
   bundleBehavior: ?BundleBehavior;
   /**
@@ -846,7 +869,8 @@ export type TransformerResult = {|
    * Controls which bundle the asset is placed into.
    *   - inline: The asset will be placed into a new inline bundle. Inline bundles are not written
    *       to a separate file, but embedded into the parent bundle.
-   *   - isolated: The asset will be placed into a separate bundle.
+   *   - isolated: The asset will be isolated from its parents in a separate bundle. Shared assets
+   *       will be duplicated.
    */
   +bundleBehavior?: ?BundleBehavior,
   /**
@@ -1056,6 +1080,13 @@ export type CreateBundleOpts =
        * like service workers or RSS feeds, where the URL must remain consistent over time.
        */
       +needsStableName?: ?boolean,
+      /**
+       * Controls the behavior of the bundle.
+       * to determine when the bundle is loaded.
+       *   - inline: Inline bundles are not written to a separate file, but embedded into the parent bundle.
+       *   - isolated: The bundle will be isolated from its parents. Shared assets will be duplicated.
+       */
+      +bundleBehavior?: ?BundleBehavior,
     |}
   // If an entryAsset is not provided, a bundle id, type, and environment must
   // be provided.
@@ -1074,8 +1105,13 @@ export type CreateBundleOpts =
        * like service workers or RSS feeds, where the URL must remain consistent over time.
        */
       +needsStableName?: ?boolean,
-      /** Whether this bundle should be inlined into the parent bundle(s), */
-      +isInline?: ?boolean,
+      /**
+       * Controls the behavior of the bundle.
+       * to determine when the bundle is loaded.
+       *   - inline: Inline bundles are not written to a separate file, but embedded into the parent bundle.
+       *   - isolated: The bundle will be isolated from its parents. Shared assets will be duplicated.
+       */
+      +bundleBehavior?: ?BundleBehavior,
       /**
        * Whether the bundle can be split. If false, then all dependencies of the bundle will be kept
        * internal to the bundle, rather than referring to other bundles. This may result in assets
@@ -1123,14 +1159,20 @@ export interface Bundle {
   +env: Environment;
   /** The bundle's target. */
   +target: Target;
+  /** Assets that run when the bundle is loaded (e.g. runtimes could be added). VERIFY */
   /**
    * Indicates that the bundle's file name should be stable over time, even when the content of the bundle
    * changes. This is useful for entries that a user would manually enter the URL for, as well as for things
    * like service workers or RSS feeds, where the URL must remain consistent over time.
    */
   +needsStableName: ?boolean;
-  /** Whether this bundle should be inlined into the parent bundle(s), */
-  +isInline: ?boolean;
+  /**
+   * Controls the behavior of the bundle.
+   * to determine when the bundle is loaded.
+   *   - inline: Inline bundles are not written to a separate file, but embedded into the parent bundle.
+   *   - isolated: The bundle will be isolated from its parents. Shared assets will be duplicated.
+   */
+  +bundleBehavior: ?BundleBehavior;
   /**
    * Whether the bundle can be split. If false, then all dependencies of the bundle will be kept
    * internal to the bundle, rather than referring to other bundles. This may result in assets

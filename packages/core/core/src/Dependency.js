@@ -4,10 +4,11 @@ import type {
   Meta,
   DependencySpecifier,
   Symbol,
+  BundleBehavior as IBundleBehavior,
 } from '@parcel/types';
 import type {Dependency, Environment, Target} from './types';
 import {hashString} from '@parcel/hash';
-import {SpecifierType, Priority} from './types';
+import {SpecifierType, Priority, BundleBehavior} from './types';
 
 type DependencyOpts = {|
   id?: string,
@@ -17,6 +18,7 @@ type DependencyOpts = {|
   specifierType: $Keys<typeof SpecifierType>,
   priority?: $Keys<typeof Priority>,
   needsStableName?: boolean,
+  bundleBehavior?: ?IBundleBehavior,
   isEntry?: boolean,
   isOptional?: boolean,
   loc?: SourceLocation,
@@ -48,6 +50,9 @@ export function createDependency(opts: DependencyOpts): Dependency {
     specifierType: SpecifierType[opts.specifierType],
     priority: Priority[opts.priority ?? 'sync'],
     needsStableName: opts.needsStableName ?? false,
+    bundleBehavior: opts.bundleBehavior
+      ? BundleBehavior[opts.bundleBehavior]
+      : null,
     isEntry: opts.isEntry ?? false,
     isOptional: opts.isOptional ?? false,
     meta: opts.meta || {},

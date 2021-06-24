@@ -17,6 +17,7 @@ pub enum DependencyKind {
   Require,
   WebWorker,
   ServiceWorker,
+  Worklet,
   ImportScripts,
   URL,
   File,
@@ -261,6 +262,8 @@ impl<'a> Fold for DependencyCollector<'a> {
           self.decls,
         ) {
           DependencyKind::ServiceWorker
+        } else if match_member_expr(member, vec!["CSS", "paintWorklet", "addModule"], self.decls) {
+          DependencyKind::Worklet
         } else {
           let was_in_promise = self.in_promise;
 
@@ -384,8 +387,13 @@ impl<'a> Fold for DependencyCollector<'a> {
     }
 
     if let Some(arg) = node.args.get(0) {
-      if kind == DependencyKind::ServiceWorker {
-        let (source_type, opts) = match_worker_type(node.args.get(1));
+      if kind == DependencyKind::ServiceWorker || kind == DependencyKind::Worklet {
+        let (source_type, opts) = if kind == DependencyKind::ServiceWorker {
+          match_worker_type(node.args.get(1))
+        } else {
+          // Worklets are always modules
+          (SourceType::Module, None)
+        };
         let mut node = node.clone();
 
         let (specifier, span) = if let Some(s) = match_import_meta_url(&*arg.expr, self.decls) {

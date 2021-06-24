@@ -163,7 +163,7 @@ export default class Server {
       // If the main asset is an HTML file, serve it
       let htmlBundleFilePaths = [];
       this.bundleGraph.traverseBundles(bundle => {
-        if (bundle.type === 'html' && !bundle.isInline) {
+        if (bundle.type === 'html' && bundle.bundleBehavior !== 'inline') {
           htmlBundleFilePaths.push(bundle.filePath);
         }
       });
@@ -217,7 +217,7 @@ export default class Server {
       let requestedPath = path.normalize(pathname.slice(1));
       let bundle = bundleGraph
         .getBundles()
-        .filter(b => !b.isInline)
+        .filter(b => b.bundleBehavior !== 'inline')
         .find(
           b =>
             path.relative(this.options.distDir, b.filePath) === requestedPath,
