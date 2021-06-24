@@ -1080,6 +1080,13 @@ export type CreateBundleOpts =
        * like service workers or RSS feeds, where the URL must remain consistent over time.
        */
       +needsStableName?: ?boolean,
+      /**
+       * Controls the behavior of the bundle.
+       * to determine when the bundle is loaded.
+       *   - inline: Inline bundles are not written to a separate file, but embedded into the parent bundle.
+       *   - isolated: The bundle will be isolated from its parents. Shared assets will be duplicated.
+       */
+      +bundleBehavior?: ?BundleBehavior,
     |}
   // If an entryAsset is not provided, a bundle id, type, and environment must
   // be provided.
@@ -1098,6 +1105,12 @@ export type CreateBundleOpts =
        * like service workers or RSS feeds, where the URL must remain consistent over time.
        */
       +needsStableName?: ?boolean,
+      /**
+       * Controls the behavior of the bundle.
+       * to determine when the bundle is loaded.
+       *   - inline: Inline bundles are not written to a separate file, but embedded into the parent bundle.
+       *   - isolated: The bundle will be isolated from its parents. Shared assets will be duplicated.
+       */
       +bundleBehavior?: ?BundleBehavior,
       /**
        * Whether the bundle can be split. If false, then all dependencies of the bundle will be kept
@@ -1153,6 +1166,12 @@ export interface Bundle {
    * like service workers or RSS feeds, where the URL must remain consistent over time.
    */
   +needsStableName: ?boolean;
+  /**
+   * Controls the behavior of the bundle.
+   * to determine when the bundle is loaded.
+   *   - inline: Inline bundles are not written to a separate file, but embedded into the parent bundle.
+   *   - isolated: The bundle will be isolated from its parents. Shared assets will be duplicated.
+   */
   +bundleBehavior: ?BundleBehavior;
   /**
    * Whether the bundle can be split. If false, then all dependencies of the bundle will be kept

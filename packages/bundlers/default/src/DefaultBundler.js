@@ -409,7 +409,8 @@ export default (new Bundler({
             group =>
               bundleGraph
                 .getBundlesInBundleGroup(group)
-                .filter(b => !b.isInline).length < config.maxParallelRequests,
+                .filter(b => b.bundleBehavior !== 'inline').length <
+              config.maxParallelRequests,
           )
         ) {
           eligibleSourceBundles.add(bundle);
