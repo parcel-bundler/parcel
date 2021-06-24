@@ -9,7 +9,7 @@ export type ContentGraphOpts<TNode: Node, TEdgeType: number = 1> = {|
   _contentKeyToNodeId: Map<ContentKey, NodeId>,
 |};
 export type SerializedContentGraph<TNode: Node, TEdgeType: number = 1> = {|
-  ...SerializedGraph<TNode>,
+  ...SerializedGraph<TNode, TEdgeType>,
   _contentKeyToNodeId: Map<ContentKey, NodeId>,
 |};
 

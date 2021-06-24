@@ -72,15 +72,16 @@ const FIRST_OUT: 1 = 1;
  */
 const DELETED: 0xffffffff = 0xffffffff;
 
-const isDeleted = (type: number): boolean => type === DELETED;
+const isDeleted = <TEdgeType>(type: TEdgeType): boolean => type === DELETED;
 
-const deletedThrows = (type: number): number => {
+const deletedThrows = <TEdgeType>(type: TEdgeType): TEdgeType => {
   if (isDeleted(type)) throw new Error('Edge was deleted!');
   return type;
 };
 
 export const ALL_EDGE_TYPES: AllEdgeTypes = '@@all_edge_types';
 
+// eslint-disable-next-line no-unused-vars
 export type SerializedAdjacencyList<TEdgeType> = {|
   nodes: Uint32Array,
   edges: Uint32Array,
@@ -90,20 +91,11 @@ export type SerializedAdjacencyList<TEdgeType> = {|
   nodeCapacity: number,
 |};
 
-type EdgeAttr =
-  | typeof TYPE
-  | typeof FROM
-  | typeof TO
-  | typeof NEXT_IN
-  | typeof NEXT_OUT;
-
 type Edge<TEdgeType> = {|
   from: NodeId,
   to: NodeId,
   type: TEdgeType,
 |};
-
-type NodeAttr = typeof FIRST_IN | typeof FIRST_OUT;
 
 opaque type EdgeHash = number;
 /** Get the hash of the edge at the given index in the edges array. */
@@ -399,9 +391,12 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     to: NodeId,
     type: TEdgeType | NullEdgeType = 1,
   ): boolean {
-    if (from < 0 || from >= this.numNodes)
-      throw new Error(`Unknown node ${from}`);
-    if (to < 0 || to >= this.numNodes) throw new Error(`Unknown node ${to}`);
+    if (fromNodeId(from) < 0 || fromNodeId(from) >= this.numNodes) {
+      throw new Error(`Unknown node ${String(from)}`);
+    }
+    if (fromNodeId(to) < 0 || fromNodeId(to) >= this.numNodes) {
+      throw new Error(`Unknown node ${String(to)}`);
+    }
     if (type <= 0) throw new Error(`Unsupported edge type ${0}`);
 
     // The percentage of utilization of the total capacity of `edges`.
@@ -545,7 +540,7 @@ export default class AdjacencyList<TEdgeType: number = 1> {
         yield {
           from: toNodeId(this.edges[edgeIndex + FROM]),
           to: toNodeId(this.edges[edgeIndex + TO]),
-          type: deletedThrows(this.edges[edgeIndex + TYPE]),
+          type: deletedThrows((this.edges[edgeIndex + TYPE]: any)),
         };
         nextEdge = this.edges[edgeIndex + NEXT_OUT];
       }
@@ -634,7 +629,7 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     ) {
       let i = hashToIndex(hash);
       yield {
-        type: deletedThrows(this.edges[i + TYPE]),
+        type: deletedThrows((this.edges[i + TYPE]: any)),
         from: toNodeId(this.edges[i + FROM]),
       };
     }
@@ -650,7 +645,7 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     ) {
       let i = hashToIndex(hash);
       yield {
-        type: deletedThrows(this.edges[i + TYPE]),
+        type: deletedThrows((this.edges[i + TYPE]: any)),
         to: toNodeId(this.edges[i + TO]),
       };
     }

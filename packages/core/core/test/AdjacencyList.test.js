@@ -169,12 +169,12 @@ describe('AdjacencyList', () => {
 
   it('addEdge should error when a node has not been added to the graph', () => {
     let graph = new AdjacencyList(2, 1);
-    assert.throws(() => graph.addEdge(0, 1));
+    assert.throws(() => graph.addEdge(toNodeId(0), toNodeId(1)));
     graph.addNode();
-    assert.throws(() => graph.addEdge(0, 1));
+    assert.throws(() => graph.addEdge(toNodeId(0), toNodeId(1)));
     graph.addNode();
-    assert.doesNotThrow(() => graph.addEdge(0, 1));
-    assert.throws(() => graph.addEdge(0, 2));
+    assert.doesNotThrow(() => graph.addEdge(toNodeId(0), toNodeId(1)));
+    assert.throws(() => graph.addEdge(toNodeId(0), toNodeId(2)));
   });
 
   it('addEdge should error when an unsupported edge type is provided', () => {
