@@ -44,7 +44,7 @@ import {BundleBehaviorNames} from './types';
 type UncommittedAssetOptions = {|
   value: Asset,
   options: ParcelOptions,
-  content?: ?(string | Buffer),
+  content?: ?Blob,
   mapBuffer?: ?Buffer,
   ast?: ?AST,
   isASTDirty?: ?boolean,
@@ -56,7 +56,7 @@ type UncommittedAssetOptions = {|
 export default class UncommittedAsset {
   value: Asset;
   options: ParcelOptions;
-  content: ?(string | Buffer | Promise<Buffer> | (() => Readable));
+  content: ?(Blob | Promise<Buffer>);
   mapBuffer: ?Buffer;
   sourceContent: ?string;
   map: ?SourceMap;
