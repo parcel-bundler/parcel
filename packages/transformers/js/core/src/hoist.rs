@@ -471,6 +471,18 @@ impl<'a> Fold for Hoist<'a> {
                 }
               }
             }
+            Stmt::Expr(ExprStmt { expr, span }) => {
+              if let Some(source) =
+                match_require(&expr, &self.collect.decls, self.collect.ignore_mark)
+              {
+                self.add_require(&source);
+              } else {
+                let d = expr.fold_with(self);
+                self
+                  .module_items
+                  .push(ModuleItem::Stmt(Stmt::Expr(ExprStmt { expr: d, span })))
+              }
+            }
             item => {
               let d = item.fold_with(self);
               self.module_items.push(ModuleItem::Stmt(d))
