@@ -675,7 +675,7 @@ describe('javascript', function() {
       path.join(__dirname, '/integration/dynamic-import-attributes/index.js'),
     );
 
-    let mainBundle = b.getBundles().find(b => b.isEntry);
+    let mainBundle = b.getBundles()[0];
     let mainBundleContent = await outputFS.readFile(
       mainBundle.filePath,
       'utf8',
@@ -1257,10 +1257,7 @@ describe('javascript', function() {
       },
     ]);
 
-    let contents = await outputFS.readFile(
-      b.getBundles().find(b => b.isEntry).filePath,
-      'utf8',
-    );
+    let contents = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
     assert(!contents.includes('import.meta.url'));
   });
 
@@ -1333,10 +1330,7 @@ describe('javascript', function() {
       },
     ]);
 
-    let contents = await outputFS.readFile(
-      b.getBundles().find(b => b.isEntry).filePath,
-      'utf8',
-    );
+    let contents = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
     assert(!contents.includes('import.meta.url'));
   });
 
@@ -3862,7 +3856,9 @@ describe('javascript', function() {
     );
 
     let bundles = b.getBundles();
-    let asyncJsBundles = bundles.filter(b => !b.isEntry && b.type === 'js');
+    let asyncJsBundles = bundles.filter(
+      b => !b.needsStableName && b.type === 'js',
+    );
     assert.equal(asyncJsBundles.length, 2);
 
     // Every bundlegroup with an async js bundle should have the corresponding css
@@ -4194,5 +4190,45 @@ describe('javascript', function() {
         ],
       },
     );
+  });
+
+  it('should create a shared bundle from a minimum of 2 source bundles', async function() {
+    let b = await bundle(
+      path.join(__dirname, 'integration/shared-bundle-single-source/index.js'),
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: false,
+        },
+      },
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: [
+          'index.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'css-loader.js',
+          'esmodule-helpers.js',
+          'js-loader.js',
+          'bundle-manifest.js',
+          'relative-path.js',
+        ],
+      },
+      {
+        assets: ['bar.js'],
+      },
+      {
+        assets: ['a.js', 'b.js', 'foo.js'],
+      },
+      {
+        assets: ['styles.css'],
+      },
+      {
+        assets: ['local.html'],
+      },
+    ]);
   });
 });

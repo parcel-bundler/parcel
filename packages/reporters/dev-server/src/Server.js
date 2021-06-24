@@ -163,7 +163,7 @@ export default class Server {
       // If the main asset is an HTML file, serve it
       let htmlBundleFilePaths = [];
       this.bundleGraph.traverseBundles(bundle => {
-        if (bundle.type === 'html' && bundle.isEntry) {
+        if (bundle.type === 'html' && !bundle.isInline) {
           htmlBundleFilePaths.push(bundle.filePath);
         }
       });

@@ -117,8 +117,8 @@ export class Bundle implements IBundle {
     return new Environment(this.#bundle.env);
   }
 
-  get isEntry(): ?boolean {
-    return this.#bundle.isEntry;
+  get needsStableName(): ?boolean {
+    return this.#bundle.needsStableName;
   }
 
   get bundleBehavior(): ?BundleBehavior {
