@@ -2,12 +2,12 @@
 
 import assert from 'assert';
 
-import EfficientGraph, {NODE_SIZE, EDGE_SIZE} from '../src/EfficientGraph';
+import AdjacencyList, {NODE_SIZE, EDGE_SIZE} from '../src/AdjacencyList';
 import {toNodeId} from '../src/types';
 
-describe('EfficientGraph', () => {
+describe('AdjacencyList', () => {
   it('constructor should initialize an empty graph', () => {
-    let graph = new EfficientGraph(1, 1);
+    let graph = new AdjacencyList(1, 1);
     assert.deepEqual(graph.nodes, new Uint32Array(1 * NODE_SIZE));
     assert.deepEqual(graph.edges, new Uint32Array(1 * EDGE_SIZE));
     assert.equal(graph.numNodes, 0);
@@ -15,14 +15,14 @@ describe('EfficientGraph', () => {
   });
 
   it('addNode should add a node to the graph', () => {
-    let graph = new EfficientGraph();
+    let graph = new AdjacencyList();
     let id = graph.addNode();
     assert.equal(id, 0);
     assert.equal(graph.numNodes, 1);
   });
 
   it('addNode should resize nodes array when necessary', () => {
-    let graph = new EfficientGraph(1);
+    let graph = new AdjacencyList(1);
     graph.addNode();
     assert.deepEqual(graph.nodes, new Uint32Array(2 * NODE_SIZE));
     graph.addNode();
@@ -34,7 +34,7 @@ describe('EfficientGraph', () => {
   });
 
   it('removeEdge should remove an edge from the graph', () => {
-    let graph = new EfficientGraph();
+    let graph = new AdjacencyList();
     let node0 = graph.addNode();
     let node1 = graph.addNode();
     let node2 = graph.addNode();
@@ -57,7 +57,7 @@ describe('EfficientGraph', () => {
   });
 
   it('removeEdge should remove an edge of a specific type from the graph', () => {
-    let graph = new EfficientGraph(2, 5);
+    let graph = new AdjacencyList(2, 5);
     let a = graph.addNode();
     let b = graph.addNode();
     let c = graph.addNode();
@@ -97,7 +97,7 @@ describe('EfficientGraph', () => {
   });
 
   it('addEdge should add an edge to the graph', () => {
-    let graph = new EfficientGraph(2, 1);
+    let graph = new AdjacencyList(2, 1);
     let a = graph.addNode();
     let b = graph.addNode();
     graph.addEdge(a, b);
@@ -107,7 +107,7 @@ describe('EfficientGraph', () => {
   });
 
   it('addEdge should add multiple edges from a node in order', () => {
-    let graph = new EfficientGraph();
+    let graph = new AdjacencyList();
     let a = graph.addNode();
     let b = graph.addNode();
     let c = graph.addNode();
@@ -119,7 +119,7 @@ describe('EfficientGraph', () => {
   });
 
   it('addEdge should add multiple edges to a node in order', () => {
-    let graph = new EfficientGraph();
+    let graph = new AdjacencyList();
     let a = graph.addNode();
     let b = graph.addNode();
     let c = graph.addNode();
@@ -132,7 +132,7 @@ describe('EfficientGraph', () => {
   });
 
   it('addEdge should add multiple edges of different types in order', () => {
-    let graph = new EfficientGraph();
+    let graph = new AdjacencyList();
     let a = graph.addNode();
     let b = graph.addNode();
     graph.addEdge(a, b);
@@ -148,7 +148,7 @@ describe('EfficientGraph', () => {
   });
 
   it('addEdge should return false if an edge is already added', () => {
-    let graph = new EfficientGraph();
+    let graph = new AdjacencyList();
     let a = graph.addNode();
     let b = graph.addNode();
     assert.equal(graph.addEdge(a, b), true);
@@ -156,7 +156,7 @@ describe('EfficientGraph', () => {
   });
 
   it.skip('addEdge should resize edges array when necessary', () => {
-    let graph = new EfficientGraph(2, 1);
+    let graph = new AdjacencyList(2, 1);
     let a = graph.addNode();
     let b = graph.addNode();
     let c = graph.addNode();
@@ -168,7 +168,7 @@ describe('EfficientGraph', () => {
   });
 
   it('addEdge should error when a node has not been added to the graph', () => {
-    let graph = new EfficientGraph(2, 1);
+    let graph = new AdjacencyList(2, 1);
     assert.throws(() => graph.addEdge(0, 1));
     graph.addNode();
     assert.throws(() => graph.addEdge(0, 1));
@@ -178,7 +178,7 @@ describe('EfficientGraph', () => {
   });
 
   it('addEdge should error when an unsupported edge type is provided', () => {
-    let graph = new EfficientGraph(2, 1);
+    let graph = new AdjacencyList(2, 1);
     let a = graph.addNode();
     let b = graph.addNode();
     assert.throws(() => graph.addEdge(a, b, 0));
@@ -187,7 +187,7 @@ describe('EfficientGraph', () => {
   });
 
   it('duplicate edge test', () => {
-    let graph = new EfficientGraph();
+    let graph = new AdjacencyList();
     for (let i = 0; i < 600; i++) {
       graph.addNode();
     }

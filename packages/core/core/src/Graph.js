@@ -1,7 +1,7 @@
 // @flow strict-local
 
 import {fromNodeId} from './types';
-import EfficientGraph, {type SerializedEfficientGraph} from './EfficientGraph';
+import AdjacencyList, {type SerializedAdjacencyList} from './AdjacencyList';
 import type {Edge, Node, NodeId} from './types';
 import type {TraversalActions, GraphVisitor} from '@parcel/types';
 
@@ -11,14 +11,14 @@ import nullthrows from 'nullthrows';
 export type NullEdgeType = 1;
 export type GraphOpts<TNode, TEdgeType: number = 1> = {|
   nodes?: Map<NodeId, TNode>,
-  adjacencyList?: SerializedEfficientGraph<TEdgeType>,
+  adjacencyList?: SerializedAdjacencyList<TEdgeType>,
   rootNodeId?: ?NodeId,
   nextNodeId?: ?number,
 |};
 
 export type SerializedGraph<TNode, TEdgeType: number = 1> = {|
   nodes: Map<NodeId, TNode>,
-  adjacencyList: SerializedEfficientGraph<TEdgeType>,
+  adjacencyList: SerializedAdjacencyList<TEdgeType>,
   rootNodeId: ?NodeId,
   nextNodeId: number,
 |};
@@ -28,7 +28,7 @@ export const ALL_EDGE_TYPES: AllEdgeTypes = '@@all_edge_types';
 
 export default class Graph<TNode: Node, TEdgeType: number = 1> {
   nodes: Map<NodeId, TNode>;
-  adjacencyList: EfficientGraph<TEdgeType>;
+  adjacencyList: AdjacencyList<TEdgeType>;
   rootNodeId: ?NodeId;
   nextNodeId: number = 0;
 
@@ -39,8 +39,8 @@ export default class Graph<TNode: Node, TEdgeType: number = 1> {
 
     let adjacencyList = opts?.adjacencyList;
     this.adjacencyList = adjacencyList
-      ? EfficientGraph.deserialize(adjacencyList)
-      : new EfficientGraph<TEdgeType>();
+      ? AdjacencyList.deserialize(adjacencyList)
+      : new AdjacencyList<TEdgeType>();
   }
 
   setRootNodeId(id: ?NodeId) {

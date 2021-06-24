@@ -81,7 +81,7 @@ const deletedThrows = (type: number): number => {
 
 export const ALL_EDGE_TYPES: AllEdgeTypes = '@@all_edge_types';
 
-export type SerializedEfficientGraph<TEdgeType> = {|
+export type SerializedAdjacencyList<TEdgeType> = {|
   nodes: Uint32Array,
   edges: Uint32Array,
   numNodes: number,
@@ -123,7 +123,7 @@ const nodeAt = (index: number): NodeId =>
 /** Get the index in the nodes array of the given node. */
 const indexOfNode = (id: NodeId): number => fromNodeId(id) * NODE_SIZE;
 
-export default class EfficientGraph<TEdgeType: number = 1> {
+export default class AdjacencyList<TEdgeType: number = 1> {
   /** The number of nodes that can fit in the nodes array. */
   nodeCapacity: number;
   /** The number of edges that can fit in the edges array. */
@@ -150,14 +150,14 @@ export default class EfficientGraph<TEdgeType: number = 1> {
   }
 
   /**
-   * Create a new `EfficientGraph` from the given options.
+   * Create a new `AdjacencyList` from the given options.
    *
    * The options should match the format returned by the `serialize` method.
    */
   static deserialize(
-    opts: SerializedEfficientGraph<TEdgeType>,
-  ): EfficientGraph<TEdgeType> {
-    let res = Object.create(EfficientGraph.prototype);
+    opts: SerializedAdjacencyList<TEdgeType>,
+  ): AdjacencyList<TEdgeType> {
+    let res = Object.create(AdjacencyList.prototype);
     res.nodes = opts.nodes;
     res.edges = opts.edges;
     res.numNodes = opts.numNodes;
@@ -170,7 +170,7 @@ export default class EfficientGraph<TEdgeType: number = 1> {
   /**
    * Returns a JSON-serializable object of the nodes and edges in the graph.
    */
-  serialize(): SerializedEfficientGraph<TEdgeType> {
+  serialize(): SerializedAdjacencyList<TEdgeType> {
     return {
       nodes: this.nodes,
       edges: this.edges,
@@ -793,7 +793,7 @@ let nodeColor = {color: 'black', fontcolor: 'black'};
 let emptyColor = {color: 'darkgray', fontcolor: 'darkgray'};
 let edgeColor = {color: 'brown', fontcolor: 'brown'};
 
-function toDot<TEdgeType: number>(data: EfficientGraph<TEdgeType>): string {
+function toDot<TEdgeType: number>(data: AdjacencyList<TEdgeType>): string {
   let g = digraph('G');
   g.set('rankdir', 'LR');
   g.setNodeAttribut('fontsize', 8);
@@ -899,9 +899,7 @@ function toDot<TEdgeType: number>(data: EfficientGraph<TEdgeType>): string {
   return g.to_dot();
 }
 
-function nodesToDot<TEdgeType: number>(
-  data: EfficientGraph<TEdgeType>,
-): string {
+function nodesToDot<TEdgeType: number>(data: AdjacencyList<TEdgeType>): string {
   let g = digraph('G');
   g.set('rankdir', 'LR');
   g.set('nodesep', 0);
@@ -966,9 +964,7 @@ function nodesToDot<TEdgeType: number>(
   return g.to_dot();
 }
 
-function edgesToDot<TEdgeType: number>(
-  data: EfficientGraph<TEdgeType>,
-): string {
+function edgesToDot<TEdgeType: number>(data: AdjacencyList<TEdgeType>): string {
   let g = digraph('G');
   g.set('rankdir', 'LR');
   g.set('nodesep', 0);
@@ -1042,7 +1038,7 @@ function edgesToDot<TEdgeType: number>(
 }
 
 export function openGraphViz<TEdgeType: number>(
-  data: EfficientGraph<TEdgeType>,
+  data: AdjacencyList<TEdgeType>,
   type?: 'graph' | 'nodes' | 'edges',
 ): Promise<void> {
   if (!type) {
