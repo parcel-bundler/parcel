@@ -1,10 +1,10 @@
 ---
-title: Index page for parcel Documentation
+title: Parcel @ Atlassian
 platform: platform
 product: parcel
-category: index
-subcategory: index
-date: '2021-03-23'
+category: devguide
+subcategory: intro
+date: '2021-06-24'
 ---
 
 {{% note %}}
@@ -13,9 +13,9 @@ The content is currently under construction as we release our initial docs.
 
 # Introduction
 
-package: `@atlassian/parcel` / [repo](https://bitbucket.org/atlassian/parcel) / [public repo](https://github.com/parcel-bundler/parcel/)
+**Important links:** package: `@atlassian/parcel` / [repo](https://bitbucket.org/atlassian/parcel) / [public repo](https://github.com/parcel-bundler/parcel/) / [public docs](https://v2.parceljs.org/)
 
-Parcel is a packager for the modern web with a focus on performance and modularity. It is developed with Atlassian’s needs and scale at its core, while benefitting from contributions and resources of a healthy open source project.
+Parcel is a packager for the modern web with a focus on performance and modularity. It is developed with Atlassian's needs and scale at its core, while benefitting from contributions and resources of a healthy open source project.
 
 Because of Atlassian's need for scale with Bitbucket and Jira, Atlassian distributes a fork with custom plugins and additional internal needs.
 
@@ -23,12 +23,13 @@ Please see the [Code of Conduct](https://bitbucket.org/atlassian/parcel/src/bitb
 
 ### Notable differences
 
+- `@atlassian/parcel` won't share across workers for now as worker-specific code is added.
 - _TODO_
 
 ## Goals
 
 - Deliver significant runtime performance improvements for Atlassian customers and build-time performance improvements for Atlassian engineers across all of our products.
-- Be “The Atlassian packager”. Provide a common service that encodes performance best practices and makes them available to all of our products with little burden on product engineers.
+- Be "The Atlassian packager". Provide a common service that encodes performance best practices and makes them available to all of our products with little burden on product engineers.
 
 ## Further reading
 
