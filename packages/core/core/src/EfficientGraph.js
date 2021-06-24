@@ -506,6 +506,9 @@ export default class EfficientGraph<TEdgeType: number = 1> {
    *
    */
   indexFor(from: NodeId, to: NodeId, type: TEdgeType | NullEdgeType): number {
+    if (this.hasEdge(from, to, type)) {
+      return -1;
+    }
     let index = hashToIndex(this.hash(from, to, type));
     // we scan the `edges` array for the next empty slot after the `index`.
     // We do this instead of simply using the `index` because it is possible
