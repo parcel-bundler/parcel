@@ -45,7 +45,7 @@ import {BundleBehaviorNames} from './types';
 type UncommittedAssetOptions = {|
   value: Asset,
   options: ParcelOptions,
-  content?: ?(string | Buffer),
+  content?: ?Blob,
   mapBuffer?: ?Buffer,
   ast?: ?AST,
   isASTDirty?: ?boolean,
@@ -57,7 +57,7 @@ type UncommittedAssetOptions = {|
 export default class UncommittedAsset {
   value: Asset;
   options: ParcelOptions;
-  content: ?(string | Buffer | Promise<Buffer> | (() => Readable));
+  content: ?(Blob | Promise<Buffer>);
   mapBuffer: ?Buffer;
   sourceContent: ?string;
   map: ?SourceMap;
@@ -110,8 +110,7 @@ export default class UncommittedAsset {
     let astKey =
       this.ast == null ? null : this.getCacheKey('ast' + pipelineKey);
 
-    // Since we can only read from the stream once, compute the content length
-    // and hash while it's being written to the cache.
+    // For streams, compute the content length and hash while it's being written to the cache.
     await Promise.all([
       contentKey != null &&
         this.commitContent(contentKey).then(s => (size = s)),
@@ -144,10 +143,10 @@ export default class UncommittedAsset {
     }
 
     let size = 0;
-    if (content instanceof Readable) {
+    if (typeof content === 'function') {
       await this.options.cache.setStream(
         contentKey,
-        content.pipe(
+        content().pipe(
           new TapStream(buf => {
             size += buf.length;
           }),

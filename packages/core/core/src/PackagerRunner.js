@@ -24,7 +24,7 @@ import type {ConfigRequest} from './requests/ConfigRequest';
 import type {DevDepSpecifier} from './requests/DevDepRequest';
 
 import invariant from 'assert';
-import {blobToStream, TapStream} from '@parcel/utils';
+import {TapStream} from '@parcel/utils';
 import {PluginLogger} from '@parcel/logger';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import {Readable} from 'stream';
@@ -606,12 +606,12 @@ export default class PackagerRunner {
     let hashReferences = [];
 
     // TODO: don't replace hash references in binary files??
-    if (contents instanceof Readable) {
+    if (typeof contents === 'function') {
       let boundaryStr = '';
       let h = new Hash();
       await this.options.cache.setStream(
         cacheKeys.content,
-        blobToStream(contents).pipe(
+        contents().pipe(
           new TapStream(buf => {
             let str = boundaryStr + buf.toString();
             hashReferences = hashReferences.concat(

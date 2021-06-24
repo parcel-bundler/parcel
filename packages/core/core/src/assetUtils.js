@@ -22,7 +22,6 @@ import type {
 } from './types';
 import {objectSortedEntries} from '@parcel/utils';
 
-import {Readable} from 'stream';
 import {PluginLogger} from '@parcel/logger';
 import nullthrows from 'nullthrows';
 import CommittedAsset from './CommittedAsset';
@@ -167,8 +166,9 @@ async function _generateFromAST(asset: CommittedAsset | UncommittedAsset) {
 
   return {
     content:
-      content instanceof Readable
-        ? asset.options.cache.getStream(nullthrows(asset.value.contentKey))
+      typeof content === 'function'
+        ? () =>
+            asset.options.cache.getStream(nullthrows(asset.value.contentKey))
         : content,
     map,
   };

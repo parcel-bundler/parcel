@@ -732,8 +732,8 @@ export interface MutableAsset extends BaseAsset {
   setCode(string): void;
   /** Sets the asset contents as a buffer. */
   setBuffer(Buffer): void;
-  /** Sets the asset contents as a stream. */
-  setStream(Readable): void;
+  /** Sets the asset contents as a stream factory. */
+  setStream(() => Readable): void;
   /** Returns whether the AST has been modified. */
   setAST(AST): void;
   /** Sets the asset's AST. */

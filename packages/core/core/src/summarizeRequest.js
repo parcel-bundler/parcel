@@ -43,7 +43,7 @@ async function summarizeDiskRequest(
         hashStream(stream).then(
           hash =>
             resolve({
-              content: fs.createReadStream(req.filePath),
+              content: () => fs.createReadStream(req.filePath),
               hash,
               size,
             }),

@@ -462,9 +462,10 @@ export default class Transformation {
 
     return Promise.all(
       cachedAssets.map(async (value: AssetValue) => {
+        const contentKey = value.contentKey;
         let content =
-          value.contentKey != null
-            ? this.options.cache.getStream(value.contentKey)
+          contentKey != null
+            ? () => this.options.cache.getStream(contentKey)
             : null;
         let mapBuffer =
           value.astKey != null
