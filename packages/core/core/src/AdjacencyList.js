@@ -626,7 +626,7 @@ export default class AdjacencyList<TEdgeType: number = 1> {
 
   *getInboundEdgesByType(
     to: NodeId,
-  ): Iterable<{|type: TEdgeType, from: NodeId|}> {
+  ): Iterator<{|type: TEdgeType, from: NodeId|}> {
     for (
       let hash = this.nodes[indexOfNode(to) + FIRST_IN];
       hash;
@@ -642,7 +642,7 @@ export default class AdjacencyList<TEdgeType: number = 1> {
 
   *getOutboundEdgesByType(
     from: NodeId,
-  ): Iterable<{|type: TEdgeType, to: NodeId|}> {
+  ): Iterator<{|type: TEdgeType, to: NodeId|}> {
     for (
       let hash = this.nodes[indexOfNode(from) + FIRST_OUT];
       hash;
