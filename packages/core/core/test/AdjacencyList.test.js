@@ -73,7 +73,7 @@ describe('AdjacencyList', () => {
     assert.ok(graph.hasEdge(a, b, 3));
     assert.ok(graph.hasEdge(a, c));
     assert.ok(graph.hasEdge(a, d, 3));
-    assert.deepEqual(graph.getAllEdges(), [
+    assert.deepEqual(Array.from(graph.getAllEdges()), [
       {from: a, to: b, type: 1},
       {from: a, to: b, type: 2},
       {from: a, to: b, type: 3},
@@ -88,7 +88,7 @@ describe('AdjacencyList', () => {
     assert.ok(graph.hasEdge(a, b, 3));
     assert.ok(graph.hasEdge(a, c));
     assert.ok(graph.hasEdge(a, d, 3));
-    assert.deepEqual(graph.getAllEdges(), [
+    assert.deepEqual(Array.from(graph.getAllEdges()), [
       {from: a, to: b, type: 1},
       {from: a, to: b, type: 3},
       {from: a, to: c, type: 1},
@@ -140,7 +140,7 @@ describe('AdjacencyList', () => {
     graph.addEdge(a, b, 4);
     graph.addEdge(a, b, 3);
     assert.deepEqual([...graph.getNodesConnectedFrom(a)], [b]);
-    assert.deepEqual(graph.getAllEdges(), [
+    assert.deepEqual(Array.from(graph.getAllEdges()), [
       {from: a, to: b, type: 1},
       {from: a, to: b, type: 4},
       {from: a, to: b, type: 3},

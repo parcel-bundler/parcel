@@ -10,7 +10,7 @@ describe('Graph', () => {
   it('constructor should initialize an empty graph', () => {
     let graph = new Graph();
     assert.deepEqual(graph.nodes, new Map());
-    assert.deepEqual(graph.getAllEdges(), []);
+    assert.deepEqual([...graph.getAllEdges()], []);
   });
 
   it('addNode should add a node to the graph', () => {
@@ -114,7 +114,10 @@ describe('Graph', () => {
     assert(graph.nodes.has(nodeD));
     assert(!graph.nodes.has(nodeB));
     assert(!graph.nodes.has(nodeC));
-    assert.deepEqual(graph.getAllEdges(), [{from: nodeA, to: nodeD, type: 1}]);
+    assert.deepEqual(
+      [...graph.getAllEdges()],
+      [{from: nodeA, to: nodeD, type: 1}],
+    );
   });
 
   it('removing a node recursively deletes orphaned nodes', () => {
@@ -154,7 +157,7 @@ describe('Graph', () => {
     graph.removeNode(nodeB);
 
     assert.deepEqual([...graph.nodes.keys()], [nodeA, nodeC, nodeF]);
-    assert.deepEqual(graph.getAllEdges(), [
+    assert.deepEqual(Array.from(graph.getAllEdges()), [
       {from: nodeA, to: nodeC, type: 1},
       {from: nodeC, to: nodeF, type: 1},
     ]);
@@ -199,7 +202,7 @@ describe('Graph', () => {
     graph.removeNode(nodeB);
 
     assert.deepEqual([...graph.nodes.keys()], [nodeA, nodeC, nodeF]);
-    assert.deepEqual(graph.getAllEdges(), [
+    assert.deepEqual(Array.from(graph.getAllEdges()), [
       {from: nodeA, to: nodeC, type: 1},
       {from: nodeC, to: nodeF, type: 1},
     ]);
@@ -234,7 +237,7 @@ describe('Graph', () => {
     graph.removeEdge(nodeC, nodeE);
 
     assert.deepEqual(nodesBefore, getNodeIds());
-    assert.deepEqual(graph.getAllEdges(), [
+    assert.deepEqual(Array.from(graph.getAllEdges()), [
       {from: nodeA, to: nodeB, type: 1},
       {from: nodeB, to: nodeC, type: 1},
       {from: nodeB, to: nodeD, type: 1},
@@ -277,7 +280,7 @@ describe('Graph', () => {
     assert(graph.hasNode(nodeB));
     assert(!graph.hasNode(nodeC));
     assert(graph.hasNode(nodeD));
-    assert.deepEqual(graph.getAllEdges(), [
+    assert.deepEqual(Array.from(graph.getAllEdges()), [
       {from: nodeA, to: nodeB, type: 1},
       {from: nodeA, to: nodeD, type: 1},
     ]);

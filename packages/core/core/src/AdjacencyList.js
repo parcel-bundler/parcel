@@ -537,27 +537,19 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     return index;
   }
 
-  // Probably not the best way to do this
-  // Doesn't work if you add multiple edges between the same nodes
-  // ex:
-  // graph.addEdge(1, 2, 2)
-  // graph.addEdge(1, 2, 3)
-  // graph.getAllEdges() only returns [{from: 1, to: 2, type: 2}]
-  getAllEdges(): Array<Edge<TEdgeType | NullEdgeType>> {
-    let edgeObjs = [];
+  *getAllEdges(): Iterator<Edge<TEdgeType | NullEdgeType>> {
     for (let i = 0; i < this.nodes.length; i += NODE_SIZE) {
       let nextEdge = this.nodes[i + FIRST_OUT];
       while (nextEdge) {
         let edgeIndex = hashToIndex(nextEdge);
-        edgeObjs.push({
+        yield {
           from: toNodeId(this.edges[edgeIndex + FROM]),
           to: toNodeId(this.edges[edgeIndex + TO]),
           type: deletedThrows(this.edges[edgeIndex + TYPE]),
-        });
+        };
         nextEdge = this.edges[edgeIndex + NEXT_OUT];
       }
     }
-    return edgeObjs;
   }
 
   /**

@@ -67,19 +67,10 @@ export default class Graph<TNode: Node, TEdgeType: number = 1> {
     };
   }
 
-  // Returns a list of all edges in the graph. This can be large, so iterating
+  // Returns an iterator of all edges in the graph. This can be large, so iterating
   // the complete list can be costly in large graphs. Used when merging graphs.
-  getAllEdges(): Array<Edge<TEdgeType | NullEdgeType>> {
-    // let edges = [];
-    // for (let [from, edgeList] of this.outboundEdges.getListMap()) {
-    //   for (let [type, toNodes] of edgeList) {
-    //     for (let to of toNodes) {
-    //       edges.push({from, to, type});
-    //     }
-    //   }
-    // }
-    // return edges;
-    return [...this.adjacencyList.getAllEdges()];
+  getAllEdges(): Iterator<Edge<TEdgeType | NullEdgeType>> {
+    return this.adjacencyList.getAllEdges();
   }
 
   addNode(node: TNode): NodeId {
