@@ -282,10 +282,7 @@ declare module 'commander' { // manually added
     command(
       nameAndArgs: string,
       opts?: commander$CommandOptions,
-    ): $Call<
-      <R>((...args: any[]) => R) => R,
-      $PropertyType<commander$Command, 'createCommand'>,
-    >;
+    ): commander$Command;
 
     /**
      * Define a command, implemented in a separate executable file.

@@ -362,12 +362,12 @@ export default class Parcel {
     }
   }
 
-  _getWatcherSubscription(): Promise<AsyncSubscription> {
+  async _getWatcherSubscription(): Promise<AsyncSubscription> {
     invariant(this.#watcherSubscription == null);
 
     let resolvedOptions = nullthrows(this.#resolvedOptions);
     let opts = getWatcherOptions(resolvedOptions);
-    return resolvedOptions.inputFS.watch(
+    let sub = await resolvedOptions.inputFS.watch(
       resolvedOptions.projectRoot,
       (err, events) => {
         if (err) {
@@ -387,6 +387,7 @@ export default class Parcel {
       },
       opts,
     );
+    return {unsubscribe: () => sub.unsubscribe()};
   }
 
   // This is mainly for integration tests and it not public api!

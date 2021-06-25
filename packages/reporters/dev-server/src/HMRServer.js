@@ -54,8 +54,8 @@ export default class HMRServer {
       }
     });
 
-    // $FlowFixMe[incompatible-call]
-    this.wss.on('error', this.handleSocketError);
+    // $FlowFixMe[incompatible-exact]
+    this.wss.on('error', err => this.handleSocketError(err));
 
     let address = this.wss.address();
     invariant(typeof address === 'object' && address != null);
