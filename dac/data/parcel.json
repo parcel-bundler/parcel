@@ -8,7 +8,19 @@
         "title": "Guides",
         "name": "devguide",
         "url": "/platform/parcel/",
+        "indexLinkTitle": "Parcel @ Atlassian",
         "subcategories": [
+          {
+            "title": "Important links",
+            "name": "important-links",
+            "expandAlways": true,
+            "items": [
+              {
+                "title": "V2 Documentation",
+                "url": "https://v2.parceljs.org"
+              }
+            ]
+          },
           {
             "title": "Getting started",
             "name": "getting-started",
@@ -55,6 +67,11 @@
             ]
           }
         ]
+      },
+      {
+        "title": "Resources",
+        "name": "help",
+        "url": "https://v2.parceljs.org"
       }
     ]
   }
