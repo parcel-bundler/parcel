@@ -13,6 +13,7 @@ import type {
 } from '../types';
 import type {ConfigAndCachePath} from './ParcelConfigRequest';
 
+import invariant from 'assert';
 import assert from 'assert';
 import nullthrows from 'nullthrows';
 import {PluginLogger} from '@parcel/logger';
@@ -56,7 +57,14 @@ import {
 
 type BundleGraphRequestInput = {|
   assetGraph: AssetGraph,
+  changedAssets: Map<string, InternalAsset>,
+  previousAssetGraphHash: ?string,
   optionsRef: SharedReference,
+|};
+
+type BundleGraphRequestResult = {|
+  bundleGraph: InternalBundleGraph,
+  bundlerHash: string,
 |};
 
 type RunInput = {|
@@ -66,6 +74,7 @@ type RunInput = {|
 
 type BundleGraphResult = {|
   bundleGraph: InternalBundleGraph,
+  bundlerHash: string,
   changedAssets: Map<string, Asset>,
 |};
 
@@ -94,7 +103,11 @@ export default function createBundleGraphRequest(
       invalidateDevDeps(invalidDevDeps, input.options, parcelConfig);
 
       let builder = new BundlerRunner(input, parcelConfig, devDeps);
-      return builder.bundle(input.input.assetGraph);
+      return builder.bundle({
+        graph: input.input.assetGraph,
+        previousAssetGraphHash: input.input.previousAssetGraphHash,
+        changedAssets: input.input.changedAssets,
+      });
     },
     input,
   };
@@ -170,7 +183,15 @@ class BundlerRunner {
     await runDevDepRequest(this.api, devDepRequest);
   }
 
-  async bundle(graph: AssetGraph): Promise<BundleGraphResult> {
+  async bundle({
+    graph,
+    previousAssetGraphHash,
+    changedAssets,
+  }: {|
+    graph: AssetGraph,
+    previousAssetGraphHash: ?string,
+    changedAssets: Map<string, Asset>,
+  |}): Promise<BundleGraphResult> {
     report({
       type: 'buildProgress',
       phase: 'bundling',
@@ -181,7 +202,7 @@ class BundlerRunner {
     let plugin = await this.config.getBundler();
     let {plugin: bundler, name, resolveFrom} = plugin;
 
-    let cacheKey = await this.getCacheKey(graph);
+    let {cacheKey, bundlerHash} = await this.getHashes(graph);
 
     // Check if the cacheKey matches the one already stored in the graph.
     // This can save time deserializing from cache if the graph is already in memory.
@@ -211,27 +232,81 @@ class BundlerRunner {
       }
     }
 
-    let internalBundleGraph = InternalBundleGraph.fromAssetGraph(graph);
-    await dumpGraphToGraphViz(
-      // $FlowFixMe
-      internalBundleGraph._graph,
-      'before_bundle',
-      bundleGraphEdgeTypes,
-    );
-    let mutableBundleGraph = new MutableBundleGraph(
-      internalBundleGraph,
-      this.options,
-    );
+    // if a previous asset graph hash is passed in, check if the bundle graph is also available
+    let previousBundleGraphResult: ?BundleGraphRequestResult;
+    if (!graph.unsafeToBundleIncrementally && previousAssetGraphHash != null) {
+      try {
+        previousBundleGraphResult =
+          await this.api.getRequestResult<BundleGraphRequestResult>(
+            'BundleGraph:' + previousAssetGraphHash,
+          );
+      } catch {
+        // if the bundle graph had an error or was removed, don't fail the build
+      }
+    }
+    if (
+      previousBundleGraphResult == null ||
+      previousBundleGraphResult?.bundlerHash !== bundlerHash
+    ) {
+      graph.markUnsafeToBundleIncrementally();
+    }
+
+    let internalBundleGraph;
 
     let logger = new PluginLogger({origin: name});
 
     try {
-      await bundler.bundle({
-        bundleGraph: mutableBundleGraph,
-        config: this.configs.get(plugin.name)?.result,
-        options: this.pluginOptions,
-        logger,
-      });
+      if (!graph.unsafeToBundleIncrementally) {
+        internalBundleGraph = nullthrows(previousBundleGraphResult).bundleGraph;
+        for (let changedAsset of changedAssets.values()) {
+          internalBundleGraph.updateAsset(changedAsset);
+        }
+      } else {
+        internalBundleGraph = InternalBundleGraph.fromAssetGraph(graph);
+        invariant(internalBundleGraph != null); // ensures the graph was created
+
+        await dumpGraphToGraphViz(
+          // $FlowFixMe
+          internalBundleGraph._graph,
+          'before_bundle',
+          bundleGraphEdgeTypes,
+        );
+        let mutableBundleGraph = new MutableBundleGraph(
+          internalBundleGraph,
+          this.options,
+        );
+
+        // this the normal bundle workflow (bundle, optimizing, run-times, naming)
+        await bundler.bundle({
+          bundleGraph: mutableBundleGraph,
+          config: this.configs.get(plugin.name)?.result,
+          options: this.pluginOptions,
+          logger,
+        });
+
+        if (this.pluginOptions.mode === 'production') {
+          try {
+            await bundler.optimize({
+              bundleGraph: mutableBundleGraph,
+              config: this.configs.get(plugin.name)?.result,
+              options: this.pluginOptions,
+              logger,
+            });
+          } catch (e) {
+            throw new ThrowableDiagnostic({
+              diagnostic: errorToDiagnostic(e, {
+                origin: this.config.getBundlerName(),
+              }),
+            });
+          } finally {
+            await dumpGraphToGraphViz(
+              // $FlowFixMe[incompatible-call]
+              internalBundleGraph._graph,
+              'after_optimize',
+            );
+          }
+        }
+      }
     } catch (e) {
       throw new ThrowableDiagnostic({
         diagnostic: errorToDiagnostic(e, {
@@ -239,36 +314,13 @@ class BundlerRunner {
         }),
       });
     } finally {
+      invariant(internalBundleGraph != null); // ensures the graph was created
       await dumpGraphToGraphViz(
         // $FlowFixMe[incompatible-call]
         internalBundleGraph._graph,
         'after_bundle',
         bundleGraphEdgeTypes,
       );
-    }
-
-    if (this.pluginOptions.mode === 'production') {
-      try {
-        await bundler.optimize({
-          bundleGraph: mutableBundleGraph,
-          config: this.configs.get(plugin.name)?.result,
-          options: this.pluginOptions,
-          logger,
-        });
-      } catch (e) {
-        throw new ThrowableDiagnostic({
-          diagnostic: errorToDiagnostic(e, {
-            origin: name,
-          }),
-        });
-      } finally {
-        await dumpGraphToGraphViz(
-          // $FlowFixMe[incompatible-call]
-          internalBundleGraph._graph,
-          'after_optimize',
-          bundleGraphEdgeTypes,
-        );
-      }
     }
 
     // Add dev dependency for the bundler. This must be done AFTER running it due to
@@ -285,7 +337,7 @@ class BundlerRunner {
 
     await this.nameBundles(internalBundleGraph);
 
-    let changedAssets = await applyRuntimes({
+    let changedRuntimes = await applyRuntimes({
       bundleGraph: internalBundleGraph,
       api: this.api,
       config: this.config,
@@ -311,43 +363,60 @@ class BundlerRunner {
     cacheSerializedObject(internalBundleGraph);
 
     // Recompute the cache key to account for new dev dependencies and invalidations.
-    cacheKey = await this.getCacheKey(graph);
+    let {cacheKey: updatedCacheKey} = await this.getHashes(graph);
     this.api.storeResult(
       {
+        bundlerHash,
         bundleGraph: internalBundleGraph,
         changedAssets: new Map(),
       },
-      cacheKey,
+      updatedCacheKey,
     );
 
     return {
       bundleGraph: internalBundleGraph,
-      changedAssets,
+      bundlerHash,
+      changedAssets: changedRuntimes,
     };
   }
 
-  async getCacheKey(assetGraph: AssetGraph): Promise<string> {
-    let configs = [...this.configs]
-      .map(([pluginName, config]) =>
-        getConfigHash(config, pluginName, this.options),
+  async getHashes(assetGraph: AssetGraph): Promise<{|
+    cacheKey: string,
+    bundlerHash: string,
+  |}> {
+    // BundleGraphRequest needs hashes based on content (for quick retrieval)
+    // and not-based on content (determine if the environment / config
+    // changes that violate incremental bundling).
+    let configs = (
+      await Promise.all(
+        [...this.configs].map(([pluginName, config]) =>
+          getConfigHash(config, pluginName, this.options),
+        ),
       )
-      .join('');
+    ).join('');
+
     let devDepRequests = [...this.devDepRequests.values()]
       .map(d => d.hash)
       .join('');
+
     let invalidations = await getInvalidationHash(
       this.api.getInvalidations(),
       this.options,
     );
 
-    return hashString(
-      PARCEL_VERSION +
-        assetGraph.getHash() +
-        configs +
-        devDepRequests +
-        invalidations +
-        this.options.mode,
-    );
+    let plugin = await this.config.getBundler();
+
+    return {
+      cacheKey: hashString(
+        PARCEL_VERSION +
+          assetGraph.getHash() +
+          configs +
+          devDepRequests +
+          invalidations +
+          this.options.mode,
+      ),
+      bundlerHash: hashString(PARCEL_VERSION + plugin.name + configs),
+    };
   }
 
   async nameBundles(bundleGraph: InternalBundleGraph): Promise<void> {

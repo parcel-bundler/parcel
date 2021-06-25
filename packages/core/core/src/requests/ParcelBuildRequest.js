@@ -61,15 +61,15 @@ async function run({input, api, options}: RunInput) {
     shouldBuildLazily: options.shouldBuildLazily,
     requestedAssetIds,
   });
-  let {assetGraph, changedAssets, assetRequests} = await api.runRequest(
-    request,
-    {
+  let {assetGraph, changedAssets, assetRequests, previousAssetGraphHash} =
+    await api.runRequest(request, {
       force: options.shouldBuildLazily && requestedAssetIds.size > 0,
-    },
-  );
+    });
 
   let bundleGraphRequest = createBundleGraphRequest({
     assetGraph,
+    previousAssetGraphHash,
+    changedAssets,
     optionsRef,
   });
 

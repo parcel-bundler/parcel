@@ -114,6 +114,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
   hash: ?string;
   envCache: Map<string, Environment>;
   symbolPropagationRan: boolean;
+  #unsafeToIncrementallyBundle: boolean = false;
 
   constructor(opts: ?AssetGraphOpts) {
     if (opts) {
@@ -121,6 +122,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
       super(rest);
       this.hash = hash;
       this.symbolPropagationRan = symbolPropagationRan;
+      this.#unsafeToIncrementallyBundle = false;
     } else {
       super();
       this.setRootNodeId(
@@ -624,5 +626,17 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
 
     this.hash = hash.finish();
     return this.hash;
+  }
+
+  markUnsafeToBundleIncrementally() {
+    this.#unsafeToIncrementallyBundle = true;
+  }
+
+  unmarkUnsafeToBundleIncrementally() {
+    this.#unsafeToIncrementallyBundle = false;
+  }
+
+  get unsafeToBundleIncrementally(): boolean {
+    return this.#unsafeToIncrementallyBundle;
   }
 }
