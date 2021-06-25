@@ -80,7 +80,7 @@ const LAST_OUT: 3 = 3;
  */
 const DELETED: 0xffffffff = 0xffffffff;
 
-function isDeleted<TEdgeType>(type: TEdgeType): boolean {
+export function isDeleted<TEdgeType>(type: TEdgeType): boolean {
   return type === DELETED;
 }
 
