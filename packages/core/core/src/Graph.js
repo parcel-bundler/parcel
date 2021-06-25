@@ -13,14 +13,12 @@ export type GraphOpts<TNode, TEdgeType: number = 1> = {|
   nodes?: Map<NodeId, TNode>,
   adjacencyList?: SerializedAdjacencyList<TEdgeType>,
   rootNodeId?: ?NodeId,
-  nextNodeId?: ?number,
 |};
 
 export type SerializedGraph<TNode, TEdgeType: number = 1> = {|
   nodes: Map<NodeId, TNode>,
   adjacencyList: SerializedAdjacencyList<TEdgeType>,
   rootNodeId: ?NodeId,
-  nextNodeId: number,
 |};
 
 export type AllEdgeTypes = '@@all_edge_types';
@@ -30,12 +28,10 @@ export default class Graph<TNode: Node, TEdgeType: number = 1> {
   nodes: Map<NodeId, TNode>;
   adjacencyList: AdjacencyList<TEdgeType>;
   rootNodeId: ?NodeId;
-  nextNodeId: number = 0;
 
   constructor(opts: ?GraphOpts<TNode, TEdgeType>) {
     this.nodes = opts?.nodes || new Map();
     this.setRootNodeId(opts?.rootNodeId);
-    this.nextNodeId = opts?.nextNodeId ?? 0;
 
     let adjacencyList = opts?.adjacencyList;
     this.adjacencyList = adjacencyList
@@ -54,7 +50,6 @@ export default class Graph<TNode: Node, TEdgeType: number = 1> {
       nodes: opts.nodes,
       adjacencyList: opts.adjacencyList,
       rootNodeId: opts.rootNodeId,
-      nextNodeId: opts.nextNodeId,
     });
   }
 
@@ -63,7 +58,6 @@ export default class Graph<TNode: Node, TEdgeType: number = 1> {
       nodes: this.nodes,
       adjacencyList: this.adjacencyList.serialize(),
       rootNodeId: this.rootNodeId,
-      nextNodeId: this.nextNodeId,
     };
   }
 
