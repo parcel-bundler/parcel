@@ -22,6 +22,7 @@
     "check": "flow check",
     "lint": "eslint . && prettier \"./packages/*/*/{src,bin,test}/**/*.{js,json,md}\" --list-different && cargo fmt --all -- --check",
     "lint:readme": "node scripts/validate-readme-toc.js",
+    "lint:dependencies": "node scripts/validate-dependencies.js",
     "prepublishOnly": "yarn build && node scripts/update-config-dependencies.js",
     "test:unit": "cross-env NODE_ENV=test mocha",
     "test:integration": "yarn workspace @parcel/integration-tests test",
