@@ -268,8 +268,9 @@ export default class UncommittedAsset {
     // If we have sourceContent available, it means this asset is source code without
     // a previous source map. Ensure that the map set by the transformer has the original
     // source content available.
-    if (map && this.sourceContent != null) {
-      map.setSourceContent(this.value.filePath, this.sourceContent.toString());
+    if (map != null && this.sourceContent != null) {
+      map.setSourceContent(this.value.filePath, this.sourceContent);
+      this.sourceContent = null;
     }
 
     this.map = map;

@@ -5,6 +5,7 @@ import {
   bundle as _bundle,
   inputFS,
   outputFS,
+  overlayFS,
   shallowEqual,
   distDir,
   mergeParcelOptions,
@@ -118,8 +119,6 @@ function checkSourceMapping({
     column: sourceWhitespacePosition.column,
     source: sourcePath,
   };
-
-  console.log('computedMapping', computedMapping);
 
   assert(
     shallowEqual(computedMapping, sourceMapping) ||
@@ -1388,23 +1387,27 @@ describe('sourcemaps', function() {
     });
   });
 
-  it.only('carries sourcesContent from the original sources (large text file) through multiple transformations (babel and swc)', async () => {
-    let text = 'Lorem ipsum dolor sit amet';
-    text = text.repeat(230);
-
-    let baseStr = 'const foo = ';
-    let largeString = baseStr + `'${text}';`;
-
+  it('retains sourcesContent from the original sources from a large text file', async () => {
     let testDir = path.join(
       __dirname,
-      'integration/sourcemap-original-sourcecontents-txt',
+      'integration/sourcemap-original-sourcecontents-large',
     );
 
     await outputFS.mkdirp(testDir);
-    await outputFS.writeFile(path.join(testDir, 'index.js'), largeString);
+    await Promise.all([
+      outputFS.writeFile(
+        path.join(testDir, 'index.js'),
+        'const foo = ' +
+          `'${
+            // Generate ~6MB of text to exceed the stream threshold
+            'Lorem ipsum dolor sit amet '.repeat(245000)
+          }';`,
+      ),
+      outputFS.writeFile(path.join(testDir, 'yarn.lock'), ''),
+    ]);
 
     let b = await bundle(path.join(testDir, 'index.js'), {
-      //outputFS: inputFS,
+      inputFS: overlayFS,
       defaultTargetOptions: {
         shouldScopeHoist: true,
       },
@@ -1428,17 +1431,9 @@ describe('sourcemaps', function() {
       map: sourceMap,
       source: sourceContent,
       generated: raw,
-      str: "const c = 'c'" /* from index.js: const c = 'c' */,
-      generatedStr: "var$c = 'c'",
+      str: "foo = 'Lorem ipsum",
+      generatedStr: "foo = 'Lorem ipsum",
       sourcePath,
     });
-
-    // checkSourceMapping({
-    //   map: sourceMap,
-    //   source: sourceContent,
-    //   generated: raw,
-    //   str: 'document.getElementById(',
-    //   sourcePath,
-    // });
   });
 });
