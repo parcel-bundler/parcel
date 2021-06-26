@@ -845,7 +845,10 @@ ${code}
       // If a symbol is imported (used) from a CJS asset but isn't listed in the symbols,
       // we fallback on the namespace object.
       (asset.symbols.hasExportSymbol('*') &&
-        [...usedSymbols].some(s => !asset.symbols.hasExportSymbol(s)));
+        [...usedSymbols].some(s => !asset.symbols.hasExportSymbol(s))) ||
+      // If the exports has this asset's namespace (e.g. ESM output from CJS input),
+      // include the namespace object for the default export.
+      this.exportedSymbols.has(`$${assetId}$exports`);
 
     // If the asset doesn't have static exports, should wrap, the namespace is used,
     // or we need default interop, then we need to synthesize a namespace object for
