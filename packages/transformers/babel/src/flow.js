@@ -1,6 +1,6 @@
 // @flow
 
-import type {Config, PluginOptions} from '@parcel/types';
+import type {Config, PluginOptions, PackageJSON} from '@parcel/types';
 import type {BabelConfig} from './types';
 
 /**
@@ -15,9 +15,10 @@ export default async function getFlowOptions(
   }
 
   // Only add flow plugin if `flow-bin` is listed as a dependency in the root package.json
-  let conf = await config.getConfigFrom(options.projectRoot + '/index', [
-    'package.json',
-  ]);
+  let conf = await config.getConfigFrom<PackageJSON>(
+    options.projectRoot + '/index',
+    ['package.json'],
+  );
   let pkg = conf?.contents;
   if (
     !pkg ||

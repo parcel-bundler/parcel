@@ -15,16 +15,6 @@ import {relativeBundlePath} from '@parcel/utils';
 import path from 'path';
 import nullthrows from 'nullthrows';
 
-// List of browsers that support dynamic import natively
-// https://caniuse.com/#feat=es6-module-dynamic-import
-const DYNAMIC_IMPORT_BROWSERS = {
-  edge: '76',
-  firefox: '67',
-  chrome: '63',
-  safari: '11.1',
-  opera: '50',
-};
-
 // Used for as="" in preload/prefetch
 const TYPE_TO_RESOURCE_PRIORITY = {
   css: 'style',
@@ -108,9 +98,31 @@ export default (new Runtime({
               bundleGraph.getAssetPublicId(resolved.value),
             )}))`,
             dependency,
+            env: {sourceType: 'module'},
           });
         }
       } else {
+        // Resolve the dependency to a bundle. If inline, export the dependency id,
+        // which will be replaced with the contents of that bundle later.
+        let referencedBundle = bundleGraph.getReferencedBundle(
+          dependency,
+          bundle,
+        );
+        if (referencedBundle?.bundleBehavior === 'inline') {
+          assets.push({
+            filePath: path.join(
+              __dirname,
+              `/bundles/${referencedBundle.id}.js`,
+            ),
+            code: `module.exports = Promise.resolve(${JSON.stringify(
+              dependency.id,
+            )});`,
+            dependency,
+            env: {sourceType: 'module'},
+          });
+          continue;
+        }
+
         let loaderRuntime = getLoaderRuntime({
           bundle,
           dependency,
@@ -132,11 +144,12 @@ export default (new Runtime({
         dependency,
         bundle,
       );
-      if (referencedBundle?.isInline) {
+      if (referencedBundle?.bundleBehavior === 'inline') {
         assets.push({
           filePath: path.join(__dirname, `/bundles/${referencedBundle.id}.js`),
           code: `module.exports = ${JSON.stringify(dependency.id)};`,
           dependency,
+          env: {sourceType: 'module'},
         });
         continue;
       }
@@ -151,6 +164,7 @@ export default (new Runtime({
           filePath: __filename,
           code: `module.exports = ${JSON.stringify(dependency.specifier)}`,
           dependency,
+          env: {sourceType: 'module'},
         });
         continue;
       }
@@ -176,6 +190,7 @@ export default (new Runtime({
             mainBundle,
             options,
           )})`,
+          env: {sourceType: 'module'},
         });
         continue;
       }
@@ -190,7 +205,7 @@ export default (new Runtime({
     if (options.shouldBuildLazily && bundle.env.outputFormat === 'global') {
       let referenced = bundleGraph
         .getReferencedBundles(bundle)
-        .filter(b => !b.isInline);
+        .filter(b => b.bundleBehavior !== 'inline');
       for (let referencedBundle of referenced) {
         let loaders = getLoaders(bundle.env);
         if (!loaders) {
@@ -214,6 +229,7 @@ export default (new Runtime({
           filePath: __filename,
           code: loaderCode,
           isEntry: true,
+          env: {sourceType: 'module'},
         });
       }
     }
@@ -227,6 +243,7 @@ export default (new Runtime({
         filePath: __filename,
         code: getRegisterCode(bundle, bundleGraph),
         isEntry: true,
+        env: {sourceType: 'module'},
       });
     }
 
@@ -287,7 +304,7 @@ function getLoaderRuntime({
 
   let externalBundles = bundleGraph
     .getBundlesInBundleGroup(bundleGroup)
-    .filter(bundle => !bundle.isInline);
+    .filter(bundle => bundle.bundleBehavior !== 'inline');
 
   let mainBundle = nullthrows(
     externalBundles.find(
@@ -315,16 +332,7 @@ function getLoaderRuntime({
   }
 
   // Determine if we need to add a dynamic import() polyfill, or if all target browsers support it natively.
-  let needsDynamicImportPolyfill = false;
-  if (
-    !bundle.env.isLibrary &&
-    bundle.env.isBrowser() &&
-    bundle.env.outputFormat === 'esmodule'
-  ) {
-    needsDynamicImportPolyfill = !bundle.env.matchesEngines(
-      DYNAMIC_IMPORT_BROWSERS,
-    );
-  }
+  let needsDynamicImportPolyfill = !bundle.env.supports('dynamic-import', true);
 
   let loaderModules = externalBundles
     .map(to => {
@@ -418,6 +426,7 @@ function getLoaderRuntime({
     filePath: __filename,
     code: `module.exports = ${loaderCode};`,
     dependency,
+    env: {sourceType: 'module'},
   };
 }
 
@@ -492,8 +501,11 @@ function isNewContext(
   bundleGraph: BundleGraph<NamedBundle>,
 ): boolean {
   let parents = bundleGraph.getParentBundles(bundle);
+  let isInEntryBundleGroup = bundleGraph
+    .getBundleGroupsContainingBundle(bundle)
+    .some(g => bundleGraph.isEntryBundleGroup(g));
   return (
-    bundle.isEntry ||
+    isInEntryBundleGroup ||
     parents.length === 0 ||
     parents.some(
       parent =>
@@ -512,8 +524,11 @@ function getURLRuntime(
   if (dependency.meta.webworker === true) {
     return {
       filePath: __filename,
-      code: `module.exports = require('./get-worker-url')(${relativePathExpr});`,
+      code: `module.exports = require('./get-worker-url')(${relativePathExpr}, ${String(
+        from.env.outputFormat === 'esmodule',
+      )});`,
       dependency,
+      env: {sourceType: 'module'},
     };
   }
 
@@ -521,6 +536,7 @@ function getURLRuntime(
     filePath: __filename,
     code: `module.exports = require('./bundle-url').getBundleURL() + ${relativePathExpr}`,
     dependency,
+    env: {sourceType: 'module'},
   };
 }
 
@@ -530,7 +546,7 @@ function getRegisterCode(
 ): string {
   let idToName = {};
   bundleGraph.traverseBundles((bundle, _, actions) => {
-    if (bundle.isInline) {
+    if (bundle.bundleBehavior === 'inline') {
       return;
     }
 
@@ -570,6 +586,7 @@ function shouldUseRuntimeManifest(
   let env = bundle.env;
   return (
     !env.isLibrary &&
+    bundle.bundleBehavior !== 'inline' &&
     env.outputFormat === 'global' &&
     env.isBrowser() &&
     options.mode === 'production'

@@ -20,7 +20,8 @@
   },
   "scripts": {
     "test": "mocha",
-    "test-ci": "mocha"
+    "test-ci": "mocha",
+    "check-ts": "tsc --noEmit index.d.ts"
   },
   "dependencies": {
     "@parcel/cache": "2.0.0-beta.3.1",

@@ -5,6 +5,7 @@ import type {
   FilePath,
   FileCreateInvalidation,
   PluginOptions as IPluginOptions,
+  PluginLogger as IPluginLogger,
 } from '@parcel/types';
 import type {Config, ParcelOptions} from '../types';
 import type {LoadedPlugin} from '../ParcelConfig';
@@ -23,8 +24,8 @@ export type PluginWithLoadConfig = {
   loadConfig?: ({|
     config: IConfig,
     options: IPluginOptions,
-    logger: PluginLogger,
-  |}) => Async<void>,
+    logger: IPluginLogger,
+  |}) => Async<mixed>,
   ...
 };
 
@@ -32,8 +33,9 @@ export type ConfigRequest = {
   id: string,
   invalidateOnFileChange: Set<FilePath>,
   invalidateOnFileCreate: Array<FileCreateInvalidation>,
+  invalidateOnEnvChange: Set<string>,
   invalidateOnOptionChange: Set<string>,
-  shouldInvalidateOnStartup: boolean,
+  invalidateOnStartup: boolean,
   ...
 };
 
@@ -48,7 +50,7 @@ export async function loadPluginConfig<T: PluginWithLoadConfig>(
   }
 
   try {
-    await loadConfig({
+    config.result = await loadConfig({
       config: new PublicConfig(config, options),
       options: new PluginOptions(
         optionsProxy(options, option => {
@@ -73,8 +75,9 @@ export async function runConfigRequest(
   let {
     invalidateOnFileChange,
     invalidateOnFileCreate,
+    invalidateOnEnvChange,
     invalidateOnOptionChange,
-    shouldInvalidateOnStartup,
+    invalidateOnStartup,
   } = configRequest;
 
   // If there are no invalidations, then no need to create a node.
@@ -82,7 +85,7 @@ export async function runConfigRequest(
     invalidateOnFileChange.size === 0 &&
     invalidateOnFileCreate.length === 0 &&
     invalidateOnOptionChange.size === 0 &&
-    !shouldInvalidateOnStartup
+    !invalidateOnStartup
   ) {
     return;
   }
@@ -100,11 +103,15 @@ export async function runConfigRequest(
         api.invalidateOnFileCreate(invalidation);
       }
 
+      for (let env of invalidateOnEnvChange) {
+        api.invalidateOnEnvChange(env);
+      }
+
       for (let option of invalidateOnOptionChange) {
         api.invalidateOnOptionChange(option);
       }
 
-      if (shouldInvalidateOnStartup) {
+      if (invalidateOnStartup) {
         api.invalidateOnStartup();
       }
     },
@@ -126,7 +133,7 @@ export async function getConfigHash(
 
   // If there is no result hash set by the transformer, default to hashing the included
   // files if any, otherwise try to hash the config result itself.
-  if (config.resultHash == null) {
+  if (config.cacheKey == null) {
     if (config.invalidateOnFileChange.size > 0) {
       hash.writeString(
         await getInvalidationHash(
@@ -144,14 +151,14 @@ export async function getConfigHash(
         throw new ThrowableDiagnostic({
           diagnostic: {
             message:
-              'Config result is not hashable because it contains non-serializable objects. Please use config.setResultHash to set the hash manually.',
+              'Config result is not hashable because it contains non-serializable objects. Please use config.setCacheKey to set the hash manually.',
             origin: pluginName,
           },
         });
       }
     }
   } else {
-    hash.writeString(config.resultHash ?? '');
+    hash.writeString(config.cacheKey ?? '');
   }
 
   return hash.finish();
@@ -166,15 +173,17 @@ export function getConfigRequests(
       return (
         config.invalidateOnFileChange.size > 0 ||
         config.invalidateOnFileCreate.length > 0 ||
+        config.invalidateOnEnvChange.size > 0 ||
         config.invalidateOnOptionChange.size > 0 ||
-        config.shouldInvalidateOnStartup
+        config.invalidateOnStartup
       );
     })
     .map(config => ({
       id: config.id,
       invalidateOnFileChange: config.invalidateOnFileChange,
       invalidateOnFileCreate: config.invalidateOnFileCreate,
+      invalidateOnEnvChange: config.invalidateOnEnvChange,
       invalidateOnOptionChange: config.invalidateOnOptionChange,
-      shouldInvalidateOnStartup: config.shouldInvalidateOnStartup,
+      invalidateOnStartup: config.invalidateOnStartup,
     }));
 }

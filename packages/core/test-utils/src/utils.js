@@ -261,14 +261,14 @@ type RunOpts = {require?: boolean, strict?: boolean, ...};
 export async function runBundles(
   bundleGraph: BundleGraph<PackagedBundle>,
   parent: PackagedBundle,
-  bundles: Array<PackagedBundle>,
+  bundles: Array<[string, PackagedBundle]>,
   globals: mixed,
   opts: RunOpts = {},
   externalModules?: ExternalModules,
 ): Promise<mixed> {
   let entryAsset = nullthrows(
     bundles
-      .map(b => b.getMainEntry() || b.getEntryAssets()[0])
+      .map(([, b]) => b.getMainEntry() || b.getEntryAssets()[0])
       .filter(Boolean)[0],
   );
   let env = entryAsset.env;
@@ -309,6 +309,10 @@ export async function runBundles(
       promises = prepared.promises;
       break;
     }
+    case 'worklet': {
+      ctx = Object.assign({}, globals);
+      break;
+    }
     default:
       throw new Error('Unknown target ' + target);
   }
@@ -316,28 +320,37 @@ export async function runBundles(
   vm.createContext(ctx);
   let esmOutput;
   if (outputFormat === 'esmodule') {
-    invariant(bundles.length === 1, 'currently there can only be one bundle');
-    [esmOutput] = await runESM(
-      [nullthrows(bundles[0].filePath)],
+    let res = await runESM(
+      bundles.map(([code, bundle]) => [code, bundle.filePath]),
       ctx,
       overlayFS,
       externalModules,
       true,
     );
+
+    esmOutput = bundles.length === 1 ? res[0] : res;
   } else {
     invariant(
       externalModules == null,
       'externalModules are only supported with ESM',
     );
-    for (let b of bundles) {
+    for (let [code, b] of bundles) {
       // require, parcelRequire was set up in prepare*Context
-      new vm.Script(
-        (opts.strict ? '"use strict";\n' : '') +
-          (await overlayFS.readFile(nullthrows(b.filePath), 'utf8')),
-        {
-          filename: b.name,
+      new vm.Script((opts.strict ? '"use strict";\n' : '') + code, {
+        filename: b.name,
+        async importModuleDynamically(specifier) {
+          let filePath = path.resolve(path.dirname(parent.filePath), specifier);
+          let code = await overlayFS.readFile(filePath, 'utf8');
+          let modules = await runESM(
+            [[code, filePath]],
+            ctx,
+            overlayFS,
+            externalModules,
+            true,
+          );
+          return modules[0];
         },
-      ).runInContext(ctx);
+      }).runInContext(ctx);
     }
   }
   if (promises) {
@@ -387,22 +400,33 @@ export async function runBundle(
       lowerCaseAttributeNames: true,
     });
 
+    let bundles = bundleGraph.getBundles();
     let scripts = [];
     postHtml().walk.call(ast, node => {
-      if (node.tag === 'script') {
+      if (node.attrs?.nomodule != null) {
+        return node;
+      }
+      if (node.tag === 'script' && node.attrs?.src) {
         let src = url.parse(nullthrows(node.attrs).src);
         if (src.hostname == null) {
-          scripts.push(path.join(distDir, nullthrows(src.pathname)));
+          let p = path.join(distDir, nullthrows(src.pathname));
+          let b = nullthrows(bundles.find(b => b.filePath === p));
+          scripts.push([overlayFS.readFileSync(b.filePath, 'utf8'), b]);
         }
+      } else if (node.tag === 'script' && node.content && !node.attrs?.src) {
+        let content = node.content.join('');
+        let inline = bundles.filter(
+          b => b.bundleBehavior === 'inline' && b.type === 'js',
+        );
+        scripts.push([content, inline[0]]);
       }
       return node;
     });
 
-    let bundles = bundleGraph.getBundles();
     return runBundles(
       bundleGraph,
       bundle,
-      scripts.map(p => nullthrows(bundles.find(b => b.filePath === p))),
+      scripts,
       globals,
       opts,
       externalModules,
@@ -411,7 +435,7 @@ export async function runBundle(
     return runBundles(
       bundleGraph,
       bundle,
-      [bundle],
+      [[overlayFS.readFileSync(bundle.filePath, 'utf8'), bundle]],
       globals,
       opts,
       externalModules,
@@ -466,7 +490,10 @@ export function assertBundles(
 
     assets.sort(byAlphabet);
     actualBundles.push({
-      name: bundle.isInline ? bundle.name : path.basename(bundle.filePath),
+      name:
+        bundle.bundleBehavior === 'inline'
+          ? bundle.name
+          : path.basename(bundle.filePath),
       type: bundle.type,
       assets,
     });
@@ -617,7 +644,11 @@ function prepareBrowserContext(
       document: fakeDocument,
       WebSocket,
       console: {...console, clear: () => {}},
-      location: {hostname: 'localhost', origin: 'http://localhost'},
+      location: {
+        hostname: 'localhost',
+        origin: 'http://localhost',
+        protocol: 'http',
+      },
       fetch(url) {
         return Promise.resolve({
           async arrayBuffer() {
@@ -820,15 +851,17 @@ function prepareNodeContext(filePath, globals, ctx: any = {}) {
   return ctx;
 }
 
+let instanceId = 0;
 export async function runESM(
-  entries: Array<string>,
+  entries: Array<[string, string]>,
   context: vm$Context,
   fs: FileSystem,
   externalModules: ExternalModules = {},
   requireExtensions: boolean = false,
 ): Promise<Array<{|[string]: mixed|}>> {
+  let id = instanceId++;
   let cache = new Map();
-  function load(specifier, referrer) {
+  function load(specifier, referrer, code = null) {
     if (path.isAbsolute(specifier) || specifier.startsWith('.')) {
       let extname = path.extname(specifier);
       if (extname && extname !== '.js' && extname !== '.mjs') {
@@ -849,10 +882,10 @@ export async function runESM(
         return m;
       }
 
-      let source = fs.readFileSync(filename, 'utf8');
+      let source = code ?? fs.readFileSync(filename, 'utf8');
       // $FlowFixMe Experimental
       m = new vm.SourceTextModule(source, {
-        identifier: filename,
+        identifier: filename + '?id=' + id,
         importModuleDynamically: entry,
         context,
       });
@@ -889,7 +922,7 @@ export async function runESM(
 
   async function _entry(m) {
     if (m.status === 'unlinked') {
-      await m.link(load);
+      await m.link((specifier, referrer) => load(specifier, referrer));
     }
     if (m.status === 'linked') {
       await m.evaluate();
@@ -898,8 +931,8 @@ export async function runESM(
   }
 
   let entryPromises = new Map();
-  function entry(specifier, referrer) {
-    let m = load(specifier, referrer);
+  function entry(specifier, referrer, code) {
+    let m = load(specifier, referrer, code);
     let promise = entryPromises.get(m);
     if (!promise) {
       promise = _entry(m);
@@ -909,8 +942,8 @@ export async function runESM(
   }
 
   let modules = [];
-  for (let f of entries) {
-    modules.push(await entry(f, {identifier: ''}));
+  for (let [code, f] of entries) {
+    modules.push(await entry(f, {identifier: ''}, code));
   }
 
   for (let m of modules) {
@@ -939,7 +972,7 @@ export async function assertESMExports(
   );
   nodeCache.clear();
   let [nodeResult] = await runESM(
-    [entry.filePath],
+    [[await inputFS.readFile(entry.filePath, 'utf8'), entry.filePath]],
     vm.createContext(prepareNodeContext(false, {})),
     inputFS,
     externalModules,

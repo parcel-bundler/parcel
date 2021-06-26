@@ -326,7 +326,9 @@ export default class Transformation {
 
   async addDevDependency(
     opts: DevDepOptions,
-    transformer: LoadedPlugin<Transformer> | TransformerWithNameAndConfig,
+    transformer:
+      | LoadedPlugin<Transformer<mixed>>
+      | TransformerWithNameAndConfig,
   ): Promise<void> {
     let {specifier, resolveFrom, range} = opts;
     let key = `${specifier}:${resolveFrom}`;
@@ -595,7 +597,7 @@ export default class Transformation {
 
   async loadTransformerConfig(
     filePath: FilePath,
-    transformer: LoadedPlugin<Transformer>,
+    transformer: LoadedPlugin<Transformer<mixed>>,
     isSource: boolean,
   ): Promise<?Config> {
     let loadConfig = transformer.plugin.loadConfig;
@@ -622,7 +624,7 @@ export default class Transformation {
   async runTransformer(
     pipeline: Pipeline,
     asset: UncommittedAsset,
-    transformer: Transformer,
+    transformer: Transformer<mixed>,
     transformerName: string,
     preloadedConfig: ?Config,
   ): Promise<Array<TransformerResult>> {
@@ -683,7 +685,7 @@ export default class Transformation {
     let parse = transformer.parse?.bind(transformer);
     if (!asset.ast && parse) {
       let ast = await parse({
-        asset: new MutableAsset(asset),
+        asset: new Asset(asset),
         config,
         options: pipeline.pluginOptions,
         resolve,
@@ -743,7 +745,7 @@ type Pipeline = {|
 
 type TransformerWithNameAndConfig = {|
   name: PackageName,
-  plugin: Transformer,
+  plugin: Transformer<mixed>,
   config: ?Config,
   configKeyPath?: string,
   resolveFrom: FilePath,

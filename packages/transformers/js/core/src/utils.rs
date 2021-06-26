@@ -110,3 +110,9 @@ pub struct Diagnostic {
   pub code_highlights: Option<Vec<CodeHighlight>>,
   pub hints: Option<Vec<String>>,
 }
+
+#[derive(Serialize, Debug, Deserialize, Eq, PartialEq, Clone, Copy)]
+pub enum SourceType {
+  Script,
+  Module,
+}

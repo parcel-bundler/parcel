@@ -961,7 +961,9 @@ describe('html', function() {
     for (let url of urls) {
       assert(
         bundles.find(
-          bundle => !bundle.isInline && path.basename(bundle.filePath) === url,
+          bundle =>
+            bundle.bundleBehavior !== 'inline' &&
+            path.basename(bundle.filePath) === url,
         ),
       );
     }
@@ -1093,6 +1095,153 @@ describe('html', function() {
     assert(html.includes('/node_modules/lit1.3.0/'));
   });
 
+  it('should expose top level declarations globally in inline <script> tags', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-inline-js-script/globals.html'),
+    );
+
+    let logs = [];
+    let ctx = await run(
+      b,
+      {
+        log(bar, baz) {
+          logs.push([bar, baz]);
+        },
+      },
+      {require: false},
+    );
+    let output = ctx.output;
+    assert.equal(output.x, 2);
+    assert.equal(output.y, 'undefined');
+    assert.equal(output.z, 4);
+    assert.equal(typeof output.bar, 'function');
+    assert.equal(output.Test, 'undefined');
+    assert.equal(typeof output.Foo, 'function');
+    assert.equal(typeof output.baz, 'function');
+
+    // x is a let, so is "global" but not part of the global object
+    assert(!('x' in ctx));
+    assert(!('y' in ctx));
+    assert.equal(ctx.z, 4);
+    assert.equal(typeof ctx.bar, 'function');
+    assert(!('Test' in ctx));
+    assert(!('Foo' in ctx));
+    assert.equal(typeof ctx.baz, 'function');
+
+    assert.deepEqual(logs, [
+      ['undefined', 'function'],
+      ['function', 'function'],
+      ['function', 'function'],
+    ]);
+  });
+
+  for (let scopeHoist of [false, true]) {
+    it(
+      'should expose top level declarations globally in inline <script> tags with dependencies with scopeHoist = ' +
+        scopeHoist,
+      async function() {
+        let b = await bundle(
+          path.join(
+            __dirname,
+            '/integration/html-inline-js-script/globals-dependencies.html',
+          ),
+          {
+            defaultTargetOptions: {
+              shouldScopeHoist: scopeHoist,
+            },
+          },
+        );
+
+        let logs = [];
+        let ctx = await run(
+          b,
+          {
+            log(bar, baz) {
+              logs.push([bar, baz]);
+            },
+          },
+          {require: false},
+        );
+        let output = ctx.output;
+        assert.equal(output.x, 2);
+        assert.equal(output.y, 'undefined');
+        assert.equal(output.z, 4);
+        assert.equal(typeof output.bar, 'function');
+        assert.equal(output.Test, 'undefined');
+        assert.equal(typeof output.Foo, 'function');
+        assert.equal(typeof output.baz, 'function');
+
+        // x is a let, so is "global" but not part of the global object
+        assert(!('x' in ctx));
+        assert(!('y' in ctx));
+        assert.equal(ctx.z, 4);
+        assert.equal(typeof ctx.bar, 'function');
+        assert(!('Test' in ctx));
+        assert(!('Foo' in ctx));
+        assert.equal(typeof ctx.baz, 'function');
+
+        assert.deepEqual(logs, [
+          ['undefined', 'function'],
+          ['function', 'function'],
+          ['function', 'function'],
+        ]);
+
+        let contents = await outputFS.readFile(
+          b.getBundles()[0].filePath,
+          'utf8',
+        );
+        if (scopeHoist) {
+          assert(contents.includes('import('));
+        } else {
+          assert(!contents.includes('import('));
+        }
+      },
+    );
+  }
+
+  it('should error on imports in inline scripts without type="module"', async function() {
+    let errored = false;
+    try {
+      await bundle(
+        path.join(__dirname, '/integration/html-inline-js-script/error.html'),
+      );
+    } catch (err) {
+      assert.equal(
+        err.message,
+        'Browser scripts cannot have imports or exports. Use a <script type="module"> instead.',
+      );
+      assert.deepEqual(err.diagnostics, [
+        {
+          message:
+            'Browser scripts cannot have imports or exports. Use a <script type="module"> instead.',
+          filePath: path.join(
+            __dirname,
+            '/integration/html-inline-js-script/error.html',
+          ),
+          origin: '@parcel/transformer-js',
+          codeFrame: {
+            codeHighlights: [
+              {
+                start: {
+                  line: 5,
+                  column: 7,
+                },
+                end: {
+                  line: 5,
+                  column: 24,
+                },
+              },
+            ],
+          },
+        },
+      ]);
+
+      errored = true;
+    }
+
+    assert(errored);
+  });
+
   it('should allow imports and requires in inline <script> tags', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-inline-js-require/index.html'),
@@ -1172,6 +1321,206 @@ describe('html', function() {
     assert(html.includes('document.write("Hello world")'));
   });
 
+  it('should compile inline <script type="module"> to non-module if not all engines support esmodules', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-inline-js-module/index.html'),
+      {
+        defaultTargetOptions: {
+          mode: 'production',
+          shouldScopeHoist: true,
+          engines: {
+            browsers: '>= 0.25%',
+          },
+        },
+      },
+    );
+
+    await assertBundles(b, [
+      {
+        type: 'js',
+        assets: ['index.html'],
+      },
+      {
+        name: 'index.html',
+        assets: ['index.html'],
+      },
+    ]);
+
+    let html = await outputFS.readFile(
+      path.join(distDir, 'index.html'),
+      'utf8',
+    );
+    assert(!html.includes('<script type="module">'));
+    assert(html.includes('<script>'));
+    assert(html.includes('document.write("Hello world")'));
+  });
+
+  it('should compile a module and nomodule script when not all engines support esmodules natively', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-js/index.html'),
+      {
+        defaultTargetOptions: {
+          mode: 'production',
+          shouldScopeHoist: true,
+          engines: {
+            browsers: '>= 0.25%',
+          },
+        },
+      },
+    );
+
+    await assertBundles(b, [
+      {
+        type: 'js',
+        assets: ['index.js', 'other.js'],
+      },
+      {
+        type: 'js',
+        assets: ['index.js', 'other.js'],
+      },
+      {
+        name: 'index.html',
+        assets: ['index.html'],
+      },
+    ]);
+
+    let bundles = b.getBundles();
+    let html = await outputFS.readFile(
+      bundles.find(b => b.type === 'html').filePath,
+      'utf8',
+    );
+    assert(html.includes('<script type="module" src='));
+    assert(/<script src=".*?" nomodule/.test(html));
+
+    let js = await outputFS.readFile(
+      bundles.find(b => b.type === 'js' && b.env.outputFormat === 'esmodule')
+        .filePath,
+      'utf8',
+    );
+    assert(/class \$[a-f0-9]+\$var\$Useless \{/.test(js));
+
+    js = await outputFS.readFile(
+      bundles.find(b => b.type === 'js' && b.env.outputFormat === 'global')
+        .filePath,
+      'utf8',
+    );
+    assert(!/class \$[a-f0-9]+\$var\$Useless \{/.test(js));
+  });
+
+  it('should remove type="module" when not scope hoisting', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-js/index.html'),
+    );
+
+    await assertBundles(b, [
+      {
+        type: 'js',
+        assets: ['esmodule-helpers.js', 'index.js', 'other.js'],
+      },
+      {
+        name: 'index.html',
+        assets: ['index.html'],
+      },
+    ]);
+
+    let html = await outputFS.readFile(
+      path.join(distDir, 'index.html'),
+      'utf8',
+    );
+    assert(!html.includes('<script type="module"'));
+    assert(html.includes('<script src='));
+  });
+
+  it('should not add a nomodule version when all browsers support esmodules', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-js/index.html'),
+      {
+        defaultTargetOptions: {
+          mode: 'production',
+          shouldScopeHoist: true,
+          engines: {
+            browsers: 'last 1 Chrome version',
+          },
+        },
+      },
+    );
+
+    await assertBundles(b, [
+      {
+        type: 'js',
+        assets: ['index.js', 'other.js'],
+      },
+      {
+        name: 'index.html',
+        assets: ['index.html'],
+      },
+    ]);
+
+    let html = await outputFS.readFile(
+      path.join(distDir, 'index.html'),
+      'utf8',
+    );
+    assert(html.includes('<script type="module" src='));
+    assert(!/<script src=".*?" nomodule/.test(html));
+  });
+
+  it('should error on imports in scripts without type="module"', async function() {
+    let errored = false;
+    try {
+      await bundle(path.join(__dirname, '/integration/html-js/error.html'));
+    } catch (err) {
+      assert.equal(
+        err.message,
+        'Browser scripts cannot have imports or exports. Use a <script type="module"> instead.',
+      );
+      assert.deepEqual(err.diagnostics, [
+        {
+          message:
+            'Browser scripts cannot have imports or exports. Use a <script type="module"> instead.',
+          filePath: path.join(__dirname, '/integration/html-js/index.js'),
+          origin: '@parcel/transformer-js',
+          codeFrame: {
+            codeHighlights: [
+              {
+                start: {
+                  line: 1,
+                  column: 1,
+                },
+                end: {
+                  line: 1,
+                  column: 29,
+                },
+              },
+            ],
+          },
+        },
+        {
+          message: 'The environment was originally created here:',
+          filePath: path.join(__dirname, '/integration/html-js/error.html'),
+          origin: '@parcel/transformer-js',
+          codeFrame: {
+            codeHighlights: [
+              {
+                start: {
+                  line: 1,
+                  column: 1,
+                },
+                end: {
+                  line: 1,
+                  column: 32,
+                },
+              },
+            ],
+          },
+        },
+      ]);
+
+      errored = true;
+    }
+
+    assert(errored);
+  });
+
   it('should correctly bundle loaders for nested dynamic imports', async function() {
     let b = await bundle(
       path.join(
@@ -1182,6 +1531,9 @@ describe('html', function() {
         mode: 'production',
         defaultTargetOptions: {
           shouldScopeHoist: true,
+          engines: {
+            browsers: '>= 0.25%',
+          },
         },
       },
     );
@@ -1201,6 +1553,10 @@ describe('html', function() {
         ],
       },
       {
+        type: 'js',
+        assets: ['index.js', 'index.js', 'index.js'],
+      },
+      {
         name: 'index.html',
         assets: ['index.html'],
       },
@@ -1208,10 +1564,14 @@ describe('html', function() {
         type: 'js',
         assets: ['simpleHasher.js'],
       },
+      {
+        type: 'js',
+        assets: ['simpleHasher.js'],
+      },
     ]);
 
-    let output = await run(b);
-    assert.deepEqual(output, ['hasher', ['hasher', 'hasher']]);
+    let res = await run(b, {output: null}, {require: false});
+    assert.deepEqual(await res.output, ['hasher', ['hasher', 'hasher']]);
   });
 
   it('should support shared bundles between multiple inline scripts', async function() {
@@ -1273,15 +1633,7 @@ describe('html', function() {
       },
       {
         type: 'js',
-        assets: [
-          'bundle-manifest.js',
-          'bundle-url.js',
-          'cacheLoader.js',
-          'get-worker-url.js',
-          'index.js',
-          'js-loader.js',
-          'relative-path.js',
-        ],
+        assets: ['bundle-url.js', 'get-worker-url.js', 'index.js'],
       },
       {
         name: 'index.html',
@@ -1336,15 +1688,7 @@ describe('html', function() {
       },
       {
         type: 'js',
-        assets: [
-          'bundle-manifest.js',
-          'bundle-url.js',
-          'cacheLoader.js',
-          'get-worker-url.js',
-          'index.js',
-          'js-loader.js',
-          'relative-path.js',
-        ],
+        assets: ['bundle-url.js', 'get-worker-url.js', 'index.js'],
       },
       {
         name: 'index.html',
@@ -1470,8 +1814,8 @@ describe('html', function() {
 
     assert.equal(insertedBundles.length, 1);
 
-    let output = await run(b);
-    assert.deepEqual(output, ['client', 'client', 'viewer']);
+    let res = await run(b, {output: null}, {require: false});
+    assert.deepEqual(await res.output, ['client', 'client', 'viewer']);
   });
 
   it('should not point to unrelated sibling bundles', async function() {
@@ -1542,7 +1886,7 @@ describe('html', function() {
     });
 
     let html = await outputFS.readFile(path.join(distDir, 'a.html'), 'utf8');
-    assert.equal(html.match(/<script/g).length, 4);
+    assert.equal(html.match(/<script/g).length, 3);
 
     html = await outputFS.readFile(path.join(distDir, 'b.html'), 'utf8');
     assert.equal(html.match(/<script/g).length, 5);
@@ -1554,7 +1898,7 @@ describe('html', function() {
     assert.equal(html.match(/<script/g).length, 4);
 
     html = await outputFS.readFile(path.join(distDir, 'e.html'), 'utf8');
-    assert.equal(html.match(/<script/g).length, 2);
+    assert.equal(html.match(/<script/g).length, 4);
 
     html = await outputFS.readFile(path.join(distDir, 'f.html'), 'utf8');
     assert.equal(html.match(/<script/g).length, 3);

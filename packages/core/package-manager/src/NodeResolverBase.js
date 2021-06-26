@@ -7,6 +7,8 @@ import type {
   DependencySpecifier,
 } from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
+import type {ResolveResult} from './types';
+
 // $FlowFixMe
 import Module from 'module';
 import path from 'path';
@@ -17,13 +19,6 @@ const builtins = {pnpapi: true};
 for (let builtin of Module.builtinModules) {
   builtins[builtin] = true;
 }
-
-export type ResolveResult = {|
-  resolved: FilePath | DependencySpecifier,
-  pkg?: ?PackageJSON,
-  invalidateOnFileCreate: Array<FileCreateInvalidation>,
-  invalidateOnFileChange: Set<FilePath>,
-|};
 
 export type ModuleInfo = {|
   moduleName: string,

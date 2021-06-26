@@ -23,8 +23,8 @@ describe('Public Bundle', () => {
       displayName: null,
       publicId: null,
       pipeline: null,
-      isEntry: null,
-      isInline: null,
+      needsStableName: null,
+      bundleBehavior: null,
       isSplittable: true,
       target: {
         env,

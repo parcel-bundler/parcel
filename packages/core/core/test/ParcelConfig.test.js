@@ -139,7 +139,7 @@ describe('ParcelConfig', () => {
         DEFAULT_OPTIONS,
       );
 
-      sinon.stub(logger, 'warn');
+      let warnStub = sinon.stub(logger, 'warn');
       let {plugin} = await config.loadPlugin({
         packageName: 'parcel-transformer-no-engines',
         resolveFrom: configFilePath,
@@ -147,13 +147,13 @@ describe('ParcelConfig', () => {
       });
       assert(plugin);
       assert.equal(typeof plugin.transform, 'function');
-      assert(logger.warn.calledOnce);
-      assert.deepEqual(logger.warn.getCall(0).args[0], {
+      assert(warnStub.calledOnce);
+      assert.deepEqual(warnStub.getCall(0).args[0], {
         origin: '@parcel/core',
         message:
           'The plugin "parcel-transformer-no-engines" needs to specify a `package.json#engines.parcel` field with the supported Parcel version range.',
       });
-      logger.warn.restore();
+      warnStub.restore();
     });
 
     it('should error if a plugin specifies an invalid engines.parcel field in package.json', async () => {
