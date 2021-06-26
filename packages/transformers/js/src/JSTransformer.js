@@ -190,10 +190,8 @@ export default (new Transformer({
       ) {
         jsxImportSource = compilerOptions?.jsxImportSource;
         automaticJSXRuntime = true;
-      } else {
-        let automaticVersion = reactLib
-          ? JSX_PRAGMA[reactLib]?.automatic
-          : null;
+      } else if (reactLib) {
+        let automaticVersion = JSX_PRAGMA[reactLib]?.automatic;
         let reactLibVersion =
           pkg?.dependencies?.[reactLib] ||
           pkg?.devDependencies?.[reactLib] ||
