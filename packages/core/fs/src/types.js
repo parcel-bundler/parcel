@@ -1,6 +1,5 @@
 // @flow
 import type {FilePath} from '@parcel/types';
-import type {Stats} from 'fs';
 import type {Readable, Writable} from 'stream';
 import type {
   Event,
@@ -12,6 +11,35 @@ export type FileOptions = {mode?: number, ...};
 export type ReaddirOptions =
   | {withFileTypes?: false, ...}
   | {withFileTypes: true, ...};
+
+export interface Stats {
+  dev: number;
+  ino: number;
+  mode: number;
+  nlink: number;
+  uid: number;
+  gid: number;
+  rdev: number;
+  size: number;
+  blksize: number;
+  blocks: number;
+  atimeMs: number;
+  mtimeMs: number;
+  ctimeMs: number;
+  birthtimeMs: number;
+  atime: Date;
+  mtime: Date;
+  ctime: Date;
+  birthtime: Date;
+
+  isFile(): boolean;
+  isDirectory(): boolean;
+  isBlockDevice(): boolean;
+  isCharacterDevice(): boolean;
+  isSymbolicLink(): boolean;
+  isFIFO(): boolean;
+  isSocket(): boolean;
+}
 
 export interface FileSystem {
   readFile(filePath: FilePath): Promise<Buffer>;
@@ -28,8 +56,8 @@ export interface FileSystem {
     destination: FilePath,
     flags?: number,
   ): Promise<void>;
-  stat(filePath: FilePath): Promise<$Shape<Stats>>;
-  statSync(filePath: FilePath): $Shape<Stats>;
+  stat(filePath: FilePath): Promise<Stats>;
+  statSync(filePath: FilePath): Stats;
   readdir(
     path: FilePath,
     opts?: {withFileTypes?: false, ...},

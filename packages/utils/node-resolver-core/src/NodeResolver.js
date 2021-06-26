@@ -42,15 +42,14 @@ type ResolvedFile = {|
   pkg: InternalPackageJSON | null,
 |};
 
-type Env = {
+interface Env {
   +includeNodeModules:
     | boolean
     | Array<PackageName>
-    | {[PackageName]: boolean, ...},
-  isBrowser(): boolean,
-  isNode(): boolean,
-  ...
-};
+    | {[PackageName]: boolean, ...};
+  isBrowser(): boolean;
+  isNode(): boolean;
+}
 
 type Aliases =
   | string

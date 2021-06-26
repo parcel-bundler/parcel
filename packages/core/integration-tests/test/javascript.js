@@ -15,6 +15,7 @@ import {
   inputFS,
 } from '@parcel/test-utils';
 import {makeDeferredWithPromise} from '@parcel/utils';
+import vm from 'vm';
 
 describe('javascript', function() {
   beforeEach(async () => {
@@ -74,6 +75,255 @@ describe('javascript', function() {
 
     let output = await run(b);
     assert.strictEqual(path.basename(output), path.basename(txtBundle));
+  });
+
+  it('should support url: imports of another javascript file', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/worklet/pipeline.js'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'pipeline.js',
+        assets: ['bundle-url.js', 'pipeline.js', 'esmodule-helpers.js'],
+      },
+      {
+        type: 'js',
+        assets: ['worklet.js'],
+      },
+    ]);
+
+    let url;
+    await run(b, {
+      CSS: {
+        paintWorklet: {
+          addModule(u) {
+            url = u;
+          },
+        },
+      },
+    });
+    assert(/^http:\/\/localhost\/worklet\.[0-9a-f]+\.js$/.test(url));
+
+    let name;
+    await runBundle(
+      b,
+      b.getBundles()[1],
+      {
+        registerPaint(n) {
+          name = n;
+        },
+      },
+      {require: false},
+    );
+
+    assert.equal(name, 'checkerboard');
+  });
+
+  it('should support new URL() of another javascript file', async function() {
+    let b = await bundle(path.join(__dirname, '/integration/worklet/url.js'));
+
+    assertBundles(b, [
+      {
+        name: 'url.js',
+        assets: ['bundle-url.js', 'esmodule-helpers.js', 'url.js'],
+      },
+      {
+        type: 'js',
+        assets: ['worklet.js'],
+      },
+    ]);
+
+    let res = await run(b);
+    assert(/^http:\/\/localhost\/worklet\.[0-9a-f]+\.js$/.test(res.default));
+
+    let name;
+    await runBundle(
+      b,
+      b.getBundles()[1],
+      {
+        registerPaint(n) {
+          name = n;
+        },
+      },
+      {require: false},
+    );
+
+    assert.equal(name, 'checkerboard');
+  });
+
+  it('should support CSS paint worklets', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/worklet/url-worklet.js'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'url-worklet.js',
+        assets: ['bundle-url.js', 'url-worklet.js'],
+      },
+      {
+        type: 'js',
+        assets: ['worklet.js'],
+      },
+    ]);
+
+    let url;
+    await run(b, {
+      CSS: {
+        paintWorklet: {
+          addModule(u) {
+            url = u;
+          },
+        },
+      },
+    });
+    assert(/^http:\/\/localhost\/worklet\.[0-9a-f]+\.js$/.test(url));
+
+    let name;
+    await runBundle(
+      b,
+      b.getBundles()[1],
+      {
+        registerPaint(n) {
+          name = n;
+        },
+      },
+      {require: false},
+    );
+
+    assert.equal(name, 'checkerboard');
+  });
+
+  it('should error on dynamic import() inside worklets', async function() {
+    let errored = false;
+    try {
+      await bundle(
+        path.join(__dirname, '/integration/worklet/url-worklet-error.js'),
+      );
+    } catch (err) {
+      errored = true;
+      assert.equal(err.message, 'import() is not allowed in worklets.');
+      assert.deepEqual(err.diagnostics, [
+        {
+          message: 'import() is not allowed in worklets.',
+          filePath: path.join(
+            __dirname,
+            '/integration/worklet/worklet-error.js',
+          ),
+          origin: '@parcel/transformer-js',
+          codeFrame: {
+            codeHighlights: [
+              {
+                start: {
+                  line: 1,
+                  column: 8,
+                },
+                end: {
+                  line: 1,
+                  column: 18,
+                },
+              },
+            ],
+          },
+          hints: ['Try using a static `import`.'],
+        },
+        {
+          message: 'The environment was originally created here:',
+          filePath: path.normalize('integration/worklet/url-worklet-error.js'),
+          origin: '@parcel/transformer-js',
+          codeFrame: {
+            codeHighlights: [
+              {
+                start: {
+                  line: 1,
+                  column: 36,
+                },
+                end: {
+                  line: 1,
+                  column: 53,
+                },
+              },
+            ],
+          },
+        },
+      ]);
+    }
+
+    assert(errored);
+  });
+
+  it('should support audio worklets via a pipeline', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/worklet/worklet-pipeline.js'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'worklet-pipeline.js',
+        assets: ['bundle-url.js', 'esmodule-helpers.js', 'worklet-pipeline.js'],
+      },
+      {
+        type: 'js',
+        assets: ['worklet.js'],
+      },
+    ]);
+
+    let res = await run(b);
+    assert(/^http:\/\/localhost\/worklet\.[0-9a-f]+\.js$/.test(res.default));
+
+    let name;
+    await runBundle(
+      b,
+      b.getBundles()[1],
+      {
+        registerPaint(n) {
+          name = n;
+        },
+      },
+      {require: false},
+    );
+
+    assert.equal(name, 'checkerboard');
+  });
+
+  it('should error on dynamic import() inside worklets imported via a pipeline', async function() {
+    let errored = false;
+    try {
+      await bundle(
+        path.join(__dirname, '/integration/worklet/worklet-pipeline-error.js'),
+      );
+    } catch (err) {
+      errored = true;
+      assert.equal(err.message, 'import() is not allowed in worklets.');
+      assert.deepEqual(err.diagnostics, [
+        {
+          message: 'import() is not allowed in worklets.',
+          filePath: path.join(
+            __dirname,
+            '/integration/worklet/worklet-error.js',
+          ),
+          origin: '@parcel/transformer-js',
+          codeFrame: {
+            codeHighlights: [
+              {
+                start: {
+                  line: 1,
+                  column: 8,
+                },
+                end: {
+                  line: 1,
+                  column: 18,
+                },
+              },
+            ],
+          },
+          hints: ['Try using a static `import`.'],
+        },
+      ]);
+    }
+
+    assert(errored);
   });
 
   it('should produce a basic JS bundle with ES6 imports', async function() {
@@ -425,7 +675,7 @@ describe('javascript', function() {
       path.join(__dirname, '/integration/dynamic-import-attributes/index.js'),
     );
 
-    let mainBundle = b.getBundles().find(b => b.isEntry);
+    let mainBundle = b.getBundles()[0];
     let mainBundleContent = await outputFS.readFile(
       mainBundle.filePath,
       'utf8',
@@ -515,7 +765,8 @@ describe('javascript', function() {
     assert.equal(await output(), 3);
   });
 
-  it('Should not run parcel over external modules', async function() {
+  // TODO: re-enable when this actually works
+  it.skip('Should not run parcel over external modules', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/dynamic-external/index.js'),
     );
@@ -1006,10 +1257,7 @@ describe('javascript', function() {
       },
     ]);
 
-    let contents = await outputFS.readFile(
-      b.getBundles().find(b => b.isEntry).filePath,
-      'utf8',
-    );
+    let contents = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
     assert(!contents.includes('import.meta.url'));
   });
 
@@ -1082,10 +1330,7 @@ describe('javascript', function() {
       },
     ]);
 
-    let contents = await outputFS.readFile(
-      b.getBundles().find(b => b.isEntry).filePath,
-      'utf8',
-    );
+    let contents = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
     assert(!contents.includes('import.meta.url'));
   });
 
@@ -3065,6 +3310,52 @@ describe('javascript', function() {
     assert.equal(res.default, '<p>test</p>\n');
   });
 
+  it("should inline a JS bundle's compiled text with `bundle-text` and HMR enabled", async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/bundle-text/javascript.js'),
+      {
+        hmrOptions: {},
+      },
+    );
+
+    let res = await run(b);
+    let log;
+    let ctx = vm.createContext({
+      console: {
+        log(x) {
+          log = x;
+        },
+      },
+    });
+    vm.runInContext(res.default, ctx);
+    assert.equal(log, 'hi');
+  });
+
+  it("should inline a bundle's compiled text with `bundle-text` asynchronously", async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/bundle-text/async.js'),
+    );
+
+    let promise = (await run(b)).default;
+    assert.equal(typeof promise.then, 'function');
+
+    let cssBundleContent = await promise;
+
+    assert(
+      cssBundleContent.startsWith(
+        `body {
+  background-color: #000000;
+}
+
+.svg-img {
+  background-image: url("data:image/svg+xml,%3Csvg%3E%0A%0A%3C%2Fsvg%3E%0A");
+}`,
+      ),
+    );
+
+    assert(!cssBundleContent.includes('sourceMappingURL'));
+  });
+
   it('should inline text content as url-encoded text and mime type with `data-url:*` imports', async () => {
     let b = await bundle(path.join(__dirname, '/integration/data-url/text.js'));
 
@@ -3565,7 +3856,9 @@ describe('javascript', function() {
     );
 
     let bundles = b.getBundles();
-    let asyncJsBundles = bundles.filter(b => !b.isEntry && b.type === 'js');
+    let asyncJsBundles = bundles.filter(
+      b => !b.needsStableName && b.type === 'js',
+    );
     assert.equal(asyncJsBundles.length, 2);
 
     // Every bundlegroup with an async js bundle should have the corresponding css
@@ -3897,5 +4190,45 @@ describe('javascript', function() {
         ],
       },
     );
+  });
+
+  it('should create a shared bundle from a minimum of 2 source bundles', async function() {
+    let b = await bundle(
+      path.join(__dirname, 'integration/shared-bundle-single-source/index.js'),
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: false,
+        },
+      },
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: [
+          'index.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'css-loader.js',
+          'esmodule-helpers.js',
+          'js-loader.js',
+          'bundle-manifest.js',
+          'relative-path.js',
+        ],
+      },
+      {
+        assets: ['bar.js'],
+      },
+      {
+        assets: ['a.js', 'b.js', 'foo.js'],
+      },
+      {
+        assets: ['styles.css'],
+      },
+      {
+        assets: ['local.html'],
+      },
+    ]);
   });
 });

@@ -4,7 +4,6 @@ import type {SchemaEntity} from '@parcel/utils';
 import SourceMap from '@parcel/source-map';
 import {Transformer} from '@parcel/plugin';
 import {init, transform} from '../native';
-import {isURL} from '@parcel/utils';
 import path from 'path';
 import browserslist from 'browserslist';
 import semver from 'semver';
@@ -380,6 +379,7 @@ export default (new Transformer({
       react_refresh:
         asset.env.isBrowser() &&
         !asset.env.isWorker() &&
+        !asset.env.isWorklet() &&
         Boolean(config?.reactRefresh),
       decorators: Boolean(config?.decorators),
       targets,
@@ -520,6 +520,17 @@ export default (new Transformer({
             loc,
           },
         });
+      } else if (dep.kind === 'Worklet') {
+        let loc = convertLoc(dep.loc);
+        asset.addURLDependency(dep.specifier, {
+          loc,
+          env: {
+            context: 'worklet',
+            sourceType: 'module',
+            outputFormat: 'esmodule', // Worklets require ESM
+            loc,
+          },
+        });
       } else if (dep.kind === 'ImportScripts') {
         if (asset.env.isWorker()) {
           if (asset.env.sourceType !== 'script') {
@@ -553,15 +564,12 @@ export default (new Transformer({
         }
       } else if (dep.kind === 'URL') {
         asset.addURLDependency(dep.specifier, {
+          bundleBehavior: 'isolated',
           loc: convertLoc(dep.loc),
         });
       } else if (dep.kind === 'File') {
         asset.invalidateOnFileChange(dep.specifier);
       } else {
-        if (dep.kind === 'DynamicImport' && isURL(dep.specifier)) {
-          continue;
-        }
-
         let meta: JSONObject = {kind: dep.kind};
         if (dep.attributes) {
           meta.importAttributes = dep.attributes;
@@ -569,6 +577,44 @@ export default (new Transformer({
 
         let env;
         if (dep.kind === 'DynamicImport') {
+          if (asset.env.isWorklet()) {
+            let loc = convertLoc(dep.loc);
+            let diagnostic = [
+              {
+                message: 'import() is not allowed in worklets.',
+                filePath: asset.filePath,
+                codeFrame: {
+                  codeHighlights: [
+                    {
+                      start: loc.start,
+                      end: loc.end,
+                    },
+                  ],
+                },
+                hints: ['Try using a static `import`.'],
+              },
+            ];
+
+            if (asset.env.loc) {
+              diagnostic.push({
+                message: 'The environment was originally created here:',
+                filePath: asset.env.loc.filePath,
+                codeFrame: {
+                  codeHighlights: [
+                    {
+                      start: asset.env.loc.start,
+                      end: asset.env.loc.end,
+                    },
+                  ],
+                },
+              });
+            }
+
+            throw new ThrowableDiagnostic({
+              diagnostic,
+            });
+          }
+
           // If all of the target engines support dynamic import natively,
           // we can output native ESM if scope hoisting is enabled.
           // Only do this for scripts, rather than modules in the global
