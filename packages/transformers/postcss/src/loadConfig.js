@@ -1,6 +1,10 @@
 // @flow
-import type {Config, FilePath, PluginOptions} from '@parcel/types';
-import type {PluginLogger} from '@parcel/logger';
+import type {
+  Config,
+  FilePath,
+  PluginOptions,
+  PluginLogger,
+} from '@parcel/types';
 import path from 'path';
 import {relativePath} from '@parcel/utils';
 import nullthrows from 'nullthrows';

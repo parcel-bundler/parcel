@@ -5,9 +5,16 @@ import type {
   FileCreateInvalidation,
   SemverRange,
   DependencySpecifier,
+  PackageJSON,
 } from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
-import type {ResolveResult} from './NodeResolverBase';
+
+export type ResolveResult = {|
+  resolved: FilePath | DependencySpecifier,
+  pkg?: ?PackageJSON,
+  invalidateOnFileCreate: Array<FileCreateInvalidation>,
+  invalidateOnFileChange: Set<FilePath>,
+|};
 
 export type InstallOptions = {
   installPeers?: boolean,

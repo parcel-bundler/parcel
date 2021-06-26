@@ -5,8 +5,11 @@ import type SourceMap from '@parcel/source-map';
 import type {FileSystem} from '@parcel/fs';
 import type WorkerFarm from '@parcel/workers';
 import type {PackageManager} from '@parcel/package-manager';
-import type {Diagnostic} from '@parcel/diagnostic';
-import type {PluginLogger} from '@parcel/logger';
+import type {
+  Diagnostic,
+  Diagnostifiable,
+  DiagnosticWithoutOrigin,
+} from '@parcel/diagnostic';
 import type {Cache} from '@parcel/cache';
 
 import type {AST as _AST, ConfigResult as _ConfigResult} from './unsafe';
@@ -898,6 +901,36 @@ export type TransformerResult = {|
 |};
 
 export type Async<T> = T | Promise<T>;
+
+export interface PluginLogger {
+  /** Logs a diagnostic at the verbose log level. */
+  verbose(
+    diagnostic: DiagnosticWithoutOrigin | Array<DiagnosticWithoutOrigin>,
+  ): void;
+
+  /** Logs a diagnostic at the info log level. */
+  info(
+    diagnostic: DiagnosticWithoutOrigin | Array<DiagnosticWithoutOrigin>,
+  ): void;
+
+  /** Synonym for logger.info. */
+  log(
+    diagnostic: DiagnosticWithoutOrigin | Array<DiagnosticWithoutOrigin>,
+  ): void;
+
+  /** Logs a diagnostic at the verbose warning log level. */
+  warn(
+    diagnostic: DiagnosticWithoutOrigin | Array<DiagnosticWithoutOrigin>,
+  ): void;
+
+  /** Logs a diagnostic at the verbose error log level. */
+  error(
+    input:
+      | Diagnostifiable
+      | DiagnosticWithoutOrigin
+      | Array<DiagnosticWithoutOrigin>,
+  ): void;
+}
 
 /**
  * @section transformer

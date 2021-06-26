@@ -1,7 +1,6 @@
 // @flow
 import type {FileSystem} from '@parcel/fs';
-import type {FilePath, PackageJSON} from '@parcel/types';
-import type {PluginLogger} from '@parcel/logger';
+import type {FilePath, PackageJSON, PluginLogger} from '@parcel/types';
 import typeof TypeScriptModule from 'typescript'; // eslint-disable-line import/no-extraneous-dependencies
 import type {CompilerOptions, SourceFile} from 'typescript';
 import typeof {ScriptTarget} from 'typescript'; // eslint-disable-line import/no-extraneous-dependencies
