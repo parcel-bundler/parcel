@@ -9,6 +9,7 @@ import type {
   PackageJSON,
   PackageTargetDescriptor,
   TargetDescriptor,
+  OutputFormat,
 } from '@parcel/types';
 import type {StaticRunOpts, RunAPI} from '../RequestTracker';
 import type {Entry, ParcelOptions, Target} from '../types';
@@ -550,14 +551,88 @@ export class TargetResolver {
           });
         }
 
-        // Infer the outputFormat based on package.json properties.
-        // If the extension is .mjs it's always a module.
-        // If the "type" field is set to "module" and the extension is .js, it's a module.
-        let ext = distEntry != null ? path.extname(distEntry) : null;
-        let isModule =
-          targetName === 'module' ||
-          (ext != null && ext === '.mjs') ||
-          (pkg.type === 'module' && ext != null && ext === '.js');
+        if (descriptor.outputFormat === 'global') {
+          let contents: string =
+            typeof pkgContents === 'string'
+              ? pkgContents
+              : // $FlowFixMe
+                JSON.stringify(pkgContents, null, '\t');
+          throw new ThrowableDiagnostic({
+            diagnostic: {
+              message: md`The "global" output format is not supported in the "${targetName}" target.`,
+              origin: '@parcel/core',
+              language: 'json',
+              filePath: pkgFilePath ?? undefined,
+              codeFrame: {
+                code: contents,
+                codeHighlights: generateJSONCodeHighlights(contents, [
+                  {
+                    key: `/targets/${targetName}/outputFormat`,
+                    type: 'value',
+                  },
+                ]),
+              },
+              hints: [
+                `The "${targetName}" field is meant for libraries. The outputFormat must be either "commonjs" or "esmodule". Either change or remove the declared outputFormat.`,
+              ],
+            },
+          });
+        }
+
+        let inferredOutputFormat = this.inferOutputFormat(
+          distEntry,
+          descriptor,
+          targetName,
+          pkg,
+          pkgFilePath,
+          pkgContents,
+        );
+
+        let outputFormat =
+          descriptor.outputFormat ??
+          inferredOutputFormat ??
+          (targetName === 'module' ? 'esmodule' : 'commonjs');
+        let isModule = outputFormat === 'esmodule';
+
+        if (
+          targetName === 'main' &&
+          outputFormat === 'esmodule' &&
+          inferredOutputFormat !== 'esmodule'
+        ) {
+          let contents: string =
+            typeof pkgContents === 'string'
+              ? pkgContents
+              : // $FlowFixMe
+                JSON.stringify(pkgContents, null, '\t');
+          throw new ThrowableDiagnostic({
+            diagnostic: {
+              message: md`
+Output format "esmodule" cannot be used in the "main" target without a .mjs extension or "type": "module" field.
+              `,
+              origin: '@parcel/core',
+              language: 'json',
+              filePath: pkgFilePath ?? undefined,
+              codeFrame: {
+                code: contents,
+                codeHighlights: generateJSONCodeHighlights(contents, [
+                  {
+                    key: `/targets/${targetName}/outputFormat`,
+                    type: 'value',
+                    message: 'Declared output format defined here',
+                  },
+                  {
+                    key: '/main',
+                    type: 'value',
+                    message: 'Inferred output format defined here',
+                  },
+                ]),
+              },
+              hints: [
+                `Either change the output file extension to .mjs, add "type": "module" to package.json, or remove the declared outputFormat.`,
+              ],
+            },
+          });
+        }
 
         targets.set(targetName, {
           name: targetName,
@@ -575,8 +650,7 @@ export class TargetResolver {
                 ? moduleContext
                 : mainContext),
             includeNodeModules: descriptor.includeNodeModules ?? false,
-            outputFormat:
-              descriptor.outputFormat ?? (isModule ? 'esmodule' : 'commonjs'),
+            outputFormat,
             isLibrary: true,
             shouldOptimize:
               this.options.defaultTargetOptions.shouldOptimize &&
@@ -656,6 +730,16 @@ export class TargetResolver {
         if (skipTarget(targetName, exclusiveTarget, descriptor.source)) {
           continue;
         }
+
+        let inferredOutputFormat = this.inferOutputFormat(
+          distEntry,
+          descriptor,
+          targetName,
+          pkg,
+          pkgFilePath,
+          pkgContents,
+        );
+
         targets.set(targetName, {
           name: targetName,
           distDir:
@@ -669,7 +753,8 @@ export class TargetResolver {
             engines: descriptor.engines ?? pkgEngines,
             context: descriptor.context,
             includeNodeModules: descriptor.includeNodeModules,
-            outputFormat: descriptor.outputFormat,
+            outputFormat:
+              descriptor.outputFormat ?? inferredOutputFormat ?? undefined,
             isLibrary: descriptor.isLibrary,
             shouldOptimize:
               this.options.defaultTargetOptions.shouldOptimize &&
@@ -707,6 +792,96 @@ export class TargetResolver {
     assertNoDuplicateTargets(targets, pkgFilePath, pkgContents);
 
     return targets;
+  }
+
+  inferOutputFormat(
+    distEntry: ?FilePath,
+    descriptor: PackageTargetDescriptor,
+    targetName: string,
+    pkg: PackageJSON,
+    pkgFilePath: ?FilePath,
+    pkgContents: ?string,
+  ): ?OutputFormat {
+    // Infer the outputFormat based on package.json properties.
+    // If the extension is .mjs it's always a module.
+    // If the extension is .cjs, it's always commonjs.
+    // If the "type" field is set to "module" and the extension is .js, it's a module.
+    let ext = distEntry != null ? path.extname(distEntry) : null;
+    let inferredOutputFormat, inferredOutputFormatField;
+    switch (ext) {
+      case '.mjs':
+        inferredOutputFormat = 'esmodule';
+        inferredOutputFormatField = `/${targetName}`;
+        break;
+      case '.cjs':
+        inferredOutputFormat = 'commonjs';
+        inferredOutputFormatField = `/${targetName}`;
+        break;
+      case '.js':
+        if (pkg.type === 'module') {
+          inferredOutputFormat = 'esmodule';
+          inferredOutputFormatField = '/type';
+        }
+        break;
+    }
+
+    if (
+      descriptor.outputFormat &&
+      inferredOutputFormat &&
+      descriptor.outputFormat !== inferredOutputFormat
+    ) {
+      let contents: string =
+        typeof pkgContents === 'string'
+          ? pkgContents
+          : // $FlowFixMe
+            JSON.stringify(pkgContents, null, '\t');
+      let expectedExtensions;
+      switch (descriptor.outputFormat) {
+        case 'esmodule':
+          expectedExtensions = ['.mjs', '.js'];
+          break;
+        case 'commonjs':
+          expectedExtensions = ['.cjs', '.js'];
+          break;
+        case 'global':
+          expectedExtensions = ['.js'];
+          break;
+      }
+      // $FlowFixMe
+      let listFormat = new Intl.ListFormat('en-US', {type: 'disjunction'});
+      throw new ThrowableDiagnostic({
+        diagnostic: {
+          message: md`Declared output format "${descriptor.outputFormat}" does not match expected output format "${inferredOutputFormat}".`,
+          origin: '@parcel/core',
+          language: 'json',
+          filePath: pkgFilePath ?? undefined,
+          codeFrame: {
+            code: contents,
+            codeHighlights: generateJSONCodeHighlights(contents, [
+              {
+                key: `/targets/${targetName}/outputFormat`,
+                type: 'value',
+                message: 'Declared output format defined here',
+              },
+              {
+                key: nullthrows(inferredOutputFormatField),
+                type: 'value',
+                message: 'Inferred output format defined here',
+              },
+            ]),
+          },
+          hints: [
+            inferredOutputFormatField === '/type'
+              ? 'Either remove the target\'s declared "outputFormat" or remove the "type" field.'
+              : `Either remove the target\'s declared "outputFormat" or change the extension to ${listFormat.format(
+                  expectedExtensions,
+                )}.`,
+          ],
+        },
+      });
+    }
+
+    return inferredOutputFormat;
   }
 }
 
