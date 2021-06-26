@@ -1109,7 +1109,7 @@ describe('output formats', function() {
       assert.strictEqual(ns.fib(5), 8);
     });
 
-    it('should outputting .mjs files', async function() {
+    it('should support outputting .mjs files', async function() {
       let b = await bundle(
         path.join(__dirname, '/integration/formats/esm-mjs/index.js'),
       );
@@ -1120,7 +1120,7 @@ describe('output formats', function() {
       assert(output.includes('import '));
     });
 
-    it('should outputting ESM in .js files with "type": "module"', async function() {
+    it('should support outputting ESM in .js files with "type": "module"', async function() {
       let b = await bundle(
         path.join(__dirname, '/integration/formats/esm-type-module/index.js'),
       );
