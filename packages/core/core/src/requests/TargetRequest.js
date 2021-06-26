@@ -606,9 +606,8 @@ export class TargetResolver {
                 JSON.stringify(pkgContents, null, '\t');
           throw new ThrowableDiagnostic({
             diagnostic: {
-              message: md`
-Output format "esmodule" cannot be used in the "main" target without a .mjs extension or "type": "module" field.
-              `,
+              // prettier-ignore
+              message: md`Output format "esmodule" cannot be used in the "main" target without a .mjs extension or "type": "module" field.`,
               origin: '@parcel/core',
               language: 'json',
               filePath: pkgFilePath ?? undefined,
