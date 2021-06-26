@@ -872,7 +872,7 @@ export class TargetResolver {
           hints: [
             inferredOutputFormatField === '/type'
               ? 'Either remove the target\'s declared "outputFormat" or remove the "type" field.'
-              : `Either remove the target\'s declared "outputFormat" or change the extension to ${listFormat.format(
+              : `Either remove the target's declared "outputFormat" or change the extension to ${listFormat.format(
                   expectedExtensions,
                 )}.`,
           ],
