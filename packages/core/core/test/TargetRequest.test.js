@@ -575,41 +575,41 @@ describe('TargetResolver', () => {
     ]);
   });
 
-  it('resolves main target as an application when non-js file extension is used', async () => {
+  it('errors when the main target contains a non-js extension', async () => {
     let targetResolver = new TargetResolver(api, DEFAULT_OPTIONS);
     let fixture = path.join(__dirname, 'fixtures/application-targets');
-    assert.deepEqual(await targetResolver.resolve(fixture), [
-      {
-        name: 'main',
-        distDir: path.join(fixture, 'dist'),
-        distEntry: 'index.html',
-        publicUrl: '/',
-        env: {
-          id: 'c22175d22bace513',
-          context: 'browser',
-          engines: {},
-          includeNodeModules: true,
-          isLibrary: false,
-          outputFormat: 'global',
-          shouldOptimize: false,
-          shouldScopeHoist: false,
-          sourceMap: {},
-          loc: undefined,
-          sourceType: 'module',
-        },
-        loc: {
+    let code = await fs.readFile(path.join(fixture, 'package.json'), 'utf8');
+
+    // $FlowFixMe
+    await assert.rejects(() => targetResolver.resolve(fixture), {
+      diagnostics: [
+        {
+          message: 'Unexpected output file type .html in target "main"',
+          origin: '@parcel/core',
           filePath: path.join(fixture, 'package.json'),
-          start: {
-            column: 11,
-            line: 2,
+          language: 'json',
+          codeFrame: {
+            code,
+            codeHighlights: [
+              {
+                end: {
+                  column: 27,
+                  line: 2,
+                },
+                message: 'File extension must be .js, .mjs, or .cjs',
+                start: {
+                  column: 11,
+                  line: 2,
+                },
+              },
+            ],
           },
-          end: {
-            column: 27,
-            line: 2,
-          },
+          hints: [
+            'The "main" field is meant for libraries. If you meant to output a .html file, either remove the "main" field or choose a different target name.',
+          ],
         },
-      },
-    ]);
+      ],
+    });
   });
 
   it('resolves a subset of package.json targets when given a list of names', async () => {

@@ -50,7 +50,26 @@ type RunOpts = {|
 |};
 
 const DEFAULT_DIST_DIRNAME = 'dist';
-const COMMON_TARGETS = ['main', 'module', 'browser', 'types'];
+const JS_RE = /\.[mc]?js$/;
+const JS_EXTENSIONS = ['.js', '.mjs', '.cjs'];
+const COMMON_TARGETS = {
+  main: {
+    match: JS_RE,
+    extensions: JS_EXTENSIONS,
+  },
+  module: {
+    match: JS_RE,
+    extensions: JS_EXTENSIONS,
+  },
+  browser: {
+    match: JS_RE,
+    extensions: JS_EXTENSIONS,
+  },
+  types: {
+    match: /\.d\.ts$/,
+    extensions: ['.d.ts'],
+  },
+};
 
 export type TargetRequest = {|
   id: string,
@@ -438,7 +457,7 @@ export class TargetResolver {
       };
     }
 
-    for (let targetName of COMMON_TARGETS) {
+    for (let targetName in COMMON_TARGETS) {
       let _targetDist;
       let pointer;
       if (
@@ -492,10 +511,44 @@ export class TargetResolver {
           continue;
         }
 
-        let isLibrary =
-          typeof distEntry === 'string'
-            ? path.extname(distEntry) === '.js'
-            : false;
+        if (
+          distEntry != null &&
+          !COMMON_TARGETS[targetName].match.test(distEntry)
+        ) {
+          let contents: string =
+            typeof pkgContents === 'string'
+              ? pkgContents
+              : // $FlowFixMe
+                JSON.stringify(pkgContents, null, '\t');
+          // $FlowFixMe
+          let listFormat = new Intl.ListFormat('en-US', {type: 'disjunction'});
+          let extensions = listFormat.format(
+            COMMON_TARGETS[targetName].extensions,
+          );
+          let ext = path.extname(distEntry);
+          throw new ThrowableDiagnostic({
+            diagnostic: {
+              message: md`Unexpected output file type ${ext} in target "${targetName}"`,
+              origin: '@parcel/core',
+              language: 'json',
+              filePath: pkgFilePath ?? undefined,
+              codeFrame: {
+                code: contents,
+                codeHighlights: generateJSONCodeHighlights(contents, [
+                  {
+                    key: pointer,
+                    type: 'value',
+                    message: `File extension must be ${extensions}`,
+                  },
+                ]),
+              },
+              hints: [
+                `The "${targetName}" field is meant for libraries. If you meant to output a ${ext} file, either remove the "${targetName}" field or choose a different target name.`,
+              ],
+            },
+          });
+        }
+
         targets.set(targetName, {
           name: targetName,
           distDir,
@@ -511,15 +564,11 @@ export class TargetResolver {
                 : targetName === 'module'
                 ? moduleContext
                 : mainContext),
-            includeNodeModules: descriptor.includeNodeModules ?? !isLibrary,
+            includeNodeModules: descriptor.includeNodeModules ?? false,
             outputFormat:
               descriptor.outputFormat ??
-              (isLibrary
-                ? targetName === 'module'
-                  ? 'esmodule'
-                  : 'commonjs'
-                : 'global'),
-            isLibrary: isLibrary,
+              (targetName === 'module' ? 'esmodule' : 'commonjs'),
+            isLibrary: true,
             shouldOptimize:
               this.options.defaultTargetOptions.shouldOptimize &&
               descriptor.optimize !== false,
@@ -534,7 +583,7 @@ export class TargetResolver {
     }
 
     let customTargets = (Object.keys(pkgTargets): Array<string>).filter(
-      targetName => !COMMON_TARGETS.includes(targetName),
+      targetName => !COMMON_TARGETS[targetName],
     );
 
     // Custom targets
