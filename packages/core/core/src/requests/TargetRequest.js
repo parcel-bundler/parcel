@@ -58,8 +58,9 @@ const COMMON_TARGETS = {
     extensions: JS_EXTENSIONS,
   },
   module: {
-    match: JS_RE,
-    extensions: JS_EXTENSIONS,
+    // module field is always ESM. Don't allow .cjs extension here.
+    match: /\.m?js$/,
+    extensions: ['.js', '.mjs'],
   },
   browser: {
     match: JS_RE,
@@ -549,6 +550,15 @@ export class TargetResolver {
           });
         }
 
+        // Infer the outputFormat based on package.json properties.
+        // If the extension is .mjs it's always a module.
+        // If the "type" field is set to "module" and the extension is .js, it's a module.
+        let ext = distEntry != null ? path.extname(distEntry) : null;
+        let isModule =
+          targetName === 'module' ||
+          (ext != null && ext === '.mjs') ||
+          (pkg.type === 'module' && ext != null && ext === '.js');
+
         targets.set(targetName, {
           name: targetName,
           distDir,
@@ -561,13 +571,12 @@ export class TargetResolver {
               descriptor.context ??
               (targetName === 'browser'
                 ? 'browser'
-                : targetName === 'module'
+                : isModule
                 ? moduleContext
                 : mainContext),
             includeNodeModules: descriptor.includeNodeModules ?? false,
             outputFormat:
-              descriptor.outputFormat ??
-              (targetName === 'module' ? 'esmodule' : 'commonjs'),
+              descriptor.outputFormat ?? (isModule ? 'esmodule' : 'commonjs'),
             isLibrary: true,
             shouldOptimize:
               this.options.defaultTargetOptions.shouldOptimize &&
