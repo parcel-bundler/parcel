@@ -73,19 +73,18 @@ export type Diagnostic = {|
 |};
 
 // This type should represent all error formats Parcel can encounter...
-export type PrintableError = Error & {
-  fileName?: string,
-  filePath?: string,
-  codeFrame?: string,
-  highlightedCodeFrame?: string,
+export interface PrintableError extends Error {
+  fileName?: string;
+  filePath?: string;
+  codeFrame?: string;
+  highlightedCodeFrame?: string;
   loc?: ?{
     column: number,
     line: number,
     ...
-  },
-  source?: string,
-  ...
-};
+  };
+  source?: string;
+}
 
 export type DiagnosticWithoutOrigin = {|
   ...Diagnostic,
@@ -98,6 +97,7 @@ export type Diagnostifiable =
   | Array<Diagnostic>
   | ThrowableDiagnostic
   | PrintableError
+  | Error
   | string;
 
 /** Normalize the given value into a diagnostic. */

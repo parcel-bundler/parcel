@@ -21,6 +21,7 @@ export default (new Runtime({
       !options.hmrOptions ||
       !bundle.env.isBrowser() ||
       bundle.env.isWorker() ||
+      bundle.env.isWorklet() ||
       options.mode !== 'development'
     ) {
       return;

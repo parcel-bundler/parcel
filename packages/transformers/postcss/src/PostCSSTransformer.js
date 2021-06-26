@@ -199,6 +199,7 @@ function createLoader(
         source,
         rootRelativePath,
         undefined,
+        // $FlowFixMe[method-unbinding]
         this.fetch.bind(this),
       );
       return exportTokens;

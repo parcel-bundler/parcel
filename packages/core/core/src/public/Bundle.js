@@ -16,6 +16,7 @@ import type {
   Stats,
   Target as ITarget,
   GraphVisitor,
+  BundleBehavior,
 } from '@parcel/types';
 import type BundleGraph from '../BundleGraph';
 
@@ -28,6 +29,7 @@ import {mapVisitor} from '../Graph';
 import Environment from './Environment';
 import Dependency, {dependencyToInternalDependency} from './Dependency';
 import Target from './Target';
+import {BundleBehaviorNames} from '../types';
 
 const internalBundleToBundle: DefaultWeakMap<
   ParcelOptions,
@@ -115,12 +117,13 @@ export class Bundle implements IBundle {
     return new Environment(this.#bundle.env);
   }
 
-  get isEntry(): ?boolean {
-    return this.#bundle.isEntry;
+  get needsStableName(): ?boolean {
+    return this.#bundle.needsStableName;
   }
 
-  get isInline(): ?boolean {
-    return this.#bundle.isInline;
+  get bundleBehavior(): ?BundleBehavior {
+    let bundleBehavior = this.#bundle.bundleBehavior;
+    return bundleBehavior != null ? BundleBehaviorNames[bundleBehavior] : null;
   }
 
   get isSplittable(): ?boolean {

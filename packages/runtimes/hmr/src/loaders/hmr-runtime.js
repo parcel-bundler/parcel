@@ -359,6 +359,7 @@ function hmrAcceptRun(bundle /*: ParcelRequire */, id /*: string */) {
         return getParents(module.bundle.root, id);
       });
       if (assetsToAlsoAccept && assetsToAccept.length) {
+        // $FlowFixMe[method-unbinding]
         assetsToAccept.push.apply(assetsToAccept, assetsToAlsoAccept);
       }
     });

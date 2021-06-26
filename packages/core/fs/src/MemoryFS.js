@@ -844,7 +844,7 @@ class Dirent {
   name: string;
   #mode: number;
 
-  constructor(name: string, entry: {mode: number, ...}) {
+  constructor(name: string, entry: interface {mode: number}) {
     this.name = name;
     this.#mode = entry.mode;
   }
