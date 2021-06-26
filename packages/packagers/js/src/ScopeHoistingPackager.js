@@ -268,7 +268,11 @@ export class ScopeHoistingPackager {
   }
 
   buildExportedSymbols() {
-    if (this.isAsyncBundle || this.bundle.env.outputFormat !== 'esmodule') {
+    if (
+      this.isAsyncBundle ||
+      !this.bundle.env.isLibrary ||
+      this.bundle.env.outputFormat !== 'esmodule'
+    ) {
       return;
     }
 
