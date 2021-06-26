@@ -21,18 +21,22 @@ const JSX_PRAGMA = {
   react: {
     pragma: 'React.createElement',
     pragmaFrag: 'React.Fragment',
+    automatic: '>= 17.0.0',
   },
   preact: {
     pragma: 'h',
     pragmaFrag: 'Fragment',
+    automatic: '>= 10.5.0',
   },
   nervjs: {
     pragma: 'Nerv.createElement',
     pragmaFrag: undefined,
+    automatic: undefined,
   },
   hyperapp: {
     pragma: 'h',
     pragmaFrag: undefined,
+    automatic: undefined,
   },
 };
 
@@ -113,11 +117,35 @@ const SCRIPT_ERRORS = {
     'Service workers cannot have imports or exports. Use the `type: "module"` option instead.',
 };
 
+type TSConfig = {
+  compilerOptions?: {
+    // https://www.typescriptlang.org/tsconfig#jsx
+    jsx?: 'react' | 'react-jsx' | 'react-jsxdev' | 'preserve' | 'react-native',
+    // https://www.typescriptlang.org/tsconfig#jsxFactory
+    jsxFactory?: string,
+    // https://www.typescriptlang.org/tsconfig#jsxFragmentFactory
+    jsxFragmentFactory?: string,
+    // https://www.typescriptlang.org/tsconfig#jsxImportSource
+    jsxImportSource?: string,
+    // https://www.typescriptlang.org/tsconfig#experimentalDecorators
+    experimentalDecorators?: boolean,
+    ...
+  },
+  ...
+};
+
 export default (new Transformer({
   async loadConfig({config, options}) {
     let pkg = await config.getPackage();
-    let reactLib;
+    let isJSX,
+      pragma,
+      pragmaFrag,
+      jsxImportSource,
+      automaticJSXRuntime,
+      reactRefresh,
+      decorators;
     if (config.isSource) {
+      let reactLib;
       if (pkg?.alias && pkg.alias['react']) {
         // e.g.: `{ alias: { "react": "preact/compat" } }`
         reactLib = 'react';
@@ -130,17 +158,67 @@ export default (new Transformer({
             pkg?.peerDependencies?.[libName],
         );
       }
-    }
 
-    let reactRefresh =
-      config.isSource &&
-      options.hmrOptions &&
-      options.mode === 'development' &&
-      Boolean(
-        pkg?.dependencies?.react ||
-          pkg?.devDependencies?.react ||
-          pkg?.peerDependencies?.react,
+      reactRefresh =
+        options.hmrOptions &&
+        options.mode === 'development' &&
+        Boolean(
+          pkg?.dependencies?.react ||
+            pkg?.devDependencies?.react ||
+            pkg?.peerDependencies?.react,
+        );
+
+      let tsconfig = await config.getConfigFrom<TSConfig>(
+        options.projectRoot + '/index',
+        ['tsconfig.json', 'jsconfig.json'],
       );
+      let compilerOptions = tsconfig?.contents?.compilerOptions;
+
+      // Use explicitly defined JSX options in tsconfig.json over inferred values from dependencies.
+      pragma =
+        compilerOptions?.jsxFactory ||
+        (reactLib ? JSX_PRAGMA[reactLib].pragma : undefined);
+      pragmaFrag =
+        compilerOptions?.jsxFragmentFactory ||
+        (reactLib ? JSX_PRAGMA[reactLib].pragmaFrag : undefined);
+
+      if (
+        compilerOptions?.jsx === 'react-jsx' ||
+        compilerOptions?.jsx === 'react-jsxdev' ||
+        compilerOptions?.jsxImportSource
+      ) {
+        jsxImportSource = compilerOptions?.jsxImportSource;
+        automaticJSXRuntime = true;
+      } else if (reactLib) {
+        let automaticVersion = JSX_PRAGMA[reactLib]?.automatic;
+        let reactLibVersion =
+          pkg?.dependencies?.[reactLib] ||
+          pkg?.devDependencies?.[reactLib] ||
+          pkg?.peerDependencies?.[reactLib];
+        let minReactLibVersion =
+          reactLibVersion != null && reactLibVersion !== '*'
+            ? semver.minVersion(reactLibVersion)?.toString()
+            : null;
+
+        automaticJSXRuntime =
+          automaticVersion &&
+          !compilerOptions?.jsxFactory &&
+          minReactLibVersion != null &&
+          semver.satisfies(minReactLibVersion, automaticVersion);
+
+        if (automaticJSXRuntime) {
+          jsxImportSource = reactLib;
+        }
+      }
+
+      isJSX = Boolean(
+        compilerOptions?.jsx ||
+          pragma ||
+          JSX_EXTENSIONS[path.extname(config.searchPath)],
+      );
+
+      decorators = compilerOptions?.experimentalDecorators;
+    }
 
     // Check if we should ignore fs calls
     // See https://github.com/defunctzombie/node-browser-resolve#skip
@@ -179,16 +257,16 @@ export default (new Transformer({
       inlineFS = rootPkg['@parcel/transformer-js']?.inlineFS ?? inlineFS;
     }
 
-    let pragma = reactLib ? JSX_PRAGMA[reactLib].pragma : undefined;
-    let pragmaFrag = reactLib ? JSX_PRAGMA[reactLib].pragmaFrag : undefined;
-    let isJSX = pragma || JSX_EXTENSIONS[path.extname(config.searchPath)];
     return {
       isJSX,
+      automaticJSXRuntime,
+      jsxImportSource,
       pragma,
       pragmaFrag,
       inlineEnvironment,
       inlineFS,
       reactRefresh,
+      decorators,
     };
   },
   async transform({asset, config, options}) {
@@ -295,12 +373,15 @@ export default (new Transformer({
       is_jsx: Boolean(config?.isJSX),
       jsx_pragma: config?.pragma,
       jsx_pragma_frag: config?.pragmaFrag,
+      automatic_jsx_runtime: Boolean(config?.automaticJSXRuntime),
+      jsx_import_source: config?.jsxImportSource,
       is_development: options.mode === 'development',
       react_refresh:
         asset.env.isBrowser() &&
         !asset.env.isWorker() &&
         !asset.env.isWorklet() &&
         Boolean(config?.reactRefresh),
+      decorators: Boolean(config?.decorators),
       targets,
       source_maps: !!asset.env.sourceMap,
       scope_hoist:
@@ -561,7 +642,10 @@ export default (new Transformer({
           priority: dep.kind === 'DynamicImport' ? 'lazy' : 'sync',
           isOptional: dep.is_optional,
           meta,
-          resolveFrom: dep.is_helper ? __filename : undefined,
+          resolveFrom:
+            dep.is_helper && !dep.specifier.endsWith('/jsx-runtime')
+              ? __filename
+              : undefined,
           env,
         });
       }
