@@ -9,19 +9,10 @@ import path from 'path';
 
 export default (new Optimizer({
   async loadConfig({config}) {
-    let configFile = await config.getConfig(
-      [
-        '.svgorc',
-        '.svgorc.json',
-        '.svgorc.yaml',
-        '.svgorc.yml',
-        'svgo.config.js',
-        '.svgo.yml',
-      ],
-      {
-        packageKey: 'svgo',
-      },
-    );
+    let configFile = await config.getConfig([
+      'svgo.config.js',
+      'svgo.config.json',
+    ]);
 
     if (configFile) {
       let isJavascript = path.extname(configFile.filePath) === '.js';
