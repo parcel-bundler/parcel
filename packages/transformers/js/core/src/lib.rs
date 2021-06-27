@@ -22,9 +22,10 @@ mod modules;
 mod utils;
 
 use std::collections::{HashMap, HashSet};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
+use path_slash::PathExt;
 use serde::{Deserialize, Serialize};
 use swc_common::comments::SingleThreadedComments;
 use swc_common::errors::{DiagnosticBuilder, Emitter, Handler};
@@ -138,7 +139,13 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
 
   let code = unsafe { std::str::from_utf8_unchecked(&config.code) };
   let source_map = Lrc::new(SourceMap::default());
-  let module = parse(code, config.filename.as_str(), &source_map, &config);
+  let module = parse(
+    code,
+    config.project_root.as_str(),
+    config.filename.as_str(),
+    &source_map,
+    &config,
+  );
 
   match module {
     Err(err) => {
@@ -390,11 +397,19 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
 
 fn parse(
   code: &str,
+  project_root: &str,
   filename: &str,
   source_map: &Lrc<SourceMap>,
   config: &Config,
 ) -> PResult<(Module, SingleThreadedComments)> {
-  let source_file = source_map.new_source_file(FileName::Real(filename.into()), code.into());
+  // Attempt to convert the path to be relative to the project root.
+  // If outside the project root, use an absolute path so that if the project root moves the path still works.
+  let filename: PathBuf = if let Ok(relative) = Path::new(filename).strip_prefix(project_root) {
+    relative.to_slash_lossy().into()
+  } else {
+    filename.into()
+  };
+  let source_file = source_map.new_source_file(FileName::Real(filename), code.into());
 
   let comments = SingleThreadedComments::default();
   let syntax = if config.is_type_script {
