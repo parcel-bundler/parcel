@@ -1,3 +1,4 @@
+use path_slash::PathBufExt;
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
@@ -13,7 +14,8 @@ pub struct GlobalReplacer<'a> {
   pub source_map: &'a SourceMap,
   pub items: &'a mut Vec<DependencyDescriptor>,
   pub globals: HashMap<JsWord, ast::Stmt>,
-  pub filename: &'a str,
+  pub project_root: &'a Path,
+  pub filename: &'a Path,
   pub decls: &'a HashSet<(JsWord, SyntaxContext)>,
   pub global_mark: swc_common::Mark,
   pub scope_hoist: bool,
@@ -100,6 +102,15 @@ impl<'a> Fold for GlobalReplacer<'a> {
             });
           }
           "__filename" => {
+            let filename =
+              if let Some(relative) = pathdiff::diff_paths(self.filename, self.project_root) {
+                relative.to_slash_lossy()
+              } else if let Some(filename) = self.filename.file_name() {
+                String::from(format!("/{}", filename.to_string_lossy()))
+              } else {
+                String::from("/unknown.js")
+              };
+
             self.globals.insert(
               id.sym.clone(),
               create_decl_stmt(
@@ -107,7 +118,7 @@ impl<'a> Fold for GlobalReplacer<'a> {
                 self.global_mark,
                 ast::Expr::Lit(ast::Lit::Str(ast::Str {
                   span: DUMMY_SP,
-                  value: swc_atoms::JsWord::from(self.filename),
+                  value: swc_atoms::JsWord::from(filename),
                   has_escape: false,
                   kind: ast::StrKind::Synthesized,
                 })),
@@ -115,6 +126,16 @@ impl<'a> Fold for GlobalReplacer<'a> {
             );
           }
           "__dirname" => {
+            let dirname = if let Some(dirname) = self.filename.parent() {
+              if let Some(relative) = pathdiff::diff_paths(dirname, self.project_root) {
+                relative.to_slash_lossy()
+              } else {
+                String::from("/")
+              }
+            } else {
+              String::from("/")
+            };
+
             self.globals.insert(
               id.sym.clone(),
               create_decl_stmt(
@@ -122,9 +143,7 @@ impl<'a> Fold for GlobalReplacer<'a> {
                 self.global_mark,
                 ast::Expr::Lit(ast::Lit::Str(ast::Str {
                   span: DUMMY_SP,
-                  value: swc_atoms::JsWord::from(
-                    Path::new(self.filename).parent().unwrap().to_str().unwrap(),
-                  ),
+                  value: swc_atoms::JsWord::from(dirname),
                   has_escape: false,
                   kind: ast::StrKind::Synthesized,
                 })),

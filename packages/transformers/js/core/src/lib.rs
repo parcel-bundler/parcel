@@ -6,6 +6,8 @@ extern crate swc_atoms;
 extern crate data_encoding;
 extern crate dunce;
 extern crate inflector;
+extern crate path_slash;
+extern crate pathdiff;
 extern crate serde;
 extern crate serde_bytes;
 extern crate sha1;
@@ -20,6 +22,7 @@ mod modules;
 mod utils;
 
 use std::collections::{HashMap, HashSet};
+use std::path::Path;
 use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
@@ -291,7 +294,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                     source_map.clone(),
                     decls.clone(),
                     global_mark,
-                    config.project_root,
+                    &config.project_root,
                     &mut fs_deps,
                   ),
                   should_inline_fs
@@ -302,7 +305,8 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                     source_map: &source_map,
                     items: &mut global_deps,
                     globals: HashMap::new(),
-                    filename: config.filename.as_str(),
+                    project_root: Path::new(&config.project_root),
+                    filename: Path::new(&config.filename),
                     decls: &decls,
                     global_mark,
                     scope_hoist: config.scope_hoist

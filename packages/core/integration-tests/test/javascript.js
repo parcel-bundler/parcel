@@ -2112,8 +2112,8 @@ describe('javascript', function() {
 
     let output = await run(b);
     assert.deepEqual(output(), {
-      dir: path.join(__dirname, '/integration/globals'),
-      file: path.join(__dirname, '/integration/globals/index.js'),
+      dir: 'integration/globals',
+      file: 'integration/globals/index.js',
       buf: Buffer.from('browser').toString('base64'),
       global: true,
     });
