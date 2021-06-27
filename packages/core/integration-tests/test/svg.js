@@ -17,6 +17,24 @@ describe('svg', function() {
     assert(!file.includes('inkscape'));
   });
 
+  it('support SVGO config files', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/svgo-config/index.html'),
+      {
+        defaultTargetOptions: {
+          shouldOptimize: true,
+        },
+      },
+    );
+
+    let file = await outputFS.readFile(
+      b.getBundles().find(b => b.type === 'svg').filePath,
+      'utf-8',
+    );
+    assert(!file.includes('inkscape'));
+    assert(file.includes('comment'));
+  });
+
   it('should support transforming SVGs to react components', async function() {
     let b = await bundle(path.join(__dirname, '/integration/svg/react.js'), {
       defaultConfig: path.join(
