@@ -1,6 +1,11 @@
 // @flow strict-local
 
-import type {FilePath, InitialParcelOptions} from '@parcel/types';
+import type {
+  FilePath,
+  InitialParcelOptions,
+  DependencySpecifier,
+} from '@parcel/types';
+import type {FileSystem} from '@parcel/fs';
 import type {ParcelOptions} from './types';
 
 import path from 'path';
@@ -8,9 +13,10 @@ import {hashString} from '@parcel/hash';
 import {NodeFS} from '@parcel/fs';
 import {LMDBCache, FSCache} from '@parcel/cache';
 import {NodePackageManager} from '@parcel/package-manager';
-import {getRootDir, resolveConfig} from '@parcel/utils';
+import {getRootDir, relativePath, resolveConfig} from '@parcel/utils';
 import loadDotEnv from './loadDotEnv';
 import {toProjectPath} from './projectPath';
+import {getResolveFrom} from './requests/ParcelConfigRequest';
 
 // Default cache directory name
 const DEFAULT_CACHE_DIRNAME = '.parcel-cache';
@@ -94,8 +100,16 @@ export default async function resolveOptions(
   }
 
   return {
-    config: initialOptions.config,
-    defaultConfig: initialOptions.defaultConfig,
+    config: getRelativeConfigSpecifier(
+      inputFS,
+      projectRoot,
+      initialOptions.config,
+    ),
+    defaultConfig: getRelativeConfigSpecifier(
+      inputFS,
+      projectRoot,
+      initialOptions.defaultConfig,
+    ),
     shouldPatchConsole:
       initialOptions.shouldPatchConsole ?? process.env.NODE_ENV !== 'test',
     env: {
@@ -151,4 +165,22 @@ export default async function resolveOptions(
       engines: initialOptions?.defaultTargetOptions?.engines,
     },
   };
+}
+
+function getRelativeConfigSpecifier(
+  fs: FileSystem,
+  projectRoot: FilePath,
+  specifier: ?DependencySpecifier,
+) {
+  if (specifier == null) {
+    return undefined;
+  } else if (path.isAbsolute(specifier)) {
+    let resolveFrom = getResolveFrom(fs, projectRoot);
+    let relative = relativePath(path.dirname(resolveFrom), specifier);
+    // If the config is outside the project root, use an absolute path so that if the project root
+    // moves the path still works. Otherwise, use a relative path so that the cache is portable.
+    return relative.startsWith('..') ? specifier : relative;
+  } else {
+    return specifier;
+  }
 }

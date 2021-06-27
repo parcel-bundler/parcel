@@ -6,6 +6,7 @@ import type {
   RawParcelConfig,
   ResolvedParcelConfigFile,
 } from '@parcel/types';
+import type {FileSystem} from '@parcel/fs';
 import type {StaticRunOpts} from '../RequestTracker';
 import type {
   ExtendableParcelConfigPipeline,
@@ -89,7 +90,7 @@ export default function createParcelConfigRequest(): ParcelConfigRequest {
       }
 
       if (usedDefault) {
-        let resolveFrom = getResolveFrom(options);
+        let resolveFrom = getResolveFrom(options.inputFS, options.projectRoot);
         api.invalidateOnFileCreate({
           fileName: '.parcelrc',
           aboveFilePath: toProjectPath(options.projectRoot, resolveFrom),
@@ -139,7 +140,7 @@ export async function loadParcelConfig(
 export async function resolveParcelConfig(
   options: ParcelOptions,
 ): Promise<?{|...ParcelConfigChain, usedDefault: boolean|}> {
-  let resolveFrom = getResolveFrom(options);
+  let resolveFrom = getResolveFrom(options.inputFS, options.projectRoot);
   let configPath =
     options.config != null
       ? (await options.packageManager.resolve(options.config, resolveFrom))
@@ -579,11 +580,12 @@ export function mergeConfigs(
   };
 }
 
-function getResolveFrom(options: ParcelOptions) {
-  let cwd = options.inputFS.cwd();
-  let dir = isDirectoryInside(cwd, options.projectRoot)
-    ? cwd
-    : options.projectRoot;
+export function getResolveFrom(
+  fs: FileSystem,
+  projectRoot: FilePath,
+): FilePath {
+  let cwd = fs.cwd();
+  let dir = isDirectoryInside(cwd, projectRoot) ? cwd : projectRoot;
   return path.join(dir, 'index');
 }
 
