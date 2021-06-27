@@ -475,6 +475,8 @@ impl<'a> Fold for Hoist<'a> {
               if let Some(source) =
                 match_require(&expr, &self.collect.decls, self.collect.ignore_mark)
               {
+                // Require in statement position (`require('other');`) should behave just
+                // like `import 'other';` in that it doesn't add any symbols (not even '*').
                 self.add_require(&source);
               } else {
                 let d = expr.fold_with(self);
