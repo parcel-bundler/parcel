@@ -114,7 +114,7 @@ export class NodeResolverBase<T> {
   }
 
   isBuiltin(name: DependencySpecifier): boolean {
-    return !!builtins[name];
+    return !!(builtins[name] || name.startsWith('node:'));
   }
 
   findNodeModulePath(
