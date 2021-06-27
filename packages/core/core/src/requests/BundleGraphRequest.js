@@ -345,7 +345,7 @@ class BundlerRunner {
   }
 
   async nameBundle(
-    namers: Array<LoadedPlugin<Namer>>,
+    namers: Array<LoadedPlugin<Namer<mixed>>>,
     internalBundle: InternalBundle,
     internalBundleGraph: InternalBundleGraph,
   ): Promise<void> {

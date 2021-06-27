@@ -653,7 +653,7 @@ describe('output formats', function() {
       ]);
 
       let dist = await outputFS.readFile(
-        b.getBundles().find(b => !b.isEntry).filePath,
+        b.getBundles().find(b => !b.needsStableName).filePath,
         'utf8',
       );
       assert(dist.includes('$parcel$interopDefault'));
@@ -709,7 +709,7 @@ describe('output formats', function() {
       );
 
       let async = await outputFS.readFile(
-        b.getChildBundles(b.getBundles().find(b => b.isEntry))[0].filePath,
+        b.getChildBundles(b.getBundles()[0])[0].filePath,
         'utf8',
       );
       assert(!async.includes('$import$'));
@@ -817,7 +817,7 @@ describe('output formats', function() {
         .find(b => !b.filePath.includes('async'));
       assert(
         workerBundleContents.includes(
-          `importScripts("./${path.basename(syncBundle.filePath)}")`,
+          `import "./${path.basename(syncBundle.filePath)}"`,
         ),
       );
       assert(
@@ -1099,6 +1099,16 @@ describe('output formats', function() {
 
       let ns = await run(b);
       assert.strictEqual(ns.fib(5), 8);
+    });
+
+    it('should support ESM output from CJS input', async function() {
+      let b = await bundle(
+        path.join(__dirname, '/integration/formats/esm-cjs/a.js'),
+      );
+
+      let ns = await run(b);
+      assert.deepEqual(ns.test, true);
+      assert.deepEqual(ns.default, {test: true});
     });
   });
 

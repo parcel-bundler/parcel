@@ -8,7 +8,7 @@ import type {
   InstallOptions,
   Invalidations,
 } from './types';
-import type {ResolveResult} from './NodeResolverBase';
+import type {ResolveResult} from './types';
 
 import {registerSerializableClass} from '@parcel/core';
 import ThrowableDiagnostic, {

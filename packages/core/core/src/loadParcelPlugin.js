@@ -5,7 +5,6 @@ import type {ParcelOptions} from './types';
 import path from 'path';
 import semver from 'semver';
 import logger from '@parcel/logger';
-import {CONFIG} from '@parcel/plugin';
 import nullthrows from 'nullthrows';
 import ThrowableDiagnostic, {
   generateJSONCodeHighlights,
@@ -20,6 +19,7 @@ import {type ProjectPath, toProjectPath} from './projectPath';
 import {version as PARCEL_VERSION} from '../package.json';
 
 const NODE_MODULES = `${path.sep}node_modules${path.sep}`;
+const CONFIG = Symbol.for('parcel-plugin-config');
 
 export default async function loadPlugin<T>(
   pluginName: PackageName,

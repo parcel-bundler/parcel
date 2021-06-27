@@ -17,6 +17,7 @@ pub enum DependencyKind {
   Require,
   WebWorker,
   ServiceWorker,
+  Worklet,
   ImportScripts,
   URL,
   File,
@@ -114,6 +115,20 @@ impl<'a> DependencyCollector<'a> {
     }
     res
   }
+}
+
+fn rewrite_require_specifier(node: ast::CallExpr) -> ast::CallExpr {
+  if let Some(arg) = node.args.get(0) {
+    if let ast::Expr::Lit(lit) = &*arg.expr {
+      if let ast::Lit::Str(str_) = lit {
+        if str_.value.starts_with("node:") {
+          // create_require will take care of replacing the node: prefix...
+          return create_require(str_.value.clone());
+        }
+      }
+    }
+  }
+  node
 }
 
 impl<'a> Fold for DependencyCollector<'a> {
@@ -261,6 +276,8 @@ impl<'a> Fold for DependencyCollector<'a> {
           self.decls,
         ) {
           DependencyKind::ServiceWorker
+        } else if match_member_expr(member, vec!["CSS", "paintWorklet", "addModule"], self.decls) {
+          DependencyKind::Worklet
         } else {
           let was_in_promise = self.in_promise;
 
@@ -384,8 +401,13 @@ impl<'a> Fold for DependencyCollector<'a> {
     }
 
     if let Some(arg) = node.args.get(0) {
-      if kind == DependencyKind::ServiceWorker {
-        let (source_type, opts) = match_worker_type(node.args.get(1));
+      if kind == DependencyKind::ServiceWorker || kind == DependencyKind::Worklet {
+        let (source_type, opts) = if kind == DependencyKind::ServiceWorker {
+          match_worker_type(node.args.get(1))
+        } else {
+          // Worklets are always modules
+          (SourceType::Module, None)
+        };
         let mut node = node.clone();
 
         let (specifier, span) = if let Some(s) = match_import_meta_url(&*arg.expr, self.decls) {
@@ -462,11 +484,12 @@ impl<'a> Fold for DependencyCollector<'a> {
       call.args.truncate(1);
 
       // Track the returned require call to be replaced with a promise chain.
-      self.require_node = Some(call.clone());
-      call
+      let rewritten_call = rewrite_require_specifier(call);
+      self.require_node = Some(rewritten_call.clone());
+      rewritten_call
     } else if kind == DependencyKind::Require {
       // Don't continue traversing so that the `require` isn't replaced with undefined
-      node
+      rewrite_require_specifier(node)
     } else {
       node.fold_children_with(self)
     }

@@ -274,6 +274,17 @@ function processMap(
   // $FlowFixMe
   let res: ConfigMap<any, any> = {};
   for (let k in map) {
+    if (k.startsWith('node:')) {
+      throw new ThrowableDiagnostic({
+        diagnostic: {
+          message:
+            'Named pipeline node: is reserved for builtin Node.js libraries',
+          origin: '@parcel/core',
+          filePath,
+        },
+      });
+    }
+
     if (typeof map[k] === 'string') {
       res[k] = {
         packageName: map[k],

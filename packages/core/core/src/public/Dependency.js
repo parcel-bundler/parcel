@@ -8,8 +8,10 @@ import type {
   SourceLocation,
   SpecifierType,
   DependencyPriority,
+  BundleBehavior,
 } from '@parcel/types';
 import type {Dependency as InternalDependency, ParcelOptions} from '../types';
+import {BundleBehaviorNames} from '../types';
 
 import nullthrows from 'nullthrows';
 import Environment from './Environment';
@@ -78,6 +80,11 @@ export default class Dependency implements IDependency {
 
   get needsStableName(): boolean {
     return this.#dep.needsStableName;
+  }
+
+  get bundleBehavior(): ?BundleBehavior {
+    let bundleBehavior = this.#dep.bundleBehavior;
+    return bundleBehavior == null ? null : BundleBehaviorNames[bundleBehavior];
   }
 
   get isEntry(): boolean {

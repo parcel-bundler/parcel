@@ -72,6 +72,8 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
       throw new Error('Dependency not found');
     }
 
+    invariant(dependencyNode.type === 'dependency');
+
     let resolved = this.#graph.getDependencyResolution(
       dependencyToInternalDependency(dependency),
     );
@@ -108,10 +110,7 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
     this.#graph._graph.addEdge(dependencyNodeId, resolvedNodeId, 'references');
     this.#graph._graph.removeEdge(dependencyNodeId, resolvedNodeId);
 
-    if (
-      dependency.isEntry ||
-      resolved.bundleBehavior === BundleBehavior.isolated
-    ) {
+    if (dependency.isEntry) {
       this.#graph._graph.addEdge(
         nullthrows(this.#graph._graph.rootNodeId),
         bundleGroupNodeId,
@@ -156,7 +155,7 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
     let target = targetToInternalTarget(opts.target);
     let bundleId = hashString(
       'bundle:' +
-        (opts.uniqueKey ?? nullthrows(entryAsset?.id)) +
+        (opts.entryAsset ? opts.entryAsset.id : opts.uniqueKey) +
         fromProjectPathRelative(target.distDir),
     );
 
@@ -186,16 +185,21 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
       value: {
         id: bundleId,
         hashReference: HASH_REF_PREFIX + bundleId,
-        type: opts.type ?? nullthrows(entryAsset).type,
+        type: opts.entryAsset ? opts.entryAsset.type : opts.type,
         env: opts.env
           ? environmentToInternalEnvironment(opts.env)
           : nullthrows(entryAsset).env,
         entryAssetIds: entryAsset ? [entryAsset.id] : [],
         mainEntryId: entryAsset?.id,
-        pipeline: opts.pipeline ?? entryAsset?.pipeline,
-        isEntry: opts.isEntry,
-        isInline: opts.isInline,
-        isSplittable: opts.isSplittable ?? entryAsset?.isBundleSplittable,
+        pipeline: opts.entryAsset ? opts.entryAsset.pipeline : opts.pipeline,
+        needsStableName: opts.needsStableName,
+        bundleBehavior:
+          opts.bundleBehavior != null
+            ? BundleBehavior[opts.bundleBehavior]
+            : null,
+        isSplittable: opts.entryAsset
+          ? opts.entryAsset.isBundleSplittable
+          : opts.isSplittable,
         isPlaceholder,
         target,
         name: null,

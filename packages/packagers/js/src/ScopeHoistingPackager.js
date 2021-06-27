@@ -38,6 +38,7 @@ const GLOBALS_BY_CONTEXT = {
     ...BUILTINS,
     ...Object.keys(globals.serviceworker),
   ]),
+  worklet: new Set([...BUILTINS]),
   node: new Set([...BUILTINS, ...Object.keys(globals.node)]),
   'electron-main': new Set([...BUILTINS, ...Object.keys(globals.node)]),
   'electron-renderer': new Set([
@@ -96,7 +97,7 @@ export class ScopeHoistingPackager {
     this.isAsyncBundle =
       this.bundleGraph.hasParentBundleOfType(this.bundle, 'js') &&
       !this.bundle.env.isIsolated() &&
-      this.bundle.getMainEntry()?.bundleBehavior !== 'isolated';
+      this.bundle.bundleBehavior !== 'isolated';
 
     this.globalNames = GLOBALS_BY_CONTEXT[bundle.env.context];
   }
@@ -116,7 +117,7 @@ export class ScopeHoistingPackager {
     ) {
       let bundles = this.bundleGraph
         .getReferencedBundles(this.bundle)
-        .filter(b => !b.isInline);
+        .filter(b => b.bundleBehavior !== 'inline');
       for (let b of bundles) {
         this.externals.set(relativeBundlePath(this.bundle, b), new Map());
       }
@@ -267,7 +268,11 @@ export class ScopeHoistingPackager {
   }
 
   buildExportedSymbols() {
-    if (this.isAsyncBundle || this.bundle.env.outputFormat !== 'esmodule') {
+    if (
+      this.isAsyncBundle ||
+      !this.bundle.env.isLibrary ||
+      this.bundle.env.outputFormat !== 'esmodule'
+    ) {
       return;
     }
 
@@ -840,7 +845,10 @@ ${code}
       // If a symbol is imported (used) from a CJS asset but isn't listed in the symbols,
       // we fallback on the namespace object.
       (asset.symbols.hasExportSymbol('*') &&
-        [...usedSymbols].some(s => !asset.symbols.hasExportSymbol(s)));
+        [...usedSymbols].some(s => !asset.symbols.hasExportSymbol(s))) ||
+      // If the exports has this asset's namespace (e.g. ESM output from CJS input),
+      // include the namespace object for the default export.
+      this.exportedSymbols.has(`$${assetId}$exports`);
 
     // If the asset doesn't have static exports, should wrap, the namespace is used,
     // or we need default interop, then we need to synthesize a namespace object for
@@ -1025,7 +1033,7 @@ ${code}
           .getBundleGroupsContainingBundle(this.bundle)
           .some(g => this.bundleGraph.isEntryBundleGroup(g)) ||
         this.bundle.env.isIsolated() ||
-        this.bundle.getMainEntry()?.bundleBehavior === 'isolated';
+        this.bundle.bundleBehavior === 'isolated';
 
       if (mightBeFirstJS) {
         let preludeCode = prelude(this.parcelRequireName);
@@ -1047,10 +1055,15 @@ ${code}
       let importScripts = '';
       let bundles = this.bundleGraph.getReferencedBundles(this.bundle);
       for (let b of bundles) {
-        importScripts += `importScripts("${relativeBundlePath(
-          this.bundle,
-          b,
-        )}");\n`;
+        if (this.bundle.env.outputFormat === 'esmodule') {
+          // importScripts() is not allowed in native ES module workers.
+          importScripts += `import "${relativeBundlePath(this.bundle, b)}";\n`;
+        } else {
+          importScripts += `importScripts("${relativeBundlePath(
+            this.bundle,
+            b,
+          )}");\n`;
+        }
       }
 
       res += importScripts;

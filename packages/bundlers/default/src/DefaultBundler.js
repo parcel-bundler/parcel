@@ -17,6 +17,13 @@ import {hashString} from '@parcel/hash';
 import nullthrows from 'nullthrows';
 import {encodeJSONKeyComponent} from '@parcel/diagnostic';
 
+type BundlerConfig = {|
+  http?: number,
+  minBundles?: number,
+  minBundleSize?: number,
+  maxParallelRequests?: number,
+|};
+
 // Default options by http version.
 const HTTP_OPTIONS = {
   '1': {
@@ -101,11 +108,12 @@ export default (new Bundler({
           for (let asset of assets) {
             let bundle = bundleGraph.createBundle({
               entryAsset: asset,
-              isEntry:
+              needsStableName:
+                dependency.bundleBehavior === 'inline' ||
                 asset.bundleBehavior === 'inline'
                   ? false
                   : dependency.isEntry || dependency.needsStableName,
-              isInline: asset.bundleBehavior === 'inline',
+              bundleBehavior: dependency.bundleBehavior ?? asset.bundleBehavior,
               target: bundleGroup.target,
             });
             bundleByType.set(bundle.type, bundle);
@@ -158,13 +166,14 @@ export default (new Bundler({
               env: asset.env,
               type: asset.type,
               target: bundleGroup.target,
-              isEntry:
+              needsStableName:
                 asset.bundleBehavior === 'inline' ||
+                dependency.bundleBehavior === 'inline' ||
                 (dependency.priority === 'parallel' &&
                   !dependency.needsStableName)
                   ? false
-                  : parentBundle.isEntry,
-              isInline: asset.bundleBehavior === 'inline',
+                  : parentBundle.needsStableName,
+              bundleBehavior: dependency.bundleBehavior ?? asset.bundleBehavior,
               isSplittable: asset.isBundleSplittable ?? true,
               pipeline: asset.pipeline,
             });
@@ -202,7 +211,12 @@ export default (new Bundler({
 
     // Step 2: Remove asset graphs that begin with entries to other bundles.
     bundleGraph.traverseBundles(bundle => {
-      if (bundle.isInline || !bundle.isSplittable || bundle.env.isIsolated()) {
+      if (
+        bundle.bundleBehavior === 'inline' ||
+        bundle.bundleBehavior === 'isolated' ||
+        !bundle.isSplittable ||
+        bundle.env.isIsolated()
+      ) {
         return;
       }
 
@@ -224,8 +238,10 @@ export default (new Bundler({
           // Don't add to BundleGroups for entry bundles, as that would require
           // another entry bundle depending on these conditions, making it difficult
           // to predict and reference.
-          !containingBundle.isEntry &&
-          !containingBundle.isInline &&
+          // TODO: reconsider this. This is only true for the global output format.
+          !containingBundle.needsStableName &&
+          containingBundle.bundleBehavior !== 'inline' &&
+          containingBundle.bundleBehavior !== 'isolated' &&
           containingBundle.isSplittable,
       );
 
@@ -238,7 +254,8 @@ export default (new Bundler({
             group =>
               bundleGraph
                 .getBundlesInBundleGroup(group)
-                .filter(b => !b.isInline).length < config.maxParallelRequests,
+                .filter(b => b.bundleBehavior !== 'inline').length <
+              config.maxParallelRequests,
           )
         ) {
           bundleGraph.createBundleReference(candidate, bundle);
@@ -333,11 +350,13 @@ export default (new Bundler({
         // Don't create shared bundles from entry bundles, as that would require
         // another entry bundle depending on these conditions, making it difficult
         // to predict and reference.
+        // TODO: reconsider this. This is only true for the global output format.
+        // This also currently affects other bundles with stable names, e.g. service workers.
         .filter(b => {
           let entries = b.getEntryAssets();
 
           return (
-            !b.isEntry &&
+            !b.needsStableName &&
             b.isSplittable &&
             entries.every(entry => entry.id !== asset.id)
           );
@@ -379,31 +398,35 @@ export default (new Bundler({
       .sort((a, b) => b.size - a.size);
 
     for (let {assets, sourceBundles} of sortedCandidates) {
-      // Find all bundle groups connected to the original bundles
-      let bundleGroups = new Set();
+      let eligibleSourceBundles = new Set();
 
       for (let bundle of sourceBundles) {
-        for (let bundleGroup of bundleGraph.getBundleGroupsContainingBundle(
-          bundle,
-        )) {
-          bundleGroups.add(bundleGroup);
+        // Find all bundle groups connected to the original bundles
+        let bundleGroups = bundleGraph.getBundleGroupsContainingBundle(bundle);
+        // Check if all bundle groups are within the parallel request limit
+        if (
+          bundleGroups.every(
+            group =>
+              bundleGraph
+                .getBundlesInBundleGroup(group)
+                .filter(b => b.bundleBehavior !== 'inline').length <
+              config.maxParallelRequests,
+          )
+        ) {
+          eligibleSourceBundles.add(bundle);
         }
       }
 
-      // If all bundle groups have already met the max parallel request limit, then they cannot be split.
-      if (
-        Array.from(bundleGroups).every(
-          group =>
-            bundleGraph.getBundlesInBundleGroup(group).filter(b => !b.isInline)
-              .length >= config.maxParallelRequests,
-        )
-      ) {
+      // Do not create a shared bundle unless there are at least 2 source bundles
+      if (eligibleSourceBundles.size < 2) {
         continue;
       }
 
-      let [firstBundle] = [...sourceBundles];
+      let [firstBundle] = [...eligibleSourceBundles];
       let sharedBundle = bundleGraph.createBundle({
-        uniqueKey: hashString([...sourceBundles].map(b => b.id).join(':')),
+        uniqueKey: hashString(
+          [...eligibleSourceBundles].map(b => b.id).join(':'),
+        ),
         // Allow this bundle to be deduplicated. It shouldn't be further split.
         // TODO: Reconsider bundle/asset flags.
         isSplittable: true,
@@ -417,20 +440,8 @@ export default (new Bundler({
       for (let asset of assets) {
         bundleGraph.addAssetGraphToBundle(asset, sharedBundle);
 
-        for (let bundle of sourceBundles) {
-          // Remove the asset graph from the bundle if all bundle groups are
-          // within the parallel request limit and will include the shared bundle.
-          let bundleGroups = bundleGraph.getBundleGroupsContainingBundle(
-            bundle,
-          );
-          if (
-            bundleGroups.every(
-              bundleGroup =>
-                bundleGraph
-                  .getBundlesInBundleGroup(bundleGroup)
-                  .filter(b => !b.isInline).length < config.maxParallelRequests,
-            )
-          ) {
+        for (let bundle of eligibleSourceBundles) {
+          {
             bundleGraph.createBundleReference(bundle, sharedBundle);
             bundleGraph.removeAssetGraphFromBundle(asset, bundle);
           }
@@ -483,12 +494,11 @@ const CONFIG_SCHEMA: SchemaEntity = {
 };
 
 async function loadBundlerConfig(config: Config, options: PluginOptions) {
-  let conf = await config.getConfig([], {
+  let conf = await config.getConfig<BundlerConfig>([], {
     packageKey: '@parcel/bundler-default',
   });
   if (!conf) {
-    config.setResult(HTTP_OPTIONS['2']);
-    return;
+    return HTTP_OPTIONS['2'];
   }
 
   invariant(conf?.contents != null);
@@ -508,10 +518,10 @@ async function loadBundlerConfig(config: Config, options: PluginOptions) {
   let http = conf.contents.http ?? 2;
   let defaults = HTTP_OPTIONS[http];
 
-  config.setResult({
+  return {
     minBundles: conf.contents.minBundles ?? defaults.minBundles,
     minBundleSize: conf.contents.minBundleSize ?? defaults.minBundleSize,
     maxParallelRequests:
       conf.contents.maxParallelRequests ?? defaults.maxParallelRequests,
-  });
+  };
 }
