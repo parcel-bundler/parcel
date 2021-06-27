@@ -16,7 +16,6 @@ import type {
   PackagedBundle as IPackagedBundle,
   Stats,
   Target as ITarget,
-  GraphVisitor,
   BundleBehavior,
 } from '@parcel/types';
 import type BundleGraph from '../BundleGraph';

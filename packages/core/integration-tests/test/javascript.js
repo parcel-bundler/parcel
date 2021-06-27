@@ -230,7 +230,10 @@ describe('javascript', function() {
         },
         {
           message: 'The environment was originally created here:',
-          filePath: path.normalize('integration/worklet/url-worklet-error.js'),
+          filePath: path.join(
+            __dirname,
+            'integration/worklet/url-worklet-error.js',
+          ),
           origin: '@parcel/transformer-js',
           codeFrame: {
             codeHighlights: [
@@ -966,7 +969,10 @@ describe('javascript', function() {
         },
         {
           message: 'The environment was originally created here:',
-          filePath: 'error.js',
+          filePath: path.join(
+            __dirname,
+            '/integration/workers-module/error.js',
+          ),
           origin: '@parcel/transformer-js',
           codeFrame: {
             codeHighlights: [
@@ -1216,7 +1222,7 @@ describe('javascript', function() {
         },
         {
           message: 'The environment was originally created here:',
-          filePath: path.normalize('integration/service-worker/error.js'),
+          filePath: path.join(__dirname, 'integration/service-worker/error.js'),
           origin: '@parcel/transformer-js',
           codeFrame: {
             codeHighlights: [
