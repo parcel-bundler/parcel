@@ -44,7 +44,7 @@ export default class Target implements ITarget {
   }
 
   get env(): IEnvironment {
-    return new Environment(this.#target.env);
+    return new Environment(this.#target.env, this.#options);
   }
 
   get name(): string {

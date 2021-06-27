@@ -115,7 +115,7 @@ export class Bundle implements IBundle {
   }
 
   get env(): IEnvironment {
-    return new Environment(this.#bundle.env);
+    return new Environment(this.#bundle.env, this.#options);
   }
 
   get needsStableName(): ?boolean {

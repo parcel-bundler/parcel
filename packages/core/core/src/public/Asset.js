@@ -36,6 +36,7 @@ import {
   BundleBehavior as BundleBehaviorMap,
   BundleBehaviorNames,
 } from '../types';
+import {toInternalSourceLocation} from '../utils';
 
 const inspect = Symbol.for('nodejs.util.inspect.custom');
 
@@ -102,7 +103,7 @@ class BaseAsset {
   }
 
   get env(): IEnvironment {
-    return new Environment(this.#asset.value.env);
+    return new Environment(this.#asset.value.env, this.#asset.options);
   }
 
   get fs(): FileSystem {
@@ -321,7 +322,10 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
   }
 
   setEnvironment(env: EnvironmentOptions): void {
-    this.#asset.value.env = createEnvironment(env);
+    this.#asset.value.env = createEnvironment({
+      ...env,
+      loc: toInternalSourceLocation(this.#asset.options.projectRoot, env.loc),
+    });
     this.#asset.updateId();
   }
 }

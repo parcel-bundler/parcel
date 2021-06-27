@@ -122,7 +122,7 @@ export function errorToDiagnostic(
   error: ThrowableDiagnostic | PrintableError | string,
   defaultValues?: {|
     origin?: ?string,
-    filePath?: ?FilePath,
+    filePath?: ?string,
   |},
 ): Array<Diagnostic> {
   let codeFrame: ?DiagnosticCodeFrame = undefined;

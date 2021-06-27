@@ -34,7 +34,7 @@ export type PluginWithLoadConfig = {
 
 export type ConfigRequest = {
   id: string,
-  invalidateOnFileChange: Set<FilePath>,
+  invalidateOnFileChange: Set<ProjectPath>,
   invalidateOnFileCreate: Array<InternalFileCreateInvalidation>,
   invalidateOnEnvChange: Set<string>,
   invalidateOnOptionChange: Set<string>,

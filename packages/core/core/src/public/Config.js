@@ -39,7 +39,7 @@ export default class PublicConfig implements IConfig {
   }
 
   get env(): Environment {
-    return new Environment(this.#config.env);
+    return new Environment(this.#config.env, this.#options);
   }
 
   get searchPath(): FilePath {

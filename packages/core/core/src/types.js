@@ -73,7 +73,7 @@ export type Environment = {|
   shouldOptimize: boolean,
   shouldScopeHoist: boolean,
   sourceMap: ?TargetSourceMapOptions,
-  loc: ?SourceLocation,
+  loc: ?InternalSourceLocation,
 |};
 
 export type InternalSourceLocation = {|

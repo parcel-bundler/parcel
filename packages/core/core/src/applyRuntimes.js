@@ -94,7 +94,7 @@ export default async function applyRuntimes({
             let assetGroup = {
               code,
               filePath: toProjectPath(options.projectRoot, sourceName),
-              env: mergeEnvironments(bundle.env, env),
+              env: mergeEnvironments(options.projectRoot, bundle.env, env),
               // Runtime assets should be considered source, as they should be
               // e.g. compiled to run in the target environment
               isSource: true,

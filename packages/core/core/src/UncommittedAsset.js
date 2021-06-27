@@ -318,7 +318,7 @@ export default class UncommittedAsset {
       ...rest,
       // $FlowFixMe "convert" the $ReadOnlyMaps to the interal mutable one
       symbols,
-      env: mergeEnvironments(this.value.env, env),
+      env: mergeEnvironments(this.options.projectRoot, this.value.env, env),
       sourceAssetId: this.value.id,
       sourcePath: fromProjectPath(
         this.options.projectRoot,
@@ -388,7 +388,11 @@ export default class UncommittedAsset {
         isBundleSplittable:
           result.isBundleSplittable ?? this.value.isBundleSplittable,
         isSource: this.value.isSource,
-        env: mergeEnvironments(this.value.env, result.env),
+        env: mergeEnvironments(
+          this.options.projectRoot,
+          this.value.env,
+          result.env,
+        ),
         dependencies:
           this.value.type === result.type
             ? new Map(this.value.dependencies)

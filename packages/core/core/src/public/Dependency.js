@@ -100,7 +100,7 @@ export default class Dependency implements IDependency {
   }
 
   get env(): IEnvironment {
-    return new Environment(this.#dep.env);
+    return new Environment(this.#dep.env, this.#options);
   }
 
   get meta(): Meta {
