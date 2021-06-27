@@ -179,6 +179,37 @@ describe('resolver', function() {
       });
     });
 
+    it('Should be able to handle node: prefixes', async function() {
+      let resolved = await resolver.resolve({
+        env: BROWSER_ENV,
+        filename: 'node:zlib',
+        isURL: false,
+        parent: path.join(rootDir, 'foo.js'),
+      });
+      assert.deepEqual(resolved, {
+        filePath: require.resolve('browserify-zlib'),
+        sideEffects: undefined,
+        invalidateOnFileCreate: [
+          {
+            fileName: 'package.json',
+            aboveFilePath: path.join(rootDir, 'index'),
+          },
+          {
+            fileName: 'package.json',
+            aboveFilePath: path.join(rootDir, 'foo.js'),
+          },
+          {
+            fileName: 'package.json',
+            aboveFilePath: require.resolve('browserify-zlib'),
+          },
+        ],
+        invalidateOnFileChange: [
+          path.join(rootDir, 'package.json'),
+          require.resolve('browserify-zlib/package.json'),
+        ],
+      });
+    });
+
     it('should resolve unimplemented node builtin modules to an empty file', async function() {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,

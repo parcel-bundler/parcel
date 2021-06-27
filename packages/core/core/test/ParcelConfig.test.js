@@ -261,5 +261,31 @@ describe('ParcelConfig', () => {
         ],
       });
     });
+
+    it('should error when using a reserved pipeline name "node:*"', async () => {
+      let configFilePath = path.join(
+        __dirname,
+        'fixtures',
+        'config-node-pipeline',
+        '.parcelrc',
+      );
+      let code = await DEFAULT_OPTIONS.inputFS.readFile(configFilePath, 'utf8');
+
+      // $FlowFixMe
+      await assert.rejects(
+        () => parseAndProcessConfig(configFilePath, code, DEFAULT_OPTIONS),
+        {
+          name: 'Error',
+          diagnostics: [
+            {
+              message:
+                'Named pipeline node: is reserved for builtin Node.js libraries',
+              origin: '@parcel/core',
+              filePath: configFilePath,
+            },
+          ],
+        },
+      );
+    });
   });
 });

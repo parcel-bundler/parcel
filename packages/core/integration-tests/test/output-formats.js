@@ -1109,6 +1109,16 @@ describe('output formats', function() {
       assert.strictEqual(ns.fib(5), 8);
     });
 
+    it('should support ESM output from CJS input', async function() {
+      let b = await bundle(
+        path.join(__dirname, '/integration/formats/esm-cjs/a.js'),
+      );
+
+      let ns = await run(b);
+      assert.deepEqual(ns.test, true);
+      assert.deepEqual(ns.default, {test: true});
+    });
+    
     it('should support outputting .mjs files', async function() {
       let b = await bundle(
         path.join(__dirname, '/integration/formats/esm-mjs/index.js'),

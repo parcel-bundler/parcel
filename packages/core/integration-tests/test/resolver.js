@@ -15,6 +15,18 @@ describe('resolver', function() {
     assert.strictEqual(output.default, 1234);
   });
 
+  it('should support node: prefix for node_modules', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/resolve-node-prefix/src/index.js'),
+    );
+
+    let output = await run(b);
+    assert.strictEqual(
+      output.default,
+      '6a2da20943931e9834fc12cfe5bb47bbd9ae43489a30726962b576f4e3993e50',
+    );
+  });
+
   it('should correctly resolve tilde in node_modules', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/resolve-tilde-nodemodules/index.js'),
