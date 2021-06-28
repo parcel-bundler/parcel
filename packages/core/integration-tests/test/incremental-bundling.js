@@ -4,9 +4,10 @@ import assert from 'assert';
 import path from 'path';
 import sinon from 'sinon';
 import Bundler from '@parcel/bundler-default';
-import {CONFIG} from '@parcel/plugin';
 // $FlowFixMe[untyped-import]
 import CustomBundler from './integration/incremental-bundling/node_modules/parcel-bundler-test';
+
+const CONFIG = Symbol.for('parcel-plugin-config');
 
 describe('incremental bundling', function () {
   // $FlowFixMe[prop-missing]
