@@ -3465,7 +3465,7 @@ describe('cache', function() {
           {
             entries: ['index.sass'],
             env: {
-              SASS_PATH: path.join(inputDir, 'include-path'),
+              SASS_PATH: 'include-path',
             },
             async setup() {
               await overlayFS.mkdirp(path.join(inputDir, 'include2'));
@@ -3486,7 +3486,7 @@ describe('cache', function() {
 
               return {
                 env: {
-                  SASS_PATH: path.join(inputDir, 'include2'),
+                  SASS_PATH: 'include2',
                 },
               };
             },
