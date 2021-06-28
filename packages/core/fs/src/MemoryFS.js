@@ -1,6 +1,6 @@
 // @flow
 
-import type {FileSystem, FileOptions, ReaddirOptions} from './types';
+import type {FileSystem, FileOptions, ReaddirOptions, Encoding} from './types';
 import type {FilePath} from '@parcel/types';
 import type {
   Event,
@@ -160,7 +160,7 @@ export class MemoryFS implements FileSystem {
   async writeFile(
     filePath: FilePath,
     contents: Buffer | string,
-    options: ?FileOptions,
+    options?: ?FileOptions,
   ) {
     filePath = this._normalizePath(filePath);
     if (this.dirs.has(filePath)) {
@@ -195,11 +195,11 @@ export class MemoryFS implements FileSystem {
   }
 
   // eslint-disable-next-line require-await
-  async readFile(filePath: FilePath, encoding?: buffer$Encoding): Promise<any> {
+  async readFile(filePath: FilePath, encoding?: Encoding): Promise<any> {
     return this.readFileSync(filePath, encoding);
   }
 
-  readFileSync(filePath: FilePath, encoding?: buffer$Encoding): any {
+  readFileSync(filePath: FilePath, encoding?: Encoding): any {
     filePath = this._normalizePath(filePath);
     let file = this.files.get(filePath);
     if (file == null) {

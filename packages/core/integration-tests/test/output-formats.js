@@ -1108,6 +1108,16 @@ describe('output formats', function() {
       let ns = await run(b);
       assert.strictEqual(ns.fib(5), 8);
     });
+
+    it('should support ESM output from CJS input', async function() {
+      let b = await bundle(
+        path.join(__dirname, '/integration/formats/esm-cjs/a.js'),
+      );
+
+      let ns = await run(b);
+      assert.deepEqual(ns.test, true);
+      assert.deepEqual(ns.default, {test: true});
+    });
   });
 
   it('should support generating ESM from universal module wrappers', async function() {
