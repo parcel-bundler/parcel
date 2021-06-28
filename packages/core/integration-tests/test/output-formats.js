@@ -1118,7 +1118,7 @@ describe('output formats', function() {
       assert.deepEqual(ns.test, true);
       assert.deepEqual(ns.default, {test: true});
     });
-    
+
     it('should support outputting .mjs files', async function() {
       let b = await bundle(
         path.join(__dirname, '/integration/formats/esm-mjs/index.js'),
