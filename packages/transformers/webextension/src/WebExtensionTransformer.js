@@ -75,7 +75,7 @@ async function collectDependencies(
     for (const locale of await fs.readdir(locales)) {
       asset.addURLDependency(`_locales/${locale}/messages.json`, {
         needsStableName: true,
-        pipeline: 'url',
+        pipeline: 'raw',
       });
     }
   }

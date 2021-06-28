@@ -471,6 +471,20 @@ impl<'a> Fold for Hoist<'a> {
                 }
               }
             }
+            Stmt::Expr(ExprStmt { expr, span }) => {
+              if let Some(source) =
+                match_require(&expr, &self.collect.decls, self.collect.ignore_mark)
+              {
+                // Require in statement position (`require('other');`) should behave just
+                // like `import 'other';` in that it doesn't add any symbols (not even '*').
+                self.add_require(&source);
+              } else {
+                let d = expr.fold_with(self);
+                self
+                  .module_items
+                  .push(ModuleItem::Stmt(Stmt::Expr(ExprStmt { expr: d, span })))
+              }
+            }
             item => {
               let d = item.fold_with(self);
               self.module_items.push(ModuleItem::Stmt(d))
@@ -2097,6 +2111,13 @@ mod tests {
       map! { w!("x") => (w!("other"), w!("*"), false) }
     );
     assert_eq!(collect.non_static_access, set! {});
+
+    let (_collect, _code, hoist) = parse(
+      r#"
+      require('other');
+    "#,
+    );
+    assert_eq_imported_symbols!(hoist.imported_symbols, map! {});
   }
 
   #[test]
@@ -2785,7 +2806,6 @@ mod tests {
         console.log(foo.bar);
     }
     import   "abc:bar";
-    $abc$import$3705fc5f2281438d;
     "#}
     );
     assert_eq!(

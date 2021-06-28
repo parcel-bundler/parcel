@@ -15,9 +15,9 @@ export default (new Namer({
     let bundleGroup = bundleGraph.getBundleGroupsContainingBundle(bundle)[0];
     let bundleGroupBundles = bundleGraph.getBundlesInBundleGroup(bundleGroup);
 
-    if (bundle.isEntry) {
+    if (bundle.needsStableName) {
       let entryBundlesOfType = bundleGroupBundles.filter(
-        b => b.isEntry && b.type === bundle.type,
+        b => b.needsStableName && b.type === bundle.type,
       );
       assert(
         entryBundlesOfType.length === 1,
@@ -34,7 +34,7 @@ export default (new Namer({
 
     if (
       bundle.id === mainBundle.id &&
-      bundle.isEntry &&
+      bundle.needsStableName &&
       bundle.target &&
       bundle.target.distEntry != null
     ) {
@@ -87,7 +87,7 @@ export default (new Namer({
       bundleGroup.entryAssetId,
       options.entryRoot,
     );
-    if (!bundle.isEntry) {
+    if (!bundle.needsStableName) {
       name += '.' + bundle.hashReference;
     }
 
@@ -106,7 +106,7 @@ function nameFromContent(
   let name = basenameWithoutExtension(entryFilePath);
 
   // If this is an entry bundle, use the original relative path.
-  if (bundle.isEntry) {
+  if (bundle.needsStableName) {
     // Match name of target entry if possible, but with a different extension.
     if (bundle.target.distEntry != null) {
       return basenameWithoutExtension(bundle.target.distEntry);

@@ -1401,6 +1401,7 @@ describe('cache', function() {
               targets: {
                 esmodule: {
                   outputFormat: 'esmodule',
+                  isLibrary: true,
                 },
               },
             }),
@@ -1563,6 +1564,7 @@ describe('cache', function() {
               targets: {
                 esmodule: {
                   outputFormat: 'esmodule',
+                  isLibrary: true,
                 },
               },
             }),
@@ -1679,6 +1681,7 @@ describe('cache', function() {
               targets: {
                 modern: {
                   outputFormat: 'esmodule',
+                  isLibrary: true,
                 },
                 legacy: {
                   outputFormat: 'commonjs',
@@ -1883,6 +1886,7 @@ describe('cache', function() {
               targets: {
                 modern: {
                   outputFormat: 'esmodule',
+                  isLibrary: true,
                 },
               },
             }),
@@ -1912,6 +1916,7 @@ describe('cache', function() {
               targets: {
                 modern: {
                   outputFormat: 'esmodule',
+                  isLibrary: true,
                 },
               },
             }),

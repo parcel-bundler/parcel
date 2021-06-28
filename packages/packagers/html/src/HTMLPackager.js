@@ -56,7 +56,7 @@ export default (new Packager({
         new Set(bundleGraph.getReferencedBundles(bundle)),
         new Set(bundleGraph.getReferencedBundles(bundle, {recursive: false})),
       ),
-    ].filter(b => !b.isInline);
+    ].filter(b => b.bundleBehavior !== 'inline');
     let renderConfig = config?.render;
 
     let {html} = await posthtml([

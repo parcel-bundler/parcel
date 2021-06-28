@@ -1,7 +1,6 @@
 // @flow
 
-import type {Config, PluginOptions} from '@parcel/types';
-import type {PluginLogger} from '@parcel/logger';
+import type {Config, PluginOptions, PluginLogger} from '@parcel/types';
 import typeof * as BabelCore from '@babel/core';
 import type {BabelConfig} from './types';
 

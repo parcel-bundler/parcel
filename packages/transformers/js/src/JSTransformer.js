@@ -4,7 +4,6 @@ import type {SchemaEntity} from '@parcel/utils';
 import SourceMap from '@parcel/source-map';
 import {Transformer} from '@parcel/plugin';
 import {init, transform} from '../native';
-import {isURL} from '@parcel/utils';
 import path from 'path';
 import browserslist from 'browserslist';
 import semver from 'semver';
@@ -22,18 +21,22 @@ const JSX_PRAGMA = {
   react: {
     pragma: 'React.createElement',
     pragmaFrag: 'React.Fragment',
+    automatic: '>= 17.0.0',
   },
   preact: {
     pragma: 'h',
     pragmaFrag: 'Fragment',
+    automatic: '>= 10.5.0',
   },
   nervjs: {
     pragma: 'Nerv.createElement',
     pragmaFrag: undefined,
+    automatic: undefined,
   },
   hyperapp: {
     pragma: 'h',
     pragmaFrag: undefined,
+    automatic: undefined,
   },
 };
 
@@ -114,11 +117,35 @@ const SCRIPT_ERRORS = {
     'Service workers cannot have imports or exports. Use the `type: "module"` option instead.',
 };
 
+type TSConfig = {
+  compilerOptions?: {
+    // https://www.typescriptlang.org/tsconfig#jsx
+    jsx?: 'react' | 'react-jsx' | 'react-jsxdev' | 'preserve' | 'react-native',
+    // https://www.typescriptlang.org/tsconfig#jsxFactory
+    jsxFactory?: string,
+    // https://www.typescriptlang.org/tsconfig#jsxFragmentFactory
+    jsxFragmentFactory?: string,
+    // https://www.typescriptlang.org/tsconfig#jsxImportSource
+    jsxImportSource?: string,
+    // https://www.typescriptlang.org/tsconfig#experimentalDecorators
+    experimentalDecorators?: boolean,
+    ...
+  },
+  ...
+};
+
 export default (new Transformer({
   async loadConfig({config, options}) {
     let pkg = await config.getPackage();
-    let reactLib;
+    let isJSX,
+      pragma,
+      pragmaFrag,
+      jsxImportSource,
+      automaticJSXRuntime,
+      reactRefresh,
+      decorators;
     if (config.isSource) {
+      let reactLib;
       if (pkg?.alias && pkg.alias['react']) {
         // e.g.: `{ alias: { "react": "preact/compat" } }`
         reactLib = 'react';
@@ -131,17 +158,67 @@ export default (new Transformer({
             pkg?.peerDependencies?.[libName],
         );
       }
-    }
 
-    let reactRefresh =
-      config.isSource &&
-      options.hmrOptions &&
-      options.mode === 'development' &&
-      Boolean(
-        pkg?.dependencies?.react ||
-          pkg?.devDependencies?.react ||
-          pkg?.peerDependencies?.react,
+      reactRefresh =
+        options.hmrOptions &&
+        options.mode === 'development' &&
+        Boolean(
+          pkg?.dependencies?.react ||
+            pkg?.devDependencies?.react ||
+            pkg?.peerDependencies?.react,
+        );
+
+      let tsconfig = await config.getConfigFrom<TSConfig>(
+        options.projectRoot + '/index',
+        ['tsconfig.json', 'jsconfig.json'],
       );
+      let compilerOptions = tsconfig?.contents?.compilerOptions;
+
+      // Use explicitly defined JSX options in tsconfig.json over inferred values from dependencies.
+      pragma =
+        compilerOptions?.jsxFactory ||
+        (reactLib ? JSX_PRAGMA[reactLib].pragma : undefined);
+      pragmaFrag =
+        compilerOptions?.jsxFragmentFactory ||
+        (reactLib ? JSX_PRAGMA[reactLib].pragmaFrag : undefined);
+
+      if (
+        compilerOptions?.jsx === 'react-jsx' ||
+        compilerOptions?.jsx === 'react-jsxdev' ||
+        compilerOptions?.jsxImportSource
+      ) {
+        jsxImportSource = compilerOptions?.jsxImportSource;
+        automaticJSXRuntime = true;
+      } else if (reactLib) {
+        let automaticVersion = JSX_PRAGMA[reactLib]?.automatic;
+        let reactLibVersion =
+          pkg?.dependencies?.[reactLib] ||
+          pkg?.devDependencies?.[reactLib] ||
+          pkg?.peerDependencies?.[reactLib];
+        let minReactLibVersion =
+          reactLibVersion != null && reactLibVersion !== '*'
+            ? semver.minVersion(reactLibVersion)?.toString()
+            : null;
+
+        automaticJSXRuntime =
+          automaticVersion &&
+          !compilerOptions?.jsxFactory &&
+          minReactLibVersion != null &&
+          semver.satisfies(minReactLibVersion, automaticVersion);
+
+        if (automaticJSXRuntime) {
+          jsxImportSource = reactLib;
+        }
+      }
+
+      isJSX = Boolean(
+        compilerOptions?.jsx ||
+          pragma ||
+          JSX_EXTENSIONS[path.extname(config.searchPath)],
+      );
+
+      decorators = compilerOptions?.experimentalDecorators;
+    }
 
     // Check if we should ignore fs calls
     // See https://github.com/defunctzombie/node-browser-resolve#skip
@@ -180,16 +257,16 @@ export default (new Transformer({
       inlineFS = rootPkg['@parcel/transformer-js']?.inlineFS ?? inlineFS;
     }
 
-    let pragma = reactLib ? JSX_PRAGMA[reactLib].pragma : undefined;
-    let pragmaFrag = reactLib ? JSX_PRAGMA[reactLib].pragmaFrag : undefined;
-    let isJSX = pragma || JSX_EXTENSIONS[path.extname(config.searchPath)];
     return {
       isJSX,
+      automaticJSXRuntime,
+      jsxImportSource,
       pragma,
       pragmaFrag,
       inlineEnvironment,
       inlineFS,
       reactRefresh,
+      decorators,
     };
   },
   async transform({asset, config, options}) {
@@ -296,11 +373,15 @@ export default (new Transformer({
       is_jsx: Boolean(config?.isJSX),
       jsx_pragma: config?.pragma,
       jsx_pragma_frag: config?.pragmaFrag,
+      automatic_jsx_runtime: Boolean(config?.automaticJSXRuntime),
+      jsx_import_source: config?.jsxImportSource,
       is_development: options.mode === 'development',
       react_refresh:
         asset.env.isBrowser() &&
         !asset.env.isWorker() &&
+        !asset.env.isWorklet() &&
         Boolean(config?.reactRefresh),
+      decorators: Boolean(config?.decorators),
       targets,
       source_maps: !!asset.env.sourceMap,
       scope_hoist:
@@ -439,6 +520,17 @@ export default (new Transformer({
             loc,
           },
         });
+      } else if (dep.kind === 'Worklet') {
+        let loc = convertLoc(dep.loc);
+        asset.addURLDependency(dep.specifier, {
+          loc,
+          env: {
+            context: 'worklet',
+            sourceType: 'module',
+            outputFormat: 'esmodule', // Worklets require ESM
+            loc,
+          },
+        });
       } else if (dep.kind === 'ImportScripts') {
         if (asset.env.isWorker()) {
           if (asset.env.sourceType !== 'script') {
@@ -472,15 +564,12 @@ export default (new Transformer({
         }
       } else if (dep.kind === 'URL') {
         asset.addURLDependency(dep.specifier, {
+          bundleBehavior: 'isolated',
           loc: convertLoc(dep.loc),
         });
       } else if (dep.kind === 'File') {
         asset.invalidateOnFileChange(dep.specifier);
       } else {
-        if (dep.kind === 'DynamicImport' && isURL(dep.specifier)) {
-          continue;
-        }
-
         let meta: JSONObject = {kind: dep.kind};
         if (dep.attributes) {
           meta.importAttributes = dep.attributes;
@@ -488,6 +577,44 @@ export default (new Transformer({
 
         let env;
         if (dep.kind === 'DynamicImport') {
+          if (asset.env.isWorklet()) {
+            let loc = convertLoc(dep.loc);
+            let diagnostic = [
+              {
+                message: 'import() is not allowed in worklets.',
+                filePath: asset.filePath,
+                codeFrame: {
+                  codeHighlights: [
+                    {
+                      start: loc.start,
+                      end: loc.end,
+                    },
+                  ],
+                },
+                hints: ['Try using a static `import`.'],
+              },
+            ];
+
+            if (asset.env.loc) {
+              diagnostic.push({
+                message: 'The environment was originally created here:',
+                filePath: asset.env.loc.filePath,
+                codeFrame: {
+                  codeHighlights: [
+                    {
+                      start: asset.env.loc.start,
+                      end: asset.env.loc.end,
+                    },
+                  ],
+                },
+              });
+            }
+
+            throw new ThrowableDiagnostic({
+              diagnostic,
+            });
+          }
+
           // If all of the target engines support dynamic import natively,
           // we can output native ESM if scope hoisting is enabled.
           // Only do this for scripts, rather than modules in the global
@@ -515,7 +642,10 @@ export default (new Transformer({
           priority: dep.kind === 'DynamicImport' ? 'lazy' : 'sync',
           isOptional: dep.is_optional,
           meta,
-          resolveFrom: dep.is_helper ? __filename : undefined,
+          resolveFrom:
+            dep.is_helper && !dep.specifier.endsWith('/jsx-runtime')
+              ? __filename
+              : undefined,
           env,
         });
       }

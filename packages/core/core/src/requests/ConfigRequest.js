@@ -5,6 +5,7 @@ import type {
   FilePath,
   FileCreateInvalidation,
   PluginOptions as IPluginOptions,
+  PluginLogger as IPluginLogger,
 } from '@parcel/types';
 import type {Config, ParcelOptions} from '../types';
 import type {LoadedPlugin} from '../ParcelConfig';
@@ -23,7 +24,7 @@ export type PluginWithLoadConfig = {
   loadConfig?: ({|
     config: IConfig,
     options: IPluginOptions,
-    logger: PluginLogger,
+    logger: IPluginLogger,
   |}) => Async<mixed>,
   ...
 };
