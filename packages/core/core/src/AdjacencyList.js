@@ -9,19 +9,23 @@ import type {NullEdgeType, AllEdgeTypes} from './Graph';
  * Each node is represented with 2 4-byte chunks:
  * The first 4 bytes are the hash of the node's first incoming edge.
  * The second 4 bytes are the hash of the node's first outgoing edge.
+ * The second 4 bytes are the hash of the node's last incoming edge.
+ * The second 4 bytes are the hash of the node's last outgoing edge.
  *
  * struct Node {
  *   int firstIn;
  *   int firstOut;
+ *   int lastIn;
+ *   int lastOut;
  * }
  *
- * ┌─────────────────────────┐
- * │        NODE_SIZE        │
- * ├────────────┬────────────┤
- * │  FIRST_IN  │ FIRST_OUT  │
- * └────────────┴────────────┘
+ * ┌─────────────────────────────────────────────────┐
+ * │                    NODE_SIZE                    │
+ * ├────────────┬───────────┬───────────┬────────────┤
+ * │  FIRST_IN  │ FIRST_OUT │  LAST_IN  │  LAST_OUT  │
+ * └────────────┴───────────┘───────────┴────────────┘
  */
-export const NODE_SIZE = 2;
+export const NODE_SIZE = 4;
 /**
  * Each edge is represented with 5 4-byte chunks:
  * The first 4 bytes are the edge type.
@@ -61,6 +65,10 @@ const NEXT_OUT: 4 = 4;
 const FIRST_IN: 0 = 0;
 /** The offset from a node index at which the hash of the first outgoing edge is stored. */
 const FIRST_OUT: 1 = 1;
+/** The offset from a node index at which the hash of the last incoming edge is stored. */
+const LAST_IN: 2 = 2;
+/** The offset from a node index at which the hash of the last outgoing edge is stored. */
+const LAST_OUT: 3 = 3;
 
 /**
  * A sentinel that indicates that an edge was deleted.
@@ -316,6 +324,7 @@ export default class AdjacencyList<TEdgeType: number = 1> {
           // link this edge to the current node.
           this.nodes[i + FIRST_OUT] = indexToHash(index);
         }
+        this.nodes[i + LAST_OUT] = indexToHash(index);
         // Keep track of the last outgoing edge copied.
         lastIndex = index;
       }
@@ -354,6 +363,7 @@ export default class AdjacencyList<TEdgeType: number = 1> {
           // link this edge to the current node.
           this.nodes[i + FIRST_IN] = indexToHash(index);
         }
+        this.nodes[i + LAST_IN] = indexToHash(index);
 
         // Keep track of the last edge copied.
         lastIndex = index;
@@ -426,34 +436,29 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     this.edges[index + FROM] = fromNodeId(from);
     this.edges[index + TO] = fromNodeId(to);
 
-    // Set this edge as the first incoming edge on the `to` node,
-    // Unless it already has a first incoming edge.
+    // Set this edge as the last incoming edge on the `to` node,
+    // Unless it already has a last incoming edge.
     // In that case, append this edge as the next incoming edge
     // after the last incoming edge to have been added.
-    let nextInHash = this.nodes[indexOfNode(to) + FIRST_IN];
-    if (nextInHash) {
-      for (let i = nextInHash; i; i = this.edges[hashToIndex(i) + NEXT_IN]) {
-        nextInHash = i;
-      }
-      this.edges[hashToIndex(nextInHash) + NEXT_IN] = indexToHash(index);
+    let lastInHash = this.nodes[indexOfNode(to) + LAST_IN];
+    if (lastInHash) {
+      this.edges[hashToIndex(lastInHash) + NEXT_IN] = indexToHash(index);
     } else {
-      // We store the hash of this edge as the `to` node's incoming edge.
       this.nodes[indexOfNode(to) + FIRST_IN] = indexToHash(index);
     }
+    this.nodes[indexOfNode(to) + LAST_IN] = indexToHash(index);
 
-    // Set this edge as the first outgoing edge on the `from` node,
-    // Unless it already has a first outgoing edge.
+    // Set this edge as the last outgoing edge on the `from` node,
+    // Unless it already has a last outgoing edge.
     // In that case, append this edge as the next outgoing edge
     // after the last outgoing edge to have been added.
-    let nextOutHash = this.nodes[indexOfNode(from) + FIRST_OUT];
-    if (nextOutHash) {
-      for (let i = nextOutHash; i; i = this.edges[hashToIndex(i) + NEXT_OUT]) {
-        nextOutHash = i;
-      }
-      this.edges[hashToIndex(nextOutHash) + NEXT_OUT] = indexToHash(index);
+    let lastOutHash = this.nodes[indexOfNode(from) + LAST_OUT];
+    if (lastOutHash) {
+      this.edges[hashToIndex(lastOutHash) + NEXT_OUT] = indexToHash(index);
     } else {
       this.nodes[indexOfNode(from) + FIRST_OUT] = indexToHash(index);
     }
+    this.nodes[indexOfNode(from) + LAST_OUT] = indexToHash(index);
 
     return true;
   }
@@ -574,36 +579,66 @@ export default class AdjacencyList<TEdgeType: number = 1> {
 
     // Remove outgoing ref to this edge from incoming node.
     let nextOutHash = this.edges[index + NEXT_OUT];
-    let outHash = this.nodes[indexOfNode(from) + FIRST_OUT];
-    if (hashToIndex(outHash) === index) {
+    let firstOutHash = this.nodes[indexOfNode(from) + FIRST_OUT];
+    if (hashToIndex(firstOutHash) === index) {
       this.nodes[indexOfNode(from) + FIRST_OUT] = nextOutHash;
     } else {
-      let prevOutHash = outHash;
+      let prevOutHash = firstOutHash;
       do {
-        outHash = this.edges[hashToIndex(outHash) + NEXT_OUT];
-        if (hashToIndex(outHash) === index) {
+        firstOutHash = this.edges[hashToIndex(firstOutHash) + NEXT_OUT];
+        if (hashToIndex(firstOutHash) === index) {
           this.edges[hashToIndex(prevOutHash) + NEXT_OUT] = nextOutHash;
           break;
         }
-        prevOutHash = outHash;
-      } while (outHash);
+        prevOutHash = firstOutHash;
+      } while (firstOutHash);
+    }
+
+    let lastOutHash = this.nodes[indexOfNode(from) + LAST_OUT];
+    if (hashToIndex(lastOutHash) === index) {
+      this.nodes[indexOfNode(from) + LAST_OUT] = nextOutHash;
+    } else {
+      let prevOutHash = lastOutHash;
+      do {
+        lastOutHash = this.edges[hashToIndex(lastOutHash) + NEXT_OUT];
+        if (hashToIndex(lastOutHash) === index) {
+          this.edges[hashToIndex(prevOutHash) + NEXT_OUT] = nextOutHash;
+          break;
+        }
+        prevOutHash = lastOutHash;
+      } while (lastOutHash);
     }
 
     // Remove incoming ref to this edge from to outgoing node.
     let nextInHash = this.edges[index + NEXT_IN];
-    let inHash = this.nodes[indexOfNode(to) + FIRST_IN];
-    if (hashToIndex(inHash) === index) {
+    let firstInHash = this.nodes[indexOfNode(to) + FIRST_IN];
+    if (hashToIndex(firstInHash) === index) {
       this.nodes[indexOfNode(to) + FIRST_IN] = nextInHash;
     } else {
-      let prevInHash = inHash;
+      let prevInHash = firstInHash;
       do {
-        inHash = this.edges[hashToIndex(inHash) + NEXT_IN];
-        if (hashToIndex(inHash) === index) {
+        firstInHash = this.edges[hashToIndex(firstInHash) + NEXT_IN];
+        if (hashToIndex(firstInHash) === index) {
           this.edges[hashToIndex(prevInHash) + NEXT_IN] = nextInHash;
           break;
         }
-        prevInHash = inHash;
-      } while (inHash);
+        prevInHash = firstInHash;
+      } while (firstInHash);
+    }
+
+    let lastInHash = this.nodes[indexOfNode(to) + LAST_IN];
+    if (hashToIndex(lastInHash) === index) {
+      this.nodes[indexOfNode(to) + LAST_IN] = nextInHash;
+    } else {
+      let prevInHash = lastInHash;
+      do {
+        lastInHash = this.edges[hashToIndex(lastInHash) + NEXT_IN];
+        if (hashToIndex(lastInHash) === index) {
+          this.edges[hashToIndex(prevInHash) + NEXT_IN] = nextInHash;
+          break;
+        }
+        prevInHash = lastInHash;
+      } while (lastInHash);
     }
 
     // Mark this slot as DELETED.
