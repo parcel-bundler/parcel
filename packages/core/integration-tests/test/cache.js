@@ -2310,7 +2310,7 @@ describe('cache', function() {
 
           return {
             defaultTargetOptions: {
-              distDir: 'dist/test',
+              distDir: path.join(__dirname, 'integration/cache/dist/test'),
             },
           };
         },
