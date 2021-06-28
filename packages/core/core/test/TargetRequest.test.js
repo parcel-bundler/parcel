@@ -117,7 +117,7 @@ describe('TargetResolver', () => {
         {
           name: 'customA',
           publicUrl: '/',
-          distDir: relative(path.resolve('customA')),
+          distDir: path.resolve('customA'),
           env: {
             id: '6d6739300b296419',
             context: 'browser',
@@ -138,7 +138,7 @@ describe('TargetResolver', () => {
           name: 'customB',
           publicUrl: '/',
           distEntry: 'b.js',
-          distDir: relative(path.resolve('customB')),
+          distDir: path.resolve('customB'),
           env: {
             id: '8370e1d9bac5928e',
             context: 'node',
@@ -481,7 +481,7 @@ describe('TargetResolver', () => {
       [
         {
           name: 'customB',
-          distDir: relative(path.resolve('customB')),
+          distDir: path.resolve('customB'),
           publicUrl: '/',
           env: {
             id: '6d6739300b296419',
@@ -523,7 +523,7 @@ describe('TargetResolver', () => {
       [
         {
           name: 'customA',
-          distDir: relative(path.resolve('customA')),
+          distDir: path.resolve('customA'),
           publicUrl: '/',
           env: {
             id: '6d6739300b296419',
