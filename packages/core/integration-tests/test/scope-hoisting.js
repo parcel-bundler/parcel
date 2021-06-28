@@ -4562,6 +4562,28 @@ describe('scope hoisting', function() {
       assert.deepEqual(out, ['a', 'b', 'c', 'd']);
     });
 
+    it('supports requiring a CSS asset', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/require-css/a.js',
+        ),
+      );
+
+      assertBundles(b, [
+        {
+          name: 'a.js',
+          assets: ['a.js'],
+        },
+        {
+          type: 'css',
+          assets: ['b.css'],
+        },
+      ]);
+
+      await run(b);
+    });
+
     it('supports requires inside functions', async function() {
       let b = await bundle(
         path.join(
