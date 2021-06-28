@@ -23,6 +23,7 @@
     "@parcel/plugin": "2.0.0-beta.3.1",
     "@svgr/core": "^5.5.0",
     "@svgr/plugin-jsx": "^5.5.0",
+    "@svgr/plugin-svgo": "^5.5.0",
     "camelcase": "^5.3.1"
   }
 }

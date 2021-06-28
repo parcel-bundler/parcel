@@ -50,8 +50,9 @@
   "optimizers": {
     "data-url:*": ["...", "@parcel/optimizer-data-url"],
     "*.css": ["@parcel/optimizer-cssnano"],
+    "*.html": ["@parcel/optimizer-htmlnano"],
     "*.{js,mjs,cjs}": ["@parcel/optimizer-terser"],
-    "*.html": ["@parcel/optimizer-htmlnano"]
+    "*.svg": ["@parcel/optimizer-svgo"]
   },
   "packagers": {
     "*.html": "@parcel/packager-html",
