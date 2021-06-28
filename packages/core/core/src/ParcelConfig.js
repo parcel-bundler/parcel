@@ -226,8 +226,8 @@ export default class ParcelConfig {
     filePath: FilePath,
     pipeline?: ?string,
     allowEmpty?: boolean,
-  ): Promise<Array<LoadedPlugin<Transformer>>> {
-    return this.loadPlugins<Transformer>(
+  ): Promise<Array<LoadedPlugin<Transformer<mixed>>>> {
+    return this.loadPlugins<Transformer<mixed>>(
       this._getTransformerNodes(filePath, pipeline, allowEmpty),
     );
   }
@@ -240,28 +240,28 @@ export default class ParcelConfig {
     return this.bundler.packageName;
   }
 
-  getBundler(): Promise<LoadedPlugin<Bundler>> {
+  getBundler(): Promise<LoadedPlugin<Bundler<mixed>>> {
     if (!this.bundler) {
       throw new Error('No bundler specified in .parcelrc config');
     }
 
-    return this.loadPlugin<Bundler>(this.bundler);
+    return this.loadPlugin<Bundler<mixed>>(this.bundler);
   }
 
-  getNamers(): Promise<Array<LoadedPlugin<Namer>>> {
+  getNamers(): Promise<Array<LoadedPlugin<Namer<mixed>>>> {
     if (this.namers.length === 0) {
       throw new Error('No namer plugins specified in .parcelrc config');
     }
 
-    return this.loadPlugins<Namer>(this.namers);
+    return this.loadPlugins<Namer<mixed>>(this.namers);
   }
 
-  getRuntimes(): Promise<Array<LoadedPlugin<Runtime>>> {
+  getRuntimes(): Promise<Array<LoadedPlugin<Runtime<mixed>>>> {
     if (!this.runtimes) {
       return Promise.resolve([]);
     }
 
-    return this.loadPlugins<Runtime>(this.runtimes);
+    return this.loadPlugins<Runtime<mixed>>(this.runtimes);
   }
 
   _getPackagerNode(filePath: FilePath): ParcelPluginNode {
@@ -276,9 +276,9 @@ export default class ParcelConfig {
     return this._getPackagerNode(filePath).packageName;
   }
 
-  getPackager(filePath: FilePath): Promise<LoadedPlugin<Packager>> {
+  getPackager(filePath: FilePath): Promise<LoadedPlugin<Packager<mixed>>> {
     let packager = this._getPackagerNode(filePath);
-    return this.loadPlugin<Packager>(packager);
+    return this.loadPlugin<Packager<mixed>>(packager);
   }
 
   _getOptimizerNodes(
@@ -307,13 +307,13 @@ export default class ParcelConfig {
   getOptimizers(
     filePath: FilePath,
     pipeline: ?string,
-  ): Promise<Array<LoadedPlugin<Optimizer>>> {
+  ): Promise<Array<LoadedPlugin<Optimizer<mixed>>>> {
     let optimizers = this._getOptimizerNodes(filePath, pipeline);
     if (optimizers.length === 0) {
       return Promise.resolve([]);
     }
 
-    return this.loadPlugins<Optimizer>(optimizers);
+    return this.loadPlugins<Optimizer<mixed>>(optimizers);
   }
 
   getReporters(): Promise<Array<LoadedPlugin<Reporter>>> {
@@ -329,7 +329,7 @@ export default class ParcelConfig {
 
     let re = this.regexCache.get(patternGlob);
     if (!re) {
-      re = makeRe(patternGlob, {dot: true});
+      re = makeRe(patternGlob, {dot: true, nocase: true});
       this.regexCache.set(patternGlob, re);
     }
 

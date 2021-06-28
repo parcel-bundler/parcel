@@ -15,13 +15,18 @@
   },
   "main": "lib/index.js",
   "source": "src/index.js",
+  "types": "index.d.ts",
   "engines": {
     "node": ">= 12.0.0"
+  },
+  "scripts": {
+    "build-ts": "mkdir -p lib && flow-to-ts src/types.js > lib/types.d.ts",
+    "check-ts": "tsc --noEmit index.d.ts"
   },
   "dependencies": {
     "@parcel/logger": "2.0.0-frontbucket.77",
     "@parcel/utils": "2.0.0-frontbucket.77",
-    "lmdb-store": "^1.5.2"
+    "lmdb-store": "^1.5.5"
   },
   "peerDependencies": {
     "@parcel/core": "^2.0.0-alpha.3.1"

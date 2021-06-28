@@ -659,7 +659,7 @@ describe('output formats', function() {
       ]);
 
       let dist = await outputFS.readFile(
-        b.getBundles().find(b => !b.isEntry).filePath,
+        b.getBundles().find(b => !b.needsStableName).filePath,
         'utf8',
       );
       assert(dist.includes('$parcel$interopDefault'));
@@ -715,7 +715,7 @@ describe('output formats', function() {
       );
 
       let async = await outputFS.readFile(
-        b.getChildBundles(b.getBundles().find(b => b.isEntry))[0].filePath,
+        b.getChildBundles(b.getBundles()[0])[0].filePath,
         'utf8',
       );
       assert(!async.includes('$import$'));
@@ -826,7 +826,7 @@ describe('output formats', function() {
         .find(b => !b.filePath.includes('async'));
       assert(
         workerBundleContents.includes(
-          `importScripts("./${path.basename(syncBundle.filePath)}")`,
+          `import "./${path.basename(syncBundle.filePath)}"`,
         ),
       );
       assert(
@@ -862,7 +862,8 @@ describe('output formats', function() {
         entry.includes(`import("./${path.basename(asyncBundle.filePath)}")`),
       );
 
-      assert.equal(await (await run(b)).default, 4);
+      let res = await run(b, {output: null}, {require: false});
+      assert.equal(await res.output, 4);
     });
 
     it('should support use an import polyfill for older browsers', async function() {
@@ -1108,6 +1109,16 @@ describe('output formats', function() {
       let ns = await run(b);
       assert.strictEqual(ns.fib(5), 8);
     });
+
+    it('should support ESM output from CJS input', async function() {
+      let b = await bundle(
+        path.join(__dirname, '/integration/formats/esm-cjs/a.js'),
+      );
+
+      let ns = await run(b);
+      assert.deepEqual(ns.test, true);
+      assert.deepEqual(ns.default, {test: true});
+    });
   });
 
   it('should support generating ESM from universal module wrappers', async function() {
@@ -1173,13 +1184,7 @@ describe('output formats', function() {
       assertBundles(b, [
         {
           type: 'js',
-          assets: [
-            'bundle-manifest.js',
-            'bundle-url.js',
-            'get-worker-url.js',
-            'index.js',
-            'relative-path.js',
-          ],
+          assets: ['bundle-url.js', 'get-worker-url.js', 'index.js'],
         },
         {type: 'html', assets: ['index.html']},
         {type: 'js', assets: ['lodash.js']},
@@ -1187,8 +1192,10 @@ describe('output formats', function() {
       ]);
 
       let workerBundle;
-      assert.strictEqual(
-        await run(b, {
+      let res = await run(
+        b,
+        {
+          output: null,
           Worker: class {
             constructor(url) {
               workerBundle = nullthrows(
@@ -1200,10 +1207,12 @@ describe('output formats', function() {
               );
             }
           },
-        }),
-        3,
+        },
+        {require: false},
       );
-      assert.strictEqual(await runBundle(b, workerBundle), 30);
+      assert.strictEqual(res.output, 3);
+      res = await runBundle(b, workerBundle, {output: null}, {require: false});
+      assert.strictEqual(res.output, 30);
     });
 
     it('should support async split bundles for workers', async function() {

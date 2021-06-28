@@ -28,7 +28,7 @@ export default (new Transformer({
     );
     let contents = {};
     if (conf) {
-      config.shouldInvalidateOnStartup();
+      config.invalidateOnStartup();
       contents = conf.contents;
       if (typeof contents !== 'object') {
         throw new ThrowableDiagnostic({
@@ -40,10 +40,10 @@ export default (new Transformer({
         });
       }
     }
-    config.setResult({
+    return {
       customBlocks: contents.customBlocks || {},
       filePath: conf && conf.filePath,
-    });
+    };
   },
   canReuseAST({ast}) {
     return ast.type === 'vue' && semver.satisfies(ast.version, '^3.0.0');
@@ -428,7 +428,7 @@ ${(
       async type =>
         `import p${type} from './${relative(
           dirname(asset.filePath),
-          await resolve(config.filePath, config.customBlocks[type]),
+          await resolve(nullthrows(config.filePath), config.customBlocks[type]),
         )}';
 if (typeof p${type} !== 'function') {
   p${type} = NOOP;

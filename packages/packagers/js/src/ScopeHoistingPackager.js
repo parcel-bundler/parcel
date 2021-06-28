@@ -19,6 +19,7 @@ import {ESMOutputFormat} from './ESMOutputFormat';
 import {CJSOutputFormat} from './CJSOutputFormat';
 import {GlobalOutputFormat} from './GlobalOutputFormat';
 import {prelude, helpers} from './helpers';
+import {replaceScriptDependencies} from './utils';
 
 // https://262.ecma-international.org/6.0/#sec-names-and-keywords
 const IDENTIFIER_RE = /^[$_\p{ID_Start}][$_\u200C\u200D\p{ID_Continue}]*$/u;
@@ -37,6 +38,7 @@ const GLOBALS_BY_CONTEXT = {
     ...BUILTINS,
     ...Object.keys(globals.serviceworker),
   ]),
+  worklet: new Set([...BUILTINS]),
   node: new Set([...BUILTINS, ...Object.keys(globals.node)]),
   'electron-main': new Set([...BUILTINS, ...Object.keys(globals.node)]),
   'electron-renderer': new Set([
@@ -54,7 +56,7 @@ const OUTPUT_FORMATS = {
 
 export interface OutputFormat {
   buildBundlePrelude(): [string, number];
-  buildBundlePostlude(): string;
+  buildBundlePostlude(): [string, number];
 }
 
 export class ScopeHoistingPackager {
@@ -95,7 +97,7 @@ export class ScopeHoistingPackager {
     this.isAsyncBundle =
       this.bundleGraph.hasParentBundleOfType(this.bundle, 'js') &&
       !this.bundle.env.isIsolated() &&
-      this.bundle.getMainEntry()?.bundleBehavior !== 'isolated';
+      this.bundle.bundleBehavior !== 'isolated';
 
     this.globalNames = GLOBALS_BY_CONTEXT[bundle.env.context];
   }
@@ -115,7 +117,7 @@ export class ScopeHoistingPackager {
     ) {
       let bundles = this.bundleGraph
         .getReferencedBundles(this.bundle)
-        .filter(b => !b.isInline);
+        .filter(b => b.bundleBehavior !== 'inline');
       for (let b of bundles) {
         this.externals.set(relativeBundlePath(this.bundle, b), new Map());
       }
@@ -146,6 +148,7 @@ export class ScopeHoistingPackager {
 
     let [prelude, preludeLines] = this.buildBundlePrelude();
     res = prelude + res;
+    lineCount += preludeLines;
     sourceMap?.offsetLines(1, preludeLines);
 
     let entries = this.bundle.getEntryAssets();
@@ -159,7 +162,7 @@ export class ScopeHoistingPackager {
 
     // If any of the entry assets are wrapped, call parcelRequire so they are executed.
     for (let entry of entries) {
-      if (this.wrappedAssets.has(entry.id)) {
+      if (this.wrappedAssets.has(entry.id) && !this.isScriptEntry(entry)) {
         let parcelRequire = `parcelRequire(${JSON.stringify(
           this.bundleGraph.getAssetPublicId(entry),
         )});\n`;
@@ -174,10 +177,44 @@ export class ScopeHoistingPackager {
         } else {
           res += `\n${parcelRequire}`;
         }
+
+        lineCount += 2;
       }
     }
 
-    res += this.outputFormat.buildBundlePostlude();
+    let [postlude, postludeLines] = this.outputFormat.buildBundlePostlude();
+    res += postlude;
+    lineCount += postludeLines;
+
+    // The entry asset of a script bundle gets hoisted outside the bundle wrapper so that
+    // its top-level variables become globals like a real browser script. We need to replace
+    // all dependency references for runtimes with a parcelRequire call.
+    if (
+      this.bundle.env.outputFormat === 'global' &&
+      this.bundle.env.sourceType === 'script'
+    ) {
+      res += '\n';
+      lineCount++;
+
+      let mainEntry = nullthrows(this.bundle.getMainEntry());
+      let {code, map: mapBuffer} = nullthrows(
+        this.assetOutputs.get(mainEntry.id),
+      );
+      let map;
+      if (mapBuffer) {
+        map = new SourceMap(mapBuffer);
+      }
+      res += replaceScriptDependencies(
+        this.bundleGraph,
+        this.bundle,
+        code,
+        map,
+        this.parcelRequireName,
+      );
+      if (sourceMap && map) {
+        sourceMap.addSourceMap(map, lineCount);
+      }
+    }
 
     return {
       contents: res,
@@ -215,6 +252,7 @@ export class ScopeHoistingPackager {
             shouldWrap ||
             node.value.meta.shouldWrap ||
             this.isAsyncBundle ||
+            this.bundle.env.sourceType === 'script' ||
             this.bundleGraph.isAssetReferencedByDependant(
               this.bundle,
               node.value,
@@ -230,12 +268,17 @@ export class ScopeHoistingPackager {
   }
 
   buildExportedSymbols() {
-    if (this.isAsyncBundle || this.bundle.env.outputFormat !== 'esmodule') {
+    if (
+      this.isAsyncBundle ||
+      !this.bundle.env.isLibrary ||
+      this.bundle.env.outputFormat !== 'esmodule'
+    ) {
       return;
     }
 
+    // TODO: handle ESM exports of wrapped entry assets...
     let entry = this.bundle.getMainEntry();
-    if (entry) {
+    if (entry && !this.wrappedAssets.has(entry.id)) {
       for (let {exportAs, symbol} of this.bundleGraph.getExportedSymbols(
         entry,
       )) {
@@ -637,6 +680,10 @@ ${code}
       exportSymbol,
       symbol,
     } = this.bundleGraph.resolveSymbol(resolved, imported, this.bundle);
+    if (resolvedAsset.type !== 'js') {
+      // Graceful fallback for non-js imports
+      return '{}';
+    }
     let isWrapped =
       !this.bundle.hasAsset(resolvedAsset) ||
       (this.wrappedAssets.has(resolvedAsset.id) &&
@@ -802,7 +849,10 @@ ${code}
       // If a symbol is imported (used) from a CJS asset but isn't listed in the symbols,
       // we fallback on the namespace object.
       (asset.symbols.hasExportSymbol('*') &&
-        [...usedSymbols].some(s => !asset.symbols.hasExportSymbol(s)));
+        [...usedSymbols].some(s => !asset.symbols.hasExportSymbol(s))) ||
+      // If the exports has this asset's namespace (e.g. ESM output from CJS input),
+      // include the namespace object for the default export.
+      this.exportedSymbols.has(`$${assetId}$exports`);
 
     // If the asset doesn't have static exports, should wrap, the namespace is used,
     // or we need default interop, then we need to synthesize a namespace object for
@@ -987,7 +1037,7 @@ ${code}
           .getBundleGroupsContainingBundle(this.bundle)
           .some(g => this.bundleGraph.isEntryBundleGroup(g)) ||
         this.bundle.env.isIsolated() ||
-        this.bundle.getMainEntry()?.bundleBehavior === 'isolated';
+        this.bundle.bundleBehavior === 'isolated';
 
       if (mightBeFirstJS) {
         let preludeCode = prelude(this.parcelRequireName);
@@ -1009,10 +1059,15 @@ ${code}
       let importScripts = '';
       let bundles = this.bundleGraph.getReferencedBundles(this.bundle);
       for (let b of bundles) {
-        importScripts += `importScripts("${relativeBundlePath(
-          this.bundle,
-          b,
-        )}");\n`;
+        if (this.bundle.env.outputFormat === 'esmodule') {
+          // importScripts() is not allowed in native ES module workers.
+          importScripts += `import "${relativeBundlePath(this.bundle, b)}";\n`;
+        } else {
+          importScripts += `importScripts("${relativeBundlePath(
+            this.bundle,
+            b,
+          )}");\n`;
+        }
       }
 
       res += importScripts;
@@ -1040,10 +1095,22 @@ ${code}
   }
 
   shouldSkipAsset(asset: Asset): boolean {
+    if (this.isScriptEntry(asset)) {
+      return true;
+    }
+
     return (
       asset.sideEffects === false &&
       this.bundleGraph.getUsedSymbols(asset).size == 0 &&
       !this.bundleGraph.isAssetReferencedByDependant(this.bundle, asset)
+    );
+  }
+
+  isScriptEntry(asset: Asset): boolean {
+    return (
+      this.bundle.env.outputFormat === 'global' &&
+      this.bundle.env.sourceType === 'script' &&
+      asset === this.bundle.getMainEntry()
     );
   }
 }

@@ -25,7 +25,7 @@ import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import {objectSortedEntriesDeep} from '@parcel/utils';
 import {Hash, hashString} from '@parcel/hash';
-import {Priority} from './types';
+import {Priority, BundleBehavior} from './types';
 
 import {getBundleGroupId, getPublicId} from './utils';
 import {ALL_EDGE_TYPES, mapVisitor} from './Graph';
@@ -785,7 +785,8 @@ export default class BundleGraph {
     if (
       new Environment(bundle.env).isIsolated() ||
       !bundle.isSplittable ||
-      bundle.isInline
+      bundle.bundleBehavior === BundleBehavior.isolated ||
+      bundle.bundleBehavior === BundleBehavior.inline
     ) {
       return false;
     }
@@ -817,7 +818,10 @@ export default class BundleGraph {
       // Check that every parent bundle has a bundle group in its ancestry that contains the asset.
       return parentBundleNodes.every(bundleNodeId => {
         let bundleNode = nullthrows(this._graph.getNode(bundleNodeId));
-        if (bundleNode.type === 'root') {
+        if (
+          bundleNode.type === 'root' ||
+          bundleNode.value.bundleBehavior === BundleBehavior.isolated
+        ) {
           return false;
         }
 
@@ -847,7 +851,10 @@ export default class BundleGraph {
                 if (b.id === bundle.id) {
                   break;
                 }
-                if (this.bundleHasAsset(b, asset)) {
+                if (
+                  b.bundleBehavior !== BundleBehavior.isolated &&
+                  this.bundleHasAsset(b, asset)
+                ) {
                   actions.skipChildren();
                   break;
                 }
@@ -1450,7 +1457,7 @@ export default class BundleGraph {
 
       let referencedBundles = this.getReferencedBundles(bundle);
       for (let referenced of referencedBundles) {
-        if (referenced.isInline) {
+        if (referenced.bundleBehavior === BundleBehavior.inline) {
           bundles.push(referenced);
           addReferencedBundles(referenced);
         }
@@ -1460,7 +1467,7 @@ export default class BundleGraph {
     addReferencedBundles(bundle);
 
     this.traverseBundles((childBundle, _, traversal) => {
-      if (childBundle.isInline) {
+      if (childBundle.bundleBehavior === BundleBehavior.inline) {
         bundles.push(childBundle);
       } else if (childBundle.id !== bundle.id) {
         traversal.skipChildren();
@@ -1482,7 +1489,7 @@ export default class BundleGraph {
     }
 
     for (let referencedBundle of this.getReferencedBundles(bundle)) {
-      if (!referencedBundle.isInline) {
+      if (referencedBundle.bundleBehavior !== BundleBehavior.inline) {
         hash.writeString(referencedBundle.id);
       }
     }

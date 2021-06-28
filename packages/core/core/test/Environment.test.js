@@ -17,6 +17,8 @@ describe('Environment', () => {
       shouldOptimize: false,
       shouldScopeHoist: false,
       sourceMap: undefined,
+      loc: undefined,
+      sourceType: 'module',
     });
   });
 
@@ -33,6 +35,8 @@ describe('Environment', () => {
       shouldOptimize: false,
       shouldScopeHoist: false,
       sourceMap: undefined,
+      loc: undefined,
+      sourceType: 'module',
     });
   });
 
@@ -51,6 +55,8 @@ describe('Environment', () => {
         shouldOptimize: false,
         shouldScopeHoist: false,
         sourceMap: undefined,
+        loc: undefined,
+        sourceType: 'module',
       },
     );
   });
@@ -68,6 +74,8 @@ describe('Environment', () => {
       shouldOptimize: false,
       shouldScopeHoist: false,
       sourceMap: undefined,
+      loc: undefined,
+      sourceType: 'module',
     });
   });
 
@@ -84,6 +92,8 @@ describe('Environment', () => {
       shouldOptimize: false,
       shouldScopeHoist: false,
       sourceMap: undefined,
+      loc: undefined,
+      sourceType: 'module',
     });
   });
 });

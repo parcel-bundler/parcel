@@ -35,7 +35,7 @@ use swc_ecmascript::transforms::resolver::resolver_with_mark;
 use swc_ecmascript::transforms::{
   compat::reserved_words::reserved_words, fixer, helpers, hygiene,
   optimization::simplify::dead_branch_remover, optimization::simplify::expr_simplifier,
-  pass::Optional, react, typescript,
+  pass::Optional, proposals::decorators, react, typescript,
 };
 use swc_ecmascript::visit::FoldWith;
 
@@ -46,7 +46,7 @@ use fs::inline_fs;
 use global_replacer::GlobalReplacer;
 use hoist::hoist;
 use modules::esm2cjs;
-use utils::{CodeHighlight, Diagnostic, SourceLocation};
+use utils::{CodeHighlight, Diagnostic, SourceLocation, SourceType};
 
 #[derive(Serialize, Debug, Deserialize)]
 pub struct Config {
@@ -64,11 +64,16 @@ pub struct Config {
   is_jsx: bool,
   jsx_pragma: Option<String>,
   jsx_pragma_frag: Option<String>,
+  automatic_jsx_runtime: bool,
+  jsx_import_source: Option<String>,
+  decorators: bool,
   is_development: bool,
   react_refresh: bool,
   targets: Option<HashMap<String, String>>,
   source_maps: bool,
   scope_hoist: bool,
+  source_type: SourceType,
+  supports_module_workers: bool,
 }
 
 #[derive(Serialize, Debug, Deserialize, Default)]
@@ -82,6 +87,7 @@ pub struct TransformResult {
   diagnostics: Option<Vec<Diagnostic>>,
   needs_esm_helpers: bool,
   used_env: HashSet<swc_atoms::JsWord>,
+  script_error_loc: Option<SourceLocation>,
 }
 
 fn targets_to_versions(targets: &Option<HashMap<String, String>>) -> Option<Versions> {
@@ -194,7 +200,9 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
 
       let mut global_deps = vec![];
       let mut fs_deps = vec![];
-      let should_inline_fs = config.inline_fs && code.contains("readFileSync");
+      let should_inline_fs = config.inline_fs
+        && config.source_type != SourceType::Script
+        && code.contains("readFileSync");
       swc_common::GLOBALS.set(&Globals::new(), || {
         helpers::HELPERS.set(
           &helpers::Helpers::new(/* external helpers from @swc/helpers */ true),
@@ -214,6 +222,15 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
               } else {
                 None
               };
+
+              react_options.runtime = if config.automatic_jsx_runtime {
+                if let Some(import_source) = config.jsx_import_source {
+                  react_options.import_source = import_source;
+                }
+                Some(react::Runtime::Automatic)
+              } else {
+                Some(react::Runtime::Classic)
+              };
             }
 
             module = {
@@ -221,6 +238,15 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                 Optional::new(
                   react::react(source_map.clone(), Some(&comments), react_options),
                   config.is_jsx
+                ),
+                // Decorators can use type information, so must run before the TypeScript pass.
+                Optional::new(
+                  decorators::decorators(decorators::Config {
+                    legacy: true,
+                    // Always disabled for now, SWC's implementation doesn't match TSC.
+                    emit_metadata: false
+                  }),
+                  config.decorators
                 ),
                 Optional::new(typescript::strip(), config.is_type_script)
               );
@@ -244,13 +270,16 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
             let module = {
               let mut passes = chain!(
                 // Inline process.env and process.browser
-                EnvReplacer {
-                  replace_env: config.replace_env,
-                  env: config.env,
-                  is_browser: config.is_browser,
-                  decls: &decls,
-                  used_env: &mut result.used_env
-                },
+                Optional::new(
+                  EnvReplacer {
+                    replace_env: config.replace_env,
+                    env: config.env,
+                    is_browser: config.is_browser,
+                    decls: &decls,
+                    used_env: &mut result.used_env
+                  },
+                  config.source_type != SourceType::Script
+                ),
                 // Simplify expressions and remove dead branches so that we
                 // don't include dependencies inside conditionals that are always false.
                 expr_simplifier(),
@@ -278,7 +307,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                     global_mark,
                     scope_hoist: config.scope_hoist
                   },
-                  config.insert_node_globals
+                  config.insert_node_globals && config.source_type != SourceType::Script
                 ),
                 // Transpile new syntax to older syntax if needed
                 Optional::new(
@@ -293,7 +322,10 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                   &mut result.dependencies,
                   &decls,
                   ignore_mark,
-                  config.scope_hoist
+                  config.scope_hoist,
+                  config.source_type,
+                  config.supports_module_workers,
+                  &mut result.script_error_loc,
                 ),
               );
 
@@ -365,6 +397,7 @@ fn parse(
     let mut tsconfig = TsConfig::default();
     tsconfig.tsx = config.is_jsx;
     tsconfig.dynamic_import = true;
+    tsconfig.decorators = config.decorators;
     Syntax::Typescript(tsconfig)
   } else {
     let mut esconfig = EsConfig::default();
@@ -373,6 +406,7 @@ fn parse(
     esconfig.export_default_from = true;
     esconfig.export_namespace_from = true;
     esconfig.import_meta = true;
+    esconfig.decorators = config.decorators;
     Syntax::Es(esconfig)
   };
 

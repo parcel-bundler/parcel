@@ -50,6 +50,11 @@ pub fn match_member_expr(
 }
 
 pub fn create_require(specifier: swc_atoms::JsWord) -> ast::CallExpr {
+  let mut normalized_specifier = specifier;
+  if normalized_specifier.starts_with("node:") {
+    normalized_specifier = normalized_specifier.replace("node:", "").into();
+  }
+
   ast::CallExpr {
     callee: ast::ExprOrSuper::Expr(Box::new(ast::Expr::Ident(ast::Ident::new(
       "require".into(),
@@ -58,7 +63,7 @@ pub fn create_require(specifier: swc_atoms::JsWord) -> ast::CallExpr {
     args: vec![ast::ExprOrSpread {
       expr: Box::new(ast::Expr::Lit(ast::Lit::Str(ast::Str {
         span: DUMMY_SP,
-        value: specifier,
+        value: normalized_specifier,
         has_escape: false,
         kind: ast::StrKind::Synthesized,
       }))),
@@ -104,4 +109,10 @@ pub struct Diagnostic {
   pub message: String,
   pub code_highlights: Option<Vec<CodeHighlight>>,
   pub hints: Option<Vec<String>>,
+}
+
+#[derive(Serialize, Debug, Deserialize, Eq, PartialEq, Clone, Copy)]
+pub enum SourceType {
+  Script,
+  Module,
 }

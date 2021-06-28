@@ -17,6 +17,7 @@ pub enum DependencyKind {
   Require,
   WebWorker,
   ServiceWorker,
+  Worklet,
   ImportScripts,
   URL,
   File,
@@ -37,6 +38,7 @@ pub struct DependencyDescriptor {
   pub attributes: Option<HashMap<swc_atoms::JsWord, bool>>,
   pub is_optional: bool,
   pub is_helper: bool,
+  pub source_type: Option<SourceType>,
 }
 
 /// This pass collects dependencies in a module and compiles references as needed to work with Parcel's JSRuntime.
@@ -46,6 +48,9 @@ pub fn dependency_collector<'a>(
   decls: &'a HashSet<(JsWord, SyntaxContext)>,
   ignore_mark: swc_common::Mark,
   scope_hoist: bool,
+  source_type: SourceType,
+  supports_module_workers: bool,
+  script_error_loc: &'a mut Option<SourceLocation>,
 ) -> impl Fold + 'a {
   DependencyCollector {
     source_map,
@@ -56,6 +61,9 @@ pub fn dependency_collector<'a>(
     decls,
     ignore_mark,
     scope_hoist,
+    source_type,
+    supports_module_workers,
+    script_error_loc,
   }
 }
 
@@ -68,6 +76,9 @@ struct DependencyCollector<'a> {
   decls: &'a HashSet<(JsWord, SyntaxContext)>,
   ignore_mark: swc_common::Mark,
   scope_hoist: bool,
+  source_type: SourceType,
+  supports_module_workers: bool,
+  script_error_loc: &'a mut Option<SourceLocation>,
 }
 
 impl<'a> DependencyCollector<'a> {
@@ -78,6 +89,7 @@ impl<'a> DependencyCollector<'a> {
     kind: DependencyKind,
     attributes: Option<HashMap<swc_atoms::JsWord, bool>>,
     is_optional: bool,
+    source_type: SourceType,
   ) {
     self.items.push(DependencyDescriptor {
       kind,
@@ -86,11 +98,60 @@ impl<'a> DependencyCollector<'a> {
       attributes,
       is_optional,
       is_helper: span.is_dummy(),
+      source_type: Some(source_type),
     });
+  }
+
+  fn create_require(&mut self, specifier: JsWord) -> ast::CallExpr {
+    let mut res = create_require(specifier);
+
+    // For scripts, we replace with __parcel__require__, which is later replaced
+    // by a real parcelRequire of the resolved asset in the packager.
+    if self.source_type == SourceType::Script {
+      res.callee = ast::ExprOrSuper::Expr(Box::new(ast::Expr::Ident(ast::Ident::new(
+        "__parcel__require__".into(),
+        DUMMY_SP,
+      ))));
+    }
+    res
   }
 }
 
+fn rewrite_require_specifier(node: ast::CallExpr) -> ast::CallExpr {
+  if let Some(arg) = node.args.get(0) {
+    if let ast::Expr::Lit(lit) = &*arg.expr {
+      if let ast::Lit::Str(str_) = lit {
+        if str_.value.starts_with("node:") {
+          // create_require will take care of replacing the node: prefix...
+          return create_require(str_.value.clone());
+        }
+      }
+    }
+  }
+  node
+}
+
 impl<'a> Fold for DependencyCollector<'a> {
+  fn fold_module_decl(&mut self, node: ast::ModuleDecl) -> ast::ModuleDecl {
+    // If an import or export is seen within a script, flag it to throw an error from JS.
+    if self.source_type == SourceType::Script && self.script_error_loc.is_none() {
+      match node {
+        ast::ModuleDecl::Import(ast::ImportDecl { span, .. })
+        | ast::ModuleDecl::ExportAll(ast::ExportAll { span, .. })
+        | ast::ModuleDecl::ExportDecl(ast::ExportDecl { span, .. })
+        | ast::ModuleDecl::ExportDefaultDecl(ast::ExportDefaultDecl { span, .. })
+        | ast::ModuleDecl::ExportDefaultExpr(ast::ExportDefaultExpr { span, .. })
+        | ast::ModuleDecl::ExportNamed(ast::NamedExport { span, .. }) => {
+          *self.script_error_loc = Some(SourceLocation::from(self.source_map, span));
+        }
+        _ => {}
+      }
+      return node;
+    }
+
+    node.fold_children_with(self)
+  }
+
   fn fold_import_decl(&mut self, node: ast::ImportDecl) -> ast::ImportDecl {
     if node.type_only {
       return node;
@@ -102,6 +163,7 @@ impl<'a> Fold for DependencyCollector<'a> {
       DependencyKind::Import,
       None,
       false,
+      self.source_type,
     );
 
     return node;
@@ -119,6 +181,7 @@ impl<'a> Fold for DependencyCollector<'a> {
         DependencyKind::Export,
         None,
         false,
+        self.source_type,
       );
     }
 
@@ -132,6 +195,7 @@ impl<'a> Fold for DependencyCollector<'a> {
       DependencyKind::Export,
       None,
       false,
+      self.source_type,
     );
 
     return node;
@@ -187,7 +251,7 @@ impl<'a> Fold for DependencyCollector<'a> {
           }
           "importScripts" => DependencyKind::ImportScripts,
           "__parcel__require__" => {
-            let mut call = node.clone();
+            let mut call = node.clone().fold_children_with(self);
             call.callee = ast::ExprOrSuper::Expr(Box::new(ast::Expr::Ident(ast::Ident::new(
               "require".into(),
               DUMMY_SP.apply_mark(self.ignore_mark),
@@ -195,7 +259,7 @@ impl<'a> Fold for DependencyCollector<'a> {
             return call;
           }
           "__parcel__import__" => {
-            let mut call = node.clone();
+            let mut call = node.clone().fold_children_with(self);
             call.callee = ast::ExprOrSuper::Expr(Box::new(ast::Expr::Ident(ast::Ident::new(
               "import".into(),
               DUMMY_SP.apply_mark(self.ignore_mark),
@@ -212,6 +276,8 @@ impl<'a> Fold for DependencyCollector<'a> {
           self.decls,
         ) {
           DependencyKind::ServiceWorker
+        } else if match_member_expr(member, vec!["CSS", "paintWorklet", "addModule"], self.decls) {
+          DependencyKind::Worklet
         } else {
           let was_in_promise = self.in_promise;
 
@@ -311,11 +377,18 @@ impl<'a> Fold for DependencyCollector<'a> {
         .map(|arg| {
           if let Lit(lit) = &*arg.expr {
             if let ast::Lit::Str(str_) = lit {
-              self.add_dependency(str_.value.clone(), str_.span, kind.clone(), None, false);
+              self.add_dependency(
+                str_.value.clone(),
+                str_.span,
+                kind.clone(),
+                None,
+                false,
+                SourceType::Script,
+              );
 
               return ast::ExprOrSpread {
                 spread: None,
-                expr: Box::new(Call(create_require(str_.value.clone()))),
+                expr: Box::new(Call(self.create_require(str_.value.clone()))),
               };
             }
           }
@@ -328,32 +401,67 @@ impl<'a> Fold for DependencyCollector<'a> {
     }
 
     if let Some(arg) = node.args.get(0) {
-      if kind == DependencyKind::ServiceWorker {
-        if let Some((specifier, span)) = match_import_meta_url(&*arg.expr, self.decls) {
-          self.add_dependency(specifier.clone(), span, kind.clone(), attributes, false);
+      if kind == DependencyKind::ServiceWorker || kind == DependencyKind::Worklet {
+        let (source_type, opts) = if kind == DependencyKind::ServiceWorker {
+          match_worker_type(node.args.get(1))
+        } else {
+          // Worklets are always modules
+          (SourceType::Module, None)
+        };
+        let mut node = node.clone();
 
-          let mut node = node.clone();
-          node.args[0].expr = Box::new(Call(create_require(specifier)));
+        let (specifier, span) = if let Some(s) = match_import_meta_url(&*arg.expr, self.decls) {
+          s
+        } else if let Lit(lit) = &*arg.expr {
+          if let ast::Lit::Str(str_) = lit {
+            (str_.value.clone(), str_.span)
+          } else {
+            return node;
+          }
+        } else {
           return node;
+        };
+
+        self.add_dependency(
+          specifier.clone(),
+          span,
+          kind.clone(),
+          attributes,
+          false,
+          source_type,
+        );
+
+        node.args[0].expr = Box::new(Call(self.create_require(specifier)));
+        match opts {
+          Some(opts) => {
+            node.args[1] = opts;
+          }
+          None => {
+            node.args.truncate(1);
+          }
         }
+        return node;
       }
 
       if let Lit(lit) = &*arg.expr {
         if let ast::Lit::Str(str_) = lit {
+          // require() calls aren't allowed in scripts, flag as an error.
+          if kind == DependencyKind::Require
+            && self.source_type == SourceType::Script
+            && self.script_error_loc.is_none()
+          {
+            *self.script_error_loc = Some(SourceLocation::from(self.source_map, node.span));
+            return node;
+          }
+
           self.add_dependency(
             str_.value.clone(),
             str_.span,
             kind.clone(),
             attributes,
             kind == DependencyKind::Require && self.in_try,
+            self.source_type,
           );
-
-          // If url dependency, replace import with require() of runtime module
-          if kind == DependencyKind::ServiceWorker {
-            let mut node = node.clone();
-            node.args[0].expr = Box::new(Call(create_require(str_.value.clone())));
-            return node;
-          }
         }
       }
     }
@@ -362,8 +470,12 @@ impl<'a> Fold for DependencyCollector<'a> {
     if kind == DependencyKind::DynamicImport {
       let mut call = node.clone();
       if !self.scope_hoist {
+        let name = match &self.source_type {
+          SourceType::Module => "require",
+          SourceType::Script => "__parcel__require__",
+        };
         call.callee = ast::ExprOrSuper::Expr(Box::new(ast::Expr::Ident(ast::Ident::new(
-          "require".into(),
+          name.into(),
           DUMMY_SP,
         ))));
       }
@@ -372,11 +484,12 @@ impl<'a> Fold for DependencyCollector<'a> {
       call.args.truncate(1);
 
       // Track the returned require call to be replaced with a promise chain.
-      self.require_node = Some(call.clone());
-      call
+      let rewritten_call = rewrite_require_specifier(call);
+      self.require_node = Some(rewritten_call.clone());
+      rewritten_call
     } else if kind == DependencyKind::Require {
       // Don't continue traversing so that the `require` isn't replaced with undefined
-      node
+      rewrite_require_specifier(node)
     } else {
       node.fold_children_with(self)
     }
@@ -445,18 +558,33 @@ impl<'a> Fold for DependencyCollector<'a> {
           return node;
         };
 
+        let (source_type, opts) = match_worker_type(args.get(1));
         self.add_dependency(
           specifier.clone(),
           span,
           DependencyKind::WebWorker,
           None,
           false,
+          source_type,
         );
 
         // Replace argument with a require call to resolve the URL at runtime.
         let mut node = node.clone();
         if let Some(mut args) = node.args.clone() {
-          args[0].expr = Box::new(Call(create_require(specifier)));
+          args[0].expr = Box::new(Call(self.create_require(specifier)));
+
+          // If module workers aren't supported natively, remove the `type: 'module'` option.
+          // If no other options are passed, remove the argument entirely.
+          if !self.supports_module_workers {
+            match opts {
+              None => {
+                args.truncate(1);
+              }
+              Some(opts) => {
+                args[1] = opts;
+              }
+            }
+          }
           node.args = Some(args);
         }
 
@@ -480,9 +608,15 @@ impl<'a> Fold for DependencyCollector<'a> {
 
   fn fold_expr(&mut self, node: ast::Expr) -> ast::Expr {
     if let Some((specifier, span)) = match_import_meta_url(&node, self.decls) {
-      self.add_dependency(specifier.clone(), span, DependencyKind::URL, None, false);
-
-      return ast::Expr::Call(create_require(specifier));
+      self.add_dependency(
+        specifier.clone(),
+        span,
+        DependencyKind::URL,
+        None,
+        false,
+        self.source_type,
+      );
+      return ast::Expr::Call(self.create_require(specifier));
     }
 
     if let ast::Expr::Ident(ast::Ident { sym, span, .. }) = &node {
@@ -710,4 +844,78 @@ fn match_import_meta_url(
   }
 
   None
+}
+
+// matches the `type: 'module'` option of workers
+fn match_worker_type(expr: Option<&ast::ExprOrSpread>) -> (SourceType, Option<ast::ExprOrSpread>) {
+  use ast::*;
+
+  if let Some(expr_or_spread) = expr {
+    if let Expr::Object(obj) = &*expr_or_spread.expr {
+      let mut source_type: Option<SourceType> = None;
+      let props: Vec<PropOrSpread> = obj
+        .props
+        .iter()
+        .filter(|key| {
+          let prop = match key {
+            PropOrSpread::Prop(prop) => prop,
+            _ => return true,
+          };
+
+          let kv = match &**prop {
+            Prop::KeyValue(kv) => kv,
+            _ => return true,
+          };
+
+          match &kv.key {
+            PropName::Ident(Ident {
+              sym: js_word!("type"),
+              ..
+            })
+            | PropName::Str(Str {
+              value: js_word!("type"),
+              ..
+            }) => {}
+            _ => return true,
+          };
+
+          let v = match &*kv.value {
+            Expr::Lit(Lit::Str(Str { value, .. })) => value,
+            _ => return true,
+          };
+
+          source_type = Some(match *v {
+            js_word!("module") => SourceType::Module,
+            _ => SourceType::Script,
+          });
+
+          return false;
+        })
+        .cloned()
+        .collect();
+
+      if let Some(source_type) = source_type {
+        let e = if props.len() == 0 {
+          None
+        } else {
+          Some(ExprOrSpread {
+            spread: None,
+            expr: Box::new(Expr::Object(ObjectLit {
+              props,
+              span: obj.span,
+            })),
+          })
+        };
+
+        return (source_type, e);
+      }
+    }
+  }
+
+  let expr = match expr {
+    None => None,
+    Some(e) => Some(e.clone()),
+  };
+
+  (SourceType::Script, expr)
 }
