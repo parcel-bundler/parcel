@@ -16,7 +16,6 @@ import type {
   ReporterEvent,
   SemverRange,
   ServerOptions,
-  SourceLocation,
   SourceType,
   Stats,
   Symbol,
