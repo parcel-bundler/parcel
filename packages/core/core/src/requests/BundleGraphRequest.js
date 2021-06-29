@@ -255,6 +255,7 @@ class BundlerRunner {
     let internalBundleGraph: InternalBundleGraph;
     let mutableBundleGraph;
     try {
+      console.log('Should for full bundle is ', shouldForceFullBundle);
       if (!shouldForceFullBundle) {
         internalBundleGraph = nullthrows(cachedBundleGraph).bundleGraph;
         await dumpGraphToGraphViz(
@@ -276,23 +277,30 @@ class BundlerRunner {
           internalBundleGraph,
           this.options,
         );
-        let updates = [];
-        changedAssets.forEach(asset => {
-          let dependencies = internalBundleGraph.getIncomingDependencies(asset);
-          dependencies.forEach(dependency => {
-            updates.push(
-              bundler.bundle({
-                bundleGraph: mutableBundleGraph,
-                config: this.configs.get(plugin.name)?.result,
-                options: this.pluginOptions,
-                logger,
-                startValue: new Dependency(dependency),
-              }),
-            );
-          });
+        await bundler.update({
+          bundleGraph: internalBundleGraph,
+          config: this.configs.get(plugin.name)?.result,
+          options: this.pluginOptions,
+          assetGraphTransformationSubGraph: transformationSubGraph, // TODO: need to be public facing asset graph
+          changedAssets,
         });
+        // let updates = [];
+        // changedAssets.forEach(asset => {
+        //   let dependencies = internalBundleGraph.getIncomingDependencies(asset);
+        //   dependencies.forEach(dependency => {
+        //     updates.push(
+        //       bundler.bundle({
+        //         bundleGraph: mutableBundleGraph,
+        //         config: this.configs.get(plugin.name)?.result,
+        //         options: this.pluginOptions,
+        //         logger,
+        //         startValue: new Dependency(dependency),
+        //       }),
+        //     );
+        //   });
+        // });
 
-        await Promise.all(updates);
+        // await Promise.all(updates);
       } else {
         internalBundleGraph = InternalBundleGraph.fromAssetGraph(graph);
         await dumpGraphToGraphViz(

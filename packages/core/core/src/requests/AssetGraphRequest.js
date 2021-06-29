@@ -830,7 +830,8 @@ export class AssetGraphBuilder {
     let result = await this.api.runRequest<FilePath, EntryResult>(request, {
       force: true,
     });
-    this.assetGraph.shouldForceBundle = true;
+    //this.assetGraph.shouldForceBundle = true;
+    // this should be reset on save
     this.assetGraph.resolveEntry(request.input, result.entries, request.id);
   }
 
@@ -840,7 +841,8 @@ export class AssetGraphBuilder {
       force: true,
     });
 
-    this.assetGraph.shouldForceBundle = true;
+    //this.assetGraph.shouldForceBundle = true;
+    // this should be reset on save
     this.assetGraph.resolveTargets(request.input, targets, request.id);
   }
 
