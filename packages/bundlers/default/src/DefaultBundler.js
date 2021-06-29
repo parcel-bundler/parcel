@@ -14,7 +14,7 @@ import Graph from '@parcel/core/src/Graph';
 
 import invariant from 'assert';
 import {Bundler} from '@parcel/plugin';
-import {validateSchema} from '@parcel/utils';
+import {validateSchema, DefaultMap} from '@parcel/utils';
 import {hashString} from '@parcel/hash';
 import nullthrows from 'nullthrows';
 import {encodeJSONKeyComponent} from '@parcel/diagnostic';
@@ -141,10 +141,34 @@ export default (new Bundler({
 
     // Step 2: Determine reachability for every asset from each bundle root.
     // This is later used to determine which bundles to place each asset in.
-    let reachableNodes: Map<Bundle, Set<Bundle>> = new Map();
+    let reachableRoots: DefaultMap<Asset, Set<Asset>> = new DefaultMap(
+      () => new Set(),
+    );
     for (let [root] of bundleRoots) {
-      assetGraph.traverse();
+      assetGraph.traverse((node, _, actions) => {
+        if (node.type !== 'asset') {
+          return;
+        }
+        if (node.value === root) {
+          return;
+        }
+
+        if (bundleRoots.has(root)) {
+          actions.skipChildren();
+          return;
+        }
+        reachableRoots.get(node.value).add(root);
+      }, root);
     }
+
+    // Step 3: Place all assets into bundles. Each asset is placed into a single
+    // bundle based on the bundle entries it is reachable from. This creates a
+    // maximally code split bundle graph with no duplication.
+
+    // Create a mapping from entry asset ids to bundle ids
+
+    let bundles: Map<string, BundleId> = new Map();
+    //TODO Step 3, some mapping from multiple entry asset ids to a bundle Id
   },
   optimize() {},
 }): Bundler);
