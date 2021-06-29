@@ -1375,7 +1375,10 @@ export interface BundleGraph<TBundle: Bundle> {
     asset: Asset,
     boundary: ?Bundle,
   ): Array<ExportSymbolResolution>;
-  traverse<TContext>(GraphVisitor<BundleGraphTraversable, TContext>): ?TContext;
+  traverse<TContext>(
+    GraphVisitor<BundleGraphTraversable, TContext>,
+    ?Asset,
+  ): ?TContext;
   traverseBundles<TContext>(
     visit: GraphVisitor<TBundle, TContext>,
     startBundle: ?Bundle,

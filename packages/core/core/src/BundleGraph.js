@@ -973,6 +973,7 @@ export default class BundleGraph {
 
   traverse<TContext>(
     visit: GraphVisitor<AssetNode | DependencyNode, TContext>,
+    start?: Asset,
   ): ?TContext {
     return this._graph.filteredTraverse(
       nodeId => {
@@ -982,7 +983,7 @@ export default class BundleGraph {
         }
       },
       visit,
-      undefined, // start with root
+      start ? this._graph.getNodeIdByContentKey(start.id) : undefined, // start with root
       // $FlowFixMe
       ALL_EDGE_TYPES,
     );
