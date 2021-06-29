@@ -1891,16 +1891,13 @@ describe('html', function() {
     assert.equal(html.match(/<script/g).length, 3);
 
     html = await outputFS.readFile(path.join(distDir, 'b.html'), 'utf8');
-    // ATLASSIAN: We don't create shared bundles across contexts yet
-    assert.equal(html.match(/<script/g).length, 4);
+    assert.equal(html.match(/<script/g).length, 5);
 
-    // ATLASSIAN: We don't create shared bundles across contexts yet
     html = await outputFS.readFile(path.join(distDir, 'c.html'), 'utf8');
-    assert.equal(html.match(/<script/g).length, 4);
+    assert.equal(html.match(/<script/g).length, 5);
 
-    // ATLASSIAN: We don't create shared bundles across contexts yet
     html = await outputFS.readFile(path.join(distDir, 'd.html'), 'utf8');
-    assert.equal(html.match(/<script/g).length, 3);
+    assert.equal(html.match(/<script/g).length, 4);
 
     html = await outputFS.readFile(path.join(distDir, 'e.html'), 'utf8');
     assert.equal(html.match(/<script/g).length, 4);

@@ -242,9 +242,7 @@ export default (new Bundler({
           !containingBundle.needsStableName &&
           containingBundle.bundleBehavior !== 'inline' &&
           containingBundle.bundleBehavior !== 'isolated' &&
-          containingBundle.isSplittable &&
-          // ATLASSIAN: Don't share across workers for now as worker-specific code is added
-          !containingBundle.env.isIsolated(),
+          containingBundle.isSplittable,
       );
 
       for (let candidate of candidates) {
