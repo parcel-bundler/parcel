@@ -49,7 +49,7 @@ export async function _report(
       if (options.serveOptions) {
         persistMessage(
           chalk.blue.bold(
-            `${emoji.info} Server running at ${
+            `Server running at ${
               options.serveOptions.https ? 'https' : 'http'
             }://${options.serveOptions.host ?? 'localhost'}:${
               options.serveOptions.port
@@ -187,9 +187,13 @@ async function writeDiagnostic(
       writeOut(codeframe, isError);
     }
 
+    if (hints.length > 0) {
+      writeOut('');
+    }
+
     // Write hints
     for (let hint of hints) {
-      writeOut(chalk.blue.bold(hint));
+      writeOut(`${emoji.hint} ${chalk.blue.bold(hint)}`);
     }
   }
 }

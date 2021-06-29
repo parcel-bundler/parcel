@@ -579,22 +579,246 @@ describe('TargetResolver', () => {
     ]);
   });
 
-  it('resolves main target as an application when non-js file extension is used', async () => {
+  it('errors when the main target contains a non-js extension', async () => {
     let targetResolver = new TargetResolver(api, DEFAULT_OPTIONS);
     let fixture = path.join(__dirname, 'fixtures/application-targets');
+    let code = await fs.readFile(path.join(fixture, 'package.json'), 'utf8');
+
+    // $FlowFixMe
+    await assert.rejects(() => targetResolver.resolve(fixture), {
+      diagnostics: [
+        {
+          message: 'Unexpected output file type .html in target "main"',
+          origin: '@parcel/core',
+          filePath: path.join(fixture, 'package.json'),
+          language: 'json',
+          codeFrame: {
+            code,
+            codeHighlights: [
+              {
+                end: {
+                  column: 27,
+                  line: 2,
+                },
+                message: 'File extension must be .js, .mjs, or .cjs',
+                start: {
+                  column: 11,
+                  line: 2,
+                },
+              },
+            ],
+          },
+          hints: [
+            'The "main" field is meant for libraries. If you meant to output a .html file, either remove the "main" field or choose a different target name.',
+          ],
+        },
+      ],
+    });
+  });
+
+  it('errors when the main target uses the global output format', async () => {
+    let targetResolver = new TargetResolver(api, DEFAULT_OPTIONS);
+    let fixture = path.join(__dirname, 'fixtures/main-global');
+    let code = await fs.readFile(path.join(fixture, 'package.json'), 'utf8');
+
+    // $FlowFixMe
+    await assert.rejects(() => targetResolver.resolve(fixture), {
+      diagnostics: [
+        {
+          message:
+            'The "global" output format is not supported in the "main" target.',
+          origin: '@parcel/core',
+          filePath: path.join(fixture, 'package.json'),
+          language: 'json',
+          codeFrame: {
+            code,
+            codeHighlights: [
+              {
+                message: undefined,
+                end: {
+                  column: 30,
+                  line: 5,
+                },
+                start: {
+                  column: 23,
+                  line: 5,
+                },
+              },
+            ],
+          },
+          hints: [
+            'The "main" field is meant for libraries. The outputFormat must be either "commonjs" or "esmodule". Either change or remove the declared outputFormat.',
+          ],
+        },
+      ],
+    });
+  });
+
+  it('errors when the main target uses the esmodule output format without a .mjs extension or "type": "module" field', async () => {
+    let targetResolver = new TargetResolver(api, DEFAULT_OPTIONS);
+    let fixture = path.join(__dirname, 'fixtures/main-mjs');
+    let code = await fs.readFile(path.join(fixture, 'package.json'), 'utf8');
+
+    // $FlowFixMe
+    await assert.rejects(() => targetResolver.resolve(fixture), {
+      diagnostics: [
+        {
+          message:
+            'Output format "esmodule" cannot be used in the "main" target without a .mjs extension or "type": "module" field.',
+          origin: '@parcel/core',
+          filePath: path.join(fixture, 'package.json'),
+          language: 'json',
+          codeFrame: {
+            code,
+            codeHighlights: [
+              {
+                message: 'Declared output format defined here',
+                end: {
+                  column: 32,
+                  line: 5,
+                },
+                start: {
+                  column: 23,
+                  line: 5,
+                },
+              },
+              {
+                message: 'Inferred output format defined here',
+                end: {
+                  column: 25,
+                  line: 2,
+                },
+                start: {
+                  column: 11,
+                  line: 2,
+                },
+              },
+            ],
+          },
+          hints: [
+            'Either change the output file extension to .mjs, add "type": "module" to package.json, or remove the declared outputFormat.',
+          ],
+        },
+      ],
+    });
+  });
+
+  it('errors when the inferred output format does not match the declared one in common targets', async () => {
+    let targetResolver = new TargetResolver(api, DEFAULT_OPTIONS);
+    let fixture = path.join(__dirname, 'fixtures/main-format-mismatch');
+    let code = await fs.readFile(path.join(fixture, 'package.json'), 'utf8');
+
+    // $FlowFixMe
+    await assert.rejects(() => targetResolver.resolve(fixture), {
+      diagnostics: [
+        {
+          message:
+            'Declared output format "esmodule" does not match expected output format "commonjs".',
+          origin: '@parcel/core',
+          filePath: path.join(fixture, 'package.json'),
+          language: 'json',
+          codeFrame: {
+            code,
+            codeHighlights: [
+              {
+                message: 'Declared output format defined here',
+                end: {
+                  column: 32,
+                  line: 5,
+                },
+                start: {
+                  column: 23,
+                  line: 5,
+                },
+              },
+              {
+                message: 'Inferred output format defined here',
+                end: {
+                  column: 26,
+                  line: 2,
+                },
+                start: {
+                  column: 11,
+                  line: 2,
+                },
+              },
+            ],
+          },
+          hints: [
+            'Either remove the target\'s declared "outputFormat" or change the extension to .mjs or .js.',
+          ],
+        },
+      ],
+    });
+  });
+
+  it('errors when the inferred output format does not match the declared one in custom targets', async () => {
+    let targetResolver = new TargetResolver(api, DEFAULT_OPTIONS);
+    let fixture = path.join(__dirname, 'fixtures/custom-format-mismatch');
+    let code = await fs.readFile(path.join(fixture, 'package.json'), 'utf8');
+
+    // $FlowFixMe
+    await assert.rejects(() => targetResolver.resolve(fixture), {
+      diagnostics: [
+        {
+          message:
+            'Declared output format "commonjs" does not match expected output format "esmodule".',
+          origin: '@parcel/core',
+          filePath: path.join(fixture, 'package.json'),
+          language: 'json',
+          codeFrame: {
+            code,
+            codeHighlights: [
+              {
+                message: 'Declared output format defined here',
+                end: {
+                  column: 32,
+                  line: 5,
+                },
+                start: {
+                  column: 23,
+                  line: 5,
+                },
+              },
+              {
+                message: 'Inferred output format defined here',
+                end: {
+                  column: 26,
+                  line: 2,
+                },
+                start: {
+                  column: 11,
+                  line: 2,
+                },
+              },
+            ],
+          },
+          hints: [
+            'Either remove the target\'s declared "outputFormat" or change the extension to .cjs or .js.',
+          ],
+        },
+      ],
+    });
+  });
+
+  it('should infer output format for custom targets by extension', async () => {
+    let targetResolver = new TargetResolver(api, DEFAULT_OPTIONS);
+    let fixture = path.join(__dirname, 'fixtures/custom-format-infer-ext');
+
     assert.deepEqual(await targetResolver.resolve(fixture), [
       {
-        name: 'main',
+        name: 'test',
         distDir: path.join(fixture, 'dist'),
-        distEntry: 'index.html',
+        distEntry: 'index.mjs',
         publicUrl: '/',
+        stableEntries: undefined,
         env: {
-          id: '20affcfdd5d3f954',
+          id: '4e0a969c1f85447f',
           context: 'browser',
           engines: {},
           includeNodeModules: true,
+          outputFormat: 'esmodule',
           isLibrary: false,
-          outputFormat: 'global',
           shouldOptimize: false,
           shouldScopeHoist: false,
           sourceMap: {},
@@ -608,8 +832,47 @@ describe('TargetResolver', () => {
             line: 2,
           },
           end: {
-            column: 27,
+            column: 26,
             line: 2,
+          },
+        },
+      },
+    ]);
+  });
+
+  it('should infer output format for custom targets by "type": "module" field', async () => {
+    let targetResolver = new TargetResolver(api, DEFAULT_OPTIONS);
+    let fixture = path.join(__dirname, 'fixtures/custom-format-infer-type');
+
+    assert.deepEqual(await targetResolver.resolve(fixture), [
+      {
+        name: 'test',
+        distDir: path.join(fixture, 'dist'),
+        distEntry: 'index.js',
+        publicUrl: '/',
+        stableEntries: undefined,
+        env: {
+          id: '4e0a969c1f85447f',
+          context: 'browser',
+          engines: {},
+          includeNodeModules: true,
+          outputFormat: 'esmodule',
+          isLibrary: false,
+          shouldOptimize: false,
+          shouldScopeHoist: false,
+          sourceMap: {},
+          loc: undefined,
+          sourceType: 'module',
+        },
+        loc: {
+          filePath: path.join(fixture, 'package.json'),
+          start: {
+            column: 11,
+            line: 3,
+          },
+          end: {
+            column: 25,
+            line: 3,
           },
         },
       },

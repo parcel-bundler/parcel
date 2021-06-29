@@ -1,0 +1,5 @@
+{
+  "name": "esm-mjs",
+  "private": true,
+  "main": "dist/index.mjs"
+}

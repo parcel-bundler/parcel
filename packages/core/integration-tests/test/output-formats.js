@@ -1119,6 +1119,40 @@ describe('output formats', function() {
       assert.deepEqual(ns.test, true);
       assert.deepEqual(ns.default, {test: true});
     });
+
+    it('should support outputting .mjs files', async function() {
+      let b = await bundle(
+        path.join(__dirname, '/integration/formats/esm-mjs/index.js'),
+      );
+
+      let filePath = b.getBundles()[0].filePath;
+      assert(filePath.endsWith('.mjs'));
+      let output = await outputFS.readFile(filePath, 'utf8');
+      assert(output.includes('import '));
+    });
+
+    it('should support outputting ESM in .js files with "type": "module"', async function() {
+      let b = await bundle(
+        path.join(__dirname, '/integration/formats/esm-type-module/index.js'),
+      );
+
+      let filePath = b.getBundles()[0].filePath;
+      assert(filePath.endsWith('.js'));
+      let output = await outputFS.readFile(filePath, 'utf8');
+      assert(output.includes('import '));
+    });
+
+    it('.cjs extension should override "type": "module"', async function() {
+      let b = await bundle(
+        path.join(__dirname, '/integration/formats/cjs-type-module/index.js'),
+      );
+
+      let filePath = b.getBundles()[0].filePath;
+      assert(filePath.endsWith('.cjs'));
+      let output = await outputFS.readFile(filePath, 'utf8');
+      assert(!output.includes('import '));
+      assert(output.includes('require('));
+    });
   });
 
   it('should support generating ESM from universal module wrappers', async function() {
