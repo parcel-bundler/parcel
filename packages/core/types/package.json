@@ -17,11 +17,11 @@
   },
   "dependencies": {
     "@parcel/source-map": "2.0.0-rc.4",
-    "@parcel/fs": "2.0.0-beta.3.1",
-    "@parcel/workers": "2.0.0-beta.3.1",
-    "@parcel/package-manager": "2.0.0-beta.3.1",
-    "@parcel/diagnostic": "2.0.0-beta.3.1",
-    "@parcel/cache": "2.0.0-beta.3.1",
+    "@parcel/fs": "2.0.0-frontbucket.77",
+    "@parcel/workers": "2.0.0-frontbucket.77",
+    "@parcel/package-manager": "2.0.0-frontbucket.77",
+    "@parcel/diagnostic": "2.0.0-frontbucket.77",
+    "@parcel/cache": "2.0.0-frontbucket.77",
     "utility-types": "^3.10.0"
   }
 }
