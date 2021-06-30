@@ -52,6 +52,23 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
     );
   }
 
+  addAssetToBundle(asset: IAsset, bundle: IBundle) {
+    this.#graph._graph.addEdge(
+      this.#graph._graph.getNodeIdByContentKey(bundle.id),
+      this.#graph._graph.getNodeIdByContentKey(asset.id),
+      'contains',
+    );
+
+    let dependencies = this.#graph.getDependencies(assetToAssetValue(asset));
+    for (let dependency of dependencies) {
+      this.#graph._graph.addEdge(
+        this.#graph._graph.getNodeIdByContentKey(bundle.id),
+        this.#graph._graph.getNodeIdByContentKey(dependency.id),
+        'contains',
+      );
+    }
+  }
+
   addEntryToBundle(
     asset: IAsset,
     bundle: IBundle,

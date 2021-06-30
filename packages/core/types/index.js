@@ -1285,6 +1285,7 @@ export interface MutableBundleGraph extends BundleGraph<Bundle> {
     Bundle,
     shouldSkipDependency?: (Dependency) => boolean,
   ): void;
+  addAssetToBundle(Asset, Bundle): void;
   addEntryToBundle(
     Asset,
     Bundle,
