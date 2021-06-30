@@ -235,6 +235,7 @@ export type ParcelOptions = {|
     +publicUrl: string,
     +distDir?: FilePath,
     +engines?: Engines,
+    +outputFormat?: OutputFormat,
   |},
 |};
 

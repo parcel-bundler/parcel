@@ -309,6 +309,7 @@ export type InitialParcelOptions = {|
     +publicUrl?: string,
     +distDir?: FilePath,
     +engines?: Engines,
+    +outputFormat?: OutputFormat,
   |},
 
   +additionalReporters?: Array<{|
