@@ -938,9 +938,9 @@ describe('output formats', function() {
       );
       assert(
         new RegExp(
-          'Promise.all\\(\\[\\n.+?getBundleURL\\(\\) \\+ "' +
+          'Promise.all\\(\\[\\n.+?new URL\\("' +
             path.basename(asyncCssBundle.filePath) +
-            '"\\),\\n\\s*import\\("\\.\\/' +
+            '", import.meta.url\\).toString\\(\\)\\),\\n\\s*import\\("\\.\\/' +
             path.basename(asyncJsBundle.filePath) +
             '"\\)\\n\\s*\\]\\)',
         ).test(entry),
@@ -993,9 +993,7 @@ describe('output formats', function() {
         // async import both bundles in parallel for performance
         assert(
           new RegExp(
-            `import\\("\\./${path.basename(
-              sharedBundle.filePath,
-            )}"\\),\\n\\s*import\\("./${path.basename(bundle.filePath)}"\\)`,
+            `import\\("\\./" \\+ .+\.resolve\\("${sharedBundle.publicId}"\\)\\),\\n\\s*import\\("./" \\+ .+\.resolve\\("${bundle.publicId}"\\)\\)`,
           ).test(entry),
         );
       }
@@ -1216,7 +1214,7 @@ describe('output formats', function() {
       assertBundles(b, [
         {
           type: 'js',
-          assets: ['bundle-url.js', 'get-worker-url.js', 'index.js'],
+          assets: ['bundle-manifest.js', 'get-worker-url.js', 'index.js'],
         },
         {type: 'html', assets: ['index.html']},
         {type: 'js', assets: ['lodash.js']},

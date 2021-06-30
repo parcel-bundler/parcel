@@ -5498,7 +5498,6 @@ describe('scope hoisting', function() {
           'cacheLoader.js',
           'dep.js',
           'js-loader.js',
-          'relative-path.js',
           'same-ancestry-scope-hoisting.js',
         ],
       },
@@ -5525,7 +5524,6 @@ describe('scope hoisting', function() {
           'bundle-url.js',
           'cacheLoader.js',
           'js-loader.js',
-          'relative-path.js',
         ],
       },
       {assets: ['dep.js']},
@@ -5566,7 +5564,6 @@ describe('scope hoisting', function() {
           'cacheLoader.js',
           'get-dep-scope-hoisting.js',
           'js-loader.js',
-          'relative-path.js',
         ],
       },
     ]);
@@ -5614,7 +5611,6 @@ describe('scope hoisting', function() {
           'cacheLoader.js',
           'scope-hoisting.js',
           'js-loader.js',
-          'relative-path.js',
         ],
       },
     ]);

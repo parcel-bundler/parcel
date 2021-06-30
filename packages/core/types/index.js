@@ -194,7 +194,8 @@ export type EnvironmentFeature =
   | 'esmodules'
   | 'dynamic-import'
   | 'worker-module'
-  | 'service-worker-module';
+  | 'service-worker-module'
+  | 'import-meta-url';
 
 /**
  * Defines the environment in for the output bundle

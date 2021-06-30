@@ -888,6 +888,9 @@ export async function runESM(
         identifier: filename + '?id=' + id,
         importModuleDynamically: entry,
         context,
+        initializeImportMeta(meta) {
+          meta.url = `http://localhost/${path.basename(filename)}`;
+        },
       });
       cache.set(filename, m);
       return m;

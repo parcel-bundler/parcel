@@ -1462,7 +1462,6 @@ describe('javascript', function() {
           'bundle-url.js',
           'get-worker-url.js',
           'bundle-manifest.js',
-          'relative-path.js',
           'esmodule-helpers.js',
         ],
       },
@@ -1472,7 +1471,6 @@ describe('javascript', function() {
           'bundle-url.js',
           'get-worker-url.js',
           'bundle-manifest.js',
-          'relative-path.js',
         ],
       },
       {
@@ -1616,7 +1614,6 @@ describe('javascript', function() {
           'bundle-url.js',
           'get-worker-url.js',
           'bundle-manifest.js',
-          'relative-path.js',
         ],
       },
       {
@@ -1757,7 +1754,6 @@ describe('javascript', function() {
           'cacheLoader.js',
           'js-loader.js',
           'bundle-manifest.js',
-          'relative-path.js',
         ],
       },
       {
@@ -3607,7 +3603,6 @@ describe('javascript', function() {
           'cacheLoader.js',
           'dep.js',
           'js-loader.js',
-          'relative-path.js',
           'same-ancestry.js',
           'esmodule-helpers.js',
         ],
@@ -3655,7 +3650,6 @@ describe('javascript', function() {
           'cacheLoader.js',
           'get-dep.js',
           'js-loader.js',
-          'relative-path.js',
           'esmodule-helpers.js',
         ],
       },
@@ -3711,7 +3705,6 @@ describe('javascript', function() {
           'cacheLoader.js',
           'index.js',
           'js-loader.js',
-          'relative-path.js',
           'esmodule-helpers.js',
         ],
       },
@@ -4136,7 +4129,6 @@ describe('javascript', function() {
           'cacheLoader.js',
           'js-loader.js',
           'bundle-manifest.js',
-          'relative-path.js',
         ],
       },
       {
@@ -4214,7 +4206,6 @@ describe('javascript', function() {
           'esmodule-helpers.js',
           'js-loader.js',
           'bundle-manifest.js',
-          'relative-path.js',
         ],
       },
       {

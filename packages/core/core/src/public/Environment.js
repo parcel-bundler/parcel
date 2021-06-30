@@ -84,6 +84,18 @@ const supportData = {
   'service-worker-module': {
     // TODO: Safari 14.1??
   },
+  'import-meta-url': {
+    edge: '79',
+    firefox: '62',
+    chrome: '64',
+    safari: '11.1',
+    opera: '51',
+    ios: '12',
+    android: '64',
+    and_chr: '64',
+    and_ff: '62',
+    samsung: '9.2',
+  },
 };
 
 const internalEnvironmentToEnvironment: WeakMap<

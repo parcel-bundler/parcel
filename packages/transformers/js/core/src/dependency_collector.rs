@@ -518,12 +518,12 @@ impl<'a> Fold for DependencyCollector<'a> {
 
     let matched = match &*node.callee {
       Ident(id) => {
-        match id.sym {
-          js_word!("Worker") | js_word!("SharedWorker") => {
+        match &id.sym {
+          &js_word!("Worker") | &js_word!("SharedWorker") => {
             // Bail if defined in scope
             !self.decls.contains(&(id.sym.clone(), id.span.ctxt()))
           }
-          js_word!("Promise") => {
+          &js_word!("Promise") => {
             // Match requires inside promises (e.g. Rollup compiled dynamic imports)
             // new Promise(resolve => resolve(require('foo')))
             // new Promise(resolve => { resolve(require('foo')) })
@@ -534,7 +534,17 @@ impl<'a> Fold for DependencyCollector<'a> {
             self.in_promise = was_in_promise;
             return node;
           }
-          _ => false,
+          sym => {
+            if sym.to_string() == "__parcel__URL__" {
+              let mut call = node.clone().fold_children_with(self);
+              call.callee = Box::new(ast::Expr::Ident(ast::Ident::new(
+                "URL".into(),
+                DUMMY_SP.apply_mark(self.ignore_mark),
+              )));
+              return call;
+            }
+            false
+          }
         }
       }
       _ => false,
