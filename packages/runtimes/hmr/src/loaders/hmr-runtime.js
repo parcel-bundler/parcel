@@ -97,7 +97,9 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
       // Remove error overlay if there is one
       removeErrorOverlay();
 
-      let assets = data.assets.filter(function(asset) { return asset.envHash === HMR_ENV_HASH });
+      let assets = data.assets.filter(function(asset) {
+        return asset.envHash === HMR_ENV_HASH;
+      });
 
       // Handle HMR Update
       var handled = false;
@@ -131,7 +133,7 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
 
     if (data.type === 'error') {
       // Log parcel errors to console
-      data.diagnostics.ansi.forEach(function (ansiDiagnostic) {
+      data.diagnostics.ansi.forEach(function(ansiDiagnostic) {
         let stack = ansiDiagnostic.codeframe
           ? ansiDiagnostic.codeframe
           : ansiDiagnostic.stack;
@@ -144,7 +146,7 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
             '\n\n' +
             ansiDiagnostic.hints.join('\n'),
         );
-      })
+      });
 
       // Render the fancy html overlay
       removeErrorOverlay();
@@ -178,23 +180,27 @@ function createErrorOverlay(diagnostics) {
   let errorHTML =
     '<div style="background: black; opacity: 0.85; font-size: 16px; color: white; position: fixed; height: 100%; width: 100%; top: 0px; left: 0px; padding: 30px; font-family: Menlo, Consolas, monospace; z-index: 9999;">';
 
-  diagnostics.forEach(function (diagnostic) {
+  diagnostics.forEach(function(diagnostic) {
     let stack = diagnostic.codeframe ? diagnostic.codeframe : diagnostic.stack;
 
-    errorHTML += 
+    errorHTML +=
       '<div>' +
-        '<div style="font-size: 18px; font-weight: bold; margin-top: 20px;">' +
-          '🚨 ' + diagnostic.message +
-        '</div>' +
-        '<pre>' +
-          stack +
-        '</pre>' +
-        '<div>' 
-          diagnostic.hints.map(function(hint) { return '<div>' + hint + '</div>' }).join('') +
-        '</div>' +
-      '</div>'
-    ;
-  })
+      '<div style="font-size: 18px; font-weight: bold; margin-top: 20px;">' +
+      '🚨 ' +
+      diagnostic.message +
+      '</div>' +
+      '<pre>' +
+      stack +
+      '</pre>' +
+      '<div>';
+    diagnostic.hints
+      .map(function(hint) {
+        return '<div>' + hint + '</div>';
+      })
+      .join('') +
+      '</div>' +
+      '</div>';
+  });
 
   errorHTML += '</div>';
 
