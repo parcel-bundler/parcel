@@ -3,6 +3,7 @@
 import type {
   Asset,
   Bundle as LegacyBundle,
+  BundleGroup,
   Dependency,
   Config,
   MutableBundleGraph,
@@ -78,19 +79,22 @@ function decorateLegacyGraph(
   let idealBundleToLegacyBundle: Map<Bundle, LegacyBundle> = new Map();
 
   let {bundleGraph: idealBundleGraph, dependencyLoadsBundle} = idealGraph;
+  let lastTarget;
+  let dependencyToBundleGroup: Map<Dependency, BundleGroup> = new Map();
   for (let [dependency, bundleNodeId] of dependencyLoadsBundle) {
-    let bundleGroup = bundleGraph.createBundleGroup(
-      dependency,
-      // TODO: don't nullthrows?
-      nullthrows(dependency.target),
-    );
+    let target = nullthrows(dependency.target ?? lastTarget);
+    let bundleGroup = bundleGraph.createBundleGroup(dependency, target);
+    if (dependency.target != null) {
+      lastTarget = dependency.target;
+    }
 
     // add the main bundle in the group
     let mainIdealBundle = nullthrows(idealBundleGraph.getNode(bundleNodeId))
       .value;
+    let entryAsset = bundleGraph.getAssetById(mainIdealBundle.assetIds[0]);
     let mainBundle = bundleGraph.createBundle({
-      entryAsset: bundleGraph.getAssetById(mainIdealBundle.assetIds[0]),
-      target: nullthrows(dependency.target),
+      entryAsset,
+      target,
       needsStableName: dependency.isEntry,
     });
     idealBundleToLegacyBundle.set(mainIdealBundle, mainBundle);
@@ -172,22 +176,11 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
         invariant(assets.length === 1);
         let childAsset = assets[0];
 
-        // Create a new bundle when the asset type changes.
-        if (parentAsset.type !== childAsset.type) {
-          let [, bundleGroupNodeId] = nullthrows(stack[stack.length - 1]);
-          let bundleId = bundleGraph.addNode(
-            createBundleNode(createBundle(childAsset)),
-          );
-          bundleRoots.set(childAsset, [bundleId, bundleGroupNodeId]);
-
-          // Add an edge from the bundle group entry to the new bundle.
-          // This indicates that the bundle is loaded together with the entry
-          bundleGraph.addEdge(bundleGroupNodeId, bundleId);
-          return node;
-        }
-
         // Create a new bundle as well as a new bundle group if the dependency is async.
-        if (dependency.priority === 'lazy') {
+        if (
+          dependency.priority === 'lazy' ||
+          childAsset.bundleBehavior === 'isolated'
+        ) {
           let bundleId = bundleGraph.addNode(
             createBundleNode(createBundle(childAsset)),
           );
@@ -203,6 +196,21 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
             }
             reachableBundles.get(stackAsset).add(childAsset);
           }
+          return node;
+        }
+
+        // Create a new bundle when the asset type changes.
+        if (parentAsset.type !== childAsset.type) {
+          let [, bundleGroupNodeId] = nullthrows(stack[stack.length - 1]);
+          let bundleId = bundleGraph.addNode(
+            createBundleNode(createBundle(childAsset)),
+          );
+          bundleRoots.set(childAsset, [bundleId, bundleGroupNodeId]);
+
+          // Add an edge from the bundle group entry to the new bundle.
+          // This indicates that the bundle is loaded together with the entry
+          bundleGraph.addEdge(bundleGroupNodeId, bundleId);
+          return node;
         }
       }
       return node;

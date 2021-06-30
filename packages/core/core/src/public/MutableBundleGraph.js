@@ -53,19 +53,27 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
   }
 
   addAssetToBundle(asset: IAsset, bundle: IBundle) {
+    let bundleNodeId = this.#graph._graph.getNodeIdByContentKey(bundle.id);
     this.#graph._graph.addEdge(
-      this.#graph._graph.getNodeIdByContentKey(bundle.id),
+      bundleNodeId,
       this.#graph._graph.getNodeIdByContentKey(asset.id),
       'contains',
     );
 
     let dependencies = this.#graph.getDependencies(assetToAssetValue(asset));
     for (let dependency of dependencies) {
-      this.#graph._graph.addEdge(
-        this.#graph._graph.getNodeIdByContentKey(bundle.id),
-        this.#graph._graph.getNodeIdByContentKey(dependency.id),
-        'contains',
+      let dependencyNodeId = this.#graph._graph.getNodeIdByContentKey(
+        dependency.id,
       );
+      this.#graph._graph.addEdge(bundleNodeId, dependencyNodeId, 'contains');
+
+      for (let [bundleGroupNodeId, bundleGroupNode] of this.#graph._graph
+        .getNodeIdsConnectedFrom(dependencyNodeId)
+        .map(id => [id, nullthrows(this.#graph._graph.getNode(id))])
+        .filter(([, node]) => node.type === 'bundle_group')) {
+        invariant(bundleGroupNode.type === 'bundle_group');
+        this.#graph._graph.addEdge(bundleNodeId, bundleGroupNodeId, 'bundle');
+      }
     }
   }
 
