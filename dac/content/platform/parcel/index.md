@@ -4,7 +4,7 @@ platform: platform
 product: parcel
 category: devguide
 subcategory: intro
-date: '2021-06-24'
+date: '2021-06-29'
 ---
 
 {{% warning %}}
@@ -31,8 +31,8 @@ Please see the [Code of Conduct](https://bitbucket.org/atlassian/parcel/src/bitb
 
 ### Notable differences
 
-- `@atlassian/parcel` won't share across workers for now as worker-specific code is added.
-- _TODO_
+- `@atlassian/parcel-config-atlassian` has been optimized as the default Atlassian configuration.
+- To use pre-releases, use the tag `atlassian` such as: `"@atlassian/parcel": "2.0.0-atlassian.78"`
 
 ## Goals
 

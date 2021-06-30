@@ -42,12 +42,8 @@
                 "url": "/platform/parcel/plugins/about/"
               },
               {
-                "title": "Analytics Reporter",
-                "url": "/platform/parcel/plugins/reporter-analytics/"
-              },
-              {
-                "title": "Server Side Rendering",
-                "url": "/platform/parcel/plugins/ssr/"
+                "title": "Reporters",
+                "url": "/platform/parcel/plugins/reporters/"
               }
             ]
           },
