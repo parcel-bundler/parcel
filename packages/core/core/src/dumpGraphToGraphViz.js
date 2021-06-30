@@ -104,6 +104,10 @@ export default async function dumpGraphToGraphViz(
           label += '\\nusedSymbols: ' + [...node.usedSymbols].join(',');
         }
       }
+    } else if (node.type === 'mybundle') {
+      label += `(assetIds: ${node.value.assetIds.join(
+        ', ',
+      )}) (sourceBundles: ${node.value.sourceBundles.join(', ')})`;
     } else if (node.type === 'asset_group') {
       if (node.deferred) label += '(deferred)';
       // $FlowFixMe
