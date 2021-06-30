@@ -851,15 +851,17 @@ describe('javascript', function() {
     assert(/new SharedWorker(.*?, {[\n\s]+type: 'module'[\n\s]+})/.test(main));
   });
 
-  for (let scopeHoist of [true, false]) {
+  for (let shouldScopeHoist of [true, false]) {
     it(`should compile workers to non modules if ${
-      scopeHoist ? 'browsers do not support it' : 'scopeHoist = false'
+      shouldScopeHoist
+        ? 'browsers do not support it'
+        : 'shouldScopeHoist = false'
     }`, async function() {
       let b = await bundle(
         path.join(__dirname, '/integration/workers-module/index.js'),
         {
           defaultTargetOptions: {
-            shouldScopeHoist: true,
+            shouldScopeHoist,
             engines: {
               browsers: '>= 0.25%',
             },
@@ -869,14 +871,22 @@ describe('javascript', function() {
 
       assertBundles(b, [
         {
-          assets: ['dedicated-worker.js', 'index.js'],
+          assets: [
+            'dedicated-worker.js',
+            !shouldScopeHoist && 'esmodule-helpers.js',
+            'index.js',
+          ].filter(Boolean),
         },
         {
           name: 'index.js',
           assets: ['index.js', 'bundle-url.js', 'get-worker-url.js'],
         },
         {
-          assets: ['shared-worker.js', 'index.js'],
+          assets: [
+            !shouldScopeHoist && 'esmodule-helpers.js',
+            'shared-worker.js',
+            'index.js',
+          ].filter(Boolean),
         },
       ]);
 
