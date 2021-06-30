@@ -251,6 +251,7 @@ type PackageDependencies = {|
 export type PackageJSON = {
   name: PackageName,
   version: Semver,
+  type?: 'module',
   main?: FilePath,
   module?: FilePath,
   types?: FilePath,

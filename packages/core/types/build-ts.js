@@ -7,7 +7,7 @@ contents = contents.replace(
   'Record<string, JSONValue>',
   '{[key: string]: JSONValue}',
 );
-contents = contents.replaceAll('$ReadOnlyMap', 'ReadonlyMap');
-contents = contents.replaceAll('$ReadOnlySet', 'ReadonlySet');
+contents = contents.replace(/\$ReadOnlyMap/g, 'ReadonlyMap');
+contents = contents.replace(/\$ReadOnlySet/g, 'ReadonlySet');
 
 fs.writeFileSync(__dirname + '/lib/index.d.ts', contents);
