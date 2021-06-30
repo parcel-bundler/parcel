@@ -915,6 +915,71 @@ describe('javascript', function() {
     });
   }
 
+  for (let supported of [false, true]) {
+    it(`should compile workers to ${
+      supported ? '' : 'non '
+    }modules when browsers do ${
+      supported ? '' : 'not '
+    }support it with esmodule parent script`, async function() {
+      let b = await bundle(
+        path.join(__dirname, '/integration/workers-module/index.js'),
+        {
+          mode: 'production',
+          defaultTargetOptions: {
+            engines: {browsers: supported ? 'Chrome 80' : 'Chrome 75'},
+            outputFormat: 'esmodule',
+            shouldScopeHoist: true,
+            shouldOptimize: false,
+          },
+        },
+      );
+
+      assertBundles(b, [
+        {
+          type: 'js',
+          assets: ['dedicated-worker.js'],
+        },
+        {
+          name: 'index.js',
+          assets: ['index.js', 'bundle-url.js', 'get-worker-url.js'],
+        },
+        {
+          type: 'js',
+          assets: ['shared-worker.js'],
+        },
+        {
+          type: 'js',
+          assets: ['index.js'],
+        },
+      ]);
+
+      let dedicated, shared;
+      b.traverseBundles((bundle, ctx, traversal) => {
+        if (bundle.getMainEntry()?.filePath.endsWith('shared-worker.js')) {
+          shared = bundle;
+        } else if (
+          bundle.getMainEntry()?.filePath.endsWith('dedicated-worker.js')
+        ) {
+          dedicated = bundle;
+        }
+        if (dedicated && shared) traversal.stop();
+      });
+
+      assert(dedicated);
+      assert(shared);
+
+      let main = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+      assert(/new Worker([^,]*?)/.test(main));
+      assert(/new SharedWorker([^,]*?)/.test(main));
+
+      dedicated = await outputFS.readFile(dedicated.filePath, 'utf8');
+      shared = await outputFS.readFile(shared.filePath, 'utf8');
+      let importRegex = supported ? /importScripts\s*\(/ : /import\s*("|')/;
+      assert(!importRegex.test(dedicated));
+      assert(!importRegex.test(shared));
+    });
+  }
+
   it('should preserve the name option to workers', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/workers-module/named.js'),
