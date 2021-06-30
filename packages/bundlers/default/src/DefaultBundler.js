@@ -80,7 +80,6 @@ function decorateLegacyGraph(
 
   let {bundleGraph: idealBundleGraph, dependencyLoadsBundle} = idealGraph;
   let lastTarget;
-  let dependencyToBundleGroup: Map<Dependency, BundleGroup> = new Map();
   for (let [dependency, bundleNodeId] of dependencyLoadsBundle) {
     let target = nullthrows(dependency.target ?? lastTarget);
     let bundleGroup = bundleGraph.createBundleGroup(dependency, target);
@@ -117,6 +116,7 @@ function decorateLegacyGraph(
 function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
   // Asset to the bundle it's an entry of
   let bundleRoots: Map<Asset, [NodeId, NodeId]> = new Map();
+  let bundles: Map<string, NodeId> = new Map();
   let dependencyLoadsBundle: Map<Dependency, NodeId> = new Map();
   //
   let reachableBundles: DefaultMap<Asset, Set<Asset>> = new DefaultMap(
@@ -144,6 +144,7 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
 
   for (let [dependency, asset] of entries) {
     let nodeId = bundleGraph.addNode(createBundleNode(createBundle(asset)));
+    bundles.set(asset.id, nodeId);
     bundleRoots.set(asset, [nodeId, nodeId]);
     dependencyLoadsBundle.set(dependency, nodeId);
   }
@@ -173,6 +174,10 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
         let parentAsset = context.value;
 
         let assets = assetGraph.getDependencyAssets(dependency);
+        if (assets.length === 0) {
+          return node;
+        }
+
         invariant(assets.length === 1);
         let childAsset = assets[0];
 
@@ -184,6 +189,7 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
           let bundleId = bundleGraph.addNode(
             createBundleNode(createBundle(childAsset)),
           );
+          bundles.set(childAsset.id, bundleId);
           bundleRoots.set(childAsset, [bundleId, bundleId]);
           dependencyLoadsBundle.set(dependency, bundleId);
 
@@ -191,7 +197,10 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
           // and mark each bundle as reachable from every parent bundle
           for (let i = stack.length - 1; i >= 0; i--) {
             let [stackAsset] = stack[i];
-            if (stackAsset.type !== childAsset.type) {
+            if (
+              stackAsset.type !== childAsset.type ||
+              stackAsset.env.context !== childAsset.env.context
+            ) {
               break;
             }
             reachableBundles.get(stackAsset).add(childAsset);
@@ -205,6 +214,7 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
           let bundleId = bundleGraph.addNode(
             createBundleNode(createBundle(childAsset)),
           );
+          bundles.set(childAsset.id, bundleId);
           bundleRoots.set(childAsset, [bundleId, bundleGroupNodeId]);
 
           // Add an edge from the bundle group entry to the new bundle.
@@ -252,7 +262,6 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
   // Create a mapping from entry asset ids to bundle ids
 
   //TODO Step 3, some mapping from multiple entry asset ids to a bundle Id
-  let bundles: Map<string, NodeId> = new Map();
   for (let asset of assets) {
     // Find bundle entries reachable from the asset.
     let reachable = [...reachableRoots.get(asset)];
