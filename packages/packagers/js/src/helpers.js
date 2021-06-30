@@ -46,7 +46,7 @@ export const helpers = {
       enumerable: true,
       get: function get() {
         return source[key];
-      },
+      }
     });
   });
 
