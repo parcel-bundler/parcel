@@ -917,9 +917,11 @@ ${code}
             let resolved = this.resolveSymbol(asset, asset, exp);
             return `$parcel$export($${assetId}$exports, ${JSON.stringify(
               exp,
-            )}, () => ${resolved}${
-              asset.meta.hasCJSExports ? `, (v) => ${resolved} = v` : ''
-            });`;
+            )}, function() { return ${resolved}${
+              asset.meta.hasCJSExports
+                ? `, function(v) { return ${resolved} = v }`
+                : ''
+            }});`;
           })
           .join('\n')}\n`;
         this.usedHelpers.add('$parcel$export');
