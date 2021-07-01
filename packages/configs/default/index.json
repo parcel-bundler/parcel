@@ -29,6 +29,7 @@
       "@parcel/transformer-posthtml",
       "@parcel/transformer-html"
     ],
+    "*.{atom,rss,svg,xml}": ["@parcel/transformer-xml"],
     "*.pug": ["@parcel/transformer-pug"],
     "*.coffee": ["@parcel/transformer-coffeescript"],
     "*.elm": ["@parcel/transformer-elm"],
@@ -60,6 +61,7 @@
     "*.{js,mjs,cjs}": "@parcel/packager-js",
     "*.ts": "@parcel/packager-ts",
     "*.{jsonld,webmanifest}": "@parcel/packager-raw-url",
+    "*.{atom,rss,svg,xml}": "@parcel/packager-raw-url",
     "*": "@parcel/packager-raw"
   },
   "resolvers": ["@parcel/resolver-default"],

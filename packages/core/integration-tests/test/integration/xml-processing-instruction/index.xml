@@ -1,0 +1,10 @@
+<?xml-stylesheet href="style1.css"?>
+<?xml-stylesheet href="style2.css?>
+<?xml-smilesheet href="style2.css"?>
+<xml>
+  <?xml-stylesheet
+    href
+    =
+        "style3.css"type="text/css"
+    ?>
+</xml>
