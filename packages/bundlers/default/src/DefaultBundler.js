@@ -52,7 +52,7 @@ type Bundle = {|
 
 type IdealGraph = {|
   dependencyLoadsBundle: Map<Dependency, NodeId>,
-  bundleGraph: Graph<BundleNode>,
+  bundleGraph: Graph<Bundle>,
 |};
 
 export default (new Bundler({
@@ -122,7 +122,7 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
 
   // Step 1: Create bundles at the explicit split points in the graph.
   // Create bundles for each entry.
-  let entries: Array<[Dependency, Asset]> = [];
+  let entries: Map<Asset, Dependency> = new Map();
   assetGraph.traverse((node, context, actions) => {
     if (node.type !== 'asset') {
       return node;
@@ -131,11 +131,11 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
     invariant(
       context != null && context.type === 'dependency' && context.value.isEntry,
     );
-    entries.push([context.value, node.value]);
+    entries.set(node.value, context.value);
     actions.skipChildren();
   });
 
-  for (let [dependency, asset] of entries) {
+  for (let [asset, dependency] of entries) {
     let nodeId = bundleGraph.addNode(createBundle(asset));
     bundles.set(asset.id, nodeId);
     bundleRoots.set(asset, [nodeId, nodeId]);
@@ -249,15 +249,27 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
   // maximally code split bundle graph with no duplication.
 
   // Create a mapping from entry asset ids to bundle ids
-
-  //TODO Step 3, some mapping from multiple entry asset ids to a bundle Id
   for (let asset of assets) {
     // Find bundle entries reachable from the asset.
-    let reachable = [...reachableRoots.get(asset)];
+    let reachable: Array<Asset> = [...reachableRoots.get(asset)];
+
+    let reachableEntries = reachable.filter(a => entries.has(a));
+
+    for (let entry of reachableEntries) {
+      //add asset ids to entry bundle
+      let entryAssetBundle = nullthrows(
+        bundleGraph.getNode(nullthrows(bundleRoots.get(entry))[0]),
+      );
+
+      entryAssetBundle.assetIds.push(asset.id);
+      entryAssetBundle.size += asset.stats.size;
+    }
 
     // Filter out bundles when the asset is reachable in a parent bundle.
-    reachable = reachable.filter(b =>
-      reachable.every(a => !reachableBundles.get(a).has(b)),
+    reachable = reachable.filter(
+      b =>
+        !entries.has(b) &&
+        reachable.every(a => !reachableBundles.get(a).has(b)),
     );
 
     let rootBundle = bundleRoots.get(asset);
@@ -267,7 +279,7 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
         bundles.set(asset.id, rootBundle[0]);
       }
       for (let reachableAsset of reachable) {
-        if (reachableAsset !== asset) {
+        if (reachableAsset !== asset && !entries.has(reachableAsset)) {
           bundleGraph.addEdge(
             nullthrows(bundleRoots.get(reachableAsset))[1],
             rootBundle[0],
@@ -276,19 +288,21 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
       }
     } else if (reachable.length > 0) {
       // If the asset is reachable from more than one entry, find or create
-      // a bundle for that combination of entries, and add the asset to it.
+      // a bundle for that combination of bundles, and add the asset to it.
       let sourceBundles = reachable.map(a => nullthrows(bundles.get(a.id)));
       let key = reachable.map(a => a.id).join(',');
 
       let bundleId = bundles.get(key);
+      let bundle;
       if (bundleId == null) {
-        let bundle = createBundle();
+        bundle = createBundle();
         bundle.sourceBundles = sourceBundles;
         bundleId = bundleGraph.addNode(bundle);
         bundles.set(key, bundleId);
+      } else {
+        bundle = nullthrows(bundleGraph.getNode(bundleId));
       }
 
-      let bundle = nullthrows(bundleGraph.getNode(bundleId));
       bundle.assetIds.push(asset.id);
       bundle.size += asset.stats.size;
 
