@@ -168,6 +168,16 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
 
   addNode(node: AssetGraphNode): NodeId {
     this.hash = null;
+    let existing = this.getNodeByContentKey(node.id);
+    if (existing != null) {
+      invariant(existing.type === node.type);
+      // $FlowFixMe[incompatible-type] Checked above
+      // $FlowFixMe[prop-missing]
+      existing.value = node.value;
+      let existingId = this.getNodeIdByContentKey(node.id);
+      this.updateNode(existingId, existing);
+      return existingId;
+    }
     return super.addNodeByContentKey(node.id, node);
   }
 
