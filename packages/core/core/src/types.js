@@ -255,13 +255,6 @@ export type Edge<TEdgeType: string | null> = {|
   type: TEdgeType,
 |};
 
-export interface Node {
-  id: ContentKey;
-  +type: string;
-  // $FlowFixMe
-  value: any;
-}
-
 export type AssetNode = {|
   id: ContentKey,
   +type: 'asset',
