@@ -43,17 +43,11 @@ const HTTP_OPTIONS = {
   },
 };
 
-type BundleId = string;
 type AssetId = string;
 type Bundle = {|
   assetIds: Array<AssetId>,
   size: number,
   sourceBundles: Array<NodeId>,
-|};
-type BundleNode = {|
-  id: BundleId,
-  +type: 'mybundle',
-  value: Bundle,
 |};
 
 type IdealGraph = {|
@@ -88,8 +82,7 @@ function decorateLegacyGraph(
     }
 
     // add the main bundle in the group
-    let mainIdealBundle = nullthrows(idealBundleGraph.getNode(bundleNodeId))
-      .value;
+    let mainIdealBundle = nullthrows(idealBundleGraph.getNode(bundleNodeId));
     let entryAsset = bundleGraph.getAssetById(mainIdealBundle.assetIds[0]);
     let mainBundle = bundleGraph.createBundle({
       entryAsset,
@@ -101,7 +94,7 @@ function decorateLegacyGraph(
     bundleGraph.addBundleToBundleGroup(mainBundle, bundleGroup);
   }
 
-  for (let {value: bundle} of idealBundleGraph.nodes.values()) {
+  for (let bundle of idealBundleGraph.nodes.values()) {
     let assets = bundle.assetIds.map(a => bundleGraph.getAssetById(a));
 
     for (let asset of assets) {
@@ -123,7 +116,7 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
     () => new Set(),
   );
   //
-  let bundleGraph: Graph<BundleNode> = new Graph();
+  let bundleGraph: Graph<Bundle> = new Graph();
   //
   let stack: Array<[Asset, NodeId]> = [];
 
@@ -143,7 +136,7 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
   });
 
   for (let [dependency, asset] of entries) {
-    let nodeId = bundleGraph.addNode(createBundleNode(createBundle(asset)));
+    let nodeId = bundleGraph.addNode(createBundle(asset));
     bundles.set(asset.id, nodeId);
     bundleRoots.set(asset, [nodeId, nodeId]);
     dependencyLoadsBundle.set(dependency, nodeId);
@@ -186,9 +179,7 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
           dependency.priority === 'lazy' ||
           childAsset.bundleBehavior === 'isolated'
         ) {
-          let bundleId = bundleGraph.addNode(
-            createBundleNode(createBundle(childAsset)),
-          );
+          let bundleId = bundleGraph.addNode(createBundle(childAsset));
           bundles.set(childAsset.id, bundleId);
           bundleRoots.set(childAsset, [bundleId, bundleId]);
           dependencyLoadsBundle.set(dependency, bundleId);
@@ -211,9 +202,7 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
         // Create a new bundle when the asset type changes.
         if (parentAsset.type !== childAsset.type) {
           let [, bundleGroupNodeId] = nullthrows(stack[stack.length - 1]);
-          let bundleId = bundleGraph.addNode(
-            createBundleNode(createBundle(childAsset)),
-          );
+          let bundleId = bundleGraph.addNode(createBundle(childAsset));
           bundles.set(childAsset.id, bundleId);
           bundleRoots.set(childAsset, [bundleId, bundleGroupNodeId]);
 
@@ -295,11 +284,11 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
       if (bundleId == null) {
         let bundle = createBundle();
         bundle.sourceBundles = sourceBundles;
-        bundleId = bundleGraph.addNode(createBundleNode(bundle));
+        bundleId = bundleGraph.addNode(bundle);
         bundles.set(key, bundleId);
       }
 
-      let bundle = nullthrows(bundleGraph.getNode(bundleId)).value;
+      let bundle = nullthrows(bundleGraph.getNode(bundleId));
       bundle.assetIds.push(asset.id);
       bundle.size += asset.stats.size;
 
@@ -352,14 +341,6 @@ function createBundle(asset?: Asset): Bundle {
     assetIds: [asset.id],
     size: asset.stats.size,
     sourceBundles: [],
-  };
-}
-
-function createBundleNode(bundle: Bundle): BundleNode {
-  return {
-    id: '',
-    type: 'mybundle',
-    value: bundle,
   };
 }
 
