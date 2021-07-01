@@ -46,8 +46,10 @@ export class Child {
 
   constructor(ChildBackend: Class<ChildImpl>) {
     this.child = new ChildBackend(
-      this.messageListener.bind(this),
-      this.handleEnd.bind(this),
+      m => {
+        this.messageListener(m);
+      },
+      () => this.handleEnd(),
     );
 
     // Monitior all logging events inside this child process and forward to

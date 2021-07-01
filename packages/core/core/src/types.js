@@ -107,6 +107,7 @@ export type Dependency = {|
   specifierType: $Values<typeof SpecifierType>,
   priority: $Values<typeof Priority>,
   needsStableName: boolean,
+  bundleBehavior: ?$Values<typeof BundleBehavior>,
   isEntry: boolean,
   isOptional: boolean,
   loc: ?SourceLocation,
@@ -253,13 +254,6 @@ export type Edge<TEdgeType: string | null> = {|
   to: NodeId,
   type: TEdgeType,
 |};
-
-export interface Node {
-  id: ContentKey;
-  +type: string;
-  // $FlowFixMe
-  value: any;
-}
 
 export type AssetNode = {|
   id: ContentKey,
@@ -434,8 +428,8 @@ export type Bundle = {|
   env: Environment,
   entryAssetIds: Array<ContentKey>,
   mainEntryId: ?ContentKey,
-  isEntry: ?boolean,
-  isInline: ?boolean,
+  needsStableName: ?boolean,
+  bundleBehavior: ?$Values<typeof BundleBehavior>,
   isSplittable: ?boolean,
   isPlaceholder?: boolean,
   target: Target,

@@ -1,0 +1,7 @@
+{
+  "name": "resolve-node-prefix",
+  "private": true,
+  "engines": {
+    "node": "12"
+  }
+}

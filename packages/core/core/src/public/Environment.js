@@ -20,12 +20,13 @@ export const BROWSER_ENVS: Set<string> = new Set<string>([
   'browser',
   'web-worker',
   'service-worker',
+  'worklet',
   'electron-renderer',
 ]);
 const ELECTRON_ENVS = new Set(['electron-main', 'electron-renderer']);
 const NODE_ENVS = new Set(['node', ...ELECTRON_ENVS]);
 const WORKER_ENVS = new Set(['web-worker', 'service-worker']);
-const ISOLATED_ENVS = WORKER_ENVS;
+const ISOLATED_ENVS = new Set([...WORKER_ENVS, 'worklet']);
 
 const ALL_BROWSERS = [
   'chrome',
@@ -179,6 +180,10 @@ export default class Environment implements IEnvironment {
 
   isWorker(): boolean {
     return WORKER_ENVS.has(this.#environment.context);
+  }
+
+  isWorklet(): boolean {
+    return this.#environment.context === 'worklet';
   }
 
   matchesEngines(

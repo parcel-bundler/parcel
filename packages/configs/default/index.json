@@ -4,6 +4,10 @@
     "types:*.{ts,tsx}": ["@parcel/transformer-typescript-types"],
     "bundle-text:*": ["...", "@parcel/transformer-inline-string"],
     "data-url:*": ["...", "@parcel/transformer-inline-string"],
+    "worklet:*.{js,mjs,jsm,jsx,es6,cjs,ts,tsx}": [
+      "@parcel/transformer-worklet",
+      "..."
+    ],
     "*.{js,mjs,jsm,jsx,es6,cjs,ts,tsx}": [
       "@parcel/transformer-babel",
       "@parcel/transformer-js",
@@ -35,7 +39,7 @@
     "style:*.vue": ["@parcel/transformer-vue"],
     "custom:*.vue": ["@parcel/transformer-vue"],
     "url:*.{png,jpg,jpeg,webp}": ["@parcel/transformer-image"],
-    "url:*": ["@parcel/transformer-raw"]
+    "url:*": ["...", "@parcel/transformer-raw"]
   },
   "namers": ["@parcel/namer-default"],
   "runtimes": [
@@ -46,13 +50,14 @@
   "optimizers": {
     "data-url:*": ["...", "@parcel/optimizer-data-url"],
     "*.css": ["@parcel/optimizer-cssnano"],
-    "*.js": ["@parcel/optimizer-terser"],
-    "*.html": ["@parcel/optimizer-htmlnano"]
+    "*.html": ["@parcel/optimizer-htmlnano"],
+    "*.{js,mjs,cjs}": ["@parcel/optimizer-terser"],
+    "*.svg": ["@parcel/optimizer-svgo"]
   },
   "packagers": {
     "*.html": "@parcel/packager-html",
     "*.css": "@parcel/packager-css",
-    "*.js": "@parcel/packager-js",
+    "*.{js,mjs,cjs}": "@parcel/packager-js",
     "*.ts": "@parcel/packager-ts",
     "*.{jsonld,webmanifest}": "@parcel/packager-raw-url",
     "*": "@parcel/packager-raw"

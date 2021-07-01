@@ -1,7 +1,7 @@
 // @flow strict-local
 
 import {toNodeId, fromNodeId} from './types';
-import type {Edge, Node, NodeId} from './types';
+import type {Edge, NodeId} from './types';
 import type {TraversalActions, GraphVisitor} from '@parcel/types';
 
 import assert from 'assert';
@@ -16,7 +16,7 @@ export type GraphOpts<TNode, TEdgeType: string | null = null> = {|
 
 export const ALL_EDGE_TYPES = '@@all_edge_types';
 
-export default class Graph<TNode: Node, TEdgeType: string | null = null> {
+export default class Graph<TNode, TEdgeType: string | null = null> {
   nodes: Map<NodeId, TNode>;
   inboundEdges: AdjacencyList<TEdgeType | null>;
   outboundEdges: AdjacencyList<TEdgeType | null>;

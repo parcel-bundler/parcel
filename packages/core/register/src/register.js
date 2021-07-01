@@ -148,7 +148,7 @@ function register(inputOpts?: InitialParcelOptions): IDisposable {
 }
 
 let disposable: IDisposable = register();
-register.dispose = disposable.dispose;
+register.dispose = (): mixed => disposable.dispose();
 
 // Support both commonjs and ES6 modules
 module.exports = register;
