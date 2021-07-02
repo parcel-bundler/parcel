@@ -44,7 +44,7 @@ const HTTP_OPTIONS = {
 };
 
 type AssetId = string;
-type Bundle = {|
+export type Bundle = {|
   assetIds: Array<AssetId>,
   size: number,
   sourceBundles: Array<NodeId>,
@@ -78,48 +78,50 @@ function decorateLegacyGraph(
   let {bundleGraph: idealBundleGraph, bundleLoadedByDependency} = idealGraph;
   let visited: Set<NodeId> = new Set();
   let lastTarget;
-  for (let entryBundle of entryBundles) {
-    idealBundleGraph.traverse((bundleNodeId, _, actions) => {
-      if (visited.has(bundleNodeId)) {
-        actions.skipChildren();
-        return;
+
+  let entryBundleToBundleGroup: Map<NodeId, BundleGroup> = new Map();
+
+  for (let [bundleNodeId, idealBundle] of idealBundleGraph.nodes) {
+    let dependency = bundleLoadedByDependency.get(bundleNodeId);
+    let target = lastTarget;
+    let bundleGroup;
+    if (dependency) {
+      target = nullthrows(dependency.target ?? lastTarget);
+      bundleGroup = bundleGraph.createBundleGroup(dependency, target);
+      if (dependency.target != null) {
+        lastTarget = dependency.target;
       }
-      visited.add(bundleNodeId);
+      entryBundleToBundleGroup.set(bundleNodeId, bundleGroup);
+    }
 
-      let dependency = bundleLoadedByDependency.get(bundleNodeId);
-      if (dependency) {
-        let target = nullthrows(dependency.target ?? lastTarget);
-        let bundleGroup = bundleGraph.createBundleGroup(dependency, target);
-        if (dependency.target != null) {
-          lastTarget = dependency.target;
-        }
+    let entryAsset = bundleGraph.getAssetById(idealBundle.assetIds[0]);
+    let bundle = nullthrows(
+      bundleGraph.createBundle({
+        entryAsset,
+        target: nullthrows(target),
+        needsStableName: dependency?.isEntry,
+      }),
+    );
+    if (bundleGroup) {
+      bundleGraph.addBundleToBundleGroup(bundle, bundleGroup);
+    }
+    idealBundleToLegacyBundle.set(idealBundle, bundle);
 
-        // add the main bundle in the group
-        let mainIdealBundle = nullthrows(
-          idealBundleGraph.getNode(bundleNodeId),
-        );
-
-        let entryAsset = bundleGraph.getAssetById(mainIdealBundle.assetIds[0]);
-        let mainBundle = bundleGraph.createBundle({
-          entryAsset,
-          target,
-          needsStableName: dependency.isEntry,
-        });
-        idealBundleToLegacyBundle.set(mainIdealBundle, mainBundle);
-
-        bundleGraph.addBundleToBundleGroup(mainBundle, bundleGroup);
-      }
-    }, entryBundle);
-  }
-
-  for (let bundle of idealBundleGraph.nodes.values()) {
-    let assets = bundle.assetIds.map(a => bundleGraph.getAssetById(a));
+    let assets = idealBundle.assetIds.map(a => bundleGraph.getAssetById(a));
 
     for (let asset of assets) {
-      bundleGraph.addAssetToBundle(
-        asset,
-        nullthrows(idealBundleToLegacyBundle.get(bundle)),
+      bundleGraph.addAssetToBundle(asset, bundle);
+    }
+  }
+
+  for (let [bundleId, bundleGroup] of entryBundleToBundleGroup) {
+    let outboundNodeIds = idealBundleGraph.getNodeIdsConnectedFrom(bundleId);
+    for (let id of outboundNodeIds) {
+      let siblingBundle = nullthrows(idealBundleGraph.getNode(id));
+      let legacySiblingBundle = nullthrows(
+        idealBundleToLegacyBundle.get(siblingBundle),
       );
+      bundleGraph.addBundleToBundleGroup(legacySiblingBundle, bundleGroup);
     }
   }
 }
