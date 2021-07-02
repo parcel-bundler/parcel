@@ -5,9 +5,11 @@ import type {
   Bundle as LegacyBundle,
   BundleGroup,
   Dependency,
+  Environment,
   Config,
   MutableBundleGraph,
   PluginOptions,
+  Target,
 } from '@parcel/types';
 import type {NodeId} from '@parcel/core/src/types';
 import type {SchemaEntity} from '@parcel/utils';
@@ -48,6 +50,9 @@ export type Bundle = {|
   assetIds: Array<AssetId>,
   size: number,
   sourceBundles: Array<NodeId>,
+  target: Target,
+  env: Environment,
+  type: string,
 |};
 
 type IdealGraph = {|
@@ -71,40 +76,46 @@ function decorateLegacyGraph(
   idealGraph: IdealGraph,
   bundleGraph: MutableBundleGraph,
 ): void {
-  let entryBundles = idealGraph.entryBundles;
   let idealBundleToLegacyBundle: Map<Bundle, LegacyBundle> = new Map();
-  //TODO Single traversal of bundles/bundlegroups
 
   let {bundleGraph: idealBundleGraph, bundleLoadedByDependency} = idealGraph;
-  let visited: Set<NodeId> = new Set();
-  let lastTarget;
-
   let entryBundleToBundleGroup: Map<NodeId, BundleGroup> = new Map();
 
   for (let [bundleNodeId, idealBundle] of idealBundleGraph.nodes) {
     let dependency = bundleLoadedByDependency.get(bundleNodeId);
-    let target = lastTarget;
-    let bundleGroup;
-    if (dependency) {
-      target = nullthrows(dependency.target ?? lastTarget);
-      bundleGroup = bundleGraph.createBundleGroup(dependency, target);
-      if (dependency.target != null) {
-        lastTarget = dependency.target;
-      }
-      entryBundleToBundleGroup.set(bundleNodeId, bundleGroup);
-    }
 
     let entryAsset = bundleGraph.getAssetById(idealBundle.assetIds[0]);
-    let bundle = nullthrows(
-      bundleGraph.createBundle({
-        entryAsset,
-        target: nullthrows(target),
-        needsStableName: dependency?.isEntry,
-      }),
-    );
-    if (bundleGroup) {
+    let bundleGroup;
+    let bundle;
+    if (dependency) {
+      bundleGroup = bundleGraph.createBundleGroup(
+        dependency,
+        idealBundle.target,
+      );
+      entryBundleToBundleGroup.set(bundleNodeId, bundleGroup);
+
+      bundle = nullthrows(
+        bundleGraph.createBundle({
+          entryAsset,
+          needsStableName: dependency?.isEntry,
+          target: idealBundle.target,
+        }),
+      );
+
       bundleGraph.addBundleToBundleGroup(bundle, bundleGroup);
+    } else {
+      bundle = nullthrows(
+        bundleGraph.createBundle({
+          uniqueKey:
+            idealBundle.assetIds.join(',') +
+            idealBundle.sourceBundles.join(','),
+          type: idealBundle.type,
+          target: idealBundle.target,
+          env: idealBundle.env,
+        }),
+      );
     }
+
     idealBundleToLegacyBundle.set(idealBundle, bundle);
 
     let assets = idealBundle.assetIds.map(a => bundleGraph.getAssetById(a));
@@ -116,12 +127,23 @@ function decorateLegacyGraph(
 
   for (let [bundleId, bundleGroup] of entryBundleToBundleGroup) {
     let outboundNodeIds = idealBundleGraph.getNodeIdsConnectedFrom(bundleId);
+    let mainBundleOfBundleGroup = nullthrows(
+      idealBundleGraph.getNode(bundleId),
+    );
+    let legacyMainBundleOfBundleGroup = nullthrows(
+      idealBundleToLegacyBundle.get(mainBundleOfBundleGroup),
+    );
+
     for (let id of outboundNodeIds) {
       let siblingBundle = nullthrows(idealBundleGraph.getNode(id));
       let legacySiblingBundle = nullthrows(
         idealBundleToLegacyBundle.get(siblingBundle),
       );
       bundleGraph.addBundleToBundleGroup(legacySiblingBundle, bundleGroup);
+      bundleGraph.createBundleReference(
+        legacyMainBundleOfBundleGroup,
+        legacySiblingBundle,
+      );
     }
   }
 }
@@ -155,7 +177,9 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
   });
 
   for (let [asset, dependency] of entries) {
-    let nodeId = bundleGraph.addNode(createBundle(asset));
+    let nodeId = bundleGraph.addNode(
+      createBundle({asset, target: nullthrows(dependency.target)}),
+    );
     bundles.set(asset.id, nodeId);
     bundleRoots.set(asset, [nodeId, nodeId]);
     bundleLoadedByDependency.set(nodeId, dependency);
@@ -198,7 +222,12 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
           dependency.priority === 'lazy' ||
           childAsset.bundleBehavior === 'isolated'
         ) {
-          let bundleId = bundleGraph.addNode(createBundle(childAsset));
+          let bundleId = bundleGraph.addNode(
+            createBundle({
+              asset: childAsset,
+              target: nullthrows(bundleGraph.getNode(stack[0][1])).target,
+            }),
+          );
           bundles.set(childAsset.id, bundleId);
           bundleRoots.set(childAsset, [bundleId, bundleId]);
           bundleLoadedByDependency.set(bundleId, dependency);
@@ -209,7 +238,8 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
             let [stackAsset] = stack[i];
             if (
               stackAsset.type !== childAsset.type ||
-              stackAsset.env.context !== childAsset.env.context
+              stackAsset.env.context !== childAsset.env.context ||
+              stackAsset.env.isIsolated()
             ) {
               break;
             }
@@ -221,7 +251,10 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
         // Create a new bundle when the asset type changes.
         if (parentAsset.type !== childAsset.type) {
           let [, bundleGroupNodeId] = nullthrows(stack[stack.length - 1]);
-          let bundleId = bundleGraph.addNode(createBundle(childAsset));
+          let bundleGroup = nullthrows(bundleGraph.getNode(bundleGroupNodeId));
+          let bundleId = bundleGraph.addNode(
+            createBundle({asset: childAsset, target: bundleGroup.target}),
+          );
           bundles.set(childAsset.id, bundleId);
           bundleRoots.set(childAsset, [bundleId, bundleGroupNodeId]);
 
@@ -314,7 +347,14 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
       let bundleId = bundles.get(key);
       let bundle;
       if (bundleId == null) {
-        bundle = createBundle();
+        let firstSourceBundle = nullthrows(
+          bundleGraph.getNode(sourceBundles[0]),
+        );
+        bundle = createBundle({
+          target: firstSourceBundle.target,
+          type: firstSourceBundle.type,
+          env: firstSourceBundle.env,
+        });
         bundle.sourceBundles = sourceBundles;
         bundleId = bundleGraph.addNode(bundle);
         bundles.set(key, bundleId);
@@ -364,19 +404,39 @@ const CONFIG_SCHEMA: SchemaEntity = {
   additionalProperties: false,
 };
 
-function createBundle(asset?: Asset): Bundle {
-  if (asset == null) {
+function createBundle(
+  opts:
+    | {|
+        target: Target,
+        env: Environment,
+        type: string,
+      |}
+    | {|
+        target: Target,
+        asset: Asset,
+        env?: Environment,
+        type?: string,
+      |},
+): Bundle {
+  if (opts.asset == null) {
     return {
       assetIds: [],
       size: 0,
       sourceBundles: [],
+      target: opts.target,
+      type: nullthrows(opts.type),
+      env: nullthrows(opts.env),
     };
   }
 
+  let asset = nullthrows(opts.asset);
   return {
     assetIds: [asset.id],
     size: asset.stats.size,
     sourceBundles: [],
+    target: opts.target,
+    type: opts.type ?? asset.type,
+    env: opts.env ?? asset.env,
   };
 }
 

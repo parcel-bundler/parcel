@@ -9,6 +9,8 @@ import type {Target as TargetValue} from '../types';
 import Environment from './Environment';
 import nullthrows from 'nullthrows';
 
+const inspect = Symbol.for('nodejs.util.inspect.custom');
+
 const internalTargetToTarget: WeakMap<TargetValue, Target> = new WeakMap();
 const _targetToInternalTarget: WeakMap<ITarget, TargetValue> = new WeakMap();
 export function targetToInternalTarget(target: ITarget): TargetValue {
@@ -52,5 +54,10 @@ export default class Target implements ITarget {
 
   get loc(): ?SourceLocation {
     return this.#target.loc;
+  }
+
+  // $FlowFixMe[unsupported-syntax]
+  [inspect](): string {
+    return `Target(${this.name} - ${this.env[inspect]()})`;
   }
 }
