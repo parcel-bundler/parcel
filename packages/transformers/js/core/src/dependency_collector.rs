@@ -417,30 +417,21 @@ impl<'a> Fold for DependencyCollector<'a> {
           s
         } else if let Lit(lit) = &*arg.expr {
           if let ast::Lit::Str(str_) = lit {
-            let (msg, hint) = if kind == DependencyKind::ServiceWorker {
-              (
-                "Registering service workers with a string literal is not supported.",
-                format!(
-                  "Replace with: navigator.serviceWorker.register(new URL('{}', import.meta.url))",
-                  str_.value
-                ),
-              )
+            let msg = if kind == DependencyKind::ServiceWorker {
+              "Registering service workers with a string literal is not supported."
             } else {
-              (
-                "Registering worklets with a string literal is not supported.",
-                format!(
-                  "Replace with: CSS.paintWorklet.addModule(new URL('{}', import.meta.url))",
-                  str_.value
-                ),
-              )
+              "Registering worklets with a string literal is not supported."
             };
             self.diagnostics.push(Diagnostic {
               message: msg.to_string(),
               code_highlights: Some(vec![CodeHighlight {
                 message: None,
-                loc: SourceLocation::from(self.source_map, node.span),
+                loc: SourceLocation::from(self.source_map, str_.span),
               }]),
-              hints: Some(vec![hint]),
+              hints: Some(vec![format!(
+                "Replace with: new URL('{}', import.meta.url)",
+                str_.value,
+              )]),
             });
             return node;
           } else {
@@ -589,11 +580,11 @@ impl<'a> Fold for DependencyCollector<'a> {
               ),
               code_highlights: Some(vec![CodeHighlight {
                 message: None,
-                loc: SourceLocation::from(self.source_map, node.span),
+                loc: SourceLocation::from(self.source_map, str_.span),
               }]),
               hints: Some(vec![format!(
-                "Replace with: new {}(new URL('{}', import.meta.url))",
-                constructor, str_.value
+                "Replace with: new URL('{}', import.meta.url)",
+                str_.value
               )]),
             });
             return node;
