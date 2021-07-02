@@ -51,6 +51,7 @@ pub fn dependency_collector<'a>(
   source_type: SourceType,
   supports_module_workers: bool,
   script_error_loc: &'a mut Option<SourceLocation>,
+  diagnostics: &'a mut Vec<Diagnostic>,
 ) -> impl Fold + 'a {
   DependencyCollector {
     source_map,
@@ -64,6 +65,7 @@ pub fn dependency_collector<'a>(
     source_type,
     supports_module_workers,
     script_error_loc,
+    diagnostics,
   }
 }
 
@@ -79,6 +81,7 @@ struct DependencyCollector<'a> {
   source_type: SourceType,
   supports_module_workers: bool,
   script_error_loc: &'a mut Option<SourceLocation>,
+  diagnostics: &'a mut Vec<Diagnostic>,
 }
 
 impl<'a> DependencyCollector<'a> {
@@ -414,7 +417,32 @@ impl<'a> Fold for DependencyCollector<'a> {
           s
         } else if let Lit(lit) = &*arg.expr {
           if let ast::Lit::Str(str_) = lit {
-            (str_.value.clone(), str_.span)
+            let (msg, hint) = if kind == DependencyKind::ServiceWorker {
+              (
+                "Registering service workers with a string literal is not supported.",
+                format!(
+                  "Replace with: navigator.serviceWorker.register(new URL('{}', import.meta.url))",
+                  str_.value
+                ),
+              )
+            } else {
+              (
+                "Registering worklets with a string literal is not supported.",
+                format!(
+                  "Replace with: CSS.paintWorklet.addModule(new URL('{}', import.meta.url))",
+                  str_.value
+                ),
+              )
+            };
+            self.diagnostics.push(Diagnostic {
+              message: msg.to_string(),
+              code_highlights: Some(vec![CodeHighlight {
+                message: None,
+                loc: SourceLocation::from(self.source_map, node.span),
+              }]),
+              hints: Some(vec![hint]),
+            });
+            return node;
           } else {
             return node;
           }
@@ -550,7 +578,25 @@ impl<'a> Fold for DependencyCollector<'a> {
           s
         } else if let Lit(lit) = &*args[0].expr {
           if let ast::Lit::Str(str_) = lit {
-            (str_.value.clone(), str_.span)
+            let constructor = match &*node.callee {
+              Ident(id) => id.sym.to_string(),
+              _ => "Worker".to_string(),
+            };
+            self.diagnostics.push(Diagnostic {
+              message: format!(
+                "Constructing a {} with a string literal is not supported.",
+                constructor
+              ),
+              code_highlights: Some(vec![CodeHighlight {
+                message: None,
+                loc: SourceLocation::from(self.source_map, node.span),
+              }]),
+              hints: Some(vec![format!(
+                "Replace with: new {}(new URL('{}', import.meta.url))",
+                constructor, str_.value
+              )]),
+            });
+            return node;
           } else {
             return node;
           }

@@ -1,1 +1,1 @@
-navigator.serviceWorker.register('worker-nested.js', { scope: './' });
+navigator.serviceWorker.register(new URL('worker-nested.js', import.meta.url), { scope: './' });

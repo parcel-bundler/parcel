@@ -267,6 +267,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
               preset_env_config.bugfixes = true;
             }
 
+            let mut diagnostics = vec![];
             let module = {
               let mut passes = chain!(
                 // Inline process.env and process.browser
@@ -326,11 +327,17 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                   config.source_type,
                   config.supports_module_workers,
                   &mut result.script_error_loc,
+                  &mut diagnostics,
                 ),
               );
 
               module.fold_with(&mut passes)
             };
+
+            if !diagnostics.is_empty() {
+              result.diagnostics = Some(diagnostics);
+              return Ok(result);
+            }
 
             let module = if config.scope_hoist {
               let res = hoist(
