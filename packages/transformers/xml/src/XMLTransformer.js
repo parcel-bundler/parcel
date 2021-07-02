@@ -29,6 +29,10 @@ export default (new Transformer({
     const walker = document.createTreeWalker(
       document,
       window.NodeFilter.SHOW_PROCESSING_INSTRUCTION,
+      node =>
+        node.target === 'xml-stylesheet'
+          ? window.NodeFilter.FILTER_ACCEPT
+          : window.NodeFilter.FILTER_SKIP,
     );
 
     while (walker.nextNode()) {
