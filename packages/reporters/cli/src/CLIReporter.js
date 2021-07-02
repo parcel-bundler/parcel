@@ -20,7 +20,6 @@ import {
 } from './render';
 import * as emoji from './emoji';
 import wrapAnsi from 'wrap-ansi';
-import stringWidth from 'string-width';
 
 const THROTTLE_DELAY = 100;
 const seenWarnings = new Set();
