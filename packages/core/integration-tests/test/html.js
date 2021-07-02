@@ -1218,20 +1218,25 @@ describe('html', function() {
             '/integration/html-inline-js-script/error.html',
           ),
           origin: '@parcel/transformer-js',
-          codeFrame: {
-            codeHighlights: [
-              {
-                start: {
-                  line: 5,
-                  column: 7,
+          codeFrame: [
+            {
+              codeHighlights: [
+                {
+                  start: {
+                    line: 5,
+                    column: 7,
+                  },
+                  end: {
+                    line: 5,
+                    column: 24,
+                  },
                 },
-                end: {
-                  line: 5,
-                  column: 24,
-                },
-              },
-            ],
-          },
+              ],
+            },
+          ],
+          hints: [
+            'Add type="module" as a second argument to the <script> tag.',
+          ],
         },
       ]);
 
@@ -1477,39 +1482,41 @@ describe('html', function() {
           message: 'Browser scripts cannot have imports or exports.',
           filePath: path.join(__dirname, '/integration/html-js/index.js'),
           origin: '@parcel/transformer-js',
-          codeFrame: {
-            codeHighlights: [
-              {
-                start: {
-                  line: 1,
-                  column: 1,
+          codeFrame: [
+            {
+              codeHighlights: [
+                {
+                  start: {
+                    line: 1,
+                    column: 1,
+                  },
+                  end: {
+                    line: 1,
+                    column: 29,
+                  },
                 },
-                end: {
-                  line: 1,
-                  column: 29,
+              ],
+            },
+            {
+              filePath: path.join(__dirname, '/integration/html-js/error.html'),
+              codeHighlights: [
+                {
+                  message: 'The environment was originally created here',
+                  start: {
+                    line: 1,
+                    column: 1,
+                  },
+                  end: {
+                    line: 1,
+                    column: 32,
+                  },
                 },
-              },
-            ],
-          },
-        },
-        {
-          message: 'The environment was originally created here:',
-          filePath: path.join(__dirname, '/integration/html-js/error.html'),
-          origin: '@parcel/transformer-js',
-          codeFrame: {
-            codeHighlights: [
-              {
-                start: {
-                  line: 1,
-                  column: 1,
-                },
-                end: {
-                  line: 1,
-                  column: 32,
-                },
-              },
-            ],
-          },
+              ],
+            },
+          ],
+          hints: [
+            'Add type="module" as a second argument to the <script> tag.',
+          ],
         },
       ]);
 

@@ -66,7 +66,7 @@ export default async function prettyDiagnostic(
           language:
             // $FlowFixMe sketchy null checks do not matter here...
             language ||
-            (filePath ? path.extname(filePath).substr(1) : undefined),
+            (filePath != null ? path.extname(filePath).substr(1) : undefined),
           terminalWidth,
         });
       }

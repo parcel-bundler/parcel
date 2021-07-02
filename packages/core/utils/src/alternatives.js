@@ -127,9 +127,10 @@ export async function findAlternativeFiles(
   });
 
   if (path.extname(fileSpecifier) === '') {
-    potentialFiles = potentialFiles.map(p =>
-      p.slice(0, -path.extname(p).length),
-    );
+    potentialFiles = potentialFiles.map(p => {
+      let ext = path.extname(p);
+      return ext.length > 0 ? p.slice(0, -ext.length) : p;
+    });
   }
 
   return fuzzySearch(potentialFiles, fileSpecifier).slice(0, 2);
