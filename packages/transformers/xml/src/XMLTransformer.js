@@ -43,7 +43,7 @@ export default (new Transformer({
         href => {
           isDirty = true;
 
-          return asset.addURLDependency(href, {needsStableName: true});
+          return asset.addURLDependency(href, {priority: 'parallel'});
         },
       );
     }
