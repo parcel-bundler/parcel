@@ -126,5 +126,11 @@ export async function findAlternativeFiles(
     collected: potentialFiles,
   });
 
+  if (path.extname(fileSpecifier) === '') {
+    potentialFiles = potentialFiles.map(p =>
+      p.slice(0, -path.extname(p).length),
+    );
+  }
+
   return fuzzySearch(potentialFiles, fileSpecifier).slice(0, 2);
 }

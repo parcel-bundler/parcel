@@ -19,6 +19,8 @@ import {
   persistMessage,
 } from './render';
 import * as emoji from './emoji';
+import wrapAnsi from 'wrap-ansi';
+import stringWidth from 'string-width';
 
 const THROTTLE_DELAY = 100;
 const seenWarnings = new Set();
@@ -167,35 +169,63 @@ async function writeDiagnostic(
   color: Color,
   isError: boolean = false,
 ) {
+  let columns = getTerminalWidth().columns;
+  let indent = 2;
   for (let diagnostic of diagnostics) {
     let {message, stack, codeframe, hints} = await prettyDiagnostic(
       diagnostic,
       options,
-      getTerminalWidth().columns,
+      columns - indent,
     );
     message = chalk[color](message);
+
+    if (isError) {
+      writeOut('');
+    }
 
     if (message) {
       writeOut(message, isError);
     }
 
+    if (stack || codeframe) {
+      writeOut('');
+    }
+
     if (stack) {
-      writeOut(chalk.gray(stack), isError);
+      writeOut(chalk.gray(wrapWithIndent(stack, indent)), isError);
     }
 
     if (codeframe) {
-      writeOut(codeframe, isError);
+      writeOut(indentString(codeframe, indent), isError);
     }
 
-    if (hints.length > 0) {
+    if ((stack || codeframe) && hints.length > 0) {
       writeOut('');
     }
 
     // Write hints
+    let hintIndent = stack || codeframe ? indent : 0;
     for (let hint of hints) {
-      writeOut(`${emoji.hint} ${chalk.blue.bold(hint)}`);
+      writeOut(
+        wrapWithIndent(
+          `${emoji.hint} ${chalk.blue.bold(hint)}`,
+          hintIndent + 3,
+          hintIndent,
+        ),
+      );
     }
   }
+}
+
+function wrapWithIndent(string, indent = 0, initialIndent = indent) {
+  let width = getTerminalWidth().columns;
+  return indentString(wrapAnsi(string, width - indent), indent, initialIndent);
+}
+
+function indentString(string, indent = 0, initialIndent = indent) {
+  return (
+    ' '.repeat(initialIndent) + string.replace(/\n/g, '\n' + ' '.repeat(indent))
+  );
 }
 
 export default (new Reporter({

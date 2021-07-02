@@ -109,12 +109,22 @@ type PackageJSONConfig = {|
 |};
 
 const SCRIPT_ERRORS = {
-  browser:
-    'Browser scripts cannot have imports or exports. Use a <script type="module"> instead.',
-  'web-worker':
-    'Web workers cannot have imports or exports. Use the `type: "module"` option instead.',
-  'service-worker':
-    'Service workers cannot have imports or exports. Use the `type: "module"` option instead.',
+  browser: {
+    message: 'Browser scripts cannot have imports or exports.',
+    hint: 'Add type="module" as a second argument to the <script> tag.',
+  },
+  'web-worker': {
+    message:
+      'Web workers cannot have imports or exports without the `type: "module"` option.',
+    hint:
+      "Add {type: 'module'} as a second argument to the Worker constructor.",
+  },
+  'service-worker': {
+    message:
+      'Service workers cannot have imports or exports without the `type: "module"` option.',
+    hint:
+      "Add {type: 'module'} as a second argument to the navigator.serviceWorker.register() call.",
+  },
 };
 
 type TSConfig = {
@@ -434,14 +444,14 @@ export default (new Transformer({
 
     // Throw an error for imports/exports within a script if needed.
     if (script_error_loc) {
-      let message = SCRIPT_ERRORS[(asset.env.context: string)];
-      if (message) {
+      let err = SCRIPT_ERRORS[(asset.env.context: string)];
+      if (err) {
         let loc = convertLoc(script_error_loc);
-        let diagnostic = [
-          {
-            message,
-            filePath: asset.filePath,
-            codeFrame: {
+        let diagnostic = {
+          message: err.message,
+          filePath: asset.filePath,
+          codeFrame: [
+            {
               codeHighlights: [
                 {
                   start: loc.start,
@@ -449,21 +459,20 @@ export default (new Transformer({
                 },
               ],
             },
-          },
-        ];
+          ],
+          hints: [err.hint],
+        };
 
         if (asset.env.loc) {
-          diagnostic.push({
-            message: 'The environment was originally created here:',
+          diagnostic.codeFrame.push({
             filePath: asset.env.loc.filePath,
-            codeFrame: {
-              codeHighlights: [
-                {
-                  start: asset.env.loc.start,
-                  end: asset.env.loc.end,
-                },
-              ],
-            },
+            codeHighlights: [
+              {
+                start: asset.env.loc.start,
+                end: asset.env.loc.end,
+                message: 'The environment was originally created here',
+              },
+            ],
           });
         }
 
@@ -579,11 +588,11 @@ export default (new Transformer({
         if (dep.kind === 'DynamicImport') {
           if (asset.env.isWorklet()) {
             let loc = convertLoc(dep.loc);
-            let diagnostic = [
-              {
-                message: 'import() is not allowed in worklets.',
-                filePath: asset.filePath,
-                codeFrame: {
+            let diagnostic = {
+              message: 'import() is not allowed in worklets.',
+              filePath: asset.filePath,
+              codeFrame: [
+                {
                   codeHighlights: [
                     {
                       start: loc.start,
@@ -591,22 +600,20 @@ export default (new Transformer({
                     },
                   ],
                 },
-                hints: ['Try using a static `import`.'],
-              },
-            ];
+              ],
+              hints: ['Try using a static `import`.'],
+            };
 
             if (asset.env.loc) {
-              diagnostic.push({
-                message: 'The environment was originally created here:',
+              diagnostic.codeFrame.push({
                 filePath: asset.env.loc.filePath,
-                codeFrame: {
-                  codeHighlights: [
-                    {
-                      start: asset.env.loc.start,
-                      end: asset.env.loc.end,
-                    },
-                  ],
-                },
+                codeHighlights: [
+                  {
+                    start: asset.env.loc.start,
+                    end: asset.env.loc.end,
+                    message: 'The environment was originally created here',
+                  },
+                ],
               });
             }
 

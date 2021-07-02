@@ -45,31 +45,43 @@ export default async function prettyDiagnostic(
   };
 
   if (codeFrame != null) {
-    let highlights = codeFrame.codeHighlights;
-    let code =
-      codeFrame.code ??
-      (options &&
-        (await options.inputFS.readFile(nullthrows(filePath), 'utf8')));
+    let codeFrames = Array.isArray(codeFrame) ? codeFrame : [codeFrame];
+    for (let codeFrame of codeFrames) {
+      let filePath = codeFrame.filePath ?? diagnostic.filePath;
+      if (filePath != null && options && !path.isAbsolute(filePath)) {
+        filePath = path.join(options.projectRoot, filePath);
+      }
 
-    let formattedCodeFrame = '';
-    if (code != null) {
-      formattedCodeFrame = formatCodeFrame(code, highlights, {
-        useColor: true,
-        syntaxHighlighting: true,
-        language:
-          // $FlowFixMe sketchy null checks do not matter here...
-          language || (filePath ? path.extname(filePath).substr(1) : undefined),
-        terminalWidth,
-      });
+      let highlights = codeFrame.codeHighlights;
+      let code =
+        codeFrame.code ??
+        (options &&
+          (await options.inputFS.readFile(nullthrows(filePath), 'utf8')));
+
+      let formattedCodeFrame = '';
+      if (code != null) {
+        formattedCodeFrame = formatCodeFrame(code, highlights, {
+          useColor: true,
+          syntaxHighlighting: true,
+          language:
+            // $FlowFixMe sketchy null checks do not matter here...
+            language ||
+            (filePath ? path.extname(filePath).substr(1) : undefined),
+          terminalWidth,
+        });
+      }
+
+      result.codeframe +=
+        typeof filePath !== 'string'
+          ? ''
+          : chalk.gray.underline(
+              `${filePath}:${highlights[0].start.line}:${highlights[0].start.column}\n`,
+            );
+      result.codeframe += formattedCodeFrame;
+      if (codeFrame !== codeFrames[codeFrames.length - 1]) {
+        result.codeframe += '\n\n';
+      }
     }
-
-    result.codeframe +=
-      typeof filePath !== 'string'
-        ? ''
-        : chalk.underline(
-            `${filePath}:${highlights[0].start.line}:${highlights[0].start.column}\n`,
-          );
-    result.codeframe += formattedCodeFrame;
   } else if (typeof filePath === 'string') {
     result.codeframe += chalk.underline(filePath);
   }

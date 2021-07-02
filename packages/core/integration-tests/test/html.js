@@ -1208,12 +1208,11 @@ describe('html', function() {
     } catch (err) {
       assert.equal(
         err.message,
-        'Browser scripts cannot have imports or exports. Use a <script type="module"> instead.',
+        'Browser scripts cannot have imports or exports.',
       );
       assert.deepEqual(err.diagnostics, [
         {
-          message:
-            'Browser scripts cannot have imports or exports. Use a <script type="module"> instead.',
+          message: 'Browser scripts cannot have imports or exports.',
           filePath: path.join(
             __dirname,
             '/integration/html-inline-js-script/error.html',
@@ -1471,12 +1470,11 @@ describe('html', function() {
     } catch (err) {
       assert.equal(
         err.message,
-        'Browser scripts cannot have imports or exports. Use a <script type="module"> instead.',
+        'Browser scripts cannot have imports or exports.',
       );
       assert.deepEqual(err.diagnostics, [
         {
-          message:
-            'Browser scripts cannot have imports or exports. Use a <script type="module"> instead.',
+          message: 'Browser scripts cannot have imports or exports.',
           filePath: path.join(__dirname, '/integration/html-js/index.js'),
           origin: '@parcel/transformer-js',
           codeFrame: {

@@ -172,7 +172,7 @@ describe('resolver', function() {
 
       assert.equal(
         e.diagnostics[1].hints[0],
-        `Did you mean __./test/test.js__?`,
+        `Did you mean '__./test/test.js__'?`,
       );
     }
 
@@ -188,7 +188,7 @@ describe('resolver', function() {
         `Cannot load file './aa.js' in './integration/resolver-alternative-relative'.`,
       );
 
-      assert.equal(e.diagnostics[1].hints[0], `Did you mean __./a.js__?`);
+      assert.equal(e.diagnostics[1].hints[0], `Did you mean '__./a.js__'?`);
     }
 
     try {
@@ -206,7 +206,7 @@ describe('resolver', function() {
         `Cannot load file '../../a.js' in './integration/resolver-alternative-relative/test'.`,
       );
 
-      assert.equal(e.diagnostics[1].hints[0], `Did you mean __../a.js__?`);
+      assert.equal(e.diagnostics[1].hints[0], `Did you mean '__../a.js__'?`);
     }
 
     assert.equal(threw, 3);
@@ -227,7 +227,10 @@ describe('resolver', function() {
 
       assert.equal(e.diagnostics[1].message, `Cannot find module @baebal/core`);
 
-      assert.equal(e.diagnostics[1].hints[0], `Did you mean __@babel/core__?`);
+      assert.equal(
+        e.diagnostics[1].hints[0],
+        `Did you mean '__@babel/core__'?`,
+      );
     }
 
     assert(threw);

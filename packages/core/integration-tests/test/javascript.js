@@ -212,40 +212,41 @@ describe('javascript', function() {
             '/integration/worklet/worklet-error.js',
           ),
           origin: '@parcel/transformer-js',
-          codeFrame: {
-            codeHighlights: [
-              {
-                start: {
-                  line: 1,
-                  column: 8,
+          codeFrame: [
+            {
+              codeHighlights: [
+                {
+                  start: {
+                    line: 1,
+                    column: 8,
+                  },
+                  end: {
+                    line: 1,
+                    column: 18,
+                  },
                 },
-                end: {
-                  line: 1,
-                  column: 18,
+              ],
+            },
+            {
+              filePath: path.normalize(
+                'integration/worklet/url-worklet-error.js',
+              ),
+              codeHighlights: [
+                {
+                  message: 'The environment was originally created here',
+                  start: {
+                    line: 1,
+                    column: 36,
+                  },
+                  end: {
+                    line: 1,
+                    column: 53,
+                  },
                 },
-              },
-            ],
-          },
+              ],
+            },
+          ],
           hints: ['Try using a static `import`.'],
-        },
-        {
-          message: 'The environment was originally created here:',
-          filePath: path.normalize('integration/worklet/url-worklet-error.js'),
-          origin: '@parcel/transformer-js',
-          codeFrame: {
-            codeHighlights: [
-              {
-                start: {
-                  line: 1,
-                  column: 36,
-                },
-                end: {
-                  line: 1,
-                  column: 53,
-                },
-              },
-            ],
-          },
         },
       ]);
     }
@@ -304,20 +305,22 @@ describe('javascript', function() {
             '/integration/worklet/worklet-error.js',
           ),
           origin: '@parcel/transformer-js',
-          codeFrame: {
-            codeHighlights: [
-              {
-                start: {
-                  line: 1,
-                  column: 8,
+          codeFrame: [
+            {
+              codeHighlights: [
+                {
+                  start: {
+                    line: 1,
+                    column: 8,
+                  },
+                  end: {
+                    line: 1,
+                    column: 18,
+                  },
                 },
-                end: {
-                  line: 1,
-                  column: 18,
-                },
-              },
-            ],
-          },
+              ],
+            },
+          ],
           hints: ['Try using a static `import`.'],
         },
       ]);
@@ -938,50 +941,52 @@ describe('javascript', function() {
       errored = true;
       assert.equal(
         err.message,
-        'Web workers cannot have imports or exports. Use the `type: "module"` option instead.',
+        'Web workers cannot have imports or exports without the `type: "module"` option.',
       );
       assert.deepEqual(err.diagnostics, [
         {
           message:
-            'Web workers cannot have imports or exports. Use the `type: "module"` option instead.',
+            'Web workers cannot have imports or exports without the `type: "module"` option.',
           filePath: path.join(
             __dirname,
             '/integration/workers-module/dedicated-worker.js',
           ),
           origin: '@parcel/transformer-js',
-          codeFrame: {
-            codeHighlights: [
-              {
-                start: {
-                  line: 1,
-                  column: 1,
+          codeFrame: [
+            {
+              codeHighlights: [
+                {
+                  start: {
+                    line: 1,
+                    column: 1,
+                  },
+                  end: {
+                    line: 1,
+                    column: 22,
+                  },
                 },
-                end: {
-                  line: 1,
-                  column: 22,
+              ],
+            },
+            {
+              filePath: 'error.js',
+              codeHighlights: [
+                {
+                  message: 'The environment was originally created here',
+                  start: {
+                    line: 1,
+                    column: 20,
+                  },
+                  end: {
+                    line: 1,
+                    column: 40,
+                  },
                 },
-              },
-            ],
-          },
-        },
-        {
-          message: 'The environment was originally created here:',
-          filePath: 'error.js',
-          origin: '@parcel/transformer-js',
-          codeFrame: {
-            codeHighlights: [
-              {
-                start: {
-                  line: 1,
-                  column: 12,
-                },
-                end: {
-                  line: 1,
-                  column: 32,
-                },
-              },
-            ],
-          },
+              ],
+            },
+          ],
+          hints: [
+            "Add {type: 'module'} as a second argument to the Worker constructor.",
+          ],
         },
       ]);
     }
@@ -1188,50 +1193,52 @@ describe('javascript', function() {
       errored = true;
       assert.equal(
         err.message,
-        'Service workers cannot have imports or exports. Use the `type: "module"` option instead.',
+        'Service workers cannot have imports or exports without the `type: "module"` option.',
       );
       assert.deepEqual(err.diagnostics, [
         {
           message:
-            'Service workers cannot have imports or exports. Use the `type: "module"` option instead.',
+            'Service workers cannot have imports or exports without the `type: "module"` option.',
           filePath: path.join(
             __dirname,
             '/integration/service-worker/module-worker.js',
           ),
           origin: '@parcel/transformer-js',
-          codeFrame: {
-            codeHighlights: [
-              {
-                start: {
-                  line: 1,
-                  column: 1,
+          codeFrame: [
+            {
+              codeHighlights: [
+                {
+                  start: {
+                    line: 1,
+                    column: 1,
+                  },
+                  end: {
+                    line: 1,
+                    column: 19,
+                  },
                 },
-                end: {
-                  line: 1,
-                  column: 19,
+              ],
+            },
+            {
+              filePath: path.normalize('integration/service-worker/error.js'),
+              codeHighlights: [
+                {
+                  message: 'The environment was originally created here',
+                  start: {
+                    line: 1,
+                    column: 42,
+                  },
+                  end: {
+                    line: 1,
+                    column: 59,
+                  },
                 },
-              },
-            ],
-          },
-        },
-        {
-          message: 'The environment was originally created here:',
-          filePath: path.normalize('integration/service-worker/error.js'),
-          origin: '@parcel/transformer-js',
-          codeFrame: {
-            codeHighlights: [
-              {
-                start: {
-                  line: 1,
-                  column: 34,
-                },
-                end: {
-                  line: 1,
-                  column: 51,
-                },
-              },
-            ],
-          },
+              ],
+            },
+          ],
+          hints: [
+            "Add {type: 'module'} as a second argument to the navigator.serviceWorker.register() call.",
+          ],
         },
       ]);
     }
@@ -1291,7 +1298,7 @@ describe('javascript', function() {
           origin: '@parcel/core',
         },
         {
-          hints: ['Did you mean __./index.js__?'],
+          hints: ["Did you mean '__./index.js__'?"],
           message: "Cannot load file './invalid.js' in './'.",
           origin: '@parcel/resolver-default',
         },
@@ -1397,8 +1404,8 @@ describe('javascript', function() {
         },
         {
           hints: [
-            'Did you mean __./dynamic.js__?',
-            'Did you mean __./index.js__?',
+            "Did you mean '__./dynamic.js__'?",
+            "Did you mean '__./index.js__'?",
           ],
           message: "Cannot load file './invalid.js' in './'.",
           origin: '@parcel/resolver-default',

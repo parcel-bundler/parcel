@@ -39,6 +39,8 @@ export type DiagnosticCodeFrame = {|
    *
    */
   code?: string,
+  /** The file path for this code frame. If unset, the file path of the parent diagnostic is used. */
+  filePath?: string,
   codeHighlights: Array<DiagnosticCodeHighlight>,
 |};
 
@@ -63,7 +65,7 @@ export type Diagnostic = {|
   language?: string,
 
   /** A code frame points to a certain location(s) in the file this diagnostic is linked to (optional) */
-  codeFrame?: ?DiagnosticCodeFrame,
+  codeFrame?: ?DiagnosticCodeFrame | ?Array<DiagnosticCodeFrame>,
 
   /** An optional list of strings that suggest ways to resolve this issue */
   hints?: Array<string>,
