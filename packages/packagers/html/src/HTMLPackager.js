@@ -163,10 +163,7 @@ function insertBundleReferences(siblingBundles, tree) {
         tag: 'link',
         attrs: {
           rel: 'stylesheet',
-          href: urlJoin(
-            nullthrows(bundle.target).publicUrl,
-            nullthrows(bundle.name),
-          ),
+          href: urlJoin(bundle.target.publicUrl, bundle.name),
         },
       });
     } else if (bundle.type === 'js') {
@@ -174,10 +171,8 @@ function insertBundleReferences(siblingBundles, tree) {
         tag: 'script',
         attrs: {
           type: bundle.env.outputFormat === 'esmodule' ? 'module' : undefined,
-          src: urlJoin(
-            nullthrows(bundle.target).publicUrl,
-            nullthrows(bundle.name),
-          ),
+          nomodule: bundle.env.outputFormat !== 'esmodule' ? '' : undefined,
+          src: urlJoin(bundle.target.publicUrl, bundle.name),
         },
       });
     }
