@@ -59,12 +59,14 @@ export default (new Optimizer({
           diagnostics.push({
             message,
             origin: '@parcel/optimizer-terser',
-            language: 'js',
-            filePath,
-            codeFrame: {
-              code: await options.inputFS.readFile(filePath, 'utf8'),
-              codeHighlights: [{message, start: original, end: original}],
-            },
+            codeFrames: [
+              {
+                language: 'js',
+                filePath,
+                code: await options.inputFS.readFile(filePath, 'utf8'),
+                codeHighlights: [{message, start: original, end: original}],
+              },
+            ],
             hints: ["It's likely that Terser doesn't support this syntax yet."],
           });
         }
@@ -77,12 +79,14 @@ export default (new Optimizer({
           diagnostics.push({
             message,
             origin: '@parcel/optimizer-terser',
-            language: 'js',
-            filePath: undefined,
-            codeFrame: {
-              code,
-              codeHighlights: [{message, start: loc, end: loc}],
-            },
+            codeFrames: [
+              {
+                language: 'js',
+                filePath: undefined,
+                code,
+                codeHighlights: [{message, start: loc, end: loc}],
+              },
+            ],
             hints: ["It's likely that Terser doesn't support this syntax yet."],
           });
         }

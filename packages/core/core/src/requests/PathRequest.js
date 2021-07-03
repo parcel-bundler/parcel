@@ -119,16 +119,18 @@ export class ResolverRunner {
     };
 
     if (dependency.loc && dependency.sourcePath != null) {
-      diagnostic.filePath = dependency.sourcePath;
-      diagnostic.codeFrame = {
-        code: await this.options.inputFS.readFile(
-          dependency.sourcePath,
-          'utf8',
-        ),
-        codeHighlights: dependency.loc
-          ? [{start: dependency.loc.start, end: dependency.loc.end}]
-          : [],
-      };
+      diagnostic.codeFrames = [
+        {
+          filePath: dependency.sourcePath,
+          code: await this.options.inputFS.readFile(
+            dependency.sourcePath,
+            'utf8',
+          ),
+          codeHighlights: dependency.loc
+            ? [{start: dependency.loc.start, end: dependency.loc.end}]
+            : [],
+        },
+      ];
     }
 
     return new ThrowableDiagnostic({diagnostic});

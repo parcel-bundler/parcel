@@ -441,22 +441,24 @@ describe('scope hoisting', function() {
           {
             message,
             origin: '@parcel/core',
-            filePath: source,
-            language: 'js',
-            codeFrame: {
-              codeHighlights: [
-                {
-                  start: {
-                    line: 1,
-                    column: 8,
+            codeFrames: [
+              {
+                filePath: source,
+                language: 'js',
+                codeHighlights: [
+                  {
+                    start: {
+                      line: 1,
+                      column: 8,
+                    },
+                    end: {
+                      line: 1,
+                      column: 8,
+                    },
                   },
-                  end: {
-                    line: 1,
-                    column: 8,
-                  },
-                },
-              ],
-            },
+                ],
+              },
+            ],
           },
         ],
       });
@@ -476,24 +478,26 @@ describe('scope hoisting', function() {
           {
             message,
             origin: '@parcel/core',
-            filePath: path.normalize(
-              'integration/scope-hoisting/es6/re-export-missing/b.js',
-            ),
-            language: 'js',
-            codeFrame: {
-              codeHighlights: [
-                {
-                  start: {
-                    line: 1,
-                    column: 9,
+            codeFrames: [
+              {
+                filePath: path.normalize(
+                  'integration/scope-hoisting/es6/re-export-missing/b.js',
+                ),
+                language: 'js',
+                codeHighlights: [
+                  {
+                    start: {
+                      line: 1,
+                      column: 9,
+                    },
+                    end: {
+                      line: 1,
+                      column: 11,
+                    },
                   },
-                  end: {
-                    line: 1,
-                    column: 11,
-                  },
-                },
-              ],
-            },
+                ],
+              },
+            ],
           },
         ],
       });
@@ -1523,22 +1527,24 @@ describe('scope hoisting', function() {
               {
                 message,
                 origin: '@parcel/core',
-                filePath: source,
-                language: 'js',
-                codeFrame: {
-                  codeHighlights: [
-                    {
-                      start: {
-                        column: 5,
-                        line: 3,
+                codeFrames: [
+                  {
+                    filePath: source,
+                    language: 'js',
+                    codeHighlights: [
+                      {
+                        start: {
+                          column: 5,
+                          line: 3,
+                        },
+                        end: {
+                          column: 11,
+                          line: 3,
+                        },
                       },
-                      end: {
-                        column: 11,
-                        line: 3,
-                      },
-                    },
-                  ],
-                },
+                    ],
+                  },
+                ],
               },
             ],
           },
@@ -1564,22 +1570,24 @@ describe('scope hoisting', function() {
               {
                 message,
                 origin: '@parcel/core',
-                filePath: source,
-                language: 'js',
-                codeFrame: {
-                  codeHighlights: [
-                    {
-                      start: {
-                        column: 8,
-                        line: 2,
+                codeFrames: [
+                  {
+                    filePath: source,
+                    language: 'js',
+                    codeHighlights: [
+                      {
+                        start: {
+                          column: 8,
+                          line: 2,
+                        },
+                        end: {
+                          column: 14,
+                          line: 2,
+                        },
                       },
-                      end: {
-                        column: 14,
-                        line: 2,
-                      },
-                    },
-                  ],
-                },
+                    ],
+                  },
+                ],
               },
             ],
           },
@@ -1605,22 +1613,24 @@ describe('scope hoisting', function() {
               {
                 message,
                 origin: '@parcel/core',
-                filePath: source,
-                language: 'js',
-                codeFrame: {
-                  codeHighlights: [
-                    {
-                      start: {
-                        column: 10,
-                        line: 3,
+                codeFrames: [
+                  {
+                    filePath: source,
+                    language: 'js',
+                    codeHighlights: [
+                      {
+                        start: {
+                          column: 10,
+                          line: 3,
+                        },
+                        end: {
+                          column: 19,
+                          line: 3,
+                        },
                       },
-                      end: {
-                        column: 19,
-                        line: 3,
-                      },
-                    },
-                  ],
-                },
+                    ],
+                  },
+                ],
               },
             ],
           },
@@ -1646,22 +1656,24 @@ describe('scope hoisting', function() {
               {
                 message,
                 origin: '@parcel/core',
-                filePath: source,
-                language: 'js',
-                codeFrame: {
-                  codeHighlights: [
-                    {
-                      start: {
-                        column: 38,
-                        line: 1,
+                codeFrames: [
+                  {
+                    filePath: source,
+                    language: 'js',
+                    codeHighlights: [
+                      {
+                        start: {
+                          column: 38,
+                          line: 1,
+                        },
+                        end: {
+                          column: 44,
+                          line: 1,
+                        },
                       },
-                      end: {
-                        column: 44,
-                        line: 1,
-                      },
-                    },
-                  ],
-                },
+                    ],
+                  },
+                ],
               },
             ],
           },
@@ -1687,22 +1699,24 @@ describe('scope hoisting', function() {
               {
                 message,
                 origin: '@parcel/core',
-                filePath: source,
-                language: 'js',
-                codeFrame: {
-                  codeHighlights: [
-                    {
-                      start: {
-                        column: 45,
-                        line: 1,
+                codeFrames: [
+                  {
+                    filePath: source,
+                    language: 'js',
+                    codeHighlights: [
+                      {
+                        start: {
+                          column: 45,
+                          line: 1,
+                        },
+                        end: {
+                          column: 54,
+                          line: 1,
+                        },
                       },
-                      end: {
-                        column: 54,
-                        line: 1,
-                      },
-                    },
-                  ],
-                },
+                    ],
+                  },
+                ],
               },
             ],
           },
@@ -3398,34 +3412,36 @@ describe('scope hoisting', function() {
           {
             message: 'Assignment to an import specifier is not allowed',
             origin: '@parcel/transformer-js',
-            filePath: source,
-            codeFrame: {
-              code,
-              codeHighlights: [
-                {
-                  message: null,
-                  start: {
-                    line: 2,
-                    column: 1,
+            codeFrames: [
+              {
+                filePath: source,
+                code,
+                codeHighlights: [
+                  {
+                    message: null,
+                    start: {
+                      line: 2,
+                      column: 1,
+                    },
+                    end: {
+                      line: 2,
+                      column: 3,
+                    },
                   },
-                  end: {
-                    line: 2,
-                    column: 3,
+                  {
+                    message: 'Originally imported here',
+                    start: {
+                      line: 1,
+                      column: 9,
+                    },
+                    end: {
+                      line: 1,
+                      column: 11,
+                    },
                   },
-                },
-                {
-                  message: 'Originally imported here',
-                  start: {
-                    line: 1,
-                    column: 9,
-                  },
-                  end: {
-                    line: 1,
-                    column: 11,
-                  },
-                },
-              ],
-            },
+                ],
+              },
+            ],
             hints: null,
           },
         ],
@@ -3446,34 +3462,36 @@ describe('scope hoisting', function() {
           {
             message: 'Assignment to an import specifier is not allowed',
             origin: '@parcel/transformer-js',
-            filePath: source,
-            codeFrame: {
-              code,
-              codeHighlights: [
-                {
-                  message: null,
-                  start: {
-                    line: 2,
-                    column: 1,
+            codeFrames: [
+              {
+                filePath: source,
+                code,
+                codeHighlights: [
+                  {
+                    message: null,
+                    start: {
+                      line: 2,
+                      column: 1,
+                    },
+                    end: {
+                      line: 2,
+                      column: 1,
+                    },
                   },
-                  end: {
-                    line: 2,
-                    column: 1,
+                  {
+                    message: 'Originally imported here',
+                    start: {
+                      line: 1,
+                      column: 8,
+                    },
+                    end: {
+                      line: 1,
+                      column: 8,
+                    },
                   },
-                },
-                {
-                  message: 'Originally imported here',
-                  start: {
-                    line: 1,
-                    column: 8,
-                  },
-                  end: {
-                    line: 1,
-                    column: 8,
-                  },
-                },
-              ],
-            },
+                ],
+              },
+            ],
             hints: null,
           },
         ],
@@ -3494,34 +3512,36 @@ describe('scope hoisting', function() {
           {
             message: 'Assignment to an import specifier is not allowed',
             origin: '@parcel/transformer-js',
-            filePath: source,
-            codeFrame: {
-              code,
-              codeHighlights: [
-                {
-                  message: null,
-                  start: {
-                    line: 2,
-                    column: 1,
+            codeFrames: [
+              {
+                filePath: source,
+                code,
+                codeHighlights: [
+                  {
+                    message: null,
+                    start: {
+                      line: 2,
+                      column: 1,
+                    },
+                    end: {
+                      line: 2,
+                      column: 1,
+                    },
                   },
-                  end: {
-                    line: 2,
-                    column: 1,
+                  {
+                    message: 'Originally imported here',
+                    start: {
+                      line: 1,
+                      column: 13,
+                    },
+                    end: {
+                      line: 1,
+                      column: 13,
+                    },
                   },
-                },
-                {
-                  message: 'Originally imported here',
-                  start: {
-                    line: 1,
-                    column: 13,
-                  },
-                  end: {
-                    line: 1,
-                    column: 13,
-                  },
-                },
-              ],
-            },
+                ],
+              },
+            ],
             hints: null,
           },
         ],
@@ -3542,34 +3562,36 @@ describe('scope hoisting', function() {
           {
             message: 'Assignment to an import specifier is not allowed',
             origin: '@parcel/transformer-js',
-            filePath: source,
-            codeFrame: {
-              code,
-              codeHighlights: [
-                {
-                  message: null,
-                  start: {
-                    line: 2,
-                    column: 8,
+            codeFrames: [
+              {
+                filePath: source,
+                code,
+                codeHighlights: [
+                  {
+                    message: null,
+                    start: {
+                      line: 2,
+                      column: 8,
+                    },
+                    end: {
+                      line: 2,
+                      column: 10,
+                    },
                   },
-                  end: {
-                    line: 2,
-                    column: 10,
+                  {
+                    message: 'Originally imported here',
+                    start: {
+                      line: 1,
+                      column: 9,
+                    },
+                    end: {
+                      line: 1,
+                      column: 11,
+                    },
                   },
-                },
-                {
-                  message: 'Originally imported here',
-                  start: {
-                    line: 1,
-                    column: 9,
-                  },
-                  end: {
-                    line: 1,
-                    column: 11,
-                  },
-                },
-              ],
-            },
+                ],
+              },
+            ],
             hints: null,
           },
         ],
@@ -3590,45 +3612,47 @@ describe('scope hoisting', function() {
           {
             message: 'Assignment to an import specifier is not allowed',
             origin: '@parcel/transformer-js',
-            filePath: source,
-            codeFrame: {
-              code,
-              codeHighlights: [
-                {
-                  message: null,
-                  start: {
-                    line: 2,
-                    column: 1,
+            codeFrames: [
+              {
+                filePath: source,
+                code,
+                codeHighlights: [
+                  {
+                    message: null,
+                    start: {
+                      line: 2,
+                      column: 1,
+                    },
+                    end: {
+                      line: 2,
+                      column: 3,
+                    },
                   },
-                  end: {
-                    line: 2,
-                    column: 3,
+                  {
+                    message: null,
+                    start: {
+                      line: 3,
+                      column: 1,
+                    },
+                    end: {
+                      line: 3,
+                      column: 3,
+                    },
                   },
-                },
-                {
-                  message: null,
-                  start: {
-                    line: 3,
-                    column: 1,
+                  {
+                    message: 'Originally imported here',
+                    start: {
+                      line: 1,
+                      column: 9,
+                    },
+                    end: {
+                      line: 1,
+                      column: 11,
+                    },
                   },
-                  end: {
-                    line: 3,
-                    column: 3,
-                  },
-                },
-                {
-                  message: 'Originally imported here',
-                  start: {
-                    line: 1,
-                    column: 9,
-                  },
-                  end: {
-                    line: 1,
-                    column: 11,
-                  },
-                },
-              ],
-            },
+                ],
+              },
+            ],
             hints: null,
           },
         ],
@@ -4361,22 +4385,24 @@ describe('scope hoisting', function() {
           {
             message,
             origin: '@parcel/packager-js',
-            filePath: source,
-            language: 'js',
-            codeFrame: {
-              codeHighlights: [
-                {
-                  start: {
-                    line: 3,
-                    column: 10,
+            codeFrames: [
+              {
+                filePath: source,
+                language: 'js',
+                codeHighlights: [
+                  {
+                    start: {
+                      line: 3,
+                      column: 10,
+                    },
+                    end: {
+                      line: 3,
+                      column: 31,
+                    },
                   },
-                  end: {
-                    line: 3,
-                    column: 31,
-                  },
-                },
-              ],
-            },
+                ],
+              },
+            ],
           },
         ],
       });

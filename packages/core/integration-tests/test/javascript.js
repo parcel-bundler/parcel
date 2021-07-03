@@ -207,13 +207,13 @@ describe('javascript', function() {
       assert.deepEqual(err.diagnostics, [
         {
           message: 'import() is not allowed in worklets.',
-          filePath: path.join(
-            __dirname,
-            '/integration/worklet/worklet-error.js',
-          ),
           origin: '@parcel/transformer-js',
-          codeFrame: [
+          codeFrames: [
             {
+              filePath: path.join(
+                __dirname,
+                '/integration/worklet/worklet-error.js',
+              ),
               codeHighlights: [
                 {
                   start: {
@@ -300,13 +300,13 @@ describe('javascript', function() {
       assert.deepEqual(err.diagnostics, [
         {
           message: 'import() is not allowed in worklets.',
-          filePath: path.join(
-            __dirname,
-            '/integration/worklet/worklet-error.js',
-          ),
           origin: '@parcel/transformer-js',
-          codeFrame: [
+          codeFrames: [
             {
+              filePath: path.join(
+                __dirname,
+                '/integration/worklet/worklet-error.js',
+              ),
               codeHighlights: [
                 {
                   start: {
@@ -947,13 +947,13 @@ describe('javascript', function() {
         {
           message:
             'Web workers cannot have imports or exports without the `type: "module"` option.',
-          filePath: path.join(
-            __dirname,
-            '/integration/workers-module/dedicated-worker.js',
-          ),
           origin: '@parcel/transformer-js',
-          codeFrame: [
+          codeFrames: [
             {
+              filePath: path.join(
+                __dirname,
+                '/integration/workers-module/dedicated-worker.js',
+              ),
               codeHighlights: [
                 {
                   start: {
@@ -1199,13 +1199,13 @@ describe('javascript', function() {
         {
           message:
             'Service workers cannot have imports or exports without the `type: "module"` option.',
-          filePath: path.join(
-            __dirname,
-            '/integration/service-worker/module-worker.js',
-          ),
           origin: '@parcel/transformer-js',
-          codeFrame: [
+          codeFrames: [
             {
+              filePath: path.join(
+                __dirname,
+                '/integration/service-worker/module-worker.js',
+              ),
               codeHighlights: [
                 {
                   start: {
@@ -1278,22 +1278,24 @@ describe('javascript', function() {
       name: 'BuildError',
       diagnostics: [
         {
-          codeFrame: {
-            code,
-            codeHighlights: [
-              {
-                end: {
-                  column: 55,
-                  line: 1,
+          codeFrames: [
+            {
+              filePath: fixture,
+              code,
+              codeHighlights: [
+                {
+                  end: {
+                    column: 55,
+                    line: 1,
+                  },
+                  start: {
+                    column: 42,
+                    line: 1,
+                  },
                 },
-                start: {
-                  column: 42,
-                  line: 1,
-                },
-              },
-            ],
-          },
-          filePath: fixture,
+              ],
+            },
+          ],
           message: "Failed to resolve './invalid.js' from './missing.js'",
           origin: '@parcel/core',
         },
@@ -1383,22 +1385,24 @@ describe('javascript', function() {
       name: 'BuildError',
       diagnostics: [
         {
-          codeFrame: {
-            code,
-            codeHighlights: [
-              {
-                end: {
-                  column: 33,
-                  line: 1,
+          codeFrames: [
+            {
+              filePath: fixture,
+              code,
+              codeHighlights: [
+                {
+                  end: {
+                    column: 33,
+                    line: 1,
+                  },
+                  start: {
+                    column: 20,
+                    line: 1,
+                  },
                 },
-                start: {
-                  column: 20,
-                  line: 1,
-                },
-              },
-            ],
-          },
-          filePath: fixture,
+              ],
+            },
+          ],
           message: "Failed to resolve './invalid.js' from './missing.js'",
           origin: '@parcel/core',
         },
@@ -2010,22 +2014,24 @@ describe('javascript', function() {
       name: 'BuildError',
       diagnostics: [
         {
-          codeFrame: {
-            code,
-            codeHighlights: [
-              {
-                end: {
-                  column: 36,
-                  line: 1,
+          codeFrames: [
+            {
+              filePath: fixture,
+              code,
+              codeHighlights: [
+                {
+                  end: {
+                    column: 36,
+                    line: 1,
+                  },
+                  start: {
+                    column: 24,
+                    line: 1,
+                  },
                 },
-                start: {
-                  column: 24,
-                  line: 1,
-                },
-              },
-            ],
-          },
-          filePath: fixture,
+              ],
+            },
+          ],
           message: "Failed to resolve 'invalid.txt' from './missing.js'",
           origin: '@parcel/core',
         },
@@ -3791,24 +3797,26 @@ describe('javascript', function() {
           {
             message: 'Name expected',
             origin: '@parcel/optimizer-terser',
-            filePath: undefined,
-            language: 'js',
-            codeFrame: {
-              code,
-              codeHighlights: [
-                {
-                  message: 'Name expected',
-                  start: {
-                    column: 4,
-                    line: 1,
+            codeFrames: [
+              {
+                filePath: undefined,
+                language: 'js',
+                code,
+                codeHighlights: [
+                  {
+                    message: 'Name expected',
+                    start: {
+                      column: 4,
+                      line: 1,
+                    },
+                    end: {
+                      column: 4,
+                      line: 1,
+                    },
                   },
-                  end: {
-                    column: 4,
-                    line: 1,
-                  },
-                },
-              ],
-            },
+                ],
+              },
+            ],
             hints: ["It's likely that Terser doesn't support this syntax yet."],
           },
         ],
@@ -3886,22 +3894,24 @@ describe('javascript', function() {
         {
           message: 'Unknown pipeline: strange-pipeline.',
           origin: '@parcel/core',
-          filePath: fixture,
-          codeFrame: {
-            code,
-            codeHighlights: [
-              {
-                start: {
-                  column: 19,
-                  line: 1,
+          codeFrames: [
+            {
+              filePath: fixture,
+              code,
+              codeHighlights: [
+                {
+                  start: {
+                    column: 19,
+                    line: 1,
+                  },
+                  end: {
+                    column: 43,
+                    line: 1,
+                  },
                 },
-                end: {
-                  column: 43,
-                  line: 1,
-                },
-              },
-            ],
-          },
+              ],
+            },
+          ],
         },
       ],
     });
@@ -4177,22 +4187,24 @@ describe('javascript', function() {
           {
             message: "Failed to resolve 'foo' from './index.js'",
             origin: '@parcel/core',
-            filePath: fixture,
-            codeFrame: {
-              code,
-              codeHighlights: [
-                {
-                  start: {
-                    line: 11,
-                    column: 17,
+            codeFrames: [
+              {
+                filePath: fixture,
+                code,
+                codeHighlights: [
+                  {
+                    start: {
+                      line: 11,
+                      column: 17,
+                    },
+                    end: {
+                      line: 11,
+                      column: 21,
+                    },
                   },
-                  end: {
-                    line: 11,
-                    column: 21,
-                  },
-                },
-              ],
-            },
+                ],
+              },
+            ],
           },
         ],
       },

@@ -424,19 +424,21 @@ export default (new Transformer({
     if (diagnostics) {
       throw new ThrowableDiagnostic({
         diagnostic: diagnostics.map(diagnostic => ({
-          filePath: asset.filePath,
           message: diagnostic.message,
-          codeFrame: {
-            code: code.toString(),
-            codeHighlights: diagnostic.code_highlights?.map(highlight => {
-              let {start, end} = convertLoc(highlight.loc);
-              return {
-                message: highlight.message,
-                start,
-                end,
-              };
-            }),
-          },
+          codeFrames: [
+            {
+              filePath: asset.filePath,
+              code: code.toString(),
+              codeHighlights: diagnostic.code_highlights?.map(highlight => {
+                let {start, end} = convertLoc(highlight.loc);
+                return {
+                  message: highlight.message,
+                  start,
+                  end,
+                };
+              }),
+            },
+          ],
           hints: diagnostic.hints,
         })),
       });
@@ -449,9 +451,9 @@ export default (new Transformer({
         let loc = convertLoc(script_error_loc);
         let diagnostic = {
           message: err.message,
-          filePath: asset.filePath,
-          codeFrame: [
+          codeFrames: [
             {
+              filePath: asset.filePath,
               codeHighlights: [
                 {
                   start: loc.start,
@@ -464,7 +466,7 @@ export default (new Transformer({
         };
 
         if (asset.env.loc) {
-          diagnostic.codeFrame.push({
+          diagnostic.codeFrames.push({
             filePath: asset.env.loc.filePath,
             codeHighlights: [
               {
@@ -547,15 +549,17 @@ export default (new Transformer({
             let diagnostic = [
               {
                 message: 'importScripts() is not supported in module workers.',
-                filePath: asset.filePath,
-                codeFrame: {
-                  codeHighlights: [
-                    {
-                      start: loc.start,
-                      end: loc.end,
-                    },
-                  ],
-                },
+                codeFrames: [
+                  {
+                    filePath: asset.filePath,
+                    codeHighlights: [
+                      {
+                        start: loc.start,
+                        end: loc.end,
+                      },
+                    ],
+                  },
+                ],
                 hints: [
                   'Try using a static `import`, or dynamic `import()` instead.',
                 ],
@@ -590,9 +594,9 @@ export default (new Transformer({
             let loc = convertLoc(dep.loc);
             let diagnostic = {
               message: 'import() is not allowed in worklets.',
-              filePath: asset.filePath,
-              codeFrame: [
+              codeFrames: [
                 {
+                  filePath: asset.filePath,
                   codeHighlights: [
                     {
                       start: loc.start,
@@ -605,7 +609,7 @@ export default (new Transformer({
             };
 
             if (asset.env.loc) {
-              diagnostic.codeFrame.push({
+              diagnostic.codeFrames.push({
                 filePath: asset.env.loc.filePath,
                 codeHighlights: [
                   {

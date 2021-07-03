@@ -192,6 +192,7 @@ function getValidateResultFromDiagnostics(
           }
 
           codeframe = {
+            filePath: filename,
             code: source,
             codeHighlights: [
               {
@@ -207,8 +208,7 @@ function getValidateResultFromDiagnostics(
       validatorResult.errors.push({
         origin: '@parcel/validator-typescript',
         message: diagnosticMessage,
-        filePath: filename,
-        codeFrame: codeframe ? codeframe : undefined,
+        codeFrames: codeframe ? [codeframe] : undefined,
       });
     }
   }

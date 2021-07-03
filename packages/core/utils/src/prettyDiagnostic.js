@@ -20,20 +20,7 @@ export default async function prettyDiagnostic(
   options?: PluginOptions,
   terminalWidth?: number,
 ): Promise<AnsiDiagnosticResult> {
-  let {
-    origin,
-    message,
-    stack,
-    codeFrame,
-    hints,
-    filePath,
-    language,
-    skipFormatting,
-  } = diagnostic;
-
-  if (filePath != null && options && !path.isAbsolute(filePath)) {
-    filePath = path.join(options.projectRoot, filePath);
-  }
+  let {origin, message, stack, codeFrames, hints, skipFormatting} = diagnostic;
 
   let result = {
     message:
@@ -44,10 +31,9 @@ export default async function prettyDiagnostic(
     hints: [],
   };
 
-  if (codeFrame != null) {
-    let codeFrames = Array.isArray(codeFrame) ? codeFrame : [codeFrame];
+  if (codeFrames != null) {
     for (let codeFrame of codeFrames) {
-      let filePath = codeFrame.filePath ?? diagnostic.filePath;
+      let filePath = codeFrame.filePath;
       if (filePath != null && options && !path.isAbsolute(filePath)) {
         filePath = path.join(options.projectRoot, filePath);
       }
@@ -65,7 +51,7 @@ export default async function prettyDiagnostic(
           syntaxHighlighting: true,
           language:
             // $FlowFixMe sketchy null checks do not matter here...
-            language ||
+            codeFrame.language ||
             (filePath != null ? path.extname(filePath).substr(1) : undefined),
           terminalWidth,
         });
@@ -82,14 +68,10 @@ export default async function prettyDiagnostic(
         result.codeframe += '\n\n';
       }
     }
-  } else if (typeof filePath === 'string') {
-    result.codeframe += chalk.underline(filePath);
   }
 
   if (stack != null) {
     result.stack = stack;
-  } else if (filePath != null && result.codeframe == null) {
-    result.stack = filePath;
   }
 
   if (Array.isArray(hints) && hints.length) {

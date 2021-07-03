@@ -30,6 +30,6 @@
     "string-width": "^4.2.0",
     "strip-ansi": "^6.0.0",
     "term-size": "^2.2.1",
-    "wrap-ansi": "^8.0.0"
+    "wrap-ansi": "^7.0.0"
   }
 }

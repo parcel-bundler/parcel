@@ -1213,13 +1213,13 @@ describe('html', function() {
       assert.deepEqual(err.diagnostics, [
         {
           message: 'Browser scripts cannot have imports or exports.',
-          filePath: path.join(
-            __dirname,
-            '/integration/html-inline-js-script/error.html',
-          ),
           origin: '@parcel/transformer-js',
-          codeFrame: [
+          codeFrames: [
             {
+              filePath: path.join(
+                __dirname,
+                '/integration/html-inline-js-script/error.html',
+              ),
               codeHighlights: [
                 {
                   start: {
@@ -1480,10 +1480,10 @@ describe('html', function() {
       assert.deepEqual(err.diagnostics, [
         {
           message: 'Browser scripts cannot have imports or exports.',
-          filePath: path.join(__dirname, '/integration/html-js/index.js'),
           origin: '@parcel/transformer-js',
-          codeFrame: [
+          codeFrames: [
             {
+              filePath: path.join(__dirname, '/integration/html-js/index.js'),
               codeHighlights: [
                 {
                   start: {
@@ -2242,24 +2242,26 @@ describe('html', function() {
         {
           message: 'Invalid config for @parcel/bundler-default',
           origin: '@parcel/bundler-default',
-          filePath: pkg,
-          language: 'json',
-          codeFrame: {
-            code,
-            codeHighlights: [
-              {
-                message: 'Did you mean "minBundleSize", "minBundles"?',
-                start: {
-                  column: 30,
-                  line: 3,
+          codeFrames: [
+            {
+              filePath: pkg,
+              language: 'json',
+              code,
+              codeHighlights: [
+                {
+                  message: 'Did you mean "minBundleSize", "minBundles"?',
+                  start: {
+                    column: 30,
+                    line: 3,
+                  },
+                  end: {
+                    column: 45,
+                    line: 3,
+                  },
                 },
-                end: {
-                  column: 45,
-                  line: 3,
-                },
-              },
-            ],
-          },
+              ],
+            },
+          ],
         },
       ],
     });

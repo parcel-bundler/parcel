@@ -92,7 +92,7 @@ describe('resolver', function() {
         ),
       );
 
-      assert.deepEqual(e.diagnostics[0].codeFrame.codeHighlights[0], {
+      assert.deepEqual(e.diagnostics[0].codeFrames[0].codeHighlights[0], {
         start: {line: 1, column: 8},
         end: {line: 1, column: 25},
       });
@@ -116,7 +116,7 @@ describe('resolver', function() {
         ),
       );
 
-      assert.deepEqual(e.diagnostics[0].codeFrame.codeHighlights[0], {
+      assert.deepEqual(e.diagnostics[0].codeFrames[0].codeHighlights[0], {
         start: {line: 1, column: 9},
         end: {line: 1, column: 32},
       });
@@ -139,7 +139,7 @@ describe('resolver', function() {
         `Could not load './entryx.js' from module 'invalid-module' found in package.json#main`,
       );
 
-      assert.deepEqual(e.diagnostics[1].codeFrame.codeHighlights[0], {
+      assert.deepEqual(e.diagnostics[1].codeFrames[0].codeHighlights[0], {
         end: {
           column: 25,
           line: 4,
