@@ -337,7 +337,7 @@ export async function runBundles(
     for (let [code, b] of bundles) {
       // require, parcelRequire was set up in prepare*Context
       new vm.Script((opts.strict ? '"use strict";\n' : '') + code, {
-        filename: b.name,
+        filename: path.basename(b.filePath),
         async importModuleDynamically(specifier) {
           let filePath = path.resolve(path.dirname(parent.filePath), specifier);
           let code = await overlayFS.readFile(filePath, 'utf8');

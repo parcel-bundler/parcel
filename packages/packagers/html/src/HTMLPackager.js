@@ -171,7 +171,11 @@ function insertBundleReferences(siblingBundles, tree) {
         tag: 'script',
         attrs: {
           type: bundle.env.outputFormat === 'esmodule' ? 'module' : undefined,
-          nomodule: bundle.env.outputFormat !== 'esmodule' ? '' : undefined,
+          nomodule:
+            bundle.env.outputFormat !== 'esmodule' &&
+            bundle.env.shouldScopeHoist
+              ? ''
+              : undefined,
           src: urlJoin(bundle.target.publicUrl, bundle.name),
         },
       });
