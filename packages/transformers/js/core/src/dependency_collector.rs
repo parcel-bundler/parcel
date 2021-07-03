@@ -607,6 +607,8 @@ impl<'a> Fold for DependencyCollector<'a> {
   }
 
   fn fold_expr(&mut self, node: ast::Expr) -> ast::Expr {
+    use ast::*;
+
     if let Some((specifier, span)) = match_import_meta_url(&node, self.decls) {
       self.add_dependency(
         specifier.clone(),
@@ -619,11 +621,27 @@ impl<'a> Fold for DependencyCollector<'a> {
       return ast::Expr::Call(self.create_require(specifier));
     }
 
-    if let ast::Expr::Ident(ast::Ident { sym, span, .. }) = &node {
-      // Replace free usages of `require` with `undefined`
-      if sym == &js_word!("require") && !self.decls.contains(&(sym.clone(), span.ctxt())) {
-        return ast::Expr::Ident(ast::Ident::new("undefined".into(), DUMMY_SP));
+    let is_require = match &node {
+      Expr::Ident(Ident { sym, span, .. }) => {
+        // Free `require` -> undefined
+        sym == &js_word!("require") && !self.decls.contains(&(sym.clone(), span.ctxt()))
       }
+      Expr::Member(MemberExpr {
+        obj: ExprOrSuper::Expr(expr),
+        ..
+      }) => {
+        // e.g. `require.extensions` -> undefined
+        if let Expr::Ident(Ident { sym, span, .. }) = &**expr {
+          sym == &js_word!("require") && !self.decls.contains(&(sym.clone(), span.ctxt()))
+        } else {
+          false
+        }
+      }
+      _ => false,
+    };
+
+    if is_require {
+      return ast::Expr::Ident(ast::Ident::new("undefined".into(), DUMMY_SP));
     }
 
     node.fold_children_with(self)

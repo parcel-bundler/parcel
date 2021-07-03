@@ -4764,6 +4764,17 @@ describe('scope hoisting', function() {
       assert.equal(await run(b), 'foo');
     });
 
+    it('replaces properties of require with undefined', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/require-extensions/index.js',
+        ),
+      );
+
+      await run(b);
+    });
+
     it('should support two aliases to the same module', async function() {
       let b = await bundle(
         path.join(
