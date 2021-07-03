@@ -1,13 +1,27 @@
 // @flow strict-local
 
 import htmlnano from 'htmlnano';
-import {loadConfig} from '@parcel/utils';
 import {Optimizer} from '@parcel/plugin';
 import posthtml from 'posthtml';
 import path from 'path';
 
 export default (new Optimizer({
-  async optimize({bundle, contents, map, options}) {
+  async loadConfig({config, options}) {
+    let userConfig = await config.getConfigFrom(
+      path.join(options.entryRoot, 'index.html'),
+      ['.htmlnanorc', '.htmlnanorc.js'],
+    );
+
+    if (userConfig) {
+      let isJavascript = path.extname(userConfig.filePath) === '.js';
+      if (isJavascript) {
+        config.invalidateOnStartup();
+      }
+    }
+
+    return userConfig?.contents;
+  },
+  async optimize({bundle, contents, map, config, options}) {
     if (!bundle.env.shouldOptimize) {
       return {contents, map};
     }
@@ -18,16 +32,9 @@ export default (new Optimizer({
       );
     }
 
-    let userConfig = await loadConfig(
-      options.inputFS,
-      path.join(options.entryRoot, 'index.html'),
-      ['.htmlnanorc', '.htmlnanorc.js'],
-      options.projectRoot,
-    );
-
     const htmlNanoConfig = {
       minifyJs: false,
-      ...userConfig?.config,
+      ...config,
     };
 
     return {
