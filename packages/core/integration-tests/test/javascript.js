@@ -2163,8 +2163,8 @@ describe('javascript', function() {
     assert(!js.includes('local.a'));
   });
 
-  it('should use uglify config', async function() {
-    await bundle(path.join(__dirname, '/integration/uglify-config/index.js'), {
+  it('should use terser config', async function() {
+    await bundle(path.join(__dirname, '/integration/terser-config/index.js'), {
       defaultTargetOptions: {
         shouldOptimize: true,
         shouldScopeHoist: false,

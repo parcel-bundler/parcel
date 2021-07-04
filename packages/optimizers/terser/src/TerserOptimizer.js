@@ -13,7 +13,7 @@ export default (new Optimizer({
   async loadConfig({config, options}) {
     let userConfig = await config.getConfigFrom(
       path.join(options.entryRoot, 'index'),
-      ['.terserrc', '.uglifyrc', '.uglifyrc.js', '.terserrc.js'],
+      ['.terserrc', '.terserrc.js'],
     );
 
     if (userConfig) {
