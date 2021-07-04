@@ -4,13 +4,20 @@ import path from 'path';
 describe('xml', function() {
   it('should detect xml-stylesheet processing instructions', async function() {
     let b = await bundle(
-      path.join(__dirname, '/integration/xml-processing-instruction/index.xml'),
+      path.join(
+        __dirname,
+        '/integration/xml-stylesheet-processing-instruction/index.html',
+      ),
     );
 
     assertBundles(b, [
       {
-        name: 'index.xml',
-        assets: ['index.xml'],
+        name: 'index.html',
+        assets: ['index.html'],
+      },
+      {
+        type: 'xml',
+        assets: ['styled.xml'],
       },
       {
         type: 'css',
