@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use serde::{Deserialize, Serialize};
 use swc_atoms::JsWord;
-use swc_common::{SyntaxContext, DUMMY_SP};
+use swc_common::{Mark, Span, SyntaxContext, DUMMY_SP};
 use swc_ecmascript::ast;
 
 pub fn match_member_expr(
@@ -71,6 +71,82 @@ pub fn create_require(specifier: swc_atoms::JsWord) -> ast::CallExpr {
     }],
     span: DUMMY_SP,
     type_args: None,
+  }
+}
+
+fn is_marked(span: Span, mark: Mark) -> bool {
+  let mut ctxt = span.ctxt().clone();
+
+  loop {
+    let m = ctxt.remove_mark();
+    if m == Mark::root() {
+      return false;
+    }
+
+    if m == mark {
+      return true;
+    }
+  }
+}
+
+pub fn match_require(
+  node: &ast::Expr,
+  decls: &HashSet<(JsWord, SyntaxContext)>,
+  ignore_mark: Mark,
+) -> Option<JsWord> {
+  use ast::*;
+
+  match node {
+    Expr::Call(call) => match &call.callee {
+      ExprOrSuper::Expr(expr) => match &**expr {
+        Expr::Ident(ident) => {
+          if ident.sym == js_word!("require")
+            && !decls.contains(&(ident.sym.clone(), ident.span.ctxt))
+            && !is_marked(ident.span, ignore_mark)
+          {
+            if let Some(arg) = call.args.get(0) {
+              if let Expr::Lit(lit) = &*arg.expr {
+                if let Lit::Str(str_) = lit {
+                  return Some(str_.value.clone());
+                }
+              }
+            }
+          }
+
+          None
+        }
+        _ => None,
+      },
+      _ => None,
+    },
+    _ => None,
+  }
+}
+
+pub fn match_import(node: &ast::Expr, ignore_mark: Mark) -> Option<JsWord> {
+  use ast::*;
+
+  match node {
+    Expr::Call(call) => match &call.callee {
+      ExprOrSuper::Expr(expr) => match &**expr {
+        Expr::Ident(ident) => {
+          if ident.sym == js_word!("import") && !is_marked(ident.span, ignore_mark) {
+            if let Some(arg) = call.args.get(0) {
+              if let Expr::Lit(lit) = &*arg.expr {
+                if let Lit::Str(str_) = lit {
+                  return Some(str_.value.clone());
+                }
+              }
+            }
+          }
+
+          None
+        }
+        _ => None,
+      },
+      _ => None,
+    },
+    _ => None,
   }
 }
 

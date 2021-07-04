@@ -3,8 +3,9 @@ use std::fmt;
 
 use serde::{Deserialize, Serialize};
 use swc_atoms::JsWord;
-use swc_common::{SourceMap, SyntaxContext, DUMMY_SP};
+use swc_common::{Mark, SourceMap, SyntaxContext, DUMMY_SP};
 use swc_ecmascript::ast;
+use swc_ecmascript::utils::ident::IdentLike;
 use swc_ecmascript::visit::{Fold, FoldWith};
 
 use crate::utils::*;
@@ -236,7 +237,7 @@ impl<'a> Fold for DependencyCollector<'a> {
     let kind = match &*call_expr {
       Ident(ident) => {
         // Bail if defined in scope
-        if self.decls.contains(&(ident.sym.clone(), ident.span.ctxt())) {
+        if self.decls.contains(&ident.to_id()) {
           return node.fold_children_with(self);
         }
 
@@ -284,10 +285,14 @@ impl<'a> Fold for DependencyCollector<'a> {
           // Match compiled dynamic imports (Parcel)
           // Promise.resolve(require('foo'))
           if match_member_expr(member, vec!["Promise", "resolve"], self.decls) {
-            self.in_promise = true;
-            let node = node.fold_children_with(self);
-            self.in_promise = was_in_promise;
-            return node;
+            if let Some(expr) = node.args.get(0) {
+              if let Some(_) = match_require(&*expr.expr, self.decls, Mark::fresh(Mark::root())) {
+                self.in_promise = true;
+                let node = node.fold_children_with(self);
+                self.in_promise = was_in_promise;
+                return node;
+              }
+            }
           }
 
           // Match compiled dynamic imports (TypeScript)
@@ -521,18 +526,14 @@ impl<'a> Fold for DependencyCollector<'a> {
         match id.sym {
           js_word!("Worker") | js_word!("SharedWorker") => {
             // Bail if defined in scope
-            !self.decls.contains(&(id.sym.clone(), id.span.ctxt()))
+            !self.decls.contains(&id.to_id())
           }
           js_word!("Promise") => {
             // Match requires inside promises (e.g. Rollup compiled dynamic imports)
             // new Promise(resolve => resolve(require('foo')))
             // new Promise(resolve => { resolve(require('foo')) })
             // new Promise(function (resolve) { resolve(require('foo')) })
-            let was_in_promise = self.in_promise;
-            self.in_promise = true;
-            let node = swc_ecmascript::visit::fold_new_expr(self, node);
-            self.in_promise = was_in_promise;
-            return node;
+            return self.fold_new_promise(node);
           }
           _ => false,
         }
@@ -645,6 +646,90 @@ impl<'a> Fold for DependencyCollector<'a> {
     }
 
     node.fold_children_with(self)
+  }
+}
+
+impl<'a> DependencyCollector<'a> {
+  fn fold_new_promise(&mut self, node: ast::NewExpr) -> ast::NewExpr {
+    use ast::Expr::*;
+
+    // Match requires inside promises (e.g. Rollup compiled dynamic imports)
+    // new Promise(resolve => resolve(require('foo')))
+    // new Promise(resolve => { resolve(require('foo')) })
+    // new Promise(function (resolve) { resolve(require('foo')) })
+    // new Promise(function (resolve) { return resolve(require('foo')) })
+    if let Some(args) = &node.args {
+      if let Some(arg) = args.get(0) {
+        let (resolve, expr) = match &*arg.expr {
+          Fn(f) => {
+            let param = if let Some(param) = f.function.params.get(0) {
+              Some(&param.pat)
+            } else {
+              None
+            };
+            let body = if let Some(body) = &f.function.body {
+              self.match_block_stmt_expr(body)
+            } else {
+              None
+            };
+            (param, body)
+          }
+          Arrow(f) => {
+            let param = f.params.get(0);
+            let body = match &f.body {
+              ast::BlockStmtOrExpr::Expr(expr) => Some(&**expr),
+              ast::BlockStmtOrExpr::BlockStmt(block) => self.match_block_stmt_expr(block),
+            };
+            (param, body)
+          }
+          _ => (None, None),
+        };
+
+        let resolve_id = match resolve {
+          Some(ast::Pat::Ident(id)) => id.to_id(),
+          _ => return node.fold_children_with(self),
+        };
+
+        match expr {
+          Some(ast::Expr::Call(call)) => {
+            if let ast::ExprOrSuper::Expr(callee) = &call.callee {
+              if let ast::Expr::Ident(id) = &**callee {
+                if id.to_id() == resolve_id {
+                  if let Some(arg) = call.args.get(0) {
+                    if let Some(_) =
+                      match_require(&*arg.expr, self.decls, Mark::fresh(Mark::root()))
+                    {
+                      let was_in_promise = self.in_promise;
+                      self.in_promise = true;
+                      let node = node.fold_children_with(self);
+                      self.in_promise = was_in_promise;
+                      return node;
+                    }
+                  }
+                }
+              }
+            }
+          }
+          _ => {}
+        }
+      }
+    }
+
+    return node.fold_children_with(self);
+  }
+
+  fn match_block_stmt_expr<'x>(&self, block: &'x ast::BlockStmt) -> Option<&'x ast::Expr> {
+    match block.stmts.last() {
+      Some(ast::Stmt::Expr(ast::ExprStmt { expr, .. })) => Some(&**expr),
+      Some(ast::Stmt::Return(ast::ReturnStmt { arg, .. })) => {
+        if let Some(arg) = arg {
+          Some(&**arg)
+        } else {
+          None
+        }
+      }
+      _ => None,
+    }
   }
 }
 
@@ -799,9 +884,7 @@ fn match_import_meta_url(
   match expr {
     ast::Expr::New(new) => {
       let is_url = match &*new.callee {
-        ast::Expr::Ident(id) => {
-          id.sym == js_word!("URL") && !decls.contains(&(id.sym.clone(), id.span.ctxt()))
-        }
+        ast::Expr::Ident(id) => id.sym == js_word!("URL") && !decls.contains(&id.to_id()),
         _ => false,
       };
 

@@ -3569,6 +3569,21 @@ describe('javascript', function() {
     assert.equal(await run(b), 2);
   });
 
+  it('should only detect requires that are returned from the promise', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/require-async/sync.js'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'sync.js',
+        assets: ['sync.js', 'async.js'],
+      },
+    ]);
+
+    assert.equal(await run(b), 5);
+  });
+
   it('should detect parcel style async requires in commonjs', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/require-async/parcel.js'),
