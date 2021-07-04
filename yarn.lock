@@ -1275,6 +1275,11 @@
     unique-filename "^1.1.1"
     which "^1.3.1"
 
+"@hpcc-js/wasm@^1.6.0":
+  version "1.6.0"
+  resolved "https://registry.yarnpkg.com/@hpcc-js/wasm/-/wasm-1.6.0.tgz#05219c1d5ebd60ec049cd7e052cf1fd702f7b9c1"
+  integrity sha512-yC6PSF7NvqzCOkTkaDyKJV4vZQAvM5HsT1AW3ADDnotq99dunDMhShwEom5s43Zoi8JkqncSeNdatqfFwce2Fg==
+
 "@iarna/toml@^2.2.0", "@iarna/toml@^2.2.3":
   version "2.2.3"
   resolved "https://registry.yarnpkg.com/@iarna/toml/-/toml-2.2.3.tgz#f060bf6eaafae4d56a7dac618980838b0696e2ab"
