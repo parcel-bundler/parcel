@@ -21,7 +21,7 @@ export default (new Optimizer({
 
     return userConfig?.contents;
   },
-  async optimize({bundle, contents, map, config, options}) {
+  async optimize({bundle, contents, map, config}) {
     if (!bundle.env.shouldOptimize) {
       return {contents, map};
     }
