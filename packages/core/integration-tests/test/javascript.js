@@ -35,26 +35,6 @@ describe('javascript', function() {
     assert.equal(output(), 3);
   });
 
-  it('should import child bundles using a require call in CommonJS', async function() {
-    let b = await bundle(
-      path.join(__dirname, '/integration/commonjs-bundle-require/index.js'),
-    );
-
-    assertBundles(b, [
-      {
-        name: 'index.js',
-        assets: ['index.js'],
-      },
-      {
-        assets: ['local.js'],
-      },
-    ]);
-
-    let output = await run(b);
-    assert.strictEqual(typeof output.double, 'function');
-    assert.strictEqual(output.double(3), 6);
-  });
-
   it('should support url: imports with CommonJS output', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/commonjs-import-url/index.js'),
@@ -63,7 +43,7 @@ describe('javascript', function() {
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: ['bundle-url.js', 'index.js', 'esmodule-helpers.js'],
+        assets: ['index.js', 'esmodule-helpers.js'],
       },
       {
         type: 'txt',
@@ -879,7 +859,7 @@ describe('javascript', function() {
         },
         {
           name: 'index.js',
-          assets: ['index.js', 'bundle-url.js', 'get-worker-url.js'],
+          assets: ['index.js', 'bundle-manifest.js', 'get-worker-url.js'],
         },
         {
           assets: [
@@ -941,7 +921,7 @@ describe('javascript', function() {
         },
         {
           name: 'index.js',
-          assets: ['index.js', 'bundle-url.js', 'get-worker-url.js'],
+          assets: ['index.js', 'bundle-manifest.js', 'get-worker-url.js'],
         },
         {
           type: 'js',

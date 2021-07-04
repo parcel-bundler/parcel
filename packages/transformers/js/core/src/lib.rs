@@ -74,6 +74,7 @@ pub struct Config {
   scope_hoist: bool,
   source_type: SourceType,
   supports_module_workers: bool,
+  is_library: bool,
 }
 
 #[derive(Serialize, Debug, Deserialize, Default)]
@@ -318,6 +319,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                 helpers::inject_helpers(),
                 // Collect dependencies
                 dependency_collector(
+                  &config.filename,
                   &source_map,
                   &mut result.dependencies,
                   &decls,
@@ -325,6 +327,8 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                   config.scope_hoist,
                   config.source_type,
                   config.supports_module_workers,
+                  config.is_library,
+                  config.is_browser,
                   &mut result.script_error_loc,
                 ),
               );

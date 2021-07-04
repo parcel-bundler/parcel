@@ -55,8 +55,8 @@ export function replaceURLReferences({
 
     let resolved = bundleGraph.getReferencedBundle(dependency, bundle);
     if (resolved == null) {
-      replacements.set(dependency.id, {
-        from: dependency.id,
+      replacements.set(dependency.meta?.placeholder ?? dependency.id, {
+        from: dependency.meta?.placeholder ?? dependency.id,
         to: dependency.specifier,
       });
       continue;
@@ -69,7 +69,7 @@ export function replaceURLReferences({
     }
 
     replacements.set(
-      dependency.id,
+      dependency.meta?.placeholder ?? dependency.id,
       getURLReplacement({
         dependency,
         fromBundle: bundle,
@@ -173,7 +173,7 @@ export function getURLReplacement({
   }
 
   return {
-    from: dependency.id,
+    from: dependency.meta?.placeholder ?? dependency.id,
     to,
   };
 }

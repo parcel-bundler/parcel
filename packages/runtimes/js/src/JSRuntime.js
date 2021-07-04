@@ -181,21 +181,9 @@ export default (new Runtime({
         }),
       );
 
-      if (
-        bundle.env.outputFormat === 'commonjs' &&
-        mainBundle.type === 'js' &&
-        dependency.specifierType !== 'url'
-      ) {
-        assets.push({
-          filePath: __filename,
-          dependency,
-          code: `module.exports = __parcel__require__("./" + ${getRelativePathExpr(
-            bundle,
-            mainBundle,
-            options,
-          )})`,
-          env: {sourceType: 'module'},
-        });
+      // Skip URL runtimes for library builds. This is handled in packaging so that
+      // the url is inlined and statically analyzable.
+      if (bundle.env.isLibrary && dependency.meta?.placeholder) {
         continue;
       }
 
@@ -606,12 +594,14 @@ function getRelativePathExpr(
 }
 
 function getAbsoluteUrlExpr(relativePathExpr: string, bundle: Bundle) {
+  // Always use `new URL` for libraries so that they can be statically analyzed by another bundler.
   if (
-    bundle.env.outputFormat === 'esmodule' &&
-    (bundle.env.isLibrary || bundle.env.supports('import-meta-url'))
+    bundle.env.isLibrary ||
+    (bundle.env.outputFormat === 'esmodule' &&
+      bundle.env.supports('import-meta-url'))
   ) {
     return `new __parcel__URL__(${relativePathExpr}, import.meta.url).toString()`;
-  } else if (bundle.env.outputFormat === 'commonjs') {
+  } else if (bundle.env.outputFormat === 'commonjs' || bundle.env.isNode()) {
     return `require('path').join(__dirname, ${relativePathExpr})`;
   } else {
     return `require('./bundle-url').getBundleURL() + ${relativePathExpr}`;

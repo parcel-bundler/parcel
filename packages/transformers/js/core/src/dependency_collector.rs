@@ -9,6 +9,16 @@ use swc_ecmascript::visit::{Fold, FoldWith};
 
 use crate::utils::*;
 
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
+macro_rules! hash {
+  ($str:expr) => {{
+    let mut hasher = DefaultHasher::new();
+    $str.hash(&mut hasher);
+    hasher.finish()
+  }};
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum DependencyKind {
   Import,
@@ -39,10 +49,12 @@ pub struct DependencyDescriptor {
   pub is_optional: bool,
   pub is_helper: bool,
   pub source_type: Option<SourceType>,
+  pub placeholder: Option<String>,
 }
 
 /// This pass collects dependencies in a module and compiles references as needed to work with Parcel's JSRuntime.
 pub fn dependency_collector<'a>(
+  filename: &'a str,
   source_map: &'a SourceMap,
   items: &'a mut Vec<DependencyDescriptor>,
   decls: &'a HashSet<(JsWord, SyntaxContext)>,
@@ -50,9 +62,12 @@ pub fn dependency_collector<'a>(
   scope_hoist: bool,
   source_type: SourceType,
   supports_module_workers: bool,
+  is_library: bool,
+  is_browser: bool,
   script_error_loc: &'a mut Option<SourceLocation>,
 ) -> impl Fold + 'a {
   DependencyCollector {
+    filename,
     source_map,
     items,
     in_try: false,
@@ -63,11 +78,14 @@ pub fn dependency_collector<'a>(
     scope_hoist,
     source_type,
     supports_module_workers,
+    is_library,
+    is_browser,
     script_error_loc,
   }
 }
 
 struct DependencyCollector<'a> {
+  filename: &'a str,
   source_map: &'a SourceMap,
   items: &'a mut Vec<DependencyDescriptor>,
   in_try: bool,
@@ -78,6 +96,8 @@ struct DependencyCollector<'a> {
   scope_hoist: bool,
   source_type: SourceType,
   supports_module_workers: bool,
+  is_library: bool,
+  is_browser: bool,
   script_error_loc: &'a mut Option<SourceLocation>,
 }
 
@@ -99,7 +119,50 @@ impl<'a> DependencyCollector<'a> {
       is_optional,
       is_helper: span.is_dummy(),
       source_type: Some(source_type),
+      placeholder: None,
     });
+  }
+
+  fn add_url_dependency(
+    &mut self,
+    specifier: JsWord,
+    span: swc_common::Span,
+    kind: DependencyKind,
+    source_type: SourceType,
+  ) -> ast::Expr {
+    // If not a library, replace with a require call pointing to a runtime that will resolve the url dynamically.
+    if !self.is_library {
+      self.add_dependency(specifier.clone(), span, kind, None, false, source_type);
+      return ast::Expr::Call(self.create_require(specifier));
+    }
+
+    // For library builds, we need to create something that can be statically analyzed by another bundler,
+    // so rather than replacing with a require call that is resolved by a runtime, replace with a `new URL`
+    // call with a placeholder for the relative path to be replaced during packaging.
+    let placeholder = format!(
+      "{:x}",
+      hash!(format!(
+        "parcel_url:{}:{}:{}",
+        self.filename, specifier, kind
+      ))
+    );
+    self.items.push(DependencyDescriptor {
+      kind,
+      loc: SourceLocation::from(self.source_map, span),
+      specifier,
+      attributes: None,
+      is_optional: false,
+      is_helper: span.is_dummy(),
+      source_type: Some(source_type),
+      placeholder: Some(placeholder.clone()),
+    });
+
+    create_url_constructor(ast::Expr::Lit(ast::Lit::Str(ast::Str {
+      span,
+      value: placeholder.into(),
+      kind: ast::StrKind::Synthesized,
+      has_escape: false,
+    })))
   }
 
   fn create_require(&mut self, specifier: JsWord) -> ast::CallExpr {
@@ -270,13 +333,17 @@ impl<'a> Fold for DependencyCollector<'a> {
         }
       }
       Member(member) => {
-        if match_member_expr(
-          member,
-          vec!["navigator", "serviceWorker", "register"],
-          self.decls,
-        ) {
+        if self.is_browser
+          && match_member_expr(
+            member,
+            vec!["navigator", "serviceWorker", "register"],
+            self.decls,
+          )
+        {
           DependencyKind::ServiceWorker
-        } else if match_member_expr(member, vec!["CSS", "paintWorklet", "addModule"], self.decls) {
+        } else if self.is_browser
+          && match_member_expr(member, vec!["CSS", "paintWorklet", "addModule"], self.decls)
+        {
           DependencyKind::Worklet
         } else {
           let was_in_promise = self.in_promise;
@@ -422,16 +489,9 @@ impl<'a> Fold for DependencyCollector<'a> {
           return node;
         };
 
-        self.add_dependency(
-          specifier.clone(),
-          span,
-          kind.clone(),
-          attributes,
-          false,
-          source_type,
-        );
+        node.args[0].expr =
+          Box::new(self.add_url_dependency(specifier.clone(), span, kind.clone(), source_type));
 
-        node.args[0].expr = Box::new(Call(self.create_require(specifier)));
         match opts {
           Some(opts) => {
             node.args[1] = opts;
@@ -521,7 +581,7 @@ impl<'a> Fold for DependencyCollector<'a> {
         match &id.sym {
           &js_word!("Worker") | &js_word!("SharedWorker") => {
             // Bail if defined in scope
-            !self.decls.contains(&(id.sym.clone(), id.span.ctxt()))
+            self.is_browser && !self.decls.contains(&(id.sym.clone(), id.span.ctxt()))
           }
           &js_word!("Promise") => {
             // Match requires inside promises (e.g. Rollup compiled dynamic imports)
@@ -569,19 +629,17 @@ impl<'a> Fold for DependencyCollector<'a> {
         };
 
         let (source_type, opts) = match_worker_type(args.get(1));
-        self.add_dependency(
+        let placeholder = self.add_url_dependency(
           specifier.clone(),
           span,
           DependencyKind::WebWorker,
-          None,
-          false,
           source_type,
         );
 
         // Replace argument with a require call to resolve the URL at runtime.
         let mut node = node.clone();
         if let Some(mut args) = node.args.clone() {
-          args[0].expr = Box::new(Call(self.create_require(specifier)));
+          args[0].expr = Box::new(placeholder);
 
           // If module workers aren't supported natively, remove the `type: 'module'` option.
           // If no other options are passed, remove the argument entirely.
@@ -618,15 +676,12 @@ impl<'a> Fold for DependencyCollector<'a> {
 
   fn fold_expr(&mut self, node: ast::Expr) -> ast::Expr {
     if let Some((specifier, span)) = match_import_meta_url(&node, self.decls) {
-      self.add_dependency(
+      return self.add_url_dependency(
         specifier.clone(),
         span,
         DependencyKind::URL,
-        None,
-        false,
         self.source_type,
       );
-      return ast::Expr::Call(self.create_require(specifier));
     }
 
     if let ast::Expr::Ident(ast::Ident { sym, span, .. }) = &node {
@@ -731,6 +786,33 @@ fn build_promise_chain(node: ast::CallExpr, require_node: ast::CallExpr) -> ast:
   }
 
   return node;
+}
+
+fn create_url_constructor(url: ast::Expr) -> ast::Expr {
+  use ast::*;
+  Expr::New(NewExpr {
+    span: DUMMY_SP,
+    callee: Box::new(Expr::Ident(Ident::new(js_word!("URL"), DUMMY_SP))),
+    args: Some(vec![
+      ExprOrSpread {
+        expr: Box::new(url),
+        spread: None,
+      },
+      ExprOrSpread {
+        expr: Box::new(Expr::Member(MemberExpr {
+          span: DUMMY_SP,
+          obj: ExprOrSuper::Expr(Box::new(Expr::MetaProp(MetaPropExpr {
+            meta: Ident::new(js_word!("import"), DUMMY_SP),
+            prop: Ident::new(js_word!("meta"), DUMMY_SP),
+          }))),
+          prop: Box::new(Expr::Ident(Ident::new(js_word!("url"), DUMMY_SP))),
+          computed: false,
+        })),
+        spread: None,
+      },
+    ]),
+    type_args: None,
+  })
 }
 
 struct PromiseTransformer {

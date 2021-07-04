@@ -388,6 +388,7 @@ export default (new Transformer({
         asset.env.shouldScopeHoist && asset.env.sourceType !== 'script',
       source_type: asset.env.sourceType === 'script' ? 'Script' : 'Module',
       supports_module_workers: supportsModuleWorkers,
+      is_library: asset.env.isLibrary,
     });
 
     let convertLoc = loc => {
@@ -509,6 +510,7 @@ export default (new Transformer({
           },
           meta: {
             webworker: true,
+            placeholder: dep.placeholder,
           },
         });
       } else if (dep.kind === 'ServiceWorker') {
@@ -522,6 +524,9 @@ export default (new Transformer({
             outputFormat: 'global', // TODO: module service worker support
             loc,
           },
+          meta: {
+            placeholder: dep.placeholder,
+          },
         });
       } else if (dep.kind === 'Worklet') {
         let loc = convertLoc(dep.loc);
@@ -532,6 +537,9 @@ export default (new Transformer({
             sourceType: 'module',
             outputFormat: 'esmodule', // Worklets require ESM
             loc,
+          },
+          meta: {
+            placeholder: dep.placeholder,
           },
         });
       } else if (dep.kind === 'ImportScripts') {
@@ -569,6 +577,9 @@ export default (new Transformer({
         asset.addURLDependency(dep.specifier, {
           bundleBehavior: 'isolated',
           loc: convertLoc(dep.loc),
+          meta: {
+            placeholder: dep.placeholder,
+          },
         });
       } else if (dep.kind === 'File') {
         asset.invalidateOnFileChange(dep.specifier);

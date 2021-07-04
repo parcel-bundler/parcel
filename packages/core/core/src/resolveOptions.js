@@ -149,6 +149,7 @@ export default async function resolveOptions(
       distDir,
       engines: initialOptions?.defaultTargetOptions?.engines,
       outputFormat: initialOptions?.defaultTargetOptions?.outputFormat,
+      isLibrary: initialOptions?.defaultTargetOptions?.isLibrary,
     },
   };
 }

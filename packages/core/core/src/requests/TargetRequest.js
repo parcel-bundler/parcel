@@ -223,7 +223,9 @@ export class TargetResolver {
               env: createEnvironment({
                 engines: descriptor.engines,
                 context: descriptor.context,
-                isLibrary: descriptor.isLibrary,
+                isLibrary:
+                  descriptor.isLibrary ??
+                  this.options.defaultTargetOptions.isLibrary,
                 includeNodeModules: descriptor.includeNodeModules,
                 outputFormat:
                   descriptor.outputFormat ??
@@ -761,7 +763,9 @@ export class TargetResolver {
               this.options.defaultTargetOptions.outputFormat ??
               inferredOutputFormat ??
               undefined,
-            isLibrary: descriptor.isLibrary,
+            isLibrary:
+              descriptor.isLibrary ??
+              this.options.defaultTargetOptions.isLibrary,
             shouldOptimize:
               this.options.defaultTargetOptions.shouldOptimize &&
               descriptor.optimize !== false,
@@ -787,6 +791,7 @@ export class TargetResolver {
           engines: pkgEngines,
           context,
           outputFormat: this.options.defaultTargetOptions.outputFormat,
+          isLibrary: this.options.defaultTargetOptions.isLibrary,
           shouldOptimize: this.options.defaultTargetOptions.shouldOptimize,
           shouldScopeHoist: this.options.defaultTargetOptions.shouldScopeHoist,
           sourceMap: this.options.defaultTargetOptions.sourceMaps
