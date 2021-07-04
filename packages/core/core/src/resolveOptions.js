@@ -148,6 +148,7 @@ export default async function resolveOptions(
       publicUrl,
       distDir,
       engines: initialOptions?.defaultTargetOptions?.engines,
+      outputFormat: initialOptions?.defaultTargetOptions?.outputFormat,
     },
   };
 }

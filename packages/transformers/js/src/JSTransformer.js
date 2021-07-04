@@ -484,15 +484,18 @@ export default (new Transformer({
     for (let dep of dependencies) {
       if (dep.kind === 'WebWorker') {
         // Use native ES module output if the worker was created with `type: 'module'` and all targets
-        // support native module workers. Only do this if the source type is changing from script to module
-        // though so that assets can be shared between workers and the main thread in the global output format.
-        let outputFormat = asset.env.outputFormat;
+        // support native module workers. Only do this if parent asset output format is also esmodule so that
+        // assets can be shared between workers and the main thread in the global output format.
+        let outputFormat;
         if (
-          asset.env.sourceType === 'script' &&
+          asset.env.outputFormat === 'esmodule' &&
           dep.source_type === 'Module' &&
           supportsModuleWorkers
         ) {
           outputFormat = 'esmodule';
+        } else {
+          outputFormat =
+            asset.env.outputFormat === 'commonjs' ? 'commonjs' : 'global';
         }
 
         let loc = convertLoc(dep.loc);
