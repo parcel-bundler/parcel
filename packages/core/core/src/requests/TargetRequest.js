@@ -227,7 +227,9 @@ export class TargetResolver {
                 context: descriptor.context,
                 isLibrary: descriptor.isLibrary,
                 includeNodeModules: descriptor.includeNodeModules,
-                outputFormat: descriptor.outputFormat,
+                outputFormat:
+                  descriptor.outputFormat ??
+                  this.options.defaultTargetOptions.outputFormat,
                 shouldOptimize:
                   this.options.defaultTargetOptions.shouldOptimize &&
                   descriptor.optimize !== false,
@@ -293,6 +295,7 @@ export class TargetResolver {
               context: 'browser',
               engines: {},
               shouldOptimize: this.options.defaultTargetOptions.shouldOptimize,
+              outputFormat: this.options.defaultTargetOptions.outputFormat,
               shouldScopeHoist: this.options.defaultTargetOptions
                 .shouldScopeHoist,
               sourceMap: this.options.defaultTargetOptions.sourceMaps
@@ -596,6 +599,7 @@ export class TargetResolver {
 
         let outputFormat =
           descriptor.outputFormat ??
+          this.options.defaultTargetOptions.outputFormat ??
           inferredOutputFormat ??
           (targetName === 'module' ? 'esmodule' : 'commonjs');
         let isModule = outputFormat === 'esmodule';
@@ -763,7 +767,10 @@ export class TargetResolver {
             context: descriptor.context,
             includeNodeModules: descriptor.includeNodeModules,
             outputFormat:
-              descriptor.outputFormat ?? inferredOutputFormat ?? undefined,
+              descriptor.outputFormat ??
+              this.options.defaultTargetOptions.outputFormat ??
+              inferredOutputFormat ??
+              undefined,
             isLibrary: descriptor.isLibrary,
             shouldOptimize:
               this.options.defaultTargetOptions.shouldOptimize &&
@@ -789,6 +796,7 @@ export class TargetResolver {
         env: createEnvironment({
           engines: pkgEngines,
           context,
+          outputFormat: this.options.defaultTargetOptions.outputFormat,
           shouldOptimize: this.options.defaultTargetOptions.shouldOptimize,
           shouldScopeHoist: this.options.defaultTargetOptions.shouldScopeHoist,
           sourceMap: this.options.defaultTargetOptions.sourceMaps
