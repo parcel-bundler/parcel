@@ -219,6 +219,7 @@ export class ResolverRunner {
 
         if (result) {
           if (result.meta) {
+            dependency.resolverMeta = result.meta;
             dependency.meta = {
               ...dependency.meta,
               ...result.meta,

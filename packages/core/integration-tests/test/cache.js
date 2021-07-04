@@ -5353,6 +5353,58 @@ describe('cache', function() {
     it('should support updating sideEffects config', function() {});
 
     it('should support removing sideEffects config', function() {});
+
+    it('should wrap modules when they become conditional', async function() {
+      let b = await testCache(
+        {
+          defaultTargetOptions: {
+            shouldScopeHoist: true,
+          },
+          entries: ['a.js'],
+          async setup() {
+            let contents = await overlayFS.readFile(
+              path.join(inputDir, 'a.js'),
+              'utf8',
+            );
+            await overlayFS.writeFile(
+              path.join(inputDir, 'a.js'),
+              contents.replace(/if \(b\) \{((?:.|\n)+)\}/, '$1'),
+            );
+          },
+          async update(b) {
+            let out = [];
+            await run(b.bundleGraph, {
+              b: false,
+              output(o) {
+                out.push(o);
+              },
+            });
+
+            assert.deepEqual(out, ['a', 'b', 'c', 'd']);
+
+            let contents = await overlayFS.readFile(
+              path.join(
+                __dirname,
+                'integration/scope-hoisting/commonjs/require-conditional/a.js',
+              ),
+              'utf8',
+            );
+            await overlayFS.writeFile(path.join(inputDir, 'a.js'), contents);
+          },
+        },
+        'scope-hoisting/commonjs/require-conditional',
+      );
+
+      let out = [];
+      await run(b.bundleGraph, {
+        b: false,
+        output(o) {
+          out.push(o);
+        },
+      });
+
+      assert.deepEqual(out, ['a', 'd']);
+    });
   });
 
   describe('runtime', () => {
