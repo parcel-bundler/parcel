@@ -34,10 +34,6 @@ const INVALID_TARGET_SOURCE_NOT_FILE_FIXTURE_PATH = path.join(
   'fixtures/invalid-target-source-not-file',
 );
 
-function packagePath(fixturePath) {
-  return path.join(path.relative(fs.cwd(), fixturePath), '/package.json');
-}
-
 describe('EntryResolver', function() {
   let entryResolver = new EntryResolver({...DEFAULT_OPTIONS});
 

@@ -82,7 +82,6 @@ async function assertFile(
 ) {
   let source = path.join(entry, relativeSource);
   let stat;
-  let error;
   try {
     stat = await fs.stat(source);
   } catch (err) {
