@@ -311,6 +311,7 @@ export type InitialParcelOptions = {|
     +distDir?: FilePath,
     +engines?: Engines,
     +outputFormat?: OutputFormat,
+    +isLibrary?: boolean,
   |},
 
   +additionalReporters?: Array<{|

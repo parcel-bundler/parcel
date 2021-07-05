@@ -183,7 +183,7 @@ export default (new Runtime({
 
       // Skip URL runtimes for library builds. This is handled in packaging so that
       // the url is inlined and statically analyzable.
-      if (bundle.env.isLibrary && dependency.meta?.placeholder) {
+      if (bundle.env.isLibrary && dependency.meta?.placeholder != null) {
         continue;
       }
 
@@ -593,7 +593,7 @@ function getRelativePathExpr(
   return JSON.stringify(relativePath);
 }
 
-function getAbsoluteUrlExpr(relativePathExpr: string, bundle: Bundle) {
+function getAbsoluteUrlExpr(relativePathExpr: string, bundle: NamedBundle) {
   if (
     bundle.env.outputFormat === 'esmodule' &&
     bundle.env.supports('import-meta-url')
