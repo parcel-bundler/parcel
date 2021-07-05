@@ -594,15 +594,13 @@ function getRelativePathExpr(
 }
 
 function getAbsoluteUrlExpr(relativePathExpr: string, bundle: Bundle) {
-  // Always use `new URL` for libraries so that they can be statically analyzed by another bundler.
   if (
-    bundle.env.isLibrary ||
-    (bundle.env.outputFormat === 'esmodule' &&
-      bundle.env.supports('import-meta-url'))
+    bundle.env.outputFormat === 'esmodule' &&
+    bundle.env.supports('import-meta-url')
   ) {
     return `new __parcel__URL__(${relativePathExpr}, import.meta.url).toString()`;
   } else if (bundle.env.outputFormat === 'commonjs' || bundle.env.isNode()) {
-    return `require('path').join(__dirname, ${relativePathExpr})`;
+    return `new __parcel__URL__(${relativePathExpr}, 'file:' + __filename).toString()`;
   } else {
     return `require('./bundle-url').getBundleURL() + ${relativePathExpr}`;
   }

@@ -2025,6 +2025,33 @@ describe('javascript', function() {
     assert.equal(stats.size, 9);
   });
 
+  it('should support referencing a raw asset with static URL and CJS __filename', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/import-raw-import-meta-url/cjs.js'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'cjs.js',
+        assets: ['cjs.js', 'bundle-url.js', 'esmodule-helpers.js'],
+      },
+      {
+        type: 'txt',
+        assets: ['test.txt'],
+      },
+    ]);
+
+    let contents = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(!contents.includes('import.meta.url'));
+
+    let output = await run(b);
+    assert(/^http:\/\/localhost\/test\.[0-9a-f]+\.txt$/.test(output.default));
+    let stats = await outputFS.stat(
+      path.join(distDir, url.parse(output.default).pathname),
+    );
+    assert.equal(stats.size, 9);
+  });
+
   it('should ignore new URL and import.meta.url with local binding', async function() {
     let b = await bundle(
       path.join(
