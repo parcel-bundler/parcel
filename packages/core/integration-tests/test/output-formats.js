@@ -128,8 +128,6 @@ describe('output formats', function() {
         path.join(__dirname, '/integration/formats/commonjs-external/named.js'),
       );
 
-      let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
-      assert(/var {add: \s*\$.+?\$add\s*} = require\("lodash"\)/.test(dist));
       assert.equal((await run(b)).bar, 3);
     });
 
@@ -141,17 +139,6 @@ describe('output formats', function() {
         ),
       );
 
-      let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
-      assert(
-        /var {assign: \s*\$.+?\$assign\s*} = require\("lodash\/fp"\)/.test(
-          dist,
-        ),
-      );
-      let match = dist.match(
-        /var {\s*assign:\s*(.*)\s*} = require\("lodash"\)/,
-      );
-      assert(match);
-      assert.notEqual(match[1], 'assign');
       assert.equal((await run(b)).bar, true);
     });
 
@@ -177,7 +164,7 @@ describe('output formats', function() {
       );
 
       let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
-      assert(dist.includes('= $parcel$interopDefault(require("lodash"))'));
+      assert(dist.includes('$parcel$interopDefault'));
       assert.equal((await run(b)).bar, 3);
     });
 
@@ -204,8 +191,6 @@ describe('output formats', function() {
         ),
       );
 
-      let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
-      assert(dist.includes('= require("lodash").add'));
       assert.equal((await run(b)).bar, 3);
     });
 
@@ -217,9 +202,6 @@ describe('output formats', function() {
         ),
       );
 
-      let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
-      assert(dist.includes('= require("lodash/fp").assign;'));
-      assert(dist.includes('= require("lodash").assign;'));
       assert.equal((await run(b)).bar, true);
     });
 
@@ -231,10 +213,6 @@ describe('output formats', function() {
         ),
       );
 
-      let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
-      assert(dist.includes('= require("lodash")'));
-      assert(dist.includes('= temp.add'));
-      assert(dist.includes('= temp.subtract'));
       assert.equal((await run(b)).bar, 2);
     });
 
@@ -246,8 +224,7 @@ describe('output formats', function() {
         ),
       );
 
-      let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
-      assert(dist.includes('= require("lodash").add'));
+      assert.equal((await run(b, {require})).bar, 3);
     });
 
     it('should support commonjs output with old node without destructuring (multiple)', async function() {
@@ -258,10 +235,7 @@ describe('output formats', function() {
         ),
       );
 
-      let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
-      assert(dist.includes('= require("lodash")'));
-      assert(dist.includes('= temp.add'));
-      assert(dist.includes('= temp.subtract'));
+      assert.equal((await run(b, {require})).bar, 2);
     });
 
     it('should support importing sibling bundles in library mode', async function() {
@@ -446,6 +420,32 @@ describe('output formats', function() {
         ),
       );
       assert.deepEqual(await run(b), {foo: 'foo'});
+    });
+
+    it('should support live binding of external modules', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/formats/commonjs-live-externals/a.js',
+        ),
+      );
+
+      let external = {
+        foo: 1,
+        setFoo(f) {
+          this.foo = f;
+        },
+      };
+
+      let out = [];
+      await run(b, {
+        require: () => external,
+        output(o) {
+          out.push(o);
+        },
+      });
+
+      assert.deepEqual(out, [1, 2]);
     });
   });
 
