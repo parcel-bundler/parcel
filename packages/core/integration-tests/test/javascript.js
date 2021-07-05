@@ -859,7 +859,7 @@ describe('javascript', function() {
         },
         {
           name: 'index.js',
-          assets: ['index.js', 'bundle-manifest.js', 'get-worker-url.js'],
+          assets: ['index.js', 'bundle-url.js', 'get-worker-url.js'],
         },
         {
           assets: [

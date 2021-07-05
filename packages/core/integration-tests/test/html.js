@@ -1553,7 +1553,7 @@ describe('html', function() {
       },
       {
         type: 'js',
-        assets: ['index.js', 'index.js', 'index.js'],
+        assets: ['bundle-manifest.js', 'index.js', 'index.js', 'index.js'],
       },
       {
         name: 'index.html',

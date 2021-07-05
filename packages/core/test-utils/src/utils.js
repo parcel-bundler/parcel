@@ -847,6 +847,7 @@ function prepareNodeContext(filePath, globals, ctx: any = {}) {
   ctx.setTimeout = setTimeout;
   ctx.setImmediate = setImmediate;
   ctx.global = ctx;
+  ctx.URL = URL;
   Object.assign(ctx, globals);
   return ctx;
 }
