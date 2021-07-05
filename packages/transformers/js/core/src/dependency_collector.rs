@@ -412,7 +412,8 @@ impl<'a> Fold for DependencyCollector<'a> {
         };
         let mut node = node.clone();
 
-        let (specifier, span) = if let Some(s) = match_import_meta_url(&*arg.expr, self.decls) {
+        let (specifier, span) = if let Some(s) = self.match_import_meta_url(&*arg.expr, self.decls)
+        {
           s
         } else if let Lit(lit) = &*arg.expr {
           if let ast::Lit::Str(str_) = lit {
@@ -562,36 +563,37 @@ impl<'a> Fold for DependencyCollector<'a> {
 
     if let Some(args) = &node.args {
       if args.len() > 0 {
-        let (specifier, span) = if let Some(s) = match_import_meta_url(&*args[0].expr, self.decls) {
-          s
-        } else if let Lit(lit) = &*args[0].expr {
-          if let ast::Lit::Str(str_) = lit {
-            let constructor = match &*node.callee {
-              Ident(id) => id.sym.to_string(),
-              _ => "Worker".to_string(),
-            };
-            self.diagnostics.push(Diagnostic {
-              message: format!(
-                "Constructing a {} with a string literal is not supported.",
-                constructor
-              ),
-              code_highlights: Some(vec![CodeHighlight {
-                message: None,
-                loc: SourceLocation::from(self.source_map, str_.span),
-              }]),
-              hints: Some(vec![format!(
-                "Replace with: new URL('{}', import.meta.url)",
-                str_.value
-              )]),
-              show_environment: false,
-            });
-            return node;
+        let (specifier, span) =
+          if let Some(s) = self.match_import_meta_url(&*args[0].expr, self.decls) {
+            s
+          } else if let Lit(lit) = &*args[0].expr {
+            if let ast::Lit::Str(str_) = lit {
+              let constructor = match &*node.callee {
+                Ident(id) => id.sym.to_string(),
+                _ => "Worker".to_string(),
+              };
+              self.diagnostics.push(Diagnostic {
+                message: format!(
+                  "Constructing a {} with a string literal is not supported.",
+                  constructor
+                ),
+                code_highlights: Some(vec![CodeHighlight {
+                  message: None,
+                  loc: SourceLocation::from(self.source_map, str_.span),
+                }]),
+                hints: Some(vec![format!(
+                  "Replace with: new URL('{}', import.meta.url)",
+                  str_.value
+                )]),
+                show_environment: false,
+              });
+              return node;
+            } else {
+              return node;
+            }
           } else {
             return node;
-          }
-        } else {
-          return node;
-        };
+          };
 
         let (source_type, opts) = match_worker_type(args.get(1));
         self.add_dependency(
@@ -642,7 +644,7 @@ impl<'a> Fold for DependencyCollector<'a> {
   }
 
   fn fold_expr(&mut self, node: ast::Expr) -> ast::Expr {
-    if let Some((specifier, span)) = match_import_meta_url(&node, self.decls) {
+    if let Some((specifier, span)) = self.match_import_meta_url(&node, self.decls) {
       self.add_dependency(
         specifier.clone(),
         span,
@@ -809,76 +811,91 @@ impl Fold for PromiseTransformer {
   }
 }
 
-fn match_import_meta_url(
-  expr: &ast::Expr,
-  decls: &HashSet<(JsWord, SyntaxContext)>,
-) -> Option<(JsWord, swc_common::Span)> {
-  match expr {
-    ast::Expr::New(new) => {
-      let is_url = match &*new.callee {
-        ast::Expr::Ident(id) => {
-          id.sym == js_word!("URL") && !decls.contains(&(id.sym.clone(), id.span.ctxt()))
-        }
-        _ => false,
-      };
-
-      if !is_url {
-        return None;
-      }
-
-      if let Some(args) = &new.args {
-        let specifier = if let Some(arg) = args.get(0) {
-          match &*arg.expr {
-            ast::Expr::Lit(ast::Lit::Str(s)) => s,
-            _ => return None,
+impl<'a> DependencyCollector<'a> {
+  fn match_import_meta_url(
+    &mut self,
+    expr: &ast::Expr,
+    decls: &HashSet<(JsWord, SyntaxContext)>,
+  ) -> Option<(JsWord, swc_common::Span)> {
+    match expr {
+      ast::Expr::New(new) => {
+        let is_url = match &*new.callee {
+          ast::Expr::Ident(id) => {
+            id.sym == js_word!("URL") && !decls.contains(&(id.sym.clone(), id.span.ctxt()))
           }
-        } else {
-          return None;
+          _ => false,
         };
 
-        if let Some(arg) = args.get(1) {
-          match &*arg.expr {
-            ast::Expr::Member(member) => {
-              match &member.obj {
-                ast::ExprOrSuper::Expr(expr) => match &**expr {
-                  ast::Expr::MetaProp(ast::MetaPropExpr {
-                    meta:
-                      ast::Ident {
-                        sym: js_word!("import"),
-                        ..
-                      },
-                    prop:
-                      ast::Ident {
-                        sym: js_word!("meta"),
-                        ..
-                      },
-                  }) => {}
-                  _ => return None,
-                },
-                _ => return None,
-              }
+        if !is_url {
+          return None;
+        }
 
-              let is_url = match &*member.prop {
-                ast::Expr::Ident(id) => id.sym == js_word!("url") && !member.computed,
-                ast::Expr::Lit(ast::Lit::Str(str)) => str.value == js_word!("url"),
-                _ => false,
-              };
-
-              if !is_url {
-                return None;
-              }
-
-              return Some((specifier.value.clone(), specifier.span));
+        if let Some(args) = &new.args {
+          let specifier = if let Some(arg) = args.get(0) {
+            match &*arg.expr {
+              ast::Expr::Lit(ast::Lit::Str(s)) => s,
+              _ => return None,
             }
-            _ => return None,
+          } else {
+            return None;
+          };
+
+          if let Some(arg) = args.get(1) {
+            match &*arg.expr {
+              ast::Expr::Member(member) => {
+                match &member.obj {
+                  ast::ExprOrSuper::Expr(expr) => match &**expr {
+                    ast::Expr::MetaProp(ast::MetaPropExpr {
+                      meta:
+                        ast::Ident {
+                          sym: js_word!("import"),
+                          ..
+                        },
+                      prop:
+                        ast::Ident {
+                          sym: js_word!("meta"),
+                          ..
+                        },
+                    }) => {}
+                    _ => return None,
+                  },
+                  _ => return None,
+                }
+
+                let is_url = match &*member.prop {
+                  ast::Expr::Ident(id) => id.sym == js_word!("url") && !member.computed,
+                  ast::Expr::Lit(ast::Lit::Str(str)) => str.value == js_word!("url"),
+                  _ => false,
+                };
+
+                if !is_url {
+                  return None;
+                }
+
+                if self.source_type == SourceType::Script {
+                  self.diagnostics.push(Diagnostic {
+                    message: "`import.meta` is not supported outside a module.".to_string(),
+                    code_highlights: Some(vec![CodeHighlight {
+                      message: None,
+                      loc: SourceLocation::from(self.source_map, member.span),
+                    }]),
+                    hints: None,
+                    show_environment: true,
+                  })
+                }
+
+                return Some((specifier.value.clone(), specifier.span));
+              }
+              _ => return None,
+            }
           }
         }
       }
+      _ => {}
     }
-    _ => {}
-  }
 
-  None
+    None
+  }
 }
 
 // matches the `type: 'module'` option of workers
