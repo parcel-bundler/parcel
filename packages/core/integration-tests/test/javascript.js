@@ -1031,6 +1031,7 @@ describe('javascript', function() {
               ),
               codeHighlights: [
                 {
+                  message: null,
                   start: {
                     line: 1,
                     column: 1,
@@ -1099,81 +1100,77 @@ describe('javascript', function() {
   });
 
   for (let workerType of ['webworker', 'serviceworker']) {
-    it(`should split bundles when ${workerType}s use importScripts`, async function() {
-      let b = await bundle(
-        path.join(
-          __dirname,
-          `/integration/worker-import-scripts/index-${workerType}.js`,
-        ),
+    it(`should error when ${workerType}s use importScripts`, async function() {
+      let filePath = path.join(
+        __dirname,
+        `/integration/worker-import-scripts/index-${workerType}.js`,
       );
+      let errored = false;
+      try {
+        await bundle(filePath);
+      } catch (err) {
+        errored = true;
+        assert.equal(
+          err.message,
+          'importScripts() is not supported in worker scripts.',
+        );
+        assert.deepEqual(err.diagnostics, [
+          {
+            message: 'importScripts() is not supported in worker scripts.',
+            origin: '@parcel/transformer-js',
+            codeFrames: [
+              {
+                filePath: path.join(
+                  __dirname,
+                  `/integration/worker-import-scripts/importScripts.js`,
+                ),
+                codeHighlights: [
+                  {
+                    message: null,
+                    start: {
+                      line: 1,
+                      column: 1,
+                    },
+                    end: {
+                      line: 1,
+                      column: 28,
+                    },
+                  },
+                ],
+              },
+              {
+                filePath: path.normalize(
+                  `integration/worker-import-scripts/index-${workerType}.js`,
+                ),
+                codeHighlights: [
+                  {
+                    message: 'The environment was originally created here',
+                    start: {
+                      line: 1,
+                      column: workerType === 'webworker' ? 20 : 42,
+                    },
+                    end: {
+                      line: 1,
+                      column: workerType === 'webworker' ? 37 : 59,
+                    },
+                  },
+                ],
+              },
+            ],
+            hints: [
+              'Use a static `import`, or dynamic `import()` instead.',
+              "Add {type: 'module'} as a second argument to the " +
+                (workerType === 'webworker'
+                  ? 'Worker constructor.'
+                  : 'navigator.serviceWorker.register() call.'),
+            ],
+          },
+        ]);
+      }
 
-      assertBundles(b, [
-        {
-          assets: ['importScripts.js', 'bundle-url.js'],
-        },
-        {
-          name: `index-${workerType}.js`,
-          assets: [`index-${workerType}.js`, 'bundle-url.js'].concat(
-            workerType === 'webworker' ? ['get-worker-url.js'] : [],
-          ),
-        },
-        {
-          assets: ['imported.js'],
-        },
-        {
-          assets: ['imported2.js'],
-        },
-      ]);
-
-      let workerBundleFile = path.join(
-        distDir,
-        (await outputFS.readdir(distDir)).find(file =>
-          file.startsWith('importScripts'),
-        ),
-      );
-      let workerBundleContents = await outputFS.readFile(
-        workerBundleFile,
-        'utf8',
-      );
-
-      assert.equal(workerBundleContents.match(/importScript/g).length, 3);
+      assert(errored);
     });
   }
-
-  it('should not create bundles of external scripts referenced by importScripts', async function() {
-    let b = await bundle(
-      path.join(
-        __dirname,
-        '/integration/worker-import-scripts/index-external.js',
-      ),
-    );
-
-    assertBundles(b, [
-      {
-        name: 'index-external.js',
-        assets: ['index-external.js', 'bundle-url.js', 'get-worker-url.js'],
-      },
-      {assets: ['external.js']},
-    ]);
-
-    let workerBundleFile = path.join(
-      distDir,
-      (await outputFS.readdir(distDir)).find(file =>
-        file.startsWith('external'),
-      ),
-    );
-    let workerBundleContents = await outputFS.readFile(
-      workerBundleFile,
-      'utf8',
-    );
-
-    assert(workerBundleContents.includes('importScripts'));
-    assert(
-      workerBundleContents.includes(
-        'module.exports = "https://unpkg.com/parcel"',
-      ),
-    );
-  });
 
   it('should support bundling service-workers', async function() {
     let b = await bundle(
@@ -1283,6 +1280,7 @@ describe('javascript', function() {
               ),
               codeHighlights: [
                 {
+                  message: null,
                   start: {
                     line: 1,
                     column: 1,

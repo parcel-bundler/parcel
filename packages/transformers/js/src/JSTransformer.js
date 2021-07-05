@@ -368,7 +368,6 @@ export default (new Transformer({
       needs_esm_helpers,
       diagnostics,
       used_env,
-      script_error_loc,
     } = transform({
       filename: asset.filePath,
       code,
@@ -423,65 +422,58 @@ export default (new Transformer({
 
     if (diagnostics) {
       throw new ThrowableDiagnostic({
-        diagnostic: diagnostics.map(diagnostic => ({
-          message: diagnostic.message,
-          codeFrames: [
-            {
-              filePath: asset.filePath,
-              code: code.toString(),
-              codeHighlights: diagnostic.code_highlights?.map(highlight => {
-                let {start, end} = convertLoc(highlight.loc);
-                return {
-                  message: highlight.message,
-                  start,
-                  end,
-                };
-              }),
-            },
-          ],
-          hints: diagnostic.hints,
-        })),
-      });
-    }
+        diagnostic: diagnostics.map(diagnostic => {
+          let message = diagnostic.message;
+          if (message === 'SCRIPT_ERROR') {
+            let err = SCRIPT_ERRORS[(asset.env.context: string)];
+            message = err?.message || SCRIPT_ERRORS.browser.message;
+          }
 
-    // Throw an error for imports/exports within a script if needed.
-    if (script_error_loc) {
-      let err = SCRIPT_ERRORS[(asset.env.context: string)];
-      if (err) {
-        let loc = convertLoc(script_error_loc);
-        let diagnostic = {
-          message: err.message,
-          codeFrames: [
-            {
-              filePath: asset.filePath,
-              codeHighlights: [
-                {
-                  start: loc.start,
-                  end: loc.end,
-                },
-              ],
-            },
-          ],
-          hints: [err.hint],
-        };
-
-        if (asset.env.loc) {
-          diagnostic.codeFrames.push({
-            filePath: asset.env.loc.filePath,
-            codeHighlights: [
+          let res = {
+            message,
+            codeFrames: [
               {
-                start: asset.env.loc.start,
-                end: asset.env.loc.end,
-                message: 'The environment was originally created here',
+                filePath: asset.filePath,
+                codeHighlights: diagnostic.code_highlights?.map(highlight => {
+                  let {start, end} = convertLoc(highlight.loc);
+                  return {
+                    message: highlight.message,
+                    start,
+                    end,
+                  };
+                }),
               },
             ],
-          });
-        }
+            hints: diagnostic.hints,
+          };
 
-        throw new ThrowableDiagnostic({
-          diagnostic,
-        });
-      }
+          if (diagnostic.show_environment) {
+            if (asset.env.loc) {
+              res.codeFrames.push({
+                filePath: asset.env.loc.filePath,
+                codeHighlights: [
+                  {
+                    start: asset.env.loc.start,
+                    end: asset.env.loc.end,
+                    message: 'The environment was originally created here',
+                  },
+                ],
+              });
+            }
+
+            let err = SCRIPT_ERRORS[(asset.env.context: string)];
+            if (err) {
+              if (!res.hints) {
+                res.hints = [err.hint];
+              } else {
+                res.hints.push(err.hint);
+              }
+            }
+          }
+
+          return res;
+        }),
+      });
     }
 
     if (shebang) {
@@ -545,39 +537,6 @@ export default (new Transformer({
             loc,
           },
         });
-      } else if (dep.kind === 'ImportScripts') {
-        if (asset.env.isWorker()) {
-          if (asset.env.sourceType !== 'script') {
-            let loc = convertLoc(dep.loc);
-            let diagnostic = [
-              {
-                message: 'importScripts() is not supported in module workers.',
-                codeFrames: [
-                  {
-                    filePath: asset.filePath,
-                    codeHighlights: [
-                      {
-                        start: loc.start,
-                        end: loc.end,
-                      },
-                    ],
-                  },
-                ],
-                hints: [
-                  'Try using a static `import`, or dynamic `import()` instead.',
-                ],
-              },
-            ];
-
-            throw new ThrowableDiagnostic({
-              diagnostic,
-            });
-          }
-
-          asset.addURLDependency(dep.specifier, {
-            loc: convertLoc(dep.loc),
-          });
-        }
       } else if (dep.kind === 'URL') {
         asset.addURLDependency(dep.specifier, {
           bundleBehavior: 'isolated',

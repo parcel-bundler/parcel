@@ -165,6 +165,7 @@ impl<'a> Fold for Hoist<'a> {
                     message: "Assignment to an import specifier is not allowed".into(),
                     code_highlights: Some(highlights),
                     hints: None,
+                    show_environment: false,
                   })
                 }
               }

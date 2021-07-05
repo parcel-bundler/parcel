@@ -109,6 +109,7 @@ pub struct Diagnostic {
   pub message: String,
   pub code_highlights: Option<Vec<CodeHighlight>>,
   pub hints: Option<Vec<String>>,
+  pub show_environment: bool,
 }
 
 #[derive(Serialize, Debug, Deserialize, Eq, PartialEq, Clone, Copy)]

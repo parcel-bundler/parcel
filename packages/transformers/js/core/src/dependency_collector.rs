@@ -3,7 +3,7 @@ use std::fmt;
 
 use serde::{Deserialize, Serialize};
 use swc_atoms::JsWord;
-use swc_common::{SourceMap, SyntaxContext, DUMMY_SP};
+use swc_common::{SourceMap, Span, SyntaxContext, DUMMY_SP};
 use swc_ecmascript::ast;
 use swc_ecmascript::visit::{Fold, FoldWith};
 
@@ -18,7 +18,6 @@ pub enum DependencyKind {
   WebWorker,
   ServiceWorker,
   Worklet,
-  ImportScripts,
   URL,
   File,
 }
@@ -50,7 +49,6 @@ pub fn dependency_collector<'a>(
   scope_hoist: bool,
   source_type: SourceType,
   supports_module_workers: bool,
-  script_error_loc: &'a mut Option<SourceLocation>,
   diagnostics: &'a mut Vec<Diagnostic>,
 ) -> impl Fold + 'a {
   DependencyCollector {
@@ -64,7 +62,6 @@ pub fn dependency_collector<'a>(
     scope_hoist,
     source_type,
     supports_module_workers,
-    script_error_loc,
     diagnostics,
   }
 }
@@ -80,7 +77,6 @@ struct DependencyCollector<'a> {
   scope_hoist: bool,
   source_type: SourceType,
   supports_module_workers: bool,
-  script_error_loc: &'a mut Option<SourceLocation>,
   diagnostics: &'a mut Vec<Diagnostic>,
 }
 
@@ -118,6 +114,23 @@ impl<'a> DependencyCollector<'a> {
     }
     res
   }
+
+  fn add_script_error(&mut self, span: Span) {
+    // Only add the diagnostic for imports/exports in scripts once.
+    if self.diagnostics.iter().any(|d| d.message == "SCRIPT_ERROR") {
+      return;
+    }
+
+    self.diagnostics.push(Diagnostic {
+      message: "SCRIPT_ERROR".to_string(),
+      code_highlights: Some(vec![CodeHighlight {
+        message: None,
+        loc: SourceLocation::from(self.source_map, span),
+      }]),
+      hints: None,
+      show_environment: true,
+    });
+  }
 }
 
 fn rewrite_require_specifier(node: ast::CallExpr) -> ast::CallExpr {
@@ -137,7 +150,7 @@ fn rewrite_require_specifier(node: ast::CallExpr) -> ast::CallExpr {
 impl<'a> Fold for DependencyCollector<'a> {
   fn fold_module_decl(&mut self, node: ast::ModuleDecl) -> ast::ModuleDecl {
     // If an import or export is seen within a script, flag it to throw an error from JS.
-    if self.source_type == SourceType::Script && self.script_error_loc.is_none() {
+    if self.source_type == SourceType::Script {
       match node {
         ast::ModuleDecl::Import(ast::ImportDecl { span, .. })
         | ast::ModuleDecl::ExportAll(ast::ExportAll { span, .. })
@@ -145,7 +158,7 @@ impl<'a> Fold for DependencyCollector<'a> {
         | ast::ModuleDecl::ExportDefaultDecl(ast::ExportDefaultDecl { span, .. })
         | ast::ModuleDecl::ExportDefaultExpr(ast::ExportDefaultExpr { span, .. })
         | ast::ModuleDecl::ExportNamed(ast::NamedExport { span, .. }) => {
-          *self.script_error_loc = Some(SourceLocation::from(self.source_map, span));
+          self.add_script_error(span)
         }
         _ => {}
       }
@@ -252,7 +265,25 @@ impl<'a> Fold for DependencyCollector<'a> {
               DependencyKind::Require
             }
           }
-          "importScripts" => DependencyKind::ImportScripts,
+          "importScripts" => {
+            let msg = if self.source_type == SourceType::Script {
+              "importScripts() is not supported in worker scripts."
+            } else {
+              "importScripts() is not supported in module workers."
+            };
+            self.diagnostics.push(Diagnostic {
+              message: msg.to_string(),
+              code_highlights: Some(vec![CodeHighlight {
+                message: None,
+                loc: SourceLocation::from(self.source_map, node.span),
+              }]),
+              hints: Some(vec![String::from(
+                "Use a static `import`, or dynamic `import()` instead.",
+              )]),
+              show_environment: self.source_type == SourceType::Script,
+            });
+            return node.fold_children_with(self);
+          }
           "__parcel__require__" => {
             let mut call = node.clone().fold_children_with(self);
             call.callee = ast::ExprOrSuper::Expr(Box::new(ast::Expr::Ident(ast::Ident::new(
@@ -369,38 +400,6 @@ impl<'a> Fold for DependencyCollector<'a> {
           attributes = Some(attrs);
         }
       }
-    } else if kind == DependencyKind::ImportScripts {
-      // importScripts() accepts multiple arguments. Add dependencies for each
-      // and replace with require calls for each of the specifiers (which will
-      // return the resolved URL at runtime).
-      let mut node = node.clone();
-      node.args = node
-        .args
-        .iter()
-        .map(|arg| {
-          if let Lit(lit) = &*arg.expr {
-            if let ast::Lit::Str(str_) = lit {
-              self.add_dependency(
-                str_.value.clone(),
-                str_.span,
-                kind.clone(),
-                None,
-                false,
-                SourceType::Script,
-              );
-
-              return ast::ExprOrSpread {
-                spread: None,
-                expr: Box::new(Call(self.create_require(str_.value.clone()))),
-              };
-            }
-          }
-
-          return arg.clone();
-        })
-        .collect();
-
-      return node;
     }
 
     if let Some(arg) = node.args.get(0) {
@@ -432,6 +431,7 @@ impl<'a> Fold for DependencyCollector<'a> {
                 "Replace with: new URL('{}', import.meta.url)",
                 str_.value,
               )]),
+              show_environment: false,
             });
             return node;
           } else {
@@ -465,11 +465,8 @@ impl<'a> Fold for DependencyCollector<'a> {
       if let Lit(lit) = &*arg.expr {
         if let ast::Lit::Str(str_) = lit {
           // require() calls aren't allowed in scripts, flag as an error.
-          if kind == DependencyKind::Require
-            && self.source_type == SourceType::Script
-            && self.script_error_loc.is_none()
-          {
-            *self.script_error_loc = Some(SourceLocation::from(self.source_map, node.span));
+          if kind == DependencyKind::Require && self.source_type == SourceType::Script {
+            self.add_script_error(node.span);
             return node;
           }
 
@@ -586,6 +583,7 @@ impl<'a> Fold for DependencyCollector<'a> {
                 "Replace with: new URL('{}', import.meta.url)",
                 str_.value
               )]),
+              show_environment: false,
             });
             return node;
           } else {
