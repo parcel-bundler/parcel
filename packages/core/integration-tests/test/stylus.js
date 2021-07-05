@@ -96,6 +96,31 @@ describe('stylus', function() {
     );
   });
 
+  it('should ignore paths starting with "#" when resolving with stylus url()', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/stylus-id-url/index.js'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js'],
+      },
+      {
+        name: 'index.css',
+        assets: ['index.styl'],
+      },
+    ]);
+
+    let output = await run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(output(), 2);
+
+    let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
+    assert(css.includes('#clip-path'));
+    assert(css.includes('.svg-background'));
+  });
+
   it('should support transforming stylus with css modules', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/stylus-postcss/index.js'),

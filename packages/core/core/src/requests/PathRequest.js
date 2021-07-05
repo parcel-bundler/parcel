@@ -172,12 +172,15 @@ export class ResolverRunner {
         }
       }
     } else {
-      if (
-        dep.specifierType === 'url' &&
-        dependency.specifier.startsWith('//')
-      ) {
-        // A protocol-relative URL, e.g `url('//example.com/foo.png')`
-        return null;
+      if (dep.specifierType === 'url') {
+        if (dependency.specifier.startsWith('//')) {
+          // A protocol-relative URL, e.g `url('//example.com/foo.png')`
+          return null;
+        }
+        if (dependency.specifier.startsWith('#')) {
+          // An ID-only URL, e.g. `url(#clip-path)` for CSS rules
+          return null;
+        }
       }
       filePath = dependency.specifier;
     }
