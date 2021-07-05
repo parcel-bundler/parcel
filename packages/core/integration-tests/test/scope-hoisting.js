@@ -11,7 +11,6 @@ import {
   findAsset,
   findDependency,
   getNextBuild,
-  inputFS,
   mergeParcelOptions,
   outputFS,
   overlayFS,
