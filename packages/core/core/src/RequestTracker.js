@@ -796,12 +796,16 @@ export default class RequestTracker {
       }
     }
 
+    let previousInvalidations = this.graph.getInvalidations(requestId);
     let {requestNodeId, deferred} = this.startRequest({
       id: request.id,
       type: request.type,
     });
 
-    let {api, subRequestContentKeys} = this.createAPI(requestNodeId);
+    let {api, subRequestContentKeys} = this.createAPI(
+      requestNodeId,
+      previousInvalidations,
+    );
 
     try {
       let node = this.graph.getRequestNode(requestNodeId);
@@ -830,9 +834,9 @@ export default class RequestTracker {
 
   createAPI(
     requestId: NodeId,
+    previousInvalidations: Array<Invalidation>,
   ): {|api: RunAPI, subRequestContentKeys: Set<ContentKey>|} {
     let subRequestContentKeys = new Set<ContentKey>();
-    let invalidations = this.graph.getInvalidations(requestId);
     let api: RunAPI = {
       invalidateOnFileCreate: input =>
         this.graph.invalidateOnFileCreate(requestId, input),
@@ -849,7 +853,7 @@ export default class RequestTracker {
           option,
           this.options[option],
         ),
-      getInvalidations: () => invalidations,
+      getInvalidations: () => previousInvalidations,
       storeResult: (result, cacheKey) => {
         this.storeResult(requestId, result, cacheKey);
       },
