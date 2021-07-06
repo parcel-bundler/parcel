@@ -1845,7 +1845,10 @@ export default class BundleGraph {
    * Update the asset in a Bundle Graph and clear the associated Bundle hash.
    */
   updateAsset(asset: Asset) {
-    this._graph.addNodeByContentKey(asset.id, nodeFromAsset(asset));
+    this._graph.updateNode(
+      this._graph.getNodeIdByContentKey(asset.id),
+      nodeFromAsset(asset),
+    );
     let bundles = this.findBundlesWithAsset(asset);
     for (let bundle of bundles) {
       // the bundle content will change with a modified asset
