@@ -487,7 +487,7 @@ export class AssetGraphBuilder {
             invariant(resolution && resolution.type === 'asset_group');
 
             errors.push({
-              message: md`./${fromProjectPathRelative(
+              message: md`${fromProjectPathRelative(
                 resolution.value.filePath,
               )} does not export '${s}'`,
               origin: '@parcel/core',

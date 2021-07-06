@@ -228,7 +228,8 @@ describe('javascript', function() {
               ],
             },
             {
-              filePath: path.normalize(
+              filePath: path.join(
+                __dirname,
                 'integration/worklet/url-worklet-error.js',
               ),
               codeHighlights: [
@@ -1142,7 +1143,8 @@ describe('javascript', function() {
                 ],
               },
               {
-                filePath: path.normalize(
+                filePath: path.join(
+                  __dirname,
                   `integration/worker-import-scripts/index-${workerType}.js`,
                 ),
                 codeHighlights: [

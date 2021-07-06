@@ -1565,7 +1565,7 @@ describe('scope hoisting', function() {
               path.join(
                 __dirname,
                 'integration/scope-hoisting/es6/tree-shaking-dynamic-import',
-                source,
+                'await-declaration-error.js',
               ),
             ),
           {
@@ -1612,7 +1612,7 @@ describe('scope hoisting', function() {
               path.join(
                 __dirname,
                 'integration/scope-hoisting/es6/tree-shaking-dynamic-import',
-                source,
+                'await-declaration-namespace-error.js',
               ),
             ),
           {
@@ -1659,7 +1659,7 @@ describe('scope hoisting', function() {
               path.join(
                 __dirname,
                 'integration/scope-hoisting/es6/tree-shaking-dynamic-import',
-                source,
+                'then-error.js',
               ),
             ),
           {
@@ -1706,7 +1706,7 @@ describe('scope hoisting', function() {
               path.join(
                 __dirname,
                 'integration/scope-hoisting/es6/tree-shaking-dynamic-import',
-                source,
+                'then-namespace-error.js',
               ),
             ),
           {

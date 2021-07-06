@@ -380,7 +380,7 @@ describe('output formats', function() {
             path.join(
               __dirname,
               '/integration/formats/commonjs-sideeffects',
-              source,
+              'missing-export.js',
             ),
           ),
         {
@@ -738,7 +738,10 @@ describe('output formats', function() {
       await assert.rejects(
         () =>
           bundle(
-            path.join(__dirname, 'integration/formats/esm-sideeffects', source),
+            path.join(
+              __dirname,
+              'integration/formats/esm-sideeffects/missing-export.js',
+            ),
           ),
         {
           name: 'BuildError',
