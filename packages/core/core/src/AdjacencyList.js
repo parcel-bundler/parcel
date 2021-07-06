@@ -1,6 +1,7 @@
 // @flow
 import {digraph} from 'graphviz';
 import {spawn} from 'child_process';
+import {inspect} from 'util';
 import assert from 'assert';
 import {fromNodeId, toNodeId} from './types';
 import type {NullEdgeType, AllEdgeTypes} from './Graph';
@@ -218,6 +219,42 @@ export class Node<TEdgeType: number = 1> {
       value = Edge.fromHash(nextHash, this.#nodes, this.#edges);
     }
   }
+
+  toJSON(): {|
+    id: number,
+    firstIncomingEdge: number | null,
+    firstOutgoingEdge: number | null,
+    lastIncomingEdge: number | null,
+    lastoutgoingEdge: number | null,
+  |} {
+    return JSON.parse(
+      JSON.stringify({
+        id: this.id,
+        firstIncomingEdge: this.firstIncomingEdge?.hash ?? null,
+        firstOutgoingEdge: this.firstOutgoingEdge?.hash ?? null,
+        lastIncomingEdge: this.lastIncomingEdge?.hash ?? null,
+        lastOutgoingEdge: this.lastOutgoingEdge?.hash ?? null,
+      }),
+    );
+  }
+
+  toString(): string {
+    return `Node [${fromNodeId(this.id)}]`;
+  }
+
+  valueOf(): NodeId {
+    return this.id;
+  }
+
+  // $FlowFixMe[unsupported-syntax]
+  [inspect.custom](_, opts) {
+    return opts.stylize(this.toString());
+  }
+
+  // $FlowFixMe[unsupported-syntax]
+  get [Symbol.toStringTag]() {
+    return String(this.id);
+  }
 }
 
 export class Edge<TEdgeType: number = 1> {
@@ -403,6 +440,59 @@ export class Edge<TEdgeType: number = 1> {
   ): Edge<TEdgeType> | null {
     let nextHash = this.#edges[this.index + direction];
     return nextHash ? Edge.fromHash(nextHash, this.#nodes, this.#edges) : null;
+  }
+
+  toJSON(): {|
+    hash: number,
+    from: number,
+    to: number,
+    type: number,
+    nextIncomingEdge: number | null,
+    nextOutgoingEdge: number | null,
+    previousIncomingEdge: number | null,
+    previousOutgoingEdge: number | null,
+  |} {
+    const {
+      hash,
+      from,
+      to,
+      type,
+      nextIncomingEdge,
+      previousIncomingEdge,
+      nextOutgoingEdge,
+      previousOutgoingEdge,
+    } = this;
+    return JSON.parse(
+      JSON.stringify({
+        hash,
+        type,
+        from,
+        to,
+        nextIncomingEdge: nextIncomingEdge?.hash ?? null,
+        previousIncomingEdge: previousIncomingEdge?.hash ?? null,
+        nextOutgoingEdge: nextOutgoingEdge?.hash ?? null,
+        previousOutgoingEdge: previousOutgoingEdge?.hash ?? null,
+      }),
+    );
+  }
+
+  toString(): string {
+    const {hash, from, to, type} = this;
+    return `Edge [${hash}] (${type}) { ${[from, '=>', to].join(' ')} }`;
+  }
+
+  valueOf(): EdgeHash {
+    return this.hash;
+  }
+
+  // $FlowFixMe[unsupported-syntax]
+  [inspect.custom](_, opts) {
+    return opts.stylize(this.toString());
+  }
+
+  // $FlowFixMe[unsupported-syntax]
+  get [Symbol.toStringTag]() {
+    return String(this.hash);
   }
 }
 export default class AdjacencyList<TEdgeType: number = 1> {
