@@ -5276,6 +5276,75 @@ describe('cache', function() {
       let res = await run(b.bundleGraph);
       assert.equal(res, 4);
     });
+
+    it('should invalidate when a terser config is modified', async function() {
+      let b = await testCache({
+        mode: 'production',
+        async setup() {
+          await overlayFS.writeFile(
+            path.join(inputDir, '.terserrc'),
+            JSON.stringify({
+              mangle: false,
+            }),
+          );
+        },
+        async update(b) {
+          let contents = await overlayFS.readFile(
+            b.bundleGraph.getBundles()[0].filePath,
+            'utf8',
+          );
+          assert(contents.includes('$parcel$interopDefault'));
+
+          await overlayFS.writeFile(
+            path.join(inputDir, '.terserrc'),
+            JSON.stringify({
+              mangle: true,
+            }),
+          );
+        },
+      });
+
+      let contents = await overlayFS.readFile(
+        b.bundleGraph.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert(!contents.includes('$parcel$interopDefault'));
+    });
+
+    it('should invalidate when an htmlnano config is modified', async function() {
+      let b = await testCache({
+        mode: 'production',
+        entries: ['src/index.html'],
+        async setup() {
+          await overlayFS.writeFile(
+            path.join(inputDir, '.htmlnanorc'),
+            JSON.stringify({
+              removeAttributeQuotes: true,
+            }),
+          );
+        },
+        async update(b) {
+          let contents = await overlayFS.readFile(
+            b.bundleGraph.getBundles()[0].filePath,
+            'utf8',
+          );
+          assert(contents.includes('type=module'));
+
+          await overlayFS.writeFile(
+            path.join(inputDir, '.htmlnanorc'),
+            JSON.stringify({
+              removeAttributeQuotes: false,
+            }),
+          );
+        },
+      });
+
+      let contents = await overlayFS.readFile(
+        b.bundleGraph.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert(contents.includes('type="module"'));
+    });
   });
 
   describe('scope hoisting', function() {
@@ -5284,6 +5353,58 @@ describe('cache', function() {
     it('should support updating sideEffects config', function() {});
 
     it('should support removing sideEffects config', function() {});
+
+    it('should wrap modules when they become conditional', async function() {
+      let b = await testCache(
+        {
+          defaultTargetOptions: {
+            shouldScopeHoist: true,
+          },
+          entries: ['a.js'],
+          async setup() {
+            let contents = await overlayFS.readFile(
+              path.join(inputDir, 'a.js'),
+              'utf8',
+            );
+            await overlayFS.writeFile(
+              path.join(inputDir, 'a.js'),
+              contents.replace(/if \(b\) \{((?:.|\n)+)\}/, '$1'),
+            );
+          },
+          async update(b) {
+            let out = [];
+            await run(b.bundleGraph, {
+              b: false,
+              output(o) {
+                out.push(o);
+              },
+            });
+
+            assert.deepEqual(out, ['a', 'b', 'c', 'd']);
+
+            let contents = await overlayFS.readFile(
+              path.join(
+                __dirname,
+                'integration/scope-hoisting/commonjs/require-conditional/a.js',
+              ),
+              'utf8',
+            );
+            await overlayFS.writeFile(path.join(inputDir, 'a.js'), contents);
+          },
+        },
+        'scope-hoisting/commonjs/require-conditional',
+      );
+
+      let out = [];
+      await run(b.bundleGraph, {
+        b: false,
+        output(o) {
+          out.push(o);
+        },
+      });
+
+      assert.deepEqual(out, ['a', 'd']);
+    });
   });
 
   describe('runtime', () => {

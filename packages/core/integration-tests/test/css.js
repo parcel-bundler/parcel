@@ -353,22 +353,24 @@ describe('css', () => {
           {
             message: "Failed to resolve 'x.png' from './index.scss'",
             origin: '@parcel/core',
-            filePath: fixture,
-            codeFrame: {
-              code,
-              codeHighlights: [
-                {
-                  start: {
-                    line: 5,
-                    column: 3,
+            codeFrames: [
+              {
+                filePath: fixture,
+                code,
+                codeHighlights: [
+                  {
+                    start: {
+                      line: 5,
+                      column: 3,
+                    },
+                    end: {
+                      line: 5,
+                      column: 3,
+                    },
                   },
-                  end: {
-                    line: 5,
-                    column: 3,
-                  },
-                },
-              ],
-            },
+                ],
+              },
+            ],
           },
           {
             message: "Cannot load file './x.png' in './'.",

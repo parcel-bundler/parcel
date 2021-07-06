@@ -60,22 +60,24 @@ export default async function loadPlugin<T>(
               resolveFrom,
             )}. Either include it in "dependencies" or "parcelDependencies".`,
             origin: '@parcel/core',
-            filePath: configPkg.files[0].filePath,
-            language: 'json5',
-            codeFrame:
+            codeFrames:
               configPkg.config.dependencies ||
               configPkg.config.parcelDependencies
-                ? {
-                    code: contents,
-                    codeHighlights: generateJSONCodeHighlights(contents, [
-                      {
-                        key: configPkg.config.parcelDependencies
-                          ? '/parcelDependencies'
-                          : '/dependencies',
-                        type: 'key',
-                      },
-                    ]),
-                  }
+                ? [
+                    {
+                      filePath: configPkg.files[0].filePath,
+                      language: 'json5',
+                      code: contents,
+                      codeHighlights: generateJSONCodeHighlights(contents, [
+                        {
+                          key: configPkg.config.parcelDependencies
+                            ? '/parcelDependencies'
+                            : '/dependencies',
+                          type: 'key',
+                        },
+                      ]),
+                    },
+                  ]
                 : undefined,
           },
         });
@@ -111,23 +113,25 @@ export default async function loadPlugin<T>(
       diagnostic: {
         message: md`Cannot find Parcel plugin "${pluginName}"`,
         origin: '@parcel/core',
-        filePath: configPath,
-        language: 'json5',
-        codeFrame: keyPath
-          ? {
-              code: configContents,
-              codeHighlights: generateJSONCodeHighlights(configContents, [
-                {
-                  key: keyPath,
-                  type: 'value',
-                  message: md`Cannot find module "${pluginName}"${
-                    alternatives[0]
-                      ? `, did you mean "${alternatives[0]}"?`
-                      : ''
-                  }`,
-                },
-              ]),
-            }
+        codeFrames: keyPath
+          ? [
+              {
+                filePath: configPath,
+                language: 'json5',
+                code: configContents,
+                codeHighlights: generateJSONCodeHighlights(configContents, [
+                  {
+                    key: keyPath,
+                    type: 'value',
+                    message: md`Cannot find module "${pluginName}"${
+                      alternatives[0]
+                        ? `, did you mean "${alternatives[0]}"?`
+                        : ''
+                    }`,
+                  },
+                ]),
+              },
+            ]
           : undefined,
       },
     });
@@ -159,16 +163,18 @@ export default async function loadPlugin<T>(
       diagnostic: {
         message: md`The plugin "${pluginName}" is not compatible with the current version of Parcel. Requires "${parcelVersionRange}" but the current version is "${PARCEL_VERSION}".`,
         origin: '@parcel/core',
-        filePath: pkgFile,
-        language: 'json5',
-        codeFrame: {
-          code: pkgContents,
-          codeHighlights: generateJSONCodeHighlights(pkgContents, [
-            {
-              key: '/engines/parcel',
-            },
-          ]),
-        },
+        codeFrames: [
+          {
+            filePath: pkgFile,
+            language: 'json5',
+            code: pkgContents,
+            codeHighlights: generateJSONCodeHighlights(pkgContents, [
+              {
+                key: '/engines/parcel',
+              },
+            ]),
+          },
+        ],
       },
     });
   }

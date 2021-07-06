@@ -199,18 +199,20 @@ export class TargetResolver {
                 diagnostic: {
                   message: md`Missing distDir for target "${name}"`,
                   origin: '@parcel/core',
-                  codeFrame: {
-                    code: optionTargetsString,
-                    codeHighlights: generateJSONCodeHighlights(
-                      optionTargetsString || '',
-                      [
-                        {
-                          key: `/${name}`,
-                          type: 'value',
-                        },
-                      ],
-                    ),
-                  },
+                  codeFrames: [
+                    {
+                      code: optionTargetsString,
+                      codeHighlights: generateJSONCodeHighlights(
+                        optionTargetsString || '',
+                        [
+                          {
+                            key: `/${name}`,
+                            type: 'value',
+                          },
+                        ],
+                      ),
+                    },
+                  ],
                 },
               });
             }
@@ -225,7 +227,9 @@ export class TargetResolver {
                 context: descriptor.context,
                 isLibrary: descriptor.isLibrary,
                 includeNodeModules: descriptor.includeNodeModules,
-                outputFormat: descriptor.outputFormat,
+                outputFormat:
+                  descriptor.outputFormat ??
+                  this.options.defaultTargetOptions.outputFormat,
                 shouldOptimize:
                   this.options.defaultTargetOptions.shouldOptimize &&
                   descriptor.optimize !== false,
@@ -291,6 +295,7 @@ export class TargetResolver {
               context: 'browser',
               engines: {},
               shouldOptimize: this.options.defaultTargetOptions.shouldOptimize,
+              outputFormat: this.options.defaultTargetOptions.outputFormat,
               shouldScopeHoist: this.options.defaultTargetOptions
                 .shouldScopeHoist,
               sourceMap: this.options.defaultTargetOptions.sourceMaps
@@ -532,18 +537,20 @@ export class TargetResolver {
             diagnostic: {
               message: md`Unexpected output file type ${ext} in target "${targetName}"`,
               origin: '@parcel/core',
-              language: 'json',
-              filePath: pkgFilePath ?? undefined,
-              codeFrame: {
-                code: contents,
-                codeHighlights: generateJSONCodeHighlights(contents, [
-                  {
-                    key: pointer,
-                    type: 'value',
-                    message: `File extension must be ${extensions}`,
-                  },
-                ]),
-              },
+              codeFrames: [
+                {
+                  language: 'json',
+                  filePath: pkgFilePath ?? undefined,
+                  code: contents,
+                  codeHighlights: generateJSONCodeHighlights(contents, [
+                    {
+                      key: pointer,
+                      type: 'value',
+                      message: `File extension must be ${extensions}`,
+                    },
+                  ]),
+                },
+              ],
               hints: [
                 `The "${targetName}" field is meant for libraries. If you meant to output a ${ext} file, either remove the "${targetName}" field or choose a different target name.`,
               ],
@@ -561,17 +568,19 @@ export class TargetResolver {
             diagnostic: {
               message: md`The "global" output format is not supported in the "${targetName}" target.`,
               origin: '@parcel/core',
-              language: 'json',
-              filePath: pkgFilePath ?? undefined,
-              codeFrame: {
-                code: contents,
-                codeHighlights: generateJSONCodeHighlights(contents, [
-                  {
-                    key: `/targets/${targetName}/outputFormat`,
-                    type: 'value',
-                  },
-                ]),
-              },
+              codeFrames: [
+                {
+                  language: 'json',
+                  filePath: pkgFilePath ?? undefined,
+                  code: contents,
+                  codeHighlights: generateJSONCodeHighlights(contents, [
+                    {
+                      key: `/targets/${targetName}/outputFormat`,
+                      type: 'value',
+                    },
+                  ]),
+                },
+              ],
               hints: [
                 `The "${targetName}" field is meant for libraries. The outputFormat must be either "commonjs" or "esmodule". Either change or remove the declared outputFormat.`,
               ],
@@ -590,6 +599,7 @@ export class TargetResolver {
 
         let outputFormat =
           descriptor.outputFormat ??
+          this.options.defaultTargetOptions.outputFormat ??
           inferredOutputFormat ??
           (targetName === 'module' ? 'esmodule' : 'commonjs');
         let isModule = outputFormat === 'esmodule';
@@ -609,23 +619,25 @@ export class TargetResolver {
               // prettier-ignore
               message: md`Output format "esmodule" cannot be used in the "main" target without a .mjs extension or "type": "module" field.`,
               origin: '@parcel/core',
-              language: 'json',
-              filePath: pkgFilePath ?? undefined,
-              codeFrame: {
-                code: contents,
-                codeHighlights: generateJSONCodeHighlights(contents, [
-                  {
-                    key: `/targets/${targetName}/outputFormat`,
-                    type: 'value',
-                    message: 'Declared output format defined here',
-                  },
-                  {
-                    key: '/main',
-                    type: 'value',
-                    message: 'Inferred output format defined here',
-                  },
-                ]),
-              },
+              codeFrames: [
+                {
+                  language: 'json',
+                  filePath: pkgFilePath ?? undefined,
+                  code: contents,
+                  codeHighlights: generateJSONCodeHighlights(contents, [
+                    {
+                      key: `/targets/${targetName}/outputFormat`,
+                      type: 'value',
+                      message: 'Declared output format defined here',
+                    },
+                    {
+                      key: '/main',
+                      type: 'value',
+                      message: 'Inferred output format defined here',
+                    },
+                  ]),
+                },
+              ],
               hints: [
                 `Either change the output file extension to .mjs, add "type": "module" to package.json, or remove the declared outputFormat.`,
               ],
@@ -692,18 +704,20 @@ export class TargetResolver {
             diagnostic: {
               message: md`Invalid distPath for target "${targetName}"`,
               origin: '@parcel/core',
-              language: 'json',
-              filePath: pkgFilePath ?? undefined,
-              codeFrame: {
-                code: contents,
-                codeHighlights: generateJSONCodeHighlights(contents, [
-                  {
-                    key: `/${targetName}`,
-                    type: 'value',
-                    message: 'Expected type string',
-                  },
-                ]),
-              },
+              codeFrames: [
+                {
+                  language: 'json',
+                  filePath: pkgFilePath ?? undefined,
+                  code: contents,
+                  codeHighlights: generateJSONCodeHighlights(contents, [
+                    {
+                      key: `/${targetName}`,
+                      type: 'value',
+                      message: 'Expected type string',
+                    },
+                  ]),
+                },
+              ],
             },
           });
         }
@@ -753,7 +767,10 @@ export class TargetResolver {
             context: descriptor.context,
             includeNodeModules: descriptor.includeNodeModules,
             outputFormat:
-              descriptor.outputFormat ?? inferredOutputFormat ?? undefined,
+              descriptor.outputFormat ??
+              this.options.defaultTargetOptions.outputFormat ??
+              inferredOutputFormat ??
+              undefined,
             isLibrary: descriptor.isLibrary,
             shouldOptimize:
               this.options.defaultTargetOptions.shouldOptimize &&
@@ -779,6 +796,7 @@ export class TargetResolver {
         env: createEnvironment({
           engines: pkgEngines,
           context,
+          outputFormat: this.options.defaultTargetOptions.outputFormat,
           shouldOptimize: this.options.defaultTargetOptions.shouldOptimize,
           shouldScopeHoist: this.options.defaultTargetOptions.shouldScopeHoist,
           sourceMap: this.options.defaultTargetOptions.sourceMaps
@@ -852,23 +870,25 @@ export class TargetResolver {
         diagnostic: {
           message: md`Declared output format "${descriptor.outputFormat}" does not match expected output format "${inferredOutputFormat}".`,
           origin: '@parcel/core',
-          language: 'json',
-          filePath: pkgFilePath ?? undefined,
-          codeFrame: {
-            code: contents,
-            codeHighlights: generateJSONCodeHighlights(contents, [
-              {
-                key: `/targets/${targetName}/outputFormat`,
-                type: 'value',
-                message: 'Declared output format defined here',
-              },
-              {
-                key: nullthrows(inferredOutputFormatField),
-                type: 'value',
-                message: 'Inferred output format defined here',
-              },
-            ]),
-          },
+          codeFrames: [
+            {
+              language: 'json',
+              filePath: pkgFilePath ?? undefined,
+              code: contents,
+              codeHighlights: generateJSONCodeHighlights(contents, [
+                {
+                  key: `/targets/${targetName}/outputFormat`,
+                  type: 'value',
+                  message: 'Declared output format defined here',
+                },
+                {
+                  key: nullthrows(inferredOutputFormatField),
+                  type: 'value',
+                  message: 'Inferred output format defined here',
+                },
+              ]),
+            },
+          ],
           hints: [
             inferredOutputFormatField === '/type'
               ? 'Either remove the target\'s declared "outputFormat" or remove the "type" field.'
@@ -993,18 +1013,20 @@ function assertNoDuplicateTargets(targets, pkgFilePath, pkgContents) {
           targetPath,
         )}"`,
         origin: '@parcel/core',
-        language: 'json',
-        filePath: pkgFilePath || undefined,
-        codeFrame: {
-          code: pkgContents,
-          codeHighlights: generateJSONCodeHighlights(
-            pkgContents,
-            targetNames.map(t => ({
-              key: `/${t}`,
-              type: 'value',
-            })),
-          ),
-        },
+        codeFrames: [
+          {
+            language: 'json',
+            filePath: pkgFilePath || undefined,
+            code: pkgContents,
+            codeHighlights: generateJSONCodeHighlights(
+              pkgContents,
+              targetNames.map(t => ({
+                key: `/${t}`,
+                type: 'value',
+              })),
+            ),
+          },
+        ],
       });
     }
   }

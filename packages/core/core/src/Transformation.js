@@ -132,12 +132,10 @@ export default class Transformation {
               this.options.projectRoot,
               asset.value.filePath,
             )}`,
-            filePath: asset.value.filePath,
           },
           {
             origin: '@parcel/core',
             message: escapeMarkdown(err.message),
-            filePath: asset.value.filePath,
           },
         ]);
       }

@@ -146,7 +146,7 @@ describe('glob', function() {
         {
           message: 'Glob imports are not supported in html files.',
           origin: '@parcel/resolver-glob',
-          codeFrame: undefined,
+          codeFrames: undefined,
         },
       ],
     });
@@ -161,40 +161,44 @@ describe('glob', function() {
         {
           message: "Failed to resolve 'images/\\*.jpg' from './index.css'",
           origin: '@parcel/core',
-          filePath,
-          codeFrame: {
-            code: await inputFS.readFile(filePath, 'utf8'),
-            codeHighlights: [
-              {
-                start: {
-                  column: 7,
-                  line: 2,
+          codeFrames: [
+            {
+              filePath,
+              code: await inputFS.readFile(filePath, 'utf8'),
+              codeHighlights: [
+                {
+                  start: {
+                    column: 7,
+                    line: 2,
+                  },
+                  end: {
+                    column: 20,
+                    line: 2,
+                  },
                 },
-                end: {
-                  column: 20,
-                  line: 2,
-                },
-              },
-            ],
-          },
+              ],
+            },
+          ],
         },
         {
           message: 'Glob imports are not supported in URL dependencies.',
           origin: '@parcel/resolver-glob',
-          codeFrame: {
-            codeHighlights: [
-              {
-                start: {
-                  column: 7,
-                  line: 2,
+          codeFrames: [
+            {
+              codeHighlights: [
+                {
+                  start: {
+                    column: 7,
+                    line: 2,
+                  },
+                  end: {
+                    column: 20,
+                    line: 2,
+                  },
                 },
-                end: {
-                  column: 20,
-                  line: 2,
-                },
-              },
-            ],
-          },
+              ],
+            },
+          ],
         },
       ],
     });

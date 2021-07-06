@@ -310,8 +310,6 @@ export default class Server {
       return;
     }
 
-    setHeaders(res);
-
     return serveHandler(
       req,
       res,
@@ -421,6 +419,10 @@ export default class Server {
     };
 
     const app = connect();
+    app.use((req, res, next) => {
+      setHeaders(res);
+      next();
+    });
     await this.applyProxyTable(app);
     app.use(finalHandler);
 

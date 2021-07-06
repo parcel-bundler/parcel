@@ -113,6 +113,7 @@ export type Dependency = {|
   loc: ?SourceLocation,
   env: Environment,
   meta: Meta,
+  resolverMeta?: ?Meta,
   target: ?Target,
   sourceAssetId: ?string,
   sourcePath: ?string,
@@ -235,6 +236,7 @@ export type ParcelOptions = {|
     +publicUrl: string,
     +distDir?: FilePath,
     +engines?: Engines,
+    +outputFormat?: OutputFormat,
   |},
 |};
 
