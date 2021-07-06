@@ -494,17 +494,19 @@ export class AssetGraphBuilder {
                 resolution.value.filePath,
               )} does not export '${s}'`,
               origin: '@parcel/core',
-              filePath: loc?.filePath,
-              language: assetNode.value.type,
-              codeFrame: loc
-                ? {
-                    codeHighlights: [
-                      {
-                        start: loc.start,
-                        end: loc.end,
-                      },
-                    ],
-                  }
+              codeFrames: loc
+                ? [
+                    {
+                      filePath: loc?.filePath,
+                      language: assetNode.value.type,
+                      codeHighlights: [
+                        {
+                          start: loc.start,
+                          end: loc.end,
+                        },
+                      ],
+                    },
+                  ]
                 : undefined,
             });
           }

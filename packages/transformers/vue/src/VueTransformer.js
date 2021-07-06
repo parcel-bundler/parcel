@@ -31,11 +31,11 @@ export default (new Transformer({
       config.invalidateOnStartup();
       contents = conf.contents;
       if (typeof contents !== 'object') {
+        // TODO: codeframe
         throw new ThrowableDiagnostic({
           diagnostic: {
             message: 'Vue config should be an object.',
             origin: '@parcel/transformer-vue',
-            filePath: conf.filePath,
           },
         });
       }
@@ -157,28 +157,30 @@ function createDiagnostic(err, filePath) {
       filePath,
     };
   }
+  // TODO: codeframe
   let diagnostic: Diagnostic = {
     message: escapeMarkdown(err.message),
     origin: '@parcel/transformer-vue',
     name: err.name,
     stack: err.stack,
-    filePath,
   };
   if (err.loc) {
-    diagnostic.codeFrame = {
-      codeHighlights: [
-        {
-          start: {
-            line: err.loc.start.line + err.loc.start.offset,
-            column: err.loc.start.column,
+    diagnostic.codeFrames = [
+      {
+        codeHighlights: [
+          {
+            start: {
+              line: err.loc.start.line + err.loc.start.offset,
+              column: err.loc.start.column,
+            },
+            end: {
+              line: err.loc.end.line + err.loc.end.offset,
+              column: err.loc.end.column,
+            },
           },
-          end: {
-            line: err.loc.end.line + err.loc.end.offset,
-            column: err.loc.end.column,
-          },
-        },
-      ],
-    };
+        ],
+      },
+    ];
   }
   return diagnostic;
 }
@@ -211,11 +213,11 @@ async function processPipeline({
       if (template.lang && !['htm', 'html'].includes(template.lang)) {
         let preprocessor = consolidate[template.lang];
         if (!preprocessor) {
+          // TODO: codeframe
           throw new ThrowableDiagnostic({
             diagnostic: {
               message: md`Unknown template language: "${template.lang}"`,
               origin: '@parcel/transformer-vue',
-              filePath: asset.filePath,
             },
           });
         }
@@ -282,11 +284,11 @@ ${
           type = 'coffee';
           break;
         default:
+          // TODO: codeframe
           throw new ThrowableDiagnostic({
             diagnostic: {
               message: md`Unknown script language: "${script.lang}"`,
               origin: '@parcel/transformer-vue',
-              filePath: asset.filePath,
             },
           });
       }
@@ -327,11 +329,11 @@ ${
             case undefined:
               break;
             default:
+              // TODO: codeframe
               throw new ThrowableDiagnostic({
                 diagnostic: {
                   message: md`Unknown style language: "${style.lang}"`,
                   origin: '@parcel/transformer-vue',
-                  filePath: asset.filePath,
                 },
               });
           }
@@ -400,11 +402,11 @@ export default cssModules;`,
       for (let block of customBlocks) {
         let {type, src, content, attrs} = block;
         if (!config.customBlocks[type]) {
+          // TODO: codeframe
           throw new ThrowableDiagnostic({
             diagnostic: {
               message: md`No preprocessor found for block type ${type}`,
               origin: '@parcel/transformer-vue',
-              filePath: asset.filePath,
             },
           });
         }
