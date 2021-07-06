@@ -7,7 +7,9 @@ use swc_common::{sync::Lrc, Mark, Span, SyntaxContext, DUMMY_SP};
 use swc_ecmascript::ast::*;
 use swc_ecmascript::visit::{Fold, FoldWith, Node, Visit, VisitWith};
 
-use crate::utils::{match_member_expr, CodeHighlight, Diagnostic, SourceLocation};
+use crate::utils::{
+  match_import, match_member_expr, match_require, CodeHighlight, Diagnostic, SourceLocation,
+};
 
 type IdentId = (JsWord, SyntaxContext);
 macro_rules! id {
@@ -1812,74 +1814,6 @@ impl Collect {
       }
       _ => {}
     }
-  }
-}
-
-fn is_marked(span: Span, mark: Mark) -> bool {
-  let mut ctxt = span.ctxt().clone();
-
-  loop {
-    let m = ctxt.remove_mark();
-    if m == Mark::root() {
-      return false;
-    }
-
-    if m == mark {
-      return true;
-    }
-  }
-}
-
-fn match_require(node: &Expr, decls: &HashSet<IdentId>, ignore_mark: Mark) -> Option<JsWord> {
-  match node {
-    Expr::Call(call) => match &call.callee {
-      ExprOrSuper::Expr(expr) => match &**expr {
-        Expr::Ident(ident) => {
-          if ident.sym == js_word!("require")
-            && !decls.contains(&id!(ident))
-            && !is_marked(ident.span, ignore_mark)
-          {
-            if let Some(arg) = call.args.get(0) {
-              if let Expr::Lit(lit) = &*arg.expr {
-                if let Lit::Str(str_) = lit {
-                  return Some(str_.value.clone());
-                }
-              }
-            }
-          }
-
-          None
-        }
-        _ => None,
-      },
-      _ => None,
-    },
-    _ => None,
-  }
-}
-
-fn match_import(node: &Expr, ignore_mark: Mark) -> Option<JsWord> {
-  match node {
-    Expr::Call(call) => match &call.callee {
-      ExprOrSuper::Expr(expr) => match &**expr {
-        Expr::Ident(ident) => {
-          if ident.sym == js_word!("import") && !is_marked(ident.span, ignore_mark) {
-            if let Some(arg) = call.args.get(0) {
-              if let Expr::Lit(lit) = &*arg.expr {
-                if let Lit::Str(str_) = lit {
-                  return Some(str_.value.clone());
-                }
-              }
-            }
-          }
-
-          None
-        }
-        _ => None,
-      },
-      _ => None,
-    },
-    _ => None,
   }
 }
 
