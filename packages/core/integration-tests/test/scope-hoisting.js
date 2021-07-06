@@ -433,6 +433,7 @@ describe('scope hoisting', function() {
       );
       let message = md`${normalizePath(
         'integration/scope-hoisting/es6/re-export-exclude-default/b.js',
+        false,
       )} does not export 'default'`;
       await assert.rejects(() => bundle(path.join(__dirname, source)), {
         name: 'BuildError',
@@ -470,6 +471,7 @@ describe('scope hoisting', function() {
       );
       let message = md`${normalizePath(
         'integration/scope-hoisting/es6/re-export-missing/c.js',
+        false,
       )} does not export 'foo'`;
       await assert.rejects(() => bundle(path.join(__dirname, source)), {
         name: 'BuildError',
