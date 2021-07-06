@@ -128,16 +128,19 @@ export class ResolverRunner {
     };
 
     if (dependency.loc && dependency.sourcePath != null) {
-      diagnostic.filePath = fromProjectPath(
+      let filePath = fromProjectPath(
         this.options.projectRoot,
         dependency.sourcePath,
       );
-      diagnostic.codeFrame = {
-        code: await this.options.inputFS.readFile(diagnostic.filePath, 'utf8'),
-        codeHighlights: dependency.loc
-          ? [{start: dependency.loc.start, end: dependency.loc.end}]
-          : [],
-      };
+      diagnostic.codeFrames = [
+        {
+          filePath,
+          code: await this.options.inputFS.readFile(filePath, 'utf8'),
+          codeHighlights: dependency.loc
+            ? [{start: dependency.loc.start, end: dependency.loc.end}]
+            : [],
+        },
+      ];
     }
 
     return new ThrowableDiagnostic({diagnostic});
@@ -181,12 +184,15 @@ export class ResolverRunner {
         }
       }
     } else {
-      if (
-        dep.specifierType === 'url' &&
-        dependency.specifier.startsWith('//')
-      ) {
-        // A protocol-relative URL, e.g `url('//example.com/foo.png')`
-        return null;
+      if (dep.specifierType === 'url') {
+        if (dependency.specifier.startsWith('//')) {
+          // A protocol-relative URL, e.g `url('//example.com/foo.png')`
+          return null;
+        }
+        if (dependency.specifier.startsWith('#')) {
+          // An ID-only URL, e.g. `url(#clip-path)` for CSS rules
+          return null;
+        }
       }
       filePath = dependency.specifier;
     }
@@ -232,6 +238,7 @@ export class ResolverRunner {
 
         if (result) {
           if (result.meta) {
+            dependency.resolverMeta = result.meta;
             dependency.meta = {
               ...dependency.meta,
               ...result.meta,

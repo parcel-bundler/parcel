@@ -1,1 +1,1 @@
-navigator.serviceWorker.register('importScripts.js');
+navigator.serviceWorker.register(new URL('importScripts.js', import.meta.url));

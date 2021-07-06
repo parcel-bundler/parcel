@@ -224,18 +224,20 @@ export async function parseAndProcessConfig(
         message: `Failed to parse .parcelrc`,
         origin: '@parcel/core',
 
-        filePath: configPath,
-        language: 'json5',
-        codeFrame: {
-          code: contents,
-          codeHighlights: [
-            {
-              start: pos,
-              end: pos,
-              message: escapeMarkdown(e.message),
-            },
-          ],
-        },
+        codeFrames: [
+          {
+            filePath: configPath,
+            language: 'json5',
+            code: contents,
+            codeHighlights: [
+              {
+                start: pos,
+                end: pos,
+                message: escapeMarkdown(e.message),
+              },
+            ],
+          },
+        ],
       },
     });
   }
@@ -262,26 +264,39 @@ function processPipeline(
   }
 }
 
-function processMap(
-  options: ParcelOptions,
+async function processMap(
   // $FlowFixMe
   map: ?ConfigMap<any, any>,
   keyPath: string,
   filePath: FilePath,
+  options: ParcelOptions,
   // $FlowFixMe
-): ConfigMap<any, any> | typeof undefined {
+): Promise<ConfigMap<any, any> | typeof undefined> {
   if (!map) return undefined;
 
   // $FlowFixMe
   let res: ConfigMap<any, any> = {};
   for (let k in map) {
     if (k.startsWith('node:')) {
+      let code = await options.inputFS.readFile(filePath, 'utf8');
       throw new ThrowableDiagnostic({
         diagnostic: {
           message:
-            'Named pipeline node: is reserved for builtin Node.js libraries',
+            'Named pipeline `node:` is reserved for builtin Node.js libraries',
           origin: '@parcel/core',
-          filePath,
+          codeFrames: [
+            {
+              filePath: filePath,
+              language: 'json5',
+              code,
+              codeHighlights: generateJSONCodeHighlights(code, [
+                {
+                  key: `${keyPath}/${k}`,
+                  type: 'key',
+                },
+              ]),
+            },
+          ],
         },
       });
     }
@@ -300,10 +315,10 @@ function processMap(
   return res;
 }
 
-export function processConfig(
-  options: ParcelOptions,
+export async function processConfig(
   configFile: ResolvedParcelConfigFile,
-): ProcessedParcelConfig {
+  options: ParcelOptions,
+): Promise<ProcessedParcelConfig> {
   return {
     filePath: toProjectPath(options.projectRoot, configFile.filePath),
     ...(configFile.resolveFrom != null
@@ -320,11 +335,11 @@ export function processConfig(
       '/resolvers',
       configFile.filePath,
     ),
-    transformers: processMap(
-      options,
+    transformers: await processMap(
       configFile.transformers,
       '/transformers',
       configFile.filePath,
+      options,
     ),
     bundler:
       configFile.bundler != null
@@ -349,17 +364,17 @@ export function processConfig(
       '/runtimes',
       configFile.filePath,
     ),
-    packagers: processMap(
-      options,
+    packagers: await processMap(
       configFile.packagers,
       '/packagers',
       configFile.filePath,
-    ),
-    optimizers: processMap(
       options,
+    ),
+    optimizers: await processMap(
       configFile.optimizers,
       '/optimizers',
       configFile.filePath,
+      options,
     ),
     reporters: processPipeline(
       options,
@@ -367,11 +382,11 @@ export function processConfig(
       '/reporters',
       configFile.filePath,
     ),
-    validators: processMap(
-      options,
+    validators: await processMap(
       configFile.validators,
       '/validators',
       configFile.filePath,
+      options,
     ),
   };
 }
@@ -386,10 +401,13 @@ export async function processConfigChain(
   validateConfigFile(configFile, relativePath);
 
   // Process config...
-  let config: ProcessedParcelConfig = processConfig(options, {
-    filePath,
-    ...configFile,
-  });
+  let config: ProcessedParcelConfig = await processConfig(
+    {
+      filePath,
+      ...configFile,
+    },
+    options,
+  );
 
   let extendedFiles: Array<FilePath> = [];
   if (configFile.extends != null) {
@@ -467,20 +485,24 @@ export async function resolveExtends(
         diagnostic: {
           message: `Cannot find extended parcel config`,
           origin: '@parcel/core',
-          filePath: configPath,
-          language: 'json5',
-          codeFrame: {
-            code: parentContents,
-            codeHighlights: generateJSONCodeHighlights(parentContents, [
-              {
-                key: extendsKey,
-                type: 'value',
-                message: md`Cannot find module "${ext}"${
-                  alternatives[0] ? `, did you mean "${alternatives[0]}"?` : ''
-                }`,
-              },
-            ]),
-          },
+          codeFrames: [
+            {
+              filePath: configPath,
+              language: 'json5',
+              code: parentContents,
+              codeHighlights: generateJSONCodeHighlights(parentContents, [
+                {
+                  key: extendsKey,
+                  type: 'value',
+                  message: md`Cannot find module "${ext}"${
+                    alternatives[0]
+                      ? `, did you mean "${alternatives[0]}"?`
+                      : ''
+                  }`,
+                },
+              ]),
+            },
+          ],
         },
       });
     }
@@ -512,20 +534,24 @@ async function processExtendedConfig(
       diagnostic: {
         message: 'Cannot find extended parcel config',
         origin: '@parcel/core',
-        filePath: configPath,
-        language: 'json5',
-        codeFrame: {
-          code: parentContents,
-          codeHighlights: generateJSONCodeHighlights(parentContents, [
-            {
-              key: extendsKey,
-              type: 'value',
-              message: md`"${extendsSpecifier}" does not exist${
-                alternatives[0] ? `, did you mean "${alternatives[0]}"?` : ''
-              }`,
-            },
-          ]),
-        },
+        codeFrames: [
+          {
+            filePath: configPath,
+            language: 'json5',
+            code: parentContents,
+            codeHighlights: generateJSONCodeHighlights(parentContents, [
+              {
+                key: extendsKey,
+                type: 'value',
+                message: md`"${extendsSpecifier}" does not exist${
+                  alternatives[0]
+                    ? `, did you mean "./${alternatives[0]}"?`
+                    : ''
+                }`,
+              },
+            ]),
+          },
+        ],
       },
     });
   }

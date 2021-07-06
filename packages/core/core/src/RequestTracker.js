@@ -248,6 +248,7 @@ export class RequestGraph extends ContentGraph<
     this.invalidNodeIds.delete(nodeId);
     this.incompleteNodeIds.delete(nodeId);
     this.incompleteNodePromises.delete(nodeId);
+    this.unpredicatableNodeIds.delete(nodeId);
     let node = nullthrows(this.getNode(nodeId));
     if (node.type === 'glob') {
       this.globNodeIds.delete(nodeId);

@@ -169,6 +169,16 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
 
   addNode(node: AssetGraphNode): NodeId {
     this.hash = null;
+    let existing = this.getNodeByContentKey(node.id);
+    if (existing != null) {
+      invariant(existing.type === node.type);
+      // $FlowFixMe[incompatible-type] Checked above
+      // $FlowFixMe[prop-missing]
+      existing.value = node.value;
+      let existingId = this.getNodeIdByContentKey(node.id);
+      this.updateNode(existingId, existing);
+      return existingId;
+    }
     return super.addNodeByContentKey(node.id, node);
   }
 
@@ -467,9 +477,14 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
       this.normalizeEnvironment(dep);
       let depNode = nodeFromDep(dep);
       let existing = this.getNodeByContentKey(depNode.id);
-      if (existing) {
-        invariant(existing.type === 'dependency');
-        depNode.value.meta = existing.value.meta;
+      if (
+        existing?.type === 'dependency' &&
+        existing.value.resolverMeta != null
+      ) {
+        depNode.value.meta = {
+          ...depNode.value.meta,
+          ...existing.value.resolverMeta,
+        };
       }
       let dependentAsset = dependentAssets.find(
         a => a.uniqueKey === dep.specifier,

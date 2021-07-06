@@ -24,6 +24,7 @@ import type {
 import type {LoadedPlugin} from './ParcelConfig';
 
 import path from 'path';
+import {Readable} from 'stream';
 import nullthrows from 'nullthrows';
 import {objectSortedEntries} from '@parcel/utils';
 import logger, {PluginLogger} from '@parcel/logger';
@@ -127,39 +128,38 @@ export default class Transformation {
 
   async run(): Promise<TransformationResult> {
     let asset = await this.loadAsset();
+    let existing;
 
     if (!asset.mapBuffer && SOURCEMAP_EXTENSIONS.has(asset.value.type)) {
       // Load existing sourcemaps, this automatically runs the source contents extraction
-      let existing;
       try {
         existing = await asset.loadExistingSourcemap();
       } catch (err) {
-        let filePath = fromProjectPath(
-          this.options.projectRoot,
-          this.request.filePath,
-        );
         logger.verbose([
           {
             origin: '@parcel/core',
             message: md`Could not load existing source map for ${fromProjectPathRelative(
               asset.value.filePath,
             )}`,
-            filePath,
           },
           {
             origin: '@parcel/core',
             message: escapeMarkdown(err.message),
-            filePath,
           },
         ]);
       }
+    }
 
-      if (existing == null) {
-        // If no existing sourcemap was found, initialize asset.sourceContent
-        // with the original contents. This will be used when the transformer
-        // calls setMap to ensure the source content is in the sourcemap.
-        asset.sourceContent = await asset.getCode();
-      }
+    if (
+      existing == null &&
+      // Don't buffer an entire stream into memory since it may not need sourceContent,
+      // e.g. large binary files
+      !(asset.content instanceof Readable)
+    ) {
+      // If no existing sourcemap was found, initialize asset.sourceContent
+      // with the original contents. This will be used when the transformer
+      // calls setMap to ensure the source content is in the sourcemap.
+      asset.sourceContent = await asset.getCode();
     }
 
     invalidateDevDeps(

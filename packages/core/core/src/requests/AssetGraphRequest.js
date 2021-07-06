@@ -491,19 +491,23 @@ export class AssetGraphBuilder {
                 resolution.value.filePath,
               )} does not export '${s}'`,
               origin: '@parcel/core',
-              filePath:
-                fromProjectPath(this.options.projectRoot, loc?.filePath) ??
-                undefined,
-              language: assetNode.value.type,
-              codeFrame: loc
-                ? {
-                    codeHighlights: [
-                      {
-                        start: loc.start,
-                        end: loc.end,
-                      },
-                    ],
-                  }
+              codeFrames: loc
+                ? [
+                    {
+                      filePath:
+                        fromProjectPath(
+                          this.options.projectRoot,
+                          loc?.filePath,
+                        ) ?? undefined,
+                      language: assetNode.value.type,
+                      codeHighlights: [
+                        {
+                          start: loc.start,
+                          end: loc.end,
+                        },
+                      ],
+                    },
+                  ]
                 : undefined,
             });
           }

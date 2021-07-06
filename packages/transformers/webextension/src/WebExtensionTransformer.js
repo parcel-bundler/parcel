@@ -54,20 +54,22 @@ async function collectDependencies(
           {
             message: 'Invalid Web Extension manifest',
             origin: '@parcel/transformer-webextension',
-            filePath,
-            codeFrame: {
-              codeHighlights: [
-                {
-                  ...getJSONSourceLocation(ptrs['/default_locale'], err),
-                  message: md`Localization directory${
-                    err == 'value' ? ' for ' + program.default_locale : ''
-                  } does not exist: ${path.relative(
-                    path.dirname(filePath),
-                    path.join(locales, program.default_locale),
-                  )}`,
-                },
-              ],
-            },
+            codeFrames: [
+              {
+                filePath,
+                codeHighlights: [
+                  {
+                    ...getJSONSourceLocation(ptrs['/default_locale'], err),
+                    message: md`Localization directory${
+                      err == 'value' ? ' for ' + program.default_locale : ''
+                    } does not exist: ${path.relative(
+                      path.dirname(filePath),
+                      path.join(locales, program.default_locale),
+                    )}`,
+                  },
+                ],
+              },
+            ],
           },
         ],
       });
@@ -125,15 +127,17 @@ async function collectDependencies(
             {
               message: 'Invalid Web Extension manifest',
               origin: '@parcel/transformer-webextension',
-              filePath,
-              codeFrame: {
-                codeHighlights: [
-                  {
-                    ...sourceLoc,
-                    message: 'Dictionaries must be .dic files',
-                  },
-                ],
-              },
+              codeFrames: [
+                {
+                  filePath,
+                  codeHighlights: [
+                    {
+                      ...sourceLoc,
+                      message: 'Dictionaries must be .dic files',
+                    },
+                  ],
+                },
+              ],
             },
           ],
         });

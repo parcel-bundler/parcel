@@ -278,7 +278,7 @@ describe('ParcelConfigRequest', () => {
         },
         e => {
           assert.strictEqual(
-            e.diagnostics[0].codeFrame.codeHighlights[0].message,
+            e.diagnostics[0].codeFrames[0].codeHighlights[0].message,
             `Did you mean "transformers"?`,
           );
           return true;
@@ -681,10 +681,13 @@ describe('ParcelConfigRequest', () => {
   describe('parseAndProcessConfig', () => {
     it('should load and merge configs', async () => {
       let defaultConfigPath = require.resolve('@parcel/config-default');
-      let defaultConfig = processConfig(DEFAULT_OPTIONS, {
-        ...require('@parcel/config-default'),
-        filePath: defaultConfigPath,
-      });
+      let defaultConfig = await processConfig(
+        {
+          ...require('@parcel/config-default'),
+          filePath: defaultConfigPath,
+        },
+        DEFAULT_OPTIONS,
+      );
       let configFilePath = path.join(
         __dirname,
         'fixtures',
@@ -750,18 +753,20 @@ describe('ParcelConfigRequest', () => {
             {
               message: 'Failed to parse .parcelrc',
               origin: '@parcel/core',
-              filePath: configFilePath,
-              language: 'json5',
-              codeFrame: {
-                code,
-                codeHighlights: [
-                  {
-                    message: "JSON5: invalid character 'b' at 2:14",
-                    start: pos,
-                    end: pos,
-                  },
-                ],
-              },
+              codeFrames: [
+                {
+                  filePath: configFilePath,
+                  language: 'json5',
+                  code,
+                  codeHighlights: [
+                    {
+                      message: "JSON5: invalid character 'b' at 2:14",
+                      start: pos,
+                      end: pos,
+                    },
+                  ],
+                },
+              ],
             },
           ],
         },
@@ -786,19 +791,21 @@ describe('ParcelConfigRequest', () => {
             {
               message: 'Cannot find extended parcel config',
               origin: '@parcel/core',
-              filePath: configFilePath,
-              language: 'json5',
-              codeFrame: {
-                code,
-                codeHighlights: [
-                  {
-                    message:
-                      '"./.parclrc-node-modules" does not exist, did you mean "./.parcelrc-node-modules"?',
-                    start: {line: 2, column: 14},
-                    end: {line: 2, column: 38},
-                  },
-                ],
-              },
+              codeFrames: [
+                {
+                  filePath: configFilePath,
+                  language: 'json5',
+                  code,
+                  codeHighlights: [
+                    {
+                      message:
+                        '"./.parclrc-node-modules" does not exist, did you mean "./.parcelrc-node-modules"?',
+                      start: {line: 2, column: 14},
+                      end: {line: 2, column: 38},
+                    },
+                  ],
+                },
+              ],
             },
           ],
         },
@@ -823,19 +830,21 @@ describe('ParcelConfigRequest', () => {
             {
               message: 'Cannot find extended parcel config',
               origin: '@parcel/core',
-              filePath: configFilePath,
-              language: 'json5',
-              codeFrame: {
-                code,
-                codeHighlights: [
-                  {
-                    message:
-                      'Cannot find module "@parcel/config-deflt", did you mean "@parcel/config-default"?',
-                    start: {line: 2, column: 14},
-                    end: {line: 2, column: 35},
-                  },
-                ],
-              },
+              codeFrames: [
+                {
+                  filePath: configFilePath,
+                  language: 'json5',
+                  code,
+                  codeHighlights: [
+                    {
+                      message:
+                        'Cannot find module "@parcel/config-deflt", did you mean "@parcel/config-default"?',
+                      start: {line: 2, column: 14},
+                      end: {line: 2, column: 35},
+                    },
+                  ],
+                },
+              ],
             },
           ],
         },
@@ -860,36 +869,40 @@ describe('ParcelConfigRequest', () => {
             {
               message: 'Cannot find extended parcel config',
               origin: '@parcel/core',
-              filePath: configFilePath,
-              language: 'json5',
-              codeFrame: {
-                code,
-                codeHighlights: [
-                  {
-                    message:
-                      'Cannot find module "@parcel/config-deflt", did you mean "@parcel/config-default"?',
-                    start: {line: 2, column: 15},
-                    end: {line: 2, column: 36},
-                  },
-                ],
-              },
+              codeFrames: [
+                {
+                  filePath: configFilePath,
+                  language: 'json5',
+                  code,
+                  codeHighlights: [
+                    {
+                      message:
+                        'Cannot find module "@parcel/config-deflt", did you mean "@parcel/config-default"?',
+                      start: {line: 2, column: 15},
+                      end: {line: 2, column: 36},
+                    },
+                  ],
+                },
+              ],
             },
             {
               message: 'Cannot find extended parcel config',
               origin: '@parcel/core',
-              filePath: configFilePath,
-              language: 'json5',
-              codeFrame: {
-                code,
-                codeHighlights: [
-                  {
-                    message:
-                      '"./.parclrc" does not exist, did you mean "./.parcelrc"?',
-                    start: {line: 2, column: 39},
-                    end: {line: 2, column: 50},
-                  },
-                ],
-              },
+              codeFrames: [
+                {
+                  filePath: configFilePath,
+                  language: 'json5',
+                  code,
+                  codeHighlights: [
+                    {
+                      message:
+                        '"./.parclrc" does not exist, did you mean "./.parcelrc"?',
+                      start: {line: 2, column: 39},
+                      end: {line: 2, column: 50},
+                    },
+                  ],
+                },
+              ],
             },
           ],
         },

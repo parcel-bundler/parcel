@@ -195,19 +195,21 @@ export class NodePackageManager implements PackageManager {
         throw new ThrowableDiagnostic({
           diagnostic: conflicts.fields.map(field => ({
             message: md`Could not find module "${name}", but it was listed in package.json. Run your package manager first.`,
-            filePath: conflicts.filePath,
             origin: '@parcel/package-manager',
-            language: 'json',
-            codeFrame: {
-              code: conflicts.json,
-              codeHighlights: generateJSONCodeHighlights(conflicts.json, [
-                {
-                  key: `/${field}/${encodeJSONKeyComponent(name)}`,
-                  type: 'key',
-                  message: 'Defined here, but not installed',
-                },
-              ]),
-            },
+            codeFrames: [
+              {
+                filePath: conflicts.filePath,
+                language: 'json',
+                code: conflicts.json,
+                codeHighlights: generateJSONCodeHighlights(conflicts.json, [
+                  {
+                    key: `/${field}/${encodeJSONKeyComponent(name)}`,
+                    type: 'key',
+                    message: 'Defined here, but not installed',
+                  },
+                ]),
+              },
+            ],
           })),
         });
       }
@@ -233,20 +235,22 @@ export class NodePackageManager implements PackageManager {
             throw new ThrowableDiagnostic({
               diagnostic: {
                 message: md`Could not find module "${name}" satisfying ${range}.`,
-                filePath: conflicts.filePath,
                 origin: '@parcel/package-manager',
-                language: 'json',
-                codeFrame: {
-                  code: conflicts.json,
-                  codeHighlights: generateJSONCodeHighlights(
-                    conflicts.json,
-                    conflicts.fields.map(field => ({
-                      key: `/${field}/${encodeJSONKeyComponent(name)}`,
-                      type: 'key',
-                      message: 'Found this conflicting local requirement.',
-                    })),
-                  ),
-                },
+                codeFrames: [
+                  {
+                    filePath: conflicts.filePath,
+                    language: 'json',
+                    code: conflicts.json,
+                    codeHighlights: generateJSONCodeHighlights(
+                      conflicts.json,
+                      conflicts.fields.map(field => ({
+                        key: `/${field}/${encodeJSONKeyComponent(name)}`,
+                        type: 'key',
+                        message: 'Found this conflicting local requirement.',
+                      })),
+                    ),
+                  },
+                ],
               },
             });
           }

@@ -88,16 +88,15 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
       entryAssetId: resolved.id,
     };
 
-    let bundleGroupNode = {
-      id: getBundleGroupId(bundleGroup),
-      type: 'bundle_group',
-      value: bundleGroup,
-    };
+    let bundleGroupKey = getBundleGroupId(bundleGroup);
+    let bundleGroupNodeId = this.#graph._graph.hasContentKey(bundleGroupKey)
+      ? this.#graph._graph.getNodeIdByContentKey(bundleGroupKey)
+      : this.#graph._graph.addNodeByContentKey(bundleGroupKey, {
+          id: bundleGroupKey,
+          type: 'bundle_group',
+          value: bundleGroup,
+        });
 
-    let bundleGroupNodeId = this.#graph._graph.addNodeByContentKey(
-      bundleGroupNode.id,
-      bundleGroupNode,
-    );
     let dependencyNodeId = this.#graph._graph.getNodeIdByContentKey(
       dependencyNode.id,
     );

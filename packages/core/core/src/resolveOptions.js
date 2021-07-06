@@ -163,6 +163,7 @@ export default async function resolveOptions(
         ? {distDir: toProjectPath(projectRoot, distDir)}
         : {...null}),
       engines: initialOptions?.defaultTargetOptions?.engines,
+      outputFormat: initialOptions?.defaultTargetOptions?.outputFormat,
     },
   };
 }

@@ -9,6 +9,9 @@ import path from 'path';
 import nullthrows from 'nullthrows';
 
 const COMMON_NAMES = new Set(['index', 'src', 'lib']);
+const ALLOWED_EXTENSIONS = {
+  js: ['js', 'mjs', 'cjs'],
+};
 
 export default (new Namer({
   name({bundle, bundleGraph, options}) {
@@ -40,10 +43,9 @@ export default (new Namer({
     ) {
       let loc = bundle.target.loc;
       let distEntry = bundle.target.distEntry;
-      if (
-        path.extname(bundle.target.distEntry).slice(1) !== bundle.type &&
-        loc
-      ) {
+      let distExtension = path.extname(bundle.target.distEntry).slice(1);
+      let allowedExtensions = ALLOWED_EXTENSIONS[bundle.type] || [bundle.type];
+      if (!allowedExtensions.includes(distExtension) && loc) {
         let fullName = path.relative(
           path.dirname(loc.filePath),
           path.join(bundle.target.distDir, distEntry),
@@ -51,21 +53,23 @@ export default (new Namer({
         let err = new ThrowableDiagnostic({
           diagnostic: {
             message: md`Target "${bundle.target.name}" declares an output file path of "${fullName}" which does not match the compiled bundle type "${bundle.type}".`,
-            filePath: loc.filePath,
-            codeFrame: {
-              codeHighlights: [
-                {
-                  start: loc.start,
-                  end: loc.end,
-                  message: md`Did you mean "${fullName.slice(
-                    0,
-                    -path.extname(fullName).length,
-                  ) +
-                    '.' +
-                    bundle.type}"?`,
-                },
-              ],
-            },
+            codeFrames: [
+              {
+                filePath: loc.filePath,
+                codeHighlights: [
+                  {
+                    start: loc.start,
+                    end: loc.end,
+                    message: md`Did you mean "${fullName.slice(
+                      0,
+                      -path.extname(fullName).length,
+                    ) +
+                      '.' +
+                      bundle.type}"?`,
+                  },
+                ],
+              },
+            ],
             hints: [
               `Try changing the file extension of "${
                 bundle.target.name

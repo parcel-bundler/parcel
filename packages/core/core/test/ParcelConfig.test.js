@@ -212,18 +212,20 @@ describe('ParcelConfig', () => {
             {
               message: `The plugin "parcel-transformer-bad-engines" is not compatible with the current version of Parcel. Requires "5.x" but the current version is "${parcelVersion}".`,
               origin: '@parcel/core',
-              filePath: pkgJSON,
-              language: 'json5',
-              codeFrame: {
-                code,
-                codeHighlights: [
-                  {
-                    start: {line: 5, column: 5},
-                    end: {line: 5, column: 19},
-                    message: undefined,
-                  },
-                ],
-              },
+              codeFrames: [
+                {
+                  filePath: pkgJSON,
+                  language: 'json5',
+                  code,
+                  codeHighlights: [
+                    {
+                      start: {line: 5, column: 5},
+                      end: {line: 5, column: 19},
+                      message: undefined,
+                    },
+                  ],
+                },
+              ],
             },
           ],
         },
@@ -252,18 +254,20 @@ describe('ParcelConfig', () => {
           {
             message: 'Cannot find Parcel plugin "@parcel/transformer-jj"',
             origin: '@parcel/core',
-            filePath: configFilePath,
-            language: 'json5',
-            codeFrame: {
-              code,
-              codeHighlights: [
-                {
-                  start: {line: 4, column: 14},
-                  end: {line: 4, column: 37},
-                  message: `Cannot find module "@parcel/transformer-jj", did you mean "@parcel/transformer-js"?`,
-                },
-              ],
-            },
+            codeFrames: [
+              {
+                filePath: configFilePath,
+                language: 'json5',
+                code,
+                codeHighlights: [
+                  {
+                    start: {line: 4, column: 14},
+                    end: {line: 4, column: 37},
+                    message: `Cannot find module "@parcel/transformer-jj", did you mean "@parcel/transformer-js"?`,
+                  },
+                ],
+              },
+            ],
           },
         ],
       });
@@ -286,9 +290,28 @@ describe('ParcelConfig', () => {
           diagnostics: [
             {
               message:
-                'Named pipeline node: is reserved for builtin Node.js libraries',
+                'Named pipeline `node:` is reserved for builtin Node.js libraries',
               origin: '@parcel/core',
-              filePath: configFilePath,
+              codeFrames: [
+                {
+                  filePath: configFilePath,
+                  language: 'json5',
+                  code,
+                  codeHighlights: [
+                    {
+                      message: undefined,
+                      start: {
+                        line: 4,
+                        column: 5,
+                      },
+                      end: {
+                        line: 4,
+                        column: 15,
+                      },
+                    },
+                  ],
+                },
+              ],
             },
           ],
         },

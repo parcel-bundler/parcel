@@ -5,8 +5,16 @@ import type {StaticRunOpts} from '../RequestTracker';
 import type {Entry, InternalFile, ParcelOptions} from '../types';
 import type {FileSystem} from '@parcel/fs';
 
-import {isDirectoryInside, isGlob, glob} from '@parcel/utils';
-import ThrowableDiagnostic, {md} from '@parcel/diagnostic';
+import {
+  isDirectoryInside,
+  isGlob,
+  glob,
+  findAlternativeFiles,
+} from '@parcel/utils';
+import ThrowableDiagnostic, {
+  md,
+  generateJSONCodeHighlights,
+} from '@parcel/diagnostic';
 import path from 'path';
 import {
   type ProjectPath,
@@ -73,26 +81,64 @@ async function run({input, api, options}: RunOpts): Promise<EntryResult> {
 
 async function assertFile(
   fs: FileSystem,
-  source: string,
-  diagnosticPath: string,
+  entry: FilePath,
+  relativeSource: FilePath,
+  pkgFilePath: FilePath,
+  keyPath: string,
+  options: ParcelOptions,
 ) {
+  let source = path.join(entry, relativeSource);
   let stat;
   try {
     stat = await fs.stat(source);
   } catch (err) {
+    let contents = await fs.readFile(pkgFilePath, 'utf8');
+    let alternatives = await findAlternativeFiles(
+      fs,
+      relativeSource,
+      entry,
+      options.projectRoot,
+      false,
+    );
     throw new ThrowableDiagnostic({
       diagnostic: {
-        message: `${diagnosticPath} does not exist`,
-        filePath: source,
+        origin: '@parcel/core',
+        message: `${path.relative(process.cwd(), source)} does not exist.`,
+        codeFrames: [
+          {
+            filePath: pkgFilePath,
+            codeHighlights: generateJSONCodeHighlights(contents, [
+              {
+                key: keyPath,
+                type: 'value',
+              },
+            ]),
+          },
+        ],
+        hints: alternatives.map(r => {
+          return `Did you mean '__${r}__'?`;
+        }),
       },
     });
   }
 
   if (!stat.isFile()) {
+    let contents = await fs.readFile(pkgFilePath, 'utf8');
     throw new ThrowableDiagnostic({
       diagnostic: {
-        message: `${diagnosticPath} is not a file`,
-        filePath: source,
+        origin: '@parcel/core',
+        message: `${path.relative(process.cwd(), source)} is not a file.`,
+        codeFrames: [
+          {
+            filePath: pkgFilePath,
+            codeHighlights: generateJSONCodeHighlights(contents, [
+              {
+                key: keyPath,
+                type: 'value',
+              },
+            ]),
+          },
+        ],
       },
     });
   }
@@ -130,7 +176,6 @@ export class EntryResolver {
       throw new ThrowableDiagnostic({
         diagnostic: {
           message: md`Entry ${entry} does not exist`,
-          filePath: entry,
         },
       });
     }
@@ -160,19 +205,26 @@ export class EntryResolver {
               let targetSources = Array.isArray(target.source)
                 ? target.source
                 : [target.source];
+              let i = 0;
               for (let relativeSource of targetSources) {
                 let source = path.join(entry, relativeSource);
-                let diagnosticPath = md`${relativeSource} in ${path.relative(
-                  this.options.inputFS.cwd(),
+                await assertFile(
+                  this.options.inputFS,
+                  entry,
+                  relativeSource,
                   filePath,
-                )}#targets["${targetName}"].source`;
-                await assertFile(this.options.inputFS, source, diagnosticPath);
+                  `/targets/${targetName}/source${
+                    Array.isArray(target.source) ? `/${i}` : ''
+                  }`,
+                  this.options,
+                );
 
                 entries.push({
                   filePath: toProjectPath(this.options.projectRoot, source),
                   packagePath: toProjectPath(this.options.projectRoot, entry),
                   target: targetName,
                 });
+                i++;
               }
             }
           }
@@ -188,17 +240,22 @@ export class EntryResolver {
           let pkgSources = Array.isArray(pkg.source)
             ? pkg.source
             : [pkg.source];
+          let i = 0;
           for (let pkgSource of pkgSources) {
             let source = path.join(path.dirname(filePath), pkgSource);
-            let diagnosticPath = md`${pkgSource} in ${path.relative(
-              this.options.inputFS.cwd(),
+            await assertFile(
+              this.options.inputFS,
+              entry,
+              pkgSource,
               filePath,
-            )}#source`;
-            await assertFile(this.options.inputFS, source, diagnosticPath);
+              `/source${Array.isArray(pkg.source) ? `/${i}` : ''}`,
+              this.options,
+            );
             entries.push({
               filePath: toProjectPath(this.options.projectRoot, source),
               packagePath: toProjectPath(this.options.projectRoot, entry),
             });
+            i++;
           }
         }
 
@@ -214,7 +271,6 @@ export class EntryResolver {
       throw new ThrowableDiagnostic({
         diagnostic: {
           message: md`Could not find entry: ${entry}`,
-          filePath: entry,
         },
       });
     } else if (stat.isFile()) {
@@ -240,7 +296,6 @@ export class EntryResolver {
     throw new ThrowableDiagnostic({
       diagnostic: {
         message: `Unknown entry: ${entry}`,
-        filePath: entry,
       },
     });
   }
@@ -259,13 +314,13 @@ export class EntryResolver {
     try {
       pkg = JSON.parse(content);
     } catch (err) {
+      // TODO: code frame?
       throw new ThrowableDiagnostic({
         diagnostic: {
           message: md`Error parsing ${path.relative(
             this.options.inputFS.cwd(),
             pkgFile,
           )}: ${err.message}`,
-          filePath: pkgFile,
         },
       });
     }

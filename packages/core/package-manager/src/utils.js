@@ -44,9 +44,9 @@ export async function getConflictingLocalDependencies(
   try {
     pkg = JSON.parse(pkgStr);
   } catch (e) {
+    // TODO: codeframe
     throw new ThrowableDiagnostic({
       diagnostic: {
-        filePath: pkgPath,
         message: 'Failed to parse package.json',
         origin: '@parcel/package-manager',
       },
@@ -54,9 +54,9 @@ export async function getConflictingLocalDependencies(
   }
 
   if (typeof pkg !== 'object' || pkg == null) {
+    // TODO: codeframe
     throw new ThrowableDiagnostic({
       diagnostic: {
-        filePath: pkgPath,
         message: 'Expected package.json contents to be an object.',
         origin: '@parcel/package-manager',
       },

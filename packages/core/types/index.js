@@ -251,6 +251,7 @@ type PackageDependencies = {|
 export type PackageJSON = {
   name: PackageName,
   version: Semver,
+  type?: 'module',
   main?: FilePath,
   module?: FilePath,
   types?: FilePath,
@@ -308,6 +309,7 @@ export type InitialParcelOptions = {|
     +publicUrl?: string,
     +distDir?: FilePath,
     +engines?: Engines,
+    +outputFormat?: OutputFormat,
   |},
 
   +additionalReporters?: Array<{|
