@@ -55,7 +55,13 @@ export default async function dumpGraphToGraphViz(
     n.set('shape', 'box');
     n.set('style', 'filled');
     let label;
-    if (node.type) {
+    if (node.assetIds) {
+      label = `(${nodeId(id)}), (assetIds: ${node.assetIds.join(
+        ', ',
+      )}) (sourceBundles: ${node.sourceBundles.join(
+        ', ',
+      )}) (bb ${node.bundleBehavior ?? 'none'})`;
+    } else if (node.type) {
       label = `${node.type || 'No Type'}: [${node.id}]: `;
       if (node.type === 'dependency') {
         label += node.value.specifier;
@@ -109,10 +115,6 @@ export default async function dumpGraphToGraphViz(
             label += '\\nusedSymbols: ' + [...node.usedSymbols].join(',');
           }
         }
-      } else if (node.type === 'mybundle') {
-        label += `(assetIds: ${node.value.assetIds.join(
-          ', ',
-        )}) (sourceBundles: ${node.value.sourceBundles.join(', ')})`;
       } else if (node.type === 'asset_group') {
         if (node.deferred) label += '(deferred)';
         // $FlowFixMe
@@ -127,17 +129,14 @@ export default async function dumpGraphToGraphViz(
       } else if (node.type === 'bundle') {
         let parts = [];
         if (node.value.needsStableName) parts.push('stable name');
-        if (node.value.bundleBehavior) parts.push(node.value.bundleBehavior);
+        if (node.value.name) parts.push('[name ', node.value.name, ']');
+        parts.push('bb-', node.value.bundleBehavior);
         if (parts.length) label += ' (' + parts.join(', ') + ')';
         if (node.value.env) label += ` (${getEnvDescription(node.value.env)})`;
         // $FlowFixMe
       } else if (node.type === 'request') {
         label = node.value.type + ':' + node.id;
       }
-    } else {
-      label = `(${nodeId(id)}), (assetIds: ${node.assetIds.join(
-        ', ',
-      )}) (sourceBundles: ${node.sourceBundles.join(', ')})`;
     }
     n.set('label', label);
   }

@@ -53,7 +53,7 @@ export function replaceURLReferences({
       continue;
     }
 
-    let resolved = bundleGraph.getReferencedBundle(dependency, bundle);
+    const resolved = bundleGraph.getReferencedBundle(dependency, bundle);
     if (resolved == null) {
       replacements.set(dependency.id, {
         from: dependency.id,
@@ -62,7 +62,7 @@ export function replaceURLReferences({
       continue;
     }
 
-    if (!resolved || resolved.bundleBehavior === 'inline') {
+    if (resolved.bundleBehavior === 'inline') {
       // If a bundle is inline, it should be replaced with inline contents,
       // not a URL.
       continue;

@@ -3,6 +3,7 @@
 import type {
   Asset,
   Bundle as LegacyBundle,
+  BundleBehavior,
   BundleGroup,
   Dependency,
   Environment,
@@ -48,6 +49,8 @@ const HTTP_OPTIONS = {
 type AssetId = string;
 export type Bundle = {|
   assetIds: Array<AssetId>,
+  bundleBehavior?: ?BundleBehavior,
+  needsStableName: boolean,
   size: number,
   sourceBundles: Array<NodeId>,
   target: Target,
@@ -97,7 +100,8 @@ function decorateLegacyGraph(
       bundle = nullthrows(
         bundleGraph.createBundle({
           entryAsset,
-          needsStableName: dependency?.isEntry,
+          needsStableName: idealBundle.needsStableName,
+          bundleBehavior: idealBundle.bundleBehavior,
           target: idealBundle.target,
         }),
       );
@@ -109,6 +113,8 @@ function decorateLegacyGraph(
           uniqueKey:
             idealBundle.assetIds.join(',') +
             idealBundle.sourceBundles.join(','),
+          needsStableName: idealBundle.needsStableName,
+          bundleBehavior: idealBundle.bundleBehavior,
           type: idealBundle.type,
           target: idealBundle.target,
           env: idealBundle.env,
@@ -178,7 +184,11 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
 
   for (let [asset, dependency] of entries) {
     let nodeId = bundleGraph.addNode(
-      createBundle({asset, target: nullthrows(dependency.target)}),
+      createBundle({
+        asset,
+        target: nullthrows(dependency.target),
+        needsStableName: dependency.isEntry,
+      }),
     );
     bundles.set(asset.id, nodeId);
     bundleRoots.set(asset, [nodeId, nodeId]);
@@ -249,11 +259,18 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
         }
 
         // Create a new bundle when the asset type changes.
-        if (parentAsset.type !== childAsset.type) {
+        if (
+          parentAsset.type !== childAsset.type ||
+          childAsset.bundleBehavior === 'inline'
+        ) {
           let [, bundleGroupNodeId] = nullthrows(stack[stack.length - 1]);
           let bundleGroup = nullthrows(bundleGraph.getNode(bundleGroupNodeId));
           let bundleId = bundleGraph.addNode(
-            createBundle({asset: childAsset, target: bundleGroup.target}),
+            createBundle({
+              asset: childAsset,
+              target: bundleGroup.target,
+              needsStableName: dependency.bundleBehavior === 'inline',
+            }),
           );
           bundles.set(childAsset.id, bundleId);
           bundleRoots.set(childAsset, [bundleId, bundleGroupNodeId]);
@@ -410,12 +427,14 @@ function createBundle(
         target: Target,
         env: Environment,
         type: string,
+        needsStableName?: boolean,
       |}
     | {|
         target: Target,
         asset: Asset,
         env?: Environment,
         type?: string,
+        needsStableName?: boolean,
       |},
 ): Bundle {
   if (opts.asset == null) {
@@ -426,6 +445,7 @@ function createBundle(
       target: opts.target,
       type: nullthrows(opts.type),
       env: nullthrows(opts.env),
+      needsStableName: Boolean(opts.needsStableName),
     };
   }
 
@@ -437,6 +457,8 @@ function createBundle(
     target: opts.target,
     type: opts.type ?? asset.type,
     env: opts.env ?? asset.env,
+    needsStableName: Boolean(opts.needsStableName),
+    bundleBehavior: asset.bundleBehavior,
   };
 }
 
