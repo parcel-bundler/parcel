@@ -249,7 +249,6 @@ export async function getNextBuildSuccess(
   b: Parcel,
 ): Promise<BuildSuccessEvent> {
   let evt = await getNextBuild(b);
-  evt.type === 'buildFailure' && console.log(evt.diagnostics);
   invariant(evt.type === 'buildSuccess');
   return evt;
 }
