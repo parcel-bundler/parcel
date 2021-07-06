@@ -1007,6 +1007,11 @@ export async function assertNoFilePathInCache(
 ) {
   let entries = await fs.readdir(dir);
   for (let entry of entries) {
+    // Skip watcher snapshots for linux/windows, which contain full file paths.
+    if (path.extname(entry) === '.txt') {
+      continue;
+    }
+
     let fullPath = path.join(dir, entry);
     let stat = await fs.stat(fullPath);
     if (stat.isDirectory()) {
