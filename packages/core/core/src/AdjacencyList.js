@@ -294,39 +294,6 @@ export class Edge<TEdgeType: number = 1> {
   }
 
   static deleteAt(index: number, nodes: Uint32Array, edges: Uint32Array) {
-    let {
-      hash,
-      from,
-      to,
-      previousOutgoingEdge,
-      previousIncomingEdge,
-      nextOutgoingEdge,
-      nextIncomingEdge,
-    } = new Edge(index, nodes, edges);
-    if (to.firstIncomingEdge?.hash === hash) {
-      to.firstIncomingEdge = nextIncomingEdge;
-    }
-    if (to.lastIncomingEdge?.hash === hash) {
-      to.lastIncomingEdge = previousIncomingEdge;
-    }
-    if (from.firstOutgoingEdge?.hash === hash) {
-      from.firstOutgoingEdge = nextOutgoingEdge;
-    }
-    if (from.lastOutgoingEdge?.hash === hash) {
-      from.lastOutgoingEdge = previousOutgoingEdge;
-    }
-    if (nextOutgoingEdge) {
-      nextOutgoingEdge.previousOutgoingEdge = previousOutgoingEdge;
-    }
-    if (nextIncomingEdge) {
-      nextIncomingEdge.previousIncomingEdge = previousIncomingEdge;
-    }
-    if (previousOutgoingEdge) {
-      previousOutgoingEdge.nextOutgoingEdge = nextOutgoingEdge;
-    }
-    if (previousIncomingEdge) {
-      previousIncomingEdge.nextIncomingEdge = nextIncomingEdge;
-    }
     // Mark this slot as DELETED.
     // We do this so that clustered edges can still be found
     // by scanning forward in the array from the first index for
@@ -915,7 +882,40 @@ export default class AdjacencyList<TEdgeType: number = 1> {
       // The edge is not in the graph; do nothing.
       return;
     }
+
+    let edge = new Edge(index, this.nodes, this.edges);
+    // If the edge's `to` node references this edge as
+    // its first incoming edge, update it to the next incoming edge.
+    if (edge.to.firstIncomingEdge?.hash === edge.hash) {
+      edge.to.firstIncomingEdge = edge.nextIncomingEdge;
+    }
+    // If the edge's `to` node references this edge as
+    // its last incoming edge, update it to the previous incoming edge.
+    if (edge.to.lastIncomingEdge?.hash === edge.hash) {
+      edge.to.lastIncomingEdge = edge.previousIncomingEdge;
+    }
+    // If the edge's `from` node references this edge as
+    // its first outgoing edge, update it to the previous outgoing edge.
+    if (edge.from.firstOutgoingEdge?.hash === edge.hash) {
+      edge.from.firstOutgoingEdge = edge.nextOutgoingEdge;
+    }
+    // If the edge's `from` node references this edge as
+    // its last outgoing edge, update it to the previous outgoing edge.
+    if (edge.from.lastOutgoingEdge?.hash === edge.hash) {
+      edge.from.lastOutgoingEdge = edge.previousOutgoingEdge;
+    }
+    // Splice this edge from the `from` node's list of outgoing edges.
+    if (edge.previousOutgoingEdge) {
+      edge.previousOutgoingEdge.nextOutgoingEdge = edge.nextOutgoingEdge;
+    }
+    // Splice this edge from the `to` node's list of incoming edges.
+    if (edge.previousIncomingEdge) {
+      edge.previousIncomingEdge.nextIncomingEdge = edge.nextIncomingEdge;
+    }
+
+    // Mark this space in the edges array as deleted.
     Edge.deleteAt(index, this.nodes, this.edges);
+
     this.numEdges--;
   }
 
