@@ -15,30 +15,36 @@ import {
   sleep,
   getNextBuild,
   distDir,
+  getParcelOptions,
+  assertNoFilePathInCache,
 } from '@parcel/test-utils';
 import {md} from '@parcel/diagnostic';
 import fs from 'fs';
 import {NodePackageManager} from '@parcel/package-manager';
 import {createWorkerFarm} from '@parcel/core';
+import resolveOptions from '@parcel/core/src/resolveOptions';
 
 let inputDir: string;
 let packageManager = new NodePackageManager(inputFS, '/');
 
-function runBundle(entries = 'src/index.js', opts) {
-  entries = (Array.isArray(entries) ? entries : [entries]).map(entry =>
+function getEntries(entries = 'src/index.js') {
+  return (Array.isArray(entries) ? entries : [entries]).map(entry =>
     path.resolve(inputDir, entry),
   );
+}
 
-  return bundler(
-    entries,
-    mergeParcelOptions(
-      {
-        inputFS: overlayFS,
-        shouldDisableCache: false,
-      },
-      opts,
-    ),
-  ).run();
+function getOptions(opts) {
+  return mergeParcelOptions(
+    {
+      inputFS: overlayFS,
+      shouldDisableCache: false,
+    },
+    opts,
+  );
+}
+
+function runBundle(entries = 'src/index.js', opts) {
+  return bundler(getEntries(entries), getOptions(opts)).run();
 }
 
 type UpdateFn = BuildSuccessEvent =>
@@ -69,13 +75,33 @@ async function testCache(update: UpdateFn | TestConfig, integration) {
     }
   }
 
+  let resolvedOptions = await resolveOptions(
+    getParcelOptions(getEntries(entries), getOptions(options)),
+  );
+
   let b = await runBundle(entries, options);
+
+  await assertNoFilePathInCache(
+    resolvedOptions.outputFS,
+    resolvedOptions.cacheDir,
+    resolvedOptions.projectRoot,
+  );
 
   // update
   let newOptions = await update(b);
+  options = mergeParcelOptions(options || {}, newOptions);
 
   // Run cached build
-  b = await runBundle(entries, mergeParcelOptions(options || {}, newOptions));
+  b = await runBundle(entries, options);
+
+  resolvedOptions = await resolveOptions(
+    getParcelOptions(getEntries(entries), getOptions(options)),
+  );
+  await assertNoFilePathInCache(
+    resolvedOptions.outputFS,
+    resolvedOptions.cacheDir,
+    resolvedOptions.projectRoot,
+  );
 
   return b;
 }
