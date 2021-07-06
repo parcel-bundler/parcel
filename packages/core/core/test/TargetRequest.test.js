@@ -859,7 +859,7 @@ describe('TargetResolver', () => {
     assert.deepEqual(await targetResolver.resolve(fixture), [
       {
         name: 'test',
-        distDir: path.join(fixture, 'dist'),
+        distDir: relative(path.join(fixture, 'dist')),
         distEntry: 'index.js',
         publicUrl: '/',
         env: {
@@ -876,7 +876,7 @@ describe('TargetResolver', () => {
           sourceType: 'module',
         },
         loc: {
-          filePath: path.join(fixture, 'package.json'),
+          filePath: relative(path.join(fixture, 'package.json')),
           start: {
             column: 11,
             line: 3,

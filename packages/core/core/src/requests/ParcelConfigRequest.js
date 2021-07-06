@@ -544,9 +544,7 @@ async function processExtendedConfig(
                 key: extendsKey,
                 type: 'value',
                 message: md`"${extendsSpecifier}" does not exist${
-                  alternatives[0]
-                    ? `, did you mean "./${alternatives[0]}"?`
-                    : ''
+                  alternatives[0] ? `, did you mean "${alternatives[0]}"?` : ''
                 }`,
               },
             ]),
