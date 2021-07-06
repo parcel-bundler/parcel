@@ -320,12 +320,12 @@ ${
             style.lang = extname(style.src);
           }
           switch (style.lang) {
-            case 'less':
-            case 'stylus':
-            case 'styl':
-            case 'scss':
-            case 'sass':
-            case 'css':
+            case '.less':
+            case '.stylus':
+            case '.styl':
+            case '.scss':
+            case '.sass':
+            case '.css':
             case undefined:
               break;
             default:
