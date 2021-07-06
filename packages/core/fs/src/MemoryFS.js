@@ -30,12 +30,14 @@ type SerializedMemoryFS = {
   ...
 };
 
-type WorkerEvent = {|
-  type: 'writeFile' | 'unlink' | 'mkdir' | 'symlink',
-  path: FilePath,
-  entry?: Entry,
-  target?: FilePath,
-|};
+type WorkerEvent =
+  | {|
+      type: 'writeFile' | 'unlink' | 'mkdir' | 'symlink',
+      path: FilePath,
+      entry?: Entry,
+      target?: FilePath,
+    |}
+  | {|type: 'destroy'|};
 
 type ResolveFunction = () => mixed;
 
@@ -67,7 +69,11 @@ export class MemoryFS implements FileSystem {
     this._cwd = '/';
     this._workerHandles = [];
     this._eventQueue = [];
-    instances.set(this.id, this);
+
+    if (this.constructor !== WorkerFS) {
+      instances.set(this.id, this);
+    }
+
     this._emitter.on('allWorkersRegistered', () => {
       for (let resolve of this._workerRegisterResolves) {
         resolve();
@@ -91,6 +97,8 @@ export class MemoryFS implements FileSystem {
     fs.dirs = opts.dirs;
     fs.files = opts.files;
     fs.symlinks = opts.symlinks;
+
+    instances.set(opts.id, fs);
     return fs;
   }
 
@@ -121,6 +129,33 @@ export class MemoryFS implements FileSystem {
     this._numWorkerInstances--;
     if (this._numWorkerInstances === this._workerHandles.length) {
       this._emitter.emit('allWorkersRegistered');
+    }
+  }
+
+  async destroy() {
+    await this._sendWorkerEvent({
+      type: 'destroy',
+    });
+
+    this._destroy();
+  }
+
+  _destroy() {
+    instances.delete(this.id);
+
+    for (let handle of this._workerHandles) {
+      handle.dispose();
+    }
+
+    this._workerHandles.length = 0;
+    this.files.clear();
+    this.dirs.clear();
+    this.symlinks.clear();
+    this.watchers.clear();
+    this.events.length = 0;
+
+    if (this.handle) {
+      this.handle.dispose();
     }
   }
 
@@ -955,6 +990,9 @@ class WorkerFS extends MemoryFS {
           case 'symlink':
             this.symlinks.set(event.path, event.target);
             break;
+          case 'destroy':
+            this._destroy();
+            break;
         }
       }),
     ]);
@@ -1004,6 +1042,11 @@ class WorkerFS extends MemoryFS {
   symlink(target: FilePath, path: FilePath): Promise<void> {
     super.symlink(target, path);
     return this.handleFn('symlink', [target, path]);
+  }
+
+  destroy() {
+    super.destroy();
+    return this.handleFn('destroy', []);
   }
 }
 

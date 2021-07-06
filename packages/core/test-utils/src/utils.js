@@ -35,7 +35,8 @@ export const inputFS: NodeFS = new NodeFS();
 export let outputFS: MemoryFS = new MemoryFS(workerFarm);
 export let overlayFS: OverlayFS = new OverlayFS(outputFS, inputFS);
 
-beforeEach(() => {
+beforeEach(async () => {
+  await outputFS.destroy();
   outputFS = new MemoryFS(workerFarm);
   overlayFS = new OverlayFS(outputFS, inputFS);
 });
