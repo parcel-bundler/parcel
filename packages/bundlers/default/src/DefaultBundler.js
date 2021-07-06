@@ -62,6 +62,7 @@ type IdealGraph = {|
   bundleLoadedByDependency: Map<NodeId, Dependency>,
   bundleGraph: Graph<Bundle>,
   entryBundles: Array<NodeId>,
+  assetReference: DefaultMap<Asset, Array<[Dependency, Bundle]>>,
 |};
 
 export default (new Bundler({
@@ -79,6 +80,7 @@ function decorateLegacyGraph(
   idealGraph: IdealGraph,
   bundleGraph: MutableBundleGraph,
 ): void {
+  //TODO add in reference edges based on stored assets from create ideal graph
   let idealBundleToLegacyBundle: Map<Bundle, LegacyBundle> = new Map();
 
   let {bundleGraph: idealBundleGraph, bundleLoadedByDependency} = idealGraph;
@@ -146,10 +148,23 @@ function decorateLegacyGraph(
         idealBundleToLegacyBundle.get(siblingBundle),
       );
       bundleGraph.addBundleToBundleGroup(legacySiblingBundle, bundleGroup);
-      bundleGraph.createBundleReference(
-        legacyMainBundleOfBundleGroup,
-        legacySiblingBundle,
-      );
+      //TODO Put this back for shared bundles
+      // bundleGraph.createBundleReference(
+      //   legacyMainBundleOfBundleGroup,
+      //   legacySiblingBundle,
+      // );
+    }
+  }
+
+  /**
+   * TODO: Create all bundles, bundlegroups,  without adding anything to them
+   * Draw connections to bundles
+   * Add references to bundles
+   */
+  for (let [asset, references] of idealGraph.assetReference) {
+    for (let [dependency, bundle] of references) {
+      let legacyBundle = nullthrows(idealBundleToLegacyBundle.get(bundle));
+      bundleGraph.createAssetReference(dependency, asset, legacyBundle);
     }
   }
 }
@@ -159,6 +174,10 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
   let bundleRoots: Map<Asset, [NodeId, NodeId]> = new Map();
   let bundles: Map<string, NodeId> = new Map();
   let bundleLoadedByDependency: Map<NodeId, Dependency> = new Map();
+  let assetReference: DefaultMap<
+    Asset,
+    Array<[Dependency, Bundle]>,
+  > = new DefaultMap(() => []);
   //
   let reachableBundles: DefaultMap<Asset, Set<Asset>> = new DefaultMap(
     () => new Set(),
@@ -265,19 +284,20 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
         ) {
           let [, bundleGroupNodeId] = nullthrows(stack[stack.length - 1]);
           let bundleGroup = nullthrows(bundleGraph.getNode(bundleGroupNodeId));
-          let bundleId = bundleGraph.addNode(
-            createBundle({
-              asset: childAsset,
-              target: bundleGroup.target,
-              needsStableName: dependency.bundleBehavior === 'inline',
-            }),
-          );
+          let bundle = createBundle({
+            asset: childAsset,
+            target: bundleGroup.target,
+            needsStableName: dependency.bundleBehavior === 'inline',
+          });
+          let bundleId = bundleGraph.addNode(bundle);
           bundles.set(childAsset.id, bundleId);
           bundleRoots.set(childAsset, [bundleId, bundleGroupNodeId]);
 
           // Add an edge from the bundle group entry to the new bundle.
           // This indicates that the bundle is loaded together with the entry
           bundleGraph.addEdge(bundleGroupNodeId, bundleId);
+          assetReference.get(childAsset).push([dependency, bundle]);
+
           return node;
         }
       }
@@ -398,6 +418,7 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
     bundleGraph,
     bundleLoadedByDependency,
     entryBundles: [...bundleRoots.values()].map(v => v[0]),
+    assetReference,
   };
 }
 

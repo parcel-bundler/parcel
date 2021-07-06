@@ -257,10 +257,22 @@ export default class BundleGraph {
             .some(node => node.type === 'bundle')
         ) {
           this._graph.addEdge(bundleNodeId, nodeId, 'references');
+          this.markDependencyReferenceable(node.value);
+          //all bundles that have this dependency need to have an edge from bundle to that dependency
         }
       }
     }, assetNodeId);
     this._bundleContentHashes.delete(bundle.id);
+  }
+
+  markDependencyReferenceable(dependency: Dependency) {
+    for (let bundle of this.findBundlesWithDependency(dependency)) {
+      this._graph.addEdge(
+        this._graph.getNodeIdByContentKey(bundle.id),
+        this._graph.getNodeIdByContentKey(dependency.id),
+        'references',
+      );
+    }
   }
 
   addEntryToBundle(
@@ -449,6 +461,7 @@ export default class BundleGraph {
         this.removeExternalDependency(bundle, node.value);
         if (this._graph.hasEdge(bundleNodeId, nodeId, 'references')) {
           this._graph.addEdge(bundleNodeId, nodeId, 'references');
+          this.markDependencyReferenceable(node.value);
         }
       }
     }, assetNodeId);
@@ -580,6 +593,7 @@ export default class BundleGraph {
     this._graph.addEdge(dependencyId, assetId, 'references');
 
     this._graph.addEdge(dependencyId, bundleId, 'references');
+    this.markDependencyReferenceable(dependency);
     if (this._graph.hasEdge(dependencyId, assetId)) {
       this._graph.removeEdge(dependencyId, assetId);
     }

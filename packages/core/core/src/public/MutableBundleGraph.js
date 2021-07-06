@@ -51,7 +51,7 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
         : undefined,
     );
   }
-
+  //TODO: Lift function to bundlegraph.js
   addAssetToBundle(asset: IAsset, bundle: IBundle) {
     let bundleNodeId = this.#graph._graph.getNodeIdByContentKey(bundle.id);
     this.#graph._graph.addEdge(
@@ -77,6 +77,21 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
         .filter(([, node]) => node.type === 'bundle_group')) {
         invariant(bundleGroupNode.type === 'bundle_group');
         this.#graph._graph.addEdge(bundleNodeId, bundleGroupNodeId, 'bundle');
+      }
+      // If the dependency references a target bundle, add a reference edge from
+      // the source bundle to the dependency for easy traversal.
+      //TODO Consider bundle being created from dependency
+      if (
+        this.#graph._graph
+          .getNodeIdsConnectedFrom(dependencyNodeId, 'references')
+          .map(id => nullthrows(this.#graph._graph.getNode(id)))
+          .some(node => node.type === 'bundle')
+      ) {
+        this.#graph._graph.addEdge(
+          bundleNodeId,
+          dependencyNodeId,
+          'references',
+        );
       }
     }
   }
@@ -136,6 +151,7 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
     this.#graph._graph.addEdge(dependencyNodeId, bundleGroupNodeId);
     this.#graph._graph.replaceNodeIdsConnectedTo(bundleGroupNodeId, assetNodes);
     this.#graph._graph.addEdge(dependencyNodeId, resolvedNodeId, 'references');
+    this.#graph.markDependencyReferenceable(dependencyNode.value);
     this.#graph._graph.removeEdge(dependencyNodeId, resolvedNodeId);
 
     if (dependency.isEntry) {
