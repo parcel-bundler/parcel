@@ -26,7 +26,7 @@
     "@parcel/hash": "2.0.0-beta.3.1",
     "@parcel/logger": "2.0.0-beta.3.1",
     "@parcel/markdown-ansi": "2.0.0-beta.3.1",
-    "@parcel/source-map": "2.0.0-rc.4",
+    "@parcel/source-map": "2.0.0-rc.5",
     "ansi-html": "^0.0.7",
     "chalk": "^4.1.0",
     "clone": "^2.1.1",
