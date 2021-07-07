@@ -109,12 +109,22 @@ type PackageJSONConfig = {|
 |};
 
 const SCRIPT_ERRORS = {
-  browser:
-    'Browser scripts cannot have imports or exports. Use a <script type="module"> instead.',
-  'web-worker':
-    'Web workers cannot have imports or exports. Use the `type: "module"` option instead.',
-  'service-worker':
-    'Service workers cannot have imports or exports. Use the `type: "module"` option instead.',
+  browser: {
+    message: 'Browser scripts cannot have imports or exports.',
+    hint: 'Add type="module" as a second argument to the <script> tag.',
+  },
+  'web-worker': {
+    message:
+      'Web workers cannot have imports or exports without the `type: "module"` option.',
+    hint:
+      "Add {type: 'module'} as a second argument to the Worker constructor.",
+  },
+  'service-worker': {
+    message:
+      'Service workers cannot have imports or exports without the `type: "module"` option.',
+    hint:
+      "Add {type: 'module'} as a second argument to the navigator.serviceWorker.register() call.",
+  },
 };
 
 type TSConfig = {
@@ -358,7 +368,6 @@ export default (new Transformer({
       needs_esm_helpers,
       diagnostics,
       used_env,
-      script_error_loc,
     } = transform({
       filename: asset.filePath,
       code,
@@ -413,64 +422,58 @@ export default (new Transformer({
 
     if (diagnostics) {
       throw new ThrowableDiagnostic({
-        diagnostic: diagnostics.map(diagnostic => ({
-          filePath: asset.filePath,
-          message: diagnostic.message,
-          codeFrame: {
-            code: code.toString(),
-            codeHighlights: diagnostic.code_highlights?.map(highlight => {
-              let {start, end} = convertLoc(highlight.loc);
-              return {
-                message: highlight.message,
-                start,
-                end,
-              };
-            }),
-          },
-          hints: diagnostic.hints,
-        })),
-      });
-    }
+        diagnostic: diagnostics.map(diagnostic => {
+          let message = diagnostic.message;
+          if (message === 'SCRIPT_ERROR') {
+            let err = SCRIPT_ERRORS[(asset.env.context: string)];
+            message = err?.message || SCRIPT_ERRORS.browser.message;
+          }
 
-    // Throw an error for imports/exports within a script if needed.
-    if (script_error_loc) {
-      let message = SCRIPT_ERRORS[(asset.env.context: string)];
-      if (message) {
-        let loc = convertLoc(script_error_loc);
-        let diagnostic = [
-          {
+          let res = {
             message,
-            filePath: asset.filePath,
-            codeFrame: {
-              codeHighlights: [
-                {
-                  start: loc.start,
-                  end: loc.end,
-                },
-              ],
-            },
-          },
-        ];
+            codeFrames: [
+              {
+                filePath: asset.filePath,
+                codeHighlights: diagnostic.code_highlights?.map(highlight => {
+                  let {start, end} = convertLoc(highlight.loc);
+                  return {
+                    message: highlight.message,
+                    start,
+                    end,
+                  };
+                }),
+              },
+            ],
+            hints: diagnostic.hints,
+          };
 
-        if (asset.env.loc) {
-          diagnostic.push({
-            message: 'The environment was originally created here:',
-            filePath: asset.env.loc.filePath,
-            codeFrame: {
-              codeHighlights: [
-                {
-                  start: asset.env.loc.start,
-                  end: asset.env.loc.end,
-                },
-              ],
-            },
-          });
-        }
+          if (diagnostic.show_environment) {
+            if (asset.env.loc) {
+              res.codeFrames.push({
+                filePath: asset.env.loc.filePath,
+                codeHighlights: [
+                  {
+                    start: asset.env.loc.start,
+                    end: asset.env.loc.end,
+                    message: 'The environment was originally created here',
+                  },
+                ],
+              });
+            }
 
-        throw new ThrowableDiagnostic({
-          diagnostic,
-        });
-      }
+            let err = SCRIPT_ERRORS[(asset.env.context: string)];
+            if (err) {
+              if (!res.hints) {
+                res.hints = [err.hint];
+              } else {
+                res.hints.push(err.hint);
+              }
+            }
+          }
+
+          return res;
+        }),
+      });
     }
 
     if (shebang) {
@@ -534,37 +537,6 @@ export default (new Transformer({
             loc,
           },
         });
-      } else if (dep.kind === 'ImportScripts') {
-        if (asset.env.isWorker()) {
-          if (asset.env.sourceType !== 'script') {
-            let loc = convertLoc(dep.loc);
-            let diagnostic = [
-              {
-                message: 'importScripts() is not supported in module workers.',
-                filePath: asset.filePath,
-                codeFrame: {
-                  codeHighlights: [
-                    {
-                      start: loc.start,
-                      end: loc.end,
-                    },
-                  ],
-                },
-                hints: [
-                  'Try using a static `import`, or dynamic `import()` instead.',
-                ],
-              },
-            ];
-
-            throw new ThrowableDiagnostic({
-              diagnostic,
-            });
-          }
-
-          asset.addURLDependency(dep.specifier, {
-            loc: convertLoc(dep.loc),
-          });
-        }
       } else if (dep.kind === 'URL') {
         asset.addURLDependency(dep.specifier, {
           bundleBehavior: 'isolated',
@@ -582,11 +554,11 @@ export default (new Transformer({
         if (dep.kind === 'DynamicImport') {
           if (asset.env.isWorklet()) {
             let loc = convertLoc(dep.loc);
-            let diagnostic = [
-              {
-                message: 'import() is not allowed in worklets.',
-                filePath: asset.filePath,
-                codeFrame: {
+            let diagnostic = {
+              message: 'import() is not allowed in worklets.',
+              codeFrames: [
+                {
+                  filePath: asset.filePath,
                   codeHighlights: [
                     {
                       start: loc.start,
@@ -594,22 +566,20 @@ export default (new Transformer({
                     },
                   ],
                 },
-                hints: ['Try using a static `import`.'],
-              },
-            ];
+              ],
+              hints: ['Try using a static `import`.'],
+            };
 
             if (asset.env.loc) {
-              diagnostic.push({
-                message: 'The environment was originally created here:',
+              diagnostic.codeFrames.push({
                 filePath: asset.env.loc.filePath,
-                codeFrame: {
-                  codeHighlights: [
-                    {
-                      start: asset.env.loc.start,
-                      end: asset.env.loc.end,
-                    },
-                  ],
-                },
+                codeHighlights: [
+                  {
+                    start: asset.env.loc.start,
+                    end: asset.env.loc.end,
+                    message: 'The environment was originally created here',
+                  },
+                ],
               });
             }
 

@@ -586,24 +586,26 @@ describe('TargetResolver', () => {
         {
           message: 'Unexpected output file type .html in target "main"',
           origin: '@parcel/core',
-          filePath: path.join(fixture, 'package.json'),
-          language: 'json',
-          codeFrame: {
-            code,
-            codeHighlights: [
-              {
-                end: {
-                  column: 27,
-                  line: 2,
+          codeFrames: [
+            {
+              filePath: path.join(fixture, 'package.json'),
+              language: 'json',
+              code,
+              codeHighlights: [
+                {
+                  end: {
+                    column: 27,
+                    line: 2,
+                  },
+                  message: 'File extension must be .js, .mjs, or .cjs',
+                  start: {
+                    column: 11,
+                    line: 2,
+                  },
                 },
-                message: 'File extension must be .js, .mjs, or .cjs',
-                start: {
-                  column: 11,
-                  line: 2,
-                },
-              },
-            ],
-          },
+              ],
+            },
+          ],
           hints: [
             'The "main" field is meant for libraries. If you meant to output a .html file, either remove the "main" field or choose a different target name.',
           ],
@@ -624,24 +626,26 @@ describe('TargetResolver', () => {
           message:
             'The "global" output format is not supported in the "main" target.',
           origin: '@parcel/core',
-          filePath: path.join(fixture, 'package.json'),
-          language: 'json',
-          codeFrame: {
-            code,
-            codeHighlights: [
-              {
-                message: undefined,
-                end: {
-                  column: 30,
-                  line: 5,
+          codeFrames: [
+            {
+              filePath: path.join(fixture, 'package.json'),
+              language: 'json',
+              code,
+              codeHighlights: [
+                {
+                  message: undefined,
+                  end: {
+                    column: 30,
+                    line: 5,
+                  },
+                  start: {
+                    column: 23,
+                    line: 5,
+                  },
                 },
-                start: {
-                  column: 23,
-                  line: 5,
-                },
-              },
-            ],
-          },
+              ],
+            },
+          ],
           hints: [
             'The "main" field is meant for libraries. The outputFormat must be either "commonjs" or "esmodule". Either change or remove the declared outputFormat.',
           ],
@@ -662,35 +666,37 @@ describe('TargetResolver', () => {
           message:
             'Output format "esmodule" cannot be used in the "main" target without a .mjs extension or "type": "module" field.',
           origin: '@parcel/core',
-          filePath: path.join(fixture, 'package.json'),
-          language: 'json',
-          codeFrame: {
-            code,
-            codeHighlights: [
-              {
-                message: 'Declared output format defined here',
-                end: {
-                  column: 32,
-                  line: 5,
+          codeFrames: [
+            {
+              filePath: path.join(fixture, 'package.json'),
+              language: 'json',
+              code,
+              codeHighlights: [
+                {
+                  message: 'Declared output format defined here',
+                  end: {
+                    column: 32,
+                    line: 5,
+                  },
+                  start: {
+                    column: 23,
+                    line: 5,
+                  },
                 },
-                start: {
-                  column: 23,
-                  line: 5,
+                {
+                  message: 'Inferred output format defined here',
+                  end: {
+                    column: 25,
+                    line: 2,
+                  },
+                  start: {
+                    column: 11,
+                    line: 2,
+                  },
                 },
-              },
-              {
-                message: 'Inferred output format defined here',
-                end: {
-                  column: 25,
-                  line: 2,
-                },
-                start: {
-                  column: 11,
-                  line: 2,
-                },
-              },
-            ],
-          },
+              ],
+            },
+          ],
           hints: [
             'Either change the output file extension to .mjs, add "type": "module" to package.json, or remove the declared outputFormat.',
           ],
@@ -711,35 +717,37 @@ describe('TargetResolver', () => {
           message:
             'Declared output format "esmodule" does not match expected output format "commonjs".',
           origin: '@parcel/core',
-          filePath: path.join(fixture, 'package.json'),
-          language: 'json',
-          codeFrame: {
-            code,
-            codeHighlights: [
-              {
-                message: 'Declared output format defined here',
-                end: {
-                  column: 32,
-                  line: 5,
+          codeFrames: [
+            {
+              filePath: path.join(fixture, 'package.json'),
+              language: 'json',
+              code,
+              codeHighlights: [
+                {
+                  message: 'Declared output format defined here',
+                  end: {
+                    column: 32,
+                    line: 5,
+                  },
+                  start: {
+                    column: 23,
+                    line: 5,
+                  },
                 },
-                start: {
-                  column: 23,
-                  line: 5,
+                {
+                  message: 'Inferred output format defined here',
+                  end: {
+                    column: 26,
+                    line: 2,
+                  },
+                  start: {
+                    column: 11,
+                    line: 2,
+                  },
                 },
-              },
-              {
-                message: 'Inferred output format defined here',
-                end: {
-                  column: 26,
-                  line: 2,
-                },
-                start: {
-                  column: 11,
-                  line: 2,
-                },
-              },
-            ],
-          },
+              ],
+            },
+          ],
           hints: [
             'Either remove the target\'s declared "outputFormat" or change the extension to .mjs or .js.',
           ],
@@ -760,35 +768,37 @@ describe('TargetResolver', () => {
           message:
             'Declared output format "commonjs" does not match expected output format "esmodule".',
           origin: '@parcel/core',
-          filePath: path.join(fixture, 'package.json'),
-          language: 'json',
-          codeFrame: {
-            code,
-            codeHighlights: [
-              {
-                message: 'Declared output format defined here',
-                end: {
-                  column: 32,
-                  line: 5,
+          codeFrames: [
+            {
+              filePath: path.join(fixture, 'package.json'),
+              language: 'json',
+              code,
+              codeHighlights: [
+                {
+                  message: 'Declared output format defined here',
+                  end: {
+                    column: 32,
+                    line: 5,
+                  },
+                  start: {
+                    column: 23,
+                    line: 5,
+                  },
                 },
-                start: {
-                  column: 23,
-                  line: 5,
+                {
+                  message: 'Inferred output format defined here',
+                  end: {
+                    column: 26,
+                    line: 2,
+                  },
+                  start: {
+                    column: 11,
+                    line: 2,
+                  },
                 },
-              },
-              {
-                message: 'Inferred output format defined here',
-                end: {
-                  column: 26,
-                  line: 2,
-                },
-                start: {
-                  column: 11,
-                  line: 2,
-                },
-              },
-            ],
-          },
+              ],
+            },
+          ],
           hints: [
             'Either remove the target\'s declared "outputFormat" or change the extension to .cjs or .js.',
           ],
@@ -1144,43 +1154,45 @@ describe('TargetResolver', () => {
           {
             message: 'Invalid target descriptor for target "main"',
             origin: '@parcel/core',
-            filePath: undefined,
-            language: 'json',
-            codeFrame: {
-              code,
-              codeHighlights: [
-                {
-                  start: {line: 6, column: 5},
-                  end: {line: 6, column: 8},
-                  message: 'Expected a wildcard or filepath',
-                },
-                {
-                  start: {line: 8, column: 15},
-                  end: {line: 8, column: 21},
-                  message: 'Did you mean "node"?',
-                },
-                {
-                  start: {line: 9, column: 20},
-                  end: {line: 9, column: 27},
-                  message: 'Did you mean "esmodule"?',
-                },
-                {
-                  start: {line: 12, column: 15},
-                  end: {line: 12, column: 21},
-                  message: 'Expected type boolean',
-                },
-                {
-                  start: {line: 13, column: 5},
-                  end: {line: 13, column: 13},
-                  message: 'Possible values: "inlineSources"',
-                },
-                {
-                  start: {line: 17, column: 5},
-                  end: {line: 17, column: 13},
-                  message: 'Did you mean "browsers"?',
-                },
-              ],
-            },
+            codeFrames: [
+              {
+                filePath: undefined,
+                language: 'json',
+                code,
+                codeHighlights: [
+                  {
+                    start: {line: 6, column: 5},
+                    end: {line: 6, column: 8},
+                    message: 'Expected a wildcard or filepath',
+                  },
+                  {
+                    start: {line: 8, column: 15},
+                    end: {line: 8, column: 21},
+                    message: 'Did you mean "node"?',
+                  },
+                  {
+                    start: {line: 9, column: 20},
+                    end: {line: 9, column: 27},
+                    message: 'Did you mean "esmodule"?',
+                  },
+                  {
+                    start: {line: 12, column: 15},
+                    end: {line: 12, column: 21},
+                    message: 'Expected type boolean',
+                  },
+                  {
+                    start: {line: 13, column: 5},
+                    end: {line: 13, column: 13},
+                    message: 'Possible values: "inlineSources"',
+                  },
+                  {
+                    start: {line: 17, column: 5},
+                    end: {line: 17, column: 13},
+                    message: 'Did you mean "browsers"?',
+                  },
+                ],
+              },
+            ],
           },
         ],
       },
@@ -1201,23 +1213,28 @@ describe('TargetResolver', () => {
           {
             message: 'Invalid target descriptor for target "module"',
             origin: '@parcel/core',
-            filePath: path.join(INVALID_TARGETS_FIXTURE_PATH, 'package.json'),
-            language: 'json',
-            codeFrame: {
-              code,
-              codeHighlights: [
-                {
-                  start: {line: 9, column: 29},
-                  end: {line: 9, column: 35},
-                  message: 'Expected type boolean',
-                },
-                {
-                  start: {line: 11, column: 7},
-                  end: {line: 11, column: 17},
-                  message: 'Did you mean "publicUrl"?',
-                },
-              ],
-            },
+            codeFrames: [
+              {
+                filePath: path.join(
+                  INVALID_TARGETS_FIXTURE_PATH,
+                  'package.json',
+                ),
+                language: 'json',
+                code,
+                codeHighlights: [
+                  {
+                    start: {line: 9, column: 29},
+                    end: {line: 9, column: 35},
+                    message: 'Expected type boolean',
+                  },
+                  {
+                    start: {line: 11, column: 7},
+                    end: {line: 11, column: 17},
+                    message: 'Did you mean "publicUrl"?',
+                  },
+                ],
+              },
+            ],
           },
         ],
       },
@@ -1238,35 +1255,40 @@ describe('TargetResolver', () => {
           {
             message: 'Invalid engines in package.json',
             origin: '@parcel/core',
-            filePath: path.join(INVALID_ENGINES_FIXTURE_PATH, 'package.json'),
-            language: 'json',
-            codeFrame: {
-              code,
-              codeHighlights: [
-                {
-                  end: {
-                    column: 13,
-                    line: 8,
+            codeFrames: [
+              {
+                filePath: path.join(
+                  INVALID_ENGINES_FIXTURE_PATH,
+                  'package.json',
+                ),
+                language: 'json',
+                code,
+                codeHighlights: [
+                  {
+                    end: {
+                      column: 13,
+                      line: 8,
+                    },
+                    message: 'Did you mean "browsers"?',
+                    start: {
+                      column: 5,
+                      line: 8,
+                    },
                   },
-                  message: 'Did you mean "browsers"?',
-                  start: {
-                    column: 5,
-                    line: 8,
+                  {
+                    end: {
+                      column: 5,
+                      line: 7,
+                    },
+                    message: 'Expected type string',
+                    start: {
+                      column: 13,
+                      line: 5,
+                    },
                   },
-                },
-                {
-                  end: {
-                    column: 5,
-                    line: 7,
-                  },
-                  message: 'Expected type string',
-                  start: {
-                    column: 13,
-                    line: 5,
-                  },
-                },
-              ],
-            },
+                ],
+              },
+            ],
           },
         ],
       },
@@ -1287,24 +1309,29 @@ describe('TargetResolver', () => {
           {
             message: 'Invalid distPath for target "legacy"',
             origin: '@parcel/core',
-            filePath: path.join(INVALID_DISTPATH_FIXTURE_PATH, 'package.json'),
-            language: 'json',
-            codeFrame: {
-              code,
-              codeHighlights: [
-                {
-                  end: {
-                    column: 13,
-                    line: 2,
+            codeFrames: [
+              {
+                filePath: path.join(
+                  INVALID_DISTPATH_FIXTURE_PATH,
+                  'package.json',
+                ),
+                language: 'json',
+                code,
+                codeHighlights: [
+                  {
+                    end: {
+                      column: 13,
+                      line: 2,
+                    },
+                    message: 'Expected type string',
+                    start: {
+                      column: 13,
+                      line: 2,
+                    },
                   },
-                  message: 'Expected type string',
-                  start: {
-                    column: 13,
-                    line: 2,
-                  },
-                },
-              ],
-            },
+                ],
+              },
+            ],
           },
         ],
       },
@@ -1326,35 +1353,37 @@ describe('TargetResolver', () => {
             'dist/index.js',
           )}"`,
           origin: '@parcel/core',
-          filePath: path.join(fixture, 'package.json'),
-          language: 'json',
-          codeFrame: {
-            code,
-            codeHighlights: [
-              {
-                end: {
-                  column: 25,
-                  line: 2,
+          codeFrames: [
+            {
+              filePath: path.join(fixture, 'package.json'),
+              language: 'json',
+              code,
+              codeHighlights: [
+                {
+                  end: {
+                    column: 25,
+                    line: 2,
+                  },
+                  message: undefined,
+                  start: {
+                    column: 11,
+                    line: 2,
+                  },
                 },
-                message: undefined,
-                start: {
-                  column: 11,
-                  line: 2,
+                {
+                  end: {
+                    column: 27,
+                    line: 3,
+                  },
+                  message: undefined,
+                  start: {
+                    column: 13,
+                    line: 3,
+                  },
                 },
-              },
-              {
-                end: {
-                  column: 27,
-                  line: 3,
-                },
-                message: undefined,
-                start: {
-                  column: 13,
-                  line: 3,
-                },
-              },
-            ],
-          },
+              ],
+            },
+          ],
           hints: [
             'Try removing the duplicate targets, or changing the destination paths.',
           ],

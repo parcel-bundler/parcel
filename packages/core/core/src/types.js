@@ -113,6 +113,7 @@ export type Dependency = {|
   loc: ?SourceLocation,
   env: Environment,
   meta: Meta,
+  resolverMeta?: ?Meta,
   target: ?Target,
   sourceAssetId: ?string,
   sourcePath: ?string,

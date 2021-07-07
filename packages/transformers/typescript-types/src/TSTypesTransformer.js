@@ -116,6 +116,7 @@ export default (new Transformer({
             }
 
             codeframe = {
+              filePath: filename,
               code: source,
               codeHighlights: [
                 {
@@ -130,8 +131,7 @@ export default (new Transformer({
 
         logger.warn({
           message: escapeMarkdown(diagnosticMessage),
-          filePath: filename,
-          codeFrame: codeframe ? codeframe : undefined,
+          codeFrames: codeframe ? [codeframe] : undefined,
         });
       }
     }

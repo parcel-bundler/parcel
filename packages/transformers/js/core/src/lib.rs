@@ -87,7 +87,6 @@ pub struct TransformResult {
   diagnostics: Option<Vec<Diagnostic>>,
   needs_esm_helpers: bool,
   used_env: HashSet<swc_atoms::JsWord>,
-  script_error_loc: Option<SourceLocation>,
 }
 
 fn targets_to_versions(targets: &Option<HashMap<String, String>>) -> Option<Versions> {
@@ -181,6 +180,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
             message,
             code_highlights,
             hints,
+            show_environment: false,
           }
         })
         .collect();
@@ -267,6 +267,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
               preset_env_config.bugfixes = true;
             }
 
+            let mut diagnostics = vec![];
             let module = {
               let mut passes = chain!(
                 // Inline process.env and process.browser
@@ -325,12 +326,17 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                   config.scope_hoist,
                   config.source_type,
                   config.supports_module_workers,
-                  &mut result.script_error_loc,
+                  &mut diagnostics,
                 ),
               );
 
               module.fold_with(&mut passes)
             };
+
+            if !diagnostics.is_empty() {
+              result.diagnostics = Some(diagnostics);
+              return Ok(result);
+            }
 
             let module = if config.scope_hoist {
               let res = hoist(

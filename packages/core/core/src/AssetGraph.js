@@ -475,9 +475,14 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
       this.normalizeEnvironment(dep);
       let depNode = nodeFromDep(dep);
       let existing = this.getNodeByContentKey(depNode.id);
-      if (existing) {
-        invariant(existing.type === 'dependency');
-        depNode.value.meta = existing.value.meta;
+      if (
+        existing?.type === 'dependency' &&
+        existing.value.resolverMeta != null
+      ) {
+        depNode.value.meta = {
+          ...depNode.value.meta,
+          ...existing.value.resolverMeta,
+        };
       }
       let dependentAsset = dependentAssets.find(
         a => a.uniqueKey === dep.specifier,

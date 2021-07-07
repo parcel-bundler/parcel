@@ -207,45 +207,46 @@ describe('javascript', function() {
       assert.deepEqual(err.diagnostics, [
         {
           message: 'import() is not allowed in worklets.',
-          filePath: path.join(
-            __dirname,
-            '/integration/worklet/worklet-error.js',
-          ),
           origin: '@parcel/transformer-js',
-          codeFrame: {
-            codeHighlights: [
-              {
-                start: {
-                  line: 1,
-                  column: 8,
+          codeFrames: [
+            {
+              filePath: path.join(
+                __dirname,
+                '/integration/worklet/worklet-error.js',
+              ),
+              codeHighlights: [
+                {
+                  start: {
+                    line: 1,
+                    column: 8,
+                  },
+                  end: {
+                    line: 1,
+                    column: 18,
+                  },
                 },
-                end: {
-                  line: 1,
-                  column: 18,
+              ],
+            },
+            {
+              filePath: path.normalize(
+                'integration/worklet/url-worklet-error.js',
+              ),
+              codeHighlights: [
+                {
+                  message: 'The environment was originally created here',
+                  start: {
+                    line: 1,
+                    column: 36,
+                  },
+                  end: {
+                    line: 1,
+                    column: 53,
+                  },
                 },
-              },
-            ],
-          },
+              ],
+            },
+          ],
           hints: ['Try using a static `import`.'],
-        },
-        {
-          message: 'The environment was originally created here:',
-          filePath: path.normalize('integration/worklet/url-worklet-error.js'),
-          origin: '@parcel/transformer-js',
-          codeFrame: {
-            codeHighlights: [
-              {
-                start: {
-                  line: 1,
-                  column: 36,
-                },
-                end: {
-                  line: 1,
-                  column: 53,
-                },
-              },
-            ],
-          },
         },
       ]);
     }
@@ -299,25 +300,27 @@ describe('javascript', function() {
       assert.deepEqual(err.diagnostics, [
         {
           message: 'import() is not allowed in worklets.',
-          filePath: path.join(
-            __dirname,
-            '/integration/worklet/worklet-error.js',
-          ),
           origin: '@parcel/transformer-js',
-          codeFrame: {
-            codeHighlights: [
-              {
-                start: {
-                  line: 1,
-                  column: 8,
+          codeFrames: [
+            {
+              filePath: path.join(
+                __dirname,
+                '/integration/worklet/worklet-error.js',
+              ),
+              codeHighlights: [
+                {
+                  start: {
+                    line: 1,
+                    column: 8,
+                  },
+                  end: {
+                    line: 1,
+                    column: 18,
+                  },
                 },
-                end: {
-                  line: 1,
-                  column: 18,
-                },
-              },
-            ],
-          },
+              ],
+            },
+          ],
           hints: ['Try using a static `import`.'],
         },
       ]);
@@ -1013,50 +1016,53 @@ describe('javascript', function() {
       errored = true;
       assert.equal(
         err.message,
-        'Web workers cannot have imports or exports. Use the `type: "module"` option instead.',
+        'Web workers cannot have imports or exports without the `type: "module"` option.',
       );
       assert.deepEqual(err.diagnostics, [
         {
           message:
-            'Web workers cannot have imports or exports. Use the `type: "module"` option instead.',
-          filePath: path.join(
-            __dirname,
-            '/integration/workers-module/dedicated-worker.js',
-          ),
+            'Web workers cannot have imports or exports without the `type: "module"` option.',
           origin: '@parcel/transformer-js',
-          codeFrame: {
-            codeHighlights: [
-              {
-                start: {
-                  line: 1,
-                  column: 1,
+          codeFrames: [
+            {
+              filePath: path.join(
+                __dirname,
+                '/integration/workers-module/dedicated-worker.js',
+              ),
+              codeHighlights: [
+                {
+                  message: null,
+                  start: {
+                    line: 1,
+                    column: 1,
+                  },
+                  end: {
+                    line: 1,
+                    column: 22,
+                  },
                 },
-                end: {
-                  line: 1,
-                  column: 22,
+              ],
+            },
+            {
+              filePath: 'error.js',
+              codeHighlights: [
+                {
+                  message: 'The environment was originally created here',
+                  start: {
+                    line: 1,
+                    column: 20,
+                  },
+                  end: {
+                    line: 1,
+                    column: 40,
+                  },
                 },
-              },
-            ],
-          },
-        },
-        {
-          message: 'The environment was originally created here:',
-          filePath: 'error.js',
-          origin: '@parcel/transformer-js',
-          codeFrame: {
-            codeHighlights: [
-              {
-                start: {
-                  line: 1,
-                  column: 12,
-                },
-                end: {
-                  line: 1,
-                  column: 32,
-                },
-              },
-            ],
-          },
+              ],
+            },
+          ],
+          hints: [
+            "Add {type: 'module'} as a second argument to the Worker constructor.",
+          ],
         },
       ]);
     }
@@ -1094,81 +1100,77 @@ describe('javascript', function() {
   });
 
   for (let workerType of ['webworker', 'serviceworker']) {
-    it(`should split bundles when ${workerType}s use importScripts`, async function() {
-      let b = await bundle(
-        path.join(
-          __dirname,
-          `/integration/worker-import-scripts/index-${workerType}.js`,
-        ),
+    it(`should error when ${workerType}s use importScripts`, async function() {
+      let filePath = path.join(
+        __dirname,
+        `/integration/worker-import-scripts/index-${workerType}.js`,
       );
+      let errored = false;
+      try {
+        await bundle(filePath);
+      } catch (err) {
+        errored = true;
+        assert.equal(
+          err.message,
+          'importScripts() is not supported in worker scripts.',
+        );
+        assert.deepEqual(err.diagnostics, [
+          {
+            message: 'importScripts() is not supported in worker scripts.',
+            origin: '@parcel/transformer-js',
+            codeFrames: [
+              {
+                filePath: path.join(
+                  __dirname,
+                  `/integration/worker-import-scripts/importScripts.js`,
+                ),
+                codeHighlights: [
+                  {
+                    message: null,
+                    start: {
+                      line: 1,
+                      column: 1,
+                    },
+                    end: {
+                      line: 1,
+                      column: 28,
+                    },
+                  },
+                ],
+              },
+              {
+                filePath: path.normalize(
+                  `integration/worker-import-scripts/index-${workerType}.js`,
+                ),
+                codeHighlights: [
+                  {
+                    message: 'The environment was originally created here',
+                    start: {
+                      line: 1,
+                      column: workerType === 'webworker' ? 20 : 42,
+                    },
+                    end: {
+                      line: 1,
+                      column: workerType === 'webworker' ? 37 : 59,
+                    },
+                  },
+                ],
+              },
+            ],
+            hints: [
+              'Use a static `import`, or dynamic `import()` instead.',
+              "Add {type: 'module'} as a second argument to the " +
+                (workerType === 'webworker'
+                  ? 'Worker constructor.'
+                  : 'navigator.serviceWorker.register() call.'),
+            ],
+          },
+        ]);
+      }
 
-      assertBundles(b, [
-        {
-          assets: ['importScripts.js', 'bundle-url.js'],
-        },
-        {
-          name: `index-${workerType}.js`,
-          assets: [`index-${workerType}.js`, 'bundle-url.js'].concat(
-            workerType === 'webworker' ? ['get-worker-url.js'] : [],
-          ),
-        },
-        {
-          assets: ['imported.js'],
-        },
-        {
-          assets: ['imported2.js'],
-        },
-      ]);
-
-      let workerBundleFile = path.join(
-        distDir,
-        (await outputFS.readdir(distDir)).find(file =>
-          file.startsWith('importScripts'),
-        ),
-      );
-      let workerBundleContents = await outputFS.readFile(
-        workerBundleFile,
-        'utf8',
-      );
-
-      assert.equal(workerBundleContents.match(/importScript/g).length, 3);
+      assert(errored);
     });
   }
-
-  it('should not create bundles of external scripts referenced by importScripts', async function() {
-    let b = await bundle(
-      path.join(
-        __dirname,
-        '/integration/worker-import-scripts/index-external.js',
-      ),
-    );
-
-    assertBundles(b, [
-      {
-        name: 'index-external.js',
-        assets: ['index-external.js', 'bundle-url.js', 'get-worker-url.js'],
-      },
-      {assets: ['external.js']},
-    ]);
-
-    let workerBundleFile = path.join(
-      distDir,
-      (await outputFS.readdir(distDir)).find(file =>
-        file.startsWith('external'),
-      ),
-    );
-    let workerBundleContents = await outputFS.readFile(
-      workerBundleFile,
-      'utf8',
-    );
-
-    assert(workerBundleContents.includes('importScripts'));
-    assert(
-      workerBundleContents.includes(
-        'module.exports = "https://unpkg.com/parcel"',
-      ),
-    );
-  });
 
   it('should support bundling service-workers', async function() {
     let b = await bundle(
@@ -1263,50 +1265,53 @@ describe('javascript', function() {
       errored = true;
       assert.equal(
         err.message,
-        'Service workers cannot have imports or exports. Use the `type: "module"` option instead.',
+        'Service workers cannot have imports or exports without the `type: "module"` option.',
       );
       assert.deepEqual(err.diagnostics, [
         {
           message:
-            'Service workers cannot have imports or exports. Use the `type: "module"` option instead.',
-          filePath: path.join(
-            __dirname,
-            '/integration/service-worker/module-worker.js',
-          ),
+            'Service workers cannot have imports or exports without the `type: "module"` option.',
           origin: '@parcel/transformer-js',
-          codeFrame: {
-            codeHighlights: [
-              {
-                start: {
-                  line: 1,
-                  column: 1,
+          codeFrames: [
+            {
+              filePath: path.join(
+                __dirname,
+                '/integration/service-worker/module-worker.js',
+              ),
+              codeHighlights: [
+                {
+                  message: null,
+                  start: {
+                    line: 1,
+                    column: 1,
+                  },
+                  end: {
+                    line: 1,
+                    column: 19,
+                  },
                 },
-                end: {
-                  line: 1,
-                  column: 19,
+              ],
+            },
+            {
+              filePath: path.normalize('integration/service-worker/error.js'),
+              codeHighlights: [
+                {
+                  message: 'The environment was originally created here',
+                  start: {
+                    line: 1,
+                    column: 42,
+                  },
+                  end: {
+                    line: 1,
+                    column: 59,
+                  },
                 },
-              },
-            ],
-          },
-        },
-        {
-          message: 'The environment was originally created here:',
-          filePath: path.normalize('integration/service-worker/error.js'),
-          origin: '@parcel/transformer-js',
-          codeFrame: {
-            codeHighlights: [
-              {
-                start: {
-                  line: 1,
-                  column: 34,
-                },
-                end: {
-                  line: 1,
-                  column: 51,
-                },
-              },
-            ],
-          },
+              ],
+            },
+          ],
+          hints: [
+            "Add {type: 'module'} as a second argument to the navigator.serviceWorker.register() call.",
+          ],
         },
       ]);
     }
@@ -1346,27 +1351,29 @@ describe('javascript', function() {
       name: 'BuildError',
       diagnostics: [
         {
-          codeFrame: {
-            code,
-            codeHighlights: [
-              {
-                end: {
-                  column: 55,
-                  line: 1,
+          codeFrames: [
+            {
+              filePath: fixture,
+              code,
+              codeHighlights: [
+                {
+                  end: {
+                    column: 55,
+                    line: 1,
+                  },
+                  start: {
+                    column: 42,
+                    line: 1,
+                  },
                 },
-                start: {
-                  column: 42,
-                  line: 1,
-                },
-              },
-            ],
-          },
-          filePath: fixture,
+              ],
+            },
+          ],
           message: "Failed to resolve './invalid.js' from './missing.js'",
           origin: '@parcel/core',
         },
         {
-          hints: ['Did you mean __./index.js__?'],
+          hints: ["Did you mean '__./index.js__'?"],
           message: "Cannot load file './invalid.js' in './'.",
           origin: '@parcel/resolver-default',
         },
@@ -1451,29 +1458,31 @@ describe('javascript', function() {
       name: 'BuildError',
       diagnostics: [
         {
-          codeFrame: {
-            code,
-            codeHighlights: [
-              {
-                end: {
-                  column: 33,
-                  line: 1,
+          codeFrames: [
+            {
+              filePath: fixture,
+              code,
+              codeHighlights: [
+                {
+                  end: {
+                    column: 33,
+                    line: 1,
+                  },
+                  start: {
+                    column: 20,
+                    line: 1,
+                  },
                 },
-                start: {
-                  column: 20,
-                  line: 1,
-                },
-              },
-            ],
-          },
-          filePath: fixture,
+              ],
+            },
+          ],
           message: "Failed to resolve './invalid.js' from './missing.js'",
           origin: '@parcel/core',
         },
         {
           hints: [
-            'Did you mean __./dynamic.js__?',
-            'Did you mean __./index.js__?',
+            "Did you mean '__./dynamic.js__'?",
+            "Did you mean '__./index.js__'?",
           ],
           message: "Cannot load file './invalid.js' in './'.",
           origin: '@parcel/resolver-default',
@@ -2078,22 +2087,24 @@ describe('javascript', function() {
       name: 'BuildError',
       diagnostics: [
         {
-          codeFrame: {
-            code,
-            codeHighlights: [
-              {
-                end: {
-                  column: 36,
-                  line: 1,
+          codeFrames: [
+            {
+              filePath: fixture,
+              code,
+              codeHighlights: [
+                {
+                  end: {
+                    column: 36,
+                    line: 1,
+                  },
+                  start: {
+                    column: 24,
+                    line: 1,
+                  },
                 },
-                start: {
-                  column: 24,
-                  line: 1,
-                },
-              },
-            ],
-          },
-          filePath: fixture,
+              ],
+            },
+          ],
           message: "Failed to resolve 'invalid.txt' from './missing.js'",
           origin: '@parcel/core',
         },
@@ -2163,8 +2174,8 @@ describe('javascript', function() {
     assert(!js.includes('local.a'));
   });
 
-  it('should use uglify config', async function() {
-    await bundle(path.join(__dirname, '/integration/uglify-config/index.js'), {
+  it('should use terser config', async function() {
+    await bundle(path.join(__dirname, '/integration/terser-config/index.js'), {
       defaultTargetOptions: {
         shouldOptimize: true,
         shouldScopeHoist: false,
@@ -3569,6 +3580,21 @@ describe('javascript', function() {
     assert.equal(await run(b), 2);
   });
 
+  it('should only detect requires that are returned from the promise', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/require-async/sync.js'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'sync.js',
+        assets: ['sync.js', 'async.js'],
+      },
+    ]);
+
+    assert.equal(await run(b), 5);
+  });
+
   it('should detect parcel style async requires in commonjs', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/require-async/parcel.js'),
@@ -3859,24 +3885,26 @@ describe('javascript', function() {
           {
             message: 'Name expected',
             origin: '@parcel/optimizer-terser',
-            filePath: undefined,
-            language: 'js',
-            codeFrame: {
-              code,
-              codeHighlights: [
-                {
-                  message: 'Name expected',
-                  start: {
-                    column: 4,
-                    line: 1,
+            codeFrames: [
+              {
+                filePath: undefined,
+                language: 'js',
+                code,
+                codeHighlights: [
+                  {
+                    message: 'Name expected',
+                    start: {
+                      column: 4,
+                      line: 1,
+                    },
+                    end: {
+                      column: 4,
+                      line: 1,
+                    },
                   },
-                  end: {
-                    column: 4,
-                    line: 1,
-                  },
-                },
-              ],
-            },
+                ],
+              },
+            ],
             hints: ["It's likely that Terser doesn't support this syntax yet."],
           },
         ],
@@ -3954,22 +3982,24 @@ describe('javascript', function() {
         {
           message: 'Unknown pipeline: strange-pipeline.',
           origin: '@parcel/core',
-          filePath: fixture,
-          codeFrame: {
-            code,
-            codeHighlights: [
-              {
-                start: {
-                  column: 19,
-                  line: 1,
+          codeFrames: [
+            {
+              filePath: fixture,
+              code,
+              codeHighlights: [
+                {
+                  start: {
+                    column: 19,
+                    line: 1,
+                  },
+                  end: {
+                    column: 43,
+                    line: 1,
+                  },
                 },
-                end: {
-                  column: 43,
-                  line: 1,
-                },
-              },
-            ],
-          },
+              ],
+            },
+          ],
         },
       ],
     });
@@ -4245,22 +4275,24 @@ describe('javascript', function() {
           {
             message: "Failed to resolve 'foo' from './index.js'",
             origin: '@parcel/core',
-            filePath: fixture,
-            codeFrame: {
-              code,
-              codeHighlights: [
-                {
-                  start: {
-                    line: 11,
-                    column: 17,
+            codeFrames: [
+              {
+                filePath: fixture,
+                code,
+                codeHighlights: [
+                  {
+                    start: {
+                      line: 11,
+                      column: 17,
+                    },
+                    end: {
+                      line: 11,
+                      column: 21,
+                    },
                   },
-                  end: {
-                    line: 11,
-                    column: 21,
-                  },
-                },
-              ],
-            },
+                ],
+              },
+            ],
           },
         ],
       },
