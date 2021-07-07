@@ -14,7 +14,7 @@ import {
   outputFS,
   inputFS,
 } from '@parcel/test-utils';
-import {makeDeferredWithPromise} from '@parcel/utils';
+import {makeDeferredWithPromise, normalizePath} from '@parcel/utils';
 import vm from 'vm';
 
 describe('javascript', function() {
@@ -4441,8 +4441,8 @@ describe('javascript', function() {
         name: 'BuildError',
         diagnostics: [
           {
-            message: `Failed to resolve '@swc/helpers' from '${require.resolve(
-              '@parcel/transformer-js/src/JSTransformer.js',
+            message: `Failed to resolve '@swc/helpers' from '${normalizePath(
+              require.resolve('@parcel/transformer-js/src/JSTransformer.js'),
             )}'`,
             origin: '@parcel/core',
             codeFrames: [
