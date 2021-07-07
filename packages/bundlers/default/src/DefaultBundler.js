@@ -76,6 +76,10 @@ export default (new Bundler({
   optimize() {},
 }): Bundler);
 
+/**
+ Test: does not create bundles for dynamic imports when assets are available up the graph
+ Issue: Ideal bundlegraph creates dynamic import bundle & will not place asset in both bundle groups/bundles even if asset is present statically "up the tree"
+ */
 function decorateLegacyGraph(
   idealGraph: IdealGraph,
   bundleGraph: MutableBundleGraph,
@@ -90,6 +94,7 @@ function decorateLegacyGraph(
     let dependency = bundleLoadedByDependency.get(bundleNodeId);
 
     let entryAsset = bundleGraph.getAssetById(idealBundle.assetIds[0]);
+    // This entry asset is the first asset of the bundle (not entry file asset)
     let bundleGroup;
     let bundle;
     if (dependency) {
@@ -109,7 +114,9 @@ function decorateLegacyGraph(
       );
 
       bundleGraph.addBundleToBundleGroup(bundle, bundleGroup);
-    } else {
+    } else if (idealBundle.sourceBundles.length > 0) {
+      //TODO this should be > 1
+      //this should only happen for shared bundles
       bundle = nullthrows(
         bundleGraph.createBundle({
           uniqueKey:
@@ -120,6 +127,15 @@ function decorateLegacyGraph(
           type: idealBundle.type,
           target: idealBundle.target,
           env: idealBundle.env,
+        }),
+      );
+    } else {
+      bundle = nullthrows(
+        bundleGraph.createBundle({
+          entryAsset,
+          needsStableName: idealBundle.needsStableName,
+          bundleBehavior: idealBundle.bundleBehavior,
+          target: idealBundle.target,
         }),
       );
     }
@@ -341,7 +357,6 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
   for (let asset of assets) {
     // Find bundle entries reachable from the asset.
     let reachable: Array<Asset> = [...reachableRoots.get(asset)];
-
     let reachableEntries = reachable.filter(a => entries.has(a));
 
     for (let entry of reachableEntries) {
@@ -412,7 +427,7 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
   }
 
   // $FlowFixMe
-  dumpGraphToGraphViz(bundleGraph, 'NewBundleGraph');
+  dumpGraphToGraphViz(bundleGraph, 'IdealBundleGraph');
 
   return {
     bundleGraph,
