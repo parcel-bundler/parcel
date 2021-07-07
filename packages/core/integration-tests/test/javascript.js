@@ -4346,4 +4346,152 @@ describe('javascript', function() {
       },
     ]);
   });
+
+  it('should error on undeclared external dependencies for libraries', async function() {
+    let fixture = path.join(
+      __dirname,
+      'integration/undeclared-external/index.js',
+    );
+    let pkg = path.join(
+      __dirname,
+      'integration/undeclared-external/package.json',
+    );
+    await assert.rejects(
+      () =>
+        bundle(fixture, {
+          mode: 'production',
+          defaultTargetOptions: {
+            shouldOptimize: false,
+          },
+        }),
+      {
+        name: 'BuildError',
+        diagnostics: [
+          {
+            message: "Failed to resolve 'lodash' from './index.js'",
+            origin: '@parcel/core',
+            codeFrames: [
+              {
+                code: await inputFS.readFile(fixture, 'utf8'),
+                filePath: fixture,
+                codeHighlights: [
+                  {
+                    start: {
+                      line: 1,
+                      column: 19,
+                    },
+                    end: {
+                      line: 1,
+                      column: 26,
+                    },
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            message:
+              'External dependency "lodash" is not declared in package.json.',
+            origin: '@parcel/resolver-default',
+            codeFrames: [
+              {
+                code: await inputFS.readFile(pkg, 'utf8'),
+                filePath: pkg,
+                language: 'json',
+                codeHighlights: [
+                  {
+                    message: undefined,
+                    start: {
+                      line: 5,
+                      column: 3,
+                    },
+                    end: {
+                      line: 5,
+                      column: 16,
+                    },
+                  },
+                ],
+              },
+            ],
+            hints: ['Add "lodash" as a dependency.'],
+          },
+        ],
+      },
+    );
+  });
+
+  it('should error on undeclared helpers dependency for libraries', async function() {
+    let fixture = path.join(
+      __dirname,
+      'integration/undeclared-external/helpers.js',
+    );
+    let pkg = path.join(
+      __dirname,
+      'integration/undeclared-external/package.json',
+    );
+    await assert.rejects(
+      () =>
+        bundle(fixture, {
+          mode: 'production',
+          defaultTargetOptions: {
+            shouldOptimize: false,
+          },
+        }),
+      {
+        name: 'BuildError',
+        diagnostics: [
+          {
+            message: `Failed to resolve '@swc/helpers' from '${require.resolve(
+              '@parcel/transformer-js/src/JSTransformer.js',
+            )}'`,
+            origin: '@parcel/core',
+            codeFrames: [
+              {
+                code: await inputFS.readFile(fixture, 'utf8'),
+                filePath: fixture,
+                codeHighlights: [
+                  {
+                    start: {
+                      line: 1,
+                      column: 1,
+                    },
+                    end: {
+                      line: 1,
+                      column: 0,
+                    },
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            message:
+              'External dependency "@swc/helpers" is not declared in package.json.',
+            origin: '@parcel/resolver-default',
+            codeFrames: [
+              {
+                code: await inputFS.readFile(pkg, 'utf8'),
+                filePath: pkg,
+                language: 'json',
+                codeHighlights: [
+                  {
+                    message: undefined,
+                    start: {
+                      line: 5,
+                      column: 3,
+                    },
+                    end: {
+                      line: 5,
+                      column: 16,
+                    },
+                  },
+                ],
+              },
+            ],
+            hints: ['Add "@swc/helpers" as a dependency.'],
+          },
+        ],
+      },
+    );
+  });
 });
