@@ -634,6 +634,10 @@ export class RequestGraph extends ContentGraph<
         )) {
           didInvalidate = true;
           this.invalidateNode(connectedNode, FILE_DELETE);
+          // Delete the file node since it doesn't exist anymore.
+          // This ensures that files that don't exist aren't sent
+          // to requests as invalidations for future requests.
+          this.removeNode(connectedNode);
         }
       }
     }
@@ -808,7 +812,8 @@ export default class RequestTracker {
       }
     }
 
-    let previousInvalidations = this.graph.getInvalidations(requestId);
+    let previousInvalidations =
+      requestId != null ? this.graph.getInvalidations(requestId) : [];
     let {requestNodeId, deferred} = this.startRequest({
       id: request.id,
       type: request.type,
@@ -846,7 +851,7 @@ export default class RequestTracker {
 
   createAPI(
     requestId: NodeId,
-    previousInvalidations: Array<Invalidation>,
+    previousInvalidations: Array<RequestInvalidation>,
   ): {|api: RunAPI, subRequestContentKeys: Set<ContentKey>|} {
     let subRequestContentKeys = new Set<ContentKey>();
     let api: RunAPI = {

@@ -277,6 +277,7 @@ export default class UncommittedAsset {
     if (map != null && this.sourceContent != null) {
       map.setSourceContent(
         fromProjectPath(this.options.projectRoot, this.value.filePath),
+        // $FlowFixMe
         this.sourceContent,
       );
       this.sourceContent = null;
