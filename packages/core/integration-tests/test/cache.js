@@ -5650,4 +5650,28 @@ describe('cache', function() {
       }
     }
   });
+
+  it('should support moving the project root', async function() {
+    let b = await testCache({
+      inputFS,
+      outputFS: inputFS,
+      async setup() {
+        await inputFS.mkdirp(inputDir);
+        await inputFS.ncp(path.join(__dirname, '/integration/cache'), inputDir);
+      },
+      update: async b => {
+        assert.equal(await run(b.bundleGraph), 4);
+
+        await inputFS.writeFile(
+          path.join(inputDir, 'src/nested/test.js'),
+          'export default 4',
+        );
+
+        fs.renameSync(inputDir, (inputDir += '_2'));
+        await sleep(100);
+      },
+    });
+
+    assert.equal(await run(b.bundleGraph), 6);
+  });
 });
