@@ -164,6 +164,7 @@ export default async function resolveOptions(
         : {...null}),
       engines: initialOptions?.defaultTargetOptions?.engines,
       outputFormat: initialOptions?.defaultTargetOptions?.outputFormat,
+      isLibrary: initialOptions?.defaultTargetOptions?.isLibrary,
     },
   };
 }
