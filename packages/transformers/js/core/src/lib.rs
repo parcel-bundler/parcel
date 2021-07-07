@@ -6,6 +6,8 @@ extern crate swc_atoms;
 extern crate data_encoding;
 extern crate dunce;
 extern crate inflector;
+extern crate path_slash;
+extern crate pathdiff;
 extern crate serde;
 extern crate serde_bytes;
 extern crate sha1;
@@ -20,8 +22,10 @@ mod modules;
 mod utils;
 
 use std::collections::{HashMap, HashSet};
+use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
+use path_slash::PathExt;
 use serde::{Deserialize, Serialize};
 use swc_common::comments::SingleThreadedComments;
 use swc_common::errors::{DiagnosticBuilder, Emitter, Handler};
@@ -89,7 +93,6 @@ pub struct TransformResult {
   diagnostics: Option<Vec<Diagnostic>>,
   needs_esm_helpers: bool,
   used_env: HashSet<swc_atoms::JsWord>,
-  script_error_loc: Option<SourceLocation>,
 }
 
 fn targets_to_versions(targets: &Option<HashMap<String, String>>) -> Option<Versions> {
@@ -137,7 +140,13 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
 
   let code = unsafe { std::str::from_utf8_unchecked(&config.code) };
   let source_map = Lrc::new(SourceMap::default());
-  let module = parse(code, config.filename.as_str(), &source_map, &config);
+  let module = parse(
+    code,
+    config.project_root.as_str(),
+    config.filename.as_str(),
+    &source_map,
+    &config,
+  );
 
   match module {
     Err(err) => {
@@ -183,6 +192,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
             message,
             code_highlights,
             hints,
+            show_environment: false,
           }
         })
         .collect();
@@ -269,6 +279,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
               preset_env_config.bugfixes = true;
             }
 
+            let mut diagnostics = vec![];
             let module = {
               let mut passes = chain!(
                 // Inline process.env and process.browser
@@ -304,7 +315,8 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                     source_map: &source_map,
                     items: &mut global_deps,
                     globals: HashMap::new(),
-                    filename: config.filename.as_str(),
+                    project_root: Path::new(&config.project_root),
+                    filename: Path::new(&config.filename),
                     decls: &decls,
                     global_mark,
                     scope_hoist: config.scope_hoist
@@ -325,12 +337,17 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                   &decls,
                   ignore_mark,
                   &config,
-                  &mut result.script_error_loc,
+                  &mut diagnostics,
                 ),
               );
 
               module.fold_with(&mut passes)
             };
+
+            if !diagnostics.is_empty() {
+              result.diagnostics = Some(diagnostics);
+              return Ok(result);
+            }
 
             let module = if config.scope_hoist {
               let res = hoist(
@@ -386,11 +403,19 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
 
 fn parse(
   code: &str,
+  project_root: &str,
   filename: &str,
   source_map: &Lrc<SourceMap>,
   config: &Config,
 ) -> PResult<(Module, SingleThreadedComments)> {
-  let source_file = source_map.new_source_file(FileName::Real(filename.into()), code.into());
+  // Attempt to convert the path to be relative to the project root.
+  // If outside the project root, use an absolute path so that if the project root moves the path still works.
+  let filename: PathBuf = if let Ok(relative) = Path::new(filename).strip_prefix(project_root) {
+    relative.to_slash_lossy().into()
+  } else {
+    filename.into()
+  };
+  let source_file = source_map.new_source_file(FileName::Real(filename), code.into());
 
   let comments = SingleThreadedComments::default();
   let syntax = if config.is_type_script {

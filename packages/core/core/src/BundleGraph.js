@@ -3,7 +3,6 @@
 import type {
   BundleGroup,
   GraphVisitor,
-  SourceLocation,
   Symbol,
   TraversalActions,
 } from '@parcel/types';
@@ -17,6 +16,7 @@ import type {
   Dependency,
   DependencyNode,
   NodeId,
+  InternalSourceLocation,
 } from './types';
 import type AssetGraph from './AssetGraph';
 
@@ -30,7 +30,7 @@ import {Priority, BundleBehavior} from './types';
 import {getBundleGroupId, getPublicId} from './utils';
 import {ALL_EDGE_TYPES, mapVisitor} from './Graph';
 import ContentGraph, {type SerializedContentGraph} from './ContentGraph';
-import Environment from './public/Environment';
+import {ISOLATED_ENVS} from './public/Environment';
 
 type BundleGraphEdgeTypes =
   // A lack of an edge type indicates to follow the edge while traversing
@@ -60,7 +60,7 @@ type InternalSymbolResolution = {|
   asset: Asset,
   exportSymbol: string,
   symbol: ?Symbol | false,
-  loc: ?SourceLocation,
+  loc: ?InternalSourceLocation,
 |};
 
 type InternalExportSymbolResolution = {|
@@ -783,7 +783,7 @@ export default class BundleGraph {
     // If a bundle's environment is isolated, it can't access assets present
     // in any ancestor bundles. Don't consider any assets reachable.
     if (
-      new Environment(bundle.env).isIsolated() ||
+      ISOLATED_ENVS.has(bundle.env.context) ||
       !bundle.isSplittable ||
       bundle.bundleBehavior === BundleBehavior.isolated ||
       bundle.bundleBehavior === BundleBehavior.inline
@@ -813,7 +813,7 @@ export default class BundleGraph {
       return parentBundleNodes.every(bundleNodeId => {
         let bundleNode = nullthrows(this._graph.getNode(bundleNodeId));
         if (
-          bundleNode.type === 'root' ||
+          bundleNode.type !== 'bundle' ||
           bundleNode.value.bundleBehavior === BundleBehavior.isolated
         ) {
           return false;
