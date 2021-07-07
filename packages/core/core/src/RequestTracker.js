@@ -634,11 +634,12 @@ export class RequestGraph extends ContentGraph<
         )) {
           didInvalidate = true;
           this.invalidateNode(connectedNode, FILE_DELETE);
-          // Delete the file node since it doesn't exist anymore.
-          // This ensures that files that don't exist aren't sent
-          // to requests as invalidations for future requests.
-          this.removeNode(connectedNode);
         }
+
+        // Delete the file node since it doesn't exist anymore.
+        // This ensures that files that don't exist aren't sent
+        // to requests as invalidations for future requests.
+        this.removeNode(nodeId);
       }
     }
 
