@@ -428,6 +428,100 @@ describe('output formats', function() {
       assert.deepEqual(await run(b), {foo: 'foo'});
     });
 
+    it('should compile workers to statically analyzable URL expressions', async function() {
+      let b = await bundle(
+        path.join(__dirname, '/integration/workers-module/index.js'),
+        {
+          mode: 'production',
+          defaultTargetOptions: {
+            outputFormat: 'commonjs',
+            shouldScopeHoist: true,
+            shouldOptimize: false,
+            isLibrary: true,
+          },
+        },
+      );
+
+      let contents = await outputFS.readFile(
+        b.getBundles()[0].filePath,
+        'utf8',
+      );
+      let workerBundle = b
+        .getBundles()
+        .find(b => b.name.startsWith('dedicated-worker'));
+      let sharedWorkerBundle = b
+        .getBundles()
+        .find(b => b.name.startsWith('shared-worker'));
+      assert(
+        contents.includes(
+          `new Worker(new URL("${path.basename(
+            workerBundle.filePath,
+          )}", "file:" + __filename)`,
+        ),
+      );
+      assert(
+        contents.includes(
+          `new SharedWorker(new URL("${path.basename(
+            sharedWorkerBundle.filePath,
+          )}", "file:" + __filename)`,
+        ),
+      );
+    });
+
+    it('should compile url: pipeline dependencies to statically analyzable URL expressions for libraries', async function() {
+      let b = await bundle(
+        path.join(__dirname, '/integration/worklet/pipeline.js'),
+        {
+          mode: 'production',
+          defaultTargetOptions: {
+            outputFormat: 'commonjs',
+            shouldScopeHoist: true,
+            shouldOptimize: false,
+            isLibrary: true,
+          },
+        },
+      );
+
+      let contents = await outputFS.readFile(
+        b.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert(
+        contents.includes(
+          `new URL("${path.basename(
+            b.getBundles()[1].filePath,
+          )}", 'file:' + __filename)`,
+        ),
+      );
+    });
+
+    it('should URL dependencies to statically analyzable URL expressions for libraries', async function() {
+      let b = await bundle(
+        path.join(__dirname, '/integration/worklet/url.js'),
+        {
+          mode: 'production',
+          defaultTargetOptions: {
+            outputFormat: 'commonjs',
+            shouldScopeHoist: true,
+            shouldOptimize: false,
+            isLibrary: true,
+          },
+        },
+      );
+
+      let contents = await outputFS.readFile(
+        b.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert(
+        contents.includes(
+          `new URL("${path.basename(
+            b.getBundles()[1].filePath,
+          )}", "file:" + __filename)`,
+        ),
+      );
+    });
+
     it('should support live binding of external modules', async function() {
       let b = await bundle(
         path.join(
@@ -953,9 +1047,9 @@ describe('output formats', function() {
       );
       assert(
         new RegExp(
-          'Promise.all\\(\\[\\n.+?getBundleURL\\(\\) \\+ "' +
+          'Promise.all\\(\\[\\n.+?new URL\\("' +
             path.basename(asyncCssBundle.filePath) +
-            '"\\),\\n\\s*import\\("\\.\\/' +
+            '", import.meta.url\\).toString\\(\\)\\),\\n\\s*import\\("\\.\\/' +
             path.basename(asyncJsBundle.filePath) +
             '"\\)\\n\\s*\\]\\)',
         ).test(entry),
@@ -1008,9 +1102,7 @@ describe('output formats', function() {
         // async import both bundles in parallel for performance
         assert(
           new RegExp(
-            `import\\("\\./${path.basename(
-              sharedBundle.filePath,
-            )}"\\),\\n\\s*import\\("./${path.basename(bundle.filePath)}"\\)`,
+            `import\\("\\./" \\+ .+\\.resolve\\("${sharedBundle.publicId}"\\)\\),\\n\\s*import\\("./" \\+ .+\\.resolve\\("${bundle.publicId}"\\)\\)`,
           ).test(entry),
         );
       }
@@ -1169,6 +1261,100 @@ describe('output formats', function() {
       assert(!output.includes('import '));
       assert(output.includes('require('));
     });
+
+    it('should compile workers to statically analyzable URL expressions', async function() {
+      let b = await bundle(
+        path.join(__dirname, '/integration/workers-module/index.js'),
+        {
+          mode: 'production',
+          defaultTargetOptions: {
+            outputFormat: 'esmodule',
+            shouldScopeHoist: true,
+            shouldOptimize: false,
+            isLibrary: true,
+          },
+        },
+      );
+
+      let contents = await outputFS.readFile(
+        b.getBundles()[0].filePath,
+        'utf8',
+      );
+      let workerBundle = b
+        .getBundles()
+        .find(b => b.name.startsWith('dedicated-worker'));
+      let sharedWorkerBundle = b
+        .getBundles()
+        .find(b => b.name.startsWith('shared-worker'));
+      assert(
+        contents.includes(
+          `new Worker(new URL("${path.basename(
+            workerBundle.filePath,
+          )}", import.meta.url)`,
+        ),
+      );
+      assert(
+        contents.includes(
+          `new SharedWorker(new URL("${path.basename(
+            sharedWorkerBundle.filePath,
+          )}", import.meta.url)`,
+        ),
+      );
+    });
+
+    it('should compile url: pipeline dependencies to statically analyzable URL expressions for libraries', async function() {
+      let b = await bundle(
+        path.join(__dirname, '/integration/worklet/pipeline.js'),
+        {
+          mode: 'production',
+          defaultTargetOptions: {
+            outputFormat: 'esmodule',
+            shouldScopeHoist: true,
+            shouldOptimize: false,
+            isLibrary: true,
+          },
+        },
+      );
+
+      let contents = await outputFS.readFile(
+        b.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert(
+        contents.includes(
+          `new URL("${path.basename(
+            b.getBundles()[1].filePath,
+          )}", import.meta.url)`,
+        ),
+      );
+    });
+
+    it('should URL dependencies to statically analyzable URL expressions for libraries', async function() {
+      let b = await bundle(
+        path.join(__dirname, '/integration/worklet/url.js'),
+        {
+          mode: 'production',
+          defaultTargetOptions: {
+            outputFormat: 'esmodule',
+            shouldScopeHoist: true,
+            shouldOptimize: false,
+            isLibrary: true,
+          },
+        },
+      );
+
+      let contents = await outputFS.readFile(
+        b.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert(
+        contents.includes(
+          `new URL("${path.basename(
+            b.getBundles()[1].filePath,
+          )}", import.meta.url)`,
+        ),
+      );
+    });
   });
 
   it('should support generating ESM from universal module wrappers', async function() {
@@ -1233,7 +1419,7 @@ describe('output formats', function() {
       assertBundles(b, [
         {
           type: 'js',
-          assets: ['bundle-url.js', 'get-worker-url.js', 'index.js'],
+          assets: ['bundle-manifest.js', 'get-worker-url.js', 'index.js'],
         },
         {type: 'html', assets: ['index.html']},
         {type: 'js', assets: ['lodash.js']},
