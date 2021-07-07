@@ -48,7 +48,7 @@ export const NODE_SIZE = 4;
  * │    TYPE    │    FROM    │     TO     │  NEXT_IN   │  NEXT_OUT  │
  * └────────────┴────────────┴────────────┴────────────┴────────────┘
  */
-export const EDGE_SIZE = 5;
+export const EDGE_SIZE = 7;
 
 /** The offset from an edge index at which the edge type is stored. */
 const TYPE: 0 = 0;
@@ -57,9 +57,13 @@ const FROM: 1 = 1;
 /** The offset from an edge index at which the 'to' node id is stored. */
 const TO: 2 = 2;
 /** The offset from an edge index at which the hash of the 'to' node's next incoming edge is stored. */
-const NEXT_IN: 3 = 3;
+const PREV_IN: 3 = 3;
 /** The offset from an edge index at which the hash of the 'from' node's next incoming edge is stored. */
-const NEXT_OUT: 4 = 4;
+const PREV_OUT: 4 = 4;
+/** The offset from an edge index at which the hash of the 'to' node's next incoming edge is stored. */
+const NEXT_IN: 5 = 5;
+/** The offset from an edge index at which the hash of the 'from' node's next incoming edge is stored. */
+const NEXT_OUT: 6 = 6;
 
 /** The offset from a node index at which the hash of the first incoming edge is stored. */
 const FIRST_IN: 0 = 0;
@@ -320,6 +324,7 @@ export default class AdjacencyList<TEdgeType: number = 1> {
         if (lastIndex != null) {
           // If this edge is not the first outgoing edge from the current node,
           // link this edge to the last outgoing edge copied.
+          this.edges[index + PREV_OUT] = indexToHash(lastIndex);
           this.edges[lastIndex + NEXT_OUT] = indexToHash(index);
         } else {
           // If this edge is the first outgoing edge from the current node,
@@ -357,6 +362,7 @@ export default class AdjacencyList<TEdgeType: number = 1> {
           this.edges[index + TO] = fromNodeId(to);
         }
         if (lastIndex != null) {
+          this.edges[index + PREV_IN] = indexToHash(lastIndex);
           // If this edge is not the first incoming edge to the current node,
           // link this edge to the last incoming edge copied.
           this.edges[lastIndex + NEXT_IN] = indexToHash(index);
@@ -444,6 +450,9 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     // after the last incoming edge to have been added.
     let lastInHash = this.nodes[indexOfNode(to) + LAST_IN];
     let firstInHash = this.nodes[indexOfNode(to) + FIRST_IN];
+    if (lastInHash) {
+      this.edges[index + PREV_IN] = lastInHash;
+    }
     if (firstInHash) {
       this.edges[hashToIndex(lastInHash) + NEXT_IN] = indexToHash(index);
     } else {
@@ -457,6 +466,9 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     // after the last outgoing edge to have been added.
     let lastOutHash = this.nodes[indexOfNode(from) + LAST_OUT];
     let firstOutHash = this.nodes[indexOfNode(from) + FIRST_OUT];
+    if (lastOutHash) {
+      this.edges[index + PREV_OUT] = lastOutHash;
+    }
     if (firstOutHash) {
       this.edges[hashToIndex(lastOutHash) + NEXT_OUT] = indexToHash(index);
     } else {
@@ -582,67 +594,95 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     }
 
     // Remove outgoing ref to this edge from incoming node.
+    let prevOutHash = this.edges[index + PREV_OUT];
     let nextOutHash = this.edges[index + NEXT_OUT];
     let firstOutHash = this.nodes[indexOfNode(from) + FIRST_OUT];
     let lastOutHash = this.nodes[indexOfNode(from) + LAST_OUT];
 
-    if (hashToIndex(firstOutHash) === index) {
+    if (prevOutHash) {
+      this.edges[hashToIndex(prevOutHash) + NEXT_OUT] = nextOutHash;
+    }
+    if (nextOutHash) {
+      this.edges[hashToIndex(nextOutHash) + PREV_OUT] = prevOutHash;
+    }
+    if (indexToHash(index) === firstOutHash) {
       this.nodes[indexOfNode(from) + FIRST_OUT] = nextOutHash;
-    } else {
-      let prevOutHash = firstOutHash;
-      let nextHash = firstOutHash;
-      do {
-        nextHash = this.edges[hashToIndex(nextHash) + NEXT_OUT];
-        // If the edge at nextHash is the edge we're trying to remove, set the
-        // NEXT_OUT of the previous edge to the NEXT_OUT of the edge we're trying
-        // to remove
-        if (hashToIndex(nextHash) === index) {
-          this.edges[hashToIndex(prevOutHash) + NEXT_OUT] = nextOutHash;
-          // if we're not trying to remove LAST_OUT, we can stop here
-          if (hashToIndex(lastOutHash) !== index) {
-            break;
-          }
-        }
-        // If we're trying to remove the LAST_OUT, and LAST_OUT is the next hash,
-        // set LAST_OUT to the prev hash
-        if (nextHash === lastOutHash && index === hashToIndex(lastOutHash)) {
-          this.nodes[indexOfNode(from) + LAST_OUT] = prevOutHash;
-          break;
-        }
-        prevOutHash = nextHash;
-      } while (nextHash !== lastOutHash);
+    }
+    if (indexToHash(index) === lastOutHash) {
+      this.nodes[indexOfNode(from) + LAST_OUT] = prevOutHash;
     }
 
-    // Remove incoming ref to this edge from to outgoing node.
+    let prevInHash = this.edges[index + PREV_IN];
     let nextInHash = this.edges[index + NEXT_IN];
     let firstInHash = this.nodes[indexOfNode(to) + FIRST_IN];
     let lastInHash = this.nodes[indexOfNode(to) + LAST_IN];
-    if (hashToIndex(firstInHash) === index) {
-      this.nodes[indexOfNode(to) + FIRST_IN] = nextInHash;
-    } else {
-      let prevInHash = firstInHash;
-      let nextHash = firstInHash;
-      do {
-        nextHash = this.edges[hashToIndex(nextHash) + NEXT_IN];
-        // If the edge at nextHash is the edge we're trying to remove, set the
-        // NEXT_IN of the previous edge to the NEXT_IN of the edge we're trying
-        // to remove
-        if (hashToIndex(nextHash) === index) {
-          this.edges[hashToIndex(prevInHash) + NEXT_IN] = nextInHash;
-          // if we're not trying to remove LAST_IN, we can stop here
-          if (hashToIndex(lastInHash) !== index) {
-            break;
-          }
-        }
-        // If we're trying to remove the LAST_IN, and LAST_IN is the next hash,
-        // set LAST_IN to the prev hash
-        if (nextHash === lastInHash && index === hashToIndex(lastInHash)) {
-          this.nodes[indexOfNode(to) + LAST_IN] = prevInHash;
-          break;
-        }
-        prevInHash = nextHash;
-      } while (nextHash !== lastInHash);
+
+    if (prevInHash) {
+      this.edges[hashToIndex(prevInHash) + NEXT_IN] = nextInHash;
     }
+    if (nextInHash) {
+      this.edges[hashToIndex(nextInHash) + PREV_IN] = prevInHash;
+    }
+    if (indexToHash(index) === firstInHash) {
+      this.nodes[indexOfNode(to) + FIRST_IN] = nextInHash;
+    }
+    if (indexToHash(index) === lastInHash) {
+      this.nodes[indexOfNode(to) + LAST_IN] = prevInHash;
+    }
+    // if (hashToIndex(firstOutHash) === index) {
+    //   this.nodes[indexOfNode(from) + FIRST_OUT] = nextOutHash;
+    // } else {
+    //   let prevOutHash = firstOutHash;
+    //   let nextHash = firstOutHash;
+    //   do {
+    //     nextHash = this.edges[hashToIndex(nextHash) + NEXT_OUT];
+    //     // If the edge at nextHash is the edge we're trying to remove, set the
+    //     // NEXT_OUT of the previous edge to the NEXT_OUT of the edge we're trying
+    //     // to remove
+    //     if (hashToIndex(nextHash) === index) {
+    //       this.edges[hashToIndex(prevOutHash) + NEXT_OUT] = nextOutHash;
+    //       // if we're not trying to remove LAST_OUT, we can stop here
+    //       if (hashToIndex(lastOutHash) !== index) {
+    //         break;
+    //       }
+    //     }
+    //     // If we're trying to remove the LAST_OUT, and LAST_OUT is the next hash,
+    //     // set LAST_OUT to the prev hash
+    //     if (nextHash === lastOutHash && index === hashToIndex(lastOutHash)) {
+    //       this.nodes[indexOfNode(from) + LAST_OUT] = prevOutHash;
+    //       break;
+    //     }
+    //     prevOutHash = nextHash;
+    //   } while (nextHash !== lastOutHash);
+    // }
+
+    // // Remove incoming ref to this edge from to outgoing node.
+    // if (hashToIndex(firstInHash) === index) {
+    //   this.nodes[indexOfNode(to) + FIRST_IN] = nextInHash;
+    // } else {
+    //   let prevInHash = firstInHash;
+    //   let nextHash = firstInHash;
+    //   do {
+    //     nextHash = this.edges[hashToIndex(nextHash) + NEXT_IN];
+    //     // If the edge at nextHash is the edge we're trying to remove, set the
+    //     // NEXT_IN of the previous edge to the NEXT_IN of the edge we're trying
+    //     // to remove
+    //     if (hashToIndex(nextHash) === index) {
+    //       this.edges[hashToIndex(prevInHash) + NEXT_IN] = nextInHash;
+    //       // if we're not trying to remove LAST_IN, we can stop here
+    //       if (hashToIndex(lastInHash) !== index) {
+    //         break;
+    //       }
+    //     }
+    //     // If we're trying to remove the LAST_IN, and LAST_IN is the next hash,
+    //     // set LAST_IN to the prev hash
+    //     if (nextHash === lastInHash && index === hashToIndex(lastInHash)) {
+    //       this.nodes[indexOfNode(to) + LAST_IN] = prevInHash;
+    //       break;
+    //     }
+    //     prevInHash = nextHash;
+    //   } while (nextHash !== lastInHash);
+    // }
 
     // Mark this slot as DELETED.
     // We do this so that clustered edges can still be found
@@ -651,6 +691,8 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     this.edges[index + TYPE] = DELETED;
     this.edges[index + FROM] = 0;
     this.edges[index + TO] = 0;
+    this.edges[index + PREV_IN] = 0;
+    this.edges[index + PREV_OUT] = 0;
     this.edges[index + NEXT_IN] = 0;
     this.edges[index + NEXT_OUT] = 0;
 
