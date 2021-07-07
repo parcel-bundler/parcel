@@ -282,6 +282,7 @@ export type ParcelOptions = {|
     +distDir?: ProjectPath,
     +engines?: Engines,
     +outputFormat?: OutputFormat,
+    +isLibrary?: boolean,
   |},
 |};
 

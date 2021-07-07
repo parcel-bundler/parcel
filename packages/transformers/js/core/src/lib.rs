@@ -78,6 +78,8 @@ pub struct Config {
   scope_hoist: bool,
   source_type: SourceType,
   supports_module_workers: bool,
+  is_library: bool,
+  is_esm_output: bool,
 }
 
 #[derive(Serialize, Debug, Deserialize, Default)]
@@ -220,11 +222,11 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
             let mut react_options = react::Options::default();
             if config.is_jsx {
               react_options.use_spread = true;
-              if let Some(jsx_pragma) = config.jsx_pragma {
-                react_options.pragma = jsx_pragma;
+              if let Some(jsx_pragma) = &config.jsx_pragma {
+                react_options.pragma = jsx_pragma.clone();
               }
-              if let Some(jsx_pragma_frag) = config.jsx_pragma_frag {
-                react_options.pragma_frag = jsx_pragma_frag;
+              if let Some(jsx_pragma_frag) = &config.jsx_pragma_frag {
+                react_options.pragma_frag = jsx_pragma_frag.clone();
               }
               react_options.development = config.is_development;
               react_options.refresh = if config.react_refresh {
@@ -234,8 +236,8 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
               };
 
               react_options.runtime = if config.automatic_jsx_runtime {
-                if let Some(import_source) = config.jsx_import_source {
-                  react_options.import_source = import_source;
+                if let Some(import_source) = &config.jsx_import_source {
+                  react_options.import_source = import_source.clone();
                 }
                 Some(react::Runtime::Automatic)
               } else {
@@ -284,7 +286,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                 Optional::new(
                   EnvReplacer {
                     replace_env: config.replace_env,
-                    env: config.env,
+                    env: &config.env,
                     is_browser: config.is_browser,
                     decls: &decls,
                     used_env: &mut result.used_env
@@ -334,9 +336,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                   &mut result.dependencies,
                   &decls,
                   ignore_mark,
-                  config.scope_hoist,
-                  config.source_type,
-                  config.supports_module_workers,
+                  &config,
                   &mut diagnostics,
                 ),
               );

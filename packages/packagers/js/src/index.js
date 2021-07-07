@@ -2,7 +2,7 @@
 import type {Async} from '@parcel/types';
 import type SourceMap from '@parcel/source-map';
 import {Packager} from '@parcel/plugin';
-import {replaceInlineReferences} from '@parcel/utils';
+import {replaceInlineReferences, replaceURLReferences} from '@parcel/utils';
 import {hashString} from '@parcel/hash';
 import path from 'path';
 import nullthrows from 'nullthrows';
@@ -63,6 +63,17 @@ export default (new Packager({
     }
 
     contents += '\n' + (await getSourceMapSuffix(getSourceMapReference, map));
+
+    // For library builds, we need to replace URL references with their final resolved paths.
+    // For non-library builds, this is handled in the JS runtime.
+    if (bundle.env.isLibrary) {
+      ({contents, map} = replaceURLReferences({
+        bundle,
+        bundleGraph,
+        contents,
+        map,
+      }));
+    }
 
     return replaceInlineReferences({
       bundle,
