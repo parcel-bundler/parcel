@@ -332,7 +332,6 @@ export default (new Transformer({
       }
     }
 
-    let relativePath = path.relative(options.projectRoot, asset.filePath);
     let env: EnvMap = {};
 
     if (!config?.inlineEnvironment) {
@@ -401,7 +400,7 @@ export default (new Transformer({
 
     let convertLoc = loc => {
       let location = {
-        filePath: relativePath,
+        filePath: asset.filePath,
         start: {
           line: loc.start_line + Number(asset.meta.startLine ?? 1) - 1,
           column: loc.start_col,

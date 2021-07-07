@@ -228,7 +228,8 @@ describe('javascript', function() {
               ],
             },
             {
-              filePath: path.normalize(
+              filePath: path.join(
+                __dirname,
                 'integration/worklet/url-worklet-error.js',
               ),
               codeHighlights: [
@@ -1044,7 +1045,10 @@ describe('javascript', function() {
               ],
             },
             {
-              filePath: 'error.js',
+              filePath: path.join(
+                __dirname,
+                '/integration/workers-module/error.js',
+              ),
               codeHighlights: [
                 {
                   message: 'The environment was originally created here',
@@ -1139,7 +1143,8 @@ describe('javascript', function() {
                 ],
               },
               {
-                filePath: path.normalize(
+                filePath: path.join(
+                  __dirname,
                   `integration/worker-import-scripts/index-${workerType}.js`,
                 ),
                 codeHighlights: [
@@ -1293,7 +1298,10 @@ describe('javascript', function() {
               ],
             },
             {
-              filePath: path.normalize('integration/service-worker/error.js'),
+              filePath: path.join(
+                __dirname,
+                'integration/service-worker/error.js',
+              ),
               codeHighlights: [
                 {
                   message: 'The environment was originally created here',
@@ -2077,7 +2085,7 @@ describe('javascript', function() {
     assert(contents.includes('import.meta.url'));
   });
 
-  it('should support referencing a raw asset with static URL and import.meta.url (diagnostic)', async function() {
+  it('should throw a codeframe for a missing raw asset with static URL and import.meta.url', async function() {
     let fixture = path.join(
       __dirname,
       'integration/import-raw-import-meta-url/missing.js',
@@ -2192,8 +2200,8 @@ describe('javascript', function() {
 
     let output = await run(b);
     assert.deepEqual(output(), {
-      dir: path.join(__dirname, '/integration/globals'),
-      file: path.join(__dirname, '/integration/globals/index.js'),
+      dir: 'integration/globals',
+      file: 'integration/globals/index.js',
       buf: Buffer.from('browser').toString('base64'),
       global: true,
     });

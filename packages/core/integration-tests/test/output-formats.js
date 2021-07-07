@@ -369,14 +369,18 @@ describe('output formats', function() {
 
     it('should throw an error on missing export with esmodule input and sideEffects: false', async function() {
       let message = "other.js does not export 'a'";
-      let source = 'missing-export.js';
+      let source = path.join(
+        __dirname,
+        '/integration/formats/commonjs-sideeffects',
+        'missing-export.js',
+      );
       await assert.rejects(
         () =>
           bundle(
             path.join(
               __dirname,
               '/integration/formats/commonjs-sideeffects',
-              source,
+              'missing-export.js',
             ),
           ),
         {
@@ -726,11 +730,18 @@ describe('output formats', function() {
 
     it('should throw an error on missing export with esmodule output and sideEffects: false', async function() {
       let message = "b.js does not export 'a'";
-      let source = 'missing-export.js';
+      let source = path.join(
+        __dirname,
+        'integration/formats/esm-sideeffects',
+        'missing-export.js',
+      );
       await assert.rejects(
         () =>
           bundle(
-            path.join(__dirname, 'integration/formats/esm-sideeffects', source),
+            path.join(
+              __dirname,
+              'integration/formats/esm-sideeffects/missing-export.js',
+            ),
           ),
         {
           name: 'BuildError',

@@ -202,7 +202,7 @@ export class ScopeHoistingPackager {
       );
       let map;
       if (mapBuffer) {
-        map = new SourceMap(mapBuffer);
+        map = new SourceMap(this.options.projectRoot, mapBuffer);
       }
       res += replaceScriptDependencies(
         this.bundleGraph,
@@ -353,7 +353,9 @@ export class ScopeHoistingPackager {
     let deps = this.bundleGraph.getDependencies(asset);
 
     let sourceMap =
-      this.bundle.env.sourceMap && map ? new SourceMap(map) : null;
+      this.bundle.env.sourceMap && map
+        ? new SourceMap(this.options.projectRoot, map)
+        : null;
 
     // If this asset is skipped, just add dependencies and not the asset's content.
     if (this.shouldSkipAsset(asset)) {
