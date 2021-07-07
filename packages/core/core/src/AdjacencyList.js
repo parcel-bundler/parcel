@@ -522,17 +522,16 @@ export default class AdjacencyList<TEdgeType: number = 1> {
    *
    */
   indexFor(from: NodeId, to: NodeId, type: TEdgeType | NullEdgeType): number {
-    if (this.hasEdge(from, to, type)) {
-      return -1;
-    }
     let index = hashToIndex(this.hash(from, to, type));
+    let deletedEdgeHash = 0;
     // we scan the `edges` array for the next empty slot after the `index`.
     // We do this instead of simply using the `index` because it is possible
     // for multiple edges to have the same hash.
     while (this.edges[index + TYPE]) {
       // If the edge at this index was deleted, we can reuse the slot.
-      if (isDeleted(this.edges[index + TYPE])) break;
-      if (
+      if (isDeleted(this.edges[index + TYPE])) {
+        deletedEdgeHash = indexToHash(index);
+      } else if (
         this.edges[index + FROM] === from &&
         this.edges[index + TO] === to &&
         // if type === ALL_EDGE_TYPES, return all edges
@@ -540,17 +539,16 @@ export default class AdjacencyList<TEdgeType: number = 1> {
       ) {
         // If this edge is already in the graph, bail out.
         return -1;
-      } else {
-        // There is already an edge at `hash`,
-        // so scan forward for the next open slot to use as the the `hash`.
-        // Note that each 'slot' is of size `EDGE_SIZE`.
-        // Also note that we handle overflow of `edges` by wrapping
-        // back to the beginning of the `edges` array.
-        index = (index + EDGE_SIZE) % this.edges.length;
       }
+      // There is already an edge at `hash`,
+      // so scan forward for the next open slot to use as the the `hash`.
+      // Note that each 'slot' is of size `EDGE_SIZE`.
+      // Also note that we handle overflow of `edges` by wrapping
+      // back to the beginning of the `edges` array.
+      index = (index + EDGE_SIZE) % this.edges.length;
     }
 
-    return index;
+    return deletedEdgeHash ? hashToIndex(deletedEdgeHash) : index;
   }
 
   *getAllEdges(): Iterator<Edge<TEdgeType | NullEdgeType>> {
