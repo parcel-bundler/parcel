@@ -107,7 +107,7 @@ export default class NodeResolver {
     parent: ?FilePath,
     isURL: boolean,
     env: Environment,
-    sourcePath: ?FilePath,
+    sourcePath?: ?FilePath,
   |}): Promise<?ResolveResult> {
     let ctx = {
       invalidateOnFileCreate: [],
