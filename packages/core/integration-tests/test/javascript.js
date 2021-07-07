@@ -35,26 +35,6 @@ describe('javascript', function() {
     assert.equal(output(), 3);
   });
 
-  it('should import child bundles using a require call in CommonJS', async function() {
-    let b = await bundle(
-      path.join(__dirname, '/integration/commonjs-bundle-require/index.js'),
-    );
-
-    assertBundles(b, [
-      {
-        name: 'index.js',
-        assets: ['index.js'],
-      },
-      {
-        assets: ['local.js'],
-      },
-    ]);
-
-    let output = await run(b);
-    assert.strictEqual(typeof output.double, 'function');
-    assert.strictEqual(output.double(3), 6);
-  });
-
   it('should support url: imports with CommonJS output', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/commonjs-import-url/index.js'),
@@ -63,7 +43,7 @@ describe('javascript', function() {
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: ['bundle-url.js', 'index.js', 'esmodule-helpers.js'],
+        assets: ['index.js', 'esmodule-helpers.js'],
       },
       {
         type: 'txt',
@@ -945,7 +925,7 @@ describe('javascript', function() {
         },
         {
           name: 'index.js',
-          assets: ['index.js', 'bundle-url.js', 'get-worker-url.js'],
+          assets: ['index.js', 'bundle-manifest.js', 'get-worker-url.js'],
         },
         {
           type: 'js',
@@ -1554,7 +1534,6 @@ describe('javascript', function() {
           'bundle-url.js',
           'get-worker-url.js',
           'bundle-manifest.js',
-          'relative-path.js',
           'esmodule-helpers.js',
         ],
       },
@@ -1564,7 +1543,6 @@ describe('javascript', function() {
           'bundle-url.js',
           'get-worker-url.js',
           'bundle-manifest.js',
-          'relative-path.js',
         ],
       },
       {
@@ -1708,7 +1686,6 @@ describe('javascript', function() {
           'bundle-url.js',
           'get-worker-url.js',
           'bundle-manifest.js',
-          'relative-path.js',
         ],
       },
       {
@@ -1849,7 +1826,6 @@ describe('javascript', function() {
           'cacheLoader.js',
           'js-loader.js',
           'bundle-manifest.js',
-          'relative-path.js',
         ],
       },
       {
@@ -2048,6 +2024,33 @@ describe('javascript', function() {
       {
         name: 'index.js',
         assets: ['index.js', 'bundle-url.js', 'esmodule-helpers.js'],
+      },
+      {
+        type: 'txt',
+        assets: ['test.txt'],
+      },
+    ]);
+
+    let contents = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(!contents.includes('import.meta.url'));
+
+    let output = await run(b);
+    assert(/^http:\/\/localhost\/test\.[0-9a-f]+\.txt$/.test(output.default));
+    let stats = await outputFS.stat(
+      path.join(distDir, url.parse(output.default).pathname),
+    );
+    assert.equal(stats.size, 9);
+  });
+
+  it('should support referencing a raw asset with static URL and CJS __filename', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/import-raw-import-meta-url/cjs.js'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'cjs.js',
+        assets: ['cjs.js', 'bundle-url.js', 'esmodule-helpers.js'],
       },
       {
         type: 'txt',
@@ -3716,7 +3719,6 @@ describe('javascript', function() {
           'cacheLoader.js',
           'dep.js',
           'js-loader.js',
-          'relative-path.js',
           'same-ancestry.js',
           'esmodule-helpers.js',
         ],
@@ -3764,7 +3766,6 @@ describe('javascript', function() {
           'cacheLoader.js',
           'get-dep.js',
           'js-loader.js',
-          'relative-path.js',
           'esmodule-helpers.js',
         ],
       },
@@ -3820,7 +3821,6 @@ describe('javascript', function() {
           'cacheLoader.js',
           'index.js',
           'js-loader.js',
-          'relative-path.js',
           'esmodule-helpers.js',
         ],
       },
@@ -4249,7 +4249,6 @@ describe('javascript', function() {
           'cacheLoader.js',
           'js-loader.js',
           'bundle-manifest.js',
-          'relative-path.js',
         ],
       },
       {
@@ -4329,7 +4328,6 @@ describe('javascript', function() {
           'esmodule-helpers.js',
           'js-loader.js',
           'bundle-manifest.js',
-          'relative-path.js',
         ],
       },
       {

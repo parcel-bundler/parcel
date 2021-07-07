@@ -73,6 +73,7 @@ impl<'a> Fold for GlobalReplacer<'a> {
               is_optional: false,
               is_helper: false,
               source_type: Some(SourceType::Module),
+              placeholder: None,
             });
           }
           "Buffer" => {
@@ -99,6 +100,7 @@ impl<'a> Fold for GlobalReplacer<'a> {
               is_optional: false,
               is_helper: false,
               source_type: Some(SourceType::Module),
+              placeholder: None,
             });
           }
           "__filename" => {

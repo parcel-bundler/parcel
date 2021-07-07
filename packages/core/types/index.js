@@ -194,7 +194,8 @@ export type EnvironmentFeature =
   | 'esmodules'
   | 'dynamic-import'
   | 'worker-module'
-  | 'service-worker-module';
+  | 'service-worker-module'
+  | 'import-meta-url';
 
 /**
  * Defines the environment in for the output bundle
@@ -310,6 +311,7 @@ export type InitialParcelOptions = {|
     +distDir?: FilePath,
     +engines?: Engines,
     +outputFormat?: OutputFormat,
+    +isLibrary?: boolean,
   |},
 
   +additionalReporters?: Array<{|

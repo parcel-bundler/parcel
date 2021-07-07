@@ -853,6 +853,7 @@ function prepareNodeContext(filePath, globals, ctx: any = {}) {
   ctx.setTimeout = setTimeout;
   ctx.setImmediate = setImmediate;
   ctx.global = ctx;
+  ctx.URL = URL;
   Object.assign(ctx, globals);
   return ctx;
 }
@@ -894,6 +895,9 @@ export async function runESM(
         identifier: filename + '?id=' + id,
         importModuleDynamically: entry,
         context,
+        initializeImportMeta(meta) {
+          meta.url = `http://localhost/${path.basename(filename)}`;
+        },
       });
       cache.set(filename, m);
       return m;
