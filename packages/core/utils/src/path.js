@@ -26,7 +26,7 @@ export function normalizePath(
     leadingDotSlash &&
     (filePath[0] !== '.' ||
       (filePath[1] !== '.' && filePath[1] !== '/' && filePath[1] !== '\\')) &&
-    filePath[0] !== '/'
+    !path.isAbsolute(filePath)
   ) {
     return normalizeSeparators('./' + filePath);
   } else {
