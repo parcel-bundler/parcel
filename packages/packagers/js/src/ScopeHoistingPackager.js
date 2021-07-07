@@ -202,7 +202,7 @@ export class ScopeHoistingPackager {
       );
       let map;
       if (mapBuffer) {
-        map = new SourceMap(mapBuffer);
+        map = new SourceMap(this.options.projectRoot, mapBuffer);
       }
       res += replaceScriptDependencies(
         this.bundleGraph,
@@ -361,7 +361,9 @@ export class ScopeHoistingPackager {
     let deps = this.bundleGraph.getDependencies(asset);
 
     let sourceMap =
-      this.bundle.env.sourceMap && map ? new SourceMap(map) : null;
+      this.bundle.env.sourceMap && map
+        ? new SourceMap(this.options.projectRoot, map)
+        : null;
 
     // If this asset is skipped, just add dependencies and not the asset's content.
     if (this.shouldSkipAsset(asset)) {
@@ -679,17 +681,19 @@ ${code}
         diagnostic: {
           message:
             'External modules are not supported when building for browser',
-          filePath: nullthrows(dep.sourcePath),
-          codeFrame: {
-            codeHighlights: dep.loc
-              ? [
-                  {
-                    start: dep.loc.start,
-                    end: dep.loc.end,
-                  },
-                ]
-              : [],
-          },
+          codeFrames: [
+            {
+              filePath: nullthrows(dep.sourcePath),
+              codeHighlights: dep.loc
+                ? [
+                    {
+                      start: dep.loc.start,
+                      end: dep.loc.end,
+                    },
+                  ]
+                : [],
+            },
+          ],
         },
       });
     }

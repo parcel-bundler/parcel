@@ -343,14 +343,18 @@ describe('output formats', function() {
 
     it('should throw an error on missing export with esmodule input and sideEffects: false', async function() {
       let message = "other.js does not export 'a'";
-      let source = 'missing-export.js';
+      let source = path.join(
+        __dirname,
+        '/integration/formats/commonjs-sideeffects',
+        'missing-export.js',
+      );
       await assert.rejects(
         () =>
           bundle(
             path.join(
               __dirname,
               '/integration/formats/commonjs-sideeffects',
-              source,
+              'missing-export.js',
             ),
           ),
         {
@@ -360,22 +364,24 @@ describe('output formats', function() {
             {
               message,
               origin: '@parcel/core',
-              filePath: source,
-              language: 'js',
-              codeFrame: {
-                codeHighlights: [
-                  {
-                    start: {
-                      line: 1,
-                      column: 10,
+              codeFrames: [
+                {
+                  filePath: source,
+                  language: 'js',
+                  codeHighlights: [
+                    {
+                      start: {
+                        line: 1,
+                        column: 10,
+                      },
+                      end: {
+                        line: 1,
+                        column: 15,
+                      },
                     },
-                    end: {
-                      line: 1,
-                      column: 15,
-                    },
-                  },
-                ],
-              },
+                  ],
+                },
+              ],
             },
           ],
         },
@@ -724,11 +730,18 @@ describe('output formats', function() {
 
     it('should throw an error on missing export with esmodule output and sideEffects: false', async function() {
       let message = "b.js does not export 'a'";
-      let source = 'missing-export.js';
+      let source = path.join(
+        __dirname,
+        'integration/formats/esm-sideeffects',
+        'missing-export.js',
+      );
       await assert.rejects(
         () =>
           bundle(
-            path.join(__dirname, 'integration/formats/esm-sideeffects', source),
+            path.join(
+              __dirname,
+              'integration/formats/esm-sideeffects/missing-export.js',
+            ),
           ),
         {
           name: 'BuildError',
@@ -737,22 +750,24 @@ describe('output formats', function() {
             {
               message,
               origin: '@parcel/core',
-              filePath: source,
-              language: 'js',
-              codeFrame: {
-                codeHighlights: [
-                  {
-                    start: {
-                      line: 1,
-                      column: 10,
+              codeFrames: [
+                {
+                  filePath: source,
+                  language: 'js',
+                  codeHighlights: [
+                    {
+                      start: {
+                        line: 1,
+                        column: 10,
+                      },
+                      end: {
+                        line: 1,
+                        column: 15,
+                      },
                     },
-                    end: {
-                      line: 1,
-                      column: 15,
-                    },
-                  },
-                ],
-              },
+                  ],
+                },
+              ],
             },
           ],
         },
@@ -1049,22 +1064,24 @@ describe('output formats', function() {
           {
             message,
             origin: '@parcel/packager-js',
-            filePath: source,
-            language: 'js',
-            codeFrame: {
-              codeHighlights: [
-                {
-                  start: {
-                    line: 1,
-                    column: 16,
+            codeFrames: [
+              {
+                filePath: source,
+                language: 'js',
+                codeHighlights: [
+                  {
+                    start: {
+                      line: 1,
+                      column: 16,
+                    },
+                    end: {
+                      line: 1,
+                      column: 40,
+                    },
                   },
-                  end: {
-                    line: 1,
-                    column: 40,
-                  },
-                },
-              ],
-            },
+                ],
+              },
+            ],
           },
         ],
       });
@@ -1276,21 +1293,23 @@ describe('output formats', function() {
           {
             message,
             origin: '@parcel/packager-js',
-            filePath: source,
-            codeFrame: {
-              codeHighlights: [
-                {
-                  start: {
-                    line: 1,
-                    column: 21,
+            codeFrames: [
+              {
+                filePath: source,
+                codeHighlights: [
+                  {
+                    start: {
+                      line: 1,
+                      column: 21,
+                    },
+                    end: {
+                      line: 1,
+                      column: 28,
+                    },
                   },
-                  end: {
-                    line: 1,
-                    column: 28,
-                  },
-                },
-              ],
-            },
+                ],
+              },
+            ],
           },
         ],
       });

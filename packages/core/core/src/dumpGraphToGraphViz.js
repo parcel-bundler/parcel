@@ -1,12 +1,11 @@
 // @flow
 
-import type {Environment} from './types';
-
+import type {AssetGraphNode, BundleGraphNode, Environment} from './types';
 import type Graph from './Graph';
-import type {AssetGraphNode, BundleGraphNode} from './types';
 import {SpecifierType, Priority} from './types';
 
 import path from 'path';
+import {fromProjectPathRelative} from './projectPath';
 
 const COLORS = {
   root: 'gray',
@@ -91,7 +90,10 @@ export default async function dumpGraphToGraphViz(
         }
       }
     } else if (node.type === 'asset') {
-      label += path.basename(node.value.filePath) + '#' + node.value.type;
+      label +=
+        path.basename(fromProjectPathRelative(node.value.filePath)) +
+        '#' +
+        node.value.type;
       if (detailedSymbols) {
         if (!node.value.symbols) {
           label += '\\nsymbols: cleared';

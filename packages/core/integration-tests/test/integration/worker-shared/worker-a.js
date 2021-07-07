@@ -1,4 +1,4 @@
 import _ from 'lodash'
 
 console.log(_);
-new Worker('worker-b.js', {type: 'module'})
+new Worker(new URL('worker-b.js', import.meta.url), {type: 'module'})

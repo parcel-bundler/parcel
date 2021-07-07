@@ -21,7 +21,7 @@ pub fn inline_fs<'a>(
   source_map: swc_common::sync::Lrc<swc_common::SourceMap>,
   decls: HashSet<IdentId>,
   global_mark: Mark,
-  project_root: String,
+  project_root: &'a String,
   deps: &'a mut Vec<DependencyDescriptor>,
 ) -> impl Fold + 'a {
   InlineFS {
@@ -37,7 +37,7 @@ struct InlineFS<'a> {
   filename: PathBuf,
   collect: Collect,
   global_mark: Mark,
-  project_root: String,
+  project_root: &'a String,
   deps: &'a mut Vec<DependencyDescriptor>,
 }
 

@@ -30,16 +30,16 @@ In the first pass, we collect:
 3. All non-static member expressions and other accesses. This allows us to determine later whether we need to access a namespace object or if we can statically resolve all symbols of a dependency. We also track when a dependency is accessed non-statically by other means (e.g. a non-static destructuring assignment).
 4. Whether the CommonJS `exports` object is referenced non-statically. This means we will need to always use the namespace rather than resolving exports statically.
 5. Dependencies that need to be wrapped because they were required anywhere except a top-level variable declaration, e.g. inside a function. These deps need to be wrapped to preserve side effect ordering.
-6. Whether something in *this* module requires us to wrap, e.g. `eval`, top-level return, non-static `module` access, `exports` re-assignment, etc.
+6. Whether something in _this_ module requires us to wrap, e.g. `eval`, top-level return, non-static `module` access, `exports` re-assignment, etc.
 
 In the second pass, we transform:
 
 1. For each import statement, a new import like `import "module_id:dep_specifier";` is hoisted to the top of the module. This indicates where the dependency code should be inserted by the packager later.
 2. For `require` calls, an import like above is inserted before the current top-level statement. This is new in this version, and prevents us needing to search for `$parcel$require` calls in statements to find where to insert the code in the packager. If the require is anywhere except a top-level variable declaration, it is marked as wrapped to preserve side effect ordering (also more conservative than before). The require is replaced by an identifier referencing the `*` symbol in the dependency, or the relevant symbol if in a statically resolvable member expression.
-2. Each export statement is replaced by its declaration/expression, if any, and renamed.
-3. CommonJS exports are replaced with variable assignments. If the CJS exports object is accessed non-statically, as determined in the previous phase, then an assignment to an object is emitted, otherwise each export is an individual variable.
-4. References to imports/requires are replaced with a renamed variable, and added to the symbols. If we previously determined in the first phase that the import was accessed non-statically, a member expression is used for all references to that dependency.
-5. All top-level variables are renamed to include the module id so that they can be concatenated together safely. This is skipped if the module needs to be wrapped, e.g. used `eval`.
+3. Each export statement is replaced by its declaration/expression, if any, and renamed.
+4. CommonJS exports are replaced with variable assignments. If the CJS exports object is accessed non-statically, as determined in the previous phase, then an assignment to an object is emitted, otherwise each export is an individual variable.
+5. References to imports/requires are replaced with a renamed variable, and added to the symbols. If we previously determined in the first phase that the import was accessed non-statically, a member expression is used for all references to that dependency.
+6. All top-level variables are renamed to include the module id so that they can be concatenated together safely. This is skipped if the module needs to be wrapped, e.g. used `eval`.
 
 The output from Rust is an object which is used by the JSTransformer Parcel plugin to add symbols to dependencies and the asset itself, along with some metadata that is used by the packager.
 
@@ -57,12 +57,12 @@ If the asset is wrapped, we use the `parcelRequire.register` function to registe
 
 ## Summary of differences
 
-* requires and imports are now replaced with top-level `import "module_id:specifier"` statements rather than inline `$parcel$require` calls. This indicates where to insert the dependent code, and no longer requires the packager to search for requires inside statements.
-* THe hoist transform is much more conservative. Only top-level variable declarations pointing to a `require` or a member expression with a `require` are handled without wrapping. This should solve cases like [#5606](https://github.com/parcel-bundler/parcel/issues/5606). In addition, if any non-static access of an import occurs, we always use the namespace object rather than using static references for some imports and dynamic references for others. Same goes for exports.
-* Hoist no longer performs any wrapping. All wrapping is now handled in the packager.
-* The packager operates only on strings and does not require any ASTs.
-* The export namespace object is not generated in the hoist phases and instead is synthesized only when needed during packaging (e.g. if the module is accessed non-statically). This applies to both ESM and fully statically analyzable CJS. For CJS with exports that are non-static, the hoist phase still performs assignments to a namespace object.
-* We use `parcelRequire.register` for wrapping rather than `$init` calls. This should allow us to share a module map between bundles and solve some side effect ordering/circular dependency issues.
+- requires and imports are now replaced with top-level `import "module_id:specifier"` statements rather than inline `$parcel$require` calls. This indicates where to insert the dependent code, and no longer requires the packager to search for requires inside statements.
+- THe hoist transform is much more conservative. Only top-level variable declarations pointing to a `require` or a member expression with a `require` are handled without wrapping. This should solve cases like [#5606](https://github.com/parcel-bundler/parcel/issues/5606). In addition, if any non-static access of an import occurs, we always use the namespace object rather than using static references for some imports and dynamic references for others. Same goes for exports.
+- Hoist no longer performs any wrapping. All wrapping is now handled in the packager.
+- The packager operates only on strings and does not require any ASTs.
+- The export namespace object is not generated in the hoist phases and instead is synthesized only when needed during packaging (e.g. if the module is accessed non-statically). This applies to both ESM and fully statically analyzable CJS. For CJS with exports that are non-static, the hoist phase still performs assignments to a namespace object.
+- We use `parcelRequire.register` for wrapping rather than `$init` calls. This should allow us to share a module map between bundles and solve some side effect ordering/circular dependency issues.
 
 ## Examples
 
@@ -96,14 +96,14 @@ let $id$export$b = 2;
 imported symbols:
 
 | Local          | Specifier | Imported |
-|----------------|-----------|----------|
+| -------------- | --------- | -------- |
 | $id$import$b$b | ./b       | b        |
 
 exported symbols:
 
-| Exported | Local        |
-|----------|--------------|
-| b        | $id$export$b |
+| Exported | Local         |
+| -------- | ------------- |
+| b        | $id$export\$b |
 
 #### Packaged output
 
@@ -139,15 +139,14 @@ let $id$export$b = 2;
 imported symbols:
 
 | Local          | Specifier | Imported |
-|----------------|-----------|----------|
+| -------------- | --------- | -------- |
 | $id$import$b$b | ./b       | b        |
 
 exported symbols:
 
-
-| Exported | Local        |
-|----------|--------------|
-| b        | $id$export$b |
+| Exported | Local         |
+| -------- | ------------- |
+| b        | $id$export\$b |
 
 #### Packaged output
 
@@ -183,14 +182,14 @@ let $id$export$b = 2;
 imported symbols:
 
 | Local          | Specifier | Imported |
-|----------------|-----------|----------|
+| -------------- | --------- | -------- |
 | $id$import$b$b | ./b       | b        |
 
 exported symbols:
 
-| Exported | Local        |
-|----------|--------------|
-| b        | $id$export$b |
+| Exported | Local         |
+| -------- | ------------- |
+| b        | $id$export\$b |
 
 #### Packaged output
 
@@ -227,14 +226,14 @@ let $id$export$b = 2;
 imported symbols:
 
 | Local          | Specifier | Imported |
-|----------------|-----------|----------|
+| -------------- | --------- | -------- |
 | $id$import$b$b | ./b       | b        |
 
 exported symbols:
 
-| Exported | Local        |
-|----------|--------------|
-| b        | $id$export$b |
+| Exported | Local         |
+| -------- | ------------- |
+| b        | $id$export\$b |
 
 #### Packaged output
 
@@ -269,15 +268,15 @@ let $id$export$foo = 2;
 
 imported symbols:
 
-| Local        | Specifier | Imported |
-|--------------|-----------|----------|
-| $id$import$b | ./b       | *        |
+| Local         | Specifier | Imported |
+| ------------- | --------- | -------- |
+| $id$import\$b | ./b       | \*       |
 
 exported symbols:
 
-| Exported | Local          |
-|----------|--------------|
-| foo      | $id$export$foo |
+| Exported | Local           |
+| -------- | --------------- |
+| foo      | $id$export\$foo |
 
 #### Packaged output
 
@@ -315,14 +314,14 @@ $id$exports[something] = 2;
 imported symbols:
 
 | Local            | Specifier | Imported |
-|------------------|-----------|----------|
+| ---------------- | --------- | -------- |
 | $id$import$b$foo | ./b       | foo      |
 
 exported symbols:
 
-| Exported | Local          |
-|----------|----------------|
-| *        | $id$exports    |
+| Exported | Local       |
+| -------- | ----------- |
+| \*       | $id$exports |
 
 #### Packaged output
 
@@ -358,15 +357,15 @@ $id$exports[something] = 2;
 
 imported symbols:
 
-| Local        | Specifier | Imported |
-|--------------|-----------|----------|
-| $id$import$b | ./b       | *        |
+| Local         | Specifier | Imported |
+| ------------- | --------- | -------- |
+| $id$import\$b | ./b       | \*       |
 
 exported symbols:
 
-| Exported | Local          |
-|----------|----------------|
-| *        | $id$exports    |
+| Exported | Local       |
+| -------- | ----------- |
+| \*       | $id$exports |
 
 output:
 
@@ -406,18 +405,18 @@ let $id$export$foo = 2;
 imported symbols:
 
 | Local            | Specifier | Imported |
-|------------------|-----------|----------|
+| ---------------- | --------- | -------- |
 | $id$import$b$foo | ./b       | foo      |
 
 exported symbols:
 
-| Exported | Local          |
-|----------|----------------|
-| foo      | $id$export$foo |
+| Exported | Local           |
+| -------- | --------------- |
+| foo      | $id$export\$foo |
 
 wrapped dependencies:
 
-* `./b`
+- `./b`
 
 #### Packaged output
 
@@ -478,7 +477,8 @@ These patterns require a namespace object to be used instead of static reference
 ```js
 require('x')[something];
 const x = require('x')[something];
-const x = require('x'); x[something];
+const x = require('x');
+x[something];
 const {x, ...y} = require('x');
 x = require('y');
 ({x} = require('y'));

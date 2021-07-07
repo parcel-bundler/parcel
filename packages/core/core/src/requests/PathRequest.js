@@ -12,10 +12,10 @@ import type {ConfigAndCachePath} from './ParcelConfigRequest';
 
 import ThrowableDiagnostic, {errorToDiagnostic, md} from '@parcel/diagnostic';
 import {PluginLogger} from '@parcel/logger';
-import {relativePath} from '@parcel/utils';
 import nullthrows from 'nullthrows';
 import path from 'path';
 import URL from 'url';
+import {normalizePath} from '@parcel/utils';
 import querystring from 'querystring';
 import {report} from '../ReporterRunner';
 import PublicDependency from '../public/Dependency';
@@ -24,6 +24,12 @@ import ParcelConfig from '../ParcelConfig';
 import createParcelConfigRequest, {
   getCachedParcelConfig,
 } from './ParcelConfigRequest';
+import {invalidateOnFileCreateToInternal} from '../utils';
+import {
+  fromProjectPath,
+  fromProjectPathRelative,
+  toProjectPath,
+} from '../projectPath';
 import {Priority} from '../types';
 
 export type PathRequest = {|
@@ -66,19 +72,22 @@ async function run({input, api, options}: RunOpts) {
     options,
     config,
   });
-  let result = await resolverRunner.resolve(input.dependency);
+  let result: ?ResolverResult = await resolverRunner.resolve(input.dependency);
 
   if (result != null) {
     if (result.invalidateOnFileCreate) {
       for (let file of result.invalidateOnFileCreate) {
-        api.invalidateOnFileCreate(file);
+        api.invalidateOnFileCreate(
+          invalidateOnFileCreateToInternal(options.projectRoot, file),
+        );
       }
     }
 
     if (result.invalidateOnFileChange) {
       for (let filePath of result.invalidateOnFileChange) {
-        api.invalidateOnFileUpdate(filePath);
-        api.invalidateOnFileDelete(filePath);
+        let pp = toProjectPath(options.projectRoot, filePath);
+        api.invalidateOnFileUpdate(pp);
+        api.invalidateOnFileDelete(pp);
       }
     }
 
@@ -119,23 +128,26 @@ export class ResolverRunner {
     };
 
     if (dependency.loc && dependency.sourcePath != null) {
-      diagnostic.filePath = dependency.sourcePath;
-      diagnostic.codeFrame = {
-        code: await this.options.inputFS.readFile(
-          dependency.sourcePath,
-          'utf8',
-        ),
-        codeHighlights: dependency.loc
-          ? [{start: dependency.loc.start, end: dependency.loc.end}]
-          : [],
-      };
+      let filePath = fromProjectPath(
+        this.options.projectRoot,
+        dependency.sourcePath,
+      );
+      diagnostic.codeFrames = [
+        {
+          filePath,
+          code: await this.options.inputFS.readFile(filePath, 'utf8'),
+          codeHighlights: dependency.loc
+            ? [{start: dependency.loc.start, end: dependency.loc.end}]
+            : [],
+        },
+      ];
     }
 
     return new ThrowableDiagnostic({diagnostic});
   }
 
   async resolve(dependency: Dependency): Promise<?ResolverResult> {
-    let dep = new PublicDependency(dependency);
+    let dep = new PublicDependency(dependency, this.options);
     report({
       type: 'buildProgress',
       phase: 'resolving',
@@ -209,6 +221,10 @@ export class ResolverRunner {
       query = querystring.parse(queryPart);
     }
 
+    // Entrypoints, convert ProjectPath in module specifier to absolute path
+    if (dep.resolveFrom == null) {
+      filePath = path.join(this.options.projectRoot, filePath);
+    }
     let diagnostics: Array<Diagnostic> = [];
     for (let resolver of resolvers) {
       try {
@@ -222,6 +238,7 @@ export class ResolverRunner {
 
         if (result) {
           if (result.meta) {
+            dependency.resolverMeta = result.meta;
             dependency.meta = {
               ...dependency.meta,
               ...result.meta,
@@ -237,10 +254,20 @@ export class ResolverRunner {
           }
 
           if (result.filePath != null) {
+            let resultFilePath = result.filePath;
+            if (!path.isAbsolute(resultFilePath)) {
+              throw new Error(
+                md`Resolvers must return an absolute path, ${resolver.name} returned: ${resultFilePath}`,
+              );
+            }
+
             return {
               assetGroup: {
                 canDefer: result.canDefer,
-                filePath: result.filePath,
+                filePath: toProjectPath(
+                  this.options.projectRoot,
+                  resultFilePath,
+                ),
                 query,
                 sideEffects: result.sideEffects,
                 code: result.code,
@@ -290,7 +317,7 @@ export class ResolverRunner {
     let resolveFrom = dependency.resolveFrom ?? dependency.sourcePath;
     let dir =
       resolveFrom != null
-        ? relativePath(this.options.projectRoot, resolveFrom)
+        ? normalizePath(fromProjectPathRelative(resolveFrom))
         : '';
 
     // $FlowFixMe because of the err.code assignment
@@ -303,6 +330,7 @@ export class ResolverRunner {
 
     // Merge diagnostics
     err.diagnostics.push(...diagnostics);
+    // $FlowFixMe[prop-missing]
     err.code = 'MODULE_NOT_FOUND';
 
     throw err;
