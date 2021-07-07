@@ -919,11 +919,11 @@ ${code}
             let resolved = this.resolveSymbol(asset, asset, exp);
             return `$parcel$export($${assetId}$exports, ${JSON.stringify(
               exp,
-            )}, function() { return ${resolved}${
+            )}, function() { return ${resolved} }${
               asset.meta.hasCJSExports
-                ? `, function(v) { return ${resolved} = v }`
+                ? `, function(v) { return ${resolved} = v; }`
                 : ''
-            }});`;
+            });`;
           })
           .join('\n')}\n`;
         this.usedHelpers.add('$parcel$export');
