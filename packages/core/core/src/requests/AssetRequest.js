@@ -117,7 +117,10 @@ async function run({input, api, farm, invalidateReason, options}: RunInput) {
               specifier: req.specifier,
               resolveFrom: req.resolveFrom,
             },
-            ...(req.additionalInvalidations ?? []),
+            ...(req.additionalInvalidations ?? []).map(i => ({
+              specifier: i.specifier,
+              resolveFrom: i.resolveFrom,
+            })),
           ];
         }),
     ),

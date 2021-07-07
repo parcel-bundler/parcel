@@ -762,11 +762,15 @@ export type DevDepOptions = {|
   resolveFrom: FilePath,
   range?: ?SemverRange,
   /**
-   * Whether to also invalidate the parcel plugin that loaded this dev dependency
-   * when it changes. This is useful if the parcel plugin or another parent dependency
+   * When this dev dependency is invalidated, also invalidate these dependencies.
+   * This is useful if the parcel plugin or another parent dependency
    * has its own cache for this dev dependency other than Node's require cache.
    */
-  invalidateParcelPlugin?: boolean,
+  additionalInvalidations?: Array<{|
+    specifier: DependencySpecifier,
+    resolveFrom: FilePath,
+    range?: ?SemverRange,
+  |}>,
 |};
 
 /**

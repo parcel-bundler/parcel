@@ -237,6 +237,7 @@ export type DevDepRequest = {|
   additionalInvalidations?: Array<{|
     specifier: DependencySpecifier,
     resolveFrom: ProjectPath,
+    range?: ?SemverRange,
   |}>,
 |};
 
@@ -429,7 +430,11 @@ export type InternalDevDepOptions = {|
   specifier: DependencySpecifier,
   resolveFrom: ProjectPath,
   range?: ?SemverRange,
-  invalidateParcelPlugin?: boolean,
+  additionalInvalidations?: Array<{|
+    specifier: DependencySpecifier,
+    resolveFrom: ProjectPath,
+    range?: ?SemverRange,
+  |}>,
 |};
 
 export type Config = {|

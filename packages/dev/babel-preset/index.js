@@ -16,7 +16,7 @@ module.exports = () => ({
     [
       require('@babel/plugin-transform-modules-commonjs'),
       {
-        lazy: () => process.env.NODE_ENV !== 'test',
+        lazy: true,
       },
     ],
   ],

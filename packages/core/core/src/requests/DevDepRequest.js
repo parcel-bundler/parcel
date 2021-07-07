@@ -31,7 +31,7 @@ export async function createDevDependency(
   requestDevDeps: Map<string, string>,
   options: ParcelOptions,
 ): Promise<DevDepRequest> {
-  let {specifier, resolveFrom, invalidateParcelPlugin} = opts;
+  let {specifier, resolveFrom, additionalInvalidations} = opts;
   let key = `${specifier}:${fromProjectPathRelative(resolveFrom)}`;
 
   // If the request sent us a hash, we know the dev dep and all of its dependencies didn't change.
@@ -84,18 +84,8 @@ export async function createDevDependency(
       invalidateOnFileCreateToInternal(options.projectRoot, i),
     ),
     invalidateOnFileChange: new Set(invalidateOnFileChangeProject),
+    additionalInvalidations,
   };
-
-  // Optionally also invalidate the parcel plugin that is loading the config
-  // when this dev dep changes (e.g. to invalidate local caches).
-  if (invalidateParcelPlugin) {
-    devDepRequest.additionalInvalidations = [
-      {
-        specifier: plugin.name,
-        resolveFrom: plugin.resolveFrom,
-      },
-    ];
-  }
 
   devDepRequestCache.set(invalidations, devDepRequest);
   return devDepRequest;
@@ -142,7 +132,10 @@ export async function getDevDepRequests(api: RunAPI): Promise<DevDepRequests> {
               specifier: req.specifier,
               resolveFrom: req.resolveFrom,
             },
-            ...(req.additionalInvalidations ?? []),
+            ...(req.additionalInvalidations ?? []).map(i => ({
+              specifier: i.specifier,
+              resolveFrom: i.resolveFrom,
+            })),
           ];
         }),
     ),
