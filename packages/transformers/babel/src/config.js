@@ -118,9 +118,15 @@ export async function load(
       config.addDevDependency({
         specifier: relativePath(options.projectRoot, file),
         resolveFrom: path.join(options.projectRoot, 'index'),
-        // Also invalidate @parcel/transformer-babel when the config or a dependency updates.
+        // Also invalidate @babel/core when the config or a dependency updates.
         // This ensures that the caches in @babel/core are also invalidated.
-        invalidateParcelPlugin: true,
+        additionalInvalidations: [
+          {
+            specifier: '@babel/core',
+            resolveFrom: config.searchPath,
+            range: BABEL_CORE_RANGE,
+          },
+        ],
       });
     } else {
       config.invalidateOnFileChange(file);
@@ -267,9 +273,15 @@ function definePluginDependencies(config, babelConfig: ?BabelConfig, options) {
     config.addDevDependency({
       specifier: relativePath(options.projectRoot, configItem.file.resolved),
       resolveFrom: path.join(options.projectRoot, 'index'),
-      // Also invalidate @parcel/transformer-babel when the plugin or a dependency updates.
+      // Also invalidate @babel/core when the plugin or a dependency updates.
       // This ensures that the caches in @babel/core are also invalidated.
-      invalidateParcelPlugin: true,
+      additionalInvalidations: [
+        {
+          specifier: '@babel/core',
+          resolveFrom: config.searchPath,
+          range: BABEL_CORE_RANGE,
+        },
+      ],
     });
   }
 }

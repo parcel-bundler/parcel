@@ -1,12 +1,18 @@
 // @flow
-import type {EnvironmentOptions} from '@parcel/types';
-import type {Environment} from './types';
+import type {EnvironmentOptions, FilePath} from '@parcel/types';
+import type {Environment, InternalSourceLocation} from './types';
 import {hashString} from '@parcel/hash';
+import {toInternalSourceLocation} from './utils';
 
 const DEFAULT_ENGINES = {
   browsers: ['> 0.25%'],
   node: '>= 8.0.0',
 };
+
+type EnvironmentOpts = {|
+  ...EnvironmentOptions,
+  loc?: ?InternalSourceLocation,
+|};
 
 export function createEnvironment({
   context,
@@ -19,7 +25,7 @@ export function createEnvironment({
   shouldScopeHoist = false,
   sourceMap,
   loc,
-}: EnvironmentOptions = {}): Environment {
+}: EnvironmentOpts = {}): Environment {
   if (context == null) {
     if (engines?.node) {
       context = 'node';
@@ -99,6 +105,7 @@ export function createEnvironment({
 }
 
 export function mergeEnvironments(
+  projectRoot: FilePath,
   a: Environment,
   b: ?EnvironmentOptions,
 ): Environment {
@@ -111,6 +118,7 @@ export function mergeEnvironments(
   return createEnvironment({
     ...a,
     ...b,
+    loc: b.loc ? toInternalSourceLocation(projectRoot, b.loc) : a.loc,
   });
 }
 

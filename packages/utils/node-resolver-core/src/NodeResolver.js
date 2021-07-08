@@ -191,6 +191,8 @@ export default class NodeResolver {
       if (err instanceof ThrowableDiagnostic) {
         return {
           diagnostics: err.diagnostics,
+          invalidateOnFileCreate: ctx.invalidateOnFileCreate,
+          invalidateOnFileChange: [...ctx.invalidateOnFileChange],
         };
       } else {
         throw err;
@@ -309,7 +311,7 @@ export default class NodeResolver {
           diagnostic: {
             message: md`Cannot find module ${nullthrows(resolved?.moduleName)}`,
             hints: alternativeModules.map(r => {
-              return `Did you mean __${r}__?`;
+              return `Did you mean '__${r}__'?`;
             }),
           },
         });
@@ -436,7 +438,7 @@ export default class NodeResolver {
             parentdir,
           )}'.`,
           hints: potentialFiles.map(r => {
-            return `Did you mean __${r}__?`;
+            return `Did you mean '__${r}__'?`;
           }),
         },
       });
@@ -591,20 +593,22 @@ export default class NodeResolver {
         throw new ThrowableDiagnostic({
           diagnostic: {
             message: md`Could not load '${fileSpecifier}' from module '${pkg.name}' found in package.json#${failedEntry.field}`,
-            language: 'json',
-            filePath: pkg.pkgfile,
-            codeFrame: {
-              code: pkgContent,
-              codeHighlights: generateJSONCodeHighlights(pkgContent, [
-                {
-                  key: `/${failedEntry.field}`,
-                  type: 'value',
-                  message: md`'${fileSpecifier}' does not exist${
-                    alternative ? `, did you mean '${alternative}'?` : ''
-                  }'`,
-                },
-              ]),
-            },
+            codeFrames: [
+              {
+                filePath: pkg.pkgfile,
+                language: 'json',
+                code: pkgContent,
+                codeHighlights: generateJSONCodeHighlights(pkgContent, [
+                  {
+                    key: `/${failedEntry.field}`,
+                    type: 'value',
+                    message: md`'${fileSpecifier}' does not exist${
+                      alternative ? `, did you mean '${alternative}'?` : ''
+                    }'`,
+                  },
+                ]),
+              },
+            ],
           },
         });
       }

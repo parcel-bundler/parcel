@@ -16,7 +16,7 @@
     "check-ts": "tsc --noEmit lib/index.d.ts"
   },
   "dependencies": {
-    "@parcel/source-map": "2.0.0-rc.4",
+    "@parcel/source-map": "2.0.0-rc.5",
     "@parcel/fs": "2.0.0-frontbucket.77",
     "@parcel/workers": "2.0.0-frontbucket.77",
     "@parcel/package-manager": "2.0.0-frontbucket.77",

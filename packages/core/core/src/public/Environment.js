@@ -11,10 +11,11 @@ import type {
   SourceType,
   TargetSourceMapOptions,
 } from '@parcel/types';
-import type {Environment as InternalEnvironment} from '../types';
+import type {Environment as InternalEnvironment, ParcelOptions} from '../types';
 import nullthrows from 'nullthrows';
 import browserslist from 'browserslist';
 import semver from 'semver';
+import {fromInternalSourceLocation} from '../utils';
 
 export const BROWSER_ENVS: Set<string> = new Set<string>([
   'browser',
@@ -26,7 +27,7 @@ export const BROWSER_ENVS: Set<string> = new Set<string>([
 const ELECTRON_ENVS = new Set(['electron-main', 'electron-renderer']);
 const NODE_ENVS = new Set(['node', ...ELECTRON_ENVS]);
 const WORKER_ENVS = new Set(['web-worker', 'service-worker']);
-const ISOLATED_ENVS = new Set([...WORKER_ENVS, 'worklet']);
+export const ISOLATED_ENVS: Set<string> = new Set([...WORKER_ENVS, 'worklet']);
 
 const ALL_BROWSERS = [
   'chrome',
@@ -84,6 +85,18 @@ const supportData = {
   'service-worker-module': {
     // TODO: Safari 14.1??
   },
+  'import-meta-url': {
+    edge: '79',
+    firefox: '62',
+    chrome: '64',
+    safari: '11.1',
+    opera: '51',
+    ios: '12',
+    android: '64',
+    and_chr: '64',
+    and_ff: '62',
+    samsung: '9.2',
+  },
 };
 
 const internalEnvironmentToEnvironment: WeakMap<
@@ -102,14 +115,16 @@ export function environmentToInternalEnvironment(
 
 export default class Environment implements IEnvironment {
   #environment /*: InternalEnvironment */;
+  #options /*: ParcelOptions */;
 
-  constructor(env: InternalEnvironment): Environment {
+  constructor(env: InternalEnvironment, options: ParcelOptions): Environment {
     let existing = internalEnvironmentToEnvironment.get(env);
     if (existing != null) {
       return existing;
     }
 
     this.#environment = env;
+    this.#options = options;
     _environmentToInternalEnvironment.set(this, env);
     internalEnvironmentToEnvironment.set(env, this);
     return this;
@@ -159,7 +174,10 @@ export default class Environment implements IEnvironment {
   }
 
   get loc(): ?SourceLocation {
-    return this.#environment.loc;
+    return fromInternalSourceLocation(
+      this.#options.projectRoot,
+      this.#environment.loc,
+    );
   }
 
   isBrowser(): boolean {

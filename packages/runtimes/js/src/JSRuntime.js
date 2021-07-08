@@ -181,17 +181,9 @@ export default (new Runtime({
         }),
       );
 
-      if (bundle.env.outputFormat === 'commonjs' && mainBundle.type === 'js') {
-        assets.push({
-          filePath: __filename,
-          dependency,
-          code: `module.exports = __parcel__require__("./" + ${getRelativePathExpr(
-            bundle,
-            mainBundle,
-            options,
-          )})`,
-          env: {sourceType: 'module'},
-        });
+      // Skip URL runtimes for library builds. This is handled in packaging so that
+      // the url is inlined and statically analyzable.
+      if (bundle.env.isLibrary && dependency.meta?.placeholder != null) {
         continue;
       }
 
@@ -224,7 +216,7 @@ export default (new Runtime({
         );
         let loaderCode = `require(${JSON.stringify(
           loader,
-        )})(require('./bundle-url').getBundleURL() + ${relativePathExpr})`;
+        )})( ${getAbsoluteUrlExpr(relativePathExpr, bundle)})`;
         assets.push({
           filePath: __filename,
           code: loaderCode,
@@ -332,7 +324,8 @@ function getLoaderRuntime({
   }
 
   // Determine if we need to add a dynamic import() polyfill, or if all target browsers support it natively.
-  let needsDynamicImportPolyfill = !bundle.env.supports('dynamic-import', true);
+  let needsDynamicImportPolyfill =
+    !bundle.env.isLibrary && !bundle.env.supports('dynamic-import', true);
 
   let loaderModules = externalBundles
     .map(to => {
@@ -357,9 +350,10 @@ function getLoaderRuntime({
         return `Promise.resolve(__parcel__require__("./" + ${relativePathExpr}))`;
       }
 
-      let code = `require(${JSON.stringify(
-        loader,
-      )})(require('./bundle-url').getBundleURL() + ${relativePathExpr})`;
+      let code = `require(${JSON.stringify(loader)})(${getAbsoluteUrlExpr(
+        relativePathExpr,
+        bundle,
+      )})`;
 
       // In development, clear the require cache when an error occurs so the
       // user can try again (e.g. after fixing a build error).
@@ -482,11 +476,10 @@ function getHintLoaders(
       );
       let priority = TYPE_TO_RESOURCE_PRIORITY[bundleToPreload.type];
       hintLoaders.push(
-        `require(${JSON.stringify(
-          loader,
-        )})(require('./bundle-url').getBundleURL() + ${relativePathExpr}, ${
-          priority ? JSON.stringify(priority) : 'null'
-        }, ${JSON.stringify(
+        `require(${JSON.stringify(loader)})(${getAbsoluteUrlExpr(
+          relativePathExpr,
+          from,
+        )}, ${priority ? JSON.stringify(priority) : 'null'}, ${JSON.stringify(
           bundleToPreload.target.env.outputFormat === 'esmodule',
         )})`,
       );
@@ -521,20 +514,32 @@ function getURLRuntime(
   options: PluginOptions,
 ): RuntimeAsset {
   let relativePathExpr = getRelativePathExpr(from, to, options);
-  if (dependency.meta.webworker === true) {
-    return {
-      filePath: __filename,
-      code: `module.exports = require('./get-worker-url')(${relativePathExpr}, ${String(
+  let code;
+
+  if (dependency.meta.webworker === true && !from.env.isLibrary) {
+    code = `let workerURL = require('./get-worker-url');\n`;
+    if (
+      from.env.outputFormat === 'esmodule' &&
+      from.env.supports('import-meta-url')
+    ) {
+      code += `let url = new __parcel__URL__(${relativePathExpr}, import.meta.url);\n`;
+      code += `module.exports = workerURL(url.toString(), url.origin, ${String(
         from.env.outputFormat === 'esmodule',
-      )});`,
-      dependency,
-      env: {sourceType: 'module'},
-    };
+      )});`;
+    } else {
+      code += `let bundleURL = require('./bundle-url');\n`;
+      code += `let url = bundleURL.getBundleURL() + ${relativePathExpr};`;
+      code += `module.exports = workerURL(url, bundleURL.getOrigin(url), ${String(
+        from.env.outputFormat === 'esmodule',
+      )});`;
+    }
+  } else {
+    code = `module.exports = ${getAbsoluteUrlExpr(relativePathExpr, from)};`;
   }
 
   return {
     filePath: __filename,
-    code: `module.exports = require('./bundle-url').getBundleURL() + ${relativePathExpr}`,
+    code,
     dependency,
     env: {sourceType: 'module'},
   };
@@ -550,7 +555,7 @@ function getRegisterCode(
       return;
     }
 
-    idToName[bundle.publicId] = nullthrows(bundle.name);
+    idToName[bundle.publicId] = path.basename(nullthrows(bundle.name));
 
     if (bundle !== entryBundle && isNewContext(bundle, bundleGraph)) {
       // New contexts have their own manifests, so there's no need to continue.
@@ -570,13 +575,35 @@ function getRelativePathExpr(
   to: NamedBundle,
   options: PluginOptions,
 ): string {
+  let relativePath = relativeBundlePath(from, to, {leadingDotSlash: false});
   if (shouldUseRuntimeManifest(from, options)) {
-    return `require('./relative-path')(${JSON.stringify(
-      from.publicId,
-    )}, ${JSON.stringify(to.publicId)})`;
+    // Get the relative part of the path. This part is not in the manifest, only the basename is.
+    let relativeBase = path.posix.dirname(relativePath);
+    if (relativeBase === '.') {
+      relativeBase = '';
+    } else {
+      relativeBase = `${JSON.stringify(relativeBase + '/')} + `;
+    }
+    return (
+      relativeBase +
+      `require('./bundle-manifest').resolve(${JSON.stringify(to.publicId)})`
+    );
   }
 
-  return JSON.stringify(relativeBundlePath(from, to, {leadingDotSlash: false}));
+  return JSON.stringify(relativePath);
+}
+
+function getAbsoluteUrlExpr(relativePathExpr: string, bundle: NamedBundle) {
+  if (
+    bundle.env.outputFormat === 'esmodule' &&
+    bundle.env.supports('import-meta-url')
+  ) {
+    return `new __parcel__URL__(${relativePathExpr}, import.meta.url).toString()`;
+  } else if (bundle.env.outputFormat === 'commonjs' || bundle.env.isNode()) {
+    return `new __parcel__URL__(${relativePathExpr}, 'file:' + __filename).toString()`;
+  } else {
+    return `require('./bundle-url').getBundleURL() + ${relativePathExpr}`;
+  }
 }
 
 function shouldUseRuntimeManifest(
@@ -587,7 +614,6 @@ function shouldUseRuntimeManifest(
   return (
     !env.isLibrary &&
     bundle.bundleBehavior !== 'inline' &&
-    env.outputFormat === 'global' &&
     env.isBrowser() &&
     options.mode === 'production'
   );

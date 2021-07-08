@@ -12,7 +12,6 @@ import type {
 import type {ParcelOptions} from '../types';
 
 import invariant from 'assert';
-import path from 'path';
 import nullthrows from 'nullthrows';
 import {hashString} from '@parcel/hash';
 import BundleGraph from './BundleGraph';
@@ -24,6 +23,7 @@ import Dependency, {dependencyToInternalDependency} from './Dependency';
 import {environmentToInternalEnvironment} from './Environment';
 import {targetToInternalTarget} from './Target';
 import {HASH_REF_PREFIX} from '../constants';
+import {fromProjectPathRelative} from '../projectPath';
 import {BundleBehavior} from '../types';
 
 export default class MutableBundleGraph extends BundleGraph<IBundle>
@@ -47,7 +47,7 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
       assetToAssetValue(asset),
       bundleToInternalBundle(bundle),
       shouldSkipDependency
-        ? d => shouldSkipDependency(new Dependency(d))
+        ? d => shouldSkipDependency(new Dependency(d, this.#options))
         : undefined,
     );
   }
@@ -61,7 +61,7 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
       assetToAssetValue(asset),
       bundleToInternalBundle(bundle),
       shouldSkipDependency
-        ? d => shouldSkipDependency(new Dependency(d))
+        ? d => shouldSkipDependency(new Dependency(d, this.#options))
         : undefined,
     );
   }
@@ -88,16 +88,15 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
       entryAssetId: resolved.id,
     };
 
-    let bundleGroupNode = {
-      id: getBundleGroupId(bundleGroup),
-      type: 'bundle_group',
-      value: bundleGroup,
-    };
+    let bundleGroupKey = getBundleGroupId(bundleGroup);
+    let bundleGroupNodeId = this.#graph._graph.hasContentKey(bundleGroupKey)
+      ? this.#graph._graph.getNodeIdByContentKey(bundleGroupKey)
+      : this.#graph._graph.addNodeByContentKey(bundleGroupKey, {
+          id: bundleGroupKey,
+          type: 'bundle_group',
+          value: bundleGroup,
+        });
 
-    let bundleGroupNodeId = this.#graph._graph.addNodeByContentKey(
-      bundleGroupNode.id,
-      bundleGroupNode,
-    );
     let dependencyNodeId = this.#graph._graph.getNodeIdByContentKey(
       dependencyNode.id,
     );
@@ -156,7 +155,7 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
     let bundleId = hashString(
       'bundle:' +
         (opts.entryAsset ? opts.entryAsset.id : opts.uniqueKey) +
-        path.relative(this.#options.projectRoot, target.distDir),
+        fromProjectPathRelative(target.distDir),
     );
 
     let existing = this.#graph._graph.getNodeByContentKey(bundleId);

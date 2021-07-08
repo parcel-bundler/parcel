@@ -34,11 +34,15 @@ export type DiagnosticCodeFrame = {|
   /**
    * The contents of the source file.
    *
-   * If no code is passed, it will be read in from Diagnostic#filePath, remember that
+   * If no code is passed, it will be read in from filePath, remember that
    * the asset's current code could be different from the input contents.
    *
    */
   code?: string,
+  /** Path to the file this code frame is about (optional, absolute or relative to the project root) */
+  filePath?: string,
+  /** Language of the file this code frame is about (optional) */
+  language?: string,
   codeHighlights: Array<DiagnosticCodeHighlight>,
 |};
 
@@ -57,13 +61,8 @@ export type Diagnostic = {|
   /** Name of the error (optional) */
   name?: string,
 
-  /** Path to the file this diagnostic is about (optional, absolute or relative to the project root) */
-  filePath?: string,
-  /** Language of the file this diagnostic is about (optional) */
-  language?: string,
-
   /** A code frame points to a certain location(s) in the file this diagnostic is linked to (optional) */
-  codeFrame?: ?DiagnosticCodeFrame,
+  codeFrames?: ?Array<DiagnosticCodeFrame>,
 
   /** An optional list of strings that suggest ways to resolve this issue */
   hints?: Array<string>,
@@ -125,14 +124,13 @@ export function errorToDiagnostic(
     filePath?: ?string,
   |},
 ): Array<Diagnostic> {
-  let codeFrame: ?DiagnosticCodeFrame = undefined;
+  let codeFrames: ?Array<DiagnosticCodeFrame> = undefined;
 
   if (typeof error === 'string') {
     return [
       {
         origin: defaultValues?.origin ?? 'Error',
         message: escapeMarkdown(error),
-        codeFrame,
       },
     ];
   }
@@ -147,21 +145,28 @@ export function errorToDiagnostic(
   }
 
   if (error.loc && error.source != null) {
-    codeFrame = {
-      code: error.source,
-      codeHighlights: [
-        {
-          start: {
-            line: error.loc.line,
-            column: error.loc.column,
+    codeFrames = [
+      {
+        filePath:
+          error.filePath ??
+          error.fileName ??
+          defaultValues?.filePath ??
+          undefined,
+        code: error.source,
+        codeHighlights: [
+          {
+            start: {
+              line: error.loc.line,
+              column: error.loc.column,
+            },
+            end: {
+              line: error.loc.line,
+              column: error.loc.column,
+            },
           },
-          end: {
-            line: error.loc.line,
-            column: error.loc.column,
-          },
-        },
-      ],
-    };
+        ],
+      },
+    ];
   }
 
   return [
@@ -169,13 +174,8 @@ export function errorToDiagnostic(
       origin: defaultValues?.origin ?? 'Error',
       message: escapeMarkdown(error.message),
       name: error.name,
-      filePath:
-        error.filePath ??
-        error.fileName ??
-        defaultValues?.filePath ??
-        undefined,
       stack: error.highlightedCodeFrame ?? error.codeFrame ?? error.stack,
-      codeFrame,
+      codeFrames,
     },
   ];
 }

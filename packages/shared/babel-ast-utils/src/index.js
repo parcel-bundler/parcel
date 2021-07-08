@@ -185,12 +185,15 @@ export async function generate({
   return {content, map};
 }
 
-export function convertBabelLoc(loc: ?BabelSourceLocation): ?SourceLocation {
+export function convertBabelLoc(
+  options: PluginOptions,
+  loc: ?BabelSourceLocation,
+): ?SourceLocation {
   if (!loc) return null;
   let {filename, start, end} = loc;
   if (filename == null) return null;
   return {
-    filePath: path.normalize(filename),
+    filePath: path.resolve(options.projectRoot, filename),
     start: {
       line: start.line,
       column: start.column + 1,

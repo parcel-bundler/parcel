@@ -1,1 +1,1 @@
-navigator.serviceWorker.register('module-worker.js', {scope: 'foo', type: 'module'});
+navigator.serviceWorker.register(new URL('module-worker.js', import.meta.url), {scope: 'foo', type: 'module'});
