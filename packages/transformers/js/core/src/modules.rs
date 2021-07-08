@@ -169,14 +169,26 @@ impl ESMFold {
           kind: StrKind::Synthesized,
           span: DUMMY_SP,
         })),
-        Expr::Arrow(ArrowExpr {
-          body: BlockStmtOrExpr::Expr(Box::new(local)),
-          is_async: false,
-          is_generator: false,
-          params: vec![],
-          span: DUMMY_SP,
-          return_type: None,
-          type_params: None,
+        Expr::Fn(FnExpr {
+          ident: None,
+          function: Function {
+            body: Some(BlockStmt {
+              span: DUMMY_SP,
+              stmts: vec![Stmt::Return({
+                ReturnStmt {
+                  span: DUMMY_SP,
+                  arg: Some(Box::new(local)),
+                }
+              })],
+            }),
+            is_async: false,
+            is_generator: false,
+            params: vec![],
+            decorators: vec![],
+            span: DUMMY_SP,
+            return_type: None,
+            type_params: None,
+          },
         }),
       ],
       span,
