@@ -126,94 +126,152 @@ const nodeAt = (index: number): NodeId =>
 /** Get the index in the nodes array of the given node. */
 const indexOfNode = (id: NodeId): number => fromNodeId(id) * NODE_SIZE;
 
+/** A view of the Node data stored in the `AdjacencyList` at a given index.  */
 export class Node<TEdgeType: number = 1> {
-  #id: NodeId;
-  #nodes: Uint32Array;
-  #edges: Uint32Array;
+  +index: number;
+  +graph: AdjacencyList<TEdgeType>;
 
-  constructor(id: NodeId, nodes: Uint32Array, edges: Uint32Array) {
-    this.#id = id;
-    this.#nodes = nodes;
-    this.#edges = edges;
+  constructor() {
+    throw new Error('use Node.at() or Node.fromId()');
   }
 
-  static at(
-    index: number,
-    nodes: Uint32Array,
-    edges: Uint32Array,
-  ): Node<TEdgeType> {
-    return new Node(nodeAt(index), nodes, edges);
+  static fromId(id: NodeId, graph: AdjacencyList<TEdgeType>): Node<TEdgeType> {
+    let index = indexOfNode(id);
+    assert(
+      index >= 0 && index <= graph.nodes.length - NODE_SIZE,
+      `${index} is outside of the range (0, ${graph.nodes.length -
+        NODE_SIZE}).`,
+    );
+    // TODO: Pool these objects so we don't create so many?
+    let node = Object.create(Node.prototype, {
+      index: {value: index, writable: false, configurable: true},
+      graph: {value: graph, writable: false, configurable: true},
+    });
+    return node;
   }
 
+  static at(index: number, graph: AdjacencyList<TEdgeType>): Node<TEdgeType> {
+    return Node.fromId(nodeAt(index), graph);
+  }
+
+  /** Iterate over all of the node data in the `AdjacencyList`. */
   static *iterate(
-    nodes: Uint32Array,
-    edges: Uint32Array,
+    graph: AdjacencyList<TEdgeType>,
+    max: number = graph.numNodes,
   ): Iterator<Node<TEdgeType>> {
-    for (let i = 0; i < nodes.length; i += NODE_SIZE) {
-      yield Node.at(i, nodes, edges);
+    let count = 0;
+    for (let i = 0; i < graph.nodes.length; i += NODE_SIZE) {
+      if (count++ >= max) break;
+      yield Node.at(i, graph);
     }
   }
 
   get id(): NodeId {
-    return this.#id;
+    return nodeAt(this.index);
   }
 
-  get index(): number {
-    return indexOfNode(this.#id);
-  }
-
+  /** Gets or sets the first outgoing edge from this node. */
   get firstOutgoingEdge(): Edge<TEdgeType> | null {
-    let hash = this.#nodes[this.index + FIRST_OUT];
-    return hash ? Edge.fromHash(hash, this.#nodes, this.#edges) : null;
+    let hash = this.graph.nodes[this.index + FIRST_OUT];
+    return hash ? Edge.fromHash(hash, this.graph) : null;
   }
   set firstOutgoingEdge(edge: Edge<TEdgeType> | null) {
-    this.#nodes[this.index + FIRST_OUT] = edge?.hash ?? 0;
+    if (edge) {
+      assert(
+        edge.from.id === this.id,
+        `Cannot link edge from ${String(edge.from.id)} to node ${String(
+          this.id,
+        )}.`,
+      );
+    }
+    this.graph.nodes[this.index + FIRST_OUT] = edge?.hash ?? 0;
   }
 
+  /** Gets or sets the last outgoing edge from this node. */
   get lastOutgoingEdge(): Edge<TEdgeType> | null {
-    let hash = this.#nodes[this.index + LAST_OUT];
-    return hash ? Edge.fromHash(hash, this.#nodes, this.#edges) : null;
+    let hash = this.graph.nodes[this.index + LAST_OUT];
+    return hash ? Edge.fromHash(hash, this.graph) : null;
   }
   set lastOutgoingEdge(edge: Edge<TEdgeType> | null) {
-    this.#nodes[this.index + LAST_OUT] = edge?.hash ?? 0;
+    if (edge) {
+      assert(
+        edge.from.id === this.id,
+        `Cannot link edge from ${String(edge.from.id)} to node ${String(
+          this.id,
+        )}.`,
+      );
+    }
+    this.graph.nodes[this.index + LAST_OUT] = edge?.hash ?? 0;
   }
 
+  /** Gets or sets the first incoming edge to this node. */
   get firstIncomingEdge(): Edge<TEdgeType> | null {
-    let hash = this.#nodes[this.index + FIRST_IN];
-    return hash ? Edge.fromHash(hash, this.#nodes, this.#edges) : null;
+    let hash = this.graph.nodes[this.index + FIRST_IN];
+    return hash ? Edge.fromHash(hash, this.graph) : null;
   }
   set firstIncomingEdge(edge: Edge<TEdgeType> | null) {
-    this.#nodes[this.index + FIRST_IN] = edge?.hash ?? 0;
+    if (edge) {
+      assert(
+        edge.to.id === this.id,
+        `Cannot link edge to ${String(edge.to.id)} to node ${String(this.id)}.`,
+      );
+    }
+    this.graph.nodes[this.index + FIRST_IN] = edge?.hash ?? 0;
   }
 
+  /** Gets or sets the last incoming edge to this node. */
   get lastIncomingEdge(): Edge<TEdgeType> | null {
-    let hash = this.#nodes[this.index + LAST_IN];
-    return hash ? Edge.fromHash(hash, this.#nodes, this.#edges) : null;
+    let hash = this.graph.nodes[this.index + LAST_IN];
+    return hash ? Edge.fromHash(hash, this.graph) : null;
   }
   set lastIncomingEdge(edge: Edge<TEdgeType> | null) {
-    this.#nodes[this.index + LAST_IN] = edge?.hash ?? 0;
+    if (edge) {
+      assert(
+        edge.to.id === this.id,
+        `Cannot link edge to ${String(edge.to.id)} to node ${String(this.id)}.`,
+      );
+    }
+    this.graph.nodes[this.index + LAST_IN] = edge?.hash ?? 0;
   }
 
+  /** Gets all incoming edges to this node. */
   *getIncomingEdges(): Iterator<Edge<TEdgeType>> {
     let start = this.firstIncomingEdge;
     if (start) yield* this._iterateEdges(NEXT_IN, start);
   }
 
+  /** Gets all incoming edges to this node, starting from the last incoming edge. */
+  *getIncomingEdgesReverse(): Iterator<Edge<TEdgeType>> {
+    let start = this.lastIncomingEdge;
+    if (start) yield* this._iterateEdges(PREV_IN, start);
+  }
+
+  /** Gets all outgoing edges to this node. */
   *getOutgoingEdges(): Iterator<Edge<TEdgeType>> {
     let start = this.firstOutgoingEdge;
     if (start) yield* this._iterateEdges(NEXT_OUT, start);
   }
 
+  /** Gets all outgoing edges to this node, starting from the last outgoing edge. */
+  *getOutgoingEdgesReverse(): Iterator<Edge<TEdgeType>> {
+    let start = this.lastOutgoingEdge;
+    if (start) yield* this._iterateEdges(PREV_OUT, start);
+  }
+
   *_iterateEdges(
-    direction: typeof NEXT_IN | typeof NEXT_OUT,
+    direction:
+      | typeof PREV_IN
+      | typeof PREV_OUT
+      | typeof NEXT_IN
+      | typeof NEXT_OUT,
     edge: Edge<TEdgeType>,
   ): Iterator<Edge<TEdgeType>> {
     let value = edge;
     while (value) {
       yield value;
-      let nextHash = this.#edges[value.index + direction];
+      let nextHash = this.graph.edges[value.index + direction];
       if (!nextHash) break;
-      value = Edge.fromHash(nextHash, this.#nodes, this.#edges);
+      value = Edge.fromHash(nextHash, this.graph);
     }
   }
 
@@ -254,25 +312,35 @@ export class Node<TEdgeType: number = 1> {
   }
 }
 
+/** A view of the Edge data stored in the `AdjacencyList` at a given `index`. */
 export class Edge<TEdgeType: number = 1> {
-  #index: number;
-  #nodes: Uint32Array;
-  #edges: Uint32Array;
+  +index: number;
+  +graph: AdjacencyList<TEdgeType>;
 
-  constructor(index: number, nodes: Uint32Array, edges: Uint32Array) {
-    assert(index >= 0 && index < edges.length);
-    this.#index = index;
-    this.#nodes = nodes;
-    this.#edges = edges;
+  constructor() {
+    throw new Error('Use Edge.at(), Edge.fromHash(), or Edge.insertAt()');
   }
 
   static fromHash(
     hash: EdgeHash,
-    nodes: Uint32Array,
-    edges: Uint32Array,
+    graph: AdjacencyList<TEdgeType>,
   ): Edge<TEdgeType> {
-    assert(hash > 0);
-    return new Edge(hashToIndex(hash), nodes, edges);
+    let index = hashToIndex(hash);
+    assert(
+      index >= 0 && index <= graph.edges.length - EDGE_SIZE,
+      `${index} is outside of the range (0, ${graph.edges.length -
+        EDGE_SIZE}).`,
+    );
+    // TODO: Pool these objects so we don't create so many?
+    let edge = Object.create(Edge.prototype, {
+      index: {value: index, writable: false, configurable: true},
+      graph: {value: graph, writable: false, configurable: true},
+    });
+    return edge;
+  }
+
+  static at(index: number, graph: AdjacencyList<TEdgeType>): Edge<TEdgeType> {
+    return Edge.fromHash(indexToHash(index), graph);
   }
 
   static insertAt(
@@ -280,80 +348,49 @@ export class Edge<TEdgeType: number = 1> {
     from: NodeId,
     to: NodeId,
     type: TEdgeType,
-    nodes: Uint32Array,
-    edges: Uint32Array,
+    graph: AdjacencyList<TEdgeType>,
   ): Edge<TEdgeType> {
-    let edge = new Edge(index, nodes, edges);
-    edges[index + TYPE] = type;
-    edges[index + FROM] = fromNodeId(from);
-    edges[index + TO] = fromNodeId(to);
-    return edge;
+    graph.edges[index + TYPE] = type;
+    graph.edges[index + FROM] = fromNodeId(from);
+    graph.edges[index + TO] = fromNodeId(to);
+    return Edge.at(index, graph);
   }
 
-  static deleteAt(index: number, nodes: Uint32Array, edges: Uint32Array) {
+  static deleteAt(index: number, graph: AdjacencyList<TEdgeType>) {
     // Mark this slot as DELETED.
     // We do this so that clustered edges can still be found
     // by scanning forward in the array from the first index for
     // the cluster.
-    edges[index + TYPE] = DELETED;
-    edges[index + FROM] = 0;
-    edges[index + TO] = 0;
-    edges[index + PREV_IN] = 0;
-    edges[index + PREV_OUT] = 0;
-    edges[index + NEXT_IN] = 0;
-    edges[index + NEXT_OUT] = 0;
-  }
-
-  /**
-   * Scan the edges array for contiguous edges,
-   * starting from the edge matching the given `hash`.
-   */
-  static *scan(
-    hash: EdgeHash,
-    nodes: Uint32Array,
-    edges: Uint32Array,
-  ): Iterator<Edge<TEdgeType>> {
-    let index = hashToIndex(hash);
-    // We want to avoid scanning the array forever,
-    // so keep track of where we start scanning from.
-    let startIndex = index;
-    while (edges[index + TYPE]) {
-      yield new Edge(index, nodes, edges);
-      // Our array is circular,
-      // so when we find the end of the array,
-      // we continue scanning from the start of the array.
-      index = (index + EDGE_SIZE) % edges.length;
-      // We have scanned the whole array.
-      if (index === startIndex) break;
-    }
+    graph.edges[index + TYPE] = DELETED;
+    graph.edges[index + FROM] = 0;
+    graph.edges[index + TO] = 0;
+    graph.edges[index + PREV_IN] = 0;
+    graph.edges[index + PREV_OUT] = 0;
+    graph.edges[index + NEXT_IN] = 0;
+    graph.edges[index + NEXT_OUT] = 0;
   }
 
   get hash(): EdgeHash {
-    return indexToHash(this.#index);
+    return indexToHash(this.index);
   }
 
   get index(): number {
-    return this.#index;
+    return this.index;
   }
 
   get type(): TEdgeType {
-    return (this.#edges[this.index + TYPE]: any);
+    return (this.graph.edges[this.index + TYPE]: any);
   }
 
   get from(): Node<TEdgeType> {
-    return new Node(
-      toNodeId(this.#edges[this.index + FROM]),
-      this.#nodes,
-      this.#edges,
+    return Node.fromId(
+      toNodeId(this.graph.edges[this.index + FROM]),
+      this.graph,
     );
   }
 
   get to(): Node<TEdgeType> {
-    return new Node(
-      toNodeId(this.#edges[this.index + TO]),
-      this.#nodes,
-      this.#edges,
-    );
+    return Node.fromId(toNodeId(this.graph.edges[this.index + TO]), this.graph);
   }
 
   get isDeleted(): boolean {
@@ -365,7 +402,7 @@ export class Edge<TEdgeType: number = 1> {
   }
   set nextIncomingEdge(edge: Edge<TEdgeType> | null) {
     let nextHash = edge?.hash ?? 0;
-    this.#edges[this.index + NEXT_IN] = nextHash;
+    this.graph.edges[this.index + NEXT_IN] = nextHash;
   }
 
   get previousIncomingEdge(): Edge<TEdgeType> | null {
@@ -373,7 +410,7 @@ export class Edge<TEdgeType: number = 1> {
   }
   set previousIncomingEdge(edge: Edge<TEdgeType> | null) {
     let prevHash = edge?.hash ?? 0;
-    this.#edges[this.index + PREV_IN] = prevHash;
+    this.graph.edges[this.index + PREV_IN] = prevHash;
   }
 
   get nextOutgoingEdge(): Edge<TEdgeType> | null {
@@ -381,7 +418,7 @@ export class Edge<TEdgeType: number = 1> {
   }
   set nextOutgoingEdge(edge: Edge<TEdgeType> | null) {
     let nextHash = edge?.hash ?? 0;
-    this.#edges[this.index + NEXT_OUT] = nextHash;
+    this.graph.edges[this.index + NEXT_OUT] = nextHash;
   }
 
   get previousOutgoingEdge(): Edge<TEdgeType> | null {
@@ -389,21 +426,21 @@ export class Edge<TEdgeType: number = 1> {
   }
   set previousOutgoingEdge(edge: Edge<TEdgeType> | null) {
     let prevHash = edge?.hash ?? 0;
-    this.#edges[this.index + PREV_OUT] = prevHash;
+    this.graph.edges[this.index + PREV_OUT] = prevHash;
   }
 
   _findEdgeBefore(
     direction: typeof PREV_IN | typeof PREV_OUT,
   ): Edge<TEdgeType> | null {
-    let prevHash = this.#edges[this.index + direction];
-    return prevHash ? Edge.fromHash(prevHash, this.#nodes, this.#edges) : null;
+    let prevHash = this.graph.edges[this.index + direction];
+    return prevHash ? Edge.fromHash(prevHash, this.graph) : null;
   }
 
   _findEdgeAfter(
     direction: typeof NEXT_IN | typeof NEXT_OUT,
   ): Edge<TEdgeType> | null {
-    let nextHash = this.#edges[this.index + direction];
-    return nextHash ? Edge.fromHash(nextHash, this.#nodes, this.#edges) : null;
+    let nextHash = this.graph.edges[this.index + direction];
+    return nextHash ? Edge.fromHash(nextHash, this.graph) : null;
   }
 
   toJSON(): {|
@@ -459,6 +496,7 @@ export class Edge<TEdgeType: number = 1> {
     return String(this.hash);
   }
 }
+
 export default class AdjacencyList<TEdgeType: number = 1> {
   /** The number of nodes that can fit in the nodes array. */
   nodeCapacity: number;
@@ -592,100 +630,21 @@ export default class AdjacencyList<TEdgeType: number = 1> {
    * the allocated size of the `edges` array.
    */
   resizeEdges(size: number) {
-    /** The edge list to be copied to the resized list. */
-    let edges = this.edges;
-    // Allocate the required space for an `edges` array of the given `size`.
-    this.edges = new Uint32Array(size * EDGE_SIZE);
-    this.edgeCapacity = size;
-    this.copyEdges(edges);
-  }
+    // Allocate the required space for new `nodes` and `edges` arrays.
+    let copy = new AdjacencyList(this.nodeCapacity, size);
+    copy.numNodes = this.numNodes;
 
-  /**
-   * Copy the edges in the given array into the internal edges array.
-   */
-  copyEdges(edges: Uint32Array) {
     // For each node in the graph, copy the existing edges into the new array.
-    for (let from of Node.iterate(this.nodes, edges)) {
-      /** The last edge copied. */
-      let lastEdge = null;
-      // Copy all of the outgoing edges.
-      for (let {to, type} of from.getOutgoingEdges()) {
-        let edge;
-        /** The index at which to copy this edge. */
-        let index = this.indexFor(from.id, to.id, type);
-        if (index === -1) {
-          // Edge already copied?
-          index = this.indexOf(from.id, to.id, type);
-          edge = new Edge(index, this.nodes, this.edges);
-        } else {
-          // Copy the details of the edge into the new edge list.
-          edge = Edge.insertAt(
-            index,
-            from.id,
-            to.id,
-            type,
-            this.nodes,
-            this.edges,
-          );
-        }
-        if (lastEdge != null) {
-          edge.previousOutgoingEdge = lastEdge;
-          // If this edge is not the first outgoing edge from the current node,
-          // link this edge to the last outgoing edge copied.
-          lastEdge.nextOutgoingEdge = edge;
-        } else {
-          // If this edge is the first outgoing edge from the current node,
-          // link this edge to the current node.
-          from.firstOutgoingEdge = edge;
-        }
-        // Keep track of the last outgoing edge copied.
-        lastEdge = edge;
+    for (let from of Node.iterate(this)) {
+      for (let edge of from.getOutgoingEdges()) {
+        copy.addEdge(edge.from.id, edge.to.id, edge.type);
       }
-      // Link the last copied outging edge from the current node.
-      from.lastOutgoingEdge = lastEdge;
-
-      // Reset lastEdge for use while copying incoming edges.
-      lastEdge = null;
-
-      // Now we're copying incoming edges, so `from` becomes `to`.
-      let to = from;
-      // Copy all of the outgoing edges.
-      for (let {from, type} of to.getIncomingEdges()) {
-        let edge;
-        /** The index at which to copy this edge. */
-        let index = this.indexFor(from.id, to.id, type);
-        if (index === -1) {
-          // Edge already copied?
-          index = this.indexOf(from.id, to.id, type);
-          edge = new Edge(index, this.nodes, this.edges);
-        } else {
-          // Copy the details of the edge into the new edge list.
-          edge = Edge.insertAt(
-            index,
-            from.id,
-            to.id,
-            type,
-            this.nodes,
-            this.edges,
-          );
-        }
-        if (lastEdge != null) {
-          edge.previousIncomingEdge = lastEdge;
-          // If this edge is not the first incoming edge to the current node,
-          // link this edge to the last incoming edge copied.
-          lastEdge.nextIncomingEdge = edge;
-        } else {
-          // If this edge is the first incoming edge to the current node,
-          // link this edge to the current node.
-          to.firstIncomingEdge = edge;
-        }
-
-        // Keep track of the last edge copied.
-        lastEdge = edge;
-      }
-      // Link the last copied incoming edge to the current node.
-      to.lastIncomingEdge = lastEdge;
     }
+
+    // Finally, copy the new data arrays over to this graph.
+    this.nodes = copy.nodes;
+    this.edges = copy.edges;
+    this.edgeCapacity = size;
   }
 
   /**
@@ -747,7 +706,7 @@ export default class AdjacencyList<TEdgeType: number = 1> {
 
     this.numEdges++;
 
-    let edge = Edge.insertAt(index, from, to, type, this.nodes, this.edges);
+    let edge = Edge.insertAt(index, from, to, (type: any), this);
     if (edge.to.lastIncomingEdge) {
       edge.to.lastIncomingEdge.nextIncomingEdge = edge;
       edge.previousIncomingEdge = edge.to.lastIncomingEdge;
@@ -853,7 +812,7 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     from: NodeId,
     to: NodeId,
   |}> {
-    for (let node of Node.iterate(this.nodes, this.edges)) {
+    for (let node of Node.iterate(this, this.numNodes)) {
       for (let edge of node.getOutgoingEdges()) {
         yield {type: edge.type, from: edge.from.id, to: edge.to.id};
       }
@@ -885,7 +844,7 @@ export default class AdjacencyList<TEdgeType: number = 1> {
       return;
     }
 
-    let edge = new Edge(index, this.nodes, this.edges);
+    let edge = Edge.at(index, this);
     // If the edge's `to` node references this edge as
     // its first incoming edge, update it to the next incoming edge.
     if (edge.to.firstIncomingEdge?.hash === edge.hash) {
@@ -914,9 +873,17 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     if (edge.previousIncomingEdge) {
       edge.previousIncomingEdge.nextIncomingEdge = edge.nextIncomingEdge;
     }
+    // Splice this edge from the `from` node's list of outgoing edges.
+    if (edge.nextOutgoingEdge) {
+      edge.nextOutgoingEdge.previousOutgoingEdge = edge.previousOutgoingEdge;
+    }
+    // Splice this edge from the `to` node's list of incoming edges.
+    if (edge.nextIncomingEdge) {
+      edge.nextIncomingEdge.previousIncomingEdge = edge.previousIncomingEdge;
+    }
 
     // Mark this space in the edges array as deleted.
-    Edge.deleteAt(index, this.nodes, this.edges);
+    Edge.deleteAt(index, this);
 
     this.numEdges--;
   }
@@ -924,7 +891,7 @@ export default class AdjacencyList<TEdgeType: number = 1> {
   *getInboundEdgesByType(
     to: NodeId,
   ): Iterator<{|type: TEdgeType, from: NodeId|}> {
-    let node = new Node(to, this.nodes, this.edges);
+    let node = Node.fromId(to, this);
     for (let edge of node.getIncomingEdges()) {
       yield {type: deletedThrows(edge.type), from: edge.from.id};
     }
@@ -933,7 +900,7 @@ export default class AdjacencyList<TEdgeType: number = 1> {
   *getOutboundEdgesByType(
     from: NodeId,
   ): Iterator<{|type: TEdgeType, to: NodeId|}> {
-    let node = new Node(from, this.nodes, this.edges);
+    let node = Node.fromId(from, this);
     for (let edge of node.getOutgoingEdges()) {
       yield {type: deletedThrows(edge.type), to: edge.to.id};
     }
@@ -964,7 +931,7 @@ export default class AdjacencyList<TEdgeType: number = 1> {
       | NullEdgeType
       | Array<TEdgeType | NullEdgeType> = 1,
   ): Iterator<NodeId> {
-    let node = new Node(from, this.nodes, this.edges);
+    let node = Node.fromId(from, this);
     let seen = new Set();
     for (let edge of node.getOutgoingEdges()) {
       let edgeType = deletedThrows(edge.type);
@@ -998,7 +965,7 @@ export default class AdjacencyList<TEdgeType: number = 1> {
       | NullEdgeType
       | Array<TEdgeType | NullEdgeType> = 1,
   ): Iterator<NodeId> {
-    let node = new Node(to, this.nodes, this.edges);
+    let node = Node.fromId(to, this);
     let seen = new Set();
 
     for (let edge of node.getIncomingEdges()) {
@@ -1028,7 +995,7 @@ export default class AdjacencyList<TEdgeType: number = 1> {
    * This hash is used to index the edge in the `edges` array.
    *
    */
-  hash(from: NodeId, to: NodeId, type: TEdgeType | NullEdgeType): number {
+  hash(from: NodeId, to: NodeId, type: TEdgeType | NullEdgeType): EdgeHash {
     // A crude multiplicative hash, in 4 steps:
     // 1. Serialize the args into an integer that reflects the argument order,
     // shifting the magnitude of each argument by the sum
@@ -1119,6 +1086,8 @@ function toDot<TEdgeType: number>(data: AdjacencyList<TEdgeType>): string {
       let type = data.edges[index + TYPE];
       let from = data.edges[index + FROM];
       let to = data.edges[index + TO];
+      let prevIn = data.edges[index + PREV_IN];
+      let prevOut = data.edges[index + PREV_OUT];
       let nextIn = data.edges[index + NEXT_IN];
       let nextOut = data.edges[index + NEXT_OUT];
       // TODO: add type to label?
@@ -1131,7 +1100,7 @@ function toDot<TEdgeType: number>(data: AdjacencyList<TEdgeType>): string {
       );
 
       adjacencyList.addNode(`edge${label}`, {
-        label: `edge ${label} | { <TYPE> ${type} | <FROM> ${from} | <TO> ${to} | <NEXT_IN> ${nextIn} | <NEXT_OUT> ${nextOut} }`,
+        label: `edge ${label} | { <TYPE> ${type} | <FROM> ${from} | <TO> ${to} | <PREV_IN> ${prevIn} | <PREV_OUT> ${prevOut} | <NEXT_IN> ${nextIn} | <NEXT_OUT> ${nextOut} }`,
       });
 
       adjacencyList.addEdge(`edge${label}`, `node${from}`, {
@@ -1255,6 +1224,8 @@ function edgesToDot<TEdgeType: number>(data: AdjacencyList<TEdgeType>): string {
     if (type && !isDeleted(type)) {
       let from = data.edges[i + FROM];
       let to = data.edges[i + TO];
+      let prevIn = data.edges[i + PREV_IN];
+      let prevOut = data.edges[i + PREV_OUT];
       let nextIn = data.edges[i + NEXT_IN];
       let nextOut = data.edges[i + NEXT_OUT];
 
@@ -1277,7 +1248,7 @@ function edgesToDot<TEdgeType: number>(data: AdjacencyList<TEdgeType>): string {
       edges.addNode(`edge${i}`, {
         label: `${indexToHash(
           i,
-        )} | {${type} | ${from} | ${to} | ${nextIn} | ${nextOut}}`,
+        )} | {${type} | ${from} | ${to} | ${prevIn} | ${prevOut} | ${nextIn} | ${nextOut}}`,
       });
 
       if (lastOut !== i) {
