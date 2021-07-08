@@ -8,7 +8,19 @@
         "title": "Guides",
         "name": "devguide",
         "url": "/platform/parcel/",
+        "indexLinkTitle": "Parcel @ Atlassian",
         "subcategories": [
+          {
+            "title": "Important links",
+            "name": "important-links",
+            "expandAlways": true,
+            "items": [
+              {
+                "title": "V2 Documentation",
+                "url": "https://v2.parceljs.org"
+              }
+            ]
+          },
           {
             "title": "Getting started",
             "name": "getting-started",
@@ -30,12 +42,8 @@
                 "url": "/platform/parcel/plugins/about/"
               },
               {
-                "title": "Analytics Reporter",
-                "url": "/platform/parcel/plugins/reporter-analytics/"
-              },
-              {
-                "title": "Server Side Rendering",
-                "url": "/platform/parcel/plugins/ssr/"
+                "title": "Reporters",
+                "url": "/platform/parcel/plugins/reporters/"
               }
             ]
           },
@@ -55,6 +63,11 @@
             ]
           }
         ]
+      },
+      {
+        "title": "Resources",
+        "name": "help",
+        "url": "https://v2.parceljs.org"
       }
     ]
   }

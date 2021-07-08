@@ -2154,6 +2154,7 @@
   integrity sha512-ExueDByci0ad1oO68O7V6ye8751bEN26JMa6HXoRq9tFCdlKGTEB7OmrRMo1ZT0RtDPhhZtaoOdSAbMEbe5uXg==
 
 "@parcel/fs-search@2.0.0-nightly.2370+d1e0a1a0", "self-published@npm:@parcel/fs-search@2.0.0-nightly.2370":
+  name self-published
   version "2.0.0-nightly.2370"
   resolved "https://registry.yarnpkg.com/@parcel/fs-search/-/fs-search-2.0.0-nightly.2370.tgz#f45c6f990d7272a05a412cf88c389709e83093d5"
   integrity sha512-fB/kbmu0RAm0bzC6uq5kuSQd6jNdlfphP7CNr8wb4SDFIsbUhQmW7bSk4CH69N0lagqMw6oXpyGIgOkp34NNlA==
@@ -2189,6 +2190,7 @@
     utility-types "^3.10.0"
 
 "@parcel/hash@2.0.0-nightly.2370+d1e0a1a0", "self-published@npm:@parcel/hash@2.0.0-nightly.2370":
+  name self-published
   version "2.0.0-nightly.2370"
   resolved "https://registry.yarnpkg.com/@parcel/hash/-/hash-2.0.0-nightly.2370.tgz#23cbe2689825ac8e2336e284d5c95273bf0eb5ba"
   integrity sha512-fhz/aOY6OZNnNBJ/UTQ9kyj9n4X3CV9nAW4qq/pBHccZlNWhwtlFvc5FlR1fh60jC9OE4NF0HlPM5k2GfanO3Q==
