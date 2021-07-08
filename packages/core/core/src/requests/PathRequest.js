@@ -5,7 +5,6 @@ import type {
   FileCreateInvalidation,
   FilePath,
   QueryParameters,
-  ResolveResult,
 } from '@parcel/types';
 import type {StaticRunOpts} from '../RequestTracker';
 import type {AssetGroup, Dependency, ParcelOptions} from '../types';

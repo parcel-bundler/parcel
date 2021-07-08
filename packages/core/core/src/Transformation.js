@@ -2,7 +2,6 @@
 
 import type {
   FilePath,
-  FileCreateInvalidation,
   GenerateOutput,
   Transformer,
   TransformerResult,
@@ -12,7 +11,6 @@ import type {
 import type {WorkerApi} from '@parcel/workers';
 import type {
   Asset as AssetValue,
-  AssetGroup,
   TransformationRequest,
   RequestInvalidation,
   Config,
