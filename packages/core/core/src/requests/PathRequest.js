@@ -5,6 +5,7 @@ import type {
   FileCreateInvalidation,
   FilePath,
   QueryParameters,
+  ResolveResult,
 } from '@parcel/types';
 import type {StaticRunOpts} from '../RequestTracker';
 import type {AssetGroup, Dependency, ParcelOptions} from '../types';
@@ -72,27 +73,34 @@ async function run({input, api, options}: RunOpts) {
     options,
     config,
   });
-  let result: ?ResolverResult = await resolverRunner.resolve(input.dependency);
+  let result: ResolverResult = await resolverRunner.resolve(input.dependency);
 
-  if (result != null) {
-    if (result.invalidateOnFileCreate) {
-      for (let file of result.invalidateOnFileCreate) {
-        api.invalidateOnFileCreate(
-          invalidateOnFileCreateToInternal(options.projectRoot, file),
-        );
-      }
+  if (result.invalidateOnFileCreate) {
+    for (let file of result.invalidateOnFileCreate) {
+      api.invalidateOnFileCreate(
+        invalidateOnFileCreateToInternal(options.projectRoot, file),
+      );
     }
+  }
 
-    if (result.invalidateOnFileChange) {
-      for (let filePath of result.invalidateOnFileChange) {
-        let pp = toProjectPath(options.projectRoot, filePath);
-        api.invalidateOnFileUpdate(pp);
-        api.invalidateOnFileDelete(pp);
-      }
+  if (result.invalidateOnFileChange) {
+    for (let filePath of result.invalidateOnFileChange) {
+      let pp = toProjectPath(options.projectRoot, filePath);
+      api.invalidateOnFileUpdate(pp);
+      api.invalidateOnFileDelete(pp);
     }
+  }
 
+  if (result.assetGroup) {
     api.invalidateOnFileDelete(result.assetGroup.filePath);
     return result.assetGroup;
+  }
+
+  if (result.diagnostics && result.diagnostics.length > 0) {
+    let err = new ThrowableDiagnostic({diagnostic: result.diagnostics});
+    // $FlowFixMe[prop-missing]
+    err.code = 'MODULE_NOT_FOUND';
+    throw err;
   }
 }
 
@@ -102,9 +110,10 @@ type ResolverRunnerOpts = {|
 |};
 
 type ResolverResult = {|
-  assetGroup: AssetGroup,
+  assetGroup: ?AssetGroup,
   invalidateOnFileCreate?: Array<FileCreateInvalidation>,
   invalidateOnFileChange?: Array<FilePath>,
+  diagnostics?: Array<Diagnostic>,
 |};
 
 export class ResolverRunner {
@@ -118,10 +127,10 @@ export class ResolverRunner {
     this.pluginOptions = new PluginOptions(this.options);
   }
 
-  async getThrowableDiagnostic(
+  async getDiagnostic(
     dependency: Dependency,
     message: string,
-  ): Async<ThrowableDiagnostic> {
+  ): Async<Diagnostic> {
     let diagnostic: Diagnostic = {
       message,
       origin: '@parcel/core',
@@ -143,10 +152,10 @@ export class ResolverRunner {
       ];
     }
 
-    return new ThrowableDiagnostic({diagnostic});
+    return diagnostic;
   }
 
-  async resolve(dependency: Dependency): Promise<?ResolverResult> {
+  async resolve(dependency: Dependency): Promise<ResolverResult> {
     let dep = new PublicDependency(dependency, this.options);
     report({
       type: 'buildProgress',
@@ -174,12 +183,17 @@ export class ResolverRunner {
           if (dep.specifierType === 'url') {
             // This may be a url protocol or scheme rather than a pipeline, such as
             // `url('http://example.com/foo.png')`
-            return null;
+            return {assetGroup: null};
           } else {
-            throw await this.getThrowableDiagnostic(
-              dependency,
-              md`Unknown pipeline: ${pipeline}.`,
-            );
+            return {
+              assetGroup: null,
+              diagnostics: [
+                await this.getDiagnostic(
+                  dependency,
+                  md`Unknown pipeline: ${pipeline}.`,
+                ),
+              ],
+            };
           }
         }
       }
@@ -187,11 +201,11 @@ export class ResolverRunner {
       if (dep.specifierType === 'url') {
         if (dependency.specifier.startsWith('//')) {
           // A protocol-relative URL, e.g `url('//example.com/foo.png')`
-          return null;
+          return {assetGroup: null};
         }
         if (dependency.specifier.startsWith('#')) {
           // An ID-only URL, e.g. `url(#clip-path)` for CSS rules
-          return null;
+          return {assetGroup: null};
         }
       }
       filePath = dependency.specifier;
@@ -201,10 +215,15 @@ export class ResolverRunner {
     if (dep.specifierType === 'url') {
       let parsed = URL.parse(filePath);
       if (typeof parsed.pathname !== 'string') {
-        throw await this.getThrowableDiagnostic(
-          dependency,
-          md`Received URL without a pathname ${filePath}.`,
-        );
+        return {
+          assetGroup: null,
+          diagnostics: [
+            await this.getDiagnostic(
+              dependency,
+              md`Received URL without a pathname ${filePath}.`,
+            ),
+          ],
+        };
       }
       filePath = decodeURIComponent(parsed.pathname);
       if (parsed.query != null) {
@@ -226,6 +245,8 @@ export class ResolverRunner {
       filePath = path.join(this.options.projectRoot, filePath);
     }
     let diagnostics: Array<Diagnostic> = [];
+    let invalidateOnFileCreate = [];
+    let invalidateOnFileChange = [];
     for (let resolver of resolvers) {
       try {
         let result = await resolver.plugin.resolve({
@@ -249,8 +270,20 @@ export class ResolverRunner {
             dependency.priority = Priority[result.priority];
           }
 
+          if (result.invalidateOnFileCreate) {
+            invalidateOnFileCreate.push(...result.invalidateOnFileCreate);
+          }
+
+          if (result.invalidateOnFileChange) {
+            invalidateOnFileChange.push(...result.invalidateOnFileChange);
+          }
+
           if (result.isExcluded) {
-            return null;
+            return {
+              assetGroup: null,
+              invalidateOnFileCreate,
+              invalidateOnFileChange,
+            };
           }
 
           if (result.filePath != null) {
@@ -278,8 +311,8 @@ export class ResolverRunner {
                     : result.pipeline,
                 isURL: dep.specifierType === 'url',
               },
-              invalidateOnFileCreate: result.invalidateOnFileCreate,
-              invalidateOnFileChange: result.invalidateOnFileChange,
+              invalidateOnFileCreate,
+              invalidateOnFileChange,
             };
           }
 
@@ -311,7 +344,11 @@ export class ResolverRunner {
     }
 
     if (dep.isOptional) {
-      return null;
+      return {
+        assetGroup: null,
+        invalidateOnFileCreate,
+        invalidateOnFileChange,
+      };
     }
 
     let resolveFrom = dependency.resolveFrom ?? dependency.sourcePath;
@@ -320,19 +357,20 @@ export class ResolverRunner {
         ? normalizePath(fromProjectPathRelative(resolveFrom))
         : '';
 
-    // $FlowFixMe because of the err.code assignment
-    let err = await this.getThrowableDiagnostic(
+    let diagnostic = await this.getDiagnostic(
       dependency,
       md`Failed to resolve '${dependency.specifier}' ${
         dir ? `from '${dir}'` : ''
       }`,
     );
 
-    // Merge diagnostics
-    err.diagnostics.push(...diagnostics);
-    // $FlowFixMe[prop-missing]
-    err.code = 'MODULE_NOT_FOUND';
+    diagnostics.unshift(diagnostic);
 
-    throw err;
+    return {
+      assetGroup: null,
+      invalidateOnFileCreate,
+      invalidateOnFileChange,
+      diagnostics,
+    };
   }
 }
