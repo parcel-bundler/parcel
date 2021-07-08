@@ -2,7 +2,6 @@
 
 import type {
   FilePath,
-  FileCreateInvalidation,
   GenerateOutput,
   Transformer,
   TransformerResult,
@@ -12,7 +11,6 @@ import type {
 import type {WorkerApi} from '@parcel/workers';
 import type {
   Asset as AssetValue,
-  AssetGroup,
   TransformationRequest,
   RequestInvalidation,
   Config,
@@ -660,19 +658,13 @@ export default class Transformation {
     const logger = new PluginLogger({origin: transformerName});
 
     const resolve = async (from: FilePath, to: string): Promise<FilePath> => {
-      let result: {|
-        assetGroup: AssetGroup,
-        invalidateOnFileCreate?: Array<FileCreateInvalidation>,
-        invalidateOnFileChange?: Array<FilePath>,
-      |} = nullthrows(
-        await pipeline.resolverRunner.resolve(
-          createDependency(this.options.projectRoot, {
-            env: asset.value.env,
-            specifier: to,
-            specifierType: 'esm', // ???
-            sourcePath: from,
-          }),
-        ),
+      let result = await pipeline.resolverRunner.resolve(
+        createDependency(this.options.projectRoot, {
+          env: asset.value.env,
+          specifier: to,
+          specifierType: 'esm', // ???
+          sourcePath: from,
+        }),
       );
 
       if (result.invalidateOnFileCreate) {
@@ -694,9 +686,13 @@ export default class Transformation {
         }
       }
 
+      if (result.diagnostics && result.diagnostics.length > 0) {
+        throw new ThrowableDiagnostic({diagnostic: result.diagnostics});
+      }
+
       return fromProjectPath(
         this.options.projectRoot,
-        result.assetGroup.filePath,
+        nullthrows(result.assetGroup).filePath,
       );
     };
 
