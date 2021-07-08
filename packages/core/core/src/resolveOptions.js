@@ -154,9 +154,7 @@ export default async function resolveOptions(
     detailedReport: initialOptions.detailedReport,
     defaultTargetOptions: {
       shouldOptimize,
-      shouldScopeHoist:
-        initialOptions?.defaultTargetOptions?.shouldScopeHoist ??
-        initialOptions.mode === 'production',
+      shouldScopeHoist: initialOptions?.defaultTargetOptions?.shouldScopeHoist,
       sourceMaps: initialOptions?.defaultTargetOptions?.sourceMaps ?? true,
       publicUrl,
       ...(distDir != null

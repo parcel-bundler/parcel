@@ -276,7 +276,7 @@ export type ParcelOptions = {|
 
   +defaultTargetOptions: {|
     +shouldOptimize: boolean,
-    +shouldScopeHoist: boolean,
+    +shouldScopeHoist?: boolean,
     +sourceMaps: boolean,
     +publicUrl: string,
     +distDir?: ProjectPath,
