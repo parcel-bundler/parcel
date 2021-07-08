@@ -112,20 +112,17 @@ export type SerializedAdjacencyList<TEdgeType> = {|
 |};
 
 opaque type EdgeHash = number;
+
 /** Get the hash of the edge at the given index in the edges array. */
 const indexToHash = (index: number): EdgeHash => index + 1;
+
 /** Get the index in the edges array of the given edge. */
 const hashToIndex = (hash: EdgeHash) => Math.max(0, hash - 1);
-
-opaque type EdgeType = number;
-/** remove these for now in favor of preventing 0 edge types in Graph */
-/** `1` is added to the type to allow a type value of `0`. */
-// const fromEdgeType = (type: EdgeType): number => type + 1;
-// const toEdgeType = (id: number) => Math.max(0, id - 1);
 
 /** Get the id of the node at the given index in the nodes array. */
 const nodeAt = (index: number): NodeId =>
   toNodeId((index - (index % NODE_SIZE)) / NODE_SIZE);
+
 /** Get the index in the nodes array of the given node. */
 const indexOfNode = (id: NodeId): number => fromNodeId(id) * NODE_SIZE;
 
@@ -776,7 +773,11 @@ export default class AdjacencyList<TEdgeType: number = 1> {
    *
    * If an edge connecting `from` and `to` does not exist, returns `-1`.
    */
-  indexOf(from: NodeId, to: NodeId, type: TEdgeType | NullEdgeType): number {
+  indexOf(
+    from: NodeId,
+    to: NodeId,
+    type: TEdgeType | NullEdgeType = 1,
+  ): number {
     let index = hashToIndex(this.hash(from, to, type));
     // We want to avoid scanning the array forever,
     // so keep track of where we start scanning from.
@@ -813,10 +814,11 @@ export default class AdjacencyList<TEdgeType: number = 1> {
    * otherwise, returns the index at which the edge should be added.
    *
    */
-  indexFor(from: NodeId, to: NodeId, type: TEdgeType | NullEdgeType): number {
-    // if (this.hasEdge(from, to, type)) {
-    //   return -1;
-    // }
+  indexFor(
+    from: NodeId,
+    to: NodeId,
+    type: TEdgeType | NullEdgeType = 1,
+  ): number {
     let index = hashToIndex(this.hash(from, to, type));
     // we scan the `edges` array for the next empty slot after the `index`.
     // We do this instead of simply using the `index` because it is possible
