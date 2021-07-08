@@ -705,12 +705,28 @@ impl<'a> Fold for DependencyCollector<'a> {
     use ast::*;
 
     if let Some((specifier, span)) = self.match_import_meta_url(&node, self.decls) {
-      return self.add_url_dependency(
+      let url = self.add_url_dependency(
         specifier.clone(),
         span,
         DependencyKind::URL,
         self.config.source_type,
       );
+
+      // If this is a library, we will already have a URL object. Otherwise, we need to
+      // construct one from the string returned by the JSRuntime.
+      if !self.config.is_library {
+        return Expr::New(NewExpr {
+          span: DUMMY_SP,
+          callee: Box::new(Expr::Ident(Ident::new(js_word!("URL"), DUMMY_SP))),
+          args: Some(vec![ExprOrSpread {
+            expr: Box::new(url),
+            spread: None,
+          }]),
+          type_args: None,
+        });
+      }
+
+      return url;
     }
 
     let is_require = match &node {

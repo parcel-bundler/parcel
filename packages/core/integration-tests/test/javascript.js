@@ -2037,7 +2037,7 @@ describe('javascript', function() {
     let output = await run(b);
     assert(/^http:\/\/localhost\/test\.[0-9a-f]+\.txt$/.test(output.default));
     let stats = await outputFS.stat(
-      path.join(distDir, url.parse(output.default).pathname),
+      path.join(distDir, output.default.pathname),
     );
     assert.equal(stats.size, 9);
   });
@@ -2064,7 +2064,7 @@ describe('javascript', function() {
     let output = await run(b);
     assert(/^http:\/\/localhost\/test\.[0-9a-f]+\.txt$/.test(output.default));
     let stats = await outputFS.stat(
-      path.join(distDir, url.parse(output.default).pathname),
+      path.join(distDir, output.default.pathname),
     );
     assert.equal(stats.size, 9);
   });
