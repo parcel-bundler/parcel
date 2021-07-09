@@ -17,6 +17,6 @@
   },
   "dependencies": {
     "@parcel/plugin": "2.0.0-frontbucket.77",
-    "sharp": "^0.27.1"
+    "sharp": "^0.28.3"
   }
 }

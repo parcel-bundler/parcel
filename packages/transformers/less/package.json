@@ -21,7 +21,7 @@
   },
   "dependencies": {
     "@parcel/plugin": "2.0.0-frontbucket.77",
-    "@parcel/source-map": "2.0.0-rc.4",
+    "@parcel/source-map": "2.0.0-rc.5",
     "less": "^3.9.0"
   }
 }

@@ -2,13 +2,17 @@
 import type {
   Async,
   Config as IConfig,
-  FilePath,
-  FileCreateInvalidation,
   PluginOptions as IPluginOptions,
+  PluginLogger as IPluginLogger,
 } from '@parcel/types';
-import type {Config, ParcelOptions} from '../types';
+import type {
+  Config,
+  ParcelOptions,
+  InternalFileCreateInvalidation,
+} from '../types';
 import type {LoadedPlugin} from '../ParcelConfig';
 import type {RunAPI} from '../RequestTracker';
+import type {ProjectPath} from '../projectPath';
 
 import {serializeRaw} from '../serializer.js';
 import {PluginLogger} from '@parcel/logger';
@@ -23,15 +27,15 @@ export type PluginWithLoadConfig = {
   loadConfig?: ({|
     config: IConfig,
     options: IPluginOptions,
-    logger: PluginLogger,
+    logger: IPluginLogger,
   |}) => Async<mixed>,
   ...
 };
 
 export type ConfigRequest = {
   id: string,
-  invalidateOnFileChange: Set<FilePath>,
-  invalidateOnFileCreate: Array<FileCreateInvalidation>,
+  invalidateOnFileChange: Set<ProjectPath>,
+  invalidateOnFileCreate: Array<InternalFileCreateInvalidation>,
   invalidateOnEnvChange: Set<string>,
   invalidateOnOptionChange: Set<string>,
   invalidateOnStartup: boolean,

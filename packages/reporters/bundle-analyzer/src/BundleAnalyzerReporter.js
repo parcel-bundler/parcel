@@ -19,7 +19,7 @@ export default (new Reporter({
       Array<PackagedBundle>,
     > = new DefaultMap(() => []);
     for (let bundle of event.bundleGraph.getBundles()) {
-      if (!bundle.isInline) {
+      if (bundle.bundleBehavior !== 'inline') {
         bundlesByTarget.get(bundle.target.name).push(bundle);
       }
     }

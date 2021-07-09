@@ -54,6 +54,7 @@ export default (new Transformer({
 
     // Workaround for `chdir` not working in workers
     // this can be removed after https://github.com/isaacs/node-graceful-fs/pull/200 was mergend and used in parcel
+    // $FlowFixMe[method-unbinding]
     process.chdir.disabled = isWorker;
 
     let code = await compileToString(elm, elmBinary, asset, compilerConfig);

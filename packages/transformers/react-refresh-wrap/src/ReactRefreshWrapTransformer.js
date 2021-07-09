@@ -12,8 +12,11 @@ function shouldExclude(asset, options) {
     !options.hmrOptions ||
     !asset.env.isBrowser() ||
     asset.env.isWorker() ||
+    asset.env.isWorklet() ||
     options.mode !== 'development' ||
-    !asset.getDependencies().find(v => v.specifier === 'react')
+    !asset
+      .getDependencies()
+      .find(v => v.specifier === 'react' || v.specifier === 'react/jsx-runtime')
   );
 }
 

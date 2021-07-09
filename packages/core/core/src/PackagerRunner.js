@@ -39,6 +39,12 @@ import BundleGraph, {
 } from './public/BundleGraph';
 import PluginOptions from './public/PluginOptions';
 import {PARCEL_VERSION, HASH_REF_PREFIX, HASH_REF_REGEX} from './constants';
+import {
+  fromProjectPath,
+  toProjectPathUnsafe,
+  fromProjectPathRelative,
+  joinProjectPath,
+} from './projectPath';
 import {createConfig} from './InternalConfig';
 import {
   loadPluginConfig,
@@ -201,7 +207,7 @@ export default class PackagerRunner {
     if (plugin.plugin.loadConfig != null) {
       let config = createConfig({
         plugin: plugin.name,
-        searchPath: path.join(this.options.projectRoot, 'index'),
+        searchPath: toProjectPathUnsafe('index'),
       });
 
       await loadPluginConfig(plugin, config, this.options);
@@ -213,7 +219,10 @@ export default class PackagerRunner {
           this.previousDevDeps,
           this.options,
         );
-        let key = `${devDep.specifier}:${devDep.resolveFrom}`;
+        let key = `${devDep.specifier}:${fromProjectPath(
+          this.options.projectRoot,
+          devDep.resolveFrom,
+        )}`;
         this.devDepRequests.set(key, devDepRequest);
       }
 
@@ -295,7 +304,7 @@ export default class PackagerRunner {
   }
 
   getSourceMapReference(bundle: NamedBundle, map: ?SourceMap): Async<?string> {
-    if (map && bundle.env.sourceMap && !bundle.isInline) {
+    if (map && bundle.env.sourceMap && bundle.bundleBehavior !== 'inline') {
       if (bundle.env.sourceMap && bundle.env.sourceMap.inline) {
         return this.generateSourceMap(bundleToInternalBundle(bundle), map);
       } else {
@@ -338,7 +347,7 @@ export default class PackagerRunner {
           bundle: BundleType,
           bundleGraph: BundleGraphType<NamedBundleType>,
         ) => {
-          if (!bundle.isInline) {
+          if (bundle.bundleBehavior !== 'inline') {
             throw new Error(
               'Bundle is not inline and unable to retrieve contents',
             );
@@ -373,7 +382,10 @@ export default class PackagerRunner {
         this.previousDevDeps,
         this.options,
       );
-      this.devDepRequests.set(`${name}:${resolveFrom}`, devDepRequest);
+      this.devDepRequests.set(
+        `${name}:${fromProjectPathRelative(resolveFrom)}`,
+        devDepRequest,
+      );
     }
   }
 
@@ -453,7 +465,7 @@ export default class PackagerRunner {
           this.options,
         );
         this.devDepRequests.set(
-          `${optimizer.name}:${optimizer.resolveFrom}`,
+          `${optimizer.name}:${fromProjectPathRelative(optimizer.resolveFrom)}`,
           devDepRequest,
         );
       }
@@ -467,9 +479,13 @@ export default class PackagerRunner {
     map: SourceMap,
   ): Promise<string> {
     // sourceRoot should be a relative path between outDir and rootDir for node.js targets
-    let filePath = path.join(bundle.target.distDir, nullthrows(bundle.name));
+    let filePath = joinProjectPath(
+      bundle.target.distDir,
+      nullthrows(bundle.name),
+    );
+    let fullPath = fromProjectPath(this.options.projectRoot, filePath);
     let sourceRoot: string = path.relative(
-      path.dirname(filePath),
+      path.dirname(fullPath),
       this.options.projectRoot,
     );
     let inlineSources = false;
@@ -498,7 +514,7 @@ export default class PackagerRunner {
       }
     }
 
-    let mapFilename = filePath + '.map';
+    let mapFilename = fullPath + '.map';
     let isInlineMap = bundle.env.sourceMap && bundle.env.sourceMap.inline;
 
     let stringified = await map.stringify({
@@ -559,11 +575,13 @@ export default class PackagerRunner {
     let packager = await this.config.getPackager(name);
     let optimizers = await this.config.getOptimizers(name);
 
-    let key = `${packager.name}:${packager.resolveFrom}`;
+    let key = `${packager.name}:${fromProjectPathRelative(
+      packager.resolveFrom,
+    )}`;
     let devDepHashes =
       this.devDepRequests.get(key)?.hash ?? this.previousDevDeps.get(key) ?? '';
     for (let {name, resolveFrom} of optimizers) {
-      let key = `${name}:${resolveFrom}`;
+      let key = `${name}:${fromProjectPathRelative(resolveFrom)}`;
       devDepHashes +=
         this.devDepRequests.get(key)?.hash ??
         this.previousDevDeps.get(key) ??

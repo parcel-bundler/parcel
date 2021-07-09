@@ -15,30 +15,36 @@ import {
   sleep,
   getNextBuild,
   distDir,
+  getParcelOptions,
+  assertNoFilePathInCache,
 } from '@parcel/test-utils';
 import {md} from '@parcel/diagnostic';
 import fs from 'fs';
 import {NodePackageManager} from '@parcel/package-manager';
 import {createWorkerFarm} from '@parcel/core';
+import resolveOptions from '@parcel/core/src/resolveOptions';
 
 let inputDir: string;
 let packageManager = new NodePackageManager(inputFS, '/');
 
-function runBundle(entries = 'src/index.js', opts) {
-  entries = (Array.isArray(entries) ? entries : [entries]).map(entry =>
+function getEntries(entries = 'src/index.js') {
+  return (Array.isArray(entries) ? entries : [entries]).map(entry =>
     path.resolve(inputDir, entry),
   );
+}
 
-  return bundler(
-    entries,
-    mergeParcelOptions(
-      {
-        inputFS: overlayFS,
-        shouldDisableCache: false,
-      },
-      opts,
-    ),
-  ).run();
+function getOptions(opts) {
+  return mergeParcelOptions(
+    {
+      inputFS: overlayFS,
+      shouldDisableCache: false,
+    },
+    opts,
+  );
+}
+
+function runBundle(entries = 'src/index.js', opts) {
+  return bundler(getEntries(entries), getOptions(opts)).run();
 }
 
 type UpdateFn = BuildSuccessEvent =>
@@ -69,13 +75,33 @@ async function testCache(update: UpdateFn | TestConfig, integration) {
     }
   }
 
+  let resolvedOptions = await resolveOptions(
+    getParcelOptions(getEntries(entries), getOptions(options)),
+  );
+
   let b = await runBundle(entries, options);
+
+  await assertNoFilePathInCache(
+    resolvedOptions.outputFS,
+    resolvedOptions.cacheDir,
+    resolvedOptions.projectRoot,
+  );
 
   // update
   let newOptions = await update(b);
+  options = mergeParcelOptions(options || {}, newOptions);
 
   // Run cached build
-  b = await runBundle(entries, mergeParcelOptions(options || {}, newOptions));
+  b = await runBundle(entries, options);
+
+  resolvedOptions = await resolveOptions(
+    getParcelOptions(getEntries(entries), getOptions(options)),
+  );
+  await assertNoFilePathInCache(
+    resolvedOptions.outputFS,
+    resolvedOptions.cacheDir,
+    resolvedOptions.projectRoot,
+  );
 
   return b;
 }
@@ -1410,6 +1436,7 @@ describe('cache', function() {
               targets: {
                 esmodule: {
                   outputFormat: 'esmodule',
+                  isLibrary: true,
                 },
               },
             }),
@@ -1572,6 +1599,7 @@ describe('cache', function() {
               targets: {
                 esmodule: {
                   outputFormat: 'esmodule',
+                  isLibrary: true,
                 },
               },
             }),
@@ -1688,6 +1716,7 @@ describe('cache', function() {
               targets: {
                 modern: {
                   outputFormat: 'esmodule',
+                  isLibrary: true,
                 },
                 legacy: {
                   outputFormat: 'commonjs',
@@ -1892,6 +1921,7 @@ describe('cache', function() {
               targets: {
                 modern: {
                   outputFormat: 'esmodule',
+                  isLibrary: true,
                 },
               },
             }),
@@ -1921,6 +1951,7 @@ describe('cache', function() {
               targets: {
                 modern: {
                   outputFormat: 'esmodule',
+                  isLibrary: true,
                 },
               },
             }),
@@ -2314,7 +2345,7 @@ describe('cache', function() {
 
           return {
             defaultTargetOptions: {
-              distDir: 'dist/test',
+              distDir: path.join(__dirname, 'integration/cache/dist/test'),
             },
           };
         },
@@ -3470,7 +3501,7 @@ describe('cache', function() {
           {
             entries: ['index.sass'],
             env: {
-              SASS_PATH: path.join(inputDir, 'include-path'),
+              SASS_PATH: 'include-path',
             },
             async setup() {
               await overlayFS.mkdirp(path.join(inputDir, 'include2'));
@@ -3491,7 +3522,7 @@ describe('cache', function() {
 
               return {
                 env: {
-                  SASS_PATH: path.join(inputDir, 'include2'),
+                  SASS_PATH: 'include2',
                 },
               };
             },
@@ -4289,8 +4320,7 @@ describe('cache', function() {
                   ?.filePath,
                 'utf8',
               );
-              // ATLASSIAN: We don't create shared bundles across contexts yet
-              assert.equal(html.match(/<script/g)?.length, 6);
+              assert.equal(html.match(/<script/g)?.length, 7);
 
               let pkgFile = path.join(inputDir, 'package.json');
               let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
@@ -4312,8 +4342,7 @@ describe('cache', function() {
           b.bundleGraph.getBundles().find(b => b.name === 'b.html')?.filePath,
           'utf8',
         );
-        // ATLASSIAN: We don't create shared bundles across contexts yet
-        assert.equal(html.match(/<script/g)?.length, 4);
+        assert.equal(html.match(/<script/g)?.length, 5);
       });
 
       it('should support updating bundler config', async function() {
@@ -4327,8 +4356,7 @@ describe('cache', function() {
                   ?.filePath,
                 'utf8',
               );
-              // ATLASSIAN: We don't create shared bundles across contexts yet
-              assert.equal(html.match(/<script/g)?.length, 4);
+              assert.equal(html.match(/<script/g)?.length, 5);
 
               let pkgFile = path.join(inputDir, 'package.json');
               let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
@@ -4350,8 +4378,7 @@ describe('cache', function() {
           b.bundleGraph.getBundles().find(b => b.name === 'b.html')?.filePath,
           'utf8',
         );
-        // ATLASSIAN: We don't create shared bundles across contexts yet
-        assert.equal(html.match(/<script/g)?.length, 6);
+        assert.equal(html.match(/<script/g)?.length, 7);
       });
 
       it('should support removing bundler config', async function() {
@@ -4365,8 +4392,7 @@ describe('cache', function() {
                   ?.filePath,
                 'utf8',
               );
-              // ATLASSIAN: We don't create shared bundles across contexts yet
-              assert.equal(html.match(/<script/g)?.length, 4);
+              assert.equal(html.match(/<script/g)?.length, 5);
 
               let pkgFile = path.join(inputDir, 'package.json');
               let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
@@ -4386,8 +4412,7 @@ describe('cache', function() {
           b.bundleGraph.getBundles().find(b => b.name === 'b.html')?.filePath,
           'utf8',
         );
-        // ATLASSIAN: We don't create shared bundles across contexts yet
-        assert.equal(html.match(/<script/g)?.length, 6);
+        assert.equal(html.match(/<script/g)?.length, 7);
       });
     });
   });
@@ -5287,6 +5312,75 @@ describe('cache', function() {
       let res = await run(b.bundleGraph);
       assert.equal(res, 4);
     });
+
+    it('should invalidate when a terser config is modified', async function() {
+      let b = await testCache({
+        mode: 'production',
+        async setup() {
+          await overlayFS.writeFile(
+            path.join(inputDir, '.terserrc'),
+            JSON.stringify({
+              mangle: false,
+            }),
+          );
+        },
+        async update(b) {
+          let contents = await overlayFS.readFile(
+            b.bundleGraph.getBundles()[0].filePath,
+            'utf8',
+          );
+          assert(contents.includes('$parcel$interopDefault'));
+
+          await overlayFS.writeFile(
+            path.join(inputDir, '.terserrc'),
+            JSON.stringify({
+              mangle: true,
+            }),
+          );
+        },
+      });
+
+      let contents = await overlayFS.readFile(
+        b.bundleGraph.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert(!contents.includes('$parcel$interopDefault'));
+    });
+
+    it('should invalidate when an htmlnano config is modified', async function() {
+      let b = await testCache({
+        mode: 'production',
+        entries: ['src/index.html'],
+        async setup() {
+          await overlayFS.writeFile(
+            path.join(inputDir, '.htmlnanorc'),
+            JSON.stringify({
+              removeAttributeQuotes: true,
+            }),
+          );
+        },
+        async update(b) {
+          let contents = await overlayFS.readFile(
+            b.bundleGraph.getBundles()[0].filePath,
+            'utf8',
+          );
+          assert(contents.includes('type=module'));
+
+          await overlayFS.writeFile(
+            path.join(inputDir, '.htmlnanorc'),
+            JSON.stringify({
+              removeAttributeQuotes: false,
+            }),
+          );
+        },
+      });
+
+      let contents = await overlayFS.readFile(
+        b.bundleGraph.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert(contents.includes('type="module"'));
+    });
   });
 
   describe('scope hoisting', function() {
@@ -5295,6 +5389,58 @@ describe('cache', function() {
     it('should support updating sideEffects config', function() {});
 
     it('should support removing sideEffects config', function() {});
+
+    it('should wrap modules when they become conditional', async function() {
+      let b = await testCache(
+        {
+          defaultTargetOptions: {
+            shouldScopeHoist: true,
+          },
+          entries: ['a.js'],
+          async setup() {
+            let contents = await overlayFS.readFile(
+              path.join(inputDir, 'a.js'),
+              'utf8',
+            );
+            await overlayFS.writeFile(
+              path.join(inputDir, 'a.js'),
+              contents.replace(/if \(b\) \{((?:.|\n)+)\}/, '$1'),
+            );
+          },
+          async update(b) {
+            let out = [];
+            await run(b.bundleGraph, {
+              b: false,
+              output(o) {
+                out.push(o);
+              },
+            });
+
+            assert.deepEqual(out, ['a', 'b', 'c', 'd']);
+
+            let contents = await overlayFS.readFile(
+              path.join(
+                __dirname,
+                'integration/scope-hoisting/commonjs/require-conditional/a.js',
+              ),
+              'utf8',
+            );
+            await overlayFS.writeFile(path.join(inputDir, 'a.js'), contents);
+          },
+        },
+        'scope-hoisting/commonjs/require-conditional',
+      );
+
+      let out = [];
+      await run(b.bundleGraph, {
+        b: false,
+        output(o) {
+          out.push(o);
+        },
+      });
+
+      assert.deepEqual(out, ['a', 'd']);
+    });
   });
 
   describe('runtime', () => {
@@ -5513,5 +5659,35 @@ describe('cache', function() {
         subscription = null;
       }
     }
+  });
+
+  it('should support moving the project root', async function() {
+    // This test relies on the real filesystem because the memory fs doesn't support renames.
+    // But renameSync is broken on windows in CI with EPERM errors. Just skip this test for now.
+    if (process.platform === 'win32') {
+      return;
+    }
+
+    let b = await testCache({
+      inputFS,
+      outputFS: inputFS,
+      async setup() {
+        await inputFS.mkdirp(inputDir);
+        await inputFS.ncp(path.join(__dirname, '/integration/cache'), inputDir);
+      },
+      update: async b => {
+        assert.equal(await run(b.bundleGraph), 4);
+
+        await inputFS.writeFile(
+          path.join(inputDir, 'src/nested/test.js'),
+          'export default 4',
+        );
+
+        fs.renameSync(inputDir, (inputDir += '_2'));
+        await sleep(100);
+      },
+    });
+
+    assert.equal(await run(b.bundleGraph), 6);
   });
 });

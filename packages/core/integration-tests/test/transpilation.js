@@ -84,6 +84,7 @@ describe('transpilation', function() {
 
     let file = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
     assert(file.includes('React.createElement("div"'));
+    assert(file.includes('fileName: "integration/jsx/index.jsx"'));
   });
 
   it('should support compiling JSX in JS files with React dependency', async function() {
@@ -153,6 +154,75 @@ describe('transpilation', function() {
     assert(file.includes('React.createElement("div"'));
     assert(file.includes('...a'));
     assert(!file.includes('@swc/helpers'));
+  });
+
+  it('should support the automatic JSX runtime with React >= 17', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/jsx-automatic/index.js'),
+    );
+
+    let file = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(file.includes('react/jsx-runtime'));
+    assert(file.includes('_jsxRuntime.jsx("div"'));
+  });
+
+  it('should support the automatic JSX runtime with preact >= 10.5', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/jsx-automatic-preact/index.js'),
+    );
+
+    let file = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(file.includes('preact/jsx-runtime'));
+    assert(file.includes('_jsxRuntime.jsx("div"'));
+  });
+
+  it('should support the automatic JSX runtime with explicit tsconfig.json', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/jsx-automatic-tsconfig/index.js'),
+    );
+
+    let file = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(file.includes('preact/jsx-runtime'));
+    assert(file.includes('_jsxRuntime.jsx("div"'));
+  });
+
+  it('should support explicit JSX pragma in tsconfig.json', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/jsx-pragma-tsconfig/index.js'),
+    );
+
+    let file = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(file.includes('JSX(JSXFragment'));
+    assert(file.includes('JSX("div"'));
+  });
+
+  it('should support explicitly enabling JSX in tsconfig.json', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/jsx-tsconfig/index.js'),
+    );
+
+    let file = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(file.includes('React.createElement("div"'));
+  });
+
+  it('should support enabling decorators in tsconfig.json', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/decorators/index.ts'),
+    );
+
+    let output = [];
+    await run(b, {
+      output(o) {
+        output.push(o);
+      },
+    });
+
+    assert.deepEqual(output, [
+      'first(): factory evaluated',
+      'second(): factory evaluated',
+      'second(): called',
+      'first(): called',
+    ]);
   });
 
   it('should support transpiling optional chaining', async function() {

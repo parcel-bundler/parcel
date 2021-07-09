@@ -31,8 +31,13 @@ import loadPlugin from './loadParcelPlugin';
 import {Asset as PublicAsset} from './public/Asset';
 import PluginOptions from './public/PluginOptions';
 import {blobToStream, hashFile} from '@parcel/utils';
-import {hashFromOption} from './utils';
+import {hashFromOption, toInternalSourceLocation} from './utils';
 import {createBuildCache} from './buildCache';
+import {
+  type ProjectPath,
+  fromProjectPath,
+  fromProjectPathRelative,
+} from './projectPath';
 import {hashString} from '@parcel/hash';
 import {BundleBehavior as BundleBehaviorMap} from './types';
 
@@ -41,7 +46,7 @@ type AssetOptions = {|
   committed?: boolean,
   hash?: ?string,
   idBase?: ?string,
-  filePath: FilePath,
+  filePath: ProjectPath,
   query?: ?QueryParameters,
   type: string,
   contentKey?: ?string,
@@ -61,13 +66,16 @@ type AssetOptions = {|
   sideEffects?: boolean,
   uniqueKey?: ?string,
   plugin?: PackageName,
-  configPath?: FilePath,
+  configPath?: ProjectPath,
   configKeyPath?: string,
 |};
 
 export function createAssetIdFromOptions(options: AssetOptions): string {
   let uniqueKey = options.uniqueKey ?? '';
-  let idBase = options.idBase != null ? options.idBase : options.filePath;
+  let idBase =
+    options.idBase != null
+      ? options.idBase
+      : fromProjectPathRelative(options.filePath);
   let queryString = options.query
     ? JSON.stringify(objectSortedEntries(options.query))
     : '';
@@ -84,7 +92,10 @@ export function createAssetIdFromOptions(options: AssetOptions): string {
   );
 }
 
-export function createAsset(options: AssetOptions): Asset {
+export function createAsset(
+  projectRoot: FilePath,
+  options: AssetOptions,
+): Asset {
   return {
     id: options.id != null ? options.id : createAssetIdFromOptions(options),
     committed: options.committed ?? false,
@@ -107,7 +118,18 @@ export function createAsset(options: AssetOptions): Asset {
     env: options.env,
     meta: options.meta || {},
     stats: options.stats,
-    symbols: options.symbols,
+    symbols:
+      options.symbols &&
+      new Map(
+        [...options.symbols].map(([k, v]) => [
+          k,
+          {
+            local: v.local,
+            meta: v.meta,
+            loc: toInternalSourceLocation(projectRoot, v.loc),
+          },
+        ]),
+      ),
     sideEffects: options.sideEffects ?? true,
     uniqueKey: options.uniqueKey ?? '',
     plugin: options.plugin,
@@ -138,7 +160,10 @@ async function _generateFromAST(asset: CommittedAsset | UncommittedAsset) {
   let pluginName = nullthrows(asset.value.plugin);
   let {plugin} = await loadPlugin<Transformer<mixed>>(
     pluginName,
-    nullthrows(asset.value.configPath),
+    fromProjectPath(
+      asset.options.projectRoot,
+      nullthrows(asset.value.configPath),
+    ),
     nullthrows(asset.value.configKeyPath),
     asset.options,
   );
@@ -177,7 +202,7 @@ async function _generateFromAST(asset: CommittedAsset | UncommittedAsset) {
 export function getInvalidationId(invalidation: RequestInvalidation): string {
   switch (invalidation.type) {
     case 'file':
-      return 'file:' + invalidation.filePath;
+      return 'file:' + fromProjectPathRelative(invalidation.filePath);
     case 'env':
       return 'env:' + invalidation.key;
     case 'option':
@@ -208,7 +233,10 @@ export async function getInvalidationHash(
         // Only recompute the hash of this file if we haven't seen it already during this build.
         let fileHash = hashCache.get(invalidation.filePath);
         if (fileHash == null) {
-          fileHash = hashFile(options.inputFS, invalidation.filePath);
+          fileHash = hashFile(
+            options.inputFS,
+            fromProjectPath(options.projectRoot, invalidation.filePath),
+          );
           hashCache.set(invalidation.filePath, fileHash);
         }
         hashes += await fileHash;

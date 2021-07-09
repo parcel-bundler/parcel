@@ -23,6 +23,7 @@
     "@parcel/optimizer-cssnano": "2.0.0-frontbucket.77",
     "@parcel/optimizer-htmlnano": "2.0.0-frontbucket.77",
     "@parcel/optimizer-terser": "2.0.0-frontbucket.77",
+    "@parcel/optimizer-svgo": "2.0.0-frontbucket.77",
     "@parcel/packager-css": "2.0.0-frontbucket.77",
     "@parcel/packager-html": "2.0.0-frontbucket.77",
     "@parcel/packager-js": "2.0.0-frontbucket.77",
@@ -63,6 +64,7 @@
     "@parcel/transformer-typescript-types": "2.0.0-frontbucket.77",
     "@parcel/transformer-vue": "2.0.0-frontbucket.77",
     "@parcel/transformer-webmanifest": "2.0.0-frontbucket.77",
+    "@parcel/transformer-worklet": "2.0.0-frontbucket.77",
     "@parcel/transformer-yaml": "2.0.0-frontbucket.77"
   },
   "peerDependencies": {

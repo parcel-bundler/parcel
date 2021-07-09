@@ -11,11 +11,12 @@ import type {
   BundleTraversable,
   Dependency as IDependency,
   Environment as IEnvironment,
+  GraphVisitor,
   NamedBundle as INamedBundle,
   PackagedBundle as IPackagedBundle,
   Stats,
   Target as ITarget,
-  GraphVisitor,
+  BundleBehavior,
 } from '@parcel/types';
 import type BundleGraph from '../BundleGraph';
 
@@ -28,6 +29,8 @@ import {mapVisitor} from '../Graph';
 import Environment from './Environment';
 import Dependency, {dependencyToInternalDependency} from './Dependency';
 import Target from './Target';
+import {BundleBehaviorNames} from '../types';
+import {fromProjectPath} from '../projectPath';
 
 const internalBundleToBundle: DefaultWeakMap<
   ParcelOptions,
@@ -112,15 +115,16 @@ export class Bundle implements IBundle {
   }
 
   get env(): IEnvironment {
-    return new Environment(this.#bundle.env);
+    return new Environment(this.#bundle.env, this.#options);
   }
 
-  get isEntry(): ?boolean {
-    return this.#bundle.isEntry;
+  get needsStableName(): ?boolean {
+    return this.#bundle.needsStableName;
   }
 
-  get isInline(): ?boolean {
-    return this.#bundle.isInline;
+  get bundleBehavior(): ?BundleBehavior {
+    let bundleBehavior = this.#bundle.bundleBehavior;
+    return bundleBehavior != null ? BundleBehaviorNames[bundleBehavior] : null;
   }
 
   get isSplittable(): ?boolean {
@@ -128,7 +132,7 @@ export class Bundle implements IBundle {
   }
 
   get target(): ITarget {
-    return new Target(this.#bundle.target);
+    return new Target(this.#bundle.target, this.#options);
   }
 
   hasAsset(asset: IAsset): boolean {
@@ -175,7 +179,10 @@ export class Bundle implements IBundle {
             value: assetFromValue(node.value, this.#options),
           };
         } else if (node.type === 'dependency') {
-          return {type: 'dependency', value: new Dependency(node.value)};
+          return {
+            type: 'dependency',
+            value: new Dependency(node.value, this.#options),
+          };
         }
       }, visit),
     );
@@ -192,6 +199,7 @@ export class Bundle implements IBundle {
 export class NamedBundle extends Bundle implements INamedBundle {
   #bundle /*: InternalBundle */;
   #bundleGraph /*: BundleGraph */;
+  #options /*: ParcelOptions */;
 
   constructor(
     sentinel: mixed,
@@ -202,6 +210,7 @@ export class NamedBundle extends Bundle implements INamedBundle {
     super(sentinel, bundle, bundleGraph, options);
     this.#bundle = bundle; // Repeating for flow
     this.#bundleGraph = bundleGraph; // Repeating for flow
+    this.#options = options;
   }
 
   static get(
@@ -244,6 +253,7 @@ export class NamedBundle extends Bundle implements INamedBundle {
 export class PackagedBundle extends NamedBundle implements IPackagedBundle {
   #bundle /*: InternalBundle */;
   #bundleGraph /*: BundleGraph */;
+  #options /*: ParcelOptions */;
   #bundleInfo /*: ?PackagedBundleInfo */;
 
   constructor(
@@ -255,6 +265,7 @@ export class PackagedBundle extends NamedBundle implements IPackagedBundle {
     super(sentinel, bundle, bundleGraph, options);
     this.#bundle = bundle; // Repeating for flow
     this.#bundleGraph = bundleGraph; // Repeating for flow
+    this.#options = options; // Repeating for flow
   }
 
   static get(
@@ -299,7 +310,10 @@ export class PackagedBundle extends NamedBundle implements IPackagedBundle {
   }
 
   get filePath(): string {
-    return nullthrows(this.#bundleInfo).filePath;
+    return fromProjectPath(
+      this.#options.projectRoot,
+      nullthrows(this.#bundleInfo).filePath,
+    );
   }
 
   get stats(): Stats {

@@ -101,10 +101,6 @@ to send us your feedback or questions!
 
         analytics.track(event.type, {
           relevantDiagnostics: relevantDiagnostics.map(diagnostic => ({
-            filePath:
-              diagnostic.filePath != null
-                ? sanitizePaths(diagnostic.filePath, options)
-                : null,
             stack:
               diagnostic.stack != null
                 ? sanitizePaths(diagnostic.stack, options)

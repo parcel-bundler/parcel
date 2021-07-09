@@ -37,6 +37,7 @@ import createParcelBuildRequest from './requests/ParcelBuildRequest';
 import {Disposable} from '@parcel/events';
 import {init as initSourcemaps} from '@parcel/source-map';
 import {init as initHash} from '@parcel/hash';
+import {toProjectPath} from './projectPath';
 
 registerCoreWithSerializer();
 
@@ -362,12 +363,12 @@ export default class Parcel {
     }
   }
 
-  _getWatcherSubscription(): Promise<AsyncSubscription> {
+  async _getWatcherSubscription(): Promise<AsyncSubscription> {
     invariant(this.#watcherSubscription == null);
 
     let resolvedOptions = nullthrows(this.#resolvedOptions);
     let opts = getWatcherOptions(resolvedOptions);
-    return resolvedOptions.inputFS.watch(
+    let sub = await resolvedOptions.inputFS.watch(
       resolvedOptions.projectRoot,
       (err, events) => {
         if (err) {
@@ -375,7 +376,12 @@ export default class Parcel {
           return;
         }
 
-        let isInvalid = this.#requestTracker.respondToFSEvents(events);
+        let isInvalid = this.#requestTracker.respondToFSEvents(
+          events.map(e => ({
+            type: e.type,
+            path: toProjectPath(resolvedOptions.projectRoot, e.path),
+          })),
+        );
         if (isInvalid && this.#watchQueue.getNumWaiting() === 0) {
           if (this.#watchAbortController) {
             this.#watchAbortController.abort();
@@ -387,6 +393,7 @@ export default class Parcel {
       },
       opts,
     );
+    return {unsubscribe: () => sub.unsubscribe()};
   }
 
   // This is mainly for integration tests and it not public api!

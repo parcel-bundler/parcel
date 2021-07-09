@@ -1,9 +1,19 @@
 // @flow strict-local
 
 import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
-import type {BundleGroup} from '@parcel/types';
-import type {ParcelOptions} from './types';
+import type {
+  BundleGroup,
+  FilePath,
+  FileCreateInvalidation,
+  SourceLocation,
+} from '@parcel/types';
+import type {
+  ParcelOptions,
+  InternalFileCreateInvalidation,
+  InternalSourceLocation,
+} from './types';
 
+import invariant from 'assert';
 import baseX from 'base-x';
 import {hashObject} from '@parcel/utils';
 import {registerSerializableClass} from './serializer';
@@ -13,6 +23,7 @@ import Graph from './Graph';
 import ParcelConfig from './ParcelConfig';
 import {RequestGraph} from './RequestTracker';
 import Config from './public/Config';
+import {fromProjectPath, toProjectPath} from './projectPath';
 // flowlint-next-line untyped-import:off
 import packageJson from '../package.json';
 
@@ -45,7 +56,7 @@ export function registerCoreWithSerializer() {
     throw new Error('Expected package version to be a string');
   }
 
-  // $FlowFixMe
+  // $FlowFixMe[incompatible-cast]
   for (let [name, ctor] of (Object.entries({
     AssetGraph,
     Config,
@@ -114,4 +125,70 @@ export function hashFromOption(value: mixed): string {
   }
 
   return String(value);
+}
+
+export function invalidateOnFileCreateToInternal(
+  projectRoot: FilePath,
+  invalidation: FileCreateInvalidation,
+): InternalFileCreateInvalidation {
+  if (invalidation.glob != null) {
+    return {glob: toProjectPath(projectRoot, invalidation.glob)};
+  } else if (invalidation.filePath != null) {
+    return {
+      filePath: toProjectPath(projectRoot, invalidation.filePath),
+    };
+  } else {
+    invariant(
+      invalidation.aboveFilePath != null && invalidation.fileName != null,
+    );
+    return {
+      fileName: invalidation.fileName,
+      aboveFilePath: toProjectPath(projectRoot, invalidation.aboveFilePath),
+    };
+  }
+}
+
+export function fromInternalSourceLocation(
+  projectRoot: FilePath,
+  loc: ?InternalSourceLocation,
+): ?SourceLocation {
+  if (!loc) return loc;
+
+  return {
+    filePath: fromProjectPath(projectRoot, loc.filePath),
+    start: loc.start,
+    end: loc.end,
+  };
+}
+
+export function toInternalSourceLocation(
+  projectRoot: FilePath,
+  loc: ?SourceLocation,
+): ?InternalSourceLocation {
+  if (!loc) return loc;
+
+  return {
+    filePath: toProjectPath(projectRoot, loc.filePath),
+    start: loc.start,
+    end: loc.end,
+  };
+}
+export function toInternalSymbols<T: {|loc: ?SourceLocation|}>(
+  projectRoot: FilePath,
+  symbols: ?Map<Symbol, T>,
+): ?Map<
+  Symbol,
+  {|loc: ?InternalSourceLocation, ...$Rest<T, {|loc: ?SourceLocation|}>|},
+> {
+  if (!symbols) return symbols;
+
+  return new Map(
+    [...symbols].map(([k, {loc, ...v}]) => [
+      k,
+      {
+        ...v,
+        loc: toInternalSourceLocation(projectRoot, loc),
+      },
+    ]),
+  );
 }

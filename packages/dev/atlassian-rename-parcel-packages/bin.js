@@ -11,9 +11,10 @@ const {shouldReplace, getReplacementName} = require('./utils');
 const CORE_PACKAGENAME = '@parcel/core';
 const coreVersion = require('../../core/core/package.json').version;
 
-const jsFiles = glob.sync('packages/*/*/lib/**/*.js', {
+const jsFiles = glob.sync('(packages/*/*/lib/**/*.js|packages/*/*/**/*.d.ts)', {
   absolute: true,
   cwd: path.resolve(__dirname, '../../..'),
+  ignore: '**/node_modules/**',
 });
 
 for (const filePath of jsFiles) {
@@ -21,6 +22,7 @@ for (const filePath of jsFiles) {
     babelrc: false,
     configFile: false,
     plugins: [
+      '@babel/syntax-typescript',
       [
         'babel-plugin-module-resolver',
         {

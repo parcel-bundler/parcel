@@ -23,7 +23,7 @@ import ThrowableDiagnostic, {
   md,
 } from '@parcel/diagnostic';
 import micromatch from 'micromatch';
-import builtins from './builtins';
+import builtins, {empty} from './builtins';
 import nullthrows from 'nullthrows';
 // $FlowFixMe this is untyped
 import _Module from 'module';
@@ -43,15 +43,14 @@ type ResolvedFile = {|
   pkg: InternalPackageJSON | null,
 |};
 
-type Env = {
+interface Env {
   +includeNodeModules:
     | boolean
     | Array<PackageName>
-    | {[PackageName]: boolean, ...},
-  isBrowser(): boolean,
-  isNode(): boolean,
-  ...
-};
+    | {[PackageName]: boolean, ...};
+  isBrowser(): boolean;
+  isNode(): boolean;
+}
 
 type Aliases =
   | string
@@ -192,6 +191,8 @@ export default class NodeResolver {
       if (err instanceof ThrowableDiagnostic) {
         return {
           diagnostics: err.diagnostics,
+          invalidateOnFileCreate: ctx.invalidateOnFileCreate,
+          invalidateOnFileChange: [...ctx.invalidateOnFileChange],
         };
       } else {
         throw err;
@@ -308,9 +309,9 @@ export default class NodeResolver {
       if (alternativeModules.length) {
         throw new ThrowableDiagnostic({
           diagnostic: {
-            message: md`Cannot find module ${nullthrows(resolved).moduleName}`,
+            message: md`Cannot find module ${nullthrows(resolved?.moduleName)}`,
             hints: alternativeModules.map(r => {
-              return `Did you mean __${r}__?`;
+              return `Did you mean '__${r}__'?`;
             }),
           },
         });
@@ -437,7 +438,7 @@ export default class NodeResolver {
             parentdir,
           )}'.`,
           hints: potentialFiles.map(r => {
-            return `Did you mean __${r}__?`;
+            return `Did you mean '__${r}__'?`;
           }),
         },
       });
@@ -447,12 +448,16 @@ export default class NodeResolver {
   }
 
   findBuiltin(filename: string, env: Env): ?Module {
-    if (builtins[filename]) {
+    const isExplicitNode = filename.startsWith('node:');
+    if (isExplicitNode || builtins[filename]) {
       if (env.isNode()) {
         return null;
       }
 
-      return {filePath: builtins[filename]};
+      if (isExplicitNode) {
+        filename = filename.substr(5);
+      }
+      return {filePath: builtins[filename] || empty};
     }
   }
 
@@ -588,20 +593,22 @@ export default class NodeResolver {
         throw new ThrowableDiagnostic({
           diagnostic: {
             message: md`Could not load '${fileSpecifier}' from module '${pkg.name}' found in package.json#${failedEntry.field}`,
-            language: 'json',
-            filePath: pkg.pkgfile,
-            codeFrame: {
-              code: pkgContent,
-              codeHighlights: generateJSONCodeHighlights(pkgContent, [
-                {
-                  key: `/${failedEntry.field}`,
-                  type: 'value',
-                  message: md`'${fileSpecifier}' does not exist${
-                    alternative ? `, did you mean '${alternative}'?` : ''
-                  }'`,
-                },
-              ]),
-            },
+            codeFrames: [
+              {
+                filePath: pkg.pkgfile,
+                language: 'json',
+                code: pkgContent,
+                codeHighlights: generateJSONCodeHighlights(pkgContent, [
+                  {
+                    key: `/${failedEntry.field}`,
+                    type: 'value',
+                    message: md`'${fileSpecifier}' does not exist${
+                      alternative ? `, did you mean '${alternative}'?` : ''
+                    }'`,
+                  },
+                ]),
+              },
+            ],
           },
         });
       }
