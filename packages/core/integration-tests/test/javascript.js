@@ -3391,6 +3391,18 @@ describe('javascript', function() {
     assert.equal(res.default, '<p>test</p>\n');
   });
 
+  it('should inline an HTML bundle and inline scripts with `bundle-text`', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/bundle-text/inline.js'),
+    );
+
+    let res = await run(b);
+    assert.equal(
+      res.default,
+      "<p>test</p>\n<script>console.log('hi');\n\n</script>\n",
+    );
+  });
+
   it("should inline a JS bundle's compiled text with `bundle-text` and HMR enabled", async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/bundle-text/javascript.js'),
