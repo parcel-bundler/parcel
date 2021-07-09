@@ -1,8 +1,8 @@
 {
   "name": "@parcel/eslint-config-browser",
   "private": true,
-  "version": "2.0.0",
+  "version": "2.0.3",
   "dependencies": {
-    "@parcel/eslint-config": "2.0.0"
+    "@parcel/eslint-config": "2.0.3"
   }
 }
