@@ -185,4 +185,21 @@ describe('webmanifest', function() {
       },
     );
   });
+
+  it('should work when there is a target in package.json', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/webmanifest-targets/index.html'),
+    );
+
+    await assertBundles(b, [
+      {
+        name: 'index.html',
+        assets: ['index.html'],
+      },
+      {
+        name: 'manifest.webmanifest',
+        assets: ['manifest.json'],
+      },
+    ]);
+  });
 });
