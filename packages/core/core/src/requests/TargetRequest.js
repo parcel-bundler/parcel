@@ -670,6 +670,36 @@ export class TargetResolver {
           });
         }
 
+        if (descriptor.scopeHoist === false) {
+          let contents: string =
+            typeof pkgContents === 'string'
+              ? pkgContents
+              : // $FlowFixMe
+                JSON.stringify(pkgContents, null, '\t');
+          throw new ThrowableDiagnostic({
+            diagnostic: {
+              message: 'Scope hoisting cannot be disabled for library targets.',
+              origin: '@parcel/core',
+              codeFrames: [
+                {
+                  language: 'json',
+                  filePath: pkgFilePath ?? undefined,
+                  code: contents,
+                  codeHighlights: generateJSONCodeHighlights(contents, [
+                    {
+                      key: `/targets/${targetName}/scopeHoist`,
+                      type: 'value',
+                    },
+                  ]),
+                },
+              ],
+              hints: [
+                `The "${targetName}" target is meant for libraries. Either remove the "scopeHoist" option, or use a different target name.`,
+              ],
+            },
+          });
+        }
+
         targets.set(targetName, {
           name: targetName,
           distDir,
@@ -690,10 +720,8 @@ export class TargetResolver {
             isLibrary: true,
             shouldOptimize:
               this.options.defaultTargetOptions.shouldOptimize &&
-              descriptor.optimize !== false,
-            shouldScopeHoist:
-              this.options.defaultTargetOptions.shouldScopeHoist &&
-              descriptor.scopeHoist !== false,
+              descriptor.optimize === true,
+            shouldScopeHoist: true,
             sourceMap: normalizeSourceMap(this.options, descriptor.sourceMap),
           }),
           loc: toInternalSourceLocation(this.options.projectRoot, loc),
@@ -780,6 +808,46 @@ export class TargetResolver {
           pkgContents,
         );
 
+        if (descriptor.scopeHoist === false && descriptor.isLibrary) {
+          let contents: string =
+            typeof pkgContents === 'string'
+              ? pkgContents
+              : // $FlowFixMe
+                JSON.stringify(pkgContents, null, '\t');
+          throw new ThrowableDiagnostic({
+            diagnostic: {
+              message: 'Scope hoisting cannot be disabled for library targets.',
+              origin: '@parcel/core',
+              codeFrames: [
+                {
+                  language: 'json',
+                  filePath: pkgFilePath ?? undefined,
+                  code: contents,
+                  codeHighlights: generateJSONCodeHighlights(contents, [
+                    {
+                      key: `/targets/${targetName}/scopeHoist`,
+                      type: 'value',
+                    },
+                    {
+                      key: `/targets/${targetName}/isLibrary`,
+                      type: 'value',
+                    },
+                  ]),
+                },
+              ],
+              hints: [`Either remove the "scopeHoist" or "isLibrary" option.`],
+            },
+          });
+        }
+
+        let isLibrary =
+          descriptor.isLibrary ??
+          this.options.defaultTargetOptions.isLibrary ??
+          false;
+        let shouldScopeHoist = isLibrary
+          ? true
+          : this.options.defaultTargetOptions.shouldScopeHoist;
+
         targets.set(targetName, {
           name: targetName,
           distDir: toProjectPath(
@@ -800,15 +868,15 @@ export class TargetResolver {
               this.options.defaultTargetOptions.outputFormat ??
               inferredOutputFormat ??
               undefined,
-            isLibrary:
-              descriptor.isLibrary ??
-              this.options.defaultTargetOptions.isLibrary,
+            isLibrary,
             shouldOptimize:
               this.options.defaultTargetOptions.shouldOptimize &&
-              descriptor.optimize !== false,
+              // Libraries are not optimized by default, users must explicitly configure this.
+              (isLibrary
+                ? descriptor.optimize === true
+                : descriptor.optimize !== false),
             shouldScopeHoist:
-              this.options.defaultTargetOptions.shouldScopeHoist &&
-              descriptor.scopeHoist !== false,
+              shouldScopeHoist && descriptor.scopeHoist !== false,
             sourceMap: normalizeSourceMap(this.options, descriptor.sourceMap),
           }),
           loc: toInternalSourceLocation(this.options.projectRoot, loc),
@@ -833,7 +901,10 @@ export class TargetResolver {
           outputFormat: this.options.defaultTargetOptions.outputFormat,
           isLibrary: this.options.defaultTargetOptions.isLibrary,
           shouldOptimize: this.options.defaultTargetOptions.shouldOptimize,
-          shouldScopeHoist: this.options.defaultTargetOptions.shouldScopeHoist,
+          shouldScopeHoist:
+            this.options.defaultTargetOptions.shouldScopeHoist ??
+            (this.options.mode === 'production' &&
+              !this.options.defaultTargetOptions.isLibrary),
           sourceMap: this.options.defaultTargetOptions.sourceMaps
             ? {}
             : undefined,
