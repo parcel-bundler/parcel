@@ -738,8 +738,15 @@ export default (new Transformer({
       });
     }
 
+    // ATLASSIAN: Rename helpers from rust
+    let compiledCodeStr = compiledCode.toString();
+    compiledCodeStr.replace(
+      /@parcel\/transformer-js\/src\/esmodule-helpers\.js/g,
+      '@parcel/transformer-js/src/esmodule-helpers.js',
+    );
+
     asset.type = 'js';
-    asset.setBuffer(compiledCode);
+    asset.setCode(compiledCodeStr);
 
     if (map) {
       let sourceMap = new SourceMap(options.projectRoot);
