@@ -1,6 +1,6 @@
 {
   "name": "@parcel/resolver-atlassian-ssr",
-  "version": "2.0.0-frontbucket.77",
+  "version": "2.0.0",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -15,8 +15,8 @@
     "parcel": "^2.0.0-alpha.1.1"
   },
   "dependencies": {
-    "@parcel/node-resolver-core": "2.0.0-frontbucket.77",
-    "@parcel/plugin": "2.0.0-frontbucket.77"
+    "@parcel/node-resolver-core": "2.0.0",
+    "@parcel/plugin": "2.0.0"
   },
   "devDependencies": {
     "@babel/core": "^7.2.2"

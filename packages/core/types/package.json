@@ -1,6 +1,6 @@
 {
   "name": "@parcel/types",
-  "version": "2.0.0-frontbucket.77",
+  "version": "2.0.0",
   "license": "MIT",
   "main": "src/index.js",
   "types": "lib/index.d.ts",
@@ -16,12 +16,12 @@
     "check-ts": "tsc --noEmit lib/index.d.ts"
   },
   "dependencies": {
+    "@parcel/cache": "2.0.0",
+    "@parcel/diagnostic": "2.0.0",
+    "@parcel/fs": "2.0.0",
+    "@parcel/package-manager": "2.0.0",
     "@parcel/source-map": "2.0.0-rc.5",
-    "@parcel/fs": "2.0.0-frontbucket.77",
-    "@parcel/workers": "2.0.0-frontbucket.77",
-    "@parcel/package-manager": "2.0.0-frontbucket.77",
-    "@parcel/diagnostic": "2.0.0-frontbucket.77",
-    "@parcel/cache": "2.0.0-frontbucket.77",
+    "@parcel/workers": "2.0.0",
     "utility-types": "^3.10.0"
   }
 }

@@ -1,6 +1,6 @@
 {
   "name": "@parcel/transformer-js",
-  "version": "2.0.0-frontbucket.77",
+  "version": "2.0.0",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -30,18 +30,18 @@
     "*.node"
   ],
   "dependencies": {
-    "@parcel/diagnostic": "2.0.0-frontbucket.77",
-    "@parcel/plugin": "2.0.0-frontbucket.77",
+    "@parcel/diagnostic": "2.0.0",
+    "@parcel/plugin": "2.0.0",
     "@parcel/source-map": "2.0.0-rc.5",
-    "@parcel/utils": "2.0.0-frontbucket.77",
+    "@parcel/utils": "2.0.0",
     "@swc/helpers": "^0.2.11",
     "browserslist": "^4.6.6",
     "detect-libc": "^1.0.3",
     "micromatch": "^4.0.2",
     "nullthrows": "^1.1.1",
     "regenerator-runtime": "^0.13.7",
-    "semver": "^5.4.1",
-    "self-published": "npm:@parcel/transformer-js@2.0.0-nightly.762"
+    "self-published": "npm:@parcel/transformer-js@2.0.0-nightly.762",
+    "semver": "^5.4.1"
   },
   "devDependencies": {
     "@napi-rs/cli": "1.0.4"

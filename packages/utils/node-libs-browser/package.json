@@ -1,6 +1,6 @@
 {
   "name": "@parcel/node-libs-browser",
-  "version": "2.0.0-frontbucket.77",
+  "version": "2.0.0",
   "author": "Tobias Koppers @sokra",
   "description": "The node core libs for in browser usage.",
   "license": "MIT",

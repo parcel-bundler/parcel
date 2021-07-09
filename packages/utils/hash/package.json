@@ -1,6 +1,6 @@
 {
   "name": "@parcel/hash",
-  "version": "2.0.0-beta.3.1",
+  "version": "2.0.0",
   "license": "MIT",
   "main": "index.js",
   "browser": "browser.js",
