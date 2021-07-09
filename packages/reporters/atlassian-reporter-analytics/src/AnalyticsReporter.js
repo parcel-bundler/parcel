@@ -36,8 +36,7 @@ errors such as syntax errors should not be included in these reports. Other erro
 
 Source code for our version of Parcel is available at https://bitbucket.org/atlassian/parcel/
 
-Please visit #parcel-frontbucket (for Frontbucket) or #parcel (for general discussion) in Slack
-to send us your feedback or questions!
+Please visit #help-parcel for help or #parcel for general discussion in Slack.
 `,
         });
         userNotified = true;
