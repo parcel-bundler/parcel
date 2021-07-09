@@ -26,6 +26,7 @@ export default (new Validator({
         if (!result.errorCount && !result.warningCount) continue;
 
         let codeframe: DiagnosticCodeFrame = {
+          filePath: asset.filePath,
           code: result.source,
           codeHighlights: result.messages.map(message => {
             let start = {
@@ -50,8 +51,7 @@ export default (new Validator({
         let diagnostic = {
           origin: '@parcel/validator-eslint',
           message: `ESLint found **${result.errorCount}** __errors__ and **${result.warningCount}** __warnings__.`,
-          filePath: asset.filePath,
-          codeFrame: codeframe,
+          codeFrames: [codeframe],
         };
 
         if (result.errorCount > 0) {

@@ -88,6 +88,7 @@ function urlPlugin({asset}) {
         },
       });
 
+      // $FlowFixMe[method-unbinding]
       visitor.run = visitor.visit;
       pluginManager.addVisitor(visitor);
     },

@@ -1,7 +1,7 @@
 // @flow
 import type {ReadStream, Stats} from 'fs';
 import type {Writable} from 'stream';
-import type {FileOptions, FileSystem} from './types';
+import type {FileOptions, FileSystem, Encoding} from './types';
 import type {FilePath} from '@parcel/types';
 import type {
   Event,
@@ -42,10 +42,10 @@ export class NodeFS implements FileSystem {
   ncp: any = promisify(ncp);
   createReadStream: (path: string, options?: any) => ReadStream =
     fs.createReadStream;
-  cwd: () => string = process.cwd;
-  chdir: (directory: string) => void = process.chdir;
+  cwd: () => string = () => process.cwd();
+  chdir: (directory: string) => void = directory => process.chdir(directory);
 
-  statSync: (path: string) => Stats = fs.statSync;
+  statSync: (path: string) => Stats = path => fs.statSync(path);
   realpathSync: (path: string, cache?: any) => string =
     process.platform === 'win32' ? fs.realpathSync : fs.realpathSync.native;
   existsSync: (path: string) => boolean = fs.existsSync;
@@ -79,7 +79,7 @@ export class NodeFS implements FileSystem {
     await fs.promises.rename(tmpFilePath, filePath);
   }
 
-  readFileSync(filePath: FilePath, encoding?: buffer$Encoding): any {
+  readFileSync(filePath: FilePath, encoding?: Encoding): any {
     if (encoding != null) {
       return fs.readFileSync(filePath, encoding);
     }

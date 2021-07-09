@@ -13,6 +13,7 @@ import path from 'path';
 import {NamedBundle} from '../public/Bundle';
 import {TapStream} from '@parcel/utils';
 import {Readable, Transform} from 'stream';
+import {fromProjectPath, toProjectPath, joinProjectPath} from '../projectPath';
 
 const BOUNDARY_LENGTH = HASH_REF_PREFIX.length + 32 - 1;
 
@@ -67,7 +68,7 @@ async function run({input, options, api}: RunInput) {
     name = name.replace(thisHashReference, thisNameHash);
   }
 
-  let filePath = path.join(bundle.target.distDir, name);
+  let filePath = joinProjectPath(bundle.target.distDir, name);
 
   // Watch the bundle and source map for deletion.
   // Also watch the dist dir because invalidateOnFileDelete does not currently
@@ -78,11 +79,14 @@ async function run({input, options, api}: RunInput) {
 
   let cacheKeys = info.cacheKeys;
   let mapKey = cacheKeys.map;
+  let fullPath = fromProjectPath(options.projectRoot, filePath);
   if (mapKey && bundle.env.sourceMap && !bundle.env.sourceMap.inline) {
-    api.invalidateOnFileDelete(filePath + '.map');
+    api.invalidateOnFileDelete(
+      toProjectPath(options.projectRoot, fullPath + '.map'),
+    );
   }
 
-  let dir = path.dirname(filePath);
+  let dir = path.dirname(fullPath);
   await outputFS.mkdirp(dir); // ? Got rid of dist exists, is this an expensive operation
 
   // Use the file mode from the entry asset as the file mode for the bundle.
@@ -98,7 +102,7 @@ async function run({input, options, api}: RunInput) {
   let contentStream = options.cache.getStream(cacheKeys.content);
   let size = await writeFileStream(
     outputFS,
-    filePath,
+    fullPath,
     contentStream,
     info.hashReferences,
     hashRefToNameHash,
@@ -114,7 +118,7 @@ async function run({input, options, api}: RunInput) {
     let mapStream = options.cache.getStream(mapKey);
     await writeFileStream(
       outputFS,
-      filePath + '.map',
+      fullPath + '.map',
       mapStream,
       info.hashReferences,
       hashRefToNameHash,

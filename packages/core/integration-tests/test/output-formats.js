@@ -128,8 +128,6 @@ describe('output formats', function() {
         path.join(__dirname, '/integration/formats/commonjs-external/named.js'),
       );
 
-      let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
-      assert(/var {add: \s*\$.+?\$add\s*} = require\("lodash"\)/.test(dist));
       assert.equal((await run(b)).bar, 3);
     });
 
@@ -141,17 +139,6 @@ describe('output formats', function() {
         ),
       );
 
-      let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
-      assert(
-        /var {assign: \s*\$.+?\$assign\s*} = require\("lodash\/fp"\)/.test(
-          dist,
-        ),
-      );
-      let match = dist.match(
-        /var {\s*assign:\s*(.*)\s*} = require\("lodash"\)/,
-      );
-      assert(match);
-      assert.notEqual(match[1], 'assign');
       assert.equal((await run(b)).bar, true);
     });
 
@@ -177,7 +164,7 @@ describe('output formats', function() {
       );
 
       let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
-      assert(dist.includes('= $parcel$interopDefault(require("lodash"))'));
+      assert(dist.includes('$parcel$interopDefault'));
       assert.equal((await run(b)).bar, 3);
     });
 
@@ -204,8 +191,6 @@ describe('output formats', function() {
         ),
       );
 
-      let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
-      assert(dist.includes('= require("lodash").add'));
       assert.equal((await run(b)).bar, 3);
     });
 
@@ -217,9 +202,6 @@ describe('output formats', function() {
         ),
       );
 
-      let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
-      assert(dist.includes('= require("lodash/fp").assign;'));
-      assert(dist.includes('= require("lodash").assign;'));
       assert.equal((await run(b)).bar, true);
     });
 
@@ -231,10 +213,6 @@ describe('output formats', function() {
         ),
       );
 
-      let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
-      assert(dist.includes('= require("lodash")'));
-      assert(dist.includes('= temp.add'));
-      assert(dist.includes('= temp.subtract'));
       assert.equal((await run(b)).bar, 2);
     });
 
@@ -246,8 +224,7 @@ describe('output formats', function() {
         ),
       );
 
-      let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
-      assert(dist.includes('= require("lodash").add'));
+      assert.equal((await run(b, {require})).bar, 3);
     });
 
     it('should support commonjs output with old node without destructuring (multiple)', async function() {
@@ -258,10 +235,7 @@ describe('output formats', function() {
         ),
       );
 
-      let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
-      assert(dist.includes('= require("lodash")'));
-      assert(dist.includes('= temp.add'));
-      assert(dist.includes('= temp.subtract'));
+      assert.equal((await run(b, {require})).bar, 2);
     });
 
     it('should support importing sibling bundles in library mode', async function() {
@@ -369,14 +343,18 @@ describe('output formats', function() {
 
     it('should throw an error on missing export with esmodule input and sideEffects: false', async function() {
       let message = "other.js does not export 'a'";
-      let source = 'missing-export.js';
+      let source = path.join(
+        __dirname,
+        '/integration/formats/commonjs-sideeffects',
+        'missing-export.js',
+      );
       await assert.rejects(
         () =>
           bundle(
             path.join(
               __dirname,
               '/integration/formats/commonjs-sideeffects',
-              source,
+              'missing-export.js',
             ),
           ),
         {
@@ -386,22 +364,24 @@ describe('output formats', function() {
             {
               message,
               origin: '@parcel/core',
-              filePath: source,
-              language: 'js',
-              codeFrame: {
-                codeHighlights: [
-                  {
-                    start: {
-                      line: 1,
-                      column: 10,
+              codeFrames: [
+                {
+                  filePath: source,
+                  language: 'js',
+                  codeHighlights: [
+                    {
+                      start: {
+                        line: 1,
+                        column: 10,
+                      },
+                      end: {
+                        line: 1,
+                        column: 15,
+                      },
                     },
-                    end: {
-                      line: 1,
-                      column: 15,
-                    },
-                  },
-                ],
-              },
+                  ],
+                },
+              ],
             },
           ],
         },
@@ -446,6 +426,126 @@ describe('output formats', function() {
         ),
       );
       assert.deepEqual(await run(b), {foo: 'foo'});
+    });
+
+    it('should compile workers to statically analyzable URL expressions', async function() {
+      let b = await bundle(
+        path.join(__dirname, '/integration/workers-module/index.js'),
+        {
+          mode: 'production',
+          defaultTargetOptions: {
+            outputFormat: 'commonjs',
+            shouldScopeHoist: true,
+            shouldOptimize: false,
+            isLibrary: true,
+          },
+        },
+      );
+
+      let contents = await outputFS.readFile(
+        b.getBundles()[0].filePath,
+        'utf8',
+      );
+      let workerBundle = b
+        .getBundles()
+        .find(b => b.name.startsWith('dedicated-worker'));
+      let sharedWorkerBundle = b
+        .getBundles()
+        .find(b => b.name.startsWith('shared-worker'));
+      assert(
+        contents.includes(
+          `new Worker(new URL("${path.basename(
+            workerBundle.filePath,
+          )}", "file:" + __filename)`,
+        ),
+      );
+      assert(
+        contents.includes(
+          `new SharedWorker(new URL("${path.basename(
+            sharedWorkerBundle.filePath,
+          )}", "file:" + __filename)`,
+        ),
+      );
+    });
+
+    it('should compile url: pipeline dependencies to statically analyzable URL expressions for libraries', async function() {
+      let b = await bundle(
+        path.join(__dirname, '/integration/worklet/pipeline.js'),
+        {
+          mode: 'production',
+          defaultTargetOptions: {
+            outputFormat: 'commonjs',
+            shouldScopeHoist: true,
+            shouldOptimize: false,
+            isLibrary: true,
+          },
+        },
+      );
+
+      let contents = await outputFS.readFile(
+        b.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert(
+        contents.includes(
+          `new URL("${path.basename(
+            b.getBundles()[1].filePath,
+          )}", 'file:' + __filename)`,
+        ),
+      );
+    });
+
+    it('should URL dependencies to statically analyzable URL expressions for libraries', async function() {
+      let b = await bundle(
+        path.join(__dirname, '/integration/worklet/url.js'),
+        {
+          mode: 'production',
+          defaultTargetOptions: {
+            outputFormat: 'commonjs',
+            shouldScopeHoist: true,
+            shouldOptimize: false,
+            isLibrary: true,
+          },
+        },
+      );
+
+      let contents = await outputFS.readFile(
+        b.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert(
+        contents.includes(
+          `new URL("${path.basename(
+            b.getBundles()[1].filePath,
+          )}", "file:" + __filename)`,
+        ),
+      );
+    });
+
+    it('should support live binding of external modules', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/formats/commonjs-live-externals/a.js',
+        ),
+      );
+
+      let external = {
+        foo: 1,
+        setFoo(f) {
+          this.foo = f;
+        },
+      };
+
+      let out = [];
+      await run(b, {
+        require: () => external,
+        output(o) {
+          out.push(o);
+        },
+      });
+
+      assert.deepEqual(out, [1, 2]);
     });
   });
 
@@ -659,7 +759,7 @@ describe('output formats', function() {
       ]);
 
       let dist = await outputFS.readFile(
-        b.getBundles().find(b => !b.isEntry).filePath,
+        b.getBundles().find(b => !b.needsStableName).filePath,
         'utf8',
       );
       assert(dist.includes('$parcel$interopDefault'));
@@ -715,7 +815,7 @@ describe('output formats', function() {
       );
 
       let async = await outputFS.readFile(
-        b.getChildBundles(b.getBundles().find(b => b.isEntry))[0].filePath,
+        b.getChildBundles(b.getBundles()[0])[0].filePath,
         'utf8',
       );
       assert(!async.includes('$import$'));
@@ -724,11 +824,18 @@ describe('output formats', function() {
 
     it('should throw an error on missing export with esmodule output and sideEffects: false', async function() {
       let message = "b.js does not export 'a'";
-      let source = 'missing-export.js';
+      let source = path.join(
+        __dirname,
+        'integration/formats/esm-sideeffects',
+        'missing-export.js',
+      );
       await assert.rejects(
         () =>
           bundle(
-            path.join(__dirname, 'integration/formats/esm-sideeffects', source),
+            path.join(
+              __dirname,
+              'integration/formats/esm-sideeffects/missing-export.js',
+            ),
           ),
         {
           name: 'BuildError',
@@ -737,22 +844,24 @@ describe('output formats', function() {
             {
               message,
               origin: '@parcel/core',
-              filePath: source,
-              language: 'js',
-              codeFrame: {
-                codeHighlights: [
-                  {
-                    start: {
-                      line: 1,
-                      column: 10,
+              codeFrames: [
+                {
+                  filePath: source,
+                  language: 'js',
+                  codeHighlights: [
+                    {
+                      start: {
+                        line: 1,
+                        column: 10,
+                      },
+                      end: {
+                        line: 1,
+                        column: 15,
+                      },
                     },
-                    end: {
-                      line: 1,
-                      column: 15,
-                    },
-                  },
-                ],
-              },
+                  ],
+                },
+              ],
             },
           ],
         },
@@ -825,7 +934,7 @@ describe('output formats', function() {
         .find(b => !b.filePath.includes('async'));
       assert(
         workerBundleContents.includes(
-          `importScripts("./${path.basename(syncBundle.filePath)}")`,
+          `import "./${path.basename(syncBundle.filePath)}"`,
         ),
       );
       assert(
@@ -938,9 +1047,9 @@ describe('output formats', function() {
       );
       assert(
         new RegExp(
-          'Promise.all\\(\\[\\n.+?getBundleURL\\(\\) \\+ "' +
+          'Promise.all\\(\\[\\n.+?new URL\\("' +
             path.basename(asyncCssBundle.filePath) +
-            '"\\),\\n\\s*import\\("\\.\\/' +
+            '", import.meta.url\\).toString\\(\\)\\),\\n\\s*import\\("\\.\\/' +
             path.basename(asyncJsBundle.filePath) +
             '"\\)\\n\\s*\\]\\)',
         ).test(entry),
@@ -993,9 +1102,7 @@ describe('output formats', function() {
         // async import both bundles in parallel for performance
         assert(
           new RegExp(
-            `import\\("\\./${path.basename(
-              sharedBundle.filePath,
-            )}"\\),\\n\\s*import\\("./${path.basename(bundle.filePath)}"\\)`,
+            `import\\("\\./" \\+ .+\\.resolve\\("${sharedBundle.publicId}"\\)\\),\\n\\s*import\\("./" \\+ .+\\.resolve\\("${bundle.publicId}"\\)\\)`,
           ).test(entry),
         );
       }
@@ -1049,22 +1156,24 @@ describe('output formats', function() {
           {
             message,
             origin: '@parcel/packager-js',
-            filePath: source,
-            language: 'js',
-            codeFrame: {
-              codeHighlights: [
-                {
-                  start: {
-                    line: 1,
-                    column: 16,
+            codeFrames: [
+              {
+                filePath: source,
+                language: 'js',
+                codeHighlights: [
+                  {
+                    start: {
+                      line: 1,
+                      column: 16,
+                    },
+                    end: {
+                      line: 1,
+                      column: 40,
+                    },
                   },
-                  end: {
-                    line: 1,
-                    column: 40,
-                  },
-                },
-              ],
-            },
+                ],
+              },
+            ],
           },
         ],
       });
@@ -1107,6 +1216,144 @@ describe('output formats', function() {
 
       let ns = await run(b);
       assert.strictEqual(ns.fib(5), 8);
+    });
+
+    it('should support ESM output from CJS input', async function() {
+      let b = await bundle(
+        path.join(__dirname, '/integration/formats/esm-cjs/a.js'),
+      );
+
+      let ns = await run(b);
+      assert.deepEqual(ns.test, true);
+      assert.deepEqual(ns.default, {test: true});
+    });
+
+    it('should support outputting .mjs files', async function() {
+      let b = await bundle(
+        path.join(__dirname, '/integration/formats/esm-mjs/index.js'),
+      );
+
+      let filePath = b.getBundles()[0].filePath;
+      assert(filePath.endsWith('.mjs'));
+      let output = await outputFS.readFile(filePath, 'utf8');
+      assert(output.includes('import '));
+    });
+
+    it('should support outputting ESM in .js files with "type": "module"', async function() {
+      let b = await bundle(
+        path.join(__dirname, '/integration/formats/esm-type-module/index.js'),
+      );
+
+      let filePath = b.getBundles()[0].filePath;
+      assert(filePath.endsWith('.js'));
+      let output = await outputFS.readFile(filePath, 'utf8');
+      assert(output.includes('import '));
+    });
+
+    it('.cjs extension should override "type": "module"', async function() {
+      let b = await bundle(
+        path.join(__dirname, '/integration/formats/cjs-type-module/index.js'),
+      );
+
+      let filePath = b.getBundles()[0].filePath;
+      assert(filePath.endsWith('.cjs'));
+      let output = await outputFS.readFile(filePath, 'utf8');
+      assert(!output.includes('import '));
+      assert(output.includes('require('));
+    });
+
+    it('should compile workers to statically analyzable URL expressions', async function() {
+      let b = await bundle(
+        path.join(__dirname, '/integration/workers-module/index.js'),
+        {
+          mode: 'production',
+          defaultTargetOptions: {
+            outputFormat: 'esmodule',
+            shouldScopeHoist: true,
+            shouldOptimize: false,
+            isLibrary: true,
+          },
+        },
+      );
+
+      let contents = await outputFS.readFile(
+        b.getBundles()[0].filePath,
+        'utf8',
+      );
+      let workerBundle = b
+        .getBundles()
+        .find(b => b.name.startsWith('dedicated-worker'));
+      let sharedWorkerBundle = b
+        .getBundles()
+        .find(b => b.name.startsWith('shared-worker'));
+      assert(
+        contents.includes(
+          `new Worker(new URL("${path.basename(
+            workerBundle.filePath,
+          )}", import.meta.url)`,
+        ),
+      );
+      assert(
+        contents.includes(
+          `new SharedWorker(new URL("${path.basename(
+            sharedWorkerBundle.filePath,
+          )}", import.meta.url)`,
+        ),
+      );
+    });
+
+    it('should compile url: pipeline dependencies to statically analyzable URL expressions for libraries', async function() {
+      let b = await bundle(
+        path.join(__dirname, '/integration/worklet/pipeline.js'),
+        {
+          mode: 'production',
+          defaultTargetOptions: {
+            outputFormat: 'esmodule',
+            shouldScopeHoist: true,
+            shouldOptimize: false,
+            isLibrary: true,
+          },
+        },
+      );
+
+      let contents = await outputFS.readFile(
+        b.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert(
+        contents.includes(
+          `new URL("${path.basename(
+            b.getBundles()[1].filePath,
+          )}", import.meta.url)`,
+        ),
+      );
+    });
+
+    it('should URL dependencies to statically analyzable URL expressions for libraries', async function() {
+      let b = await bundle(
+        path.join(__dirname, '/integration/worklet/url.js'),
+        {
+          mode: 'production',
+          defaultTargetOptions: {
+            outputFormat: 'esmodule',
+            shouldScopeHoist: true,
+            shouldOptimize: false,
+            isLibrary: true,
+          },
+        },
+      );
+
+      let contents = await outputFS.readFile(
+        b.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert(
+        contents.includes(
+          `new URL("${path.basename(
+            b.getBundles()[1].filePath,
+          )}", import.meta.url)`,
+        ),
+      );
     });
   });
 
@@ -1172,7 +1419,7 @@ describe('output formats', function() {
       assertBundles(b, [
         {
           type: 'js',
-          assets: ['bundle-url.js', 'get-worker-url.js', 'index.js'],
+          assets: ['bundle-manifest.js', 'get-worker-url.js', 'index.js'],
         },
         {type: 'html', assets: ['index.html']},
         {type: 'js', assets: ['lodash.js']},
@@ -1232,21 +1479,23 @@ describe('output formats', function() {
           {
             message,
             origin: '@parcel/packager-js',
-            filePath: source,
-            codeFrame: {
-              codeHighlights: [
-                {
-                  start: {
-                    line: 1,
-                    column: 21,
+            codeFrames: [
+              {
+                filePath: source,
+                codeHighlights: [
+                  {
+                    start: {
+                      line: 1,
+                      column: 21,
+                    },
+                    end: {
+                      line: 1,
+                      column: 28,
+                    },
                   },
-                  end: {
-                    line: 1,
-                    column: 28,
-                  },
-                },
-              ],
-            },
+                ],
+              },
+            ],
           },
         ],
       });

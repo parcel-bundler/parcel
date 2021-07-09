@@ -174,7 +174,7 @@ export class DevPackager {
       let entryMap;
       let mapBuffer = script.mapBuffer;
       if (mapBuffer) {
-        entryMap = new SourceMap(mapBuffer);
+        entryMap = new SourceMap(this.options.projectRoot, mapBuffer);
       }
       contents += replaceScriptDependencies(
         this.bundleGraph,
@@ -226,7 +226,7 @@ export class DevPackager {
     return (
       !this.bundleGraph.hasParentBundleOfType(this.bundle, 'js') ||
       this.bundle.env.isIsolated() ||
-      !!this.bundle.getMainEntry()?.bundleBehavior === 'isolated'
+      this.bundle.bundleBehavior === 'isolated'
     );
   }
 }

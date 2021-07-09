@@ -27,6 +27,7 @@ export default (new Resolver({
       isURL: dependency.specifierType === 'url',
       parent: dependency.resolveFrom,
       env: dependency.env,
+      sourcePath: dependency.sourcePath,
     });
   },
 }): Resolver);

@@ -27,9 +27,10 @@ import ContentGraph, {
   type ContentGraphOpts,
 } from './ContentGraph';
 import {createDependency} from './Dependency';
+import {type ProjectPath, fromProjectPathRelative} from './projectPath';
 
 type InitOpts = {|
-  entries?: Array<string>,
+  entries?: Array<ProjectPath>,
   targets?: Array<Target>,
   assetGroups?: Array<AssetGroup>,
 |};
@@ -62,7 +63,7 @@ export function nodeFromDep(dep: Dependency): DependencyNode {
 export function nodeFromAssetGroup(assetGroup: AssetGroup): AssetGroupNode {
   return {
     id: hashString(
-      assetGroup.filePath +
+      fromProjectPathRelative(assetGroup.filePath) +
         assetGroup.env.id +
         String(assetGroup.isSource) +
         String(assetGroup.sideEffects) +
@@ -91,9 +92,9 @@ export function nodeFromAsset(asset: Asset): AssetNode {
   };
 }
 
-export function nodeFromEntrySpecifier(entry: string): EntrySpecifierNode {
+export function nodeFromEntrySpecifier(entry: ProjectPath): EntrySpecifierNode {
   return {
-    id: 'entry_specifier:' + entry,
+    id: 'entry_specifier:' + fromProjectPathRelative(entry),
     type: 'entry_specifier',
     value: entry,
   };
@@ -176,6 +177,16 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
 
   addNode(node: AssetGraphNode): NodeId {
     this.hash = null;
+    let existing = this.getNodeByContentKey(node.id);
+    if (existing != null) {
+      invariant(existing.type === node.type);
+      // $FlowFixMe[incompatible-type] Checked above
+      // $FlowFixMe[prop-missing]
+      existing.value = node.value;
+      let existingId = this.getNodeIdByContentKey(node.id);
+      this.updateNode(existingId, existing);
+      return existingId;
+    }
     return super.addNodeByContentKey(node.id, node);
   }
 
@@ -199,7 +210,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
   }
 
   resolveEntry(
-    entry: string,
+    entry: ProjectPath,
     resolved: Array<Entry>,
     correspondingRequest: ContentKey,
   ) {
@@ -223,8 +234,9 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
   ) {
     let depNodes = targets.map(target => {
       let node = nodeFromDep(
-        createDependency({
-          specifier: entry.filePath,
+        // The passed project path is ignored in this case, because there is no `loc`
+        createDependency('', {
+          specifier: fromProjectPathRelative(entry.filePath),
           specifierType: 'esm', // ???
           pipeline: target.pipeline,
           target: target,
@@ -473,9 +485,14 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
       this.normalizeEnvironment(dep);
       let depNode = nodeFromDep(dep);
       let existing = this.getNodeByContentKey(depNode.id);
-      if (existing) {
-        invariant(existing.type === 'dependency');
-        depNode.value.meta = existing.value.meta;
+      if (
+        existing?.type === 'dependency' &&
+        existing.value.resolverMeta != null
+      ) {
+        depNode.value.meta = {
+          ...depNode.value.meta,
+          ...existing.value.resolverMeta,
+        };
       }
       let dependentAsset = dependentAssets.find(
         a => a.uniqueKey === dep.specifier,
