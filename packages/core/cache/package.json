@@ -1,6 +1,6 @@
 {
   "name": "@parcel/cache",
-  "version": "2.0.4",
+  "version": "2.0.5",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -24,8 +24,8 @@
     "check-ts": "tsc --noEmit index.d.ts"
   },
   "dependencies": {
-    "@parcel/logger": "2.0.4",
-    "@parcel/utils": "2.0.4",
+    "@parcel/logger": "2.0.5",
+    "@parcel/utils": "2.0.5",
     "lmdb-store": "^1.5.5"
   },
   "peerDependencies": {

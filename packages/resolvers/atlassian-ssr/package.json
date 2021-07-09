@@ -1,6 +1,6 @@
 {
   "name": "@parcel/resolver-atlassian-ssr",
-  "version": "2.0.4",
+  "version": "2.0.5",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -15,8 +15,8 @@
     "parcel": "^2.0.0-alpha.1.1"
   },
   "dependencies": {
-    "@parcel/node-resolver-core": "2.0.4",
-    "@parcel/plugin": "2.0.4"
+    "@parcel/node-resolver-core": "2.0.5",
+    "@parcel/plugin": "2.0.5"
   },
   "devDependencies": {
     "@babel/core": "^7.2.2"
