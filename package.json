@@ -29,7 +29,7 @@
     "test:integration-ci": "yarn workspace @parcel/integration-tests test-ci",
     "test": "yarn test:unit && yarn test:integration",
     "update-readme-toc": "doctoc README.md",
-    "version:frontbucket": "yarn lerna version prerelease --preid frontbucket --exact --force-publish=@atlassian/internal-parcel-utils,@atlassian/parcel-reporter-analytics",
+    "version:atlassian": "yarn lerna version patch --exact --force-publish=@atlassian/internal-parcel-utils,@atlassian/parcel-reporter-analytics",
     "nightly:release": "lerna publish -y --canary --preid nightly --dist-tag=nightly --exact --force-publish=* --no-git-tag-version --no-push",
     "tag:prerelease": "lerna version --exact --force-publish=* --no-git-tag-version --no-push && node scripts/update-config-dependencies.js",
     "tag:release": "lerna version --force-publish=* --no-git-tag-version --no-push && node scripts/update-config-dependencies.js",
