@@ -5307,6 +5307,17 @@ describe('scope hoisting', function() {
 
       assert.deepEqual(outputs, [2, 3]);
     });
+
+    it('should wrap all assets with an incoming wrapped dependency', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/wrap-deps-circular/index.js',
+        ),
+      );
+
+      assert.deepEqual(await run(b), {test: 2});
+    });
   });
 
   it('should not throw with JS included from HTML', async function() {
