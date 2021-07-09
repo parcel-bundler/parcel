@@ -619,6 +619,15 @@ export default (new Transformer({
           };
         }
 
+        // Always bundle helpers, even with includeNodeModules: false, except if this is a library.
+        let isHelper = dep.is_helper && !dep.specifier.endsWith('/jsx-runtime');
+        if (isHelper && !asset.env.isLibrary) {
+          env = {
+            ...env,
+            includeNodeModules: true,
+          };
+        }
+
         asset.addDependency({
           specifier: dep.specifier,
           specifierType: dep.kind === 'Require' ? 'commonjs' : 'esm',
@@ -626,10 +635,7 @@ export default (new Transformer({
           priority: dep.kind === 'DynamicImport' ? 'lazy' : 'sync',
           isOptional: dep.is_optional,
           meta,
-          resolveFrom:
-            dep.is_helper && !dep.specifier.endsWith('/jsx-runtime')
-              ? __filename
-              : undefined,
+          resolveFrom: isHelper ? __filename : undefined,
           env,
         });
       }
