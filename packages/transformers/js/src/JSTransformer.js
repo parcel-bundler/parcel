@@ -741,11 +741,12 @@ export default (new Transformer({
     // ATLASSIAN: Rename helpers from rust.
     // While this may look like a no-op, this string literal gets replaced
     // in the renaming step.
-    let compiledCodeStr = Buffer.from(compiledCode).toString();
-    compiledCodeStr.replace(
-      /@parcel\/transformer-js\/src\/esmodule-helpers\.js/g,
-      '@parcel/transformer-js/src/esmodule-helpers.js',
-    );
+    let compiledCodeStr = Buffer.from(compiledCode)
+      .toString()
+      .replace(
+        /@parcel\/transformer-js\/src\/esmodule-helpers\.js/g,
+        '@parcel/transformer-js/src/esmodule-helpers.js',
+      );
 
     asset.type = 'js';
     asset.setCode(compiledCodeStr);
