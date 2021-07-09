@@ -15,8 +15,40 @@ describe('webmanifest', function() {
         assets: ['index.html'],
       },
       {
-        type: 'webmanifest',
+        name: 'manifest.webmanifest',
         assets: ['manifest.webmanifest'],
+      },
+      {
+        type: 'png',
+        assets: ['icon.png'],
+      },
+      {
+        type: 'png',
+        assets: ['screenshot.png'],
+      },
+    ]);
+
+    const manifest = await outputFS.readFile(
+      b.getBundles().find(b => b.type === 'webmanifest').filePath,
+      'utf8',
+    );
+    assert(/screenshot\.[0-9a-f]+\.png/.test(manifest));
+    assert(/icon\.[0-9a-f]+\.png/.test(manifest));
+  });
+
+  it('should support .json', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/webmanifest-json/index.html'),
+    );
+
+    await assertBundles(b, [
+      {
+        name: 'index.html',
+        assets: ['index.html'],
+      },
+      {
+        name: 'manifest.webmanifest',
+        assets: ['manifest.json'],
       },
       {
         type: 'png',
