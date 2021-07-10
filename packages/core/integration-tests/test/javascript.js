@@ -4346,4 +4346,21 @@ describe('javascript', function() {
       },
     ]);
   });
+
+  it('should avoid creating a bundle for lazy dependencies already available in a shared bundle', async function() {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        'integration/shared-bundle-internalization/index.mjs',
+      ),
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: false,
+        },
+      },
+    );
+
+    assert.deepEqual(await (await run(b)).default, [42, 42]);
+  });
 });
