@@ -19,7 +19,7 @@ import {ESMOutputFormat} from './ESMOutputFormat';
 import {CJSOutputFormat} from './CJSOutputFormat';
 import {GlobalOutputFormat} from './GlobalOutputFormat';
 import {prelude, helpers} from './helpers';
-import {replaceScriptDependencies} from './utils';
+import {replaceScriptDependencies, getSpecifier} from './utils';
 
 // https://262.ecma-international.org/6.0/#sec-names-and-keywords
 const IDENTIFIER_RE = /^[$_\p{ID_Start}][$_\u200C\u200D\p{ID_Continue}]*$/u;
@@ -535,7 +535,7 @@ ${code}
     let depMap = new Map();
     let replacements = new Map();
     for (let dep of deps) {
-      depMap.set(`${assetId}:${dep.specifier}`, dep);
+      depMap.set(`${assetId}:${getSpecifier(dep)}`, dep);
 
       let asyncResolution = this.bundleGraph.resolveAsyncDependency(
         dep,
