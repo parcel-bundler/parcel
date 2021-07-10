@@ -224,43 +224,27 @@ export class ScopeHoistingPackager {
 
   async loadAssets() {
     let queue = new PromiseQueue({maxConcurrent: 32});
-    this.bundle.traverse((node, shouldWrap) => {
-      switch (node.type) {
-        case 'dependency':
-          // Mark assets that should be wrapped, based on metadata in the incoming dependency tree
-          if (node.value.meta.shouldWrap) {
-            let resolved = this.bundleGraph.getDependencyResolution(
-              node.value,
-              this.bundle,
-            );
-            if (resolved && resolved.sideEffects) {
-              this.wrappedAssets.add(resolved.id);
-            }
-            return true;
-          }
-          break;
-        case 'asset':
-          queue.add(async () => {
-            let [code, map] = await Promise.all([
-              node.value.getCode(),
-              this.bundle.env.sourceMap ? node.value.getMapBuffer() : null,
-            ]);
-            return [node.value.id, {code, map}];
-          });
+    this.bundle.traverseAssets((asset, shouldWrap) => {
+      queue.add(async () => {
+        let [code, map] = await Promise.all([
+          asset.getCode(),
+          this.bundle.env.sourceMap ? asset.getMapBuffer() : null,
+        ]);
+        return [asset.id, {code, map}];
+      });
 
-          if (
-            shouldWrap ||
-            node.value.meta.shouldWrap ||
-            this.isAsyncBundle ||
-            this.bundle.env.sourceType === 'script' ||
-            this.bundleGraph.isAssetReferencedByDependant(
-              this.bundle,
-              node.value,
-            )
-          ) {
-            this.wrappedAssets.add(node.value.id);
-            return true;
-          }
+      if (
+        shouldWrap ||
+        asset.meta.shouldWrap ||
+        this.isAsyncBundle ||
+        this.bundle.env.sourceType === 'script' ||
+        this.bundleGraph.isAssetReferencedByDependant(this.bundle, asset) ||
+        this.bundleGraph
+          .getIncomingDependencies(asset)
+          .some(dep => dep.meta.shouldWrap)
+      ) {
+        this.wrappedAssets.add(asset.id);
+        return true;
       }
     });
 
