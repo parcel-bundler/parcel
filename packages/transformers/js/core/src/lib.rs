@@ -272,6 +272,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
             let decls = collect_decls(&module);
 
             let mut preset_env_config = swc_ecma_preset_env::Config::default();
+            preset_env_config.dynamic_import = true;
             if let Some(versions) = targets_to_versions(&config.targets) {
               preset_env_config.targets = Some(Targets::Versions(versions));
               preset_env_config.shipped_proposals = true;

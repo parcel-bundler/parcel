@@ -798,12 +798,7 @@ describe('javascript', function() {
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: [
-          'index.js',
-          'bundle-url.js',
-          'get-worker-url.js',
-          'esmodule-helpers.js',
-        ],
+        assets: ['index.js', 'bundle-url.js', 'get-worker-url.js'],
       },
       {
         assets: [
@@ -818,8 +813,52 @@ describe('javascript', function() {
       },
     ]);
 
-    let res = await run(b);
-    assert.deepEqual(await res.default, {default: 42});
+    let res = await new Promise(resolve => {
+      run(b, {
+        output: resolve,
+      });
+    });
+    assert.deepEqual(res, {default: 42});
+  });
+
+  it('should support bundling workers with dynamic import with legacy browser targets', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/worker-dynamic/index.js'),
+      {
+        defaultTargetOptions: {
+          outputFormat: 'esmodule',
+          shouldScopeHoist: true,
+          engines: {
+            browsers: 'IE 11',
+          },
+        },
+      },
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js', 'bundle-url.js', 'get-worker-url.js'],
+      },
+      {
+        assets: [
+          'worker.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'js-loader.js',
+        ],
+      },
+      {
+        assets: ['async.js'],
+      },
+    ]);
+
+    let res = await new Promise(resolve => {
+      run(b, {
+        output: resolve,
+      });
+    });
+    assert.deepEqual(res, {default: 42});
   });
 
   it('should support bundling workers of type module', async function() {
