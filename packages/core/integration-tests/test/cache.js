@@ -15,30 +15,36 @@ import {
   sleep,
   getNextBuild,
   distDir,
+  getParcelOptions,
+  assertNoFilePathInCache,
 } from '@parcel/test-utils';
 import {md} from '@parcel/diagnostic';
 import fs from 'fs';
 import {NodePackageManager} from '@parcel/package-manager';
 import {createWorkerFarm} from '@parcel/core';
+import resolveOptions from '@parcel/core/src/resolveOptions';
 
 let inputDir: string;
 let packageManager = new NodePackageManager(inputFS, '/');
 
-function runBundle(entries = 'src/index.js', opts) {
-  entries = (Array.isArray(entries) ? entries : [entries]).map(entry =>
+function getEntries(entries = 'src/index.js') {
+  return (Array.isArray(entries) ? entries : [entries]).map(entry =>
     path.resolve(inputDir, entry),
   );
+}
 
-  return bundler(
-    entries,
-    mergeParcelOptions(
-      {
-        inputFS: overlayFS,
-        shouldDisableCache: false,
-      },
-      opts,
-    ),
-  ).run();
+function getOptions(opts) {
+  return mergeParcelOptions(
+    {
+      inputFS: overlayFS,
+      shouldDisableCache: false,
+    },
+    opts,
+  );
+}
+
+function runBundle(entries = 'src/index.js', opts) {
+  return bundler(getEntries(entries), getOptions(opts)).run();
 }
 
 type UpdateFn = BuildSuccessEvent =>
@@ -69,13 +75,33 @@ async function testCache(update: UpdateFn | TestConfig, integration) {
     }
   }
 
+  let resolvedOptions = await resolveOptions(
+    getParcelOptions(getEntries(entries), getOptions(options)),
+  );
+
   let b = await runBundle(entries, options);
+
+  await assertNoFilePathInCache(
+    resolvedOptions.outputFS,
+    resolvedOptions.cacheDir,
+    resolvedOptions.projectRoot,
+  );
 
   // update
   let newOptions = await update(b);
+  options = mergeParcelOptions(options || {}, newOptions);
 
   // Run cached build
-  b = await runBundle(entries, mergeParcelOptions(options || {}, newOptions));
+  b = await runBundle(entries, options);
+
+  resolvedOptions = await resolveOptions(
+    getParcelOptions(getEntries(entries), getOptions(options)),
+  );
+  await assertNoFilePathInCache(
+    resolvedOptions.outputFS,
+    resolvedOptions.cacheDir,
+    resolvedOptions.projectRoot,
+  );
 
   return b;
 }
@@ -2310,7 +2336,7 @@ describe('cache', function() {
 
           return {
             defaultTargetOptions: {
-              distDir: 'dist/test',
+              distDir: path.join(__dirname, 'integration/cache/dist/test'),
             },
           };
         },
@@ -3465,7 +3491,7 @@ describe('cache', function() {
           {
             entries: ['index.sass'],
             env: {
-              SASS_PATH: path.join(inputDir, 'include-path'),
+              SASS_PATH: 'include-path',
             },
             async setup() {
               await overlayFS.mkdirp(path.join(inputDir, 'include2'));
@@ -3486,7 +3512,7 @@ describe('cache', function() {
 
               return {
                 env: {
-                  SASS_PATH: path.join(inputDir, 'include2'),
+                  SASS_PATH: 'include2',
                 },
               };
             },
@@ -5623,5 +5649,35 @@ describe('cache', function() {
         subscription = null;
       }
     }
+  });
+
+  it('should support moving the project root', async function() {
+    // This test relies on the real filesystem because the memory fs doesn't support renames.
+    // But renameSync is broken on windows in CI with EPERM errors. Just skip this test for now.
+    if (process.platform === 'win32') {
+      return;
+    }
+
+    let b = await testCache({
+      inputFS,
+      outputFS: inputFS,
+      async setup() {
+        await inputFS.mkdirp(inputDir);
+        await inputFS.ncp(path.join(__dirname, '/integration/cache'), inputDir);
+      },
+      update: async b => {
+        assert.equal(await run(b.bundleGraph), 4);
+
+        await inputFS.writeFile(
+          path.join(inputDir, 'src/nested/test.js'),
+          'export default 4',
+        );
+
+        fs.renameSync(inputDir, (inputDir += '_2'));
+        await sleep(100);
+      },
+    });
+
+    assert.equal(await run(b.bundleGraph), 6);
   });
 });

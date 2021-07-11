@@ -31,10 +31,12 @@ import {AssetSymbols, MutableAssetSymbols} from './Symbols';
 import UncommittedAsset from '../UncommittedAsset';
 import CommittedAsset from '../CommittedAsset';
 import {createEnvironment} from '../Environment';
+import {fromProjectPath, toProjectPath} from '../projectPath';
 import {
   BundleBehavior as BundleBehaviorMap,
   BundleBehaviorNames,
 } from '../types';
+import {toInternalSourceLocation} from '../utils';
 
 const inspect = Symbol.for('nodejs.util.inspect.custom');
 
@@ -101,7 +103,7 @@ class BaseAsset {
   }
 
   get env(): IEnvironment {
-    return new Environment(this.#asset.value.env);
+    return new Environment(this.#asset.value.env, this.#asset.options);
   }
 
   get fs(): FileSystem {
@@ -109,7 +111,10 @@ class BaseAsset {
   }
 
   get filePath(): FilePath {
-    return this.#asset.value.filePath;
+    return fromProjectPath(
+      this.#asset.options.projectRoot,
+      this.#asset.value.filePath,
+    );
   }
 
   get query(): QueryParameters {
@@ -138,7 +143,7 @@ class BaseAsset {
   }
 
   get symbols(): IAssetSymbols {
-    return new AssetSymbols(this.#asset.value);
+    return new AssetSymbols(this.#asset.options, this.#asset.value);
   }
 
   get uniqueKey(): ?string {
@@ -154,7 +159,9 @@ class BaseAsset {
   }
 
   getDependencies(): $ReadOnlyArray<IDependency> {
-    return this.#asset.getDependencies().map(dep => new Dependency(dep));
+    return this.#asset
+      .getDependencies()
+      .map(dep => new Dependency(dep, this.#asset.options));
   }
 
   getCode(): Promise<string> {
@@ -264,7 +271,7 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
   }
 
   get symbols(): IMutableAssetSymbols {
-    return new MutableAssetSymbols(this.#asset.value);
+    return new MutableAssetSymbols(this.#asset.options, this.#asset.value);
   }
 
   addDependency(dep: DependencyOptions): string {
@@ -272,7 +279,9 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
   }
 
   invalidateOnFileChange(filePath: FilePath): void {
-    this.#asset.invalidateOnFileChange(filePath);
+    this.#asset.invalidateOnFileChange(
+      toProjectPath(this.#asset.options.projectRoot, filePath),
+    );
   }
 
   invalidateOnFileCreate(invalidation: FileCreateInvalidation): void {
@@ -313,7 +322,10 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
   }
 
   setEnvironment(env: EnvironmentOptions): void {
-    this.#asset.value.env = createEnvironment(env);
+    this.#asset.value.env = createEnvironment({
+      ...env,
+      loc: toInternalSourceLocation(this.#asset.options.projectRoot, env.loc),
+    });
     this.#asset.updateId();
   }
 }

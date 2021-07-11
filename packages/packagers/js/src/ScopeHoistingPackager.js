@@ -202,7 +202,7 @@ export class ScopeHoistingPackager {
       );
       let map;
       if (mapBuffer) {
-        map = new SourceMap(mapBuffer);
+        map = new SourceMap(this.options.projectRoot, mapBuffer);
       }
       res += replaceScriptDependencies(
         this.bundleGraph,
@@ -224,43 +224,27 @@ export class ScopeHoistingPackager {
 
   async loadAssets() {
     let queue = new PromiseQueue({maxConcurrent: 32});
-    this.bundle.traverse((node, shouldWrap) => {
-      switch (node.type) {
-        case 'dependency':
-          // Mark assets that should be wrapped, based on metadata in the incoming dependency tree
-          if (node.value.meta.shouldWrap) {
-            let resolved = this.bundleGraph.getDependencyResolution(
-              node.value,
-              this.bundle,
-            );
-            if (resolved && resolved.sideEffects) {
-              this.wrappedAssets.add(resolved.id);
-            }
-            return true;
-          }
-          break;
-        case 'asset':
-          queue.add(async () => {
-            let [code, map] = await Promise.all([
-              node.value.getCode(),
-              this.bundle.env.sourceMap ? node.value.getMapBuffer() : null,
-            ]);
-            return [node.value.id, {code, map}];
-          });
+    this.bundle.traverseAssets((asset, shouldWrap) => {
+      queue.add(async () => {
+        let [code, map] = await Promise.all([
+          asset.getCode(),
+          this.bundle.env.sourceMap ? asset.getMapBuffer() : null,
+        ]);
+        return [asset.id, {code, map}];
+      });
 
-          if (
-            shouldWrap ||
-            node.value.meta.shouldWrap ||
-            this.isAsyncBundle ||
-            this.bundle.env.sourceType === 'script' ||
-            this.bundleGraph.isAssetReferencedByDependant(
-              this.bundle,
-              node.value,
-            )
-          ) {
-            this.wrappedAssets.add(node.value.id);
-            return true;
-          }
+      if (
+        shouldWrap ||
+        asset.meta.shouldWrap ||
+        this.isAsyncBundle ||
+        this.bundle.env.sourceType === 'script' ||
+        this.bundleGraph.isAssetReferencedByDependant(this.bundle, asset) ||
+        this.bundleGraph
+          .getIncomingDependencies(asset)
+          .some(dep => dep.meta.shouldWrap)
+      ) {
+        this.wrappedAssets.add(asset.id);
+        return true;
       }
     });
 
@@ -336,6 +320,14 @@ export class ScopeHoistingPackager {
     return name + count;
   }
 
+  getPropertyAccess(obj: string, property: string): string {
+    if (IDENTIFIER_RE.test(property)) {
+      return `${obj}.${property}`;
+    }
+
+    return `${obj}[${JSON.stringify(property)}]`;
+  }
+
   visitAsset(asset: Asset): [string, ?SourceMap, number] {
     invariant(!this.seenAssets.has(asset.id), 'Already visited asset');
     this.seenAssets.add(asset.id);
@@ -353,7 +345,9 @@ export class ScopeHoistingPackager {
     let deps = this.bundleGraph.getDependencies(asset);
 
     let sourceMap =
-      this.bundle.env.sourceMap && map ? new SourceMap(map) : null;
+      this.bundle.env.sourceMap && map
+        ? new SourceMap(this.options.projectRoot, map)
+        : null;
 
     // If this asset is skipped, just add dependencies and not the asset's content.
     if (this.shouldSkipAsset(asset)) {
@@ -567,24 +561,51 @@ ${code}
             continue;
           }
 
-          // Rename the specifier so that multiple local imports of the same imported specifier
-          // are deduplicated. We have to prefix the imported name with the bundle id so that
-          // local variables do not shadow it.
-          if (this.exportedSymbols.has(local)) {
-            renamed = local;
-          } else if (imported === 'default' || imported === '*') {
-            renamed = this.getTopLevelName(
-              `$${this.bundle.publicId}$${dep.specifier}`,
-            );
-          } else {
-            renamed = this.getTopLevelName(
-              `$${this.bundle.publicId}$${imported}`,
-            );
-          }
+          // For CJS output, always use a property lookup so that exports remain live.
+          // For ESM output, use named imports which are always live.
+          if (this.bundle.env.outputFormat === 'commonjs') {
+            renamed = external.get('*');
+            if (!renamed) {
+              renamed = this.getTopLevelName(
+                `$${this.bundle.publicId}$${dep.specifier}`,
+              );
 
-          external.set(imported, renamed);
-          if (local !== '*') {
-            replacements.set(local, renamed);
+              external.set('*', renamed);
+            }
+
+            if (local !== '*') {
+              let replacement;
+              if (imported === '*') {
+                replacement = renamed;
+              } else if (imported === 'default') {
+                replacement = `$parcel$interopDefault(${renamed})`;
+                this.usedHelpers.add('$parcel$interopDefault');
+              } else {
+                replacement = this.getPropertyAccess(renamed, imported);
+              }
+
+              replacements.set(local, replacement);
+            }
+          } else {
+            // Rename the specifier so that multiple local imports of the same imported specifier
+            // are deduplicated. We have to prefix the imported name with the bundle id so that
+            // local variables do not shadow it.
+            if (this.exportedSymbols.has(local)) {
+              renamed = local;
+            } else if (imported === 'default' || imported === '*') {
+              renamed = this.getTopLevelName(
+                `$${this.bundle.publicId}$${dep.specifier}`,
+              );
+            } else {
+              renamed = this.getTopLevelName(
+                `$${this.bundle.publicId}$${imported}`,
+              );
+            }
+
+            external.set(imported, renamed);
+            if (local !== '*') {
+              replacements.set(local, renamed);
+            }
           }
         }
       }
@@ -757,11 +778,7 @@ ${code}
         this.usedHelpers.add('$parcel$interopDefault');
         return `(/*@__PURE__*/$parcel$interopDefault(${obj}))`;
       } else {
-        if (IDENTIFIER_RE.test(exportSymbol)) {
-          return `${obj}.${exportSymbol}`;
-        }
-
-        return `${obj}[${JSON.stringify(exportSymbol)}]`;
+        return this.getPropertyAccess(obj, exportSymbol);
       }
     } else if (!symbol) {
       invariant(false, 'Asset was skipped or not found.');

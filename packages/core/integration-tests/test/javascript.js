@@ -14,7 +14,7 @@ import {
   outputFS,
   inputFS,
 } from '@parcel/test-utils';
-import {makeDeferredWithPromise} from '@parcel/utils';
+import {makeDeferredWithPromise, normalizePath} from '@parcel/utils';
 import vm from 'vm';
 
 describe('javascript', function() {
@@ -35,26 +35,6 @@ describe('javascript', function() {
     assert.equal(output(), 3);
   });
 
-  it('should import child bundles using a require call in CommonJS', async function() {
-    let b = await bundle(
-      path.join(__dirname, '/integration/commonjs-bundle-require/index.js'),
-    );
-
-    assertBundles(b, [
-      {
-        name: 'index.js',
-        assets: ['index.js'],
-      },
-      {
-        assets: ['local.js'],
-      },
-    ]);
-
-    let output = await run(b);
-    assert.strictEqual(typeof output.double, 'function');
-    assert.strictEqual(output.double(3), 6);
-  });
-
   it('should support url: imports with CommonJS output', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/commonjs-import-url/index.js'),
@@ -63,7 +43,7 @@ describe('javascript', function() {
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: ['bundle-url.js', 'index.js', 'esmodule-helpers.js'],
+        assets: ['index.js', 'esmodule-helpers.js'],
       },
       {
         type: 'txt',
@@ -228,7 +208,8 @@ describe('javascript', function() {
               ],
             },
             {
-              filePath: path.normalize(
+              filePath: path.join(
+                __dirname,
                 'integration/worklet/url-worklet-error.js',
               ),
               codeHighlights: [
@@ -944,7 +925,7 @@ describe('javascript', function() {
         },
         {
           name: 'index.js',
-          assets: ['index.js', 'bundle-url.js', 'get-worker-url.js'],
+          assets: ['index.js', 'bundle-manifest.js', 'get-worker-url.js'],
         },
         {
           type: 'js',
@@ -1044,7 +1025,10 @@ describe('javascript', function() {
               ],
             },
             {
-              filePath: 'error.js',
+              filePath: path.join(
+                __dirname,
+                '/integration/workers-module/error.js',
+              ),
               codeHighlights: [
                 {
                   message: 'The environment was originally created here',
@@ -1139,7 +1123,8 @@ describe('javascript', function() {
                 ],
               },
               {
-                filePath: path.normalize(
+                filePath: path.join(
+                  __dirname,
                   `integration/worker-import-scripts/index-${workerType}.js`,
                 ),
                 codeHighlights: [
@@ -1293,7 +1278,10 @@ describe('javascript', function() {
               ],
             },
             {
-              filePath: path.normalize('integration/service-worker/error.js'),
+              filePath: path.join(
+                __dirname,
+                'integration/service-worker/error.js',
+              ),
               codeHighlights: [
                 {
                   message: 'The environment was originally created here',
@@ -1546,7 +1534,6 @@ describe('javascript', function() {
           'bundle-url.js',
           'get-worker-url.js',
           'bundle-manifest.js',
-          'relative-path.js',
           'esmodule-helpers.js',
         ],
       },
@@ -1556,7 +1543,6 @@ describe('javascript', function() {
           'bundle-url.js',
           'get-worker-url.js',
           'bundle-manifest.js',
-          'relative-path.js',
         ],
       },
       {
@@ -1700,7 +1686,6 @@ describe('javascript', function() {
           'bundle-url.js',
           'get-worker-url.js',
           'bundle-manifest.js',
-          'relative-path.js',
         ],
       },
       {
@@ -1841,7 +1826,6 @@ describe('javascript', function() {
           'cacheLoader.js',
           'js-loader.js',
           'bundle-manifest.js',
-          'relative-path.js',
         ],
       },
       {
@@ -2053,7 +2037,34 @@ describe('javascript', function() {
     let output = await run(b);
     assert(/^http:\/\/localhost\/test\.[0-9a-f]+\.txt$/.test(output.default));
     let stats = await outputFS.stat(
-      path.join(distDir, url.parse(output.default).pathname),
+      path.join(distDir, output.default.pathname),
+    );
+    assert.equal(stats.size, 9);
+  });
+
+  it('should support referencing a raw asset with static URL and CJS __filename', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/import-raw-import-meta-url/cjs.js'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'cjs.js',
+        assets: ['cjs.js', 'bundle-url.js', 'esmodule-helpers.js'],
+      },
+      {
+        type: 'txt',
+        assets: ['test.txt'],
+      },
+    ]);
+
+    let contents = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(!contents.includes('import.meta.url'));
+
+    let output = await run(b);
+    assert(/^http:\/\/localhost\/test\.[0-9a-f]+\.txt$/.test(output.default));
+    let stats = await outputFS.stat(
+      path.join(distDir, output.default.pathname),
     );
     assert.equal(stats.size, 9);
   });
@@ -2077,7 +2088,7 @@ describe('javascript', function() {
     assert(contents.includes('import.meta.url'));
   });
 
-  it('should support referencing a raw asset with static URL and import.meta.url (diagnostic)', async function() {
+  it('should throw a codeframe for a missing raw asset with static URL and import.meta.url', async function() {
     let fixture = path.join(
       __dirname,
       'integration/import-raw-import-meta-url/missing.js',
@@ -2192,8 +2203,8 @@ describe('javascript', function() {
 
     let output = await run(b);
     assert.deepEqual(output(), {
-      dir: path.join(__dirname, '/integration/globals'),
-      file: path.join(__dirname, '/integration/globals/index.js'),
+      dir: 'integration/globals',
+      file: 'integration/globals/index.js',
       buf: Buffer.from('browser').toString('base64'),
       global: true,
     });
@@ -3085,22 +3096,6 @@ describe('javascript', function() {
     assert.deepEqual(output, [undefined, 1234]);
   });
 
-  it('support building with multiple target and varying scopeHoist setting', async function() {
-    let b = await bundle(
-      path.join(__dirname, '/integration/js-multi-target-scope-hoist/index.js'),
-      {
-        defaultTargetOptions: {
-          shouldScopeHoist: true,
-        },
-      },
-    );
-
-    for (let bundle of b.getBundles()) {
-      let output = await runBundle(b, bundle);
-      assert.deepEqual(output, 123);
-    }
-  });
-
   it.skip('should not dedupe imports with different contents', async function() {
     let b = await bundle(
       path.join(__dirname, `/integration/js-different-contents/index.js`),
@@ -3708,7 +3703,6 @@ describe('javascript', function() {
           'cacheLoader.js',
           'dep.js',
           'js-loader.js',
-          'relative-path.js',
           'same-ancestry.js',
           'esmodule-helpers.js',
         ],
@@ -3756,7 +3750,6 @@ describe('javascript', function() {
           'cacheLoader.js',
           'get-dep.js',
           'js-loader.js',
-          'relative-path.js',
           'esmodule-helpers.js',
         ],
       },
@@ -3812,7 +3805,6 @@ describe('javascript', function() {
           'cacheLoader.js',
           'index.js',
           'js-loader.js',
-          'relative-path.js',
           'esmodule-helpers.js',
         ],
       },
@@ -4241,7 +4233,6 @@ describe('javascript', function() {
           'cacheLoader.js',
           'js-loader.js',
           'bundle-manifest.js',
-          'relative-path.js',
         ],
       },
       {
@@ -4321,7 +4312,6 @@ describe('javascript', function() {
           'esmodule-helpers.js',
           'js-loader.js',
           'bundle-manifest.js',
-          'relative-path.js',
         ],
       },
       {
@@ -4337,5 +4327,153 @@ describe('javascript', function() {
         assets: ['local.html'],
       },
     ]);
+  });
+
+  it('should error on undeclared external dependencies for libraries', async function() {
+    let fixture = path.join(
+      __dirname,
+      'integration/undeclared-external/index.js',
+    );
+    let pkg = path.join(
+      __dirname,
+      'integration/undeclared-external/package.json',
+    );
+    await assert.rejects(
+      () =>
+        bundle(fixture, {
+          mode: 'production',
+          defaultTargetOptions: {
+            shouldOptimize: false,
+          },
+        }),
+      {
+        name: 'BuildError',
+        diagnostics: [
+          {
+            message: "Failed to resolve 'lodash' from './index.js'",
+            origin: '@parcel/core',
+            codeFrames: [
+              {
+                code: await inputFS.readFile(fixture, 'utf8'),
+                filePath: fixture,
+                codeHighlights: [
+                  {
+                    start: {
+                      line: 1,
+                      column: 19,
+                    },
+                    end: {
+                      line: 1,
+                      column: 26,
+                    },
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            message:
+              'External dependency "lodash" is not declared in package.json.',
+            origin: '@parcel/resolver-default',
+            codeFrames: [
+              {
+                code: await inputFS.readFile(pkg, 'utf8'),
+                filePath: pkg,
+                language: 'json',
+                codeHighlights: [
+                  {
+                    message: undefined,
+                    start: {
+                      line: 5,
+                      column: 3,
+                    },
+                    end: {
+                      line: 5,
+                      column: 16,
+                    },
+                  },
+                ],
+              },
+            ],
+            hints: ['Add "lodash" as a dependency.'],
+          },
+        ],
+      },
+    );
+  });
+
+  it('should error on undeclared helpers dependency for libraries', async function() {
+    let fixture = path.join(
+      __dirname,
+      'integration/undeclared-external/helpers.js',
+    );
+    let pkg = path.join(
+      __dirname,
+      'integration/undeclared-external/package.json',
+    );
+    await assert.rejects(
+      () =>
+        bundle(fixture, {
+          mode: 'production',
+          defaultTargetOptions: {
+            shouldOptimize: false,
+          },
+        }),
+      {
+        name: 'BuildError',
+        diagnostics: [
+          {
+            message: `Failed to resolve '@swc/helpers' from '${normalizePath(
+              require.resolve('@parcel/transformer-js/src/JSTransformer.js'),
+            )}'`,
+            origin: '@parcel/core',
+            codeFrames: [
+              {
+                code: await inputFS.readFile(fixture, 'utf8'),
+                filePath: fixture,
+                codeHighlights: [
+                  {
+                    start: {
+                      line: 1,
+                      column: 1,
+                    },
+                    end: {
+                      line: 1,
+                      column: 0,
+                    },
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            message:
+              'External dependency "@swc/helpers" is not declared in package.json.',
+            origin: '@parcel/resolver-default',
+            codeFrames: [
+              {
+                code: await inputFS.readFile(pkg, 'utf8'),
+                filePath: pkg,
+                language: 'json',
+                codeHighlights: [
+                  {
+                    message: undefined,
+                    start: {
+                      line: 5,
+                      column: 3,
+                    },
+                    end: {
+                      line: 5,
+                      column: 16,
+                    },
+                  },
+                ],
+              },
+            ],
+            hints: ['Add "@swc/helpers" as a dependency.'],
+          },
+        ],
+      },
+    );
   });
 });

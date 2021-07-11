@@ -17,6 +17,7 @@
     "*.jsonld": ["@parcel/transformer-jsonld"],
     "*.toml": ["@parcel/transformer-toml"],
     "*.webmanifest": ["@parcel/transformer-webmanifest"],
+    "webmanifest:*.{json,webmanifest}": ["@parcel/transformer-webmanifest"],
     "*.yaml": ["@parcel/transformer-yaml"],
     "*.{glsl,vert,frag}": ["@parcel/transformer-glsl"],
     "*.{gql,graphql}": ["@parcel/transformer-graphql"],
@@ -38,7 +39,7 @@
     "script:*.vue": ["@parcel/transformer-vue"],
     "style:*.vue": ["@parcel/transformer-vue"],
     "custom:*.vue": ["@parcel/transformer-vue"],
-    "url:*.{png,jpg,jpeg,webp}": ["@parcel/transformer-image"],
+    "*.{png,jpg,jpeg,webp}": ["@parcel/transformer-image"],
     "url:*": ["...", "@parcel/transformer-raw"]
   },
   "namers": ["@parcel/namer-default"],
