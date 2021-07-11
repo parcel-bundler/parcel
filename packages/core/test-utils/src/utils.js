@@ -26,7 +26,7 @@ import WebSocket from 'ws';
 import nullthrows from 'nullthrows';
 import postHtmlParse from 'posthtml-parser';
 import postHtml from 'posthtml';
-import {EventEmitter} from 'events';
+import EventEmitter from 'events';
 
 import {makeDeferredWithPromise, normalizeSeparators} from '@parcel/utils';
 import _chalk from 'chalk';
@@ -527,7 +527,6 @@ export function assertBundles(
     a.assets.join(',').localeCompare(b.assets.join(','));
   expectedBundles.sort(byName).sort(byAssets);
   actualBundles.sort(byName).sort(byAssets);
-  console.log(actualBundles)
   assert.equal(
     actualBundles.length,
     expectedBundles.length,

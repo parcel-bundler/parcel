@@ -888,6 +888,9 @@ describe('javascript', function() {
       {
         assets: ['async.js', 'esmodule-helpers.js'],
       },
+      {
+        assets: ['async.js', 'esmodule-helpers.js'],
+      },
     ]);
 
     let res = await new Promise(resolve => {
@@ -1863,27 +1866,26 @@ describe('javascript', function() {
           'bundle-url.js',
           'get-worker-url.js',
           'bundle-manifest.js',
+          'lodash.js',
+          'esmodule-helpers.js',
         ],
       },
       {
-        assets: ['worker.js'],
-      },
-      {
-        assets: ['lodash.js', 'esmodule-helpers.js'],
+        assets: ['worker.js', 'lodash.js', 'esmodule-helpers.js'],
       },
     ]);
 
-    let sharedBundle = b
-      .getBundles()
-      .sort((a, b) => b.stats.size - a.stats.size)
-      .find(b => b.name !== 'index.js');
+    // let sharedBundle = b
+    //   .getBundles()
+    //   .sort((a, b) => b.stats.size - a.stats.size)
+    //   .find(b => b.name !== 'index.js');
     let workerBundle = b.getBundles().find(b => b.name.startsWith('worker'));
-    let contents = await outputFS.readFile(workerBundle.filePath, 'utf8');
-    assert(
-      contents.includes(
-        `importScripts("./${path.basename(sharedBundle.filePath)}")`,
-      ),
-    );
+    // let contents = await outputFS.readFile(workerBundle.filePath, 'utf8');
+    // assert(
+    //   contents.includes(
+    //     `importScripts("./${path.basename(sharedBundle.filePath)}")`,
+    //   ),
+    // );
 
     let outputArgs = [];
     let workerArgs = [];
@@ -1902,6 +1904,65 @@ describe('javascript', function() {
     assert.deepStrictEqual(workerArgs, [
       `http://localhost/${path.basename(workerBundle.filePath)}`,
     ]);
+  });
+
+  it('should support workers with shared assets between page and worker with async imports', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/worker-shared-page/index.html'),
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldOptimize: false,
+        },
+      },
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.html',
+        assets: ['index.html'],
+      },
+      {
+        assets: [
+          'bundle-manifest.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'get-worker-url.js',
+          'index.js',
+          'js-loader.js',
+          'large.js',
+        ],
+      },
+      {
+        assets: [
+          'bundle-manifest.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'js-loader.js',
+          'large.js',
+          'worker.js',
+        ],
+      },
+      {
+        assets: [
+          'bundle-manifest.js',
+          'get-worker-url.js',
+          'index.js',
+          'large.js',
+        ],
+      },
+      {
+        assets: ['async.js'],
+      },
+      {
+        assets: ['async.js'],
+      },
+      {
+        assets: ['async.js'],
+      },
+    ]);
+
+    await run(b);
   });
 
   it('should dynamic import files which import raw files', async function() {

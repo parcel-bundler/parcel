@@ -1,4 +1,4 @@
-/* global importScripts:readonly*/
+/* global __parcel__importScripts__:readonly*/
 const cacheLoader = require('../../cacheLoader');
 
 module.exports = cacheLoader(function loadJSBundle(bundle) {
