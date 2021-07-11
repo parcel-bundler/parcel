@@ -808,7 +808,11 @@ export default class BundleGraph {
         if (b.id === bundle.id) {
           break;
         }
-        if (this.bundleHasAsset(b, asset)) {
+        if (
+          b.bundleBehavior !== BundleBehavior.isolated &&
+          b.bundleBehavior !== BundleBehavior.inline &&
+          this.bundleHasAsset(b, asset)
+        ) {
           return true;
         }
       }
@@ -824,7 +828,8 @@ export default class BundleGraph {
         let bundleNode = nullthrows(this._graph.getNode(bundleNodeId));
         if (
           bundleNode.type !== 'bundle' ||
-          bundleNode.value.bundleBehavior === BundleBehavior.isolated
+          bundleNode.value.bundleBehavior === BundleBehavior.isolated ||
+          bundleNode.value.bundleBehavior === BundleBehavior.inline
         ) {
           return false;
         }
@@ -857,6 +862,7 @@ export default class BundleGraph {
                 }
                 if (
                   b.bundleBehavior !== BundleBehavior.isolated &&
+                  b.bundleBehavior !== BundleBehavior.inline &&
                   this.bundleHasAsset(b, asset)
                 ) {
                   actions.skipChildren();

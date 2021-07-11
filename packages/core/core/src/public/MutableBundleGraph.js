@@ -155,7 +155,8 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
     let bundleId = hashString(
       'bundle:' +
         (opts.entryAsset ? opts.entryAsset.id : opts.uniqueKey) +
-        fromProjectPathRelative(target.distDir),
+        fromProjectPathRelative(target.distDir) +
+        (opts.bundleBehavior ?? ''),
     );
 
     let existing = this.#graph._graph.getNodeByContentKey(bundleId);
