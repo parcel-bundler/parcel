@@ -376,6 +376,7 @@ export default (new Transformer({
       inline_fs: Boolean(config?.inlineFS) && !asset.env.isNode(),
       insert_node_globals: !asset.env.isNode(),
       is_browser: asset.env.isBrowser(),
+      is_worker: asset.env.isWorker(),
       env,
       is_type_script: asset.type === 'ts' || asset.type === 'tsx',
       is_jsx: Boolean(config?.isJSX),

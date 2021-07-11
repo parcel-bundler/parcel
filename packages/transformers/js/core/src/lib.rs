@@ -64,6 +64,7 @@ pub struct Config {
   inline_fs: bool,
   insert_node_globals: bool,
   is_browser: bool,
+  is_worker: bool,
   is_type_script: bool,
   is_jsx: bool,
   jsx_pragma: Option<String>,

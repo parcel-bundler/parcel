@@ -1337,6 +1337,48 @@ describe('javascript', function() {
     });
   }
 
+  it('should ignore importScripts when not in a worker context', async function() {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/worker-import-scripts/importScripts.js',
+      ),
+    );
+
+    assertBundles(b, [
+      {
+        type: 'js',
+        assets: ['importScripts.js'],
+      },
+    ]);
+
+    let res = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(res.includes("importScripts('imported.js')"));
+  });
+
+  it('should ignore importScripts in script workers when not passed a string literal', async function() {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/worker-import-scripts/index-variable.js',
+      ),
+    );
+
+    assertBundles(b, [
+      {
+        type: 'js',
+        assets: ['index-variable.js', 'bundle-url.js', 'get-worker-url.js'],
+      },
+      {
+        type: 'js',
+        assets: ['variable.js'],
+      },
+    ]);
+
+    let res = await outputFS.readFile(b.getBundles()[1].filePath, 'utf8');
+    assert(res.includes('importScripts(url)'));
+  });
+
   it('should support bundling service-workers', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/service-worker/a/index.js'),
