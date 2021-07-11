@@ -861,6 +861,83 @@ describe('javascript', function() {
     assert.deepEqual(res, {default: 42});
   });
 
+  it('should support bundling workers with dynamic import in both page and worker', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/worker-dynamic/index-async.js'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index-async.js',
+        assets: [
+          'index-async.js',
+          'bundle-url.js',
+          'get-worker-url.js',
+          'cacheLoader.js',
+          'js-loader.js',
+        ],
+      },
+      {
+        assets: [
+          'worker.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'js-loader.js',
+        ],
+      },
+      {
+        assets: ['async.js', 'esmodule-helpers.js'],
+      },
+    ]);
+
+    let res = await new Promise(resolve => {
+      run(b, {
+        output: resolve,
+      });
+    });
+    assert.deepEqual(res, {default: 42});
+  });
+
+  it('should support bundling workers with dynamic import in nested worker', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/worker-dynamic/index-nested.js'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index-nested.js',
+        assets: ['index-nested.js', 'bundle-url.js', 'get-worker-url.js'],
+      },
+      {
+        assets: [
+          'worker-nested.js',
+          'bundle-url.js',
+          'get-worker-url.js',
+          'cacheLoader.js',
+          'js-loader.js',
+        ],
+      },
+      {
+        assets: [
+          'worker.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'js-loader.js',
+        ],
+      },
+      {
+        assets: ['async.js', 'esmodule-helpers.js'],
+      },
+    ]);
+
+    let res = await new Promise(resolve => {
+      run(b, {
+        output: resolve,
+      });
+    });
+    assert.deepEqual(res, {default: 42});
+  });
+
   it('should support bundling workers of type module', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/workers-module/index.js'),

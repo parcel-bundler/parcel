@@ -527,6 +527,7 @@ export function assertBundles(
     a.assets.join(',').localeCompare(b.assets.join(','));
   expectedBundles.sort(byName).sort(byAssets);
   actualBundles.sort(byName).sort(byAssets);
+  console.log(actualBundles)
   assert.equal(
     actualBundles.length,
     expectedBundles.length,
@@ -682,46 +683,50 @@ function prepareBrowserContext(
         return Buffer.from(str, 'binary').toString('base64');
       },
       URL,
-      Worker: class Worker extends EventEmitter {
-        constructor(url) {
-          super();
-          this._run(url);
-        }
-
-        async _run(url) {
-          let u = new URL(url);
-          let filename = path.join(path.dirname(filePath), u.pathname);
-          let {ctx, promises} = prepareWorkerContext(filename, {
-            postMessage: msg => {
-              this.emit('message', msg);
-            },
-          });
-
-          let code = await overlayFS.readFile(filename, 'utf8');
-          vm.createContext(ctx);
-          new vm.Script(code, {
-            filename,
-          }).runInContext(ctx);
-
-          if (promises) {
-            await Promise.all(promises);
-          }
-        }
-
-        addEventListener(evt, callback) {
-          super.on(evt, callback);
-        }
-
-        removeEventListener(evt, callback) {
-          super.removeListener(evt, callback);
-        }
-      },
+      Worker: createWorkerClass(filePath),
     },
     globals,
   );
 
   ctx.window = ctx.self = ctx;
   return {ctx, promises};
+}
+
+function createWorkerClass(filePath: FilePath) {
+  return class Worker extends EventEmitter {
+    constructor(url) {
+      super();
+      this._run(url);
+    }
+
+    async _run(url) {
+      let u = new URL(url);
+      let filename = path.join(path.dirname(filePath), u.pathname);
+      let {ctx, promises} = prepareWorkerContext(filename, {
+        postMessage: msg => {
+          this.emit('message', msg);
+        },
+      });
+
+      let code = await overlayFS.readFile(filename, 'utf8');
+      vm.createContext(ctx);
+      new vm.Script(code, {
+        filename: 'http://localhost/' + path.basename(filename),
+      }).runInContext(ctx);
+
+      if (promises) {
+        await Promise.all(promises);
+      }
+    }
+
+    addEventListener(evt, callback) {
+      super.on(evt, callback);
+    }
+
+    removeEventListener(evt, callback) {
+      super.removeListener(evt, callback);
+    }
+  };
 }
 
 function prepareWorkerContext(
@@ -780,6 +785,7 @@ function prepareWorkerContext(
         return Buffer.from(str, 'binary').toString('base64');
       },
       URL,
+      Worker: createWorkerClass(filePath),
     },
     globals,
   );
