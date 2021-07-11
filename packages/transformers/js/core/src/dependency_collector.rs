@@ -96,7 +96,19 @@ impl<'a> DependencyCollector<'a> {
     attributes: Option<HashMap<swc_atoms::JsWord, bool>>,
     is_optional: bool,
     source_type: SourceType,
-  ) {
+  ) -> Option<JsWord> {
+    // For normal imports/requires, the specifier will remain unchanged.
+    // For other types of dependencies, the specifier will be changed to a hash
+    // that also contains the dependency kind. This way, multiple kinds of dependencies
+    // to the same specifier can be used within the same file.
+    let placeholder = match kind {
+      DependencyKind::Import | DependencyKind::Export | DependencyKind::Require => None,
+      _ => Some(format!(
+        "{:x}",
+        hash!(format!("{}:{}:{}", self.config.filename, specifier, kind))
+      )),
+    };
+
     self.items.push(DependencyDescriptor {
       kind,
       loc: SourceLocation::from(self.source_map, span),
@@ -105,8 +117,10 @@ impl<'a> DependencyCollector<'a> {
       is_optional,
       is_helper: span.is_dummy(),
       source_type: Some(source_type),
-      placeholder: None,
+      placeholder: placeholder.clone(),
     });
+
+    placeholder.map(|p| p.into())
   }
 
   fn add_url_dependency(
@@ -118,7 +132,13 @@ impl<'a> DependencyCollector<'a> {
   ) -> ast::Expr {
     // If not a library, replace with a require call pointing to a runtime that will resolve the url dynamically.
     if !self.config.is_library {
-      self.add_dependency(specifier.clone(), span, kind, None, false, source_type);
+      let placeholder =
+        self.add_dependency(specifier.clone(), span, kind, None, false, source_type);
+      let specifier = if let Some(placeholder) = placeholder {
+        placeholder
+      } else {
+        specifier
+      };
       return ast::Expr::Call(self.create_require(specifier));
     }
 
@@ -463,7 +483,7 @@ impl<'a> Fold for DependencyCollector<'a> {
       }
     }
 
-    if let Some(arg) = node.args.get(0) {
+    let node = if let Some(arg) = node.args.get(0) {
       if kind == DependencyKind::ServiceWorker || kind == DependencyKind::Worklet {
         let (source_type, opts) = if kind == DependencyKind::ServiceWorker {
           match_worker_type(node.args.get(1))
@@ -517,25 +537,40 @@ impl<'a> Fold for DependencyCollector<'a> {
         return node;
       }
 
-      if let Lit(lit) = &*arg.expr {
-        if let ast::Lit::Str(str_) = lit {
-          // require() calls aren't allowed in scripts, flag as an error.
-          if kind == DependencyKind::Require && self.config.source_type == SourceType::Script {
-            self.add_script_error(node.span);
-            return node;
-          }
-
-          self.add_dependency(
-            str_.value.clone(),
-            str_.span,
-            kind.clone(),
-            attributes,
-            kind == DependencyKind::Require && self.in_try,
-            self.config.source_type,
-          );
+      if let Lit(ast::Lit::Str(str_)) = &*arg.expr {
+        // require() calls aren't allowed in scripts, flag as an error.
+        if kind == DependencyKind::Require && self.config.source_type == SourceType::Script {
+          self.add_script_error(node.span);
+          return node;
         }
+
+        let placeholder = self.add_dependency(
+          str_.value.clone(),
+          str_.span,
+          kind.clone(),
+          attributes,
+          kind == DependencyKind::Require && self.in_try,
+          self.config.source_type,
+        );
+
+        if let Some(placeholder) = placeholder {
+          let mut node = node.clone();
+          node.args[0].expr = Box::new(ast::Expr::Lit(ast::Lit::Str(ast::Str {
+            value: placeholder,
+            span: str_.span,
+            has_escape: false,
+            kind: ast::StrKind::Synthesized,
+          })));
+          node
+        } else {
+          node
+        }
+      } else {
+        node
       }
-    }
+    } else {
+      node
+    };
 
     // Replace import() with require()
     if kind == DependencyKind::DynamicImport {

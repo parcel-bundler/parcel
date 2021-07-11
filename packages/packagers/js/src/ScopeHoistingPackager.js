@@ -19,7 +19,7 @@ import {ESMOutputFormat} from './ESMOutputFormat';
 import {CJSOutputFormat} from './CJSOutputFormat';
 import {GlobalOutputFormat} from './GlobalOutputFormat';
 import {prelude, helpers} from './helpers';
-import {replaceScriptDependencies} from './utils';
+import {replaceScriptDependencies, getSpecifier} from './utils';
 
 // https://262.ecma-international.org/6.0/#sec-names-and-keywords
 const IDENTIFIER_RE = /^[$_\p{ID_Start}][$_\u200C\u200D\p{ID_Continue}]*$/u;
@@ -70,7 +70,12 @@ export class ScopeHoistingPackager {
   assetOutputs: Map<string, {|code: string, map: ?Buffer|}>;
   exportedSymbols: Map<
     string,
-    Array<{|exportAs: string, local: string|}>,
+    {|
+      asset: Asset,
+      exportSymbol: string,
+      local: string,
+      exportAs: Array<string>,
+    |},
   > = new Map();
   externals: Map<string, Map<string, string>> = new Map();
   topLevelNames: Map<string, number> = new Map();
@@ -263,27 +268,32 @@ export class ScopeHoistingPackager {
     // TODO: handle ESM exports of wrapped entry assets...
     let entry = this.bundle.getMainEntry();
     if (entry && !this.wrappedAssets.has(entry.id)) {
-      for (let {exportAs, symbol} of this.bundleGraph.getExportedSymbols(
-        entry,
-      )) {
+      for (let {
+        asset,
+        exportAs,
+        symbol,
+        exportSymbol,
+      } of this.bundleGraph.getExportedSymbols(entry)) {
         if (typeof symbol === 'string') {
           let symbols = this.exportedSymbols.get(
             symbol === '*' ? nullthrows(entry.symbols.get('*')?.local) : symbol,
-          );
+          )?.exportAs;
 
-          let local = symbol;
-          if (symbols) {
-            local = symbols[0].local;
-          } else {
+          if (!symbols) {
             symbols = [];
-            this.exportedSymbols.set(symbol, symbols);
+            this.exportedSymbols.set(symbol, {
+              asset,
+              exportSymbol,
+              local: symbol,
+              exportAs: symbols,
+            });
           }
 
           if (exportAs === '*') {
             exportAs = 'default';
           }
 
-          symbols.push({exportAs, local});
+          symbols.push(exportAs);
         } else if (symbol === null) {
           // TODO `meta.exportsIdentifier[exportSymbol]` should be exported
           // let relativePath = relative(options.projectRoot, asset.filePath);
@@ -535,7 +545,7 @@ ${code}
     let depMap = new Map();
     let replacements = new Map();
     for (let dep of deps) {
-      depMap.set(`${assetId}:${dep.specifier}`, dep);
+      depMap.set(`${assetId}:${getSpecifier(dep)}`, dep);
 
       let asyncResolution = this.bundleGraph.resolveAsyncDependency(
         dep,
