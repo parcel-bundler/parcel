@@ -4,7 +4,7 @@ const cacheLoader = require('../../cacheLoader');
 module.exports = cacheLoader(function loadJSBundle(bundle) {
   return new Promise(function(resolve, reject) {
     try {
-      importScripts(bundle);
+      __parcel__importScripts__(bundle);
       resolve();
     } catch (e) {
       reject(e);

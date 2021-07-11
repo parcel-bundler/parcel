@@ -353,6 +353,14 @@ impl<'a> Fold for DependencyCollector<'a> {
             ))));
             return call;
           }
+          "__parcel__importScripts__" => {
+            let mut call = node.clone().fold_children_with(self);
+            call.callee = ast::ExprOrSuper::Expr(Box::new(ast::Expr::Ident(ast::Ident::new(
+              "importScripts".into(),
+              DUMMY_SP.apply_mark(self.ignore_mark),
+            ))));
+            return call;
+          }
           _ => return node.fold_children_with(self),
         }
       }

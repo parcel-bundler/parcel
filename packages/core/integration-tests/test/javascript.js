@@ -790,6 +790,38 @@ describe('javascript', function() {
     ]);
   });
 
+  it('should support bundling workers with dynamic import', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/worker-dynamic/index.js'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: [
+          'index.js',
+          'bundle-url.js',
+          'get-worker-url.js',
+          'esmodule-helpers.js',
+        ],
+      },
+      {
+        assets: [
+          'worker.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'js-loader.js',
+        ],
+      },
+      {
+        assets: ['async.js', 'esmodule-helpers.js'],
+      },
+    ]);
+
+    let res = await run(b);
+    assert.deepEqual(await res.default, {default: 42});
+  });
+
   it('should support bundling workers of type module', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/workers-module/index.js'),
