@@ -938,6 +938,35 @@ describe('javascript', function() {
     assert.deepEqual(res, {default: 42});
   });
 
+  it('should support workers pointing to themselves', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/worker-self/index.js'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: [
+          'index.js',
+          'bundle-url.js',
+          'get-worker-url.js',
+          'workerHelpers.js',
+          'esmodule-helpers.js',
+        ],
+      },
+      {
+        assets: [
+          'workerHelpers.js',
+          'bundle-url.js',
+          'get-worker-url.js',
+          'esmodule-helpers.js',
+        ],
+      },
+    ]);
+
+    await run(b);
+  });
+
   it('should support bundling workers of type module', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/workers-module/index.js'),
