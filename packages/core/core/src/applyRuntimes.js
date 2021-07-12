@@ -29,6 +29,7 @@ import {dependencyToInternalDependency} from './public/Dependency';
 import {mergeEnvironments} from './Environment';
 import createAssetGraphRequest from './requests/AssetGraphRequest';
 import {createDevDependency, runDevDepRequest} from './requests/DevDepRequest';
+import {toProjectPath, fromProjectPathRelative} from './projectPath';
 
 type RuntimeConnection = {|
   bundle: InternalBundle,
@@ -92,8 +93,8 @@ export default async function applyRuntimes({
 
             let assetGroup = {
               code,
-              filePath: sourceName,
-              env: mergeEnvironments(bundle.env, env),
+              filePath: toProjectPath(options.projectRoot, sourceName),
+              env: mergeEnvironments(options.projectRoot, bundle.env, env),
               // Runtime assets should be considered source, as they should be
               // e.g. compiled to run in the target environment
               isSource: true,
@@ -129,7 +130,9 @@ export default async function applyRuntimes({
       options,
     );
     devDepRequests.set(
-      `${devDepRequest.specifier}:${devDepRequest.resolveFrom}`,
+      `${devDepRequest.specifier}:${fromProjectPathRelative(
+        devDepRequest.resolveFrom,
+      )}`,
       devDepRequest,
     );
     await runDevDepRequest(api, devDepRequest);

@@ -13,6 +13,8 @@ import type {FileSystem} from '@parcel/fs';
 import type {PackageManager} from '@parcel/package-manager';
 import type {ParcelOptions} from '../types';
 
+import {fromProjectPath} from '../projectPath';
+
 let parcelOptionsToPluginOptions: WeakMap<
   ParcelOptions,
   PluginOptions,
@@ -65,7 +67,7 @@ export default class PluginOptions implements IPluginOptions {
   }
 
   get entryRoot(): FilePath {
-    return this.#options.entryRoot;
+    return fromProjectPath(this.#options.projectRoot, this.#options.entryRoot);
   }
 
   get cacheDir(): FilePath {

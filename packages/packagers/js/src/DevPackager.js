@@ -6,7 +6,7 @@ import SourceMap from '@parcel/source-map';
 import invariant from 'assert';
 import path from 'path';
 import fs from 'fs';
-import {replaceScriptDependencies} from './utils';
+import {replaceScriptDependencies, getSpecifier} from './utils';
 
 const PRELUDE = fs
   .readFileSync(path.join(__dirname, 'dev-prelude.js'), 'utf8')
@@ -102,7 +102,9 @@ export class DevPackager {
             this.bundle,
           );
           if (resolved) {
-            deps[dep.specifier] = this.bundleGraph.getAssetPublicId(resolved);
+            deps[getSpecifier(dep)] = this.bundleGraph.getAssetPublicId(
+              resolved,
+            );
           }
         }
 
@@ -174,7 +176,7 @@ export class DevPackager {
       let entryMap;
       let mapBuffer = script.mapBuffer;
       if (mapBuffer) {
-        entryMap = new SourceMap(mapBuffer);
+        entryMap = new SourceMap(this.options.projectRoot, mapBuffer);
       }
       contents += replaceScriptDependencies(
         this.bundleGraph,

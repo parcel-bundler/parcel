@@ -14,7 +14,9 @@ function shouldExclude(asset, options) {
     asset.env.isWorker() ||
     asset.env.isWorklet() ||
     options.mode !== 'development' ||
-    !asset.getDependencies().find(v => v.specifier === 'react')
+    !asset
+      .getDependencies()
+      .find(v => v.specifier === 'react' || v.specifier === 'react/jsx-runtime')
   );
 }
 

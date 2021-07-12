@@ -128,7 +128,7 @@ function resolvePathImporter({asset, resolve, includePaths, options}) {
       paths.push(
         ...options.env.SASS_PATH.split(
           process.platform === 'win32' ? ';' : ':',
-        ),
+        ).map(p => path.resolve(options.projectRoot, p)),
       );
     }
 

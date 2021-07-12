@@ -17,6 +17,7 @@ export default (new Namer({
   name({bundle, bundleGraph, options}) {
     let bundleGroup = bundleGraph.getBundleGroupsContainingBundle(bundle)[0];
     let bundleGroupBundles = bundleGraph.getBundlesInBundleGroup(bundleGroup);
+    let isEntry = bundleGraph.isEntryBundleGroup(bundleGroup);
 
     if (bundle.needsStableName) {
       let entryBundlesOfType = bundleGroupBundles.filter(
@@ -37,7 +38,7 @@ export default (new Namer({
 
     if (
       bundle.id === mainBundle.id &&
-      bundle.needsStableName &&
+      isEntry &&
       bundle.target &&
       bundle.target.distEntry != null
     ) {
@@ -53,21 +54,23 @@ export default (new Namer({
         let err = new ThrowableDiagnostic({
           diagnostic: {
             message: md`Target "${bundle.target.name}" declares an output file path of "${fullName}" which does not match the compiled bundle type "${bundle.type}".`,
-            filePath: loc.filePath,
-            codeFrame: {
-              codeHighlights: [
-                {
-                  start: loc.start,
-                  end: loc.end,
-                  message: md`Did you mean "${fullName.slice(
-                    0,
-                    -path.extname(fullName).length,
-                  ) +
-                    '.' +
-                    bundle.type}"?`,
-                },
-              ],
-            },
+            codeFrames: [
+              {
+                filePath: loc.filePath,
+                codeHighlights: [
+                  {
+                    start: loc.start,
+                    end: loc.end,
+                    message: md`Did you mean "${fullName.slice(
+                      0,
+                      -path.extname(fullName).length,
+                    ) +
+                      '.' +
+                      bundle.type}"?`,
+                  },
+                ],
+              },
+            ],
             hints: [
               `Try changing the file extension of "${
                 bundle.target.name
@@ -86,6 +89,7 @@ export default (new Namer({
     //      `index.css`.
     let name = nameFromContent(
       mainBundle,
+      isEntry,
       bundleGroup.entryAssetId,
       options.entryRoot,
     );
@@ -99,6 +103,7 @@ export default (new Namer({
 
 function nameFromContent(
   bundle: Bundle,
+  isEntry: boolean,
   entryAssetId: string,
   entryRoot: FilePath,
 ): string {
@@ -110,7 +115,7 @@ function nameFromContent(
   // If this is an entry bundle, use the original relative path.
   if (bundle.needsStableName) {
     // Match name of target entry if possible, but with a different extension.
-    if (bundle.target.distEntry != null) {
+    if (isEntry && bundle.target.distEntry != null) {
       return basenameWithoutExtension(bundle.target.distEntry);
     }
 

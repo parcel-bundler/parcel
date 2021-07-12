@@ -109,12 +109,22 @@ type PackageJSONConfig = {|
 |};
 
 const SCRIPT_ERRORS = {
-  browser:
-    'Browser scripts cannot have imports or exports. Use a <script type="module"> instead.',
-  'web-worker':
-    'Web workers cannot have imports or exports. Use the `type: "module"` option instead.',
-  'service-worker':
-    'Service workers cannot have imports or exports. Use the `type: "module"` option instead.',
+  browser: {
+    message: 'Browser scripts cannot have imports or exports.',
+    hint: 'Add type="module" as a second argument to the <script> tag.',
+  },
+  'web-worker': {
+    message:
+      'Web workers cannot have imports or exports without the `type: "module"` option.',
+    hint:
+      "Add {type: 'module'} as a second argument to the Worker constructor.",
+  },
+  'service-worker': {
+    message:
+      'Service workers cannot have imports or exports without the `type: "module"` option.',
+    hint:
+      "Add {type: 'module'} as a second argument to the navigator.serviceWorker.register() call.",
+  },
 };
 
 type TSConfig = {
@@ -322,7 +332,6 @@ export default (new Transformer({
       }
     }
 
-    let relativePath = path.relative(options.projectRoot, asset.filePath);
     let env: EnvMap = {};
 
     if (!config?.inlineEnvironment) {
@@ -358,7 +367,6 @@ export default (new Transformer({
       needs_esm_helpers,
       diagnostics,
       used_env,
-      script_error_loc,
     } = transform({
       filename: asset.filePath,
       code,
@@ -388,11 +396,13 @@ export default (new Transformer({
         asset.env.shouldScopeHoist && asset.env.sourceType !== 'script',
       source_type: asset.env.sourceType === 'script' ? 'Script' : 'Module',
       supports_module_workers: supportsModuleWorkers,
+      is_library: asset.env.isLibrary,
+      is_esm_output: asset.env.outputFormat === 'esmodule',
     });
 
     let convertLoc = loc => {
       let location = {
-        filePath: relativePath,
+        filePath: asset.filePath,
         start: {
           line: loc.start_line + Number(asset.meta.startLine ?? 1) - 1,
           column: loc.start_col,
@@ -413,64 +423,58 @@ export default (new Transformer({
 
     if (diagnostics) {
       throw new ThrowableDiagnostic({
-        diagnostic: diagnostics.map(diagnostic => ({
-          filePath: asset.filePath,
-          message: diagnostic.message,
-          codeFrame: {
-            code: code.toString(),
-            codeHighlights: diagnostic.code_highlights?.map(highlight => {
-              let {start, end} = convertLoc(highlight.loc);
-              return {
-                message: highlight.message,
-                start,
-                end,
-              };
-            }),
-          },
-          hints: diagnostic.hints,
-        })),
-      });
-    }
+        diagnostic: diagnostics.map(diagnostic => {
+          let message = diagnostic.message;
+          if (message === 'SCRIPT_ERROR') {
+            let err = SCRIPT_ERRORS[(asset.env.context: string)];
+            message = err?.message || SCRIPT_ERRORS.browser.message;
+          }
 
-    // Throw an error for imports/exports within a script if needed.
-    if (script_error_loc) {
-      let message = SCRIPT_ERRORS[(asset.env.context: string)];
-      if (message) {
-        let loc = convertLoc(script_error_loc);
-        let diagnostic = [
-          {
+          let res = {
             message,
-            filePath: asset.filePath,
-            codeFrame: {
-              codeHighlights: [
-                {
-                  start: loc.start,
-                  end: loc.end,
-                },
-              ],
-            },
-          },
-        ];
+            codeFrames: [
+              {
+                filePath: asset.filePath,
+                codeHighlights: diagnostic.code_highlights?.map(highlight => {
+                  let {start, end} = convertLoc(highlight.loc);
+                  return {
+                    message: highlight.message,
+                    start,
+                    end,
+                  };
+                }),
+              },
+            ],
+            hints: diagnostic.hints,
+          };
 
-        if (asset.env.loc) {
-          diagnostic.push({
-            message: 'The environment was originally created here:',
-            filePath: asset.env.loc.filePath,
-            codeFrame: {
-              codeHighlights: [
-                {
-                  start: asset.env.loc.start,
-                  end: asset.env.loc.end,
-                },
-              ],
-            },
-          });
-        }
+          if (diagnostic.show_environment) {
+            if (asset.env.loc) {
+              res.codeFrames.push({
+                filePath: asset.env.loc.filePath,
+                codeHighlights: [
+                  {
+                    start: asset.env.loc.start,
+                    end: asset.env.loc.end,
+                    message: 'The environment was originally created here',
+                  },
+                ],
+              });
+            }
 
-        throw new ThrowableDiagnostic({
-          diagnostic,
-        });
-      }
+            let err = SCRIPT_ERRORS[(asset.env.context: string)];
+            if (err) {
+              if (!res.hints) {
+                res.hints = [err.hint];
+              } else {
+                res.hints.push(err.hint);
+              }
+            }
+          }
+
+          return res;
+        }),
+      });
     }
 
     if (shebang) {
@@ -509,6 +513,7 @@ export default (new Transformer({
           },
           meta: {
             webworker: true,
+            placeholder: dep.placeholder,
           },
         });
       } else if (dep.kind === 'ServiceWorker') {
@@ -522,6 +527,9 @@ export default (new Transformer({
             outputFormat: 'global', // TODO: module service worker support
             loc,
           },
+          meta: {
+            placeholder: dep.placeholder,
+          },
         });
       } else if (dep.kind === 'Worklet') {
         let loc = convertLoc(dep.loc);
@@ -533,42 +541,17 @@ export default (new Transformer({
             outputFormat: 'esmodule', // Worklets require ESM
             loc,
           },
+          meta: {
+            placeholder: dep.placeholder,
+          },
         });
-      } else if (dep.kind === 'ImportScripts') {
-        if (asset.env.isWorker()) {
-          if (asset.env.sourceType !== 'script') {
-            let loc = convertLoc(dep.loc);
-            let diagnostic = [
-              {
-                message: 'importScripts() is not supported in module workers.',
-                filePath: asset.filePath,
-                codeFrame: {
-                  codeHighlights: [
-                    {
-                      start: loc.start,
-                      end: loc.end,
-                    },
-                  ],
-                },
-                hints: [
-                  'Try using a static `import`, or dynamic `import()` instead.',
-                ],
-              },
-            ];
-
-            throw new ThrowableDiagnostic({
-              diagnostic,
-            });
-          }
-
-          asset.addURLDependency(dep.specifier, {
-            loc: convertLoc(dep.loc),
-          });
-        }
       } else if (dep.kind === 'URL') {
         asset.addURLDependency(dep.specifier, {
           bundleBehavior: 'isolated',
           loc: convertLoc(dep.loc),
+          meta: {
+            placeholder: dep.placeholder,
+          },
         });
       } else if (dep.kind === 'File') {
         asset.invalidateOnFileChange(dep.specifier);
@@ -578,15 +561,19 @@ export default (new Transformer({
           meta.importAttributes = dep.attributes;
         }
 
+        if (dep.placeholder) {
+          meta.placeholder = dep.placeholder;
+        }
+
         let env;
         if (dep.kind === 'DynamicImport') {
           if (asset.env.isWorklet()) {
             let loc = convertLoc(dep.loc);
-            let diagnostic = [
-              {
-                message: 'import() is not allowed in worklets.',
-                filePath: asset.filePath,
-                codeFrame: {
+            let diagnostic = {
+              message: 'import() is not allowed in worklets.',
+              codeFrames: [
+                {
+                  filePath: asset.filePath,
                   codeHighlights: [
                     {
                       start: loc.start,
@@ -594,22 +581,20 @@ export default (new Transformer({
                     },
                   ],
                 },
-                hints: ['Try using a static `import`.'],
-              },
-            ];
+              ],
+              hints: ['Try using a static `import`.'],
+            };
 
             if (asset.env.loc) {
-              diagnostic.push({
-                message: 'The environment was originally created here:',
+              diagnostic.codeFrames.push({
                 filePath: asset.env.loc.filePath,
-                codeFrame: {
-                  codeHighlights: [
-                    {
-                      start: asset.env.loc.start,
-                      end: asset.env.loc.end,
-                    },
-                  ],
-                },
+                codeHighlights: [
+                  {
+                    start: asset.env.loc.start,
+                    end: asset.env.loc.end,
+                    message: 'The environment was originally created here',
+                  },
+                ],
               });
             }
 
@@ -638,6 +623,15 @@ export default (new Transformer({
           };
         }
 
+        // Always bundle helpers, even with includeNodeModules: false, except if this is a library.
+        let isHelper = dep.is_helper && !dep.specifier.endsWith('/jsx-runtime');
+        if (isHelper && !asset.env.isLibrary) {
+          env = {
+            ...env,
+            includeNodeModules: true,
+          };
+        }
+
         asset.addDependency({
           specifier: dep.specifier,
           specifierType: dep.kind === 'Require' ? 'commonjs' : 'esm',
@@ -645,10 +639,7 @@ export default (new Transformer({
           priority: dep.kind === 'DynamicImport' ? 'lazy' : 'sync',
           isOptional: dep.is_optional,
           meta,
-          resolveFrom:
-            dep.is_helper && !dep.specifier.endsWith('/jsx-runtime')
-              ? __filename
-              : undefined,
+          resolveFrom: isHelper ? __filename : undefined,
           env,
         });
       }
@@ -663,7 +654,9 @@ export default (new Transformer({
       }
 
       let deps = new Map(
-        asset.getDependencies().map(dep => [dep.specifier, dep]),
+        asset
+          .getDependencies()
+          .map(dep => [dep.meta.placeholder ?? dep.specifier, dep]),
       );
       for (let dep of deps.values()) {
         dep.symbols.ensure();

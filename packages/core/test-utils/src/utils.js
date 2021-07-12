@@ -18,6 +18,7 @@ import util from 'util';
 import Parcel, {createWorkerFarm} from '@parcel/core';
 import assert from 'assert';
 import vm from 'vm';
+import v8 from 'v8';
 import {NodeFS, MemoryFS, OverlayFS, ncp as _ncp} from '@parcel/fs';
 import path from 'path';
 import url from 'url';
@@ -100,11 +101,11 @@ If you don't know how, check here: https://bit.ly/2UmWsbD
   );
 }
 
-export function bundler(
+export function getParcelOptions(
   entries: FilePath | Array<FilePath>,
   opts?: $Shape<InitialParcelOptions>,
-): Parcel {
-  let options: InitialParcelOptions = mergeParcelOptions(
+): InitialParcelOptions {
+  return mergeParcelOptions(
     {
       entries,
       shouldDisableCache: true,
@@ -124,8 +125,13 @@ export function bundler(
     },
     opts,
   );
+}
 
-  return new Parcel(options);
+export function bundler(
+  entries: FilePath | Array<FilePath>,
+  opts?: $Shape<InitialParcelOptions>,
+): Parcel {
+  return new Parcel(getParcelOptions(entries, opts));
 }
 
 export function findAsset(
@@ -847,6 +853,7 @@ function prepareNodeContext(filePath, globals, ctx: any = {}) {
   ctx.setTimeout = setTimeout;
   ctx.setImmediate = setImmediate;
   ctx.global = ctx;
+  ctx.URL = URL;
   Object.assign(ctx, globals);
   return ctx;
 }
@@ -888,6 +895,9 @@ export async function runESM(
         identifier: filename + '?id=' + id,
         importModuleDynamically: entry,
         context,
+        initializeImportMeta(meta) {
+          meta.url = `http://localhost/${path.basename(filename)}`;
+        },
       });
       cache.set(filename, m);
       return m;
@@ -992,4 +1002,61 @@ export async function assertESMExports(
     parcelResult = {...parcelResult};
   }
   assert.deepEqual(parcelResult, expected);
+}
+
+export async function assertNoFilePathInCache(
+  fs: FileSystem,
+  dir: string,
+  projectRoot: string,
+) {
+  let entries = await fs.readdir(dir);
+  for (let entry of entries) {
+    // Skip watcher snapshots for linux/windows, which contain full file paths.
+    if (path.extname(entry) === '.txt') {
+      continue;
+    }
+
+    let fullPath = path.join(dir, entry);
+    let stat = await fs.stat(fullPath);
+    if (stat.isDirectory()) {
+      await assertNoFilePathInCache(fs, fullPath, projectRoot);
+    } else if (stat.isFile()) {
+      let contents = await fs.readFile(fullPath);
+
+      // For debugging purposes, log all instances of the projectRoot in the cache.
+      // Otherwise, fail the test if one is found.
+      if (process.env.PARCEL_DEBUG_CACHE_FILEPATH != null) {
+        if (contents.includes(projectRoot)) {
+          let deserialized;
+          try {
+            // $FlowFixMe
+            deserialized = v8.deserialize(contents);
+          } catch (err) {
+            // rudimentary detection of binary files
+            if (!contents.includes(0)) {
+              deserialized = contents.toString();
+            } else {
+              deserialized = contents;
+            }
+          }
+
+          if (deserialized != null) {
+            // eslint-disable-next-line no-console
+            console.log(
+              `Found projectRoot ${projectRoot} in cache file ${fullPath}`,
+            );
+            // eslint-disable-next-line no-console
+            console.log(
+              require('util').inspect(deserialized, {depth: 50, colors: true}),
+            );
+          }
+        }
+      } else {
+        assert(
+          !contents.includes(projectRoot),
+          `Found projectRoot ${projectRoot} in cache file ${fullPath}`,
+        );
+      }
+    }
+  }
 }

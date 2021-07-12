@@ -24,9 +24,10 @@ import {hashObject, objectSortedEntries} from '@parcel/utils';
 import nullthrows from 'nullthrows';
 import ContentGraph, {type SerializedContentGraph} from './ContentGraph';
 import {createDependency} from './Dependency';
+import {type ProjectPath, fromProjectPathRelative} from './projectPath';
 
 type InitOpts = {|
-  entries?: Array<string>,
+  entries?: Array<ProjectPath>,
   targets?: Array<Target>,
   assetGroups?: Array<AssetGroup>,
 |};
@@ -54,7 +55,7 @@ export function nodeFromDep(dep: Dependency): DependencyNode {
 export function nodeFromAssetGroup(assetGroup: AssetGroup): AssetGroupNode {
   return {
     id: hashString(
-      assetGroup.filePath +
+      fromProjectPathRelative(assetGroup.filePath) +
         assetGroup.env.id +
         String(assetGroup.isSource) +
         String(assetGroup.sideEffects) +
@@ -83,9 +84,9 @@ export function nodeFromAsset(asset: Asset): AssetNode {
   };
 }
 
-export function nodeFromEntrySpecifier(entry: string): EntrySpecifierNode {
+export function nodeFromEntrySpecifier(entry: ProjectPath): EntrySpecifierNode {
   return {
-    id: 'entry_specifier:' + entry,
+    id: 'entry_specifier:' + fromProjectPathRelative(entry),
     type: 'entry_specifier',
     value: entry,
   };
@@ -201,7 +202,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
   }
 
   resolveEntry(
-    entry: string,
+    entry: ProjectPath,
     resolved: Array<Entry>,
     correspondingRequest: ContentKey,
   ) {
@@ -225,8 +226,9 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
   ) {
     let depNodes = targets.map(target => {
       let node = nodeFromDep(
-        createDependency({
-          specifier: entry.filePath,
+        // The passed project path is ignored in this case, because there is no `loc`
+        createDependency('', {
+          specifier: fromProjectPathRelative(entry.filePath),
           specifierType: 'esm', // ???
           pipeline: target.pipeline,
           target: target,
@@ -423,35 +425,46 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
     invariant(assetGroupNode.type === 'asset_group');
     assetGroupNode.correspondingRequest = correspondingRequest;
 
-    let dependentAssetKeys = [];
+    let assetsByKey = new Map();
+    for (let asset of assets) {
+      if (asset.uniqueKey != null) {
+        assetsByKey.set(asset.uniqueKey, asset);
+      }
+    }
+
+    let dependentAssetKeys = new Set();
+    for (let asset of assets) {
+      for (let dep of asset.dependencies.values()) {
+        if (assetsByKey.has(dep.specifier)) {
+          dependentAssetKeys.add(dep.specifier);
+        }
+      }
+    }
+
     let assetObjects: Array<{|
-      assetNode: AssetNode,
+      assetNodeId: NodeId,
       dependentAssets: Array<Asset>,
-      isDirect: boolean,
     |}> = [];
+    let assetNodeIds = [];
     for (let asset of assets) {
       this.normalizeEnvironment(asset);
-      let isDirect = !dependentAssetKeys.includes(asset.uniqueKey);
+      let isDirect = !dependentAssetKeys.has(asset.uniqueKey);
 
       let dependentAssets = [];
       for (let dep of asset.dependencies.values()) {
-        let dependentAsset = assets.find(a => a.uniqueKey === dep.specifier);
+        let dependentAsset = assetsByKey.get(dep.specifier);
         if (dependentAsset) {
-          dependentAssetKeys.push(dependentAsset.uniqueKey);
           dependentAssets.push(dependentAsset);
         }
       }
+      let id = this.addNode(nodeFromAsset(asset));
       assetObjects.push({
-        assetNode: nodeFromAsset(asset),
+        assetNodeId: id,
         dependentAssets,
-        isDirect,
       });
-    }
 
-    const assetNodeIds = [];
-    for (let {assetNode, isDirect} of assetObjects) {
       if (isDirect) {
-        assetNodeIds.push(this.addNode(assetNode));
+        assetNodeIds.push(id);
       }
     }
 
@@ -459,10 +472,10 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
       this.getNodeIdByContentKey(assetGroupNode.id),
       assetNodeIds,
     );
-    for (let {assetNode, dependentAssets} of assetObjects) {
+    for (let {assetNodeId, dependentAssets} of assetObjects) {
       // replaceNodesConnectedTo has merged the value into the existing node, retrieve
       // the actual current node.
-      assetNode = nullthrows(this.getNodeByContentKey(assetNode.id));
+      let assetNode = nullthrows(this.getNode(assetNodeId));
       invariant(assetNode.type === 'asset');
       this.resolveAsset(assetNode, dependentAssets);
     }
@@ -475,9 +488,14 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
       this.normalizeEnvironment(dep);
       let depNode = nodeFromDep(dep);
       let existing = this.getNodeByContentKey(depNode.id);
-      if (existing) {
-        invariant(existing.type === 'dependency');
-        depNode.value.meta = existing.value.meta;
+      if (
+        existing?.type === 'dependency' &&
+        existing.value.resolverMeta != null
+      ) {
+        depNode.value.meta = {
+          ...depNode.value.meta,
+          ...existing.value.resolverMeta,
+        };
       }
       let dependentAsset = dependentAssets.find(
         a => a.uniqueKey === dep.specifier,

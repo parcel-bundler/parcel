@@ -1,10 +1,7 @@
 /* global self, Blob */
 
-var bundleUrl = require('./bundle-url');
-
-module.exports = function loadWorker(relativePath, isESM) {
-  var workerUrl = bundleUrl.getBundleURL() + relativePath;
-  if (bundleUrl.getOrigin(workerUrl) === self.location.origin) {
+module.exports = function loadWorker(workerUrl, origin, isESM) {
+  if (origin === self.location.origin) {
     // If the worker bundle's url is on the same origin as the document,
     // use the worker bundle's own url.
     return workerUrl;
