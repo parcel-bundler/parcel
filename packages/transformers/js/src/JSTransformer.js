@@ -435,6 +435,7 @@ export default (new Transformer({
             codeFrames: [
               {
                 filePath: asset.filePath,
+                code: code.toString(),
                 codeHighlights: diagnostic.code_highlights?.map(highlight => {
                   let {start, end} = convertLoc(highlight.loc);
                   return {
