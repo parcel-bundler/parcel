@@ -76,6 +76,16 @@ describe('html', function() {
       }
     }
 
+    assert(html.includes('#hash_link'));
+    assert(html.includes('mailto:someone@acme.com'));
+    assert(html.includes('tel:+33636757575'));
+    assert(html.includes('https://unpkg.com/parcel-bundler'));
+
+    let iconsBundle = b.getBundles().find(b => b.name.startsWith('icons'));
+    assert(
+      html.includes('/' + path.basename(iconsBundle.filePath) + '#icon-code'),
+    );
+
     let value = null;
     await run(b, {
       alert: v => (value = v),
