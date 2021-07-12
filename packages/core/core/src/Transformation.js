@@ -423,14 +423,35 @@ export default class Transformation {
             );
           }
         } catch (e) {
+          let diagnostic = errorToDiagnostic(e, {
+            origin: transformer.name,
+            filePath: fromProjectPath(
+              this.options.projectRoot,
+              asset.value.filePath,
+            ),
+          });
+
+          // If this request is a virtual asset that might not exist on the filesystem,
+          // add the `code` property to each code frame in the diagnostics that match the
+          // request's filepath. This can't be done by the transformer because it might not
+          // have access to the original code (e.g. an inline script tag in HTML).
+          if (this.request.code != null) {
+            for (let d of diagnostic) {
+              if (d.codeFrames) {
+                for (let codeFrame of d.codeFrames) {
+                  if (
+                    codeFrame.code == null &&
+                    codeFrame.filePath === this.request.filePath
+                  ) {
+                    codeFrame.code = this.request.code;
+                  }
+                }
+              }
+            }
+          }
+
           throw new ThrowableDiagnostic({
-            diagnostic: errorToDiagnostic(e, {
-              origin: transformer.name,
-              filePath: fromProjectPath(
-                this.options.projectRoot,
-                asset.value.filePath,
-              ),
-            }),
+            diagnostic,
           });
         }
       }
