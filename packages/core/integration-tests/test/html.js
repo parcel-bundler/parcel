@@ -1649,26 +1649,31 @@ describe('html', function() {
       },
       {
         type: 'js',
-        assets: ['bundle-manifest.js', 'get-worker-url.js', 'index.js'],
+        assets: [
+          'bundle-manifest.js',
+          'get-worker-url.js',
+          'index.js',
+          'lodash.js',
+        ],
       },
       {
         name: 'index.html',
         type: 'html',
         assets: ['index.html'],
       },
+      // {
+      //   type: 'js',
+      //   assets: ['lodash.js'],
+      // },
       {
         type: 'js',
-        assets: ['lodash.js'],
-      },
-      {
-        type: 'js',
-        assets: ['worker.js'],
+        assets: ['worker.js', 'lodash.js'],
       },
     ]);
 
-    let lodashSibling = path.basename(
-      b.getBundles().find(v => v.getEntryAssets().length === 0).filePath,
-    );
+    // let lodashSibling = path.basename(
+    //   b.getBundles().find(v => v.getEntryAssets().length === 0).filePath,
+    // );
 
     let html = await outputFS.readFile(
       path.join(distDir, 'index.html'),
@@ -1682,8 +1687,9 @@ describe('html', function() {
       insertedBundles.push(path.basename(match[1]));
     }
 
-    assert.equal(insertedBundles.length, 2);
-    assert.equal(insertedBundles[0], lodashSibling);
+    assert.equal(insertedBundles.length, 1);
+    // assert.equal(insertedBundles.length, 2);
+    // assert.equal(insertedBundles[0], lodashSibling);
   });
 
   it('inserts sibling bundles into html in the correct order (head)', async function() {
@@ -1704,26 +1710,31 @@ describe('html', function() {
       },
       {
         type: 'js',
-        assets: ['bundle-manifest.js', 'get-worker-url.js', 'index.js'],
+        assets: [
+          'bundle-manifest.js',
+          'get-worker-url.js',
+          'index.js',
+          'lodash.js',
+        ],
       },
       {
         name: 'index.html',
         type: 'html',
         assets: ['index.html'],
       },
+      // {
+      //   type: 'js',
+      //   assets: ['lodash.js'],
+      // },
       {
         type: 'js',
-        assets: ['lodash.js'],
-      },
-      {
-        type: 'js',
-        assets: ['worker.js'],
+        assets: ['worker.js', 'lodash.js'],
       },
     ]);
 
-    let lodashSibling = path.basename(
-      b.getBundles().find(v => v.getEntryAssets().length === 0).filePath,
-    );
+    // let lodashSibling = path.basename(
+    //   b.getBundles().find(v => v.getEntryAssets().length === 0).filePath,
+    // );
 
     let html = await outputFS.readFile(
       path.join(distDir, 'index.html'),
@@ -1737,8 +1748,9 @@ describe('html', function() {
       insertedBundles.push(path.basename(match[1]));
     }
 
-    assert.equal(insertedBundles.length, 2);
-    assert.equal(insertedBundles[0], lodashSibling);
+    assert.equal(insertedBundles.length, 1);
+    // assert.equal(insertedBundles.length, 2);
+    // assert.equal(insertedBundles[0], lodashSibling);
   });
 
   it('should support multiple entries with shared sibling bundles', async function() {

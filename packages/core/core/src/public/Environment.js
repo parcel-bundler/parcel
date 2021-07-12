@@ -224,6 +224,10 @@ export default class Environment implements IEnvironment {
       }
 
       let matchedBrowsers = browserslist(browsers);
+      if (matchedBrowsers.length === 0) {
+        return false;
+      }
+
       let minBrowsers = getExcludedBrowsers(minVersions);
       let withoutMinBrowsers = browserslist([...browsers, ...minBrowsers]);
       return matchedBrowsers.length === withoutMinBrowsers.length;

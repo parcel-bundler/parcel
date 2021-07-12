@@ -339,22 +339,35 @@ impl<'a> Fold for DependencyCollector<'a> {
             }
           }
           "importScripts" => {
-            let msg = if self.config.source_type == SourceType::Script {
-              "importScripts() is not supported in worker scripts."
-            } else {
-              "importScripts() is not supported in module workers."
-            };
-            self.diagnostics.push(Diagnostic {
-              message: msg.to_string(),
-              code_highlights: Some(vec![CodeHighlight {
-                message: None,
-                loc: SourceLocation::from(self.source_map, node.span),
-              }]),
-              hints: Some(vec![String::from(
-                "Use a static `import`, or dynamic `import()` instead.",
-              )]),
-              show_environment: self.config.source_type == SourceType::Script,
-            });
+            if self.config.is_worker {
+              let msg = if self.config.source_type == SourceType::Script {
+                // Ignore if argument is not a string literal.
+                if let Some(ast::ExprOrSpread { expr, .. }) = node.args.get(0) {
+                  match &**expr {
+                    Lit(ast::Lit::Str(_)) => {}
+                    _ => {
+                      return node.fold_children_with(self);
+                    }
+                  }
+                }
+
+                "importScripts() is not supported in worker scripts."
+              } else {
+                "importScripts() is not supported in module workers."
+              };
+              self.diagnostics.push(Diagnostic {
+                message: msg.to_string(),
+                code_highlights: Some(vec![CodeHighlight {
+                  message: None,
+                  loc: SourceLocation::from(self.source_map, node.span),
+                }]),
+                hints: Some(vec![String::from(
+                  "Use a static `import`, or dynamic `import()` instead.",
+                )]),
+                show_environment: self.config.source_type == SourceType::Script,
+              });
+            }
+
             return node.fold_children_with(self);
           }
           "__parcel__require__" => {
@@ -369,6 +382,14 @@ impl<'a> Fold for DependencyCollector<'a> {
             let mut call = node.clone().fold_children_with(self);
             call.callee = ast::ExprOrSuper::Expr(Box::new(ast::Expr::Ident(ast::Ident::new(
               "import".into(),
+              DUMMY_SP.apply_mark(self.ignore_mark),
+            ))));
+            return call;
+          }
+          "__parcel__importScripts__" => {
+            let mut call = node.clone().fold_children_with(self);
+            call.callee = ast::ExprOrSuper::Expr(Box::new(ast::Expr::Ident(ast::Ident::new(
+              "importScripts".into(),
               DUMMY_SP.apply_mark(self.ignore_mark),
             ))));
             return call;

@@ -64,6 +64,7 @@ pub struct Config {
   inline_fs: bool,
   insert_node_globals: bool,
   is_browser: bool,
+  is_worker: bool,
   is_type_script: bool,
   is_jsx: bool,
   jsx_pragma: Option<String>,
@@ -272,6 +273,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
             let decls = collect_decls(&module);
 
             let mut preset_env_config = swc_ecma_preset_env::Config::default();
+            preset_env_config.dynamic_import = true;
             if let Some(versions) = targets_to_versions(&config.targets) {
               preset_env_config.targets = Some(Targets::Versions(versions));
               preset_env_config.shipped_proposals = true;
