@@ -40,7 +40,7 @@
     "style:*.vue": ["@parcel/transformer-vue"],
     "custom:*.vue": ["@parcel/transformer-vue"],
     "*.{png,jpg,jpeg,webp}": ["@parcel/transformer-image"],
-    "url:*.{dot,gv}": ["@parcel/transformer-graphviz"],
+    "*.{dot,gv}": ["@parcel/transformer-graphviz"],
     "url:*": ["...", "@parcel/transformer-raw"]
   },
   "namers": ["@parcel/namer-default"],
