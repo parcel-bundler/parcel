@@ -1,5 +1,5 @@
 // @flow
-import type {BundleGraph, NamedBundle} from '@parcel/types';
+import type {BundleGraph, Dependency, NamedBundle} from '@parcel/types';
 import type SourceMap from '@parcel/source-map';
 import nullthrows from 'nullthrows';
 
@@ -26,7 +26,7 @@ export function replaceScriptDependencies(
       return '\n';
     }
 
-    let dep = nullthrows(dependencies.find(d => d.specifier === s));
+    let dep = nullthrows(dependencies.find(d => getSpecifier(d) === s));
     let resolved = nullthrows(bundleGraph.getDependencyResolution(dep, bundle));
     let publicId = bundleGraph.getAssetPublicId(resolved);
     let replacement = `${parcelRequireName}("${publicId}")`;
@@ -46,4 +46,12 @@ export function replaceScriptDependencies(
   });
 
   return code;
+}
+
+export function getSpecifier(dep: Dependency): string {
+  if (typeof dep.meta.placeholder === 'string') {
+    return dep.meta.placeholder;
+  }
+
+  return dep.specifier;
 }

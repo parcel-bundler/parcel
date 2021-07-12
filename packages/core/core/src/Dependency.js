@@ -48,7 +48,9 @@ export function createDependency(
         opts.specifier +
         opts.env.id +
         (opts.target ? JSON.stringify(opts.target) : '') +
-        (opts.pipeline ?? ''),
+        (opts.pipeline ?? '') +
+        opts.specifierType +
+        (opts.priority ?? 'sync'),
     );
 
   return {

@@ -161,19 +161,20 @@ export function getURLReplacement({
 |}): {|from: string, to: string|} {
   let to;
 
+  let orig = URL.parse(dependency.specifier);
+
   if (relative) {
-    to = URL.format(
-      URL.parse(
-        relativeBundlePath(fromBundle, toBundle, {
-          leadingDotSlash: false,
-        }),
-      ),
+    let parsed = URL.parse(
+      relativeBundlePath(fromBundle, toBundle, {
+        leadingDotSlash: false,
+      }),
     );
+    parsed.hash = orig.hash;
+    to = URL.format(parsed);
   } else {
-    to = urlJoin(
-      toBundle.target.publicUrl,
-      URL.format(URL.parse(nullthrows(toBundle.name))),
-    );
+    let parsed = URL.parse(nullthrows(toBundle.name));
+    parsed.hash = orig.hash;
+    to = urlJoin(toBundle.target.publicUrl, URL.format(parsed));
   }
 
   let placeholder = dependency.meta?.placeholder ?? dependency.id;

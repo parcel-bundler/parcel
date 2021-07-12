@@ -562,6 +562,10 @@ export default (new Transformer({
           meta.importAttributes = dep.attributes;
         }
 
+        if (dep.placeholder) {
+          meta.placeholder = dep.placeholder;
+        }
+
         let env;
         if (dep.kind === 'DynamicImport') {
           if (asset.env.isWorklet()) {
@@ -651,7 +655,9 @@ export default (new Transformer({
       }
 
       let deps = new Map(
-        asset.getDependencies().map(dep => [dep.specifier, dep]),
+        asset
+          .getDependencies()
+          .map(dep => [dep.meta.placeholder ?? dep.specifier, dep]),
       );
       for (let dep of deps.values()) {
         dep.symbols.ensure();
