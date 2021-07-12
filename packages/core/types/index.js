@@ -194,7 +194,8 @@ export type EnvironmentFeature =
   | 'esmodules'
   | 'dynamic-import'
   | 'worker-module'
-  | 'service-worker-module';
+  | 'service-worker-module'
+  | 'import-meta-url';
 
 /**
  * Defines the environment in for the output bundle
@@ -309,6 +310,8 @@ export type InitialParcelOptions = {|
     +publicUrl?: string,
     +distDir?: FilePath,
     +engines?: Engines,
+    +outputFormat?: OutputFormat,
+    +isLibrary?: boolean,
   |},
 
   +additionalReporters?: Array<{|
@@ -516,7 +519,7 @@ export type DependencyOptions = {|
   /** The symbols within the resolved module that the source file depends on. */
   +symbols?: $ReadOnlyMap<
     Symbol,
-    {|local: Symbol, loc: ?SourceLocation, isWeak: boolean|},
+    {|local: Symbol, loc: ?SourceLocation, isWeak: boolean, meta?: Meta|},
   >,
 |};
 
@@ -761,11 +764,15 @@ export type DevDepOptions = {|
   resolveFrom: FilePath,
   range?: ?SemverRange,
   /**
-   * Whether to also invalidate the parcel plugin that loaded this dev dependency
-   * when it changes. This is useful if the parcel plugin or another parent dependency
+   * When this dev dependency is invalidated, also invalidate these dependencies.
+   * This is useful if the parcel plugin or another parent dependency
    * has its own cache for this dev dependency other than Node's require cache.
    */
-  invalidateParcelPlugin?: boolean,
+  additionalInvalidations?: Array<{|
+    specifier: DependencySpecifier,
+    resolveFrom: FilePath,
+    range?: ?SemverRange,
+  |}>,
 |};
 
 /**
@@ -1415,6 +1422,7 @@ export type FileCreateInvalidation =
  * @section resolver
  */
 export type ResolveResult = {|
+  /** An absolute path to the file. */
   +filePath?: FilePath,
   +pipeline?: ?string,
   +isExcluded?: boolean,

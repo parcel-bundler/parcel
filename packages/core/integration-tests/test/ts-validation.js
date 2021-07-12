@@ -43,22 +43,22 @@ describe('ts-validator', function() {
       assert(e.diagnostics.length === 2);
 
       let entryDiagnostic = e.diagnostics.find(
-        diagnostic => diagnostic.filePath === entry,
+        diagnostic => diagnostic.codeFrames[0].filePath === entry,
       );
       assert(!!entryDiagnostic);
-      assert(!!entryDiagnostic.codeFrame);
+      assert(!!entryDiagnostic.codeFrames);
       assert.equal(entryDiagnostic.origin, '@parcel/validator-typescript');
       assert.equal(
         entryDiagnostic.message,
         `Argument of type 'string' is not assignable to parameter of type 'Params'.`,
       );
-      assert.equal(entryDiagnostic.filePath, entry);
+      assert.equal(entryDiagnostic.codeFrames[0].filePath, entry);
 
       let testFileDiagnostic = e.diagnostics.find(
-        diagnostic => diagnostic.filePath === testFile,
+        diagnostic => diagnostic.codeFrames[0].filePath === testFile,
       );
       assert(!!testFileDiagnostic);
-      assert(!!testFileDiagnostic.codeFrame);
+      assert(!!testFileDiagnostic.codeFrames);
       assert.equal(testFileDiagnostic.origin, '@parcel/validator-typescript');
       assert.equal(
         testFileDiagnostic.message,

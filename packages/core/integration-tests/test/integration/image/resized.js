@@ -1,1 +1,1 @@
-module.exports = require('url:./image.jpg?width=600');
+module.exports = new URL('image.jpg?width=600', import.meta.url).toString();

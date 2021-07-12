@@ -1,0 +1,11 @@
+{
+  "main": "dist/test.js",
+  "targets": {
+  	"main": {
+      "includeNodeModules": false
+    }
+  },
+  "dependencies": {
+    "external": "*"
+  }
+}

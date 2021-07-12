@@ -10,7 +10,7 @@ use crate::utils::*;
 pub struct EnvReplacer<'a> {
   pub replace_env: bool,
   pub is_browser: bool,
-  pub env: HashMap<swc_atoms::JsWord, swc_atoms::JsWord>,
+  pub env: &'a HashMap<swc_atoms::JsWord, swc_atoms::JsWord>,
   pub decls: &'a HashSet<(JsWord, SyntaxContext)>,
   pub used_env: &'a mut HashSet<JsWord>,
 }

@@ -14,7 +14,7 @@ import {
   outputFS,
   inputFS,
 } from '@parcel/test-utils';
-import {makeDeferredWithPromise} from '@parcel/utils';
+import {makeDeferredWithPromise, normalizePath} from '@parcel/utils';
 import vm from 'vm';
 
 describe('javascript', function() {
@@ -35,26 +35,6 @@ describe('javascript', function() {
     assert.equal(output(), 3);
   });
 
-  it('should import child bundles using a require call in CommonJS', async function() {
-    let b = await bundle(
-      path.join(__dirname, '/integration/commonjs-bundle-require/index.js'),
-    );
-
-    assertBundles(b, [
-      {
-        name: 'index.js',
-        assets: ['index.js'],
-      },
-      {
-        assets: ['local.js'],
-      },
-    ]);
-
-    let output = await run(b);
-    assert.strictEqual(typeof output.double, 'function');
-    assert.strictEqual(output.double(3), 6);
-  });
-
   it('should support url: imports with CommonJS output', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/commonjs-import-url/index.js'),
@@ -63,7 +43,7 @@ describe('javascript', function() {
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: ['bundle-url.js', 'index.js', 'esmodule-helpers.js'],
+        assets: ['index.js', 'esmodule-helpers.js'],
       },
       {
         type: 'txt',
@@ -207,45 +187,47 @@ describe('javascript', function() {
       assert.deepEqual(err.diagnostics, [
         {
           message: 'import() is not allowed in worklets.',
-          filePath: path.join(
-            __dirname,
-            '/integration/worklet/worklet-error.js',
-          ),
           origin: '@parcel/transformer-js',
-          codeFrame: {
-            codeHighlights: [
-              {
-                start: {
-                  line: 1,
-                  column: 8,
+          codeFrames: [
+            {
+              filePath: path.join(
+                __dirname,
+                '/integration/worklet/worklet-error.js',
+              ),
+              codeHighlights: [
+                {
+                  start: {
+                    line: 1,
+                    column: 8,
+                  },
+                  end: {
+                    line: 1,
+                    column: 18,
+                  },
                 },
-                end: {
-                  line: 1,
-                  column: 18,
+              ],
+            },
+            {
+              filePath: path.join(
+                __dirname,
+                'integration/worklet/url-worklet-error.js',
+              ),
+              codeHighlights: [
+                {
+                  message: 'The environment was originally created here',
+                  start: {
+                    line: 1,
+                    column: 36,
+                  },
+                  end: {
+                    line: 1,
+                    column: 53,
+                  },
                 },
-              },
-            ],
-          },
+              ],
+            },
+          ],
           hints: ['Try using a static `import`.'],
-        },
-        {
-          message: 'The environment was originally created here:',
-          filePath: path.normalize('integration/worklet/url-worklet-error.js'),
-          origin: '@parcel/transformer-js',
-          codeFrame: {
-            codeHighlights: [
-              {
-                start: {
-                  line: 1,
-                  column: 36,
-                },
-                end: {
-                  line: 1,
-                  column: 53,
-                },
-              },
-            ],
-          },
         },
       ]);
     }
@@ -299,25 +281,27 @@ describe('javascript', function() {
       assert.deepEqual(err.diagnostics, [
         {
           message: 'import() is not allowed in worklets.',
-          filePath: path.join(
-            __dirname,
-            '/integration/worklet/worklet-error.js',
-          ),
           origin: '@parcel/transformer-js',
-          codeFrame: {
-            codeHighlights: [
-              {
-                start: {
-                  line: 1,
-                  column: 8,
+          codeFrames: [
+            {
+              filePath: path.join(
+                __dirname,
+                '/integration/worklet/worklet-error.js',
+              ),
+              codeHighlights: [
+                {
+                  start: {
+                    line: 1,
+                    column: 8,
+                  },
+                  end: {
+                    line: 1,
+                    column: 18,
+                  },
                 },
-                end: {
-                  line: 1,
-                  column: 18,
-                },
-              },
-            ],
-          },
+              ],
+            },
+          ],
           hints: ['Try using a static `import`.'],
         },
       ]);
@@ -680,8 +664,7 @@ describe('javascript', function() {
       mainBundle.filePath,
       'utf8',
     );
-    assert(mainBundleContent.includes("require('./async')"));
-    assert(mainBundleContent.includes(`require('./async2')`));
+    assert(!mainBundleContent.includes('foo:'));
   });
 
   it('should split bundles when a dynamic import is used with a node environment', async function() {
@@ -851,15 +834,17 @@ describe('javascript', function() {
     assert(/new SharedWorker(.*?, {[\n\s]+type: 'module'[\n\s]+})/.test(main));
   });
 
-  for (let scopeHoist of [true, false]) {
+  for (let shouldScopeHoist of [true, false]) {
     it(`should compile workers to non modules if ${
-      scopeHoist ? 'browsers do not support it' : 'scopeHoist = false'
+      shouldScopeHoist
+        ? 'browsers do not support it'
+        : 'shouldScopeHoist = false'
     }`, async function() {
       let b = await bundle(
         path.join(__dirname, '/integration/workers-module/index.js'),
         {
           defaultTargetOptions: {
-            shouldScopeHoist: true,
+            shouldScopeHoist,
             engines: {
               browsers: '>= 0.25%',
             },
@@ -869,14 +854,22 @@ describe('javascript', function() {
 
       assertBundles(b, [
         {
-          assets: ['dedicated-worker.js', 'index.js'],
+          assets: [
+            'dedicated-worker.js',
+            !shouldScopeHoist && 'esmodule-helpers.js',
+            'index.js',
+          ].filter(Boolean),
         },
         {
           name: 'index.js',
           assets: ['index.js', 'bundle-url.js', 'get-worker-url.js'],
         },
         {
-          assets: ['shared-worker.js', 'index.js'],
+          assets: [
+            !shouldScopeHoist && 'esmodule-helpers.js',
+            'shared-worker.js',
+            'index.js',
+          ].filter(Boolean),
         },
       ]);
 
@@ -902,6 +895,71 @@ describe('javascript', function() {
       assert(/new SharedWorker([^,]*?)/.test(main));
       assert(!/export var foo/.test(dedicated));
       assert(!/export var foo/.test(shared));
+    });
+  }
+
+  for (let supported of [false, true]) {
+    it(`should compile workers to ${
+      supported ? '' : 'non '
+    }modules when browsers do ${
+      supported ? '' : 'not '
+    }support it with esmodule parent script`, async function() {
+      let b = await bundle(
+        path.join(__dirname, '/integration/workers-module/index.js'),
+        {
+          mode: 'production',
+          defaultTargetOptions: {
+            engines: {browsers: supported ? 'Chrome 80' : 'Chrome 75'},
+            outputFormat: 'esmodule',
+            shouldScopeHoist: true,
+            shouldOptimize: false,
+          },
+        },
+      );
+
+      assertBundles(b, [
+        {
+          type: 'js',
+          assets: ['dedicated-worker.js'],
+        },
+        {
+          name: 'index.js',
+          assets: ['index.js', 'bundle-manifest.js', 'get-worker-url.js'],
+        },
+        {
+          type: 'js',
+          assets: ['shared-worker.js'],
+        },
+        {
+          type: 'js',
+          assets: ['index.js'],
+        },
+      ]);
+
+      let dedicated, shared;
+      b.traverseBundles((bundle, ctx, traversal) => {
+        if (bundle.getMainEntry()?.filePath.endsWith('shared-worker.js')) {
+          shared = bundle;
+        } else if (
+          bundle.getMainEntry()?.filePath.endsWith('dedicated-worker.js')
+        ) {
+          dedicated = bundle;
+        }
+        if (dedicated && shared) traversal.stop();
+      });
+
+      assert(dedicated);
+      assert(shared);
+
+      let main = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+      assert(/new Worker([^,]*?)/.test(main));
+      assert(/new SharedWorker([^,]*?)/.test(main));
+
+      dedicated = await outputFS.readFile(dedicated.filePath, 'utf8');
+      shared = await outputFS.readFile(shared.filePath, 'utf8');
+      let importRegex = supported ? /importScripts\s*\(/ : /import\s*("|')/;
+      assert(!importRegex.test(dedicated));
+      assert(!importRegex.test(shared));
     });
   }
 
@@ -938,50 +996,56 @@ describe('javascript', function() {
       errored = true;
       assert.equal(
         err.message,
-        'Web workers cannot have imports or exports. Use the `type: "module"` option instead.',
+        'Web workers cannot have imports or exports without the `type: "module"` option.',
       );
       assert.deepEqual(err.diagnostics, [
         {
           message:
-            'Web workers cannot have imports or exports. Use the `type: "module"` option instead.',
-          filePath: path.join(
-            __dirname,
-            '/integration/workers-module/dedicated-worker.js',
-          ),
+            'Web workers cannot have imports or exports without the `type: "module"` option.',
           origin: '@parcel/transformer-js',
-          codeFrame: {
-            codeHighlights: [
-              {
-                start: {
-                  line: 1,
-                  column: 1,
+          codeFrames: [
+            {
+              filePath: path.join(
+                __dirname,
+                '/integration/workers-module/dedicated-worker.js',
+              ),
+              codeHighlights: [
+                {
+                  message: null,
+                  start: {
+                    line: 1,
+                    column: 1,
+                  },
+                  end: {
+                    line: 1,
+                    column: 22,
+                  },
                 },
-                end: {
-                  line: 1,
-                  column: 22,
+              ],
+            },
+            {
+              filePath: path.join(
+                __dirname,
+                '/integration/workers-module/error.js',
+              ),
+              codeHighlights: [
+                {
+                  message: 'The environment was originally created here',
+                  start: {
+                    line: 1,
+                    column: 20,
+                  },
+                  end: {
+                    line: 1,
+                    column: 40,
+                  },
                 },
-              },
-            ],
-          },
-        },
-        {
-          message: 'The environment was originally created here:',
-          filePath: 'error.js',
-          origin: '@parcel/transformer-js',
-          codeFrame: {
-            codeHighlights: [
-              {
-                start: {
-                  line: 1,
-                  column: 12,
-                },
-                end: {
-                  line: 1,
-                  column: 32,
-                },
-              },
-            ],
-          },
+              ],
+            },
+          ],
+          hints: [
+            "Add {type: 'module'} as a second argument to the Worker constructor.",
+          ],
         },
       ]);
     }
@@ -1019,81 +1083,78 @@ describe('javascript', function() {
   });
 
   for (let workerType of ['webworker', 'serviceworker']) {
-    it(`should split bundles when ${workerType}s use importScripts`, async function() {
-      let b = await bundle(
-        path.join(
-          __dirname,
-          `/integration/worker-import-scripts/index-${workerType}.js`,
-        ),
+    it(`should error when ${workerType}s use importScripts`, async function() {
+      let filePath = path.join(
+        __dirname,
+        `/integration/worker-import-scripts/index-${workerType}.js`,
       );
+      let errored = false;
+      try {
+        await bundle(filePath);
+      } catch (err) {
+        errored = true;
+        assert.equal(
+          err.message,
+          'importScripts() is not supported in worker scripts.',
+        );
+        assert.deepEqual(err.diagnostics, [
+          {
+            message: 'importScripts() is not supported in worker scripts.',
+            origin: '@parcel/transformer-js',
+            codeFrames: [
+              {
+                filePath: path.join(
+                  __dirname,
+                  `/integration/worker-import-scripts/importScripts.js`,
+                ),
+                codeHighlights: [
+                  {
+                    message: null,
+                    start: {
+                      line: 1,
+                      column: 1,
+                    },
+                    end: {
+                      line: 1,
+                      column: 28,
+                    },
+                  },
+                ],
+              },
+              {
+                filePath: path.join(
+                  __dirname,
+                  `integration/worker-import-scripts/index-${workerType}.js`,
+                ),
+                codeHighlights: [
+                  {
+                    message: 'The environment was originally created here',
+                    start: {
+                      line: 1,
+                      column: workerType === 'webworker' ? 20 : 42,
+                    },
+                    end: {
+                      line: 1,
+                      column: workerType === 'webworker' ? 37 : 59,
+                    },
+                  },
+                ],
+              },
+            ],
+            hints: [
+              'Use a static `import`, or dynamic `import()` instead.',
+              "Add {type: 'module'} as a second argument to the " +
+                (workerType === 'webworker'
+                  ? 'Worker constructor.'
+                  : 'navigator.serviceWorker.register() call.'),
+            ],
+          },
+        ]);
+      }
 
-      assertBundles(b, [
-        {
-          assets: ['importScripts.js', 'bundle-url.js'],
-        },
-        {
-          name: `index-${workerType}.js`,
-          assets: [`index-${workerType}.js`, 'bundle-url.js'].concat(
-            workerType === 'webworker' ? ['get-worker-url.js'] : [],
-          ),
-        },
-        {
-          assets: ['imported.js'],
-        },
-        {
-          assets: ['imported2.js'],
-        },
-      ]);
-
-      let workerBundleFile = path.join(
-        distDir,
-        (await outputFS.readdir(distDir)).find(file =>
-          file.startsWith('importScripts'),
-        ),
-      );
-      let workerBundleContents = await outputFS.readFile(
-        workerBundleFile,
-        'utf8',
-      );
-
-      assert.equal(workerBundleContents.match(/importScript/g).length, 3);
+      assert(errored);
     });
   }
-
-  it('should not create bundles of external scripts referenced by importScripts', async function() {
-    let b = await bundle(
-      path.join(
-        __dirname,
-        '/integration/worker-import-scripts/index-external.js',
-      ),
-    );
-
-    assertBundles(b, [
-      {
-        name: 'index-external.js',
-        assets: ['index-external.js', 'bundle-url.js', 'get-worker-url.js'],
-      },
-      {assets: ['external.js']},
-    ]);
-
-    let workerBundleFile = path.join(
-      distDir,
-      (await outputFS.readdir(distDir)).find(file =>
-        file.startsWith('external'),
-      ),
-    );
-    let workerBundleContents = await outputFS.readFile(
-      workerBundleFile,
-      'utf8',
-    );
-
-    assert(workerBundleContents.includes('importScripts'));
-    assert(
-      workerBundleContents.includes(
-        'module.exports = "https://unpkg.com/parcel"',
-      ),
-    );
-  });
 
   it('should support bundling service-workers', async function() {
     let b = await bundle(
@@ -1188,50 +1249,56 @@ describe('javascript', function() {
       errored = true;
       assert.equal(
         err.message,
-        'Service workers cannot have imports or exports. Use the `type: "module"` option instead.',
+        'Service workers cannot have imports or exports without the `type: "module"` option.',
       );
       assert.deepEqual(err.diagnostics, [
         {
           message:
-            'Service workers cannot have imports or exports. Use the `type: "module"` option instead.',
-          filePath: path.join(
-            __dirname,
-            '/integration/service-worker/module-worker.js',
-          ),
+            'Service workers cannot have imports or exports without the `type: "module"` option.',
           origin: '@parcel/transformer-js',
-          codeFrame: {
-            codeHighlights: [
-              {
-                start: {
-                  line: 1,
-                  column: 1,
+          codeFrames: [
+            {
+              filePath: path.join(
+                __dirname,
+                '/integration/service-worker/module-worker.js',
+              ),
+              codeHighlights: [
+                {
+                  message: null,
+                  start: {
+                    line: 1,
+                    column: 1,
+                  },
+                  end: {
+                    line: 1,
+                    column: 19,
+                  },
                 },
-                end: {
-                  line: 1,
-                  column: 19,
+              ],
+            },
+            {
+              filePath: path.join(
+                __dirname,
+                'integration/service-worker/error.js',
+              ),
+              codeHighlights: [
+                {
+                  message: 'The environment was originally created here',
+                  start: {
+                    line: 1,
+                    column: 42,
+                  },
+                  end: {
+                    line: 1,
+                    column: 59,
+                  },
                 },
-              },
-            ],
-          },
-        },
-        {
-          message: 'The environment was originally created here:',
-          filePath: path.normalize('integration/service-worker/error.js'),
-          origin: '@parcel/transformer-js',
-          codeFrame: {
-            codeHighlights: [
-              {
-                start: {
-                  line: 1,
-                  column: 34,
-                },
-                end: {
-                  line: 1,
-                  column: 51,
-                },
-              },
-            ],
-          },
+              ],
+            },
+          ],
+          hints: [
+            "Add {type: 'module'} as a second argument to the navigator.serviceWorker.register() call.",
+          ],
         },
       ]);
     }
@@ -1271,27 +1338,29 @@ describe('javascript', function() {
       name: 'BuildError',
       diagnostics: [
         {
-          codeFrame: {
-            code,
-            codeHighlights: [
-              {
-                end: {
-                  column: 55,
-                  line: 1,
+          codeFrames: [
+            {
+              filePath: fixture,
+              code,
+              codeHighlights: [
+                {
+                  end: {
+                    column: 55,
+                    line: 1,
+                  },
+                  start: {
+                    column: 42,
+                    line: 1,
+                  },
                 },
-                start: {
-                  column: 42,
-                  line: 1,
-                },
-              },
-            ],
-          },
-          filePath: fixture,
+              ],
+            },
+          ],
           message: "Failed to resolve './invalid.js' from './missing.js'",
           origin: '@parcel/core',
         },
         {
-          hints: ['Did you mean __./index.js__?'],
+          hints: ["Did you mean '__./index.js__'?"],
           message: "Cannot load file './invalid.js' in './'.",
           origin: '@parcel/resolver-default',
         },
@@ -1376,29 +1445,31 @@ describe('javascript', function() {
       name: 'BuildError',
       diagnostics: [
         {
-          codeFrame: {
-            code,
-            codeHighlights: [
-              {
-                end: {
-                  column: 33,
-                  line: 1,
+          codeFrames: [
+            {
+              filePath: fixture,
+              code,
+              codeHighlights: [
+                {
+                  end: {
+                    column: 33,
+                    line: 1,
+                  },
+                  start: {
+                    column: 20,
+                    line: 1,
+                  },
                 },
-                start: {
-                  column: 20,
-                  line: 1,
-                },
-              },
-            ],
-          },
-          filePath: fixture,
+              ],
+            },
+          ],
           message: "Failed to resolve './invalid.js' from './missing.js'",
           origin: '@parcel/core',
         },
         {
           hints: [
-            'Did you mean __./dynamic.js__?',
-            'Did you mean __./index.js__?',
+            "Did you mean '__./dynamic.js__'?",
+            "Did you mean '__./index.js__'?",
           ],
           message: "Cannot load file './invalid.js' in './'.",
           origin: '@parcel/resolver-default',
@@ -1462,7 +1533,6 @@ describe('javascript', function() {
           'bundle-url.js',
           'get-worker-url.js',
           'bundle-manifest.js',
-          'relative-path.js',
           'esmodule-helpers.js',
         ],
       },
@@ -1472,7 +1542,6 @@ describe('javascript', function() {
           'bundle-url.js',
           'get-worker-url.js',
           'bundle-manifest.js',
-          'relative-path.js',
         ],
       },
       {
@@ -1616,7 +1685,6 @@ describe('javascript', function() {
           'bundle-url.js',
           'get-worker-url.js',
           'bundle-manifest.js',
-          'relative-path.js',
         ],
       },
       {
@@ -1757,7 +1825,6 @@ describe('javascript', function() {
           'cacheLoader.js',
           'js-loader.js',
           'bundle-manifest.js',
-          'relative-path.js',
         ],
       },
       {
@@ -1969,7 +2036,34 @@ describe('javascript', function() {
     let output = await run(b);
     assert(/^http:\/\/localhost\/test\.[0-9a-f]+\.txt$/.test(output.default));
     let stats = await outputFS.stat(
-      path.join(distDir, url.parse(output.default).pathname),
+      path.join(distDir, output.default.pathname),
+    );
+    assert.equal(stats.size, 9);
+  });
+
+  it('should support referencing a raw asset with static URL and CJS __filename', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/import-raw-import-meta-url/cjs.js'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'cjs.js',
+        assets: ['cjs.js', 'bundle-url.js', 'esmodule-helpers.js'],
+      },
+      {
+        type: 'txt',
+        assets: ['test.txt'],
+      },
+    ]);
+
+    let contents = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(!contents.includes('import.meta.url'));
+
+    let output = await run(b);
+    assert(/^http:\/\/localhost\/test\.[0-9a-f]+\.txt$/.test(output.default));
+    let stats = await outputFS.stat(
+      path.join(distDir, output.default.pathname),
     );
     assert.equal(stats.size, 9);
   });
@@ -1993,7 +2087,7 @@ describe('javascript', function() {
     assert(contents.includes('import.meta.url'));
   });
 
-  it('should support referencing a raw asset with static URL and import.meta.url (diagnostic)', async function() {
+  it('should throw a codeframe for a missing raw asset with static URL and import.meta.url', async function() {
     let fixture = path.join(
       __dirname,
       'integration/import-raw-import-meta-url/missing.js',
@@ -2003,22 +2097,24 @@ describe('javascript', function() {
       name: 'BuildError',
       diagnostics: [
         {
-          codeFrame: {
-            code,
-            codeHighlights: [
-              {
-                end: {
-                  column: 36,
-                  line: 1,
+          codeFrames: [
+            {
+              filePath: fixture,
+              code,
+              codeHighlights: [
+                {
+                  end: {
+                    column: 36,
+                    line: 1,
+                  },
+                  start: {
+                    column: 24,
+                    line: 1,
+                  },
                 },
-                start: {
-                  column: 24,
-                  line: 1,
-                },
-              },
-            ],
-          },
-          filePath: fixture,
+              ],
+            },
+          ],
           message: "Failed to resolve 'invalid.txt' from './missing.js'",
           origin: '@parcel/core',
         },
@@ -2088,8 +2184,8 @@ describe('javascript', function() {
     assert(!js.includes('local.a'));
   });
 
-  it('should use uglify config', async function() {
-    await bundle(path.join(__dirname, '/integration/uglify-config/index.js'), {
+  it('should use terser config', async function() {
+    await bundle(path.join(__dirname, '/integration/terser-config/index.js'), {
       defaultTargetOptions: {
         shouldOptimize: true,
         shouldScopeHoist: false,
@@ -2106,8 +2202,8 @@ describe('javascript', function() {
 
     let output = await run(b);
     assert.deepEqual(output(), {
-      dir: path.join(__dirname, '/integration/globals'),
-      file: path.join(__dirname, '/integration/globals/index.js'),
+      dir: 'integration/globals',
+      file: 'integration/globals/index.js',
       buf: Buffer.from('browser').toString('base64'),
       global: true,
     });
@@ -2999,22 +3095,6 @@ describe('javascript', function() {
     assert.deepEqual(output, [undefined, 1234]);
   });
 
-  it('support building with multiple target and varying scopeHoist setting', async function() {
-    let b = await bundle(
-      path.join(__dirname, '/integration/js-multi-target-scope-hoist/index.js'),
-      {
-        defaultTargetOptions: {
-          shouldScopeHoist: true,
-        },
-      },
-    );
-
-    for (let bundle of b.getBundles()) {
-      let output = await runBundle(b, bundle);
-      assert.deepEqual(output, 123);
-    }
-  });
-
   it.skip('should not dedupe imports with different contents', async function() {
     let b = await bundle(
       path.join(__dirname, `/integration/js-different-contents/index.js`),
@@ -3310,6 +3390,18 @@ describe('javascript', function() {
     assert.equal(res.default, '<p>test</p>\n');
   });
 
+  it('should inline an HTML bundle and inline scripts with `bundle-text`', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/bundle-text/inline.js'),
+    );
+
+    let res = await run(b);
+    assert.equal(
+      res.default,
+      "<p>test</p>\n<script>console.log('hi');\n\n</script>\n",
+    );
+  });
+
   it("should inline a JS bundle's compiled text with `bundle-text` and HMR enabled", async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/bundle-text/javascript.js'),
@@ -3494,6 +3586,21 @@ describe('javascript', function() {
     assert.equal(await run(b), 2);
   });
 
+  it('should only detect requires that are returned from the promise', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/require-async/sync.js'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'sync.js',
+        assets: ['sync.js', 'async.js'],
+      },
+    ]);
+
+    assert.equal(await run(b), 5);
+  });
+
   it('should detect parcel style async requires in commonjs', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/require-async/parcel.js'),
@@ -3607,7 +3714,6 @@ describe('javascript', function() {
           'cacheLoader.js',
           'dep.js',
           'js-loader.js',
-          'relative-path.js',
           'same-ancestry.js',
           'esmodule-helpers.js',
         ],
@@ -3655,7 +3761,6 @@ describe('javascript', function() {
           'cacheLoader.js',
           'get-dep.js',
           'js-loader.js',
-          'relative-path.js',
           'esmodule-helpers.js',
         ],
       },
@@ -3711,7 +3816,6 @@ describe('javascript', function() {
           'cacheLoader.js',
           'index.js',
           'js-loader.js',
-          'relative-path.js',
           'esmodule-helpers.js',
         ],
       },
@@ -3784,24 +3888,26 @@ describe('javascript', function() {
           {
             message: 'Name expected',
             origin: '@parcel/optimizer-terser',
-            filePath: undefined,
-            language: 'js',
-            codeFrame: {
-              code,
-              codeHighlights: [
-                {
-                  message: 'Name expected',
-                  start: {
-                    column: 4,
-                    line: 1,
+            codeFrames: [
+              {
+                filePath: undefined,
+                language: 'js',
+                code,
+                codeHighlights: [
+                  {
+                    message: 'Name expected',
+                    start: {
+                      column: 4,
+                      line: 1,
+                    },
+                    end: {
+                      column: 4,
+                      line: 1,
+                    },
                   },
-                  end: {
-                    column: 4,
-                    line: 1,
-                  },
-                },
-              ],
-            },
+                ],
+              },
+            ],
             hints: ["It's likely that Terser doesn't support this syntax yet."],
           },
         ],
@@ -3879,22 +3985,24 @@ describe('javascript', function() {
         {
           message: 'Unknown pipeline: strange-pipeline.',
           origin: '@parcel/core',
-          filePath: fixture,
-          codeFrame: {
-            code,
-            codeHighlights: [
-              {
-                start: {
-                  column: 19,
-                  line: 1,
+          codeFrames: [
+            {
+              filePath: fixture,
+              code,
+              codeHighlights: [
+                {
+                  start: {
+                    column: 19,
+                    line: 1,
+                  },
+                  end: {
+                    column: 43,
+                    line: 1,
+                  },
                 },
-                end: {
-                  column: 43,
-                  line: 1,
-                },
-              },
-            ],
-          },
+              ],
+            },
+          ],
         },
       ],
     });
@@ -4136,7 +4244,6 @@ describe('javascript', function() {
           'cacheLoader.js',
           'js-loader.js',
           'bundle-manifest.js',
-          'relative-path.js',
         ],
       },
       {
@@ -4170,22 +4277,24 @@ describe('javascript', function() {
           {
             message: "Failed to resolve 'foo' from './index.js'",
             origin: '@parcel/core',
-            filePath: fixture,
-            codeFrame: {
-              code,
-              codeHighlights: [
-                {
-                  start: {
-                    line: 11,
-                    column: 17,
+            codeFrames: [
+              {
+                filePath: fixture,
+                code,
+                codeHighlights: [
+                  {
+                    start: {
+                      line: 11,
+                      column: 17,
+                    },
+                    end: {
+                      line: 11,
+                      column: 21,
+                    },
                   },
-                  end: {
-                    line: 11,
-                    column: 21,
-                  },
-                },
-              ],
-            },
+                ],
+              },
+            ],
           },
         ],
       },
@@ -4214,7 +4323,6 @@ describe('javascript', function() {
           'esmodule-helpers.js',
           'js-loader.js',
           'bundle-manifest.js',
-          'relative-path.js',
         ],
       },
       {
@@ -4230,5 +4338,477 @@ describe('javascript', function() {
         assets: ['local.html'],
       },
     ]);
+  });
+
+  it('should error on undeclared external dependencies for libraries', async function() {
+    let fixture = path.join(
+      __dirname,
+      'integration/undeclared-external/index.js',
+    );
+    let pkg = path.join(
+      __dirname,
+      'integration/undeclared-external/package.json',
+    );
+    await assert.rejects(
+      () =>
+        bundle(fixture, {
+          mode: 'production',
+          defaultTargetOptions: {
+            shouldOptimize: false,
+          },
+        }),
+      {
+        name: 'BuildError',
+        diagnostics: [
+          {
+            message: "Failed to resolve 'lodash' from './index.js'",
+            origin: '@parcel/core',
+            codeFrames: [
+              {
+                code: await inputFS.readFile(fixture, 'utf8'),
+                filePath: fixture,
+                codeHighlights: [
+                  {
+                    start: {
+                      line: 1,
+                      column: 19,
+                    },
+                    end: {
+                      line: 1,
+                      column: 26,
+                    },
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            message:
+              'External dependency "lodash" is not declared in package.json.',
+            origin: '@parcel/resolver-default',
+            codeFrames: [
+              {
+                code: await inputFS.readFile(pkg, 'utf8'),
+                filePath: pkg,
+                language: 'json',
+                codeHighlights: [
+                  {
+                    message: undefined,
+                    start: {
+                      line: 5,
+                      column: 3,
+                    },
+                    end: {
+                      line: 5,
+                      column: 16,
+                    },
+                  },
+                ],
+              },
+            ],
+            hints: ['Add "lodash" as a dependency.'],
+          },
+        ],
+      },
+    );
+  });
+
+  it('should error on undeclared helpers dependency for libraries', async function() {
+    let fixture = path.join(
+      __dirname,
+      'integration/undeclared-external/helpers.js',
+    );
+    let pkg = path.join(
+      __dirname,
+      'integration/undeclared-external/package.json',
+    );
+    await assert.rejects(
+      () =>
+        bundle(fixture, {
+          mode: 'production',
+          defaultTargetOptions: {
+            shouldOptimize: false,
+          },
+        }),
+      {
+        name: 'BuildError',
+        diagnostics: [
+          {
+            message: `Failed to resolve '@swc/helpers' from '${normalizePath(
+              require.resolve('@parcel/transformer-js/src/JSTransformer.js'),
+            )}'`,
+            origin: '@parcel/core',
+            codeFrames: [
+              {
+                code: await inputFS.readFile(fixture, 'utf8'),
+                filePath: fixture,
+                codeHighlights: [
+                  {
+                    start: {
+                      line: 1,
+                      column: 1,
+                    },
+                    end: {
+                      line: 1,
+                      column: 0,
+                    },
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            message:
+              'External dependency "@swc/helpers" is not declared in package.json.',
+            origin: '@parcel/resolver-default',
+            codeFrames: [
+              {
+                code: await inputFS.readFile(pkg, 'utf8'),
+                filePath: pkg,
+                language: 'json',
+                codeHighlights: [
+                  {
+                    message: undefined,
+                    start: {
+                      line: 5,
+                      column: 3,
+                    },
+                    end: {
+                      line: 5,
+                      column: 16,
+                    },
+                  },
+                ],
+              },
+            ],
+            hints: ['Add "@swc/helpers" as a dependency.'],
+          },
+        ],
+      },
+    );
+  });
+
+  describe('multiple import types', function() {
+    it('supports both static and dynamic imports to the same specifier in the same file', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          'integration/multiple-import-types/static-dynamic.js',
+        ),
+      );
+
+      assertBundles(b, [
+        {
+          type: 'js',
+          assets: ['static-dynamic.js', 'other.js', 'esmodule-helpers.js'],
+        },
+      ]);
+
+      let res = await run(b);
+      assert.equal(typeof res.Foo, 'function');
+      assert.equal(typeof res.LazyFoo, 'object');
+      assert.equal(res.Foo, await res.LazyFoo);
+    });
+
+    it('supports both static and dynamic imports to the same specifier in the same file with scope hoisting', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          'integration/multiple-import-types/static-dynamic.js',
+        ),
+        {
+          defaultTargetOptions: {
+            outputFormat: 'esmodule',
+            isLibrary: true,
+            shouldScopeHoist: true,
+          },
+        },
+      );
+
+      assertBundles(b, [
+        {
+          type: 'js',
+          assets: ['static-dynamic.js', 'other.js'],
+        },
+      ]);
+
+      let res = await run(b);
+      assert.equal(typeof res.Foo, 'function');
+      assert.equal(typeof res.LazyFoo, 'object');
+      assert.equal(res.Foo, await res.LazyFoo);
+    });
+
+    it('supports static, dynamic, and url to the same specifier in the same file', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          'integration/multiple-import-types/static-dynamic-url.js',
+        ),
+      );
+
+      assertBundles(b, [
+        {
+          type: 'js',
+          assets: [
+            'static-dynamic-url.js',
+            'other.js',
+            'esmodule-helpers.js',
+            'bundle-url.js',
+          ],
+        },
+        {
+          type: 'js',
+          assets: ['other.js', 'esmodule-helpers.js'],
+        },
+      ]);
+
+      let res = await run(b);
+      assert.equal(typeof res.Foo, 'function');
+      assert.equal(typeof res.LazyFoo, 'object');
+      assert.equal(res.Foo, await res.LazyFoo);
+      assert.equal(
+        res.url,
+        'http://localhost/' + path.basename(b.getBundles()[1].filePath),
+      );
+    });
+
+    it('supports static, dynamic, and url to the same specifier in the same file with scope hoisting', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          'integration/multiple-import-types/static-dynamic-url.js',
+        ),
+        {
+          defaultTargetOptions: {
+            outputFormat: 'esmodule',
+            isLibrary: true,
+            shouldScopeHoist: true,
+          },
+        },
+      );
+
+      assertBundles(b, [
+        {
+          type: 'js',
+          assets: ['static-dynamic-url.js', 'other.js'],
+        },
+        {
+          type: 'js',
+          assets: ['other.js'],
+        },
+      ]);
+
+      let res = await run(b);
+      assert.equal(typeof res.Foo, 'function');
+      assert.equal(typeof res.LazyFoo, 'object');
+      assert.equal(res.Foo, await res.LazyFoo);
+      assert.equal(
+        res.url,
+        'http://localhost/' + path.basename(b.getBundles()[1].filePath),
+      );
+    });
+
+    it('supports dynamic import and url to the same specifier in the same file', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          'integration/multiple-import-types/dynamic-url.js',
+        ),
+      );
+
+      assertBundles(b, [
+        {
+          type: 'js',
+          assets: [
+            'dynamic-url.js',
+            'esmodule-helpers.js',
+            'bundle-url.js',
+            'cacheLoader.js',
+            'js-loader.js',
+          ],
+        },
+        {
+          type: 'js',
+          assets: ['other.js'],
+        },
+        {
+          type: 'js',
+          assets: ['other.js', 'esmodule-helpers.js'],
+        },
+      ]);
+
+      let res = await run(b);
+      assert.equal(typeof res.lazy, 'object');
+      assert.equal(typeof (await res.lazy), 'function');
+      assert.equal(
+        res.url,
+        'http://localhost/' + path.basename(b.getBundles()[1].filePath),
+      );
+    });
+
+    it('supports dynamic import and url to the same specifier in the same file with scope hoisting', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          'integration/multiple-import-types/dynamic-url.js',
+        ),
+        {
+          defaultTargetOptions: {
+            outputFormat: 'esmodule',
+            isLibrary: true,
+            shouldScopeHoist: true,
+          },
+        },
+      );
+
+      assertBundles(b, [
+        {
+          type: 'js',
+          assets: ['dynamic-url.js'],
+        },
+        {
+          type: 'js',
+          assets: ['other.js'],
+        },
+        {
+          type: 'js',
+          assets: ['other.js'],
+        },
+      ]);
+
+      let res = await run(b);
+      assert.equal(typeof res.lazy, 'object');
+      assert.equal(typeof (await res.lazy), 'function');
+      assert.equal(
+        res.url,
+        'http://localhost/' + path.basename(b.getBundles()[1].filePath),
+      );
+    });
+
+    it('supports static import and inline bundle for the same asset', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          'integration/multiple-import-types/static-inline.js',
+        ),
+      );
+
+      assertBundles(b, [
+        {
+          type: 'js',
+          assets: ['static-inline.js', 'other.js', 'esmodule-helpers.js'],
+        },
+        {
+          type: 'js',
+          assets: ['other.js', 'esmodule-helpers.js'],
+        },
+      ]);
+
+      let res = await run(b);
+      assert.equal(typeof res.Foo, 'function');
+      assert.equal(typeof res.text, 'string');
+    });
+
+    it('supports static import and inline bundle for the same asset with scope hoisting', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          'integration/multiple-import-types/static-inline.js',
+        ),
+        {
+          defaultTargetOptions: {
+            outputFormat: 'esmodule',
+            isLibrary: true,
+            shouldScopeHoist: true,
+          },
+        },
+      );
+
+      assertBundles(b, [
+        {
+          type: 'js',
+          assets: ['static-inline.js', 'other.js'],
+        },
+        {
+          type: 'js',
+          assets: ['other.js'],
+        },
+      ]);
+
+      let res = await run(b);
+      assert.equal(typeof res.Foo, 'function');
+      assert.equal(typeof res.text, 'string');
+    });
+
+    it('supports dynamic import and inline bundle for the same asset', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          'integration/multiple-import-types/dynamic-inline.js',
+        ),
+      );
+
+      assertBundles(b, [
+        {
+          type: 'js',
+          assets: [
+            'dynamic-inline.js',
+            'esmodule-helpers.js',
+            'bundle-url.js',
+            'cacheLoader.js',
+            'js-loader.js',
+          ],
+        },
+        {
+          type: 'js',
+          assets: ['other.js'],
+        },
+        {
+          type: 'js',
+          assets: ['other.js', 'esmodule-helpers.js'],
+        },
+      ]);
+
+      let res = await run(b);
+      assert.equal(typeof res.lazy, 'object');
+      assert.equal(typeof (await res.lazy), 'function');
+      assert.equal(typeof res.text, 'string');
+    });
+
+    it('supports dynamic import and inline bundle for the same asset with scope hoisting', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          'integration/multiple-import-types/dynamic-inline.js',
+        ),
+        {
+          defaultTargetOptions: {
+            outputFormat: 'esmodule',
+            isLibrary: true,
+            shouldScopeHoist: true,
+          },
+        },
+      );
+
+      assertBundles(b, [
+        {
+          type: 'js',
+          assets: ['dynamic-inline.js'],
+        },
+        {
+          type: 'js',
+          assets: ['other.js'],
+        },
+        {
+          type: 'js',
+          assets: ['other.js'],
+        },
+      ]);
+
+      let res = await run(b);
+      assert.equal(typeof res.lazy, 'object');
+      assert.equal(typeof (await res.lazy), 'function');
+      assert.equal(typeof res.text, 'string');
+    });
   });
 });

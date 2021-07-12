@@ -6,5 +6,8 @@
     "main": {
       "context": "node"
     }
+  },
+  "dependencies": {
+    "lodash": "*"
   }
 }

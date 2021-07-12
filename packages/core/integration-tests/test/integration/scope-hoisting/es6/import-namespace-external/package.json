@@ -5,5 +5,8 @@
             "isLibrary": true,
             "context": "node"
         }
+    },
+    "dependencies": {
+        "lodash": "*"
     }
 }

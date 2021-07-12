@@ -18,6 +18,7 @@ import {hashString} from '@parcel/hash';
 import createParcelConfigRequest from './ParcelConfigRequest';
 import {runDevDepRequest} from './DevDepRequest';
 import {runConfigRequest} from './ConfigRequest';
+import {fromProjectPath, fromProjectPathRelative} from '../projectPath';
 import {report} from '../ReporterRunner';
 
 type RunInput = {|
@@ -50,7 +51,7 @@ function getId(input: AssetRequestInput) {
   let {optionsRef, ...hashInput} = input;
   return hashString(
     type +
-      input.filePath +
+      fromProjectPathRelative(input.filePath) +
       input.env.id +
       String(input.isSource) +
       String(input.sideEffects) +
@@ -62,11 +63,11 @@ function getId(input: AssetRequestInput) {
   );
 }
 
-async function run({input, api, farm, invalidateReason}: RunInput) {
+async function run({input, api, farm, invalidateReason, options}: RunInput) {
   report({
     type: 'buildProgress',
     phase: 'transforming',
-    filePath: input.filePath,
+    filePath: fromProjectPath(options.projectRoot, input.filePath),
   });
 
   api.invalidateOnFileUpdate(input.filePath);
@@ -102,7 +103,10 @@ async function run({input, api, farm, invalidateReason}: RunInput) {
     devDeps: new Map(
       [...previousDevDepRequests.entries()]
         .filter(([id]) => api.canSkipSubrequest(id))
-        .map(([, req]) => [`${req.specifier}:${req.resolveFrom}`, req.hash]),
+        .map(([, req]) => [
+          `${req.specifier}:${fromProjectPathRelative(req.resolveFrom)}`,
+          req.hash,
+        ]),
     ),
     invalidDevDeps: await Promise.all(
       [...previousDevDepRequests.entries()]
@@ -113,7 +117,10 @@ async function run({input, api, farm, invalidateReason}: RunInput) {
               specifier: req.specifier,
               resolveFrom: req.resolveFrom,
             },
-            ...(req.additionalInvalidations ?? []),
+            ...(req.additionalInvalidations ?? []).map(i => ({
+              specifier: i.specifier,
+              resolveFrom: i.resolveFrom,
+            })),
           ];
         }),
     ),
