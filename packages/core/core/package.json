@@ -1,6 +1,6 @@
 {
   "name": "@parcel/core",
-  "version": "2.0.5",
+  "version": "2.0.6",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -24,18 +24,18 @@
     "check-ts": "tsc --noEmit index.d.ts"
   },
   "dependencies": {
-    "@parcel/cache": "2.0.5",
-    "@parcel/diagnostic": "2.0.5",
-    "@parcel/events": "2.0.5",
-    "@parcel/fs": "2.0.5",
-    "@parcel/hash": "2.0.5",
-    "@parcel/logger": "2.0.5",
-    "@parcel/package-manager": "2.0.5",
-    "@parcel/plugin": "2.0.5",
+    "@parcel/cache": "2.0.6",
+    "@parcel/diagnostic": "2.0.6",
+    "@parcel/events": "2.0.6",
+    "@parcel/fs": "2.0.6",
+    "@parcel/hash": "2.0.6",
+    "@parcel/logger": "2.0.6",
+    "@parcel/package-manager": "2.0.6",
+    "@parcel/plugin": "2.0.6",
     "@parcel/source-map": "2.0.0-rc.5",
-    "@parcel/types": "2.0.5",
-    "@parcel/utils": "2.0.5",
-    "@parcel/workers": "2.0.5",
+    "@parcel/types": "2.0.6",
+    "@parcel/utils": "2.0.6",
+    "@parcel/workers": "2.0.6",
     "abortcontroller-polyfill": "^1.1.9",
     "base-x": "^3.0.8",
     "browserslist": "^4.6.6",
