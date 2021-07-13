@@ -22,6 +22,7 @@ import {assetFromValue, assetToAssetValue, Asset} from './Asset';
 import {bundleToInternalBundle} from './Bundle';
 import Dependency, {dependencyToInternalDependency} from './Dependency';
 import {mapVisitor} from '../Graph';
+import {fromInternalSourceLocation} from '../utils';
 
 // Friendly access for other modules within this package that need access
 // to the internal bundle.
@@ -88,7 +89,7 @@ export default class BundleGraph<TBundle: IBundle>
   getIncomingDependencies(asset: IAsset): Array<IDependency> {
     return this.#graph
       .getIncomingDependencies(assetToAssetValue(asset))
-      .map(dep => new Dependency(dep));
+      .map(dep => new Dependency(dep, this.#options));
   }
 
   getAssetWithDependency(dep: IDependency): ?IAsset {
@@ -163,7 +164,7 @@ export default class BundleGraph<TBundle: IBundle>
   getDependencies(asset: IAsset): Array<IDependency> {
     return this.#graph
       .getDependencies(assetToAssetValue(asset))
-      .map(dep => new Dependency(dep));
+      .map(dep => new Dependency(dep, this.#options));
   }
 
   isAssetReachableFromBundle(asset: IAsset, bundle: IBundle): boolean {
@@ -250,7 +251,7 @@ export default class BundleGraph<TBundle: IBundle>
       asset: assetFromValue(res.asset, this.#options),
       exportSymbol: res.exportSymbol,
       symbol: res.symbol,
-      loc: res.loc,
+      loc: fromInternalSourceLocation(this.#options.projectRoot, res.loc),
     };
   }
 
@@ -266,7 +267,7 @@ export default class BundleGraph<TBundle: IBundle>
       asset: assetFromValue(e.asset, this.#options),
       exportSymbol: e.exportSymbol,
       symbol: e.symbol,
-      loc: e.loc,
+      loc: fromInternalSourceLocation(this.#options.projectRoot, e.loc),
       exportAs: e.exportAs,
     }));
   }
@@ -282,7 +283,7 @@ export default class BundleGraph<TBundle: IBundle>
             ? {type: 'asset', value: assetFromValue(node.value, this.#options)}
             : {
                 type: 'dependency',
-                value: new Dependency(node.value),
+                value: new Dependency(node.value, this.#options),
               },
         visit,
       ),

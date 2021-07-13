@@ -1,13 +1,12 @@
 // @flow
 
-import type {Environment} from './types';
-
+import type {AssetGraphNode, BundleGraphNode, Environment} from './types';
 import type Graph from './Graph';
-import type {AssetGraphNode, BundleGraphNode} from './types';
 import {SpecifierType, Priority} from './types';
 import type {Bundle} from '@parcel/bundler-default';
 
 import path from 'path';
+import {fromProjectPathRelative} from './projectPath';
 
 const COLORS = {
   root: 'gray',
@@ -114,6 +113,25 @@ export default async function dumpGraphToGraphViz(
           if (node.usedSymbols.size) {
             label += '\\nusedSymbols: ' + [...node.usedSymbols].join(',');
           }
+        } else {
+          label += '\\nsymbols: cleared';
+        }
+      }
+    } else if (node.type === 'asset') {
+      label +=
+        path.basename(fromProjectPathRelative(node.value.filePath)) +
+        '#' +
+        node.value.type;
+      if (detailedSymbols) {
+        if (!node.value.symbols) {
+          label += '\\nsymbols: cleared';
+        } else if (node.value.symbols.size) {
+          label +=
+            '\\nsymbols: ' +
+            [...node.value.symbols].map(([e, {local}]) => [e, local]).join(';');
+        }
+        if (node.usedSymbols.size) {
+          label += '\\nusedSymbols: ' + [...node.usedSymbols].join(',');
         }
       } else if (node.type === 'asset_group') {
         if (node.deferred) label += '(deferred)';

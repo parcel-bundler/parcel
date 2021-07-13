@@ -12,6 +12,7 @@ import type {
 
 import {Readable} from 'stream';
 import nullthrows from 'nullthrows';
+import invariant from 'assert';
 import URL from 'url';
 import {bufferStream, relativeBundlePath, urlJoin} from './';
 
@@ -53,10 +54,13 @@ export function replaceURLReferences({
       continue;
     }
 
-    const resolved = bundleGraph.getReferencedBundle(dependency, bundle);
+    let placeholder = dependency.meta?.placeholder ?? dependency.id;
+    invariant(typeof placeholder === 'string');
+
+    let resolved = bundleGraph.getReferencedBundle(dependency, bundle);
     if (resolved == null) {
-      replacements.set(dependency.id, {
-        from: dependency.id,
+      replacements.set(placeholder, {
+        from: placeholder,
         to: dependency.specifier,
       });
       continue;
@@ -69,7 +73,7 @@ export function replaceURLReferences({
     }
 
     replacements.set(
-      dependency.id,
+      placeholder,
       getURLReplacement({
         dependency,
         fromBundle: bundle,
@@ -157,23 +161,26 @@ export function getURLReplacement({
 |}): {|from: string, to: string|} {
   let to;
 
+  let orig = URL.parse(dependency.specifier);
+
   if (relative) {
-    to = URL.format(
-      URL.parse(
-        relativeBundlePath(fromBundle, toBundle, {
-          leadingDotSlash: false,
-        }),
-      ),
+    let parsed = URL.parse(
+      relativeBundlePath(fromBundle, toBundle, {
+        leadingDotSlash: false,
+      }),
     );
+    parsed.hash = orig.hash;
+    to = URL.format(parsed);
   } else {
-    to = urlJoin(
-      toBundle.target.publicUrl,
-      URL.format(URL.parse(nullthrows(toBundle.name))),
-    );
+    let parsed = URL.parse(nullthrows(toBundle.name));
+    parsed.hash = orig.hash;
+    to = urlJoin(toBundle.target.publicUrl, URL.format(parsed));
   }
 
+  let placeholder = dependency.meta?.placeholder ?? dependency.id;
+  invariant(typeof placeholder === 'string');
   return {
-    from: dependency.id,
+    from: placeholder,
     to,
   };
 }

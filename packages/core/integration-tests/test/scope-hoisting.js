@@ -1,6 +1,7 @@
 import assert from 'assert';
 import path from 'path';
 import nullthrows from 'nullthrows';
+import {normalizePath} from '@parcel/utils';
 import {md} from '@parcel/diagnostic';
 import {
   assertBundles,
@@ -430,8 +431,9 @@ describe('scope hoisting', function() {
       let source = path.normalize(
         'integration/scope-hoisting/es6/re-export-exclude-default/a.js',
       );
-      let message = md`${path.normalize(
+      let message = md`${normalizePath(
         'integration/scope-hoisting/es6/re-export-exclude-default/b.js',
+        false,
       )} does not export 'default'`;
       await assert.rejects(() => bundle(path.join(__dirname, source)), {
         name: 'BuildError',
@@ -442,7 +444,7 @@ describe('scope hoisting', function() {
             origin: '@parcel/core',
             codeFrames: [
               {
-                filePath: source,
+                filePath: path.join(__dirname, source),
                 language: 'js',
                 codeHighlights: [
                   {
@@ -467,8 +469,9 @@ describe('scope hoisting', function() {
       let source = path.normalize(
         'integration/scope-hoisting/es6/re-export-missing/a.js',
       );
-      let message = md`${path.normalize(
+      let message = md`${normalizePath(
         'integration/scope-hoisting/es6/re-export-missing/c.js',
+        false,
       )} does not export 'foo'`;
       await assert.rejects(() => bundle(path.join(__dirname, source)), {
         name: 'BuildError',
@@ -479,7 +482,8 @@ describe('scope hoisting', function() {
             origin: '@parcel/core',
             codeFrames: [
               {
-                filePath: path.normalize(
+                filePath: path.join(
+                  __dirname,
                   'integration/scope-hoisting/es6/re-export-missing/b.js',
                 ),
                 language: 'js',
@@ -1551,7 +1555,11 @@ describe('scope hoisting', function() {
       });
 
       it('throws an error for missing exports for dynamic import: destructured await declaration', async function() {
-        let source = 'await-declaration-error.js';
+        let source = path.join(
+          __dirname,
+          'integration/scope-hoisting/es6/tree-shaking-dynamic-import',
+          'await-declaration-error.js',
+        );
         let message = `async.js does not export 'missing'`;
         await assert.rejects(
           () =>
@@ -1559,7 +1567,7 @@ describe('scope hoisting', function() {
               path.join(
                 __dirname,
                 'integration/scope-hoisting/es6/tree-shaking-dynamic-import',
-                source,
+                'await-declaration-error.js',
               ),
             ),
           {
@@ -1594,7 +1602,11 @@ describe('scope hoisting', function() {
       });
 
       it('throws an error for missing exports for dynamic import: namespace await declaration', async function() {
-        let source = 'await-declaration-namespace-error.js';
+        let source = path.join(
+          __dirname,
+          'integration/scope-hoisting/es6/tree-shaking-dynamic-import',
+          'await-declaration-namespace-error.js',
+        );
         let message = `async.js does not export 'missing'`;
         await assert.rejects(
           () =>
@@ -1602,7 +1614,7 @@ describe('scope hoisting', function() {
               path.join(
                 __dirname,
                 'integration/scope-hoisting/es6/tree-shaking-dynamic-import',
-                source,
+                'await-declaration-namespace-error.js',
               ),
             ),
           {
@@ -1637,7 +1649,11 @@ describe('scope hoisting', function() {
       });
 
       it('throws an error for missing exports for dynamic import: destructured then', async function() {
-        let source = 'then-error.js';
+        let source = path.join(
+          __dirname,
+          'integration/scope-hoisting/es6/tree-shaking-dynamic-import',
+          'then-error.js',
+        );
         let message = `async.js does not export 'missing'`;
         await assert.rejects(
           () =>
@@ -1645,7 +1661,7 @@ describe('scope hoisting', function() {
               path.join(
                 __dirname,
                 'integration/scope-hoisting/es6/tree-shaking-dynamic-import',
-                source,
+                'then-error.js',
               ),
             ),
           {
@@ -1680,7 +1696,11 @@ describe('scope hoisting', function() {
       });
 
       it('throws an error for missing exports for dynamic import: namespace then', async function() {
-        let source = 'then-namespace-error.js';
+        let source = path.join(
+          __dirname,
+          'integration/scope-hoisting/es6/tree-shaking-dynamic-import',
+          'then-namespace-error.js',
+        );
         let message = `async.js does not export 'missing'`;
         await assert.rejects(
           () =>
@@ -1688,7 +1708,7 @@ describe('scope hoisting', function() {
               path.join(
                 __dirname,
                 'integration/scope-hoisting/es6/tree-shaking-dynamic-import',
-                source,
+                'then-namespace-error.js',
               ),
             ),
           {
@@ -5287,6 +5307,17 @@ describe('scope hoisting', function() {
 
       assert.deepEqual(outputs, [2, 3]);
     });
+
+    it('should wrap all assets with an incoming wrapped dependency', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/wrap-deps-circular/index.js',
+        ),
+      );
+
+      assert.deepEqual(await run(b), {test: 2});
+    });
   });
 
   it('should not throw with JS included from HTML', async function() {
@@ -5430,8 +5461,8 @@ describe('scope hoisting', function() {
 
     let output = await run(b);
     assert.deepEqual(output(), {
-      dir: path.join(__dirname, '/integration/globals'),
-      file: path.join(__dirname, '/integration/globals/index.js'),
+      dir: 'integration/globals',
+      file: 'integration/globals/index.js',
       buf: Buffer.from('browser').toString('base64'),
       global: true,
     });
@@ -5524,7 +5555,6 @@ describe('scope hoisting', function() {
           'cacheLoader.js',
           'dep.js',
           'js-loader.js',
-          'relative-path.js',
           'same-ancestry-scope-hoisting.js',
         ],
       },
@@ -5551,7 +5581,6 @@ describe('scope hoisting', function() {
           'bundle-url.js',
           'cacheLoader.js',
           'js-loader.js',
-          'relative-path.js',
         ],
       },
       {assets: ['dep.js']},
@@ -5592,7 +5621,6 @@ describe('scope hoisting', function() {
           'cacheLoader.js',
           'get-dep-scope-hoisting.js',
           'js-loader.js',
-          'relative-path.js',
         ],
       },
     ]);
@@ -5640,7 +5668,6 @@ describe('scope hoisting', function() {
           'cacheLoader.js',
           'scope-hoisting.js',
           'js-loader.js',
-          'relative-path.js',
         ],
       },
     ]);

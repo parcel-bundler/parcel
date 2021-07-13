@@ -43,7 +43,8 @@ import {
   ENGINES_SCHEMA,
 } from '../TargetDescriptor.schema';
 import {BROWSER_ENVS} from '../public/Environment';
-import {optionsProxy} from '../utils';
+import {optionsProxy, toInternalSourceLocation} from '../utils';
+import {fromProjectPath, toProjectPath} from '../projectPath';
 
 type RunOpts = {|
   input: Entry,
@@ -110,7 +111,10 @@ async function run({input, api, options}: RunOpts) {
     api,
     optionsProxy(options, api.invalidateOnOptionChange),
   );
-  let targets = await targetResolver.resolve(input.packagePath, input.target);
+  let targets = await targetResolver.resolve(
+    fromProjectPath(options.projectRoot, input.packagePath),
+    input.target,
+  );
 
   let configResult = nullthrows(
     await api.runRequest<null, ConfigAndCachePath>(createParcelConfigRequest()),
@@ -218,14 +222,19 @@ export class TargetResolver {
             }
             let target: Target = {
               name,
-              distDir: path.resolve(this.fs.cwd(), distDir),
+              distDir: toProjectPath(
+                this.options.projectRoot,
+                path.resolve(this.fs.cwd(), distDir),
+              ),
               publicUrl:
                 descriptor.publicUrl ??
                 this.options.defaultTargetOptions.publicUrl,
               env: createEnvironment({
                 engines: descriptor.engines,
                 context: descriptor.context,
-                isLibrary: descriptor.isLibrary,
+                isLibrary:
+                  descriptor.isLibrary ??
+                  this.options.defaultTargetOptions.isLibrary,
                 includeNodeModules: descriptor.includeNodeModules,
                 outputFormat:
                   descriptor.outputFormat ??
@@ -278,7 +287,10 @@ export class TargetResolver {
             },
           });
         }
-        targets[0].distDir = serve.distDir;
+        targets[0].distDir = toProjectPath(
+          this.options.projectRoot,
+          serve.distDir,
+        );
       }
     } else {
       // Explicit targets were not provided. Either use a modern target for server
@@ -289,7 +301,10 @@ export class TargetResolver {
         targets = [
           {
             name: 'default',
-            distDir: this.options.serveOptions.distDir,
+            distDir: toProjectPath(
+              this.options.projectRoot,
+              this.options.serveOptions.distDir,
+            ),
             publicUrl: this.options.defaultTargetOptions.publicUrl ?? '/',
             env: createEnvironment({
               context: 'browser',
@@ -330,10 +345,12 @@ export class TargetResolver {
       this.options.projectRoot,
     );
 
+    let rootFileProject = toProjectPath(this.options.projectRoot, rootFile);
+
     // Invalidate whenever a package.json file is added.
     this.api.invalidateOnFileCreate({
       fileName: 'package.json',
-      aboveFilePath: rootFile,
+      aboveFilePath: rootFileProject,
     });
 
     let pkg;
@@ -357,8 +374,9 @@ export class TargetResolver {
       pkgContents = await this.fs.readFile(_pkgFilePath, 'utf8');
       pkgMap = jsonMap.parse(pkgContents.replace(/\t/g, ' '));
 
-      this.api.invalidateOnFileUpdate(_pkgFilePath);
-      this.api.invalidateOnFileDelete(_pkgFilePath);
+      let pp = toProjectPath(this.options.projectRoot, _pkgFilePath);
+      this.api.invalidateOnFileUpdate(pp);
+      this.api.invalidateOnFileDelete(pp);
     } else {
       pkg = {};
       pkgDir = this.fs.cwd();
@@ -400,12 +418,12 @@ export class TargetResolver {
 
         this.api.invalidateOnFileCreate({
           fileName: 'browserslist',
-          aboveFilePath: rootFile,
+          aboveFilePath: rootFileProject,
         });
 
         this.api.invalidateOnFileCreate({
           fileName: '.browserslistrc',
-          aboveFilePath: rootFile,
+          aboveFilePath: rootFileProject,
         });
 
         if (browserslistConfig != null) {
@@ -421,8 +439,9 @@ export class TargetResolver {
           }
 
           // Invalidate whenever browserslist config file or relevant environment variables change
-          this.api.invalidateOnFileUpdate(browserslistConfig);
-          this.api.invalidateOnFileDelete(browserslistConfig);
+          let pp = toProjectPath(this.options.projectRoot, browserslistConfig);
+          this.api.invalidateOnFileUpdate(pp);
+          this.api.invalidateOnFileDelete(pp);
           this.api.invalidateOnEnvChange('BROWSERSLIST_ENV');
           this.api.invalidateOnEnvChange('NODE_ENV');
         }
@@ -491,7 +510,10 @@ export class TargetResolver {
 
         let _descriptor: mixed = pkgTargets[targetName] ?? {};
         if (typeof targetDist === 'string') {
-          distDir = path.resolve(pkgDir, path.dirname(targetDist));
+          distDir = toProjectPath(
+            this.options.projectRoot,
+            path.resolve(pkgDir, path.dirname(targetDist)),
+          );
           distEntry = path.basename(targetDist);
           loc = {
             filePath: nullthrows(pkgFilePath),
@@ -500,7 +522,10 @@ export class TargetResolver {
         } else {
           distDir =
             this.options.defaultTargetOptions.distDir ??
-            path.join(pkgDir, DEFAULT_DIST_DIRNAME, targetName);
+            toProjectPath(
+              this.options.projectRoot,
+              path.join(pkgDir, DEFAULT_DIST_DIRNAME, targetName),
+            );
         }
 
         if (_descriptor == false) {
@@ -645,6 +670,36 @@ export class TargetResolver {
           });
         }
 
+        if (descriptor.scopeHoist === false) {
+          let contents: string =
+            typeof pkgContents === 'string'
+              ? pkgContents
+              : // $FlowFixMe
+                JSON.stringify(pkgContents, null, '\t');
+          throw new ThrowableDiagnostic({
+            diagnostic: {
+              message: 'Scope hoisting cannot be disabled for library targets.',
+              origin: '@parcel/core',
+              codeFrames: [
+                {
+                  language: 'json',
+                  filePath: pkgFilePath ?? undefined,
+                  code: contents,
+                  codeHighlights: generateJSONCodeHighlights(contents, [
+                    {
+                      key: `/targets/${targetName}/scopeHoist`,
+                      type: 'value',
+                    },
+                  ]),
+                },
+              ],
+              hints: [
+                `The "${targetName}" target is meant for libraries. Either remove the "scopeHoist" option, or use a different target name.`,
+              ],
+            },
+          });
+        }
+
         targets.set(targetName, {
           name: targetName,
           distDir,
@@ -665,13 +720,11 @@ export class TargetResolver {
             isLibrary: true,
             shouldOptimize:
               this.options.defaultTargetOptions.shouldOptimize &&
-              descriptor.optimize !== false,
-            shouldScopeHoist:
-              this.options.defaultTargetOptions.shouldScopeHoist &&
-              descriptor.scopeHoist !== false,
+              descriptor.optimize === true,
+            shouldScopeHoist: true,
             sourceMap: normalizeSourceMap(this.options, descriptor.sourceMap),
           }),
-          loc,
+          loc: toInternalSourceLocation(this.options.projectRoot, loc),
         });
       }
     }
@@ -688,8 +741,10 @@ export class TargetResolver {
       let loc;
       if (distPath == null) {
         distDir =
-          this.options.defaultTargetOptions.distDir ??
-          path.join(pkgDir, DEFAULT_DIST_DIRNAME);
+          fromProjectPath(
+            this.options.projectRoot,
+            this.options.defaultTargetOptions.distDir,
+          ) ?? path.join(pkgDir, DEFAULT_DIST_DIRNAME);
         if (customTargets.length >= 2) {
           distDir = path.join(distDir, targetName);
         }
@@ -753,12 +808,54 @@ export class TargetResolver {
           pkgContents,
         );
 
+        if (descriptor.scopeHoist === false && descriptor.isLibrary) {
+          let contents: string =
+            typeof pkgContents === 'string'
+              ? pkgContents
+              : // $FlowFixMe
+                JSON.stringify(pkgContents, null, '\t');
+          throw new ThrowableDiagnostic({
+            diagnostic: {
+              message: 'Scope hoisting cannot be disabled for library targets.',
+              origin: '@parcel/core',
+              codeFrames: [
+                {
+                  language: 'json',
+                  filePath: pkgFilePath ?? undefined,
+                  code: contents,
+                  codeHighlights: generateJSONCodeHighlights(contents, [
+                    {
+                      key: `/targets/${targetName}/scopeHoist`,
+                      type: 'value',
+                    },
+                    {
+                      key: `/targets/${targetName}/isLibrary`,
+                      type: 'value',
+                    },
+                  ]),
+                },
+              ],
+              hints: [`Either remove the "scopeHoist" or "isLibrary" option.`],
+            },
+          });
+        }
+
+        let isLibrary =
+          descriptor.isLibrary ??
+          this.options.defaultTargetOptions.isLibrary ??
+          false;
+        let shouldScopeHoist = isLibrary
+          ? true
+          : this.options.defaultTargetOptions.shouldScopeHoist;
+
         targets.set(targetName, {
           name: targetName,
-          distDir:
+          distDir: toProjectPath(
+            this.options.projectRoot,
             descriptor.distDir != null
               ? path.resolve(pkgDir, descriptor.distDir)
               : distDir,
+          ),
           distEntry,
           publicUrl:
             descriptor.publicUrl ?? this.options.defaultTargetOptions.publicUrl,
@@ -771,16 +868,18 @@ export class TargetResolver {
               this.options.defaultTargetOptions.outputFormat ??
               inferredOutputFormat ??
               undefined,
-            isLibrary: descriptor.isLibrary,
+            isLibrary,
             shouldOptimize:
               this.options.defaultTargetOptions.shouldOptimize &&
-              descriptor.optimize !== false,
+              // Libraries are not optimized by default, users must explicitly configure this.
+              (isLibrary
+                ? descriptor.optimize === true
+                : descriptor.optimize !== false),
             shouldScopeHoist:
-              this.options.defaultTargetOptions.shouldScopeHoist &&
-              descriptor.scopeHoist !== false,
+              shouldScopeHoist && descriptor.scopeHoist !== false,
             sourceMap: normalizeSourceMap(this.options, descriptor.sourceMap),
           }),
-          loc,
+          loc: toInternalSourceLocation(this.options.projectRoot, loc),
         });
       }
     }
@@ -791,14 +890,21 @@ export class TargetResolver {
         name: 'default',
         distDir:
           this.options.defaultTargetOptions.distDir ??
-          path.join(pkgDir, DEFAULT_DIST_DIRNAME),
+          toProjectPath(
+            this.options.projectRoot,
+            path.join(pkgDir, DEFAULT_DIST_DIRNAME),
+          ),
         publicUrl: this.options.defaultTargetOptions.publicUrl,
         env: createEnvironment({
           engines: pkgEngines,
           context,
           outputFormat: this.options.defaultTargetOptions.outputFormat,
+          isLibrary: this.options.defaultTargetOptions.isLibrary,
           shouldOptimize: this.options.defaultTargetOptions.shouldOptimize,
-          shouldScopeHoist: this.options.defaultTargetOptions.shouldScopeHoist,
+          shouldScopeHoist:
+            this.options.defaultTargetOptions.shouldScopeHoist ??
+            (this.options.mode === 'production' &&
+              !this.options.defaultTargetOptions.isLibrary),
           sourceMap: this.options.defaultTargetOptions.sourceMaps
             ? {}
             : undefined,
@@ -806,7 +912,7 @@ export class TargetResolver {
       });
     }
 
-    assertNoDuplicateTargets(targets, pkgFilePath, pkgContents);
+    assertNoDuplicateTargets(this.options, targets, pkgFilePath, pkgContents);
 
     return targets;
   }
@@ -990,13 +1096,17 @@ function parseCommonTargetDescriptor(
   return descriptor;
 }
 
-function assertNoDuplicateTargets(targets, pkgFilePath, pkgContents) {
+function assertNoDuplicateTargets(options, targets, pkgFilePath, pkgContents) {
   // Detect duplicate targets by destination path and provide a nice error.
   // Without this, an assertion is thrown much later after naming the bundles and finding duplicates.
   let targetsByPath: Map<string, Array<string>> = new Map();
   for (let target of targets.values()) {
-    if (target.distEntry != null) {
-      let distPath = path.join(target.distDir, target.distEntry);
+    let {distEntry} = target;
+    if (distEntry != null) {
+      let distPath = path.join(
+        fromProjectPath(options.projectRoot, target.distDir),
+        distEntry,
+      );
       if (!targetsByPath.has(distPath)) {
         targetsByPath.set(distPath, []);
       }

@@ -11,10 +11,6 @@ const nameToCtor: Map<string, Class<*>> = new Map();
 const ctorToName: Map<Class<*>, string> = new Map();
 
 export function registerSerializableClass(name: string, ctor: Class<*>) {
-  if (nameToCtor.has(name)) {
-    throw new Error('Name already registered with serializer');
-  }
-
   if (ctorToName.has(ctor)) {
     throw new Error('Class already registered with serializer');
   }

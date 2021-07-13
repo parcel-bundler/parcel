@@ -115,11 +115,8 @@ export async function findAlternativeFiles(
     ['package.json'],
     projectRoot,
   );
-  if (!pkg) {
-    return potentialFiles;
-  }
 
-  let pkgRoot = path.dirname(pkg);
+  let pkgRoot = pkg ? path.dirname(pkg) : projectRoot;
   await findAllFilesUp({
     fs,
     dir: pkgRoot,
