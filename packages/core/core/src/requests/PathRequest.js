@@ -51,7 +51,7 @@ type RunOpts = {|
 
 const type = 'path_request';
 const QUERY_PARAMS_REGEX = /^([^\t\r\n\v\f?]*)(\?.*)?/;
-const PIPELINE_REGEX = /^([a-z0-9\-]+?):(.*)$/i;
+const PIPELINE_REGEX = /^([a-z0-9-]+?):(.*)$/i;
 
 export default function createPathRequest(
   input: PathRequestInput,
