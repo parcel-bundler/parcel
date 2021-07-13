@@ -617,12 +617,9 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     from: NodeId,
     to: NodeId,
   |}> {
-    if (!this.toTypeMap || !this.fromTypeMap) this.buildTypeMaps();
-    for (let [from, toTypeMap] of this.fromTypeMap) {
-      for (let [type, toNodes] of toTypeMap) {
-        for (let to of toNodes) {
-          yield {type: (type: any), from, to};
-        }
+    for (let from of this.iterateNodes()) {
+      for (let edge of this.iterateOutgoingEdges(from)) {
+        yield {type: this.getEdgeType(edge), from, to: this.getToNode(edge)};
       }
     }
   }
