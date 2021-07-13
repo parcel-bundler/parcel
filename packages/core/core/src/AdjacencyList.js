@@ -851,9 +851,12 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     from: NodeId,
     to: NodeId,
   |}> {
-    for (let node of Node.iterate(this)) {
-      for (let edge of node.getOutgoingEdges()) {
-        yield {type: edge.type, from: edge.from.id, to: edge.to.id};
+    if (!this.toTypeMap || !this.fromTypeMap) this.buildTypeMaps();
+    for (let [from, toTypeMap] of this.fromTypeMap) {
+      for (let [type, toNodes] of toTypeMap) {
+        for (let to of toNodes) {
+          yield {type: (type: any), from, to};
+        }
       }
     }
   }
@@ -940,18 +943,22 @@ export default class AdjacencyList<TEdgeType: number = 1> {
   *getInboundEdgesByType(
     to: NodeId,
   ): Iterator<{|type: TEdgeType, from: NodeId|}> {
-    let node = Node.fromId(to, this);
-    for (let edge of node.getIncomingEdges()) {
-      yield {type: deletedThrows(edge.type), from: edge.from.id};
+    if (!this.toTypeMap) this.buildTypeMaps();
+    for (let [type, nodes] of this.toTypeMap.get(to)) {
+      for (let from of nodes) {
+        yield {type: (type: any), from};
+      }
     }
   }
 
   *getOutboundEdgesByType(
     from: NodeId,
   ): Iterator<{|type: TEdgeType, to: NodeId|}> {
-    let node = Node.fromId(from, this);
-    for (let edge of node.getOutgoingEdges()) {
-      yield {type: deletedThrows(edge.type), to: edge.to.id};
+    if (!this.fromTypeMap) this.buildTypeMaps();
+    for (let [type, nodes] of this.fromTypeMap.get(from)) {
+      for (let to of nodes) {
+        yield {type: (type: any), to};
+      }
     }
   }
 
