@@ -56,6 +56,7 @@ describe('stylus', function() {
     let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
     assert(css.includes('.index'));
     assert(css.includes('.a'));
+    assert(css.includes('.b'));
     assert(css.includes('-webkit-box'));
     assert(css.includes('.foo'));
   });
