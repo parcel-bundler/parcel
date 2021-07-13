@@ -2289,4 +2289,73 @@ describe('html', function() {
       ],
     });
   });
+
+  it('should escape inline script tags', async function() {
+    let b = await bundle(
+      path.join(__dirname, 'integration/html-inline-escape/script.html'),
+    );
+    let output;
+    await run(b, {
+      output(o) {
+        output = o;
+      },
+    });
+
+    assert.deepEqual(output, {
+      a: '<script></script>',
+      b: '<!-- test',
+      c: '<SCRIPT></SCRIPT>',
+    });
+  });
+
+  it('should escape quotes in inline style attributes and style tags', async function() {
+    let b = await bundle(
+      path.join(__dirname, 'integration/html-inline-escape/style.html'),
+    );
+    let output = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    let name = path.basename(
+      b.getBundles().find(b => b.type === 'png').filePath,
+      'utf8',
+    );
+    assert(output.includes(`url(&quot;${name}&quot;)`));
+    assert(output.includes('<\\/style>'));
+  });
+
+  it('should work with bundle names that have colons in them', async function() {
+    let b = await bundle(
+      path.join(__dirname, 'integration/url-colon/relative.html'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'relative.html',
+        assets: ['relative.html'],
+      },
+      {
+        name: 'a:b:c.html',
+        assets: ['a:b:c.html'],
+      },
+    ]);
+
+    let output = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(output.includes('/a:b:c.html'));
+
+    b = await bundle(
+      path.join(__dirname, 'integration/url-colon/absolute.html'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'absolute.html',
+        assets: ['absolute.html'],
+      },
+      {
+        name: 'a:b:c.html',
+        assets: ['a:b:c.html'],
+      },
+    ]);
+
+    output = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(output.includes('/a:b:c.html'));
+  });
 });
