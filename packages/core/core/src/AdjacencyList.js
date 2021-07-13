@@ -4,6 +4,7 @@ import type {NodeId} from './types';
 import {digraph} from 'graphviz';
 import {spawn} from 'child_process';
 import type {NullEdgeType, AllEdgeTypes} from './Graph';
+import {DefaultMap} from '@parcel/utils';
 
 /**
  * Each node is represented with 2 4-byte chunks:
@@ -142,6 +143,16 @@ export default class AdjacencyList<TEdgeType: number = 1> {
   numNodes: number;
   /** The count of the number of edges in the graph. */
   numEdges: number;
+  /** A map of node ids from => through types => to node ids. */
+  outboundEdges: DefaultMap<
+    NodeId,
+    DefaultMap<TEdgeType | NullEdgeType, Set<NodeId>>,
+  >;
+  /** A map of node ids to => through types => from node ids. */
+  inboundEdges: DefaultMap<
+    NodeId,
+    DefaultMap<TEdgeType | NullEdgeType, Set<NodeId>>,
+  >;
 
   constructor(nodeCapacity: number = 128, edgeCapacity: number = 256) {
     this.nodeCapacity = nodeCapacity;
@@ -153,6 +164,32 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     this.edges = new Uint32Array(edgeCapacity * EDGE_SIZE);
     this.numNodes = 0;
     this.numEdges = 0;
+  }
+
+  /** Create mappings from => type => to and vice versa. */
+  buildTypeMaps() {
+    this.outboundEdges = new DefaultMap(() => new DefaultMap(() => new Set()));
+    this.inboundEdges = new DefaultMap(() => new DefaultMap(() => new Set()));
+    for (let i = 0; i < this.nodes.length; i += NODE_SIZE) {
+      let nextOutHash = this.nodes[i + FIRST_OUT];
+      while (nextOutHash) {
+        let edgeIndex = hashToIndex(nextOutHash);
+        this.outboundEdges
+          .get(toNodeId(this.edges[edgeIndex + FROM]))
+          .get((this.edges[edgeIndex + TYPE]: any))
+          .add(toNodeId(this.edges[edgeIndex + TO]));
+        nextOutHash = this.edges[edgeIndex + NEXT_OUT];
+      }
+      let nextInHash = this.nodes[i + FIRST_IN];
+      while (nextInHash) {
+        let edgeIndex = hashToIndex(nextInHash);
+        this.inboundEdges
+          .get(toNodeId(this.edges[edgeIndex + TO]))
+          .get((this.edges[edgeIndex + TYPE]: any))
+          .add(toNodeId(this.edges[edgeIndex + FROM]));
+        nextInHash = this.edges[edgeIndex + NEXT_IN];
+      }
+    }
   }
 
   /**
@@ -476,6 +513,14 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     }
     this.nodes[indexOfNode(from) + LAST_OUT] = indexToHash(index);
 
+    this.outboundEdges
+      ?.get(from)
+      .get(type)
+      .add(to);
+    this.inboundEdges
+      ?.get(to)
+      .get(type)
+      .add(from);
     return true;
   }
 
@@ -627,60 +672,6 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     if (indexToHash(index) === lastInHash) {
       this.nodes[indexOfNode(to) + LAST_IN] = prevInHash;
     }
-    // if (hashToIndex(firstOutHash) === index) {
-    //   this.nodes[indexOfNode(from) + FIRST_OUT] = nextOutHash;
-    // } else {
-    //   let prevOutHash = firstOutHash;
-    //   let nextHash = firstOutHash;
-    //   do {
-    //     nextHash = this.edges[hashToIndex(nextHash) + NEXT_OUT];
-    //     // If the edge at nextHash is the edge we're trying to remove, set the
-    //     // NEXT_OUT of the previous edge to the NEXT_OUT of the edge we're trying
-    //     // to remove
-    //     if (hashToIndex(nextHash) === index) {
-    //       this.edges[hashToIndex(prevOutHash) + NEXT_OUT] = nextOutHash;
-    //       // if we're not trying to remove LAST_OUT, we can stop here
-    //       if (hashToIndex(lastOutHash) !== index) {
-    //         break;
-    //       }
-    //     }
-    //     // If we're trying to remove the LAST_OUT, and LAST_OUT is the next hash,
-    //     // set LAST_OUT to the prev hash
-    //     if (nextHash === lastOutHash && index === hashToIndex(lastOutHash)) {
-    //       this.nodes[indexOfNode(from) + LAST_OUT] = prevOutHash;
-    //       break;
-    //     }
-    //     prevOutHash = nextHash;
-    //   } while (nextHash !== lastOutHash);
-    // }
-
-    // // Remove incoming ref to this edge from to outgoing node.
-    // if (hashToIndex(firstInHash) === index) {
-    //   this.nodes[indexOfNode(to) + FIRST_IN] = nextInHash;
-    // } else {
-    //   let prevInHash = firstInHash;
-    //   let nextHash = firstInHash;
-    //   do {
-    //     nextHash = this.edges[hashToIndex(nextHash) + NEXT_IN];
-    //     // If the edge at nextHash is the edge we're trying to remove, set the
-    //     // NEXT_IN of the previous edge to the NEXT_IN of the edge we're trying
-    //     // to remove
-    //     if (hashToIndex(nextHash) === index) {
-    //       this.edges[hashToIndex(prevInHash) + NEXT_IN] = nextInHash;
-    //       // if we're not trying to remove LAST_IN, we can stop here
-    //       if (hashToIndex(lastInHash) !== index) {
-    //         break;
-    //       }
-    //     }
-    //     // If we're trying to remove the LAST_IN, and LAST_IN is the next hash,
-    //     // set LAST_IN to the prev hash
-    //     if (nextHash === lastInHash && index === hashToIndex(lastInHash)) {
-    //       this.nodes[indexOfNode(to) + LAST_IN] = prevInHash;
-    //       break;
-    //     }
-    //     prevInHash = nextHash;
-    //   } while (nextHash !== lastInHash);
-    // }
 
     // Mark this slot as DELETED.
     // We do this so that clustered edges can still be found
@@ -694,38 +685,37 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     this.edges[index + NEXT_IN] = 0;
     this.edges[index + NEXT_OUT] = 0;
 
+    this.outboundEdges
+      ?.get(from)
+      .get(type)
+      .delete(to);
+    this.inboundEdges
+      ?.get(to)
+      .get(type)
+      .delete(from);
+
     this.numEdges--;
   }
 
   *getInboundEdgesByType(
     to: NodeId,
   ): Iterator<{|type: TEdgeType, from: NodeId|}> {
-    for (
-      let hash = this.nodes[indexOfNode(to) + FIRST_IN];
-      hash;
-      hash = this.edges[hashToIndex(hash) + NEXT_IN]
-    ) {
-      let i = hashToIndex(hash);
-      yield {
-        type: deletedThrows((this.edges[i + TYPE]: any)),
-        from: toNodeId(this.edges[i + FROM]),
-      };
+    if (!this.inboundEdges) this.buildTypeMaps();
+    for (let [type, nodes] of this.inboundEdges.get(to)) {
+      for (let from of nodes) {
+        yield {type: (type: any), from};
+      }
     }
   }
 
   *getOutboundEdgesByType(
     from: NodeId,
   ): Iterator<{|type: TEdgeType, to: NodeId|}> {
-    for (
-      let hash = this.nodes[indexOfNode(from) + FIRST_OUT];
-      hash;
-      hash = this.edges[hashToIndex(hash) + NEXT_OUT]
-    ) {
-      let i = hashToIndex(hash);
-      yield {
-        type: deletedThrows((this.edges[i + TYPE]: any)),
-        to: toNodeId(this.edges[i + TO]),
-      };
+    if (!this.outboundEdges) this.buildTypeMaps();
+    for (let [type, nodes] of this.outboundEdges.get(from)) {
+      for (let to of nodes) {
+        yield {type: (type: any), to};
+      }
     }
   }
 
@@ -754,30 +744,28 @@ export default class AdjacencyList<TEdgeType: number = 1> {
       | NullEdgeType
       | Array<TEdgeType | NullEdgeType> = 1,
   ): Iterator<NodeId> {
-    let seen = new Set();
-    for (
-      let hash = this.nodes[indexOfNode(from) + FIRST_OUT];
-      hash;
-      hash = this.edges[hashToIndex(hash) + NEXT_OUT]
-    ) {
-      let i = hashToIndex(hash);
-      let edgeType = deletedThrows(this.edges[i + TYPE]);
-      let to = this.edges[i + TO];
-      if (seen.has(to)) continue;
-      if (Array.isArray(type)) {
-        for (let typeNum of type) {
-          if (typeNum === ALL_EDGE_TYPES || edgeType === typeNum) {
-            seen.add(to);
-            yield toNodeId(to);
-            break;
-          }
-        }
-      } else {
-        if (type === ALL_EDGE_TYPES || edgeType === type) {
-          seen.add(to);
-          yield toNodeId(to);
-        }
+    if (!this.outboundEdges || !this.inboundEdges) this.buildTypeMaps();
+
+    let isAllEdgeTypes =
+      type === ALL_EDGE_TYPES ||
+      (Array.isArray(type) && type.includes(ALL_EDGE_TYPES));
+
+    if (isAllEdgeTypes) {
+      for (let [, to] of this.outboundEdges.get(from)) {
+        yield* to;
       }
+    } else if (Array.isArray(type)) {
+      for (let typeNum of type) {
+        yield* this.outboundEdges
+          .get(from)
+          .get((typeNum: any))
+          .values();
+      }
+    } else {
+      yield* this.outboundEdges
+        .get(from)
+        .get((type: any))
+        .values();
     }
   }
 
@@ -792,30 +780,28 @@ export default class AdjacencyList<TEdgeType: number = 1> {
       | NullEdgeType
       | Array<TEdgeType | NullEdgeType> = 1,
   ): Iterator<NodeId> {
-    let seen = new Set();
-    for (
-      let hash = this.nodes[indexOfNode(to) + FIRST_IN];
-      hash;
-      hash = this.edges[hashToIndex(hash) + NEXT_IN]
-    ) {
-      let i = hashToIndex(hash);
-      let edgeType = deletedThrows(this.edges[i + TYPE]);
-      let from = this.edges[i + FROM];
-      if (seen.has(from)) continue;
-      if (Array.isArray(type)) {
-        for (let typeNum of type) {
-          if (typeNum === ALL_EDGE_TYPES || edgeType === typeNum) {
-            seen.add(from);
-            yield toNodeId(from);
-            break;
-          }
-        }
-      } else {
-        if (type === ALL_EDGE_TYPES || edgeType === type) {
-          seen.add(from);
-          yield toNodeId(from);
-        }
+    if (!this.outboundEdges || !this.inboundEdges) this.buildTypeMaps();
+
+    let isAllEdgeTypes =
+      type === ALL_EDGE_TYPES ||
+      (Array.isArray(type) && type.includes(ALL_EDGE_TYPES));
+
+    if (isAllEdgeTypes) {
+      for (let [, from] of this.inboundEdges.get(to)) {
+        yield* from;
       }
+    } else if (Array.isArray(type)) {
+      for (let typeNum of type) {
+        yield* this.inboundEdges
+          .get(to)
+          .get((typeNum: any))
+          .values();
+      }
+    } else {
+      yield* this.inboundEdges
+        .get(to)
+        .get((type: any))
+        .values();
     }
   }
 
