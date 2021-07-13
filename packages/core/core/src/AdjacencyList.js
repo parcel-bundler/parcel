@@ -3,6 +3,7 @@ import {digraph} from 'graphviz';
 import {spawn} from 'child_process';
 import {inspect} from 'util';
 import assert from 'assert';
+import {DefaultMap} from '@parcel/utils';
 import {fromNodeId, toNodeId} from './types';
 import type {NullEdgeType, AllEdgeTypes} from './Graph';
 import type {NodeId} from './types';
@@ -510,6 +511,10 @@ export default class AdjacencyList<TEdgeType: number = 1> {
   numNodes: number;
   /** The count of the number of edges in the graph. */
   numEdges: number;
+  /** A map of node ids from => through types => to node ids. */
+  fromTypeMap: DefaultMap<NodeId, DefaultMap<number, Set<NodeId>>>;
+  /** A map of node ids to => through types => from node ids. */
+  toTypeMap: DefaultMap<NodeId, DefaultMap<number, Set<NodeId>>>;
 
   constructor(nodeCapacity: number = 128, edgeCapacity: number = 256) {
     this.nodeCapacity = nodeCapacity;
@@ -521,6 +526,9 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     this.edges = new Uint32Array(edgeCapacity * EDGE_SIZE);
     this.numNodes = 0;
     this.numEdges = 0;
+
+    this.fromTypeMap = new DefaultMap(() => new DefaultMap(() => new Set()));
+    this.toTypeMap = new DefaultMap(() => new DefaultMap(() => new Set()));
   }
 
   /**
@@ -645,6 +653,26 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     this.nodes = copy.nodes;
     this.edges = copy.edges;
     this.edgeCapacity = size;
+    this.fromTypeMap = copy.fromTypeMap;
+    this.toTypeMap = copy.toTypeMap;
+  }
+
+  /** Create mappings from => type => to and vice versa. */
+  buildTypeMaps() {
+    this.fromTypeMap = new DefaultMap(() => new DefaultMap(() => new Set()));
+    this.toTypeMap = new DefaultMap(() => new DefaultMap(() => new Set()));
+    for (let node of Node.iterate(this)) {
+      for (let edge of node.getOutgoingEdges()) {
+        this.fromTypeMap
+          .get(node.id)
+          .get(edge.type)
+          .add(edge.to.id);
+        this.toTypeMap
+          .get(edge.to.id)
+          .get(edge.type)
+          .add(node.id);
+      }
+    }
   }
 
   /**
@@ -707,6 +735,17 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     this.numEdges++;
 
     let edge = Edge.insertAt(index, from, to, (type: any), this);
+
+    this.fromTypeMap
+      ?.get(from)
+      .get(type)
+      .add(to);
+
+    this.toTypeMap
+      ?.get(to)
+      .get(type)
+      .add(from);
+
     if (edge.to.lastIncomingEdge) {
       edge.to.lastIncomingEdge.nextIncomingEdge = edge;
       edge.previousIncomingEdge = edge.to.lastIncomingEdge;
@@ -812,7 +851,7 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     from: NodeId,
     to: NodeId,
   |}> {
-    for (let node of Node.iterate(this, this.numNodes)) {
+    for (let node of Node.iterate(this)) {
       for (let edge of node.getOutgoingEdges()) {
         yield {type: edge.type, from: edge.from.id, to: edge.to.id};
       }
@@ -882,6 +921,16 @@ export default class AdjacencyList<TEdgeType: number = 1> {
       edge.nextIncomingEdge.previousIncomingEdge = edge.previousIncomingEdge;
     }
 
+    this.fromTypeMap
+      ?.get(from)
+      .get(type)
+      .delete(to);
+
+    this.toTypeMap
+      ?.get(to)
+      .get(type)
+      .delete(from);
+
     // Mark this space in the edges array as deleted.
     Edge.deleteAt(index, this);
 
@@ -931,26 +980,28 @@ export default class AdjacencyList<TEdgeType: number = 1> {
       | NullEdgeType
       | Array<TEdgeType | NullEdgeType> = 1,
   ): Iterator<NodeId> {
-    let node = Node.fromId(from, this);
-    let seen = new Set();
-    for (let edge of node.getOutgoingEdges()) {
-      let edgeType = deletedThrows(edge.type);
-      let to = edge.to.id;
-      if (seen.has(to)) continue;
-      if (Array.isArray(type)) {
-        for (let typeNum of type) {
-          if (typeNum === ALL_EDGE_TYPES || edgeType === typeNum) {
-            seen.add(to);
-            yield to;
-            break;
-          }
-        }
-      } else {
-        if (type === ALL_EDGE_TYPES || edgeType === type) {
-          seen.add(to);
-          yield to;
-        }
+    if (!this.fromTypeMap || !this.toTypeMap) this.buildTypeMaps();
+
+    let isAllEdgeTypes =
+      type === ALL_EDGE_TYPES ||
+      (Array.isArray(type) && type.includes(ALL_EDGE_TYPES));
+
+    if (isAllEdgeTypes) {
+      for (let [, to] of this.fromTypeMap.get(from)) {
+        yield* to;
       }
+    } else if (Array.isArray(type)) {
+      for (let typeNum of type) {
+        yield* this.fromTypeMap
+          .get(from)
+          .get((typeNum: any))
+          .values();
+      }
+    } else {
+      yield* this.fromTypeMap
+        .get(from)
+        .get((type: any))
+        .values();
     }
   }
 
@@ -965,27 +1016,28 @@ export default class AdjacencyList<TEdgeType: number = 1> {
       | NullEdgeType
       | Array<TEdgeType | NullEdgeType> = 1,
   ): Iterator<NodeId> {
-    let node = Node.fromId(to, this);
-    let seen = new Set();
+    if (!this.fromTypeMap || !this.toTypeMap) this.buildTypeMaps();
 
-    for (let edge of node.getIncomingEdges()) {
-      let edgeType = deletedThrows(edge.type);
-      let from = edge.from.id;
-      if (seen.has(from)) continue;
-      if (Array.isArray(type)) {
-        for (let typeNum of type) {
-          if (typeNum === ALL_EDGE_TYPES || edgeType === typeNum) {
-            seen.add(from);
-            yield from;
-            break;
-          }
-        }
-      } else {
-        if (type === ALL_EDGE_TYPES || edgeType === type) {
-          seen.add(from);
-          yield from;
-        }
+    let isAllEdgeTypes =
+      type === ALL_EDGE_TYPES ||
+      (Array.isArray(type) && type.includes(ALL_EDGE_TYPES));
+
+    if (isAllEdgeTypes) {
+      for (let [, from] of this.toTypeMap.get(to)) {
+        yield* from;
       }
+    } else if (Array.isArray(type)) {
+      for (let typeNum of type) {
+        yield* this.toTypeMap
+          .get(to)
+          .get((typeNum: any))
+          .values();
+      }
+    } else {
+      yield* this.toTypeMap
+        .get(to)
+        .get((type: any))
+        .values();
     }
   }
 
