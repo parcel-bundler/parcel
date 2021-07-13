@@ -576,8 +576,10 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     edgeCapacity: number,
     /** The current load on the edges array. */
     edgeLoad: number,
-    /** The number of edge hash collisions. */
+    /** The total number of edge hash collisions. */
     collisions: number,
+    /** The number of collisions for the most common hash. */
+    maxCollisions: number,
     /** The likelihood of uniform distribution. ~1.0 indicates certainty. */
     uniformity: number,
   |} {
@@ -592,10 +594,12 @@ export default class AdjacencyList<TEdgeType: number = 1> {
       buckets.set(hash, bucket);
     }
 
+    let maxCollisions = 0;
     let collisions = 0;
     let distribution = 0;
 
     for (let bucket of buckets.values()) {
+      maxCollisions = Math.max(maxCollisions, bucket.size - 1);
       collisions += bucket.size - 1;
       distribution += (bucket.size * (bucket.size + 1)) / 2;
     }
@@ -612,6 +616,7 @@ export default class AdjacencyList<TEdgeType: number = 1> {
       edgeCapacity,
       edgeLoad: numEdges / edgeCapacity,
       collisions,
+      maxCollisions,
       uniformity,
     };
   }
