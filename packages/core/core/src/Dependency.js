@@ -1,28 +1,34 @@
 // @flow
 import type {
-  SourceLocation,
+  FilePath,
   Meta,
   DependencySpecifier,
+  SourceLocation,
   Symbol,
+  BundleBehavior as IBundleBehavior,
 } from '@parcel/types';
 import type {Dependency, Environment, Target} from './types';
 import {hashString} from '@parcel/hash';
-import {SpecifierType, Priority} from './types';
+import {SpecifierType, Priority, BundleBehavior} from './types';
+
+import {toInternalSourceLocation} from './utils';
+import {toProjectPath} from './projectPath';
 
 type DependencyOpts = {|
   id?: string,
-  sourcePath?: string,
+  sourcePath?: FilePath,
   sourceAssetId?: string,
   specifier: DependencySpecifier,
   specifierType: $Keys<typeof SpecifierType>,
   priority?: $Keys<typeof Priority>,
   needsStableName?: boolean,
+  bundleBehavior?: ?IBundleBehavior,
   isEntry?: boolean,
   isOptional?: boolean,
   loc?: SourceLocation,
   env: Environment,
   meta?: Meta,
-  resolveFrom?: string,
+  resolveFrom?: FilePath,
   target?: Target,
   symbols?: Map<
     Symbol,
@@ -31,7 +37,10 @@ type DependencyOpts = {|
   pipeline?: ?string,
 |};
 
-export function createDependency(opts: DependencyOpts): Dependency {
+export function createDependency(
+  projectRoot: FilePath,
+  opts: DependencyOpts,
+): Dependency {
   let id =
     opts.id ||
     hashString(
@@ -39,19 +48,39 @@ export function createDependency(opts: DependencyOpts): Dependency {
         opts.specifier +
         opts.env.id +
         (opts.target ? JSON.stringify(opts.target) : '') +
-        (opts.pipeline ?? ''),
+        (opts.pipeline ?? '') +
+        opts.specifierType +
+        (opts.priority ?? 'sync'),
     );
 
   return {
     ...opts,
+    resolveFrom: toProjectPath(projectRoot, opts.resolveFrom),
+    sourcePath: toProjectPath(projectRoot, opts.sourcePath),
     id,
+    loc: toInternalSourceLocation(projectRoot, opts.loc),
     specifierType: SpecifierType[opts.specifierType],
     priority: Priority[opts.priority ?? 'sync'],
     needsStableName: opts.needsStableName ?? false,
+    bundleBehavior: opts.bundleBehavior
+      ? BundleBehavior[opts.bundleBehavior]
+      : null,
     isEntry: opts.isEntry ?? false,
     isOptional: opts.isOptional ?? false,
     meta: opts.meta || {},
-    symbols: opts.symbols,
+    symbols:
+      opts.symbols &&
+      new Map(
+        [...opts.symbols].map(([k, v]) => [
+          k,
+          {
+            local: v.local,
+            meta: v.meta,
+            isWeak: v.isWeak,
+            loc: toInternalSourceLocation(projectRoot, v.loc),
+          },
+        ]),
+      ),
   };
 }
 

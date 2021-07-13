@@ -23,6 +23,7 @@
     "@parcel/optimizer-cssnano": "2.0.0-beta.3.1",
     "@parcel/optimizer-htmlnano": "2.0.0-beta.3.1",
     "@parcel/optimizer-terser": "2.0.0-beta.3.1",
+    "@parcel/optimizer-svgo": "2.0.0-beta.3.1",
     "@parcel/packager-css": "2.0.0-beta.3.1",
     "@parcel/packager-html": "2.0.0-beta.3.1",
     "@parcel/packager-js": "2.0.0-beta.3.1",
@@ -63,6 +64,7 @@
     "@parcel/transformer-typescript-types": "2.0.0-beta.3.1",
     "@parcel/transformer-vue": "2.0.0-beta.3.1",
     "@parcel/transformer-webmanifest": "2.0.0-beta.3.1",
+    "@parcel/transformer-worklet": "2.0.0-beta.3.1",
     "@parcel/transformer-yaml": "2.0.0-beta.3.1"
   },
   "peerDependencies": {

@@ -31,15 +31,17 @@ export default (new Resolver({
       throw new ThrowableDiagnostic({
         diagnostic: {
           message: error,
-          codeFrame: dependency.loc
-            ? {
-                codeHighlights: [
-                  {
-                    start: dependency.loc.start,
-                    end: dependency.loc.end,
-                  },
-                ],
-              }
+          codeFrames: dependency.loc
+            ? [
+                {
+                  codeHighlights: [
+                    {
+                      start: dependency.loc.start,
+                      end: dependency.loc.end,
+                    },
+                  ],
+                },
+              ]
             : undefined,
         },
       });

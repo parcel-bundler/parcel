@@ -13,7 +13,6 @@ import type {
 import type {ConfigAndCachePath} from './ParcelConfigRequest';
 
 import assert from 'assert';
-import path from 'path';
 import nullthrows from 'nullthrows';
 import {PluginLogger} from '@parcel/logger';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
@@ -48,6 +47,11 @@ import {
   type PluginWithLoadConfig,
 } from './ConfigRequest';
 import {cacheSerializedObject, deserializeToCache} from '../serializer';
+import {
+  joinProjectPath,
+  fromProjectPathRelative,
+  toProjectPathUnsafe,
+} from '../projectPath';
 
 type BundleGraphRequestInput = {|
   assetGraph: AssetGraph,
@@ -136,7 +140,7 @@ class BundlerRunner {
   async loadConfig<T: PluginWithLoadConfig>(plugin: LoadedPlugin<T>) {
     let config = createConfig({
       plugin: plugin.name,
-      searchPath: path.join(this.options.projectRoot, 'index'),
+      searchPath: toProjectPathUnsafe('index'),
     });
 
     await loadPluginConfig(plugin, config, this.options);
@@ -156,7 +160,7 @@ class BundlerRunner {
 
   async runDevDepRequest(devDepRequest: DevDepRequest) {
     let {specifier, resolveFrom} = devDepRequest;
-    let key = `${specifier}:${resolveFrom}`;
+    let key = `${specifier}:${fromProjectPathRelative(resolveFrom)}`;
     this.devDepRequests.set(key, devDepRequest);
     await runDevDepRequest(this.api, devDepRequest);
   }
@@ -347,7 +351,7 @@ class BundlerRunner {
     }
 
     let bundleNames = bundles.map(b =>
-      path.join(b.target.distDir, nullthrows(b.name)),
+      joinProjectPath(b.target.distDir, nullthrows(b.name)),
     );
     assert.deepEqual(
       bundleNames,

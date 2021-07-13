@@ -20,7 +20,8 @@
   },
   "scripts": {
     "test": "mocha",
-    "test-ci": "mocha"
+    "test-ci": "mocha",
+    "check-ts": "tsc --noEmit index.d.ts"
   },
   "dependencies": {
     "@parcel/cache": "2.0.0-beta.3.1",
@@ -31,7 +32,7 @@
     "@parcel/logger": "2.0.0-beta.3.1",
     "@parcel/package-manager": "2.0.0-beta.3.1",
     "@parcel/plugin": "2.0.0-beta.3.1",
-    "@parcel/source-map": "2.0.0-rc.4",
+    "@parcel/source-map": "2.0.0-rc.5",
     "@parcel/types": "2.0.0-beta.3.1",
     "@parcel/utils": "2.0.0-beta.3.1",
     "@parcel/workers": "2.0.0-beta.3.1",

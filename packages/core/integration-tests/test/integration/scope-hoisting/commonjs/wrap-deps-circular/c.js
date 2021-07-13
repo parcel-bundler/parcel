@@ -1,0 +1,3 @@
+function test() {
+  require('./a');
+}

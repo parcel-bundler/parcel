@@ -1,0 +1,6 @@
+{
+  "name": "undeclared-external",
+  "main": "dist/out.js",
+  "browserslist": ">= 0.25%",
+  "dependencies": {}
+}

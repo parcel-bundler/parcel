@@ -12,6 +12,7 @@ import type {
 
 import {Readable} from 'stream';
 import nullthrows from 'nullthrows';
+import invariant from 'assert';
 import URL from 'url';
 import {bufferStream, relativeBundlePath, urlJoin} from './';
 
@@ -53,23 +54,26 @@ export function replaceURLReferences({
       continue;
     }
 
+    let placeholder = dependency.meta?.placeholder ?? dependency.id;
+    invariant(typeof placeholder === 'string');
+
     let resolved = bundleGraph.getReferencedBundle(dependency, bundle);
     if (resolved == null) {
-      replacements.set(dependency.id, {
-        from: dependency.id,
+      replacements.set(placeholder, {
+        from: placeholder,
         to: dependency.specifier,
       });
       continue;
     }
 
-    if (!resolved || resolved.isInline) {
+    if (!resolved || resolved.bundleBehavior === 'inline') {
       // If a bundle is inline, it should be replaced with inline contents,
       // not a URL.
       continue;
     }
 
     replacements.set(
-      dependency.id,
+      placeholder,
       getURLReplacement({
         dependency,
         fromBundle: bundle,
@@ -119,7 +123,7 @@ export async function replaceInlineReferences({
 
   for (let dependency of dependencies) {
     let entryBundle = bundleGraph.getReferencedBundle(dependency, bundle);
-    if (!entryBundle?.isInline) {
+    if (entryBundle?.bundleBehavior !== 'inline') {
       continue;
     }
 
@@ -132,8 +136,7 @@ export async function replaceInlineReferences({
       : packagedBundle.contents
     ).toString();
 
-    let inlineType = nullthrows(entryBundle.getEntryAssets()[0]).meta
-      .inlineType;
+    let inlineType = nullthrows(entryBundle.getMainEntry()).meta.inlineType;
     if (inlineType == null || inlineType === 'string') {
       replacements.set(
         dependency.id,
@@ -158,23 +161,26 @@ export function getURLReplacement({
 |}): {|from: string, to: string|} {
   let to;
 
+  let orig = URL.parse(dependency.specifier);
+
   if (relative) {
-    to = URL.format(
-      URL.parse(
-        relativeBundlePath(fromBundle, toBundle, {
-          leadingDotSlash: false,
-        }),
-      ),
+    let parsed = URL.parse(
+      relativeBundlePath(fromBundle, toBundle, {
+        leadingDotSlash: false,
+      }),
     );
+    parsed.hash = orig.hash;
+    to = URL.format(parsed);
   } else {
-    to = urlJoin(
-      toBundle.target.publicUrl,
-      URL.format(URL.parse(nullthrows(toBundle.name))),
-    );
+    let parsed = URL.parse(nullthrows(toBundle.name));
+    parsed.hash = orig.hash;
+    to = urlJoin(toBundle.target.publicUrl, URL.format(parsed));
   }
 
+  let placeholder = dependency.meta?.placeholder ?? dependency.id;
+  invariant(typeof placeholder === 'string');
   return {
-    from: dependency.id,
+    from: placeholder,
     to,
   };
 }

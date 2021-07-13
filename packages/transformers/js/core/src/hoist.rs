@@ -7,7 +7,9 @@ use swc_common::{sync::Lrc, Mark, Span, SyntaxContext, DUMMY_SP};
 use swc_ecmascript::ast::*;
 use swc_ecmascript::visit::{Fold, FoldWith, Node, Visit, VisitWith};
 
-use crate::utils::{match_member_expr, CodeHighlight, Diagnostic, SourceLocation};
+use crate::utils::{
+  match_import, match_member_expr, match_require, CodeHighlight, Diagnostic, SourceLocation,
+};
 
 type IdentId = (JsWord, SyntaxContext);
 macro_rules! id {
@@ -165,6 +167,7 @@ impl<'a> Fold for Hoist<'a> {
                     message: "Assignment to an import specifier is not allowed".into(),
                     code_highlights: Some(highlights),
                     hints: None,
+                    show_environment: false,
                   })
                 }
               }
@@ -469,6 +472,20 @@ impl<'a> Fold for Hoist<'a> {
                   let d = item.fold_with(self);
                   self.module_items.push(ModuleItem::Stmt(Stmt::Decl(d)))
                 }
+              }
+            }
+            Stmt::Expr(ExprStmt { expr, span }) => {
+              if let Some(source) =
+                match_require(&expr, &self.collect.decls, self.collect.ignore_mark)
+              {
+                // Require in statement position (`require('other');`) should behave just
+                // like `import 'other';` in that it doesn't add any symbols (not even '*').
+                self.add_require(&source);
+              } else {
+                let d = expr.fold_with(self);
+                self
+                  .module_items
+                  .push(ModuleItem::Stmt(Stmt::Expr(ExprStmt { expr: d, span })))
               }
             }
             item => {
@@ -1800,74 +1817,6 @@ impl Collect {
   }
 }
 
-fn is_marked(span: Span, mark: Mark) -> bool {
-  let mut ctxt = span.ctxt().clone();
-
-  loop {
-    let m = ctxt.remove_mark();
-    if m == Mark::root() {
-      return false;
-    }
-
-    if m == mark {
-      return true;
-    }
-  }
-}
-
-fn match_require(node: &Expr, decls: &HashSet<IdentId>, ignore_mark: Mark) -> Option<JsWord> {
-  match node {
-    Expr::Call(call) => match &call.callee {
-      ExprOrSuper::Expr(expr) => match &**expr {
-        Expr::Ident(ident) => {
-          if ident.sym == js_word!("require")
-            && !decls.contains(&id!(ident))
-            && !is_marked(ident.span, ignore_mark)
-          {
-            if let Some(arg) = call.args.get(0) {
-              if let Expr::Lit(lit) = &*arg.expr {
-                if let Lit::Str(str_) = lit {
-                  return Some(str_.value.clone());
-                }
-              }
-            }
-          }
-
-          None
-        }
-        _ => None,
-      },
-      _ => None,
-    },
-    _ => None,
-  }
-}
-
-fn match_import(node: &Expr, ignore_mark: Mark) -> Option<JsWord> {
-  match node {
-    Expr::Call(call) => match &call.callee {
-      ExprOrSuper::Expr(expr) => match &**expr {
-        Expr::Ident(ident) => {
-          if ident.sym == js_word!("import") && !is_marked(ident.span, ignore_mark) {
-            if let Some(arg) = call.args.get(0) {
-              if let Expr::Lit(lit) = &*arg.expr {
-                if let Lit::Str(str_) = lit {
-                  return Some(str_.value.clone());
-                }
-              }
-            }
-          }
-
-          None
-        }
-        _ => None,
-      },
-      _ => None,
-    },
-    _ => None,
-  }
-}
-
 fn has_binding_identifier(node: &Pat, sym: &JsWord, decls: &HashSet<IdentId>) -> bool {
   match node {
     Pat::Ident(ident) => {
@@ -2097,6 +2046,13 @@ mod tests {
       map! { w!("x") => (w!("other"), w!("*"), false) }
     );
     assert_eq!(collect.non_static_access, set! {});
+
+    let (_collect, _code, hoist) = parse(
+      r#"
+      require('other');
+    "#,
+    );
+    assert_eq_imported_symbols!(hoist.imported_symbols, map! {});
   }
 
   #[test]
@@ -2785,7 +2741,6 @@ mod tests {
         console.log(foo.bar);
     }
     import   "abc:bar";
-    $abc$import$3705fc5f2281438d;
     "#}
     );
     assert_eq!(

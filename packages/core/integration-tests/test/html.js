@@ -76,6 +76,16 @@ describe('html', function() {
       }
     }
 
+    assert(html.includes('#hash_link'));
+    assert(html.includes('mailto:someone@acme.com'));
+    assert(html.includes('tel:+33636757575'));
+    assert(html.includes('https://unpkg.com/parcel-bundler'));
+
+    let iconsBundle = b.getBundles().find(b => b.name.startsWith('icons'));
+    assert(
+      html.includes('/' + path.basename(iconsBundle.filePath) + '#icon-code'),
+    );
+
     let value = null;
     await run(b, {
       alert: v => (value = v),
@@ -961,7 +971,9 @@ describe('html', function() {
     for (let url of urls) {
       assert(
         bundles.find(
-          bundle => !bundle.isInline && path.basename(bundle.filePath) === url,
+          bundle =>
+            bundle.bundleBehavior !== 'inline' &&
+            path.basename(bundle.filePath) === url,
         ),
       );
     }
@@ -1206,31 +1218,36 @@ describe('html', function() {
     } catch (err) {
       assert.equal(
         err.message,
-        'Browser scripts cannot have imports or exports. Use a <script type="module"> instead.',
+        'Browser scripts cannot have imports or exports.',
       );
       assert.deepEqual(err.diagnostics, [
         {
-          message:
-            'Browser scripts cannot have imports or exports. Use a <script type="module"> instead.',
-          filePath: path.join(
-            __dirname,
-            '/integration/html-inline-js-script/error.html',
-          ),
+          message: 'Browser scripts cannot have imports or exports.',
           origin: '@parcel/transformer-js',
-          codeFrame: {
-            codeHighlights: [
-              {
-                start: {
-                  line: 5,
-                  column: 7,
+          codeFrames: [
+            {
+              filePath: path.join(
+                __dirname,
+                '/integration/html-inline-js-script/error.html',
+              ),
+              codeHighlights: [
+                {
+                  message: null,
+                  start: {
+                    line: 5,
+                    column: 7,
+                  },
+                  end: {
+                    line: 5,
+                    column: 24,
+                  },
                 },
-                end: {
-                  line: 5,
-                  column: 24,
-                },
-              },
-            ],
-          },
+              ],
+            },
+          ],
+          hints: [
+            'Add type="module" as a second argument to the <script> tag.',
+          ],
         },
       ]);
 
@@ -1469,47 +1486,49 @@ describe('html', function() {
     } catch (err) {
       assert.equal(
         err.message,
-        'Browser scripts cannot have imports or exports. Use a <script type="module"> instead.',
+        'Browser scripts cannot have imports or exports.',
       );
       assert.deepEqual(err.diagnostics, [
         {
-          message:
-            'Browser scripts cannot have imports or exports. Use a <script type="module"> instead.',
-          filePath: path.join(__dirname, '/integration/html-js/index.js'),
+          message: 'Browser scripts cannot have imports or exports.',
           origin: '@parcel/transformer-js',
-          codeFrame: {
-            codeHighlights: [
-              {
-                start: {
-                  line: 1,
-                  column: 1,
+          codeFrames: [
+            {
+              filePath: path.join(__dirname, '/integration/html-js/index.js'),
+              codeHighlights: [
+                {
+                  message: null,
+                  start: {
+                    line: 1,
+                    column: 1,
+                  },
+                  end: {
+                    line: 1,
+                    column: 29,
+                  },
                 },
-                end: {
-                  line: 1,
-                  column: 29,
+              ],
+            },
+            {
+              filePath: path.join(__dirname, '/integration/html-js/error.html'),
+              codeHighlights: [
+                {
+                  message: 'The environment was originally created here',
+                  start: {
+                    line: 1,
+                    column: 1,
+                  },
+                  end: {
+                    line: 1,
+                    column: 32,
+                  },
                 },
-              },
-            ],
-          },
-        },
-        {
-          message: 'The environment was originally created here:',
-          filePath: path.join(__dirname, '/integration/html-js/error.html'),
-          origin: '@parcel/transformer-js',
-          codeFrame: {
-            codeHighlights: [
-              {
-                start: {
-                  line: 1,
-                  column: 1,
-                },
-                end: {
-                  line: 1,
-                  column: 32,
-                },
-              },
-            ],
-          },
+              ],
+            },
+          ],
+          hints: [
+            'Add type="module" as a second argument to the <script> tag.',
+          ],
         },
       ]);
 
@@ -1547,12 +1566,11 @@ describe('html', function() {
           'index.js',
           'index.js',
           'js-loader.js',
-          'relative-path.js',
         ],
       },
       {
         type: 'js',
-        assets: ['index.js', 'index.js', 'index.js'],
+        assets: ['bundle-manifest.js', 'index.js', 'index.js', 'index.js'],
       },
       {
         name: 'index.html',
@@ -1631,26 +1649,31 @@ describe('html', function() {
       },
       {
         type: 'js',
-        assets: ['bundle-url.js', 'get-worker-url.js', 'index.js'],
+        assets: [
+          'bundle-manifest.js',
+          'get-worker-url.js',
+          'index.js',
+          'lodash.js',
+        ],
       },
       {
         name: 'index.html',
         type: 'html',
         assets: ['index.html'],
       },
+      // {
+      //   type: 'js',
+      //   assets: ['lodash.js'],
+      // },
       {
         type: 'js',
-        assets: ['lodash.js'],
-      },
-      {
-        type: 'js',
-        assets: ['worker.js'],
+        assets: ['worker.js', 'lodash.js'],
       },
     ]);
 
-    let lodashSibling = path.basename(
-      b.getBundles().find(v => v.getEntryAssets().length === 0).filePath,
-    );
+    // let lodashSibling = path.basename(
+    //   b.getBundles().find(v => v.getEntryAssets().length === 0).filePath,
+    // );
 
     let html = await outputFS.readFile(
       path.join(distDir, 'index.html'),
@@ -1664,8 +1687,9 @@ describe('html', function() {
       insertedBundles.push(path.basename(match[1]));
     }
 
-    assert.equal(insertedBundles.length, 2);
-    assert.equal(insertedBundles[0], lodashSibling);
+    assert.equal(insertedBundles.length, 1);
+    // assert.equal(insertedBundles.length, 2);
+    // assert.equal(insertedBundles[0], lodashSibling);
   });
 
   it('inserts sibling bundles into html in the correct order (head)', async function() {
@@ -1686,26 +1710,31 @@ describe('html', function() {
       },
       {
         type: 'js',
-        assets: ['bundle-url.js', 'get-worker-url.js', 'index.js'],
+        assets: [
+          'bundle-manifest.js',
+          'get-worker-url.js',
+          'index.js',
+          'lodash.js',
+        ],
       },
       {
         name: 'index.html',
         type: 'html',
         assets: ['index.html'],
       },
+      // {
+      //   type: 'js',
+      //   assets: ['lodash.js'],
+      // },
       {
         type: 'js',
-        assets: ['lodash.js'],
-      },
-      {
-        type: 'js',
-        assets: ['worker.js'],
+        assets: ['worker.js', 'lodash.js'],
       },
     ]);
 
-    let lodashSibling = path.basename(
-      b.getBundles().find(v => v.getEntryAssets().length === 0).filePath,
-    );
+    // let lodashSibling = path.basename(
+    //   b.getBundles().find(v => v.getEntryAssets().length === 0).filePath,
+    // );
 
     let html = await outputFS.readFile(
       path.join(distDir, 'index.html'),
@@ -1719,8 +1748,9 @@ describe('html', function() {
       insertedBundles.push(path.basename(match[1]));
     }
 
-    assert.equal(insertedBundles.length, 2);
-    assert.equal(insertedBundles[0], lodashSibling);
+    assert.equal(insertedBundles.length, 1);
+    // assert.equal(insertedBundles.length, 2);
+    // assert.equal(insertedBundles[0], lodashSibling);
   });
 
   it('should support multiple entries with shared sibling bundles', async function() {
@@ -1884,7 +1914,7 @@ describe('html', function() {
     });
 
     let html = await outputFS.readFile(path.join(distDir, 'a.html'), 'utf8');
-    assert.equal(html.match(/<script/g).length, 4);
+    assert.equal(html.match(/<script/g).length, 3);
 
     html = await outputFS.readFile(path.join(distDir, 'b.html'), 'utf8');
     assert.equal(html.match(/<script/g).length, 5);
@@ -1896,7 +1926,7 @@ describe('html', function() {
     assert.equal(html.match(/<script/g).length, 4);
 
     html = await outputFS.readFile(path.join(distDir, 'e.html'), 'utf8');
-    assert.equal(html.match(/<script/g).length, 2);
+    assert.equal(html.match(/<script/g).length, 4);
 
     html = await outputFS.readFile(path.join(distDir, 'f.html'), 'utf8');
     assert.equal(html.match(/<script/g).length, 3);
@@ -2235,24 +2265,26 @@ describe('html', function() {
         {
           message: 'Invalid config for @parcel/bundler-default',
           origin: '@parcel/bundler-default',
-          filePath: pkg,
-          language: 'json',
-          codeFrame: {
-            code,
-            codeHighlights: [
-              {
-                message: 'Did you mean "minBundleSize", "minBundles"?',
-                start: {
-                  column: 30,
-                  line: 3,
+          codeFrames: [
+            {
+              filePath: pkg,
+              language: 'json',
+              code,
+              codeHighlights: [
+                {
+                  message: 'Did you mean "minBundleSize", "minBundles"?',
+                  start: {
+                    column: 30,
+                    line: 3,
+                  },
+                  end: {
+                    column: 45,
+                    line: 3,
+                  },
                 },
-                end: {
-                  column: 45,
-                  line: 3,
-                },
-              },
-            ],
-          },
+              ],
+            },
+          ],
         },
       ],
     });

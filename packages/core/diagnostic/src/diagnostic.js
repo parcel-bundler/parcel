@@ -1,5 +1,4 @@
 // @flow strict-local
-import type {FilePath} from '@parcel/types';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
@@ -35,11 +34,15 @@ export type DiagnosticCodeFrame = {|
   /**
    * The contents of the source file.
    *
-   * If no code is passed, it will be read in from Diagnostic#filePath, remember that
+   * If no code is passed, it will be read in from filePath, remember that
    * the asset's current code could be different from the input contents.
    *
    */
   code?: string,
+  /** Path to the file this code frame is about (optional, absolute or relative to the project root) */
+  filePath?: string,
+  /** Language of the file this code frame is about (optional) */
+  language?: string,
   codeHighlights: Array<DiagnosticCodeHighlight>,
 |};
 
@@ -58,13 +61,8 @@ export type Diagnostic = {|
   /** Name of the error (optional) */
   name?: string,
 
-  /** Path to the file this diagnostic is about (optional, absolute or relative to the project root) */
-  filePath?: FilePath,
-  /** Language of the file this diagnostic is about (optional) */
-  language?: string,
-
   /** A code frame points to a certain location(s) in the file this diagnostic is linked to (optional) */
-  codeFrame?: DiagnosticCodeFrame,
+  codeFrames?: ?Array<DiagnosticCodeFrame>,
 
   /** An optional list of strings that suggest ways to resolve this issue */
   hints?: Array<string>,
@@ -74,19 +72,18 @@ export type Diagnostic = {|
 |};
 
 // This type should represent all error formats Parcel can encounter...
-export type PrintableError = Error & {
-  fileName?: string,
-  filePath?: string,
-  codeFrame?: string,
-  highlightedCodeFrame?: string,
+export interface PrintableError extends Error {
+  fileName?: string;
+  filePath?: string;
+  codeFrame?: string;
+  highlightedCodeFrame?: string;
   loc?: ?{
     column: number,
     line: number,
     ...
-  },
-  source?: string,
-  ...
-};
+  };
+  source?: string;
+}
 
 export type DiagnosticWithoutOrigin = {|
   ...Diagnostic,
@@ -99,38 +96,41 @@ export type Diagnostifiable =
   | Array<Diagnostic>
   | ThrowableDiagnostic
   | PrintableError
+  | Error
   | string;
 
 /** Normalize the given value into a diagnostic. */
 export function anyToDiagnostic(input: Diagnostifiable): Array<Diagnostic> {
-  // $FlowFixMe
-  let diagnostic: Array<Diagnostic> = input;
-
-  if (input instanceof ThrowableDiagnostic) {
-    diagnostic = input.diagnostics;
+  if (Array.isArray(input)) {
+    return input;
+  } else if (input instanceof ThrowableDiagnostic) {
+    return input.diagnostics;
   } else if (input instanceof Error) {
-    diagnostic = errorToDiagnostic(input);
+    return errorToDiagnostic(input);
+  } else if (typeof input === 'string') {
+    return [{message: input}];
+  } else if (typeof input === 'object') {
+    return [input];
+  } else {
+    return errorToDiagnostic(input);
   }
-
-  return Array.isArray(diagnostic) ? diagnostic : [diagnostic];
 }
 
 /** Normalize the given error into a diagnostic. */
 export function errorToDiagnostic(
   error: ThrowableDiagnostic | PrintableError | string,
-  defaultValues: {|
+  defaultValues?: {|
     origin?: ?string,
     filePath?: ?string,
-  |} = {...null},
+  |},
 ): Array<Diagnostic> {
-  let codeFrame: DiagnosticCodeFrame | void = undefined;
+  let codeFrames: ?Array<DiagnosticCodeFrame> = undefined;
 
   if (typeof error === 'string') {
     return [
       {
         origin: defaultValues?.origin ?? 'Error',
         message: escapeMarkdown(error),
-        codeFrame,
       },
     ];
   }
@@ -145,21 +145,28 @@ export function errorToDiagnostic(
   }
 
   if (error.loc && error.source != null) {
-    codeFrame = {
-      code: error.source,
-      codeHighlights: [
-        {
-          start: {
-            line: error.loc.line,
-            column: error.loc.column,
+    codeFrames = [
+      {
+        filePath:
+          error.filePath ??
+          error.fileName ??
+          defaultValues?.filePath ??
+          undefined,
+        code: error.source,
+        codeHighlights: [
+          {
+            start: {
+              line: error.loc.line,
+              column: error.loc.column,
+            },
+            end: {
+              line: error.loc.line,
+              column: error.loc.column,
+            },
           },
-          end: {
-            line: error.loc.line,
-            column: error.loc.column,
-          },
-        },
-      ],
-    };
+        ],
+      },
+    ];
   }
 
   return [
@@ -167,13 +174,8 @@ export function errorToDiagnostic(
       origin: defaultValues?.origin ?? 'Error',
       message: escapeMarkdown(error.message),
       name: error.name,
-      filePath:
-        error.filePath ??
-        error.fileName ??
-        defaultValues?.filePath ??
-        undefined,
       stack: error.highlightedCodeFrame ?? error.codeFrame ?? error.stack,
-      codeFrame,
+      codeFrames,
     },
   ];
 }
@@ -197,7 +199,9 @@ export default class ThrowableDiagnostic extends Error {
 
     // Construct error from diagnostics
     super(diagnostics[0].message);
+    // @ts-ignore
     this.stack = diagnostics[0].stack ?? super.stack;
+    // @ts-ignore
     this.name = diagnostics[0].name ?? super.name;
 
     this.diagnostics = diagnostics;
@@ -280,8 +284,7 @@ export function escapeMarkdown(s: string): string {
   return result;
 }
 
-// $FlowFixMe[unclear-type]
-type TemplateInput = any;
+type TemplateInput = $FlowFixMe;
 
 const mdVerbatim = Symbol();
 export function md(
@@ -291,30 +294,27 @@ export function md(
   let result = [];
   for (let i = 0; i < params.length; i++) {
     let param = params[i];
-    result.push(
-      strings[i],
-      param?.[mdVerbatim] ? param.value : escapeMarkdown(`${param}`),
-    );
+    result.push(strings[i], param?.[mdVerbatim] ?? escapeMarkdown(`${param}`));
   }
   return result.join('') + strings[strings.length - 1];
 }
 
-md.bold = function(s: TemplateInput): {|value: string|} {
+md.bold = function(s: TemplateInput): TemplateInput {
   // $FlowFixMe[invalid-computed-prop]
-  return {[mdVerbatim]: true, value: '**' + escapeMarkdown(`${s}`) + '**'};
+  return {[mdVerbatim]: '**' + escapeMarkdown(`${s}`) + '**'};
 };
 
-md.italic = function(s: TemplateInput): {|value: string|} {
+md.italic = function(s: TemplateInput): TemplateInput {
   // $FlowFixMe[invalid-computed-prop]
-  return {[mdVerbatim]: true, value: '_' + escapeMarkdown(`${s}`) + '_'};
+  return {[mdVerbatim]: '_' + escapeMarkdown(`${s}`) + '_'};
 };
 
-md.underline = function(s: TemplateInput): {|value: string|} {
+md.underline = function(s: TemplateInput): TemplateInput {
   // $FlowFixMe[invalid-computed-prop]
-  return {[mdVerbatim]: true, value: '__' + escapeMarkdown(`${s}`) + '__'};
+  return {[mdVerbatim]: '__' + escapeMarkdown(`${s}`) + '__'};
 };
 
-md.strikethrough = function(s: TemplateInput): {|value: string|} {
+md.strikethrough = function(s: TemplateInput): TemplateInput {
   // $FlowFixMe[invalid-computed-prop]
-  return {[mdVerbatim]: true, value: '~~' + escapeMarkdown(`${s}`) + '~~'};
+  return {[mdVerbatim]: '~~' + escapeMarkdown(`${s}`) + '~~'};
 };

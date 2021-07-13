@@ -1,7 +1,9 @@
 // @flow
 
 import type {FilePath, DependencySpecifier, PackageJSON} from '@parcel/types';
-import type {ResolveResult, ResolverContext} from './NodeResolverBase';
+import type {ResolverContext} from './NodeResolverBase';
+import type {ResolveResult} from './types';
+
 import path from 'path';
 import {NodeResolverBase} from './NodeResolverBase';
 

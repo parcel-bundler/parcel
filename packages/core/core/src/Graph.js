@@ -2,7 +2,7 @@
 
 import {fromNodeId} from './types';
 import AdjacencyList, {type SerializedAdjacencyList} from './AdjacencyList';
-import type {Edge, Node, NodeId} from './types';
+import type {Edge, NodeId} from './types';
 import type {TraversalActions, GraphVisitor} from '@parcel/types';
 
 import assert from 'assert';
@@ -24,7 +24,7 @@ export type SerializedGraph<TNode, TEdgeType: number = 1> = {|
 export type AllEdgeTypes = '@@all_edge_types';
 export const ALL_EDGE_TYPES: AllEdgeTypes = '@@all_edge_types';
 
-export default class Graph<TNode: Node, TEdgeType: number = 1> {
+export default class Graph<TNode, TEdgeType: number = 1> {
   nodes: Map<NodeId, TNode>;
   adjacencyList: AdjacencyList<TEdgeType>;
   rootNodeId: ?NodeId;

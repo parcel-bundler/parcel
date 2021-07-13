@@ -15,7 +15,7 @@ describe('Graph', () => {
 
   it('addNode should add a node to the graph', () => {
     let graph = new Graph();
-    let node = {id: 'do not use', type: 'mynode', value: 'a'};
+    let node = {};
     let id = graph.addNode(node);
     assert.equal(graph.nodes.get(id), node);
   });
@@ -52,7 +52,7 @@ describe('Graph', () => {
 
   it("errors when adding an edge to a node that doesn't exist", () => {
     let graph = new Graph();
-    let node = graph.addNode({id: 'foo', type: 'mynode', value: null});
+    let node = graph.addNode({});
     assert.throws(() => {
       graph.addEdge(node, toNodeId(-1));
     }, /"to" node '-1' not found/);
@@ -60,7 +60,7 @@ describe('Graph', () => {
 
   it("errors when adding an edge from a node that doesn't exist", () => {
     let graph = new Graph();
-    let node = graph.addNode({id: 'foo', type: 'mynode', value: null});
+    let node = graph.addNode({});
     assert.throws(() => {
       graph.addEdge(toNodeId(-1), node);
     }, /"from" node '-1' not found/);
@@ -68,24 +68,24 @@ describe('Graph', () => {
 
   it('hasNode should return a boolean based on whether the node exists in the graph', () => {
     let graph = new Graph();
-    let node = graph.addNode({id: 'a', type: 'mynode', value: 'a'});
+    let node = graph.addNode({});
     assert(graph.hasNode(node));
     assert(!graph.hasNode(toNodeId(-1)));
   });
 
   it('addEdge should add an edge to the graph', () => {
     let graph = new Graph();
-    let nodeA = graph.addNode({id: 'a', type: 'mynode', value: null});
-    let nodeB = graph.addNode({id: 'b', type: 'mynode', value: null});
+    let nodeA = graph.addNode('a');
+    let nodeB = graph.addNode('b');
     graph.addEdge(nodeA, nodeB);
     assert(graph.hasEdge(nodeA, nodeB));
   });
 
   it('isOrphanedNode should return true or false if the node is orphaned or not', () => {
     let graph = new Graph();
-    let nodeA = graph.addNode({id: 'a', type: 'mynode', value: 'a'});
-    let nodeB = graph.addNode({id: 'b', type: 'mynode', value: 'b'});
-    let nodeC = graph.addNode({id: 'c', type: 'mynode', value: 'c'});
+    let nodeA = graph.addNode('a');
+    let nodeB = graph.addNode('b');
+    let nodeC = graph.addNode('c');
     graph.addEdge(nodeA, nodeB);
     graph.addEdge(nodeA, nodeC, 1);
     assert(graph.isOrphanedNode(nodeA));
@@ -100,10 +100,10 @@ describe('Graph', () => {
     //      /
     //     c
     let graph = new Graph();
-    let nodeA = graph.addNode({id: 'a', type: 'mynode', value: 'a'});
-    let nodeB = graph.addNode({id: 'b', type: 'mynode', value: 'b'});
-    let nodeC = graph.addNode({id: 'c', type: 'mynode', value: 'c'});
-    let nodeD = graph.addNode({id: 'd', type: 'mynode', value: 'd'});
+    let nodeA = graph.addNode('a');
+    let nodeB = graph.addNode('b');
+    let nodeC = graph.addNode('c');
+    let nodeD = graph.addNode('d');
     graph.addEdge(nodeA, nodeB);
     graph.addEdge(nodeA, nodeD);
     graph.addEdge(nodeB, nodeC);
@@ -139,13 +139,13 @@ describe('Graph', () => {
     //          f
 
     let graph = new Graph();
-    let nodeA = graph.addNode({id: 'a', type: 'mynode', value: 'a'});
-    let nodeB = graph.addNode({id: 'b', type: 'mynode', value: 'b'});
-    let nodeC = graph.addNode({id: 'c', type: 'mynode', value: 'c'});
-    let nodeD = graph.addNode({id: 'd', type: 'mynode', value: 'd'});
-    let nodeE = graph.addNode({id: 'e', type: 'mynode', value: 'e'});
-    let nodeF = graph.addNode({id: 'f', type: 'mynode', value: 'f'});
-    let nodeG = graph.addNode({id: 'g', type: 'mynode', value: 'g'});
+    let nodeA = graph.addNode('a');
+    let nodeB = graph.addNode('b');
+    let nodeC = graph.addNode('c');
+    let nodeD = graph.addNode('d');
+    let nodeE = graph.addNode('e');
+    let nodeF = graph.addNode('f');
+    let nodeG = graph.addNode('g');
 
     graph.addEdge(nodeA, nodeB);
     graph.addEdge(nodeA, nodeC);
@@ -182,13 +182,13 @@ describe('Graph', () => {
     //          f
 
     let graph = new Graph();
-    let nodeA = graph.addNode({id: 'a', type: 'mynode', value: 'a'});
-    let nodeB = graph.addNode({id: 'b', type: 'mynode', value: 'b'});
-    let nodeC = graph.addNode({id: 'c', type: 'mynode', value: 'c'});
-    let nodeD = graph.addNode({id: 'd', type: 'mynode', value: 'd'});
-    let nodeE = graph.addNode({id: 'e', type: 'mynode', value: 'e'});
-    let nodeF = graph.addNode({id: 'f', type: 'mynode', value: 'f'});
-    let nodeG = graph.addNode({id: 'g', type: 'mynode', value: 'g'});
+    let nodeA = graph.addNode('a');
+    let nodeB = graph.addNode('b');
+    let nodeC = graph.addNode('c');
+    let nodeD = graph.addNode('d');
+    let nodeE = graph.addNode('e');
+    let nodeF = graph.addNode('f');
+    let nodeG = graph.addNode('g');
     graph.setRootNodeId(nodeA);
 
     graph.addEdge(nodeA, nodeB);
@@ -217,11 +217,11 @@ describe('Graph', () => {
     //       \ /    |
     //        e -----
     let graph = new Graph();
-    let nodeA = graph.addNode({id: 'a', type: 'mynode', value: 'a'});
-    let nodeB = graph.addNode({id: 'b', type: 'mynode', value: 'b'});
-    let nodeC = graph.addNode({id: 'c', type: 'mynode', value: 'c'});
-    let nodeD = graph.addNode({id: 'd', type: 'mynode', value: 'd'});
-    let nodeE = graph.addNode({id: 'e', type: 'mynode', value: 'e'});
+    let nodeA = graph.addNode('a');
+    let nodeB = graph.addNode('b');
+    let nodeC = graph.addNode('c');
+    let nodeD = graph.addNode('d');
+    let nodeE = graph.addNode('e');
     graph.setRootNodeId(nodeA);
 
     graph.addEdge(nodeA, nodeB);
@@ -249,8 +249,8 @@ describe('Graph', () => {
   it('removing a node with only one inbound edge does not cause it to be removed as an orphan', () => {
     let graph = new Graph();
 
-    let nodeA = graph.addNode({id: 'a', type: 'mynode', value: 'a'});
-    let nodeB = graph.addNode({id: 'b', type: 'mynode', value: 'b'});
+    let nodeA = graph.addNode('a');
+    let nodeB = graph.addNode('b');
     graph.setRootNodeId(nodeA);
 
     graph.addEdge(nodeA, nodeB);
@@ -267,13 +267,13 @@ describe('Graph', () => {
 
   it("replaceNodeIdsConnectedTo should update a node's downstream nodes", () => {
     let graph = new Graph();
-    let nodeA = graph.addNode({id: 'a', type: 'mynode', value: 'a'});
-    let nodeB = graph.addNode({id: 'b', type: 'mynode', value: 'b'});
-    let nodeC = graph.addNode({id: 'c', type: 'mynode', value: 'c'});
+    let nodeA = graph.addNode('a');
+    let nodeB = graph.addNode('b');
+    let nodeC = graph.addNode('c');
     graph.addEdge(nodeA, nodeB);
     graph.addEdge(nodeA, nodeC);
 
-    let nodeD = graph.addNode({id: 'd', type: 'mynode', value: 'd'});
+    let nodeD = graph.addNode('d');
     graph.replaceNodeIdsConnectedTo(nodeA, [nodeB, nodeD]);
 
     assert(graph.hasNode(nodeA));
@@ -288,10 +288,10 @@ describe('Graph', () => {
 
   it('traverses along edge types if a filter is given', () => {
     let graph = new Graph();
-    let nodeA = graph.addNode({id: 'a', type: 'mynode', value: 'a'});
-    let nodeB = graph.addNode({id: 'b', type: 'mynode', value: 'b'});
-    let nodeC = graph.addNode({id: 'c', type: 'mynode', value: 'c'});
-    let nodeD = graph.addNode({id: 'd', type: 'mynode', value: 'd'});
+    let nodeA = graph.addNode('a');
+    let nodeB = graph.addNode('b');
+    let nodeC = graph.addNode('c');
+    let nodeD = graph.addNode('d');
 
     graph.addEdge(nodeA, nodeB, 2);
     graph.addEdge(nodeA, nodeD);
