@@ -51,6 +51,7 @@
     "@parcel/transformer-elm": "2.0.0-beta.3.1",
     "@parcel/transformer-glsl": "2.0.0-beta.3.1",
     "@parcel/transformer-graphql": "2.0.0-beta.3.1",
+    "@parcel/transformer-graphviz": "2.0.0-beta.3.1",
     "@parcel/transformer-image": "2.0.0-beta.3.1",
     "@parcel/transformer-inline-string": "2.0.0-beta.3.1",
     "@parcel/transformer-jsonld": "2.0.0-beta.3.1",
