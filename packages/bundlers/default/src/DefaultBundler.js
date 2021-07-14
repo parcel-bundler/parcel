@@ -267,6 +267,7 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
           dependency.priority === 'lazy' ||
           childAsset.bundleBehavior === 'isolated'
         ) {
+          // TODO: This bundle can be "created" by multiple dependencies?
           let bundleId = bundleGraph.addNode(
             createBundle({
               asset: childAsset,
@@ -331,29 +332,36 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
   let reachableRoots: DefaultMap<Asset, Set<Asset>> = new DefaultMap(
     () => new Set(),
   );
-  for (let [root] of bundleRoots) {
-    assetGraph.traverse((node, _, actions) => {
-      if (node.type !== 'asset') {
-        return;
-      }
+  let reachableAsyncRoots: DefaultMap<NodeId, Set<Asset>> = new DefaultMap(
+    () => new Set(),
+  );
 
+  for (let [root] of bundleRoots) {
+    assetGraph.traverse((node, isAsync, actions) => {
       if (node.value === root) {
         return;
       }
-      //if its an entry bundle
-      // collect all of its async and sync dependencies
 
-      // ----set intersection (both sync and async)---
-      // if thre is a sync dep on a bundle root from an entry bundle
+      if (node.type === 'dependency') {
+        if (node.value.priority !== 'sync') {
+          let assets = assetGraph.getDependencyAssets(node.value);
+          if (assets.length === 0) {
+            return node;
+          }
 
-      // put them in the reachablebroots
-      // if (entries.has(node)) {
+          invariant(assets.length === 1);
+          let bundleRoot = assets[0];
+          invariant(bundleRoots.has(bundleRoot));
 
-      // }
-      if (bundleRoots.has(node.value)) {
-        actions.skipChildren();
+          reachableAsyncRoots
+            .get(nullthrows(bundles.get(bundleRoot.id)))
+            .add(root);
+          actions.skipChildren();
+        }
+
         return;
       }
+
       reachableRoots.get(node.value).add(root);
     }, root);
   }
@@ -367,14 +375,10 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
     // Find bundle entries reachable from the asset.
     let reachable: Array<Asset> = [...reachableRoots.get(asset)];
 
-    console.log('b4 filter. asset to reachable:', asset.filePath, reachable);
-
     // Filter out bundles when the asset is reachable in a parent bundle.
     reachable = reachable.filter(b =>
       reachable.every(a => !reachableBundles.get(a).has(b)),
     );
-
-    console.log('asset to reachable:', asset.filePath, reachable);
 
     let rootBundle = bundleRoots.get(asset);
     if (rootBundle != null) {
@@ -423,6 +427,31 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
           bundleGraph.addEdge(reachableRoot, bundleId);
         }
       }
+    }
+  }
+
+  // Step 4: Merge any sibling bundles required by entry bundles back into the entry bundle.
+  //         Entry bundles must be predictable, so cannot have unpredictable siblings.
+  for (let entryAsset of entries.keys()) {
+    let entryBundleId = nullthrows(bundleRoots.get(entryAsset)?.[0]);
+    let entryBundle = nullthrows(bundleGraph.getNode(entryBundleId));
+    for (let siblingId of bundleGraph.getNodeIdsConnectedFrom(entryBundleId)) {
+      let sibling = nullthrows(bundleGraph.getNode(siblingId));
+      if (sibling.type !== entryBundle.type) {
+        continue;
+      }
+
+      for (let assetId of sibling.assetIds) {
+        entryBundle.assetIds.push(assetId);
+      }
+      bundleGraph.removeEdge(entryBundleId, siblingId);
+      reachableAsyncRoots.get(siblingId).delete(entryAsset);
+    }
+  }
+
+  for (let [asyncBundleRoot, dependentRoots] of reachableAsyncRoots) {
+    if (dependentRoots.size === 0) {
+      bundleGraph.removeNode(asyncBundleRoot);
     }
   }
 
