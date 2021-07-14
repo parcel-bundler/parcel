@@ -18,6 +18,7 @@ export default (new Transformer({
       type: 'posthtml',
       version: '0.4.1',
       program: parse(await asset.getCode(), {
+        lowerCaseTags: true,
         lowerCaseAttributeNames: true,
         sourceLocations: true,
       }),

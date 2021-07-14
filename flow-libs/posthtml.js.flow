@@ -10,7 +10,7 @@ declare module 'posthtml' {
   declare type PostHTMLNode = {
     tag: string,
     attrs?: {[string]: string, ...},
-    content?: Array<string>,
+    content?: Array<string | PostHTMLNode>,
     location?: {
        start: {|line: number, column: number|},
        end: {|line: number, column: number|},
