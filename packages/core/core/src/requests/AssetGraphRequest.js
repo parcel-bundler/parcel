@@ -49,7 +49,11 @@ type AssetGraphRequestInput = {|
   requestedAssetIds?: Set<string>,
 |};
 
-type AssetGraphRequestResult = {|
+type AssetGraphRequestResult = AssetGraphBuilderResult & {|
+  previousAssetGraphHash: ?string,
+|};
+
+type AssetGraphBuilderResult = {|
   assetGraph: AssetGraph,
   changedAssets: Map<string, Asset>,
   assetRequests: Array<AssetGroup>,
@@ -63,11 +67,7 @@ type RunInput = {|
 type AssetGraphRequest = {|
   id: string,
   +type: 'asset_graph_request',
-  run: RunInput => Async<{|
-    assetGraph: AssetGraph,
-    changedAssets: Map<string, Asset>,
-    assetRequests: Array<AssetGroup>,
-  |}>,
+  run: RunInput => Async<AssetGraphRequestResult>,
   input: AssetGraphRequestInput,
 |};
 
@@ -79,8 +79,23 @@ export default function createAssetGraphRequest(
     id: input.name,
     run: async input => {
       let prevResult = await input.api.getPreviousResult<AssetGraphRequestResult>();
+      let previousAssetGraphHash = prevResult?.assetGraph.getHash();
+
       let builder = new AssetGraphBuilder(input, prevResult);
-      return builder.build();
+      let assetGraphRequest = await await builder.build();
+
+      // early break for incremental bundling if production or flag is off;
+      if (
+        !input.options.shouldBundleIncrementally ||
+        input.options.mode === 'production'
+      ) {
+        assetGraphRequest.assetGraph.markUnsafeToBundleIncrementally();
+      }
+
+      return {
+        ...assetGraphRequest,
+        previousAssetGraphHash,
+      };
     },
     input,
   };
@@ -109,7 +124,7 @@ export class AssetGraphBuilder {
 
   constructor(
     {input, api, options}: RunInput,
-    prevResult: ?AssetGraphRequestResult,
+    prevResult: ?AssetGraphBuilderResult,
   ) {
     let {
       entries,
@@ -120,6 +135,7 @@ export class AssetGraphBuilder {
       shouldBuildLazily,
     } = input;
     let assetGraph = prevResult?.assetGraph ?? new AssetGraph();
+    assetGraph.unmarkUnsafeToBundleIncrementally();
     assetGraph.setRootConnections({
       entries,
       assetGroups,
@@ -138,7 +154,7 @@ export class AssetGraphBuilder {
     this.queue = new PromiseQueue();
   }
 
-  async build(): Promise<AssetGraphRequestResult> {
+  async build(): Promise<AssetGraphBuilderResult> {
     let errors = [];
     let rootNodeId = nullthrows(
       this.assetGraph.rootNodeId,
@@ -207,11 +223,14 @@ export class AssetGraphBuilder {
       try {
         this.propagateSymbols();
       } catch (e) {
-        dumpToGraphViz(this.assetGraph, 'AssetGraph_' + this.name + '_failed');
+        await dumpToGraphViz(
+          this.assetGraph,
+          'AssetGraph_' + this.name + '_failed',
+        );
         throw e;
       }
     }
-    dumpToGraphViz(this.assetGraph, 'AssetGraph_' + this.name);
+    await dumpToGraphViz(this.assetGraph, 'AssetGraph_' + this.name);
 
     return {
       assetGraph: this.assetGraph,
@@ -224,6 +243,7 @@ export class AssetGraphBuilder {
     if (this.shouldBuildLazily) {
       let node = nullthrows(this.assetGraph.getNode(nodeId));
       let childNode = nullthrows(this.assetGraph.getNode(childNodeId));
+
       if (node.type === 'asset' && childNode.type === 'dependency') {
         if (this.requestedAssetIds.has(node.value.id)) {
           node.requested = true;
@@ -269,6 +289,7 @@ export class AssetGraphBuilder {
       assetSymbolsInverse = new Map<Symbol, Set<Symbol>>();
       for (let [s, {local}] of assetSymbols) {
         let set = assetSymbolsInverse.get(local);
+
         if (!set) {
           set = new Set();
           assetSymbolsInverse.set(local, set);
@@ -447,6 +468,7 @@ export class AssetGraphBuilder {
           }
 
           let local = outgoingDepSymbols.get(s)?.local;
+
           if (local == null) {
             // Caused by '*' => '*', already handled
             continue;
@@ -781,11 +803,32 @@ export class AssetGraphBuilder {
   }
 
   async runEntryRequest(input: ProjectPath) {
+    let prevEntries = !this.assetGraph.unsafeToBundleIncrementally
+      ? this.assetGraph
+          .getEntryAssets()
+          .map(asset => asset.id)
+          .sort()
+      : [];
+
     let request = createEntryRequest(input);
     let result = await this.api.runRequest<ProjectPath, EntryResult>(request, {
       force: true,
     });
     this.assetGraph.resolveEntry(request.input, result.entries, request.id);
+
+    if (!this.assetGraph.unsafeToBundleIncrementally) {
+      let currentEntries = this.assetGraph
+        .getEntryAssets()
+        .map(asset => asset.id)
+        .sort();
+      let didEntriesChange =
+        prevEntries.length !== currentEntries.length ||
+        prevEntries.every(
+          (entryId, index) => entryId === currentEntries[index],
+        );
+
+      didEntriesChange && this.assetGraph.markUnsafeToBundleIncrementally();
+    }
   }
 
   async runTargetRequest(input: Entry) {
@@ -819,10 +862,49 @@ export class AssetGraphBuilder {
 
     if (assets != null) {
       for (let asset of assets) {
+        if (!this.assetGraph.unsafeToBundleIncrementally) {
+          let otherAsset = this.assetGraph.getNodeByContentKey(asset.id);
+          if (otherAsset != null) {
+            invariant(otherAsset.type === 'asset');
+            if (!this._areDependenciesEqualForAssets(asset, otherAsset.value)) {
+              this.assetGraph.markUnsafeToBundleIncrementally();
+            }
+          } else {
+            // adding a new entry or dependency
+            this.assetGraph.markUnsafeToBundleIncrementally();
+          }
+        }
         this.changedAssets.set(asset.id, asset);
       }
       this.assetGraph.resolveAssetGroup(input, assets, request.id);
+    } else {
+      this.assetGraph.markUnsafeToBundleIncrementally();
     }
+  }
+
+  /**
+   * Used for incremental bundling of modified assets
+   */
+  _areDependenciesEqualForAssets(asset: Asset, otherAsset: Asset): boolean {
+    let assetDependencies = Array.from(asset?.dependencies.keys()).sort();
+    let otherAssetDependencies = Array.from(
+      otherAsset?.dependencies.keys(),
+    ).sort();
+
+    if (assetDependencies.length !== otherAssetDependencies.length) {
+      return false;
+    }
+
+    return assetDependencies.every((key, index) => {
+      if (key !== otherAssetDependencies[index]) {
+        return false;
+      }
+
+      return equalSet(
+        new Set(asset?.dependencies.get(key)?.symbols?.keys()),
+        new Set(otherAsset?.dependencies.get(key)?.symbols?.keys()),
+      );
+    });
   }
 }
 
