@@ -33,28 +33,61 @@ export const NODE_SIZE = 4;
  * The first 4 bytes are the edge type.
  * The second 4 bytes are the id of the 'from' node.
  * The third 4 bytes are the id of the 'to' node.
- * The fourth 4 bytes are the hash of the 'to' node's previous incoming edge.
- * The fifth 4 bytes are the hash of the 'from' node's previous incoming edge.
- * The sixth 4 bytes are the hash of the 'to' node's next incoming edge.
- * The seventh 4 bytes are the hash of the 'from' node's next outgoing edge.
+ * The fourth 4 bytes are an XOR of the hashes of the 'to' node's next and previous incoming edges.
+ * The fifth 4 bytes are an XOR of the hashes of the 'from' node's next and previous outgoing edges.
  *
  * struct Edge {
  *   int type;
  *   int from;
  *   int to;
- *   int prevIn;
- *   int prevOut;
- *   int nextIn;
- *   int nextOut;
+ *   int in;
+ *   int out;
  * }
  *
- * ┌──────────────────────────────────────────────────────────────────────────────────────────┐
- * │                                        EDGE_SIZE                                         │
- * ├────────────┬────────────┬────────────┬────────────┬────────────┬────────────┬────────────┤
- * │    TYPE    │    FROM    │     TO     │  PREV_IN   │  PREV_OUT  │  NEXT_IN   │  NEXT_OUT  │
- * └────────────┴────────────┴────────────┴────────────┴────────────┴────────────┴────────────┘
+ * ┌────────────────────────────────────────────────────────────────┐
+ * │                           EDGE_SIZE                            │
+ * ├────────────┬────────────┬────────────┬────────────┬────────────┤
+ * │    TYPE    │    FROM    │     TO     │     IN     │     OUT    │
+ * └────────────┴────────────┴────────────┴────────────┴────────────┘
+ *
+ * Nodes and Edges create an XOR doubly-linked list
+ * for outgoing and incoming edges to and from each node.
+ *
+ * For example, 3 edges from node 0 to 1 are linked thusly:
+ *
+ *                 ┌───────┐
+ *                 │ Node0 │
+ *         ┌───────┴───┬───┴───────┐
+ *      ┌──│FirstOut(1)│LastOut(3) │──┐
+ *      ▼  └───────────┴───────────┘  ▼
+ *  ┌───────┐                     ┌───────┐
+ *  │ Edge1 │◀─┐   ┌───────┐   ┌─▶│ Edge3 │
+ * ┌┴───────┴┐ │┌─▶│ Edge2 │◀─┐│ ┌┴───────┴┐
+ * │Out(0^2) │─┼┤ ┌┴───────┴┐ ├┼─│Out(2^0) │
+ * ├─────────┤ ├┼─│Out(1^3) │─┼┤ ├─────────┤
+ * │ In(0^2) │─┼┘ ├─────────┤ └┼─│ In(2^0) │
+ * └─────────┘ └──│ In(1^3) │──┘ └─────────┘
+ *      ▲         └─────────┘         ▲
+ *      │  ┌───────────┬───────────┐  │
+ *      └──│FirstIn(1) │ LastIn(3) │──┘
+ *         └───────┬───┴───┬───────┘
+ *                 │ Node1 │
+ *                 └───────┘
+ *
+ * To traverse the outgoing edges of `Node0`, you start with `FirstOut(1)`,
+ * which points to `Edge1`. Then follow the link to `Edge2` by XORing the
+ * link with the previous edge (0 in this case) `Out(0^2)^0 = Edge2`.
+ * Then follow the link to `Edge3` by XOR `Out(1^3)^Edge1 = Edge3`, and so on.
+ *
+ * The edges may be traversed in reverse by starting with `LastOut(3)`
+ * and following the XOR links in the same manner, i.e. `Edge3` links
+ * back to `Edge2` via `Out(2^0)^0 = Edge2`, then `Edge2` links back
+ * to `Edge1` via Out(1^3)^Edge3 = Edge1`, etc.
+ *
+ * The incoming edges to `Node1` are similar, but starting from
+ * `FirstIn(1)` or `LastIn(3)`, and following the `In()` links instead.
  */
-export const EDGE_SIZE = 7;
+export const EDGE_SIZE = 5;
 
 /** The offset from an edge index at which the edge type is stored. */
 const TYPE: 0 = 0;
@@ -62,14 +95,16 @@ const TYPE: 0 = 0;
 const FROM: 1 = 1;
 /** The offset from an edge index at which the 'to' node id is stored. */
 const TO: 2 = 2;
-/** The offset from an edge index at which the hash of the 'to' node's previous incoming edge is stored. */
-const PREV_IN: 3 = 3;
-/** The offset from an edge index at which the hash of the 'from' node's previous incoming edge is stored. */
-const PREV_OUT: 4 = 4;
-/** The offset from an edge index at which the hash of the 'to' node's next incoming edge is stored. */
-const NEXT_IN: 5 = 5;
-/** The offset from an edge index at which the hash of the 'from' node's next incoming edge is stored. */
-const NEXT_OUT: 6 = 6;
+/**
+ * The offset from an edge index at which an XOR of the hashes
+ * of the 'to' node's next and previous incoming edges is stored.
+ */
+const IN: 3 = 3;
+/**
+ * The offset from an edge index at which an XOR of the hashes
+ * of the 'from' node's next and previous outgoing edges is stored.
+ */
+const OUT: 4 = 4;
 
 /** The offset from a node index at which the hash of the first incoming edge is stored. */
 const FIRST_IN: 0 = 0;
@@ -254,23 +289,25 @@ export default class AdjacencyList<TEdgeType: number = 1> {
 
   /** Iterate over outgoing edge hashes from the given `nodeId` the `AdjacencyList`. */
   *iterateOutgoingEdges(nodeId: NodeId): Iterator<EdgeHash> {
-    for (
-      let hash = this.nodes[indexOfNode(nodeId) + FIRST_OUT];
-      hash;
-      hash = this.edges[hashToIndex(hash) + NEXT_OUT]
-    ) {
+    let previousHash = null;
+    let hash = this.firstOutgoingEdge(nodeId);
+    while (hash) {
       yield hash;
+      let nextHash = this.getLinkedEdge(OUT, hash, previousHash);
+      previousHash = hash;
+      hash = nextHash;
     }
   }
 
   /** Iterate over incoming edge hashes to the given `nodeId` the `AdjacencyList`. */
   *iterateIncomingEdges(nodeId: NodeId): Iterator<EdgeHash> {
-    for (
-      let hash = this.nodes[indexOfNode(nodeId) + FIRST_IN];
-      hash;
-      hash = this.edges[hashToIndex(hash) + NEXT_IN]
-    ) {
+    let previousHash = null;
+    let hash = this.firstIncomingEdge(nodeId);
+    while (hash) {
       yield hash;
+      let nextHash = this.getLinkedEdge(IN, hash, previousHash);
+      previousHash = hash;
+      hash = nextHash;
     }
   }
 
@@ -395,46 +432,140 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     return hash ? hash : null;
   }
 
-  /** Get or set the next outgoing edge from the given edge's originating node. */
-  nextOutgoingEdge(edge: EdgeHash, next: ?(EdgeHash | null)): EdgeHash | null {
-    if (next !== undefined) {
-      this.edges[hashToIndex(edge) + NEXT_OUT] = next ?? 0;
-    }
-    let hash = this.edges[hashToIndex(edge) + NEXT_OUT];
-    return hash ? hash : null;
-  }
-
-  /** Get or set the previous outgoing edge from the given edge's originating node. */
-  previousOutgoingEdge(
+  /** Insert the given `edge` between `previous` and `next` edges.  */
+  linkEdge(
+    direction: typeof IN | typeof OUT,
+    prev: EdgeHash | null,
     edge: EdgeHash,
-    previous: ?(EdgeHash | null),
-  ): EdgeHash | null {
-    if (previous !== undefined) {
-      this.edges[hashToIndex(edge) + PREV_OUT] = previous ?? 0;
-    }
-    let hash = this.edges[hashToIndex(edge) + PREV_OUT];
-    return hash ? hash : null;
+    next: EdgeHash | null,
+  ): void {
+    // We need `prev-1` to compute the new link between `prev` to `edge`.
+    let prev1 = this.getLinkedEdge(direction, prev, next) ?? 0;
+    // We need `next+1` to compute the new link between `edge` to `next`.
+    let next1 = this.getLinkedEdge(direction, next, prev) ?? 0;
+    prev = prev ?? 0;
+    next = next ?? 0;
+    if (prev) this.edges[hashToIndex(prev) + direction] = prev1 ^ edge;
+    this.edges[hashToIndex(edge) + direction] = prev ^ next;
+    if (next) this.edges[hashToIndex(next) + direction] = edge ^ next1;
   }
 
-  /** Get or set the next incoming edge to the given edge's terminating node. */
-  nextIncomingEdge(edge: EdgeHash, next: ?(EdgeHash | null)): EdgeHash | null {
-    if (next !== undefined) {
-      this.edges[hashToIndex(edge) + NEXT_IN] = next ?? 0;
-    }
-    let hash = this.edges[hashToIndex(edge) + NEXT_IN];
-    return hash ? hash : null;
-  }
-
-  /** Get or set the previous incoming edge to the given edge's terminating node. */
-  previousIncomingEdge(
+  /** Remove the given `edge` between `previous` and `next` edges. */
+  unlinkEdge(
+    direction: typeof IN | typeof OUT,
+    prev: EdgeHash | null,
     edge: EdgeHash,
-    previous: ?(EdgeHash | null),
+    next: EdgeHash | null,
+  ): void {
+    // We need `prev-1` to compute the new link between `prev` to `next`.
+    let prev1 = this.getLinkedEdge(direction, prev, edge) ?? 0;
+    // We need `next+1` to compute the new link between `prev` to `next`.
+    let next1 = this.getLinkedEdge(direction, next, edge) ?? 0;
+    prev = prev ?? 0;
+    next = next ?? 0;
+    if (prev) this.edges[hashToIndex(prev) + direction] = prev1 ^ next;
+    this.edges[hashToIndex(edge) + direction] = 0;
+    if (next) this.edges[hashToIndex(next) + direction] = prev ^ next1;
+  }
+
+  /** Get the edge linked to this edge in the given direction. */
+  getLinkedEdge(
+    direction: typeof IN | typeof OUT,
+    edge: EdgeHash | null,
+    previous: EdgeHash | null,
   ): EdgeHash | null {
-    if (previous !== undefined) {
-      this.edges[hashToIndex(edge) + PREV_IN] = previous ?? 0;
+    if (edge === null) return null;
+    let link = this.edges[hashToIndex(edge) + direction];
+    if (previous === null) return link;
+    return previous ^ link;
+  }
+
+  /** Find the edge linked to the given `edge`. */
+  findEdgeBefore(
+    direction: typeof IN | typeof OUT,
+    edge: EdgeHash,
+  ): EdgeHash | null {
+    let node = direction === IN ? this.getToNode(edge) : this.getFromNode(edge);
+
+    let left =
+      direction === IN
+        ? this.firstIncomingEdge(node)
+        : this.firstOutgoingEdge(node);
+
+    if (edge === left) return null;
+
+    let right =
+      direction === IN
+        ? this.lastIncomingEdge(node)
+        : this.lastOutgoingEdge(node);
+
+    let lastLeft = null;
+    let lastRight = null;
+    while (left || right) {
+      if (left) {
+        let nextLeft =
+          direction === IN
+            ? this.getLinkedEdge(IN, left, lastLeft)
+            : this.getLinkedEdge(OUT, left, lastLeft);
+        if (nextLeft === edge) return left;
+        lastLeft = left;
+        left = nextLeft;
+      }
+      if (right) {
+        let nextRight =
+          direction === IN
+            ? this.getLinkedEdge(IN, right, lastRight)
+            : this.getLinkedEdge(OUT, right, lastRight);
+        if (right === edge) return nextRight;
+        lastRight = right;
+        right = nextRight;
+      }
     }
-    let hash = this.edges[hashToIndex(edge) + PREV_IN];
-    return hash ? hash : null;
+    return null;
+  }
+
+  /** Find the edge the given `edge` is linked to. */
+  findEdgeAfter(
+    direction: typeof IN | typeof OUT,
+    edge: EdgeHash,
+  ): EdgeHash | null {
+    let node = direction === IN ? this.getToNode(edge) : this.getFromNode(edge);
+
+    let right =
+      direction === IN
+        ? this.lastIncomingEdge(node)
+        : this.lastOutgoingEdge(node);
+
+    if (edge === right) return null;
+
+    let left =
+      direction === IN
+        ? this.firstIncomingEdge(node)
+        : this.firstOutgoingEdge(node);
+
+    let lastRight = null;
+    let lastLeft = null;
+    while (right || left) {
+      if (right) {
+        let nextRight =
+          direction === IN
+            ? this.getLinkedEdge(IN, right, lastRight)
+            : this.getLinkedEdge(OUT, right, lastRight);
+        if (nextRight === edge) return right;
+        lastRight = right;
+        right = nextRight;
+      }
+      if (left) {
+        let nextLeft =
+          direction === IN
+            ? this.getLinkedEdge(IN, left, lastLeft)
+            : this.getLinkedEdge(OUT, left, lastLeft);
+        if (left === edge) return nextLeft;
+        lastLeft = left;
+        left = nextLeft;
+      }
+    }
+    return null;
   }
 
   /**
@@ -501,23 +632,28 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     this.edges[index + TO] = fromNodeId(to);
 
     let edge = indexToHash(index);
+    let firstIncoming = this.firstIncomingEdge(to);
     let lastIncoming = this.lastIncomingEdge(to);
-    if (lastIncoming) {
-      this.nextIncomingEdge(lastIncoming, edge);
-      this.previousIncomingEdge(edge, lastIncoming);
-    }
-    this.lastIncomingEdge(to, edge);
-
-    if (!this.firstIncomingEdge(to)) this.firstIncomingEdge(to, edge);
-
+    let firstOutgoing = this.firstOutgoingEdge(from);
     let lastOutgoing = this.lastOutgoingEdge(from);
-    if (lastOutgoing) {
-      this.nextOutgoingEdge(lastOutgoing, edge);
-      this.previousOutgoingEdge(edge, lastOutgoing);
-    }
-    this.lastOutgoingEdge(from, edge);
 
-    if (!this.firstOutgoingEdge(from)) this.firstOutgoingEdge(from, edge);
+    // If the `to` node has incoming edges, link the last edge to this one.
+    // from: lastIncoming <=> null
+    // to: lastIncoming <=> edge <=> null
+    if (lastIncoming) this.linkEdge(IN, lastIncoming, edge, null);
+    // Set this edge as the last incoming edge to the `to` node.
+    this.lastIncomingEdge(to, edge);
+    // If the `to` node has no incoming edges, set this edge as the first one.
+    if (!firstIncoming) this.firstIncomingEdge(to, edge);
+
+    // If the `from` node has outgoing edges, link the last edge to this one.
+    // from: lastOutgoing <=> null
+    // to: lastOutgoing <=> edge <=> null
+    if (lastOutgoing) this.linkEdge(OUT, lastOutgoing, edge, null);
+    // Set this edge as the last outgoing edge from the `from` node.
+    this.lastOutgoingEdge(from, edge);
+    // If the `from` node has no outgoing edges, set this edge as the first one.
+    if (!firstOutgoing) this.firstOutgoingEdge(from, edge);
 
     this.fromTypeMap
       ?.get(from)
@@ -652,37 +788,39 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     /** The removed edge. */
     let edge = indexToHash(index);
     /** The first incoming edge to the removed edge's terminus. */
-    let firstIncoming = this.firstIncomingEdge(to);
+    let firstIn = this.firstIncomingEdge(to);
     /** The last incoming edge to the removed edge's terminus. */
-    let lastIncoming = this.lastIncomingEdge(to);
+    let lastIn = this.lastIncomingEdge(to);
     /** The next incoming edge after the removed edge. */
-    let nextIncoming = this.nextIncomingEdge(edge);
+    let nextIn = this.findEdgeAfter(IN, edge);
     /** The previous incoming edge before the removed edge. */
-    let previousIncoming = this.previousIncomingEdge(edge);
+    let previousIn = this.findEdgeBefore(IN, edge);
     /** The first outgoing edge from the removed edge's origin. */
-    let firstOutgoing = this.firstOutgoingEdge(from);
+    let firstOut = this.firstOutgoingEdge(from);
     /** The last outgoing edge from the removed edge's origin. */
-    let lastOutgoing = this.lastOutgoingEdge(from);
+    let lastOut = this.lastOutgoingEdge(from);
     /** The next outgoing edge after the removed edge. */
-    let nextOutgoing = this.nextOutgoingEdge(edge);
+    let nextOut = this.findEdgeAfter(OUT, edge);
     /** The previous outgoing edge before the removed edge. */
-    let previousOutgoing = this.previousOutgoingEdge(edge);
-
-    // Update the terminating node's first and last incoming edges.
-    if (firstIncoming === edge) this.firstIncomingEdge(to, nextIncoming);
-    if (lastIncoming === edge) this.lastIncomingEdge(to, previousIncoming);
-
-    // Update the originating node's first and last outgoing edges.
-    if (firstOutgoing === edge) this.firstOutgoingEdge(from, nextOutgoing);
-    if (lastOutgoing === edge) this.lastOutgoingEdge(from, previousOutgoing);
-
-    // Splice the removed edge out of the linked list of outgoing edges.
-    if (previousOutgoing) this.nextOutgoingEdge(previousOutgoing, nextOutgoing);
-    if (nextOutgoing) this.previousOutgoingEdge(nextOutgoing, previousOutgoing);
+    let previousOut = this.findEdgeBefore(OUT, edge);
 
     // Splice the removed edge out of the linked list of incoming edges.
-    if (previousIncoming) this.nextIncomingEdge(previousIncoming, nextIncoming);
-    if (nextIncoming) this.previousIncomingEdge(nextIncoming, previousIncoming);
+    // from: previousIn <=> edge <=> nextIn
+    // to: previousIn <=> nextIn
+    this.unlinkEdge(IN, previousIn, edge, nextIn);
+
+    // Splice the removed edge out of the linked list of outgoing edges.
+    // from: previousOut <=> edge <=> nextOut
+    // to: previousOut <=> nextOut
+    this.unlinkEdge(OUT, previousOut, edge, nextOut);
+
+    // Update the terminating node's first and last incoming edges.
+    if (firstIn === edge) this.firstIncomingEdge(to, nextIn);
+    if (lastIn === edge) this.lastIncomingEdge(to, previousIn);
+
+    // Update the originating node's first and last outgoing edges.
+    if (firstOut === edge) this.firstOutgoingEdge(from, nextOut);
+    if (lastOut === edge) this.lastOutgoingEdge(from, previousOut);
 
     this.fromTypeMap
       ?.get(from)
@@ -701,10 +839,8 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     this.edges[index + TYPE] = DELETED;
     this.edges[index + FROM] = 0;
     this.edges[index + TO] = 0;
-    this.edges[index + PREV_IN] = 0;
-    this.edges[index + PREV_OUT] = 0;
-    this.edges[index + NEXT_IN] = 0;
-    this.edges[index + NEXT_OUT] = 0;
+    this.edges[index + IN] = 0;
+    this.edges[index + OUT] = 0;
 
     this.numEdges--;
   }
@@ -925,10 +1061,8 @@ function toDot<TEdgeType: number>(data: AdjacencyList<TEdgeType>): string {
       let type = data.edges[index + TYPE];
       let from = data.edges[index + FROM];
       let to = data.edges[index + TO];
-      let prevIn = data.edges[index + PREV_IN];
-      let prevOut = data.edges[index + PREV_OUT];
-      let nextIn = data.edges[index + NEXT_IN];
-      let nextOut = data.edges[index + NEXT_OUT];
+      let nextIn = data.edges[index + IN];
+      let nextOut = data.edges[index + OUT];
       // TODO: add type to label?
       let label = String(nextEdge);
 
@@ -939,7 +1073,7 @@ function toDot<TEdgeType: number>(data: AdjacencyList<TEdgeType>): string {
       );
 
       adjacencyList.addNode(`edge${label}`, {
-        label: `edge ${label} | { <TYPE> ${type} | <FROM> ${from} | <TO> ${to} | <PREV_IN> ${prevIn} | <PREV_OUT> ${prevOut} | <NEXT_IN> ${nextIn} | <NEXT_OUT> ${nextOut} }`,
+        label: `edge ${label} | { <TYPE> ${type} | <FROM> ${from} | <TO> ${to} | <IN> ${nextIn} | <OUT> ${nextOut} }`,
       });
 
       adjacencyList.addEdge(`edge${label}`, `node${from}`, {
@@ -955,16 +1089,16 @@ function toDot<TEdgeType: number>(data: AdjacencyList<TEdgeType>): string {
 
       if (nextIn) {
         adjacencyList.addEdge(`edge${label}`, `edge${nextIn}`, {
-          tailport: 'NEXT_IN',
-          label: 'NEXT_IN',
+          tailport: 'IN',
+          label: 'IN',
           style: 'dashed',
         });
       }
 
       if (nextOut) {
         adjacencyList.addEdge(`edge${label}`, `edge${nextOut}`, {
-          label: 'NEXT_OUT',
-          tailport: 'NEXT_OUT',
+          label: 'OUT',
+          tailport: 'OUT',
         });
       }
 
@@ -1063,10 +1197,8 @@ function edgesToDot<TEdgeType: number>(data: AdjacencyList<TEdgeType>): string {
     if (type && !isDeleted(type)) {
       let from = data.edges[i + FROM];
       let to = data.edges[i + TO];
-      let prevIn = data.edges[i + PREV_IN];
-      let prevOut = data.edges[i + PREV_OUT];
-      let nextIn = data.edges[i + NEXT_IN];
-      let nextOut = data.edges[i + NEXT_OUT];
+      let inLink = data.edges[i + IN];
+      let outLink = data.edges[i + OUT];
 
       if (lastOut < i - EDGE_SIZE) {
         if (lastOut || data.edges[lastOut + TYPE]) {
@@ -1087,7 +1219,7 @@ function edgesToDot<TEdgeType: number>(data: AdjacencyList<TEdgeType>): string {
       edges.addNode(`edge${i}`, {
         label: `${indexToHash(
           i,
-        )} | {${type} | ${from} | ${to} | ${prevIn} | ${prevOut} | ${nextIn} | ${nextOut}}`,
+        )} | {${type} | ${from} | ${to} | ${inLink} | ${outLink}}`,
       });
 
       if (lastOut !== i) {
