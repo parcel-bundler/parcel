@@ -57,6 +57,28 @@ describe('resolver', function() {
     assert.strictEqual(output.default, 42);
   });
 
+  it('should print a diagnostic when a configured target field will overwrite an entry', async function() {
+    let errorThrows = 0;
+    const overwriteDirs = ['browser/', 'custom-target/', 'main/', 'module/'];
+    for (const currDir of overwriteDirs) {
+      try {
+        await bundle(
+          path.join(
+            __dirname,
+            `integration/target-overwrite-source/${currDir}`,
+          ),
+        );
+      } catch (e) {
+        errorThrows++;
+        assert.deepEqual(
+          e.diagnostics[0].message,
+          'Target is configured to overwrite source code.',
+        );
+      }
+    }
+    assert.deepEqual(errorThrows, overwriteDirs.length);
+  });
+
   it('should throw an error on Webpack loader imports', async function() {
     let didThrow = false;
     try {
