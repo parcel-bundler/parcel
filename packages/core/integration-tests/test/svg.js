@@ -3,8 +3,31 @@ import {assertBundles, bundle, outputFS} from '@parcel/test-utils';
 import path from 'path';
 
 describe('svg', function() {
+  it('should support bundling SVG', async () => {
+    let b = await bundle(path.join(__dirname, '/integration/svg/circle.svg'));
+
+    assertBundles(b, [
+      {
+        name: 'circle.svg',
+        assets: ['circle.svg'],
+      },
+      {
+        name: 'other1.html',
+        assets: ['other1.html'],
+      },
+      {
+        type: 'svg',
+        assets: ['square.svg'],
+      },
+      {
+        name: 'other2.html',
+        assets: ['other2.html'],
+      },
+    ]);
+  });
+
   it('should minify SVG bundles', async function() {
-    let b = await bundle(path.join(__dirname, '/integration/svg/index.html'), {
+    let b = await bundle(path.join(__dirname, '/integration/svg/circle.svg'), {
       defaultTargetOptions: {
         shouldOptimize: true,
       },
@@ -14,7 +37,7 @@ describe('svg', function() {
       b.getBundles().find(b => b.type === 'svg').filePath,
       'utf-8',
     );
-    assert(!file.includes('inkscape'));
+    assert(!file.includes('comment'));
   });
 
   it('support SVGO config files', async function() {
