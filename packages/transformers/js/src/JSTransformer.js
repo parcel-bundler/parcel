@@ -450,7 +450,7 @@ export default (new Transformer({
           };
 
           if (diagnostic.show_environment) {
-            if (asset.env.loc) {
+            if (asset.env.loc && asset.env.loc.filePath !== asset.filePath) {
               res.codeFrames.push({
                 filePath: asset.env.loc.filePath,
                 codeHighlights: [

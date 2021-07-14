@@ -22,7 +22,8 @@ export default (new Runtime({
       !bundle.env.isBrowser() ||
       bundle.env.isWorker() ||
       bundle.env.isWorklet() ||
-      options.mode !== 'development'
+      options.mode !== 'development' ||
+      bundle.env.sourceType !== 'module'
     ) {
       return;
     }
