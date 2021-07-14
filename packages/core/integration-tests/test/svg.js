@@ -1,10 +1,33 @@
 import assert from 'assert';
-import {bundle, outputFS} from '@parcel/test-utils';
+import {assertBundles, bundle, outputFS} from '@parcel/test-utils';
 import path from 'path';
 
 describe('svg', function() {
+  it('should support bundling SVG', async () => {
+    let b = await bundle(path.join(__dirname, '/integration/svg/circle.svg'));
+
+    assertBundles(b, [
+      {
+        name: 'circle.svg',
+        assets: ['circle.svg'],
+      },
+      {
+        name: 'other1.html',
+        assets: ['other1.html'],
+      },
+      {
+        type: 'svg',
+        assets: ['square.svg'],
+      },
+      {
+        name: 'other2.html',
+        assets: ['other2.html'],
+      },
+    ]);
+  });
+
   it('should minify SVG bundles', async function() {
-    let b = await bundle(path.join(__dirname, '/integration/svg/index.html'), {
+    let b = await bundle(path.join(__dirname, '/integration/svg/circle.svg'), {
       defaultTargetOptions: {
         shouldOptimize: true,
       },
@@ -14,7 +37,7 @@ describe('svg', function() {
       b.getBundles().find(b => b.type === 'svg').filePath,
       'utf-8',
     );
-    assert(!file.includes('inkscape'));
+    assert(!file.includes('comment'));
   });
 
   it('support SVGO config files', async function() {
@@ -35,17 +58,32 @@ describe('svg', function() {
     assert(file.includes('comment'));
   });
 
-  it('should support transforming SVGs to react components', async function() {
-    let b = await bundle(path.join(__dirname, '/integration/svg/react.js'), {
-      defaultConfig: path.join(
-        __dirname,
-        'integration/custom-configs/.parcelrc-svg',
-      ),
-    });
+  it('should detect xml-stylesheet processing instructions', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/svg-xml-stylesheet/img.svg'),
+    );
 
-    let file = await outputFS.readFile(b.getBundles()[0].filePath, 'utf-8');
-    assert(!file.includes('inkscape'));
-    assert(file.includes('function SvgIcon'));
-    assert(file.includes('_react.createElement("svg"'));
+    assertBundles(b, [
+      {
+        name: 'img.svg',
+        assets: ['img.svg'],
+      },
+      {
+        type: 'css',
+        assets: ['style1.css'],
+      },
+      {
+        type: 'css',
+        assets: ['style3.css'],
+      },
+    ]);
+
+    let file = await outputFS.readFile(
+      b.getBundles().find(b => b.type === 'svg').filePath,
+      'utf-8',
+    );
+
+    assert(file.includes('<?xml-stylesheet'));
+    assert(file.includes('<?xml-not-a-stylesheet'));
   });
 });
