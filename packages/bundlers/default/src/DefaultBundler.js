@@ -49,6 +49,7 @@ const HTTP_OPTIONS = {
 type AssetId = string;
 export type Bundle = {|
   assetIds: Array<AssetId>,
+  internalizedAssetIds: Array<AssetId>,
   bundleBehavior?: ?BundleBehavior,
   needsStableName: boolean,
   size: number,
@@ -370,7 +371,6 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
   // bundle based on the bundle entries it is reachable from. This creates a
   // maximally code split bundle graph with no duplication.
 
-  // Create a mapping from entry asset ids to bundle ids
   for (let asset of assets) {
     // Find bundle entries reachable from the asset.
     let reachable: Array<Asset> = [...reachableRoots.get(asset)];
@@ -392,6 +392,31 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
             nullthrows(bundleRoots.get(reachableAsset))[1],
             rootBundle[0],
           );
+        }
+      }
+
+      let reachableAsync = [
+        ...(reachableAsyncRoots.has(rootBundle[0])
+          ? reachableAsyncRoots.get(rootBundle[0])
+          : []),
+      ];
+
+      // TODO: is this correct?
+      reachableAsync = reachableAsync.filter(b =>
+        reachableAsync.every(a => !reachableBundles.get(a).has(b)),
+      );
+      for (let reachableAsset of reachableAsync) {
+        if (reachableAsset !== asset) {
+          let bundle = nullthrows(
+            bundleGraph.getNode(nullthrows(bundles.get(reachableAsset.id))),
+          );
+          console.log(
+            'PUSHING',
+            asset.id,
+            'into bundle',
+            nullthrows(bundles.get(reachableAsset.id)),
+          );
+          bundle.internalizedAssetIds.push(asset.id);
         }
       }
     } else if (reachable.length > 0) {
@@ -505,6 +530,7 @@ function createBundle(
   if (opts.asset == null) {
     return {
       assetIds: [],
+      internalizedAssetIds: [],
       size: 0,
       sourceBundles: [],
       target: opts.target,
@@ -517,6 +543,7 @@ function createBundle(
   let asset = nullthrows(opts.asset);
   return {
     assetIds: [asset.id],
+    internalizedAssetIds: [],
     size: asset.stats.size,
     sourceBundles: [],
     target: opts.target,
