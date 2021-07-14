@@ -6,6 +6,7 @@ import {Optimizer} from '@parcel/plugin';
 import posthtml from 'posthtml';
 import path from 'path';
 import {SVG_ATTRS, SVG_TAG_NAMES} from './svgMappings';
+// $FlowFixMe
 import {extendDefaultPlugins} from 'svgo';
 
 export default (new Optimizer({
