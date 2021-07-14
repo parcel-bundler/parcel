@@ -19,7 +19,7 @@ export default (new Transformer({
       program: parse(await asset.getCode(), {
         directives: [
           {
-            name: '?xml-stylesheet',
+            name: /^\?/,
             start: '<',
             end: '>',
           },

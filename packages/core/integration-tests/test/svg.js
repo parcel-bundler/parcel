@@ -84,5 +84,6 @@ describe('svg', function() {
     );
 
     assert(file.includes('<?xml-stylesheet'));
+    assert(file.includes('<?xml-not-a-stylesheet'));
   });
 });
