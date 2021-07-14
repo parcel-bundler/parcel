@@ -1,22 +1,32 @@
 // @flow
 
 import {Transformer} from '@parcel/plugin';
-import {JSDOM} from 'jsdom';
 import nullthrows from 'nullthrows';
 import semver from 'semver';
 import collectDependencies from './dependencies';
+import parse from 'posthtml-parser';
+import render from 'posthtml-render';
 
 export default (new Transformer({
   canReuseAST({ast}) {
-    return ast.type === 'jsdom' && semver.satisfies(ast.version, '^16.6.0');
+    return ast.type === 'posthtml' && semver.satisfies(ast.version, '^0.4.0');
   },
 
   async parse({asset}) {
     return {
-      type: 'jsdom',
-      version: '16.6.0',
-      program: new JSDOM(await asset.getBuffer(), {
-        contentType: 'image/svg+xml',
+      type: 'posthtml',
+      version: '0.4.1',
+      program: parse(await asset.getCode(), {
+        directives: [
+          {
+            name: '?xml-stylesheet',
+            start: '<',
+            end: '>',
+          },
+        ],
+        lowerCaseAttributeNames: true,
+        sourceLocations: true,
+        xmlMode: true,
       }),
     };
   },
@@ -31,7 +41,7 @@ export default (new Transformer({
 
   generate({ast}) {
     return {
-      content: ast.program.serialize(),
+      content: render(ast.program),
     };
   },
 }): Transformer);

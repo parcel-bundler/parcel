@@ -21,8 +21,10 @@
   },
   "dependencies": {
     "@parcel/plugin": "2.0.0-beta.3.1",
-    "jsdom": "^16.6.0",
     "nullthrows": "^1.1.1",
+    "posthtml": "^0.16.4",
+    "posthtml-parser": "^0.9.0",
+    "posthtml-render": "^2.0.6",
     "semver": "^5.4.1"
   }
 }

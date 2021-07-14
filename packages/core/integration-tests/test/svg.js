@@ -63,19 +63,11 @@ describe('svg', function() {
       path.join(__dirname, '/integration/svg-xml-stylesheet/img.svg'),
     );
 
-    assertBundles(b, [
-      {
-        name: 'img.svg',
-        assets: ['img.svg'],
-      },
-      {
-        type: 'css',
-        assets: ['style1.css'],
-      },
-      {
-        type: 'css',
-        assets: ['style3.css'],
-      },
-    ]);
+    let file = await outputFS.readFile(
+      b.getBundles().find(b => b.type === 'svg').filePath,
+      'utf-8',
+    );
+
+    assert(file.includes('<?xml-stylesheet'));
   });
 });
