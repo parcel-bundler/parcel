@@ -1848,7 +1848,7 @@ describe('javascript', function() {
     assert.deepEqual(await Promise.all((await run(b)).default), [5, 4]);
   });
 
-  it('does not create bundles for dynamic imports when assets are available up the graph', async () => {
+  it.only('does not create bundles for dynamic imports when assets are available up the graph', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/internalize-no-bundle-split/index.js'),
     );

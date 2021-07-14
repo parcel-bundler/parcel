@@ -340,7 +340,16 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
       if (node.value === root) {
         return;
       }
+      //if its an entry bundle
+      // collect all of its async and sync dependencies
 
+      // ----set intersection (both sync and async)---
+      // if thre is a sync dep on a bundle root from an entry bundle
+
+      // put them in the reachablebroots
+      // if (entries.has(node)) {
+
+      // }
       if (bundleRoots.has(node.value)) {
         actions.skipChildren();
         return;
@@ -357,24 +366,15 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
   for (let asset of assets) {
     // Find bundle entries reachable from the asset.
     let reachable: Array<Asset> = [...reachableRoots.get(asset)];
-    let reachableEntries = reachable.filter(a => entries.has(a));
 
-    for (let entry of reachableEntries) {
-      //add asset ids to entry bundle
-      let entryAssetBundle = nullthrows(
-        bundleGraph.getNode(nullthrows(bundleRoots.get(entry))[0]),
-      );
-
-      entryAssetBundle.assetIds.push(asset.id);
-      entryAssetBundle.size += asset.stats.size;
-    }
+    console.log('b4 filter. asset to reachable:', asset.filePath, reachable);
 
     // Filter out bundles when the asset is reachable in a parent bundle.
-    reachable = reachable.filter(
-      b =>
-        !entries.has(b) &&
-        reachable.every(a => !reachableBundles.get(a).has(b)),
+    reachable = reachable.filter(b =>
+      reachable.every(a => !reachableBundles.get(a).has(b)),
     );
+
+    console.log('asset to reachable:', asset.filePath, reachable);
 
     let rootBundle = bundleRoots.get(asset);
     if (rootBundle != null) {
@@ -383,7 +383,7 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
         bundles.set(asset.id, rootBundle[0]);
       }
       for (let reachableAsset of reachable) {
-        if (reachableAsset !== asset && !entries.has(reachableAsset)) {
+        if (reachableAsset !== asset) {
           bundleGraph.addEdge(
             nullthrows(bundleRoots.get(reachableAsset))[1],
             rootBundle[0],
