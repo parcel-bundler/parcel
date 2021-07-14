@@ -6,6 +6,6 @@
     "style3.css"type="text/css"
       ?>
 <?xml-not-a-stylesheet href="style4.css"?>
-<svg xmlns="http://www.w3.org/2000/svg">
-  <rect width="100" height="100"/>
+<svg viewBox="0 0 240 80" xmlns="http://www.w3.org/2000/svg">
+  <text>Should be red and monospace</text>
 </svg>
