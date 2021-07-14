@@ -1,5 +1,5 @@
 import assert from 'assert';
-import {bundle, outputFS} from '@parcel/test-utils';
+import {assertBundles, bundle, outputFS} from '@parcel/test-utils';
 import path from 'path';
 
 describe('svg', function() {
@@ -35,17 +35,24 @@ describe('svg', function() {
     assert(file.includes('comment'));
   });
 
-  it('should support transforming SVGs to react components', async function() {
-    let b = await bundle(path.join(__dirname, '/integration/svg/react.js'), {
-      defaultConfig: path.join(
-        __dirname,
-        'integration/custom-configs/.parcelrc-svg',
-      ),
-    });
+  it('should detect xml-stylesheet processing instructions', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/svg-xml-stylesheet/img.svg'),
+    );
 
-    let file = await outputFS.readFile(b.getBundles()[0].filePath, 'utf-8');
-    assert(!file.includes('inkscape'));
-    assert(file.includes('function SvgIcon'));
-    assert(file.includes('_react.createElement("svg"'));
+    assertBundles(b, [
+      {
+        name: 'img.svg',
+        assets: ['img.svg'],
+      },
+      {
+        type: 'css',
+        assets: ['style1.css'],
+      },
+      {
+        type: 'css',
+        assets: ['style3.css'],
+      },
+    ]);
   });
 });
