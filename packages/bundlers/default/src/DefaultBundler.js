@@ -226,10 +226,11 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
   > = new DefaultMap(() => new Set());
   //
   let bundleGraph: Graph<Bundle> = new Graph();
-  let stack: Array<[Asset, NodeId]> = [];
+  let stack: Array<[BundleRoot, NodeId]> = [];
 
-  // Step 1: Create bundles at the explicit split points in the graph.
-  // Create bundles for each entry.
+  // Step 1: Create bundles for each entry.
+  // TODO: Try to not create bundles during this first path, only annotate
+  //       BundleRoots
   let entries: Map<Asset, Dependency> = new Map();
   assetGraph.traverse((node, context, actions) => {
     if (node.type !== 'asset') {
@@ -369,7 +370,10 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
       }
 
       if (node.type === 'dependency') {
-        if (node.value.priority !== 'sync') {
+        // Handle other situations in which bundles are created and maybe
+        // centralize that in a function
+        // if (isABundleRoot and dependency is not sync) {
+        if (node.value.priority === 'lazy') {
           let assets = assetGraph.getDependencyAssets(node.value);
           if (assets.length === 0) {
             return node;
@@ -400,9 +404,13 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
     // Find bundle entries reachable from the asset.
     let reachable: Array<BundleRoot> = [...reachableRoots.get(asset)];
 
-    // Filter out bundles when the asset is reachable in a parent bundle.
+    // Filter out bundles when the asset is reachable in every parent bundle.
+    // (Only keep a bundle if all of the others are not descendents of it)
     reachable = reachable.filter(b =>
-      reachable.every(a => !reachableBundles.get(a).has(b)),
+      reachable.every(a => {
+        const isAncestorOfB = reachableBundles.get(a).has(b);
+        return !isAncestorOfB;
+      }),
     );
 
     // BundleRoot = Root Asset of a bundle
