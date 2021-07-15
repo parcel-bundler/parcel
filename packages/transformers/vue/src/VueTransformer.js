@@ -317,7 +317,7 @@ ${
             if (!style.module) {
               style.module = MODULE_BY_NAME_RE.test(style.src);
             }
-            style.lang = extname(style.src);
+            style.lang = extname(style.src).substring(1);
           }
           switch (style.lang) {
             case 'less':
