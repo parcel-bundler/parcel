@@ -170,9 +170,9 @@ export default class AdjacencyList<TEdgeType: number = 1> {
   /** The count of the number of edges in the graph. */
   numEdges: number;
   /** A map of node ids from => through types => to node ids. */
-  fromTypeMap: DefaultMap<NodeId, DefaultMap<number, Set<NodeId>>>;
+  fromTypeMap: ?DefaultMap<NodeId, DefaultMap<number, Set<NodeId>>>;
   /** A map of node ids to => through types => from node ids. */
-  toTypeMap: DefaultMap<NodeId, DefaultMap<number, Set<NodeId>>>;
+  toTypeMap: ?DefaultMap<NodeId, DefaultMap<number, Set<NodeId>>>;
 
   constructor(nodeCapacity: number = 128, edgeCapacity: number = 256) {
     this.nodeCapacity = nodeCapacity;
@@ -377,23 +377,40 @@ export default class AdjacencyList<TEdgeType: number = 1> {
   }
 
   /** Create mappings from => type => to and vice versa. */
-  buildTypeMaps() {
-    this.fromTypeMap = new DefaultMap(() => new DefaultMap(() => new Set()));
-    this.toTypeMap = new DefaultMap(() => new DefaultMap(() => new Set()));
+  buildTypeMaps(): {|
+    fromTypeMap: DefaultMap<NodeId, DefaultMap<number, Set<NodeId>>>,
+    toTypeMap: DefaultMap<NodeId, DefaultMap<number, Set<NodeId>>>,
+  |} {
+    let fromTypeMap = new DefaultMap(() => new DefaultMap(() => new Set()));
+    let toTypeMap = new DefaultMap(() => new DefaultMap(() => new Set()));
     for (let node of this.iterateNodes()) {
       for (let edge of this.iterateOutgoingEdges(node)) {
-        this.fromTypeMap
+        fromTypeMap
           .get(node)
           .get(this.getEdgeType(edge))
           .add(this.getToNode(edge));
       }
       for (let edge of this.iterateIncomingEdges(node)) {
-        this.toTypeMap
+        toTypeMap
           .get(node)
           .get(this.getEdgeType(edge))
           .add(this.getFromNode(edge));
       }
     }
+    this.fromTypeMap = fromTypeMap;
+    this.toTypeMap = toTypeMap;
+    return {fromTypeMap, toTypeMap};
+  }
+
+  getOrCreateFromTypeMap(): DefaultMap<
+    NodeId,
+    DefaultMap<number, Set<NodeId>>,
+  > {
+    return this.fromTypeMap || this.buildTypeMaps().fromTypeMap;
+  }
+
+  getOrCreateToTypeMap(): DefaultMap<NodeId, DefaultMap<number, Set<NodeId>>> {
+    return this.toTypeMap || this.buildTypeMaps().toTypeMap;
   }
 
   /** Get or set the first outgoing edge from the given node. */
@@ -682,6 +699,7 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     // We want to avoid scanning the array forever,
     // so keep track of where we start scanning from.
     let startIndex = index;
+    let size = this.edges.length;
     // Since it is possible for multiple edges to have the same hash,
     // we check that the edge at the index matching the hash is actually
     // the edge we're looking for. If it's not, we scan forward in the
@@ -697,7 +715,7 @@ export default class AdjacencyList<TEdgeType: number = 1> {
         // The edge at at this index is not the edge we're looking for,
         // so scan forward to the next edge, wrapping back to
         // the beginning of the `edges` array if we overflow.
-        index = (index + EDGE_SIZE) % this.edges.length;
+        index = (index + EDGE_SIZE) % size;
 
         // We have scanned the whole array unsuccessfully.
         if (index === startIndex) break;
@@ -724,6 +742,7 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     // We do this instead of simply using the `index` because it is possible
     // for multiple edges to have the same hash.
     let deletedEdge = 0;
+    let size = this.edges.length;
     while (this.edges[index + TYPE]) {
       // If the edge at this index was deleted, we can reuse the slot.
       if (isDeleted(this.edges[index + TYPE])) {
@@ -742,7 +761,7 @@ export default class AdjacencyList<TEdgeType: number = 1> {
       // Note that each 'slot' is of size `EDGE_SIZE`.
       // Also note that we handle overflow of `edges` by wrapping
       // back to the beginning of the `edges` array.
-      index = (index + EDGE_SIZE) % this.edges.length;
+      index = (index + EDGE_SIZE) % size;
     }
     // If we find a deleted edge, use it. Otherwise, use the next empty edge
     return deletedEdge ? deletedEdge : index;
