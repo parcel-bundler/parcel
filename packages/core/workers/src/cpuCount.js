@@ -41,7 +41,10 @@ export function detectRealCores(): number {
 }
 
 let cores;
-export default function getCores(bypassCache?: boolean = false): number {
+export default function getCores(
+  bypassCache?: boolean = false,
+  limit: number = 4,
+): number {
   // Do not re-run commands if we already have the count...
   if (cores && !bypassCache) {
     return cores;
@@ -61,6 +64,9 @@ export default function getCores(bypassCache?: boolean = false): number {
   if (!cores) {
     cores = 1;
   }
+
+  // limit the number of cores
+  cores = Math.max(Math.min(cores, limit), 1);
 
   return cores;
 }
