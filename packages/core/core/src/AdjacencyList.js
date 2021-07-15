@@ -864,26 +864,34 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     this.numEdges--;
   }
 
-  *getInboundEdgesByType(
-    to: NodeId,
-  ): Iterator<{|type: TEdgeType, from: NodeId|}> {
-    if (!this.toTypeMap) this.buildTypeMaps();
-    for (let [type, nodes] of this.toTypeMap.get(to)) {
-      for (let from of nodes) {
-        yield {type: (type: any), from};
-      }
-    }
+  hasInboundEdges(to: NodeId): boolean {
+    return Boolean(this.firstIncomingEdge(to));
   }
 
-  *getOutboundEdgesByType(
-    from: NodeId,
-  ): Iterator<{|type: TEdgeType, to: NodeId|}> {
-    if (!this.fromTypeMap) this.buildTypeMaps();
-    for (let [type, nodes] of this.fromTypeMap.get(from)) {
-      for (let to of nodes) {
-        yield {type: (type: any), to};
+  getInboundEdgesByType(to: NodeId): {|type: TEdgeType, from: NodeId|}[] {
+    let toTypeMap = this.getOrCreateToTypeMap();
+    let edges = [];
+    if (toTypeMap.has(to)) {
+      for (let [type, nodes] of toTypeMap.get(to)) {
+        for (let from of nodes) {
+          edges.push({type: (type: any), from});
+        }
       }
     }
+    return edges;
+  }
+
+  getOutboundEdgesByType(from: NodeId): {|type: TEdgeType, to: NodeId|}[] {
+    let fromTypeMap = this.getOrCreateFromTypeMap();
+    let edges = [];
+    if (fromTypeMap.has(from)) {
+      for (let [type, nodes] of fromTypeMap.get(from)) {
+        for (let to of nodes) {
+          edges.push({type: (type: any), to});
+        }
+      }
+    }
+    return edges;
   }
 
   /**
@@ -903,73 +911,79 @@ export default class AdjacencyList<TEdgeType: number = 1> {
   /**
    * Get the list of nodes connected from this node.
    */
-  *getNodesConnectedFrom(
+  getNodesConnectedFrom(
     from: NodeId,
     type:
       | AllEdgeTypes
       | TEdgeType
       | NullEdgeType
       | Array<TEdgeType | NullEdgeType> = 1,
-  ): Iterator<NodeId> {
-    if (!this.fromTypeMap || !this.toTypeMap) this.buildTypeMaps();
+  ): NodeId[] {
+    let fromTypeMap = this.getOrCreateFromTypeMap();
 
     let isAllEdgeTypes =
       type === ALL_EDGE_TYPES ||
       (Array.isArray(type) && type.includes(ALL_EDGE_TYPES));
 
-    if (isAllEdgeTypes) {
-      for (let [, to] of this.fromTypeMap.get(from)) {
-        yield* to;
+    let nodes = [];
+    if (fromTypeMap.has(from)) {
+      if (isAllEdgeTypes) {
+        for (let [, toSet] of fromTypeMap.get(from)) {
+          nodes.push(...toSet);
+        }
+      } else if (Array.isArray(type)) {
+        let fromType = fromTypeMap.get(from);
+        for (let typeNum of type) {
+          if (fromType.has(typeNum)) {
+            nodes.push(...fromType.get(typeNum));
+          }
+        }
+      } else {
+        if (fromTypeMap.get(from).has((type: any))) {
+          nodes.push(...fromTypeMap.get(from).get((type: any)));
+        }
       }
-    } else if (Array.isArray(type)) {
-      for (let typeNum of type) {
-        yield* this.fromTypeMap
-          .get(from)
-          .get((typeNum: any))
-          .values();
-      }
-    } else {
-      yield* this.fromTypeMap
-        .get(from)
-        .get((type: any))
-        .values();
     }
+    return nodes;
   }
 
   /**
    * Get the list of nodes connected to this node.
    */
-  *getNodesConnectedTo(
+  getNodesConnectedTo(
     to: NodeId,
     type:
       | AllEdgeTypes
       | TEdgeType
       | NullEdgeType
       | Array<TEdgeType | NullEdgeType> = 1,
-  ): Iterator<NodeId> {
-    if (!this.fromTypeMap || !this.toTypeMap) this.buildTypeMaps();
+  ): NodeId[] {
+    let toTypeMap = this.getOrCreateToTypeMap();
 
     let isAllEdgeTypes =
       type === ALL_EDGE_TYPES ||
       (Array.isArray(type) && type.includes(ALL_EDGE_TYPES));
 
-    if (isAllEdgeTypes) {
-      for (let [, from] of this.toTypeMap.get(to)) {
-        yield* from;
+    let nodes = [];
+    if (toTypeMap.has(to)) {
+      if (isAllEdgeTypes) {
+        for (let [, from] of toTypeMap.get(to)) {
+          nodes.push(...from);
+        }
+      } else if (Array.isArray(type)) {
+        let toType = toTypeMap.get(to);
+        for (let typeNum of type) {
+          if (toType.has(typeNum)) {
+            nodes.push(...toType.get(typeNum));
+          }
+        }
+      } else {
+        if (toTypeMap.get(to).has((type: any))) {
+          nodes.push(...toTypeMap.get(to).get((type: any)));
+        }
       }
-    } else if (Array.isArray(type)) {
-      for (let typeNum of type) {
-        yield* this.toTypeMap
-          .get(to)
-          .get((typeNum: any))
-          .values();
-      }
-    } else {
-      yield* this.toTypeMap
-        .get(to)
-        .get((type: any))
-        .values();
     }
+    return nodes;
   }
 
   /**

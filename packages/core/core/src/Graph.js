@@ -115,7 +115,7 @@ export default class Graph<TNode, TEdgeType: number = 1> {
   ): Array<NodeId> {
     this._assertHasNodeId(nodeId);
 
-    return [...this.adjacencyList.getNodesConnectedTo(nodeId, type)];
+    return this.adjacencyList.getNodesConnectedTo(nodeId, type);
   }
 
   getNodeIdsConnectedFrom(
@@ -124,16 +124,14 @@ export default class Graph<TNode, TEdgeType: number = 1> {
   ): Array<NodeId> {
     this._assertHasNodeId(nodeId);
 
-    return [...this.adjacencyList.getNodesConnectedFrom(nodeId, type)];
+    return this.adjacencyList.getNodesConnectedFrom(nodeId, type);
   }
 
   // Removes node and any edges coming from or to that node
   removeNode(nodeId: NodeId) {
     this._assertHasNodeId(nodeId);
 
-    for (let {type, from} of [
-      ...this.adjacencyList.getInboundEdgesByType(nodeId),
-    ]) {
+    for (let {type, from} of this.adjacencyList.getInboundEdgesByType(nodeId)) {
       this.removeEdge(
         from,
         nodeId,
@@ -144,9 +142,7 @@ export default class Graph<TNode, TEdgeType: number = 1> {
       );
     }
 
-    for (let {type, to} of [
-      ...this.adjacencyList.getOutboundEdgesByType(nodeId),
-    ]) {
+    for (let {type, to} of this.adjacencyList.getOutboundEdgesByType(nodeId)) {
       this.removeEdge(nodeId, to, type);
     }
 
@@ -187,8 +183,7 @@ export default class Graph<TNode, TEdgeType: number = 1> {
     if (this.rootNodeId == null) {
       // If the graph does not have a root, and there are inbound edges,
       // this node should not be considered orphaned.
-      let {done} = this.adjacencyList.getInboundEdgesByType(nodeId).next();
-      return done;
+      return !this.adjacencyList.hasInboundEdges(nodeId);
     }
 
     // Otherwise, attempt to traverse backwards to the root. If there is a path,
