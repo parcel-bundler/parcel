@@ -291,6 +291,22 @@ export default class BundleGraph {
       throw new Error('Expected an async dependency');
     }
 
+    // It's possible for internalized async dependencies to not have
+    // reference edges and still have untyped edges.
+    // TODO: Maybe don't use internalized async edges at all?
+    let dependencyNodeId = this._graph.getNodeIdByContentKey(dependency.id);
+    let resolved = this.getDependencyResolution(dependency);
+    if (resolved) {
+      let resolvedNodeId = this._graph.getNodeIdByContentKey(resolved.id);
+
+      if (
+        !this._graph.hasEdge(dependencyNodeId, resolvedNodeId, 'references')
+      ) {
+        this._graph.addEdge(dependencyNodeId, resolvedNodeId, 'references');
+        this._graph.removeEdge(dependencyNodeId, resolvedNodeId);
+      }
+    }
+
     this._graph.addEdge(
       this._graph.getNodeIdByContentKey(bundle.id),
       this._graph.getNodeIdByContentKey(dependency.id),

@@ -61,7 +61,7 @@ export default async function dumpGraphToGraphViz(
         ', ',
       )}) (bb ${node.bundleBehavior ?? 'none'})`;
     } else if (node.type) {
-      label = `${node.type || 'No Type'}: [${node.id}]: `;
+      label = `[${id}] ${node.type || 'No Type'}: [${node.id}]: `;
       if (node.type === 'dependency') {
         label += node.value.specifier;
         let parts = [];

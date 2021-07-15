@@ -47,6 +47,7 @@ const HTTP_OPTIONS = {
 };
 
 type AssetId = string;
+type BundleRoot = Asset;
 export type Bundle = {|
   assetIds: Array<AssetId>,
   internalizedAssetIds: Array<AssetId>,
@@ -148,6 +149,29 @@ function decorateLegacyGraph(
     for (let asset of assets) {
       bundleGraph.addAssetToBundle(asset, bundle);
     }
+
+    console.log('INTERNALIZED', idealBundle.internalizedAssetIds);
+    for (let internalized of idealBundle.internalizedAssetIds) {
+      let incomingDeps = bundleGraph.getIncomingDependencies(
+        bundleGraph.getAssetById(internalized),
+      );
+      for (let incomingDep of incomingDeps) {
+        if (
+          incomingDep.priority === 'lazy' &&
+          bundle.hasDependency(incomingDep)
+        ) {
+          console.log('INTERNALIZING DEP', incomingDep);
+          bundleGraph.internalizeAsyncDependency(bundle, incomingDep);
+        } else {
+          console.log(
+            'NOT INTERNALIZING DEP',
+            incomingDep,
+            incomingDep.priority,
+            bundle.hasDependency(incomingDep),
+          );
+        }
+      }
+    }
   }
 
   for (let [bundleId, bundleGroup] of entryBundleToBundleGroup) {
@@ -188,7 +212,7 @@ function decorateLegacyGraph(
 
 function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
   // Asset to the bundle it's an entry of
-  let bundleRoots: Map<Asset, [NodeId, NodeId]> = new Map();
+  let bundleRoots: Map<BundleRoot, [NodeId, NodeId]> = new Map();
   let bundles: Map<string, NodeId> = new Map();
   let bundleLoadedByDependency: Map<NodeId, Dependency> = new Map();
   let assetReference: DefaultMap<
@@ -196,9 +220,10 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
     Array<[Dependency, Bundle]>,
   > = new DefaultMap(() => []);
   //
-  let reachableBundles: DefaultMap<Asset, Set<Asset>> = new DefaultMap(
-    () => new Set(),
-  );
+  let reachableBundles: DefaultMap<
+    BundleRoot,
+    Set<BundleRoot>,
+  > = new DefaultMap(() => new Set());
   //
   let bundleGraph: Graph<Bundle> = new Graph();
   let stack: Array<[Asset, NodeId]> = [];
@@ -330,10 +355,10 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
 
   // Step 2: Determine reachability for every asset from each bundle root.
   // This is later used to determine which bundles to place each asset in.
-  let reachableRoots: DefaultMap<Asset, Set<Asset>> = new DefaultMap(
+  let reachableRoots: DefaultMap<Asset, Set<BundleRoot>> = new DefaultMap(
     () => new Set(),
   );
-  let reachableAsyncRoots: DefaultMap<NodeId, Set<Asset>> = new DefaultMap(
+  let reachableAsyncRoots: DefaultMap<NodeId, Set<BundleRoot>> = new DefaultMap(
     () => new Set(),
   );
 
@@ -373,12 +398,17 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
 
   for (let asset of assets) {
     // Find bundle entries reachable from the asset.
-    let reachable: Array<Asset> = [...reachableRoots.get(asset)];
+    let reachable: Array<BundleRoot> = [...reachableRoots.get(asset)];
 
     // Filter out bundles when the asset is reachable in a parent bundle.
     reachable = reachable.filter(b =>
       reachable.every(a => !reachableBundles.get(a).has(b)),
     );
+
+    // BundleRoot = Root Asset of a bundle
+    // reachableRoots = any asset => all BundleRoots that require it synchronously
+    // reachableBundles = Some BundleRoot => all BundleRoot decendants
+    // reachable = all bundle root assets that cant always have that asset reliably on page (so they need to be pulled in by shared bundle or other)
 
     let rootBundle = bundleRoots.get(asset);
     if (rootBundle != null) {
@@ -394,7 +424,8 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
           );
         }
       }
-
+      // reachableAsyncRoots = all bundleNodeId => all BundleRoots that require it asynchronously
+      // reachableAsync = for one bundleRoot => all
       let reachableAsync = [
         ...(reachableAsyncRoots.has(rootBundle[0])
           ? reachableAsyncRoots.get(rootBundle[0])
@@ -402,19 +433,23 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
       ];
 
       // TODO: is this correct?
-      reachableAsync = reachableAsync.filter(b =>
-        reachableAsync.every(a => !reachableBundles.get(a).has(b)),
+      let willInternalizeRoots = reachableAsync.filter(
+        b =>
+          ![...reachableRoots.get(asset)].every(
+            a => !(a === b || reachableBundles.get(a).has(b)),
+          ),
       );
-      for (let reachableAsset of reachableAsync) {
-        if (reachableAsset !== asset) {
+
+      for (let bundleRoot of willInternalizeRoots) {
+        if (bundleRoot !== asset) {
           let bundle = nullthrows(
-            bundleGraph.getNode(nullthrows(bundles.get(reachableAsset.id))),
+            bundleGraph.getNode(nullthrows(bundles.get(bundleRoot.id))),
           );
           console.log(
             'PUSHING',
             asset.id,
             'into bundle',
-            nullthrows(bundles.get(reachableAsset.id)),
+            nullthrows(bundles.get(bundleRoot.id)),
           );
           bundle.internalizedAssetIds.push(asset.id);
         }
