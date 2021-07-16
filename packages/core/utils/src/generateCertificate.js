@@ -1,6 +1,7 @@
 // @flow
 import type {FileSystem} from '@parcel/fs';
-import forge from 'node-forge';
+import {default as forgePki} from 'node-forge/lib/pki';
+import {default as forgeMd} from 'node-forge/lib/md';
 import path from 'path';
 import logger from '@parcel/logger';
 
@@ -27,7 +28,7 @@ export default async function generateCertificate(
 
   logger.progress('Generating SSL Certificate...');
 
-  const pki = forge.pki;
+  const pki = forgePki;
   const keys = pki.rsa.generateKeyPair(2048);
   const cert = pki.createCertificate();
 
@@ -124,7 +125,7 @@ export default async function generateCertificate(
     },
   ]);
 
-  cert.sign(keys.privateKey, forge.md.sha256.create());
+  cert.sign(keys.privateKey, forgeMd.sha256.create());
 
   const privPem = pki.privateKeyToPem(keys.privateKey);
   const certPem = pki.certificateToPem(cert);

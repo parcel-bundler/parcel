@@ -9,7 +9,7 @@ import type {FileSystem} from '@parcel/fs';
 import http from 'http';
 import https from 'https';
 import nullthrows from 'nullthrows';
-import {getCertificate, generateCertificate} from './';
+import getCertificate from './getCertificate';
 
 type CreateHTTPServerOpts = {|
   https: ?(HTTPSOptions | boolean),
@@ -34,6 +34,11 @@ export async function createHTTPServer(
   if (!options.https) {
     server = http.createServer(options.listener);
   } else if (options.https === true) {
+    const generateCertificateModule = (await import('./generateCertificate.js'))
+      .default;
+    const generateCertificate =
+      /* $FlowIgnore[prop-missing] the exports of the dynamic import are wrapped in an excess object */
+      generateCertificateModule.default ?? generateCertificateModule;
     let {cert, key} = await generateCertificate(
       options.outputFS,
       options.cacheDir,
