@@ -1402,7 +1402,7 @@ describe('output formats', function() {
   });
 
   describe('global', function() {
-    it('should support split bundles between main script and workers', async function() {
+    it.skip('should support split bundles between main script and workers', async function() {
       let b = await bundle(
         path.join(
           __dirname,

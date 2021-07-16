@@ -836,7 +836,8 @@ export default class BundleGraph {
             if (
               node.type === 'root' ||
               (node.type === 'bundle' &&
-                node.value.env.context !== bundle.env.context)
+                (node.value.id === bundle.id ||
+                  node.value.env.context !== bundle.env.context))
             ) {
               isReachable = false;
               actions.stop();

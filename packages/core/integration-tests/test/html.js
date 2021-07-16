@@ -76,6 +76,16 @@ describe('html', function() {
       }
     }
 
+    assert(html.includes('#hash_link'));
+    assert(html.includes('mailto:someone@acme.com'));
+    assert(html.includes('tel:+33636757575'));
+    assert(html.includes('https://unpkg.com/parcel-bundler'));
+
+    let iconsBundle = b.getBundles().find(b => b.name.startsWith('icons'));
+    assert(
+      html.includes('/' + path.basename(iconsBundle.filePath) + '#icon-code'),
+    );
+
     let value = null;
     await run(b, {
       alert: v => (value = v),
@@ -1639,26 +1649,31 @@ describe('html', function() {
       },
       {
         type: 'js',
-        assets: ['bundle-manifest.js', 'get-worker-url.js', 'index.js'],
+        assets: [
+          'bundle-manifest.js',
+          'get-worker-url.js',
+          'index.js',
+          'lodash.js',
+        ],
       },
       {
         name: 'index.html',
         type: 'html',
         assets: ['index.html'],
       },
+      // {
+      //   type: 'js',
+      //   assets: ['lodash.js'],
+      // },
       {
         type: 'js',
-        assets: ['lodash.js'],
-      },
-      {
-        type: 'js',
-        assets: ['worker.js'],
+        assets: ['worker.js', 'lodash.js'],
       },
     ]);
 
-    let lodashSibling = path.basename(
-      b.getBundles().find(v => v.getEntryAssets().length === 0).filePath,
-    );
+    // let lodashSibling = path.basename(
+    //   b.getBundles().find(v => v.getEntryAssets().length === 0).filePath,
+    // );
 
     let html = await outputFS.readFile(
       path.join(distDir, 'index.html'),
@@ -1672,8 +1687,9 @@ describe('html', function() {
       insertedBundles.push(path.basename(match[1]));
     }
 
-    assert.equal(insertedBundles.length, 2);
-    assert.equal(insertedBundles[0], lodashSibling);
+    assert.equal(insertedBundles.length, 1);
+    // assert.equal(insertedBundles.length, 2);
+    // assert.equal(insertedBundles[0], lodashSibling);
   });
 
   it('inserts sibling bundles into html in the correct order (head)', async function() {
@@ -1694,26 +1710,31 @@ describe('html', function() {
       },
       {
         type: 'js',
-        assets: ['bundle-manifest.js', 'get-worker-url.js', 'index.js'],
+        assets: [
+          'bundle-manifest.js',
+          'get-worker-url.js',
+          'index.js',
+          'lodash.js',
+        ],
       },
       {
         name: 'index.html',
         type: 'html',
         assets: ['index.html'],
       },
+      // {
+      //   type: 'js',
+      //   assets: ['lodash.js'],
+      // },
       {
         type: 'js',
-        assets: ['lodash.js'],
-      },
-      {
-        type: 'js',
-        assets: ['worker.js'],
+        assets: ['worker.js', 'lodash.js'],
       },
     ]);
 
-    let lodashSibling = path.basename(
-      b.getBundles().find(v => v.getEntryAssets().length === 0).filePath,
-    );
+    // let lodashSibling = path.basename(
+    //   b.getBundles().find(v => v.getEntryAssets().length === 0).filePath,
+    // );
 
     let html = await outputFS.readFile(
       path.join(distDir, 'index.html'),
@@ -1727,8 +1748,9 @@ describe('html', function() {
       insertedBundles.push(path.basename(match[1]));
     }
 
-    assert.equal(insertedBundles.length, 2);
-    assert.equal(insertedBundles[0], lodashSibling);
+    assert.equal(insertedBundles.length, 1);
+    // assert.equal(insertedBundles.length, 2);
+    // assert.equal(insertedBundles[0], lodashSibling);
   });
 
   it('should support multiple entries with shared sibling bundles', async function() {
@@ -2266,5 +2288,74 @@ describe('html', function() {
         },
       ],
     });
+  });
+
+  it('should escape inline script tags', async function() {
+    let b = await bundle(
+      path.join(__dirname, 'integration/html-inline-escape/script.html'),
+    );
+    let output;
+    await run(b, {
+      output(o) {
+        output = o;
+      },
+    });
+
+    assert.deepEqual(output, {
+      a: '<script></script>',
+      b: '<!-- test',
+      c: '<SCRIPT></SCRIPT>',
+    });
+  });
+
+  it('should escape quotes in inline style attributes and style tags', async function() {
+    let b = await bundle(
+      path.join(__dirname, 'integration/html-inline-escape/style.html'),
+    );
+    let output = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    let name = path.basename(
+      b.getBundles().find(b => b.type === 'png').filePath,
+      'utf8',
+    );
+    assert(output.includes(`url(&quot;${name}&quot;)`));
+    assert(output.includes('<\\/style>'));
+  });
+
+  it('should work with bundle names that have colons in them', async function() {
+    let b = await bundle(
+      path.join(__dirname, 'integration/url-colon/relative.html'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'relative.html',
+        assets: ['relative.html'],
+      },
+      {
+        name: 'a:b:c.html',
+        assets: ['a:b:c.html'],
+      },
+    ]);
+
+    let output = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(output.includes('/a:b:c.html'));
+
+    b = await bundle(
+      path.join(__dirname, 'integration/url-colon/absolute.html'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'absolute.html',
+        assets: ['absolute.html'],
+      },
+      {
+        name: 'a:b:c.html',
+        assets: ['a:b:c.html'],
+      },
+    ]);
+
+    output = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(output.includes('/a:b:c.html'));
   });
 });
