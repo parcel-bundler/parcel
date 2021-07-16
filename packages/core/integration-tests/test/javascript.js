@@ -2682,6 +2682,62 @@ describe('javascript', function() {
     assert.strictEqual(output, 'XYZ');
   });
 
+  it('should inline environment variables when destructured in a variable declaration', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/env-destructuring/index.js'),
+      {
+        env: {TEST: 'XYZ'},
+        defaultTargetOptions: {
+          engines: {
+            browsers: '>= 0.25%',
+          },
+        },
+      },
+    );
+
+    let contents = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(!contents.includes('process.env'));
+
+    let output = await run(b);
+    assert.deepEqual(output, {
+      env: {},
+      NODE_ENV: 'test',
+      renamed: 'XYZ',
+      computed: undefined,
+      fallback: 'yo',
+      rest: {},
+      other: 'hi',
+    });
+  });
+
+  it('should inline environment variables when destructured in an assignment', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/env-destructuring/assign.js'),
+      {
+        env: {TEST: 'XYZ'},
+        defaultTargetOptions: {
+          engines: {
+            browsers: '>= 0.25%',
+          },
+        },
+      },
+    );
+
+    let contents = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(!contents.includes('process.env'));
+
+    let output = await run(b);
+    assert.deepEqual(output, {
+      env: {},
+      NODE_ENV: 'test',
+      renamed: 'XYZ',
+      computed: undefined,
+      fallback: 'yo',
+      rest: {},
+      result: {},
+    });
+  });
+
   it('should insert environment variables from a file', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/env-file/index.js'),
