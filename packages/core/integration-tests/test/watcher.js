@@ -445,4 +445,30 @@ describe('watcher', function() {
       },
     ]);
   });
+
+  it('should rebuild if a missing file is added', async function() {
+    await outputFS.mkdirp(inputDir);
+    await outputFS.writeFile(
+      path.join(inputDir, '/index.js'),
+      'import {other} from "./other";\nexport default other;',
+      'utf8',
+    );
+
+    let b = bundler(path.join(inputDir, 'index.js'), {inputFS: overlayFS});
+    subscription = await b.watch();
+    let buildEvent = await getNextBuild(b);
+    assert.equal(buildEvent.type, 'buildFailure');
+
+    await outputFS.writeFile(
+      path.join(inputDir, '/other.js'),
+      'export const other = 2;',
+      'utf8',
+    );
+
+    buildEvent = await getNextBuild(b);
+    assert.equal(buildEvent.type, 'buildSuccess');
+
+    let res = await run(buildEvent.bundleGraph);
+    assert.equal(res.default, 2);
+  });
 });

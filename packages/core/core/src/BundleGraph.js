@@ -3,7 +3,6 @@
 import type {
   BundleGroup,
   GraphVisitor,
-  SourceLocation,
   Symbol,
   TraversalActions,
 } from '@parcel/types';
@@ -17,6 +16,7 @@ import type {
   Dependency,
   DependencyNode,
   NodeId,
+  InternalSourceLocation,
 } from './types';
 import type AssetGraph from './AssetGraph';
 
@@ -30,7 +30,7 @@ import {Priority, BundleBehavior} from './types';
 import {getBundleGroupId, getPublicId} from './utils';
 import {ALL_EDGE_TYPES, mapVisitor} from './Graph';
 import ContentGraph, {type SerializedContentGraph} from './ContentGraph';
-import Environment from './public/Environment';
+import {ISOLATED_ENVS} from './public/Environment';
 
 type BundleGraphEdgeTypes =
   // A lack of an edge type indicates to follow the edge while traversing
@@ -60,7 +60,7 @@ type InternalSymbolResolution = {|
   asset: Asset,
   exportSymbol: string,
   symbol: ?Symbol | false,
-  loc: ?SourceLocation,
+  loc: ?InternalSourceLocation,
 |};
 
 type InternalExportSymbolResolution = {|
@@ -783,7 +783,7 @@ export default class BundleGraph {
     // If a bundle's environment is isolated, it can't access assets present
     // in any ancestor bundles. Don't consider any assets reachable.
     if (
-      new Environment(bundle.env).isIsolated() ||
+      ISOLATED_ENVS.has(bundle.env.context) ||
       !bundle.isSplittable ||
       bundle.bundleBehavior === BundleBehavior.isolated ||
       bundle.bundleBehavior === BundleBehavior.inline
@@ -798,7 +798,13 @@ export default class BundleGraph {
       // If the asset is in any sibling bundles of the original bundle, it is reachable.
       let bundles = this.getBundlesInBundleGroup(bundleGroup);
       if (
-        bundles.some(b => b.id !== bundle.id && this.bundleHasAsset(b, asset))
+        bundles.some(
+          b =>
+            b.id !== bundle.id &&
+            b.bundleBehavior !== BundleBehavior.isolated &&
+            b.bundleBehavior !== BundleBehavior.inline &&
+            this.bundleHasAsset(b, asset),
+        )
       ) {
         return true;
       }
@@ -813,8 +819,9 @@ export default class BundleGraph {
       return parentBundleNodes.every(bundleNodeId => {
         let bundleNode = nullthrows(this._graph.getNode(bundleNodeId));
         if (
-          bundleNode.type === 'root' ||
-          bundleNode.value.bundleBehavior === BundleBehavior.isolated
+          bundleNode.type !== 'bundle' ||
+          bundleNode.value.bundleBehavior === BundleBehavior.isolated ||
+          bundleNode.value.bundleBehavior === BundleBehavior.inline
         ) {
           return false;
         }
@@ -829,7 +836,8 @@ export default class BundleGraph {
             if (
               node.type === 'root' ||
               (node.type === 'bundle' &&
-                node.value.env.context !== bundle.env.context)
+                (node.value.id === bundle.id ||
+                  node.value.env.context !== bundle.env.context))
             ) {
               isReachable = false;
               actions.stop();
@@ -843,6 +851,7 @@ export default class BundleGraph {
                   b =>
                     b.id !== bundle.id &&
                     b.bundleBehavior !== BundleBehavior.isolated &&
+                    b.bundleBehavior !== BundleBehavior.inline &&
                     this.bundleHasAsset(b, asset),
                 )
               ) {

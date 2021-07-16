@@ -6,6 +6,8 @@ extern crate swc_atoms;
 extern crate data_encoding;
 extern crate dunce;
 extern crate inflector;
+extern crate path_slash;
+extern crate pathdiff;
 extern crate serde;
 extern crate serde_bytes;
 extern crate sha1;
@@ -20,8 +22,10 @@ mod modules;
 mod utils;
 
 use std::collections::{HashMap, HashSet};
+use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
+use path_slash::PathExt;
 use serde::{Deserialize, Serialize};
 use swc_common::comments::SingleThreadedComments;
 use swc_common::errors::{DiagnosticBuilder, Emitter, Handler};
@@ -60,6 +64,7 @@ pub struct Config {
   inline_fs: bool,
   insert_node_globals: bool,
   is_browser: bool,
+  is_worker: bool,
   is_type_script: bool,
   is_jsx: bool,
   jsx_pragma: Option<String>,
@@ -74,6 +79,8 @@ pub struct Config {
   scope_hoist: bool,
   source_type: SourceType,
   supports_module_workers: bool,
+  is_library: bool,
+  is_esm_output: bool,
 }
 
 #[derive(Serialize, Debug, Deserialize, Default)]
@@ -87,7 +94,6 @@ pub struct TransformResult {
   diagnostics: Option<Vec<Diagnostic>>,
   needs_esm_helpers: bool,
   used_env: HashSet<swc_atoms::JsWord>,
-  script_error_loc: Option<SourceLocation>,
 }
 
 fn targets_to_versions(targets: &Option<HashMap<String, String>>) -> Option<Versions> {
@@ -135,7 +141,13 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
 
   let code = unsafe { std::str::from_utf8_unchecked(&config.code) };
   let source_map = Lrc::new(SourceMap::default());
-  let module = parse(code, config.filename.as_str(), &source_map, &config);
+  let module = parse(
+    code,
+    config.project_root.as_str(),
+    config.filename.as_str(),
+    &source_map,
+    &config,
+  );
 
   match module {
     Err(err) => {
@@ -181,6 +193,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
             message,
             code_highlights,
             hints,
+            show_environment: false,
           }
         })
         .collect();
@@ -210,11 +223,11 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
             let mut react_options = react::Options::default();
             if config.is_jsx {
               react_options.use_spread = true;
-              if let Some(jsx_pragma) = config.jsx_pragma {
-                react_options.pragma = jsx_pragma;
+              if let Some(jsx_pragma) = &config.jsx_pragma {
+                react_options.pragma = jsx_pragma.clone();
               }
-              if let Some(jsx_pragma_frag) = config.jsx_pragma_frag {
-                react_options.pragma_frag = jsx_pragma_frag;
+              if let Some(jsx_pragma_frag) = &config.jsx_pragma_frag {
+                react_options.pragma_frag = jsx_pragma_frag.clone();
               }
               react_options.development = config.is_development;
               react_options.refresh = if config.react_refresh {
@@ -224,8 +237,8 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
               };
 
               react_options.runtime = if config.automatic_jsx_runtime {
-                if let Some(import_source) = config.jsx_import_source {
-                  react_options.import_source = import_source;
+                if let Some(import_source) = &config.jsx_import_source {
+                  react_options.import_source = import_source.clone();
                 }
                 Some(react::Runtime::Automatic)
               } else {
@@ -260,6 +273,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
             let decls = collect_decls(&module);
 
             let mut preset_env_config = swc_ecma_preset_env::Config::default();
+            preset_env_config.dynamic_import = true;
             if let Some(versions) = targets_to_versions(&config.targets) {
               preset_env_config.targets = Some(Targets::Versions(versions));
               preset_env_config.shipped_proposals = true;
@@ -267,13 +281,14 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
               preset_env_config.bugfixes = true;
             }
 
+            let mut diagnostics = vec![];
             let module = {
               let mut passes = chain!(
                 // Inline process.env and process.browser
                 Optional::new(
                   EnvReplacer {
                     replace_env: config.replace_env,
-                    env: config.env,
+                    env: &config.env,
                     is_browser: config.is_browser,
                     decls: &decls,
                     used_env: &mut result.used_env
@@ -291,7 +306,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                     source_map.clone(),
                     decls.clone(),
                     global_mark,
-                    config.project_root,
+                    &config.project_root,
                     &mut fs_deps,
                   ),
                   should_inline_fs
@@ -302,7 +317,8 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                     source_map: &source_map,
                     items: &mut global_deps,
                     globals: HashMap::new(),
-                    filename: config.filename.as_str(),
+                    project_root: Path::new(&config.project_root),
+                    filename: Path::new(&config.filename),
                     decls: &decls,
                     global_mark,
                     scope_hoist: config.scope_hoist
@@ -322,15 +338,18 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                   &mut result.dependencies,
                   &decls,
                   ignore_mark,
-                  config.scope_hoist,
-                  config.source_type,
-                  config.supports_module_workers,
-                  &mut result.script_error_loc,
+                  &config,
+                  &mut diagnostics,
                 ),
               );
 
               module.fold_with(&mut passes)
             };
+
+            if !diagnostics.is_empty() {
+              result.diagnostics = Some(diagnostics);
+              return Ok(result);
+            }
 
             let module = if config.scope_hoist {
               let res = hoist(
@@ -386,11 +405,19 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
 
 fn parse(
   code: &str,
+  project_root: &str,
   filename: &str,
   source_map: &Lrc<SourceMap>,
   config: &Config,
 ) -> PResult<(Module, SingleThreadedComments)> {
-  let source_file = source_map.new_source_file(FileName::Real(filename.into()), code.into());
+  // Attempt to convert the path to be relative to the project root.
+  // If outside the project root, use an absolute path so that if the project root moves the path still works.
+  let filename: PathBuf = if let Ok(relative) = Path::new(filename).strip_prefix(project_root) {
+    relative.to_slash_lossy().into()
+  } else {
+    filename.into()
+  };
+  let source_file = source_map.new_source_file(FileName::Real(filename), code.into());
 
   let comments = SingleThreadedComments::default();
   let syntax = if config.is_type_script {

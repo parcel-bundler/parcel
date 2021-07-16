@@ -3,30 +3,45 @@
 import nullthrows from 'nullthrows';
 import {minify} from 'terser';
 import {Optimizer} from '@parcel/plugin';
-import {blobToString, loadConfig} from '@parcel/utils';
+import {blobToString} from '@parcel/utils';
 import SourceMap from '@parcel/source-map';
 import ThrowableDiagnostic, {escapeMarkdown} from '@parcel/diagnostic';
 
 import path from 'path';
 
 export default (new Optimizer({
-  async optimize({contents, map, bundle, options, getSourceMapReference}) {
+  async loadConfig({config, options}) {
+    let userConfig = await config.getConfigFrom(
+      path.join(options.entryRoot, 'index'),
+      ['.terserrc', '.terserrc.js'],
+    );
+
+    if (userConfig) {
+      let isJavascript = path.extname(userConfig.filePath) === '.js';
+      if (isJavascript) {
+        config.invalidateOnStartup();
+      }
+    }
+
+    return userConfig?.contents;
+  },
+  async optimize({
+    contents,
+    map,
+    bundle,
+    config: userConfig,
+    options,
+    getSourceMapReference,
+  }) {
     if (!bundle.env.shouldOptimize) {
       return {contents, map};
     }
 
     let code = await blobToString(contents);
 
-    let userConfig = await loadConfig(
-      options.inputFS,
-      path.join(options.entryRoot, 'index'),
-      ['.terserrc', '.uglifyrc', '.uglifyrc.js', '.terserrc.js'],
-      options.projectRoot,
-    );
-
     let originalMap = map ? await map.stringify({}) : null;
     let config = {
-      ...userConfig?.config,
+      ...userConfig,
       sourceMap: bundle.env.sourceMap
         ? {
             filename: path.relative(
@@ -59,12 +74,14 @@ export default (new Optimizer({
           diagnostics.push({
             message,
             origin: '@parcel/optimizer-terser',
-            language: 'js',
-            filePath,
-            codeFrame: {
-              code: await options.inputFS.readFile(filePath, 'utf8'),
-              codeHighlights: [{message, start: original, end: original}],
-            },
+            codeFrames: [
+              {
+                language: 'js',
+                filePath,
+                code: await options.inputFS.readFile(filePath, 'utf8'),
+                codeHighlights: [{message, start: original, end: original}],
+              },
+            ],
             hints: ["It's likely that Terser doesn't support this syntax yet."],
           });
         }
@@ -77,12 +94,14 @@ export default (new Optimizer({
           diagnostics.push({
             message,
             origin: '@parcel/optimizer-terser',
-            language: 'js',
-            filePath: undefined,
-            codeFrame: {
-              code,
-              codeHighlights: [{message, start: loc, end: loc}],
-            },
+            codeFrames: [
+              {
+                language: 'js',
+                filePath: undefined,
+                code,
+                codeHighlights: [{message, start: loc, end: loc}],
+              },
+            ],
             hints: ["It's likely that Terser doesn't support this syntax yet."],
           });
         }

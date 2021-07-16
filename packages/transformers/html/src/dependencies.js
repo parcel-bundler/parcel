@@ -142,10 +142,20 @@ export default function collectDependencies(
       (attrs.rel === 'canonical' || attrs.rel === 'manifest') &&
       attrs.href
     ) {
-      attrs.href = asset.addURLDependency(attrs.href, {
+      let href = attrs.href;
+      if (attrs.rel === 'manifest') {
+        // A hack to allow manifest.json rather than manifest.webmanifest.
+        // If a custom pipeline is used, it is responsible for running @parcel/transformer-webmanifest.
+        if (!href.includes(':')) {
+          href = 'webmanifest:' + href;
+        }
+      }
+
+      attrs.href = asset.addURLDependency(href, {
         needsStableName: true,
       });
       isDirty = true;
+      asset.setAST(ast);
       return node;
     }
 

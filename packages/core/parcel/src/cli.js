@@ -25,12 +25,20 @@ const SIGINT_EXIT_CODE = 130;
 async function logUncaughtError(e: mixed) {
   if (e instanceof ThrowableDiagnostic) {
     for (let diagnostic of e.diagnostics) {
-      let out = await prettyDiagnostic(diagnostic);
-      INTERNAL_ORIGINAL_CONSOLE.error(out.message);
-      INTERNAL_ORIGINAL_CONSOLE.error(out.codeframe);
-      INTERNAL_ORIGINAL_CONSOLE.error(out.stack);
-      for (let h of out.hints) {
-        INTERNAL_ORIGINAL_CONSOLE.error(h);
+      let {message, codeframe, stack, hints} = await prettyDiagnostic(
+        diagnostic,
+      );
+      INTERNAL_ORIGINAL_CONSOLE.error(chalk.red(message));
+      if (codeframe || stack) {
+        INTERNAL_ORIGINAL_CONSOLE.error('');
+      }
+      INTERNAL_ORIGINAL_CONSOLE.error(codeframe);
+      INTERNAL_ORIGINAL_CONSOLE.error(stack);
+      if ((stack || codeframe) && hints.length > 0) {
+        INTERNAL_ORIGINAL_CONSOLE.error('');
+      }
+      for (let h of hints) {
+        INTERNAL_ORIGINAL_CONSOLE.error(chalk.blue(h));
       }
     }
   } else {
@@ -206,13 +214,12 @@ async function run(
   _opts: any, // using pre v7 Commander options as properties
   command: any,
 ) {
+  if (entries.length === 0) {
+    entries = ['.'];
+  }
+
   entries = entries.map(entry => path.resolve(entry));
 
-  if (entries.length === 0) {
-    // TODO move this into core, a glob could still lead to no entries
-    INTERNAL_ORIGINAL_CONSOLE.log('No entries found');
-    return;
-  }
   let Parcel = require('@parcel/core').default;
   let fs = new NodeFS();
   let options = await normalizeOptions(command, fs);
@@ -404,7 +411,6 @@ async function normalizeOptions(
         diagnostic: {
           message: `Could not get available port: ${err.message}`,
           origin: 'parcel',
-          filePath: __filename,
           stack: err.stack,
         },
       });

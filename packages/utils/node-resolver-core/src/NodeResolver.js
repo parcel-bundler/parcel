@@ -3,8 +3,8 @@ import type {
   FilePath,
   FileCreateInvalidation,
   PackageJSON,
-  PackageName,
   ResolveResult,
+  Environment,
 } from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
 
@@ -41,15 +41,6 @@ type ResolvedFile = {|
   path: string,
   pkg: InternalPackageJSON | null,
 |};
-
-interface Env {
-  +includeNodeModules:
-    | boolean
-    | Array<PackageName>
-    | {[PackageName]: boolean, ...};
-  isBrowser(): boolean;
-  isNode(): boolean;
-}
 
 type Aliases =
   | string
@@ -110,11 +101,13 @@ export default class NodeResolver {
     parent,
     isURL,
     env,
+    sourcePath,
   }: {|
     filename: FilePath,
     parent: ?FilePath,
     isURL: boolean,
-    env: Env,
+    env: Environment,
+    sourcePath?: ?FilePath,
   |}): Promise<?ResolveResult> {
     let ctx = {
       invalidateOnFileCreate: [],
@@ -140,6 +133,7 @@ export default class NodeResolver {
         isURL,
         env,
         ctx,
+        sourcePath,
       });
 
       if (!module) {
@@ -186,6 +180,8 @@ export default class NodeResolver {
       if (err instanceof ThrowableDiagnostic) {
         return {
           diagnostics: err.diagnostics,
+          invalidateOnFileCreate: ctx.invalidateOnFileCreate,
+          invalidateOnFileChange: [...ctx.invalidateOnFileChange],
         };
       } else {
         throw err;
@@ -201,12 +197,14 @@ export default class NodeResolver {
     isURL,
     env,
     ctx,
+    sourcePath,
   }: {|
     filename: string,
     parent: ?FilePath,
     isURL: boolean,
-    env: Env,
+    env: Environment,
     ctx: ResolverContext,
+    sourcePath: ?FilePath,
   |}): Promise<?Module> {
     let sourceFile = parent || path.join(this.projectRoot, 'index');
 
@@ -239,6 +237,9 @@ export default class NodeResolver {
     }
 
     if (!this.shouldIncludeNodeModule(env, filename)) {
+      if (sourcePath && env.isLibrary) {
+        await this.checkExcludedDependency(sourcePath, filename, ctx);
+      }
       return null;
     }
 
@@ -304,7 +305,7 @@ export default class NodeResolver {
           diagnostic: {
             message: md`Cannot find module ${nullthrows(resolved?.moduleName)}`,
             hints: alternativeModules.map(r => {
-              return `Did you mean __${r}__?`;
+              return `Did you mean '__${r}__'?`;
             }),
           },
         });
@@ -314,7 +315,10 @@ export default class NodeResolver {
     return resolved;
   }
 
-  shouldIncludeNodeModule({includeNodeModules}: Env, name: string): boolean {
+  shouldIncludeNodeModule(
+    {includeNodeModules}: Environment,
+    name: string,
+  ): boolean {
     if (includeNodeModules === false) {
       return false;
     }
@@ -333,6 +337,54 @@ export default class NodeResolver {
     }
 
     return true;
+  }
+
+  async checkExcludedDependency(
+    sourceFile: FilePath,
+    name: string,
+    ctx: ResolverContext,
+  ) {
+    let [moduleName] = this.getModuleParts(name);
+    let pkg = await this.findPackage(sourceFile, ctx);
+    if (!pkg) {
+      return;
+    }
+
+    if (!pkg.dependencies?.[moduleName]) {
+      let pkgContent = await this.fs.readFile(pkg.pkgfile, 'utf8');
+      throw new ThrowableDiagnostic({
+        diagnostic: {
+          message: md`External dependency "${moduleName}" is not declared in package.json.`,
+          codeFrames: [
+            {
+              filePath: pkg.pkgfile,
+              language: 'json',
+              code: pkgContent,
+              codeHighlights: pkg.dependencies
+                ? generateJSONCodeHighlights(pkgContent, [
+                    {
+                      key: `/dependencies`,
+                      type: 'key',
+                    },
+                  ])
+                : [
+                    {
+                      start: {
+                        line: 1,
+                        column: 1,
+                      },
+                      end: {
+                        line: 1,
+                        column: 1,
+                      },
+                    },
+                  ],
+            },
+          ],
+          hints: [`Add "${moduleName}" as a dependency.`],
+        },
+      });
+    }
   }
 
   async resolveFilename(
@@ -387,7 +439,7 @@ export default class NodeResolver {
   async loadRelative(
     filename: string,
     extensions: Array<string>,
-    env: Env,
+    env: Environment,
     parentdir: string,
     ctx: ResolverContext,
   ): Promise<?ResolvedFile> {
@@ -428,7 +480,7 @@ export default class NodeResolver {
             parentdir,
           )}'.`,
           hints: potentialFiles.map(r => {
-            return `Did you mean __${r}__?`;
+            return `Did you mean '__${r}__'?`;
           }),
         },
       });
@@ -437,7 +489,7 @@ export default class NodeResolver {
     return resolvedFile;
   }
 
-  findBuiltin(filename: string, env: Env): ?Module {
+  findBuiltin(filename: string, env: Environment): ?Module {
     const isExplicitNode = filename.startsWith('node:');
     if (isExplicitNode || builtins[filename]) {
       if (env.isNode()) {
@@ -480,7 +532,7 @@ export default class NodeResolver {
   async loadNodeModules(
     module: Module,
     extensions: Array<string>,
-    env: Env,
+    env: Environment,
     ctx: ResolverContext,
   ): Promise<?ResolvedFile> {
     // If a module was specified as a module sub-path (e.g. some-module/some/path),
@@ -517,7 +569,7 @@ export default class NodeResolver {
   }: {|
     dir: string,
     extensions: Array<string>,
-    env: Env,
+    env: Environment,
     ctx: ResolverContext,
     pkg?: InternalPackageJSON | null,
   |}): Promise<?ResolvedFile> {
@@ -583,20 +635,22 @@ export default class NodeResolver {
         throw new ThrowableDiagnostic({
           diagnostic: {
             message: md`Could not load '${fileSpecifier}' from module '${pkg.name}' found in package.json#${failedEntry.field}`,
-            language: 'json',
-            filePath: pkg.pkgfile,
-            codeFrame: {
-              code: pkgContent,
-              codeHighlights: generateJSONCodeHighlights(pkgContent, [
-                {
-                  key: `/${failedEntry.field}`,
-                  type: 'value',
-                  message: md`'${fileSpecifier}' does not exist${
-                    alternative ? `, did you mean '${alternative}'?` : ''
-                  }'`,
-                },
-              ]),
-            },
+            codeFrames: [
+              {
+                filePath: pkg.pkgfile,
+                language: 'json',
+                code: pkgContent,
+                codeHighlights: generateJSONCodeHighlights(pkgContent, [
+                  {
+                    key: `/${failedEntry.field}`,
+                    type: 'value',
+                    message: md`'${fileSpecifier}' does not exist${
+                      alternative ? `, did you mean '${alternative}'?` : ''
+                    }'`,
+                  },
+                ]),
+              },
+            ],
           },
         });
       }
@@ -671,7 +725,7 @@ export default class NodeResolver {
 
   getPackageEntries(
     pkg: InternalPackageJSON,
-    env: Env,
+    env: Environment,
   ): Array<{|
     filename: string,
     field: string,
@@ -723,7 +777,7 @@ export default class NodeResolver {
   }: {|
     file: string,
     extensions: Array<string>,
-    env: Env,
+    env: Environment,
     pkg: InternalPackageJSON | null,
     ctx: ResolverContext,
   |}): Promise<?ResolvedFile> {
@@ -753,7 +807,7 @@ export default class NodeResolver {
   async expandFile(
     file: string,
     extensions: Array<string>,
-    env: Env,
+    env: Environment,
     pkg: InternalPackageJSON | null,
     expandAliases?: boolean = true,
   ): Promise<Array<string>> {
@@ -785,7 +839,7 @@ export default class NodeResolver {
 
   async resolveAliases(
     filename: string,
-    env: Env,
+    env: Environment,
     pkg: InternalPackageJSON | null,
   ): Promise<?ResolvedAlias> {
     let localAliases = await this.resolvePackageAliases(filename, env, pkg);
@@ -799,7 +853,7 @@ export default class NodeResolver {
 
   async resolvePackageAliases(
     filename: string,
-    env: Env,
+    env: Environment,
     pkg: InternalPackageJSON | null,
   ): Promise<?ResolvedAlias> {
     if (!pkg) {
@@ -963,7 +1017,7 @@ export default class NodeResolver {
   async loadAlias(
     filename: string,
     sourceFile: FilePath,
-    env: Env,
+    env: Environment,
     ctx: ResolverContext,
   ): Promise<?ResolvedAlias> {
     // Load the root project's package.json file if we haven't already

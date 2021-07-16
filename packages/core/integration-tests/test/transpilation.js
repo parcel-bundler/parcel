@@ -84,6 +84,7 @@ describe('transpilation', function() {
 
     let file = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
     assert(file.includes('React.createElement("div"'));
+    assert(file.includes('fileName: "integration/jsx/index.jsx"'));
   });
 
   it('should support compiling JSX in JS files with React dependency', async function() {

@@ -81,23 +81,27 @@ export default class ReporterRunner {
   };
 
   async report(event: ReporterEvent) {
-    let reporters = this.reporters;
-    if (!reporters) {
-      this.reporters = await this.config.getReporters();
-      reporters = this.reporters;
-    }
-
-    for (let reporter of this.reporters) {
-      try {
-        await reporter.plugin.report({
-          event,
-          options: this.pluginOptions,
-          logger: new PluginLogger({origin: reporter.name}),
-        });
-      } catch (e) {
-        // We shouldn't emit a report event here as we will cause infinite loops...
-        INTERNAL_ORIGINAL_CONSOLE.error(e);
+    // We should catch all errors originating from reporter plugins to prevent infinite loops
+    try {
+      let reporters = this.reporters;
+      if (!reporters) {
+        this.reporters = await this.config.getReporters();
+        reporters = this.reporters;
       }
+
+      for (let reporter of this.reporters) {
+        try {
+          await reporter.plugin.report({
+            event,
+            options: this.pluginOptions,
+            logger: new PluginLogger({origin: reporter.name}),
+          });
+        } catch (reportError) {
+          INTERNAL_ORIGINAL_CONSOLE.error(reportError);
+        }
+      }
+    } catch (err) {
+      INTERNAL_ORIGINAL_CONSOLE.error(err);
     }
   }
 

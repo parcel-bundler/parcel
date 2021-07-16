@@ -1,6 +1,11 @@
 // @flow strict-local
 
-import type {FilePath, InitialParcelOptions} from '@parcel/types';
+import type {
+  FilePath,
+  InitialParcelOptions,
+  DependencySpecifier,
+} from '@parcel/types';
+import type {FileSystem} from '@parcel/fs';
 import type {ParcelOptions} from './types';
 
 import path from 'path';
@@ -8,8 +13,10 @@ import {hashString} from '@parcel/hash';
 import {NodeFS} from '@parcel/fs';
 import {LMDBCache, FSCache} from '@parcel/cache';
 import {NodePackageManager} from '@parcel/package-manager';
-import {getRootDir, resolveConfig} from '@parcel/utils';
+import {getRootDir, relativePath, resolveConfig} from '@parcel/utils';
 import loadDotEnv from './loadDotEnv';
+import {toProjectPath} from './projectPath';
+import {getResolveFrom} from './requests/ParcelConfigRequest';
 
 // Default cache directory name
 const DEFAULT_CACHE_DIRNAME = '.parcel-cache';
@@ -55,11 +62,6 @@ export default async function resolveOptions(
       path.parse(entryRoot).root,
     )) || path.join(inputCwd, 'index'); // ? Should this just be rootDir
 
-  let lockFile = null;
-  let rootFileName = path.basename(projectRootFile);
-  if (LOCK_FILE_NAMES.includes(rootFileName)) {
-    lockFile = projectRootFile;
-  }
   let projectRoot = path.dirname(projectRootFile);
 
   let packageManager =
@@ -98,8 +100,16 @@ export default async function resolveOptions(
   }
 
   return {
-    config: initialOptions.config,
-    defaultConfig: initialOptions.defaultConfig,
+    config: getRelativeConfigSpecifier(
+      inputFS,
+      projectRoot,
+      initialOptions.config,
+    ),
+    defaultConfig: getRelativeConfigSpecifier(
+      inputFS,
+      projectRoot,
+      initialOptions.defaultConfig,
+    ),
     shouldPatchConsole:
       initialOptions.shouldPatchConsole ?? process.env.NODE_ENV !== 'test',
     env: {
@@ -126,29 +136,51 @@ export default async function resolveOptions(
     shouldDisableCache: initialOptions.shouldDisableCache ?? false,
     shouldProfile: initialOptions.shouldProfile ?? false,
     cacheDir,
-    entries,
-    entryRoot,
+    entries: entries.map(e => toProjectPath(projectRoot, e)),
+    entryRoot: toProjectPath(projectRoot, entryRoot),
     targets: initialOptions.targets,
     logLevel: initialOptions.logLevel ?? 'info',
     projectRoot,
-    lockFile,
     inputFS,
     outputFS,
     cache,
     packageManager,
-    additionalReporters: initialOptions.additionalReporters ?? [],
+    additionalReporters:
+      initialOptions.additionalReporters?.map(({packageName, resolveFrom}) => ({
+        packageName,
+        resolveFrom: toProjectPath(projectRoot, resolveFrom),
+      })) ?? [],
     instanceId: generateInstanceId(entries),
     detailedReport: initialOptions.detailedReport,
     defaultTargetOptions: {
       shouldOptimize,
-      shouldScopeHoist:
-        initialOptions?.defaultTargetOptions?.shouldScopeHoist ??
-        initialOptions.mode === 'production',
+      shouldScopeHoist: initialOptions?.defaultTargetOptions?.shouldScopeHoist,
       sourceMaps: initialOptions?.defaultTargetOptions?.sourceMaps ?? true,
       publicUrl,
-      distDir,
+      ...(distDir != null
+        ? {distDir: toProjectPath(projectRoot, distDir)}
+        : {...null}),
       engines: initialOptions?.defaultTargetOptions?.engines,
       outputFormat: initialOptions?.defaultTargetOptions?.outputFormat,
+      isLibrary: initialOptions?.defaultTargetOptions?.isLibrary,
     },
   };
+}
+
+function getRelativeConfigSpecifier(
+  fs: FileSystem,
+  projectRoot: FilePath,
+  specifier: ?DependencySpecifier,
+) {
+  if (specifier == null) {
+    return undefined;
+  } else if (path.isAbsolute(specifier)) {
+    let resolveFrom = getResolveFrom(fs, projectRoot);
+    let relative = relativePath(path.dirname(resolveFrom), specifier);
+    // If the config is outside the project root, use an absolute path so that if the project root
+    // moves the path still works. Otherwise, use a relative path so that the cache is portable.
+    return relative.startsWith('..') ? specifier : relative;
+  } else {
+    return specifier;
+  }
 }

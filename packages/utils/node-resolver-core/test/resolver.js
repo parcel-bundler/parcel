@@ -5,33 +5,35 @@ import assert from 'assert';
 import nullthrows from 'nullthrows';
 import {ncp, overlayFS, outputFS} from '@parcel/test-utils';
 import {loadConfig as configCache} from '@parcel/utils';
+import {createEnvironment} from '@parcel/core/src/Environment';
+import Environment from '@parcel/core/src/public/Environment';
+import {DEFAULT_OPTIONS} from '@parcel/core/test/test-utils';
 
 const rootDir = path.join(__dirname, 'fixture');
 
-const NODE_ENV = {
-  includeNodeModules: false,
-  isBrowser() {
-    return false;
-  },
-  isNode() {
-    return true;
-  },
-};
+const NODE_ENV = new Environment(
+  createEnvironment({
+    context: 'node',
+    includeNodeModules: false,
+  }),
+  DEFAULT_OPTIONS,
+);
 
-const NODE_INCLUDE_ENV = {
-  ...NODE_ENV,
-  includeNodeModules: true,
-};
+const NODE_INCLUDE_ENV = new Environment(
+  createEnvironment({
+    context: 'node',
+    includeNodeModules: true,
+  }),
+  DEFAULT_OPTIONS,
+);
 
-const BROWSER_ENV = {
-  includeNodeModules: true,
-  isBrowser() {
-    return true;
-  },
-  isNode() {
-    return false;
-  },
-};
+const BROWSER_ENV = new Environment(
+  createEnvironment({
+    context: 'browser',
+    includeNodeModules: true,
+  }),
+  DEFAULT_OPTIONS,
+);
 
 describe('resolver', function() {
   let resolver;

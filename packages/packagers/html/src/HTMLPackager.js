@@ -82,7 +82,7 @@ export default (new Packager({
       getInlineBundleContents,
       getInlineReplacement: (dep, inlineType, contents) => ({
         from: dep.id,
-        to: contents,
+        to: contents.replace(/"/g, '&quot;').trim(),
       }),
       map,
     });
@@ -142,8 +142,26 @@ async function replaceInlineAssetContent(
         : contents
       ).toString();
 
-      if (nullthrows(bundle).env.outputFormat === 'esmodule') {
+      if (
+        node.tag === 'script' &&
+        nullthrows(bundle).env.outputFormat === 'esmodule'
+      ) {
         node.attrs.type = 'module';
+      }
+
+      // Escape closing script tags and HTML comments in JS content.
+      // https://www.w3.org/TR/html52/semantics-scripting.html#restrictions-for-contents-of-script-elements
+      // Avoid replacing </script with <\/script as it would break the following valid JS: 0</script/ (i.e. regexp literal).
+      // Instead, escape the s character.
+      if (node.tag === 'script') {
+        node.content = node.content
+          .replace(/<!--/g, '<\\!--')
+          .replace(/<\/(script)/gi, '</\\$1');
+      }
+
+      // Escape closing style tags in CSS content.
+      if (node.tag === 'style') {
+        node.content = node.content.replace(/<\/(style)/gi, '<\\/$1');
       }
 
       // remove attr from output
