@@ -48,7 +48,7 @@ export default (new Transformer({
         });
       }
 
-      asset.setStream(imagePipeline);
+      asset.setStream(() => imagePipeline);
     }
 
     return [asset];
