@@ -5812,4 +5812,16 @@ describe('scope hoisting', function() {
     let res = await run(b, {output: null}, {require: false});
     assert.equal(res.output, 'a');
   });
+
+  it('should not deduplicate an asset if it will become unreachable', async function() {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        'integration/sibling-deduplicate-unreachable/index.js',
+      ),
+      {mode: 'production'},
+    );
+    let res = await run(b);
+    assert.equal(res, 'target');
+  });
 });

@@ -5091,4 +5091,21 @@ describe('javascript', function() {
       assert.equal(typeof res.text, 'string');
     });
   });
+
+  it('should not deduplicate an asset if it will become unreachable', async function() {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        'integration/sibling-deduplicate-unreachable/index.js',
+      ),
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: false,
+        },
+      },
+    );
+    let res = await run(b);
+    assert.equal(await res.default, 'target');
+  });
 });
