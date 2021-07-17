@@ -498,7 +498,7 @@ describe('html', function() {
     // minifySvg is false
     assert(
       html.includes(
-        '<svg version="1.1" baseprofile="full" width="300" height="200" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="red"></rect><circle cx="150" cy="100" r="80" fill="green"></circle><text x="150" y="125" font-size="60" text-anchor="middle" fill="white">SVG</text></svg>',
+        '<svg version="1.1" width="300" height="200" xmlns="http://www.w3.org/2000/svg" baseProfile="full"><rect width="100%" height="100%" fill="red"></rect><circle cx="150" cy="100" r="80" fill="green"></circle><text x="150" y="125" font-size="60" text-anchor="middle" fill="white">SVG</text></svg>',
       ),
     );
   });
@@ -2322,8 +2322,20 @@ describe('html', function() {
   });
 
   it('should work with bundle names that have colons in them', async function() {
+    if (process.platform === 'win32') {
+      return;
+    }
+
+    // Windows paths cannot contain colons and will fail to git clone, so write the file here (in memory).
+    await overlayFS.mkdirp(path.join(__dirname, 'integration/url-colon'));
+    await overlayFS.writeFile(
+      path.join(__dirname, 'integration/url-colon/a:b:c.html'),
+      '<p>Test</p>',
+    );
+
     let b = await bundle(
       path.join(__dirname, 'integration/url-colon/relative.html'),
+      {inputFS: overlayFS},
     );
 
     assertBundles(b, [
@@ -2342,6 +2354,7 @@ describe('html', function() {
 
     b = await bundle(
       path.join(__dirname, 'integration/url-colon/absolute.html'),
+      {inputFS: overlayFS},
     );
 
     assertBundles(b, [
@@ -2357,5 +2370,20 @@ describe('html', function() {
 
     output = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
     assert(output.includes('/a:b:c.html'));
+  });
+
+  it('should normalize case of SVG elements and attributes when minified', async function() {
+    let b = await bundle(
+      path.join(__dirname, 'integration/html-svg-case/index.html'),
+      {
+        mode: 'production',
+      },
+    );
+
+    let output = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(output.includes('<x-custom stddeviation="0.5"'));
+    assert(output.includes('<svg role="img" viewBox='));
+    assert(output.includes('<filter'));
+    assert(output.includes('<feGaussianBlur in="SourceGraphic" stdDeviation='));
   });
 });
