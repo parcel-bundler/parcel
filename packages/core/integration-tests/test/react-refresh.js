@@ -3,10 +3,12 @@ import assert from 'assert';
 import invariant from 'assert';
 import path from 'path';
 import {
+  bundle,
   bundler,
   getNextBuild,
   overlayFS as fs,
   sleep,
+  run,
 } from '@parcel/test-utils';
 import getPort from 'get-port';
 import type {BuildEvent} from '@parcel/types';
@@ -157,6 +159,23 @@ if (MessageChannel) {
       afterEach(async () => {
         await cleanup({subscription, window});
       });
+    });
+
+    it('does not error on inline scripts', async () => {
+      let port = await getPort();
+      let b = await bundle(
+        path.join(
+          __dirname,
+          'integration/react-refresh-inline-script/index.html',
+        ),
+        {
+          hmrOptions: {
+            port,
+          },
+        },
+      );
+
+      await run(b, {}, {require: false});
     });
   });
 }
