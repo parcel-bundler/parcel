@@ -185,15 +185,16 @@ function insertBundleReferences(siblingBundles, tree) {
         },
       });
     } else if (bundle.type === 'js') {
+      let nomodule =
+        bundle.env.outputFormat !== 'esmodule' &&
+        bundle.env.sourceType === 'module' &&
+        bundle.env.shouldScopeHoist;
       bundles.push({
         tag: 'script',
         attrs: {
           type: bundle.env.outputFormat === 'esmodule' ? 'module' : undefined,
-          nomodule:
-            bundle.env.outputFormat !== 'esmodule' &&
-            bundle.env.shouldScopeHoist
-              ? ''
-              : undefined,
+          nomodule: nomodule ? '' : undefined,
+          defer: nomodule ? '' : undefined,
           src: urlJoin(bundle.target.publicUrl, bundle.name),
         },
       });

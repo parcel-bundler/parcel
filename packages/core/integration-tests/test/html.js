@@ -1813,13 +1813,15 @@ describe('html', function() {
       let match;
       while ((match = regex.exec(html)) !== null) {
         let attributes = new Map(match[1].split(' ').map(a => a.split('=')));
-        assert.strictEqual(attributes.size, 2);
         let url = attributes.get('src').replace(/"/g, '');
         assert(url);
         if (attributes.get('type') === '"module"') {
+          assert.strictEqual(attributes.size, 2);
           moduleScripts.push(path.basename(url));
         } else {
+          assert.strictEqual(attributes.size, 3);
           assert(attributes.get('nomodule'));
+          assert(attributes.get('defer'));
           noModuleScripts.push(path.basename(url));
         }
       }
@@ -1840,6 +1842,99 @@ describe('html', function() {
         );
       }
     }
+  });
+
+  it('should isolate async scripts', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-async-script/index.html'),
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+          shouldOptimize: false,
+        },
+      },
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.html',
+        assets: ['index.html'],
+      },
+      {
+        assets: ['a.js', 'c.js'],
+      },
+      {
+        assets: ['b.js', 'c.js'],
+      },
+    ]);
+
+    let output = [];
+    await run(b, {
+      output(o) {
+        output.push(o);
+      },
+    });
+
+    // could run in either order.
+    assert(output.sort(), ['a', 'b', 'c']);
+  });
+
+  it('should isolate classic scripts from nomodule scripts', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-isolate-script/index.html'),
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+          shouldOptimize: false,
+        },
+      },
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.html',
+        assets: ['index.html'],
+      },
+      {
+        assets: ['a.js', 'bundle-manifest.js'],
+      },
+      {
+        assets: [
+          'a.js',
+          'bundle-manifest.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'js-loader.js',
+        ],
+      },
+      {
+        assets: [
+          'b.js',
+          'bundle-manifest.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'js-loader.js',
+        ],
+      },
+      {
+        assets: ['c.js'],
+      },
+      {
+        assets: ['c.js'],
+      },
+    ]);
+
+    let output = [];
+    await run(b, {
+      output(o) {
+        output.push(o);
+      },
+    });
+
+    // could run in either order.
+    assert(output.sort(), ['a', 'b', 'c']);
   });
 
   it('should support multiple entries with shared sibling bundles', async function() {
