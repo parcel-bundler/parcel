@@ -2322,7 +2322,11 @@ describe('html', function() {
   });
 
   it('should work with bundle names that have colons in them', async function() {
-    // Windows paths cannot contain colons, so write the file here (in memory).
+    if (process.platform === 'win32') {
+      return;
+    }
+
+    // Windows paths cannot contain colons and will fail to git clone, so write the file here (in memory).
     await overlayFS.mkdirp(path.join(__dirname, 'integration/url-colon'));
     await overlayFS.writeFile(
       path.join(__dirname, 'integration/url-colon/a:b:c.html'),
