@@ -1753,6 +1753,190 @@ describe('html', function() {
     // assert.equal(insertedBundles[0], lodashSibling);
   });
 
+  it('inserts sibling bundles into html with nomodule or type=module', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-js-shared-nomodule/*.html'),
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+          shouldOptimize: false,
+        },
+      },
+    );
+
+    assertBundles(b, [
+      {
+        name: 'a.html',
+        assets: ['a.html'],
+      },
+      {
+        type: 'js',
+        assets: ['a.js'],
+      },
+      {
+        type: 'js',
+        assets: ['a.js'],
+      },
+      {
+        name: 'b.html',
+        assets: ['b.html'],
+      },
+      {
+        type: 'js',
+        assets: ['b.js'],
+      },
+      {
+        type: 'js',
+        assets: ['b.js'],
+      },
+      {
+        type: 'js',
+        assets: ['lib.js'],
+      },
+      {
+        type: 'js',
+        assets: ['lib.js'],
+      },
+    ]);
+
+    for (let file of b
+      .getBundles()
+      .filter(b => b.type === 'html')
+      .map(b => b.filePath)) {
+      let html = await outputFS.readFile(file, 'utf8');
+
+      let noModuleScripts = [];
+      let moduleScripts = [];
+
+      let regex = /<script ([^>]*)><\/script>/g;
+      let match;
+      while ((match = regex.exec(html)) !== null) {
+        let attributes = new Map(match[1].split(' ').map(a => a.split('=')));
+        let url = attributes.get('src').replace(/"/g, '');
+        assert(url);
+        if (attributes.get('type') === '"module"') {
+          assert.strictEqual(attributes.size, 2);
+          moduleScripts.push(path.basename(url));
+        } else {
+          assert.strictEqual(attributes.size, 3);
+          assert(attributes.get('nomodule'));
+          assert(attributes.get('defer'));
+          noModuleScripts.push(path.basename(url));
+        }
+      }
+
+      for (let scripts of [moduleScripts, noModuleScripts]) {
+        assert.strictEqual(scripts.length, 2);
+        assert(
+          b
+            .getBundles()
+            .find(b => b.filePath.endsWith(scripts[0]))
+            .getMainEntry() == null,
+        );
+        assert(
+          b
+            .getBundles()
+            .find(b => b.filePath.endsWith(scripts[1]))
+            .getMainEntry(),
+        );
+      }
+    }
+  });
+
+  it('should isolate async scripts', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-async-script/index.html'),
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+          shouldOptimize: false,
+        },
+      },
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.html',
+        assets: ['index.html'],
+      },
+      {
+        assets: ['a.js', 'c.js'],
+      },
+      {
+        assets: ['b.js', 'c.js'],
+      },
+    ]);
+
+    let output = [];
+    await run(b, {
+      output(o) {
+        output.push(o);
+      },
+    });
+
+    // could run in either order.
+    assert(output.sort(), ['a', 'b', 'c']);
+  });
+
+  it('should isolate classic scripts from nomodule scripts', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-isolate-script/index.html'),
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+          shouldOptimize: false,
+        },
+      },
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.html',
+        assets: ['index.html'],
+      },
+      {
+        assets: ['a.js', 'bundle-manifest.js'],
+      },
+      {
+        assets: [
+          'a.js',
+          'bundle-manifest.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'js-loader.js',
+        ],
+      },
+      {
+        assets: [
+          'b.js',
+          'bundle-manifest.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'js-loader.js',
+        ],
+      },
+      {
+        assets: ['c.js'],
+      },
+      {
+        assets: ['c.js'],
+      },
+    ]);
+
+    let output = [];
+    await run(b, {
+      output(o) {
+        output.push(o);
+      },
+    });
+
+    // could run in either order.
+    assert(output.sort(), ['a', 'b', 'c']);
+  });
+
   it('should support multiple entries with shared sibling bundles', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/shared-sibling-entries/*.html'),
