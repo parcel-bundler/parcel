@@ -7,9 +7,8 @@ import {
   distDir,
   outputFS,
 } from '@parcel/test-utils';
-import {escapeMarkdown} from '@parcel/diagnostic';
 
-describe.only('sass', function() {
+describe('sass', function() {
   it('should support requiring sass files', async function() {
     let b = await bundle(path.join(__dirname, '/integration/sass/index.js'));
 
