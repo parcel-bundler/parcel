@@ -350,7 +350,11 @@ export default class NodeResolver {
       return;
     }
 
-    if (!pkg.dependencies?.[moduleName]) {
+    if (
+      !pkg.dependencies?.[moduleName] &&
+      !pkg.peerDependencies?.[moduleName] &&
+      !pkg.engines?.[moduleName]
+    ) {
       let pkgContent = await this.fs.readFile(pkg.pkgfile, 'utf8');
       throw new ThrowableDiagnostic({
         diagnostic: {
