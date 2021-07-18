@@ -24,7 +24,6 @@ export default (new Transformer({
             end: '>',
           },
         ],
-        lowerCaseAttributeNames: true,
         sourceLocations: true,
         xmlMode: true,
       }),
