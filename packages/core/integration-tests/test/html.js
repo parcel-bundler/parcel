@@ -466,7 +466,7 @@ describe('html', function() {
     assert.equal(html.length, 0);
   });
 
-  it('should read .htmlnanorc and minify HTML in production mode', async function() {
+  it('should read htmlanorc.json and minify HTML in production mode', async function() {
     await bundle(
       path.join(__dirname, '/integration/htmlnano-config/index.html'),
       {
