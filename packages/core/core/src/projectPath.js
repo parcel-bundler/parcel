@@ -79,5 +79,5 @@ export function joinProjectPath(
   a: ProjectPath,
   ...b: Array<FilePath>
 ): ProjectPath {
-  return path.join(a, ...b);
+  return path.posix.join(a, ...b);
 }
