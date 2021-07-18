@@ -332,7 +332,6 @@ export default (new Transformer({
       }
     }
 
-    let relativePath = path.relative(options.projectRoot, asset.filePath);
     let env: EnvMap = {};
 
     if (!config?.inlineEnvironment) {
@@ -377,6 +376,7 @@ export default (new Transformer({
       inline_fs: Boolean(config?.inlineFS) && !asset.env.isNode(),
       insert_node_globals: !asset.env.isNode(),
       is_browser: asset.env.isBrowser(),
+      is_worker: asset.env.isWorker(),
       env,
       is_type_script: asset.type === 'ts' || asset.type === 'tsx',
       is_jsx: Boolean(config?.isJSX),
@@ -397,11 +397,13 @@ export default (new Transformer({
         asset.env.shouldScopeHoist && asset.env.sourceType !== 'script',
       source_type: asset.env.sourceType === 'script' ? 'Script' : 'Module',
       supports_module_workers: supportsModuleWorkers,
+      is_library: asset.env.isLibrary,
+      is_esm_output: asset.env.outputFormat === 'esmodule',
     });
 
     let convertLoc = loc => {
       let location = {
-        filePath: relativePath,
+        filePath: asset.filePath,
         start: {
           line: loc.start_line + Number(asset.meta.startLine ?? 1) - 1,
           column: loc.start_col,
@@ -448,7 +450,7 @@ export default (new Transformer({
           };
 
           if (diagnostic.show_environment) {
-            if (asset.env.loc) {
+            if (asset.env.loc && asset.env.loc.filePath !== asset.filePath) {
               res.codeFrames.push({
                 filePath: asset.env.loc.filePath,
                 codeHighlights: [
@@ -512,6 +514,7 @@ export default (new Transformer({
           },
           meta: {
             webworker: true,
+            placeholder: dep.placeholder,
           },
         });
       } else if (dep.kind === 'ServiceWorker') {
@@ -525,6 +528,9 @@ export default (new Transformer({
             outputFormat: 'global', // TODO: module service worker support
             loc,
           },
+          meta: {
+            placeholder: dep.placeholder,
+          },
         });
       } else if (dep.kind === 'Worklet') {
         let loc = convertLoc(dep.loc);
@@ -536,11 +542,17 @@ export default (new Transformer({
             outputFormat: 'esmodule', // Worklets require ESM
             loc,
           },
+          meta: {
+            placeholder: dep.placeholder,
+          },
         });
       } else if (dep.kind === 'URL') {
         asset.addURLDependency(dep.specifier, {
           bundleBehavior: 'isolated',
           loc: convertLoc(dep.loc),
+          meta: {
+            placeholder: dep.placeholder,
+          },
         });
       } else if (dep.kind === 'File') {
         asset.invalidateOnFileChange(dep.specifier);
@@ -548,6 +560,10 @@ export default (new Transformer({
         let meta: JSONObject = {kind: dep.kind};
         if (dep.attributes) {
           meta.importAttributes = dep.attributes;
+        }
+
+        if (dep.placeholder) {
+          meta.placeholder = dep.placeholder;
         }
 
         let env;
@@ -608,6 +624,15 @@ export default (new Transformer({
           };
         }
 
+        // Always bundle helpers, even with includeNodeModules: false, except if this is a library.
+        let isHelper = dep.is_helper && !dep.specifier.endsWith('/jsx-runtime');
+        if (isHelper && !asset.env.isLibrary) {
+          env = {
+            ...env,
+            includeNodeModules: true,
+          };
+        }
+
         asset.addDependency({
           specifier: dep.specifier,
           specifierType: dep.kind === 'Require' ? 'commonjs' : 'esm',
@@ -615,10 +640,7 @@ export default (new Transformer({
           priority: dep.kind === 'DynamicImport' ? 'lazy' : 'sync',
           isOptional: dep.is_optional,
           meta,
-          resolveFrom:
-            dep.is_helper && !dep.specifier.endsWith('/jsx-runtime')
-              ? __filename
-              : undefined,
+          resolveFrom: isHelper ? __filename : undefined,
           env,
         });
       }
@@ -633,7 +655,9 @@ export default (new Transformer({
       }
 
       let deps = new Map(
-        asset.getDependencies().map(dep => [dep.specifier, dep]),
+        asset
+          .getDependencies()
+          .map(dep => [dep.meta.placeholder ?? dep.specifier, dep]),
       );
       for (let dep of deps.values()) {
         dep.symbols.ensure();

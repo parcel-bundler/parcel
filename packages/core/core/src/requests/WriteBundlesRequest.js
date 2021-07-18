@@ -9,8 +9,8 @@ import type {BundleInfo} from '../PackagerRunner';
 
 import {HASH_REF_PREFIX} from '../constants';
 import {serialize} from '../serializer';
+import {joinProjectPath} from '../projectPath';
 import nullthrows from 'nullthrows';
-import path from 'path';
 import {hashString} from '@parcel/hash';
 import {createPackageRequest} from './PackageRequest';
 import createWriteBundleRequest from './WriteBundleRequest';
@@ -70,7 +70,7 @@ async function run({input, api, farm, options}: RunInput) {
       hashRefToNameHash.set(bundle.hashReference, hash);
       let name = nullthrows(bundle.name).replace(bundle.hashReference, hash);
       res.set(bundle.id, {
-        filePath: path.join(bundle.target.distDir, name),
+        filePath: joinProjectPath(bundle.target.distDir, name),
         stats: {
           time: 0,
           size: 0,

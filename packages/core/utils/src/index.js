@@ -2,9 +2,10 @@
 export type * from './config';
 export type * from './Deferred';
 export type * from './generateBuildMetrics';
+export type * from './http-server';
+export type * from './path';
 export type * from './prettyDiagnostic';
 export type * from './schema';
-export type * from './http-server';
 
 export {default as countLines} from './countLines';
 export {default as generateBuildMetrics} from './generateBuildMetrics';
@@ -42,7 +43,7 @@ export {isGlob, isGlobMatch, globSync, glob} from './glob';
 export {hashStream, hashObject, hashFile} from './hash';
 export {fuzzySearch} from './schema';
 export {createHTTPServer} from './http-server';
-export {normalizeSeparators, normalizePath, relativePath} from './path';
+export {normalizePath, normalizeSeparators, relativePath} from './path';
 export {
   replaceURLReferences,
   replaceInlineReferences,

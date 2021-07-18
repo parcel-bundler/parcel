@@ -142,10 +142,20 @@ export default function collectDependencies(
       (attrs.rel === 'canonical' || attrs.rel === 'manifest') &&
       attrs.href
     ) {
-      attrs.href = asset.addURLDependency(attrs.href, {
+      let href = attrs.href;
+      if (attrs.rel === 'manifest') {
+        // A hack to allow manifest.json rather than manifest.webmanifest.
+        // If a custom pipeline is used, it is responsible for running @parcel/transformer-webmanifest.
+        if (!href.includes(':')) {
+          href = 'webmanifest:' + href;
+        }
+      }
+
+      attrs.href = asset.addURLDependency(href, {
         needsStableName: true,
       });
       isDirty = true;
+      asset.setAST(ast);
       return node;
     }
 
@@ -177,9 +187,14 @@ export default function collectDependencies(
         copy = {...node, attrs};
         delete attrs.type;
         attrs.nomodule = '';
+        attrs.defer = '';
         attrs.src = asset.addURLDependency(attrs.src, {
           // Keep in the same bundle group as the HTML.
           priority: 'parallel',
+          bundleBehavior:
+            sourceType === 'script' || attrs.async != null
+              ? 'isolated'
+              : undefined,
           env: {
             sourceType,
             outputFormat: 'global',
@@ -193,6 +208,14 @@ export default function collectDependencies(
       attrs.src = asset.addURLDependency(attrs.src, {
         // Keep in the same bundle group as the HTML.
         priority: 'parallel',
+        // If the script is async it can be executed in any order, so it cannot depend
+        // on any sibling scripts for dependencies. Keep all dependencies together.
+        // Also, don't share dependencies between classic scripts and nomodule scripts
+        // because nomodule scripts won't run when modules are supported.
+        bundleBehavior:
+          sourceType === 'script' || attrs.async != null
+            ? 'isolated'
+            : undefined,
         env: {
           sourceType,
           outputFormat,

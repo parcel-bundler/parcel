@@ -2,12 +2,10 @@
 
 import type {
   FilePath,
-  FileCreateInvalidation,
   GenerateOutput,
   Transformer,
   TransformerResult,
   PackageName,
-  DevDepOptions,
   SemverRange,
 } from '@parcel/types';
 import type {WorkerApi} from '@parcel/workers';
@@ -18,13 +16,15 @@ import type {
   Config,
   DevDepRequest,
   ParcelOptions,
+  InternalFileCreateInvalidation,
+  InternalDevDepOptions,
 } from './types';
 import type {LoadedPlugin} from './ParcelConfig';
 
 import path from 'path';
 import {Readable} from 'stream';
 import nullthrows from 'nullthrows';
-import {normalizeSeparators, objectSortedEntries} from '@parcel/utils';
+import {objectSortedEntries} from '@parcel/utils';
 import logger, {PluginLogger} from '@parcel/logger';
 import ThrowableDiagnostic, {
   errorToDiagnostic,
@@ -65,6 +65,14 @@ import {
   invalidateDevDeps,
   getWorkerDevDepRequests,
 } from './requests/DevDepRequest';
+import {
+  type ProjectPath,
+  fromProjectPath,
+  fromProjectPathRelative,
+  toProjectPathUnsafe,
+  toProjectPath,
+} from './projectPath';
+import {invalidateOnFileCreateToInternal} from './utils';
 
 type GenerateFunc = (input: UncommittedAsset) => Promise<GenerateOutput>;
 
@@ -79,7 +87,7 @@ export type TransformationResult = {|
   assets: Array<AssetValue>,
   configRequests: Array<ConfigRequest>,
   invalidations: Array<RequestInvalidation>,
-  invalidateOnFileCreate: Array<FileCreateInvalidation>,
+  invalidateOnFileCreate: Array<InternalFileCreateInvalidation>,
   devDepRequests: Array<DevDepRequest>,
 |};
 
@@ -92,7 +100,7 @@ export default class Transformation {
   workerApi: WorkerApi;
   parcelConfig: ParcelConfig;
   invalidations: Map<string, RequestInvalidation>;
-  invalidateOnFileCreate: Array<FileCreateInvalidation>;
+  invalidateOnFileCreate: Array<InternalFileCreateInvalidation>;
 
   constructor({request, options, config, workerApi}: TransformationOpts) {
     this.configs = new Map();
@@ -128,8 +136,7 @@ export default class Transformation {
         logger.verbose([
           {
             origin: '@parcel/core',
-            message: md`Could not load existing source map for ${path.relative(
-              this.options.projectRoot,
+            message: md`Could not load existing source map for ${fromProjectPathRelative(
               asset.value.filePath,
             )}`,
           },
@@ -198,26 +205,27 @@ export default class Transformation {
       size,
       hash,
       isSource: summarizedIsSource,
-    } = await summarizeRequest(this.options.inputFS, {filePath, code});
+    } = await summarizeRequest(this.options.inputFS, {
+      filePath: fromProjectPath(this.options.projectRoot, filePath),
+      code,
+    });
 
     // Prefer `isSource` originating from the AssetRequest.
     let isSource = isSourceOverride ?? summarizedIsSource;
 
     // If the transformer request passed code, use a hash in addition
     // to the filename as the base for the id to ensure it is unique.
-    let idBase = normalizeSeparators(
-      path.relative(this.options.projectRoot, filePath),
-    );
+    let idBase = fromProjectPathRelative(filePath);
     if (code != null) {
       idBase += hash;
     }
     return new UncommittedAsset({
       idBase,
-      value: createAsset({
+      value: createAsset(this.options.projectRoot, {
         idBase,
         filePath,
         isSource,
-        type: path.extname(filePath).slice(1),
+        type: path.extname(fromProjectPathRelative(filePath)).slice(1),
         hash,
         pipeline,
         env,
@@ -308,7 +316,9 @@ export default class Transformation {
   async getPipelineHash(pipeline: Pipeline): Promise<string> {
     let hashes = '';
     for (let transformer of pipeline.transformers) {
-      let key = `${transformer.name}:${transformer.resolveFrom}`;
+      let key = `${transformer.name}:${fromProjectPathRelative(
+        transformer.resolveFrom,
+      )}`;
       hashes +=
         this.request.devDeps.get(key) ??
         this.devDepRequests.get(key)?.hash ??
@@ -319,7 +329,9 @@ export default class Transformation {
         hashes += await getConfigHash(config, transformer.name, this.options);
 
         for (let devDep of config.devDeps) {
-          let key = `${devDep.specifier}:${devDep.resolveFrom}`;
+          let key = `${devDep.specifier}:${fromProjectPathRelative(
+            devDep.resolveFrom,
+          )}`;
           hashes += nullthrows(this.devDepRequests.get(key)).hash;
         }
       }
@@ -329,21 +341,25 @@ export default class Transformation {
   }
 
   async addDevDependency(
-    opts: DevDepOptions,
+    opts: InternalDevDepOptions,
     transformer:
       | LoadedPlugin<Transformer<mixed>>
       | TransformerWithNameAndConfig,
   ): Promise<void> {
     let {specifier, resolveFrom, range} = opts;
-    let key = `${specifier}:${resolveFrom}`;
+    let key = `${specifier}:${fromProjectPathRelative(resolveFrom)}`;
     if (this.devDepRequests.has(key)) {
       return;
     }
 
     // Ensure that the package manager has an entry for this resolution.
-    await this.options.packageManager.resolve(specifier, resolveFrom, {
-      range,
-    });
+    await this.options.packageManager.resolve(
+      specifier,
+      fromProjectPath(this.options.projectRoot, opts.resolveFrom),
+      {
+        range,
+      },
+    );
 
     let devDepRequest = await createDevDependency(
       opts,
@@ -407,11 +423,35 @@ export default class Transformation {
             );
           }
         } catch (e) {
+          let diagnostic = errorToDiagnostic(e, {
+            origin: transformer.name,
+            filePath: fromProjectPath(
+              this.options.projectRoot,
+              asset.value.filePath,
+            ),
+          });
+
+          // If this request is a virtual asset that might not exist on the filesystem,
+          // add the `code` property to each code frame in the diagnostics that match the
+          // request's filepath. This can't be done by the transformer because it might not
+          // have access to the original code (e.g. an inline script tag in HTML).
+          if (this.request.code != null) {
+            for (let d of diagnostic) {
+              if (d.codeFrames) {
+                for (let codeFrame of d.codeFrames) {
+                  if (
+                    codeFrame.code == null &&
+                    codeFrame.filePath === this.request.filePath
+                  ) {
+                    codeFrame.code = this.request.code;
+                  }
+                }
+              }
+            }
+          }
+
           throw new ThrowableDiagnostic({
-            diagnostic: errorToDiagnostic(e, {
-              origin: transformer.name,
-              filePath: asset.value.filePath,
-            }),
+            diagnostic,
           });
         }
       }
@@ -530,7 +570,7 @@ export default class Transformation {
   }
 
   async loadPipeline(
-    filePath: FilePath,
+    filePath: ProjectPath,
     isSource: boolean,
     pipeline: ?string,
   ): Promise<Pipeline> {
@@ -578,14 +618,18 @@ export default class Transformation {
     newPipeline,
     currentPipeline,
   }: {|
-    filePath: string,
+    filePath: ProjectPath,
     isSource: boolean,
     newType: string,
     newPipeline: ?string,
     currentPipeline: Pipeline,
   |}): Promise<?Pipeline> {
-    let nextFilePath =
-      filePath.slice(0, -path.extname(filePath).length) + '.' + newType;
+    let filePathRelative = fromProjectPathRelative(filePath);
+    let nextFilePath = toProjectPathUnsafe(
+      filePathRelative.slice(0, -path.extname(filePathRelative).length) +
+        '.' +
+        newType,
+    );
     let nextPipeline = await this.loadPipeline(
       nextFilePath,
       isSource,
@@ -600,7 +644,7 @@ export default class Transformation {
   }
 
   async loadTransformerConfig(
-    filePath: FilePath,
+    filePath: ProjectPath,
     transformer: LoadedPlugin<Transformer<mixed>>,
     isSource: boolean,
   ): Promise<?Config> {
@@ -631,37 +675,46 @@ export default class Transformation {
     transformer: Transformer<mixed>,
     transformerName: string,
     preloadedConfig: ?Config,
-  ): Promise<Array<TransformerResult>> {
+  ): Promise<$ReadOnlyArray<TransformerResult | UncommittedAsset>> {
     const logger = new PluginLogger({origin: transformerName});
 
     const resolve = async (from: FilePath, to: string): Promise<FilePath> => {
-      let result = nullthrows(
-        await pipeline.resolverRunner.resolve(
-          createDependency({
-            env: asset.value.env,
-            specifier: to,
-            specifierType: 'esm', // ???
-            sourcePath: from,
-          }),
-        ),
+      let result = await pipeline.resolverRunner.resolve(
+        createDependency(this.options.projectRoot, {
+          env: asset.value.env,
+          specifier: to,
+          specifierType: 'esm', // ???
+          sourcePath: from,
+        }),
       );
 
       if (result.invalidateOnFileCreate) {
-        this.invalidateOnFileCreate.push(...result.invalidateOnFileCreate);
+        this.invalidateOnFileCreate.push(
+          ...result.invalidateOnFileCreate.map(i =>
+            invalidateOnFileCreateToInternal(this.options.projectRoot, i),
+          ),
+        );
       }
 
       if (result.invalidateOnFileChange) {
         for (let filePath of result.invalidateOnFileChange) {
           let invalidation = {
             type: 'file',
-            filePath,
+            filePath: toProjectPath(this.options.projectRoot, filePath),
           };
 
           this.invalidations.set(getInvalidationId(invalidation), invalidation);
         }
       }
 
-      return result.assetGroup.filePath;
+      if (result.diagnostics && result.diagnostics.length > 0) {
+        throw new ThrowableDiagnostic({diagnostic: result.diagnostics});
+      }
+
+      return fromProjectPath(
+        this.options.projectRoot,
+        nullthrows(result.assetGroup).filePath,
+      );
     };
 
     // If an ast exists on the asset, but we cannot reuse it,
@@ -702,17 +755,16 @@ export default class Transformation {
     }
 
     // Transform.
-    let results = await normalizeAssets(
-      // $FlowFixMe
+    let transfomerResult: Array<TransformerResult | MutableAsset> =
+      // $FlowFixMe the returned IMutableAsset really is a MutableAsset
       await transformer.transform({
         asset: new MutableAsset(asset),
-        ast: asset.ast,
         config,
         options: pipeline.pluginOptions,
         resolve,
         logger,
-      }),
-    );
+      });
+    let results = await normalizeAssets(this.options, transfomerResult);
 
     // Create generate function that can be called later
     asset.generate = (): Promise<GenerateOutput> => {
@@ -752,18 +804,19 @@ type TransformerWithNameAndConfig = {|
   plugin: Transformer<mixed>,
   config: ?Config,
   configKeyPath?: string,
-  resolveFrom: FilePath,
+  resolveFrom: ProjectPath,
   range?: ?SemverRange,
 |};
 
-function normalizeAssets(results: Array<TransformerResult | MutableAsset>) {
-  return Promise.all(
-    results.map(result => {
-      if (result instanceof MutableAsset) {
-        return mutableAssetToUncommittedAsset(result);
-      }
+function normalizeAssets(
+  options,
+  results: Array<TransformerResult | MutableAsset>,
+): Array<TransformerResult | UncommittedAsset> {
+  return results.map(result => {
+    if (result instanceof MutableAsset) {
+      return mutableAssetToUncommittedAsset(result);
+    }
 
-      return result;
-    }),
-  );
+    return result;
+  });
 }

@@ -102,15 +102,12 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
       });
 
       // Handle HMR Update
-      var handled = false;
-      assets.forEach(function(asset) {
-        var didAccept =
+      let handled = assets.every(asset => {
+        return (
           asset.type === 'css' ||
           (asset.type === 'js' &&
-            hmrAcceptCheck(module.bundle.root, asset.id, asset.depsByBundle));
-        if (didAccept) {
-          handled = true;
-        }
+            hmrAcceptCheck(module.bundle.root, asset.id, asset.depsByBundle))
+        );
       });
 
       if (handled) {

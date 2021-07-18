@@ -2,6 +2,7 @@
 import type {FilePath, PackageName, Semver, SemverRange} from '@parcel/types';
 import type {ParcelOptions} from './types';
 
+import path from 'path';
 import semver from 'semver';
 import logger from '@parcel/logger';
 import nullthrows from 'nullthrows';
@@ -11,10 +12,10 @@ import ThrowableDiagnostic, {
 } from '@parcel/diagnostic';
 import {
   findAlternativeNodeModules,
-  resolveConfig,
   loadConfig,
+  resolveConfig,
 } from '@parcel/utils';
-import path from 'path';
+import {type ProjectPath, toProjectPath} from './projectPath';
 import {version as PARCEL_VERSION} from '../package.json';
 
 const NODE_MODULES = `${path.sep}node_modules${path.sep}`;
@@ -28,7 +29,7 @@ export default async function loadPlugin<T>(
 ): Promise<{|
   plugin: T,
   version: Semver,
-  resolveFrom: FilePath,
+  resolveFrom: ProjectPath,
   range: ?SemverRange,
 |}> {
   let resolveFrom = configPath;
@@ -192,5 +193,10 @@ export default async function loadPlugin<T>(
       `Plugin ${pluginName} is not a valid Parcel plugin, should export an instance of a Parcel plugin ex. "export default new Reporter({ ... })".`,
     );
   }
-  return {plugin, version: nullthrows(pkg).version, resolveFrom, range};
+  return {
+    plugin,
+    version: nullthrows(pkg).version,
+    resolveFrom: toProjectPath(options.projectRoot, resolveFrom),
+    range,
+  };
 }

@@ -214,13 +214,12 @@ async function run(
   _opts: any, // using pre v7 Commander options as properties
   command: any,
 ) {
+  if (entries.length === 0) {
+    entries = ['.'];
+  }
+
   entries = entries.map(entry => path.resolve(entry));
 
-  if (entries.length === 0) {
-    // TODO move this into core, a glob could still lead to no entries
-    INTERNAL_ORIGINAL_CONSOLE.log('No entries found');
-    return;
-  }
   let Parcel = require('@parcel/core').default;
   let fs = new NodeFS();
   let options = await normalizeOptions(command, fs);

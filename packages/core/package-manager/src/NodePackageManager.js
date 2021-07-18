@@ -45,6 +45,7 @@ export class NodePackageManager implements PackageManager {
   installer: ?PackageInstaller;
   resolver: NodeResolver;
   syncResolver: NodeResolverSync;
+  invalidationsCache: Map<string, Invalidations> = new Map();
 
   constructor(
     fs: FileSystem,
@@ -272,6 +273,7 @@ export class NodePackageManager implements PackageManager {
       }
 
       cache.set(key, resolved);
+      this.invalidationsCache.clear();
 
       // Add the specifier as a child to the parent module.
       // Don't do this if the specifier was an absolute path, as this was likely a dynamically resolved path
@@ -297,6 +299,7 @@ export class NodePackageManager implements PackageManager {
     if (!resolved) {
       resolved = this.syncResolver.resolve(name, from);
       cache.set(key, resolved);
+      this.invalidationsCache.clear();
 
       if (!path.isAbsolute(name)) {
         let moduleChildren = children.get(from);
@@ -324,6 +327,12 @@ export class NodePackageManager implements PackageManager {
   }
 
   getInvalidations(name: DependencySpecifier, from: FilePath): Invalidations {
+    let key = name + ':' + from;
+    let cached = this.invalidationsCache.get(key);
+    if (cached != null) {
+      return cached;
+    }
+
     let res = {
       invalidateOnFileCreate: [],
       invalidateOnFileChange: new Set(),
@@ -359,6 +368,7 @@ export class NodePackageManager implements PackageManager {
     };
 
     addKey(name, from);
+    this.invalidationsCache.set(key, res);
     return res;
   }
 
