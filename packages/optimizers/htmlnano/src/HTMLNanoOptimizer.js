@@ -39,6 +39,10 @@ export default (new Optimizer({
       );
     }
 
+    // $FlowFixMe
+    const presets = htmlnano.presets;
+    const preset =
+      typeof config?.preset === 'string' ? presets[config.preset] : {};
     const htmlNanoConfig = {
       minifyJs: false,
       minifySvg: {
@@ -70,7 +74,8 @@ export default (new Optimizer({
           },
         ]),
       },
-      ...config,
+      ...(preset || {}),
+      ...(config || {}),
     };
 
     return {
