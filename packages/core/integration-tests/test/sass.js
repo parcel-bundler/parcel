@@ -9,7 +9,7 @@ import {
 } from '@parcel/test-utils';
 import {escapeMarkdown} from '@parcel/diagnostic';
 
-describe('sass', function() {
+describe.only('sass', function() {
   it('should support requiring sass files', async function() {
     let b = await bundle(path.join(__dirname, '/integration/sass/index.js'));
 
@@ -223,29 +223,20 @@ describe('sass', function() {
     assert(css.includes('.a { color: red;'));
   });
 
-  it('should throw an exception when using webpack syntax', async function() {
-    await assert.rejects(
-      () =>
-        bundle(
-          path.join(
-            __dirname,
-            '/integration/sass-webpack-import-error/index.sass',
-          ),
-        ),
-      {
-        message: escapeMarkdown(
-          `
-The @import path "~library/style.sass" is using webpack specific syntax, which isn't supported by Parcel.
-
-To @import files from node_modules, use "library/style.sass"
-  ╷
-1 │ @import "~library/style.sass"
-  │         ^^^^^^^^^^^^^^^^^^^^^
-  ╵
-  test${path.sep}integration${path.sep}sass-webpack-import-error${path.sep}index.sass 1:9  root stylesheet`.trim(),
-        ),
-      },
+  it('should support using the custom webpack/sass node_modules syntax', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/sass-webpack-import-error/index.sass'),
     );
+
+    assertBundles(b, [
+      {
+        name: 'index.css',
+        assets: ['index.sass'],
+      },
+    ]);
+
+    let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
+    assert(css.includes('.external'));
   });
 
   it('should support node_modules imports', async function() {
