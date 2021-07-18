@@ -13,7 +13,7 @@ export default (new Optimizer({
   async loadConfig({config, options}) {
     let userConfig = await config.getConfigFrom(
       path.join(options.entryRoot, 'index.html'),
-      ['.htmlnanorc', '.htmlnanorc.js'],
+      ['htmlanorc.json', 'htmlnanorc.js'],
     );
 
     if (userConfig) {
