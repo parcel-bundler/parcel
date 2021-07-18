@@ -59,7 +59,7 @@ describe('resolver', function() {
 
   it('should print a diagnostic when a configured target field will overwrite an entry', async function() {
     let errorThrows = 0;
-    const overwriteDirs = ['browser/', 'custom-target/', 'main/', 'module/'];
+    const overwriteDirs = ['browser', 'app', 'main', 'module'];
     for (const currDir of overwriteDirs) {
       try {
         await bundle(
@@ -70,9 +70,19 @@ describe('resolver', function() {
         );
       } catch (e) {
         errorThrows++;
+        let pkg = JSON.parse(
+          await overlayFS.readFile(
+            path.join(
+              __dirname,
+              `integration/target-overwrite-source/${currDir}/package.json`,
+            ),
+          ),
+        );
         assert.deepEqual(
           e.diagnostics[0].message,
-          'Target is configured to overwrite source code.',
+          `Target "${currDir}" is configured to overwrite entry "${path.normalize(
+            `test/integration/target-overwrite-source/${currDir}/${pkg.source}`,
+          )}".`,
         );
       }
     }
