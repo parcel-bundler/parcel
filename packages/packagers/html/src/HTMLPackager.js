@@ -181,21 +181,21 @@ function insertBundleReferences(siblingBundles, tree) {
         tag: 'link',
         attrs: {
           rel: 'stylesheet',
-          href: urlJoin(
-            nullthrows(bundle.target).publicUrl,
-            nullthrows(bundle.name),
-          ),
+          href: urlJoin(bundle.target.publicUrl, bundle.name),
         },
       });
     } else if (bundle.type === 'js') {
+      let nomodule =
+        bundle.env.outputFormat !== 'esmodule' &&
+        bundle.env.sourceType === 'module' &&
+        bundle.env.shouldScopeHoist;
       bundles.push({
         tag: 'script',
         attrs: {
           type: bundle.env.outputFormat === 'esmodule' ? 'module' : undefined,
-          src: urlJoin(
-            nullthrows(bundle.target).publicUrl,
-            nullthrows(bundle.name),
-          ),
+          nomodule: nomodule ? '' : undefined,
+          defer: nomodule ? '' : undefined,
+          src: urlJoin(bundle.target.publicUrl, bundle.name),
         },
       });
     }
