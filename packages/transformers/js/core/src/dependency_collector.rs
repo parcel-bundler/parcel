@@ -673,16 +673,16 @@ impl<'a> Fold for DependencyCollector<'a> {
           }
           sym => {
             if sym.to_string() == "__parcel__URL__" {
-              let mut call = node.clone();
-              call.callee = Box::new(ast::Expr::Ident(ast::Ident::new(
-                "URL".into(),
-                DUMMY_SP.apply_mark(self.ignore_mark),
-              )));
-              // Only fold the first argument. We want to leave import.meta.url untouched.
-              if let Some(args) = &mut call.args {
-                args[0] = args[0].clone().fold_with(self);
+              // new __parcel__URL__(url) -> new URL(url, import.meta.url)
+              if let Some(args) = &node.args {
+                if let ast::Expr::New(new) = create_url_constructor(
+                  *args[0].expr.clone().fold_with(self),
+                  self.config.is_esm_output,
+                ) {
+                  return new;
+                }
               }
-              return call;
+              unreachable!();
             }
             false
           }

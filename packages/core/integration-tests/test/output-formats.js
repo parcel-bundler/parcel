@@ -490,7 +490,7 @@ describe('output formats', function() {
         contents.includes(
           `new URL("${path.basename(
             b.getBundles()[1].filePath,
-          )}", 'file:' + __filename)`,
+          )}", "file:" + __filename)`,
         ),
       );
     });
