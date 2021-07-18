@@ -5,6 +5,7 @@ use std::path::Path;
 use swc_atoms::JsWord;
 use swc_common::{SourceMap, SyntaxContext, DUMMY_SP};
 use swc_ecmascript::ast;
+use swc_ecmascript::utils::ident::IdentLike;
 use swc_ecmascript::visit::{Fold, FoldWith};
 
 use crate::dependency_collector::{DependencyDescriptor, DependencyKind};
@@ -16,7 +17,7 @@ pub struct GlobalReplacer<'a> {
   pub globals: HashMap<JsWord, ast::Stmt>,
   pub project_root: &'a Path,
   pub filename: &'a Path,
-  pub decls: &'a HashSet<(JsWord, SyntaxContext)>,
+  pub decls: &'a mut HashSet<(JsWord, SyntaxContext)>,
   pub global_mark: swc_common::Mark,
   pub scope_hoist: bool,
 }
@@ -64,6 +65,9 @@ impl<'a> Fold for GlobalReplacer<'a> {
               ),
             );
 
+            // So it gets renamed during scope hoisting.
+            self.decls.insert(id.to_id());
+
             let specifier = id.sym.clone();
             self.items.push(DependencyDescriptor {
               kind: DependencyKind::Require,
@@ -91,6 +95,8 @@ impl<'a> Fold for GlobalReplacer<'a> {
                 }),
               ),
             );
+
+            self.decls.insert(id.to_id());
 
             self.items.push(DependencyDescriptor {
               kind: DependencyKind::Require,
@@ -126,6 +132,8 @@ impl<'a> Fold for GlobalReplacer<'a> {
                 })),
               ),
             );
+
+            self.decls.insert(id.to_id());
           }
           "__dirname" => {
             let dirname = if let Some(dirname) = self.filename.parent() {
@@ -151,6 +159,8 @@ impl<'a> Fold for GlobalReplacer<'a> {
                 })),
               ),
             );
+
+            self.decls.insert(id.to_id());
           }
           "global" => {
             if !self.scope_hoist {
@@ -173,6 +183,8 @@ impl<'a> Fold for GlobalReplacer<'a> {
                   }),
                 ),
               );
+
+              self.decls.insert(id.to_id());
             }
           }
           _ => {}

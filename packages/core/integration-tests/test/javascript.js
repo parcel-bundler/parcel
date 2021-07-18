@@ -2516,6 +2516,25 @@ describe('javascript', function() {
     });
   });
 
+  it('should work when multiple files use globals with scope hoisting', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/globals/multiple.js'),
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+          shouldOptimize: false,
+        },
+      },
+    );
+
+    let output = await run(b);
+    assert.deepEqual(output, {
+      file: 'integration/globals/multiple.js',
+      other: 'integration/globals/index.js',
+    });
+  });
+
   it('should not insert global variables when used in a module specifier', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/globals-module-specifier/a.js'),

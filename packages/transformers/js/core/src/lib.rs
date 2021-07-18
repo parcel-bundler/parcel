@@ -270,7 +270,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
             let global_mark = Mark::fresh(Mark::root());
             let ignore_mark = Mark::fresh(Mark::root());
             let module = module.fold_with(&mut resolver_with_mark(global_mark));
-            let decls = collect_decls(&module);
+            let mut decls = collect_decls(&module);
 
             let mut preset_env_config = swc_ecma_preset_env::Config::default();
             preset_env_config.dynamic_import = true;
@@ -311,6 +311,13 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                   ),
                   should_inline_fs
                 ),
+              );
+
+              module.fold_with(&mut passes)
+            };
+
+            let module = {
+              let mut passes = chain!(
                 // Insert dependencies for node globals
                 Optional::new(
                   GlobalReplacer {
@@ -319,7 +326,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                     globals: HashMap::new(),
                     project_root: Path::new(&config.project_root),
                     filename: Path::new(&config.filename),
-                    decls: &decls,
+                    decls: &mut decls,
                     global_mark,
                     scope_hoist: config.scope_hoist
                   },
@@ -332,19 +339,22 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                 ),
                 // Inject SWC helpers if needed.
                 helpers::inject_helpers(),
-                // Collect dependencies
-                dependency_collector(
-                  &source_map,
-                  &mut result.dependencies,
-                  &decls,
-                  ignore_mark,
-                  &config,
-                  &mut diagnostics,
-                ),
               );
 
               module.fold_with(&mut passes)
             };
+
+            let module = module.fold_with(
+              // Collect dependencies
+              &mut dependency_collector(
+                &source_map,
+                &mut result.dependencies,
+                &decls,
+                ignore_mark,
+                &config,
+                &mut diagnostics,
+              ),
+            );
 
             if !diagnostics.is_empty() {
               result.diagnostics = Some(diagnostics);
