@@ -14,6 +14,9 @@ export default (new Optimizer({
     let userConfig = await config.getConfigFrom(
       path.join(options.entryRoot, 'index.html'),
       ['htmlanorc.json', 'htmlnanorc.js'],
+      {
+        packageKey: 'htmlnano',
+      },
     );
 
     if (userConfig) {
