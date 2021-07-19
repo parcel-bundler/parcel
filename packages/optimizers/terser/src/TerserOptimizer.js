@@ -12,7 +12,7 @@ import path from 'path';
 export default (new Optimizer({
   async loadConfig({config, options}) {
     let userConfig = await config.getConfigFrom(
-      path.join(options.entryRoot, 'index'),
+      path.join(options.projectRoot, 'index'),
       ['.terserrc', '.terserrc.js'],
     );
 

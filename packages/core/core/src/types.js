@@ -3,7 +3,6 @@
 import type {
   ASTGenerator,
   BuildMode,
-  BundleGroup,
   Engines,
   EnvironmentContext,
   EnvMap,
@@ -243,7 +242,6 @@ export type DevDepRequest = {|
 
 export type ParcelOptions = {|
   entries: Array<ProjectPath>,
-  entryRoot: ProjectPath,
   config?: DependencySpecifier,
   defaultConfig?: DependencySpecifier,
   env: EnvMap,
@@ -501,6 +499,11 @@ export type BundleNode = {|
   id: ContentKey,
   +type: 'bundle',
   value: Bundle,
+|};
+
+export type BundleGroup = {|
+  target: Target,
+  entryAssetId: string,
 |};
 
 export type BundleGroupNode = {|

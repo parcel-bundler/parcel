@@ -19,7 +19,6 @@ export const DEFAULT_OPTIONS: ParcelOptions = {
   cacheDir: path.join(__dirname, '.parcel-cache'),
   entries: [],
   logLevel: 'info',
-  entryRoot: toProjectPath('/', __dirname),
   targets: undefined,
   projectRoot: __dirname,
   shouldAutoInstall: false,

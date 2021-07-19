@@ -109,18 +109,8 @@ describe('html', function() {
       },
     ]);
 
-    assert(
-      await outputFS.exists(
-        path.join(distDir, 'html-pkg-source-array/a.html'),
-        'utf8',
-      ),
-    );
-    assert(
-      await outputFS.exists(
-        path.join(distDir, 'html-pkg-source-array/b.html'),
-        'utf8',
-      ),
-    );
+    assert(await outputFS.exists(path.join(distDir, 'a.html'), 'utf8'));
+    assert(await outputFS.exists(path.join(distDir, 'b.html'), 'utf8'));
   });
 
   it('should find href attr when not first', async function() {

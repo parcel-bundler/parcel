@@ -3,13 +3,13 @@
 import type {
   Asset as IAsset,
   Bundle as IBundle,
-  BundleGroup,
+  BundleGroup as IBundleGroup,
   CreateBundleOpts,
   Dependency as IDependency,
   MutableBundleGraph as IMutableBundleGraph,
   Target,
 } from '@parcel/types';
-import type {ParcelOptions} from '../types';
+import type {ParcelOptions, BundleGroup as InternalBundleGroup} from '../types';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
@@ -25,6 +25,7 @@ import {targetToInternalTarget} from './Target';
 import {HASH_REF_PREFIX} from '../constants';
 import {fromProjectPathRelative} from '../projectPath';
 import {BundleBehavior} from '../types';
+import BundleGroup, {bundleGroupToInternalBundleGroup} from './BundleGroup';
 
 export default class MutableBundleGraph extends BundleGraph<IBundle>
   implements IMutableBundleGraph {
@@ -66,7 +67,7 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
     );
   }
 
-  createBundleGroup(dependency: IDependency, target: Target): BundleGroup {
+  createBundleGroup(dependency: IDependency, target: Target): IBundleGroup {
     let dependencyNode = this.#graph._graph.getNodeByContentKey(dependency.id);
     if (!dependencyNode) {
       throw new Error('Dependency not found');
@@ -83,8 +84,8 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
       );
     }
 
-    let bundleGroup: BundleGroup = {
-      target,
+    let bundleGroup: InternalBundleGroup = {
+      target: targetToInternalTarget(target),
       entryAssetId: resolved.id,
     };
 
@@ -132,11 +133,13 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
       }
     }
 
-    return bundleGroup;
+    return new BundleGroup(bundleGroup, this.#options);
   }
 
-  removeBundleGroup(bundleGroup: BundleGroup): void {
-    this.#graph.removeBundleGroup(bundleGroup);
+  removeBundleGroup(bundleGroup: IBundleGroup): void {
+    this.#graph.removeBundleGroup(
+      bundleGroupToInternalBundleGroup(bundleGroup),
+    );
   }
 
   internalizeAsyncDependency(bundle: IBundle, dependency: IDependency): void {
@@ -222,10 +225,10 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
     return Bundle.get(bundleNode.value, this.#graph, this.#options);
   }
 
-  addBundleToBundleGroup(bundle: IBundle, bundleGroup: BundleGroup) {
+  addBundleToBundleGroup(bundle: IBundle, bundleGroup: IBundleGroup) {
     this.#graph.addBundleToBundleGroup(
       bundleToInternalBundle(bundle),
-      bundleGroup,
+      bundleGroupToInternalBundleGroup(bundleGroup),
     );
   }
 
@@ -254,15 +257,17 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
       .map(asset => assetFromValue(asset, this.#options));
   }
 
-  getBundleGroupsContainingBundle(bundle: IBundle): Array<BundleGroup> {
-    return this.#graph.getBundleGroupsContainingBundle(
-      bundleToInternalBundle(bundle),
-    );
+  getBundleGroupsContainingBundle(bundle: IBundle): Array<IBundleGroup> {
+    return this.#graph
+      .getBundleGroupsContainingBundle(bundleToInternalBundle(bundle))
+      .map(bundleGroup => new BundleGroup(bundleGroup, this.#options));
   }
 
-  getParentBundlesOfBundleGroup(bundleGroup: BundleGroup): Array<IBundle> {
+  getParentBundlesOfBundleGroup(bundleGroup: IBundleGroup): Array<IBundle> {
     return this.#graph
-      .getParentBundlesOfBundleGroup(bundleGroup)
+      .getParentBundlesOfBundleGroup(
+        bundleGroupToInternalBundleGroup(bundleGroup),
+      )
       .map(bundle => Bundle.get(bundle, this.#graph, this.#options));
   }
 
