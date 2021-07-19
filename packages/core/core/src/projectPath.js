@@ -1,7 +1,7 @@
 // @flow strict-local
 import type {FilePath} from '@parcel/types';
 import path from 'path';
-import {relativePath} from '@parcel/utils';
+import {relativePath, normalizeSeparators} from '@parcel/utils';
 
 /**
  * A path that's relative to the project root.
@@ -18,7 +18,11 @@ function toProjectPath_(projectRoot: FilePath, p: FilePath): ProjectPath {
   // references still work. Accessing files outside the project root is not
   // portable anyway.
   let relative = relativePath(projectRoot, p, false);
-  return relative.startsWith('..') ? p : relative;
+  if (relative.startsWith('..')) {
+    return process.platform === 'win32' ? normalizeSeparators(p) : p;
+  }
+
+  return relative;
 }
 
 export const toProjectPath: ((
