@@ -34,14 +34,14 @@ function fromProjectPath_(projectRoot: FilePath, p: ?ProjectPath): ?FilePath {
     return null;
   }
 
-  // If the path is absolute (e.g. outside the project root), just return it.
-  if (path.isAbsolute(p)) {
-    return p;
-  }
-
   // Project paths use normalized unix separators, so we only need to
   // convert them on Windows.
   let projectPath = process.platform === 'win32' ? path.normalize(p) : p;
+
+  // If the path is absolute (e.g. outside the project root), just return it.
+  if (path.isAbsolute(projectPath)) {
+    return projectPath;
+  }
 
   // Add separator if needed. Doing this manunally is much faster than path.join.
   if (projectRoot[projectRoot.length - 1] !== path.sep) {
