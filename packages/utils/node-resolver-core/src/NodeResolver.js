@@ -236,6 +236,11 @@ export default class NodeResolver {
       };
     }
 
+    let builtin = this.findBuiltin(filename, env);
+    if (builtin === null) {
+      return null;
+    }
+
     if (!this.shouldIncludeNodeModule(env, filename)) {
       if (sourcePath && env.isLibrary) {
         await this.checkExcludedDependency(sourcePath, filename, ctx);
@@ -243,8 +248,7 @@ export default class NodeResolver {
       return null;
     }
 
-    let builtin = this.findBuiltin(filename, env);
-    if (builtin || builtin === null) {
+    if (builtin) {
       return builtin;
     }
 
@@ -350,7 +354,11 @@ export default class NodeResolver {
       return;
     }
 
-    if (!pkg.dependencies?.[moduleName]) {
+    if (
+      !pkg.dependencies?.[moduleName] &&
+      !pkg.peerDependencies?.[moduleName] &&
+      !pkg.engines?.[moduleName]
+    ) {
       let pkgContent = await this.fs.readFile(pkg.pkgfile, 'utf8');
       throw new ThrowableDiagnostic({
         diagnostic: {
@@ -500,6 +508,10 @@ export default class NodeResolver {
         filename = filename.substr(5);
       }
       return {filePath: builtins[filename] || empty};
+    }
+
+    if (env.isElectron() && filename === 'electron') {
+      return null;
     }
   }
 
