@@ -9,5 +9,11 @@
     "aliasedabsolute": "/nested",
     "foo/bar": "./bar.js",
     "glob/*/*": "./nested/$2"
+  },
+  "dependencies": {
+    "foo": "*"
+  },
+  "peerDependencies": {
+    "bar": "*"
   }
 }
