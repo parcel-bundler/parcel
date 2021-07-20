@@ -57,6 +57,38 @@ describe('resolver', function() {
     assert.strictEqual(output.default, 42);
   });
 
+  it('should print a diagnostic when a configured target field will overwrite an entry', async function() {
+    let errorThrows = 0;
+    const overwriteDirs = ['browser', 'app', 'main', 'module'];
+    for (const currDir of overwriteDirs) {
+      try {
+        await bundle(
+          path.join(
+            __dirname,
+            `integration/target-overwrite-source/${currDir}`,
+          ),
+        );
+      } catch (e) {
+        errorThrows++;
+        let pkg = JSON.parse(
+          await overlayFS.readFile(
+            path.join(
+              __dirname,
+              `integration/target-overwrite-source/${currDir}/package.json`,
+            ),
+          ),
+        );
+        assert.deepEqual(
+          e.diagnostics[0].message,
+          `Target "${currDir}" is configured to overwrite entry "${path.normalize(
+            `test/integration/target-overwrite-source/${currDir}/${pkg.source}`,
+          )}".`,
+        );
+      }
+    }
+    assert.deepEqual(errorThrows, overwriteDirs.length);
+  });
+
   it('should throw an error on Webpack loader imports', async function() {
     let didThrow = false;
     try {
