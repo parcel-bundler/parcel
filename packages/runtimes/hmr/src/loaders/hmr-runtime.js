@@ -97,12 +97,12 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
       // Remove error overlay if there is one
       removeErrorOverlay();
 
-      let assets = data.assets.filter(function(asset) {
+      var assets = data.assets.filter(function(asset) {
         return asset.envHash === HMR_ENV_HASH;
       });
 
       // Handle HMR Update
-      let handled = assets.every(function(asset) {
+      var handled = assets.every(function(asset) {
         return (
           asset.type === 'css' ||
           (asset.type === 'js' &&
@@ -131,7 +131,7 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
     if (data.type === 'error') {
       // Log parcel errors to console
       data.diagnostics.ansi.forEach(function(ansiDiagnostic) {
-        let stack = ansiDiagnostic.codeframe
+        var stack = ansiDiagnostic.codeframe
           ? ansiDiagnostic.codeframe
           : ansiDiagnostic.stack;
 
@@ -174,11 +174,11 @@ function createErrorOverlay(diagnostics) {
   var overlay = document.createElement('div');
   overlay.id = OVERLAY_ID;
 
-  let errorHTML =
+  var errorHTML =
     '<div style="background: black; opacity: 0.85; font-size: 16px; color: white; position: fixed; height: 100%; width: 100%; top: 0px; left: 0px; padding: 30px; font-family: Menlo, Consolas, monospace; z-index: 9999;">';
 
   diagnostics.forEach(function(diagnostic) {
-    let stack = diagnostic.codeframe ? diagnostic.codeframe : diagnostic.stack;
+    var stack = diagnostic.codeframe ? diagnostic.codeframe : diagnostic.stack;
 
     errorHTML +=
       '<div>' +
@@ -291,7 +291,7 @@ function hmrApply(bundle /*: ParcelRequire */, asset /*:  HMRAsset */) {
     return;
   }
 
-  let deps = asset.depsByBundle[bundle.HMR_BUNDLE_ID];
+  var deps = asset.depsByBundle[bundle.HMR_BUNDLE_ID];
   if (deps) {
     var fn = new Function('require', 'module', 'exports', asset.output);
     modules[asset.id] = [fn, deps];

@@ -11,9 +11,9 @@ if (parcelRequire == null) {
       return $parcel$modules[id].exports;
     }
     if (id in $parcel$inits) {
-      let init = $parcel$inits[id];
+      var init = $parcel$inits[id];
       delete $parcel$inits[id];
-      let module = {id: id, exports: {}};
+      var module = {id: id, exports: {}};
       $parcel$modules[id] = module;
       init.call(module.exports, module, module.exports);
       return module.exports;
