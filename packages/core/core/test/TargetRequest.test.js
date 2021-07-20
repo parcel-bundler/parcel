@@ -117,7 +117,7 @@ describe('TargetResolver', () => {
         {
           name: 'customA',
           publicUrl: '/',
-          distDir: path.resolve('customA'),
+          distDir: path.posix.resolve('customA'),
           env: {
             id: '7185aca026a1ba43',
             context: 'browser',
@@ -138,7 +138,7 @@ describe('TargetResolver', () => {
           name: 'customB',
           publicUrl: '/',
           distEntry: 'b.js',
-          distDir: path.resolve('customB'),
+          distDir: path.posix.resolve('customB'),
           env: {
             id: '923e2836f26d91cc',
             context: 'node',
@@ -600,7 +600,7 @@ describe('TargetResolver', () => {
       [
         {
           name: 'customB',
-          distDir: path.resolve('customB'),
+          distDir: path.posix.resolve('customB'),
           publicUrl: '/',
           env: {
             id: '7185aca026a1ba43',
@@ -642,7 +642,7 @@ describe('TargetResolver', () => {
       [
         {
           name: 'customA',
-          distDir: path.resolve('customA'),
+          distDir: path.posix.resolve('customA'),
           publicUrl: '/',
           env: {
             id: '7185aca026a1ba43',
