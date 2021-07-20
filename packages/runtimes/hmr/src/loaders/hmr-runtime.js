@@ -102,7 +102,7 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
       });
 
       // Handle HMR Update
-      let handled = assets.every(asset => {
+      let handled = assets.every(function(asset) {
         return (
           asset.type === 'css' ||
           (asset.type === 'js' &&
