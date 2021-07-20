@@ -252,6 +252,24 @@ describe('resolver', function() {
       });
       assert.deepEqual(resolved, {isExcluded: true});
     });
+
+    it('should exclude the electron module in electron environments', async function() {
+      let resolved = await resolver.resolve({
+        env: new Environment(
+          createEnvironment({
+            context: 'electron-main',
+            isLibrary: true,
+          }),
+          DEFAULT_OPTIONS,
+        ),
+        filename: 'electron',
+        isURL: false,
+        parent: path.join(rootDir, 'foo.js'),
+        sourcePath: path.join(rootDir, 'foo.js'),
+      });
+
+      assert.deepEqual(resolved, {isExcluded: true});
+    });
   });
 
   describe('node_modules', function() {
