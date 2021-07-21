@@ -174,7 +174,7 @@ for (let [name, dependentsMap] of dependencyMap.entries()) {
   }
 }
 
-if (errors) {
+if (errors.length > 0) {
   errors.forEach(({name, message}) => console.error(`${name}: ${message}\n`));
   console.error(`Found ${errors.length} errors.`);
   process.exit(1);
