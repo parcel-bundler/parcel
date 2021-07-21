@@ -401,6 +401,7 @@ export type Entry = {|
   filePath: ProjectPath,
   packagePath: ProjectPath,
   target?: string,
+  loc?: ?InternalSourceLocation,
 |};
 
 export type EntryFileNode = {|

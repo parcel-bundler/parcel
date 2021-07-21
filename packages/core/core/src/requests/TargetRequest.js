@@ -44,7 +44,7 @@ import {
 } from '../TargetDescriptor.schema';
 import {BROWSER_ENVS} from '../public/Environment';
 import {optionsProxy, toInternalSourceLocation} from '../utils';
-import {fromProjectPath, toProjectPath} from '../projectPath';
+import {fromProjectPath, toProjectPath, joinProjectPath} from '../projectPath';
 
 type RunOpts = {|
   input: Entry,
@@ -111,10 +111,12 @@ async function run({input, api, options}: RunOpts) {
     api,
     optionsProxy(options, api.invalidateOnOptionChange),
   );
-  let targets = await targetResolver.resolve(
+  let targets: Array<Target> = await targetResolver.resolve(
     fromProjectPath(options.projectRoot, input.packagePath),
     input.target,
   );
+
+  assertTargetsAreNotEntries(targets, input, options);
 
   let configResult = nullthrows(
     await api.runRequest<null, ConfigAndCachePath>(createParcelConfigRequest()),
@@ -1162,5 +1164,69 @@ function normalizeSourceMap(options: ParcelOptions, sourceMap) {
     }
   } else {
     return undefined;
+  }
+}
+
+function assertTargetsAreNotEntries(
+  targets: Array<Target>,
+  input: Entry,
+  options: ParcelOptions,
+) {
+  for (const target of targets) {
+    if (
+      target.distEntry != null &&
+      joinProjectPath(target.distDir, target.distEntry) === input.filePath
+    ) {
+      let loc = target.loc;
+      let relativeEntry = path.relative(
+        process.cwd(),
+        fromProjectPath(options.projectRoot, input.filePath),
+      );
+      let codeFrames = [];
+      if (loc) {
+        codeFrames.push({
+          filePath: fromProjectPath(options.projectRoot, loc.filePath),
+          codeHighlights: [
+            {
+              start: loc.start,
+              end: loc.end,
+              message: 'Target defined here',
+            },
+          ],
+        });
+
+        let inputLoc = input.loc;
+        if (inputLoc) {
+          let highlight = {
+            start: inputLoc.start,
+            end: inputLoc.end,
+            message: 'Entry defined here',
+          };
+
+          if (inputLoc.filePath === loc.filePath) {
+            codeFrames[0].codeHighlights.push(highlight);
+          } else {
+            codeFrames.push({
+              filePath: fromProjectPath(options.projectRoot, inputLoc.filePath),
+              codeHighlights: [highlight],
+            });
+          }
+        }
+      }
+
+      throw new ThrowableDiagnostic({
+        diagnostic: {
+          origin: '@parcel/core',
+          message: `Target "${target.name}" is configured to overwrite entry "${relativeEntry}".`,
+          codeFrames,
+          hints: [
+            (COMMON_TARGETS[target.name]
+              ? `The "${target.name}" field is an _output_ file path so that your build can be consumed by other tools. `
+              : '') +
+              `Change the "${target.name}" field to point to an output file rather than your source code. See https://v2.parceljs.org/configuration/package-json for more information.`,
+          ],
+        },
+      });
+    }
   }
 }
