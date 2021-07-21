@@ -45,6 +45,7 @@
   },
   "parcelDependencies": {
     "@parcel/optimizer-data-url": "2.0.0-beta.3.1",
+    "@parcel/optimizer-squoosh": "2.0.0-beta.3.1",
     "@parcel/packager-raw-url": "2.0.0-beta.3.1",
     "@parcel/packager-ts": "2.0.0-beta.3.1",
     "@parcel/transformer-coffeescript": "2.0.0-beta.3.1",
