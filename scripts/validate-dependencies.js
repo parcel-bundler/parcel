@@ -65,6 +65,13 @@ let packages = new Map(
   ]),
 );
 
+function resolveYarnAlias(name, expr) {
+  if (expr.startsWith('npm:')) {
+    return expr.replace(/^npm:/, '');
+  }
+  return name;
+}
+
 /**
  * A map of dependency names to maps of semver expressions to
  * lists of dependent packages.
@@ -90,6 +97,7 @@ for (let [name, meta] of packages) {
     let dependencies = meta[type];
     if (dependencies) {
       for (let [dependencyName, semver] of Object.entries(dependencies)) {
+        dependencyName = resolveYarnAlias(dependencyName, semver);
         if (DEPENDENCY_EXCLUDES.has(dependencyName)) continue;
         let dependentsMap = dependencyMap.get(dependencyName) || new Map();
         dependencyMap.set(dependencyName, dependentsMap);
