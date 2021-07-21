@@ -1,6 +1,0 @@
-{
-  mergeStyles: true,
-  minifySvg: false,
-  minifyJson: true,
-  collapseWhitespace: "all"
-}
