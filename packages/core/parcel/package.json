@@ -34,7 +34,7 @@
     "@parcel/utils": "2.10.3",
     "chalk": "^4.1.0",
     "commander": "^7.0.0",
-    "get-port": "^4.2.0"
+    "get-port": "^5.0.0"
   },
   "devDependencies": {
     "@babel/core": "^7.22.11",

@@ -53,7 +53,7 @@
   },
   "devDependencies": {
     "command-exists": "^1.2.6",
-    "cross-spawn": "^6.0.4",
+    "cross-spawn": "^7.0.3",
     "nullthrows": "^1.1.1",
     "split2": "^3.1.1"
   },
