@@ -44,10 +44,16 @@ export default (new Optimizer({
       );
     }
 
+    const clonedConfig = config || {};
+
     // $FlowFixMe
     const presets = htmlnano.presets;
     const preset =
-      typeof config?.preset === 'string' ? presets[config.preset] : {};
+      typeof clonedConfig.preset === 'string'
+        ? presets[clonedConfig.preset]
+        : {};
+    delete clonedConfig.preset;
+
     const htmlNanoConfig = {
       minifyJs: false,
       minifySvg: {
@@ -80,8 +86,9 @@ export default (new Optimizer({
         ]),
       },
       ...(preset || {}),
-      ...(config || {}),
-      skipConfigLoading: true,
+      ...clonedConfig,
+      // TODO: Uncomment this line once we update htmlnano, new version isn't out yet
+      // skipConfigLoading: true,
     };
 
     return {

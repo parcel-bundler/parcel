@@ -2,5 +2,6 @@
   "mergeStyles": true,
   "minifySvg": false,
   "minifyJson": true,
-  "collapseWhitespace": "all"
+  "collapseWhitespace": "all",
+  "preset": "max"
 }
