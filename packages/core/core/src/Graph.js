@@ -235,6 +235,8 @@ export default class Graph<TNode, TEdgeType: string | null = null> {
       );
     }
 
+    console.trace('removeEdge: removing edge from', from, 'to', to, 'on', type);
+
     this.outboundEdges.removeEdge(from, to, type);
     this.inboundEdges.removeEdge(to, from, type);
 

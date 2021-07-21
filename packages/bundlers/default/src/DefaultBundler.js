@@ -151,6 +151,10 @@ function decorateLegacyGraph(
     }
 
     console.log('INTERNALIZED', idealBundle.internalizedAssetIds);
+  }
+
+  for (let [, idealBundle] of idealBundleGraph.nodes) {
+    let bundle = nullthrows(idealBundleToLegacyBundle.get(idealBundle));
     for (let internalized of idealBundle.internalizedAssetIds) {
       let incomingDeps = bundleGraph.getIncomingDependencies(
         bundleGraph.getAssetById(internalized),
