@@ -84,7 +84,7 @@ let packages = new Map(
  *   }
  */
 let dependencyMap = new Map();
-for (let [name, meta] of packages.entries()) {
+for (let [name, meta] of packages) {
   if (PACKAGE_EXCLUDES.has(name)) continue;
   for (let type of DEPENDENCY_TYPES.keys()) {
     let dependencies = meta[type];
@@ -166,7 +166,7 @@ function validateParcelPackageVersions(name, dependentsMap) {
 }
 
 /** main */
-for (let [name, dependentsMap] of dependencyMap.entries()) {
+for (let [name, dependentsMap] of dependencyMap) {
   if (packages.has(name)) {
     validateParcelPackageVersions(name, dependentsMap);
   } else {
