@@ -81,6 +81,7 @@ export default (new Optimizer({
       },
       ...(preset || {}),
       ...(config || {}),
+      skipConfigLoading: true,
     };
 
     return {
