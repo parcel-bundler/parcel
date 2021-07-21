@@ -567,7 +567,7 @@
     {
       "fileName": "html",
       "link": "https://github.com/parcel-bundler/parcel/tree/v2/packages/core/integration-tests/test/html.js",
-      "title": "should read .htmlnanorc and minify HTML in production mode",
+      "title": "should read .htmlnanorc.json and minify HTML in production mode",
       "status": "pending"
     },
     {
