@@ -96,12 +96,14 @@ describe('image', function() {
       },
     });
 
+    const originalSize = 549196;
+
     const imagePath = b.getBundles().find(b => b.type === 'jpg').filePath;
 
     const buffer = await outputFS.readFile(imagePath);
     const image = await sharp(buffer).metadata();
 
     assert.strictEqual(image.width, 1920);
-    assert.strictEqual(image.size, 282274);
+    assert(image.size <= originalSize * 0.52);
   });
 });
