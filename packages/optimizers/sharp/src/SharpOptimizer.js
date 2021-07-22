@@ -10,11 +10,15 @@ const OPTIONS = {
     quality: 75,
     mozjpeg: true,
   },
+  png: {
+    palette: true,
+  },
 };
 
 const FORMATS = new Map<string, $Keys<typeof OPTIONS>>([
   ['jpg', 'jpeg'],
   ['jpeg', 'jpeg'],
+  ['png', 'png'],
 ]);
 
 export default (new Optimizer({

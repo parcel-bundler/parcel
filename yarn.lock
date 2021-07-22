@@ -2174,11 +2174,12 @@
   resolved "https://registry.yarnpkg.com/@sinonjs/text-encoding/-/text-encoding-0.7.1.tgz#8da5c6530915653f3a1f38fd5f101d8c3f8079c5"
   integrity sha512-+iTbntw2IZPb/anVDbypzfQa+ay64MW0Zo8aJ8gZPWMMK6/OubMVb6lUPMagqjOPnmtauXnFCACVl3O7ogjeqQ==
 
-"@squoosh/lib@^0.3.1":
-  version "0.3.1"
-  resolved "https://registry.yarnpkg.com/@squoosh/lib/-/lib-0.3.1.tgz#de022198f82837086c8e4e91b892dcfbbb420e17"
-  integrity sha512-ni8gyTGgW9lH/yqaqgkxerGT7daSWNU9mtvWqj+/1qqzIT9YGfFvnTtDQRMIRjRCKQ5pkK/COufvWKuzHI6Dxw==
+"@squoosh/lib@^0.4.0":
+  version "0.4.0"
+  resolved "https://registry.yarnpkg.com/@squoosh/lib/-/lib-0.4.0.tgz#31d18cb082c69e404589e2e281414d10f91e1668"
+  integrity sha512-O1LyugWLZjMI4JZeZMA5vzfhfPjfMZXH5/HmVkRagP8B70wH3uoR7tjxfGNdSavey357MwL8YJDxbGwBBdHp7Q==
   dependencies:
+    wasm-feature-detect "^1.2.11"
     web-streams-polyfill "^3.0.3"
 
 "@svgr/babel-plugin-add-jsx-attribute@^5.4.0":
@@ -13760,6 +13761,11 @@ w3c-xmlserializer@^1.1.2:
     domexception "^1.0.1"
     webidl-conversions "^4.0.2"
     xml-name-validator "^3.0.0"
+
+wasm-feature-detect@^1.2.11:
+  version "1.2.11"
+  resolved "https://registry.yarnpkg.com/wasm-feature-detect/-/wasm-feature-detect-1.2.11.tgz#e21992fd1f1d41a47490e392a5893cb39d81e29e"
+  integrity sha512-HUqwaodrQGaZgz1lZaNioIkog9tkeEJjrM3eq4aUL04whXOVDRc/o2EGb/8kV0QX411iAYWEqq7fMBmJ6dKS6w==
 
 wcwidth@^1.0.0, wcwidth@^1.0.1:
   version "1.0.1"

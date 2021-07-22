@@ -89,7 +89,7 @@ describe('image', function() {
     });
   });
 
-  it('should optimise images', async function() {
+  it('should optimise JPEGs', async function() {
     let b = await bundle(path.join(__dirname, '/integration/image/image.jpg'), {
       defaultTargetOptions: {
         shouldOptimize: true,
@@ -105,5 +105,23 @@ describe('image', function() {
 
     assert.strictEqual(image.width, 1920);
     assert(image.size <= originalSize * 0.52);
+  });
+
+  it('should optimise PNGs', async function() {
+    let b = await bundle(path.join(__dirname, '/integration/image/clock.png'), {
+      defaultTargetOptions: {
+        shouldOptimize: true,
+      },
+    });
+
+    const originalSize = 84435;
+
+    const imagePath = b.getBundles().find(b => b.type === 'png').filePath;
+
+    const buffer = await outputFS.readFile(imagePath);
+    const image = await sharp(buffer).metadata();
+
+    assert.strictEqual(image.width, 200);
+    assert(image.size <= originalSize * 0.3);
   });
 });

@@ -10,11 +10,13 @@ let imagePool;
 
 const OPTIONS = {
   mozjpeg: {},
+  oxipng: {},
 };
 
 const FORMATS = new Map<string, $Keys<typeof OPTIONS>>([
   ['jpg', 'mozjpeg'],
   ['jpeg', 'mozjpeg'],
+  ['png', 'oxipng'],
 ]);
 
 export default (new Optimizer({
@@ -38,6 +40,6 @@ export default (new Optimizer({
 
     await image.encode({[encoder]: OPTIONS[encoder]});
 
-    return {contents: (await image.encodedWith.mozjpeg).binary};
+    return {contents: (await image.encodedWith[encoder]).binary};
   },
 }): Optimizer);
