@@ -398,6 +398,7 @@ export default (new Transformer({
       supports_module_workers: supportsModuleWorkers,
       is_library: asset.env.isLibrary,
       is_esm_output: asset.env.outputFormat === 'esmodule',
+      is_worker: false,
     });
 
     let convertLoc = loc => {
