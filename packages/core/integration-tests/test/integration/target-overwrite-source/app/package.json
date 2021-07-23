@@ -1,0 +1,9 @@
+{
+  "app": "src/index.html",
+  "source": "src/index.html",
+  "targets": {
+    "app": {
+      "distDir": "src/"
+    }
+  }
+}
