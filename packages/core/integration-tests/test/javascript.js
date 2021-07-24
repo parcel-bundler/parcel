@@ -5210,7 +5210,7 @@ describe('javascript', function() {
 
     assert.deepEqual(await (await run(b)).default, [42, 42]);
   });
-  
+
   it('should support standalone import.meta', async function() {
     let b = await bundle(
       path.join(__dirname, 'integration/import-meta/index.js'),
