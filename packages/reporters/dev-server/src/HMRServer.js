@@ -7,12 +7,7 @@ import type {ServerError, HMRServerOptions} from './types.js.flow';
 
 import WebSocket from 'ws';
 import invariant from 'assert';
-import {
-  ansiHtml,
-  md5FromObject,
-  prettyDiagnostic,
-  PromiseQueue,
-} from '@parcel/utils';
+import {ansiHtml, prettyDiagnostic, PromiseQueue} from '@parcel/utils';
 
 export type HMRAsset = {|
   id: string,
@@ -59,8 +54,8 @@ export default class HMRServer {
       }
     });
 
-    // $FlowFixMe[incompatible-call]
-    this.wss.on('error', this.handleSocketError);
+    // $FlowFixMe[incompatible-exact]
+    this.wss.on('error', err => this.handleSocketError(err));
 
     let address = this.wss.address();
     invariant(typeof address === 'object' && address != null);
@@ -115,7 +110,7 @@ export default class HMRServer {
               bundle,
             );
             if (resolved) {
-              deps[dep.moduleSpecifier] = event.bundleGraph.getAssetPublicId(
+              deps[dep.specifier] = event.bundleGraph.getAssetPublicId(
                 resolved,
               );
             }
@@ -127,7 +122,7 @@ export default class HMRServer {
           id: event.bundleGraph.getAssetPublicId(asset),
           type: asset.type,
           output: await asset.getCode(),
-          envHash: md5FromObject(asset.env),
+          envHash: asset.env.id,
           depsByBundle,
         };
       });

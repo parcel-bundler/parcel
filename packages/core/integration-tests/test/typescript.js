@@ -15,14 +15,14 @@ const tscConfig = path.join(
 );
 
 describe('typescript', function() {
-  // This tests both the Babel transformer implementation of typescript (which
+  // This tests both the SWC transformer implementation of typescript (which
   // powers typescript by default in Parcel) as well as through the Typescript
   // tsc transformer. Use a null config to indicate the default config, and the
   // tsc config to use the tsc transformer instead.
   //
   // If testing details specific to either implementation, create another suite.
   for (let config of [
-    null /* default config -- testing babel typescript */,
+    null /* default config -- testing SWC typescript */,
     tscConfig,
   ]) {
     it('should produce a ts bundle using ES6 imports', async function() {
@@ -101,12 +101,7 @@ describe('typescript', function() {
       assertBundles(b, [
         {
           name: 'index.js',
-          assets: [
-            'index.ts',
-            'JSRuntime.js',
-            'bundle-url.js',
-            'esmodule-helpers.js',
-          ],
+          assets: ['index.ts', 'bundle-url.js', 'esmodule-helpers.js'],
         },
         {
           type: 'txt',

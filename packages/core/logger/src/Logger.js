@@ -1,6 +1,10 @@
 // @flow strict-local
 
-import type {IDisposable, LogEvent} from '@parcel/types';
+import type {
+  IDisposable,
+  LogEvent,
+  PluginLogger as IPluginLogger,
+} from '@parcel/types';
 import type {
   Diagnostic,
   Diagnostifiable,
@@ -83,7 +87,7 @@ export type PluginLoggerOpts = {|
   origin: string,
 |};
 
-export class PluginLogger {
+export class PluginLogger implements IPluginLogger {
   /** @private */
   origin: string;
 

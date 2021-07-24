@@ -5,7 +5,11 @@ import type {FilePath} from '@parcel/types';
 
 import SourceMap from '@parcel/source-map';
 import {Transformer} from '@parcel/plugin';
-import {createDependencyLocation, isURL} from '@parcel/utils';
+import {
+  createDependencyLocation,
+  isURL,
+  remapSourceLocation,
+} from '@parcel/utils';
 import postcss from 'postcss';
 import nullthrows from 'nullthrows';
 import valueParser from 'postcss-value-parser';
@@ -62,12 +66,6 @@ export default (new Transformer({
       sourceMap: asset.env.sourceMap,
     });
 
-    // When this asset is an bundle entry, allow that bundle to be split to load shared assets separately.
-    // Only set here if it is null to allow previous transformers to override this behavior.
-    if (asset.isSplittable == null) {
-      asset.isSplittable = true;
-    }
-
     // Check for `hasDependencies` being false here as well, as it's possible
     // another transformer (such as PostCSSTransformer) has already parsed an
     // ast and CSSTransformer's parse was never called.
@@ -77,12 +75,25 @@ export default (new Transformer({
     }
 
     let program: Root = postcss.fromJSON(ast.program);
+    let originalSourceMap = await asset.getMap();
+    let createLoc = (start, specifier, lineOffset, colOffset) => {
+      let loc = createDependencyLocation(
+        start,
+        specifier,
+        lineOffset,
+        colOffset,
+      );
+      if (originalSourceMap) {
+        loc = remapSourceLocation(loc, originalSourceMap);
+      }
+      return loc;
+    };
 
     let isDirty = false;
     program.walkAtRules('import', rule => {
       let params = valueParser(rule.params);
       let [name, ...media] = params.nodes;
-      let moduleSpecifier;
+      let specifier;
       if (
         name.type === 'function' &&
         name.value === 'url' &&
@@ -91,20 +102,15 @@ export default (new Transformer({
         name = name.nodes[0];
       }
 
-      moduleSpecifier = name.value;
+      specifier = name.value;
 
-      if (!moduleSpecifier) {
+      if (!specifier) {
         throw new Error('Could not find import name for ' + String(rule));
       }
 
-      if (isURL(moduleSpecifier)) {
-        name.value = asset.addURLDependency(moduleSpecifier, {
-          loc: createDependencyLocation(
-            nullthrows(rule.source.start),
-            asset.filePath,
-            0,
-            8,
-          ),
+      if (isURL(specifier)) {
+        name.value = asset.addURLDependency(specifier, {
+          loc: createLoc(nullthrows(rule.source.start), asset.filePath, 0, 8),
         });
       } else {
         // If this came from an inline <style> tag, don't inline the imported file. Replace with the correct URL instead.
@@ -117,15 +123,13 @@ export default (new Transformer({
         // } else {
         media = valueParser.stringify(media).trim();
         let dep = {
-          moduleSpecifier,
+          specifier,
+          specifierType: 'url',
           // Offset by 8 as it does not include `@import `
-          loc: createDependencyLocation(
-            nullthrows(rule.source.start),
-            moduleSpecifier,
-            0,
-            8,
-          ),
+          loc: createLoc(nullthrows(rule.source.start), specifier, 0, 8),
           meta: {
+            // For the glob resolver to distinguish between `@import` and other URL dependencies.
+            isCSSImport: true,
             media,
           },
         };
@@ -149,9 +153,11 @@ export default (new Transformer({
             !node.nodes[0].value.startsWith('#') // IE's `behavior: url(#default#VML)`
           ) {
             let url = asset.addURLDependency(node.nodes[0].value, {
-              loc: createDependencyLocation(
+              loc: createLoc(
                 nullthrows(decl.source.start),
                 node.nodes[0].value,
+                0,
+                node.nodes[0].sourceIndex,
               ),
             });
             isDeclDirty = node.nodes[0].value !== url;
@@ -194,7 +200,7 @@ export default (new Transformer({
     let originalSourceMap = await asset.getMap();
     if (result.map != null) {
       map = new SourceMap(options.projectRoot);
-      map.addRawMappings(result.map.toJSON());
+      map.addVLQMap(result.map.toJSON());
       if (originalSourceMap) {
         map.extends(originalSourceMap.toBuffer());
       }

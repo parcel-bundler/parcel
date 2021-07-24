@@ -1,21 +1,36 @@
 // @flow
-import type {Config, FilePath, PluginOptions} from '@parcel/types';
-import type {PluginLogger} from '@parcel/logger';
+import type {
+  Config,
+  FilePath,
+  PluginOptions,
+  PluginLogger,
+} from '@parcel/types';
 import path from 'path';
 import {relativePath} from '@parcel/utils';
 import nullthrows from 'nullthrows';
 import clone from 'clone';
+import {POSTCSS_RANGE} from './constants';
 
 import loadExternalPlugins from './loadPlugins';
 
 const MODULE_BY_NAME_RE = /\.module\./;
+
+type ConfigResult = {|
+  raw: any,
+  hydrated: {|
+    plugins: Array<any>,
+    from: FilePath,
+    to: FilePath,
+    modules: any,
+  |},
+|};
 
 async function configHydrator(
   configFile: any,
   config: Config,
   resolveFrom: ?FilePath,
   options: PluginOptions,
-) {
+): Promise<?ConfigResult> {
   // Use a basic, modules-only PostCSS config if the file opts in by a name
   // like foo.module.css
   if (configFile == null && config.searchPath.match(MODULE_BY_NAME_RE)) {
@@ -63,13 +78,13 @@ async function configHydrator(
   for (let p of pluginArray) {
     if (typeof p === 'string') {
       config.addDevDependency({
-        moduleSpecifier: p,
+        specifier: p,
         resolveFrom: nullthrows(resolveFrom),
       });
     }
   }
 
-  config.setResult({
+  return {
     raw: configFile,
     hydrated: {
       plugins,
@@ -77,7 +92,7 @@ async function configHydrator(
       to: config.searchPath,
       modules: modulesConfig,
     },
-  });
+  };
 }
 
 export async function load({
@@ -88,7 +103,7 @@ export async function load({
   config: Config,
   options: PluginOptions,
   logger: PluginLogger,
-|}): Promise<void> {
+|}): Promise<?ConfigResult> {
   let configFile: any = await config.getConfig(
     ['.postcssrc', '.postcssrc.json', '.postcssrc.js', 'postcss.config.js'],
     {packageKey: 'postcss'},
@@ -96,6 +111,12 @@ export async function load({
 
   let contents = null;
   if (configFile) {
+    config.addDevDependency({
+      specifier: 'postcss',
+      resolveFrom: config.searchPath,
+      range: POSTCSS_RANGE,
+    });
+
     contents = configFile.contents;
     let isDynamic = configFile && path.extname(configFile.filePath) === '.js';
     if (isDynamic) {
@@ -106,11 +127,11 @@ export async function load({
           'WARNING: Using a JavaScript PostCSS config file means losing out on caching features of Parcel. Use a .postcssrc(.json) file whenever possible.',
       });
 
-      config.shouldInvalidateOnStartup();
+      config.invalidateOnStartup();
 
       // Also add the config as a dev dependency so we attempt to reload in watch mode.
       config.addDevDependency({
-        moduleSpecifier: relativePath(
+        specifier: relativePath(
           path.dirname(config.searchPath),
           configFile.filePath,
         ),

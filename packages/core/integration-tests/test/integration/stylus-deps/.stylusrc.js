@@ -1,3 +1,4 @@
 module.exports = {
-  paths: [__dirname + '/deps']
+  paths: [__dirname + '/deps', 'global'],
+  imports: ['b']
 };

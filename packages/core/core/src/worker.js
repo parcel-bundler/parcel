@@ -1,8 +1,14 @@
 // @flow strict-local
 
-import type {Bundle, ParcelOptions, ProcessedParcelConfig} from './types';
+import type {
+  Bundle,
+  ParcelOptions,
+  ProcessedParcelConfig,
+  RequestInvalidation,
+} from './types';
 import type {SharedReference, WorkerApi} from '@parcel/workers';
 import {loadConfig as configCache} from '@parcel/utils';
+import type {DevDepSpecifier} from './requests/DevDepRequest';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
@@ -12,11 +18,13 @@ import Transformation, {
   type TransformationResult,
 } from './Transformation';
 import {reportWorker} from './ReporterRunner';
-import PackagerRunner, {type BundleInfo} from './PackagerRunner';
+import PackagerRunner, {type PackageRequestResult} from './PackagerRunner';
 import Validation, {type ValidationOpts} from './Validation';
 import ParcelConfig from './ParcelConfig';
 import {registerCoreWithSerializer} from './utils';
 import {clearBuildCaches} from './buildCache';
+import {init as initSourcemaps} from '@parcel/source-map';
+import {init as initHash} from '@parcel/hash';
 
 import '@parcel/cache'; // register with serializer
 import '@parcel/package-manager';
@@ -55,12 +63,10 @@ async function loadConfig(cachePath, options) {
     return config;
   }
 
-  let processedConfig = nullthrows(await options.cache.get(cachePath));
-  config = new ParcelConfig(
-    // $FlowFixMe
-    ((processedConfig: any): ProcessedParcelConfig),
-    options,
+  let processedConfig = nullthrows(
+    await options.cache.get<ProcessedParcelConfig>(cachePath),
   );
+  config = new ParcelConfig(processedConfig, options);
   parcelConfigCache.set(cachePath, config);
   return config;
 }
@@ -80,7 +86,6 @@ export async function runTransform(
 
   return new Transformation({
     workerApi,
-    report: reportWorker.bind(null, workerApi),
     options,
     config,
     ...rest,
@@ -109,49 +114,40 @@ export async function runPackage(
   {
     bundle,
     bundleGraphReference,
-    configRef,
+    configCachePath,
     optionsRef,
+    previousDevDeps,
+    invalidDevDeps,
+    previousInvalidations,
   }: {|
     bundle: Bundle,
     bundleGraphReference: SharedReference,
-    configRef: SharedReference,
-    cacheKeys: {|
-      content: string,
-      map: string,
-      info: string,
-    |},
+    configCachePath: string,
     optionsRef: SharedReference,
+    previousDevDeps: Map<string, string>,
+    invalidDevDeps: Array<DevDepSpecifier>,
+    previousInvalidations: Array<RequestInvalidation>,
   |},
-): Promise<BundleInfo> {
+): Promise<PackageRequestResult> {
   let bundleGraph = workerApi.getSharedReference(bundleGraphReference);
   invariant(bundleGraph instanceof BundleGraph);
   let options = loadOptions(optionsRef, workerApi);
-  let processedConfig = ((workerApi.getSharedReference(
-    configRef,
-    // $FlowFixMe
-  ): any): ProcessedParcelConfig);
-  let parcelConfig = new ParcelConfig(processedConfig, options);
+  let parcelConfig = await loadConfig(configCachePath, options);
 
   let runner = new PackagerRunner({
     config: parcelConfig,
     options,
     report: reportWorker.bind(null, workerApi),
+    previousDevDeps,
+    previousInvalidations,
   });
 
-  let configs = await runner.loadConfigs(bundleGraph, bundle);
-  // TODO: add invalidations in `config?.files` once packaging is a request
+  return runner.run(bundleGraph, bundle, invalidDevDeps);
+}
 
-  let cacheKey = await runner.getCacheKey(bundle, bundleGraph, configs);
-  let cacheKeys = {
-    content: PackagerRunner.getContentKey(cacheKey),
-    map: PackagerRunner.getMapKey(cacheKey),
-    info: PackagerRunner.getInfoKey(cacheKey),
-  };
-
-  return (
-    (await runner.getBundleInfoFromCache(cacheKeys.info)) ??
-    runner.getBundleInfo(bundle, bundleGraph, cacheKeys, configs)
-  );
+export async function childInit() {
+  await initSourcemaps;
+  await initHash;
 }
 
 const PKG_RE = /node_modules[/\\]((?:@[^/\\]+[/\\][^/\\]+)|[^/\\]+)(?!.*[/\\]node_modules[/\\])/;

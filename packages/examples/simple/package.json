@@ -1,15 +1,15 @@
 {
   "name": "@parcel/simple-example",
-  "version": "2.0.0-beta.2",
+  "version": "2.0.0-beta.3.1",
   "license": "MIT",
   "private": true,
   "scripts": {
-    "demo": "PARCEL_WORKERS=0 parcel src/index.js",
+    "build": "PARCEL_WORKERS=0 parcel src/index.js --no-cache",
     "clean-demo": "rm -rf .parcel-cache dist && yarn demo"
   },
   "devDependencies": {
-    "@parcel/babel-register": "2.0.0-beta.2",
-    "@parcel/core": "2.0.0-beta.2"
+    "@parcel/babel-register": "2.0.0-beta.3.1",
+    "@parcel/core": "2.0.0-beta.3.1"
   },
   "browser": "dist/legacy/index.js",
   "browserModern": "dist/modern/index.js",

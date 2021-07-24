@@ -6,6 +6,7 @@ import type {
   RawParcelConfig,
   ResolvedParcelConfigFile,
 } from '@parcel/types';
+import type {FileSystem} from '@parcel/fs';
 import type {StaticRunOpts} from '../RequestTracker';
 import type {
   ExtendableParcelConfigPipeline,
@@ -16,7 +17,7 @@ import type {
 
 import {
   isDirectoryInside,
-  md5FromObject,
+  hashObject,
   resolveConfig,
   validateSchema,
   findAlternativeNodeModules,
@@ -34,6 +35,8 @@ import invariant from 'assert';
 import ParcelConfigSchema from '../ParcelConfig.schema';
 import {optionsProxy} from '../utils';
 import ParcelConfig from '../ParcelConfig';
+import {createBuildCache} from '../buildCache';
+import {toProjectPath} from '../projectPath';
 
 type ConfigMap<K, V> = {[K]: V, ...};
 
@@ -66,7 +69,14 @@ export default function createParcelConfigRequest(): ParcelConfigRequest {
     id: type,
     type,
     async run({api, options}: RunOpts): Promise<ConfigAndCachePath> {
-      let {config, extendedFiles, usedDefault} = await loadParcelConfig(
+      let {
+        config,
+        extendedFiles,
+        usedDefault,
+      }: {|
+        ...ParcelConfigChain,
+        usedDefault: boolean,
+      |} = await loadParcelConfig(
         optionsProxy(options, api.invalidateOnOptionChange),
       );
 
@@ -74,19 +84,20 @@ export default function createParcelConfigRequest(): ParcelConfigRequest {
       api.invalidateOnFileDelete(config.filePath);
 
       for (let filePath of extendedFiles) {
-        api.invalidateOnFileUpdate(filePath);
-        api.invalidateOnFileDelete(filePath);
+        let pp = toProjectPath(options.projectRoot, filePath);
+        api.invalidateOnFileUpdate(pp);
+        api.invalidateOnFileDelete(pp);
       }
 
       if (usedDefault) {
-        let resolveFrom = getResolveFrom(options);
+        let resolveFrom = getResolveFrom(options.inputFS, options.projectRoot);
         api.invalidateOnFileCreate({
           fileName: '.parcelrc',
-          aboveFilePath: resolveFrom,
+          aboveFilePath: toProjectPath(options.projectRoot, resolveFrom),
         });
       }
 
-      let cachePath = md5FromObject(config);
+      let cachePath = hashObject(config);
       await options.cache.set(cachePath, config);
       let result = {config, cachePath};
       // TODO: don't store config twice (once in the graph and once in a separate cache entry)
@@ -97,12 +108,7 @@ export default function createParcelConfigRequest(): ParcelConfigRequest {
   };
 }
 
-const parcelConfigCache = new Map();
-
-export function clearParcelConfigCache() {
-  parcelConfigCache.clear();
-}
-
+const parcelConfigCache = createBuildCache();
 export function getCachedParcelConfig(
   result: ConfigAndCachePath,
   options: ParcelOptions,
@@ -134,12 +140,17 @@ export async function loadParcelConfig(
 export async function resolveParcelConfig(
   options: ParcelOptions,
 ): Promise<?{|...ParcelConfigChain, usedDefault: boolean|}> {
-  let resolveFrom = getResolveFrom(options);
+  let resolveFrom = getResolveFrom(options.inputFS, options.projectRoot);
   let configPath =
     options.config != null
       ? (await options.packageManager.resolve(options.config, resolveFrom))
           .resolved
-      : await resolveConfig(options.inputFS, resolveFrom, ['.parcelrc']);
+      : await resolveConfig(
+          options.inputFS,
+          resolveFrom,
+          ['.parcelrc'],
+          options.projectRoot,
+        );
 
   let usedDefault = false;
   if (configPath == null && options.defaultConfig != null) {
@@ -168,7 +179,7 @@ export async function resolveParcelConfig(
     });
   }
 
-  let {config, extendedFiles} = await parseAndProcessConfig(
+  let {config, extendedFiles}: ParcelConfigChain = await parseAndProcessConfig(
     configPath,
     contents,
     options,
@@ -213,18 +224,20 @@ export async function parseAndProcessConfig(
         message: `Failed to parse .parcelrc`,
         origin: '@parcel/core',
 
-        filePath: configPath,
-        language: 'json5',
-        codeFrame: {
-          code: contents,
-          codeHighlights: [
-            {
-              start: pos,
-              end: pos,
-              message: escapeMarkdown(e.message),
-            },
-          ],
-        },
+        codeFrames: [
+          {
+            filePath: configPath,
+            language: 'json5',
+            code: contents,
+            codeHighlights: [
+              {
+                start: pos,
+                end: pos,
+                message: escapeMarkdown(e.message),
+              },
+            ],
+          },
+        ],
       },
     });
   }
@@ -232,100 +245,148 @@ export async function parseAndProcessConfig(
 }
 
 function processPipeline(
+  options: ParcelOptions,
   pipeline: ?Array<PackageName>,
   keyPath: string,
   filePath: FilePath,
-  //$FlowFixMe
-): any {
+) {
   if (pipeline) {
     return pipeline.map((pkg, i) => {
+      // $FlowFixMe
       if (pkg === '...') return pkg;
 
       return {
         packageName: pkg,
-        resolveFrom: filePath,
+        resolveFrom: toProjectPath(options.projectRoot, filePath),
         keyPath: `${keyPath}/${i}`,
       };
     });
   }
 }
 
-function processMap(
+async function processMap(
   // $FlowFixMe
   map: ?ConfigMap<any, any>,
   keyPath: string,
   filePath: FilePath,
+  options: ParcelOptions,
   // $FlowFixMe
-): ConfigMap<any, any> | typeof undefined {
+): Promise<ConfigMap<any, any> | typeof undefined> {
   if (!map) return undefined;
 
   // $FlowFixMe
   let res: ConfigMap<any, any> = {};
   for (let k in map) {
+    if (k.startsWith('node:')) {
+      let code = await options.inputFS.readFile(filePath, 'utf8');
+      throw new ThrowableDiagnostic({
+        diagnostic: {
+          message:
+            'Named pipeline `node:` is reserved for builtin Node.js libraries',
+          origin: '@parcel/core',
+          codeFrames: [
+            {
+              filePath: filePath,
+              language: 'json5',
+              code,
+              codeHighlights: generateJSONCodeHighlights(code, [
+                {
+                  key: `${keyPath}/${k}`,
+                  type: 'key',
+                },
+              ]),
+            },
+          ],
+        },
+      });
+    }
+
     if (typeof map[k] === 'string') {
       res[k] = {
         packageName: map[k],
-        resolveFrom: filePath,
+        resolveFrom: toProjectPath(options.projectRoot, filePath),
         keyPath: `${keyPath}/${k}`,
       };
     } else {
-      res[k] = processPipeline(map[k], `${keyPath}/${k}`, filePath);
+      res[k] = processPipeline(options, map[k], `${keyPath}/${k}`, filePath);
     }
   }
 
   return res;
 }
 
-export function processConfig(
+export async function processConfig(
   configFile: ResolvedParcelConfigFile,
-): ProcessedParcelConfig {
+  options: ParcelOptions,
+): Promise<ProcessedParcelConfig> {
   return {
-    extends: configFile.extends,
-    filePath: configFile.filePath,
-    resolveFrom: configFile.resolveFrom,
+    filePath: toProjectPath(options.projectRoot, configFile.filePath),
+    ...(configFile.resolveFrom != null
+      ? {
+          resolveFrom: toProjectPath(
+            options.projectRoot,
+            configFile.resolveFrom,
+          ),
+        }
+      : {...null}),
     resolvers: processPipeline(
+      options,
       configFile.resolvers,
       '/resolvers',
       configFile.filePath,
     ),
-    transformers: processMap(
+    transformers: await processMap(
       configFile.transformers,
       '/transformers',
       configFile.filePath,
+      options,
     ),
     bundler:
       configFile.bundler != null
         ? {
             packageName: configFile.bundler,
-            resolveFrom: configFile.filePath,
+            resolveFrom: toProjectPath(
+              options.projectRoot,
+              configFile.filePath,
+            ),
             keyPath: '/bundler',
           }
         : undefined,
-    namers: processPipeline(configFile.namers, '/namers', configFile.filePath),
+    namers: processPipeline(
+      options,
+      configFile.namers,
+      '/namers',
+      configFile.filePath,
+    ),
     runtimes: processPipeline(
+      options,
       configFile.runtimes,
       '/runtimes',
       configFile.filePath,
     ),
-    packagers: processMap(
+    packagers: await processMap(
       configFile.packagers,
       '/packagers',
       configFile.filePath,
+      options,
     ),
-    optimizers: processMap(
+    optimizers: await processMap(
       configFile.optimizers,
       '/optimizers',
       configFile.filePath,
+      options,
     ),
     reporters: processPipeline(
+      options,
       configFile.reporters,
       '/reporters',
       configFile.filePath,
     ),
-    validators: processMap(
+    validators: await processMap(
       configFile.validators,
       '/validators',
       configFile.filePath,
+      options,
     ),
   };
 }
@@ -340,10 +401,13 @@ export async function processConfigChain(
   validateConfigFile(configFile, relativePath);
 
   // Process config...
-  let config: ProcessedParcelConfig = processConfig({
-    filePath,
-    ...configFile,
-  });
+  let config: ProcessedParcelConfig = await processConfig(
+    {
+      filePath,
+      ...configFile,
+    },
+    options,
+  );
 
   let extendedFiles: Array<FilePath> = [];
   if (configFile.extends != null) {
@@ -421,20 +485,24 @@ export async function resolveExtends(
         diagnostic: {
           message: `Cannot find extended parcel config`,
           origin: '@parcel/core',
-          filePath: configPath,
-          language: 'json5',
-          codeFrame: {
-            code: parentContents,
-            codeHighlights: generateJSONCodeHighlights(parentContents, [
-              {
-                key: extendsKey,
-                type: 'value',
-                message: md`Cannot find module "${ext}"${
-                  alternatives[0] ? `, did you mean "${alternatives[0]}"?` : ''
-                }`,
-              },
-            ]),
-          },
+          codeFrames: [
+            {
+              filePath: configPath,
+              language: 'json5',
+              code: parentContents,
+              codeHighlights: generateJSONCodeHighlights(parentContents, [
+                {
+                  key: extendsKey,
+                  type: 'value',
+                  message: md`Cannot find module "${ext}"${
+                    alternatives[0]
+                      ? `, did you mean "${alternatives[0]}"?`
+                      : ''
+                  }`,
+                },
+              ]),
+            },
+          ],
         },
       });
     }
@@ -460,25 +528,28 @@ async function processExtendedConfig(
       options.inputFS,
       extendsSpecifier,
       path.dirname(resolvedExtendedConfigPath),
+      options.projectRoot,
     );
     throw new ThrowableDiagnostic({
       diagnostic: {
         message: 'Cannot find extended parcel config',
         origin: '@parcel/core',
-        filePath: configPath,
-        language: 'json5',
-        codeFrame: {
-          code: parentContents,
-          codeHighlights: generateJSONCodeHighlights(parentContents, [
-            {
-              key: extendsKey,
-              type: 'value',
-              message: md`"${extendsSpecifier}" does not exist${
-                alternatives[0] ? `, did you mean "./${alternatives[0]}"?` : ''
-              }`,
-            },
-          ]),
-        },
+        codeFrames: [
+          {
+            filePath: configPath,
+            language: 'json5',
+            code: parentContents,
+            codeHighlights: generateJSONCodeHighlights(parentContents, [
+              {
+                key: extendsKey,
+                type: 'value',
+                message: md`"${extendsSpecifier}" does not exist${
+                  alternatives[0] ? `, did you mean "${alternatives[0]}"?` : ''
+                }`,
+              },
+            ]),
+          },
+        ],
       },
     });
   }
@@ -533,11 +604,12 @@ export function mergeConfigs(
   };
 }
 
-function getResolveFrom(options: ParcelOptions) {
-  let cwd = options.inputFS.cwd();
-  let dir = isDirectoryInside(cwd, options.projectRoot)
-    ? cwd
-    : options.projectRoot;
+export function getResolveFrom(
+  fs: FileSystem,
+  projectRoot: FilePath,
+): FilePath {
+  let cwd = fs.cwd();
+  let dir = isDirectoryInside(cwd, projectRoot) ? cwd : projectRoot;
   return path.join(dir, 'index');
 }
 

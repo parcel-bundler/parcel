@@ -1,6 +1,6 @@
 {
   "name": "@parcel/packager-js",
-  "version": "2.0.0-beta.2",
+  "version": "2.0.0-beta.3.1",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -13,18 +13,19 @@
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
-  "main": "lib/JSPackager.js",
-  "source": "src/JSPackager.js",
+  "main": "lib/index.js",
+  "source": "src/index.js",
   "engines": {
     "node": ">= 12.0.0",
     "parcel": "^2.0.0-beta.1"
   },
   "dependencies": {
-    "@babel/traverse": "^7.2.3",
-    "@parcel/plugin": "2.0.0-beta.2",
-    "@parcel/scope-hoisting": "2.0.0-beta.2",
-    "@parcel/source-map": "2.0.0-alpha.4.21",
-    "@parcel/utils": "2.0.0-beta.2",
+    "@parcel/diagnostic": "2.0.0-beta.3.1",
+    "@parcel/hash": "2.0.0-beta.3.1",
+    "@parcel/plugin": "2.0.0-beta.3.1",
+    "@parcel/source-map": "2.0.0-rc.5",
+    "@parcel/utils": "2.0.0-beta.3.1",
+    "globals": "^13.2.0",
     "nullthrows": "^1.1.1"
   }
 }

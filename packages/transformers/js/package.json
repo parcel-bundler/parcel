@@ -1,6 +1,6 @@
 {
   "name": "@parcel/transformer-js",
-  "version": "2.0.0-beta.2",
+  "version": "2.0.0-beta.3.1",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -15,25 +15,45 @@
   },
   "main": "lib/JSTransformer.js",
   "source": "src/JSTransformer.js",
-  "engines": {
-    "node": ">= 12.0.0",
-    "parcel": "^2.0.0-beta.1"
+  "napi": {
+    "name": "parcel-swc"
   },
+  "engines": {
+    "parcel": "^2.0.0-beta.1",
+    "node": ">= 12.0.0"
+  },
+  "files": [
+    "lib",
+    "native-browser.js",
+    "native.js",
+    "src",
+    "*.node"
+  ],
   "dependencies": {
-    "@babel/core": "^7.12.0",
-    "@babel/parser": "^7.0.0",
-    "@babel/template": "^7.4.0",
-    "@babel/traverse": "^7.0.0",
-    "@babel/types": "^7.12.13",
-    "@parcel/babel-ast-utils": "2.0.0-beta.2",
-    "@parcel/babylon-walk": "2.0.0-beta.2",
-    "@parcel/diagnostic": "2.0.0-beta.2",
-    "@parcel/plugin": "2.0.0-beta.2",
-    "@parcel/scope-hoisting": "2.0.0-beta.2",
-    "@parcel/types": "2.0.0-beta.2",
-    "@parcel/utils": "2.0.0-beta.2",
+    "@parcel/diagnostic": "2.0.0-beta.3.1",
+    "@parcel/plugin": "2.0.0-beta.3.1",
+    "@parcel/source-map": "2.0.0-rc.5",
+    "@parcel/utils": "2.0.0-beta.3.1",
+    "@swc/helpers": "^0.2.11",
+    "browserslist": "^4.6.6",
+    "detect-libc": "^1.0.3",
     "micromatch": "^4.0.2",
     "nullthrows": "^1.1.1",
+    "regenerator-runtime": "^0.13.7",
     "semver": "^5.4.1"
+  },
+  "devDependencies": {
+    "@napi-rs/cli": "1.0.4",
+    "self-published": "npm:@parcel/transformer-js@2.0.0-beta.3.1"
+  },
+  "scripts": {
+    "build": "napi build --platform --cargo-cwd napi",
+    "build-release": "napi build --platform --release --cargo-cwd napi",
+    "build:wasm-base": "wasm-pack build wasm --no-typescript --release",
+    "build:wasm-node": "yarn build:wasm-base --target nodejs --out-dir dist-node",
+    "build:wasm-web": "CARGO_PROFILE_RELEASE_LTO=true CARGO_PROFILE_RELEASE_PANIC=abort CARGO_PROFILE_RELEASE_OPT_LEVEL=z yarn build:wasm-base --target web --out-dir dist-web"
+  },
+  "browser": {
+    "./native.js": "./native-browser.js"
   }
 }

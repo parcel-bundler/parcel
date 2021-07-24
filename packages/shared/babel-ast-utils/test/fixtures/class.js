@@ -7,6 +7,7 @@ class C extends A {
   get property() {
     return this._property;
   }
+  // /* foo */
   set property(value) {
     this._property = value;
   }

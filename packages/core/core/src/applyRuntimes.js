@@ -14,6 +14,7 @@ import type ParcelConfig from './ParcelConfig';
 import type PluginOptions from './public/PluginOptions';
 import type {RunAPI} from './RequestTracker';
 
+import path from 'path';
 import assert from 'assert';
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
@@ -22,10 +23,13 @@ import BundleGraph from './public/BundleGraph';
 import InternalBundleGraph from './BundleGraph';
 import {NamedBundle} from './public/Bundle';
 import {PluginLogger} from '@parcel/logger';
+import {hashString} from '@parcel/hash';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import {dependencyToInternalDependency} from './public/Dependency';
+import {mergeEnvironments} from './Environment';
 import createAssetGraphRequest from './requests/AssetGraphRequest';
 import {createDevDependency, runDevDepRequest} from './requests/DevDepRequest';
+import {toProjectPath, fromProjectPathRelative} from './projectPath';
 
 type RuntimeConnection = {|
   bundle: InternalBundle,
@@ -75,11 +79,22 @@ export default async function applyRuntimes({
 
         if (applied) {
           let runtimeAssets = Array.isArray(applied) ? applied : [applied];
-          for (let {code, dependency, filePath, isEntry} of runtimeAssets) {
+          for (let {
+            code,
+            dependency,
+            filePath,
+            isEntry,
+            env,
+          } of runtimeAssets) {
+            let sourceName = path.join(
+              path.dirname(filePath),
+              `runtime-${hashString(code)}.${bundle.type}`,
+            );
+
             let assetGroup = {
               code,
-              filePath,
-              env: bundle.env,
+              filePath: toProjectPath(options.projectRoot, sourceName),
+              env: mergeEnvironments(options.projectRoot, bundle.env, env),
               // Runtime assets should be considered source, as they should be
               // e.g. compiled to run in the target environment
               isSource: true,
@@ -97,7 +112,6 @@ export default async function applyRuntimes({
         throw new ThrowableDiagnostic({
           diagnostic: errorToDiagnostic(e, {
             origin: runtime.name,
-            filePath: bundle.filePath,
           }),
         });
       }
@@ -108,7 +122,7 @@ export default async function applyRuntimes({
   for (let runtime of runtimes) {
     let devDepRequest = await createDevDependency(
       {
-        moduleSpecifier: runtime.name,
+        specifier: runtime.name,
         resolveFrom: runtime.resolveFrom,
       },
       runtime,
@@ -116,7 +130,9 @@ export default async function applyRuntimes({
       options,
     );
     devDepRequests.set(
-      `${devDepRequest.moduleSpecifier}:${devDepRequest.resolveFrom}`,
+      `${devDepRequest.specifier}:${fromProjectPathRelative(
+        devDepRequest.resolveFrom,
+      )}`,
       devDepRequest,
     );
     await runDevDepRequest(api, devDepRequest);

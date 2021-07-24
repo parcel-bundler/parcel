@@ -3,20 +3,34 @@
 import type {MutableAsset, AST, PluginOptions} from '@parcel/types';
 
 import invariant from 'assert';
-import * as babel from '@babel/core';
+import * as internalBabelCore from '@babel/core';
 import {relativeUrl} from '@parcel/utils';
+import {remapAstLocations} from '@parcel/babel-ast-utils';
 
 import packageJson from '../package.json';
 
 const transformerVersion: mixed = packageJson.version;
 invariant(typeof transformerVersion === 'string');
 
-export default async function babel7(
+type Babel7TransformOptions = {|
   asset: MutableAsset,
   options: PluginOptions,
   babelOptions: any,
-  additionalPlugins: Array<any> = [],
+  additionalPlugins?: Array<any>,
+|};
+
+export default async function babel7(
+  opts: Babel7TransformOptions,
 ): Promise<?AST> {
+  let {asset, options, babelOptions, additionalPlugins = []} = opts;
+  const babelCore = babelOptions.internal
+    ? internalBabelCore
+    : await options.packageManager.require('@babel/core', asset.filePath, {
+        range: '^7.12.0',
+        saveDev: true,
+        shouldAutoInstall: options.shouldAutoInstall,
+      });
+
   let config = {
     ...babelOptions.config,
     plugins: additionalPlugins.concat(babelOptions.config.plugins),
@@ -31,6 +45,16 @@ export default async function babel7(
       allowReturnOutsideFunction: true,
       strictMode: false,
       sourceType: 'module',
+      plugins: [
+        ...(babelOptions.config.parserOpts?.plugins ?? []),
+        ...(babelOptions.syntaxPlugins ?? []),
+        // Applied by preset-env
+        'classProperties',
+        'classPrivateProperties',
+        'classPrivateMethods',
+        'exportDefaultFrom',
+        // 'topLevelAwait'
+      ],
     },
     caller: {
       name: 'parcel',
@@ -43,13 +67,19 @@ export default async function babel7(
   let ast = await asset.getAST();
   let res;
   if (ast) {
-    res = await babel.transformFromAstAsync(
+    res = await babelCore.transformFromAstAsync(
       ast.program,
       asset.isASTDirty() ? undefined : await asset.getCode(),
       config,
     );
   } else {
-    res = await babel.transformAsync(await asset.getCode(), config);
+    res = await babelCore.transformAsync(await asset.getCode(), config);
+    if (res.ast) {
+      let map = await asset.getMap();
+      if (map) {
+        remapAstLocations(res.ast, map);
+      }
+    }
   }
 
   if (res.ast) {

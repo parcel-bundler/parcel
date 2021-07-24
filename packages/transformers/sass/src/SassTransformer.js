@@ -8,13 +8,16 @@ import {pathToFileURL} from 'url';
 import {promisify} from 'util';
 
 // E.g: ~library/file.sass
-const WEBPACK_ALIAS_RE = /^~[^/]/;
+const NODE_MODULE_ALIAS_RE = /^~[^/\\]/;
 
 export default (new Transformer({
   async loadConfig({config, options}) {
-    let configFile = await config.getConfig(['.sassrc', '.sassrc.js'], {
-      packageKey: 'sass',
-    });
+    let configFile = await config.getConfig(
+      ['.sassrc', '.sassrc.json', '.sassrc.js'],
+      {
+        packageKey: 'sass',
+      },
+    );
 
     let configResult = configFile ? configFile.contents : {};
 
@@ -26,7 +29,7 @@ export default (new Transformer({
     }
 
     if (configFile && path.extname(configFile.filePath) === '.js') {
-      config.shouldInvalidateOnStartup();
+      config.invalidateOnStartup();
     }
 
     if (configResult.importer === undefined) {
@@ -42,7 +45,7 @@ export default (new Transformer({
     configResult.omitSourceMapUrl = true;
     configResult.sourceMapContents = false;
 
-    config.setResult(configResult);
+    return configResult;
   },
 
   async transform({asset, options, config, resolve}) {
@@ -73,13 +76,13 @@ export default (new Transformer({
       css = result.css;
       for (let included of result.stats.includedFiles) {
         if (included !== asset.filePath) {
-          asset.addIncludedFile(included);
+          asset.invalidateOnFileChange(included);
         }
       }
 
       if (result.map != null) {
         let map = new SourceMap(options.projectRoot);
-        map.addRawMappings(JSON.parse(result.map));
+        map.addVLQMap(JSON.parse(result.map));
         asset.setMap(map);
       }
     } catch (err) {
@@ -102,7 +105,10 @@ export default (new Transformer({
 function resolvePathImporter({asset, resolve, includePaths, options}) {
   // This is a reimplementation of the Sass resolution algorithm that uses Parcel's
   // FS and tracks all tried files so they are watched for creation.
-  async function resolvePath(url, prev) {
+  async function resolvePath(
+    url,
+    prev,
+  ): Promise<{filePath: string, contents: string, ...} | void> {
     /*
       Imports are resolved by trying, in order:
         * Loading a file relative to the file in which the `@import` appeared.
@@ -125,51 +131,63 @@ function resolvePathImporter({asset, resolve, includePaths, options}) {
       paths.push(
         ...options.env.SASS_PATH.split(
           process.platform === 'win32' ? ';' : ':',
-        ),
+        ).map(p => path.resolve(options.projectRoot, p)),
       );
     }
 
-    let filePath;
-    let contents;
+    const urls = [url];
+    const urlFileName = path.basename(url);
+    if (urlFileName[0] !== '_') {
+      urls.push(path.join(path.dirname(url), `_${urlFileName}`));
+    }
 
     if (url[0] !== '~') {
       for (let p of paths) {
-        filePath = path.resolve(p, url);
-        try {
-          contents = await asset.fs.readFile(filePath, 'utf8');
-          break;
-        } catch (err) {
-          asset.invalidateOnFileCreate({filePath});
+        for (let u of urls) {
+          const filePath = path.resolve(p, u);
+          try {
+            const contents = await asset.fs.readFile(filePath, 'utf8');
+            return {
+              filePath,
+              contents,
+            };
+          } catch (err) {
+            asset.invalidateOnFileCreate({filePath});
+          }
         }
       }
     }
 
     // If none of the default sass rules apply, try Parcel's resolver.
-    if (!contents) {
-      filePath = await resolve(prev, url);
-      contents = await asset.fs.readFile(filePath, 'utf8');
-    }
-
-    if (filePath) {
-      return {
-        file: pathToFileURL(filePath).toString(),
-        contents,
-      };
+    for (let u of urls) {
+      if (NODE_MODULE_ALIAS_RE.test(u)) {
+        u = u.slice(1);
+      }
+      try {
+        const filePath = await resolve(prev, u);
+        if (filePath) {
+          const contents = await asset.fs.readFile(filePath, 'utf8');
+          return {filePath, contents};
+        }
+      } catch (err) {
+        continue;
+      }
     }
   }
 
   return function(rawUrl, prev, done) {
-    let url = rawUrl.replace(/^file:\/\//, '');
-
-    if (WEBPACK_ALIAS_RE.test(url)) {
-      const correctPath = url.replace(/^~/, '');
-      const error = new Error(
-        `The @import path "${url}" is using webpack specific syntax, which isn't supported by Parcel.\n\nTo @import files from node_modules, use "${correctPath}"`,
-      );
-      done(error);
-      return;
-    }
-
-    resolvePath(url, prev).then(done, done);
+    const url = rawUrl.replace(/^file:\/\//, '');
+    resolvePath(url, prev)
+      .then(resolved => {
+        if (resolved) {
+          done({
+            file: pathToFileURL(resolved.filePath).toString(),
+            contents: resolved.contents,
+          });
+        } else {
+          done();
+        }
+      })
+      .catch(done);
   };
 }

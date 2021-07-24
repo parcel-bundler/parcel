@@ -10,7 +10,7 @@ import type {LanguageService, Diagnostic} from 'typescript'; // eslint-disable-l
 import path from 'path';
 import ts from 'typescript';
 import {type DiagnosticCodeFrame, escapeMarkdown} from '@parcel/diagnostic';
-import {md5FromObject} from '@parcel/utils';
+import {hashObject, loadConfig} from '@parcel/utils';
 import {Validator} from '@parcel/plugin';
 import {LanguageServiceHost, ParseConfigHost} from '@parcel/ts-utils';
 
@@ -84,19 +84,25 @@ async function getConfig(
   resolveConfigWithPath,
 ): Promise<TSValidatorConfig> {
   let configNames = ['tsconfig.json'];
-  let tsconfig = await asset.getConfig(configNames);
+  let tsconfig = await loadConfig(
+    asset.fs,
+    asset.filePath,
+    configNames,
+    options.projectRoot,
+  );
   let configPath: ?string = await resolveConfigWithPath(
     configNames,
     asset.filePath,
   );
   let baseDir = configPath ? path.dirname(configPath) : options.projectRoot;
-  let configHash = (tsconfig ? md5FromObject(tsconfig) : '') + '-' + baseDir;
+  let configHash =
+    (tsconfig ? hashObject(tsconfig.config) : '') + '-' + baseDir;
 
   return {
     filepath: configPath,
     baseDir,
     configHash,
-    tsconfig,
+    tsconfig: tsconfig?.config,
   };
 }
 
@@ -186,6 +192,7 @@ function getValidateResultFromDiagnostics(
           }
 
           codeframe = {
+            filePath: filename,
             code: source,
             codeHighlights: [
               {
@@ -201,8 +208,7 @@ function getValidateResultFromDiagnostics(
       validatorResult.errors.push({
         origin: '@parcel/validator-typescript',
         message: diagnosticMessage,
-        filePath: filename,
-        codeFrame: codeframe ? codeframe : undefined,
+        codeFrames: codeframe ? [codeframe] : undefined,
       });
     }
   }

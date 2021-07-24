@@ -1,5 +1,5 @@
 import {Test as Foo} from './other';
-import {File} from './nested/file';
+import type {File} from './nested/file';
 import * as ns from './namespace';
 
 export function foo(f: Foo) {

@@ -1,6 +1,6 @@
 {
   "name": "@parcel/diagnostic",
-  "version": "2.0.0-beta.2",
+  "version": "2.0.0-beta.3.1",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -15,8 +15,13 @@
   },
   "main": "lib/diagnostic.js",
   "source": "src/diagnostic.js",
+  "types": "lib/diagnostic.d.ts",
   "engines": {
     "node": ">= 12.0.0"
+  },
+  "scripts": {
+    "build-ts": "flow-to-ts src/*.js --write && tsc --emitDeclarationOnly --declaration --esModuleInterop src/*.ts && mkdir -p lib && mv src/*.d.ts lib/. && rm src/*.ts",
+    "check-ts": "tsc --noEmit lib/diagnostic.d.ts"
   },
   "dependencies": {
     "json-source-map": "^0.6.1",

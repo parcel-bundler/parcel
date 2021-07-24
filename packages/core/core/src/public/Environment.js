@@ -2,27 +2,32 @@
 import type {
   Environment as IEnvironment,
   EnvironmentContext,
+  EnvironmentFeature,
   Engines,
   OutputFormat,
   PackageName,
   VersionMap,
+  SourceLocation,
+  SourceType,
   TargetSourceMapOptions,
 } from '@parcel/types';
-import type {Environment as InternalEnvironment} from '../types';
+import type {Environment as InternalEnvironment, ParcelOptions} from '../types';
 import nullthrows from 'nullthrows';
 import browserslist from 'browserslist';
 import semver from 'semver';
+import {fromInternalSourceLocation} from '../utils';
 
 export const BROWSER_ENVS: Set<string> = new Set<string>([
   'browser',
   'web-worker',
   'service-worker',
+  'worklet',
   'electron-renderer',
 ]);
 const ELECTRON_ENVS = new Set(['electron-main', 'electron-renderer']);
 const NODE_ENVS = new Set(['node', ...ELECTRON_ENVS]);
 const WORKER_ENVS = new Set(['web-worker', 'service-worker']);
-const ISOLATED_ENVS = WORKER_ENVS;
+export const ISOLATED_ENVS: Set<string> = new Set([...WORKER_ENVS, 'worklet']);
 
 const ALL_BROWSERS = [
   'chrome',
@@ -45,17 +50,53 @@ const ALL_BROWSERS = [
   'kaios',
 ];
 
-const ESMODULE_BROWSERS = {
-  edge: '16',
-  firefox: '60',
-  chrome: '61',
-  safari: '11',
-  opera: '48',
-  ios: '11',
-  android: '76',
-  and_chr: '76',
-  and_ff: '68',
-  samsung: '8.2',
+const supportData = {
+  esmodules: {
+    edge: '16',
+    firefox: '60',
+    chrome: '61',
+    safari: '11',
+    opera: '48',
+    ios: '11',
+    android: '76',
+    and_chr: '76',
+    and_ff: '68',
+    samsung: '8.2',
+  },
+  'dynamic-import': {
+    edge: '76',
+    firefox: '67',
+    chrome: '63',
+    safari: '11.1',
+    opera: '50',
+    ios: '11.3',
+    android: '63',
+    and_chr: '63',
+    and_ff: '67',
+    samsung: '8',
+  },
+  'worker-module': {
+    edge: '80',
+    chrome: '80',
+    opera: '67',
+    android: '81',
+    and_chr: '86',
+  },
+  'service-worker-module': {
+    // TODO: Safari 14.1??
+  },
+  'import-meta-url': {
+    edge: '79',
+    firefox: '62',
+    chrome: '64',
+    safari: '11.1',
+    opera: '51',
+    ios: '12',
+    android: '64',
+    and_chr: '64',
+    and_ff: '62',
+    samsung: '9.2',
+  },
 };
 
 const internalEnvironmentToEnvironment: WeakMap<
@@ -74,17 +115,23 @@ export function environmentToInternalEnvironment(
 
 export default class Environment implements IEnvironment {
   #environment /*: InternalEnvironment */;
+  #options /*: ParcelOptions */;
 
-  constructor(env: InternalEnvironment): Environment {
+  constructor(env: InternalEnvironment, options: ParcelOptions): Environment {
     let existing = internalEnvironmentToEnvironment.get(env);
     if (existing != null) {
       return existing;
     }
 
     this.#environment = env;
+    this.#options = options;
     _environmentToInternalEnvironment.set(this, env);
     internalEnvironmentToEnvironment.set(env, this);
     return this;
+  }
+
+  get id(): string {
+    return this.#environment.id;
   }
 
   get context(): EnvironmentContext {
@@ -106,6 +153,10 @@ export default class Environment implements IEnvironment {
     return this.#environment.outputFormat;
   }
 
+  get sourceType(): SourceType {
+    return this.#environment.sourceType;
+  }
+
   get isLibrary(): boolean {
     return this.#environment.isLibrary;
   }
@@ -120,6 +171,13 @@ export default class Environment implements IEnvironment {
 
   get sourceMap(): ?TargetSourceMapOptions {
     return this.#environment.sourceMap;
+  }
+
+  get loc(): ?SourceLocation {
+    return fromInternalSourceLocation(
+      this.#options.projectRoot,
+      this.#environment.loc,
+    );
   }
 
   isBrowser(): boolean {
@@ -142,7 +200,14 @@ export default class Environment implements IEnvironment {
     return WORKER_ENVS.has(this.#environment.context);
   }
 
-  matchesEngines(minVersions: VersionMap): boolean {
+  isWorklet(): boolean {
+    return this.#environment.context === 'worklet';
+  }
+
+  matchesEngines(
+    minVersions: VersionMap,
+    defaultValue?: boolean = false,
+  ): boolean {
     // Determine if the environment matches some minimum version requirements.
     // For browsers, we run a browserslist query with and without the minimum
     // required browsers and compare the lists. For node, we just check semver.
@@ -155,18 +220,34 @@ export default class Environment implements IEnvironment {
 
       // If outputting esmodules, exclude browsers without support.
       if (this.outputFormat === 'esmodule') {
-        browsers = [...browsers, ...getExcludedBrowsers(ESMODULE_BROWSERS)];
+        browsers = [...browsers, ...getExcludedBrowsers(supportData.esmodules)];
       }
 
       let matchedBrowsers = browserslist(browsers);
+      if (matchedBrowsers.length === 0) {
+        return false;
+      }
+
       let minBrowsers = getExcludedBrowsers(minVersions);
       let withoutMinBrowsers = browserslist([...browsers, ...minBrowsers]);
       return matchedBrowsers.length === withoutMinBrowsers.length;
-    } else if (this.isNode() && this.engines.node != null && minVersions.node) {
-      return !semver.intersects(`< ${minVersions.node}`, this.engines.node);
+    } else if (this.isNode() && this.engines.node != null) {
+      return (
+        minVersions.node != null &&
+        !semver.intersects(`< ${minVersions.node}`, this.engines.node)
+      );
     }
 
-    return false;
+    return defaultValue;
+  }
+
+  supports(feature: EnvironmentFeature, defaultValue?: boolean): boolean {
+    let engines = supportData[feature];
+    if (!engines) {
+      throw new Error('Unknown environment feature: ' + feature);
+    }
+
+    return this.matchesEngines(engines, defaultValue);
   }
 }
 

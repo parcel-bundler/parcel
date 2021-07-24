@@ -24,7 +24,9 @@ export default async function bundleReport(
   projectRoot: FilePath,
   assetCount: number = 0,
 ) {
-  let bundleList = bundleGraph.getBundles().filter(b => !b.isInline);
+  let bundleList = bundleGraph
+    .getBundles()
+    .filter(b => b.bundleBehavior !== 'inline');
 
   // Get a list of bundles sorted by size
   let {bundles} =

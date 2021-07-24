@@ -8,6 +8,7 @@
 <PROJECT_ROOT>/packages/core/integration-tests/dist/**
 <PROJECT_ROOT>/packages/core/integration-tests/test/input/**
 <PROJECT_ROOT>/packages/core/integration-tests/test/integration/babel-strip-flow-types/**
+<PROJECT_ROOT>/packages/core/integration-tests/test/integration/diagnostic-sourcemap/**
 
 [untyped]
 .*/node_modules/graphql/error/GraphQLError.js.flow
@@ -22,9 +23,6 @@ implicit-inexact-object=error
 untyped-type-import=error
 
 [options]
-esproposal.export_star_as=enable
-esproposal.nullish_coalescing=enable
-esproposal.optional_chaining=enable
 module.system.node.main_field=source
 module.system.node.main_field=main
 
@@ -38,4 +36,4 @@ untyped-import
 untyped-type-import
 
 [version]
-0.148.0
+0.153.0

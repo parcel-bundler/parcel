@@ -7,6 +7,7 @@
     {
       "files": [
         "packages/packagers/js/src/prelude.js",
+        "packages/packagers/swc/src/dev-prelude.js",
         "packages/shared/scope-hoisting/src/helpers.js"
       ],
       "options": {

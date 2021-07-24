@@ -1,6 +1,6 @@
 {
   "name": "@parcel/package-manager",
-  "version": "2.0.0-beta.2",
+  "version": "2.0.0-beta.3.1",
   "description": "Blazing fast, zero configuration web application bundler",
   "license": "MIT",
   "publishConfig": {
@@ -16,15 +16,21 @@
   },
   "main": "lib/index.js",
   "source": "src/index.js",
+  "types": "index.d.ts",
   "engines": {
     "node": ">= 12.0.0"
   },
+  "scripts": {
+    "build-ts": "mkdir -p lib && flow-to-ts src/types.js > lib/types.d.ts",
+    "check-ts": "tsc --noEmit index.d.ts"
+  },
   "dependencies": {
-    "@parcel/diagnostic": "2.0.0-beta.2",
-    "@parcel/fs": "2.0.0-beta.2",
-    "@parcel/logger": "2.0.0-beta.2",
-    "@parcel/utils": "2.0.0-beta.2",
-    "@parcel/workers": "2.0.0-beta.2",
+    "@parcel/diagnostic": "2.0.0-beta.3.1",
+    "@parcel/fs": "2.0.0-beta.3.1",
+    "@parcel/logger": "2.0.0-beta.3.1",
+    "@parcel/types": "2.0.0-beta.3.1",
+    "@parcel/utils": "2.0.0-beta.3.1",
+    "@parcel/workers": "2.0.0-beta.3.1",
     "command-exists": "^1.2.6",
     "cross-spawn": "^6.0.4",
     "nullthrows": "^1.1.1",

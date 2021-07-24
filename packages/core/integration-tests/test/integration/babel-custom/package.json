@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "react": "*"
+  },
+  "browserslist": ">= 0.25%"
+}

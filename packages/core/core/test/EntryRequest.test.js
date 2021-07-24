@@ -4,7 +4,6 @@ import path from 'path';
 import {inputFS as fs} from '@parcel/test-utils';
 import {EntryResolver} from '../src/requests/EntryRequest';
 import {DEFAULT_OPTIONS as _DEFAULT_OPTIONS} from './test-utils';
-import {md} from '@parcel/diagnostic';
 
 const DEFAULT_OPTIONS = {
   ..._DEFAULT_OPTIONS,
@@ -34,10 +33,6 @@ const INVALID_TARGET_SOURCE_NOT_FILE_FIXTURE_PATH = path.join(
   'fixtures/invalid-target-source-not-file',
 );
 
-function packagePath(fixturePath) {
-  return path.join(path.relative(fs.cwd(), fixturePath), '/package.json');
-}
-
 describe('EntryResolver', function() {
   let entryResolver = new EntryResolver({...DEFAULT_OPTIONS});
 
@@ -47,9 +42,37 @@ describe('EntryResolver', function() {
     await assert.rejects(
       () => entryResolver.resolveEntry(INVALID_SOURCE_MISSING_FIXTURE_PATH),
       {
-        message: md`missing.js in ${packagePath(
-          INVALID_SOURCE_MISSING_FIXTURE_PATH,
-        )}#source does not exist`,
+        diagnostics: [
+          {
+            origin: '@parcel/core',
+            message: `${path.join(
+              path.relative(fs.cwd(), INVALID_SOURCE_MISSING_FIXTURE_PATH),
+              'missing.js',
+            )} does not exist.`,
+            codeFrames: [
+              {
+                filePath: path.join(
+                  INVALID_SOURCE_MISSING_FIXTURE_PATH,
+                  'package.json',
+                ),
+                codeHighlights: [
+                  {
+                    message: undefined,
+                    start: {
+                      line: 4,
+                      column: 13,
+                    },
+                    end: {
+                      line: 4,
+                      column: 24,
+                    },
+                  },
+                ],
+              },
+            ],
+            hints: [],
+          },
+        ],
       },
     );
   });
@@ -59,9 +82,36 @@ describe('EntryResolver', function() {
     await assert.rejects(
       () => entryResolver.resolveEntry(INVALID_SOURCE_NOT_FILE_FIXTURE_PATH),
       {
-        message: md`src in ${packagePath(
-          INVALID_SOURCE_NOT_FILE_FIXTURE_PATH,
-        )}#source is not a file`,
+        diagnostics: [
+          {
+            origin: '@parcel/core',
+            message: `${path.join(
+              path.relative(fs.cwd(), INVALID_SOURCE_NOT_FILE_FIXTURE_PATH),
+              'src',
+            )} is not a file.`,
+            codeFrames: [
+              {
+                filePath: path.join(
+                  INVALID_SOURCE_NOT_FILE_FIXTURE_PATH,
+                  'package.json',
+                ),
+                codeHighlights: [
+                  {
+                    message: undefined,
+                    start: {
+                      line: 4,
+                      column: 13,
+                    },
+                    end: {
+                      line: 4,
+                      column: 17,
+                    },
+                  },
+                ],
+              },
+            ],
+          },
+        ],
       },
     );
   });
@@ -72,9 +122,40 @@ describe('EntryResolver', function() {
       () =>
         entryResolver.resolveEntry(INVALID_TARGET_SOURCE_MISSING_FIXTURE_PATH),
       {
-        message: md`missing.js in ${packagePath(
-          INVALID_TARGET_SOURCE_MISSING_FIXTURE_PATH,
-        )}#targets["a"].source does not exist`,
+        diagnostics: [
+          {
+            origin: '@parcel/core',
+            message: `${path.join(
+              path.relative(
+                fs.cwd(),
+                INVALID_TARGET_SOURCE_MISSING_FIXTURE_PATH,
+              ),
+              'missing.js',
+            )} does not exist.`,
+            codeFrames: [
+              {
+                filePath: path.join(
+                  INVALID_TARGET_SOURCE_MISSING_FIXTURE_PATH,
+                  'package.json',
+                ),
+                codeHighlights: [
+                  {
+                    message: undefined,
+                    start: {
+                      line: 6,
+                      column: 17,
+                    },
+                    end: {
+                      line: 6,
+                      column: 28,
+                    },
+                  },
+                ],
+              },
+            ],
+            hints: [],
+          },
+        ],
       },
     );
   });
@@ -85,9 +166,39 @@ describe('EntryResolver', function() {
       () =>
         entryResolver.resolveEntry(INVALID_TARGET_SOURCE_NOT_FILE_FIXTURE_PATH),
       {
-        message: md`src in ${packagePath(
-          INVALID_TARGET_SOURCE_NOT_FILE_FIXTURE_PATH,
-        )}#targets["a"].source is not a file`,
+        diagnostics: [
+          {
+            origin: '@parcel/core',
+            message: `${path.join(
+              path.relative(
+                fs.cwd(),
+                INVALID_TARGET_SOURCE_NOT_FILE_FIXTURE_PATH,
+              ),
+              'src',
+            )} is not a file.`,
+            codeFrames: [
+              {
+                filePath: path.join(
+                  INVALID_TARGET_SOURCE_NOT_FILE_FIXTURE_PATH,
+                  'package.json',
+                ),
+                codeHighlights: [
+                  {
+                    message: undefined,
+                    start: {
+                      line: 6,
+                      column: 17,
+                    },
+                    end: {
+                      line: 6,
+                      column: 21,
+                    },
+                  },
+                ],
+              },
+            ],
+          },
+        ],
       },
     );
   });

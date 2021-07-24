@@ -7,9 +7,10 @@ import type {
   SourceLocation,
   Meta,
 } from '@parcel/types';
-import type {Asset, Dependency} from '../types';
+import type {Asset, Dependency, ParcelOptions} from '../types';
 
 import nullthrows from 'nullthrows';
+import {fromInternalSourceLocation, toInternalSourceLocation} from '../utils';
 
 const EMPTY_ITERABLE = {
   [Symbol.iterator]() {
@@ -32,14 +33,16 @@ export class AssetSymbols implements IAssetSymbols {
   @@iterator(): Iterator<[ISymbol, {|local: ISymbol, loc: ?SourceLocation, meta?: ?Meta|}]> { return ({}: any); }
   */
   #value: Asset;
+  #options: ParcelOptions;
 
-  constructor(asset: Asset): AssetSymbols {
+  constructor(options: ParcelOptions, asset: Asset): AssetSymbols {
     let existing = valueToSymbols.get(asset);
     if (existing != null) {
       return existing;
     }
 
     this.#value = asset;
+    this.#options = options;
     valueToSymbols.set(asset, this);
     return this;
   }
@@ -61,7 +64,10 @@ export class AssetSymbols implements IAssetSymbols {
   get(
     exportSymbol: ISymbol,
   ): ?{|local: ISymbol, loc: ?SourceLocation, meta?: ?Meta|} {
-    return this.#value.symbols?.get(exportSymbol);
+    return fromInternalAssetSymbol(
+      this.#options.projectRoot,
+      this.#value.symbols?.get(exportSymbol),
+    );
   }
 
   get isCleared(): boolean {
@@ -70,7 +76,7 @@ export class AssetSymbols implements IAssetSymbols {
 
   exportSymbols(): Iterable<ISymbol> {
     // $FlowFixMe
-    return this.#value.symbols.keys();
+    return this.#value.symbols?.keys() ?? [];
   }
   // $FlowFixMe
   [Symbol.iterator]() {
@@ -100,13 +106,15 @@ export class MutableAssetSymbols implements IMutableAssetSymbols {
   @@iterator(): Iterator<[ISymbol, {|local: ISymbol, loc: ?SourceLocation, meta?: ?Meta|}]> { return ({}: any); }
   */
   #value: Asset;
+  #options: ParcelOptions;
 
-  constructor(asset: Asset): MutableAssetSymbols {
+  constructor(options: ParcelOptions, asset: Asset): MutableAssetSymbols {
     let existing = valueToMutableAssetSymbols.get(asset);
     if (existing != null) {
       return existing;
     }
     this.#value = asset;
+    this.#options = options;
     return this;
   }
 
@@ -129,7 +137,10 @@ export class MutableAssetSymbols implements IMutableAssetSymbols {
   get(
     exportSymbol: ISymbol,
   ): ?{|local: ISymbol, loc: ?SourceLocation, meta?: ?Meta|} {
-    return nullthrows(this.#value.symbols).get(exportSymbol);
+    return fromInternalAssetSymbol(
+      this.#options.projectRoot,
+      this.#value.symbols?.get(exportSymbol),
+    );
   }
 
   get isCleared(): boolean {
@@ -172,7 +183,11 @@ export class MutableAssetSymbols implements IMutableAssetSymbols {
     loc: ?SourceLocation,
     meta: ?Meta,
   ) {
-    nullthrows(this.#value.symbols).set(exportSymbol, {local, loc, meta});
+    nullthrows(this.#value.symbols).set(exportSymbol, {
+      local,
+      loc: toInternalSourceLocation(this.#options.projectRoot, loc),
+      meta,
+    });
   }
 
   delete(exportSymbol: ISymbol) {
@@ -189,13 +204,18 @@ export class MutableDependencySymbols implements IMutableDependencySymbols {
   @@iterator(): Iterator<[ISymbol, {|local: ISymbol, loc: ?SourceLocation, isWeak: boolean, meta?: ?Meta|}]> { return ({}: any); }
   */
   #value: Dependency;
+  #options: ParcelOptions;
 
-  constructor(dep: Dependency): MutableDependencySymbols {
+  constructor(
+    options: ParcelOptions,
+    dep: Dependency,
+  ): MutableDependencySymbols {
     let existing = valueToMutableDependencySymbols.get(dep);
     if (existing != null) {
       return existing;
     }
     this.#value = dep;
+    this.#options = options;
     return this;
   }
 
@@ -217,7 +237,10 @@ export class MutableDependencySymbols implements IMutableDependencySymbols {
   get(
     exportSymbol: ISymbol,
   ): ?{|local: ISymbol, loc: ?SourceLocation, isWeak: boolean, meta?: ?Meta|} {
-    return nullthrows(this.#value.symbols).get(exportSymbol);
+    return fromInternalDependencySymbol(
+      this.#options.projectRoot,
+      nullthrows(this.#value.symbols).get(exportSymbol),
+    );
   }
 
   get isCleared(): boolean {
@@ -264,7 +287,7 @@ export class MutableDependencySymbols implements IMutableDependencySymbols {
     let symbols = nullthrows(this.#value.symbols);
     symbols.set(exportSymbol, {
       local,
-      loc,
+      loc: toInternalSourceLocation(this.#options.projectRoot, loc),
       isWeak: (symbols.get(exportSymbol)?.isWeak ?? true) && (isWeak ?? false),
     });
   }
@@ -272,4 +295,25 @@ export class MutableDependencySymbols implements IMutableDependencySymbols {
   delete(exportSymbol: ISymbol) {
     nullthrows(this.#value.symbols).delete(exportSymbol);
   }
+}
+
+function fromInternalAssetSymbol(projectRoot: string, value) {
+  return (
+    value && {
+      local: value.local,
+      meta: value.meta,
+      loc: fromInternalSourceLocation(projectRoot, value.loc),
+    }
+  );
+}
+
+function fromInternalDependencySymbol(projectRoot: string, value) {
+  return (
+    value && {
+      local: value.local,
+      meta: value.meta,
+      isWeak: value.isWeak,
+      loc: fromInternalSourceLocation(projectRoot, value.loc),
+    }
+  );
 }

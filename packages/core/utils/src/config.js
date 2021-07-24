@@ -15,36 +15,53 @@ export type ConfigOutput = {|
 
 export type ConfigOptions = {|
   parse?: boolean,
+  parser?: string => any,
 |};
 
 const configCache = new LRU<FilePath, ConfigOutput>({max: 500});
+const resolveCache = new Map();
 
 export function resolveConfig(
   fs: FileSystem,
   filepath: FilePath,
   filenames: Array<FilePath>,
+  projectRoot: FilePath,
 ): Promise<?FilePath> {
-  return Promise.resolve(
-    fs.findAncestorFile(filenames, path.dirname(filepath)),
+  // Cache the result of resolving config for this directory.
+  // This is automatically invalidated at the end of the current build.
+  let key = path.dirname(filepath) + filenames.join(',');
+  let cached = resolveCache.get(key);
+  if (cached !== undefined) {
+    return Promise.resolve(cached);
+  }
+
+  let resolved = fs.findAncestorFile(
+    filenames,
+    path.dirname(filepath),
+    projectRoot,
   );
+  resolveCache.set(key, resolved);
+  return Promise.resolve(resolved);
 }
 
 export function resolveConfigSync(
   fs: FileSystem,
   filepath: FilePath,
   filenames: Array<FilePath>,
+  projectRoot: FilePath,
 ): ?FilePath {
-  return fs.findAncestorFile(filenames, path.dirname(filepath));
+  return fs.findAncestorFile(filenames, path.dirname(filepath), projectRoot);
 }
 
 export async function loadConfig(
   fs: FileSystem,
   filepath: FilePath,
   filenames: Array<FilePath>,
+  projectRoot: FilePath,
   opts: ?ConfigOptions,
 ): Promise<ConfigOutput | null> {
   let parse = opts?.parse ?? true;
-  let configFile = await resolveConfig(fs, filepath, filenames);
+  let configFile = await resolveConfig(fs, filepath, filenames, projectRoot);
   if (configFile) {
     let cachedOutput = configCache.get(String(parse) + configFile);
     if (cachedOutput) {
@@ -71,7 +88,7 @@ export async function loadConfig(
       if (parse === false) {
         config = configContent;
       } else {
-        let parse = getParser(extname);
+        let parse = opts?.parser ?? getParser(extname);
         config = parse(configContent);
       }
 
@@ -96,6 +113,7 @@ export async function loadConfig(
 
 loadConfig.clear = () => {
   configCache.reset();
+  resolveCache.clear();
 };
 
 function getParser(extname) {

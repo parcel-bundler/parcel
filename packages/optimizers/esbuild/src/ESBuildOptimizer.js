@@ -43,7 +43,7 @@ export default (new Optimizer({
     if (jsSourceMap) {
       sourcemap = new SourceMap(options.projectRoot);
       let parsedMap = JSON.parse(jsSourceMap);
-      sourcemap.addRawMappings(parsedMap);
+      sourcemap.addVLQMap(parsedMap);
 
       let sourcemapReference = await getSourceMapReference(sourcemap);
       if (sourcemapReference) {

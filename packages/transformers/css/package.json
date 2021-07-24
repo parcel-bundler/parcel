@@ -1,6 +1,6 @@
 {
   "name": "@parcel/transformer-css",
-  "version": "2.0.0-beta.2",
+  "version": "2.0.0-beta.3.1",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -20,11 +20,11 @@
     "parcel": "^2.0.0-beta.1"
   },
   "dependencies": {
-    "@parcel/plugin": "2.0.0-beta.2",
-    "@parcel/source-map": "2.0.0-alpha.4.21",
-    "@parcel/utils": "2.0.0-beta.2",
+    "@parcel/plugin": "2.0.0-beta.3.1",
+    "@parcel/source-map": "2.0.0-rc.5",
+    "@parcel/utils": "2.0.0-beta.3.1",
     "nullthrows": "^1.1.1",
-    "postcss": "^8.2.1",
+    "postcss": "^8.3.0",
     "postcss-value-parser": "^4.1.0",
     "semver": "^5.4.1"
   }

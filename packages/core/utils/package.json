@@ -1,6 +1,6 @@
 {
   "name": "@parcel/utils",
-  "version": "2.0.0-beta.2",
+  "version": "2.0.0-beta.3.1",
   "description": "Blazing fast, zero configuration web application bundler",
   "license": "MIT",
   "publishConfig": {
@@ -21,11 +21,12 @@
   },
   "dependencies": {
     "@iarna/toml": "^2.2.0",
-    "@parcel/codeframe": "2.0.0-beta.2",
-    "@parcel/diagnostic": "2.0.0-beta.2",
-    "@parcel/logger": "2.0.0-beta.2",
-    "@parcel/markdown-ansi": "2.0.0-beta.2",
-    "@parcel/source-map": "2.0.0-alpha.4.21",
+    "@parcel/codeframe": "2.0.0-beta.3.1",
+    "@parcel/diagnostic": "2.0.0-beta.3.1",
+    "@parcel/hash": "2.0.0-beta.3.1",
+    "@parcel/logger": "2.0.0-beta.3.1",
+    "@parcel/markdown-ansi": "2.0.0-beta.3.1",
+    "@parcel/source-map": "2.0.0-rc.5",
     "ansi-html": "^0.0.7",
     "chalk": "^4.1.0",
     "clone": "^2.1.1",
@@ -35,7 +36,7 @@
     "is-url": "^1.2.2",
     "json5": "^1.0.1",
     "lru-cache": "^6.0.0",
-    "micromatch": "^4.0.2",
+    "micromatch": "^3.0.4",
     "node-forge": "^0.10.0",
     "nullthrows": "^1.1.1",
     "open": "^7.0.3"

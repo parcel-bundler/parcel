@@ -100,15 +100,12 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
       let assets = data.assets.filter(asset => asset.envHash === HMR_ENV_HASH);
 
       // Handle HMR Update
-      var handled = false;
-      assets.forEach(asset => {
-        var didAccept =
+      let handled = assets.every(asset => {
+        return (
           asset.type === 'css' ||
           (asset.type === 'js' &&
-            hmrAcceptCheck(module.bundle.root, asset.id, asset.depsByBundle));
-        if (didAccept) {
-          handled = true;
-        }
+            hmrAcceptCheck(module.bundle.root, asset.id, asset.depsByBundle))
+        );
       });
 
       if (handled) {
@@ -359,6 +356,7 @@ function hmrAcceptRun(bundle /*: ParcelRequire */, id /*: string */) {
         return getParents(module.bundle.root, id);
       });
       if (assetsToAlsoAccept && assetsToAccept.length) {
+        // $FlowFixMe[method-unbinding]
         assetsToAccept.push.apply(assetsToAccept, assetsToAlsoAccept);
       }
     });

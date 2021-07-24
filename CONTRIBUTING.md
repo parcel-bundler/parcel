@@ -14,7 +14,7 @@ Please be polite and take the time to write a well-worded question so our commun
 
 In order to make it easier to get familiar with the codebase we labeled simpler issues using [Good First Issue](https://github.com/parcel-bundler/parcel/issues?q=is%3Aopen+is%3Aissue+label%3A%22%E2%9C%A8+Parcel+2%22+label%3A%22%3Ababy%3A+Good+First+Issue%22) and [Help Wanted](https://github.com/parcel-bundler/parcel/issues?q=is%3Aopen+is%3Aissue+label%3A%22%E2%9C%A8+Parcel+2%22+label%3A%22%3Apray%3A+Help+Wanted%22).
 
-Before starting make sure you have the following requirements installed: [git](https://git-scm.com), [Node](https://nodejs.org) and [Yarn](https://yarnpkg.com).
+Before starting make sure you have the following requirements installed: [git](https://git-scm.com), [Node](https://nodejs.org), [Yarn](https://yarnpkg.com) and [Rust](https://www.rust-lang.org/tools/install).
 
 The process starts by [forking](https://docs.github.com/en/github/getting-started-with-github/fork-a-repo) the project and setup a new branch to work in. It's important that the changes are made in separated branches in order to ensure a pull request only includes the commits related to a bug or feature.
 
@@ -24,6 +24,7 @@ Clone the forked repository locally and install the dependencies:
 git clone https://github.com/USERNAME/parcel.git
 cd parcel
 yarn install
+yarn build-native
 ```
 
 In the folder `packages/example`, create a temporary example to debug. You can start by copying the `simple` example and try to reproduce the bug.

@@ -83,6 +83,7 @@ function createParcel(opts?: InitialParcelOptions) {
       path.dirname(require.resolve('@parcel/test-utils')),
       '.parcelrc-no-reporters',
     ),
+    shouldDisableCache: true,
     ...opts,
   });
 }

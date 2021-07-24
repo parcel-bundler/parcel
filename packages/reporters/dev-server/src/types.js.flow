@@ -1,6 +1,5 @@
 // @flow
-import type {ServerOptions} from '@parcel/types';
-import type {PluginLogger} from '@parcel/logger';
+import type {ServerOptions, PluginLogger} from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
 import type {HTTPServer} from '@parcel/utils';
 import {

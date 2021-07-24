@@ -13,7 +13,6 @@ import type {
 import type {ConfigAndCachePath} from './ParcelConfigRequest';
 
 import assert from 'assert';
-import path from 'path';
 import nullthrows from 'nullthrows';
 import {PluginLogger} from '@parcel/logger';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
@@ -24,7 +23,8 @@ import MutableBundleGraph from '../public/MutableBundleGraph';
 import {Bundle, NamedBundle} from '../public/Bundle';
 import {report} from '../ReporterRunner';
 import dumpGraphToGraphViz from '../dumpGraphToGraphViz';
-import {unique, md5FromOrderedObject} from '@parcel/utils';
+import {unique} from '@parcel/utils';
+import {hashString} from '@parcel/hash';
 import PluginOptions from '../public/PluginOptions';
 import applyRuntimes from '../applyRuntimes';
 import {PARCEL_VERSION} from '../constants';
@@ -47,6 +47,11 @@ import {
   type PluginWithLoadConfig,
 } from './ConfigRequest';
 import {cacheSerializedObject, deserializeToCache} from '../serializer';
+import {
+  joinProjectPath,
+  fromProjectPathRelative,
+  toProjectPathUnsafe,
+} from '../projectPath';
 
 type BundleGraphRequestInput = {|
   assetGraph: AssetGraph,
@@ -135,7 +140,7 @@ class BundlerRunner {
   async loadConfig<T: PluginWithLoadConfig>(plugin: LoadedPlugin<T>) {
     let config = createConfig({
       plugin: plugin.name,
-      searchPath: path.join(this.options.projectRoot, 'index'),
+      searchPath: toProjectPathUnsafe('index'),
     });
 
     await loadPluginConfig(plugin, config, this.options);
@@ -154,8 +159,8 @@ class BundlerRunner {
   }
 
   async runDevDepRequest(devDepRequest: DevDepRequest) {
-    let {moduleSpecifier, resolveFrom} = devDepRequest;
-    let key = `${moduleSpecifier}:${resolveFrom}`;
+    let {specifier, resolveFrom} = devDepRequest;
+    let key = `${specifier}:${fromProjectPathRelative(resolveFrom)}`;
     this.devDepRequests.set(key, devDepRequest);
     await runDevDepRequest(this.api, devDepRequest);
   }
@@ -247,7 +252,7 @@ class BundlerRunner {
     // the potential for lazy require() that aren't executed until the request runs.
     let devDepRequest = await createDevDependency(
       {
-        moduleSpecifier: name,
+        specifier: name,
         resolveFrom,
       },
       plugin,
@@ -275,6 +280,8 @@ class BundlerRunner {
 
     // Store the serialized bundle graph in an in memory cache so that we avoid serializing it
     // many times to send to each worker, and in build mode, when writing to cache on shutdown.
+    // Also, pre-compute the hashes for each bundle so they are only computed once and shared between workers.
+    internalBundleGraph.getBundleGraphHash();
     cacheSerializedObject(internalBundleGraph);
 
     // Recompute the cache key to account for new dev dependencies and invalidations.
@@ -284,18 +291,26 @@ class BundlerRunner {
   }
 
   async getCacheKey(assetGraph: AssetGraph): Promise<string> {
-    return md5FromOrderedObject({
-      parcelVersion: PARCEL_VERSION,
-      hash: assetGraph.getHash(),
-      configs: [...this.configs].map(([pluginName, config]) =>
+    let configs = [...this.configs]
+      .map(([pluginName, config]) =>
         getConfigHash(config, pluginName, this.options),
-      ),
-      devDepRequests: [...this.devDepRequests.values()].map(d => d.hash),
-      invalidations: await getInvalidationHash(
-        this.api.getInvalidations(),
-        this.options,
-      ),
-    });
+      )
+      .join('');
+    let devDepRequests = [...this.devDepRequests.values()]
+      .map(d => d.hash)
+      .join('');
+    let invalidations = await getInvalidationHash(
+      this.api.getInvalidations(),
+      this.options,
+    );
+
+    return hashString(
+      PARCEL_VERSION +
+        assetGraph.getHash() +
+        configs +
+        devDepRequests +
+        invalidations,
+    );
   }
 
   async nameBundles(bundleGraph: InternalBundleGraph): Promise<void> {
@@ -309,7 +324,7 @@ class BundlerRunner {
     for (let namer of namers) {
       let devDepRequest = await createDevDependency(
         {
-          moduleSpecifier: namer.name,
+          specifier: namer.name,
           resolveFrom: namer.resolveFrom,
         },
         namer,
@@ -320,7 +335,7 @@ class BundlerRunner {
     }
 
     let bundleNames = bundles.map(b =>
-      path.join(b.target.distDir, nullthrows(b.name)),
+      joinProjectPath(b.target.distDir, nullthrows(b.name)),
     );
     assert.deepEqual(
       bundleNames,
@@ -330,7 +345,7 @@ class BundlerRunner {
   }
 
   async nameBundle(
-    namers: Array<LoadedPlugin<Namer>>,
+    namers: Array<LoadedPlugin<Namer<mixed>>>,
     internalBundle: InternalBundle,
     internalBundleGraph: InternalBundleGraph,
   ): Promise<void> {
@@ -352,12 +367,6 @@ class BundlerRunner {
         });
 
         if (name != null) {
-          if (path.extname(name).slice(1) !== bundle.type) {
-            throw new Error(
-              `Destination name ${name} extension does not match bundle type "${bundle.type}"`,
-            );
-          }
-
           internalBundle.name = name;
           let {hashReference} = internalBundle;
           internalBundle.displayName = name.includes(hashReference)

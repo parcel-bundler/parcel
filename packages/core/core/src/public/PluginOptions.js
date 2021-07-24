@@ -64,10 +64,6 @@ export default class PluginOptions implements IPluginOptions {
     return this.#options.logLevel;
   }
 
-  get entryRoot(): FilePath {
-    return this.#options.entryRoot;
-  }
-
   get cacheDir(): FilePath {
     // TODO: remove this. Probably bad if there are other types of caches.
     // Maybe expose the Cache object instead?

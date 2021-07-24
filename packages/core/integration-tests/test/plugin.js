@@ -177,4 +177,17 @@ parcel-transformer-b`,
     );
     assert.deepStrictEqual(calls, ['used']);
   });
+
+  it('handles multiple assets returned by a transformer', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/multi-asset-transformer/index.js'),
+      {
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
+      },
+    );
+
+    assert.equal(await run(b), 2);
+  });
 });

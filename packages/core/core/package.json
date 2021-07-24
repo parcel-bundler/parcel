@@ -1,6 +1,6 @@
 {
   "name": "@parcel/core",
-  "version": "2.0.0-beta.2",
+  "version": "2.0.0-beta.3.1",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -20,20 +20,22 @@
   },
   "scripts": {
     "test": "mocha",
-    "test-ci": "mocha"
+    "test-ci": "mocha",
+    "check-ts": "tsc --noEmit index.d.ts"
   },
   "dependencies": {
-    "@parcel/cache": "2.0.0-beta.2",
-    "@parcel/diagnostic": "2.0.0-beta.2",
-    "@parcel/events": "2.0.0-beta.2",
-    "@parcel/fs": "2.0.0-beta.2",
-    "@parcel/logger": "2.0.0-beta.2",
-    "@parcel/package-manager": "2.0.0-beta.2",
-    "@parcel/plugin": "2.0.0-beta.2",
-    "@parcel/source-map": "2.0.0-alpha.4.21",
-    "@parcel/types": "2.0.0-beta.2",
-    "@parcel/utils": "2.0.0-beta.2",
-    "@parcel/workers": "2.0.0-beta.2",
+    "@parcel/cache": "2.0.0-beta.3.1",
+    "@parcel/diagnostic": "2.0.0-beta.3.1",
+    "@parcel/events": "2.0.0-beta.3.1",
+    "@parcel/fs": "2.0.0-beta.3.1",
+    "@parcel/hash": "2.0.0-beta.3.1",
+    "@parcel/logger": "2.0.0-beta.3.1",
+    "@parcel/package-manager": "2.0.0-beta.3.1",
+    "@parcel/plugin": "2.0.0-beta.3.1",
+    "@parcel/source-map": "2.0.0-rc.5",
+    "@parcel/types": "2.0.0-beta.3.1",
+    "@parcel/utils": "2.0.0-beta.3.1",
+    "@parcel/workers": "2.0.0-beta.3.1",
     "abortcontroller-polyfill": "^1.1.9",
     "base-x": "^3.0.8",
     "browserslist": "^4.6.6",

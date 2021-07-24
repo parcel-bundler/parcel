@@ -12,37 +12,42 @@
   ],
   "scripts": {
     "build": "cross-env NODE_ENV=production PARCEL_BUILD_ENV=production gulp",
+    "build-ts": "lerna run build-ts && lerna run check-ts",
+    "build-native": "node scripts/build-native.js",
+    "build-native-release": "node scripts/build-native.js --release",
     "clean-test": "rimraf packages/core/integration-tests/.parcel-cache && rimraf packages/core/integration-tests/dist",
     "clean": "yarn clean-test && lerna clean --yes && lerna exec -- rimraf ./lib && yarn",
-    "format": "prettier --write \"./packages/*/*/{src,bin,test}/**/*.{js,json,md}\"",
+    "format": "prettier --write \"./packages/*/*/{src,bin,test}/**/*.{js,json,md}\" && cargo fmt --all",
     "link-all": "node scripts/link-all.js packages",
     "unlink-all": "node scripts/unlink-all.js packages",
-    "link-native": "node scripts/link-native.js && yarn",
-    "unlink-native": "rimraf packages/native-packages",
-    "postinstall": "node scripts/postinstall.js",
     "check": "flow check",
-    "lint": "eslint . && prettier \"./packages/*/*/{src,bin,test}/**/*.{js,json,md}\" --list-different",
+    "lint": "eslint . && prettier \"./packages/*/*/{src,bin,test}/**/*.{js,json,md}\" --list-different && cargo fmt --all -- --check",
     "lint:readme": "node scripts/validate-readme-toc.js",
-    "prepublishOnly": "yarn build && node scripts/update-config-dependencies.js",
+    "prepublishOnly": "yarn build && yarn build-ts && node scripts/update-config-dependencies.js",
     "test:unit": "cross-env NODE_ENV=test mocha",
     "test:integration": "yarn workspace @parcel/integration-tests test",
     "test:integration-ci": "yarn workspace @parcel/integration-tests test-ci",
     "test": "yarn test:unit && yarn test:integration",
     "update-readme-toc": "doctoc README.md",
     "nightly:release": "lerna publish -y --canary --preid nightly --dist-tag=nightly --exact --force-publish=* --no-git-tag-version --no-push",
-    "tag:prerelease": "lerna version --exact --force-publish=* --no-git-tag-version --no-push",
-    "tag:release": "lerna version --force-publish=* --no-git-tag-version --no-push",
-    "release": "lerna publish -y from-package --dist-tag=next --no-git-tag-version --no-push"
+    "tag:prerelease": "lerna version --exact --force-publish=* --no-git-tag-version --no-push && node scripts/update-config-dependencies.js",
+    "tag:release": "lerna version --force-publish=* --no-git-tag-version --no-push && node scripts/update-config-dependencies.js",
+    "release": "lerna publish -y from-package --dist-tag=next --no-git-tag-version --no-push",
+    "prepare": "husky install"
   },
   "devDependencies": {
     "@babel/core": "^7.12.0",
+    "@khanacademy/flow-to-ts": "^0.5.2",
+    "@napi-rs/cli": "1.0.4",
+    "@types/node": "^15.12.4",
     "cross-env": "^7.0.0",
     "doctoc": "^1.4.0",
     "eslint": "^7.20.0",
-    "flow-bin": "0.148.0",
+    "flow-bin": "0.153.0",
+    "glob": "^7.1.6",
     "gulp": "^4.0.2",
     "gulp-babel": "^8.0.0",
-    "husky": "^4.2.5",
+    "husky": "^6.0.0",
     "lerna": "^3.3.2",
     "lint-staged": "^10.2.11",
     "mocha": "^8.3.0",
@@ -56,13 +61,9 @@
   "engines": {
     "node": ">= 12.0.0"
   },
-  "husky": {
-    "hooks": {
-      "pre-commit": "lint-staged"
-    }
-  },
   "lint-staged": {
-    "*.{js,json,md}": "prettier --write"
+    "*.{js,json,md}": "prettier --write",
+    "*.rs": "rustfmt"
   },
   "collective": {
     "type": "opencollective",

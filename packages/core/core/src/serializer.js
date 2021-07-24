@@ -2,14 +2,15 @@
 import v8 from 'v8';
 import {createBuildCache} from './buildCache';
 
+// $FlowFixMe - Flow doesn't know about this method yet
+export let serializeRaw = v8.serialize;
+// $FlowFixMe - Flow doesn't know about this method yet
+export let deserializeRaw = v8.deserialize;
+
 const nameToCtor: Map<string, Class<*>> = new Map();
 const ctorToName: Map<Class<*>, string> = new Map();
 
 export function registerSerializableClass(name: string, ctor: Class<*>) {
-  if (nameToCtor.has(name)) {
-    throw new Error('Name already registered with serializer');
-  }
-
   if (ctorToName.has(ctor)) {
     throw new Error('Class already registered with serializer');
   }
@@ -161,6 +162,10 @@ function mapObject(object: any, fn: (val: any) => any, preOrder = false): any {
 }
 
 export function prepareForSerialization(object: any): any {
+  if (object?.$$raw) {
+    return object;
+  }
+
   return mapObject(
     object,
     value => {
@@ -229,13 +234,11 @@ export function serialize(object: any): Buffer {
   }
 
   let mapped = prepareForSerialization(object);
-  // $FlowFixMe - flow doesn't know about this method yet
-  return v8.serialize(mapped);
+  return serializeRaw(mapped);
 }
 
 export function deserialize(buffer: Buffer): any {
-  // $FlowFixMe - flow doesn't know about this method yet
-  let obj = v8.deserialize(buffer);
+  let obj = deserializeRaw(buffer);
   return restoreDeserializedObject(obj);
 }
 

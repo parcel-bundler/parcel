@@ -2,10 +2,13 @@
   "bundler": "@parcel/bundler-default",
   "transformers": {
     "types:*.{ts,tsx}": ["@parcel/transformer-typescript-types"],
-    "bundle-text:*": ["@parcel/transformer-inline-string", "..."],
-    "data-url:*": ["@parcel/transformer-inline-string", "..."],
+    "bundle-text:*": ["...", "@parcel/transformer-inline-string"],
+    "data-url:*": ["...", "@parcel/transformer-inline-string"],
+    "worklet:*.{js,mjs,jsm,jsx,es6,cjs,ts,tsx}": [
+      "@parcel/transformer-worklet",
+      "..."
+    ],
     "*.{js,mjs,jsm,jsx,es6,cjs,ts,tsx}": [
-      "@parcel/transformer-react-refresh-babel",
       "@parcel/transformer-babel",
       "@parcel/transformer-js",
       "@parcel/transformer-react-refresh-wrap"
@@ -14,6 +17,7 @@
     "*.jsonld": ["@parcel/transformer-jsonld"],
     "*.toml": ["@parcel/transformer-toml"],
     "*.webmanifest": ["@parcel/transformer-webmanifest"],
+    "webmanifest:*.{json,webmanifest}": ["@parcel/transformer-webmanifest"],
     "*.yaml": ["@parcel/transformer-yaml"],
     "*.{glsl,vert,frag}": ["@parcel/transformer-glsl"],
     "*.{gql,graphql}": ["@parcel/transformer-graphql"],
@@ -35,8 +39,8 @@
     "script:*.vue": ["@parcel/transformer-vue"],
     "style:*.vue": ["@parcel/transformer-vue"],
     "custom:*.vue": ["@parcel/transformer-vue"],
-    "url:*.{png,jpg,jpeg,webp}": ["@parcel/transformer-image"],
-    "url:*": ["@parcel/transformer-raw"]
+    "*.{png,jpg,jpeg,webp}": ["@parcel/transformer-image"],
+    "url:*": ["...", "@parcel/transformer-raw"]
   },
   "namers": ["@parcel/namer-default"],
   "runtimes": [
@@ -47,16 +51,18 @@
   "optimizers": {
     "data-url:*": ["...", "@parcel/optimizer-data-url"],
     "*.css": ["@parcel/optimizer-cssnano"],
-    "*.js": ["@parcel/optimizer-terser"],
-    "*.html": ["@parcel/optimizer-htmlnano"]
+    "*.html": ["@parcel/optimizer-htmlnano"],
+    "*.{js,mjs,cjs}": ["@parcel/optimizer-terser"],
+    "*.svg": ["@parcel/optimizer-svgo"]
   },
   "packagers": {
     "*.html": "@parcel/packager-html",
     "*.css": "@parcel/packager-css",
-    "*.js": "@parcel/packager-js",
+    "*.{js,mjs,cjs}": "@parcel/packager-js",
     "*.ts": "@parcel/packager-ts",
     "*.{jsonld,webmanifest}": "@parcel/packager-raw-url",
     "*": "@parcel/packager-raw"
   },
-  "resolvers": ["@parcel/resolver-default"]
+  "resolvers": ["@parcel/resolver-default"],
+  "reporters": ["@parcel/reporter-dev-server"]
 }
