@@ -1,5 +1,5 @@
 const fs = require('fs');
-const cacheLoader = require('../../cacheLoader');
+const cacheLoader = require('../cacheLoader');
 
 module.exports = cacheLoader(function loadWASMBundle(bundle) {
   return new Promise(function(resolve, reject) {

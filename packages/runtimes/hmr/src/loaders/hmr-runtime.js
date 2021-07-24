@@ -97,12 +97,10 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
       // Remove error overlay if there is one
       removeErrorOverlay();
 
-      var assets = data.assets.filter(function(asset) {
-        return asset.envHash === HMR_ENV_HASH;
-      });
+      let assets = data.assets.filter(asset => asset.envHash === HMR_ENV_HASH);
 
       // Handle HMR Update
-      var handled = assets.every(function(asset) {
+      let handled = assets.every(asset => {
         return (
           asset.type === 'css' ||
           (asset.type === 'js' &&
@@ -130,8 +128,8 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
 
     if (data.type === 'error') {
       // Log parcel errors to console
-      data.diagnostics.ansi.forEach(function(ansiDiagnostic) {
-        var stack = ansiDiagnostic.codeframe
+      for (let ansiDiagnostic of data.diagnostics.ansi) {
+        let stack = ansiDiagnostic.codeframe
           ? ansiDiagnostic.codeframe
           : ansiDiagnostic.stack;
 
@@ -143,7 +141,7 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
             '\n\n' +
             ansiDiagnostic.hints.join('\n'),
         );
-      });
+      }
 
       // Render the fancy html overlay
       removeErrorOverlay();
@@ -174,30 +172,26 @@ function createErrorOverlay(diagnostics) {
   var overlay = document.createElement('div');
   overlay.id = OVERLAY_ID;
 
-  var errorHTML =
+  let errorHTML =
     '<div style="background: black; opacity: 0.85; font-size: 16px; color: white; position: fixed; height: 100%; width: 100%; top: 0px; left: 0px; padding: 30px; font-family: Menlo, Consolas, monospace; z-index: 9999;">';
 
-  diagnostics.forEach(function(diagnostic) {
-    var stack = diagnostic.codeframe ? diagnostic.codeframe : diagnostic.stack;
+  for (let diagnostic of diagnostics) {
+    let stack = diagnostic.codeframe ? diagnostic.codeframe : diagnostic.stack;
 
-    errorHTML +=
-      '<div>' +
-      '<div style="font-size: 18px; font-weight: bold; margin-top: 20px;">' +
-      '🚨 ' +
-      diagnostic.message +
-      '</div>' +
-      '<pre>' +
-      stack +
-      '</pre>' +
-      '<div>';
-    diagnostic.hints
-      .map(function(hint) {
-        return '<div>' + hint + '</div>';
-      })
-      .join('') +
-      '</div>' +
-      '</div>';
-  });
+    errorHTML += `
+      <div>
+        <div style="font-size: 18px; font-weight: bold; margin-top: 20px;">
+          🚨 ${diagnostic.message}
+        </div>
+        <pre>
+          ${stack}
+        </pre>
+        <div>
+          ${diagnostic.hints.map(hint => '<div>' + hint + '</div>').join('')}
+        </div>
+      </div>
+    `;
+  }
 
   errorHTML += '</div>';
 
@@ -291,7 +285,7 @@ function hmrApply(bundle /*: ParcelRequire */, asset /*:  HMRAsset */) {
     return;
   }
 
-  var deps = asset.depsByBundle[bundle.HMR_BUNDLE_ID];
+  let deps = asset.depsByBundle[bundle.HMR_BUNDLE_ID];
   if (deps) {
     var fn = new Function('require', 'module', 'exports', asset.output);
     modules[asset.id] = [fn, deps];
