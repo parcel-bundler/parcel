@@ -195,7 +195,8 @@ export type EnvironmentFeature =
   | 'dynamic-import'
   | 'worker-module'
   | 'service-worker-module'
-  | 'import-meta-url';
+  | 'import-meta-url'
+  | 'arrow-functions';
 
 /**
  * Defines the environment in for the output bundle

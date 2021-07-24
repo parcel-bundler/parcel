@@ -2,6 +2,7 @@ use inflector::Inflector;
 use std::collections::{HashMap, HashSet};
 use swc_atoms::JsWord;
 use swc_common::{Mark, Span, SyntaxContext, DUMMY_SP};
+use swc_ecma_preset_env::{preset_env, Feature, Mode::Entry, Targets, Version, Versions};
 use swc_ecmascript::ast::*;
 use swc_ecmascript::visit::{Fold, FoldWith};
 
@@ -12,7 +13,7 @@ macro_rules! id {
   };
 }
 
-pub fn esm2cjs(node: Module) -> (Module, bool) {
+pub fn esm2cjs(node: Module, versions: Option<Versions>) -> (Module, bool) {
   let mut fold = ESMFold {
     imports: HashMap::new(),
     require_names: HashMap::new(),
@@ -23,6 +24,7 @@ pub fn esm2cjs(node: Module) -> (Module, bool) {
     in_export_decl: false,
     in_function_scope: false,
     mark: Mark::fresh(Mark::root()),
+    versions,
   };
 
   let module = node.fold_with(&mut fold);
@@ -44,6 +46,7 @@ struct ESMFold {
   in_export_decl: bool,
   in_function_scope: bool,
   mark: Mark,
+  versions: Option<Versions>,
 }
 
 fn local_name_for_src(src: &JsWord) -> JsWord {
@@ -169,27 +172,39 @@ impl ESMFold {
           kind: StrKind::Synthesized,
           span: DUMMY_SP,
         })),
-        Expr::Fn(FnExpr {
-          ident: None,
-          function: Function {
-            body: Some(BlockStmt {
+        if matches!(self.versions, Some(versions) if Feature::ArrowFunctions.should_enable(versions, true, false)) {
+          Expr::Fn(FnExpr {
+            ident: None,
+            function: Function {
+              body: Some(BlockStmt {
+                span: DUMMY_SP,
+                stmts: vec![Stmt::Return({
+                  ReturnStmt {
+                    span: DUMMY_SP,
+                    arg: Some(Box::new(local)),
+                  }
+                })],
+              }),
+              is_async: false,
+              is_generator: false,
+              params: vec![],
+              decorators: vec![],
               span: DUMMY_SP,
-              stmts: vec![Stmt::Return({
-                ReturnStmt {
-                  span: DUMMY_SP,
-                  arg: Some(Box::new(local)),
-                }
-              })],
-            }),
+              return_type: None,
+              type_params: None,
+            },
+          })
+        } else {
+          Expr::Arrow(ArrowExpr {
+            body: BlockStmtOrExpr::Expr(Box::new(local)),
             is_async: false,
             is_generator: false,
             params: vec![],
-            decorators: vec![],
             span: DUMMY_SP,
             return_type: None,
             type_params: None,
-          },
-        }),
+          })
+        },
       ],
       span,
     );

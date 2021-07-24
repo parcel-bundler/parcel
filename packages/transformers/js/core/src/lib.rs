@@ -274,7 +274,8 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
 
             let mut preset_env_config = swc_ecma_preset_env::Config::default();
             preset_env_config.dynamic_import = true;
-            if let Some(versions) = targets_to_versions(&config.targets) {
+            let versions = targets_to_versions(&config.targets);
+            if let Some(versions) = versions {
               preset_env_config.targets = Some(Targets::Versions(versions));
               preset_env_config.shipped_proposals = true;
               preset_env_config.mode = Some(Entry);
@@ -371,7 +372,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                 }
               }
             } else {
-              let (module, needs_helpers) = esm2cjs(module);
+              let (module, needs_helpers) = esm2cjs(module, versions);
               result.needs_esm_helpers = needs_helpers;
               module
             };
