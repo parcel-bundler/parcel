@@ -1,5 +1,3 @@
-/* globals document:readonly */
-
 var bundleURL = null;
 function getBundleURLCached() {
   if (!bundleURL) {
