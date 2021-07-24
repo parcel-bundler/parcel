@@ -278,7 +278,6 @@ export type DetailedReportOptions = {|
 
 export type InitialParcelOptions = {|
   +entries?: FilePath | Array<FilePath>,
-  +entryRoot?: FilePath,
   +config?: DependencySpecifier,
   +defaultConfig?: DependencySpecifier,
   +env?: EnvMap,
@@ -338,7 +337,6 @@ export interface PluginOptions {
   +shouldBuildLazily: boolean;
   +shouldAutoInstall: boolean;
   +logLevel: LogLevel;
-  +entryRoot: FilePath;
   +projectRoot: FilePath;
   +cacheDir: FilePath;
   +inputFS: FileSystem;
@@ -1274,12 +1272,12 @@ export interface PackagedBundle extends NamedBundle {
  * A collection of sibling bundles (which are stored in the BundleGraph) that should be loaded together (in order).
  * @section bundler
  */
-export type BundleGroup = {|
+export interface BundleGroup {
   /** The target of the bundle group. */
-  +target: Target,
+  +target: Target;
   /** The id of the entry asset in the bundle group, which is executed immediately when the bundle group is loaded. */
-  +entryAssetId: string,
-|};
+  +entryAssetId: string;
+}
 
 /**
  * A BundleGraph in the Bundler that can be modified
@@ -1388,6 +1386,7 @@ export interface BundleGraph<TBundle: Bundle> {
     startBundle: ?Bundle,
   ): ?TContext;
   getUsedSymbols(Asset | Dependency): $ReadOnlySet<Symbol>;
+  getEntryRoot(target: Target): FilePath;
 }
 
 /**
