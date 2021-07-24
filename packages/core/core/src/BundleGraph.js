@@ -455,6 +455,9 @@ export default class BundleGraph {
         if (this._graph.hasEdge(bundleNodeId, nodeId, 'references')) {
           this._graph.addEdge(bundleNodeId, nodeId, 'references');
         }
+        if (this._graph.hasEdge(bundleNodeId, nodeId, 'internal_async')) {
+          this._graph.removeEdge(bundleNodeId, nodeId, 'internal_async');
+        }
       }
     }, assetNodeId);
 
