@@ -13,7 +13,15 @@ export default (new Optimizer({
   async loadConfig({config, options}) {
     let userConfig = await config.getConfigFrom(
       path.join(options.entryRoot, 'index.html'),
-      ['.htmlnanorc', '.htmlnanorc.js'],
+      [
+        '.htmlnanorc',
+        '.htmlnanorc.json',
+        '.htmlnanorc.js',
+        'htmlnano.config.js',
+      ],
+      {
+        packageKey: 'htmlnano',
+      },
     );
 
     if (userConfig) {
@@ -35,6 +43,16 @@ export default (new Optimizer({
         'HTMLNanoOptimizer: Only string contents are currently supported',
       );
     }
+
+    const clonedConfig = config || {};
+
+    // $FlowFixMe
+    const presets = htmlnano.presets;
+    const preset =
+      typeof clonedConfig.preset === 'string'
+        ? presets[clonedConfig.preset]
+        : {};
+    delete clonedConfig.preset;
 
     const htmlNanoConfig = {
       minifyJs: false,
@@ -67,7 +85,10 @@ export default (new Optimizer({
           },
         ]),
       },
-      ...config,
+      ...(preset || {}),
+      ...clonedConfig,
+      // TODO: Uncomment this line once we update htmlnano, new version isn't out yet
+      // skipConfigLoading: true,
     };
 
     return {

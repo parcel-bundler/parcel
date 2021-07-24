@@ -324,6 +324,10 @@ export async function runBundles(
       throw new Error('Unknown target ' + target);
   }
 
+  // A utility to prevent optimizers from removing side-effect-free code needed for testing
+  // $FlowFixMe[prop-missing]
+  ctx.sideEffectNoop = () => {};
+
   vm.createContext(ctx);
   let esmOutput;
   if (outputFormat === 'esmodule') {
