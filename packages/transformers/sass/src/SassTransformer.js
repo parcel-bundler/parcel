@@ -8,7 +8,7 @@ import {pathToFileURL} from 'url';
 import {promisify} from 'util';
 
 // E.g: ~library/file.sass
-const NODE_MODULE_ALIAS_RE = /^~[^/]/;
+const NODE_MODULE_ALIAS_RE = /^~[^/\\]/;
 
 export default (new Transformer({
   async loadConfig({config, options}) {
