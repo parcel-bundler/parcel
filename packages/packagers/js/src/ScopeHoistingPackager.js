@@ -1146,7 +1146,7 @@ ${code}
     );
   }
 
-  buildFunctionExpression(args: Array<string>, expr: string) {
+  buildFunctionExpression(args: Array<string>, expr: string): string {
     return this.bundle.env.supports('arrow-functions', true)
       ? `(${args.join(', ')}) => ${expr}`
       : `function (${args.join(', ')}) { return ${expr}; }`;
