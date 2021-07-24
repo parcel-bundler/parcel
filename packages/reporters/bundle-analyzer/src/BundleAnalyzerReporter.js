@@ -144,7 +144,7 @@ async function getBundleNode(bundle: PackagedBundle, options: PluginOptions) {
   }
 
   return {
-    label: nullthrows(bundle.name),
+    label: bundle.filePath,
     weight: bundle.stats.size,
     groups: generateGroups(dirMap),
   };
@@ -181,7 +181,10 @@ function generateGroups(dirMap: DirMap): Array<Group> {
     } else {
       // file
       groups.push({
-        label: contents.basename,
+        label:
+          contents.basename === ''
+            ? 'Code from unknown source files'
+            : contents.basename,
         weight: contents.size,
       });
     }
