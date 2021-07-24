@@ -522,7 +522,7 @@ function getURLRuntime(
       from.env.outputFormat === 'esmodule' &&
       from.env.supports('import-meta-url')
     ) {
-      code += `let url = new __parcel__URL__(${relativePathExpr}, import.meta.url);\n`;
+      code += `let url = new __parcel__URL__(${relativePathExpr});\n`;
       code += `module.exports = workerURL(url.toString(), url.origin, ${String(
         from.env.outputFormat === 'esmodule',
       )});`;
@@ -595,12 +595,12 @@ function getRelativePathExpr(
 
 function getAbsoluteUrlExpr(relativePathExpr: string, bundle: NamedBundle) {
   if (
-    bundle.env.outputFormat === 'esmodule' &&
-    bundle.env.supports('import-meta-url')
+    (bundle.env.outputFormat === 'esmodule' &&
+      bundle.env.supports('import-meta-url')) ||
+    bundle.env.outputFormat === 'commonjs'
   ) {
-    return `new __parcel__URL__(${relativePathExpr}, import.meta.url).toString()`;
-  } else if (bundle.env.outputFormat === 'commonjs' || bundle.env.isNode()) {
-    return `new __parcel__URL__(${relativePathExpr}, 'file:' + __filename).toString()`;
+    // This will be compiled to new URL(url, import.meta.url) or new URL(url, 'file:' + __filename).
+    return `new __parcel__URL__(${relativePathExpr}).toString()`;
   } else {
     return `require('./bundle-url').getBundleURL() + ${relativePathExpr}`;
   }
