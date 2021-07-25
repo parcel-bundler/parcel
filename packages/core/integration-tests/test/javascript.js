@@ -5256,9 +5256,6 @@ describe('javascript', function() {
           'cacheLoader.js',
           'entry-a.js',
           'js-loader.js',
-          'JSRuntime.js',
-          'JSRuntime.js',
-          'relative-path.js',
         ],
       },
       {
@@ -5269,19 +5266,21 @@ describe('javascript', function() {
           'cacheLoader.js',
           'entry-b.js',
           'js-loader.js',
-          'JSRuntime.js',
-          'JSRuntime.js',
-          'relative-path.js',
         ],
       },
       {name: /deep\.[a-f0-9]+\.js/, assets: ['deep.js']},
       {name: /common\.[a-f0-9]+\.js/, assets: ['index.js']},
     ]);
 
-    let [a, b] = bundleGraph.getBundles().filter(b => b.isEntry);
+    let [a, b] = bundleGraph.getBundles().filter(b => b.needsStableName);
     let calls = [];
 
-    await runBundles(bundleGraph, a, [a, b], {
+    let bundles = [
+      [await outputFS.readFile(a.filePath, 'utf8'), a],
+      [await outputFS.readFile(b.filePath, 'utf8'), b],
+    ];
+
+    await runBundles(bundleGraph, a, bundles, {
       sideEffect: v => {
         calls.push(v);
       },

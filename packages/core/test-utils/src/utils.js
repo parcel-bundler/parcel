@@ -332,6 +332,7 @@ export async function runBundles(
   let esmOutput;
   if (outputFormat === 'esmodule') {
     let res = await runESM(
+      bundles[0][1].target.distDir,
       bundles.map(([code, bundle]) => [code, bundle.filePath]),
       ctx,
       overlayFS,
@@ -349,11 +350,14 @@ export async function runBundles(
       // require, parcelRequire was set up in prepare*Context
       new vm.Script((opts.strict ? '"use strict";\n' : '') + code, {
         filename:
-          b.bundleBehavior === 'inline' ? b.name : path.basename(b.filePath),
+          b.bundleBehavior === 'inline'
+            ? b.name
+            : path.relative(b.target.distDir, b.filePath),
         async importModuleDynamically(specifier) {
           let filePath = path.resolve(path.dirname(parent.filePath), specifier);
           let code = await overlayFS.readFile(filePath, 'utf8');
           let modules = await runESM(
+            b.target.distDir,
             [[code, filePath]],
             ctx,
             overlayFS,
@@ -596,16 +600,14 @@ function prepareBrowserContext(
         let {deferred, promise} = makeDeferredWithPromise();
         promises.push(promise);
         setTimeout(function() {
-          let file = path.join(
-            bundle.target.distDir,
-            url.parse(el.src).pathname,
-          );
+          let pathname = url.parse(el.src).pathname;
+          let file = path.join(bundle.target.distDir, pathname);
 
           new vm.Script(
             // '"use strict";\n' +
             overlayFS.readFileSync(file, 'utf8'),
             {
-              filename: path.basename(file),
+              filename: pathname.slice(1),
             },
           ).runInContext(ctx);
 
@@ -659,7 +661,6 @@ function prepareBrowserContext(
     const stack = patchedError.stack.slice(stackStart, stackEnd).split('\n');
     stack.shift();
     stack.pop();
-    stack.unshift(`    at getBundleURL (${bundle.name})`);
     for (let [i, line] of stack.entries()) {
       stack[i] = line.replace(
         /( ?.* )\(?(.*)\)?$/,
@@ -677,14 +678,12 @@ function prepareBrowserContext(
     return patchedError;
   }
 
-  // $FlowFixMe[cannot-write]
-  PatchedError.prototype = Error.prototype;
+  PatchedError.prototype = Object.create(Error.prototype);
   Object.defineProperty(PatchedError, 'name', {
     writable: true,
     value: 'Error',
   });
-  // $FlowFixMe[cannot-write]
-  Error.prototype.constructor = PatchedError;
+  PatchedError.prototype.constructor = PatchedError;
 
   var ctx = Object.assign(
     {
@@ -725,7 +724,7 @@ function prepareBrowserContext(
         return Buffer.from(str, 'binary').toString('base64');
       },
       URL,
-      Worker: createWorkerClass(filePath),
+      Worker: createWorkerClass(bundle.filePath),
     },
     globals,
   );
@@ -943,6 +942,7 @@ function prepareNodeContext(filePath, globals, ctx: any = {}) {
 
 let instanceId = 0;
 export async function runESM(
+  baseDir: FilePath,
   entries: Array<[string, string]>,
   context: vm$Context,
   fs: FileSystem,
@@ -963,6 +963,7 @@ export async function runESM(
         );
       }
       let filename = path.resolve(
+        baseDir,
         path.dirname(referrer.identifier),
         !extname && !requireExtensions ? specifier + '.js' : specifier,
       );
@@ -975,7 +976,7 @@ export async function runESM(
       let source = code ?? fs.readFileSync(filename, 'utf8');
       // $FlowFixMe Experimental
       m = new vm.SourceTextModule(source, {
-        identifier: filename + '?id=' + id,
+        identifier: `${path.relative(baseDir, filename)}?id=${id}`,
         importModuleDynamically: entry,
         context,
         initializeImportMeta(meta) {
@@ -1065,6 +1066,7 @@ export async function assertESMExports(
   );
   nodeCache.clear();
   let [nodeResult] = await runESM(
+    b.getBundles()[0].target.distDir,
     [[await inputFS.readFile(entry.filePath, 'utf8'), entry.filePath]],
     vm.createContext(prepareNodeContext(false, {})),
     inputFS,
