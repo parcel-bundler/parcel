@@ -485,7 +485,7 @@ describe('html', function() {
     // minifySvg is false
     assert(
       html.includes(
-        '<svg version=1.1 width=300 height=200 xmlns=http://www.w3.org/2000/svg baseProfile=full><rect width=100% height=100% fill=red></rect><circle cx=150 cy=100 r=80 fill=green></circle><text x=150 y=125 font-size=60 text-anchor=middle fill=white>SVG</text></svg>',
+        '<svg version=1.1 baseprofile=full width=300 height=200 xmlns=http://www.w3.org/2000/svg><rect width=100% height=100% fill=red></rect><circle cx=150 cy=100 r=80 fill=green></circle><text x=150 y=125 font-size=60 text-anchor=middle fill=white>SVG</text></svg>',
       ),
     );
   });
@@ -791,6 +791,9 @@ describe('html', function() {
   it('should ignore svgs referencing local symbols via <use xlink:href="#">', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-svg-local-symbol/index.html'),
+      {
+        mode: 'production',
+      },
     );
 
     assertBundles(b, [
@@ -799,6 +802,13 @@ describe('html', function() {
         assets: ['index.html'],
       },
     ]);
+
+    let contents = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(
+      contents.includes(
+        '<svg><symbol id="all"><rect width="100" height="100"/></symbol></svg><svg xmlns:xlink="http://www.w3.org/1999/xlink"><use xlink:href="#all" href="#all"/></svg>',
+      ),
+    );
   });
 
   it('should bundle svg files using <image xlink:href=""> correctly', async function() {

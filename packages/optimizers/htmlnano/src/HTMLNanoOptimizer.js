@@ -1,5 +1,5 @@
 // @flow strict-local
-import type {PostHTMLNode} from 'posthtml';
+import type {PostHTMLNode, PostHTMLTree} from 'posthtml';
 
 import htmlnano from 'htmlnano';
 import {Optimizer} from '@parcel/plugin';
@@ -83,6 +83,17 @@ export default (new Optimizer({
               keepRoleAttr: true,
             },
           },
+          // Do not minify ids or remove unreferenced elements in inline SVGs
+          // because they could actually be referenced by a separate inline SVG.
+          {
+            name: 'cleanupIDs',
+            active: false,
+          },
+          // XML namespaces are not required in HTML.
+          {
+            name: 'removeXMLNS',
+            active: true,
+          },
         ]),
       },
       ...(preset || {}),
@@ -91,10 +102,15 @@ export default (new Optimizer({
       // skipConfigLoading: true,
     };
 
+    let plugins = [htmlnano(htmlNanoConfig)];
+
+    // $FlowFixMe
+    if (htmlNanoConfig.minifySvg !== false) {
+      plugins.unshift(mapSVG);
+    }
+
     return {
-      contents: (
-        await posthtml([mapSVG, htmlnano(htmlNanoConfig)]).process(contents)
-      ).html,
+      contents: (await posthtml(plugins).process(contents)).html,
     };
   },
 }): Optimizer);
@@ -113,6 +129,23 @@ function mapSVG(
     }
   } else if (node && typeof node === 'object') {
     let {tag, attrs} = node;
+
+    // SVG in HTML does not require xml namespaces to be declared, but standalone SVG files do.
+    // If unset, add them here so that SVGO doesn't have parse errors.
+    if (tag === 'svg') {
+      if (!attrs) {
+        node.attrs = attrs = {};
+      }
+
+      if (!attrs.xmlns) {
+        attrs.xmlns = 'http://www.w3.org/2000/svg';
+      }
+
+      if (!attrs['xmlns:xlink']) {
+        attrs['xmlns:xlink'] = 'http://www.w3.org/1999/xlink';
+      }
+    }
+
     if (inSVG || tag === 'svg') {
       if (SVG_TAG_NAMES[tag]) {
         node.tag = SVG_TAG_NAMES[tag];
