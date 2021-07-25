@@ -62,7 +62,7 @@ export default async function applyRuntimes({
   let runtimes = await config.getRuntimes();
   let connections: Array<RuntimeConnection> = [];
 
-  for (let bundle of bundleGraph.getBundles()) {
+  for (let bundle of bundleGraph.getBundles({includeInline: true})) {
     for (let runtime of runtimes) {
       try {
         let applied = await runtime.plugin.apply({

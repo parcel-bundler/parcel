@@ -16,7 +16,9 @@ const ALLOWED_EXTENSIONS = {
 export default (new Namer({
   name({bundle, bundleGraph}) {
     let bundleGroup = bundleGraph.getBundleGroupsContainingBundle(bundle)[0];
-    let bundleGroupBundles = bundleGraph.getBundlesInBundleGroup(bundleGroup);
+    let bundleGroupBundles = bundleGraph.getBundlesInBundleGroup(bundleGroup, {
+      includeInline: true,
+    });
     let isEntry = bundleGraph.isEntryBundleGroup(bundleGroup);
 
     if (bundle.needsStableName) {

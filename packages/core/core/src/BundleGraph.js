@@ -383,7 +383,9 @@ export default class BundleGraph {
 
     if (node != null) {
       invariant(node.type === 'bundle_group');
-      return this.getBundlesInBundleGroup(node.value).find(b => {
+      return this.getBundlesInBundleGroup(node.value, {
+        includeInline: true,
+      }).find(b => {
         let mainEntryId = b.entryAssetIds[b.entryAssetIds.length - 1];
         return mainEntryId != null && node.value.entryAssetId === mainEntryId;
       });
@@ -391,7 +393,9 @@ export default class BundleGraph {
 
     // Otherwise, it may be a reference to another asset in the same bundle group.
     // Resolve the dependency to an asset, and look for it in one of the referenced bundles.
-    let referencedBundles = this.getReferencedBundles(fromBundle);
+    let referencedBundles = this.getReferencedBundles(fromBundle, {
+      includeInline: true,
+    });
     let referenced = this._graph
       .getNodeIdsConnectedFrom(dependencyNodeId, 'references')
       .map(id => nullthrows(this._graph.getNode(id)))
@@ -491,7 +495,8 @@ export default class BundleGraph {
         // was created because of this bundle. Remove the group.
         bundle.entryAssetIds.includes(bundleGroup.entryAssetId) ||
         // If the bundle group is now empty, remove it.
-        this.getBundlesInBundleGroup(bundleGroup).length === 0
+        this.getBundlesInBundleGroup(bundleGroup, {includeInline: true})
+          .length === 0
       ) {
         removedBundleGroups.add(bundleGroup);
         this.removeBundleGroup(bundleGroup);
@@ -508,7 +513,9 @@ export default class BundleGraph {
     );
     invariant(bundleGroupNode.type === 'bundle_group');
 
-    let bundlesInGroup = this.getBundlesInBundleGroup(bundleGroupNode.value);
+    let bundlesInGroup = this.getBundlesInBundleGroup(bundleGroupNode.value, {
+      includeInline: true,
+    });
     for (let bundle of bundlesInGroup) {
       if (this.getBundleGroupsContainingBundle(bundle).length === 1) {
         let removedBundleGroups = this.removeBundle(bundle);
@@ -728,7 +735,7 @@ export default class BundleGraph {
     let visitedBundles: Set<Bundle> = new Set();
     let siblingBundles = new Set(
       this.getBundleGroupsContainingBundle(bundle).flatMap(bundleGroup =>
-        this.getBundlesInBundleGroup(bundleGroup),
+        this.getBundlesInBundleGroup(bundleGroup, {includeInline: true}),
       ),
     );
 
@@ -1037,10 +1044,15 @@ export default class BundleGraph {
     );
   }
 
-  getBundles(): Array<Bundle> {
+  getBundles(opts?: {|includeInline: boolean|}): Array<Bundle> {
     let bundles = [];
     this.traverseBundles(bundle => {
-      bundles.push(bundle);
+      if (
+        opts?.includeInline ||
+        bundle.bundleBehavior !== BundleBehavior.inline
+      ) {
+        bundles.push(bundle);
+      }
     });
 
     return bundles;
@@ -1105,7 +1117,10 @@ export default class BundleGraph {
       });
   }
 
-  getBundlesInBundleGroup(bundleGroup: BundleGroup): Array<Bundle> {
+  getBundlesInBundleGroup(
+    bundleGroup: BundleGroup,
+    opts?: {|includeInline: boolean|},
+  ): Array<Bundle> {
     let bundles: Set<Bundle> = new Set();
     for (let bundleNodeId of this._graph.getNodeIdsConnectedFrom(
       this._graph.getNodeIdByContentKey(getBundleGroupId(bundleGroup)),
@@ -1114,9 +1129,16 @@ export default class BundleGraph {
       let bundleNode = nullthrows(this._graph.getNode(bundleNodeId));
       invariant(bundleNode.type === 'bundle');
       let bundle = bundleNode.value;
-      bundles.add(bundle);
+      if (
+        opts?.includeInline ||
+        bundle.bundleBehavior !== BundleBehavior.inline
+      ) {
+        bundles.add(bundle);
+      }
 
-      for (let referencedBundle of this.getReferencedBundles(bundle)) {
+      for (let referencedBundle of this.getReferencedBundles(bundle, {
+        includeInline: true,
+      })) {
         bundles.add(referencedBundle);
       }
     }
@@ -1126,9 +1148,10 @@ export default class BundleGraph {
 
   getReferencedBundles(
     bundle: Bundle,
-    opts?: {|recursive: boolean|},
+    opts?: {|recursive?: boolean, includeInline?: boolean|},
   ): Array<Bundle> {
     let recursive = opts?.recursive ?? true;
+    let includeInline = opts?.includeInline ?? false;
     let referencedBundles = new Set();
     this._graph.dfs({
       visit: (nodeId, _, actions) => {
@@ -1141,7 +1164,13 @@ export default class BundleGraph {
           return;
         }
 
-        referencedBundles.add(node.value);
+        if (
+          includeInline ||
+          node.value.bundleBehavior !== BundleBehavior.inline
+        ) {
+          referencedBundles.add(node.value);
+        }
+
         if (!recursive) {
           actions.skipChildren();
         }
@@ -1462,7 +1491,9 @@ export default class BundleGraph {
 
       seen.add(bundle.id);
 
-      let referencedBundles = this.getReferencedBundles(bundle);
+      let referencedBundles = this.getReferencedBundles(bundle, {
+        includeInline: true,
+      });
       for (let referenced of referencedBundles) {
         if (referenced.bundleBehavior === BundleBehavior.inline) {
           bundles.push(referenced);
@@ -1496,9 +1527,7 @@ export default class BundleGraph {
     }
 
     for (let referencedBundle of this.getReferencedBundles(bundle)) {
-      if (referencedBundle.bundleBehavior !== BundleBehavior.inline) {
-        hash.writeString(referencedBundle.id);
-      }
+      hash.writeString(referencedBundle.id);
     }
 
     hash.writeString(JSON.stringify(objectSortedEntriesDeep(bundle.env)));

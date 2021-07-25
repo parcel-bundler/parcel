@@ -1317,18 +1317,33 @@ export interface MutableBundleGraph extends BundleGraph<Bundle> {
  * @section bundler
  */
 export interface BundleGraph<TBundle: Bundle> {
+  /** Retrieves an asset by id. */
   getAssetById(id: string): Asset;
+  /** Returns the public (short) id for an asset. */
   getAssetPublicId(asset: Asset): string;
-  getBundles(): Array<TBundle>;
+  /** Returns a list of bundles in the bundle graph. By default, inline bundles are excluded. */
+  getBundles(opts?: {|includeInline: boolean|}): Array<TBundle>;
+  /** Traverses the assets and dependencies in the bundle graph, in depth first order. */
+  traverse<TContext>(GraphVisitor<BundleGraphTraversable, TContext>): ?TContext;
+  /** Traverses all bundles in the bundle graph, including inline bundles, in depth first order. */
+  traverseBundles<TContext>(
+    visit: GraphVisitor<TBundle, TContext>,
+    startBundle: ?Bundle,
+  ): ?TContext;
+  /** Returns a list of bundle groups that load the given bundle. */
   getBundleGroupsContainingBundle(bundle: Bundle): Array<BundleGroup>;
-  getBundlesInBundleGroup(bundleGroup: BundleGroup): Array<TBundle>;
+  /** Returns a list of bundles that load together in the given bundle group. */
+  getBundlesInBundleGroup(
+    bundleGroup: BundleGroup,
+    opts?: {|includeInline: boolean|},
+  ): Array<TBundle>;
   /** Child bundles are Bundles that might be loaded by an asset in the bundle */
   getChildBundles(bundle: Bundle): Array<TBundle>;
   getParentBundles(bundle: Bundle): Array<TBundle>;
-  /** Bundles that are referenced (by filename) */
+  /** Returns a list of bundles that are referenced by this bundle. By default, inline bundles are excluded. */
   getReferencedBundles(
     bundle: Bundle,
-    opts?: {|recursive: boolean|},
+    opts?: {|recursive?: boolean, includeInline?: boolean|},
   ): Array<TBundle>;
   /** Get the dependencies that the asset requires */
   getDependencies(asset: Asset): Array<Dependency>;
@@ -1381,11 +1396,6 @@ export interface BundleGraph<TBundle: Bundle> {
     asset: Asset,
     boundary: ?Bundle,
   ): Array<ExportSymbolResolution>;
-  traverse<TContext>(GraphVisitor<BundleGraphTraversable, TContext>): ?TContext;
-  traverseBundles<TContext>(
-    visit: GraphVisitor<TBundle, TContext>,
-    startBundle: ?Bundle,
-  ): ?TContext;
   getUsedSymbols(Asset | Dependency): $ReadOnlySet<Symbol>;
   getEntryRoot(target: Target): FilePath;
 }

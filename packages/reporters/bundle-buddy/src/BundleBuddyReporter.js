@@ -11,15 +11,13 @@ export default (new Reporter({
 
     let bundlesByTarget: Map<string, Array<PackagedBundle>> = new Map();
     for (let bundle of event.bundleGraph.getBundles()) {
-      if (bundle.bundleBehavior !== 'inline') {
-        let bundles = bundlesByTarget.get(bundle.target.distDir);
-        if (!bundles) {
-          bundles = [];
-          bundlesByTarget.set(bundle.target.distDir, bundles);
-        }
-
-        bundles.push(bundle);
+      let bundles = bundlesByTarget.get(bundle.target.distDir);
+      if (!bundles) {
+        bundles = [];
+        bundlesByTarget.set(bundle.target.distDir, bundles);
       }
+
+      bundles.push(bundle);
     }
 
     for (let [targetDir, bundles] of bundlesByTarget) {

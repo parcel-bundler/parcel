@@ -79,8 +79,7 @@ async function run({input, api, farm, options}: RunInput) {
       return false;
     }
 
-    // skip inline bundles, they will be processed via the parent bundle
-    return bundle.bundleBehavior !== BundleBehavior.inline;
+    return true;
   });
 
   try {

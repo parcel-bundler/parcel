@@ -120,9 +120,7 @@ export class ScopeHoistingPackager {
       this.bundle.env.isLibrary ||
       this.bundle.env.outputFormat === 'commonjs'
     ) {
-      let bundles = this.bundleGraph
-        .getReferencedBundles(this.bundle)
-        .filter(b => b.bundleBehavior !== 'inline');
+      let bundles = this.bundleGraph.getReferencedBundles(this.bundle);
       for (let b of bundles) {
         this.externals.set(relativeBundlePath(this.bundle, b), new Map());
       }

@@ -113,18 +113,10 @@ export default class BundleGraph<TBundle: IBundle>
 
   getReferencedBundles(
     bundle: IBundle,
-    opts?: {|recursive: boolean|},
+    opts?: {|recursive?: boolean, includeInline?: boolean|},
   ): Array<TBundle> {
     return this.#graph
       .getReferencedBundles(bundleToInternalBundle(bundle), opts)
-      .map(bundle =>
-        this.#createBundle.call(null, bundle, this.#graph, this.#options),
-      );
-  }
-
-  getRequiredBundlesForBundle(bundle: IBundle): Array<TBundle> {
-    return this.#graph
-      .getReferencedBundles(bundleToInternalBundle(bundle))
       .map(bundle =>
         this.#createBundle.call(null, bundle, this.#graph, this.#options),
       );
@@ -208,17 +200,23 @@ export default class BundleGraph<TBundle: IBundle>
     );
   }
 
-  getBundlesInBundleGroup(bundleGroup: IBundleGroup): Array<TBundle> {
+  getBundlesInBundleGroup(
+    bundleGroup: IBundleGroup,
+    opts?: {|includeInline: boolean|},
+  ): Array<TBundle> {
     return this.#graph
-      .getBundlesInBundleGroup(bundleGroupToInternalBundleGroup(bundleGroup))
+      .getBundlesInBundleGroup(
+        bundleGroupToInternalBundleGroup(bundleGroup),
+        opts,
+      )
       .map(bundle =>
         this.#createBundle.call(null, bundle, this.#graph, this.#options),
       );
   }
 
-  getBundles(): Array<TBundle> {
+  getBundles(opts?: {|includeInline: boolean|}): Array<TBundle> {
     return this.#graph
-      .getBundles()
+      .getBundles(opts)
       .map(bundle =>
         this.#createBundle.call(null, bundle, this.#graph, this.#options),
       );

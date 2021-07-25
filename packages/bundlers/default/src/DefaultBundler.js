@@ -252,9 +252,7 @@ export default (new Bundler({
         if (
           Array.from(bundleGroups).every(
             group =>
-              bundleGraph
-                .getBundlesInBundleGroup(group)
-                .filter(b => b.bundleBehavior !== 'inline').length <
+              bundleGraph.getBundlesInBundleGroup(group).length <
               config.maxParallelRequests,
           )
         ) {
@@ -356,9 +354,7 @@ export default (new Bundler({
         if (
           bundleGroups.every(
             group =>
-              bundleGraph
-                .getBundlesInBundleGroup(group)
-                .filter(b => b.bundleBehavior !== 'inline').length <
+              bundleGraph.getBundlesInBundleGroup(group).length <
               config.maxParallelRequests,
           )
         ) {
