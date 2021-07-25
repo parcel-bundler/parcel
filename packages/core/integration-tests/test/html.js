@@ -348,7 +348,7 @@ describe('html', function() {
     );
 
     assert(
-      /^<link rel="stylesheet" href="[/\\]index\.[a-f0-9]+\.css">\s*<script src="[/\\]index\.[a-f0-9]+\.js"><\/script>\s*<h1>Hello/m.test(
+      /^<link rel="stylesheet" href="[/\\]index\.[a-f0-9]+\.css">\s*<script src="[/\\]index\.[a-f0-9]+\.js" defer=""><\/script>\s*<h1>Hello/m.test(
         html,
       ),
     );
@@ -391,7 +391,8 @@ describe('html', function() {
     );
 
     assert.equal(
-      html.match(/<script src="[/\\]{1}index\.[a-f0-9]+?\.js">/g).length,
+      html.match(/<script src="[/\\]{1}index\.[a-f0-9]+?\.js" defer="">/g)
+        .length,
       2,
     );
   });

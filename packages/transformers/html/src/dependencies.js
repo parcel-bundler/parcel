@@ -173,6 +173,10 @@ export default function collectDependencies(
       if (attrs.type === 'module' && asset.env.shouldScopeHoist) {
         outputFormat = 'esmodule';
       } else {
+        if (attrs.type === 'module') {
+          attrs.defer = '';
+        }
+
         delete attrs.type;
       }
 
