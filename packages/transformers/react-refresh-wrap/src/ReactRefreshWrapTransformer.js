@@ -26,22 +26,22 @@ export default (new Transformer({
       return [asset];
     }
 
-    let wrapperPath = relativePath(path.dirname(asset.filePath), WRAPPER);
-    if (!wrapperPath.startsWith('.')) {
-      wrapperPath = './' + wrapperPath;
-    }
+    let wrapperPath = `@parcel/transformer-react-refresh-wrap/${path.basename(
+      __dirname,
+    )}/helpers/helpers.js`;
 
     let code = await asset.getCode();
     let map = await asset.getMap();
+    let name = `$parcel$ReactRefreshHelpers$${asset.id.slice(-4)}`;
 
-    code = `var helpers = require(${JSON.stringify(wrapperPath)});
+    code = `var ${name} = require(${JSON.stringify(wrapperPath)});
 var prevRefreshReg = window.$RefreshReg$;
 var prevRefreshSig = window.$RefreshSig$;
-helpers.prelude(module);
+${name}.prelude(module);
 
 try {
 ${code}
-  helpers.postlude(module);
+  ${name}.postlude(module);
 } finally {
   window.$RefreshReg$ = prevRefreshReg;
   window.$RefreshSig$ = prevRefreshSig;
@@ -57,6 +57,7 @@ ${code}
     asset.addDependency({
       specifier: wrapperPath,
       specifierType: 'esm',
+      resolveFrom: __filename,
     });
 
     return [asset];
