@@ -334,7 +334,7 @@ export default class BundleGraph {
 
       let resolved;
       if (referencedAssetNodeIds.length === 0) {
-        resolved = this.getDependencyResolution(dependency, bundle);
+        resolved = this.getResolvedAsset(dependency, bundle);
       } else if (referencedAssetNodeIds.length === 1) {
         let referencedAssetNode = this._graph.getNode(
           referencedAssetNodeIds[0],
@@ -608,7 +608,7 @@ export default class BundleGraph {
     );
   }
 
-  findBundlesWithAsset(asset: Asset): Array<Bundle> {
+  getBundlesWithAsset(asset: Asset): Array<Bundle> {
     return this._graph
       .getNodeIdsConnectedTo(
         this._graph.getNodeIdByContentKey(asset.id),
@@ -622,7 +622,7 @@ export default class BundleGraph {
       });
   }
 
-  findBundlesWithDependency(dependency: Dependency): Array<Bundle> {
+  getBundlesWithDependency(dependency: Dependency): Array<Bundle> {
     return this._graph
       .getNodeIdsConnectedTo(
         nullthrows(this._graph.getNodeIdByContentKey(dependency.id)),
@@ -647,7 +647,7 @@ export default class BundleGraph {
       });
   }
 
-  getDependencyResolution(dep: Dependency, bundle: ?Bundle): ?Asset {
+  getResolvedAsset(dep: Dependency, bundle: ?Bundle): ?Asset {
     let assets = this.getDependencyAssets(dep);
     let firstAsset = assets[0];
     let resolved =
@@ -697,7 +697,7 @@ export default class BundleGraph {
     );
   }
 
-  isAssetReferencedByDependant(bundle: Bundle, asset: Asset): boolean {
+  isAssetReferenced(bundle: Bundle, asset: Asset): boolean {
     let assetNodeId = nullthrows(this._graph.getNodeIdByContentKey(asset.id));
 
     if (
@@ -1189,7 +1189,7 @@ export default class BundleGraph {
     return this._graph.filteredTraverse(filter, visit, bundleNodeId);
   }
 
-  resolveSymbol(
+  getSymbolResolution(
     asset: Asset,
     symbol: Symbol,
     boundary: ?Bundle,
@@ -1222,7 +1222,7 @@ export default class BundleGraph {
       );
       let depSymbol = symbolLookup.get(identifier);
       if (depSymbol != null) {
-        let resolved = this.getDependencyResolution(dep);
+        let resolved = this.getResolvedAsset(dep);
         if (!resolved || resolved.id === asset.id) {
           // External module or self-reference
           return {
@@ -1250,7 +1250,7 @@ export default class BundleGraph {
           symbol: resolvedSymbol,
           exportSymbol,
           loc,
-        } = this.resolveSymbol(resolved, depSymbol, boundary);
+        } = this.getSymbolResolution(resolved, depSymbol, boundary);
 
         if (!loc) {
           // Remember how we got there
@@ -1272,11 +1272,11 @@ export default class BundleGraph {
         depSymbols.get('*')?.local === '*' &&
         symbol !== 'default'
       ) {
-        let resolved = this.getDependencyResolution(dep);
+        let resolved = this.getResolvedAsset(dep);
         if (!resolved) {
           continue;
         }
-        let result = this.resolveSymbol(resolved, symbol, boundary);
+        let result = this.getSymbolResolution(resolved, symbol, boundary);
 
         // We found the symbol
         if (result.symbol != undefined) {
@@ -1377,7 +1377,7 @@ export default class BundleGraph {
 
     for (let symbol of asset.symbols.keys()) {
       symbols.push({
-        ...this.resolveSymbol(asset, symbol, boundary),
+        ...this.getSymbolResolution(asset, symbol, boundary),
         exportAs: symbol,
       });
     }
@@ -1388,7 +1388,7 @@ export default class BundleGraph {
       if (!depSymbols) continue;
 
       if (depSymbols.get('*')?.local === '*') {
-        let resolved = this.getDependencyResolution(dep);
+        let resolved = this.getResolvedAsset(dep);
         if (!resolved) continue;
         let exported = this.getExportedSymbols(resolved, boundary)
           .filter(s => s.exportSymbol !== 'default')

@@ -76,7 +76,7 @@ export default (new Bundler({
         }
 
         let assets = bundleGraph.getDependencyAssets(dependency);
-        let resolution = bundleGraph.getDependencyResolution(dependency);
+        let resolution = bundleGraph.getResolvedAsset(dependency);
         let bundleGroup = context?.bundleGroup;
         // Create a new bundle for entries, lazy/parallel dependencies, isolated/inline assets.
         if (
@@ -232,7 +232,7 @@ export default (new Bundler({
         return;
       }
 
-      let candidates = bundleGraph.findBundlesWithAsset(mainEntry).filter(
+      let candidates = bundleGraph.getBundlesWithAsset(mainEntry).filter(
         containingBundle =>
           containingBundle.id !== bundle.id &&
           // Don't add to BundleGroups for entry bundles, as that would require
@@ -293,7 +293,7 @@ export default (new Bundler({
 
       let asset = node.value;
       let containingBundles = bundleGraph
-        .findBundlesWithAsset(asset)
+        .getBundlesWithAsset(asset)
         // Don't create shared bundles from entry bundles, as that would require
         // another entry bundle depending on these conditions, making it difficult
         // to predict and reference.
@@ -406,7 +406,7 @@ function deduplicate(bundleGraph: MutableBundleGraph) {
       let asset = node.value;
       // Search in reverse order, so bundles that are loaded keep the duplicated asset, not later ones.
       // This ensures that the earlier bundle is able to execute before the later one.
-      let bundles = bundleGraph.findBundlesWithAsset(asset).reverse();
+      let bundles = bundleGraph.getBundlesWithAsset(asset).reverse();
       for (let bundle of bundles) {
         if (
           bundle.hasAsset(asset) &&
@@ -500,7 +500,7 @@ function internalizeReachableAsyncDependencies(
       return;
     }
 
-    let resolution = bundleGraph.getDependencyResolution(dependency);
+    let resolution = bundleGraph.getResolvedAsset(dependency);
     if (resolution == null) {
       return;
     }
@@ -510,7 +510,7 @@ function internalizeReachableAsyncDependencies(
       asyncBundleGroups.add(externalResolution.value);
     }
 
-    for (let bundle of bundleGraph.findBundlesWithDependency(dependency)) {
+    for (let bundle of bundleGraph.getBundlesWithDependency(dependency)) {
       if (
         bundle.hasAsset(resolution) ||
         bundleGraph.isAssetReachableFromBundle(resolution, bundle)

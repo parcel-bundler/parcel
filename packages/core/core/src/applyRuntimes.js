@@ -169,7 +169,7 @@ export default async function applyRuntimes({
 
     let resolution =
       dependency &&
-      bundleGraph.getDependencyResolution(
+      bundleGraph.getResolvedAsset(
         dependencyToInternalDependency(dependency),
         bundle,
       );

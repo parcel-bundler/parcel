@@ -80,8 +80,8 @@ export default class BundleGraph<TBundle: IBundle>
     return this.#graph.isDependencySkipped(dependencyToInternalDependency(dep));
   }
 
-  getDependencyResolution(dep: IDependency, bundle: ?IBundle): ?IAsset {
-    let resolution = this.#graph.getDependencyResolution(
+  getResolvedAsset(dep: IDependency, bundle: ?IBundle): ?IAsset {
+    let resolution = this.#graph.getResolvedAsset(
       dependencyToInternalDependency(dep),
       bundle && bundleToInternalBundle(bundle),
     );
@@ -173,8 +173,8 @@ export default class BundleGraph<TBundle: IBundle>
     );
   }
 
-  isAssetReferencedByDependant(bundle: IBundle, asset: IAsset): boolean {
-    return this.#graph.isAssetReferencedByDependant(
+  isAssetReferenced(bundle: IBundle, asset: IAsset): boolean {
+    return this.#graph.isAssetReferenced(
       bundleToInternalBundle(bundle),
       assetToAssetValue(asset),
     );
@@ -231,12 +231,12 @@ export default class BundleGraph<TBundle: IBundle>
       );
   }
 
-  resolveSymbol(
+  getSymbolResolution(
     asset: IAsset,
     symbol: Symbol,
     boundary: ?IBundle,
   ): SymbolResolution {
-    let res = this.#graph.resolveSymbol(
+    let res = this.#graph.getSymbolResolution(
       assetToAssetValue(asset),
       symbol,
       boundary ? bundleToInternalBundle(boundary) : null,
@@ -297,17 +297,17 @@ export default class BundleGraph<TBundle: IBundle>
     );
   }
 
-  findBundlesWithAsset(asset: IAsset): Array<TBundle> {
+  getBundlesWithAsset(asset: IAsset): Array<TBundle> {
     return this.#graph
-      .findBundlesWithAsset(assetToAssetValue(asset))
+      .getBundlesWithAsset(assetToAssetValue(asset))
       .map(bundle =>
         this.#createBundle.call(null, bundle, this.#graph, this.#options),
       );
   }
 
-  findBundlesWithDependency(dependency: IDependency): Array<TBundle> {
+  getBundlesWithDependency(dependency: IDependency): Array<TBundle> {
     return this.#graph
-      .findBundlesWithDependency(dependencyToInternalDependency(dependency))
+      .getBundlesWithDependency(dependencyToInternalDependency(dependency))
       .map(bundle =>
         this.#createBundle.call(null, bundle, this.#graph, this.#options),
       );

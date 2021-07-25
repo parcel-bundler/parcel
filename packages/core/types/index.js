@@ -1366,13 +1366,13 @@ export interface BundleGraph<TBundle: Bundle> {
   /** If a dependency was excluded since it's unused based on symbol data. */
   isDependencySkipped(dependency: Dependency): boolean;
   /** Find out which asset the dependency resolved to. */
-  getDependencyResolution(dependency: Dependency, bundle: ?Bundle): ?Asset;
+  getResolvedAsset(dependency: Dependency, bundle: ?Bundle): ?Asset;
   getReferencedBundle(dependency: Dependency, bundle: Bundle): ?TBundle;
-  findBundlesWithAsset(Asset): Array<TBundle>;
-  findBundlesWithDependency(Dependency): Array<TBundle>;
+  getBundlesWithAsset(Asset): Array<TBundle>;
+  getBundlesWithDependency(Dependency): Array<TBundle>;
   /** Whether the asset is already included in a compatible (regarding EnvironmentContext) parent bundle. */
   isAssetReachableFromBundle(asset: Asset, bundle: Bundle): boolean;
-  isAssetReferencedByDependant(bundle: Bundle, asset: Asset): boolean;
+  isAssetReferenced(bundle: Bundle, asset: Asset): boolean;
   hasParentBundleOfType(bundle: Bundle, type: string): boolean;
   /**
    * Resolve the export `symbol` of `asset` to the source,
@@ -1385,7 +1385,7 @@ export interface BundleGraph<TBundle: Bundle> {
    * corresponding variable lives (resolves re-exports). Stop resolving transitively once \
    * <code>boundary</code> was left (<code>bundle.hasAsset(asset) === false</code>), then <code>result.symbol</code> is undefined.
    */
-  resolveSymbol(
+  getSymbolResolution(
     asset: Asset,
     symbol: Symbol,
     boundary: ?Bundle,

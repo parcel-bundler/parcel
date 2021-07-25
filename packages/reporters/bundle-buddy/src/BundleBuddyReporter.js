@@ -27,7 +27,7 @@ export default (new Reporter({
         bundle.traverseAssets(asset => {
           let deps = event.bundleGraph.getDependencies(asset);
           for (let dep of deps) {
-            let resolved = event.bundleGraph.getDependencyResolution(dep);
+            let resolved = event.bundleGraph.getResolvedAsset(dep);
             if (!resolved) {
               continue;
             }
