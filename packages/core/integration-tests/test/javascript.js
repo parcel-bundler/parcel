@@ -6,6 +6,7 @@ import {
   bundler,
   run,
   runBundle,
+  runBundles,
   assertBundles,
   ncp,
   overlayFS,
@@ -5232,5 +5233,59 @@ describe('javascript', function() {
         value: 'file:///integration/import-meta/index.js',
       },
     });
+  });
+
+  it('should support importing async bundles from bundles with different dist paths', async function() {
+    let bundleGraph = await bundle(
+      ['bar/entry/entry-a.js', 'foo/entry-b.js'].map(f =>
+        path.join(__dirname, 'integration/differing-bundle-urls', f),
+      ),
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldOptimize: false,
+        },
+      },
+    );
+    assertBundles(bundleGraph, [
+      {
+        name: 'entry-a.js',
+        assets: [
+          'bundle-manifest.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'entry-a.js',
+          'js-loader.js',
+        ],
+      },
+      {
+        name: 'entry-b.js',
+        assets: [
+          'bundle-manifest.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'entry-b.js',
+          'js-loader.js',
+        ],
+      },
+      {name: /deep\.[a-f0-9]+\.js/, assets: ['deep.js']},
+      {name: /common\.[a-f0-9]+\.js/, assets: ['index.js']},
+    ]);
+
+    let [a, b] = bundleGraph.getBundles().filter(b => b.needsStableName);
+    let calls = [];
+
+    let bundles = [
+      [await outputFS.readFile(a.filePath, 'utf8'), a],
+      [await outputFS.readFile(b.filePath, 'utf8'), b],
+    ];
+
+    await runBundles(bundleGraph, a, bundles, {
+      sideEffect: v => {
+        calls.push(v);
+      },
+    });
+
+    assert.deepEqual(calls, ['common', 'deep']);
   });
 });

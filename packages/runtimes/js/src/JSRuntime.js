@@ -528,7 +528,7 @@ function getURLRuntime(
       )});`;
     } else {
       code += `let bundleURL = require('./helpers/bundle-url');\n`;
-      code += `let url = bundleURL.getBundleURL() + ${relativePathExpr};`;
+      code += `let url = bundleURL.getBundleURL('${from.publicId}') + ${relativePathExpr};`;
       code += `module.exports = workerURL(url, bundleURL.getOrigin(url), ${String(
         from.env.outputFormat === 'esmodule',
       )});`;
@@ -604,7 +604,7 @@ function getAbsoluteUrlExpr(relativePathExpr: string, bundle: NamedBundle) {
     // This will be compiled to new URL(url, import.meta.url) or new URL(url, 'file:' + __filename).
     return `new __parcel__URL__(${relativePathExpr}).toString()`;
   } else {
-    return `require('./helpers/bundle-url').getBundleURL() + ${relativePathExpr}`;
+    return `require('./helpers/bundle-url').getBundleURL('${bundle.publicId}') + ${relativePathExpr}`;
   }
 }
 
