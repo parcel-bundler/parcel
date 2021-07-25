@@ -15,8 +15,9 @@ function getBundleURL() {
   } catch (err) {
     var matches = ('' + err.stack).match(/(https?|file|ftp):\/\/[^)\n]+/g);
     if (matches) {
-      // Use the last occurrence so that the URL of the calling bundle is returned, not of the bundling containing this
-      return getBaseURL(matches[matches.length - 1]);
+      // The first two stack frames will be this function and getBundleURLCached.
+      // Use the 3rd one, which will be a runtime in the original bundle.
+      return getBaseURL(matches[2]);
     }
   }
 
