@@ -173,19 +173,6 @@ export default class BundleGraph<TBundle: IBundle>
     );
   }
 
-  findReachableBundleWithAsset(bundle: IBundle, asset: IAsset): ?TBundle {
-    let result = this.#graph.findReachableBundleWithAsset(
-      bundleToInternalBundle(bundle),
-      assetToAssetValue(asset),
-    );
-
-    if (result != null) {
-      return this.#createBundle.call(null, result, this.#graph, this.#options);
-    }
-
-    return null;
-  }
-
   isAssetReferencedByDependant(bundle: IBundle, asset: IAsset): boolean {
     return this.#graph.isAssetReferencedByDependant(
       bundleToInternalBundle(bundle),
