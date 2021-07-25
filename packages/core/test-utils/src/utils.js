@@ -352,7 +352,7 @@ export async function runBundles(
         filename:
           b.bundleBehavior === 'inline'
             ? b.name
-            : path.relative(b.target.distDir, b.filePath),
+            : normalizeSeparators(path.relative(b.target.distDir, b.filePath)),
         async importModuleDynamically(specifier) {
           let filePath = path.resolve(path.dirname(parent.filePath), specifier);
           let code = await overlayFS.readFile(filePath, 'utf8');
@@ -976,7 +976,9 @@ export async function runESM(
       let source = code ?? fs.readFileSync(filename, 'utf8');
       // $FlowFixMe Experimental
       m = new vm.SourceTextModule(source, {
-        identifier: `${path.relative(baseDir, filename)}?id=${id}`,
+        identifier: `${normalizeSeparators(
+          path.relative(baseDir, filename),
+        )}?id=${id}`,
         importModuleDynamically: entry,
         context,
         initializeImportMeta(meta) {
