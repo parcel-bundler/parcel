@@ -2,9 +2,6 @@
 
 import path from 'path';
 import {Transformer} from '@parcel/plugin';
-import {relativePath} from '@parcel/utils';
-
-const WRAPPER = path.join(__dirname, 'helpers', 'helpers.js');
 
 function shouldExclude(asset, options) {
   return (

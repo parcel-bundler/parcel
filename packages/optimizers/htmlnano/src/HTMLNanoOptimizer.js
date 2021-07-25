@@ -1,5 +1,5 @@
 // @flow strict-local
-import type {PostHTMLNode, PostHTMLTree} from 'posthtml';
+import type {PostHTMLNode} from 'posthtml';
 
 import htmlnano from 'htmlnano';
 import {Optimizer} from '@parcel/plugin';
