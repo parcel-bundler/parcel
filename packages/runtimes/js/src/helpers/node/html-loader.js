@@ -1,7 +1,7 @@
 const fs = require('fs');
-const cacheLoader = require('../../cacheLoader');
+const cacheLoader = require('../cacheLoader');
 
-module.exports = cacheLoader(function loadJSBundle(bundle) {
+module.exports = cacheLoader(function loadHTMLBundle(bundle) {
   return new Promise(function(resolve, reject) {
     fs.readFile(__dirname + bundle, 'utf8', function(err, data) {
       if (err) {
@@ -14,7 +14,5 @@ module.exports = cacheLoader(function loadJSBundle(bundle) {
         });
       }
     });
-  }).then(function(code) {
-    new Function('', code)();
   });
 });

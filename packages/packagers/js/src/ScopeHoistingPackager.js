@@ -944,11 +944,13 @@ ${code}
         prepend += `\n${usedExports
           .map(exp => {
             let resolved = this.resolveSymbol(asset, asset, exp);
+            let get = this.buildFunctionExpression([], resolved);
+            let set = asset.meta.hasCJSExports
+              ? ', ' + this.buildFunctionExpression(['v'], `${resolved} = v`)
+              : '';
             return `$parcel$export($${assetId}$exports, ${JSON.stringify(
               exp,
-            )}, () => ${resolved}${
-              asset.meta.hasCJSExports ? `, (v) => ${resolved} = v` : ''
-            });`;
+            )}, ${get}${set});`;
           })
           .join('\n')}\n`;
         this.usedHelpers.add('$parcel$export');
@@ -997,13 +999,14 @@ ${code}
                   resolved,
                   symbol,
                 );
+                let get = this.buildFunctionExpression([], resolvedSymbol);
+                let set = asset.meta.hasCJSExports
+                  ? ', ' +
+                    this.buildFunctionExpression(['v'], `${resolvedSymbol} = v`)
+                  : '';
                 prepend += `$parcel$export($${assetId}$exports, ${JSON.stringify(
                   symbol,
-                )}, () => ${resolvedSymbol}${
-                  asset.meta.hasCJSExports
-                    ? `, (v) => ${resolvedSymbol} = v`
-                    : ''
-                });\n`;
+                )}, ${get}${set});\n`;
                 prependLineCount++;
               }
             }
@@ -1084,7 +1087,7 @@ ${code}
     }
 
     // Add importScripts for sibling bundles in workers.
-    if (this.bundle.env.isWorker()) {
+    if (this.bundle.env.isWorker() || this.bundle.env.isWorklet()) {
       let importScripts = '';
       let bundles = this.bundleGraph.getReferencedBundles(this.bundle);
       for (let b of bundles) {
@@ -1141,5 +1144,11 @@ ${code}
       this.bundle.env.sourceType === 'script' &&
       asset === this.bundle.getMainEntry()
     );
+  }
+
+  buildFunctionExpression(args: Array<string>, expr: string): string {
+    return this.bundle.env.supports('arrow-functions', true)
+      ? `(${args.join(', ')}) => ${expr}`
+      : `function (${args.join(', ')}) { return ${expr}; }`;
   }
 }

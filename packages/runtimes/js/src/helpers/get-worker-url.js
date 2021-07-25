@@ -1,5 +1,3 @@
-/* global self, Blob */
-
 module.exports = function loadWorker(workerUrl, origin, isESM) {
   if (origin === self.location.origin) {
     // If the worker bundle's url is on the same origin as the document,
