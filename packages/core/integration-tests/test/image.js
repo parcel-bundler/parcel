@@ -104,7 +104,9 @@ describe('image', function() {
     const image = await sharp(buffer).metadata();
 
     assert.strictEqual(image.width, 1920);
-    assert(image.size <= originalSize * 0.52);
+    assert.strictEqual(image.chromaSubsampling, '4:2:0');
+    assert(image.size <= originalSize * 0.72);
+    assert(image.size >= originalSize * 0.71);
   });
 
   it('should optimise PNGs', async function() {
@@ -122,6 +124,31 @@ describe('image', function() {
     const image = await sharp(buffer).metadata();
 
     assert.strictEqual(image.width, 200);
+    assert.strictEqual(image.paletteBitDepth, 8);
     assert(image.size <= originalSize * 0.3);
+    assert(image.size >= originalSize * 0.29);
+  });
+
+  it('support config files', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/image-config/image.jpg'),
+      {
+        defaultTargetOptions: {
+          shouldOptimize: true,
+        },
+      },
+    );
+
+    const originalSize = 549196;
+
+    const imagePath = b.getBundles().find(b => b.type === 'jpg').filePath;
+
+    const buffer = await outputFS.readFile(imagePath);
+    const image = await sharp(buffer).metadata();
+
+    assert.strictEqual(image.width, 1920);
+    assert.strictEqual(image.chromaSubsampling, '4:4:4');
+    assert(image.size <= originalSize * 0.78);
+    assert(image.size >= originalSize * 0.77);
   });
 });
