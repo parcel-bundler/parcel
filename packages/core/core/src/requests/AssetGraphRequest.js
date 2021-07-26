@@ -91,7 +91,7 @@ export default function createAssetGraphRequest(
         !input.options.shouldBundleIncrementally ||
         input.options.mode === 'production'
       ) {
-        assetGraphRequest.assetGraph.unmarkSafeToBundleIncrementally();
+        assetGraphRequest.assetGraph.safeToIncrementallyBundle = false;
       }
       // Removed return builder.build() to build after return
       return {
@@ -137,7 +137,7 @@ export class AssetGraphBuilder {
       shouldBuildLazily,
     } = input;
     let assetGraph = prevResult?.assetGraph ?? new AssetGraph();
-    assetGraph.markSafeToBundleIncrementally();
+    assetGraph.safeToIncrementallyBundle = true;
     assetGraph.setRootConnections({
       entries,
       assetGroups,
@@ -826,7 +826,9 @@ export class AssetGraphBuilder {
           (entryId, index) => entryId === currentEntries[index],
         );
 
-      didEntriesChange && this.assetGraph.unmarkSafeToBundleIncrementally();
+      if (didEntriesChange) {
+        this.assetGraph.safeToIncrementallyBundle = false;
+      }
     }
   }
 
@@ -866,18 +868,18 @@ export class AssetGraphBuilder {
           if (otherAsset != null) {
             invariant(otherAsset.type === 'asset');
             if (!this._areDependenciesEqualForAssets(asset, otherAsset.value)) {
-              this.assetGraph.unmarkSafeToBundleIncrementally();
+              this.assetGraph.safeToIncrementallyBundle = false;
             }
           } else {
             // adding a new entry or dependency
-            this.assetGraph.unmarkSafeToBundleIncrementally();
+            this.assetGraph.safeToIncrementallyBundle = false;
           }
         }
         this.changedAssets.set(asset.id, asset);
       }
       this.assetGraph.resolveAssetGroup(input, assets, request.id);
     } else {
-      this.assetGraph.unmarkSafeToBundleIncrementally();
+      this.assetGraph.safeToIncrementallyBundle = false;
     }
   }
   /**

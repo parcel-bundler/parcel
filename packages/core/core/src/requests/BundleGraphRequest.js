@@ -236,7 +236,7 @@ class BundlerRunner {
       previousBundleGraphResult == null ||
       previousBundleGraphResult?.bundlerHash !== bundlerHash
     ) {
-      graph.unmarkSafeToBundleIncrementally();
+      graph.safeToIncrementallyBundle = false;
     }
 
     let internalBundleGraph;
