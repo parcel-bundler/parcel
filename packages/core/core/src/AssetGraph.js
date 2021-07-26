@@ -104,14 +104,14 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
   onNodeRemoved: ?(nodeId: NodeId) => mixed;
   hash: ?string;
   envCache: Map<string, Environment>;
-  #unsafeToIncrementallyBundle: boolean = false;
+  #safeToIncrementallyBundle: boolean = true;
 
   constructor(opts: ?SerializedAssetGraph) {
     if (opts) {
       let {hash, ...rest} = opts;
       super(rest);
       this.hash = hash;
-      this.#unsafeToIncrementallyBundle = false;
+      this.#safeToIncrementallyBundle = true;
     } else {
       super();
       this.setRootNodeId(
@@ -603,15 +603,16 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
     this.hash = hash.finish();
     return this.hash;
   }
-  markUnsafeToBundleIncrementally() {
-    this.#unsafeToIncrementallyBundle = true;
+
+  markSafeToBundleIncrementally() {
+    this.#safeToIncrementallyBundle = true;
   }
 
-  unmarkUnsafeToBundleIncrementally() {
-    this.#unsafeToIncrementallyBundle = false;
+  unmarkSafeToBundleIncrementally() {
+    this.#safeToIncrementallyBundle = false;
   }
 
-  get unsafeToBundleIncrementally(): boolean {
-    return this.#unsafeToIncrementallyBundle;
+  get safeToBundleIncrementally(): boolean {
+    return this.#safeToIncrementallyBundle;
   }
 }
