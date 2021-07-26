@@ -14,7 +14,6 @@ import nullthrows from 'nullthrows';
 import {hashString} from '@parcel/hash';
 import {createPackageRequest} from './PackageRequest';
 import createWriteBundleRequest from './WriteBundleRequest';
-import {BundleBehavior} from '../types';
 
 type WriteBundlesRequestInput = {|
   bundleGraph: BundleGraph,
