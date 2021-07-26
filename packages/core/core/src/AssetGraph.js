@@ -111,7 +111,6 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
       let {hash, ...rest} = opts;
       super(rest);
       this.hash = hash;
-      this.#safeToIncrementallyBundle = true;
     } else {
       super();
       this.setRootNodeId(
