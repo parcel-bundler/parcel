@@ -602,8 +602,4 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
     this.hash = hash.finish();
     return this.hash;
   }
-
-  get safeToBundleIncrementally(): boolean {
-    return this.safeToIncrementallyBundle;
-  }
 }

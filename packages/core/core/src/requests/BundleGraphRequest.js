@@ -223,7 +223,7 @@ class BundlerRunner {
     // if a previous asset graph hash is passed in, check if the bundle graph is also available
     let previousBundleGraphResult: ?BundleGraphRequestResult;
 
-    if (graph.safeToBundleIncrementally && previousAssetGraphHash != null) {
+    if (graph.safeToIncrementallyBundle && previousAssetGraphHash != null) {
       try {
         previousBundleGraphResult = await this.api.getRequestResult<BundleGraphRequestResult>(
           'BundleGraph:' + previousAssetGraphHash,
@@ -244,7 +244,7 @@ class BundlerRunner {
     let logger = new PluginLogger({origin: this.config.getBundlerName()});
 
     try {
-      if (graph.safeToBundleIncrementally) {
+      if (graph.safeToIncrementallyBundle) {
         internalBundleGraph = nullthrows(previousBundleGraphResult).bundleGraph;
         for (let changedAsset of changedAssets.values()) {
           internalBundleGraph.updateAsset(changedAsset);

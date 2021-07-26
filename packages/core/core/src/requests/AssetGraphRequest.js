@@ -802,7 +802,7 @@ export class AssetGraphBuilder {
   }
 
   async runEntryRequest(input: ProjectPath) {
-    let prevEntries = this.assetGraph.safeToBundleIncrementally
+    let prevEntries = this.assetGraph.safeToIncrementallyBundle
       ? this.assetGraph
           .getEntryAssets()
           .map(asset => asset.id)
@@ -815,7 +815,7 @@ export class AssetGraphBuilder {
     });
     this.assetGraph.resolveEntry(request.input, result.entries, request.id);
 
-    if (this.assetGraph.safeToBundleIncrementally) {
+    if (this.assetGraph.safeToIncrementallyBundle) {
       let currentEntries = this.assetGraph
         .getEntryAssets()
         .map(asset => asset.id)
@@ -863,7 +863,7 @@ export class AssetGraphBuilder {
 
     if (assets != null) {
       for (let asset of assets) {
-        if (this.assetGraph.safeToBundleIncrementally) {
+        if (this.assetGraph.safeToIncrementallyBundle) {
           let otherAsset = this.assetGraph.getNodeByContentKey(asset.id);
           if (otherAsset != null) {
             invariant(otherAsset.type === 'asset');
