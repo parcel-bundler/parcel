@@ -554,18 +554,6 @@ export class RequestGraph extends ContentGraph<
       let filePath = fromProjectPathRelative(_filePath);
       let hasFileRequest = this.hasContentKey(filePath);
 
-      // If we see a 'create' event for the project root itself,
-      // this means the project root was moved and we need to
-      // re-run all requests.
-      if (type === 'create' && filePath === '') {
-        for (let [id, node] of this.nodes) {
-          if (node.type === 'request') {
-            this.invalidNodeIds.add(id);
-          }
-        }
-        return true;
-      }
-
       // sometimes mac os reports update events as create events.
       // if it was a create event, but the file already exists in the graph,
       // then also invalidate nodes connected by invalidated_by_update edges.
@@ -979,6 +967,21 @@ async function loadRequestGraph(options): Async<RequestGraph> {
       snapshotPath,
       opts,
     );
+
+    // If we see a 'create' event for the project root itself,
+    // this means the project root was moved and we need to
+    // re-run all requests.
+    if (
+      events.some(e => e.path === options.projectRoot && e.type === 'create')
+    ) {
+      for (let [id, node] of requestGraph.nodes) {
+        if (node.type === 'request') {
+          requestGraph.invalidNodeIds.add(id);
+        }
+      }
+      return requestGraph;
+    }
+
     requestGraph.invalidateUnpredictableNodes();
     requestGraph.invalidateEnvNodes(options.env);
     requestGraph.invalidateOptionNodes(options);
