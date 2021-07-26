@@ -141,6 +141,10 @@ let serve = program
     '--lazy',
     'Build async bundles on demand, when requested in the browser',
   )
+  .option(
+    '--incremental',
+    '[experimental] builds faster when modifying a file without adding or removing dependencies',
+  )
   .action(runCommand);
 
 applyOptions(serve, hmrOptions);
@@ -474,6 +478,7 @@ async function normalizeOptions(
     logLevel: command.logLevel,
     shouldProfile: command.profile,
     shouldBuildLazily: command.lazy,
+    shouldBundleIncrementally: command.incremental ?? false,
     detailedReport:
       command.detailedReport != null
         ? {

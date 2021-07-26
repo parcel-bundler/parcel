@@ -58,19 +58,23 @@ async function run({input, api, options}: RunInput) {
     shouldBuildLazily: options.shouldBuildLazily,
     requestedAssetIds,
   });
-  let {assetGraph, changedAssets, assetRequests} = await api.runRequest(
-    request,
-    {
-      force: options.shouldBuildLazily && requestedAssetIds.size > 0,
-    },
-  );
+  let {
+    assetGraph,
+    changedAssets,
+    assetRequests,
+    previousAssetGraphHash,
+  } = await api.runRequest(request, {
+    force: options.shouldBuildLazily && requestedAssetIds.size > 0,
+  });
 
   let bundleGraphRequest = createBundleGraphRequest({
     assetGraph,
+    previousAssetGraphHash,
+    changedAssets,
     optionsRef,
   });
 
-  let bundleGraph = await api.runRequest(bundleGraphRequest);
+  let {bundleGraph} = await api.runRequest(bundleGraphRequest);
 
   // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381 (Windows only)
   dumpGraphToGraphViz(bundleGraph._graph, 'BundleGraph');

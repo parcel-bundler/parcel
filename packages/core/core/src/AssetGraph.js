@@ -104,6 +104,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
   onNodeRemoved: ?(nodeId: NodeId) => mixed;
   hash: ?string;
   envCache: Map<string, Environment>;
+  safeToIncrementallyBundle: boolean = true;
 
   constructor(opts: ?SerializedAssetGraph) {
     if (opts) {
