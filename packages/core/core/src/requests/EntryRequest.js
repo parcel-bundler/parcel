@@ -14,8 +14,10 @@ import {
 import ThrowableDiagnostic, {
   md,
   generateJSONCodeHighlights,
+  getJSONSourceLocation,
 } from '@parcel/diagnostic';
 import path from 'path';
+import jsonMap, {type Mapping} from 'json-source-map';
 import {
   type ProjectPath,
   fromProjectPath,
@@ -181,11 +183,7 @@ export class EntryResolver {
     }
 
     if (stat.isDirectory()) {
-      let pkg: ?{
-        ...PackageJSON,
-        filePath: FilePath,
-        ...
-      } = await this.readPackage(entry);
+      let pkg = await this.readPackage(entry);
 
       if (pkg) {
         let {filePath} = pkg;
@@ -208,14 +206,15 @@ export class EntryResolver {
               let i = 0;
               for (let relativeSource of targetSources) {
                 let source = path.join(entry, relativeSource);
+                let keyPath = `/targets/${targetName}/source${
+                  Array.isArray(target.source) ? `/${i}` : ''
+                }`;
                 await assertFile(
                   this.options.inputFS,
                   entry,
                   relativeSource,
                   filePath,
-                  `/targets/${targetName}/source${
-                    Array.isArray(target.source) ? `/${i}` : ''
-                  }`,
+                  keyPath,
                   this.options,
                 );
 
@@ -223,6 +222,16 @@ export class EntryResolver {
                   filePath: toProjectPath(this.options.projectRoot, source),
                   packagePath: toProjectPath(this.options.projectRoot, entry),
                   target: targetName,
+                  loc: {
+                    filePath: toProjectPath(
+                      this.options.projectRoot,
+                      pkg.filePath,
+                    ),
+                    ...getJSONSourceLocation(
+                      pkg.map.pointers[keyPath],
+                      'value',
+                    ),
+                  },
                 });
                 i++;
               }
@@ -243,17 +252,22 @@ export class EntryResolver {
           let i = 0;
           for (let pkgSource of pkgSources) {
             let source = path.join(path.dirname(filePath), pkgSource);
+            let keyPath = `/source${Array.isArray(pkg.source) ? `/${i}` : ''}`;
             await assertFile(
               this.options.inputFS,
               entry,
               pkgSource,
               filePath,
-              `/source${Array.isArray(pkg.source) ? `/${i}` : ''}`,
+              keyPath,
               this.options,
             );
             entries.push({
               filePath: toProjectPath(this.options.projectRoot, source),
               packagePath: toProjectPath(this.options.projectRoot, entry),
+              loc: {
+                filePath: toProjectPath(this.options.projectRoot, pkg.filePath),
+                ...getJSONSourceLocation(pkg.map.pointers[keyPath], 'value'),
+              },
             });
             i++;
           }
@@ -302,7 +316,12 @@ export class EntryResolver {
 
   async readPackage(
     entry: FilePath,
-  ): Promise<?{...PackageJSON, filePath: FilePath, ...}> {
+  ): Promise<?{
+    ...PackageJSON,
+    filePath: FilePath,
+    map: {|data: mixed, pointers: {|[string]: Mapping|}|},
+    ...
+  }> {
     let content, pkg;
     let pkgFile = path.join(entry, 'package.json');
     try {
@@ -325,6 +344,10 @@ export class EntryResolver {
       });
     }
 
-    return {...pkg, filePath: pkgFile};
+    return {
+      ...pkg,
+      filePath: pkgFile,
+      map: jsonMap.parse(content.replace(/\t/g, ' ')),
+    };
   }
 }

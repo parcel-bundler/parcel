@@ -548,7 +548,7 @@ export class RequestGraph extends ContentGraph<
 
   respondToFSEvents(
     events: Array<{|path: ProjectPath, type: EventType|}>,
-    isInitialBuild: boolean,
+    opts: {|isInitialBuild: boolean|},
   ): boolean {
     let didInvalidate = false;
     for (let {path: _filePath, type} of events) {
@@ -558,7 +558,7 @@ export class RequestGraph extends ContentGraph<
       // If we see a 'create' event for the project root itself,
       // this means the project root was moved and we need to
       // re-run all requests.
-      if (!isInitialBuild && type === 'create' && filePath === '') {
+      if (opts.isInitialBuild && type === 'create' && filePath === '') {
         for (let [id, node] of this.nodes) {
           if (node.type === 'request') {
             this.invalidNodeIds.add(id);
@@ -762,7 +762,7 @@ export default class RequestTracker {
     events: Array<{|path: ProjectPath, type: EventType|}>,
     opts: {|isInitialBuild: boolean|},
   ): boolean {
-    return this.graph.respondToFSEvents(events, opts.isInitialBuild);
+    return this.graph.respondToFSEvents(events, opts);
   }
 
   hasInvalidRequests(): boolean {

@@ -97,6 +97,17 @@ const supportData = {
     and_ff: '62',
     samsung: '9.2',
   },
+  'arrow-functions': {
+    chrome: '47',
+    opera: '34',
+    edge: '13',
+    firefox: '45',
+    safari: '10',
+    node: '6',
+    ios: '10',
+    samsung: '5',
+    electron: '0.36',
+  },
 };
 
 const internalEnvironmentToEnvironment: WeakMap<

@@ -252,6 +252,24 @@ describe('resolver', function() {
       });
       assert.deepEqual(resolved, {isExcluded: true});
     });
+
+    it('should exclude the electron module in electron environments', async function() {
+      let resolved = await resolver.resolve({
+        env: new Environment(
+          createEnvironment({
+            context: 'electron-main',
+            isLibrary: true,
+          }),
+          DEFAULT_OPTIONS,
+        ),
+        filename: 'electron',
+        isURL: false,
+        parent: path.join(rootDir, 'foo.js'),
+        sourcePath: path.join(rootDir, 'foo.js'),
+      });
+
+      assert.deepEqual(resolved, {isExcluded: true});
+    });
   });
 
   describe('node_modules', function() {
@@ -1951,6 +1969,85 @@ describe('resolver', function() {
           parent: path.join(rootDir, 'foo.js'),
         }),
       );
+    });
+
+    it('should error when a library is missing an external dependency', async function() {
+      let result = await resolver.resolve({
+        env: new Environment(
+          createEnvironment({
+            context: 'browser',
+            isLibrary: true,
+            includeNodeModules: false,
+          }),
+          DEFAULT_OPTIONS,
+        ),
+        filename: 'test',
+        isURL: false,
+        parent: path.join(rootDir, 'foo.js'),
+        sourcePath: path.join(rootDir, 'foo.js'),
+      });
+
+      assert.equal(
+        result?.diagnostics?.[0].message,
+        'External dependency "test" is not declared in package.json.',
+      );
+    });
+
+    it('should not error when external dependencies are declared', async function() {
+      let result = await resolver.resolve({
+        env: new Environment(
+          createEnvironment({
+            context: 'browser',
+            isLibrary: true,
+            includeNodeModules: false,
+          }),
+          DEFAULT_OPTIONS,
+        ),
+        filename: 'foo',
+        isURL: false,
+        parent: path.join(rootDir, 'foo.js'),
+        sourcePath: path.join(rootDir, 'foo.js'),
+      });
+
+      assert.deepEqual(result, {isExcluded: true});
+    });
+
+    it('should not error when external dependencies are declared in peerDependencies', async function() {
+      let result = await resolver.resolve({
+        env: new Environment(
+          createEnvironment({
+            context: 'browser',
+            isLibrary: true,
+            includeNodeModules: false,
+          }),
+          DEFAULT_OPTIONS,
+        ),
+        filename: 'bar',
+        isURL: false,
+        parent: path.join(rootDir, 'foo.js'),
+        sourcePath: path.join(rootDir, 'foo.js'),
+      });
+
+      assert.deepEqual(result, {isExcluded: true});
+    });
+
+    it('should not error on missing dependencies for environment builtins', async function() {
+      let result = await resolver.resolve({
+        env: new Environment(
+          createEnvironment({
+            context: 'browser',
+            isLibrary: true,
+            includeNodeModules: false,
+          }),
+          DEFAULT_OPTIONS,
+        ),
+        filename: 'atom',
+        isURL: false,
+        parent: path.join(rootDir, 'env-dep/foo.js'),
+        sourcePath: path.join(rootDir, 'env-dep/foo.js'),
+      });
+
+      assert.deepEqual(result, {isExcluded: true});
     });
   });
 });

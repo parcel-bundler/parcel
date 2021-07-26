@@ -490,7 +490,7 @@ describe('output formats', function() {
         contents.includes(
           `new URL("${path.basename(
             b.getBundles()[1].filePath,
-          )}", 'file:' + __filename)`,
+          )}", "file:" + __filename)`,
         ),
       );
     });
@@ -1010,9 +1010,11 @@ describe('output formats', function() {
         .getBundles()
         .find(bundle => bundle.name.startsWith('async'));
       assert(
-        entry.includes(
-          `getBundleURL() + "${path.basename(asyncBundle.filePath)}"`,
-        ),
+        new RegExp(
+          "getBundleURL\\('[a-zA-Z0-9]+'\\) \\+ \"" +
+            path.basename(asyncBundle.filePath) +
+            '"',
+        ).test(entry),
       );
     });
 
