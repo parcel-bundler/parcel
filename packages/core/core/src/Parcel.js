@@ -48,6 +48,7 @@ export default class Parcel {
   #requestTracker /*: RequestTracker*/;
   #config /*: ParcelConfig*/;
   #farm /*: WorkerFarm*/;
+  #isInitialBuild /*: boolean*/ = true;
   #initialized /*: boolean*/ = false;
   #disposable /*: Disposable */;
   #initialOptions /*: InitialParcelOptions*/;
@@ -381,12 +382,14 @@ export default class Parcel {
             type: e.type,
             path: toProjectPath(resolvedOptions.projectRoot, e.path),
           })),
+          {isInitialBuild: this.#isInitialBuild},
         );
         if (isInvalid && this.#watchQueue.getNumWaiting() === 0) {
           if (this.#watchAbortController) {
             this.#watchAbortController.abort();
           }
 
+          this.#isInitialBuild = false;
           this.#watchQueue.add(() => this._startNextBuild());
           this.#watchQueue.run();
         }
