@@ -154,10 +154,10 @@ export class TargetResolver {
       optionTargets = [exclusiveTarget];
     }
 
-    let packageTargets: Map<string, ?Target> = await this.resolvePackageTargets(
-      rootDir,
-      exclusiveTarget,
-    );
+    let packageTargets: Map<
+      string,
+      Target | null,
+    > = await this.resolvePackageTargets(rootDir, exclusiveTarget);
     let targets: Array<Target>;
     if (optionTargets) {
       if (Array.isArray(optionTargets)) {
@@ -348,7 +348,7 @@ export class TargetResolver {
   async resolvePackageTargets(
     rootDir: FilePath,
     exclusiveTarget?: string,
-  ): Promise<Map<string, ?Target>> {
+  ): Promise<Map<string, Target | null>> {
     let rootFile = path.join(rootDir, 'index');
     let conf = await loadConfig(
       this.fs,
@@ -460,7 +460,7 @@ export class TargetResolver {
       }
     }
 
-    let targets: Map<string, ?Target> = new Map();
+    let targets: Map<string, Target | null> = new Map();
     let node = pkgEngines.node;
     let browsers = pkgEngines.browsers;
 
