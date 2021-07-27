@@ -1810,6 +1810,21 @@ export default class BundleGraph {
       .some(n => n.type === 'root');
   }
 
+  /**
+   * Update the asset in a Bundle Graph and clear the associated Bundle hash.
+   */
+  updateAsset(asset: Asset) {
+    this._graph.updateNode(
+      this._graph.getNodeIdByContentKey(asset.id),
+      nodeFromAsset(asset),
+    );
+    let bundles = this.findBundlesWithAsset(asset);
+    for (let bundle of bundles) {
+      // the bundle content will change with a modified asset
+      this._bundleContentHashes.delete(bundle.id);
+    }
+  }
+
   getEntryRoot(projectRoot: FilePath, target: Target): FilePath {
     let cached = this._targetEntryRoots.get(target.distDir);
     if (cached != null) {
@@ -1840,19 +1855,5 @@ export default class BundleGraph {
     let root = getRootDir(entries);
     this._targetEntryRoots.set(target.distDir, root);
     return root;
-  }
-  /**
-   * Update the asset in a Bundle Graph and clear the associated Bundle hash.
-   */
-  updateAsset(asset: Asset) {
-    this._graph.updateNode(
-      this._graph.getNodeIdByContentKey(asset.id),
-      nodeFromAsset(asset),
-    );
-    let bundles = this.findBundlesWithAsset(asset);
-    for (let bundle of bundles) {
-      // the bundle content will change with a modified asset
-      this._bundleContentHashes.delete(bundle.id);
-    }
   }
 }
