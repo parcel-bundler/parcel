@@ -111,7 +111,7 @@ type PackageJSONConfig = {|
 const SCRIPT_ERRORS = {
   browser: {
     message: 'Browser scripts cannot have imports or exports.',
-    hint: 'Add type="module" as a second argument to the <script> tag.',
+    hint: 'Add the type="module" attribute to the <script> tag.',
   },
   'web-worker': {
     message:
