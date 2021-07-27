@@ -548,24 +548,11 @@ export class RequestGraph extends ContentGraph<
 
   respondToFSEvents(
     events: Array<{|path: ProjectPath, type: EventType|}>,
-    wasProjectRootMoved?: boolean,
   ): boolean {
     let didInvalidate = false;
     for (let {path: _filePath, type} of events) {
       let filePath = fromProjectPathRelative(_filePath);
       let hasFileRequest = this.hasContentKey(filePath);
-
-      // If we see a 'create' event for the project root itself,
-      // this means the project root was moved and we need to
-      // re-run all requests.
-      if (wasProjectRootMoved) {
-        for (let [id, node] of this.nodes) {
-          if (node.type === 'request') {
-            this.invalidNodeIds.add(id);
-          }
-        }
-        return true;
-      }
 
       // sometimes mac os reports update events as create events.
       // if it was a create event, but the file already exists in the graph,
@@ -653,7 +640,6 @@ export default class RequestTracker {
   farm: WorkerFarm;
   options: ParcelOptions;
   signal: ?AbortSignal;
-  isInitialBuild: boolean;
 
   constructor({
     graph,
@@ -982,12 +968,18 @@ async function loadRequestGraph(options): Async<RequestGraph> {
       opts,
     );
 
-    let wasProjectRootMoved = false;
-    for (let event of events) {
-      if (event.path === options.projectRoot && event.type === 'create') {
-        wasProjectRootMoved = true;
-        break;
+    // If we see a 'create' event for the project root itself,
+    // this means the project root was moved and we need to
+    // re-run all requests.
+    if (
+      events.some(e => e.path === options.projectRoot && e.type === 'create')
+    ) {
+      for (let [id, node] of requestGraph.nodes) {
+        if (node.type === 'request') {
+          requestGraph.invalidNodeIds.add(id);
+        }
       }
+      return requestGraph;
     }
 
     requestGraph.invalidateUnpredictableNodes();
@@ -998,7 +990,6 @@ async function loadRequestGraph(options): Async<RequestGraph> {
         type: e.type,
         path: toProjectPath(options.projectRoot, e.path),
       })),
-      wasProjectRootMoved,
     );
 
     return requestGraph;
