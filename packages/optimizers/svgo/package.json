@@ -1,6 +1,6 @@
 {
   "name": "@parcel/optimizer-svgo",
-  "version": "2.0.6",
+  "version": "2.0.7",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -20,9 +20,9 @@
     "parcel": "^2.0.0-beta.1"
   },
   "dependencies": {
-    "@parcel/diagnostic": "2.0.6",
-    "@parcel/plugin": "2.0.6",
-    "@parcel/utils": "2.0.6",
+    "@parcel/diagnostic": "2.0.7",
+    "@parcel/plugin": "2.0.7",
+    "@parcel/utils": "2.0.7",
     "svgo": "^2.3.0"
   }
 }
