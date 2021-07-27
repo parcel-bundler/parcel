@@ -1,5 +1,6 @@
 import assert from 'assert';
 import {bundle, distDir, outputFS} from '@parcel/test-utils';
+import exifReader from 'exif-reader';
 import path from 'path';
 import sharp from 'sharp';
 
@@ -87,5 +88,38 @@ describe('image', function() {
         new Set(['html', 'webp', 'avif', 'jpg', 'png', 'tiff']),
       );
     });
+  });
+
+  it('should retain EXIF data', async () => {
+    const b = await bundle(
+      path.join(__dirname, '/integration/image-exif/resized.html'),
+    );
+
+    const imagePath = b.getBundles().find(b => b.type === 'jpg').filePath;
+
+    const buffer = await outputFS.readFile(imagePath);
+    const image = await sharp(buffer).metadata();
+
+    const {exif} = exifReader(image.exif);
+
+    assert.strictEqual(
+      exif.UserComment.toString(),
+      'ASCII\u0000\u0000\u0000This is a comment',
+    );
+  });
+
+  it('should use the EXIF orientation tag when resizing', async () => {
+    const b = await bundle(
+      path.join(__dirname, '/integration/image-exif/resized.html'),
+    );
+
+    const imagePath = b.getBundles().find(b => b.type === 'jpg').filePath;
+
+    const buffer = await outputFS.readFile(imagePath);
+    const image = await sharp(buffer).metadata();
+
+    assert.strictEqual(image.orientation, 1);
+    assert.strictEqual(image.width, 240);
+    assert.strictEqual(image.height, 320);
   });
 });

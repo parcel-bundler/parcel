@@ -30,6 +30,9 @@ export default (new Transformer({
     if (width || height || quality || format) {
       let inputBuffer = await asset.getBuffer();
       let imagePipeline = sharp(inputBuffer);
+
+      imagePipeline.withMetadata();
+
       if (width || height) {
         imagePipeline.resize(width, height);
       }
