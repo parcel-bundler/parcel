@@ -69,6 +69,7 @@ export default (new Optimizer({
 
     const optimized = await sharp(await blobToBuffer(contents))
       [format](options)
+      .rotate()
       .toBuffer();
 
     return {contents: optimized};

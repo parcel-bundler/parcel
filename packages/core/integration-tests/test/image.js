@@ -151,4 +151,41 @@ describe('image', function() {
     assert(image.size <= originalSize * 0.78);
     assert(image.size >= originalSize * 0.77);
   });
+
+  it('should remove EXIF data when optimising', async () => {
+    const b = await bundle(
+      path.join(__dirname, '/integration/image-exif/right.jpg'),
+      {
+        defaultTargetOptions: {
+          shouldOptimize: true,
+        },
+      },
+    );
+
+    const imagePath = b.getBundles().find(b => b.type === 'jpg').filePath;
+
+    const buffer = await outputFS.readFile(imagePath);
+    const image = await sharp(buffer).metadata();
+
+    assert.strictEqual(image.exif, undefined);
+  });
+
+  it('should use the EXIF orientation tag when optimizing', async () => {
+    const b = await bundle(
+      path.join(__dirname, '/integration/image-exif/right.jpg'),
+      {
+        defaultTargetOptions: {
+          shouldOptimize: true,
+        },
+      },
+    );
+
+    const imagePath = b.getBundles().find(b => b.type === 'jpg').filePath;
+
+    const buffer = await outputFS.readFile(imagePath);
+    const image = await sharp(buffer).metadata();
+
+    assert.strictEqual(image.width, 480);
+    assert.strictEqual(image.height, 640);
+  });
 });
