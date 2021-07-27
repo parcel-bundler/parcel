@@ -35,9 +35,8 @@ const FORMATS = new Map<string, $Keys<typeof DEFAULT_OPTIONS>>([
 ]);
 
 export default (new Optimizer({
-  async loadConfig({config, options}) {
-    let userConfig = await config.getConfigFrom(
-      path.join(options.entryRoot, 'index.html'),
+  async loadConfig({config}) {
+    let userConfig = await config.getConfig(
       ['.sharprc', '.sharprc.json', '.sharprc.js', 'sharp.config.js'],
       {
         packageKey: 'sharp',
