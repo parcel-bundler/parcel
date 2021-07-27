@@ -91,7 +91,7 @@ export default function createAssetGraphRequest(
         !input.options.shouldBundleIncrementally ||
         input.options.mode === 'production'
       ) {
-        assetGraphRequest.assetGraph.markUnsafeToBundleIncrementally();
+        assetGraphRequest.assetGraph.safeToIncrementallyBundle = false;
       }
 
       return {
@@ -136,7 +136,7 @@ export class AssetGraphBuilder {
       shouldBuildLazily,
     } = input;
     let assetGraph = prevResult?.assetGraph ?? new AssetGraph();
-    assetGraph.unmarkUnsafeToBundleIncrementally();
+    assetGraph.safeToIncrementallyBundle = true;
     assetGraph.setRootConnections({
       entries,
       assetGroups,
@@ -870,7 +870,7 @@ export class AssetGraphBuilder {
   }
 
   async runEntryRequest(input: ProjectPath) {
-    let prevEntries = !this.assetGraph.unsafeToBundleIncrementally
+    let prevEntries = this.assetGraph.safeToIncrementallyBundle
       ? this.assetGraph
           .getEntryAssets()
           .map(asset => asset.id)
@@ -883,7 +883,7 @@ export class AssetGraphBuilder {
     });
     this.assetGraph.resolveEntry(request.input, result.entries, request.id);
 
-    if (!this.assetGraph.unsafeToBundleIncrementally) {
+    if (this.assetGraph.safeToIncrementallyBundle) {
       let currentEntries = this.assetGraph
         .getEntryAssets()
         .map(asset => asset.id)
@@ -894,7 +894,9 @@ export class AssetGraphBuilder {
           (entryId, index) => entryId === currentEntries[index],
         );
 
-      didEntriesChange && this.assetGraph.markUnsafeToBundleIncrementally();
+      if (didEntriesChange) {
+        this.assetGraph.safeToIncrementallyBundle = false;
+      }
     }
   }
 
@@ -929,23 +931,23 @@ export class AssetGraphBuilder {
 
     if (assets != null) {
       for (let asset of assets) {
-        if (!this.assetGraph.unsafeToBundleIncrementally) {
+        if (this.assetGraph.safeToIncrementallyBundle) {
           let otherAsset = this.assetGraph.getNodeByContentKey(asset.id);
           if (otherAsset != null) {
             invariant(otherAsset.type === 'asset');
             if (!this._areDependenciesEqualForAssets(asset, otherAsset.value)) {
-              this.assetGraph.markUnsafeToBundleIncrementally();
+              this.assetGraph.safeToIncrementallyBundle = false;
             }
           } else {
             // adding a new entry or dependency
-            this.assetGraph.markUnsafeToBundleIncrementally();
+            this.assetGraph.safeToIncrementallyBundle = false;
           }
         }
         this.changedAssets.set(asset.id, asset);
       }
       this.assetGraph.resolveAssetGroup(input, assets, request.id);
     } else {
-      this.assetGraph.markUnsafeToBundleIncrementally();
+      this.assetGraph.safeToIncrementallyBundle = false;
     }
   }
 
