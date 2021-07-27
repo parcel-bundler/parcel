@@ -548,7 +548,7 @@ export class RequestGraph extends ContentGraph<
 
   respondToFSEvents(
     events: Array<{|path: ProjectPath, type: EventType|}>,
-    opts: {|isInitialBuild: boolean|},
+    wasProjectRootMoved?: boolean,
   ): boolean {
     let didInvalidate = false;
     for (let {path: _filePath, type} of events) {
@@ -558,7 +558,7 @@ export class RequestGraph extends ContentGraph<
       // If we see a 'create' event for the project root itself,
       // this means the project root was moved and we need to
       // re-run all requests.
-      if (opts.isInitialBuild && type === 'create' && filePath === '') {
+      if (wasProjectRootMoved) {
         for (let [id, node] of this.nodes) {
           if (node.type === 'request') {
             this.invalidNodeIds.add(id);
@@ -653,6 +653,7 @@ export default class RequestTracker {
   farm: WorkerFarm;
   options: ParcelOptions;
   signal: ?AbortSignal;
+  isInitialBuild: boolean;
 
   constructor({
     graph,
@@ -760,9 +761,8 @@ export default class RequestTracker {
 
   respondToFSEvents(
     events: Array<{|path: ProjectPath, type: EventType|}>,
-    opts: {|isInitialBuild: boolean|},
   ): boolean {
-    return this.graph.respondToFSEvents(events, opts);
+    return this.graph.respondToFSEvents(events);
   }
 
   hasInvalidRequests(): boolean {
@@ -981,6 +981,15 @@ async function loadRequestGraph(options): Async<RequestGraph> {
       snapshotPath,
       opts,
     );
+
+    let wasProjectRootMoved = false;
+    for (let event of events) {
+      if (event.path === options.projectRoot && event.type === 'create') {
+        wasProjectRootMoved = true;
+        break;
+      }
+    }
+
     requestGraph.invalidateUnpredictableNodes();
     requestGraph.invalidateEnvNodes(options.env);
     requestGraph.invalidateOptionNodes(options);
@@ -989,7 +998,7 @@ async function loadRequestGraph(options): Async<RequestGraph> {
         type: e.type,
         path: toProjectPath(options.projectRoot, e.path),
       })),
-      {isInitialBuild: false},
+      wasProjectRootMoved,
     );
 
     return requestGraph;
