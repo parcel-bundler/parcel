@@ -6,6 +6,7 @@ import {
   bundler,
   run,
   runBundle,
+  runBundles,
   assertBundles,
   ncp,
   overlayFS,
@@ -959,6 +960,33 @@ describe('javascript', function() {
       {
         assets: [
           'workerHelpers.js',
+          'bundle-url.js',
+          'get-worker-url.js',
+          'esmodule-helpers.js',
+        ],
+      },
+    ]);
+
+    await run(b);
+  });
+
+  it('should support workers pointing to themselves with import.meta.url', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/worker-self/import-meta.js'),
+    );
+
+    assertBundles(b, [
+      {
+        assets: [
+          'import-meta.js',
+          'bundle-url.js',
+          'get-worker-url.js',
+          'esmodule-helpers.js',
+        ],
+      },
+      {
+        assets: [
+          'import-meta.js',
           'bundle-url.js',
           'get-worker-url.js',
           'esmodule-helpers.js',
@@ -2364,7 +2392,7 @@ describe('javascript', function() {
     ]);
 
     let contents = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
-    assert(contents.includes('import.meta.url'));
+    assert(contents.includes('"file:///local-url.js"'));
   });
 
   it('should throw a codeframe for a missing raw asset with static URL and import.meta.url', async function() {
@@ -2486,6 +2514,25 @@ describe('javascript', function() {
       file: 'integration/globals/index.js',
       buf: Buffer.from('browser').toString('base64'),
       global: true,
+    });
+  });
+
+  it('should work when multiple files use globals with scope hoisting', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/globals/multiple.js'),
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+          shouldOptimize: false,
+        },
+      },
+    );
+
+    let output = await run(b);
+    assert.deepEqual(output, {
+      file: 'integration/globals/multiple.js',
+      other: 'integration/globals/index.js',
     });
   });
 
@@ -5146,5 +5193,99 @@ describe('javascript', function() {
       assert.equal(typeof (await res.lazy), 'function');
       assert.equal(typeof res.text, 'string');
     });
+  });
+
+  it('should avoid creating a bundle for lazy dependencies already available in a shared bundle', async function() {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        'integration/shared-bundle-internalization/index.mjs',
+      ),
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: false,
+        },
+      },
+    );
+
+    assert.deepEqual(await (await run(b)).default, [42, 42]);
+  });
+
+  it('should support standalone import.meta', async function() {
+    let b = await bundle(
+      path.join(__dirname, 'integration/import-meta/index.js'),
+    );
+    let res = await run(b);
+    assert.deepEqual(res.default, {
+      meta: {url: 'file:///integration/import-meta/index.js'},
+      url: 'file:///integration/import-meta/index.js',
+      equal: true,
+    });
+
+    assert.equal(Object.getPrototypeOf(res.default.meta), null);
+    assert.equal(Object.isExtensible(res.default.meta), true);
+    assert.deepEqual(Object.getOwnPropertyDescriptors(res.default.meta), {
+      url: {
+        writable: true,
+        configurable: true,
+        enumerable: true,
+        value: 'file:///integration/import-meta/index.js',
+      },
+    });
+  });
+
+  it('should support importing async bundles from bundles with different dist paths', async function() {
+    let bundleGraph = await bundle(
+      ['bar/entry/entry-a.js', 'foo/entry-b.js'].map(f =>
+        path.join(__dirname, 'integration/differing-bundle-urls', f),
+      ),
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldOptimize: false,
+        },
+      },
+    );
+    assertBundles(bundleGraph, [
+      {
+        name: 'entry-a.js',
+        assets: [
+          'bundle-manifest.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'entry-a.js',
+          'js-loader.js',
+        ],
+      },
+      {
+        name: 'entry-b.js',
+        assets: [
+          'bundle-manifest.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'entry-b.js',
+          'js-loader.js',
+        ],
+      },
+      {name: /deep\.[a-f0-9]+\.js/, assets: ['deep.js']},
+      {name: /common\.[a-f0-9]+\.js/, assets: ['index.js']},
+    ]);
+
+    let [a, b] = bundleGraph.getBundles().filter(b => b.needsStableName);
+    let calls = [];
+
+    let bundles = [
+      [await outputFS.readFile(a.filePath, 'utf8'), a],
+      [await outputFS.readFile(b.filePath, 'utf8'), b],
+    ];
+
+    await runBundles(bundleGraph, a, bundles, {
+      sideEffect: v => {
+        calls.push(v);
+      },
+    });
+
+    assert.deepEqual(calls, ['common', 'deep']);
   });
 });

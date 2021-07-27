@@ -154,10 +154,10 @@ export class TargetResolver {
       optionTargets = [exclusiveTarget];
     }
 
-    let packageTargets = await this.resolvePackageTargets(
-      rootDir,
-      exclusiveTarget,
-    );
+    let packageTargets: Map<
+      string,
+      Target | null,
+    > = await this.resolvePackageTargets(rootDir, exclusiveTarget);
     let targets: Array<Target>;
     if (optionTargets) {
       if (Array.isArray(optionTargets)) {
@@ -170,20 +170,29 @@ export class TargetResolver {
           });
         }
 
+        // Only build the intersection of the exclusive target and option targets.
+        if (exclusiveTarget != null) {
+          optionTargets = optionTargets.filter(
+            target => target === exclusiveTarget,
+          );
+        }
+
         // If an array of strings is passed, it's a filter on the resolved package
         // targets. Load them, and find the matching targets.
-        targets = optionTargets.map(target => {
-          let matchingTarget = packageTargets.get(target);
-          if (!matchingTarget) {
-            throw new ThrowableDiagnostic({
-              diagnostic: {
-                message: md`Could not find target with name "${target}"`,
-                origin: '@parcel/core',
-              },
-            });
-          }
-          return matchingTarget;
-        });
+        targets = optionTargets
+          .map(target => {
+            // null means skipped.
+            if (!packageTargets.has(target)) {
+              throw new ThrowableDiagnostic({
+                diagnostic: {
+                  message: md`Could not find target with name "${target}"`,
+                  origin: '@parcel/core',
+                },
+              });
+            }
+            return packageTargets.get(target);
+          })
+          .filter(Boolean);
       } else {
         // Otherwise, it's an object map of target descriptors (similar to those
         // in package.json). Adapt them to native targets.
@@ -322,13 +331,14 @@ export class TargetResolver {
           },
         ];
       } else {
-        targets = Array.from(packageTargets.values()).filter(descriptor => {
-          return !skipTarget(
-            descriptor.name,
-            exclusiveTarget,
-            descriptor.source,
-          );
-        });
+        targets = Array.from(packageTargets.values())
+          .filter(Boolean)
+          .filter(descriptor => {
+            return (
+              descriptor &&
+              !skipTarget(descriptor.name, exclusiveTarget, descriptor.source)
+            );
+          });
       }
     }
 
@@ -338,7 +348,7 @@ export class TargetResolver {
   async resolvePackageTargets(
     rootDir: FilePath,
     exclusiveTarget?: string,
-  ): Promise<Map<string, Target>> {
+  ): Promise<Map<string, Target | null>> {
     let rootFile = path.join(rootDir, 'index');
     let conf = await loadConfig(
       this.fs,
@@ -450,7 +460,7 @@ export class TargetResolver {
       }
     }
 
-    let targets: Map<string, Target> = new Map();
+    let targets: Map<string, Target | null> = new Map();
     let node = pkgEngines.node;
     let browsers = pkgEngines.browsers;
 
@@ -542,6 +552,7 @@ export class TargetResolver {
         );
 
         if (skipTarget(targetName, exclusiveTarget, descriptor.source)) {
+          targets.set(targetName, null);
           continue;
         }
 
@@ -798,6 +809,7 @@ export class TargetResolver {
         );
         let pkgDir = path.dirname(nullthrows(pkgFilePath));
         if (skipTarget(targetName, exclusiveTarget, descriptor.source)) {
+          targets.set(targetName, null);
           continue;
         }
 
@@ -1103,6 +1115,10 @@ function assertNoDuplicateTargets(options, targets, pkgFilePath, pkgContents) {
   // Without this, an assertion is thrown much later after naming the bundles and finding duplicates.
   let targetsByPath: Map<string, Array<string>> = new Map();
   for (let target of targets.values()) {
+    if (!target) {
+      continue;
+    }
+
     let {distEntry} = target;
     if (distEntry != null) {
       let distPath = path.join(

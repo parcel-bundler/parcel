@@ -14,7 +14,7 @@ export default (new Packager({
     // Generate a name for the global parcelRequire function that is unique to this project.
     // This allows multiple parcel builds to coexist on the same page.
     let pkg = await config.getConfigFrom(
-      path.join(options.entryRoot, 'index'),
+      path.join(options.projectRoot, 'index'),
       ['package.json'],
     );
     let name = pkg?.contents?.name ?? '';

@@ -266,58 +266,7 @@ export default (new Bundler({
 
     // Step 3: Remove assets that are duplicated in a parent bundle.
     deduplicate(bundleGraph);
-
-    // Step 4: Mark async dependencies on assets that are already available in
-    // the bundle as internally resolvable. This removes the dependency between
-    // the bundle and the bundle group providing that asset. If all connections
-    // to that bundle group are removed, remove that bundle group.
-    let asyncBundleGroups: Set<BundleGroup> = new Set();
-    bundleGraph.traverse((node, _, actions) => {
-      if (
-        node.type !== 'dependency' ||
-        node.value.isEntry ||
-        node.value.priority !== 'lazy'
-      ) {
-        return;
-      }
-
-      if (bundleGraph.isDependencySkipped(node.value)) {
-        actions.skipChildren();
-        return;
-      }
-
-      let dependency = node.value;
-      if (dependency.specifierType === 'url') {
-        // Don't internalize dependencies on URLs, e.g. `new Worker('foo.js')`
-        return;
-      }
-
-      let resolution = bundleGraph.getDependencyResolution(dependency);
-      if (resolution == null) {
-        return;
-      }
-
-      let externalResolution = bundleGraph.resolveAsyncDependency(dependency);
-      if (externalResolution?.type === 'bundle_group') {
-        asyncBundleGroups.add(externalResolution.value);
-      }
-
-      for (let bundle of bundleGraph.findBundlesWithDependency(dependency)) {
-        if (
-          bundle.hasAsset(resolution) ||
-          bundleGraph.isAssetReachableFromBundle(resolution, bundle)
-        ) {
-          bundleGraph.internalizeAsyncDependency(bundle, dependency);
-        }
-      }
-    });
-
-    // Remove any bundle groups that no longer have any parent bundles.
-    for (let bundleGroup of asyncBundleGroups) {
-      if (bundleGraph.getParentBundlesOfBundleGroup(bundleGroup).length === 0) {
-        bundleGraph.removeBundleGroup(bundleGroup);
-      }
-    }
+    internalizeReachableAsyncDependencies(bundleGraph);
   },
   optimize({bundleGraph, config}) {
     // if only one bundle, no need to optimize
@@ -451,6 +400,7 @@ export default (new Bundler({
 
     // Remove assets that are duplicated between shared bundles.
     deduplicate(bundleGraph);
+    internalizeReachableAsyncDependencies(bundleGraph);
   },
 }): Bundler);
 
@@ -524,4 +474,60 @@ async function loadBundlerConfig(config: Config, options: PluginOptions) {
     maxParallelRequests:
       conf.contents.maxParallelRequests ?? defaults.maxParallelRequests,
   };
+}
+
+function internalizeReachableAsyncDependencies(
+  bundleGraph: MutableBundleGraph,
+): void {
+  // Mark async dependencies on assets that are already available in
+  // the bundle as internally resolvable. This removes the dependency between
+  // the bundle and the bundle group providing that asset. If all connections
+  // to that bundle group are removed, remove that bundle group.
+  let asyncBundleGroups: Set<BundleGroup> = new Set();
+  bundleGraph.traverse((node, _, actions) => {
+    if (
+      node.type !== 'dependency' ||
+      node.value.isEntry ||
+      node.value.priority !== 'lazy'
+    ) {
+      return;
+    }
+
+    if (bundleGraph.isDependencySkipped(node.value)) {
+      actions.skipChildren();
+      return;
+    }
+
+    let dependency = node.value;
+    if (dependency.specifierType === 'url') {
+      // Don't internalize dependencies on URLs, e.g. `new Worker('foo.js')`
+      return;
+    }
+
+    let resolution = bundleGraph.getDependencyResolution(dependency);
+    if (resolution == null) {
+      return;
+    }
+
+    let externalResolution = bundleGraph.resolveAsyncDependency(dependency);
+    if (externalResolution?.type === 'bundle_group') {
+      asyncBundleGroups.add(externalResolution.value);
+    }
+
+    for (let bundle of bundleGraph.findBundlesWithDependency(dependency)) {
+      if (
+        bundle.hasAsset(resolution) ||
+        bundleGraph.isAssetReachableFromBundle(resolution, bundle)
+      ) {
+        bundleGraph.internalizeAsyncDependency(bundle, dependency);
+      }
+    }
+  });
+
+  // Remove any bundle groups that no longer have any parent bundles.
+  for (let bundleGroup of asyncBundleGroups) {
+    if (bundleGraph.getParentBundlesOfBundleGroup(bundleGroup).length === 0) {
+      bundleGraph.removeBundleGroup(bundleGroup);
+    }
+  }
 }
