@@ -1,13 +1,17 @@
 {
   "source": "index.html",
-  "main": "../../frontend/index.html",
   "scripts": {
-    "build": "parcel build --no-minify --no-scope-hoist index.html",
+    "build": "parcel build --no-optimize --no-scope-hoist index.html",
     "dev": "parcel watch index.html"
+  },
+  "targets": {
+    "default": {
+      "distDir": "../../frontend"
+    }
   },
   "dependencies": {
     "react": "^17.0.1",
-    "react-digraph": "^7.0.0-alpha.5",
+    "react-digraph": "8.0.0-beta.7",
     "react-dom": "^17.0.1",
     "react-json-tree": "^0.13.0"
   }

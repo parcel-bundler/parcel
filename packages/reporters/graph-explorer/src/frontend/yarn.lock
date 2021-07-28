@@ -370,10 +370,10 @@ react-base16-styling@^0.8.0:
     csstype "^3.0.2"
     lodash.curry "^4.1.1"
 
-react-digraph@^7.0.0-alpha.5:
-  version "7.0.0-alpha.5"
-  resolved "https://registry.yarnpkg.com/react-digraph/-/react-digraph-7.0.0-alpha.5.tgz#9a2c791f8c10e1e92268b2f50f4c95268e7c94e3"
-  integrity sha512-V5EK3NnpeONHMJpt5T2Gg5XiX0Y7KiR2f4pqW3Aqn9t/pttpe81pcoDXN1TN6wsHEutO/4SGCk6dcFIz1Keh4A==
+react-digraph@8.0.0-beta.7:
+  version "8.0.0-beta.7"
+  resolved "https://registry.yarnpkg.com/react-digraph/-/react-digraph-8.0.0-beta.7.tgz#b63a72d6f3af63cbf6b16e8f0b31ed94fb007fa7"
+  integrity sha512-HKwnAv4Azq3D2hgVTuiRyYext5uTPcmPuUDSxY9ZG8rmOl1NHOB/+WkxqMkwv/CCyQBa8yeQevqOrEcfkE86yg==
   dependencies:
     dagre "^0.8.2"
     fast-deep-equal "^2.0.1"

@@ -52,7 +52,7 @@ function LoadedApp({graph}) {
       return [...types];
     }
 
-    for (let [sourceId, edgeMap] of graph.edges.outboundEdges) {
+    for (let [sourceId, edgeMap] of graph.edges) {
       for (let [type] of edgeMap) {
         types.add(type);
       }
@@ -374,7 +374,7 @@ function convertGraph({
   );
 
   const edges = [];
-  for (let [sourceId, edgeMap] of graph.edges.outboundEdges) {
+  for (let [sourceId, edgeMap] of graph.edges) {
     for (let [type, targetIds] of edgeMap) {
       for (let targetId of targetIds) {
         if (!focusedEdgeTypes.has(type)) {

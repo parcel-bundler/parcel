@@ -14,7 +14,7 @@
     "@parcel/reporter-sourcemap-visualiser": "2.0.0-beta.3.1",
     "parcel": "2.0.0-beta.3.1"
   },
-  "browser": "dist/legacy/index.html",
+  "browserLegacy": "dist/legacy/index.html",
   "browserModern": "dist/modern/index.html",
   "targets": {
     "browserModern": {
@@ -24,7 +24,7 @@
         ]
       }
     },
-    "browser": {
+    "browserLegacy": {
       "engines": {
         "browsers": [
           "> 0.25%"
