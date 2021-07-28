@@ -205,52 +205,36 @@ describe('AdjacencyList', () => {
     let n2 = graph.addNode();
     graph.addEdge(n0, n1, 1);
     graph.addEdge(n1, n2, 1);
-    let index = graph.indexOf(n0, n1, 1);
+    let index = graph.indexOf(n1, n2, 1);
     assert(graph.serialize().edges[index] > 0);
     assert(!isDeleted(graph.serialize().edges[index]));
-    graph.removeEdge(n0, n1, 1);
+    graph.removeEdge(n1, n2, 1);
     assert(isDeleted(graph.serialize().edges[index]));
-    graph.addEdge(n1, n2, 1);
+    graph.addEdge(n0, n1, 1);
     assert(isDeleted(graph.serialize().edges[index]));
     assert(graph.serialize().numEdges === 1);
   });
 
   it('addEdge should replace a deleted edge', () => {
     let graph = new AdjacencyList();
-    let n0 = graph.addNode();
-    let n1 = graph.addNode();
-    graph.addEdge(n0, n1, 1);
-    let index = graph.indexOf(n0, n1, 1);
-    assert(graph.serialize().edges[index] > 0);
-    assert(!isDeleted(graph.serialize().edges[index]));
-    graph.removeEdge(n0, n1, 1);
-    assert(isDeleted(graph.serialize().edges[index]));
-    graph.addEdge(n0, n1, 1);
-    assert(graph.serialize().edges[index] > 0);
-    assert(!isDeleted(graph.serialize().edges[index]));
-  });
-
-  it('clone should make a new copy', () => {
-    let graph = new AdjacencyList({nodeCapacity: 2, edgeCapacity: 5});
+    // Mock hash fn to generate collisions
+    // $FlowFixMe[cannot-write]
+    graph.hash = () => 1;
     let n0 = graph.addNode();
     let n1 = graph.addNode();
     graph.addEdge(n0, n1, 1);
     graph.addEdge(n0, n1, 2);
-
-    let originalSerialized = graph.serialize();
-
-    let copy = graph.clone();
-    let copySerialized = copy.serialize();
-
-    assert(copySerialized.nodes !== originalSerialized.nodes);
-    assert(copySerialized.edges !== originalSerialized.edges);
-    copySerialized.nodes[0] = Math.max(copySerialized.nodes[0], 1) * 2;
-    copySerialized.edges[0] = Math.max(copySerialized.edges[0], 1) * 2;
-    assert(copySerialized.nodes[0] !== originalSerialized.nodes[0]);
-    assert(copySerialized.edges[0] !== originalSerialized.edges[0]);
+    let index = graph.indexOf(n0, n1, 2);
+    assert(graph.serialize().edges[index] > 0);
+    assert(!isDeleted(graph.serialize().edges[index]));
+    graph.removeEdge(n0, n1, 2);
+    assert(isDeleted(graph.serialize().edges[index]));
+    graph.addEdge(n0, n1, 2);
+    assert(graph.serialize().edges[index] > 0);
+    assert(!isDeleted(graph.serialize().edges[index]));
   });
 
-  describe('serialize', function() {
+  describe('deserialize', function() {
     this.timeout(10000);
 
     it('should share the underlying data across worker threads', async () => {
@@ -283,53 +267,27 @@ describe('AdjacencyList', () => {
         assert.equal(v * 2, graph.serialize().edges[i]);
       });
     });
-  });
 
-  describe('deserialize', function() {
-    it('should make a readonly AdjacencyList', () => {
+    it('should copy on write', () => {
       let graph = new AdjacencyList({nodeCapacity: 2, edgeCapacity: 5});
       let n0 = graph.addNode();
       let n1 = graph.addNode();
       graph.addEdge(n0, n1, 1);
       graph.addEdge(n0, n1, 2);
-      let edge1 = graph.hash(n0, n1, 1);
-      let edge2 = graph.hash(n0, n1, 2);
 
       let copy = AdjacencyList.deserialize(graph.serialize());
 
-      assert.throws(() => copy.addNode(), /readonly/);
-      assert.throws(() => copy.addEdge(n0, n1, 1), /readonly/);
-      assert.throws(() => copy.addEdge(n0, n1, 3), /readonly/);
-      assert.throws(() => copy.removeEdge(n0, n1, 1), /readonly/);
-      assert.throws(() => copy.removeEdge(n0, n1, 3), /readonly/);
-      assert.throws(() => copy.resizeNodes(10), /readonly/);
-      assert.throws(() => copy.resizeEdges(10), /readonly/);
-      assert.throws(() => copy.setEdge(3, n0, null), /readonly/);
-      assert.throws(() => copy.linkEdge(3, edge1, edge2), /readonly/);
-      assert.throws(() => copy.unlinkEdge(3, null, edge1, null), /readonly/);
-    });
+      assert(copy.hasEdge(n0, n1, 1));
+      assert(copy.hasEdge(n0, n1, 2));
+      assert(graph.hasEdge(n0, n1, 1));
+      assert(graph.hasEdge(n0, n1, 2));
 
-    it('should allow a mutable AdjacencyList', () => {
-      let graph = new AdjacencyList({nodeCapacity: 2, edgeCapacity: 5});
-      let n0 = graph.addNode();
-      let n1 = graph.addNode();
-      graph.addEdge(n0, n1, 1);
-      graph.addEdge(n0, n1, 2);
-      let edge1 = graph.hash(n0, n1, 1);
-      let edge2 = graph.hash(n0, n1, 2);
+      copy.removeEdge(n0, n1, 1);
 
-      let copy = AdjacencyList.deserialize(graph.serialize(), true);
-
-      assert.doesNotThrow(() => copy.addNode());
-      assert.doesNotThrow(() => copy.addEdge(n0, n1, 1));
-      assert.doesNotThrow(() => copy.addEdge(n0, n1, 3));
-      assert.doesNotThrow(() => copy.removeEdge(n0, n1, 1));
-      assert.doesNotThrow(() => copy.removeEdge(n0, n1, 3));
-      assert.doesNotThrow(() => copy.resizeNodes(10));
-      assert.doesNotThrow(() => copy.resizeEdges(10));
-      assert.doesNotThrow(() => copy.setEdge(3, n0, null));
-      assert.doesNotThrow(() => copy.linkEdge(3, edge1, edge2));
-      assert.doesNotThrow(() => copy.unlinkEdge(3, null, edge1, null));
+      assert(!copy.hasEdge(n0, n1, 1));
+      assert(copy.hasEdge(n0, n1, 2));
+      assert(graph.hasEdge(n0, n1, 1));
+      assert(graph.hasEdge(n0, n1, 2));
     });
   });
 });
