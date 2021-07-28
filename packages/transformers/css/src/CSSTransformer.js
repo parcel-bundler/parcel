@@ -1,12 +1,17 @@
 // @flow
 
+import type {Root} from 'postcss';
 import type {FilePath} from '@parcel/types';
-import type {Container, Node} from 'postcss';
 
 import SourceMap from '@parcel/source-map';
 import {Transformer} from '@parcel/plugin';
-import {createDependencyLocation, isURL} from '@parcel/utils';
+import {
+  createDependencyLocation,
+  isURL,
+  remapSourceLocation,
+} from '@parcel/utils';
 import postcss from 'postcss';
+import nullthrows from 'nullthrows';
 import valueParser from 'postcss-value-parser';
 import semver from 'semver';
 
@@ -19,7 +24,7 @@ function canHaveDependencies(filePath: FilePath, code: string) {
 
 export default (new Transformer({
   canReuseAST({ast}) {
-    return ast.type === 'postcss' && semver.satisfies(ast.version, '^8.0.0');
+    return ast.type === 'postcss' && semver.satisfies(ast.version, '^8.2.1');
   },
 
   async parse({asset}) {
@@ -40,10 +45,12 @@ export default (new Transformer({
 
     return {
       type: 'postcss',
-      version: '8.0.0',
-      program: postcss.parse(code, {
-        from: asset.filePath,
-      }),
+      version: '8.2.1',
+      program: postcss
+        .parse(code, {
+          from: asset.filePath,
+        })
+        .toJSON(),
     };
   },
 
@@ -55,14 +62,9 @@ export default (new Transformer({
       engines: {
         browsers: asset.env.engines.browsers,
       },
-      minify: asset.env.minify,
+      shouldOptimize: asset.env.shouldOptimize,
+      sourceMap: asset.env.sourceMap,
     });
-
-    // When this asset is an bundle entry, allow that bundle to be split to load shared assets separately.
-    // Only set here if it is null to allow previous transformers to override this behavior.
-    if (asset.isSplittable == null) {
-      asset.isSplittable = true;
-    }
 
     // Check for `hasDependencies` being false here as well, as it's possible
     // another transformer (such as PostCSSTransformer) has already parsed an
@@ -72,11 +74,26 @@ export default (new Transformer({
       return [asset];
     }
 
+    let program: Root = postcss.fromJSON(ast.program);
+    let originalSourceMap = await asset.getMap();
+    let createLoc = (start, specifier, lineOffset, colOffset) => {
+      let loc = createDependencyLocation(
+        start,
+        specifier,
+        lineOffset,
+        colOffset,
+      );
+      if (originalSourceMap) {
+        loc = remapSourceLocation(loc, originalSourceMap);
+      }
+      return loc;
+    };
+
     let isDirty = false;
-    ast.program.walkAtRules('import', rule => {
+    program.walkAtRules('import', rule => {
       let params = valueParser(rule.params);
       let [name, ...media] = params.nodes;
-      let moduleSpecifier;
+      let specifier;
       if (
         name.type === 'function' &&
         name.value === 'url' &&
@@ -85,20 +102,15 @@ export default (new Transformer({
         name = name.nodes[0];
       }
 
-      moduleSpecifier = name.value;
+      specifier = name.value;
 
-      if (!moduleSpecifier) {
-        throw new Error('Could not find import name for ' + rule);
+      if (!specifier) {
+        throw new Error('Could not find import name for ' + String(rule));
       }
 
-      if (isURL(moduleSpecifier)) {
-        name.value = asset.addURLDependency(moduleSpecifier, {
-          loc: createDependencyLocation(
-            rule.source.start,
-            asset.filePath,
-            0,
-            8,
-          ),
+      if (isURL(specifier)) {
+        name.value = asset.addURLDependency(specifier, {
+          loc: createLoc(nullthrows(rule.source.start), asset.filePath, 0, 8),
         });
       } else {
         // If this came from an inline <style> tag, don't inline the imported file. Replace with the correct URL instead.
@@ -111,15 +123,13 @@ export default (new Transformer({
         // } else {
         media = valueParser.stringify(media).trim();
         let dep = {
-          moduleSpecifier,
+          specifier,
+          specifierType: 'url',
           // Offset by 8 as it does not include `@import `
-          loc: createDependencyLocation(
-            rule.source.start,
-            moduleSpecifier,
-            0,
-            8,
-          ),
+          loc: createLoc(nullthrows(rule.source.start), specifier, 0, 8),
           meta: {
+            // For the glob resolver to distinguish between `@import` and other URL dependencies.
+            isCSSImport: true,
             media,
           },
         };
@@ -130,7 +140,7 @@ export default (new Transformer({
       isDirty = true;
     });
 
-    ast.program.walkDecls(decl => {
+    program.walkDecls(decl => {
       if (URL_RE.test(decl.value)) {
         let parsed = valueParser(decl.value);
         let isDeclDirty = false;
@@ -143,9 +153,11 @@ export default (new Transformer({
             !node.nodes[0].value.startsWith('#') // IE's `behavior: url(#default#VML)`
           ) {
             let url = asset.addURLDependency(node.nodes[0].value, {
-              loc: createDependencyLocation(
-                decl.source.start,
+              loc: createLoc(
+                nullthrows(decl.source.start),
                 node.nodes[0].value,
+                0,
+                node.nodes[0].sourceIndex,
               ),
             });
             isDeclDirty = node.nodes[0].value !== url;
@@ -161,54 +173,39 @@ export default (new Transformer({
     });
 
     if (isDirty) {
-      asset.setAST(ast);
+      asset.setAST({
+        ...ast,
+        program: program.toJSON(),
+      });
     }
 
     return [asset];
   },
 
-  async generate({ast, options}) {
-    let root = ast.program;
-
-    // $FlowFixMe
-    if (Object.getPrototypeOf(ast.program) === Object.prototype) {
-      root = postcss.root(ast.program);
-      let convert = (parent: Container, node: Node, index: number) => {
-        let type = node.type === 'atrule' ? 'atRule' : node.type;
-        let result = postcss[type](node);
-        result.parent = parent;
-        if (parent) {
-          parent.nodes[index] = result;
-        }
-
-        if (result.walk) {
-          // $FlowFixMe
-          const container = (result: Container);
-          container.each((node, index) => {
-            convert(container, node, index);
-          });
-        }
-      };
-
-      root.each((node, index) => convert(root, node, index));
-    }
-
-    let result = await postcss().process(root, {
+  async generate({asset, ast, options}) {
+    let result = await postcss().process(postcss.fromJSON(ast.program), {
       from: undefined,
       to: options.projectRoot + '/index',
       map: {
         annotation: false,
         inline: false,
+        sourcesContent: false,
       },
       // Pass postcss's own stringifier to it to silence its warning
       // as we don't want to perform any transformations -- only generate
       stringifier: postcss.stringify,
     });
 
-    let map;
+    let map = null;
+    let originalSourceMap = await asset.getMap();
     if (result.map != null) {
       map = new SourceMap(options.projectRoot);
-      map.addRawMappings(result.map.toJSON());
+      map.addVLQMap(result.map.toJSON());
+      if (originalSourceMap) {
+        map.extends(originalSourceMap.toBuffer());
+      }
+    } else {
+      map = originalSourceMap;
     }
 
     return {

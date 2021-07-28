@@ -18,17 +18,51 @@ export default (new Transformer({
       type: 'posthtml',
       version: '0.4.1',
       program: parse(await asset.getCode(), {
+        lowerCaseTags: true,
         lowerCaseAttributeNames: true,
+        sourceLocations: true,
       }),
     };
   },
 
-  async transform({asset}) {
+  async transform({asset, options}) {
     // Handle .htm
     asset.type = 'html';
+    asset.bundleBehavior = 'isolated';
     let ast = nullthrows(await asset.getAST());
-    collectDependencies(asset, ast);
-    return [asset, ...extractInlineAssets(asset, ast)];
+    let hasScripts = collectDependencies(asset, ast);
+
+    const {
+      assets: inlineAssets,
+      hasScripts: hasInlineScripts,
+    } = extractInlineAssets(asset, ast);
+
+    const result = [asset, ...inlineAssets];
+
+    // empty <script></script> is added to make sure HMR is working even if user
+    // didn't add any. It's inserted at the very end to take into account cases
+    // when there's no html/head/body in source html.
+    if (options.hmrOptions && !(hasScripts || hasInlineScripts)) {
+      ast.program.push({
+        tag: 'script',
+        attrs: {
+          src: asset.addURLDependency('hmr.js', {
+            priority: 'parallel',
+          }),
+        },
+        content: [],
+      });
+
+      asset.setAST(ast);
+
+      result.push({
+        type: 'js',
+        content: '',
+        uniqueKey: 'hmr.js',
+      });
+    }
+
+    return result;
   },
 
   generate({ast}) {

@@ -14,9 +14,10 @@ import {
   processConfig,
 } from '../src/requests/ParcelConfigRequest';
 import {validatePackageName} from '../src/ParcelConfig.schema';
-import {DEFAULT_OPTIONS} from './test-utils';
+import {DEFAULT_OPTIONS, relative} from './test-utils';
+import {toProjectPath} from '../src/projectPath';
 
-describe('loadParcelConfig', () => {
+describe('ParcelConfigRequest', () => {
   describe('validatePackageName', () => {
     it('should error on an invalid official package', () => {
       assert.throws(() => {
@@ -98,7 +99,7 @@ describe('loadParcelConfig', () => {
     it('should require pipeline to be an array', () => {
       assert.throws(() => {
         validateConfigFile(
-          // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
+          // $FlowExpectedError[incompatible-call]
           {
             filePath: '.parcelrc',
             resolvers: '123',
@@ -113,7 +114,7 @@ describe('loadParcelConfig', () => {
         validateConfigFile(
           {
             filePath: '.parcelrc',
-            // $FlowFixMe
+            // $FlowExpectedError[incompatible-call]
             resolvers: [1, '123', 5],
           },
           '.parcelrc',
@@ -158,7 +159,7 @@ describe('loadParcelConfig', () => {
         validateConfigFile(
           {
             filePath: '.parcelrc',
-            // $FlowFixMe
+            // $FlowExpectedError[incompatible-call]
             transformers: ['parcel-transformer-test', '...'],
           },
           '.parcelrc',
@@ -184,7 +185,7 @@ describe('loadParcelConfig', () => {
     it('should require extends to be a string or array of strings', () => {
       assert.throws(() => {
         validateConfigFile(
-          // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
+          // $FlowExpectedError[incompatible-call]
           {
             filePath: '.parcelrc',
             extends: 2,
@@ -197,7 +198,7 @@ describe('loadParcelConfig', () => {
         validateConfigFile(
           {
             filePath: '.parcelrc',
-            // $FlowFixMe
+            // $FlowExpectedError[incompatible-call]
             extends: [2, 7],
           },
           '.parcelrc',
@@ -261,6 +262,30 @@ describe('loadParcelConfig', () => {
       );
     });
 
+    it('should throw for invalid top level keys', () => {
+      assert.throws(
+        () => {
+          validateConfigFile(
+            // $FlowExpectedError
+            {
+              extends: '@parcel/config-default',
+              '@parcel/transformer-js': {
+                inlineEnvironment: false,
+              },
+            },
+            '.parcelrc',
+          );
+        },
+        e => {
+          assert.strictEqual(
+            e.diagnostics[0].codeFrames[0].codeHighlights[0].message,
+            `Did you mean "transformers"?`,
+          );
+          return true;
+        },
+      );
+    });
+
     it('should succeed on valid config', () => {
       validateConfigFile(
         {
@@ -292,7 +317,7 @@ describe('loadParcelConfig', () => {
           [
             {
               packageName: 'parcel-transform-foo',
-              resolveFrom: '.parcelrc',
+              resolveFrom: toProjectPath('/', '/.parcelrc'),
               keyPath: '/transformers/*.js/0',
             },
           ],
@@ -313,7 +338,7 @@ describe('loadParcelConfig', () => {
         mergePipelines(null, [
           {
             packageName: 'parcel-transform-bar',
-            resolveFrom: '.parcelrc',
+            resolveFrom: toProjectPath('/', '/.parcelrc'),
             keyPath: '/transformers/*.js/0',
           },
         ]),
@@ -333,14 +358,14 @@ describe('loadParcelConfig', () => {
           [
             {
               packageName: 'parcel-transform-foo',
-              resolveFrom: '.parcelrc',
+              resolveFrom: toProjectPath('/', '/.parcelrc'),
               keyPath: '/transformers/*.js/0',
             },
           ],
           [
             {
               packageName: 'parcel-transform-bar',
-              resolveFrom: '.parcelrc',
+              resolveFrom: toProjectPath('/', '/.parcelrc'),
               keyPath: '/transformers/*.js/0',
             },
           ],
@@ -361,20 +386,20 @@ describe('loadParcelConfig', () => {
           [
             {
               packageName: 'parcel-transform-foo',
-              resolveFrom: '.parcelrc',
+              resolveFrom: toProjectPath('/', '/.parcelrc'),
               keyPath: '/transformers/*.js/0',
             },
           ],
           [
             {
               packageName: 'parcel-transform-bar',
-              resolveFrom: '.parcelrc',
+              resolveFrom: toProjectPath('/', '/.parcelrc'),
               keyPath: '/transformers/*.js/0',
             },
             '...',
             {
               packageName: 'parcel-transform-baz',
-              resolveFrom: '.parcelrc',
+              resolveFrom: toProjectPath('/', '/.parcelrc'),
               keyPath: '/transformers/*.js/2',
             },
           ],
@@ -405,25 +430,74 @@ describe('loadParcelConfig', () => {
           [
             {
               packageName: 'parcel-transform-foo',
-              resolveFrom: '.parcelrc',
+              resolveFrom: toProjectPath('/', '/.parcelrc'),
               keyPath: '/transformers/*.js/0',
             },
           ],
           [
             {
               packageName: 'parcel-transform-bar',
-              resolveFrom: '.parcelrc',
+              resolveFrom: toProjectPath('/', '/.parcelrc'),
               keyPath: '/transformers/*.js/0',
             },
             '...',
             {
               packageName: 'parcel-transform-baz',
-              resolveFrom: '.parcelrc',
+              resolveFrom: toProjectPath('/', '/.parcelrc'),
               keyPath: '/transformers/*.js/2',
             },
             '...',
           ],
         );
+      }, /Only one spread element can be included in a config pipeline/);
+    });
+
+    it('should remove spread element even without a base map', () => {
+      assert.deepEqual(
+        mergePipelines(null, [
+          {
+            packageName: 'parcel-transform-bar',
+            resolveFrom: toProjectPath('/', '/.parcelrc'),
+            keyPath: '/transformers/*.js/0',
+          },
+          '...',
+          {
+            packageName: 'parcel-transform-baz',
+            resolveFrom: toProjectPath('/', '/.parcelrc'),
+            keyPath: '/transformers/*.js/2',
+          },
+        ]),
+        [
+          {
+            packageName: 'parcel-transform-bar',
+            resolveFrom: '.parcelrc',
+            keyPath: '/transformers/*.js/0',
+          },
+          {
+            packageName: 'parcel-transform-baz',
+            resolveFrom: '.parcelrc',
+            keyPath: '/transformers/*.js/2',
+          },
+        ],
+      );
+    });
+
+    it('should throw if more than one spread element is in a pipeline even without a base map', () => {
+      assert.throws(() => {
+        mergePipelines(null, [
+          {
+            packageName: 'parcel-transform-bar',
+            resolveFrom: toProjectPath('/', '/.parcelrc'),
+            keyPath: '/transformers/*.js/0',
+          },
+          '...',
+          {
+            packageName: 'parcel-transform-baz',
+            resolveFrom: toProjectPath('/', '/.parcelrc'),
+            keyPath: '/transformers/*.js/2',
+          },
+          '...',
+        ]);
       }, /Only one spread element can be included in a config pipeline/);
     });
   });
@@ -452,24 +526,10 @@ describe('loadParcelConfig', () => {
       );
     });
 
-    it('should ensure that extension properties have a higher precidence than base properties', () => {
+    it('should ensure that extension properties have a higher precedence than base properties', () => {
       let merged = mergeMaps({'*.{js,jsx}': 'base-js'}, {'*.js': 'ext-js'});
       assert.deepEqual(merged, {'*.js': 'ext-js', '*.{js,jsx}': 'base-js'});
       assert.deepEqual(Object.keys(merged), ['*.js', '*.{js,jsx}']);
-    });
-
-    it('should ensure that named pipelines have a higher precidence than extension properties', () => {
-      let merged = mergeMaps(
-        {'types:*.ts': 'base-types-ts'},
-        {'*.ts': 'ext-ts'},
-        undefined,
-        true,
-      );
-      assert.deepEqual(merged, {
-        'types:*.ts': 'base-types-ts',
-        '*.ts': 'ext-ts',
-      });
-      assert.deepEqual(Object.keys(merged), ['types:*.ts', '*.ts']);
     });
 
     it('should call a merger function if provided', () => {
@@ -485,11 +545,11 @@ describe('loadParcelConfig', () => {
     it('should merge configs', () => {
       let base = new ParcelConfig(
         {
-          filePath: '.parcelrc',
+          filePath: toProjectPath('/', '/.parcelrc'),
           resolvers: [
             {
               packageName: 'parcel-resolver-base',
-              resolveFrom: '.parcelrc',
+              resolveFrom: toProjectPath('/', '/.parcelrc'),
               keyPath: '/resolvers/0',
             },
           ],
@@ -497,27 +557,25 @@ describe('loadParcelConfig', () => {
             '*.js': [
               {
                 packageName: 'parcel-transform-base',
-                resolveFrom: '.parcelrc',
+                resolveFrom: toProjectPath('/', '/.parcelrc'),
                 keyPath: '/transformers/*.js/0',
               },
             ],
             '*.css': [
               {
                 packageName: 'parcel-transform-css',
-                resolveFrom: '.parcelrc',
+                resolveFrom: toProjectPath('/', '/.parcelrc'),
                 keyPath: '/transformers/*.css/0',
               },
             ],
           },
           bundler: {
             packageName: 'parcel-bundler-base',
-            resolveFrom: '.parcelrc',
+            resolveFrom: toProjectPath('/', '/.parcelrc'),
             keyPath: '/bundler',
           },
         },
-        DEFAULT_OPTIONS.packageManager,
-        DEFAULT_OPTIONS.inputFS,
-        false,
+        DEFAULT_OPTIONS,
       );
 
       let ext = {
@@ -582,7 +640,7 @@ describe('loadParcelConfig', () => {
           resolveFrom: '.parcelrc',
           keyPath: '/bundler',
         },
-        runtimes: {},
+        runtimes: [],
         namers: [],
         optimizers: {},
         packagers: {},
@@ -623,10 +681,13 @@ describe('loadParcelConfig', () => {
   describe('parseAndProcessConfig', () => {
     it('should load and merge configs', async () => {
       let defaultConfigPath = require.resolve('@parcel/config-default');
-      let defaultConfig = processConfig({
-        ...require('@parcel/config-default'),
-        filePath: defaultConfigPath,
-      });
+      let defaultConfig = await processConfig(
+        {
+          ...require('@parcel/config-default'),
+          filePath: defaultConfigPath,
+        },
+        DEFAULT_OPTIONS,
+      );
       let configFilePath = path.join(
         __dirname,
         'fixtures',
@@ -650,12 +711,12 @@ describe('loadParcelConfig', () => {
       assert.deepEqual(transformers['*.js'], [
         {
           packageName: 'parcel-transformer-sub',
-          resolveFrom: subConfigFilePath,
+          resolveFrom: relative(subConfigFilePath),
           keyPath: '/transformers/*.js/0',
         },
         {
           packageName: 'parcel-transformer-base',
-          resolveFrom: configFilePath,
+          resolveFrom: relative(configFilePath),
           keyPath: '/transformers/*.js/0',
         },
         '...',
@@ -669,7 +730,7 @@ describe('loadParcelConfig', () => {
       assert.deepEqual(config.reporters, defaultConfig.reporters || []);
     });
 
-    it('should emit a codeframe when a malformed .parcelrc was found', async () => {
+    it('should emit a codeframe.codeHighlights when a malformed .parcelrc was found', async () => {
       let configFilePath = path.join(
         __dirname,
         'fixtures',
@@ -683,7 +744,7 @@ describe('loadParcelConfig', () => {
         column: 14,
       };
 
-      // $FlowFixMe
+      // $FlowFixMe[prop-missing]
       await assert.rejects(
         () => parseAndProcessConfig(configFilePath, code, DEFAULT_OPTIONS),
         {
@@ -692,18 +753,20 @@ describe('loadParcelConfig', () => {
             {
               message: 'Failed to parse .parcelrc',
               origin: '@parcel/core',
-              filePath: configFilePath,
-              language: 'json5',
-              codeFrame: {
-                code,
-                codeHighlights: [
-                  {
-                    message: "JSON5: invalid character 'b' at 2:14",
-                    start: pos,
-                    end: pos,
-                  },
-                ],
-              },
+              codeFrames: [
+                {
+                  filePath: configFilePath,
+                  language: 'json5',
+                  code,
+                  codeHighlights: [
+                    {
+                      message: "JSON5: invalid character 'b' at 2:14",
+                      start: pos,
+                      end: pos,
+                    },
+                  ],
+                },
+              ],
             },
           ],
         },
@@ -719,7 +782,7 @@ describe('loadParcelConfig', () => {
       );
       let code = await DEFAULT_OPTIONS.inputFS.readFile(configFilePath, 'utf8');
 
-      // $FlowFixMe
+      // $FlowFixMe[prop-missing]
       await assert.rejects(
         () => parseAndProcessConfig(configFilePath, code, DEFAULT_OPTIONS),
         {
@@ -728,19 +791,21 @@ describe('loadParcelConfig', () => {
             {
               message: 'Cannot find extended parcel config',
               origin: '@parcel/core',
-              filePath: configFilePath,
-              language: 'json5',
-              codeFrame: {
-                code,
-                codeHighlights: [
-                  {
-                    message:
-                      '"./.parclrc-node-modules" does not exist, did you mean "./.parcelrc-node-modules"?',
-                    start: {line: 2, column: 14},
-                    end: {line: 2, column: 38},
-                  },
-                ],
-              },
+              codeFrames: [
+                {
+                  filePath: configFilePath,
+                  language: 'json5',
+                  code,
+                  codeHighlights: [
+                    {
+                      message:
+                        '"./.parclrc-node-modules" does not exist, did you mean "./.parcelrc-node-modules"?',
+                      start: {line: 2, column: 14},
+                      end: {line: 2, column: 38},
+                    },
+                  ],
+                },
+              ],
             },
           ],
         },
@@ -756,7 +821,7 @@ describe('loadParcelConfig', () => {
       );
       let code = await DEFAULT_OPTIONS.inputFS.readFile(configFilePath, 'utf8');
 
-      // $FlowFixMe
+      // $FlowFixMe[prop-missing]
       await assert.rejects(
         () => parseAndProcessConfig(configFilePath, code, DEFAULT_OPTIONS),
         {
@@ -765,19 +830,21 @@ describe('loadParcelConfig', () => {
             {
               message: 'Cannot find extended parcel config',
               origin: '@parcel/core',
-              filePath: configFilePath,
-              language: 'json5',
-              codeFrame: {
-                code,
-                codeHighlights: [
-                  {
-                    message:
-                      'Cannot find module "@parcel/config-deflt", did you mean "@parcel/config-default"?',
-                    start: {line: 2, column: 14},
-                    end: {line: 2, column: 35},
-                  },
-                ],
-              },
+              codeFrames: [
+                {
+                  filePath: configFilePath,
+                  language: 'json5',
+                  code,
+                  codeHighlights: [
+                    {
+                      message:
+                        'Cannot find module "@parcel/config-deflt", did you mean "@parcel/config-default"?',
+                      start: {line: 2, column: 14},
+                      end: {line: 2, column: 35},
+                    },
+                  ],
+                },
+              ],
             },
           ],
         },
@@ -793,7 +860,7 @@ describe('loadParcelConfig', () => {
       );
       let code = await DEFAULT_OPTIONS.inputFS.readFile(configFilePath, 'utf8');
 
-      // $FlowFixMe
+      // $FlowFixMe[prop-missing]
       await assert.rejects(
         () => parseAndProcessConfig(configFilePath, code, DEFAULT_OPTIONS),
         {
@@ -802,36 +869,40 @@ describe('loadParcelConfig', () => {
             {
               message: 'Cannot find extended parcel config',
               origin: '@parcel/core',
-              filePath: configFilePath,
-              language: 'json5',
-              codeFrame: {
-                code,
-                codeHighlights: [
-                  {
-                    message:
-                      'Cannot find module "@parcel/config-deflt", did you mean "@parcel/config-default"?',
-                    start: {line: 2, column: 15},
-                    end: {line: 2, column: 36},
-                  },
-                ],
-              },
+              codeFrames: [
+                {
+                  filePath: configFilePath,
+                  language: 'json5',
+                  code,
+                  codeHighlights: [
+                    {
+                      message:
+                        'Cannot find module "@parcel/config-deflt", did you mean "@parcel/config-default"?',
+                      start: {line: 2, column: 15},
+                      end: {line: 2, column: 36},
+                    },
+                  ],
+                },
+              ],
             },
             {
               message: 'Cannot find extended parcel config',
               origin: '@parcel/core',
-              filePath: configFilePath,
-              language: 'json5',
-              codeFrame: {
-                code,
-                codeHighlights: [
-                  {
-                    message:
-                      '"./.parclrc" does not exist, did you mean "./.parcelrc"?',
-                    start: {line: 2, column: 39},
-                    end: {line: 2, column: 50},
-                  },
-                ],
-              },
+              codeFrames: [
+                {
+                  filePath: configFilePath,
+                  language: 'json5',
+                  code,
+                  codeHighlights: [
+                    {
+                      message:
+                        '"./.parclrc" does not exist, did you mean "./.parcelrc"?',
+                      start: {line: 2, column: 39},
+                      end: {line: 2, column: 50},
+                    },
+                  ],
+                },
+              ],
             },
           ],
         },

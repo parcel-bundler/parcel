@@ -4,10 +4,11 @@ import {Transformer} from '@parcel/plugin';
 import path from 'path';
 import SourceMap from '@parcel/source-map';
 import type {DiagnosticCodeFrame} from '@parcel/diagnostic';
-
-import typeof TypeScriptModule from 'typescript'; // eslint-disable-line import/no-extraneous-dependencies
 import type {CompilerOptions} from 'typescript';
+
+import ts from 'typescript';
 import {CompilerHost, loadTSConfig} from '@parcel/ts-utils';
+import {escapeMarkdown} from '@parcel/diagnostic';
 import {TSModuleGraph} from './TSModuleGraph';
 import nullthrows from 'nullthrows';
 import {collect} from './collect';
@@ -18,13 +19,7 @@ export default (new Transformer({
     await loadTSConfig(config, options);
   },
 
-  async transform({asset, config, options, logger}) {
-    let ts: TypeScriptModule = await options.packageManager.require(
-      'typescript',
-      asset.filePath,
-      {autoinstall: options.autoinstall},
-    );
-
+  transform({asset, config, options, logger}) {
     let opts: CompilerOptions = {
       // React is the default. Users can override this by supplying their own tsconfig,
       // which many TypeScript users will already have for typechecking, etc.
@@ -39,33 +34,36 @@ export default (new Transformer({
       emitDeclarationOnly: true,
       outFile: 'index.d.ts',
       moduleResolution: ts.ModuleResolutionKind.NodeJs,
+      // createProgram doesn't support incremental mode
+      composite: false,
     };
 
     let host = new CompilerHost(options.inputFS, ts, logger);
     // $FlowFixMe
     let program = ts.createProgram([asset.filePath], opts, host);
 
-    let includedFiles = program
-      .getSourceFiles()
-      .filter(file => path.normalize(file.fileName) !== asset.filePath)
-      .map(file => ({
-        filePath: host.redirectTypes.get(file.fileName) ?? file.fileName,
-      }));
+    for (let file of program.getSourceFiles()) {
+      if (path.normalize(file.fileName) !== asset.filePath) {
+        asset.invalidateOnFileChange(
+          host.redirectTypes.get(file.fileName) ?? file.fileName,
+        );
+      }
+    }
 
     let mainModuleName = path
       .relative(program.getCommonSourceDirectory(), asset.filePath)
       .slice(0, -path.extname(asset.filePath).length);
-    let moduleGraph = new TSModuleGraph(ts, mainModuleName);
+    let moduleGraph = new TSModuleGraph(mainModuleName);
 
     let emitResult = program.emit(undefined, undefined, undefined, true, {
       afterDeclarations: [
         // 1. Build module graph
         context => sourceFile => {
-          return collect(ts, moduleGraph, context, sourceFile);
+          return collect(moduleGraph, context, sourceFile);
         },
         // 2. Tree shake and rename types
         context => sourceFile => {
-          return shake(ts, moduleGraph, context, sourceFile);
+          return shake(moduleGraph, context, sourceFile);
         },
       ],
     });
@@ -118,12 +116,13 @@ export default (new Transformer({
             }
 
             codeframe = {
+              filePath: filename,
               code: source,
               codeHighlights: [
                 {
                   start,
                   end,
-                  message: diagnosticMessage,
+                  message: escapeMarkdown(diagnosticMessage),
                 },
               ],
             };
@@ -131,9 +130,8 @@ export default (new Transformer({
         }
 
         logger.warn({
-          message: diagnosticMessage,
-          filePath: filename,
-          codeFrame: codeframe ? codeframe : undefined,
+          message: escapeMarkdown(diagnosticMessage),
+          codeFrames: codeframe ? [codeframe] : undefined,
         });
       }
     }
@@ -149,16 +147,12 @@ export default (new Transformer({
     let sourceMap = null;
     if (map.mappings) {
       sourceMap = new SourceMap(options.projectRoot);
-      sourceMap.addRawMappings(map);
+      sourceMap.addVLQMap(map);
     }
 
-    return [
-      {
-        type: 'ts',
-        content: code,
-        map: sourceMap,
-        includedFiles,
-      },
-    ];
+    asset.type = 'ts';
+    asset.setCode(code);
+    asset.setMap(sourceMap);
+    return [asset];
   },
 }): Transformer);

@@ -1,7 +1,7 @@
 import * as React from 'react';
 import ReactDOM from 'react-dom';
 
-console.log({hot: module.hot});
+console.log({hmrOptions: module.hot});
 
 if (module.hot) {
   module.hot.dispose(function() {

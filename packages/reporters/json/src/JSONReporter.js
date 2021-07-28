@@ -146,7 +146,7 @@ function progressEventToJSONEvent(
       return {
         type: 'buildProgress',
         phase: progressEvent.phase,
-        bundleFilePath: progressEvent.bundle.filePath,
+        bundleName: progressEvent.bundle.displayName,
       };
   }
 }
@@ -172,5 +172,5 @@ type JSONProgressEvent =
   | {|
       +type: 'buildProgress',
       +phase: 'packaging' | 'optimizing',
-      bundleFilePath?: string,
+      bundleName?: string,
     |};

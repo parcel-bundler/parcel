@@ -1,3 +1,4 @@
+// @flow
 import assert from 'assert';
 import path from 'path';
 import {
@@ -6,6 +7,7 @@ import {
   assertBundles,
   distDir,
   removeDistDirectory,
+  inputFS,
   outputFS,
 } from '@parcel/test-utils';
 
@@ -77,10 +79,6 @@ describe('css', () => {
           'css-loader.js',
           'index.js',
           'js-loader.js',
-          'JSRuntime.js',
-          'bundle-manifest.js',
-          'JSRuntime.js',
-          'relative-path.js',
         ],
       },
       {name: /local\.[0-9a-f]{8}\.js/, assets: ['local.js']},
@@ -162,7 +160,9 @@ describe('css', () => {
     let b = await bundle(
       path.join(__dirname, '/integration/css-url/index.js'),
       {
-        minify: true,
+        defaultTargetOptions: {
+          shouldOptimize: true,
+        },
       },
     );
 
@@ -208,8 +208,10 @@ describe('css', () => {
         path.join(__dirname, '/integration/css-url-relative/src/b/style2.css'),
       ],
       {
-        minify: true,
-        sourceMaps: false,
+        defaultTargetOptions: {
+          shouldOptimize: true,
+          sourceMaps: false,
+        },
       },
     );
 
@@ -263,8 +265,10 @@ describe('css', () => {
     let b = await bundle(
       path.join(__dirname, '/integration/cssnano/index.js'),
       {
-        minify: true,
-        sourceMaps: false,
+        defaultTargetOptions: {
+          shouldOptimize: true,
+          sourceMaps: false,
+        },
       },
     );
 
@@ -281,7 +285,9 @@ describe('css', () => {
 
   it('should produce a sourcemap when sourceMaps are used', async function() {
     await bundle(path.join(__dirname, '/integration/cssnano/index.js'), {
-      minify: true,
+      defaultTargetOptions: {
+        shouldOptimize: true,
+      },
     });
 
     let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
@@ -298,14 +304,16 @@ describe('css', () => {
     assert.equal(map.file, 'index.css.map');
     assert.equal(map.mappings, 'AAAA,OACA,WACA,CCFA,OACA,SACA');
     assert.deepEqual(map.sources, [
-      './integration/cssnano/local.css',
-      './integration/cssnano/index.css',
+      'integration/cssnano/local.css',
+      'integration/cssnano/index.css',
     ]);
   });
 
   it('should inline data-urls for text-encoded files', async () => {
     await bundle(path.join(__dirname, '/integration/data-url/text.css'), {
-      sourceMaps: false,
+      defaultTargetOptions: {
+        sourceMaps: false,
+      },
     });
     let css = await outputFS.readFile(path.join(distDir, 'text.css'), 'utf8');
     assert.equal(
@@ -322,6 +330,55 @@ describe('css', () => {
     assert(
       css.startsWith(`.webp-img {
   background-image: url('data:image/webp;base64,UklGR`),
+    );
+  });
+
+  it('should remap locations in diagnostics using the input source map', async () => {
+    let fixture = path.join(
+      __dirname,
+      'integration/diagnostic-sourcemap/index.scss',
+    );
+    let code = await inputFS.readFileSync(fixture, 'utf8');
+    // $FlowFixMe
+    await assert.rejects(
+      () =>
+        bundle(fixture, {
+          defaultTargetOptions: {
+            shouldOptimize: true,
+          },
+        }),
+      {
+        name: 'BuildError',
+        diagnostics: [
+          {
+            message: "Failed to resolve 'x.png' from './index.scss'",
+            origin: '@parcel/core',
+            codeFrames: [
+              {
+                filePath: fixture,
+                code,
+                codeHighlights: [
+                  {
+                    start: {
+                      line: 5,
+                      column: 3,
+                    },
+                    end: {
+                      line: 5,
+                      column: 3,
+                    },
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            message: "Cannot load file './x.png' in './'.",
+            origin: '@parcel/resolver-default',
+            hints: [],
+          },
+        ],
+      },
     );
   });
 });

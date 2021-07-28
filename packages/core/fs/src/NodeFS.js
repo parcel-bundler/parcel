@@ -1,7 +1,7 @@
 // @flow
 import type {ReadStream, Stats} from 'fs';
 import type {Writable} from 'stream';
-import type {FileOptions, FileSystem} from './types';
+import type {FileOptions, FileSystem, Encoding} from './types';
 import type {FilePath} from '@parcel/types';
 import type {
   Event,
@@ -13,16 +13,22 @@ import fs from 'graceful-fs';
 import ncp from 'ncp';
 import mkdirp from 'mkdirp';
 import rimraf from 'rimraf';
-import {promisify} from '@parcel/utils';
+import {promisify} from 'util';
 import {registerSerializableClass} from '@parcel/core';
 import fsWriteStreamAtomic from '@parcel/fs-write-stream-atomic';
 import watcher from '@parcel/watcher';
 import packageJSON from '../package.json';
 
+import * as searchNative from '@parcel/fs-search';
+import * as searchJS from './find';
+
 // Most of this can go away once we only support Node 10+, which includes
 // require('fs').promises
 
-const realpath = promisify(fs.realpath);
+const realpath = promisify(
+  process.platform === 'win32' ? fs.realpath : fs.realpath.native,
+);
+const isPnP = process.versions.pnp != null;
 
 export class NodeFS implements FileSystem {
   readFile: any = promisify(fs.readFile);
@@ -36,13 +42,23 @@ export class NodeFS implements FileSystem {
   ncp: any = promisify(ncp);
   createReadStream: (path: string, options?: any) => ReadStream =
     fs.createReadStream;
-  cwd: () => string = process.cwd;
-  chdir: (directory: string) => void = process.chdir;
+  cwd: () => string = () => process.cwd();
+  chdir: (directory: string) => void = directory => process.chdir(directory);
 
-  statSync: (path: string) => Stats = fs.statSync;
-  realpathSync: (path: string, cache?: any) => string = fs.realpathSync;
+  statSync: (path: string) => Stats = path => fs.statSync(path);
+  realpathSync: (path: string, cache?: any) => string =
+    process.platform === 'win32' ? fs.realpathSync : fs.realpathSync.native;
   existsSync: (path: string) => boolean = fs.existsSync;
   readdirSync: any = (fs.readdirSync: any);
+  findAncestorFile: any = isPnP
+    ? (...args) => searchJS.findAncestorFile(this, ...args)
+    : searchNative.findAncestorFile;
+  findNodeModule: any = isPnP
+    ? (...args) => searchJS.findNodeModule(this, ...args)
+    : searchNative.findNodeModule;
+  findFirstFile: any = isPnP
+    ? (...args) => searchJS.findFirstFile(this, ...args)
+    : searchNative.findFirstFile;
 
   createWriteStream(filePath: string, options: any): Writable {
     return fsWriteStreamAtomic(filePath, options);
@@ -63,7 +79,7 @@ export class NodeFS implements FileSystem {
     await fs.promises.rename(tmpFilePath, filePath);
   }
 
-  readFileSync(filePath: FilePath, encoding?: buffer$Encoding): any {
+  readFileSync(filePath: FilePath, encoding?: Encoding): any {
     if (encoding != null) {
       return fs.readFileSync(filePath, encoding);
     }

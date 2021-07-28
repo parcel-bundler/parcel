@@ -13,8 +13,6 @@ const config = path.join(
   './integration/custom-configs/.parcelrc-json-reporter',
 );
 
-const DIST_INDEX = 'dist' + path.sep + 'index.js';
-
 describe('json reporter', () => {
   it('logs bundling a commonjs bundle to stdout as json', async () => {
     let consoleStub = sinon.stub(console, 'log');
@@ -24,9 +22,10 @@ describe('json reporter', () => {
         logLevel: 'info',
       });
 
-      let parsedCalls = consoleStub
-        .getCalls()
-        .map(call => JSON.parse(call.lastArg));
+      let parsedCalls = consoleStub.getCalls().map(call => {
+        invariant(typeof call.lastArg === 'string');
+        return JSON.parse(call.lastArg);
+      });
       for (let [iStr, parsed] of Object.entries(parsedCalls)) {
         parsed = (parsed: any);
         invariant(typeof iStr === 'string');
@@ -46,17 +45,17 @@ describe('json reporter', () => {
         } else if (i === 10) {
           assert.equal(parsed.type, 'buildProgress');
           assert.equal(parsed.phase, 'packaging');
-          assert(parsed.bundleFilePath.endsWith(DIST_INDEX));
+          assert.equal(parsed.bundleName, 'index.js');
         } else if (i === 11) {
           assert.equal(parsed.type, 'buildProgress');
           assert.equal(parsed.phase, 'optimizing');
-          assert(parsed.bundleFilePath.endsWith(DIST_INDEX));
+          assert.equal(parsed.bundleName, 'index.js');
         } else if (i === 12) {
           assert.equal(parsed.type, 'buildSuccess');
           assert(typeof parsed.buildTime === 'number');
           assert(Array.isArray(parsed.bundles));
           let bundle = parsed.bundles[0];
-          assert(bundle.filePath.endsWith(DIST_INDEX));
+          assert.equal(path.basename(bundle.filePath), 'index.js');
           assert(typeof bundle.size === 'number');
           assert(typeof bundle.time === 'number');
           assert(Array.isArray(bundle.assets));

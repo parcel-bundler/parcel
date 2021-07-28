@@ -2,6 +2,7 @@ import assert from 'assert';
 import path from 'path';
 import {
   bundle,
+  bundler,
   run,
   assertBundles,
   distDir,
@@ -9,16 +10,18 @@ import {
   outputFS,
   overlayFS,
   ncp,
+  getNextBuild,
 } from '@parcel/test-utils';
 import {
   NodePackageManager,
   MockPackageInstaller,
 } from '@parcel/package-manager';
+import postcss from 'postcss';
 
 describe('postcss', () => {
-  it('should support transforming css modules with postcss', async () => {
+  it('should support transforming css modules with postcss (require)', async () => {
     let b = await bundle(
-      path.join(__dirname, '/integration/postcss-modules/index.js'),
+      path.join(__dirname, '/integration/postcss-modules-cjs/index.js'),
     );
 
     assertBundles(b, [
@@ -42,6 +45,156 @@ describe('postcss', () => {
 
     let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
     assert(css.includes(`.${cssClass}`));
+  });
+
+  it('should build successfully with only postcss-modules config', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/postcss-modules-config/index.js'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['foo.css', 'foo.js', 'index.css', 'index.js'],
+      },
+      {
+        name: 'index.css',
+        assets: ['foo.css', 'index.css'],
+      },
+    ]);
+
+    let output = await run(b);
+    assert.equal(typeof output, 'function');
+
+    let value = output();
+    assert(/_foo_[0-9a-z]/.test(value));
+
+    let cssClass = value.match(/(_foo_[0-9a-z])/)[1];
+
+    let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
+    assert(css.includes(`.${cssClass}`));
+  });
+
+  it('should support transforming css modules with postcss (import default)', async () => {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/postcss-modules-import-default/index.js',
+      ),
+      {mode: 'production'},
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js', 'style.module.css'],
+      },
+      {
+        name: 'index.css',
+        assets: ['style.module.css'],
+      },
+    ]);
+
+    let output = await run(b);
+    assert(/_b-2_[0-9a-z]/.test(output));
+
+    let css = await outputFS.readFile(
+      b.getBundles().find(b => b.type === 'css').filePath,
+      'utf8',
+    );
+    let includedRules = new Set();
+    postcss.parse(css).walkRules(rule => {
+      includedRules.add(rule.selector);
+    });
+    assert(includedRules.has('.page'));
+    assert(includedRules.has(`.${output}`));
+  });
+
+  it('should tree shake unused css modules classes with a namespace import', async () => {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/postcss-modules-import-namespace/index.js',
+      ),
+      {mode: 'production'},
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js', 'style.module.css'],
+      },
+      {
+        name: 'index.css',
+        assets: ['global.css', 'style.module.css'],
+      },
+    ]);
+
+    let js = await outputFS.readFile(
+      b.getBundles().find(b => b.type === 'js').filePath,
+      'utf8',
+    );
+    assert(!js.includes('unused'));
+
+    let output = await run(b);
+    assert(/_b-2_[0-9a-z]/.test(output));
+
+    let css = await outputFS.readFile(
+      b.getBundles().find(b => b.type === 'css').filePath,
+      'utf8',
+    );
+    let includedRules = new Set();
+    postcss.parse(css).walkRules(rule => {
+      includedRules.add(rule.selector);
+    });
+    assert.deepStrictEqual(
+      includedRules,
+      new Set(['body', `.${output}`, '.page']),
+    );
+  });
+
+  it('should support importing css modules with a non-static namespace import', async () => {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/postcss-modules-import-namespace-whole/index.js',
+      ),
+      {mode: 'production'},
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js', 'style.module.css'],
+      },
+      {
+        name: 'index.css',
+        assets: ['global.css', 'style.module.css'],
+      },
+    ]);
+
+    let js = await outputFS.readFile(
+      b.getBundles().find(b => b.type === 'js').filePath,
+      'utf8',
+    );
+    assert(js.includes('unused'));
+
+    let output = await run(b);
+    assert(/_b-2_[0-9a-z]/.test(output['b-2']));
+    assert(/_unused_[0-9a-z]/.test(output['unused']));
+
+    let css = await outputFS.readFile(
+      b.getBundles().find(b => b.type === 'css').filePath,
+      'utf8',
+    );
+    let includedRules = new Set();
+    postcss.parse(css).walkRules(rule => {
+      includedRules.add(rule.selector);
+    });
+    assert.deepStrictEqual(
+      includedRules,
+      new Set(['body', `.${output['b-2']}`, `.${output['unused']}`, '.page']),
+    );
   });
 
   it('should support transforming with postcss twice with the same result', async () => {
@@ -237,10 +390,11 @@ describe('postcss', () => {
   });
 
   it('should automatically install postcss plugins if needed', async () => {
-    await outputFS.rimraf(path.join(__dirname, '/input'));
+    let inputDir = path.join(__dirname, '/input');
+    await outputFS.rimraf(inputDir);
     await ncp(
       path.join(__dirname, '/integration/postcss-autoinstall/npm'),
-      path.join(__dirname, '/input'),
+      inputDir,
     );
 
     let packageInstaller = new MockPackageInstaller();
@@ -252,15 +406,21 @@ describe('postcss', () => {
 
     // The package manager uses an overlay filesystem, which performs writes to
     // an in-memory fs and reads first from memory, then falling back to the real fs.
-    let packageManager = new NodePackageManager(overlayFS, packageInstaller);
+    let packageManager = new NodePackageManager(
+      overlayFS,
+      inputDir,
+      packageInstaller,
+    );
 
     let distDir = path.join(outputFS.cwd(), 'dist');
 
     await bundle(path.join(__dirname, '/input/index.css'), {
       inputFS: overlayFS,
       packageManager,
-      distDir,
-      autoinstall: true,
+      shouldAutoInstall: true,
+      defaultTargetOptions: {
+        distDir,
+      },
     });
 
     // cssnext was installed
@@ -295,8 +455,7 @@ describe('postcss', () => {
     ]);
 
     let css = await outputFS.readFile(path.join(distDir, 'style.css'), 'utf8');
-
-    assert.equal(css.split('red').length - 1, 2);
+    assert.equal(css.split('red').length - 1, 1);
   });
 
   it('should support using a postcss config in package.json', async function() {
@@ -316,9 +475,9 @@ describe('postcss', () => {
     assert(/background-color:\s*red/.test(css));
   });
 
-  it('Should support postcss.config.js config file', async function() {
+  it('Should support postcss.config.js config file with PostCSS 7 plugin', async function() {
     let b = await bundle(
-      path.join(__dirname, '/integration/postcss-js-config/style.css'),
+      path.join(__dirname, '/integration/postcss-js-config-7/style.css'),
     );
 
     assertBundles(b, [
@@ -330,5 +489,89 @@ describe('postcss', () => {
 
     let css = await outputFS.readFile(path.join(distDir, 'style.css'), 'utf8');
     assert(css.includes('background-color: red;'));
+  });
+
+  it('Should support postcss.config.js config file with PostCSS 8 plugin', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/postcss-js-config-8/style.css'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'style.css',
+        assets: ['style.css'],
+      },
+    ]);
+  });
+
+  it('should support dir-dependency messages from plugins', async function() {
+    let inputDir = path.join(
+      __dirname,
+      '/input',
+      Math.random()
+        .toString(36)
+        .slice(2),
+    );
+    await inputFS.mkdirp(inputDir);
+    await inputFS.ncp(
+      path.join(__dirname, '/integration/postcss-dir-dependency'),
+      inputDir,
+    );
+
+    let b = await bundler(path.join(inputDir, 'index.css'));
+
+    let subscription = await b.watch();
+    let buildEvent = await getNextBuild(b);
+    assert.equal(buildEvent.type, 'buildSuccess');
+
+    let contents = await outputFS.readFile(
+      buildEvent.bundleGraph.getBundles()[0].filePath,
+      'utf8',
+    );
+    assert(contents.includes('background: green, red'));
+
+    // update
+    await inputFS.writeFile(
+      path.join(inputDir, 'backgrounds', 'green.txt'),
+      'yellow',
+    );
+
+    buildEvent = await getNextBuild(b);
+    assert.equal(buildEvent.type, 'buildSuccess');
+
+    contents = await outputFS.readFile(
+      buildEvent.bundleGraph.getBundles()[0].filePath,
+      'utf8',
+    );
+    assert(contents.includes('background: yellow, red'));
+
+    // create
+    await inputFS.writeFile(
+      path.join(inputDir, 'backgrounds', 'orange.txt'),
+      'orange',
+    );
+
+    buildEvent = await getNextBuild(b);
+    assert.equal(buildEvent.type, 'buildSuccess');
+
+    contents = await outputFS.readFile(
+      buildEvent.bundleGraph.getBundles()[0].filePath,
+      'utf8',
+    );
+    assert(contents.includes('background: yellow, orange, red'));
+
+    // delete
+    await inputFS.unlink(path.join(inputDir, 'backgrounds', 'red.txt'));
+
+    buildEvent = await getNextBuild(b);
+    assert.equal(buildEvent.type, 'buildSuccess');
+
+    contents = await outputFS.readFile(
+      buildEvent.bundleGraph.getBundles()[0].filePath,
+      'utf8',
+    );
+    assert(contents.includes('background: yellow, orange'));
+
+    await subscription.unsubscribe();
   });
 });

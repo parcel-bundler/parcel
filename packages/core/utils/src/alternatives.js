@@ -24,7 +24,7 @@ export async function findAlternativeNodeModules(
       let modulesDir = path.join(dir, 'node_modules');
       let stats = await fs.stat(modulesDir);
       if (stats.isDirectory()) {
-        let dirContent = await fs.readdir(modulesDir);
+        let dirContent = (await fs.readdir(modulesDir)).sort();
 
         // Filter out the modules that interest us
         let modules = dirContent.filter(i =>
@@ -36,7 +36,7 @@ export async function findAlternativeNodeModules(
           await Promise.all(
             modules.map(async item => {
               let orgDirPath = path.join(modulesDir, item);
-              let orgDirContent = await fs.readdir(orgDirPath);
+              let orgDirContent = (await fs.readdir(orgDirPath)).sort();
 
               // Add all org packages
               potentialModules.push(...orgDirContent.map(i => `${item}/${i}`));
@@ -52,7 +52,7 @@ export async function findAlternativeNodeModules(
     dir = path.dirname(dir);
   }
 
-  return fuzzySearch(potentialModules, moduleName).slice(0, 2);
+  return fuzzySearch(potentialModules.sort(), moduleName).slice(0, 2);
 }
 
 async function findAllFilesUp({
@@ -62,6 +62,7 @@ async function findAllFilesUp({
   basedir,
   maxlength,
   collected,
+  leadingDotSlash = true,
 }: {|
   fs: FileSystem,
   dir: string,
@@ -69,12 +70,13 @@ async function findAllFilesUp({
   basedir: string,
   maxlength: number,
   collected: Array<string>,
+  leadingDotSlash?: boolean,
 |}): Promise<mixed> {
-  let dirContent = await fs.readdir(dir);
+  let dirContent = (await fs.readdir(dir)).sort();
   return Promise.all(
     dirContent.map(async item => {
       let fullPath = path.join(dir, item);
-      let relativeFilePath = relativePath(basedir, fullPath);
+      let relativeFilePath = relativePath(basedir, fullPath, leadingDotSlash);
       if (relativeFilePath.length < maxlength) {
         let stats = await fs.stat(fullPath);
         let isDir = stats.isDirectory();
@@ -102,15 +104,19 @@ export async function findAlternativeFiles(
   fs: FileSystem,
   fileSpecifier: string,
   dir: string,
+  projectRoot: string,
+  leadingDotSlash?: boolean = true,
 ): Promise<Array<string>> {
   let potentialFiles: Array<string> = [];
   // Find our root, we won't recommend files above the package root as that's bad practise
-  let pkg = await resolveConfig(fs, path.join(dir, 'index'), ['package.json']);
-  if (!pkg) {
-    return potentialFiles;
-  }
+  let pkg = await resolveConfig(
+    fs,
+    path.join(dir, 'index'),
+    ['package.json'],
+    projectRoot,
+  );
 
-  let pkgRoot = path.dirname(pkg);
+  let pkgRoot = pkg ? path.dirname(pkg) : projectRoot;
   await findAllFilesUp({
     fs,
     dir: pkgRoot,
@@ -118,7 +124,15 @@ export async function findAlternativeFiles(
     basedir: dir,
     maxlength: fileSpecifier.length + 10,
     collected: potentialFiles,
+    leadingDotSlash,
   });
+
+  if (path.extname(fileSpecifier) === '') {
+    potentialFiles = potentialFiles.map(p => {
+      let ext = path.extname(p);
+      return ext.length > 0 ? p.slice(0, -ext.length) : p;
+    });
+  }
 
   return fuzzySearch(potentialFiles, fileSpecifier).slice(0, 2);
 }

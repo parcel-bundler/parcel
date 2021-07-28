@@ -1,86 +1,63 @@
 // @flow strict-local
 
-import type {FilePath, Glob, PackageName, ConfigResult} from '@parcel/types';
-import type {Config, Environment} from './types';
+import type {PackageName, ConfigResult} from '@parcel/types';
+import type {
+  Config,
+  Environment,
+  InternalFileCreateInvalidation,
+  InternalDevDepOptions,
+} from './types';
+import type {ProjectPath} from './projectPath';
+
+import {fromProjectPathRelative} from './projectPath';
+import {createEnvironment} from './Environment';
+import {hashString} from '@parcel/hash';
 
 type ConfigOpts = {|
-  isSource: boolean,
-  searchPath: FilePath,
-  env: Environment,
+  plugin: PackageName,
+  searchPath: ProjectPath,
+  isSource?: boolean,
+  env?: Environment,
   result?: ConfigResult,
-  includedFiles?: Set<FilePath>,
-  watchGlob?: Glob,
-  devDeps?: Map<PackageName, ?string>,
-  shouldRehydrate?: boolean,
-  shouldReload?: boolean,
-  shouldInvalidateOnStartup?: boolean,
+  invalidateOnFileChange?: Set<ProjectPath>,
+  invalidateOnFileCreate?: Array<InternalFileCreateInvalidation>,
+  invalidateOnEnvChange?: Set<string>,
+  invalidateOnOptionChange?: Set<string>,
+  devDeps?: Array<InternalDevDepOptions>,
+  invalidateOnStartup?: boolean,
 |};
 
 export function createConfig({
+  plugin,
   isSource,
   searchPath,
   env,
   result,
-  includedFiles,
-  watchGlob,
+  invalidateOnFileChange,
+  invalidateOnFileCreate,
+  invalidateOnEnvChange,
+  invalidateOnOptionChange,
   devDeps,
-  shouldRehydrate,
-  shouldReload,
-  shouldInvalidateOnStartup,
+  invalidateOnStartup,
 }: ConfigOpts): Config {
+  let environment = env ?? createEnvironment();
   return {
-    isSource,
+    id: hashString(
+      plugin +
+        fromProjectPathRelative(searchPath) +
+        environment.id +
+        String(isSource),
+    ),
+    isSource: isSource ?? false,
     searchPath,
-    env,
+    env: environment,
     result: result ?? null,
-    resultHash: null,
-    includedFiles: includedFiles ?? new Set(),
-    pkg: null,
-    pkgFilePath: null,
-    watchGlob,
-    devDeps: devDeps ?? new Map(),
-    shouldRehydrate: shouldRehydrate ?? false,
-    shouldReload: shouldReload ?? false,
-    shouldInvalidateOnStartup: shouldInvalidateOnStartup ?? false,
+    cacheKey: null,
+    invalidateOnFileChange: invalidateOnFileChange ?? new Set(),
+    invalidateOnFileCreate: invalidateOnFileCreate ?? [],
+    invalidateOnEnvChange: invalidateOnEnvChange ?? new Set(),
+    invalidateOnOptionChange: invalidateOnOptionChange ?? new Set(),
+    devDeps: devDeps ?? [],
+    invalidateOnStartup: invalidateOnStartup ?? false,
   };
-}
-
-export function addDevDependency(
-  config: Config,
-  name: PackageName,
-  version?: string,
-) {
-  config.devDeps.set(name, version);
-}
-
-// TODO: start using edge types for more flexible invalidations
-export function getInvalidations(
-  config: Config,
-): Array<
-  | {|action: 'add', pattern: Glob|}
-  | {|action: 'change', pattern: FilePath|}
-  | {|action: 'unlink', pattern: FilePath|},
-> {
-  let invalidations = [];
-
-  if (config.watchGlob != null) {
-    invalidations.push({
-      action: 'add',
-      pattern: config.watchGlob,
-    });
-  }
-
-  for (let filePath of config.includedFiles) {
-    invalidations.push({
-      action: 'change',
-      pattern: filePath,
-    });
-
-    invalidations.push({
-      action: 'unlink',
-      pattern: filePath,
-    });
-  }
-
-  return invalidations;
 }

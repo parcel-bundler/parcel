@@ -1,8 +1,9 @@
 // @flow strict-local
 
-import type {ReporterEvent} from '@parcel/types';
+import type {ReporterEvent, Reporter} from '@parcel/types';
 import type {WorkerApi} from '@parcel/workers';
-import type {ParcelOptions} from './types';
+import type {Bundle as InternalBundle, ParcelOptions} from './types';
+import type {LoadedPlugin} from './ParcelConfig';
 
 import invariant from 'assert';
 import {
@@ -28,61 +29,84 @@ type Opts = {|
 |};
 
 export default class ReporterRunner {
+  workerFarm: WorkerFarm;
   config: ParcelConfig;
   options: ParcelOptions;
   pluginOptions: PluginOptions;
+  reporters: Array<LoadedPlugin<Reporter>>;
 
   constructor(opts: Opts) {
     this.config = opts.config;
     this.options = opts.options;
+    this.workerFarm = opts.workerFarm;
     this.pluginOptions = new PluginOptions(this.options);
 
     logger.onLog(event => this.report(event));
 
-    bus.on('reporterEvent', event => {
-      if (
-        event.type === 'buildProgress' &&
-        (event.phase === 'optimizing' || event.phase === 'packaging') &&
-        !(event.bundle instanceof NamedBundle)
-      ) {
-        // Convert any internal bundles back to their public equivalents as reporting
-        // is public api
-        let bundleGraph = opts.workerFarm.workerApi.getSharedReference(
-          event.bundleGraphRef,
-        );
-        invariant(bundleGraph instanceof BundleGraph);
-        this.report({
-          ...event,
-          bundle: NamedBundle.get(event.bundle, bundleGraph, this.options),
-        });
-        return;
-      }
+    bus.on('reporterEvent', this.eventHandler);
 
-      this.report(event);
-    });
-
-    if (this.options.patchConsole) {
+    if (this.options.shouldPatchConsole) {
       patchConsole();
     } else {
       unpatchConsole();
     }
   }
 
-  async report(event: ReporterEvent) {
-    let reporters = await this.config.getReporters();
-
-    for (let reporter of reporters) {
-      try {
-        await reporter.plugin.report({
-          event,
-          options: this.pluginOptions,
-          logger: new PluginLogger({origin: reporter.name}),
-        });
-      } catch (e) {
-        // We shouldn't emit a report event here as we will cause infinite loops...
-        INTERNAL_ORIGINAL_CONSOLE.error(e);
-      }
+  eventHandler: ReporterEvent => void = (event): void => {
+    if (
+      event.type === 'buildProgress' &&
+      (event.phase === 'optimizing' || event.phase === 'packaging') &&
+      !(event.bundle instanceof NamedBundle)
+    ) {
+      // $FlowFixMe[prop-missing]
+      let bundleGraphRef = event.bundleGraphRef;
+      // $FlowFixMe[incompatible-exact]
+      let bundle: InternalBundle = event.bundle;
+      // Convert any internal bundles back to their public equivalents as reporting
+      // is public api
+      let bundleGraph = this.workerFarm.workerApi.getSharedReference(
+        // $FlowFixMe
+        bundleGraphRef,
+      );
+      invariant(bundleGraph instanceof BundleGraph);
+      // $FlowFixMe[incompatible-call]
+      this.report({
+        ...event,
+        bundle: NamedBundle.get(bundle, bundleGraph, this.options),
+      });
+      return;
     }
+
+    this.report(event);
+  };
+
+  async report(event: ReporterEvent) {
+    // We should catch all errors originating from reporter plugins to prevent infinite loops
+    try {
+      let reporters = this.reporters;
+      if (!reporters) {
+        this.reporters = await this.config.getReporters();
+        reporters = this.reporters;
+      }
+
+      for (let reporter of this.reporters) {
+        try {
+          await reporter.plugin.report({
+            event,
+            options: this.pluginOptions,
+            logger: new PluginLogger({origin: reporter.name}),
+          });
+        } catch (reportError) {
+          INTERNAL_ORIGINAL_CONSOLE.error(reportError);
+        }
+      }
+    } catch (err) {
+      INTERNAL_ORIGINAL_CONSOLE.error(err);
+    }
+  }
+
+  dispose() {
+    bus.off('reporterEvent', this.eventHandler);
   }
 }
 

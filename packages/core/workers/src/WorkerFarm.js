@@ -20,8 +20,7 @@ import {
   restoreDeserializedObject,
   serialize,
 } from '@parcel/core';
-import ThrowableDiagnostic, {anyToDiagnostic} from '@parcel/diagnostic';
-import {escapeMarkdown} from '@parcel/utils';
+import ThrowableDiagnostic, {anyToDiagnostic, md} from '@parcel/diagnostic';
 import Worker, {type WorkerCall} from './Worker';
 import cpuCount from './cpuCount';
 import Handle from './Handle';
@@ -44,7 +43,7 @@ export type FarmOptions = {|
   warmWorkers: boolean,
   workerPath?: FilePath,
   backend: BackendType,
-  patchConsole?: boolean,
+  shouldPatchConsole?: boolean,
 |};
 
 type WorkerModule = {|
@@ -69,6 +68,7 @@ export default class WorkerFarm extends EventEmitter {
   callQueue: Array<WorkerCall> = [];
   ending: boolean = false;
   localWorker: WorkerModule;
+  localWorkerInit: ?Promise<void>;
   options: FarmOptions;
   run: HandleFunction;
   warmWorkers: number = 0;
@@ -96,6 +96,8 @@ export default class WorkerFarm extends EventEmitter {
 
     // $FlowFixMe this must be dynamic
     this.localWorker = require(this.options.workerPath);
+    this.localWorkerInit =
+      this.localWorker.childInit != null ? this.localWorker.childInit() : null;
     this.run = this.createHandle('run');
 
     this.startMaxWorkers();
@@ -174,7 +176,7 @@ export default class WorkerFarm extends EventEmitter {
   }
 
   createHandle(method: string): HandleFunction {
-    return (...args) => {
+    return async (...args) => {
       // Child process workers are slow to start (~600ms).
       // While we're waiting, just run on the main thread.
       // This significantly speeds up startup time.
@@ -188,6 +190,11 @@ export default class WorkerFarm extends EventEmitter {
         let processedArgs = restoreDeserializedObject(
           prepareForSerialization([...args, false]),
         );
+
+        if (this.localWorkerInit != null) {
+          await this.localWorkerInit;
+          this.localWorkerInit = null;
+        }
         return this.localWorker[method](this.workerApi, ...processedArgs);
       }
     };
@@ -206,7 +213,7 @@ export default class WorkerFarm extends EventEmitter {
     let worker = new Worker({
       forcedKillTime: this.options.forcedKillTime,
       backend: this.options.backend,
-      patchConsole: this.options.patchConsole,
+      shouldPatchConsole: this.options.shouldPatchConsole,
       sharedReferences: this.sharedReferences,
     });
 
@@ -252,7 +259,11 @@ export default class WorkerFarm extends EventEmitter {
       this.startChild();
     }
 
-    for (let worker of this.workers.values()) {
+    let workers = [...this.workers.values()].sort(
+      (a, b) => a.calls.size - b.calls.size,
+    );
+
+    for (let worker of workers) {
       if (!this.callQueue.length) {
         break;
       }
@@ -391,14 +402,19 @@ export default class WorkerFarm extends EventEmitter {
 
   async createSharedReference(
     value: mixed,
+    // An optional, pre-serialized representation of the value to be used
+    // in its place.
+    buffer?: Buffer,
   ): Promise<{|ref: SharedReference, dispose(): Promise<mixed>|}> {
     let ref = referenceId++;
     this.sharedReferences.set(ref, value);
     this.sharedReferencesByValue.set(value, ref);
+
+    let toSend = buffer ? buffer.buffer : value;
     let promises = [];
     for (let worker of this.workers.values()) {
       if (worker.ready) {
-        promises.push(worker.sendSharedReference(ref, value));
+        promises.push(worker.sendSharedReference(ref, toSend));
       }
     }
 
@@ -418,6 +434,7 @@ export default class WorkerFarm extends EventEmitter {
                 args: [ref],
                 resolve,
                 reject,
+                skipReadyCheck: true,
                 retries: 0,
               });
             }),
@@ -439,6 +456,7 @@ export default class WorkerFarm extends EventEmitter {
             resolve,
             reject,
             retries: 0,
+            skipReadyCheck: true,
           });
         }),
       );
@@ -468,6 +486,7 @@ export default class WorkerFarm extends EventEmitter {
             resolve,
             reject,
             retries: 0,
+            skipReadyCheck: true,
           });
         }),
       );
@@ -489,8 +508,28 @@ export default class WorkerFarm extends EventEmitter {
 
     logger.info({
       origin: '@parcel/workers',
-      message: escapeMarkdown(`Wrote profile to ${filename}`),
+      message: md`Wrote profile to ${filename}`,
     });
+  }
+
+  async callAllWorkers(method: string, args: Array<any>) {
+    let promises = [];
+    for (let worker of this.workers.values()) {
+      promises.push(
+        new Promise((resolve, reject) => {
+          worker.call({
+            method,
+            args,
+            resolve,
+            reject,
+            retries: 0,
+          });
+        }),
+      );
+    }
+
+    promises.push(this.localWorker[method](this.workerApi, ...args));
+    await Promise.all(promises);
   }
 
   async takeHeapSnapshot() {
@@ -507,6 +546,7 @@ export default class WorkerFarm extends EventEmitter {
                 resolve,
                 reject,
                 retries: 0,
+                skipReadyCheck: true,
               });
             }),
         ),
@@ -514,10 +554,9 @@ export default class WorkerFarm extends EventEmitter {
 
       logger.info({
         origin: '@parcel/workers',
-        message: escapeMarkdown(
-          'Wrote heap snapshots to the following paths:\n' +
-            snapshotPaths.join('\n'),
-        ),
+        message: md`Wrote heap snapshots to the following paths:\n${snapshotPaths.join(
+          '\n',
+        )}`,
       });
     } catch {
       logger.error({
@@ -530,7 +569,7 @@ export default class WorkerFarm extends EventEmitter {
   static getNumWorkers(): number {
     return process.env.PARCEL_WORKERS
       ? parseInt(process.env.PARCEL_WORKERS, 10)
-      : cpuCount();
+      : Math.ceil(cpuCount() / 2);
   }
 
   static isWorker(): boolean {
@@ -555,7 +594,7 @@ export default class WorkerFarm extends EventEmitter {
   }
 
   static getConcurrentCallsPerWorker(): number {
-    return parseInt(process.env.PARCEL_MAX_CONCURRENT_CALLS, 10) || 5;
+    return parseInt(process.env.PARCEL_MAX_CONCURRENT_CALLS, 10) || 30;
   }
 }
 

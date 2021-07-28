@@ -1,21 +1,30 @@
 // @flow
-import type {EnvironmentOpts} from '@parcel/types';
-import type {Environment} from './types';
-import {md5FromObject} from '@parcel/utils';
+import type {EnvironmentOptions, FilePath} from '@parcel/types';
+import type {Environment, InternalSourceLocation} from './types';
+import {hashString} from '@parcel/hash';
+import {toInternalSourceLocation} from './utils';
 
 const DEFAULT_ENGINES = {
   browsers: ['> 0.25%'],
   node: '>= 8.0.0',
 };
 
+type EnvironmentOpts = {|
+  ...EnvironmentOptions,
+  loc?: ?InternalSourceLocation,
+|};
+
 export function createEnvironment({
   context,
   engines,
   includeNodeModules,
   outputFormat,
-  minify = false,
+  sourceType = 'module',
+  shouldOptimize = false,
   isLibrary = false,
-  scopeHoist = false,
+  shouldScopeHoist = false,
+  sourceMap,
+  loc,
 }: EnvironmentOpts = {}): Environment {
   if (context == null) {
     if (engines?.node) {
@@ -77,39 +86,53 @@ export function createEnvironment({
     }
   }
 
-  return {
+  let res: Environment = {
+    id: '',
     context,
     engines,
     includeNodeModules,
     outputFormat,
+    sourceType,
     isLibrary,
-    minify,
-    scopeHoist,
+    shouldOptimize,
+    shouldScopeHoist,
+    sourceMap,
+    loc,
   };
+
+  res.id = getEnvironmentHash(res);
+  return res;
 }
 
 export function mergeEnvironments(
+  projectRoot: FilePath,
   a: Environment,
-  b: ?EnvironmentOpts,
+  b: ?EnvironmentOptions,
 ): Environment {
   // If merging the same object, avoid copying.
-  if (a === b) {
+  if (a === b || !b) {
     return a;
   }
 
+  // $FlowFixMe - ignore the `id` that is already on a
   return createEnvironment({
     ...a,
     ...b,
+    loc: b.loc ? toInternalSourceLocation(projectRoot, b.loc) : a.loc,
   });
 }
 
-export function getEnvironmentHash(env: Environment): string {
-  // context is excluded from hash so that assets can be shared between e.g. workers and browser.
-  // Different engines should be sufficient to distinguish multi-target builds.
-  return md5FromObject({
-    engines: env.engines,
-    includeNodeModules: env.includeNodeModules,
-    outputFormat: env.outputFormat,
-    isLibrary: env.isLibrary,
-  });
+function getEnvironmentHash(env: Environment): string {
+  return hashString(
+    JSON.stringify([
+      env.context,
+      env.engines,
+      env.includeNodeModules,
+      env.outputFormat,
+      env.sourceType,
+      env.isLibrary,
+      env.shouldScopeHoist,
+      env.sourceMap,
+    ]),
+  );
 }

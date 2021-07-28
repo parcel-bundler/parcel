@@ -85,12 +85,12 @@ export class FSHost {
 
   readDirectory(
     root: FilePath,
-    extensions: $ReadOnlyArray<string>,
-    excludes: ?$ReadOnlyArray<string>,
-    includes: $ReadOnlyArray<string>,
+    extensions?: $ReadOnlyArray<string>,
+    excludes?: $ReadOnlyArray<string>,
+    includes?: $ReadOnlyArray<string>,
     depth?: number,
   ): any {
-    // $FlowFixMe
+    // $FlowFixMe[prop-missing]
     return this.ts.matchFiles(
       root,
       extensions,
@@ -99,7 +99,9 @@ export class FSHost {
       this.ts.sys.useCaseSensitiveFileNames,
       this.getCurrentDirectory(),
       depth,
+      // $FlowFixMe[method-unbinding]
       this.getAccessibleFileSystemEntries.bind(this),
+      // $FlowFixMe[method-unbinding]
       this.realpath.bind(this),
     );
   }

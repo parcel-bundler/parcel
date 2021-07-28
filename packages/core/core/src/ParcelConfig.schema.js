@@ -110,9 +110,7 @@ export default {
     },
     bundler: {
       type: 'string',
-      __validate: (validatePluginName('bundler', 'bundler'): (
-        val: string,
-      ) => void),
+      __validate: (validatePluginName('bundler', 'bundler'): string => void),
     },
     resolvers: (pipelineSchema('resolver', 'resolvers'): SchemaEntity),
     transformers: (mapPipelineSchema(
@@ -124,7 +122,7 @@ export default {
     packagers: (mapStringSchema('packager', 'packagers'): SchemaEntity),
     optimizers: (mapPipelineSchema('optimizer', 'optimizers'): SchemaEntity),
     reporters: (pipelineSchema('reporter', 'reporters'): SchemaEntity),
-    runtimes: (mapPipelineSchema('runtime', 'runtimes'): SchemaEntity),
+    runtimes: (pipelineSchema('runtime', 'runtimes'): SchemaEntity),
     filePath: {
       type: 'string',
     },

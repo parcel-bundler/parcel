@@ -1,66 +1,56 @@
 // @flow
 import {Transformer} from '@parcel/plugin';
-import {promisify} from '@parcel/utils';
 import path from 'path';
 import {EOL} from 'os';
 import SourceMap from '@parcel/source-map';
+import sass from 'sass';
+import {pathToFileURL} from 'url';
+import {promisify} from 'util';
 
 // E.g: ~library/file.sass
-const WEBPACK_ALIAS_RE = /^~[^/]/;
+const NODE_MODULE_ALIAS_RE = /^~[^/\\]/;
 
 export default (new Transformer({
   async loadConfig({config, options}) {
-    let configFile = await config.getConfig(['.sassrc', '.sassrc.js'], {
-      packageKey: 'sass',
-    });
+    let configFile = await config.getConfig(
+      ['.sassrc', '.sassrc.json', '.sassrc.js'],
+      {
+        packageKey: 'sass',
+      },
+    );
 
-    let configResult = {
-      contents: configFile ? configFile.contents : {},
-      isSerialisable: true,
-    };
+    let configResult = configFile ? configFile.contents : {};
 
-    if (configFile && path.extname(configFile.filePath) === '.js') {
-      config.shouldInvalidateOnStartup();
-      config.shouldReload();
-
-      configResult.isSerialisable = false;
+    // Resolve relative paths from config file
+    if (configFile && configResult.includePaths) {
+      configResult.includePaths = configResult.includePaths.map(p =>
+        path.resolve(path.dirname(configFile.filePath), p),
+      );
     }
 
-    if (configResult.contents.importer === undefined) {
-      configResult.contents.importer = [];
-    } else if (!Array.isArray(configResult.contents.importer)) {
-      configResult.contents.importer = [configResult.contents.importer];
+    if (configFile && path.extname(configFile.filePath) === '.js') {
+      config.invalidateOnStartup();
+    }
+
+    if (configResult.importer === undefined) {
+      configResult.importer = [];
+    } else if (!Array.isArray(configResult.importer)) {
+      configResult.importer = [configResult.importer];
     }
 
     // Always emit sourcemap
-    configResult.contents.sourceMap = true;
+    configResult.sourceMap = true;
     // sources are created relative to the directory of outFile
-    configResult.contents.outFile = path.join(
-      options.projectRoot,
-      'style.css.map',
-    );
-    configResult.contents.omitSourceMapUrl = true;
-    configResult.contents.sourceMapContents = false;
+    configResult.outFile = path.join(options.projectRoot, 'style.css.map');
+    configResult.omitSourceMapUrl = true;
+    configResult.sourceMapContents = false;
 
-    config.setResult(configResult);
-  },
-
-  preSerializeConfig({config}) {
-    if (!config.result) return;
-
-    // Ensure we dont try to serialise functions
-    if (!config.result.isSerialisable) {
-      config.result.contents = {};
-    }
+    return configResult;
   },
 
   async transform({asset, options, config, resolve}) {
-    let rawConfig = config ? config.contents : {};
-    let sass = await options.packageManager.require('sass', asset.filePath, {
-      autoinstall: options.autoinstall,
-    });
-
-    const sassRender = promisify(sass.render.bind(sass));
+    let rawConfig = config ?? {};
+    let sassRender = promisify(sass.render.bind(sass));
     let css;
     try {
       let code = await asset.getCode();
@@ -68,7 +58,15 @@ export default (new Transformer({
         ...rawConfig,
         file: asset.filePath,
         data: rawConfig.data ? rawConfig.data + EOL + code : code,
-        importer: [...rawConfig.importer, resolvePathImporter({resolve})],
+        importer: [
+          ...rawConfig.importer,
+          resolvePathImporter({
+            asset,
+            resolve,
+            includePaths: rawConfig.includePaths,
+            options,
+          }),
+        ],
         indentedSyntax:
           typeof rawConfig.indentedSyntax === 'boolean'
             ? rawConfig.indentedSyntax
@@ -78,13 +76,13 @@ export default (new Transformer({
       css = result.css;
       for (let included of result.stats.includedFiles) {
         if (included !== asset.filePath) {
-          asset.addIncludedFile(included);
+          asset.invalidateOnFileChange(included);
         }
       }
 
       if (result.map != null) {
         let map = new SourceMap(options.projectRoot);
-        map.addRawMappings(JSON.parse(result.map));
+        map.addVLQMap(JSON.parse(result.map));
         asset.setMap(map);
       }
     } catch (err) {
@@ -104,37 +102,92 @@ export default (new Transformer({
   },
 }): Transformer);
 
-function resolvePathImporter({resolve}) {
-  return function(rawUrl, prev, done) {
-    let url = rawUrl.replace(/^file:\/\//, '');
+function resolvePathImporter({asset, resolve, includePaths, options}) {
+  // This is a reimplementation of the Sass resolution algorithm that uses Parcel's
+  // FS and tracks all tried files so they are watched for creation.
+  async function resolvePath(
+    url,
+    prev,
+  ): Promise<{filePath: string, contents: string, ...} | void> {
+    /*
+      Imports are resolved by trying, in order:
+        * Loading a file relative to the file in which the `@import` appeared.
+        * Each custom importer.
+        * Loading a file relative to the current working directory (This rule doesn't really make sense for Parcel).
+        * Each load path in `includePaths`
+        * Each load path specified in the `SASS_PATH` environment variable, which should be semicolon-separated on Windows and colon-separated elsewhere.
 
-    if (WEBPACK_ALIAS_RE.test(url)) {
-      const correctPath = url.replace(/^~/, '');
-      const error = new Error(
-        `The @import path "${url}" is using webpack specific syntax, which isn't supported by Parcel.\n\nTo @import files from node_modules, use "${correctPath}"`,
-      );
-      done(error);
-      return;
+      See: https://sass-lang.com/documentation/js-api#importer
+      See also: https://github.com/sass/dart-sass/blob/006e6aa62f2417b5267ad5cdb5ba050226fab511/lib/src/importer/node/implementation.dart
+    */
+
+    let paths = [path.dirname(prev)];
+    if (includePaths) {
+      paths.push(...includePaths);
     }
 
-    resolve(prev, url)
-      .then(resolvedPath => {
-        done({file: resolvedPath});
+    asset.invalidateOnEnvChange('SASS_PATH');
+    if (options.env.SASS_PATH) {
+      paths.push(
+        ...options.env.SASS_PATH.split(
+          process.platform === 'win32' ? ';' : ':',
+        ).map(p => path.resolve(options.projectRoot, p)),
+      );
+    }
+
+    const urls = [url];
+    const urlFileName = path.basename(url);
+    if (urlFileName[0] !== '_') {
+      urls.push(path.join(path.dirname(url), `_${urlFileName}`));
+    }
+
+    if (url[0] !== '~') {
+      for (let p of paths) {
+        for (let u of urls) {
+          const filePath = path.resolve(p, u);
+          try {
+            const contents = await asset.fs.readFile(filePath, 'utf8');
+            return {
+              filePath,
+              contents,
+            };
+          } catch (err) {
+            asset.invalidateOnFileCreate({filePath});
+          }
+        }
+      }
+    }
+
+    // If none of the default sass rules apply, try Parcel's resolver.
+    for (let u of urls) {
+      if (NODE_MODULE_ALIAS_RE.test(u)) {
+        u = u.slice(1);
+      }
+      try {
+        const filePath = await resolve(prev, u);
+        if (filePath) {
+          const contents = await asset.fs.readFile(filePath, 'utf8');
+          return {filePath, contents};
+        }
+      } catch (err) {
+        continue;
+      }
+    }
+  }
+
+  return function(rawUrl, prev, done) {
+    const url = rawUrl.replace(/^file:\/\//, '');
+    resolvePath(url, prev)
+      .then(resolved => {
+        if (resolved) {
+          done({
+            file: pathToFileURL(resolved.filePath).toString(),
+            contents: resolved.contents,
+          });
+        } else {
+          done();
+        }
       })
-      .catch(() => {
-        /*
-         We return `null` instead of an error so that Sass' resolution algorithm can continue.
-
-         Imports are resolved by trying, in order:
-           * Loading a file relative to the file in which the `@import` appeared.
-           * Each custom importer.
-           * Loading a file relative to the current working directory.
-           * Each load path in `includePaths`
-           * Each load path specified in the `SASS_PATH` environment variable, which should be semicolon-separated on Windows and colon-separated elsewhere.
-
-         See: https://sass-lang.com/documentation/js-api#importer
-        */
-        done(null);
-      });
+      .catch(done);
   };
 }

@@ -1,12 +1,12 @@
 // @flow
 import {TSModule} from './TSModule';
 import type {TSModuleGraph} from './TSModuleGraph';
-import typeof TypeScriptModule from 'typescript'; // eslint-disable-line import/no-extraneous-dependencies
-import {getExportedName, isDeclaration} from './utils';
+
+import ts from 'typescript';
 import nullthrows from 'nullthrows';
+import {getExportedName, isDeclaration} from './utils';
 
 export function shake(
-  ts: TypeScriptModule,
   moduleGraph: TSModuleGraph,
   context: any,
   sourceFile: any,
@@ -19,7 +19,7 @@ export function shake(
   // Propagate exports from the main module to determine what types should be included
   let exportedNames = moduleGraph.propagate(context);
 
-  let currentModule: ?TSModule;
+  let _currentModule: ?TSModule;
   let visit = (node: any): any => {
     if (ts.isBundle(node)) {
       return ts.updateBundle(node, ts.visitNodes(node.sourceFiles, visit));
@@ -27,18 +27,18 @@ export function shake(
 
     // Flatten all module declarations into the top-level scope
     if (ts.isModuleDeclaration(node)) {
-      let isFirstModule = !currentModule;
-      currentModule = moduleGraph.getModule(node.name.text);
+      let isFirstModule = !_currentModule;
+      _currentModule = moduleGraph.getModule(node.name.text);
       let statements = ts.visitEachChild(node, visit, context).body.statements;
 
       if (isFirstModule) {
-        statements.unshift(...generateImports(ts, moduleGraph));
+        statements.unshift(...generateImports(moduleGraph));
       }
 
       return statements;
     }
 
-    if (!currentModule) {
+    if (!_currentModule) {
       return ts.visitEachChild(node, visit, context);
     }
 
@@ -47,6 +47,7 @@ export function shake(
       return null;
     }
 
+    let currentModule = nullthrows(_currentModule);
     // Remove exports from flattened modules
     if (ts.isExportDeclaration(node)) {
       if (
@@ -206,7 +207,7 @@ export function shake(
   return ts.visitNode(sourceFile, visit);
 }
 
-function generateImports(ts: TypeScriptModule, moduleGraph: TSModuleGraph) {
+function generateImports(moduleGraph: TSModuleGraph) {
   let importStatements = [];
   for (let [specifier, names] of moduleGraph.getAllImports()) {
     let defaultSpecifier;
@@ -222,8 +223,8 @@ function generateImports(ts: TypeScriptModule, moduleGraph: TSModuleGraph) {
       } else {
         namedSpecifiers.push(
           ts.createImportSpecifier(
-            name === imported ? undefined : ts.createIdentifier(name),
-            ts.createIdentifier(imported),
+            name === imported ? undefined : ts.createIdentifier(imported),
+            ts.createIdentifier(name),
           ),
         );
       }

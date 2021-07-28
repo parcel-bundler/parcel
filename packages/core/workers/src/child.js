@@ -16,6 +16,7 @@ import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import Logger, {patchConsole, unpatchConsole} from '@parcel/logger';
 import ThrowableDiagnostic, {anyToDiagnostic} from '@parcel/diagnostic';
+import {deserialize} from '@parcel/core';
 import bus from './bus';
 import Profiler from './Profiler';
 import _Handle from './Handle';
@@ -45,8 +46,10 @@ export class Child {
 
   constructor(ChildBackend: Class<ChildImpl>) {
     this.child = new ChildBackend(
-      this.messageListener.bind(this),
-      this.handleEnd.bind(this),
+      m => {
+        this.messageListener(m);
+      },
+      () => this.handleEnd(),
     );
 
     // Monitior all logging events inside this child process and forward to
@@ -92,10 +95,14 @@ export class Child {
     this.child.send(data);
   }
 
-  childInit(module: string, childId: number): void {
+  async childInit(module: string, childId: number): Promise<void> {
     // $FlowFixMe this must be dynamic
     this.module = require(module);
     this.childId = childId;
+
+    if (this.module.childInit != null) {
+      await this.module.childInit();
+    }
   }
 
   async handleRequest(data: WorkerRequest): Promise<void> {
@@ -129,13 +136,13 @@ export class Child {
     } else if (method === 'childInit') {
       try {
         let [moduleName, childOptions] = args;
-        if (childOptions.patchConsole) {
+        if (childOptions.shouldPatchConsole) {
           patchConsole();
         } else {
           unpatchConsole();
         }
 
-        result = responseFromContent(this.childInit(moduleName, child));
+        result = responseFromContent(await this.childInit(moduleName, child));
       } catch (e) {
         result = errorResponseFromError(e);
       }
@@ -170,7 +177,13 @@ export class Child {
         result = errorResponseFromError(e);
       }
     } else if (method === 'createSharedReference') {
-      let [ref, value] = args;
+      let [ref, _value] = args;
+      let value =
+        _value instanceof ArrayBuffer
+          ? // In the case the value is pre-serialized as a buffer,
+            // deserialize it.
+            deserialize(Buffer.from(_value))
+          : _value;
       this.sharedReferences.set(ref, value);
       this.sharedReferencesByValue.set(value, ref);
       result = responseFromContent(null);
@@ -191,7 +204,11 @@ export class Child {
       }
     }
 
-    this.send(result);
+    try {
+      this.send(result);
+    } catch (e) {
+      result = this.send(errorResponseFromError(e));
+    }
   }
 
   handleResponse(data: WorkerResponse): void {

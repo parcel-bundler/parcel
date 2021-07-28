@@ -1,7 +1,7 @@
 // @flow
 // Copied from babel-traverse, but with virtual types handling removed
 // https://github.com/babel/babel/blob/07b3dc18a09f2217b38a3a63c8613add6df1b47d/packages/babel-traverse/src/visitors.js
-import type {Visitors, VisitorsExploded} from './index';
+import type {SimpleVisitors, VisitorsExploded} from './index';
 
 // import * as messages from 'babel-messages';
 import * as t from '@babel/types';
@@ -21,7 +21,9 @@ import clone from 'lodash.clone';
  * * `enter` and `exit` functions are wrapped in arrays, to ease merging of
  *   visitors
  */
-export default function explode<T>(visitor: Visitors<T>): VisitorsExploded<T> {
+export default function explode<T>(
+  visitor: SimpleVisitors<T>,
+): VisitorsExploded<T> {
   // $FlowFixMe
   if (visitor._exploded) return visitor;
   // $FlowFixMe

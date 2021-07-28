@@ -4,26 +4,6 @@ export function unique<T>(array: Array<T>): Array<T> {
   return [...new Set(array)];
 }
 
-export function flat<T>(array: $ReadOnlyArray<$ReadOnlyArray<T>>): Array<T> {
-  let out = [];
-  for (let v of array) {
-    out.push(...v);
-  }
-  return out;
-}
-
-export function flatMap<T, U>(
-  array: Array<T>,
-  projectFn: (T, number, Array<T>) => Array<U>,
-): Array<U> {
-  let out = [];
-
-  for (let i = 0; i < array.length; i++) {
-    out.push(...projectFn(array[i], i, array));
-  }
-  return out;
-}
-
 export function objectSortedEntries(obj: {
   +[string]: mixed,
   ...,

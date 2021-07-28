@@ -1,0 +1,13 @@
+{
+  "name": "@parcel/target-source",
+  "version": "2.0.0-beta.1",
+  "license": "MIT",
+  "private": true,
+  "source": "src/index.js",
+  "scripts": {
+    "clean": "rm -rf ../.parcel-cache dist",
+    "demo": "yarn clean && PARCEL_WORKERS=0 parcel build packages/package-a",
+    "debug": "yarn clean && PARCEL_WORKERS=0 node --inspect-brk ../../core/parcel/src/bin.js build packages/*",
+    "watch": "nodemon -w ../../ -i packages/package-a/dist -i packages/package-b/dist -i ../.parcel-cache -d 2 -x yarn demo"
+  }
+}

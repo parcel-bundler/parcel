@@ -6,14 +6,10 @@ import type {AnsiDiagnosticResult} from '@parcel/utils';
 import type {ServerError, HMRServerOptions} from './types.js.flow';
 
 import WebSocket from 'ws';
-import {
-  ansiHtml,
-  md5FromObject,
-  prettyDiagnostic,
-  PromiseQueue,
-} from '@parcel/utils';
+import invariant from 'assert';
+import {ansiHtml, prettyDiagnostic, PromiseQueue} from '@parcel/utils';
 
-type HMRAsset = {|
+export type HMRAsset = {|
   id: string,
   type: string,
   output: string,
@@ -21,7 +17,7 @@ type HMRAsset = {|
   depsByBundle: {[string]: {[string]: string, ...}, ...},
 |};
 
-type HMRMessage =
+export type HMRMessage =
   | {|
       type: 'update',
       assets: Array<HMRAsset>,
@@ -37,7 +33,7 @@ type HMRMessage =
 const FS_CONCURRENCY = 64;
 
 export default class HMRServer {
-  wss: typeof WebSocket.Server;
+  wss: WebSocket.Server;
   unresolvedError: HMRMessage | null = null;
   options: HMRServerOptions;
 
@@ -46,32 +42,24 @@ export default class HMRServer {
   }
 
   start(): any {
-    let websocketOptions = {
-      /*verifyClient: info => {
-          if (!this.options.host) return true;
-
-          let originator = new URL(info.origin);
-          return this.options.host === originator.hostname;
-        }*/
-    };
-    if (this.options.devServer) {
-      websocketOptions.server = this.options.devServer;
-    } else if (this.options.port) {
-      websocketOptions.port = this.options.port;
-    }
-    this.wss = new WebSocket.Server(websocketOptions);
+    this.wss = new WebSocket.Server(
+      this.options.devServer
+        ? {server: this.options.devServer}
+        : {port: this.options.port},
+    );
 
     this.wss.on('connection', ws => {
-      ws.onerror = this.handleSocketError;
-
       if (this.unresolvedError) {
         ws.send(JSON.stringify(this.unresolvedError));
       }
     });
 
-    this.wss.on('error', this.handleSocketError);
+    // $FlowFixMe[incompatible-exact]
+    this.wss.on('error', err => this.handleSocketError(err));
 
-    return this.wss._server.address().port;
+    let address = this.wss.address();
+    invariant(typeof address === 'object' && address != null);
+    return address.port;
   }
 
   stop() {
@@ -122,7 +110,7 @@ export default class HMRServer {
               bundle,
             );
             if (resolved) {
-              deps[dep.moduleSpecifier] = event.bundleGraph.getAssetPublicId(
+              deps[dep.specifier] = event.bundleGraph.getAssetPublicId(
                 resolved,
               );
             }
@@ -134,7 +122,7 @@ export default class HMRServer {
           id: event.bundleGraph.getAssetPublicId(asset),
           type: asset.type,
           output: await asset.getCode(),
-          envHash: md5FromObject(asset.env),
+          envHash: asset.env.id,
           depsByBundle,
         };
       });

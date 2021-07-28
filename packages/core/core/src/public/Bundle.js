@@ -1,17 +1,22 @@
 // @flow strict-local
-// flowlint unsafe-getters-setters:off
 
-import type {Bundle as InternalBundle, ParcelOptions} from '../types';
+import type {
+  Bundle as InternalBundle,
+  ParcelOptions,
+  PackagedBundleInfo,
+} from '../types';
 import type {
   Asset as IAsset,
   Bundle as IBundle,
   BundleTraversable,
+  Dependency as IDependency,
   Environment as IEnvironment,
-  FilePath,
+  GraphVisitor,
   NamedBundle as INamedBundle,
+  PackagedBundle as IPackagedBundle,
   Stats,
   Target as ITarget,
-  GraphVisitor,
+  BundleBehavior,
 } from '@parcel/types';
 import type BundleGraph from '../BundleGraph';
 
@@ -22,8 +27,10 @@ import {DefaultWeakMap} from '@parcel/utils';
 import {assetToAssetValue, assetFromValue} from './Asset';
 import {mapVisitor} from '../Graph';
 import Environment from './Environment';
-import Dependency from './Dependency';
+import Dependency, {dependencyToInternalDependency} from './Dependency';
 import Target from './Target';
+import {BundleBehaviorNames} from '../types';
+import {fromProjectPath} from '../projectPath';
 
 const internalBundleToBundle: DefaultWeakMap<
   ParcelOptions,
@@ -32,6 +39,10 @@ const internalBundleToBundle: DefaultWeakMap<
 const internalBundleToNamedBundle: DefaultWeakMap<
   ParcelOptions,
   DefaultWeakMap<BundleGraph, WeakMap<InternalBundle, NamedBundle>>,
+> = new DefaultWeakMap(() => new DefaultWeakMap(() => new WeakMap()));
+const internalBundleToPackagedBundle: DefaultWeakMap<
+  ParcelOptions,
+  DefaultWeakMap<BundleGraph, WeakMap<InternalBundle, PackagedBundle>>,
 > = new DefaultWeakMap(() => new DefaultWeakMap(() => new WeakMap()));
 
 // Friendly access for other modules within this package that need access
@@ -104,15 +115,16 @@ export class Bundle implements IBundle {
   }
 
   get env(): IEnvironment {
-    return new Environment(this.#bundle.env);
+    return new Environment(this.#bundle.env, this.#options);
   }
 
-  get isEntry(): ?boolean {
-    return this.#bundle.isEntry;
+  get needsStableName(): ?boolean {
+    return this.#bundle.needsStableName;
   }
 
-  get isInline(): ?boolean {
-    return this.#bundle.isInline;
+  get bundleBehavior(): ?BundleBehavior {
+    let bundleBehavior = this.#bundle.bundleBehavior;
+    return bundleBehavior != null ? BundleBehaviorNames[bundleBehavior] : null;
   }
 
   get isSplittable(): ?boolean {
@@ -120,19 +132,7 @@ export class Bundle implements IBundle {
   }
 
   get target(): ITarget {
-    return new Target(this.#bundle.target);
-  }
-
-  get filePath(): ?FilePath {
-    return this.#bundle.filePath;
-  }
-
-  get name(): ?string {
-    return this.#bundle.name;
-  }
-
-  get stats(): Stats {
-    return this.#bundle.stats;
+    return new Target(this.#bundle.target, this.#options);
   }
 
   hasAsset(asset: IAsset): boolean {
@@ -142,9 +142,16 @@ export class Bundle implements IBundle {
     );
   }
 
+  hasDependency(dep: IDependency): boolean {
+    return this.#bundleGraph.bundleHasDependency(
+      this.#bundle,
+      dependencyToInternalDependency(dep),
+    );
+  }
+
   getEntryAssets(): Array<IAsset> {
     return this.#bundle.entryAssetIds.map(id => {
-      let assetNode = this.#bundleGraph._graph.getNode(id);
+      let assetNode = this.#bundleGraph._graph.getNodeByContentKey(id);
       invariant(assetNode != null && assetNode.type === 'asset');
       return assetFromValue(assetNode.value, this.#options);
     });
@@ -152,7 +159,7 @@ export class Bundle implements IBundle {
 
   getMainEntry(): ?IAsset {
     if (this.#bundle.mainEntryId != null) {
-      let assetNode = this.#bundleGraph._graph.getNode(
+      let assetNode = this.#bundleGraph._graph.getNodeByContentKey(
         this.#bundle.mainEntryId,
       );
       invariant(assetNode != null && assetNode.type === 'asset');
@@ -172,7 +179,10 @@ export class Bundle implements IBundle {
             value: assetFromValue(node.value, this.#options),
           };
         } else if (node.type === 'dependency') {
-          return {type: 'dependency', value: new Dependency(node.value)};
+          return {
+            type: 'dependency',
+            value: new Dependency(node.value, this.#options),
+          };
         }
       }, visit),
     );
@@ -189,6 +199,7 @@ export class Bundle implements IBundle {
 export class NamedBundle extends Bundle implements INamedBundle {
   #bundle /*: InternalBundle */;
   #bundleGraph /*: BundleGraph */;
+  #options /*: ParcelOptions */;
 
   constructor(
     sentinel: mixed,
@@ -199,6 +210,7 @@ export class NamedBundle extends Bundle implements INamedBundle {
     super(sentinel, bundle, bundleGraph, options);
     this.#bundle = bundle; // Repeating for flow
     this.#bundleGraph = bundleGraph; // Repeating for flow
+    this.#options = options;
   }
 
   static get(
@@ -225,10 +237,6 @@ export class NamedBundle extends Bundle implements INamedBundle {
     return namedBundle;
   }
 
-  get filePath(): FilePath {
-    return nullthrows(this.#bundle.filePath);
-  }
-
   get name(): string {
     return nullthrows(this.#bundle.name);
   }
@@ -239,5 +247,76 @@ export class NamedBundle extends Bundle implements INamedBundle {
 
   get publicId(): string {
     return nullthrows(this.#bundle.publicId);
+  }
+}
+
+export class PackagedBundle extends NamedBundle implements IPackagedBundle {
+  #bundle /*: InternalBundle */;
+  #bundleGraph /*: BundleGraph */;
+  #options /*: ParcelOptions */;
+  #bundleInfo /*: ?PackagedBundleInfo */;
+
+  constructor(
+    sentinel: mixed,
+    bundle: InternalBundle,
+    bundleGraph: BundleGraph,
+    options: ParcelOptions,
+  ) {
+    super(sentinel, bundle, bundleGraph, options);
+    this.#bundle = bundle; // Repeating for flow
+    this.#bundleGraph = bundleGraph; // Repeating for flow
+    this.#options = options; // Repeating for flow
+  }
+
+  static get(
+    internalBundle: InternalBundle,
+    bundleGraph: BundleGraph,
+    options: ParcelOptions,
+  ): PackagedBundle {
+    let existingMap = internalBundleToPackagedBundle
+      .get(options)
+      .get(bundleGraph);
+    let existing = existingMap.get(internalBundle);
+    if (existing != null) {
+      return existing;
+    }
+
+    let packagedBundle = new PackagedBundle(
+      _private,
+      internalBundle,
+      bundleGraph,
+      options,
+    );
+    _bundleToInternalBundle.set(packagedBundle, internalBundle);
+    _bundleToInternalBundleGraph.set(packagedBundle, bundleGraph);
+    existingMap.set(internalBundle, packagedBundle);
+
+    return packagedBundle;
+  }
+
+  static getWithInfo(
+    internalBundle: InternalBundle,
+    bundleGraph: BundleGraph,
+    options: ParcelOptions,
+    bundleInfo: ?PackagedBundleInfo,
+  ): PackagedBundle {
+    let packagedBundle = PackagedBundle.get(
+      internalBundle,
+      bundleGraph,
+      options,
+    );
+    packagedBundle.#bundleInfo = bundleInfo;
+    return packagedBundle;
+  }
+
+  get filePath(): string {
+    return fromProjectPath(
+      this.#options.projectRoot,
+      nullthrows(this.#bundleInfo).filePath,
+    );
+  }
+
+  get stats(): Stats {
+    return nullthrows(this.#bundleInfo).stats;
   }
 }

@@ -23,10 +23,11 @@ export class TSModule {
   addImport(local: string, specifier: string, imported: string) {
     this.imports.set(local, {specifier, imported});
     if (imported !== '*' && imported !== 'default') {
-      this.names.set(local, imported);
+      this.names.set(local, local);
     }
   }
 
+  // if not a reexport: imported = local, name = exported
   addExport(name: string, imported: string, specifier: ?string) {
     this.exports.push({name, specifier, imported});
   }

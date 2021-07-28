@@ -47,7 +47,7 @@ describe('typescript types', function() {
     assertBundles(b, [
       {
         type: 'js',
-        assets: ['index.ts', 'file.ts', 'namespace.ts'],
+        assets: ['index.ts', 'namespace.ts'],
       },
       {
         type: 'ts',
@@ -63,6 +63,44 @@ describe('typescript types', function() {
     ).replace(/\r\n/g, '\n');
     let expected = await inputFS.readFile(
       path.join(__dirname, '/integration/ts-types/importing/expected.d.ts'),
+      'utf8',
+    );
+    assert.equal(dist, expected);
+  });
+
+  it('should generate ts declarations with imports and naming collisions', async function() {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/ts-types/importing-collision/index.ts',
+      ),
+    );
+
+    assertBundles(b, [
+      {
+        type: 'js',
+        assets: ['index.ts', 'other1.ts', 'other2.ts'],
+      },
+      {
+        type: 'ts',
+        assets: ['index.ts'],
+      },
+    ]);
+
+    let dist = (
+      await outputFS.readFile(
+        path.join(
+          __dirname,
+          '/integration/ts-types/importing-collision/dist/types.d.ts',
+        ),
+        'utf8',
+      )
+    ).replace(/\r\n/g, '\n');
+    let expected = await inputFS.readFile(
+      path.join(
+        __dirname,
+        '/integration/ts-types/importing-collision/expected.d.ts',
+      ),
       'utf8',
     );
     assert.equal(dist, expected);
@@ -121,6 +159,44 @@ describe('typescript types', function() {
     ).replace(/\r\n/g, '\n');
     let expected = await inputFS.readFile(
       path.join(__dirname, '/integration/ts-types/externals/expected.d.ts'),
+      'utf8',
+    );
+    assert.equal(dist, expected);
+  });
+
+  it('should generate ts declarations with externals that conflict with exported names', async function() {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/ts-types/import-export-collision/index.ts',
+      ),
+    );
+
+    assertBundles(b, [
+      {
+        type: 'js',
+        assets: ['index.ts'],
+      },
+      {
+        type: 'ts',
+        assets: ['index.ts'],
+      },
+    ]);
+
+    let dist = (
+      await outputFS.readFile(
+        path.join(
+          __dirname,
+          '/integration/ts-types/import-export-collision/dist/types.d.ts',
+        ),
+        'utf8',
+      )
+    ).replace(/\r\n/g, '\n');
+    let expected = await inputFS.readFile(
+      path.join(
+        __dirname,
+        '/integration/ts-types/import-export-collision/expected.d.ts',
+      ),
       'utf8',
     );
     assert.equal(dist, expected);
@@ -193,5 +269,23 @@ describe('typescript types', function() {
     ).replace(/\r\n/g, '\n');
 
     assert(/import\s*{\s*B\s*}\s*from\s*"b";/.test(dist));
+  });
+
+  it('should generate a typescript declaration file even when composite is true', async function() {
+    await bundle(
+      path.join(__dirname, '/integration/ts-types/composite/index.ts'),
+    );
+
+    let dist = (
+      await outputFS.readFile(
+        path.join(__dirname, '/integration/ts-types/composite/dist/index.d.ts'),
+        'utf8',
+      )
+    ).replace(/\r\n/g, '\n');
+    let expected = await inputFS.readFile(
+      path.join(__dirname, '/integration/ts-types/composite/expected.d.ts'),
+      'utf8',
+    );
+    assert.equal(dist, expected);
   });
 });

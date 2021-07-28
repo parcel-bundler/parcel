@@ -1,0 +1,41 @@
+//@flow strict-local
+
+// Derived from the README and source of json-source-map located at
+// https://github.com/epoberezkin/json-source-map and
+// https://github.com/epoberezkin/json-source-map/blob/v0.6.1/index.js
+// Which is licensed MIT
+
+declare module 'json-source-map' {
+  declare type Position = {|
+    line: number,
+    column: number,
+    pos: number,
+  |};
+
+  declare export type Mapping = {|
+    value: Position,
+    valueEnd: Position,
+    key?: Position,
+    keyEnd?: Position,
+  |};
+
+  declare export default {|
+    parse: (
+      json: string,
+      _?: mixed,
+      opts?: {|bigint: boolean|},
+    ) => {|
+      data: any,
+      pointers: {|[key: string]: Mapping|},
+    |},
+
+    stringify: (
+      data: any,
+      _?: mixed,
+      space?: string | number | {|space: number, es6: boolean|},
+    ) => {|
+      json: string,
+      pointers: {|[key: string]: Mapping|},
+    |},
+  |};
+}

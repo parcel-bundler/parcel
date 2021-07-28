@@ -88,14 +88,15 @@ function isReactRefreshBoundary(exports) {
   }
   var hasExports = false;
   var areAllExportsComponents = true;
+  let isESM = '__esModule' in exports;
   for (var key in exports) {
     hasExports = true;
     if (key === '__esModule') {
       continue;
     }
     var desc = Object.getOwnPropertyDescriptor(exports, key);
-    if (desc && desc.get) {
-      // Don't invoke getters as they may have side effects.
+    if (desc && desc.get && !isESM) {
+      // Don't invoke getters for CJS as they may have side effects.
       return false;
     }
     var exportValue = exports[key];
@@ -129,12 +130,14 @@ function getRefreshBoundarySignature(exports) {
     // (This is important for legacy environments.)
     return signature;
   }
+  let isESM = '__esModule' in exports;
   for (var key in exports) {
     if (key === '__esModule') {
       continue;
     }
     var desc = Object.getOwnPropertyDescriptor(exports, key);
-    if (desc && desc.get) {
+    if (desc && desc.get && !isESM) {
+      // Don't invoke getters for CJS as they may have side effects.
       continue;
     }
     var exportValue = exports[key];
@@ -153,10 +156,11 @@ function registerExportsForReactRefresh(module) {
     // (This is important for legacy environments.)
     return;
   }
+  let isESM = '__esModule' in exports;
   for (var key in exports) {
     var desc = Object.getOwnPropertyDescriptor(exports, key);
-    if (desc && desc.get) {
-      // Don't invoke getters as they may have side effects.
+    if (desc && desc.get && !isESM) {
+      // Don't invoke getters for CJS as they may have side effects.
       continue;
     }
     var exportValue = exports[key];

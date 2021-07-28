@@ -5,12 +5,27 @@ import {
   bundle as _bundle,
   inputFS,
   outputFS,
+  overlayFS,
   shallowEqual,
   distDir,
+  mergeParcelOptions,
 } from '@parcel/test-utils';
 import {loadSourceMapUrl} from '@parcel/utils';
 
-const bundle = (name, opts = {}) => _bundle(name, {sourceMaps: true, ...opts});
+const bundle = (name, opts = {}) => {
+  return _bundle(
+    name,
+    // $FlowFixMe
+    mergeParcelOptions(
+      {
+        defaultTargetOptions: {
+          sourceMaps: true,
+        },
+      },
+      opts,
+    ),
+  );
+};
 
 function indexToLineCol(str, index) {
   let beforeIndex = str.slice(0, index);
@@ -52,10 +67,28 @@ function checkSourceMapping({
   let sourceWhitespacePosition = indexToLineCol(source, matchWhitespaceIndex);
   let sourcePosition = indexToLineCol(source, matchIndex);
 
-  let mapping = map.findClosestMapping(
-    generatedPosition.line,
-    generatedPosition.column,
-  );
+  let mapContent = map.getMap();
+  let mapping = null;
+
+  // Find closest mapping...
+  let mappings = mapContent.mappings
+    .filter(m => m.generated.line === generatedPosition.line)
+    .sort((a, b) => a.generated.column - b.generated.column);
+  let closestIndex = -1;
+  let lastDistance = Number.MAX_SAFE_INTEGER;
+  for (let i = 0; i < mappings.length; i++) {
+    let currMapping = mappings[i];
+    let distance = Math.abs(
+      currMapping.generated.column - generatedPosition.column,
+    );
+    if (distance < lastDistance) {
+      lastDistance = distance;
+      closestIndex = i;
+    }
+  }
+  if (closestIndex > -1) {
+    mapping = map.indexedMappingToStringMapping(mappings[closestIndex]);
+  }
 
   assert(mapping, "no mapping for '" + str + "'" + msg);
 
@@ -122,18 +155,21 @@ describe('sourcemaps', function() {
     let map = mapUrlData.map;
 
     let sourceMap = new SourceMap('/');
-    sourceMap.addRawMappings(map);
+    sourceMap.addVLQMap(map);
     let input = await inputFS.readFile(
       path.join(path.dirname(filename), map.sourceRoot, map.sources[0]),
       'utf8',
     );
-    let sourcePath = './index.js';
+    let sourcePath = 'index.js';
+
+    let name = raw.match(/function (\$.*\$var\$helloWorld)/)[1];
 
     checkSourceMapping({
       map: sourceMap,
       source: input,
       generated: raw,
       str: 'function helloWorld',
+      generatedStr: 'function ' + name,
       sourcePath,
     });
 
@@ -142,6 +178,7 @@ describe('sourcemaps', function() {
       source: input,
       generated: raw,
       str: 'module.exports = helloWorld;',
+      generatedStr: 'module.exports = ' + name + ';',
       sourcePath,
     });
 
@@ -157,7 +194,7 @@ describe('sourcemaps', function() {
   it('Should create a basic browser sourcemap when serving', async function() {
     let fixture = path.join(__dirname, '/integration/sourcemap');
     let sourceFilename = path.join(fixture, 'index.js');
-    await bundle(sourceFilename, {serve: {port: 1234}});
+    await bundle(sourceFilename, {serveOptions: {port: 1234}});
 
     let filename = path.join(distDir, 'index.js');
     let raw = await outputFS.readFile(filename, 'utf8');
@@ -168,7 +205,7 @@ describe('sourcemaps', function() {
     let map = mapUrlData.map;
 
     let sourceMap = new SourceMap('/');
-    sourceMap.addRawMappings(map);
+    sourceMap.addVLQMap(map);
     assert.strictEqual(map.sourceRoot, '/__parcel_source_root/');
     let input = await inputFS.readFile(
       path.join(fixture, map.sources[0]),
@@ -224,9 +261,9 @@ describe('sourcemaps', function() {
     );
 
     let sourceMap = new SourceMap('/');
-    sourceMap.addRawMappings(map);
+    sourceMap.addVLQMap(map);
     let input = await inputFS.readFile(sourceFilename, 'utf8');
-    let sourcePath = './index.js';
+    let sourcePath = 'index.js';
     let mapData = sourceMap.getMap();
     assert.equal(mapData.sources.length, 1);
 
@@ -282,7 +319,7 @@ describe('sourcemaps', function() {
     );
 
     let sourceMap = new SourceMap('/');
-    sourceMap.addRawMappings(map);
+    sourceMap.addVLQMap(map);
     let mapData = sourceMap.getMap();
     assert.equal(mapData.sources.length, 3);
 
@@ -304,7 +341,7 @@ describe('sourcemaps', function() {
       source: inputs[0],
       generated: raw,
       str: 'const local',
-      sourcePath: './index.js',
+      sourcePath: 'index.js',
     });
 
     checkSourceMapping({
@@ -312,7 +349,7 @@ describe('sourcemaps', function() {
       source: inputs[0],
       generated: raw,
       str: 'local.a',
-      sourcePath: './index.js',
+      sourcePath: 'index.js',
     });
 
     checkSourceMapping({
@@ -320,7 +357,7 @@ describe('sourcemaps', function() {
       source: inputs[1],
       generated: raw,
       str: 'exports.a',
-      sourcePath: './local.js',
+      sourcePath: 'local.js',
     });
 
     checkSourceMapping({
@@ -328,8 +365,8 @@ describe('sourcemaps', function() {
       source: inputs[2],
       generated: raw,
       str: 'exports.count = function(a, b) {',
-      generatedStr: 'exports.count = function (a, b) {',
-      sourcePath: './utils/util.js',
+      generatedStr: 'exports.count = function(a, b) {',
+      sourcePath: 'utils/util.js',
     });
 
     checkSourceMapping({
@@ -337,7 +374,7 @@ describe('sourcemaps', function() {
       source: inputs[2],
       generated: raw,
       str: 'return a + b',
-      sourcePath: './utils/util.js',
+      sourcePath: 'utils/util.js',
     });
   });
 
@@ -348,7 +385,9 @@ describe('sourcemaps', function() {
     );
     let sourceFilename = path.join(sourceDir, '/index.js');
     await bundle(sourceFilename, {
-      minify: true,
+      defaultTargetOptions: {
+        shouldOptimize: true,
+      },
     });
 
     let distDir = path.join(
@@ -371,7 +410,7 @@ describe('sourcemaps', function() {
     );
 
     let sourceMap = new SourceMap('/');
-    sourceMap.addRawMappings(map);
+    sourceMap.addVLQMap(map);
     let mapData = sourceMap.getMap();
     assert.equal(mapData.sources.length, 3);
 
@@ -394,8 +433,8 @@ describe('sourcemaps', function() {
       source: inputs[0],
       generated: raw,
       str: 'const local',
-      generatedStr: 'const t',
-      sourcePath: './index.js',
+      generatedStr: 'const o',
+      sourcePath: 'index.js',
     });
 
     checkSourceMapping({
@@ -403,8 +442,8 @@ describe('sourcemaps', function() {
       source: inputs[0],
       generated: raw,
       str: 'local.a',
-      generatedStr: 't.a',
-      sourcePath: './index.js',
+      generatedStr: 'o.a',
+      sourcePath: 'index.js',
     });
 
     checkSourceMapping({
@@ -412,8 +451,8 @@ describe('sourcemaps', function() {
       source: inputs[1],
       generated: raw,
       str: 'exports.a',
-      generatedStr: 'o.a',
-      sourcePath: './local.js',
+      generatedStr: 't.a',
+      sourcePath: 'local.js',
     });
 
     checkSourceMapping({
@@ -421,17 +460,8 @@ describe('sourcemaps', function() {
       source: inputs[2],
       generated: raw,
       str: 'exports.count = function(a, b) {',
-      generatedStr: 'o.count=function(e,n){',
-      sourcePath: './utils/util.js',
-    });
-
-    checkSourceMapping({
-      map: sourceMap,
-      source: inputs[2],
-      generated: raw,
-      str: 'return a + b',
-      generatedStr: 'return e+n',
-      sourcePath: './utils/util.js',
+      generatedStr: 't.count=function(e,n){',
+      sourcePath: 'utils/util.js',
     });
   });
 
@@ -456,11 +486,14 @@ describe('sourcemaps', function() {
     // assert.equal(map.sourceRoot, '/__parcel_source_root/');
 
     let sourceMap = new SourceMap('/');
-    sourceMap.addRawMappings(map);
+    sourceMap.addVLQMap(map);
 
     let mapData = sourceMap.getMap();
-    assert.equal(mapData.sources.length, 1);
-    assert.deepEqual(mapData.sources, ['./index.ts']);
+    assert.equal(mapData.sources.length, 2);
+    assert.deepEqual(mapData.sources, [
+      'index.ts',
+      '../../../../../transformers/js/src/esmodule-helpers.js',
+    ]);
 
     let input = await inputFS.readFile(
       path.join(path.dirname(filename), map.sourceRoot, map.sources[0]),
@@ -471,7 +504,7 @@ describe('sourcemaps', function() {
       source: input,
       generated: raw,
       str: 'function env()',
-      sourcePath: './index.ts',
+      sourcePath: 'index.ts',
     });
   });
 
@@ -495,11 +528,15 @@ describe('sourcemaps', function() {
     assert(raw.includes('//# sourceMappingURL=index.js.map'));
 
     let sourceMap = new SourceMap('/');
-    sourceMap.addRawMappings(map);
+    sourceMap.addVLQMap(map);
 
     let mapData = sourceMap.getMap();
-    assert.equal(mapData.sources.length, 2);
-    assert.deepEqual(mapData.sources, ['./index.ts', './local.ts']);
+    assert.equal(mapData.sources.length, 3);
+    assert.deepEqual(mapData.sources, [
+      'index.ts',
+      'local.ts',
+      '../../../../../transformers/js/src/esmodule-helpers.js',
+    ]);
 
     let input = await inputFS.readFile(
       path.join(path.dirname(filename), map.sourceRoot, map.sources[0]),
@@ -510,7 +547,7 @@ describe('sourcemaps', function() {
       source: input,
       generated: raw,
       str: 'function env()',
-      sourcePath: './index.ts',
+      sourcePath: 'index.ts',
     });
 
     let local = await inputFS.readFile(
@@ -522,7 +559,7 @@ describe('sourcemaps', function() {
       source: local,
       generated: raw,
       str: 'exports.local',
-      sourcePath: './local.ts',
+      sourcePath: 'local.ts',
     });
   });
 
@@ -547,7 +584,7 @@ describe('sourcemaps', function() {
       assert(raw.includes('/*# sourceMappingURL=style.css.map */'));
 
       let sourceMap = new SourceMap('/');
-      sourceMap.addRawMappings(map);
+      sourceMap.addVLQMap(map);
 
       let input = await inputFS.readFile(
         path.join(path.dirname(filename), map.sourceRoot, map.sources[0]),
@@ -556,14 +593,14 @@ describe('sourcemaps', function() {
 
       let mapData = sourceMap.getMap();
       assert.equal(mapData.sources.length, 1);
-      assert.deepEqual(mapData.sources, ['./style.css']);
+      assert.deepEqual(mapData.sources, ['style.css']);
 
       checkSourceMapping({
         map: sourceMap,
         source: input,
         generated: raw,
         str: 'body',
-        sourcePath: './style.css',
+        sourcePath: 'style.css',
         msg: ' ' + (minify ? 'with' : 'without') + ' minification',
       });
 
@@ -572,7 +609,7 @@ describe('sourcemaps', function() {
         source: input,
         generated: raw,
         str: 'background-color',
-        sourcePath: './style.css',
+        sourcePath: 'style.css',
         msg: ' ' + (minify ? 'with' : 'without') + ' minification',
       });
     }
@@ -602,13 +639,13 @@ describe('sourcemaps', function() {
       assert(raw.includes('/*# sourceMappingURL=style.css.map */'));
 
       let sourceMap = new SourceMap('/');
-      sourceMap.addRawMappings(map);
+      sourceMap.addVLQMap(map);
 
       let mapData = sourceMap.getMap();
       assert.deepEqual(mapData.sources, [
-        './other-style.css',
-        './another-style.css',
-        './style.css',
+        'other-style.css',
+        'another-style.css',
+        'style.css',
       ]);
 
       let otherStyle = await inputFS.readFile(
@@ -629,7 +666,7 @@ describe('sourcemaps', function() {
         source: style,
         generated: raw,
         str: 'body',
-        sourcePath: './style.css',
+        sourcePath: 'style.css',
         msg: ' ' + (minify ? 'with' : 'without') + ' minification',
       });
 
@@ -638,7 +675,7 @@ describe('sourcemaps', function() {
         source: style,
         generated: raw,
         str: 'background-color',
-        sourcePath: './style.css',
+        sourcePath: 'style.css',
         msg: ' ' + (minify ? 'with' : 'without') + ' minification',
       });
 
@@ -647,7 +684,7 @@ describe('sourcemaps', function() {
         source: otherStyle,
         generated: raw,
         str: 'div',
-        sourcePath: './other-style.css',
+        sourcePath: 'other-style.css',
         msg: ' ' + (minify ? 'with' : 'without') + ' minification',
       });
 
@@ -656,7 +693,7 @@ describe('sourcemaps', function() {
         source: otherStyle,
         generated: raw,
         str: 'width',
-        sourcePath: './other-style.css',
+        sourcePath: 'other-style.css',
         msg: ' ' + (minify ? 'with' : 'without') + ' minification',
       });
 
@@ -665,7 +702,7 @@ describe('sourcemaps', function() {
         source: anotherStyle,
         generated: raw,
         str: 'main',
-        sourcePath: './another-style.css',
+        sourcePath: 'another-style.css',
         msg: ' ' + (minify ? 'with' : 'without') + ' minification',
       });
 
@@ -674,7 +711,7 @@ describe('sourcemaps', function() {
         source: anotherStyle,
         generated: raw,
         str: 'font-family',
-        sourcePath: './another-style.css',
+        sourcePath: 'another-style.css',
         msg: ' ' + (minify ? 'with' : 'without') + ' minification',
       });
     }
@@ -684,13 +721,17 @@ describe('sourcemaps', function() {
   });
 
   it('should create a valid sourcemap for a Sass asset', async function() {
-    async function test(minify) {
+    async function test(shouldOptimize) {
       let inputFilePath = path.join(
         __dirname,
         '/integration/sourcemap-sass/style.scss',
       );
 
-      await bundle(inputFilePath, {minify});
+      await bundle(inputFilePath, {
+        defaultTargetOptions: {
+          shouldOptimize,
+        },
+      });
       let distDir = path.join(__dirname, '../dist/');
       let filename = path.join(distDir, 'style.css');
       let raw = await outputFS.readFile(filename, 'utf8');
@@ -704,11 +745,11 @@ describe('sourcemaps', function() {
       assert(raw.includes('/*# sourceMappingURL=style.css.map */'));
 
       let sourceMap = new SourceMap('/');
-      sourceMap.addRawMappings(map);
+      sourceMap.addVLQMap(map);
 
       let mapData = sourceMap.getMap();
-      assert.equal(mapData.sources.length, minify ? 2 : 1);
-      assert.strictEqual(mapData.sources[0], './style.scss');
+      assert.equal(mapData.sources.length, shouldOptimize ? 2 : 1);
+      assert.strictEqual(mapData.sources[0], 'style.scss');
 
       let input = await inputFS.readFile(
         path.join(path.dirname(filename), map.sourceRoot, map.sources[0]),
@@ -720,8 +761,8 @@ describe('sourcemaps', function() {
         source: input,
         generated: raw,
         str: 'body',
-        sourcePath: './style.scss',
-        msg: ' ' + (minify ? 'with' : 'without') + ' minification',
+        sourcePath: 'style.scss',
+        msg: ' ' + (shouldOptimize ? 'with' : 'without') + ' minification',
       });
 
       checkSourceMapping({
@@ -729,8 +770,8 @@ describe('sourcemaps', function() {
         source: input,
         generated: raw,
         str: 'color',
-        sourcePath: './style.scss',
-        msg: ' ' + (minify ? 'with' : 'without') + ' minification',
+        sourcePath: 'style.scss',
+        msg: ' ' + (shouldOptimize ? 'with' : 'without') + ' minification',
       });
     }
 
@@ -738,14 +779,70 @@ describe('sourcemaps', function() {
     await test(true);
   });
 
+  it('should create a valid sourcemap for a Sass asset w/ imports', async function() {
+    let inputFilePath = path.join(
+      __dirname,
+      '/integration/scss-sourcemap-imports/style.scss',
+    );
+
+    await bundle(inputFilePath);
+    let distDir = path.join(__dirname, '../dist/');
+    let filename = path.join(distDir, 'style.css');
+    let raw = await outputFS.readFile(filename, 'utf8');
+    let mapUrlData = await loadSourceMapUrl(outputFS, filename, raw);
+    if (!mapUrlData) {
+      throw new Error('Could not load map');
+    }
+    let map = mapUrlData.map;
+
+    assert.equal(map.file, 'style.css.map');
+    assert(raw.includes('/*# sourceMappingURL=style.css.map */'));
+
+    let sourceMap = new SourceMap('/');
+    sourceMap.addVLQMap(map);
+
+    let mapData = sourceMap.getMap();
+    // This should actually just be `./integration/scss-sourcemap-imports/with_url.scss`
+    // but this is a small bug in the extend utility of the source-map library
+    assert.deepEqual(mapData.sources, [
+      'integration/scss-sourcemap-imports/style.scss',
+      'integration/scss-sourcemap-imports/with_url.scss',
+    ]);
+
+    let input = await inputFS.readFile(
+      path.join(path.dirname(filename), map.sourceRoot, map.sources[1]),
+      'utf-8',
+    );
+
+    checkSourceMapping({
+      map: sourceMap,
+      source: input,
+      generated: raw,
+      str: 'body',
+      sourcePath: 'integration/scss-sourcemap-imports/with_url.scss',
+    });
+
+    checkSourceMapping({
+      map: sourceMap,
+      source: input,
+      generated: raw,
+      str: 'background-color',
+      sourcePath: 'integration/scss-sourcemap-imports/with_url.scss',
+    });
+  });
+
   it('should create a valid sourcemap when for a CSS asset importing Sass', async function() {
-    async function test(minify) {
+    async function test(shouldOptimize) {
       let inputFilePath = path.join(
         __dirname,
         '/integration/sourcemap-sass-imported/style.css',
       );
 
-      await bundle(inputFilePath, {minify});
+      await bundle(inputFilePath, {
+        defaultTargetOptions: {
+          shouldOptimize,
+        },
+      });
       let distDir = path.join(__dirname, '../dist/');
       let filename = path.join(distDir, 'style.css');
       let raw = await outputFS.readFile(filename, 'utf8');
@@ -759,19 +856,19 @@ describe('sourcemaps', function() {
       assert(raw.includes('/*# sourceMappingURL=style.css.map */'));
 
       let sourceMap = new SourceMap('/');
-      sourceMap.addRawMappings(map);
+      sourceMap.addVLQMap(map);
 
       let mapData = sourceMap.getMap();
       // TODO: htmlnano inserts `./<input css 1>`
-      assert.equal(mapData.sources.length, minify ? 3 : 2);
-      assert.deepEqual(mapData.sources[0], './other.scss');
-      assert.deepEqual(mapData.sources[minify ? 2 : 1], './style.css');
+      assert.equal(mapData.sources.length, shouldOptimize ? 3 : 2);
+      assert.deepEqual(mapData.sources[0], 'other.scss');
+      assert.deepEqual(mapData.sources[shouldOptimize ? 2 : 1], 'style.css');
 
       let style = await inputFS.readFile(
         path.join(
           path.dirname(filename),
           map.sourceRoot,
-          map.sources[minify ? 2 : 1],
+          map.sources[shouldOptimize ? 2 : 1],
         ),
         'utf-8',
       );
@@ -785,8 +882,8 @@ describe('sourcemaps', function() {
         source: style,
         generated: raw,
         str: 'body',
-        sourcePath: './style.css',
-        msg: ' ' + (minify ? 'with' : 'without') + ' minification',
+        sourcePath: 'style.css',
+        msg: ' ' + (shouldOptimize ? 'with' : 'without') + ' minification',
       });
 
       checkSourceMapping({
@@ -794,8 +891,8 @@ describe('sourcemaps', function() {
         source: style,
         generated: raw,
         str: 'color',
-        sourcePath: './style.css',
-        msg: ' ' + (minify ? 'with' : 'without') + ' minification',
+        sourcePath: 'style.css',
+        msg: ' ' + (shouldOptimize ? 'with' : 'without') + ' minification',
       });
 
       checkSourceMapping({
@@ -803,8 +900,8 @@ describe('sourcemaps', function() {
         source: other,
         generated: raw,
         str: 'div',
-        sourcePath: './other.scss',
-        msg: ' ' + (minify ? 'with' : 'without') + ' minification',
+        sourcePath: 'other.scss',
+        msg: ' ' + (shouldOptimize ? 'with' : 'without') + ' minification',
       });
 
       checkSourceMapping({
@@ -812,8 +909,8 @@ describe('sourcemaps', function() {
         source: other,
         generated: raw,
         str: 'font-family',
-        sourcePath: './other.scss',
-        msg: ' ' + (minify ? 'with' : 'without') + ' minification',
+        sourcePath: 'other.scss',
+        msg: ' ' + (shouldOptimize ? 'with' : 'without') + ' minification',
       });
     }
     await test(false);
@@ -821,13 +918,17 @@ describe('sourcemaps', function() {
   });
 
   it('should create a valid sourcemap for a LESS asset', async function() {
-    async function test(minify) {
+    async function test(shouldOptimize) {
       let inputFilePath = path.join(
         __dirname,
         '/integration/sourcemap-less/style.less',
       );
 
-      await bundle(inputFilePath, {minify});
+      await bundle(inputFilePath, {
+        defaultTargetOptions: {
+          shouldOptimize,
+        },
+      });
       let distDir = path.join(__dirname, '../dist/');
       let filename = path.join(distDir, 'style.css');
       let raw = await outputFS.readFile(filename, 'utf8');
@@ -841,11 +942,11 @@ describe('sourcemaps', function() {
       assert(raw.includes('/*# sourceMappingURL=style.css.map */'));
 
       let sourceMap = new SourceMap('/');
-      sourceMap.addRawMappings(map);
+      sourceMap.addVLQMap(map);
 
       let mapData = sourceMap.getMap();
-      assert.equal(mapData.sources.length, minify ? 2 : 1);
-      assert.deepEqual(mapData.sources[0], './style.less');
+      assert.equal(mapData.sources.length, shouldOptimize ? 2 : 1);
+      assert.deepEqual(mapData.sources[0], 'style.less');
       let input = await inputFS.readFile(
         path.join(path.dirname(filename), map.sourceRoot, map.sources[0]),
         'utf-8',
@@ -856,8 +957,8 @@ describe('sourcemaps', function() {
         source: input,
         generated: raw,
         str: 'div',
-        sourcePath: './style.less',
-        msg: ' ' + (minify ? 'with' : 'without') + ' minification',
+        sourcePath: 'style.less',
+        msg: ' ' + (shouldOptimize ? 'with' : 'without') + ' minification',
       });
 
       checkSourceMapping({
@@ -865,8 +966,8 @@ describe('sourcemaps', function() {
         source: input,
         generated: raw,
         str: 'width',
-        sourcePath: './style.less',
-        msg: ' ' + (minify ? 'with' : 'without') + ' minification',
+        sourcePath: 'style.less',
+        msg: ' ' + (shouldOptimize ? 'with' : 'without') + ' minification',
       });
     }
 
@@ -898,7 +999,10 @@ describe('sourcemaps', function() {
 
     let map = mapData.map;
     assert.equal(map.file, 'index.js.map');
-    assert.deepEqual(map.sources, ['./index.js']);
+    assert.deepEqual(map.sources, [
+      'index.js',
+      '../../../../../transformers/js/src/esmodule-helpers.js',
+    ]);
     assert.equal(map.sourcesContent[0], sourceContent);
   });
 
@@ -929,14 +1033,19 @@ describe('sourcemaps', function() {
 
     let map = mapUrlData.map;
     assert.equal(map.file, 'index.js.map');
-    assert.deepEqual(map.sources, ['./index.js']);
+    assert.deepEqual(map.sources, [
+      'index.js',
+      '../../../../../transformers/js/src/esmodule-helpers.js',
+    ]);
   });
 
   it('should respect --no-source-maps', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/sourcemap/index.js'),
       {
-        sourceMaps: false,
+        defaultTargetOptions: {
+          sourceMaps: false,
+        },
       },
     );
 
@@ -1023,7 +1132,6 @@ describe('sourcemaps', function() {
         );
       }
     }
-
     assert.equal(map.sourcesContent[2], 'module.exports = (a, b) => a + b\n');
   });
 
@@ -1131,5 +1239,205 @@ describe('sourcemaps', function() {
 
     await test(false);
     await test(true);
+  });
+
+  it('should handle comments correctly in sourcemaps', async function() {
+    let sourceFilename = path.join(
+      __dirname,
+      '/integration/sourcemap-comments/index.js',
+    );
+    let b = await bundle(sourceFilename, {
+      defaultTargetOptions: {
+        shouldScopeHoist: true,
+      },
+    });
+
+    let filename = b.getBundles()[0].filePath;
+    let raw = await outputFS.readFile(filename, 'utf8');
+    let mapUrlData = await loadSourceMapUrl(outputFS, filename, raw);
+    if (!mapUrlData) {
+      throw new Error('Could not load map');
+    }
+    let map = mapUrlData.map;
+
+    let sourceMap = new SourceMap('/');
+    sourceMap.addVLQMap(map);
+    let input = await inputFS.readFile(
+      path.join(path.dirname(filename), map.sourceRoot, map.sources[0]),
+      'utf8',
+    );
+    let sourcePath = 'index.js';
+
+    checkSourceMapping({
+      map: sourceMap,
+      source: input,
+      generated: raw,
+      str: "console.log('foo')",
+      sourcePath,
+    });
+
+    checkSourceMapping({
+      map: sourceMap,
+      source: input,
+      generated: raw,
+      str: "console.log('bar')",
+      sourcePath,
+    });
+
+    checkSourceMapping({
+      map: sourceMap,
+      source: input,
+      generated: raw,
+      str: "console.log('baz')",
+      sourcePath,
+    });
+
+    checkSourceMapping({
+      map: sourceMap,
+      source: input,
+      generated: raw,
+      str: "console.log('idhf')",
+      sourcePath,
+    });
+  });
+
+  it('carries sourcesContent from the original sources through multiple transformations (babel and swc)', async () => {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        'integration/sourcemap-original-sourcecontents/index.js',
+      ),
+      {
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
+      },
+    );
+
+    let filename = b.getBundles()[0].filePath;
+    let raw = await outputFS.readFile(filename, 'utf8');
+
+    let mapUrlData = await loadSourceMapUrl(outputFS, filename, raw);
+    if (!mapUrlData) {
+      throw new Error('Could not load map');
+    }
+    let map = mapUrlData.map;
+
+    let sourceMap = new SourceMap('/');
+    sourceMap.addVLQMap(map);
+    let sourceContent = map.sourcesContent[0];
+    let sourcePath = 'index.js';
+
+    checkSourceMapping({
+      map: sourceMap,
+      source: sourceContent,
+      generated: raw,
+      str: 'bar="bar"' /* from jsx: <App bar="bar" /> */,
+      generatedStr: 'bar: "bar"',
+      sourcePath,
+    });
+
+    checkSourceMapping({
+      map: sourceMap,
+      source: sourceContent,
+      generated: raw,
+      str: 'document.getElementById(',
+      sourcePath,
+    });
+  });
+
+  it('carries sourcesContent from the original sources (tsx) through multiple transformations (babel and swc)', async () => {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        'integration/sourcemap-original-sourcecontents-ts/index.tsx',
+      ),
+      {
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
+      },
+    );
+
+    let filename = b.getBundles()[0].filePath;
+    let raw = await outputFS.readFile(filename, 'utf8');
+
+    let mapUrlData = await loadSourceMapUrl(outputFS, filename, raw);
+    if (!mapUrlData) {
+      throw new Error('Could not load map');
+    }
+    let map = mapUrlData.map;
+
+    let sourceMap = new SourceMap('/');
+    sourceMap.addVLQMap(map);
+    let sourceContent = map.sourcesContent[0];
+    let sourcePath = 'index.tsx';
+
+    checkSourceMapping({
+      map: sourceMap,
+      source: sourceContent,
+      generated: raw,
+      str: 'bar="bar"' /* from tsx: <App bar="bar" /> */,
+      generatedStr: 'bar: "bar"',
+      sourcePath,
+    });
+
+    checkSourceMapping({
+      map: sourceMap,
+      source: sourceContent,
+      generated: raw,
+      str: 'document.getElementById(',
+      sourcePath,
+    });
+  });
+
+  it('retains sourcesContent from the original sources from a large text file', async () => {
+    let testDir = path.join(
+      __dirname,
+      'integration/sourcemap-original-sourcecontents-large',
+    );
+
+    await outputFS.mkdirp(testDir);
+    await Promise.all([
+      outputFS.writeFile(
+        path.join(testDir, 'index.js'),
+        'const foo = ' +
+          `'${
+            // Generate ~6MB of text to exceed the stream threshold
+            'Lorem ipsum dolor sit amet '.repeat(245000)
+          }';`,
+      ),
+      outputFS.writeFile(path.join(testDir, 'yarn.lock'), ''),
+    ]);
+
+    let b = await bundle(path.join(testDir, 'index.js'), {
+      inputFS: overlayFS,
+      defaultTargetOptions: {
+        shouldScopeHoist: true,
+      },
+    });
+
+    let filename = b.getBundles()[0].filePath;
+    let raw = await outputFS.readFile(filename, 'utf8');
+
+    let mapUrlData = await loadSourceMapUrl(outputFS, filename, raw);
+    if (!mapUrlData) {
+      throw new Error('Could not load map');
+    }
+    let map = mapUrlData.map;
+
+    let sourceMap = new SourceMap('/');
+    sourceMap.addVLQMap(map);
+    let sourceContent = map.sourcesContent[0];
+    let sourcePath = 'index.js';
+
+    checkSourceMapping({
+      map: sourceMap,
+      source: sourceContent,
+      generated: raw,
+      str: "foo = 'Lorem ipsum",
+      generatedStr: "foo = 'Lorem ipsum",
+      sourcePath,
+    });
   });
 });

@@ -7,6 +7,7 @@ import {
   distDir,
   outputFS,
 } from '@parcel/test-utils';
+import {md} from '@parcel/diagnostic';
 
 describe('less', function() {
   it('should support requiring less files', async function() {
@@ -208,21 +209,18 @@ describe('less', function() {
   });
 
   it('should throw an exception when using webpack syntax', async function() {
-    let didThrow = false;
-
-    try {
-      await bundle(
-        path.join(__dirname, '/integration/less-webpack-import-error/index.js'),
-      );
-    } catch (err) {
-      assert.equal(
-        err.diagnostics[0].message,
-        'The @import path "~library/style.less" is using webpack specific syntax, which isn\'t supported by Parcel.\n\nTo @import files from node_modules, use "library/style.less"',
-      );
-      didThrow = true;
-    }
-
-    assert(didThrow);
+    await assert.rejects(
+      () =>
+        bundle(
+          path.join(
+            __dirname,
+            '/integration/less-webpack-import-error/index.js',
+          ),
+        ),
+      {
+        message: md`The @import path "${'~library/style.less'}" is using webpack specific syntax, which isn't supported by Parcel.\n\nTo @import files from ${'node_modules'}, use "${'library/style.less'}"`,
+      },
+    );
   });
 
   it('should support configuring less include paths', async function() {

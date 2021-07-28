@@ -1,3 +1,5 @@
 import * as test from './b';
 
-output = test.foo;
+let x = test;
+
+output = x.foo;

@@ -1,0 +1,11 @@
+{
+  "module": "dist/a.js",
+  "targets": {
+    "module": {
+      "includeNodeModules": false
+    }
+  },
+  "dependencies": {
+    "b": "*"
+  }
+}

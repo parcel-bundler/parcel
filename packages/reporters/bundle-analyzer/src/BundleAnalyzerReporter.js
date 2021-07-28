@@ -1,6 +1,6 @@
 // @flow strict-local
 
-import type {FilePath, NamedBundle, PluginOptions} from '@parcel/types';
+import type {FilePath, PackagedBundle, PluginOptions} from '@parcel/types';
 
 import invariant from 'assert';
 import {Reporter} from '@parcel/plugin';
@@ -10,19 +10,16 @@ import nullthrows from 'nullthrows';
 
 export default (new Reporter({
   async report({event, options}) {
-    if (
-      event.type !== 'buildSuccess' ||
-      process.env.PARCEL_BUNDLE_ANALYZER == null
-    ) {
+    if (event.type !== 'buildSuccess') {
       return;
     }
 
     let bundlesByTarget: DefaultMap<
       string /* target name */,
-      Array<NamedBundle>,
+      Array<PackagedBundle>,
     > = new DefaultMap(() => []);
     for (let bundle of event.bundleGraph.getBundles()) {
-      if (!bundle.isInline) {
+      if (bundle.bundleBehavior !== 'inline') {
         bundlesByTarget.get(bundle.target.name).push(bundle);
       }
     }
@@ -100,7 +97,7 @@ type BundleData = {|
 |};
 
 async function getBundleData(
-  bundles: Array<NamedBundle>,
+  bundles: Array<PackagedBundle>,
   options: PluginOptions,
 ): Promise<BundleData> {
   let groups = await Promise.all(
@@ -119,7 +116,7 @@ type DirMapValue = File | DirMap;
 type DirMap = DefaultMap<FilePath, DirMapValue>;
 let createMap: () => DirMap = () => new DefaultMap(() => createMap());
 
-async function getBundleNode(bundle: NamedBundle, options: PluginOptions) {
+async function getBundleNode(bundle: PackagedBundle, options: PluginOptions) {
   let buildMetrics = await generateBuildMetrics(
     [bundle],
     options.outputFS,
@@ -147,7 +144,7 @@ async function getBundleNode(bundle: NamedBundle, options: PluginOptions) {
   }
 
   return {
-    label: nullthrows(bundle.name),
+    label: bundle.filePath,
     weight: bundle.stats.size,
     groups: generateGroups(dirMap),
   };
@@ -184,7 +181,10 @@ function generateGroups(dirMap: DirMap): Array<Group> {
     } else {
       // file
       groups.push({
-        label: contents.basename,
+        label:
+          contents.basename === ''
+            ? 'Code from unknown source files'
+            : contents.basename,
         weight: contents.size,
       });
     }

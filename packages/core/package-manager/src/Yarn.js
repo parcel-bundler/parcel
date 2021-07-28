@@ -60,10 +60,25 @@ export class Yarn implements PackageInstaller {
     );
 
     if (saveDev) {
-      args.push('-D');
+      args.push('-D', '-W');
     }
 
-    let installProcess = spawn(YARN_CMD, args, {cwd});
+    // When Parcel is run by Yarn (e.g. via package.json scripts), several environment variables are
+    // added. When parcel in turn calls Yarn again, these can cause Yarn to behave stragely, so we
+    // filter them out when installing packages.
+    let env = {};
+    for (let key in process.env) {
+      if (
+        !key.startsWith('npm_') &&
+        key !== 'YARN_WRAP_OUTPUT' &&
+        key !== 'INIT_CWD' &&
+        key !== 'NODE_ENV'
+      ) {
+        env[key] = process.env[key];
+      }
+    }
+
+    let installProcess = spawn(YARN_CMD, args, {cwd, env});
     installProcess.stdout
       // Invoking yarn with --json provides streaming, newline-delimited JSON output.
       .pipe(split())
@@ -120,7 +135,7 @@ export class Yarn implements PackageInstaller {
     try {
       return await promiseFromProcess(installProcess);
     } catch (e) {
-      throw new Error('Yarn failed to install modules');
+      throw new Error('Yarn failed to install modules:' + e.message);
     }
   }
 }

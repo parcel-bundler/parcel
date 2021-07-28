@@ -5,12 +5,9 @@
 </p>
 
 [![Backers on Open Collective](https://opencollective.com/parcel/backers/badge.svg)](#backers) [![Sponsors on Open Collective](https://opencollective.com/parcel/sponsors/badge.svg)](#sponsors)
-[![Build Status](https://dev.azure.com/devongovett/devongovett/_apis/build/status/parcel-bundler.parcel?branchName=master)](https://dev.azure.com/devongovett/devongovett/_build/latest?definitionId=1)
-[![Coverage](https://img.shields.io/codecov/c/github/parcel-bundler/parcel/master.svg)](https://codecov.io/github/parcel-bundler/parcel/)
-[![David Dependency Status](https://david-dm.org/parcel-bundler/parcel.svg)](https://david-dm.org/parcel-bundler/parcel)
+[![Build Status](https://dev.azure.com/devongovett/devongovett/_apis/build/status/parcel-bundler.parcel?branchName=v2)](https://dev.azure.com/devongovett/devongovett/_build/latest?definitionId=1)
 [![npm package](https://img.shields.io/npm/v/parcel.svg)](https://www.npmjs.com/package/parcel)
 [![npm package](https://img.shields.io/npm/dm/parcel.svg)](https://www.npmjs.com/package/parcel)
-[![Join the community on Spectrum](https://withspectrum.github.io/badge/badge.svg)](https://spectrum.chat/parcel)
 [![Twitter Follow](https://img.shields.io/twitter/follow/parceljs.svg?style=social)](https://twitter.com/parceljs)
 
 ## Features
@@ -141,6 +138,7 @@ console.log("Hello World");
       - [`--key <path>`](#--key-path)
     - [`--dist-dir <dir>`](#--dist-dir-dir)
     - [`--cache-dir <dir>`, `--no-cache`](#--cache-dir-dir---no-cache)
+    - [`--config <path>`](#--config-path)
     - [`--hot`, `--no-hot`](#--hot---no-hot)
       - [`--hot-host <hostname>`](#--hot-host-hostname)
       - [`--hot-port <port>`](#--hot-port-port)
@@ -333,6 +331,10 @@ Configure the directory where compiled assets are output. Default is `./dist`.
 
 Configure the cache directory with `--cache <dir>` or disable it altogether
 with `--no-cache`.
+
+#### `--config <path>`
+specify which config to use. can be a path or a package name.
+`--config ../.myparcelrc` or `--config @parcel/config-default`
 
 #### `--hot`, `--no-hot`
 
@@ -589,10 +591,7 @@ all), but here's an example of a `.parcelrc` file that contains every field:
   },
   "bundler": "@parcel/bundler-default",
   "namers": ["@parcel/namer-default"],
-  "runtimes": {
-    "browser": ["@parcel/runtime-js", "@parcel/runtime-browser-hmr"],
-    "node": ["@parcel/runtime-js"]
-  },
+  "runtimes": ["@parcel/runtime-js", "@parcel/runtime-browser-hmr"],
   "packagers": {
     "*.js": "@parcel/packager-js",
     "*.css": "@parcel/packager-css",
@@ -699,14 +698,11 @@ See [Namers](#namers)
 
 #### `.parcelrc#runtimes`
 
-`runtimes` is an object map of environments to arrays of Parcel runtime packages.
+`runtimes` is an array of Parcel runtime packages.
 
 ```json
 {
-  "runtimes": {
-    "browser": ["@parcel/runtime-js", "@parcel/runtime-browser-hmr"],
-    "node": ["@parcel/runtime-js"]
-  }
+  "runtimes": ["@parcel/runtime-js", "@parcel/runtime-browser-hmr"],
 }
 ```
 
@@ -1118,6 +1114,7 @@ asset graph. They mostly call out to different compilers and preprocessors.
 - `@parcel/transformer-wasm`
 - `@parcel/transformer-webmanifest`
 - `@parcel/transformer-yaml`
+- `@parcel/transformer-elm`
 - ...
 
 ### Bundlers
@@ -1155,10 +1152,7 @@ included in the final bundle.
 
 ```json
 {
-  "runtimes": {
-    "browser": ["@parcel/runtime-js", "@parcel/runtime-browser-hmr"],
-    "node": ["@parcel/runtime-js"]
-  }
+  "runtimes": ["@parcel/runtime-js", "@parcel/runtime-browser-hmr"]
 }
 ```
 

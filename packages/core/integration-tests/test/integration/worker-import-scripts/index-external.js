@@ -1,1 +1,1 @@
-new Worker('./external')
+new Worker(new URL('./external', import.meta.url))

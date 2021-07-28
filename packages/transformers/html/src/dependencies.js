@@ -1,6 +1,7 @@
 // @flow
 
-import type {AST, Environment, MutableAsset} from '@parcel/types';
+import type {AST, MutableAsset} from '@parcel/types';
+import type {PostHTMLNode} from 'posthtml';
 import PostHTML from 'posthtml';
 
 // A list of all attributes that may produce a dependency
@@ -20,6 +21,7 @@ const ATTRS = {
   // Using href with <script> is described here: https://developer.mozilla.org/en-US/docs/Web/SVG/Element/script
   href: ['link', 'a', 'use', 'script'],
   srcset: ['img', 'source'],
+  imagesrcset: ['link'],
   poster: ['video'],
   'xlink:href': ['use', 'image', 'script'],
   content: ['meta'],
@@ -66,32 +68,18 @@ const META = {
 // Options to be passed to `addDependency` for certain tags + attributes
 const OPTIONS = {
   a: {
-    href: {isEntry: true},
+    href: {needsStableName: true},
   },
   iframe: {
-    src: {isEntry: true},
+    src: {needsStableName: true},
   },
   link(attrs) {
     if (attrs.rel === 'stylesheet') {
       return {
         // Keep in the same bundle group as the HTML.
-        isAsync: false,
-        isEntry: false,
-        isIsolated: true,
+        priority: 'parallel',
       };
     }
-  },
-  script(attrs, env: Environment) {
-    return {
-      // Keep in the same bundle group as the HTML.
-      isAsync: false,
-      isEntry: false,
-      isIsolated: true,
-      env: {
-        outputFormat:
-          attrs.type === 'module' && env.scopeHoist ? 'esmodule' : undefined,
-      },
-    };
   },
 };
 
@@ -111,20 +99,27 @@ function collectSrcSetDependencies(asset, srcset, opts) {
 }
 
 function getAttrDepHandler(attr) {
-  if (attr === 'srcset') {
+  if (attr === 'srcset' || attr === 'imagesrcset') {
     return collectSrcSetDependencies;
   }
 
   return (asset, src, opts) => asset.addURLDependency(src, opts);
 }
 
-export default function collectDependencies(asset: MutableAsset, ast: AST) {
+export default function collectDependencies(
+  asset: MutableAsset,
+  ast: AST,
+): boolean {
   let isDirty = false;
+  let hasScripts = false;
+  let seen = new Set();
   PostHTML().walk.call(ast.program, node => {
     let {tag, attrs} = node;
-    if (!attrs) {
+    if (!attrs || seen.has(node)) {
       return node;
     }
+
+    seen.add(node);
 
     if (tag === 'meta') {
       if (
@@ -147,11 +142,94 @@ export default function collectDependencies(asset: MutableAsset, ast: AST) {
       (attrs.rel === 'canonical' || attrs.rel === 'manifest') &&
       attrs.href
     ) {
-      attrs.href = asset.addURLDependency(attrs.href, {
-        isEntry: true,
+      let href = attrs.href;
+      if (attrs.rel === 'manifest') {
+        // A hack to allow manifest.json rather than manifest.webmanifest.
+        // If a custom pipeline is used, it is responsible for running @parcel/transformer-webmanifest.
+        if (!href.includes(':')) {
+          href = 'webmanifest:' + href;
+        }
+      }
+
+      attrs.href = asset.addURLDependency(href, {
+        needsStableName: true,
       });
       isDirty = true;
+      asset.setAST(ast);
       return node;
+    }
+
+    if (tag === 'script' && attrs.src) {
+      let sourceType = attrs.type === 'module' ? 'module' : 'script';
+      let loc = node.location
+        ? {
+            filePath: asset.filePath,
+            start: node.location.start,
+            end: node.location.end,
+          }
+        : undefined;
+
+      let outputFormat = 'global';
+      if (attrs.type === 'module' && asset.env.shouldScopeHoist) {
+        outputFormat = 'esmodule';
+      } else {
+        if (attrs.type === 'module') {
+          attrs.defer = '';
+        }
+
+        delete attrs.type;
+      }
+
+      // If this is a <script type="module">, and not all of the browser targets support ESM natively,
+      // add a copy of the script tag with a nomodule attribute.
+      let copy: ?PostHTMLNode;
+      if (
+        outputFormat === 'esmodule' &&
+        !asset.env.supports('esmodules', true)
+      ) {
+        let attrs = Object.assign({}, node.attrs);
+        copy = {...node, attrs};
+        delete attrs.type;
+        attrs.nomodule = '';
+        attrs.defer = '';
+        attrs.src = asset.addURLDependency(attrs.src, {
+          // Keep in the same bundle group as the HTML.
+          priority: 'parallel',
+          bundleBehavior:
+            sourceType === 'script' || attrs.async != null
+              ? 'isolated'
+              : undefined,
+          env: {
+            sourceType,
+            outputFormat: 'global',
+            loc,
+          },
+        });
+
+        seen.add(copy);
+      }
+
+      attrs.src = asset.addURLDependency(attrs.src, {
+        // Keep in the same bundle group as the HTML.
+        priority: 'parallel',
+        // If the script is async it can be executed in any order, so it cannot depend
+        // on any sibling scripts for dependencies. Keep all dependencies together.
+        // Also, don't share dependencies between classic scripts and nomodule scripts
+        // because nomodule scripts won't run when modules are supported.
+        bundleBehavior:
+          sourceType === 'script' || attrs.async != null
+            ? 'isolated'
+            : undefined,
+        env: {
+          sourceType,
+          outputFormat,
+          loc,
+        },
+      });
+
+      asset.setAST(ast);
+      hasScripts = true;
+      return copy ? [node, copy] : node;
     }
 
     for (let attr in attrs) {
@@ -184,4 +262,6 @@ export default function collectDependencies(asset: MutableAsset, ast: AST) {
 
     return node;
   });
+
+  return hasScripts;
 }

@@ -2,13 +2,15 @@
 import type {
   FilePath,
   Target as ITarget,
-  TargetSourceMapOptions,
   Environment as IEnvironment,
   SourceLocation,
 } from '@parcel/types';
-import type {Target as TargetValue} from '../types';
-import Environment from './Environment';
+import type {Target as TargetValue, ParcelOptions} from '../types';
+
 import nullthrows from 'nullthrows';
+import Environment from './Environment';
+import {fromProjectPath} from '../projectPath';
+import {fromInternalSourceLocation} from '../utils';
 
 const internalTargetToTarget: WeakMap<TargetValue, Target> = new WeakMap();
 const _targetToInternalTarget: WeakMap<ITarget, TargetValue> = new WeakMap();
@@ -18,14 +20,16 @@ export function targetToInternalTarget(target: ITarget): TargetValue {
 
 export default class Target implements ITarget {
   #target /*: TargetValue */;
+  #options /*: ParcelOptions */;
 
-  constructor(target: TargetValue): Target {
+  constructor(target: TargetValue, options: ParcelOptions): Target {
     let existing = internalTargetToTarget.get(target);
     if (existing != null) {
       return existing;
     }
 
     this.#target = target;
+    this.#options = options;
     _targetToInternalTarget.set(this, target);
     internalTargetToTarget.set(target, this);
     return this;
@@ -36,15 +40,11 @@ export default class Target implements ITarget {
   }
 
   get distDir(): FilePath {
-    return this.#target.distDir;
+    return fromProjectPath(this.#options.projectRoot, this.#target.distDir);
   }
 
   get env(): IEnvironment {
-    return new Environment(this.#target.env);
-  }
-
-  get sourceMap(): ?TargetSourceMapOptions {
-    return this.#target.sourceMap;
+    return new Environment(this.#target.env, this.#options);
   }
 
   get name(): string {
@@ -56,6 +56,9 @@ export default class Target implements ITarget {
   }
 
   get loc(): ?SourceLocation {
-    return this.#target.loc;
+    return fromInternalSourceLocation(
+      this.#options.projectRoot,
+      this.#target.loc,
+    );
   }
 }

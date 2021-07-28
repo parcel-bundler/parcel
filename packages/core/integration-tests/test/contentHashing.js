@@ -7,8 +7,10 @@ const distDir = path.join(__dirname, './dist');
 function bundle(path) {
   return _bundle(path, {
     inputFS: overlayFS,
-    disableCache: false,
-    distDir,
+    shouldDisableCache: false,
+    defaultTargetOptions: {
+      distDir,
+    },
   });
 }
 
@@ -103,7 +105,7 @@ describe('content hashing', function() {
 
     let aJS = aBundles.find(bundle => bundle.type === 'js');
     let bJS = bBundles.find(bundle => bundle.type === 'js');
-    assert(/index\.[a-f0-9]*\.js/.test(aJS.name));
+    assert(/index\.[a-f0-9]*\.js/.test(path.basename(aJS.filePath)));
     assert.equal(aJS.name, bJS.name);
   });
 });

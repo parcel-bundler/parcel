@@ -1,6 +1,6 @@
 import assert from 'assert';
 import path from 'path';
-import {bundle, run} from '@parcel/test-utils';
+import {bundle, run, ncp, overlayFS, outputFS} from '@parcel/test-utils';
 
 describe('resolver', function() {
   it('should support resolving tilde in monorepo packages', async function() {
@@ -13,6 +13,18 @@ describe('resolver', function() {
 
     let output = await run(b);
     assert.strictEqual(output.default, 1234);
+  });
+
+  it('should support node: prefix for node_modules', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/resolve-node-prefix/src/index.js'),
+    );
+
+    let output = await run(b);
+    assert.strictEqual(
+      output.default,
+      '6a2da20943931e9834fc12cfe5bb47bbd9ae43489a30726962b576f4e3993e50',
+    );
   });
 
   it('should correctly resolve tilde in node_modules', async function() {
@@ -43,6 +55,38 @@ describe('resolver', function() {
 
     let output = await run(b);
     assert.strictEqual(output.default, 42);
+  });
+
+  it('should print a diagnostic when a configured target field will overwrite an entry', async function() {
+    let errorThrows = 0;
+    const overwriteDirs = ['browser', 'app', 'main', 'module'];
+    for (const currDir of overwriteDirs) {
+      try {
+        await bundle(
+          path.join(
+            __dirname,
+            `integration/target-overwrite-source/${currDir}`,
+          ),
+        );
+      } catch (e) {
+        errorThrows++;
+        let pkg = JSON.parse(
+          await overlayFS.readFile(
+            path.join(
+              __dirname,
+              `integration/target-overwrite-source/${currDir}/package.json`,
+            ),
+          ),
+        );
+        assert.deepEqual(
+          e.diagnostics[0].message,
+          `Target "${currDir}" is configured to overwrite entry "${path.normalize(
+            `test/integration/target-overwrite-source/${currDir}/${pkg.source}`,
+          )}".`,
+        );
+      }
+    }
+    assert.deepEqual(errorThrows, overwriteDirs.length);
   });
 
   it('should throw an error on Webpack loader imports', async function() {
@@ -80,7 +124,7 @@ describe('resolver', function() {
         ),
       );
 
-      assert.deepEqual(e.diagnostics[0].codeFrame.codeHighlights[0], {
+      assert.deepEqual(e.diagnostics[0].codeFrames[0].codeHighlights[0], {
         start: {line: 1, column: 8},
         end: {line: 1, column: 25},
       });
@@ -104,7 +148,7 @@ describe('resolver', function() {
         ),
       );
 
-      assert.deepEqual(e.diagnostics[0].codeFrame.codeHighlights[0], {
+      assert.deepEqual(e.diagnostics[0].codeFrames[0].codeHighlights[0], {
         start: {line: 1, column: 9},
         end: {line: 1, column: 32},
       });
@@ -127,7 +171,7 @@ describe('resolver', function() {
         `Could not load './entryx.js' from module 'invalid-module' found in package.json#main`,
       );
 
-      assert.deepEqual(e.diagnostics[1].codeFrame.codeHighlights[0], {
+      assert.deepEqual(e.diagnostics[1].codeFrames[0].codeHighlights[0], {
         end: {
           column: 25,
           line: 4,
@@ -160,7 +204,7 @@ describe('resolver', function() {
 
       assert.equal(
         e.diagnostics[1].hints[0],
-        `Did you mean __./test/test.js__?`,
+        `Did you mean '__./test/test.js__'?`,
       );
     }
 
@@ -176,7 +220,7 @@ describe('resolver', function() {
         `Cannot load file './aa.js' in './integration/resolver-alternative-relative'.`,
       );
 
-      assert.equal(e.diagnostics[1].hints[0], `Did you mean __./a.js__?`);
+      assert.equal(e.diagnostics[1].hints[0], `Did you mean '__./a.js__'?`);
     }
 
     try {
@@ -194,7 +238,7 @@ describe('resolver', function() {
         `Cannot load file '../../a.js' in './integration/resolver-alternative-relative/test'.`,
       );
 
-      assert.equal(e.diagnostics[1].hints[0], `Did you mean __../a.js__?`);
+      assert.equal(e.diagnostics[1].hints[0], `Did you mean '__../a.js__'?`);
     }
 
     assert.equal(threw, 3);
@@ -215,7 +259,10 @@ describe('resolver', function() {
 
       assert.equal(e.diagnostics[1].message, `Cannot find module @baebal/core`);
 
-      assert.equal(e.diagnostics[1].hints[0], `Did you mean __@babel/core__?`);
+      assert.equal(
+        e.diagnostics[1].hints[0],
+        `Did you mean '__@babel/core__'?`,
+      );
     }
 
     assert(threw);
@@ -255,5 +302,84 @@ describe('resolver', function() {
 
     let output = await run(b);
     assert.deepEqual(output.default, {});
+  });
+
+  it('should support symlinked node_modules structure', async function() {
+    const rootDir = path.join(
+      __dirname,
+      'integration/resolve-symlinked-node_modules-structure',
+    );
+
+    await overlayFS.mkdirp(rootDir);
+    await ncp(rootDir, rootDir);
+
+    await outputFS.symlink(
+      path.join(
+        rootDir,
+        'node_modules/.origin/library@1.0.0/node_modules/library',
+      ),
+      path.join(rootDir, 'node_modules/library'),
+    );
+    await outputFS.symlink(
+      path.join(
+        rootDir,
+        'node_modules/.origin/library-dep@1.0.0/node_modules/library-dep',
+      ),
+      path.join(
+        rootDir,
+        'node_modules/.origin/library@1.0.0/node_modules/library-dep',
+      ),
+    );
+
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/resolve-symlinked-node_modules-structure/index.js',
+      ),
+      {
+        inputFS: overlayFS,
+        outputFS,
+      },
+    );
+
+    let output = await run(b);
+    assert.strictEqual(output.default, 42);
+  });
+
+  it('should support symlinked monorepos structure', async function() {
+    const rootDir = path.join(
+      __dirname,
+      'integration/resolve-symlinked-monorepos',
+    );
+
+    await overlayFS.mkdirp(rootDir);
+    await ncp(rootDir, rootDir);
+
+    await outputFS.symlink(
+      path.join(rootDir, 'packages/library'),
+      path.join(rootDir, 'packages/app/node_modules/library'),
+    );
+    await outputFS.symlink(
+      path.join(rootDir, 'node_modules/.origin/pkg@1.0.0/node_modules/pkg'),
+      path.join(rootDir, 'packages/app/node_modules/pkg'),
+    );
+    await outputFS.symlink(
+      path.join(rootDir, 'node_modules/.origin/pkg@1.0.0/node_modules/pkg'),
+      path.join(rootDir, 'packages/library/node_modules/pkg'),
+    );
+
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/resolve-symlinked-monorepos/packages/app/index.js',
+      ),
+      {
+        inputFS: overlayFS,
+        outputFS,
+      },
+    );
+
+    let output = await run(b);
+    assert.strictEqual(output.default, 2);
   });
 });

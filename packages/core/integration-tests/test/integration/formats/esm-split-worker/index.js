@@ -1,1 +1,1 @@
-new Worker("./main-worker", {type: "module"});
+new Worker(new URL("./main-worker", import.meta.url), {type: "module"});

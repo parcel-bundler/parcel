@@ -32,15 +32,25 @@ export class Npm implements PackageInstaller {
       modules.map(npmSpecifierFromModuleRequest),
     );
 
-    let installProcess = spawn(NPM_CMD, args, {cwd});
+    // When Parcel is run by npm (e.g. via package.json scripts), several environment variables are
+    // added. When parcel in turn calls npm again, these can cause npm to behave stragely, so we
+    // filter them out when installing packages.
+    let env = {};
+    for (let key in process.env) {
+      if (!key.startsWith('npm_') && key !== 'INIT_CWD' && key !== 'NODE_ENV') {
+        env[key] = process.env[key];
+      }
+    }
+
+    let installProcess = spawn(NPM_CMD, args, {cwd, env});
     let stdout = '';
-    installProcess.stdout.on('data', str => {
-      stdout += str;
+    installProcess.stdout.on('data', (buf: Buffer) => {
+      stdout += buf.toString();
     });
 
     let stderr = [];
-    installProcess.stderr.on('data', str => {
-      stderr.push(str);
+    installProcess.stderr.on('data', (buf: Buffer) => {
+      stderr.push(buf.toString().trim());
     });
 
     try {
@@ -59,13 +69,20 @@ export class Npm implements PackageInstaller {
       // in the json written to stdout. It's also not necessary to log these as
       // errors as they often aren't.
       for (let message of stderr) {
-        logger.log({
-          origin: '@parcel/package-manager',
-          message,
-        });
+        if (message.length > 0) {
+          logger.log({
+            origin: '@parcel/package-manager',
+            message,
+          });
+        }
       }
     } catch (e) {
-      throw new Error('npm failed to install modules');
+      throw new Error(
+        'npm failed to install modules: ' +
+          e.message +
+          ' - ' +
+          stderr.join('\n'),
+      );
     }
   }
 }

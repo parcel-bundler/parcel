@@ -1,4 +1,4 @@
-// @flow
+// @flow strict-local
 import ansiHTML from 'ansi-html';
 import {escapeHTML} from './escape-html';
 

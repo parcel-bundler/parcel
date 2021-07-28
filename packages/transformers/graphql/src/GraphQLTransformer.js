@@ -1,40 +1,24 @@
 // @flow
 import {Transformer} from '@parcel/plugin';
+import {parse, print, Source, stripIgnoredCharacters} from 'graphql';
+import {processDocumentImports} from 'graphql-import-macro';
 
 export default (new Transformer({
   async transform({asset, options, resolve}) {
-    const {
-      parse,
-      print,
-      Source,
-      stripIgnoredCharacters,
-    } = await options.packageManager.require('graphql', asset.filePath, {
-      autoinstall: options.autoinstall,
-    });
-
-    const {processDocumentImports} = await options.packageManager.require(
-      'graphql-import-macro',
-      asset.filePath,
-      {
-        autoinstall: options.autoinstall,
-      },
-    );
-
     const document = parse(new Source(await asset.getCode(), asset.filePath));
-
     const expandedDocument = await processDocumentImports(document, loadImport);
 
     async function loadImport(to, from) {
       const filePath = await resolve(to, from);
 
-      asset.addIncludedFile(filePath);
+      asset.invalidateOnFileChange(filePath);
 
       return parse(
         new Source(await options.inputFS.readFile(filePath, 'utf-8'), filePath),
       );
     }
 
-    const generated = asset.env.minify
+    const generated = asset.env.shouldOptimize
       ? stripIgnoredCharacters(print(expandedDocument))
       : print(expandedDocument);
 

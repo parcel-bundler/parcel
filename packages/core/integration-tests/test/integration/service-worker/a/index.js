@@ -1,3 +1,3 @@
 import '../b/nested'
 
-navigator.serviceWorker.register('../b/worker-outside.js');
+navigator.serviceWorker.register(new URL('../b/worker-outside.js', import.meta.url));

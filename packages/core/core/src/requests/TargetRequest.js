@@ -5,70 +5,79 @@ import type {FileSystem} from '@parcel/fs';
 import type {
   Async,
   Engines,
-  File,
   FilePath,
   PackageJSON,
   PackageTargetDescriptor,
   TargetDescriptor,
+  OutputFormat,
 } from '@parcel/types';
-import type {StaticRunOpts} from '../RequestTracker';
+import type {StaticRunOpts, RunAPI} from '../RequestTracker';
 import type {Entry, ParcelOptions, Target} from '../types';
 import type {ConfigAndCachePath} from './ParcelConfigRequest';
 
 import ThrowableDiagnostic, {
   generateJSONCodeHighlights,
   getJSONSourceLocation,
+  md,
 } from '@parcel/diagnostic';
 import path from 'path';
-import {loadConfig, md5FromObject, validateSchema} from '@parcel/utils';
+import {
+  loadConfig,
+  resolveConfig,
+  hashObject,
+  validateSchema,
+} from '@parcel/utils';
 import {createEnvironment} from '../Environment';
-import createParcelConfigRequest from './ParcelConfigRequest';
-import ParcelConfig from '../ParcelConfig';
+import createParcelConfigRequest, {
+  getCachedParcelConfig,
+} from './ParcelConfigRequest';
 // $FlowFixMe
 import browserslist from 'browserslist';
-// $FlowFixMe
 import jsonMap from 'json-source-map';
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import {
   COMMON_TARGET_DESCRIPTOR_SCHEMA,
   DESCRIPTOR_SCHEMA,
+  PACKAGE_DESCRIPTOR_SCHEMA,
   ENGINES_SCHEMA,
 } from '../TargetDescriptor.schema';
 import {BROWSER_ENVS} from '../public/Environment';
-
-export type TargetResolveResult = {|
-  targets: Array<Target>,
-  files: Array<File>,
-|};
+import {optionsProxy, toInternalSourceLocation} from '../utils';
+import {fromProjectPath, toProjectPath, joinProjectPath} from '../projectPath';
 
 type RunOpts = {|
   input: Entry,
   ...StaticRunOpts,
 |};
 
-const DEFAULT_DEVELOPMENT_ENGINES = {
-  node: 'current',
-  browsers: [
-    'last 1 Chrome version',
-    'last 1 Safari version',
-    'last 1 Firefox version',
-    'last 1 Edge version',
-  ],
-};
-
-const DEFAULT_PRODUCTION_ENGINES = {
-  browsers: ['>= 0.25%'],
-  node: '8',
-};
-
 const DEFAULT_DIST_DIRNAME = 'dist';
-const COMMON_TARGETS = ['main', 'module', 'browser', 'types'];
+const JS_RE = /\.[mc]?js$/;
+const JS_EXTENSIONS = ['.js', '.mjs', '.cjs'];
+const COMMON_TARGETS = {
+  main: {
+    match: JS_RE,
+    extensions: JS_EXTENSIONS,
+  },
+  module: {
+    // module field is always ESM. Don't allow .cjs extension here.
+    match: /\.m?js$/,
+    extensions: ['.js', '.mjs'],
+  },
+  browser: {
+    match: JS_RE,
+    extensions: JS_EXTENSIONS,
+  },
+  types: {
+    match: /\.d\.ts$/,
+    extensions: ['.d.ts'],
+  },
+};
 
 export type TargetRequest = {|
   id: string,
   +type: 'target_request',
-  run: RunOpts => Async<TargetResolveResult>,
+  run: RunOpts => Async<Array<Target>>,
   input: Entry,
 |};
 
@@ -76,60 +85,80 @@ const type = 'target_request';
 
 export default function createTargetRequest(input: Entry): TargetRequest {
   return {
-    id: `${type}:${md5FromObject(input)}`,
+    id: `${type}:${hashObject(input)}`,
     type,
     run,
     input,
   };
 }
 
-async function run({input, api, options}: RunOpts) {
-  let targetResolver = new TargetResolver(options);
-  let result = await targetResolver.resolve(input.packagePath);
+export function skipTarget(
+  targetName: string,
+  exclusiveTarget?: FilePath,
+  descriptorSource?: FilePath | Array<FilePath>,
+): boolean {
+  //  We skip targets if they have a descriptor.source and don't match the current exclusiveTarget
+  //  They will be handled by a separate resolvePackageTargets call from their Entry point
+  //  but with exclusiveTarget set.
 
-  let {config} = nullthrows(
+  return exclusiveTarget == null
+    ? descriptorSource != null
+    : targetName !== exclusiveTarget;
+}
+
+async function run({input, api, options}: RunOpts) {
+  let targetResolver = new TargetResolver(
+    api,
+    optionsProxy(options, api.invalidateOnOptionChange),
+  );
+  let targets: Array<Target> = await targetResolver.resolve(
+    fromProjectPath(options.projectRoot, input.packagePath),
+    input.target,
+  );
+
+  assertTargetsAreNotEntries(targets, input, options);
+
+  let configResult = nullthrows(
     await api.runRequest<null, ConfigAndCachePath>(createParcelConfigRequest()),
   );
-
-  let parcelConfig = new ParcelConfig(
-    config,
-    options.packageManager,
-    options.inputFS,
-    options.autoinstall,
-  );
+  let parcelConfig = getCachedParcelConfig(configResult, options);
 
   // Find named pipelines for each target.
   let pipelineNames = new Set(parcelConfig.getNamedPipelines());
-  for (let target of result.targets) {
+  for (let target of targets) {
     if (pipelineNames.has(target.name)) {
       target.pipeline = target.name;
     }
   }
 
-  // Connect files like package.json that affect the target
-  // resolution so we invalidate when they change.
-  for (let file of result.files) {
-    api.invalidateOnFileUpdate(file.filePath);
-  }
-
-  return result;
+  return targets;
 }
 
 export class TargetResolver {
   fs: FileSystem;
+  api: RunAPI;
   options: ParcelOptions;
 
-  constructor(options: ParcelOptions) {
+  constructor(api: RunAPI, options: ParcelOptions) {
+    this.api = api;
     this.fs = options.inputFS;
     this.options = options;
   }
 
-  async resolve(rootDir: FilePath): Promise<TargetResolveResult> {
+  async resolve(
+    rootDir: FilePath,
+    exclusiveTarget?: string,
+  ): Promise<Array<Target>> {
     let optionTargets = this.options.targets;
+    if (exclusiveTarget != null && optionTargets == null) {
+      optionTargets = [exclusiveTarget];
+    }
 
-    let packageTargets = await this.resolvePackageTargets(rootDir);
+    let packageTargets: Map<
+      string,
+      Target | null,
+    > = await this.resolvePackageTargets(rootDir, exclusiveTarget);
     let targets: Array<Target>;
-    let files: Array<File> = [];
     if (optionTargets) {
       if (Array.isArray(optionTargets)) {
         if (optionTargets.length === 0) {
@@ -141,72 +170,115 @@ export class TargetResolver {
           });
         }
 
+        // Only build the intersection of the exclusive target and option targets.
+        if (exclusiveTarget != null) {
+          optionTargets = optionTargets.filter(
+            target => target === exclusiveTarget,
+          );
+        }
+
         // If an array of strings is passed, it's a filter on the resolved package
         // targets. Load them, and find the matching targets.
-        targets = optionTargets.map(target => {
-          let matchingTarget = packageTargets.targets.get(target);
-          if (!matchingTarget) {
-            throw new ThrowableDiagnostic({
-              diagnostic: {
-                message: `Could not find target with name "${target}"`,
-                origin: '@parcel/core',
-              },
-            });
-          }
-          return matchingTarget;
-        });
-        files = packageTargets.files;
+        targets = optionTargets
+          .map(target => {
+            // null means skipped.
+            if (!packageTargets.has(target)) {
+              throw new ThrowableDiagnostic({
+                diagnostic: {
+                  message: md`Could not find target with name "${target}"`,
+                  origin: '@parcel/core',
+                },
+              });
+            }
+            return packageTargets.get(target);
+          })
+          .filter(Boolean);
       } else {
         // Otherwise, it's an object map of target descriptors (similar to those
         // in package.json). Adapt them to native targets.
-        targets = Object.entries(optionTargets).map(([name, _descriptor]) => {
-          let {distDir, ...descriptor} = parseDescriptor(
-            name,
-            _descriptor,
-            null,
-            {targets: optionTargets},
-          );
-          if (distDir == null) {
-            let optionTargetsString = JSON.stringify(optionTargets, null, '\t');
-            throw new ThrowableDiagnostic({
-              diagnostic: {
-                message: `Missing distDir for target "${name}"`,
-                origin: '@parcel/core',
-                codeFrame: {
-                  code: optionTargetsString,
-                  codeHighlights: generateJSONCodeHighlights(
-                    optionTargetsString,
-                    [
-                      {
-                        key: `/${name}`,
-                        type: 'value',
-                      },
-                    ],
-                  ),
+        targets = Object.entries(optionTargets)
+          .map(([name, _descriptor]) => {
+            let {distDir, ...descriptor} = parseDescriptor(
+              name,
+              _descriptor,
+              null,
+              JSON.stringify({targets: optionTargets}, null, '\t'),
+            );
+            if (distDir == null) {
+              let optionTargetsString = JSON.stringify(
+                optionTargets,
+                null,
+                '\t',
+              );
+              throw new ThrowableDiagnostic({
+                diagnostic: {
+                  message: md`Missing distDir for target "${name}"`,
+                  origin: '@parcel/core',
+                  codeFrames: [
+                    {
+                      code: optionTargetsString,
+                      codeHighlights: generateJSONCodeHighlights(
+                        optionTargetsString || '',
+                        [
+                          {
+                            key: `/${name}`,
+                            type: 'value',
+                          },
+                        ],
+                      ),
+                    },
+                  ],
                 },
-              },
-            });
-          }
-          return {
-            name,
-            distDir: path.resolve(this.fs.cwd(), distDir),
-            publicUrl: descriptor.publicUrl ?? this.options.publicUrl,
-            env: createEnvironment({
-              engines: descriptor.engines,
-              context: descriptor.context,
-              isLibrary: descriptor.isLibrary,
-              includeNodeModules: descriptor.includeNodeModules,
-              outputFormat: descriptor.outputFormat,
-              minify: this.options.minify && descriptor.minify !== false,
-              scopeHoist:
-                this.options.scopeHoist && descriptor.scopeHoist !== false,
-            }),
-            sourceMap: normalizeSourceMap(this.options, descriptor.sourceMap),
-          };
-        });
+              });
+            }
+            let target: Target = {
+              name,
+              distDir: toProjectPath(
+                this.options.projectRoot,
+                path.resolve(this.fs.cwd(), distDir),
+              ),
+              publicUrl:
+                descriptor.publicUrl ??
+                this.options.defaultTargetOptions.publicUrl,
+              env: createEnvironment({
+                engines: descriptor.engines,
+                context: descriptor.context,
+                isLibrary:
+                  descriptor.isLibrary ??
+                  this.options.defaultTargetOptions.isLibrary,
+                includeNodeModules: descriptor.includeNodeModules,
+                outputFormat:
+                  descriptor.outputFormat ??
+                  this.options.defaultTargetOptions.outputFormat,
+                shouldOptimize:
+                  this.options.defaultTargetOptions.shouldOptimize &&
+                  descriptor.optimize !== false,
+                shouldScopeHoist:
+                  this.options.defaultTargetOptions.shouldScopeHoist &&
+                  descriptor.scopeHoist !== false,
+                sourceMap: normalizeSourceMap(
+                  this.options,
+                  descriptor.sourceMap,
+                ),
+              }),
+            };
+
+            if (descriptor.distEntry != null) {
+              target.distEntry = descriptor.distEntry;
+            }
+
+            if (descriptor.source != null) {
+              target.source = descriptor.source;
+            }
+
+            return target;
+          })
+          .filter(
+            target => !skipTarget(target.name, exclusiveTarget, target.source),
+          );
       }
 
-      let serve = this.options.serve;
+      let serve = this.options.serveOptions;
       if (serve) {
         // In serve mode, we only support a single browser target. If the user
         // provided more than one, or the matching target is not a browser, throw.
@@ -226,45 +298,72 @@ export class TargetResolver {
             },
           });
         }
-        targets[0].distDir = serve.distDir;
+        targets[0].distDir = toProjectPath(
+          this.options.projectRoot,
+          serve.distDir,
+        );
       }
     } else {
       // Explicit targets were not provided. Either use a modern target for server
       // mode, or simply use the package.json targets.
-      if (this.options.serve) {
+      if (this.options.serveOptions) {
         // In serve mode, we only support a single browser target. Since the user
         // hasn't specified a target, use one targeting modern browsers for development
         targets = [
           {
             name: 'default',
-            distDir: this.options.serve.distDir,
-            publicUrl: this.options.publicUrl ?? '/',
-            sourceMap: this.options.sourceMaps ? {} : undefined,
+            distDir: toProjectPath(
+              this.options.projectRoot,
+              this.options.serveOptions.distDir,
+            ),
+            publicUrl: this.options.defaultTargetOptions.publicUrl ?? '/',
             env: createEnvironment({
               context: 'browser',
-              engines: {
-                browsers: DEFAULT_DEVELOPMENT_ENGINES.browsers,
-              },
-              minify: this.options.minify,
-              scopeHoist: this.options.scopeHoist,
+              engines: {},
+              shouldOptimize: this.options.defaultTargetOptions.shouldOptimize,
+              outputFormat: this.options.defaultTargetOptions.outputFormat,
+              shouldScopeHoist: this.options.defaultTargetOptions
+                .shouldScopeHoist,
+              sourceMap: this.options.defaultTargetOptions.sourceMaps
+                ? {}
+                : undefined,
             }),
           },
         ];
       } else {
-        targets = Array.from(packageTargets.targets.values());
-        files = packageTargets.files;
+        targets = Array.from(packageTargets.values())
+          .filter(Boolean)
+          .filter(descriptor => {
+            return (
+              descriptor &&
+              !skipTarget(descriptor.name, exclusiveTarget, descriptor.source)
+            );
+          });
       }
     }
 
-    return {targets, files};
+    return targets;
   }
 
   async resolvePackageTargets(
     rootDir: FilePath,
-  ): Promise<{|files: Array<File>, targets: Map<string, Target>|}> {
-    let conf = await loadConfig(this.fs, path.join(rootDir, 'index'), [
-      'package.json',
-    ]);
+    exclusiveTarget?: string,
+  ): Promise<Map<string, Target | null>> {
+    let rootFile = path.join(rootDir, 'index');
+    let conf = await loadConfig(
+      this.fs,
+      rootFile,
+      ['package.json'],
+      this.options.projectRoot,
+    );
+
+    let rootFileProject = toProjectPath(this.options.projectRoot, rootFile);
+
+    // Invalidate whenever a package.json file is added.
+    this.api.invalidateOnFileCreate({
+      fileName: 'package.json',
+      aboveFilePath: rootFileProject,
+    });
 
     let pkg;
     let pkgContents;
@@ -277,15 +376,19 @@ export class TargetResolver {
       if (pkgFile == null) {
         throw new ThrowableDiagnostic({
           diagnostic: {
-            message: `Expected package.json file in ${rootDir}`,
+            message: md`Expected package.json file in ${rootDir}`,
             origin: '@parcel/core',
           },
         });
       }
-      pkgFilePath = pkgFile.filePath;
-      pkgDir = path.dirname(pkgFilePath);
-      pkgContents = await this.fs.readFile(pkgFilePath, 'utf8');
+      let _pkgFilePath = (pkgFilePath = pkgFile.filePath); // For Flow
+      pkgDir = path.dirname(_pkgFilePath);
+      pkgContents = await this.fs.readFile(_pkgFilePath, 'utf8');
       pkgMap = jsonMap.parse(pkgContents.replace(/\t/g, ' '));
+
+      let pp = toProjectPath(this.options.projectRoot, _pkgFilePath);
+      this.api.invalidateOnFileUpdate(pp);
+      this.api.invalidateOnFileDelete(pp);
     } else {
       pkg = {};
       pkgDir = this.fs.cwd();
@@ -301,16 +404,63 @@ export class TargetResolver {
         'Invalid engines in package.json',
       ) || {};
     if (pkgEngines.browsers == null) {
-      let browserslistBrowsers = browserslist.loadConfig({path: rootDir});
-      if (browserslistBrowsers) {
+      let env =
+        this.options.env.BROWSERSLIST_ENV ??
+        this.options.env.NODE_ENV ??
+        this.options.mode;
+
+      if (pkg.browserslist != null) {
+        let pkgBrowserslist = pkg.browserslist;
+        let browserslist =
+          typeof pkgBrowserslist === 'object' && !Array.isArray(pkgBrowserslist)
+            ? pkgBrowserslist[env]
+            : pkgBrowserslist;
+
         pkgEngines = {
           ...pkgEngines,
-          browsers: browserslistBrowsers,
+          browsers: browserslist,
         };
+      } else {
+        let browserslistConfig = await resolveConfig(
+          this.fs,
+          path.join(rootDir, 'index'),
+          ['browserslist', '.browserslistrc'],
+          this.options.projectRoot,
+        );
+
+        this.api.invalidateOnFileCreate({
+          fileName: 'browserslist',
+          aboveFilePath: rootFileProject,
+        });
+
+        this.api.invalidateOnFileCreate({
+          fileName: '.browserslistrc',
+          aboveFilePath: rootFileProject,
+        });
+
+        if (browserslistConfig != null) {
+          let contents = await this.fs.readFile(browserslistConfig, 'utf8');
+          let config = browserslist.parseConfig(contents);
+          let browserslistBrowsers = config[env] || config.defaults;
+
+          if (browserslistBrowsers?.length > 0) {
+            pkgEngines = {
+              ...pkgEngines,
+              browsers: browserslistBrowsers,
+            };
+          }
+
+          // Invalidate whenever browserslist config file or relevant environment variables change
+          let pp = toProjectPath(this.options.projectRoot, browserslistConfig);
+          this.api.invalidateOnFileUpdate(pp);
+          this.api.invalidateOnFileDelete(pp);
+          this.api.invalidateOnEnvChange('BROWSERSLIST_ENV');
+          this.api.invalidateOnEnvChange('NODE_ENV');
+        }
       }
     }
 
-    let targets: Map<string, Target> = new Map();
+    let targets: Map<string, Target | null> = new Map();
     let node = pkgEngines.node;
     let browsers = pkgEngines.browsers;
 
@@ -323,26 +473,30 @@ export class TargetResolver {
     let moduleContext =
       pkg.browser ?? pkgTargets.browser ? 'browser' : mainContext;
 
-    let defaultEngines =
-      this.options.defaultEngines ??
-      (this.options.mode === 'production'
-        ? DEFAULT_PRODUCTION_ENGINES
-        : DEFAULT_DEVELOPMENT_ENGINES);
+    let defaultEngines = this.options.defaultTargetOptions.engines;
     let context = browsers ?? !node ? 'browser' : 'node';
-    if (context === 'browser' && pkgEngines.browsers == null) {
+    if (
+      context === 'browser' &&
+      pkgEngines.browsers == null &&
+      defaultEngines?.browsers != null
+    ) {
       pkgEngines = {
         ...pkgEngines,
         browsers: defaultEngines.browsers,
       };
-    } else if (context === 'node' && pkgEngines.node == null) {
+    } else if (
+      context === 'node' &&
+      pkgEngines.node == null &&
+      defaultEngines?.node != null
+    ) {
       pkgEngines = {
         ...pkgEngines,
         node: defaultEngines.node,
       };
     }
 
-    for (let targetName of COMMON_TARGETS) {
-      let targetDist;
+    for (let targetName in COMMON_TARGETS) {
+      let _targetDist;
       let pointer;
       if (
         targetName === 'browser' &&
@@ -350,33 +504,44 @@ export class TargetResolver {
         typeof pkg[targetName] === 'object'
       ) {
         // The `browser` field can be a file path or an alias map.
-        targetDist = pkg[targetName][pkg.name];
+        _targetDist = pkg[targetName][pkg.name];
         pointer = `/${targetName}/${pkg.name}`;
       } else {
-        targetDist = pkg[targetName];
+        _targetDist = pkg[targetName];
         pointer = `/${targetName}`;
       }
 
+      // For Flow
+      let targetDist = _targetDist;
       if (typeof targetDist === 'string' || pkgTargets[targetName]) {
         let distDir;
         let distEntry;
         let loc;
 
-        invariant(typeof pkgFilePath === 'string');
         invariant(pkgMap != null);
 
         let _descriptor: mixed = pkgTargets[targetName] ?? {};
         if (typeof targetDist === 'string') {
-          distDir = path.resolve(pkgDir, path.dirname(targetDist));
+          distDir = toProjectPath(
+            this.options.projectRoot,
+            path.resolve(pkgDir, path.dirname(targetDist)),
+          );
           distEntry = path.basename(targetDist);
           loc = {
-            filePath: pkgFilePath,
+            filePath: nullthrows(pkgFilePath),
             ...getJSONSourceLocation(pkgMap.pointers[pointer], 'value'),
           };
         } else {
           distDir =
-            this.options.distDir ??
-            path.join(pkgDir, DEFAULT_DIST_DIRNAME, targetName);
+            this.options.defaultTargetOptions.distDir ??
+            toProjectPath(
+              this.options.projectRoot,
+              path.join(pkgDir, DEFAULT_DIST_DIRNAME, targetName),
+            );
+        }
+
+        if (_descriptor == false) {
+          continue;
         }
 
         let descriptor = parseCommonTargetDescriptor(
@@ -385,47 +550,200 @@ export class TargetResolver {
           pkgFilePath,
           pkgContents,
         );
-        if (!descriptor) continue;
 
-        let isLibrary =
-          typeof distEntry === 'string'
-            ? path.extname(distEntry) === '.js'
-            : false;
+        if (skipTarget(targetName, exclusiveTarget, descriptor.source)) {
+          targets.set(targetName, null);
+          continue;
+        }
+
+        if (
+          distEntry != null &&
+          !COMMON_TARGETS[targetName].match.test(distEntry)
+        ) {
+          let contents: string =
+            typeof pkgContents === 'string'
+              ? pkgContents
+              : // $FlowFixMe
+                JSON.stringify(pkgContents, null, '\t');
+          // $FlowFixMe
+          let listFormat = new Intl.ListFormat('en-US', {type: 'disjunction'});
+          let extensions = listFormat.format(
+            COMMON_TARGETS[targetName].extensions,
+          );
+          let ext = path.extname(distEntry);
+          throw new ThrowableDiagnostic({
+            diagnostic: {
+              message: md`Unexpected output file type ${ext} in target "${targetName}"`,
+              origin: '@parcel/core',
+              codeFrames: [
+                {
+                  language: 'json',
+                  filePath: pkgFilePath ?? undefined,
+                  code: contents,
+                  codeHighlights: generateJSONCodeHighlights(contents, [
+                    {
+                      key: pointer,
+                      type: 'value',
+                      message: `File extension must be ${extensions}`,
+                    },
+                  ]),
+                },
+              ],
+              hints: [
+                `The "${targetName}" field is meant for libraries. If you meant to output a ${ext} file, either remove the "${targetName}" field or choose a different target name.`,
+              ],
+            },
+          });
+        }
+
+        if (descriptor.outputFormat === 'global') {
+          let contents: string =
+            typeof pkgContents === 'string'
+              ? pkgContents
+              : // $FlowFixMe
+                JSON.stringify(pkgContents, null, '\t');
+          throw new ThrowableDiagnostic({
+            diagnostic: {
+              message: md`The "global" output format is not supported in the "${targetName}" target.`,
+              origin: '@parcel/core',
+              codeFrames: [
+                {
+                  language: 'json',
+                  filePath: pkgFilePath ?? undefined,
+                  code: contents,
+                  codeHighlights: generateJSONCodeHighlights(contents, [
+                    {
+                      key: `/targets/${targetName}/outputFormat`,
+                      type: 'value',
+                    },
+                  ]),
+                },
+              ],
+              hints: [
+                `The "${targetName}" field is meant for libraries. The outputFormat must be either "commonjs" or "esmodule". Either change or remove the declared outputFormat.`,
+              ],
+            },
+          });
+        }
+
+        let inferredOutputFormat = this.inferOutputFormat(
+          distEntry,
+          descriptor,
+          targetName,
+          pkg,
+          pkgFilePath,
+          pkgContents,
+        );
+
+        let outputFormat =
+          descriptor.outputFormat ??
+          this.options.defaultTargetOptions.outputFormat ??
+          inferredOutputFormat ??
+          (targetName === 'module' ? 'esmodule' : 'commonjs');
+        let isModule = outputFormat === 'esmodule';
+
+        if (
+          targetName === 'main' &&
+          outputFormat === 'esmodule' &&
+          inferredOutputFormat !== 'esmodule'
+        ) {
+          let contents: string =
+            typeof pkgContents === 'string'
+              ? pkgContents
+              : // $FlowFixMe
+                JSON.stringify(pkgContents, null, '\t');
+          throw new ThrowableDiagnostic({
+            diagnostic: {
+              // prettier-ignore
+              message: md`Output format "esmodule" cannot be used in the "main" target without a .mjs extension or "type": "module" field.`,
+              origin: '@parcel/core',
+              codeFrames: [
+                {
+                  language: 'json',
+                  filePath: pkgFilePath ?? undefined,
+                  code: contents,
+                  codeHighlights: generateJSONCodeHighlights(contents, [
+                    {
+                      key: `/targets/${targetName}/outputFormat`,
+                      type: 'value',
+                      message: 'Declared output format defined here',
+                    },
+                    {
+                      key: '/main',
+                      type: 'value',
+                      message: 'Inferred output format defined here',
+                    },
+                  ]),
+                },
+              ],
+              hints: [
+                `Either change the output file extension to .mjs, add "type": "module" to package.json, or remove the declared outputFormat.`,
+              ],
+            },
+          });
+        }
+
+        if (descriptor.scopeHoist === false) {
+          let contents: string =
+            typeof pkgContents === 'string'
+              ? pkgContents
+              : // $FlowFixMe
+                JSON.stringify(pkgContents, null, '\t');
+          throw new ThrowableDiagnostic({
+            diagnostic: {
+              message: 'Scope hoisting cannot be disabled for library targets.',
+              origin: '@parcel/core',
+              codeFrames: [
+                {
+                  language: 'json',
+                  filePath: pkgFilePath ?? undefined,
+                  code: contents,
+                  codeHighlights: generateJSONCodeHighlights(contents, [
+                    {
+                      key: `/targets/${targetName}/scopeHoist`,
+                      type: 'value',
+                    },
+                  ]),
+                },
+              ],
+              hints: [
+                `The "${targetName}" target is meant for libraries. Either remove the "scopeHoist" option, or use a different target name.`,
+              ],
+            },
+          });
+        }
+
         targets.set(targetName, {
           name: targetName,
           distDir,
           distEntry,
-          publicUrl: descriptor.publicUrl ?? this.options.publicUrl,
+          publicUrl:
+            descriptor.publicUrl ?? this.options.defaultTargetOptions.publicUrl,
           env: createEnvironment({
             engines: descriptor.engines ?? pkgEngines,
             context:
               descriptor.context ??
               (targetName === 'browser'
                 ? 'browser'
-                : targetName === 'module'
+                : isModule
                 ? moduleContext
                 : mainContext),
-            includeNodeModules: descriptor.includeNodeModules ?? !isLibrary,
-            outputFormat:
-              descriptor.outputFormat ??
-              (isLibrary
-                ? targetName === 'module'
-                  ? 'esmodule'
-                  : 'commonjs'
-                : 'global'),
-            isLibrary: isLibrary,
-            minify: this.options.minify && descriptor.minify !== false,
-            scopeHoist:
-              this.options.scopeHoist && descriptor.scopeHoist !== false,
+            includeNodeModules: descriptor.includeNodeModules ?? false,
+            outputFormat,
+            isLibrary: true,
+            shouldOptimize:
+              this.options.defaultTargetOptions.shouldOptimize &&
+              descriptor.optimize === true,
+            shouldScopeHoist: true,
+            sourceMap: normalizeSourceMap(this.options, descriptor.sourceMap),
           }),
-          sourceMap: normalizeSourceMap(this.options, descriptor.sourceMap),
-          loc,
+          loc: toInternalSourceLocation(this.options.projectRoot, loc),
         });
       }
     }
 
     let customTargets = (Object.keys(pkgTargets): Array<string>).filter(
-      targetName => !COMMON_TARGETS.includes(targetName),
+      targetName => !COMMON_TARGETS[targetName],
     );
 
     // Custom targets
@@ -436,7 +754,10 @@ export class TargetResolver {
       let loc;
       if (distPath == null) {
         distDir =
-          this.options.distDir ?? path.join(pkgDir, DEFAULT_DIST_DIRNAME);
+          fromProjectPath(
+            this.options.projectRoot,
+            this.options.defaultTargetOptions.distDir,
+          ) ?? path.join(pkgDir, DEFAULT_DIST_DIRNAME);
         if (customTargets.length >= 2) {
           distDir = path.join(distDir, targetName);
         }
@@ -449,20 +770,22 @@ export class TargetResolver {
                 JSON.stringify(pkgContents, null, '\t');
           throw new ThrowableDiagnostic({
             diagnostic: {
-              message: `Invalid distPath for target "${targetName}"`,
+              message: md`Invalid distPath for target "${targetName}"`,
               origin: '@parcel/core',
-              language: 'json',
-              filePath: pkgFilePath ?? undefined,
-              codeFrame: {
-                code: contents,
-                codeHighlights: generateJSONCodeHighlights(contents, [
-                  {
-                    key: `/${targetName}`,
-                    type: 'value',
-                    message: 'Expected type string',
-                  },
-                ]),
-              },
+              codeFrames: [
+                {
+                  language: 'json',
+                  filePath: pkgFilePath ?? undefined,
+                  code: contents,
+                  codeHighlights: generateJSONCodeHighlights(contents, [
+                    {
+                      key: `/${targetName}`,
+                      type: 'value',
+                      message: 'Expected type string',
+                    },
+                  ]),
+                },
+              ],
             },
           });
         }
@@ -478,33 +801,99 @@ export class TargetResolver {
       }
 
       if (targetName in pkgTargets) {
-        let descriptor = parseDescriptor(
+        let descriptor = parsePackageDescriptor(
           targetName,
           pkgTargets[targetName],
           pkgFilePath,
           pkgContents,
         );
         let pkgDir = path.dirname(nullthrows(pkgFilePath));
+        if (skipTarget(targetName, exclusiveTarget, descriptor.source)) {
+          targets.set(targetName, null);
+          continue;
+        }
+
+        let inferredOutputFormat = this.inferOutputFormat(
+          distEntry,
+          descriptor,
+          targetName,
+          pkg,
+          pkgFilePath,
+          pkgContents,
+        );
+
+        if (descriptor.scopeHoist === false && descriptor.isLibrary) {
+          let contents: string =
+            typeof pkgContents === 'string'
+              ? pkgContents
+              : // $FlowFixMe
+                JSON.stringify(pkgContents, null, '\t');
+          throw new ThrowableDiagnostic({
+            diagnostic: {
+              message: 'Scope hoisting cannot be disabled for library targets.',
+              origin: '@parcel/core',
+              codeFrames: [
+                {
+                  language: 'json',
+                  filePath: pkgFilePath ?? undefined,
+                  code: contents,
+                  codeHighlights: generateJSONCodeHighlights(contents, [
+                    {
+                      key: `/targets/${targetName}/scopeHoist`,
+                      type: 'value',
+                    },
+                    {
+                      key: `/targets/${targetName}/isLibrary`,
+                      type: 'value',
+                    },
+                  ]),
+                },
+              ],
+              hints: [`Either remove the "scopeHoist" or "isLibrary" option.`],
+            },
+          });
+        }
+
+        let isLibrary =
+          descriptor.isLibrary ??
+          this.options.defaultTargetOptions.isLibrary ??
+          false;
+        let shouldScopeHoist = isLibrary
+          ? true
+          : this.options.defaultTargetOptions.shouldScopeHoist;
+
         targets.set(targetName, {
           name: targetName,
-          distDir:
+          distDir: toProjectPath(
+            this.options.projectRoot,
             descriptor.distDir != null
               ? path.resolve(pkgDir, descriptor.distDir)
               : distDir,
+          ),
           distEntry,
-          publicUrl: descriptor.publicUrl ?? this.options.publicUrl,
+          publicUrl:
+            descriptor.publicUrl ?? this.options.defaultTargetOptions.publicUrl,
           env: createEnvironment({
             engines: descriptor.engines ?? pkgEngines,
             context: descriptor.context,
             includeNodeModules: descriptor.includeNodeModules,
-            outputFormat: descriptor.outputFormat,
-            isLibrary: descriptor.isLibrary,
-            minify: this.options.minify && descriptor.minify !== false,
-            scopeHoist:
-              this.options.scopeHoist && descriptor.scopeHoist !== false,
+            outputFormat:
+              descriptor.outputFormat ??
+              this.options.defaultTargetOptions.outputFormat ??
+              inferredOutputFormat ??
+              undefined,
+            isLibrary,
+            shouldOptimize:
+              this.options.defaultTargetOptions.shouldOptimize &&
+              // Libraries are not optimized by default, users must explicitly configure this.
+              (isLibrary
+                ? descriptor.optimize === true
+                : descriptor.optimize !== false),
+            shouldScopeHoist:
+              shouldScopeHoist && descriptor.scopeHoist !== false,
+            sourceMap: normalizeSourceMap(this.options, descriptor.sourceMap),
           }),
-          sourceMap: normalizeSourceMap(this.options, descriptor.sourceMap),
-          loc,
+          loc: toInternalSourceLocation(this.options.projectRoot, loc),
         });
       }
     }
@@ -514,31 +903,131 @@ export class TargetResolver {
       targets.set('default', {
         name: 'default',
         distDir:
-          this.options.distDir ?? path.join(pkgDir, DEFAULT_DIST_DIRNAME),
-        publicUrl: this.options.publicUrl,
+          this.options.defaultTargetOptions.distDir ??
+          toProjectPath(
+            this.options.projectRoot,
+            path.join(pkgDir, DEFAULT_DIST_DIRNAME),
+          ),
+        publicUrl: this.options.defaultTargetOptions.publicUrl,
         env: createEnvironment({
           engines: pkgEngines,
           context,
-          minify: this.options.minify,
-          scopeHoist: this.options.scopeHoist,
+          outputFormat: this.options.defaultTargetOptions.outputFormat,
+          isLibrary: this.options.defaultTargetOptions.isLibrary,
+          shouldOptimize: this.options.defaultTargetOptions.shouldOptimize,
+          shouldScopeHoist:
+            this.options.defaultTargetOptions.shouldScopeHoist ??
+            (this.options.mode === 'production' &&
+              !this.options.defaultTargetOptions.isLibrary),
+          sourceMap: this.options.defaultTargetOptions.sourceMaps
+            ? {}
+            : undefined,
         }),
-        sourceMap: this.options.sourceMaps ? {} : undefined,
       });
     }
 
-    assertNoDuplicateTargets(targets, pkgFilePath, pkgContents);
+    assertNoDuplicateTargets(this.options, targets, pkgFilePath, pkgContents);
 
-    return {
-      targets,
-      files: conf ? conf.files : [],
-    };
+    return targets;
+  }
+
+  inferOutputFormat(
+    distEntry: ?FilePath,
+    descriptor: PackageTargetDescriptor,
+    targetName: string,
+    pkg: PackageJSON,
+    pkgFilePath: ?FilePath,
+    pkgContents: ?string,
+  ): ?OutputFormat {
+    // Infer the outputFormat based on package.json properties.
+    // If the extension is .mjs it's always a module.
+    // If the extension is .cjs, it's always commonjs.
+    // If the "type" field is set to "module" and the extension is .js, it's a module.
+    let ext = distEntry != null ? path.extname(distEntry) : null;
+    let inferredOutputFormat, inferredOutputFormatField;
+    switch (ext) {
+      case '.mjs':
+        inferredOutputFormat = 'esmodule';
+        inferredOutputFormatField = `/${targetName}`;
+        break;
+      case '.cjs':
+        inferredOutputFormat = 'commonjs';
+        inferredOutputFormatField = `/${targetName}`;
+        break;
+      case '.js':
+        if (pkg.type === 'module') {
+          inferredOutputFormat = 'esmodule';
+          inferredOutputFormatField = '/type';
+        }
+        break;
+    }
+
+    if (
+      descriptor.outputFormat &&
+      inferredOutputFormat &&
+      descriptor.outputFormat !== inferredOutputFormat
+    ) {
+      let contents: string =
+        typeof pkgContents === 'string'
+          ? pkgContents
+          : // $FlowFixMe
+            JSON.stringify(pkgContents, null, '\t');
+      let expectedExtensions;
+      switch (descriptor.outputFormat) {
+        case 'esmodule':
+          expectedExtensions = ['.mjs', '.js'];
+          break;
+        case 'commonjs':
+          expectedExtensions = ['.cjs', '.js'];
+          break;
+        case 'global':
+          expectedExtensions = ['.js'];
+          break;
+      }
+      // $FlowFixMe
+      let listFormat = new Intl.ListFormat('en-US', {type: 'disjunction'});
+      throw new ThrowableDiagnostic({
+        diagnostic: {
+          message: md`Declared output format "${descriptor.outputFormat}" does not match expected output format "${inferredOutputFormat}".`,
+          origin: '@parcel/core',
+          codeFrames: [
+            {
+              language: 'json',
+              filePath: pkgFilePath ?? undefined,
+              code: contents,
+              codeHighlights: generateJSONCodeHighlights(contents, [
+                {
+                  key: `/targets/${targetName}/outputFormat`,
+                  type: 'value',
+                  message: 'Declared output format defined here',
+                },
+                {
+                  key: nullthrows(inferredOutputFormatField),
+                  type: 'value',
+                  message: 'Inferred output format defined here',
+                },
+              ]),
+            },
+          ],
+          hints: [
+            inferredOutputFormatField === '/type'
+              ? 'Either remove the target\'s declared "outputFormat" or remove the "type" field.'
+              : `Either remove the target's declared "outputFormat" or change the extension to ${listFormat.format(
+                  expectedExtensions,
+                )}.`,
+          ],
+        },
+      });
+    }
+
+    return inferredOutputFormat;
   }
 }
 
 function parseEngines(
   engines: mixed,
   pkgPath: ?FilePath,
-  pkgContents: string | mixed,
+  pkgContents: ?string,
   prependKey: string,
   message: string,
 ): Engines | typeof undefined {
@@ -547,14 +1036,10 @@ function parseEngines(
   } else {
     validateSchema.diagnostic(
       ENGINES_SCHEMA,
-      engines,
-      pkgPath,
-      pkgContents,
+      {data: engines, source: pkgContents, filePath: pkgPath, prependKey},
       '@parcel/core',
-      prependKey,
       message,
     );
-
     // $FlowFixMe we just verified this
     return engines;
   }
@@ -564,18 +1049,41 @@ function parseDescriptor(
   targetName: string,
   descriptor: mixed,
   pkgPath: ?FilePath,
-  pkgContents: string | mixed,
-): TargetDescriptor | PackageTargetDescriptor {
+  pkgContents: ?string,
+): TargetDescriptor {
   validateSchema.diagnostic(
     DESCRIPTOR_SCHEMA,
-    descriptor,
-    pkgPath,
-    pkgContents,
+    {
+      data: descriptor,
+      source: pkgContents,
+      filePath: pkgPath,
+      prependKey: `/targets/${targetName}`,
+    },
     '@parcel/core',
-    `/targets/${targetName}`,
     `Invalid target descriptor for target "${targetName}"`,
   );
 
+  // $FlowFixMe we just verified this
+  return descriptor;
+}
+
+function parsePackageDescriptor(
+  targetName: string,
+  descriptor: mixed,
+  pkgPath: ?FilePath,
+  pkgContents: ?string,
+): PackageTargetDescriptor {
+  validateSchema.diagnostic(
+    PACKAGE_DESCRIPTOR_SCHEMA,
+    {
+      data: descriptor,
+      source: pkgContents,
+      filePath: pkgPath,
+      prependKey: `/targets/${targetName}`,
+    },
+    '@parcel/core',
+    `Invalid target descriptor for target "${targetName}"`,
+  );
   // $FlowFixMe we just verified this
   return descriptor;
 }
@@ -584,15 +1092,17 @@ function parseCommonTargetDescriptor(
   targetName: string,
   descriptor: mixed,
   pkgPath: ?FilePath,
-  pkgContents: string | mixed,
-): TargetDescriptor | PackageTargetDescriptor | false {
+  pkgContents: ?string,
+): PackageTargetDescriptor {
   validateSchema.diagnostic(
     COMMON_TARGET_DESCRIPTOR_SCHEMA,
-    descriptor,
-    pkgPath,
-    pkgContents,
+    {
+      data: descriptor,
+      source: pkgContents,
+      filePath: pkgPath,
+      prependKey: `/targets/${targetName}`,
+    },
     '@parcel/core',
-    `/targets/${targetName}`,
     `Invalid target descriptor for target "${targetName}"`,
   );
 
@@ -600,13 +1110,21 @@ function parseCommonTargetDescriptor(
   return descriptor;
 }
 
-function assertNoDuplicateTargets(targets, pkgFilePath, pkgContents) {
+function assertNoDuplicateTargets(options, targets, pkgFilePath, pkgContents) {
   // Detect duplicate targets by destination path and provide a nice error.
   // Without this, an assertion is thrown much later after naming the bundles and finding duplicates.
   let targetsByPath: Map<string, Array<string>> = new Map();
   for (let target of targets.values()) {
-    if (target.distEntry != null) {
-      let distPath = path.join(target.distDir, target.distEntry);
+    if (!target) {
+      continue;
+    }
+
+    let {distEntry} = target;
+    if (distEntry != null) {
+      let distPath = path.join(
+        fromProjectPath(options.projectRoot, target.distDir),
+        distEntry,
+      );
       if (!targetsByPath.has(distPath)) {
         targetsByPath.set(distPath, []);
       }
@@ -618,23 +1136,25 @@ function assertNoDuplicateTargets(targets, pkgFilePath, pkgContents) {
   for (let [targetPath, targetNames] of targetsByPath) {
     if (targetNames.length > 1 && pkgContents != null && pkgFilePath != null) {
       diagnostics.push({
-        message: `Multiple targets have the same destination path "${path.relative(
+        message: md`Multiple targets have the same destination path "${path.relative(
           path.dirname(pkgFilePath),
           targetPath,
         )}"`,
         origin: '@parcel/core',
-        language: 'json',
-        filePath: pkgFilePath || undefined,
-        codeFrame: {
-          code: pkgContents,
-          codeHighlights: generateJSONCodeHighlights(
-            pkgContents,
-            targetNames.map(t => ({
-              key: `/${t}`,
-              type: 'value',
-            })),
-          ),
-        },
+        codeFrames: [
+          {
+            language: 'json',
+            filePath: pkgFilePath || undefined,
+            code: pkgContents,
+            codeHighlights: generateJSONCodeHighlights(
+              pkgContents,
+              targetNames.map(t => ({
+                key: `/${t}`,
+                type: 'value',
+              })),
+            ),
+          },
+        ],
       });
     }
   }
@@ -652,7 +1172,7 @@ function assertNoDuplicateTargets(targets, pkgFilePath, pkgContents) {
 }
 
 function normalizeSourceMap(options: ParcelOptions, sourceMap) {
-  if (options.sourceMaps) {
+  if (options.defaultTargetOptions.sourceMaps) {
     if (typeof sourceMap === 'boolean') {
       return sourceMap ? {} : undefined;
     } else {
@@ -660,5 +1180,69 @@ function normalizeSourceMap(options: ParcelOptions, sourceMap) {
     }
   } else {
     return undefined;
+  }
+}
+
+function assertTargetsAreNotEntries(
+  targets: Array<Target>,
+  input: Entry,
+  options: ParcelOptions,
+) {
+  for (const target of targets) {
+    if (
+      target.distEntry != null &&
+      joinProjectPath(target.distDir, target.distEntry) === input.filePath
+    ) {
+      let loc = target.loc;
+      let relativeEntry = path.relative(
+        process.cwd(),
+        fromProjectPath(options.projectRoot, input.filePath),
+      );
+      let codeFrames = [];
+      if (loc) {
+        codeFrames.push({
+          filePath: fromProjectPath(options.projectRoot, loc.filePath),
+          codeHighlights: [
+            {
+              start: loc.start,
+              end: loc.end,
+              message: 'Target defined here',
+            },
+          ],
+        });
+
+        let inputLoc = input.loc;
+        if (inputLoc) {
+          let highlight = {
+            start: inputLoc.start,
+            end: inputLoc.end,
+            message: 'Entry defined here',
+          };
+
+          if (inputLoc.filePath === loc.filePath) {
+            codeFrames[0].codeHighlights.push(highlight);
+          } else {
+            codeFrames.push({
+              filePath: fromProjectPath(options.projectRoot, inputLoc.filePath),
+              codeHighlights: [highlight],
+            });
+          }
+        }
+      }
+
+      throw new ThrowableDiagnostic({
+        diagnostic: {
+          origin: '@parcel/core',
+          message: `Target "${target.name}" is configured to overwrite entry "${relativeEntry}".`,
+          codeFrames,
+          hints: [
+            (COMMON_TARGETS[target.name]
+              ? `The "${target.name}" field is an _output_ file path so that your build can be consumed by other tools. `
+              : '') +
+              `Change the "${target.name}" field to point to an output file rather than your source code. See https://v2.parceljs.org/configuration/package-json for more information.`,
+          ],
+        },
+      });
+    }
   }
 }

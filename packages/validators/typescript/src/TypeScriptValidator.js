@@ -1,5 +1,4 @@
 // @flow
-import type {DiagnosticCodeFrame} from '@parcel/diagnostic';
 import type {
   Asset,
   ConfigResult,
@@ -9,7 +8,9 @@ import type {
 import type {LanguageService, Diagnostic} from 'typescript'; // eslint-disable-line import/no-extraneous-dependencies
 
 import path from 'path';
-import {md5FromObject} from '@parcel/utils';
+import ts from 'typescript';
+import {type DiagnosticCodeFrame, escapeMarkdown} from '@parcel/diagnostic';
+import {hashObject, loadConfig} from '@parcel/utils';
 import {Validator} from '@parcel/plugin';
 import {LanguageServiceHost, ParseConfigHost} from '@parcel/ts-utils';
 
@@ -23,7 +24,7 @@ let langServiceCache: {
 } = {};
 
 type TSValidatorConfig = {|
-  filepath: string | null,
+  filepath: ?string,
   baseDir: string,
   configHash: string,
   tsconfig: ConfigResult | null,
@@ -43,7 +44,7 @@ export default (new Validator({
         let {configHash} = config;
 
         // Create a languageService/host in the cache for the configuration if it doesn't already exist.
-        await tryCreateLanguageService(config, asset, options);
+        tryCreateLanguageService(config, asset, options);
         if (!langServiceCache[configHash]) return;
 
         // Invalidate the file with the LanguageServiceHost so Typescript knows it has changed.
@@ -83,35 +84,35 @@ async function getConfig(
   resolveConfigWithPath,
 ): Promise<TSValidatorConfig> {
   let configNames = ['tsconfig.json'];
-  let tsconfig = await asset.getConfig(configNames);
-  let configPath: string | null = await resolveConfigWithPath(
+  let tsconfig = await loadConfig(
+    asset.fs,
+    asset.filePath,
+    configNames,
+    options.projectRoot,
+  );
+  let configPath: ?string = await resolveConfigWithPath(
     configNames,
     asset.filePath,
   );
   let baseDir = configPath ? path.dirname(configPath) : options.projectRoot;
-  let configHash = (tsconfig ? md5FromObject(tsconfig) : '') + '-' + baseDir;
+  let configHash =
+    (tsconfig ? hashObject(tsconfig.config) : '') + '-' + baseDir;
 
   return {
     filepath: configPath,
     baseDir,
     configHash,
-    tsconfig,
+    tsconfig: tsconfig?.config,
   };
 }
 
 /** Tries to create a typescript language service instance in the cache if it doesn't already exist. */
-async function tryCreateLanguageService(
+function tryCreateLanguageService(
   config: TSValidatorConfig,
   asset: Asset,
   options: PluginOptions,
-): Promise<void> {
+): void {
   if (config.tsconfig && !langServiceCache[config.configHash]) {
-    let ts = await options.packageManager.require(
-      'typescript',
-      asset.filePath,
-      {autoinstall: options.autoinstall},
-    );
-
     // In order to prevent race conditions where we accidentally create two language services for the same config,
     // we need to re-check the cache to see if a service has been created while we were awaiting 'ts'.
     if (!langServiceCache[config.configHash]) {
@@ -129,6 +130,8 @@ async function tryCreateLanguageService(
       langServiceCache[config.configHash] = {
         configHost,
         host,
+        // $FlowFixMe[incompatible-variance]
+        // $FlowFixMe[incompatible-call]
         service: ts.createLanguageService(host, ts.createDocumentRegistry()),
       };
     }
@@ -150,10 +153,11 @@ function getValidateResultFromDiagnostics(
       let filename = filePath;
       let {file} = diagnostic;
 
-      let diagnosticMessage =
+      let diagnosticMessage = escapeMarkdown(
         typeof diagnostic.messageText === 'string'
           ? diagnostic.messageText
-          : diagnostic.messageText.messageText;
+          : diagnostic.messageText.messageText,
+      );
 
       let codeframe: ?DiagnosticCodeFrame;
       if (file != null && diagnostic.start != null) {
@@ -188,6 +192,7 @@ function getValidateResultFromDiagnostics(
           }
 
           codeframe = {
+            filePath: filename,
             code: source,
             codeHighlights: [
               {
@@ -203,8 +208,7 @@ function getValidateResultFromDiagnostics(
       validatorResult.errors.push({
         origin: '@parcel/validator-typescript',
         message: diagnosticMessage,
-        filePath: filename,
-        codeFrame: codeframe ? codeframe : undefined,
+        codeFrames: codeframe ? [codeframe] : undefined,
       });
     }
   }

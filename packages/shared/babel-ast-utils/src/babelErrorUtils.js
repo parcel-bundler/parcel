@@ -17,8 +17,12 @@ export async function babelErrorEnhancer(
   asset: BaseAsset,
 ): Promise<BabelError> {
   if (error.loc) {
+    let start = error.message.startsWith(asset.filePath)
+      ? asset.filePath.length + 1
+      : 0;
     error.message = error.message
-      .slice(asset.filePath.length + 1, error.message.indexOf('\n'))
+      .slice(start)
+      .split('\n')[0]
       .trim();
   }
 

@@ -2,18 +2,17 @@
 
 import type {DevServerOptions, Request, Response} from './types.js.flow';
 import type {
+  BuildSuccessEvent,
   BundleGraph,
   FilePath,
   PluginOptions,
-  NamedBundle,
+  PackagedBundle,
 } from '@parcel/types';
 import type {Diagnostic} from '@parcel/diagnostic';
 import type {FileSystem} from '@parcel/fs';
 import type {HTTPServer} from '@parcel/utils';
 
 import invariant from 'assert';
-import EventEmitter from 'events';
-import nullthrows from 'nullthrows';
 import path from 'path';
 import url from 'url';
 import {
@@ -21,6 +20,7 @@ import {
   createHTTPServer,
   loadConfig,
   prettyDiagnostic,
+  relativePath,
 } from '@parcel/utils';
 import serverErrors from './serverErrors';
 import fs from 'fs';
@@ -40,6 +40,8 @@ function setHeaders(res: Response) {
     'Access-Control-Allow-Headers',
     'Origin, X-Requested-With, Content-Type, Accept, Content-Type',
   );
+  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+  res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
 }
 
 const SOURCES_ENDPOINT = '/__parcel_source_root';
@@ -54,11 +56,13 @@ const TEMPLATE_500 = fs.readFileSync(
 );
 type NextFunction = (req: Request, res: Response, next?: (any) => any) => any;
 
-export default class Server extends EventEmitter {
+export default class Server {
   pending: boolean;
+  pendingRequests: Array<[Request, Response]>;
   options: DevServerOptions;
   rootPath: string;
-  bundleGraph: BundleGraph<NamedBundle> | null;
+  bundleGraph: BundleGraph<PackagedBundle> | null;
+  requestBundle: ?(bundle: PackagedBundle) => Promise<BuildSuccessEvent>;
   errors: Array<{|
     message: string,
     stack: string,
@@ -67,8 +71,6 @@ export default class Server extends EventEmitter {
   stopServer: ?() => Promise<void>;
 
   constructor(options: DevServerOptions) {
-    super();
-
     this.options = options;
     try {
       this.rootPath = new URL(options.publicUrl).pathname;
@@ -76,7 +78,9 @@ export default class Server extends EventEmitter {
       this.rootPath = options.publicUrl;
     }
     this.pending = true;
+    this.pendingRequests = [];
     this.bundleGraph = null;
+    this.requestBundle = null;
     this.errors = null;
   }
 
@@ -84,12 +88,22 @@ export default class Server extends EventEmitter {
     this.pending = true;
   }
 
-  buildSuccess(bundleGraph: BundleGraph<NamedBundle>) {
+  buildSuccess(
+    bundleGraph: BundleGraph<PackagedBundle>,
+    requestBundle: (bundle: PackagedBundle) => Promise<BuildSuccessEvent>,
+  ) {
     this.bundleGraph = bundleGraph;
+    this.requestBundle = requestBundle;
     this.errors = null;
     this.pending = false;
 
-    this.emit('bundled');
+    if (this.pendingRequests.length > 0) {
+      let pendingRequests = this.pendingRequests;
+      this.pendingRequests = [];
+      for (let [req, res] of pendingRequests) {
+        this.respond(req, res);
+      }
+    }
   }
 
   async buildError(options: PluginOptions, diagnostics: Array<Diagnostic>) {
@@ -135,7 +149,10 @@ export default class Server extends EventEmitter {
       // Otherwise, serve the file from the dist folder
       req.url =
         this.rootPath === '/' ? pathname : pathname.slice(this.rootPath.length);
-      return this.serveDist(req, res, () => this.sendIndex(req, res));
+      if (req.url[0] !== '/') {
+        req.url = '/' + req.url;
+      }
+      return this.serveBundle(req, res, () => this.sendIndex(req, res));
     } else {
       return this.send404(req, res);
     }
@@ -144,35 +161,81 @@ export default class Server extends EventEmitter {
   sendIndex(req: Request, res: Response) {
     if (this.bundleGraph) {
       // If the main asset is an HTML file, serve it
-      let htmlBundle = this.bundleGraph.traverseBundles(
-        (bundle, context, {stop}) => {
-          if (bundle.type !== 'html' || !bundle.isEntry) return;
+      let htmlBundleFilePaths = [];
+      this.bundleGraph.traverseBundles(bundle => {
+        if (bundle.type === 'html' && bundle.bundleBehavior !== 'inline') {
+          htmlBundleFilePaths.push(bundle.filePath);
+        }
+      });
 
-          if (!context) {
-            context = bundle;
-          }
+      htmlBundleFilePaths = htmlBundleFilePaths.map(p => {
+        return `/${relativePath(this.options.distDir, p, false)}`;
+      });
 
-          if (
-            context &&
-            bundle.filePath &&
-            bundle.filePath.endsWith('index.html')
-          ) {
-            stop();
-            return bundle;
-          }
-        },
-      );
+      let indexFilePath = null;
+      if (htmlBundleFilePaths.length === 1) {
+        indexFilePath = htmlBundleFilePaths[0];
+      } else {
+        indexFilePath = htmlBundleFilePaths
+          .filter(v => {
+            let dir = path.posix.dirname(v);
+            let withoutExtension = path.posix.basename(
+              v,
+              path.posix.extname(v),
+            );
+            return withoutExtension === 'index' && req.url.startsWith(dir);
+          })
+          .sort((a, b) => {
+            return b.length - a.length;
+          })[0];
+      }
 
-      if (htmlBundle) {
-        req.url = `/${path.relative(
-          this.options.distDir,
-          nullthrows(htmlBundle.filePath),
-        )}`;
-
-        this.serveDist(req, res, () => this.send404(req, res));
+      if (indexFilePath) {
+        req.url = indexFilePath;
+        this.serveBundle(req, res, () => this.send404(req, res));
       } else {
         this.send404(req, res);
       }
+    } else {
+      this.send404(req, res);
+    }
+  }
+
+  async serveBundle(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
+    let bundleGraph = this.bundleGraph;
+    if (bundleGraph) {
+      let {pathname} = url.parse(req.url);
+      if (!pathname) {
+        this.send500(req, res);
+        return;
+      }
+
+      let requestedPath = path.normalize(pathname.slice(1));
+      let bundle = bundleGraph
+        .getBundles()
+        .filter(b => b.bundleBehavior !== 'inline')
+        .find(
+          b =>
+            path.relative(this.options.distDir, b.filePath) === requestedPath,
+        );
+      if (!bundle) {
+        this.serveDist(req, res, next);
+        return;
+      }
+
+      invariant(this.requestBundle != null);
+      try {
+        await this.requestBundle(bundle);
+      } catch (err) {
+        this.send500(req, res);
+        return;
+      }
+
+      this.serveDist(req, res, next);
     } else {
       this.send404(req, res);
     }
@@ -247,8 +310,6 @@ export default class Server extends EventEmitter {
       return;
     }
 
-    setHeaders(res);
-
     return serveHandler(
       req,
       res,
@@ -305,11 +366,12 @@ export default class Server extends EventEmitter {
     // avoid skipping project root
     const fileInRoot: string = path.join(this.options.projectRoot, '_');
 
-    const pkg = await loadConfig(this.options.inputFS, fileInRoot, [
-      '.proxyrc.js',
-      '.proxyrc',
-      '.proxyrc.json',
-    ]);
+    const pkg = await loadConfig(
+      this.options.inputFS,
+      fileInRoot,
+      ['.proxyrc.js', '.proxyrc', '.proxyrc.json'],
+      this.options.projectRoot,
+    );
 
     if (!pkg || !pkg.config || !pkg.files) {
       return this;
@@ -348,17 +410,19 @@ export default class Server extends EventEmitter {
     const finalHandler = (req: Request, res: Response) => {
       this.logAccessIfVerbose(req);
 
-      const response = () => this.respond(req, res);
-
       // Wait for the parcelInstance to finish bundling if needed
       if (this.pending) {
-        this.once('bundled', response);
+        this.pendingRequests.push([req, res]);
       } else {
-        response();
+        this.respond(req, res);
       }
     };
 
     const app = connect();
+    app.use((req, res, next) => {
+      setHeaders(res);
+      next();
+    });
     await this.applyProxyTable(app);
     app.use(finalHandler);
 

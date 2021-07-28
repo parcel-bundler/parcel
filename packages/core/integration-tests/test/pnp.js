@@ -20,7 +20,7 @@ describe('pnp', function() {
     try {
       let b = await bundle(path.join(dir, 'index.js'));
 
-      await assertBundles(b, [
+      assertBundles(b, [
         {
           name: 'index.js',
           assets: ['index.js', 'local.js', 'index.js'],
@@ -51,7 +51,7 @@ describe('pnp', function() {
     try {
       let b = await bundle(path.join(dir, 'index.js'));
 
-      await assertBundles(b, [
+      assertBundles(b, [
         {
           name: 'index.js',
           assets: ['index.js', 'local.js', 'index.js'],

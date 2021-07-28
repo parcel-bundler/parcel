@@ -4,5 +4,8 @@
   "main": "dist/index.js",
   "engines": {
     "node": ">= 10.x"
+  },
+  "dependencies": {
+    "lodash": "*"
   }
 }

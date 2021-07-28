@@ -2,7 +2,7 @@
 
 const assert = require('assert');
 const path = require('path');
-const {parse} = require('babel-eslint');
+const {parse} = require('@babel/eslint-parser');
 const readPkgUp = require('read-pkg-up');
 
 const {
