@@ -152,6 +152,23 @@ const nodeAt = (index: number): NodeId =>
 /** Get the index in the nodes array of the given node. */
 const indexOfNode = (id: NodeId): number => fromNodeId(id) * NODE_SIZE;
 
+function buildEdgeIndexes<TEdgeType: number = 1>(
+  graph: AdjacencyList<TEdgeType>,
+): DefaultMap<string, number> {
+  let edgeIndexes = new DefaultMap<string, number>(() => -1);
+  for (let from of graph.iterateNodes()) {
+    for (let edge of graph.iterateOutgoingEdges(from)) {
+      let key = JSON.stringify({
+        from,
+        to: graph.getToNode(edge),
+        type: graph.getEdgeType(edge),
+      });
+      edgeIndexes.set(key, hashToIndex(edge));
+    }
+  }
+  return edgeIndexes;
+}
+
 /** Create mappings from => type => to and vice versa. */
 function buildTypeMaps<TEdgeType: number = 1>(
   graph: AdjacencyList<TEdgeType>,
@@ -209,6 +226,7 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     /** A map of node ids to => through types => from node ids. */
     to: DefaultMap<NodeId, DefaultMap<number, Set<NodeId>>>,
   |};
+  #edgeIndexes: DefaultMap<string, number>;
 
   constructor(
     opts?: SerializedAdjacencyList<TEdgeType> | AdjacencyListOptions<TEdgeType>,
@@ -262,16 +280,16 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     // We do this because deserialization happens from a shared buffer,
     // so mutation would be a bad idea.
     // $FlowFixMe[cannot-write]
-    Object.defineProperties(res, {
-      addEdge: readonlyDescriptor,
-      addNode: readonlyDescriptor,
-      linkEdge: readonlyDescriptor,
-      resizeNodes: readonlyDescriptor,
-      resizeEdges: readonlyDescriptor,
-      removeEdge: readonlyDescriptor,
-      setEdge: readonlyDescriptor,
-      unlinkEdge: readonlyDescriptor,
-    });
+    // Object.defineProperties(res, {
+    //   addEdge: readonlyDescriptor,
+    //   addNode: readonlyDescriptor,
+    //   linkEdge: readonlyDescriptor,
+    //   resizeNodes: readonlyDescriptor,
+    //   resizeEdges: readonlyDescriptor,
+    //   removeEdge: readonlyDescriptor,
+    //   setEdge: readonlyDescriptor,
+    //   unlinkEdge: readonlyDescriptor,
+    // });
     return res;
   }
 
@@ -477,6 +495,7 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     this.#typeMaps = copy.#typeMaps;
     this.#previousIn = copy.#previousIn;
     this.#previousOut = copy.#previousOut;
+    this.#edgeIndexes = copy.#edgeIndexes;
   }
 
   /** Get the first or last edge to or from the given node. */
@@ -682,6 +701,9 @@ export default class AdjacencyList<TEdgeType: number = 1> {
       .get(type)
       .add(from);
 
+    let key = JSON.stringify({from, to, type});
+    this.#edgeIndexes?.set(key, index);
+
     return true;
   }
 
@@ -695,34 +717,10 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     to: NodeId,
     type: TEdgeType | NullEdgeType = 1,
   ): number {
-    let index = hashToIndex(this.hash(from, to, type));
-    // We want to avoid scanning the array forever,
-    // so keep track of where we start scanning from.
-    let startIndex = index;
-    let size = this.#edges.length;
-    // Since it is possible for multiple edges to have the same hash,
-    // we check that the edge at the index matching the hash is actually
-    // the edge we're looking for. If it's not, we scan forward in the
-    // edges array, assuming that the the edge we're looking for is close by.
-    while (this.#edges[index + TYPE]) {
-      if (
-        this.#edges[index + FROM] === from &&
-        this.#edges[index + TO] === to &&
-        (type === ALL_EDGE_TYPES || this.#edges[index + TYPE] === type)
-      ) {
-        return index;
-      } else {
-        // The edge at at this index is not the edge we're looking for,
-        // so scan forward to the next edge, wrapping back to
-        // the beginning of the `edges` array if we overflow.
-        index = (index + EDGE_SIZE) % size;
-
-        // We have scanned the whole array unsuccessfully.
-        if (index === startIndex) break;
-      }
-    }
-
-    return -1;
+    let edgeIndexes =
+      this.#edgeIndexes || (this.#edgeIndexes = buildEdgeIndexes(this));
+    let key = JSON.stringify({from, to, type});
+    return edgeIndexes.get(key);
   }
 
   /**
@@ -850,6 +848,9 @@ export default class AdjacencyList<TEdgeType: number = 1> {
       .get(to)
       .get(type)
       .delete(from);
+
+    let key = JSON.stringify({from, to, type});
+    this.#edgeIndexes?.delete(key);
 
     // Mark this slot as DELETED.
     // We do this so that clustered edges can still be found
