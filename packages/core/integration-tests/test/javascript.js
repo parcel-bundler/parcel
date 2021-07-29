@@ -2005,7 +2005,7 @@ describe('javascript', function() {
 
     await run(b);
   });
-
+  //TODO
   it('should dynamic import files which import raw files', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/dynamic-references-raw/index.js'),

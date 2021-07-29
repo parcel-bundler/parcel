@@ -16,6 +16,7 @@ import type {NodeId} from '@parcel/core/src/types';
 import type {SchemaEntity} from '@parcel/utils';
 
 import Graph from '@parcel/core/src/Graph';
+import ContentGraph from '@parcel/core/src/ContentGraph';
 import dumpGraphToGraphViz from '@parcel/core/src/dumpGraphToGraphViz';
 
 import invariant from 'assert';
@@ -360,14 +361,16 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
 
   // Step 2: Determine reachability for every asset from each bundle root.
   // This is later used to determine which bundles to place each asset in.
-  let reachableRoots: DefaultMap<Asset, Set<BundleRoot>> = new DefaultMap(
-    () => new Set(),
-  );
+  let reachableRoots: ContentGraph<Asset> = new ContentGraph();
+
   let reachableAsyncRoots: DefaultMap<NodeId, Set<BundleRoot>> = new DefaultMap(
     () => new Set(),
   );
 
   for (let [root] of bundleRoots) {
+    let rootNodeId = reachableRoots.hasContentKey(root.id)
+      ? reachableRoots.getNodeIdByContentKey(root.id)
+      : reachableRoots.addNodeByContentKey(root.id, root);
     assetGraph.traverse((node, isAsync, actions) => {
       if (node.value === root) {
         return;
@@ -396,9 +399,33 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
         return;
       }
 
-      reachableRoots.get(node.value).add(root);
+      let nodeId = reachableRoots.hasContentKey(node.value.id)
+        ? reachableRoots.getNodeIdByContentKey(node.value.id)
+        : reachableRoots.addNodeByContentKey(node.value.id, node.value);
+      reachableRoots.addEdge(rootNodeId, nodeId);
     }, root);
   }
+
+  // Step 2.5
+  //IDEA 2: Somehow store all assets available (guarenteed to be loaded at this bundles load in time) at a certain point, for an asset/ bundleRoot, and do a lookup to
+  // determine what MUST be duplicated.
+
+  // PART 1 (located in STEP 1)
+  // Make bundlegraph that models bundleRoots and async deps only
+  // Turn reachableRoots into graph so that we have sync deps (Bidirectional)
+
+  // PART 2
+  // traverse PART 2 BundleGraph (BFS)
+  // Maintain a MAP BundleRoot => Set of assets loaded thus far
+
+  // At BundleRoot X
+  // Ask for children [Z..]
+
+  // get all assets guarenteed to be loaded when bundle X is loaded
+  // map.set(Z, {all assets gurenteed to be loaded at this point (by ancestors (X))  INTERSECTION WITH current map.get(z) })
+
+  let ancestorAssets: Map<BundleRoot, Set<Asset>> = new Map();
+  //set difference
 
   // Step 3: Place all assets into bundles. Each asset is placed into a single
   // bundle based on the bundle entries it is reachable from. This creates a
@@ -406,8 +433,12 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
 
   for (let asset of assets) {
     // Find bundle entries reachable from the asset.
-    let reachable: Array<BundleRoot> = [...reachableRoots.get(asset)];
+    let reachable: Array<BundleRoot> = getReachableBundleRoots(
+      asset,
+      reachableRoots,
+    );
 
+    console.log('Reachable before for', asset.filePath, 'is ', reachable);
     // Filter out bundles when the asset is reachable in every parent bundle.
     // (Only keep a bundle if all of the others are not descendents of it)
     reachable = reachable.filter(b =>
@@ -415,7 +446,10 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
         const isAncestorOfB = reachableBundles.get(a).has(b);
         return !isAncestorOfB;
       }),
-    );
+    ); //don't want to filter out bundle if 'b' is not "reachable" from all of its (a) immediate parents
+
+    console.log('Reachable for', asset.filePath, 'is ', reachable);
+    //IDEA: reachableBundles as a graph so we can query an assets ancestors and/or decendants
 
     // BundleRoot = Root Asset of a bundle
     // reachableRoots = any asset => all BundleRoots that require it synchronously
@@ -447,7 +481,7 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
       // TODO: is this correct?
       let willInternalizeRoots = reachableAsync.filter(
         b =>
-          ![...reachableRoots.get(asset)].every(
+          !getReachableBundleRoots(asset, reachableRoots).every(
             a => !(a === b || reachableBundles.get(a).has(b)),
           ),
       );
@@ -632,4 +666,10 @@ async function loadBundlerConfig(config: Config, options: PluginOptions) {
     maxParallelRequests:
       conf.contents.maxParallelRequests ?? defaults.maxParallelRequests,
   };
+}
+
+function getReachableBundleRoots(asset, graph): Array<BundleRoot> {
+  return graph
+    .getNodeIdsConnectedTo(graph.getNodeIdByContentKey(asset.id))
+    .map(nodeId => nullthrows(graph.getNode(nodeId)));
 }
