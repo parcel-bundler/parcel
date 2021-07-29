@@ -4,6 +4,7 @@ import {DefaultMap} from '@parcel/utils';
 import {fromNodeId, toNodeId} from './types';
 import type {NullEdgeType, AllEdgeTypes} from './Graph';
 import type {NodeId} from './types';
+import nullthrows from 'nullthrows';
 
 /**
  * Each node is represented with 2 4-byte chunks:
@@ -120,6 +121,10 @@ export function isDeleted<TEdgeType>(type: TEdgeType): boolean {
   return type === DELETED;
 }
 
+export function isAvailable<TEdgeType>(type: TEdgeType): boolean {
+  return type === DELETED || type === 0;
+}
+
 export const ALL_EDGE_TYPES: AllEdgeTypes = '@@all_edge_types';
 
 // eslint-disable-next-line no-unused-vars
@@ -203,6 +208,44 @@ const readonlyDescriptor: PropertyDescriptor<(...args: any[]) => void> = {
   },
 };
 
+class AvailableIndexes {
+  #indexList: Array<number>;
+  #indexMap: Map<number, number>;
+
+  constructor() {
+    this.#indexList = [];
+    this.#indexMap = new Map<number, number>();
+  }
+
+  add(value: number) {
+    if (this.#indexMap.get(value) !== undefined) {
+      return false;
+    }
+    this.#indexMap.set(value, this.#indexList.length);
+    this.#indexList.push(value);
+    return true;
+  }
+
+  delete(value: number) {
+    if (this.#indexMap.get(value) === undefined) {
+      return false;
+    }
+    let last = this.#indexList[this.#indexList.length - 1];
+    let index = nullthrows(this.#indexMap.get(value));
+    this.#indexList[index] = last;
+    this.#indexMap.set(last, index);
+    this.#indexList.pop();
+    this.#indexMap.delete(value);
+    return true;
+  }
+
+  getRandomIndex(): number {
+    return this.#indexList[
+      Math.floor(Math.random() * (this.#indexList.length - 1))
+    ];
+  }
+}
+
 export default class AdjacencyList<TEdgeType: number = 1> {
   /** The number of nodes that can fit in the nodes array. */
   #nodeCapacity: number;
@@ -226,7 +269,13 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     /** A map of node ids to => through types => from node ids. */
     to: DefaultMap<NodeId, DefaultMap<number, Set<NodeId>>>,
   |};
+  /** A map of edges to their index in the edge array */
   #edgeIndexes: DefaultMap<string, number>;
+  /**
+   * A set of available indexes in the edge array.
+   * An available index either has an empty slot or a deleted edge
+   */
+  #availableIndexes: AvailableIndexes;
 
   constructor(
     opts?: SerializedAdjacencyList<TEdgeType> | AdjacencyListOptions<TEdgeType>,
@@ -258,6 +307,17 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     this.#edges = edges;
     this.#previousIn = new Map();
     this.#previousOut = new Map();
+    this.#availableIndexes = this.buildAvailableIndexes();
+  }
+
+  buildAvailableIndexes(): AvailableIndexes {
+    let availableIndexes = new AvailableIndexes();
+    for (let i = 0; i < this.#edges.length; i += EDGE_SIZE) {
+      if (isAvailable(this.#edges[i + TYPE])) {
+        availableIndexes.add(i);
+      }
+    }
+    return availableIndexes;
   }
 
   /**
@@ -496,6 +556,7 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     this.#previousIn = copy.#previousIn;
     this.#previousOut = copy.#previousOut;
     this.#edgeIndexes = copy.#edgeIndexes;
+    this.#availableIndexes = copy.#availableIndexes;
   }
 
   /** Get the first or last edge to or from the given node. */
@@ -701,6 +762,8 @@ export default class AdjacencyList<TEdgeType: number = 1> {
       .get(type)
       .add(from);
 
+    this.#availableIndexes.delete(index);
+
     let key = JSON.stringify({from, to, type});
     this.#edgeIndexes?.set(key, index);
 
@@ -735,34 +798,15 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     to: NodeId,
     type: TEdgeType | NullEdgeType = 1,
   ): number {
-    let index = hashToIndex(this.hash(from, to, type));
-    // we scan the `edges` array for the next empty slot after the `index`.
-    // We do this instead of simply using the `index` because it is possible
-    // for multiple edges to have the same hash.
-    let deletedEdge = 0;
-    let size = this.#edges.length;
-    while (this.#edges[index + TYPE]) {
-      // If the edge at this index was deleted, we can reuse the slot.
-      if (isDeleted(this.#edges[index + TYPE])) {
-        deletedEdge = index;
-      } else if (
-        this.#edges[index + FROM] === from &&
-        this.#edges[index + TO] === to &&
-        // if type === ALL_EDGE_TYPES, return all edges
-        (type === ALL_EDGE_TYPES || this.#edges[index + TYPE] === type)
-      ) {
-        // If this edge is already in the graph, bail out.
-        return -1;
-      }
-      // There is already an edge at `hash`,
-      // so scan forward for the next open slot to use as the the `hash`.
-      // Note that each 'slot' is of size `EDGE_SIZE`.
-      // Also note that we handle overflow of `edges` by wrapping
-      // back to the beginning of the `edges` array.
-      index = (index + EDGE_SIZE) % size;
+    if (this.hasEdge(from, to, type)) {
+      return -1;
     }
-    // If we find a deleted edge, use it. Otherwise, use the next empty edge
-    return deletedEdge ? deletedEdge : index;
+    let index = hashToIndex(this.hash(from, to, type));
+    if (isAvailable(this.#edges[index + TYPE])) {
+      return index;
+    } else {
+      return this.#availableIndexes.getRandomIndex();
+    }
   }
 
   *getAllEdges(): Iterator<{|
@@ -848,6 +892,8 @@ export default class AdjacencyList<TEdgeType: number = 1> {
       .get(to)
       .get(type)
       .delete(from);
+
+    this.#availableIndexes.add(index);
 
     let key = JSON.stringify({from, to, type});
     this.#edgeIndexes?.delete(key);
