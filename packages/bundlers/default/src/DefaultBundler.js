@@ -151,7 +151,7 @@ function decorateLegacyGraph(
       bundleGraph.addAssetToBundle(asset, bundle);
     }
 
-    console.log('INTERNALIZED', idealBundle.internalizedAssetIds);
+    //console.log('INTERNALIZED', idealBundle.internalizedAssetIds);
   }
 
   for (let [, idealBundle] of idealBundleGraph.nodes) {
@@ -165,15 +165,15 @@ function decorateLegacyGraph(
           incomingDep.priority === 'lazy' &&
           bundle.hasDependency(incomingDep)
         ) {
-          console.log('INTERNALIZING DEP', incomingDep);
+          //console.log('INTERNALIZING DEP', incomingDep);
           bundleGraph.internalizeAsyncDependency(bundle, incomingDep);
         } else {
-          console.log(
-            'NOT INTERNALIZING DEP',
-            incomingDep,
-            incomingDep.priority,
-            bundle.hasDependency(incomingDep),
-          );
+          // console.log(
+          //   'NOT INTERNALIZING DEP',
+          //   incomingDep,
+          //   incomingDep.priority,
+          //   bundle.hasDependency(incomingDep),
+          // );
         }
       }
     }
@@ -438,7 +438,7 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
       reachableRoots,
     );
 
-    console.log('Reachable before for', asset.filePath, 'is ', reachable);
+    //console.log('Reachable before for', asset.filePath, 'is ', reachable);
     // Filter out bundles when the asset is reachable in every parent bundle.
     // (Only keep a bundle if all of the others are not descendents of it)
     reachable = reachable.filter(b =>
@@ -448,7 +448,7 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
       }),
     ); //don't want to filter out bundle if 'b' is not "reachable" from all of its (a) immediate parents
 
-    console.log('Reachable for', asset.filePath, 'is ', reachable);
+    //console.log('Reachable for', asset.filePath, 'is ', reachable);
     //IDEA: reachableBundles as a graph so we can query an assets ancestors and/or decendants
 
     // BundleRoot = Root Asset of a bundle
@@ -491,12 +491,12 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
           let bundle = nullthrows(
             bundleGraph.getNode(nullthrows(bundles.get(bundleRoot.id))),
           );
-          console.log(
-            'PUSHING',
-            asset.id,
-            'into bundle',
-            nullthrows(bundles.get(bundleRoot.id)),
-          );
+          // console.log(
+          //   'PUSHING',
+          //   asset.id,
+          //   'into bundle',
+          //   nullthrows(bundles.get(bundleRoot.id)),
+          // );
           bundle.internalizedAssetIds.push(asset.id);
         }
       }

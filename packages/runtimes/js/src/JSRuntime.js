@@ -83,7 +83,7 @@ export default (new Runtime({
     let assets = [];
     for (let dependency of asyncDependencies) {
       let resolved = bundleGraph.resolveAsyncDependency(dependency, bundle);
-      console.log('resolved', dependency, dependency.priority, 'to', resolved);
+      //console.log('resolved', dependency, dependency.priority, 'to', resolved);
       if (resolved == null) {
         continue;
       }
