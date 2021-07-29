@@ -62,7 +62,7 @@ export type Bundle = {|
 |};
 
 type IdealGraph = {|
-  bundleLoadedByDependency: Map<NodeId, Dependency>,
+  bundleLoadedByDependency: DefaultMap<NodeId, Set<Dependency>>,
   bundleGraph: Graph<Bundle>,
   entryBundles: Array<NodeId>,
   assetReference: DefaultMap<Asset, Array<[Dependency, Bundle]>>,
@@ -94,17 +94,22 @@ function decorateLegacyGraph(
   let entryBundleToBundleGroup: Map<NodeId, BundleGroup> = new Map();
 
   for (let [bundleNodeId, idealBundle] of idealBundleGraph.nodes) {
-    let dependency = bundleLoadedByDependency.get(bundleNodeId);
+    let dependencies = bundleLoadedByDependency.get(bundleNodeId);
 
     let entryAsset = bundleGraph.getAssetById(idealBundle.assetIds[0]);
     // This entry asset is the first asset of the bundle (not entry file asset)
     let bundleGroup;
     let bundle;
-    if (dependency) {
-      bundleGroup = bundleGraph.createBundleGroup(
-        dependency,
-        idealBundle.target,
-      );
+
+    if (dependencies && dependencies.size > 0) {
+      //console.log('deps are', dependencies);
+      for (let dependency of dependencies) {
+        bundleGroup = bundleGraph.createBundleGroup(
+          dependency,
+          idealBundle.target,
+        );
+      }
+      invariant(bundleGroup);
       entryBundleToBundleGroup.set(bundleNodeId, bundleGroup);
 
       bundle = nullthrows(
@@ -219,7 +224,10 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
   // Asset to the bundle it's an entry of
   let bundleRoots: Map<BundleRoot, [NodeId, NodeId]> = new Map();
   let bundles: Map<string, NodeId> = new Map();
-  let bundleLoadedByDependency: Map<NodeId, Dependency> = new Map();
+  let bundleLoadedByDependency: DefaultMap<
+    NodeId,
+    Set<Dependency>,
+  > = new DefaultMap(() => new Set());
   let assetReference: DefaultMap<
     Asset,
     Array<[Dependency, Bundle]>,
@@ -232,6 +240,7 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
   //
   let bundleGraph: Graph<Bundle> = new Graph();
   let stack: Array<[BundleRoot, NodeId]> = [];
+  let asyncBundleRootGraph: ContentGraph<BundleRoot> = new ContentGraph();
 
   // Step 1: Create bundles for each entry.
   // TODO: Try to not create bundles during this first path, only annotate
@@ -259,7 +268,8 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
     );
     bundles.set(asset.id, nodeId);
     bundleRoots.set(asset, [nodeId, nodeId]);
-    bundleLoadedByDependency.set(nodeId, dependency);
+    bundleLoadedByDependency.get(nodeId).add(dependency);
+    asyncBundleRootGraph.addNodeByContentKey(asset.id, asset);
   }
 
   let assets = [];
@@ -300,15 +310,18 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
           childAsset.bundleBehavior === 'isolated'
         ) {
           // TODO: This bundle can be "created" by multiple dependencies?
-          let bundleId = bundleGraph.addNode(
-            createBundle({
-              asset: childAsset,
-              target: nullthrows(bundleGraph.getNode(stack[0][1])).target,
-            }),
-          );
-          bundles.set(childAsset.id, bundleId);
-          bundleRoots.set(childAsset, [bundleId, bundleId]);
-          bundleLoadedByDependency.set(bundleId, dependency);
+          let bundleId = bundles.get(childAsset.id);
+          if (bundleId == null) {
+            bundleId = bundleGraph.addNode(
+              createBundle({
+                asset: childAsset,
+                target: nullthrows(bundleGraph.getNode(stack[0][1])).target,
+              }),
+            );
+            bundles.set(childAsset.id, bundleId);
+            bundleRoots.set(childAsset, [bundleId, bundleId]);
+          }
+          bundleLoadedByDependency.get(bundleId).add(dependency);
 
           // Walk up the stack until we hit a different asset type
           // and mark each bundle as reachable from every parent bundle
@@ -412,7 +425,7 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
 
   // PART 1 (located in STEP 1)
   // Make bundlegraph that models bundleRoots and async deps only
-  // Turn reachableRoots into graph so that we have sync deps (Bidirectional)
+  // Turn reachableRoots into graph so that we have sync deps (Bidirectional) [x]
 
   // PART 2
   // traverse PART 2 BundleGraph (BFS)
