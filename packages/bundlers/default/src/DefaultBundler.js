@@ -21,7 +21,12 @@ import dumpGraphToGraphViz from '@parcel/core/src/dumpGraphToGraphViz';
 
 import invariant from 'assert';
 import {Bundler} from '@parcel/plugin';
-import {validateSchema, DefaultMap} from '@parcel/utils';
+import {
+  validateSchema,
+  DefaultMap,
+  setIntersection,
+  setUnion,
+} from '@parcel/utils';
 import {hashString} from '@parcel/hash';
 import nullthrows from 'nullthrows';
 import {encodeJSONKeyComponent} from '@parcel/diagnostic';
@@ -240,7 +245,9 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
   //
   let bundleGraph: Graph<Bundle> = new Graph();
   let stack: Array<[BundleRoot, NodeId]> = [];
-  let asyncBundleRootGraph: ContentGraph<BundleRoot> = new ContentGraph();
+  let asyncBundleRootGraph: ContentGraph<
+    BundleRoot | 'root',
+  > = new ContentGraph();
   //TODO of asyncBundleRootGraph: we should either add a root node or use bundleGraph which has a root automatically
 
   // Step 1: Create bundles for each entry.
@@ -259,6 +266,9 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
     actions.skipChildren();
   });
 
+  let rootNodeId = nullthrows(asyncBundleRootGraph.addNode('root'));
+  asyncBundleRootGraph.setRootNodeId(rootNodeId);
+
   for (let [asset, dependency] of entries) {
     let nodeId = bundleGraph.addNode(
       createBundle({
@@ -269,8 +279,11 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
     );
     bundles.set(asset.id, nodeId);
     bundleRoots.set(asset, [nodeId, nodeId]);
+    asyncBundleRootGraph.addEdge(
+      rootNodeId,
+      asyncBundleRootGraph.addNodeByContentKey(asset.id, asset),
+    );
     bundleLoadedByDependency.get(nodeId).add(dependency);
-    asyncBundleRootGraph.addNodeByContentKey(asset.id, asset);
   }
 
   let assets = [];
@@ -322,21 +335,6 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
             bundles.set(childAsset.id, bundleId);
             bundleRoots.set(childAsset, [bundleId, bundleId]);
           }
-          //Add child and connection from parent to child bundleRoot
-          let childNodeId = asyncBundleRootGraph.hasContentKey(childAsset.id)
-            ? asyncBundleRootGraph.getNodeIdByContentKey(childAsset.id)
-            : asyncBundleRootGraph.addNodeByContentKey(
-                childAsset.id,
-                childAsset,
-              );
-          if (asyncBundleRootGraph.hasContentKey(parentAsset.id)) {
-            let parentNodeId = asyncBundleRootGraph.getNodeIdByContentKey(
-              parentAsset.id,
-            );
-            asyncBundleRootGraph.addEdge(parentNodeId, childNodeId);
-          } else {
-            //add edge from root to node ?
-          }
           bundleLoadedByDependency.get(bundleId).add(dependency);
 
           // Walk up the stack until we hit a different asset type
@@ -351,6 +349,29 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
               break;
             }
             reachableBundles.get(stackAsset).add(childAsset);
+
+            if (i === stack.length - 1) {
+              //Add child and connection from parent to child bundleRoot
+              let childNodeId = asyncBundleRootGraph.hasContentKey(
+                childAsset.id,
+              )
+                ? asyncBundleRootGraph.getNodeIdByContentKey(childAsset.id)
+                : asyncBundleRootGraph.addNodeByContentKey(
+                    childAsset.id,
+                    childAsset,
+                  );
+
+              let parentNodeId = asyncBundleRootGraph.hasContentKey(
+                stackAsset.id,
+              )
+                ? asyncBundleRootGraph.getNodeIdByContentKey(stackAsset.id)
+                : asyncBundleRootGraph.addNodeByContentKey(
+                    stackAsset.id,
+                    stackAsset,
+                  );
+
+              asyncBundleRootGraph.addEdge(parentNodeId, childNodeId);
+            }
           }
           return node;
         }
@@ -375,7 +396,6 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
           // This indicates that the bundle is loaded together with the entry
           bundleGraph.addEdge(bundleGroupNodeId, bundleId);
           assetReference.get(childAsset).push([dependency, bundle]);
-          asyncBundleRootGraph.addNodeByContentKey(childAsset.id, childAsset);
           return node;
         }
       }
@@ -440,7 +460,7 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
   // determine what MUST be duplicated.
 
   // PART 1 (located in STEP 1)
-  // Make bundlegraph that models bundleRoots and async deps only
+  // Make bundlegraph that models bundleRoots and async deps only [x]
   // Turn reachableRoots into graph so that we have sync deps (Bidirectional) [x]
 
   // PART 2
@@ -454,8 +474,48 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
   // map.set(Z, {all assets gurenteed to be loaded at this point (by ancestors (X))  INTERSECTION WITH current map.get(z) })
 
   let ancestorAssets: Map<BundleRoot, Set<Asset>> = new Map();
-  //set difference
+  //set difference  //Map<C, [A, common]>
+  console.log('toposort:', asyncBundleRootGraph.topoSort());
+  for (let nodeId of asyncBundleRootGraph.topoSort()) {
+    let bundleRoot = asyncBundleRootGraph.getNode(nodeId);
+    if (bundleRoot === 'root') continue;
+    invariant(bundleRoot != null);
 
+    let syncAssetsLoaded = reachableRoots
+      .getNodeIdsConnectedFrom(
+        reachableRoots.getNodeIdByContentKey(bundleRoot.id),
+      )
+      .map(id => nullthrows(reachableRoots.getNode(id))); //assets synchronously loaded when a is loaded
+
+    console.log({syncAssetsLoaded});
+
+    let ancestors = ancestorAssets.get(bundleRoot);
+
+    let combined = ancestors
+      ? setUnion(ancestors, syncAssetsLoaded)
+      : new Set(syncAssetsLoaded);
+    let children = asyncBundleRootGraph.getNodeIdsConnectedFrom(nodeId);
+    console.log({children});
+
+    for (let childId of children) {
+      let child = asyncBundleRootGraph.getNode(childId);
+      invariant(child !== 'root' && child != null);
+      const availableAssets = ancestorAssets.get(child);
+
+      if (availableAssets == null) {
+        ancestorAssets.set(child, combined);
+      } else if (
+        asyncBundleRootGraph.getNodeIdsConnectedTo(childId).length > 1
+      ) {
+        ancestorAssets.set(child, setIntersection(combined, availableAssets));
+        console.log({combined});
+      } else {
+        ancestorAssets.set(child, setUnion(combined, availableAssets));
+      }
+    }
+  }
+
+  console.log(ancestorAssets);
   // Step 3: Place all assets into bundles. Each asset is placed into a single
   // bundle based on the bundle entries it is reachable from. This creates a
   // maximally code split bundle graph with no duplication.
@@ -470,12 +530,7 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
     //console.log('Reachable before for', asset.filePath, 'is ', reachable);
     // Filter out bundles when the asset is reachable in every parent bundle.
     // (Only keep a bundle if all of the others are not descendents of it)
-    reachable = reachable.filter(b =>
-      reachable.every(a => {
-        const isAncestorOfB = reachableBundles.get(a).has(b);
-        return !isAncestorOfB;
-      }),
-    ); //don't want to filter out bundle if 'b' is not "reachable" from all of its (a) immediate parents
+    reachable = reachable.filter(b => !ancestorAssets.get(b)?.has(asset)); //don't want to filter out bundle if 'b' is not "reachable" from all of its (a) immediate parents
 
     //console.log('Reachable for', asset.filePath, 'is ', reachable);
     //IDEA: reachableBundles as a graph so we can query an assets ancestors and/or decendants
@@ -581,6 +636,20 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
       }
       bundleGraph.removeEdge(entryBundleId, siblingId);
       reachableAsyncRoots.get(siblingId).delete(entryAsset);
+      if (sibling.sourceBundles.length > 1) {
+        let entryBundleIndex = sibling.sourceBundles.indexOf(entryBundleId);
+        invariant(entryBundleIndex >= 0);
+        sibling.sourceBundles.splice(entryBundleIndex, 1);
+
+        if (sibling.sourceBundles.length === 1) {
+          let id = sibling.sourceBundles.pop();
+          let bundle = nullthrows(bundleGraph.getNode(id));
+          for (let assetId of sibling.assetIds) {
+            bundle.assetIds.push(assetId);
+          }
+          bundleGraph.removeEdge(id, siblingId);
+        }
+      }
     }
   }
 

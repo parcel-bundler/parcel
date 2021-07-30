@@ -35,6 +35,8 @@ export {
   objectSortedEntries,
   objectSortedEntriesDeep,
   setDifference,
+  setIntersection,
+  setUnion,
 } from './collection';
 export {resolveConfig, resolveConfigSync, loadConfig} from './config';
 export {DefaultMap, DefaultWeakMap} from './DefaultMap';

@@ -469,6 +469,16 @@ export default class Graph<TNode, TEdgeType: string | null = null> {
     return null;
   }
 
+  topoSort(): Array<NodeId> {
+    let sorted: Array<NodeId> = [];
+    this.traverse({
+      exit: nodeId => {
+        sorted.push(nodeId);
+      },
+    });
+    return sorted.reverse();
+  }
+
   findAncestor(nodeId: NodeId, fn: (nodeId: NodeId) => boolean): ?NodeId {
     let res = null;
     this.traverseAncestors(nodeId, (nodeId, ctx, traversal) => {
