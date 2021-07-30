@@ -241,6 +241,7 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
   let bundleGraph: Graph<Bundle> = new Graph();
   let stack: Array<[BundleRoot, NodeId]> = [];
   let asyncBundleRootGraph: ContentGraph<BundleRoot> = new ContentGraph();
+  //TODO of asyncBundleRootGraph: we should either add a root node or use bundleGraph which has a root automatically
 
   // Step 1: Create bundles for each entry.
   // TODO: Try to not create bundles during this first path, only annotate
@@ -321,6 +322,21 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
             bundles.set(childAsset.id, bundleId);
             bundleRoots.set(childAsset, [bundleId, bundleId]);
           }
+          //Add child and connection from parent to child bundleRoot
+          let childNodeId = asyncBundleRootGraph.hasContentKey(childAsset.id)
+            ? asyncBundleRootGraph.getNodeIdByContentKey(childAsset.id)
+            : asyncBundleRootGraph.addNodeByContentKey(
+                childAsset.id,
+                childAsset,
+              );
+          if (asyncBundleRootGraph.hasContentKey(parentAsset.id)) {
+            let parentNodeId = asyncBundleRootGraph.getNodeIdByContentKey(
+              parentAsset.id,
+            );
+            asyncBundleRootGraph.addEdge(parentNodeId, childNodeId);
+          } else {
+            //add edge from root to node ?
+          }
           bundleLoadedByDependency.get(bundleId).add(dependency);
 
           // Walk up the stack until we hit a different asset type
@@ -359,7 +375,7 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
           // This indicates that the bundle is loaded together with the entry
           bundleGraph.addEdge(bundleGroupNodeId, bundleId);
           assetReference.get(childAsset).push([dependency, bundle]);
-
+          asyncBundleRootGraph.addNodeByContentKey(childAsset.id, childAsset);
           return node;
         }
       }
@@ -420,7 +436,7 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
   }
 
   // Step 2.5
-  //IDEA 2: Somehow store all assets available (guarenteed to be loaded at this bundles load in time) at a certain point, for an asset/ bundleRoot, and do a lookup to
+  // IDEA 2: Somehow store all assets available (guarenteed to be loaded at this bundles load in time) at a certain point, for an asset/ bundleRoot, and do a lookup to
   // determine what MUST be duplicated.
 
   // PART 1 (located in STEP 1)
@@ -432,7 +448,7 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
   // Maintain a MAP BundleRoot => Set of assets loaded thus far
 
   // At BundleRoot X
-  // Ask for children [Z..]
+  // Peek/Ask for children [Z..]
 
   // get all assets guarenteed to be loaded when bundle X is loaded
   // map.set(Z, {all assets gurenteed to be loaded at this point (by ancestors (X))  INTERSECTION WITH current map.get(z) })
@@ -576,7 +592,12 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
 
   // $FlowFixMe
   dumpGraphToGraphViz(bundleGraph, 'IdealBundleGraph');
-
+  for (let [nodeId, node] of asyncBundleRootGraph.nodes) {
+    console.log('node id is', nodeId, 'and node is', node);
+    for (let edge of asyncBundleRootGraph.getNodeIdsConnectedFrom(nodeId)) {
+      console.log('Edge from ', edge, ' to ', nodeId);
+    }
+  }
   return {
     bundleGraph,
     bundleLoadedByDependency,

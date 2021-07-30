@@ -2143,7 +2143,7 @@ describe('javascript', function() {
     assert.equal(await output(), 5);
   });
 
-  it('should duplicate an asset if it is not present in every parent bundle', async function() {
+  it.only('should duplicate an asset if it is not present in every parent bundle', async function() {
     let b = await bundle(
       ['a.js', 'b.js'].map(entry =>
         path.join(__dirname, 'integration/dynamic-hoist-no-dedupe', entry),
