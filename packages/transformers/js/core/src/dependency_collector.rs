@@ -206,6 +206,7 @@ impl<'a> DependencyCollector<'a> {
       }]),
       hints: None,
       show_environment: true,
+      severity: DiagnosticSeverity::Error,
     });
   }
 }
@@ -380,6 +381,7 @@ impl<'a> Fold for DependencyCollector<'a> {
                   "Use a static `import`, or dynamic `import()` instead.",
                 )]),
                 show_environment: self.config.source_type == SourceType::Script,
+                severity: DiagnosticSeverity::Error,
               });
             }
 
@@ -549,6 +551,7 @@ impl<'a> Fold for DependencyCollector<'a> {
                 str_.value,
               )]),
               show_environment: false,
+              severity: DiagnosticSeverity::Error,
             });
             return node;
           } else {
@@ -719,6 +722,7 @@ impl<'a> Fold for DependencyCollector<'a> {
                 str_.value
               )]),
               show_environment: false,
+              severity: DiagnosticSeverity::Error,
             });
             return node;
           } else {
@@ -1221,6 +1225,7 @@ impl<'a> DependencyCollector<'a> {
             }]),
             hints: None,
             show_environment: true,
+            severity: DiagnosticSeverity::Error,
           })
         }
         true
