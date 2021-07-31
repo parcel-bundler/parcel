@@ -195,9 +195,7 @@ export default (new Runtime({
     // know about all of the sibling bundles of a child when it is written for the first time.
     // Therefore, we need to also ensure that the siblings are loaded when the child loads.
     if (options.shouldBuildLazily && bundle.env.outputFormat === 'global') {
-      let referenced = bundleGraph
-        .getReferencedBundles(bundle)
-        .filter(b => b.bundleBehavior !== 'inline');
+      let referenced = bundleGraph.getReferencedBundles(bundle);
       for (let referencedBundle of referenced) {
         let loaders = getLoaders(bundle.env);
         if (!loaders) {
@@ -294,10 +292,7 @@ function getLoaderRuntime({
     return;
   }
 
-  let externalBundles = bundleGraph
-    .getBundlesInBundleGroup(bundleGroup)
-    .filter(bundle => bundle.bundleBehavior !== 'inline');
-
+  let externalBundles = bundleGraph.getBundlesInBundleGroup(bundleGroup);
   let mainBundle = nullthrows(
     externalBundles.find(
       bundle => bundle.getMainEntry()?.id === bundleGroup.entryAssetId,
