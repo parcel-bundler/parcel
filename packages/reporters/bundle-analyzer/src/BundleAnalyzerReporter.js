@@ -19,9 +19,7 @@ export default (new Reporter({
       Array<PackagedBundle>,
     > = new DefaultMap(() => []);
     for (let bundle of event.bundleGraph.getBundles()) {
-      if (bundle.bundleBehavior !== 'inline') {
-        bundlesByTarget.get(bundle.target.name).push(bundle);
-      }
+      bundlesByTarget.get(bundle.target.name).push(bundle);
     }
 
     let reportsDir = path.join(options.projectRoot, 'parcel-bundle-reports');

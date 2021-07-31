@@ -2224,7 +2224,7 @@ describe('html', function() {
 
     bundleGraph.traverseBundles(bundle => {
       bundle.traverseAssets(asset => {
-        let bundles = bundleGraph.findBundlesWithAsset(asset);
+        let bundles = bundleGraph.getBundlesWithAsset(asset);
         assert.equal(
           bundles.length,
           1,
