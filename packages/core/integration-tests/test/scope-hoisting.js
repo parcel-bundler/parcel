@@ -281,7 +281,7 @@ describe('scope hoisting', function() {
         new Set(['add']),
       );
 
-      // resolveSymbol is broken
+      // getSymbolResolution is broken
       // let output = await run(b);
       // assert.equal(output, 3);
     });

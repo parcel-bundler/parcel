@@ -416,7 +416,7 @@ export async function runBundle(
       lowerCaseAttributeNames: true,
     });
 
-    let bundles = bundleGraph.getBundles();
+    let bundles = bundleGraph.getBundles({includeInline: true});
     let scripts = [];
     postHtml().walk.call(ast, node => {
       if (node.attrs?.nomodule != null) {

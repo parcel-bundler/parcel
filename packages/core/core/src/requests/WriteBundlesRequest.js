@@ -14,7 +14,6 @@ import nullthrows from 'nullthrows';
 import {hashString} from '@parcel/hash';
 import {createPackageRequest} from './PackageRequest';
 import createWriteBundleRequest from './WriteBundleRequest';
-import {BundleBehavior} from '../types';
 
 type WriteBundlesRequestInput = {|
   bundleGraph: BundleGraph,
@@ -79,8 +78,7 @@ async function run({input, api, farm, options}: RunInput) {
       return false;
     }
 
-    // skip inline bundles, they will be processed via the parent bundle
-    return bundle.bundleBehavior !== BundleBehavior.inline;
+    return true;
   });
 
   try {

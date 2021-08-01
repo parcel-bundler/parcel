@@ -75,7 +75,7 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
 
     invariant(dependencyNode.type === 'dependency');
 
-    let resolved = this.#graph.getDependencyResolution(
+    let resolved = this.#graph.getResolvedAsset(
       dependencyToInternalDependency(dependency),
     );
     if (!resolved) {
