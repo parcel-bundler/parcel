@@ -402,7 +402,7 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
       return node;
     },
     exit(node) {
-      if (stack[stack.length - 1] === node.value) {
+      if (stack[stack.length - 1]?.[0] === node.value) {
         stack.pop();
       }
     },
@@ -475,7 +475,7 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
 
   let ancestorAssets: Map<BundleRoot, Set<Asset>> = new Map();
   //set difference  //Map<C, [A, common]>
-  console.log('toposort:', asyncBundleRootGraph.topoSort());
+  //console.log('toposort:', asyncBundleRootGraph.topoSort());
   for (let nodeId of asyncBundleRootGraph.topoSort()) {
     let bundleRoot = asyncBundleRootGraph.getNode(nodeId);
     if (bundleRoot === 'root') continue;
@@ -487,7 +487,7 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
       )
       .map(id => nullthrows(reachableRoots.getNode(id))); //assets synchronously loaded when a is loaded
 
-    console.log({syncAssetsLoaded});
+    //console.log({syncAssetsLoaded});
 
     let ancestors = ancestorAssets.get(bundleRoot);
 
@@ -495,7 +495,7 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
       ? setUnion(ancestors, syncAssetsLoaded)
       : new Set(syncAssetsLoaded);
     let children = asyncBundleRootGraph.getNodeIdsConnectedFrom(nodeId);
-    console.log({children});
+    //console.log({children});
 
     for (let childId of children) {
       let child = asyncBundleRootGraph.getNode(childId);
@@ -508,14 +508,14 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
         asyncBundleRootGraph.getNodeIdsConnectedTo(childId).length > 1
       ) {
         ancestorAssets.set(child, setIntersection(combined, availableAssets));
-        console.log({combined});
+        //console.log({combined});
       } else {
         ancestorAssets.set(child, setUnion(combined, availableAssets));
       }
     }
   }
 
-  console.log(ancestorAssets);
+  //console.log(ancestorAssets);
   // Step 3: Place all assets into bundles. Each asset is placed into a single
   // bundle based on the bundle entries it is reachable from. This creates a
   // maximally code split bundle graph with no duplication.
@@ -611,11 +611,8 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
       bundle.size += asset.stats.size;
 
       // Add the bundle to each reachable bundle group.
-      for (let reachableAsset of reachable) {
-        let reachableRoot = nullthrows(bundleRoots.get(reachableAsset))[1];
-        if (reachableRoot !== bundleId) {
-          bundleGraph.addEdge(reachableRoot, bundleId);
-        }
+      for (let sourceBundleId of sourceBundles) {
+        bundleGraph.addEdge(sourceBundleId, bundleId);
       }
     }
   }
@@ -662,9 +659,9 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
   // $FlowFixMe
   dumpGraphToGraphViz(bundleGraph, 'IdealBundleGraph');
   for (let [nodeId, node] of asyncBundleRootGraph.nodes) {
-    console.log('node id is', nodeId, 'and node is', node);
+    //console.log('node id is', nodeId, 'and node is', node);
     for (let edge of asyncBundleRootGraph.getNodeIdsConnectedFrom(nodeId)) {
-      console.log('Edge from ', edge, ' to ', nodeId);
+      //console.log('Edge from ', edge, ' to ', nodeId);
     }
   }
   return {

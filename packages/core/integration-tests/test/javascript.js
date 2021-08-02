@@ -1890,7 +1890,7 @@ describe('javascript', function() {
     ]);
   });
 
-  it('should create a shared bundle between browser and worker contexts', async () => {
+  it.only('should create a shared bundle between browser and worker contexts', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/html-shared-worker/index.html'),
       {mode: 'production', defaultTargetOptions: {shouldScopeHoist: false}},
@@ -2055,7 +2055,7 @@ describe('javascript', function() {
     assert.equal(await output(), 3);
   });
 
-  it('should duplicate small modules across multiple bundles', async function() {
+  it.only('should duplicate small modules across multiple bundles', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/dynamic-common-small/index.js'),
     );
@@ -2143,7 +2143,7 @@ describe('javascript', function() {
     assert.equal(await output(), 5);
   });
 
-  it.only('should duplicate an asset if it is not present in every parent bundle', async function() {
+  it('should duplicate an asset if it is not present in every parent bundle', async function() {
     let b = await bundle(
       ['a.js', 'b.js'].map(entry =>
         path.join(__dirname, 'integration/dynamic-hoist-no-dedupe', entry),
