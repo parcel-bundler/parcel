@@ -80,8 +80,8 @@ export default class BundleGraph<TBundle: IBundle>
     return this.#graph.isDependencySkipped(dependencyToInternalDependency(dep));
   }
 
-  getDependencyResolution(dep: IDependency, bundle: ?IBundle): ?IAsset {
-    let resolution = this.#graph.getDependencyResolution(
+  getResolvedAsset(dep: IDependency, bundle: ?IBundle): ?IAsset {
+    let resolution = this.#graph.getResolvedAsset(
       dependencyToInternalDependency(dep),
       bundle && bundleToInternalBundle(bundle),
     );
@@ -113,18 +113,10 @@ export default class BundleGraph<TBundle: IBundle>
 
   getReferencedBundles(
     bundle: IBundle,
-    opts?: {|recursive: boolean|},
+    opts?: {|recursive?: boolean, includeInline?: boolean|},
   ): Array<TBundle> {
     return this.#graph
       .getReferencedBundles(bundleToInternalBundle(bundle), opts)
-      .map(bundle =>
-        this.#createBundle.call(null, bundle, this.#graph, this.#options),
-      );
-  }
-
-  getRequiredBundlesForBundle(bundle: IBundle): Array<TBundle> {
-    return this.#graph
-      .getReferencedBundles(bundleToInternalBundle(bundle))
       .map(bundle =>
         this.#createBundle.call(null, bundle, this.#graph, this.#options),
       );
@@ -181,21 +173,8 @@ export default class BundleGraph<TBundle: IBundle>
     );
   }
 
-  findReachableBundleWithAsset(bundle: IBundle, asset: IAsset): ?TBundle {
-    let result = this.#graph.findReachableBundleWithAsset(
-      bundleToInternalBundle(bundle),
-      assetToAssetValue(asset),
-    );
-
-    if (result != null) {
-      return this.#createBundle.call(null, result, this.#graph, this.#options);
-    }
-
-    return null;
-  }
-
-  isAssetReferencedByDependant(bundle: IBundle, asset: IAsset): boolean {
-    return this.#graph.isAssetReferencedByDependant(
+  isAssetReferenced(bundle: IBundle, asset: IAsset): boolean {
+    return this.#graph.isAssetReferenced(
       bundleToInternalBundle(bundle),
       assetToAssetValue(asset),
     );
@@ -208,17 +187,23 @@ export default class BundleGraph<TBundle: IBundle>
     );
   }
 
-  getBundlesInBundleGroup(bundleGroup: IBundleGroup): Array<TBundle> {
+  getBundlesInBundleGroup(
+    bundleGroup: IBundleGroup,
+    opts?: {|includeInline: boolean|},
+  ): Array<TBundle> {
     return this.#graph
-      .getBundlesInBundleGroup(bundleGroupToInternalBundleGroup(bundleGroup))
+      .getBundlesInBundleGroup(
+        bundleGroupToInternalBundleGroup(bundleGroup),
+        opts,
+      )
       .map(bundle =>
         this.#createBundle.call(null, bundle, this.#graph, this.#options),
       );
   }
 
-  getBundles(): Array<TBundle> {
+  getBundles(opts?: {|includeInline: boolean|}): Array<TBundle> {
     return this.#graph
-      .getBundles()
+      .getBundles(opts)
       .map(bundle =>
         this.#createBundle.call(null, bundle, this.#graph, this.#options),
       );
@@ -246,12 +231,12 @@ export default class BundleGraph<TBundle: IBundle>
       );
   }
 
-  resolveSymbol(
+  getSymbolResolution(
     asset: IAsset,
     symbol: Symbol,
     boundary: ?IBundle,
   ): SymbolResolution {
-    let res = this.#graph.resolveSymbol(
+    let res = this.#graph.getSymbolResolution(
       assetToAssetValue(asset),
       symbol,
       boundary ? bundleToInternalBundle(boundary) : null,
@@ -312,17 +297,17 @@ export default class BundleGraph<TBundle: IBundle>
     );
   }
 
-  findBundlesWithAsset(asset: IAsset): Array<TBundle> {
+  getBundlesWithAsset(asset: IAsset): Array<TBundle> {
     return this.#graph
-      .findBundlesWithAsset(assetToAssetValue(asset))
+      .getBundlesWithAsset(assetToAssetValue(asset))
       .map(bundle =>
         this.#createBundle.call(null, bundle, this.#graph, this.#options),
       );
   }
 
-  findBundlesWithDependency(dependency: IDependency): Array<TBundle> {
+  getBundlesWithDependency(dependency: IDependency): Array<TBundle> {
     return this.#graph
-      .findBundlesWithDependency(dependencyToInternalDependency(dependency))
+      .getBundlesWithDependency(dependencyToInternalDependency(dependency))
       .map(bundle =>
         this.#createBundle.call(null, bundle, this.#graph, this.#options),
       );
