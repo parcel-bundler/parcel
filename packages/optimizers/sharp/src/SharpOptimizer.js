@@ -2,6 +2,7 @@
 
 import {Optimizer} from '@parcel/plugin';
 import {blobToBuffer} from '@parcel/utils';
+import nullthrows from 'nullthrows';
 import path from 'path';
 import sharp from 'sharp';
 
@@ -59,11 +60,10 @@ export default (new Optimizer({
     }
 
     const ext = path.extname(bundle.name).substr(1);
-    const format = FORMATS.get(ext);
-
-    if (!format) {
-      throw new Error(`Sharp does not support ${ext} images.`);
-    }
+    const format = nullthrows(
+      FORMATS.get(ext),
+      `Sharp does not support ${ext} images.`,
+    );
 
     const options = {...DEFAULT_OPTIONS[format], ...config?.[format]};
 
