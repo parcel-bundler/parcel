@@ -8,7 +8,8 @@ use swc_ecmascript::ast::*;
 use swc_ecmascript::visit::{Fold, FoldWith, Node, Visit, VisitWith};
 
 use crate::utils::{
-  match_import, match_member_expr, match_require, CodeHighlight, Diagnostic, SourceLocation,
+  match_import, match_member_expr, match_require, CodeHighlight, Diagnostic, DiagnosticSeverity,
+  SourceLocation,
 };
 
 type IdentId = (JsWord, SyntaxContext);
@@ -168,6 +169,7 @@ impl<'a> Fold for Hoist<'a> {
                     code_highlights: Some(highlights),
                     hints: None,
                     show_environment: false,
+                    severity: DiagnosticSeverity::Error,
                   })
                 }
               }

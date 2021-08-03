@@ -17,6 +17,7 @@ import {
 } from '@parcel/test-utils';
 import {makeDeferredWithPromise, normalizePath} from '@parcel/utils';
 import vm from 'vm';
+import Logger from '@parcel/logger';
 
 describe('javascript', function() {
   beforeEach(async () => {
@@ -2703,7 +2704,7 @@ describe('javascript', function() {
     let b = await bundle(
       path.join(__dirname, '/integration/env-computed/index.js'),
       {
-        env: {name: 'abc'},
+        env: {ABC: 'abc'},
       },
     );
 
@@ -2711,7 +2712,7 @@ describe('javascript', function() {
     assert(contents.includes('process.env'));
 
     let output = await run(b);
-    assert.strictEqual(output, 'abc');
+    assert.strictEqual(output, undefined);
   });
 
   it('should inline computed accesses with string literals to process.env', async function() {
@@ -2805,6 +2806,210 @@ describe('javascript', function() {
 
     let output = await run(b);
     assert.equal(output, 'productiontest');
+  });
+
+  it('should error on process.env mutations', async function() {
+    let filePath = path.join(__dirname, '/integration/env-mutate/index.js');
+    await assert.rejects(bundle(filePath), {
+      diagnostics: [
+        {
+          origin: '@parcel/transformer-js',
+          message: 'Mutating process.env is not supported',
+          hints: null,
+          codeFrames: [
+            {
+              filePath,
+              codeHighlights: [
+                {
+                  message: null,
+                  start: {
+                    line: 1,
+                    column: 1,
+                  },
+                  end: {
+                    line: 1,
+                    column: 29,
+                  },
+                },
+              ],
+            },
+          ],
+        },
+        {
+          origin: '@parcel/transformer-js',
+          message: 'Mutating process.env is not supported',
+          hints: null,
+          codeFrames: [
+            {
+              filePath,
+              codeHighlights: [
+                {
+                  message: null,
+                  start: {
+                    line: 2,
+                    column: 1,
+                  },
+                  end: {
+                    line: 2,
+                    column: 30,
+                  },
+                },
+              ],
+            },
+          ],
+        },
+        {
+          origin: '@parcel/transformer-js',
+          message: 'Mutating process.env is not supported',
+          hints: null,
+          codeFrames: [
+            {
+              filePath,
+              codeHighlights: [
+                {
+                  message: null,
+                  start: {
+                    line: 3,
+                    column: 1,
+                  },
+                  end: {
+                    line: 3,
+                    column: 28,
+                  },
+                },
+              ],
+            },
+          ],
+        },
+        {
+          origin: '@parcel/transformer-js',
+          message: 'Mutating process.env is not supported',
+          hints: null,
+          codeFrames: [
+            {
+              filePath,
+              codeHighlights: [
+                {
+                  message: null,
+                  start: {
+                    line: 4,
+                    column: 1,
+                  },
+                  end: {
+                    line: 4,
+                    column: 23,
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it('should warn on process.env mutations in node_modules', async function() {
+    let logs = [];
+    let disposable = Logger.onLog(d => logs.push(d));
+    let b = await bundle(
+      path.join(__dirname, '/integration/env-mutate/warn.js'),
+    );
+    disposable.dispose();
+
+    assert.deepEqual(logs, [
+      {
+        type: 'log',
+        level: 'warn',
+        diagnostics: [
+          {
+            origin: '@parcel/transformer-js',
+            message: 'Mutating process.env is not supported',
+            hints: null,
+            codeFrames: [
+              {
+                filePath: path.join(
+                  __dirname,
+                  '/integration/env-mutate/node_modules/foo/index.js',
+                ),
+                codeHighlights: [
+                  {
+                    message: null,
+                    start: {
+                      line: 1,
+                      column: 8,
+                    },
+                    end: {
+                      line: 1,
+                      column: 36,
+                    },
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            origin: '@parcel/transformer-js',
+            message: 'Mutating process.env is not supported',
+            hints: null,
+            codeFrames: [
+              {
+                filePath: path.join(
+                  __dirname,
+                  '/integration/env-mutate/node_modules/foo/index.js',
+                ),
+                codeHighlights: [
+                  {
+                    message: null,
+                    start: {
+                      line: 2,
+                      column: 8,
+                    },
+                    end: {
+                      line: 2,
+                      column: 35,
+                    },
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            origin: '@parcel/transformer-js',
+            message: 'Mutating process.env is not supported',
+            hints: null,
+            codeFrames: [
+              {
+                filePath: path.join(
+                  __dirname,
+                  '/integration/env-mutate/node_modules/foo/index.js',
+                ),
+                codeHighlights: [
+                  {
+                    message: null,
+                    start: {
+                      line: 3,
+                      column: 8,
+                    },
+                    end: {
+                      line: 3,
+                      column: 30,
+                    },
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ]);
+
+    let output = [];
+    await run(b, {
+      output(o) {
+        output.push(o);
+      },
+    });
+    assert.deepEqual(output, ['foo', true, undefined]);
   });
 
   it('should replace process.browser for target browser', async function() {
