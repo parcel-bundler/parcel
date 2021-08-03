@@ -1242,9 +1242,7 @@ describe('html', function() {
               ],
             },
           ],
-          hints: [
-            'Add type="module" as a second argument to the <script> tag.',
-          ],
+          hints: ['Add the type="module" attribute to the <script> tag.'],
         },
       ]);
 
@@ -1523,9 +1521,7 @@ describe('html', function() {
               ],
             },
           ],
-          hints: [
-            'Add type="module" as a second argument to the <script> tag.',
-          ],
+          hints: ['Add the type="module" attribute to the <script> tag.'],
         },
       ]);
 

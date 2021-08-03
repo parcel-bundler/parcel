@@ -50,7 +50,7 @@ use fs::inline_fs;
 use global_replacer::GlobalReplacer;
 use hoist::hoist;
 use modules::esm2cjs;
-use utils::{CodeHighlight, Diagnostic, SourceLocation, SourceType};
+use utils::{CodeHighlight, Diagnostic, DiagnosticSeverity, SourceLocation, SourceType};
 
 #[derive(Serialize, Debug, Deserialize)]
 pub struct Config {
@@ -194,6 +194,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
             code_highlights,
             hints,
             show_environment: false,
+            severity: DiagnosticSeverity::Error,
           }
         })
         .collect();
@@ -292,7 +293,9 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                     env: &config.env,
                     is_browser: config.is_browser,
                     decls: &decls,
-                    used_env: &mut result.used_env
+                    used_env: &mut result.used_env,
+                    source_map: &source_map,
+                    diagnostics: &mut diagnostics
                   },
                   config.source_type != SourceType::Script
                 ),
@@ -357,7 +360,10 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
               ),
             );
 
-            if !diagnostics.is_empty() {
+            if diagnostics
+              .iter()
+              .any(|d| d.severity == DiagnosticSeverity::Error)
+            {
               result.diagnostics = Some(diagnostics);
               return Ok(result);
             }
@@ -394,6 +400,10 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
 
             result.dependencies.extend(global_deps);
             result.dependencies.extend(fs_deps);
+
+            if !diagnostics.is_empty() {
+              result.diagnostics = Some(diagnostics);
+            }
 
             let (buf, mut src_map_buf) =
               emit(source_map.clone(), comments, &program, config.source_maps)?;
