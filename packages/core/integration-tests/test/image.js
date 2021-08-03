@@ -129,6 +129,24 @@ describe('image', function() {
     assert(image.size >= originalSize * 0.29);
   });
 
+  it('should do nothing if the image cannot be optimized', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/image-config/foo.png'),
+      {
+        defaultTargetOptions: {
+          shouldOptimize: true,
+        },
+      },
+    );
+
+    const imagePath = b.getBundles().find(b => b.type === 'png').filePath;
+
+    const buffer = await outputFS.readFile(imagePath);
+    const image = await sharp(buffer).metadata();
+
+    assert.strictEqual(image.size, 255);
+  });
+
   it('support config files', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/image-config/image.jpg'),

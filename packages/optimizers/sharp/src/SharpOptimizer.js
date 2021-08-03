@@ -67,11 +67,15 @@ export default (new Optimizer({
 
     const options = {...DEFAULT_OPTIONS[format], ...config?.[format]};
 
-    const optimized = await sharp(await blobToBuffer(contents))
+    const original = await blobToBuffer(contents);
+    const optimized = await sharp(original)
       [format](options)
       .rotate()
       .toBuffer();
 
-    return {contents: optimized};
+    return {
+      contents:
+        optimized.byteLength < original.byteLength ? optimized : original,
+    };
   },
 }): Optimizer);

@@ -1,5 +1,8 @@
 {
   "jpeg": {
     "chromaSubsampling": "4:4:4"
+  },
+  "png": {
+    "palette": false
   }
 }
