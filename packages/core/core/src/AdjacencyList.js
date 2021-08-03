@@ -32,22 +32,24 @@ export const NODE_SIZE = 4;
  * The first 4 bytes are the edge type.
  * The second 4 bytes are the id of the 'from' node.
  * The third 4 bytes are the id of the 'to' node.
- * The fourth 4 bytes are the hash of the 'to' node's next incoming edge.
- * The fifth 4 bytes are the hash of the 'from' node's next outgoing edge.
+ * The fourth 4 bytes are the index of the next edge in the bucket of hash collisions.
+ * The fifth 4 bytes are the hash of the 'to' node's next incoming edge.
+ * The sixth 4 bytes are the hash of the 'from' node's next outgoing edge.
  *
  * struct Edge {
  *   int type;
  *   int from;
  *   int to;
+ *   int nextHash;
  *   int nextIn;
  *   int nextOut;
  * }
  *
- * ┌────────────────────────────────────────────────────────────────┐
- * │                           EDGE_SIZE                            │
- * ├────────────┬────────────┬────────────┬────────────┬────────────┤
- * │    TYPE    │    FROM    │     TO     │  NEXT_IN   │  NEXT_OUT  │
- * └────────────┴────────────┴────────────┴────────────┴────────────┘
+ * ┌─────────────────────────────────────────────────────────────────────────────┐
+ * │                                  EDGE_SIZE                                  │
+ * ├────────────┬────────────┬────────────┬────────────┬────────────┬────────────┤
+ * │    TYPE    │    FROM    │     TO     │  NEXT_HASH │   NEXT_IN  │  NEXT_OUT  │
+ * └────────────┴────────────┴────────────┴────────────┴────────────┴────────────┘
  *
  * Nodes and Edges create a linked list of edges to and from each node.
  *
@@ -79,7 +81,7 @@ export const NODE_SIZE = 4;
  * The incoming edges to `Node1` are similar, but starting from
  * `FirstIn(1)` and following the `NextIn()` links instead.
  */
-export const EDGE_SIZE = 5;
+export const EDGE_SIZE = 6;
 
 /** The offset from an edge index at which the edge type is stored. */
 const TYPE: 0 = 0;
@@ -87,16 +89,18 @@ const TYPE: 0 = 0;
 const FROM: 1 = 1;
 /** The offset from an edge index at which the 'to' node id is stored. */
 const TO: 2 = 2;
+/** The offset from an edge index at which the next edge in the chain of hash collisions is stored*/
+const NEXT_HASH: 3 = 3;
 /**
  * The offset from an edge index at which the hash
  * of the 'to' node's next incoming edge is stored.
  */
-const NEXT_IN: 3 = 3;
+const NEXT_IN: 4 = 4;
 /**
  * The offset from an edge index at which the hash
  * of the 'from' node's next outgoing edge is stored.
  */
-const NEXT_OUT: 4 = 4;
+const NEXT_OUT: 5 = 5;
 
 /** The offset from a node index at which the hash of the first incoming edge is stored. */
 const FIRST_IN: 0 = 0;
@@ -106,6 +110,8 @@ const FIRST_OUT: 1 = 1;
 const LAST_IN: 2 = 2;
 /** The offset from a node index at which the hash of the last outgoing edge is stored. */
 const LAST_OUT: 3 = 3;
+/** The upper bound of the address space of the hash function */
+const ADDRESS_SPACE = 0.86;
 
 /**
  * A sentinel that indicates that an edge was deleted.
@@ -133,8 +139,11 @@ export type SerializedAdjacencyList<TEdgeType> = {|
   edges: Uint32Array,
   numNodes: number,
   numEdges: number,
+  addressSpace: number,
   edgeCapacity: number,
   nodeCapacity: number,
+  nextEmptyEdge: number,
+  deletedEdges: Array<number>,
 |};
 
 export type AdjacencyListOptions<TEdgeType> = {|
@@ -156,23 +165,6 @@ const nodeAt = (index: number): NodeId =>
 
 /** Get the index in the nodes array of the given node. */
 const indexOfNode = (id: NodeId): number => fromNodeId(id) * NODE_SIZE;
-
-function buildEdgeIndexes<TEdgeType: number = 1>(
-  graph: AdjacencyList<TEdgeType>,
-): DefaultMap<string, number> {
-  let edgeIndexes = new DefaultMap<string, number>(() => -1);
-  for (let from of graph.iterateNodes()) {
-    for (let edge of graph.iterateOutgoingEdges(from)) {
-      let key = JSON.stringify({
-        from,
-        to: graph.getToNode(edge),
-        type: graph.getEdgeType(edge),
-      });
-      edgeIndexes.set(key, hashToIndex(edge));
-    }
-  }
-  return edgeIndexes;
-}
 
 /** Create mappings from => type => to and vice versa. */
 function buildTypeMaps<TEdgeType: number = 1>(
@@ -199,6 +191,10 @@ function buildTypeMaps<TEdgeType: number = 1>(
   return {from, to};
 }
 
+function getAddressSpace(edgeCapacity: number): number {
+  return Math.floor(edgeCapacity * EDGE_SIZE * ADDRESS_SPACE);
+}
+
 const readonlyDescriptor: PropertyDescriptor<(...args: any[]) => void> = {
   enumerable: true,
   configurable: false,
@@ -208,45 +204,9 @@ const readonlyDescriptor: PropertyDescriptor<(...args: any[]) => void> = {
   },
 };
 
-class AvailableIndexes {
-  #indexList: Array<number>;
-  #indexMap: Map<number, number>;
-
-  constructor() {
-    this.#indexList = [];
-    this.#indexMap = new Map<number, number>();
-  }
-
-  add(value: number) {
-    if (this.#indexMap.get(value) !== undefined) {
-      return false;
-    }
-    this.#indexMap.set(value, this.#indexList.length);
-    this.#indexList.push(value);
-    return true;
-  }
-
-  delete(value: number) {
-    if (this.#indexMap.get(value) === undefined) {
-      return false;
-    }
-    let last = this.#indexList[this.#indexList.length - 1];
-    let index = nullthrows(this.#indexMap.get(value));
-    this.#indexList[index] = last;
-    this.#indexMap.set(last, index);
-    this.#indexList.pop();
-    this.#indexMap.delete(value);
-    return true;
-  }
-
-  getRandomIndex(): number {
-    return this.#indexList[
-      Math.floor(Math.random() * (this.#indexList.length - 1))
-    ];
-  }
-}
-
 export default class AdjacencyList<TEdgeType: number = 1> {
+  /** The upper bound of the addressable hash space */
+  #addressSpace: number;
   /** The number of nodes that can fit in the nodes array. */
   #nodeCapacity: number;
   /** The number of edges that can fit in the edges array. */
@@ -269,13 +229,10 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     /** A map of node ids to => through types => from node ids. */
     to: DefaultMap<NodeId, DefaultMap<number, Set<NodeId>>>,
   |};
-  /** A map of edges to their index in the edge array */
-  #edgeIndexes: DefaultMap<string, number>;
-  /**
-   * A set of available indexes in the edge array.
-   * An available index either has an empty slot or a deleted edge
-   */
-  #availableIndexes: AvailableIndexes;
+  /** The index of the next empty edge in the cellar */
+  #nextEmptyEdge: number;
+  /** An array of deleted edge indexes to resuse */
+  #deletedEdges: Array<number>;
 
   constructor(
     opts?: SerializedAdjacencyList<TEdgeType> | AdjacencyListOptions<TEdgeType>,
@@ -283,6 +240,7 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     let {
       nodeCapacity = 128,
       edgeCapacity = 256,
+      addressSpace = getAddressSpace(edgeCapacity),
       numNodes = 0,
       numEdges = 0,
       // $FlowFixMe[incompatible-call]
@@ -299,6 +257,7 @@ export default class AdjacencyList<TEdgeType: number = 1> {
       ),
     } = opts ?? {};
 
+    this.#addressSpace = addressSpace;
     this.#nodeCapacity = nodeCapacity;
     this.#edgeCapacity = edgeCapacity;
     this.#numNodes = numNodes;
@@ -307,17 +266,17 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     this.#edges = edges;
     this.#previousIn = new Map();
     this.#previousOut = new Map();
-    this.#availableIndexes = this.buildAvailableIndexes();
-  }
-
-  buildAvailableIndexes(): AvailableIndexes {
-    let availableIndexes = new AvailableIndexes();
-    for (let i = 0; i < this.#edges.length; i += EDGE_SIZE) {
-      if (isAvailable(this.#edges[i + TYPE])) {
-        availableIndexes.add(i);
+    for (
+      let i = this.#edges.length - EDGE_SIZE;
+      i >= this.#addressSpace;
+      i -= EDGE_SIZE
+    ) {
+      if (!this.#edges[i + TYPE]) {
+        this.#nextEmptyEdge = i;
+        break;
       }
     }
-    return availableIndexes;
+    this.#deletedEdges = [];
   }
 
   /**
@@ -362,8 +321,11 @@ export default class AdjacencyList<TEdgeType: number = 1> {
       edges: this.#edges,
       numNodes: this.#numNodes,
       numEdges: this.#numEdges,
+      addressSpace: this.#addressSpace,
       edgeCapacity: this.#edgeCapacity,
       nodeCapacity: this.#nodeCapacity,
+      nextEmptyEdge: this.#nextEmptyEdge,
+      deletedEdges: this.#deletedEdges,
     };
   }
 
@@ -391,12 +353,15 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     edges.set(this.#edges);
 
     return new AdjacencyList({
+      addressSpace: this.#addressSpace,
       nodeCapacity: this.#nodeCapacity,
       edgeCapacity: this.#edgeCapacity,
       numNodes: this.#numNodes,
       numEdges: this.#numEdges,
       nodes,
       edges,
+      nextEmptyEdge: this.#nextEmptyEdge,
+      deletedEdges: this.#deletedEdges,
     });
   }
 
@@ -419,6 +384,8 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     maxCollisions: number,
     /** The likelihood of uniform distribution. ~1.0 indicates certainty. */
     uniformity: number,
+    /** The size of the collision cellar */
+    cellarSize: number,
   |} {
     let buckets = new Map();
     for (let {from, to, type} of this.getAllEdges()) {
@@ -445,6 +412,8 @@ export default class AdjacencyList<TEdgeType: number = 1> {
       ((this.#numEdges / (2 * this.#edgeCapacity)) *
         (this.#numEdges + 2 * this.#edgeCapacity - 1));
 
+    let cellarSize = this.#edges.length - this.#addressSpace;
+
     return {
       nodes: this.#numNodes,
       edges: this.#numEdges,
@@ -455,6 +424,7 @@ export default class AdjacencyList<TEdgeType: number = 1> {
       collisions,
       maxCollisions,
       uniformity,
+      cellarSize,
     };
   }
 
@@ -489,6 +459,16 @@ export default class AdjacencyList<TEdgeType: number = 1> {
   edgeExists(edge: EdgeHash): boolean {
     let type = (this.#edges[hashToIndex(edge) + TYPE]: any);
     return Boolean(type) && !isDeleted(type);
+  }
+
+  /** Gets the original hash of the given edge */
+  getHash(edge: EdgeHash): EdgeHash {
+    assert(this.edgeExists(edge));
+    return this.hash(
+      this.getFromNode(edge),
+      this.getToNode(edge),
+      this.getEdgeType(edge),
+    );
   }
 
   /** Get the type of the given edge. */
@@ -552,11 +532,12 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     this.#nodes = copy.#nodes;
     this.#edges = copy.#edges;
     this.#edgeCapacity = size;
+    this.#addressSpace = copy.#addressSpace;
     this.#typeMaps = copy.#typeMaps;
     this.#previousIn = copy.#previousIn;
     this.#previousOut = copy.#previousOut;
-    this.#edgeIndexes = copy.#edgeIndexes;
-    this.#availableIndexes = copy.#availableIndexes;
+    this.#nextEmptyEdge = copy.#nextEmptyEdge;
+    this.#deletedEdges = copy.#deletedEdges;
   }
 
   /** Get the first or last edge to or from the given node. */
@@ -762,11 +743,6 @@ export default class AdjacencyList<TEdgeType: number = 1> {
       .get(type)
       .add(from);
 
-    this.#availableIndexes.delete(index);
-
-    let key = JSON.stringify({from, to, type});
-    this.#edgeIndexes?.set(key, index);
-
     return true;
   }
 
@@ -779,11 +755,65 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     from: NodeId,
     to: NodeId,
     type: TEdgeType | NullEdgeType = 1,
+    test?: false,
   ): number {
-    let edgeIndexes =
-      this.#edgeIndexes || (this.#edgeIndexes = buildEdgeIndexes(this));
-    let key = JSON.stringify({from, to, type});
-    return edgeIndexes.get(key);
+    let hash = this.hash(from, to, type);
+    let index = hashToIndex(hash);
+    if (this.#edges[index + TYPE]) {
+      let nextHash = hash;
+      while (nextHash) {
+        let nextIndex = hashToIndex(nextHash);
+        if (
+          this.#edges[nextIndex + FROM] === from &&
+          this.#edges[nextIndex + TO] === to &&
+          this.#edges[nextIndex + TYPE] === type
+        ) {
+          return nextIndex;
+        }
+        nextHash = this.#edges[nextIndex + NEXT_HASH];
+      }
+    }
+    return -1;
+  }
+
+  findEdge(from: number, to: number, type: number): number {
+    for (let i = 0; i < this.#edges.length; i += EDGE_SIZE) {
+      if (
+        this.#edges[i + FROM] === from &&
+        this.#edges[i + TO] === to &&
+        this.#edges[i + TYPE] === type
+      ) {
+        return i;
+      }
+    }
+    return -1;
+  }
+
+  edge(
+    index: number,
+  ): {|
+    hash: EdgeHash,
+    index: number,
+    from: NodeId,
+    to: NodeId,
+    type: TEdgeType | NullEdgeType,
+    nextHash: EdgeHash,
+    nextIn: EdgeHash,
+    nextOut: EdgeHash,
+  |} {
+    let from = toNodeId(this.#edges[index + FROM]);
+    let to = toNodeId(this.#edges[index + TO]);
+    let type = (this.#edges[index + TYPE]: any);
+    return {
+      hash: this.hash(from, to, type),
+      index,
+      from,
+      to,
+      type,
+      nextHash: this.#edges[index + NEXT_HASH],
+      nextIn: this.#edges[index + NEXT_IN],
+      nextOut: this.#edges[index + NEXT_OUT],
+    };
   }
 
   /**
@@ -801,11 +831,59 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     if (this.hasEdge(from, to, type)) {
       return -1;
     }
-    let index = hashToIndex(this.hash(from, to, type));
+    let hash = this.hash(from, to, type);
+    let index = hashToIndex(hash);
+
+    // If this slot is available, we can use it
     if (isAvailable(this.#edges[index + TYPE])) {
       return index;
     } else {
-      return this.#availableIndexes.getRandomIndex();
+      let cursor = this.#nextEmptyEdge;
+
+      // this doesn't work yet
+      // vvvvv
+      // If there's a deleted edge available, we can reuse it
+      // Otherwise, use the next empty edge
+      // if (this.#deletedEdges.length) {
+      //   cursor = this.#deletedEdges.pop();
+      //   assert(isDeleted(this.#edges[cursor + TYPE]));
+      // } else {
+      //
+      //
+
+      // If cellar is full, resize array and rehash
+      // We resize after exhausting the cellar to preserve constant time lookup
+      // when looking up an empty edge
+      if (!this.inCellar(cursor)) {
+        this.resizeEdges(this.#edgeCapacity * 2);
+        cursor = this.#nextEmptyEdge;
+        hash = this.hash(from, to, type);
+        index = hashToIndex(hash);
+        if (isAvailable(this.#edges[index + TYPE])) {
+          return index;
+        }
+      }
+      // Memoize the next empty edge for future use
+      this.#nextEmptyEdge = cursor - EDGE_SIZE;
+      // }
+
+      // Ensure that the position at the cursor is not populated by another edge
+      assert(
+        isAvailable(this.#edges[cursor + TYPE]),
+        `Edge at ${cursor} is not available`,
+      );
+      // Find the last node in the collision chain and point it to the current edge
+      let nextHash = this.#edges[index + NEXT_HASH];
+      let lastHash = hash;
+      while (nextHash) {
+        lastHash = nextHash;
+        nextHash = this.#edges[hashToIndex(lastHash) + NEXT_HASH];
+      }
+
+      this.#edges[hashToIndex(lastHash) + NEXT_HASH] = indexToHash(cursor);
+      assert(this.edge(hashToIndex(lastHash)).hash === hash);
+
+      return cursor;
     }
   }
 
@@ -893,11 +971,6 @@ export default class AdjacencyList<TEdgeType: number = 1> {
       .get(type)
       .delete(from);
 
-    this.#availableIndexes.add(index);
-
-    let key = JSON.stringify({from, to, type});
-    this.#edgeIndexes?.delete(key);
-
     // Mark this slot as DELETED.
     // We do this so that clustered edges can still be found
     // by scanning forward in the array from the first index for
@@ -908,7 +981,36 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     this.#edges[index + NEXT_IN] = 0;
     this.#edges[index + NEXT_OUT] = 0;
 
+    // If we're deleting an edge in the cellar, add it to the list of deleted edges
+    // so we can reuse it
+    if (this.inCellar(index)) {
+      this.#deletedEdges.push(index);
+    }
+
+    // Change the pointer of the previous edge in the collision chain to point
+    // to the next edge of the removed edge
+    let hash = this.hash(from, to, type);
+    let prevHash = hash;
+    while (hashToIndex(hash) !== index) {
+      prevHash = hash;
+      hash = this.#edges[hashToIndex(hash) + NEXT_HASH];
+    }
+
+    if (prevHash) {
+      this.#edges[hashToIndex(prevHash) + NEXT_HASH] = this.#edges[
+        index + NEXT_HASH
+      ];
+    }
+
     this.#numEdges--;
+  }
+
+  get edges(): Uint32Array {
+    return this.#edges;
+  }
+
+  inCellar(index: number): boolean {
+    return index >= this.#addressSpace;
   }
 
   hasInboundEdges(to: NodeId): boolean {
@@ -1048,10 +1150,12 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     // $FlowFixMe[unsafe-addition]
     // $FlowFixMe[incompatible-type]
     let hash = '' + from + to + type - 0;
-    // 2. Map the hash to a value modulo the edge capacity.
+    // 2. Map the hash to a value modulo the address space.
     hash %= this.#edgeCapacity;
+    hash = Math.floor(hash * ADDRESS_SPACE);
     // 3. Multiply by EDGE_SIZE to select a valid index.
     hash *= EDGE_SIZE;
+    assert(!this.inCellar(hash));
     // 4. Add 1 to guarantee a truthy result.
     return hash + 1;
   }
