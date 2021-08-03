@@ -677,8 +677,15 @@ function createIdealGraph(assetGraph: MutableBundleGraph): IdealGraph {
       // Add the bundle to each reachable bundle group.
       for (let sourceBundleId of sourceBundles) {
         console.log('bundle id', bundleId, 'and source id is', sourceBundleId);
-        bundleGraph.addEdge(sourceBundleId, bundleId);
+        if (bundleId !== sourceBundleId) {
+          bundleGraph.addEdge(sourceBundleId, bundleId);
+        }
       }
+
+      dependencyBundleGraph.addNodeByContentKeyIfNeeded(String(bundleId), {
+        value: bundle,
+        type: 'bundle',
+      });
     }
   }
   dumpGraphToGraphViz(bundleGraph, 'IdealBundleGraph');
