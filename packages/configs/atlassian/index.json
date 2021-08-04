@@ -10,6 +10,9 @@
       "@parcel/transformer-raw"
     ]
   },
+  "optimizers": {
+    "*.svg": []
+  },
   "reporters": [
     "...",
     "@atlassian/parcel-reporter-analytics",
