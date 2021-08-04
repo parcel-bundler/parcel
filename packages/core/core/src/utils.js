@@ -2,12 +2,12 @@
 
 import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import type {
-  BundleGroup,
   FilePath,
   FileCreateInvalidation,
   SourceLocation,
 } from '@parcel/types';
 import type {
+  BundleGroup,
   ParcelOptions,
   InternalFileCreateInvalidation,
   InternalSourceLocation,

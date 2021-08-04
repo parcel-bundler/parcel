@@ -102,13 +102,10 @@ export default class HMRServer {
       queue.add(async () => {
         let dependencies = event.bundleGraph.getDependencies(asset);
         let depsByBundle = {};
-        for (let bundle of event.bundleGraph.findBundlesWithAsset(asset)) {
+        for (let bundle of event.bundleGraph.getBundlesWithAsset(asset)) {
           let deps = {};
           for (let dep of dependencies) {
-            let resolved = event.bundleGraph.getDependencyResolution(
-              dep,
-              bundle,
-            );
+            let resolved = event.bundleGraph.getResolvedAsset(dep, bundle);
             if (resolved) {
               deps[dep.specifier] = event.bundleGraph.getAssetPublicId(
                 resolved,
