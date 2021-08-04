@@ -70,14 +70,31 @@ export default function extractInlineAssets(
             sourceType = 'module';
           }
 
+          let loc = node.location
+            ? {
+                filePath: asset.filePath,
+                start: node.location.start,
+                end: node.location.end,
+              }
+            : undefined;
+
           env = {
             sourceType,
             outputFormat,
+            loc,
           };
         } else {
+          let loc = node.location
+            ? {
+                filePath: asset.filePath,
+                start: node.location.start,
+                end: node.location.end,
+              }
+            : undefined;
           type = 'js';
           env = {
             sourceType: 'script',
+            loc,
           };
         }
 

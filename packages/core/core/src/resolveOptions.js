@@ -49,11 +49,7 @@ export default async function resolveOptions(
     entries = [path.resolve(inputCwd, initialOptions.entries)];
   }
 
-  let entryRoot =
-    initialOptions.entryRoot != null
-      ? path.resolve(inputCwd, initialOptions.entryRoot)
-      : getRootDir(entries);
-
+  let entryRoot = getRootDir(entries);
   let projectRootFile =
     (await resolveConfig(
       inputFS,
@@ -139,7 +135,6 @@ export default async function resolveOptions(
     shouldProfile: initialOptions.shouldProfile ?? false,
     cacheDir,
     entries: entries.map(e => toProjectPath(projectRoot, e)),
-    entryRoot: toProjectPath(projectRoot, entryRoot),
     targets: initialOptions.targets,
     logLevel: initialOptions.logLevel ?? 'info',
     projectRoot,
@@ -156,9 +151,7 @@ export default async function resolveOptions(
     detailedReport: initialOptions.detailedReport,
     defaultTargetOptions: {
       shouldOptimize,
-      shouldScopeHoist:
-        initialOptions?.defaultTargetOptions?.shouldScopeHoist ??
-        initialOptions.mode === 'production',
+      shouldScopeHoist: initialOptions?.defaultTargetOptions?.shouldScopeHoist,
       sourceMaps: initialOptions?.defaultTargetOptions?.sourceMaps ?? true,
       publicUrl,
       ...(distDir != null

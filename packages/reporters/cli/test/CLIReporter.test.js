@@ -12,7 +12,6 @@ const EMPTY_OPTIONS = {
   cacheDir: '.parcel-cache',
   entries: [],
   logLevel: 'info',
-  entryRoot: __dirname,
   targets: [],
   projectRoot: '',
   distDir: 'dist',

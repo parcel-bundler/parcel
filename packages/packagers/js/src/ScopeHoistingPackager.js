@@ -120,9 +120,7 @@ export class ScopeHoistingPackager {
       this.bundle.env.isLibrary ||
       this.bundle.env.outputFormat === 'commonjs'
     ) {
-      let bundles = this.bundleGraph
-        .getReferencedBundles(this.bundle)
-        .filter(b => b.bundleBehavior !== 'inline');
+      let bundles = this.bundleGraph.getReferencedBundles(this.bundle);
       for (let b of bundles) {
         this.externals.set(relativeBundlePath(this.bundle, b), new Map());
       }
@@ -229,43 +227,27 @@ export class ScopeHoistingPackager {
 
   async loadAssets() {
     let queue = new PromiseQueue({maxConcurrent: 32});
-    this.bundle.traverse((node, shouldWrap) => {
-      switch (node.type) {
-        case 'dependency':
-          // Mark assets that should be wrapped, based on metadata in the incoming dependency tree
-          if (node.value.meta.shouldWrap) {
-            let resolved = this.bundleGraph.getDependencyResolution(
-              node.value,
-              this.bundle,
-            );
-            if (resolved && resolved.sideEffects) {
-              this.wrappedAssets.add(resolved.id);
-            }
-            return true;
-          }
-          break;
-        case 'asset':
-          queue.add(async () => {
-            let [code, map] = await Promise.all([
-              node.value.getCode(),
-              this.bundle.env.sourceMap ? node.value.getMapBuffer() : null,
-            ]);
-            return [node.value.id, {code, map}];
-          });
+    this.bundle.traverseAssets((asset, shouldWrap) => {
+      queue.add(async () => {
+        let [code, map] = await Promise.all([
+          asset.getCode(),
+          this.bundle.env.sourceMap ? asset.getMapBuffer() : null,
+        ]);
+        return [asset.id, {code, map}];
+      });
 
-          if (
-            shouldWrap ||
-            node.value.meta.shouldWrap ||
-            this.isAsyncBundle ||
-            this.bundle.env.sourceType === 'script' ||
-            this.bundleGraph.isAssetReferencedByDependant(
-              this.bundle,
-              node.value,
-            )
-          ) {
-            this.wrappedAssets.add(node.value.id);
-            return true;
-          }
+      if (
+        shouldWrap ||
+        asset.meta.shouldWrap ||
+        this.isAsyncBundle ||
+        this.bundle.env.sourceType === 'script' ||
+        this.bundleGraph.isAssetReferenced(this.bundle, asset) ||
+        this.bundleGraph
+          .getIncomingDependencies(asset)
+          .some(dep => dep.meta.shouldWrap)
+      ) {
+        this.wrappedAssets.add(asset.id);
+        return true;
       }
     });
 
@@ -380,10 +362,7 @@ export class ScopeHoistingPackager {
       let depCode = '';
       let lineCount = 0;
       for (let dep of deps) {
-        let resolved = this.bundleGraph.getDependencyResolution(
-          dep,
-          this.bundle,
-        );
+        let resolved = this.bundleGraph.getResolvedAsset(dep, this.bundle);
         let skipped = this.bundleGraph.isDependencySkipped(dep);
         if (!resolved || skipped) {
           continue;
@@ -446,10 +425,7 @@ export class ScopeHoistingPackager {
             return m;
           }
 
-          let resolved = this.bundleGraph.getDependencyResolution(
-            dep,
-            this.bundle,
-          );
+          let resolved = this.bundleGraph.getResolvedAsset(dep, this.bundle);
           let skipped = this.bundleGraph.isDependencySkipped(dep);
           if (resolved && !skipped) {
             // Hoist variable declarations for the referenced parcelRequire dependencies
@@ -572,7 +548,7 @@ ${code}
           ? // Prefer the underlying asset over a runtime to load it. It will
             // be wrapped in Promise.resolve() later.
             asyncResolution.value
-          : this.bundleGraph.getDependencyResolution(dep, this.bundle);
+          : this.bundleGraph.getResolvedAsset(dep, this.bundle);
       if (
         !resolved &&
         !dep.isOptional &&
@@ -645,7 +621,7 @@ ${code}
           continue;
         }
 
-        let symbol = this.resolveSymbol(asset, resolved, imported, dep);
+        let symbol = this.getSymbolResolution(asset, resolved, imported, dep);
         replacements.set(
           local,
           // If this was an internalized async asset, wrap in a Promise.resolve.
@@ -661,7 +637,7 @@ ${code}
       if (dep.priority === 'lazy' && dep.meta.promiseSymbol) {
         let promiseSymbol = dep.meta.promiseSymbol;
         invariant(typeof promiseSymbol === 'string');
-        let symbol = this.resolveSymbol(asset, resolved, '*', dep);
+        let symbol = this.getSymbolResolution(asset, resolved, '*', dep);
         replacements.set(
           promiseSymbol,
           asyncResolution?.type === 'asset'
@@ -718,7 +694,7 @@ ${code}
     return external;
   }
 
-  resolveSymbol(
+  getSymbolResolution(
     parentAsset: Asset,
     resolved: Asset,
     imported: string,
@@ -728,7 +704,7 @@ ${code}
       asset: resolvedAsset,
       exportSymbol,
       symbol,
-    } = this.bundleGraph.resolveSymbol(resolved, imported, this.bundle);
+    } = this.bundleGraph.getSymbolResolution(resolved, imported, this.bundle);
     if (resolvedAsset.type !== 'js') {
       // Graceful fallback for non-js imports
       return '{}';
@@ -959,12 +935,14 @@ ${code}
         // additional assignments after each mutation of the original binding.
         prepend += `\n${usedExports
           .map(exp => {
-            let resolved = this.resolveSymbol(asset, asset, exp);
+            let resolved = this.getSymbolResolution(asset, asset, exp);
+            let get = this.buildFunctionExpression([], resolved);
+            let set = asset.meta.hasCJSExports
+              ? ', ' + this.buildFunctionExpression(['v'], `${resolved} = v`)
+              : '';
             return `$parcel$export($${assetId}$exports, ${JSON.stringify(
               exp,
-            )}, () => ${resolved}${
-              asset.meta.hasCJSExports ? `, (v) => ${resolved} = v` : ''
-            });`;
+            )}, ${get}${set});`;
           })
           .join('\n')}\n`;
         this.usedHelpers.add('$parcel$export');
@@ -973,10 +951,7 @@ ${code}
 
       // Find wildcard re-export dependencies, and make sure their exports are also included in ours.
       for (let dep of deps) {
-        let resolved = this.bundleGraph.getDependencyResolution(
-          dep,
-          this.bundle,
-        );
+        let resolved = this.bundleGraph.getResolvedAsset(dep, this.bundle);
         if (dep.isOptional || this.bundleGraph.isDependencySkipped(dep)) {
           continue;
         }
@@ -1003,23 +978,24 @@ ${code}
               resolved.meta.staticExports === false ||
               this.bundleGraph.getUsedSymbols(resolved).has('*')
             ) {
-              let obj = this.resolveSymbol(asset, resolved, '*', dep);
+              let obj = this.getSymbolResolution(asset, resolved, '*', dep);
               append += `$parcel$exportWildcard($${assetId}$exports, ${obj});\n`;
               this.usedHelpers.add('$parcel$exportWildcard');
             } else {
               for (let symbol of this.bundleGraph.getUsedSymbols(dep)) {
-                let resolvedSymbol = this.resolveSymbol(
+                let resolvedSymbol = this.getSymbolResolution(
                   asset,
                   resolved,
                   symbol,
                 );
+                let get = this.buildFunctionExpression([], resolvedSymbol);
+                let set = asset.meta.hasCJSExports
+                  ? ', ' +
+                    this.buildFunctionExpression(['v'], `${resolvedSymbol} = v`)
+                  : '';
                 prepend += `$parcel$export($${assetId}$exports, ${JSON.stringify(
                   symbol,
-                )}, () => ${resolvedSymbol}${
-                  asset.meta.hasCJSExports
-                    ? `, (v) => ${resolvedSymbol} = v`
-                    : ''
-                });\n`;
+                )}, ${get}${set});\n`;
                 prependLineCount++;
               }
             }
@@ -1100,7 +1076,7 @@ ${code}
     }
 
     // Add importScripts for sibling bundles in workers.
-    if (this.bundle.env.isWorker()) {
+    if (this.bundle.env.isWorker() || this.bundle.env.isWorklet()) {
       let importScripts = '';
       let bundles = this.bundleGraph.getReferencedBundles(this.bundle);
       for (let b of bundles) {
@@ -1147,7 +1123,7 @@ ${code}
     return (
       asset.sideEffects === false &&
       this.bundleGraph.getUsedSymbols(asset).size == 0 &&
-      !this.bundleGraph.isAssetReferencedByDependant(this.bundle, asset)
+      !this.bundleGraph.isAssetReferenced(this.bundle, asset)
     );
   }
 
@@ -1157,5 +1133,11 @@ ${code}
       this.bundle.env.sourceType === 'script' &&
       asset === this.bundle.getMainEntry()
     );
+  }
+
+  buildFunctionExpression(args: Array<string>, expr: string): string {
+    return this.bundle.env.supports('arrow-functions', true)
+      ? `(${args.join(', ')}) => ${expr}`
+      : `function (${args.join(', ')}) { return ${expr}; }`;
   }
 }

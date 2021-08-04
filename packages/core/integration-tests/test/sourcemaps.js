@@ -162,11 +162,14 @@ describe('sourcemaps', function() {
     );
     let sourcePath = 'index.js';
 
+    let name = raw.match(/function (\$.*\$var\$helloWorld)/)[1];
+
     checkSourceMapping({
       map: sourceMap,
       source: input,
       generated: raw,
       str: 'function helloWorld',
+      generatedStr: 'function ' + name,
       sourcePath,
     });
 
@@ -175,6 +178,7 @@ describe('sourcemaps', function() {
       source: input,
       generated: raw,
       str: 'module.exports = helloWorld;',
+      generatedStr: 'module.exports = ' + name + ';',
       sourcePath,
     });
 

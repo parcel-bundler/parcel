@@ -5,6 +5,7 @@ import path from 'path';
 import tempy from 'tempy';
 import {inputFS as fs} from '@parcel/test-utils';
 import {md} from '@parcel/diagnostic';
+import {normalizeSeparators} from '@parcel/utils';
 import {TargetResolver} from '../src/requests/TargetRequest';
 import {DEFAULT_OPTIONS as _DEFAULT_OPTIONS, relative} from './test-utils';
 
@@ -117,9 +118,9 @@ describe('TargetResolver', () => {
         {
           name: 'customA',
           publicUrl: '/',
-          distDir: path.resolve('customA'),
+          distDir: normalizeSeparators(path.resolve('customA')),
           env: {
-            id: '89be9119f3dd767e',
+            id: '6777dcd79ef48447',
             context: 'browser',
             includeNodeModules: true,
             engines: {
@@ -138,9 +139,9 @@ describe('TargetResolver', () => {
           name: 'customB',
           publicUrl: '/',
           distEntry: 'b.js',
-          distDir: path.resolve('customB'),
+          distDir: normalizeSeparators(path.resolve('customB')),
           env: {
-            id: '570392c136da3be1',
+            id: '8692e75f0455234a',
             context: 'node',
             includeNodeModules: false,
             engines: {
@@ -171,7 +172,7 @@ describe('TargetResolver', () => {
           distEntry: 'index.js',
           publicUrl: '/',
           env: {
-            id: '82d5405f1f71015e',
+            id: '5bfcb1a4dba47a04',
             context: 'node',
             engines: {
               node: '>= 8.0.0',
@@ -180,7 +181,7 @@ describe('TargetResolver', () => {
             outputFormat: 'commonjs',
             isLibrary: true,
             shouldOptimize: false,
-            shouldScopeHoist: false,
+            shouldScopeHoist: true,
             sourceMap: {},
             loc: undefined,
             sourceType: 'module',
@@ -205,7 +206,7 @@ describe('TargetResolver', () => {
           distEntry: 'index.js',
           publicUrl: '/',
           env: {
-            id: '1d3bc63c0278d25d',
+            id: 'b20c59e7a8a57bd7',
             context: 'browser',
             engines: {
               browsers: ['last 1 version'],
@@ -214,7 +215,7 @@ describe('TargetResolver', () => {
             outputFormat: 'esmodule',
             isLibrary: true,
             shouldOptimize: false,
-            shouldScopeHoist: false,
+            shouldScopeHoist: true,
             sourceMap: {
               inlineSources: true,
             },
@@ -241,7 +242,7 @@ describe('TargetResolver', () => {
           distEntry: 'index.js',
           publicUrl: '/assets',
           env: {
-            id: '56c524a18eb2fa9a',
+            id: '3267a35dda1916a4',
             context: 'browser',
             engines: {
               browsers: ['last 1 version'],
@@ -250,7 +251,7 @@ describe('TargetResolver', () => {
             outputFormat: 'commonjs',
             isLibrary: true,
             shouldOptimize: false,
-            shouldScopeHoist: false,
+            shouldScopeHoist: true,
             sourceMap: {},
             loc: undefined,
             sourceType: 'module',
@@ -288,7 +289,7 @@ describe('TargetResolver', () => {
           publicUrl: '/',
           stableEntries: undefined,
           env: {
-            id: '5d8354a4a8cf7339',
+            id: '9012ce728747eda4',
             context: 'node',
             engines: {
               node: '>= 8.0.0',
@@ -331,7 +332,7 @@ describe('TargetResolver', () => {
           distEntry: 'index.js',
           publicUrl: '/',
           env: {
-            id: '82d5405f1f71015e',
+            id: '5bfcb1a4dba47a04',
             context: 'node',
             engines: {
               node: '>= 8.0.0',
@@ -340,7 +341,7 @@ describe('TargetResolver', () => {
             outputFormat: 'commonjs',
             isLibrary: true,
             shouldOptimize: false,
-            shouldScopeHoist: false,
+            shouldScopeHoist: true,
             sourceMap: {},
             loc: undefined,
             sourceType: 'module',
@@ -366,7 +367,7 @@ describe('TargetResolver', () => {
           publicUrl: '/',
           stableEntries: undefined,
           env: {
-            id: '3054a843dfedefd9',
+            id: '2089c9a83d648f3c',
             context: 'browser',
             engines: {
               browsers: ['last 1 version'],
@@ -401,7 +402,7 @@ describe('TargetResolver', () => {
           publicUrl: '/',
           stableEntries: undefined,
           env: {
-            id: '517d1c54c40d41f7',
+            id: 'af825df586472b87',
             context: 'browser',
             engines: {
               browsers: ['ie11'],
@@ -410,6 +411,127 @@ describe('TargetResolver', () => {
             outputFormat: 'global',
             isLibrary: false,
             shouldOptimize: false,
+            shouldScopeHoist: false,
+            sourceMap: {},
+            loc: undefined,
+            sourceType: 'module',
+          },
+          loc: {
+            filePath: relative(
+              path.join(CUSTOM_TARGETS_FIXTURE_PATH, 'package.json'),
+            ),
+            start: {
+              column: 20,
+              line: 4,
+            },
+            end: {
+              column: 48,
+              line: 4,
+            },
+          },
+        },
+      ],
+    );
+  });
+
+  it('should not optimize libraries by default', async () => {
+    let targetResolver = new TargetResolver(api, {
+      ...DEFAULT_OPTIONS,
+      mode: 'production',
+      defaultTargetOptions: {
+        ...DEFAULT_OPTIONS.defaultTargetOptions,
+        shouldOptimize: true,
+      },
+    });
+
+    assert.deepEqual(
+      await targetResolver.resolve(CUSTOM_TARGETS_FIXTURE_PATH),
+      [
+        {
+          name: 'main',
+          distDir: 'fixtures/custom-targets/dist/main',
+          distEntry: 'index.js',
+          publicUrl: '/',
+          env: {
+            id: '5bfcb1a4dba47a04',
+            context: 'node',
+            engines: {
+              node: '>= 8.0.0',
+            },
+            includeNodeModules: false,
+            outputFormat: 'commonjs',
+            isLibrary: true,
+            shouldOptimize: false,
+            shouldScopeHoist: true,
+            sourceMap: {},
+            loc: undefined,
+            sourceType: 'module',
+          },
+          loc: {
+            filePath: relative(
+              path.join(CUSTOM_TARGETS_FIXTURE_PATH, 'package.json'),
+            ),
+            start: {
+              column: 11,
+              line: 2,
+            },
+            end: {
+              column: 30,
+              line: 2,
+            },
+          },
+        },
+        {
+          name: 'browserModern',
+          distDir: 'fixtures/custom-targets/dist/browserModern',
+          distEntry: 'index.js',
+          publicUrl: '/',
+          stableEntries: undefined,
+          env: {
+            id: '2089c9a83d648f3c',
+            context: 'browser',
+            engines: {
+              browsers: ['last 1 version'],
+            },
+            includeNodeModules: true,
+            outputFormat: 'global',
+            isLibrary: false,
+            shouldOptimize: true,
+            shouldScopeHoist: false,
+            sourceMap: {},
+            loc: undefined,
+            sourceType: 'module',
+          },
+          loc: {
+            filePath: relative(
+              path.join(CUSTOM_TARGETS_FIXTURE_PATH, 'package.json'),
+            ),
+            start: {
+              column: 20,
+              line: 3,
+            },
+            end: {
+              column: 48,
+              line: 3,
+            },
+          },
+        },
+        {
+          name: 'browserLegacy',
+          distDir: 'fixtures/custom-targets/dist/browserLegacy',
+          distEntry: 'index.js',
+          publicUrl: '/',
+          stableEntries: undefined,
+          env: {
+            id: 'af825df586472b87',
+            context: 'browser',
+            engines: {
+              browsers: ['ie11'],
+            },
+            includeNodeModules: true,
+            outputFormat: 'global',
+            isLibrary: false,
+            shouldOptimize: true,
             shouldScopeHoist: false,
             sourceMap: {},
             loc: undefined,
@@ -444,7 +566,7 @@ describe('TargetResolver', () => {
           distEntry: undefined,
           publicUrl: 'www',
           env: {
-            id: 'cfeffc9fc4f2bc65',
+            id: '4771f44bbf9eed48',
             context: 'browser',
             engines: {
               browsers: '> 0.25%',
@@ -485,10 +607,10 @@ describe('TargetResolver', () => {
       [
         {
           name: 'customB',
-          distDir: path.resolve('customB'),
+          distDir: normalizeSeparators(path.resolve('customB')),
           publicUrl: '/',
           env: {
-            id: '89be9119f3dd767e',
+            id: '6777dcd79ef48447',
             context: 'browser',
             engines: {
               browsers: ['> 0.25%'],
@@ -527,10 +649,10 @@ describe('TargetResolver', () => {
       [
         {
           name: 'customA',
-          distDir: path.resolve('customA'),
+          distDir: normalizeSeparators(path.resolve('customA')),
           publicUrl: '/',
           env: {
-            id: '89be9119f3dd767e',
+            id: '6777dcd79ef48447',
             context: 'browser',
             engines: {
               browsers: ['> 0.25%'],
@@ -559,14 +681,14 @@ describe('TargetResolver', () => {
         distEntry: 'index.js',
         publicUrl: '/',
         env: {
-          id: '9deb4191422a0a89',
+          id: '4a7a0fe1a62bcbb0',
           context: 'node',
           engines: {},
           includeNodeModules: false,
           isLibrary: true,
           outputFormat: 'commonjs',
           shouldOptimize: false,
-          shouldScopeHoist: false,
+          shouldScopeHoist: true,
           sourceMap: {},
           loc: undefined,
           sourceType: 'module',
@@ -818,6 +940,93 @@ describe('TargetResolver', () => {
     });
   });
 
+  it('errors when a common library target turns scope hoisting off', async () => {
+    let targetResolver = new TargetResolver(api, DEFAULT_OPTIONS);
+    let fixture = path.join(__dirname, 'fixtures/library-scopehoist');
+    let code = await fs.readFile(path.join(fixture, 'package.json'), 'utf8');
+
+    // $FlowFixMe
+    await assert.rejects(() => targetResolver.resolve(fixture), {
+      diagnostics: [
+        {
+          message: 'Scope hoisting cannot be disabled for library targets.',
+          origin: '@parcel/core',
+          codeFrames: [
+            {
+              filePath: path.join(fixture, 'package.json'),
+              language: 'json',
+              code,
+              codeHighlights: [
+                {
+                  message: undefined,
+                  end: {
+                    column: 25,
+                    line: 5,
+                  },
+                  start: {
+                    column: 21,
+                    line: 5,
+                  },
+                },
+              ],
+            },
+          ],
+          hints: [
+            'The "main" target is meant for libraries. Either remove the "scopeHoist" option, or use a different target name.',
+          ],
+        },
+      ],
+    });
+  });
+
+  it('errors when a custom library target turns scope hoisting off', async () => {
+    let targetResolver = new TargetResolver(api, DEFAULT_OPTIONS);
+    let fixture = path.join(__dirname, 'fixtures/library-custom-scopehoist');
+    let code = await fs.readFile(path.join(fixture, 'package.json'), 'utf8');
+
+    // $FlowFixMe
+    await assert.rejects(() => targetResolver.resolve(fixture), {
+      diagnostics: [
+        {
+          message: 'Scope hoisting cannot be disabled for library targets.',
+          origin: '@parcel/core',
+          codeFrames: [
+            {
+              filePath: path.join(fixture, 'package.json'),
+              language: 'json',
+              code,
+              codeHighlights: [
+                {
+                  message: undefined,
+                  end: {
+                    column: 25,
+                    line: 6,
+                  },
+                  start: {
+                    column: 21,
+                    line: 6,
+                  },
+                },
+                {
+                  message: undefined,
+                  end: {
+                    column: 23,
+                    line: 5,
+                  },
+                  start: {
+                    column: 20,
+                    line: 5,
+                  },
+                },
+              ],
+            },
+          ],
+          hints: ['Either remove the "scopeHoist" or "isLibrary" option.'],
+        },
+      ],
+    });
+  });
+
   it('should infer output format for custom targets by extension', async () => {
     let targetResolver = new TargetResolver(api, DEFAULT_OPTIONS);
     let fixture = path.join(__dirname, 'fixtures/custom-format-infer-ext');
@@ -830,7 +1039,7 @@ describe('TargetResolver', () => {
         publicUrl: '/',
         stableEntries: undefined,
         env: {
-          id: '4e0a969c1f85447f',
+          id: '0f899f1b8138dde1',
           context: 'browser',
           engines: {},
           includeNodeModules: true,
@@ -869,7 +1078,7 @@ describe('TargetResolver', () => {
         publicUrl: '/',
         stableEntries: undefined,
         env: {
-          id: '4e0a969c1f85447f',
+          id: '0f899f1b8138dde1',
           context: 'browser',
           engines: {},
           includeNodeModules: true,
@@ -911,7 +1120,7 @@ describe('TargetResolver', () => {
           distEntry: 'index.js',
           publicUrl: '/',
           env: {
-            id: '82d5405f1f71015e',
+            id: '5bfcb1a4dba47a04',
             context: 'node',
             engines: {
               node: '>= 8.0.0',
@@ -920,7 +1129,7 @@ describe('TargetResolver', () => {
             outputFormat: 'commonjs',
             isLibrary: true,
             shouldOptimize: false,
-            shouldScopeHoist: false,
+            shouldScopeHoist: true,
             sourceMap: {},
             loc: undefined,
             sourceType: 'module',
@@ -945,7 +1154,7 @@ describe('TargetResolver', () => {
           distEntry: 'index.js',
           publicUrl: '/assets',
           env: {
-            id: '56c524a18eb2fa9a',
+            id: '3267a35dda1916a4',
             context: 'browser',
             engines: {
               browsers: ['last 1 version'],
@@ -954,7 +1163,7 @@ describe('TargetResolver', () => {
             outputFormat: 'commonjs',
             isLibrary: true,
             shouldOptimize: false,
-            shouldScopeHoist: false,
+            shouldScopeHoist: true,
             sourceMap: {},
             loc: undefined,
             sourceType: 'module',
@@ -993,7 +1202,7 @@ describe('TargetResolver', () => {
           distDir: '.parcel-cache/dist',
           publicUrl: '/',
           env: {
-            id: '20affcfdd5d3f954',
+            id: 'c6928843415c2f6d',
             context: 'browser',
             engines: {},
             includeNodeModules: true,
@@ -1023,7 +1232,7 @@ describe('TargetResolver', () => {
           ),
           publicUrl: '/',
           env: {
-            id: '6e8a5160095b1ddf',
+            id: '0a4f8e5f09f774a0',
             context: 'browser',
             engines: {
               browsers: ['Chrome 80'],
@@ -1056,7 +1265,7 @@ describe('TargetResolver', () => {
           distEntry: undefined,
           publicUrl: '/',
           env: {
-            id: '6e8a5160095b1ddf',
+            id: '0a4f8e5f09f774a0',
             context: 'browser',
             engines: {
               browsers: ['Chrome 80'],
@@ -1095,7 +1304,7 @@ describe('TargetResolver', () => {
           distEntry: undefined,
           publicUrl: '/',
           env: {
-            id: '3054a843dfedefd9',
+            id: '2089c9a83d648f3c',
             context: 'browser',
             engines: {
               browsers: ['last 1 version'],
@@ -1124,7 +1333,7 @@ describe('TargetResolver', () => {
           distEntry: undefined,
           publicUrl: '/',
           env: {
-            id: 'f05bc782f458dba9',
+            id: '758e02e86887b69d',
             context: 'browser',
             engines: {
               browsers: ['IE 11'],

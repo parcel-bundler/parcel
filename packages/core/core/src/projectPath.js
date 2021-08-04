@@ -1,7 +1,7 @@
 // @flow strict-local
 import type {FilePath} from '@parcel/types';
 import path from 'path';
-import {relativePath} from '@parcel/utils';
+import {relativePath, normalizeSeparators} from '@parcel/utils';
 
 /**
  * A path that's relative to the project root.
@@ -18,7 +18,11 @@ function toProjectPath_(projectRoot: FilePath, p: FilePath): ProjectPath {
   // references still work. Accessing files outside the project root is not
   // portable anyway.
   let relative = relativePath(projectRoot, p, false);
-  return relative.startsWith('..') ? p : relative;
+  if (relative.startsWith('..')) {
+    return process.platform === 'win32' ? normalizeSeparators(p) : p;
+  }
+
+  return relative;
 }
 
 export const toProjectPath: ((
@@ -34,14 +38,14 @@ function fromProjectPath_(projectRoot: FilePath, p: ?ProjectPath): ?FilePath {
     return null;
   }
 
-  // If the path is absolute (e.g. outside the project root), just return it.
-  if (path.isAbsolute(p)) {
-    return p;
-  }
-
   // Project paths use normalized unix separators, so we only need to
   // convert them on Windows.
   let projectPath = process.platform === 'win32' ? path.normalize(p) : p;
+
+  // If the path is absolute (e.g. outside the project root), just return it.
+  if (path.isAbsolute(projectPath)) {
+    return projectPath;
+  }
 
   // Add separator if needed. Doing this manunally is much faster than path.join.
   if (projectRoot[projectRoot.length - 1] !== path.sep) {
@@ -79,5 +83,5 @@ export function joinProjectPath(
   a: ProjectPath,
   ...b: Array<FilePath>
 ): ProjectPath {
-  return path.join(a, ...b);
+  return path.posix.join(a, ...b);
 }
