@@ -127,10 +127,6 @@ export function isDeleted<TEdgeType>(type: TEdgeType): boolean {
   return type === DELETED;
 }
 
-export function isAvailable<TEdgeType>(type: TEdgeType): boolean {
-  return type === DELETED || type === 0;
-}
-
 export const ALL_EDGE_TYPES: AllEdgeTypes = '@@all_edge_types';
 
 // eslint-disable-next-line no-unused-vars
@@ -231,7 +227,7 @@ export default class AdjacencyList<TEdgeType: number = 1> {
   |};
   /** The index of the next empty edge in the cellar */
   #nextEmptyEdge: number;
-  /** An array of deleted edge indexes to resuse */
+  /** An array of deleted edge indexes to reuse */
   #deletedEdges: Array<number>;
 
   constructor(
@@ -742,7 +738,6 @@ export default class AdjacencyList<TEdgeType: number = 1> {
       .get(to)
       .get(type)
       .add(from);
-
     return true;
   }
 
@@ -835,41 +830,37 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     let index = hashToIndex(hash);
 
     // If this slot is available, we can use it
-    if (isAvailable(this.#edges[index + TYPE])) {
+    if (!this.edgeExists(hash)) {
+      assert(!this.inCellar(index));
       return index;
     } else {
       let cursor = this.#nextEmptyEdge;
 
-      // this doesn't work yet
-      // vvvvv
       // If there's a deleted edge available, we can reuse it
       // Otherwise, use the next empty edge
-      // if (this.#deletedEdges.length) {
-      //   cursor = this.#deletedEdges.pop();
-      //   assert(isDeleted(this.#edges[cursor + TYPE]));
-      // } else {
-      //
-      //
-
-      // If cellar is full, resize array and rehash
-      // We resize after exhausting the cellar to preserve constant time lookup
-      // when looking up an empty edge
-      if (!this.inCellar(cursor)) {
-        this.resizeEdges(this.#edgeCapacity * 2);
-        cursor = this.#nextEmptyEdge;
-        hash = this.hash(from, to, type);
-        index = hashToIndex(hash);
-        if (isAvailable(this.#edges[index + TYPE])) {
-          return index;
+      if (this.#deletedEdges.length) {
+        cursor = this.#deletedEdges.pop();
+        assert(isDeleted(this.#edges[cursor + TYPE]));
+      } else {
+        // If cellar is full, resize array and rehash
+        // We resize after exhausting the cellar to preserve constant time lookup
+        // when looking up an empty edge
+        if (!this.inCellar(cursor)) {
+          this.resizeEdges(this.#edgeCapacity * 2);
+          cursor = this.#nextEmptyEdge;
+          hash = this.hash(from, to, type);
+          index = hashToIndex(hash);
+          if (!this.edgeExists(hash)) {
+            return index;
+          }
         }
+        // Memoize the next empty edge for future use
+        this.#nextEmptyEdge = cursor - EDGE_SIZE;
       }
-      // Memoize the next empty edge for future use
-      this.#nextEmptyEdge = cursor - EDGE_SIZE;
-      // }
 
       // Ensure that the position at the cursor is not populated by another edge
       assert(
-        isAvailable(this.#edges[cursor + TYPE]),
+        !this.edgeExists(indexToHash(cursor)),
         `Edge at ${cursor} is not available`,
       );
       // Find the last node in the collision chain and point it to the current edge
@@ -882,7 +873,6 @@ export default class AdjacencyList<TEdgeType: number = 1> {
 
       this.#edges[hashToIndex(lastHash) + NEXT_HASH] = indexToHash(cursor);
       assert(this.edge(hashToIndex(lastHash)).hash === hash);
-
       return cursor;
     }
   }
@@ -918,6 +908,7 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     to: NodeId,
     type: TEdgeType | NullEdgeType = 1,
   ): void {
+    let hash = this.hash(from, to, type);
     let index = this.indexOf(from, to, type);
     if (index === -1) {
       // The edge is not in the graph; do nothing.
@@ -981,27 +972,66 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     this.#edges[index + NEXT_IN] = 0;
     this.#edges[index + NEXT_OUT] = 0;
 
-    // If we're deleting an edge in the cellar, add it to the list of deleted edges
-    // so we can reuse it
-    if (this.inCellar(index)) {
+    if (!this.inCellar(index)) {
+      let nextHash = this.#edges[index + NEXT_HASH];
+      // If we're removing an edge in the addressable space, and it doesn't
+      // point to anything in the cellar, clear out the edge at the index
+      if (!nextHash) {
+        this.#edges[index + TYPE] = 0;
+      } else {
+        // If we're removing an edge in the addressable space, and it points to
+        // an edge in the cellar, swap the edges so that the slot in the
+        // addressable space is occupied
+        let edge = this.edge(hashToIndex(hash));
+        let nextIndex = hashToIndex(nextHash);
+        let nextEdge = this.edge(nextIndex);
+
+        // Replace the edge in the addressable space with the edge from the cellar
+        this.#edges[index + FROM] = fromNodeId(nextEdge.from);
+        this.#edges[index + TO] = fromNodeId(nextEdge.to);
+        this.#edges[index + TYPE] = nextEdge.type;
+        this.#edges[index + NEXT_HASH] = nextEdge.nextHash;
+        this.#edges[index + NEXT_IN] = nextEdge.nextIn;
+        this.#edges[index + NEXT_OUT] = nextEdge.nextOut;
+
+        assert(this.inCellar(nextIndex), 'Next edge not in cellar');
+        // Remove the edge in the cellar
+        this.#edges[nextIndex + FROM] = 0;
+        this.#edges[nextIndex + TO] = 0;
+        this.#edges[nextIndex + TYPE] = DELETED;
+        this.#edges[nextIndex + NEXT_HASH] = 0;
+        this.#edges[nextIndex + NEXT_IN] = 0;
+        this.#edges[nextIndex + NEXT_OUT] = 0;
+
+        // Add the deleted slot in the cellar to the stack of deleted edges
+        this.#deletedEdges.push(nextIndex);
+        // The bucket hash in the addressable space should always be populated
+        assert(this.edgeExists(hash));
+      }
+    } else {
+      // If we're not removing the edge in the cellar,
+      // Change the pointer of the previous edge in the collision chain to point
+      // to the next edge of the removed edge
+      let prevHash = hash;
+      // The bucket hash in the addressable space should always be populated
+      assert(this.edgeExists(hash));
+      while (hashToIndex(hash) !== index) {
+        prevHash = hash;
+        hash = this.#edges[hashToIndex(hash) + NEXT_HASH];
+      }
+
+      if (prevHash) {
+        this.#edges[hashToIndex(prevHash) + NEXT_HASH] = this.#edges[
+          index + NEXT_HASH
+        ];
+      }
+
+      this.#edges[index + NEXT_HASH] = 0;
+
+      // If we're deleting an edge in the cellar, add it to the list of deleted edges
+      // so we can reuse it
       this.#deletedEdges.push(index);
     }
-
-    // Change the pointer of the previous edge in the collision chain to point
-    // to the next edge of the removed edge
-    let hash = this.hash(from, to, type);
-    let prevHash = hash;
-    while (hashToIndex(hash) !== index) {
-      prevHash = hash;
-      hash = this.#edges[hashToIndex(hash) + NEXT_HASH];
-    }
-
-    if (prevHash) {
-      this.#edges[hashToIndex(prevHash) + NEXT_HASH] = this.#edges[
-        index + NEXT_HASH
-      ];
-    }
-
     this.#numEdges--;
   }
 
@@ -1151,10 +1181,10 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     // $FlowFixMe[incompatible-type]
     let hash = '' + from + to + type - 0;
     // 2. Map the hash to a value modulo the address space.
-    hash %= this.#edgeCapacity;
-    hash = Math.floor(hash * ADDRESS_SPACE);
+    hash %= Math.floor(this.#edgeCapacity * ADDRESS_SPACE);
     // 3. Multiply by EDGE_SIZE to select a valid index.
     hash *= EDGE_SIZE;
+
     assert(!this.inCellar(hash));
     // 4. Add 1 to guarantee a truthy result.
     return hash + 1;
