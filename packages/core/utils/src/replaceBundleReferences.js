@@ -164,17 +164,26 @@ export function getURLReplacement({
   let orig = URL.parse(dependency.specifier);
 
   if (relative) {
-    let parsed = URL.parse(
-      relativeBundlePath(fromBundle, toBundle, {
+    to = URL.format({
+      pathname: relativeBundlePath(fromBundle, toBundle, {
         leadingDotSlash: false,
       }),
-    );
-    parsed.hash = orig.hash;
-    to = URL.format(parsed);
+      hash: orig.hash,
+    });
+
+    // If the resulting path includes a colon character and doesn't start with a ./ or ../
+    // we need to add one so that the first part before the colon isn't parsed as a URL protocol.
+    if (to.includes(':') && !to.startsWith('./') && !to.startsWith('../')) {
+      to = './' + to;
+    }
   } else {
-    let parsed = URL.parse(nullthrows(toBundle.name));
-    parsed.hash = orig.hash;
-    to = urlJoin(toBundle.target.publicUrl, URL.format(parsed));
+    to = urlJoin(
+      toBundle.target.publicUrl,
+      URL.format({
+        pathname: nullthrows(toBundle.name),
+        hash: orig.hash,
+      }),
+    );
   }
 
   let placeholder = dependency.meta?.placeholder ?? dependency.id;

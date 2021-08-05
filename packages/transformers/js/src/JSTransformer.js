@@ -111,7 +111,7 @@ type PackageJSONConfig = {|
 const SCRIPT_ERRORS = {
   browser: {
     message: 'Browser scripts cannot have imports or exports.',
-    hint: 'Add type="module" as a second argument to the <script> tag.',
+    hint: 'Add the type="module" attribute to the <script> tag.',
   },
   'web-worker': {
     message:
@@ -279,7 +279,7 @@ export default (new Transformer({
       decorators,
     };
   },
-  async transform({asset, config, options}) {
+  async transform({asset, config, options, logger}) {
     let [code, originalMap] = await Promise.all([
       asset.getBuffer(),
       asset.getMap(),
@@ -423,59 +423,75 @@ export default (new Transformer({
     };
 
     if (diagnostics) {
-      throw new ThrowableDiagnostic({
-        diagnostic: diagnostics.map(diagnostic => {
-          let message = diagnostic.message;
-          if (message === 'SCRIPT_ERROR') {
-            let err = SCRIPT_ERRORS[(asset.env.context: string)];
-            message = err?.message || SCRIPT_ERRORS.browser.message;
+      let errors = diagnostics.filter(
+        d =>
+          d.severity === 'Error' ||
+          (d.severity === 'SourceError' && asset.isSource),
+      );
+      let warnings = diagnostics.filter(
+        d =>
+          d.severity === 'Warning' ||
+          (d.severity === 'SourceError' && !asset.isSource),
+      );
+      let convertDiagnostic = diagnostic => {
+        let message = diagnostic.message;
+        if (message === 'SCRIPT_ERROR') {
+          let err = SCRIPT_ERRORS[(asset.env.context: string)];
+          message = err?.message || SCRIPT_ERRORS.browser.message;
+        }
+
+        let res = {
+          message,
+          codeFrames: [
+            {
+              filePath: asset.filePath,
+              codeHighlights: diagnostic.code_highlights?.map(highlight => {
+                let {start, end} = convertLoc(highlight.loc);
+                return {
+                  message: highlight.message,
+                  start,
+                  end,
+                };
+              }),
+            },
+          ],
+          hints: diagnostic.hints,
+        };
+
+        if (diagnostic.show_environment) {
+          if (asset.env.loc && asset.env.loc.filePath !== asset.filePath) {
+            res.codeFrames.push({
+              filePath: asset.env.loc.filePath,
+              codeHighlights: [
+                {
+                  start: asset.env.loc.start,
+                  end: asset.env.loc.end,
+                  message: 'The environment was originally created here',
+                },
+              ],
+            });
           }
 
-          let res = {
-            message,
-            codeFrames: [
-              {
-                filePath: asset.filePath,
-                codeHighlights: diagnostic.code_highlights?.map(highlight => {
-                  let {start, end} = convertLoc(highlight.loc);
-                  return {
-                    message: highlight.message,
-                    start,
-                    end,
-                  };
-                }),
-              },
-            ],
-            hints: diagnostic.hints,
-          };
-
-          if (diagnostic.show_environment) {
-            if (asset.env.loc) {
-              res.codeFrames.push({
-                filePath: asset.env.loc.filePath,
-                codeHighlights: [
-                  {
-                    start: asset.env.loc.start,
-                    end: asset.env.loc.end,
-                    message: 'The environment was originally created here',
-                  },
-                ],
-              });
-            }
-
-            let err = SCRIPT_ERRORS[(asset.env.context: string)];
-            if (err) {
-              if (!res.hints) {
-                res.hints = [err.hint];
-              } else {
-                res.hints.push(err.hint);
-              }
+          let err = SCRIPT_ERRORS[(asset.env.context: string)];
+          if (err) {
+            if (!res.hints) {
+              res.hints = [err.hint];
+            } else {
+              res.hints.push(err.hint);
             }
           }
+        }
 
-          return res;
-        }),
-      });
+        return res;
+      };
+
+      if (errors.length > 0) {
+        throw new ThrowableDiagnostic({
+          diagnostic: errors.map(convertDiagnostic),
+        });
+      }
+
+      logger.warn(warnings.map(convertDiagnostic));
     }
 
     if (shebang) {

@@ -5,6 +5,7 @@ import path from 'path';
 import tempy from 'tempy';
 import {inputFS as fs} from '@parcel/test-utils';
 import {md} from '@parcel/diagnostic';
+import {normalizeSeparators} from '@parcel/utils';
 import {TargetResolver} from '../src/requests/TargetRequest';
 import {DEFAULT_OPTIONS as _DEFAULT_OPTIONS, relative} from './test-utils';
 
@@ -117,7 +118,7 @@ describe('TargetResolver', () => {
         {
           name: 'customA',
           publicUrl: '/',
-          distDir: path.resolve('customA'),
+          distDir: normalizeSeparators(path.resolve('customA')),
           env: {
             id: '7185aca026a1ba43',
             context: 'browser',
@@ -138,7 +139,7 @@ describe('TargetResolver', () => {
           name: 'customB',
           publicUrl: '/',
           distEntry: 'b.js',
-          distDir: path.resolve('customB'),
+          distDir: normalizeSeparators(path.resolve('customB')),
           env: {
             id: '923e2836f26d91cc',
             context: 'node',
@@ -600,7 +601,7 @@ describe('TargetResolver', () => {
       [
         {
           name: 'customB',
-          distDir: path.resolve('customB'),
+          distDir: normalizeSeparators(path.resolve('customB')),
           publicUrl: '/',
           env: {
             id: '7185aca026a1ba43',
@@ -642,7 +643,7 @@ describe('TargetResolver', () => {
       [
         {
           name: 'customA',
-          distDir: path.resolve('customA'),
+          distDir: normalizeSeparators(path.resolve('customA')),
           publicUrl: '/',
           env: {
             id: '7185aca026a1ba43',

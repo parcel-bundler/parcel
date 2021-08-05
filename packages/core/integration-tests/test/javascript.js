@@ -6,6 +6,7 @@ import {
   bundler,
   run,
   runBundle,
+  runBundles,
   assertBundles,
   ncp,
   overlayFS,
@@ -16,6 +17,7 @@ import {
 } from '@parcel/test-utils';
 import {makeDeferredWithPromise, normalizePath} from '@parcel/utils';
 import vm from 'vm';
+import Logger from '@parcel/logger';
 
 describe('javascript', function() {
   beforeEach(async () => {
@@ -969,6 +971,33 @@ describe('javascript', function() {
     await run(b);
   });
 
+  it('should support workers pointing to themselves with import.meta.url', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/worker-self/import-meta.js'),
+    );
+
+    assertBundles(b, [
+      {
+        assets: [
+          'import-meta.js',
+          'bundle-url.js',
+          'get-worker-url.js',
+          'esmodule-helpers.js',
+        ],
+      },
+      {
+        assets: [
+          'import-meta.js',
+          'bundle-url.js',
+          'get-worker-url.js',
+          'esmodule-helpers.js',
+        ],
+      },
+    ]);
+
+    await run(b);
+  });
+
   it('should support bundling workers of type module', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/workers-module/index.js'),
@@ -1890,7 +1919,7 @@ describe('javascript', function() {
     ]);
   });
 
-  it.only('should create a shared bundle between browser and worker contexts', async () => {
+  it('should create a shared bundle between browser and worker contexts', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/html-shared-worker/index.html'),
       {mode: 'production', defaultTargetOptions: {shouldScopeHoist: false}},
@@ -2055,7 +2084,7 @@ describe('javascript', function() {
     assert.equal(await output(), 3);
   });
 
-  it.only('should duplicate small modules across multiple bundles', async function() {
+  it('should duplicate small modules across multiple bundles', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/dynamic-common-small/index.js'),
     );
@@ -2364,7 +2393,7 @@ describe('javascript', function() {
     ]);
 
     let contents = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
-    assert(contents.includes('import.meta.url'));
+    assert(contents.includes('"file:///local-url.js"'));
   });
 
   it('should throw a codeframe for a missing raw asset with static URL and import.meta.url', async function() {
@@ -2486,6 +2515,25 @@ describe('javascript', function() {
       file: 'integration/globals/index.js',
       buf: Buffer.from('browser').toString('base64'),
       global: true,
+    });
+  });
+
+  it('should work when multiple files use globals with scope hoisting', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/globals/multiple.js'),
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+          shouldOptimize: false,
+        },
+      },
+    );
+
+    let output = await run(b);
+    assert.deepEqual(output, {
+      file: 'integration/globals/multiple.js',
+      other: 'integration/globals/index.js',
     });
   });
 
@@ -2656,7 +2704,7 @@ describe('javascript', function() {
     let b = await bundle(
       path.join(__dirname, '/integration/env-computed/index.js'),
       {
-        env: {name: 'abc'},
+        env: {ABC: 'abc'},
       },
     );
 
@@ -2664,7 +2712,7 @@ describe('javascript', function() {
     assert(contents.includes('process.env'));
 
     let output = await run(b);
-    assert.strictEqual(output, 'abc');
+    assert.strictEqual(output, undefined);
   });
 
   it('should inline computed accesses with string literals to process.env', async function() {
@@ -2680,6 +2728,62 @@ describe('javascript', function() {
 
     let output = await run(b);
     assert.strictEqual(output, 'XYZ');
+  });
+
+  it('should inline environment variables when destructured in a variable declaration', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/env-destructuring/index.js'),
+      {
+        env: {TEST: 'XYZ'},
+        defaultTargetOptions: {
+          engines: {
+            browsers: '>= 0.25%',
+          },
+        },
+      },
+    );
+
+    let contents = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(!contents.includes('process.env'));
+
+    let output = await run(b);
+    assert.deepEqual(output, {
+      env: {},
+      NODE_ENV: 'test',
+      renamed: 'XYZ',
+      computed: undefined,
+      fallback: 'yo',
+      rest: {},
+      other: 'hi',
+    });
+  });
+
+  it('should inline environment variables when destructured in an assignment', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/env-destructuring/assign.js'),
+      {
+        env: {TEST: 'XYZ'},
+        defaultTargetOptions: {
+          engines: {
+            browsers: '>= 0.25%',
+          },
+        },
+      },
+    );
+
+    let contents = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(!contents.includes('process.env'));
+
+    let output = await run(b);
+    assert.deepEqual(output, {
+      env: {},
+      NODE_ENV: 'test',
+      renamed: 'XYZ',
+      computed: undefined,
+      fallback: 'yo',
+      rest: {},
+      result: {},
+    });
   });
 
   it('should insert environment variables from a file', async function() {
@@ -2702,6 +2806,210 @@ describe('javascript', function() {
 
     let output = await run(b);
     assert.equal(output, 'productiontest');
+  });
+
+  it('should error on process.env mutations', async function() {
+    let filePath = path.join(__dirname, '/integration/env-mutate/index.js');
+    await assert.rejects(bundle(filePath), {
+      diagnostics: [
+        {
+          origin: '@parcel/transformer-js',
+          message: 'Mutating process.env is not supported',
+          hints: null,
+          codeFrames: [
+            {
+              filePath,
+              codeHighlights: [
+                {
+                  message: null,
+                  start: {
+                    line: 1,
+                    column: 1,
+                  },
+                  end: {
+                    line: 1,
+                    column: 29,
+                  },
+                },
+              ],
+            },
+          ],
+        },
+        {
+          origin: '@parcel/transformer-js',
+          message: 'Mutating process.env is not supported',
+          hints: null,
+          codeFrames: [
+            {
+              filePath,
+              codeHighlights: [
+                {
+                  message: null,
+                  start: {
+                    line: 2,
+                    column: 1,
+                  },
+                  end: {
+                    line: 2,
+                    column: 30,
+                  },
+                },
+              ],
+            },
+          ],
+        },
+        {
+          origin: '@parcel/transformer-js',
+          message: 'Mutating process.env is not supported',
+          hints: null,
+          codeFrames: [
+            {
+              filePath,
+              codeHighlights: [
+                {
+                  message: null,
+                  start: {
+                    line: 3,
+                    column: 1,
+                  },
+                  end: {
+                    line: 3,
+                    column: 28,
+                  },
+                },
+              ],
+            },
+          ],
+        },
+        {
+          origin: '@parcel/transformer-js',
+          message: 'Mutating process.env is not supported',
+          hints: null,
+          codeFrames: [
+            {
+              filePath,
+              codeHighlights: [
+                {
+                  message: null,
+                  start: {
+                    line: 4,
+                    column: 1,
+                  },
+                  end: {
+                    line: 4,
+                    column: 23,
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it('should warn on process.env mutations in node_modules', async function() {
+    let logs = [];
+    let disposable = Logger.onLog(d => logs.push(d));
+    let b = await bundle(
+      path.join(__dirname, '/integration/env-mutate/warn.js'),
+    );
+    disposable.dispose();
+
+    assert.deepEqual(logs, [
+      {
+        type: 'log',
+        level: 'warn',
+        diagnostics: [
+          {
+            origin: '@parcel/transformer-js',
+            message: 'Mutating process.env is not supported',
+            hints: null,
+            codeFrames: [
+              {
+                filePath: path.join(
+                  __dirname,
+                  '/integration/env-mutate/node_modules/foo/index.js',
+                ),
+                codeHighlights: [
+                  {
+                    message: null,
+                    start: {
+                      line: 1,
+                      column: 8,
+                    },
+                    end: {
+                      line: 1,
+                      column: 36,
+                    },
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            origin: '@parcel/transformer-js',
+            message: 'Mutating process.env is not supported',
+            hints: null,
+            codeFrames: [
+              {
+                filePath: path.join(
+                  __dirname,
+                  '/integration/env-mutate/node_modules/foo/index.js',
+                ),
+                codeHighlights: [
+                  {
+                    message: null,
+                    start: {
+                      line: 2,
+                      column: 8,
+                    },
+                    end: {
+                      line: 2,
+                      column: 35,
+                    },
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            origin: '@parcel/transformer-js',
+            message: 'Mutating process.env is not supported',
+            hints: null,
+            codeFrames: [
+              {
+                filePath: path.join(
+                  __dirname,
+                  '/integration/env-mutate/node_modules/foo/index.js',
+                ),
+                codeHighlights: [
+                  {
+                    message: null,
+                    start: {
+                      line: 3,
+                      column: 8,
+                    },
+                    end: {
+                      line: 3,
+                      column: 30,
+                    },
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ]);
+
+    let output = [];
+    await run(b, {
+      output(o) {
+        output.push(o);
+      },
+    });
+    assert.deepEqual(output, ['foo', true, undefined]);
   });
 
   it('should replace process.browser for target browser', async function() {
@@ -5090,5 +5398,99 @@ describe('javascript', function() {
       assert.equal(typeof (await res.lazy), 'function');
       assert.equal(typeof res.text, 'string');
     });
+  });
+
+  it('should avoid creating a bundle for lazy dependencies already available in a shared bundle', async function() {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        'integration/shared-bundle-internalization/index.mjs',
+      ),
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: false,
+        },
+      },
+    );
+
+    assert.deepEqual(await (await run(b)).default, [42, 42]);
+  });
+
+  it('should support standalone import.meta', async function() {
+    let b = await bundle(
+      path.join(__dirname, 'integration/import-meta/index.js'),
+    );
+    let res = await run(b);
+    assert.deepEqual(res.default, {
+      meta: {url: 'file:///integration/import-meta/index.js'},
+      url: 'file:///integration/import-meta/index.js',
+      equal: true,
+    });
+
+    assert.equal(Object.getPrototypeOf(res.default.meta), null);
+    assert.equal(Object.isExtensible(res.default.meta), true);
+    assert.deepEqual(Object.getOwnPropertyDescriptors(res.default.meta), {
+      url: {
+        writable: true,
+        configurable: true,
+        enumerable: true,
+        value: 'file:///integration/import-meta/index.js',
+      },
+    });
+  });
+
+  it('should support importing async bundles from bundles with different dist paths', async function() {
+    let bundleGraph = await bundle(
+      ['bar/entry/entry-a.js', 'foo/entry-b.js'].map(f =>
+        path.join(__dirname, 'integration/differing-bundle-urls', f),
+      ),
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldOptimize: false,
+        },
+      },
+    );
+    assertBundles(bundleGraph, [
+      {
+        name: 'entry-a.js',
+        assets: [
+          'bundle-manifest.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'entry-a.js',
+          'js-loader.js',
+        ],
+      },
+      {
+        name: 'entry-b.js',
+        assets: [
+          'bundle-manifest.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'entry-b.js',
+          'js-loader.js',
+        ],
+      },
+      {name: /deep\.[a-f0-9]+\.js/, assets: ['deep.js']},
+      {name: /common\.[a-f0-9]+\.js/, assets: ['index.js']},
+    ]);
+
+    let [a, b] = bundleGraph.getBundles().filter(b => b.needsStableName);
+    let calls = [];
+
+    let bundles = [
+      [await outputFS.readFile(a.filePath, 'utf8'), a],
+      [await outputFS.readFile(b.filePath, 'utf8'), b],
+    ];
+
+    await runBundles(bundleGraph, a, bundles, {
+      sideEffect: v => {
+        calls.push(v);
+      },
+    });
+
+    assert.deepEqual(calls, ['common', 'deep']);
   });
 });
