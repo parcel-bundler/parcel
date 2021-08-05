@@ -4,8 +4,17 @@ import assert from 'assert';
 import BundleGraph from '../src/BundleGraph';
 import {DEFAULT_ENV, DEFAULT_TARGETS} from './test-utils';
 import AssetGraph, {nodeFromAssetGroup} from '../src/AssetGraph';
-import {createAsset} from '../src/assetUtils';
-import {createDependency} from '../src/Dependency';
+import {createAsset as _createAsset} from '../src/assetUtils';
+import {createDependency as _createDependency} from '../src/Dependency';
+import {toProjectPath} from '../src/projectPath';
+
+function createAsset(opts) {
+  return _createAsset('/', opts);
+}
+
+function createDependency(opts) {
+  return _createDependency('/', opts);
+}
 
 const id1 = '0123456789abcdef0123456789abcdef';
 const id2 = '9876543210fedcba9876543210fedcba';
@@ -34,7 +43,7 @@ describe('BundleGraph', () => {
 
 function getAssets(bundleGraph) {
   let assets = [];
-  bundleGraph.traverseContents(node => {
+  bundleGraph.traverse(node => {
     if (node.type === 'asset') {
       assets.push(node.value);
     }
@@ -45,32 +54,43 @@ function getAssets(bundleGraph) {
 const stats = {size: 0, time: 0};
 function createMockAssetGraph(ids: [string, string]) {
   let graph = new AssetGraph();
-  graph.setRootConnections({entries: ['./index']});
+  graph.setRootConnections({entries: [toProjectPath('/', '/index')]});
 
   graph.resolveEntry(
-    './index',
-    [{filePath: '/path/to/index/src/main.js', packagePath: '/path/to/index'}],
+    toProjectPath('/', '/index'),
+    [
+      {
+        filePath: toProjectPath('/', '/path/to/index/src/main.js'),
+        packagePath: toProjectPath('/', '/path/to/index'),
+      },
+    ],
     '1',
   );
   graph.resolveTargets(
-    {filePath: '/path/to/index/src/main.js', packagePath: '/path/to/index'},
+    {
+      filePath: toProjectPath('/', '/path/to/index/src/main.js'),
+      packagePath: toProjectPath('/', '/path/to/index'),
+    },
     DEFAULT_TARGETS,
     '2',
   );
 
   let dep = createDependency({
-    moduleSpecifier: '/path/to/index/src/main.js',
+    specifier: 'path/to/index/src/main.js',
+    specifierType: 'esm',
     env: DEFAULT_ENV,
     target: DEFAULT_TARGETS[0],
   });
-  let filePath = '/index.js';
+  let sourcePath = '/index.js';
+  let filePath = toProjectPath('/', sourcePath);
   let req = {filePath, env: DEFAULT_ENV, query: {}};
   graph.resolveDependency(dep, nodeFromAssetGroup(req).value, '3');
 
   let dep1 = createDependency({
-    moduleSpecifier: 'dependent-asset-1',
+    specifier: 'dependent-asset-1',
+    specifierType: 'esm',
     env: DEFAULT_ENV,
-    sourcePath: filePath,
+    sourcePath,
   });
 
   let assets = [

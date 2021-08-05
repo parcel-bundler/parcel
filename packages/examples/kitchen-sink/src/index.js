@@ -5,7 +5,7 @@ import {message} from './message';
 import('./async');
 import('./async2');
 
-new Worker('worker.js');
+new Worker(new URL('worker.js', import.meta.url));
 
 console.log(message);
 

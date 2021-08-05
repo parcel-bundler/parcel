@@ -1,15 +1,22 @@
 // @flow strict-local
 
-import type {FilePath, InitialParcelOptions} from '@parcel/types';
+import type {
+  FilePath,
+  InitialParcelOptions,
+  DependencySpecifier,
+} from '@parcel/types';
+import type {FileSystem} from '@parcel/fs';
 import type {ParcelOptions} from './types';
 
-import {getRootDir} from '@parcel/utils';
-import loadDotEnv from './loadDotEnv';
 import path from 'path';
-import {resolveConfig, md5FromString} from '@parcel/utils';
+import {hashString} from '@parcel/hash';
 import {NodeFS} from '@parcel/fs';
 import {LMDBCache, FSCache} from '@parcel/cache';
 import {NodePackageManager} from '@parcel/package-manager';
+import {getRootDir, relativePath, resolveConfig} from '@parcel/utils';
+import loadDotEnv from './loadDotEnv';
+import {toProjectPath} from './projectPath';
+import {getResolveFrom} from './requests/ParcelConfigRequest';
 
 // Default cache directory name
 const DEFAULT_CACHE_DIRNAME = '.parcel-cache';
@@ -17,7 +24,7 @@ const LOCK_FILE_NAMES = ['yarn.lock', 'package-lock.json', 'pnpm-lock.yaml'];
 
 // Generate a unique instanceId, will change on every run of parcel
 function generateInstanceId(entries: Array<FilePath>): string {
-  return md5FromString(
+  return hashString(
     `${entries.join(',')}-${Date.now()}-${Math.round(Math.random() * 100)}`,
   );
 }
@@ -25,44 +32,37 @@ function generateInstanceId(entries: Array<FilePath>): string {
 export default async function resolveOptions(
   initialOptions: InitialParcelOptions,
 ): Promise<ParcelOptions> {
+  let inputFS = initialOptions.inputFS || new NodeFS();
+  let outputFS = initialOptions.outputFS || new NodeFS();
+
+  let inputCwd = inputFS.cwd();
+  let outputCwd = outputFS.cwd();
+
   let entries: Array<FilePath>;
   if (initialOptions.entries == null || initialOptions.entries === '') {
     entries = [];
   } else if (Array.isArray(initialOptions.entries)) {
-    entries = initialOptions.entries.map(entry => path.resolve(entry));
+    entries = initialOptions.entries.map(entry =>
+      path.resolve(inputCwd, entry),
+    );
   } else {
-    entries = [path.resolve(initialOptions.entries)];
+    entries = [path.resolve(inputCwd, initialOptions.entries)];
   }
 
-  let inputFS = initialOptions.inputFS || new NodeFS();
-  let outputFS = initialOptions.outputFS || new NodeFS();
-
-  let entryRoot =
-    initialOptions.entryRoot != null
-      ? path.resolve(initialOptions.entryRoot)
-      : getRootDir(entries);
-
+  let entryRoot = getRootDir(entries);
   let projectRootFile =
     (await resolveConfig(
       inputFS,
       path.join(entryRoot, 'index'),
       [...LOCK_FILE_NAMES, '.git', '.hg'],
       path.parse(entryRoot).root,
-    )) || path.join(inputFS.cwd(), 'index'); // ? Should this just be rootDir
+    )) || path.join(inputCwd, 'index'); // ? Should this just be rootDir
 
-  let lockFile = null;
-  let rootFileName = path.basename(projectRootFile);
-  if (LOCK_FILE_NAMES.includes(rootFileName)) {
-    lockFile = projectRootFile;
-  }
   let projectRoot = path.dirname(projectRootFile);
 
   let packageManager =
     initialOptions.packageManager ||
     new NodePackageManager(inputFS, projectRoot);
-
-  let inputCwd = inputFS.cwd();
-  let outputCwd = outputFS.cwd();
 
   let cacheDir =
     // If a cacheDir is provided, resolve it relative to cwd. Otherwise,
@@ -72,9 +72,10 @@ export default async function resolveOptions(
       : path.resolve(projectRoot, DEFAULT_CACHE_DIRNAME);
 
   let cache =
-    initialOptions.cache ?? outputFS instanceof NodeFS
+    initialOptions.cache ??
+    (outputFS instanceof NodeFS
       ? new LMDBCache(cacheDir)
-      : new FSCache(outputFS, cacheDir);
+      : new FSCache(outputFS, cacheDir));
 
   let mode = initialOptions.mode ?? 'development';
   let shouldOptimize =
@@ -95,8 +96,16 @@ export default async function resolveOptions(
   }
 
   return {
-    config: initialOptions.config,
-    defaultConfig: initialOptions.defaultConfig,
+    config: getRelativeConfigSpecifier(
+      inputFS,
+      projectRoot,
+      initialOptions.config,
+    ),
+    defaultConfig: getRelativeConfigSpecifier(
+      inputFS,
+      projectRoot,
+      initialOptions.defaultConfig,
+    ),
     shouldPatchConsole:
       initialOptions.shouldPatchConsole ?? process.env.NODE_ENV !== 'test',
     env: {
@@ -123,28 +132,50 @@ export default async function resolveOptions(
     shouldDisableCache: initialOptions.shouldDisableCache ?? false,
     shouldProfile: initialOptions.shouldProfile ?? false,
     cacheDir,
-    entries,
-    entryRoot,
+    entries: entries.map(e => toProjectPath(projectRoot, e)),
     targets: initialOptions.targets,
     logLevel: initialOptions.logLevel ?? 'info',
     projectRoot,
-    lockFile,
     inputFS,
     outputFS,
     cache,
     packageManager,
-    additionalReporters: initialOptions.additionalReporters ?? [],
+    additionalReporters:
+      initialOptions.additionalReporters?.map(({packageName, resolveFrom}) => ({
+        packageName,
+        resolveFrom: toProjectPath(projectRoot, resolveFrom),
+      })) ?? [],
     instanceId: generateInstanceId(entries),
     detailedReport: initialOptions.detailedReport,
     defaultTargetOptions: {
       shouldOptimize,
-      shouldScopeHoist:
-        initialOptions?.defaultTargetOptions?.shouldScopeHoist ??
-        initialOptions.mode === 'production',
+      shouldScopeHoist: initialOptions?.defaultTargetOptions?.shouldScopeHoist,
       sourceMaps: initialOptions?.defaultTargetOptions?.sourceMaps ?? true,
       publicUrl,
-      distDir,
+      ...(distDir != null
+        ? {distDir: toProjectPath(projectRoot, distDir)}
+        : {...null}),
       engines: initialOptions?.defaultTargetOptions?.engines,
+      outputFormat: initialOptions?.defaultTargetOptions?.outputFormat,
+      isLibrary: initialOptions?.defaultTargetOptions?.isLibrary,
     },
   };
+}
+
+function getRelativeConfigSpecifier(
+  fs: FileSystem,
+  projectRoot: FilePath,
+  specifier: ?DependencySpecifier,
+) {
+  if (specifier == null) {
+    return undefined;
+  } else if (path.isAbsolute(specifier)) {
+    let resolveFrom = getResolveFrom(fs, projectRoot);
+    let relative = relativePath(path.dirname(resolveFrom), specifier);
+    // If the config is outside the project root, use an absolute path so that if the project root
+    // moves the path still works. Otherwise, use a relative path so that the cache is portable.
+    return relative.startsWith('..') ? specifier : relative;
+  } else {
+    return specifier;
+  }
 }

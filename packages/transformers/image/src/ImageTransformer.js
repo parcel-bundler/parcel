@@ -18,7 +18,7 @@ const FORMATS = new Map([
 
 export default (new Transformer({
   async transform({asset}) {
-    asset.isIsolated = true;
+    asset.bundleBehavior = 'isolated';
 
     let width = asset.query.width ? parseInt(asset.query.width, 10) : null;
     let height = asset.query.height ? parseInt(asset.query.height, 10) : null;
@@ -33,6 +33,8 @@ export default (new Transformer({
       if (width || height) {
         imagePipeline.resize(width, height);
       }
+
+      imagePipeline.rotate();
 
       if (format) {
         if (!FORMATS.has(format)) {

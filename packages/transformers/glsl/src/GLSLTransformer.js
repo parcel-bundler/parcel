@@ -44,7 +44,7 @@ export default (new Transformer({
 function collectDependencies(asset, ast) {
   for (let dep of ast) {
     if (!dep.entry) {
-      asset.addIncludedFile(dep.file);
+      asset.invalidateOnFileChange(dep.file);
     }
   }
 }

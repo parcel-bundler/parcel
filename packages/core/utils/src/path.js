@@ -22,7 +22,12 @@ export function normalizePath(
   filePath: FilePath,
   leadingDotSlash: boolean = true,
 ): FilePath {
-  if (leadingDotSlash && filePath[0] !== '.' && filePath[0] !== '/') {
+  if (
+    leadingDotSlash &&
+    (filePath[0] !== '.' ||
+      (filePath[1] !== '.' && filePath[1] !== '/' && filePath[1] !== '\\')) &&
+    !path.isAbsolute(filePath)
+  ) {
     return normalizeSeparators('./' + filePath);
   } else {
     return normalizeSeparators(filePath);
@@ -34,5 +39,10 @@ export function relativePath(
   to: string,
   leadingDotSlash: boolean = true,
 ): FilePath {
+  // Fast path
+  if (to.startsWith(from + '/')) {
+    return (leadingDotSlash ? './' : '') + to.slice(from.length + 1);
+  }
+
   return normalizePath(path.relative(from, to), leadingDotSlash);
 }

@@ -33,7 +33,8 @@ export default async function isJSX(
       libName =>
         pkg &&
         ((pkg.dependencies && pkg.dependencies[libName]) ||
-          (pkg.devDependencies && pkg.devDependencies[libName])),
+          (pkg.devDependencies && pkg.devDependencies[libName]) ||
+          (pkg.peerDependencies && pkg.peerDependencies[libName])),
     );
   }
 }

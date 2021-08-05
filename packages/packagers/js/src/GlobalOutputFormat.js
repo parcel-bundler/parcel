@@ -12,10 +12,13 @@ export class GlobalOutputFormat implements OutputFormat {
   }
 
   buildBundlePrelude(): [string, number] {
-    return ['(function () {\n', 1];
+    let prelude = this.packager.bundle.env.supports('arrow-functions', true)
+      ? '(() => {\n'
+      : '(function () {\n';
+    return [prelude, 1];
   }
 
-  buildBundlePostlude(): string {
-    return '})();';
+  buildBundlePostlude(): [string, number] {
+    return ['})();', 0];
   }
 }

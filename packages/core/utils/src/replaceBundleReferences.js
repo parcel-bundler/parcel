@@ -12,6 +12,7 @@ import type {
 
 import {Readable} from 'stream';
 import nullthrows from 'nullthrows';
+import invariant from 'assert';
 import URL from 'url';
 import {bufferStream, relativeBundlePath, urlJoin} from './';
 
@@ -22,7 +23,7 @@ type ReplacementMap = Map<
 
 /*
  * Replaces references to dependency ids for URL dependencies with:
- *   - in the case of an unresolvable url dependency, the original moduleSpecifier.
+ *   - in the case of an unresolvable url dependency, the original specifier.
  *     These are external requests that Parcel did not bundle.
  *   - in the case of a reference to another bundle, the relative url to that
  *     bundle from the current bundle.
@@ -43,33 +44,36 @@ export function replaceURLReferences({
   let replacements = new Map();
   let urlDependencies = [];
   bundle.traverse(node => {
-    if (node.type === 'dependency' && node.value.isURL) {
+    if (node.type === 'dependency' && node.value.specifierType === 'url') {
       urlDependencies.push(node.value);
     }
   });
 
   for (let dependency of urlDependencies) {
-    if (!dependency.isURL) {
+    if (dependency.specifierType !== 'url') {
       continue;
     }
 
+    let placeholder = dependency.meta?.placeholder ?? dependency.id;
+    invariant(typeof placeholder === 'string');
+
     let resolved = bundleGraph.getReferencedBundle(dependency, bundle);
     if (resolved == null) {
-      replacements.set(dependency.id, {
-        from: dependency.id,
-        to: dependency.moduleSpecifier,
+      replacements.set(placeholder, {
+        from: placeholder,
+        to: dependency.specifier,
       });
       continue;
     }
 
-    if (!resolved || resolved.isInline) {
+    if (!resolved || resolved.bundleBehavior === 'inline') {
       // If a bundle is inline, it should be replaced with inline contents,
       // not a URL.
       continue;
     }
 
     replacements.set(
-      dependency.id,
+      placeholder,
       getURLReplacement({
         dependency,
         fromBundle: bundle,
@@ -119,7 +123,7 @@ export async function replaceInlineReferences({
 
   for (let dependency of dependencies) {
     let entryBundle = bundleGraph.getReferencedBundle(dependency, bundle);
-    if (!entryBundle?.isInline) {
+    if (entryBundle?.bundleBehavior !== 'inline') {
       continue;
     }
 
@@ -132,8 +136,7 @@ export async function replaceInlineReferences({
       : packagedBundle.contents
     ).toString();
 
-    let inlineType = nullthrows(entryBundle.getEntryAssets()[0]).meta
-      .inlineType;
+    let inlineType = nullthrows(entryBundle.getMainEntry()).meta.inlineType;
     if (inlineType == null || inlineType === 'string') {
       replacements.set(
         dependency.id,
@@ -158,23 +161,35 @@ export function getURLReplacement({
 |}): {|from: string, to: string|} {
   let to;
 
+  let orig = URL.parse(dependency.specifier);
+
   if (relative) {
-    to = URL.format(
-      URL.parse(
-        relativeBundlePath(fromBundle, toBundle, {
-          leadingDotSlash: false,
-        }),
-      ),
-    );
+    to = URL.format({
+      pathname: relativeBundlePath(fromBundle, toBundle, {
+        leadingDotSlash: false,
+      }),
+      hash: orig.hash,
+    });
+
+    // If the resulting path includes a colon character and doesn't start with a ./ or ../
+    // we need to add one so that the first part before the colon isn't parsed as a URL protocol.
+    if (to.includes(':') && !to.startsWith('./') && !to.startsWith('../')) {
+      to = './' + to;
+    }
   } else {
     to = urlJoin(
       toBundle.target.publicUrl,
-      URL.format(URL.parse(nullthrows(toBundle.name))),
+      URL.format({
+        pathname: nullthrows(toBundle.name),
+        hash: orig.hash,
+      }),
     );
   }
 
+  let placeholder = dependency.meta?.placeholder ?? dependency.id;
+  invariant(typeof placeholder === 'string');
   return {
-    from: dependency.id,
+    from: placeholder,
     to,
   };
 }

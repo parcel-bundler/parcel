@@ -1,4 +1,5 @@
 // @flow strict-local
+import type {Bundle as InternalBundle} from '../src/types';
 
 import assert from 'assert';
 import {Bundle, NamedBundle, PackagedBundle} from '../src/public/Bundle';
@@ -6,9 +7,10 @@ import BundleGraph from '../src/BundleGraph';
 import {createEnvironment} from '../src/Environment';
 import {DEFAULT_OPTIONS} from './test-utils';
 import ContentGraph from '../src/ContentGraph';
+import {toProjectPath} from '../src/projectPath';
 
 describe('Public Bundle', () => {
-  let internalBundle;
+  let internalBundle: InternalBundle;
   let bundleGraph;
   beforeEach(() => {
     let env = createEnvironment({});
@@ -19,21 +21,19 @@ describe('Public Bundle', () => {
       mainEntryId: null,
       type: 'js',
       env,
-      filePath: null,
       name: null,
       displayName: null,
       publicId: null,
       pipeline: null,
-      isEntry: null,
-      isInline: null,
+      needsStableName: null,
+      bundleBehavior: null,
       isSplittable: true,
       target: {
         env,
-        distDir: '',
+        distDir: toProjectPath('/', '/'),
         name: '',
         publicUrl: '',
       },
-      stats: {size: 0, time: 0},
     };
 
     bundleGraph = new BundleGraph({

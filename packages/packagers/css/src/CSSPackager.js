@@ -146,14 +146,16 @@ async function processCSSModule(
       logger.warn({
         message:
           'CSS modules cannot be tree shaken when imported with a default specifier',
-        filePath: nullthrows(loc?.filePath ?? defaultImport.sourcePath),
         ...(loc && {
-          codeFrame: {
-            codeHighlights: [{start: loc.start, end: loc.end}],
-          },
+          codeFrames: [
+            {
+              filePath: nullthrows(loc?.filePath ?? defaultImport.sourcePath),
+              codeHighlights: [{start: loc.start, end: loc.end}],
+            },
+          ],
         }),
         hints: [
-          `Instead do: import * as style from "${defaultImport.moduleSpecifier}";`,
+          `Instead do: import * as style from "${defaultImport.specifier}";`,
         ],
       });
     }

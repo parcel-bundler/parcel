@@ -20,10 +20,9 @@ import {PackagedBundle} from './public/Bundle';
 import BundleGraph from './public/BundleGraph';
 import WorkerFarm from '@parcel/workers';
 import nullthrows from 'nullthrows';
-import {assertSignalNotAborted, BuildAbortError} from './utils';
-import PackagerRunner from './PackagerRunner';
+import {BuildAbortError} from './utils';
 import {loadParcelConfig} from './requests/ParcelConfigRequest';
-import ReporterRunner, {report} from './ReporterRunner';
+import ReporterRunner from './ReporterRunner';
 import dumpGraphToGraphViz from './dumpGraphToGraphViz';
 import resolveOptions from './resolveOptions';
 import {ValueEmitter} from '@parcel/events';
@@ -32,15 +31,13 @@ import {AbortController} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import {PromiseQueue} from '@parcel/utils';
 import ParcelConfig from './ParcelConfig';
 import logger from '@parcel/logger';
-import {bundleGraphEdgeTypes} from './BundleGraph';
-import RequestTracker, {
-  getWatcherOptions,
-  requestGraphEdgeTypes,
-} from './RequestTracker';
-import createAssetGraphRequest from './requests/AssetGraphRequest';
+import RequestTracker, {getWatcherOptions} from './RequestTracker';
 import createValidationRequest from './requests/ValidationRequest';
-import createBundleGraphRequest from './requests/BundleGraphRequest';
+import createParcelBuildRequest from './requests/ParcelBuildRequest';
 import {Disposable} from '@parcel/events';
+import {init as initSourcemaps} from '@parcel/source-map';
+import {init as initHash} from '@parcel/hash';
+import {toProjectPath} from './projectPath';
 
 registerCoreWithSerializer();
 
@@ -49,7 +46,6 @@ export const INTERNAL_RESOLVE: symbol = Symbol('internal_resolve');
 
 export default class Parcel {
   #requestTracker /*: RequestTracker*/;
-  #packagerRunner /*: PackagerRunner*/;
   #config /*: ParcelConfig*/;
   #farm /*: WorkerFarm*/;
   #initialized /*: boolean*/ = false;
@@ -87,6 +83,9 @@ export default class Parcel {
       return;
     }
 
+    await initSourcemaps;
+    await initHash;
+
     let resolvedOptions: ParcelOptions = await resolveOptions(
       this.#initialOptions,
     );
@@ -113,17 +112,13 @@ export default class Parcel {
       dispose: disposeOptions,
       ref: optionsRef,
     } = await this.#farm.createSharedReference(resolvedOptions);
-    let {
-      dispose: disposeConfig,
-      ref: configRef,
-    } = await this.#farm.createSharedReference(config);
     this.#optionsRef = optionsRef;
 
     this.#disposable = new Disposable();
     if (this.#initialOptions.workerFarm) {
       // If we don't own the farm, dispose of only these references when
       // Parcel ends.
-      this.#disposable.add(disposeOptions, disposeConfig);
+      this.#disposable.add(disposeOptions);
     } else {
       // Otherwise, when shutting down, end the entire farm we created.
       this.#disposable.add(() => this.#farm.end());
@@ -143,15 +138,6 @@ export default class Parcel {
       workerFarm: this.#farm,
     });
     this.#disposable.add(this.#reporterRunner);
-
-    this.#packagerRunner = new PackagerRunner({
-      config: this.#config,
-      farm: this.#farm,
-      options: resolvedOptions,
-      optionsRef,
-      configRef,
-      report,
-    });
 
     this.#initialized = true;
   }
@@ -274,49 +260,24 @@ export default class Parcel {
       this.#reporterRunner.report({
         type: 'buildStart',
       });
-      let request = createAssetGraphRequest({
-        name: 'Main',
-        entries: options.entries,
+
+      let request = createParcelBuildRequest({
         optionsRef: this.#optionsRef,
-        shouldBuildLazily: options.shouldBuildLazily,
         requestedAssetIds: this.#requestedAssetIds,
-      }); // ? should we create this on every build?
+        signal,
+      });
+
       let {
-        assetGraph,
+        bundleGraph,
+        bundleInfo,
         changedAssets,
         assetRequests,
-      } = await this.#requestTracker.runRequest(request, {
-        force: options.shouldBuildLazily && this.#requestedAssetIds.size > 0,
-      });
+      } = await this.#requestTracker.runRequest(request, {force: true});
 
       this.#requestedAssetIds.clear();
 
-      let bundleGraphRequest = createBundleGraphRequest({
-        assetGraph,
-        optionsRef: this.#optionsRef,
-      });
-
-      // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
-      let bundleGraph = await this.#requestTracker.runRequest(
-        bundleGraphRequest,
-      );
-
-      dumpGraphToGraphViz(
-        // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381 (Windows only)
-        bundleGraph._graph,
-        'BundleGraph',
-        bundleGraphEdgeTypes,
-      );
-
-      await this.#packagerRunner.writeBundles(bundleGraph);
-      assertSignalNotAborted(signal);
-
-      dumpGraphToGraphViz(
-        // $FlowFixMe
-        this.#requestTracker.graph,
-        'RequestGraph',
-        requestGraphEdgeTypes,
-      );
+      // $FlowFixMe
+      dumpGraphToGraphViz(this.#requestTracker.graph, 'RequestGraph');
 
       let event = {
         type: 'buildSuccess',
@@ -328,7 +289,13 @@ export default class Parcel {
         ),
         bundleGraph: new BundleGraph<IPackagedBundle>(
           bundleGraph,
-          PackagedBundle.get,
+          (bundle, bundleGraph, options) =>
+            PackagedBundle.getWithInfo(
+              bundle,
+              bundleGraph,
+              options,
+              bundleInfo.get(bundle.id),
+            ),
           options,
         ),
         buildTime: Date.now() - startTime,
@@ -396,12 +363,12 @@ export default class Parcel {
     }
   }
 
-  _getWatcherSubscription(): Promise<AsyncSubscription> {
+  async _getWatcherSubscription(): Promise<AsyncSubscription> {
     invariant(this.#watcherSubscription == null);
 
     let resolvedOptions = nullthrows(this.#resolvedOptions);
     let opts = getWatcherOptions(resolvedOptions);
-    return resolvedOptions.inputFS.watch(
+    let sub = await resolvedOptions.inputFS.watch(
       resolvedOptions.projectRoot,
       (err, events) => {
         if (err) {
@@ -409,7 +376,12 @@ export default class Parcel {
           return;
         }
 
-        let isInvalid = this.#requestTracker.respondToFSEvents(events);
+        let isInvalid = this.#requestTracker.respondToFSEvents(
+          events.map(e => ({
+            type: e.type,
+            path: toProjectPath(resolvedOptions.projectRoot, e.path),
+          })),
+        );
         if (isInvalid && this.#watchQueue.getNumWaiting() === 0) {
           if (this.#watchAbortController) {
             this.#watchAbortController.abort();
@@ -421,6 +393,7 @@ export default class Parcel {
       },
       opts,
     );
+    return {unsubscribe: () => sub.unsubscribe()};
   }
 
   // This is mainly for integration tests and it not public api!

@@ -1,3 +1,3 @@
 import _ from 'lodash';
 
-new Worker('worker-a.js');
+new Worker(new URL('worker-a.js', import.meta.url), {type: 'module'});

@@ -4,6 +4,7 @@ import {Transformer} from '@parcel/plugin';
 
 import path from 'path';
 import camelcase from 'camelcase';
+import svgoPlugin from '@svgr/plugin-svgo';
 import jsxPlugin from '@svgr/plugin-jsx';
 import convert from '@svgr/core';
 
@@ -26,7 +27,7 @@ export default (new Transformer({
       {
         caller: {
           name: '@parcel/transformer-svg-react',
-          defaultPlugins: [jsxPlugin],
+          defaultPlugins: [svgoPlugin, jsxPlugin],
         },
         filePath: componentName,
       },

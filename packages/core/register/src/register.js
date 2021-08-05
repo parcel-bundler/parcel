@@ -93,7 +93,7 @@ function register(inputOpts?: InitialParcelOptions): IDisposable {
       let resolved = syncPromise(
         // $FlowFixMe
         parcel[INTERNAL_RESOLVE]({
-          moduleSpecifier: targetFile,
+          specifier: targetFile,
           sourcePath: currFile,
           env,
         }),
@@ -148,7 +148,7 @@ function register(inputOpts?: InitialParcelOptions): IDisposable {
 }
 
 let disposable: IDisposable = register();
-register.dispose = disposable.dispose;
+register.dispose = (): mixed => disposable.dispose();
 
 // Support both commonjs and ES6 modules
 module.exports = register;

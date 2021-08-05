@@ -1,21 +1,38 @@
 // @flow
-import type {DevDepOptions, ModuleSpecifier, FilePath} from '@parcel/types';
+import type {DependencySpecifier} from '@parcel/types';
 import type ParcelConfig from '../ParcelConfig';
-import type {DevDepRequest, ParcelOptions} from '../types';
+import type {
+  DevDepRequest,
+  ParcelOptions,
+  InternalDevDepOptions,
+} from '../types';
 import type {RunAPI} from '../RequestTracker';
+import type {ProjectPath} from '../projectPath';
 
 import nullthrows from 'nullthrows';
 import {getInvalidationHash} from '../assetUtils';
 import {createBuildCache} from '../buildCache';
+import {invalidateOnFileCreateToInternal} from '../utils';
+import {
+  fromProjectPath,
+  fromProjectPathRelative,
+  toProjectPath,
+} from '../projectPath';
+
+// A cache of dev dep requests keyed by invalidations.
+// If the package manager returns the same invalidation object, then
+// we can reuse the dev dep request rather than recomputing the project
+// paths and hashes.
+const devDepRequestCache = new WeakMap();
 
 export async function createDevDependency(
-  opts: DevDepOptions,
-  plugin: {name: ModuleSpecifier, resolveFrom: FilePath, ...},
+  opts: InternalDevDepOptions,
+  plugin: {name: DependencySpecifier, resolveFrom: ProjectPath, ...},
   requestDevDeps: Map<string, string>,
   options: ParcelOptions,
 ): Promise<DevDepRequest> {
-  let {moduleSpecifier, resolveFrom, invalidateParcelPlugin} = opts;
-  let key = `${moduleSpecifier}:${resolveFrom}`;
+  let {specifier, resolveFrom, additionalInvalidations} = opts;
+  let key = `${specifier}:${fromProjectPathRelative(resolveFrom)}`;
 
   // If the request sent us a hash, we know the dev dep and all of its dependencies didn't change.
   // Reuse the same hash in the response. No need to send back invalidations as the request won't
@@ -23,25 +40,36 @@ export async function createDevDependency(
   let hash = requestDevDeps.get(key);
   if (hash != null) {
     return {
-      moduleSpecifier,
+      specifier,
       resolveFrom,
       hash,
     };
   }
 
+  let resolveFromAbsolute = fromProjectPath(options.projectRoot, resolveFrom);
+
   // Ensure that the package manager has an entry for this resolution.
-  await options.packageManager.resolve(moduleSpecifier, resolveFrom);
+  await options.packageManager.resolve(specifier, resolveFromAbsolute);
   let invalidations = options.packageManager.getInvalidations(
-    moduleSpecifier,
-    resolveFrom,
+    specifier,
+    resolveFromAbsolute,
   );
+
+  let cached = devDepRequestCache.get(invalidations);
+  if (cached != null) {
+    return cached;
+  }
+
+  let invalidateOnFileChangeProject = [
+    ...invalidations.invalidateOnFileChange,
+  ].map(f => toProjectPath(options.projectRoot, f));
 
   // It is possible for a transformer to have multiple different hashes due to
   // different dependencies (e.g. conditional requires) so we must always
   // recompute the hash and compare rather than only sending a transformer
   // dev dependency once.
   hash = await getInvalidationHash(
-    [...invalidations.invalidateOnFileChange].map(f => ({
+    invalidateOnFileChangeProject.map(f => ({
       type: 'file',
       filePath: f,
     })),
@@ -49,30 +77,23 @@ export async function createDevDependency(
   );
 
   let devDepRequest: DevDepRequest = {
-    moduleSpecifier,
+    specifier,
     resolveFrom,
     hash,
-    invalidateOnFileCreate: invalidations.invalidateOnFileCreate,
-    invalidateOnFileChange: invalidations.invalidateOnFileChange,
+    invalidateOnFileCreate: invalidations.invalidateOnFileCreate.map(i =>
+      invalidateOnFileCreateToInternal(options.projectRoot, i),
+    ),
+    invalidateOnFileChange: new Set(invalidateOnFileChangeProject),
+    additionalInvalidations,
   };
 
-  // Optionally also invalidate the parcel plugin that is loading the config
-  // when this dev dep changes (e.g. to invalidate local caches).
-  if (invalidateParcelPlugin) {
-    devDepRequest.additionalInvalidations = [
-      {
-        moduleSpecifier: plugin.name,
-        resolveFrom: plugin.resolveFrom,
-      },
-    ];
-  }
-
+  devDepRequestCache.set(invalidations, devDepRequest);
   return devDepRequest;
 }
 
-type DevDepSpecifier = {|
-  moduleSpecifier: ModuleSpecifier,
-  resolveFrom: FilePath,
+export type DevDepSpecifier = {|
+  specifier: DependencySpecifier,
+  resolveFrom: ProjectPath,
 |};
 
 type DevDepRequests = {|
@@ -98,7 +119,7 @@ export async function getDevDepRequests(api: RunAPI): Promise<DevDepRequests> {
       [...previousDevDepRequests.entries()]
         .filter(([id]) => api.canSkipSubrequest(id))
         .map(([, req]) => [
-          `${req.moduleSpecifier}:${req.resolveFrom}`,
+          `${req.specifier}:${fromProjectPathRelative(req.resolveFrom)}`,
           req.hash,
         ]),
     ),
@@ -108,10 +129,13 @@ export async function getDevDepRequests(api: RunAPI): Promise<DevDepRequests> {
         .flatMap(([, req]) => {
           return [
             {
-              moduleSpecifier: req.moduleSpecifier,
+              specifier: req.specifier,
               resolveFrom: req.resolveFrom,
             },
-            ...(req.additionalInvalidations ?? []),
+            ...(req.additionalInvalidations ?? []).map(i => ({
+              specifier: i.specifier,
+              resolveFrom: i.resolveFrom,
+            })),
           ];
         }),
     ),
@@ -127,11 +151,14 @@ export function invalidateDevDeps(
   options: ParcelOptions,
   config: ParcelConfig,
 ) {
-  for (let {moduleSpecifier, resolveFrom} of invalidDevDeps) {
-    let key = `${moduleSpecifier}:${resolveFrom}`;
+  for (let {specifier, resolveFrom} of invalidDevDeps) {
+    let key = `${specifier}:${fromProjectPathRelative(resolveFrom)}`;
     if (!invalidatedDevDeps.has(key)) {
-      config.invalidatePlugin(moduleSpecifier);
-      options.packageManager.invalidate(moduleSpecifier, resolveFrom);
+      config.invalidatePlugin(specifier);
+      options.packageManager.invalidate(
+        specifier,
+        fromProjectPath(options.projectRoot, resolveFrom),
+      );
       invalidatedDevDeps.set(key, true);
     }
   }
@@ -142,11 +169,7 @@ export async function runDevDepRequest(
   devDepRequest: DevDepRequest,
 ) {
   await api.runRequest<null, void>({
-    id:
-      'dev_dep_request:' +
-      devDepRequest.moduleSpecifier +
-      ':' +
-      devDepRequest.hash,
+    id: 'dev_dep_request:' + devDepRequest.specifier + ':' + devDepRequest.hash,
     type: 'dev_dep_request',
     run: ({api}) => {
       for (let filePath of nullthrows(devDepRequest.invalidateOnFileChange)) {
@@ -161,12 +184,32 @@ export async function runDevDepRequest(
       }
 
       api.storeResult({
-        moduleSpecifier: devDepRequest.moduleSpecifier,
+        specifier: devDepRequest.specifier,
         resolveFrom: devDepRequest.resolveFrom,
         hash: devDepRequest.hash,
         additionalInvalidations: devDepRequest.additionalInvalidations,
       });
     },
     input: null,
+  });
+}
+
+// A cache of plugin dependency hashes that we've already sent to the main thread.
+// Automatically cleared before each build.
+const pluginCache = createBuildCache();
+
+export function getWorkerDevDepRequests(
+  devDepRequests: Array<DevDepRequest>,
+): Array<DevDepRequest> {
+  return devDepRequests.map(devDepRequest => {
+    // If we've already sent a matching transformer + hash to the main thread during this build,
+    // there's no need to repeat ourselves.
+    let {specifier, resolveFrom, hash} = devDepRequest;
+    if (hash === pluginCache.get(specifier)) {
+      return {specifier, resolveFrom, hash};
+    } else {
+      pluginCache.set(specifier, hash);
+      return devDepRequest;
+    }
   });
 }

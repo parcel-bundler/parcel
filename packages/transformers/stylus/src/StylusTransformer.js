@@ -22,7 +22,7 @@ export default (new Transformer({
     if (configFile) {
       let isJavascript = path.extname(configFile.filePath) === '.js';
       if (isJavascript) {
-        config.shouldInvalidateOnStartup();
+        config.invalidateOnStartup();
       }
 
       // Resolve relative paths from config file
@@ -32,7 +32,7 @@ export default (new Transformer({
         );
       }
 
-      config.setResult(configFile.contents);
+      return configFile.contents;
     }
   },
 
@@ -78,6 +78,36 @@ export default (new Transformer({
   },
 }): Transformer);
 
+function attemptResolve(importedPath, filepath, asset, resolve, deps) {
+  if (deps.has(importedPath)) {
+    return;
+  }
+
+  if (isGlob(importedPath)) {
+    // Invalidate when new files are created that match the glob pattern.
+    let absoluteGlob = path.resolve(path.dirname(filepath), importedPath);
+    asset.invalidateOnFileCreate({glob: absoluteGlob});
+
+    deps.set(
+      importedPath,
+      glob(absoluteGlob, asset.fs, {
+        onlyFiles: true,
+      }).then(entries =>
+        Promise.all(
+          entries.map(entry =>
+            resolve(
+              filepath,
+              './' + path.relative(path.dirname(filepath), entry),
+            ),
+          ),
+        ),
+      ),
+    );
+  } else {
+    deps.set(importedPath, resolve(filepath, importedPath));
+  }
+}
+
 async function getDependencies(
   code,
   filepath,
@@ -87,6 +117,7 @@ async function getDependencies(
   parcelOptions,
   nativeGlob,
   seen = new Set(),
+  includeImports = true,
 ) {
   seen.add(filepath);
 
@@ -96,35 +127,16 @@ async function getDependencies(
   let ast = parser.parse();
   let deps = new Map();
 
+  if (includeImports && options.imports) {
+    for (let importedPath of options.imports) {
+      attemptResolve(importedPath, filepath, asset, resolve, deps);
+    }
+  }
+
   class ImportVisitor extends DepsResolver {
     visitImport(imported) {
       let importedPath = imported.path.first.string;
-
-      if (!deps.has(importedPath)) {
-        if (isGlob(importedPath)) {
-          // Invalidate when new files are created that match the glob pattern.
-          let absoluteGlob = path.resolve(path.dirname(filepath), importedPath);
-          asset.invalidateOnFileCreate({glob: absoluteGlob});
-
-          deps.set(
-            importedPath,
-            glob(absoluteGlob, asset.fs, {
-              onlyFiles: true,
-            }).then(entries =>
-              Promise.all(
-                entries.map(entry =>
-                  resolve(
-                    filepath,
-                    './' + path.relative(path.dirname(filepath), entry),
-                  ),
-                ),
-              ),
-            ),
-          );
-        } else {
-          deps.set(importedPath, resolve(filepath, importedPath));
-        }
-      }
+      attemptResolve(importedPath, filepath, asset, resolve, deps);
     }
   }
 
@@ -180,7 +192,7 @@ async function getDependencies(
       // Recursively process resolved files as well to get nested deps
       for (let resolved of found) {
         if (!seen.has(resolved)) {
-          await asset.addIncludedFile(resolved);
+          await asset.invalidateOnFileChange(resolved);
 
           let code = await asset.fs.readFile(resolved, 'utf8');
           for (let [path, resolvedPath] of await getDependencies(
@@ -192,6 +204,7 @@ async function getDependencies(
             parcelOptions,
             nativeGlob,
             seen,
+            false,
           )) {
             res.set(path, resolvedPath);
           }

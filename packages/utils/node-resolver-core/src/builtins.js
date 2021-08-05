@@ -3,7 +3,7 @@ import polyfills from '@parcel/node-libs-browser';
 // $FlowFixMe this is untyped
 import {builtinModules} from 'module';
 
-const empty = require.resolve('./_empty.js');
+export const empty: string = require.resolve('./_empty.js');
 
 // $FlowFixMe
 let builtins: {[string]: any, ...} = Object.create(null);

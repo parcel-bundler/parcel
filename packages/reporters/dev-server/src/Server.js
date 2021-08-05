@@ -40,6 +40,8 @@ function setHeaders(res: Response) {
     'Access-Control-Allow-Headers',
     'Origin, X-Requested-With, Content-Type, Accept, Content-Type',
   );
+  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+  res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
 }
 
 const SOURCES_ENDPOINT = '/__parcel_source_root';
@@ -161,7 +163,7 @@ export default class Server {
       // If the main asset is an HTML file, serve it
       let htmlBundleFilePaths = [];
       this.bundleGraph.traverseBundles(bundle => {
-        if (bundle.type === 'html' && bundle.isEntry) {
+        if (bundle.type === 'html' && bundle.bundleBehavior !== 'inline') {
           htmlBundleFilePaths.push(bundle.filePath);
         }
       });
@@ -215,7 +217,6 @@ export default class Server {
       let requestedPath = path.normalize(pathname.slice(1));
       let bundle = bundleGraph
         .getBundles()
-        .filter(b => !b.isInline)
         .find(
           b =>
             path.relative(this.options.distDir, b.filePath) === requestedPath,
@@ -307,8 +308,6 @@ export default class Server {
       res.end();
       return;
     }
-
-    setHeaders(res);
 
     return serveHandler(
       req,
@@ -419,6 +418,10 @@ export default class Server {
     };
 
     const app = connect();
+    app.use((req, res, next) => {
+      setHeaders(res);
+      next();
+    });
     await this.applyProxyTable(app);
     app.use(finalHandler);
 

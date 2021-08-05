@@ -12,10 +12,10 @@ import type {
   Validator as ValidatorOpts,
 } from '@parcel/types';
 
-export const CONFIG: symbol = Symbol.for('parcel-plugin-config');
+const CONFIG = Symbol.for('parcel-plugin-config');
 
 export class Transformer {
-  constructor(opts: TransformerOpts) {
+  constructor<T>(opts: TransformerOpts<T>) {
     // $FlowFixMe
     this[CONFIG] = opts;
   }
@@ -29,21 +29,21 @@ export class Resolver {
 }
 
 export class Bundler {
-  constructor(opts: BundlerOpts) {
+  constructor<T>(opts: BundlerOpts<T>) {
     // $FlowFixMe
     this[CONFIG] = opts;
   }
 }
 
 export class Namer {
-  constructor(opts: NamerOpts) {
+  constructor<T>(opts: NamerOpts<T>) {
     // $FlowFixMe
     this[CONFIG] = opts;
   }
 }
 
 export class Runtime {
-  constructor(opts: RuntimeOpts) {
+  constructor<T>(opts: RuntimeOpts<T>) {
     // $FlowFixMe
     this[CONFIG] = opts;
   }
@@ -57,14 +57,14 @@ export class Validator {
 }
 
 export class Packager {
-  constructor(opts: PackagerOpts) {
+  constructor<T>(opts: PackagerOpts<T>) {
     // $FlowFixMe
     this[CONFIG] = opts;
   }
 }
 
 export class Optimizer {
-  constructor(opts: OptimizerOpts) {
+  constructor<T>(opts: OptimizerOpts<T>) {
     // $FlowFixMe
     this[CONFIG] = opts;
   }

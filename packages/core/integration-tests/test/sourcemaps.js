@@ -5,6 +5,7 @@ import {
   bundle as _bundle,
   inputFS,
   outputFS,
+  overlayFS,
   shallowEqual,
   distDir,
   mergeParcelOptions,
@@ -161,11 +162,14 @@ describe('sourcemaps', function() {
     );
     let sourcePath = 'index.js';
 
+    let name = raw.match(/function (\$.*\$var\$helloWorld)/)[1];
+
     checkSourceMapping({
       map: sourceMap,
       source: input,
       generated: raw,
       str: 'function helloWorld',
+      generatedStr: 'function ' + name,
       sourcePath,
     });
 
@@ -174,6 +178,7 @@ describe('sourcemaps', function() {
       source: input,
       generated: raw,
       str: 'module.exports = helloWorld;',
+      generatedStr: 'module.exports = ' + name + ';',
       sourcePath,
     });
 
@@ -428,7 +433,7 @@ describe('sourcemaps', function() {
       source: inputs[0],
       generated: raw,
       str: 'const local',
-      generatedStr: 'const t',
+      generatedStr: 'const o',
       sourcePath: 'index.js',
     });
 
@@ -437,7 +442,7 @@ describe('sourcemaps', function() {
       source: inputs[0],
       generated: raw,
       str: 'local.a',
-      generatedStr: 't.a',
+      generatedStr: 'o.a',
       sourcePath: 'index.js',
     });
 
@@ -446,7 +451,7 @@ describe('sourcemaps', function() {
       source: inputs[1],
       generated: raw,
       str: 'exports.a',
-      generatedStr: 'o.a',
+      generatedStr: 't.a',
       sourcePath: 'local.js',
     });
 
@@ -455,7 +460,7 @@ describe('sourcemaps', function() {
       source: inputs[2],
       generated: raw,
       str: 'exports.count = function(a, b) {',
-      generatedStr: 'o.count=function(e,n){',
+      generatedStr: 't.count=function(e,n){',
       sourcePath: 'utils/util.js',
     });
   });
@@ -1337,6 +1342,101 @@ describe('sourcemaps', function() {
       source: sourceContent,
       generated: raw,
       str: 'document.getElementById(',
+      sourcePath,
+    });
+  });
+
+  it('carries sourcesContent from the original sources (tsx) through multiple transformations (babel and swc)', async () => {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        'integration/sourcemap-original-sourcecontents-ts/index.tsx',
+      ),
+      {
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
+      },
+    );
+
+    let filename = b.getBundles()[0].filePath;
+    let raw = await outputFS.readFile(filename, 'utf8');
+
+    let mapUrlData = await loadSourceMapUrl(outputFS, filename, raw);
+    if (!mapUrlData) {
+      throw new Error('Could not load map');
+    }
+    let map = mapUrlData.map;
+
+    let sourceMap = new SourceMap('/');
+    sourceMap.addVLQMap(map);
+    let sourceContent = map.sourcesContent[0];
+    let sourcePath = 'index.tsx';
+
+    checkSourceMapping({
+      map: sourceMap,
+      source: sourceContent,
+      generated: raw,
+      str: 'bar="bar"' /* from tsx: <App bar="bar" /> */,
+      generatedStr: 'bar: "bar"',
+      sourcePath,
+    });
+
+    checkSourceMapping({
+      map: sourceMap,
+      source: sourceContent,
+      generated: raw,
+      str: 'document.getElementById(',
+      sourcePath,
+    });
+  });
+
+  it('retains sourcesContent from the original sources from a large text file', async () => {
+    let testDir = path.join(
+      __dirname,
+      'integration/sourcemap-original-sourcecontents-large',
+    );
+
+    await outputFS.mkdirp(testDir);
+    await Promise.all([
+      outputFS.writeFile(
+        path.join(testDir, 'index.js'),
+        'const foo = ' +
+          `'${
+            // Generate ~6MB of text to exceed the stream threshold
+            'Lorem ipsum dolor sit amet '.repeat(245000)
+          }';`,
+      ),
+      outputFS.writeFile(path.join(testDir, 'yarn.lock'), ''),
+    ]);
+
+    let b = await bundle(path.join(testDir, 'index.js'), {
+      inputFS: overlayFS,
+      defaultTargetOptions: {
+        shouldScopeHoist: true,
+      },
+    });
+
+    let filename = b.getBundles()[0].filePath;
+    let raw = await outputFS.readFile(filename, 'utf8');
+
+    let mapUrlData = await loadSourceMapUrl(outputFS, filename, raw);
+    if (!mapUrlData) {
+      throw new Error('Could not load map');
+    }
+    let map = mapUrlData.map;
+
+    let sourceMap = new SourceMap('/');
+    sourceMap.addVLQMap(map);
+    let sourceContent = map.sourcesContent[0];
+    let sourcePath = 'index.js';
+
+    checkSourceMapping({
+      map: sourceMap,
+      source: sourceContent,
+      generated: raw,
+      str: "foo = 'Lorem ipsum",
+      generatedStr: "foo = 'Lorem ipsum",
       sourcePath,
     });
   });
