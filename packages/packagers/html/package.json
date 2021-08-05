@@ -24,6 +24,6 @@
     "@parcel/types": "2.0.7",
     "@parcel/utils": "2.0.7",
     "nullthrows": "^1.1.1",
-    "posthtml": "^0.15.1"
+    "posthtml": "^0.16.4"
   }
 }

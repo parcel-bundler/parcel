@@ -6,7 +6,7 @@ import SourceMap from '@parcel/source-map';
 import invariant from 'assert';
 import path from 'path';
 import fs from 'fs';
-import {replaceScriptDependencies} from './utils';
+import {replaceScriptDependencies, getSpecifier} from './utils';
 
 const PRELUDE = fs
   .readFileSync(path.join(__dirname, 'dev-prelude.js'), 'utf8')
@@ -61,7 +61,7 @@ export class DevPackager {
       let wrapped = first ? '' : ',';
 
       if (node.type === 'dependency') {
-        let resolved = this.bundleGraph.getDependencyResolution(
+        let resolved = this.bundleGraph.getResolvedAsset(
           node.value,
           this.bundle,
         );
@@ -97,12 +97,11 @@ export class DevPackager {
         let deps = {};
         let dependencies = this.bundleGraph.getDependencies(asset);
         for (let dep of dependencies) {
-          let resolved = this.bundleGraph.getDependencyResolution(
-            dep,
-            this.bundle,
-          );
+          let resolved = this.bundleGraph.getResolvedAsset(dep, this.bundle);
           if (resolved) {
-            deps[dep.specifier] = this.bundleGraph.getAssetPublicId(resolved);
+            deps[getSpecifier(dep)] = this.bundleGraph.getAssetPublicId(
+              resolved,
+            );
           }
         }
 

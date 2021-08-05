@@ -185,4 +185,84 @@ describe('replace bundle references', () => {
     );
     assert.equal(result.from, '074b36596e3147e900a8ad17ceb5c90b');
   });
+
+  it('should work with bundle names with colons, relative', () => {
+    // $FlowFixMe
+    let fromBundle: NamedBundle = {
+      filePath: '/user/dist/reformat.html',
+      name: 'reformat.html',
+      // $FlowFixMe
+      target: {
+        distDir: '/user/dist',
+        publicUrl: '/',
+      },
+    };
+
+    // $FlowFixMe
+    let toBundle: NamedBundle = {
+      filePath: '/user/dist/a:b:c.html',
+      name: 'a:b:c.html',
+      // $FlowFixMe
+      target: {
+        distDir: '/user/dist',
+        publicUrl: '/',
+      },
+    };
+
+    // $FlowFixMe
+    let dependency: Dependency = {
+      id: '074b36596e3147e900a8ad17ceb5c90b',
+      specifier: './a:b:c.html',
+      specifierType: 'esm',
+    };
+
+    let result = getURLReplacement({
+      dependency,
+      fromBundle,
+      toBundle,
+      relative: true,
+    });
+
+    assert.equal(result.to, './a:b:c.html');
+  });
+
+  it('should work with bundle names with colons, absolute', () => {
+    // $FlowFixMe
+    let fromBundle: NamedBundle = {
+      filePath: '/user/dist/reformat.html',
+      name: 'reformat.html',
+      // $FlowFixMe
+      target: {
+        distDir: '/user/dist',
+        publicUrl: '/',
+      },
+    };
+
+    // $FlowFixMe
+    let toBundle: NamedBundle = {
+      filePath: '/user/dist/a:b:c.html',
+      name: 'a:b:c.html',
+      // $FlowFixMe
+      target: {
+        distDir: '/user/dist',
+        publicUrl: '/',
+      },
+    };
+
+    // $FlowFixMe
+    let dependency: Dependency = {
+      id: '074b36596e3147e900a8ad17ceb5c90b',
+      specifier: './a:b:c.html',
+      specifierType: 'esm',
+    };
+
+    let result = getURLReplacement({
+      dependency,
+      fromBundle,
+      toBundle,
+      relative: false,
+    });
+
+    assert.equal(result.to, '/a:b:c.html');
+  });
 });

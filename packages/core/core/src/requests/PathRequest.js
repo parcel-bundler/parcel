@@ -51,6 +51,7 @@ type RunOpts = {|
 
 const type = 'path_request';
 const QUERY_PARAMS_REGEX = /^([^\t\r\n\v\f?]*)(\?.*)?/;
+const PIPELINE_REGEX = /^([a-z0-9-]+?):(.*)$/i;
 
 export default function createPathRequest(
   input: PathRequestInput,
@@ -168,16 +169,17 @@ export class ResolverRunner {
     let filePath;
     let query: ?QueryParameters;
     let validPipelines = new Set(this.config.getNamedPipelines());
+    let match = dependency.specifier.match(PIPELINE_REGEX);
     if (
+      match &&
       // Don't consider absolute paths. Absolute paths are only supported for entries,
       // and include e.g. `C:\` on Windows, conflicting with pipelines.
-      !path.isAbsolute(dependency.specifier) &&
-      dependency.specifier.includes(':')
+      !path.isAbsolute(dependency.specifier)
     ) {
       if (dependency.specifier.startsWith('node:')) {
         filePath = dependency.specifier;
       } else {
-        [pipeline, filePath] = dependency.specifier.split(':');
+        [, pipeline, filePath] = match;
         if (!validPipelines.has(pipeline)) {
           if (dep.specifierType === 'url') {
             // This may be a url protocol or scheme rather than a pipeline, such as

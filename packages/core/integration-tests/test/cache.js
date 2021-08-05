@@ -5353,7 +5353,7 @@ describe('cache', function() {
         entries: ['src/index.html'],
         async setup() {
           await overlayFS.writeFile(
-            path.join(inputDir, '.htmlnanorc'),
+            path.join(inputDir, '.htmlnanorc.json'),
             JSON.stringify({
               removeAttributeQuotes: true,
             }),
@@ -5367,7 +5367,7 @@ describe('cache', function() {
           assert(contents.includes('type=module'));
 
           await overlayFS.writeFile(
-            path.join(inputDir, '.htmlnanorc'),
+            path.join(inputDir, '.htmlnanorc.json'),
             JSON.stringify({
               removeAttributeQuotes: false,
             }),

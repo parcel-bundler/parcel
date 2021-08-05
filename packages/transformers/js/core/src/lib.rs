@@ -50,7 +50,7 @@ use fs::inline_fs;
 use global_replacer::GlobalReplacer;
 use hoist::hoist;
 use modules::esm2cjs;
-use utils::{CodeHighlight, Diagnostic, SourceLocation, SourceType};
+use utils::{CodeHighlight, Diagnostic, DiagnosticSeverity, SourceLocation, SourceType};
 
 #[derive(Serialize, Debug, Deserialize)]
 pub struct Config {
@@ -64,6 +64,7 @@ pub struct Config {
   inline_fs: bool,
   insert_node_globals: bool,
   is_browser: bool,
+  is_worker: bool,
   is_type_script: bool,
   is_jsx: bool,
   jsx_pragma: Option<String>,
@@ -193,6 +194,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
             code_highlights,
             hints,
             show_environment: false,
+            severity: DiagnosticSeverity::Error,
           }
         })
         .collect();
@@ -269,10 +271,12 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
             let global_mark = Mark::fresh(Mark::root());
             let ignore_mark = Mark::fresh(Mark::root());
             let module = module.fold_with(&mut resolver_with_mark(global_mark));
-            let decls = collect_decls(&module);
+            let mut decls = collect_decls(&module);
 
             let mut preset_env_config = swc_ecma_preset_env::Config::default();
-            if let Some(versions) = targets_to_versions(&config.targets) {
+            preset_env_config.dynamic_import = true;
+            let versions = targets_to_versions(&config.targets);
+            if let Some(versions) = versions {
               preset_env_config.targets = Some(Targets::Versions(versions));
               preset_env_config.shipped_proposals = true;
               preset_env_config.mode = Some(Entry);
@@ -289,7 +293,9 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                     env: &config.env,
                     is_browser: config.is_browser,
                     decls: &decls,
-                    used_env: &mut result.used_env
+                    used_env: &mut result.used_env,
+                    source_map: &source_map,
+                    diagnostics: &mut diagnostics
                   },
                   config.source_type != SourceType::Script
                 ),
@@ -309,6 +315,13 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                   ),
                   should_inline_fs
                 ),
+              );
+
+              module.fold_with(&mut passes)
+            };
+
+            let module = {
+              let mut passes = chain!(
                 // Insert dependencies for node globals
                 Optional::new(
                   GlobalReplacer {
@@ -317,7 +330,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                     globals: HashMap::new(),
                     project_root: Path::new(&config.project_root),
                     filename: Path::new(&config.filename),
-                    decls: &decls,
+                    decls: &mut decls,
                     global_mark,
                     scope_hoist: config.scope_hoist
                   },
@@ -330,21 +343,27 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                 ),
                 // Inject SWC helpers if needed.
                 helpers::inject_helpers(),
-                // Collect dependencies
-                dependency_collector(
-                  &source_map,
-                  &mut result.dependencies,
-                  &decls,
-                  ignore_mark,
-                  &config,
-                  &mut diagnostics,
-                ),
               );
 
               module.fold_with(&mut passes)
             };
 
-            if !diagnostics.is_empty() {
+            let module = module.fold_with(
+              // Collect dependencies
+              &mut dependency_collector(
+                &source_map,
+                &mut result.dependencies,
+                &decls,
+                ignore_mark,
+                &config,
+                &mut diagnostics,
+              ),
+            );
+
+            if diagnostics
+              .iter()
+              .any(|d| d.severity == DiagnosticSeverity::Error)
+            {
               result.diagnostics = Some(diagnostics);
               return Ok(result);
             }
@@ -369,7 +388,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                 }
               }
             } else {
-              let (module, needs_helpers) = esm2cjs(module);
+              let (module, needs_helpers) = esm2cjs(module, versions);
               result.needs_esm_helpers = needs_helpers;
               module
             };
@@ -381,6 +400,10 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
 
             result.dependencies.extend(global_deps);
             result.dependencies.extend(fs_deps);
+
+            if !diagnostics.is_empty() {
+              result.diagnostics = Some(diagnostics);
+            }
 
             let (buf, mut src_map_buf) =
               emit(source_map.clone(), comments, &program, config.source_maps)?;

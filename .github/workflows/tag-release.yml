@@ -123,14 +123,14 @@ jobs:
     name: ${{ matrix.target }}
     runs-on: ubuntu-latest
     container:
-      image: docker.pkg.github.com/napi-rs/napi-rs/rust-nodejs-alpine:lts
+      image: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GHCR_TOKEN }}
     steps:
       - uses: actions/checkout@v1
       - name: Install build tools
-        run: apk add --no-cache python3 make gcc g++ musl-dev
+        run: apk add --no-cache python3 make gcc g++ musl-dev curl
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:

@@ -5,33 +5,35 @@ import assert from 'assert';
 import nullthrows from 'nullthrows';
 import {ncp, overlayFS, outputFS} from '@parcel/test-utils';
 import {loadConfig as configCache} from '@parcel/utils';
+import {createEnvironment} from '@parcel/core/src/Environment';
+import Environment from '@parcel/core/src/public/Environment';
+import {DEFAULT_OPTIONS} from '@parcel/core/test/test-utils';
 
 const rootDir = path.join(__dirname, 'fixture');
 
-const NODE_ENV = {
-  includeNodeModules: false,
-  isBrowser() {
-    return false;
-  },
-  isNode() {
-    return true;
-  },
-};
+const NODE_ENV = new Environment(
+  createEnvironment({
+    context: 'node',
+    includeNodeModules: false,
+  }),
+  DEFAULT_OPTIONS,
+);
 
-const NODE_INCLUDE_ENV = {
-  ...NODE_ENV,
-  includeNodeModules: true,
-};
+const NODE_INCLUDE_ENV = new Environment(
+  createEnvironment({
+    context: 'node',
+    includeNodeModules: true,
+  }),
+  DEFAULT_OPTIONS,
+);
 
-const BROWSER_ENV = {
-  includeNodeModules: true,
-  isBrowser() {
-    return true;
-  },
-  isNode() {
-    return false;
-  },
-};
+const BROWSER_ENV = new Environment(
+  createEnvironment({
+    context: 'browser',
+    includeNodeModules: true,
+  }),
+  DEFAULT_OPTIONS,
+);
 
 describe('resolver', function() {
   let resolver;
@@ -248,6 +250,24 @@ describe('resolver', function() {
         isURL: false,
         parent: path.join(rootDir, 'foo.js'),
       });
+      assert.deepEqual(resolved, {isExcluded: true});
+    });
+
+    it('should exclude the electron module in electron environments', async function() {
+      let resolved = await resolver.resolve({
+        env: new Environment(
+          createEnvironment({
+            context: 'electron-main',
+            isLibrary: true,
+          }),
+          DEFAULT_OPTIONS,
+        ),
+        filename: 'electron',
+        isURL: false,
+        parent: path.join(rootDir, 'foo.js'),
+        sourcePath: path.join(rootDir, 'foo.js'),
+      });
+
       assert.deepEqual(resolved, {isExcluded: true});
     });
   });
@@ -1949,6 +1969,85 @@ describe('resolver', function() {
           parent: path.join(rootDir, 'foo.js'),
         }),
       );
+    });
+
+    it('should error when a library is missing an external dependency', async function() {
+      let result = await resolver.resolve({
+        env: new Environment(
+          createEnvironment({
+            context: 'browser',
+            isLibrary: true,
+            includeNodeModules: false,
+          }),
+          DEFAULT_OPTIONS,
+        ),
+        filename: 'test',
+        isURL: false,
+        parent: path.join(rootDir, 'foo.js'),
+        sourcePath: path.join(rootDir, 'foo.js'),
+      });
+
+      assert.equal(
+        result?.diagnostics?.[0].message,
+        'External dependency "test" is not declared in package.json.',
+      );
+    });
+
+    it('should not error when external dependencies are declared', async function() {
+      let result = await resolver.resolve({
+        env: new Environment(
+          createEnvironment({
+            context: 'browser',
+            isLibrary: true,
+            includeNodeModules: false,
+          }),
+          DEFAULT_OPTIONS,
+        ),
+        filename: 'foo',
+        isURL: false,
+        parent: path.join(rootDir, 'foo.js'),
+        sourcePath: path.join(rootDir, 'foo.js'),
+      });
+
+      assert.deepEqual(result, {isExcluded: true});
+    });
+
+    it('should not error when external dependencies are declared in peerDependencies', async function() {
+      let result = await resolver.resolve({
+        env: new Environment(
+          createEnvironment({
+            context: 'browser',
+            isLibrary: true,
+            includeNodeModules: false,
+          }),
+          DEFAULT_OPTIONS,
+        ),
+        filename: 'bar',
+        isURL: false,
+        parent: path.join(rootDir, 'foo.js'),
+        sourcePath: path.join(rootDir, 'foo.js'),
+      });
+
+      assert.deepEqual(result, {isExcluded: true});
+    });
+
+    it('should not error on missing dependencies for environment builtins', async function() {
+      let result = await resolver.resolve({
+        env: new Environment(
+          createEnvironment({
+            context: 'browser',
+            isLibrary: true,
+            includeNodeModules: false,
+          }),
+          DEFAULT_OPTIONS,
+        ),
+        filename: 'atom',
+        isURL: false,
+        parent: path.join(rootDir, 'env-dep/foo.js'),
+        sourcePath: path.join(rootDir, 'env-dep/foo.js'),
+      });
+
+      assert.deepEqual(result, {isExcluded: true});
     });
   });
 });

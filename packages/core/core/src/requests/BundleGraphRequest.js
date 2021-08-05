@@ -391,7 +391,9 @@ class BundlerRunner {
 
   async nameBundles(bundleGraph: InternalBundleGraph): Promise<void> {
     let namers = await this.config.getNamers();
-    let bundles = bundleGraph.getBundles();
+    // inline bundles must still be named so the PackagerRunner
+    // can match them to the correct packager/optimizer plugins.
+    let bundles = bundleGraph.getBundles({includeInline: true});
     await Promise.all(
       bundles.map(bundle => this.nameBundle(namers, bundle, bundleGraph)),
     );

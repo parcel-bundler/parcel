@@ -2,7 +2,10 @@
   "main": "dist/test.js",
   "targets": {
   	"main": {
-	  "includeNodeModules": false
-	}
+      "includeNodeModules": false
+    }
+  },
+  "dependencies": {
+    "external": "*"
   }
 }

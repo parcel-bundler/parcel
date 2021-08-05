@@ -37,11 +37,11 @@ describe('PublicMutableBundleGraph', () => {
     mutableBundleGraph.traverse(node => {
       if (
         node.type === 'dependency' &&
-        mutableBundleGraph.getDependencyResolution(node.value)
+        mutableBundleGraph.getResolvedAsset(node.value)
       ) {
         let target = nullthrows(node.value.target);
         let group = mutableBundleGraph.createBundleGroup(node.value, target);
-        let resolved = mutableBundleGraph.getDependencyResolution(node.value);
+        let resolved = mutableBundleGraph.getResolvedAsset(node.value);
         if (resolved != null) {
           mutableBundleGraph.addBundleToBundleGroup(
             mutableBundleGraph.createBundle({
@@ -82,9 +82,7 @@ describe('PublicMutableBundleGraph', () => {
     let target = nullthrows(dependency.target);
     let bundleGroup = mutableBundleGraph.createBundleGroup(dependency, target);
     let bundle = mutableBundleGraph.createBundle({
-      entryAsset: nullthrows(
-        mutableBundleGraph.getDependencyResolution(dependency),
-      ),
+      entryAsset: nullthrows(mutableBundleGraph.getResolvedAsset(dependency)),
       target,
     });
 

@@ -2,5 +2,8 @@
   "name": "esm-type-module",
   "private": true,
   "type": "module",
-  "main": "dist/index.js"
+  "main": "dist/index.js",
+  "dependencies": {
+    "lodash": "*"
+  }
 }

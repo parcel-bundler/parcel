@@ -281,7 +281,7 @@ describe('scope hoisting', function() {
         new Set(['add']),
       );
 
-      // resolveSymbol is broken
+      // getSymbolResolution is broken
       // let output = await run(b);
       // assert.equal(output, 3);
     });
@@ -5312,6 +5312,17 @@ describe('scope hoisting', function() {
       });
 
       assert.deepEqual(outputs, [2, 3]);
+    });
+
+    it('should wrap all assets with an incoming wrapped dependency', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/wrap-deps-circular/index.js',
+        ),
+      );
+
+      assert.deepEqual(await run(b), {test: 2});
     });
   });
 

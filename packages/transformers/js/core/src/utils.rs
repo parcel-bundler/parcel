@@ -186,6 +186,17 @@ pub struct Diagnostic {
   pub code_highlights: Option<Vec<CodeHighlight>>,
   pub hints: Option<Vec<String>>,
   pub show_environment: bool,
+  pub severity: DiagnosticSeverity,
+}
+
+#[derive(Serialize, Deserialize, Debug, Eq, PartialEq)]
+pub enum DiagnosticSeverity {
+  /// Fails the build with an error.
+  Error,
+  /// Logs a warning, but the build does not fail.
+  Warning,
+  /// An error if this is source code in the project, or a warning if in node_modules.
+  SourceError,
 }
 
 #[derive(Serialize, Debug, Deserialize, Eq, PartialEq, Clone, Copy)]

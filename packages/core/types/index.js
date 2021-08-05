@@ -197,7 +197,8 @@ export type EnvironmentFeature =
   | 'dynamic-import'
   | 'worker-module'
   | 'service-worker-module'
-  | 'import-meta-url';
+  | 'import-meta-url'
+  | 'arrow-functions';
 
 /**
  * Defines the environment in for the output bundle
@@ -280,7 +281,6 @@ export type DetailedReportOptions = {|
 
 export type InitialParcelOptions = {|
   +entries?: FilePath | Array<FilePath>,
-  +entryRoot?: FilePath,
   +config?: DependencySpecifier,
   +defaultConfig?: DependencySpecifier,
   +env?: EnvMap,
@@ -341,7 +341,6 @@ export interface PluginOptions {
   +shouldBuildLazily: boolean;
   +shouldAutoInstall: boolean;
   +logLevel: LogLevel;
-  +entryRoot: FilePath;
   +projectRoot: FilePath;
   +cacheDir: FilePath;
   +inputFS: FileSystem;
@@ -1277,16 +1276,17 @@ export interface PackagedBundle extends NamedBundle {
  * A collection of sibling bundles (which are stored in the BundleGraph) that should be loaded together (in order).
  * @section bundler
  */
-export type BundleGroup = {|
+export interface BundleGroup {
   /** The target of the bundle group. */
-  +target: Target,
+  +target: Target;
   /** The id of the entry asset in the bundle group, which is executed immediately when the bundle group is loaded. */
-  +entryAssetId: string,
-|};
+  +entryAssetId: string;
+}
 
 /**
  * A BundleGraph in the Bundler that can be modified
  * @section bundler
+ * @experimental
  */
 export interface MutableBundleGraph extends BundleGraph<Bundle> {
   /** Add asset and all child nodes to the bundle. */
@@ -1321,18 +1321,36 @@ export interface MutableBundleGraph extends BundleGraph<Bundle> {
  * @section bundler
  */
 export interface BundleGraph<TBundle: Bundle> {
+  /** Retrieves an asset by id. */
   getAssetById(id: string): Asset;
+  /** Returns the public (short) id for an asset. */
   getAssetPublicId(asset: Asset): string;
-  getBundles(): Array<TBundle>;
+  /** Returns a list of bundles in the bundle graph. By default, inline bundles are excluded. */
+  getBundles(opts?: {|includeInline: boolean|}): Array<TBundle>;
+  /** Traverses the assets and dependencies in the bundle graph, in depth first order. */
+  traverse<TContext>(GraphVisitor<BundleGraphTraversable, TContext>): ?TContext;
+  /** Traverses all bundles in the bundle graph, including inline bundles, in depth first order. */
+  traverseBundles<TContext>(
+    visit: GraphVisitor<TBundle, TContext>,
+    startBundle: ?Bundle,
+  ): ?TContext;
+  /** Returns a list of bundle groups that load the given bundle. */
   getBundleGroupsContainingBundle(bundle: Bundle): Array<BundleGroup>;
-  getBundlesInBundleGroup(bundleGroup: BundleGroup): Array<TBundle>;
-  /** Child bundles are Bundles that might be loaded by an asset in the bundle */
+  /** Returns a list of bundles that load together in the given bundle group. */
+  getBundlesInBundleGroup(
+    bundleGroup: BundleGroup,
+    opts?: {|includeInline: boolean|},
+  ): Array<TBundle>;
+  /** Returns a list of bundles that this bundle loads asynchronously. */
   getChildBundles(bundle: Bundle): Array<TBundle>;
+  /** Returns a list of bundles that load this bundle asynchronously. */
   getParentBundles(bundle: Bundle): Array<TBundle>;
-  /** Bundles that are referenced (by filename) */
+  /** Returns whether the bundle was loaded by another bundle of the given type. */
+  hasParentBundleOfType(bundle: Bundle, type: string): boolean;
+  /** Returns a list of bundles that are referenced by this bundle. By default, inline bundles are excluded. */
   getReferencedBundles(
     bundle: Bundle,
-    opts?: {|recursive: boolean|},
+    opts?: {|recursive?: boolean, includeInline?: boolean|},
   ): Array<TBundle>;
   /** Get the dependencies that the asset requires */
   getDependencies(asset: Asset): Array<Dependency>;
@@ -1340,6 +1358,7 @@ export interface BundleGraph<TBundle: Bundle> {
   getIncomingDependencies(asset: Asset): Array<Dependency>;
   /** Get the asset that created the dependency. */
   getAssetWithDependency(dep: Dependency): ?Asset;
+  /** Returns whether the given bundle group is an entry. */
   isEntryBundleGroup(bundleGroup: BundleGroup): boolean;
   /**
    * Returns undefined if the specified dependency was excluded or wasn't async \
@@ -1352,20 +1371,30 @@ export interface BundleGraph<TBundle: Bundle> {
     | {|type: 'bundle_group', value: BundleGroup|}
     | {|type: 'asset', value: Asset|}
   );
-  /** If a dependency was excluded since it's unused based on symbol data. */
+  /** Returns whether a dependency was excluded because it had no used symbols. */
   isDependencySkipped(dependency: Dependency): boolean;
-  /** Find out which asset the dependency resolved to. */
-  getDependencyResolution(dependency: Dependency, bundle: ?Bundle): ?Asset;
-  getReferencedBundle(dependency: Dependency, bundle: Bundle): ?TBundle;
-  findBundlesWithAsset(Asset): Array<TBundle>;
-  findBundlesWithDependency(Dependency): Array<TBundle>;
-  /** Whether the asset is already included in a compatible (regarding EnvironmentContext) parent bundle. */
-  isAssetReachableFromBundle(asset: Asset, bundle: Bundle): boolean;
-  findReachableBundleWithAsset(bundle: Bundle, asset: Asset): ?TBundle;
-  isAssetReferencedByDependant(bundle: Bundle, asset: Asset): boolean;
-  hasParentBundleOfType(bundle: Bundle, type: string): boolean;
   /**
-   * Resolve the export `symbol` of `asset` to the source,
+   * Returns the asset that the dependency resolved to.
+   * If a bundle is given, assets in that bundle are preferred.
+   * Returns null if the dependency was excluded.
+   */
+  getResolvedAsset(dependency: Dependency, bundle: ?Bundle): ?Asset;
+  /** Returns the bundle that a dependency in a given bundle references, if any. */
+  getReferencedBundle(dependency: Dependency, bundle: Bundle): ?TBundle;
+  /** Returns a list of bundles that contain the given asset. */
+  getBundlesWithAsset(Asset): Array<TBundle>;
+  /** Returns a list of bundles that contain the given dependency. */
+  getBundlesWithDependency(Dependency): Array<TBundle>;
+  /**
+   * Returns whether the given asset is reachable in a sibling, or all possible
+   * ancestries of the given bundle. This indicates that the asset may be excluded
+   * from the given bundle.
+   */
+  isAssetReachableFromBundle(asset: Asset, bundle: Bundle): boolean;
+  /** Returns whether an asset is referenced outside the given bundle. */
+  isAssetReferenced(bundle: Bundle, asset: Asset): boolean;
+  /**
+   * Resolves the export `symbol` of `asset` to the source,
    * stopping at the first asset after leaving `bundle`.
    * `symbol === null`: bailout (== caller should do `asset.exports[exportsSymbol]`)
    * `symbol === undefined`: symbol not found
@@ -1375,22 +1404,20 @@ export interface BundleGraph<TBundle: Bundle> {
    * corresponding variable lives (resolves re-exports). Stop resolving transitively once \
    * <code>boundary</code> was left (<code>bundle.hasAsset(asset) === false</code>), then <code>result.symbol</code> is undefined.
    */
-  resolveSymbol(
+  getSymbolResolution(
     asset: Asset,
     symbol: Symbol,
     boundary: ?Bundle,
   ): SymbolResolution;
-  /** Gets the symbols that are (transivitely) exported by the asset */
+  /** Returns a list of symbols that are exported by the asset, including re-exports. */
   getExportedSymbols(
     asset: Asset,
     boundary: ?Bundle,
   ): Array<ExportSymbolResolution>;
-  traverse<TContext>(GraphVisitor<BundleGraphTraversable, TContext>): ?TContext;
-  traverseBundles<TContext>(
-    visit: GraphVisitor<TBundle, TContext>,
-    startBundle: ?Bundle,
-  ): ?TContext;
+  /** Returns a list of symbols from an asset or dependency that are referenced by a dependent asset. */
   getUsedSymbols(Asset | Dependency): $ReadOnlySet<Symbol>;
+  /** Returns the common root directory for the entry assets of a target. */
+  getEntryRoot(target: Target): FilePath;
 }
 
 /**

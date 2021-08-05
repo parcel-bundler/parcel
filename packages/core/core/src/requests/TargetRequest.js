@@ -44,7 +44,7 @@ import {
 } from '../TargetDescriptor.schema';
 import {BROWSER_ENVS} from '../public/Environment';
 import {optionsProxy, toInternalSourceLocation} from '../utils';
-import {fromProjectPath, toProjectPath} from '../projectPath';
+import {fromProjectPath, toProjectPath, joinProjectPath} from '../projectPath';
 
 type RunOpts = {|
   input: Entry,
@@ -111,10 +111,12 @@ async function run({input, api, options}: RunOpts) {
     api,
     optionsProxy(options, api.invalidateOnOptionChange),
   );
-  let targets = await targetResolver.resolve(
+  let targets: Array<Target> = await targetResolver.resolve(
     fromProjectPath(options.projectRoot, input.packagePath),
     input.target,
   );
+
+  assertTargetsAreNotEntries(targets, input, options);
 
   let configResult = nullthrows(
     await api.runRequest<null, ConfigAndCachePath>(createParcelConfigRequest()),
@@ -152,10 +154,10 @@ export class TargetResolver {
       optionTargets = [exclusiveTarget];
     }
 
-    let packageTargets = await this.resolvePackageTargets(
-      rootDir,
-      exclusiveTarget,
-    );
+    let packageTargets: Map<
+      string,
+      Target | null,
+    > = await this.resolvePackageTargets(rootDir, exclusiveTarget);
     let targets: Array<Target>;
     if (optionTargets) {
       if (Array.isArray(optionTargets)) {
@@ -168,20 +170,29 @@ export class TargetResolver {
           });
         }
 
+        // Only build the intersection of the exclusive target and option targets.
+        if (exclusiveTarget != null) {
+          optionTargets = optionTargets.filter(
+            target => target === exclusiveTarget,
+          );
+        }
+
         // If an array of strings is passed, it's a filter on the resolved package
         // targets. Load them, and find the matching targets.
-        targets = optionTargets.map(target => {
-          let matchingTarget = packageTargets.get(target);
-          if (!matchingTarget) {
-            throw new ThrowableDiagnostic({
-              diagnostic: {
-                message: md`Could not find target with name "${target}"`,
-                origin: '@parcel/core',
-              },
-            });
-          }
-          return matchingTarget;
-        });
+        targets = optionTargets
+          .map(target => {
+            // null means skipped.
+            if (!packageTargets.has(target)) {
+              throw new ThrowableDiagnostic({
+                diagnostic: {
+                  message: md`Could not find target with name "${target}"`,
+                  origin: '@parcel/core',
+                },
+              });
+            }
+            return packageTargets.get(target);
+          })
+          .filter(Boolean);
       } else {
         // Otherwise, it's an object map of target descriptors (similar to those
         // in package.json). Adapt them to native targets.
@@ -320,13 +331,14 @@ export class TargetResolver {
           },
         ];
       } else {
-        targets = Array.from(packageTargets.values()).filter(descriptor => {
-          return !skipTarget(
-            descriptor.name,
-            exclusiveTarget,
-            descriptor.source,
-          );
-        });
+        targets = Array.from(packageTargets.values())
+          .filter(Boolean)
+          .filter(descriptor => {
+            return (
+              descriptor &&
+              !skipTarget(descriptor.name, exclusiveTarget, descriptor.source)
+            );
+          });
       }
     }
 
@@ -336,7 +348,7 @@ export class TargetResolver {
   async resolvePackageTargets(
     rootDir: FilePath,
     exclusiveTarget?: string,
-  ): Promise<Map<string, Target>> {
+  ): Promise<Map<string, Target | null>> {
     let rootFile = path.join(rootDir, 'index');
     let conf = await loadConfig(
       this.fs,
@@ -448,7 +460,7 @@ export class TargetResolver {
       }
     }
 
-    let targets: Map<string, Target> = new Map();
+    let targets: Map<string, Target | null> = new Map();
     let node = pkgEngines.node;
     let browsers = pkgEngines.browsers;
 
@@ -540,6 +552,7 @@ export class TargetResolver {
         );
 
         if (skipTarget(targetName, exclusiveTarget, descriptor.source)) {
+          targets.set(targetName, null);
           continue;
         }
 
@@ -670,6 +683,36 @@ export class TargetResolver {
           });
         }
 
+        if (descriptor.scopeHoist === false) {
+          let contents: string =
+            typeof pkgContents === 'string'
+              ? pkgContents
+              : // $FlowFixMe
+                JSON.stringify(pkgContents, null, '\t');
+          throw new ThrowableDiagnostic({
+            diagnostic: {
+              message: 'Scope hoisting cannot be disabled for library targets.',
+              origin: '@parcel/core',
+              codeFrames: [
+                {
+                  language: 'json',
+                  filePath: pkgFilePath ?? undefined,
+                  code: contents,
+                  codeHighlights: generateJSONCodeHighlights(contents, [
+                    {
+                      key: `/targets/${targetName}/scopeHoist`,
+                      type: 'value',
+                    },
+                  ]),
+                },
+              ],
+              hints: [
+                `The "${targetName}" target is meant for libraries. Either remove the "scopeHoist" option, or use a different target name.`,
+              ],
+            },
+          });
+        }
+
         targets.set(targetName, {
           name: targetName,
           distDir,
@@ -690,10 +733,8 @@ export class TargetResolver {
             isLibrary: true,
             shouldOptimize:
               this.options.defaultTargetOptions.shouldOptimize &&
-              descriptor.optimize !== false,
-            shouldScopeHoist:
-              this.options.defaultTargetOptions.shouldScopeHoist &&
-              descriptor.scopeHoist !== false,
+              descriptor.optimize === true,
+            shouldScopeHoist: true,
             sourceMap: normalizeSourceMap(this.options, descriptor.sourceMap),
           }),
           loc: toInternalSourceLocation(this.options.projectRoot, loc),
@@ -768,6 +809,7 @@ export class TargetResolver {
         );
         let pkgDir = path.dirname(nullthrows(pkgFilePath));
         if (skipTarget(targetName, exclusiveTarget, descriptor.source)) {
+          targets.set(targetName, null);
           continue;
         }
 
@@ -779,6 +821,46 @@ export class TargetResolver {
           pkgFilePath,
           pkgContents,
         );
+
+        if (descriptor.scopeHoist === false && descriptor.isLibrary) {
+          let contents: string =
+            typeof pkgContents === 'string'
+              ? pkgContents
+              : // $FlowFixMe
+                JSON.stringify(pkgContents, null, '\t');
+          throw new ThrowableDiagnostic({
+            diagnostic: {
+              message: 'Scope hoisting cannot be disabled for library targets.',
+              origin: '@parcel/core',
+              codeFrames: [
+                {
+                  language: 'json',
+                  filePath: pkgFilePath ?? undefined,
+                  code: contents,
+                  codeHighlights: generateJSONCodeHighlights(contents, [
+                    {
+                      key: `/targets/${targetName}/scopeHoist`,
+                      type: 'value',
+                    },
+                    {
+                      key: `/targets/${targetName}/isLibrary`,
+                      type: 'value',
+                    },
+                  ]),
+                },
+              ],
+              hints: [`Either remove the "scopeHoist" or "isLibrary" option.`],
+            },
+          });
+        }
+
+        let isLibrary =
+          descriptor.isLibrary ??
+          this.options.defaultTargetOptions.isLibrary ??
+          false;
+        let shouldScopeHoist = isLibrary
+          ? true
+          : this.options.defaultTargetOptions.shouldScopeHoist;
 
         targets.set(targetName, {
           name: targetName,
@@ -805,15 +887,15 @@ export class TargetResolver {
               this.options.defaultTargetOptions.outputFormat ??
               inferredOutputFormat ??
               undefined,
-            isLibrary:
-              descriptor.isLibrary ??
-              this.options.defaultTargetOptions.isLibrary,
+            isLibrary,
             shouldOptimize:
               this.options.defaultTargetOptions.shouldOptimize &&
-              descriptor.optimize !== false,
+              // Libraries are not optimized by default, users must explicitly configure this.
+              (isLibrary
+                ? descriptor.optimize === true
+                : descriptor.optimize !== false),
             shouldScopeHoist:
-              this.options.defaultTargetOptions.shouldScopeHoist &&
-              descriptor.scopeHoist !== false,
+              shouldScopeHoist && descriptor.scopeHoist !== false,
             sourceMap: normalizeSourceMap(this.options, descriptor.sourceMap),
           }),
           loc: toInternalSourceLocation(this.options.projectRoot, loc),
@@ -838,7 +920,10 @@ export class TargetResolver {
           outputFormat: this.options.defaultTargetOptions.outputFormat,
           isLibrary: this.options.defaultTargetOptions.isLibrary,
           shouldOptimize: this.options.defaultTargetOptions.shouldOptimize,
-          shouldScopeHoist: this.options.defaultTargetOptions.shouldScopeHoist,
+          shouldScopeHoist:
+            this.options.defaultTargetOptions.shouldScopeHoist ??
+            (this.options.mode === 'production' &&
+              !this.options.defaultTargetOptions.isLibrary),
           sourceMap: this.options.defaultTargetOptions.sourceMaps
             ? {}
             : undefined,
@@ -1035,6 +1120,10 @@ function assertNoDuplicateTargets(options, targets, pkgFilePath, pkgContents) {
   // Without this, an assertion is thrown much later after naming the bundles and finding duplicates.
   let targetsByPath: Map<string, Array<string>> = new Map();
   for (let target of targets.values()) {
+    if (!target) {
+      continue;
+    }
+
     let {distEntry} = target;
     if (distEntry != null) {
       let distPath = path.join(
@@ -1096,5 +1185,69 @@ function normalizeSourceMap(options: ParcelOptions, sourceMap) {
     }
   } else {
     return undefined;
+  }
+}
+
+function assertTargetsAreNotEntries(
+  targets: Array<Target>,
+  input: Entry,
+  options: ParcelOptions,
+) {
+  for (const target of targets) {
+    if (
+      target.distEntry != null &&
+      joinProjectPath(target.distDir, target.distEntry) === input.filePath
+    ) {
+      let loc = target.loc;
+      let relativeEntry = path.relative(
+        process.cwd(),
+        fromProjectPath(options.projectRoot, input.filePath),
+      );
+      let codeFrames = [];
+      if (loc) {
+        codeFrames.push({
+          filePath: fromProjectPath(options.projectRoot, loc.filePath),
+          codeHighlights: [
+            {
+              start: loc.start,
+              end: loc.end,
+              message: 'Target defined here',
+            },
+          ],
+        });
+
+        let inputLoc = input.loc;
+        if (inputLoc) {
+          let highlight = {
+            start: inputLoc.start,
+            end: inputLoc.end,
+            message: 'Entry defined here',
+          };
+
+          if (inputLoc.filePath === loc.filePath) {
+            codeFrames[0].codeHighlights.push(highlight);
+          } else {
+            codeFrames.push({
+              filePath: fromProjectPath(options.projectRoot, inputLoc.filePath),
+              codeHighlights: [highlight],
+            });
+          }
+        }
+      }
+
+      throw new ThrowableDiagnostic({
+        diagnostic: {
+          origin: '@parcel/core',
+          message: `Target "${target.name}" is configured to overwrite entry "${relativeEntry}".`,
+          codeFrames,
+          hints: [
+            (COMMON_TARGETS[target.name]
+              ? `The "${target.name}" field is an _output_ file path so that your build can be consumed by other tools. `
+              : '') +
+              `Change the "${target.name}" field to point to an output file rather than your source code. See https://v2.parceljs.org/configuration/package-json for more information.`,
+          ],
+        },
+      });
+    }
   }
 }

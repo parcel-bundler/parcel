@@ -123,10 +123,9 @@ export function mergeEnvironments(
 }
 
 function getEnvironmentHash(env: Environment): string {
-  // context is excluded from hash so that assets can be shared between e.g. workers and browser.
-  // Different engines should be sufficient to distinguish multi-target builds.
   return hashString(
     JSON.stringify([
+      env.context,
       env.engines,
       env.includeNodeModules,
       env.outputFormat,
