@@ -147,6 +147,31 @@ describe('resolver', function() {
         path.join(rootDir, 'node_modules', 'foo', 'bar.js'),
       );
     });
+
+    it('should resolve an index file in a directory', async function() {
+      let resolved = await resolver.resolve({
+        env: BROWSER_ENV,
+        filename: './nested',
+        isURL: false,
+        parent: path.join(rootDir, 'foo.js'),
+      });
+      assert.equal(
+        nullthrows(resolved).filePath,
+        path.join(rootDir, 'nested', 'index.js'),
+      );
+    });
+
+    it('should not resolve an index file in a directory for URL specifiers', async function() {
+      let resolved = await resolver.resolve({
+        env: BROWSER_ENV,
+        filename: './nested',
+        isURL: true,
+        parent: path.join(rootDir, 'foo.js'),
+      });
+      assert.deepEqual(nullthrows(resolved).diagnostics, [
+        {message: "Cannot load file './nested' in './'.", hints: []},
+      ]);
+    });
   });
 
   describe('builtins', function() {

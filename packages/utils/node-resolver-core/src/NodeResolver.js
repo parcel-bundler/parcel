@@ -62,6 +62,7 @@ type Module = {|
 type ResolverContext = {|
   invalidateOnFileCreate: Array<FileCreateInvalidation>,
   invalidateOnFileChange: Set<FilePath>,
+  isURL: boolean,
 |};
 
 /**
@@ -112,6 +113,7 @@ export default class NodeResolver {
     let ctx = {
       invalidateOnFileCreate: [],
       invalidateOnFileChange: new Set(),
+      isURL,
     };
 
     // Get file extensions to search
@@ -130,7 +132,6 @@ export default class NodeResolver {
       let module = await this.resolveModule({
         filename,
         parent,
-        isURL,
         env,
         ctx,
         sourcePath,
@@ -194,14 +195,12 @@ export default class NodeResolver {
   async resolveModule({
     filename,
     parent,
-    isURL,
     env,
     ctx,
     sourcePath,
   }: {|
     filename: string,
     parent: ?FilePath,
-    isURL: boolean,
     env: Environment,
     ctx: ResolverContext,
     sourcePath: ?FilePath,
@@ -213,7 +212,7 @@ export default class NodeResolver {
       filename = await this.resolveFilename(
         filename,
         path.dirname(sourceFile),
-        isURL,
+        ctx.isURL,
       );
     }
 
@@ -455,21 +454,24 @@ export default class NodeResolver {
     let pkg = await this.findPackage(filename, ctx);
 
     // First try as a file, then as a directory.
-    let resolvedFile =
-      (await this.loadAsFile({
-        file: filename,
-        extensions,
-        env,
-        pkg,
-        ctx,
-      })) ||
-      (await this.loadDirectory({
+    let resolvedFile = await this.loadAsFile({
+      file: filename,
+      extensions,
+      env,
+      pkg,
+      ctx,
+    });
+
+    // Don't load as a directory if this is a URL dependency.
+    if (!resolvedFile && !ctx.isURL) {
+      resolvedFile = await this.loadDirectory({
         dir: filename,
         extensions,
         env,
         ctx,
         pkg,
-      }));
+      });
+    }
 
     if (!resolvedFile) {
       // If we can't load the file do a fuzzySearch for potential hints
@@ -479,6 +481,8 @@ export default class NodeResolver {
         relativeFileSpecifier,
         parentdir,
         this.projectRoot,
+        true,
+        !ctx.isURL,
       );
 
       throw new ThrowableDiagnostic({
