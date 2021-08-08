@@ -126,7 +126,6 @@ impl<'a> Fold for EnvReplacer<'a> {
           }
         }
         PatOrExpr::Expr(expr) => Some(&**expr),
-        _ => None,
       };
 
       if let Some(Expr::Member(MemberExpr {
