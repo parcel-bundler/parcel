@@ -18,7 +18,12 @@ export default (new Resolver({
     const resolver = new NodeResolver({
       fs: options.inputFS,
       projectRoot: options.projectRoot,
-      extensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'css', 'styl', 'vue'],
+      // Extensions are always required in URL dependencies.
+      extensions:
+        dependency.specifierType === 'commonjs' ||
+        dependency.specifierType === 'esm'
+          ? ['ts', 'tsx', 'js', 'jsx', 'json']
+          : [],
       mainFields: ['source', 'browser', 'module', 'main'],
     });
 
