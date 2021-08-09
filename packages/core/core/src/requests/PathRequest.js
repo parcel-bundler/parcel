@@ -1,11 +1,6 @@
 // @flow strict-local
 import type {Diagnostic} from '@parcel/diagnostic';
-import type {
-  Async,
-  FileCreateInvalidation,
-  FilePath,
-  QueryParameters,
-} from '@parcel/types';
+import type {Async, FileCreateInvalidation, FilePath} from '@parcel/types';
 import type {StaticRunOpts} from '../RequestTracker';
 import type {AssetGroup, Dependency, ParcelOptions} from '../types';
 import type {ConfigAndCachePath} from './ParcelConfigRequest';
@@ -14,9 +9,7 @@ import ThrowableDiagnostic, {errorToDiagnostic, md} from '@parcel/diagnostic';
 import {PluginLogger} from '@parcel/logger';
 import nullthrows from 'nullthrows';
 import path from 'path';
-import {parse as parseURL} from 'url';
 import {normalizePath} from '@parcel/utils';
-import querystring from 'querystring';
 import {report} from '../ReporterRunner';
 import PublicDependency from '../public/Dependency';
 import PluginOptions from '../public/PluginOptions';
