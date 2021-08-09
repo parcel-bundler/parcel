@@ -139,7 +139,6 @@ export type SerializedAdjacencyList<TEdgeType> = {|
   edgeCapacity: number,
   nodeCapacity: number,
   nextEmptyEdge: number,
-  deletedEdges: Array<number>,
 |};
 
 export type AdjacencyListOptions<TEdgeType> = {|
@@ -161,6 +160,22 @@ const nodeAt = (index: number): NodeId =>
 
 /** Get the index in the nodes array of the given node. */
 const indexOfNode = (id: NodeId): number => fromNodeId(id) * NODE_SIZE;
+
+function buildDeletedEdges<TEdgeType: number = 1>(
+  graph: AdjacencyList<TEdgeType>,
+): Array<number> {
+  let deletedEdges = [];
+  for (
+    let i = graph.edges.length - EDGE_SIZE;
+    i >= graph.addressSpace;
+    i -= EDGE_SIZE
+  ) {
+    if (isDeleted(graph.edges[i + TYPE])) {
+      deletedEdges.push(i);
+    }
+  }
+  return deletedEdges;
+}
 
 /** Create mappings from => type => to and vice versa. */
 function buildTypeMaps<TEdgeType: number = 1>(
@@ -321,7 +336,6 @@ export default class AdjacencyList<TEdgeType: number = 1> {
       edgeCapacity: this.#edgeCapacity,
       nodeCapacity: this.#nodeCapacity,
       nextEmptyEdge: this.#nextEmptyEdge,
-      deletedEdges: this.#deletedEdges,
     };
   }
 
@@ -357,7 +371,6 @@ export default class AdjacencyList<TEdgeType: number = 1> {
       nodes,
       edges,
       nextEmptyEdge: this.#nextEmptyEdge,
-      deletedEdges: this.#deletedEdges,
     });
   }
 
@@ -533,7 +546,6 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     this.#previousIn = copy.#previousIn;
     this.#previousOut = copy.#previousOut;
     this.#nextEmptyEdge = copy.#nextEmptyEdge;
-    this.#deletedEdges = copy.#deletedEdges;
   }
 
   /** Get the first or last edge to or from the given node. */
@@ -839,7 +851,9 @@ export default class AdjacencyList<TEdgeType: number = 1> {
       // If there's a deleted edge available, we can reuse it
       // Otherwise, use the next empty edge
       if (this.#deletedEdges.length) {
-        cursor = this.#deletedEdges.pop();
+        let deletedEdges =
+          this.#deletedEdges || (this.#deletedEdges = buildDeletedEdges(this));
+        cursor = deletedEdges.pop();
         assert(isDeleted(this.#edges[cursor + TYPE]));
       } else {
         // If cellar is full, resize array and rehash
@@ -998,9 +1012,15 @@ export default class AdjacencyList<TEdgeType: number = 1> {
 
       // If we're deleting an edge in the cellar, add it to the list of deleted edges
       // so we can reuse it
-      this.#deletedEdges.push(index);
+      let deletedEdges =
+        this.#deletedEdges || (this.#deletedEdges = buildDeletedEdges(this));
+      deletedEdges.push(index);
     }
     this.#numEdges--;
+  }
+
+  get addressSpace(): number {
+    return this.#addressSpace;
   }
 
   get edges(): Uint32Array {
