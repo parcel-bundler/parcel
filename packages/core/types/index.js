@@ -1596,7 +1596,7 @@ export type Resolver = {|
     dependency: Dependency,
     options: PluginOptions,
     logger: PluginLogger,
-    filePath: FilePath,
+    specifier: FilePath,
     pipeline: ?string,
   |}): Async<?ResolveResult>,
 |};

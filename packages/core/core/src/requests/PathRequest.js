@@ -158,7 +158,7 @@ export class ResolverRunner {
     let resolvers = await this.config.getResolvers();
 
     let pipeline;
-    let filePath;
+    let specifier;
     let validPipelines = new Set(this.config.getNamedPipelines());
     let match = dependency.specifier.match(PIPELINE_REGEX);
     if (
@@ -167,21 +167,21 @@ export class ResolverRunner {
       // and include e.g. `C:\` on Windows, conflicting with pipelines.
       !path.isAbsolute(dependency.specifier)
     ) {
-      [, pipeline, filePath] = match;
+      [, pipeline, specifier] = match;
       if (!validPipelines.has(pipeline)) {
         // This may be a url protocol or scheme rather than a pipeline, such as
         // `url('http://example.com/foo.png')`. Pass it to resolvers to handle.
         // return {assetGroup: null};
-        filePath = dependency.specifier;
+        specifier = dependency.specifier;
         pipeline = null;
       }
     } else {
-      filePath = dependency.specifier;
+      specifier = dependency.specifier;
     }
 
     // Entrypoints, convert ProjectPath in module specifier to absolute path
     if (dep.resolveFrom == null) {
-      filePath = path.join(this.options.projectRoot, filePath);
+      specifier = path.join(this.options.projectRoot, specifier);
     }
     let diagnostics: Array<Diagnostic> = [];
     let invalidateOnFileCreate = [];
@@ -189,7 +189,7 @@ export class ResolverRunner {
     for (let resolver of resolvers) {
       try {
         let result = await resolver.plugin.resolve({
-          filePath,
+          specifier,
           pipeline,
           dependency: dep,
           options: this.pluginOptions,
@@ -260,7 +260,7 @@ export class ResolverRunner {
               new ThrowableDiagnostic({diagnostic: result.diagnostics}),
               {
                 origin: resolver.name,
-                filePath,
+                filePath: specifier,
               },
             );
             diagnostics.push(...errorDiagnostic);
@@ -270,7 +270,7 @@ export class ResolverRunner {
         // Add error to error map, we'll append these to the standard error if we can't resolve the asset
         let errorDiagnostic = errorToDiagnostic(e, {
           origin: resolver.name,
-          filePath,
+          filePath: specifier,
         });
         if (Array.isArray(errorDiagnostic)) {
           diagnostics.push(...errorDiagnostic);
