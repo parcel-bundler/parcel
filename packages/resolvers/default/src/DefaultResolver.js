@@ -29,7 +29,7 @@ export default (new Resolver({
 
     return resolver.resolve({
       filename: filePath,
-      isURL: dependency.specifierType === 'url',
+      specifierType: dependency.specifierType,
       parent: dependency.resolveFrom,
       env: dependency.env,
       sourcePath: dependency.sourcePath,

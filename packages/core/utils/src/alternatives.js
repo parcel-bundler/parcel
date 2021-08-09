@@ -109,6 +109,7 @@ export async function findAlternativeFiles(
   projectRoot: string,
   leadingDotSlash?: boolean = true,
   includeDirectories?: boolean = true,
+  includeExtension?: boolean = false,
 ): Promise<Array<string>> {
   let potentialFiles: Array<string> = [];
   // Find our root, we won't recommend files above the package root as that's bad practise
@@ -131,7 +132,7 @@ export async function findAlternativeFiles(
     includeDirectories,
   });
 
-  if (path.extname(fileSpecifier) === '') {
+  if (path.extname(fileSpecifier) === '' && !includeExtension) {
     potentialFiles = potentialFiles.map(p => {
       let ext = path.extname(p);
       return ext.length > 0 ? p.slice(0, -ext.length) : p;

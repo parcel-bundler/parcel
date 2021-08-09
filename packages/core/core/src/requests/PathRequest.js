@@ -14,7 +14,7 @@ import ThrowableDiagnostic, {errorToDiagnostic, md} from '@parcel/diagnostic';
 import {PluginLogger} from '@parcel/logger';
 import nullthrows from 'nullthrows';
 import path from 'path';
-import URL from 'url';
+import {parse as parseURL} from 'url';
 import {normalizePath} from '@parcel/utils';
 import querystring from 'querystring';
 import {report} from '../ReporterRunner';
@@ -50,7 +50,6 @@ type RunOpts = {|
 |};
 
 const type = 'path_request';
-const QUERY_PARAMS_REGEX = /^([^\t\r\n\v\f?]*)(\?.*)?/;
 const PIPELINE_REGEX = /^([a-z0-9-]+?):(.*)$/i;
 
 export default function createPathRequest(
@@ -167,7 +166,6 @@ export class ResolverRunner {
 
     let pipeline;
     let filePath;
-    let query: ?QueryParameters;
     let validPipelines = new Set(this.config.getNamedPipelines());
     let match = dependency.specifier.match(PIPELINE_REGEX);
     if (
@@ -176,69 +174,16 @@ export class ResolverRunner {
       // and include e.g. `C:\` on Windows, conflicting with pipelines.
       !path.isAbsolute(dependency.specifier)
     ) {
-      if (dependency.specifier.startsWith('node:')) {
+      [, pipeline, filePath] = match;
+      if (!validPipelines.has(pipeline)) {
+        // This may be a url protocol or scheme rather than a pipeline, such as
+        // `url('http://example.com/foo.png')`. Pass it to resolvers to handle.
+        // return {assetGroup: null};
         filePath = dependency.specifier;
-      } else {
-        [, pipeline, filePath] = match;
-        if (!validPipelines.has(pipeline)) {
-          if (dep.specifierType === 'url') {
-            // This may be a url protocol or scheme rather than a pipeline, such as
-            // `url('http://example.com/foo.png')`
-            return {assetGroup: null};
-          } else {
-            return {
-              assetGroup: null,
-              diagnostics: [
-                await this.getDiagnostic(
-                  dependency,
-                  md`Unknown pipeline: ${pipeline}.`,
-                ),
-              ],
-            };
-          }
-        }
+        pipeline = null;
       }
     } else {
-      if (dep.specifierType === 'url') {
-        if (dependency.specifier.startsWith('//')) {
-          // A protocol-relative URL, e.g `url('//example.com/foo.png')`
-          return {assetGroup: null};
-        }
-        if (dependency.specifier.startsWith('#')) {
-          // An ID-only URL, e.g. `url(#clip-path)` for CSS rules
-          return {assetGroup: null};
-        }
-      }
       filePath = dependency.specifier;
-    }
-
-    let queryPart = null;
-    if (dep.specifierType === 'url') {
-      let parsed = URL.parse(filePath);
-      if (typeof parsed.pathname !== 'string') {
-        return {
-          assetGroup: null,
-          diagnostics: [
-            await this.getDiagnostic(
-              dependency,
-              md`Received URL without a pathname ${filePath}.`,
-            ),
-          ],
-        };
-      }
-      filePath = decodeURIComponent(parsed.pathname);
-      if (parsed.query != null) {
-        queryPart = parsed.query;
-      }
-    } else {
-      let matchesQuerystring = filePath.match(QUERY_PARAMS_REGEX);
-      if (matchesQuerystring && matchesQuerystring[2] != null) {
-        filePath = matchesQuerystring[1];
-        queryPart = matchesQuerystring[2].substr(1);
-      }
-    }
-    if (queryPart != null) {
-      query = querystring.parse(queryPart);
     }
 
     // Entrypoints, convert ProjectPath in module specifier to absolute path
@@ -302,7 +247,7 @@ export class ResolverRunner {
                   this.options.projectRoot,
                   resultFilePath,
                 ),
-                query,
+                query: result.query,
                 sideEffects: result.sideEffects,
                 code: result.code,
                 env: dependency.env,

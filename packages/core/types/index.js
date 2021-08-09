@@ -1452,6 +1452,7 @@ export type ResolveResult = {|
   /** An absolute path to the file. */
   +filePath?: FilePath,
   +pipeline?: ?string,
+  +query?: QueryParameters,
   +isExcluded?: boolean,
   +priority?: DependencyPriority,
   /** Corresponds to BaseAsset's <code>sideEffects</code>. */

@@ -266,6 +266,7 @@ function processPipeline(
 
 const RESERVED_PIPELINES = new Set([
   'node:',
+  'npm:',
   'http:',
   'https:',
   'data:',
