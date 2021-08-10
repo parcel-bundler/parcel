@@ -984,7 +984,8 @@ ${code}
             } else {
               for (let symbol of this.bundleGraph.getUsedSymbols(dep)) {
                 if (
-                  symbol === 'default' // `export * as ...` does not include the default export
+                  symbol === 'default' || // `export * as ...` does not include the default export
+                  symbol === '__esModule'
                 ) {
                   continue;
                 }
