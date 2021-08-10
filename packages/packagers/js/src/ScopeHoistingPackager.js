@@ -983,6 +983,12 @@ ${code}
               this.usedHelpers.add('$parcel$exportWildcard');
             } else {
               for (let symbol of this.bundleGraph.getUsedSymbols(dep)) {
+                if (
+                  symbol === 'default' // `export * as ...` does not include the default export
+                ) {
+                  continue;
+                }
+
                 let resolvedSymbol = this.getSymbolResolution(
                   asset,
                   resolved,
