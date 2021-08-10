@@ -5801,4 +5801,12 @@ describe('scope hoisting', function() {
     let res = await run(b, {output: null}, {require: false});
     assert.equal(res.output, 'a');
   });
+
+  it.only('test', async function() {
+    let b = await bundle(
+      path.join(__dirname, 'integration/runtime-error/src/index.js'),
+      {outputFS: inputFS},
+    );
+    let res = await run(b);
+  });
 });
