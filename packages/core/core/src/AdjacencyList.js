@@ -138,6 +138,7 @@ export type SerializedAdjacencyList<TEdgeType> = {|
   addressSpace: number,
   edgeCapacity: number,
   nodeCapacity: number,
+  nextEmptyEdge: number,
 |};
 
 export type AdjacencyListOptions<TEdgeType> = {|
@@ -159,6 +160,22 @@ const nodeAt = (index: number): NodeId =>
 
 /** Get the index in the nodes array of the given node. */
 const indexOfNode = (id: NodeId): number => fromNodeId(id) * NODE_SIZE;
+
+function buildDeletedEdges<TEdgeType: number = 1>(
+  graph: AdjacencyList<TEdgeType>,
+): Array<number> {
+  let deletedEdges = [];
+  for (
+    let i = graph.edges.length - EDGE_SIZE;
+    i >= graph.addressSpace;
+    i -= EDGE_SIZE
+  ) {
+    if (isDeleted(graph.edges[i + TYPE])) {
+      deletedEdges.push(i);
+    }
+  }
+  return deletedEdges;
+}
 
 /** Create mappings from => type => to and vice versa. */
 function buildTypeMaps<TEdgeType: number = 1>(
@@ -223,6 +240,10 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     /** A map of node ids to => through types => from node ids. */
     to: DefaultMap<NodeId, DefaultMap<number, Set<NodeId>>>,
   |};
+  /** The index of the next empty edge in the cellar */
+  #nextEmptyEdge: number;
+  /** An array of deleted edge indexes to reuse */
+  #deletedEdges: Array<number>;
 
   constructor(
     opts?: SerializedAdjacencyList<TEdgeType> | AdjacencyListOptions<TEdgeType>,
@@ -256,6 +277,17 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     this.#edges = edges;
     this.#previousIn = new Map();
     this.#previousOut = new Map();
+    for (
+      let i = this.#edges.length - EDGE_SIZE;
+      i >= this.#addressSpace;
+      i -= EDGE_SIZE
+    ) {
+      if (!this.#edges[i + TYPE]) {
+        this.#nextEmptyEdge = i;
+        break;
+      }
+    }
+    this.#deletedEdges = [];
   }
 
   /**
@@ -303,6 +335,7 @@ export default class AdjacencyList<TEdgeType: number = 1> {
       addressSpace: this.#addressSpace,
       edgeCapacity: this.#edgeCapacity,
       nodeCapacity: this.#nodeCapacity,
+      nextEmptyEdge: this.#nextEmptyEdge,
     };
   }
 
@@ -337,6 +370,7 @@ export default class AdjacencyList<TEdgeType: number = 1> {
       numEdges: this.#numEdges,
       nodes,
       edges,
+      nextEmptyEdge: this.#nextEmptyEdge,
     });
   }
 
@@ -511,6 +545,7 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     this.#typeMaps = copy.#typeMaps;
     this.#previousIn = copy.#previousIn;
     this.#previousOut = copy.#previousOut;
+    this.#nextEmptyEdge = copy.#nextEmptyEdge;
   }
 
   /** Get the first or last edge to or from the given node. */
@@ -789,30 +824,6 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     };
   }
 
-  findSpace(
-    from: NodeId,
-    to: NodeId,
-    type: TEdgeType | NullEdgeType = 1,
-  ): {|hash: EdgeHash, index: number, cursor: number|} {
-    let hash = this.hash(from, to, type);
-    let index = hashToIndex(hash);
-    let cursor = this.#edges.length - EDGE_SIZE;
-    let foundEdge = false;
-    if (this.edgeExists(hash)) {
-      while (cursor >= this.#addressSpace) {
-        if (!this.edgeExists(indexToHash(cursor))) {
-          foundEdge = true;
-          break;
-        }
-        cursor -= EDGE_SIZE;
-      }
-      if (!foundEdge) {
-        this.resizeEdges(this.#edgeCapacity * 2);
-      }
-    }
-    return {hash, index, cursor};
-  }
-
   /**
    * Get the index at which to add an edge connecting the `from` and `to` nodes.
    *
@@ -835,36 +846,32 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     if (!this.edgeExists(hash)) {
       return index;
     } else {
-      let cursor = this.#edges.length - EDGE_SIZE;
-      let foundEdge = false;
-      for (let i = cursor; i >= this.#addressSpace; i -= EDGE_SIZE) {
-        if (!this.edgeExists(indexToHash(i))) {
-          cursor = i;
-          assert(this.inCellar(cursor));
-          foundEdge = true;
-          break;
-        }
-      }
+      let cursor = this.#nextEmptyEdge;
 
-      if (!foundEdge) {
-        // if cellar is full, resize
-        this.resizeEdges(this.#edgeCapacity * 2);
-        // rehash
-        hash = this.hash(from, to, type);
-        index = hashToIndex(hash);
-        // if the rehashed position is empty, take it
-        if (!this.edgeExists(hash)) {
-          return index;
-        }
-        cursor = this.#edges.length - EDGE_SIZE;
-        for (let i = cursor; i >= this.#addressSpace; i -= EDGE_SIZE) {
-          if (!this.edgeExists(indexToHash(i))) {
-            cursor = i;
-            assert(this.inCellar(cursor));
-            break;
+      // If there's a deleted edge available, we can reuse it
+      // Otherwise, use the next empty edge
+      if (this.#deletedEdges.length) {
+        let deletedEdges =
+          this.#deletedEdges || (this.#deletedEdges = buildDeletedEdges(this));
+        cursor = deletedEdges.pop();
+        assert(isDeleted(this.#edges[cursor + TYPE]));
+      } else {
+        // If cellar is full, resize array and rehash
+        // We resize after exhausting the cellar to preserve constant time lookup
+        // when looking up an empty edge
+        if (!this.inCellar(cursor)) {
+          this.resizeEdges(this.#edgeCapacity * 2);
+          cursor = this.#nextEmptyEdge;
+          hash = this.hash(from, to, type);
+          index = hashToIndex(hash);
+          if (!this.edgeExists(hash)) {
+            return index;
           }
         }
+        // Memoize the next empty edge for future use
+        this.#nextEmptyEdge = cursor - EDGE_SIZE;
       }
+
       // Ensure that the position at the cursor is not populated by another edge
       assert(
         !this.edgeExists(indexToHash(cursor)),
@@ -1002,6 +1009,12 @@ export default class AdjacencyList<TEdgeType: number = 1> {
       }
 
       this.#edges[index + NEXT_HASH] = 0;
+
+      // If we're deleting an edge in the cellar, add it to the list of deleted edges
+      // so we can reuse it
+      let deletedEdges =
+        this.#deletedEdges || (this.#deletedEdges = buildDeletedEdges(this));
+      deletedEdges.push(index);
     }
     this.#numEdges--;
   }
