@@ -54,10 +54,13 @@ export default async function dumpGraphToGraphViz(
     n.set('shape', 'box');
     n.set('style', 'filled');
     let label;
-    if (node.assetIds) {
-      label = `(${nodeId(id)}), (assetIds: ${node.assetIds.join(
-        ', ',
-      )}) (sourceBundles: ${node.sourceBundles.join(
+    if (node.assets) {
+      label = `(${nodeId(id)}), (assetIds: ${[...node.assets]
+        .map(a => {
+          let arr = a.filePath.split('/');
+          return arr[arr.length - 1];
+        })
+        .join(', ')}) (sourceBundles: ${node.sourceBundles.join(
         ', ',
       )}) (bb ${node.bundleBehavior ?? 'none'})`;
     } else if (node.type) {

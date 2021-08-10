@@ -1326,7 +1326,10 @@ export interface BundleGraph<TBundle: Bundle> {
   /** Returns a list of bundles in the bundle graph. By default, inline bundles are excluded. */
   getBundles(opts?: {|includeInline: boolean|}): Array<TBundle>;
   /** Traverses the assets and dependencies in the bundle graph, in depth first order. */
-  traverse<TContext>(GraphVisitor<BundleGraphTraversable, TContext>): ?TContext;
+  traverse<TContext>(
+    GraphVisitor<BundleGraphTraversable, TContext>,
+    ?Asset,
+  ): ?TContext;
   /** Traverses all bundles in the bundle graph, including inline bundles, in depth first order. */
   traverseBundles<TContext>(
     visit: GraphVisitor<TBundle, TContext>,
@@ -1412,14 +1415,6 @@ export interface BundleGraph<TBundle: Bundle> {
     asset: Asset,
     boundary: ?Bundle,
   ): Array<ExportSymbolResolution>;
-  traverse<TContext>(
-    GraphVisitor<BundleGraphTraversable, TContext>,
-    ?Asset,
-  ): ?TContext;
-  traverseBundles<TContext>(
-    visit: GraphVisitor<TBundle, TContext>,
-    startBundle: ?Bundle,
-  ): ?TContext;
   /** Returns a list of symbols from an asset or dependency that are referenced by a dependent asset. */
   getUsedSymbols(Asset | Dependency): $ReadOnlySet<Symbol>;
   /** Returns the common root directory for the entry assets of a target. */

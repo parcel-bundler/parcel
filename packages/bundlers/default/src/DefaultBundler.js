@@ -12,6 +12,7 @@ import type {
   MutableBundleGraph,
   PluginOptions,
   Target,
+  FilePath,
 } from '@parcel/types';
 import type {NodeId} from '@parcel/core/src/types';
 import type {SchemaEntity} from '@parcel/utils';
@@ -87,6 +88,7 @@ type DependencyBundleGraph = ContentGraph<
 type IdealGraph = {|
   dependencyBundleGraph: DependencyBundleGraph,
   bundleGraph: Graph<Bundle>,
+  bundleGroupBundleIds: Array<NodeId>,
   entryBundles: Array<NodeId>,
   assetReference: DefaultMap<Asset, Array<[Dependency, Bundle]>>,
 |};
@@ -113,27 +115,30 @@ function decorateLegacyGraph(
   //TODO add in reference edges based on stored assets from create ideal graph
   let idealBundleToLegacyBundle: Map<Bundle, LegacyBundle> = new Map();
 
-  let {bundleGraph: idealBundleGraph, dependencyBundleGraph} = idealGraph;
+  let {
+    bundleGraph: idealBundleGraph,
+    dependencyBundleGraph,
+    bundleGroupBundleIds,
+  } = idealGraph;
   let entryBundleToBundleGroup: Map<NodeId, BundleGroup> = new Map();
 
   for (let [bundleNodeId, idealBundle] of idealBundleGraph.nodes) {
-    let dependencies = dependencyBundleGraph
-      .getNodeIdsConnectedTo(
-        dependencyBundleGraph.getNodeIdByContentKey(String(bundleNodeId)),
-        ['lazy', 'sync'],
-      )
-      .map(nodeId => {
-        let dependency = nullthrows(dependencyBundleGraph.getNode(nodeId));
-        invariant(dependency.type === 'dependency');
-        return dependency.value;
-      });
-
     let [entryAsset] = [...idealBundle.assets];
     // This entry asset is the first asset of the bundle (not entry file asset)
     let bundleGroup;
     let bundle;
 
-    if (dependencies && dependencies.length > 0) {
+    if (bundleGroupBundleIds.includes(bundleNodeId)) {
+      let dependencies = dependencyBundleGraph
+        .getNodeIdsConnectedTo(
+          dependencyBundleGraph.getNodeIdByContentKey(String(bundleNodeId)),
+          ['lazy', 'sync', 'parallel'],
+        )
+        .map(nodeId => {
+          let dependency = nullthrows(dependencyBundleGraph.getNode(nodeId));
+          invariant(dependency.type === 'dependency');
+          return dependency.value;
+        });
       for (let dependency of dependencies) {
         bundleGroup = bundleGraph.createBundleGroup(
           dependency,
@@ -270,6 +275,7 @@ function createIdealGraph(
   let asyncBundleRootGraph: ContentGraph<
     BundleRoot | 'root',
   > = new ContentGraph();
+  let bundleGroupBundleIds: Array<NodeId> = [];
   //TODO of asyncBundleRootGraph: we should either add a root node or use bundleGraph which has a root automatically
 
   // Step 1: Create bundles for each entry.
@@ -316,6 +322,7 @@ function createIdealGraph(
       }),
       dependency.priority,
     );
+    bundleGroupBundleIds.push(nodeId);
   }
 
   let assets = [];
@@ -355,17 +362,25 @@ function createIdealGraph(
           dependency.priority === 'lazy' ||
           childAsset.bundleBehavior === 'isolated'
         ) {
-          // TODO: This bundle can be "created" by multiple dependencies?
+          // TODO: needsStableName if bundle exists here
           let bundleId = bundles.get(childAsset.id);
           let bundle;
           if (bundleId == null) {
             bundle = createBundle({
               asset: childAsset,
               target: nullthrows(bundleGraph.getNode(stack[0][1])).target,
+              needsStableName:
+                dependency.bundleBehavior === 'inline' ||
+                childAsset.bundleBehavior === 'inline'
+                  ? false
+                  : dependency.isEntry || dependency.needsStableName,
+              bundleBehavior:
+                dependency.bundleBehavior ?? childAsset.bundleBehavior,
             });
             bundleId = bundleGraph.addNode(bundle);
             bundles.set(childAsset.id, bundleId);
             bundleRoots.set(childAsset, [bundleId, bundleId]);
+            bundleGroupBundleIds.push(bundleId);
           } else {
             bundle = nullthrows(bundleGraph.getNode(bundleId));
           }
@@ -496,24 +511,6 @@ function createIdealGraph(
           actions.skipChildren();
           return;
         }
-        // TODO Handle other situations in which bundles are created and maybe
-        // centralize that in a function
-        // if (isABundleRoot and dependency is not sync) {
-        // if (node.value.priority === 'lazy') {
-        //   let assets = assetGraph.getDependencyAssets(node.value);
-        //   if (assets.length === 0) {
-        //     return node;
-        //   }
-
-        //   invariant(assets.length === 1);
-        //   let bundleRoot = assets[0];
-        //   invariant(bundleRoots.has(bundleRoot));
-
-        //   reachableAsyncRoots
-        //     .get(nullthrows(bundles.get(bundleRoot.id)))
-        //     .add(root);
-        //   actions.skipChildren();
-        //}
         return;
       }
 
@@ -543,8 +540,20 @@ function createIdealGraph(
   // get all assets guarenteed to be loaded when bundle X is loaded
   // map.set(Z, {all assets gurenteed to be loaded at this point (by ancestors (X))  INTERSECTION WITH current map.get(z) })
 
+  //TODO Consider BUNDLEGRROUPS
   let ancestorAssets: Map<BundleRoot, Set<Asset>> = new Map();
-  //set difference  //Map<C, [A, common]>
+
+  // Using Nested Maps, we need to be able to query, for a bundleGroup, an asset within that bundleGroup,
+  // Any asset it "has", the ref when we first saw it
+  //This is a triply nest map :o
+  // AND we need a auxilary double map to keep current ref count for the next asset
+  // (this can be just 1 map<asset=> num> because it will be reset when processing next bundleGroup )
+  let assetRefsInBundleGroup: DefaultMap<
+    BundleRoot,
+    DefaultMap<Asset, DefaultMap<Asset, number>>,
+  > = new DefaultMap(() => new DefaultMap(() => new DefaultMap(() => 0)));
+  //FOR BUNDLEGROUPS, hold each BUNDLEGROUPROOT mapped to Roots within the bundle root, mapped to assets available,
+  // mapped to their number. We need duplicate entries
   for (let nodeId of asyncBundleRootGraph.topoSort()) {
     let bundleRoot = asyncBundleRootGraph.getNode(nodeId);
     if (bundleRoot === 'root') continue;
@@ -558,6 +567,103 @@ function createIdealGraph(
 
     let ancestors = ancestorAssets.get(bundleRoot);
 
+    //Get all assets available in this bundleRoot's bundleGroup through ideal graph
+    //*****Bundle Group consideration start */
+    let bundleGroupId = nullthrows(bundleRoots.get(bundleRoot))[1];
+    let auxilaryRefCount: DefaultMap<Asset, number> = new DefaultMap(() => 0);
+
+    let availableAssetsfromBundleGroup = new Set(syncAssetsLoaded); // SET<[FILEPATH, NUMBER]> ?
+    let bundleRootInGroup;
+    let assetRefs = assetRefsInBundleGroup.get(bundleRoot);
+    //Process all nodes within bundleGroup that are NOT isolated
+    for (let bundleIdInGroup of bundleGraph.getNodeIdsConnectedFrom(
+      bundleGroupId,
+    )) {
+      let bundleInGroup = bundleGraph.getNode(bundleIdInGroup); //this is a bundle
+
+      for (let asset of bundleInGroup.assets) {
+        //#1 getting first element of set -_-
+        if (bundleRoots.has(asset)) {
+          bundleRootInGroup = asset;
+          continue;
+        }
+      }
+      invariant(bundleRootInGroup);
+
+      //Assets to consider = sync available assets plus itself
+      let assetsFromBundleRoot = reachableRoots
+        .getNodeIdsConnectedFrom(
+          reachableRoots.getNodeIdByContentKey(bundleRootInGroup.id),
+        )
+        .map(id => nullthrows(reachableRoots.getNode(id)));
+
+      assetsFromBundleRoot.push(...nullthrows(bundleInGroup).assets);
+
+      for (let asset of assetsFromBundleRoot) {
+        //console.log('asset is ', asset.filePath);
+        if (
+          bundleInGroup?.bundleBehavior != 'isolated' &&
+          bundleInGroup?.bundleBehavior != 'inline'
+        ) {
+          //Add its assets
+          if (availableAssetsfromBundleGroup.has(asset)) {
+            //increment refs\
+            auxilaryRefCount.set(asset, auxilaryRefCount.get(asset) + 1);
+          } else {
+            availableAssetsfromBundleGroup.add(asset);
+            auxilaryRefCount.set(asset, 1);
+          }
+          let countMap = assetRefs.get(bundleRootInGroup);
+          countMap.set(asset, auxilaryRefCount.get(asset));
+          assetRefs.set(bundleRootInGroup, countMap);
+        }
+      }
+    }
+    // console.log('Ref counts are', assetRefsInBundleGroup);
+    // console.log(
+    //   'assets avaialble from bundle graph',
+    //   availableAssetsfromBundleGroup,
+    // );
+    for (let bundleIdInGroup of bundleGraph.getNodeIdsConnectedFrom(
+      bundleGroupId,
+    )) {
+      let bundleInGroup = bundleGraph.getNode(bundleIdInGroup); //this is a bundle
+      invariant(bundleInGroup != null && bundleInGroup.assets != null);
+
+      for (let asset of bundleInGroup.assets) {
+        if (bundleRoots.has(asset)) {
+          bundleRootInGroup = asset;
+          continue;
+        }
+      }
+      invariant(bundleRootInGroup);
+      const availableAssets = ancestorAssets.get(bundleRootInGroup);
+      //if availabel assets is null, just set groupling bundleroots anc assets to the available assets in group?
+      if (availableAssets == null) {
+        ancestorAssets.set(bundleRootInGroup, availableAssetsfromBundleGroup);
+      } else if (
+        bundleGraph.getNodeIdsConnectedTo(bundleIdInGroup).length > 1
+      ) {
+        ancestorAssets.set(
+          bundleRootInGroup,
+          setIntersection(availableAssetsfromBundleGroup, availableAssets),
+        );
+      } else {
+        ancestorAssets.set(
+          bundleRootInGroup,
+          setUnion(availableAssetsfromBundleGroup, availableAssets),
+        ); // Would this ever happen since if a child only has 1 parent, avail assets would be null?
+      }
+      // console.log(
+      //   'anc assets of groupling ',
+      //   bundleIdInGroup,
+      //   ' is ',
+      //   ancestorAssets.get(bundleRootInGroup),
+      // );
+    }
+    //**********End of bundle Group consideration */
+    //should we edit Combined to include what available in it's bundlegroup? -we aren't editing parent AA
+    //THEN, process each ndoe in bundlegroup and do the same that we do below?
     let combined = ancestors
       ? setUnion(ancestors, syncAssetsLoaded)
       : new Set(syncAssetsLoaded);
@@ -575,7 +681,7 @@ function createIdealGraph(
       ) {
         ancestorAssets.set(child, setIntersection(combined, availableAssets));
       } else {
-        ancestorAssets.set(child, setUnion(combined, availableAssets));
+        ancestorAssets.set(child, setUnion(combined, availableAssets)); // Would this ever happen since if a child only has 1 parent, avail assets would be null?
       }
     }
   }
@@ -590,12 +696,49 @@ function createIdealGraph(
       asset,
       reachableRoots,
     );
-
+    //Don't have the notion of a bundlegroup here which is the problem
     // Filter out bundles when the asset is reachable in every parent bundle.
     // (Only keep a bundle if all of the others are not descendents of it)
-    reachable = reachable.filter(b => !ancestorAssets.get(b)?.has(asset)); //don't want to filter out bundle if 'b' is not "reachable" from all of its (a) immediate parents
+    let as = asset.filePath.split('/');
+    reachable = reachable.filter(b => {
+      let one = !ancestorAssets.get(b)?.has(asset);
+      // console.log(
+      //   'for asset: ',
+      //   as[as.length - 1],
+      //   'b is',
+      //   b.filePath,
+      //   'one is',
+      //   one,
+      // );
+      let assetsBundleGroupRoot;
+      if (bundleRoots.get(b)) {
+        assetsBundleGroupRoot = bundleGraph.getNode(bundleRoots.get(b)[1]);
+        // console.log(
+        //   'bundleRoots',
+        //   bundleRoots.get(b),
+        //   'and bundleroot bundlr is',
+        //   assetsBundleGroupRoot,
+        // );
+        assetsBundleGroupRoot = nullthrows(
+          [...assetsBundleGroupRoot.assets][0],
+        );
+      }
+      if (assetsBundleGroupRoot) {
+        if (
+          assetRefsInBundleGroup
+            .get(assetsBundleGroupRoot)
+            .get(b)
+            .get(asset) > 1
+        ) {
+          return one || false;
+        } else {
+          return one || true;
+        }
+      }
+      return one;
+    }); //don't want to filter out bundle if 'b' is not "reachable" from all of its (a) immediate parents
 
-    //console.log('Reachable for', asset.filePath, 'is ', reachable);
+    //console.log('Reachable for', asset.filePath.split(), 'is ', reachable);
     //IDEA: reachableBundles as a graph so we can query an assets ancestors and/or decendants
 
     // BundleRoot = Root Asset of a bundle
@@ -679,14 +822,12 @@ function createIdealGraph(
           bundleGraph.addEdge(sourceBundleId, bundleId);
         }
       }
-
       dependencyBundleGraph.addNodeByContentKeyIfNeeded(String(bundleId), {
         value: bundle,
         type: 'bundle',
       });
     }
   }
-  dumpGraphToGraphViz(bundleGraph, 'IdealBundleGraph');
 
   // Step 4: Merge any sibling bundles required by entry bundles back into the entry bundle.
   //         Entry bundles must be predictable, so cannot have unpredictable siblings.
@@ -736,17 +877,11 @@ function createIdealGraph(
 
   // $FlowFixMe
   dumpGraphToGraphViz(bundleGraph, 'IdealBundleGraph');
-  for (let [nodeId, node] of asyncBundleRootGraph.nodes) {
-    //console.log('node id is', nodeId, 'and node is', node);
-    for (let otherNode of asyncBundleRootGraph.getNodeIdsConnectedFrom(
-      nodeId,
-    )) {
-      //console.log('Edge from ', nodeId, ' to ', otherNode);
-    }
-  }
+
   return {
     bundleGraph,
     dependencyBundleGraph,
+    bundleGroupBundleIds,
     entryBundles: [...bundleRoots.values()].map(v => v[0]),
     assetReference,
   };
@@ -779,6 +914,7 @@ function createBundle(
         env: Environment,
         type: string,
         needsStableName?: boolean,
+        bundleBehavior?: ?BundleBehavior,
       |}
     | {|
         target: Target,
@@ -786,6 +922,7 @@ function createBundle(
         env?: Environment,
         type?: string,
         needsStableName?: boolean,
+        bundleBehavior?: ?BundleBehavior,
       |},
 ): Bundle {
   if (opts.asset == null) {
