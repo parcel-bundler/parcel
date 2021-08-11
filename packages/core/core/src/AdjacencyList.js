@@ -608,6 +608,24 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     }
   }
 
+  /** Updates the links between the `edge` and the `previous` and `next` edges
+   * to point to the new edge hash */
+  updateLink(
+    direction: typeof NEXT_IN | typeof NEXT_OUT,
+    prev: EdgeHash | null,
+    edge: EdgeHash,
+    next: EdgeHash | null,
+    newEdge: EdgeHash,
+  ): void {
+    if (prev) this.#edges[hashToIndex(prev) + direction] = newEdge;
+
+    if (direction === NEXT_IN) {
+      if (next) this.#previousIn.set(next, newEdge);
+    } else {
+      if (next) this.#previousOut.set(next, newEdge);
+    }
+  }
+
   /** Get the edge linked to this edge in the given direction. */
   getLinkedEdge(
     direction: typeof NEXT_IN | typeof NEXT_OUT,
@@ -915,6 +933,56 @@ export default class AdjacencyList<TEdgeType: number = 1> {
   }
 
   /**
+   * Updates the links between an edge and its previous incoming/outgoing edges
+   * and
+   * Updates the links between an edge and its next incoming/outgoing edges
+   */
+  updateLinks(
+    from: NodeId,
+    to: NodeId,
+    type: TEdgeType | NullEdgeType = 1,
+    edge: EdgeHash,
+    newEdge: EdgeHash,
+  ) {
+    /** The first incoming edge to the removed edge's terminus. */
+    let firstIn = this.getEdge(FIRST_IN, to);
+    /** The last incoming edge to the removed edge's terminus. */
+    let lastIn = this.getEdge(LAST_IN, to);
+    /** The next incoming edge after the removed edge. */
+    let nextIn = this.getLinkedEdge(NEXT_IN, edge);
+    /** The previous incoming edge before the removed edge. */
+    let previousIn = this.findEdgeBefore(NEXT_IN, edge);
+    /** The first outgoing edge from the removed edge's origin. */
+    let firstOut = this.getEdge(FIRST_OUT, from);
+    /** The last outgoing edge from the removed edge's origin. */
+    let lastOut = this.getEdge(LAST_OUT, from);
+    /** The next outgoing edge after the removed edge. */
+    let nextOut = this.getLinkedEdge(NEXT_OUT, edge);
+    /** The previous outgoing edge before the removed edge. */
+    let previousOut = this.findEdgeBefore(NEXT_OUT, edge);
+
+    // Update the links for the previous incoming edge and next incoming edge to
+    // point to the new edge hash
+    // from: previousIn => edge => nextIn to:
+    // previousIn => newEdge => nextIn
+    this.updateLink(NEXT_IN, previousIn, edge, nextIn, newEdge);
+
+    // Update the links for the previous outgoing edge and next outgoing edge to
+    // point to the new edge hash
+    // from: previousOut => edge => nextOut
+    // to: previousOut => newEdge => nextOut
+    this.updateLink(NEXT_OUT, previousOut, edge, nextOut, newEdge);
+
+    // Update the terminating node's first and last incoming edges.
+    if (firstIn === edge) this.setEdge(FIRST_IN, to, newEdge);
+    if (lastIn === edge) this.setEdge(LAST_IN, to, newEdge);
+
+    // Update the originating node's first and last outgoing edges.
+    if (firstOut === edge) this.setEdge(FIRST_OUT, from, newEdge);
+    if (lastOut === edge) this.setEdge(LAST_OUT, from, newEdge);
+  }
+
+  /**
    *
    */
   removeEdge(
@@ -976,21 +1044,49 @@ export default class AdjacencyList<TEdgeType: number = 1> {
       .get(type)
       .delete(from);
 
-    // Mark this slot as DELETED.
-    // We do this so that clustered edges can still be found
-    // by scanning forward in the array from the first index for
-    // the cluster.
-    this.#edges[index + TYPE] = DELETED;
-    this.#edges[index + FROM] = 0;
-    this.#edges[index + TO] = 0;
-    this.#edges[index + NEXT_IN] = 0;
-    this.#edges[index + NEXT_OUT] = 0;
-
     if (!this.inCellar(index)) {
       // If we're removing an edge in the addressable space, and it doesn't
       // point to anything in the cellar, clear out the edge at the index
       if (!this.#edges[index + NEXT_HASH]) {
         this.#edges[index + TYPE] = 0;
+      } else {
+        // If we're removing an edge in the adressable space that points to an
+        // edge in the cellar, move the edge in the cellar to the
+        // adressable space to preserve cellar capacity
+        let nextEdge = this.edge(hashToIndex(this.#edges[index + NEXT_HASH]));
+        let nextIndex = nextEdge.index;
+        // Update the links that are connected to the edge in the cellar to
+        // point to the index in the adressable space
+        this.updateLinks(
+          nextEdge.from,
+          nextEdge.to,
+          nextEdge.type,
+          indexToHash(nextIndex),
+          indexToHash(index),
+        );
+        // Move the edge from the cellar into the adressable space
+        this.#edges[index + TYPE] = nextEdge.type;
+        this.#edges[index + FROM] = fromNodeId(nextEdge.from);
+        this.#edges[index + TO] = fromNodeId(nextEdge.to);
+        this.#edges[index + NEXT_HASH] = nextEdge.nextHash;
+        this.#edges[index + NEXT_IN] = nextEdge.nextIn;
+        this.#edges[index + NEXT_OUT] = nextEdge.nextOut;
+
+        // Clear out the space in the cellar
+        this.#edges[nextIndex + TYPE] = DELETED;
+        this.#edges[nextIndex + FROM] = 0;
+        this.#edges[nextIndex + TO] = 0;
+        this.#edges[nextIndex + NEXT_HASH] = 0;
+        this.#edges[nextIndex + NEXT_IN] = 0;
+        this.#edges[nextIndex + NEXT_OUT] = 0;
+
+        assert(this.edgeExists(indexToHash(index)));
+
+        // Push the deleted space from the cellar to the stack of deleted edges
+        // to reuse
+        let deletedEdges =
+          this.#deletedEdges || (this.#deletedEdges = buildDeletedEdges(this));
+        deletedEdges.push(nextIndex);
       }
     } else {
       // If we're removing an edge in the cellar,
@@ -1008,10 +1104,14 @@ export default class AdjacencyList<TEdgeType: number = 1> {
         ];
       }
 
+      this.#edges[index + TYPE] = DELETED;
+      this.#edges[index + FROM] = 0;
+      this.#edges[index + TO] = 0;
       this.#edges[index + NEXT_HASH] = 0;
+      this.#edges[index + NEXT_IN] = 0;
+      this.#edges[index + NEXT_OUT] = 0;
 
-      // If we're deleting an edge in the cellar, add it to the list of deleted edges
-      // so we can reuse it
+      // Add the deleted index to the stack of deleted edges to reuse
       let deletedEdges =
         this.#deletedEdges || (this.#deletedEdges = buildDeletedEdges(this));
       deletedEdges.push(index);
