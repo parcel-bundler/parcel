@@ -571,7 +571,7 @@ function createIdealGraph(
     //*****Bundle Group consideration start */
     let bundleGroupId = nullthrows(bundleRoots.get(bundleRoot))[1];
     let auxilaryRefCount: DefaultMap<Asset, number> = new DefaultMap(() => 0);
-
+    //TODO should this include our bundle group root's assets ?
     let availableAssetsfromBundleGroup = new Set(syncAssetsLoaded); // SET<[FILEPATH, NUMBER]> ?
     let bundleRootInGroup;
     let assetRefs = assetRefsInBundleGroup.get(bundleRoot);
@@ -619,11 +619,11 @@ function createIdealGraph(
         }
       }
     }
-    // console.log('Ref counts are', assetRefsInBundleGroup);
-    // console.log(
-    //   'assets avaialble from bundle graph',
-    //   availableAssetsfromBundleGroup,
-    // );
+    console.log('Ref counts are', assetRefsInBundleGroup);
+    console.log(
+      'assets avaialble from bundle graph',
+      availableAssetsfromBundleGroup,
+    );
     for (let bundleIdInGroup of bundleGraph.getNodeIdsConnectedFrom(
       bundleGroupId,
     )) {
@@ -696,49 +696,65 @@ function createIdealGraph(
       asset,
       reachableRoots,
     );
+    let small = asset.filePath.split('/');
+    let toprint = small[small.length - 1] == 'lodash.js';
+    if (toprint) {
+      console.log(
+        'reachable before filtering for',
+        small[small.length - 1],
+        'is ',
+        reachable,
+      );
+    }
+
     //Don't have the notion of a bundlegroup here which is the problem
     // Filter out bundles when the asset is reachable in every parent bundle.
     // (Only keep a bundle if all of the others are not descendents of it)
-    let as = asset.filePath.split('/');
     reachable = reachable.filter(b => {
+      toprint && console.log('ancAssets are', ancestorAssets);
       let one = !ancestorAssets.get(b)?.has(asset);
-      // console.log(
-      //   'for asset: ',
-      //   as[as.length - 1],
-      //   'b is',
-      //   b.filePath,
-      //   'one is',
-      //   one,
-      // );
       let assetsBundleGroupRoot;
       if (bundleRoots.get(b)) {
         assetsBundleGroupRoot = bundleGraph.getNode(bundleRoots.get(b)[1]);
-        // console.log(
-        //   'bundleRoots',
-        //   bundleRoots.get(b),
-        //   'and bundleroot bundlr is',
-        //   assetsBundleGroupRoot,
-        // );
+
         assetsBundleGroupRoot = nullthrows(
           [...assetsBundleGroupRoot.assets][0],
         );
       }
+      if (one === false) {
+        toprint && console.log('case 1asset b is ', b.filePath);
+        //TODO write this logic better
+        return one; // Bundle Root hierachy takes precedence over bundlegroup availability
+      }
       if (assetsBundleGroupRoot) {
-        if (
+        //if this B is a bundleRoot, check
+        let two = !(
           assetRefsInBundleGroup
             .get(assetsBundleGroupRoot)
             .get(b)
             .get(asset) > 1
-        ) {
-          return one || false;
-        } else {
-          return one || true;
-        }
+        );
+        console.log('BUNDLE GROUP LOGIC: ', two, 'ROOT LOGIC', one);
+        return two;
+
+        // return (
+        //   !(
+        //     assetRefsInBundleGroup
+        //       .get(assetsBundleGroupRoot)
+        //       .get(b)
+        //       .get(asset) > 1
+        //   ) && one
+        // );
       }
       return one;
     }); //don't want to filter out bundle if 'b' is not "reachable" from all of its (a) immediate parents
-
-    //console.log('Reachable for', asset.filePath.split(), 'is ', reachable);
+    toprint &&
+      console.log(
+        'reachable after filtering for',
+        small[small.length - 1],
+        'is ',
+        reachable,
+      );
     //IDEA: reachableBundles as a graph so we can query an assets ancestors and/or decendants
 
     // BundleRoot = Root Asset of a bundle
@@ -798,7 +814,9 @@ function createIdealGraph(
 
       let bundleId = bundles.get(key);
       let bundle;
+      console.log('in shared bundle');
       if (bundleId == null) {
+        console.log('new bundle shared');
         let firstSourceBundle = nullthrows(
           bundleGraph.getNode(sourceBundles[0]),
         );
@@ -813,6 +831,7 @@ function createIdealGraph(
       } else {
         bundle = nullthrows(bundleGraph.getNode(bundleId));
       }
+      console.log('asset is', asset.filePath);
       bundle.assets.add(asset);
       bundle.size += asset.stats.size;
 
