@@ -236,6 +236,10 @@ export class ScopeHoistingPackager {
         return [asset.id, {code, map}];
       });
 
+      if (asset.filePath.includes('runtime-error/src/rest/bar/')) {
+        debugger;
+      }
+
       if (
         shouldWrap ||
         asset.meta.shouldWrap ||
@@ -1124,6 +1128,11 @@ ${code}
 
   shouldSkipAsset(asset: Asset): boolean {
     if (this.isScriptEntry(asset)) {
+      return true;
+    }
+
+    if (asset.filePath.includes('/rest/bar/index.js')) {
+      console.log('in pkger', asset.sideEffects);
       return true;
     }
 
