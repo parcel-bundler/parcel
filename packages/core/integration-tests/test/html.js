@@ -396,8 +396,8 @@ describe('html', function() {
       2,
     );
   });
-  //TODO
-  it.only('should deduplicate shared code between script tags', async function() {
+
+  it('should deduplicate shared code between script tags', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-js-dedup/index.html'),
     );
@@ -409,11 +409,11 @@ describe('html', function() {
       },
       {
         type: 'js',
-        assets: ['component-1.js', 'obj.js', 'esmodule-helpers.js'],
+        assets: ['component-1.js'],
       },
       {
         type: 'js',
-        assets: ['component-2.js'],
+        assets: ['component-2.js', 'obj.js', 'esmodule-helpers.js'],
       },
     ]);
 

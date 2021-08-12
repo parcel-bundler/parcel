@@ -1764,7 +1764,7 @@ describe('javascript', function() {
     });
   });
   //TODO Broke 1
-  it.only('should create a shared bundle to deduplicate assets in workers', async () => {
+  it('should create a shared bundle to deduplicate assets in workers', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/worker-shared/index.js'),
       {
@@ -1919,7 +1919,7 @@ describe('javascript', function() {
     ]);
   });
   //TODO
-  it.only('should create a shared bundle between browser and worker contexts', async () => {
+  it('should create a shared bundle between browser and worker contexts', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/html-shared-worker/index.html'),
       {mode: 'production', defaultTargetOptions: {shouldScopeHoist: false}},
