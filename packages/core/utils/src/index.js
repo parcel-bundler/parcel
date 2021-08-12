@@ -35,7 +35,7 @@ export {
   objectSortedEntries,
   objectSortedEntriesDeep,
   setDifference,
-  setIntersection,
+  setIntersect,
   setUnion,
 } from './collection';
 export {resolveConfig, resolveConfigSync, loadConfig} from './config';

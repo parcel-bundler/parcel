@@ -26,7 +26,7 @@ import {Bundler} from '@parcel/plugin';
 import {
   validateSchema,
   DefaultMap,
-  setIntersection,
+  setIntersect,
   setUnion,
 } from '@parcel/utils';
 import {hashString} from '@parcel/hash';
@@ -676,12 +676,8 @@ function createIdealGraph(
 
       if (availableAssets == null) {
         ancestorAssets.set(child, combined);
-      } else if (
-        asyncBundleRootGraph.getNodeIdsConnectedTo(childId).length > 1
-      ) {
-        ancestorAssets.set(child, setIntersection(combined, availableAssets));
       } else {
-        ancestorAssets.set(child, setUnion(combined, availableAssets)); // Would this ever happen since if a child only has 1 parent, avail assets would be null?
+        setIntersect(availableAssets, combined);
       }
     }
   }
