@@ -621,8 +621,10 @@ export default class AdjacencyList<TEdgeType: number = 1> {
 
     if (direction === NEXT_IN) {
       if (next) this.#previousIn.set(next, newEdge);
+      this.#previousIn.delete(edge);
     } else {
       if (next) this.#previousOut.set(next, newEdge);
+      this.#previousOut.delete(edge);
     }
   }
 
