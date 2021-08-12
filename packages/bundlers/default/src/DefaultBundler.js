@@ -25,7 +25,7 @@ import {Bundler} from '@parcel/plugin';
 import {
   validateSchema,
   DefaultMap,
-  setIntersection,
+  setIntersect,
   setUnion,
 } from '@parcel/utils';
 import {hashString} from '@parcel/hash';
@@ -570,12 +570,8 @@ function createIdealGraph(
 
       if (availableAssets == null) {
         ancestorAssets.set(child, combined);
-      } else if (
-        asyncBundleRootGraph.getNodeIdsConnectedTo(childId).length > 1
-      ) {
-        ancestorAssets.set(child, setIntersection(combined, availableAssets));
       } else {
-        ancestorAssets.set(child, setUnion(combined, availableAssets));
+        setIntersect(availableAssets, combined);
       }
     }
   }
@@ -686,7 +682,6 @@ function createIdealGraph(
       });
     }
   }
-  dumpGraphToGraphViz(bundleGraph, 'IdealBundleGraph');
 
   // Step 4: Merge any sibling bundles required by entry bundles back into the entry bundle.
   //         Entry bundles must be predictable, so cannot have unpredictable siblings.
@@ -736,14 +731,7 @@ function createIdealGraph(
 
   // $FlowFixMe
   dumpGraphToGraphViz(bundleGraph, 'IdealBundleGraph');
-  for (let [nodeId, node] of asyncBundleRootGraph.nodes) {
-    //console.log('node id is', nodeId, 'and node is', node);
-    for (let otherNode of asyncBundleRootGraph.getNodeIdsConnectedFrom(
-      nodeId,
-    )) {
-      //console.log('Edge from ', nodeId, ' to ', otherNode);
-    }
-  }
+
   return {
     bundleGraph,
     dependencyBundleGraph,
