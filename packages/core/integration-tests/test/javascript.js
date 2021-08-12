@@ -1764,7 +1764,7 @@ describe('javascript', function() {
     });
   });
   //TODO Broke 1
-  it('should create a shared bundle to deduplicate assets in workers', async () => {
+  it.only('should create a shared bundle to deduplicate assets in workers', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/worker-shared/index.js'),
       {
