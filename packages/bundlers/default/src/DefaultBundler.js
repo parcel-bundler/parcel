@@ -87,6 +87,7 @@ type DependencyBundleGraph = ContentGraph<
 type IdealGraph = {|
   dependencyBundleGraph: DependencyBundleGraph,
   bundleGraph: Graph<Bundle>,
+  bundleGroupBundleIds: Array<NodeId>,
   entryBundles: Array<NodeId>,
   assetReference: DefaultMap<Asset, Array<[Dependency, Bundle]>>,
 |};
@@ -113,27 +114,30 @@ function decorateLegacyGraph(
   //TODO add in reference edges based on stored assets from create ideal graph
   let idealBundleToLegacyBundle: Map<Bundle, LegacyBundle> = new Map();
 
-  let {bundleGraph: idealBundleGraph, dependencyBundleGraph} = idealGraph;
+  let {
+    bundleGraph: idealBundleGraph,
+    dependencyBundleGraph,
+    bundleGroupBundleIds,
+  } = idealGraph;
   let entryBundleToBundleGroup: Map<NodeId, BundleGroup> = new Map();
 
   for (let [bundleNodeId, idealBundle] of idealBundleGraph.nodes) {
-    let dependencies = dependencyBundleGraph
-      .getNodeIdsConnectedTo(
-        dependencyBundleGraph.getNodeIdByContentKey(String(bundleNodeId)),
-        ['lazy', 'sync'],
-      )
-      .map(nodeId => {
-        let dependency = nullthrows(dependencyBundleGraph.getNode(nodeId));
-        invariant(dependency.type === 'dependency');
-        return dependency.value;
-      });
-
     let [entryAsset] = [...idealBundle.assets];
     // This entry asset is the first asset of the bundle (not entry file asset)
     let bundleGroup;
     let bundle;
 
-    if (dependencies && dependencies.length > 0) {
+    if (bundleGroupBundleIds.includes(bundleNodeId)) {
+      let dependencies = dependencyBundleGraph
+        .getNodeIdsConnectedTo(
+          dependencyBundleGraph.getNodeIdByContentKey(String(bundleNodeId)),
+          ['lazy', 'sync', 'parallel'],
+        )
+        .map(nodeId => {
+          let dependency = nullthrows(dependencyBundleGraph.getNode(nodeId));
+          invariant(dependency.type === 'dependency');
+          return dependency.value;
+        });
       for (let dependency of dependencies) {
         bundleGroup = bundleGraph.createBundleGroup(
           dependency,
@@ -270,6 +274,7 @@ function createIdealGraph(
   let asyncBundleRootGraph: ContentGraph<
     BundleRoot | 'root',
   > = new ContentGraph();
+  let bundleGroupBundleIds: Array<NodeId> = [];
   //TODO of asyncBundleRootGraph: we should either add a root node or use bundleGraph which has a root automatically
 
   // Step 1: Create bundles for each entry.
@@ -316,6 +321,7 @@ function createIdealGraph(
       }),
       dependency.priority,
     );
+    bundleGroupBundleIds.push(nodeId);
   }
 
   let assets = [];
@@ -355,17 +361,25 @@ function createIdealGraph(
           dependency.priority === 'lazy' ||
           childAsset.bundleBehavior === 'isolated'
         ) {
-          // TODO: This bundle can be "created" by multiple dependencies?
+          // TODO: needsStableName if bundle exists here
           let bundleId = bundles.get(childAsset.id);
           let bundle;
           if (bundleId == null) {
             bundle = createBundle({
               asset: childAsset,
               target: nullthrows(bundleGraph.getNode(stack[0][1])).target,
+              needsStableName:
+                dependency.bundleBehavior === 'inline' ||
+                childAsset.bundleBehavior === 'inline'
+                  ? false
+                  : dependency.isEntry || dependency.needsStableName,
+              bundleBehavior:
+                dependency.bundleBehavior ?? childAsset.bundleBehavior,
             });
             bundleId = bundleGraph.addNode(bundle);
             bundles.set(childAsset.id, bundleId);
             bundleRoots.set(childAsset, [bundleId, bundleId]);
+            bundleGroupBundleIds.push(bundleId);
           } else {
             bundle = nullthrows(bundleGraph.getNode(bundleId));
           }
@@ -496,24 +510,6 @@ function createIdealGraph(
           actions.skipChildren();
           return;
         }
-        // TODO Handle other situations in which bundles are created and maybe
-        // centralize that in a function
-        // if (isABundleRoot and dependency is not sync) {
-        // if (node.value.priority === 'lazy') {
-        //   let assets = assetGraph.getDependencyAssets(node.value);
-        //   if (assets.length === 0) {
-        //     return node;
-        //   }
-
-        //   invariant(assets.length === 1);
-        //   let bundleRoot = assets[0];
-        //   invariant(bundleRoots.has(bundleRoot));
-
-        //   reachableAsyncRoots
-        //     .get(nullthrows(bundles.get(bundleRoot.id)))
-        //     .add(root);
-        //   actions.skipChildren();
-        //}
         return;
       }
 
@@ -735,6 +731,7 @@ function createIdealGraph(
   return {
     bundleGraph,
     dependencyBundleGraph,
+    bundleGroupBundleIds,
     entryBundles: [...bundleRoots.values()].map(v => v[0]),
     assetReference,
   };
@@ -767,6 +764,7 @@ function createBundle(
         env: Environment,
         type: string,
         needsStableName?: boolean,
+        bundleBehavior?: ?BundleBehavior,
       |}
     | {|
         target: Target,
@@ -774,6 +772,7 @@ function createBundle(
         env?: Environment,
         type?: string,
         needsStableName?: boolean,
+        bundleBehavior?: ?BundleBehavior,
       |},
 ): Bundle {
   if (opts.asset == null) {
