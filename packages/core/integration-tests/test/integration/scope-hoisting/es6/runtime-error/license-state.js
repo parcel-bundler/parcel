@@ -1,4 +1,3 @@
-// @flow
 export const LICENSE_STATE_ACTIVE = 'ACTIVE';
 export const LICENSE_STATE_SUSPENDED = 'SUSPENDED';
 export const LICENSE_STATE_EXPIRED = 'EXPIRED';

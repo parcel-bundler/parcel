@@ -236,10 +236,6 @@ export class ScopeHoistingPackager {
         return [asset.id, {code, map}];
       });
 
-      if (asset.filePath.includes('runtime-error/src/rest/bar/')) {
-        debugger;
-      }
-
       if (
         shouldWrap ||
         asset.meta.shouldWrap ||
