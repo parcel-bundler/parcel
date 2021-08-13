@@ -279,6 +279,7 @@ export default class NodeResolver {
     if (resolved === undefined && process.versions.pnp != null && parent) {
       try {
         let [moduleName, subPath] = this.getModuleParts(filename);
+        // $FlowFixMe[prop-missing]
         let pnp = _Module.findPnpApi(path.dirname(parent));
 
         let res = pnp.resolveToUnqualified(
