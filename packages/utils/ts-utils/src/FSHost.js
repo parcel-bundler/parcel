@@ -99,10 +99,8 @@ export class FSHost {
       this.ts.sys.useCaseSensitiveFileNames,
       this.getCurrentDirectory(),
       depth,
-      // $FlowFixMe[method-unbinding]
-      this.getAccessibleFileSystemEntries.bind(this),
-      // $FlowFixMe[method-unbinding]
-      this.realpath.bind(this),
+      dirPath => this.getAccessibleFileSystemEntries(dirPath),
+      filePath => this.realpath(filePath),
     );
   }
 }

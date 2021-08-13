@@ -1113,7 +1113,7 @@ export default class NodeResolver {
       this.projectRoot,
       // By default, loadConfig uses JSON5. Use normal JSON for package.json files
       // since they don't support comments and JSON.parse is faster.
-      {parser: JSON.parse},
+      {parser: (...args) => JSON.parse(...args)},
     );
 
     if (res != null) {
