@@ -1131,9 +1131,18 @@ ${code}
       return true;
     }
 
-    if (asset.filePath.includes('/rest/bar/index.js')) {
-      console.log('in pkger', asset.sideEffects);
-      return true;
+    if (asset.filePath.includes('es6/runtime-error/')) {
+      console.log(
+        asset.filePath,
+        'should skip?',
+        asset.sideEffects === false,
+        this.bundleGraph.getUsedSymbols(asset).size == 0,
+        !this.bundleGraph.isAssetReferenced(this.bundle, asset),
+      );
+      if (asset.filePath.includes('es6/runtime-error/rest/bar/index.js')) {
+        console.log('but returning true');
+        return true;
+      }
     }
 
     return (
