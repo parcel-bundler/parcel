@@ -13,9 +13,9 @@ export class FSHost {
     this.ts = ts;
   }
 
-  getCurrentDirectory(): FilePath {
+  getCurrentDirectory: () => FilePath = () => {
     return this.fs.cwd();
-  }
+  };
 
   fileExists(filePath: FilePath): boolean {
     try {
