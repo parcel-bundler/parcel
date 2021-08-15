@@ -171,7 +171,6 @@ export class ResolverRunner {
       if (!validPipelines.has(pipeline)) {
         // This may be a url protocol or scheme rather than a pipeline, such as
         // `url('http://example.com/foo.png')`. Pass it to resolvers to handle.
-        // return {assetGroup: null};
         specifier = dependency.specifier;
         pipeline = null;
       }
