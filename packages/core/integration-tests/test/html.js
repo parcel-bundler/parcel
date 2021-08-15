@@ -170,7 +170,7 @@ describe('html', function() {
     assert(/<link rel="canonical" href="\.?\/index.html">/.test(html));
   });
 
-  it('should support meta tag with none content', async function() {
+  it('should support meta tags', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-meta/index.html'),
     );
@@ -180,13 +180,23 @@ describe('html', function() {
         name: 'index.html',
         assets: ['index.html'],
       },
+      {
+        name: 'logo.svg',
+        assets: ['logo.svg'],
+      },
     ]);
 
     let html = await outputFS.readFile(
       path.join(distDir, 'index.html'),
       'utf8',
     );
-    assert(/<meta name="msapplication-config" content="none">/.test(html));
+    assert(html.includes(`<meta name="msapplication-config" content="none">`));
+    assert(html.includes(`<meta property="og:image" content="/logo.svg">`));
+    assert(
+      html.includes(
+        `<meta name="twitter:image" content="https://parceljs.org/assets/logo.svg">`,
+      ),
+    );
   });
 
   it('should insert sibling CSS bundles for JS files in the HEAD', async function() {
