@@ -454,7 +454,7 @@ export default class NodeResolver {
         }
 
         filename = filename.slice(1);
-        if (filename[0] === '/') {
+        if (filename[0] === '/' || filename[0] === '\\') {
           filename = '.' + filename;
         }
         break;
