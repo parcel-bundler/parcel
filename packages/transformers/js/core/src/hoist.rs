@@ -2476,7 +2476,7 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    import   "abc:other";
+    import "abc:other";
     let $abc$var$test = {
         bar: 3
     };
@@ -2494,7 +2494,7 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    import   "abc:other";
+    import "abc:other";
     console.log($abc$import$558d6cfb8af8a010$3705fc5f2281438d);
     "#}
     );
@@ -2509,7 +2509,7 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    import   "abc:other";
+    import "abc:other";
     console.log($abc$import$558d6cfb8af8a010$9099ad97b570f7c, $abc$import$558d6cfb8af8a010$9099ad97b570f7c.bar);
     "#}
     );
@@ -2529,8 +2529,8 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    import   "abc:other";
-    import   "abc:bar";
+    import "abc:other";
+    import "abc:bar";
     console.log($abc$import$558d6cfb8af8a010$9099ad97b570f7c);
     console.log($abc$import$3705fc5f2281438d$9099ad97b570f7c);
     "#}
@@ -2550,10 +2550,10 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    import   "abc:other";
-    import   "abc:bar";
+    import "abc:other";
+    import "abc:bar";
     console.log($abc$import$558d6cfb8af8a010$9099ad97b570f7c);
-    import   "abc:x";
+    import "abc:x";
     console.log($abc$import$10b1f2ceae7ab64e);
     console.log($abc$import$3705fc5f2281438d$9099ad97b570f7c);
     "#}
@@ -2573,7 +2573,7 @@ mod tests {
       code,
       indoc! {r#"
     const $abc$var$x = 4;
-    import   "abc:other";
+    import "abc:other";
     var $abc$require$bar = $abc$import$558d6cfb8af8a010$3705fc5f2281438d;
     const $abc$var$baz = 3;
     console.log($abc$require$bar);
@@ -2591,7 +2591,7 @@ mod tests {
       code,
       indoc! {r#"
     const $abc$var$x = 3;
-    import   "abc:other";
+    import "abc:other";
     const $abc$var$bar = 2;
     console.log($abc$import$558d6cfb8af8a010$3705fc5f2281438d);
     "#}
@@ -2610,7 +2610,7 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    import   "abc:other";
+    import "abc:other";
     const { foo: $abc$var$foo , ...$abc$var$bar } = $abc$import$558d6cfb8af8a010;
     console.log($abc$var$foo, $abc$var$bar);
     "#}
@@ -2626,7 +2626,7 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    import   "abc:x";
+    import "abc:x";
     const { x: { y: $abc$var$z  }  } = $abc$import$10b1f2ceae7ab64e;
     console.log($abc$var$z);
     "#}
@@ -2642,7 +2642,7 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    import   "abc:other";
+    import "abc:other";
     console.log($abc$import$558d6cfb8af8a010[bar]);
     "#}
     );
@@ -2657,7 +2657,7 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    import   "abc:other";
+    import "abc:other";
     console.log($abc$import$558d6cfb8af8a010[bar], $abc$import$558d6cfb8af8a010.baz);
     "#}
     );
@@ -2683,7 +2683,7 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    import   "abc:other";
+    import "abc:other";
     var $abc$require$foo = $abc$import$558d6cfb8af8a010$ba02ad2230917043;
     console.log($abc$require$foo);
     "#}
@@ -2699,7 +2699,7 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    import   "abc:other";
+    import "abc:other";
     const $abc$var$foo = $abc$import$558d6cfb8af8a010[bar];
     console.log($abc$var$foo);
     "#}
@@ -2715,7 +2715,7 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    import   "abc:other";
+    import "abc:other";
     const { foo: $abc$var$foo  } = $abc$import$558d6cfb8af8a010$ba02ad2230917043;
     console.log($abc$var$foo);
     "#}
@@ -2737,12 +2737,12 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    import   "abc:other";
+    import "abc:other";
     function $abc$var$x() {
         const foo = $abc$import$558d6cfb8af8a010;
         console.log(foo.bar);
     }
-    import   "abc:bar";
+    import "abc:bar";
     "#}
     );
     assert_eq!(
@@ -2763,7 +2763,7 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    import   "abc:other";
+    import "abc:other";
     var $abc$var$foo = (function() {
         if (Date.now() < 0) {
             var bar = $abc$import$558d6cfb8af8a010;
@@ -2788,7 +2788,7 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    import   "abc:other";
+    import "abc:other";
     function $abc$var$x() {
         const foo = $abc$import$558d6cfb8af8a010$ba02ad2230917043;
         console.log(foo);
@@ -2807,7 +2807,7 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    import   "abc:other";
+    import "abc:other";
     function $abc$var$x() {
         console.log($abc$import$558d6cfb8af8a010$ba02ad2230917043);
     }
@@ -2826,7 +2826,7 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    import   "abc:other";
+    import "abc:other";
     function $abc$var$x() {
         const foo = $abc$import$558d6cfb8af8a010[test];
         console.log(foo);
@@ -2846,7 +2846,7 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    import   "abc:other";
+    import "abc:other";
     function $abc$var$x() {
         const { foo: foo  } = $abc$import$558d6cfb8af8a010;
         console.log(foo);
@@ -2863,8 +2863,8 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    import   "abc:a";
-    import   "abc:b";
+    import "abc:a";
+    import "abc:b";
     let $abc$var$x = $abc$import$7ac649919d1c80a6 + $abc$import$a91ade93898ecc38;
     "#}
     );
@@ -2878,8 +2878,8 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    import   "abc:a";
-    import   "abc:b";
+    import "abc:a";
+    import "abc:b";
     let $abc$var$x = (!$abc$import$7ac649919d1c80a6, $abc$import$a91ade93898ecc38);
     "#}
     );
@@ -2893,8 +2893,8 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    import   "abc:a";
-    import   "abc:b";
+    import "abc:a";
+    import "abc:b";
     let $abc$var$x = $abc$import$7ac649919d1c80a6 || $abc$import$a91ade93898ecc38;
     "#}
     );
@@ -2908,8 +2908,8 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    import   "abc:a";
-    import   "abc:b";
+    import "abc:a";
+    import "abc:b";
     let $abc$var$x = condition ? $abc$import$7ac649919d1c80a6 : $abc$import$a91ade93898ecc38;
     "#}
     );
@@ -2923,7 +2923,7 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    import   "abc:a";
+    import "abc:a";
     if (condition) $abc$import$7ac649919d1c80a6;
     "#}
     );
@@ -2937,7 +2937,7 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    import   "abc:y";
+    import "abc:y";
     for(let x = $abc$import$57bbd0ca114c72e; x < 5; x++){
     }
     "#}
@@ -3087,7 +3087,7 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    import   "abc:bar";
+    import "abc:bar";
     "#}
     );
 
@@ -3100,7 +3100,7 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    import   "abc:bar";
+    import "abc:bar";
     "#}
     );
   }
@@ -3382,7 +3382,7 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    import   "abc:other";
+    import "abc:other";
     async function $abc$var$test() {
         const x = await $abc$importAsync$558d6cfb8af8a010;
         console.log(x.foo);
@@ -3413,7 +3413,7 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    import   "abc:other";
+    import "abc:other";
     async function $abc$var$test() {
         const x = await $abc$importAsync$558d6cfb8af8a010;
         console.log(x[foo]);
@@ -3444,7 +3444,7 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    import   "abc:other";
+    import "abc:other";
     async function $abc$var$test() {
         const { foo: foo  } = await $abc$importAsync$558d6cfb8af8a010;
         console.log(foo);
@@ -3475,7 +3475,7 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    import   "abc:other";
+    import "abc:other";
     async function $abc$var$test() {
         const { foo: bar  } = await $abc$importAsync$558d6cfb8af8a010;
         console.log(bar);
@@ -3503,7 +3503,7 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    import   "abc:other";
+    import "abc:other";
     $abc$importAsync$558d6cfb8af8a010.then((x)=>x.foo
     );
     "#}
@@ -3529,7 +3529,7 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    import   "abc:other";
+    import "abc:other";
     $abc$importAsync$558d6cfb8af8a010.then((x)=>x
     );
     "#}
@@ -3555,7 +3555,7 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    import   "abc:other";
+    import "abc:other";
     $abc$importAsync$558d6cfb8af8a010.then(({ foo: foo  })=>foo
     );
     "#}
@@ -3581,7 +3581,7 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    import   "abc:other";
+    import "abc:other";
     $abc$importAsync$558d6cfb8af8a010.then(({ foo: bar  })=>bar
     );
     "#}
@@ -3607,7 +3607,7 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    import   "abc:other";
+    import "abc:other";
     $abc$importAsync$558d6cfb8af8a010.then(function(x) {
         return x.foo;
     });
@@ -3634,7 +3634,7 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    import   "abc:other";
+    import "abc:other";
     $abc$importAsync$558d6cfb8af8a010.then(function(x) {
         return x;
     });
@@ -3661,7 +3661,7 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    import   "abc:other";
+    import "abc:other";
     $abc$importAsync$558d6cfb8af8a010.then(function({ foo: foo  }) {
     });
     "#}
@@ -3687,7 +3687,7 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    import   "abc:other";
+    import "abc:other";
     $abc$importAsync$558d6cfb8af8a010.then(function({ foo: bar  }) {
     });
     "#}
