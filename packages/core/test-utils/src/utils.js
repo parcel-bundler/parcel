@@ -545,6 +545,9 @@ export function assertBundles(
   );
 
   let i = 0;
+  // console.log('Actual Bundles are', actualBundles);
+
+  // console.log('Expected Bundles are', expectedBundles);
   for (let bundle of expectedBundles) {
     let actualBundle = actualBundles[i++];
     let name = bundle.name;

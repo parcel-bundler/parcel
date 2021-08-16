@@ -83,7 +83,6 @@ export default (new Runtime({
     let assets = [];
     for (let dependency of asyncDependencies) {
       let resolved = bundleGraph.resolveAsyncDependency(dependency, bundle);
-      //console.log('resolved', dependency, dependency.priority, 'to', resolved);
       if (resolved == null) {
         continue;
       }
@@ -512,7 +511,6 @@ function getURLRuntime(
 ): RuntimeAsset {
   let relativePathExpr = getRelativePathExpr(from, to, options);
   let code;
-
   if (dependency.meta.webworker === true && !from.env.isLibrary) {
     code = `let workerURL = require('./helpers/get-worker-url');\n`;
     if (

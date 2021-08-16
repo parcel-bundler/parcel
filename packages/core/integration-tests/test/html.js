@@ -409,11 +409,11 @@ describe('html', function() {
       },
       {
         type: 'js',
-        assets: ['component-1.js', 'obj.js', 'esmodule-helpers.js'],
+        assets: ['component-1.js'],
       },
       {
         type: 'js',
-        assets: ['component-2.js'],
+        assets: ['component-2.js', 'obj.js', 'esmodule-helpers.js'],
       },
     ]);
 

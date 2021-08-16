@@ -1763,7 +1763,7 @@ describe('javascript', function() {
       ],
     });
   });
-
+  //TODO Broke 1
   it('should create a shared bundle to deduplicate assets in workers', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/worker-shared/index.js'),
@@ -1847,7 +1847,7 @@ describe('javascript', function() {
       },
     ]);
   });
-
+  // TODO Broke 2
   it('should deduplicate and remove an unnecessary async bundle when it contains a cyclic reference to its entry', async () => {
     let b = await bundle(
       path.join(
@@ -1876,7 +1876,7 @@ describe('javascript', function() {
 
     assert.deepEqual(await Promise.all((await run(b)).default), [5, 4]);
   });
-  //TODO: Fixed
+
   it('does not create bundles for dynamic imports when assets are available up the graph', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/internalize-no-bundle-split/index.js'),
@@ -1918,7 +1918,7 @@ describe('javascript', function() {
       {assets: ['core.js', 'worker3.js']},
     ]);
   });
-
+  //TODO
   it('should create a shared bundle between browser and worker contexts', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/html-shared-worker/index.html'),
@@ -2145,7 +2145,7 @@ describe('javascript', function() {
     assert.equal(typeof output, 'function');
     assert.equal(await output(), 7);
   });
-
+  //TODO
   it('should not duplicate a module which is already in a parent bundle', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/dynamic-hoist-dup/index.js'),
