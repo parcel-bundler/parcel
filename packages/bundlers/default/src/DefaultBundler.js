@@ -472,9 +472,10 @@ function createIdealGraph(
       }
 
       if (node.type === 'dependency') {
-        if (dependencyBundleGraph.hasContentKey(node.value.id)) {
-          if (node.value.priority === 'lazy') {
-            let assets = assetGraph.getDependencyAssets(node.value);
+        let dependency = node.value;
+        if (dependencyBundleGraph.hasContentKey(dependency.id)) {
+          if (dependency.priority === 'lazy') {
+            let assets = assetGraph.getDependencyAssets(dependency);
             if (assets.length === 0) {
               return node;
             }
@@ -482,10 +483,11 @@ function createIdealGraph(
             invariant(assets.length === 1);
             let bundleRoot = assets[0];
             invariant(bundleRoots.has(bundleRoot));
-
-            reachableAsyncRoots
-              .get(nullthrows(bundles.get(bundleRoot.id)))
-              .add(root);
+            if (dependency.specifierType !== 'url') {
+              reachableAsyncRoots
+                .get(nullthrows(bundles.get(bundleRoot.id)))
+                .add(root);
+            }
           }
           actions.skipChildren();
           return;
@@ -629,8 +631,6 @@ function createIdealGraph(
       asset,
       reachableRoots,
     );
-
-    //Don't have the notion of a bundlegroup here which is the problem
     // Filter out bundles when the asset is reachable in every parent bundle.
     // (Only keep a bundle if all of the others are not descendents of it)
     reachable = reachable.filter(b => {
@@ -659,18 +659,21 @@ function createIdealGraph(
         return true;
       }
     }); //don't want to filter out bundle if 'b' is not "reachable" from all of its (a) immediate parents
-
     // BundleRoot = Root Asset of a bundle
     // reachableRoots = any asset => all BundleRoots that require it synchronously
     // reachableBundles = Some BundleRoot => all BundleRoot decendants
     // reachable = all bundle root assets that cant always have that asset reliably on page (so they need to be pulled in by shared bundle or other)
 
     let rootBundle = bundleRoots.get(asset);
-    if (rootBundle != null) {
+    if (
+      rootBundle != null &&
+      !nullthrows(bundleGraph.getNode(rootBundle[0])).env.isIsolated()
+    ) {
       // If the asset is a bundle root, add the bundle to every other reachable bundle group.
       if (!bundles.has(asset.id)) {
         bundles.set(asset.id, rootBundle[0]);
       }
+
       for (let reachableAsset of reachable) {
         if (reachableAsset !== asset) {
           bundleGraph.addEdge(
@@ -686,7 +689,6 @@ function createIdealGraph(
           ? reachableAsyncRoots.get(rootBundle[0])
           : []),
       ];
-
       // TODO: is this correct?
       let willInternalizeRoots = reachableAsync.filter(
         b =>
