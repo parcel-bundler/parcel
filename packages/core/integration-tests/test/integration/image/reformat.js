@@ -1,1 +1,3 @@
-module.exports = require('./image.jpg?as=webp');
+import url from './image.jpg?as=webp';
+
+module.exports = url;
