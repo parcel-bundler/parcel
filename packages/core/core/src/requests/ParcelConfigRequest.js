@@ -264,6 +264,16 @@ function processPipeline(
   }
 }
 
+const RESERVED_PIPELINES = new Set([
+  'node:',
+  'npm:',
+  'http:',
+  'https:',
+  'data:',
+  'tel:',
+  'mailto:',
+]);
+
 async function processMap(
   // $FlowFixMe
   map: ?ConfigMap<any, any>,
@@ -277,12 +287,12 @@ async function processMap(
   // $FlowFixMe
   let res: ConfigMap<any, any> = {};
   for (let k in map) {
-    if (k.startsWith('node:')) {
+    let i = k.indexOf(':');
+    if (i > 0 && RESERVED_PIPELINES.has(k.slice(0, i + 1))) {
       let code = await options.inputFS.readFile(filePath, 'utf8');
       throw new ThrowableDiagnostic({
         diagnostic: {
-          message:
-            'Named pipeline `node:` is reserved for builtin Node.js libraries',
+          message: `Named pipeline '${k.slice(0, i + 1)}' is reserved.`,
           origin: '@parcel/core',
           codeFrames: [
             {

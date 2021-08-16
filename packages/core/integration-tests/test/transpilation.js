@@ -258,7 +258,7 @@ describe('transpilation', function() {
           .slice(2),
     );
     await outputFS.mkdirp(dir);
-    ncp(path.join(__dirname, '/integration/swc-helpers'), dir);
+    await ncp(path.join(__dirname, '/integration/swc-helpers'), dir);
     await bundle(path.join(dir, 'index.js'), {
       mode: 'production',
       inputFS: overlayFS,
