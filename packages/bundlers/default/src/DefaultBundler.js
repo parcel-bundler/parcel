@@ -553,9 +553,10 @@ function createIdealGraph(
     //TODO should this include our bundle group root's assets
     let assetRefs = assetRefsInBundleGroup.get(bundleRoot);
     //Process all nodes within bundleGroup that are NOT isolated
-    for (let bundleIdInGroup of bundleGraph.getNodeIdsConnectedFrom(
+    for (let bundleIdInGroup of [
       bundleGroupId,
-    )) {
+      ...bundleGraph.getNodeIdsConnectedFrom(bundleGroupId),
+    ]) {
       let bundleInGroup = nullthrows(bundleGraph.getNode(bundleIdInGroup)); //this is a bundle
       if (
         bundleInGroup.bundleBehavior === 'isolated' ||
@@ -592,7 +593,7 @@ function createIdealGraph(
       invariant(child !== 'root' && child != null);
       const availableAssets = ancestorAssets.get(child);
 
-      if (availableAssets == null) {
+      if (availableAssets === undefined) {
         ancestorAssets.set(child, combined);
       } else {
         ancestryIntersect(availableAssets, combined);
@@ -613,7 +614,7 @@ function createIdealGraph(
 
       const availableAssets = ancestorAssets.get(bundleRoot);
 
-      if (availableAssets == null) {
+      if (availableAssets === undefined) {
         ancestorAssets.set(bundleRoot, siblingAncestors);
       } else {
         ancestryIntersect(availableAssets, siblingAncestors);
@@ -627,10 +628,12 @@ function createIdealGraph(
 
   for (let asset of assets) {
     // Find bundle entries reachable from the asset.
+
     let reachable: Array<BundleRoot> = getReachableBundleRoots(
       asset,
       reachableRoots,
-    );
+    ).reverse();
+
     // Filter out bundles when the asset is reachable in every parent bundle.
     // (Only keep a bundle if all of the others are not descendents of it)
     reachable = reachable.filter(b => {
@@ -710,7 +713,7 @@ function createIdealGraph(
       // a bundle for that combination of bundles (shared bundle), and add the asset to it.
       let sourceBundles = reachable.map(a => nullthrows(bundles.get(a.id)));
       let key = reachable.map(a => a.id).join(',');
-
+      console.log('Asset is', asset, 'and src bundles are', sourceBundles);
       let bundleId = bundles.get(key);
       let bundle;
       if (bundleId == null) {
