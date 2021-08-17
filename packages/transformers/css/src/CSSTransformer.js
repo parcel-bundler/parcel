@@ -5,11 +5,7 @@ import type {FilePath} from '@parcel/types';
 
 import SourceMap from '@parcel/source-map';
 import {Transformer} from '@parcel/plugin';
-import {
-  createDependencyLocation,
-  isURL,
-  remapSourceLocation,
-} from '@parcel/utils';
+import {createDependencyLocation, remapSourceLocation} from '@parcel/utils';
 import postcss from 'postcss';
 import nullthrows from 'nullthrows';
 import valueParser from 'postcss-value-parser';
@@ -108,35 +104,29 @@ export default (new Transformer({
         throw new Error('Could not find import name for ' + String(rule));
       }
 
-      if (isURL(specifier)) {
-        name.value = asset.addURLDependency(specifier, {
-          loc: createLoc(nullthrows(rule.source.start), asset.filePath, 0, 8),
-        });
-      } else {
-        // If this came from an inline <style> tag, don't inline the imported file. Replace with the correct URL instead.
-        // TODO: run CSSPackager on inline style tags.
-        // let inlineHTML =
-        //   this.options.rendition && this.options.rendition.inlineHTML;
-        // if (inlineHTML) {
-        //   name.value = asset.addURLDependency(dep, {loc: rule.source.start});
-        //   rule.params = params.toString();
-        // } else {
-        media = valueParser.stringify(media).trim();
-        let dep = {
-          specifier,
-          specifierType: 'url',
-          // Offset by 8 as it does not include `@import `
-          loc: createLoc(nullthrows(rule.source.start), specifier, 0, 8),
-          meta: {
-            // For the glob resolver to distinguish between `@import` and other URL dependencies.
-            isCSSImport: true,
-            media,
-          },
-        };
-        asset.addDependency(dep);
-        rule.remove();
-        // }
-      }
+      // If this came from an inline <style> tag, don't inline the imported file. Replace with the correct URL instead.
+      // TODO: run CSSPackager on inline style tags.
+      // let inlineHTML =
+      //   this.options.rendition && this.options.rendition.inlineHTML;
+      // if (inlineHTML) {
+      //   name.value = asset.addURLDependency(dep, {loc: rule.source.start});
+      //   rule.params = params.toString();
+      // } else {
+      media = valueParser.stringify(media).trim();
+      let dep = {
+        specifier,
+        specifierType: 'url',
+        // Offset by 8 as it does not include `@import `
+        loc: createLoc(nullthrows(rule.source.start), specifier, 0, 8),
+        meta: {
+          // For the glob resolver to distinguish between `@import` and other URL dependencies.
+          isCSSImport: true,
+          media,
+        },
+      };
+      asset.addDependency(dep);
+      rule.remove();
+      // }
       isDirty = true;
     });
 

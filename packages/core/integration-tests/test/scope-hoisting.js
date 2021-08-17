@@ -3714,6 +3714,28 @@ describe('scope hoisting', function() {
       let test = await run(b);
       assert.equal(test({foo: 2}), 2);
     });
+
+    it('should not include default when reexporting * without $parcel$exportWildcard', async () => {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          'integration/scope-hoisting/es6/no-reexport-default/index.js',
+        ),
+      );
+
+      assert.equal(await run(b), 42);
+    });
+
+    it('should not include __esModule when reexporting * without $parcel$exportWildcard', async () => {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          'integration/scope-hoisting/es6/no-reexport-esmodule/index.js',
+        ),
+      );
+
+      assert.equal(await run(b), undefined);
+    });
   });
 
   describe('commonjs', function() {
