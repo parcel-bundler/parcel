@@ -4571,7 +4571,7 @@ describe('javascript', function() {
       name: 'BuildError',
       diagnostics: [
         {
-          message: 'Unknown pipeline: strange-pipeline.',
+          message: "Failed to resolve 'strange-pipeline:./b.js' from './a.js'",
           origin: '@parcel/core',
           codeFrames: [
             {
@@ -4591,6 +4591,10 @@ describe('javascript', function() {
               ],
             },
           ],
+        },
+        {
+          message: "Unknown url scheme or pipeline 'strange-pipeline:'",
+          origin: '@parcel/resolver-default',
         },
       ],
     });
