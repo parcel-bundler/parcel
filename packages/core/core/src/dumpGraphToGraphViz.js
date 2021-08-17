@@ -1,12 +1,13 @@
 // @flow
 
+import type {Asset, BundleBehavior} from '@parcel/types';
+import type {Graph} from '@parcel/graph';
 import type {AssetGraphNode, BundleGraphNode, Environment} from './types';
-import type Graph from './Graph';
-import {SpecifierType, Priority} from './types';
-import type {Bundle} from '@parcel/bundler-default';
 
 import path from 'path';
+import {fromNodeId} from '@parcel/graph';
 import {fromProjectPathRelative} from './projectPath';
+import {SpecifierType, Priority} from './types';
 
 const COLORS = {
   root: 'gray',
@@ -31,7 +32,14 @@ const TYPE_COLORS = {
 
 export default async function dumpGraphToGraphViz(
   // $FlowFixMe
-  graph: Graph<AssetGraphNode | Bundle | BundleGraphNode>,
+  graph:
+    | Graph<AssetGraphNode>
+    | Graph<{|
+        assets: Array<Asset>,
+        sourceBundles: Array<number>,
+        bundleBehavior?: ?BundleBehavior,
+      |}>
+    | Graph<BundleGraphNode>,
   name: string,
 ): Promise<void> {
   if (
@@ -64,7 +72,7 @@ export default async function dumpGraphToGraphViz(
         ', ',
       )}) (bb ${node.bundleBehavior ?? 'none'})`;
     } else if (node.type) {
-      label = `[${id}] ${node.type || 'No Type'}: [${node.id}]: `;
+      label = `[${fromNodeId(id)}] ${node.type || 'No Type'}: [${node.id}]: `;
       if (node.type === 'dependency') {
         label += node.value.specifier;
         let parts = [];
@@ -102,7 +110,10 @@ export default async function dumpGraphToGraphViz(
           }
         }
       } else if (node.type === 'asset') {
-        label += path.basename(node.value.filePath) + '#' + node.value.type;
+        label +=
+          path.basename(fromProjectPathRelative(node.value.filePath)) +
+          '#' +
+          node.value.type;
         if (detailedSymbols) {
           if (!node.value.symbols) {
             label += '\\nsymbols: cleared';

@@ -1,11 +1,13 @@
 // @flow strict-local
 
+import type {ContentKey} from '@parcel/graph';
 import type {Async} from '@parcel/types';
 import type {SharedReference} from '@parcel/workers';
-import type {StaticRunOpts} from '../RequestTracker';
-import type {Asset, AssetGroup, ContentKey, PackagedBundleInfo} from '../types';
-import type BundleGraph from '../BundleGraph';
 import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
+
+import type {StaticRunOpts} from '../RequestTracker';
+import type {Asset, AssetGroup, PackagedBundleInfo} from '../types';
+import type BundleGraph from '../BundleGraph';
 
 import createAssetGraphRequest from './AssetGraphRequest';
 import createBundleGraphRequest from './BundleGraphRequest';

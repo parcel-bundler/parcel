@@ -13,11 +13,12 @@ import type {
   PluginOptions,
   Target,
 } from '@parcel/types';
-import type {NodeId} from '@parcel/core/src/types';
+import type {NodeId} from '@parcel/graph';
 import type {SchemaEntity} from '@parcel/utils';
 
-import Graph from '@parcel/core/src/Graph';
-import ContentGraph from '@parcel/core/src/ContentGraph';
+import {ContentGraph, Graph} from '@parcel/graph';
+// TODO: Remove before review!
+// eslint-disable-next-line
 import dumpGraphToGraphViz from '@parcel/core/src/dumpGraphToGraphViz';
 
 import invariant from 'assert';
