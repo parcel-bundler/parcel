@@ -713,7 +713,6 @@ function createIdealGraph(
       // a bundle for that combination of bundles (shared bundle), and add the asset to it.
       let sourceBundles = reachable.map(a => nullthrows(bundles.get(a.id)));
       let key = reachable.map(a => a.id).join(',');
-      console.log('Asset is', asset, 'and src bundles are', sourceBundles);
       let bundleId = bundles.get(key);
       let bundle;
       if (bundleId == null) {
