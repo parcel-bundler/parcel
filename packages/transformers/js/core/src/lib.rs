@@ -356,10 +356,14 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                     filename: Path::new(&config.filename),
                     decls: &mut decls,
                     global_mark,
-                    scope_hoist: config.scope_hoist
+                    scope_hoist: config.scope_hoist,
+                    is_development: config.is_development
                   },
                   config.insert_node_globals && config.source_type != SourceType::Script
                 ),
+                // TODO move __DEV__ replacement out of GlobalReplacer and before the simplifier calls above
+                expr_simplifier(Default::default()),
+                dead_branch_remover(),
                 // Transpile new syntax to older syntax if needed
                 Optional::new(
                   preset_env(global_mark, Some(&comments), preset_env_config),

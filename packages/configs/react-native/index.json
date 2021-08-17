@@ -1,0 +1,10 @@
+{
+  "extends": "@parcel/config-default",
+  "transformers": {
+    "rn-asset:*": ["..."]
+  },
+  "namers": ["@parcel/namer-react-native-assets", "..."],
+  "resolvers": ["@parcel/resolver-react-native"],
+  "reporters": ["@parcel/reporter-react-native", "..."],
+  "runtimes": ["...", "@parcel/runtime-react-native"]
+}

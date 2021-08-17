@@ -1,0 +1,26 @@
+{
+  "name": "@parcel/runtime-react-native",
+  "version": "2.0.1",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "funding": {
+    "type": "opencollective",
+    "url": "https://opencollective.com/parcel"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  },
+  "main": "lib/ReactNativeRuntime.js",
+  "source": "src/ReactNativeRuntime.js",
+  "engines": {
+    "node": ">= 12.0.0",
+    "parcel": "^2.0.1"
+  },
+  "dependencies": {
+    "@parcel/plugin": "^2.0.1",
+    "@parcel/utils": "^2.0.1"
+  }
+}

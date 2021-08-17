@@ -20,6 +20,7 @@ pub struct GlobalReplacer<'a> {
   pub decls: &'a mut HashSet<(JsWord, SyntaxContext)>,
   pub global_mark: swc_common::Mark,
   pub scope_hoist: bool,
+  pub is_development: bool,
 }
 
 impl<'a> Fold for GlobalReplacer<'a> {
@@ -185,6 +186,12 @@ impl<'a> Fold for GlobalReplacer<'a> {
 
             self.decls.insert(id.to_id());
           }
+        }
+        "__DEV__" => {
+          return ast::Expr::Lit(ast::Lit::Bool(ast::Bool {
+            value: self.is_development,
+            span: DUMMY_SP,
+          }))
         }
         _ => {}
       }

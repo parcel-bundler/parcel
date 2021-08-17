@@ -1,0 +1,80 @@
+diff --git a/node_modules/react-native/Libraries/Blob/URL.js b/node_modules/react-native/Libraries/Blob/URL.js
+index 3e63ff7..7bf2d86 100644
+--- a/node_modules/react-native/Libraries/Blob/URL.js
++++ b/node_modules/react-native/Libraries/Blob/URL.js
+@@ -5,6 +5,7 @@
+  * LICENSE file in the root directory of this source tree.
+  *
+  * @format
++ * @flow
+  */
+ 
+ const Blob = require('./Blob');
+diff --git a/node_modules/react-native/Libraries/LogBox/UI/LogBoxInspectorHeader.js b/node_modules/react-native/Libraries/LogBox/UI/LogBoxInspectorHeader.js
+index 8ad4aa2..e211182 100644
+--- a/node_modules/react-native/Libraries/LogBox/UI/LogBoxInspectorHeader.js
++++ b/node_modules/react-native/Libraries/LogBox/UI/LogBoxInspectorHeader.js
+@@ -51,7 +51,7 @@ function LogBoxInspectorHeader(props: Props): React.Node {
+         <LogBoxInspectorHeaderButton
+           disabled={props.total <= 1}
+           level={props.level}
+-          image={require('./LogBoxImages/chevron-left.png')}
++          // image={require('./LogBoxImages/chevron-left.png')}
+           onPress={() => props.onSelectIndex(prevIndex)}
+         />
+         <View style={styles.title}>
+@@ -60,7 +60,7 @@ function LogBoxInspectorHeader(props: Props): React.Node {
+         <LogBoxInspectorHeaderButton
+           disabled={props.total <= 1}
+           level={props.level}
+-          image={require('./LogBoxImages/chevron-right.png')}
++          // image={require('./LogBoxImages/chevron-right.png')}
+           onPress={() => props.onSelectIndex(nextIndex)}
+         />
+       </View>
+diff --git a/node_modules/react-native/Libraries/LogBox/UI/LogBoxInspectorSourceMapStatus.js b/node_modules/react-native/Libraries/LogBox/UI/LogBoxInspectorSourceMapStatus.js
+index fd9ec23..5281b42 100644
+--- a/node_modules/react-native/Libraries/LogBox/UI/LogBoxInspectorSourceMapStatus.js
++++ b/node_modules/react-native/Libraries/LogBox/UI/LogBoxInspectorSourceMapStatus.js
+@@ -75,11 +75,11 @@ function LogBoxInspectorSourceMapStatus(props: Props): React.Node {
+   let color;
+   switch (props.status) {
+     case 'FAILED':
+-      image = require('./LogBoxImages/alert-triangle.png');
++      // image = require('./LogBoxImages/alert-triangle.png');
+       color = LogBoxStyle.getErrorColor(1);
+       break;
+     case 'PENDING':
+-      image = require('./LogBoxImages/loader.png');
++      // image = require('./LogBoxImages/loader.png');
+       color = LogBoxStyle.getWarningColor(1);
+       break;
+   }
+diff --git a/node_modules/react-native/Libraries/LogBox/UI/LogBoxNotification.js b/node_modules/react-native/Libraries/LogBox/UI/LogBoxNotification.js
+index 81a0e2e..5a8b3ac 100644
+--- a/node_modules/react-native/Libraries/LogBox/UI/LogBoxNotification.js
++++ b/node_modules/react-native/Libraries/LogBox/UI/LogBoxNotification.js
+@@ -102,7 +102,7 @@ function DismissButton(props) {
+         onPress={props.onPress}
+         style={dismissStyles.press}>
+         <Image
+-          source={require('./LogBoxImages/close.png')}
++          // source={require('./LogBoxImages/close.png')}
+           style={dismissStyles.image}
+         />
+       </LogBoxButton>
+diff --git a/node_modules/react-native/Libraries/WebSocket/WebSocketInterceptor.js b/node_modules/react-native/Libraries/WebSocket/WebSocketInterceptor.js
+index db8c7d2..f1d12b3 100644
+--- a/node_modules/react-native/Libraries/WebSocket/WebSocketInterceptor.js
++++ b/node_modules/react-native/Libraries/WebSocket/WebSocketInterceptor.js
+@@ -17,8 +17,8 @@ const originalRCTWebSocketSend = NativeWebSocketModule.send;
+ const originalRCTWebSocketSendBinary = NativeWebSocketModule.sendBinary;
+ const originalRCTWebSocketClose = NativeWebSocketModule.close;
+ 
+-let eventEmitter: NativeEventEmitter;
+-let subscriptions: Array<EventSubscription>;
++let eventEmitter;
++let subscriptions;
+ 
+ let closeCallback;
+ let sendCallback;

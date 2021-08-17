@@ -60,6 +60,7 @@ var checkedAssets /*: {|[string]: boolean|} */,
   acceptedAssets /*: {|[string]: boolean|} */,
   assetsToAccept /*: Array<[ParcelRequire, string]> */;
 
+// TODO fallback for React Native
 function getHostname() {
   return (
     HMR_HOST ||
@@ -67,6 +68,7 @@ function getHostname() {
   );
 }
 
+// TODO fallback for React Native
 function getPort() {
   return HMR_PORT || location.port;
 }
@@ -77,9 +79,10 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = getHostname();
   var port = getPort();
   var protocol =
-    HMR_SECURE ||
+    // TODO fallback for React Native
+    HMR_SECURE /* ||
     (location.protocol == 'https:' &&
-      !/localhost|127.0.0.1|0.0.0.0/.test(hostname))
+      !/localhost|127.0.0.1|0.0.0.0/.test(hostname)) */
       ? 'wss'
       : 'ws';
   var ws = new WebSocket(

@@ -32,16 +32,16 @@ export default (new Transformer({
     let name = `$parcel$ReactRefreshHelpers$${asset.id.slice(-4)}`;
 
     code = `var ${name} = require(${JSON.stringify(wrapperPath)});
-var prevRefreshReg = window.$RefreshReg$;
-var prevRefreshSig = window.$RefreshSig$;
+var prevRefreshReg = globalThis.$RefreshReg$;
+var prevRefreshSig = globalThis.$RefreshSig$;
 ${name}.prelude(module);
 
 try {
 ${code}
   ${name}.postlude(module);
 } finally {
-  window.$RefreshReg$ = prevRefreshReg;
-  window.$RefreshSig$ = prevRefreshSig;
+  globalThis.$RefreshReg$ = prevRefreshReg;
+  globalThis.$RefreshSig$ = prevRefreshSig;
 }`;
 
     asset.setCode(code);
@@ -55,6 +55,11 @@ ${code}
       specifier: wrapperPath,
       specifierType: 'esm',
       resolveFrom: __filename,
+    });
+
+    asset.addDependency({
+      specifier: 'react-native/Libraries/Utilities/DevSettings',
+      specifierType: 'esm',
     });
 
     return [asset];

@@ -35,34 +35,38 @@ const BROWSER_ENV = new Environment(
   DEFAULT_OPTIONS,
 );
 
+async function setup() {
+  await overlayFS.mkdirp(rootDir);
+  await ncp(rootDir, rootDir);
+
+  // Create the symlinks here to prevent cross platform and git issues
+  await outputFS.symlink(
+    path.join(rootDir, 'packages/source'),
+    path.join(rootDir, 'node_modules/source'),
+  );
+  await outputFS.symlink(
+    path.join(rootDir, 'packages/source-alias'),
+    path.join(rootDir, 'node_modules/source-alias'),
+  );
+  await outputFS.symlink(
+    path.join(rootDir, 'packages/source-alias-glob'),
+    path.join(rootDir, 'node_modules/source-alias-glob'),
+  );
+  await outputFS.symlink(
+    path.join(rootDir, 'bar.js'),
+    path.join(rootDir, 'baz.js'),
+  );
+  await outputFS.symlink(
+    path.join(rootDir, 'nested'),
+    path.join(rootDir, 'symlinked-nested'),
+  );
+}
+
 describe('resolver', function () {
   let resolver;
 
   beforeEach(async function () {
-    await overlayFS.mkdirp(rootDir);
-    await ncp(rootDir, rootDir);
-
-    // Create the symlinks here to prevent cross platform and git issues
-    await outputFS.symlink(
-      path.join(rootDir, 'packages/source'),
-      path.join(rootDir, 'node_modules/source'),
-    );
-    await outputFS.symlink(
-      path.join(rootDir, 'packages/source-alias'),
-      path.join(rootDir, 'node_modules/source-alias'),
-    );
-    await outputFS.symlink(
-      path.join(rootDir, 'packages/source-alias-glob'),
-      path.join(rootDir, 'node_modules/source-alias-glob'),
-    );
-    await outputFS.symlink(
-      path.join(rootDir, 'bar.js'),
-      path.join(rootDir, 'baz.js'),
-    );
-    await outputFS.symlink(
-      path.join(rootDir, 'nested'),
-      path.join(rootDir, 'symlinked-nested'),
-    );
+    await setup();
 
     resolver = new NodeResolver({
       fs: overlayFS,
@@ -2319,5 +2323,35 @@ describe('resolver', function () {
       });
       assert.deepEqual(resolved, {isExcluded: true});
     });
+  });
+});
+
+describe('resolver multiple extensions', function () {
+  let resolver;
+
+  beforeEach(async function () {
+    await setup();
+
+    resolver = new NodeResolver({
+      fs: overlayFS,
+      projectRoot: rootDir,
+      mainFields: ['browser', 'source', 'module', 'main'],
+      extensions: ['.native.js', '.js', '.json'],
+    });
+
+    configCache.clear();
+  });
+
+  it('should support having extensions with multiple points', async function () {
+    let resolved = await resolver.resolve({
+      env: BROWSER_ENV,
+      filename: './foo',
+      specifierType: 'esm',
+      parent: path.join(rootDir, 'foo.js'),
+    });
+    assert.equal(
+      nullthrows(resolved).filePath,
+      path.join(rootDir, 'foo.native.js'),
+    );
   });
 });

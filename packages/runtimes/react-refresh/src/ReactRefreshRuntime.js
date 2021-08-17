@@ -6,9 +6,9 @@ import {loadConfig} from '@parcel/utils';
 const CODE = `
 var Refresh = require('react-refresh/runtime');
 
-Refresh.injectIntoGlobalHook(window);
-window.$RefreshReg$ = function() {};
-window.$RefreshSig$ = function() {
+Refresh.injectIntoGlobalHook(globalThis);
+globalThis.$RefreshReg$ = function() {};
+globalThis.$RefreshSig$ = function() {
   return function(type) {
     return type;
   };

@@ -208,6 +208,10 @@ export default class Server {
   ): Promise<void> {
     let bundleGraph = this.bundleGraph;
     if (bundleGraph) {
+      if (req.url.startsWith('//')) {
+        req.url = req.url.slice(1);
+      }
+
       let {pathname} = url.parse(req.url);
       if (!pathname) {
         this.send500(req, res);

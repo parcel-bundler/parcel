@@ -32,7 +32,8 @@
     "tag:release": "lerna version --force-publish=* --no-git-tag-version --no-push && yarn adjust-versions",
     "adjust-versions": "node scripts/update-config-dependencies.js && node scripts/update-engines.js",
     "release": "lerna publish -y from-package --pre-dist-tag=next --no-git-tag-version --no-push",
-    "prepare": "husky install"
+    "prepare": "husky install",
+    "postinstall": "patch-package"
   },
   "devDependencies": {
     "@babel/core": "^7.12.0",
@@ -51,6 +52,7 @@
     "mocha": "^8.3.0",
     "mocha-junit-reporter": "^2.0.0",
     "mocha-multi-reporters": "^1.5.1",
+    "patch-package": "^6.4.7",
     "prettier": "2.4.1",
     "rimraf": "^2.6.3",
     "semver": "^5.4.1",
@@ -66,5 +68,9 @@
   "collective": {
     "type": "opencollective",
     "url": "https://opencollective.com/parcel"
+  },
+  "dependencies": {},
+  "resolutions": {
+    "react-refresh": "^0.9.0"
   }
 }

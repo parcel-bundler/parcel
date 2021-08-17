@@ -1,4 +1,6 @@
 var Refresh = require('react-refresh/runtime');
+// eslint-disable-next-line import/no-extraneous-dependencies
+var DevSettings = require('react-native/Libraries/Utilities/DevSettings');
 
 function debounce(func, delay) {
   if (process.env.NODE_ENV === 'test') {
@@ -18,6 +20,7 @@ function debounce(func, delay) {
 }
 var enqueueUpdate = debounce(function () {
   Refresh.performReactRefresh();
+  DevSettings.onFastRefresh();
 }, 30);
 
 // Everthing below is either adapted or copied from
@@ -38,7 +41,8 @@ module.exports.postlude = function (module) {
     if (module.hot) {
       module.hot.dispose(function (data) {
         if (Refresh.hasUnrecoverableErrors()) {
-          window.location.reload();
+          DevSettings.reload('Fast Refresh - Unrecoverable');
+          return;
         }
 
         data.prevExports = module.exports;

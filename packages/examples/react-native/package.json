@@ -1,0 +1,13 @@
+{
+  "name": "@parcel/example-react-native",
+  "version": "0.0.0",
+  "scripts": {
+    "start": "parcel serve --config .parcelrc index.js --target default --host 10.6.10.149 --hmr-port 4444",
+    "build": "parcel build --config .parcelrc index.js"
+  },
+  "dependencies": {
+    "react": "17.0.2",
+    "react-native": "0.66.1"
+  },
+  "browserslist": "Safari 11"
+}

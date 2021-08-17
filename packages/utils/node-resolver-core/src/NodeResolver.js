@@ -121,11 +121,11 @@ export default class NodeResolver {
     // Get file extensions to search
     let extensions = this.extensions.slice();
 
-    if (parent) {
-      // parent's extension given high priority
-      let parentExt = path.extname(parent);
-      extensions = [parentExt, ...extensions.filter(ext => ext !== parentExt)];
-    }
+    // if (parent) {
+    //   // parent's extension given high priority
+    //   let parentExt = path.extname(parent);
+    //   extensions = [parentExt, ...extensions.filter(ext => ext !== parentExt)];
+    // }
 
     extensions.unshift('');
 
