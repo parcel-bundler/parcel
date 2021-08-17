@@ -852,6 +852,7 @@ function createBundle(
       type: nullthrows(opts.type),
       env: nullthrows(opts.env),
       needsStableName: Boolean(opts.needsStableName),
+      bundleBehavior: opts.bundleBehavior,
     };
   }
 
@@ -865,7 +866,7 @@ function createBundle(
     type: opts.type ?? asset.type,
     env: opts.env ?? asset.env,
     needsStableName: Boolean(opts.needsStableName),
-    bundleBehavior: asset.bundleBehavior,
+    bundleBehavior: opts.bundleBehavior ?? asset.bundleBehavior,
   };
 }
 
