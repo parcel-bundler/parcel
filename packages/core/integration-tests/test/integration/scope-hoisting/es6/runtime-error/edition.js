@@ -1,3 +1,5 @@
+//@flow
+
 import {FOO, BAR} from './application';
 
 export const FREE_EDITION = 'FREE_EDITION';

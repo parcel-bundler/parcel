@@ -705,6 +705,8 @@ ${code}
       exportSymbol,
       symbol,
     } = this.bundleGraph.getSymbolResolution(resolved, imported, this.bundle);
+
+    console.log('in getsymbolres', resolvedAsset.filePath, imported);
     if (resolvedAsset.type !== 'js') {
       // Graceful fallback for non-js imports
       return '{}';
@@ -989,6 +991,7 @@ ${code}
                 ) {
                   continue;
                 }
+                console.log(resolved.filePath, symbol);
 
                 let resolvedSymbol = this.getSymbolResolution(
                   asset,
@@ -1127,7 +1130,7 @@ ${code}
       return true;
     }
 
-    if (asset.filePath.includes('es6/runtime-error/')) {
+    if (asset.filePath.includes('es6/runtime-error')) {
       console.log(
         asset.filePath,
         'should skip?',
@@ -1139,6 +1142,13 @@ ${code}
         console.log('but returning true');
         return true;
       }
+      // if (
+      //   asset.filePath.includes('es6/runtime-error/index.ts') ||
+      //   asset.filePath.includes('es6/runtime-error/other/index.ts')
+      // ) {
+      //   console.log('but returning false');
+      //   return false;
+      // }
     }
 
     return (
