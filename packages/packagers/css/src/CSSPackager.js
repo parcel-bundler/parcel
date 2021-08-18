@@ -28,8 +28,22 @@ export default (new Packager({
     let queue = new PromiseQueue({
       maxConcurrent: 32,
     });
-    bundle.traverseAssets({
-      exit: asset => {
+    let hoistedImports = [];
+    bundle.traverse({
+      exit: node => {
+        if (node.type === 'dependency') {
+          // Hoist unresolved external dependencies (i.e. http: imports)
+          if (
+            node.value.priority === 'sync' &&
+            !bundleGraph.getResolvedAsset(node.value, bundle)
+          ) {
+            hoistedImports.push(node.value.specifier);
+          }
+          return;
+        }
+
+        let asset = node.value;
+
         // Figure out which media types this asset was imported with.
         // We only want to import the asset once, so group them all together.
         let media = [];
@@ -75,6 +89,12 @@ export default (new Packager({
     let contents = '';
     let map = new SourceMap(options.projectRoot);
     let lineOffset = 0;
+
+    for (let url of hoistedImports) {
+      contents += `@import "${url}";\n`;
+      lineOffset++;
+    }
+
     for (let [asset, code, mapBuffer] of outputs) {
       contents += code + '\n';
       if (bundle.env.sourceMap) {

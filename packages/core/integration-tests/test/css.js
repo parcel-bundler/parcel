@@ -381,4 +381,41 @@ describe('css', () => {
       },
     );
   });
+
+  it('should support importing CSS from node_modules with the npm: scheme', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/css-node-modules/index.css'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.css',
+        assets: ['index.css', 'foo.css'],
+      },
+    ]);
+  });
+
+  it('should support external CSS imports', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/css-external/a.css'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'a.css',
+        assets: ['a.css', 'b.css'],
+      },
+    ]);
+
+    let res = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(
+      res.startsWith(`@import "http://example.com/external.css";
+.b {
+  color: red;
+}
+.a {
+  color: blue;
+}`),
+    );
+  });
 });
