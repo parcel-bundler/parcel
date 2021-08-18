@@ -44,7 +44,8 @@
     "semver": "^5.4.1"
   },
   "devDependencies": {
-    "@napi-rs/cli": "1.0.4"
+    "@napi-rs/cli": "1.0.4",
+    "self-published": "npm:@parcel/transformer-js@2.0.0-rc.0"
   },
   "scripts": {
     "build": "napi build --platform --cargo-cwd napi",
