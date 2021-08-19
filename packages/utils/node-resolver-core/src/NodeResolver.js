@@ -478,81 +478,65 @@ export default class NodeResolver {
         break;
       }
 
-      default:
-        {
-          if (specifierType === 'url') {
-            let resolved = path.resolve(dir, filename);
-            // ATLASSIAN: Fall back to node_modules lookup if relative URL path
-            // doesn't exist.
-            if (this.fs.existsSync(resolved)) {
-              return {
-                filePath: resolved,
-              };
-            }
-            return {
-              filePath: filename,
-            };
+      default: {
+        // Bare specifier. If this is a URL, it's treated as relative,
+        // otherwise as a node_modules package.
+        if (specifierType === 'esm') {
+          // Try parsing as a URL first in case there is a scheme.
+          // Otherwise, fall back to an `npm:` specifier, parsed below.
+          try {
+            url = new URL(filename);
+          } catch (e) {
+            filename = 'npm:' + filename;
           }
-          // Bare specifier. If this is a URL, it's treated as relative,
-          // otherwise as a node_modules package.
-          if (specifierType === 'esm') {
-            // Try parsing as a URL first in case there is a scheme.
-            // Otherwise, fall back to an `npm:` specifier, parsed below.
-            try {
-              url = new URL(filename);
-            } catch (e) {
-              filename = 'npm:' + filename;
-            }
-          } else if (specifierType === 'commonjs') {
-            return {
-              filePath: filename,
-            };
-          }
-        }
-
-        // If this is a URL dependency or ESM specifier, parse as a URL.
-        // Otherwise, if this is CommonJS, parse as a platform path.
-        if (specifierType === 'url' || specifierType === 'esm') {
-          url = url ?? new URL(filename, `file:${dir}/index`);
-          let filePath;
-          if (url.protocol === 'npm:') {
-            // The `npm:` scheme allows URLs to resolve to node_modules packages.
-            filePath = decodeURIComponent(url.pathname);
-          } else if (url.protocol === 'node:') {
-            // Preserve the `node:` prefix for use later.
-            // Node does not URL decode or support query params here.
-            // See https://github.com/nodejs/node/issues/39710.
-            return {
-              filePath: filename,
-            };
-          } else if (url.protocol === 'file:') {
-            // $FlowFixMe
-            filePath = fileURLToPath(url);
-          } else if (specifierType === 'url') {
-            // Don't handle other protocols like http:
-            return null;
-          } else {
-            // Throw on unsupported url schemes in ESM dependencies.
-            // We may support http: or data: urls eventually.
-            throw new ThrowableDiagnostic({
-              diagnostic: {
-                message: `Unknown url scheme or pipeline '${url.protocol}'`,
-              },
-            });
-          }
-
+        } else if (specifierType === 'commonjs') {
           return {
-            filePath,
-            query: url.search
-              ? parseQueryString(url.search.slice(1))
-              : undefined,
-          };
-        } else {
-          // CommonJS specifier. Query params are not supported.
-          return {
-            filePath: path.resolve(dir, filename),
+            filePath: filename,
           };
         }
+      }
+    }
+
+    // If this is a URL dependency or ESM specifier, parse as a URL.
+    // Otherwise, if this is CommonJS, parse as a platform path.
+    if (specifierType === 'url' || specifierType === 'esm') {
+      url = url ?? new URL(filename, `file:${dir}/index`);
+      let filePath;
+      if (url.protocol === 'npm:') {
+        // The `npm:` scheme allows URLs to resolve to node_modules packages.
+        filePath = decodeURIComponent(url.pathname);
+      } else if (url.protocol === 'node:') {
+        // Preserve the `node:` prefix for use later.
+        // Node does not URL decode or support query params here.
+        // See https://github.com/nodejs/node/issues/39710.
+        return {
+          filePath: filename,
+        };
+      } else if (url.protocol === 'file:') {
+        // $FlowFixMe
+        filePath = fileURLToPath(url);
+      } else if (specifierType === 'url') {
+        // Don't handle other protocols like http:
+        return null;
+      } else {
+        // Throw on unsupported url schemes in ESM dependencies.
+        // We may support http: or data: urls eventually.
+        throw new ThrowableDiagnostic({
+          diagnostic: {
+            message: `Unknown url scheme or pipeline '${url.protocol}'`,
+          },
+        });
+      }
+
+      return {
+        filePath,
+        query: url.search ? parseQueryString(url.search.slice(1)) : undefined,
+      };
+    } else {
+      // CommonJS specifier. Query params are not supported.
+      return {
+        filePath: path.resolve(dir, filename),
+      };
     }
   }
 
