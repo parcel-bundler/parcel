@@ -58,8 +58,8 @@ describe('svg', function() {
     assert(file.includes('comment'));
   });
 
-  it('should detect xml-stylesheet processing instructions', async function() {
-    let b = await bundle(
+  it('should turn xml-stylesheet processing instructions into styles', async function() {
+    const b = await bundle(
       path.join(__dirname, '/integration/svg-xml-stylesheet/img.svg'),
     );
 
@@ -70,21 +70,23 @@ describe('svg', function() {
       },
       {
         type: 'css',
-        assets: ['style1.css'],
-      },
-      {
-        type: 'css',
-        assets: ['style3.css'],
+        assets: ['img.svg', 'style1.css', 'style3.css'],
       },
     ]);
 
-    let file = await outputFS.readFile(
+    const svg = await outputFS.readFile(
       b.getBundles().find(b => b.type === 'svg').filePath,
       'utf-8',
     );
 
-    assert(file.includes('<?xml-stylesheet'));
-    assert(file.includes('<?xml-not-a-stylesheet'));
+    assert(!svg.includes('style1.css'));
+    assert(!svg.includes('style3.css'));
+    assert(svg.includes('style2.css'));
+    assert(svg.includes('<?xml-not-a-stylesheet'));
+    assert(svg.includes('<style>'));
+    assert(!svg.includes('@import'));
+    assert(svg.includes(':root {\n  fill: red;\n  font-family: serif;\n}'));
+    assert(svg.includes(':root {\n  font-family: monospace;\n}\n'));
   });
 
   it('should handle CSS with @imports', async function() {

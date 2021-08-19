@@ -20,13 +20,17 @@ const OPTIONS = {
 
 export default function collectDependencies(asset: MutableAsset, ast: AST) {
   let isDirty = false;
+  const stylesheets = [];
   PostHTML().walk.call(ast.program, node => {
     if (typeof node === 'string' && node.startsWith('<?xml-stylesheet')) {
-      return node.replace(/(?<=(?:^|\s)href\s*=\s*")(.+?)(?=")/i, href => {
-        isDirty = true;
+      const [, href] = node.match(/(?<=(?:^|\s)href\s*=\s*")(.+?)(?=")/i) ?? [];
 
-        return asset.addURLDependency(href, {priority: 'parallel'});
-      });
+      if (!href) {
+        return node;
+      }
+      stylesheets.push(href);
+
+      return [];
     }
 
     const {tag, attrs} = node;
@@ -49,6 +53,25 @@ export default function collectDependencies(asset: MutableAsset, ast: AST) {
 
     return node;
   });
+
+  if (stylesheets.length) {
+    PostHTML().match.call(ast.program, {tag: 'svg'}, node => {
+      if (!node.content) {
+        node.content = [];
+      }
+
+      const imports = stylesheets.map(href => `@import '${href}';`);
+
+      // $FlowFixMe
+      node.content.unshift({
+        tag: 'style',
+        content: imports,
+      });
+      isDirty = true;
+
+      return node;
+    });
+  }
 
   if (isDirty) {
     asset.setAST(ast);
