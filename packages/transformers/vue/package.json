@@ -1,6 +1,6 @@
 {
   "name": "@parcel/transformer-vue",
-  "version": "2.0.9",
+  "version": "2.0.10",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -21,9 +21,9 @@
   },
   "dependencies": {
     "@parcel/diagnostic": "2.0.9",
-    "@parcel/plugin": "2.0.9",
+    "@parcel/plugin": "2.0.10",
     "@parcel/source-map": "2.0.0-rc.6",
-    "@parcel/utils": "2.0.9",
+    "@parcel/utils": "2.0.10",
     "@vue/compiler-sfc": "^3.0.0",
     "consolidate": "^0.16.0",
     "nullthrows": "^1.1.1",

@@ -1,6 +1,6 @@
 {
   "name": "@parcel/cache",
-  "version": "2.0.9",
+  "version": "2.0.10",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -25,7 +25,7 @@
   },
   "dependencies": {
     "@parcel/logger": "2.0.9",
-    "@parcel/utils": "2.0.9",
+    "@parcel/utils": "2.0.10",
     "lmdb-store": "^1.5.5"
   },
   "peerDependencies": {
