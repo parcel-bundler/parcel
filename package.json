@@ -69,5 +69,6 @@
   "collective": {
     "type": "opencollective",
     "url": "https://opencollective.com/parcel"
-  }
+  },
+  "version": "0.0.0"
 }
