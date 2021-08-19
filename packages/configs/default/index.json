@@ -60,8 +60,9 @@
     "*.html": "@parcel/packager-html",
     "*.css": "@parcel/packager-css",
     "*.{js,mjs,cjs}": "@parcel/packager-js",
+    "*.svg": "@parcel/packager-svg",
     "*.ts": "@parcel/packager-ts",
-    "*.{jsonld,svg,webmanifest}": "@parcel/packager-raw-url",
+    "*.{jsonld,webmanifest}": "@parcel/packager-raw-url",
     "*": "@parcel/packager-raw"
   },
   "resolvers": ["@parcel/resolver-default"],
