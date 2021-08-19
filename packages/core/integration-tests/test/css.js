@@ -372,6 +372,11 @@ describe('css', () => {
               },
             ],
           },
+          {
+            message: "Cannot load file './x.png' in './'.",
+            origin: '@parcel/resolver-default',
+            hints: [],
+          },
         ],
       },
     );

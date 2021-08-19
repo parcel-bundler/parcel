@@ -174,15 +174,13 @@ describe('webmanifest', function() {
             message,
             origin: '@parcel/core',
           },
-          // ATLASSIAN: This doesn't happen because URL dependencies fall back to node_modules
-          // in our modifications to the NodeResolver
-          // {
-          //   hints: [],
-          //   message: `Cannot load file './icon.png' in '${path.dirname(
-          //     manifestPathRelative,
-          //   )}'.`,
-          //   origin: '@parcel/resolver-default',
-          // },
+          {
+            hints: [],
+            message: `Cannot load file './icon.png' in '${path.dirname(
+              manifestPathRelative,
+            )}'.`,
+            origin: '@parcel/resolver-default',
+          },
         ],
       },
     );

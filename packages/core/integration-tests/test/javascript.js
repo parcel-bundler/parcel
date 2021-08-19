@@ -2427,13 +2427,11 @@ describe('javascript', function() {
           message: "Failed to resolve 'invalid.txt' from './missing.js'",
           origin: '@parcel/core',
         },
-        // ATLASSIAN: URL dependencies fall back to node_modules because of modified NodeResolver
-        //
-        // {
-        //   hints: [],
-        //   message: "Cannot load file './invalid.txt' in './'.",
-        //   origin: '@parcel/resolver-default',
-        // },
+        {
+          hints: [],
+          message: "Cannot load file './invalid.txt' in './'.",
+          origin: '@parcel/resolver-default',
+        },
       ],
     });
   });
