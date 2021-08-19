@@ -1,5 +1,6 @@
 // @flow strict-local
 
+import type {ContentKey} from '@parcel/graph';
 import type {
   ASTGenerator,
   BuildMode,
@@ -282,23 +283,6 @@ export type ParcelOptions = {|
     +outputFormat?: OutputFormat,
     +isLibrary?: boolean,
   |},
-|};
-
-// forcing NodeId to be opaque as it should only be created once
-export opaque type NodeId = number;
-export function toNodeId(x: number): NodeId {
-  return x;
-}
-export function fromNodeId(x: NodeId): number {
-  return x;
-}
-
-export type ContentKey = string;
-
-export type Edge<TEdgeType: string | null> = {|
-  from: NodeId,
-  to: NodeId,
-  type: TEdgeType,
 |};
 
 export type AssetNode = {|

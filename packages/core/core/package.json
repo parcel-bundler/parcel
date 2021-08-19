@@ -28,6 +28,7 @@
     "@parcel/diagnostic": "2.0.0-rc.0",
     "@parcel/events": "2.0.0-rc.0",
     "@parcel/fs": "2.0.0-rc.0",
+    "@parcel/graph": "2.0.0-rc.0",
     "@parcel/hash": "2.0.0-rc.0",
     "@parcel/logger": "2.0.0-rc.0",
     "@parcel/package-manager": "2.0.0-rc.0",
