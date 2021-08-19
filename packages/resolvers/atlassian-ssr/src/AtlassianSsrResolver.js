@@ -15,13 +15,16 @@ export default (new Resolver({
       );
     }
 
-    // ATLASSIAN: always prefer `module` over `main` so we can resolve esm versions of atlaskit modules
-    let mainFields = ['source', 'browser', 'module', 'main'];
     const resolver = new NodeResolver({
-      extensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'css', 'styl'],
       fs: options.inputFS,
-      mainFields,
       projectRoot: options.projectRoot,
+      // Extensions are always required in URL dependencies.
+      extensions:
+        dependency.specifierType === 'commonjs' ||
+        dependency.specifierType === 'esm'
+          ? ['ts', 'tsx', 'js', 'jsx', 'json']
+          : [],
+      mainFields: ['source', 'browser', 'module', 'main'],
       // ATLASSIAN: use custom field in package.json for aliases so we can have different aliases for SSR and client builds
       aliasField: 'aliasSsr',
     });
@@ -29,8 +32,9 @@ export default (new Resolver({
     return resolver.resolve({
       filename: specifier,
       specifierType: dependency.specifierType,
-      parent: dependency.sourcePath,
+      parent: dependency.resolveFrom,
       env: dependency.env,
+      sourcePath: dependency.sourcePath,
     });
   },
 }): Resolver);
