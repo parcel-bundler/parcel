@@ -1,11 +1,11 @@
 // @flow strict-local
 
+import type {ContentKey} from '@parcel/graph';
 import type {Async} from '@parcel/types';
 import type {StaticRunOpts} from '../RequestTracker';
 import type {
   AssetRequestInput,
   AssetRequestResult,
-  ContentKey,
   DevDepRequest,
   TransformationRequest,
 } from '../types';
