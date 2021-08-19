@@ -24,6 +24,6 @@
     "htmlnano": "^1.0.0",
     "nullthrows": "^1.1.1",
     "posthtml": "^0.16.4",
-    "svgo": "^2.3.0"
+    "svgo": "^2.4.0"
   }
 }

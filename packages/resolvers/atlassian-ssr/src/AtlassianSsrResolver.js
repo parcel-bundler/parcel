@@ -8,7 +8,7 @@ import NodeResolver from '@parcel/node-resolver-core';
 const WEBPACK_IMPORT_REGEX = /\S+-loader\S*!\S+/g;
 
 export default (new Resolver({
-  resolve({dependency, options, filePath}) {
+  resolve({dependency, options, specifier}) {
     if (WEBPACK_IMPORT_REGEX.test(dependency.specifier)) {
       throw new Error(
         `The import path: ${dependency.specifier} is using webpack specific loader import syntax, which isn't supported by Parcel.`,
@@ -27,8 +27,8 @@ export default (new Resolver({
     });
 
     return resolver.resolve({
-      filename: filePath,
-      isURL: dependency.specifierType === 'url',
+      filename: specifier,
+      specifierType: dependency.specifierType,
       parent: dependency.sourcePath,
       env: dependency.env,
     });

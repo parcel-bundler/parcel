@@ -2427,13 +2427,11 @@ describe('javascript', function() {
           message: "Failed to resolve 'invalid.txt' from './missing.js'",
           origin: '@parcel/core',
         },
-        // ATLASSIAN: URL dependencies fall back to node_modules because of modified NodeResolver
-        //
-        // {
-        //   hints: [],
-        //   message: "Cannot load file './invalid.txt' in './'.",
-        //   origin: '@parcel/resolver-default',
-        // },
+        {
+          hints: [],
+          message: "Cannot load file './invalid.txt' in './'.",
+          origin: '@parcel/resolver-default',
+        },
       ],
     });
   });
@@ -4573,7 +4571,7 @@ describe('javascript', function() {
       name: 'BuildError',
       diagnostics: [
         {
-          message: 'Unknown pipeline: strange-pipeline.',
+          message: "Failed to resolve 'strange-pipeline:./b.js' from './a.js'",
           origin: '@parcel/core',
           codeFrames: [
             {
@@ -4593,6 +4591,10 @@ describe('javascript', function() {
               ],
             },
           ],
+        },
+        {
+          message: "Unknown url scheme or pipeline 'strange-pipeline:'",
+          origin: '@parcel/resolver-default',
         },
       ],
     });
