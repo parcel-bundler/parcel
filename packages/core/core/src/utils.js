@@ -15,11 +15,12 @@ import type {
 
 import invariant from 'assert';
 import baseX from 'base-x';
+import {Graph} from '@parcel/graph';
 import {hashObject} from '@parcel/utils';
+
 import {registerSerializableClass} from './serializer';
 import AssetGraph from './AssetGraph';
 import BundleGraph from './BundleGraph';
-import Graph from './Graph';
 import ParcelConfig from './ParcelConfig';
 import {RequestGraph} from './RequestTracker';
 import Config from './public/Config';
