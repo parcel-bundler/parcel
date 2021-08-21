@@ -335,7 +335,7 @@ export default class PackagerRunner {
         bundle,
         bundleGraph: new BundleGraph<NamedBundleType>(
           bundleGraph,
-          NamedBundle.get,
+          NamedBundle.get.bind(NamedBundle),
           this.options,
         ),
         getSourceMapReference: map => {
@@ -404,7 +404,7 @@ export default class PackagerRunner {
     );
     let bundleGraph = new BundleGraph<NamedBundleType>(
       internalBundleGraph,
-      NamedBundle.get,
+      NamedBundle.get.bind(NamedBundle),
       this.options,
     );
     let optimizers = await this.config.getOptimizers(

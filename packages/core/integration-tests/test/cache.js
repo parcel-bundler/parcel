@@ -3077,9 +3077,9 @@ describe('cache', function() {
 
     describe('pnp', function() {
       it('should invalidate when the .pnp.js file changes', async function() {
-        // $FlowFixMe
         let Module = require('module');
         let origPnpVersion = process.versions.pnp;
+        // $FlowFixMe[prop-missing]
         let origModuleResolveFilename = Module._resolveFilename;
 
         try {
@@ -3094,9 +3094,10 @@ describe('cache', function() {
                   inputDir,
                 );
 
-                // $FlowFixMe
+                // $FlowFixMe[incompatible-type]
                 process.versions.pnp = 42;
 
+                // $FlowFixMe[prop-missing]
                 Module.findPnpApi = () =>
                   // $FlowFixMe
                   require(path.join(inputDir, '.pnp.js'));
@@ -3130,7 +3131,9 @@ describe('cache', function() {
           let output = await run(b.bundleGraph);
           assert.equal(output(), 6);
         } finally {
+          // $FlowFixMe[incompatible-type]
           process.versions.pnp = origPnpVersion;
+          // $FlowFixMe[prop-missing]
           Module._resolveFilename = origModuleResolveFilename;
         }
       });
@@ -3716,9 +3719,10 @@ describe('cache', function() {
     it('should support adding a deeper node_modules folder', async function() {});
 
     it('should support yarn pnp', async function() {
-      // $FlowFixMe
       let Module = require('module');
+      // $FlowFixMe[incompatible-type]
       let origPnpVersion = process.versions.pnp;
+      // $FlowFixMe[prop-missing]
       let origModuleResolveFilename = Module._resolveFilename;
 
       // We must create a worker farm that only uses a single thread because our process.versions.pnp
@@ -3809,6 +3813,7 @@ describe('cache', function() {
                 `,
             );
 
+            // $FlowFixMe[prop-missing]
             Module.findPnpApi = () =>
               // $FlowFixMe
               require(path.join(inputDir, '.pnp.js'));
@@ -3860,6 +3865,7 @@ describe('cache', function() {
         assert(output.includes('UPDATED'));
       } finally {
         process.versions.pnp = origPnpVersion;
+        // $FlowFixMe[prop-missing]
         Module._resolveFilename = origModuleResolveFilename;
         await workerFarm.end();
       }
