@@ -60,12 +60,9 @@ export default (new Packager({
     let renderConfig = config?.render;
 
     let {html} = await posthtml([
-      insertBundleReferences.bind(this, referencedBundles),
-      replaceInlineAssetContent.bind(
-        this,
-        bundleGraph,
-        getInlineBundleContents,
-      ),
+      tree => insertBundleReferences(referencedBundles, tree),
+      tree =>
+        replaceInlineAssetContent(bundleGraph, getInlineBundleContents, tree),
     ]).process(code, renderConfig);
 
     let {contents, map} = replaceURLReferences({
