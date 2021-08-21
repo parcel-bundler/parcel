@@ -69,7 +69,7 @@ export default async function applyRuntimes({
           bundle: NamedBundle.get(bundle, bundleGraph, options),
           bundleGraph: new BundleGraph<INamedBundle>(
             bundleGraph,
-            NamedBundle.get,
+            NamedBundle.get.bind(NamedBundle),
             options,
           ),
           config: configs.get(runtime.name)?.result,
