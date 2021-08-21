@@ -354,7 +354,7 @@ class BundlerRunner {
     let bundle = Bundle.get(internalBundle, internalBundleGraph, this.options);
     let bundleGraph = new BundleGraph<IBundle>(
       internalBundleGraph,
-      NamedBundle.get,
+      NamedBundle.get.bind(NamedBundle),
       this.options,
     );
 
