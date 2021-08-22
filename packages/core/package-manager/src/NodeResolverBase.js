@@ -48,7 +48,10 @@ export class NodeResolverBase<T> {
   ) {
     this.fs = fs;
     this.projectRoot = projectRoot;
-    this.extensions = extensions || Object.keys(Module._extensions);
+    this.extensions =
+      extensions ||
+      // $FlowFixMe[prop-missing]
+      Object.keys(Module._extensions);
     this.packageCache = new Map();
   }
 
@@ -141,6 +144,7 @@ export class NodeResolverBase<T> {
 
     if (!moduleDir && process.versions.pnp != null) {
       try {
+        // $FlowFixMe[prop-missing]
         let pnp = Module.findPnpApi(dir + '/');
         moduleDir = pnp.resolveToUnqualified(
           moduleName +

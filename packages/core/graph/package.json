@@ -1,6 +1,7 @@
 {
-  "name": "@parcel/optimizer-svgo",
+  "name": "@parcel/graph",
   "version": "2.0.0-rc.0",
+  "description": "Blazing fast, zero configuration web application bundler",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -13,16 +14,12 @@
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
-  "main": "lib/SVGOOptimizer.js",
-  "source": "src/SVGOOptimizer.js",
+  "main": "lib/index.js",
+  "source": "src/index.js",
   "engines": {
-    "node": ">= 12.0.0",
-    "parcel": "^2.0.0-beta.1"
+    "node": ">= 12.0.0"
   },
   "dependencies": {
-    "@parcel/diagnostic": "2.0.0-rc.0",
-    "@parcel/plugin": "2.0.0-rc.0",
-    "@parcel/utils": "2.0.0-rc.0",
-    "svgo": "^2.4.0"
+    "nullthrows": "^1.1.1"
   }
 }
