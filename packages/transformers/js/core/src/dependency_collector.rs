@@ -558,10 +558,16 @@ impl<'a> Fold for DependencyCollector<'a> {
           s
         } else if let Lit(lit) = &*arg.expr {
           if let ast::Lit::Str(str_) = lit {
-            let msg = if kind == DependencyKind::ServiceWorker {
-              "Registering service workers with a string literal is not supported."
+            let (msg, docs) = if kind == DependencyKind::ServiceWorker {
+              (
+                "Registering service workers with a string literal is not supported.",
+                "https://v2.parceljs.org/languages/javascript/#service-workers",
+              )
             } else {
-              "Registering worklets with a string literal is not supported."
+              (
+                "Registering worklets with a string literal is not supported.",
+                "http://localhost:8080/languages/javascript/#worklets",
+              )
             };
             self.diagnostics.push(Diagnostic {
               message: msg.to_string(),
@@ -575,7 +581,7 @@ impl<'a> Fold for DependencyCollector<'a> {
               )]),
               show_environment: false,
               severity: DiagnosticSeverity::Error,
-              documentation_url: None,
+              documentation_url: Some(String::from(docs)),
             });
             return node;
           } else {
@@ -747,7 +753,9 @@ impl<'a> Fold for DependencyCollector<'a> {
               )]),
               show_environment: false,
               severity: DiagnosticSeverity::Error,
-              documentation_url: None,
+              documentation_url: Some(String::from(
+                "https://v2.parceljs.org/languages/javascript/#web-workers",
+              )),
             });
             return node;
           } else {
@@ -1251,7 +1259,9 @@ impl<'a> DependencyCollector<'a> {
             hints: None,
             show_environment: true,
             severity: DiagnosticSeverity::Error,
-            documentation_url: None,
+            documentation_url: Some(String::from(
+              "https://v2.parceljs.org/languages/javascript/#classic-scripts",
+            )),
           })
         }
         true
