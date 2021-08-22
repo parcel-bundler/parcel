@@ -8,7 +8,7 @@ import type {BabelConfig} from './types';
 import path from 'path';
 import * as internalBabelCore from '@babel/core';
 import {hashObject, relativePath, resolveConfig} from '@parcel/utils';
-import {generateJSONCodeHighlights} from '@parcel/diagnostic';
+import {md, generateJSONCodeHighlights} from '@parcel/diagnostic';
 
 import isJSX from './jsx';
 import getFlowOptions from './flow';
@@ -328,7 +328,7 @@ async function warnOnRedundantPlugins(fs, babelConfig, logger) {
     plugins.length === 0
   ) {
     diagnostics.push({
-      message: `Parcel includes transpilation by default. Babel config ${filePath} contains only redundant presets. Deleting it may significantly improve build performance.`,
+      message: md`Parcel includes transpilation by default. Babel config __${filePath}__ contains only redundant presets. Deleting it may significantly improve build performance.`,
       codeFrames: [
         {
           filePath: configPath,
@@ -339,13 +339,17 @@ async function warnOnRedundantPlugins(fs, babelConfig, logger) {
           ),
         },
       ],
-      hints: [`Delete ${filePath}`],
+      hints: [md`Delete __${filePath}__`],
+      documentationURL:
+        'https://v2.parceljs.org/languages/javascript/#default-presets',
     });
   } else if (foundRedundantPresets.size > 0) {
     diagnostics.push({
-      message: `Parcel includes transpilation by default. Babel config ${filePath} includes the following redundant presets: ${[
+      message: md`Parcel includes transpilation by default. Babel config __${filePath}__ includes the following redundant presets: ${[
         ...foundRedundantPresets,
-      ].join(', ')}. Removing these may improve build performance.`,
+      ].map(p =>
+        md.underline(p),
+      )}. Removing these may improve build performance.`,
       codeFrames: [
         {
           filePath: configPath,
@@ -356,7 +360,9 @@ async function warnOnRedundantPlugins(fs, babelConfig, logger) {
           ),
         },
       ],
-      hints: [`Remove the above presets from ${filePath}`],
+      hints: [md`Remove the above presets from __${filePath}__`],
+      documentationURL:
+        'https://v2.parceljs.org/languages/javascript/#default-presets',
     });
   }
 
@@ -375,8 +381,10 @@ async function warnOnRedundantPlugins(fs, babelConfig, logger) {
         },
       ],
       hints: [
-        `Either remove @babel/preset-env to use Parcel\'s builtin transpilation, or replace with @parcel/babel-preset-env`,
+        `Either remove __@babel/preset-env__ to use Parcel's builtin transpilation, or replace with __@parcel/babel-preset-env__`,
       ],
+      documentationURL:
+        'https://v2.parceljs.org/languages/javascript/#custom-plugins',
     });
   }
 
@@ -394,7 +402,7 @@ async function getCodeHighlights(fs, filePath, redundantPresets) {
     let presets = json.presets || [];
     let pointers = [];
     for (let i = 0; i < presets.length; i++) {
-      if (Array.isArray(presets[i]) && redundantPlugins.has(presets[i][0])) {
+      if (Array.isArray(presets[i]) && redundantPresets.has(presets[i][0])) {
         pointers.push({type: 'value', key: `/presets/${i}/0`});
       } else if (redundantPresets.has(presets[i])) {
         pointers.push({type: 'value', key: `/presets/${i}`});

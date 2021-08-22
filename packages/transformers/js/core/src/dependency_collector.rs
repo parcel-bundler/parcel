@@ -207,6 +207,9 @@ impl<'a> DependencyCollector<'a> {
       hints: None,
       show_environment: true,
       severity: DiagnosticSeverity::Error,
+      documentation_url: Some(String::from(
+        "https://v2.parceljs.org/languages/javascript/#classic-scripts",
+      )),
     });
   }
 }
@@ -399,6 +402,9 @@ impl<'a> Fold for DependencyCollector<'a> {
                 )]),
                 show_environment: self.config.source_type == SourceType::Script,
                 severity: DiagnosticSeverity::Error,
+                documentation_url: Some(String::from(
+                  "https://v2.parceljs.org/languages/javascript/#classic-script-workers",
+                )),
               });
             }
 
@@ -569,6 +575,7 @@ impl<'a> Fold for DependencyCollector<'a> {
               )]),
               show_environment: false,
               severity: DiagnosticSeverity::Error,
+              documentation_url: None,
             });
             return node;
           } else {
@@ -740,6 +747,7 @@ impl<'a> Fold for DependencyCollector<'a> {
               )]),
               show_environment: false,
               severity: DiagnosticSeverity::Error,
+              documentation_url: None,
             });
             return node;
           } else {
@@ -1243,6 +1251,7 @@ impl<'a> DependencyCollector<'a> {
             hints: None,
             show_environment: true,
             severity: DiagnosticSeverity::Error,
+            documentation_url: None,
           })
         }
         true

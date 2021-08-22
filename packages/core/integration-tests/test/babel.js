@@ -575,7 +575,7 @@ describe('babel', function() {
       messages.push(message);
     });
     let filePath = path.join(__dirname, '/integration/babel-warn-all/index.js');
-    let b = await bundle(filePath);
+    await bundle(filePath);
     loggerDisposable.dispose();
 
     assert.deepEqual(messages, [
@@ -586,7 +586,7 @@ describe('babel', function() {
           {
             origin: '@parcel/transformer-babel',
             message:
-              'Parcel includes transpilation by default. Babel config test/integration/babel-warn-all/.babelrc contains only redundant presets. Deleting it may significantly improve build performance.',
+              'Parcel includes transpilation by default. Babel config __test/integration/babel-warn-all/.babelrc__ contains only redundant presets. Deleting it may significantly improve build performance.',
             codeFrames: [
               {
                 filePath: path.resolve(path.dirname(filePath), '.babelrc'),
@@ -605,7 +605,9 @@ describe('babel', function() {
                 ],
               },
             ],
-            hints: ['Delete test/integration/babel-warn-all/.babelrc'],
+            hints: ['Delete __test/integration/babel-warn-all/.babelrc__'],
+            documentationURL:
+              'https://v2.parceljs.org/languages/javascript/#default-presets',
           },
           {
             origin: '@parcel/transformer-babel',
@@ -630,8 +632,10 @@ describe('babel', function() {
               },
             ],
             hints: [
-              "Either remove @babel/preset-env to use Parcel's builtin transpilation, or replace with @parcel/babel-preset-env",
+              "Either remove __@babel/preset-env__ to use Parcel's builtin transpilation, or replace with __@parcel/babel-preset-env__",
             ],
+            documentationURL:
+              'https://v2.parceljs.org/languages/javascript/#custom-plugins',
           },
         ],
       },
@@ -647,7 +651,7 @@ describe('babel', function() {
       __dirname,
       '/integration/babel-warn-some/index.js',
     );
-    let b = await bundle(filePath);
+    await bundle(filePath);
     loggerDisposable.dispose();
 
     assert.deepEqual(messages, [
@@ -658,7 +662,7 @@ describe('babel', function() {
           {
             origin: '@parcel/transformer-babel',
             message:
-              'Parcel includes transpilation by default. Babel config test/integration/babel-warn-some/.babelrc includes the following redundant presets: @parcel/babel-preset-env. Removing these may improve build performance.',
+              'Parcel includes transpilation by default. Babel config __test/integration/babel-warn-some/.babelrc__ includes the following redundant presets: __@parcel/babel-preset-env__. Removing these may improve build performance.',
             codeFrames: [
               {
                 filePath: path.resolve(path.dirname(filePath), '.babelrc'),
@@ -678,8 +682,10 @@ describe('babel', function() {
               },
             ],
             hints: [
-              'Remove the above presets from test/integration/babel-warn-some/.babelrc',
+              'Remove the above presets from __test/integration/babel-warn-some/.babelrc__',
             ],
+            documentationURL:
+              'https://v2.parceljs.org/languages/javascript/#default-presets',
           },
         ],
       },

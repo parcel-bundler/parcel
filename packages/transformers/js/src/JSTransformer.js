@@ -1,6 +1,7 @@
 // @flow
 import type {JSONObject, EnvMap} from '@parcel/types';
 import type {SchemaEntity} from '@parcel/utils';
+import type {Diagnostic} from '@parcel/diagnostic';
 import SourceMap from '@parcel/source-map';
 import {Transformer} from '@parcel/plugin';
 import {init, transform} from '../native';
@@ -440,7 +441,7 @@ export default (new Transformer({
           message = err?.message || SCRIPT_ERRORS.browser.message;
         }
 
-        let res = {
+        let res: Diagnostic = {
           message,
           codeFrames: [
             {
@@ -458,9 +459,13 @@ export default (new Transformer({
           hints: diagnostic.hints,
         };
 
+        if (diagnostic.documentation_url) {
+          res.documentationURL = diagnostic.documentation_url;
+        }
+
         if (diagnostic.show_environment) {
           if (asset.env.loc && asset.env.loc.filePath !== asset.filePath) {
-            res.codeFrames.push({
+            res.codeFrames?.push({
               filePath: asset.env.loc.filePath,
               codeHighlights: [
                 {
