@@ -177,6 +177,7 @@ async function processCSSModule(
         hints: [
           `Instead do: import * as style from "${defaultImport.specifier}";`,
         ],
+        documentationURL: 'https://v2.parceljs.org/languages/css/#tree-shaking',
       });
     }
   }

@@ -1255,6 +1255,8 @@ describe('javascript', function() {
           hints: [
             "Add {type: 'module'} as a second argument to the Worker constructor.",
           ],
+          documentationURL:
+            'https://v2.parceljs.org/languages/javascript/#classic-scripts',
         },
       ]);
     }
@@ -1304,11 +1306,12 @@ describe('javascript', function() {
         errored = true;
         assert.equal(
           err.message,
-          'importScripts() is not supported in worker scripts.',
+          'Argument to importScripts() must be a fully qualified URL.',
         );
         assert.deepEqual(err.diagnostics, [
           {
-            message: 'importScripts() is not supported in worker scripts.',
+            message:
+              'Argument to importScripts() must be a fully qualified URL.',
             origin: '@parcel/transformer-js',
             codeFrames: [
               {
@@ -1321,11 +1324,11 @@ describe('javascript', function() {
                     message: null,
                     start: {
                       line: 1,
-                      column: 1,
+                      column: 15,
                     },
                     end: {
                       line: 1,
-                      column: 28,
+                      column: 27,
                     },
                   },
                 ],
@@ -1357,6 +1360,8 @@ describe('javascript', function() {
                   ? 'Worker constructor.'
                   : 'navigator.serviceWorker.register() call.'),
             ],
+            documentationURL:
+              'https://v2.parceljs.org/languages/javascript/#classic-script-workers',
           },
         ]);
       }
@@ -1405,6 +1410,29 @@ describe('javascript', function() {
 
     let res = await outputFS.readFile(b.getBundles()[1].filePath, 'utf8');
     assert(res.includes('importScripts(url)'));
+  });
+
+  it('should ignore importScripts in script workers a fully qualified URL is provided', async function() {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/worker-import-scripts/index-external.js',
+      ),
+    );
+
+    assertBundles(b, [
+      {
+        type: 'js',
+        assets: ['index-external.js', 'bundle-url.js', 'get-worker-url.js'],
+      },
+      {
+        type: 'js',
+        assets: ['external.js'],
+      },
+    ]);
+
+    let res = await outputFS.readFile(b.getBundles()[1].filePath, 'utf8');
+    assert(res.includes("importScripts('https://unpkg.com/parcel')"));
   });
 
   it('should support bundling service-workers', async function() {
@@ -1550,6 +1578,8 @@ describe('javascript', function() {
           hints: [
             "Add {type: 'module'} as a second argument to the navigator.serviceWorker.register() call.",
           ],
+          documentationURL:
+            'https://v2.parceljs.org/languages/javascript/#classic-scripts',
         },
       ]);
     }
@@ -1617,6 +1647,69 @@ describe('javascript', function() {
         },
       ],
     });
+  });
+
+  it('should error on dynamic import() inside service workers', async function() {
+    let errored = false;
+    try {
+      await bundle(
+        path.join(
+          __dirname,
+          '/integration/service-worker/dynamic-import-index.js',
+        ),
+      );
+    } catch (err) {
+      errored = true;
+      assert.equal(err.message, 'import() is not allowed in service workers.');
+      assert.deepEqual(err.diagnostics, [
+        {
+          message: 'import() is not allowed in service workers.',
+          origin: '@parcel/transformer-js',
+          codeFrames: [
+            {
+              filePath: path.join(
+                __dirname,
+                '/integration/service-worker/dynamic-import.js',
+              ),
+              codeHighlights: [
+                {
+                  start: {
+                    line: 1,
+                    column: 8,
+                  },
+                  end: {
+                    line: 1,
+                    column: 27,
+                  },
+                },
+              ],
+            },
+            {
+              filePath: path.join(
+                __dirname,
+                'integration/service-worker/dynamic-import-index.js',
+              ),
+              codeHighlights: [
+                {
+                  message: 'The environment was originally created here',
+                  start: {
+                    line: 1,
+                    column: 42,
+                  },
+                  end: {
+                    line: 1,
+                    column: 60,
+                  },
+                },
+              ],
+            },
+          ],
+          hints: ['Try using a static `import`.'],
+        },
+      ]);
+    }
+
+    assert(errored);
   });
 
   it('should support bundling workers with circular dependencies', async function() {

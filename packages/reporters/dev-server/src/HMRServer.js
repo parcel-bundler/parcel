@@ -77,12 +77,13 @@ export default class HMRServer {
       type: 'error',
       diagnostics: {
         ansi: renderedDiagnostics,
-        html: renderedDiagnostics.map(d => {
+        html: renderedDiagnostics.map((d, i) => {
           return {
             message: ansiHtml(d.message),
             stack: ansiHtml(d.stack),
             codeframe: ansiHtml(d.codeframe),
             hints: d.hints.map(hint => ansiHtml(hint)),
+            documentation: diagnostics[i].documentationURL ?? '',
           };
         }),
       },
