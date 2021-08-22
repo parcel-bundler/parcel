@@ -568,4 +568,121 @@ describe('babel', function() {
     assert(!file.includes('interface'));
     assert(file.includes('React.createElement'));
   });
+
+  it('should warn when a babel config contains only redundant plugins', async function() {
+    let messages = [];
+    let loggerDisposable = Logger.onLog(message => {
+      messages.push(message);
+    });
+    let filePath = path.join(__dirname, '/integration/babel-warn-all/index.js');
+    let b = await bundle(filePath);
+    loggerDisposable.dispose();
+
+    assert.deepEqual(messages, [
+      {
+        type: 'log',
+        level: 'warn',
+        diagnostics: [
+          {
+            origin: '@parcel/transformer-babel',
+            message:
+              'Parcel includes transpilation by default. Babel config test/integration/babel-warn-all/.babelrc contains only redundant presets. Deleting it may significantly improve build performance.',
+            codeFrames: [
+              {
+                filePath: path.resolve(path.dirname(filePath), '.babelrc'),
+                codeHighlights: [
+                  {
+                    message: undefined,
+                    start: {
+                      line: 2,
+                      column: 15,
+                    },
+                    end: {
+                      line: 2,
+                      column: 33,
+                    },
+                  },
+                ],
+              },
+            ],
+            hints: ['Delete test/integration/babel-warn-all/.babelrc'],
+          },
+          {
+            origin: '@parcel/transformer-babel',
+            message:
+              "@babel/preset-env does not support Parcel's targets, which will likely result in unnecessary transpilation and larger bundle sizes.",
+            codeFrames: [
+              {
+                filePath: path.resolve(path.dirname(filePath), '.babelrc'),
+                codeHighlights: [
+                  {
+                    message: undefined,
+                    start: {
+                      line: 2,
+                      column: 15,
+                    },
+                    end: {
+                      line: 2,
+                      column: 33,
+                    },
+                  },
+                ],
+              },
+            ],
+            hints: [
+              "Either remove @babel/preset-env to use Parcel's builtin transpilation, or replace with @parcel/babel-preset-env",
+            ],
+          },
+        ],
+      },
+    ]);
+  });
+
+  it('should warn when a babel config contains redundant plugins', async function() {
+    let messages = [];
+    let loggerDisposable = Logger.onLog(message => {
+      messages.push(message);
+    });
+    let filePath = path.join(
+      __dirname,
+      '/integration/babel-warn-some/index.js',
+    );
+    let b = await bundle(filePath);
+    loggerDisposable.dispose();
+
+    assert.deepEqual(messages, [
+      {
+        type: 'log',
+        level: 'warn',
+        diagnostics: [
+          {
+            origin: '@parcel/transformer-babel',
+            message:
+              'Parcel includes transpilation by default. Babel config test/integration/babel-warn-some/.babelrc includes the following redundant presets: @parcel/babel-preset-env. Removing these may improve build performance.',
+            codeFrames: [
+              {
+                filePath: path.resolve(path.dirname(filePath), '.babelrc'),
+                codeHighlights: [
+                  {
+                    message: undefined,
+                    start: {
+                      line: 2,
+                      column: 15,
+                    },
+                    end: {
+                      line: 2,
+                      column: 40,
+                    },
+                  },
+                ],
+              },
+            ],
+            hints: [
+              'Remove the above presets from test/integration/babel-warn-some/.babelrc',
+            ],
+          },
+        ],
+      },
+    ]);
+  });
 });
