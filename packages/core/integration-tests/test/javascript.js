@@ -1643,6 +1643,69 @@ describe('javascript', function() {
     });
   });
 
+  it('should error on dynamic import() inside service workers', async function() {
+    let errored = false;
+    try {
+      await bundle(
+        path.join(
+          __dirname,
+          '/integration/service-worker/dynamic-import-index.js',
+        ),
+      );
+    } catch (err) {
+      errored = true;
+      assert.equal(err.message, 'import() is not allowed in service workers.');
+      assert.deepEqual(err.diagnostics, [
+        {
+          message: 'import() is not allowed in service workers.',
+          origin: '@parcel/transformer-js',
+          codeFrames: [
+            {
+              filePath: path.join(
+                __dirname,
+                '/integration/service-worker/dynamic-import.js',
+              ),
+              codeHighlights: [
+                {
+                  start: {
+                    line: 1,
+                    column: 8,
+                  },
+                  end: {
+                    line: 1,
+                    column: 27,
+                  },
+                },
+              ],
+            },
+            {
+              filePath: path.join(
+                __dirname,
+                'integration/service-worker/dynamic-import-index.js',
+              ),
+              codeHighlights: [
+                {
+                  message: 'The environment was originally created here',
+                  start: {
+                    line: 1,
+                    column: 42,
+                  },
+                  end: {
+                    line: 1,
+                    column: 60,
+                  },
+                },
+              ],
+            },
+          ],
+          hints: ['Try using a static `import`.'],
+        },
+      ]);
+    }
+
+    assert(errored);
+  });
+
   it('should support bundling workers with circular dependencies', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/worker-circular/index.js'),

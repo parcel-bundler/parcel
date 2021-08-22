@@ -584,10 +584,13 @@ export default (new Transformer({
 
         let env;
         if (dep.kind === 'DynamicImport') {
-          if (asset.env.isWorklet()) {
+          // https://html.spec.whatwg.org/multipage/webappapis.html#hostimportmoduledynamically(referencingscriptormodule,-modulerequest,-promisecapability)
+          if (asset.env.isWorklet() || asset.env.context === 'service-worker') {
             let loc = convertLoc(dep.loc);
             let diagnostic = {
-              message: 'import() is not allowed in worklets.',
+              message: `import() is not allowed in ${
+                asset.env.isWorklet() ? 'worklets' : 'service workers'
+              }.`,
               codeFrames: [
                 {
                   filePath: asset.filePath,
