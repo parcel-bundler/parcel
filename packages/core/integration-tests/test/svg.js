@@ -64,14 +64,20 @@ describe('svg', function() {
     assert(
       file.includes(
         `<script xlink:href="/${path.basename(
-          b.getBundles().find(b => b.name.startsWith('script')).filePath,
+          b
+            .getBundles()
+            .find(b => b.type === 'js' && b.env.sourceType === 'script')
+            .filePath,
         )}"`,
       ),
     );
     assert(
       file.includes(
         `<script href="/${path.basename(
-          b.getBundles().find(b => b.name.startsWith('module')).filePath,
+          b
+            .getBundles()
+            .find(b => b.type === 'js' && b.env.sourceType === 'module')
+            .filePath,
         )}"`,
       ),
     );
