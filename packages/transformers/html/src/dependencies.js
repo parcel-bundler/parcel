@@ -133,7 +133,7 @@ export default function collectDependencies(
       });
       if (isMetaDependency) {
         const metaAssetUrl = attrs.content;
-        if (metaAssetUrl && !/^(http|https):\/\//.test(metaAssetUrl)) {
+        if (metaAssetUrl) {
           attrs.content = asset.addURLDependency(attrs.content, {
             needsStableName: true,
           });
