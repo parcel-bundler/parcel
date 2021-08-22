@@ -1304,11 +1304,12 @@ describe('javascript', function() {
         errored = true;
         assert.equal(
           err.message,
-          'importScripts() is not supported in worker scripts.',
+          'Argument to importScripts() must be a fully qualified URL.',
         );
         assert.deepEqual(err.diagnostics, [
           {
-            message: 'importScripts() is not supported in worker scripts.',
+            message:
+              'Argument to importScripts() must be a fully qualified URL.',
             origin: '@parcel/transformer-js',
             codeFrames: [
               {
@@ -1321,11 +1322,11 @@ describe('javascript', function() {
                     message: null,
                     start: {
                       line: 1,
-                      column: 1,
+                      column: 15,
                     },
                     end: {
                       line: 1,
-                      column: 28,
+                      column: 27,
                     },
                   },
                 ],
@@ -1405,6 +1406,29 @@ describe('javascript', function() {
 
     let res = await outputFS.readFile(b.getBundles()[1].filePath, 'utf8');
     assert(res.includes('importScripts(url)'));
+  });
+
+  it('should ignore importScripts in script workers a fully qualified URL is provided', async function() {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/worker-import-scripts/index-external.js',
+      ),
+    );
+
+    assertBundles(b, [
+      {
+        type: 'js',
+        assets: ['index-external.js', 'bundle-url.js', 'get-worker-url.js'],
+      },
+      {
+        type: 'js',
+        assets: ['external.js'],
+      },
+    ]);
+
+    let res = await outputFS.readFile(b.getBundles()[1].filePath, 'utf8');
+    assert(res.includes("importScripts('https://unpkg.com/parcel')"));
   });
 
   it('should support bundling service-workers', async function() {
