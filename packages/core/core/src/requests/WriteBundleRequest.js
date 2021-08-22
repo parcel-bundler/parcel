@@ -1,9 +1,11 @@
 // @flow strict-local
 
-import type {Async, FilePath} from '@parcel/types';
-import type {StaticRunOpts} from '../RequestTracker';
-import type {Bundle, ContentKey, PackagedBundleInfo} from '../types';
 import type {FileSystem, FileOptions} from '@parcel/fs';
+import type {ContentKey} from '@parcel/graph';
+import type {Async, FilePath} from '@parcel/types';
+
+import type {StaticRunOpts} from '../RequestTracker';
+import type {Bundle, PackagedBundleInfo} from '../types';
 import type BundleGraph from '../BundleGraph';
 import type {BundleInfo} from '../PackagerRunner';
 

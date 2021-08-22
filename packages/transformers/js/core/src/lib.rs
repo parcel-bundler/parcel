@@ -195,6 +195,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
             hints,
             show_environment: false,
             severity: DiagnosticSeverity::Error,
+            documentation_url: None,
           }
         })
         .collect();

@@ -170,6 +170,7 @@ impl<'a> Fold for Hoist<'a> {
                     hints: None,
                     show_environment: false,
                     severity: DiagnosticSeverity::Error,
+                    documentation_url: None,
                   })
                 }
               }
