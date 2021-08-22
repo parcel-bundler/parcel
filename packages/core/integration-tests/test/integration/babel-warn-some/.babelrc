@@ -1,0 +1,4 @@
+{
+  "presets": ["@parcel/babel-preset-env"],
+  "plugins": ["../babelrc-custom/babel-plugin-dummy"]
+}
