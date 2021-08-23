@@ -467,6 +467,38 @@ describe('html', function() {
     assert.equal(html.length, 0);
   });
 
+  it('should work with an invalid html file', async function() {
+    let inputFile = path.join(
+      __dirname,
+      '/integration/html-invalid/index.html',
+    );
+    await bundle(inputFile, {
+      defaultTargetOptions: {
+        shouldOptimize: false,
+      },
+    });
+
+    let outputFile = path.join(distDir, 'index.html');
+    let html = await outputFS.readFile(outputFile, 'utf8');
+    assert(html.includes('This is a paragraph'));
+  });
+
+  it("should work with html that doesn't include optional closing tags", async function() {
+    let inputFile = path.join(
+      __dirname,
+      '/integration/html-optional-closing-tags/index.html',
+    );
+    await bundle(inputFile, {
+      defaultTargetOptions: {
+        shouldOptimize: false,
+      },
+    });
+
+    let outputFile = path.join(distDir, 'index.html');
+    let html = await outputFS.readFile(outputFile, 'utf8');
+    assert(html.includes('Paragraph 1'));
+  });
+
   it('should read .htmlnanorc.json and minify HTML in production mode', async function() {
     await bundle(
       path.join(__dirname, '/integration/htmlnano-config/index.html'),
