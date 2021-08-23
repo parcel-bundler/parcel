@@ -67,6 +67,7 @@ export default class Server {
     message: string,
     stack: string,
     hints: Array<string>,
+    documentation: string,
   |}> | null;
   stopServer: ?() => Promise<void>;
 
@@ -118,6 +119,7 @@ export default class Server {
             ? ansiHtml(ansiDiagnostic.codeframe)
             : ansiHtml(ansiDiagnostic.stack),
           hints: ansiDiagnostic.hints.map(hint => ansiHtml(hint)),
+          documentation: d.documentationURL ?? '',
         };
       }),
     );

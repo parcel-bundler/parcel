@@ -126,7 +126,6 @@ impl<'a> Fold for EnvReplacer<'a> {
           }
         }
         PatOrExpr::Expr(expr) => Some(&**expr),
-        _ => None,
       };
 
       if let Some(Expr::Member(MemberExpr {
@@ -306,6 +305,7 @@ impl<'a> EnvReplacer<'a> {
       hints: None,
       show_environment: false,
       severity: DiagnosticSeverity::SourceError,
+      documentation_url: None,
     });
   }
 }

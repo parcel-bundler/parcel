@@ -41,7 +41,8 @@
     "@parcel/transformer-postcss": "2.0.0-rc.0",
     "@parcel/transformer-posthtml": "2.0.0-rc.0",
     "@parcel/transformer-raw": "2.0.0-rc.0",
-    "@parcel/transformer-react-refresh-wrap": "2.0.0-rc.0"
+    "@parcel/transformer-react-refresh-wrap": "2.0.0-rc.0",
+    "@parcel/transformer-svg": "2.0.0-rc.0"
   },
   "parcelDependencies": {
     "@parcel/optimizer-data-url": "2.0.0-rc.0",

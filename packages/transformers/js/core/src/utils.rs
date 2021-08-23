@@ -187,6 +187,7 @@ pub struct Diagnostic {
   pub hints: Option<Vec<String>>,
   pub show_environment: bool,
   pub severity: DiagnosticSeverity,
+  pub documentation_url: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq)]

@@ -10,3 +10,4 @@ export const error: string = supportsEmoji ? '🚨' : '×';
 export const warning: string = supportsEmoji ? '⚠️' : '‼';
 export const info: string = supportsEmoji ? 'ℹ️' : 'ℹ';
 export const hint: string = supportsEmoji ? '💡' : 'ℹ';
+export const docs: string = supportsEmoji ? '📝' : 'ℹ';

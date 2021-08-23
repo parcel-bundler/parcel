@@ -207,6 +207,9 @@ impl<'a> DependencyCollector<'a> {
       hints: None,
       show_environment: true,
       severity: DiagnosticSeverity::Error,
+      documentation_url: Some(String::from(
+        "https://v2.parceljs.org/languages/javascript/#classic-scripts",
+      )),
     });
   }
 }
@@ -356,32 +359,52 @@ impl<'a> Fold for DependencyCollector<'a> {
           }
           "importScripts" => {
             if self.config.is_worker {
-              let msg = if self.config.source_type == SourceType::Script {
+              let (msg, span) = if self.config.source_type == SourceType::Script {
                 // Ignore if argument is not a string literal.
-                if let Some(ast::ExprOrSpread { expr, .. }) = node.args.get(0) {
+                let span = if let Some(ast::ExprOrSpread { expr, .. }) = node.args.get(0) {
                   match &**expr {
-                    Lit(ast::Lit::Str(_)) => {}
+                    Lit(ast::Lit::Str(ast::Str { value, span, .. })) => {
+                      // Ignore absolute URLs.
+                      if value.starts_with("http:")
+                        || value.starts_with("https:")
+                        || value.starts_with("//")
+                      {
+                        return node.fold_children_with(self);
+                      }
+                      span
+                    }
                     _ => {
                       return node.fold_children_with(self);
                     }
                   }
-                }
+                } else {
+                  return node.fold_children_with(self);
+                };
 
-                "importScripts() is not supported in worker scripts."
+                (
+                  "Argument to importScripts() must be a fully qualified URL.",
+                  *span,
+                )
               } else {
-                "importScripts() is not supported in module workers."
+                (
+                  "importScripts() is not supported in module workers.",
+                  node.span,
+                )
               };
               self.diagnostics.push(Diagnostic {
                 message: msg.to_string(),
                 code_highlights: Some(vec![CodeHighlight {
                   message: None,
-                  loc: SourceLocation::from(self.source_map, node.span),
+                  loc: SourceLocation::from(self.source_map, span),
                 }]),
                 hints: Some(vec![String::from(
                   "Use a static `import`, or dynamic `import()` instead.",
                 )]),
                 show_environment: self.config.source_type == SourceType::Script,
                 severity: DiagnosticSeverity::Error,
+                documentation_url: Some(String::from(
+                  "https://v2.parceljs.org/languages/javascript/#classic-script-workers",
+                )),
               });
             }
 
@@ -535,10 +558,16 @@ impl<'a> Fold for DependencyCollector<'a> {
           s
         } else if let Lit(lit) = &*arg.expr {
           if let ast::Lit::Str(str_) = lit {
-            let msg = if kind == DependencyKind::ServiceWorker {
-              "Registering service workers with a string literal is not supported."
+            let (msg, docs) = if kind == DependencyKind::ServiceWorker {
+              (
+                "Registering service workers with a string literal is not supported.",
+                "https://v2.parceljs.org/languages/javascript/#service-workers",
+              )
             } else {
-              "Registering worklets with a string literal is not supported."
+              (
+                "Registering worklets with a string literal is not supported.",
+                "http://localhost:8080/languages/javascript/#worklets",
+              )
             };
             self.diagnostics.push(Diagnostic {
               message: msg.to_string(),
@@ -552,6 +581,7 @@ impl<'a> Fold for DependencyCollector<'a> {
               )]),
               show_environment: false,
               severity: DiagnosticSeverity::Error,
+              documentation_url: Some(String::from(docs)),
             });
             return node;
           } else {
@@ -723,6 +753,9 @@ impl<'a> Fold for DependencyCollector<'a> {
               )]),
               show_environment: false,
               severity: DiagnosticSeverity::Error,
+              documentation_url: Some(String::from(
+                "https://v2.parceljs.org/languages/javascript/#web-workers",
+              )),
             });
             return node;
           } else {
@@ -1226,6 +1259,9 @@ impl<'a> DependencyCollector<'a> {
             hints: None,
             show_environment: true,
             severity: DiagnosticSeverity::Error,
+            documentation_url: Some(String::from(
+              "https://v2.parceljs.org/languages/javascript/#classic-scripts",
+            )),
           })
         }
         true
