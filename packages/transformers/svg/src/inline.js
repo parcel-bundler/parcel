@@ -30,7 +30,7 @@ export default function extractInlineAssets(
       type = 'css';
     }
 
-    if (type !== 'css') {
+    if (!type) {
       return node;
     }
 
@@ -39,6 +39,9 @@ export default function extractInlineAssets(
     if (!node.attrs) {
       node.attrs = {};
     }
+
+    // Inform packager to remove type, since CSS is the default.
+    delete node.attrs.type;
 
     // insert parcelId to allow us to retrieve node during packaging
     node.attrs['data-parcel-key'] = parcelKey;
