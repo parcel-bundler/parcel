@@ -34,6 +34,7 @@ export default (new Transformer({
     );
 
     asset.type = 'jsx';
+    asset.bundleBehavior = 'inline';
     asset.setCode(jsx);
 
     return [asset];

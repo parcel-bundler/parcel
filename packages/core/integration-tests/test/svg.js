@@ -86,4 +86,22 @@ describe('svg', function() {
     assert(file.includes('<?xml-stylesheet'));
     assert(file.includes('<?xml-not-a-stylesheet'));
   });
+
+  it('should be in separate bundles', async function() {
+    const b = await bundle(
+      path.join(__dirname, '/integration/svg-multiple/index.js'),
+    );
+
+    assertBundles(b, [
+      {
+        assets: ['index.js', 'bundle-url.js'],
+      },
+      {
+        assets: ['circle.svg'],
+      },
+      {
+        assets: ['square.svg'],
+      },
+    ]);
+  });
 });

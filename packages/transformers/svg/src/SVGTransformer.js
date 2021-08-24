@@ -31,6 +31,8 @@ export default (new Transformer({
   },
 
   async transform({asset}) {
+    asset.bundleBehavior = 'isolated';
+
     const ast = nullthrows(await asset.getAST());
 
     collectDependencies(asset, ast);
