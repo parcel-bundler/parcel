@@ -16,6 +16,7 @@ import Logger from '@parcel/logger';
 import os from 'os';
 import {spawnSync} from 'child_process';
 import tempy from 'tempy';
+import {md} from '@parcel/diagnostic';
 
 const parcelCli = require.resolve('parcel/src/bin.js');
 const inputDir = path.join(__dirname, '/input');
@@ -586,7 +587,7 @@ describe('babel', function() {
         diagnostics: [
           {
             origin: '@parcel/transformer-babel',
-            message: `Parcel includes transpilation by default. Babel config __${path.relative(
+            message: md`Parcel includes transpilation by default. Babel config __${path.relative(
               process.cwd(),
               babelrcPath,
             )}__ contains only redundant presets. Deleting it may significantly improve build performance.`,
@@ -608,7 +609,9 @@ describe('babel', function() {
                 ],
               },
             ],
-            hints: ['Delete __test/integration/babel-warn-all/.babelrc__'],
+            hints: [
+              md`Delete __${path.relative(process.cwd(), babelrcPath)}__`,
+            ],
             documentationURL:
               'https://v2.parceljs.org/languages/javascript/#default-presets',
           },
@@ -665,7 +668,7 @@ describe('babel', function() {
         diagnostics: [
           {
             origin: '@parcel/transformer-babel',
-            message: `Parcel includes transpilation by default. Babel config __${path.relative(
+            message: md`Parcel includes transpilation by default. Babel config __${path.relative(
               process.cwd(),
               babelrcPath,
             )}__ includes the following redundant presets: __@parcel/babel-preset-env__. Removing these may improve build performance.`,
@@ -688,7 +691,7 @@ describe('babel', function() {
               },
             ],
             hints: [
-              `Remove the above presets from __${path.relative(
+              md`Remove the above presets from __${path.relative(
                 process.cwd(),
                 babelrcPath,
               )}__`,
