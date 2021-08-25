@@ -37,11 +37,8 @@ export default (new Packager({
     };
 
     let {html: svg} = await posthtml([
-      replaceInlineAssetContent.bind(
-        this,
-        bundleGraph,
-        getInlineBundleContents,
-      ),
+      tree =>
+        replaceInlineAssetContent(bundleGraph, getInlineBundleContents, tree),
     ]).process(code, options);
 
     const {contents, map} = replaceURLReferences({
