@@ -20,7 +20,7 @@
     "@parcel/diagnostic": "2.0.0-rc.0",
     "@parcel/fs": "2.0.0-rc.0",
     "@parcel/package-manager": "2.0.0-rc.0",
-    "@parcel/source-map": "2.0.0-rc.6",
+    "@parcel/source-map": "2.0.0-rc.7",
     "@parcel/workers": "2.0.0-rc.0",
     "utility-types": "^3.10.0"
   }
