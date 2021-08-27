@@ -22,7 +22,7 @@
   "dependencies": {
     "@parcel/diagnostic": "2.0.0-rc.0",
     "@parcel/plugin": "2.0.0-rc.0",
-    "@parcel/source-map": "2.0.0-rc.6",
+    "@parcel/source-map": "2.0.0-rc.7",
     "@parcel/utils": "2.0.0-rc.0",
     "@vue/compiler-sfc": "^3.0.0",
     "consolidate": "^0.16.0",
