@@ -1,0 +1,5 @@
+// @flow
+
+declare module 'image-size' {
+  declare module.exports: (input: Buffer) => { width: number, height: number};
+}

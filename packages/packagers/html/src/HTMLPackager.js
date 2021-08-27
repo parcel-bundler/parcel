@@ -12,6 +12,7 @@ import {
   replaceURLReferences,
   urlJoin,
 } from '@parcel/utils';
+import imageSize from 'image-size';
 import nullthrows from 'nullthrows';
 
 // https://www.w3.org/TR/html5/dom.html#metadata-content-2
@@ -63,6 +64,7 @@ export default (new Packager({
       tree => insertBundleReferences(referencedBundles, tree),
       tree =>
         replaceInlineAssetContent(bundleGraph, getInlineBundleContents, tree),
+      tree => addIntrinsicImageSizes(bundle, bundleGraph, tree),
     ]).process(code, renderConfig);
 
     let {contents, map} = replaceURLReferences({
@@ -110,6 +112,44 @@ async function getAssetContent(
   }
 
   return null;
+}
+
+async function addIntrinsicImageSizes(
+  bundle: NamedBundle,
+  bundleGraph: BundleGraph<NamedBundle>,
+  tree,
+) {
+  const imageNodes = [];
+  tree.walk(node => {
+    if (node.tag === 'img' && node.attrs && node.attrs['src']) {
+      imageNodes.push(node);
+    }
+    return node;
+  });
+
+  for (const node of imageNodes) {
+    const dependency = bundle
+      .getMainEntry()
+      ?.getDependencies()
+      .find(bundle => bundle.id === node.attrs['src']);
+
+    if (!dependency) {
+      continue;
+    }
+
+    const image = bundleGraph.getResolvedAsset(dependency);
+
+    if (!image) {
+      continue;
+    }
+
+    const {width, height} = imageSize(await image.getBuffer());
+
+    node.attrs.width = width;
+    node.attrs.height = height;
+  }
+
+  return tree;
 }
 
 async function replaceInlineAssetContent(
