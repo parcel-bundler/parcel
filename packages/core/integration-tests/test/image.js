@@ -1,5 +1,5 @@
 import assert from 'assert';
-import {bundle, distDir, outputFS} from '@parcel/test-utils';
+import {bundle, distDir, inputFS, outputFS} from '@parcel/test-utils';
 import exifReader from 'exif-reader';
 import path from 'path';
 import sharp from 'sharp';
@@ -90,6 +90,52 @@ describe('image', function() {
     });
   });
 
+  it('should optimise JPEGs', async function() {
+    let img = path.join(__dirname, '/integration/image/image.jpg');
+    let b = await bundle(img, {
+      defaultTargetOptions: {
+        shouldOptimize: true,
+      },
+    });
+
+    const imagePath = b.getBundles().find(b => b.type === 'jpg').filePath;
+
+    let input = await inputFS.readFile(img);
+    let inputRaw = await sharp(input)
+      .toFormat('raw')
+      .toBuffer();
+    let output = await outputFS.readFile(imagePath);
+    let outputRaw = await sharp(output)
+      .toFormat('raw')
+      .toBuffer();
+
+    assert(outputRaw.equals(inputRaw));
+    assert(output.length < input.length);
+  });
+
+  it('should optimise PNGs', async function() {
+    let img = path.join(__dirname, '/integration/image/clock.png');
+    let b = await bundle(img, {
+      defaultTargetOptions: {
+        shouldOptimize: true,
+      },
+    });
+
+    const imagePath = b.getBundles().find(b => b.type === 'png').filePath;
+
+    let input = await inputFS.readFile(img);
+    let inputRaw = await sharp(input)
+      .toFormat('raw')
+      .toBuffer();
+    let output = await outputFS.readFile(imagePath);
+    let outputRaw = await sharp(output)
+      .toFormat('raw')
+      .toBuffer();
+
+    assert(outputRaw.equals(inputRaw));
+    assert(output.length < input.length);
+  });
+
   it('should retain EXIF data', async () => {
     const b = await bundle(
       path.join(__dirname, '/integration/image-exif/resized.html'),
@@ -106,6 +152,24 @@ describe('image', function() {
       exif.UserComment.toString(),
       'ASCII\u0000\u0000\u0000This is a comment',
     );
+  });
+
+  it('should remove EXIF data when optimizing', async () => {
+    const b = await bundle(
+      path.join(__dirname, '/integration/image-exif/resized.html'),
+      {
+        defaultTargetOptions: {
+          shouldOptimize: true,
+        },
+      },
+    );
+
+    const imagePath = b.getBundles().find(b => b.type === 'jpg').filePath;
+
+    const buffer = await outputFS.readFile(imagePath);
+    const image = await sharp(buffer).metadata();
+
+    assert.strictEqual(image.exif, undefined);
   });
 
   it('should use the EXIF orientation tag when resizing', async () => {

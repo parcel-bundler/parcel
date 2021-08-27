@@ -1,0 +1,43 @@
+{
+  "name": "@parcel/optimizer-image",
+  "version": "2.0.0-rc.0",
+  "license": "MIT",
+  "main": "lib/ImageOptimizer.js",
+  "source": "src/ImageOptimizer.js",
+  "publishConfig": {
+    "access": "public"
+  },
+  "funding": {
+    "type": "opencollective",
+    "url": "https://opencollective.com/parcel"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  },
+  "engines": {
+    "node": ">= 12.0.0",
+    "parcel": "^2.0.0-beta.1"
+  },
+  "files": [
+    "lib",
+    "native.js",
+    "*.node"
+  ],
+  "napi": {
+    "name": "parcel-image"
+  },
+  "scripts": {
+    "build": "napi build --platform",
+    "build-release": "napi build --platform --release"
+  },
+  "dependencies": {
+    "@parcel/plugin": "2.0.0-rc.0",
+    "@parcel/utils": "2.0.0-rc.0",
+    "detect-libc": "^1.0.3"
+  },
+  "devDependencies": {
+    "@napi-rs/cli": "1.0.4",
+    "tiny-benchy": "^1.0.2"
+  }
+}
