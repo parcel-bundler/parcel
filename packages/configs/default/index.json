@@ -54,7 +54,8 @@
     "*.css": ["@parcel/optimizer-cssnano"],
     "*.html": ["@parcel/optimizer-htmlnano"],
     "*.{js,mjs,cjs}": ["@parcel/optimizer-terser"],
-    "*.svg": ["@parcel/optimizer-svgo"]
+    "*.svg": ["@parcel/optimizer-svgo"],
+    "*.{jpg,jpeg,png}": ["@parcel/optimizer-image"]
   },
   "packagers": {
     "*.html": "@parcel/packager-html",
