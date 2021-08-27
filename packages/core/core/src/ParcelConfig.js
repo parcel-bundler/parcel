@@ -8,6 +8,7 @@ import type {
   Runtime,
   PackageName,
   Optimizer,
+  Compressor,
   Packager,
   Reporter,
   Semver,
@@ -60,6 +61,7 @@ export default class ParcelConfig {
   packagers: GlobMap<ParcelPluginNode>;
   validators: GlobMap<ExtendableParcelConfigPipeline>;
   optimizers: GlobMap<ExtendableParcelConfigPipeline>;
+  compressors: GlobMap<ExtendableParcelConfigPipeline>;
   reporters: PureParcelConfigPipeline;
   pluginCache: Map<PackageName, any>;
   regexCache: Map<string, RegExp>;
@@ -74,6 +76,7 @@ export default class ParcelConfig {
     this.namers = config.namers || [];
     this.packagers = config.packagers || {};
     this.optimizers = config.optimizers || {};
+    this.compressors = config.compressors || {};
     this.reporters = config.reporters || [];
     this.validators = config.validators || {};
     this.pluginCache = new Map();
@@ -95,6 +98,7 @@ export default class ParcelConfig {
       namers: this.namers,
       packagers: this.packagers,
       optimizers: this.optimizers,
+      compressors: this.compressors,
       reporters: this.reporters,
     };
   }
@@ -330,6 +334,20 @@ export default class ParcelConfig {
     }
 
     return this.loadPlugins<Optimizer<mixed>>(optimizers);
+  }
+
+  getCompressors(filePath: FilePath): Promise<Array<LoadedPlugin<Compressor>>> {
+    let compressors =
+      this.matchGlobMapPipelines(
+        toProjectPathUnsafe(filePath),
+        this.compressors,
+      ) ?? [];
+
+    if (compressors.length === 0) {
+      return Promise.resolve([]);
+    }
+
+    return this.loadPlugins<Compressor>(compressors);
   }
 
   getReporters(): Promise<Array<LoadedPlugin<Reporter>>> {
