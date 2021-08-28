@@ -8,6 +8,8 @@ import {
   blobToString,
   replaceInlineReferences,
   replaceURLReferences,
+  urlJoin,
+  setDifference,
 } from '@parcel/utils';
 
 export default (new Packager({
@@ -23,6 +25,15 @@ export default (new Packager({
       'SVG bundles must only contain one asset',
     );
 
+    // Add bundles in the same bundle group that are not inline. For example, if two inline
+    // bundles refer to the same library that is extracted into a shared bundle.
+    let referencedBundles = [
+      ...setDifference(
+        new Set(bundleGraph.getReferencedBundles(bundle)),
+        new Set(bundleGraph.getReferencedBundles(bundle, {recursive: false})),
+      ),
+    ];
+
     const asset = assets[0];
     const code = await asset.getCode();
     const options = {
@@ -37,6 +48,7 @@ export default (new Packager({
     };
 
     let {html: svg} = await posthtml([
+      tree => insertBundleReferences(referencedBundles, tree),
       tree =>
         replaceInlineAssetContent(bundleGraph, getInlineBundleContents, tree),
     ]).process(code, options);
@@ -124,4 +136,33 @@ async function getAssetContent(
   const bundleResult = await getInlineBundleContents(inlineBundle, bundleGraph);
 
   return {bundle: inlineBundle, contents: bundleResult.contents};
+}
+
+function insertBundleReferences(siblingBundles, tree) {
+  let scripts = [];
+  let stylesheets = [];
+
+  for (let bundle of siblingBundles) {
+    if (bundle.type === 'css') {
+      stylesheets.push(
+        `<?xml-stylesheet href=${JSON.stringify(
+          urlJoin(bundle.target.publicUrl, bundle.name),
+        )}?>`,
+      );
+    } else if (bundle.type === 'js') {
+      scripts.push({
+        tag: 'script',
+        attrs: {
+          href: urlJoin(bundle.target.publicUrl, bundle.name),
+        },
+      });
+    }
+  }
+
+  tree.unshift(...stylesheets);
+  if (scripts.length > 0) {
+    tree.match({tag: 'svg'}, node => {
+      node.content.unshift(...scripts);
+    });
+  }
 }

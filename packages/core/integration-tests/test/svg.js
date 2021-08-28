@@ -39,6 +39,10 @@ describe('svg', function() {
         type: 'js',
         assets: ['module.js', 'script.js'],
       },
+      {
+        type: 'css',
+        assets: ['style.css'],
+      },
     ]);
 
     let file = await outputFS.readFile(
@@ -79,6 +83,13 @@ describe('svg', function() {
             .find(b => b.type === 'js' && b.env.sourceType === 'module')
             .filePath,
         )}"`,
+      ),
+    );
+    assert(
+      file.includes(
+        `<?xml-stylesheet href="/${path.basename(
+          b.getBundles().find(b => b.type === 'css').filePath,
+        )}"?>`,
       ),
     );
   });
