@@ -65,6 +65,9 @@
     "*.{jsonld,svg,webmanifest}": "@parcel/packager-raw-url",
     "*": "@parcel/packager-raw"
   },
+  "compressors": {
+    "*": ["@parcel/compressor-raw"]
+  },
   "resolvers": ["@parcel/resolver-default"],
   "reporters": ["@parcel/reporter-dev-server"]
 }

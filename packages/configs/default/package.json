@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@parcel/bundler-default": "2.0.0-rc.0",
+    "@parcel/compressor-raw": "2.0.0-rc.0",
     "@parcel/namer-default": "2.0.0-rc.0",
     "@parcel/optimizer-cssnano": "2.0.0-rc.0",
     "@parcel/optimizer-htmlnano": "2.0.0-rc.0",

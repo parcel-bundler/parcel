@@ -23,6 +23,10 @@ import type {
   ExtendableParcelConfigPipeline,
   ParcelOptions,
 } from './types';
+import ThrowableDiagnostic, {
+  md,
+  generateJSONCodeHighlights,
+} from '@parcel/diagnostic';
 
 import {makeRe} from 'micromatch';
 import {basename} from 'path';
@@ -154,20 +158,15 @@ export default class ParcelConfig {
     return Promise.all(plugins.map(p => this.loadPlugin<T>(p)));
   }
 
-  _getResolverNodes(): PureParcelConfigPipeline {
+  async getResolvers(): Promise<Array<LoadedPlugin<Resolver>>> {
     if (this.resolvers.length === 0) {
-      throw new Error('No resolver plugins specified in .parcelrc config');
+      throw await this.missingPluginError(
+        'No resolver plugins specified in .parcelrc config',
+        '/resolvers',
+      );
     }
 
-    return this.resolvers;
-  }
-
-  getResolverNames(): Array<string> {
-    return this._getResolverNodes().map(r => r.packageName);
-  }
-
-  getResolvers(): Promise<Array<LoadedPlugin<Resolver>>> {
-    return this.loadPlugins<Resolver>(this._getResolverNodes());
+    return this.loadPlugins<Resolver>(this.resolvers);
   }
 
   _getValidatorNodes(filePath: ProjectPath): $ReadOnlyArray<ParcelPluginNode> {
@@ -197,11 +196,11 @@ export default class ParcelConfig {
       .map(glob => glob.split(':')[0]);
   }
 
-  _getTransformerNodes(
+  async getTransformers(
     filePath: ProjectPath,
     pipeline?: ?string,
     allowEmpty?: boolean,
-  ): $ReadOnlyArray<ParcelPluginNode> {
+  ): Promise<Array<LoadedPlugin<Transformer<mixed>>>> {
     let transformers: PureParcelConfigPipeline | null = this.matchGlobMapPipelines(
       filePath,
       this.transformers,
@@ -212,58 +211,34 @@ export default class ParcelConfig {
         return [];
       }
 
-      throw new Error(
-        `No transformers found for ${fromProjectPathRelative(filePath)}` +
+      throw await this.missingPluginError(
+        md`No transformers found for __${fromProjectPathRelative(filePath)}__` +
           (pipeline != null ? ` with pipeline: '${pipeline}'` : '') +
           '.',
+        '/transformers',
       );
     }
 
-    return transformers;
+    return this.loadPlugins<Transformer<mixed>>(transformers);
   }
 
-  getTransformerNames(
-    filePath: ProjectPath,
-    pipeline?: ?string,
-    allowEmpty?: boolean,
-  ): Array<string> {
-    let transformers = this._getTransformerNodes(
-      filePath,
-      pipeline,
-      allowEmpty,
-    );
-    return transformers.map(t => t.packageName);
-  }
-
-  getTransformers(
-    filePath: ProjectPath,
-    pipeline?: ?string,
-    allowEmpty?: boolean,
-  ): Promise<Array<LoadedPlugin<Transformer<mixed>>>> {
-    return this.loadPlugins<Transformer<mixed>>(
-      this._getTransformerNodes(filePath, pipeline, allowEmpty),
-    );
-  }
-
-  getBundlerName(): string {
+  async getBundler(): Promise<LoadedPlugin<Bundler<mixed>>> {
     if (!this.bundler) {
-      throw new Error('No bundler specified in .parcelrc config');
-    }
-
-    return this.bundler.packageName;
-  }
-
-  getBundler(): Promise<LoadedPlugin<Bundler<mixed>>> {
-    if (!this.bundler) {
-      throw new Error('No bundler specified in .parcelrc config');
+      throw await this.missingPluginError(
+        'No bundler specified in .parcelrc config',
+        '/bundler',
+      );
     }
 
     return this.loadPlugin<Bundler<mixed>>(this.bundler);
   }
 
-  getNamers(): Promise<Array<LoadedPlugin<Namer<mixed>>>> {
+  async getNamers(): Promise<Array<LoadedPlugin<Namer<mixed>>>> {
     if (this.namers.length === 0) {
-      throw new Error('No namer plugins specified in .parcelrc config');
+      throw await this.missingPluginError(
+        'No namer plugins specified in .parcelrc config',
+        '/namers',
+      );
     }
 
     return this.loadPlugins<Namer<mixed>>(this.namers);
@@ -277,23 +252,19 @@ export default class ParcelConfig {
     return this.loadPlugins<Runtime<mixed>>(this.runtimes);
   }
 
-  _getPackagerNode(filePath: FilePath): ParcelPluginNode {
-    let packagerName = this.matchGlobMap(
+  async getPackager(
+    filePath: FilePath,
+  ): Promise<LoadedPlugin<Packager<mixed>>> {
+    let packager = this.matchGlobMap(
       toProjectPathUnsafe(filePath),
       this.packagers,
     );
-    if (!packagerName) {
-      throw new Error(`No packager found for "${filePath}".`);
+    if (!packager) {
+      throw await this.missingPluginError(
+        md`No packager found for __${filePath}__.`,
+        '/packagers',
+      );
     }
-    return packagerName;
-  }
-
-  getPackagerName(filePath: FilePath): string {
-    return this._getPackagerNode(filePath).packageName;
-  }
-
-  getPackager(filePath: FilePath): Promise<LoadedPlugin<Packager<mixed>>> {
-    let packager = this._getPackagerNode(filePath);
     return this.loadPlugin<Packager<mixed>>(packager);
   }
 
@@ -336,7 +307,9 @@ export default class ParcelConfig {
     return this.loadPlugins<Optimizer<mixed>>(optimizers);
   }
 
-  getCompressors(filePath: FilePath): Promise<Array<LoadedPlugin<Compressor>>> {
+  async getCompressors(
+    filePath: FilePath,
+  ): Promise<Array<LoadedPlugin<Compressor>>> {
     let compressors =
       this.matchGlobMapPipelines(
         toProjectPathUnsafe(filePath),
@@ -344,7 +317,10 @@ export default class ParcelConfig {
       ) ?? [];
 
     if (compressors.length === 0) {
-      return Promise.resolve([]);
+      throw await this.missingPluginError(
+        md`No compressors found for __${filePath}__.`,
+        '/compressors',
+      );
     }
 
     return this.loadPlugins<Compressor>(compressors);
@@ -441,5 +417,43 @@ export default class ParcelConfig {
     let res = flatten();
     // $FlowFixMe afaik this should work
     return res;
+  }
+
+  async missingPluginError(
+    message: string,
+    key: string,
+  ): Promise<ThrowableDiagnostic> {
+    let configsWithCompressors = new Set(
+      Object.keys(this.compressors).flatMap(k =>
+        this.compressors[k]
+          .map(c =>
+            c !== '...'
+              ? fromProjectPath(this.options.projectRoot, c.resolveFrom)
+              : null,
+          )
+          .filter(Boolean),
+      ),
+    );
+    return new ThrowableDiagnostic({
+      diagnostic: {
+        message,
+        origin: '@parcel/core',
+        codeFrames: await Promise.all(
+          [...configsWithCompressors].map(async filePath => {
+            let configContents = await this.options.inputFS.readFile(
+              filePath,
+              'utf8',
+            );
+            return {
+              filePath,
+              code: configContents,
+              codeHighlights: generateJSONCodeHighlights(configContents, [
+                {key},
+              ]),
+            };
+          }),
+        ),
+      },
+    });
   }
 }

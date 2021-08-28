@@ -17,9 +17,7 @@ import nullthrows from 'nullthrows';
 import path from 'path';
 import {NamedBundle} from '../public/Bundle';
 import {TapStream} from '@parcel/utils';
-import {Readable, Transform} from 'stream';
-// $FlowFixMe
-import {pipeline} from 'stream/promises';
+import {Readable, Transform, pipeline} from 'stream';
 import {
   fromProjectPath,
   fromProjectPathRelative,
@@ -207,16 +205,7 @@ async function writeFiles(
     ? inputStream.pipe(replaceStream(hashRefToNameHash))
     : inputStream;
 
-  // Write the original file.
   let promises = [];
-  promises.push(
-    pipeline(
-      cloneStream(stream),
-      outputFS.createWriteStream(fullPath, writeOptions),
-    ),
-  );
-
-  // Write additional files for each compressor plugin.
   for (let compressor of compressors) {
     promises.push(
       runCompressor(
@@ -252,9 +241,18 @@ async function runCompressor(
       logger: new PluginLogger({origin: compressor.name}),
     });
 
-    await pipeline(
-      res.stream,
-      outputFS.createWriteStream(filePath + '.' + res.type, writeOptions),
+    await new Promise((resolve, reject) =>
+      pipeline(
+        res.stream,
+        outputFS.createWriteStream(
+          filePath + (res.type != null ? '.' + res.type : ''),
+          writeOptions,
+        ),
+        err => {
+          if (err) reject(err);
+          else resolve();
+        },
+      ),
     );
   } catch (err) {
     throw new ThrowableDiagnostic({
