@@ -27,6 +27,7 @@ import ThrowableDiagnostic, {
   md,
   generateJSONCodeHighlights,
 } from '@parcel/diagnostic';
+import json5 from 'json5';
 
 import {makeRe} from 'micromatch';
 import {basename} from 'path';
@@ -161,6 +162,7 @@ export default class ParcelConfig {
   async getResolvers(): Promise<Array<LoadedPlugin<Resolver>>> {
     if (this.resolvers.length === 0) {
       throw await this.missingPluginError(
+        this.resolvers,
         'No resolver plugins specified in .parcelrc config',
         '/resolvers',
       );
@@ -212,6 +214,7 @@ export default class ParcelConfig {
       }
 
       throw await this.missingPluginError(
+        this.transformers,
         md`No transformers found for __${fromProjectPathRelative(filePath)}__` +
           (pipeline != null ? ` with pipeline: '${pipeline}'` : '') +
           '.',
@@ -225,6 +228,7 @@ export default class ParcelConfig {
   async getBundler(): Promise<LoadedPlugin<Bundler<mixed>>> {
     if (!this.bundler) {
       throw await this.missingPluginError(
+        [],
         'No bundler specified in .parcelrc config',
         '/bundler',
       );
@@ -236,6 +240,7 @@ export default class ParcelConfig {
   async getNamers(): Promise<Array<LoadedPlugin<Namer<mixed>>>> {
     if (this.namers.length === 0) {
       throw await this.missingPluginError(
+        this.namers,
         'No namer plugins specified in .parcelrc config',
         '/namers',
       );
@@ -261,6 +266,7 @@ export default class ParcelConfig {
     );
     if (!packager) {
       throw await this.missingPluginError(
+        this.packagers,
         md`No packager found for __${filePath}__.`,
         '/packagers',
       );
@@ -318,6 +324,7 @@ export default class ParcelConfig {
 
     if (compressors.length === 0) {
       throw await this.missingPluginError(
+        this.compressors,
         md`No compressors found for __${filePath}__.`,
         '/compressors',
       );
@@ -420,40 +427,68 @@ export default class ParcelConfig {
   }
 
   async missingPluginError(
+    plugins:
+      | GlobMap<ExtendableParcelConfigPipeline>
+      | GlobMap<ParcelPluginNode>
+      | PureParcelConfigPipeline,
     message: string,
     key: string,
   ): Promise<ThrowableDiagnostic> {
-    let configsWithCompressors = new Set(
-      Object.keys(this.compressors).flatMap(k =>
-        this.compressors[k]
-          .map(c =>
-            c !== '...'
-              ? fromProjectPath(this.options.projectRoot, c.resolveFrom)
-              : null,
-          )
-          .filter(Boolean),
-      ),
+    let configsWithPlugin;
+    if (Array.isArray(plugins)) {
+      configsWithPlugin = new Set(getConfigPaths(this.options, plugins));
+    } else {
+      configsWithPlugin = new Set(
+        Object.keys(plugins).flatMap(k =>
+          Array.isArray(plugins[k])
+            ? getConfigPaths(this.options, plugins[k])
+            : [getConfigPath(this.options, plugins[k])],
+        ),
+      );
+    }
+
+    if (configsWithPlugin.size === 0) {
+      configsWithPlugin.add(
+        fromProjectPath(this.options.projectRoot, this.filePath),
+      );
+    }
+
+    let seenKey = false;
+    let codeFrames = await Promise.all(
+      [...configsWithPlugin].map(async filePath => {
+        let configContents = await this.options.inputFS.readFile(
+          filePath,
+          'utf8',
+        );
+        if (!json5.parse(configContents)[key.slice(1)]) {
+          key = '';
+        } else {
+          seenKey = true;
+        }
+        return {
+          filePath,
+          code: configContents,
+          codeHighlights: generateJSONCodeHighlights(configContents, [{key}]),
+        };
+      }),
     );
     return new ThrowableDiagnostic({
       diagnostic: {
         message,
         origin: '@parcel/core',
-        codeFrames: await Promise.all(
-          [...configsWithCompressors].map(async filePath => {
-            let configContents = await this.options.inputFS.readFile(
-              filePath,
-              'utf8',
-            );
-            return {
-              filePath,
-              code: configContents,
-              codeHighlights: generateJSONCodeHighlights(configContents, [
-                {key},
-              ]),
-            };
-          }),
-        ),
+        codeFrames,
+        hints: !seenKey ? ['Try extending __@parcel/config-default__'] : [],
       },
     });
   }
+}
+
+function getConfigPaths(options, nodes) {
+  return nodes
+    .map(node => (node !== '...' ? getConfigPath(options, node) : null))
+    .filter(Boolean);
+}
+
+function getConfigPath(options, node) {
+  return fromProjectPath(options.projectRoot, node.resolveFrom);
 }

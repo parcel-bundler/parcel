@@ -8,6 +8,7 @@ import {
   bundler,
   run,
   overlayFS,
+  outputFS,
   inputFS,
   ncp,
   workerFarm,
@@ -5383,7 +5384,7 @@ describe('cache', function() {
     it('should invaldate when adding a compressor plugin', async function() {
       await testCache({
         async update() {
-          let files = await overlayFS.readdir(distDir);
+          let files = await outputFS.readdir(distDir);
           assert.deepEqual(files.sort(), ['index.js', 'index.js.map']);
 
           await overlayFS.writeFile(
@@ -5398,7 +5399,7 @@ describe('cache', function() {
         },
       });
 
-      let files = await overlayFS.readdir(distDir);
+      let files = await outputFS.readdir(distDir);
       assert.deepEqual(files.sort(), [
         'index.js',
         'index.js.gz',
@@ -5420,7 +5421,7 @@ describe('cache', function() {
           );
         },
         async update() {
-          let files = await overlayFS.readdir(distDir);
+          let files = await outputFS.readdir(distDir);
           assert.deepEqual(files.sort(), [
             'index.js',
             'index.js.abc',
@@ -5443,7 +5444,7 @@ describe('cache', function() {
         },
       });
 
-      let files = await overlayFS.readdir(distDir);
+      let files = await outputFS.readdir(distDir);
       assert.deepEqual(files.sort(), [
         'index.js',
         'index.js.abc',
