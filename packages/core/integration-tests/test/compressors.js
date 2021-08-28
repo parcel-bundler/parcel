@@ -8,13 +8,13 @@ describe('compressors', function() {
     await bundle(path.join(__dirname, 'integration/compressors/index.js'));
 
     let output = await outputFS.readdir(distDir);
-    assert.deepEqual(output, [
+    assert.deepEqual(output.sort(), [
       'index.js',
-      'index.js.gz',
       'index.js.br',
+      'index.js.gz',
       'index.js.map',
-      'index.js.map.gz',
       'index.js.map.br',
+      'index.js.map.gz',
     ]);
 
     let raw = await outputFS.readFile(path.join(distDir, 'index.js'));
@@ -31,6 +31,6 @@ describe('compressors', function() {
     );
 
     let output = await outputFS.readdir(distDir);
-    assert.deepEqual(output, ['index.js.br', 'index.js.map.br']);
+    assert.deepEqual(output.sort(), ['index.js.br', 'index.js.map.br']);
   });
 });

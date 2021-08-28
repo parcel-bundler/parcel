@@ -5379,6 +5379,80 @@ describe('cache', function() {
     });
   });
 
+  describe('compression', function() {
+    it('should invaldate when adding a compressor plugin', async function() {
+      await testCache({
+        async update() {
+          let files = await overlayFS.readdir(distDir);
+          assert.deepEqual(files.sort(), ['index.js', 'index.js.map']);
+
+          await overlayFS.writeFile(
+            path.join(inputDir, '.parcelrc'),
+            JSON.stringify({
+              extends: '@parcel/config-default',
+              compressors: {
+                '*.js': ['...', '@parcel/compressor-gzip'],
+              },
+            }),
+          );
+        },
+      });
+
+      let files = await overlayFS.readdir(distDir);
+      assert.deepEqual(files.sort(), [
+        'index.js',
+        'index.js.gz',
+        'index.js.map',
+      ]);
+    });
+
+    it('should invalidate when updating a compressor plugin', async function() {
+      await testCache({
+        async setup() {
+          await overlayFS.writeFile(
+            path.join(inputDir, '.parcelrc'),
+            JSON.stringify({
+              extends: '@parcel/config-default',
+              compressors: {
+                '*.js': ['...', 'parcel-compressor-test'],
+              },
+            }),
+          );
+        },
+        async update() {
+          let files = await overlayFS.readdir(distDir);
+          assert.deepEqual(files.sort(), [
+            'index.js',
+            'index.js.abc',
+            'index.js.map',
+          ]);
+
+          let compressor = path.join(
+            inputDir,
+            'node_modules',
+            'parcel-compressor-test',
+            'index.js',
+          );
+          await overlayFS.writeFile(
+            compressor,
+            (await overlayFS.readFile(compressor, 'utf8')).replace(
+              'abc',
+              'def',
+            ),
+          );
+        },
+      });
+
+      let files = await overlayFS.readdir(distDir);
+      assert.deepEqual(files.sort(), [
+        'index.js',
+        'index.js.abc',
+        'index.js.def',
+        'index.js.map',
+      ]);
+    });
+  });
+
   describe('scope hoisting', function() {
     it('should support adding sideEffects config', function() {});
 
