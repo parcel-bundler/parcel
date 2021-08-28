@@ -88,6 +88,14 @@ async function replaceInlineAssetContent(
 
     node.content = await blobToString(newContent.contents);
 
+    // Wrap scripts and styles with CDATA if needed to ensure characters are not interpreted as XML
+    if (node.tag === 'script' || node.tag === 'style') {
+      if (node.content.includes('<') || node.content.includes('&')) {
+        node.content = node.content.replace(/]]>/g, ']\\]>');
+        node.content = `<![CDATA[\n${node.content}\n]]>`;
+      }
+    }
+
     // remove attr from output
     delete node.attrs['data-parcel-key'];
   }
