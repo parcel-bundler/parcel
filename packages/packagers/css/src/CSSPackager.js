@@ -152,10 +152,41 @@ async function processCSSModule(
 ): Promise<[Asset, string, ?Buffer]> {
   let ast: Root = postcss.fromJSON(nullthrows((await asset.getAST())?.program));
 
-  let usedSymbols = bundleGraph.getUsedSymbols(asset);
   let localSymbols = new Set(
     [...asset.symbols].map(([, {local}]) => `.${local}`),
   );
+
+  if (asset.env.shouldScopeHoist) {
+    treeShakeUnusedSymbols(logger, ast, bundleGraph, asset, localSymbols);
+  }
+
+  let {content, map} = await postcss().process(ast, {
+    from: undefined,
+    to: options.projectRoot + '/index',
+    map: {
+      annotation: false,
+      inline: false,
+    },
+    // Pass postcss's own stringifier to it to silence its warning
+    // as we don't want to perform any transformations -- only generate
+    stringifier: postcss.stringify,
+  });
+
+  let sourceMap;
+  if (bundle.env.sourceMap && map != null) {
+    sourceMap = new SourceMap(options.projectRoot);
+    sourceMap.addVLQMap(map.toJSON());
+  }
+
+  if (media.length) {
+    content = `@media ${media.join(', ')} {\n${content}\n}\n`;
+  }
+
+  return [asset, content, sourceMap?.toBuffer()];
+}
+
+function treeShakeUnusedSymbols(logger, ast, bundleGraph, asset, localSymbols) {
+  let usedSymbols = bundleGraph.getUsedSymbols(asset);
 
   let defaultImport = null;
   if (usedSymbols.has('default')) {
@@ -197,28 +228,4 @@ async function processCSSModule(
       }
     });
   }
-
-  let {content, map} = await postcss().process(ast, {
-    from: undefined,
-    to: options.projectRoot + '/index',
-    map: {
-      annotation: false,
-      inline: false,
-    },
-    // Pass postcss's own stringifier to it to silence its warning
-    // as we don't want to perform any transformations -- only generate
-    stringifier: postcss.stringify,
-  });
-
-  let sourceMap;
-  if (bundle.env.sourceMap && map != null) {
-    sourceMap = new SourceMap(options.projectRoot);
-    sourceMap.addVLQMap(map.toJSON());
-  }
-
-  if (media.length) {
-    content = `@media ${media.join(', ')} {\n${content}\n}\n`;
-  }
-
-  return [asset, content, sourceMap?.toBuffer()];
 }
