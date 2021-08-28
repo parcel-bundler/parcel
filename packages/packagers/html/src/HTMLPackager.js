@@ -143,10 +143,17 @@ async function addIntrinsicImageSizes(
       continue;
     }
 
-    const {width, height} = imageSize(await image.getBuffer());
+    if (
+      typeof image.meta.width !== 'number' &&
+      typeof image.meta.height !== 'number'
+    ) {
+      const size = imageSize(await image.getBuffer());
+      image.meta.width = size.width;
+      image.meta.height = size.height;
+    }
 
-    node.attrs.width = width;
-    node.attrs.height = height;
+    node.attrs.width = image.meta.width;
+    node.attrs.height = image.meta.height;
   }
 
   return tree;
