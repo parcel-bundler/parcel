@@ -5472,7 +5472,7 @@ describe('cache', function() {
               bundles[0].filePath,
               'utf8',
             );
-            assert(contents.includes('.webp" alt="test image">'));
+            assert(contents.includes('.webp" alt="test image"'));
             assert.equal(bundles.length, 2);
             await overlayFS.writeFile(
               path.join(inputDir, 'reformat.html'),
@@ -5491,7 +5491,7 @@ describe('cache', function() {
       let contents = await overlayFS.readFile(bundles[0].filePath, 'utf8');
       assert(contents.includes('.webp" type="image/webp">'));
       assert(contents.includes('.jpg" type="image/jpeg">'));
-      assert(contents.includes('.jpg" alt="test image">'));
+      assert(contents.includes('.jpg" alt="test image"'));
       assert.equal(bundles.length, 4);
     });
   });
