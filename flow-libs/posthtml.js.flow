@@ -21,8 +21,8 @@ declare module 'posthtml' {
 
   declare type PostHTMLTree = Array<PostHTMLNode>;
   declare type PostHTMLOptions = {
-    sync: Boolean,
-    skipParse: Boolean,
+    sync?: Boolean,
+    skipParse?: Boolean,
     ...
   };
   declare type PostHTMLMessage = {

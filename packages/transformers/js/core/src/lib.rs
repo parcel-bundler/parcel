@@ -409,9 +409,10 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
             let (buf, mut src_map_buf) =
               emit(source_map.clone(), comments, &program, config.source_maps)?;
             if config.source_maps {
-              if let Ok(_) = source_map
+              if source_map
                 .build_source_map(&mut src_map_buf)
                 .to_writer(&mut map_buf)
+                .is_ok()
               {
                 result.map = Some(String::from_utf8(map_buf).unwrap());
               }
@@ -496,12 +497,12 @@ fn emit(
     let mut emitter = swc_ecmascript::codegen::Emitter {
       cfg: config,
       comments: Some(&comments),
-      cm: source_map.clone(),
+      cm: source_map,
       wr: writer,
     };
 
     emitter.emit_module(&program)?;
   }
 
-  return Ok((buf, src_map_buf));
+  Ok((buf, src_map_buf))
 }

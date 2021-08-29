@@ -46,7 +46,7 @@ pub fn match_member_expr(
     }
   }
 
-  return false;
+  false
 }
 
 pub fn create_require(specifier: swc_atoms::JsWord) -> ast::CallExpr {
