@@ -90,10 +90,7 @@ impl<'a> InlineFS<'a> {
               return None;
             }
           }
-          Expr::Lit(lit) => match lit {
-            Lit::Str(str_) => str_.value.clone(),
-            _ => return None,
-          },
+          Expr::Lit(Lit::Str(str_)) => str_.value.clone(),
           _ => return None,
         };
 

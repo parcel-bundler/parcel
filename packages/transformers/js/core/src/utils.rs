@@ -105,10 +105,8 @@ pub fn match_require(
             && !is_marked(ident.span, ignore_mark)
           {
             if let Some(arg) = call.args.get(0) {
-              if let Expr::Lit(lit) = &*arg.expr {
-                if let Lit::Str(str_) = lit {
-                  return Some(str_.value.clone());
-                }
+              if let Expr::Lit(Lit::Str(str_)) = &*arg.expr {
+                return Some(str_.value.clone());
               }
             }
           }
@@ -132,10 +130,8 @@ pub fn match_import(node: &ast::Expr, ignore_mark: Mark) -> Option<JsWord> {
         Expr::Ident(ident) => {
           if ident.sym == js_word!("import") && !is_marked(ident.span, ignore_mark) {
             if let Some(arg) = call.args.get(0) {
-              if let Expr::Lit(lit) = &*arg.expr {
-                if let Lit::Str(str_) = lit {
-                  return Some(str_.value.clone());
-                }
+              if let Expr::Lit(Lit::Str(str_)) = &*arg.expr {
+                return Some(str_.value.clone());
               }
             }
           }
