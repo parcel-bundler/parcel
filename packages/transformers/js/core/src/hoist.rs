@@ -744,7 +744,7 @@ impl<'a> Fold for Hoist<'a> {
       .enumerate()
       .map(|(i, expr)| {
         if i != len - 1 {
-          if let Some(_) = match_require(&*expr, &self.collect.decls, self.collect.ignore_mark) {
+          if match_require(&*expr, &self.collect.decls, self.collect.ignore_mark).is_some() {
             return Box::new(Expr::Unary(UnaryExpr {
               op: UnaryOp::Bang,
               arg: expr.fold_with(self),
@@ -919,7 +919,7 @@ impl<'a> Fold for Hoist<'a> {
             } else {
               PatOrExpr::Pat(Box::new(Pat::Expr(Box::new(Expr::Member(MemberExpr {
                 span: member.span,
-                obj: ExprOrSuper::Expr(Box::new(Expr::Ident(ident.id.clone()))),
+                obj: ExprOrSuper::Expr(Box::new(Expr::Ident(ident.id))),
                 prop: member.prop.clone().fold_with(self),
                 computed: member.computed,
               })))))
@@ -1022,7 +1022,7 @@ impl<'a> Hoist<'a> {
     self
       .imported_symbols
       .insert(new_name.clone(), (source.clone(), local.clone(), loc));
-    return Ident::new(new_name, span);
+    Ident::new(new_name, span)
   }
 
   fn get_require_ident(&self, local: &JsWord) -> Ident {
@@ -1046,7 +1046,7 @@ impl<'a> Hoist<'a> {
 
     let mut span = span;
     span.ctxt = SyntaxContext::empty();
-    return Ident::new(new_name, span);
+    Ident::new(new_name, span)
   }
 
   fn handle_non_const_require(&mut self, v: &VarDeclarator, source: &JsWord) {
@@ -1647,10 +1647,7 @@ impl Visit for Collect {
                   match node.args.get(0) {
                     Some(ExprOrSpread { expr, .. }) => {
                       let param = match &**expr {
-                        Expr::Fn(func) => match func.function.params.get(0) {
-                          Some(param) => Some(&param.pat),
-                          None => None,
-                        },
+                        Expr::Fn(func) => func.function.params.get(0).map(|param| &param.pat),
                         Expr::Arrow(arrow) => arrow.params.get(0),
                         _ => None,
                       };
@@ -1942,14 +1939,14 @@ mod tests {
       let mut emitter = swc_ecmascript::codegen::Emitter {
         cfg: config,
         comments: Some(&comments),
-        cm: source_map.clone(),
+        cm: source_map,
         wr: writer,
       };
 
       emitter.emit_module(&program).unwrap();
     }
 
-    return String::from_utf8(buf).unwrap();
+    String::from_utf8(buf).unwrap()
   }
 
   macro_rules! map(

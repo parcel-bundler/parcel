@@ -193,7 +193,7 @@ impl<'a> Fold for GlobalReplacer<'a> {
       _ => {}
     }
 
-    return node;
+    node
   }
 
   fn fold_module(&mut self, node: ast::Module) -> ast::Module {
@@ -206,7 +206,7 @@ impl<'a> Fold for GlobalReplacer<'a> {
         .values()
         .map(|stmt| ast::ModuleItem::Stmt(stmt.clone())),
     );
-    return node;
+    node
   }
 }
 

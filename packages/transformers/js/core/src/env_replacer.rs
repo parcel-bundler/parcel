@@ -242,11 +242,7 @@ impl<'a> EnvReplacer<'a> {
                 span: DUMMY_SP,
                 name: *kv.value.clone().fold_with(self),
                 init: if let Some(key) = key {
-                  if let Some(init) = self.replace(&key, false) {
-                    Some(Box::new(init))
-                  } else {
-                    None
-                  }
+                  self.replace(&key, false).map(Box::new)
                 } else {
                   None
                 },
