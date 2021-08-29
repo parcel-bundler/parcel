@@ -912,7 +912,7 @@ impl<'a> DependencyCollector<'a> {
       }
     }
 
-    return node.fold_children_with(self);
+    node.fold_children_with(self)
   }
 
   fn match_block_stmt_expr<'x>(&self, block: &'x ast::BlockStmt) -> Option<&'x ast::Expr> {
@@ -1383,7 +1383,7 @@ fn match_worker_type(expr: Option<&ast::ExprOrSpread>) -> (SourceType, Option<as
             _ => SourceType::Script,
           });
 
-          return false;
+          false
         })
         .cloned()
         .collect();

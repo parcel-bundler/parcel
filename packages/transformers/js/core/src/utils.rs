@@ -75,7 +75,7 @@ pub fn create_require(specifier: swc_atoms::JsWord) -> ast::CallExpr {
 }
 
 fn is_marked(span: Span, mark: Mark) -> bool {
-  let mut ctxt = span.ctxt().clone();
+  let mut ctxt = span.ctxt();
 
   loop {
     let m = ctxt.remove_mark();
