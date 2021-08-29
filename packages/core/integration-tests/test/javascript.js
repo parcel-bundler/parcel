@@ -4045,11 +4045,6 @@ describe('javascript', function() {
       path.join(__dirname, '/integration/bundle-text/index.js'),
     );
 
-    assertBundles(b, [{type: 'js', assets: ['index.js']}]);
-
-    let jsBundle = b.getBundles().find(b => b.type === 'js');
-    console.log(await outputFS.readFile(jsBundle.filePath, 'utf8'));
-
     let cssBundleContent = (await run(b)).default;
 
     assert(
