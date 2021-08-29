@@ -2076,7 +2076,7 @@ mod tests {
       collect.imports,
       map! { w!("bar") => (w!("other"), w!("foo"), false) }
     );
-    assert_eq!(collect.static_cjs_exports, true);
+    assert!(collect.static_cjs_exports);
   }
 
   #[test]
@@ -2086,7 +2086,7 @@ mod tests {
     exports = 2;
     "#,
     );
-    assert_eq!(collect.should_wrap, true);
+    assert!(collect.should_wrap);
   }
 
   #[test]
@@ -2096,21 +2096,21 @@ mod tests {
     eval('');
     "#,
     );
-    assert_eq!(collect.should_wrap, true);
+    assert!(collect.should_wrap);
 
     let (collect, _code, _hoist) = parse(
       r#"
     doSomething(module);
     "#,
     );
-    assert_eq!(collect.should_wrap, true);
+    assert!(collect.should_wrap);
 
     let (collect, _code, _hoist) = parse(
       r#"
     console.log(module.id);
     "#,
     );
-    assert_eq!(collect.should_wrap, true);
+    assert!(collect.should_wrap);
 
     let (collect, _code, _hoist) = parse(
       r#"
@@ -2118,7 +2118,7 @@ mod tests {
     console.log(module.hot);
     "#,
     );
-    assert_eq!(collect.should_wrap, false);
+    assert!(!collect.should_wrap);
 
     let (collect, _code, _hoist) = parse(
       r#"
@@ -2127,7 +2127,7 @@ mod tests {
     exports.bar = 3;
     "#,
     );
-    assert_eq!(collect.should_wrap, true);
+    assert!(collect.should_wrap);
 
     let (collect, _code, _hoist) = parse(
       r#"
@@ -2145,7 +2145,7 @@ mod tests {
     console.log(foo.a);
     "#,
     );
-    assert_eq!(collect.should_wrap, false);
+    assert!(!collect.should_wrap);
   }
 
   #[test]
@@ -2155,70 +2155,70 @@ mod tests {
     exports[test] = 2;
     "#,
     );
-    assert_eq!(collect.static_cjs_exports, false);
+    assert!(!collect.static_cjs_exports);
 
     let (collect, _code, _hoist) = parse(
       r#"
     module.exports[test] = 2;
     "#,
     );
-    assert_eq!(collect.static_cjs_exports, false);
+    assert!(!collect.static_cjs_exports);
 
     let (collect, _code, _hoist) = parse(
       r#"
     this[test] = 2;
     "#,
     );
-    assert_eq!(collect.static_cjs_exports, false);
+    assert!(!collect.static_cjs_exports);
 
     let (collect, _code, _hoist) = parse(
       r#"
     module.exports[test] = 2;
     "#,
     );
-    assert_eq!(collect.static_cjs_exports, false);
+    assert!(!collect.static_cjs_exports);
 
     let (collect, _code, _hoist) = parse(
       r#"
     alert(exports)
     "#,
     );
-    assert_eq!(collect.static_cjs_exports, false);
+    assert!(!collect.static_cjs_exports);
 
     let (collect, _code, _hoist) = parse(
       r#"
     alert(module.exports)
     "#,
     );
-    assert_eq!(collect.static_cjs_exports, false);
+    assert!(!collect.static_cjs_exports);
 
     let (collect, _code, _hoist) = parse(
       r#"
     alert(this)
     "#,
     );
-    assert_eq!(collect.static_cjs_exports, false);
+    assert!(!collect.static_cjs_exports);
 
     let (collect, _code, _hoist) = parse(
       r#"
     exports.foo = 2;
     "#,
     );
-    assert_eq!(collect.static_cjs_exports, true);
+    assert!(collect.static_cjs_exports);
 
     let (collect, _code, _hoist) = parse(
       r#"
     module.exports.foo = 2;
     "#,
     );
-    assert_eq!(collect.static_cjs_exports, true);
+    assert!(collect.static_cjs_exports);
 
     let (collect, _code, _hoist) = parse(
       r#"
     this.foo = 2;
     "#,
     );
-    assert_eq!(collect.static_cjs_exports, true);
+    assert!(collect.static_cjs_exports);
 
     let (collect, _code, _hoist) = parse(
       r#"
@@ -2226,7 +2226,7 @@ mod tests {
     exports[foo] = 2;
     "#,
     );
-    assert_eq!(collect.static_cjs_exports, true);
+    assert!(collect.static_cjs_exports);
 
     let (collect, _code, _hoist) = parse(
       r#"
@@ -2234,21 +2234,21 @@ mod tests {
     module.exports[foo] = 2;
     "#,
     );
-    assert_eq!(collect.static_cjs_exports, true);
+    assert!(collect.static_cjs_exports);
 
     let (collect, _code, _hoist) = parse(
       r#"
     test(function(exports) { return Object.keys(exports) })
     "#,
     );
-    assert_eq!(collect.static_cjs_exports, true);
+    assert!(collect.static_cjs_exports);
 
     let (collect, _code, _hoist) = parse(
       r#"
     test(exports => Object.keys(exports))
     "#,
     );
-    assert_eq!(collect.static_cjs_exports, true);
+    assert!(collect.static_cjs_exports);
   }
 
   #[test]
