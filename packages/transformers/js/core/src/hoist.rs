@@ -744,7 +744,7 @@ impl<'a> Fold for Hoist<'a> {
       .enumerate()
       .map(|(i, expr)| {
         if i != len - 1 {
-          if let Some(_) = match_require(&*expr, &self.collect.decls, self.collect.ignore_mark) {
+          if match_require(&*expr, &self.collect.decls, self.collect.ignore_mark).is_some() {
             return Box::new(Expr::Unary(UnaryExpr {
               op: UnaryOp::Bang,
               arg: expr.fold_with(self),

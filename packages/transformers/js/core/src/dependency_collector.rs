@@ -450,7 +450,7 @@ impl<'a> Fold for DependencyCollector<'a> {
           // Promise.resolve(require('foo'))
           if match_member_expr(member, vec!["Promise", "resolve"], self.decls) {
             if let Some(expr) = node.args.get(0) {
-              if let Some(_) = match_require(&*expr.expr, self.decls, Mark::fresh(Mark::root())) {
+              if match_require(&*expr.expr, self.decls, Mark::fresh(Mark::root())).is_some() {
                 self.in_promise = true;
                 let node = node.fold_children_with(self);
                 self.in_promise = was_in_promise;
@@ -905,9 +905,7 @@ impl<'a> DependencyCollector<'a> {
               if let ast::Expr::Ident(id) = &**callee {
                 if id.to_id() == resolve_id {
                   if let Some(arg) = call.args.get(0) {
-                    if let Some(_) =
-                      match_require(&*arg.expr, self.decls, Mark::fresh(Mark::root()))
-                    {
+                    if match_require(&*arg.expr, self.decls, Mark::fresh(Mark::root())).is_some() {
                       let was_in_promise = self.in_promise;
                       self.in_promise = true;
                       let node = node.fold_children_with(self);
