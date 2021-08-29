@@ -1,3 +1,3 @@
-import {manifest, version} from '@parcel/runtime-service-worker';
+import {manifest, version} from '@parcel/service-worker';
 
 output(manifest, version);

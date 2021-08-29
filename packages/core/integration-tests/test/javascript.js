@@ -1603,7 +1603,7 @@ describe('javascript', function() {
         assets: ['manifest.js', 'bundle-url.js'],
       },
       {
-        assets: ['manifest-worker.js', 'browser.js'],
+        assets: ['manifest-worker.js', 'service-worker.js'],
       },
     ]);
 

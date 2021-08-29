@@ -12,7 +12,7 @@ export default (new Runtime({
     bundle.traverse((node, _, actions) => {
       if (
         node.type === 'dependency' &&
-        node.value.specifier === '@parcel/runtime-service-worker'
+        node.value.specifier === '@parcel/service-worker'
       ) {
         hasDep = true;
         actions.stop();
@@ -32,7 +32,7 @@ export default (new Runtime({
       manifest.push(urlJoin(b.target.publicUrl, b.name));
     });
 
-    let code = `import {_register} from '@parcel/runtime-service-worker';
+    let code = `import {_register} from '@parcel/service-worker';
 const manifest = ${JSON.stringify(manifest)};
 const version = ${JSON.stringify(bundle.hashReference)};
 _register(manifest, version);

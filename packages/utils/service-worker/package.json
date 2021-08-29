@@ -1,5 +1,5 @@
 {
-  "name": "@parcel/runtime-service-worker",
+  "name": "@parcel/service-worker",
   "version": "2.0.0-rc.0",
   "license": "MIT",
   "publishConfig": {
@@ -13,15 +13,11 @@
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
-  "main": "./lib/ServiceWorkerRuntime.js",
-  "source": "./src/ServiceWorkerRuntime.js",
+  "main": "service-worker.js",
+  "types": "service-worker.d.ts",
+  "sideEffects": false,
   "engines": {
     "node": ">= 12.0.0",
     "parcel": "^2.0.0-beta.1"
-  },
-  "dependencies": {
-    "@parcel/plugin": "2.0.0-rc.0",
-    "@parcel/utils": "2.0.0-rc.0",
-    "nullthrows": "^1.1.1"
   }
 }
