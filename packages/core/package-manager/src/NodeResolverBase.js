@@ -84,7 +84,15 @@ export class NodeResolverBase<T> {
       pkg.name.startsWith('@parcel/') &&
       pkg.name !== '@parcel/watcher'
     ) {
-      main = pkg.source;
+      if (
+        pkg.main &&
+        typeof pkg.source === 'object' &&
+        !Array.isArray(pkg.source)
+      ) {
+        main = pkg.source[pkg.main];
+      } else {
+        main = pkg.source;
+      }
     }
 
     return [main]

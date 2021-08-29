@@ -1587,6 +1587,39 @@ describe('javascript', function() {
     assert(errored);
   });
 
+  it('should expose a manifest to service workers', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/service-worker/manifest.js'),
+      {
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
+      },
+    );
+
+    assertBundles(b, [
+      {
+        name: 'manifest.js',
+        assets: ['manifest.js', 'bundle-url.js'],
+      },
+      {
+        assets: ['manifest-worker.js', 'browser.js'],
+      },
+    ]);
+
+    let bundles = b.getBundles();
+    let worker = bundles.find(b => b.env.isWorker());
+    let manifest, version;
+    await await runBundle(b, worker, {
+      output(m, v) {
+        manifest = m;
+        version = v;
+      },
+    });
+    assert.deepEqual(manifest, ['/manifest.js']);
+    assert.equal(typeof version, 'string');
+  });
+
   it('should recognize serviceWorker.register with static URL and import.meta.url', async function() {
     let b = await bundle(
       path.join(
