@@ -1647,10 +1647,7 @@ impl Visit for Collect {
                   match node.args.get(0) {
                     Some(ExprOrSpread { expr, .. }) => {
                       let param = match &**expr {
-                        Expr::Fn(func) => match func.function.params.get(0) {
-                          Some(param) => Some(&param.pat),
-                          None => None,
-                        },
+                        Expr::Fn(func) => func.function.params.get(0).map(|param| &param.pat),
                         Expr::Arrow(arrow) => arrow.params.get(0),
                         _ => None,
                       };

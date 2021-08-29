@@ -315,15 +315,8 @@ impl<'a> Fold for DependencyCollector<'a> {
     let block = node.block.fold_with(self);
     self.in_try = false;
 
-    let handler = match node.handler {
-      Some(handler) => Some(handler.fold_with(self)),
-      None => None,
-    };
-
-    let finalizer = match node.finalizer {
-      Some(finalizer) => Some(finalizer.fold_with(self)),
-      None => None,
-    };
+    let handler = node.handler.map(|handler| handler.fold_with(self));
+    let finalizer = node.finalizer.map(|finalizer| finalizer.fold_with(self));
 
     ast::TryStmt {
       span: node.span,
@@ -882,11 +875,7 @@ impl<'a> DependencyCollector<'a> {
       if let Some(arg) = args.get(0) {
         let (resolve, expr) = match &*arg.expr {
           Fn(f) => {
-            let param = if let Some(param) = f.function.params.get(0) {
-              Some(&param.pat)
-            } else {
-              None
-            };
+            let param = f.function.params.get(0).map(|param| &param.pat);
             let body = if let Some(body) = &f.function.body {
               self.match_block_stmt_expr(body)
             } else {
@@ -1429,10 +1418,5 @@ fn match_worker_type(expr: Option<&ast::ExprOrSpread>) -> (SourceType, Option<as
     }
   }
 
-  let expr = match expr {
-    None => None,
-    Some(e) => Some(e.clone()),
-  };
-
-  (SourceType::Script, expr)
+  (SourceType::Script, expr.cloned())
 }
