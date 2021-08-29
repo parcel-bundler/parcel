@@ -3,7 +3,7 @@ import {Runtime} from '@parcel/plugin';
 import {urlJoin} from '@parcel/utils';
 
 export default (new Runtime({
-  async apply({bundle, bundleGraph}) {
+  apply({bundle, bundleGraph}) {
     if (bundle.env.context !== 'service-worker') {
       return [];
     }
@@ -24,7 +24,7 @@ export default (new Runtime({
     }
 
     let manifest = [];
-    bundleGraph.traverseBundles((b, _, actions) => {
+    bundleGraph.traverseBundles(b => {
       if (b.bundleBehavior === 'inline' || b.id === bundle.id) {
         return;
       }
