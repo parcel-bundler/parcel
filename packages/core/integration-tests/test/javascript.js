@@ -62,16 +62,19 @@ describe('javascript', function() {
   it('should support url: imports of another javascript file', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/worklet/pipeline.js'),
+      {
+        mode: 'production',
+      },
     );
 
     assertBundles(b, [
       {
         name: 'pipeline.js',
-        assets: ['bundle-url.js', 'pipeline.js', 'esmodule-helpers.js'],
+        assets: ['bundle-url.js', 'pipeline.js', 'bundle-manifest.js'],
       },
       {
         type: 'js',
-        assets: ['worklet.js'],
+        assets: ['worklet.js', 'colors.js'],
       },
     ]);
 
@@ -112,7 +115,7 @@ describe('javascript', function() {
       },
       {
         type: 'js',
-        assets: ['worklet.js'],
+        assets: ['worklet.js', 'colors.js', 'esmodule-helpers.js'],
       },
     ]);
 
@@ -146,7 +149,7 @@ describe('javascript', function() {
       },
       {
         type: 'js',
-        assets: ['worklet.js'],
+        assets: ['worklet.js', 'colors.js', 'esmodule-helpers.js'],
       },
     ]);
 
@@ -240,21 +243,24 @@ describe('javascript', function() {
   it('should support audio worklets via a pipeline', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/worklet/worklet-pipeline.js'),
+      {
+        mode: 'production',
+      },
     );
 
     assertBundles(b, [
       {
         name: 'worklet-pipeline.js',
-        assets: ['bundle-url.js', 'esmodule-helpers.js', 'worklet-pipeline.js'],
+        assets: ['bundle-url.js', 'bundle-manifest.js', 'worklet-pipeline.js'],
       },
       {
         type: 'js',
-        assets: ['worklet.js'],
+        assets: ['worklet.js', 'colors.js'],
       },
     ]);
 
     let res = await run(b);
-    assert(/^http:\/\/localhost\/worklet\.[0-9a-f]+\.js$/.test(res.default));
+    assert(/^http:\/\/localhost\/worklet\.[0-9a-f]+\.js$/.test(res));
 
     let name;
     await runBundle(
