@@ -7,7 +7,6 @@ import type {
   TraversalActions,
 } from '@parcel/types';
 import type {NodeId, SerializedContentGraph} from '@parcel/graph';
-import querystring from 'querystring';
 
 import type {
   Asset,
@@ -1408,16 +1407,18 @@ export default class BundleGraph {
     let hash = new Hash();
     // TODO: sort??
     this.traverseAssets(bundle, asset => {
-      hash.writeString(
-        [
-          this.getAssetPublicId(asset),
-          asset.outputHash,
-          asset.filePath,
-          querystring.stringify(asset.query),
-          asset.type,
-          asset.uniqueKey,
-        ].join(':'),
-      );
+      {
+        hash.writeString(
+          [
+            this.getAssetPublicId(asset),
+            asset.outputHash,
+            asset.filePath,
+            asset.query ? new URLSearchParams(asset.query) : '',
+            asset.type,
+            asset.uniqueKey,
+          ].join(':'),
+        );
+      }
     });
 
     let hashHex = hash.finish();

@@ -30,7 +30,6 @@ import nullthrows from 'nullthrows';
 // $FlowFixMe this is untyped
 import _Module from 'module';
 import {fileURLToPath} from 'url';
-import {parse as parseQueryString} from 'querystring';
 
 const EMPTY_SHIM = require.resolve('./_empty');
 
@@ -526,7 +525,9 @@ export default class NodeResolver {
 
       return {
         filePath,
-        query: url.search ? parseQueryString(url.search.slice(1)) : undefined,
+        query: url.search
+          ? Object.fromEntries(new URLSearchParams(url.search.slice(1)))
+          : undefined,
       };
     } else {
       // CommonJS specifier. Query params are not supported.
