@@ -18,6 +18,7 @@
     "./lib/ServiceWorkerRuntime.js": "./src/ServiceWorkerRuntime.js"
   },
   "browser": "browser.js",
+  "types": "browser.d.ts",
   "sideEffects": false,
   "engines": {
     "node": ">= 12.0.0",
