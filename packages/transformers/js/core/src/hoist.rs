@@ -442,18 +442,16 @@ impl<'a> Fold for Hoist<'a> {
                     //   -> var x = 2; import 'foo'; var y = doSomething($id$import$foo), z = 3;
                     let items_len = self.module_items.len();
                     let d = v.clone().fold_with(self);
-                    if self.module_items.len() > items_len {
-                      if !decls.is_empty() {
-                        let var = VarDecl {
-                          span: var.span,
-                          kind: var.kind,
-                          declare: var.declare,
-                          decls: std::mem::take(&mut decls),
-                        };
-                        self
-                          .module_items
-                          .insert(items_len, ModuleItem::Stmt(Stmt::Decl(Decl::Var(var))));
-                      }
+                    if self.module_items.len() > items_len && !decls.is_empty() {
+                      let var = VarDecl {
+                        span: var.span,
+                        kind: var.kind,
+                        declare: var.declare,
+                        decls: std::mem::take(&mut decls),
+                      };
+                      self
+                        .module_items
+                        .insert(items_len, ModuleItem::Stmt(Stmt::Decl(Decl::Var(var))));
                     }
                     decls.push(d);
                   }
@@ -599,11 +597,13 @@ impl<'a> Fold for Hoist<'a> {
 
                 // exports.foo -> $id$export$foo
                 let exports: JsWord = "exports".into();
-                if ident.sym == exports && !self.collect.decls.contains(&id!(ident)) {
-                  if self.collect.static_cjs_exports && !self.collect.should_wrap {
-                    self.self_references.insert(key.clone());
-                    return Expr::Ident(self.get_export_ident(member.span, &key));
-                  }
+                if ident.sym == exports
+                  && !self.collect.decls.contains(&id!(ident))
+                  && self.collect.static_cjs_exports
+                  && !self.collect.should_wrap
+                {
+                  self.self_references.insert(key.clone());
+                  return Expr::Ident(self.get_export_ident(member.span, &key));
                 }
               }
               Expr::Call(_call) => {
@@ -740,14 +740,14 @@ impl<'a> Fold for Hoist<'a> {
       .into_iter()
       .enumerate()
       .map(|(i, expr)| {
-        if i != len - 1 {
-          if match_require(&*expr, &self.collect.decls, self.collect.ignore_mark).is_some() {
-            return Box::new(Expr::Unary(UnaryExpr {
-              op: UnaryOp::Bang,
-              arg: expr.fold_with(self),
-              span: DUMMY_SP,
-            }));
-          }
+        if i != len - 1
+          && match_require(&*expr, &self.collect.decls, self.collect.ignore_mark).is_some()
+        {
+          return Box::new(Expr::Unary(UnaryExpr {
+            op: UnaryOp::Bang,
+            arg: expr.fold_with(self),
+            span: DUMMY_SP,
+          }));
         }
 
         expr.fold_with(self)
