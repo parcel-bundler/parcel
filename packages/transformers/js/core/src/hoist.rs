@@ -919,7 +919,7 @@ impl<'a> Fold for Hoist<'a> {
             } else {
               PatOrExpr::Pat(Box::new(Pat::Expr(Box::new(Expr::Member(MemberExpr {
                 span: member.span,
-                obj: ExprOrSuper::Expr(Box::new(Expr::Ident(ident.id.clone()))),
+                obj: ExprOrSuper::Expr(Box::new(Expr::Ident(ident.id))),
                 prop: member.prop.clone().fold_with(self),
                 computed: member.computed,
               })))))
@@ -1942,7 +1942,7 @@ mod tests {
       let mut emitter = swc_ecmascript::codegen::Emitter {
         cfg: config,
         comments: Some(&comments),
-        cm: source_map.clone(),
+        cm: source_map,
         wr: writer,
       };
 

@@ -411,7 +411,7 @@ impl<'a> Fold for DependencyCollector<'a> {
             return node.fold_children_with(self);
           }
           "__parcel__require__" => {
-            let mut call = node.clone().fold_children_with(self);
+            let mut call = node.fold_children_with(self);
             call.callee = ast::ExprOrSuper::Expr(Box::new(ast::Expr::Ident(ast::Ident::new(
               "require".into(),
               DUMMY_SP.apply_mark(self.ignore_mark),
@@ -419,7 +419,7 @@ impl<'a> Fold for DependencyCollector<'a> {
             return call;
           }
           "__parcel__import__" => {
-            let mut call = node.clone().fold_children_with(self);
+            let mut call = node.fold_children_with(self);
             call.callee = ast::ExprOrSuper::Expr(Box::new(ast::Expr::Ident(ast::Ident::new(
               "import".into(),
               DUMMY_SP.apply_mark(self.ignore_mark),
@@ -427,7 +427,7 @@ impl<'a> Fold for DependencyCollector<'a> {
             return call;
           }
           "__parcel__importScripts__" => {
-            let mut call = node.clone().fold_children_with(self);
+            let mut call = node.fold_children_with(self);
             call.callee = ast::ExprOrSuper::Expr(Box::new(ast::Expr::Ident(ast::Ident::new(
               "importScripts".into(),
               DUMMY_SP.apply_mark(self.ignore_mark),
@@ -488,7 +488,7 @@ impl<'a> Fold for DependencyCollector<'a> {
                               //   => Promise.resolve().then(() => require('foo')).then(res => __importStar(res))
                               if let Some(require_node) = self.require_node.clone() {
                                 self.require_node = None;
-                                return build_promise_chain(node.clone(), require_node);
+                                return build_promise_chain(node, require_node);
                               }
                             }
                             _ => {}
@@ -591,8 +591,7 @@ impl<'a> Fold for DependencyCollector<'a> {
           return node;
         };
 
-        node.args[0].expr =
-          Box::new(self.add_url_dependency(specifier.clone(), span, kind.clone(), source_type));
+        node.args[0].expr = Box::new(self.add_url_dependency(specifier, span, kind, source_type));
 
         match opts {
           Some(opts) => {
@@ -642,7 +641,7 @@ impl<'a> Fold for DependencyCollector<'a> {
 
     // Replace import() with require()
     if kind == DependencyKind::DynamicImport {
-      let mut call = node.clone();
+      let mut call = node;
       if !self.config.scope_hoist {
         let name = match &self.config.source_type {
           SourceType::Module => "require",
@@ -766,12 +765,8 @@ impl<'a> Fold for DependencyCollector<'a> {
         };
 
         let (source_type, opts) = match_worker_type(args.get(1));
-        let placeholder = self.add_url_dependency(
-          specifier.clone(),
-          span,
-          DependencyKind::WebWorker,
-          source_type,
-        );
+        let placeholder =
+          self.add_url_dependency(specifier, span, DependencyKind::WebWorker, source_type);
 
         // Replace argument with a require call to resolve the URL at runtime.
         let mut node = node.clone();
@@ -824,7 +819,7 @@ impl<'a> Fold for DependencyCollector<'a> {
 
     if let Some((specifier, span)) = self.match_new_url(&node, self.decls) {
       let url = self.add_url_dependency(
-        specifier.clone(),
+        specifier,
         span,
         DependencyKind::URL,
         self.config.source_type,

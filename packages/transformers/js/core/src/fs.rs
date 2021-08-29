@@ -100,7 +100,7 @@ impl<'a> InlineFS<'a> {
         match &member.obj {
           ExprOrSuper::Expr(expr) => {
             if let Some(source) = self.collect.match_require(expr) {
-              return Some((source.clone(), prop));
+              return Some((source, prop));
             }
 
             match &**expr {
