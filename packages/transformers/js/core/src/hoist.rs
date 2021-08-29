@@ -40,7 +40,7 @@ pub fn hoist(
 
   let mut hoist = Hoist::new(module_id, &collect);
   let module = module.fold_with(&mut hoist);
-  if hoist.diagnostics.len() > 0 {
+  if !hoist.diagnostics.is_empty() {
     return Err(hoist.diagnostics);
   }
 
@@ -349,7 +349,7 @@ impl<'a> Fold for Hoist<'a> {
                           // split the declaration into multiple to preserve side effect ordering.
                           // var x = sideEffect(), y = require('foo'), z = 2;
                           //   -> var x = sideEffect(); import 'foo'; var y = $id$import$foo, z = 2;
-                          if decls.len() > 0 {
+                          if !decls.is_empty() {
                             let var = VarDecl {
                               span: var.span,
                               kind: var.kind,
@@ -395,7 +395,7 @@ impl<'a> Fold for Hoist<'a> {
                                   // split the declaration into multiple to preserve side effect ordering.
                                   // var x = sideEffect(), y = require('foo').bar, z = 2;
                                   //   -> var x = sideEffect(); import 'foo'; var y = $id$import$foo$bar, z = 2;
-                                  if decls.len() > 0 {
+                                  if !decls.is_empty() {
                                     let var = VarDecl {
                                       span: var.span,
                                       kind: var.kind,
@@ -443,7 +443,7 @@ impl<'a> Fold for Hoist<'a> {
                     let items_len = self.module_items.len();
                     let d = v.clone().fold_with(self);
                     if self.module_items.len() > items_len {
-                      if decls.len() > 0 {
+                      if !decls.is_empty() {
                         let var = VarDecl {
                           span: var.span,
                           kind: var.kind,
@@ -459,7 +459,7 @@ impl<'a> Fold for Hoist<'a> {
                   }
 
                   // Push whatever declarators are left.
-                  if decls.len() > 0 {
+                  if !decls.is_empty() {
                     let var = VarDecl {
                       span: var.span,
                       kind: var.kind,

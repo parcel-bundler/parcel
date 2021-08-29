@@ -715,7 +715,7 @@ impl<'a> Fold for DependencyCollector<'a> {
     }
 
     if let Some(args) = &node.args {
-      if args.len() > 0 {
+      if !args.is_empty() {
         let (specifier, span) = if let Some(s) = self.match_new_url(&*args[0].expr, self.decls) {
           s
         } else if let Lit(ast::Lit::Str(str_)) = &*args[0].expr {
@@ -1389,7 +1389,7 @@ fn match_worker_type(expr: Option<&ast::ExprOrSpread>) -> (SourceType, Option<as
         .collect();
 
       if let Some(source_type) = source_type {
-        let e = if props.len() == 0 {
+        let e = if props.is_empty() {
           None
         } else {
           Some(ExprOrSpread {
