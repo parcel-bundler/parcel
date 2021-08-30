@@ -1282,7 +1282,7 @@ impl Visit for Collect {
           self
             .exports
             .entry(id!(namespace.name))
-            .or_insert("*".into());
+            .or_insert_with(|| "*".into());
         }
       }
     }
@@ -1788,10 +1788,8 @@ impl Collect {
         }
       }
       Pat::Array(array) => {
-        for el in &array.elems {
-          if let Some(el) = el {
-            self.get_non_const_binding_idents(el, idents);
-          }
+        for el in array.elems.iter().flatten() {
+          self.get_non_const_binding_idents(el, idents);
         }
       }
       _ => {}
@@ -1828,11 +1826,9 @@ fn has_binding_identifier(node: &Pat, sym: &JsWord, decls: &HashSet<IdentId>) ->
       }
     }
     Pat::Array(array) => {
-      for el in &array.elems {
-        if let Some(el) = el {
-          if has_binding_identifier(el, sym, decls) {
-            return true;
-          }
+      for el in array.elems.iter().flatten() {
+        if has_binding_identifier(el, sym, decls) {
+          return true;
         }
       }
     }
