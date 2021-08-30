@@ -21,9 +21,11 @@ fn optimize(ctx: CallContext) -> Result<JsBuffer> {
 
   match kind {
     "png" => {
-      let mut options = Options::default();
-      options.deflate = Deflaters::Libdeflater;
-      options.strip = Headers::Safe;
+      let options = Options {
+        deflate: Deflaters::Libdeflater,
+        strip: Headers::Safe,
+        ..Default::default()
+      };
       match optimize_from_memory(slice, &options) {
         Ok(res) => Ok(ctx.env.create_buffer_with_data(res)?.into_raw()),
         Err(err) => Err(Error::from_reason(format!("{}", err))),

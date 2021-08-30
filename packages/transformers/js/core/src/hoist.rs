@@ -1861,10 +1861,11 @@ mod tests {
     let source_file = source_map.new_source_file(FileName::Anon, code.into());
 
     let comments = SingleThreadedComments::default();
-    let mut esconfig = EsConfig::default();
-    esconfig.dynamic_import = true;
     let lexer = Lexer::new(
-      Syntax::Es(esconfig),
+      Syntax::Es(EsConfig {
+        dynamic_import: true,
+        ..Default::default()
+      }),
       Default::default(),
       StringInput::from(&*source_file),
       Some(&comments),
