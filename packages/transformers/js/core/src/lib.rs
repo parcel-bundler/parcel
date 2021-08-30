@@ -52,6 +52,8 @@ use hoist::hoist;
 use modules::esm2cjs;
 use utils::{CodeHighlight, Diagnostic, DiagnosticSeverity, SourceLocation, SourceType};
 
+type SourceMapBuffer = Vec<(swc_common::BytePos, swc_common::LineCol)>;
+
 #[derive(Serialize, Debug, Deserialize)]
 pub struct Config {
   filename: String,
@@ -482,7 +484,7 @@ fn emit(
   comments: SingleThreadedComments,
   program: &Module,
   source_maps: bool,
-) -> Result<(Vec<u8>, Vec<(swc_common::BytePos, swc_common::LineCol)>), std::io::Error> {
+) -> Result<(Vec<u8>, SourceMapBuffer), std::io::Error> {
   let mut src_map_buf = vec![];
   let mut buf = vec![];
   {
