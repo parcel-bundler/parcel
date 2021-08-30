@@ -90,10 +90,7 @@ impl<'a> InlineFS<'a> {
               return None;
             }
           }
-          Expr::Lit(lit) => match lit {
-            Lit::Str(str_) => str_.value.clone(),
-            _ => return None,
-          },
+          Expr::Lit(Lit::Str(str_)) => str_.value.clone(),
           _ => return None,
         };
 
@@ -306,7 +303,7 @@ impl<'a> Fold for Evaluator<'a> {
                   Expr::Lit(Lit::Str(str_)) => str_.value.clone(),
                   _ => return node,
                 };
-                if path.as_os_str().len() == 0 {
+                if path.as_os_str().is_empty() {
                   path.push(s.to_string());
                 } else {
                   let s = s.to_string();

@@ -216,12 +216,10 @@ impl<'a> DependencyCollector<'a> {
 
 fn rewrite_require_specifier(node: ast::CallExpr) -> ast::CallExpr {
   if let Some(arg) = node.args.get(0) {
-    if let ast::Expr::Lit(lit) = &*arg.expr {
-      if let ast::Lit::Str(str_) = lit {
-        if str_.value.starts_with("node:") {
-          // create_require will take care of replacing the node: prefix...
-          return create_require(str_.value.clone());
-        }
+    if let ast::Expr::Lit(ast::Lit::Str(str_)) = &*arg.expr {
+      if str_.value.starts_with("node:") {
+        // create_require will take care of replacing the node: prefix...
+        return create_require(str_.value.clone());
       }
     }
   }
@@ -549,37 +547,33 @@ impl<'a> Fold for DependencyCollector<'a> {
 
         let (specifier, span) = if let Some(s) = self.match_new_url(&*arg.expr, self.decls) {
           s
-        } else if let Lit(lit) = &*arg.expr {
-          if let ast::Lit::Str(str_) = lit {
-            let (msg, docs) = if kind == DependencyKind::ServiceWorker {
-              (
-                "Registering service workers with a string literal is not supported.",
-                "https://v2.parceljs.org/languages/javascript/#service-workers",
-              )
-            } else {
-              (
-                "Registering worklets with a string literal is not supported.",
-                "http://localhost:8080/languages/javascript/#worklets",
-              )
-            };
-            self.diagnostics.push(Diagnostic {
-              message: msg.to_string(),
-              code_highlights: Some(vec![CodeHighlight {
-                message: None,
-                loc: SourceLocation::from(self.source_map, str_.span),
-              }]),
-              hints: Some(vec![format!(
-                "Replace with: new URL('{}', import.meta.url)",
-                str_.value,
-              )]),
-              show_environment: false,
-              severity: DiagnosticSeverity::Error,
-              documentation_url: Some(String::from(docs)),
-            });
-            return node;
+        } else if let Lit(ast::Lit::Str(str_)) = &*arg.expr {
+          let (msg, docs) = if kind == DependencyKind::ServiceWorker {
+            (
+              "Registering service workers with a string literal is not supported.",
+              "https://v2.parceljs.org/languages/javascript/#service-workers",
+            )
           } else {
-            return node;
-          }
+            (
+              "Registering worklets with a string literal is not supported.",
+              "http://localhost:8080/languages/javascript/#worklets",
+            )
+          };
+          self.diagnostics.push(Diagnostic {
+            message: msg.to_string(),
+            code_highlights: Some(vec![CodeHighlight {
+              message: None,
+              loc: SourceLocation::from(self.source_map, str_.span),
+            }]),
+            hints: Some(vec![format!(
+              "Replace with: new URL('{}', import.meta.url)",
+              str_.value,
+            )]),
+            show_environment: false,
+            severity: DiagnosticSeverity::Error,
+            documentation_url: Some(String::from(docs)),
+          });
+          return node;
         } else {
           return node;
         };
@@ -721,38 +715,34 @@ impl<'a> Fold for DependencyCollector<'a> {
     }
 
     if let Some(args) = &node.args {
-      if args.len() > 0 {
+      if !args.is_empty() {
         let (specifier, span) = if let Some(s) = self.match_new_url(&*args[0].expr, self.decls) {
           s
-        } else if let Lit(lit) = &*args[0].expr {
-          if let ast::Lit::Str(str_) = lit {
-            let constructor = match &*node.callee {
-              Ident(id) => id.sym.to_string(),
-              _ => "Worker".to_string(),
-            };
-            self.diagnostics.push(Diagnostic {
-              message: format!(
-                "Constructing a {} with a string literal is not supported.",
-                constructor
-              ),
-              code_highlights: Some(vec![CodeHighlight {
-                message: None,
-                loc: SourceLocation::from(self.source_map, str_.span),
-              }]),
-              hints: Some(vec![format!(
-                "Replace with: new URL('{}', import.meta.url)",
-                str_.value
-              )]),
-              show_environment: false,
-              severity: DiagnosticSeverity::Error,
-              documentation_url: Some(String::from(
-                "https://v2.parceljs.org/languages/javascript/#web-workers",
-              )),
-            });
-            return node;
-          } else {
-            return node;
-          }
+        } else if let Lit(ast::Lit::Str(str_)) = &*args[0].expr {
+          let constructor = match &*node.callee {
+            Ident(id) => id.sym.to_string(),
+            _ => "Worker".to_string(),
+          };
+          self.diagnostics.push(Diagnostic {
+            message: format!(
+              "Constructing a {} with a string literal is not supported.",
+              constructor
+            ),
+            code_highlights: Some(vec![CodeHighlight {
+              message: None,
+              loc: SourceLocation::from(self.source_map, str_.span),
+            }]),
+            hints: Some(vec![format!(
+              "Replace with: new URL('{}', import.meta.url)",
+              str_.value
+            )]),
+            show_environment: false,
+            severity: DiagnosticSeverity::Error,
+            documentation_url: Some(String::from(
+              "https://v2.parceljs.org/languages/javascript/#web-workers",
+            )),
+          });
+          return node;
         } else {
           return node;
         };
@@ -922,7 +912,7 @@ impl<'a> DependencyCollector<'a> {
       }
     }
 
-    return node.fold_children_with(self);
+    node.fold_children_with(self)
   }
 
   fn match_block_stmt_expr<'x>(&self, block: &'x ast::BlockStmt) -> Option<&'x ast::Expr> {
@@ -1393,13 +1383,13 @@ fn match_worker_type(expr: Option<&ast::ExprOrSpread>) -> (SourceType, Option<as
             _ => SourceType::Script,
           });
 
-          return false;
+          false
         })
         .cloned()
         .collect();
 
       if let Some(source_type) = source_type {
-        let e = if props.len() == 0 {
+        let e = if props.is_empty() {
           None
         } else {
           Some(ExprOrSpread {
