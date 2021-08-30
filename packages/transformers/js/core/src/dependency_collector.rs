@@ -32,7 +32,7 @@ pub enum DependencyKind {
   WebWorker,
   ServiceWorker,
   Worklet,
-  URL,
+  Url,
   File,
 }
 
@@ -804,7 +804,7 @@ impl<'a> Fold for DependencyCollector<'a> {
       let url = self.add_url_dependency(
         specifier,
         span,
-        DependencyKind::URL,
+        DependencyKind::Url,
         self.config.source_type,
       );
 
