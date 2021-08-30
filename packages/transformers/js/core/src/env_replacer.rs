@@ -92,7 +92,7 @@ impl<'a> Fold for EnvReplacer<'a> {
               && match_member_expr(member, vec!["process", "env"], self.decls)
             {
               let mut decls = vec![];
-              self.collect_pat_bindings(&pat, &mut decls);
+              self.collect_pat_bindings(pat, &mut decls);
 
               let mut exprs: Vec<Box<Expr>> = decls
                 .iter()

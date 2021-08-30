@@ -97,7 +97,7 @@ unsafe fn optimize_jpeg(bytes: &[u8]) -> std::thread::Result<&mut [u8]> {
     jpeg_read_header(&mut info.srcinfo, 1);
 
     let src_coef_arrays = jpeg_read_coefficients(&mut info.srcinfo);
-    jpeg_copy_critical_parameters(&mut info.srcinfo, &mut info.dstinfo);
+    jpeg_copy_critical_parameters(&info.srcinfo, &mut info.dstinfo);
 
     let mut buf = ptr::null_mut();
     let mut outsize: c_ulong = 0;

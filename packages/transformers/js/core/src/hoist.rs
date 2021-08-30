@@ -377,7 +377,7 @@ impl<'a> Fold for Hoist<'a> {
                             })));
 
                           // Create variable assignments for any declarations that are not constant.
-                          self.handle_non_const_require(&v, &source);
+                          self.handle_non_const_require(v, &source);
                           continue;
                         }
                       }
@@ -422,7 +422,7 @@ impl<'a> Fold for Hoist<'a> {
                                     }),
                                   ));
 
-                                  self.handle_non_const_require(&v, &source);
+                                  self.handle_non_const_require(v, &source);
                                   continue;
                                 }
                               }
@@ -566,7 +566,7 @@ impl<'a> Fold for Hoist<'a> {
                   if specifier == "*"
                     && !self.collect.non_static_access.contains(&id!(ident))
                     && !self.collect.non_const_bindings.contains_key(&id!(ident))
-                    && !self.collect.non_static_requires.contains(&source)
+                    && !self.collect.non_static_requires.contains(source)
                   {
                     if *kind == ImportKind::DynamicImport {
                       let name: JsWord = format!(
@@ -587,7 +587,7 @@ impl<'a> Fold for Hoist<'a> {
                     } else {
                       return Expr::Ident(self.get_import_ident(
                         member.span,
-                        &source,
+                        source,
                         &key,
                         SourceLocation::from(&self.collect.source_map, member.span),
                       ));
@@ -624,7 +624,7 @@ impl<'a> Fold for Hoist<'a> {
                 // module.exports.foo -> $id$export$foo
                 if self.collect.static_cjs_exports
                   && !self.collect.should_wrap
-                  && match_member_expr(&mem, vec!["module", "exports"], &self.collect.decls)
+                  && match_member_expr(mem, vec!["module", "exports"], &self.collect.decls)
                 {
                   self.self_references.insert(key.clone());
                   return Expr::Ident(self.get_export_ident(member.span, &key));
@@ -859,7 +859,7 @@ impl<'a> Fold for Hoist<'a> {
 
     match &**expr {
       Expr::Member(member) => {
-        if match_member_expr(&member, vec!["module", "exports"], &self.collect.decls) {
+        if match_member_expr(member, vec!["module", "exports"], &self.collect.decls) {
           let ident = BindingIdent::from(self.get_export_ident(member.span, &"*".into()));
           return AssignExpr {
             span: node.span,
@@ -872,7 +872,7 @@ impl<'a> Fold for Hoist<'a> {
         let is_cjs_exports = match &member.obj {
           ExprOrSuper::Expr(expr) => match &**expr {
             Expr::Member(member) => {
-              match_member_expr(&member, vec!["module", "exports"], &self.collect.decls)
+              match_member_expr(member, vec!["module", "exports"], &self.collect.decls)
             }
             Expr::Ident(ident) => {
               let exports: JsWord = "exports".into();
@@ -1058,7 +1058,7 @@ impl<'a> Hoist<'a> {
         let require_id = self.get_require_ident(&ident.sym);
         let import_id = self.get_import_ident(
           v.span,
-          &source,
+          source,
           specifier,
           SourceLocation::from(&self.collect.source_map, v.span),
         );
@@ -1374,13 +1374,13 @@ impl Visit for Collect {
     // if exports, ensure only static member expression
     // if require, could be static access (handle in fold)
 
-    if match_member_expr(&node, vec!["module", "exports"], &self.decls) {
+    if match_member_expr(node, vec!["module", "exports"], &self.decls) {
       self.static_cjs_exports = false;
       self.has_cjs_exports = true;
       return;
     }
 
-    if match_member_expr(&node, vec!["module", "hot"], &self.decls) {
+    if match_member_expr(node, vec!["module", "hot"], &self.decls) {
       return;
     }
 
@@ -1394,7 +1394,7 @@ impl Visit for Collect {
       ExprOrSuper::Expr(expr) => {
         match &**expr {
           Expr::Member(member) => {
-            if match_member_expr(&member, vec!["module", "exports"], &self.decls) {
+            if match_member_expr(member, vec!["module", "exports"], &self.decls) {
               self.has_cjs_exports = true;
               if !is_static {
                 self.static_cjs_exports = false;
@@ -1790,7 +1790,7 @@ impl Collect {
       Pat::Array(array) => {
         for el in &array.elems {
           if let Some(el) = el {
-            self.get_non_const_binding_idents(&el, idents);
+            self.get_non_const_binding_idents(el, idents);
           }
         }
       }
@@ -1830,7 +1830,7 @@ fn has_binding_identifier(node: &Pat, sym: &JsWord, decls: &HashSet<IdentId>) ->
     Pat::Array(array) => {
       for el in &array.elems {
         if let Some(el) = el {
-          if has_binding_identifier(&el, sym, decls) {
+          if has_binding_identifier(el, sym, decls) {
             return true;
           }
         }
@@ -1926,7 +1926,7 @@ mod tests {
         wr: writer,
       };
 
-      emitter.emit_module(&program).unwrap();
+      emitter.emit_module(program).unwrap();
     }
 
     String::from_utf8(buf).unwrap()

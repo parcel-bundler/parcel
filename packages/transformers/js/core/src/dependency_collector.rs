@@ -691,7 +691,7 @@ impl<'a> Fold for DependencyCollector<'a> {
             return self.fold_new_promise(node);
           }
           sym => {
-            if sym.to_string() == "__parcel__URL__" {
+            if sym == "__parcel__URL__" {
               // new __parcel__URL__(url) -> new URL(url, import.meta.url)
               if let Some(args) = &node.args {
                 if let ast::Expr::New(new) = create_url_constructor(

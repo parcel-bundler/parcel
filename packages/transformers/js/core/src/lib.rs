@@ -504,7 +504,7 @@ fn emit(
       wr: writer,
     };
 
-    emitter.emit_module(&program)?;
+    emitter.emit_module(program)?;
   }
 
   Ok((buf, src_map_buf))

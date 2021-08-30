@@ -114,7 +114,7 @@ impl<'a> Fold for GlobalReplacer<'a> {
               if let Some(relative) = pathdiff::diff_paths(self.filename, self.project_root) {
                 relative.to_slash_lossy()
               } else if let Some(filename) = self.filename.file_name() {
-                String::from(format!("/{}", filename.to_string_lossy()))
+                format!("/{}", filename.to_string_lossy())
               } else {
                 String::from("/unknown.js")
               };

@@ -240,7 +240,7 @@ impl ESMFold {
     let obj = if imported == "default" {
       self.get_interop_default_name(source)
     } else {
-      self.get_require_name(&source, DUMMY_SP)
+      self.get_require_name(source, DUMMY_SP)
     };
 
     Expr::Member(MemberExpr {
