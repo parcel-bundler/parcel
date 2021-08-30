@@ -48,22 +48,18 @@ impl<'a> Fold for InlineFS<'a> {
   }
 
   fn fold_expr(&mut self, node: Expr) -> Expr {
-    match &node {
-      Expr::Call(call) => match &call.callee {
-        ExprOrSuper::Expr(expr) => {
-          if let Some((source, specifier)) = self.match_module_reference(expr) {
-            if &source == "fs" && &specifier == "readFileSync" {
-              if let Some(arg) = call.args.get(0) {
-                if let Some(res) = self.evaluate_fs_arg(&*arg.expr, call.args.get(1), call.span) {
-                  return res;
-                }
+    if let Expr::Call(call) = &node {
+      if let ExprOrSuper::Expr(expr) = &call.callee {
+        if let Some((source, specifier)) = self.match_module_reference(expr) {
+          if &source == "fs" && &specifier == "readFileSync" {
+            if let Some(arg) = call.args.get(0) {
+              if let Some(res) = self.evaluate_fs_arg(&*arg.expr, call.args.get(1), call.span) {
+                return res;
               }
             }
           }
         }
-        _ => {}
-      },
-      _ => {}
+      }
     }
 
     node.fold_children_with(self)
@@ -94,27 +90,21 @@ impl<'a> InlineFS<'a> {
           _ => return None,
         };
 
-        match &member.obj {
-          ExprOrSuper::Expr(expr) => {
-            if let Some(source) = self.collect.match_require(expr) {
-              return Some((source, prop));
-            }
+        if let ExprOrSuper::Expr(expr) = &member.obj {
+          if let Some(source) = self.collect.match_require(expr) {
+            return Some((source, prop));
+          }
 
-            match &**expr {
-              Expr::Ident(ident) => {
-                if let Some(Import {
-                  source, specifier, ..
-                }) = self.collect.imports.get(&id!(ident))
-                {
-                  if specifier == "default" || specifier == "*" {
-                    return Some((source.clone(), prop));
-                  }
-                }
+          if let Expr::Ident(ident) = &**expr {
+            if let Some(Import {
+              source, specifier, ..
+            }) = self.collect.imports.get(&id!(ident))
+            {
+              if specifier == "default" || specifier == "*" {
+                return Some((source.clone(), prop));
               }
-              _ => {}
             }
           }
-          _ => {}
         }
       }
       _ => {}
