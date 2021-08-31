@@ -4095,6 +4095,48 @@ describe('javascript', function() {
     assert(!cssBundleContent.includes('sourceMappingURL'));
   });
 
+  it('should not include the runtime manifest for `bundle-text`', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/bundle-text/index.js'),
+      {
+        mode: 'production',
+        defaultTargetOptions: {shouldScopeHoist: false, shouldOptimize: false},
+      },
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        type: 'js',
+        assets: ['esmodule-helpers.js', 'index.js'],
+      },
+      {
+        type: 'svg',
+        assets: ['img.svg'],
+      },
+      {
+        type: 'css',
+        assets: ['text.scss'],
+      },
+    ]);
+
+    let cssBundleContent = (await run(b)).default;
+
+    assert(
+      cssBundleContent.startsWith(
+        `body {
+  background-color: #000000;
+}
+
+.svg-img {
+  background-image: url("data:image/svg+xml,%3Csvg%3E%0A%0A%3C%2Fsvg%3E%0A");
+}`,
+      ),
+    );
+
+    assert(!cssBundleContent.includes('sourceMappingURL'));
+  });
+
   it("should inline an HTML bundle's compiled text with `bundle-text`", async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/bundle-text/index.html'),
