@@ -90,17 +90,14 @@ impl<'a> InlineFS<'a> {
               return None;
             }
           }
-          Expr::Lit(lit) => match lit {
-            Lit::Str(str_) => str_.value.clone(),
-            _ => return None,
-          },
+          Expr::Lit(Lit::Str(str_)) => str_.value.clone(),
           _ => return None,
         };
 
         match &member.obj {
           ExprOrSuper::Expr(expr) => {
             if let Some(source) = self.collect.match_require(expr) {
-              return Some((source.clone(), prop));
+              return Some((source, prop));
             }
 
             match &**expr {
@@ -123,7 +120,7 @@ impl<'a> InlineFS<'a> {
       _ => {}
     }
 
-    return None;
+    None
   }
 
   fn evaluate_fs_arg(
@@ -234,7 +231,7 @@ impl<'a> InlineFS<'a> {
           Some(contents)
         }
       }
-      _ => return None,
+      _ => None,
     }
   }
 }
@@ -306,7 +303,7 @@ impl<'a> Fold for Evaluator<'a> {
                   Expr::Lit(Lit::Str(str_)) => str_.value.clone(),
                   _ => return node,
                 };
-                if path.as_os_str().len() == 0 {
+                if path.as_os_str().is_empty() {
                   path.push(s.to_string());
                 } else {
                   let s = s.to_string();
@@ -332,7 +329,7 @@ impl<'a> Fold for Evaluator<'a> {
           }
         }
 
-        return node;
+        node
       }
       _ => node,
     }

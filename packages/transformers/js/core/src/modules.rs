@@ -91,7 +91,7 @@ impl ESMFold {
 
     let ident = self.get_require_name(&src, DUMMY_SP);
     let require = ModuleItem::Stmt(Stmt::Decl(Decl::Var(VarDecl {
-      span: span,
+      span,
       kind: VarDeclKind::Var,
       decls: vec![VarDeclarator {
         span: DUMMY_SP,
@@ -247,7 +247,7 @@ impl ESMFold {
       obj: ExprOrSuper::Expr(Box::new(Expr::Ident(obj))),
       prop: Box::new(Expr::Ident(Ident::new(imported.clone(), DUMMY_SP))),
       computed: false,
-      span: span,
+      span,
     })
   }
 }
