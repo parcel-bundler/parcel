@@ -95,6 +95,7 @@ export default class Transformation {
   request: TransformationRequest;
   configs: Map<string, Config>;
   devDepRequests: Map<string, DevDepRequest>;
+  pluginDevDeps: Array<InternalDevDepOptions>;
   options: ParcelOptions;
   pluginOptions: PluginOptions;
   workerApi: WorkerApi;
@@ -111,16 +112,23 @@ export default class Transformation {
     this.invalidations = new Map();
     this.invalidateOnFileCreate = [];
     this.devDepRequests = new Map();
+    this.pluginDevDeps = [];
 
     this.pluginOptions = new PluginOptions(
-      optionsProxy(this.options, option => {
-        let invalidation: RequestInvalidation = {
-          type: 'option',
-          key: option,
-        };
+      optionsProxy(
+        this.options,
+        option => {
+          let invalidation: RequestInvalidation = {
+            type: 'option',
+            key: option,
+          };
 
-        this.invalidations.set(getInvalidationId(invalidation), invalidation);
-      }),
+          this.invalidations.set(getInvalidationId(invalidation), invalidation);
+        },
+        devDep => {
+          this.pluginDevDeps.push(devDep);
+        },
+      ),
     );
   }
 
@@ -261,14 +269,17 @@ export default class Transformation {
 
     // Add dev dep requests for each transformer
     for (let transformer of pipeline.transformers) {
-      await this.addDevDependency(
-        {
-          specifier: transformer.name,
-          resolveFrom: transformer.resolveFrom,
-          range: transformer.range,
-        },
-        transformer,
-      );
+      await this.addDevDependency({
+        specifier: transformer.name,
+        resolveFrom: transformer.resolveFrom,
+        range: transformer.range,
+      });
+    }
+
+    // Add dev dep requests for dependencies of transformer plugins
+    // (via proxied packageManager.require calls).
+    for (let devDep of this.pluginDevDeps) {
+      await this.addDevDependency(devDep);
     }
 
     if (!initialCacheEntry) {
@@ -340,12 +351,7 @@ export default class Transformation {
     return hashString(hashes);
   }
 
-  async addDevDependency(
-    opts: InternalDevDepOptions,
-    transformer:
-      | LoadedPlugin<Transformer<mixed>>
-      | TransformerWithNameAndConfig,
-  ): Promise<void> {
+  async addDevDependency(opts: InternalDevDepOptions): Promise<void> {
     let {specifier, resolveFrom, range} = opts;
     let key = `${specifier}:${fromProjectPathRelative(resolveFrom)}`;
     if (this.devDepRequests.has(key)) {
@@ -363,7 +369,6 @@ export default class Transformation {
 
     let devDepRequest = await createDevDependency(
       opts,
-      transformer,
       this.request.devDeps,
       this.options,
     );
@@ -663,7 +668,7 @@ export default class Transformation {
     await loadPluginConfig(transformer, config, this.options);
 
     for (let devDep of config.devDeps) {
-      await this.addDevDependency(devDep, transformer);
+      await this.addDevDependency(devDep);
     }
 
     return config;
