@@ -16,9 +16,6 @@ export default (new Transformer({
       shouldOptimize: asset.env.shouldOptimize,
       shouldScopeHoist: asset.env.shouldScopeHoist,
     });
-    // Fake symbol to prevent "does not export default" error in symbol propagation.
-    asset.symbols.ensure();
-    asset.symbols.set('*', 'url');
     return [asset];
   },
 }): Transformer);
