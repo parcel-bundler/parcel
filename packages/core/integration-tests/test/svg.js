@@ -1,5 +1,5 @@
 import assert from 'assert';
-import {assertBundles, bundle, outputFS} from '@parcel/test-utils';
+import {assertBundles, bundle, distDir, outputFS} from '@parcel/test-utils';
 import path from 'path';
 
 describe('svg', function() {
@@ -142,5 +142,53 @@ describe('svg', function() {
 
     assert(file.includes('<?xml-stylesheet'));
     assert(file.includes('<?xml-not-a-stylesheet'));
+  });
+
+  it('should handle inline CSS with @imports', async function() {
+    const b = await bundle(
+      path.join(__dirname, '/integration/svg-inline-css-import/img.svg'),
+    );
+
+    assertBundles(b, [
+      {
+        type: 'css',
+        assets: ['img.svg', 'test.css'],
+      },
+      {
+        name: 'img.svg',
+        assets: ['img.svg'],
+      },
+    ]);
+
+    const svg = await outputFS.readFile(path.join(distDir, 'img.svg'), 'utf8');
+
+    assert(!svg.includes('@import'));
+    assert(svg.includes(':root {\n  fill: red\n}'));
+  });
+
+  it('should process inline styles using lang', async function() {
+    const b = await bundle(
+      path.join(__dirname, '/integration/svg-inline-sass/img.svg'),
+      {
+        defaultTargetOptions: {
+          shouldOptimize: true,
+        },
+      },
+    );
+
+    assertBundles(b, [
+      {
+        type: 'css',
+        assets: ['img.svg'],
+      },
+      {
+        name: 'img.svg',
+        assets: ['img.svg'],
+      },
+    ]);
+
+    const svg = await outputFS.readFile(path.join(distDir, 'img.svg'), 'utf8');
+
+    assert(svg.includes('<style>:root{fill:red}</style>'));
   });
 });

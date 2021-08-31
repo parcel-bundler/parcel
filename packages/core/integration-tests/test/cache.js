@@ -3615,6 +3615,59 @@ describe('cache', function() {
       assert(output.includes('UPDATED'));
     });
 
+    it('should invalidate when updating a file required via options.packageManager.require', async function() {
+      let b = await testCache({
+        async setup() {
+          await overlayFS.writeFile(
+            path.join(inputDir, '.parcelrc'),
+            JSON.stringify({
+              extends: '@parcel/config-default',
+              transformers: {
+                '*.js': ['parcel-transformer-mock'],
+              },
+            }),
+          );
+          let transformer = path.join(
+            inputDir,
+            'node_modules',
+            'parcel-transformer-mock',
+            'index.js',
+          );
+          let contents = await overlayFS.readFile(transformer, 'utf8');
+          await overlayFS.writeFile(
+            transformer,
+            contents
+              .replace(
+                'transform({asset}) {',
+                'async transform({asset, options}) {',
+              )
+              .replace(
+                "const {message} = require('./constants');",
+                "const message = 'FOO: ' + await options.packageManager.require('foo', asset.filePath);",
+              ),
+          );
+        },
+        async update(b) {
+          let output = await overlayFS.readFile(
+            b.bundleGraph.getBundles()[0].filePath,
+            'utf8',
+          );
+          assert(output.includes('FOO: 2'));
+
+          await overlayFS.writeFile(
+            path.join(inputDir, 'node_modules', 'foo', 'foo.js'),
+            'module.exports = 3;',
+          );
+        },
+      });
+
+      let output = await overlayFS.readFile(
+        b.bundleGraph.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert(output.includes('FOO: 3'));
+    });
+
     it('should resolve to package.json#main over an index.js', async function() {
       let b = await testCache({
         async setup() {

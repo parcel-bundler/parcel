@@ -40,7 +40,7 @@ pub fn hoist(
 
   let mut hoist = Hoist::new(module_id, &collect);
   let module = module.fold_with(&mut hoist);
-  if hoist.diagnostics.len() > 0 {
+  if !hoist.diagnostics.is_empty() {
     return Err(hoist.diagnostics);
   }
 
@@ -349,7 +349,7 @@ impl<'a> Fold for Hoist<'a> {
                           // split the declaration into multiple to preserve side effect ordering.
                           // var x = sideEffect(), y = require('foo'), z = 2;
                           //   -> var x = sideEffect(); import 'foo'; var y = $id$import$foo, z = 2;
-                          if decls.len() > 0 {
+                          if !decls.is_empty() {
                             let var = VarDecl {
                               span: var.span,
                               kind: var.kind,
@@ -395,7 +395,7 @@ impl<'a> Fold for Hoist<'a> {
                                   // split the declaration into multiple to preserve side effect ordering.
                                   // var x = sideEffect(), y = require('foo').bar, z = 2;
                                   //   -> var x = sideEffect(); import 'foo'; var y = $id$import$foo$bar, z = 2;
-                                  if decls.len() > 0 {
+                                  if !decls.is_empty() {
                                     let var = VarDecl {
                                       span: var.span,
                                       kind: var.kind,
@@ -442,24 +442,22 @@ impl<'a> Fold for Hoist<'a> {
                     //   -> var x = 2; import 'foo'; var y = doSomething($id$import$foo), z = 3;
                     let items_len = self.module_items.len();
                     let d = v.clone().fold_with(self);
-                    if self.module_items.len() > items_len {
-                      if decls.len() > 0 {
-                        let var = VarDecl {
-                          span: var.span,
-                          kind: var.kind,
-                          declare: var.declare,
-                          decls: std::mem::take(&mut decls),
-                        };
-                        self
-                          .module_items
-                          .insert(items_len, ModuleItem::Stmt(Stmt::Decl(Decl::Var(var))));
-                      }
+                    if self.module_items.len() > items_len && !decls.is_empty() {
+                      let var = VarDecl {
+                        span: var.span,
+                        kind: var.kind,
+                        declare: var.declare,
+                        decls: std::mem::take(&mut decls),
+                      };
+                      self
+                        .module_items
+                        .insert(items_len, ModuleItem::Stmt(Stmt::Decl(Decl::Var(var))));
                     }
                     decls.push(d);
                   }
 
                   // Push whatever declarators are left.
-                  if decls.len() > 0 {
+                  if !decls.is_empty() {
                     let var = VarDecl {
                       span: var.span,
                       kind: var.kind,
@@ -546,10 +544,7 @@ impl<'a> Fold for Hoist<'a> {
               return Expr::Member(member.fold_children_with(self));
             }
           }
-          Expr::Lit(lit) => match lit {
-            Lit::Str(str_) => str_.value.clone(),
-            _ => return Expr::Member(member.fold_children_with(self)),
-          },
+          Expr::Lit(Lit::Str(str_)) => str_.value.clone(),
           _ => return Expr::Member(member.fold_children_with(self)),
         };
 
@@ -602,11 +597,13 @@ impl<'a> Fold for Hoist<'a> {
 
                 // exports.foo -> $id$export$foo
                 let exports: JsWord = "exports".into();
-                if ident.sym == exports && !self.collect.decls.contains(&id!(ident)) {
-                  if self.collect.static_cjs_exports && !self.collect.should_wrap {
-                    self.self_references.insert(key.clone());
-                    return Expr::Ident(self.get_export_ident(member.span, &key));
-                  }
+                if ident.sym == exports
+                  && !self.collect.decls.contains(&id!(ident))
+                  && self.collect.static_cjs_exports
+                  && !self.collect.should_wrap
+                {
+                  self.self_references.insert(key.clone());
+                  return Expr::Ident(self.get_export_ident(member.span, &key));
                 }
               }
               Expr::Call(_call) => {
@@ -743,14 +740,14 @@ impl<'a> Fold for Hoist<'a> {
       .into_iter()
       .enumerate()
       .map(|(i, expr)| {
-        if i != len - 1 {
-          if let Some(_) = match_require(&*expr, &self.collect.decls, self.collect.ignore_mark) {
-            return Box::new(Expr::Unary(UnaryExpr {
-              op: UnaryOp::Bang,
-              arg: expr.fold_with(self),
-              span: DUMMY_SP,
-            }));
-          }
+        if i != len - 1
+          && match_require(&*expr, &self.collect.decls, self.collect.ignore_mark).is_some()
+        {
+          return Box::new(Expr::Unary(UnaryExpr {
+            op: UnaryOp::Bang,
+            arg: expr.fold_with(self),
+            span: DUMMY_SP,
+          }));
         }
 
         expr.fold_with(self)
@@ -896,10 +893,7 @@ impl<'a> Fold for Hoist<'a> {
                   unreachable!("Unexpected non-static CJS export");
                 }
               }
-              Expr::Lit(lit) => match lit {
-                Lit::Str(str_) => str_.value.clone(),
-                _ => unreachable!("Unexpected non-static CJS export"),
-              },
+              Expr::Lit(Lit::Str(str_)) => str_.value.clone(),
               _ => unreachable!("Unexpected non-static CJS export"),
             }
           } else {
@@ -919,7 +913,7 @@ impl<'a> Fold for Hoist<'a> {
             } else {
               PatOrExpr::Pat(Box::new(Pat::Expr(Box::new(Expr::Member(MemberExpr {
                 span: member.span,
-                obj: ExprOrSuper::Expr(Box::new(Expr::Ident(ident.id.clone()))),
+                obj: ExprOrSuper::Expr(Box::new(Expr::Ident(ident.id))),
                 prop: member.prop.clone().fold_with(self),
                 computed: member.computed,
               })))))
@@ -1022,7 +1016,7 @@ impl<'a> Hoist<'a> {
     self
       .imported_symbols
       .insert(new_name.clone(), (source.clone(), local.clone(), loc));
-    return Ident::new(new_name, span);
+    Ident::new(new_name, span)
   }
 
   fn get_require_ident(&self, local: &JsWord) -> Ident {
@@ -1046,7 +1040,7 @@ impl<'a> Hoist<'a> {
 
     let mut span = span;
     span.ctxt = SyntaxContext::empty();
-    return Ident::new(new_name, span);
+    Ident::new(new_name, span)
   }
 
   fn handle_non_const_require(&mut self, v: &VarDeclarator, source: &JsWord) {
@@ -1392,10 +1386,7 @@ impl Visit for Collect {
 
     let is_static = match &*node.prop {
       Expr::Ident(_) => !node.computed,
-      Expr::Lit(lit) => match lit {
-        Lit::Str(_) => true,
-        _ => false,
-      },
+      Expr::Lit(Lit::Str(_)) => true,
       _ => false,
     };
 
@@ -1568,13 +1559,7 @@ impl Visit for Collect {
                       })
                     }
                   }
-                  Expr::Lit(lit) => match lit {
-                    Lit::Str(str_) => PropName::Str(str_.clone()),
-                    _ => PropName::Computed(ComputedPropName {
-                      span: DUMMY_SP,
-                      expr: Box::new(*expr.clone()),
-                    }),
-                  },
+                  Expr::Lit(Lit::Str(str_)) => PropName::Str(str_.clone()),
                   _ => PropName::Computed(ComputedPropName {
                     span: DUMMY_SP,
                     expr: Box::new(*expr.clone()),
@@ -1636,10 +1621,7 @@ impl Visit for Collect {
                 let then: JsWord = "then".into();
                 let is_then = match &*member.prop {
                   Expr::Ident(ident) => !member.computed && ident.sym == then,
-                  Expr::Lit(lit) => match lit {
-                    Lit::Str(str) => str.value == then,
-                    _ => false,
-                  },
+                  Expr::Lit(Lit::Str(str)) => str.value == then,
                   _ => false,
                 };
 
@@ -1647,10 +1629,7 @@ impl Visit for Collect {
                   match node.args.get(0) {
                     Some(ExprOrSpread { expr, .. }) => {
                       let param = match &**expr {
-                        Expr::Fn(func) => match func.function.params.get(0) {
-                          Some(param) => Some(&param.pat),
-                          None => None,
-                        },
+                        Expr::Fn(func) => func.function.params.get(0).map(|param| &param.pat),
                         Expr::Arrow(arrow) => arrow.params.get(0),
                         _ => None,
                       };
@@ -1942,14 +1921,14 @@ mod tests {
       let mut emitter = swc_ecmascript::codegen::Emitter {
         cfg: config,
         comments: Some(&comments),
-        cm: source_map.clone(),
+        cm: source_map,
         wr: writer,
       };
 
       emitter.emit_module(&program).unwrap();
     }
 
-    return String::from_utf8(buf).unwrap();
+    String::from_utf8(buf).unwrap()
   }
 
   macro_rules! map(
@@ -2097,7 +2076,7 @@ mod tests {
       collect.imports,
       map! { w!("bar") => (w!("other"), w!("foo"), false) }
     );
-    assert_eq!(collect.static_cjs_exports, true);
+    assert!(collect.static_cjs_exports);
   }
 
   #[test]
@@ -2107,7 +2086,7 @@ mod tests {
     exports = 2;
     "#,
     );
-    assert_eq!(collect.should_wrap, true);
+    assert!(collect.should_wrap);
   }
 
   #[test]
@@ -2117,21 +2096,21 @@ mod tests {
     eval('');
     "#,
     );
-    assert_eq!(collect.should_wrap, true);
+    assert!(collect.should_wrap);
 
     let (collect, _code, _hoist) = parse(
       r#"
     doSomething(module);
     "#,
     );
-    assert_eq!(collect.should_wrap, true);
+    assert!(collect.should_wrap);
 
     let (collect, _code, _hoist) = parse(
       r#"
     console.log(module.id);
     "#,
     );
-    assert_eq!(collect.should_wrap, true);
+    assert!(collect.should_wrap);
 
     let (collect, _code, _hoist) = parse(
       r#"
@@ -2139,7 +2118,7 @@ mod tests {
     console.log(module.hot);
     "#,
     );
-    assert_eq!(collect.should_wrap, false);
+    assert!(!collect.should_wrap);
 
     let (collect, _code, _hoist) = parse(
       r#"
@@ -2148,7 +2127,7 @@ mod tests {
     exports.bar = 3;
     "#,
     );
-    assert_eq!(collect.should_wrap, true);
+    assert!(collect.should_wrap);
 
     let (collect, _code, _hoist) = parse(
       r#"
@@ -2166,7 +2145,7 @@ mod tests {
     console.log(foo.a);
     "#,
     );
-    assert_eq!(collect.should_wrap, false);
+    assert!(!collect.should_wrap);
   }
 
   #[test]
@@ -2176,70 +2155,70 @@ mod tests {
     exports[test] = 2;
     "#,
     );
-    assert_eq!(collect.static_cjs_exports, false);
+    assert!(!collect.static_cjs_exports);
 
     let (collect, _code, _hoist) = parse(
       r#"
     module.exports[test] = 2;
     "#,
     );
-    assert_eq!(collect.static_cjs_exports, false);
+    assert!(!collect.static_cjs_exports);
 
     let (collect, _code, _hoist) = parse(
       r#"
     this[test] = 2;
     "#,
     );
-    assert_eq!(collect.static_cjs_exports, false);
+    assert!(!collect.static_cjs_exports);
 
     let (collect, _code, _hoist) = parse(
       r#"
     module.exports[test] = 2;
     "#,
     );
-    assert_eq!(collect.static_cjs_exports, false);
+    assert!(!collect.static_cjs_exports);
 
     let (collect, _code, _hoist) = parse(
       r#"
     alert(exports)
     "#,
     );
-    assert_eq!(collect.static_cjs_exports, false);
+    assert!(!collect.static_cjs_exports);
 
     let (collect, _code, _hoist) = parse(
       r#"
     alert(module.exports)
     "#,
     );
-    assert_eq!(collect.static_cjs_exports, false);
+    assert!(!collect.static_cjs_exports);
 
     let (collect, _code, _hoist) = parse(
       r#"
     alert(this)
     "#,
     );
-    assert_eq!(collect.static_cjs_exports, false);
+    assert!(!collect.static_cjs_exports);
 
     let (collect, _code, _hoist) = parse(
       r#"
     exports.foo = 2;
     "#,
     );
-    assert_eq!(collect.static_cjs_exports, true);
+    assert!(collect.static_cjs_exports);
 
     let (collect, _code, _hoist) = parse(
       r#"
     module.exports.foo = 2;
     "#,
     );
-    assert_eq!(collect.static_cjs_exports, true);
+    assert!(collect.static_cjs_exports);
 
     let (collect, _code, _hoist) = parse(
       r#"
     this.foo = 2;
     "#,
     );
-    assert_eq!(collect.static_cjs_exports, true);
+    assert!(collect.static_cjs_exports);
 
     let (collect, _code, _hoist) = parse(
       r#"
@@ -2247,7 +2226,7 @@ mod tests {
     exports[foo] = 2;
     "#,
     );
-    assert_eq!(collect.static_cjs_exports, true);
+    assert!(collect.static_cjs_exports);
 
     let (collect, _code, _hoist) = parse(
       r#"
@@ -2255,21 +2234,21 @@ mod tests {
     module.exports[foo] = 2;
     "#,
     );
-    assert_eq!(collect.static_cjs_exports, true);
+    assert!(collect.static_cjs_exports);
 
     let (collect, _code, _hoist) = parse(
       r#"
     test(function(exports) { return Object.keys(exports) })
     "#,
     );
-    assert_eq!(collect.static_cjs_exports, true);
+    assert!(collect.static_cjs_exports);
 
     let (collect, _code, _hoist) = parse(
       r#"
     test(exports => Object.keys(exports))
     "#,
     );
-    assert_eq!(collect.static_cjs_exports, true);
+    assert!(collect.static_cjs_exports);
   }
 
   #[test]

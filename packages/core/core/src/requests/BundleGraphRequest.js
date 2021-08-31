@@ -148,7 +148,6 @@ class BundlerRunner {
     for (let devDep of config.devDeps) {
       let devDepRequest = await createDevDependency(
         devDep,
-        plugin,
         this.previousDevDeps,
         this.options,
       );
@@ -255,7 +254,6 @@ class BundlerRunner {
         specifier: name,
         resolveFrom,
       },
-      plugin,
       this.previousDevDeps,
       this.options,
     );
@@ -329,7 +327,6 @@ class BundlerRunner {
           specifier: namer.name,
           resolveFrom: namer.resolveFrom,
         },
-        namer,
         this.previousDevDeps,
         this.options,
       );
