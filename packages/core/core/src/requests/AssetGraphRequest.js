@@ -27,6 +27,7 @@ import {hashString} from '@parcel/hash';
 import ThrowableDiagnostic, {md} from '@parcel/diagnostic';
 import {Priority} from '../types';
 import AssetGraph from '../AssetGraph';
+import {getNextNodeId, nodeIdsIsEmpty, hasMultipleNodeIds} from '../Graph';
 import {PARCEL_VERSION} from '../constants';
 import createEntryRequest from './EntryRequest';
 import createTargetRequest from './TargetRequest';
@@ -191,17 +192,20 @@ export class AssetGraphBuilder {
     }
     // Skip symbol propagation if no target is using scope hoisting
     // (mainly for faster development builds)
-    let entryDependencies = this.assetGraph
-      .getNodeIdsConnectedFrom(rootNodeId)
-      .flatMap(entrySpecifier =>
-        this.assetGraph.getNodeIdsConnectedFrom(entrySpecifier),
-      )
+    let entryDependencies = [
+      ...this.assetGraph.getNodeIdsConnectedFrom(rootNodeId),
+    ]
+      .flatMap(entrySpecifier => [
+        ...this.assetGraph.getNodeIdsConnectedFrom(entrySpecifier),
+      ])
       .flatMap(entryFile =>
-        this.assetGraph.getNodeIdsConnectedFrom(entryFile).map(depNodeId => {
-          let dep = nullthrows(this.assetGraph.getNode(depNodeId));
-          invariant(dep.type === 'dependency');
-          return dep;
-        }),
+        [...this.assetGraph.getNodeIdsConnectedFrom(entryFile)].map(
+          depNodeId => {
+            let dep = nullthrows(this.assetGraph.getNode(depNodeId));
+            invariant(dep.type === 'dependency');
+            return dep;
+          },
+        ),
       );
     if (entryDependencies.some(d => d.value.env.shouldScopeHoist)) {
       try {
@@ -427,9 +431,11 @@ export class AssetGraphBuilder {
 
         // excluded, assume everything that is requested exists
         if (
-          this.assetGraph.getNodeIdsConnectedFrom(
-            this.assetGraph.getNodeIdByContentKey(outgoingDep.id),
-          ).length === 0
+          nodeIdsIsEmpty(
+            this.assetGraph.getNodeIdsConnectedFrom(
+              this.assetGraph.getNodeIdByContentKey(outgoingDep.id),
+            ),
+          )
         ) {
           outgoingDep.usedSymbolsDown.forEach(s =>
             outgoingDep.usedSymbolsUp.add(s),
@@ -478,8 +484,12 @@ export class AssetGraphBuilder {
             incomingDep.usedSymbolsUp.add(s);
           } else if (!hasNamespaceReexport) {
             let loc = incomingDep.value.symbols?.get(s)?.loc;
-            let [resolutionNodeId] = this.assetGraph.getNodeIdsConnectedFrom(
-              this.assetGraph.getNodeIdByContentKey(incomingDep.id),
+            let resolutionNodeId = nullthrows(
+              getNextNodeId(
+                this.assetGraph.getNodeIdsConnectedFrom(
+                  this.assetGraph.getNodeIdByContentKey(incomingDep.id),
+                ),
+              ).value,
             );
             let resolution = nullthrows(
               this.assetGraph.getNode(resolutionNodeId),
@@ -522,11 +532,15 @@ export class AssetGraphBuilder {
           incomingDep.value.symbols != null &&
           incomingDep.usedSymbolsUp.size === 0
         ) {
-          let assetGroups = this.assetGraph.getNodeIdsConnectedFrom(
-            this.assetGraph.getNodeIdByContentKey(incomingDep.id),
-          );
-          if (assetGroups.length === 1) {
-            let [assetGroupId] = assetGroups;
+          let assetGroups = () =>
+            this.assetGraph.getNodeIdsConnectedFrom(
+              this.assetGraph.getNodeIdByContentKey(incomingDep.id),
+            );
+          if (
+            !nodeIdsIsEmpty(assetGroups()) &&
+            !hasMultipleNodeIds(assetGroups())
+          ) {
+            let assetGroupId = nullthrows(getNextNodeId(assetGroups()).value);
             let assetGroup = nullthrows(this.assetGraph.getNode(assetGroupId));
             if (
               assetGroup.type === 'asset_group' &&
@@ -535,7 +549,7 @@ export class AssetGraphBuilder {
               incomingDep.excluded = true;
             }
           } else {
-            invariant(assetGroups.length === 0);
+            invariant(nodeIdsIsEmpty(assetGroups()));
           }
         }
       }
@@ -561,7 +575,7 @@ export class AssetGraphBuilder {
       let queuedNodeId = nullthrows(queue.values().next().value);
       queue.delete(queuedNodeId);
 
-      let outgoing = this.assetGraph.getNodeIdsConnectedFrom(queuedNodeId);
+      let outgoing = [...this.assetGraph.getNodeIdsConnectedFrom(queuedNodeId)];
       let node = nullthrows(this.assetGraph.getNode(queuedNodeId));
 
       let wasNodeDirty = false;
@@ -624,7 +638,7 @@ export class AssetGraphBuilder {
     // post-order dfs
     const walk = (nodeId: NodeId) => {
       let node = nullthrows(this.assetGraph.getNode(nodeId));
-      let outgoing = this.assetGraph.getNodeIdsConnectedFrom(nodeId);
+      let outgoing = [...this.assetGraph.getNodeIdsConnectedFrom(nodeId)];
       for (let childId of outgoing) {
         if (!visited.has(childId)) {
           visited.add(childId);
@@ -696,14 +710,14 @@ export class AssetGraphBuilder {
             invariant(depNode && depNode.type === 'dependency');
             return depNode;
           });
-        let outgoing = this.assetGraph
-          .getNodeIdsConnectedFrom(queuedNodeId)
-          .map(depNodeId => {
-            let depNode = nullthrows(this.assetGraph.getNode(depNodeId));
-
-            invariant(depNode.type === 'dependency');
-            return depNode;
-          });
+        let outgoing = [];
+        for (let depNodeId of this.assetGraph.getNodeIdsConnectedFrom(
+          queuedNodeId,
+        )) {
+          let depNode = nullthrows(this.assetGraph.getNode(depNodeId));
+          invariant(depNode.type === 'dependency');
+          outgoing.push(depNode);
+        }
         for (let dep of outgoing) {
           if (dep.usedSymbolsUpDirtyUp) {
             node.usedSymbolsUpDirty = true;
@@ -724,11 +738,13 @@ export class AssetGraphBuilder {
           }
         }
       } else {
-        let connectedNodes = this.assetGraph.getNodeIdsConnectedTo(
-          queuedNodeId,
-        );
-        if (connectedNodes.length > 0) {
-          queue.add(...connectedNodes);
+        let connectedNodes = () =>
+          this.assetGraph.getNodeIdsConnectedTo(queuedNodeId);
+
+        if (
+          !nodeIdsIsEmpty(this.assetGraph.getNodeIdsConnectedTo(queuedNodeId))
+        ) {
+          queue.add(...connectedNodes());
         }
       }
     }

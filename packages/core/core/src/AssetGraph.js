@@ -26,6 +26,7 @@ import ContentGraph, {
   type SerializedContentGraph,
   type ContentGraphOpts,
 } from './ContentGraph';
+import {getNextNodeId, nodeIdsIsEmpty, hasMultipleNodeIds} from './Graph';
 import {createDependency} from './Dependency';
 import {type ProjectPath, fromProjectPathRelative} from './projectPath';
 
@@ -198,9 +199,10 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
     // nodes from which at least one parent was removed are updated.
     let node = nullthrows(this.getNode(nodeId));
     if (this.isOrphanedNode(nodeId) && node.type === 'dependency') {
-      let children = this.getNodeIdsConnectedFrom(nodeId).map(id =>
-        nullthrows(this.getNode(id)),
-      );
+      let children = [];
+      for (let id of this.getNodeIdsConnectedFrom(nodeId)) {
+        children.push(nullthrows(this.getNode(id)));
+      }
       for (let n of children) {
         invariant(n.type === 'asset_group' || n.type === 'asset');
         n.usedSymbolsDownDirty = true;
@@ -344,14 +346,14 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
     this.traverseAncestors(nodeId, (traversedNodeId, ctx, actions) => {
       let traversedNode = nullthrows(this.getNode(traversedNodeId));
       if (traversedNode.type === 'asset') {
-        let hasDeferred = this.getNodeIdsConnectedFrom(traversedNodeId).some(
-          childNodeId => {
-            let childNode = nullthrows(this.getNode(childNodeId));
-            return childNode.hasDeferred == null
-              ? false
-              : childNode.hasDeferred;
-          },
-        );
+        let hasDeferred = false;
+        for (let childNodeId of this.getNodeIdsConnectedFrom(traversedNodeId)) {
+          let childNode = nullthrows(this.getNode(childNodeId));
+          if (childNode.hasDeferred != null && childNode.hasDeferred != false) {
+            hasDeferred = true;
+            break;
+          }
+        }
         if (!hasDeferred) {
           delete traversedNode.hasDeferred;
         }
@@ -395,12 +397,17 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
       let depNode = this.getNode(depNodeId);
       invariant(depNode);
 
-      let assets = this.getNodeIdsConnectedTo(depNodeId);
+      let assets = () => this.getNodeIdsConnectedTo(depNodeId);
       let symbols = new Map(
         [...dependencySymbols].map(([key, val]) => [val.local, key]),
       );
-      invariant(assets.length === 1);
-      let firstAsset = nullthrows(this.getNode(assets[0]));
+      let assetNode = getNextNodeId(assets()).value;
+      invariant(
+        assetNode != null &&
+          !nodeIdsIsEmpty(assets()) &&
+          !hasMultipleNodeIds(assets()),
+      );
+      let firstAsset = nullthrows(this.getNode(assetNode));
       invariant(firstAsset.type === 'asset');
       let resolvedAsset = firstAsset.value;
       let deps = this.getIncomingDependencies(resolvedAsset);
@@ -526,7 +533,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
       return [];
     }
 
-    let assetGroupIds = this.getNodeIdsConnectedTo(nodeId);
+    let assetGroupIds = [...this.getNodeIdsConnectedTo(nodeId)];
     let dependencies = [];
     for (let i = 0; i < assetGroupIds.length; i++) {
       let assetGroupId = assetGroupIds[i];
@@ -540,7 +547,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
         continue;
       }
 
-      let assetIds = this.getNodeIdsConnectedTo(assetGroupId);
+      let assetIds = [...this.getNodeIdsConnectedTo(assetGroupId)];
       for (let j = 0; j < assetIds.length; j++) {
         let node = this.getNode(assetIds[j]);
         if (!node || node.type !== 'dependency') {

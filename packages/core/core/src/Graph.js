@@ -1,6 +1,6 @@
 // @flow strict-local
 
-import {fromNodeId} from './types';
+import {fromNodeId, toNodeId} from './types';
 import AdjacencyList, {type SerializedAdjacencyList} from './AdjacencyList';
 import type {Edge, NodeId} from './types';
 import type {TraversalActions, GraphVisitor} from '@parcel/types';
@@ -23,6 +23,36 @@ export type SerializedGraph<TNode, TEdgeType: number = 1> = {|
 
 export type AllEdgeTypes = '@@all_edge_types';
 export const ALL_EDGE_TYPES: AllEdgeTypes = '@@all_edge_types';
+
+export function getNextNodeId(
+  nodeIds: Generator<NodeId, void, void>,
+): {|value: NodeId | null, done: boolean|} {
+  let next = nodeIds.next();
+  return {
+    value: next.value != null ? next.value : null,
+    done: next.done,
+  };
+}
+
+export function nodeIdsIsEmpty(
+  nodeIds: Generator<NodeId, void, void>,
+): boolean {
+  let next = nodeIds.next();
+  return next.value == null && next.done;
+}
+
+export function hasMultipleNodeIds(
+  nodeIds: Generator<NodeId, void, void>,
+): boolean {
+  let count = 0;
+  while (!nodeIds.next().done) {
+    count++;
+    if (count > 1) {
+      return true;
+    }
+  }
+  return false;
+}
 
 export default class Graph<TNode, TEdgeType: number = 1> {
   nodes: Map<NodeId, TNode>;
@@ -109,29 +139,41 @@ export default class Graph<TNode, TEdgeType: number = 1> {
     return this.adjacencyList.hasEdge(from, to, type);
   }
 
-  getNodeIdsConnectedTo(
+  *getNodeIdsConnectedTo(
     nodeId: NodeId,
     type: TEdgeType | NullEdgeType | Array<TEdgeType | NullEdgeType> = 1,
-  ): Array<NodeId> {
+    calledFromGetChildren: boolean = false,
+  ): Generator<NodeId, void, void> {
     this._assertHasNodeId(nodeId);
 
-    return this.adjacencyList.getNodesConnectedTo(nodeId, type);
+    yield* this.adjacencyList.getNodesConnectedTo(nodeId, type);
   }
 
-  getNodeIdsConnectedFrom(
+  *getNodeIdsConnectedFromReverse(
     nodeId: NodeId,
     type: TEdgeType | NullEdgeType | Array<TEdgeType | NullEdgeType> = 1,
-  ): Array<NodeId> {
+  ): Generator<NodeId, void, void> {
     this._assertHasNodeId(nodeId);
 
-    return this.adjacencyList.getNodesConnectedFrom(nodeId, type);
+    yield* this.adjacencyList.getNodesConnectedFromReverse(nodeId, type);
+  }
+
+  *getNodeIdsConnectedFrom(
+    nodeId: NodeId,
+    type: TEdgeType | NullEdgeType | Array<TEdgeType | NullEdgeType> = 1,
+  ): Generator<NodeId, void, void> {
+    this._assertHasNodeId(nodeId);
+
+    yield* this.adjacencyList.getNodesConnectedFrom(nodeId, type);
   }
 
   // Removes node and any edges coming from or to that node
   removeNode(nodeId: NodeId) {
     this._assertHasNodeId(nodeId);
 
-    for (let {type, from} of this.adjacencyList.getInboundEdgesByType(nodeId)) {
+    for (let {type, from} of [
+      ...this.adjacencyList.getInboundEdgesByType(nodeId),
+    ]) {
       this.removeEdge(
         from,
         nodeId,
@@ -142,10 +184,11 @@ export default class Graph<TNode, TEdgeType: number = 1> {
       );
     }
 
-    for (let {type, to} of this.adjacencyList.getOutboundEdgesByType(nodeId)) {
+    for (let {type, to} of [
+      ...this.adjacencyList.getOutboundEdgesByType(nodeId),
+    ]) {
       this.removeEdge(nodeId, to, type);
     }
-
     let wasRemoved = this.nodes.delete(nodeId);
     assert(wasRemoved);
   }
@@ -217,13 +260,13 @@ export default class Graph<TNode, TEdgeType: number = 1> {
   // Update a node's downstream nodes making sure to prune any orphaned branches
   replaceNodeIdsConnectedTo(
     fromNodeId: NodeId,
-    toNodeIds: $ReadOnlyArray<NodeId>,
+    toNodeIds: $ReadOnlyArray<NodeId> | Generator<NodeId, void, void>,
     replaceFilter?: null | (NodeId => boolean),
     type?: TEdgeType | NullEdgeType = 1,
   ): void {
     this._assertHasNodeId(fromNodeId);
 
-    let outboundEdges = this.getNodeIdsConnectedFrom(fromNodeId, type);
+    let outboundEdges = [...this.getNodeIdsConnectedFrom(fromNodeId, type)];
     let childrenToRemove = new Set(
       replaceFilter
         ? outboundEdges.filter(toNodeId => replaceFilter(toNodeId))
@@ -250,7 +293,7 @@ export default class Graph<TNode, TEdgeType: number = 1> {
     return this.dfs({
       visit,
       startNodeId,
-      getChildren: nodeId => this.getNodeIdsConnectedFrom(nodeId, type),
+      getChildren: nodeId => [...this.getNodeIdsConnectedFrom(nodeId, type)],
     });
   }
 
@@ -271,7 +314,7 @@ export default class Graph<TNode, TEdgeType: number = 1> {
     return this.dfs({
       visit,
       startNodeId,
-      getChildren: nodeId => this.getNodeIdsConnectedTo(nodeId, type),
+      getChildren: nodeId => this.getNodeIdsConnectedTo(nodeId, type, true),
     });
   }
 
@@ -281,7 +324,7 @@ export default class Graph<TNode, TEdgeType: number = 1> {
     getChildren,
   }: {|
     visit: GraphVisitor<NodeId, TContext>,
-    getChildren(nodeId: NodeId): Array<NodeId>,
+    getChildren(nodeId: NodeId): Array<NodeId> | Generator<NodeId, void, void>,
     startNodeId?: ?NodeId,
   |}): ?TContext {
     let traversalStartNode = nullthrows(

@@ -54,7 +54,7 @@ import type {NodeId} from './types';
  */
 export const NODE_SIZE: 4 = 4;
 /** The size of nodes array header */
-const NODES_HEADER_SIZE: 2 = 2;
+export const NODES_HEADER_SIZE: 2 = 2;
 
 /**
  * Edges are stored in a shared array buffer of fixed length
@@ -142,12 +142,12 @@ const NODES_HEADER_SIZE: 2 = 2;
  */
 export const EDGE_SIZE: 6 = 6;
 /** The size of the edges array header */
-const EDGES_HEADER_SIZE: 3 = 3;
+export const EDGES_HEADER_SIZE: 3 = 3;
 
 /** The offset from the header where the capacity is stored. */
 const CAPACITY: 0 = 0;
 /** The offset from the header where the count is stored. */
-const COUNT: 1 = 1;
+export const COUNT: 1 = 1;
 /** The offset from the header where the delete count is stored. */
 const DELETES: 2 = 2;
 
@@ -267,7 +267,7 @@ function increaseNodeCapacity(nodeCapacity: number): number {
 }
 
 function increaseEdgeCapacity(edgeCapacity: number): number {
-  return edgeCapacity * 4;
+  return edgeCapacity * 10;
 }
 
 function decreaseEdgeCapacity(edgeCapacity: number): number {
@@ -279,12 +279,10 @@ export default class AdjacencyList<TEdgeType: number = 1> {
   #nodes: Uint32Array;
   /** An array of edges, with each edge occupying `EDGE_SIZE` adjacent indices. */
   #edges: Uint32Array;
-  #typeMaps: ?{|
-    /** A map of node ids from => through types => to node ids. */
-    from: TypeMap<TEdgeType | NullEdgeType>,
-    /** A map of node ids to => through types => from node ids. */
-    to: TypeMap<TEdgeType | NullEdgeType>,
-  |};
+  /** A map of edge indexes to the index of their previous incoming edge */
+  #previousIn: Map<EdgeIndex, EdgeIndex>;
+  /** A map of edge indexes to the index of their previous outgoing edge */
+  #previousOut: Map<EdgeIndex, EdgeIndex>;
 
   constructor(
     opts?: SerializedAdjacencyList<TEdgeType> | AdjacencyListOptions<TEdgeType>,
@@ -329,6 +327,8 @@ export default class AdjacencyList<TEdgeType: number = 1> {
 
     this.#nodes = nodes;
     this.#edges = edges;
+    this.#previousIn = new Map();
+    this.#previousOut = new Map();
   }
 
   /**
@@ -422,26 +422,6 @@ export default class AdjacencyList<TEdgeType: number = 1> {
       avgCollisions: Math.round((collisions / buckets.size) * 100) / 100 || 0,
       uniformity: Math.round(uniformity * 100) / 100 || 0,
     };
-  }
-
-  /** Create mappings from => type => to and vice versa. */
-  _getOrCreateTypeMaps(): {|
-    from: TypeMap<TEdgeType | NullEdgeType>,
-    to: TypeMap<TEdgeType | NullEdgeType>,
-  |} {
-    if (this.#typeMaps) return this.#typeMaps;
-    let typeMaps = {from: new TypeMap(), to: new TypeMap()};
-    for (let node of this.iterateNodes()) {
-      for (let edge of this.iterateOutgoingEdges(node)) {
-        let from = this.getFromNode(edge);
-        let to = this.getToNode(edge);
-        let type = this.getEdgeType(edge);
-        typeMaps.from.add(from, to, type);
-        typeMaps.to.add(to, from, type);
-      }
-    }
-    this.#typeMaps = typeMaps;
-    return this.#typeMaps;
   }
 
   /** Iterate over node ids in the `AdjacencyList`. */
@@ -564,7 +544,8 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     // Finally, copy the new data arrays over to this graph.
     this.#nodes = copy.#nodes;
     this.#edges = copy.#edges;
-    this.#typeMaps = copy.#typeMaps;
+    this.#previousIn = copy.#previousIn;
+    this.#previousOut = copy.#previousOut;
   }
 
   /** Get the first or last edge to or from the given node. */
@@ -600,6 +581,8 @@ export default class AdjacencyList<TEdgeType: number = 1> {
   ): void {
     if (direction) {
       this.#edges[prev + direction] = edge;
+      if (direction === NEXT_IN) this.#previousIn.set(edge, prev);
+      else if (direction === NEXT_OUT) this.#previousOut.set(edge, prev);
     } else {
       this.#edges[hashToIndex(prev)] = edge;
     }
@@ -607,10 +590,13 @@ export default class AdjacencyList<TEdgeType: number = 1> {
 
   unlinkEdge(
     prev: EdgeHash | EdgeIndex,
+    edge?: EdgeIndex,
     direction?: typeof NEXT_HASH | typeof NEXT_IN | typeof NEXT_OUT,
   ): void {
-    if (direction) {
+    if (direction && edge) {
       this.#edges[prev + direction] = 0;
+      if (direction === NEXT_IN) this.#previousIn.delete(edge);
+      else if (direction === NEXT_OUT) this.#previousOut.delete(edge);
     } else {
       this.#edges[hashToIndex(prev)] = 0;
     }
@@ -634,6 +620,14 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     edge: EdgeIndex,
     direction: typeof NEXT_HASH | typeof NEXT_IN | typeof NEXT_OUT,
   ): EdgeIndex | null {
+    if (direction === NEXT_IN) {
+      let prevIn = this.#previousIn.get(edge);
+      if (prevIn) return prevIn;
+    } else if (direction === NEXT_OUT) {
+      let prevOut = this.#previousOut.get(edge);
+      if (prevOut) return prevOut;
+    }
+
     let candidate =
       direction === NEXT_HASH
         ? this.getLinkedEdge(this.getHash(edge))
@@ -645,7 +639,11 @@ export default class AdjacencyList<TEdgeType: number = 1> {
 
     while (candidate) {
       let next = this.getLinkedEdge(candidate, direction);
-      if (next === edge) return candidate;
+      if (next === edge) {
+        if (direction === NEXT_IN) this.#previousIn.set(edge, candidate);
+        else if (direction === NEXT_OUT) this.#previousOut.set(edge, candidate);
+        return candidate;
+      }
       candidate = next;
     }
 
@@ -746,9 +744,6 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     if (!firstOutgoing) this.setEdge(from, edge, FIRST_OUT);
 
     this.#edges[COUNT]++;
-
-    this.#typeMaps?.from.add(from, to, type);
-    this.#typeMaps?.to.add(to, from, type);
 
     return true;
   }
@@ -855,17 +850,17 @@ export default class AdjacencyList<TEdgeType: number = 1> {
 
     // Splice the removed edge out of the linked list of edges in the bucket.
     if (prevEdge && nextEdge) this.linkEdge(prevEdge, nextEdge, NEXT_HASH);
-    else if (prevEdge) this.unlinkEdge(prevEdge, NEXT_HASH);
+    else if (prevEdge) this.unlinkEdge(prevEdge, edge, NEXT_HASH);
     else if (nextEdge) this.linkEdge(hash, nextEdge);
     else this.unlinkEdge(hash);
 
     // Splice the removed edge out of the linked list of incoming edges.
     if (previousIn && nextIn) this.linkEdge(previousIn, nextIn, NEXT_IN);
-    else if (previousIn) this.unlinkEdge(previousIn, NEXT_IN);
+    else if (previousIn) this.unlinkEdge(previousIn, edge, NEXT_IN);
 
     // Splice the removed edge out of the linked list of outgoing edges.
     if (previousOut && nextOut) this.linkEdge(previousOut, nextOut, NEXT_OUT);
-    else if (previousOut) this.unlinkEdge(previousOut, NEXT_OUT);
+    else if (previousOut) this.unlinkEdge(previousOut, edge, NEXT_OUT);
 
     // Update the terminating node's first and last incoming edges.
     if (firstIn === edge) this.setEdge(to, nextIn, FIRST_IN);
@@ -889,9 +884,6 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     this.#edges[COUNT]--;
     this.#edges[DELETES]++;
 
-    this.#typeMaps?.from.delete(from, to, type);
-    this.#typeMaps?.to.delete(to, from, type);
-
     // The percentage of utilization of the total capacity of `edges`.
     // If we've dropped below the unload threshold, resize the array down.
     if (
@@ -906,116 +898,112 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     return Boolean(this.getEdge(to, FIRST_IN));
   }
 
-  getInboundEdgesByType(to: NodeId): {|type: TEdgeType, from: NodeId|}[] {
-    let typeMaps = this._getOrCreateTypeMaps();
-    let edges = [];
-    if (typeMaps.to.has(to)) {
-      for (let [type, nodes] of typeMaps.to.get(to)) {
-        for (let from of nodes) {
-          edges.push({type: (type: any), from});
-        }
+  *getInboundEdgesByType(
+    to: NodeId,
+  ): Generator<{|type: TEdgeType, from: NodeId|}, void, void> {
+    let edge = this.getEdge(to, FIRST_IN);
+    while (edge) {
+      let from = this.getFromNode(edge);
+      let type = this.getEdgeType(edge);
+      yield {type: (type: any), from};
+      if (edge != null) {
+        edge = this.#edges[edge + NEXT_IN];
       }
     }
-    return edges;
   }
 
-  getOutboundEdgesByType(from: NodeId): {|type: TEdgeType, to: NodeId|}[] {
-    let typeMaps = this._getOrCreateTypeMaps();
-    let edges = [];
-    if (typeMaps.from.has(from)) {
-      for (let [type, nodes] of typeMaps.from.get(from)) {
-        for (let to of nodes) {
-          edges.push({type: (type: any), to});
-        }
+  *getOutboundEdgesByType(
+    from: NodeId,
+  ): Generator<{|type: TEdgeType, to: NodeId|}, void, void> {
+    let edge = this.getEdge(from, FIRST_OUT);
+    while (edge) {
+      let to = this.getToNode(edge);
+      let type = this.getEdgeType(edge);
+      yield {type: (type: any), to};
+      if (edge != null) {
+        edge = this.#edges[edge + NEXT_OUT];
       }
     }
-    return edges;
   }
 
   /**
-   *
+   * Get the list of nodes connected from this node in reverse order.
    */
-  getEdges(
+  *getNodesConnectedFromReverse(
     from: NodeId,
     type:
       | AllEdgeTypes
       | TEdgeType
       | NullEdgeType
       | Array<TEdgeType | NullEdgeType> = 1,
-  ): $ReadOnlySet<NodeId> {
-    return new Set(this.getNodesConnectedFrom(from, type));
+  ): Generator<NodeId, void, void> {
+    let edge = this.getEdge(from, LAST_OUT);
+    while (edge) {
+      if (Array.isArray(type)) {
+        if (type.includes(this.getEdgeType(edge))) {
+          yield this.getToNode(edge);
+        }
+      } else if (this.getEdgeType(edge) === type || type === ALL_EDGE_TYPES) {
+        yield this.getToNode(edge);
+      }
+      if (edge != null) {
+        edge = this.findEdgeBefore(edge, NEXT_OUT);
+      }
+    }
+  }
+
+  get edges(): Uint32Array {
+    return this.#edges;
   }
 
   /**
    * Get the list of nodes connected from this node.
    */
-  getNodesConnectedFrom(
+  *getNodesConnectedFrom(
     from: NodeId,
     type:
       | AllEdgeTypes
       | TEdgeType
       | NullEdgeType
       | Array<TEdgeType | NullEdgeType> = 1,
-  ): NodeId[] {
-    let typeMaps = this._getOrCreateTypeMaps();
-
-    let isAllEdgeTypes =
-      type === ALL_EDGE_TYPES ||
-      (Array.isArray(type) && type.includes(ALL_EDGE_TYPES));
-
-    let nodes = [];
-    if (typeMaps.from.has(from)) {
-      if (isAllEdgeTypes) {
-        for (let toSet of typeMaps.from.get(from).values()) {
-          nodes.push(...toSet);
+  ): Generator<NodeId, void, void> {
+    let edge = this.getEdge(from, FIRST_OUT);
+    while (edge) {
+      if (Array.isArray(type)) {
+        if (type.includes(this.getEdgeType(edge))) {
+          yield this.getToNode(edge);
         }
-      } else if (Array.isArray(type)) {
-        let fromType = typeMaps.from.get(from);
-        for (let typeNum of type) {
-          let toSet = fromType.get(typeNum);
-          if (toSet) nodes.push(...toSet);
-        }
-      } else {
-        nodes.push(...typeMaps.from.getEdges(from, (type: any)));
+      } else if (this.getEdgeType(edge) === type || type === ALL_EDGE_TYPES) {
+        yield this.getToNode(edge);
+      }
+      if (edge != null) {
+        edge = this.#edges[edge + NEXT_OUT];
       }
     }
-    return nodes;
   }
 
-  /**
-   * Get the list of nodes connected to this node.
-   */
-  getNodesConnectedTo(
+  *getNodesConnectedTo(
     to: NodeId,
     type:
       | AllEdgeTypes
       | TEdgeType
       | NullEdgeType
       | Array<TEdgeType | NullEdgeType> = 1,
-  ): NodeId[] {
-    let typeMaps = this._getOrCreateTypeMaps();
-
-    let isAllEdgeTypes =
-      type === ALL_EDGE_TYPES ||
-      (Array.isArray(type) && type.includes(ALL_EDGE_TYPES));
-
-    let nodes = [];
-    if (typeMaps.to.has(to)) {
-      if (isAllEdgeTypes) {
-        for (let fromSet of typeMaps.to.get(to).values()) {
-          nodes.push(...fromSet);
+    calledFromGetChildren: boolean = false,
+  ): Generator<NodeId, void, void> {
+    let edge = this.getEdge(to, FIRST_IN);
+    while (edge) {
+      if (Array.isArray(type)) {
+        if (type.includes(this.getEdgeType(edge))) {
+          yield this.getFromNode(edge);
         }
-      } else if (Array.isArray(type)) {
-        let toType = typeMaps.to.get(to);
-        for (let typeNum of type) {
-          let fromSet = toType.get(typeNum);
-          if (fromSet) nodes.push(...fromSet);
-        }
-      } else {
-        nodes.push(...typeMaps.to.getEdges(to, (type: any)));
+      } else if (this.getEdgeType(edge) === type || type === ALL_EDGE_TYPES) {
+        yield this.getFromNode(edge);
+      }
+      if (edge != null) {
+        edge = this.#edges[edge + NEXT_IN];
       }
     }
-    return nodes;
   }
 
   /**
@@ -1040,37 +1028,5 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     // 3. Map the hash to a value modulo the edge capacity.
     hash %= this.#edges[CAPACITY];
     return hash;
-  }
-}
-
-class TypeMap<TEdgeType> {
-  #map: Map<NodeId, Map<TEdgeType, Set<NodeId>>> = new Map();
-  add(from: NodeId, to: NodeId, type: TEdgeType): void {
-    let types = this.#map.get(from);
-    if (types == null) {
-      types = new Map<TEdgeType, Set<NodeId>>();
-      this.#map.set(from, types);
-    }
-    let adjacent = types.get(type);
-    if (adjacent == null) {
-      adjacent = new Set<NodeId>();
-      types.set(type, adjacent);
-    }
-    adjacent.add(to);
-  }
-  delete(from: NodeId, to: NodeId, type: TEdgeType): void {
-    this.#map
-      .get(from)
-      ?.get(type)
-      ?.delete(to);
-  }
-  has(from: NodeId): boolean {
-    return this.#map.has(from);
-  }
-  get(from: NodeId): $ReadOnlyMap<TEdgeType, Set<NodeId>> {
-    return this.#map.get(from) ?? new Map();
-  }
-  getEdges(from: NodeId, type: TEdgeType): $ReadOnlySet<NodeId> {
-    return this.#map.get(from)?.get(type) ?? new Set();
   }
 }

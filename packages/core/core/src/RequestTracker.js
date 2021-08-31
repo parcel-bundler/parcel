@@ -306,11 +306,9 @@ export class RequestGraph extends ContentGraph<
     node.invalidateReason |= reason;
     this.invalidNodeIds.add(nodeId);
 
-    let parentNodes = this.getNodeIdsConnectedTo(
-      nodeId,
-      requestGraphEdgeTypes.subrequest,
-    );
-    for (let parentNode of parentNodes) {
+    let parentNodes = () =>
+      this.getNodeIdsConnectedTo(nodeId, requestGraphEdgeTypes.subrequest);
+    for (let parentNode of parentNodes()) {
       this.invalidateNode(parentNode, reason);
     }
   }
@@ -328,11 +326,12 @@ export class RequestGraph extends ContentGraph<
       let node = nullthrows(this.getNode(nodeId));
       invariant(node.type === 'env');
       if (env[node.value.key] !== node.value.value) {
-        let parentNodes = this.getNodeIdsConnectedTo(
-          nodeId,
-          requestGraphEdgeTypes.invalidated_by_update,
-        );
-        for (let parentNode of parentNodes) {
+        let parentNodes = () =>
+          this.getNodeIdsConnectedTo(
+            nodeId,
+            requestGraphEdgeTypes.invalidated_by_update,
+          );
+        for (let parentNode of parentNodes()) {
           this.invalidateNode(parentNode, ENV_CHANGE);
         }
       }
@@ -344,11 +343,12 @@ export class RequestGraph extends ContentGraph<
       let node = nullthrows(this.getNode(nodeId));
       invariant(node.type === 'option');
       if (hashFromOption(options[node.value.key]) !== node.value.hash) {
-        let parentNodes = this.getNodeIdsConnectedTo(
-          nodeId,
-          requestGraphEdgeTypes.invalidated_by_update,
-        );
-        for (let parentNode of parentNodes) {
+        let parentNodes = () =>
+          this.getNodeIdsConnectedTo(
+            nodeId,
+            requestGraphEdgeTypes.invalidated_by_update,
+          );
+        for (let parentNode of parentNodes()) {
           this.invalidateNode(parentNode, OPTION_CHANGE);
         }
       }
@@ -575,23 +575,25 @@ export class RequestGraph extends ContentGraph<
     }
 
     // For now just handling updates. Could add creates/deletes later if needed.
-    let invalidations = this.getNodeIdsConnectedFrom(
+    // let invalidations = this.getNodeIdsConnectedFrom(
+    //   requestNodeId,
+    //   requestGraphEdgeTypes.invalidated_by_update,
+    // );
+    let invalidations = [];
+    for (let id of this.getNodeIdsConnectedFrom(
       requestNodeId,
       requestGraphEdgeTypes.invalidated_by_update,
-    );
-    return invalidations
-      .map(nodeId => {
-        let node = nullthrows(this.getNode(nodeId));
-        switch (node.type) {
-          case 'file':
-            return {type: 'file', filePath: node.value.filePath};
-          case 'env':
-            return {type: 'env', key: node.value.key};
-          case 'option':
-            return {type: 'option', key: node.value.key};
-        }
-      })
-      .filter(Boolean);
+    )) {
+      let node = nullthrows(this.getNode(id));
+      if (node.type === 'file') {
+        invalidations.push({type: 'file', filePath: node.value.filePath});
+      } else if (node.type === 'env') {
+        invalidations.push({type: 'env', key: node.value.key});
+      } else if (node.type === 'option') {
+        invalidations.push({type: 'option', key: node.value.key});
+      }
+    }
+    return invalidations.filter(Boolean);
   }
 
   getSubRequests(requestNodeId: NodeId): Array<StoredRequest> {
@@ -599,16 +601,16 @@ export class RequestGraph extends ContentGraph<
       return [];
     }
 
-    let subRequests = this.getNodeIdsConnectedFrom(
+    let subRequests = [];
+    for (let id of this.getNodeIdsConnectedFrom(
       requestNodeId,
       requestGraphEdgeTypes.subrequest,
-    );
-
-    return subRequests.map(nodeId => {
-      let node = nullthrows(this.getNode(nodeId));
+    )) {
+      let node = nullthrows(this.getNode(id));
       invariant(node.type === 'request');
-      return node.value;
-    });
+      subRequests.push(node.value);
+    }
+    return subRequests;
   }
 
   invalidateFileNameNode(
@@ -635,11 +637,12 @@ export class RequestGraph extends ContentGraph<
           dirname,
         )
       ) {
-        let connectedNodes = this.getNodeIdsConnectedTo(
-          matchNodeId,
-          requestGraphEdgeTypes.invalidated_by_create,
-        );
-        for (let connectedNode of connectedNodes) {
+        let connectedNodes = () =>
+          this.getNodeIdsConnectedTo(
+            matchNodeId,
+            requestGraphEdgeTypes.invalidated_by_create,
+          );
+        for (let connectedNode of connectedNodes()) {
           this.invalidateNode(connectedNode, FILE_CREATE);
         }
       }
@@ -693,22 +696,24 @@ export class RequestGraph extends ContentGraph<
       // then also invalidate nodes connected by invalidated_by_update edges.
       if (hasFileRequest && (type === 'create' || type === 'update')) {
         let nodeId = this.getNodeIdByContentKey(filePath);
-        let nodes = this.getNodeIdsConnectedTo(
-          nodeId,
-          requestGraphEdgeTypes.invalidated_by_update,
-        );
+        let nodes = () =>
+          this.getNodeIdsConnectedTo(
+            nodeId,
+            requestGraphEdgeTypes.invalidated_by_update,
+          );
 
-        for (let connectedNode of nodes) {
+        for (let connectedNode of nodes()) {
           didInvalidate = true;
           this.invalidateNode(connectedNode, FILE_UPDATE);
         }
 
         if (type === 'create') {
-          let nodes = this.getNodeIdsConnectedTo(
-            nodeId,
-            requestGraphEdgeTypes.invalidated_by_create,
-          );
-          for (let connectedNode of nodes) {
+          let nodes = () =>
+            this.getNodeIdsConnectedTo(
+              nodeId,
+              requestGraphEdgeTypes.invalidated_by_create,
+            );
+          for (let connectedNode of nodes()) {
             didInvalidate = true;
             this.invalidateNode(connectedNode, FILE_CREATE);
           }
@@ -721,14 +726,15 @@ export class RequestGraph extends ContentGraph<
             'file_name:' + basename,
           );
           // Find potential file nodes to be invalidated if this file name pattern matches
-          let above = this.getNodeIdsConnectedTo(
+          let above = [];
+          for (let id of this.getNodeIdsConnectedTo(
             fileNameNodeId,
             requestGraphEdgeTypes.invalidated_by_create_above,
-          ).map(nodeId => {
-            let node = nullthrows(this.getNode(nodeId));
+          )) {
+            let node = nullthrows(this.getNode(id));
             invariant(node.type === 'file');
-            return node;
-          });
+            above.push(node);
+          }
 
           if (above.length > 0) {
             didInvalidate = true;
@@ -741,11 +747,12 @@ export class RequestGraph extends ContentGraph<
           invariant(globNode && globNode.type === 'glob');
 
           if (isGlobMatch(filePath, fromProjectPathRelative(globNode.value))) {
-            let connectedNodes = this.getNodeIdsConnectedTo(
-              globeNodeId,
-              requestGraphEdgeTypes.invalidated_by_create,
-            );
-            for (let connectedNode of connectedNodes) {
+            let connectedNodes = () =>
+              this.getNodeIdsConnectedTo(
+                globeNodeId,
+                requestGraphEdgeTypes.invalidated_by_create,
+              );
+            for (let connectedNode of connectedNodes()) {
               didInvalidate = true;
               this.invalidateNode(connectedNode, FILE_CREATE);
             }

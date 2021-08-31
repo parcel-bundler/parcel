@@ -19,6 +19,7 @@ import assert from 'assert';
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import AssetGraph, {nodeFromAssetGroup} from './AssetGraph';
+import {getNextNodeId, nodeIdsIsEmpty, hasMultipleNodeIds} from './Graph';
 import BundleGraph from './public/BundleGraph';
 import InternalBundleGraph, {bundleGraphEdgeTypes} from './BundleGraph';
 import {NamedBundle} from './public/Bundle';
@@ -159,11 +160,15 @@ export default async function applyRuntimes({
 
   for (let {bundle, assetGroup, dependency, isEntry} of connections) {
     let assetGroupNode = nodeFromAssetGroup(assetGroup);
-    let assetGroupAssetNodeIds = runtimesAssetGraph.getNodeIdsConnectedFrom(
-      runtimesAssetGraph.getNodeIdByContentKey(assetGroupNode.id),
+    let assetGroupAssetNodeIds = () =>
+      runtimesAssetGraph.getNodeIdsConnectedFrom(
+        runtimesAssetGraph.getNodeIdByContentKey(assetGroupNode.id),
+      );
+    invariant(
+      !nodeIdsIsEmpty(assetGroupAssetNodeIds()) &&
+        !hasMultipleNodeIds(assetGroupAssetNodeIds()),
     );
-    invariant(assetGroupAssetNodeIds.length === 1);
-    let runtimeNodeId = assetGroupAssetNodeIds[0];
+    let runtimeNodeId = getNextNodeId(assetGroupAssetNodeIds()).value;
     let runtimeNode = nullthrows(runtimesAssetGraph.getNode(runtimeNodeId));
     invariant(runtimeNode.type === 'asset');
 
@@ -183,14 +188,14 @@ export default async function applyRuntimes({
       if (node.type !== 'dependency') {
         return;
       }
-
-      let assets = runtimesGraph._graph
-        .getNodeIdsConnectedFrom(nodeId)
-        .map(assetNodeId => {
-          let assetNode = nullthrows(runtimesGraph._graph.getNode(assetNodeId));
-          invariant(assetNode.type === 'asset');
-          return assetNode.value;
-        });
+      let assets = [];
+      for (let assetNodeId of runtimesGraph._graph.getNodeIdsConnectedFrom(
+        nodeId,
+      )) {
+        let assetNode = nullthrows(runtimesGraph._graph.getNode(assetNodeId));
+        invariant(assetNode.type === 'asset');
+        assets.push(assetNode.value);
+      }
 
       for (let asset of assets) {
         if (
@@ -235,8 +240,9 @@ export default async function applyRuntimes({
     if (dependency == null) {
       // Verify this asset won't become an island
       assert(
-        bundleGraph._graph.getNodeIdsConnectedTo(bundleGraphRuntimeNodeId)
-          .length > 0,
+        !nodeIdsIsEmpty(
+          bundleGraph._graph.getNodeIdsConnectedTo(bundleGraphRuntimeNodeId),
+        ),
         'Runtime must have an inbound dependency or be an entry',
       );
     } else {

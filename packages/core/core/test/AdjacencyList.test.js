@@ -5,7 +5,10 @@ import path from 'path';
 import {Worker} from 'worker_threads';
 
 import AdjacencyList, {
+  COUNT,
+  NODES_HEADER_SIZE,
   NODE_SIZE,
+  EDGES_HEADER_SIZE,
   EDGE_SIZE,
   isDeleted,
 } from '../src/AdjacencyList';
@@ -17,17 +20,23 @@ describe('AdjacencyList', () => {
       nodeCapacity: 1,
       edgeCapacity: 1,
     }).serialize();
-    assert.deepEqual(graph.nodes, new Uint32Array(1 * NODE_SIZE));
-    assert.deepEqual(graph.edges, new Uint32Array(1 * EDGE_SIZE));
-    assert.equal(graph.numNodes, 0);
-    assert.equal(graph.numEdges, 0);
+    assert.deepEqual(
+      graph.nodes,
+      new Uint32Array(NODES_HEADER_SIZE * 1 * NODE_SIZE),
+    );
+    assert.deepEqual(
+      graph.edges,
+      new Uint32Array(EDGES_HEADER_SIZE * 1 * EDGE_SIZE),
+    );
+    assert.equal(graph.nodes[COUNT], 0);
+    assert.equal(graph.edges[COUNT], 0);
   });
 
   it('addNode should add a node to the graph', () => {
     let graph = new AdjacencyList();
     let id = graph.addNode();
     assert.equal(id, 0);
-    assert.equal(graph.serialize().numNodes, 1);
+    assert.equal(graph.serialize().nodes[COUNT], 1);
   });
 
   it('addNode should resize nodes array when necessary', () => {
@@ -59,10 +68,10 @@ describe('AdjacencyList', () => {
     graph.addEdge(node5, node1);
     graph.addEdge(node6, node1);
 
-    assert.deepEqual(graph.getNodesConnectedTo(node1), [0, 2, 3, 4, 5, 6]);
+    assert.deepEqual([...graph.getNodesConnectedTo(node1)], [0, 2, 3, 4, 5, 6]);
 
     graph.removeEdge(node3, node1);
-    assert.deepEqual(graph.getNodesConnectedTo(node1), [0, 2, 4, 5, 6]);
+    assert.deepEqual([...graph.getNodesConnectedTo(node1)], [0, 2, 4, 5, 6]);
   });
 
   it('removeEdge should remove an edge of a specific type from the graph', () => {
@@ -76,7 +85,7 @@ describe('AdjacencyList', () => {
     graph.addEdge(a, b, 3);
     graph.addEdge(a, c);
     graph.addEdge(a, d, 3);
-    assert.equal(graph.serialize().numEdges, 5);
+    assert.equal(graph.serialize().edges[COUNT], 5);
     assert.ok(graph.hasEdge(a, b));
     assert.ok(graph.hasEdge(a, b, 2));
     assert.ok(graph.hasEdge(a, b, 3));
@@ -91,7 +100,7 @@ describe('AdjacencyList', () => {
     ]);
 
     graph.removeEdge(a, b, 2);
-    assert.equal(graph.serialize().numEdges, 4);
+    assert.equal(graph.serialize().edges[COUNT], 4);
     assert.ok(graph.hasEdge(a, b));
     assert.equal(graph.hasEdge(a, b, 2), false);
     assert.ok(graph.hasEdge(a, b, 3));
@@ -110,8 +119,8 @@ describe('AdjacencyList', () => {
     let a = graph.addNode();
     let b = graph.addNode();
     graph.addEdge(a, b);
-    assert.equal(graph.serialize().numNodes, 2);
-    assert.equal(graph.serialize().numEdges, 1);
+    assert.equal(graph.serialize().nodes[COUNT], 2);
+    assert.equal(graph.serialize().edges[COUNT], 1);
     assert.ok(graph.hasEdge(a, b));
   });
 
@@ -124,7 +133,7 @@ describe('AdjacencyList', () => {
     graph.addEdge(a, b);
     graph.addEdge(a, d);
     graph.addEdge(a, c);
-    assert.deepEqual(graph.getNodesConnectedFrom(a), [b, d, c]);
+    assert.deepEqual([...graph.getNodesConnectedFrom(a)], [b, d, c]);
   });
 
   it('addEdge should add multiple edges to a node in order', () => {
@@ -137,7 +146,7 @@ describe('AdjacencyList', () => {
     graph.addEdge(d, b);
     graph.addEdge(a, d);
     graph.addEdge(c, b);
-    assert.deepEqual(graph.getNodesConnectedTo(b), [a, d, c]);
+    assert.deepEqual([...graph.getNodesConnectedTo(b)], [a, d, c]);
   });
 
   it('addEdge should add multiple edges of different types in order', () => {
@@ -148,7 +157,7 @@ describe('AdjacencyList', () => {
     graph.addEdge(a, b, 1);
     graph.addEdge(a, b, 4);
     graph.addEdge(a, b, 3);
-    assert.deepEqual(graph.getNodesConnectedFrom(a), [b]);
+    assert.deepEqual([...graph.getNodesConnectedFrom(a)], [b]);
     assert.deepEqual(Array.from(graph.getAllEdges()), [
       {from: a, to: b, type: 1},
       {from: a, to: b, type: 4},
@@ -212,7 +221,7 @@ describe('AdjacencyList', () => {
     assert(isDeleted(graph.serialize().edges[index]));
     graph.addEdge(n0, n1, 1);
     assert(isDeleted(graph.serialize().edges[index]));
-    assert(graph.serialize().numEdges === 1);
+    assert(graph.serialize().edges[COUNT] === 1);
   });
 
   it('addEdge should replace a deleted edge', () => {

@@ -3,7 +3,11 @@
 import assert from 'assert';
 import sinon from 'sinon';
 
-import Graph from '../src/Graph';
+import Graph, {
+  getNextNodeId,
+  nodeIdsIsEmpty,
+  hasMultipleNodeIds,
+} from '../src/Graph';
 import {toNodeId} from '../src/types';
 
 describe('Graph', () => {
@@ -272,7 +276,6 @@ describe('Graph', () => {
     let nodeC = graph.addNode('c');
     graph.addEdge(nodeA, nodeB);
     graph.addEdge(nodeA, nodeC);
-
     let nodeD = graph.addNode('d');
     graph.replaceNodeIdsConnectedTo(nodeA, [nodeB, nodeD]);
 
@@ -310,5 +313,72 @@ describe('Graph', () => {
     );
 
     assert.deepEqual(visited, [nodeA, nodeB, nodeD]);
+  });
+
+  it.only('reverse', () => {
+    let graph = new Graph();
+    let node = 'node';
+    for (let i = 0; i < 10; i++) {
+      graph.addNode(`node${i}`);
+    }
+    for (let i = 0; i < 10; i++) {
+      graph.addEdge(0, i);
+    }
+    console.log([...graph.getNodeIdsConnectedFrom(0)]);
+    console.log([...graph.getNodeIdsConnectedFromReverse(0)]);
+    assert.deepEqual([...graph.getNodeIdsConnectedFrom(0)].reverse(), [
+      ...graph.getNodeIdsConnectedFromReverse(0),
+    ]);
+  });
+
+  it.only('NodeIdGenerator', () => {
+    let graph = new Graph();
+    let nodeA = graph.addNode('a');
+    let nodeB = graph.addNode('b');
+    let nodeC = graph.addNode('c');
+    let nodeIds = () => graph.getNodeIdsConnectedFrom(nodeA);
+    assert(nodeIdsIsEmpty(nodeIds()));
+    graph.addEdge(nodeA, nodeB);
+    assert(!nodeIdsIsEmpty(nodeIds()));
+    assert(!hasMultipleNodeIds(nodeIds()));
+    graph.addEdge(nodeA, nodeC);
+
+    let test = [];
+    for (let id of nodeIds()) {
+      test.push(id);
+    }
+    assert.deepEqual(test, [1, 2]);
+    assert(hasMultipleNodeIds(nodeIds()));
+
+    // The list of node ids should remain the same on subsequent calls
+    test = [];
+    for (let id of nodeIds()) {
+      test.push(id);
+    }
+    assert(hasMultipleNodeIds(nodeIds()));
+
+    console.log();
+    for (let id of graph.getNodeIdsConnectedFrom(nodeA)) {
+      console.log(id);
+    }
+    console.log();
+    for (let id of graph.getNodeIdsConnectedFrom(nodeA)) {
+      console.log(id);
+    }
+    console.log();
+    for (let id of graph.getNodeIdsConnectedFrom(nodeA)) {
+      console.log(id);
+    }
+
+    assert.deepEqual(test, [1, 2]);
+    assert.deepEqual([...graph.getNodeIdsConnectedFrom(nodeA)], [1, 2]);
+    assert.deepEqual([...graph.getNodeIdsConnectedFrom(nodeA)], [1, 2]);
+
+    assert.deepEqual([...nodeIds()], [1, 2]);
+    assert.deepEqual([...nodeIds()], [1, 2]);
+
+    assert.equal(getNextNodeId(nodeIds()).value, 1);
+    assert.equal(getNextNodeId(nodeIds()).value, 1);
+    assert.equal(getNextNodeId(nodeIds()).value, 1);
   });
 });
