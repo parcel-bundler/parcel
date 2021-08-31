@@ -8,18 +8,18 @@ export default (new Runtime({
       return [];
     }
 
-    let hasDep;
+    let asset;
     bundle.traverse((node, _, actions) => {
       if (
         node.type === 'dependency' &&
         node.value.specifier === '@parcel/service-worker'
       ) {
-        hasDep = true;
+        asset = bundleGraph.getResolvedAsset(node.value, bundle);
         actions.stop();
       }
     });
 
-    if (!hasDep) {
+    if (!asset) {
       return [];
     }
 
@@ -40,7 +40,7 @@ _register(manifest, version);
 
     return [
       {
-        filePath: __filename,
+        filePath: asset.filePath,
         code,
         isEntry: true,
         env: {sourceType: 'module'},
