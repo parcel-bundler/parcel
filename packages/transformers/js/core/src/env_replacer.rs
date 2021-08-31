@@ -92,7 +92,7 @@ impl<'a> Fold for EnvReplacer<'a> {
               && match_member_expr(member, vec!["process", "env"], self.decls)
             {
               let mut decls = vec![];
-              self.collect_pat_bindings(&pat, &mut decls);
+              self.collect_pat_bindings(pat, &mut decls);
 
               let mut exprs: Vec<Box<Expr>> = decls
                 .iter()
@@ -263,18 +263,19 @@ impl<'a> EnvReplacer<'a> {
                 definite: false,
               })
             }
-            ObjectPatProp::Rest(rest) => match &*rest.arg {
-              Pat::Ident(ident) => decls.push(VarDeclarator {
-                span: DUMMY_SP,
-                name: Pat::Ident(ident.clone()),
-                init: Some(Box::new(Expr::Object(ObjectLit {
+            ObjectPatProp::Rest(rest) => {
+              if let Pat::Ident(ident) = &*rest.arg {
+                decls.push(VarDeclarator {
                   span: DUMMY_SP,
-                  props: vec![],
-                }))),
-                definite: false,
-              }),
-              _ => {}
-            },
+                  name: Pat::Ident(ident.clone()),
+                  init: Some(Box::new(Expr::Object(ObjectLit {
+                    span: DUMMY_SP,
+                    props: vec![],
+                  }))),
+                  definite: false,
+                })
+              }
+            }
           }
         }
       }

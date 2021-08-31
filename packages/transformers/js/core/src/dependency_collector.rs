@@ -32,7 +32,7 @@ pub enum DependencyKind {
   WebWorker,
   ServiceWorker,
   Worklet,
-  URL,
+  Url,
   File,
 }
 
@@ -691,7 +691,7 @@ impl<'a> Fold for DependencyCollector<'a> {
             return self.fold_new_promise(node);
           }
           sym => {
-            if sym.to_string() == "__parcel__URL__" {
+            if sym == "__parcel__URL__" {
               // new __parcel__URL__(url) -> new URL(url, import.meta.url)
               if let Some(args) = &node.args {
                 if let ast::Expr::New(new) = create_url_constructor(
@@ -804,7 +804,7 @@ impl<'a> Fold for DependencyCollector<'a> {
       let url = self.add_url_dependency(
         specifier,
         span,
-        DependencyKind::URL,
+        DependencyKind::Url,
         self.config.source_type,
       );
 
@@ -889,25 +889,22 @@ impl<'a> DependencyCollector<'a> {
           _ => return node.fold_children_with(self),
         };
 
-        match expr {
-          Some(ast::Expr::Call(call)) => {
-            if let ast::ExprOrSuper::Expr(callee) = &call.callee {
-              if let ast::Expr::Ident(id) = &**callee {
-                if id.to_id() == resolve_id {
-                  if let Some(arg) = call.args.get(0) {
-                    if match_require(&*arg.expr, self.decls, Mark::fresh(Mark::root())).is_some() {
-                      let was_in_promise = self.in_promise;
-                      self.in_promise = true;
-                      let node = node.fold_children_with(self);
-                      self.in_promise = was_in_promise;
-                      return node;
-                    }
+        if let Some(ast::Expr::Call(call)) = expr {
+          if let ast::ExprOrSuper::Expr(callee) = &call.callee {
+            if let ast::Expr::Ident(id) = &**callee {
+              if id.to_id() == resolve_id {
+                if let Some(arg) = call.args.get(0) {
+                  if match_require(&*arg.expr, self.decls, Mark::fresh(Mark::root())).is_some() {
+                    let was_in_promise = self.in_promise;
+                    self.in_promise = true;
+                    let node = node.fold_children_with(self);
+                    self.in_promise = was_in_promise;
+                    return node;
                   }
                 }
               }
             }
           }
-          _ => {}
         }
       }
     }
@@ -1127,35 +1124,32 @@ impl<'a> DependencyCollector<'a> {
   ) -> Option<(JsWord, swc_common::Span)> {
     use ast::*;
 
-    match expr {
-      Expr::New(new) => {
-        let is_url = match &*new.callee {
-          Expr::Ident(id) => id.sym == js_word!("URL") && !decls.contains(&id.to_id()),
-          _ => false,
+    if let Expr::New(new) = expr {
+      let is_url = match &*new.callee {
+        Expr::Ident(id) => id.sym == js_word!("URL") && !decls.contains(&id.to_id()),
+        _ => false,
+      };
+
+      if !is_url {
+        return None;
+      }
+
+      if let Some(args) = &new.args {
+        let specifier = if let Some(arg) = args.get(0) {
+          match &*arg.expr {
+            Expr::Lit(Lit::Str(s)) => s,
+            _ => return None,
+          }
+        } else {
+          return None;
         };
 
-        if !is_url {
-          return None;
-        }
-
-        if let Some(args) = &new.args {
-          let specifier = if let Some(arg) = args.get(0) {
-            match &*arg.expr {
-              Expr::Lit(Lit::Str(s)) => s,
-              _ => return None,
-            }
-          } else {
-            return None;
-          };
-
-          if let Some(arg) = args.get(1) {
-            if self.is_import_meta_url(&*arg.expr) {
-              return Some((specifier.value.clone(), specifier.span));
-            }
+        if let Some(arg) = args.get(1) {
+          if self.is_import_meta_url(&*arg.expr) {
+            return Some((specifier.value.clone(), specifier.span));
           }
         }
       }
-      _ => {}
     }
 
     // self reference, e.g. new Worker(import.meta.url)
