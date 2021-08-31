@@ -248,9 +248,7 @@ export class EntryResolver {
         if (!allTargetsHaveSource && pkg.source != null) {
           let pkgSources = Array.isArray(pkg.source)
             ? pkg.source
-            : typeof pkg.source === 'string'
-            ? [pkg.source]
-            : [];
+            : [pkg.source];
           let i = 0;
           for (let pkgSource of pkgSources) {
             let source = path.join(path.dirname(filePath), pkgSource);

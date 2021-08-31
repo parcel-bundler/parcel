@@ -258,7 +258,7 @@ export type PackageJSON = {
   module?: FilePath,
   types?: FilePath,
   browser?: FilePath | {[FilePath]: FilePath | boolean, ...},
-  source?: FilePath | Array<FilePath> | {|[string]: string|},
+  source?: FilePath | Array<FilePath>,
   alias?: {[PackageName | FilePath | Glob]: PackageName | FilePath, ...},
   browserslist?: Array<string> | {[string]: Array<string>},
   engines?: Engines,
