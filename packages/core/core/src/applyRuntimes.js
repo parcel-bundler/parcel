@@ -125,7 +125,6 @@ export default async function applyRuntimes({
         specifier: runtime.name,
         resolveFrom: runtime.resolveFrom,
       },
-      runtime,
       previousDevDeps,
       options,
     );
