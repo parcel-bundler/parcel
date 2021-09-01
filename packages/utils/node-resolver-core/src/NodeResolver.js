@@ -27,7 +27,6 @@ import ThrowableDiagnostic, {
 import micromatch from 'micromatch';
 import builtins, {empty} from './builtins';
 import nullthrows from 'nullthrows';
-// $FlowFixMe this is untyped
 import _Module from 'module';
 import {fileURLToPath} from 'url';
 
