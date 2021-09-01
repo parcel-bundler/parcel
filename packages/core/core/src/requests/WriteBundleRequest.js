@@ -267,7 +267,6 @@ async function runCompressor(
         specifier: compressor.name,
         resolveFrom: compressor.resolveFrom,
       },
-      compressor,
       devDeps,
       options,
     );
