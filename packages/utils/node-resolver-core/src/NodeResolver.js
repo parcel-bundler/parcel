@@ -523,11 +523,22 @@ export default class NodeResolver {
         });
       }
 
+      let query = undefined;
+      if (url.search) {
+        query = {};
+        // using `query = Object.fromEntries(params)` would swallow duplicate entries
+        for (let [k, v] of new URLSearchParams(url.search.slice(1))) {
+          if (query[k] != null) {
+            query[k] = [].concat(query[k], v);
+          } else {
+            query[k] = v;
+          }
+        }
+      }
+
       return {
         filePath,
-        query: url.search
-          ? Object.fromEntries(new URLSearchParams(url.search.slice(1)))
-          : undefined,
+        query,
       };
     } else {
       // CommonJS specifier. Query params are not supported.

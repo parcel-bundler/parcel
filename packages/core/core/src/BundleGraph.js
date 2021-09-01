@@ -1408,12 +1408,26 @@ export default class BundleGraph {
     // TODO: sort??
     this.traverseAssets(bundle, asset => {
       {
+        let query = new URLSearchParams();
+        // using `new URLSearchParams(asset.query)` doesn't work with arrays as values
+        if (asset.query) {
+          for (let key in asset.query) {
+            let value = asset.query[key];
+            if (Array.isArray(value)) {
+              for (let v of value) {
+                query.append(key, v);
+              }
+            } else {
+              query.append(key, value);
+            }
+          }
+        }
         hash.writeString(
           [
             this.getAssetPublicId(asset),
             asset.outputHash,
             asset.filePath,
-            asset.query ? new URLSearchParams(asset.query) : '',
+            query.toString(),
             asset.type,
             asset.uniqueKey,
           ].join(':'),

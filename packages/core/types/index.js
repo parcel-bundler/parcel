@@ -25,7 +25,9 @@ export type ConfigResultWithFilePath<T> = {|
 /** <code>process.env</code> */
 export type EnvMap = typeof process.env;
 
-export type QueryParameters = {[key: string]: string, ...};
+export type QueryParameters = {|
+  +[key: string]: string | $ReadOnlyArray<string>,
+|};
 
 export type JSONValue =
   | null

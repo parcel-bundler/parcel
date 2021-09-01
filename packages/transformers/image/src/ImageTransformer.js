@@ -21,12 +21,22 @@ export default (new Transformer({
   async transform({asset, options}) {
     asset.bundleBehavior = 'isolated';
 
-    let width = asset.query.width ? parseInt(asset.query.width, 10) : null;
-    let height = asset.query.height ? parseInt(asset.query.height, 10) : null;
-    let quality = asset.query.quality
-      ? parseInt(asset.query.quality, 10)
-      : undefined;
-    let format = asset.query.as ? asset.query.as.toLowerCase().trim() : null;
+    let width =
+      typeof asset.query.width === 'string'
+        ? parseInt(asset.query.width, 10)
+        : null;
+    let height =
+      typeof asset.query.height === 'string'
+        ? parseInt(asset.query.height, 10)
+        : null;
+    let quality =
+      typeof asset.query.quality === 'string'
+        ? parseInt(asset.query.quality, 10)
+        : undefined;
+    let format =
+      typeof asset.query.as === 'string'
+        ? asset.query.as.toLowerCase().trim()
+        : null;
 
     if (width || height || quality || format) {
       let inputBuffer = await asset.getBuffer();
