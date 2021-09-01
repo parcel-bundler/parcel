@@ -44,7 +44,7 @@ import {
 } from '../TargetDescriptor.schema';
 import {BROWSER_ENVS} from '../public/Environment';
 import {optionsProxy, toInternalSourceLocation} from '../utils';
-import {fromProjectPath, toProjectPath} from '../projectPath';
+import {fromProjectPath, toProjectPath, joinProjectPath} from '../projectPath';
 
 type RunOpts = {|
   input: Entry,
@@ -111,10 +111,12 @@ async function run({input, api, options}: RunOpts) {
     api,
     optionsProxy(options, api.invalidateOnOptionChange),
   );
-  let targets = await targetResolver.resolve(
+  let targets: Array<Target> = await targetResolver.resolve(
     fromProjectPath(options.projectRoot, input.packagePath),
     input.target,
   );
+
+  assertTargetsAreNotEntries(targets, input, options);
 
   let configResult = nullthrows(
     await api.runRequest<null, ConfigAndCachePath>(createParcelConfigRequest()),
@@ -152,10 +154,10 @@ export class TargetResolver {
       optionTargets = [exclusiveTarget];
     }
 
-    let packageTargets = await this.resolvePackageTargets(
-      rootDir,
-      exclusiveTarget,
-    );
+    let packageTargets: Map<
+      string,
+      Target | null,
+    > = await this.resolvePackageTargets(rootDir, exclusiveTarget);
     let targets: Array<Target>;
     if (optionTargets) {
       if (Array.isArray(optionTargets)) {
@@ -168,20 +170,29 @@ export class TargetResolver {
           });
         }
 
+        // Only build the intersection of the exclusive target and option targets.
+        if (exclusiveTarget != null) {
+          optionTargets = optionTargets.filter(
+            target => target === exclusiveTarget,
+          );
+        }
+
         // If an array of strings is passed, it's a filter on the resolved package
         // targets. Load them, and find the matching targets.
-        targets = optionTargets.map(target => {
-          let matchingTarget = packageTargets.get(target);
-          if (!matchingTarget) {
-            throw new ThrowableDiagnostic({
-              diagnostic: {
-                message: md`Could not find target with name "${target}"`,
-                origin: '@parcel/core',
-              },
-            });
-          }
-          return matchingTarget;
-        });
+        targets = optionTargets
+          .map(target => {
+            // null means skipped.
+            if (!packageTargets.has(target)) {
+              throw new ThrowableDiagnostic({
+                diagnostic: {
+                  message: md`Could not find target with name "${target}"`,
+                  origin: '@parcel/core',
+                },
+              });
+            }
+            return packageTargets.get(target);
+          })
+          .filter(Boolean);
       } else {
         // Otherwise, it's an object map of target descriptors (similar to those
         // in package.json). Adapt them to native targets.
@@ -320,13 +331,14 @@ export class TargetResolver {
           },
         ];
       } else {
-        targets = Array.from(packageTargets.values()).filter(descriptor => {
-          return !skipTarget(
-            descriptor.name,
-            exclusiveTarget,
-            descriptor.source,
-          );
-        });
+        targets = Array.from(packageTargets.values())
+          .filter(Boolean)
+          .filter(descriptor => {
+            return (
+              descriptor &&
+              !skipTarget(descriptor.name, exclusiveTarget, descriptor.source)
+            );
+          });
       }
     }
 
@@ -336,7 +348,7 @@ export class TargetResolver {
   async resolvePackageTargets(
     rootDir: FilePath,
     exclusiveTarget?: string,
-  ): Promise<Map<string, Target>> {
+  ): Promise<Map<string, Target | null>> {
     let rootFile = path.join(rootDir, 'index');
     let conf = await loadConfig(
       this.fs,
@@ -448,7 +460,7 @@ export class TargetResolver {
       }
     }
 
-    let targets: Map<string, Target> = new Map();
+    let targets: Map<string, Target | null> = new Map();
     let node = pkgEngines.node;
     let browsers = pkgEngines.browsers;
 
@@ -540,6 +552,7 @@ export class TargetResolver {
         );
 
         if (skipTarget(targetName, exclusiveTarget, descriptor.source)) {
+          targets.set(targetName, null);
           continue;
         }
 
@@ -579,6 +592,8 @@ export class TargetResolver {
               hints: [
                 `The "${targetName}" field is meant for libraries. If you meant to output a ${ext} file, either remove the "${targetName}" field or choose a different target name.`,
               ],
+              documentationURL:
+                'https://v2.parceljs.org/features/targets/#library-targets',
             },
           });
         }
@@ -609,6 +624,8 @@ export class TargetResolver {
               hints: [
                 `The "${targetName}" field is meant for libraries. The outputFormat must be either "commonjs" or "esmodule". Either change or remove the declared outputFormat.`,
               ],
+              documentationURL:
+                'https://v2.parceljs.org/features/targets/#library-targets',
             },
           });
         }
@@ -666,6 +683,8 @@ export class TargetResolver {
               hints: [
                 `Either change the output file extension to .mjs, add "type": "module" to package.json, or remove the declared outputFormat.`,
               ],
+              documentationURL:
+                'https://v2.parceljs.org/features/targets/#library-targets',
             },
           });
         }
@@ -696,6 +715,8 @@ export class TargetResolver {
               hints: [
                 `The "${targetName}" target is meant for libraries. Either remove the "scopeHoist" option, or use a different target name.`,
               ],
+              documentationURL:
+                'https://v2.parceljs.org/features/targets/#library-targets',
             },
           });
         }
@@ -796,6 +817,7 @@ export class TargetResolver {
         );
         let pkgDir = path.dirname(nullthrows(pkgFilePath));
         if (skipTarget(targetName, exclusiveTarget, descriptor.source)) {
+          targets.set(targetName, null);
           continue;
         }
 
@@ -836,6 +858,8 @@ export class TargetResolver {
                 },
               ],
               hints: [`Either remove the "scopeHoist" or "isLibrary" option.`],
+              documentationURL:
+                'https://v2.parceljs.org/features/targets/#library-targets',
             },
           });
         }
@@ -1002,6 +1026,8 @@ export class TargetResolver {
                   expectedExtensions,
                 )}.`,
           ],
+          documentationURL:
+            'https://v2.parceljs.org/features/targets/#library-targets',
         },
       });
     }
@@ -1101,6 +1127,10 @@ function assertNoDuplicateTargets(options, targets, pkgFilePath, pkgContents) {
   // Without this, an assertion is thrown much later after naming the bundles and finding duplicates.
   let targetsByPath: Map<string, Array<string>> = new Map();
   for (let target of targets.values()) {
+    if (!target) {
+      continue;
+    }
+
     let {distEntry} = target;
     if (distEntry != null) {
       let distPath = path.join(
@@ -1162,5 +1192,70 @@ function normalizeSourceMap(options: ParcelOptions, sourceMap) {
     }
   } else {
     return undefined;
+  }
+}
+
+function assertTargetsAreNotEntries(
+  targets: Array<Target>,
+  input: Entry,
+  options: ParcelOptions,
+) {
+  for (const target of targets) {
+    if (
+      target.distEntry != null &&
+      joinProjectPath(target.distDir, target.distEntry) === input.filePath
+    ) {
+      let loc = target.loc;
+      let relativeEntry = path.relative(
+        process.cwd(),
+        fromProjectPath(options.projectRoot, input.filePath),
+      );
+      let codeFrames = [];
+      if (loc) {
+        codeFrames.push({
+          filePath: fromProjectPath(options.projectRoot, loc.filePath),
+          codeHighlights: [
+            {
+              start: loc.start,
+              end: loc.end,
+              message: 'Target defined here',
+            },
+          ],
+        });
+
+        let inputLoc = input.loc;
+        if (inputLoc) {
+          let highlight = {
+            start: inputLoc.start,
+            end: inputLoc.end,
+            message: 'Entry defined here',
+          };
+
+          if (inputLoc.filePath === loc.filePath) {
+            codeFrames[0].codeHighlights.push(highlight);
+          } else {
+            codeFrames.push({
+              filePath: fromProjectPath(options.projectRoot, inputLoc.filePath),
+              codeHighlights: [highlight],
+            });
+          }
+        }
+      }
+
+      throw new ThrowableDiagnostic({
+        diagnostic: {
+          origin: '@parcel/core',
+          message: `Target "${target.name}" is configured to overwrite entry "${relativeEntry}".`,
+          codeFrames,
+          hints: [
+            (COMMON_TARGETS[target.name]
+              ? `The "${target.name}" field is an _output_ file path so that your build can be consumed by other tools. `
+              : '') +
+              `Change the "${target.name}" field to point to an output file rather than your source code. See https://v2.parceljs.org/configuration/package-json for more information.`,
+          ],
+          documentationURL: 'https://v2.parceljs.org/features/targets/',
+        },
+      });
+    }
   }
 }

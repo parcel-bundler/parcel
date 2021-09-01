@@ -14,9 +14,12 @@ const ALLOWED_EXTENSIONS = {
 };
 
 export default (new Namer({
-  name({bundle, bundleGraph, options}) {
+  name({bundle, bundleGraph}) {
     let bundleGroup = bundleGraph.getBundleGroupsContainingBundle(bundle)[0];
-    let bundleGroupBundles = bundleGraph.getBundlesInBundleGroup(bundleGroup);
+    let bundleGroupBundles = bundleGraph.getBundlesInBundleGroup(bundleGroup, {
+      includeInline: true,
+    });
+    let isEntry = bundleGraph.isEntryBundleGroup(bundleGroup);
 
     if (bundle.needsStableName) {
       let entryBundlesOfType = bundleGroupBundles.filter(
@@ -37,7 +40,7 @@ export default (new Namer({
 
     if (
       bundle.id === mainBundle.id &&
-      bundle.needsStableName &&
+      isEntry &&
       bundle.target &&
       bundle.target.distEntry != null
     ) {
@@ -88,8 +91,9 @@ export default (new Namer({
     //      `index.css`.
     let name = nameFromContent(
       mainBundle,
+      isEntry,
       bundleGroup.entryAssetId,
-      options.entryRoot,
+      bundleGraph.getEntryRoot(bundle.target),
     );
     if (!bundle.needsStableName) {
       name += '.' + bundle.hashReference;
@@ -101,6 +105,7 @@ export default (new Namer({
 
 function nameFromContent(
   bundle: Bundle,
+  isEntry: boolean,
   entryAssetId: string,
   entryRoot: FilePath,
 ): string {
@@ -112,7 +117,7 @@ function nameFromContent(
   // If this is an entry bundle, use the original relative path.
   if (bundle.needsStableName) {
     // Match name of target entry if possible, but with a different extension.
-    if (bundle.target.distEntry != null) {
+    if (isEntry && bundle.target.distEntry != null) {
       return basenameWithoutExtension(bundle.target.distEntry);
     }
 

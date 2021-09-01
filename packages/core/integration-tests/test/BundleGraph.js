@@ -37,6 +37,10 @@ describe('BundleGraph', () => {
       },
       {
         type: 'asset',
+        value: 'lodash.js',
+      },
+      {
+        type: 'asset',
         value: 'worker-b.js',
       },
       {
@@ -58,6 +62,18 @@ describe('BundleGraph', () => {
       {
         type: 'asset',
         value: 'runtime.js',
+      },
+      {
+        type: 'asset',
+        value: 'get-worker-url.js',
+      },
+      {
+        type: 'asset',
+        value: 'bundle-url.js',
+      },
+      {
+        type: 'asset',
+        value: 'esmodule-helpers.js',
       },
     ]);
   });

@@ -4,9 +4,8 @@ import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import type {Async, EnvMap} from '@parcel/types';
 import type {EventType, Options as WatcherOptions} from '@parcel/watcher';
 import type WorkerFarm from '@parcel/workers';
+import type {ContentKey, NodeId, SerializedContentGraph} from '@parcel/graph';
 import type {
-  ContentKey,
-  NodeId,
   ParcelOptions,
   RequestInvalidation,
   InternalFile,
@@ -24,10 +23,7 @@ import {
   makeDeferredWithPromise,
 } from '@parcel/utils';
 import {hashString} from '@parcel/hash';
-import ContentGraph, {
-  type SerializedContentGraph,
-  type ContentGraphOpts,
-} from './ContentGraph';
+import {ContentGraph, type ContentGraphOpts} from '@parcel/graph';
 import {assertSignalNotAborted, hashFromOption} from './utils';
 import {
   type ProjectPath,

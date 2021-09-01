@@ -40,6 +40,9 @@ export default (new Runtime({
         `module.bundle.HMR_BUNDLE_ID = ${JSON.stringify(bundle.id)};` +
         HMR_RUNTIME,
       isEntry: true,
+      env: {
+        sourceType: 'module',
+      },
     };
   },
 }): Runtime);

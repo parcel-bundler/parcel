@@ -1,8 +1,9 @@
 // @flow strict-local
 
+import type {Diagnostic} from '@parcel/diagnostic';
+import type {NodeId} from '@parcel/graph';
 import type {Async, Symbol, Meta} from '@parcel/types';
 import type {SharedReference} from '@parcel/workers';
-import type {Diagnostic} from '@parcel/diagnostic';
 import type {
   Asset,
   AssetGroup,
@@ -12,7 +13,6 @@ import type {
   DependencyNode,
   Entry,
   InternalSourceLocation,
-  NodeId,
   ParcelOptions,
   Target,
 } from '../types';
@@ -27,7 +27,7 @@ import {hashString} from '@parcel/hash';
 import ThrowableDiagnostic, {md} from '@parcel/diagnostic';
 import {Priority} from '../types';
 import AssetGraph from '../AssetGraph';
-import {getNextNodeId, nodeIdsIsEmpty, hasMultipleNodeIds} from '../Graph';
+import {getNextNodeId, nodeIdsIsEmpty, hasMultipleNodeIds} from '@parcel/graph';
 import {PARCEL_VERSION} from '../constants';
 import createEntryRequest from './EntryRequest';
 import createTargetRequest from './TargetRequest';

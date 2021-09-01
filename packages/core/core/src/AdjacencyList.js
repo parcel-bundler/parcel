@@ -1,8 +1,7 @@
 // @flow
 import assert from 'assert';
-import {fromNodeId, toNodeId} from './types';
-import type {NullEdgeType, AllEdgeTypes} from './Graph';
-import type {NodeId} from './types';
+import type {NodeId, NullEdgeType, AllEdgeTypes} from '@parcel/Graph';
+import {fromNodeId, toNodeId} from '@parcel/Graph';
 
 /**
  * Nodes are stored in a shared array buffer of fixed length

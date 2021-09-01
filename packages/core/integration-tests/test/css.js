@@ -319,7 +319,7 @@ describe('css', () => {
     assert.equal(
       css.trim(),
       `.svg-img {
-  background-image: url('data:image/svg+xml,%3Csvg%20width%3D%22120%22%20height%3D%27120%27%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%0A%20%20%3Cfilter%20id%3D%22blur-_.%21~%2a%22%3E%0A%20%20%20%20%3CfeGaussianBlur%20stdDeviation%3D%225%22%2F%3E%0A%20%20%3C%2Ffilter%3E%0A%20%20%3Ccircle%20cx%3D%2260%22%20cy%3D%2260%22%20r%3D%2250%22%20fill%3D%22green%22%20filter%3D%22url%28%23blur-_.%21~%2a%29%22%20%2F%3E%0A%3C%2Fsvg%3E%0A');
+  background-image: url('data:image/svg+xml,%3Csvg%20width%3D%22120%22%20height%3D%22120%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%0A%20%20%3Cfilter%20id%3D%22blur-_.%21~%2a%22%3E%0A%20%20%20%20%3CfeGaussianBlur%20stdDeviation%3D%225%22%3E%3C%2FfeGaussianBlur%3E%0A%20%20%3C%2Ffilter%3E%0A%20%20%3Ccircle%20cx%3D%2260%22%20cy%3D%2260%22%20r%3D%2250%22%20fill%3D%22green%22%20filter%3D%22url%28%27%23blur-_.%21~%2a%27%29%22%3E%3C%2Fcircle%3E%0A%3C%2Fsvg%3E%0A');
 }`,
     );
   });
@@ -379,6 +379,43 @@ describe('css', () => {
           },
         ],
       },
+    );
+  });
+
+  it('should support importing CSS from node_modules with the npm: scheme', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/css-node-modules/index.css'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.css',
+        assets: ['index.css', 'foo.css'],
+      },
+    ]);
+  });
+
+  it('should support external CSS imports', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/css-external/a.css'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'a.css',
+        assets: ['a.css', 'b.css'],
+      },
+    ]);
+
+    let res = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(
+      res.startsWith(`@import "http://example.com/external.css";
+.b {
+  color: red;
+}
+.a {
+  color: blue;
+}`),
     );
   });
 });

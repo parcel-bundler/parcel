@@ -16,6 +16,7 @@ import Logger from '@parcel/logger';
 import os from 'os';
 import {spawnSync} from 'child_process';
 import tempy from 'tempy';
+import {md} from '@parcel/diagnostic';
 
 const parcelCli = require.resolve('parcel/src/bin.js');
 const inputDir = path.join(__dirname, '/input');
@@ -567,5 +568,139 @@ describe('babel', function() {
     assert(!file.includes('REPLACE_ME'));
     assert(!file.includes('interface'));
     assert(file.includes('React.createElement'));
+  });
+
+  it('should warn when a babel config contains only redundant plugins', async function() {
+    let messages = [];
+    let loggerDisposable = Logger.onLog(message => {
+      messages.push(message);
+    });
+    let filePath = path.join(__dirname, '/integration/babel-warn-all/index.js');
+    await bundle(filePath);
+    loggerDisposable.dispose();
+
+    let babelrcPath = path.resolve(path.dirname(filePath), '.babelrc');
+    assert.deepEqual(messages, [
+      {
+        type: 'log',
+        level: 'warn',
+        diagnostics: [
+          {
+            origin: '@parcel/transformer-babel',
+            message: md`Parcel includes transpilation by default. Babel config __${path.relative(
+              process.cwd(),
+              babelrcPath,
+            )}__ contains only redundant presets. Deleting it may significantly improve build performance.`,
+            codeFrames: [
+              {
+                filePath: babelrcPath,
+                codeHighlights: [
+                  {
+                    message: undefined,
+                    start: {
+                      line: 2,
+                      column: 15,
+                    },
+                    end: {
+                      line: 2,
+                      column: 33,
+                    },
+                  },
+                ],
+              },
+            ],
+            hints: [
+              md`Delete __${path.relative(process.cwd(), babelrcPath)}__`,
+            ],
+            documentationURL:
+              'https://v2.parceljs.org/languages/javascript/#default-presets',
+          },
+          {
+            origin: '@parcel/transformer-babel',
+            message:
+              "@babel/preset-env does not support Parcel's targets, which will likely result in unnecessary transpilation and larger bundle sizes.",
+            codeFrames: [
+              {
+                filePath: path.resolve(path.dirname(filePath), '.babelrc'),
+                codeHighlights: [
+                  {
+                    message: undefined,
+                    start: {
+                      line: 2,
+                      column: 15,
+                    },
+                    end: {
+                      line: 2,
+                      column: 33,
+                    },
+                  },
+                ],
+              },
+            ],
+            hints: [
+              "Either remove __@babel/preset-env__ to use Parcel's builtin transpilation, or replace with __@parcel/babel-preset-env__",
+            ],
+            documentationURL:
+              'https://v2.parceljs.org/languages/javascript/#custom-plugins',
+          },
+        ],
+      },
+    ]);
+  });
+
+  it('should warn when a babel config contains redundant plugins', async function() {
+    let messages = [];
+    let loggerDisposable = Logger.onLog(message => {
+      messages.push(message);
+    });
+    let filePath = path.join(
+      __dirname,
+      '/integration/babel-warn-some/index.js',
+    );
+    await bundle(filePath);
+    loggerDisposable.dispose();
+
+    let babelrcPath = path.resolve(path.dirname(filePath), '.babelrc');
+    assert.deepEqual(messages, [
+      {
+        type: 'log',
+        level: 'warn',
+        diagnostics: [
+          {
+            origin: '@parcel/transformer-babel',
+            message: md`Parcel includes transpilation by default. Babel config __${path.relative(
+              process.cwd(),
+              babelrcPath,
+            )}__ includes the following redundant presets: __@parcel/babel-preset-env__. Removing these may improve build performance.`,
+            codeFrames: [
+              {
+                filePath: babelrcPath,
+                codeHighlights: [
+                  {
+                    message: undefined,
+                    start: {
+                      line: 2,
+                      column: 15,
+                    },
+                    end: {
+                      line: 2,
+                      column: 40,
+                    },
+                  },
+                ],
+              },
+            ],
+            hints: [
+              md`Remove the above presets from __${path.relative(
+                process.cwd(),
+                babelrcPath,
+              )}__`,
+            ],
+            documentationURL:
+              'https://v2.parceljs.org/languages/javascript/#default-presets',
+          },
+        ],
+      },
+    ]);
   });
 });

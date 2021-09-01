@@ -1,11 +1,11 @@
 // @flow strict-local
 
+import type {ContentKey} from '@parcel/graph';
 import type {Dependency, NamedBundle as INamedBundle} from '@parcel/types';
 import type {SharedReference} from '@parcel/workers';
 import type {
   AssetGroup,
   Bundle as InternalBundle,
-  ContentKey,
   Config,
   DevDepRequest,
   ParcelOptions,
@@ -19,7 +19,7 @@ import assert from 'assert';
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import AssetGraph, {nodeFromAssetGroup} from './AssetGraph';
-import {getNextNodeId, nodeIdsIsEmpty, hasMultipleNodeIds} from './Graph';
+import {getNextNodeId, nodeIdsIsEmpty, hasMultipleNodeIds} from '@parcel/Graph';
 import BundleGraph from './public/BundleGraph';
 import InternalBundleGraph, {bundleGraphEdgeTypes} from './BundleGraph';
 import {NamedBundle} from './public/Bundle';
@@ -63,14 +63,14 @@ export default async function applyRuntimes({
   let runtimes = await config.getRuntimes();
   let connections: Array<RuntimeConnection> = [];
 
-  for (let bundle of bundleGraph.getBundles()) {
+  for (let bundle of bundleGraph.getBundles({includeInline: true})) {
     for (let runtime of runtimes) {
       try {
         let applied = await runtime.plugin.apply({
           bundle: NamedBundle.get(bundle, bundleGraph, options),
           bundleGraph: new BundleGraph<INamedBundle>(
             bundleGraph,
-            NamedBundle.get,
+            NamedBundle.get.bind(NamedBundle),
             options,
           ),
           config: configs.get(runtime.name)?.result,
@@ -126,7 +126,6 @@ export default async function applyRuntimes({
         specifier: runtime.name,
         resolveFrom: runtime.resolveFrom,
       },
-      runtime,
       previousDevDeps,
       options,
     );
@@ -174,7 +173,7 @@ export default async function applyRuntimes({
 
     let resolution =
       dependency &&
-      bundleGraph.getDependencyResolution(
+      bundleGraph.getResolvedAsset(
         dependencyToInternalDependency(dependency),
         bundle,
       );

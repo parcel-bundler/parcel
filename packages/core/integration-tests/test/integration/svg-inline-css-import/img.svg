@@ -1,0 +1,6 @@
+<svg viewBox="0 0 240 80" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    @import './test.css';
+  </style>
+  <text>Should be red</text>
+</svg>

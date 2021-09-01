@@ -50,7 +50,9 @@ use fs::inline_fs;
 use global_replacer::GlobalReplacer;
 use hoist::hoist;
 use modules::esm2cjs;
-use utils::{CodeHighlight, Diagnostic, SourceLocation, SourceType};
+use utils::{CodeHighlight, Diagnostic, DiagnosticSeverity, SourceLocation, SourceType};
+
+type SourceMapBuffer = Vec<(swc_common::BytePos, swc_common::LineCol)>;
 
 #[derive(Serialize, Debug, Deserialize)]
 pub struct Config {
@@ -64,6 +66,7 @@ pub struct Config {
   inline_fs: bool,
   insert_node_globals: bool,
   is_browser: bool,
+  is_worker: bool,
   is_type_script: bool,
   is_jsx: bool,
   jsx_pragma: Option<String>,
@@ -193,6 +196,8 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
             code_highlights,
             hints,
             show_environment: false,
+            severity: DiagnosticSeverity::Error,
+            documentation_url: None,
           }
         })
         .collect();
@@ -269,10 +274,14 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
             let global_mark = Mark::fresh(Mark::root());
             let ignore_mark = Mark::fresh(Mark::root());
             let module = module.fold_with(&mut resolver_with_mark(global_mark));
-            let decls = collect_decls(&module);
+            let mut decls = collect_decls(&module);
 
-            let mut preset_env_config = swc_ecma_preset_env::Config::default();
-            if let Some(versions) = targets_to_versions(&config.targets) {
+            let mut preset_env_config = swc_ecma_preset_env::Config {
+              dynamic_import: true,
+              ..Default::default()
+            };
+            let versions = targets_to_versions(&config.targets);
+            if let Some(versions) = versions {
               preset_env_config.targets = Some(Targets::Versions(versions));
               preset_env_config.shipped_proposals = true;
               preset_env_config.mode = Some(Entry);
@@ -289,7 +298,9 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                     env: &config.env,
                     is_browser: config.is_browser,
                     decls: &decls,
-                    used_env: &mut result.used_env
+                    used_env: &mut result.used_env,
+                    source_map: &source_map,
+                    diagnostics: &mut diagnostics
                   },
                   config.source_type != SourceType::Script
                 ),
@@ -309,6 +320,13 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                   ),
                   should_inline_fs
                 ),
+              );
+
+              module.fold_with(&mut passes)
+            };
+
+            let module = {
+              let mut passes = chain!(
                 // Insert dependencies for node globals
                 Optional::new(
                   GlobalReplacer {
@@ -317,7 +335,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                     globals: HashMap::new(),
                     project_root: Path::new(&config.project_root),
                     filename: Path::new(&config.filename),
-                    decls: &decls,
+                    decls: &mut decls,
                     global_mark,
                     scope_hoist: config.scope_hoist
                   },
@@ -330,21 +348,27 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                 ),
                 // Inject SWC helpers if needed.
                 helpers::inject_helpers(),
-                // Collect dependencies
-                dependency_collector(
-                  &source_map,
-                  &mut result.dependencies,
-                  &decls,
-                  ignore_mark,
-                  &config,
-                  &mut diagnostics,
-                ),
               );
 
               module.fold_with(&mut passes)
             };
 
-            if !diagnostics.is_empty() {
+            let module = module.fold_with(
+              // Collect dependencies
+              &mut dependency_collector(
+                &source_map,
+                &mut result.dependencies,
+                &decls,
+                ignore_mark,
+                &config,
+                &mut diagnostics,
+              ),
+            );
+
+            if diagnostics
+              .iter()
+              .any(|d| d.severity == DiagnosticSeverity::Error)
+            {
               result.diagnostics = Some(diagnostics);
               return Ok(result);
             }
@@ -369,7 +393,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                 }
               }
             } else {
-              let (module, needs_helpers) = esm2cjs(module);
+              let (module, needs_helpers) = esm2cjs(module, versions);
               result.needs_esm_helpers = needs_helpers;
               module
             };
@@ -382,15 +406,19 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
             result.dependencies.extend(global_deps);
             result.dependencies.extend(fs_deps);
 
+            if !diagnostics.is_empty() {
+              result.diagnostics = Some(diagnostics);
+            }
+
             let (buf, mut src_map_buf) =
               emit(source_map.clone(), comments, &program, config.source_maps)?;
-            if config.source_maps {
-              if let Ok(_) = source_map
+            if config.source_maps
+              && source_map
                 .build_source_map(&mut src_map_buf)
                 .to_writer(&mut map_buf)
-              {
-                result.map = Some(String::from_utf8(map_buf).unwrap());
-              }
+                .is_ok()
+            {
+              result.map = Some(String::from_utf8(map_buf).unwrap());
             }
             result.code = buf;
             Ok(result)
@@ -419,20 +447,22 @@ fn parse(
 
   let comments = SingleThreadedComments::default();
   let syntax = if config.is_type_script {
-    let mut tsconfig = TsConfig::default();
-    tsconfig.tsx = config.is_jsx;
-    tsconfig.dynamic_import = true;
-    tsconfig.decorators = config.decorators;
-    Syntax::Typescript(tsconfig)
+    Syntax::Typescript(TsConfig {
+      tsx: config.is_jsx,
+      dynamic_import: true,
+      decorators: config.decorators,
+      ..Default::default()
+    })
   } else {
-    let mut esconfig = EsConfig::default();
-    esconfig.jsx = config.is_jsx;
-    esconfig.dynamic_import = true;
-    esconfig.export_default_from = true;
-    esconfig.export_namespace_from = true;
-    esconfig.import_meta = true;
-    esconfig.decorators = config.decorators;
-    Syntax::Es(esconfig)
+    Syntax::Es(EsConfig {
+      jsx: config.is_jsx,
+      dynamic_import: true,
+      export_default_from: true,
+      export_namespace_from: true,
+      import_meta: true,
+      decorators: config.decorators,
+      ..Default::default()
+    })
   };
 
   let lexer = Lexer::new(
@@ -454,7 +484,7 @@ fn emit(
   comments: SingleThreadedComments,
   program: &Module,
   source_maps: bool,
-) -> Result<(Vec<u8>, Vec<(swc_common::BytePos, swc_common::LineCol)>), std::io::Error> {
+) -> Result<(Vec<u8>, SourceMapBuffer), std::io::Error> {
   let mut src_map_buf = vec![];
   let mut buf = vec![];
   {
@@ -472,12 +502,12 @@ fn emit(
     let mut emitter = swc_ecmascript::codegen::Emitter {
       cfg: config,
       comments: Some(&comments),
-      cm: source_map.clone(),
+      cm: source_map,
       wr: writer,
     };
 
-    emitter.emit_module(&program)?;
+    emitter.emit_module(program)?;
   }
 
-  return Ok((buf, src_map_buf));
+  Ok((buf, src_map_buf))
 }

@@ -108,9 +108,7 @@ export default class Parcel {
       });
     }
 
-    if (resolvedOptions.cache.ensure) {
-      await resolvedOptions.cache.ensure();
-    }
+    await resolvedOptions.cache.ensure();
 
     let {
       dispose: disposeOptions,

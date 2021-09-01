@@ -40,8 +40,6 @@ function setHeaders(res: Response) {
     'Access-Control-Allow-Headers',
     'Origin, X-Requested-With, Content-Type, Accept, Content-Type',
   );
-  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
-  res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
 }
 
 const SOURCES_ENDPOINT = '/__parcel_source_root';
@@ -67,6 +65,7 @@ export default class Server {
     message: string,
     stack: string,
     hints: Array<string>,
+    documentation: string,
   |}> | null;
   stopServer: ?() => Promise<void>;
 
@@ -118,6 +117,7 @@ export default class Server {
             ? ansiHtml(ansiDiagnostic.codeframe)
             : ansiHtml(ansiDiagnostic.stack),
           hints: ansiDiagnostic.hints.map(hint => ansiHtml(hint)),
+          documentation: d.documentationURL ?? '',
         };
       }),
     );
@@ -217,7 +217,6 @@ export default class Server {
       let requestedPath = path.normalize(pathname.slice(1));
       let bundle = bundleGraph
         .getBundles()
-        .filter(b => b.bundleBehavior !== 'inline')
         .find(
           b =>
             path.relative(this.options.distDir, b.filePath) === requestedPath,

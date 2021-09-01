@@ -79,7 +79,7 @@ describe('resolver', function() {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: './bar.js',
-        isURL: false,
+        specifierType: 'esm',
         parent: path.join(rootDir, 'foo.js'),
       });
       assert.equal(nullthrows(resolved).filePath, path.join(rootDir, 'bar.js'));
@@ -89,7 +89,7 @@ describe('resolver', function() {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: './bar',
-        isURL: false,
+        specifierType: 'esm',
         parent: path.join(rootDir, 'foo.js'),
       });
       assert.equal(nullthrows(resolved).filePath, path.join(rootDir, 'bar.js'));
@@ -99,7 +99,7 @@ describe('resolver', function() {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: '/bar',
-        isURL: false,
+        specifierType: 'esm',
         parent: path.join(rootDir, 'nested', 'test.js'),
       });
       assert.equal(nullthrows(resolved).filePath, path.join(rootDir, 'bar.js'));
@@ -109,7 +109,7 @@ describe('resolver', function() {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: '/bar',
-        isURL: false,
+        specifierType: 'esm',
         parent: path.join(rootDir, 'node_modules', 'foo', 'index.js'),
       });
       assert.equal(nullthrows(resolved).filePath, path.join(rootDir, 'bar.js'));
@@ -119,7 +119,7 @@ describe('resolver', function() {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: '~/bar',
-        isURL: false,
+        specifierType: 'esm',
         parent: path.join(rootDir, 'nested', 'test.js'),
       });
       assert.equal(nullthrows(resolved).filePath, path.join(rootDir, 'bar.js'));
@@ -129,7 +129,7 @@ describe('resolver', function() {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: '~bar',
-        isURL: false,
+        specifierType: 'esm',
         parent: path.join(rootDir, 'nested', 'test.js'),
       });
       assert.equal(nullthrows(resolved).filePath, path.join(rootDir, 'bar.js'));
@@ -139,13 +139,139 @@ describe('resolver', function() {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: '~/bar',
-        isURL: false,
+        specifierType: 'esm',
         parent: path.join(rootDir, 'node_modules', 'foo', 'nested', 'baz.js'),
       });
       assert.equal(
         nullthrows(resolved).filePath,
         path.join(rootDir, 'node_modules', 'foo', 'bar.js'),
       );
+    });
+
+    it('should resolve an index file in a directory', async function() {
+      let resolved = await resolver.resolve({
+        env: BROWSER_ENV,
+        filename: './nested',
+        specifierType: 'esm',
+        parent: path.join(rootDir, 'foo.js'),
+      });
+      assert.equal(
+        nullthrows(resolved).filePath,
+        path.join(rootDir, 'nested', 'index.js'),
+      );
+    });
+
+    it('should not resolve an index file in a directory for URL specifiers', async function() {
+      let resolved = await resolver.resolve({
+        env: BROWSER_ENV,
+        filename: './nested',
+        specifierType: 'url',
+        parent: path.join(rootDir, 'foo.js'),
+      });
+      assert.deepEqual(nullthrows(resolved).diagnostics, [
+        {message: "Cannot load file './nested' in './'.", hints: []},
+      ]);
+    });
+
+    it('should resolve a file with a question mark with CommonJS specifiers', async function() {
+      // Windows filenames cannot contain question marks.
+      if (process.platform === 'win32') {
+        return;
+      }
+
+      await overlayFS.writeFile(path.join(rootDir, 'a?b.js'), '');
+
+      let resolved = await resolver.resolve({
+        env: BROWSER_ENV,
+        filename: './a?b.js',
+        specifierType: 'commonjs',
+        parent: path.join(rootDir, 'foo.js'),
+      });
+      assert.equal(nullthrows(resolved).filePath, path.join(rootDir, 'a?b.js'));
+    });
+
+    it('should not resolve a file with a question mark with ESM specifiers', async function() {
+      // Windows filenames cannot contain question marks.
+      if (process.platform === 'win32') {
+        return;
+      }
+
+      await overlayFS.writeFile(path.join(rootDir, 'a?b.js'), '');
+
+      let resolved = await resolver.resolve({
+        env: BROWSER_ENV,
+        filename: './a?b.js',
+        specifierType: 'esm',
+        parent: path.join(rootDir, 'foo.js'),
+      });
+      assert.deepEqual(nullthrows(resolved).diagnostics, [
+        {message: "Cannot load file './a' in './'.", hints: []},
+      ]);
+    });
+
+    it('should resolve a file with an encoded question mark with ESM specifiers', async function() {
+      // Windows filenames cannot contain question marks.
+      if (process.platform === 'win32') {
+        return;
+      }
+
+      await overlayFS.writeFile(path.join(rootDir, 'a?b.js'), '');
+
+      let resolved = await resolver.resolve({
+        env: BROWSER_ENV,
+        filename: './a%3Fb.js',
+        specifierType: 'esm',
+        parent: path.join(rootDir, 'foo.js'),
+      });
+      assert.equal(nullthrows(resolved).filePath, path.join(rootDir, 'a?b.js'));
+    });
+
+    it('should not support percent encoding in CommonJS specifiers', async function() {
+      // Windows filenames cannot contain question marks.
+      if (process.platform === 'win32') {
+        return;
+      }
+
+      await overlayFS.writeFile(path.join(rootDir, 'a?b.js'), '');
+
+      let resolved = await resolver.resolve({
+        env: BROWSER_ENV,
+        filename: './a%3Fb.js',
+        specifierType: 'commonjs',
+        parent: path.join(rootDir, 'foo.js'),
+      });
+      assert.deepEqual(nullthrows(resolved).diagnostics, [
+        {
+          message: "Cannot load file './a%3Fb.js' in './'.",
+          hints: ["Did you mean '__./a?b.js__'?"],
+        },
+      ]);
+    });
+
+    it('should support query params for ESM specifiers', async function() {
+      let resolved = await resolver.resolve({
+        env: BROWSER_ENV,
+        filename: './nested?foo=bar',
+        specifierType: 'esm',
+        parent: path.join(rootDir, 'foo.js'),
+      });
+      assert.equal(
+        nullthrows(resolved).filePath,
+        path.join(rootDir, 'nested', 'index.js'),
+      );
+      assert.deepEqual(nullthrows(resolved).query, {foo: 'bar'});
+    });
+
+    it('should not support query params for CommonJS specifiers', async function() {
+      let resolved = await resolver.resolve({
+        env: BROWSER_ENV,
+        filename: './nested?foo=bar',
+        specifierType: 'commonjs',
+        parent: path.join(rootDir, 'foo.js'),
+      });
+      assert.deepEqual(nullthrows(resolved).diagnostics, [
+        {message: "Cannot load file './nested?foo=bar' in './'.", hints: []},
+      ]);
     });
   });
 
@@ -154,12 +280,13 @@ describe('resolver', function() {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'zlib',
-        isURL: false,
+        specifierType: 'esm',
         parent: path.join(rootDir, 'foo.js'),
       });
       assert.deepEqual(resolved, {
         filePath: require.resolve('browserify-zlib'),
         sideEffects: undefined,
+        query: undefined,
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
@@ -185,12 +312,13 @@ describe('resolver', function() {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'node:zlib',
-        isURL: false,
+        specifierType: 'esm',
         parent: path.join(rootDir, 'foo.js'),
       });
       assert.deepEqual(resolved, {
         filePath: require.resolve('browserify-zlib'),
         sideEffects: undefined,
+        query: undefined,
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
@@ -216,12 +344,13 @@ describe('resolver', function() {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'fs',
-        isURL: false,
+        specifierType: 'esm',
         parent: path.join(rootDir, 'foo.js'),
       });
       assert.deepEqual(resolved, {
         filePath: path.join(__dirname, '..', 'src', '_empty.js'),
         sideEffects: undefined,
+        query: undefined,
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
@@ -247,9 +376,27 @@ describe('resolver', function() {
       let resolved = await resolver.resolve({
         env: NODE_ENV,
         filename: 'zlib',
-        isURL: false,
+        specifierType: 'esm',
         parent: path.join(rootDir, 'foo.js'),
       });
+      assert.deepEqual(resolved, {isExcluded: true});
+    });
+
+    it('should exclude the electron module in electron environments', async function() {
+      let resolved = await resolver.resolve({
+        env: new Environment(
+          createEnvironment({
+            context: 'electron-main',
+            isLibrary: true,
+          }),
+          DEFAULT_OPTIONS,
+        ),
+        filename: 'electron',
+        specifierType: 'esm',
+        parent: path.join(rootDir, 'foo.js'),
+        sourcePath: path.join(rootDir, 'foo.js'),
+      });
+
       assert.deepEqual(resolved, {isExcluded: true});
     });
   });
@@ -259,12 +406,13 @@ describe('resolver', function() {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'foo',
-        isURL: false,
+        specifierType: 'esm',
         parent: path.join(rootDir, 'foo.js'),
       });
       assert.deepEqual(resolved, {
         filePath: path.join(rootDir, 'node_modules', 'foo', 'index.js'),
         sideEffects: undefined,
+        query: undefined,
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
@@ -290,12 +438,13 @@ describe('resolver', function() {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'package-main',
-        isURL: false,
+        specifierType: 'esm',
         parent: path.join(rootDir, 'foo.js'),
       });
       assert.deepEqual(resolved, {
         filePath: path.join(rootDir, 'node_modules', 'package-main', 'main.js'),
         sideEffects: undefined,
+        query: undefined,
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
@@ -321,7 +470,7 @@ describe('resolver', function() {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'package-module',
-        isURL: false,
+        specifierType: 'esm',
         parent: path.join(rootDir, 'foo.js'),
       });
       assert.deepEqual(resolved, {
@@ -332,6 +481,7 @@ describe('resolver', function() {
           'module.js',
         ),
         sideEffects: undefined,
+        query: undefined,
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
@@ -357,7 +507,7 @@ describe('resolver', function() {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'package-browser',
-        isURL: false,
+        specifierType: 'esm',
         parent: path.join(rootDir, 'foo.js'),
       });
       assert.deepEqual(resolved, {
@@ -368,6 +518,7 @@ describe('resolver', function() {
           'browser.js',
         ),
         sideEffects: undefined,
+        query: undefined,
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
@@ -393,7 +544,7 @@ describe('resolver', function() {
       let resolved = await resolver.resolve({
         env: NODE_INCLUDE_ENV,
         filename: 'package-browser',
-        isURL: false,
+        specifierType: 'esm',
         parent: path.join(rootDir, 'foo.js'),
       });
       assert.deepEqual(resolved, {
@@ -404,6 +555,7 @@ describe('resolver', function() {
           'main.js',
         ),
         sideEffects: undefined,
+        query: undefined,
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
@@ -429,7 +581,7 @@ describe('resolver', function() {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'package-fallback',
-        isURL: false,
+        specifierType: 'esm',
         parent: path.join(rootDir, 'foo.js'),
       });
       assert.deepEqual(resolved, {
@@ -440,6 +592,7 @@ describe('resolver', function() {
           'index.js',
         ),
         sideEffects: undefined,
+        query: undefined,
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
@@ -502,7 +655,7 @@ describe('resolver', function() {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'package-main-directory',
-        isURL: false,
+        specifierType: 'esm',
         parent: path.join(rootDir, 'foo.js'),
       });
       assert.deepEqual(resolved, {
@@ -514,6 +667,7 @@ describe('resolver', function() {
           'index.js',
         ),
         sideEffects: undefined,
+        query: undefined,
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
@@ -569,12 +723,13 @@ describe('resolver', function() {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'foo/nested/baz',
-        isURL: false,
+        specifierType: 'esm',
         parent: path.join(rootDir, 'foo.js'),
       });
       assert.deepEqual(resolved, {
         filePath: path.join(rootDir, 'node_modules', 'foo', 'nested', 'baz.js'),
         sideEffects: undefined,
+        query: undefined,
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
@@ -600,12 +755,13 @@ describe('resolver', function() {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: '@scope/pkg',
-        isURL: false,
+        specifierType: 'esm',
         parent: path.join(rootDir, 'foo.js'),
       });
       assert.deepEqual(resolved, {
         filePath: path.resolve(rootDir, 'node_modules/@scope/pkg/index.js'),
         sideEffects: undefined,
+        query: undefined,
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
@@ -631,12 +787,13 @@ describe('resolver', function() {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: '@scope/pkg/foo/bar',
-        isURL: false,
+        specifierType: 'esm',
         parent: path.join(rootDir, 'foo.js'),
       });
       assert.deepEqual(resolved, {
         filePath: path.resolve(rootDir, 'node_modules/@scope/pkg/foo/bar.js'),
         sideEffects: undefined,
+        query: undefined,
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
@@ -663,7 +820,7 @@ describe('resolver', function() {
         let resolved = await resolver.resolve({
           env: BROWSER_ENV,
           filename: 'side-effects-false/src/index.js',
-          isURL: false,
+          specifierType: 'esm',
           parent: path.join(rootDir, 'foo.js'),
         });
         assert.deepEqual(resolved, {
@@ -672,6 +829,7 @@ describe('resolver', function() {
             'node_modules/side-effects-false/src/index.js',
           ),
           sideEffects: false,
+          query: undefined,
           invalidateOnFileCreate: [
             {
               fileName: 'package.json',
@@ -702,7 +860,7 @@ describe('resolver', function() {
         let resolved = await resolver.resolve({
           env: BROWSER_ENV,
           filename: 'side-effects-false/src/index',
-          isURL: false,
+          specifierType: 'esm',
           parent: path.join(rootDir, 'foo.js'),
         });
         assert.deepEqual(resolved, {
@@ -711,6 +869,7 @@ describe('resolver', function() {
             'node_modules/side-effects-false/src/index.js',
           ),
           sideEffects: false,
+          query: undefined,
           invalidateOnFileCreate: [
             {
               fileName: 'package.json',
@@ -741,7 +900,7 @@ describe('resolver', function() {
         let resolved = await resolver.resolve({
           env: BROWSER_ENV,
           filename: 'side-effects-false/src/',
-          isURL: false,
+          specifierType: 'esm',
           parent: path.join(rootDir, 'foo.js'),
         });
         assert.deepEqual(resolved, {
@@ -750,6 +909,7 @@ describe('resolver', function() {
             'node_modules/side-effects-false/src/index.js',
           ),
           sideEffects: false,
+          query: undefined,
           invalidateOnFileCreate: [
             {
               fileName: 'package.json',
@@ -799,7 +959,7 @@ describe('resolver', function() {
         let resolved = await resolver.resolve({
           env: BROWSER_ENV,
           filename: 'side-effects-false/src/',
-          isURL: false,
+          specifierType: 'esm',
           parent: path.join(rootDir, 'foo.js'),
         });
         assert.deepEqual(resolved, {
@@ -808,6 +968,7 @@ describe('resolver', function() {
             'node_modules/side-effects-false/src/index.js',
           ),
           sideEffects: false,
+          query: undefined,
           invalidateOnFileCreate: [
             {
               fileName: 'package.json',
@@ -853,6 +1014,74 @@ describe('resolver', function() {
         });
       });
     });
+
+    it('should not resolve a node module for URL dependencies', async function() {
+      let resolved = await resolver.resolve({
+        env: BROWSER_ENV,
+        filename: '@scope/pkg',
+        specifierType: 'url',
+        parent: path.join(rootDir, 'foo.js'),
+      });
+      assert.deepEqual(nullthrows(resolved).diagnostics, [
+        {message: "Cannot load file './@scope/pkg' in './'.", hints: []},
+      ]);
+    });
+
+    it('should resolve a node module for URL dependencies with the npm: prefix', async function() {
+      let resolved = await resolver.resolve({
+        env: BROWSER_ENV,
+        filename: 'npm:@scope/pkg',
+        specifierType: 'url',
+        parent: path.join(rootDir, 'foo.js'),
+      });
+      assert.deepEqual(
+        nullthrows(resolved).filePath,
+        path.join(rootDir, 'node_modules', '@scope', 'pkg', 'index.js'),
+      );
+    });
+
+    it('should support query params for bare ESM specifiers', async function() {
+      let resolved = await resolver.resolve({
+        env: BROWSER_ENV,
+        filename: '@scope/pkg?foo=2',
+        specifierType: 'esm',
+        parent: path.join(rootDir, 'foo.js'),
+      });
+      assert.equal(
+        nullthrows(resolved).filePath,
+        path.resolve(rootDir, 'node_modules/@scope/pkg/index.js'),
+      );
+      assert.deepEqual(nullthrows(resolved).query, {foo: '2'});
+    });
+
+    it('should not support query params for bare CommonJS specifiers', async function() {
+      let resolved = await resolver.resolve({
+        env: BROWSER_ENV,
+        filename: '@scope/pkg?foo=2',
+        specifierType: 'commonjs',
+        parent: path.join(rootDir, 'foo.js'),
+      });
+      assert.deepEqual(nullthrows(resolved).diagnostics, [
+        {
+          message: 'Cannot find module @scope/pkg?foo=2',
+          hints: ["Did you mean '__@scope/pkg__'?"],
+        },
+      ]);
+    });
+
+    it('should support query params for npm: specifiers', async function() {
+      let resolved = await resolver.resolve({
+        env: BROWSER_ENV,
+        filename: 'npm:@scope/pkg?foo=2',
+        specifierType: 'esm',
+        parent: path.join(rootDir, 'foo.js'),
+      });
+      assert.equal(
+        nullthrows(resolved).filePath,
+        path.resolve(rootDir, 'node_modules/@scope/pkg/index.js'),
+      );
+      assert.deepEqual(nullthrows(resolved).query, {foo: '2'});
+    });
   });
 
   describe('aliases', function() {
@@ -860,7 +1089,7 @@ describe('resolver', function() {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'package-browser-alias',
-        isURL: false,
+        specifierType: 'esm',
         parent: path.join(rootDir, 'foo.js'),
       });
       assert.deepEqual(resolved, {
@@ -871,6 +1100,7 @@ describe('resolver', function() {
           'browser.js',
         ),
         sideEffects: undefined,
+        query: undefined,
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
@@ -901,7 +1131,7 @@ describe('resolver', function() {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'package-browser-alias/foo',
-        isURL: false,
+        specifierType: 'esm',
         parent: path.join(rootDir, 'foo.js'),
       });
       assert.deepEqual(resolved, {
@@ -912,6 +1142,7 @@ describe('resolver', function() {
           'bar.js',
         ),
         sideEffects: undefined,
+        query: undefined,
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
@@ -942,7 +1173,7 @@ describe('resolver', function() {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: './foo',
-        isURL: false,
+        specifierType: 'esm',
         parent: path.join(
           rootDir,
           'node_modules',
@@ -958,6 +1189,7 @@ describe('resolver', function() {
           'bar.js',
         ),
         sideEffects: undefined,
+        query: undefined,
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
@@ -998,7 +1230,7 @@ describe('resolver', function() {
       let resolved = await resolver.resolve({
         env: NODE_INCLUDE_ENV,
         filename: 'package-browser-alias/foo',
-        isURL: false,
+        specifierType: 'esm',
         parent: path.join(rootDir, 'foo.js'),
       });
       assert.deepEqual(resolved, {
@@ -1009,6 +1241,7 @@ describe('resolver', function() {
           'foo.js',
         ),
         sideEffects: undefined,
+        query: undefined,
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
@@ -1039,7 +1272,7 @@ describe('resolver', function() {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: './nested',
-        isURL: false,
+        specifierType: 'esm',
         parent: path.join(
           rootDir,
           'node_modules',
@@ -1055,6 +1288,7 @@ describe('resolver', function() {
           'subfolder1/subfolder2/subfile.js',
         ),
         sideEffects: undefined,
+        query: undefined,
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
@@ -1095,12 +1329,13 @@ describe('resolver', function() {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'package-alias/foo',
-        isURL: false,
+        specifierType: 'esm',
         parent: path.join(rootDir, 'foo.js'),
       });
       assert.deepEqual(resolved, {
         filePath: path.join(rootDir, 'node_modules', 'package-alias', 'bar.js'),
         sideEffects: undefined,
+        query: undefined,
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
@@ -1126,7 +1361,7 @@ describe('resolver', function() {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: './foo',
-        isURL: false,
+        specifierType: 'esm',
         parent: path.join(
           rootDir,
           'node_modules',
@@ -1137,6 +1372,7 @@ describe('resolver', function() {
       assert.deepEqual(resolved, {
         filePath: path.join(rootDir, 'node_modules', 'package-alias', 'bar.js'),
         sideEffects: undefined,
+        query: undefined,
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
@@ -1172,7 +1408,7 @@ describe('resolver', function() {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: './lib/test',
-        isURL: false,
+        specifierType: 'esm',
         parent: path.join(
           rootDir,
           'node_modules',
@@ -1189,6 +1425,7 @@ describe('resolver', function() {
           'test.js',
         ),
         sideEffects: undefined,
+        query: undefined,
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
@@ -1230,12 +1467,13 @@ describe('resolver', function() {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'aliased',
-        isURL: false,
+        specifierType: 'esm',
         parent: path.join(rootDir, 'foo.js'),
       });
       assert.deepEqual(resolved, {
         filePath: path.join(rootDir, 'node_modules', 'foo', 'index.js'),
         sideEffects: undefined,
+        query: undefined,
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
@@ -1261,12 +1499,13 @@ describe('resolver', function() {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'aliased',
-        isURL: false,
+        specifierType: 'esm',
         parent: path.join(rootDir, 'node_modules', 'package-alias', 'foo.js'),
       });
       assert.deepEqual(resolved, {
         filePath: path.join(rootDir, 'node_modules', 'foo', 'index.js'),
         sideEffects: undefined,
+        query: undefined,
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
@@ -1303,12 +1542,13 @@ describe('resolver', function() {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'aliased/bar',
-        isURL: false,
+        specifierType: 'esm',
         parent: path.join(rootDir, 'node_modules', 'package-alias', 'foo.js'),
       });
       assert.deepEqual(resolved, {
         filePath: path.join(rootDir, 'node_modules', 'foo', 'bar.js'),
         sideEffects: undefined,
+        query: undefined,
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
@@ -1345,12 +1585,13 @@ describe('resolver', function() {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'aliased-file',
-        isURL: false,
+        specifierType: 'esm',
         parent: path.join(rootDir, 'foo.js'),
       });
       assert.deepEqual(resolved, {
         filePath: path.join(rootDir, 'bar.js'),
         sideEffects: undefined,
+        query: undefined,
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
@@ -1373,12 +1614,13 @@ describe('resolver', function() {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'aliased-file',
-        isURL: false,
+        specifierType: 'esm',
         parent: path.join(rootDir, 'node_modules', 'package-alias', 'foo.js'),
       });
       assert.deepEqual(resolved, {
         filePath: path.join(rootDir, 'bar.js'),
         sideEffects: undefined,
+        query: undefined,
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
@@ -1409,12 +1651,13 @@ describe('resolver', function() {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'aliasedfolder/test.js',
-        isURL: false,
+        specifierType: 'esm',
         parent: path.join(rootDir, 'foo.js'),
       });
       assert.deepEqual(resolved, {
         filePath: path.join(rootDir, 'nested', 'test.js'),
         sideEffects: undefined,
+        query: undefined,
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
@@ -1437,12 +1680,13 @@ describe('resolver', function() {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'aliasedfolder',
-        isURL: false,
+        specifierType: 'esm',
         parent: path.join(rootDir, 'foo.js'),
       });
       assert.deepEqual(resolved, {
         filePath: path.join(rootDir, 'nested', 'index.js'),
         sideEffects: undefined,
+        query: undefined,
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
@@ -1474,12 +1718,13 @@ describe('resolver', function() {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'aliasedabsolute/test.js',
-        isURL: false,
+        specifierType: 'esm',
         parent: path.join(rootDir, 'foo.js'),
       });
       assert.deepEqual(resolved, {
         filePath: path.join(rootDir, 'nested', 'test.js'),
         sideEffects: undefined,
+        query: undefined,
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
@@ -1502,12 +1747,13 @@ describe('resolver', function() {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'aliasedabsolute',
-        isURL: false,
+        specifierType: 'esm',
         parent: path.join(rootDir, 'foo.js'),
       });
       assert.deepEqual(resolved, {
         filePath: path.join(rootDir, 'nested', 'index.js'),
         sideEffects: undefined,
+        query: undefined,
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
@@ -1539,12 +1785,13 @@ describe('resolver', function() {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'foo/bar',
-        isURL: false,
+        specifierType: 'esm',
         parent: path.join(rootDir, 'foo.js'),
       });
       assert.deepEqual(resolved, {
         filePath: path.join(rootDir, 'bar.js'),
         sideEffects: undefined,
+        query: undefined,
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
@@ -1567,12 +1814,13 @@ describe('resolver', function() {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'glob/bar/test',
-        isURL: false,
+        specifierType: 'esm',
         parent: path.join(rootDir, 'foo.js'),
       });
       assert.deepEqual(resolved, {
         filePath: path.join(rootDir, 'nested', 'test.js'),
         sideEffects: undefined,
+        query: undefined,
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
@@ -1595,12 +1843,13 @@ describe('resolver', function() {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'something',
-        isURL: false,
+        specifierType: 'esm',
         parent: path.join(rootDir, 'foo.js'),
       });
       assert.deepEqual(resolved, {
         filePath: path.join(rootDir, 'nested', 'test.js'),
         sideEffects: undefined,
+        query: undefined,
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
@@ -1623,12 +1872,13 @@ describe('resolver', function() {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'something',
-        isURL: false,
+        specifierType: 'esm',
         parent: path.join(rootDir, 'node_modules', 'package-alias', 'foo.js'),
       });
       assert.deepEqual(resolved, {
         filePath: path.join(rootDir, 'nested', 'test.js'),
         sideEffects: undefined,
+        query: undefined,
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
@@ -1659,12 +1909,13 @@ describe('resolver', function() {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'package-browser-exclude',
-        isURL: false,
+        specifierType: 'esm',
         parent: path.join(rootDir, 'foo.js'),
       });
       assert.deepEqual(resolved, {
         filePath: path.join(__dirname, '..', 'src', '_empty.js'),
         sideEffects: undefined,
+        query: undefined,
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
@@ -1695,12 +1946,13 @@ describe('resolver', function() {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'package-alias-exclude',
-        isURL: false,
+        specifierType: 'esm',
         parent: path.join(rootDir, 'foo.js'),
       });
       assert.deepEqual(resolved, {
         filePath: path.join(__dirname, '..', 'src', '_empty.js'),
         sideEffects: undefined,
+        query: undefined,
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
@@ -1733,12 +1985,13 @@ describe('resolver', function() {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'source',
-        isURL: false,
+        specifierType: 'esm',
         parent: path.join(rootDir, 'foo.js'),
       });
       assert.deepEqual(resolved, {
         filePath: path.join(rootDir, 'packages', 'source', 'source.js'),
         sideEffects: undefined,
+        query: undefined,
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
@@ -1764,7 +2017,7 @@ describe('resolver', function() {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'source-not-symlinked',
-        isURL: false,
+        specifierType: 'esm',
         parent: path.join(rootDir, 'foo.js'),
       });
       assert.deepEqual(resolved, {
@@ -1775,6 +2028,7 @@ describe('resolver', function() {
           'dist.js',
         ),
         sideEffects: undefined,
+        query: undefined,
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
@@ -1805,12 +2059,13 @@ describe('resolver', function() {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'source-alias/dist',
-        isURL: false,
+        specifierType: 'esm',
         parent: path.join(rootDir, 'foo.js'),
       });
       assert.deepEqual(resolved, {
         filePath: path.join(rootDir, 'packages', 'source-alias', 'source.js'),
         sideEffects: undefined,
+        query: undefined,
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
@@ -1836,7 +2091,7 @@ describe('resolver', function() {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'source-alias-glob',
-        isURL: false,
+        specifierType: 'esm',
         parent: path.join(rootDir, 'foo.js'),
       });
       assert.deepEqual(resolved, {
@@ -1848,6 +2103,7 @@ describe('resolver', function() {
           'test.js',
         ),
         sideEffects: undefined,
+        query: undefined,
         invalidateOnFileCreate: [
           {
             fileName: 'package.json',
@@ -1880,7 +2136,7 @@ describe('resolver', function() {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: './baz.js',
-        isURL: false,
+        specifierType: 'esm',
         parent: path.join(rootDir, 'foo.js'),
       });
       assert.equal(nullthrows(resolved).filePath, path.join(rootDir, 'bar.js'));
@@ -1890,7 +2146,7 @@ describe('resolver', function() {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: './symlinked-nested',
-        isURL: false,
+        specifierType: 'esm',
         parent: path.join(rootDir, 'foo.js'),
       });
       assert.equal(
@@ -1905,7 +2161,7 @@ describe('resolver', function() {
       let result = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'package-module-fallback',
-        isURL: false,
+        specifierType: 'esm',
         parent: path.join(rootDir, 'foo.js'),
       });
 
@@ -1919,7 +2175,7 @@ describe('resolver', function() {
       let result = await resolver.resolve({
         env: BROWSER_ENV,
         filename: './xyz.js',
-        isURL: false,
+        specifierType: 'esm',
         parent: path.join(rootDir, 'foo.js'),
       });
 
@@ -1935,7 +2191,7 @@ describe('resolver', function() {
         await resolver.resolve({
           env: BROWSER_ENV,
           filename: 'xyz',
-          isURL: false,
+          specifierType: 'esm',
           parent: path.join(rootDir, 'foo.js'),
         }),
       );
@@ -1947,10 +2203,121 @@ describe('resolver', function() {
         await resolver.resolve({
           env: BROWSER_ENV,
           filename: 'xyz/test/file',
-          isURL: false,
+          specifierType: 'esm',
           parent: path.join(rootDir, 'foo.js'),
         }),
       );
+    });
+
+    it('should error when a library is missing an external dependency', async function() {
+      let result = await resolver.resolve({
+        env: new Environment(
+          createEnvironment({
+            context: 'browser',
+            isLibrary: true,
+            includeNodeModules: false,
+          }),
+          DEFAULT_OPTIONS,
+        ),
+        filename: 'test',
+        specifierType: 'esm',
+        parent: path.join(rootDir, 'foo.js'),
+        sourcePath: path.join(rootDir, 'foo.js'),
+      });
+
+      assert.equal(
+        result?.diagnostics?.[0].message,
+        'External dependency "test" is not declared in package.json.',
+      );
+    });
+
+    it('should not error when external dependencies are declared', async function() {
+      let result = await resolver.resolve({
+        env: new Environment(
+          createEnvironment({
+            context: 'browser',
+            isLibrary: true,
+            includeNodeModules: false,
+          }),
+          DEFAULT_OPTIONS,
+        ),
+        filename: 'foo',
+        specifierType: 'esm',
+        parent: path.join(rootDir, 'foo.js'),
+        sourcePath: path.join(rootDir, 'foo.js'),
+      });
+
+      assert.deepEqual(result, {isExcluded: true});
+    });
+
+    it('should not error when external dependencies are declared in peerDependencies', async function() {
+      let result = await resolver.resolve({
+        env: new Environment(
+          createEnvironment({
+            context: 'browser',
+            isLibrary: true,
+            includeNodeModules: false,
+          }),
+          DEFAULT_OPTIONS,
+        ),
+        filename: 'bar',
+        specifierType: 'esm',
+        parent: path.join(rootDir, 'foo.js'),
+        sourcePath: path.join(rootDir, 'foo.js'),
+      });
+
+      assert.deepEqual(result, {isExcluded: true});
+    });
+
+    it('should not error on missing dependencies for environment builtins', async function() {
+      let result = await resolver.resolve({
+        env: new Environment(
+          createEnvironment({
+            context: 'browser',
+            isLibrary: true,
+            includeNodeModules: false,
+          }),
+          DEFAULT_OPTIONS,
+        ),
+        filename: 'atom',
+        specifierType: 'esm',
+        parent: path.join(rootDir, 'env-dep/foo.js'),
+        sourcePath: path.join(rootDir, 'env-dep/foo.js'),
+      });
+
+      assert.deepEqual(result, {isExcluded: true});
+    });
+  });
+
+  describe('urls', function() {
+    it('should ignore protocol relative urls', async function() {
+      let resolved = await resolver.resolve({
+        env: BROWSER_ENV,
+        filename: '//example.com/foo.png',
+        specifierType: 'url',
+        parent: path.join(rootDir, 'foo.js'),
+      });
+      assert.deepEqual(resolved, {isExcluded: true});
+    });
+
+    it('should ignore hash urls', async function() {
+      let resolved = await resolver.resolve({
+        env: BROWSER_ENV,
+        filename: '#hash',
+        specifierType: 'url',
+        parent: path.join(rootDir, 'foo.js'),
+      });
+      assert.deepEqual(resolved, {isExcluded: true});
+    });
+
+    it('should ignore http: urls', async function() {
+      let resolved = await resolver.resolve({
+        env: BROWSER_ENV,
+        filename: 'http://example.com/foo.png',
+        specifierType: 'url',
+        parent: path.join(rootDir, 'foo.js'),
+      });
+      assert.deepEqual(resolved, {isExcluded: true});
     });
   });
 });

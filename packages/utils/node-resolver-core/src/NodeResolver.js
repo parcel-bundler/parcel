@@ -5,6 +5,8 @@ import type {
   PackageJSON,
   ResolveResult,
   Environment,
+  SpecifierType,
+  QueryParameters,
 } from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
 
@@ -27,6 +29,8 @@ import builtins, {empty} from './builtins';
 import nullthrows from 'nullthrows';
 // $FlowFixMe this is untyped
 import _Module from 'module';
+import {fileURLToPath} from 'url';
+import {parse as parseQueryString} from 'querystring';
 
 const EMPTY_SHIM = require.resolve('./_empty');
 
@@ -57,11 +61,13 @@ type Module = {|
   moduleDir?: FilePath,
   filePath?: FilePath,
   code?: string,
+  query?: QueryParameters,
 |};
 
 type ResolverContext = {|
   invalidateOnFileCreate: Array<FileCreateInvalidation>,
   invalidateOnFileChange: Set<FilePath>,
+  specifierType: SpecifierType,
 |};
 
 /**
@@ -99,19 +105,20 @@ export default class NodeResolver {
   async resolve({
     filename,
     parent,
-    isURL,
+    specifierType,
     env,
     sourcePath,
   }: {|
     filename: FilePath,
     parent: ?FilePath,
-    isURL: boolean,
+    specifierType: SpecifierType,
     env: Environment,
     sourcePath?: ?FilePath,
   |}): Promise<?ResolveResult> {
     let ctx = {
       invalidateOnFileCreate: [],
       invalidateOnFileChange: new Set(),
+      specifierType,
     };
 
     // Get file extensions to search
@@ -130,7 +137,6 @@ export default class NodeResolver {
       let module = await this.resolveModule({
         filename,
         parent,
-        isURL,
         env,
         ctx,
         sourcePath,
@@ -152,6 +158,7 @@ export default class NodeResolver {
             code: module.code,
             invalidateOnFileCreate: ctx.invalidateOnFileCreate,
             invalidateOnFileChange: [...ctx.invalidateOnFileChange],
+            query: module.query,
           };
         }
 
@@ -174,6 +181,7 @@ export default class NodeResolver {
               : undefined,
           invalidateOnFileCreate: ctx.invalidateOnFileCreate,
           invalidateOnFileChange: [...ctx.invalidateOnFileChange],
+          query: module.query,
         };
       }
     } catch (err) {
@@ -194,27 +202,33 @@ export default class NodeResolver {
   async resolveModule({
     filename,
     parent,
-    isURL,
     env,
     ctx,
     sourcePath,
   }: {|
     filename: string,
     parent: ?FilePath,
-    isURL: boolean,
     env: Environment,
     ctx: ResolverContext,
     sourcePath: ?FilePath,
   |}): Promise<?Module> {
     let sourceFile = parent || path.join(this.projectRoot, 'index');
+    let query;
 
     // If this isn't the entrypoint, resolve the input file to an absolute path
     if (parent) {
-      filename = await this.resolveFilename(
+      let res = await this.resolveFilename(
         filename,
         path.dirname(sourceFile),
-        isURL,
+        ctx.specifierType,
       );
+
+      if (!res) {
+        return null;
+      }
+
+      filename = res.filePath;
+      query = res.query;
     }
 
     // Resolve aliases in the parent module for this file.
@@ -224,6 +238,7 @@ export default class NodeResolver {
         return {
           filePath: path.join(this.projectRoot, `${alias.resolved}.js`),
           code: `module.exports=${alias.resolved};`,
+          query,
         };
       }
       filename = alias.resolved;
@@ -233,7 +248,13 @@ export default class NodeResolver {
     if (path.isAbsolute(filename)) {
       return {
         filePath: filename,
+        query,
       };
+    }
+
+    let builtin = this.findBuiltin(filename, env);
+    if (builtin === null) {
+      return null;
     }
 
     if (!this.shouldIncludeNodeModule(env, filename)) {
@@ -243,13 +264,12 @@ export default class NodeResolver {
       return null;
     }
 
-    let builtin = this.findBuiltin(filename, env);
-    if (builtin || builtin === null) {
+    if (builtin) {
       return builtin;
     }
 
     // Resolve the module in node_modules
-    let resolved;
+    let resolved: ?Module;
     try {
       resolved = this.findNodeModulePath(filename, sourceFile, ctx);
     } catch (err) {
@@ -259,6 +279,7 @@ export default class NodeResolver {
     if (resolved === undefined && process.versions.pnp != null && parent) {
       try {
         let [moduleName, subPath] = this.getModuleParts(filename);
+        // $FlowFixMe[prop-missing]
         let pnp = _Module.findPnpApi(path.dirname(parent));
 
         let res = pnp.resolveToUnqualified(
@@ -296,7 +317,7 @@ export default class NodeResolver {
 
       let alternativeModules = await findAlternativeNodeModules(
         this.fs,
-        resolved.moduleName,
+        moduleName,
         path.dirname(sourceFile),
       );
 
@@ -310,6 +331,10 @@ export default class NodeResolver {
           },
         });
       }
+    }
+
+    if (resolved != null) {
+      resolved.query = query;
     }
 
     return resolved;
@@ -350,7 +375,11 @@ export default class NodeResolver {
       return;
     }
 
-    if (!pkg.dependencies?.[moduleName]) {
+    if (
+      !pkg.dependencies?.[moduleName] &&
+      !pkg.peerDependencies?.[moduleName] &&
+      !pkg.engines?.[moduleName]
+    ) {
       let pkgContent = await this.fs.readFile(pkg.pkgfile, 'utf8');
       throw new ThrowableDiagnostic({
         diagnostic: {
@@ -390,12 +419,20 @@ export default class NodeResolver {
   async resolveFilename(
     filename: string,
     dir: string,
-    isURL: ?boolean,
-  ): Promise<string> {
+    specifierType: SpecifierType,
+  ): Promise<?{|filePath: string, query?: QueryParameters|}> {
+    let url;
     switch (filename[0]) {
       case '/': {
+        if (specifierType === 'url' && filename[1] === '/') {
+          // A protocol-relative URL, e.g `url('//example.com/foo.png')`. Ignore.
+          return null;
+        }
+
         // Absolute path. Resolve relative to project root.
-        return path.resolve(this.projectRoot, filename.slice(1));
+        dir = this.projectRoot;
+        filename = '.' + filename;
+        break;
       }
 
       case '~': {
@@ -417,22 +454,85 @@ export default class NodeResolver {
           }
         }
 
-        return path.join(dir, filename.slice(1));
+        filename = filename.slice(1);
+        if (filename[0] === '/' || filename[0] === '\\') {
+          filename = '.' + filename;
+        }
+        break;
       }
 
       case '.': {
         // Relative path.
-        return path.resolve(dir, filename);
+        break;
+      }
+
+      case '#': {
+        if (specifierType === 'url') {
+          // An ID-only URL, e.g. `url(#clip-path)` for CSS rules. Ignore.
+          return null;
+        }
+        break;
       }
 
       default: {
-        if (isURL) {
-          return path.resolve(dir, filename);
+        // Bare specifier. If this is a URL, it's treated as relative,
+        // otherwise as a node_modules package.
+        if (specifierType === 'esm') {
+          // Try parsing as a URL first in case there is a scheme.
+          // Otherwise, fall back to an `npm:` specifier, parsed below.
+          try {
+            url = new URL(filename);
+          } catch (e) {
+            filename = 'npm:' + filename;
+          }
+        } else if (specifierType === 'commonjs') {
+          return {
+            filePath: filename,
+          };
         }
-
-        // Module
-        return filename;
       }
+    }
+
+    // If this is a URL dependency or ESM specifier, parse as a URL.
+    // Otherwise, if this is CommonJS, parse as a platform path.
+    if (specifierType === 'url' || specifierType === 'esm') {
+      url = url ?? new URL(filename, `file:${dir}/index`);
+      let filePath;
+      if (url.protocol === 'npm:') {
+        // The `npm:` scheme allows URLs to resolve to node_modules packages.
+        filePath = decodeURIComponent(url.pathname);
+      } else if (url.protocol === 'node:') {
+        // Preserve the `node:` prefix for use later.
+        // Node does not URL decode or support query params here.
+        // See https://github.com/nodejs/node/issues/39710.
+        return {
+          filePath: filename,
+        };
+      } else if (url.protocol === 'file:') {
+        // $FlowFixMe
+        filePath = fileURLToPath(url);
+      } else if (specifierType === 'url') {
+        // Don't handle other protocols like http:
+        return null;
+      } else {
+        // Throw on unsupported url schemes in ESM dependencies.
+        // We may support http: or data: urls eventually.
+        throw new ThrowableDiagnostic({
+          diagnostic: {
+            message: `Unknown url scheme or pipeline '${url.protocol}'`,
+          },
+        });
+      }
+
+      return {
+        filePath,
+        query: url.search ? parseQueryString(url.search.slice(1)) : undefined,
+      };
+    } else {
+      // CommonJS specifier. Query params are not supported.
+      return {
+        filePath: path.resolve(dir, filename),
+      };
     }
   }
 
@@ -447,21 +547,24 @@ export default class NodeResolver {
     let pkg = await this.findPackage(filename, ctx);
 
     // First try as a file, then as a directory.
-    let resolvedFile =
-      (await this.loadAsFile({
-        file: filename,
-        extensions,
-        env,
-        pkg,
-        ctx,
-      })) ||
-      (await this.loadDirectory({
+    let resolvedFile = await this.loadAsFile({
+      file: filename,
+      extensions,
+      env,
+      pkg,
+      ctx,
+    });
+
+    // Don't load as a directory if this is a URL dependency.
+    if (!resolvedFile && ctx.specifierType !== 'url') {
+      resolvedFile = await this.loadDirectory({
         dir: filename,
         extensions,
         env,
         ctx,
         pkg,
-      }));
+      });
+    }
 
     if (!resolvedFile) {
       // If we can't load the file do a fuzzySearch for potential hints
@@ -471,6 +574,9 @@ export default class NodeResolver {
         relativeFileSpecifier,
         parentdir,
         this.projectRoot,
+        true,
+        ctx.specifierType !== 'url',
+        extensions.length === 0,
       );
 
       throw new ThrowableDiagnostic({
@@ -500,6 +606,10 @@ export default class NodeResolver {
         filename = filename.substr(5);
       }
       return {filePath: builtins[filename] || empty};
+    }
+
+    if (env.isElectron() && filename === 'electron') {
+      return null;
     }
   }
 
@@ -949,10 +1059,15 @@ export default class NodeResolver {
 
     if (typeof alias === 'string') {
       // Assume file
+      let resolved = await this.resolveFilename(alias, dir, 'commonjs');
+      if (!resolved) {
+        return null;
+      }
+
       return {
         type: 'file',
         sourcePath: pkg.pkgfile,
-        resolved: await this.resolveFilename(alias, dir),
+        resolved: resolved.filePath,
       };
     }
 
@@ -999,7 +1114,7 @@ export default class NodeResolver {
       this.projectRoot,
       // By default, loadConfig uses JSON5. Use normal JSON for package.json files
       // since they don't support comments and JSON.parse is faster.
-      {parser: JSON.parse},
+      {parser: (...args) => JSON.parse(...args)},
     );
 
     if (res != null) {

@@ -77,12 +77,13 @@ export default class HMRServer {
       type: 'error',
       diagnostics: {
         ansi: renderedDiagnostics,
-        html: renderedDiagnostics.map(d => {
+        html: renderedDiagnostics.map((d, i) => {
           return {
             message: ansiHtml(d.message),
             stack: ansiHtml(d.stack),
             codeframe: ansiHtml(d.codeframe),
             hints: d.hints.map(hint => ansiHtml(hint)),
+            documentation: diagnostics[i].documentationURL ?? '',
           };
         }),
       },
@@ -102,13 +103,10 @@ export default class HMRServer {
       queue.add(async () => {
         let dependencies = event.bundleGraph.getDependencies(asset);
         let depsByBundle = {};
-        for (let bundle of event.bundleGraph.findBundlesWithAsset(asset)) {
+        for (let bundle of event.bundleGraph.getBundlesWithAsset(asset)) {
           let deps = {};
           for (let dep of dependencies) {
-            let resolved = event.bundleGraph.getDependencyResolution(
-              dep,
-              bundle,
-            );
+            let resolved = event.bundleGraph.getResolvedAsset(dep, bundle);
             if (resolved) {
               deps[dep.specifier] = event.bundleGraph.getAssetPublicId(
                 resolved,
