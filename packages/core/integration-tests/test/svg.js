@@ -191,4 +191,22 @@ describe('svg', function() {
 
     assert(svg.includes('<style>:root{fill:red}</style>'));
   });
+
+  it('should be in separate bundles', async function() {
+    const b = await bundle(
+      path.join(__dirname, '/integration/svg-multiple/index.js'),
+    );
+
+    assertBundles(b, [
+      {
+        assets: ['index.js', 'bundle-url.js'],
+      },
+      {
+        assets: ['circle.svg'],
+      },
+      {
+        assets: ['square.svg'],
+      },
+    ]);
+  });
 });
