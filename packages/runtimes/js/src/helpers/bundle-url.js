@@ -10,18 +10,16 @@ function getBundleURLCached(id) {
 }
 
 function getBundleURL() {
-  try {
-    throw new Error();
-  } catch (err) {
-    var matches = ('' + err.stack).match(/(https?|file|ftp):\/\/[^)\n]+/g);
-    if (matches) {
-      // The first two stack frames will be this function and getBundleURLCached.
-      // Use the 3rd one, which will be a runtime in the original bundle.
-      return getBaseURL(matches[2]);
-    }
+  var matches = String(new Error().stack).match(
+    /(https?|file|ftp):\/\/[^)\n]+/g,
+  );
+  if (matches) {
+    // The first two stack frames will be this function and getBundleURLCached.
+    // Use the 3rd one, which will be a runtime in the original bundle.
+    return getBaseURL(matches[2]);
+  } else {
+    return '/';
   }
-
-  return '/';
 }
 
 function getBaseURL(url) {
