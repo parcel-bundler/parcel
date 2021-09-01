@@ -713,6 +713,17 @@ function createIdealGraph(
       // If the asset is reachable from more than one entry, find or create
       // a bundle for that combination of bundles (shared bundle), and add the asset to it.
       let sourceBundles = reachable.map(a => nullthrows(bundles.get(a.id)));
+      let sourceBundleSet = new Set([...sourceBundles]);
+      let toRemove: Set<NodeId> = new Set();
+      for (let bundleId of sourceBundles) {
+        for (let id of bundleGraph.getNodeIdsConnectedTo(bundleId)) {
+          if (sourceBundleSet.has(id)) {
+            toRemove.add(id);
+          }
+        }
+      }
+      reachable = reachable.filter(a => !toRemove.has(bundles.get(a.id)));
+
       let key = reachable.map(a => a.id).join(',');
       let bundleId = bundles.get(key);
       let bundle;
@@ -789,6 +800,15 @@ function createIdealGraph(
 
   for (let [asyncBundleRoot, dependentRoots] of reachableAsyncRoots) {
     if (dependentRoots.size === 0) {
+      //TODO make get entry asset function
+      let bundleNode = bundleGraph.getNode(asyncBundleRoot);
+
+      if (bundleNode?.assets) {
+        let [entryAsset] = [...bundleNode.assets];
+        if (entries.has(entryAsset)) {
+          continue;
+        }
+      }
       bundleGraph.removeNode(asyncBundleRoot);
     }
   }
