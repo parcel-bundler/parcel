@@ -35,6 +35,7 @@
     "@parcel/runtime-browser-hmr": "2.0.0-rc.0",
     "@parcel/runtime-js": "2.0.0-rc.0",
     "@parcel/runtime-react-refresh": "2.0.0-rc.0",
+    "@parcel/runtime-service-worker": "2.0.0-rc.0",
     "@parcel/transformer-babel": "2.0.0-rc.0",
     "@parcel/transformer-css": "2.0.0-rc.0",
     "@parcel/transformer-html": "2.0.0-rc.0",
