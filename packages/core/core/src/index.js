@@ -12,6 +12,7 @@ export {
 
 export {
   default,
+  default as Parcel,
   BuildError,
   createWorkerFarm,
   INTERNAL_RESOLVE,
