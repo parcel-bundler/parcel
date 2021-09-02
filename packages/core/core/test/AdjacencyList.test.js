@@ -5,41 +5,40 @@ import path from 'path';
 import {Worker} from 'worker_threads';
 
 import AdjacencyList, {
-  NODE_SIZE,
-  EDGE_SIZE,
+  NODES_HEADER_SIZE,
+  EDGES_HEADER_SIZE,
   isDeleted,
 } from '../src/AdjacencyList';
 import {toNodeId} from '../src/types';
 
 describe('AdjacencyList', () => {
   it('constructor should initialize an empty graph', () => {
-    let graph = new AdjacencyList({
+    let stats = new AdjacencyList({
       nodeCapacity: 1,
       edgeCapacity: 1,
-    }).serialize();
-    assert.deepEqual(graph.nodes, new Uint32Array(1 * NODE_SIZE));
-    assert.deepEqual(graph.edges, new Uint32Array(1 * EDGE_SIZE));
-    assert.equal(graph.numNodes, 0);
-    assert.equal(graph.numEdges, 0);
+    }).stats;
+    assert(stats.nodes === 0);
+    assert(stats.edges === 0);
   });
 
   it('addNode should add a node to the graph', () => {
     let graph = new AdjacencyList();
     let id = graph.addNode();
     assert.equal(id, 0);
-    assert.equal(graph.serialize().numNodes, 1);
+    assert.equal(graph.stats.nodes, 1);
   });
 
   it('addNode should resize nodes array when necessary', () => {
     let graph = new AdjacencyList({nodeCapacity: 1});
+    let size = graph.serialize().nodes.length;
     graph.addNode();
-    assert.deepEqual(graph.serialize().nodes, new Uint32Array(2 * NODE_SIZE));
+    assert(size < (size = graph.serialize().nodes.length));
     graph.addNode();
-    assert.deepEqual(graph.serialize().nodes, new Uint32Array(4 * NODE_SIZE));
+    assert(size === graph.serialize().nodes.length);
     graph.addNode();
-    assert.deepEqual(graph.serialize().nodes, new Uint32Array(4 * NODE_SIZE));
+    assert(size === graph.serialize().nodes.length);
     graph.addNode();
-    assert.deepEqual(graph.serialize().nodes, new Uint32Array(8 * NODE_SIZE));
+    assert(size < graph.serialize().nodes.length);
   });
 
   it('removeEdge should remove an edge from the graph', () => {
@@ -76,7 +75,7 @@ describe('AdjacencyList', () => {
     graph.addEdge(a, b, 3);
     graph.addEdge(a, c);
     graph.addEdge(a, d, 3);
-    assert.equal(graph.serialize().numEdges, 5);
+    assert.equal(graph.stats.edges, 5);
     assert.ok(graph.hasEdge(a, b));
     assert.ok(graph.hasEdge(a, b, 2));
     assert.ok(graph.hasEdge(a, b, 3));
@@ -91,7 +90,7 @@ describe('AdjacencyList', () => {
     ]);
 
     graph.removeEdge(a, b, 2);
-    assert.equal(graph.serialize().numEdges, 4);
+    assert.equal(graph.stats.edges, 4);
     assert.ok(graph.hasEdge(a, b));
     assert.equal(graph.hasEdge(a, b, 2), false);
     assert.ok(graph.hasEdge(a, b, 3));
@@ -110,8 +109,8 @@ describe('AdjacencyList', () => {
     let a = graph.addNode();
     let b = graph.addNode();
     graph.addEdge(a, b);
-    assert.equal(graph.serialize().numNodes, 2);
-    assert.equal(graph.serialize().numEdges, 1);
+    assert.equal(graph.stats.nodes, 2);
+    assert.equal(graph.stats.edges, 1);
     assert.ok(graph.hasEdge(a, b));
   });
 
@@ -166,14 +165,12 @@ describe('AdjacencyList', () => {
 
   it('addEdge should resize edges array when necessary', () => {
     let graph = new AdjacencyList({nodeCapacity: 2, edgeCapacity: 1});
+    let size = graph.serialize().edges.length;
     let a = graph.addNode();
     let b = graph.addNode();
-    let c = graph.addNode();
-    assert.equal(graph.serialize().edges.length, EDGE_SIZE);
-    graph.addEdge(a, b);
-    assert.equal(graph.serialize().edges.length, EDGE_SIZE * 2);
-    graph.addEdge(a, c);
-    assert.equal(graph.serialize().edges.length, EDGE_SIZE * 4);
+    graph.addEdge(a, b, 1);
+    graph.addEdge(a, b, 2);
+    assert(size < graph.serialize().edges.length);
   });
 
   it('addEdge should error when a node has not been added to the graph', () => {
@@ -205,18 +202,19 @@ describe('AdjacencyList', () => {
     let n2 = graph.addNode();
     graph.addEdge(n0, n1, 1);
     graph.addEdge(n1, n2, 1);
-    let index = graph.indexOf(n1, n2, 1);
+    // $FlowFixMe[incompatible-type]
+    let index: number = graph.indexOf(n1, n2, 1);
     assert(graph.serialize().edges[index] > 0);
     assert(!isDeleted(graph.serialize().edges[index]));
     graph.removeEdge(n1, n2, 1);
     assert(isDeleted(graph.serialize().edges[index]));
     graph.addEdge(n0, n1, 1);
     assert(isDeleted(graph.serialize().edges[index]));
-    assert(graph.serialize().numEdges === 1);
+    assert(graph.stats.edges === 1);
   });
 
   it('addEdge should replace a deleted edge', () => {
-    let graph = new AdjacencyList();
+    let graph = new AdjacencyList({edgeCapacity: 2});
     // Mock hash fn to generate collisions
     // $FlowFixMe[cannot-write]
     graph.hash = () => 1;
@@ -224,7 +222,8 @@ describe('AdjacencyList', () => {
     let n1 = graph.addNode();
     graph.addEdge(n0, n1, 1);
     graph.addEdge(n0, n1, 2);
-    let index = graph.indexOf(n0, n1, 2);
+    // $FlowFixMe[incompatible-type]
+    let index: number = graph.indexOf(n0, n1, 2);
     assert(graph.serialize().edges[index] > 0);
     assert(!isDeleted(graph.serialize().edges[index]));
     graph.removeEdge(n0, n1, 2);
@@ -244,7 +243,9 @@ describe('AdjacencyList', () => {
       graph.addEdge(n0, n1, 1);
       graph.addEdge(n0, n1, 2);
 
-      let worker = new Worker(path.join(__dirname, 'integration/worker.js'));
+      let worker = new Worker(
+        path.join(__dirname, 'integration/adjacency-list-shared-array.js'),
+      );
 
       let originalSerialized = graph.serialize();
       let originalNodes = [...originalSerialized.nodes];
@@ -258,36 +259,24 @@ describe('AdjacencyList', () => {
       assert.deepEqual(received.serialize().edges, graph.serialize().edges);
 
       originalNodes.forEach((v, i) => {
-        assert.equal(v * 2, received.serialize().nodes[i]);
-        assert.equal(v * 2, graph.serialize().nodes[i]);
+        if (i < NODES_HEADER_SIZE) {
+          assert.equal(v, received.serialize().nodes[i]);
+          assert.equal(v, graph.serialize().nodes[i]);
+        } else {
+          assert.equal(v * 2, received.serialize().nodes[i]);
+          assert.equal(v * 2, graph.serialize().nodes[i]);
+        }
       });
 
       originalEdges.forEach((v, i) => {
-        assert.equal(v * 2, received.serialize().edges[i]);
-        assert.equal(v * 2, graph.serialize().edges[i]);
+        if (i < EDGES_HEADER_SIZE) {
+          assert.equal(v, received.serialize().edges[i]);
+          assert.equal(v, graph.serialize().edges[i]);
+        } else {
+          assert.equal(v * 2, received.serialize().edges[i]);
+          assert.equal(v * 2, graph.serialize().edges[i]);
+        }
       });
-    });
-
-    it('should copy on write', () => {
-      let graph = new AdjacencyList({nodeCapacity: 2, edgeCapacity: 5});
-      let n0 = graph.addNode();
-      let n1 = graph.addNode();
-      graph.addEdge(n0, n1, 1);
-      graph.addEdge(n0, n1, 2);
-
-      let copy = AdjacencyList.deserialize(graph.serialize());
-
-      assert(copy.hasEdge(n0, n1, 1));
-      assert(copy.hasEdge(n0, n1, 2));
-      assert(graph.hasEdge(n0, n1, 1));
-      assert(graph.hasEdge(n0, n1, 2));
-
-      copy.removeEdge(n0, n1, 1);
-
-      assert(!copy.hasEdge(n0, n1, 1));
-      assert(copy.hasEdge(n0, n1, 2));
-      assert(graph.hasEdge(n0, n1, 1));
-      assert(graph.hasEdge(n0, n1, 2));
     });
   });
 });

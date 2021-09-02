@@ -54,7 +54,7 @@ import type {NodeId} from './types';
  */
 export const NODE_SIZE: 4 = 4;
 /** The size of nodes array header */
-const NODES_HEADER_SIZE: 2 = 2;
+export const NODES_HEADER_SIZE: 2 = 2;
 
 /**
  * Edges are stored in a shared array buffer of fixed length
@@ -142,7 +142,7 @@ const NODES_HEADER_SIZE: 2 = 2;
  */
 export const EDGE_SIZE: 6 = 6;
 /** The size of the edges array header */
-const EDGES_HEADER_SIZE: 3 = 3;
+export const EDGES_HEADER_SIZE: 3 = 3;
 
 /** The offset from the header where the capacity is stored. */
 const CAPACITY: 0 = 0;
@@ -437,6 +437,11 @@ export default class AdjacencyList<TEdgeType: number = 1> {
         let to = this.getToNode(edge);
         let type = this.getEdgeType(edge);
         typeMaps.from.add(from, to, type);
+      }
+      for (let edge of this.iterateIncomingEdges(node)) {
+        let from = this.getFromNode(edge);
+        let to = this.getToNode(edge);
+        let type = this.getEdgeType(edge);
         typeMaps.to.add(to, from, type);
       }
     }
