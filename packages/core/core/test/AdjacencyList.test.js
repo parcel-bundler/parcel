@@ -34,7 +34,7 @@ describe('AdjacencyList', () => {
     graph.addNode();
     assert(size < (size = graph.serialize().nodes.length));
     graph.addNode();
-    assert(size === graph.serialize().nodes.length);
+    assert(size < (size = graph.serialize().nodes.length));
     graph.addNode();
     assert(size === graph.serialize().nodes.length);
     graph.addNode();
@@ -170,6 +170,7 @@ describe('AdjacencyList', () => {
     let b = graph.addNode();
     graph.addEdge(a, b, 1);
     graph.addEdge(a, b, 2);
+    graph.addEdge(a, b, 3);
     assert(size < graph.serialize().edges.length);
   });
 

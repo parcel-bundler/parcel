@@ -183,6 +183,10 @@ const LAST_OUT: 3 = 3;
 const LOAD_FACTOR = 0.7;
 /** The lower bound below which the edge capacity should be decreased. */
 const UNLOAD_FACTOR = 0.3;
+/** The amount by which to grow the capacity of the edges array. */
+const GROW_FACTOR = 4;
+/** The amount by which to shrink the capacity of the edges array. */
+const SHRINK_FACTOR = 0.5;
 /** The smallest functional node or edge capacity. */
 const MIN_CAPACITY = 256;
 /** How many edges to accommodate in a hash bucket. */
@@ -263,15 +267,22 @@ function getNodesLength(nodeCapacity: number): number {
 }
 
 function increaseNodeCapacity(nodeCapacity: number): number {
-  return nodeCapacity * 4;
+  return nodeCapacity * 2;
 }
 
-function increaseEdgeCapacity(edgeCapacity: number): number {
-  return edgeCapacity * 4;
-}
-
-function decreaseEdgeCapacity(edgeCapacity: number): number {
-  return Math.max(0, Math.floor(edgeCapacity / 2));
+function getNextEdgeCapacity(capacity: number, count: number): number {
+  let newCapacity = capacity;
+  if (count / (capacity * BUCKET_SIZE) > LOAD_FACTOR) {
+    // If we're in danger of overflowing the `edges` array, resize it.
+    newCapacity = Math.floor(capacity * GROW_FACTOR);
+  } else if (
+    capacity > MIN_CAPACITY &&
+    count / (capacity * BUCKET_SIZE) < UNLOAD_FACTOR
+  ) {
+    // If we've dropped below the unload threshold, resize the array down.
+    newCapacity = Math.floor(capacity * SHRINK_FACTOR);
+  }
+  return Math.max(MIN_CAPACITY, newCapacity);
 }
 
 export default class AdjacencyList<TEdgeType: number = 1> {
@@ -698,14 +709,21 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     // The edge is already in the graph; do nothing.
     if (this.hasEdge(from, to, type)) return false;
 
-    let count = this.#edges[COUNT] + this.#edges[DELETES] + 1;
-    // If we're in danger of overflowing the `edges` array, resize it.
-    if (count / (this.#edges[CAPACITY] * BUCKET_SIZE) > LOAD_FACTOR) {
-      // The size of `edges` doubles every time we reach the current capacity.
-      // This means in the worst case, we will have `O(n - 1)` _extra_
-      // space allocated where `n` is a number edges that is 1 more
-      // than the previous capacity.
-      this.resizeEdges(increaseEdgeCapacity(this.#edges[CAPACITY]));
+    let capacity = this.#edges[CAPACITY];
+    let count = this.#edges[COUNT];
+    let deletes = this.#edges[DELETES];
+    // Since the space occupied by deleted edges isn't reclaimed,
+    // we include them in our count to avoid overflowing the `edges` array.
+    // We also add 1 to account for the edge we are adding.
+    let total = count + deletes + 1;
+    // If we have enough space to keep adding edges, we can
+    // put off reclaiming the deleted space until the next resize.
+    if (total / (capacity * BUCKET_SIZE) > LOAD_FACTOR) {
+      // Since resizing edges will effectively reclaim space
+      // occupied by deleted edges, we compute our new capacity
+      // based purely on the current count, even though we decided
+      // to resize based on the sum total of count and deletes.
+      this.resizeEdges(getNextEdgeCapacity(capacity, count));
     }
 
     // Use the next available index as our new edge index.
@@ -896,15 +914,6 @@ export default class AdjacencyList<TEdgeType: number = 1> {
 
     this.#typeMaps?.from.delete(from, to, type);
     this.#typeMaps?.to.delete(to, from, type);
-
-    // The percentage of utilization of the total capacity of `edges`.
-    // If we've dropped below the unload threshold, resize the array down.
-    if (
-      this.#edges[CAPACITY] > MIN_CAPACITY &&
-      this.#edges[COUNT] / (this.#edges[CAPACITY] * BUCKET_SIZE) < UNLOAD_FACTOR
-    ) {
-      this.resizeEdges(decreaseEdgeCapacity(this.#edges[CAPACITY]));
-    }
   }
 
   hasInboundEdges(to: NodeId): boolean {
