@@ -33,7 +33,7 @@ import type {NodeId} from './types';
  * │  CAPACITY  │   COUNT   │
  * └────────────┴───────────┘
  *
- * Each node is represented with 2 4-byte chunks:
+ * Each node is represented with 4 4-byte chunks:
  * The first 4 bytes are the hash of the node's first incoming edge.
  * The second 4 bytes are the hash of the node's first outgoing edge.
  * The second 4 bytes are the hash of the node's last incoming edge.
@@ -104,34 +104,37 @@ export const NODES_HEADER_SIZE: 2 = 2;
  *   int nextOut;
  * }
  *
- * ┌─────────────────────────────────────────────────────────────────────────────┐
- * │                                  EDGE_SIZE                                  │
- * ├────────────┬────────────┬────────────┬────────────┬────────────┬────────────┤
- * │    TYPE    │    FROM    │     TO     │  NEXT_HASH │   NEXT_IN  │  NEXT_OUT  │
- * └────────────┴────────────┴────────────┴────────────┴────────────┴────────────┘
+ * ┌────────────────────────────────────────────────────────────────────────┐
+ * │                              EDGE_SIZE                                 │
+ * ├──────┬──────┬────┬───────────┬─────────┬─────────┬──────────┬──────────┤
+ * │ TYPE │ FROM │ TO │ NEXT_HASH │ NEXT_IN │ PREV_IN │ NEXT_OUT │ PREV_OUT │
+ * └──────┴──────┴────┴───────────┴─────────┴─────────┴──────────┴──────────┘
  *
- * Nodes and Edges create a linked list of edges to and from each node.
+ * Nodes and Edges create a doubly linked list of edges to and from each node.
  *
  * For example, 3 edges from node 0 to 1 are linked thusly:
  *
- *                     ┌───────┐
- *                     │ Node0 │
- *             ┌───────┴───┬───┴───────┐
- *        ┌────│FirstOut(1)│LastOut(3) │────┐
- *        ▼    └───────────┴───────────┘    ▼
- *    ┌───────┐                         ┌───────┐
- * ┌─▶│ Edge1 │        ┌───────┐    ┌──▶│ Edge3 │◀─┐
- * │┌─┴───────┴─┐  ┌──▶│ Edge2 │    │ ┌─┴───────┴─┐│
- * ││ NextIn(2) │──┤ ┌─┴───────┴─┐  │ │ NextIn(0) ││
- * │├───────────┤  │ │ NextIn(3) │──┤ ├───────────┤│
- * ││NextOut(2) │──┘ ├───────────┤  │ │NextOut(0) ││
- * │└───────────┘    │NextOut(3) │──┘ └───────────┘│
- * │                 └───────────┘                 │
- * │           ┌───────────┬───────────┐           │
- * └───────────│FirstIn(1) │ LastIn(3) │───────────┘
- *             └───────┬───┴───┬───────┘
- *                     │ Node1 │
- *                     └───────┘
+ *                      ┌───────┐
+ *                      │ Node0 │
+ *              ┌───────┴───┬───┴───────┐
+ *        ┌─────│FirstOut(1)│LastOut(3) │─────┐
+ *        ▼     └───────────┴───────────┘     ▼
+ *    ┌───────┐         ┌───────┐         ┌───────┐
+ * ┌─▶│ Edge1 │◀──┐ ┌──▶│ Edge2 │◀──┐ ┌──▶│ Edge3 │◀─┐
+ * │┌─┴───────┴─┐ │ │ ┌─┴───────┴─┐ │ │ ┌─┴───────┴─┐│
+ * ││ NextIn(2) │─│─┤ │ NextIn(3) │─│─┤ │ NextIn(0) ││
+ * │├───────────┤ │ │ ├───────────┤ │ │ ├───────────┤│
+ * ││ PrevIn(0) │ ├───│ PrevIn(1) │ ├───│ PrevIn(2) ││
+ * │├───────────┤ │ │ ├───────────┤ │ │ ├───────────┤│
+ * ││NextOut(2) │─│─┘ │NextOut(3) │─│─┘ │NextOut(0) ││
+ * │├───────────┤ │   ├───────────┤ │   ├───────────┤│
+ * ││PrevOut(0) │ └───│PrevOut(1) │ └───│PrevOut(2) ││
+ * │└───────────┘     └───────────┘     └───────────┘│
+ * │            ┌───────────┬───────────┐            │
+ * └────────────│FirstIn(1) │ LastIn(3) │────────────┘
+ *              └───────┬───┴───┬───────┘
+ *                      │ Node1 │
+ *                      └───────┘
  *
  * To traverse the outgoing edges of `Node0`, you start with `FirstOut(1)`,
  * which points to `Edge1`. Then follow the link to `Edge2` via `NextOut(2)`.
@@ -139,8 +142,11 @@ export const NODES_HEADER_SIZE: 2 = 2;
  *
  * The incoming edges to `Node1` are similar, but starting from
  * `FirstIn(1)` and following the `NextIn()` links instead.
+ *
+ * Edges may be traversed in reverse order by starting from `LastIn(1)`
+ * or `LastOut(1)` and following the `PrevIn()` or `PrevOut()` links.
  */
-export const EDGE_SIZE: 6 = 6;
+export const EDGE_SIZE: 8 = 8;
 /** The size of the edges array header */
 export const EDGES_HEADER_SIZE: 3 = 3;
 
@@ -166,9 +172,19 @@ const NEXT_HASH: 3 = 3;
 const NEXT_IN: 4 = 4;
 /**
  * The offset from an edge index at which the hash
+ * of the 'to' node's previous incoming edge is stored.
+ */
+const PREV_IN: 5 = 5;
+/**
+ * The offset from an edge index at which the hash
  * of the 'from' node's next outgoing edge is stored.
  */
-const NEXT_OUT: 5 = 5;
+const NEXT_OUT: 6 = 6;
+/**
+ * The offset from an edge index at which the hash
+ * of the 'from' node's previous outgoing edge is stored.
+ */
+const PREV_OUT: 7 = 7;
 
 /** The offset from a node index at which the hash of the first incoming edge is stored. */
 const FIRST_IN: 0 = 0;
@@ -352,7 +368,7 @@ export default class AdjacencyList<TEdgeType: number = 1> {
   }
 
   /**
-   * Returns a JSON-serializable object of the nodes and edges in the graph.
+   * Returns a serializable object of the nodes and edges in the graph.
    */
   serialize(): SerializedAdjacencyList<TEdgeType> {
     return {
@@ -612,7 +628,12 @@ export default class AdjacencyList<TEdgeType: number = 1> {
   linkEdge(
     prev: EdgeHash | EdgeIndex,
     edge: EdgeIndex,
-    direction?: typeof NEXT_HASH | typeof NEXT_IN | typeof NEXT_OUT,
+    direction?:
+      | typeof NEXT_HASH
+      | typeof NEXT_IN
+      | typeof PREV_IN
+      | typeof NEXT_OUT
+      | typeof PREV_OUT,
   ): void {
     if (direction) {
       this.#edges[prev + direction] = edge;
@@ -623,7 +644,12 @@ export default class AdjacencyList<TEdgeType: number = 1> {
 
   unlinkEdge(
     prev: EdgeHash | EdgeIndex,
-    direction?: typeof NEXT_HASH | typeof NEXT_IN | typeof NEXT_OUT,
+    direction?:
+      | typeof NEXT_HASH
+      | typeof NEXT_IN
+      | typeof PREV_IN
+      | typeof NEXT_OUT
+      | typeof PREV_OUT,
   ): void {
     if (direction) {
       this.#edges[prev + direction] = 0;
@@ -635,7 +661,12 @@ export default class AdjacencyList<TEdgeType: number = 1> {
   /** Get the edge this `edge` links to in the given direction. */
   getLinkedEdge(
     prev: EdgeHash | EdgeIndex | null,
-    direction?: typeof NEXT_HASH | typeof NEXT_IN | typeof NEXT_OUT,
+    direction?:
+      | typeof NEXT_HASH
+      | typeof NEXT_IN
+      | typeof PREV_IN
+      | typeof NEXT_OUT
+      | typeof PREV_OUT,
   ): EdgeIndex | null {
     if (prev === null) return null;
     if (direction) {
@@ -648,23 +679,15 @@ export default class AdjacencyList<TEdgeType: number = 1> {
   /** Find the edge linked to the given `edge`. */
   findEdgeBefore(
     edge: EdgeIndex,
-    direction: typeof NEXT_HASH | typeof NEXT_IN | typeof NEXT_OUT,
+    direction: typeof NEXT_HASH,
   ): EdgeIndex | null {
-    let candidate =
-      direction === NEXT_HASH
-        ? this.getLinkedEdge(this.getHash(edge))
-        : direction === NEXT_IN
-        ? this.getEdge(this.getToNode(edge), FIRST_IN)
-        : this.getEdge(this.getFromNode(edge), FIRST_OUT);
-
+    let candidate = this.getLinkedEdge(this.getHash(edge));
     if (edge === candidate) return null;
-
     while (candidate) {
       let next = this.getLinkedEdge(candidate, direction);
       if (next === edge) return candidate;
       candidate = next;
     }
-
     return null;
   }
 
@@ -755,14 +778,20 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     let lastOutgoing = this.getEdge(from, LAST_OUT);
 
     // If the `to` node has incoming edges, link the last edge to this one.
-    if (lastIncoming) this.linkEdge(lastIncoming, edge, NEXT_IN);
+    if (lastIncoming) {
+      this.linkEdge(lastIncoming, edge, NEXT_IN);
+      this.linkEdge(edge, lastIncoming, PREV_IN);
+    }
     // Set this edge as the last incoming edge to the `to` node.
     this.setEdge(to, edge, LAST_IN);
     // If the `to` node has no incoming edges, set this edge as the first one.
     if (!firstIncoming) this.setEdge(to, edge, FIRST_IN);
 
     // If the `from` node has outgoing edges, link the last edge to this one.
-    if (lastOutgoing) this.linkEdge(lastOutgoing, edge, NEXT_OUT);
+    if (lastOutgoing) {
+      this.linkEdge(lastOutgoing, edge, NEXT_OUT);
+      this.linkEdge(edge, lastOutgoing, PREV_OUT);
+    }
     // Set this edge as the last outgoing edge from the `from` node.
     this.setEdge(from, edge, LAST_OUT);
     // If the `from` node has no outgoing edges, set this edge as the first one.
@@ -862,7 +891,7 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     /** The next incoming edge after the removed edge. */
     let nextIn = this.getLinkedEdge(edge, NEXT_IN);
     /** The previous incoming edge before the removed edge. */
-    let previousIn = this.findEdgeBefore(edge, NEXT_IN);
+    let previousIn = this.getLinkedEdge(edge, PREV_IN);
     /** The first outgoing edge from the removed edge's origin. */
     let firstOut = this.getEdge(from, FIRST_OUT);
     /** The last outgoing edge from the removed edge's origin. */
@@ -870,7 +899,7 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     /** The next outgoing edge after the removed edge. */
     let nextOut = this.getLinkedEdge(edge, NEXT_OUT);
     /** The previous outgoing edge before the removed edge. */
-    let previousOut = this.findEdgeBefore(edge, NEXT_OUT);
+    let previousOut = this.getLinkedEdge(edge, PREV_OUT);
     /** The next edge in the bucket after the removed edge. */
     let nextEdge = this.getLinkedEdge(edge, NEXT_HASH);
     /** The previous edge in the bucket before the removed edge. */
@@ -883,12 +912,24 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     else this.unlinkEdge(hash);
 
     // Splice the removed edge out of the linked list of incoming edges.
-    if (previousIn && nextIn) this.linkEdge(previousIn, nextIn, NEXT_IN);
-    else if (previousIn) this.unlinkEdge(previousIn, NEXT_IN);
+    if (previousIn && nextIn) {
+      this.linkEdge(previousIn, nextIn, NEXT_IN);
+      this.linkEdge(nextIn, previousIn, PREV_IN);
+    } else if (previousIn) {
+      this.unlinkEdge(previousIn, NEXT_IN);
+    } else if (nextIn) {
+      this.unlinkEdge(nextIn, PREV_IN);
+    }
 
     // Splice the removed edge out of the linked list of outgoing edges.
-    if (previousOut && nextOut) this.linkEdge(previousOut, nextOut, NEXT_OUT);
-    else if (previousOut) this.unlinkEdge(previousOut, NEXT_OUT);
+    if (previousOut && nextOut) {
+      this.linkEdge(previousOut, nextOut, NEXT_OUT);
+      this.linkEdge(nextOut, previousOut, PREV_OUT);
+    } else if (previousOut) {
+      this.unlinkEdge(previousOut, NEXT_OUT);
+    } else if (nextOut) {
+      this.unlinkEdge(nextOut, PREV_OUT);
+    }
 
     // Update the terminating node's first and last incoming edges.
     if (firstIn === edge) this.setEdge(to, nextIn, FIRST_IN);
@@ -907,7 +948,9 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     this.#edges[edge + TO] = 0;
     this.#edges[edge + NEXT_HASH] = 0;
     this.#edges[edge + NEXT_IN] = 0;
+    this.#edges[edge + PREV_IN] = 0;
     this.#edges[edge + NEXT_OUT] = 0;
+    this.#edges[edge + PREV_OUT] = 0;
 
     this.#edges[COUNT]--;
     this.#edges[DELETES]++;
