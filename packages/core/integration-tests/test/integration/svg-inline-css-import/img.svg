@@ -3,4 +3,9 @@
     @import './test.css';
   </style>
   <text>Should be red</text>
+  <text style="fill: url(../svg/gradient.svg#myGradient)">Gradient text</text>
+  <script type="module">
+    import '../svg/script';
+    console.log('module');
+  </script>
 </svg>

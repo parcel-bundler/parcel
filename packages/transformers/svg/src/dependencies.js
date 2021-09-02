@@ -77,6 +77,15 @@ const OPTIONS = {
 export default function collectDependencies(asset: MutableAsset, ast: AST) {
   let isDirty = false;
   PostHTML().walk.call(ast.program, node => {
+    // Ideally we'd have location information for specific attributes...
+    let getLoc = () =>
+      node.location
+        ? {
+            filePath: asset.filePath,
+            start: node.location.start,
+            end: node.location.end,
+          }
+        : undefined;
     if (typeof node === 'string' && node.startsWith('<?xml-stylesheet')) {
       return node.replace(/(?<=(?:^|\s)href\s*=\s*")(.+?)(?=")/i, href => {
         isDirty = true;
@@ -106,25 +115,24 @@ export default function collectDependencies(asset: MutableAsset, ast: AST) {
               sourceType: attrs.type === 'module' ? 'module' : 'script',
               // SVG script elements do not support type="module" natively yet.
               outputFormat: 'global',
-              loc: node.location
-                ? {
-                    filePath: asset.filePath,
-                    start: node.location.start,
-                    end: node.location.end,
-                  }
-                : undefined,
+              loc: getLoc(),
             },
           };
           delete attrs.type;
         }
-        attrs[attr] = asset.addURLDependency(attrs[attr], options);
+        attrs[attr] = asset.addURLDependency(attrs[attr], {
+          ...options,
+          loc: getLoc(),
+        });
         isDirty = true;
       }
 
       if (FUNC_IRI_ATTRS.has(attr)) {
         let parsed = parseFuncIRI(attrs[attr]);
         if (parsed) {
-          let depId = asset.addURLDependency(parsed[0], {});
+          let depId = asset.addURLDependency(parsed[0], {
+            loc: getLoc(),
+          });
           attrs[attr] = `url('${depId}'${parsed[1]})`;
           isDirty = true;
         }

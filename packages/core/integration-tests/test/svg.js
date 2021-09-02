@@ -39,6 +39,10 @@ describe('svg', function() {
         type: 'js',
         assets: ['module.js', 'script.js'],
       },
+      {
+        type: 'css',
+        assets: ['style.css'],
+      },
     ]);
 
     let file = await outputFS.readFile(
@@ -79,6 +83,13 @@ describe('svg', function() {
             .find(b => b.type === 'js' && b.env.sourceType === 'module')
             .filePath,
         )}"`,
+      ),
+    );
+    assert(
+      file.includes(
+        `<?xml-stylesheet href="/${path.basename(
+          b.getBundles().find(b => b.type === 'css').filePath,
+        )}"?>`,
       ),
     );
   });
@@ -155,8 +166,20 @@ describe('svg', function() {
         assets: ['img.svg', 'test.css'],
       },
       {
+        type: 'css',
+        assets: ['img.svg'],
+      },
+      {
         name: 'img.svg',
         assets: ['img.svg'],
+      },
+      {
+        type: 'svg',
+        assets: ['gradient.svg'],
+      },
+      {
+        type: 'js',
+        assets: ['img.svg', 'script.js'],
       },
     ]);
 
@@ -164,6 +187,16 @@ describe('svg', function() {
 
     assert(!svg.includes('@import'));
     assert(svg.includes(':root {\n  fill: red\n}'));
+    assert(
+      svg.includes(
+        `"fill: url(${path.basename(
+          b.getBundles().find(b => b.name.startsWith('gradient')).filePath,
+        )}#myGradient)"`,
+      ),
+    );
+    assert(svg.includes('<script>'));
+    assert(svg.includes("console.log('script')"));
+    assert(!svg.includes('import '));
   });
 
   it('should process inline styles using lang', async function() {
