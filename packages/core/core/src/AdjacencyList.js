@@ -208,20 +208,6 @@ const MIN_CAPACITY = 256;
 /** How many edges to accommodate in a hash bucket. */
 const BUCKET_SIZE = 2;
 
-/**
- * A sentinel that indicates that an edge was deleted.
- *
- * Because our (open-addressed) table resolves hash collisions
- * by scanning forward for the next open slot when inserting,
- * and stops scanning at the next open slot when fetching,
- * we use this sentinel (instead of `0`) to maintain contiguity.
- */
-const DELETED: 0xffffffff = 0xffffffff;
-
-export function isDeleted<TEdgeType>(type: TEdgeType): boolean {
-  return type === DELETED;
-}
-
 export const ALL_EDGE_TYPES: AllEdgeTypes = '@@all_edge_types';
 
 // eslint-disable-next-line no-unused-vars
@@ -507,7 +493,7 @@ export default class AdjacencyList<TEdgeType: number = 1> {
   /** Check that the edge exists in the `AdjacencyList`. */
   edgeExists(edge: EdgeIndex): boolean {
     let type = (this.#edges[edge + TYPE]: any);
-    return Boolean(type) && !isDeleted(type);
+    return Boolean(type);
   }
 
   /** Gets the original hash of the given edge */
@@ -939,11 +925,7 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     if (firstOut === edge) this.setEdge(from, nextOut, FIRST_OUT);
     if (lastOut === edge) this.setEdge(from, previousOut, LAST_OUT);
 
-    // Mark this slot as DELETED.
-    // We do this so that clustered edges can still be found
-    // by scanning forward in the array from the first index for
-    // the cluster.
-    this.#edges[edge + TYPE] = DELETED;
+    this.#edges[edge + TYPE] = 0;
     this.#edges[edge + FROM] = 0;
     this.#edges[edge + TO] = 0;
     this.#edges[edge + NEXT_HASH] = 0;

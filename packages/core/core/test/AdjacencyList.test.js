@@ -7,7 +7,6 @@ import {Worker} from 'worker_threads';
 import AdjacencyList, {
   NODES_HEADER_SIZE,
   EDGES_HEADER_SIZE,
-  isDeleted,
 } from '../src/AdjacencyList';
 import {toNodeId} from '../src/types';
 
@@ -206,11 +205,10 @@ describe('AdjacencyList', () => {
     // $FlowFixMe[incompatible-type]
     let index: number = graph.indexOf(n1, n2, 1);
     assert(graph.serialize().edges[index] > 0);
-    assert(!isDeleted(graph.serialize().edges[index]));
     graph.removeEdge(n1, n2, 1);
-    assert(isDeleted(graph.serialize().edges[index]));
+    assert(!graph.serialize().edges[index]);
     graph.addEdge(n0, n1, 1);
-    assert(isDeleted(graph.serialize().edges[index]));
+    assert(!graph.serialize().edges[index]);
     assert(graph.stats.edges === 1);
   });
 
@@ -226,12 +224,12 @@ describe('AdjacencyList', () => {
     // $FlowFixMe[incompatible-type]
     let index: number = graph.indexOf(n0, n1, 2);
     assert(graph.serialize().edges[index] > 0);
-    assert(!isDeleted(graph.serialize().edges[index]));
+    assert(graph.serialize().edges[index]);
     graph.removeEdge(n0, n1, 2);
-    assert(isDeleted(graph.serialize().edges[index]));
+    assert(!graph.serialize().edges[index]);
     graph.addEdge(n0, n1, 2);
     assert(graph.serialize().edges[index] > 0);
-    assert(!isDeleted(graph.serialize().edges[index]));
+    assert(graph.serialize().edges[index]);
   });
 
   describe('deserialize', function() {
