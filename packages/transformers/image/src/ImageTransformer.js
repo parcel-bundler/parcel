@@ -1,6 +1,7 @@
 // @flow
 import {validateConfig} from './validateConfig';
 import {Transformer} from '@parcel/plugin';
+import nullthrows from 'nullthrows';
 
 // from https://github.com/lovell/sharp/blob/df7b8ba73808fc494be413e88cfb621b6279218c/lib/output.js#L6-L17
 const FORMATS = new Map([
@@ -47,7 +48,7 @@ export default (new Transformer({
     const quality = asset.query.quality
       ? parseInt(asset.query.quality, 10)
       : config.quality;
-    const targetFormat = asset.query.as
+    let targetFormat = asset.query.as
       ? asset.query.as.toLowerCase().trim()
       : null;
     if (targetFormat && !FORMATS.has(targetFormat)) {
@@ -56,7 +57,7 @@ export default (new Transformer({
       );
     }
 
-    const format = targetFormat || originalFormat;
+    const format = nullthrows(FORMATS.get(targetFormat || originalFormat));
     const outputOptions = config[format];
 
     if (width || height || quality || targetFormat || outputOptions) {
@@ -84,7 +85,7 @@ export default (new Transformer({
       }
 
       asset.type = format;
-      imagePipeline[FORMATS.get(format)]({
+      imagePipeline[format]({
         quality,
         ...(outputOptions || {}),
       });
