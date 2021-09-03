@@ -1,34 +1,65 @@
 // @flow
+import {validateConfig} from './validateConfig';
 import {Transformer} from '@parcel/plugin';
 
 // from https://github.com/lovell/sharp/blob/df7b8ba73808fc494be413e88cfb621b6279218c/lib/output.js#L6-L17
 const FORMATS = new Map([
-  ['heic', 'heif'],
-  ['heif', 'heif'],
-  ['avif', 'avif'],
   ['jpeg', 'jpeg'],
   ['jpg', 'jpeg'],
   ['png', 'png'],
-  ['raw', 'raw'],
-  ['tiff', 'tiff'],
   ['webp', 'webp'],
   ['gif', 'gif'],
+  ['tiff', 'tiff'],
+  ['avif', 'avif'],
+  ['heic', 'heif'],
+  ['heif', 'heif'],
 ]);
 
 const SHARP_RANGE = '^0.28.3';
 
 export default (new Transformer({
-  async transform({asset, options}) {
+  async loadConfig({config}) {
+    let configFile: any = await config.getConfig(
+      ['sharp.config.json'], // '.sharprc', '.sharprc.json'
+      {packageKey: 'sharp'},
+    );
+
+    if (configFile?.contents) {
+      validateConfig(configFile.contents, configFile.filePath);
+      return configFile.contents;
+    } else {
+      return {};
+    }
+  },
+
+  async transform({config, asset, options}) {
     asset.bundleBehavior = 'isolated';
 
-    let width = asset.query.width ? parseInt(asset.query.width, 10) : null;
-    let height = asset.query.height ? parseInt(asset.query.height, 10) : null;
-    let quality = asset.query.quality
-      ? parseInt(asset.query.quality, 10)
-      : undefined;
-    let format = asset.query.as ? asset.query.as.toLowerCase().trim() : null;
+    const originalFormat = FORMATS.get(asset.type);
+    if (!originalFormat) {
+      throw new Error(
+        `The image transformer does not support ${asset.type} images.`,
+      );
+    }
 
-    if (width || height || quality || format) {
+    const width = asset.query.width ? parseInt(asset.query.width, 10) : null;
+    const height = asset.query.height ? parseInt(asset.query.height, 10) : null;
+    const quality = asset.query.quality
+      ? parseInt(asset.query.quality, 10)
+      : config.quality;
+    const targetFormat = asset.query.as
+      ? asset.query.as.toLowerCase().trim()
+      : null;
+    if (targetFormat && !FORMATS.has(targetFormat)) {
+      throw new Error(
+        `The image transformer does not support ${targetFormat} images.`,
+      );
+    }
+
+    const format = targetFormat || originalFormat;
+    const outputOptions = config[format];
+
+    if (width || height || quality || targetFormat || outputOptions) {
       let inputBuffer = await asset.getBuffer();
       let sharp = await options.packageManager.require(
         'sharp',
@@ -44,19 +75,19 @@ export default (new Transformer({
         imagePipeline.resize(width, height);
       }
 
-      imagePipeline.rotate();
-
-      if (format) {
-        if (!FORMATS.has(format)) {
-          throw new Error(`Sharp does not support ${format} images.`);
-        }
-
-        asset.type = format;
-
-        imagePipeline[FORMATS.get(format)]({
-          quality,
-        });
+      if (config.withMetadata) {
+        imagePipeline.withMetadata(
+          typeof config.withMetadata === 'object' ? config.withMetadata : {},
+        );
+      } else {
+        imagePipeline.rotate();
       }
+
+      asset.type = format;
+      imagePipeline[FORMATS.get(format)]({
+        quality,
+        ...(outputOptions || {}),
+      });
 
       asset.setStream(imagePipeline);
     }
