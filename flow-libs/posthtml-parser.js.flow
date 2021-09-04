@@ -24,5 +24,6 @@ declare module 'posthtml-parser' {
 
   declare module.exports: {
     parser: typeof parser;
+    ...
   }
 }

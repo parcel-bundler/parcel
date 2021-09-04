@@ -23,5 +23,6 @@ declare module 'posthtml-render' {
 
   declare module.exports: {
     render: typeof render;
+    ...
   }
 }
