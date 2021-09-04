@@ -16,7 +16,7 @@ import {shake} from './shake';
 
 export default (new Transformer({
   async loadConfig({config, options}) {
-    await loadTSConfig(config, options);
+    return await loadTSConfig(config, options);
   },
 
   transform({asset, config, options, logger}) {
