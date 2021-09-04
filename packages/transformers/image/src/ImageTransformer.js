@@ -76,20 +76,14 @@ export default (new Transformer({
         imagePipeline.resize(width, height);
       }
 
-      if (config.withMetadata) {
-        imagePipeline.withMetadata(
-          typeof config.withMetadata === 'object' ? config.withMetadata : {},
-        );
-      } else {
-        imagePipeline.rotate();
-      }
+      imagePipeline.rotate();
 
-      asset.type = format;
       imagePipeline[format]({
         quality,
         ...(outputOptions || {}),
       });
 
+      asset.type = format;
       asset.setStream(imagePipeline);
     }
 

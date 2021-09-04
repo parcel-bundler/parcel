@@ -112,7 +112,7 @@ describe('image', function() {
     assert(output.length < input.length);
   });
 
-  it('should optimise PNGs', async function() {
+  it('should lossless optimise PNGs', async function() {
     let img = path.join(__dirname, '/integration/image/clock.png');
     let b = await bundle(img, {
       defaultTargetOptions: {
@@ -133,5 +133,47 @@ describe('image', function() {
 
     assert(outputRaw.equals(inputRaw));
     assert(output.length < input.length);
+  });
+
+  it('support config files for jpeg files', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/image-config/image.jpg'),
+      {
+        defaultTargetOptions: {
+          shouldOptimize: false,
+        },
+      },
+    );
+
+    const originalSize = 549196;
+
+    const imagePath = b.getBundles().find(b => b.type === 'jpeg').filePath;
+
+    const buffer = await outputFS.readFile(imagePath);
+    const image = await sharp(buffer).metadata();
+
+    assert.strictEqual(image.width, 1920);
+    assert.strictEqual(image.chromaSubsampling, '4:4:4');
+    assert(image.size < originalSize);
+  });
+
+  it('support config files for png files', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/image-config/clock.png'),
+      {
+        defaultTargetOptions: {
+          shouldOptimize: false,
+        },
+      },
+    );
+
+    const originalSize = 84435;
+    const imagePath = b.getBundles().find(b => b.type === 'png').filePath;
+    const buffer = await outputFS.readFile(imagePath);
+    const image = await sharp(buffer).metadata();
+
+    assert.strictEqual(image.width, 200);
+    assert.strictEqual(image.paletteBitDepth, 8);
+    assert(image.size < originalSize);
   });
 });

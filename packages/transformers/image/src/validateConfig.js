@@ -2,35 +2,6 @@
 import type {SchemaEntity} from '@parcel/utils';
 import {validateSchema} from '@parcel/utils';
 
-// https://sharp.pixelplumbing.com/api-output#withmetadata
-const WITH_METADATA_SCHEMA: SchemaEntity = {
-  oneOf: [
-    {
-      type: 'object',
-      properties: {
-        orientation: {
-          type: 'number',
-        },
-        icc: {
-          type: 'string',
-        },
-        exif: {
-          type: 'object',
-          properties: {},
-          additionalProperties: true,
-        },
-        density: {
-          type: 'number',
-        },
-      },
-      additionalProperties: true,
-    },
-    {
-      type: 'boolean',
-    },
-  ],
-};
-
 // https://sharp.pixelplumbing.com/api-output#jpeg
 const JPEG_OUTPUT_SCHEMA: SchemaEntity = {
   type: 'object',
@@ -268,7 +239,6 @@ const CONFIG_SCHEMA: SchemaEntity = {
     quality: {
       type: 'number',
     },
-    withMetadata: WITH_METADATA_SCHEMA,
     jpeg: JPEG_OUTPUT_SCHEMA,
     png: PNG_OUTPUT_SCHEMA,
     webp: WEBP_OUTPUT_SCHEMA,
