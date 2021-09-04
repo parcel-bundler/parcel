@@ -3,9 +3,10 @@
 import {Transformer} from '@parcel/plugin';
 import nullthrows from 'nullthrows';
 import semver from 'semver';
-import collectDependencies from './dependencies';
 import parse from 'posthtml-parser';
 import render from 'posthtml-render';
+import collectDependencies from './dependencies';
+import extractInlineAssets from './inline';
 
 export default (new Transformer({
   canReuseAST({ast}) {
@@ -31,11 +32,15 @@ export default (new Transformer({
   },
 
   async transform({asset}) {
+    asset.bundleBehavior = 'isolated';
+
     const ast = nullthrows(await asset.getAST());
 
     collectDependencies(asset, ast);
 
-    return [asset];
+    const inlineAssets = extractInlineAssets(asset, ast);
+
+    return [asset, ...inlineAssets];
   },
 
   generate({ast}) {

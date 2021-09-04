@@ -388,6 +388,12 @@ export async function processConfig(
       configFile.filePath,
       options,
     ),
+    compressors: await processMap(
+      configFile.compressors,
+      '/compressors',
+      configFile.filePath,
+      options,
+    ),
     reporters: processPipeline(
       options,
       configFile.reporters,
@@ -610,6 +616,7 @@ export function mergeConfigs(
     runtimes: assertPurePipeline(mergePipelines(base.runtimes, ext.runtimes)),
     packagers: mergeMaps(base.packagers, ext.packagers),
     optimizers: mergeMaps(base.optimizers, ext.optimizers, mergePipelines),
+    compressors: mergeMaps(base.compressors, ext.compressors, mergePipelines),
     reporters: assertPurePipeline(
       mergePipelines(base.reporters, ext.reporters),
     ),

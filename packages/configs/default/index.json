@@ -47,7 +47,8 @@
   "runtimes": [
     "@parcel/runtime-js",
     "@parcel/runtime-browser-hmr",
-    "@parcel/runtime-react-refresh"
+    "@parcel/runtime-react-refresh",
+    "@parcel/runtime-service-worker"
   ],
   "optimizers": {
     "data-url:*": ["...", "@parcel/optimizer-data-url"],
@@ -61,9 +62,13 @@
     "*.html": "@parcel/packager-html",
     "*.css": "@parcel/packager-css",
     "*.{js,mjs,cjs}": "@parcel/packager-js",
+    "*.svg": "@parcel/packager-svg",
     "*.ts": "@parcel/packager-ts",
     "*.{jsonld,svg,webmanifest}": "@parcel/packager-raw-url",
     "*": "@parcel/packager-raw"
+  },
+  "compressors": {
+    "*": ["@parcel/compressor-raw"]
   },
   "resolvers": ["@parcel/resolver-default"],
   "reporters": ["@parcel/reporter-dev-server"]

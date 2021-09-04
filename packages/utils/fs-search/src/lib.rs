@@ -43,7 +43,7 @@ fn find_ancestor_file(ctx: CallContext) -> Result<Either<JsNull, JsString>> {
     }
   }
 
-  return ctx.env.get_null().map(Either::A);
+  ctx.env.get_null().map(Either::A)
 }
 
 #[js_function(1)]
@@ -59,7 +59,7 @@ fn find_first_file(ctx: CallContext) -> Result<Either<JsNull, JsString>> {
     }
   }
 
-  return ctx.env.get_null().map(Either::A);
+  ctx.env.get_null().map(Either::A)
 }
 
 #[js_function(2)]
@@ -86,7 +86,7 @@ fn find_node_module(ctx: CallContext) -> Result<Either<JsNull, JsString>> {
     }
   }
 
-  return ctx.env.get_null().map(Either::A);
+  ctx.env.get_null().map(Either::A)
 }
 
 #[module_exports]
