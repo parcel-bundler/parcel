@@ -567,7 +567,7 @@ export default (new Transformer({
             placeholder: dep.placeholder,
           },
         });
-      } else if (dep.kind === 'URL') {
+      } else if (dep.kind === 'Url') {
         asset.addURLDependency(dep.specifier, {
           bundleBehavior: 'isolated',
           loc: convertLoc(dep.loc),

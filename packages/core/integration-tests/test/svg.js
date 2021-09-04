@@ -1,5 +1,5 @@
 import assert from 'assert';
-import {assertBundles, bundle, outputFS} from '@parcel/test-utils';
+import {assertBundles, bundle, distDir, outputFS} from '@parcel/test-utils';
 import path from 'path';
 
 describe('svg', function() {
@@ -23,7 +23,75 @@ describe('svg', function() {
         name: 'other2.html',
         assets: ['other2.html'],
       },
+      {
+        type: 'svg',
+        assets: ['path.svg'],
+      },
+      {
+        type: 'svg',
+        assets: ['gradient.svg'],
+      },
+      {
+        type: 'js',
+        assets: ['script.js'],
+      },
+      {
+        type: 'js',
+        assets: ['module.js', 'script.js'],
+      },
+      {
+        type: 'css',
+        assets: ['style.css'],
+      },
     ]);
+
+    let file = await outputFS.readFile(
+      b.getBundles().find(b => b.type === 'svg').filePath,
+      'utf-8',
+    );
+    assert(file.includes('<a href="/other1.html">'));
+    assert(file.includes('<use href="#circle"'));
+    assert(
+      file.includes(
+        `<use xlink:href="/${path.basename(
+          b.getBundles().find(b => b.name.startsWith('square')).filePath,
+        )}#square"`,
+      ),
+    );
+    assert(
+      file.includes(
+        `fill="url('/${path.basename(
+          b.getBundles().find(b => b.name.startsWith('gradient')).filePath,
+        )}#myGradient')"`,
+      ),
+    );
+    assert(
+      file.includes(
+        `<script xlink:href="/${path.basename(
+          b
+            .getBundles()
+            .find(b => b.type === 'js' && b.env.sourceType === 'script')
+            .filePath,
+        )}"`,
+      ),
+    );
+    assert(
+      file.includes(
+        `<script href="/${path.basename(
+          b
+            .getBundles()
+            .find(b => b.type === 'js' && b.env.sourceType === 'module')
+            .filePath,
+        )}"`,
+      ),
+    );
+    assert(
+      file.includes(
+        `<?xml-stylesheet href="/${path.basename(
+          b.getBundles().find(b => b.type === 'css').filePath,
+        )}"?>`,
+      ),
+    );
   });
 
   it('should minify SVG bundles', async function() {
@@ -85,5 +153,93 @@ describe('svg', function() {
 
     assert(file.includes('<?xml-stylesheet'));
     assert(file.includes('<?xml-not-a-stylesheet'));
+  });
+
+  it('should handle inline CSS with @imports', async function() {
+    const b = await bundle(
+      path.join(__dirname, '/integration/svg-inline-css-import/img.svg'),
+    );
+
+    assertBundles(b, [
+      {
+        type: 'css',
+        assets: ['img.svg', 'test.css'],
+      },
+      {
+        type: 'css',
+        assets: ['img.svg'],
+      },
+      {
+        name: 'img.svg',
+        assets: ['img.svg'],
+      },
+      {
+        type: 'svg',
+        assets: ['gradient.svg'],
+      },
+      {
+        type: 'js',
+        assets: ['img.svg', 'script.js'],
+      },
+    ]);
+
+    const svg = await outputFS.readFile(path.join(distDir, 'img.svg'), 'utf8');
+
+    assert(!svg.includes('@import'));
+    assert(svg.includes(':root {\n  fill: red\n}'));
+    assert(
+      svg.includes(
+        `"fill: url(${path.basename(
+          b.getBundles().find(b => b.name.startsWith('gradient')).filePath,
+        )}#myGradient)"`,
+      ),
+    );
+    assert(svg.includes('<script>'));
+    assert(svg.includes("console.log('script')"));
+    assert(!svg.includes('import '));
+  });
+
+  it('should process inline styles using lang', async function() {
+    const b = await bundle(
+      path.join(__dirname, '/integration/svg-inline-sass/img.svg'),
+      {
+        defaultTargetOptions: {
+          shouldOptimize: true,
+        },
+      },
+    );
+
+    assertBundles(b, [
+      {
+        type: 'css',
+        assets: ['img.svg'],
+      },
+      {
+        name: 'img.svg',
+        assets: ['img.svg'],
+      },
+    ]);
+
+    const svg = await outputFS.readFile(path.join(distDir, 'img.svg'), 'utf8');
+
+    assert(svg.includes('<style>:root{fill:red}</style>'));
+  });
+
+  it('should be in separate bundles', async function() {
+    const b = await bundle(
+      path.join(__dirname, '/integration/svg-multiple/index.js'),
+    );
+
+    assertBundles(b, [
+      {
+        assets: ['index.js', 'bundle-url.js'],
+      },
+      {
+        assets: ['circle.svg'],
+      },
+      {
+        assets: ['square.svg'],
+      },
+    ]);
   });
 });

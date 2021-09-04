@@ -101,6 +101,7 @@ export class FSHost {
       depth,
       dirPath => this.getAccessibleFileSystemEntries(dirPath),
       filePath => this.realpath(filePath),
+      dirPath => this.directoryExists(dirPath),
     );
   }
 }

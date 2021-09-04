@@ -5,4 +5,5 @@ members = [
   "packages/transformers/js/wasm",
   "packages/utils/fs-search",
   "packages/utils/hash",
+  "packages/optimizers/image"
 ]

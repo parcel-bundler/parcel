@@ -25,7 +25,7 @@ import nullthrows from 'nullthrows';
 import {PromiseQueue} from '@parcel/utils';
 import {hashString} from '@parcel/hash';
 import ThrowableDiagnostic, {md} from '@parcel/diagnostic';
-import {Priority} from '../types';
+import {BundleBehavior, Priority} from '../types';
 import AssetGraph from '../AssetGraph';
 import {PARCEL_VERSION} from '../constants';
 import createEntryRequest from './EntryRequest';
@@ -471,6 +471,8 @@ export class AssetGraphBuilder {
         for (let s of incomingDep.usedSymbolsDown) {
           if (
             assetSymbols == null || // Assume everything could be provided if symbols are cleared
+            assetNode.value.bundleBehavior === BundleBehavior.isolated ||
+            assetNode.value.bundleBehavior === BundleBehavior.inline ||
             assetNode.usedSymbols.has(s) ||
             reexportedSymbols.has(s) ||
             s === '*'
