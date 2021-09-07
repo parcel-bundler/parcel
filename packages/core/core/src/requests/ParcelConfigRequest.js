@@ -307,6 +307,8 @@ async function processMap(
               ]),
             },
           ],
+          documentationURL:
+            'https://v2.parceljs.org/features/dependency-resolution/#url-schemes',
         },
       });
     }
@@ -383,6 +385,12 @@ export async function processConfig(
     optimizers: await processMap(
       configFile.optimizers,
       '/optimizers',
+      configFile.filePath,
+      options,
+    ),
+    compressors: await processMap(
+      configFile.compressors,
+      '/compressors',
       configFile.filePath,
       options,
     ),
@@ -608,6 +616,7 @@ export function mergeConfigs(
     runtimes: assertPurePipeline(mergePipelines(base.runtimes, ext.runtimes)),
     packagers: mergeMaps(base.packagers, ext.packagers),
     optimizers: mergeMaps(base.optimizers, ext.optimizers, mergePipelines),
+    compressors: mergeMaps(base.compressors, ext.compressors, mergePipelines),
     reporters: assertPurePipeline(
       mergePipelines(base.reporters, ext.reporters),
     ),

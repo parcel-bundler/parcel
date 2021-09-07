@@ -1,5 +1,5 @@
 import assert from 'assert';
-import {bundle, distDir, outputFS} from '@parcel/test-utils';
+import {bundle, distDir, inputFS, outputFS} from '@parcel/test-utils';
 import path from 'path';
 import sharp from 'sharp';
 
@@ -87,5 +87,51 @@ describe('image', function() {
         new Set(['html', 'webp', 'avif', 'jpg', 'png', 'tiff']),
       );
     });
+  });
+
+  it('should optimise JPEGs', async function() {
+    let img = path.join(__dirname, '/integration/image/image.jpg');
+    let b = await bundle(img, {
+      defaultTargetOptions: {
+        shouldOptimize: true,
+      },
+    });
+
+    const imagePath = b.getBundles().find(b => b.type === 'jpg').filePath;
+
+    let input = await inputFS.readFile(img);
+    let inputRaw = await sharp(input)
+      .toFormat('raw')
+      .toBuffer();
+    let output = await outputFS.readFile(imagePath);
+    let outputRaw = await sharp(output)
+      .toFormat('raw')
+      .toBuffer();
+
+    assert(outputRaw.equals(inputRaw));
+    assert(output.length < input.length);
+  });
+
+  it('should optimise PNGs', async function() {
+    let img = path.join(__dirname, '/integration/image/clock.png');
+    let b = await bundle(img, {
+      defaultTargetOptions: {
+        shouldOptimize: true,
+      },
+    });
+
+    const imagePath = b.getBundles().find(b => b.type === 'png').filePath;
+
+    let input = await inputFS.readFile(img);
+    let inputRaw = await sharp(input)
+      .toFormat('raw')
+      .toBuffer();
+    let output = await outputFS.readFile(imagePath);
+    let outputRaw = await sharp(output)
+      .toFormat('raw')
+      .toBuffer();
+
+    assert(outputRaw.equals(inputRaw));
+    assert(output.length < input.length);
   });
 });

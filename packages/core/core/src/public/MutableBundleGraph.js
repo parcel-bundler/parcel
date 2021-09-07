@@ -34,7 +34,7 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
   #bundlePublicIds /*: Set<string> */ = new Set<string>();
 
   constructor(graph: InternalBundleGraph, options: ParcelOptions) {
-    super(graph, Bundle.get, options);
+    super(graph, Bundle.get.bind(Bundle), options);
     this.#graph = graph;
     this.#options = options;
   }

@@ -30,7 +30,7 @@ import {ContentGraph, ALL_EDGE_TYPES, mapVisitor} from '@parcel/graph';
 import {Hash, hashString} from '@parcel/hash';
 import {objectSortedEntriesDeep, getRootDir} from '@parcel/utils';
 
-import {Priority, BundleBehavior} from './types';
+import {Priority, BundleBehavior, SpecifierType} from './types';
 import {getBundleGroupId, getPublicId} from './utils';
 import {ISOLATED_ENVS} from './public/Environment';
 import {fromProjectPath} from './projectPath';
@@ -733,11 +733,12 @@ export default class BundleGraph {
       this._graph
         .getNodeIdsConnectedTo(assetNodeId, 'references')
         .map(id => this._graph.getNode(id))
-        .filter(
+        .some(
           node =>
             node?.type === 'dependency' &&
-            node.value.priority === Priority.lazy,
-        ).length > 0
+            node.value.priority === Priority.lazy &&
+            node.value.specifierType !== SpecifierType.url,
+        )
     ) {
       // If this asset is referenced by any async dependency, it's referenced.
       return true;

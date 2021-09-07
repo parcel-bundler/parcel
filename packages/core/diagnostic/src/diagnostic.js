@@ -69,6 +69,9 @@ export type Diagnostic = {|
 
   /** @private */
   skipFormatting?: boolean,
+
+  /** A URL to documentation to learn more about the diagnostic. */
+  documentationURL?: string,
 |};
 
 // This type should represent all error formats Parcel can encounter...
@@ -293,8 +296,19 @@ export function md(
 ): string {
   let result = [];
   for (let i = 0; i < params.length; i++) {
+    result.push(strings[i]);
+
     let param = params[i];
-    result.push(strings[i], param?.[mdVerbatim] ?? escapeMarkdown(`${param}`));
+    if (Array.isArray(param)) {
+      for (let j = 0; j < param.length; j++) {
+        result.push(param[j]?.[mdVerbatim] ?? escapeMarkdown(`${param[j]}`));
+        if (j < param.length - 1) {
+          result.push(', ');
+        }
+      }
+    } else {
+      result.push(param?.[mdVerbatim] ?? escapeMarkdown(`${param}`));
+    }
   }
   return result.join('') + strings[strings.length - 1];
 }
