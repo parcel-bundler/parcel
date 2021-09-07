@@ -87,13 +87,15 @@ export const NODES_HEADER_SIZE: 2 = 2;
  * │  CAPACITY  │   COUNT   │  DELETES  │
  * └────────────┴───────────┴───────────┘
  *
- * Each edge is represented with 5 4-byte chunks:
+ * Each edge is represented with 8 4-byte chunks:
  * The first 4 bytes are the edge type.
  * The second 4 bytes are the id of the 'from' node.
  * The third 4 bytes are the id of the 'to' node.
  * The fourth 4 bytes are the index of the next edge in the bucket of hash collisions.
  * The fifth 4 bytes are the hash of the 'to' node's next incoming edge.
- * The sixth 4 bytes are the hash of the 'from' node's next outgoing edge.
+ * The sixth 4 bytes are the hash of the 'to' node's previous incoming edge.
+ * The seventh 4 bytes are the hash of the 'from' node's next outgoing edge.
+ * The eighth 4 bytes are the hash of the 'from' node's previous outgoing edge.
  *
  * struct Edge {
  *   int type;
@@ -101,7 +103,9 @@ export const NODES_HEADER_SIZE: 2 = 2;
  *   int to;
  *   int nextHash;
  *   int nextIn;
+ *   int prevIn;
  *   int nextOut;
+ *   int prevOut;
  * }
  *
  * ┌────────────────────────────────────────────────────────────────────────┐
@@ -163,36 +167,39 @@ const TYPE: 0 = 0;
 const FROM: 1 = 1;
 /** The offset from an edge index at which the 'to' node id is stored. */
 const TO: 2 = 2;
-/** The offset from an edge index at which the next edge in the chain of hash collisions is stored*/
+/**
+ * The offset from an edge index at which
+ * the next edge in the chain of hash collisions is stored
+ */
 const NEXT_HASH: 3 = 3;
 /**
- * The offset from an edge index at which the hash
- * of the 'to' node's next incoming edge is stored.
+ * The offset from an edge index at which the 'to' node's
+ * next incoming edge is stored.
  */
 const NEXT_IN: 4 = 4;
 /**
- * The offset from an edge index at which the hash
- * of the 'to' node's previous incoming edge is stored.
+ * The offset from an edge index at which the 'to' node's
+ * previous incoming edge is stored.
  */
 const PREV_IN: 5 = 5;
 /**
- * The offset from an edge index at which the hash
- * of the 'from' node's next outgoing edge is stored.
+ * The offset from an edge index at which the 'from' node's
+ * next outgoing edge is stored.
  */
 const NEXT_OUT: 6 = 6;
 /**
- * The offset from an edge index at which the hash
- * of the 'from' node's previous outgoing edge is stored.
+ * The offset from an edge index at which the 'from' node's
+ * previous outgoing edge is stored.
  */
 const PREV_OUT: 7 = 7;
 
-/** The offset from a node index at which the hash of the first incoming edge is stored. */
+/** The offset from a node index at which the first incoming edge is stored. */
 const FIRST_IN: 0 = 0;
-/** The offset from a node index at which the hash of the first outgoing edge is stored. */
+/** The offset from a node index at which the first outgoing edge is stored. */
 const FIRST_OUT: 1 = 1;
-/** The offset from a node index at which the hash of the last incoming edge is stored. */
+/** The offset from a node index at which the last incoming edge is stored. */
 const LAST_IN: 2 = 2;
-/** The offset from a node index at which the hash of the last outgoing edge is stored. */
+/** The offset from a node index at which the last outgoing edge is stored. */
 const LAST_OUT: 3 = 3;
 
 /** The upper bound above which the edge capacity should be increased. */
