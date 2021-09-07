@@ -1,6 +1,3 @@
-import {foo} from './other'
-import {FOO, USER} from './index'
-import("./async");
+import {doStuff} from './stuff';
 
-foo();
-console.log(FOO + USER);
+doStuff();

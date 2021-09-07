@@ -5836,14 +5836,16 @@ describe('scope hoisting', function() {
     assert.equal(res.output, 'a');
   });
 
-  it.only('test', async function() {
+  it('should not insert parcelRequires for a module that has empty re-exports', async function() {
     let b = await bundle(
       path.join(
         __dirname,
-        'integration/scope-hoisting/es6/runtime-error/other/index.js',
+        'integration/scope-hoisting/es6/runtime-error/entry.js',
       ),
-      {outputFS: inputFS},
+      {
+        outputFS: inputFS,
+      },
     );
-    let output = await run(b);
+    await run(b);
   });
 });

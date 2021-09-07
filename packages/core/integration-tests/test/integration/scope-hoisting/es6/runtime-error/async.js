@@ -1,3 +1,3 @@
-import { FOO } from './index';
+import { FOO } from './re-exports';
 
 console.log(FOO)

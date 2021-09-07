@@ -1,8 +1,9 @@
 //@flow
-import {UNLICENSED, USER, type Board} from "../index";
 
-const myFunc = (): Board => UNLICENSED + USER + "!"
-//import("../index")
-let fooResult = myFunc()
-console.log(fooResult)
-export const foo = (): Board => fooResult;
+import {FOO, BAR, type MyString} from "../re-exports";
+
+const myFunc = (): MyString => FOO + BAR;
+
+let res = myFunc();
+
+export const fooBar = (): MyString => res;
