@@ -299,12 +299,8 @@ export default class AdjacencyList<TEdgeType: number = 1> {
   #nodes: Uint32Array;
   /** An array of edges, with each edge occupying `EDGE_SIZE` adjacent indices. */
   #edges: Uint32Array;
-  #typeMaps: ?{|
-    /** A map of node ids from => through types => to node ids. */
-    from: TypeMap<TEdgeType | NullEdgeType>,
-    /** A map of node ids to => through types => from node ids. */
-    to: TypeMap<TEdgeType | NullEdgeType>,
-  |};
+  /** A cache of connected nodes grouped by type. */
+  #typeMap: TypeMap<TEdgeType>;
 
   constructor(
     opts?: SerializedAdjacencyList<TEdgeType> | AdjacencyListOptions<TEdgeType>,
@@ -349,6 +345,7 @@ export default class AdjacencyList<TEdgeType: number = 1> {
 
     this.#nodes = nodes;
     this.#edges = edges;
+    this.#typeMap = new TypeMap(this);
   }
 
   /**
@@ -442,31 +439,6 @@ export default class AdjacencyList<TEdgeType: number = 1> {
       avgCollisions: Math.round((collisions / buckets.size) * 100) / 100 || 0,
       uniformity: Math.round(uniformity * 100) / 100 || 0,
     };
-  }
-
-  /** Create mappings from => type => to and vice versa. */
-  _getOrCreateTypeMaps(): {|
-    from: TypeMap<TEdgeType | NullEdgeType>,
-    to: TypeMap<TEdgeType | NullEdgeType>,
-  |} {
-    if (this.#typeMaps) return this.#typeMaps;
-    let typeMaps = {from: new TypeMap(), to: new TypeMap()};
-    for (let node of this.iterateNodes()) {
-      for (let edge of this.iterateOutgoingEdges(node)) {
-        let from = this.getFromNode(edge);
-        let to = this.getToNode(edge);
-        let type = this.getEdgeType(edge);
-        typeMaps.from.add(from, to, type);
-      }
-      for (let edge of this.iterateIncomingEdges(node)) {
-        let from = this.getFromNode(edge);
-        let to = this.getToNode(edge);
-        let type = this.getEdgeType(edge);
-        typeMaps.to.add(to, from, type);
-      }
-    }
-    this.#typeMaps = typeMaps;
-    return this.#typeMaps;
   }
 
   /** Iterate over node ids in the `AdjacencyList`. */
@@ -589,7 +561,7 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     // Finally, copy the new data arrays over to this graph.
     this.#nodes = copy.#nodes;
     this.#edges = copy.#edges;
-    this.#typeMaps = copy.#typeMaps;
+    this.#typeMap = copy.#typeMap.copyTo(this);
   }
 
   /** Get the first or last edge to or from the given node. */
@@ -792,8 +764,7 @@ export default class AdjacencyList<TEdgeType: number = 1> {
 
     this.#edges[COUNT]++;
 
-    this.#typeMaps?.from.add(from, to, type);
-    this.#typeMaps?.to.add(to, from, type);
+    this.#typeMap.add(from, to, type);
 
     return true;
   }
@@ -944,8 +915,7 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     this.#edges[COUNT]--;
     this.#edges[DELETES]++;
 
-    this.#typeMaps?.from.delete(from, to, type);
-    this.#typeMaps?.to.delete(to, from, type);
+    this.#typeMap.delete(from, to, type);
   }
 
   hasInboundEdges(to: NodeId): boolean {
@@ -953,26 +923,20 @@ export default class AdjacencyList<TEdgeType: number = 1> {
   }
 
   getInboundEdgesByType(to: NodeId): {|type: TEdgeType, from: NodeId|}[] {
-    let typeMaps = this._getOrCreateTypeMaps();
     let edges = [];
-    if (typeMaps.to.has(to)) {
-      for (let [type, nodes] of typeMaps.to.get(to)) {
-        for (let from of nodes) {
-          edges.push({type: (type: any), from});
-        }
+    for (let [type, nodes] of this.#typeMap.getConnectedTo(to)) {
+      for (let from of nodes) {
+        edges.push({type: (type: any), from});
       }
     }
     return edges;
   }
 
   getOutboundEdgesByType(from: NodeId): {|type: TEdgeType, to: NodeId|}[] {
-    let typeMaps = this._getOrCreateTypeMaps();
     let edges = [];
-    if (typeMaps.from.has(from)) {
-      for (let [type, nodes] of typeMaps.from.get(from)) {
-        for (let to of nodes) {
-          edges.push({type: (type: any), to});
-        }
+    for (let [type, nodes] of this.#typeMap.getConnectedFrom(from)) {
+      for (let to of nodes) {
+        edges.push({type: (type: any), to});
       }
     }
     return edges;
@@ -1003,27 +967,21 @@ export default class AdjacencyList<TEdgeType: number = 1> {
       | NullEdgeType
       | Array<TEdgeType | NullEdgeType> = 1,
   ): NodeId[] {
-    let typeMaps = this._getOrCreateTypeMaps();
-
     let isAllEdgeTypes =
       type === ALL_EDGE_TYPES ||
       (Array.isArray(type) && type.includes(ALL_EDGE_TYPES));
 
     let nodes = [];
-    if (typeMaps.from.has(from)) {
-      if (isAllEdgeTypes) {
-        for (let toSet of typeMaps.from.get(from).values()) {
-          nodes.push(...toSet);
-        }
-      } else if (Array.isArray(type)) {
-        let fromType = typeMaps.from.get(from);
-        for (let typeNum of type) {
-          let toSet = fromType.get(typeNum);
-          if (toSet) nodes.push(...toSet);
-        }
-      } else {
-        nodes.push(...typeMaps.from.getEdges(from, (type: any)));
+    if (isAllEdgeTypes) {
+      for (let toSet of this.#typeMap.getConnectedFrom(from).values()) {
+        nodes.push(...toSet);
       }
+    } else if (Array.isArray(type)) {
+      for (let typeNum of type) {
+        nodes.push(...this.#typeMap.getConnectedFromType(from, typeNum));
+      }
+    } else {
+      nodes.push(...this.#typeMap.getConnectedFromType(from, (type: any)));
     }
     return nodes;
   }
@@ -1039,27 +997,21 @@ export default class AdjacencyList<TEdgeType: number = 1> {
       | NullEdgeType
       | Array<TEdgeType | NullEdgeType> = 1,
   ): NodeId[] {
-    let typeMaps = this._getOrCreateTypeMaps();
-
     let isAllEdgeTypes =
       type === ALL_EDGE_TYPES ||
       (Array.isArray(type) && type.includes(ALL_EDGE_TYPES));
 
     let nodes = [];
-    if (typeMaps.to.has(to)) {
-      if (isAllEdgeTypes) {
-        for (let fromSet of typeMaps.to.get(to).values()) {
-          nodes.push(...fromSet);
-        }
-      } else if (Array.isArray(type)) {
-        let toType = typeMaps.to.get(to);
-        for (let typeNum of type) {
-          let fromSet = toType.get(typeNum);
-          if (fromSet) nodes.push(...fromSet);
-        }
-      } else {
-        nodes.push(...typeMaps.to.getEdges(to, (type: any)));
+    if (isAllEdgeTypes) {
+      for (let fromSet of this.#typeMap.getConnectedTo(to).values()) {
+        nodes.push(...fromSet);
       }
+    } else if (Array.isArray(type)) {
+      for (let typeNum of type) {
+        nodes.push(...this.#typeMap.getConnectedToType(to, typeNum));
+      }
+    } else {
+      nodes.push(...this.#typeMap.getConnectedToType(to, (type: any)));
     }
     return nodes;
   }
@@ -1089,34 +1041,97 @@ export default class AdjacencyList<TEdgeType: number = 1> {
   }
 }
 
-class TypeMap<TEdgeType> {
-  #map: Map<NodeId, Map<TEdgeType, Set<NodeId>>> = new Map();
-  add(from: NodeId, to: NodeId, type: TEdgeType): void {
-    let types = this.#map.get(from);
-    if (types == null) {
-      types = new Map<TEdgeType, Set<NodeId>>();
-      this.#map.set(from, types);
-    }
-    let adjacent = types.get(type);
-    if (adjacent == null) {
-      adjacent = new Set<NodeId>();
-      types.set(type, adjacent);
-    }
-    adjacent.add(to);
+/**
+ * A cache of connected nodes grouped by type.
+ *
+ * This cache is used to speed up iterations that are grouped by type,
+ * such as `getEdgesConnectedFrom` and `getEdgesConnectedTo`,
+ * as well as `getOutboundEdgesByType` and `getInboundEdgesByType`.
+ */
+class TypeMap<TEdgeType: number = 1> {
+  #data: AdjacencyList<TEdgeType>;
+  /** A map of node ids from => through types => to node ids. */
+  #from: Map<NodeId, Map<TEdgeType | NullEdgeType, Set<NodeId>>> = new Map();
+  /** A map of node ids to => through types => from node ids. */
+  #to: Map<NodeId, Map<TEdgeType | NullEdgeType, Set<NodeId>>> = new Map();
+  constructor(data: AdjacencyList<TEdgeType>) {
+    this.#data = data;
   }
-  delete(from: NodeId, to: NodeId, type: TEdgeType): void {
-    this.#map
+  copyTo(data: AdjacencyList<TEdgeType>): TypeMap<TEdgeType> {
+    this.#data = data;
+    return this;
+  }
+  add(from: NodeId, to: NodeId, type: TEdgeType | NullEdgeType): void {
+    this.getConnectedToType(to, type).add(from);
+    this.getConnectedFromType(from, type).add(to);
+  }
+  delete(from: NodeId, to: NodeId, type: TEdgeType | NullEdgeType): void {
+    this.#from
       .get(from)
       ?.get(type)
       ?.delete(to);
+    this.#to
+      .get(to)
+      ?.get(type)
+      ?.delete(from);
   }
-  has(from: NodeId): boolean {
-    return this.#map.has(from);
+  getConnectedTo(to: NodeId): Map<TEdgeType | NullEdgeType, Set<NodeId>> {
+    let toTypes = this.#to.get(to);
+    if (toTypes == null) {
+      toTypes = new Map();
+      // Populate the map with existing data.
+      for (let edge of this.#data.iterateIncomingEdges(to)) {
+        let from = this.#data.getFromNode(edge);
+        let type = this.#data.getEdgeType(edge);
+        let fromSet = toTypes.get(type);
+        if (fromSet == null) {
+          fromSet = new Set();
+          toTypes.set(type, fromSet);
+        }
+        fromSet.add(from);
+      }
+      this.#to.set(to, toTypes);
+    }
+    return toTypes;
   }
-  get(from: NodeId): $ReadOnlyMap<TEdgeType, Set<NodeId>> {
-    return this.#map.get(from) ?? new Map();
+  getConnectedToType(to: NodeId, type: TEdgeType | NullEdgeType): Set<NodeId> {
+    let toTypes = this.getConnectedTo(to);
+    let fromSet = toTypes.get(type);
+    if (fromSet == null) {
+      fromSet = new Set();
+      toTypes.set(type, fromSet);
+    }
+    return fromSet;
   }
-  getEdges(from: NodeId, type: TEdgeType): $ReadOnlySet<NodeId> {
-    return this.#map.get(from)?.get(type) ?? new Set();
+  getConnectedFrom(from: NodeId): Map<TEdgeType | NullEdgeType, Set<NodeId>> {
+    let fromTypes = this.#from.get(from);
+    if (fromTypes == null) {
+      fromTypes = new Map();
+      // Populate the map with existing data.
+      for (let edge of this.#data.iterateOutgoingEdges(from)) {
+        let to = this.#data.getToNode(edge);
+        let type = this.#data.getEdgeType(edge);
+        let toSet = fromTypes.get(type);
+        if (toSet == null) {
+          toSet = new Set();
+          fromTypes.set(type, toSet);
+        }
+        toSet.add(to);
+      }
+      this.#from.set(from, fromTypes);
+    }
+    return fromTypes;
+  }
+  getConnectedFromType(
+    from: NodeId,
+    type: TEdgeType | NullEdgeType,
+  ): Set<NodeId> {
+    let fromTypes = this.getConnectedFrom(from);
+    let toSet = fromTypes.get(type);
+    if (toSet == null) {
+      toSet = new Set();
+      fromTypes.set(type, toSet);
+    }
+    return toSet;
   }
 }
