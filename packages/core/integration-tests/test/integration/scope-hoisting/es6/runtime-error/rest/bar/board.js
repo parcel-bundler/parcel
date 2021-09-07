@@ -1,6 +1,5 @@
 //@flow
 
+export type Board = string;
 
-import {USER} from './user';
-
-console.log(USER);
+//export {};
