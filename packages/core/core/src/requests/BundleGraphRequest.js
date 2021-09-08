@@ -148,7 +148,6 @@ class BundlerRunner {
     for (let devDep of config.devDeps) {
       let devDepRequest = await createDevDependency(
         devDep,
-        plugin,
         this.previousDevDeps,
         this.options,
       );
@@ -208,7 +207,7 @@ class BundlerRunner {
       this.options,
     );
 
-    let logger = new PluginLogger({origin: this.config.getBundlerName()});
+    let logger = new PluginLogger({origin: name});
 
     try {
       await bundler.bundle({
@@ -220,7 +219,7 @@ class BundlerRunner {
     } catch (e) {
       throw new ThrowableDiagnostic({
         diagnostic: errorToDiagnostic(e, {
-          origin: this.config.getBundlerName(),
+          origin: name,
         }),
       });
     } finally {
@@ -239,7 +238,7 @@ class BundlerRunner {
       } catch (e) {
         throw new ThrowableDiagnostic({
           diagnostic: errorToDiagnostic(e, {
-            origin: this.config.getBundlerName(),
+            origin: name,
           }),
         });
       } finally {
@@ -255,7 +254,6 @@ class BundlerRunner {
         specifier: name,
         resolveFrom,
       },
-      plugin,
       this.previousDevDeps,
       this.options,
     );
@@ -329,7 +327,6 @@ class BundlerRunner {
           specifier: namer.name,
           resolveFrom: namer.resolveFrom,
         },
-        namer,
         this.previousDevDeps,
         this.options,
       );

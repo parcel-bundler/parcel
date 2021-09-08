@@ -22,6 +22,6 @@
   "dependencies": {
     "@parcel/plugin": "2.0.0-rc.0",
     "@parcel/source-map": "2.0.0-rc.7",
-    "less": "^3.9.0"
+    "less": "^4.1.1"
   }
 }

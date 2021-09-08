@@ -21,9 +21,11 @@ fn optimize(ctx: CallContext) -> Result<JsBuffer> {
 
   match kind {
     "png" => {
-      let mut options = Options::default();
-      options.deflate = Deflaters::Libdeflater;
-      options.strip = Headers::Safe;
+      let options = Options {
+        deflate: Deflaters::Libdeflater,
+        strip: Headers::Safe,
+        ..Default::default()
+      };
       match optimize_from_memory(slice, &options) {
         Ok(res) => Ok(ctx.env.create_buffer_with_data(res)?.into_raw()),
         Err(err) => Err(Error::from_reason(format!("{}", err))),
@@ -95,7 +97,7 @@ unsafe fn optimize_jpeg(bytes: &[u8]) -> std::thread::Result<&mut [u8]> {
     jpeg_read_header(&mut info.srcinfo, 1);
 
     let src_coef_arrays = jpeg_read_coefficients(&mut info.srcinfo);
-    jpeg_copy_critical_parameters(&mut info.srcinfo, &mut info.dstinfo);
+    jpeg_copy_critical_parameters(&info.srcinfo, &mut info.dstinfo);
 
     let mut buf = ptr::null_mut();
     let mut outsize: c_ulong = 0;
