@@ -13,7 +13,6 @@ import {
   findDependency,
   getNextBuild,
   mergeParcelOptions,
-  inputFS,
   outputFS,
   overlayFS,
   run,
@@ -5842,9 +5841,6 @@ describe('scope hoisting', function() {
         __dirname,
         'integration/scope-hoisting/es6/runtime-error/entry.js',
       ),
-      {
-        outputFS: inputFS,
-      },
     );
     await run(b);
   });

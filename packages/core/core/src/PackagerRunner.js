@@ -215,7 +215,6 @@ export default class PackagerRunner {
       for (let devDep of config.devDeps) {
         let devDepRequest = await createDevDependency(
           devDep,
-          plugin,
           this.previousDevDeps,
           this.options,
         );
@@ -335,7 +334,7 @@ export default class PackagerRunner {
         bundle,
         bundleGraph: new BundleGraph<NamedBundleType>(
           bundleGraph,
-          NamedBundle.get,
+          NamedBundle.get.bind(NamedBundle),
           this.options,
         ),
         getSourceMapReference: map => {
@@ -378,7 +377,6 @@ export default class PackagerRunner {
           specifier: name,
           resolveFrom,
         },
-        packager,
         this.previousDevDeps,
         this.options,
       );
@@ -404,7 +402,7 @@ export default class PackagerRunner {
     );
     let bundleGraph = new BundleGraph<NamedBundleType>(
       internalBundleGraph,
-      NamedBundle.get,
+      NamedBundle.get.bind(NamedBundle),
       this.options,
     );
     let optimizers = await this.config.getOptimizers(
@@ -460,7 +458,6 @@ export default class PackagerRunner {
             specifier: optimizer.name,
             resolveFrom: optimizer.resolveFrom,
           },
-          optimizer,
           this.previousDevDeps,
           this.options,
         );

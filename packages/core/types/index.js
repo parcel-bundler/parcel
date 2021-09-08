@@ -64,6 +64,7 @@ export type RawParcelConfig = {|
   runtimes?: RawParcelConfigPipeline,
   packagers?: {[Glob]: PackageName, ...},
   optimizers?: {[Glob]: RawParcelConfigPipeline, ...},
+  compressors?: {[Glob]: RawParcelConfigPipeline, ...},
   reporters?: RawParcelConfigPipeline,
   validators?: {[Glob]: RawParcelConfigPipeline, ...},
 |};
@@ -1449,14 +1450,19 @@ export type FileCreateInvalidation =
  * @section resolver
  */
 export type ResolveResult = {|
-  /** An absolute path to the file. */
+  /** An absolute path to the resolved file. */
   +filePath?: FilePath,
+  /** An optional named pipeline to use to compile the resolved file. */
   +pipeline?: ?string,
+  /** Query parameters to be used by transformers when compiling the resolved file. */
+  +query?: QueryParameters,
+  /** Whether the resolved file should be excluded from the build. */
   +isExcluded?: boolean,
+  /** Overrides the priority set on the dependency. */
   +priority?: DependencyPriority,
   /** Corresponds to BaseAsset's <code>sideEffects</code>. */
   +sideEffects?: boolean,
-  /** A resolver might want to resolve to a dummy, in this case <code>filePath</code> is rather "resolve from". */
+  /** The code of the resolved asset. If provided, this is used rather than reading the file from disk. */
   +code?: string,
   /** Whether this dependency can be deferred by Parcel itself (true by default). */
   +canDefer?: boolean,
@@ -1464,7 +1470,9 @@ export type ResolveResult = {|
   +diagnostics?: Diagnostic | Array<Diagnostic>,
   /** Is spread (shallowly merged) onto the request's dependency.meta */
   +meta?: JSONObject,
+  /** A list of file paths or patterns that should invalidate the resolution if created. */
   +invalidateOnFileCreate?: Array<FileCreateInvalidation>,
+  /** A list of files that should invalidate the resolution if modified or deleted. */
   +invalidateOnFileChange?: Array<FilePath>,
 |};
 
@@ -1588,6 +1596,20 @@ export type Optimizer<ConfigType> = {|
 |};
 
 /**
+ * @section compressor
+ */
+export type Compressor = {|
+  compress({|
+    stream: stream$Readable,
+    options: PluginOptions,
+    logger: PluginLogger,
+  |}): Async<{|
+    stream: stream$Readable,
+    type?: string,
+  |}>,
+|};
+
+/**
  * @section resolver
  */
 export type Resolver = {|
@@ -1595,7 +1617,7 @@ export type Resolver = {|
     dependency: Dependency,
     options: PluginOptions,
     logger: PluginLogger,
-    filePath: FilePath,
+    specifier: FilePath,
     pipeline: ?string,
   |}): Async<?ResolveResult>,
 |};

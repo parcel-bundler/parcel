@@ -244,7 +244,7 @@ export class ScopeHoistingPackager {
         this.bundleGraph.isAssetReferenced(this.bundle, asset) ||
         this.bundleGraph
           .getIncomingDependencies(asset)
-          .some(dep => dep.meta.shouldWrap)
+          .some(dep => dep.meta.shouldWrap && dep.specifierType !== 'url')
       ) {
         this.wrappedAssets.add(asset.id);
         return true;
@@ -705,8 +705,6 @@ ${code}
       exportSymbol,
       symbol,
     } = this.bundleGraph.getSymbolResolution(resolved, imported, this.bundle);
-
-    console.log('in getsymbolres', resolvedAsset.filePath, imported);
     if (resolvedAsset.type !== 'js') {
       // Graceful fallback for non-js imports
       return '{}';
@@ -991,7 +989,6 @@ ${code}
                 ) {
                   continue;
                 }
-                console.log(resolved.filePath, symbol);
 
                 let resolvedSymbol = this.getSymbolResolution(
                   asset,
@@ -1128,27 +1125,6 @@ ${code}
   shouldSkipAsset(asset: Asset): boolean {
     if (this.isScriptEntry(asset)) {
       return true;
-    }
-
-    if (asset.filePath.includes('es6/runtime-error')) {
-      console.log(
-        asset.filePath,
-        'should skip?',
-        asset.sideEffects === false,
-        this.bundleGraph.getUsedSymbols(asset).size == 0,
-        !this.bundleGraph.isAssetReferenced(this.bundle, asset),
-      );
-      if (asset.filePath.includes('es6/runtime-error/rest/bar/index.js')) {
-        console.log('but returning true');
-        return true;
-      }
-      // if (
-      //   asset.filePath.includes('es6/runtime-error/index.ts') ||
-      //   asset.filePath.includes('es6/runtime-error/other/index.ts')
-      // ) {
-      //   console.log('but returning false');
-      //   return false;
-      // }
     }
 
     return (

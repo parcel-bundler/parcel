@@ -27,7 +27,6 @@ const devDepRequestCache = new WeakMap();
 
 export async function createDevDependency(
   opts: InternalDevDepOptions,
-  plugin: {name: DependencySpecifier, resolveFrom: ProjectPath, ...},
   requestDevDeps: Map<string, string>,
   options: ParcelOptions,
 ): Promise<DevDepRequest> {

@@ -1,6 +1,5 @@
 // @flow
 import {Transformer} from '@parcel/plugin';
-import sharp from 'sharp';
 
 // from https://github.com/lovell/sharp/blob/df7b8ba73808fc494be413e88cfb621b6279218c/lib/output.js#L6-L17
 const FORMATS = new Map([
@@ -16,8 +15,10 @@ const FORMATS = new Map([
   ['gif', 'gif'],
 ]);
 
+const SHARP_RANGE = '^0.28.3';
+
 export default (new Transformer({
-  async transform({asset}) {
+  async transform({asset, options}) {
     asset.bundleBehavior = 'isolated';
 
     let width = asset.query.width ? parseInt(asset.query.width, 10) : null;
@@ -29,6 +30,15 @@ export default (new Transformer({
 
     if (width || height || quality || format) {
       let inputBuffer = await asset.getBuffer();
+      let sharp = await options.packageManager.require(
+        'sharp',
+        asset.filePath,
+        {
+          range: SHARP_RANGE,
+          shouldAutoInstall: options.shouldAutoInstall,
+        },
+      );
+
       let imagePipeline = sharp(inputBuffer);
       if (width || height) {
         imagePipeline.resize(width, height);

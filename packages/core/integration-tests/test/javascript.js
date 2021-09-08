@@ -62,16 +62,19 @@ describe('javascript', function() {
   it('should support url: imports of another javascript file', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/worklet/pipeline.js'),
+      {
+        mode: 'production',
+      },
     );
 
     assertBundles(b, [
       {
         name: 'pipeline.js',
-        assets: ['bundle-url.js', 'pipeline.js', 'esmodule-helpers.js'],
+        assets: ['bundle-url.js', 'pipeline.js', 'bundle-manifest.js'],
       },
       {
         type: 'js',
-        assets: ['worklet.js'],
+        assets: ['worklet.js', 'colors.js'],
       },
     ]);
 
@@ -112,7 +115,7 @@ describe('javascript', function() {
       },
       {
         type: 'js',
-        assets: ['worklet.js'],
+        assets: ['worklet.js', 'colors.js', 'esmodule-helpers.js'],
       },
     ]);
 
@@ -146,7 +149,7 @@ describe('javascript', function() {
       },
       {
         type: 'js',
-        assets: ['worklet.js'],
+        assets: ['worklet.js', 'colors.js', 'esmodule-helpers.js'],
       },
     ]);
 
@@ -240,21 +243,24 @@ describe('javascript', function() {
   it('should support audio worklets via a pipeline', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/worklet/worklet-pipeline.js'),
+      {
+        mode: 'production',
+      },
     );
 
     assertBundles(b, [
       {
         name: 'worklet-pipeline.js',
-        assets: ['bundle-url.js', 'esmodule-helpers.js', 'worklet-pipeline.js'],
+        assets: ['bundle-url.js', 'bundle-manifest.js', 'worklet-pipeline.js'],
       },
       {
         type: 'js',
-        assets: ['worklet.js'],
+        assets: ['worklet.js', 'colors.js'],
       },
     ]);
 
     let res = await run(b);
-    assert(/^http:\/\/localhost\/worklet\.[0-9a-f]+\.js$/.test(res.default));
+    assert(/^http:\/\/localhost\/worklet\.[0-9a-f]+\.js$/.test(res));
 
     let name;
     await runBundle(
@@ -1255,6 +1261,8 @@ describe('javascript', function() {
           hints: [
             "Add {type: 'module'} as a second argument to the Worker constructor.",
           ],
+          documentationURL:
+            'https://v2.parceljs.org/languages/javascript/#classic-scripts',
         },
       ]);
     }
@@ -1304,11 +1312,12 @@ describe('javascript', function() {
         errored = true;
         assert.equal(
           err.message,
-          'importScripts() is not supported in worker scripts.',
+          'Argument to importScripts() must be a fully qualified URL.',
         );
         assert.deepEqual(err.diagnostics, [
           {
-            message: 'importScripts() is not supported in worker scripts.',
+            message:
+              'Argument to importScripts() must be a fully qualified URL.',
             origin: '@parcel/transformer-js',
             codeFrames: [
               {
@@ -1321,11 +1330,11 @@ describe('javascript', function() {
                     message: null,
                     start: {
                       line: 1,
-                      column: 1,
+                      column: 15,
                     },
                     end: {
                       line: 1,
-                      column: 28,
+                      column: 27,
                     },
                   },
                 ],
@@ -1357,6 +1366,8 @@ describe('javascript', function() {
                   ? 'Worker constructor.'
                   : 'navigator.serviceWorker.register() call.'),
             ],
+            documentationURL:
+              'https://v2.parceljs.org/languages/javascript/#classic-script-workers',
           },
         ]);
       }
@@ -1405,6 +1416,29 @@ describe('javascript', function() {
 
     let res = await outputFS.readFile(b.getBundles()[1].filePath, 'utf8');
     assert(res.includes('importScripts(url)'));
+  });
+
+  it('should ignore importScripts in script workers a fully qualified URL is provided', async function() {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/worker-import-scripts/index-external.js',
+      ),
+    );
+
+    assertBundles(b, [
+      {
+        type: 'js',
+        assets: ['index-external.js', 'bundle-url.js', 'get-worker-url.js'],
+      },
+      {
+        type: 'js',
+        assets: ['external.js'],
+      },
+    ]);
+
+    let res = await outputFS.readFile(b.getBundles()[1].filePath, 'utf8');
+    assert(res.includes("importScripts('https://unpkg.com/parcel')"));
   });
 
   it('should support bundling service-workers', async function() {
@@ -1550,11 +1584,46 @@ describe('javascript', function() {
           hints: [
             "Add {type: 'module'} as a second argument to the navigator.serviceWorker.register() call.",
           ],
+          documentationURL:
+            'https://v2.parceljs.org/languages/javascript/#classic-scripts',
         },
       ]);
     }
 
     assert(errored);
+  });
+
+  it('should expose a manifest to service workers', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/service-worker/manifest.js'),
+      {
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
+      },
+    );
+
+    assertBundles(b, [
+      {
+        name: 'manifest.js',
+        assets: ['manifest.js', 'bundle-url.js'],
+      },
+      {
+        assets: ['manifest-worker.js', 'service-worker.js'],
+      },
+    ]);
+
+    let bundles = b.getBundles();
+    let worker = bundles.find(b => b.env.isWorker());
+    let manifest, version;
+    await await runBundle(b, worker, {
+      output(m, v) {
+        manifest = m;
+        version = v;
+      },
+    });
+    assert.deepEqual(manifest, ['/manifest.js']);
+    assert.equal(typeof version, 'string');
   });
 
   it('should recognize serviceWorker.register with static URL and import.meta.url', async function() {
@@ -1617,6 +1686,69 @@ describe('javascript', function() {
         },
       ],
     });
+  });
+
+  it('should error on dynamic import() inside service workers', async function() {
+    let errored = false;
+    try {
+      await bundle(
+        path.join(
+          __dirname,
+          '/integration/service-worker/dynamic-import-index.js',
+        ),
+      );
+    } catch (err) {
+      errored = true;
+      assert.equal(err.message, 'import() is not allowed in service workers.');
+      assert.deepEqual(err.diagnostics, [
+        {
+          message: 'import() is not allowed in service workers.',
+          origin: '@parcel/transformer-js',
+          codeFrames: [
+            {
+              filePath: path.join(
+                __dirname,
+                '/integration/service-worker/dynamic-import.js',
+              ),
+              codeHighlights: [
+                {
+                  start: {
+                    line: 1,
+                    column: 8,
+                  },
+                  end: {
+                    line: 1,
+                    column: 27,
+                  },
+                },
+              ],
+            },
+            {
+              filePath: path.join(
+                __dirname,
+                'integration/service-worker/dynamic-import-index.js',
+              ),
+              codeHighlights: [
+                {
+                  message: 'The environment was originally created here',
+                  start: {
+                    line: 1,
+                    column: 42,
+                  },
+                  end: {
+                    line: 1,
+                    column: 60,
+                  },
+                },
+              ],
+            },
+          ],
+          hints: ['Try using a static `import`.'],
+        },
+      ]);
+    }
+
+    assert(errored);
   });
 
   it('should support bundling workers with circular dependencies', async function() {
@@ -3969,6 +4101,48 @@ describe('javascript', function() {
     assert(!cssBundleContent.includes('sourceMappingURL'));
   });
 
+  it('should not include the runtime manifest for `bundle-text`', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/bundle-text/index.js'),
+      {
+        mode: 'production',
+        defaultTargetOptions: {shouldScopeHoist: false, shouldOptimize: false},
+      },
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        type: 'js',
+        assets: ['esmodule-helpers.js', 'index.js'],
+      },
+      {
+        type: 'svg',
+        assets: ['img.svg'],
+      },
+      {
+        type: 'css',
+        assets: ['text.scss'],
+      },
+    ]);
+
+    let cssBundleContent = (await run(b)).default;
+
+    assert(
+      cssBundleContent.startsWith(
+        `body {
+  background-color: #000000;
+}
+
+.svg-img {
+  background-image: url("data:image/svg+xml,%3Csvg%3E%0A%0A%3C%2Fsvg%3E%0A");
+}`,
+      ),
+    );
+
+    assert(!cssBundleContent.includes('sourceMappingURL'));
+  });
+
   it("should inline an HTML bundle's compiled text with `bundle-text`", async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/bundle-text/index.html'),
@@ -4011,6 +4185,27 @@ describe('javascript', function() {
     assert.equal(log, 'hi');
   });
 
+  it("should inline a JS bundle's compiled text with `bundle-text` with symbol propagation", async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/bundle-text/javascript.js'),
+      {
+        mode: 'production',
+      },
+    );
+
+    let res = await run(b);
+    let log;
+    let ctx = vm.createContext({
+      console: {
+        log(x) {
+          log = x;
+        },
+      },
+    });
+    vm.runInContext(res, ctx);
+    assert.equal(log, 'hi');
+  });
+
   it("should inline a bundle's compiled text with `bundle-text` asynchronously", async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/bundle-text/async.js'),
@@ -4041,7 +4236,7 @@ describe('javascript', function() {
 
     assert.equal(
       (await run(b)).default,
-      'data:image/svg+xml,%3Csvg%20width%3D%22120%22%20height%3D%27120%27%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%0A%20%20%3Cfilter%20id%3D%22blur-_.%21~%2a%22%3E%0A%20%20%20%20%3CfeGaussianBlur%20stdDeviation%3D%225%22%2F%3E%0A%20%20%3C%2Ffilter%3E%0A%20%20%3Ccircle%20cx%3D%2260%22%20cy%3D%2260%22%20r%3D%2250%22%20fill%3D%22green%22%20filter%3D%22url%28%23blur-_.%21~%2a%29%22%20%2F%3E%0A%3C%2Fsvg%3E%0A',
+      'data:image/svg+xml,%3Csvg%20width%3D%22120%22%20height%3D%22120%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%0A%20%20%3Cfilter%20id%3D%22blur-_.%21~%2a%22%3E%0A%20%20%20%20%3CfeGaussianBlur%20stdDeviation%3D%225%22%3E%3C%2FfeGaussianBlur%3E%0A%20%20%3C%2Ffilter%3E%0A%20%20%3Ccircle%20cx%3D%2260%22%20cy%3D%2260%22%20r%3D%2250%22%20fill%3D%22green%22%20filter%3D%22url%28%27%23blur-_.%21~%2a%27%29%22%3E%3C%2Fcircle%3E%0A%3C%2Fsvg%3E%0A',
     );
   });
 
@@ -4571,7 +4766,7 @@ describe('javascript', function() {
       name: 'BuildError',
       diagnostics: [
         {
-          message: 'Unknown pipeline: strange-pipeline.',
+          message: "Failed to resolve 'strange-pipeline:./b.js' from './a.js'",
           origin: '@parcel/core',
           codeFrames: [
             {
@@ -4591,6 +4786,10 @@ describe('javascript', function() {
               ],
             },
           ],
+        },
+        {
+          message: "Unknown url scheme or pipeline 'strange-pipeline:'",
+          origin: '@parcel/resolver-default',
         },
       ],
     });

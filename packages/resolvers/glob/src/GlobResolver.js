@@ -7,8 +7,8 @@ import nullthrows from 'nullthrows';
 import ThrowableDiagnostic from '@parcel/diagnostic';
 
 export default (new Resolver({
-  async resolve({dependency, options, filePath, pipeline}) {
-    if (!isGlob(filePath)) {
+  async resolve({dependency, options, specifier, pipeline}) {
+    if (!isGlob(specifier)) {
       return;
     }
 
@@ -47,13 +47,13 @@ export default (new Resolver({
       });
     }
 
-    filePath = path.resolve(path.dirname(sourceFile), filePath);
-    let normalized = normalizeSeparators(filePath);
+    specifier = path.resolve(path.dirname(sourceFile), specifier);
+    let normalized = normalizeSeparators(specifier);
     let files = await glob(normalized, options.inputFS, {
       onlyFiles: true,
     });
 
-    let dir = path.dirname(filePath);
+    let dir = path.dirname(specifier);
     let results = files.map(file => {
       let relative = relativePath(dir, file);
       if (pipeline) {
@@ -88,7 +88,9 @@ export default (new Resolver({
     return {
       filePath: path.join(
         dir,
-        path.basename(filePath, path.extname(filePath)) + '.' + sourceAssetType,
+        path.basename(specifier, path.extname(specifier)) +
+          '.' +
+          sourceAssetType,
       ),
       code,
       invalidateOnFileCreate: [{glob: normalized}],
