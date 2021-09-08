@@ -1016,23 +1016,26 @@ describe('javascript', function() {
 
     assertBundles(b, [
       {
-        assets: ['dedicated-worker.js', 'index.js'],
-      },
-      {
         name: 'index.js',
         assets: ['index.js', 'bundle-url.js', 'get-worker-url.js'],
       },
       {
-        assets: ['shared-worker.js', 'index.js'],
+        assets: ['dedicated-worker.js'],
+      },
+      {
+        assets: ['index.js'],
+      },
+      {
+        assets: ['shared-worker.js'],
       },
     ]);
 
     let dedicated, shared;
     b.traverseBundles((bundle, ctx, traversal) => {
-      if (bundle.getMainEntry().filePath.endsWith('shared-worker.js')) {
+      if (bundle.getMainEntry()?.filePath.endsWith('shared-worker.js')) {
         shared = bundle;
       } else if (
-        bundle.getMainEntry().filePath.endsWith('dedicated-worker.js')
+        bundle.getMainEntry()?.filePath.endsWith('dedicated-worker.js')
       ) {
         dedicated = bundle;
       }
