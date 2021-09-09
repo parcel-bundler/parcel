@@ -206,8 +206,10 @@ const LAST_OUT: 3 = 3;
 const LOAD_FACTOR = 0.7;
 /** The lower bound below which the edge capacity should be decreased. */
 const UNLOAD_FACTOR = 0.3;
-/** The amount by which to grow the capacity of the edges array. */
-const GROW_FACTOR = 4;
+/** The max amount by which to grow the capacity of the edges array. */
+const MAX_GROW_FACTOR = 8;
+/** The min amount by which to grow the capacity of the edges array. */
+const MIN_GROW_FACTOR = 2;
 /** The amount by which to shrink the capacity of the edges array. */
 const SHRINK_FACTOR = 0.5;
 /** How many edges to accommodate in a hash bucket. */
@@ -228,6 +230,8 @@ const MAX_EDGE_CAPACITY = Math.floor(
   // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Errors/Invalid_array_length#what_went_wrong
   (2 ** 31 - 1 - EDGES_HEADER_SIZE) / EDGE_SIZE / BUCKET_SIZE,
 );
+/** The size after which to grow the edge capacity by the minimum factor. */
+const PEAK_EDGE_CAPACITY = 2 ** 18;
 
 export const ALL_EDGE_TYPES: AllEdgeTypes = '@@all_edge_types';
 
@@ -289,22 +293,33 @@ function getNodesLength(nodeCapacity: number): number {
   return NODES_HEADER_SIZE + nodeCapacity * NODE_SIZE;
 }
 
+function interpolate(x: number, y: number, t: number): number {
+  return x + (y - x) * Math.min(1, Math.max(0, t));
+}
+
 function increaseNodeCapacity(nodeCapacity: number): number {
-  return nodeCapacity * 2;
+  let newCapacity = Math.round(nodeCapacity * MIN_GROW_FACTOR);
+  assert(newCapacity <= MAX_NODE_CAPACITY, 'Node capacity overflow!');
+  return Math.max(MIN_NODE_CAPACITY, newCapacity);
 }
 
 function getNextEdgeCapacity(capacity: number, count: number): number {
   let newCapacity = capacity;
-  if (count / (capacity * BUCKET_SIZE) > LOAD_FACTOR) {
-    // If we're in danger of overflowing the `edges` array, resize it.
-    newCapacity = Math.floor(capacity * GROW_FACTOR);
-  } else if (
-    capacity > MIN_EDGE_CAPACITY &&
-    count / (capacity * BUCKET_SIZE) < UNLOAD_FACTOR
-  ) {
-    // If we've dropped below the unload threshold, resize the array down.
-    newCapacity = Math.floor(capacity * SHRINK_FACTOR);
+  let currentLoadFactor = count / (capacity * BUCKET_SIZE);
+  if (currentLoadFactor > LOAD_FACTOR) {
+    // This is intended to strike a balance between growing the edge capacity
+    // in too small increments, which causes a lot of resizing, and growing
+    // the edge capacity in too large increments, which results in a lot of
+    // wasted memory.
+    let pct = capacity / PEAK_EDGE_CAPACITY;
+    let growFactor = interpolate(MAX_GROW_FACTOR, MIN_GROW_FACTOR, pct);
+    newCapacity = Math.round(capacity * growFactor);
+  } else if (currentLoadFactor < UNLOAD_FACTOR) {
+    // In some cases, it may be possible to shrink the edge capacity,
+    // but this is only likely to occur when a lot of edges have been removed.
+    newCapacity = Math.round(capacity * SHRINK_FACTOR);
   }
+  assert(newCapacity <= MAX_EDGE_CAPACITY, 'Edge capacity overflow!');
   return Math.max(MIN_EDGE_CAPACITY, newCapacity);
 }
 
@@ -740,20 +755,24 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     if (this.hasEdge(from, to, type)) return false;
 
     let capacity = this.#edges[CAPACITY];
-    let count = this.#edges[COUNT];
-    let deletes = this.#edges[DELETES];
+    // We add 1 to account for the edge we are adding.
+    let count = this.#edges[COUNT] + 1;
     // Since the space occupied by deleted edges isn't reclaimed,
     // we include them in our count to avoid overflowing the `edges` array.
-    // We also add 1 to account for the edge we are adding.
-    let total = count + deletes + 1;
+    let deletes = this.#edges[DELETES];
+    let total = count + deletes;
     // If we have enough space to keep adding edges, we can
     // put off reclaiming the deleted space until the next resize.
     if (total / (capacity * BUCKET_SIZE) > LOAD_FACTOR) {
-      // Since resizing edges will effectively reclaim space
-      // occupied by deleted edges, we compute our new capacity
-      // based purely on the current count, even though we decided
-      // to resize based on the sum total of count and deletes.
-      this.resizeEdges(getNextEdgeCapacity(capacity, count));
+      if (deletes / (capacity * BUCKET_SIZE) > UNLOAD_FACTOR) {
+        // If we have a significant number of deletes, we compute our new
+        // capacity based on the current count, even though we decided to
+        // resize based on the sum total of count and deletes.
+        // In this case, resizing is more like a compaction.
+        this.resizeEdges(getNextEdgeCapacity(capacity, count));
+      } else {
+        this.resizeEdges(getNextEdgeCapacity(capacity, total));
+      }
     }
 
     // Use the next available index as our new edge index.
