@@ -376,6 +376,8 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     nodes: number,
     /** The maximum number of nodes the graph can contain. */
     nodeCapacity: number,
+    /** The size of the raw nodes buffer, in mb. */
+    nodeBuffer: string,
     /** The current load on the nodes array. */
     nodeLoad: string,
     /** The number of edges in the graph. */
@@ -384,6 +386,8 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     deleted: number,
     /** The maximum number of edges the graph can contain. */
     edgeCapacity: number,
+    /** The size of the raw edges buffer, in mb. */
+    edgeBuffer: string,
     /** The current load on the edges array. */
     edgeLoad: string,
     /** The total number of edge hash collisions. */
@@ -433,8 +437,26 @@ export default class AdjacencyList<TEdgeType: number = 1> {
       collisions,
       nodeCapacity,
       nodeLoad: `${Math.round((numNodes / nodeCapacity) * 100)}%`,
-      edgeCapacity: edgeCapacity * 2,
-      edgeLoad: `${Math.round((numEdges / (edgeCapacity * 2)) * 100)}%`,
+      nodeBuffer: `${(
+        this.#nodes.buffer.byteLength /
+        1024 /
+        1024
+      ).toLocaleString(undefined, {
+        minmumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })} mb`,
+      edgeCapacity,
+      edgeLoad: `${Math.round(
+        (numEdges / (edgeCapacity * BUCKET_SIZE)) * 100,
+      )}%`,
+      edgeBuffer: `${(
+        this.#edges.buffer.byteLength /
+        1024 /
+        1024
+      ).toLocaleString(undefined, {
+        minmumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })} mb`,
       maxCollisions,
       avgCollisions: Math.round((collisions / buckets.size) * 100) / 100 || 0,
       uniformity: Math.round(uniformity * 100) / 100 || 0,
