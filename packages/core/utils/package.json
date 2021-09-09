@@ -27,7 +27,7 @@
     "@parcel/logger": "2.0.0-rc.0",
     "@parcel/markdown-ansi": "2.0.0-rc.0",
     "@parcel/source-map": "2.0.0-rc.7",
-    "ansi-html": "^0.0.7",
+    "ansi-html-community": "^0.0.8",
     "chalk": "^4.1.0",
     "clone": "^2.1.1",
     "fast-glob": "3.1.1",
