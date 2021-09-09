@@ -68,7 +68,7 @@ export const NODES_HEADER_SIZE: 2 = 2;
  *      └──┴──┴──┴──┴───────┴──┴──┴──┴──┴──┴──┴──┴───────┴──┴──┴──┴──┴──┴──┘
  *      └───┬────┘             ├─────────────────────┬─────────────────────┘
  *        header        addressableLimit           edges
- * (EDGES_HEADER_SIZE)                     (capacity * EDGE_SIZE)
+ * (EDGES_HEADER_SIZE)               (capacity * EDGE_SIZE * BUCKET_SIZE)
  *
  * The header for the edges array comprises 3 4-byte chunks:
  * The first 4 bytes store the edge capacity.
