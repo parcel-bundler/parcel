@@ -210,10 +210,24 @@ const UNLOAD_FACTOR = 0.3;
 const GROW_FACTOR = 4;
 /** The amount by which to shrink the capacity of the edges array. */
 const SHRINK_FACTOR = 0.5;
-/** The smallest functional node or edge capacity. */
-const MIN_CAPACITY = 256;
 /** How many edges to accommodate in a hash bucket. */
 const BUCKET_SIZE = 2;
+
+/** The smallest functional node capacity. */
+const MIN_NODE_CAPACITY = 2;
+/** The largest possible node capacity. */
+const MAX_NODE_CAPACITY = Math.floor(
+  // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Errors/Invalid_array_length#what_went_wrong
+  (2 ** 31 - 1 - NODES_HEADER_SIZE) / NODE_SIZE,
+);
+
+/** The smallest functional edge capacity. */
+const MIN_EDGE_CAPACITY = 2;
+/** The largest possible edge capacity. */
+const MAX_EDGE_CAPACITY = Math.floor(
+  // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Errors/Invalid_array_length#what_went_wrong
+  (2 ** 31 - 1 - EDGES_HEADER_SIZE) / EDGE_SIZE / BUCKET_SIZE,
+);
 
 export const ALL_EDGE_TYPES: AllEdgeTypes = '@@all_edge_types';
 
@@ -285,13 +299,13 @@ function getNextEdgeCapacity(capacity: number, count: number): number {
     // If we're in danger of overflowing the `edges` array, resize it.
     newCapacity = Math.floor(capacity * GROW_FACTOR);
   } else if (
-    capacity > MIN_CAPACITY &&
+    capacity > MIN_EDGE_CAPACITY &&
     count / (capacity * BUCKET_SIZE) < UNLOAD_FACTOR
   ) {
     // If we've dropped below the unload threshold, resize the array down.
     newCapacity = Math.floor(capacity * SHRINK_FACTOR);
   }
-  return Math.max(MIN_CAPACITY, newCapacity);
+  return Math.max(MIN_EDGE_CAPACITY, newCapacity);
 }
 
 export default class AdjacencyList<TEdgeType: number = 1> {
@@ -324,7 +338,13 @@ export default class AdjacencyList<TEdgeType: number = 1> {
       );
     } else {
       // We are creating a new `AdjacencyList` from scratch.
-      let {nodeCapacity = 128, edgeCapacity = 256} = opts ?? {};
+      let {nodeCapacity = MIN_NODE_CAPACITY, edgeCapacity = MIN_EDGE_CAPACITY} =
+        opts ?? {};
+
+      assert(nodeCapacity >= MIN_NODE_CAPACITY, 'Node capacity is too small.');
+      assert(nodeCapacity <= MAX_NODE_CAPACITY, 'Node capacity is too large.');
+      assert(edgeCapacity >= MIN_EDGE_CAPACITY, 'Edge capacity is too small.');
+      assert(edgeCapacity <= MAX_EDGE_CAPACITY, 'Edge capacity is too large.');
 
       // $FlowFixMe[incompatible-call]
       nodes = new Uint32Array(
