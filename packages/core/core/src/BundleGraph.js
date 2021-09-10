@@ -1220,18 +1220,18 @@ export default class BundleGraph {
     }
     // Dependencies can be a a parent node via an untyped edge (like in the AssetGraph but without AssetGroups)
     // or they can be parent nodes via a 'references' edge
-    return this._graph
-      .getNodeIdsConnectedTo(
-        this._graph.getNodeIdByContentKey(asset.id),
-        // $FlowFixMe
-        ALL_EDGE_TYPES,
-      )
-      .map(id => nullthrows(this._graph.getNode(id)))
-      .filter(n => n.type === 'dependency')
-      .map(n => {
-        invariant(n.type === 'dependency');
-        return n.value;
-      });
+    let incomingDependencies = [];
+    for (let id of this._graph.generateNodeIdsConnectedTo(
+      this._graph.getNodeIdByContentKey(asset.id),
+      ALL_EDGE_TYPES,
+    )) {
+      let node = nullthrows(this._graph.getNode(id));
+      if (node.type === 'dependency') {
+        invariant(node.type === 'dependency');
+        incomingDependencies.push(node.value);
+      }
+    }
+    return incomingDependencies;
   }
 
   getAssetWithDependency(dep: Dependency): ?Asset {

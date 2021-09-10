@@ -118,6 +118,15 @@ export default class Graph<TNode, TEdgeType: number = 1> {
     return this.adjacencyList.getNodesConnectedTo(nodeId, type);
   }
 
+  *generateNodeIdsConnectedTo(
+    nodeId: NodeId,
+    type: AllEdgeTypes,
+  ): Generator<NodeId, void, void> {
+    this._assertHasNodeId(nodeId);
+
+    yield* this.adjacencyList.generateNodesConnectedTo(nodeId, type);
+  }
+
   getNodeIdsConnectedFrom(
     nodeId: NodeId,
     type: TEdgeType | NullEdgeType | Array<TEdgeType | NullEdgeType> = 1,
@@ -127,6 +136,14 @@ export default class Graph<TNode, TEdgeType: number = 1> {
     return this.adjacencyList.getNodesConnectedFrom(nodeId, type);
   }
 
+  *generateNodeIdsConnectedFrom(
+    nodeId: NodeId,
+    type: AllEdgeTypes,
+  ): Generator<NodeId, void, void> {
+    this._assertHasNodeId(nodeId);
+
+    yield* this.adjacencyList.generateNodesConnectedFrom(nodeId, type);
+  }
   // Removes node and any edges coming from or to that node
   removeNode(nodeId: NodeId) {
     this._assertHasNodeId(nodeId);
@@ -250,7 +267,10 @@ export default class Graph<TNode, TEdgeType: number = 1> {
     return this.dfs({
       visit,
       startNodeId,
-      getChildren: nodeId => this.getNodeIdsConnectedFrom(nodeId, type),
+      getChildren: nodeId =>
+        type === ALL_EDGE_TYPES
+          ? this.generateNodeIdsConnectedFrom(nodeId, ALL_EDGE_TYPES)
+          : this.getNodeIdsConnectedFrom(nodeId, type),
     });
   }
 
@@ -271,7 +291,10 @@ export default class Graph<TNode, TEdgeType: number = 1> {
     return this.dfs({
       visit,
       startNodeId,
-      getChildren: nodeId => this.getNodeIdsConnectedTo(nodeId, type),
+      getChildren: nodeId =>
+        type === ALL_EDGE_TYPES
+          ? this.generateNodeIdsConnectedTo(nodeId, ALL_EDGE_TYPES)
+          : this.getNodeIdsConnectedTo(nodeId, type),
     });
   }
 
@@ -281,7 +304,7 @@ export default class Graph<TNode, TEdgeType: number = 1> {
     getChildren,
   }: {|
     visit: GraphVisitor<NodeId, TContext>,
-    getChildren(nodeId: NodeId): Array<NodeId>,
+    getChildren(nodeId: NodeId): Array<NodeId> | Generator<NodeId, void, void>,
     startNodeId?: ?NodeId,
   |}): ?TContext {
     let traversalStartNode = nullthrows(

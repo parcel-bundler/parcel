@@ -922,24 +922,24 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     return Boolean(this.getEdge(to, FIRST_IN));
   }
 
-  getInboundEdgesByType(to: NodeId): {|type: TEdgeType, from: NodeId|}[] {
-    let edges = [];
+  *getInboundEdgesByType(
+    to: NodeId,
+  ): Generator<{|type: TEdgeType, from: NodeId|}, void, void> {
     for (let [type, nodes] of this.#typeMap.getConnectedTo(to)) {
       for (let from of nodes) {
-        edges.push({type: (type: any), from});
+        yield {type: (type: any), from};
       }
     }
-    return edges;
   }
 
-  getOutboundEdgesByType(from: NodeId): {|type: TEdgeType, to: NodeId|}[] {
-    let edges = [];
+  *getOutboundEdgesByType(
+    from: NodeId,
+  ): Generator<{|type: TEdgeType, to: NodeId|}, void, void> {
     for (let [type, nodes] of this.#typeMap.getConnectedFrom(from)) {
       for (let to of nodes) {
-        edges.push({type: (type: any), to});
+        yield {type: (type: any), to};
       }
     }
-    return edges;
   }
 
   /**
@@ -987,6 +987,22 @@ export default class AdjacencyList<TEdgeType: number = 1> {
   }
 
   /**
+   * Generates all nodes connected from this node.
+   */
+  *generateNodesConnectedFrom(
+    from: NodeId,
+    type: AllEdgeTypes,
+  ): Generator<NodeId, void, void> {
+    let edge = this.getEdge(from, FIRST_OUT);
+    while (edge) {
+      yield this.getToNode(edge);
+      if (edge != null) {
+        edge = this.#edges[edge + NEXT_OUT];
+      }
+    }
+  }
+
+  /**
    * Get the list of nodes connected to this node.
    */
   getNodesConnectedTo(
@@ -1014,6 +1030,22 @@ export default class AdjacencyList<TEdgeType: number = 1> {
       nodes.push(...this.#typeMap.getConnectedToType(to, (type: any)));
     }
     return nodes;
+  }
+
+  /**
+   * Generates all nodes connected to this node.
+   */
+  *generateNodesConnectedTo(
+    to: NodeId,
+    type: AllEdgeTypes,
+  ): Generator<NodeId, void, void> {
+    let edge = this.getEdge(to, FIRST_IN);
+    while (edge) {
+      yield this.getFromNode(edge);
+      if (edge != null) {
+        edge = this.#edges[edge + NEXT_IN];
+      }
+    }
   }
 
   /**
