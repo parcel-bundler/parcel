@@ -356,9 +356,7 @@ export default class AdjacencyList<TEdgeType: number = 1> {
       let {nodeCapacity = MIN_NODE_CAPACITY, edgeCapacity = MIN_EDGE_CAPACITY} =
         opts ?? {};
 
-      assert(nodeCapacity >= MIN_NODE_CAPACITY, 'Node capacity is too small.');
       assert(nodeCapacity <= MAX_NODE_CAPACITY, 'Node capacity is too large.');
-      assert(edgeCapacity >= MIN_EDGE_CAPACITY, 'Edge capacity is too small.');
       assert(edgeCapacity <= MAX_EDGE_CAPACITY, 'Edge capacity is too large.');
 
       // $FlowFixMe[incompatible-call]
