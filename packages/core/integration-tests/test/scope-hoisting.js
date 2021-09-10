@@ -1775,6 +1775,18 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, 'foo');
     });
 
+    it('support accessing default reexports of a CommonJS asset on namespace object', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/re-export-commonjs-namespace/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, 'foo');
+    });
+
     it('concatenates in the correct order when re-exporting assets were excluded', async function() {
       let b = await bundle(
         path.join(
