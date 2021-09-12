@@ -28,6 +28,7 @@ import ejs from 'ejs';
 import connect from 'connect';
 import serveHandler from 'serve-handler';
 import {createProxyMiddleware} from 'http-proxy-middleware';
+import rewriteModule from 'http-rewrite-middleware';
 import {URL} from 'url';
 
 function setHeaders(res: Response) {
@@ -124,7 +125,7 @@ export default class Server {
   }
 
   respond(req: Request, res: Response): mixed {
-    let {pathname} = url.parse(req.originalUrl || req.url);
+    let {pathname} = url.parse(req.url);
 
     if (pathname == null) {
       pathname = '/';
@@ -405,6 +406,39 @@ export default class Server {
     return this;
   }
 
+  async applyRewriteTable(app: any): Promise<Server> {
+    // avoid skipping project root
+    const fileInRoot: string = path.join(this.options.projectRoot, '_');
+
+    const pkg = await loadConfig(
+      this.options.inputFS,
+      fileInRoot,
+      ['.rewriterc'],
+      this.options.projectRoot,
+    );
+
+    if (!pkg || !pkg.config || !pkg.files) {
+      return this;
+    }
+
+    const cfg = pkg.config;
+    const filename = path.basename(pkg.files[0].filePath);
+
+    if (filename === '.rewriterc') {
+      if (typeof cfg !== 'object') {
+        this.options.logger.warn({
+          message:
+            "Proxy table in '.rewriterc' should be of object type. Skipping...",
+        });
+        return this;
+      }
+      var rewriteMiddleware = rewriteModule.getMiddleware(cfg);
+      app.use(rewriteMiddleware);
+    }
+
+    return this;
+  }
+
   async start(): Promise<HTTPServer> {
     const finalHandler = (req: Request, res: Response) => {
       this.logAccessIfVerbose(req);
@@ -423,6 +457,7 @@ export default class Server {
       next();
     });
     await this.applyProxyTable(app);
+    await this.applyRewriteTable(app);
     app.use(finalHandler);
 
     let {server, stop} = await createHTTPServer({

@@ -7100,6 +7100,11 @@ http-proxy@^1.18.1:
     follow-redirects "^1.0.0"
     requires-port "^1.0.0"
 
+http-rewrite-middleware@^0.1.6:
+  version "0.1.6"
+  resolved "https://registry.yarnpkg.com/http-rewrite-middleware/-/http-rewrite-middleware-0.1.6.tgz#cb2965aafa91ebd4c610b99580aa187812da107c"
+  integrity sha1-yyllqvqR69TGELmVgKoYeBLaEHw=
+
 http-signature@~1.2.0:
   version "1.2.0"
   resolved "https://registry.yarnpkg.com/http-signature/-/http-signature-1.2.0.tgz#9aecd925114772f3d95b65a60abb8f7c18fbace1"
