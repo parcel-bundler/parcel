@@ -1251,7 +1251,7 @@ function assertTargetsAreNotEntries(
             (COMMON_TARGETS[target.name]
               ? `The "${target.name}" field is an _output_ file path so that your build can be consumed by other tools. `
               : '') +
-              `Change the "${target.name}" field to point to an output file rather than your source code. See https://v2.parceljs.org/configuration/package-json for more information.`,
+              `Change the "${target.name}" field to point to an output file rather than your source code.`,
           ],
           documentationURL: 'https://v2.parceljs.org/features/targets/',
         },
