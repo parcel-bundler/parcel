@@ -25,6 +25,7 @@ export default (new Transformer({
             end: '>',
           },
         ],
+        sourceLocations: true,
         xmlMode: true,
       }),
     };
