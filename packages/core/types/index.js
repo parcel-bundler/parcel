@@ -1595,13 +1595,16 @@ export type Optimizer<ConfigType> = {|
   |}): Async<BundleResult>,
 |};
 
+/**
+ * @section compressor
+ */
 export type Compressor = {|
   compress({|
-    stream: stream$Readable,
+    stream: Readable,
     options: PluginOptions,
     logger: PluginLogger,
   |}): Async<{|
-    stream: stream$Readable,
+    stream: Readable,
     type?: string,
   |}>,
 |};
