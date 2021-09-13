@@ -2085,7 +2085,7 @@ mod tests {
       collect.imports,
       map! { w!("x") => (w!("other"), w!("*"), false) }
     );
-    assert_eq!(collect.non_static_access, set! {});
+    assert_eq!(collect.non_static_access, map! {});
 
     let (_collect, _code, hoist) = parse(
       r#"
@@ -2107,7 +2107,7 @@ mod tests {
       collect.imports,
       map! { w!("x") => (w!("other"), w!("*"), false) }
     );
-    assert_eq_set!(collect.non_static_access, set! { w!("x") });
+    assert_eq_set!(collect.non_static_access.into_keys(), set! { w!("x") });
 
     let (collect, _code, _hoist) = parse(
       r#"
@@ -2119,7 +2119,7 @@ mod tests {
       collect.imports,
       map! { w!("x") => (w!("other"), w!("*"), false) }
     );
-    assert_eq_set!(collect.non_static_access, set! { w!("x") });
+    assert_eq_set!(collect.non_static_access.into_keys(), set! { w!("x") });
   }
 
   #[test]
@@ -2330,7 +2330,7 @@ mod tests {
       collect.imports,
       map! { w!("x") => (w!("other"), w!("*"), true) }
     );
-    assert_eq_set!(collect.non_static_access, set! {});
+    assert_eq_set!(collect.non_static_access.into_keys(), set! {});
     assert_eq!(collect.non_static_requires, set! {});
     assert_eq!(collect.wrapped_requires, set! {w!("other")});
 
@@ -2346,7 +2346,7 @@ mod tests {
       collect.imports,
       map! { w!("x") => (w!("other"), w!("*"), true) }
     );
-    assert_eq_set!(collect.non_static_access, set! { w!("x") });
+    assert_eq_set!(collect.non_static_access.into_keys(), set! { w!("x") });
     assert_eq!(collect.non_static_requires, set! {});
     assert_eq!(collect.wrapped_requires, set! {w!("other")});
 
@@ -2387,7 +2387,7 @@ mod tests {
       collect.imports,
       map! { w!("x") => (w!("other"), w!("*"), true) }
     );
-    assert_eq_set!(collect.non_static_access, set! {});
+    assert_eq_set!(collect.non_static_access.into_keys(), set! {});
     assert_eq!(collect.non_static_requires, set! {});
     assert_eq!(collect.wrapped_requires, set! {w!("other")});
 
@@ -2400,7 +2400,7 @@ mod tests {
       collect.imports,
       map! { w!("x") => (w!("other"), w!("*"), true) }
     );
-    assert_eq_set!(collect.non_static_access, set! { w!("x") });
+    assert_eq_set!(collect.non_static_access.into_keys(), set! { w!("x") });
     assert_eq!(collect.non_static_requires, set! {});
     assert_eq!(collect.wrapped_requires, set! {w!("other")});
 
@@ -2437,7 +2437,7 @@ mod tests {
       collect.imports,
       map! { w!("x") => (w!("other"), w!("*"), true) }
     );
-    assert_eq_set!(collect.non_static_access, set! {});
+    assert_eq_set!(collect.non_static_access.into_keys(), set! {});
     assert_eq!(collect.non_static_requires, set! {});
     assert_eq!(collect.wrapped_requires, set! {w!("other")});
 
@@ -2450,7 +2450,7 @@ mod tests {
       collect.imports,
       map! { w!("x") => (w!("other"), w!("*"), true) }
     );
-    assert_eq_set!(collect.non_static_access, set! { w!("x") });
+    assert_eq_set!(collect.non_static_access.into_keys(), set! { w!("x") });
     assert_eq!(collect.non_static_requires, set! {});
     assert_eq!(collect.wrapped_requires, set! {w!("other")});
 
