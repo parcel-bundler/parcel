@@ -6,6 +6,7 @@ import type {
   Symbol,
   TraversalActions,
 } from '@parcel/types';
+import type {NodeId, SerializedContentGraph} from '@parcel/graph';
 import querystring from 'querystring';
 
 import type {
@@ -16,7 +17,6 @@ import type {
   BundleGroup,
   Dependency,
   DependencyNode,
-  NodeId,
   InternalSourceLocation,
   Target,
 } from './types';
@@ -26,13 +26,12 @@ import type {ProjectPath} from './projectPath';
 import assert from 'assert';
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
-import {objectSortedEntriesDeep, getRootDir} from '@parcel/utils';
+import {ContentGraph, ALL_EDGE_TYPES, mapVisitor} from '@parcel/graph';
 import {Hash, hashString} from '@parcel/hash';
-import {Priority, BundleBehavior} from './types';
+import {objectSortedEntriesDeep, getRootDir} from '@parcel/utils';
 
+import {Priority, BundleBehavior, SpecifierType} from './types';
 import {getBundleGroupId, getPublicId} from './utils';
-import {ALL_EDGE_TYPES, mapVisitor} from './Graph';
-import ContentGraph, {type SerializedContentGraph} from './ContentGraph';
 import {ISOLATED_ENVS} from './public/Environment';
 import {fromProjectPath} from './projectPath';
 
@@ -770,11 +769,12 @@ export default class BundleGraph {
       this._graph
         .getNodeIdsConnectedTo(assetNodeId, bundleGraphEdgeTypes.references)
         .map(id => this._graph.getNode(id))
-        .filter(
+        .some(
           node =>
             node?.type === 'dependency' &&
-            node.value.priority === Priority.lazy,
-        ).length > 0
+            node.value.priority === Priority.lazy &&
+            node.value.specifierType !== SpecifierType.url,
+        )
     ) {
       // If this asset is referenced by any async dependency, it's referenced.
       return true;

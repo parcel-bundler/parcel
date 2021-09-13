@@ -1,5 +1,6 @@
 // @flow strict-local
 
+import type {ContentKey} from '@parcel/graph';
 import type {
   ASTGenerator,
   BuildMode,
@@ -51,6 +52,7 @@ export type ProcessedParcelConfig = {|
   runtimes?: PureParcelConfigPipeline,
   packagers?: {[Glob]: ParcelPluginNode, ...},
   optimizers?: {[Glob]: ExtendableParcelConfigPipeline, ...},
+  compressors?: {[Glob]: ExtendableParcelConfigPipeline, ...},
   reporters?: PureParcelConfigPipeline,
   validators?: {[Glob]: ExtendableParcelConfigPipeline, ...},
   filePath: ProjectPath,
@@ -282,23 +284,6 @@ export type ParcelOptions = {|
     +outputFormat?: OutputFormat,
     +isLibrary?: boolean,
   |},
-|};
-
-// forcing NodeId to be opaque as it should only be created once
-export opaque type NodeId = number;
-export function toNodeId(x: number): NodeId {
-  return x;
-}
-export function fromNodeId(x: NodeId): number {
-  return x;
-}
-
-export type ContentKey = string;
-
-export type Edge<TEdgeType: number> = {|
-  from: NodeId,
-  to: NodeId,
-  type: TEdgeType,
 |};
 
 export type AssetNode = {|

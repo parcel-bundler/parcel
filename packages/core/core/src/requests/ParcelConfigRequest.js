@@ -264,6 +264,16 @@ function processPipeline(
   }
 }
 
+const RESERVED_PIPELINES = new Set([
+  'node:',
+  'npm:',
+  'http:',
+  'https:',
+  'data:',
+  'tel:',
+  'mailto:',
+]);
+
 async function processMap(
   // $FlowFixMe
   map: ?ConfigMap<any, any>,
@@ -277,12 +287,12 @@ async function processMap(
   // $FlowFixMe
   let res: ConfigMap<any, any> = {};
   for (let k in map) {
-    if (k.startsWith('node:')) {
+    let i = k.indexOf(':');
+    if (i > 0 && RESERVED_PIPELINES.has(k.slice(0, i + 1))) {
       let code = await options.inputFS.readFile(filePath, 'utf8');
       throw new ThrowableDiagnostic({
         diagnostic: {
-          message:
-            'Named pipeline `node:` is reserved for builtin Node.js libraries',
+          message: `Named pipeline '${k.slice(0, i + 1)}' is reserved.`,
           origin: '@parcel/core',
           codeFrames: [
             {
@@ -297,6 +307,8 @@ async function processMap(
               ]),
             },
           ],
+          documentationURL:
+            'https://v2.parceljs.org/features/dependency-resolution/#url-schemes',
         },
       });
     }
@@ -373,6 +385,12 @@ export async function processConfig(
     optimizers: await processMap(
       configFile.optimizers,
       '/optimizers',
+      configFile.filePath,
+      options,
+    ),
+    compressors: await processMap(
+      configFile.compressors,
+      '/compressors',
       configFile.filePath,
       options,
     ),
@@ -598,6 +616,7 @@ export function mergeConfigs(
     runtimes: assertPurePipeline(mergePipelines(base.runtimes, ext.runtimes)),
     packagers: mergeMaps(base.packagers, ext.packagers),
     optimizers: mergeMaps(base.optimizers, ext.optimizers, mergePipelines),
+    compressors: mergeMaps(base.compressors, ext.compressors, mergePipelines),
     reporters: assertPurePipeline(
       mergePipelines(base.reporters, ext.reporters),
     ),

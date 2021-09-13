@@ -244,7 +244,7 @@ export class ScopeHoistingPackager {
         this.bundleGraph.isAssetReferenced(this.bundle, asset) ||
         this.bundleGraph
           .getIncomingDependencies(asset)
-          .some(dep => dep.meta.shouldWrap)
+          .some(dep => dep.meta.shouldWrap && dep.specifierType !== 'url')
       ) {
         this.wrappedAssets.add(asset.id);
         return true;
@@ -983,6 +983,13 @@ ${code}
               this.usedHelpers.add('$parcel$exportWildcard');
             } else {
               for (let symbol of this.bundleGraph.getUsedSymbols(dep)) {
+                if (
+                  symbol === 'default' || // `export * as ...` does not include the default export
+                  symbol === '__esModule'
+                ) {
+                  continue;
+                }
+
                 let resolvedSymbol = this.getSymbolResolution(
                   asset,
                   resolved,

@@ -20,11 +20,11 @@ import type InternalBundleGraph from '../BundleGraph';
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
 
+import {mapVisitor} from '@parcel/graph';
 import {assetFromValue, assetToAssetValue, Asset} from './Asset';
 import {bundleToInternalBundle} from './Bundle';
 import Dependency, {dependencyToInternalDependency} from './Dependency';
 import {targetToInternalTarget} from './Target';
-import {mapVisitor} from '../Graph';
 import {fromInternalSourceLocation} from '../utils';
 import BundleGroup, {bundleGroupToInternalBundleGroup} from './BundleGroup';
 
@@ -50,10 +50,6 @@ export default class BundleGraph<TBundle: IBundle>
   implements IBundleGraph<TBundle> {
   #graph: InternalBundleGraph;
   #options: ParcelOptions;
-  // This is invoked as `this.#createBundle.call(null, ...)` below, as private
-  // properties aren't currently callable in Flow:
-  // https://github.com/parcel-bundler/parcel/pull/4591#discussion_r422661115
-  // https://github.com/facebook/flow/issues/7877
   #createBundle: BundleFactory<TBundle>;
 
   constructor(
@@ -117,9 +113,7 @@ export default class BundleGraph<TBundle: IBundle>
   ): Array<TBundle> {
     return this.#graph
       .getReferencedBundles(bundleToInternalBundle(bundle), opts)
-      .map(bundle =>
-        this.#createBundle.call(null, bundle, this.#graph, this.#options),
-      );
+      .map(bundle => this.#createBundle(bundle, this.#graph, this.#options));
   }
 
   resolveAsyncDependency(
@@ -156,7 +150,7 @@ export default class BundleGraph<TBundle: IBundle>
     );
 
     if (result != null) {
-      return this.#createBundle.call(null, result, this.#graph, this.#options);
+      return this.#createBundle(result, this.#graph, this.#options);
     }
   }
 
@@ -196,17 +190,13 @@ export default class BundleGraph<TBundle: IBundle>
         bundleGroupToInternalBundleGroup(bundleGroup),
         opts,
       )
-      .map(bundle =>
-        this.#createBundle.call(null, bundle, this.#graph, this.#options),
-      );
+      .map(bundle => this.#createBundle(bundle, this.#graph, this.#options));
   }
 
   getBundles(opts?: {|includeInline: boolean|}): Array<TBundle> {
     return this.#graph
       .getBundles(opts)
-      .map(bundle =>
-        this.#createBundle.call(null, bundle, this.#graph, this.#options),
-      );
+      .map(bundle => this.#createBundle(bundle, this.#graph, this.#options));
   }
 
   isEntryBundleGroup(bundleGroup: IBundleGroup): boolean {
@@ -218,17 +208,13 @@ export default class BundleGraph<TBundle: IBundle>
   getChildBundles(bundle: IBundle): Array<TBundle> {
     return this.#graph
       .getChildBundles(bundleToInternalBundle(bundle))
-      .map(bundle =>
-        this.#createBundle.call(null, bundle, this.#graph, this.#options),
-      );
+      .map(bundle => this.#createBundle(bundle, this.#graph, this.#options));
   }
 
   getParentBundles(bundle: IBundle): Array<TBundle> {
     return this.#graph
       .getParentBundles(bundleToInternalBundle(bundle))
-      .map(bundle =>
-        this.#createBundle.call(null, bundle, this.#graph, this.#options),
-      );
+      .map(bundle => this.#createBundle(bundle, this.#graph, this.#options));
   }
 
   getSymbolResolution(
@@ -289,8 +275,7 @@ export default class BundleGraph<TBundle: IBundle>
   ): ?TContext {
     return this.#graph.traverseBundles(
       mapVisitor(
-        bundle =>
-          this.#createBundle.call(null, bundle, this.#graph, this.#options),
+        bundle => this.#createBundle(bundle, this.#graph, this.#options),
         visit,
       ),
       startBundle == null ? undefined : bundleToInternalBundle(startBundle),
@@ -300,17 +285,13 @@ export default class BundleGraph<TBundle: IBundle>
   getBundlesWithAsset(asset: IAsset): Array<TBundle> {
     return this.#graph
       .getBundlesWithAsset(assetToAssetValue(asset))
-      .map(bundle =>
-        this.#createBundle.call(null, bundle, this.#graph, this.#options),
-      );
+      .map(bundle => this.#createBundle(bundle, this.#graph, this.#options));
   }
 
   getBundlesWithDependency(dependency: IDependency): Array<TBundle> {
     return this.#graph
       .getBundlesWithDependency(dependencyToInternalDependency(dependency))
-      .map(bundle =>
-        this.#createBundle.call(null, bundle, this.#graph, this.#options),
-      );
+      .map(bundle => this.#createBundle(bundle, this.#graph, this.#options));
   }
 
   getUsedSymbols(v: IAsset | IDependency): $ReadOnlySet<Symbol> {

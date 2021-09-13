@@ -14,7 +14,7 @@ pub fn collect_decls(module: &ast::Module) -> HashSet<(JsWord, SyntaxContext)> {
     in_var: false,
   };
   module.visit_with(&ast::Invalid { span: DUMMY_SP } as _, &mut c);
-  return c.decls;
+  c.decls
 }
 
 struct DeclCollector {
