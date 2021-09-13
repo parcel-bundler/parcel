@@ -1,6 +1,7 @@
 // @flow
 import type {JSONObject, EnvMap} from '@parcel/types';
 import type {SchemaEntity} from '@parcel/utils';
+import type {Diagnostic} from '@parcel/diagnostic';
 import SourceMap from '@parcel/source-map';
 import {Transformer} from '@parcel/plugin';
 import {init, transform} from '../native';
@@ -111,7 +112,7 @@ type PackageJSONConfig = {|
 const SCRIPT_ERRORS = {
   browser: {
     message: 'Browser scripts cannot have imports or exports.',
-    hint: 'Add type="module" as a second argument to the <script> tag.',
+    hint: 'Add the type="module" attribute to the <script> tag.',
   },
   'web-worker': {
     message:
@@ -279,7 +280,7 @@ export default (new Transformer({
       decorators,
     };
   },
-  async transform({asset, config, options}) {
+  async transform({asset, config, options, logger}) {
     let [code, originalMap] = await Promise.all([
       asset.getBuffer(),
       asset.getMap(),
@@ -376,6 +377,7 @@ export default (new Transformer({
       inline_fs: Boolean(config?.inlineFS) && !asset.env.isNode(),
       insert_node_globals: !asset.env.isNode(),
       is_browser: asset.env.isBrowser(),
+      is_worker: asset.env.isWorker(),
       env,
       is_type_script: asset.type === 'ts' || asset.type === 'tsx',
       is_jsx: Boolean(config?.isJSX),
@@ -422,59 +424,79 @@ export default (new Transformer({
     };
 
     if (diagnostics) {
-      throw new ThrowableDiagnostic({
-        diagnostic: diagnostics.map(diagnostic => {
-          let message = diagnostic.message;
-          if (message === 'SCRIPT_ERROR') {
-            let err = SCRIPT_ERRORS[(asset.env.context: string)];
-            message = err?.message || SCRIPT_ERRORS.browser.message;
+      let errors = diagnostics.filter(
+        d =>
+          d.severity === 'Error' ||
+          (d.severity === 'SourceError' && asset.isSource),
+      );
+      let warnings = diagnostics.filter(
+        d =>
+          d.severity === 'Warning' ||
+          (d.severity === 'SourceError' && !asset.isSource),
+      );
+      let convertDiagnostic = diagnostic => {
+        let message = diagnostic.message;
+        if (message === 'SCRIPT_ERROR') {
+          let err = SCRIPT_ERRORS[(asset.env.context: string)];
+          message = err?.message || SCRIPT_ERRORS.browser.message;
+        }
+
+        let res: Diagnostic = {
+          message,
+          codeFrames: [
+            {
+              filePath: asset.filePath,
+              codeHighlights: diagnostic.code_highlights?.map(highlight => {
+                let {start, end} = convertLoc(highlight.loc);
+                return {
+                  message: highlight.message,
+                  start,
+                  end,
+                };
+              }),
+            },
+          ],
+          hints: diagnostic.hints,
+        };
+
+        if (diagnostic.documentation_url) {
+          res.documentationURL = diagnostic.documentation_url;
+        }
+
+        if (diagnostic.show_environment) {
+          if (asset.env.loc && asset.env.loc.filePath !== asset.filePath) {
+            res.codeFrames?.push({
+              filePath: asset.env.loc.filePath,
+              codeHighlights: [
+                {
+                  start: asset.env.loc.start,
+                  end: asset.env.loc.end,
+                  message: 'The environment was originally created here',
+                },
+              ],
+            });
           }
 
-          let res = {
-            message,
-            codeFrames: [
-              {
-                filePath: asset.filePath,
-                codeHighlights: diagnostic.code_highlights?.map(highlight => {
-                  let {start, end} = convertLoc(highlight.loc);
-                  return {
-                    message: highlight.message,
-                    start,
-                    end,
-                  };
-                }),
-              },
-            ],
-            hints: diagnostic.hints,
-          };
-
-          if (diagnostic.show_environment) {
-            if (asset.env.loc) {
-              res.codeFrames.push({
-                filePath: asset.env.loc.filePath,
-                codeHighlights: [
-                  {
-                    start: asset.env.loc.start,
-                    end: asset.env.loc.end,
-                    message: 'The environment was originally created here',
-                  },
-                ],
-              });
-            }
-
-            let err = SCRIPT_ERRORS[(asset.env.context: string)];
-            if (err) {
-              if (!res.hints) {
-                res.hints = [err.hint];
-              } else {
-                res.hints.push(err.hint);
-              }
+          let err = SCRIPT_ERRORS[(asset.env.context: string)];
+          if (err) {
+            if (!res.hints) {
+              res.hints = [err.hint];
+            } else {
+              res.hints.push(err.hint);
             }
           }
+        }
 
-          return res;
-        }),
-      });
+        return res;
+      };
+
+      if (errors.length > 0) {
+        throw new ThrowableDiagnostic({
+          diagnostic: errors.map(convertDiagnostic),
+        });
+      }
+
+      logger.warn(warnings.map(convertDiagnostic));
     }
 
     if (shebang) {
@@ -545,7 +567,7 @@ export default (new Transformer({
             placeholder: dep.placeholder,
           },
         });
-      } else if (dep.kind === 'URL') {
+      } else if (dep.kind === 'Url') {
         asset.addURLDependency(dep.specifier, {
           bundleBehavior: 'isolated',
           loc: convertLoc(dep.loc),
@@ -561,12 +583,19 @@ export default (new Transformer({
           meta.importAttributes = dep.attributes;
         }
 
+        if (dep.placeholder) {
+          meta.placeholder = dep.placeholder;
+        }
+
         let env;
         if (dep.kind === 'DynamicImport') {
-          if (asset.env.isWorklet()) {
+          // https://html.spec.whatwg.org/multipage/webappapis.html#hostimportmoduledynamically(referencingscriptormodule,-modulerequest,-promisecapability)
+          if (asset.env.isWorklet() || asset.env.context === 'service-worker') {
             let loc = convertLoc(dep.loc);
             let diagnostic = {
-              message: 'import() is not allowed in worklets.',
+              message: `import() is not allowed in ${
+                asset.env.isWorklet() ? 'worklets' : 'service workers'
+              }.`,
               codeFrames: [
                 {
                   filePath: asset.filePath,
@@ -650,7 +679,9 @@ export default (new Transformer({
       }
 
       let deps = new Map(
-        asset.getDependencies().map(dep => [dep.specifier, dep]),
+        asset
+          .getDependencies()
+          .map(dep => [dep.meta.placeholder ?? dep.specifier, dep]),
       );
       for (let dep of deps.values()) {
         dep.symbols.ensure();

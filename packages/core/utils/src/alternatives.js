@@ -63,6 +63,7 @@ async function findAllFilesUp({
   maxlength,
   collected,
   leadingDotSlash = true,
+  includeDirectories = true,
 }: {|
   fs: FileSystem,
   dir: string,
@@ -71,6 +72,7 @@ async function findAllFilesUp({
   maxlength: number,
   collected: Array<string>,
   leadingDotSlash?: boolean,
+  includeDirectories?: boolean,
 |}): Promise<mixed> {
   let dirContent = (await fs.readdir(dir)).sort();
   return Promise.all(
@@ -80,7 +82,7 @@ async function findAllFilesUp({
       if (relativeFilePath.length < maxlength) {
         let stats = await fs.stat(fullPath);
         let isDir = stats.isDirectory();
-        if (isDir || stats.isFile()) {
+        if ((isDir && includeDirectories) || stats.isFile()) {
           collected.push(relativeFilePath);
         }
 
@@ -106,6 +108,8 @@ export async function findAlternativeFiles(
   dir: string,
   projectRoot: string,
   leadingDotSlash?: boolean = true,
+  includeDirectories?: boolean = true,
+  includeExtension?: boolean = false,
 ): Promise<Array<string>> {
   let potentialFiles: Array<string> = [];
   // Find our root, we won't recommend files above the package root as that's bad practise
@@ -125,9 +129,10 @@ export async function findAlternativeFiles(
     maxlength: fileSpecifier.length + 10,
     collected: potentialFiles,
     leadingDotSlash,
+    includeDirectories,
   });
 
-  if (path.extname(fileSpecifier) === '') {
+  if (path.extname(fileSpecifier) === '' && !includeExtension) {
     potentialFiles = potentialFiles.map(p => {
       let ext = path.extname(p);
       return ext.length > 0 ? p.slice(0, -ext.length) : p;

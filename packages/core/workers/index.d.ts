@@ -15,6 +15,8 @@ export type FarmOptions = {
 
 declare class WorkerFarm {
   constructor(options: FarmOptions);
+
+  end(): Promise<void>;
 }
 
 export default WorkerFarm; 

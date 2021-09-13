@@ -19,9 +19,7 @@ export default (new Reporter({
       Array<PackagedBundle>,
     > = new DefaultMap(() => []);
     for (let bundle of event.bundleGraph.getBundles()) {
-      if (bundle.bundleBehavior !== 'inline') {
-        bundlesByTarget.get(bundle.target.name).push(bundle);
-      }
+      bundlesByTarget.get(bundle.target.name).push(bundle);
     }
 
     let reportsDir = path.join(options.projectRoot, 'parcel-bundle-reports');
@@ -128,7 +126,7 @@ async function getBundleNode(bundle: PackagedBundle, options: PluginOptions) {
     let relativePath = path.relative(options.projectRoot, asset.filePath);
     let parts = relativePath.split(path.sep);
     let dirs = parts.slice(0, parts.length - 1);
-    let basename = parts[parts.length - 1];
+    let basename = path.basename(asset.filePath);
 
     let map = dirMap;
     for (let dir of dirs) {
@@ -138,13 +136,13 @@ async function getBundleNode(bundle: PackagedBundle, options: PluginOptions) {
 
     invariant(map instanceof DefaultMap);
     map.set(basename, {
-      basename: path.basename(asset.filePath),
+      basename,
       size: asset.size,
     });
   }
 
   return {
-    label: nullthrows(bundle.name),
+    label: bundle.filePath,
     weight: bundle.stats.size,
     groups: generateGroups(dirMap),
   };
@@ -181,7 +179,10 @@ function generateGroups(dirMap: DirMap): Array<Group> {
     } else {
       // file
       groups.push({
-        label: contents.basename,
+        label:
+          contents.basename === ''
+            ? 'Code from unknown source files'
+            : contents.basename,
         weight: contents.size,
       });
     }

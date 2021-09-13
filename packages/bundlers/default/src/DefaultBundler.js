@@ -76,7 +76,7 @@ export default (new Bundler({
         }
 
         let assets = bundleGraph.getDependencyAssets(dependency);
-        let resolution = bundleGraph.getDependencyResolution(dependency);
+        let resolution = bundleGraph.getResolvedAsset(dependency);
         let bundleGroup = context?.bundleGroup;
         // Create a new bundle for entries, lazy/parallel dependencies, isolated/inline assets.
         if (
@@ -232,7 +232,7 @@ export default (new Bundler({
         return;
       }
 
-      let candidates = bundleGraph.findBundlesWithAsset(mainEntry).filter(
+      let candidates = bundleGraph.getBundlesWithAsset(mainEntry).filter(
         containingBundle =>
           containingBundle.id !== bundle.id &&
           // Don't add to BundleGroups for entry bundles, as that would require
@@ -252,9 +252,7 @@ export default (new Bundler({
         if (
           Array.from(bundleGroups).every(
             group =>
-              bundleGraph
-                .getBundlesInBundleGroup(group)
-                .filter(b => b.bundleBehavior !== 'inline').length <
+              bundleGraph.getBundlesInBundleGroup(group).length <
               config.maxParallelRequests,
           )
         ) {
@@ -266,58 +264,7 @@ export default (new Bundler({
 
     // Step 3: Remove assets that are duplicated in a parent bundle.
     deduplicate(bundleGraph);
-
-    // Step 4: Mark async dependencies on assets that are already available in
-    // the bundle as internally resolvable. This removes the dependency between
-    // the bundle and the bundle group providing that asset. If all connections
-    // to that bundle group are removed, remove that bundle group.
-    let asyncBundleGroups: Set<BundleGroup> = new Set();
-    bundleGraph.traverse((node, _, actions) => {
-      if (
-        node.type !== 'dependency' ||
-        node.value.isEntry ||
-        node.value.priority !== 'lazy'
-      ) {
-        return;
-      }
-
-      if (bundleGraph.isDependencySkipped(node.value)) {
-        actions.skipChildren();
-        return;
-      }
-
-      let dependency = node.value;
-      if (dependency.specifierType === 'url') {
-        // Don't internalize dependencies on URLs, e.g. `new Worker('foo.js')`
-        return;
-      }
-
-      let resolution = bundleGraph.getDependencyResolution(dependency);
-      if (resolution == null) {
-        return;
-      }
-
-      let externalResolution = bundleGraph.resolveAsyncDependency(dependency);
-      if (externalResolution?.type === 'bundle_group') {
-        asyncBundleGroups.add(externalResolution.value);
-      }
-
-      for (let bundle of bundleGraph.findBundlesWithDependency(dependency)) {
-        if (
-          bundle.hasAsset(resolution) ||
-          bundleGraph.isAssetReachableFromBundle(resolution, bundle)
-        ) {
-          bundleGraph.internalizeAsyncDependency(bundle, dependency);
-        }
-      }
-    });
-
-    // Remove any bundle groups that no longer have any parent bundles.
-    for (let bundleGroup of asyncBundleGroups) {
-      if (bundleGraph.getParentBundlesOfBundleGroup(bundleGroup).length === 0) {
-        bundleGraph.removeBundleGroup(bundleGroup);
-      }
-    }
+    internalizeReachableAsyncDependencies(bundleGraph);
   },
   optimize({bundleGraph, config}) {
     // if only one bundle, no need to optimize
@@ -346,7 +293,7 @@ export default (new Bundler({
 
       let asset = node.value;
       let containingBundles = bundleGraph
-        .findBundlesWithAsset(asset)
+        .getBundlesWithAsset(asset)
         // Don't create shared bundles from entry bundles, as that would require
         // another entry bundle depending on these conditions, making it difficult
         // to predict and reference.
@@ -407,9 +354,7 @@ export default (new Bundler({
         if (
           bundleGroups.every(
             group =>
-              bundleGraph
-                .getBundlesInBundleGroup(group)
-                .filter(b => b.bundleBehavior !== 'inline').length <
+              bundleGraph.getBundlesInBundleGroup(group).length <
               config.maxParallelRequests,
           )
         ) {
@@ -451,6 +396,7 @@ export default (new Bundler({
 
     // Remove assets that are duplicated between shared bundles.
     deduplicate(bundleGraph);
+    internalizeReachableAsyncDependencies(bundleGraph);
   },
 }): Bundler);
 
@@ -460,7 +406,7 @@ function deduplicate(bundleGraph: MutableBundleGraph) {
       let asset = node.value;
       // Search in reverse order, so bundles that are loaded keep the duplicated asset, not later ones.
       // This ensures that the earlier bundle is able to execute before the later one.
-      let bundles = bundleGraph.findBundlesWithAsset(asset).reverse();
+      let bundles = bundleGraph.getBundlesWithAsset(asset).reverse();
       for (let bundle of bundles) {
         if (
           bundle.hasAsset(asset) &&
@@ -524,4 +470,60 @@ async function loadBundlerConfig(config: Config, options: PluginOptions) {
     maxParallelRequests:
       conf.contents.maxParallelRequests ?? defaults.maxParallelRequests,
   };
+}
+
+function internalizeReachableAsyncDependencies(
+  bundleGraph: MutableBundleGraph,
+): void {
+  // Mark async dependencies on assets that are already available in
+  // the bundle as internally resolvable. This removes the dependency between
+  // the bundle and the bundle group providing that asset. If all connections
+  // to that bundle group are removed, remove that bundle group.
+  let asyncBundleGroups: Set<BundleGroup> = new Set();
+  bundleGraph.traverse((node, _, actions) => {
+    if (
+      node.type !== 'dependency' ||
+      node.value.isEntry ||
+      node.value.priority !== 'lazy'
+    ) {
+      return;
+    }
+
+    if (bundleGraph.isDependencySkipped(node.value)) {
+      actions.skipChildren();
+      return;
+    }
+
+    let dependency = node.value;
+    if (dependency.specifierType === 'url') {
+      // Don't internalize dependencies on URLs, e.g. `new Worker('foo.js')`
+      return;
+    }
+
+    let resolution = bundleGraph.getResolvedAsset(dependency);
+    if (resolution == null) {
+      return;
+    }
+
+    let externalResolution = bundleGraph.resolveAsyncDependency(dependency);
+    if (externalResolution?.type === 'bundle_group') {
+      asyncBundleGroups.add(externalResolution.value);
+    }
+
+    for (let bundle of bundleGraph.getBundlesWithDependency(dependency)) {
+      if (
+        bundle.hasAsset(resolution) ||
+        bundleGraph.isAssetReachableFromBundle(resolution, bundle)
+      ) {
+        bundleGraph.internalizeAsyncDependency(bundle, dependency);
+      }
+    }
+  });
+
+  // Remove any bundle groups that no longer have any parent bundles.
+  for (let bundleGroup of asyncBundleGroups) {
+    if (bundleGraph.getParentBundlesOfBundleGroup(bundleGroup).length === 0) {
+      bundleGraph.removeBundleGroup(bundleGroup);
+    }
+  }
 }

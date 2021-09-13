@@ -76,6 +76,16 @@ describe('html', function() {
       }
     }
 
+    assert(html.includes('#hash_link'));
+    assert(html.includes('mailto:someone@acme.com'));
+    assert(html.includes('tel:+33636757575'));
+    assert(html.includes('https://unpkg.com/parcel-bundler'));
+
+    let iconsBundle = b.getBundles().find(b => b.name.startsWith('icons'));
+    assert(
+      html.includes('/' + path.basename(iconsBundle.filePath) + '#icon-code'),
+    );
+
     let value = null;
     await run(b, {
       alert: v => (value = v),
@@ -99,18 +109,8 @@ describe('html', function() {
       },
     ]);
 
-    assert(
-      await outputFS.exists(
-        path.join(distDir, 'html-pkg-source-array/a.html'),
-        'utf8',
-      ),
-    );
-    assert(
-      await outputFS.exists(
-        path.join(distDir, 'html-pkg-source-array/b.html'),
-        'utf8',
-      ),
-    );
+    assert(await outputFS.exists(path.join(distDir, 'a.html'), 'utf8'));
+    assert(await outputFS.exists(path.join(distDir, 'b.html'), 'utf8'));
   });
 
   it('should find href attr when not first', async function() {
@@ -170,7 +170,7 @@ describe('html', function() {
     assert(/<link rel="canonical" href="\.?\/index.html">/.test(html));
   });
 
-  it('should support meta tag with none content', async function() {
+  it('should support meta tags', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-meta/index.html'),
     );
@@ -180,13 +180,23 @@ describe('html', function() {
         name: 'index.html',
         assets: ['index.html'],
       },
+      {
+        name: 'logo.svg',
+        assets: ['logo.svg'],
+      },
     ]);
 
     let html = await outputFS.readFile(
       path.join(distDir, 'index.html'),
       'utf8',
     );
-    assert(/<meta name="msapplication-config" content="none">/.test(html));
+    assert(html.includes(`<meta name="msapplication-config" content="none">`));
+    assert(html.includes(`<meta property="og:image" content="/logo.svg">`));
+    assert(
+      html.includes(
+        `<meta name="twitter:image" content="https://parceljs.org/assets/logo.svg">`,
+      ),
+    );
   });
 
   it('should insert sibling CSS bundles for JS files in the HEAD', async function() {
@@ -348,7 +358,7 @@ describe('html', function() {
     );
 
     assert(
-      /^<link rel="stylesheet" href="[/\\]index\.[a-f0-9]+\.css">\s*<script src="[/\\]index\.[a-f0-9]+\.js"><\/script>\s*<h1>Hello/m.test(
+      /^<link rel="stylesheet" href="[/\\]index\.[a-f0-9]+\.css">\s*<script src="[/\\]index\.[a-f0-9]+\.js" defer=""><\/script>\s*<h1>Hello/m.test(
         html,
       ),
     );
@@ -391,7 +401,8 @@ describe('html', function() {
     );
 
     assert.equal(
-      html.match(/<script src="[/\\]{1}index\.[a-f0-9]+?\.js">/g).length,
+      html.match(/<script src="[/\\]{1}index\.[a-f0-9]+?\.js" defer="">/g)
+        .length,
       2,
     );
   });
@@ -456,7 +467,7 @@ describe('html', function() {
     assert.equal(html.length, 0);
   });
 
-  it('should read .htmlnanorc and minify HTML in production mode', async function() {
+  it('should read .htmlnanorc.json and minify HTML in production mode', async function() {
     await bundle(
       path.join(__dirname, '/integration/htmlnano-config/index.html'),
       {
@@ -473,22 +484,18 @@ describe('html', function() {
 
     // minifyJson
     assert(
-      html.includes('<script type="application/json">{"user":"me"}</script>'),
+      html.includes('<script type=application/json>{"user":"me"}</script>'),
     );
 
     // mergeStyles
-    assert(
-      html.includes(
-        '<style>h1{color:red}div{font-size:20px}</style><style media="print">div{color:#00f}</style>',
-      ),
-    );
+    assert(html.includes('<style>h1{color:red}</style>'));
 
     assert(!html.includes('sourceMappingURL'));
 
     // minifySvg is false
     assert(
       html.includes(
-        '<svg version="1.1" baseprofile="full" width="300" height="200" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="red"></rect><circle cx="150" cy="100" r="80" fill="green"></circle><text x="150" y="125" font-size="60" text-anchor="middle" fill="white">SVG</text></svg>',
+        '<svg version=1.1 baseprofile=full width=300 height=200 xmlns=http://www.w3.org/2000/svg><rect width=100% height=100% fill=red></rect><circle cx=150 cy=100 r=80 fill=green></circle><text x=150 y=125 font-size=60 text-anchor=middle fill=white>SVG</text></svg>',
       ),
     );
   });
@@ -794,6 +801,9 @@ describe('html', function() {
   it('should ignore svgs referencing local symbols via <use xlink:href="#">', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-svg-local-symbol/index.html'),
+      {
+        mode: 'production',
+      },
     );
 
     assertBundles(b, [
@@ -802,6 +812,13 @@ describe('html', function() {
         assets: ['index.html'],
       },
     ]);
+
+    let contents = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(
+      contents.includes(
+        '<svg><symbol id="all"><rect width="100" height="100"/></symbol></svg><svg xmlns:xlink="http://www.w3.org/1999/xlink"><use xlink:href="#all" href="#all"/></svg>',
+      ),
+    );
   });
 
   it('should bundle svg files using <image xlink:href=""> correctly', async function() {
@@ -1235,9 +1252,9 @@ describe('html', function() {
               ],
             },
           ],
-          hints: [
-            'Add type="module" as a second argument to the <script> tag.',
-          ],
+          hints: ['Add the type="module" attribute to the <script> tag.'],
+          documentationURL:
+            'https://v2.parceljs.org/languages/javascript/#classic-scripts',
         },
       ]);
 
@@ -1516,9 +1533,9 @@ describe('html', function() {
               ],
             },
           ],
-          hints: [
-            'Add type="module" as a second argument to the <script> tag.',
-          ],
+          hints: ['Add the type="module" attribute to the <script> tag.'],
+          documentationURL:
+            'https://v2.parceljs.org/languages/javascript/#classic-scripts',
         },
       ]);
 
@@ -1639,26 +1656,31 @@ describe('html', function() {
       },
       {
         type: 'js',
-        assets: ['bundle-manifest.js', 'get-worker-url.js', 'index.js'],
+        assets: [
+          'bundle-manifest.js',
+          'get-worker-url.js',
+          'index.js',
+          'lodash.js',
+        ],
       },
       {
         name: 'index.html',
         type: 'html',
         assets: ['index.html'],
       },
+      // {
+      //   type: 'js',
+      //   assets: ['lodash.js'],
+      // },
       {
         type: 'js',
-        assets: ['lodash.js'],
-      },
-      {
-        type: 'js',
-        assets: ['worker.js'],
+        assets: ['worker.js', 'lodash.js'],
       },
     ]);
 
-    let lodashSibling = path.basename(
-      b.getBundles().find(v => v.getEntryAssets().length === 0).filePath,
-    );
+    // let lodashSibling = path.basename(
+    //   b.getBundles().find(v => v.getEntryAssets().length === 0).filePath,
+    // );
 
     let html = await outputFS.readFile(
       path.join(distDir, 'index.html'),
@@ -1672,8 +1694,9 @@ describe('html', function() {
       insertedBundles.push(path.basename(match[1]));
     }
 
-    assert.equal(insertedBundles.length, 2);
-    assert.equal(insertedBundles[0], lodashSibling);
+    assert.equal(insertedBundles.length, 1);
+    // assert.equal(insertedBundles.length, 2);
+    // assert.equal(insertedBundles[0], lodashSibling);
   });
 
   it('inserts sibling bundles into html in the correct order (head)', async function() {
@@ -1694,26 +1717,31 @@ describe('html', function() {
       },
       {
         type: 'js',
-        assets: ['bundle-manifest.js', 'get-worker-url.js', 'index.js'],
+        assets: [
+          'bundle-manifest.js',
+          'get-worker-url.js',
+          'index.js',
+          'lodash.js',
+        ],
       },
       {
         name: 'index.html',
         type: 'html',
         assets: ['index.html'],
       },
+      // {
+      //   type: 'js',
+      //   assets: ['lodash.js'],
+      // },
       {
         type: 'js',
-        assets: ['lodash.js'],
-      },
-      {
-        type: 'js',
-        assets: ['worker.js'],
+        assets: ['worker.js', 'lodash.js'],
       },
     ]);
 
-    let lodashSibling = path.basename(
-      b.getBundles().find(v => v.getEntryAssets().length === 0).filePath,
-    );
+    // let lodashSibling = path.basename(
+    //   b.getBundles().find(v => v.getEntryAssets().length === 0).filePath,
+    // );
 
     let html = await outputFS.readFile(
       path.join(distDir, 'index.html'),
@@ -1727,8 +1755,193 @@ describe('html', function() {
       insertedBundles.push(path.basename(match[1]));
     }
 
-    assert.equal(insertedBundles.length, 2);
-    assert.equal(insertedBundles[0], lodashSibling);
+    assert.equal(insertedBundles.length, 1);
+    // assert.equal(insertedBundles.length, 2);
+    // assert.equal(insertedBundles[0], lodashSibling);
+  });
+
+  it('inserts sibling bundles into html with nomodule or type=module', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-js-shared-nomodule/*.html'),
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+          shouldOptimize: false,
+        },
+      },
+    );
+
+    assertBundles(b, [
+      {
+        name: 'a.html',
+        assets: ['a.html'],
+      },
+      {
+        type: 'js',
+        assets: ['a.js'],
+      },
+      {
+        type: 'js',
+        assets: ['a.js'],
+      },
+      {
+        name: 'b.html',
+        assets: ['b.html'],
+      },
+      {
+        type: 'js',
+        assets: ['b.js'],
+      },
+      {
+        type: 'js',
+        assets: ['b.js'],
+      },
+      {
+        type: 'js',
+        assets: ['lib.js'],
+      },
+      {
+        type: 'js',
+        assets: ['lib.js'],
+      },
+    ]);
+
+    for (let file of b
+      .getBundles()
+      .filter(b => b.type === 'html')
+      .map(b => b.filePath)) {
+      let html = await outputFS.readFile(file, 'utf8');
+
+      let noModuleScripts = [];
+      let moduleScripts = [];
+
+      let regex = /<script ([^>]*)><\/script>/g;
+      let match;
+      while ((match = regex.exec(html)) !== null) {
+        let attributes = new Map(match[1].split(' ').map(a => a.split('=')));
+        let url = attributes.get('src').replace(/"/g, '');
+        assert(url);
+        if (attributes.get('type') === '"module"') {
+          assert.strictEqual(attributes.size, 2);
+          moduleScripts.push(path.basename(url));
+        } else {
+          assert.strictEqual(attributes.size, 3);
+          assert(attributes.get('nomodule'));
+          assert(attributes.get('defer'));
+          noModuleScripts.push(path.basename(url));
+        }
+      }
+
+      for (let scripts of [moduleScripts, noModuleScripts]) {
+        assert.strictEqual(scripts.length, 2);
+        assert(
+          b
+            .getBundles()
+            .find(b => b.filePath.endsWith(scripts[0]))
+            .getMainEntry() == null,
+        );
+        assert(
+          b
+            .getBundles()
+            .find(b => b.filePath.endsWith(scripts[1]))
+            .getMainEntry(),
+        );
+      }
+    }
+  });
+
+  it('should isolate async scripts', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-async-script/index.html'),
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+          shouldOptimize: false,
+        },
+      },
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.html',
+        assets: ['index.html'],
+      },
+      {
+        assets: ['a.js', 'c.js'],
+      },
+      {
+        assets: ['b.js', 'c.js'],
+      },
+    ]);
+
+    let output = [];
+    await run(b, {
+      output(o) {
+        output.push(o);
+      },
+    });
+
+    // could run in either order.
+    assert(output.sort(), ['a', 'b', 'c']);
+  });
+
+  it('should isolate classic scripts from nomodule scripts', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-isolate-script/index.html'),
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+          shouldOptimize: false,
+        },
+      },
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.html',
+        assets: ['index.html'],
+      },
+      {
+        assets: ['a.js', 'bundle-manifest.js'],
+      },
+      {
+        assets: [
+          'a.js',
+          'bundle-manifest.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'js-loader.js',
+        ],
+      },
+      {
+        assets: [
+          'b.js',
+          'bundle-manifest.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'js-loader.js',
+        ],
+      },
+      {
+        assets: ['c.js'],
+      },
+      {
+        assets: ['c.js'],
+      },
+    ]);
+
+    let output = [];
+    await run(b, {
+      output(o) {
+        output.push(o);
+      },
+    });
+
+    // could run in either order.
+    assert(output.sort(), ['a', 'b', 'c']);
   });
 
   it('should support multiple entries with shared sibling bundles', async function() {
@@ -2021,7 +2234,7 @@ describe('html', function() {
 
     bundleGraph.traverseBundles(bundle => {
       bundle.traverseAssets(asset => {
-        let bundles = bundleGraph.findBundlesWithAsset(asset);
+        let bundles = bundleGraph.getBundlesWithAsset(asset);
         assert.equal(
           bundles.length,
           1,
@@ -2229,7 +2442,7 @@ describe('html', function() {
     );
     assert.equal(
       contents.trim(),
-      `<img src="data:image/svg+xml,%3Csvg%20width%3D%22120%22%20height%3D%27120%27%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%0A%20%20%3Cfilter%20id%3D%22blur-_.%21~%2a%22%3E%0A%20%20%20%20%3CfeGaussianBlur%20stdDeviation%3D%225%22%2F%3E%0A%20%20%3C%2Ffilter%3E%0A%20%20%3Ccircle%20cx%3D%2260%22%20cy%3D%2260%22%20r%3D%2250%22%20fill%3D%22green%22%20filter%3D%22url%28%23blur-_.%21~%2a%29%22%20%2F%3E%0A%3C%2Fsvg%3E%0A">`,
+      `<img src="data:image/svg+xml,%3Csvg%20width%3D%22120%22%20height%3D%22120%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%0A%20%20%3Cfilter%20id%3D%22blur-_.%21~%2a%22%3E%0A%20%20%20%20%3CfeGaussianBlur%20stdDeviation%3D%225%22%3E%3C%2FfeGaussianBlur%3E%0A%20%20%3C%2Ffilter%3E%0A%20%20%3Ccircle%20cx%3D%2260%22%20cy%3D%2260%22%20r%3D%2250%22%20fill%3D%22green%22%20filter%3D%22url%28%27%23blur-_.%21~%2a%27%29%22%3E%3C%2Fcircle%3E%0A%3C%2Fsvg%3E%0A">`,
     );
   });
 
@@ -2266,5 +2479,102 @@ describe('html', function() {
         },
       ],
     });
+  });
+
+  it('should escape inline script tags', async function() {
+    let b = await bundle(
+      path.join(__dirname, 'integration/html-inline-escape/script.html'),
+    );
+    let output;
+    await run(b, {
+      output(o) {
+        output = o;
+      },
+    });
+
+    assert.deepEqual(output, {
+      a: '<script></script>',
+      b: '<!-- test',
+      c: '<SCRIPT></SCRIPT>',
+    });
+  });
+
+  it('should escape quotes in inline style attributes and style tags', async function() {
+    let b = await bundle(
+      path.join(__dirname, 'integration/html-inline-escape/style.html'),
+    );
+    let output = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    let name = path.basename(
+      b.getBundles().find(b => b.type === 'png').filePath,
+      'utf8',
+    );
+    assert(output.includes(`url(&quot;${name}&quot;)`));
+    assert(output.includes('<\\/style>'));
+  });
+
+  it('should work with bundle names that have colons in them', async function() {
+    if (process.platform === 'win32') {
+      return;
+    }
+
+    // Windows paths cannot contain colons and will fail to git clone, so write the file here (in memory).
+    await overlayFS.mkdirp(path.join(__dirname, 'integration/url-colon'));
+    await overlayFS.writeFile(
+      path.join(__dirname, 'integration/url-colon/a:b:c.html'),
+      '<p>Test</p>',
+    );
+
+    let b = await bundle(
+      path.join(__dirname, 'integration/url-colon/relative.html'),
+      {inputFS: overlayFS},
+    );
+
+    assertBundles(b, [
+      {
+        name: 'relative.html',
+        assets: ['relative.html'],
+      },
+      {
+        name: 'a:b:c.html',
+        assets: ['a:b:c.html'],
+      },
+    ]);
+
+    let output = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(output.includes('/a:b:c.html'));
+
+    b = await bundle(
+      path.join(__dirname, 'integration/url-colon/absolute.html'),
+      {inputFS: overlayFS},
+    );
+
+    assertBundles(b, [
+      {
+        name: 'absolute.html',
+        assets: ['absolute.html'],
+      },
+      {
+        name: 'a:b:c.html',
+        assets: ['a:b:c.html'],
+      },
+    ]);
+
+    output = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(output.includes('/a:b:c.html'));
+  });
+
+  it('should normalize case of SVG elements and attributes when minified', async function() {
+    let b = await bundle(
+      path.join(__dirname, 'integration/html-svg-case/index.html'),
+      {
+        mode: 'production',
+      },
+    );
+
+    let output = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(output.includes('<x-custom stddeviation="0.5"'));
+    assert(output.includes('<svg role="img" viewBox='));
+    assert(output.includes('<filter'));
+    assert(output.includes('<feGaussianBlur in="SourceGraphic" stdDeviation='));
   });
 });

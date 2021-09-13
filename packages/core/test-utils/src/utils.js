@@ -26,6 +26,7 @@ import WebSocket from 'ws';
 import nullthrows from 'nullthrows';
 import postHtmlParse from 'posthtml-parser';
 import postHtml from 'posthtml';
+import EventEmitter from 'events';
 
 import {makeDeferredWithPromise, normalizeSeparators} from '@parcel/utils';
 import _chalk from 'chalk';
@@ -284,7 +285,7 @@ export async function runBundles(
   let ctx, promises;
   switch (target) {
     case 'browser': {
-      let prepared = prepareBrowserContext(parent.filePath, globals);
+      let prepared = prepareBrowserContext(parent, globals);
       ctx = prepared.ctx;
       promises = prepared.promises;
       break;
@@ -299,7 +300,7 @@ export async function runBundles(
       break;
     case 'electron-renderer': {
       nodeCache.clear();
-      let prepared = prepareBrowserContext(parent.filePath, globals);
+      let prepared = prepareBrowserContext(parent, globals);
       prepareNodeContext(
         outputFormat === 'commonjs' && parent.filePath,
         globals,
@@ -309,7 +310,8 @@ export async function runBundles(
       promises = prepared.promises;
       break;
     }
-    case 'web-worker': {
+    case 'web-worker':
+    case 'service-worker': {
       let prepared = prepareWorkerContext(parent.filePath, globals);
       ctx = prepared.ctx;
       promises = prepared.promises;
@@ -323,10 +325,15 @@ export async function runBundles(
       throw new Error('Unknown target ' + target);
   }
 
+  // A utility to prevent optimizers from removing side-effect-free code needed for testing
+  // $FlowFixMe[prop-missing]
+  ctx.sideEffectNoop = () => {};
+
   vm.createContext(ctx);
   let esmOutput;
   if (outputFormat === 'esmodule') {
     let res = await runESM(
+      bundles[0][1].target.distDir,
       bundles.map(([code, bundle]) => [code, bundle.filePath]),
       ctx,
       overlayFS,
@@ -343,11 +350,15 @@ export async function runBundles(
     for (let [code, b] of bundles) {
       // require, parcelRequire was set up in prepare*Context
       new vm.Script((opts.strict ? '"use strict";\n' : '') + code, {
-        filename: b.name,
+        filename:
+          b.bundleBehavior === 'inline'
+            ? b.name
+            : normalizeSeparators(path.relative(b.target.distDir, b.filePath)),
         async importModuleDynamically(specifier) {
           let filePath = path.resolve(path.dirname(parent.filePath), specifier);
           let code = await overlayFS.readFile(filePath, 'utf8');
           let modules = await runESM(
+            b.target.distDir,
             [[code, filePath]],
             ctx,
             overlayFS,
@@ -406,7 +417,7 @@ export async function runBundle(
       lowerCaseAttributeNames: true,
     });
 
-    let bundles = bundleGraph.getBundles();
+    let bundles = bundleGraph.getBundles({includeInline: true});
     let scripts = [];
     postHtml().walk.call(ast, node => {
       if (node.attrs?.nomodule != null) {
@@ -570,7 +581,7 @@ export function normaliseNewlines(text: string): string {
 }
 
 function prepareBrowserContext(
-  filePath: FilePath,
+  bundle: PackagedBundle,
   globals: mixed,
 ): {|
   ctx: vm$Context,
@@ -590,15 +601,14 @@ function prepareBrowserContext(
         let {deferred, promise} = makeDeferredWithPromise();
         promises.push(promise);
         setTimeout(function() {
-          let file = path.join(
-            path.dirname(filePath),
-            url.parse(el.src).pathname,
-          );
+          let pathname = url.parse(el.src).pathname;
+          let file = path.join(bundle.target.distDir, pathname);
+
           new vm.Script(
             // '"use strict";\n' +
             overlayFS.readFileSync(file, 'utf8'),
             {
-              filename: path.basename(file),
+              filename: pathname.slice(1),
             },
           ).runInContext(ctx);
 
@@ -637,14 +647,48 @@ function prepareBrowserContext(
         return null;
       },
     },
-    currentScript: {
-      src: 'http://localhost/script.js',
-    },
+
+    currentScript: null,
   };
 
   var exports = {};
+
+  function PatchedError(message) {
+    const patchedError = new Error(message);
+    const stackStart = patchedError.stack.indexOf('at new Error');
+    const stackEnd = patchedError.stack.includes('at Script.runInContext')
+      ? patchedError.stack.indexOf('at Script.runInContext')
+      : patchedError.stack.indexOf('at runNextTicks');
+    const stack = patchedError.stack.slice(stackStart, stackEnd).split('\n');
+    stack.shift();
+    stack.pop();
+    for (let [i, line] of stack.entries()) {
+      stack[i] = line.replace(
+        /( ?.* )\(?(.*)\)?$/,
+        (_, prefix, path) =>
+          prefix +
+          (path.endsWith(')')
+            ? `(http://localhost/${path.slice(0, path.length - 1)})`
+            : `http://localhost/${path}`),
+      );
+    }
+    patchedError.stack =
+      patchedError.stack.slice(0, stackStart).replace(/ +$/, '') +
+      stack.join('\n');
+
+    return patchedError;
+  }
+
+  PatchedError.prototype = Object.create(Error.prototype);
+  Object.defineProperty(PatchedError, 'name', {
+    writable: true,
+    value: 'Error',
+  });
+  PatchedError.prototype.constructor = PatchedError;
+
   var ctx = Object.assign(
     {
+      Error: PatchedError,
       exports,
       module: {exports},
       document: fakeDocument,
@@ -659,14 +703,14 @@ function prepareBrowserContext(
         return Promise.resolve({
           async arrayBuffer() {
             let readFilePromise = overlayFS.readFile(
-              path.join(path.dirname(filePath), url),
+              path.join(path.dirname(bundle.target.distDir), url),
             );
             promises.push(readFilePromise);
             return new Uint8Array(await readFilePromise).buffer;
           },
           text() {
             let readFilePromise = overlayFS.readFile(
-              path.join(path.dirname(filePath), url),
+              path.join(path.dirname(bundle.target.distDir), url),
               'utf8',
             );
             promises.push(readFilePromise);
@@ -681,12 +725,50 @@ function prepareBrowserContext(
         return Buffer.from(str, 'binary').toString('base64');
       },
       URL,
+      Worker: createWorkerClass(bundle.filePath),
     },
     globals,
   );
 
   ctx.window = ctx.self = ctx;
   return {ctx, promises};
+}
+
+function createWorkerClass(filePath: FilePath) {
+  return class Worker extends EventEmitter {
+    constructor(url) {
+      super();
+      this._run(url);
+    }
+
+    async _run(url) {
+      let u = new URL(url);
+      let filename = path.join(path.dirname(filePath), u.pathname);
+      let {ctx, promises} = prepareWorkerContext(filename, {
+        postMessage: msg => {
+          this.emit('message', msg);
+        },
+      });
+
+      let code = await overlayFS.readFile(filename, 'utf8');
+      vm.createContext(ctx);
+      new vm.Script(code, {
+        filename: 'http://localhost/' + path.basename(filename),
+      }).runInContext(ctx);
+
+      if (promises) {
+        await Promise.all(promises);
+      }
+    }
+
+    addEventListener(evt, callback) {
+      super.on(evt, callback);
+    }
+
+    removeEventListener(evt, callback) {
+      super.removeListener(evt, callback);
+    }
+  };
 }
 
 function prepareWorkerContext(
@@ -745,6 +827,7 @@ function prepareWorkerContext(
         return Buffer.from(str, 'binary').toString('base64');
       },
       URL,
+      Worker: createWorkerClass(filePath),
     },
     globals,
   );
@@ -860,6 +943,7 @@ function prepareNodeContext(filePath, globals, ctx: any = {}) {
 
 let instanceId = 0;
 export async function runESM(
+  baseDir: FilePath,
   entries: Array<[string, string]>,
   context: vm$Context,
   fs: FileSystem,
@@ -880,6 +964,7 @@ export async function runESM(
         );
       }
       let filename = path.resolve(
+        baseDir,
         path.dirname(referrer.identifier),
         !extname && !requireExtensions ? specifier + '.js' : specifier,
       );
@@ -892,7 +977,9 @@ export async function runESM(
       let source = code ?? fs.readFileSync(filename, 'utf8');
       // $FlowFixMe Experimental
       m = new vm.SourceTextModule(source, {
-        identifier: filename + '?id=' + id,
+        identifier: `${normalizeSeparators(
+          path.relative(baseDir, filename),
+        )}?id=${id}`,
         importModuleDynamically: entry,
         context,
         initializeImportMeta(meta) {
@@ -982,6 +1069,7 @@ export async function assertESMExports(
   );
   nodeCache.clear();
   let [nodeResult] = await runESM(
+    b.getBundles()[0].target.distDir,
     [[await inputFS.readFile(entry.filePath, 'utf8'), entry.filePath]],
     vm.createContext(prepareNodeContext(false, {})),
     inputFS,

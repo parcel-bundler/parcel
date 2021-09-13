@@ -148,7 +148,6 @@ class BundlerRunner {
     for (let devDep of config.devDeps) {
       let devDepRequest = await createDevDependency(
         devDep,
-        plugin,
         this.previousDevDeps,
         this.options,
       );
@@ -212,7 +211,7 @@ class BundlerRunner {
       this.options,
     );
 
-    let logger = new PluginLogger({origin: this.config.getBundlerName()});
+    let logger = new PluginLogger({origin: name});
 
     try {
       await bundler.bundle({
@@ -224,7 +223,7 @@ class BundlerRunner {
     } catch (e) {
       throw new ThrowableDiagnostic({
         diagnostic: errorToDiagnostic(e, {
-          origin: this.config.getBundlerName(),
+          origin: name,
         }),
       });
     } finally {
@@ -247,7 +246,7 @@ class BundlerRunner {
       } catch (e) {
         throw new ThrowableDiagnostic({
           diagnostic: errorToDiagnostic(e, {
-            origin: this.config.getBundlerName(),
+            origin: name,
           }),
         });
       } finally {
@@ -267,7 +266,6 @@ class BundlerRunner {
         specifier: name,
         resolveFrom,
       },
-      plugin,
       this.previousDevDeps,
       this.options,
     );
@@ -331,7 +329,9 @@ class BundlerRunner {
 
   async nameBundles(bundleGraph: InternalBundleGraph): Promise<void> {
     let namers = await this.config.getNamers();
-    let bundles = bundleGraph.getBundles();
+    // inline bundles must still be named so the PackagerRunner
+    // can match them to the correct packager/optimizer plugins.
+    let bundles = bundleGraph.getBundles({includeInline: true});
     await Promise.all(
       bundles.map(bundle => this.nameBundle(namers, bundle, bundleGraph)),
     );
@@ -343,7 +343,6 @@ class BundlerRunner {
           specifier: namer.name,
           resolveFrom: namer.resolveFrom,
         },
-        namer,
         this.previousDevDeps,
         this.options,
       );
@@ -368,7 +367,7 @@ class BundlerRunner {
     let bundle = Bundle.get(internalBundle, internalBundleGraph, this.options);
     let bundleGraph = new BundleGraph<IBundle>(
       internalBundleGraph,
-      NamedBundle.get,
+      NamedBundle.get.bind(NamedBundle),
       this.options,
     );
 

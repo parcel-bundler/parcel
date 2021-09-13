@@ -5,8 +5,12 @@ import type {Async, EnvMap} from '@parcel/types';
 import type {EventType, Options as WatcherOptions} from '@parcel/watcher';
 import type WorkerFarm from '@parcel/workers';
 import type {
+  ContentGraphOpts,
   ContentKey,
   NodeId,
+  SerializedContentGraph,
+} from '@parcel/graph';
+import type {
   ParcelOptions,
   RequestInvalidation,
   InternalFile,
@@ -24,10 +28,7 @@ import {
   makeDeferredWithPromise,
 } from '@parcel/utils';
 import {hashString} from '@parcel/hash';
-import ContentGraph, {
-  type SerializedContentGraph,
-  type ContentGraphOpts,
-} from './ContentGraph';
+import {ContentGraph} from '@parcel/graph';
 import {assertSignalNotAborted, hashFromOption} from './utils';
 import {
   type ProjectPath,

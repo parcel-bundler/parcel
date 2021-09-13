@@ -46,7 +46,7 @@ pub fn match_member_expr(
     }
   }
 
-  return false;
+  false
 }
 
 pub fn create_require(specifier: swc_atoms::JsWord) -> ast::CallExpr {
@@ -75,7 +75,7 @@ pub fn create_require(specifier: swc_atoms::JsWord) -> ast::CallExpr {
 }
 
 fn is_marked(span: Span, mark: Mark) -> bool {
-  let mut ctxt = span.ctxt().clone();
+  let mut ctxt = span.ctxt();
 
   loop {
     let m = ctxt.remove_mark();
@@ -105,10 +105,8 @@ pub fn match_require(
             && !is_marked(ident.span, ignore_mark)
           {
             if let Some(arg) = call.args.get(0) {
-              if let Expr::Lit(lit) = &*arg.expr {
-                if let Lit::Str(str_) = lit {
-                  return Some(str_.value.clone());
-                }
+              if let Expr::Lit(Lit::Str(str_)) = &*arg.expr {
+                return Some(str_.value.clone());
               }
             }
           }
@@ -132,10 +130,8 @@ pub fn match_import(node: &ast::Expr, ignore_mark: Mark) -> Option<JsWord> {
         Expr::Ident(ident) => {
           if ident.sym == js_word!("import") && !is_marked(ident.span, ignore_mark) {
             if let Some(arg) = call.args.get(0) {
-              if let Expr::Lit(lit) = &*arg.expr {
-                if let Lit::Str(str_) = lit {
-                  return Some(str_.value.clone());
-                }
+              if let Expr::Lit(Lit::Str(str_)) = &*arg.expr {
+                return Some(str_.value.clone());
               }
             }
           }
@@ -186,6 +182,18 @@ pub struct Diagnostic {
   pub code_highlights: Option<Vec<CodeHighlight>>,
   pub hints: Option<Vec<String>>,
   pub show_environment: bool,
+  pub severity: DiagnosticSeverity,
+  pub documentation_url: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Eq, PartialEq)]
+pub enum DiagnosticSeverity {
+  /// Fails the build with an error.
+  Error,
+  /// Logs a warning, but the build does not fail.
+  Warning,
+  /// An error if this is source code in the project, or a warning if in node_modules.
+  SourceError,
 }
 
 #[derive(Serialize, Debug, Deserialize, Eq, PartialEq, Clone, Copy)]

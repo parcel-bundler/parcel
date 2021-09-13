@@ -21,27 +21,27 @@ const TYPE_TO_RESOURCE_PRIORITY = {
   js: 'script',
 };
 
-const BROWSER_PRELOAD_LOADER = './loaders/browser/preload-loader';
-const BROWSER_PREFETCH_LOADER = './loaders/browser/prefetch-loader';
+const BROWSER_PRELOAD_LOADER = './helpers/browser/preload-loader';
+const BROWSER_PREFETCH_LOADER = './helpers/browser/prefetch-loader';
 
 const LOADERS = {
   browser: {
-    css: './loaders/browser/css-loader',
-    html: './loaders/browser/html-loader',
-    js: './loaders/browser/js-loader',
-    wasm: './loaders/browser/wasm-loader',
-    IMPORT_POLYFILL: './loaders/browser/import-polyfill',
+    css: './helpers/browser/css-loader',
+    html: './helpers/browser/html-loader',
+    js: './helpers/browser/js-loader',
+    wasm: './helpers/browser/wasm-loader',
+    IMPORT_POLYFILL: './helpers/browser/import-polyfill',
   },
   worker: {
-    js: './loaders/worker/js-loader',
-    wasm: './loaders/worker/wasm-loader',
+    js: './helpers/worker/js-loader',
+    wasm: './helpers/worker/wasm-loader',
     IMPORT_POLYFILL: false,
   },
   node: {
-    css: './loaders/node/css-loader',
-    html: './loaders/node/html-loader',
-    js: './loaders/node/js-loader',
-    wasm: './loaders/node/wasm-loader',
+    css: './helpers/node/css-loader',
+    html: './helpers/node/html-loader',
+    js: './helpers/node/js-loader',
+    wasm: './helpers/node/wasm-loader',
     IMPORT_POLYFILL: null,
   },
 };
@@ -195,9 +195,7 @@ export default (new Runtime({
     // know about all of the sibling bundles of a child when it is written for the first time.
     // Therefore, we need to also ensure that the siblings are loaded when the child loads.
     if (options.shouldBuildLazily && bundle.env.outputFormat === 'global') {
-      let referenced = bundleGraph
-        .getReferencedBundles(bundle)
-        .filter(b => b.bundleBehavior !== 'inline');
+      let referenced = bundleGraph.getReferencedBundles(bundle);
       for (let referencedBundle of referenced) {
         let loaders = getLoaders(bundle.env);
         if (!loaders) {
@@ -228,7 +226,9 @@ export default (new Runtime({
 
     if (
       shouldUseRuntimeManifest(bundle, options) &&
-      bundleGraph.getChildBundles(bundle).length > 0 &&
+      bundleGraph
+        .getChildBundles(bundle)
+        .some(b => b.bundleBehavior !== 'inline') &&
       isNewContext(bundle, bundleGraph)
     ) {
       assets.push({
@@ -294,10 +294,7 @@ function getLoaderRuntime({
     return;
   }
 
-  let externalBundles = bundleGraph
-    .getBundlesInBundleGroup(bundleGroup)
-    .filter(bundle => bundle.bundleBehavior !== 'inline');
-
+  let externalBundles = bundleGraph.getBundlesInBundleGroup(bundleGroup);
   let mainBundle = nullthrows(
     externalBundles.find(
       bundle => bundle.getMainEntry()?.id === bundleGroup.entryAssetId,
@@ -517,18 +514,18 @@ function getURLRuntime(
   let code;
 
   if (dependency.meta.webworker === true && !from.env.isLibrary) {
-    code = `let workerURL = require('./get-worker-url');\n`;
+    code = `let workerURL = require('./helpers/get-worker-url');\n`;
     if (
       from.env.outputFormat === 'esmodule' &&
       from.env.supports('import-meta-url')
     ) {
-      code += `let url = new __parcel__URL__(${relativePathExpr}, import.meta.url);\n`;
+      code += `let url = new __parcel__URL__(${relativePathExpr});\n`;
       code += `module.exports = workerURL(url.toString(), url.origin, ${String(
         from.env.outputFormat === 'esmodule',
       )});`;
     } else {
-      code += `let bundleURL = require('./bundle-url');\n`;
-      code += `let url = bundleURL.getBundleURL() + ${relativePathExpr};`;
+      code += `let bundleURL = require('./helpers/bundle-url');\n`;
+      code += `let url = bundleURL.getBundleURL('${from.publicId}') + ${relativePathExpr};`;
       code += `module.exports = workerURL(url, bundleURL.getOrigin(url), ${String(
         from.env.outputFormat === 'esmodule',
       )});`;
@@ -564,7 +561,7 @@ function getRegisterCode(
   }, entryBundle);
 
   return (
-    "require('./bundle-manifest').register(JSON.parse(" +
+    "require('./helpers/bundle-manifest').register(JSON.parse(" +
     JSON.stringify(JSON.stringify(idToName)) +
     '));'
   );
@@ -586,7 +583,9 @@ function getRelativePathExpr(
     }
     return (
       relativeBase +
-      `require('./bundle-manifest').resolve(${JSON.stringify(to.publicId)})`
+      `require('./helpers/bundle-manifest').resolve(${JSON.stringify(
+        to.publicId,
+      )})`
     );
   }
 
@@ -595,14 +594,14 @@ function getRelativePathExpr(
 
 function getAbsoluteUrlExpr(relativePathExpr: string, bundle: NamedBundle) {
   if (
-    bundle.env.outputFormat === 'esmodule' &&
-    bundle.env.supports('import-meta-url')
+    (bundle.env.outputFormat === 'esmodule' &&
+      bundle.env.supports('import-meta-url')) ||
+    bundle.env.outputFormat === 'commonjs'
   ) {
-    return `new __parcel__URL__(${relativePathExpr}, import.meta.url).toString()`;
-  } else if (bundle.env.outputFormat === 'commonjs' || bundle.env.isNode()) {
-    return `new __parcel__URL__(${relativePathExpr}, 'file:' + __filename).toString()`;
+    // This will be compiled to new URL(url, import.meta.url) or new URL(url, 'file:' + __filename).
+    return `new __parcel__URL__(${relativePathExpr}).toString()`;
   } else {
-    return `require('./bundle-url').getBundleURL() + ${relativePathExpr}`;
+    return `require('./helpers/bundle-url').getBundleURL('${bundle.publicId}') + ${relativePathExpr}`;
   }
 }
 

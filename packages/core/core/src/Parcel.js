@@ -31,11 +31,7 @@ import {AbortController} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import {PromiseQueue} from '@parcel/utils';
 import ParcelConfig from './ParcelConfig';
 import logger from '@parcel/logger';
-import {bundleGraphEdgeTypes} from './BundleGraph';
-import RequestTracker, {
-  getWatcherOptions,
-  requestGraphEdgeTypes,
-} from './RequestTracker';
+import RequestTracker, {getWatcherOptions} from './RequestTracker';
 import createValidationRequest from './requests/ValidationRequest';
 import createParcelBuildRequest from './requests/ParcelBuildRequest';
 import {Disposable} from '@parcel/events';
@@ -108,9 +104,7 @@ export default class Parcel {
       });
     }
 
-    if (resolvedOptions.cache.ensure) {
-      await resolvedOptions.cache.ensure();
-    }
+    await resolvedOptions.cache.ensure();
 
     let {
       dispose: disposeOptions,
