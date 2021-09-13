@@ -8,6 +8,7 @@ import {
   bundler,
   run,
   overlayFS,
+  outputFS,
   inputFS,
   ncp,
   workerFarm,
@@ -3090,6 +3091,7 @@ describe('cache', function() {
         // $FlowFixMe
         let Module = require('module');
         let origPnpVersion = process.versions.pnp;
+        // $FlowFixMe[prop-missing]
         let origModuleResolveFilename = Module._resolveFilename;
 
         try {
@@ -3104,9 +3106,10 @@ describe('cache', function() {
                   inputDir,
                 );
 
-                // $FlowFixMe
+                // $FlowFixMe[incompatible-type]
                 process.versions.pnp = 42;
 
+                // $FlowFixMe[prop-missing]
                 Module.findPnpApi = () =>
                   // $FlowFixMe
                   require(path.join(inputDir, '.pnp.js'));
@@ -3140,7 +3143,9 @@ describe('cache', function() {
           let output = await run(b.bundleGraph);
           assert.equal(output(), 6);
         } finally {
+          // $FlowFixMe[incompatible-type]
           process.versions.pnp = origPnpVersion;
+          // $FlowFixMe[prop-missing]
           Module._resolveFilename = origModuleResolveFilename;
         }
       });
@@ -3621,6 +3626,59 @@ describe('cache', function() {
       assert(output.includes('UPDATED'));
     });
 
+    it('should invalidate when updating a file required via options.packageManager.require', async function() {
+      let b = await testCache({
+        async setup() {
+          await overlayFS.writeFile(
+            path.join(inputDir, '.parcelrc'),
+            JSON.stringify({
+              extends: '@parcel/config-default',
+              transformers: {
+                '*.js': ['parcel-transformer-mock'],
+              },
+            }),
+          );
+          let transformer = path.join(
+            inputDir,
+            'node_modules',
+            'parcel-transformer-mock',
+            'index.js',
+          );
+          let contents = await overlayFS.readFile(transformer, 'utf8');
+          await overlayFS.writeFile(
+            transformer,
+            contents
+              .replace(
+                'transform({asset}) {',
+                'async transform({asset, options}) {',
+              )
+              .replace(
+                "const {message} = require('./constants');",
+                "const message = 'FOO: ' + await options.packageManager.require('foo', asset.filePath);",
+              ),
+          );
+        },
+        async update(b) {
+          let output = await overlayFS.readFile(
+            b.bundleGraph.getBundles()[0].filePath,
+            'utf8',
+          );
+          assert(output.includes('FOO: 2'));
+
+          await overlayFS.writeFile(
+            path.join(inputDir, 'node_modules', 'foo', 'foo.js'),
+            'module.exports = 3;',
+          );
+        },
+      });
+
+      let output = await overlayFS.readFile(
+        b.bundleGraph.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert(output.includes('FOO: 3'));
+    });
+
     it('should resolve to package.json#main over an index.js', async function() {
       let b = await testCache({
         async setup() {
@@ -3726,9 +3784,10 @@ describe('cache', function() {
     it('should support adding a deeper node_modules folder', async function() {});
 
     it('should support yarn pnp', async function() {
-      // $FlowFixMe
       let Module = require('module');
+      // $FlowFixMe[incompatible-type]
       let origPnpVersion = process.versions.pnp;
+      // $FlowFixMe[prop-missing]
       let origModuleResolveFilename = Module._resolveFilename;
 
       // We must create a worker farm that only uses a single thread because our process.versions.pnp
@@ -3819,6 +3878,7 @@ describe('cache', function() {
                 `,
             );
 
+            // $FlowFixMe[prop-missing]
             Module.findPnpApi = () =>
               // $FlowFixMe
               require(path.join(inputDir, '.pnp.js'));
@@ -3870,6 +3930,7 @@ describe('cache', function() {
         assert(output.includes('UPDATED'));
       } finally {
         process.versions.pnp = origPnpVersion;
+        // $FlowFixMe[prop-missing]
         Module._resolveFilename = origModuleResolveFilename;
         await workerFarm.end();
       }
@@ -5380,6 +5441,80 @@ describe('cache', function() {
         'utf8',
       );
       assert(contents.includes('type="module"'));
+    });
+  });
+
+  describe('compression', function() {
+    it('should invaldate when adding a compressor plugin', async function() {
+      await testCache({
+        async update() {
+          let files = await outputFS.readdir(distDir);
+          assert.deepEqual(files.sort(), ['index.js', 'index.js.map']);
+
+          await overlayFS.writeFile(
+            path.join(inputDir, '.parcelrc'),
+            JSON.stringify({
+              extends: '@parcel/config-default',
+              compressors: {
+                '*.js': ['...', '@parcel/compressor-gzip'],
+              },
+            }),
+          );
+        },
+      });
+
+      let files = await outputFS.readdir(distDir);
+      assert.deepEqual(files.sort(), [
+        'index.js',
+        'index.js.gz',
+        'index.js.map',
+      ]);
+    });
+
+    it('should invalidate when updating a compressor plugin', async function() {
+      await testCache({
+        async setup() {
+          await overlayFS.writeFile(
+            path.join(inputDir, '.parcelrc'),
+            JSON.stringify({
+              extends: '@parcel/config-default',
+              compressors: {
+                '*.js': ['...', 'parcel-compressor-test'],
+              },
+            }),
+          );
+        },
+        async update() {
+          let files = await outputFS.readdir(distDir);
+          assert.deepEqual(files.sort(), [
+            'index.js',
+            'index.js.abc',
+            'index.js.map',
+          ]);
+
+          let compressor = path.join(
+            inputDir,
+            'node_modules',
+            'parcel-compressor-test',
+            'index.js',
+          );
+          await overlayFS.writeFile(
+            compressor,
+            (await overlayFS.readFile(compressor, 'utf8')).replace(
+              'abc',
+              'def',
+            ),
+          );
+        },
+      });
+
+      let files = await outputFS.readdir(distDir);
+      assert.deepEqual(files.sort(), [
+        'index.js',
+        'index.js.abc',
+        'index.js.def',
+        'index.js.map',
+      ]);
     });
   });
 

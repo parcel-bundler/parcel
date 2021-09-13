@@ -183,12 +183,15 @@ function createErrorOverlay(diagnostics) {
         <div style="font-size: 18px; font-weight: bold; margin-top: 20px;">
           🚨 ${diagnostic.message}
         </div>
-        <pre>
-          ${stack}
-        </pre>
+        <pre>${stack}</pre>
         <div>
-          ${diagnostic.hints.map(hint => '<div>' + hint + '</div>').join('')}
+          ${diagnostic.hints.map(hint => '<div>💡 ' + hint + '</div>').join('')}
         </div>
+        ${
+          diagnostic.documentation
+            ? `<div>📝 <a style="color: violet" href="${diagnostic.documentation}" target="_blank">Learn more</a></div>`
+            : ''
+        }
       </div>
     `;
   }

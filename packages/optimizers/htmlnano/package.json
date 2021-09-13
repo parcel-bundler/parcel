@@ -21,7 +21,7 @@
   },
   "dependencies": {
     "@parcel/plugin": "2.0.10",
-    "htmlnano": "^1.0.0",
+    "htmlnano": "^1.0.1",
     "nullthrows": "^1.1.1",
     "posthtml": "^0.16.4",
     "svgo": "^2.4.0"

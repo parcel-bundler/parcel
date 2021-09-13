@@ -1,11 +1,11 @@
 // @flow strict-local
 
+import type {ContentKey} from '@parcel/graph';
 import type {Dependency, NamedBundle as INamedBundle} from '@parcel/types';
 import type {SharedReference} from '@parcel/workers';
 import type {
   AssetGroup,
   Bundle as InternalBundle,
-  ContentKey,
   Config,
   DevDepRequest,
   ParcelOptions,
@@ -69,7 +69,7 @@ export default async function applyRuntimes({
           bundle: NamedBundle.get(bundle, bundleGraph, options),
           bundleGraph: new BundleGraph<INamedBundle>(
             bundleGraph,
-            NamedBundle.get,
+            NamedBundle.get.bind(NamedBundle),
             options,
           ),
           config: configs.get(runtime.name)?.result,
@@ -125,7 +125,6 @@ export default async function applyRuntimes({
         specifier: runtime.name,
         resolveFrom: runtime.resolveFrom,
       },
-      runtime,
       previousDevDeps,
       options,
     );

@@ -106,8 +106,7 @@ export default async function resolveOptions(
       projectRoot,
       initialOptions.defaultConfig,
     ),
-    shouldPatchConsole:
-      initialOptions.shouldPatchConsole ?? process.env.NODE_ENV !== 'test',
+    shouldPatchConsole: initialOptions.shouldPatchConsole ?? false,
     env: {
       ...process.env,
       ...initialOptions.env,

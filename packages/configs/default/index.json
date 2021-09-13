@@ -40,28 +40,35 @@
     "style:*.vue": ["@parcel/transformer-vue"],
     "custom:*.vue": ["@parcel/transformer-vue"],
     "*.{png,jpg,jpeg,webp}": ["@parcel/transformer-image"],
+    "*.svg": ["@parcel/transformer-svg"],
     "url:*": ["...", "@parcel/transformer-raw"]
   },
   "namers": ["@parcel/namer-default"],
   "runtimes": [
     "@parcel/runtime-js",
     "@parcel/runtime-browser-hmr",
-    "@parcel/runtime-react-refresh"
+    "@parcel/runtime-react-refresh",
+    "@parcel/runtime-service-worker"
   ],
   "optimizers": {
     "data-url:*": ["...", "@parcel/optimizer-data-url"],
     "*.css": ["@parcel/optimizer-cssnano"],
     "*.html": ["@parcel/optimizer-htmlnano"],
     "*.{js,mjs,cjs}": ["@parcel/optimizer-terser"],
-    "*.svg": ["@parcel/optimizer-svgo"]
+    "*.svg": ["@parcel/optimizer-svgo"],
+    "*.{jpg,jpeg,png}": ["@parcel/optimizer-image"]
   },
   "packagers": {
     "*.html": "@parcel/packager-html",
     "*.css": "@parcel/packager-css",
     "*.{js,mjs,cjs}": "@parcel/packager-js",
+    "*.svg": "@parcel/packager-svg",
     "*.ts": "@parcel/packager-ts",
-    "*.{jsonld,webmanifest}": "@parcel/packager-raw-url",
+    "*.{jsonld,svg,webmanifest}": "@parcel/packager-raw-url",
     "*": "@parcel/packager-raw"
+  },
+  "compressors": {
+    "*": ["@parcel/compressor-raw"]
   },
   "resolvers": ["@parcel/resolver-default"],
   "reporters": ["@parcel/reporter-dev-server"]

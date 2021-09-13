@@ -1,20 +1,19 @@
 // @flow strict-local
 
 import type {GraphVisitor} from '@parcel/types';
+import type {ContentKey, NodeId, SerializedContentGraph} from '@parcel/graph';
 import type {
   Asset,
   AssetGraphNode,
   AssetGroup,
   AssetGroupNode,
   AssetNode,
-  ContentKey,
   Dependency,
   DependencyNode,
   Entry,
   EntryFileNode,
   EntrySpecifierNode,
   Environment,
-  NodeId,
   Target,
 } from './types';
 
@@ -22,7 +21,7 @@ import invariant from 'assert';
 import {hashString, Hash} from '@parcel/hash';
 import {hashObject, objectSortedEntries} from '@parcel/utils';
 import nullthrows from 'nullthrows';
-import ContentGraph, {type SerializedContentGraph} from './ContentGraph';
+import {ContentGraph} from '@parcel/graph';
 import {createDependency} from './Dependency';
 import {type ProjectPath, fromProjectPathRelative} from './projectPath';
 

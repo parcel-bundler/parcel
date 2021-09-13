@@ -742,6 +742,8 @@ describe('TargetResolver', () => {
           hints: [
             'The "main" field is meant for libraries. If you meant to output a .html file, either remove the "main" field or choose a different target name.',
           ],
+          documentationURL:
+            'https://v2.parceljs.org/features/targets/#library-targets',
         },
       ],
     });
@@ -782,6 +784,8 @@ describe('TargetResolver', () => {
           hints: [
             'The "main" field is meant for libraries. The outputFormat must be either "commonjs" or "esmodule". Either change or remove the declared outputFormat.',
           ],
+          documentationURL:
+            'https://v2.parceljs.org/features/targets/#library-targets',
         },
       ],
     });
@@ -833,6 +837,8 @@ describe('TargetResolver', () => {
           hints: [
             'Either change the output file extension to .mjs, add "type": "module" to package.json, or remove the declared outputFormat.',
           ],
+          documentationURL:
+            'https://v2.parceljs.org/features/targets/#library-targets',
         },
       ],
     });
@@ -884,6 +890,8 @@ describe('TargetResolver', () => {
           hints: [
             'Either remove the target\'s declared "outputFormat" or change the extension to .mjs or .js.',
           ],
+          documentationURL:
+            'https://v2.parceljs.org/features/targets/#library-targets',
         },
       ],
     });
@@ -935,6 +943,8 @@ describe('TargetResolver', () => {
           hints: [
             'Either remove the target\'s declared "outputFormat" or change the extension to .cjs or .js.',
           ],
+          documentationURL:
+            'https://v2.parceljs.org/features/targets/#library-targets',
         },
       ],
     });
@@ -974,6 +984,8 @@ describe('TargetResolver', () => {
           hints: [
             'The "main" target is meant for libraries. Either remove the "scopeHoist" option, or use a different target name.',
           ],
+          documentationURL:
+            'https://v2.parceljs.org/features/targets/#library-targets',
         },
       ],
     });
@@ -1022,6 +1034,8 @@ describe('TargetResolver', () => {
             },
           ],
           hints: ['Either remove the "scopeHoist" or "isLibrary" option.'],
+          documentationURL:
+            'https://v2.parceljs.org/features/targets/#library-targets',
         },
       ],
     });

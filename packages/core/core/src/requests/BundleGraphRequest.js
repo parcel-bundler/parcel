@@ -160,7 +160,6 @@ class BundlerRunner {
     for (let devDep of config.devDeps) {
       let devDepRequest = await createDevDependency(
         devDep,
-        plugin,
         this.previousDevDeps,
         this.options,
       );
@@ -241,21 +240,26 @@ class BundlerRunner {
 
     let internalBundleGraph;
 
-    let logger = new PluginLogger({origin: this.config.getBundlerName()});
+    let logger = new PluginLogger({origin: name});
 
+    let mutableBundleGraph;
     try {
       if (graph.safeToIncrementallyBundle) {
         internalBundleGraph = nullthrows(previousBundleGraphResult).bundleGraph;
         for (let changedAsset of changedAssets.values()) {
           internalBundleGraph.updateAsset(changedAsset);
         }
+        mutableBundleGraph = new MutableBundleGraph(
+          internalBundleGraph,
+          this.options,
+        );
       } else {
         internalBundleGraph = InternalBundleGraph.fromAssetGraph(graph);
         invariant(internalBundleGraph != null); // ensures the graph was created
 
         // $FlowFixMe
         await dumpGraphToGraphViz(internalBundleGraph._graph, 'before_bundle');
-        let mutableBundleGraph = new MutableBundleGraph(
+        mutableBundleGraph = new MutableBundleGraph(
           internalBundleGraph,
           this.options,
         );
@@ -279,7 +283,7 @@ class BundlerRunner {
           } catch (e) {
             throw new ThrowableDiagnostic({
               diagnostic: errorToDiagnostic(e, {
-                origin: this.config.getBundlerName(),
+                origin: name,
               }),
             });
           } finally {
@@ -294,7 +298,7 @@ class BundlerRunner {
     } catch (e) {
       throw new ThrowableDiagnostic({
         diagnostic: errorToDiagnostic(e, {
-          origin: this.config.getBundlerName(),
+          origin: name,
         }),
       });
     } finally {
@@ -310,7 +314,6 @@ class BundlerRunner {
         specifier: name,
         resolveFrom,
       },
-      plugin,
       this.previousDevDeps,
       this.options,
     );
@@ -374,6 +377,7 @@ class BundlerRunner {
       this.api.getInvalidations(),
       this.options,
     );
+    let plugin = await this.config.getBundler();
 
     return {
       cacheKey: hashString(
@@ -383,9 +387,7 @@ class BundlerRunner {
           devDepRequests +
           invalidations,
       ),
-      bundlerHash: hashString(
-        PARCEL_VERSION + this.config.getBundlerName() + configs,
-      ),
+      bundlerHash: hashString(PARCEL_VERSION + plugin.name + configs),
     };
   }
 
@@ -405,7 +407,6 @@ class BundlerRunner {
           specifier: namer.name,
           resolveFrom: namer.resolveFrom,
         },
-        namer,
         this.previousDevDeps,
         this.options,
       );
@@ -430,7 +431,7 @@ class BundlerRunner {
     let bundle = Bundle.get(internalBundle, internalBundleGraph, this.options);
     let bundleGraph = new BundleGraph<IBundle>(
       internalBundleGraph,
-      NamedBundle.get,
+      NamedBundle.get.bind(NamedBundle),
       this.options,
     );
 

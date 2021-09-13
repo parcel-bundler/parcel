@@ -284,6 +284,7 @@ export default class NodeResolver {
     if (resolved === undefined && process.versions.pnp != null && parent) {
       try {
         let [moduleName, subPath] = this.getModuleParts(filename);
+        // $FlowFixMe[prop-missing]
         let pnp = _Module.findPnpApi(path.dirname(parent));
 
         let res = pnp.resolveToUnqualified(
@@ -1119,7 +1120,7 @@ export default class NodeResolver {
       this.projectRoot,
       // By default, loadConfig uses JSON5. Use normal JSON for package.json files
       // since they don't support comments and JSON.parse is faster.
-      {parser: JSON.parse},
+      {parser: (...args) => JSON.parse(...args)},
     );
 
     if (res != null) {
