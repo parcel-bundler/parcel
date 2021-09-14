@@ -8,8 +8,8 @@ use swc_ecmascript::ast::*;
 use swc_ecmascript::visit::{Fold, FoldWith, Node, Visit, VisitWith};
 
 use crate::utils::{
-  match_import, match_member_expr, match_require, CodeHighlight, Diagnostic, DiagnosticSeverity,
-  SourceLocation,
+  match_import, match_member_expr, match_require, Bailout, BailoutReason, CodeHighlight,
+  Diagnostic, DiagnosticSeverity, SourceLocation,
 };
 
 type IdentId = (JsWord, SyntaxContext);
@@ -34,8 +34,9 @@ pub fn hoist(
   decls: HashSet<IdentId>,
   ignore_mark: Mark,
   global_mark: Mark,
-) -> Result<(Module, HoistResult), Vec<Diagnostic>> {
-  let mut collect = Collect::new(source_map, decls, ignore_mark, global_mark);
+  trace_bailouts: bool,
+) -> Result<(Module, HoistResult, Vec<Diagnostic>), Vec<Diagnostic>> {
+  let mut collect = Collect::new(source_map, decls, ignore_mark, global_mark, trace_bailouts);
   module.visit_with(&Invalid { span: DUMMY_SP } as _, &mut collect);
 
   let mut hoist = Hoist::new(module_id, &collect);
@@ -44,7 +45,14 @@ pub fn hoist(
     return Err(hoist.diagnostics);
   }
 
-  Ok((module, hoist.get_result()))
+  if let Some(bailouts) = &collect.bailouts {
+    hoist
+      .diagnostics
+      .extend(bailouts.iter().map(|bailout| bailout.to_diagnostic()));
+  }
+
+  let diagnostics = std::mem::take(&mut hoist.diagnostics);
+  Ok((module, hoist.get_result(), diagnostics))
 }
 
 struct Hoist<'a> {
@@ -554,7 +562,7 @@ impl<'a> Fold for Hoist<'a> {
                 // If there are any non-static accesses of the namespace, don't perform any replacement.
                 // This will be handled in the Ident visitor below, which replaces y -> $id$import$10b1f2ceae7ab64e.
                 if specifier == "*"
-                  && !self.collect.non_static_access.contains(&id!(ident))
+                  && !self.collect.non_static_access.contains_key(&id!(ident))
                   && !self.collect.non_const_bindings.contains_key(&id!(ident))
                   && !self.collect.non_static_requires.contains(source)
                 {
@@ -771,7 +779,7 @@ impl<'a> Fold for Hoist<'a> {
             self
               .imported_symbols
               .insert(name, (source.clone(), specifier.clone(), loc.clone()));
-          } else if self.collect.non_static_access.contains(&id!(node)) {
+          } else if self.collect.non_static_access.contains_key(&id!(node)) {
             let name: JsWord =
               format!("${}$importAsync${:x}", self.module_id, hash!(source)).into();
             self
@@ -1101,7 +1109,7 @@ pub struct Collect {
   should_wrap: bool,
   pub imports: HashMap<IdentId, Import>,
   exports: HashMap<IdentId, JsWord>,
-  non_static_access: HashSet<IdentId>,
+  non_static_access: HashMap<IdentId, Vec<Span>>,
   non_const_bindings: HashMap<IdentId, Vec<Span>>,
   non_static_requires: HashSet<JsWord>,
   wrapped_requires: HashSet<JsWord>,
@@ -1110,6 +1118,7 @@ pub struct Collect {
   in_export_decl: bool,
   in_function: bool,
   in_assign: bool,
+  bailouts: Option<Vec<Bailout>>,
 }
 
 impl Collect {
@@ -1118,6 +1127,7 @@ impl Collect {
     decls: HashSet<IdentId>,
     ignore_mark: Mark,
     global_mark: Mark,
+    trace_bailouts: bool,
   ) -> Self {
     Collect {
       source_map,
@@ -1130,7 +1140,7 @@ impl Collect {
       should_wrap: false,
       imports: HashMap::new(),
       exports: HashMap::new(),
-      non_static_access: HashSet::new(),
+      non_static_access: HashMap::new(),
       non_const_bindings: HashMap::new(),
       non_static_requires: HashSet::new(),
       wrapped_requires: HashSet::new(),
@@ -1139,6 +1149,7 @@ impl Collect {
       in_export_decl: false,
       in_function: false,
       in_assign: false,
+      bailouts: if trace_bailouts { Some(vec![]) } else { None },
     }
   }
 }
@@ -1150,6 +1161,21 @@ impl Visit for Collect {
     self.in_function = false;
     node.visit_children_with(self);
     self.in_module_this = false;
+
+    if let Some(bailouts) = &mut self.bailouts {
+      for key in self.imports.keys() {
+        if let Some(spans) = self.non_static_access.get(key) {
+          for span in spans {
+            bailouts.push(Bailout {
+              loc: SourceLocation::from(&self.source_map, *span),
+              reason: BailoutReason::NonStaticAccess,
+            })
+          }
+        }
+      }
+
+      bailouts.sort_by(|a, b| a.loc.partial_cmp(&b.loc).unwrap());
+    }
   }
 
   collect_visit_fn!(visit_function, Function);
@@ -1317,6 +1343,7 @@ impl Visit for Collect {
   fn visit_return_stmt(&mut self, node: &ReturnStmt, _parent: &dyn Node) {
     if !self.in_function {
       self.should_wrap = true;
+      self.add_bailout(node.span, BailoutReason::TopLevelReturn);
     }
 
     node.visit_children_with(self)
@@ -1378,6 +1405,7 @@ impl Visit for Collect {
             self.has_cjs_exports = true;
             if !is_static {
               self.static_cjs_exports = false;
+              self.add_bailout(node.span, BailoutReason::NonStaticExports);
             }
           }
           return;
@@ -1387,7 +1415,8 @@ impl Visit for Collect {
           if ident.sym == exports && !self.decls.contains(&id!(ident)) {
             self.has_cjs_exports = true;
             if !is_static {
-              self.static_cjs_exports = false
+              self.static_cjs_exports = false;
+              self.add_bailout(node.span, BailoutReason::NonStaticExports);
             }
           }
 
@@ -1395,11 +1424,16 @@ impl Visit for Collect {
             self.has_cjs_exports = true;
             self.static_cjs_exports = false;
             self.should_wrap = true;
+            self.add_bailout(node.span, BailoutReason::FreeModule);
           }
 
           // `import` isn't really an identifier...
           if !is_static && ident.sym != js_word!("import") {
-            self.non_static_access.insert(id!(ident));
+            self
+              .non_static_access
+              .entry(id!(ident))
+              .or_default()
+              .push(node.span);
           }
           return;
         }
@@ -1408,6 +1442,7 @@ impl Visit for Collect {
             self.has_cjs_exports = true;
             if !is_static {
               self.static_cjs_exports = false;
+              self.add_bailout(node.span, BailoutReason::NonStaticExports);
             }
           }
           return;
@@ -1439,11 +1474,21 @@ impl Visit for Collect {
     // declaration. We need to wrap the referenced module to preserve side effect ordering.
     if let Some(source) = self.match_require(node) {
       self.wrapped_requires.insert(source);
+      let span = match node {
+        Expr::Call(c) => c.span,
+        _ => unreachable!(),
+      };
+      self.add_bailout(span, BailoutReason::NonTopLevelRequire);
     }
 
     if let Some(source) = match_import(node, self.ignore_mark) {
       self.non_static_requires.insert(source.clone());
       self.wrapped_requires.insert(source);
+      let span = match node {
+        Expr::Call(c) => c.span,
+        _ => unreachable!(),
+      };
+      self.add_bailout(span, BailoutReason::NonStaticDynamicImport);
     }
 
     match node {
@@ -1457,12 +1502,19 @@ impl Visit for Collect {
           self.static_cjs_exports = false;
           if is_module {
             self.should_wrap = true;
+            self.add_bailout(ident.span, BailoutReason::FreeModule);
+          } else {
+            self.add_bailout(ident.span, BailoutReason::FreeExports);
           }
         }
 
         // `import` isn't really an identifier...
         if ident.sym != js_word!("import") {
-          self.non_static_access.insert(id!(ident));
+          self
+            .non_static_access
+            .entry(id!(ident))
+            .or_default()
+            .push(ident.span);
         }
       }
       _ => {
@@ -1471,10 +1523,11 @@ impl Visit for Collect {
     }
   }
 
-  fn visit_this_expr(&mut self, _node: &ThisExpr, _parent: &dyn Node) {
+  fn visit_this_expr(&mut self, node: &ThisExpr, _parent: &dyn Node) {
     if self.in_module_this {
       self.has_cjs_exports = true;
       self.static_cjs_exports = false;
+      self.add_bailout(node.span, BailoutReason::FreeExports);
     }
   }
 
@@ -1504,6 +1557,13 @@ impl Visit for Collect {
         self.static_cjs_exports = false;
         self.has_cjs_exports = true;
         self.should_wrap = true;
+        self.add_bailout(node.span, BailoutReason::ExportsReassignment);
+      } else if has_binding_identifier(pat, &"module".into(), &self.decls) {
+        // Same for `module`. If it is reassigned we can't correctly statically analyze.
+        self.static_cjs_exports = false;
+        self.has_cjs_exports = true;
+        self.should_wrap = true;
+        self.add_bailout(node.span, BailoutReason::ModuleReassignment);
       }
     }
   }
@@ -1582,7 +1642,8 @@ impl Visit for Collect {
       match &**expr {
         Expr::Ident(ident) => {
           if ident.sym == js_word!("eval") && !self.decls.contains(&id!(ident)) {
-            self.should_wrap = true
+            self.should_wrap = true;
+            self.add_bailout(node.span, BailoutReason::Eval);
           }
         }
         Expr::Member(member) => {
@@ -1609,6 +1670,7 @@ impl Visit for Collect {
                   } else {
                     self.non_static_requires.insert(source.clone());
                     self.wrapped_requires.insert(source);
+                    self.add_bailout(node.span, BailoutReason::NonStaticDynamicImport);
                   }
 
                   expr.visit_with(node, self);
@@ -1636,6 +1698,16 @@ impl Collect {
       self.wrapped_requires.insert(src.clone());
       if kind != ImportKind::DynamicImport {
         self.non_static_requires.insert(src.clone());
+        let span = match node {
+          Pat::Ident(id) => id.id.span,
+          Pat::Array(arr) => arr.span,
+          Pat::Object(obj) => obj.span,
+          Pat::Rest(rest) => rest.span,
+          Pat::Assign(assign) => assign.span,
+          Pat::Invalid(i) => i.span,
+          Pat::Expr(_) => DUMMY_SP,
+        };
+        self.add_bailout(span, BailoutReason::NonTopLevelRequire);
       }
     }
 
@@ -1663,6 +1735,7 @@ impl Collect {
                 _ => {
                   // Non-static. E.g. computed property.
                   self.non_static_requires.insert(src.clone());
+                  self.add_bailout(object.span, BailoutReason::NonStaticDestructuring);
                   continue;
                 }
               };
@@ -1692,6 +1765,7 @@ impl Collect {
                 _ => {
                   // Non-static.
                   self.non_static_requires.insert(src.clone());
+                  self.add_bailout(object.span, BailoutReason::NonStaticDestructuring);
                 }
               }
             }
@@ -1718,6 +1792,7 @@ impl Collect {
               // let {x, ...y} = require('y');
               // Non-static. We don't know what keys are used.
               self.non_static_requires.insert(src.clone());
+              self.add_bailout(object.span, BailoutReason::NonStaticDestructuring);
             }
           }
         }
@@ -1725,6 +1800,16 @@ impl Collect {
       _ => {
         // Non-static.
         self.non_static_requires.insert(src.clone());
+        let span = match node {
+          Pat::Ident(id) => id.id.span,
+          Pat::Array(arr) => arr.span,
+          Pat::Object(obj) => obj.span,
+          Pat::Rest(rest) => rest.span,
+          Pat::Assign(assign) => assign.span,
+          Pat::Invalid(i) => i.span,
+          Pat::Expr(_) => DUMMY_SP,
+        };
+        self.add_bailout(span, BailoutReason::NonStaticDestructuring);
       }
     }
   }
@@ -1759,6 +1844,15 @@ impl Collect {
         }
       }
       _ => {}
+    }
+  }
+
+  fn add_bailout(&mut self, span: Span, reason: BailoutReason) {
+    if let Some(bailouts) = &mut self.bailouts {
+      bailouts.push(Bailout {
+        loc: SourceLocation::from(&self.source_map, span),
+        reason,
+      })
     }
   }
 }
@@ -1847,6 +1941,7 @@ mod tests {
               collect_decls(&module),
               Mark::fresh(Mark::root()),
               global_mark,
+              false,
             );
             module.visit_with(&Invalid { span: DUMMY_SP } as _, &mut collect);
 
@@ -1990,7 +2085,7 @@ mod tests {
       collect.imports,
       map! { w!("x") => (w!("other"), w!("*"), false) }
     );
-    assert_eq!(collect.non_static_access, set! {});
+    assert_eq!(collect.non_static_access, map! {});
 
     let (_collect, _code, hoist) = parse(
       r#"
@@ -2012,7 +2107,7 @@ mod tests {
       collect.imports,
       map! { w!("x") => (w!("other"), w!("*"), false) }
     );
-    assert_eq_set!(collect.non_static_access, set! { w!("x") });
+    assert_eq_set!(collect.non_static_access.into_keys(), set! { w!("x") });
 
     let (collect, _code, _hoist) = parse(
       r#"
@@ -2024,7 +2119,7 @@ mod tests {
       collect.imports,
       map! { w!("x") => (w!("other"), w!("*"), false) }
     );
-    assert_eq_set!(collect.non_static_access, set! { w!("x") });
+    assert_eq_set!(collect.non_static_access.into_keys(), set! { w!("x") });
   }
 
   #[test]
@@ -2047,6 +2142,13 @@ mod tests {
     let (collect, _code, _hoist) = parse(
       r#"
     exports = 2;
+    "#,
+    );
+    assert!(collect.should_wrap);
+
+    let (collect, _code, _hoist) = parse(
+      r#"
+    module = 2;
     "#,
     );
     assert!(collect.should_wrap);
@@ -2228,7 +2330,7 @@ mod tests {
       collect.imports,
       map! { w!("x") => (w!("other"), w!("*"), true) }
     );
-    assert_eq_set!(collect.non_static_access, set! {});
+    assert_eq_set!(collect.non_static_access.into_keys(), set! {});
     assert_eq!(collect.non_static_requires, set! {});
     assert_eq!(collect.wrapped_requires, set! {w!("other")});
 
@@ -2244,7 +2346,7 @@ mod tests {
       collect.imports,
       map! { w!("x") => (w!("other"), w!("*"), true) }
     );
-    assert_eq_set!(collect.non_static_access, set! { w!("x") });
+    assert_eq_set!(collect.non_static_access.into_keys(), set! { w!("x") });
     assert_eq!(collect.non_static_requires, set! {});
     assert_eq!(collect.wrapped_requires, set! {w!("other")});
 
@@ -2285,7 +2387,7 @@ mod tests {
       collect.imports,
       map! { w!("x") => (w!("other"), w!("*"), true) }
     );
-    assert_eq_set!(collect.non_static_access, set! {});
+    assert_eq_set!(collect.non_static_access.into_keys(), set! {});
     assert_eq!(collect.non_static_requires, set! {});
     assert_eq!(collect.wrapped_requires, set! {w!("other")});
 
@@ -2298,7 +2400,7 @@ mod tests {
       collect.imports,
       map! { w!("x") => (w!("other"), w!("*"), true) }
     );
-    assert_eq_set!(collect.non_static_access, set! { w!("x") });
+    assert_eq_set!(collect.non_static_access.into_keys(), set! { w!("x") });
     assert_eq!(collect.non_static_requires, set! {});
     assert_eq!(collect.wrapped_requires, set! {w!("other")});
 
@@ -2335,7 +2437,7 @@ mod tests {
       collect.imports,
       map! { w!("x") => (w!("other"), w!("*"), true) }
     );
-    assert_eq_set!(collect.non_static_access, set! {});
+    assert_eq_set!(collect.non_static_access.into_keys(), set! {});
     assert_eq!(collect.non_static_requires, set! {});
     assert_eq!(collect.wrapped_requires, set! {w!("other")});
 
@@ -2348,7 +2450,7 @@ mod tests {
       collect.imports,
       map! { w!("x") => (w!("other"), w!("*"), true) }
     );
-    assert_eq_set!(collect.non_static_access, set! { w!("x") });
+    assert_eq_set!(collect.non_static_access.into_keys(), set! { w!("x") });
     assert_eq!(collect.non_static_requires, set! {});
     assert_eq!(collect.wrapped_requires, set! {w!("other")});
 
