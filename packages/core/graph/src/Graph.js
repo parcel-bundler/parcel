@@ -115,7 +115,7 @@ export default class Graph<TNode, TEdgeType: number = 1> {
   ): Array<NodeId> {
     this._assertHasNodeId(nodeId);
 
-    return this.adjacencyList.getNodesConnectedTo(nodeId, type);
+    return this.adjacencyList.getNodeIdsConnectedTo(nodeId, type);
   }
 
   getNodeIdsConnectedFrom(
@@ -124,7 +124,7 @@ export default class Graph<TNode, TEdgeType: number = 1> {
   ): Array<NodeId> {
     this._assertHasNodeId(nodeId);
 
-    return this.adjacencyList.getNodesConnectedFrom(nodeId, type);
+    return this.adjacencyList.getNodeIdsConnectedFrom(nodeId, type);
   }
 
   // Removes node and any edges coming from or to that node

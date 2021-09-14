@@ -1013,13 +1013,13 @@ export default class AdjacencyList<TEdgeType: number = 1> {
       | NullEdgeType
       | Array<TEdgeType | NullEdgeType> = 1,
   ): $ReadOnlySet<NodeId> {
-    return new Set(this.getNodesConnectedFrom(from, type));
+    return new Set(this.getNodeIdsConnectedFrom(from, type));
   }
 
   /**
    * Get the list of nodes connected from this node.
    */
-  getNodesConnectedFrom(
+  getNodeIdsConnectedFrom(
     from: NodeId,
     type:
       | AllEdgeTypes
@@ -1050,7 +1050,7 @@ export default class AdjacencyList<TEdgeType: number = 1> {
   /**
    * Get the list of nodes connected to this node.
    */
-  getNodesConnectedTo(
+  getNodeIdsConnectedTo(
     to: NodeId,
     type:
       | AllEdgeTypes

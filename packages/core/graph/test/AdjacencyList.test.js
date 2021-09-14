@@ -57,10 +57,10 @@ describe('AdjacencyList', () => {
     graph.addEdge(node5, node1);
     graph.addEdge(node6, node1);
 
-    assert.deepEqual(graph.getNodesConnectedTo(node1), [0, 2, 3, 4, 5, 6]);
+    assert.deepEqual(graph.getNodeIdsConnectedTo(node1), [0, 2, 3, 4, 5, 6]);
 
     graph.removeEdge(node3, node1);
-    assert.deepEqual(graph.getNodesConnectedTo(node1), [0, 2, 4, 5, 6]);
+    assert.deepEqual(graph.getNodeIdsConnectedTo(node1), [0, 2, 4, 5, 6]);
   });
 
   it('removeEdge should remove an edge of a specific type from the graph', () => {
@@ -122,7 +122,7 @@ describe('AdjacencyList', () => {
     graph.addEdge(a, b);
     graph.addEdge(a, d);
     graph.addEdge(a, c);
-    assert.deepEqual(graph.getNodesConnectedFrom(a), [b, d, c]);
+    assert.deepEqual(graph.getNodeIdsConnectedFrom(a), [b, d, c]);
   });
 
   it('addEdge should add multiple edges to a node in order', () => {
@@ -135,7 +135,7 @@ describe('AdjacencyList', () => {
     graph.addEdge(d, b);
     graph.addEdge(a, d);
     graph.addEdge(c, b);
-    assert.deepEqual(graph.getNodesConnectedTo(b), [a, d, c]);
+    assert.deepEqual(graph.getNodeIdsConnectedTo(b), [a, d, c]);
   });
 
   it('addEdge should add multiple edges of different types in order', () => {
@@ -146,7 +146,7 @@ describe('AdjacencyList', () => {
     graph.addEdge(a, b, 1);
     graph.addEdge(a, b, 4);
     graph.addEdge(a, b, 3);
-    assert.deepEqual(graph.getNodesConnectedFrom(a), [b]);
+    assert.deepEqual(graph.getNodeIdsConnectedFrom(a), [b]);
     assert.deepEqual(Array.from(graph.getAllEdges()), [
       {from: a, to: b, type: 1},
       {from: a, to: b, type: 4},
