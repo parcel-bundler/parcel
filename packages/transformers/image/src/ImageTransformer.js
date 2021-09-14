@@ -78,9 +78,14 @@ export default (new Transformer({
 
       imagePipeline.rotate();
 
+      const normalizedOutputOptions = outputOptions || {};
+      if (format === 'jpeg') {
+        normalizedOutputOptions.mozjpeg =
+          normalizedOutputOptions.mozjpeg ?? true;
+      }
       imagePipeline[format]({
         quality,
-        ...(outputOptions || {}),
+        ...normalizedOutputOptions,
       });
 
       asset.type = format;
