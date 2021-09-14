@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use std::collections::HashSet;
 
 use serde::{Deserialize, Serialize};
@@ -170,6 +171,18 @@ impl SourceLocation {
   }
 }
 
+impl PartialOrd for SourceLocation {
+  fn partial_cmp(&self, other: &SourceLocation) -> Option<Ordering> {
+    if self.start_line < other.start_line {
+      Some(Ordering::Less)
+    } else if self.start_line == other.start_line {
+      self.start_col.partial_cmp(&other.start_col)
+    } else {
+      Some(Ordering::Greater)
+    }
+  }
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CodeHighlight {
   pub message: Option<String>,
@@ -200,4 +213,91 @@ pub enum DiagnosticSeverity {
 pub enum SourceType {
   Script,
   Module,
+}
+
+pub struct Bailout {
+  pub loc: SourceLocation,
+  pub reason: BailoutReason,
+}
+
+impl Bailout {
+  pub fn to_diagnostic(&self) -> Diagnostic {
+    let (message, documentation_url) = self.reason.info();
+    Diagnostic {
+      message: message.into(),
+      documentation_url: Some(documentation_url.into()),
+      code_highlights: Some(vec![CodeHighlight {
+        loc: self.loc.clone(),
+        message: None,
+      }]),
+      show_environment: false,
+      severity: DiagnosticSeverity::Warning,
+      hints: None,
+    }
+  }
+}
+
+pub enum BailoutReason {
+  NonTopLevelRequire,
+  NonStaticDestructuring,
+  TopLevelReturn,
+  Eval,
+  NonStaticExports,
+  FreeModule,
+  FreeExports,
+  ExportsReassignment,
+  ModuleReassignment,
+  NonStaticDynamicImport,
+  NonStaticAccess,
+}
+
+impl BailoutReason {
+  fn info(&self) -> (&str, &str) {
+    match self {
+      BailoutReason::NonTopLevelRequire => (
+        "Conditional or non-top-level `require()` call. This causes the resolved module and all dependendencies to be wrapped.",
+        "https://v2.parceljs.org/features/scope-hoisting/#avoid-conditional-require()"
+      ),
+      BailoutReason::NonStaticDestructuring => (
+        "Non-static destructuring of `require` or dynamic `import()`. This causes all exports of the resolved module to be included.",
+        "https://v2.parceljs.org/features/scope-hoisting/#commonjs"
+      ),
+      BailoutReason::TopLevelReturn => (
+        "Module contains a top-level `return` statement. This causes the module to be wrapped in a function and tree shaking to be disabled.",
+        "https://v2.parceljs.org/features/scope-hoisting/#avoid-top-level-return"
+      ),
+      BailoutReason::Eval => (
+        "Module contains usage of `eval`. This causes the module to be wrapped in a function and minification to be disabled.",
+        "https://v2.parceljs.org/features/scope-hoisting/#avoid-eval"
+      ),
+      BailoutReason::NonStaticExports => (
+        "Non-static access of CommonJS `exports` object. This causes tree shaking to be disabled for the module.",
+        "https://v2.parceljs.org/features/scope-hoisting/#commonjs"
+      ),
+      BailoutReason::FreeModule => (
+        "Unknown usage of CommonJS `module` object. This causes the module to be wrapped, and tree shaking to be disabled.",
+        "https://v2.parceljs.org/features/scope-hoisting/#commonjs"
+      ),
+      BailoutReason::FreeExports => (
+        "Unknown usage of CommonJS `exports` object. This causes tree shaking to be disabled.",
+        "https://v2.parceljs.org/features/scope-hoisting/#commonjs"
+      ),
+      BailoutReason::ExportsReassignment => (
+        "Module contains a reassignment of the CommonJS `exports` object. This causes the module to be wrapped and tree-shaking to be disabled.",
+        "https://v2.parceljs.org/features/scope-hoisting/#avoid-module-and-exports-re-assignment"
+      ),
+      BailoutReason::ModuleReassignment => (
+        "Module contains a reassignment of the CommonJS `module` object. This causes the module to be wrapped and tree-shaking to be disabled.",
+        "https://v2.parceljs.org/features/scope-hoisting/#avoid-module-and-exports-re-assignment"
+      ),
+      BailoutReason::NonStaticDynamicImport => (
+        "Unknown dynamic import usage. This causes tree shaking to be disabled for the resolved module.",
+        "https://v2.parceljs.org/features/scope-hoisting/#dynamic-imports"
+      ),
+      BailoutReason::NonStaticAccess => (
+        "Non-static access of an `import` or `require`. This causes tree shaking to be disabled for the resolved module.",
+        "https://v2.parceljs.org/features/scope-hoisting/#dynamic-member-accesses"
+      ),
+    }
+  }
 }
