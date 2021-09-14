@@ -1099,19 +1099,15 @@ export default class AdjacencyList<TEdgeType: number = 1> {
    *
    */
   hash(from: NodeId, to: NodeId, type: TEdgeType | NullEdgeType): EdgeHash {
-    // A crude multiplicative hash, in 3 steps:
-    // 1. Serialize the args into an integer that reflects the argument order,
-    // shifting the magnitude of each argument by the sum
-    // of the significant digits of the following arguments,
-    // .e.g., `hash(10, 24, 4) => 10244`.
-    // $FlowFixMe[unsafe-addition]
-    // $FlowFixMe[incompatible-type]
-    let hash = '' + from + to + type - 0;
-    // 2. Mix the upper bits of the integer into the lower bits.
-    // We do this to increase the likelihood that a change to any
-    // bit of the input will vary the output widely.
-    hash = hash32shift(hash);
-    // 3. Map the hash to a value modulo the edge capacity.
+    // Each parameter is hashed by mixing its upper bits into its lower bits to
+    // increase the likelihood that a change to any bit of the input will vary
+    // the output widely. Then we do a series of prime multiplications and
+    // additions to combine the hashes into one value.
+    let hash = 17;
+    hash = hash * 37 + hash32shift((from: any));
+    hash = hash * 37 + hash32shift((to: any));
+    hash = hash * 37 + hash32shift((type: any));
+    // Finally, we map the hash to a value modulo the edge capacity.
     hash %= this.#edges[CAPACITY];
     return hash;
   }

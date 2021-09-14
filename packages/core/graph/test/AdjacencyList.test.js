@@ -193,10 +193,13 @@ describe('AdjacencyList', () => {
   });
 
   it('addEdge should not replace a deleted edge if the edge was already added', () => {
-    let graph = new AdjacencyList();
     // Mock hash fn to generate collisions
+    // $FlowFixMe[method-unbinding]
+    let originalHash = AdjacencyList.prototype.hash;
     // $FlowFixMe[cannot-write]
-    graph.hash = () => 1;
+    AdjacencyList.prototype.hash = () => 1;
+
+    let graph = new AdjacencyList();
     let n0 = graph.addNode();
     let n1 = graph.addNode();
     let n2 = graph.addNode();
@@ -210,26 +213,42 @@ describe('AdjacencyList', () => {
     graph.addEdge(n0, n1, 1);
     assert(!graph.serialize().edges[index]);
     assert(graph.stats.edges === 1);
+
+    // $FlowFixMe[cannot-write]
+    AdjacencyList.prototype.hash = originalHash;
   });
 
   it('addEdge should replace a deleted edge', () => {
-    let graph = new AdjacencyList({edgeCapacity: 2});
     // Mock hash fn to generate collisions
+    // $FlowFixMe[method-unbinding]
+    let originalHash = AdjacencyList.prototype.hash;
     // $FlowFixMe[cannot-write]
-    graph.hash = () => 1;
+    AdjacencyList.prototype.hash = () => 1;
+
+    let graph = new AdjacencyList();
     let n0 = graph.addNode();
     let n1 = graph.addNode();
-    graph.addEdge(n0, n1, 1);
     graph.addEdge(n0, n1, 2);
     // $FlowFixMe[incompatible-type]
     let index: number = graph.indexOf(n0, n1, 2);
-    assert(graph.serialize().edges[index] > 0);
     assert(graph.serialize().edges[index]);
     graph.removeEdge(n0, n1, 2);
     assert(!graph.serialize().edges[index]);
     graph.addEdge(n0, n1, 2);
-    assert(graph.serialize().edges[index] > 0);
-    assert(graph.serialize().edges[index]);
+    // $FlowFixMe[incompatible-type]
+    let index2: number = graph.indexOf(n0, n1, 2);
+    assert(!graph.serialize().edges[index]);
+    assert(graph.serialize().edges[index2]);
+    // Resize to reclaim deleted edge space.
+    graph.resizeEdges(4);
+    // $FlowFixMe[incompatible-type]
+    let index3: number = graph.indexOf(n0, n1, 2);
+    assert(!graph.serialize().edges[index]);
+    assert(!graph.serialize().edges[index2]);
+    assert(graph.serialize().edges[index3]);
+
+    // $FlowFixMe[cannot-write]
+    AdjacencyList.prototype.hash = originalHash;
   });
 
   describe('deserialize', function() {
