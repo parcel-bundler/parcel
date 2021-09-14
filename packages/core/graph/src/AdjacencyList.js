@@ -748,8 +748,21 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     }
     if (type <= 0) throw new Error(`Unsupported edge type ${0}`);
 
+    let hash = this.hash(from, to, type);
+    let edge = this.getLinkedEdge(hash);
+    while (edge) {
+      if (
+        this.getFromNode(edge) === from &&
+        this.getToNode(edge) === to &&
+        this.getEdgeType(edge) === type
+      ) {
+        break;
+      }
+      edge = this.getLinkedEdge(edge, NEXT_HASH);
+    }
+
     // The edge is already in the graph; do nothing.
-    if (this.hasEdge(from, to, type)) return false;
+    if (edge) return false;
 
     let capacity = this.#edges[CAPACITY];
     // We add 1 to account for the edge we are adding.
@@ -770,13 +783,14 @@ export default class AdjacencyList<TEdgeType: number = 1> {
       } else {
         this.resizeEdges(getNextEdgeCapacity(capacity, total));
       }
+      // We must rehash because the capacity has changed.
+      hash = this.hash(from, to, type);
     }
 
     // Use the next available index as our new edge index.
-    let edge = this.getNextIndex();
+    edge = this.getNextIndex();
 
     // Add our new edge to its hash bucket.
-    let hash = this.hash(from, to, type);
     let prev = this.getLinkedEdge(hash);
     if (prev) {
       let next = this.getLinkedEdge(prev, NEXT_HASH);
