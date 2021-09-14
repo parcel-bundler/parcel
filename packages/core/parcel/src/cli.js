@@ -233,7 +233,7 @@ async function run(
   let parcel = new Parcel({
     entries,
     defaultConfig: require.resolve('@parcel/config-default', {
-      paths: [fs.cwd(), __dirname],
+      paths: [/* fs.cwd(), */ __dirname],
     }),
     shouldPatchConsole: false,
     ...options,
