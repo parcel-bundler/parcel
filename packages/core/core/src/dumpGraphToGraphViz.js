@@ -2,8 +2,8 @@
 
 import type {Graph} from '@parcel/graph';
 import type {AssetGraphNode, BundleGraphNode, Environment} from './types';
-import type {BundleGraphEdgeType} from './BundleGraph';
-import type {RequestGraphEdgeType} from './RequestTracker';
+import {bundleGraphEdgeTypes} from './BundleGraph';
+import {requestGraphEdgeTypes} from './RequestTracker';
 
 import path from 'path';
 import {fromProjectPathRelative} from './projectPath';
@@ -34,7 +34,7 @@ export default async function dumpGraphToGraphViz(
   // $FlowFixMe
   graph: Graph<AssetGraphNode> | Graph<BundleGraphNode>,
   name: string,
-  edgeTypes?: BundleGraphEdgeType | RequestGraphEdgeType,
+  edgeTypes?: typeof bundleGraphEdgeTypes | typeof requestGraphEdgeTypes,
 ): Promise<void> {
   if (
     process.env.PARCEL_BUILD_ENV === 'production' ||
