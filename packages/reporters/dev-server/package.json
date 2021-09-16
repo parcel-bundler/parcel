@@ -26,7 +26,6 @@
     "connect": "^3.7.0",
     "ejs": "^3.1.6",
     "http-proxy-middleware": "^1.0.0",
-    "http-rewrite-middleware": "^0.1.6",
     "nullthrows": "^1.1.1",
     "serve-handler": "^6.0.0",
     "ws": "^7.0.0"
