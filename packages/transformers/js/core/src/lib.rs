@@ -83,6 +83,7 @@ pub struct Config {
   supports_module_workers: bool,
   is_library: bool,
   is_esm_output: bool,
+  trace_bailouts: bool,
 }
 
 #[derive(Serialize, Debug, Deserialize, Default)]
@@ -381,10 +382,12 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                 decls,
                 ignore_mark,
                 global_mark,
+                config.trace_bailouts,
               );
               match res {
-                Ok((module, hoist_result)) => {
+                Ok((module, hoist_result, hoist_diagnostics)) => {
                   result.hoist_result = Some(hoist_result);
+                  diagnostics.extend(hoist_diagnostics);
                   module
                 }
                 Err(diagnostics) => {
