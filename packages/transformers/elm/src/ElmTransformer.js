@@ -126,7 +126,7 @@ let elmPureFuncs = [
   'A6',
   'A7',
   'A8',
-  'A9'
+  'A9',
 ];
 
 async function minifyElmOutput(source) {
@@ -142,7 +142,7 @@ async function minifyElmOutput(source) {
       unsafe_comps: true,
     },
     mangle: {
-      reserved: elmPureFuncs
+      reserved: elmPureFuncs,
     },
   });
 
