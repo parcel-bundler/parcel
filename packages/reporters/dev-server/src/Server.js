@@ -124,7 +124,7 @@ export default class Server {
   }
 
   respond(req: Request, res: Response): mixed {
-    let {pathname} = url.parse(req.originalUrl || req.url);
+    let {pathname} = url.parse(req.url);
 
     if (pathname == null) {
       pathname = '/';
@@ -354,7 +354,7 @@ export default class Server {
 
   logAccessIfVerbose(req: Request) {
     this.options.logger.verbose({
-      message: `Request: ${req.headers.host}${req.originalUrl || req.url}`,
+      message: `Request: ${req.headers.host}${req.url}`,
     });
   }
 

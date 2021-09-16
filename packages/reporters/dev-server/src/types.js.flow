@@ -11,13 +11,7 @@ import {
   ServerResponse as HTTPSServerResponse,
 } from 'https';
 
-interface HTTPRequest extends HTTPIncomingMessage {
-  originalUrl?: string;
-}
-interface HTTPSRequest extends HTTPSIncomingMessage {
-  originalUrl?: string;
-}
-export type Request = HTTPRequest | HTTPSRequest;
+export type Request = HTTPIncomingMessage | HTTPSIncomingMessage;
 export type Response = HTTPServerResponse | HTTPSServerResponse;
 export type DevServerOptions = {|
   ...ServerOptions,
