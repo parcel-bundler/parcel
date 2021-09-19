@@ -25,6 +25,6 @@
     "@parcel/utils": "2.0.0-rc.0",
     "image-size": "^1.0.0",
     "nullthrows": "^1.1.1",
-    "posthtml": "^0.16.4"
+    "posthtml": "^0.16.5"
   }
 }
