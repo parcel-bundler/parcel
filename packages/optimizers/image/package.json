@@ -34,7 +34,8 @@
   "dependencies": {
     "@parcel/plugin": "2.0.10",
     "@parcel/utils": "2.0.10",
-    "detect-libc": "^1.0.3"
+    "detect-libc": "^1.0.3",
+    "self-published": "npm:@parcel/optimizer-image@2.0.0-nightly.2465"
   },
   "devDependencies": {
     "@napi-rs/cli": "1.0.4",

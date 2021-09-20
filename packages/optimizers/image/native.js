@@ -14,9 +14,13 @@ if (process.platform === 'linux') {
 
 let name = `./parcel-image.${parts.join('-')}.node`;
 if (process.env.PARCEL_BUILD_ENV === 'production') {
-  module.exports = require(name);
+  // ATLASSIAN: Used upstream published builds
+  module.exports = require(`self-published/${name}`);
 } else if (require('fs').existsSync(require('path').join(__dirname, name))) {
   module.exports = require(name);
+} else {
+  // ATLASSIAN: Used upstream published builds
+  module.exports = require(`self-published/${name}`);
 }
 
 module.exports.init = Promise.resolve();
