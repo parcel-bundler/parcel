@@ -1,8 +1,11 @@
 // @flow
 
 import {Transformer} from '@parcel/plugin';
+import type {AST} from '@parcel/types';
 import {parser as parse} from 'posthtml-parser';
 import nullthrows from 'nullthrows';
+import type {PostHTMLExpression, PostHTMLNode} from 'posthtml';
+import PostHTML from 'posthtml';
 import {render} from 'posthtml-render';
 import semver from 'semver';
 import collectDependencies from './dependencies';
@@ -40,10 +43,9 @@ export default (new Transformer({
     const result = [asset, ...inlineAssets];
 
     // empty <script></script> is added to make sure HMR is working even if user
-    // didn't add any. It's inserted at the very end to take into account cases
-    // when there's no html/head/body in source html.
+    // didn't add any.
     if (options.hmrOptions && !(hasScripts || hasInlineScripts)) {
-      ast.program.push({
+      const script = {
         tag: 'script',
         attrs: {
           src: asset.addURLDependency('hmr.js', {
@@ -51,7 +53,17 @@ export default (new Transformer({
           }),
         },
         content: [],
-      });
+      };
+
+      const found = findFirstMatch(ast, [{tag: 'body'}, {tag: 'html'}]);
+
+      if (found) {
+        found.content = found.content || [];
+        found.content.push(script);
+      } else {
+        // Insert at the very end.
+        ast.program.push(script);
+      }
 
       asset.setAST(ast);
 
@@ -71,3 +83,21 @@ export default (new Transformer({
     };
   },
 }): Transformer);
+
+function findFirstMatch(
+  ast: AST,
+  expressions: PostHTMLExpression[],
+): ?PostHTMLNode {
+  let found;
+
+  for (const expression of expressions) {
+    PostHTML().match.call(ast.program, expression, node => {
+      found = node;
+      return node;
+    });
+
+    if (found) {
+      return found;
+    }
+  }
+}
