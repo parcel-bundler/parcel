@@ -400,6 +400,7 @@ export default (new Transformer({
       supports_module_workers: supportsModuleWorkers,
       is_library: asset.env.isLibrary,
       is_esm_output: asset.env.outputFormat === 'esmodule',
+      trace_bailouts: options.logLevel === 'verbose',
     });
 
     let convertLoc = loc => {
