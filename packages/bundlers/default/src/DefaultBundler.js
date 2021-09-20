@@ -336,7 +336,6 @@ function createIdealGraph(
 
         invariant(assets.length === 1);
         let childAsset = assets[0];
-
         // Create a new bundle as well as a new bundle group if the dependency is async.
         if (
           dependency.priority === 'lazy' ||
@@ -392,21 +391,6 @@ function createIdealGraph(
               break;
             }
             reachableBundles.get(stackAsset).add(childAsset);
-
-            if (i === stack.length - 1) {
-              //Add child and connection from parent to child bundleRoot
-              let childNodeId = asyncBundleRootGraph.addNodeByContentKeyIfNeeded(
-                childAsset.id,
-                childAsset,
-              );
-
-              let parentNodeId = asyncBundleRootGraph.addNodeByContentKeyIfNeeded(
-                stackAsset.id,
-                stackAsset,
-              );
-
-              asyncBundleRootGraph.addEdge(parentNodeId, childNodeId);
-            }
           }
           return node;
         }
@@ -459,12 +443,13 @@ function createIdealGraph(
 
   // Step 2: Determine reachability for every asset from each bundle root.
   // This is later used to determine which bundles to place each asset in.
+  for (let [root] of bundleRoots) {
+    if (!entries.has(root)) {
+      asyncBundleRootGraph.addNodeByContentKey(root.id, root);
+    }
+  }
+
   let reachableRoots: ContentGraph<Asset> = new ContentGraph();
-
-  let reachableAsyncRoots: DefaultMap<NodeId, Set<BundleRoot>> = new DefaultMap(
-    () => new Set(),
-  );
-
   for (let [root] of bundleRoots) {
     let rootNodeId = reachableRoots.addNodeByContentKeyIfNeeded(root.id, root);
     assetGraph.traverse((node, isAsync, actions) => {
@@ -483,11 +468,11 @@ function createIdealGraph(
 
             invariant(assets.length === 1);
             let bundleRoot = assets[0];
-            invariant(bundleRoots.has(bundleRoot));
             if (dependency.specifierType !== 'url') {
-              reachableAsyncRoots
-                .get(nullthrows(bundles.get(bundleRoot.id)))
-                .add(root);
+              asyncBundleRootGraph.addEdge(
+                asyncBundleRootGraph.getNodeIdByContentKey(root.id),
+                asyncBundleRootGraph.getNodeIdByContentKey(bundleRoot.id),
+              );
             }
           }
           actions.skipChildren();
@@ -688,11 +673,17 @@ function createIdealGraph(
       }
       // reachableAsyncRoots = all bundleNodeId => all BundleRoots that require it asynchronously
       // reachableAsync = for one bundleRoot => all
-      let reachableAsync = [
-        ...(reachableAsyncRoots.has(rootBundle[0])
-          ? reachableAsyncRoots.get(rootBundle[0])
-          : []),
-      ];
+      let reachableAsync = asyncBundleRootGraph
+        .getNodeIdsConnectedTo(
+          asyncBundleRootGraph.getNodeIdByContentKey(asset.id),
+        )
+        .map(id => nullthrows(asyncBundleRootGraph.getNode(id)))
+        .filter(node => node !== 'root')
+        .map(node => {
+          // TODO: Improve. Currently for flow
+          invariant(node !== 'root');
+          return node;
+        });
       // TODO: is this correct?
       let willInternalizeRoots = reachableAsync.filter(
         b =>
@@ -779,7 +770,7 @@ function createIdealGraph(
         entryBundle.size += asset.stats.size;
       }
       bundleGraph.removeEdge(entryBundleId, siblingId);
-      reachableAsyncRoots.get(siblingId).delete(entryAsset);
+      // reachableAsyncRoots.get(siblingId).delete(entryAsset);
       if (sibling.sourceBundles.length > 1) {
         let entryBundleIndex = sibling.sourceBundles.indexOf(entryBundleId);
         invariant(entryBundleIndex >= 0);
@@ -798,20 +789,20 @@ function createIdealGraph(
     }
   }
 
-  for (let [asyncBundleRoot, dependentRoots] of reachableAsyncRoots) {
-    if (dependentRoots.size === 0) {
-      //TODO make get entry asset function
-      let bundleNode = bundleGraph.getNode(asyncBundleRoot);
+  // for (let [asyncBundleRoot, dependentRoots] of reachableAsyncRoots) {
+  //   if (dependentRoots.size === 0) {
+  //     //TODO make get entry asset function
+  //     let bundleNode = bundleGraph.getNode(asyncBundleRoot);
 
-      if (bundleNode?.assets) {
-        let [entryAsset] = [...bundleNode.assets];
-        if (entries.has(entryAsset)) {
-          continue;
-        }
-      }
-      bundleGraph.removeNode(asyncBundleRoot);
-    }
-  }
+  //     if (bundleNode?.assets) {
+  //       let [entryAsset] = [...bundleNode.assets];
+  //       if (entries.has(entryAsset)) {
+  //         continue;
+  //       }
+  //     }
+  //     bundleGraph.removeNode(asyncBundleRoot);
+  //   }
+  // }
 
   // $FlowFixMe
   dumpGraphToGraphViz(bundleGraph, 'IdealBundleGraph');

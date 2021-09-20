@@ -516,8 +516,8 @@ export function assertBundles(
     });
   });
 
-  // console.log('Actual Bundles are', actualBundles);
-  // console.log('Expected Bundles are', expectedBundles);
+  console.log('Actual Bundles are', actualBundles);
+  console.log('Expected Bundles are', expectedBundles);
 
   for (let bundle of expectedBundles) {
     if (!Array.isArray(bundle.assets)) {
