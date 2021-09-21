@@ -556,7 +556,6 @@ function createIdealGraph(
       let [bundleRoot] = [...bundleInGroup.assets];
 
       const availableAssets = ancestorAssets.get(bundleRoot);
-
       if (availableAssets === undefined) {
         ancestorAssets.set(bundleRoot, siblingAncestors);
       } else {
@@ -624,23 +623,28 @@ function createIdealGraph(
         }
       }
 
-      let reachableAsync = asyncBundleRootGraph
+      let willInternalizeRoots = asyncBundleRootGraph
         .getNodeIdsConnectedTo(
           asyncBundleRootGraph.getNodeIdByContentKey(asset.id),
         )
         .map(id => nullthrows(asyncBundleRootGraph.getNode(id)))
-        .filter(node => node !== 'root')
-        .map(node => {
-          invariant(node !== 'root');
-          return node;
-        });
+        .filter(bundleRoot => {
+          if (bundleRoot === 'root') {
+            return false;
+          }
 
-      let willInternalizeRoots = reachableAsync.filter(
-        b =>
-          !getReachableBundleRoots(asset, reachableRoots).every(
-            a => !(a === b || reachableBundles.get(a).has(b)),
-          ),
-      );
+          return (
+            reachableRoots.hasEdge(
+              reachableRoots.getNodeIdByContentKey(bundleRoot.id),
+              reachableRoots.getNodeIdByContentKey(asset.id),
+            ) || ancestorAssets.get(bundleRoot)?.has(asset)
+          );
+        })
+        .map(bundleRoot => {
+          // For Flow
+          invariant(bundleRoot !== 'root');
+          return bundleRoot;
+        });
 
       for (let bundleRoot of willInternalizeRoots) {
         if (bundleRoot !== asset) {
