@@ -24,7 +24,7 @@ import path from 'path';
 import url from 'url';
 import WebSocket from 'ws';
 import nullthrows from 'nullthrows';
-import postHtmlParse from 'posthtml-parser';
+import {parser as postHtmlParse} from 'posthtml-parser';
 import postHtml from 'posthtml';
 import EventEmitter from 'events';
 
@@ -516,9 +516,6 @@ export function assertBundles(
     });
   });
 
-  console.log('Actual Bundles are', actualBundles);
-  console.log('Expected Bundles are', expectedBundles);
-
   for (let bundle of expectedBundles) {
     if (!Array.isArray(bundle.assets)) {
       throw new Error(
@@ -547,9 +544,6 @@ export function assertBundles(
   );
 
   let i = 0;
-  // console.log('Actual Bundles are', actualBundles);
-
-  // console.log('Expected Bundles are', expectedBundles);
   for (let bundle of expectedBundles) {
     let actualBundle = actualBundles[i++];
     let name = bundle.name;

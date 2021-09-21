@@ -6,7 +6,6 @@ import type {
   BundleBehavior,
   BundleGroup,
   Dependency,
-  DependencyPriority,
   Environment,
   Config,
   MutableBundleGraph,
@@ -18,6 +17,7 @@ import type {SchemaEntity} from '@parcel/utils';
 import {ContentGraph, Graph} from '@parcel/graph';
 
 import invariant from 'assert';
+import {ALL_EDGE_TYPES} from '@parcel/graph';
 import {Bundler} from '@parcel/plugin';
 import {validateSchema, DefaultMap} from '@parcel/utils';
 import nullthrows from 'nullthrows';
@@ -64,6 +64,12 @@ export type Bundle = {|
   type: string,
 |};
 
+const dependencyPriorityEdges = {
+  sync: 1,
+  parallel: 2,
+  lazy: 3,
+};
+
 type DependencyBundleGraph = ContentGraph<
   | {|
       value: Bundle,
@@ -73,7 +79,7 @@ type DependencyBundleGraph = ContentGraph<
       value: Dependency,
       type: 'dependency',
     |},
-  DependencyPriority,
+  number,
 >;
 type IdealGraph = {|
   dependencyBundleGraph: DependencyBundleGraph,
@@ -117,7 +123,8 @@ function decorateLegacyGraph(
       let dependencies = dependencyBundleGraph
         .getNodeIdsConnectedTo(
           dependencyBundleGraph.getNodeIdByContentKey(String(bundleNodeId)),
-          ['lazy', 'sync', 'parallel'],
+          // $FlowFixMe[incompatible-call]
+          ALL_EDGE_TYPES,
         )
         .map(nodeId => {
           let dependency = nullthrows(dependencyBundleGraph.getNode(nodeId));
@@ -279,7 +286,7 @@ function createIdealGraph(
         value: bundle,
         type: 'bundle',
       }),
-      dependency.priority,
+      dependencyPriorityEdges[dependency.priority],
     );
     bundleGroupBundleIds.push(nodeId);
   }
@@ -352,7 +359,7 @@ function createIdealGraph(
                 type: 'bundle',
               },
             ),
-            dependency.priority,
+            dependencyPriorityEdges[dependency.priority],
           );
 
           // Walk up the stack until we hit a different asset type
@@ -397,7 +404,7 @@ function createIdealGraph(
                 type: 'bundle',
               },
             ),
-            'parallel',
+            dependencyPriorityEdges.parallel,
           );
           // Add an edge from the bundle group entry to the new bundle.
           // This indicates that the bundle is loaded together with the entry
@@ -655,7 +662,9 @@ function createIdealGraph(
           }
         }
       }
-      reachable = reachable.filter(a => !toRemove.has(bundles.get(a.id)));
+      reachable = reachable.filter(
+        a => !toRemove.has(nullthrows(bundles.get(a.id))),
+      );
 
       let key = reachable.map(a => a.id).join(',');
       let bundleId = bundles.get(key);

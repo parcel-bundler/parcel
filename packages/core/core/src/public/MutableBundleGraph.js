@@ -15,7 +15,7 @@ import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import {hashString} from '@parcel/hash';
 import BundleGraph from './BundleGraph';
-import InternalBundleGraph from '../BundleGraph';
+import InternalBundleGraph, {bundleGraphEdgeTypes} from '../BundleGraph';
 import {Bundle, bundleToInternalBundle} from './Bundle';
 import {assetFromValue, assetToAssetValue} from './Asset';
 import {getBundleGroupId, getPublicId} from '../utils';
@@ -58,7 +58,7 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
     this.#graph._graph.addEdge(
       bundleNodeId,
       this.#graph._graph.getNodeIdByContentKey(asset.id),
-      'contains',
+      bundleGraphEdgeTypes.contains,
     );
     this.#graph._graph.addEdge(
       bundleNodeId,
@@ -70,28 +70,39 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
       let dependencyNodeId = this.#graph._graph.getNodeIdByContentKey(
         dependency.id,
       );
-      this.#graph._graph.addEdge(bundleNodeId, dependencyNodeId, 'contains');
+      this.#graph._graph.addEdge(
+        bundleNodeId,
+        dependencyNodeId,
+        bundleGraphEdgeTypes.contains,
+      );
 
       for (let [bundleGroupNodeId, bundleGroupNode] of this.#graph._graph
         .getNodeIdsConnectedFrom(dependencyNodeId)
         .map(id => [id, nullthrows(this.#graph._graph.getNode(id))])
         .filter(([, node]) => node.type === 'bundle_group')) {
         invariant(bundleGroupNode.type === 'bundle_group');
-        this.#graph._graph.addEdge(bundleNodeId, bundleGroupNodeId, 'bundle');
+        this.#graph._graph.addEdge(
+          bundleNodeId,
+          bundleGroupNodeId,
+          bundleGraphEdgeTypes.bundle,
+        );
       }
       // If the dependency references a target bundle, add a reference edge from
       // the source bundle to the dependency for easy traversal.
       //TODO Consider bundle being created from dependency
       if (
         this.#graph._graph
-          .getNodeIdsConnectedFrom(dependencyNodeId, 'references')
+          .getNodeIdsConnectedFrom(
+            dependencyNodeId,
+            bundleGraphEdgeTypes.references,
+          )
           .map(id => nullthrows(this.#graph._graph.getNode(id)))
           .some(node => node.type === 'bundle')
       ) {
         this.#graph._graph.addEdge(
           bundleNodeId,
           dependencyNodeId,
-          'references',
+          bundleGraphEdgeTypes.references,
         );
       }
     }
@@ -151,7 +162,11 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
     );
     this.#graph._graph.addEdge(dependencyNodeId, bundleGroupNodeId);
     this.#graph._graph.replaceNodeIdsConnectedTo(bundleGroupNodeId, assetNodes);
-    this.#graph._graph.addEdge(dependencyNodeId, resolvedNodeId, 'references');
+    this.#graph._graph.addEdge(
+      dependencyNodeId,
+      resolvedNodeId,
+      bundleGraphEdgeTypes.references,
+    );
     //this.#graph.markDependencyReferenceable(dependencyNode.value);
     this.#graph._graph.removeEdge(dependencyNodeId, resolvedNodeId);
     //console.log('removed edge from', dependencyNodeId, 'to', resolvedNodeId);
@@ -160,12 +175,12 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
       this.#graph._graph.addEdge(
         nullthrows(this.#graph._graph.rootNodeId),
         bundleGroupNodeId,
-        'bundle',
+        bundleGraphEdgeTypes.bundle,
       );
     } else {
       let inboundBundleNodeIds = this.#graph._graph.getNodeIdsConnectedTo(
         dependencyNodeId,
-        'contains',
+        bundleGraphEdgeTypes.contains,
       );
       for (let inboundBundleNodeId of inboundBundleNodeIds) {
         invariant(
@@ -174,7 +189,7 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
         this.#graph._graph.addEdge(
           inboundBundleNodeId,
           bundleGroupNodeId,
-          'bundle',
+          bundleGraphEdgeTypes.bundle,
         );
       }
     }

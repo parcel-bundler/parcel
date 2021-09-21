@@ -2943,6 +2943,16 @@ describe('javascript', function() {
     assert.equal(output, 'productiontest');
   });
 
+  it('should overwrite environment variables from a file if passed', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/env-file/index.js'),
+      {env: {BAR: 'baz'}},
+    );
+
+    let output = await run(b);
+    assert.equal(output, 'barbaz');
+  });
+
   it('should error on process.env mutations', async function() {
     let filePath = path.join(__dirname, '/integration/env-mutate/index.js');
     await assert.rejects(bundle(filePath), {

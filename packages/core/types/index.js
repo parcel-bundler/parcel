@@ -1604,11 +1604,11 @@ export type Optimizer<ConfigType> = {|
  */
 export type Compressor = {|
   compress({|
-    stream: stream$Readable,
+    stream: Readable,
     options: PluginOptions,
     logger: PluginLogger,
   |}): Async<{|
-    stream: stream$Readable,
+    stream: Readable,
     type?: string,
   |}>,
 |};
