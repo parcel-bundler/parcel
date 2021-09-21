@@ -85,7 +85,6 @@ type IdealGraph = {|
   dependencyBundleGraph: DependencyBundleGraph,
   bundleGraph: Graph<Bundle>,
   bundleGroupBundleIds: Array<NodeId>,
-  entryBundles: Array<NodeId>,
   assetReference: DefaultMap<Asset, Array<[Dependency, Bundle]>>,
 |};
 
@@ -231,7 +230,7 @@ function createIdealGraph(
     Array<[Dependency, Bundle]>,
   > = new DefaultMap(() => []);
 
-  // bundleRoot to all bundleRoot decendants
+  // bundleRoot to all bundleRoot descendants
   let reachableBundles: DefaultMap<
     BundleRoot,
     Set<BundleRoot>,
@@ -430,7 +429,7 @@ function createIdealGraph(
     }
   }
 
-  // graph that models bundleRoots and what require it synchronously
+  // Models bundleRoots and the assets that require it synchronously
   let reachableRoots: ContentGraph<Asset> = new ContentGraph();
   for (let [root] of bundleRoots) {
     let rootNodeId = reachableRoots.addNodeByContentKeyIfNeeded(root.id, root);
@@ -471,29 +470,32 @@ function createIdealGraph(
     }, root);
   }
 
-  // Tracks what assets have been loaded so far and, thus, available to a given bundleRoot
+  // Maps a given bundleRoot to the bundleRoots reachable from it,
+  // and the assets reachable from each of these bundleRoots
   let ancestorAssets: Map<
     BundleRoot,
-    Map<Asset, Array<BundleRoot> | null>,
+    Map<BundleRoot, Array<Asset> | null>,
   > = new Map();
 
-  // Counts references to assets available within a given bundle group for a bundleRoot
+  // Reference count of each asset available within a given bundleRoot's bundle group
   let assetRefsInBundleGroup: DefaultMap<
     BundleRoot,
     DefaultMap<Asset, number>,
   > = new DefaultMap(() => new DefaultMap(() => 0));
 
-  // Step 4: Determine what must be duplicated. For any child, visit all its parents first, peeking each time
-  // to inform what assets have been loaded thus far or are available to child
+  // Step 4: Determine assets that should be duplicated by computing asset availability in each bundle group
   for (let nodeId of asyncBundleRootGraph.topoSort()) {
     const bundleRoot = asyncBundleRootGraph.getNode(nodeId);
     if (bundleRoot === 'root') continue;
     invariant(bundleRoot != null);
+    // BundleRoots reachable from current (bundleRoot) node mapped to assets that are available from it
+    // should we call these reachableBundleRoots/reachableBundleRootMap instead?
     let ancestors = ancestorAssets.get(bundleRoot);
 
-    // First Consider bundle group asset availability, processing only
+    // First consider bundle group asset availability, processing only
     // non-isolated bundles within that bundle group
     let bundleGroupId = nullthrows(bundleRoots.get(bundleRoot))[1];
+    // Map of assets in the bundle group to their refcounts
     let assetRefs = assetRefsInBundleGroup.get(bundleRoot);
 
     for (let bundleIdInGroup of [
@@ -508,7 +510,7 @@ function createIdealGraph(
         continue;
       }
       let [bundleRoot] = [...bundleInGroup.assets];
-
+      // Assets directly connected to current bundleRoot
       let assetsFromBundleRoot = reachableRoots
         .getNodeIdsConnectedFrom(
           reachableRoots.getNodeIdByContentKey(bundleRoot.id),
@@ -520,9 +522,8 @@ function createIdealGraph(
       }
     }
 
-    // Pre-process this node's children, modify it's available assets
-    // at that moment, using the total set of synchronous assets loaded thus
-    // far from bundleGroup consideration, and assets loaded by this parent.
+    // Enumerate bundleRoots connected to the node (parent), taking the intersection
+    // between the assets synchronously loaded by the parent, and those loaded by the child.
     let bundleGroupAssets = new Set(assetRefs.keys());
 
     let combined = ancestors
@@ -556,6 +557,7 @@ function createIdealGraph(
       let [bundleRoot] = [...bundleInGroup.assets];
 
       const availableAssets = ancestorAssets.get(bundleRoot);
+
       if (availableAssets === undefined) {
         ancestorAssets.set(bundleRoot, siblingAncestors);
       } else {
@@ -576,14 +578,16 @@ function createIdealGraph(
 
     // Filter out bundles from this asset's reachable array if
     // bundle does not contain the asset in its ancestry
-    // or if any of the bundles in the ancestry have a <= 1 reference to that asset,
+    // or if any of the bundles in the ancestry have a refcount of <= 1 for that asset,
     // meaning it may not be deduplicated. Otherwise, decrement all references in
     // the ancestry and keep it
     reachable = reachable.filter(b => {
       let ancestry = ancestorAssets.get(b)?.get(asset);
       if (ancestry === undefined) {
+        // No reachable assets from this bundle
         return true;
       } else if (ancestry === null) {
+        // Asset is reachable via the bundle
         return false;
       } else {
         if (
@@ -670,6 +674,10 @@ function createIdealGraph(
         a => !toRemove.has(nullthrows(bundles.get(a.id))),
       );
 
+      if (reachable.length < 1) {
+        continue;
+      }
+
       let key = reachable.map(a => a.id).join(',');
       let bundleId = bundles.get(key);
       let bundle;
@@ -746,7 +754,6 @@ function createIdealGraph(
     bundleGraph,
     dependencyBundleGraph,
     bundleGroupBundleIds,
-    entryBundles: [...bundleRoots.values()].map(v => v[0]),
     assetReference,
   };
 }
@@ -868,7 +875,7 @@ async function loadBundlerConfig(
 }
 
 function ancestryUnion(
-  ancestors: Set<Asset>,
+  ancestors: Set<BundleRoot>,
   assetRefs: Map<Asset, number>,
   bundleRoot: BundleRoot,
 ): Map<Asset, Array<BundleRoot> | null> {
@@ -885,21 +892,21 @@ function ancestryUnion(
 }
 
 function ancestryIntersect(
-  map: Map<Asset, Array<BundleRoot> | null>,
-  previousMap: Map<Asset, Array<BundleRoot> | null>,
+  currentMap: Map<BundleRoot, Array<Asset> | null>,
+  map: Map<BundleRoot, Array<Asset> | null>,
 ): void {
-  for (let [asset, arrayOfBundleIds] of map) {
-    if (previousMap.has(asset)) {
-      let prevBundleIds = previousMap.get(asset);
-      if (prevBundleIds) {
-        if (arrayOfBundleIds) {
-          arrayOfBundleIds.push(...prevBundleIds);
+  for (let [bundleRoot, currentAssets] of currentMap) {
+    if (map.has(bundleRoot)) {
+      let assets = map.get(bundleRoot);
+      if (assets) {
+        if (currentAssets) {
+          currentAssets.push(...assets);
         } else {
-          map.set(asset, [...prevBundleIds]);
+          currentMap.set(bundleRoot, [...assets]);
         }
       }
     } else {
-      map.delete(asset);
+      currentMap.delete(bundleRoot);
     }
   }
 }

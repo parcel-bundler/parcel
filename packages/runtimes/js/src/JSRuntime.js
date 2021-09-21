@@ -92,7 +92,6 @@ export default (new Runtime({
           // If this bundle already has the asset this dependency references,
           // return a simple runtime of `Promise.resolve(internalRequire(assetId))`.
           // The linker handles this for scope-hoisting.
-          console.log('creating promise.resolve runtime');
           assets.push({
             filePath: __filename,
             code: `module.exports = Promise.resolve(module.bundle.root(${JSON.stringify(
