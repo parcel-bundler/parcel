@@ -1,241 +1,18 @@
 // @flow
 import assert from 'assert';
+import nullthrows from 'nullthrows';
 import {fromNodeId, toNodeId} from './types';
 import type {NullEdgeType, AllEdgeTypes} from './Graph';
 import type {NodeId} from './types';
 
-/**
- * Nodes are stored in a shared array buffer of fixed length
- * equal to the node `capacity * NODE_SIZE + NODES_HEADER_SIZE`.
- *
- *                            nodes
- *                    (capacity * NODE_SIZE)
- *             ┌────────────────┴──────────────┐
- *       ┌──┬──┬──┬──┬──┬──┬───────┬──┬──┬──┬──┐
- *       │  │  │  │  │  │  │  ...  │  │  │  │  │
- *       └──┴──┴──┴──┴──┴──┴───────┴──┴──┴──┴──┘
- *       └──┬──┘                   └─────┬─────┘
- *        header                        node
- * (NODES_HEADER_SIZE)              (NODE_SIZE)
- *
- * The header for the nodes array comprises 2 4-byte chunks:
- * The first 4 bytes store the node capacity.
- * The second 4 bytes store the number of nodes in the adjacency list.
+/** The address of the node in the nodes map. */
+opaque type NodeAddress = number;
 
- * struct NodesHeader {
- *   int capacity;
- *   int count;
- * }
- *
- * ┌────────────────────────┐
- * │    NODES_HEADER_SIZE   │
- * ├────────────┬───────────┤
- * │  CAPACITY  │   COUNT   │
- * └────────────┴───────────┘
- *
- * Each node is represented with 4 4-byte chunks:
- * The first 4 bytes are the hash of the node's first incoming edge.
- * The second 4 bytes are the hash of the node's first outgoing edge.
- * The second 4 bytes are the hash of the node's last incoming edge.
- * The second 4 bytes are the hash of the node's last outgoing edge.
- *
- * struct Node {
- *   int firstIn;
- *   int firstOut;
- *   int lastIn;
- *   int lastOut;
- * }
- *
- * ┌─────────────────────────────────────────────────┐
- * │                    NODE_SIZE                    │
- * ├────────────┬───────────┬───────────┬────────────┤
- * │  FIRST_IN  │ FIRST_OUT │  LAST_IN  │  LAST_OUT  │
- * └────────────┴───────────┘───────────┴────────────┘
- */
-export const NODE_SIZE: 4 = 4;
-/** The size of nodes array header */
-export const NODES_HEADER_SIZE: 2 = 2;
+opaque type EdgeHash = number;
 
-/**
- * Edges are stored in a shared array buffer of fixed length
- * equal to the edge `capacity + capacity * EDGE_SIZE + EDGES_HEADER_SIZE`.
- *
- *                  hash table                                   edge
- *                  (capacity)                               (EDGE_SIZE)
- *               ┌──────┴──────┐                         ┌────────┴────────┐
- *      ┌──┬──┬──┬──┬───────┬──┬──┬──┬──┬──┬──┬──┬───────┬──┬──┬──┬──┬──┬──┐
- *      │  │  │  │  │  ...  │  │  │  │  │  │  │  │  ...  │  │  │  │  │  │  │
- *      └──┴──┴──┴──┴───────┴──┴──┴──┴──┴──┴──┴──┴───────┴──┴──┴──┴──┴──┴──┘
- *      └───┬────┘             ├─────────────────────┬─────────────────────┘
- *        header        addressableLimit           edges
- * (EDGES_HEADER_SIZE)               (capacity * EDGE_SIZE * BUCKET_SIZE)
- *
- * The header for the edges array comprises 3 4-byte chunks:
- * The first 4 bytes store the edge capacity.
- * The second 4 bytes store the number of edges in the adjacency list.
- * The third 4 bytes store the number of deleted edges.
- *
- * struct NodesHeader {
- *   int capacity;
- *   int count;
- *   int deletes;
- * }
- *
- * ┌────────────────────────────────────┐
- * │          EDGES_HEADER_SIZE         │
- * ├────────────┬───────────┬───────────┤
- * │  CAPACITY  │   COUNT   │  DELETES  │
- * └────────────┴───────────┴───────────┘
- *
- * Each edge is represented with 8 4-byte chunks:
- * The first 4 bytes are the edge type.
- * The second 4 bytes are the id of the 'from' node.
- * The third 4 bytes are the id of the 'to' node.
- * The fourth 4 bytes are the index of the next edge in the bucket of hash collisions.
- * The fifth 4 bytes are the hash of the 'to' node's next incoming edge.
- * The sixth 4 bytes are the hash of the 'to' node's previous incoming edge.
- * The seventh 4 bytes are the hash of the 'from' node's next outgoing edge.
- * The eighth 4 bytes are the hash of the 'from' node's previous outgoing edge.
- *
- * struct Edge {
- *   int type;
- *   int from;
- *   int to;
- *   int nextHash;
- *   int nextIn;
- *   int prevIn;
- *   int nextOut;
- *   int prevOut;
- * }
- *
- * ┌────────────────────────────────────────────────────────────────────────┐
- * │                              EDGE_SIZE                                 │
- * ├──────┬──────┬────┬───────────┬─────────┬─────────┬──────────┬──────────┤
- * │ TYPE │ FROM │ TO │ NEXT_HASH │ NEXT_IN │ PREV_IN │ NEXT_OUT │ PREV_OUT │
- * └──────┴──────┴────┴───────────┴─────────┴─────────┴──────────┴──────────┘
- *
- * Nodes and Edges create a doubly linked list of edges to and from each node.
- *
- * For example, 3 edges from node 0 to 1 are linked thusly:
- *
- *                      ┌───────┐
- *                      │ Node0 │
- *              ┌───────┴───┬───┴───────┐
- *        ┌─────│FirstOut(1)│LastOut(3) │─────┐
- *        ▼     └───────────┴───────────┘     ▼
- *    ┌───────┐         ┌───────┐         ┌───────┐
- * ┌─▶│ Edge1 │◀──┐ ┌──▶│ Edge2 │◀──┐ ┌──▶│ Edge3 │◀─┐
- * │┌─┴───────┴─┐ │ │ ┌─┴───────┴─┐ │ │ ┌─┴───────┴─┐│
- * ││ NextIn(2) │─│─┤ │ NextIn(3) │─│─┤ │ NextIn(0) ││
- * │├───────────┤ │ │ ├───────────┤ │ │ ├───────────┤│
- * ││ PrevIn(0) │ ├───│ PrevIn(1) │ ├───│ PrevIn(2) ││
- * │├───────────┤ │ │ ├───────────┤ │ │ ├───────────┤│
- * ││NextOut(2) │─│─┘ │NextOut(3) │─│─┘ │NextOut(0) ││
- * │├───────────┤ │   ├───────────┤ │   ├───────────┤│
- * ││PrevOut(0) │ └───│PrevOut(1) │ └───│PrevOut(2) ││
- * │└───────────┘     └───────────┘     └───────────┘│
- * │            ┌───────────┬───────────┐            │
- * └────────────│FirstIn(1) │ LastIn(3) │────────────┘
- *              └───────┬───┴───┬───────┘
- *                      │ Node1 │
- *                      └───────┘
- *
- * To traverse the outgoing edges of `Node0`, you start with `FirstOut(1)`,
- * which points to `Edge1`. Then follow the link to `Edge2` via `NextOut(2)`.
- * Then follow the link to `Edge3` via `NextOut(3)`, and so on.
- *
- * The incoming edges to `Node1` are similar, but starting from
- * `FirstIn(1)` and following the `NextIn()` links instead.
- *
- * Edges may be traversed in reverse order by starting from `LastIn(1)`
- * or `LastOut(1)` and following the `PrevIn()` or `PrevOut()` links.
- */
-export const EDGE_SIZE: 8 = 8;
-/** The size of the edges array header */
-export const EDGES_HEADER_SIZE: 3 = 3;
+/** The address of the edge in the edges map. */
+opaque type EdgeAddress = number;
 
-/** The offset from the header where the capacity is stored. */
-const CAPACITY: 0 = 0;
-/** The offset from the header where the count is stored. */
-const COUNT: 1 = 1;
-/** The offset from the header where the delete count is stored. */
-const DELETES: 2 = 2;
-
-/** The offset from an edge index at which the edge type is stored. */
-const TYPE: 0 = 0;
-/** The offset from an edge index at which the 'from' node id is stored. */
-const FROM: 1 = 1;
-/** The offset from an edge index at which the 'to' node id is stored. */
-const TO: 2 = 2;
-/**
- * The offset from an edge index at which
- * the next edge in the chain of hash collisions is stored
- */
-const NEXT_HASH: 3 = 3;
-/**
- * The offset from an edge index at which the 'to' node's
- * next incoming edge is stored.
- */
-const NEXT_IN: 4 = 4;
-/**
- * The offset from an edge index at which the 'to' node's
- * previous incoming edge is stored.
- */
-const PREV_IN: 5 = 5;
-/**
- * The offset from an edge index at which the 'from' node's
- * next outgoing edge is stored.
- */
-const NEXT_OUT: 6 = 6;
-/**
- * The offset from an edge index at which the 'from' node's
- * previous outgoing edge is stored.
- */
-const PREV_OUT: 7 = 7;
-
-/** The offset from a node index at which the first incoming edge is stored. */
-const FIRST_IN: 0 = 0;
-/** The offset from a node index at which the first outgoing edge is stored. */
-const FIRST_OUT: 1 = 1;
-/** The offset from a node index at which the last incoming edge is stored. */
-const LAST_IN: 2 = 2;
-/** The offset from a node index at which the last outgoing edge is stored. */
-const LAST_OUT: 3 = 3;
-
-/** The upper bound above which the edge capacity should be increased. */
-const LOAD_FACTOR = 0.7;
-/** The lower bound below which the edge capacity should be decreased. */
-const UNLOAD_FACTOR = 0.3;
-/** The max amount by which to grow the capacity of the edges array. */
-const MAX_GROW_FACTOR = 8;
-/** The min amount by which to grow the capacity of the edges array. */
-const MIN_GROW_FACTOR = 2;
-/** The amount by which to shrink the capacity of the edges array. */
-const SHRINK_FACTOR = 0.5;
-/** How many edges to accommodate in a hash bucket. */
-const BUCKET_SIZE = 2;
-
-/** The smallest functional node capacity. */
-const MIN_NODE_CAPACITY = 2;
-/** The largest possible node capacity. */
-const MAX_NODE_CAPACITY = Math.floor(
-  // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Errors/Invalid_array_length#what_went_wrong
-  (2 ** 31 - 1 - NODES_HEADER_SIZE) / NODE_SIZE,
-);
-
-/** The smallest functional edge capacity. */
-const MIN_EDGE_CAPACITY = 2;
-/** The largest possible edge capacity. */
-const MAX_EDGE_CAPACITY = Math.floor(
-  // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Errors/Invalid_array_length#what_went_wrong
-  (2 ** 31 - 1 - EDGES_HEADER_SIZE) / EDGE_SIZE / BUCKET_SIZE,
-);
-/** The size after which to grow the edge capacity by the minimum factor. */
-const PEAK_EDGE_CAPACITY = 2 ** 18;
-
-export const ALL_EDGE_TYPES: AllEdgeTypes = '@@all_edge_types';
-
-// eslint-disable-next-line no-unused-vars
 export type SerializedAdjacencyList<TEdgeType> = {|
   nodes: Uint32Array,
   edges: Uint32Array,
@@ -247,137 +24,51 @@ export type AdjacencyListOptions<TEdgeType> = {|
   nodeCapacity?: number,
 |};
 
-opaque type EdgeHash = number;
+export const ALL_EDGE_TYPES: AllEdgeTypes = '@@all_edge_types';
 
-/** The index of the edge in the edges array. */
-opaque type EdgeIndex = number;
-
-// From https://gist.github.com/badboy/6267743#32-bit-mix-functions
-function hash32shift(key: number): number {
-  key = ~key + (key << 15); // key = (key << 15) - key - 1;
-  key = key ^ (key >> 12);
-  key = key + (key << 2);
-  key = key ^ (key >> 4);
-  key = key * 2057; // key = (key + (key << 3)) + (key << 11);
-  key = key ^ (key >> 16);
-  return key;
-}
-
-/** Get the index in the hash table for the given hash. */
-function hashToIndex(hash: EdgeHash) {
-  return hash + EDGES_HEADER_SIZE;
-}
-
-/** Get the id of the node at the given index in the nodes array. */
-function nodeAt(index: number): NodeId {
-  index -= NODES_HEADER_SIZE;
-  return toNodeId((index - (index % NODE_SIZE)) / NODE_SIZE);
-}
-
-/** Get the index in the nodes array of the given node. */
-function indexOfNode(id: NodeId): number {
-  return NODES_HEADER_SIZE + fromNodeId(id) * NODE_SIZE;
-}
-
-function getAddressableLimit(edgeCapacity: number): number {
-  return EDGES_HEADER_SIZE + edgeCapacity;
-}
-
-function getEdgesLength(edgeCapacity: number): number {
-  return (
-    getAddressableLimit(edgeCapacity) + edgeCapacity * EDGE_SIZE * BUCKET_SIZE
-  );
-}
-
-function getNodesLength(nodeCapacity: number): number {
-  return NODES_HEADER_SIZE + nodeCapacity * NODE_SIZE;
-}
-
-function interpolate(x: number, y: number, t: number): number {
-  return x + (y - x) * Math.min(1, Math.max(0, t));
-}
-
-function increaseNodeCapacity(nodeCapacity: number): number {
-  let newCapacity = Math.round(nodeCapacity * MIN_GROW_FACTOR);
-  assert(newCapacity <= MAX_NODE_CAPACITY, 'Node capacity overflow!');
-  return Math.max(MIN_NODE_CAPACITY, newCapacity);
-}
-
-function getNextEdgeCapacity(capacity: number, count: number): number {
-  let newCapacity = capacity;
-  let currentLoadFactor = count / (capacity * BUCKET_SIZE);
-  if (currentLoadFactor > LOAD_FACTOR) {
-    // This is intended to strike a balance between growing the edge capacity
-    // in too small increments, which causes a lot of resizing, and growing
-    // the edge capacity in too large increments, which results in a lot of
-    // wasted memory.
-    let pct = capacity / PEAK_EDGE_CAPACITY;
-    let growFactor = interpolate(MAX_GROW_FACTOR, MIN_GROW_FACTOR, pct);
-    newCapacity = Math.round(capacity * growFactor);
-  } else if (currentLoadFactor < UNLOAD_FACTOR) {
-    // In some cases, it may be possible to shrink the edge capacity,
-    // but this is only likely to occur when a lot of edges have been removed.
-    newCapacity = Math.round(capacity * SHRINK_FACTOR);
-  }
-  assert(newCapacity <= MAX_EDGE_CAPACITY, 'Edge capacity overflow!');
-  return Math.max(MIN_EDGE_CAPACITY, newCapacity);
-}
+/** The upper bound above which capacity should be increased. */
+const LOAD_FACTOR = 0.7;
+/** The lower bound below which capacity should be decreased. */
+const UNLOAD_FACTOR = 0.3;
+/** The max amount by which to grow the capacity. */
+const MAX_GROW_FACTOR = 8;
+/** The min amount by which to grow the capacity. */
+const MIN_GROW_FACTOR = 2;
+/** The amount by which to shrink the capacity. */
+const SHRINK_FACTOR = 0.5;
 
 export default class AdjacencyList<TEdgeType: number = 1> {
-  /** An array of nodes, with each node occupying `NODE_SIZE` adjacent indices. */
-  #nodes: Uint32Array;
-  /** An array of edges, with each edge occupying `EDGE_SIZE` adjacent indices. */
-  #edges: Uint32Array;
-  /** A cache of connected nodes grouped by type. */
-  #typeMap: ?TypeMap<TEdgeType>;
+  #nodes: NodeTypeMap<TEdgeType | NullEdgeType>;
+  #edges: EdgeTypeMap<TEdgeType | NullEdgeType>;
 
   constructor(
-    opts?: SerializedAdjacencyList<TEdgeType> | AdjacencyListOptions<TEdgeType>,
+    opts?:
+      | SerializedAdjacencyList<TEdgeType | NullEdgeType>
+      | AdjacencyListOptions<TEdgeType | NullEdgeType>,
   ) {
     let nodes;
     let edges;
 
     if (opts?.nodes) {
-      // We were given a serialized adjacency list,
-      // so we just do a quick check of the data integrity
-      // and then initialize the `AdjacencyList`.
       ({nodes, edges} = opts);
-      assert(
-        getNodesLength(nodes[CAPACITY]) === nodes.length,
-        'Node data appears corrupt.',
-      );
-
-      assert(
-        getEdgesLength(edges[CAPACITY]) === edges.length,
-        'Edge data appears corrupt.',
-      );
+      this.#nodes = new NodeTypeMap(nodes);
+      this.#edges = new EdgeTypeMap(edges);
     } else {
-      // We are creating a new `AdjacencyList` from scratch.
-      let {nodeCapacity = MIN_NODE_CAPACITY, edgeCapacity = MIN_EDGE_CAPACITY} =
-        opts ?? {};
-
-      assert(nodeCapacity <= MAX_NODE_CAPACITY, 'Node capacity is too large.');
-      assert(edgeCapacity <= MAX_EDGE_CAPACITY, 'Edge capacity is too large.');
-
-      // $FlowFixMe[incompatible-call]
-      nodes = new Uint32Array(
-        new SharedArrayBuffer(
-          getNodesLength(nodeCapacity) * Uint32Array.BYTES_PER_ELEMENT,
-        ),
+      let {
+        nodeCapacity = NodeTypeMap.MIN_CAPACITY,
+        edgeCapacity = EdgeTypeMap.MIN_CAPACITY,
+      } = opts ?? {};
+      assert(
+        nodeCapacity <= NodeTypeMap.MAX_CAPACITY,
+        'Node capacity overflow!',
       );
-      nodes[CAPACITY] = nodeCapacity;
-
-      // $FlowFixMe[incompatible-call]
-      edges = new Uint32Array(
-        new SharedArrayBuffer(
-          getEdgesLength(edgeCapacity) * Uint32Array.BYTES_PER_ELEMENT,
-        ),
+      assert(
+        edgeCapacity <= EdgeTypeMap.MAX_CAPACITY,
+        'Edge capacity overflow!',
       );
-      edges[CAPACITY] = edgeCapacity;
+      this.#nodes = new NodeTypeMap(nodeCapacity);
+      this.#edges = new EdgeTypeMap(edgeCapacity);
     }
-
-    this.#nodes = nodes;
-    this.#edges = edges;
   }
 
   /**
@@ -394,22 +85,20 @@ export default class AdjacencyList<TEdgeType: number = 1> {
    */
   serialize(): SerializedAdjacencyList<TEdgeType> {
     return {
-      nodes: this.#nodes,
-      edges: this.#edges,
+      nodes: this.#nodes.data,
+      edges: this.#edges.data,
     };
-  }
-
-  get addressableLimit(): number {
-    return getAddressableLimit(this.#edges[CAPACITY]);
   }
 
   get stats(): {|
     /** The number of nodes in the graph. */
     nodes: number,
+    /** The number of edge types associated with nodes in the graph. */
+    nodeEdgeTypes: number,
     /** The maximum number of nodes the graph can contain. */
     nodeCapacity: number,
     /** The size of the raw nodes buffer, in mb. */
-    nodeBuffer: string,
+    nodeBufferSize: string,
     /** The current load on the nodes array. */
     nodeLoad: string,
     /** The number of edges in the graph. */
@@ -419,7 +108,9 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     /** The maximum number of edges the graph can contain. */
     edgeCapacity: number,
     /** The size of the raw edges buffer, in mb. */
-    edgeBuffer: string,
+    edgeBufferSize: string,
+    /** The current load on the edges array, including deletes. */
+    edgeLoadWithDeletes: string,
     /** The current load on the edges array. */
     edgeLoad: string,
     /** The total number of edge hash collisions. */
@@ -433,7 +124,7 @@ export default class AdjacencyList<TEdgeType: number = 1> {
   |} {
     let buckets = new Map();
     for (let {from, to, type} of this.getAllEdges()) {
-      let hash = this.hash(from, to, type);
+      let hash = this.#edges.hash(from, to, type);
       let bucket = buckets.get(hash) || new Set();
       let key = `${String(from)}, ${String(to)}, ${String(type)}`;
       assert(!bucket.has(key), `Duplicate node detected: ${key}`);
@@ -451,106 +142,32 @@ export default class AdjacencyList<TEdgeType: number = 1> {
       distribution += (bucket.size * (bucket.size + 1)) / 2;
     }
 
-    let numNodes = this.#nodes[COUNT];
-    let nodeCapacity = this.#nodes[CAPACITY];
-
-    let numEdges = this.#edges[COUNT];
-    let numDeletedEdges = this.#edges[DELETES];
-    let edgeCapacity = this.#edges[CAPACITY];
-
     let uniformity =
       distribution /
-      ((numEdges / (2 * edgeCapacity)) * (numEdges + 2 * edgeCapacity - 1));
+      ((this.#edges.count / (2 * this.#edges.capacity)) *
+        (this.#edges.count + 2 * this.#edges.capacity - 1));
 
     return {
-      nodes: numNodes,
-      edges: numEdges,
-      deleted: numDeletedEdges,
-      collisions,
-      nodeCapacity,
-      nodeLoad: `${Math.round((numNodes / nodeCapacity) * 100)}%`,
-      nodeBuffer: `${(
-        this.#nodes.buffer.byteLength /
-        1024 /
-        1024
-      ).toLocaleString(undefined, {
-        minmumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      })} mb`,
-      edgeCapacity,
-      edgeLoad: `${Math.round(
-        (numEdges / (edgeCapacity * BUCKET_SIZE)) * 100,
+      nodes: fromNodeId(this.#nodes.nextId),
+      nodeEdgeTypes: this.#nodes.count,
+      nodeCapacity: this.#nodes.capacity,
+      nodeLoad: `${Math.round(this.#nodes.load * 100)}%`,
+      nodeBufferSize: this.#nodes.bufferSize,
+
+      edges: this.#edges.count,
+      deleted: this.#edges.deletes,
+      edgeCapacity: this.#edges.capacity,
+      edgeLoad: `${Math.round(this.#edges.load * 100)}%`,
+      edgeLoadWithDeletes: `${Math.round(
+        this.#edges.getLoad(this.#edges.count + this.#edges.deletes) * 100,
       )}%`,
-      edgeBuffer: `${(
-        this.#edges.buffer.byteLength /
-        1024 /
-        1024
-      ).toLocaleString(undefined, {
-        minmumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      })} mb`,
+      edgeBufferSize: this.#edges.bufferSize,
+
+      collisions,
       maxCollisions,
       avgCollisions: Math.round((collisions / buckets.size) * 100) / 100 || 0,
       uniformity: Math.round(uniformity * 100) / 100 || 0,
     };
-  }
-
-  /** Iterate over node ids in the `AdjacencyList`. */
-  *iterateNodes(max: number = this.#nodes[COUNT]): Iterator<NodeId> {
-    let count = 0;
-    let len = this.#nodes.length;
-    for (let i = NODES_HEADER_SIZE; i < len; i += NODE_SIZE) {
-      if (count++ >= max) break;
-      yield nodeAt(i);
-    }
-  }
-
-  /** Iterate over outgoing edge hashes from the given `nodeId` the `AdjacencyList`. */
-  *iterateOutgoingEdges(nodeId: NodeId): Iterator<EdgeIndex> {
-    let edge = this.getEdge(nodeId, FIRST_OUT);
-    while (edge) {
-      yield edge;
-      edge = this.getLinkedEdge(edge, NEXT_OUT);
-    }
-  }
-
-  /** Iterate over incoming edge hashes to the given `nodeId` the `AdjacencyList`. */
-  *iterateIncomingEdges(nodeId: NodeId): Iterator<EdgeIndex> {
-    let edge = this.getEdge(nodeId, FIRST_IN);
-    while (edge) {
-      yield edge;
-      edge = this.getLinkedEdge(edge, NEXT_IN);
-    }
-  }
-
-  /** Check that the edge exists in the `AdjacencyList`. */
-  edgeExists(edge: EdgeIndex): boolean {
-    let type = (this.#edges[edge + TYPE]: any);
-    return Boolean(type);
-  }
-
-  /** Gets the original hash of the given edge */
-  getHash(edge: EdgeIndex): EdgeHash {
-    return this.hash(
-      this.getFromNode(edge),
-      this.getToNode(edge),
-      this.getEdgeType(edge),
-    );
-  }
-
-  /** Get the type of the given edge. */
-  getEdgeType(edge: EdgeIndex): TEdgeType {
-    return (this.#edges[edge + TYPE]: any);
-  }
-
-  /** Get the node id the given edge originates from */
-  getFromNode(edge: EdgeIndex): NodeId {
-    return toNodeId(this.#edges[edge + FROM]);
-  }
-
-  /** Get the node id the given edge terminates to. */
-  getToNode(edge: EdgeIndex): NodeId {
-    return toNodeId(this.#edges[edge + TO]);
   }
 
   /**
@@ -561,16 +178,10 @@ export default class AdjacencyList<TEdgeType: number = 1> {
    */
   resizeNodes(size: number) {
     let nodes = this.#nodes;
-    // Allocate the required space for a `nodes` array of the given `size`.
-    // $FlowFixMe[incompatible-call]
-    this.#nodes = new Uint32Array(
-      new SharedArrayBuffer(
-        getNodesLength(size) * Uint32Array.BYTES_PER_ELEMENT,
-      ),
-    );
+    // Allocate the required space for a `nodes` map of the given `size`.
+    this.#nodes = new NodeTypeMap(size);
     // Copy the existing nodes into the new array.
-    this.#nodes.set(nodes);
-    this.#nodes[CAPACITY] = size;
+    this.#nodes.set(nodes.data);
   }
 
   /**
@@ -580,134 +191,35 @@ export default class AdjacencyList<TEdgeType: number = 1> {
    * the allocated size of the `edges` array.
    */
   resizeEdges(size: number) {
-    // Allocate the required space for new `nodes` and `edges` arrays.
+    // Allocate the required space for new `nodes` and `edges` maps.
     let copy = new AdjacencyList({
-      nodeCapacity: this.#nodes[CAPACITY],
+      nodeCapacity: this.#nodes.capacity,
       edgeCapacity: size,
     });
-    copy.#nodes[COUNT] = this.#nodes[COUNT];
 
     // Copy the existing edges into the new array.
-    let max = this.#nodes[COUNT];
-    let count = 0;
-    let len = this.#nodes.length;
-    for (let i = NODES_HEADER_SIZE; i < len; i += NODE_SIZE) {
-      if (count++ >= max) break;
-      let edge = this.getEdge(nodeAt(i), FIRST_OUT);
-      while (edge) {
-        copy.addEdge(
-          this.getFromNode(edge),
-          this.getToNode(edge),
-          this.getEdgeType(edge),
-        );
-        edge = this.getLinkedEdge(edge, NEXT_OUT);
-      }
-    }
+    let max = fromNodeId(this.#nodes.nextId);
+    copy.#nodes.nextId = this.#nodes.nextId;
+    this.#edges.forEach(
+      edge =>
+        void copy.addEdge(
+          this.#edges.from(edge),
+          this.#edges.to(edge),
+          this.#edges.typeOf(edge),
+        ),
+    );
 
     // We expect to preserve the same number of edges.
     assert(
-      this.#edges[COUNT] === copy.#edges[COUNT],
-      `Edge mismatch! ${this.#edges[COUNT]} does not match ${
-        copy.#edges[COUNT]
+      this.#edges.count === copy.#edges.count,
+      `Edge mismatch! ${this.#edges.count} does not match ${
+        copy.#edges.count
       }.`,
     );
 
     // Finally, copy the new data arrays over to this graph.
     this.#nodes = copy.#nodes;
     this.#edges = copy.#edges;
-    this.#typeMap = undefined;
-  }
-
-  /** Get the first or last edge to or from the given node. */
-  getEdge(
-    node: NodeId,
-    direction:
-      | typeof FIRST_IN
-      | typeof FIRST_OUT
-      | typeof LAST_IN
-      | typeof LAST_OUT,
-  ): EdgeIndex | null {
-    let edge = this.#nodes[indexOfNode(node) + direction];
-    return edge ? edge : null;
-  }
-
-  /** Set the first or last edge to or from the given node. */
-  setEdge(
-    node: NodeId,
-    edge: EdgeIndex | null,
-    direction:
-      | typeof FIRST_IN
-      | typeof FIRST_OUT
-      | typeof LAST_IN
-      | typeof LAST_OUT,
-  ) {
-    this.#nodes[indexOfNode(node) + direction] = edge ?? 0;
-  }
-
-  linkEdge(
-    prev: EdgeHash | EdgeIndex,
-    edge: EdgeIndex,
-    direction?:
-      | typeof NEXT_HASH
-      | typeof NEXT_IN
-      | typeof PREV_IN
-      | typeof NEXT_OUT
-      | typeof PREV_OUT,
-  ): void {
-    if (direction) {
-      this.#edges[prev + direction] = edge;
-    } else {
-      this.#edges[hashToIndex(prev)] = edge;
-    }
-  }
-
-  unlinkEdge(
-    prev: EdgeHash | EdgeIndex,
-    direction?:
-      | typeof NEXT_HASH
-      | typeof NEXT_IN
-      | typeof PREV_IN
-      | typeof NEXT_OUT
-      | typeof PREV_OUT,
-  ): void {
-    if (direction) {
-      this.#edges[prev + direction] = 0;
-    } else {
-      this.#edges[hashToIndex(prev)] = 0;
-    }
-  }
-
-  /** Get the edge this `edge` links to in the given direction. */
-  getLinkedEdge(
-    prev: EdgeHash | EdgeIndex | null,
-    direction?:
-      | typeof NEXT_HASH
-      | typeof NEXT_IN
-      | typeof PREV_IN
-      | typeof NEXT_OUT
-      | typeof PREV_OUT,
-  ): EdgeIndex | null {
-    if (prev === null) return null;
-    if (direction) {
-      return this.#edges[prev + direction] || null;
-    } else {
-      return this.#edges[hashToIndex(prev)] || null;
-    }
-  }
-
-  /** Find the edge linked to the given `edge`. */
-  findEdgeBefore(
-    edge: EdgeIndex,
-    direction: typeof NEXT_HASH,
-  ): EdgeIndex | null {
-    let candidate = this.getLinkedEdge(this.getHash(edge));
-    if (edge === candidate) return null;
-    while (candidate) {
-      let next = this.getLinkedEdge(candidate, direction);
-      if (next === edge) return candidate;
-      candidate = next;
-    }
-    return null;
   }
 
   /**
@@ -716,17 +228,12 @@ export default class AdjacencyList<TEdgeType: number = 1> {
    * Returns the id of the added node.
    */
   addNode(): NodeId {
-    let id = this.#nodes[COUNT];
-    this.#nodes[COUNT]++;
+    let id = this.#nodes.getId();
     // If we're in danger of overflowing the `nodes` array, resize it.
-    if (this.#nodes[COUNT] >= this.#nodes[CAPACITY]) {
-      // The size of `nodes` doubles every time we reach the current capacity.
-      // This means in the worst case, we will have `O(n - 1)` _extra_
-      // space allocated where `n` is a number nodes that is 1 more
-      // than the previous capacity.
-      this.resizeNodes(increaseNodeCapacity(this.#nodes[CAPACITY]));
+    if (this.#nodes.load > LOAD_FACTOR) {
+      this.resizeNodes(increaseNodeCapacity(this.#nodes.capacity));
     }
-    return toNodeId(id);
+    return id;
   }
 
   /**
@@ -740,137 +247,67 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     to: NodeId,
     type: TEdgeType | NullEdgeType = 1,
   ): boolean {
-    if (fromNodeId(from) < 0 || fromNodeId(from) >= this.#nodes[COUNT]) {
-      throw new Error(`Unknown node ${String(from)}`);
-    }
-    if (fromNodeId(to) < 0 || fromNodeId(to) >= this.#nodes[COUNT]) {
-      throw new Error(`Unknown node ${String(to)}`);
-    }
-    if (type <= 0) throw new Error(`Unsupported edge type ${0}`);
+    assert(type > 0, `Unsupported edge type ${0}`);
 
-    let hash = this.hash(from, to, type);
-    let edge = this.getLinkedEdge(hash);
-    while (edge) {
-      if (
-        this.getFromNode(edge) === from &&
-        this.getToNode(edge) === to &&
-        this.getEdgeType(edge) === type
-      ) {
-        break;
-      }
-      edge = this.getLinkedEdge(edge, NEXT_HASH);
-    }
+    let hash = this.#edges.hash(from, to, type);
+    let edge = this.#edges.addressOf(hash, from, to, type);
 
     // The edge is already in the graph; do nothing.
-    if (edge) return false;
+    if (edge !== null) return false;
 
-    let capacity = this.#edges[CAPACITY];
+    let capacity = this.#edges.capacity;
     // We add 1 to account for the edge we are adding.
-    let count = this.#edges[COUNT] + 1;
+    let count = this.#edges.count + 1;
     // Since the space occupied by deleted edges isn't reclaimed,
     // we include them in our count to avoid overflowing the `edges` array.
-    let deletes = this.#edges[DELETES];
+    let deletes = this.#edges.deletes;
     let total = count + deletes;
     // If we have enough space to keep adding edges, we can
     // put off reclaiming the deleted space until the next resize.
-    if (total / (capacity * BUCKET_SIZE) > LOAD_FACTOR) {
-      if (deletes / (capacity * BUCKET_SIZE) > UNLOAD_FACTOR) {
+    if (this.#edges.getLoad(total) > LOAD_FACTOR) {
+      if (this.#edges.getLoad(deletes) > UNLOAD_FACTOR) {
         // If we have a significant number of deletes, we compute our new
         // capacity based on the current count, even though we decided to
         // resize based on the sum total of count and deletes.
         // In this case, resizing is more like a compaction.
-        this.resizeEdges(getNextEdgeCapacity(capacity, count));
+        this.resizeEdges(
+          getNextEdgeCapacity(capacity, count, this.#edges.getLoad(count)),
+        );
       } else {
-        this.resizeEdges(getNextEdgeCapacity(capacity, total));
+        this.resizeEdges(
+          getNextEdgeCapacity(capacity, total, this.#edges.getLoad(total)),
+        );
       }
       // We must rehash because the capacity has changed.
-      hash = this.hash(from, to, type);
+      hash = this.#edges.hash(from, to, type);
     }
 
-    // Use the next available index as our new edge index.
-    edge = this.getNextIndex();
+    let toNode = this.#nodes.addressOf(to, type);
+    let fromNode = this.#nodes.addressOf(from, type);
+    if (toNode === null || fromNode === null) {
+      // If we're in danger of overflowing the `nodes` array, resize it.
+      if (this.#nodes.load >= LOAD_FACTOR) {
+        this.resizeNodes(increaseNodeCapacity(this.#nodes.capacity));
+        // We need to update our indices since the `nodes` array has changed.
+        toNode = this.#nodes.addressOf(to, type);
+        fromNode = this.#nodes.addressOf(from, type);
+      }
+    }
+    if (toNode === null) toNode = this.#nodes.add(to, type);
+    if (fromNode === null) fromNode = this.#nodes.add(from, type);
 
     // Add our new edge to its hash bucket.
-    let prev = this.getLinkedEdge(hash);
-    if (prev) {
-      let next = this.getLinkedEdge(prev, NEXT_HASH);
-      while (next) {
-        prev = next;
-        next = this.getLinkedEdge(next, NEXT_HASH);
-      }
+    edge = this.#edges.add(hash, from, to, type);
 
-      this.linkEdge(prev, edge, NEXT_HASH);
-    } else {
-      // This is the first edge in the bucket!
-      this.linkEdge(hash, edge);
-    }
+    // Link this edge to the node's list of incoming edges.
+    let prevIn = this.#nodes.linkIn(toNode, edge);
+    if (prevIn !== null) this.#edges.linkIn(prevIn, edge);
 
-    this.#edges[edge + TYPE] = type;
-    this.#edges[edge + FROM] = fromNodeId(from);
-    this.#edges[edge + TO] = fromNodeId(to);
-
-    let firstIncoming = this.getEdge(to, FIRST_IN);
-    let lastIncoming = this.getEdge(to, LAST_IN);
-    let firstOutgoing = this.getEdge(from, FIRST_OUT);
-    let lastOutgoing = this.getEdge(from, LAST_OUT);
-
-    // If the `to` node has incoming edges, link the last edge to this one.
-    if (lastIncoming) {
-      this.linkEdge(lastIncoming, edge, NEXT_IN);
-      this.linkEdge(edge, lastIncoming, PREV_IN);
-    }
-    // Set this edge as the last incoming edge to the `to` node.
-    this.setEdge(to, edge, LAST_IN);
-    // If the `to` node has no incoming edges, set this edge as the first one.
-    if (!firstIncoming) this.setEdge(to, edge, FIRST_IN);
-
-    // If the `from` node has outgoing edges, link the last edge to this one.
-    if (lastOutgoing) {
-      this.linkEdge(lastOutgoing, edge, NEXT_OUT);
-      this.linkEdge(edge, lastOutgoing, PREV_OUT);
-    }
-    // Set this edge as the last outgoing edge from the `from` node.
-    this.setEdge(from, edge, LAST_OUT);
-    // If the `from` node has no outgoing edges, set this edge as the first one.
-    if (!firstOutgoing) this.setEdge(from, edge, FIRST_OUT);
-
-    this.#edges[COUNT]++;
-
-    this.#typeMap?.add(from, to, type);
+    // Link this edge to the node's list of outgoing edges.
+    let prevOut = this.#nodes.linkOut(fromNode, edge);
+    if (prevOut !== null) this.#edges.linkOut(prevOut, edge);
 
     return true;
-  }
-
-  /**
-   * Get the index of the edge connecting the `from` and `to` nodes.
-   *
-   * If an edge connecting `from` and `to` does not exist, returns `-1`.
-   */
-  indexOf(
-    from: NodeId,
-    to: NodeId,
-    type: TEdgeType | NullEdgeType = 1,
-  ): EdgeIndex {
-    let hash = this.hash(from, to, type);
-    let edge = this.getLinkedEdge(hash);
-    while (edge) {
-      if (
-        this.getFromNode(edge) === from &&
-        this.getToNode(edge) === to &&
-        this.getEdgeType(edge) === type
-      ) {
-        return edge;
-      }
-      edge = this.getLinkedEdge(edge, NEXT_HASH);
-    }
-    return -1;
-  }
-
-  /** Get the next available index in the edges array.  */
-  getNextIndex(): number {
-    let offset = (this.#edges[COUNT] + this.#edges[DELETES]) * EDGE_SIZE;
-    let index = this.addressableLimit + offset;
-    return index;
   }
 
   *getAllEdges(): Iterator<{|
@@ -878,10 +315,12 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     from: NodeId,
     to: NodeId,
   |}> {
-    for (let from of this.iterateNodes()) {
-      for (let edge of this.iterateOutgoingEdges(from)) {
-        yield {type: this.getEdgeType(edge), from, to: this.getToNode(edge)};
-      }
+    for (let edge of this.#edges) {
+      yield {
+        from: this.#edges.from(edge),
+        to: this.#edges.to(edge),
+        type: this.#edges.typeOf(edge),
+      };
     }
   }
 
@@ -893,7 +332,8 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     to: NodeId,
     type: TEdgeType | NullEdgeType = 1,
   ): boolean {
-    return this.indexOf(from, to, type) !== -1;
+    let hash = this.#edges.hash(from, to, type);
+    return this.#edges.addressOf(hash, from, to, type) !== null;
   }
 
   /**
@@ -904,130 +344,84 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     to: NodeId,
     type: TEdgeType | NullEdgeType = 1,
   ): void {
-    let hash = this.hash(from, to, type);
-    let edge = this.getLinkedEdge(hash);
-    while (edge && this.edgeExists(edge)) {
-      if (
-        this.getFromNode(edge) === from &&
-        this.getToNode(edge) === to &&
-        this.getEdgeType(edge) === type
-      ) {
-        break;
-      }
-      edge = this.getLinkedEdge(edge, NEXT_HASH);
-    }
+    let hash = this.#edges.hash(from, to, type);
+    let edge = this.#edges.addressOf(hash, from, to, type);
 
     // The edge is not in the graph; do nothing.
-    if (!edge) return;
+    if (edge === null) return;
 
-    /** The first incoming edge to the removed edge's terminus. */
-    let firstIn = this.getEdge(to, FIRST_IN);
-    /** The last incoming edge to the removed edge's terminus. */
-    let lastIn = this.getEdge(to, LAST_IN);
-    /** The next incoming edge after the removed edge. */
-    let nextIn = this.getLinkedEdge(edge, NEXT_IN);
-    /** The previous incoming edge before the removed edge. */
-    let previousIn = this.getLinkedEdge(edge, PREV_IN);
-    /** The first outgoing edge from the removed edge's origin. */
-    let firstOut = this.getEdge(from, FIRST_OUT);
-    /** The last outgoing edge from the removed edge's origin. */
-    let lastOut = this.getEdge(from, LAST_OUT);
-    /** The next outgoing edge after the removed edge. */
-    let nextOut = this.getLinkedEdge(edge, NEXT_OUT);
-    /** The previous outgoing edge before the removed edge. */
-    let previousOut = this.getLinkedEdge(edge, PREV_OUT);
-    /** The next edge in the bucket after the removed edge. */
-    let nextEdge = this.getLinkedEdge(edge, NEXT_HASH);
-    /** The previous edge in the bucket before the removed edge. */
-    let prevEdge = this.findEdgeBefore(edge, NEXT_HASH);
-
-    // Splice the removed edge out of the linked list of edges in the bucket.
-    if (prevEdge && nextEdge) this.linkEdge(prevEdge, nextEdge, NEXT_HASH);
-    else if (prevEdge) this.unlinkEdge(prevEdge, NEXT_HASH);
-    else if (nextEdge) this.linkEdge(hash, nextEdge);
-    else this.unlinkEdge(hash);
-
-    // Splice the removed edge out of the linked list of incoming edges.
-    if (previousIn && nextIn) {
-      this.linkEdge(previousIn, nextIn, NEXT_IN);
-      this.linkEdge(nextIn, previousIn, PREV_IN);
-    } else if (previousIn) {
-      this.unlinkEdge(previousIn, NEXT_IN);
-    } else if (nextIn) {
-      this.unlinkEdge(nextIn, PREV_IN);
-    }
-
-    // Splice the removed edge out of the linked list of outgoing edges.
-    if (previousOut && nextOut) {
-      this.linkEdge(previousOut, nextOut, NEXT_OUT);
-      this.linkEdge(nextOut, previousOut, PREV_OUT);
-    } else if (previousOut) {
-      this.unlinkEdge(previousOut, NEXT_OUT);
-    } else if (nextOut) {
-      this.unlinkEdge(nextOut, PREV_OUT);
-    }
+    let toNode = nullthrows(this.#nodes.addressOf(to, type));
+    let fromNode = nullthrows(this.#nodes.addressOf(from, type));
 
     // Update the terminating node's first and last incoming edges.
-    if (firstIn === edge) this.setEdge(to, nextIn, FIRST_IN);
-    if (lastIn === edge) this.setEdge(to, previousIn, LAST_IN);
+    this.#nodes.unlinkIn(
+      toNode,
+      edge,
+      this.#edges.prevIn(edge),
+      this.#edges.nextIn(edge),
+    );
 
     // Update the originating node's first and last outgoing edges.
-    if (firstOut === edge) this.setEdge(from, nextOut, FIRST_OUT);
-    if (lastOut === edge) this.setEdge(from, previousOut, LAST_OUT);
+    this.#nodes.unlinkOut(
+      fromNode,
+      edge,
+      this.#edges.prevOut(edge),
+      this.#edges.nextOut(edge),
+    );
 
-    this.#edges[edge + TYPE] = 0;
-    this.#edges[edge + FROM] = 0;
-    this.#edges[edge + TO] = 0;
-    this.#edges[edge + NEXT_HASH] = 0;
-    this.#edges[edge + NEXT_IN] = 0;
-    this.#edges[edge + PREV_IN] = 0;
-    this.#edges[edge + NEXT_OUT] = 0;
-    this.#edges[edge + PREV_OUT] = 0;
-
-    this.#edges[COUNT]--;
-    this.#edges[DELETES]++;
-
-    this.#typeMap?.delete(from, to, type);
+    // Splice the removed edge out of the linked list of edges in the bucket.
+    this.#edges.unlink(hash, edge);
+    // Splice the removed edge out of the linked list of incoming edges.
+    this.#edges.unlinkIn(edge);
+    // Splice the removed edge out of the linked list of outgoing edges.
+    this.#edges.unlinkOut(edge);
+    // Finally, delete the edge.
+    this.#edges.delete(edge);
   }
 
   hasInboundEdges(to: NodeId): boolean {
-    return Boolean(this.getEdge(to, FIRST_IN));
+    let node = this.#nodes.head(to);
+    while (node !== null) {
+      if (this.#nodes.firstIn(node) !== null) return true;
+      node = this.#nodes.next(node);
+    }
+    return false;
   }
 
-  getInboundEdgesByType(to: NodeId): {|type: TEdgeType, from: NodeId|}[] {
+  getInboundEdgesByType(
+    to: NodeId,
+  ): {|type: TEdgeType | NullEdgeType, from: NodeId|}[] {
     let edges = [];
-    let typeMap = this.#typeMap || (this.#typeMap = new TypeMap(this));
-    for (let [type, nodes] of typeMap.getConnectedTo(to)) {
-      for (let from of nodes) {
-        edges.push({type: (type: any), from});
+    let node = this.#nodes.head(to);
+    while (node !== null) {
+      let type = this.#nodes.typeOf(node);
+      let edge = this.#nodes.firstIn(node);
+      while (edge !== null) {
+        let from = this.#edges.from(edge);
+        edges.push({from, type});
+        edge = this.#edges.nextIn(edge);
       }
+      node = this.#nodes.next(node);
     }
     return edges;
   }
 
-  getOutboundEdgesByType(from: NodeId): {|type: TEdgeType, to: NodeId|}[] {
-    let edges = [];
-    let typeMap = this.#typeMap || (this.#typeMap = new TypeMap(this));
-    for (let [type, nodes] of typeMap.getConnectedFrom(from)) {
-      for (let to of nodes) {
-        edges.push({type: (type: any), to});
-      }
-    }
-    return edges;
-  }
-
-  /**
-   *
-   */
-  getEdges(
+  getOutboundEdgesByType(
     from: NodeId,
-    type:
-      | AllEdgeTypes
-      | TEdgeType
-      | NullEdgeType
-      | Array<TEdgeType | NullEdgeType> = 1,
-  ): $ReadOnlySet<NodeId> {
-    return new Set(this.getNodeIdsConnectedFrom(from, type));
+  ): {|type: TEdgeType | NullEdgeType, to: NodeId|}[] {
+    let edges = [];
+    let node = this.#nodes.head(from);
+    while (node !== null) {
+      let type = this.#nodes.typeOf(node);
+      let edge = this.#nodes.firstOut(node);
+      while (edge !== null) {
+        let to = this.#edges.to(edge);
+        edges.push({to, type});
+        edge = this.#edges.nextOut(edge);
+      }
+      node = this.#nodes.next(node);
+    }
+    return edges;
   }
 
   /**
@@ -1041,22 +435,23 @@ export default class AdjacencyList<TEdgeType: number = 1> {
       | NullEdgeType
       | Array<TEdgeType | NullEdgeType> = 1,
   ): NodeId[] {
-    let typeMap = this.#typeMap || (this.#typeMap = new TypeMap(this));
-    let isAllEdgeTypes =
+    let matches = node =>
       type === ALL_EDGE_TYPES ||
-      (Array.isArray(type) && type.includes(ALL_EDGE_TYPES));
+      (Array.isArray(type)
+        ? type.includes(this.#nodes.typeOf(node))
+        : type === this.#nodes.typeOf(node));
 
     let nodes = [];
-    if (isAllEdgeTypes) {
-      for (let toSet of typeMap.getConnectedFrom(from).values()) {
-        nodes.push(...toSet);
+    let node = this.#nodes.head(from);
+    while (node !== null) {
+      if (matches(node)) {
+        let edge = this.#nodes.firstOut(node);
+        while (edge !== null) {
+          nodes.push(this.#edges.to(edge));
+          edge = this.#edges.nextOut(edge);
+        }
       }
-    } else if (Array.isArray(type)) {
-      for (let typeNum of type) {
-        nodes.push(...typeMap.getConnectedFromType(from, typeNum));
-      }
-    } else {
-      nodes.push(...typeMap.getConnectedFromType(from, (type: any)));
+      node = this.#nodes.next(node);
     }
     return nodes;
   }
@@ -1072,33 +467,688 @@ export default class AdjacencyList<TEdgeType: number = 1> {
       | NullEdgeType
       | Array<TEdgeType | NullEdgeType> = 1,
   ): NodeId[] {
-    let typeMap = this.#typeMap || (this.#typeMap = new TypeMap(this));
-    let isAllEdgeTypes =
+    let matches = node =>
       type === ALL_EDGE_TYPES ||
-      (Array.isArray(type) && type.includes(ALL_EDGE_TYPES));
+      (Array.isArray(type)
+        ? type.includes(this.#nodes.typeOf(node))
+        : type === this.#nodes.typeOf(node));
 
     let nodes = [];
-    if (isAllEdgeTypes) {
-      for (let fromSet of typeMap.getConnectedTo(to).values()) {
-        nodes.push(...fromSet);
+    let node = this.#nodes.head(to);
+    while (node !== null) {
+      if (matches(node)) {
+        let edge = this.#nodes.firstIn(node);
+        while (edge !== null) {
+          nodes.push(this.#edges.from(edge));
+          edge = this.#edges.nextIn(edge);
+        }
       }
-    } else if (Array.isArray(type)) {
-      for (let typeNum of type) {
-        nodes.push(...typeMap.getConnectedToType(to, typeNum));
-      }
-    } else {
-      nodes.push(...typeMap.getConnectedToType(to, (type: any)));
+      node = this.#nodes.next(node);
     }
     return nodes;
   }
 
+  inspect(): any {
+    return {
+      nodes: this.#nodes.inspect(),
+      edges: this.#edges.inspect(),
+    };
+  }
+}
+
+/**
+ * `SharedTypeMap` is a hashmap of items,
+ * where each item has its own 'type' field.
+ *
+ * The `SharedTypeMap` is backed by a shared array buffer of fixed length.
+ * The buffer is partitioned into:
+ * - a header, which stores the capacity and number of items in the map,
+ * - a hash table, which is an array of pointers to linked lists of items
+ *   with the same hash,
+ * - an items array, which is where the linked items are stored.
+ *
+ *            hash table                 item
+ *            (capacity)             (ITEM_SIZE)
+ *         ┌──────┴──────┐             ┌──┴──┐
+ *   ┌──┬──┬──┬───────┬──┬──┬──┬───────┬──┬──┐
+ *   │  │  │  │  ...  │  │  │  │  ...  │  │  │
+ *   └──┴──┴──┴───────┴──┴──┴──┴───────┴──┴──┘
+ *   └──┬──┘             └─────────┬─────────┘
+ *    header                     items
+ * (HEADER_SIZE)    (capacity * ITEM_SIZE * BUCKET_SIZE)
+ *
+ *
+ * An item is added with a hash key that fits within the range of the hash
+ * table capacity. The item is stored at the next available address after the
+ * hash table, and a pointer to the address is stored in the hash table at
+ * the index matching the hash. If the hash is already pointing at an item,
+ * the pointer is stored in the `next` field of the existing item instead.
+ *
+ *       hash table                          items
+ * ┌─────────┴────────┐┌───────────────────────┴────────────────────────┐
+ *    0    1    2        11       17        23       29      35
+ * ┌───┐┌───┐┌───┐┌───┐┌───┬───┐┌───┬───┐┌───┬───┐┌───┬───┐┌───┬───┐┌───┐
+ * │17 ││11 ││35 ││...││23 │ 1 ││29 │ 1 ││ 0 │ 2 ││ 0 │ 2 ││ 0 │ 1 ││...│
+ * └───┘└───┘└───┘└───┘└───┴───┘└───┴───┘└───┴───┘└───┴───┘└───┴───┘└───┘
+ *   │    │    │         ▲        ▲        ▲        ▲        ▲
+ *   └────┼────┼─────────┼────────┴────────┼────────┘        │
+ *        └────┼─────────┴─────────────────┘                 │
+ *             └─────────────────────────────────────────────┘
+ */
+export class SharedTypeMap<TItemType, THash, TAddress: number>
+  implements Iterable<TAddress> {
   /**
-   * Create a hash of the edge connecting the `from` and `to` nodes.
+   * The header for the `SharedTypeMap` comprises 2 4-byte chunks:
    *
-   * This hash is used to index the edge in the `edges` array.
+   * struct SharedTypeMapHeader {
+   *   int capacity;
+   *   int count;
+   * }
    *
+   * ┌──────────┬───────┐
+   * │ CAPACITY │ COUNT │
+   * └──────────┴───────┘
    */
-  hash(from: NodeId, to: NodeId, type: TEdgeType | NullEdgeType): EdgeHash {
+  static HEADER_SIZE: number = 2;
+  /** The offset from the header where the capacity is stored. */
+  static #CAPACITY: 0 = 0;
+  /** The offset from the header where the count is stored. */
+  static #COUNT: 1 = 1;
+
+  /**
+   * Each item in `SharedTypeMap` comprises 2 4-byte chunks:
+   *
+   * struct Node {
+   *   int next;
+   *   int type;
+   * }
+   *
+   * ┌──────┬──────┐
+   * │ NEXT │ TYPE │
+   * └──────┴──────┘
+   */
+  static ITEM_SIZE: number = 2;
+  /** The offset at which a link to the next item in the same bucket is stored. */
+  static #NEXT: 0 = 0;
+  /** The offset at which an item's type is stored. */
+  static #TYPE: 1 = 1;
+
+  /** The number of items to accommodate per hash bucket. */
+  static BUCKET_SIZE: number = 2;
+
+  data: Uint32Array;
+
+  get capacity(): number {
+    return this.data[SharedTypeMap.#CAPACITY];
+  }
+
+  get count(): number {
+    return this.data[SharedTypeMap.#COUNT];
+  }
+
+  get load(): number {
+    return this.getLoad();
+  }
+
+  get length(): number {
+    return this.getLength();
+  }
+
+  get addressableLimit(): number {
+    return this.constructor.HEADER_SIZE + this.capacity;
+  }
+
+  get bufferSize(): string {
+    return `${(this.data.byteLength / 1024 / 1024).toLocaleString(undefined, {
+      minmumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })} mb`;
+  }
+
+  constructor(capacityOrData: number | Uint32Array) {
+    if (typeof capacityOrData === 'number') {
+      let {BYTES_PER_ELEMENT} = Uint32Array;
+      let CAPACITY = SharedTypeMap.#CAPACITY;
+      // $FlowFixMe[incompatible-call]
+      this.data = new Uint32Array(
+        new SharedArrayBuffer(
+          this.getLength(capacityOrData) * BYTES_PER_ELEMENT,
+        ),
+      );
+      this.data[CAPACITY] = capacityOrData;
+    } else {
+      this.data = capacityOrData;
+      assert(this.getLength() === this.data.length, 'Data appears corrupt.');
+    }
+  }
+
+  set(data: Uint32Array): void {
+    let {HEADER_SIZE, ITEM_SIZE} = this.constructor;
+    let NEXT = SharedTypeMap.#NEXT;
+    let COUNT = SharedTypeMap.#COUNT;
+    let CAPACITY = SharedTypeMap.#CAPACITY;
+
+    let delta = this.capacity - data[CAPACITY];
+    assert(delta >= 0, 'Cannot copy to a map with smaller capacity.');
+
+    // Copy the header.
+    this.data.set(data.subarray(COUNT, HEADER_SIZE), COUNT);
+
+    // Copy the hash table.
+    let toTable = this.data.subarray(HEADER_SIZE, HEADER_SIZE + this.capacity);
+    toTable.set(data.subarray(HEADER_SIZE, HEADER_SIZE + data[CAPACITY]));
+    // Offset first links to account for the change in table capacity.
+    let max = toTable.length;
+    for (let i = 0; i < max; i++) {
+      if (toTable[i]) toTable[i] += delta;
+    }
+
+    // Copy the items.
+    let toItems = this.data.subarray(HEADER_SIZE + this.capacity);
+    toItems.set(data.subarray(HEADER_SIZE + data[CAPACITY]));
+    // Offset next links to account for the change in table capacity.
+    max = toItems.length;
+    for (let i = 0; i < max; i += ITEM_SIZE) {
+      if (toItems[i + NEXT]) toItems[i + NEXT] += delta;
+    }
+  }
+
+  getLoad(count: number = this.count): number {
+    let {BUCKET_SIZE} = this.constructor;
+    return count / (this.capacity * BUCKET_SIZE);
+  }
+
+  getLength(capacity: number = this.capacity): number {
+    let {HEADER_SIZE, ITEM_SIZE, BUCKET_SIZE} = this.constructor;
+    return capacity + HEADER_SIZE + ITEM_SIZE * BUCKET_SIZE * capacity;
+  }
+
+  /** Get the next available address in the map. */
+  getNextAddress(): TAddress {
+    let {HEADER_SIZE, ITEM_SIZE} = this.constructor;
+    return (HEADER_SIZE + this.capacity + this.count * ITEM_SIZE: any);
+  }
+
+  /** Get the address of the first item with the given hash. */
+  head(hash: THash): TAddress | null {
+    let {HEADER_SIZE} = this.constructor;
+    return (this.data[HEADER_SIZE + (hash: any)]: any) || null;
+  }
+
+  /** Get the address of the next item with the same hash as the given item. */
+  next(item: TAddress): TAddress | null {
+    let NEXT = SharedTypeMap.#NEXT;
+    return (this.data[(item: any) + NEXT]: any) || null;
+  }
+
+  typeOf(item: TAddress): TItemType {
+    return (this.data[item + SharedTypeMap.#TYPE]: any);
+  }
+
+  link(hash: THash, item: TAddress, type: TItemType): void {
+    let COUNT = SharedTypeMap.#COUNT;
+    let NEXT = SharedTypeMap.#NEXT;
+    let TYPE = SharedTypeMap.#TYPE;
+    let {HEADER_SIZE} = this.constructor;
+
+    this.data[item + TYPE] = (type: any);
+
+    let prev = this.head(hash);
+    if (prev !== null) {
+      let next = this.next(prev);
+      while (next !== null) {
+        prev = next;
+        next = this.next(next);
+      }
+      this.data[prev + NEXT] = item;
+    } else {
+      // This is the first item in the bucket!
+      this.data[HEADER_SIZE + (hash: any)] = item;
+    }
+    this.data[COUNT]++;
+  }
+
+  unlink(hash: THash, item: TAddress): void {
+    let COUNT = SharedTypeMap.#COUNT;
+    let NEXT = SharedTypeMap.#NEXT;
+    let TYPE = SharedTypeMap.#TYPE;
+    let {HEADER_SIZE} = this.constructor;
+
+    this.data[item + TYPE] = 0;
+
+    let head = this.head(hash);
+    // No bucket to unlink from.
+    if (head === null) return;
+
+    let next = this.next(item);
+    let prev = null;
+    let candidate = head;
+    while (candidate !== null && candidate !== item) {
+      prev = candidate;
+      candidate = this.next(candidate);
+    }
+    if (prev !== null && next !== null) {
+      this.data[prev + NEXT] = next;
+    } else if (prev !== null) {
+      this.data[prev + NEXT] = 0;
+    } else if (next !== null) {
+      this.data[HEADER_SIZE + (hash: any)] = next;
+    } else {
+      this.data[HEADER_SIZE + (hash: any)] = 0;
+    }
+    this.data[item + NEXT] = 0;
+    this.data[COUNT]--;
+  }
+
+  forEach(cb: (item: TAddress) => void): void {
+    let max = this.count;
+    let len = this.length;
+    let {ITEM_SIZE} = this.constructor;
+    for (
+      let i = this.addressableLimit, count = 0;
+      i < len && count < max;
+      i += ITEM_SIZE
+    ) {
+      // Skip items that don't have a type.
+      if (this.typeOf((i: any))) {
+        cb((i: any));
+        count++;
+      }
+    }
+  }
+
+  /*:: @@iterator(): Iterator<TAddress> { return ({}: any); } */
+  // $FlowFixMe[unsupported-syntax]
+  *[Symbol.iterator](): Iterator<TAddress> {
+    let max = this.count;
+    let len = this.length;
+    let {ITEM_SIZE} = this.constructor;
+    for (
+      let i = this.addressableLimit, count = 0;
+      i < len && count < max;
+      i += ITEM_SIZE
+    ) {
+      if (this.data.subarray(i, i + ITEM_SIZE).some(Boolean)) {
+        yield (i: any);
+        count++;
+      }
+    }
+  }
+
+  inspect(): {|
+    header: Uint32Array,
+    table: Uint32Array,
+    data: Uint32Array,
+  |} {
+    const {HEADER_SIZE, ITEM_SIZE, BUCKET_SIZE} = this.constructor;
+    let min = HEADER_SIZE + this.capacity;
+    let max = min + this.capacity * BUCKET_SIZE * ITEM_SIZE;
+    return {
+      header: this.data.subarray(0, HEADER_SIZE),
+      table: this.data.subarray(HEADER_SIZE, min),
+      data: this.data.subarray(min, max),
+    };
+  }
+}
+
+/**
+ * Nodes are stored in a `SharedTypeMap`, keyed on node id plus an edge type.
+ * This means that for any given unique node id, there may be `e` nodes in the
+ * map, where `e` is the number of possible edge types in the graph.
+ */
+export class NodeTypeMap<TEdgeType> extends SharedTypeMap<
+  TEdgeType,
+  NodeId,
+  NodeAddress,
+> {
+  /**
+   * In addition to the header defined by `SharedTypeMap`, the header for
+   * the node map includes a 4-byte `nextId` chunk:
+   *
+   * struct NodeTypeMapHeader {
+   *   int capacity; // from `SharedTypeMap`
+   *   int count; // from `SharedTypeMap`
+   *   int nextId;
+   * }
+   *
+   * ┌──────────┬───────┬─────────┐
+   * │ CAPACITY │ COUNT │ NEXT_ID │
+   * └──────────┴───────┴─────────┘
+   */
+  static HEADER_SIZE: number = 3;
+  /** The offset from the header where the next available node id is stored. */
+  static #NEXT_ID = 2;
+
+  /**
+   * In addition to the item fields defined by `SharedTypeMap`,
+   * each node includes another 4 4-byte chunks:
+   *
+   * struct Node {
+   *   int next; // from `SharedTypeMap`
+   *   int type; // from `SharedTypeMap`
+   *   int firstIn;
+   *   int firstOut;
+   *   int lastIn;
+   *   int lastOut;
+   * }
+   *
+   * ┌──────┬──────┬──────────┬───────────┬─────────┬──────────┐
+   * │ NEXT │ TYPE │ FIRST_IN │ FIRST_OUT │ LAST_IN │ LAST_OUT │
+   * └──────┴──────┴──────────┴───────────┴─────────┴──────────┘
+   */
+  static ITEM_SIZE: number = 6;
+  /** The offset at which a node's first incoming edge of this type is stored. */
+  static #FIRST_IN = 2;
+  /** The offset at which a node's first outgoing edge of this type is stored. */
+  static #FIRST_OUT = 3;
+  /** The offset at which a node's last incoming edge of this type is stored. */
+  static #LAST_IN = 4;
+  /** The offset at which a node's last outgoing edge of this type is stored. */
+  static #LAST_OUT = 5;
+
+  /** The smallest functional node map capacity. */
+  static MIN_CAPACITY: number = 2;
+  /** The largest possible node map capacity. */
+  static MAX_CAPACITY: number = Math.floor(
+    // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Errors/Invalid_array_length#what_went_wrong
+    (2 ** 31 - 1 - NodeTypeMap.HEADER_SIZE) /
+      NodeTypeMap.ITEM_SIZE /
+      NodeTypeMap.BUCKET_SIZE,
+  );
+
+  get nextId(): NodeId {
+    return toNodeId(this.data[NodeTypeMap.#NEXT_ID]);
+  }
+  set nextId(nextId: NodeId) {
+    this.data[NodeTypeMap.#NEXT_ID] = fromNodeId(nextId);
+  }
+
+  /** Get a unique node id. */
+  getId(): NodeId {
+    return toNodeId(this.data[NodeTypeMap.#NEXT_ID]++);
+  }
+
+  getLoad(count: number = this.count): number {
+    return Math.max(
+      fromNodeId(this.nextId) / this.capacity,
+      super.getLoad(count),
+    );
+  }
+
+  add(node: NodeId, type: TEdgeType): NodeAddress {
+    let index = fromNodeId(node);
+    assert(
+      index >= 0 && index < this.data[NodeTypeMap.#NEXT_ID],
+      `Invalid node id ${String(node)} (${this.data[NodeTypeMap.#NEXT_ID]})`,
+    );
+    let address = this.getNextAddress();
+    this.link(node, address, type);
+    return address;
+  }
+
+  addressOf(node: NodeId, type: TEdgeType): NodeAddress | null {
+    let address = this.head(node);
+    while (address !== null) {
+      if (this.typeOf(address) === type) {
+        return address;
+      }
+      address = this.next(address);
+    }
+    return null;
+  }
+
+  firstIn(node: NodeAddress): EdgeAddress | null {
+    return this.data[node + NodeTypeMap.#FIRST_IN] || null;
+  }
+
+  firstOut(node: NodeAddress): EdgeAddress | null {
+    return this.data[node + NodeTypeMap.#FIRST_OUT] || null;
+  }
+
+  lastIn(node: NodeAddress): EdgeAddress | null {
+    return this.data[node + NodeTypeMap.#LAST_IN] || null;
+  }
+
+  lastOut(node: NodeAddress): EdgeAddress | null {
+    return this.data[node + NodeTypeMap.#LAST_OUT] || null;
+  }
+
+  linkIn(node: NodeAddress, edge: EdgeAddress): EdgeAddress | null {
+    let first = this.firstIn(node);
+    let last = this.lastIn(node);
+    if (first === null) this.data[node + NodeTypeMap.#FIRST_IN] = edge;
+    this.data[node + NodeTypeMap.#LAST_IN] = edge;
+    return last;
+  }
+
+  unlinkIn(
+    node: NodeAddress,
+    edge: EdgeAddress,
+    prev: EdgeAddress | null,
+    next: EdgeAddress | null,
+  ): void {
+    let first = this.firstIn(node);
+    let last = this.lastIn(node);
+    if (last === edge) {
+      this.data[node + NodeTypeMap.#LAST_IN] = prev === null ? 0 : prev;
+    }
+    if (first === edge) {
+      this.data[node + NodeTypeMap.#FIRST_IN] = next === null ? 0 : next;
+    }
+  }
+
+  linkOut(node: NodeAddress, edge: EdgeAddress): EdgeAddress | null {
+    let first = this.firstOut(node);
+    let last = this.lastOut(node);
+    if (first === null) this.data[node + NodeTypeMap.#FIRST_OUT] = edge;
+    this.data[node + NodeTypeMap.#LAST_OUT] = edge;
+    return last;
+  }
+
+  unlinkOut(
+    node: NodeAddress,
+    edge: EdgeAddress,
+    prev: EdgeAddress | null,
+    next: EdgeAddress | null,
+  ): void {
+    let first = this.firstOut(node);
+    let last = this.lastOut(node);
+    if (last === edge) {
+      this.data[node + NodeTypeMap.#LAST_OUT] = prev === null ? 0 : prev;
+    }
+    if (first === edge) {
+      this.data[node + NodeTypeMap.#FIRST_OUT] = next === null ? 0 : next;
+    }
+  }
+}
+
+/**
+ * Edges are stored in a `SharedTypeMap`,
+ * keyed on the 'from' and 'to' node ids, and the edge type.
+ */
+export class EdgeTypeMap<TEdgeType> extends SharedTypeMap<
+  TEdgeType,
+  EdgeHash,
+  EdgeAddress,
+> {
+  /**
+   * In addition to the header defined by `SharedTypeMap`, the header for
+   * the edge map includes a 4-byte `deletes` chunk:
+   *
+   * struct EdgeTypeMapHeader {
+   *   int capacity; // from `SharedTypeMap`
+   *   int count; // from `SharedTypeMap`
+   *   int deletes;
+   * }
+   *
+   * ┌──────────┬───────┬─────────┐
+   * │ CAPACITY │ COUNT │ DELETES │
+   * └──────────┴───────┴─────────┘
+   */
+  static HEADER_SIZE: number = 3;
+  /** The offset from the header where the delete count is stored. */
+  static #DELETES = 2;
+
+  /**
+   * In addition to the item fields defined by `SharedTypeMap`,
+   * each edge includes another 6 4-byte chunks:
+   *
+   * struct Edge {
+   *   int next; // from `SharedTypeMap`
+   *   int type; // from `SharedTypeMap`
+   *   int from;
+   *   int to;
+   *   int nextIn;
+   *   int prevIn;
+   *   int nextOut;
+   *   int prevOut;
+   * }
+   *
+   * ┌──────┬──────┬──────┬────┬─────────┬─────────┬──────────┬──────────┐
+   * │ NEXT │ TYPE │ FROM │ TO │ NEXT_IN │ PREV_IN │ NEXT_OUT │ PREV_OUT │
+   * └──────┴──────┴──────┴────┴─────────┴─────────┴──────────┴──────────┘
+   */
+  static ITEM_SIZE: number = 8;
+  /** The offset at which an edge's 'from' node id is stored. */
+  static #FROM = 2;
+  /** The offset at which an edge's 'to' node id is stored. */
+  static #TO = 3;
+  /** The offset at which the 'to' node's next incoming edge is stored.  */
+  static #NEXT_IN = 4;
+  /** The offset at which the 'to' node's previous incoming edge is stored.  */
+  static #PREV_IN = 5;
+  /** The offset at which the 'from' node's next outgoing edge is stored.  */
+  static #NEXT_OUT = 6;
+  /** The offset at which the 'from' node's previous outgoing edge is stored.  */
+  static #PREV_OUT = 7;
+
+  /** The smallest functional edge map capacity. */
+  static MIN_CAPACITY: number = 2;
+  /** The largest possible edge map capacity. */
+  static MAX_CAPACITY: number = Math.floor(
+    // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Errors/Invalid_array_length#what_went_wrong
+    (2 ** 31 - 1 - EdgeTypeMap.HEADER_SIZE) /
+      EdgeTypeMap.ITEM_SIZE /
+      EdgeTypeMap.BUCKET_SIZE,
+  );
+  /** The size after which to grow the capacity by the minimum factor. */
+  static PEAK_CAPACITY: number = 2 ** 18;
+
+  get deletes(): number {
+    return this.data[EdgeTypeMap.#DELETES];
+  }
+
+  getNextAddress(): EdgeAddress {
+    let {ITEM_SIZE} = this.constructor;
+    return this.addressableLimit + (this.count + this.deletes) * ITEM_SIZE;
+  }
+
+  add(hash: EdgeHash, from: NodeId, to: NodeId, type: TEdgeType): EdgeAddress {
+    assert(
+      hash >= 0 && hash < this.capacity,
+      `Invalid edge hash ${String(hash)}`,
+    );
+    // Use the next available edge address.
+    let edge = this.getNextAddress();
+    // Add our new edge to its hash bucket.
+    this.link(hash, edge, type);
+    this.data[edge + EdgeTypeMap.#FROM] = fromNodeId(from);
+    this.data[edge + EdgeTypeMap.#TO] = fromNodeId(to);
+    return edge;
+  }
+
+  delete(edge: EdgeAddress): void {
+    this.data[edge + EdgeTypeMap.#FROM] = 0;
+    this.data[edge + EdgeTypeMap.#TO] = 0;
+    this.data[EdgeTypeMap.#DELETES]++;
+  }
+
+  addressOf(
+    hash: EdgeHash,
+    from: NodeId,
+    to: NodeId,
+    type: TEdgeType,
+  ): EdgeAddress | null {
+    let address = this.head(hash);
+    while (address !== null) {
+      if (
+        this.typeOf(address) === type &&
+        this.from(address) === from &&
+        this.to(address) === to
+      ) {
+        return address;
+      }
+      address = this.next(address);
+    }
+    return null;
+  }
+
+  from(edge: EdgeAddress): NodeId {
+    return toNodeId(this.data[edge + EdgeTypeMap.#FROM]);
+  }
+
+  to(edge: EdgeAddress): NodeId {
+    return toNodeId(this.data[edge + EdgeTypeMap.#TO]);
+  }
+
+  nextIn(edge: EdgeAddress): EdgeAddress | null {
+    return this.data[edge + EdgeTypeMap.#NEXT_IN] || null;
+  }
+
+  prevIn(edge: EdgeAddress): EdgeAddress | null {
+    return this.data[edge + EdgeTypeMap.#PREV_IN] || null;
+  }
+
+  linkIn(edge: EdgeAddress, next: EdgeAddress) {
+    this.data[edge + EdgeTypeMap.#NEXT_IN] = next;
+    this.data[next + EdgeTypeMap.#PREV_IN] = edge;
+  }
+
+  unlinkIn(edge: EdgeAddress) {
+    let next = this.nextIn(edge);
+    let prev = this.prevIn(edge);
+    this.data[edge + EdgeTypeMap.#NEXT_IN] = 0;
+    this.data[edge + EdgeTypeMap.#PREV_IN] = 0;
+    if (next !== null && prev !== null) {
+      this.data[prev + EdgeTypeMap.#NEXT_IN] = next;
+      this.data[next + EdgeTypeMap.#PREV_IN] = prev;
+    } else if (next !== null) {
+      this.data[next + EdgeTypeMap.#PREV_IN] = 0;
+    } else if (prev !== null) {
+      this.data[prev + EdgeTypeMap.#NEXT_IN] = 0;
+    }
+  }
+
+  nextOut(edge: EdgeAddress): EdgeAddress | null {
+    return this.data[edge + EdgeTypeMap.#NEXT_OUT] || null;
+  }
+
+  prevOut(edge: EdgeAddress): EdgeAddress | null {
+    return this.data[edge + EdgeTypeMap.#PREV_OUT] || null;
+  }
+
+  linkOut(edge: EdgeAddress, next: EdgeAddress) {
+    this.data[edge + EdgeTypeMap.#NEXT_OUT] = next;
+    this.data[next + EdgeTypeMap.#PREV_OUT] = edge;
+  }
+
+  unlinkOut(edge: EdgeAddress) {
+    let next = this.nextOut(edge);
+    let prev = this.prevOut(edge);
+    this.data[edge + EdgeTypeMap.#NEXT_OUT] = 0;
+    this.data[edge + EdgeTypeMap.#PREV_OUT] = 0;
+    if (next !== null && prev !== null) {
+      this.data[prev + EdgeTypeMap.#NEXT_OUT] = next;
+      this.data[next + EdgeTypeMap.#PREV_OUT] = prev;
+    } else if (next !== null) {
+      this.data[next + EdgeTypeMap.#PREV_OUT] = 0;
+    } else if (prev !== null) {
+      this.data[prev + EdgeTypeMap.#NEXT_OUT] = 0;
+    }
+  }
+
+  /** Create a hash of the edge connecting the `from` and `to` nodes.  */
+  hash(from: NodeId, to: NodeId, type: TEdgeType): EdgeHash {
     // Each parameter is hashed by mixing its upper bits into its lower bits to
     // increase the likelihood that a change to any bit of the input will vary
     // the output widely. Then we do a series of prime multiplications and
@@ -1108,98 +1158,53 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     hash = hash * 37 + hash32shift((to: any));
     hash = hash * 37 + hash32shift((type: any));
     // Finally, we map the hash to a value modulo the edge capacity.
-    hash %= this.#edges[CAPACITY];
+    hash %= this.capacity;
     return hash;
   }
 }
 
-/**
- * A cache of connected nodes grouped by type.
- *
- * This cache is used to speed up iterations that are grouped by type,
- * such as `getEdgesConnectedFrom` and `getEdgesConnectedTo`,
- * as well as `getOutboundEdgesByType` and `getInboundEdgesByType`.
- */
-class TypeMap<TEdgeType: number = 1> {
-  #data: AdjacencyList<TEdgeType>;
-  /** A map of node ids from => through types => to node ids. */
-  #from: Map<NodeId, Map<TEdgeType | NullEdgeType, Set<NodeId>>> = new Map();
-  /** A map of node ids to => through types => from node ids. */
-  #to: Map<NodeId, Map<TEdgeType | NullEdgeType, Set<NodeId>>> = new Map();
-  constructor(data: AdjacencyList<TEdgeType>) {
-    this.#data = data;
+// From https://gist.github.com/badboy/6267743#32-bit-mix-functions
+function hash32shift(key: number): number {
+  key = ~key + (key << 15); // key = (key << 15) - key - 1;
+  key = key ^ (key >> 12);
+  key = key + (key << 2);
+  key = key ^ (key >> 4);
+  key = key * 2057; // key = (key + (key << 3)) + (key << 11);
+  key = key ^ (key >> 16);
+  return key;
+}
+
+function interpolate(x: number, y: number, t: number): number {
+  return x + (y - x) * Math.min(1, Math.max(0, t));
+}
+
+function increaseNodeCapacity(nodeCapacity: number): number {
+  let {MIN_CAPACITY, MAX_CAPACITY} = NodeTypeMap;
+  let newCapacity = Math.round(nodeCapacity * MIN_GROW_FACTOR);
+  assert(newCapacity <= MAX_CAPACITY, 'Node capacity overflow!');
+  return Math.max(MIN_CAPACITY, newCapacity);
+}
+
+function getNextEdgeCapacity(
+  capacity: number,
+  count: number,
+  load: number,
+): number {
+  let {MIN_CAPACITY, MAX_CAPACITY, PEAK_CAPACITY} = EdgeTypeMap;
+  let newCapacity = capacity;
+  if (load > LOAD_FACTOR) {
+    // This is intended to strike a balance between growing the edge capacity
+    // in too small increments, which causes a lot of resizing, and growing
+    // the edge capacity in too large increments, which results in a lot of
+    // wasted memory.
+    let pct = capacity / PEAK_CAPACITY;
+    let growFactor = interpolate(MAX_GROW_FACTOR, MIN_GROW_FACTOR, pct);
+    newCapacity = Math.round(capacity * growFactor);
+  } else if (load < UNLOAD_FACTOR) {
+    // In some cases, it may be possible to shrink the edge capacity,
+    // but this is only likely to occur when a lot of edges have been removed.
+    newCapacity = Math.round(capacity * SHRINK_FACTOR);
   }
-  add(from: NodeId, to: NodeId, type: TEdgeType | NullEdgeType): void {
-    this.getConnectedToType(to, type).add(from);
-    this.getConnectedFromType(from, type).add(to);
-  }
-  delete(from: NodeId, to: NodeId, type: TEdgeType | NullEdgeType): void {
-    this.#from
-      .get(from)
-      ?.get(type)
-      ?.delete(to);
-    this.#to
-      .get(to)
-      ?.get(type)
-      ?.delete(from);
-  }
-  getConnectedTo(to: NodeId): Map<TEdgeType | NullEdgeType, Set<NodeId>> {
-    let toTypes = this.#to.get(to);
-    if (toTypes == null) {
-      toTypes = new Map();
-      // Populate the map with existing data.
-      for (let edge of this.#data.iterateIncomingEdges(to)) {
-        let from = this.#data.getFromNode(edge);
-        let type = this.#data.getEdgeType(edge);
-        let fromSet = toTypes.get(type);
-        if (fromSet == null) {
-          fromSet = new Set();
-          toTypes.set(type, fromSet);
-        }
-        fromSet.add(from);
-      }
-      this.#to.set(to, toTypes);
-    }
-    return toTypes;
-  }
-  getConnectedToType(to: NodeId, type: TEdgeType | NullEdgeType): Set<NodeId> {
-    let toTypes = this.getConnectedTo(to);
-    let fromSet = toTypes.get(type);
-    if (fromSet == null) {
-      fromSet = new Set();
-      toTypes.set(type, fromSet);
-    }
-    return fromSet;
-  }
-  getConnectedFrom(from: NodeId): Map<TEdgeType | NullEdgeType, Set<NodeId>> {
-    let fromTypes = this.#from.get(from);
-    if (fromTypes == null) {
-      fromTypes = new Map();
-      // Populate the map with existing data.
-      for (let edge of this.#data.iterateOutgoingEdges(from)) {
-        let to = this.#data.getToNode(edge);
-        let type = this.#data.getEdgeType(edge);
-        let toSet = fromTypes.get(type);
-        if (toSet == null) {
-          toSet = new Set();
-          fromTypes.set(type, toSet);
-        }
-        toSet.add(to);
-      }
-      this.#from.set(from, fromTypes);
-    }
-    return fromTypes;
-  }
-  getConnectedFromType(
-    from: NodeId,
-    type: TEdgeType | NullEdgeType,
-  ): Set<NodeId> {
-    let fromTypes = this.getConnectedFrom(from);
-    let toSet = fromTypes.get(type);
-    if (toSet == null) {
-      toSet = new Set();
-      fromTypes.set(type, toSet);
-    }
-    return toSet;
-  }
+  assert(newCapacity <= MAX_CAPACITY, 'Edge capacity overflow!');
+  return Math.max(MIN_CAPACITY, newCapacity);
 }

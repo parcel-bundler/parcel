@@ -4,18 +4,12 @@ import assert from 'assert';
 import path from 'path';
 import {Worker} from 'worker_threads';
 
-import AdjacencyList, {
-  NODES_HEADER_SIZE,
-  EDGES_HEADER_SIZE,
-} from '../src/AdjacencyList';
+import AdjacencyList, {NodeTypeMap, EdgeTypeMap} from '../src/AdjacencyList';
 import {toNodeId} from '../src/types';
 
 describe('AdjacencyList', () => {
   it('constructor should initialize an empty graph', () => {
-    let stats = new AdjacencyList({
-      nodeCapacity: 1,
-      edgeCapacity: 1,
-    }).stats;
+    let stats = new AdjacencyList().stats;
     assert(stats.nodes === 0);
     assert(stats.edges === 0);
   });
@@ -28,16 +22,16 @@ describe('AdjacencyList', () => {
   });
 
   it('addNode should resize nodes array when necessary', () => {
-    let graph = new AdjacencyList({nodeCapacity: 1});
-    let size = graph.serialize().nodes.length;
-    graph.addNode();
-    assert(size < (size = graph.serialize().nodes.length));
-    graph.addNode();
-    assert(size < (size = graph.serialize().nodes.length));
-    graph.addNode();
-    assert(size === graph.serialize().nodes.length);
-    graph.addNode();
-    assert(size < graph.serialize().nodes.length);
+    let graph = new AdjacencyList();
+    let size = graph.serialize().nodes.byteLength;
+    let a = graph.addNode();
+    let b = graph.addNode();
+    assert(size < (size = graph.serialize().nodes.byteLength));
+    graph.addEdge(a, b, 1);
+    graph.addEdge(a, b, 2);
+    graph.addEdge(a, b, 3);
+    graph.addEdge(a, b, 4);
+    assert(size < graph.serialize().nodes.byteLength);
   });
 
   it('removeEdge should remove an edge from the graph', () => {
@@ -64,7 +58,7 @@ describe('AdjacencyList', () => {
   });
 
   it('removeEdge should remove an edge of a specific type from the graph', () => {
-    let graph = new AdjacencyList({nodeCapacity: 2, edgeCapacity: 5});
+    let graph = new AdjacencyList();
     let a = graph.addNode();
     let b = graph.addNode();
     let c = graph.addNode();
@@ -104,7 +98,7 @@ describe('AdjacencyList', () => {
   });
 
   it('addEdge should add an edge to the graph', () => {
-    let graph = new AdjacencyList({nodeCapacity: 2, edgeCapacity: 1});
+    let graph = new AdjacencyList();
     let a = graph.addNode();
     let b = graph.addNode();
     graph.addEdge(a, b);
@@ -163,18 +157,18 @@ describe('AdjacencyList', () => {
   });
 
   it('addEdge should resize edges array when necessary', () => {
-    let graph = new AdjacencyList({nodeCapacity: 2, edgeCapacity: 1});
-    let size = graph.serialize().edges.length;
+    let graph = new AdjacencyList();
+    let size = graph.serialize().edges.byteLength;
     let a = graph.addNode();
     let b = graph.addNode();
     graph.addEdge(a, b, 1);
     graph.addEdge(a, b, 2);
     graph.addEdge(a, b, 3);
-    assert(size < graph.serialize().edges.length);
+    assert(size < graph.serialize().edges.byteLength);
   });
 
   it('addEdge should error when a node has not been added to the graph', () => {
-    let graph = new AdjacencyList({nodeCapacity: 2, edgeCapacity: 1});
+    let graph = new AdjacencyList();
     assert.throws(() => graph.addEdge(toNodeId(0), toNodeId(1)));
     graph.addNode();
     assert.throws(() => graph.addEdge(toNodeId(0), toNodeId(1)));
@@ -184,7 +178,7 @@ describe('AdjacencyList', () => {
   });
 
   it('addEdge should error when an unsupported edge type is provided', () => {
-    let graph = new AdjacencyList({nodeCapacity: 2, edgeCapacity: 1});
+    let graph = new AdjacencyList();
     let a = graph.addNode();
     let b = graph.addNode();
     assert.throws(() => graph.addEdge(a, b, 0));
@@ -205,13 +199,8 @@ describe('AdjacencyList', () => {
     let n2 = graph.addNode();
     graph.addEdge(n0, n1, 1);
     graph.addEdge(n1, n2, 1);
-    // $FlowFixMe[incompatible-type]
-    let index: number = graph.indexOf(n1, n2, 1);
-    assert(graph.serialize().edges[index] > 0);
     graph.removeEdge(n1, n2, 1);
-    assert(!graph.serialize().edges[index]);
-    graph.addEdge(n0, n1, 1);
-    assert(!graph.serialize().edges[index]);
+    assert(graph.addEdge(n0, n1, 1) === false);
     assert(graph.stats.edges === 1);
 
     // $FlowFixMe[cannot-write]
@@ -229,23 +218,14 @@ describe('AdjacencyList', () => {
     let n0 = graph.addNode();
     let n1 = graph.addNode();
     graph.addEdge(n0, n1, 2);
-    // $FlowFixMe[incompatible-type]
-    let index: number = graph.indexOf(n0, n1, 2);
-    assert(graph.serialize().edges[index]);
     graph.removeEdge(n0, n1, 2);
-    assert(!graph.serialize().edges[index]);
-    graph.addEdge(n0, n1, 2);
-    // $FlowFixMe[incompatible-type]
-    let index2: number = graph.indexOf(n0, n1, 2);
-    assert(!graph.serialize().edges[index]);
-    assert(graph.serialize().edges[index2]);
+    assert(graph.addEdge(n0, n1, 2));
+    assert(graph.stats.edges === 1);
+    assert(graph.stats.deleted === 1);
     // Resize to reclaim deleted edge space.
     graph.resizeEdges(4);
-    // $FlowFixMe[incompatible-type]
-    let index3: number = graph.indexOf(n0, n1, 2);
-    assert(!graph.serialize().edges[index]);
-    assert(!graph.serialize().edges[index2]);
-    assert(graph.serialize().edges[index3]);
+    assert(graph.stats.edges === 1);
+    assert(graph.stats.deleted === 0);
 
     // $FlowFixMe[cannot-write]
     AdjacencyList.prototype.hash = originalHash;
@@ -255,7 +235,7 @@ describe('AdjacencyList', () => {
     this.timeout(10000);
 
     it('should share the underlying data across worker threads', async () => {
-      let graph = new AdjacencyList({nodeCapacity: 2, edgeCapacity: 5});
+      let graph = new AdjacencyList();
       let n0 = graph.addNode();
       let n1 = graph.addNode();
       graph.addEdge(n0, n1, 1);
@@ -277,7 +257,7 @@ describe('AdjacencyList', () => {
       assert.deepEqual(received.serialize().edges, graph.serialize().edges);
 
       originalNodes.forEach((v, i) => {
-        if (i < NODES_HEADER_SIZE) {
+        if (i < NodeTypeMap.HEADER_SIZE) {
           assert.equal(v, received.serialize().nodes[i]);
           assert.equal(v, graph.serialize().nodes[i]);
         } else {
@@ -287,7 +267,7 @@ describe('AdjacencyList', () => {
       });
 
       originalEdges.forEach((v, i) => {
-        if (i < EDGES_HEADER_SIZE) {
+        if (i < EdgeTypeMap.HEADER_SIZE) {
           assert.equal(v, received.serialize().edges[i]);
           assert.equal(v, graph.serialize().edges[i]);
         } else {
