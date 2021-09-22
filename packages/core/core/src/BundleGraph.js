@@ -64,7 +64,7 @@ export const bundleGraphEdgeTypes = {
   internal_async: 5,
 };
 
-type BundleGraphEdgeType = $Values<typeof bundleGraphEdgeTypes>;
+export type BundleGraphEdgeType = $Values<typeof bundleGraphEdgeTypes>;
 
 type InternalSymbolResolution = {|
   asset: Asset,

@@ -11,13 +11,13 @@ import nullthrows from 'nullthrows';
 export type NullEdgeType = 1;
 export type GraphOpts<TNode, TEdgeType: number = 1> = {|
   nodes?: Map<NodeId, TNode>,
-  adjacencyList?: SerializedAdjacencyList<TEdgeType>,
+  adjacencyList?: SerializedAdjacencyList<TEdgeType | NullEdgeType>,
   rootNodeId?: ?NodeId,
 |};
 
 export type SerializedGraph<TNode, TEdgeType: number = 1> = {|
   nodes: Map<NodeId, TNode>,
-  adjacencyList: SerializedAdjacencyList<TEdgeType>,
+  adjacencyList: SerializedAdjacencyList<TEdgeType | NullEdgeType>,
   rootNodeId: ?NodeId,
 |};
 
@@ -26,7 +26,7 @@ export const ALL_EDGE_TYPES: AllEdgeTypes = '@@all_edge_types';
 
 export default class Graph<TNode, TEdgeType: number = 1> {
   nodes: Map<NodeId, TNode>;
-  adjacencyList: AdjacencyList<TEdgeType>;
+  adjacencyList: AdjacencyList<TEdgeType | NullEdgeType>;
   rootNodeId: ?NodeId;
 
   constructor(opts: ?GraphOpts<TNode, TEdgeType>) {

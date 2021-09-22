@@ -59,7 +59,7 @@ export const requestGraphEdgeTypes = {
   dirname: 7,
 };
 
-type RequestGraphEdgeType = $Values<typeof requestGraphEdgeTypes>;
+export type RequestGraphEdgeType = $Values<typeof requestGraphEdgeTypes>;
 
 type RequestGraphOpts = {|
   ...ContentGraphOpts<RequestGraphNode, RequestGraphEdgeType>,
@@ -70,6 +70,7 @@ type RequestGraphOpts = {|
   optionNodeIds: Set<NodeId>,
   unpredicatableNodeIds: Set<NodeId>,
 |};
+
 type SerializedRequestGraph = {|
   ...SerializedContentGraph<RequestGraphNode, RequestGraphEdgeType>,
   invalidNodeIds: Set<NodeId>,

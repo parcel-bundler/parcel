@@ -3,8 +3,8 @@
 import {Transformer} from '@parcel/plugin';
 import nullthrows from 'nullthrows';
 import semver from 'semver';
-import parse from 'posthtml-parser';
-import render from 'posthtml-render';
+import {parser as parse} from 'posthtml-parser';
+import {render} from 'posthtml-render';
 import collectDependencies from './dependencies';
 import extractInlineAssets from './inline';
 
