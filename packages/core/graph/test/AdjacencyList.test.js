@@ -188,9 +188,9 @@ describe('AdjacencyList', () => {
 
   it('addEdge should not replace a deleted edge if the edge was already added', () => {
     // Mock hash fn to generate collisions
-    // $FlowFixMe[method-unbinding]
+    // $FlowFixMe[prop-missing]
     let originalHash = AdjacencyList.prototype.hash;
-    // $FlowFixMe[cannot-write]
+    // $FlowFixMe[prop-missing]
     AdjacencyList.prototype.hash = () => 1;
 
     let graph = new AdjacencyList();
@@ -203,15 +203,15 @@ describe('AdjacencyList', () => {
     assert(graph.addEdge(n0, n1, 1) === false);
     assert(graph.stats.edges === 1);
 
-    // $FlowFixMe[cannot-write]
+    // $FlowFixMe[prop-missing]
     AdjacencyList.prototype.hash = originalHash;
   });
 
   it('addEdge should replace a deleted edge', () => {
     // Mock hash fn to generate collisions
-    // $FlowFixMe[method-unbinding]
+    // $FlowFixMe[prop-missing]
     let originalHash = AdjacencyList.prototype.hash;
-    // $FlowFixMe[cannot-write]
+    // $FlowFixMe[prop-missing]
     AdjacencyList.prototype.hash = () => 1;
 
     let graph = new AdjacencyList();
@@ -227,7 +227,7 @@ describe('AdjacencyList', () => {
     assert(graph.stats.edges === 1);
     assert(graph.stats.deleted === 0);
 
-    // $FlowFixMe[cannot-write]
+    // $FlowFixMe[prop-missing]
     AdjacencyList.prototype.hash = originalHash;
   });
 
