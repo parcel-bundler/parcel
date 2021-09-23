@@ -755,6 +755,8 @@ export class SharedTypeMap<TItemType, THash, TAddress: number>
     }
   }
 
+  // Trick Flow into believing in `Symbol.iterator`.
+  // See https://github.com/facebook/flow/issues/1163#issuecomment-353523840
   /*:: @@iterator(): Iterator<TAddress> { return ({}: any); } */
   // $FlowFixMe[unsupported-syntax]
   *[Symbol.iterator](): Iterator<TAddress> {
