@@ -1072,13 +1072,10 @@ for (let config of configSpecifiers) {
           assets: ['index.js', 'bundle-url.js', 'get-worker-url.js'],
         },
         {
-          assets: ['dedicated-worker.js'],
+          assets: ['index.js', 'dedicated-worker.js'],
         },
         {
-          assets: ['index.js'],
-        },
-        {
-          assets: ['shared-worker.js'],
+          assets: ['index.js', 'shared-worker.js'],
         },
       ]);
 
