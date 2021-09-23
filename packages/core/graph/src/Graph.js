@@ -11,22 +11,22 @@ import nullthrows from 'nullthrows';
 export type NullEdgeType = 1;
 export type GraphOpts<TNode, TEdgeType: number = 1> = {|
   nodes?: Map<NodeId, TNode>,
-  adjacencyList?: SerializedAdjacencyList<TEdgeType | NullEdgeType>,
+  adjacencyList?: SerializedAdjacencyList<TEdgeType>,
   rootNodeId?: ?NodeId,
 |};
 
 export type SerializedGraph<TNode, TEdgeType: number = 1> = {|
   nodes: Map<NodeId, TNode>,
-  adjacencyList: SerializedAdjacencyList<TEdgeType | NullEdgeType>,
+  adjacencyList: SerializedAdjacencyList<TEdgeType>,
   rootNodeId: ?NodeId,
 |};
 
-export type AllEdgeTypes = '@@all_edge_types';
-export const ALL_EDGE_TYPES: AllEdgeTypes = '@@all_edge_types';
+export type AllEdgeTypes = -1;
+export const ALL_EDGE_TYPES: AllEdgeTypes = -1;
 
 export default class Graph<TNode, TEdgeType: number = 1> {
   nodes: Map<NodeId, TNode>;
-  adjacencyList: AdjacencyList<TEdgeType | NullEdgeType>;
+  adjacencyList: AdjacencyList<TEdgeType>;
   rootNodeId: ?NodeId;
 
   constructor(opts: ?GraphOpts<TNode, TEdgeType>) {
@@ -111,7 +111,11 @@ export default class Graph<TNode, TEdgeType: number = 1> {
 
   getNodeIdsConnectedTo(
     nodeId: NodeId,
-    type: TEdgeType | NullEdgeType | Array<TEdgeType | NullEdgeType> = 1,
+    type:
+      | TEdgeType
+      | NullEdgeType
+      | Array<TEdgeType | NullEdgeType>
+      | AllEdgeTypes = 1,
   ): Array<NodeId> {
     this._assertHasNodeId(nodeId);
 
@@ -120,7 +124,11 @@ export default class Graph<TNode, TEdgeType: number = 1> {
 
   getNodeIdsConnectedFrom(
     nodeId: NodeId,
-    type: TEdgeType | NullEdgeType | Array<TEdgeType | NullEdgeType> = 1,
+    type:
+      | TEdgeType
+      | NullEdgeType
+      | Array<TEdgeType | NullEdgeType>
+      | AllEdgeTypes = 1,
   ): Array<NodeId> {
     this._assertHasNodeId(nodeId);
 
@@ -198,7 +206,6 @@ export default class Graph<TNode, TEdgeType: number = 1> {
           actions.stop();
         }
       },
-      // $FlowFixMe
       ALL_EDGE_TYPES,
     );
 
@@ -245,7 +252,11 @@ export default class Graph<TNode, TEdgeType: number = 1> {
   traverse<TContext>(
     visit: GraphVisitor<NodeId, TContext>,
     startNodeId: ?NodeId,
-    type: TEdgeType | NullEdgeType | Array<TEdgeType | NullEdgeType> = 1,
+    type:
+      | TEdgeType
+      | NullEdgeType
+      | Array<TEdgeType | NullEdgeType>
+      | AllEdgeTypes = 1,
   ): ?TContext {
     return this.dfs({
       visit,
@@ -258,7 +269,7 @@ export default class Graph<TNode, TEdgeType: number = 1> {
     filter: (NodeId, TraversalActions) => ?TValue,
     visit: GraphVisitor<TValue, TContext>,
     startNodeId: ?NodeId,
-    type?: TEdgeType | Array<TEdgeType | NullEdgeType>,
+    type?: TEdgeType | Array<TEdgeType | NullEdgeType> | AllEdgeTypes,
   ): ?TContext {
     return this.traverse(mapVisitor(filter, visit), startNodeId, type);
   }
@@ -266,7 +277,11 @@ export default class Graph<TNode, TEdgeType: number = 1> {
   traverseAncestors<TContext>(
     startNodeId: ?NodeId,
     visit: GraphVisitor<NodeId, TContext>,
-    type: TEdgeType | NullEdgeType | Array<TEdgeType | NullEdgeType> = 1,
+    type:
+      | TEdgeType
+      | NullEdgeType
+      | Array<TEdgeType | NullEdgeType>
+      | AllEdgeTypes = 1,
   ): ?TContext {
     return this.dfs({
       visit,

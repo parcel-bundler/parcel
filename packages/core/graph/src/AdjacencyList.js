@@ -2,7 +2,7 @@
 import assert from 'assert';
 import nullthrows from 'nullthrows';
 import {fromNodeId, toNodeId} from './types';
-import type {NullEdgeType, AllEdgeTypes} from './Graph';
+import {ALL_EDGE_TYPES, type NullEdgeType, type AllEdgeTypes} from './Graph';
 import type {NodeId} from './types';
 
 /** The address of the node in the nodes map. */
@@ -23,8 +23,6 @@ export type AdjacencyListOptions<TEdgeType> = {|
   edgeCapacity?: number,
   nodeCapacity?: number,
 |};
-
-export const ALL_EDGE_TYPES: AllEdgeTypes = '@@all_edge_types';
 
 /** The upper bound above which capacity should be increased. */
 const LOAD_FACTOR = 0.7;

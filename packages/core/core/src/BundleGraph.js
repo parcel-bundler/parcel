@@ -1035,7 +1035,6 @@ export default class BundleGraph {
       },
       visit,
       undefined, // start with root
-      // $FlowFixMe
       ALL_EDGE_TYPES,
     );
   }
@@ -1225,7 +1224,6 @@ export default class BundleGraph {
     return this._graph
       .getNodeIdsConnectedTo(
         this._graph.getNodeIdByContentKey(asset.id),
-        // $FlowFixMe
         ALL_EDGE_TYPES,
       )
       .map(id => nullthrows(this._graph.getNode(id)))
