@@ -108,7 +108,7 @@ export default class HMRServer {
           for (let dep of dependencies) {
             let resolved = event.bundleGraph.getResolvedAsset(dep, bundle);
             if (resolved) {
-              deps[dep.specifier] = event.bundleGraph.getAssetPublicId(
+              deps[getSpecifier(dep)] = event.bundleGraph.getAssetPublicId(
                 resolved,
               );
             }
@@ -152,4 +152,12 @@ export default class HMRServer {
       ws.send(json);
     }
   }
+}
+
+function getSpecifier(dep: Dependency): string {
+  if (typeof dep.meta.placeholder === 'string') {
+    return dep.meta.placeholder;
+  }
+
+  return dep.specifier;
 }
