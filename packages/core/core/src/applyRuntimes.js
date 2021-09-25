@@ -19,7 +19,7 @@ import path from 'path';
 import assert from 'assert';
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
-import AssetGraph, {nodeFromAssetGroup} from './AssetGraph';
+import {nodeFromAssetGroup} from './AssetGraph';
 import BundleGraph from './public/BundleGraph';
 import InternalBundleGraph, {bundleGraphEdgeTypes} from './BundleGraph';
 import {NamedBundle} from './public/Bundle';
@@ -249,7 +249,7 @@ export default async function applyRuntimes({
   return changedAssets;
 }
 
-async function reconcileNewRuntimes(
+function reconcileNewRuntimes(
   api: RunAPI,
   connections: Array<RuntimeConnection>,
   optionsRef: SharedReference,
@@ -262,5 +262,5 @@ async function reconcileNewRuntimes(
   });
 
   // rebuild the graph
-  return await api.runRequest(request, {force: true});
+  return api.runRequest(request, {force: true});
 }
