@@ -63,7 +63,11 @@ export default (new Packager({
       tree => insertBundleReferences(referencedBundles, tree),
       tree =>
         replaceInlineAssetContent(bundleGraph, getInlineBundleContents, tree),
-    ]).process(code, renderConfig);
+    ]).process(code, {
+      ...renderConfig,
+      xmlMode: bundle.type === 'xhtml',
+      closingSingleTag: bundle.type === 'xhtml' ? 'slash' : undefined,
+    });
 
     let {contents, map} = replaceURLReferences({
       bundle,

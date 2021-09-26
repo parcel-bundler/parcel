@@ -241,7 +241,7 @@ export default function collectDependencies(
 
     for (let attr in attrs) {
       // Check for virtual paths
-      if (tag === 'a' && attrs[attr].lastIndexOf('.') < 1) {
+      if (tag === 'a' && attrs[attr].split('#')[0].lastIndexOf('.') < 1) {
         continue;
       }
 
