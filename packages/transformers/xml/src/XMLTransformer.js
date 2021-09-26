@@ -29,7 +29,7 @@ export default (new Transformer({
       }
 
       let handler = node.namespaceURI
-        ? HANDLERS[node.namespaceURI]?.[node.nodeName]
+        ? HANDLERS[node.namespaceURI]?.[node.localName]
         : nonNamespacedHandlers[node.nodeName];
 
       if (handler) {

@@ -40,6 +40,48 @@ describe('xml', function() {
     assert(contents.includes(`<link href="http://example.org/post.html"/>`));
   });
 
+  it('should transform an atom feed with namespaced elements', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/xml/atom-namespace.xml'),
+      {
+        defaultTargetOptions: {
+          publicUrl: 'http://example.org/',
+        },
+      },
+    );
+
+    assertBundles(b, [
+      {
+        type: 'png',
+        assets: ['100x100.png'],
+      },
+      {
+        type: 'xhtml',
+        assets: ['atom-namespace.xml'],
+      },
+      {
+        name: 'post.html',
+        assets: ['post.html'],
+      },
+      {
+        name: 'atom-namespace.xml',
+        assets: ['atom-namespace.xml'],
+      },
+    ]);
+
+    let contents = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(
+      contents.includes(
+        `<img src="http://example.org/${path.basename(
+          b.getBundles().find(b => b.type === 'png').filePath,
+        )}"/>`,
+      ),
+    );
+    assert(
+      contents.includes(`<atom:link href="http://example.org/post.html"/>`),
+    );
+  });
+
   it('should transform an rss feed', async function() {
     let b = await bundle(path.join(__dirname, '/integration/xml/rss.xml'), {
       defaultTargetOptions: {
