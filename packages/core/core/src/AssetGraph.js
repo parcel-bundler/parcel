@@ -1,7 +1,12 @@
 // @flow strict-local
 
 import type {GraphVisitor} from '@parcel/types';
-import type {ContentKey, NodeId, SerializedContentGraph} from '@parcel/graph';
+import type {
+  ContentGraphOpts,
+  ContentKey,
+  NodeId,
+  SerializedContentGraph,
+} from '@parcel/graph';
 import type {
   Asset,
   AssetGraphNode,
@@ -29,6 +34,11 @@ type InitOpts = {|
   entries?: Array<ProjectPath>,
   targets?: Array<Target>,
   assetGroups?: Array<AssetGroup>,
+|};
+
+type AssetGraphOpts = {|
+  ...ContentGraphOpts<AssetGraphNode>,
+  hash?: ?string,
 |};
 
 type SerializedAssetGraph = {|
@@ -105,7 +115,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
   envCache: Map<string, Environment>;
   safeToIncrementallyBundle: boolean = true;
 
-  constructor(opts: ?SerializedAssetGraph) {
+  constructor(opts: ?AssetGraphOpts) {
     if (opts) {
       let {hash, ...rest} = opts;
       super(rest);
@@ -124,7 +134,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
   }
 
   // $FlowFixMe[prop-missing]
-  static deserialize(opts: SerializedAssetGraph): AssetGraph {
+  static deserialize(opts: AssetGraphOpts): AssetGraph {
     return new AssetGraph(opts);
   }
 
