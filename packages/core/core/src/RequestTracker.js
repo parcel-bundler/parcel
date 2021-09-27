@@ -278,28 +278,12 @@ export class RequestGraph extends ContentGraph<
       }
     }
 
-    let previousSubrequestNodeIds = this.getNodeIdsConnectedFrom(
-      requestNodeId,
-      requestGraphEdgeTypes.subrequest,
-    );
-
     this.replaceNodeIdsConnectedTo(
       requestNodeId,
       subrequestNodeIds,
       null,
       requestGraphEdgeTypes.subrequest,
     );
-
-    for (let subrequestNodeId of previousSubrequestNodeIds) {
-      if (
-        this.getNodeIdsConnectedTo(
-          subrequestNodeId,
-          requestGraphEdgeTypes.subrequest,
-        ).length === 0
-      ) {
-        this.removeNode(subrequestNodeId);
-      }
-    }
   }
 
   invalidateNode(nodeId: NodeId, reason: InvalidateReason) {

@@ -458,11 +458,11 @@ for (let config of configSpecifiers) {
         },
         {
           type: 'js',
-          assets: ['component-1.js'],
+          assets: ['component-1.js', 'obj.js', 'esmodule-helpers.js'],
         },
         {
           type: 'js',
-          assets: ['component-2.js', 'obj.js', 'esmodule-helpers.js'],
+          assets: ['component-2.js'],
         },
       ]);
 

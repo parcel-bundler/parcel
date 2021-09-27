@@ -254,7 +254,13 @@ export default class Graph<TNode, TEdgeType: number = 1> {
     if (this.rootNodeId == null) {
       // If the graph does not have a root, and there are inbound edges,
       // this node should not be considered orphaned.
-      return false;
+      for (let [, inboundNodeIds] of this.inboundEdges.getEdgesByType(nodeId)) {
+        if (inboundNodeIds.size > 0) {
+          return false;
+        }
+      }
+
+      return true;
     }
 
     // Otherwise, attempt to traverse backwards to the root. If there is a path,
