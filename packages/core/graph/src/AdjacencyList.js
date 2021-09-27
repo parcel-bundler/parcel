@@ -13,6 +13,7 @@ opaque type EdgeHash = number;
 /** The address of the edge in the edges map. */
 opaque type EdgeAddress = number;
 
+// eslint-disable-next-line no-unused-vars
 export type SerializedAdjacencyList<TEdgeType> = {|
   nodes: Uint32Array,
   edges: Uint32Array,
@@ -36,8 +37,8 @@ const MIN_GROW_FACTOR = 2;
 const SHRINK_FACTOR = 0.5;
 
 export default class AdjacencyList<TEdgeType: number = 1> {
-  #nodes: NodeTypeMap<TEdgeType | NullEdgeType>;
-  #edges: EdgeTypeMap<TEdgeType | NullEdgeType>;
+  #nodes /*: NodeTypeMap<TEdgeType | NullEdgeType> */;
+  #edges /*: EdgeTypeMap<TEdgeType | NullEdgeType> */;
 
   constructor(
     opts?:
@@ -196,7 +197,6 @@ export default class AdjacencyList<TEdgeType: number = 1> {
     });
 
     // Copy the existing edges into the new array.
-    let max = fromNodeId(this.#nodes.nextId);
     copy.#nodes.nextId = this.#nodes.nextId;
     this.#edges.forEach(
       edge =>
