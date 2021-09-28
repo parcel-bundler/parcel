@@ -65,6 +65,8 @@ const META = {
   ],
 };
 
+const FEED_TYPES = new Set(['application/rss+xml', 'application/atom+xml']);
+
 // Options to be passed to `addDependency` for certain tags + attributes
 const OPTIONS = {
   a: {
@@ -146,7 +148,9 @@ export default function collectDependencies(
 
     if (
       tag === 'link' &&
-      (attrs.rel === 'canonical' || attrs.rel === 'manifest') &&
+      (attrs.rel === 'canonical' ||
+        attrs.rel === 'manifest' ||
+        (attrs.rel === 'alternate' && FEED_TYPES.has(attrs.type))) &&
       attrs.href
     ) {
       let href = attrs.href;
