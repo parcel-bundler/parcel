@@ -26,7 +26,13 @@ pub fn inline_fs<'a>(
 ) -> impl Fold + 'a {
   InlineFS {
     filename: Path::new(filename).to_path_buf(),
-    collect: Collect::new(source_map, decls, Mark::fresh(Mark::root()), global_mark),
+    collect: Collect::new(
+      source_map,
+      decls,
+      Mark::fresh(Mark::root()),
+      global_mark,
+      false,
+    ),
     global_mark,
     project_root,
     deps,

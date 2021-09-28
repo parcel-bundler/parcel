@@ -15,7 +15,7 @@ import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import {hashString} from '@parcel/hash';
 import BundleGraph from './BundleGraph';
-import InternalBundleGraph from '../BundleGraph';
+import InternalBundleGraph, {bundleGraphEdgeTypes} from '../BundleGraph';
 import {Bundle, bundleToInternalBundle} from './Bundle';
 import {assetFromValue, assetToAssetValue} from './Asset';
 import {getBundleGroupId, getPublicId} from '../utils';
@@ -107,19 +107,23 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
     );
     this.#graph._graph.addEdge(dependencyNodeId, bundleGroupNodeId);
     this.#graph._graph.replaceNodeIdsConnectedTo(bundleGroupNodeId, assetNodes);
-    this.#graph._graph.addEdge(dependencyNodeId, resolvedNodeId, 'references');
+    this.#graph._graph.addEdge(
+      dependencyNodeId,
+      resolvedNodeId,
+      bundleGraphEdgeTypes.references,
+    );
     this.#graph._graph.removeEdge(dependencyNodeId, resolvedNodeId);
 
     if (dependency.isEntry) {
       this.#graph._graph.addEdge(
         nullthrows(this.#graph._graph.rootNodeId),
         bundleGroupNodeId,
-        'bundle',
+        bundleGraphEdgeTypes.bundle,
       );
     } else {
       let inboundBundleNodeIds = this.#graph._graph.getNodeIdsConnectedTo(
         dependencyNodeId,
-        'contains',
+        bundleGraphEdgeTypes.contains,
       );
       for (let inboundBundleNodeId of inboundBundleNodeIds) {
         invariant(
@@ -128,7 +132,7 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
         this.#graph._graph.addEdge(
           inboundBundleNodeId,
           bundleGroupNodeId,
-          'bundle',
+          bundleGraphEdgeTypes.bundle,
         );
       }
     }

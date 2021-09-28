@@ -108,14 +108,14 @@ export default async function resolveOptions(
     ),
     shouldPatchConsole: initialOptions.shouldPatchConsole ?? false,
     env: {
-      ...process.env,
-      ...initialOptions.env,
       ...(await loadDotEnv(
         initialOptions.env ?? {},
         inputFS,
         path.join(projectRoot, 'index'),
         projectRoot,
       )),
+      ...process.env,
+      ...initialOptions.env,
     },
     mode,
     shouldAutoInstall: initialOptions.shouldAutoInstall ?? false,
