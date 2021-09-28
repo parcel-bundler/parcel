@@ -65,7 +65,9 @@ export default async function dumpGraphToGraphViz(
     n.set('shape', 'box');
     n.set('style', 'filled');
     let label;
-    if (node.assets) {
+    if (typeof node === 'string') {
+      label = node;
+    } else if (node.assets) {
       label = `(${nodeId(id)}), (assetIds: ${[...node.assets]
         .map(a => {
           let arr = a.filePath.split('/');

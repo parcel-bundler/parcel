@@ -512,6 +512,7 @@ function getURLRuntime(
 ): RuntimeAsset {
   let relativePathExpr = getRelativePathExpr(from, to, options);
   let code;
+
   if (dependency.meta.webworker === true && !from.env.isLibrary) {
     code = `let workerURL = require('./helpers/get-worker-url');\n`;
     if (
