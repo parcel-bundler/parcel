@@ -482,11 +482,11 @@ function createIdealGraph(
     }, root);
   }
 
-  // Maps a given bundleRoot to the bundleRoots reachable from it,
-  // and the assets reachable from each of these bundleRoots
+  // Maps a given bundleRoot to the assets reachable from it,
+  // and the bundleRoots reachable from each of these assets
   let ancestorAssets: Map<
     BundleRoot,
-    Map<BundleRoot, Array<Asset> | null>,
+    Map<Asset, Array<BundleRoot> | null>,
   > = new Map();
 
   // Reference count of each asset available within a given bundleRoot's bundle group
@@ -500,8 +500,6 @@ function createIdealGraph(
     const bundleRoot = asyncBundleRootGraph.getNode(nodeId);
     if (bundleRoot === 'root') continue;
     invariant(bundleRoot != null);
-    // BundleRoots reachable from current (bundleRoot) node mapped to assets that are available from it
-    // should we call these reachableBundleRoots/reachableBundleRootMap instead?
     let ancestors = ancestorAssets.get(bundleRoot);
 
     // First consider bundle group asset availability, processing only
@@ -601,12 +599,13 @@ function createIdealGraph(
     reachable = reachable.filter(b => {
       let ancestry = ancestorAssets.get(b)?.get(asset);
       if (ancestry === undefined) {
-        // No reachable assets from this bundle
+        // No reachable bundles from this asset
         return true;
       } else if (ancestry === null) {
-        // Asset is reachable via the bundle
+        // Asset is reachable from this bundle
         return false;
       } else {
+        // If every bundle in its ancestry has more than 1 reference to the asset
         if (
           ancestry.every(
             bundleId => assetRefsInBundleGroup.get(bundleId).get(asset) > 1,
@@ -906,7 +905,7 @@ async function loadBundlerConfig(
 }
 
 function ancestryUnion(
-  ancestors: Set<BundleRoot>,
+  ancestors: Set<Asset>,
   assetRefs: Map<Asset, number>,
   bundleRoot: BundleRoot,
 ): Map<Asset, Array<BundleRoot> | null> {
@@ -923,8 +922,8 @@ function ancestryUnion(
 }
 
 function ancestryIntersect(
-  currentMap: Map<BundleRoot, Array<Asset> | null>,
-  map: Map<BundleRoot, Array<Asset> | null>,
+  currentMap: Map<Asset, Array<BundleRoot> | null>,
+  map: Map<Asset, Array<BundleRoot> | null>,
 ): void {
   for (let [bundleRoot, currentAssets] of currentMap) {
     if (map.has(bundleRoot)) {
