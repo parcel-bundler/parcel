@@ -24,13 +24,15 @@ export default (new Transformer({
         lowerCaseTags: true,
         lowerCaseAttributeNames: true,
         sourceLocations: true,
+        xmlMode: asset.type === 'xhtml',
       }),
     };
   },
 
   async transform({asset, options}) {
-    // Handle .htm
-    asset.type = 'html';
+    if (asset.type === 'htm') {
+      asset.type = 'html';
+    }
     asset.bundleBehavior = 'isolated';
     let ast = nullthrows(await asset.getAST());
     let hasScripts = collectDependencies(asset, ast);
@@ -77,9 +79,11 @@ export default (new Transformer({
     return result;
   },
 
-  generate({ast}) {
+  generate({ast, asset}) {
     return {
-      content: render(ast.program),
+      content: render(ast.program, {
+        closingSingleTag: asset.type === 'xhtml' ? 'slash' : undefined,
+      }),
     };
   },
 }): Transformer);
