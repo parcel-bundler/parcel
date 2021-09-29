@@ -65,7 +65,11 @@ export default (new Packager({
       tree =>
         replaceInlineAssetContent(bundleGraph, getInlineBundleContents, tree),
       tree => addIntrinsicImageSizes(bundle, bundleGraph, tree),
-    ]).process(code, renderConfig);
+    ]).process(code, {
+      ...renderConfig,
+      xmlMode: bundle.type === 'xhtml',
+      closingSingleTag: bundle.type === 'xhtml' ? 'slash' : undefined,
+    });
 
     let {contents, map} = replaceURLReferences({
       bundle,
