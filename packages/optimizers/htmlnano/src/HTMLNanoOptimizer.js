@@ -95,7 +95,12 @@ export default (new Optimizer({
     }
 
     return {
-      contents: (await posthtml(plugins).process(contents)).html,
+      contents: (
+        await posthtml(plugins).process(contents, {
+          xmlMode: bundle.type === 'xhtml',
+          closingSingleTag: bundle.type === 'xhtml' ? 'slash' : undefined,
+        })
+      ).html,
     };
   },
 }): Optimizer);
