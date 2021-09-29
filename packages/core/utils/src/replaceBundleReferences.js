@@ -10,11 +10,10 @@ import type {
   NamedBundle,
 } from '@parcel/types';
 
-import {Readable} from 'stream';
 import nullthrows from 'nullthrows';
 import invariant from 'assert';
 import URL from 'url';
-import {bufferStream, relativeBundlePath, urlJoin} from './';
+import {blobToString, relativeBundlePath, urlJoin} from './';
 
 type ReplacementMap = Map<
   string /* dependency id */,
@@ -131,16 +130,16 @@ export async function replaceInlineReferences({
       entryBundle,
       bundleGraph,
     );
-    let packagedContents = (packagedBundle.contents instanceof Readable
-      ? await bufferStream(packagedBundle.contents)
-      : packagedBundle.contents
-    ).toString();
 
     let inlineType = nullthrows(entryBundle.getMainEntry()).meta.inlineType;
     if (inlineType == null || inlineType === 'string') {
       replacements.set(
         dependency.id,
-        getInlineReplacement(dependency, inlineType, packagedContents),
+        getInlineReplacement(
+          dependency,
+          inlineType,
+          await blobToString(packagedBundle.contents),
+        ),
       );
     }
   }

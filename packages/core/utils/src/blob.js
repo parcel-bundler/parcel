@@ -3,11 +3,10 @@
 import type {Blob} from '@parcel/types';
 
 import {bufferStream} from './';
-import {Readable} from 'stream';
 
 export function blobToBuffer(blob: Blob): Promise<Buffer> {
-  if (blob instanceof Readable) {
-    return bufferStream(blob);
+  if (typeof blob === 'function') {
+    return bufferStream(blob());
   } else if (blob instanceof Buffer) {
     return Promise.resolve(Buffer.from(blob));
   } else {
@@ -16,8 +15,8 @@ export function blobToBuffer(blob: Blob): Promise<Buffer> {
 }
 
 export async function blobToString(blob: Blob): Promise<string> {
-  if (blob instanceof Readable) {
-    return (await bufferStream(blob)).toString();
+  if (typeof blob === 'function') {
+    return (await bufferStream(blob())).toString();
   } else if (blob instanceof Buffer) {
     return blob.toString();
   } else {

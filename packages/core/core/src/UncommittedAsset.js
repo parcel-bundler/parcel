@@ -18,6 +18,7 @@ import type {
 } from './types';
 
 import invariant from 'assert';
+import fs from 'fs';
 import {Readable} from 'stream';
 import SourceMap from '@parcel/source-map';
 import {
@@ -111,8 +112,7 @@ export default class UncommittedAsset {
     let astKey =
       this.ast == null ? null : this.getCacheKey('ast' + pipelineKey);
 
-    // Since we can only read from the stream once, compute the content length
-    // and hash while it's being written to the cache.
+    // For streams, compute the content length and hash while it's being written to the cache.
     await Promise.all([
       contentKey != null &&
         this.commitContent(contentKey).then(s => (size = s)),
@@ -145,10 +145,10 @@ export default class UncommittedAsset {
     }
 
     let size = 0;
-    if (content instanceof Readable) {
+    if (typeof content === 'function') {
       await this.options.cache.setStream(
         contentKey,
-        content.pipe(
+        content().pipe(
           new TapStream(buf => {
             size += buf.length;
           }),
@@ -179,7 +179,7 @@ export default class UncommittedAsset {
     if (typeof content === 'string' || content instanceof Buffer) {
       return content.toString();
     } else if (content != null) {
-      this.content = bufferStream(content);
+      this.content = bufferStream(content());
       return (await this.content).toString();
     }
 
@@ -196,16 +196,13 @@ export default class UncommittedAsset {
       return Buffer.from(content);
     }
 
-    this.content = bufferStream(content);
+    this.content = bufferStream(content());
     return this.content;
   }
 
   getStream(): Readable {
-    if (this.content instanceof Readable) {
-      // Remove content if it's a stream, as it should not be reused.
-      let content = this.content;
-      this.content = null;
-      return content;
+    if (typeof this.content === 'function') {
+      return this.content();
     }
 
     if (this.content instanceof Promise) {
@@ -213,6 +210,10 @@ export default class UncommittedAsset {
     }
 
     return blobToStream(this.content ?? Buffer.alloc(0));
+  }
+
+  makeStream(): Readable {
+    return fs.createReadStream('stream.txt');
   }
 
   setCode(code: string) {
@@ -225,7 +226,7 @@ export default class UncommittedAsset {
     this.clearAST();
   }
 
-  setStream(stream: Readable) {
+  setStream(stream: () => Readable) {
     this.content = stream;
     this.clearAST();
   }

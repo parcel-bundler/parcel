@@ -1,11 +1,11 @@
 // @flow strict-local
 
-import type {AST, Blob} from '@parcel/types';
+import type {AST} from '@parcel/types';
 import type {Asset, Dependency, ParcelOptions} from './types';
 
 import {Readable} from 'stream';
 import SourceMap from '@parcel/source-map';
-import {bufferStream, blobToStream, streamFromPromise} from '@parcel/utils';
+import {bufferStream, streamFromPromise} from '@parcel/utils';
 import {generateFromAST} from './assetUtils';
 import {deserializeRaw} from './serializer';
 
@@ -24,19 +24,19 @@ export default class CommittedAsset {
     this.options = options;
   }
 
-  getContent(): Blob | Promise<Buffer | string> {
+  getContent(): (() => Readable) | Promise<Buffer | string> {
     if (this.content == null) {
-      if (this.value.contentKey != null) {
-        return this.options.cache.getStream(this.value.contentKey);
+      const contentKey = this.value.contentKey;
+      if (contentKey != null) {
+        return () => this.options.cache.getStream(contentKey);
       } else if (this.value.astKey != null) {
-        return streamFromPromise(
-          generateFromAST(this).then(({content}) => {
-            if (!(content instanceof Readable)) {
-              this.content = Promise.resolve(content);
-            }
-            return content;
-          }),
-        );
+        let generated = generateFromAST(this).then(({content}) => {
+          if (typeof content !== 'function') {
+            this.content = Promise.resolve(content);
+          }
+          return content;
+        });
+        return () => streamFromPromise(generated);
       } else {
         throw new Error('Asset has no content');
       }
@@ -57,7 +57,7 @@ export default class CommittedAsset {
     if (typeof content === 'string' || content instanceof Buffer) {
       return content.toString();
     } else if (content != null) {
-      this.content = bufferStream(content);
+      this.content = bufferStream(content());
       return (await this.content).toString();
     }
 
@@ -73,15 +73,13 @@ export default class CommittedAsset {
       return Buffer.from(content);
     }
 
-    this.content = bufferStream(content);
+    this.content = bufferStream(content());
     return this.content;
   }
 
   getStream(): Readable {
     let content = this.getContent();
-    return content instanceof Promise
-      ? streamFromPromise(content)
-      : blobToStream(content);
+    return content instanceof Promise ? streamFromPromise(content) : content();
   }
 
   getMapBuffer(): Promise<?Buffer> {

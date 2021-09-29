@@ -304,8 +304,8 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
     this.#asset.setCode(code);
   }
 
-  setStream(stream: Readable): void {
-    this.#asset.setStream(stream);
+  setStream(streamFactory: () => Readable): void {
+    this.#asset.setStream(streamFactory);
   }
 
   setAST(ast: AST): void {

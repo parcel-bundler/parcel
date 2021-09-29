@@ -36,8 +36,8 @@ export function bufferStream(stream: Readable): Promise<Buffer> {
 }
 
 export function blobToStream(blob: Blob): Readable {
-  if (blob instanceof Readable) {
-    return blob;
+  if (typeof blob === 'function') {
+    return blob();
   }
 
   return readableFromStringOrBuffer(blob);
@@ -46,8 +46,8 @@ export function blobToStream(blob: Blob): Readable {
 export function streamFromPromise(promise: Promise<Blob>): Readable {
   const stream = new PassThrough();
   promise.then(blob => {
-    if (blob instanceof Readable) {
-      blob.pipe(stream);
+    if (typeof blob === 'function') {
+      blob().pipe(stream);
     } else {
       stream.end(blob);
     }
