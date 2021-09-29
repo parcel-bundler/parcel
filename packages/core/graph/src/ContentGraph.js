@@ -4,16 +4,16 @@ import type {ContentKey, NodeId} from './types';
 import Graph, {type GraphOpts} from './Graph';
 import nullthrows from 'nullthrows';
 
-export type SerializedContentGraph<TNode, TEdgeType: string | null = null> = {|
+export type SerializedContentGraph<TNode, TEdgeType: number = 1> = {|
   ...GraphOpts<TNode, TEdgeType>,
   _contentKeyToNodeId: Map<ContentKey, NodeId>,
   _nodeIdToContentKey: Map<NodeId, ContentKey>,
 |};
 
-export default class ContentGraph<
+export default class ContentGraph<TNode, TEdgeType: number = 1> extends Graph<
   TNode,
-  TEdgeType: string | null = null,
-> extends Graph<TNode, TEdgeType> {
+  TEdgeType,
+> {
   _contentKeyToNodeId: Map<ContentKey, NodeId>;
   _nodeIdToContentKey: Map<NodeId, ContentKey>;
 

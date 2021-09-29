@@ -200,7 +200,7 @@ async function writeDiagnostic(
       writeOut(indentString(codeframe, indent), isError);
     }
 
-    if ((stack || codeframe) && hints.length > 0) {
+    if ((stack || codeframe) && (hints.length > 0 || documentation)) {
       writeOut('');
     }
 

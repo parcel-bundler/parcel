@@ -6,8 +6,6 @@ import {Optimizer} from '@parcel/plugin';
 import posthtml from 'posthtml';
 import path from 'path';
 import {SVG_ATTRS, SVG_TAG_NAMES} from './svgMappings';
-// $FlowFixMe
-import {extendDefaultPlugins} from 'svgo';
 
 export default (new Optimizer({
   async loadConfig({config, options}) {
@@ -57,44 +55,31 @@ export default (new Optimizer({
     const htmlNanoConfig = {
       minifyJs: false,
       minifySvg: {
-        plugins: extendDefaultPlugins([
-          // Copied from htmlnano defaults.
+        plugins: [
           {
-            name: 'collapseGroups',
-            active: false,
-          },
-          {
-            name: 'convertShapeToPath',
-            active: false,
-          },
-          // Additional defaults to preserve accessibility information.
-          {
-            name: 'removeTitle',
-            active: false,
-          },
-          {
-            name: 'removeDesc',
-            active: false,
-          },
-          {
-            name: 'removeUnknownsAndDefaults',
+            name: 'preset-default',
             params: {
-              keepAriaAttrs: true,
-              keepRoleAttr: true,
+              overrides: {
+                // Copied from htmlnano defaults.
+                collapseGroups: false,
+                convertShapeToPath: false,
+                // Additional defaults to preserve accessibility information.
+                removeTitle: false,
+                removeDesc: false,
+                removeUnknownsAndDefaults: {
+                  keepAriaAttrs: true,
+                  keepRoleAttr: true,
+                },
+                // Do not minify ids or remove unreferenced elements in
+                // inline SVGs because they could actually be referenced
+                // by a separate inline SVG.
+                cleanupIDs: false,
+              },
             },
           },
-          // Do not minify ids or remove unreferenced elements in inline SVGs
-          // because they could actually be referenced by a separate inline SVG.
-          {
-            name: 'cleanupIDs',
-            active: false,
-          },
           // XML namespaces are not required in HTML.
-          {
-            name: 'removeXMLNS',
-            active: true,
-          },
-        ]),
+          'removeXMLNS',
+        ],
       },
       ...(preset || {}),
       ...clonedConfig,
@@ -110,7 +95,12 @@ export default (new Optimizer({
     }
 
     return {
-      contents: (await posthtml(plugins).process(contents)).html,
+      contents: (
+        await posthtml(plugins).process(contents, {
+          xmlMode: bundle.type === 'xhtml',
+          closingSingleTag: bundle.type === 'xhtml' ? 'slash' : undefined,
+        })
+      ).html,
     };
   },
 }): Optimizer);
