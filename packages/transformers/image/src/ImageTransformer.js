@@ -89,7 +89,9 @@ export default (new Transformer({
       });
 
       asset.type = format;
-      asset.setStream(imagePipeline);
+
+      let buffer = await imagePipeline.toBuffer();
+      asset.setBuffer(buffer);
     }
 
     return [asset];
