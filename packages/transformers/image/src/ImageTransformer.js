@@ -16,7 +16,7 @@ const FORMATS = new Map([
   ['heif', 'heif'],
 ]);
 
-const SHARP_RANGE = '^0.28.3';
+const SHARP_RANGE = '^0.29.1';
 
 export default (new Transformer({
   async loadConfig({config}) {
@@ -89,7 +89,9 @@ export default (new Transformer({
       });
 
       asset.type = format;
-      asset.setStream(imagePipeline);
+
+      let buffer = await imagePipeline.toBuffer();
+      asset.setBuffer(buffer);
     }
 
     return [asset];
