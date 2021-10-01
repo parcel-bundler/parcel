@@ -76,9 +76,15 @@ export default (new Transformer({
     let scopeId = 'data-v-' + id;
     let hmrId = id + '-hmr';
     let basePath = basename(asset.filePath);
-    let {template, script, styles, customBlocks} = nullthrows(
-      await asset.getAST(),
-    ).program;
+    let descriptor = nullthrows(await asset.getAST()).program;
+    let script = descriptor.scriptSetup
+      ? compiler.compileScript(descriptor, {id: scopeId})
+      : descriptor.script;
+    let {template, styles, customBlocks} = {
+      template: descriptor.template,
+      styles: descriptor.styles,
+      customBlocks: descriptor.customBlocks,
+    };
     if (asset.pipeline != null) {
       return processPipeline({
         asset,

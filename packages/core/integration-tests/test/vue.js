@@ -34,7 +34,8 @@ describe('vue', function() {
     assert(contents.includes('background: red'));
     assert(contents.includes('color: green'));
   });
-  it('should produce a vue bundle using a functional component', async function() {
+  // <template functional> is no longer supported in Vue 3, since functional components no longer have significant performance difference from stateful ones. Just use a normal <template> instead.
+  it.skip('should produce a vue bundle using a functional component', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/vue-functional/functional.vue'),
     );
@@ -104,5 +105,21 @@ describe('vue', function() {
     let output = (await run(b)).default;
     assert.equal(typeof output.render, 'function');
     assert.deepEqual(output.data(), {msg: 'Hello from Component A!'});
+  });
+  it('should produce a production vue bundle with script setup method', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/vue-composition/SetupMethod.vue'),
+    );
+    let output = (await run(b)).default;
+    assert.equal(typeof output.render, 'function');
+    assert.deepEqual(output.setup().msg.value, 'Script setup');
+  });
+  it('should produce a production vue bundle with script setup', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/vue-composition/Setup.vue'),
+    );
+    let output = (await run(b)).default;
+    assert.equal(typeof output.render, 'function');
+    assert.deepEqual(output.setup([], {}).msg.value, 'Script setup');
   });
 });

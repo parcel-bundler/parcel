@@ -693,6 +693,7 @@ function prepareBrowserContext(
       module: {exports},
       document: fakeDocument,
       WebSocket,
+      navigator: {userAgent: 'parcel-test'},
       console: {...console, clear: () => {}},
       location: {
         hostname: 'localhost',
