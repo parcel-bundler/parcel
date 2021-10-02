@@ -5,6 +5,10 @@ import {optimize} from '../native';
 
 export default (new Optimizer({
   async optimize({bundle, contents}) {
+    if (!bundle.env.shouldOptimize) {
+      return {contents};
+    }
+
     let buffer = await blobToBuffer(contents);
     let optimized = optimize(bundle.type, buffer);
     return {
