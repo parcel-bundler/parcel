@@ -5618,8 +5618,8 @@ describe('cache', function() {
       let bundles = b.bundleGraph.getBundles();
       let contents = await overlayFS.readFile(bundles[0].filePath, 'utf8');
       assert(contents.includes('.webp" type="image/webp">'));
-      assert(contents.includes('.jpg" type="image/jpeg">'));
-      assert(contents.includes('.jpg" alt="test image"'));
+      assert(contents.includes('.jpeg" type="image/jpeg">'));
+      assert(contents.includes('.jpeg" alt="test image"'));
       assert.equal(bundles.length, 4);
     });
   });
