@@ -16,13 +16,13 @@ describe('image', function() {
     for (let filename of dirContent) {
       let ext = path.extname(filename);
       foundExtensions.push(ext);
-      if (ext === '.jpg') {
+      if (ext === '.jpeg') {
         imagePath = path.join(distDir, filename);
       }
     }
     assert.deepStrictEqual(
       foundExtensions.sort(),
-      ['.jpg', '.js', '.map'].sort(),
+      ['.jpeg', '.js', '.map'].sort(),
     );
 
     let buffer = await outputFS.readFile(imagePath);
@@ -46,7 +46,7 @@ describe('image', function() {
 
     assert.deepStrictEqual(
       foundExtensions.sort(),
-      ['.jpg', '.jpg', '.webp', '.html'].sort(),
+      ['.jpeg', '.jpeg', '.webp', '.html'].sort(),
     );
   });
 
@@ -85,12 +85,12 @@ describe('image', function() {
 
       assert.deepStrictEqual(
         foundExtensions,
-        new Set(['html', 'webp', 'avif', 'jpg', 'png', 'tiff']),
+        new Set(['html', 'webp', 'avif', 'jpeg', 'png', 'tiff']),
       );
     });
   });
 
-  it('should optimise JPEGs', async function() {
+  it('should lossless optimise JPEGs', async function() {
     let img = path.join(__dirname, '/integration/image/image.jpg');
     let b = await bundle(img, {
       defaultTargetOptions: {
@@ -113,7 +113,7 @@ describe('image', function() {
     assert(output.length < input.length);
   });
 
-  it('should optimise PNGs', async function() {
+  it('should lossless optimise PNGs', async function() {
     let img = path.join(__dirname, '/integration/image/clock.png');
     let b = await bundle(img, {
       defaultTargetOptions: {
@@ -136,12 +136,54 @@ describe('image', function() {
     assert(output.length < input.length);
   });
 
+  it('support config files for jpeg files', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/image-config/image.jpg'),
+      {
+        defaultTargetOptions: {
+          shouldOptimize: false,
+        },
+      },
+    );
+
+    const originalSize = 549196;
+
+    const imagePath = b.getBundles().find(b => b.type === 'jpeg').filePath;
+
+    const buffer = await outputFS.readFile(imagePath);
+    const image = await sharp(buffer).metadata();
+
+    assert.strictEqual(image.width, 1920);
+    assert.strictEqual(image.chromaSubsampling, '4:4:4');
+    assert(image.size < originalSize);
+  });
+
+  it('support config files for png files', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/image-config/clock.png'),
+      {
+        defaultTargetOptions: {
+          shouldOptimize: false,
+        },
+      },
+    );
+
+    const originalSize = 84435;
+    const imagePath = b.getBundles().find(b => b.type === 'png').filePath;
+    const buffer = await outputFS.readFile(imagePath);
+    const image = await sharp(buffer).metadata();
+
+    assert.strictEqual(image.width, 200);
+    assert.strictEqual(image.paletteBitDepth, 8);
+    assert(image.size < originalSize);
+  });
+
   it('should retain EXIF data', async () => {
     const b = await bundle(
       path.join(__dirname, '/integration/image-exif/resized.html'),
     );
 
-    const imagePath = b.getBundles().find(b => b.type === 'jpg').filePath;
+    const imagePath = b.getBundles().find(b => b.type === 'jpeg').filePath;
 
     const buffer = await outputFS.readFile(imagePath);
     const image = await sharp(buffer).metadata();
@@ -164,7 +206,7 @@ describe('image', function() {
       },
     );
 
-    const imagePath = b.getBundles().find(b => b.type === 'jpg').filePath;
+    const imagePath = b.getBundles().find(b => b.type === 'jpeg').filePath;
 
     const buffer = await outputFS.readFile(imagePath);
     const image = await sharp(buffer).metadata();
@@ -177,7 +219,7 @@ describe('image', function() {
       path.join(__dirname, '/integration/image-exif/resized.html'),
     );
 
-    const imagePath = b.getBundles().find(b => b.type === 'jpg').filePath;
+    const imagePath = b.getBundles().find(b => b.type === 'jpeg').filePath;
 
     const buffer = await outputFS.readFile(imagePath);
     const image = await sharp(buffer).metadata();
