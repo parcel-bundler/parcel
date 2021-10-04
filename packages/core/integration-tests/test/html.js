@@ -1919,6 +1919,30 @@ describe('html', function() {
     assert(output.sort(), ['a', 'b', 'c']);
   });
 
+  it('dynamic imports loaded as high-priority scripts when not all engines support esmodules natively', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-high-prio-async/index.html'),
+      {
+        defaultTargetOptions: {
+          mode: 'production',
+          shouldScopeHoist: true,
+          engines: {
+            browsers: '>= 0.25%',
+          },
+        },
+      },
+    );
+
+    let bundles = b.getBundles();
+    let html = await outputFS.readFile(
+      bundles.find(b => b.type === 'html').filePath,
+      'utf8',
+    );
+
+    assert(html.includes('rel="preload" as="script">'));
+    assert(html.includes('<script async type="text/javascript" src='));
+  });
+
   it('should isolate classic scripts from nomodule scripts', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-isolate-script/index.html'),

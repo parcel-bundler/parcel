@@ -13,6 +13,12 @@ module.exports = cacheLoader(function loadJSBundle(bundle) {
       return;
     }
 
+    var link = document.createElement('link');
+    link.href = bundle;
+    link.rel = 'preload';
+    link.as = 'script';
+    document.head.appendChild(link);
+
     var script = document.createElement('script');
     script.async = true;
     script.type = 'text/javascript';
@@ -29,6 +35,7 @@ module.exports = cacheLoader(function loadJSBundle(bundle) {
       resolve();
     };
 
+    document.getElementsByTagName('head')[0].appendChild(link);
     document.getElementsByTagName('head')[0].appendChild(script);
   });
 });
