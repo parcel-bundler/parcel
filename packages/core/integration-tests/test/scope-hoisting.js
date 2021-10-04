@@ -3736,6 +3736,20 @@ describe('scope hoisting', function() {
 
       assert.equal(await run(b), undefined);
     });
+
+    it('should handle interop with a re-export namespace', async () => {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          'integration/scope-hoisting/es6/re-export-interop/a.js',
+        ),
+      );
+
+      let res = await run(b);
+      assert.deepEqual(res['en_US'], {
+        test: 'foo',
+      });
+    });
   });
 
   describe('commonjs', function() {
