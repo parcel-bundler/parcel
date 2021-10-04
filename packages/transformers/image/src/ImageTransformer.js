@@ -88,6 +88,9 @@ export default (new Transformer({
       );
 
       let imagePipeline = sharp(inputBuffer);
+
+      imagePipeline.withMetadata();
+
       if (width || height) {
         imagePipeline.resize(width, height);
       }
