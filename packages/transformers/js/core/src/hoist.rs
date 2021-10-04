@@ -3065,6 +3065,23 @@ mod tests {
     "#}
     );
 
+    let (_collect, code, hoist) = parse(
+      r#"
+    console.log(module);
+    export default class X {}
+    "#,
+    );
+
+    assert!(hoist.should_wrap);
+    assert_eq!(
+      code,
+      indoc! {r#"
+    console.log(module);
+    class X {
+    }
+    "#}
+    );
+
     let (_collect, code, _hoist) = parse(
       r#"
     export var x = 2, y = 3;
