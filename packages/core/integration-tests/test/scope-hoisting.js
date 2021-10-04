@@ -4371,6 +4371,18 @@ describe('scope hoisting', function() {
       assert.strictEqual(output, 'Say other');
     });
 
+    it('supports using module.require like require', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/module-require/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.strictEqual(output.b, 2);
+    });
+
     it('support url imports in wrapped modules with interop', async function() {
       let b = await bundle(
         path.join(
