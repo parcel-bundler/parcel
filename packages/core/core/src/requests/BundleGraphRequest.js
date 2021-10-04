@@ -5,6 +5,7 @@ import type {SharedReference} from '@parcel/workers';
 import type ParcelConfig, {LoadedPlugin} from '../ParcelConfig';
 import type {StaticRunOpts, RunAPI} from '../RequestTracker';
 import type {
+  Asset,
   Bundle as InternalBundle,
   Config,
   DevDepRequest,
@@ -63,10 +64,15 @@ type RunInput = {|
   ...StaticRunOpts,
 |};
 
+type BundleGraphResult = {|
+  bundleGraph: InternalBundleGraph,
+  changedAssets: Map<string, Asset>,
+|};
+
 type BundleGraphRequest = {|
   id: string,
   +type: 'bundle_graph_request',
-  run: RunInput => Async<InternalBundleGraph>,
+  run: RunInput => Async<BundleGraphResult>,
   input: BundleGraphRequestInput,
 |};
 
@@ -164,7 +170,7 @@ class BundlerRunner {
     await runDevDepRequest(this.api, devDepRequest);
   }
 
-  async bundle(graph: AssetGraph): Promise<InternalBundleGraph> {
+  async bundle(graph: AssetGraph): Promise<BundleGraphResult> {
     report({
       type: 'buildProgress',
       phase: 'bundling',
@@ -194,7 +200,13 @@ class BundlerRunner {
         // Deserialize, and store the original buffer in an in memory cache so we avoid
         // re-serializing it when sending to workers, and in build mode, when writing to cache on shutdown.
         let graph = deserializeToCache(cached);
-        this.api.storeResult(graph, cacheKey);
+        this.api.storeResult(
+          {
+            bundleGraph: graph,
+            changedAssets: new Map(),
+          },
+          cacheKey,
+        );
         return graph;
       }
     }
@@ -273,7 +285,7 @@ class BundlerRunner {
 
     await this.nameBundles(internalBundleGraph);
 
-    await applyRuntimes({
+    let changedAssets = await applyRuntimes({
       bundleGraph: internalBundleGraph,
       api: this.api,
       config: this.config,
@@ -300,8 +312,18 @@ class BundlerRunner {
 
     // Recompute the cache key to account for new dev dependencies and invalidations.
     cacheKey = await this.getCacheKey(graph);
-    this.api.storeResult(internalBundleGraph, cacheKey);
-    return internalBundleGraph;
+    this.api.storeResult(
+      {
+        bundleGraph: internalBundleGraph,
+        changedAssets: new Map(),
+      },
+      cacheKey,
+    );
+
+    return {
+      bundleGraph: internalBundleGraph,
+      changedAssets,
+    };
   }
 
   async getCacheKey(assetGraph: AssetGraph): Promise<string> {

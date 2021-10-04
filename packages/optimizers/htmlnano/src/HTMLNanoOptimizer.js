@@ -53,7 +53,10 @@ export default (new Optimizer({
     delete clonedConfig.preset;
 
     const htmlNanoConfig = {
+      // Inline <script> and <style> elements, and style attributes are already
+      // minified before they are re-inserted by the packager.
       minifyJs: false,
+      minifyCss: false,
       minifySvg: {
         plugins: [
           {

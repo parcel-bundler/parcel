@@ -15,7 +15,8 @@ export default (new Runtime({
       bundle.type !== 'js' ||
       !options.hmrOptions ||
       bundle.env.isLibrary ||
-      bundle.env.isWorklet()
+      bundle.env.isWorklet() ||
+      bundle.env.sourceType === 'script'
     ) {
       return;
     }
