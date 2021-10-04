@@ -170,6 +170,40 @@ describe('html', function() {
     assert(/<link rel="canonical" href="\.?\/index.html">/.test(html));
   });
 
+  it('should support RSS feed links', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-feed/rss.html'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'rss.html',
+        assets: ['rss.html'],
+      },
+      {
+        name: 'feed.xml',
+        assets: ['feed.xml'],
+      },
+    ]);
+  });
+
+  it('should support atom feed links', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-feed/atom.html'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'atom.html',
+        assets: ['atom.html'],
+      },
+      {
+        name: 'feed.xml',
+        assets: ['feed.xml'],
+      },
+    ]);
+  });
+
   it('should support meta tags', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-meta/index.html'),
