@@ -236,6 +236,9 @@ async function processPipeline({
         scoped: styles.some(style => style.scoped),
         isFunctional,
         id,
+        compilerOptions: {
+          bindingMetadata: script ? script.bindings : void 0,
+        },
       });
       if (templateComp.errors.length) {
         throw new ThrowableDiagnostic({
