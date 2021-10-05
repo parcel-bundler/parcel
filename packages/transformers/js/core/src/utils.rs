@@ -114,6 +114,17 @@ pub fn match_require(
 
           None
         }
+        Expr::Member(member) => {
+          if match_member_expr(member, vec!["module", "require"], decls) {
+            if let Some(arg) = call.args.get(0) {
+              if let Expr::Lit(Lit::Str(str_)) = &*arg.expr {
+                return Some(str_.value.clone());
+              }
+            }
+          }
+
+          None
+        }
         _ => None,
       },
       _ => None,

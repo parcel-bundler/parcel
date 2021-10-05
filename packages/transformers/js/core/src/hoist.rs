@@ -1400,6 +1400,10 @@ impl Visit for Collect {
       return;
     }
 
+    if match_member_expr(node, vec!["module", "require"], &self.decls) {
+      return;
+    }
+
     let is_static = match &*node.prop {
       Expr::Ident(_) => !node.computed,
       Expr::Lit(Lit::Str(_)) => true,

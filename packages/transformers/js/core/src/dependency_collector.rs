@@ -429,7 +429,9 @@ impl<'a> Fold for DependencyCollector<'a> {
         }
       }
       Member(member) => {
-        if self.config.is_browser
+        if match_member_expr(member, vec!["module", "require"], self.decls) {
+          DependencyKind::Require
+        } else if self.config.is_browser
           && match_member_expr(
             member,
             vec!["navigator", "serviceWorker", "register"],
