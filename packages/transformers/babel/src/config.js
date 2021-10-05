@@ -5,6 +5,7 @@ import typeof * as BabelCore from '@babel/core';
 import type {Diagnostic} from '@parcel/diagnostic';
 import type {BabelConfig} from './types';
 
+import json5 from 'json5';
 import path from 'path';
 import * as internalBabelCore from '@babel/core';
 import {hashObject, relativePath, resolveConfig} from '@parcel/utils';
@@ -397,7 +398,7 @@ async function getCodeHighlights(fs, filePath, redundantPresets) {
   let ext = path.extname(filePath);
   if (ext !== '.js' && ext !== '.cjs' && ext !== '.mjs') {
     let contents = await fs.readFile(filePath, 'utf8');
-    let json = JSON.parse(contents);
+    let json = json5.parse(contents);
 
     let presets = json.presets || [];
     let pointers = [];
@@ -410,7 +411,12 @@ async function getCodeHighlights(fs, filePath, redundantPresets) {
     }
 
     if (pointers.length > 0) {
-      return generateJSONCodeHighlights(contents, pointers);
+      try {
+        return generateJSONCodeHighlights(contents, pointers);
+      } catch {
+        // TODO: support code highlights for json5 sources.
+        // Babel supports json5 syntax, but json-source-map does not.
+      }
     }
   }
 

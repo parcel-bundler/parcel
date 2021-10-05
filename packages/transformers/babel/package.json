@@ -32,6 +32,7 @@
     "@parcel/utils": "2.0.0-rc.0",
     "browserslist": "^4.6.6",
     "core-js": "^3.2.1",
+    "json5": "^2.1.0",
     "nullthrows": "^1.1.1",
     "semver": "^5.7.0"
   },
