@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::hash_map::DefaultHasher;
 use std::collections::{HashMap, HashSet};
-use std::hash::{Hash, Hasher};
+use std::hash::Hasher;
 use swc_atoms::JsWord;
 use swc_common::{sync::Lrc, Mark, Span, SyntaxContext, DUMMY_SP};
 use swc_ecmascript::ast::*;
@@ -22,7 +22,7 @@ macro_rules! id {
 macro_rules! hash {
   ($str:expr) => {{
     let mut hasher = DefaultHasher::new();
-    $str.hash(&mut hasher);
+    hasher.write($str.as_bytes());
     hasher.finish()
   }};
 }
