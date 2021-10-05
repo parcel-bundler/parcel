@@ -120,6 +120,11 @@ describe('vue', function() {
     );
     let output = (await run(b)).default;
     assert.equal(typeof output.render, 'function');
-    assert.deepEqual(output.setup([], {}).msg.value, 'Script setup');
+    assert.deepEqual(
+      output.setup([], {
+        expose: () => {},
+      }).msg.value,
+      'Script setup',
+    );
   });
 });
