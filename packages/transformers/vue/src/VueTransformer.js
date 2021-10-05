@@ -78,7 +78,15 @@ export default (new Transformer({
     let basePath = basename(asset.filePath);
     let descriptor = nullthrows(await asset.getAST()).program;
     let script = descriptor.scriptSetup
-      ? compiler.compileScript(descriptor, {id: scopeId})
+      ? compiler.compileScript(descriptor, {
+          id,
+          isProd: options.mode === 'production',
+          templateOptions: {
+            compilerOptions: {
+              bindingMetadata: descriptor.scriptSetup.bindings,
+            },
+          },
+        })
       : descriptor.script;
     let {template, styles, customBlocks} = {
       template: descriptor.template,
