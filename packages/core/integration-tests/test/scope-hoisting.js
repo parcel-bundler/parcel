@@ -626,6 +626,30 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, ['test']);
     });
 
+    it('should default export classes when wrapped', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/export-default-class-wrapped/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.strictEqual(output.VERSION, 1234);
+    });
+
+    it('should default export functions when wrapped', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/export-default-function-wrapped/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.strictEqual(output.VERSION, 1234);
+    });
+
     it('should default export globals', async function() {
       let b = await bundle(
         path.join(

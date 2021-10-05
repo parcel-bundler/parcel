@@ -308,12 +308,20 @@ impl<'a> Fold for Hoist<'a> {
             ModuleDecl::ExportDefaultDecl(export) => {
               let decl = match export.decl {
                 DefaultDecl::Class(class) => Decl::Class(ClassDecl {
-                  ident: self.get_export_ident(DUMMY_SP, &"default".into()),
+                  ident: if self.collect.should_wrap && class.ident.is_some() {
+                    class.ident.unwrap()
+                  } else {
+                    self.get_export_ident(DUMMY_SP, &"default".into())
+                  },
                   declare: false,
                   class: class.class.fold_with(self),
                 }),
                 DefaultDecl::Fn(func) => Decl::Fn(FnDecl {
-                  ident: self.get_export_ident(DUMMY_SP, &"default".into()),
+                  ident: if self.collect.should_wrap && func.ident.is_some() {
+                    func.ident.unwrap()
+                  } else {
+                    self.get_export_ident(DUMMY_SP, &"default".into())
+                  },
                   declare: false,
                   function: func.function.fold_with(self),
                 }),
@@ -3061,6 +3069,23 @@ mod tests {
       code,
       indoc! {r#"
     class $abc$export$9099ad97b570f7c {
+    }
+    "#}
+    );
+
+    let (_collect, code, hoist) = parse(
+      r#"
+    console.log(module);
+    export default class X {}
+    "#,
+    );
+
+    assert!(hoist.should_wrap);
+    assert_eq!(
+      code,
+      indoc! {r#"
+    console.log(module);
+    class X {
     }
     "#}
     );
