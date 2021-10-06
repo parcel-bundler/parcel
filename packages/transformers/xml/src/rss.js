@@ -44,7 +44,7 @@ export function description(
   }
 
   let el = element.ownerDocument.createElementNS(
-    'https://v2.parceljs.org',
+    'https://parceljs.org',
     'inline',
   );
   el.setAttribute('key', parcelKey);

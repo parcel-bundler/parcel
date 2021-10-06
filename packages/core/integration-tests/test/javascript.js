@@ -1262,7 +1262,7 @@ describe('javascript', function() {
             "Add {type: 'module'} as a second argument to the Worker constructor.",
           ],
           documentationURL:
-            'https://v2.parceljs.org/languages/javascript/#classic-scripts',
+            'https://parceljs.org/languages/javascript/#classic-scripts',
         },
       ]);
     }
@@ -1367,7 +1367,7 @@ describe('javascript', function() {
                   : 'navigator.serviceWorker.register() call.'),
             ],
             documentationURL:
-              'https://v2.parceljs.org/languages/javascript/#classic-script-workers',
+              'https://parceljs.org/languages/javascript/#classic-script-workers',
           },
         ]);
       }
@@ -1585,7 +1585,7 @@ describe('javascript', function() {
             "Add {type: 'module'} as a second argument to the navigator.serviceWorker.register() call.",
           ],
           documentationURL:
-            'https://v2.parceljs.org/languages/javascript/#classic-scripts',
+            'https://parceljs.org/languages/javascript/#classic-scripts',
         },
       ]);
     }

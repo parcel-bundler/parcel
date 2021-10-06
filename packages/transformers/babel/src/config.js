@@ -342,7 +342,7 @@ async function warnOnRedundantPlugins(fs, babelConfig, logger) {
       ],
       hints: [md`Delete __${filePath}__`],
       documentationURL:
-        'https://v2.parceljs.org/languages/javascript/#default-presets',
+        'https://parceljs.org/languages/javascript/#default-presets',
     });
   } else if (foundRedundantPresets.size > 0) {
     diagnostics.push({
@@ -363,7 +363,7 @@ async function warnOnRedundantPlugins(fs, babelConfig, logger) {
       ],
       hints: [md`Remove the above presets from __${filePath}__`],
       documentationURL:
-        'https://v2.parceljs.org/languages/javascript/#default-presets',
+        'https://parceljs.org/languages/javascript/#default-presets',
     });
   }
 
@@ -385,7 +385,7 @@ async function warnOnRedundantPlugins(fs, babelConfig, logger) {
         `Either remove __@babel/preset-env__ to use Parcel's builtin transpilation, or replace with __@parcel/babel-preset-env__`,
       ],
       documentationURL:
-        'https://v2.parceljs.org/languages/javascript/#custom-plugins',
+        'https://parceljs.org/languages/javascript/#custom-plugins',
     });
   }
 
