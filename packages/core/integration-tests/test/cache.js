@@ -2235,19 +2235,21 @@ describe('cache', function() {
 
     it('should update when minify changes', async function() {
       let b = await testCache({
+        entries: ['src/index.html'],
         defaultTargetOptions: {
           shouldScopeHoist: true,
           shouldOptimize: false,
         },
         async update(b) {
           let contents = await overlayFS.readFile(
-            b.bundleGraph.getBundles()[0].filePath,
+            b.bundleGraph.getBundles()[1].filePath,
             'utf8',
           );
           assert(contents.includes('Test'), 'should include Test');
 
           return {
             defaultTargetOptions: {
+              shouldScopeHoist: true,
               shouldOptimize: true,
             },
           };
@@ -2255,7 +2257,7 @@ describe('cache', function() {
       });
 
       let contents = await overlayFS.readFile(
-        b.bundleGraph.getBundles()[0].filePath,
+        b.bundleGraph.getBundles()[1].filePath,
         'utf8',
       );
       assert(!contents.includes('Test'), 'should not include Test');
