@@ -29,7 +29,7 @@ export default (new Packager({
     let dom = parser.parseFromString(code);
 
     let inlineElements = dom.getElementsByTagNameNS(
-      'https://v2.parceljs.org',
+      'https://parceljs.org',
       'inline',
     );
     if (inlineElements.length > 0) {

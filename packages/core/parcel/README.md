@@ -1,5 +1,5 @@
 <p align="center">
-  <a href="https://v2.parceljs.org/" target="_blank">
+  <a href="https://parceljs.org/" target="_blank">
     <img alt="Parcel" src="https://user-images.githubusercontent.com/19409/135924939-03845d0b-e7bb-414b-89b6-e627dfa9f614.png" width="749">
   </a>
 </p>
@@ -25,13 +25,13 @@ Parcel is a zero configuration build tool for the web. It combines a great out-o
 
 See the following guides in our documentation on how to get started with Parcel.
 
-* [Building a webapp with Parcel](https://v2.parceljs.org/getting-started/webapp/)
-* [Building a library with Parcel](https://v2.parceljs.org/getting-started/library/)
-* [Migrating from Parcel v1](https://v2.parceljs.org/getting-started/migration/)
+* [Building a webapp with Parcel](https://parceljs.org/getting-started/webapp/)
+* [Building a library with Parcel](https://parceljs.org/getting-started/library/)
+* [Migrating from Parcel v1](https://parceljs.org/getting-started/migration/)
 
 ## Documentation
 
-Read the docs at https://v2.parceljs.org/docs/.
+Read the docs at https://parceljs.org/docs/.
 
 ## Community
 

@@ -3774,6 +3774,54 @@ describe('scope hoisting', function() {
         test: 'foo',
       });
     });
+
+    it('should prioritize named exports before re-exports (before)', async () => {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          'integration/scope-hoisting/es6/re-export-priority/entry-a.mjs',
+        ),
+      );
+
+      let res = await run(b);
+      assert.equal(res, 2);
+    });
+
+    it('should prioritize named exports before re-exports (after)', async () => {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          'integration/scope-hoisting/es6/re-export-priority/entry-b.mjs',
+        ),
+      );
+
+      let res = await run(b);
+      assert.equal(res, 2);
+    });
+
+    it('should prioritize named exports before re-exports in namespace (before)', async () => {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          'integration/scope-hoisting/es6/re-export-priority/namespace-a.mjs',
+        ),
+      );
+
+      let res = await run(b);
+      assert.deepEqual(res, {foo: 2});
+    });
+
+    it('should prioritize named exports before re-exports in namespace (after)', async () => {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          'integration/scope-hoisting/es6/re-export-priority/namespace-b.mjs',
+        ),
+      );
+
+      let res = await run(b);
+      assert.deepEqual(res, {foo: 2});
+    });
   });
 
   describe('commonjs', function() {
