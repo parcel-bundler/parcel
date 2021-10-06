@@ -5884,4 +5884,21 @@ describe('scope hoisting', function() {
     let res = await run(b, {output: null}, {require: false});
     assert.equal(res.output, 'a');
   });
+
+  it.only('should ', async function() {
+    let testDir = path.join(
+      __dirname,
+      'integration/scope-hoisting/es6/unmarks-defer-for-new-deps/index.js',
+    );
+    let b = bundler(path.join(testDir, 'index.js'), {
+      inputFS: overlayFS,
+      outputFS: overlayFS,
+    });
+
+    await overlayFS.mkdirp(testDir);
+    await overlayFS.copyFile(
+      path.join(testDir, 'index.1.js'),
+      path.join(testDir, 'index.js'),
+    );
+  });
 });
