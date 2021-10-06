@@ -50,7 +50,7 @@ export function content(
   if (contents) {
     let parcelKey = `${asset.id}:${parts.length}`;
     let el = element.ownerDocument.createElementNS(
-      'https://v2.parceljs.org',
+      'https://parceljs.org',
       'inline',
     );
     el.setAttribute('key', parcelKey);
