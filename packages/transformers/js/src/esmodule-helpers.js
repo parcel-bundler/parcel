@@ -8,12 +8,7 @@ exports.defineInteropFlag = function(a) {
 
 exports.exportAll = function(source, dest) {
   Object.keys(source).forEach(function(key) {
-    if (key === 'default' || key === '__esModule') {
-      return;
-    }
-
-    // Skip duplicate re-exports when they have the same value.
-    if (key in dest && dest[key] === source[key]) {
+    if (key === 'default' || key === '__esModule' || dest.hasOwnProperty(key)) {
       return;
     }
 

@@ -4843,6 +4843,30 @@ describe('javascript', function() {
     assert.equal(typeof res.c, 'function');
   });
 
+  it('should prioritize named exports before re-exports withput scope hoisting (before)', async () => {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        'integration/scope-hoisting/es6/re-export-priority/entry-a.mjs',
+      ),
+    );
+
+    let res = await run(b, null, {require: false});
+    assert.equal(res.output, 2);
+  });
+
+  it('should prioritize named exports before re-exports without scope hoisting (after)', async () => {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        'integration/scope-hoisting/es6/re-export-priority/entry-b.mjs',
+      ),
+    );
+
+    let res = await run(b, null, {require: false});
+    assert.equal(res.output, 2);
+  });
+
   it('should exclude default from export all declaration', async function() {
     let b = await bundle(
       path.join(__dirname, 'integration/js-export-all/index.js'),
