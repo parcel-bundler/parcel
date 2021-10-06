@@ -674,9 +674,8 @@ export default (new Transformer({
     asset.meta.id = asset.id;
     if (hoist_result) {
       asset.symbols.ensure();
-      for (let symbol in hoist_result.exported_symbols) {
-        let [local, loc] = hoist_result.exported_symbols[symbol];
-        asset.symbols.set(symbol, local, convertLoc(loc));
+      for (let {exported, local, loc} of hoist_result.exported_symbols) {
+        asset.symbols.set(exported, local, convertLoc(loc));
       }
 
       let deps = new Map(
@@ -688,25 +687,29 @@ export default (new Transformer({
         dep.symbols.ensure();
       }
 
-      for (let name in hoist_result.imported_symbols) {
-        let [specifier, exported, loc] = hoist_result.imported_symbols[name];
-        let dep = deps.get(specifier);
+      for (let {
+        source,
+        local,
+        imported,
+        loc,
+      } of hoist_result.imported_symbols) {
+        let dep = deps.get(source);
         if (!dep) continue;
-        dep.symbols.set(exported, name, convertLoc(loc));
+        dep.symbols.set(imported, local, convertLoc(loc));
       }
 
-      for (let [name, specifier, exported, loc] of hoist_result.re_exports) {
-        let dep = deps.get(specifier);
+      for (let {source, local, imported, loc} of hoist_result.re_exports) {
+        let dep = deps.get(source);
         if (!dep) continue;
 
-        if (name === '*' && exported === '*') {
+        if (local === '*' && imported === '*') {
           dep.symbols.set('*', '*', convertLoc(loc), true);
         } else {
           let reExportName =
-            dep.symbols.get(exported)?.local ??
-            `$${asset.id}$re_export$${name}`;
-          asset.symbols.set(name, reExportName);
-          dep.symbols.set(exported, reExportName, convertLoc(loc), true);
+            dep.symbols.get(imported)?.local ??
+            `$${asset.id}$re_export$${local}`;
+          asset.symbols.set(local, reExportName);
+          dep.symbols.set(imported, reExportName, convertLoc(loc), true);
         }
       }
 

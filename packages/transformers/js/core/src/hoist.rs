@@ -55,14 +55,29 @@ pub fn hoist(
   Ok((module, hoist.get_result(), diagnostics))
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+struct ExportedSymbol {
+  local: JsWord,
+  exported: JsWord,
+  loc: SourceLocation,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct ImportedSymbol {
+  source: JsWord,
+  local: JsWord,
+  imported: JsWord,
+  loc: SourceLocation,
+}
+
 struct Hoist<'a> {
   module_id: &'a str,
   collect: &'a Collect,
   module_items: Vec<ModuleItem>,
   export_decls: HashSet<JsWord>,
-  imported_symbols: HashMap<JsWord, (JsWord, JsWord, SourceLocation)>,
-  exported_symbols: HashMap<JsWord, (JsWord, SourceLocation)>,
-  re_exports: Vec<(JsWord, JsWord, JsWord, SourceLocation)>,
+  imported_symbols: Vec<ImportedSymbol>,
+  exported_symbols: Vec<ExportedSymbol>,
+  re_exports: Vec<ImportedSymbol>,
   self_references: HashSet<JsWord>,
   dynamic_imports: HashMap<JsWord, JsWord>,
   in_function_scope: bool,
@@ -71,9 +86,9 @@ struct Hoist<'a> {
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct HoistResult {
-  imported_symbols: HashMap<JsWord, (JsWord, JsWord, SourceLocation)>,
-  exported_symbols: HashMap<JsWord, (JsWord, SourceLocation)>,
-  re_exports: Vec<(JsWord, JsWord, JsWord, SourceLocation)>,
+  imported_symbols: Vec<ImportedSymbol>,
+  exported_symbols: Vec<ExportedSymbol>,
+  re_exports: Vec<ImportedSymbol>,
   self_references: HashSet<JsWord>,
   wrapped_requires: HashSet<JsWord>,
   dynamic_imports: HashMap<JsWord, JsWord>,
@@ -90,8 +105,8 @@ impl<'a> Hoist<'a> {
       collect,
       module_items: vec![],
       export_decls: HashSet::new(),
-      imported_symbols: HashMap::new(),
-      exported_symbols: HashMap::new(),
+      imported_symbols: vec![],
+      exported_symbols: vec![],
       re_exports: vec![],
       self_references: HashSet::new(),
       dynamic_imports: HashMap::new(),
@@ -206,28 +221,28 @@ impl<'a> Fold for Hoist<'a> {
                         Some(exported) => exported.sym,
                         None => named.orig.sym.clone(),
                       };
-                      self.re_exports.push((
-                        exported,
-                        src.value.clone(),
-                        named.orig.sym,
-                        SourceLocation::from(&self.collect.source_map, named.span),
-                      ));
+                      self.re_exports.push(ImportedSymbol {
+                        source: src.value.clone(),
+                        local: exported,
+                        imported: named.orig.sym,
+                        loc: SourceLocation::from(&self.collect.source_map, named.span),
+                      });
                     }
                     ExportSpecifier::Default(default) => {
-                      self.re_exports.push((
-                        default.exported.sym,
-                        src.value.clone(),
-                        js_word!("default"),
-                        SourceLocation::from(&self.collect.source_map, default.exported.span),
-                      ));
+                      self.re_exports.push(ImportedSymbol {
+                        source: src.value.clone(),
+                        local: default.exported.sym,
+                        imported: js_word!("default"),
+                        loc: SourceLocation::from(&self.collect.source_map, default.exported.span),
+                      });
                     }
                     ExportSpecifier::Namespace(namespace) => {
-                      self.re_exports.push((
-                        namespace.name.sym,
-                        src.value.clone(),
-                        "*".into(),
-                        SourceLocation::from(&self.collect.source_map, namespace.span),
-                      ));
+                      self.re_exports.push(ImportedSymbol {
+                        source: src.value.clone(),
+                        local: namespace.name.sym,
+                        imported: "*".into(),
+                        loc: SourceLocation::from(&self.collect.source_map, namespace.span),
+                      });
                     }
                   }
                 }
@@ -243,12 +258,12 @@ impl<'a> Fold for Hoist<'a> {
                       source, specifier, ..
                     }) = self.collect.imports.get(&id)
                     {
-                      self.re_exports.push((
-                        exported,
-                        source.clone(),
-                        specifier.clone(),
-                        SourceLocation::from(&self.collect.source_map, named.span),
-                      ));
+                      self.re_exports.push(ImportedSymbol {
+                        source: source.clone(),
+                        local: exported,
+                        imported: specifier.clone(),
+                        loc: SourceLocation::from(&self.collect.source_map, named.span),
+                      });
                     } else {
                       // A variable will appear only once in the `exports` mapping but
                       // could be exported multiple times with different names.
@@ -259,10 +274,11 @@ impl<'a> Fold for Hoist<'a> {
                       } else {
                         self.get_export_ident(DUMMY_SP, orig_exported)
                       };
-                      self.exported_symbols.entry(exported).or_insert((
-                        id.sym,
-                        SourceLocation::from(&self.collect.source_map, named.span),
-                      ));
+                      self.exported_symbols.push(ExportedSymbol {
+                        local: id.sym,
+                        exported,
+                        loc: SourceLocation::from(&self.collect.source_map, named.span),
+                      });
                     }
                   }
                 }
@@ -281,12 +297,12 @@ impl<'a> Fold for Hoist<'a> {
                 },
                 type_only: false,
               })));
-              self.re_exports.push((
-                "*".into(),
-                export.src.value,
-                "*".into(),
-                SourceLocation::from(&self.collect.source_map, export.span),
-              ));
+              self.re_exports.push(ImportedSymbol {
+                source: export.src.value,
+                local: "*".into(),
+                imported: "*".into(),
+                loc: SourceLocation::from(&self.collect.source_map, export.span),
+              });
             }
             ModuleDecl::ExportDefaultExpr(export) => {
               let ident = self.get_export_ident(export.span, &"default".into());
@@ -582,14 +598,12 @@ impl<'a> Fold for Hoist<'a> {
                       hash!(key)
                     )
                     .into();
-                    self.imported_symbols.insert(
-                      name,
-                      (
-                        source.clone(),
-                        key.clone(),
-                        SourceLocation::from(&self.collect.source_map, member.span),
-                      ),
-                    );
+                    self.imported_symbols.push(ImportedSymbol {
+                      source: source.clone(),
+                      local: name,
+                      imported: key.clone(),
+                      loc: SourceLocation::from(&self.collect.source_map, member.span),
+                    });
                   } else {
                     return Expr::Ident(self.get_import_ident(
                       member.span,
@@ -676,14 +690,12 @@ impl<'a> Fold for Hoist<'a> {
           let name: JsWord = format!("${}$importAsync${:x}", self.module_id, hash!(source)).into();
           self.dynamic_imports.insert(name.clone(), source.clone());
           if self.collect.non_static_requires.contains(&source) || self.collect.should_wrap {
-            self.imported_symbols.insert(
-              name.clone(),
-              (
-                source,
-                "*".into(),
-                SourceLocation::from(&self.collect.source_map, call.span),
-              ),
-            );
+            self.imported_symbols.push(ImportedSymbol {
+              source: source,
+              local: name.clone(),
+              imported: "*".into(),
+              loc: SourceLocation::from(&self.collect.source_map, call.span),
+            });
           }
           return Expr::Ident(Ident::new(name, call.span));
         }
@@ -784,15 +796,21 @@ impl<'a> Fold for Hoist<'a> {
               hash!(specifier)
             )
             .into();
-            self
-              .imported_symbols
-              .insert(name, (source.clone(), specifier.clone(), loc.clone()));
+            self.imported_symbols.push(ImportedSymbol {
+              source: source.clone(),
+              local: name,
+              imported: specifier.clone(),
+              loc: loc.clone(),
+            });
           } else if self.collect.non_static_access.contains_key(&id!(node)) {
             let name: JsWord =
               format!("${}$importAsync${:x}", self.module_id, hash!(source)).into();
-            self
-              .imported_symbols
-              .insert(name, (source.clone(), "*".into(), loc.clone()));
+            self.imported_symbols.push(ImportedSymbol {
+              source: source.clone(),
+              local: name,
+              imported: "*".into(),
+              loc: loc.clone(),
+            });
           }
         } else {
           // If this identifier is not constant, we cannot directly reference the imported
@@ -813,10 +831,11 @@ impl<'a> Fold for Hoist<'a> {
       // If wrapped, mark the original symbol as exported.
       // Otherwise replace with an export identifier.
       if self.collect.should_wrap {
-        self.exported_symbols.entry(exported.clone()).or_insert((
-          node.sym.clone(),
-          SourceLocation::from(&self.collect.source_map, node.span),
-        ));
+        self.exported_symbols.push(ExportedSymbol {
+          local: node.sym.clone(),
+          exported: exported.clone(),
+          loc: SourceLocation::from(&self.collect.source_map, node.span),
+        });
         return node;
       } else {
         return self.get_export_ident(node.span, exported);
@@ -1007,13 +1026,16 @@ impl<'a> Hoist<'a> {
     &mut self,
     span: Span,
     source: &JsWord,
-    local: &JsWord,
+    imported: &JsWord,
     loc: SourceLocation,
   ) -> Ident {
-    let new_name = self.get_import_name(source, local);
-    self
-      .imported_symbols
-      .insert(new_name.clone(), (source.clone(), local.clone(), loc));
+    let new_name = self.get_import_name(source, imported);
+    self.imported_symbols.push(ImportedSymbol {
+      source: source.clone(),
+      local: new_name.clone(),
+      imported: imported.clone(),
+      loc: loc.clone(),
+    });
     Ident::new(new_name, span)
   }
 
@@ -1031,10 +1053,11 @@ impl<'a> Hoist<'a> {
       format!("${}$export${:x}", self.module_id, hash!(exported)).into()
     };
 
-    self.exported_symbols.entry(exported.clone()).or_insert((
-      new_name.clone(),
-      SourceLocation::from(&self.collect.source_map, span),
-    ));
+    self.exported_symbols.push(ExportedSymbol {
+      local: new_name.clone(),
+      exported: exported.clone(),
+      loc: SourceLocation::from(&self.collect.source_map, span),
+    });
 
     let mut span = span;
     span.ctxt = SyntaxContext::empty();
@@ -2054,8 +2077,8 @@ mod tests {
   macro_rules! assert_eq_imported_symbols {
     ($m: expr, $match: expr) => {{
       let mut map = HashMap::new();
-      for (key, val) in $m {
-        map.insert(key, (val.0, val.1));
+      for sym in $m {
+        map.insert(sym.local, (sym.source, sym.imported));
       }
       assert_eq!(map, $match);
     }};
