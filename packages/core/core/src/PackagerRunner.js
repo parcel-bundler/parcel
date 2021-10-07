@@ -563,7 +563,8 @@ export default class PackagerRunner {
         invalidationHash +
         bundle.target.publicUrl +
         bundleGraph.getHash(bundle) +
-        JSON.stringify(configResults),
+        JSON.stringify(configResults) +
+        this.options.mode,
     );
   }
 

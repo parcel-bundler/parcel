@@ -345,7 +345,8 @@ class BundlerRunner {
         assetGraph.getHash() +
         configs +
         devDepRequests +
-        invalidations,
+        invalidations +
+        this.options.mode,
     );
   }
 
