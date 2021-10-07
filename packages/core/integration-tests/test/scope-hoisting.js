@@ -5895,8 +5895,8 @@ describe('scope hoisting', function() {
 
     await overlayFS.mkdirp(packageDir);
     await overlayFS.copyFile(
-      path.join(packageDir, 'index1.js'),
-      path.join(packageDir, 'index.js'),
+      path.join(packageDir, 'b1.js'),
+      path.join(packageDir, 'b.js'),
     );
 
     await bundle(path.join(testDir, 'index.js'), {
@@ -5906,8 +5906,8 @@ describe('scope hoisting', function() {
     });
 
     await overlayFS.copyFile(
-      path.join(packageDir, 'index2.js'),
-      path.join(packageDir, 'index.js'),
+      path.join(packageDir, 'b2.js'),
+      path.join(packageDir, 'b.js'),
     );
 
     await bundle(path.join(testDir, 'index.js'), {
