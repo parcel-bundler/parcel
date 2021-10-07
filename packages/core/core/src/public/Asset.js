@@ -82,14 +82,14 @@ export function assetFromValue(
 
 class BaseAsset {
   #asset: CommittedAsset | UncommittedAsset;
-  #query: ?URLSearchParams;
+  #query /*: ?URLSearchParams */;
 
   constructor(asset: CommittedAsset | UncommittedAsset) {
     this.#asset = asset;
     _assetToAssetValue.set(this, asset.value);
   }
 
-  // $FlowFixMe
+  // $FlowFixMe[unsupported-syntax]
   [inspect](): string {
     return `Asset(${this.filePath})`;
   }
