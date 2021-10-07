@@ -1,5 +1,5 @@
 // hirestimestamp
-import { d1 } from "./d";
+import { d1 } from "./b";
 export default function c() {
   return d1;
 }

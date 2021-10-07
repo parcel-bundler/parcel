@@ -5890,23 +5890,24 @@ describe('scope hoisting', function() {
       __dirname,
       'integration/scope-hoisting/es6/unmarks-defer-for-new-deps',
     );
-    let packageDir = path.join(testDir, 'package');
+
+    let packageDir = path.join(testDir, '/package');
 
     await overlayFS.mkdirp(packageDir);
     await overlayFS.copyFile(
-      path.join(packageDir, 'a1.js'),
-      path.join(packageDir, 'a.js'),
+      path.join(packageDir, 'index1.js'),
+      path.join(packageDir, 'index.js'),
     );
 
     await bundle(path.join(testDir, 'index.js'), {
       inputFS: overlayFS,
       outputFS: overlayFS,
-      shouldDisableCache: false,
+      shouldDisableCache: true,
     });
 
     await overlayFS.copyFile(
-      path.join(packageDir, 'a2.js'),
-      path.join(packageDir, 'a.js'),
+      path.join(packageDir, 'index2.js'),
+      path.join(packageDir, 'index.js'),
     );
 
     await bundle(path.join(testDir, 'index.js'), {

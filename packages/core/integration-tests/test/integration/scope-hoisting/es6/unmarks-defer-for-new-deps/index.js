@@ -1,3 +1,3 @@
-import a from "./package/a";
+import {a} from "./package/";
 
 sideEffectNoop(a);

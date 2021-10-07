@@ -1,10 +1,9 @@
 // log
+import { v } from "./b";
 import c from "./c";
-import {v} from "./b";
 
-export default class A {
+export default class a {
   constructor() {
     c(v);
   }
 }
-
