@@ -1,4 +1,3 @@
-// log
 import { v } from "./b";
 import c from "./c";
 
