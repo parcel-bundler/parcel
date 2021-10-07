@@ -19,7 +19,6 @@ import type {
   Stats,
   MutableAssetSymbols as IMutableAssetSymbols,
   AssetSymbols as IAssetSymbols,
-  QueryParameters,
   BundleBehavior,
 } from '@parcel/types';
 import type {Asset as AssetValue, ParcelOptions} from '../types';
@@ -83,13 +82,14 @@ export function assetFromValue(
 
 class BaseAsset {
   #asset: CommittedAsset | UncommittedAsset;
+  #query /*: ?URLSearchParams */;
 
   constructor(asset: CommittedAsset | UncommittedAsset) {
     this.#asset = asset;
     _assetToAssetValue.set(this, asset.value);
   }
 
-  // $FlowFixMe
+  // $FlowFixMe[unsupported-syntax]
   [inspect](): string {
     return `Asset(${this.filePath})`;
   }
@@ -117,8 +117,11 @@ class BaseAsset {
     );
   }
 
-  get query(): QueryParameters {
-    return this.#asset.value.query ?? {};
+  get query(): URLSearchParams {
+    if (!this.#query) {
+      this.#query = new URLSearchParams(this.#asset.value.query ?? '');
+    }
+    return this.#query;
   }
 
   get meta(): Meta {
