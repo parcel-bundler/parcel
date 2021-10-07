@@ -222,11 +222,16 @@ export default (new Transformer({
         }
       }
 
-      isJSX = Boolean(
-        compilerOptions?.jsx ||
-          pragma ||
-          JSX_EXTENSIONS[path.extname(config.searchPath)],
-      );
+      let ext = path.extname(config.searchPath);
+      if (ext === '.ts') {
+        isJSX = false;
+      } else {
+        isJSX = Boolean(
+          compilerOptions?.jsx ||
+            pragma ||
+            JSX_EXTENSIONS[path.extname(config.searchPath)],
+        );
+      }
 
       decorators = compilerOptions?.experimentalDecorators;
     }

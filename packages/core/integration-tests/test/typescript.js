@@ -193,5 +193,15 @@ describe('typescript', function() {
         fromTsx: text,
       });
     });
+
+    it('should handle legacy cast in .ts file', async function() {
+      if (config != null) {
+        return;
+      }
+      await bundle(
+        path.join(__dirname, '/integration/typescript-legacy-cast/index.ts'),
+        {config},
+      );
+    });
   }
 });
