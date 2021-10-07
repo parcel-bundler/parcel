@@ -5885,7 +5885,7 @@ describe('scope hoisting', function() {
     assert.equal(res.output, 'a');
   });
 
-  it.only('should ', async function() {
+  it('should unmark dependency as deferred when dependency becomes used', async function() {
     let testDir = path.join(
       __dirname,
       'integration/scope-hoisting/es6/unmarks-defer-for-new-deps',

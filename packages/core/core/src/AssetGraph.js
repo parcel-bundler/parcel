@@ -306,7 +306,8 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
     node.hasDeferred = defer;
     childNode.deferred = defer;
 
-    if (!previouslyDeferred && defer) {
+    if (defer) {
+      //!previouslyDeferred &&
       this.markParentsWithHasDeferred(nodeId);
     } else if (previouslyDeferred && !defer) {
       this.unmarkParentsWithHasDeferred(childNodeId);
