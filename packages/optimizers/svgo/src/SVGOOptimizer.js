@@ -29,7 +29,24 @@ export default (new Optimizer({
     }
 
     let code = await blobToString(contents);
-    let result = svgo.optimize(code, config);
+    let result = svgo.optimize(code, {
+      plugins: [
+        {
+          name: 'preset-default',
+          params: {
+            overrides: {
+              // Removing ids could break SVG sprites.
+              cleanupIDs: false,
+              // <style> elements and attributes are already minified before they
+              // are re-inserted by the packager.
+              minifyStyles: false,
+            },
+          },
+        },
+      ],
+      ...config,
+    });
+
     if (result.error != null) {
       throw new ThrowableDiagnostic({
         diagnostic: {

@@ -22,5 +22,8 @@ declare module 'posthtml-parser' {
     }
   ) => PostHTMLNode;
 
-  declare module.exports: typeof parser;
+  declare module.exports: {
+    parser: typeof parser;
+    ...
+  }
 }

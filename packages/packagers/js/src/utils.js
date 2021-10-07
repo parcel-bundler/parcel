@@ -27,7 +27,7 @@ export function replaceScriptDependencies(
     }
 
     let dep = nullthrows(dependencies.find(d => getSpecifier(d) === s));
-    let resolved = nullthrows(bundleGraph.getDependencyResolution(dep, bundle));
+    let resolved = nullthrows(bundleGraph.getResolvedAsset(dep, bundle));
     let publicId = bundleGraph.getAssetPublicId(resolved);
     let replacement = `${parcelRequireName}("${publicId}")`;
     if (map) {

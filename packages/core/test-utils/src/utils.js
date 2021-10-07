@@ -24,7 +24,7 @@ import path from 'path';
 import url from 'url';
 import WebSocket from 'ws';
 import nullthrows from 'nullthrows';
-import postHtmlParse from 'posthtml-parser';
+import {parser as postHtmlParse} from 'posthtml-parser';
 import postHtml from 'posthtml';
 import EventEmitter from 'events';
 
@@ -310,7 +310,8 @@ export async function runBundles(
       promises = prepared.promises;
       break;
     }
-    case 'web-worker': {
+    case 'web-worker':
+    case 'service-worker': {
       let prepared = prepareWorkerContext(parent.filePath, globals);
       ctx = prepared.ctx;
       promises = prepared.promises;
@@ -416,7 +417,7 @@ export async function runBundle(
       lowerCaseAttributeNames: true,
     });
 
-    let bundles = bundleGraph.getBundles();
+    let bundles = bundleGraph.getBundles({includeInline: true});
     let scripts = [];
     postHtml().walk.call(ast, node => {
       if (node.attrs?.nomodule != null) {

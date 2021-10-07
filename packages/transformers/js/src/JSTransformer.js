@@ -1,6 +1,7 @@
 // @flow
 import type {JSONObject, EnvMap} from '@parcel/types';
 import type {SchemaEntity} from '@parcel/utils';
+import type {Diagnostic} from '@parcel/diagnostic';
 import SourceMap from '@parcel/source-map';
 import {Transformer} from '@parcel/plugin';
 import {init, transform} from '../native';
@@ -111,7 +112,7 @@ type PackageJSONConfig = {|
 const SCRIPT_ERRORS = {
   browser: {
     message: 'Browser scripts cannot have imports or exports.',
-    hint: 'Add type="module" as a second argument to the <script> tag.',
+    hint: 'Add the type="module" attribute to the <script> tag.',
   },
   'web-worker': {
     message:
@@ -279,7 +280,7 @@ export default (new Transformer({
       decorators,
     };
   },
-  async transform({asset, config, options}) {
+  async transform({asset, config, options, logger}) {
     let [code, originalMap] = await Promise.all([
       asset.getBuffer(),
       asset.getMap(),
@@ -399,6 +400,7 @@ export default (new Transformer({
       supports_module_workers: supportsModuleWorkers,
       is_library: asset.env.isLibrary,
       is_esm_output: asset.env.outputFormat === 'esmodule',
+      trace_bailouts: options.logLevel === 'verbose',
     });
 
     let convertLoc = loc => {
@@ -423,59 +425,79 @@ export default (new Transformer({
     };
 
     if (diagnostics) {
-      throw new ThrowableDiagnostic({
-        diagnostic: diagnostics.map(diagnostic => {
-          let message = diagnostic.message;
-          if (message === 'SCRIPT_ERROR') {
-            let err = SCRIPT_ERRORS[(asset.env.context: string)];
-            message = err?.message || SCRIPT_ERRORS.browser.message;
+      let errors = diagnostics.filter(
+        d =>
+          d.severity === 'Error' ||
+          (d.severity === 'SourceError' && asset.isSource),
+      );
+      let warnings = diagnostics.filter(
+        d =>
+          d.severity === 'Warning' ||
+          (d.severity === 'SourceError' && !asset.isSource),
+      );
+      let convertDiagnostic = diagnostic => {
+        let message = diagnostic.message;
+        if (message === 'SCRIPT_ERROR') {
+          let err = SCRIPT_ERRORS[(asset.env.context: string)];
+          message = err?.message || SCRIPT_ERRORS.browser.message;
+        }
+
+        let res: Diagnostic = {
+          message,
+          codeFrames: [
+            {
+              filePath: asset.filePath,
+              codeHighlights: diagnostic.code_highlights?.map(highlight => {
+                let {start, end} = convertLoc(highlight.loc);
+                return {
+                  message: highlight.message,
+                  start,
+                  end,
+                };
+              }),
+            },
+          ],
+          hints: diagnostic.hints,
+        };
+
+        if (diagnostic.documentation_url) {
+          res.documentationURL = diagnostic.documentation_url;
+        }
+
+        if (diagnostic.show_environment) {
+          if (asset.env.loc && asset.env.loc.filePath !== asset.filePath) {
+            res.codeFrames?.push({
+              filePath: asset.env.loc.filePath,
+              codeHighlights: [
+                {
+                  start: asset.env.loc.start,
+                  end: asset.env.loc.end,
+                  message: 'The environment was originally created here',
+                },
+              ],
+            });
           }
 
-          let res = {
-            message,
-            codeFrames: [
-              {
-                filePath: asset.filePath,
-                codeHighlights: diagnostic.code_highlights?.map(highlight => {
-                  let {start, end} = convertLoc(highlight.loc);
-                  return {
-                    message: highlight.message,
-                    start,
-                    end,
-                  };
-                }),
-              },
-            ],
-            hints: diagnostic.hints,
-          };
-
-          if (diagnostic.show_environment) {
-            if (asset.env.loc && asset.env.loc.filePath !== asset.filePath) {
-              res.codeFrames.push({
-                filePath: asset.env.loc.filePath,
-                codeHighlights: [
-                  {
-                    start: asset.env.loc.start,
-                    end: asset.env.loc.end,
-                    message: 'The environment was originally created here',
-                  },
-                ],
-              });
-            }
-
-            let err = SCRIPT_ERRORS[(asset.env.context: string)];
-            if (err) {
-              if (!res.hints) {
-                res.hints = [err.hint];
-              } else {
-                res.hints.push(err.hint);
-              }
+          let err = SCRIPT_ERRORS[(asset.env.context: string)];
+          if (err) {
+            if (!res.hints) {
+              res.hints = [err.hint];
+            } else {
+              res.hints.push(err.hint);
             }
           }
+        }
 
-          return res;
-        }),
-      });
+        return res;
+      };
+
+      if (errors.length > 0) {
+        throw new ThrowableDiagnostic({
+          diagnostic: errors.map(convertDiagnostic),
+        });
+      }
+
+      logger.warn(warnings.map(convertDiagnostic));
     }
 
     if (shebang) {
@@ -546,7 +568,7 @@ export default (new Transformer({
             placeholder: dep.placeholder,
           },
         });
-      } else if (dep.kind === 'URL') {
+      } else if (dep.kind === 'Url') {
         asset.addURLDependency(dep.specifier, {
           bundleBehavior: 'isolated',
           loc: convertLoc(dep.loc),
@@ -568,10 +590,13 @@ export default (new Transformer({
 
         let env;
         if (dep.kind === 'DynamicImport') {
-          if (asset.env.isWorklet()) {
+          // https://html.spec.whatwg.org/multipage/webappapis.html#hostimportmoduledynamically(referencingscriptormodule,-modulerequest,-promisecapability)
+          if (asset.env.isWorklet() || asset.env.context === 'service-worker') {
             let loc = convertLoc(dep.loc);
             let diagnostic = {
-              message: 'import() is not allowed in worklets.',
+              message: `import() is not allowed in ${
+                asset.env.isWorklet() ? 'worklets' : 'service workers'
+              }.`,
               codeFrames: [
                 {
                   filePath: asset.filePath,
@@ -649,9 +674,8 @@ export default (new Transformer({
     asset.meta.id = asset.id;
     if (hoist_result) {
       asset.symbols.ensure();
-      for (let symbol in hoist_result.exported_symbols) {
-        let [local, loc] = hoist_result.exported_symbols[symbol];
-        asset.symbols.set(symbol, local, convertLoc(loc));
+      for (let {exported, local, loc} of hoist_result.exported_symbols) {
+        asset.symbols.set(exported, local, convertLoc(loc));
       }
 
       let deps = new Map(
@@ -663,25 +687,29 @@ export default (new Transformer({
         dep.symbols.ensure();
       }
 
-      for (let name in hoist_result.imported_symbols) {
-        let [specifier, exported, loc] = hoist_result.imported_symbols[name];
-        let dep = deps.get(specifier);
+      for (let {
+        source,
+        local,
+        imported,
+        loc,
+      } of hoist_result.imported_symbols) {
+        let dep = deps.get(source);
         if (!dep) continue;
-        dep.symbols.set(exported, name, convertLoc(loc));
+        dep.symbols.set(imported, local, convertLoc(loc));
       }
 
-      for (let [name, specifier, exported, loc] of hoist_result.re_exports) {
-        let dep = deps.get(specifier);
+      for (let {source, local, imported, loc} of hoist_result.re_exports) {
+        let dep = deps.get(source);
         if (!dep) continue;
 
-        if (name === '*' && exported === '*') {
+        if (local === '*' && imported === '*') {
           dep.symbols.set('*', '*', convertLoc(loc), true);
         } else {
           let reExportName =
-            dep.symbols.get(exported)?.local ??
-            `$${asset.id}$re_export$${name}`;
-          asset.symbols.set(name, reExportName);
-          dep.symbols.set(exported, reExportName, convertLoc(loc), true);
+            dep.symbols.get(imported)?.local ??
+            `$${asset.id}$re_export$${local}`;
+          asset.symbols.set(local, reExportName);
+          dep.symbols.set(imported, reExportName, convertLoc(loc), true);
         }
       }
 

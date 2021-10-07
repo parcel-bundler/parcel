@@ -1,6 +1,6 @@
 {
   "name": "@parcel/transformer-js",
-  "version": "2.0.0-beta.3.1",
+  "version": "2.0.0-rc.0",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -30,10 +30,10 @@
     "*.node"
   ],
   "dependencies": {
-    "@parcel/diagnostic": "2.0.0-beta.3.1",
-    "@parcel/plugin": "2.0.0-beta.3.1",
-    "@parcel/source-map": "2.0.0-rc.5",
-    "@parcel/utils": "2.0.0-beta.3.1",
+    "@parcel/diagnostic": "2.0.0-rc.0",
+    "@parcel/plugin": "2.0.0-rc.0",
+    "@parcel/source-map": "2.0.0-rc.7",
+    "@parcel/utils": "2.0.0-rc.0",
     "@swc/helpers": "^0.2.11",
     "browserslist": "^4.6.6",
     "detect-libc": "^1.0.3",
@@ -44,7 +44,7 @@
   },
   "devDependencies": {
     "@napi-rs/cli": "1.0.4",
-    "self-published": "npm:@parcel/transformer-js@2.0.0-beta.3.1"
+    "self-published": "npm:@parcel/transformer-js@2.0.0-rc.0"
   },
   "scripts": {
     "build": "napi build --platform --cargo-cwd napi",

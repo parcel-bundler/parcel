@@ -120,9 +120,7 @@ export class ScopeHoistingPackager {
       this.bundle.env.isLibrary ||
       this.bundle.env.outputFormat === 'commonjs'
     ) {
-      let bundles = this.bundleGraph
-        .getReferencedBundles(this.bundle)
-        .filter(b => b.bundleBehavior !== 'inline');
+      let bundles = this.bundleGraph.getReferencedBundles(this.bundle);
       for (let b of bundles) {
         this.externals.set(relativeBundlePath(this.bundle, b), new Map());
       }
@@ -243,10 +241,10 @@ export class ScopeHoistingPackager {
         asset.meta.shouldWrap ||
         this.isAsyncBundle ||
         this.bundle.env.sourceType === 'script' ||
-        this.bundleGraph.isAssetReferencedByDependant(this.bundle, asset) ||
+        this.bundleGraph.isAssetReferenced(this.bundle, asset) ||
         this.bundleGraph
           .getIncomingDependencies(asset)
-          .some(dep => dep.meta.shouldWrap)
+          .some(dep => dep.meta.shouldWrap && dep.specifierType !== 'url')
       ) {
         this.wrappedAssets.add(asset.id);
         return true;
@@ -364,10 +362,7 @@ export class ScopeHoistingPackager {
       let depCode = '';
       let lineCount = 0;
       for (let dep of deps) {
-        let resolved = this.bundleGraph.getDependencyResolution(
-          dep,
-          this.bundle,
-        );
+        let resolved = this.bundleGraph.getResolvedAsset(dep, this.bundle);
         let skipped = this.bundleGraph.isDependencySkipped(dep);
         if (!resolved || skipped) {
           continue;
@@ -430,10 +425,7 @@ export class ScopeHoistingPackager {
             return m;
           }
 
-          let resolved = this.bundleGraph.getDependencyResolution(
-            dep,
-            this.bundle,
-          );
+          let resolved = this.bundleGraph.getResolvedAsset(dep, this.bundle);
           let skipped = this.bundleGraph.isDependencySkipped(dep);
           if (resolved && !skipped) {
             // Hoist variable declarations for the referenced parcelRequire dependencies
@@ -556,7 +548,7 @@ ${code}
           ? // Prefer the underlying asset over a runtime to load it. It will
             // be wrapped in Promise.resolve() later.
             asyncResolution.value
-          : this.bundleGraph.getDependencyResolution(dep, this.bundle);
+          : this.bundleGraph.getResolvedAsset(dep, this.bundle);
       if (
         !resolved &&
         !dep.isOptional &&
@@ -629,7 +621,7 @@ ${code}
           continue;
         }
 
-        let symbol = this.resolveSymbol(asset, resolved, imported, dep);
+        let symbol = this.getSymbolResolution(asset, resolved, imported, dep);
         replacements.set(
           local,
           // If this was an internalized async asset, wrap in a Promise.resolve.
@@ -645,7 +637,7 @@ ${code}
       if (dep.priority === 'lazy' && dep.meta.promiseSymbol) {
         let promiseSymbol = dep.meta.promiseSymbol;
         invariant(typeof promiseSymbol === 'string');
-        let symbol = this.resolveSymbol(asset, resolved, '*', dep);
+        let symbol = this.getSymbolResolution(asset, resolved, '*', dep);
         replacements.set(
           promiseSymbol,
           asyncResolution?.type === 'asset'
@@ -702,7 +694,7 @@ ${code}
     return external;
   }
 
-  resolveSymbol(
+  getSymbolResolution(
     parentAsset: Asset,
     resolved: Asset,
     imported: string,
@@ -712,7 +704,7 @@ ${code}
       asset: resolvedAsset,
       exportSymbol,
       symbol,
-    } = this.bundleGraph.resolveSymbol(resolved, imported, this.bundle);
+    } = this.bundleGraph.getSymbolResolution(resolved, imported, this.bundle);
     if (resolvedAsset.type !== 'js') {
       // Graceful fallback for non-js imports
       return '{}';
@@ -749,7 +741,7 @@ ${code}
       exportSymbol === 'default' &&
       staticExports &&
       !isWrapped &&
-      dep?.meta.kind === 'Import' &&
+      (dep?.meta.kind === 'Import' || dep?.meta.kind === 'Export') &&
       resolvedAsset.symbols.hasExportSymbol('*') &&
       resolvedAsset.symbols.hasExportSymbol('default') &&
       !resolvedAsset.symbols.hasExportSymbol('__esModule');
@@ -779,8 +771,9 @@ ${code}
       // we need to use a member access off the namespace object rather
       // than a direct reference. If importing default from a CJS module,
       // use a helper to check the __esModule flag at runtime.
+      let kind = dep?.meta.kind;
       if (
-        dep?.meta.kind === 'Import' &&
+        (!dep || kind === 'Import' || kind === 'Export') &&
         exportSymbol === 'default' &&
         resolvedAsset.symbols.hasExportSymbol('*') &&
         this.needsDefaultInterop(resolvedAsset)
@@ -943,7 +936,7 @@ ${code}
         // additional assignments after each mutation of the original binding.
         prepend += `\n${usedExports
           .map(exp => {
-            let resolved = this.resolveSymbol(asset, asset, exp);
+            let resolved = this.getSymbolResolution(asset, asset, exp);
             let get = this.buildFunctionExpression([], resolved);
             let set = asset.meta.hasCJSExports
               ? ', ' + this.buildFunctionExpression(['v'], `${resolved} = v`)
@@ -959,10 +952,7 @@ ${code}
 
       // Find wildcard re-export dependencies, and make sure their exports are also included in ours.
       for (let dep of deps) {
-        let resolved = this.bundleGraph.getDependencyResolution(
-          dep,
-          this.bundle,
-        );
+        let resolved = this.bundleGraph.getResolvedAsset(dep, this.bundle);
         if (dep.isOptional || this.bundleGraph.isDependencySkipped(dep)) {
           continue;
         }
@@ -989,12 +979,19 @@ ${code}
               resolved.meta.staticExports === false ||
               this.bundleGraph.getUsedSymbols(resolved).has('*')
             ) {
-              let obj = this.resolveSymbol(asset, resolved, '*', dep);
+              let obj = this.getSymbolResolution(asset, resolved, '*', dep);
               append += `$parcel$exportWildcard($${assetId}$exports, ${obj});\n`;
               this.usedHelpers.add('$parcel$exportWildcard');
             } else {
               for (let symbol of this.bundleGraph.getUsedSymbols(dep)) {
-                let resolvedSymbol = this.resolveSymbol(
+                if (
+                  symbol === 'default' || // `export * as ...` does not include the default export
+                  symbol === '__esModule'
+                ) {
+                  continue;
+                }
+
+                let resolvedSymbol = this.getSymbolResolution(
                   asset,
                   resolved,
                   symbol,
@@ -1134,7 +1131,7 @@ ${code}
     return (
       asset.sideEffects === false &&
       this.bundleGraph.getUsedSymbols(asset).size == 0 &&
-      !this.bundleGraph.isAssetReferencedByDependant(this.bundle, asset)
+      !this.bundleGraph.isAssetReferenced(this.bundle, asset)
     );
   }
 

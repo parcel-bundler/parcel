@@ -170,7 +170,41 @@ describe('html', function() {
     assert(/<link rel="canonical" href="\.?\/index.html">/.test(html));
   });
 
-  it('should support meta tag with none content', async function() {
+  it('should support RSS feed links', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-feed/rss.html'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'rss.html',
+        assets: ['rss.html'],
+      },
+      {
+        name: 'feed.xml',
+        assets: ['feed.xml'],
+      },
+    ]);
+  });
+
+  it('should support atom feed links', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-feed/atom.html'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'atom.html',
+        assets: ['atom.html'],
+      },
+      {
+        name: 'feed.xml',
+        assets: ['feed.xml'],
+      },
+    ]);
+  });
+
+  it('should support meta tags', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-meta/index.html'),
     );
@@ -180,13 +214,23 @@ describe('html', function() {
         name: 'index.html',
         assets: ['index.html'],
       },
+      {
+        name: 'logo.svg',
+        assets: ['logo.svg'],
+      },
     ]);
 
     let html = await outputFS.readFile(
       path.join(distDir, 'index.html'),
       'utf8',
     );
-    assert(/<meta name="msapplication-config" content="none">/.test(html));
+    assert(html.includes(`<meta name="msapplication-config" content="none">`));
+    assert(html.includes(`<meta property="og:image" content="/logo.svg">`));
+    assert(
+      html.includes(
+        `<meta name="twitter:image" content="https://parceljs.org/assets/logo.svg">`,
+      ),
+    );
   });
 
   it('should insert sibling CSS bundles for JS files in the HEAD', async function() {
@@ -455,6 +499,38 @@ describe('html', function() {
     let outputFile = path.join(distDir, 'index.html');
     let html = await outputFS.readFile(outputFile, 'utf8');
     assert.equal(html.length, 0);
+  });
+
+  it('should work with an invalid html file', async function() {
+    let inputFile = path.join(
+      __dirname,
+      '/integration/html-invalid/index.html',
+    );
+    await bundle(inputFile, {
+      defaultTargetOptions: {
+        shouldOptimize: false,
+      },
+    });
+
+    let outputFile = path.join(distDir, 'index.html');
+    let html = await outputFS.readFile(outputFile, 'utf8');
+    assert(html.includes('This is a paragraph'));
+  });
+
+  it("should work with html that doesn't include optional closing tags", async function() {
+    let inputFile = path.join(
+      __dirname,
+      '/integration/html-optional-closing-tags/index.html',
+    );
+    await bundle(inputFile, {
+      defaultTargetOptions: {
+        shouldOptimize: false,
+      },
+    });
+
+    let outputFile = path.join(distDir, 'index.html');
+    let html = await outputFS.readFile(outputFile, 'utf8');
+    assert(html.includes('Paragraph 1'));
   });
 
   it('should read .htmlnanorc.json and minify HTML in production mode', async function() {
@@ -1242,9 +1318,9 @@ describe('html', function() {
               ],
             },
           ],
-          hints: [
-            'Add type="module" as a second argument to the <script> tag.',
-          ],
+          hints: ['Add the type="module" attribute to the <script> tag.'],
+          documentationURL:
+            'https://parceljs.org/languages/javascript/#classic-scripts',
         },
       ]);
 
@@ -1523,9 +1599,9 @@ describe('html', function() {
               ],
             },
           ],
-          hints: [
-            'Add type="module" as a second argument to the <script> tag.',
-          ],
+          hints: ['Add the type="module" attribute to the <script> tag.'],
+          documentationURL:
+            'https://parceljs.org/languages/javascript/#classic-scripts',
         },
       ]);
 
@@ -2224,7 +2300,7 @@ describe('html', function() {
 
     bundleGraph.traverseBundles(bundle => {
       bundle.traverseAssets(asset => {
-        let bundles = bundleGraph.findBundlesWithAsset(asset);
+        let bundles = bundleGraph.getBundlesWithAsset(asset);
         assert.equal(
           bundles.length,
           1,
@@ -2432,7 +2508,7 @@ describe('html', function() {
     );
     assert.equal(
       contents.trim(),
-      `<img src="data:image/svg+xml,%3Csvg%20width%3D%22120%22%20height%3D%27120%27%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%0A%20%20%3Cfilter%20id%3D%22blur-_.%21~%2a%22%3E%0A%20%20%20%20%3CfeGaussianBlur%20stdDeviation%3D%225%22%2F%3E%0A%20%20%3C%2Ffilter%3E%0A%20%20%3Ccircle%20cx%3D%2260%22%20cy%3D%2260%22%20r%3D%2250%22%20fill%3D%22green%22%20filter%3D%22url%28%23blur-_.%21~%2a%29%22%20%2F%3E%0A%3C%2Fsvg%3E%0A">`,
+      `<img src="data:image/svg+xml,%3Csvg%20width%3D%22120%22%20height%3D%22120%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%0A%20%20%3Cfilter%20id%3D%22blur-_.%21~%2a%22%3E%0A%20%20%20%20%3CfeGaussianBlur%20stdDeviation%3D%225%22%3E%3C%2FfeGaussianBlur%3E%0A%20%20%3C%2Ffilter%3E%0A%20%20%3Ccircle%20cx%3D%2260%22%20cy%3D%2260%22%20r%3D%2250%22%20fill%3D%22green%22%20filter%3D%22url%28%27%23blur-_.%21~%2a%27%29%22%3E%3C%2Fcircle%3E%0A%3C%2Fsvg%3E%0A">`,
     );
   });
 
