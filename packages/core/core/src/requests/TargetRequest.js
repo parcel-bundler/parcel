@@ -593,7 +593,7 @@ export class TargetResolver {
                 `The "${targetName}" field is meant for libraries. If you meant to output a ${ext} file, either remove the "${targetName}" field or choose a different target name.`,
               ],
               documentationURL:
-                'https://v2.parceljs.org/features/targets/#library-targets',
+                'https://parceljs.org/features/targets/#library-targets',
             },
           });
         }
@@ -625,7 +625,7 @@ export class TargetResolver {
                 `The "${targetName}" field is meant for libraries. The outputFormat must be either "commonjs" or "esmodule". Either change or remove the declared outputFormat.`,
               ],
               documentationURL:
-                'https://v2.parceljs.org/features/targets/#library-targets',
+                'https://parceljs.org/features/targets/#library-targets',
             },
           });
         }
@@ -684,7 +684,7 @@ export class TargetResolver {
                 `Either change the output file extension to .mjs, add "type": "module" to package.json, or remove the declared outputFormat.`,
               ],
               documentationURL:
-                'https://v2.parceljs.org/features/targets/#library-targets',
+                'https://parceljs.org/features/targets/#library-targets',
             },
           });
         }
@@ -716,7 +716,7 @@ export class TargetResolver {
                 `The "${targetName}" target is meant for libraries. Either remove the "scopeHoist" option, or use a different target name.`,
               ],
               documentationURL:
-                'https://v2.parceljs.org/features/targets/#library-targets',
+                'https://parceljs.org/features/targets/#library-targets',
             },
           });
         }
@@ -859,7 +859,7 @@ export class TargetResolver {
               ],
               hints: [`Either remove the "scopeHoist" or "isLibrary" option.`],
               documentationURL:
-                'https://v2.parceljs.org/features/targets/#library-targets',
+                'https://parceljs.org/features/targets/#library-targets',
             },
           });
         }
@@ -1027,7 +1027,7 @@ export class TargetResolver {
                 )}.`,
           ],
           documentationURL:
-            'https://v2.parceljs.org/features/targets/#library-targets',
+            'https://parceljs.org/features/targets/#library-targets',
         },
       });
     }
@@ -1251,9 +1251,9 @@ function assertTargetsAreNotEntries(
             (COMMON_TARGETS[target.name]
               ? `The "${target.name}" field is an _output_ file path so that your build can be consumed by other tools. `
               : '') +
-              `Change the "${target.name}" field to point to an output file rather than your source code. See https://v2.parceljs.org/configuration/package-json for more information.`,
+              `Change the "${target.name}" field to point to an output file rather than your source code.`,
           ],
-          documentationURL: 'https://v2.parceljs.org/features/targets/',
+          documentationURL: 'https://parceljs.org/features/targets/',
         },
       });
     }

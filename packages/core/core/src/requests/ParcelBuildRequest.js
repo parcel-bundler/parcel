@@ -14,6 +14,7 @@ import createBundleGraphRequest from './BundleGraphRequest';
 import createWriteBundlesRequest from './WriteBundlesRequest';
 import {assertSignalNotAborted} from '../utils';
 import dumpGraphToGraphViz from '../dumpGraphToGraphViz';
+import {bundleGraphEdgeTypes} from '../BundleGraph';
 
 type ParcelBuildRequestInput = {|
   optionsRef: SharedReference,
@@ -72,10 +73,15 @@ async function run({input, api, options}: RunInput) {
     optionsRef,
   });
 
-  let bundleGraph = await api.runRequest(bundleGraphRequest);
+  let {bundleGraph, changedAssets: changedRuntimeAssets} = await api.runRequest(
+    bundleGraphRequest,
+  );
+  for (let [id, asset] of changedRuntimeAssets) {
+    changedAssets.set(id, asset);
+  }
 
   // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381 (Windows only)
-  dumpGraphToGraphViz(bundleGraph._graph, 'BundleGraph');
+  dumpGraphToGraphViz(bundleGraph._graph, 'BundleGraph', bundleGraphEdgeTypes);
 
   let writeBundlesRequest = createWriteBundlesRequest({
     bundleGraph,

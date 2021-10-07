@@ -1,9 +1,9 @@
 // @flow
 
 import {Transformer} from '@parcel/plugin';
-import parse from 'posthtml-parser';
+import {parser as parse} from 'posthtml-parser';
 import nullthrows from 'nullthrows';
-import render from 'posthtml-render';
+import {render} from 'posthtml-render';
 import semver from 'semver';
 import collectDependencies from './dependencies';
 import extractInlineAssets from './inline';
@@ -21,13 +21,15 @@ export default (new Transformer({
         lowerCaseTags: true,
         lowerCaseAttributeNames: true,
         sourceLocations: true,
+        xmlMode: asset.type === 'xhtml',
       }),
     };
   },
 
   async transform({asset, options}) {
-    // Handle .htm
-    asset.type = 'html';
+    if (asset.type === 'htm') {
+      asset.type = 'html';
+    }
     asset.bundleBehavior = 'isolated';
     let ast = nullthrows(await asset.getAST());
     let hasScripts = collectDependencies(asset, ast);
@@ -65,9 +67,11 @@ export default (new Transformer({
     return result;
   },
 
-  generate({ast}) {
+  generate({ast, asset}) {
     return {
-      content: render(ast.program),
+      content: render(ast.program, {
+        closingSingleTag: asset.type === 'xhtml' ? 'slash' : undefined,
+      }),
     };
   },
 }): Transformer);

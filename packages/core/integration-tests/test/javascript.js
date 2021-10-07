@@ -62,16 +62,19 @@ describe('javascript', function() {
   it('should support url: imports of another javascript file', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/worklet/pipeline.js'),
+      {
+        mode: 'production',
+      },
     );
 
     assertBundles(b, [
       {
         name: 'pipeline.js',
-        assets: ['bundle-url.js', 'pipeline.js', 'esmodule-helpers.js'],
+        assets: ['bundle-url.js', 'pipeline.js', 'bundle-manifest.js'],
       },
       {
         type: 'js',
-        assets: ['worklet.js'],
+        assets: ['worklet.js', 'colors.js'],
       },
     ]);
 
@@ -112,7 +115,7 @@ describe('javascript', function() {
       },
       {
         type: 'js',
-        assets: ['worklet.js'],
+        assets: ['worklet.js', 'colors.js', 'esmodule-helpers.js'],
       },
     ]);
 
@@ -146,7 +149,7 @@ describe('javascript', function() {
       },
       {
         type: 'js',
-        assets: ['worklet.js'],
+        assets: ['worklet.js', 'colors.js', 'esmodule-helpers.js'],
       },
     ]);
 
@@ -240,21 +243,24 @@ describe('javascript', function() {
   it('should support audio worklets via a pipeline', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/worklet/worklet-pipeline.js'),
+      {
+        mode: 'production',
+      },
     );
 
     assertBundles(b, [
       {
         name: 'worklet-pipeline.js',
-        assets: ['bundle-url.js', 'esmodule-helpers.js', 'worklet-pipeline.js'],
+        assets: ['bundle-url.js', 'bundle-manifest.js', 'worklet-pipeline.js'],
       },
       {
         type: 'js',
-        assets: ['worklet.js'],
+        assets: ['worklet.js', 'colors.js'],
       },
     ]);
 
     let res = await run(b);
-    assert(/^http:\/\/localhost\/worklet\.[0-9a-f]+\.js$/.test(res.default));
+    assert(/^http:\/\/localhost\/worklet\.[0-9a-f]+\.js$/.test(res));
 
     let name;
     await runBundle(
@@ -1256,7 +1262,7 @@ describe('javascript', function() {
             "Add {type: 'module'} as a second argument to the Worker constructor.",
           ],
           documentationURL:
-            'https://v2.parceljs.org/languages/javascript/#classic-scripts',
+            'https://parceljs.org/languages/javascript/#classic-scripts',
         },
       ]);
     }
@@ -1361,7 +1367,7 @@ describe('javascript', function() {
                   : 'navigator.serviceWorker.register() call.'),
             ],
             documentationURL:
-              'https://v2.parceljs.org/languages/javascript/#classic-script-workers',
+              'https://parceljs.org/languages/javascript/#classic-script-workers',
           },
         ]);
       }
@@ -1579,12 +1585,45 @@ describe('javascript', function() {
             "Add {type: 'module'} as a second argument to the navigator.serviceWorker.register() call.",
           ],
           documentationURL:
-            'https://v2.parceljs.org/languages/javascript/#classic-scripts',
+            'https://parceljs.org/languages/javascript/#classic-scripts',
         },
       ]);
     }
 
     assert(errored);
+  });
+
+  it('should expose a manifest to service workers', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/service-worker/manifest.js'),
+      {
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
+      },
+    );
+
+    assertBundles(b, [
+      {
+        name: 'manifest.js',
+        assets: ['manifest.js', 'bundle-url.js'],
+      },
+      {
+        assets: ['manifest-worker.js', 'service-worker.js'],
+      },
+    ]);
+
+    let bundles = b.getBundles();
+    let worker = bundles.find(b => b.env.isWorker());
+    let manifest, version;
+    await await runBundle(b, worker, {
+      output(m, v) {
+        manifest = m;
+        version = v;
+      },
+    });
+    assert.deepEqual(manifest, ['/manifest.js']);
+    assert.equal(typeof version, 'string');
   });
 
   it('should recognize serviceWorker.register with static URL and import.meta.url', async function() {
@@ -2901,6 +2940,16 @@ describe('javascript', function() {
     assert.equal(output, 'productiontest');
   });
 
+  it('should overwrite environment variables from a file if passed', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/env-file/index.js'),
+      {env: {BAR: 'baz'}},
+    );
+
+    let output = await run(b);
+    assert.equal(output, 'barbaz');
+  });
+
   it('should error on process.env mutations', async function() {
     let filePath = path.join(__dirname, '/integration/env-mutate/index.js');
     await assert.rejects(bundle(filePath), {
@@ -4146,6 +4195,27 @@ describe('javascript', function() {
     assert.equal(log, 'hi');
   });
 
+  it("should inline a JS bundle's compiled text with `bundle-text` with symbol propagation", async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/bundle-text/javascript.js'),
+      {
+        mode: 'production',
+      },
+    );
+
+    let res = await run(b);
+    let log;
+    let ctx = vm.createContext({
+      console: {
+        log(x) {
+          log = x;
+        },
+      },
+    });
+    vm.runInContext(res, ctx);
+    assert.equal(log, 'hi');
+  });
+
   it("should inline a bundle's compiled text with `bundle-text` asynchronously", async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/bundle-text/async.js'),
@@ -4771,6 +4841,30 @@ describe('javascript', function() {
     assert.equal(res.a, 'a');
     assert.equal(res.b, 'b');
     assert.equal(typeof res.c, 'function');
+  });
+
+  it('should prioritize named exports before re-exports withput scope hoisting (before)', async () => {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        'integration/scope-hoisting/es6/re-export-priority/entry-a.mjs',
+      ),
+    );
+
+    let res = await run(b, null, {require: false});
+    assert.equal(res.output, 2);
+  });
+
+  it('should prioritize named exports before re-exports without scope hoisting (after)', async () => {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        'integration/scope-hoisting/es6/re-export-priority/entry-b.mjs',
+      ),
+    );
+
+    let res = await run(b, null, {require: false});
+    assert.equal(res.output, 2);
   });
 
   it('should exclude default from export all declaration', async function() {

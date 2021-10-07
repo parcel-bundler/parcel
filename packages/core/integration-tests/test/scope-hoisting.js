@@ -626,6 +626,30 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, ['test']);
     });
 
+    it('should default export classes when wrapped', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/export-default-class-wrapped/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.strictEqual(output.VERSION, 1234);
+    });
+
+    it('should default export functions when wrapped', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/export-default-function-wrapped/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.strictEqual(output.VERSION, 1234);
+    });
+
     it('should default export globals', async function() {
       let b = await bundle(
         path.join(
@@ -3736,6 +3760,68 @@ describe('scope hoisting', function() {
 
       assert.equal(await run(b), undefined);
     });
+
+    it('should handle interop with a re-export namespace', async () => {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          'integration/scope-hoisting/es6/re-export-interop/a.js',
+        ),
+      );
+
+      let res = await run(b);
+      assert.deepEqual(res['en_US'], {
+        test: 'foo',
+      });
+    });
+
+    it('should prioritize named exports before re-exports (before)', async () => {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          'integration/scope-hoisting/es6/re-export-priority/entry-a.mjs',
+        ),
+      );
+
+      let res = await run(b);
+      assert.equal(res, 2);
+    });
+
+    it('should prioritize named exports before re-exports (after)', async () => {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          'integration/scope-hoisting/es6/re-export-priority/entry-b.mjs',
+        ),
+      );
+
+      let res = await run(b);
+      assert.equal(res, 2);
+    });
+
+    it('should prioritize named exports before re-exports in namespace (before)', async () => {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          'integration/scope-hoisting/es6/re-export-priority/namespace-a.mjs',
+        ),
+      );
+
+      let res = await run(b);
+      assert.deepEqual(res, {foo: 2});
+    });
+
+    it('should prioritize named exports before re-exports in namespace (after)', async () => {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          'integration/scope-hoisting/es6/re-export-priority/namespace-b.mjs',
+        ),
+      );
+
+      let res = await run(b);
+      assert.deepEqual(res, {foo: 2});
+    });
   });
 
   describe('commonjs', function() {
@@ -4355,6 +4441,18 @@ describe('scope hoisting', function() {
 
       let output = await run(b);
       assert.strictEqual(output, 'Say other');
+    });
+
+    it('supports using module.require like require', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/module-require/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.strictEqual(output.b, 2);
     });
 
     it('support url imports in wrapped modules with interop', async function() {

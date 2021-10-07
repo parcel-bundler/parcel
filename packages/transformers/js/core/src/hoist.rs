@@ -1,15 +1,15 @@
 use serde::{Deserialize, Serialize};
 use std::collections::hash_map::DefaultHasher;
 use std::collections::{HashMap, HashSet};
-use std::hash::{Hash, Hasher};
+use std::hash::Hasher;
 use swc_atoms::JsWord;
 use swc_common::{sync::Lrc, Mark, Span, SyntaxContext, DUMMY_SP};
 use swc_ecmascript::ast::*;
 use swc_ecmascript::visit::{Fold, FoldWith, Node, Visit, VisitWith};
 
 use crate::utils::{
-  match_import, match_member_expr, match_require, CodeHighlight, Diagnostic, DiagnosticSeverity,
-  SourceLocation,
+  match_import, match_member_expr, match_require, Bailout, BailoutReason, CodeHighlight,
+  Diagnostic, DiagnosticSeverity, SourceLocation,
 };
 
 type IdentId = (JsWord, SyntaxContext);
@@ -22,7 +22,7 @@ macro_rules! id {
 macro_rules! hash {
   ($str:expr) => {{
     let mut hasher = DefaultHasher::new();
-    $str.hash(&mut hasher);
+    hasher.write($str.as_bytes());
     hasher.finish()
   }};
 }
@@ -34,8 +34,9 @@ pub fn hoist(
   decls: HashSet<IdentId>,
   ignore_mark: Mark,
   global_mark: Mark,
-) -> Result<(Module, HoistResult), Vec<Diagnostic>> {
-  let mut collect = Collect::new(source_map, decls, ignore_mark, global_mark);
+  trace_bailouts: bool,
+) -> Result<(Module, HoistResult, Vec<Diagnostic>), Vec<Diagnostic>> {
+  let mut collect = Collect::new(source_map, decls, ignore_mark, global_mark, trace_bailouts);
   module.visit_with(&Invalid { span: DUMMY_SP } as _, &mut collect);
 
   let mut hoist = Hoist::new(module_id, &collect);
@@ -44,7 +45,29 @@ pub fn hoist(
     return Err(hoist.diagnostics);
   }
 
-  Ok((module, hoist.get_result()))
+  if let Some(bailouts) = &collect.bailouts {
+    hoist
+      .diagnostics
+      .extend(bailouts.iter().map(|bailout| bailout.to_diagnostic()));
+  }
+
+  let diagnostics = std::mem::take(&mut hoist.diagnostics);
+  Ok((module, hoist.get_result(), diagnostics))
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct ExportedSymbol {
+  local: JsWord,
+  exported: JsWord,
+  loc: SourceLocation,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct ImportedSymbol {
+  source: JsWord,
+  local: JsWord,
+  imported: JsWord,
+  loc: SourceLocation,
 }
 
 struct Hoist<'a> {
@@ -52,9 +75,9 @@ struct Hoist<'a> {
   collect: &'a Collect,
   module_items: Vec<ModuleItem>,
   export_decls: HashSet<JsWord>,
-  imported_symbols: HashMap<JsWord, (JsWord, JsWord, SourceLocation)>,
-  exported_symbols: HashMap<JsWord, (JsWord, SourceLocation)>,
-  re_exports: Vec<(JsWord, JsWord, JsWord, SourceLocation)>,
+  imported_symbols: Vec<ImportedSymbol>,
+  exported_symbols: Vec<ExportedSymbol>,
+  re_exports: Vec<ImportedSymbol>,
   self_references: HashSet<JsWord>,
   dynamic_imports: HashMap<JsWord, JsWord>,
   in_function_scope: bool,
@@ -63,9 +86,9 @@ struct Hoist<'a> {
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct HoistResult {
-  imported_symbols: HashMap<JsWord, (JsWord, JsWord, SourceLocation)>,
-  exported_symbols: HashMap<JsWord, (JsWord, SourceLocation)>,
-  re_exports: Vec<(JsWord, JsWord, JsWord, SourceLocation)>,
+  imported_symbols: Vec<ImportedSymbol>,
+  exported_symbols: Vec<ExportedSymbol>,
+  re_exports: Vec<ImportedSymbol>,
   self_references: HashSet<JsWord>,
   wrapped_requires: HashSet<JsWord>,
   dynamic_imports: HashMap<JsWord, JsWord>,
@@ -82,8 +105,8 @@ impl<'a> Hoist<'a> {
       collect,
       module_items: vec![],
       export_decls: HashSet::new(),
-      imported_symbols: HashMap::new(),
-      exported_symbols: HashMap::new(),
+      imported_symbols: vec![],
+      exported_symbols: vec![],
       re_exports: vec![],
       self_references: HashSet::new(),
       dynamic_imports: HashMap::new(),
@@ -198,28 +221,28 @@ impl<'a> Fold for Hoist<'a> {
                         Some(exported) => exported.sym,
                         None => named.orig.sym.clone(),
                       };
-                      self.re_exports.push((
-                        exported,
-                        src.value.clone(),
-                        named.orig.sym,
-                        SourceLocation::from(&self.collect.source_map, named.span),
-                      ));
+                      self.re_exports.push(ImportedSymbol {
+                        source: src.value.clone(),
+                        local: exported,
+                        imported: named.orig.sym,
+                        loc: SourceLocation::from(&self.collect.source_map, named.span),
+                      });
                     }
                     ExportSpecifier::Default(default) => {
-                      self.re_exports.push((
-                        default.exported.sym,
-                        src.value.clone(),
-                        js_word!("default"),
-                        SourceLocation::from(&self.collect.source_map, default.exported.span),
-                      ));
+                      self.re_exports.push(ImportedSymbol {
+                        source: src.value.clone(),
+                        local: default.exported.sym,
+                        imported: js_word!("default"),
+                        loc: SourceLocation::from(&self.collect.source_map, default.exported.span),
+                      });
                     }
                     ExportSpecifier::Namespace(namespace) => {
-                      self.re_exports.push((
-                        namespace.name.sym,
-                        src.value.clone(),
-                        "*".into(),
-                        SourceLocation::from(&self.collect.source_map, namespace.span),
-                      ));
+                      self.re_exports.push(ImportedSymbol {
+                        source: src.value.clone(),
+                        local: namespace.name.sym,
+                        imported: "*".into(),
+                        loc: SourceLocation::from(&self.collect.source_map, namespace.span),
+                      });
                     }
                   }
                 }
@@ -235,12 +258,12 @@ impl<'a> Fold for Hoist<'a> {
                       source, specifier, ..
                     }) = self.collect.imports.get(&id)
                     {
-                      self.re_exports.push((
-                        exported,
-                        source.clone(),
-                        specifier.clone(),
-                        SourceLocation::from(&self.collect.source_map, named.span),
-                      ));
+                      self.re_exports.push(ImportedSymbol {
+                        source: source.clone(),
+                        local: exported,
+                        imported: specifier.clone(),
+                        loc: SourceLocation::from(&self.collect.source_map, named.span),
+                      });
                     } else {
                       // A variable will appear only once in the `exports` mapping but
                       // could be exported multiple times with different names.
@@ -251,10 +274,11 @@ impl<'a> Fold for Hoist<'a> {
                       } else {
                         self.get_export_ident(DUMMY_SP, orig_exported)
                       };
-                      self.exported_symbols.entry(exported).or_insert((
-                        id.sym,
-                        SourceLocation::from(&self.collect.source_map, named.span),
-                      ));
+                      self.exported_symbols.push(ExportedSymbol {
+                        local: id.sym,
+                        exported,
+                        loc: SourceLocation::from(&self.collect.source_map, named.span),
+                      });
                     }
                   }
                 }
@@ -273,12 +297,12 @@ impl<'a> Fold for Hoist<'a> {
                 },
                 type_only: false,
               })));
-              self.re_exports.push((
-                "*".into(),
-                export.src.value,
-                "*".into(),
-                SourceLocation::from(&self.collect.source_map, export.span),
-              ));
+              self.re_exports.push(ImportedSymbol {
+                source: export.src.value,
+                local: "*".into(),
+                imported: "*".into(),
+                loc: SourceLocation::from(&self.collect.source_map, export.span),
+              });
             }
             ModuleDecl::ExportDefaultExpr(export) => {
               let ident = self.get_export_ident(export.span, &"default".into());
@@ -300,12 +324,20 @@ impl<'a> Fold for Hoist<'a> {
             ModuleDecl::ExportDefaultDecl(export) => {
               let decl = match export.decl {
                 DefaultDecl::Class(class) => Decl::Class(ClassDecl {
-                  ident: self.get_export_ident(DUMMY_SP, &"default".into()),
+                  ident: if self.collect.should_wrap && class.ident.is_some() {
+                    class.ident.unwrap()
+                  } else {
+                    self.get_export_ident(DUMMY_SP, &"default".into())
+                  },
                   declare: false,
                   class: class.class.fold_with(self),
                 }),
                 DefaultDecl::Fn(func) => Decl::Fn(FnDecl {
-                  ident: self.get_export_ident(DUMMY_SP, &"default".into()),
+                  ident: if self.collect.should_wrap && func.ident.is_some() {
+                    func.ident.unwrap()
+                  } else {
+                    self.get_export_ident(DUMMY_SP, &"default".into())
+                  },
                   declare: false,
                   function: func.function.fold_with(self),
                 }),
@@ -543,7 +575,7 @@ impl<'a> Fold for Hoist<'a> {
           match &**expr {
             Expr::Ident(ident) => {
               // import * as y from 'x'; OR const y = require('x'); OR const y = await import('x');
-              // y.foo -> $id$import$10b1f2ceae7ab64e$y
+              // y.foo -> $id$import$d141bba7fdc215a3$y
               if let Some(Import {
                 source,
                 specifier,
@@ -552,9 +584,9 @@ impl<'a> Fold for Hoist<'a> {
               }) = self.collect.imports.get(&id!(ident))
               {
                 // If there are any non-static accesses of the namespace, don't perform any replacement.
-                // This will be handled in the Ident visitor below, which replaces y -> $id$import$10b1f2ceae7ab64e.
+                // This will be handled in the Ident visitor below, which replaces y -> $id$import$d141bba7fdc215a3.
                 if specifier == "*"
-                  && !self.collect.non_static_access.contains(&id!(ident))
+                  && !self.collect.non_static_access.contains_key(&id!(ident))
                   && !self.collect.non_const_bindings.contains_key(&id!(ident))
                   && !self.collect.non_static_requires.contains(source)
                 {
@@ -566,14 +598,12 @@ impl<'a> Fold for Hoist<'a> {
                       hash!(key)
                     )
                     .into();
-                    self.imported_symbols.insert(
-                      name,
-                      (
-                        source.clone(),
-                        key.clone(),
-                        SourceLocation::from(&self.collect.source_map, member.span),
-                      ),
-                    );
+                    self.imported_symbols.push(ImportedSymbol {
+                      source: source.clone(),
+                      local: name,
+                      imported: key.clone(),
+                      loc: SourceLocation::from(&self.collect.source_map, member.span),
+                    });
                   } else {
                     return Expr::Ident(self.get_import_ident(
                       member.span,
@@ -660,14 +690,12 @@ impl<'a> Fold for Hoist<'a> {
           let name: JsWord = format!("${}$importAsync${:x}", self.module_id, hash!(source)).into();
           self.dynamic_imports.insert(name.clone(), source.clone());
           if self.collect.non_static_requires.contains(&source) || self.collect.should_wrap {
-            self.imported_symbols.insert(
-              name.clone(),
-              (
-                source,
-                "*".into(),
-                SourceLocation::from(&self.collect.source_map, call.span),
-              ),
-            );
+            self.imported_symbols.push(ImportedSymbol {
+              source: source,
+              local: name.clone(),
+              imported: "*".into(),
+              loc: SourceLocation::from(&self.collect.source_map, call.span),
+            });
           }
           return Expr::Ident(Ident::new(name, call.span));
         }
@@ -768,15 +796,21 @@ impl<'a> Fold for Hoist<'a> {
               hash!(specifier)
             )
             .into();
-            self
-              .imported_symbols
-              .insert(name, (source.clone(), specifier.clone(), loc.clone()));
-          } else if self.collect.non_static_access.contains(&id!(node)) {
+            self.imported_symbols.push(ImportedSymbol {
+              source: source.clone(),
+              local: name,
+              imported: specifier.clone(),
+              loc: loc.clone(),
+            });
+          } else if self.collect.non_static_access.contains_key(&id!(node)) {
             let name: JsWord =
               format!("${}$importAsync${:x}", self.module_id, hash!(source)).into();
-            self
-              .imported_symbols
-              .insert(name, (source.clone(), "*".into(), loc.clone()));
+            self.imported_symbols.push(ImportedSymbol {
+              source: source.clone(),
+              local: name,
+              imported: "*".into(),
+              loc: loc.clone(),
+            });
           }
         } else {
           // If this identifier is not constant, we cannot directly reference the imported
@@ -797,10 +831,11 @@ impl<'a> Fold for Hoist<'a> {
       // If wrapped, mark the original symbol as exported.
       // Otherwise replace with an export identifier.
       if self.collect.should_wrap {
-        self.exported_symbols.entry(exported.clone()).or_insert((
-          node.sym.clone(),
-          SourceLocation::from(&self.collect.source_map, node.span),
-        ));
+        self.exported_symbols.push(ExportedSymbol {
+          local: node.sym.clone(),
+          exported: exported.clone(),
+          loc: SourceLocation::from(&self.collect.source_map, node.span),
+        });
         return node;
       } else {
         return self.get_export_ident(node.span, exported);
@@ -991,13 +1026,16 @@ impl<'a> Hoist<'a> {
     &mut self,
     span: Span,
     source: &JsWord,
-    local: &JsWord,
+    imported: &JsWord,
     loc: SourceLocation,
   ) -> Ident {
-    let new_name = self.get_import_name(source, local);
-    self
-      .imported_symbols
-      .insert(new_name.clone(), (source.clone(), local.clone(), loc));
+    let new_name = self.get_import_name(source, imported);
+    self.imported_symbols.push(ImportedSymbol {
+      source: source.clone(),
+      local: new_name.clone(),
+      imported: imported.clone(),
+      loc: loc.clone(),
+    });
     Ident::new(new_name, span)
   }
 
@@ -1015,10 +1053,11 @@ impl<'a> Hoist<'a> {
       format!("${}$export${:x}", self.module_id, hash!(exported)).into()
     };
 
-    self.exported_symbols.entry(exported.clone()).or_insert((
-      new_name.clone(),
-      SourceLocation::from(&self.collect.source_map, span),
-    ));
+    self.exported_symbols.push(ExportedSymbol {
+      local: new_name.clone(),
+      exported: exported.clone(),
+      loc: SourceLocation::from(&self.collect.source_map, span),
+    });
 
     let mut span = span;
     span.ctxt = SyntaxContext::empty();
@@ -1101,7 +1140,7 @@ pub struct Collect {
   should_wrap: bool,
   pub imports: HashMap<IdentId, Import>,
   exports: HashMap<IdentId, JsWord>,
-  non_static_access: HashSet<IdentId>,
+  non_static_access: HashMap<IdentId, Vec<Span>>,
   non_const_bindings: HashMap<IdentId, Vec<Span>>,
   non_static_requires: HashSet<JsWord>,
   wrapped_requires: HashSet<JsWord>,
@@ -1110,6 +1149,7 @@ pub struct Collect {
   in_export_decl: bool,
   in_function: bool,
   in_assign: bool,
+  bailouts: Option<Vec<Bailout>>,
 }
 
 impl Collect {
@@ -1118,6 +1158,7 @@ impl Collect {
     decls: HashSet<IdentId>,
     ignore_mark: Mark,
     global_mark: Mark,
+    trace_bailouts: bool,
   ) -> Self {
     Collect {
       source_map,
@@ -1130,7 +1171,7 @@ impl Collect {
       should_wrap: false,
       imports: HashMap::new(),
       exports: HashMap::new(),
-      non_static_access: HashSet::new(),
+      non_static_access: HashMap::new(),
       non_const_bindings: HashMap::new(),
       non_static_requires: HashSet::new(),
       wrapped_requires: HashSet::new(),
@@ -1139,6 +1180,7 @@ impl Collect {
       in_export_decl: false,
       in_function: false,
       in_assign: false,
+      bailouts: if trace_bailouts { Some(vec![]) } else { None },
     }
   }
 }
@@ -1150,6 +1192,21 @@ impl Visit for Collect {
     self.in_function = false;
     node.visit_children_with(self);
     self.in_module_this = false;
+
+    if let Some(bailouts) = &mut self.bailouts {
+      for key in self.imports.keys() {
+        if let Some(spans) = self.non_static_access.get(key) {
+          for span in spans {
+            bailouts.push(Bailout {
+              loc: SourceLocation::from(&self.source_map, *span),
+              reason: BailoutReason::NonStaticAccess,
+            })
+          }
+        }
+      }
+
+      bailouts.sort_by(|a, b| a.loc.partial_cmp(&b.loc).unwrap());
+    }
   }
 
   collect_visit_fn!(visit_function, Function);
@@ -1317,6 +1374,7 @@ impl Visit for Collect {
   fn visit_return_stmt(&mut self, node: &ReturnStmt, _parent: &dyn Node) {
     if !self.in_function {
       self.should_wrap = true;
+      self.add_bailout(node.span, BailoutReason::TopLevelReturn);
     }
 
     node.visit_children_with(self)
@@ -1365,6 +1423,10 @@ impl Visit for Collect {
       return;
     }
 
+    if match_member_expr(node, vec!["module", "require"], &self.decls) {
+      return;
+    }
+
     let is_static = match &*node.prop {
       Expr::Ident(_) => !node.computed,
       Expr::Lit(Lit::Str(_)) => true,
@@ -1378,6 +1440,7 @@ impl Visit for Collect {
             self.has_cjs_exports = true;
             if !is_static {
               self.static_cjs_exports = false;
+              self.add_bailout(node.span, BailoutReason::NonStaticExports);
             }
           }
           return;
@@ -1387,7 +1450,8 @@ impl Visit for Collect {
           if ident.sym == exports && !self.decls.contains(&id!(ident)) {
             self.has_cjs_exports = true;
             if !is_static {
-              self.static_cjs_exports = false
+              self.static_cjs_exports = false;
+              self.add_bailout(node.span, BailoutReason::NonStaticExports);
             }
           }
 
@@ -1395,11 +1459,16 @@ impl Visit for Collect {
             self.has_cjs_exports = true;
             self.static_cjs_exports = false;
             self.should_wrap = true;
+            self.add_bailout(node.span, BailoutReason::FreeModule);
           }
 
           // `import` isn't really an identifier...
           if !is_static && ident.sym != js_word!("import") {
-            self.non_static_access.insert(id!(ident));
+            self
+              .non_static_access
+              .entry(id!(ident))
+              .or_default()
+              .push(node.span);
           }
           return;
         }
@@ -1408,6 +1477,7 @@ impl Visit for Collect {
             self.has_cjs_exports = true;
             if !is_static {
               self.static_cjs_exports = false;
+              self.add_bailout(node.span, BailoutReason::NonStaticExports);
             }
           }
           return;
@@ -1439,11 +1509,21 @@ impl Visit for Collect {
     // declaration. We need to wrap the referenced module to preserve side effect ordering.
     if let Some(source) = self.match_require(node) {
       self.wrapped_requires.insert(source);
+      let span = match node {
+        Expr::Call(c) => c.span,
+        _ => unreachable!(),
+      };
+      self.add_bailout(span, BailoutReason::NonTopLevelRequire);
     }
 
     if let Some(source) = match_import(node, self.ignore_mark) {
       self.non_static_requires.insert(source.clone());
       self.wrapped_requires.insert(source);
+      let span = match node {
+        Expr::Call(c) => c.span,
+        _ => unreachable!(),
+      };
+      self.add_bailout(span, BailoutReason::NonStaticDynamicImport);
     }
 
     match node {
@@ -1457,12 +1537,19 @@ impl Visit for Collect {
           self.static_cjs_exports = false;
           if is_module {
             self.should_wrap = true;
+            self.add_bailout(ident.span, BailoutReason::FreeModule);
+          } else {
+            self.add_bailout(ident.span, BailoutReason::FreeExports);
           }
         }
 
         // `import` isn't really an identifier...
         if ident.sym != js_word!("import") {
-          self.non_static_access.insert(id!(ident));
+          self
+            .non_static_access
+            .entry(id!(ident))
+            .or_default()
+            .push(ident.span);
         }
       }
       _ => {
@@ -1471,10 +1558,11 @@ impl Visit for Collect {
     }
   }
 
-  fn visit_this_expr(&mut self, _node: &ThisExpr, _parent: &dyn Node) {
+  fn visit_this_expr(&mut self, node: &ThisExpr, _parent: &dyn Node) {
     if self.in_module_this {
       self.has_cjs_exports = true;
       self.static_cjs_exports = false;
+      self.add_bailout(node.span, BailoutReason::FreeExports);
     }
   }
 
@@ -1504,6 +1592,13 @@ impl Visit for Collect {
         self.static_cjs_exports = false;
         self.has_cjs_exports = true;
         self.should_wrap = true;
+        self.add_bailout(node.span, BailoutReason::ExportsReassignment);
+      } else if has_binding_identifier(pat, &"module".into(), &self.decls) {
+        // Same for `module`. If it is reassigned we can't correctly statically analyze.
+        self.static_cjs_exports = false;
+        self.has_cjs_exports = true;
+        self.should_wrap = true;
+        self.add_bailout(node.span, BailoutReason::ModuleReassignment);
       }
     }
   }
@@ -1582,7 +1677,8 @@ impl Visit for Collect {
       match &**expr {
         Expr::Ident(ident) => {
           if ident.sym == js_word!("eval") && !self.decls.contains(&id!(ident)) {
-            self.should_wrap = true
+            self.should_wrap = true;
+            self.add_bailout(node.span, BailoutReason::Eval);
           }
         }
         Expr::Member(member) => {
@@ -1609,6 +1705,7 @@ impl Visit for Collect {
                   } else {
                     self.non_static_requires.insert(source.clone());
                     self.wrapped_requires.insert(source);
+                    self.add_bailout(node.span, BailoutReason::NonStaticDynamicImport);
                   }
 
                   expr.visit_with(node, self);
@@ -1636,6 +1733,16 @@ impl Collect {
       self.wrapped_requires.insert(src.clone());
       if kind != ImportKind::DynamicImport {
         self.non_static_requires.insert(src.clone());
+        let span = match node {
+          Pat::Ident(id) => id.id.span,
+          Pat::Array(arr) => arr.span,
+          Pat::Object(obj) => obj.span,
+          Pat::Rest(rest) => rest.span,
+          Pat::Assign(assign) => assign.span,
+          Pat::Invalid(i) => i.span,
+          Pat::Expr(_) => DUMMY_SP,
+        };
+        self.add_bailout(span, BailoutReason::NonTopLevelRequire);
       }
     }
 
@@ -1663,6 +1770,7 @@ impl Collect {
                 _ => {
                   // Non-static. E.g. computed property.
                   self.non_static_requires.insert(src.clone());
+                  self.add_bailout(object.span, BailoutReason::NonStaticDestructuring);
                   continue;
                 }
               };
@@ -1692,6 +1800,7 @@ impl Collect {
                 _ => {
                   // Non-static.
                   self.non_static_requires.insert(src.clone());
+                  self.add_bailout(object.span, BailoutReason::NonStaticDestructuring);
                 }
               }
             }
@@ -1718,6 +1827,7 @@ impl Collect {
               // let {x, ...y} = require('y');
               // Non-static. We don't know what keys are used.
               self.non_static_requires.insert(src.clone());
+              self.add_bailout(object.span, BailoutReason::NonStaticDestructuring);
             }
           }
         }
@@ -1725,6 +1835,16 @@ impl Collect {
       _ => {
         // Non-static.
         self.non_static_requires.insert(src.clone());
+        let span = match node {
+          Pat::Ident(id) => id.id.span,
+          Pat::Array(arr) => arr.span,
+          Pat::Object(obj) => obj.span,
+          Pat::Rest(rest) => rest.span,
+          Pat::Assign(assign) => assign.span,
+          Pat::Invalid(i) => i.span,
+          Pat::Expr(_) => DUMMY_SP,
+        };
+        self.add_bailout(span, BailoutReason::NonStaticDestructuring);
       }
     }
   }
@@ -1759,6 +1879,15 @@ impl Collect {
         }
       }
       _ => {}
+    }
+  }
+
+  fn add_bailout(&mut self, span: Span, reason: BailoutReason) {
+    if let Some(bailouts) = &mut self.bailouts {
+      bailouts.push(Bailout {
+        loc: SourceLocation::from(&self.source_map, span),
+        reason,
+      })
     }
   }
 }
@@ -1847,6 +1976,7 @@ mod tests {
               collect_decls(&module),
               Mark::fresh(Mark::root()),
               global_mark,
+              false,
             );
             module.visit_with(&Invalid { span: DUMMY_SP } as _, &mut collect);
 
@@ -1947,8 +2077,8 @@ mod tests {
   macro_rules! assert_eq_imported_symbols {
     ($m: expr, $match: expr) => {{
       let mut map = HashMap::new();
-      for (key, val) in $m {
-        map.insert(key, (val.0, val.1));
+      for sym in $m {
+        map.insert(sym.local, (sym.source, sym.imported));
       }
       assert_eq!(map, $match);
     }};
@@ -1990,7 +2120,7 @@ mod tests {
       collect.imports,
       map! { w!("x") => (w!("other"), w!("*"), false) }
     );
-    assert_eq!(collect.non_static_access, set! {});
+    assert_eq!(collect.non_static_access, map! {});
 
     let (_collect, _code, hoist) = parse(
       r#"
@@ -2012,7 +2142,7 @@ mod tests {
       collect.imports,
       map! { w!("x") => (w!("other"), w!("*"), false) }
     );
-    assert_eq_set!(collect.non_static_access, set! { w!("x") });
+    assert_eq_set!(collect.non_static_access.into_keys(), set! { w!("x") });
 
     let (collect, _code, _hoist) = parse(
       r#"
@@ -2024,7 +2154,7 @@ mod tests {
       collect.imports,
       map! { w!("x") => (w!("other"), w!("*"), false) }
     );
-    assert_eq_set!(collect.non_static_access, set! { w!("x") });
+    assert_eq_set!(collect.non_static_access.into_keys(), set! { w!("x") });
   }
 
   #[test]
@@ -2047,6 +2177,13 @@ mod tests {
     let (collect, _code, _hoist) = parse(
       r#"
     exports = 2;
+    "#,
+    );
+    assert!(collect.should_wrap);
+
+    let (collect, _code, _hoist) = parse(
+      r#"
+    module = 2;
     "#,
     );
     assert!(collect.should_wrap);
@@ -2228,7 +2365,7 @@ mod tests {
       collect.imports,
       map! { w!("x") => (w!("other"), w!("*"), true) }
     );
-    assert_eq_set!(collect.non_static_access, set! {});
+    assert_eq_set!(collect.non_static_access.into_keys(), set! {});
     assert_eq!(collect.non_static_requires, set! {});
     assert_eq!(collect.wrapped_requires, set! {w!("other")});
 
@@ -2244,7 +2381,7 @@ mod tests {
       collect.imports,
       map! { w!("x") => (w!("other"), w!("*"), true) }
     );
-    assert_eq_set!(collect.non_static_access, set! { w!("x") });
+    assert_eq_set!(collect.non_static_access.into_keys(), set! { w!("x") });
     assert_eq!(collect.non_static_requires, set! {});
     assert_eq!(collect.wrapped_requires, set! {w!("other")});
 
@@ -2285,7 +2422,7 @@ mod tests {
       collect.imports,
       map! { w!("x") => (w!("other"), w!("*"), true) }
     );
-    assert_eq_set!(collect.non_static_access, set! {});
+    assert_eq_set!(collect.non_static_access.into_keys(), set! {});
     assert_eq!(collect.non_static_requires, set! {});
     assert_eq!(collect.wrapped_requires, set! {w!("other")});
 
@@ -2298,7 +2435,7 @@ mod tests {
       collect.imports,
       map! { w!("x") => (w!("other"), w!("*"), true) }
     );
-    assert_eq_set!(collect.non_static_access, set! { w!("x") });
+    assert_eq_set!(collect.non_static_access.into_keys(), set! { w!("x") });
     assert_eq!(collect.non_static_requires, set! {});
     assert_eq!(collect.wrapped_requires, set! {w!("other")});
 
@@ -2335,7 +2472,7 @@ mod tests {
       collect.imports,
       map! { w!("x") => (w!("other"), w!("*"), true) }
     );
-    assert_eq_set!(collect.non_static_access, set! {});
+    assert_eq_set!(collect.non_static_access.into_keys(), set! {});
     assert_eq!(collect.non_static_requires, set! {});
     assert_eq!(collect.wrapped_requires, set! {w!("other")});
 
@@ -2348,7 +2485,7 @@ mod tests {
       collect.imports,
       map! { w!("x") => (w!("other"), w!("*"), true) }
     );
-    assert_eq_set!(collect.non_static_access, set! { w!("x") });
+    assert_eq_set!(collect.non_static_access.into_keys(), set! { w!("x") });
     assert_eq!(collect.non_static_requires, set! {});
     assert_eq!(collect.wrapped_requires, set! {w!("other")});
 
@@ -2423,7 +2560,7 @@ mod tests {
     let $abc$var$test = {
         bar: 3
     };
-    console.log($abc$import$558d6cfb8af8a010$ba02ad2230917043, $abc$var$test.bar);
+    console.log($abc$import$70a00e0a8474f72a$6a5cdcad01c973fa, $abc$var$test.bar);
     "#}
     );
 
@@ -2438,7 +2575,7 @@ mod tests {
       code,
       indoc! {r#"
     import "abc:other";
-    console.log($abc$import$558d6cfb8af8a010$3705fc5f2281438d);
+    console.log($abc$import$70a00e0a8474f72a$d927737047eb3867);
     "#}
     );
 
@@ -2453,7 +2590,7 @@ mod tests {
       code,
       indoc! {r#"
     import "abc:other";
-    console.log($abc$import$558d6cfb8af8a010$9099ad97b570f7c, $abc$import$558d6cfb8af8a010$9099ad97b570f7c.bar);
+    console.log($abc$import$70a00e0a8474f72a$2e2bcd8739ae039, $abc$import$70a00e0a8474f72a$2e2bcd8739ae039.bar);
     "#}
     );
   }
@@ -2474,8 +2611,8 @@ mod tests {
       indoc! {r#"
     import "abc:other";
     import "abc:bar";
-    console.log($abc$import$558d6cfb8af8a010$9099ad97b570f7c);
-    console.log($abc$import$3705fc5f2281438d$9099ad97b570f7c);
+    console.log($abc$import$70a00e0a8474f72a$2e2bcd8739ae039);
+    console.log($abc$import$d927737047eb3867$2e2bcd8739ae039);
     "#}
     );
 
@@ -2495,10 +2632,10 @@ mod tests {
       indoc! {r#"
     import "abc:other";
     import "abc:bar";
-    console.log($abc$import$558d6cfb8af8a010$9099ad97b570f7c);
+    console.log($abc$import$70a00e0a8474f72a$2e2bcd8739ae039);
     import "abc:x";
-    console.log($abc$import$10b1f2ceae7ab64e);
-    console.log($abc$import$3705fc5f2281438d$9099ad97b570f7c);
+    console.log($abc$import$d141bba7fdc215a3);
+    console.log($abc$import$d927737047eb3867$2e2bcd8739ae039);
     "#}
     );
   }
@@ -2517,7 +2654,7 @@ mod tests {
       indoc! {r#"
     const $abc$var$x = 4;
     import "abc:other";
-    var $abc$require$bar = $abc$import$558d6cfb8af8a010$3705fc5f2281438d;
+    var $abc$require$bar = $abc$import$70a00e0a8474f72a$d927737047eb3867;
     const $abc$var$baz = 3;
     console.log($abc$require$bar);
     "#}
@@ -2536,7 +2673,7 @@ mod tests {
     const $abc$var$x = 3;
     import "abc:other";
     const $abc$var$bar = 2;
-    console.log($abc$import$558d6cfb8af8a010$3705fc5f2281438d);
+    console.log($abc$import$70a00e0a8474f72a$d927737047eb3867);
     "#}
     );
   }
@@ -2554,7 +2691,7 @@ mod tests {
       code,
       indoc! {r#"
     import "abc:other";
-    const { foo: $abc$var$foo , ...$abc$var$bar } = $abc$import$558d6cfb8af8a010;
+    const { foo: $abc$var$foo , ...$abc$var$bar } = $abc$import$70a00e0a8474f72a;
     console.log($abc$var$foo, $abc$var$bar);
     "#}
     );
@@ -2570,7 +2707,7 @@ mod tests {
       code,
       indoc! {r#"
     import "abc:x";
-    const { x: { y: $abc$var$z  }  } = $abc$import$10b1f2ceae7ab64e;
+    const { x: { y: $abc$var$z  }  } = $abc$import$d141bba7fdc215a3;
     console.log($abc$var$z);
     "#}
     );
@@ -2586,7 +2723,7 @@ mod tests {
       code,
       indoc! {r#"
     import "abc:other";
-    console.log($abc$import$558d6cfb8af8a010[bar]);
+    console.log($abc$import$70a00e0a8474f72a[bar]);
     "#}
     );
 
@@ -2601,7 +2738,7 @@ mod tests {
       code,
       indoc! {r#"
     import "abc:other";
-    console.log($abc$import$558d6cfb8af8a010[bar], $abc$import$558d6cfb8af8a010.baz);
+    console.log($abc$import$70a00e0a8474f72a[bar], $abc$import$70a00e0a8474f72a.baz);
     "#}
     );
   }
@@ -2627,7 +2764,7 @@ mod tests {
       code,
       indoc! {r#"
     import "abc:other";
-    var $abc$require$foo = $abc$import$558d6cfb8af8a010$ba02ad2230917043;
+    var $abc$require$foo = $abc$import$70a00e0a8474f72a$6a5cdcad01c973fa;
     console.log($abc$require$foo);
     "#}
     );
@@ -2643,7 +2780,7 @@ mod tests {
       code,
       indoc! {r#"
     import "abc:other";
-    const $abc$var$foo = $abc$import$558d6cfb8af8a010[bar];
+    const $abc$var$foo = $abc$import$70a00e0a8474f72a[bar];
     console.log($abc$var$foo);
     "#}
     );
@@ -2659,7 +2796,7 @@ mod tests {
       code,
       indoc! {r#"
     import "abc:other";
-    const { foo: $abc$var$foo  } = $abc$import$558d6cfb8af8a010$ba02ad2230917043;
+    const { foo: $abc$var$foo  } = $abc$import$70a00e0a8474f72a$6a5cdcad01c973fa;
     console.log($abc$var$foo);
     "#}
     );
@@ -2682,7 +2819,7 @@ mod tests {
       indoc! {r#"
     import "abc:other";
     function $abc$var$x() {
-        const foo = $abc$import$558d6cfb8af8a010;
+        const foo = $abc$import$70a00e0a8474f72a;
         console.log(foo.bar);
     }
     import "abc:bar";
@@ -2709,7 +2846,7 @@ mod tests {
     import "abc:other";
     var $abc$var$foo = (function() {
         if (Date.now() < 0) {
-            var bar = $abc$import$558d6cfb8af8a010;
+            var bar = $abc$import$70a00e0a8474f72a;
         }
     })();
     "#}
@@ -2733,7 +2870,7 @@ mod tests {
       indoc! {r#"
     import "abc:other";
     function $abc$var$x() {
-        const foo = $abc$import$558d6cfb8af8a010$ba02ad2230917043;
+        const foo = $abc$import$70a00e0a8474f72a$6a5cdcad01c973fa;
         console.log(foo);
     }
     "#}
@@ -2752,7 +2889,7 @@ mod tests {
       indoc! {r#"
     import "abc:other";
     function $abc$var$x() {
-        console.log($abc$import$558d6cfb8af8a010$ba02ad2230917043);
+        console.log($abc$import$70a00e0a8474f72a$6a5cdcad01c973fa);
     }
     "#}
     );
@@ -2771,7 +2908,7 @@ mod tests {
       indoc! {r#"
     import "abc:other";
     function $abc$var$x() {
-        const foo = $abc$import$558d6cfb8af8a010[test];
+        const foo = $abc$import$70a00e0a8474f72a[test];
         console.log(foo);
     }
     "#}
@@ -2791,7 +2928,7 @@ mod tests {
       indoc! {r#"
     import "abc:other";
     function $abc$var$x() {
-        const { foo: foo  } = $abc$import$558d6cfb8af8a010;
+        const { foo: foo  } = $abc$import$70a00e0a8474f72a;
         console.log(foo);
     }
     "#}
@@ -2808,7 +2945,7 @@ mod tests {
       indoc! {r#"
     import "abc:a";
     import "abc:b";
-    let $abc$var$x = $abc$import$7ac649919d1c80a6 + $abc$import$a91ade93898ecc38;
+    let $abc$var$x = $abc$import$407448d2b89b1813 + $abc$import$8b22cf2602fb60ce;
     "#}
     );
 
@@ -2823,7 +2960,7 @@ mod tests {
       indoc! {r#"
     import "abc:a";
     import "abc:b";
-    let $abc$var$x = (!$abc$import$7ac649919d1c80a6, $abc$import$a91ade93898ecc38);
+    let $abc$var$x = (!$abc$import$407448d2b89b1813, $abc$import$8b22cf2602fb60ce);
     "#}
     );
 
@@ -2838,7 +2975,7 @@ mod tests {
       indoc! {r#"
     import "abc:a";
     import "abc:b";
-    let $abc$var$x = $abc$import$7ac649919d1c80a6 || $abc$import$a91ade93898ecc38;
+    let $abc$var$x = $abc$import$407448d2b89b1813 || $abc$import$8b22cf2602fb60ce;
     "#}
     );
 
@@ -2853,7 +2990,7 @@ mod tests {
       indoc! {r#"
     import "abc:a";
     import "abc:b";
-    let $abc$var$x = condition ? $abc$import$7ac649919d1c80a6 : $abc$import$a91ade93898ecc38;
+    let $abc$var$x = condition ? $abc$import$407448d2b89b1813 : $abc$import$8b22cf2602fb60ce;
     "#}
     );
 
@@ -2867,7 +3004,7 @@ mod tests {
       code,
       indoc! {r#"
     import "abc:a";
-    if (condition) $abc$import$7ac649919d1c80a6;
+    if (condition) $abc$import$407448d2b89b1813;
     "#}
     );
 
@@ -2881,7 +3018,7 @@ mod tests {
       code,
       indoc! {r#"
     import "abc:y";
-    for(let x = $abc$import$57bbd0ca114c72e; x < 5; x++){
+    for(let x = $abc$import$4a5767248b18ef41; x < 5; x++){
     }
     "#}
     );
@@ -2901,8 +3038,8 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    let $abc$export$10b1f2ceae7ab64e = 3;
-    let $abc$export$57bbd0ca114c72e = 4;
+    let $abc$export$d141bba7fdc215a3 = 3;
+    let $abc$export$4a5767248b18ef41 = 4;
     let $abc$var$z = 6;
     "#}
     );
@@ -2916,7 +3053,7 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    var $abc$export$9099ad97b570f7c = 3;
+    var $abc$export$2e2bcd8739ae039 = 3;
     "#}
     );
 
@@ -2931,7 +3068,7 @@ mod tests {
       code,
       indoc! {r#"
     let $abc$var$x = 3;
-    var $abc$export$9099ad97b570f7c = $abc$var$x;
+    var $abc$export$2e2bcd8739ae039 = $abc$var$x;
     "#}
     );
 
@@ -2944,7 +3081,7 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    function $abc$export$9099ad97b570f7c() {
+    function $abc$export$2e2bcd8739ae039() {
     }
     "#}
     );
@@ -2958,7 +3095,24 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    class $abc$export$9099ad97b570f7c {
+    class $abc$export$2e2bcd8739ae039 {
+    }
+    "#}
+    );
+
+    let (_collect, code, hoist) = parse(
+      r#"
+    console.log(module);
+    export default class X {}
+    "#,
+    );
+
+    assert!(hoist.should_wrap);
+    assert_eq!(
+      code,
+      indoc! {r#"
+    console.log(module);
+    class X {
     }
     "#}
     );
@@ -2972,7 +3126,7 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    var $abc$export$10b1f2ceae7ab64e = 2, $abc$export$57bbd0ca114c72e = 3;
+    var $abc$export$d141bba7fdc215a3 = 2, $abc$export$4a5767248b18ef41 = 3;
     "#}
     );
 
@@ -2987,9 +3141,9 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    var { x: $abc$export$10b1f2ceae7ab64e , ...$abc$export$57bbd0ca114c72e } = something;
-    var [$abc$export$e809c7c5e035fc81, ...$abc$export$51cf687b896afa97] = something;
-    var { x: $abc$export$10b1f2ceae7ab64e = 3  } = something;
+    var { x: $abc$export$d141bba7fdc215a3 , ...$abc$export$4a5767248b18ef41 } = something;
+    var [$abc$export$ffb5f4729a158638, ...$abc$export$9e5f44173e64f162] = something;
+    var { x: $abc$export$d141bba7fdc215a3 = 3  } = something;
     "#}
     );
 
@@ -3002,7 +3156,7 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    function $abc$export$fdd70aeca3bc8cbb() {
+    function $abc$export$e0969da9b8fb378d() {
     }
     "#}
     );
@@ -3016,7 +3170,7 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    class $abc$export$785fc6237f113e49 {
+    class $abc$export$1b16fc9eb974a84d {
     }
     "#}
     );
@@ -3059,8 +3213,8 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    var $abc$export$ba02ad2230917043;
-    $abc$export$ba02ad2230917043 = 2;
+    var $abc$export$6a5cdcad01c973fa;
+    $abc$export$6a5cdcad01c973fa = 2;
     "#}
     );
 
@@ -3073,8 +3227,8 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    var $abc$export$ba02ad2230917043;
-    $abc$export$ba02ad2230917043 = 2;
+    var $abc$export$6a5cdcad01c973fa;
+    $abc$export$6a5cdcad01c973fa = 2;
     "#}
     );
 
@@ -3089,9 +3243,9 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    var $abc$export$ba02ad2230917043;
+    var $abc$export$6a5cdcad01c973fa;
     function $abc$var$init() {
-        $abc$export$ba02ad2230917043 = 2;
+        $abc$export$6a5cdcad01c973fa = 2;
     }
     "#}
     );
@@ -3105,8 +3259,8 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    var $abc$export$ba02ad2230917043;
-    $abc$export$ba02ad2230917043 = 2;
+    var $abc$export$6a5cdcad01c973fa;
+    $abc$export$6a5cdcad01c973fa = 2;
     "#}
     );
 
@@ -3119,8 +3273,8 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    var $abc$export$ba02ad2230917043;
-    $abc$export$ba02ad2230917043 = 2;
+    var $abc$export$6a5cdcad01c973fa;
+    $abc$export$6a5cdcad01c973fa = 2;
     "#}
     );
 
@@ -3134,9 +3288,9 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    var $abc$export$ba02ad2230917043;
-    $abc$export$ba02ad2230917043 = 2;
-    console.log($abc$export$ba02ad2230917043);
+    var $abc$export$6a5cdcad01c973fa;
+    $abc$export$6a5cdcad01c973fa = 2;
+    console.log($abc$export$6a5cdcad01c973fa);
     "#}
     );
 
@@ -3150,9 +3304,9 @@ mod tests {
     assert_eq!(
       code,
       indoc! {r#"
-    var $abc$export$ba02ad2230917043;
-    $abc$export$ba02ad2230917043 = 2;
-    console.log($abc$export$ba02ad2230917043);
+    var $abc$export$6a5cdcad01c973fa;
+    $abc$export$6a5cdcad01c973fa = 2;
+    console.log($abc$export$6a5cdcad01c973fa);
     "#}
     );
   }
@@ -3313,13 +3467,13 @@ mod tests {
     assert_eq_imported_symbols!(
       hoist.imported_symbols,
       map! {
-        w!("$abc$importAsync$558d6cfb8af8a010$ba02ad2230917043") => (w!("other"), w!("foo"))
+        w!("$abc$importAsync$70a00e0a8474f72a$6a5cdcad01c973fa") => (w!("other"), w!("foo"))
       }
     );
     assert_eq!(
       hoist.dynamic_imports,
       map! {
-        w!("$abc$importAsync$558d6cfb8af8a010") => w!("other")
+        w!("$abc$importAsync$70a00e0a8474f72a") => w!("other")
       }
     );
     assert_eq!(
@@ -3327,7 +3481,7 @@ mod tests {
       indoc! {r#"
     import "abc:other";
     async function $abc$var$test() {
-        const x = await $abc$importAsync$558d6cfb8af8a010;
+        const x = await $abc$importAsync$70a00e0a8474f72a;
         console.log(x.foo);
     }
     "#}
@@ -3344,13 +3498,13 @@ mod tests {
     assert_eq_imported_symbols!(
       hoist.imported_symbols,
       map! {
-        w!("$abc$importAsync$558d6cfb8af8a010") => (w!("other"), w!("*"))
+        w!("$abc$importAsync$70a00e0a8474f72a") => (w!("other"), w!("*"))
       }
     );
     assert_eq!(
       hoist.dynamic_imports,
       map! {
-        w!("$abc$importAsync$558d6cfb8af8a010") => w!("other")
+        w!("$abc$importAsync$70a00e0a8474f72a") => w!("other")
       }
     );
     assert_eq!(
@@ -3358,7 +3512,7 @@ mod tests {
       indoc! {r#"
     import "abc:other";
     async function $abc$var$test() {
-        const x = await $abc$importAsync$558d6cfb8af8a010;
+        const x = await $abc$importAsync$70a00e0a8474f72a;
         console.log(x[foo]);
     }
     "#}
@@ -3375,13 +3529,13 @@ mod tests {
     assert_eq_imported_symbols!(
       hoist.imported_symbols,
       map! {
-        w!("$abc$importAsync$558d6cfb8af8a010$ba02ad2230917043") => (w!("other"), w!("foo"))
+        w!("$abc$importAsync$70a00e0a8474f72a$6a5cdcad01c973fa") => (w!("other"), w!("foo"))
       }
     );
     assert_eq!(
       hoist.dynamic_imports,
       map! {
-        w!("$abc$importAsync$558d6cfb8af8a010") => w!("other")
+        w!("$abc$importAsync$70a00e0a8474f72a") => w!("other")
       }
     );
     assert_eq!(
@@ -3389,7 +3543,7 @@ mod tests {
       indoc! {r#"
     import "abc:other";
     async function $abc$var$test() {
-        const { foo: foo  } = await $abc$importAsync$558d6cfb8af8a010;
+        const { foo: foo  } = await $abc$importAsync$70a00e0a8474f72a;
         console.log(foo);
     }
     "#}
@@ -3406,13 +3560,13 @@ mod tests {
     assert_eq_imported_symbols!(
       hoist.imported_symbols,
       map! {
-        w!("$abc$importAsync$558d6cfb8af8a010$ba02ad2230917043") => (w!("other"), w!("foo"))
+        w!("$abc$importAsync$70a00e0a8474f72a$6a5cdcad01c973fa") => (w!("other"), w!("foo"))
       }
     );
     assert_eq!(
       hoist.dynamic_imports,
       map! {
-        w!("$abc$importAsync$558d6cfb8af8a010") => w!("other")
+        w!("$abc$importAsync$70a00e0a8474f72a") => w!("other")
       }
     );
     assert_eq!(
@@ -3420,7 +3574,7 @@ mod tests {
       indoc! {r#"
     import "abc:other";
     async function $abc$var$test() {
-        const { foo: bar  } = await $abc$importAsync$558d6cfb8af8a010;
+        const { foo: bar  } = await $abc$importAsync$70a00e0a8474f72a;
         console.log(bar);
     }
     "#}
@@ -3434,20 +3588,20 @@ mod tests {
     assert_eq_imported_symbols!(
       hoist.imported_symbols,
       map! {
-        w!("$abc$importAsync$558d6cfb8af8a010$ba02ad2230917043") => (w!("other"), w!("foo"))
+        w!("$abc$importAsync$70a00e0a8474f72a$6a5cdcad01c973fa") => (w!("other"), w!("foo"))
       }
     );
     assert_eq!(
       hoist.dynamic_imports,
       map! {
-        w!("$abc$importAsync$558d6cfb8af8a010") => w!("other")
+        w!("$abc$importAsync$70a00e0a8474f72a") => w!("other")
       }
     );
     assert_eq!(
       code,
       indoc! {r#"
     import "abc:other";
-    $abc$importAsync$558d6cfb8af8a010.then((x)=>x.foo
+    $abc$importAsync$70a00e0a8474f72a.then((x)=>x.foo
     );
     "#}
     );
@@ -3460,20 +3614,20 @@ mod tests {
     assert_eq_imported_symbols!(
       hoist.imported_symbols,
       map! {
-        w!("$abc$importAsync$558d6cfb8af8a010") => (w!("other"), w!("*"))
+        w!("$abc$importAsync$70a00e0a8474f72a") => (w!("other"), w!("*"))
       }
     );
     assert_eq!(
       hoist.dynamic_imports,
       map! {
-        w!("$abc$importAsync$558d6cfb8af8a010") => w!("other")
+        w!("$abc$importAsync$70a00e0a8474f72a") => w!("other")
       }
     );
     assert_eq!(
       code,
       indoc! {r#"
     import "abc:other";
-    $abc$importAsync$558d6cfb8af8a010.then((x)=>x
+    $abc$importAsync$70a00e0a8474f72a.then((x)=>x
     );
     "#}
     );
@@ -3486,20 +3640,20 @@ mod tests {
     assert_eq_imported_symbols!(
       hoist.imported_symbols,
       map! {
-        w!("$abc$importAsync$558d6cfb8af8a010$ba02ad2230917043") => (w!("other"), w!("foo"))
+        w!("$abc$importAsync$70a00e0a8474f72a$6a5cdcad01c973fa") => (w!("other"), w!("foo"))
       }
     );
     assert_eq!(
       hoist.dynamic_imports,
       map! {
-        w!("$abc$importAsync$558d6cfb8af8a010") => w!("other")
+        w!("$abc$importAsync$70a00e0a8474f72a") => w!("other")
       }
     );
     assert_eq!(
       code,
       indoc! {r#"
     import "abc:other";
-    $abc$importAsync$558d6cfb8af8a010.then(({ foo: foo  })=>foo
+    $abc$importAsync$70a00e0a8474f72a.then(({ foo: foo  })=>foo
     );
     "#}
     );
@@ -3512,20 +3666,20 @@ mod tests {
     assert_eq_imported_symbols!(
       hoist.imported_symbols,
       map! {
-        w!("$abc$importAsync$558d6cfb8af8a010$ba02ad2230917043") => (w!("other"), w!("foo"))
+        w!("$abc$importAsync$70a00e0a8474f72a$6a5cdcad01c973fa") => (w!("other"), w!("foo"))
       }
     );
     assert_eq!(
       hoist.dynamic_imports,
       map! {
-        w!("$abc$importAsync$558d6cfb8af8a010") => w!("other")
+        w!("$abc$importAsync$70a00e0a8474f72a") => w!("other")
       }
     );
     assert_eq!(
       code,
       indoc! {r#"
     import "abc:other";
-    $abc$importAsync$558d6cfb8af8a010.then(({ foo: bar  })=>bar
+    $abc$importAsync$70a00e0a8474f72a.then(({ foo: bar  })=>bar
     );
     "#}
     );
@@ -3538,20 +3692,20 @@ mod tests {
     assert_eq_imported_symbols!(
       hoist.imported_symbols,
       map! {
-        w!("$abc$importAsync$558d6cfb8af8a010$ba02ad2230917043") => (w!("other"), w!("foo"))
+        w!("$abc$importAsync$70a00e0a8474f72a$6a5cdcad01c973fa") => (w!("other"), w!("foo"))
       }
     );
     assert_eq!(
       hoist.dynamic_imports,
       map! {
-        w!("$abc$importAsync$558d6cfb8af8a010") => w!("other")
+        w!("$abc$importAsync$70a00e0a8474f72a") => w!("other")
       }
     );
     assert_eq!(
       code,
       indoc! {r#"
     import "abc:other";
-    $abc$importAsync$558d6cfb8af8a010.then(function(x) {
+    $abc$importAsync$70a00e0a8474f72a.then(function(x) {
         return x.foo;
     });
     "#}
@@ -3565,20 +3719,20 @@ mod tests {
     assert_eq_imported_symbols!(
       hoist.imported_symbols,
       map! {
-        w!("$abc$importAsync$558d6cfb8af8a010") => (w!("other"), w!("*"))
+        w!("$abc$importAsync$70a00e0a8474f72a") => (w!("other"), w!("*"))
       }
     );
     assert_eq!(
       hoist.dynamic_imports,
       map! {
-        w!("$abc$importAsync$558d6cfb8af8a010") => w!("other")
+        w!("$abc$importAsync$70a00e0a8474f72a") => w!("other")
       }
     );
     assert_eq!(
       code,
       indoc! {r#"
     import "abc:other";
-    $abc$importAsync$558d6cfb8af8a010.then(function(x) {
+    $abc$importAsync$70a00e0a8474f72a.then(function(x) {
         return x;
     });
     "#}
@@ -3592,20 +3746,20 @@ mod tests {
     assert_eq_imported_symbols!(
       hoist.imported_symbols,
       map! {
-        w!("$abc$importAsync$558d6cfb8af8a010$ba02ad2230917043") => (w!("other"), w!("foo"))
+        w!("$abc$importAsync$70a00e0a8474f72a$6a5cdcad01c973fa") => (w!("other"), w!("foo"))
       }
     );
     assert_eq!(
       hoist.dynamic_imports,
       map! {
-        w!("$abc$importAsync$558d6cfb8af8a010") => w!("other")
+        w!("$abc$importAsync$70a00e0a8474f72a") => w!("other")
       }
     );
     assert_eq!(
       code,
       indoc! {r#"
     import "abc:other";
-    $abc$importAsync$558d6cfb8af8a010.then(function({ foo: foo  }) {
+    $abc$importAsync$70a00e0a8474f72a.then(function({ foo: foo  }) {
     });
     "#}
     );
@@ -3618,20 +3772,20 @@ mod tests {
     assert_eq_imported_symbols!(
       hoist.imported_symbols,
       map! {
-        w!("$abc$importAsync$558d6cfb8af8a010$ba02ad2230917043") => (w!("other"), w!("foo"))
+        w!("$abc$importAsync$70a00e0a8474f72a$6a5cdcad01c973fa") => (w!("other"), w!("foo"))
       }
     );
     assert_eq!(
       hoist.dynamic_imports,
       map! {
-        w!("$abc$importAsync$558d6cfb8af8a010") => w!("other")
+        w!("$abc$importAsync$70a00e0a8474f72a") => w!("other")
       }
     );
     assert_eq!(
       code,
       indoc! {r#"
     import "abc:other";
-    $abc$importAsync$558d6cfb8af8a010.then(function({ foo: bar  }) {
+    $abc$importAsync$70a00e0a8474f72a.then(function({ foo: bar  }) {
     });
     "#}
     );

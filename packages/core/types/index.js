@@ -66,6 +66,7 @@ export type RawParcelConfig = {|
   runtimes?: RawParcelConfigPipeline,
   packagers?: {[Glob]: PackageName, ...},
   optimizers?: {[Glob]: RawParcelConfigPipeline, ...},
+  compressors?: {[Glob]: RawParcelConfigPipeline, ...},
   reporters?: RawParcelConfigPipeline,
   validators?: {[Glob]: RawParcelConfigPipeline, ...},
 |};
@@ -1594,6 +1595,20 @@ export type Optimizer<ConfigType> = {|
     config: ConfigType,
     getSourceMapReference: (map: ?SourceMap) => Async<?string>,
   |}): Async<BundleResult>,
+|};
+
+/**
+ * @section compressor
+ */
+export type Compressor = {|
+  compress({|
+    stream: Readable,
+    options: PluginOptions,
+    logger: PluginLogger,
+  |}): Async<{|
+    stream: Readable,
+    type?: string,
+  |}>,
 |};
 
 /**

@@ -244,7 +244,7 @@ export class ScopeHoistingPackager {
         this.bundleGraph.isAssetReferenced(this.bundle, asset) ||
         this.bundleGraph
           .getIncomingDependencies(asset)
-          .some(dep => dep.meta.shouldWrap)
+          .some(dep => dep.meta.shouldWrap && dep.specifierType !== 'url')
       ) {
         this.wrappedAssets.add(asset.id);
         return true;
@@ -741,7 +741,7 @@ ${code}
       exportSymbol === 'default' &&
       staticExports &&
       !isWrapped &&
-      dep?.meta.kind === 'Import' &&
+      (dep?.meta.kind === 'Import' || dep?.meta.kind === 'Export') &&
       resolvedAsset.symbols.hasExportSymbol('*') &&
       resolvedAsset.symbols.hasExportSymbol('default') &&
       !resolvedAsset.symbols.hasExportSymbol('__esModule');
@@ -771,8 +771,9 @@ ${code}
       // we need to use a member access off the namespace object rather
       // than a direct reference. If importing default from a CJS module,
       // use a helper to check the __esModule flag at runtime.
+      let kind = dep?.meta.kind;
       if (
-        dep?.meta.kind === 'Import' &&
+        (!dep || kind === 'Import' || kind === 'Export') &&
         exportSymbol === 'default' &&
         resolvedAsset.symbols.hasExportSymbol('*') &&
         this.needsDefaultInterop(resolvedAsset)
