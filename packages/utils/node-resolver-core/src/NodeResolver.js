@@ -6,7 +6,6 @@ import type {
   ResolveResult,
   Environment,
   SpecifierType,
-  QueryParameters,
 } from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
 
@@ -59,7 +58,7 @@ type Module = {|
   moduleDir?: FilePath,
   filePath?: FilePath,
   code?: string,
-  query?: QueryParameters,
+  query?: URLSearchParams,
 |};
 
 type ResolverContext = {|
@@ -418,7 +417,7 @@ export default class NodeResolver {
     filename: string,
     dir: string,
     specifierType: SpecifierType,
-  ): Promise<?{|filePath: string, query?: QueryParameters|}> {
+  ): Promise<?{|filePath: string, query?: URLSearchParams|}> {
     let url;
     switch (filename[0]) {
       case '/': {
@@ -522,22 +521,9 @@ export default class NodeResolver {
         });
       }
 
-      let query = undefined;
-      if (url.search) {
-        query = {};
-        // using `query = Object.fromEntries(params)` would swallow duplicate entries
-        for (let [k, v] of new URLSearchParams(url.search.slice(1))) {
-          if (query[k] != null) {
-            query[k] = [].concat(query[k], v);
-          } else {
-            query[k] = v;
-          }
-        }
-      }
-
       return {
         filePath,
-        query,
+        query: url.search ? new URLSearchParams(url.search) : undefined,
       };
     } else {
       // CommonJS specifier. Query params are not supported.
