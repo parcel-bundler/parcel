@@ -19,7 +19,7 @@ import type {
 
 import invariant from 'assert';
 import {hashString, Hash} from '@parcel/hash';
-import {hashObject, objectSortedEntries} from '@parcel/utils';
+import {hashObject} from '@parcel/utils';
 import nullthrows from 'nullthrows';
 import {ContentGraph} from '@parcel/graph';
 import {createDependency} from './Dependency';
@@ -62,9 +62,7 @@ export function nodeFromAssetGroup(assetGroup: AssetGroup): AssetGroupNode {
         ':' +
         (assetGroup.pipeline ?? '') +
         ':' +
-        (assetGroup.query
-          ? JSON.stringify(objectSortedEntries(assetGroup.query))
-          : ''),
+        (assetGroup.query ?? ''),
     ),
     type: 'asset_group',
     value: assetGroup,
