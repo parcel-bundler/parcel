@@ -16,3 +16,8 @@ export type Edge<TEdgeType: number> = {|
   to: NodeId,
   type: TEdgeType,
 |};
+
+export type NullEdgeType = 1;
+export type AllEdgeTypes = -1;
+
+export const ALL_EDGE_TYPES: -1 = -1;

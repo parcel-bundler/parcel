@@ -1,14 +1,13 @@
 // @flow strict-local
-
-import {fromNodeId} from './types';
-import AdjacencyList, {type SerializedAdjacencyList} from './AdjacencyList';
-import type {Edge, NodeId} from './types';
+import type {AllEdgeTypes, Edge, NodeId, NullEdgeType} from './types';
+import type {SerializedAdjacencyList} from './AdjacencyList';
 import type {TraversalActions, GraphVisitor} from '@parcel/types';
 
+import {fromNodeId, ALL_EDGE_TYPES} from './types';
+import AdjacencyList from './AdjacencyList';
 import assert from 'assert';
 import nullthrows from 'nullthrows';
 
-export type NullEdgeType = 1;
 export type GraphOpts<TNode, TEdgeType: number = 1> = {|
   nodes?: Map<NodeId, TNode>,
   adjacencyList?: SerializedAdjacencyList<TEdgeType>,
@@ -20,9 +19,6 @@ export type SerializedGraph<TNode, TEdgeType: number = 1> = {|
   adjacencyList: SerializedAdjacencyList<TEdgeType>,
   rootNodeId: ?NodeId,
 |};
-
-export type AllEdgeTypes = -1;
-export const ALL_EDGE_TYPES: AllEdgeTypes = -1;
 
 export default class Graph<TNode, TEdgeType: number = 1> {
   nodes: Map<NodeId, TNode>;
@@ -63,7 +59,7 @@ export default class Graph<TNode, TEdgeType: number = 1> {
 
   // Returns an iterator of all edges in the graph. This can be large, so iterating
   // the complete list can be costly in large graphs. Used when merging graphs.
-  getAllEdges(): Iterator<Edge<TEdgeType | NullEdgeType>> {
+  getAllEdges(): Iterable<Edge<TEdgeType | NullEdgeType>> {
     return this.adjacencyList.getAllEdges();
   }
 
@@ -269,7 +265,11 @@ export default class Graph<TNode, TEdgeType: number = 1> {
     filter: (NodeId, TraversalActions) => ?TValue,
     visit: GraphVisitor<TValue, TContext>,
     startNodeId: ?NodeId,
-    type?: TEdgeType | Array<TEdgeType | NullEdgeType> | AllEdgeTypes,
+    type?:
+      | TEdgeType
+      | NullEdgeType
+      | Array<TEdgeType | NullEdgeType>
+      | AllEdgeTypes,
   ): ?TContext {
     return this.traverse(mapVisitor(filter, visit), startNodeId, type);
   }

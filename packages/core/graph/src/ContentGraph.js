@@ -1,7 +1,8 @@
 // @flow strict-local
+import type {GraphOpts, SerializedGraph} from './Graph';
 import type {ContentKey, NodeId} from './types';
 
-import Graph, {type SerializedGraph, type GraphOpts} from './Graph';
+import Graph from './Graph';
 import nullthrows from 'nullthrows';
 
 export type ContentGraphOpts<TNode, TEdgeType: number = 1> = {|
