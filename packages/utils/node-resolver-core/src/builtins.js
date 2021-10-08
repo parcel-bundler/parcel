@@ -1,6 +1,6 @@
-// @flow
-import polyfills from '@parcel/node-libs-browser';
+// @flow strict-local
 // $FlowFixMe this is untyped
+import polyfills from '@parcel/node-libs-browser';
 import {builtinModules} from 'module';
 
 export const empty: string = require.resolve('./_empty.js');

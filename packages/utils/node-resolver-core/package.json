@@ -23,7 +23,6 @@
     "@parcel/node-libs-browser": "2.0.0-rc.0",
     "@parcel/utils": "2.0.0-rc.0",
     "micromatch": "^3.0.4",
-    "nullthrows": "^1.1.1",
-    "querystring": "^0.2.0"
+    "nullthrows": "^1.1.1"
   }
 }

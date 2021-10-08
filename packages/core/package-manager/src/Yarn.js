@@ -4,6 +4,8 @@ import type {PackageInstaller, InstallerOptions} from './types';
 
 import commandExists from 'command-exists';
 import spawn from 'cross-spawn';
+import {exec as _exec} from 'child_process';
+import {promisify} from 'util';
 import logger from '@parcel/logger';
 import split from 'split2';
 import JSONParseStream from './JSONParseStream';
@@ -15,6 +17,7 @@ import {npmSpecifierFromModuleRequest} from './utils';
 import pkg from '../package.json';
 
 const YARN_CMD = 'yarn';
+const exec = promisify(_exec);
 
 type YarnStdOutMessage =
   | {|
@@ -35,6 +38,8 @@ type YarnStdErrMessage = {|
 |};
 
 let hasYarn: ?boolean;
+let yarnVersion: ?number;
+
 export class Yarn implements PackageInstaller {
   static async exists(): Promise<boolean> {
     if (hasYarn != null) {
@@ -55,12 +60,20 @@ export class Yarn implements PackageInstaller {
     cwd,
     saveDev = true,
   }: InstallerOptions): Promise<void> {
+    if (yarnVersion == null) {
+      let version = await exec('yarn --version');
+      yarnVersion = parseInt(version.stdout, 10);
+    }
+
     let args = ['add', '--json'].concat(
       modules.map(npmSpecifierFromModuleRequest),
     );
 
     if (saveDev) {
-      args.push('-D', '-W');
+      args.push('-D');
+      if (yarnVersion < 2) {
+        args.push('-W');
+      }
     }
 
     // When Parcel is run by Yarn (e.g. via package.json scripts), several environment variables are

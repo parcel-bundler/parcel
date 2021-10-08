@@ -6,7 +6,6 @@ import type {
   ResolveResult,
   Environment,
   SpecifierType,
-  QueryParameters,
 } from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
 
@@ -27,10 +26,8 @@ import ThrowableDiagnostic, {
 import micromatch from 'micromatch';
 import builtins, {empty} from './builtins';
 import nullthrows from 'nullthrows';
-// $FlowFixMe this is untyped
 import _Module from 'module';
 import {fileURLToPath} from 'url';
-import {parse as parseQueryString} from 'querystring';
 
 const EMPTY_SHIM = require.resolve('./_empty');
 
@@ -61,7 +58,7 @@ type Module = {|
   moduleDir?: FilePath,
   filePath?: FilePath,
   code?: string,
-  query?: QueryParameters,
+  query?: URLSearchParams,
 |};
 
 type ResolverContext = {|
@@ -420,7 +417,7 @@ export default class NodeResolver {
     filename: string,
     dir: string,
     specifierType: SpecifierType,
-  ): Promise<?{|filePath: string, query?: QueryParameters|}> {
+  ): Promise<?{|filePath: string, query?: URLSearchParams|}> {
     let url;
     switch (filename[0]) {
       case '/': {
@@ -526,7 +523,7 @@ export default class NodeResolver {
 
       return {
         filePath,
-        query: url.search ? parseQueryString(url.search.slice(1)) : undefined,
+        query: url.search ? new URLSearchParams(url.search) : undefined,
       };
     } else {
       // CommonJS specifier. Query params are not supported.
