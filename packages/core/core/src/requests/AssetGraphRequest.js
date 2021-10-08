@@ -150,7 +150,9 @@ export class AssetGraphBuilder {
     this.requestedAssetIds = requestedAssetIds ?? new Set();
     this.shouldBuildLazily = shouldBuildLazily ?? false;
     this.cacheKey = hashString(
-      `${PARCEL_VERSION}${name}${JSON.stringify(entries) ?? ''}${options.mode}`,
+      `${PARCEL_VERSION}${name}${JSON.stringify(entries) ?? ''}${options.mode}${
+        process.env.PARCEL_SHARE_MEM != null ? 'shared' : ''
+      }`,
     );
 
     this.queue = new PromiseQueue();

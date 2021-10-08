@@ -1,8 +1,9 @@
-// @flow strict-local
+// @flow
 import type {GraphOpts, SerializedGraph} from './Graph';
 import type {ContentKey, NodeId} from './types';
 
-import Graph from './Graph';
+import SharedGraph from './Graph';
+import InProcessGraph from './InProcessGraph';
 import nullthrows from 'nullthrows';
 
 export type ContentGraphOpts<TNode, TEdgeType: number = 1> = {|
@@ -14,6 +15,9 @@ export type SerializedContentGraph<TNode, TEdgeType: number = 1> = {|
   ...SerializedGraph<TNode, TEdgeType>,
   _contentKeyToNodeId: Map<ContentKey, NodeId>,
 |};
+
+const Graph: typeof SharedGraph =
+  process.env.PARCEL_SHARE_MEM != null ? SharedGraph : (InProcessGraph: any);
 
 export default class ContentGraph<TNode, TEdgeType: number = 1> extends Graph<
   TNode,
