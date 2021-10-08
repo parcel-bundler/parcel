@@ -304,14 +304,15 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
 
     let {sideEffects, canDefer = true} = childNode.value;
     let dependency = node.value;
-    let previouslyDeferred = node.hasDeferred;
+    let nodePreviouslyDeferred = node.hasDeferred;
+    let childNodePreviouslyDeferred = childNode.deferred;
     let defer = this.shouldDeferDependency(dependency, sideEffects, canDefer);
     node.hasDeferred = defer;
     childNode.deferred = defer;
 
-    if (!previouslyDeferred && defer) {
+    if (!nodePreviouslyDeferred && defer) {
       this.markParentsWithHasDeferred(nodeId);
-    } else if (previouslyDeferred && !defer) {
+    } else if (childNodePreviouslyDeferred && !defer) {
       this.unmarkParentsWithHasDeferred(childNodeId);
     }
 
