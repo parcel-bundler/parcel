@@ -132,7 +132,7 @@ export class AssetGraphBuilder {
     this.requestedAssetIds = requestedAssetIds ?? new Set();
     this.shouldBuildLazily = shouldBuildLazily ?? false;
     this.cacheKey = hashString(
-      `${PARCEL_VERSION}${name}${JSON.stringify(entries) ?? ''}`,
+      `${PARCEL_VERSION}${name}${JSON.stringify(entries) ?? ''}${options.mode}`,
     );
 
     this.queue = new PromiseQueue();
@@ -203,7 +203,11 @@ export class AssetGraphBuilder {
           return dep;
         }),
       );
-    if (entryDependencies.some(d => d.value.env.shouldScopeHoist)) {
+
+    this.assetGraph.symbolPropagationRan = entryDependencies.some(
+      d => d.value.env.shouldScopeHoist,
+    );
+    if (this.assetGraph.symbolPropagationRan) {
       try {
         this.propagateSymbols();
       } catch (e) {

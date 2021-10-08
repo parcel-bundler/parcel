@@ -239,7 +239,7 @@ export class ResolverRunner {
                   this.options.projectRoot,
                   resultFilePath,
                 ),
-                query: result.query,
+                query: result.query?.toString(),
                 sideEffects: result.sideEffects,
                 code: result.code,
                 env: dependency.env,

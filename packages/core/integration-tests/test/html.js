@@ -1320,7 +1320,7 @@ describe('html', function() {
           ],
           hints: ['Add the type="module" attribute to the <script> tag.'],
           documentationURL:
-            'https://v2.parceljs.org/languages/javascript/#classic-scripts',
+            'https://parceljs.org/languages/javascript/#classic-scripts',
         },
       ]);
 
@@ -1601,7 +1601,7 @@ describe('html', function() {
           ],
           hints: ['Add the type="module" attribute to the <script> tag.'],
           documentationURL:
-            'https://v2.parceljs.org/languages/javascript/#classic-scripts',
+            'https://parceljs.org/languages/javascript/#classic-scripts',
         },
       ]);
 
