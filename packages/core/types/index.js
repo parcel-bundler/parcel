@@ -25,8 +25,6 @@ export type ConfigResultWithFilePath<T> = {|
 /** <code>process.env</code> */
 export type EnvMap = typeof process.env;
 
-export type QueryParameters = {[key: string]: string, ...};
-
 export type JSONValue =
   | null
   | void // ? Is this okay?
@@ -637,7 +635,7 @@ export interface BaseAsset {
    */
   +type: string;
   /** The transformer options for the asset from the dependency query string. */
-  +query: QueryParameters;
+  +query: URLSearchParams;
   /** The environment of the asset. */
   +env: Environment;
   /**
@@ -1458,7 +1456,7 @@ export type ResolveResult = {|
   /** An optional named pipeline to use to compile the resolved file. */
   +pipeline?: ?string,
   /** Query parameters to be used by transformers when compiling the resolved file. */
-  +query?: QueryParameters,
+  +query?: URLSearchParams,
   /** Whether the resolved file should be excluded from the build. */
   +isExcluded?: boolean,
   /** Overrides the priority set on the dependency. */

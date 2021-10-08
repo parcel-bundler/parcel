@@ -589,7 +589,12 @@ function getRelativePathExpr(
     );
   }
 
-  return JSON.stringify(relativePath);
+  let res = JSON.stringify(relativePath);
+  if (options.hmrOptions) {
+    res += ' + "?" + Date.now()';
+  }
+
+  return res;
 }
 
 function getAbsoluteUrlExpr(relativePathExpr: string, bundle: NamedBundle) {

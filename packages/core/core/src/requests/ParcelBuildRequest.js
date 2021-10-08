@@ -77,7 +77,12 @@ async function run({input, api, options}: RunInput) {
     optionsRef,
   });
 
-  let {bundleGraph} = await api.runRequest(bundleGraphRequest);
+  let {bundleGraph, changedAssets: changedRuntimeAssets} = await api.runRequest(
+    bundleGraphRequest,
+  );
+  for (let [id, asset] of changedRuntimeAssets) {
+    changedAssets.set(id, asset);
+  }
 
   // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381 (Windows only)
   dumpGraphToGraphViz(bundleGraph._graph, 'BundleGraph', bundleGraphEdgeTypes);

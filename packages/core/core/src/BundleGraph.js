@@ -6,12 +6,7 @@ import type {
   Symbol,
   TraversalActions,
 } from '@parcel/types';
-import type {
-  ContentGraphOpts,
-  NodeId,
-  SerializedContentGraph,
-} from '@parcel/graph';
-import querystring from 'querystring';
+import type {NodeId, SerializedContentGraph} from '@parcel/graph';
 
 import type {
   Asset,
@@ -31,7 +26,12 @@ import type {ProjectPath} from './projectPath';
 import assert from 'assert';
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
-import {ContentGraph, ALL_EDGE_TYPES, mapVisitor} from '@parcel/graph';
+import {
+  ContentGraph,
+  type ContentGraphOpts,
+  ALL_EDGE_TYPES,
+  mapVisitor,
+} from '@parcel/graph';
 import {Hash, hashString} from '@parcel/hash';
 import {objectSortedEntriesDeep, getRootDir} from '@parcel/utils';
 
@@ -1509,16 +1509,18 @@ export default class BundleGraph {
     let hash = new Hash();
     // TODO: sort??
     this.traverseAssets(bundle, asset => {
-      hash.writeString(
-        [
-          this.getAssetPublicId(asset),
-          asset.outputHash,
-          asset.filePath,
-          querystring.stringify(asset.query),
-          asset.type,
-          asset.uniqueKey,
-        ].join(':'),
-      );
+      {
+        hash.writeString(
+          [
+            this.getAssetPublicId(asset),
+            asset.outputHash,
+            asset.filePath,
+            asset.query,
+            asset.type,
+            asset.uniqueKey,
+          ].join(':'),
+        );
+      }
     });
 
     let hashHex = hash.finish();

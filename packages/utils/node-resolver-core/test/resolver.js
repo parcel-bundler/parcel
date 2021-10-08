@@ -259,7 +259,7 @@ describe('resolver', function() {
         nullthrows(resolved).filePath,
         path.join(rootDir, 'nested', 'index.js'),
       );
-      assert.deepEqual(nullthrows(resolved).query, {foo: 'bar'});
+      assert.deepEqual(nullthrows(resolved).query?.toString(), 'foo=bar');
     });
 
     it('should not support query params for CommonJS specifiers', async function() {
@@ -1051,7 +1051,7 @@ describe('resolver', function() {
         nullthrows(resolved).filePath,
         path.resolve(rootDir, 'node_modules/@scope/pkg/index.js'),
       );
-      assert.deepEqual(nullthrows(resolved).query, {foo: '2'});
+      assert.deepEqual(nullthrows(resolved).query?.toString(), 'foo=2');
     });
 
     it('should not support query params for bare CommonJS specifiers', async function() {
@@ -1080,7 +1080,7 @@ describe('resolver', function() {
         nullthrows(resolved).filePath,
         path.resolve(rootDir, 'node_modules/@scope/pkg/index.js'),
       );
-      assert.deepEqual(nullthrows(resolved).query, {foo: '2'});
+      assert.deepEqual(nullthrows(resolved).query?.toString(), 'foo=2');
     });
   });
 

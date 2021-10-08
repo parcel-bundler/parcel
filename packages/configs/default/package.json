@@ -52,6 +52,7 @@
     "@parcel/optimizer-data-url": "2.0.7",
     "@parcel/packager-raw-url": "2.0.7",
     "@parcel/packager-ts": "2.0.7",
+    "@parcel/packager-xml": "2.0.10",
     "@parcel/transformer-coffeescript": "2.0.7",
     "@parcel/transformer-elm": "2.0.7",
     "@parcel/transformer-glsl": "2.0.7",
@@ -70,6 +71,7 @@
     "@parcel/transformer-vue": "2.0.7",
     "@parcel/transformer-webmanifest": "2.0.7",
     "@parcel/transformer-worklet": "2.0.7",
+    "@parcel/transformer-xml": "2.0.10",
     "@parcel/transformer-yaml": "2.0.7"
   },
   "peerDependencies": {

@@ -1020,7 +1020,7 @@ export default class RequestTracker {
   }
 
   async writeToCache() {
-    let cacheKey = `${PARCEL_VERSION}:${JSON.stringify(this.options.entries)}`;
+    let cacheKey = getCacheKey(this.options);
     let requestGraphKey = hashString(`${cacheKey}:requestGraph`);
     let snapshotKey = hashString(`${cacheKey}:snapshot`);
 
@@ -1076,12 +1076,16 @@ export function getWatcherOptions(options: ParcelOptions): WatcherOptions {
   return {ignore};
 }
 
+function getCacheKey(options) {
+  return `${PARCEL_VERSION}:${JSON.stringify(options.entries)}:${options.mode}`;
+}
+
 async function loadRequestGraph(options): Async<RequestGraph> {
   if (options.shouldDisableCache) {
     return new RequestGraph();
   }
 
-  let cacheKey = `${PARCEL_VERSION}:${JSON.stringify(options.entries)}`;
+  let cacheKey = getCacheKey(options);
   let requestGraphKey = hashString(`${cacheKey}:requestGraph`);
   let requestGraph = await options.cache.get<RequestGraph>(requestGraphKey);
 

@@ -22,7 +22,7 @@
     "default_popup": "src/popup.html"
   },
   "content_scripts": [{
-    "matches": ["https://v2.parceljs.org/*"],
+    "matches": ["https://parceljs.org/*"],
     "js": ["src/content.js"],
     "css": ["src/content.css"]
   }],

@@ -24,7 +24,6 @@ import type {
   OutputFormat,
   TargetDescriptor,
   HMROptions,
-  QueryParameters,
   DetailedReportOptions,
 } from '@parcel/types';
 import type {SharedReference} from '@parcel/workers';
@@ -159,7 +158,7 @@ export type Asset = {|
   committed: boolean,
   hash: ?string,
   filePath: ProjectPath,
-  query: ?QueryParameters,
+  query: ?string,
   type: string,
   dependencies: Map<string, Dependency>,
   bundleBehavior: ?$Values<typeof BundleBehavior>,
@@ -332,7 +331,7 @@ export type AssetRequestInput = {|
   pipeline?: ?string,
   optionsRef: SharedReference,
   isURL?: boolean,
-  query?: ?QueryParameters,
+  query?: ?string,
 |};
 
 export type AssetRequestResult = Array<Asset>;

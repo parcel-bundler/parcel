@@ -2244,19 +2244,21 @@ describe('cache', function() {
 
     it('should update when minify changes', async function() {
       let b = await testCache({
+        entries: ['src/index.html'],
         defaultTargetOptions: {
           shouldScopeHoist: true,
           shouldOptimize: false,
         },
         async update(b) {
           let contents = await overlayFS.readFile(
-            b.bundleGraph.getBundles()[0].filePath,
+            b.bundleGraph.getBundles()[1].filePath,
             'utf8',
           );
           assert(contents.includes('Test'), 'should include Test');
 
           return {
             defaultTargetOptions: {
+              shouldScopeHoist: true,
               shouldOptimize: true,
             },
           };
@@ -2264,7 +2266,7 @@ describe('cache', function() {
       });
 
       let contents = await overlayFS.readFile(
-        b.bundleGraph.getBundles()[0].filePath,
+        b.bundleGraph.getBundles()[1].filePath,
         'utf8',
       );
       assert(!contents.includes('Test'), 'should not include Test');
@@ -5629,8 +5631,8 @@ describe('cache', function() {
       let bundles = b.bundleGraph.getBundles();
       let contents = await overlayFS.readFile(bundles[0].filePath, 'utf8');
       assert(contents.includes('.webp" type="image/webp">'));
-      assert(contents.includes('.jpg" type="image/jpeg">'));
-      assert(contents.includes('.jpg" alt="test image">'));
+      assert(contents.includes('.jpeg" type="image/jpeg">'));
+      assert(contents.includes('.jpeg" alt="test image">'));
       assert.equal(bundles.length, 4);
     });
   });

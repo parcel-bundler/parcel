@@ -308,7 +308,7 @@ async function processMap(
             },
           ],
           documentationURL:
-            'https://v2.parceljs.org/features/dependency-resolution/#url-schemes',
+            'https://parceljs.org/features/dependency-resolution/#url-schemes',
         },
       });
     }

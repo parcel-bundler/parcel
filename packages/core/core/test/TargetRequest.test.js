@@ -120,7 +120,7 @@ describe('TargetResolver', () => {
           publicUrl: '/',
           distDir: normalizeSeparators(path.resolve('customA')),
           env: {
-            id: '6777dcd79ef48447',
+            id: '1dd98650c5ce7c36',
             context: 'browser',
             includeNodeModules: true,
             engines: {
@@ -141,7 +141,7 @@ describe('TargetResolver', () => {
           distEntry: 'b.js',
           distDir: normalizeSeparators(path.resolve('customB')),
           env: {
-            id: '8692e75f0455234a',
+            id: '0ffaaa6e02d68165',
             context: 'node',
             includeNodeModules: false,
             engines: {
@@ -172,7 +172,7 @@ describe('TargetResolver', () => {
           distEntry: 'index.js',
           publicUrl: '/',
           env: {
-            id: '5bfcb1a4dba47a04',
+            id: '9c7208acd003a736',
             context: 'node',
             engines: {
               node: '>= 8.0.0',
@@ -206,7 +206,7 @@ describe('TargetResolver', () => {
           distEntry: 'index.js',
           publicUrl: '/',
           env: {
-            id: 'b20c59e7a8a57bd7',
+            id: 'fc44a10594e1e94c',
             context: 'browser',
             engines: {
               browsers: ['last 1 version'],
@@ -242,7 +242,7 @@ describe('TargetResolver', () => {
           distEntry: 'index.js',
           publicUrl: '/assets',
           env: {
-            id: '3267a35dda1916a4',
+            id: '75e004306d2ae008',
             context: 'browser',
             engines: {
               browsers: ['last 1 version'],
@@ -289,7 +289,7 @@ describe('TargetResolver', () => {
           publicUrl: '/',
           stableEntries: undefined,
           env: {
-            id: '9012ce728747eda4',
+            id: '20bc151ae3ec823e',
             context: 'node',
             engines: {
               node: '>= 8.0.0',
@@ -332,7 +332,7 @@ describe('TargetResolver', () => {
           distEntry: 'index.js',
           publicUrl: '/',
           env: {
-            id: '5bfcb1a4dba47a04',
+            id: '9c7208acd003a736',
             context: 'node',
             engines: {
               node: '>= 8.0.0',
@@ -367,7 +367,7 @@ describe('TargetResolver', () => {
           publicUrl: '/',
           stableEntries: undefined,
           env: {
-            id: '2089c9a83d648f3c',
+            id: '33b64397b15b0041',
             context: 'browser',
             engines: {
               browsers: ['last 1 version'],
@@ -402,7 +402,7 @@ describe('TargetResolver', () => {
           publicUrl: '/',
           stableEntries: undefined,
           env: {
-            id: 'af825df586472b87',
+            id: '7da63a08012e8da0',
             context: 'browser',
             engines: {
               browsers: ['ie11'],
@@ -453,7 +453,7 @@ describe('TargetResolver', () => {
           distEntry: 'index.js',
           publicUrl: '/',
           env: {
-            id: '5bfcb1a4dba47a04',
+            id: '9c7208acd003a736',
             context: 'node',
             engines: {
               node: '>= 8.0.0',
@@ -488,7 +488,7 @@ describe('TargetResolver', () => {
           publicUrl: '/',
           stableEntries: undefined,
           env: {
-            id: '2089c9a83d648f3c',
+            id: 'c94a6a48f01c64a3',
             context: 'browser',
             engines: {
               browsers: ['last 1 version'],
@@ -523,7 +523,7 @@ describe('TargetResolver', () => {
           publicUrl: '/',
           stableEntries: undefined,
           env: {
-            id: 'af825df586472b87',
+            id: '7d5e0746dbd8acb9',
             context: 'browser',
             engines: {
               browsers: ['ie11'],
@@ -566,7 +566,7 @@ describe('TargetResolver', () => {
           distEntry: undefined,
           publicUrl: 'www',
           env: {
-            id: '4771f44bbf9eed48',
+            id: 'be01e72242543e7f',
             context: 'browser',
             engines: {
               browsers: '> 0.25%',
@@ -610,7 +610,7 @@ describe('TargetResolver', () => {
           distDir: normalizeSeparators(path.resolve('customB')),
           publicUrl: '/',
           env: {
-            id: '6777dcd79ef48447',
+            id: '1dd98650c5ce7c36',
             context: 'browser',
             engines: {
               browsers: ['> 0.25%'],
@@ -652,7 +652,7 @@ describe('TargetResolver', () => {
           distDir: normalizeSeparators(path.resolve('customA')),
           publicUrl: '/',
           env: {
-            id: '6777dcd79ef48447',
+            id: '1dd98650c5ce7c36',
             context: 'browser',
             engines: {
               browsers: ['> 0.25%'],
@@ -681,7 +681,7 @@ describe('TargetResolver', () => {
         distEntry: 'index.js',
         publicUrl: '/',
         env: {
-          id: '4a7a0fe1a62bcbb0',
+          id: '607a315cd4cef41a',
           context: 'node',
           engines: {},
           includeNodeModules: false,
@@ -743,7 +743,7 @@ describe('TargetResolver', () => {
             'The "main" field is meant for libraries. If you meant to output a .html file, either remove the "main" field or choose a different target name.',
           ],
           documentationURL:
-            'https://v2.parceljs.org/features/targets/#library-targets',
+            'https://parceljs.org/features/targets/#library-targets',
         },
       ],
     });
@@ -785,7 +785,7 @@ describe('TargetResolver', () => {
             'The "main" field is meant for libraries. The outputFormat must be either "commonjs" or "esmodule". Either change or remove the declared outputFormat.',
           ],
           documentationURL:
-            'https://v2.parceljs.org/features/targets/#library-targets',
+            'https://parceljs.org/features/targets/#library-targets',
         },
       ],
     });
@@ -838,7 +838,7 @@ describe('TargetResolver', () => {
             'Either change the output file extension to .mjs, add "type": "module" to package.json, or remove the declared outputFormat.',
           ],
           documentationURL:
-            'https://v2.parceljs.org/features/targets/#library-targets',
+            'https://parceljs.org/features/targets/#library-targets',
         },
       ],
     });
@@ -891,7 +891,7 @@ describe('TargetResolver', () => {
             'Either remove the target\'s declared "outputFormat" or change the extension to .mjs or .js.',
           ],
           documentationURL:
-            'https://v2.parceljs.org/features/targets/#library-targets',
+            'https://parceljs.org/features/targets/#library-targets',
         },
       ],
     });
@@ -944,7 +944,7 @@ describe('TargetResolver', () => {
             'Either remove the target\'s declared "outputFormat" or change the extension to .cjs or .js.',
           ],
           documentationURL:
-            'https://v2.parceljs.org/features/targets/#library-targets',
+            'https://parceljs.org/features/targets/#library-targets',
         },
       ],
     });
@@ -985,7 +985,7 @@ describe('TargetResolver', () => {
             'The "main" target is meant for libraries. Either remove the "scopeHoist" option, or use a different target name.',
           ],
           documentationURL:
-            'https://v2.parceljs.org/features/targets/#library-targets',
+            'https://parceljs.org/features/targets/#library-targets',
         },
       ],
     });
@@ -1035,7 +1035,7 @@ describe('TargetResolver', () => {
           ],
           hints: ['Either remove the "scopeHoist" or "isLibrary" option.'],
           documentationURL:
-            'https://v2.parceljs.org/features/targets/#library-targets',
+            'https://parceljs.org/features/targets/#library-targets',
         },
       ],
     });
@@ -1053,7 +1053,7 @@ describe('TargetResolver', () => {
         publicUrl: '/',
         stableEntries: undefined,
         env: {
-          id: '0f899f1b8138dde1',
+          id: '16ba55b36df659ab',
           context: 'browser',
           engines: {},
           includeNodeModules: true,
@@ -1092,7 +1092,7 @@ describe('TargetResolver', () => {
         publicUrl: '/',
         stableEntries: undefined,
         env: {
-          id: '0f899f1b8138dde1',
+          id: '16ba55b36df659ab',
           context: 'browser',
           engines: {},
           includeNodeModules: true,
@@ -1134,7 +1134,7 @@ describe('TargetResolver', () => {
           distEntry: 'index.js',
           publicUrl: '/',
           env: {
-            id: '5bfcb1a4dba47a04',
+            id: '9c7208acd003a736',
             context: 'node',
             engines: {
               node: '>= 8.0.0',
@@ -1168,7 +1168,7 @@ describe('TargetResolver', () => {
           distEntry: 'index.js',
           publicUrl: '/assets',
           env: {
-            id: '3267a35dda1916a4',
+            id: '75e004306d2ae008',
             context: 'browser',
             engines: {
               browsers: ['last 1 version'],
@@ -1216,7 +1216,7 @@ describe('TargetResolver', () => {
           distDir: '.parcel-cache/dist',
           publicUrl: '/',
           env: {
-            id: 'c6928843415c2f6d',
+            id: '3a724be1e83713c3',
             context: 'browser',
             engines: {},
             includeNodeModules: true,
@@ -1246,7 +1246,7 @@ describe('TargetResolver', () => {
           ),
           publicUrl: '/',
           env: {
-            id: '0a4f8e5f09f774a0',
+            id: '8fcf6778c29e1131',
             context: 'browser',
             engines: {
               browsers: ['Chrome 80'],
@@ -1279,7 +1279,7 @@ describe('TargetResolver', () => {
           distEntry: undefined,
           publicUrl: '/',
           env: {
-            id: '0a4f8e5f09f774a0',
+            id: '8fcf6778c29e1131',
             context: 'browser',
             engines: {
               browsers: ['Chrome 80'],
@@ -1318,7 +1318,7 @@ describe('TargetResolver', () => {
           distEntry: undefined,
           publicUrl: '/',
           env: {
-            id: '2089c9a83d648f3c',
+            id: '33b64397b15b0041',
             context: 'browser',
             engines: {
               browsers: ['last 1 version'],
@@ -1347,7 +1347,7 @@ describe('TargetResolver', () => {
           distEntry: undefined,
           publicUrl: '/',
           env: {
-            id: '758e02e86887b69d',
+            id: 'dc4e9d1d57b08cc7',
             context: 'browser',
             engines: {
               browsers: ['IE 11'],

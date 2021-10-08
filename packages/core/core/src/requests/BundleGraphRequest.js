@@ -5,7 +5,7 @@ import type {SharedReference} from '@parcel/workers';
 import type ParcelConfig, {LoadedPlugin} from '../ParcelConfig';
 import type {StaticRunOpts, RunAPI} from '../RequestTracker';
 import type {
-  Asset as InternalAsset,
+  Asset,
   Bundle as InternalBundle,
   Config,
   DevDepRequest,
@@ -57,7 +57,7 @@ import {
 
 type BundleGraphRequestInput = {|
   assetGraph: AssetGraph,
-  changedAssets: Map<string, InternalAsset>,
+  changedAssets: Map<string, Asset>,
   previousAssetGraphHash: ?string,
   optionsRef: SharedReference,
 |};
@@ -67,10 +67,15 @@ type RunInput = {|
   ...StaticRunOpts,
 |};
 
+type BundleGraphResult = {|
+  bundleGraph: InternalBundleGraph,
+  changedAssets: Map<string, Asset>,
+|};
+
 type BundleGraphRequest = {|
   id: string,
   +type: 'bundle_graph_request',
-  run: RunInput => Async<BundleGraphRequestResult>,
+  run: RunInput => Async<BundleGraphResult>,
   input: BundleGraphRequestInput,
 |};
 type BundleGraphRequestResult = {|
@@ -183,8 +188,8 @@ class BundlerRunner {
   }: {|
     graph: AssetGraph,
     previousAssetGraphHash: ?string,
-    changedAssets: Map<string, InternalAsset>,
-  |}): Promise<BundleGraphRequestResult> {
+    changedAssets: Map<string, Asset>,
+  |}): Promise<BundleGraphResult> {
     report({
       type: 'buildProgress',
       phase: 'bundling',
@@ -214,7 +219,13 @@ class BundlerRunner {
         // Deserialize, and store the original buffer in an in memory cache so we avoid
         // re-serializing it when sending to workers, and in build mode, when writing to cache on shutdown.
         let graph = deserializeToCache(cached);
-        this.api.storeResult(graph, cacheKey);
+        this.api.storeResult(
+          {
+            bundleGraph: graph,
+            changedAssets: new Map(),
+          },
+          cacheKey,
+        );
         return graph;
       }
     }
@@ -350,10 +361,14 @@ class BundlerRunner {
     let {cacheKey: updatedCacheKey} = await this.getHashes(graph);
     let result = {
       bundleGraph: internalBundleGraph,
+      changedAssets: new Map(),
       bundlerHash,
     };
     this.api.storeResult(result, updatedCacheKey);
-    return result;
+    return {
+      bundleGraph: internalBundleGraph,
+      changedAssets,
+    };
   }
 
   async getHashes(
@@ -389,7 +404,8 @@ class BundlerRunner {
           assetGraph.getHash() +
           configs +
           devDepRequests +
-          invalidations,
+          invalidations +
+          this.options.mode,
       ),
       bundlerHash: hashString(PARCEL_VERSION + plugin.name + configs),
     };
