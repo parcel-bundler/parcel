@@ -691,7 +691,7 @@ impl<'a> Fold for Hoist<'a> {
           self.dynamic_imports.insert(name.clone(), source.clone());
           if self.collect.non_static_requires.contains(&source) || self.collect.should_wrap {
             self.imported_symbols.push(ImportedSymbol {
-              source: source,
+              source,
               local: name.clone(),
               imported: "*".into(),
               loc: SourceLocation::from(&self.collect.source_map, call.span),
@@ -1034,7 +1034,7 @@ impl<'a> Hoist<'a> {
       source: source.clone(),
       local: new_name.clone(),
       imported: imported.clone(),
-      loc: loc.clone(),
+      loc,
     });
     Ident::new(new_name, span)
   }
