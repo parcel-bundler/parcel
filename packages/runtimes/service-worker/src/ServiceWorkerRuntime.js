@@ -8,14 +8,13 @@ export default (new Runtime({
       return [];
     }
 
-    let asset;
-    bundle.traverse((node, _, actions) => {
+    let asset = bundle.traverse((node, _, actions) => {
       if (
         node.type === 'dependency' &&
         node.value.specifier === '@parcel/service-worker'
       ) {
-        asset = bundleGraph.getResolvedAsset(node.value, bundle);
         actions.stop();
+        return bundleGraph.getResolvedAsset(node.value, bundle);
       }
     });
 

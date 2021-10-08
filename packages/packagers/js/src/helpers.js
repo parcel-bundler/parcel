@@ -38,7 +38,7 @@ export const helpers = {
 `,
   $parcel$exportWildcard: `function $parcel$exportWildcard(dest, source) {
   Object.keys(source).forEach(function(key) {
-    if (key === 'default' || key === '__esModule') {
+    if (key === 'default' || key === '__esModule' || dest.hasOwnProperty(key)) {
       return;
     }
 

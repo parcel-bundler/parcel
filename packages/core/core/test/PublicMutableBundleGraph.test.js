@@ -151,7 +151,7 @@ function createMockAssetGraph() {
   });
 
   let filePath = toProjectPath('/', '/index.js');
-  let req1 = {filePath, env: DEFAULT_ENV, query: {}};
+  let req1 = {filePath, env: DEFAULT_ENV};
   graph.resolveDependency(dep1, nodeFromAssetGroup(req1).value, '5');
   graph.resolveAssetGroup(
     req1,
@@ -170,7 +170,7 @@ function createMockAssetGraph() {
   );
 
   filePath = toProjectPath('/', '/index2.js');
-  let req2 = {filePath, env: DEFAULT_ENV, query: {}};
+  let req2 = {filePath, env: DEFAULT_ENV};
   graph.resolveDependency(dep2, nodeFromAssetGroup(req2).value, '7');
   graph.resolveAssetGroup(
     req2,

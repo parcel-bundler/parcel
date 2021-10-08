@@ -741,7 +741,7 @@ ${code}
       exportSymbol === 'default' &&
       staticExports &&
       !isWrapped &&
-      dep?.meta.kind === 'Import' &&
+      (dep?.meta.kind === 'Import' || dep?.meta.kind === 'Export') &&
       resolvedAsset.symbols.hasExportSymbol('*') &&
       resolvedAsset.symbols.hasExportSymbol('default') &&
       !resolvedAsset.symbols.hasExportSymbol('__esModule');
@@ -771,8 +771,9 @@ ${code}
       // we need to use a member access off the namespace object rather
       // than a direct reference. If importing default from a CJS module,
       // use a helper to check the __esModule flag at runtime.
+      let kind = dep?.meta.kind;
       if (
-        dep?.meta.kind === 'Import' &&
+        (!dep || kind === 'Import' || kind === 'Export') &&
         exportSymbol === 'default' &&
         resolvedAsset.symbols.hasExportSymbol('*') &&
         this.needsDefaultInterop(resolvedAsset)
@@ -840,7 +841,7 @@ ${code}
     let append = '';
 
     let shouldWrap = this.wrappedAssets.has(asset.id);
-    let usedSymbols = this.bundleGraph.getUsedSymbols(asset);
+    let usedSymbols = nullthrows(this.bundleGraph.getUsedSymbols(asset));
     let assetId = asset.meta.id;
     invariant(typeof assetId === 'string');
 
@@ -865,7 +866,8 @@ ${code}
             .getIncomingDependencies(asset)
             .some(
               dep =>
-                !dep.isEntry && this.bundleGraph.getUsedSymbols(dep).has('*'),
+                !dep.isEntry &&
+                nullthrows(this.bundleGraph.getUsedSymbols(dep)).has('*'),
             ))) ||
       // If a symbol is imported (used) from a CJS asset but isn't listed in the symbols,
       // we fallback on the namespace object.
@@ -922,7 +924,7 @@ ${code}
         }
 
         let unused = incomingDeps.every(d => {
-          let symbols = this.bundleGraph.getUsedSymbols(d);
+          let symbols = nullthrows(this.bundleGraph.getUsedSymbols(d));
           return !symbols.has(symbol) && !symbols.has('*');
         });
         return !unused;
@@ -976,13 +978,15 @@ ${code}
             if (
               isWrapped ||
               resolved.meta.staticExports === false ||
-              this.bundleGraph.getUsedSymbols(resolved).has('*')
+              nullthrows(this.bundleGraph.getUsedSymbols(resolved)).has('*')
             ) {
               let obj = this.getSymbolResolution(asset, resolved, '*', dep);
               append += `$parcel$exportWildcard($${assetId}$exports, ${obj});\n`;
               this.usedHelpers.add('$parcel$exportWildcard');
             } else {
-              for (let symbol of this.bundleGraph.getUsedSymbols(dep)) {
+              for (let symbol of nullthrows(
+                this.bundleGraph.getUsedSymbols(dep),
+              )) {
                 if (
                   symbol === 'default' || // `export * as ...` does not include the default export
                   symbol === '__esModule'
@@ -1129,7 +1133,7 @@ ${code}
 
     return (
       asset.sideEffects === false &&
-      this.bundleGraph.getUsedSymbols(asset).size == 0 &&
+      nullthrows(this.bundleGraph.getUsedSymbols(asset)).size == 0 &&
       !this.bundleGraph.isAssetReferenced(this.bundle, asset)
     );
   }
