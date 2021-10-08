@@ -5,10 +5,8 @@
       "@parcel/transformer-workerize",
       "..."
     ],
-    "*.{eot,gif,jpg,jpeg,ico,mp4,png,svg,ttf,woff}": [
-      "@parcel/transformer-image",
-      "@parcel/transformer-raw"
-    ]
+    "*.{gif,jpg,jpeg,png}": ["@parcel/transformer-image"],
+    "*.{eot,ico,mp4,svg,ttf,woff}": ["@parcel/transformer-raw"]
   },
   "optimizers": {
     "*.svg": []
