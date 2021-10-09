@@ -5932,4 +5932,36 @@ describe('scope hoisting', function() {
     let res = await run(b, {output: null}, {require: false});
     assert.equal(res.output, 'a');
   });
+
+  it('should unmark dependency as deferred when dependency becomes used', async function() {
+    let testDir = path.join(
+      __dirname,
+      'integration/scope-hoisting/es6/unmarks-defer-for-new-deps',
+    );
+
+    let packageDir = path.join(testDir, '/package');
+
+    await overlayFS.mkdirp(packageDir);
+    await overlayFS.copyFile(
+      path.join(packageDir, 'b1.js'),
+      path.join(packageDir, 'b.js'),
+    );
+
+    await bundle(path.join(testDir, 'index.js'), {
+      inputFS: overlayFS,
+      outputFS: overlayFS,
+      shouldDisableCache: true,
+    });
+
+    await overlayFS.copyFile(
+      path.join(packageDir, 'b2.js'),
+      path.join(packageDir, 'b.js'),
+    );
+
+    await bundle(path.join(testDir, 'index.js'), {
+      inputFS: overlayFS,
+      outputFS: overlayFS,
+      shouldDisableCache: false,
+    });
+  });
 });

@@ -70,9 +70,11 @@ jobs:
           - target: arm-unknown-linux-gnueabihf
             arch: armhf
             strip: arm-linux-gnueabihf-strip
+            cflags: -mfpu=neon
           - target: aarch64-unknown-linux-gnu
             arch: arm64
             strip: aarch64-linux-gnu-strip
+            cflags: ''
     name: ${{ matrix.target }}
     runs-on: ubuntu-latest
     steps:
@@ -93,6 +95,7 @@ jobs:
         run: yarn build-native-release
         env:
           RUST_TARGET: ${{ matrix.target }}
+          CFLAGS: ${{ matrix.cflags }}
       - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
         run: ${{ matrix.strip }} packages/*/*/*.node
       - name: Upload artifacts
@@ -118,8 +121,10 @@ jobs:
         include:
           - target: x86_64-unknown-linux-musl
             strip: strip
+            cflags: -msse4.2
           - target: aarch64-unknown-linux-musl
             strip: aarch64-linux-musl-strip
+            cflags: ''
     name: ${{ matrix.target }}
     runs-on: ubuntu-latest
     container:
@@ -149,6 +154,7 @@ jobs:
         run: yarn build-native-release
         env:
           RUST_TARGET: ${{ matrix.target }}
+          CFLAGS: ${{ matrix.cflags }}
       - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
         run: ${{ matrix.strip }} packages/*/*/*.node
       - name: Upload artifacts
