@@ -1,15 +1,15 @@
-jobs: []
-# - template: azure-pipelines-template.yml
-#   parameters:
-#     name: macOS
-#     vmImage: macOS-latest
+jobs:
+- template: azure-pipelines-template.yml
+  parameters:
+    name: macOS
+    vmImage: macOS-latest
 
-# - template: azure-pipelines-template.yml
-#   parameters:
-#     name: Linux
-#     vmImage: ubuntu-latest
+- template: azure-pipelines-template.yml
+  parameters:
+    name: Linux
+    vmImage: ubuntu-latest
 
-# - template: azure-pipelines-template.yml
-#   parameters:
-#    name: Windows
-#    vmImage: windows-latest
+- template: azure-pipelines-template.yml
+  parameters:
+   name: Windows
+   vmImage: windows-latest
