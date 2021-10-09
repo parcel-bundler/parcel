@@ -64,9 +64,11 @@ export class TSModuleGraph {
       return ts.visitEachChild(node, visit, context);
     };
 
-    let node = module.bindings.get(name);
-    if (node) {
-      ts.visitEachChild(node, visit, context);
+    let bindings = module.bindings.get(name);
+    if (bindings) {
+      for (let node of bindings) {
+        ts.visitEachChild(node, visit, context);
+      }
     }
   }
 
