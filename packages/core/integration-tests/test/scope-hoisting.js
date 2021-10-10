@@ -261,6 +261,42 @@ describe('scope hoisting', function() {
       assert.equal(output, 6);
     });
 
+    it('supports re-exporting all when falling back to namespace at runtime 1', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/re-export-all-fallback-1/index.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.strictEqual(output, 2);
+    });
+
+    it('supports re-exporting all when falling back to namespace at runtime 2', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/re-export-all-fallback-2/index.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.strictEqual(output, 2);
+    });
+
+    it('supports nested re-exporting all when falling back to namespace at runtime', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/re-export-all-fallback-nested/index.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.strictEqual(output, '2 4');
+    });
+
     it('supports re-exporting all exports from an external module', async function() {
       let b = await bundle(
         path.join(
