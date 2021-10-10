@@ -122,33 +122,27 @@ function addIntrinsicImageSizes(
   bundleGraph: BundleGraph<NamedBundle>,
   tree,
 ) {
-  const imageNodes = [];
-  tree.walk(node => {
-    if (node.tag === 'img' && node.attrs && node.attrs['src']) {
-      imageNodes.push(node);
-    }
-    return node;
-  });
-
-  for (const node of imageNodes) {
+  tree.match({tag: 'img', attrs: {src: true}}, node => {
     const dependency = bundle
       .getMainEntry()
       ?.getDependencies()
       .find(bundle => bundle.id === node.attrs['src']);
 
     if (!dependency) {
-      continue;
+      return node;
     }
 
     const image = bundleGraph.getResolvedAsset(dependency);
 
     if (!image) {
-      continue;
+      return node;
     }
 
     node.attrs.width = image.meta.width;
     node.attrs.height = image.meta.height;
-  }
+
+    return node;
+  });
 
   return tree;
 }
