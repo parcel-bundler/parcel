@@ -19,7 +19,10 @@ const DEP_LOCS = [
   ['browser_action', 'default_popup'],
   ['page_action', 'default_icon'],
   ['page_action', 'default_popup'],
+  ['action', 'default_icon'],
+  ['action', 'default_popup'],
   ['background', 'scripts'],
+  ['background', 'page'],
   ['chrome_url_overrides'],
   ['devtools_page'],
   ['options_ui', 'page'],
@@ -41,6 +44,7 @@ async function collectDependencies(
   // also for globs because it's wasteful to write out every file name
   const fs = asset.fs;
   const filePath = asset.filePath;
+  const isMV2 = program.manifest_version == 2;
   if (program.default_locale) {
     const locales = path.join(path.dirname(filePath), '_locales');
     let err = !(await fs.exists(locales))
@@ -152,12 +156,13 @@ async function collectDependencies(
       });
     }
   }
-  if (program.browser_action?.theme_icons) {
-    for (let i = 0; i < program.browser_action.theme_icons.length; ++i) {
-      const themeIcon = program.browser_action.theme_icons[i];
+  const browserActionName = isMV2 ? 'browser_action' : 'action';
+  if (program[browserActionName]?.theme_icons) {
+    for (let i = 0; i < program[browserActionName].theme_icons.length; ++i) {
+      const themeIcon = program[browserActionName].theme_icons[i];
       for (const k of ['light', 'dark']) {
         const loc = getJSONSourceLocation(
-          ptrs[`/browser_action/theme_icons/${i}/${k}`],
+          ptrs[`/${browserActionName}/theme_icons/${i}/${k}`],
           'value',
         );
         themeIcon[k] = asset.addURLDependency(themeIcon[k], {
@@ -174,12 +179,10 @@ async function collectDependencies(
     let war = [];
     for (let i = 0; i < program.web_accessible_resources.length; ++i) {
       // TODO: this doesn't support Parcel resolution
+      const files = program.web_accessible_resources[i];
       const globFiles = (
         await glob(
-          path.join(
-            path.dirname(filePath),
-            program.web_accessible_resources[i],
-          ),
+          path.join(path.dirname(filePath), isMV2 ? files : files.resources),
           fs,
           {},
         )
@@ -188,11 +191,20 @@ async function collectDependencies(
           needsStableName: true,
           loc: {
             filePath,
-            ...getJSONSourceLocation(ptrs[`/web_accessible_resources/${i}`]),
+            ...getJSONSourceLocation(
+              ptrs[
+                `/web_accessible_resources/${i}${isMV2 ? '' : '/resources'}`
+              ],
+            ),
           },
         }),
       );
-      war = war.concat(globFiles);
+      if (isMV2) {
+        war = war.concat(globFiles);
+      } else {
+        files.resources = globFiles;
+        war.push(files);
+      }
     }
     program.web_accessible_resources = war;
   }
@@ -227,18 +239,26 @@ async function collectDependencies(
       }
     }
   }
-  if (needRuntimeBG) {
-    if (!program.background) {
-      program.background = {};
+  if (isMV2) {
+    if (needRuntimeBG) {
+      if (!program.background) {
+        program.background = {};
+      }
+      if (!program.background.scripts) {
+        program.background.scripts = [];
+      }
+      program.background.scripts.push(
+        asset.addURLDependency('./runtime/autoreload-bg.js', {
+          resolveFrom: __filename,
+        }),
+      );
     }
-    if (!program.background.scripts) {
-      program.background.scripts = [];
+    if (hot) {
+      // To enable HMR, we must override the CSP to allow 'unsafe-eval'
+      program.content_security_policy = cspPatchHMR(
+        program.content_security_policy,
+      );
     }
-    program.background.scripts.push(
-      asset.addURLDependency('./runtime/autoreload-bg.js', {
-        resolveFrom: __filename,
-      }),
-    );
   }
 }
 
@@ -285,11 +305,6 @@ export default (new Transformer({
       parsed.pointers,
       Boolean(options.hmrOptions),
     );
-    if (options.hmrOptions) {
-      // To enable HMR, we must override the CSP to allow 'unsafe-eval'
-      data.content_security_policy = cspPatchHMR(data.content_security_policy);
-    }
-    asset.meta.handled = true;
     asset.setCode(JSON.stringify(data, null, 2));
     return [asset];
   },
