@@ -978,7 +978,10 @@ ${code}
             if (
               isWrapped ||
               resolved.meta.staticExports === false ||
-              nullthrows(this.bundleGraph.getUsedSymbols(resolved)).has('*')
+              nullthrows(this.bundleGraph.getUsedSymbols(resolved)).has('*') ||
+              // an empty asset
+              (!resolved.meta.hasCJSExports &&
+                resolved.symbols.hasExportSymbol('*'))
             ) {
               let obj = this.getSymbolResolution(asset, resolved, '*', dep);
               append += `$parcel$exportWildcard($${assetId}$exports, ${obj});\n`;
