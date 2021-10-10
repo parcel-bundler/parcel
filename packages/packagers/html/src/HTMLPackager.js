@@ -12,7 +12,6 @@ import {
   replaceURLReferences,
   urlJoin,
 } from '@parcel/utils';
-import imageSize from 'image-size';
 import nullthrows from 'nullthrows';
 
 // https://www.w3.org/TR/html5/dom.html#metadata-content-2
@@ -118,7 +117,7 @@ async function getAssetContent(
   return null;
 }
 
-async function addIntrinsicImageSizes(
+function addIntrinsicImageSizes(
   bundle: NamedBundle,
   bundleGraph: BundleGraph<NamedBundle>,
   tree,
@@ -145,15 +144,6 @@ async function addIntrinsicImageSizes(
 
     if (!image) {
       continue;
-    }
-
-    if (
-      typeof image.meta.width !== 'number' &&
-      typeof image.meta.height !== 'number'
-    ) {
-      const size = imageSize(await image.getBuffer());
-      image.meta.width = size.width;
-      image.meta.height = size.height;
     }
 
     node.attrs.width = image.meta.width;
