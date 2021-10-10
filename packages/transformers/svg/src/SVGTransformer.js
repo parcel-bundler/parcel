@@ -1,6 +1,7 @@
 // @flow
 
 import {Transformer} from '@parcel/plugin';
+import imageSize from 'image-size';
 import nullthrows from 'nullthrows';
 import semver from 'semver';
 import {parser as parse} from 'posthtml-parser';
@@ -39,6 +40,14 @@ export default (new Transformer({
     collectDependencies(asset, ast);
 
     const inlineAssets = extractInlineAssets(asset, ast);
+
+    try {
+      const size = imageSize(await asset.getBuffer());
+      asset.meta.width = size.width;
+      asset.meta.height = size.height;
+    } catch {
+      // Do nothing if there's no dimensions or viewbox
+    }
 
     return [asset, ...inlineAssets];
   },
