@@ -1,3 +1,3 @@
 import {doStuff} from './stuff';
 
-doStuff();
+output = doStuff();

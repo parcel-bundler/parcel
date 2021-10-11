@@ -2,5 +2,7 @@
   "dependencies": {
     "flow-bin": "0.157.0"
   },
-  "sideEffects": false
+  "sideEffects": [
+    "entry.js"
+  ]
 }
