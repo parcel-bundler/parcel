@@ -3340,7 +3340,7 @@ describe('scope hoisting', function() {
           },
         });
 
-        assert.deepEqual(calls, ['esm', 'commonjs']);
+        assert.deepEqual(calls, ['esm', 'commonjs', 'index']);
         assert.deepEqual(output, 'Message 1');
       });
 
