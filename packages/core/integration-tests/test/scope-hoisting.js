@@ -6000,4 +6000,14 @@ describe('scope hoisting', function() {
       shouldDisableCache: false,
     });
   });
+
+  it('should not insert parcelRequires for a module that has empty re-exports', async function() {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        'integration/scope-hoisting/es6/runtime-error/entry.js',
+      ),
+    );
+    await run(b);
+  });
 });
