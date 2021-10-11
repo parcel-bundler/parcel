@@ -259,6 +259,27 @@ async function collectDependencies(
         program.content_security_policy,
       );
     }
+  } else {
+    if (program.background?.service_worker) {
+      program.background.service_worker = asset.addURLDependency(
+        program.background.service_worker,
+        {
+          needsStableName: true,
+          env: {
+            context: 'service-worker',
+            sourceType:
+              program.background.type == 'module' ? 'module' : 'script',
+          },
+          loc: {
+            filePath,
+            ...getJSONSourceLocation(
+              ptrs['/background/service_worker'],
+              'value',
+            ),
+          },
+        },
+      );
+    }
   }
 }
 

@@ -372,6 +372,7 @@ export default ({
     {
       type: 'object',
       properties: {
+        ...commonProps,
         manifest_version: {
           type: 'number',
           enum: [2],
@@ -402,6 +403,7 @@ export default ({
     {
       type: 'object',
       properties: {
+        ...commonProps,
         manifest_version: {
           type: 'number',
           enum: [3],
