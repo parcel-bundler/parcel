@@ -1,3 +1,3 @@
-import { foo } from './package';
+import { barer } from './package';
 
-console.log('foo is', foo);
+output = barer;

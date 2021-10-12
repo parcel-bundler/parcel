@@ -6041,42 +6041,45 @@ describe('scope hoisting', function() {
       'integration/scope-hoisting/es6/unmarks-defer-for-assetgroup',
     );
 
-    let packageDir = path.join(testDir, '/package');
-
-    await overlayFS.mkdirp(packageDir);
-
+    await overlayFS.mkdirp(testDir);
     await overlayFS.copyFile(
       path.join(testDir, 'index1.js'),
       path.join(testDir, 'index.js'),
     );
 
-    await overlayFS.copyFile(
-      path.join(packageDir, 'foo1.js'),
-      path.join(packageDir, 'foo.js'),
-    );
-
-    await bundle(path.join(testDir, 'index.js'), {
+    let b = await bundle(path.join(testDir, 'index.js'), {
       inputFS: overlayFS,
       outputFS: overlayFS,
       shouldDisableCache: true,
     });
+
+    await run(b);
 
     await overlayFS.copyFile(
       path.join(testDir, 'index2.js'),
       path.join(testDir, 'index.js'),
     );
 
-    await overlayFS.copyFile(
-      path.join(packageDir, 'foo2.js'),
-      path.join(packageDir, 'foo.js'),
-    );
-
-    let b = await bundle(path.join(testDir, 'index.js'), {
+    b = await bundle(path.join(testDir, 'index.js'), {
       inputFS: overlayFS,
       outputFS: overlayFS,
       shouldDisableCache: false,
     });
 
     await run(b);
+
+    await overlayFS.copyFile(
+      path.join(testDir, 'index3.js'),
+      path.join(testDir, 'index.js'),
+    );
+
+    b = await bundle(path.join(testDir, 'index.js'), {
+      inputFS: overlayFS,
+      outputFS: overlayFS,
+      shouldDisableCache: false,
+    });
+
+    let output = await run(b);
+    assert.strictEqual(output, 'bar foo bar');
   });
 });

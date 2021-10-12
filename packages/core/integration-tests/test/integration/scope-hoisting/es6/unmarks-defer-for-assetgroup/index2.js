@@ -1,3 +1,3 @@
-import { foo, bar } from './package';
+import { barer, foo } from './package';
 
-console.log(foo, bar);
+output = `${barer} ${foo}`;
