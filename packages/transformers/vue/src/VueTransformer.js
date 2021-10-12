@@ -207,7 +207,7 @@ async function processPipeline({
             await resolve(asset.filePath, template.src),
           )
         ).toString();
-        template.lang = extname(template.src);
+        template.lang = extname(template.src).slice(1);
       }
       let content = template.content;
       if (template.lang && !['htm', 'html'].includes(template.lang)) {
@@ -267,7 +267,7 @@ ${
             await resolve(asset.filePath, script.src),
           )
         ).toString();
-        script.lang = extname(script.src);
+        script.lang = extname(script.src).slice(1);
       }
       let type;
       switch (script.lang || 'js') {
@@ -317,7 +317,7 @@ ${
             if (!style.module) {
               style.module = MODULE_BY_NAME_RE.test(style.src);
             }
-            style.lang = extname(style.src);
+            style.lang = extname(style.src).slice(1);
           }
           switch (style.lang) {
             case 'less':
