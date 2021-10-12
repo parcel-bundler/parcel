@@ -273,14 +273,15 @@ impl<'a> Fold for Hoist<'a> {
                       // A variable will appear only once in the `exports` mapping but
                       // could be exported multiple times with different names.
                       // Find the original exported name, and remap.
-                      let orig_exported = self.collect.exports.get(&id).unwrap();
                       let id = if self.collect.should_wrap {
-                        Ident::new(orig_exported.clone(), DUMMY_SP)
+                        id.0
                       } else {
-                        self.get_export_ident(DUMMY_SP, orig_exported)
+                        self
+                          .get_export_ident(DUMMY_SP, self.collect.exports.get(&id).unwrap())
+                          .sym
                       };
                       self.exported_symbols.push(ExportedSymbol {
-                        local: id.sym,
+                        local: id,
                         exported,
                         loc: SourceLocation::from(&self.collect.source_map, named.span),
                       });
