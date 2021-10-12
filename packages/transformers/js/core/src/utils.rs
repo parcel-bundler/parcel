@@ -184,12 +184,9 @@ impl SourceLocation {
 
 impl PartialOrd for SourceLocation {
   fn partial_cmp(&self, other: &SourceLocation) -> Option<Ordering> {
-    if self.start_line < other.start_line {
-      Some(Ordering::Less)
-    } else if self.start_line == other.start_line {
-      self.start_col.partial_cmp(&other.start_col)
-    } else {
-      Some(Ordering::Greater)
+    match self.start_line.cmp(&other.start_line) {
+      Ordering::Equal => self.start_col.partial_cmp(&other.start_col),
+      o => Some(o),
     }
   }
 }

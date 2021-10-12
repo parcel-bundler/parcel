@@ -841,7 +841,7 @@ ${code}
     let append = '';
 
     let shouldWrap = this.wrappedAssets.has(asset.id);
-    let usedSymbols = this.bundleGraph.getUsedSymbols(asset);
+    let usedSymbols = nullthrows(this.bundleGraph.getUsedSymbols(asset));
     let assetId = asset.meta.id;
     invariant(typeof assetId === 'string');
 
@@ -866,7 +866,8 @@ ${code}
             .getIncomingDependencies(asset)
             .some(
               dep =>
-                !dep.isEntry && this.bundleGraph.getUsedSymbols(dep).has('*'),
+                !dep.isEntry &&
+                nullthrows(this.bundleGraph.getUsedSymbols(dep)).has('*'),
             ))) ||
       // If a symbol is imported (used) from a CJS asset but isn't listed in the symbols,
       // we fallback on the namespace object.
@@ -923,7 +924,7 @@ ${code}
         }
 
         let unused = incomingDeps.every(d => {
-          let symbols = this.bundleGraph.getUsedSymbols(d);
+          let symbols = nullthrows(this.bundleGraph.getUsedSymbols(d));
           return !symbols.has(symbol) && !symbols.has('*');
         });
         return !unused;
@@ -977,13 +978,18 @@ ${code}
             if (
               isWrapped ||
               resolved.meta.staticExports === false ||
-              this.bundleGraph.getUsedSymbols(resolved).has('*')
+              nullthrows(this.bundleGraph.getUsedSymbols(resolved)).has('*') ||
+              // an empty asset
+              (!resolved.meta.hasCJSExports &&
+                resolved.symbols.hasExportSymbol('*'))
             ) {
               let obj = this.getSymbolResolution(asset, resolved, '*', dep);
               append += `$parcel$exportWildcard($${assetId}$exports, ${obj});\n`;
               this.usedHelpers.add('$parcel$exportWildcard');
             } else {
-              for (let symbol of this.bundleGraph.getUsedSymbols(dep)) {
+              for (let symbol of nullthrows(
+                this.bundleGraph.getUsedSymbols(dep),
+              )) {
                 if (
                   symbol === 'default' || // `export * as ...` does not include the default export
                   symbol === '__esModule'
@@ -1004,6 +1010,7 @@ ${code}
                 prepend += `$parcel$export($${assetId}$exports, ${JSON.stringify(
                   symbol,
                 )}, ${get}${set});\n`;
+                this.usedHelpers.add('$parcel$export');
                 prependLineCount++;
               }
             }
@@ -1130,7 +1137,7 @@ ${code}
 
     return (
       asset.sideEffects === false &&
-      this.bundleGraph.getUsedSymbols(asset).size == 0 &&
+      nullthrows(this.bundleGraph.getUsedSymbols(asset)).size == 0 &&
       !this.bundleGraph.isAssetReferenced(this.bundle, asset)
     );
   }

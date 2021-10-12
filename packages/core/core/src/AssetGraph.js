@@ -39,11 +39,13 @@ type InitOpts = {|
 type AssetGraphOpts = {|
   ...ContentGraphOpts<AssetGraphNode>,
   hash?: ?string,
+  symbolPropagationRan: boolean,
 |};
 
 type SerializedAssetGraph = {|
   ...SerializedContentGraph<AssetGraphNode>,
   hash?: ?string,
+  symbolPropagationRan: boolean,
 |};
 
 export function nodeFromDep(dep: Dependency): DependencyNode {
@@ -112,12 +114,14 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
   hash: ?string;
   envCache: Map<string, Environment>;
   safeToIncrementallyBundle: boolean = true;
+  symbolPropagationRan: boolean;
 
   constructor(opts: ?AssetGraphOpts) {
     if (opts) {
-      let {hash, ...rest} = opts;
+      let {hash, symbolPropagationRan, ...rest} = opts;
       super(rest);
       this.hash = hash;
+      this.symbolPropagationRan = symbolPropagationRan;
     } else {
       super();
       this.setRootNodeId(
@@ -129,6 +133,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
       );
     }
     this.envCache = new Map();
+    this.symbolPropagationRan = false;
   }
 
   // $FlowFixMe[prop-missing]
@@ -141,6 +146,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
     return {
       ...super.serialize(),
       hash: this.hash,
+      symbolPropagationRan: this.symbolPropagationRan,
     };
   }
 
@@ -310,7 +316,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
 
     let {sideEffects, canDefer = true} = childNode.value;
     let dependency = node.value;
-    let previouslyDeferred = childNode.deferred;
+    let previouslyDeferred = node.hasDeferred;
     let defer = this.shouldDeferDependency(dependency, sideEffects, canDefer);
     node.hasDeferred = defer;
     childNode.deferred = defer;

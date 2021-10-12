@@ -1413,8 +1413,12 @@ export interface BundleGraph<TBundle: Bundle> {
     asset: Asset,
     boundary: ?Bundle,
   ): Array<ExportSymbolResolution>;
-  /** Returns a list of symbols from an asset or dependency that are referenced by a dependent asset. */
-  getUsedSymbols(Asset | Dependency): $ReadOnlySet<Symbol>;
+  /**
+   * Returns a list of symbols from an asset or dependency that are referenced by a dependent asset.
+   *
+   * Returns null if symbol propagation didn't run (so the result is unknown).
+   */
+  getUsedSymbols(Asset | Dependency): ?$ReadOnlySet<Symbol>;
   /** Returns the common root directory for the entry assets of a target. */
   getEntryRoot(target: Target): FilePath;
 }
