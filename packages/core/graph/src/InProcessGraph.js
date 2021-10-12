@@ -28,7 +28,6 @@ export default class InProcessGraph<TNode, TEdgeType: number = 1> {
   nextNodeId: number = 1;
 
   constructor(opts: ?InProcessGraphOpts<TNode, TEdgeType>) {
-    console.log('IN PROCESS');
     this.nodes = opts?.nodes || new Map();
     this.setRootNodeId(opts?.rootNodeId);
     this.nextNodeId = opts?.nextNodeId ?? 0;
