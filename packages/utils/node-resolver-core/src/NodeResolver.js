@@ -1083,6 +1083,10 @@ export default class NodeResolver {
       for (let key in aliases) {
         let val = aliases[key];
         if (typeof val === 'string' && isGlob(key)) {
+          // https://github.com/micromatch/picomatch/issues/77
+          if (filename.startsWith('./')) {
+            filename = filename.slice(2);
+          }
           let re = micromatch.makeRe(key, {capture: true});
           if (re.test(filename)) {
             alias = filename.replace(re, val);

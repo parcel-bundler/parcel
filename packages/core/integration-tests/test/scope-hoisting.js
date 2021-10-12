@@ -123,6 +123,29 @@ describe('scope hoisting', function() {
       assert.equal(output, 2);
     });
 
+    it('supports named exports of variables with a different name', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/named-export-variable-rename/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.equal(output, 2);
+    });
+    it('supports named exports of variables with a different name when wrapped', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/named-export-variable-rename-wrapped/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.equal(output, 2);
+    });
+
     it('supports renaming non-ASCII identifiers', async function() {
       let b = await bundle(
         path.join(
@@ -259,6 +282,53 @@ describe('scope hoisting', function() {
 
       let output = await run(b);
       assert.equal(output, 6);
+    });
+
+    it('supports re-exporting all when falling back to namespace at runtime 1', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/re-export-all-fallback-1/index.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.strictEqual(output, 2);
+    });
+
+    it('supports re-exporting all when falling back to namespace at runtime 2', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/re-export-all-fallback-2/index.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.strictEqual(output, 2);
+    });
+
+    it('supports re-exporting all when falling back to namespace at runtime 3', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          'integration/scope-hoisting/es6/re-export-all-fallback-3/entry.js',
+        ),
+      );
+      let output = await run(b);
+      assert.strictEqual(output, 'FOOBAR!');
+    });
+
+    it('supports nested re-exporting all when falling back to namespace at runtime', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/re-export-all-fallback-nested/index.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.strictEqual(output, '2 4');
     });
 
     it('supports re-exporting all exports from an external module', async function() {
@@ -3293,7 +3363,7 @@ describe('scope hoisting', function() {
           },
         });
 
-        assert.deepEqual(calls, ['esm', 'commonjs']);
+        assert.deepEqual(calls, ['esm', 'commonjs', 'index']);
         assert.deepEqual(output, 'Message 1');
       });
 

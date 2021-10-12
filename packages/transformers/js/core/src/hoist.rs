@@ -75,6 +75,7 @@ struct Hoist<'a> {
   collect: &'a Collect,
   module_items: Vec<ModuleItem>,
   export_decls: HashSet<JsWord>,
+  hoisted_imports: Vec<ModuleItem>,
   imported_symbols: Vec<ImportedSymbol>,
   exported_symbols: Vec<ExportedSymbol>,
   re_exports: Vec<ImportedSymbol>,
@@ -105,6 +106,7 @@ impl<'a> Hoist<'a> {
       collect,
       module_items: vec![],
       export_decls: HashSet::new(),
+      hoisted_imports: vec![],
       imported_symbols: vec![],
       exported_symbols: vec![],
       re_exports: vec![],
@@ -146,24 +148,25 @@ macro_rules! hoist_visit_fn {
 impl<'a> Fold for Hoist<'a> {
   fn fold_module(&mut self, node: Module) -> Module {
     let mut node = node;
-    let mut hoisted_imports = vec![];
     for item in node.body {
       match item {
         ModuleItem::ModuleDecl(decl) => {
           match decl {
             ModuleDecl::Import(import) => {
-              hoisted_imports.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
-                specifiers: vec![],
-                asserts: None,
-                span: DUMMY_SP,
-                src: Str {
-                  value: format!("{}:{}", self.module_id, import.src.value).into(),
+              self
+                .hoisted_imports
+                .push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
+                  specifiers: vec![],
+                  asserts: None,
                   span: DUMMY_SP,
-                  kind: StrKind::Synthesized,
-                  has_escape: false,
-                },
-                type_only: false,
-              })));
+                  src: Str {
+                    value: format!("{}:{}", self.module_id, import.src.value).into(),
+                    span: DUMMY_SP,
+                    kind: StrKind::Synthesized,
+                    has_escape: false,
+                  },
+                  type_only: false,
+                })));
 
               // Ensure that all import specifiers are constant.
               for specifier in &import.specifiers {
@@ -201,18 +204,20 @@ impl<'a> Fold for Hoist<'a> {
             ModuleDecl::ExportNamed(export) => {
               if let Some(src) = export.src {
                 // TODO: skip if already imported.
-                hoisted_imports.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
-                  specifiers: vec![],
-                  asserts: None,
-                  span: DUMMY_SP,
-                  src: Str {
-                    value: format!("{}:{}", self.module_id, src.value).into(),
+                self
+                  .hoisted_imports
+                  .push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
+                    specifiers: vec![],
+                    asserts: None,
                     span: DUMMY_SP,
-                    kind: StrKind::Synthesized,
-                    has_escape: false,
-                  },
-                  type_only: false,
-                })));
+                    src: Str {
+                      value: format!("{}:{}", self.module_id, src.value).into(),
+                      span: DUMMY_SP,
+                      kind: StrKind::Synthesized,
+                      has_escape: false,
+                    },
+                    type_only: false,
+                  })));
 
                 for specifier in export.specifiers {
                   match specifier {
@@ -268,14 +273,15 @@ impl<'a> Fold for Hoist<'a> {
                       // A variable will appear only once in the `exports` mapping but
                       // could be exported multiple times with different names.
                       // Find the original exported name, and remap.
-                      let orig_exported = self.collect.exports.get(&id).unwrap();
                       let id = if self.collect.should_wrap {
-                        Ident::new(orig_exported.clone(), DUMMY_SP)
+                        id.0
                       } else {
-                        self.get_export_ident(DUMMY_SP, orig_exported)
+                        self
+                          .get_export_ident(DUMMY_SP, self.collect.exports.get(&id).unwrap())
+                          .sym
                       };
                       self.exported_symbols.push(ExportedSymbol {
-                        local: id.sym,
+                        local: id,
                         exported,
                         loc: SourceLocation::from(&self.collect.source_map, named.span),
                       });
@@ -285,18 +291,20 @@ impl<'a> Fold for Hoist<'a> {
               }
             }
             ModuleDecl::ExportAll(export) => {
-              hoisted_imports.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
-                specifiers: vec![],
-                asserts: None,
-                span: DUMMY_SP,
-                src: Str {
-                  value: format!("{}:{}", self.module_id, export.src.value).into(),
+              self
+                .hoisted_imports
+                .push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
+                  specifiers: vec![],
+                  asserts: None,
                   span: DUMMY_SP,
-                  kind: StrKind::Synthesized,
-                  has_escape: false,
-                },
-                type_only: false,
-              })));
+                  src: Str {
+                    value: format!("{}:{}", self.module_id, export.src.value).into(),
+                    span: DUMMY_SP,
+                    kind: StrKind::Synthesized,
+                    has_escape: false,
+                  },
+                  type_only: false,
+                })));
               self.re_exports.push(ImportedSymbol {
                 source: export.src.value,
                 local: "*".into(),
@@ -521,21 +529,9 @@ impl<'a> Fold for Hoist<'a> {
       }
     }
 
-    for name in self.export_decls.drain() {
-      hoisted_imports.push(ModuleItem::Stmt(Stmt::Decl(Decl::Var(VarDecl {
-        declare: false,
-        kind: VarDeclKind::Var,
-        span: node.span,
-        decls: vec![VarDeclarator {
-          definite: false,
-          span: node.span,
-          name: Pat::Ident(BindingIdent::from(Ident::new(name, DUMMY_SP))),
-          init: None,
-        }],
-      }))));
-    }
-
-    self.module_items.splice(0..0, hoisted_imports);
+    self
+      .module_items
+      .splice(0..0, self.hoisted_imports.drain(0..));
     node.body = std::mem::take(&mut self.module_items);
     node
   }
@@ -921,7 +917,24 @@ impl<'a> Fold for Hoist<'a> {
 
         let ident = BindingIdent::from(self.get_export_ident(member.span, &key));
         if self.collect.static_cjs_exports {
-          self.export_decls.insert(ident.id.sym.clone());
+          if self.export_decls.insert(ident.id.sym.clone()) {
+            self
+              .hoisted_imports
+              .push(ModuleItem::Stmt(Stmt::Decl(Decl::Var(VarDecl {
+                declare: false,
+                kind: VarDeclKind::Var,
+                span: node.span,
+                decls: vec![VarDeclarator {
+                  definite: false,
+                  span: node.span,
+                  name: Pat::Ident(BindingIdent::from(Ident::new(
+                    ident.id.sym.clone(),
+                    DUMMY_SP,
+                  ))),
+                  init: None,
+                }],
+              }))));
+          }
         }
 
         return AssignExpr {
@@ -1069,7 +1082,7 @@ impl<'a> Hoist<'a> {
     // a local variable referencing them so that we can safely re-assign the local variable
     // without affecting the original export. This is only possible in CommonJS since ESM
     // imports are constant (this is ensured by the diagnostic in fold_module above).
-    let mut non_const_bindings = HashSet::new();
+    let mut non_const_bindings = vec![];
     self
       .collect
       .get_non_const_binding_idents(&v.name, &mut non_const_bindings);
@@ -1849,11 +1862,11 @@ impl Collect {
     }
   }
 
-  fn get_non_const_binding_idents(&self, node: &Pat, idents: &mut HashSet<Ident>) {
+  fn get_non_const_binding_idents(&self, node: &Pat, idents: &mut Vec<Ident>) {
     match node {
       Pat::Ident(ident) => {
         if self.non_const_bindings.contains_key(&id!(ident.id)) {
-          idents.insert(ident.id.clone());
+          idents.push(ident.id.clone());
         }
       }
       Pat::Object(object) => {
@@ -1864,7 +1877,7 @@ impl Collect {
             }
             ObjectPatProp::Assign(assign) => {
               if self.non_const_bindings.contains_key(&id!(assign.key)) {
-                idents.insert(assign.key.clone());
+                idents.push(assign.key.clone());
               }
             }
             ObjectPatProp::Rest(rest) => {
