@@ -868,6 +868,22 @@ describe('javascript', function() {
     assert.deepEqual(res, {default: 42});
   });
 
+  it('dynamic imports loaded as high-priority scripts when not all engines support esmodules natively', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/dynamic-imports-high-prio/index.js'),
+    );
+
+    let output = await run(b);
+    let headChildren = await output.default;
+
+    assert(headChildren[1].tag === 'link');
+    assert(headChildren[1].rel === 'preload');
+    assert(headChildren[1].as === 'script');
+
+    assert(headChildren[2].tag === 'script');
+    assert(headChildren[2].src.match(/async\..*\.js/));
+  });
+
   it('should support bundling workers with dynamic import in both page and worker', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/worker-dynamic/index-async.js'),
