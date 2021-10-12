@@ -123,6 +123,29 @@ describe('scope hoisting', function() {
       assert.equal(output, 2);
     });
 
+    it('supports named exports of variables with a different name', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/named-export-variable-rename/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.equal(output, 2);
+    });
+    it('supports named exports of variables with a different name when wrapped', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/named-export-variable-rename-wrapped/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.equal(output, 2);
+    });
+
     it('supports renaming non-ASCII identifiers', async function() {
       let b = await bundle(
         path.join(
