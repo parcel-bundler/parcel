@@ -255,16 +255,6 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
             let ignore_mark = Mark::fresh(Mark::root());
             module = {
               let mut passes = chain!(
-                // Decorators can use type information, so must run before the TypeScript pass.
-                Optional::new(
-                  decorators::decorators(decorators::Config {
-                    legacy: true,
-                    // Always disabled for now, SWC's implementation doesn't match TSC.
-                    emit_metadata: false
-                  }),
-                  config.decorators
-                ),
-                Optional::new(typescript::strip(), config.is_type_script),
                 resolver_with_mark(global_mark),
                 Optional::new(
                   react::react(
@@ -275,6 +265,18 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                   ),
                   config.is_jsx
                 ),
+                // Decorators can use type information, so must run before the TypeScript pass.
+                Optional::new(
+                  decorators::decorators(decorators::Config {
+                    legacy: true,
+                    // Always disabled for now, SWC's implementation doesn't match TSC.
+                    emit_metadata: false
+                  }),
+                  config.decorators
+                ),
+                Optional::new(typescript::strip(), config.is_type_script),
+                // Run resolver again. TS pass messes things up.
+                resolver_with_mark(global_mark),
               );
 
               module.fold_with(&mut passes)
