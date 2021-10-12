@@ -6034,4 +6034,49 @@ describe('scope hoisting', function() {
       shouldDisableCache: false,
     });
   });
+
+  it('unmark an asset group as deferred when it becomes used', async function() {
+    let testDir = path.join(
+      __dirname,
+      'integration/scope-hoisting/es6/unmarks-defer-for-assetgroup',
+    );
+
+    let packageDir = path.join(testDir, '/package');
+
+    await overlayFS.mkdirp(packageDir);
+
+    await overlayFS.copyFile(
+      path.join(testDir, 'index1.js'),
+      path.join(testDir, 'index.js'),
+    );
+
+    await overlayFS.copyFile(
+      path.join(packageDir, 'foo1.js'),
+      path.join(packageDir, 'foo.js'),
+    );
+
+    await bundle(path.join(testDir, 'index.js'), {
+      inputFS: overlayFS,
+      outputFS: overlayFS,
+      shouldDisableCache: true,
+    });
+
+    await overlayFS.copyFile(
+      path.join(testDir, 'index2.js'),
+      path.join(testDir, 'index.js'),
+    );
+
+    await overlayFS.copyFile(
+      path.join(packageDir, 'foo2.js'),
+      path.join(packageDir, 'foo.js'),
+    );
+
+    let b = await bundle(path.join(testDir, 'index.js'), {
+      inputFS: overlayFS,
+      outputFS: overlayFS,
+      shouldDisableCache: false,
+    });
+
+    await run(b);
+  });
 });
