@@ -871,6 +871,13 @@ describe('javascript', function() {
   it('dynamic imports loaded as high-priority scripts when not all engines support esmodules natively', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/dynamic-imports-high-prio/index.js'),
+      {
+        defaultTargetOptions: {
+          engines: {
+            browsers: 'IE 11',
+          },
+        },
+      },
     );
 
     let output = await run(b);
