@@ -153,49 +153,52 @@ async function processCSSModule(
   let ast: Root = postcss.fromJSON(nullthrows((await asset.getAST())?.program));
 
   let usedSymbols = bundleGraph.getUsedSymbols(asset);
-  let localSymbols = new Set(
-    [...asset.symbols].map(([, {local}]) => `.${local}`),
-  );
+  if (usedSymbols != null) {
+    let localSymbols = new Set(
+      [...asset.symbols].map(([, {local}]) => `.${local}`),
+    );
 
-  let defaultImport = null;
-  if (usedSymbols.has('default')) {
-    let incoming = bundleGraph.getIncomingDependencies(asset);
-    defaultImport = incoming.find(d => d.symbols.hasExportSymbol('default'));
-    if (defaultImport) {
-      let loc = defaultImport.symbols.get('default')?.loc;
-      logger.warn({
-        message:
-          'CSS modules cannot be tree shaken when imported with a default specifier',
-        ...(loc && {
-          codeFrames: [
-            {
-              filePath: nullthrows(loc?.filePath ?? defaultImport.sourcePath),
-              codeHighlights: [{start: loc.start, end: loc.end}],
-            },
+    let defaultImport = null;
+    if (usedSymbols.has('default')) {
+      let incoming = bundleGraph.getIncomingDependencies(asset);
+      defaultImport = incoming.find(d => d.symbols.hasExportSymbol('default'));
+      if (defaultImport) {
+        let loc = defaultImport.symbols.get('default')?.loc;
+        logger.warn({
+          message:
+            'CSS modules cannot be tree shaken when imported with a default specifier',
+          ...(loc && {
+            codeFrames: [
+              {
+                filePath: nullthrows(loc?.filePath ?? defaultImport.sourcePath),
+                codeHighlights: [{start: loc.start, end: loc.end}],
+              },
+            ],
+          }),
+          hints: [
+            `Instead do: import * as style from "${defaultImport.specifier}";`,
           ],
-        }),
-        hints: [
-          `Instead do: import * as style from "${defaultImport.specifier}";`,
-        ],
-        documentationURL: 'https://v2.parceljs.org/languages/css/#tree-shaking',
+          documentationURL: 'https://parceljs.org/languages/css/#tree-shaking',
+        });
+      }
+    }
+
+    if (!defaultImport && !usedSymbols.has('*')) {
+      let usedLocalSymbols = new Set(
+        [...usedSymbols].map(
+          exportSymbol =>
+            `.${nullthrows(asset.symbols.get(exportSymbol)).local}`,
+        ),
+      );
+      ast.walkRules(rule => {
+        if (
+          localSymbols.has(rule.selector) &&
+          !usedLocalSymbols.has(rule.selector)
+        ) {
+          rule.remove();
+        }
       });
     }
-  }
-
-  if (!defaultImport && !usedSymbols.has('*')) {
-    let usedLocalSymbols = new Set(
-      [...usedSymbols].map(
-        exportSymbol => `.${nullthrows(asset.symbols.get(exportSymbol)).local}`,
-      ),
-    );
-    ast.walkRules(rule => {
-      if (
-        localSymbols.has(rule.selector) &&
-        !usedLocalSymbols.has(rule.selector)
-      ) {
-        rule.remove();
-      }
-    });
   }
 
   let {content, map} = await postcss().process(ast, {

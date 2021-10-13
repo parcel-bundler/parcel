@@ -7,7 +7,6 @@ import type {
   TraversalActions,
 } from '@parcel/types';
 import type {NodeId, SerializedContentGraph} from '@parcel/graph';
-import querystring from 'querystring';
 
 import type {
   Asset,
@@ -80,6 +79,7 @@ type SerializedBundleGraph = {|
   bundleContentHashes: Map<string, string>,
   assetPublicIds: Set<string>,
   publicIdByAssetId: Map<string, string>,
+  symbolPropagationRan: boolean,
 |};
 
 function makeReadOnlySet<T>(set: Set<T>): $ReadOnlySet<T> {
@@ -106,22 +106,26 @@ export default class BundleGraph {
   _bundleContentHashes: Map<string, string>;
   _targetEntryRoots: Map<ProjectPath, FilePath> = new Map();
   _graph: ContentGraph<BundleGraphNode, BundleGraphEdgeType>;
+  _symbolPropagationRan /*: boolean*/;
 
   constructor({
     graph,
     publicIdByAssetId,
     assetPublicIds,
     bundleContentHashes,
+    symbolPropagationRan,
   }: {|
     graph: ContentGraph<BundleGraphNode, BundleGraphEdgeType>,
     publicIdByAssetId: Map<string, string>,
     assetPublicIds: Set<string>,
     bundleContentHashes: Map<string, string>,
+    symbolPropagationRan: boolean,
   |}) {
     this._graph = graph;
     this._assetPublicIds = assetPublicIds;
     this._publicIdByAssetId = publicIdByAssetId;
     this._bundleContentHashes = bundleContentHashes;
+    this._symbolPropagationRan = symbolPropagationRan;
   }
 
   static fromAssetGraph(
@@ -204,6 +208,7 @@ export default class BundleGraph {
       assetPublicIds,
       bundleContentHashes: new Map(),
       publicIdByAssetId,
+      symbolPropagationRan: assetGraph.symbolPropagationRan,
     });
   }
 
@@ -214,6 +219,7 @@ export default class BundleGraph {
       assetPublicIds: this._assetPublicIds,
       bundleContentHashes: this._bundleContentHashes,
       publicIdByAssetId: this._publicIdByAssetId,
+      symbolPropagationRan: this._symbolPropagationRan,
     };
   }
 
@@ -223,6 +229,7 @@ export default class BundleGraph {
       assetPublicIds: serialized.assetPublicIds,
       bundleContentHashes: serialized.bundleContentHashes,
       publicIdByAssetId: serialized.publicIdByAssetId,
+      symbolPropagationRan: serialized.symbolPropagationRan,
     });
   }
 
@@ -1491,16 +1498,18 @@ export default class BundleGraph {
     let hash = new Hash();
     // TODO: sort??
     this.traverseAssets(bundle, asset => {
-      hash.writeString(
-        [
-          this.getAssetPublicId(asset),
-          asset.outputHash,
-          asset.filePath,
-          querystring.stringify(asset.query),
-          asset.type,
-          asset.uniqueKey,
-        ].join(':'),
-      );
+      {
+        hash.writeString(
+          [
+            this.getAssetPublicId(asset),
+            asset.outputHash,
+            asset.filePath,
+            asset.query,
+            asset.type,
+            asset.uniqueKey,
+          ].join(':'),
+        );
+      }
     });
 
     let hashHex = hash.finish();
@@ -1601,16 +1610,20 @@ export default class BundleGraph {
     }
   }
 
-  getUsedSymbolsAsset(asset: Asset): $ReadOnlySet<Symbol> {
+  getUsedSymbolsAsset(asset: Asset): ?$ReadOnlySet<Symbol> {
     let node = this._graph.getNodeByContentKey(asset.id);
     invariant(node && node.type === 'asset');
-    return makeReadOnlySet(node.usedSymbols);
+    return this._symbolPropagationRan
+      ? makeReadOnlySet(node.usedSymbols)
+      : null;
   }
 
-  getUsedSymbolsDependency(dep: Dependency): $ReadOnlySet<Symbol> {
+  getUsedSymbolsDependency(dep: Dependency): ?$ReadOnlySet<Symbol> {
     let node = this._graph.getNodeByContentKey(dep.id);
     invariant(node && node.type === 'dependency');
-    return makeReadOnlySet(node.usedSymbolsUp);
+    return this._symbolPropagationRan
+      ? makeReadOnlySet(node.usedSymbolsUp)
+      : null;
   }
 
   merge(other: BundleGraph) {

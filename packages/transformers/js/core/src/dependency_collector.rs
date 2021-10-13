@@ -208,7 +208,7 @@ impl<'a> DependencyCollector<'a> {
       show_environment: true,
       severity: DiagnosticSeverity::Error,
       documentation_url: Some(String::from(
-        "https://v2.parceljs.org/languages/javascript/#classic-scripts",
+        "https://parceljs.org/languages/javascript/#classic-scripts",
       )),
     });
   }
@@ -394,7 +394,7 @@ impl<'a> Fold for DependencyCollector<'a> {
                 show_environment: self.config.source_type == SourceType::Script,
                 severity: DiagnosticSeverity::Error,
                 documentation_url: Some(String::from(
-                  "https://v2.parceljs.org/languages/javascript/#classic-script-workers",
+                  "https://parceljs.org/languages/javascript/#classic-script-workers",
                 )),
               });
             }
@@ -429,7 +429,9 @@ impl<'a> Fold for DependencyCollector<'a> {
         }
       }
       Member(member) => {
-        if self.config.is_browser
+        if match_member_expr(member, vec!["module", "require"], self.decls) {
+          DependencyKind::Require
+        } else if self.config.is_browser
           && match_member_expr(
             member,
             vec!["navigator", "serviceWorker", "register"],
@@ -551,7 +553,7 @@ impl<'a> Fold for DependencyCollector<'a> {
           let (msg, docs) = if kind == DependencyKind::ServiceWorker {
             (
               "Registering service workers with a string literal is not supported.",
-              "https://v2.parceljs.org/languages/javascript/#service-workers",
+              "https://parceljs.org/languages/javascript/#service-workers",
             )
           } else {
             (
@@ -739,7 +741,7 @@ impl<'a> Fold for DependencyCollector<'a> {
             show_environment: false,
             severity: DiagnosticSeverity::Error,
             documentation_url: Some(String::from(
-              "https://v2.parceljs.org/languages/javascript/#web-workers",
+              "https://parceljs.org/languages/javascript/#web-workers",
             )),
           });
           return node;
@@ -1226,7 +1228,7 @@ impl<'a> DependencyCollector<'a> {
             show_environment: true,
             severity: DiagnosticSeverity::Error,
             documentation_url: Some(String::from(
-              "https://v2.parceljs.org/languages/javascript/#classic-scripts",
+              "https://parceljs.org/languages/javascript/#classic-scripts",
             )),
           })
         }

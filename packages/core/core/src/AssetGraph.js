@@ -19,7 +19,7 @@ import type {
 
 import invariant from 'assert';
 import {hashString, Hash} from '@parcel/hash';
-import {hashObject, objectSortedEntries} from '@parcel/utils';
+import {hashObject} from '@parcel/utils';
 import nullthrows from 'nullthrows';
 import {ContentGraph} from '@parcel/graph';
 import {createDependency} from './Dependency';
@@ -34,6 +34,7 @@ type InitOpts = {|
 type SerializedAssetGraph = {|
   ...SerializedContentGraph<AssetGraphNode>,
   hash?: ?string,
+  symbolPropagationRan: boolean,
 |};
 
 export function nodeFromDep(dep: Dependency): DependencyNode {
@@ -62,9 +63,7 @@ export function nodeFromAssetGroup(assetGroup: AssetGroup): AssetGroupNode {
         ':' +
         (assetGroup.pipeline ?? '') +
         ':' +
-        (assetGroup.query
-          ? JSON.stringify(objectSortedEntries(assetGroup.query))
-          : ''),
+        (assetGroup.query ?? ''),
     ),
     type: 'asset_group',
     value: assetGroup,
@@ -103,12 +102,14 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
   onNodeRemoved: ?(nodeId: NodeId) => mixed;
   hash: ?string;
   envCache: Map<string, Environment>;
+  symbolPropagationRan: boolean;
 
   constructor(opts: ?SerializedAssetGraph) {
     if (opts) {
-      let {hash, ...rest} = opts;
+      let {hash, symbolPropagationRan, ...rest} = opts;
       super(rest);
       this.hash = hash;
+      this.symbolPropagationRan = symbolPropagationRan;
     } else {
       super();
       this.setRootNodeId(
@@ -120,6 +121,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
       );
     }
     this.envCache = new Map();
+    this.symbolPropagationRan = false;
   }
 
   // $FlowFixMe[prop-missing]
@@ -132,6 +134,7 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
     return {
       ...super.serialize(),
       hash: this.hash,
+      symbolPropagationRan: this.symbolPropagationRan,
     };
   }
 
@@ -298,17 +301,21 @@ export default class AssetGraph extends ContentGraph<AssetGraphNode> {
     ) {
       return true;
     }
+    // Node types are proved above
+    let dependencyNode = node;
+    let assetGroupNode = childNode;
 
-    let {sideEffects, canDefer = true} = childNode.value;
-    let dependency = node.value;
-    let previouslyDeferred = childNode.deferred;
+    let {sideEffects, canDefer = true} = assetGroupNode.value;
+    let dependency = dependencyNode.value;
+    let dependencyPreviouslyDeferred = dependencyNode.hasDeferred;
+    let assetGroupPreviouslyDeferred = assetGroupNode.deferred;
     let defer = this.shouldDeferDependency(dependency, sideEffects, canDefer);
-    node.hasDeferred = defer;
-    childNode.deferred = defer;
+    dependencyNode.hasDeferred = defer;
+    assetGroupNode.deferred = defer;
 
-    if (!previouslyDeferred && defer) {
+    if (!dependencyPreviouslyDeferred && defer) {
       this.markParentsWithHasDeferred(nodeId);
-    } else if (previouslyDeferred && !defer) {
+    } else if (assetGroupPreviouslyDeferred && !defer) {
       this.unmarkParentsWithHasDeferred(childNodeId);
     }
 

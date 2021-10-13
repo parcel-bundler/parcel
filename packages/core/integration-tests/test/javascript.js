@@ -1285,7 +1285,7 @@ describe('javascript', function() {
             "Add {type: 'module'} as a second argument to the Worker constructor.",
           ],
           documentationURL:
-            'https://v2.parceljs.org/languages/javascript/#classic-scripts',
+            'https://parceljs.org/languages/javascript/#classic-scripts',
         },
       ]);
     }
@@ -1390,7 +1390,7 @@ describe('javascript', function() {
                   : 'navigator.serviceWorker.register() call.'),
             ],
             documentationURL:
-              'https://v2.parceljs.org/languages/javascript/#classic-script-workers',
+              'https://parceljs.org/languages/javascript/#classic-script-workers',
           },
         ]);
       }
@@ -1608,7 +1608,7 @@ describe('javascript', function() {
             "Add {type: 'module'} as a second argument to the navigator.serviceWorker.register() call.",
           ],
           documentationURL:
-            'https://v2.parceljs.org/languages/javascript/#classic-scripts',
+            'https://parceljs.org/languages/javascript/#classic-scripts',
         },
       ]);
     }
@@ -4864,6 +4864,30 @@ describe('javascript', function() {
     assert.equal(res.a, 'a');
     assert.equal(res.b, 'b');
     assert.equal(typeof res.c, 'function');
+  });
+
+  it('should prioritize named exports before re-exports withput scope hoisting (before)', async () => {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        'integration/scope-hoisting/es6/re-export-priority/entry-a.mjs',
+      ),
+    );
+
+    let res = await run(b, null, {require: false});
+    assert.equal(res.output, 2);
+  });
+
+  it('should prioritize named exports before re-exports without scope hoisting (after)', async () => {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        'integration/scope-hoisting/es6/re-export-priority/entry-b.mjs',
+      ),
+    );
+
+    let res = await run(b, null, {require: false});
+    assert.equal(res.output, 2);
   });
 
   it('should exclude default from export all declaration', async function() {
