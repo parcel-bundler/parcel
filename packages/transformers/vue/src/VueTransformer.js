@@ -275,9 +275,15 @@ ${
         case 'js':
           type = 'js';
           break;
+        case 'jsx':
+          type = 'jsx';
+          break;
         case 'typescript':
         case 'ts':
           type = 'ts';
+          break;
+        case 'tsx':
+          type = 'tsx';
           break;
         case 'coffeescript':
         case 'coffee':

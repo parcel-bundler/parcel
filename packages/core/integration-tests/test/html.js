@@ -130,8 +130,8 @@ describe('html', function() {
     ]);
   });
 
-  it('should insert empty script tag for HMR', async function() {
-    let b = await bundle(
+  it('should insert empty script tag for HMR at the end of the body', async function() {
+    const b = await bundle(
       path.join(__dirname, '/integration/html-no-js/index.html'),
       {
         hmrOptions: {},
@@ -148,6 +148,67 @@ describe('html', function() {
         assets: ['index.html'],
       },
     ]);
+
+    const html = await outputFS.readFile(
+      path.join(distDir, 'index.html'),
+      'utf8',
+    );
+
+    assert(/<script src=".+?\.js"><\/script><\/body>/.test(html));
+  });
+
+  it('should insert empty script tag for HMR at the implied </body>', async function() {
+    const b = await bundle(
+      path.join(__dirname, '/integration/html-no-js/no-body.html'),
+      {
+        hmrOptions: {},
+      },
+    );
+
+    assertBundles(b, [
+      {
+        type: 'js',
+        assets: ['no-body.html'],
+      },
+      {
+        name: 'no-body.html',
+        assets: ['no-body.html'],
+      },
+    ]);
+
+    const html = await outputFS.readFile(
+      path.join(distDir, 'no-body.html'),
+      'utf8',
+    );
+
+    assert(/<script src=".+?\.js"><\/script><\/html>/.test(html));
+  });
+
+  it('should insert empty script tag for HMR at the end of the file if both </body> and </html> are implied', async function() {
+    const b = await bundle(
+      path.join(__dirname, '/integration/html-no-js/no-body-or-html.html'),
+      {
+        hmrOptions: {},
+      },
+    );
+
+    assertBundles(b, [
+      {
+        type: 'js',
+        assets: ['no-body-or-html.html'],
+      },
+      {
+        name: 'no-body-or-html.html',
+        assets: ['no-body-or-html.html'],
+      },
+    ]);
+
+    const html = await outputFS.readFile(
+      path.join(distDir, 'no-body-or-html.html'),
+      'utf8',
+    );
+
+    assert(/<script src=".+?\.js"><\/script>$/.test(html));
   });
 
   it('should support canonical links', async function() {
@@ -168,6 +229,40 @@ describe('html', function() {
     );
 
     assert(/<link rel="canonical" href="\.?\/index.html">/.test(html));
+  });
+
+  it('should support RSS feed links', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-feed/rss.html'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'rss.html',
+        assets: ['rss.html'],
+      },
+      {
+        name: 'feed.xml',
+        assets: ['feed.xml'],
+      },
+    ]);
+  });
+
+  it('should support atom feed links', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-feed/atom.html'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'atom.html',
+        assets: ['atom.html'],
+      },
+      {
+        name: 'feed.xml',
+        assets: ['feed.xml'],
+      },
+    ]);
   });
 
   it('should support meta tags', async function() {
@@ -1286,7 +1381,7 @@ describe('html', function() {
           ],
           hints: ['Add the type="module" attribute to the <script> tag.'],
           documentationURL:
-            'https://v2.parceljs.org/languages/javascript/#classic-scripts',
+            'https://parceljs.org/languages/javascript/#classic-scripts',
         },
       ]);
 
@@ -1567,7 +1662,7 @@ describe('html', function() {
           ],
           hints: ['Add the type="module" attribute to the <script> tag.'],
           documentationURL:
-            'https://v2.parceljs.org/languages/javascript/#classic-scripts',
+            'https://parceljs.org/languages/javascript/#classic-scripts',
         },
       ]);
 

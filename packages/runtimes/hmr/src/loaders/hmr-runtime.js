@@ -289,15 +289,14 @@ function hmrApply(bundle /*: ParcelRequire */, asset /*:  HMRAsset */) {
 
   if (asset.type === 'css') {
     reloadCSS();
-    return;
-  }
-
-  let deps = asset.depsByBundle[bundle.HMR_BUNDLE_ID];
-  if (deps) {
-    var fn = new Function('require', 'module', 'exports', asset.output);
-    modules[asset.id] = [fn, deps];
-  } else if (bundle.parent) {
-    hmrApply(bundle.parent, asset);
+  } else if (asset.type === 'js') {
+    let deps = asset.depsByBundle[bundle.HMR_BUNDLE_ID];
+    if (deps) {
+      var fn = new Function('require', 'module', 'exports', asset.output);
+      modules[asset.id] = [fn, deps];
+    } else if (bundle.parent) {
+      hmrApply(bundle.parent, asset);
+    }
   }
 }
 
@@ -322,7 +321,7 @@ function hmrAcceptCheck(
   }
 
   if (checkedAssets[id]) {
-    return;
+    return true;
   }
 
   checkedAssets[id] = true;
@@ -335,7 +334,14 @@ function hmrAcceptCheck(
     return true;
   }
 
-  return getParents(module.bundle.root, id).some(function(v) {
+  let parents = getParents(module.bundle.root, id);
+
+  // If no parents, the asset is new. Prevent reloading the page.
+  if (!parents.length) {
+    return true;
+  }
+
+  return parents.some(function(v) {
     return hmrAcceptCheck(v[0], v[1], null);
   });
 }

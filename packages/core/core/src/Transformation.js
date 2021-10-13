@@ -24,7 +24,6 @@ import type {LoadedPlugin} from './ParcelConfig';
 import path from 'path';
 import {Readable} from 'stream';
 import nullthrows from 'nullthrows';
-import {objectSortedEntries} from '@parcel/utils';
 import logger, {PluginLogger} from '@parcel/logger';
 import ThrowableDiagnostic, {
   errorToDiagnostic,
@@ -561,7 +560,7 @@ export default class Transformation {
         a.value.pipeline,
         a.value.hash,
         a.value.uniqueKey,
-        a.value.query ? JSON.stringify(objectSortedEntries(a.value.query)) : '',
+        a.value.query ?? '',
       ])
       .join('');
 

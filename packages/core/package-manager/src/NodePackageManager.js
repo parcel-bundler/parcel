@@ -18,7 +18,6 @@ import ThrowableDiagnostic, {
   md,
 } from '@parcel/diagnostic';
 import nativeFS from 'fs';
-// $FlowFixMe this is untyped
 import Module from 'module';
 import path from 'path';
 import semver from 'semver';
