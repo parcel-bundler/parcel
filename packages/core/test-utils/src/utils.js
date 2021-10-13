@@ -111,7 +111,12 @@ export function getParcelOptions(
       entries,
       shouldDisableCache: true,
       logLevel: 'none',
-      defaultConfig: path.join(__dirname, '.parcelrc-no-reporters'),
+      defaultConfig: path.join(
+        __dirname,
+        process.env.PARCEL_TEST_EXPERIMENTAL_BUNDLER == null
+          ? '.parcelrc-no-reporters'
+          : '.parcelrc-experimental-bundler',
+      ),
       inputFS,
       outputFS,
       workerFarm,
