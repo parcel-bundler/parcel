@@ -69,6 +69,7 @@ type RunInput = {|
 
 type BundleGraphResult = {|
   bundleGraph: InternalBundleGraph,
+  bundlerHash: string,
   changedAssets: Map<string, Asset>,
 |};
 
@@ -231,11 +232,11 @@ class BundlerRunner {
     }
 
     // if a previous asset graph hash is passed in, check if the bundle graph is also available
-    let previousBundleGraphResult: ?BundleGraphRequestResult;
+    let previousBundleGraphResult: ?BundleGraphResult;
 
     if (graph.safeToIncrementallyBundle && previousAssetGraphHash != null) {
       try {
-        previousBundleGraphResult = await this.api.getRequestResult<BundleGraphRequestResult>(
+        previousBundleGraphResult = await this.api.getRequestResult<BundleGraphResult>(
           'BundleGraph:' + previousAssetGraphHash,
         );
       } catch {
@@ -332,7 +333,7 @@ class BundlerRunner {
 
     await this.nameBundles(internalBundleGraph);
 
-    await applyRuntimes({
+    let changedRuntimes = await applyRuntimes({
       bundleGraph: internalBundleGraph,
       api: this.api,
       config: this.config,
@@ -359,15 +360,19 @@ class BundlerRunner {
 
     // Recompute the cache key to account for new dev dependencies and invalidations.
     let {cacheKey: updatedCacheKey} = await this.getHashes(graph);
-    let result = {
-      bundleGraph: internalBundleGraph,
-      changedAssets: new Map(),
-      bundlerHash,
-    };
-    this.api.storeResult(result, updatedCacheKey);
+    this.api.storeResult(
+      {
+        bundlerHash,
+        bundleGraph: internalBundleGraph,
+        changedAssets: new Map(),
+      },
+      updatedCacheKey,
+    );
+
     return {
       bundleGraph: internalBundleGraph,
-      changedAssets,
+      bundlerHash,
+      changedAssets: changedRuntimes,
     };
   }
 
