@@ -79,10 +79,6 @@ type BundleGraphRequest = {|
   run: RunInput => Async<BundleGraphResult>,
   input: BundleGraphRequestInput,
 |};
-type BundleGraphRequestResult = {|
-  bundleGraph: InternalBundleGraph,
-  bundlerHash: string,
-|};
 
 export default function createBundleGraphRequest(
   input: BundleGraphRequestInput,
