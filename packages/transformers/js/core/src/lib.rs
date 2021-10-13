@@ -253,10 +253,9 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
 
             let global_mark = Mark::fresh(Mark::root());
             let ignore_mark = Mark::fresh(Mark::root());
-            module = module.fold_with(&mut resolver_with_mark(global_mark));
-
             module = {
               let mut passes = chain!(
+                resolver_with_mark(global_mark),
                 Optional::new(
                   react::react(
                     source_map.clone(),
@@ -275,7 +274,9 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                   }),
                   config.decorators
                 ),
-                Optional::new(typescript::strip(), config.is_type_script)
+                Optional::new(typescript::strip(), config.is_type_script),
+                // Run resolver again. TS pass messes things up.
+                resolver_with_mark(global_mark),
               );
 
               module.fold_with(&mut passes)
