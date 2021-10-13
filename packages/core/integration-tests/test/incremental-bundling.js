@@ -4,6 +4,7 @@ import assert from 'assert';
 import path from 'path';
 import sinon from 'sinon';
 import Bundler from '@parcel/bundler-default';
+import {type Asset} from '@parcel/types';
 // $FlowFixMe[untyped-import]
 import CustomBundler from './integration/incremental-bundling/node_modules/parcel-bundler-test';
 
@@ -30,7 +31,7 @@ describe('incremental bundling', function() {
     );
   };
 
-  let getChangedAssetsBeforeRuntimes = (changedAssets: Array) => {
+  let getChangedAssetsBeforeRuntimes = (changedAssets: Array<Asset>) => {
     return changedAssets.filter(a => !a.filePath.includes('runtime'));
   };
   beforeEach(() => {
