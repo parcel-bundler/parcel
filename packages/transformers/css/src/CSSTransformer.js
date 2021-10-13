@@ -11,11 +11,11 @@ import nullthrows from 'nullthrows';
 import valueParser from 'postcss-value-parser';
 import semver from 'semver';
 
-const URL_RE = /url\s*\("?(?![a-z]+:)/;
+const URL_RE = /data:|:?\/\//;
 const IMPORT_RE = /@import/;
 
 function canHaveDependencies(filePath: FilePath, code: string) {
-  return !/\.css$/.test(filePath) || IMPORT_RE.test(code) || URL_RE.test(code);
+  return !/\.css$/.test(filePath) || IMPORT_RE.test(code) || !URL_RE.test(code);
 }
 
 export default (new Transformer({
@@ -131,7 +131,7 @@ export default (new Transformer({
     });
 
     program.walkDecls(decl => {
-      if (URL_RE.test(decl.value)) {
+      if (!URL_RE.test(decl.value)) {
         let parsed = valueParser(decl.value);
         let isDeclDirty = false;
 
