@@ -143,14 +143,15 @@ export default (new Transformer({
             !node.nodes[0].value.startsWith('#') // IE's `behavior: url(#default#VML)`
           ) {
             let url = asset.addURLDependency(node.nodes[0].value, {
-              loc: decl.source
-                ? createLoc(
-                    decl.source.start,
-                    node.nodes[0].value,
-                    0,
-                    node.nodes[0].sourceIndex,
-                  )
-                : createLoc({line: 1, column: 1}, ''),
+              loc:
+                decl.source && decl.source.start
+                  ? createLoc(
+                      decl.source.start,
+                      node.nodes[0].value,
+                      0,
+                      node.nodes[0].sourceIndex,
+                    )
+                  : createLoc({line: 1, column: 1}, ''),
             });
             isDeclDirty = node.nodes[0].value !== url;
             node.nodes[0].value = url;
