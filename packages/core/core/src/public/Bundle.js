@@ -25,7 +25,7 @@ import nullthrows from 'nullthrows';
 import {DefaultWeakMap} from '@parcel/utils';
 
 import {assetToAssetValue, assetFromValue} from './Asset';
-import {mapVisitor} from '../Graph';
+import {mapVisitor} from '@parcel/graph';
 import Environment from './Environment';
 import Dependency, {dependencyToInternalDependency} from './Dependency';
 import Target from './Target';

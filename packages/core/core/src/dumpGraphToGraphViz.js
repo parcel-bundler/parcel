@@ -1,11 +1,13 @@
 // @flow
 
+import type {Graph} from '@parcel/graph';
 import type {AssetGraphNode, BundleGraphNode, Environment} from './types';
-import type Graph from './Graph';
-import {SpecifierType, Priority} from './types';
+import {bundleGraphEdgeTypes} from './BundleGraph';
+import {requestGraphEdgeTypes} from './RequestTracker';
 
 import path from 'path';
 import {fromProjectPathRelative} from './projectPath';
+import {SpecifierType, Priority} from './types';
 
 const COLORS = {
   root: 'gray',
@@ -32,6 +34,7 @@ export default async function dumpGraphToGraphViz(
   // $FlowFixMe
   graph: Graph<AssetGraphNode> | Graph<BundleGraphNode>,
   name: string,
+  edgeTypes?: typeof bundleGraphEdgeTypes | typeof requestGraphEdgeTypes,
 ): Promise<void> {
   if (
     process.env.PARCEL_BUILD_ENV === 'production' ||
@@ -129,9 +132,20 @@ export default async function dumpGraphToGraphViz(
     }
     n.set('label', label);
   }
+
+  let edgeNames;
+  if (edgeTypes) {
+    edgeNames = Object.fromEntries(
+      Object.entries(edgeTypes).map(([k, v]) => [v, k]),
+    );
+  }
+
   for (let edge of graph.getAllEdges()) {
     let gEdge = g.addEdge(nodeId(edge.from), nodeId(edge.to));
-    let color = edge.type != null ? TYPE_COLORS[edge.type] : null;
+    let color = null;
+    if (edge.type != 1 && edgeNames) {
+      color = TYPE_COLORS[edgeNames[edge.type]];
+    }
     if (color != null) {
       gEdge.set('color', color);
     }

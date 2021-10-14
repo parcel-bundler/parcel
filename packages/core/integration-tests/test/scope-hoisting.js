@@ -123,6 +123,29 @@ describe('scope hoisting', function() {
       assert.equal(output, 2);
     });
 
+    it('supports named exports of variables with a different name', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/named-export-variable-rename/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.equal(output, 2);
+    });
+    it('supports named exports of variables with a different name when wrapped', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/named-export-variable-rename-wrapped/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.equal(output, 2);
+    });
+
     it('supports renaming non-ASCII identifiers', async function() {
       let b = await bundle(
         path.join(
@@ -259,6 +282,53 @@ describe('scope hoisting', function() {
 
       let output = await run(b);
       assert.equal(output, 6);
+    });
+
+    it('supports re-exporting all when falling back to namespace at runtime 1', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/re-export-all-fallback-1/index.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.strictEqual(output, 2);
+    });
+
+    it('supports re-exporting all when falling back to namespace at runtime 2', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/re-export-all-fallback-2/index.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.strictEqual(output, 2);
+    });
+
+    it('supports re-exporting all when falling back to namespace at runtime 3', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          'integration/scope-hoisting/es6/re-export-all-fallback-3/entry.js',
+        ),
+      );
+      let output = await run(b);
+      assert.strictEqual(output, 'FOOBAR!');
+    });
+
+    it('supports nested re-exporting all when falling back to namespace at runtime', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/re-export-all-fallback-nested/index.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.strictEqual(output, '2 4');
     });
 
     it('supports re-exporting all exports from an external module', async function() {
@@ -628,6 +698,30 @@ describe('scope hoisting', function() {
 
       let output = await run(b);
       assert.deepEqual(output, ['test']);
+    });
+
+    it('should default export classes when wrapped', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/export-default-class-wrapped/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.strictEqual(output.VERSION, 1234);
+    });
+
+    it('should default export functions when wrapped', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/export-default-function-wrapped/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.strictEqual(output.VERSION, 1234);
     });
 
     it('should default export globals', async function() {
@@ -3273,7 +3367,7 @@ describe('scope hoisting', function() {
           },
         });
 
-        assert.deepEqual(calls, ['esm', 'commonjs']);
+        assert.deepEqual(calls, ['esm', 'commonjs', 'index']);
         assert.deepEqual(output, 'Message 1');
       });
 
@@ -3739,6 +3833,68 @@ describe('scope hoisting', function() {
       );
 
       assert.equal(await run(b), undefined);
+    });
+
+    it('should handle interop with a re-export namespace', async () => {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          'integration/scope-hoisting/es6/re-export-interop/a.js',
+        ),
+      );
+
+      let res = await run(b);
+      assert.deepEqual(res['en_US'], {
+        test: 'foo',
+      });
+    });
+
+    it('should prioritize named exports before re-exports (before)', async () => {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          'integration/scope-hoisting/es6/re-export-priority/entry-a.mjs',
+        ),
+      );
+
+      let res = await run(b);
+      assert.equal(res, 2);
+    });
+
+    it('should prioritize named exports before re-exports (after)', async () => {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          'integration/scope-hoisting/es6/re-export-priority/entry-b.mjs',
+        ),
+      );
+
+      let res = await run(b);
+      assert.equal(res, 2);
+    });
+
+    it('should prioritize named exports before re-exports in namespace (before)', async () => {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          'integration/scope-hoisting/es6/re-export-priority/namespace-a.mjs',
+        ),
+      );
+
+      let res = await run(b);
+      assert.deepEqual(res, {foo: 2});
+    });
+
+    it('should prioritize named exports before re-exports in namespace (after)', async () => {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          'integration/scope-hoisting/es6/re-export-priority/namespace-b.mjs',
+        ),
+      );
+
+      let res = await run(b);
+      assert.deepEqual(res, {foo: 2});
     });
   });
 
@@ -4359,6 +4515,18 @@ describe('scope hoisting', function() {
 
       let output = await run(b);
       assert.strictEqual(output, 'Say other');
+    });
+
+    it('supports using module.require like require', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/module-require/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.strictEqual(output.b, 2);
     });
 
     it('support url imports in wrapped modules with interop', async function() {
@@ -5839,5 +6007,85 @@ describe('scope hoisting', function() {
     );
     let res = await run(b, {output: null}, {require: false});
     assert.equal(res.output, 'a');
+  });
+
+  it('should unmark dependency as deferred when dependency becomes used', async function() {
+    let testDir = path.join(
+      __dirname,
+      'integration/scope-hoisting/es6/unmarks-defer-for-new-deps',
+    );
+
+    let packageDir = path.join(testDir, '/package');
+
+    await overlayFS.mkdirp(packageDir);
+    await overlayFS.copyFile(
+      path.join(packageDir, 'b1.js'),
+      path.join(packageDir, 'b.js'),
+    );
+
+    await bundle(path.join(testDir, 'index.js'), {
+      inputFS: overlayFS,
+      outputFS: overlayFS,
+      shouldDisableCache: true,
+    });
+
+    await overlayFS.copyFile(
+      path.join(packageDir, 'b2.js'),
+      path.join(packageDir, 'b.js'),
+    );
+
+    await bundle(path.join(testDir, 'index.js'), {
+      inputFS: overlayFS,
+      outputFS: overlayFS,
+      shouldDisableCache: false,
+    });
+  });
+
+  it('unmark an asset group as deferred when it becomes used', async function() {
+    let testDir = path.join(
+      __dirname,
+      'integration/scope-hoisting/es6/unmarks-defer-for-assetgroup',
+    );
+
+    await overlayFS.mkdirp(testDir);
+    await overlayFS.copyFile(
+      path.join(testDir, 'index1.js'),
+      path.join(testDir, 'index.js'),
+    );
+
+    let b = await bundle(path.join(testDir, 'index.js'), {
+      inputFS: overlayFS,
+      outputFS: overlayFS,
+      shouldDisableCache: true,
+    });
+
+    await run(b);
+
+    await overlayFS.copyFile(
+      path.join(testDir, 'index2.js'),
+      path.join(testDir, 'index.js'),
+    );
+
+    b = await bundle(path.join(testDir, 'index.js'), {
+      inputFS: overlayFS,
+      outputFS: overlayFS,
+      shouldDisableCache: false,
+    });
+
+    await run(b);
+
+    await overlayFS.copyFile(
+      path.join(testDir, 'index3.js'),
+      path.join(testDir, 'index.js'),
+    );
+
+    b = await bundle(path.join(testDir, 'index.js'), {
+      inputFS: overlayFS,
+      outputFS: overlayFS,
+      shouldDisableCache: false,
+    });
+
+    let output = await run(b);
+    assert.strictEqual(output, 'bar foo bar');
   });
 });

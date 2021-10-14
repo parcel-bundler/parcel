@@ -4,6 +4,7 @@ import assert from 'assert';
 import path from 'path';
 import sinon from 'sinon';
 import Bundler from '@parcel/bundler-default';
+import {type Asset} from '@parcel/types';
 // $FlowFixMe[untyped-import]
 import CustomBundler from './integration/incremental-bundling/node_modules/parcel-bundler-test';
 
@@ -30,6 +31,9 @@ describe('incremental bundling', function() {
     );
   };
 
+  let getChangedAssetsBeforeRuntimes = (changedAssets: Array<Asset>) => {
+    return changedAssets.filter(a => !a.filePath.includes('runtime'));
+  };
   beforeEach(() => {
     defaultBundlerSpy.resetHistory();
     customBundlerSpy.resetHistory();
@@ -495,7 +499,8 @@ console.log(a);
         );
 
         event = await getNextBuildSuccess(b);
-        assertChangedAssets(event.changedAssets.size, 2);
+        let assets = Array.from(event.changedAssets.values());
+        assertChangedAssets(getChangedAssetsBeforeRuntimes(assets).length, 2);
         assertTimesBundled(defaultBundlerSpy.callCount, 2);
 
         let result = await b.run();
@@ -593,9 +598,9 @@ console.log('index.js');`,
         );
 
         event = await getNextBuildSuccess(b);
-
+        let assets = Array.from(event.changedAssets.values());
         // should contain all the assets
-        assertChangedAssets(event.changedAssets.size, 3);
+        assertChangedAssets(getChangedAssetsBeforeRuntimes(assets).length, 3);
         // the default bundler was only called once
         assertTimesBundled(defaultBundlerSpy.callCount, 1);
         // calls the new bundler to rebundle
@@ -728,7 +733,8 @@ console.log('index.js');`,
       event = await getNextBuildSuccess(b);
 
       // should contain all the assets
-      assertChangedAssets(event.changedAssets.size, 3);
+      let assets = Array.from(event.changedAssets.values());
+      assertChangedAssets(getChangedAssetsBeforeRuntimes(assets).length, 3);
       assertTimesBundled(defaultBundlerSpy.callCount, 1);
 
       let result = await b.run();

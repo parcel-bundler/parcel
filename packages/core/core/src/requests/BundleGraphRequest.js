@@ -5,7 +5,7 @@ import type {SharedReference} from '@parcel/workers';
 import type ParcelConfig, {LoadedPlugin} from '../ParcelConfig';
 import type {StaticRunOpts, RunAPI} from '../RequestTracker';
 import type {
-  Asset as InternalAsset,
+  Asset,
   Bundle as InternalBundle,
   Config,
   DevDepRequest,
@@ -20,7 +20,7 @@ import {PluginLogger} from '@parcel/logger';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import AssetGraph from '../AssetGraph';
 import BundleGraph from '../public/BundleGraph';
-import InternalBundleGraph from '../BundleGraph';
+import InternalBundleGraph, {bundleGraphEdgeTypes} from '../BundleGraph';
 import MutableBundleGraph from '../public/MutableBundleGraph';
 import {Bundle, NamedBundle} from '../public/Bundle';
 import {report} from '../ReporterRunner';
@@ -57,7 +57,7 @@ import {
 
 type BundleGraphRequestInput = {|
   assetGraph: AssetGraph,
-  changedAssets: Map<string, InternalAsset>,
+  changedAssets: Map<string, Asset>,
   previousAssetGraphHash: ?string,
   optionsRef: SharedReference,
 |};
@@ -67,15 +67,17 @@ type RunInput = {|
   ...StaticRunOpts,
 |};
 
+type BundleGraphResult = {|
+  bundleGraph: InternalBundleGraph,
+  bundlerHash: string,
+  changedAssets: Map<string, Asset>,
+|};
+
 type BundleGraphRequest = {|
   id: string,
   +type: 'bundle_graph_request',
-  run: RunInput => Async<BundleGraphRequestResult>,
+  run: RunInput => Async<BundleGraphResult>,
   input: BundleGraphRequestInput,
-|};
-type BundleGraphRequestResult = {|
-  bundleGraph: InternalBundleGraph,
-  bundlerHash: string,
 |};
 
 export default function createBundleGraphRequest(
@@ -160,7 +162,6 @@ class BundlerRunner {
     for (let devDep of config.devDeps) {
       let devDepRequest = await createDevDependency(
         devDep,
-        plugin,
         this.previousDevDeps,
         this.options,
       );
@@ -184,8 +185,8 @@ class BundlerRunner {
   }: {|
     graph: AssetGraph,
     previousAssetGraphHash: ?string,
-    changedAssets: Map<string, InternalAsset>,
-  |}): Promise<BundleGraphRequestResult> {
+    changedAssets: Map<string, Asset>,
+  |}): Promise<BundleGraphResult> {
     report({
       type: 'buildProgress',
       phase: 'bundling',
@@ -215,17 +216,23 @@ class BundlerRunner {
         // Deserialize, and store the original buffer in an in memory cache so we avoid
         // re-serializing it when sending to workers, and in build mode, when writing to cache on shutdown.
         let graph = deserializeToCache(cached);
-        this.api.storeResult(graph, cacheKey);
+        this.api.storeResult(
+          {
+            bundleGraph: graph,
+            changedAssets: new Map(),
+          },
+          cacheKey,
+        );
         return graph;
       }
     }
 
     // if a previous asset graph hash is passed in, check if the bundle graph is also available
-    let previousBundleGraphResult: ?BundleGraphRequestResult;
+    let previousBundleGraphResult: ?BundleGraphResult;
 
     if (graph.safeToIncrementallyBundle && previousAssetGraphHash != null) {
       try {
-        previousBundleGraphResult = await this.api.getRequestResult<BundleGraphRequestResult>(
+        previousBundleGraphResult = await this.api.getRequestResult<BundleGraphResult>(
           'BundleGraph:' + previousAssetGraphHash,
         );
       } catch {
@@ -241,21 +248,26 @@ class BundlerRunner {
 
     let internalBundleGraph;
 
-    let logger = new PluginLogger({origin: this.config.getBundlerName()});
+    let logger = new PluginLogger({origin: name});
 
+    let mutableBundleGraph;
     try {
       if (graph.safeToIncrementallyBundle) {
         internalBundleGraph = nullthrows(previousBundleGraphResult).bundleGraph;
         for (let changedAsset of changedAssets.values()) {
           internalBundleGraph.updateAsset(changedAsset);
         }
+        mutableBundleGraph = new MutableBundleGraph(
+          internalBundleGraph,
+          this.options,
+        );
       } else {
         internalBundleGraph = InternalBundleGraph.fromAssetGraph(graph);
         invariant(internalBundleGraph != null); // ensures the graph was created
 
         // $FlowFixMe
         await dumpGraphToGraphViz(internalBundleGraph._graph, 'before_bundle');
-        let mutableBundleGraph = new MutableBundleGraph(
+        mutableBundleGraph = new MutableBundleGraph(
           internalBundleGraph,
           this.options,
         );
@@ -279,7 +291,7 @@ class BundlerRunner {
           } catch (e) {
             throw new ThrowableDiagnostic({
               diagnostic: errorToDiagnostic(e, {
-                origin: this.config.getBundlerName(),
+                origin: name,
               }),
             });
           } finally {
@@ -294,7 +306,7 @@ class BundlerRunner {
     } catch (e) {
       throw new ThrowableDiagnostic({
         diagnostic: errorToDiagnostic(e, {
-          origin: this.config.getBundlerName(),
+          origin: name,
         }),
       });
     } finally {
@@ -310,7 +322,6 @@ class BundlerRunner {
         specifier: name,
         resolveFrom,
       },
-      plugin,
       this.previousDevDeps,
       this.options,
     );
@@ -318,7 +329,7 @@ class BundlerRunner {
 
     await this.nameBundles(internalBundleGraph);
 
-    await applyRuntimes({
+    let changedRuntimes = await applyRuntimes({
       bundleGraph: internalBundleGraph,
       api: this.api,
       config: this.config,
@@ -330,8 +341,12 @@ class BundlerRunner {
       configs: this.configs,
     });
 
-    // $FlowFixMe
-    await dumpGraphToGraphViz(internalBundleGraph._graph, 'after_runtimes');
+    await dumpGraphToGraphViz(
+      // $FlowFixMe
+      internalBundleGraph._graph,
+      'after_runtimes',
+      bundleGraphEdgeTypes,
+    );
 
     // Store the serialized bundle graph in an in memory cache so that we avoid serializing it
     // many times to send to each worker, and in build mode, when writing to cache on shutdown.
@@ -341,12 +356,20 @@ class BundlerRunner {
 
     // Recompute the cache key to account for new dev dependencies and invalidations.
     let {cacheKey: updatedCacheKey} = await this.getHashes(graph);
-    let result = {
+    this.api.storeResult(
+      {
+        bundlerHash,
+        bundleGraph: internalBundleGraph,
+        changedAssets: new Map(),
+      },
+      updatedCacheKey,
+    );
+
+    return {
       bundleGraph: internalBundleGraph,
       bundlerHash,
+      changedAssets: changedRuntimes,
     };
-    this.api.storeResult(result, updatedCacheKey);
-    return result;
   }
 
   async getHashes(
@@ -374,6 +397,7 @@ class BundlerRunner {
       this.api.getInvalidations(),
       this.options,
     );
+    let plugin = await this.config.getBundler();
 
     return {
       cacheKey: hashString(
@@ -381,11 +405,11 @@ class BundlerRunner {
           assetGraph.getHash() +
           configs +
           devDepRequests +
-          invalidations,
+          invalidations +
+          this.options.mode +
+          (process.env.PARCEL_SHARE_MEM != null ? 'shared' : ''),
       ),
-      bundlerHash: hashString(
-        PARCEL_VERSION + this.config.getBundlerName() + configs,
-      ),
+      bundlerHash: hashString(PARCEL_VERSION + plugin.name + configs),
     };
   }
 
@@ -405,7 +429,6 @@ class BundlerRunner {
           specifier: namer.name,
           resolveFrom: namer.resolveFrom,
         },
-        namer,
         this.previousDevDeps,
         this.options,
       );
@@ -430,7 +453,7 @@ class BundlerRunner {
     let bundle = Bundle.get(internalBundle, internalBundleGraph, this.options);
     let bundleGraph = new BundleGraph<IBundle>(
       internalBundleGraph,
-      NamedBundle.get,
+      NamedBundle.get.bind(NamedBundle),
       this.options,
     );
 

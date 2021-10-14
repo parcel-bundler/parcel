@@ -25,8 +25,6 @@ export type ConfigResultWithFilePath<T> = {|
 /** <code>process.env</code> */
 export type EnvMap = typeof process.env;
 
-export type QueryParameters = {[key: string]: string, ...};
-
 export type JSONValue =
   | null
   | void // ? Is this okay?
@@ -64,6 +62,7 @@ export type RawParcelConfig = {|
   runtimes?: RawParcelConfigPipeline,
   packagers?: {[Glob]: PackageName, ...},
   optimizers?: {[Glob]: RawParcelConfigPipeline, ...},
+  compressors?: {[Glob]: RawParcelConfigPipeline, ...},
   reporters?: RawParcelConfigPipeline,
   validators?: {[Glob]: RawParcelConfigPipeline, ...},
 |};
@@ -636,7 +635,7 @@ export interface BaseAsset {
    */
   +type: string;
   /** The transformer options for the asset from the dependency query string. */
-  +query: QueryParameters;
+  +query: URLSearchParams;
   /** The environment of the asset. */
   +env: Environment;
   /**
@@ -1414,8 +1413,12 @@ export interface BundleGraph<TBundle: Bundle> {
     asset: Asset,
     boundary: ?Bundle,
   ): Array<ExportSymbolResolution>;
-  /** Returns a list of symbols from an asset or dependency that are referenced by a dependent asset. */
-  getUsedSymbols(Asset | Dependency): $ReadOnlySet<Symbol>;
+  /**
+   * Returns a list of symbols from an asset or dependency that are referenced by a dependent asset.
+   *
+   * Returns null if symbol propagation didn't run (so the result is unknown).
+   */
+  getUsedSymbols(Asset | Dependency): ?$ReadOnlySet<Symbol>;
   /** Returns the common root directory for the entry assets of a target. */
   getEntryRoot(target: Target): FilePath;
 }
@@ -1457,7 +1460,7 @@ export type ResolveResult = {|
   /** An optional named pipeline to use to compile the resolved file. */
   +pipeline?: ?string,
   /** Query parameters to be used by transformers when compiling the resolved file. */
-  +query?: QueryParameters,
+  +query?: URLSearchParams,
   /** Whether the resolved file should be excluded from the build. */
   +isExcluded?: boolean,
   /** Overrides the priority set on the dependency. */
@@ -1595,6 +1598,20 @@ export type Optimizer<ConfigType> = {|
     config: ConfigType,
     getSourceMapReference: (map: ?SourceMap) => Async<?string>,
   |}): Async<BundleResult>,
+|};
+
+/**
+ * @section compressor
+ */
+export type Compressor = {|
+  compress({|
+    stream: Readable,
+    options: PluginOptions,
+    logger: PluginLogger,
+  |}): Async<{|
+    stream: Readable,
+    type?: string,
+  |}>,
 |};
 
 /**

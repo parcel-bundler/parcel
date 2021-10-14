@@ -17,6 +17,10 @@
   },
   "dependencies": {
     "@parcel/plugin": "2.0.10",
-    "sharp": "^0.28.3"
+    "@parcel/workers": "2.0.10",
+    "nullthrows": "^1.1.1"
+  },
+  "devDependencies": {
+    "sharp": "^0.29.1"
   }
 }

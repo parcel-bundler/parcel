@@ -52,6 +52,8 @@ use hoist::hoist;
 use modules::esm2cjs;
 use utils::{CodeHighlight, Diagnostic, DiagnosticSeverity, SourceLocation, SourceType};
 
+type SourceMapBuffer = Vec<(swc_common::BytePos, swc_common::LineCol)>;
+
 #[derive(Serialize, Debug, Deserialize)]
 pub struct Config {
   filename: String,
@@ -81,6 +83,7 @@ pub struct Config {
   supports_module_workers: bool,
   is_library: bool,
   is_esm_output: bool,
+  trace_bailouts: bool,
 }
 
 #[derive(Serialize, Debug, Deserialize, Default)]
@@ -195,6 +198,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
             hints,
             show_environment: false,
             severity: DiagnosticSeverity::Error,
+            documentation_url: None,
           }
         })
         .collect();
@@ -247,10 +251,18 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
               };
             }
 
+            let global_mark = Mark::fresh(Mark::root());
+            let ignore_mark = Mark::fresh(Mark::root());
             module = {
               let mut passes = chain!(
+                resolver_with_mark(global_mark),
                 Optional::new(
-                  react::react(source_map.clone(), Some(&comments), react_options),
+                  react::react(
+                    source_map.clone(),
+                    Some(&comments),
+                    react_options,
+                    global_mark
+                  ),
                   config.is_jsx
                 ),
                 // Decorators can use type information, so must run before the TypeScript pass.
@@ -262,19 +274,20 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                   }),
                   config.decorators
                 ),
-                Optional::new(typescript::strip(), config.is_type_script)
+                Optional::new(typescript::strip(), config.is_type_script),
+                // Run resolver again. TS pass messes things up.
+                resolver_with_mark(global_mark),
               );
 
               module.fold_with(&mut passes)
             };
 
-            let global_mark = Mark::fresh(Mark::root());
-            let ignore_mark = Mark::fresh(Mark::root());
-            let module = module.fold_with(&mut resolver_with_mark(global_mark));
             let mut decls = collect_decls(&module);
 
-            let mut preset_env_config = swc_ecma_preset_env::Config::default();
-            preset_env_config.dynamic_import = true;
+            let mut preset_env_config = swc_ecma_preset_env::Config {
+              dynamic_import: true,
+              ..Default::default()
+            };
             let versions = targets_to_versions(&config.targets);
             if let Some(versions) = versions {
               preset_env_config.targets = Some(Targets::Versions(versions));
@@ -301,7 +314,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                 ),
                 // Simplify expressions and remove dead branches so that we
                 // don't include dependencies inside conditionals that are always false.
-                expr_simplifier(),
+                expr_simplifier(Default::default()),
                 dead_branch_remover(),
                 // Inline Node fs.readFileSync calls
                 Optional::new(
@@ -376,10 +389,12 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                 decls,
                 ignore_mark,
                 global_mark,
+                config.trace_bailouts,
               );
               match res {
-                Ok((module, hoist_result)) => {
+                Ok((module, hoist_result, hoist_diagnostics)) => {
                   result.hoist_result = Some(hoist_result);
+                  diagnostics.extend(hoist_diagnostics);
                   module
                 }
                 Err(diagnostics) => {
@@ -407,13 +422,13 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
 
             let (buf, mut src_map_buf) =
               emit(source_map.clone(), comments, &program, config.source_maps)?;
-            if config.source_maps {
-              if let Ok(_) = source_map
+            if config.source_maps
+              && source_map
                 .build_source_map(&mut src_map_buf)
                 .to_writer(&mut map_buf)
-              {
-                result.map = Some(String::from_utf8(map_buf).unwrap());
-              }
+                .is_ok()
+            {
+              result.map = Some(String::from_utf8(map_buf).unwrap());
             }
             result.code = buf;
             Ok(result)
@@ -442,20 +457,22 @@ fn parse(
 
   let comments = SingleThreadedComments::default();
   let syntax = if config.is_type_script {
-    let mut tsconfig = TsConfig::default();
-    tsconfig.tsx = config.is_jsx;
-    tsconfig.dynamic_import = true;
-    tsconfig.decorators = config.decorators;
-    Syntax::Typescript(tsconfig)
+    Syntax::Typescript(TsConfig {
+      tsx: config.is_jsx,
+      dynamic_import: true,
+      decorators: config.decorators,
+      ..Default::default()
+    })
   } else {
-    let mut esconfig = EsConfig::default();
-    esconfig.jsx = config.is_jsx;
-    esconfig.dynamic_import = true;
-    esconfig.export_default_from = true;
-    esconfig.export_namespace_from = true;
-    esconfig.import_meta = true;
-    esconfig.decorators = config.decorators;
-    Syntax::Es(esconfig)
+    Syntax::Es(EsConfig {
+      jsx: config.is_jsx,
+      dynamic_import: true,
+      export_default_from: true,
+      export_namespace_from: true,
+      import_meta: true,
+      decorators: config.decorators,
+      ..Default::default()
+    })
   };
 
   let lexer = Lexer::new(
@@ -477,7 +494,7 @@ fn emit(
   comments: SingleThreadedComments,
   program: &Module,
   source_maps: bool,
-) -> Result<(Vec<u8>, Vec<(swc_common::BytePos, swc_common::LineCol)>), std::io::Error> {
+) -> Result<(Vec<u8>, SourceMapBuffer), std::io::Error> {
   let mut src_map_buf = vec![];
   let mut buf = vec![];
   {
@@ -495,12 +512,12 @@ fn emit(
     let mut emitter = swc_ecmascript::codegen::Emitter {
       cfg: config,
       comments: Some(&comments),
-      cm: source_map.clone(),
+      cm: source_map,
       wr: writer,
     };
 
-    emitter.emit_module(&program)?;
+    emitter.emit_module(program)?;
   }
 
-  return Ok((buf, src_map_buf));
+  Ok((buf, src_map_buf))
 }

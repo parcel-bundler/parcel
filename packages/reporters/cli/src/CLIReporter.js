@@ -171,11 +171,13 @@ async function writeDiagnostic(
   let columns = getTerminalWidth().columns;
   let indent = 2;
   for (let diagnostic of diagnostics) {
-    let {message, stack, codeframe, hints} = await prettyDiagnostic(
-      diagnostic,
-      options,
-      columns - indent,
-    );
+    let {
+      message,
+      stack,
+      codeframe,
+      hints,
+      documentation,
+    } = await prettyDiagnostic(diagnostic, options, columns - indent);
     message = chalk[color](message);
 
     if (isError) {
@@ -183,7 +185,7 @@ async function writeDiagnostic(
     }
 
     if (message) {
-      writeOut(message, isError);
+      writeOut(wrapWithIndent(message), isError);
     }
 
     if (stack || codeframe) {
@@ -198,7 +200,7 @@ async function writeDiagnostic(
       writeOut(indentString(codeframe, indent), isError);
     }
 
-    if ((stack || codeframe) && hints.length > 0) {
+    if ((stack || codeframe) && (hints.length > 0 || documentation)) {
       writeOut('');
     }
 
@@ -213,6 +215,20 @@ async function writeDiagnostic(
         ),
       );
     }
+
+    if (documentation) {
+      writeOut(
+        wrapWithIndent(
+          `${emoji.docs} ${chalk.magenta.bold(documentation)}`,
+          hintIndent + 3,
+          hintIndent,
+        ),
+      );
+    }
+  }
+
+  if (isError) {
+    writeOut('');
   }
 }
 

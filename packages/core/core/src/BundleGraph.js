@@ -6,7 +6,7 @@ import type {
   Symbol,
   TraversalActions,
 } from '@parcel/types';
-import querystring from 'querystring';
+import type {NodeId, SerializedContentGraph} from '@parcel/graph';
 
 import type {
   Asset,
@@ -16,7 +16,6 @@ import type {
   BundleGroup,
   Dependency,
   DependencyNode,
-  NodeId,
   InternalSourceLocation,
   Target,
 } from './types';
@@ -27,26 +26,30 @@ import type {ProjectPath} from './projectPath';
 import assert from 'assert';
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
-import {objectSortedEntriesDeep, getRootDir} from '@parcel/utils';
+import {
+  ContentGraph,
+  type ContentGraphOpts,
+  ALL_EDGE_TYPES,
+  mapVisitor,
+} from '@parcel/graph';
 import {Hash, hashString} from '@parcel/hash';
-import {Priority, BundleBehavior} from './types';
+import {objectSortedEntriesDeep, getRootDir} from '@parcel/utils';
 
+import {Priority, BundleBehavior, SpecifierType} from './types';
 import {getBundleGroupId, getPublicId} from './utils';
-import {ALL_EDGE_TYPES, mapVisitor} from './Graph';
-import ContentGraph, {type SerializedContentGraph} from './ContentGraph';
 import {ISOLATED_ENVS} from './public/Environment';
 import {fromProjectPath} from './projectPath';
 
-type BundleGraphEdgeTypes =
+export const bundleGraphEdgeTypes = {
   // A lack of an edge type indicates to follow the edge while traversing
   // the bundle's contents, e.g. `bundle.traverse()` during packaging.
-  | null
+  null: 1,
   // Used for constant-time checks of presence of a dependency or asset in a bundle,
   // avoiding bundle traversal in cases like `isAssetInAncestors`
-  | 'contains'
+  contains: 2,
   // Connections between bundles and bundle groups, for quick traversal of the
   // bundle hierarchy.
-  | 'bundle'
+  bundle: 3,
   // When dependency -> asset: Indicates that the asset a dependency references
   //                           is contained in another bundle.
   // When dependency -> bundle: Indicates the bundle is necessary for any bundles
@@ -56,10 +59,13 @@ type BundleGraphEdgeTypes =
   // This type prevents referenced assets from being traversed from dependencies
   // along the untyped edge, and enables traversal to referenced bundles that are
   // not directly connected to bundle group nodes.
-  | 'references'
+  references: 4,
   // Signals that the dependency is internally resolvable via the bundle's ancestry,
   // and that the bundle connected to the dependency is not necessary for the source bundle.
-  | 'internal_async';
+  internal_async: 5,
+};
+
+export type BundleGraphEdgeType = $Values<typeof bundleGraphEdgeTypes>;
 
 type InternalSymbolResolution = {|
   asset: Asset,
@@ -73,12 +79,21 @@ type InternalExportSymbolResolution = {|
   +exportAs: Symbol | string,
 |};
 
-type SerializedBundleGraph = {|
-  $$raw: true,
-  graph: SerializedContentGraph<BundleGraphNode, BundleGraphEdgeTypes>,
+type BundleGraphOpts = {|
+  graph: ContentGraphOpts<BundleGraphNode, BundleGraphEdgeType>,
   bundleContentHashes: Map<string, string>,
   assetPublicIds: Set<string>,
   publicIdByAssetId: Map<string, string>,
+  symbolPropagationRan: boolean,
+|};
+
+type SerializedBundleGraph = {|
+  $$raw: true,
+  graph: SerializedContentGraph<BundleGraphNode, BundleGraphEdgeType>,
+  bundleContentHashes: Map<string, string>,
+  assetPublicIds: Set<string>,
+  publicIdByAssetId: Map<string, string>,
+  symbolPropagationRan: boolean,
 |};
 
 function makeReadOnlySet<T>(set: Set<T>): $ReadOnlySet<T> {
@@ -104,23 +119,27 @@ export default class BundleGraph {
   // BundlerRunner takes care of invalidating hashes when runtimes are applied, but this is not ideal.
   _bundleContentHashes: Map<string, string>;
   _targetEntryRoots: Map<ProjectPath, FilePath> = new Map();
-  _graph: ContentGraph<BundleGraphNode, BundleGraphEdgeTypes>;
+  _graph: ContentGraph<BundleGraphNode, BundleGraphEdgeType>;
+  _symbolPropagationRan /*: boolean*/;
 
   constructor({
     graph,
     publicIdByAssetId,
     assetPublicIds,
     bundleContentHashes,
+    symbolPropagationRan,
   }: {|
-    graph: ContentGraph<BundleGraphNode, BundleGraphEdgeTypes>,
+    graph: ContentGraph<BundleGraphNode, BundleGraphEdgeType>,
     publicIdByAssetId: Map<string, string>,
     assetPublicIds: Set<string>,
     bundleContentHashes: Map<string, string>,
+    symbolPropagationRan: boolean,
   |}) {
     this._graph = graph;
     this._assetPublicIds = assetPublicIds;
     this._publicIdByAssetId = publicIdByAssetId;
     this._bundleContentHashes = bundleContentHashes;
+    this._symbolPropagationRan = symbolPropagationRan;
   }
 
   static fromAssetGraph(
@@ -128,7 +147,7 @@ export default class BundleGraph {
     publicIdByAssetId: Map<string, string> = new Map(),
     assetPublicIds: Set<string> = new Set(),
   ): BundleGraph {
-    let graph = new ContentGraph<BundleGraphNode, BundleGraphEdgeTypes>();
+    let graph = new ContentGraph<BundleGraphNode, BundleGraphEdgeType>();
     let assetGroupIds = new Set();
     let assetGraphNodeIdToBundleGraphNodeId = new Map<NodeId, NodeId>();
 
@@ -168,14 +187,22 @@ export default class BundleGraph {
     for (let edge of assetGraph.getAllEdges()) {
       let fromIds;
       if (assetGroupIds.has(edge.from)) {
-        fromIds = [...assetGraph.inboundEdges.getEdges(edge.from, null)];
+        fromIds = [
+          ...assetGraph.getNodeIdsConnectedTo(
+            edge.from,
+            bundleGraphEdgeTypes.null,
+          ),
+        ];
       } else {
         fromIds = [edge.from];
       }
 
       for (let from of fromIds) {
         if (assetGroupIds.has(edge.to)) {
-          for (let to of assetGraph.outboundEdges.getEdges(edge.to, null)) {
+          for (let to of assetGraph.getNodeIdsConnectedFrom(
+            edge.to,
+            bundleGraphEdgeTypes.null,
+          )) {
             graph.addEdge(
               nullthrows(assetGraphNodeIdToBundleGraphNodeId.get(from)),
               nullthrows(assetGraphNodeIdToBundleGraphNodeId.get(to)),
@@ -195,6 +222,7 @@ export default class BundleGraph {
       assetPublicIds,
       bundleContentHashes: new Map(),
       publicIdByAssetId,
+      symbolPropagationRan: assetGraph.symbolPropagationRan,
     });
   }
 
@@ -205,15 +233,17 @@ export default class BundleGraph {
       assetPublicIds: this._assetPublicIds,
       bundleContentHashes: this._bundleContentHashes,
       publicIdByAssetId: this._publicIdByAssetId,
+      symbolPropagationRan: this._symbolPropagationRan,
     };
   }
 
-  static deserialize(serialized: SerializedBundleGraph): BundleGraph {
+  static deserialize(serialized: BundleGraphOpts): BundleGraph {
     return new BundleGraph({
       graph: ContentGraph.deserialize(serialized.graph),
       assetPublicIds: serialized.assetPublicIds,
       bundleContentHashes: serialized.bundleContentHashes,
       publicIdByAssetId: serialized.publicIdByAssetId,
+      symbolPropagationRan: serialized.symbolPropagationRan,
     });
   }
 
@@ -242,7 +272,11 @@ export default class BundleGraph {
       }
 
       if (node.type === 'asset' || node.type === 'dependency') {
-        this._graph.addEdge(bundleNodeId, nodeId, 'contains');
+        this._graph.addEdge(
+          bundleNodeId,
+          nodeId,
+          bundleGraphEdgeTypes.contains,
+        );
       }
 
       if (node.type === 'dependency') {
@@ -251,18 +285,26 @@ export default class BundleGraph {
           .map(id => [id, nullthrows(this._graph.getNode(id))])
           .filter(([, node]) => node.type === 'bundle_group')) {
           invariant(bundleGroupNode.type === 'bundle_group');
-          this._graph.addEdge(bundleNodeId, bundleGroupNodeId, 'bundle');
+          this._graph.addEdge(
+            bundleNodeId,
+            bundleGroupNodeId,
+            bundleGraphEdgeTypes.bundle,
+          );
         }
 
         // If the dependency references a target bundle, add a reference edge from
         // the source bundle to the dependency for easy traversal.
         if (
           this._graph
-            .getNodeIdsConnectedFrom(nodeId, 'references')
+            .getNodeIdsConnectedFrom(nodeId, bundleGraphEdgeTypes.references)
             .map(id => nullthrows(this._graph.getNode(id)))
             .some(node => node.type === 'bundle')
         ) {
-          this._graph.addEdge(bundleNodeId, nodeId, 'references');
+          this._graph.addEdge(
+            bundleNodeId,
+            nodeId,
+            bundleGraphEdgeTypes.references,
+          );
         }
       }
     }, assetNodeId);
@@ -288,7 +330,7 @@ export default class BundleGraph {
     this._graph.addEdge(
       this._graph.getNodeIdByContentKey(bundle.id),
       this._graph.getNodeIdByContentKey(dependency.id),
-      'internal_async',
+      bundleGraphEdgeTypes.internal_async,
     );
     this.removeExternalDependency(bundle, dependency);
   }
@@ -303,7 +345,7 @@ export default class BundleGraph {
     return this._graph
       .getNodeIdsConnectedTo(
         this._graph.getNodeIdByContentKey(getBundleGroupId(bundleGroup)),
-        'bundle',
+        bundleGraphEdgeTypes.bundle,
       )
       .map(id => nullthrows(this._graph.getNode(id)))
       .filter(node => node.type === 'bundle')
@@ -326,11 +368,15 @@ export default class BundleGraph {
 
     if (
       bundleNodeId != null &&
-      this._graph.hasEdge(bundleNodeId, depNodeId, 'internal_async')
+      this._graph.hasEdge(
+        bundleNodeId,
+        depNodeId,
+        bundleGraphEdgeTypes.internal_async,
+      )
     ) {
       let referencedAssetNodeIds = this._graph.getNodeIdsConnectedFrom(
         depNodeId,
-        'references',
+        bundleGraphEdgeTypes.references,
       );
 
       let resolved;
@@ -398,7 +444,10 @@ export default class BundleGraph {
       includeInline: true,
     });
     let referenced = this._graph
-      .getNodeIdsConnectedFrom(dependencyNodeId, 'references')
+      .getNodeIdsConnectedFrom(
+        dependencyNodeId,
+        bundleGraphEdgeTypes.references,
+      )
       .map(id => nullthrows(this._graph.getNode(id)))
       .find(node => node.type === 'asset');
 
@@ -428,11 +477,13 @@ export default class BundleGraph {
         return;
       }
 
-      if (this._graph.hasEdge(bundleNodeId, nodeId, 'contains')) {
+      if (
+        this._graph.hasEdge(bundleNodeId, nodeId, bundleGraphEdgeTypes.contains)
+      ) {
         this._graph.removeEdge(
           bundleNodeId,
           nodeId,
-          'contains',
+          bundleGraphEdgeTypes.contains,
           // Removing this contains edge should not orphan the connected node. This
           // is disabled for performance reasons as these edges are removed as part
           // of a traversal, and checking for orphans becomes quite expensive in
@@ -457,11 +508,31 @@ export default class BundleGraph {
 
       if (node.type === 'dependency') {
         this.removeExternalDependency(bundle, node.value);
-        if (this._graph.hasEdge(bundleNodeId, nodeId, 'references')) {
-          this._graph.addEdge(bundleNodeId, nodeId, 'references');
+        if (
+          this._graph.hasEdge(
+            bundleNodeId,
+            nodeId,
+            bundleGraphEdgeTypes.references,
+          )
+        ) {
+          this._graph.addEdge(
+            bundleNodeId,
+            nodeId,
+            bundleGraphEdgeTypes.references,
+          );
         }
-        if (this._graph.hasEdge(bundleNodeId, nodeId, 'internal_async')) {
-          this._graph.removeEdge(bundleNodeId, nodeId, 'internal_async');
+        if (
+          this._graph.hasEdge(
+            bundleNodeId,
+            nodeId,
+            bundleGraphEdgeTypes.internal_async,
+          )
+        ) {
+          this._graph.removeEdge(
+            bundleNodeId,
+            nodeId,
+            bundleGraphEdgeTypes.internal_async,
+          );
         }
       }
     }, assetNodeId);
@@ -480,7 +551,7 @@ export default class BundleGraph {
 
     let bundleGroupNodeIds = this._graph.getNodeIdsConnectedTo(
       bundleNodeId,
-      'bundle',
+      bundleGraphEdgeTypes.bundle,
     );
     this._graph.removeNode(bundleNodeId);
 
@@ -553,7 +624,13 @@ export default class BundleGraph {
         bundleGroupNode.id,
       );
 
-      if (!this._graph.hasEdge(bundleNodeId, bundleGroupNodeId, 'bundle')) {
+      if (
+        !this._graph.hasEdge(
+          bundleNodeId,
+          bundleGroupNodeId,
+          bundleGraphEdgeTypes.bundle,
+        )
+      ) {
         continue;
       }
 
@@ -576,11 +653,15 @@ export default class BundleGraph {
             this._graph.hasEdge(
               bundleNodeId,
               this._graph.getNodeIdByContentKey(dependency.id),
-              'internal_async',
+              bundleGraphEdgeTypes.internal_async,
             ),
         )
       ) {
-        this._graph.removeEdge(bundleNodeId, bundleGroupNodeId, 'bundle');
+        this._graph.removeEdge(
+          bundleNodeId,
+          bundleGroupNodeId,
+          bundleGraphEdgeTypes.bundle,
+        );
       }
     }
   }
@@ -593,9 +674,13 @@ export default class BundleGraph {
     let dependencyId = this._graph.getNodeIdByContentKey(dependency.id);
     let assetId = this._graph.getNodeIdByContentKey(asset.id);
     let bundleId = this._graph.getNodeIdByContentKey(bundle.id);
-    this._graph.addEdge(dependencyId, assetId, 'references');
+    this._graph.addEdge(dependencyId, assetId, bundleGraphEdgeTypes.references);
 
-    this._graph.addEdge(dependencyId, bundleId, 'references');
+    this._graph.addEdge(
+      dependencyId,
+      bundleId,
+      bundleGraphEdgeTypes.references,
+    );
     if (this._graph.hasEdge(dependencyId, assetId)) {
       this._graph.removeEdge(dependencyId, assetId);
     }
@@ -605,7 +690,7 @@ export default class BundleGraph {
     this._graph.addEdge(
       this._graph.getNodeIdByContentKey(from.id),
       this._graph.getNodeIdByContentKey(to.id),
-      'references',
+      bundleGraphEdgeTypes.references,
     );
   }
 
@@ -613,7 +698,7 @@ export default class BundleGraph {
     return this._graph
       .getNodeIdsConnectedTo(
         this._graph.getNodeIdByContentKey(asset.id),
-        'contains',
+        bundleGraphEdgeTypes.contains,
       )
       .map(id => nullthrows(this._graph.getNode(id)))
       .filter(node => node.type === 'bundle')
@@ -627,7 +712,7 @@ export default class BundleGraph {
     return this._graph
       .getNodeIdsConnectedTo(
         nullthrows(this._graph.getNodeIdByContentKey(dependency.id)),
-        'contains',
+        bundleGraphEdgeTypes.contains,
       )
       .map(id => nullthrows(this._graph.getNode(id)))
       .filter(node => node.type === 'bundle')
@@ -672,7 +757,7 @@ export default class BundleGraph {
           }
         },
         this._graph.getNodeIdByContentKey(dep.id),
-        'references',
+        bundleGraphEdgeTypes.references,
       );
     }
 
@@ -703,13 +788,14 @@ export default class BundleGraph {
 
     if (
       this._graph
-        .getNodeIdsConnectedTo(assetNodeId, 'references')
+        .getNodeIdsConnectedTo(assetNodeId, bundleGraphEdgeTypes.references)
         .map(id => this._graph.getNode(id))
-        .filter(
+        .some(
           node =>
             node?.type === 'dependency' &&
-            node.value.priority === Priority.lazy,
-        ).length > 0
+            node.value.priority === Priority.lazy &&
+            node.value.specifierType !== SpecifierType.url,
+        )
     ) {
       // If this asset is referenced by any async dependency, it's referenced.
       return true;
@@ -832,7 +918,7 @@ export default class BundleGraph {
       // Get a list of parent bundle nodes pointing to the bundle group
       let parentBundleNodes = this._graph.getNodeIdsConnectedTo(
         this._graph.getNodeIdByContentKey(getBundleGroupId(bundleGroup)),
-        'bundle',
+        bundleGraphEdgeTypes.bundle,
       );
 
       // Check that every parent bundle has a bundle group in its ancestry that contains the asset.
@@ -884,7 +970,7 @@ export default class BundleGraph {
               }
             }
           },
-          ['references', 'bundle'],
+          [bundleGraphEdgeTypes.references, bundleGraphEdgeTypes.bundle],
         );
 
         return isReachable;
@@ -910,7 +996,13 @@ export default class BundleGraph {
         }
 
         if (node.type === 'dependency' || node.type === 'asset') {
-          if (this._graph.hasEdge(bundleNodeId, nodeId, 'contains')) {
+          if (
+            this._graph.hasEdge(
+              bundleNodeId,
+              nodeId,
+              bundleGraphEdgeTypes.contains,
+            )
+          ) {
             return node;
           }
         }
@@ -961,7 +1053,6 @@ export default class BundleGraph {
       },
       visit,
       undefined, // start with root
-      // $FlowFixMe
       ALL_EDGE_TYPES,
     );
   }
@@ -994,7 +1085,7 @@ export default class BundleGraph {
       },
       visit,
       startBundle ? this._graph.getNodeIdByContentKey(startBundle.id) : null,
-      ['bundle', 'references'],
+      [bundleGraphEdgeTypes.bundle, bundleGraphEdgeTypes.references],
     );
   }
 
@@ -1039,7 +1130,7 @@ export default class BundleGraph {
           referencingBundles.add(node.value);
         }
       },
-      'references',
+      bundleGraphEdgeTypes.references,
     );
 
     return [...referencingBundles];
@@ -1061,7 +1152,7 @@ export default class BundleGraph {
     return this._graph
       .getNodeIdsConnectedTo(
         nullthrows(this._graph.getNodeIdByContentKey(bundle.id)),
-        'bundle',
+        bundleGraphEdgeTypes.bundle,
       )
       .map(id => nullthrows(this._graph.getNode(id)))
       .filter(node => node.type === 'bundle_group')
@@ -1078,7 +1169,7 @@ export default class BundleGraph {
     let bundles: Set<Bundle> = new Set();
     for (let bundleNodeId of this._graph.getNodeIdsConnectedFrom(
       this._graph.getNodeIdByContentKey(getBundleGroupId(bundleGroup)),
-      'bundle',
+      bundleGraphEdgeTypes.bundle,
     )) {
       let bundleNode = nullthrows(this._graph.getNode(bundleNodeId));
       invariant(bundleNode.type === 'bundle');
@@ -1134,7 +1225,9 @@ export default class BundleGraph {
         // Shared bundles seem to depend on being used in the opposite order
         // they were added.
         // TODO: Should this be the case?
-        this._graph.getNodeIdsConnectedFrom(nodeId, 'references').reverse(),
+        this._graph
+          .getNodeIdsConnectedFrom(nodeId, bundleGraphEdgeTypes.references)
+          .reverse(),
     });
 
     return [...referencedBundles];
@@ -1149,7 +1242,6 @@ export default class BundleGraph {
     return this._graph
       .getNodeIdsConnectedTo(
         this._graph.getNodeIdByContentKey(asset.id),
-        // $FlowFixMe
         ALL_EDGE_TYPES,
       )
       .map(id => nullthrows(this._graph.getNode(id)))
@@ -1181,13 +1273,21 @@ export default class BundleGraph {
   bundleHasAsset(bundle: Bundle, asset: Asset): boolean {
     let bundleNodeId = this._graph.getNodeIdByContentKey(bundle.id);
     let assetNodeId = this._graph.getNodeIdByContentKey(asset.id);
-    return this._graph.hasEdge(bundleNodeId, assetNodeId, 'contains');
+    return this._graph.hasEdge(
+      bundleNodeId,
+      assetNodeId,
+      bundleGraphEdgeTypes.contains,
+    );
   }
 
   bundleHasDependency(bundle: Bundle, dependency: Dependency): boolean {
     let bundleNodeId = this._graph.getNodeIdByContentKey(bundle.id);
     let dependencyNodeId = this._graph.getNodeIdByContentKey(dependency.id);
-    return this._graph.hasEdge(bundleNodeId, dependencyNodeId, 'contains');
+    return this._graph.hasEdge(
+      bundleNodeId,
+      dependencyNodeId,
+      bundleGraphEdgeTypes.contains,
+    );
   }
 
   filteredTraverse<TValue, TContext>(
@@ -1418,16 +1518,18 @@ export default class BundleGraph {
     let hash = new Hash();
     // TODO: sort??
     this.traverseAssets(bundle, asset => {
-      hash.writeString(
-        [
-          this.getAssetPublicId(asset),
-          asset.outputHash,
-          asset.filePath,
-          querystring.stringify(asset.query),
-          asset.type,
-          asset.uniqueKey,
-        ].join(':'),
-      );
+      {
+        hash.writeString(
+          [
+            this.getAssetPublicId(asset),
+            asset.outputHash,
+            asset.filePath,
+            asset.query,
+            asset.type,
+            asset.uniqueKey,
+          ].join(':'),
+        );
+      }
     });
 
     let hashHex = hash.finish();
@@ -1502,13 +1604,23 @@ export default class BundleGraph {
       getBundleGroupId(bundleGroup),
     );
     let bundleNodeId = this._graph.getNodeIdByContentKey(bundle.id);
-    if (this._graph.hasEdge(bundleGroupNodeId, bundleNodeId, 'bundle')) {
+    if (
+      this._graph.hasEdge(
+        bundleGroupNodeId,
+        bundleNodeId,
+        bundleGraphEdgeTypes.bundle,
+      )
+    ) {
       // Bundle group already has bundle
       return;
     }
 
     this._graph.addEdge(bundleGroupNodeId, bundleNodeId);
-    this._graph.addEdge(bundleGroupNodeId, bundleNodeId, 'bundle');
+    this._graph.addEdge(
+      bundleGroupNodeId,
+      bundleNodeId,
+      bundleGraphEdgeTypes.bundle,
+    );
 
     for (let entryAssetId of bundle.entryAssetIds) {
       let entryAssetNodeId = this._graph.getNodeIdByContentKey(entryAssetId);
@@ -1518,16 +1630,20 @@ export default class BundleGraph {
     }
   }
 
-  getUsedSymbolsAsset(asset: Asset): $ReadOnlySet<Symbol> {
+  getUsedSymbolsAsset(asset: Asset): ?$ReadOnlySet<Symbol> {
     let node = this._graph.getNodeByContentKey(asset.id);
     invariant(node && node.type === 'asset');
-    return makeReadOnlySet(node.usedSymbols);
+    return this._symbolPropagationRan
+      ? makeReadOnlySet(node.usedSymbols)
+      : null;
   }
 
-  getUsedSymbolsDependency(dep: Dependency): $ReadOnlySet<Symbol> {
+  getUsedSymbolsDependency(dep: Dependency): ?$ReadOnlySet<Symbol> {
     let node = this._graph.getNodeByContentKey(dep.id);
     invariant(node && node.type === 'dependency');
-    return makeReadOnlySet(node.usedSymbolsUp);
+    return this._symbolPropagationRan
+      ? makeReadOnlySet(node.usedSymbolsUp)
+      : null;
   }
 
   merge(other: BundleGraph) {
@@ -1584,7 +1700,7 @@ export default class BundleGraph {
         nullthrows(
           this._graph.getNodeIdByContentKey(getBundleGroupId(bundleGroup)),
         ),
-        'bundle',
+        bundleGraphEdgeTypes.bundle,
       )
       .map(id => nullthrows(this._graph.getNode(id)))
       .some(n => n.type === 'root');
@@ -1613,7 +1729,7 @@ export default class BundleGraph {
 
     let entryBundleGroupIds = this._graph.getNodeIdsConnectedFrom(
       nullthrows(this._graph.rootNodeId),
-      'bundle',
+      bundleGraphEdgeTypes.bundle,
     );
 
     let entries = [];

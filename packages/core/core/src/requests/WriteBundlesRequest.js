@@ -1,9 +1,10 @@
 // @flow strict-local
 
+import type {ContentKey} from '@parcel/graph';
 import type {Async} from '@parcel/types';
 import type {SharedReference} from '@parcel/workers';
 import type {StaticRunOpts} from '../RequestTracker';
-import type {ContentKey, PackagedBundleInfo} from '../types';
+import type {PackagedBundleInfo} from '../types';
 import type BundleGraph from '../BundleGraph';
 import type {BundleInfo} from '../PackagerRunner';
 

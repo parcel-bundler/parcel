@@ -1,23 +1,32 @@
-// @flow strict-local
+// @flow
+import type {GraphOpts, SerializedGraph} from './Graph';
 import type {ContentKey, NodeId} from './types';
 
-import Graph, {type GraphOpts} from './Graph';
+import SharedGraph from './Graph';
+import InProcessGraph from './InProcessGraph';
 import nullthrows from 'nullthrows';
 
-export type SerializedContentGraph<TNode, TEdgeType: string | null = null> = {|
+export type ContentGraphOpts<TNode, TEdgeType: number = 1> = {|
   ...GraphOpts<TNode, TEdgeType>,
   _contentKeyToNodeId: Map<ContentKey, NodeId>,
   _nodeIdToContentKey: Map<NodeId, ContentKey>,
 |};
+export type SerializedContentGraph<TNode, TEdgeType: number = 1> = {|
+  ...SerializedGraph<TNode, TEdgeType>,
+  _contentKeyToNodeId: Map<ContentKey, NodeId>,
+|};
 
-export default class ContentGraph<
+const Graph: typeof SharedGraph =
+  process.env.PARCEL_SHARE_MEM != null ? SharedGraph : (InProcessGraph: any);
+
+export default class ContentGraph<TNode, TEdgeType: number = 1> extends Graph<
   TNode,
-  TEdgeType: string | null = null,
-> extends Graph<TNode, TEdgeType> {
+  TEdgeType,
+> {
   _contentKeyToNodeId: Map<ContentKey, NodeId>;
   _nodeIdToContentKey: Map<NodeId, ContentKey>;
 
-  constructor(opts: ?SerializedContentGraph<TNode, TEdgeType>) {
+  constructor(opts: ?ContentGraphOpts<TNode, TEdgeType>) {
     if (opts) {
       let {_contentKeyToNodeId, _nodeIdToContentKey, ...rest} = opts;
       super(rest);
@@ -32,13 +41,14 @@ export default class ContentGraph<
 
   // $FlowFixMe[prop-missing]
   static deserialize(
-    opts: SerializedContentGraph<TNode, TEdgeType>,
+    opts: ContentGraphOpts<TNode, TEdgeType>,
   ): ContentGraph<TNode, TEdgeType> {
     return new ContentGraph(opts);
   }
 
   // $FlowFixMe[prop-missing]
   serialize(): SerializedContentGraph<TNode, TEdgeType> {
+    // $FlowFixMe[prop-missing]
     return {
       ...super.serialize(),
       _contentKeyToNodeId: this._contentKeyToNodeId,

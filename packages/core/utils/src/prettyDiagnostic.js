@@ -7,12 +7,15 @@ import mdAnsi from '@parcel/markdown-ansi';
 import chalk from 'chalk';
 import path from 'path';
 import nullthrows from 'nullthrows';
+// $FlowFixMe
+import terminalLink from 'terminal-link';
 
 export type AnsiDiagnosticResult = {|
   message: string,
   stack: string,
   codeframe: string,
   hints: Array<string>,
+  documentation: string,
 |};
 
 export default async function prettyDiagnostic(
@@ -20,7 +23,15 @@ export default async function prettyDiagnostic(
   options?: PluginOptions,
   terminalWidth?: number,
 ): Promise<AnsiDiagnosticResult> {
-  let {origin, message, stack, codeFrames, hints, skipFormatting} = diagnostic;
+  let {
+    origin,
+    message,
+    stack,
+    codeFrames,
+    hints,
+    skipFormatting,
+    documentationURL,
+  } = diagnostic;
 
   let result = {
     message:
@@ -29,6 +40,7 @@ export default async function prettyDiagnostic(
     stack: '',
     codeframe: '',
     hints: [],
+    documentation: '',
   };
 
   if (codeFrames != null) {
@@ -77,6 +89,12 @@ export default async function prettyDiagnostic(
   if (Array.isArray(hints) && hints.length) {
     result.hints = hints.map(h => {
       return mdAnsi(h);
+    });
+  }
+
+  if (documentationURL != null) {
+    result.documentation = terminalLink('Learn more', documentationURL, {
+      fallback: (text, url) => `${text}: ${url}`,
     });
   }
 

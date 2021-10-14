@@ -11,7 +11,6 @@ import type {
   Symbol,
   SourceLocation,
   Transformer,
-  QueryParameters,
 } from '@parcel/types';
 import type {
   Asset,
@@ -20,7 +19,6 @@ import type {
   Environment,
   ParcelOptions,
 } from './types';
-import {objectSortedEntries} from '@parcel/utils';
 
 import {Readable} from 'stream';
 import {PluginLogger} from '@parcel/logger';
@@ -47,7 +45,7 @@ type AssetOptions = {|
   hash?: ?string,
   idBase?: ?string,
   filePath: ProjectPath,
-  query?: ?QueryParameters,
+  query?: ?string,
   type: string,
   contentKey?: ?string,
   mapKey?: ?string,
@@ -76,9 +74,6 @@ export function createAssetIdFromOptions(options: AssetOptions): string {
     options.idBase != null
       ? options.idBase
       : fromProjectPathRelative(options.filePath);
-  let queryString = options.query
-    ? JSON.stringify(objectSortedEntries(options.query))
-    : '';
 
   return hashString(
     idBase +
@@ -88,7 +83,7 @@ export function createAssetIdFromOptions(options: AssetOptions): string {
       ':' +
       (options.pipeline ?? '') +
       ':' +
-      queryString,
+      (options.query ?? ''),
   );
 }
 

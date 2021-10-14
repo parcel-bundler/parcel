@@ -643,6 +643,7 @@ describe('ParcelConfigRequest', () => {
         runtimes: [],
         namers: [],
         optimizers: {},
+        compressors: {},
         packagers: {},
         reporters: [],
         validators: {},
