@@ -65,6 +65,8 @@ const META = {
   ],
 };
 
+const FEED_TYPES = new Set(['application/rss+xml', 'application/atom+xml']);
+
 // Options to be passed to `addDependency` for certain tags + attributes
 const OPTIONS = {
   a: {
@@ -122,24 +124,33 @@ export default function collectDependencies(
     seen.add(node);
 
     if (tag === 'meta') {
-      if (
-        !Object.keys(attrs).some(attr => {
-          let values = META[attr];
-          return (
-            values &&
-            values.includes(attrs[attr]) &&
-            attrs.content !== '' &&
-            !(attrs.name === 'msapplication-config' && attrs.content === 'none')
-          );
-        })
-      ) {
-        return node;
+      const isMetaDependency = Object.keys(attrs).some(attr => {
+        let values = META[attr];
+        return (
+          values &&
+          values.includes(attrs[attr]) &&
+          attrs.content !== '' &&
+          !(attrs.name === 'msapplication-config' && attrs.content === 'none')
+        );
+      });
+      if (isMetaDependency) {
+        const metaAssetUrl = attrs.content;
+        if (metaAssetUrl) {
+          attrs.content = asset.addURLDependency(attrs.content, {
+            needsStableName: true,
+          });
+          isDirty = true;
+          asset.setAST(ast);
+        }
       }
+      return node;
     }
 
     if (
       tag === 'link' &&
-      (attrs.rel === 'canonical' || attrs.rel === 'manifest') &&
+      (attrs.rel === 'canonical' ||
+        attrs.rel === 'manifest' ||
+        (attrs.rel === 'alternate' && FEED_TYPES.has(attrs.type))) &&
       attrs.href
     ) {
       let href = attrs.href;
@@ -234,7 +245,7 @@ export default function collectDependencies(
 
     for (let attr in attrs) {
       // Check for virtual paths
-      if (tag === 'a' && attrs[attr].lastIndexOf('.') < 1) {
+      if (tag === 'a' && attrs[attr].split('#')[0].lastIndexOf('.') < 1) {
         continue;
       }
 

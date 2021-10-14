@@ -4,7 +4,6 @@ import path from 'path';
 import {EOL} from 'os';
 import SourceMap from '@parcel/source-map';
 import sass from 'sass';
-import {pathToFileURL} from 'url';
 import {promisify} from 'util';
 
 // E.g: ~library/file.sass
@@ -181,7 +180,7 @@ function resolvePathImporter({asset, resolve, includePaths, options}) {
       .then(resolved => {
         if (resolved) {
           done({
-            file: pathToFileURL(resolved.filePath).toString(),
+            file: resolved.filePath,
             contents: resolved.contents,
           });
         } else {

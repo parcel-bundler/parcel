@@ -311,6 +311,8 @@ describe('ParcelConfig', () => {
                   ],
                 },
               ],
+              documentationURL:
+                'https://parceljs.org/features/dependency-resolution/#url-schemes',
             },
           ],
         },

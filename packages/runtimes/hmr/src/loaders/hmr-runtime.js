@@ -95,7 +95,9 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
 
     if (data.type === 'update') {
       // Remove error overlay if there is one
-      removeErrorOverlay();
+      if (typeof document !== 'undefined') {
+        removeErrorOverlay();
+      }
 
       let assets = data.assets.filter(asset => asset.envHash === HMR_ENV_HASH);
 
@@ -143,11 +145,13 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
         );
       }
 
-      // Render the fancy html overlay
-      removeErrorOverlay();
-      var overlay = createErrorOverlay(data.diagnostics.html);
-      // $FlowFixMe
-      document.body.appendChild(overlay);
+      if (typeof document !== 'undefined') {
+        // Render the fancy html overlay
+        removeErrorOverlay();
+        var overlay = createErrorOverlay(data.diagnostics.html);
+        // $FlowFixMe
+        document.body.appendChild(overlay);
+      }
     }
   };
   ws.onerror = function(e) {
@@ -183,12 +187,15 @@ function createErrorOverlay(diagnostics) {
         <div style="font-size: 18px; font-weight: bold; margin-top: 20px;">
           🚨 ${diagnostic.message}
         </div>
-        <pre>
-          ${stack}
-        </pre>
+        <pre>${stack}</pre>
         <div>
-          ${diagnostic.hints.map(hint => '<div>' + hint + '</div>').join('')}
+          ${diagnostic.hints.map(hint => '<div>💡 ' + hint + '</div>').join('')}
         </div>
+        ${
+          diagnostic.documentation
+            ? `<div>📝 <a style="color: violet" href="${diagnostic.documentation}" target="_blank">Learn more</a></div>`
+            : ''
+        }
       </div>
     `;
   }
@@ -282,15 +289,14 @@ function hmrApply(bundle /*: ParcelRequire */, asset /*:  HMRAsset */) {
 
   if (asset.type === 'css') {
     reloadCSS();
-    return;
-  }
-
-  let deps = asset.depsByBundle[bundle.HMR_BUNDLE_ID];
-  if (deps) {
-    var fn = new Function('require', 'module', 'exports', asset.output);
-    modules[asset.id] = [fn, deps];
-  } else if (bundle.parent) {
-    hmrApply(bundle.parent, asset);
+  } else if (asset.type === 'js') {
+    let deps = asset.depsByBundle[bundle.HMR_BUNDLE_ID];
+    if (deps) {
+      var fn = new Function('require', 'module', 'exports', asset.output);
+      modules[asset.id] = [fn, deps];
+    } else if (bundle.parent) {
+      hmrApply(bundle.parent, asset);
+    }
   }
 }
 
@@ -315,7 +321,7 @@ function hmrAcceptCheck(
   }
 
   if (checkedAssets[id]) {
-    return;
+    return true;
   }
 
   checkedAssets[id] = true;
@@ -328,7 +334,14 @@ function hmrAcceptCheck(
     return true;
   }
 
-  return getParents(module.bundle.root, id).some(function(v) {
+  let parents = getParents(module.bundle.root, id);
+
+  // If no parents, the asset is new. Prevent reloading the page.
+  if (!parents.length) {
+    return true;
+  }
+
+  return parents.some(function(v) {
     return hmrAcceptCheck(v[0], v[1], null);
   });
 }

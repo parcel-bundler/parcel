@@ -226,7 +226,9 @@ export default (new Runtime({
 
     if (
       shouldUseRuntimeManifest(bundle, options) &&
-      bundleGraph.getChildBundles(bundle).length > 0 &&
+      bundleGraph
+        .getChildBundles(bundle)
+        .some(b => b.bundleBehavior !== 'inline') &&
       isNewContext(bundle, bundleGraph)
     ) {
       assets.push({
@@ -587,7 +589,12 @@ function getRelativePathExpr(
     );
   }
 
-  return JSON.stringify(relativePath);
+  let res = JSON.stringify(relativePath);
+  if (options.hmrOptions) {
+    res += ' + "?" + Date.now()';
+  }
+
+  return res;
 }
 
 function getAbsoluteUrlExpr(relativePathExpr: string, bundle: NamedBundle) {

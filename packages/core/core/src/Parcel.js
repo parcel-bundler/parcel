@@ -31,7 +31,10 @@ import {AbortController} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import {PromiseQueue} from '@parcel/utils';
 import ParcelConfig from './ParcelConfig';
 import logger from '@parcel/logger';
-import RequestTracker, {getWatcherOptions} from './RequestTracker';
+import RequestTracker, {
+  getWatcherOptions,
+  requestGraphEdgeTypes,
+} from './RequestTracker';
 import createValidationRequest from './requests/ValidationRequest';
 import createParcelBuildRequest from './requests/ParcelBuildRequest';
 import {Disposable} from '@parcel/events';
@@ -104,9 +107,7 @@ export default class Parcel {
       });
     }
 
-    if (resolvedOptions.cache.ensure) {
-      await resolvedOptions.cache.ensure();
-    }
+    await resolvedOptions.cache.ensure();
 
     let {
       dispose: disposeOptions,
@@ -276,8 +277,12 @@ export default class Parcel {
 
       this.#requestedAssetIds.clear();
 
-      // $FlowFixMe
-      dumpGraphToGraphViz(this.#requestTracker.graph, 'RequestGraph');
+      dumpGraphToGraphViz(
+        // $FlowFixMe
+        this.#requestTracker.graph,
+        'RequestGraph',
+        requestGraphEdgeTypes,
+      );
 
       let event = {
         type: 'buildSuccess',

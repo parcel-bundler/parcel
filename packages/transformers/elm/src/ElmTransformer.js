@@ -110,6 +110,25 @@ function compileToString(elm, elmBinary, asset, config) {
   });
 }
 
+let elmPureFuncs = [
+  'F2',
+  'F3',
+  'F4',
+  'F5',
+  'F6',
+  'F7',
+  'F8',
+  'F9',
+  'A2',
+  'A3',
+  'A4',
+  'A5',
+  'A6',
+  'A7',
+  'A8',
+  'A9',
+];
+
 async function minifyElmOutput(source) {
   // Recommended minification
   // Based on: http://elm-lang.org/0.19.0/optimize
@@ -117,29 +136,14 @@ async function minifyElmOutput(source) {
     compress: {
       keep_fargs: false,
       passes: 2,
-      pure_funcs: [
-        'F2',
-        'F3',
-        'F4',
-        'F5',
-        'F6',
-        'F7',
-        'F8',
-        'F9',
-        'A2',
-        'A3',
-        'A4',
-        'A5',
-        'A6',
-        'A7',
-        'A8',
-        'A9',
-      ],
+      pure_funcs: elmPureFuncs,
       pure_getters: true,
       unsafe: true,
       unsafe_comps: true,
     },
-    mangle: true,
+    mangle: {
+      reserved: elmPureFuncs,
+    },
   });
 
   if (result.code != null) return result.code;

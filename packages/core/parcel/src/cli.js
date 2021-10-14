@@ -25,9 +25,13 @@ const SIGINT_EXIT_CODE = 130;
 async function logUncaughtError(e: mixed) {
   if (e instanceof ThrowableDiagnostic) {
     for (let diagnostic of e.diagnostics) {
-      let {message, codeframe, stack, hints} = await prettyDiagnostic(
-        diagnostic,
-      );
+      let {
+        message,
+        codeframe,
+        stack,
+        hints,
+        documentation,
+      } = await prettyDiagnostic(diagnostic);
       INTERNAL_ORIGINAL_CONSOLE.error(chalk.red(message));
       if (codeframe || stack) {
         INTERNAL_ORIGINAL_CONSOLE.error('');
@@ -39,6 +43,9 @@ async function logUncaughtError(e: mixed) {
       }
       for (let h of hints) {
         INTERNAL_ORIGINAL_CONSOLE.error(chalk.blue(h));
+      }
+      if (documentation) {
+        INTERNAL_ORIGINAL_CONSOLE.error(chalk.magenta.bold(documentation));
       }
     }
   } else {

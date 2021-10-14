@@ -15,8 +15,8 @@ import {collect} from './collect';
 import {shake} from './shake';
 
 export default (new Transformer({
-  async loadConfig({config, options}) {
-    await loadTSConfig(config, options);
+  loadConfig({config, options}) {
+    return loadTSConfig(config, options);
   },
 
   transform({asset, config, options, logger}) {

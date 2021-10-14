@@ -6,7 +6,6 @@ import type {
   ResolveResult,
   Environment,
   SpecifierType,
-  QueryParameters,
 } from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
 
@@ -27,10 +26,8 @@ import ThrowableDiagnostic, {
 import micromatch from 'micromatch';
 import builtins, {empty} from './builtins';
 import nullthrows from 'nullthrows';
-// $FlowFixMe this is untyped
 import _Module from 'module';
 import {fileURLToPath} from 'url';
-import {parse as parseQueryString} from 'querystring';
 
 const EMPTY_SHIM = require.resolve('./_empty');
 
@@ -61,7 +58,7 @@ type Module = {|
   moduleDir?: FilePath,
   filePath?: FilePath,
   code?: string,
-  query?: QueryParameters,
+  query?: URLSearchParams,
 |};
 
 type ResolverContext = {|
@@ -279,6 +276,7 @@ export default class NodeResolver {
     if (resolved === undefined && process.versions.pnp != null && parent) {
       try {
         let [moduleName, subPath] = this.getModuleParts(filename);
+        // $FlowFixMe[prop-missing]
         let pnp = _Module.findPnpApi(path.dirname(parent));
 
         let res = pnp.resolveToUnqualified(
@@ -419,7 +417,7 @@ export default class NodeResolver {
     filename: string,
     dir: string,
     specifierType: SpecifierType,
-  ): Promise<?{|filePath: string, query?: QueryParameters|}> {
+  ): Promise<?{|filePath: string, query?: URLSearchParams|}> {
     let url;
     switch (filename[0]) {
       case '/': {
@@ -525,7 +523,7 @@ export default class NodeResolver {
 
       return {
         filePath,
-        query: url.search ? parseQueryString(url.search.slice(1)) : undefined,
+        query: url.search ? new URLSearchParams(url.search) : undefined,
       };
     } else {
       // CommonJS specifier. Query params are not supported.
@@ -1085,6 +1083,10 @@ export default class NodeResolver {
       for (let key in aliases) {
         let val = aliases[key];
         if (typeof val === 'string' && isGlob(key)) {
+          // https://github.com/micromatch/picomatch/issues/77
+          if (filename.startsWith('./')) {
+            filename = filename.slice(2);
+          }
           let re = micromatch.makeRe(key, {capture: true});
           if (re.test(filename)) {
             alias = filename.replace(re, val);
@@ -1113,7 +1115,7 @@ export default class NodeResolver {
       this.projectRoot,
       // By default, loadConfig uses JSON5. Use normal JSON for package.json files
       // since they don't support comments and JSON.parse is faster.
-      {parser: JSON.parse},
+      {parser: (...args) => JSON.parse(...args)},
     );
 
     if (res != null) {
