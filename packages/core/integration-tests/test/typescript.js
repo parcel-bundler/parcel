@@ -193,5 +193,46 @@ describe('typescript', function() {
         fromTsx: text,
       });
     });
+
+    it('should handle legacy cast in .ts file', async function() {
+      if (config != null) {
+        return;
+      }
+      await bundle(
+        path.join(__dirname, '/integration/typescript-legacy-cast/index.ts'),
+        {config},
+      );
+    });
+
+    it('should handle compile enums correctly', async function() {
+      if (config != null) {
+        return;
+      }
+      let b = await bundle(
+        path.join(__dirname, '/integration/typescript-enum/index.ts'),
+        {config},
+      );
+
+      let output = await run(b);
+
+      assert.deepEqual(output, {
+        A: {
+          X: 'X',
+          Y: 'Y',
+        },
+        B: {
+          X: 'X',
+          Y: 'Y',
+        },
+        C: {
+          X: 'X',
+          Y: 'Y',
+        },
+        z: {
+          a: 'X',
+          c: 'Y',
+        },
+      });
+    });
   }
 });

@@ -21,8 +21,8 @@ declare module 'posthtml' {
 
   declare type PostHTMLTree = Array<PostHTMLNode>;
   declare type PostHTMLOptions = {
-    sync: Boolean,
-    skipParse: Boolean,
+    sync?: Boolean,
+    skipParse?: Boolean,
     ...
   };
   declare type PostHTMLMessage = {
@@ -30,6 +30,8 @@ declare module 'posthtml' {
     file: string,
     ...
   };
+
+  declare type PostHTMLExpression = $Shape<PostHTMLNode> | $Shape<PostHTMLNode>[]
 
   declare var walk: (fn: (node: PostHTMLNode) => PostHTMLNode | PostHTMLNode[]) => void;
   declare var process: (
@@ -41,11 +43,13 @@ declare module 'posthtml' {
     messages: Array<PostHTMLMessage>,
     ...
   }>;
+  declare var match: (expression: PostHTMLExpression, fn: (node: PostHTMLNode) => PostHTMLNode) => void;
 
   declare class Api {
     static walk: typeof walk;
     walk: typeof walk;
     process: typeof process;
+    match: typeof match;
   }
 
   declare class PostHTML extends Api {

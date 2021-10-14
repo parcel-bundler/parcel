@@ -1,6 +1,7 @@
 // @flow
 import type {JSONObject, EnvMap} from '@parcel/types';
 import type {SchemaEntity} from '@parcel/utils';
+import type {Diagnostic} from '@parcel/diagnostic';
 import SourceMap from '@parcel/source-map';
 import {Transformer} from '@parcel/plugin';
 import {init, transform} from '../native';
@@ -13,8 +14,8 @@ import {validateSchema, remapSourceLocation} from '@parcel/utils';
 import {isMatch} from 'micromatch';
 
 const JSX_EXTENSIONS = {
-  '.jsx': true,
-  '.tsx': true,
+  jsx: true,
+  tsx: true,
 };
 
 const JSX_PRAGMA = {
@@ -221,12 +222,7 @@ export default (new Transformer({
         }
       }
 
-      isJSX = Boolean(
-        compilerOptions?.jsx ||
-          pragma ||
-          JSX_EXTENSIONS[path.extname(config.searchPath)],
-      );
-
+      isJSX = Boolean(compilerOptions?.jsx || pragma);
       decorators = compilerOptions?.experimentalDecorators;
     }
 
@@ -358,6 +354,15 @@ export default (new Transformer({
 
     let supportsModuleWorkers =
       asset.env.shouldScopeHoist && asset.env.supports('worker-module', true);
+    let isJSX = Boolean(config?.isJSX);
+    if (asset.isSource) {
+      if (asset.type === 'ts') {
+        isJSX = false;
+      } else if (!isJSX) {
+        isJSX = Boolean(JSX_EXTENSIONS[asset.type]);
+      }
+    }
+
     let {
       dependencies,
       code: compiledCode,
@@ -379,7 +384,7 @@ export default (new Transformer({
       is_worker: asset.env.isWorker(),
       env,
       is_type_script: asset.type === 'ts' || asset.type === 'tsx',
-      is_jsx: Boolean(config?.isJSX),
+      is_jsx: isJSX,
       jsx_pragma: config?.pragma,
       jsx_pragma_frag: config?.pragmaFrag,
       automatic_jsx_runtime: Boolean(config?.automaticJSXRuntime),
@@ -399,6 +404,7 @@ export default (new Transformer({
       supports_module_workers: supportsModuleWorkers,
       is_library: asset.env.isLibrary,
       is_esm_output: asset.env.outputFormat === 'esmodule',
+      trace_bailouts: options.logLevel === 'verbose',
     });
 
     let convertLoc = loc => {
@@ -440,7 +446,7 @@ export default (new Transformer({
           message = err?.message || SCRIPT_ERRORS.browser.message;
         }
 
-        let res = {
+        let res: Diagnostic = {
           message,
           codeFrames: [
             {
@@ -458,9 +464,13 @@ export default (new Transformer({
           hints: diagnostic.hints,
         };
 
+        if (diagnostic.documentation_url) {
+          res.documentationURL = diagnostic.documentation_url;
+        }
+
         if (diagnostic.show_environment) {
           if (asset.env.loc && asset.env.loc.filePath !== asset.filePath) {
-            res.codeFrames.push({
+            res.codeFrames?.push({
               filePath: asset.env.loc.filePath,
               codeHighlights: [
                 {
@@ -562,7 +572,7 @@ export default (new Transformer({
             placeholder: dep.placeholder,
           },
         });
-      } else if (dep.kind === 'URL') {
+      } else if (dep.kind === 'Url') {
         asset.addURLDependency(dep.specifier, {
           bundleBehavior: 'isolated',
           loc: convertLoc(dep.loc),
@@ -584,10 +594,13 @@ export default (new Transformer({
 
         let env;
         if (dep.kind === 'DynamicImport') {
-          if (asset.env.isWorklet()) {
+          // https://html.spec.whatwg.org/multipage/webappapis.html#hostimportmoduledynamically(referencingscriptormodule,-modulerequest,-promisecapability)
+          if (asset.env.isWorklet() || asset.env.context === 'service-worker') {
             let loc = convertLoc(dep.loc);
             let diagnostic = {
-              message: 'import() is not allowed in worklets.',
+              message: `import() is not allowed in ${
+                asset.env.isWorklet() ? 'worklets' : 'service workers'
+              }.`,
               codeFrames: [
                 {
                   filePath: asset.filePath,
@@ -665,9 +678,8 @@ export default (new Transformer({
     asset.meta.id = asset.id;
     if (hoist_result) {
       asset.symbols.ensure();
-      for (let symbol in hoist_result.exported_symbols) {
-        let [local, loc] = hoist_result.exported_symbols[symbol];
-        asset.symbols.set(symbol, local, convertLoc(loc));
+      for (let {exported, local, loc} of hoist_result.exported_symbols) {
+        asset.symbols.set(exported, local, convertLoc(loc));
       }
 
       let deps = new Map(
@@ -679,25 +691,29 @@ export default (new Transformer({
         dep.symbols.ensure();
       }
 
-      for (let name in hoist_result.imported_symbols) {
-        let [specifier, exported, loc] = hoist_result.imported_symbols[name];
-        let dep = deps.get(specifier);
+      for (let {
+        source,
+        local,
+        imported,
+        loc,
+      } of hoist_result.imported_symbols) {
+        let dep = deps.get(source);
         if (!dep) continue;
-        dep.symbols.set(exported, name, convertLoc(loc));
+        dep.symbols.set(imported, local, convertLoc(loc));
       }
 
-      for (let [name, specifier, exported, loc] of hoist_result.re_exports) {
-        let dep = deps.get(specifier);
+      for (let {source, local, imported, loc} of hoist_result.re_exports) {
+        let dep = deps.get(source);
         if (!dep) continue;
 
-        if (name === '*' && exported === '*') {
+        if (local === '*' && imported === '*') {
           dep.symbols.set('*', '*', convertLoc(loc), true);
         } else {
           let reExportName =
-            dep.symbols.get(exported)?.local ??
-            `$${asset.id}$re_export$${name}`;
-          asset.symbols.set(name, reExportName);
-          dep.symbols.set(exported, reExportName, convertLoc(loc), true);
+            dep.symbols.get(imported)?.local ??
+            `$${asset.id}$re_export$${local}`;
+          asset.symbols.set(local, reExportName);
+          dep.symbols.set(imported, reExportName, convertLoc(loc), true);
         }
       }
 

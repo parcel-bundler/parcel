@@ -1,18 +1,17 @@
 // @flow strict-local
 
+import type {ContentKey} from '@parcel/graph';
 import type {Async} from '@parcel/types';
 import type {StaticRunOpts} from '../RequestTracker';
 import type {
   AssetRequestInput,
   AssetRequestResult,
-  ContentKey,
   DevDepRequest,
   TransformationRequest,
 } from '../types';
 import type {ConfigAndCachePath} from './ParcelConfigRequest';
 import type {TransformationResult} from '../Transformation';
 
-import {objectSortedEntries} from '@parcel/utils';
 import nullthrows from 'nullthrows';
 import {hashString} from '@parcel/hash';
 import createParcelConfigRequest from './ParcelConfigRequest';
@@ -59,7 +58,7 @@ function getId(input: AssetRequestInput) {
       ':' +
       (input.pipeline ?? '') +
       ':' +
-      (input.query ? JSON.stringify(objectSortedEntries(input.query)) : ''),
+      (input.query ?? ''),
   );
 }
 

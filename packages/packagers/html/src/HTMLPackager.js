@@ -60,13 +60,14 @@ export default (new Packager({
     let renderConfig = config?.render;
 
     let {html} = await posthtml([
-      insertBundleReferences.bind(this, referencedBundles),
-      replaceInlineAssetContent.bind(
-        this,
-        bundleGraph,
-        getInlineBundleContents,
-      ),
-    ]).process(code, renderConfig);
+      tree => insertBundleReferences(referencedBundles, tree),
+      tree =>
+        replaceInlineAssetContent(bundleGraph, getInlineBundleContents, tree),
+    ]).process(code, {
+      ...renderConfig,
+      xmlMode: bundle.type === 'xhtml',
+      closingSingleTag: bundle.type === 'xhtml' ? 'slash' : undefined,
+    });
 
     let {contents, map} = replaceURLReferences({
       bundle,

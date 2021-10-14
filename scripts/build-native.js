@@ -34,9 +34,8 @@ async function build() {
         shell: true,
       });
 
-      yarn.on('error', reject);
-      yarn.on('close', resolve);
-    });
+      yarn.on('close', code => (code === 0 ? resolve() : reject()));
+    }).catch(() => process.exit(1));
   }
 }
 
