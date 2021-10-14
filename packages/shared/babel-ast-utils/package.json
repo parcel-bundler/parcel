@@ -1,6 +1,6 @@
 {
   "name": "@parcel/babel-ast-utils",
-  "version": "2.0.10",
+  "version": "2.0.11",
   "description": "Blazing fast, zero configuration web application bundler",
   "license": "MIT",
   "publishConfig": {
@@ -23,7 +23,7 @@
     "@babel/parser": "^7.0.0",
     "@parcel/babylon-walk": "2.0.9",
     "@parcel/source-map": "^2.0.0",
-    "@parcel/utils": "2.0.10",
+    "@parcel/utils": "2.0.11",
     "astring": "^1.6.2"
   }
 }

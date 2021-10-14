@@ -1,6 +1,6 @@
 {
   "name": "@parcel/graph",
-  "version": "2.0.10",
+  "version": "2.0.11",
   "description": "Blazing fast, zero configuration web application bundler",
   "license": "MIT",
   "publishConfig": {
