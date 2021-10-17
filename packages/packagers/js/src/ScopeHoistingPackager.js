@@ -580,7 +580,7 @@ ${code}
               if (imported === '*') {
                 replacement = renamed;
               } else if (imported === 'default') {
-                replacement = `$parcel$interopDefault(${renamed})`;
+                replacement = `($parcel$interopDefault(${renamed}))`;
                 this.usedHelpers.add('$parcel$interopDefault');
               } else {
                 replacement = this.getPropertyAccess(renamed, imported);
