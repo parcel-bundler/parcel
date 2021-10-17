@@ -113,6 +113,31 @@ describe('image', function() {
     assert(output.length < input.length);
   });
 
+  it('should lossless optimise progressive JPEGs', async function() {
+    let img = path.join(__dirname, '/integration/image/banana.jpg');
+    let b = await bundle(img, {
+      defaultTargetOptions: {
+        shouldOptimize: true,
+      },
+      logLevel: 'verbose',
+    });
+
+    const imagePath = b.getBundles().find(b => b.type === 'jpg').filePath;
+
+    // let input = await inputFS.readFile(img);
+    // let inputRaw = await sharp(input)
+    //   .toFormat('raw')
+    //   .toBuffer();
+    // Check validity of image
+    let output = await outputFS.readFile(imagePath);
+    await sharp(output)
+      .toFormat('raw')
+      .toBuffer();
+
+    // assert(outputRaw.equals(inputRaw));
+    // assert(output.length < input.length);
+  });
+
   it('should lossless optimise PNGs', async function() {
     let img = path.join(__dirname, '/integration/image/clock.png');
     let b = await bundle(img, {
