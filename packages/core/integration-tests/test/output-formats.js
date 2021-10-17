@@ -168,6 +168,19 @@ describe('output formats', function() {
       assert.equal((await run(b)).bar, 3);
     });
 
+    it('should support commonjs output with external modules (default import new call)', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/formats/commonjs-external/default-new.js',
+        ),
+      );
+
+      let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+      assert(dist.includes('$parcel$interopDefault'));
+      await run(b);
+    });
+
     it('should support commonjs output with external modules (multiple specifiers)', async function() {
       let b = await bundle(
         path.join(
