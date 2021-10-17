@@ -18,7 +18,7 @@ export default (new Optimizer({
         contents: optimized.length < buffer.length ? optimized : buffer,
       };
     } catch (err) {
-      const filepath = bundle.getMainEntry().filePath;
+      const filepath = bundle.getMainEntry()?.filePath;
       const filename = filepath
         ? relativePath(options.projectRoot, filepath)
         : 'unknown';
