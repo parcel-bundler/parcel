@@ -153,6 +153,47 @@ describe('postcss', () => {
     );
   });
 
+  it('should produce correct css without symbol propagation for css modules classes with a namespace import', async () => {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/postcss-modules-import-namespace/index.js',
+      ),
+      {
+        mode: 'production',
+        defaultTargetOptions: {
+          shouldScopeHoist: false,
+        },
+      },
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js', 'style.module.css'],
+      },
+      {
+        name: 'index.css',
+        assets: ['global.css', 'style.module.css'],
+      },
+    ]);
+
+    let {output} = await run(b, null, {require: false});
+    assert(/_b-2_[0-9a-z]/.test(output));
+
+    let css = await outputFS.readFile(
+      b.getBundles().find(b => b.type === 'css').filePath,
+      'utf8',
+    );
+    let includedRules = new Set();
+    postcss.parse(css).walkRules(rule => {
+      includedRules.add(rule.selector);
+    });
+    assert(includedRules.has('body'));
+    assert(includedRules.has(`.${output}`));
+    assert(includedRules.has('.page'));
+  });
+
   it('should support importing css modules with a non-static namespace import', async () => {
     let b = await bundle(
       path.join(

@@ -246,7 +246,9 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
       id: bundleId,
       value: {
         id: bundleId,
-        hashReference: HASH_REF_PREFIX + bundleId,
+        hashReference: this.#options.shouldContentHash
+          ? HASH_REF_PREFIX + bundleId
+          : bundleId.slice(-8),
         type: opts.entryAsset ? opts.entryAsset.type : opts.type,
         env: opts.env
           ? environmentToInternalEnvironment(opts.env)

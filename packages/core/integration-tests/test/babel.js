@@ -613,7 +613,7 @@ describe('babel', function() {
               md`Delete __${path.relative(process.cwd(), babelrcPath)}__`,
             ],
             documentationURL:
-              'https://v2.parceljs.org/languages/javascript/#default-presets',
+              'https://parceljs.org/languages/javascript/#default-presets',
           },
           {
             origin: '@parcel/transformer-babel',
@@ -641,7 +641,7 @@ describe('babel', function() {
               "Either remove __@babel/preset-env__ to use Parcel's builtin transpilation, or replace with __@parcel/babel-preset-env__",
             ],
             documentationURL:
-              'https://v2.parceljs.org/languages/javascript/#custom-plugins',
+              'https://parceljs.org/languages/javascript/#custom-plugins',
           },
         ],
       },
@@ -697,7 +697,7 @@ describe('babel', function() {
               )}__`,
             ],
             documentationURL:
-              'https://v2.parceljs.org/languages/javascript/#default-presets',
+              'https://parceljs.org/languages/javascript/#default-presets',
           },
         ],
       },

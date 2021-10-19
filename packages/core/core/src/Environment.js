@@ -131,6 +131,7 @@ function getEnvironmentHash(env: Environment): string {
       env.outputFormat,
       env.sourceType,
       env.isLibrary,
+      env.shouldOptimize,
       env.shouldScopeHoist,
       env.sourceMap,
     ]),

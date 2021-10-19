@@ -4,6 +4,7 @@ import type {ContentKey} from '@parcel/graph';
 import type {Dependency, NamedBundle as INamedBundle} from '@parcel/types';
 import type {SharedReference} from '@parcel/workers';
 import type {
+  Asset,
   AssetGroup,
   Bundle as InternalBundle,
   Config,
@@ -18,7 +19,7 @@ import path from 'path';
 import assert from 'assert';
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
-import AssetGraph, {nodeFromAssetGroup} from './AssetGraph';
+import {nodeFromAssetGroup} from './AssetGraph';
 import BundleGraph from './public/BundleGraph';
 import InternalBundleGraph, {bundleGraphEdgeTypes} from './BundleGraph';
 import {NamedBundle} from './public/Bundle';
@@ -58,7 +59,7 @@ export default async function applyRuntimes({
   previousDevDeps: Map<string, string>,
   devDepRequests: Map<string, DevDepRequest>,
   configs: Map<string, Config>,
-|}): Promise<void> {
+|}): Promise<Map<string, Asset>> {
   let runtimes = await config.getRuntimes();
   let connections: Array<RuntimeConnection> = [];
 
@@ -137,11 +138,10 @@ export default async function applyRuntimes({
     await runDevDepRequest(api, devDepRequest);
   }
 
-  let runtimesAssetGraph = await reconcileNewRuntimes(
-    api,
-    connections,
-    optionsRef,
-  );
+  let {
+    assetGraph: runtimesAssetGraph,
+    changedAssets,
+  } = await reconcileNewRuntimes(api, connections, optionsRef);
 
   let runtimesGraph = InternalBundleGraph.fromAssetGraph(
     runtimesAssetGraph,
@@ -245,13 +245,15 @@ export default async function applyRuntimes({
       bundleGraph._graph.addEdge(dependencyNodeId, bundleGraphRuntimeNodeId);
     }
   }
+
+  return changedAssets;
 }
 
-async function reconcileNewRuntimes(
+function reconcileNewRuntimes(
   api: RunAPI,
   connections: Array<RuntimeConnection>,
   optionsRef: SharedReference,
-): Promise<AssetGraph> {
+) {
   let assetGroups = connections.map(t => t.assetGroup);
   let request = createAssetGraphRequest({
     name: 'Runtimes',
@@ -260,5 +262,5 @@ async function reconcileNewRuntimes(
   });
 
   // rebuild the graph
-  return (await api.runRequest(request, {force: true})).assetGraph;
+  return api.runRequest(request, {force: true});
 }
