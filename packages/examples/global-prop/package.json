@@ -1,0 +1,31 @@
+{
+  "name": "@parcel/global-prop",
+  "version": "2.0.0",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "build": "PARCEL_WORKERS=0 parcel src/index.js --no-cache",
+    "clean-demo": "rm -rf .parcel-cache dist && yarn demo"
+  },
+  "devDependencies": {
+    "@parcel/babel-register": "^2.0.0",
+    "@parcel/core": "^2.0.0"
+  },
+  "modules": "dist/bundle.js",
+  "targets": {
+    "modules": {
+      "context": "browser",
+      "includeNodeModules": true,
+      "outputFormat": "global",
+      "sourceMap": false,
+      "optimize": false,
+      "source": "./src/index.js",
+      "scopeHoist": false
+    }
+  },
+  "dependencies": {
+    "lodash": "^4.17.11",
+    "react": "^16.6.3",
+    "react-dom": "^16.6.3"
+  }
+}
