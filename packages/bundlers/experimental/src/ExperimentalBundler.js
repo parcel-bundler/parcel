@@ -548,10 +548,10 @@ function createIdealGraph(
       invariant(child !== 'root' && child != null);
       const availableAssets = ancestorAssets.get(child);
 
-      if (availableAssets === undefined) {
-        ancestorAssets.set(child, combined);
-      } else {
+      if (availableAssets != null) {
         ancestryIntersect(availableAssets, combined);
+      } else {
+        ancestorAssets.set(child, combined);
       }
     }
 
@@ -573,10 +573,10 @@ function createIdealGraph(
 
       const availableAssets = ancestorAssets.get(bundleRoot);
 
-      if (availableAssets === undefined) {
-        ancestorAssets.set(bundleRoot, siblingAncestors);
-      } else {
+      if (availableAssets != null) {
         ancestryIntersect(availableAssets, siblingAncestors);
+      } else {
+        ancestorAssets.set(bundleRoot, siblingAncestors);
       }
     }
   }
