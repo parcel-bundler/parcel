@@ -375,37 +375,6 @@ export default ({
         ...commonProps,
         manifest_version: {
           type: 'number',
-          enum: [2],
-        },
-        background: {
-          type: 'object',
-          properties: {
-            scripts: arrStr,
-            page: string,
-            persistent: boolean,
-          },
-        },
-        browser_action: browserAction,
-        page_action: {
-          type: 'object',
-          properties: {
-            ...actionProps,
-            // rest are FF only
-            hide_matches: arrStr,
-            show_matches: arrStr,
-            pinned: boolean,
-          },
-        },
-        content_security_policy: string,
-        web_accessible_resources: arrStr,
-      },
-    },
-    {
-      type: 'object',
-      properties: {
-        ...commonProps,
-        manifest_version: {
-          type: 'number',
           enum: [3],
         },
         action: browserAction,
@@ -418,6 +387,7 @@ export default ({
               enum: ['classic', 'module'],
             },
           },
+          required: ['service_worker'],
         },
         content_security_policy: {
           type: 'object',
@@ -452,6 +422,37 @@ export default ({
             ],
           },
         },
+      },
+    },
+    {
+      type: 'object',
+      properties: {
+        ...commonProps,
+        manifest_version: {
+          type: 'number',
+          enum: [2],
+        },
+        background: {
+          type: 'object',
+          properties: {
+            scripts: arrStr,
+            page: string,
+            persistent: boolean,
+          },
+        },
+        browser_action: browserAction,
+        page_action: {
+          type: 'object',
+          properties: {
+            ...actionProps,
+            // rest are FF only
+            hide_matches: arrStr,
+            show_matches: arrStr,
+            pinned: boolean,
+          },
+        },
+        content_security_policy: string,
+        web_accessible_resources: arrStr,
       },
     },
   ],

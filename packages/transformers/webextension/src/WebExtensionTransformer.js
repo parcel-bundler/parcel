@@ -1,8 +1,9 @@
 // @flow
-import type {MutableAsset} from '@parcel/types';
+import type {MutableAsset, TransformerResult, ResolveFn} from '@parcel/types';
 
 import {Transformer} from '@parcel/plugin';
 import path from 'path';
+import fs from 'fs';
 import jsm from 'json-source-map';
 import parseCSP from 'content-security-policy-parser';
 import {validateSchema} from '@parcel/utils';
@@ -34,11 +35,17 @@ const DEP_LOCS = [
   ['user_scripts', 'api_script'],
 ];
 
+const AUTORELOAD_BG = fs.readFileSync(
+  path.join(__dirname, 'runtime', 'autoreload-bg.js'),
+  'utf8',
+);
+
 async function collectDependencies(
   asset: MutableAsset,
   program: any,
   ptrs: {[key: string]: any, ...},
   hot: boolean,
+  resolve: ResolveFn,
 ) {
   // isEntry used whenever strictly necessary to preserve filename
   // also for globs because it's wasteful to write out every file name
@@ -240,24 +247,25 @@ async function collectDependencies(
     }
   }
   if (isMV2) {
-    if (needRuntimeBG) {
-      if (!program.background) {
-        program.background = {};
-      }
-      if (!program.background.scripts) {
-        program.background.scripts = [];
-      }
-      program.background.scripts.push(
-        asset.addURLDependency('./runtime/autoreload-bg.js', {
-          resolveFrom: __filename,
-        }),
-      );
-    }
     if (hot) {
       // To enable HMR, we must override the CSP to allow 'unsafe-eval'
       program.content_security_policy = cspPatchHMR(
         program.content_security_policy,
       );
+
+      if (needRuntimeBG) {
+        if (!program.background) {
+          program.background = {};
+        }
+        if (!program.background.scripts) {
+          program.background.scripts = [];
+        }
+        program.background.scripts.push(
+          asset.addURLDependency('./runtime/autoreload-bg.js', {
+            resolveFrom: __filename,
+          }),
+        );
+      }
     }
   } else {
     if (program.background?.service_worker) {
@@ -265,18 +273,23 @@ async function collectDependencies(
         program.background.service_worker,
         {
           needsStableName: true,
+          // Extra pipeline needed to accept URL specifier
+          pipeline: needRuntimeBG ? 'mv3-bg-sw' : '',
           env: {
             context: 'service-worker',
-            sourceType:
-              program.background.type == 'module' ? 'module' : 'script',
+            sourceType: 'module',
           },
-          loc: {
-            filePath,
-            ...getJSONSourceLocation(
-              ptrs['/background/service_worker'],
-              'value',
-            ),
-          },
+        },
+      );
+    } else if (needRuntimeBG) {
+      if (!program.background) {
+        program.background = {};
+      }
+      program.background.service_worker = asset.addURLDependency(
+        './runtime/autoreload-bg.js',
+        {
+          resolveFrom: __filename,
+          env: {context: 'service-worker'},
         },
       );
     }
@@ -306,27 +319,38 @@ function cspPatchHMR(policy: ?string) {
 }
 
 export default (new Transformer({
-  async transform({asset, options}) {
+  async transform({asset, options, resolve}) {
     const code = await asset.getCode();
-    const parsed = jsm.parse(code);
-    const data: any = parsed.data;
-    validateSchema.diagnostic(
-      WebExtensionSchema,
-      {
-        data: data,
-        source: code,
-        filePath: asset.filePath,
-      },
-      '@parcel/transformer-webextension',
-      'Invalid Web Extension manifest',
-    );
-    await collectDependencies(
-      asset,
-      data,
-      parsed.pointers,
-      Boolean(options.hmrOptions),
-    );
-    asset.setCode(JSON.stringify(data, null, 2));
-    return [asset];
+    if (asset.pipeline == 'mv3-bg-sw') {
+      asset.setCode(`
+        (function() {
+          ${AUTORELOAD_BG}
+        })();
+        ${code}
+      `);
+      return [asset];
+    } else {
+      const parsed = jsm.parse(code);
+      const data: any = parsed.data;
+      validateSchema.diagnostic(
+        WebExtensionSchema,
+        {
+          data: data,
+          source: code,
+          filePath: asset.filePath,
+        },
+        '@parcel/transformer-webextension',
+        'Invalid Web Extension manifest',
+      );
+      await collectDependencies(
+        asset,
+        data,
+        parsed.pointers,
+        Boolean(options.hmrOptions),
+        resolve,
+      );
+      asset.setCode(JSON.stringify(data, null, 2));
+      return [asset];
+    }
   },
 }): Transformer);
