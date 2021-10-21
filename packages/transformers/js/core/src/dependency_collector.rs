@@ -10,6 +10,7 @@ use swc_ecmascript::ast;
 use swc_ecmascript::utils::ident::IdentLike;
 use swc_ecmascript::visit::{Fold, FoldWith};
 
+use crate::fold_member_expr_skip_prop;
 use crate::utils::*;
 use crate::Config;
 
@@ -780,16 +781,7 @@ impl<'a> Fold for DependencyCollector<'a> {
     node.fold_children_with(self)
   }
 
-  fn fold_member_expr(&mut self, mut node: ast::MemberExpr) -> ast::MemberExpr {
-    node.obj = node.obj.fold_children_with(self);
-
-    // To ensure that fold_expr doesn't replace `require` in non-computed member expressions
-    if node.computed {
-      node.prop = node.prop.fold_children_with(self);
-    }
-
-    node
-  }
+  fold_member_expr_skip_prop! {}
 
   fn fold_expr(&mut self, node: ast::Expr) -> ast::Expr {
     use ast::*;
