@@ -18,6 +18,6 @@
   "sideEffects": false,
   "engines": {
     "node": ">= 12.0.0",
-    "parcel": "^2.0.0-beta.1"
+    "parcel": "^2.0.0"
   }
 }

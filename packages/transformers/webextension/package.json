@@ -16,7 +16,7 @@
   "main": "lib/WebExtensionTransformer.js",
   "source": "src/WebExtensionTransformer.js",
   "engines": {
-    "parcel": "^2.0.0-alpha.1.1"
+    "parcel": "^2.0.0"
   },
   "dependencies": {
     "@parcel/diagnostic": "2.0.10",

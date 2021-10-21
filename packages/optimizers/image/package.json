@@ -17,7 +17,7 @@
   },
   "engines": {
     "node": ">= 12.0.0",
-    "parcel": "^2.0.0-beta.1"
+    "parcel": "^2.0.0"
   },
   "files": [
     "lib",
@@ -35,7 +35,7 @@
     "@parcel/plugin": "2.0.11",
     "@parcel/utils": "2.0.11",
     "detect-libc": "^1.0.3",
-    "self-published": "npm:@parcel/optimizer-image@2.0.0-nightly.2506"
+    "self-published": "npm:@parcel/optimizer-image@2.0.0"
   },
   "devDependencies": {
     "@napi-rs/cli": "1.0.4",
