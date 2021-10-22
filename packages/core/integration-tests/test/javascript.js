@@ -887,6 +887,8 @@ describe('javascript', function() {
     assert(headChildren[1].rel === 'preload');
     assert(headChildren[1].as === 'script');
 
+    assert(headChildren[1].href === headChildren[2].src);
+
     assert(headChildren[2].tag === 'script');
     assert(headChildren[2].src.match(/async\..*\.js/));
   });
