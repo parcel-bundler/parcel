@@ -105,4 +105,19 @@ describe('vue', function() {
     assert.equal(typeof output.render, 'function');
     assert.deepEqual(output.data(), {msg: 'Hello from Component A!'});
   });
+  it('should load external templates/styles/scripts properly', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/vue-external-files/App.vue'),
+    );
+    let output = (await run(b)).default;
+    assert.equal(typeof output.render, 'function');
+    assert.deepEqual(output.data(), {msg: 'Hello World'});
+    let contents = await outputFS.readFile(
+      path.join(distDir, 'App.css'),
+      'utf8',
+    );
+    assert(contents.includes('color: #c0ff33'));
+    assert(contents.includes('h2:hover'));
+    assert(contents.includes('.box p'));
+  });
 });

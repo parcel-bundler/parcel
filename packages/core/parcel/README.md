@@ -11,7 +11,7 @@
 [![Discord](https://img.shields.io/discord/894288336095690753)](https://discord.gg/XSCzqGRuvr)
 [![Twitter Follow](https://img.shields.io/twitter/follow/parceljs.svg?style=social)](https://twitter.com/parceljs)
 
-Parcel is a zero configuration build tool for the web. It combines a great out-of-the-box development experience with a scalable architecture that can take your project from just getting started to massive business-critical application.
+Parcel is a zero configuration build tool for the web. It combines a great out-of-the-box development experience with a scalable architecture that can take your project from just getting started to massive production application.
 
 ## Features
 
