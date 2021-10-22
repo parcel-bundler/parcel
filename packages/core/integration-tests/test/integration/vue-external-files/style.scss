@@ -1,0 +1,24 @@
+$cool-color: #c0ff33;
+
+div {
+  h1 {
+    color: red;
+  }
+}
+
+h2 {
+  color: blue;
+
+  &:hover {
+    color: $cool-color;
+  }
+}
+
+.box {
+  border: 1px solid black;
+
+  p {
+    color: $cool-color;
+    font-size: 10rem;
+  }
+}

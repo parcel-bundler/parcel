@@ -104,6 +104,10 @@ export async function load({
   options: PluginOptions,
   logger: PluginLogger,
 |}): Promise<?ConfigResult> {
+  if (!config.isSource) {
+    return;
+  }
+
   let configFile: any = await config.getConfig(
     ['.postcssrc', '.postcssrc.json', '.postcssrc.js', 'postcss.config.js'],
     {packageKey: 'postcss'},
