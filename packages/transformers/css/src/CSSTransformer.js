@@ -144,14 +144,14 @@ export default (new Transformer({
           ) {
             let url = asset.addURLDependency(node.nodes[0].value, {
               loc:
-                decl.source && decl.source.start
-                  ? createLoc(
-                      decl.source.start,
-                      node.nodes[0].value,
-                      0,
-                      node.nodes[0].sourceIndex,
-                    )
-                  : createLoc({line: 1, column: 1}, ''),
+                decl.source &&
+                decl.source.start &&
+                createLoc(
+                  decl.source.start,
+                  node.nodes[0].value,
+                  0,
+                  node.nodes[0].sourceIndex,
+                ),
             });
             isDeclDirty = node.nodes[0].value !== url;
             node.nodes[0].value = url;
