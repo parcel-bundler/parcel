@@ -916,25 +916,23 @@ impl<'a> Fold for Hoist<'a> {
         };
 
         let ident = BindingIdent::from(self.get_export_ident(member.span, &key));
-        if self.collect.static_cjs_exports {
-          if self.export_decls.insert(ident.id.sym.clone()) {
-            self
-              .hoisted_imports
-              .push(ModuleItem::Stmt(Stmt::Decl(Decl::Var(VarDecl {
-                declare: false,
-                kind: VarDeclKind::Var,
+        if self.collect.static_cjs_exports && self.export_decls.insert(ident.id.sym.clone()) {
+          self
+            .hoisted_imports
+            .push(ModuleItem::Stmt(Stmt::Decl(Decl::Var(VarDecl {
+              declare: false,
+              kind: VarDeclKind::Var,
+              span: node.span,
+              decls: vec![VarDeclarator {
+                definite: false,
                 span: node.span,
-                decls: vec![VarDeclarator {
-                  definite: false,
-                  span: node.span,
-                  name: Pat::Ident(BindingIdent::from(Ident::new(
-                    ident.id.sym.clone(),
-                    DUMMY_SP,
-                  ))),
-                  init: None,
-                }],
-              }))));
-          }
+                name: Pat::Ident(BindingIdent::from(Ident::new(
+                  ident.id.sym.clone(),
+                  DUMMY_SP,
+                ))),
+                init: None,
+              }],
+            }))));
         }
 
         return AssignExpr {
