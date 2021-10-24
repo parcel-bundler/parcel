@@ -8,11 +8,7 @@
       "@parcel/transformer-worklet",
       "..."
     ],
-    "*.{js,mjs,jsm,jsx,es6,cjs,ts,tsx}": [
-      "@parcel/transformer-babel",
-      "@parcel/transformer-js",
-      "@parcel/transformer-react-refresh-wrap"
-    ],
+    "*.{js,mjs,jsm,jsx,es6,cjs,ts,tsx}": ["@parcel/transformer-js"],
     "*.{json,json5}": ["@parcel/transformer-json"],
     "*.jsonld": ["@parcel/transformer-jsonld"],
     "*.toml": ["@parcel/transformer-toml"],
@@ -42,7 +38,8 @@
     "*.{png,jpg,jpeg,webp}": ["@parcel/transformer-image"],
     "*.svg": ["@parcel/transformer-svg"],
     "*.{xml,rss,atom}": ["@parcel/transformer-xml"],
-    "url:*": ["...", "@parcel/transformer-raw"]
+    "url:*": ["...", "@parcel/transformer-raw"],
+    "*.grammar": ["@parcel/transformer-x"]
   },
   "namers": ["@parcel/namer-default"],
   "runtimes": [

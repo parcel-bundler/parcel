@@ -186,6 +186,11 @@ export default class Transformation {
       ...this.devDepRequests.values(),
     ]);
 
+    console.log(
+      'transformation',
+      assets.map(a => [a.id, [...a.dependencies.keys()]]),
+    );
+
     // $FlowFixMe
     return {
       $$raw: true,
@@ -404,12 +409,26 @@ export default class Transformation {
         }
 
         try {
+          console.log('-----');
+          console.log(
+            'runPipeline 1',
+            asset.value.id,
+            asset.value.dependencies,
+          );
           let transformerResults = await this.runTransformer(
             pipeline,
             asset,
             transformer.plugin,
             transformer.name,
             transformer.config,
+          );
+
+          console.log(
+            'runPipeline 2',
+            pipeline.id,
+            initialAsset.value.filePath,
+            initialAsset.value.uniqueKey,
+            transformerResults.map(r => [r.value]),
           );
 
           for (let result of transformerResults) {

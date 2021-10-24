@@ -236,7 +236,7 @@ async function run(
     defaultConfig: require.resolve('@parcel/config-default', {
       paths: [fs.cwd(), __dirname],
     }),
-    shouldPatchConsole: true,
+    shouldPatchConsole: false,
     ...options,
   });
 
