@@ -140,7 +140,7 @@ impl Emitter for ErrorBuffer {
 
 pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
   let mut result = TransformResult::default();
-  let mut map_buf = vec![];
+  let mut map_buf = Vec::new();
 
   let code = unsafe { std::str::from_utf8_unchecked(&config.code) };
   let source_map = Lrc::new(SourceMap::default());
@@ -168,7 +168,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
 
           let span_labels = span.span_labels();
           let code_highlights = if !span_labels.is_empty() {
-            let mut highlights = vec![];
+            let mut highlights = Vec::new();
             for span_label in span_labels {
               highlights.push(CodeHighlight {
                 message: span_label.label,
@@ -216,8 +216,8 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
         None => None,
       };
 
-      let mut global_deps = vec![];
-      let mut fs_deps = vec![];
+      let mut global_deps = Vec::new();
+      let mut fs_deps = Vec::new();
       let should_inline_fs = config.inline_fs
         && config.source_type != SourceType::Script
         && code.contains("readFileSync");
@@ -307,7 +307,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
               preset_env_config.bugfixes = true;
             }
 
-            let mut diagnostics = vec![];
+            let mut diagnostics = Vec::new();
             let module = {
               let mut passes = chain!(
                 // Inline process.env and process.browser
@@ -506,8 +506,8 @@ fn emit(
   program: &Module,
   source_maps: bool,
 ) -> Result<(Vec<u8>, SourceMapBuffer), std::io::Error> {
-  let mut src_map_buf = vec![];
-  let mut buf = vec![];
+  let mut src_map_buf = Vec::new();
+  let mut buf = Vec::new();
   {
     let writer = Box::new(JsWriter::new(
       source_map.clone(),

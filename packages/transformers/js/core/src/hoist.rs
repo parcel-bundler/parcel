@@ -104,16 +104,16 @@ impl<'a> Hoist<'a> {
     Hoist {
       module_id,
       collect,
-      module_items: vec![],
+      module_items: Vec::new(),
       export_decls: HashSet::new(),
-      hoisted_imports: vec![],
-      imported_symbols: vec![],
-      exported_symbols: vec![],
-      re_exports: vec![],
+      hoisted_imports: Vec::new(),
+      imported_symbols: Vec::new(),
+      exported_symbols: Vec::new(),
+      re_exports: Vec::new(),
       self_references: HashSet::new(),
       dynamic_imports: HashMap::new(),
       in_function_scope: false,
-      diagnostics: vec![],
+      diagnostics: Vec::new(),
     }
   }
 
@@ -156,7 +156,7 @@ impl<'a> Fold for Hoist<'a> {
               self
                 .hoisted_imports
                 .push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
-                  specifiers: vec![],
+                  specifiers: Vec::new(),
                   asserts: None,
                   span: DUMMY_SP,
                   src: Str {
@@ -207,7 +207,7 @@ impl<'a> Fold for Hoist<'a> {
                 self
                   .hoisted_imports
                   .push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
-                    specifiers: vec![],
+                    specifiers: Vec::new(),
                     asserts: None,
                     span: DUMMY_SP,
                     src: Str {
@@ -294,7 +294,7 @@ impl<'a> Fold for Hoist<'a> {
               self
                 .hoisted_imports
                 .push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
-                  specifiers: vec![],
+                  specifiers: Vec::new(),
                   asserts: None,
                   span: DUMMY_SP,
                   src: Str {
@@ -371,7 +371,7 @@ impl<'a> Fold for Hoist<'a> {
             Stmt::Decl(decl) => {
               match decl {
                 Decl::Var(var) => {
-                  let mut decls = vec![];
+                  let mut decls = Vec::new();
                   for v in &var.decls {
                     if let Some(init) = &v.init {
                       // Match var x = require('foo');
@@ -401,7 +401,7 @@ impl<'a> Fold for Hoist<'a> {
                           self
                             .module_items
                             .push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
-                              specifiers: vec![],
+                              specifiers: Vec::new(),
                               asserts: None,
                               span: DUMMY_SP,
                               src: Str {
@@ -445,7 +445,7 @@ impl<'a> Fold for Hoist<'a> {
                               self
                                 .module_items
                                 .push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
-                                  specifiers: vec![],
+                                  specifiers: Vec::new(),
                                   asserts: None,
                                   span: DUMMY_SP,
                                   src: Str {
@@ -1006,7 +1006,7 @@ impl<'a> Hoist<'a> {
     self
       .module_items
       .push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
-        specifiers: vec![],
+        specifiers: Vec::new(),
         asserts: None,
         span: DUMMY_SP,
         src: Str {
@@ -1080,7 +1080,7 @@ impl<'a> Hoist<'a> {
     // a local variable referencing them so that we can safely re-assign the local variable
     // without affecting the original export. This is only possible in CommonJS since ESM
     // imports are constant (this is ensured by the diagnostic in fold_module above).
-    let mut non_const_bindings = vec![];
+    let mut non_const_bindings = Vec::new();
     self
       .collect
       .get_non_const_binding_idents(&v.name, &mut non_const_bindings);
@@ -1191,7 +1191,11 @@ impl Collect {
       in_export_decl: false,
       in_function: false,
       in_assign: false,
-      bailouts: if trace_bailouts { Some(vec![]) } else { None },
+      bailouts: if trace_bailouts {
+        Some(Vec::new())
+      } else {
+        None
+      },
     }
   }
 }
@@ -2012,8 +2016,8 @@ mod tests {
     comments: SingleThreadedComments,
     program: &Module,
   ) -> String {
-    let mut src_map_buf = vec![];
-    let mut buf = vec![];
+    let mut src_map_buf = Vec::new();
+    let mut buf = Vec::new();
     {
       let writer = Box::new(JsWriter::new(
         source_map.clone(),

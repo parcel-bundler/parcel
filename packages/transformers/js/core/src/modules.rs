@@ -20,8 +20,8 @@ pub fn esm2cjs(node: Module, versions: Option<Versions>) -> (Module, bool) {
     imports: HashMap::new(),
     require_names: HashMap::new(),
     interops: HashSet::new(),
-    requires: vec![],
-    exports: vec![],
+    requires: Vec::new(),
+    exports: Vec::new(),
     needs_helpers: false,
     in_export_decl: false,
     in_function_scope: false,
@@ -189,8 +189,8 @@ impl ESMFold {
               }),
               is_async: false,
               is_generator: false,
-              params: vec![],
-              decorators: vec![],
+              params: Vec::new(),
+              decorators: Vec::new(),
               span: DUMMY_SP,
               return_type: None,
               type_params: None,
@@ -201,7 +201,7 @@ impl ESMFold {
             body: BlockStmtOrExpr::Expr(Box::new(local)),
             is_async: false,
             is_generator: false,
-            params: vec![],
+            params: Vec::new(),
             span: DUMMY_SP,
             return_type: None,
             type_params: None,
@@ -317,7 +317,7 @@ impl Fold for ESMFold {
 
     let node = node.fold_children_with(self);
     let mut needs_interop_flag = false;
-    let mut items = vec![];
+    let mut items = Vec::new();
 
     for item in &node.body {
       match &item {

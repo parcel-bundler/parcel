@@ -91,7 +91,7 @@ impl<'a> Fold for EnvReplacer<'a> {
             if assign.op == AssignOp::Assign
               && match_member_expr(member, vec!["process", "env"], self.decls)
             {
-              let mut decls = vec![];
+              let mut decls = Vec::new();
               self.collect_pat_bindings(pat, &mut decls);
 
               let mut exprs: Vec<Box<Expr>> = decls
@@ -112,7 +112,7 @@ impl<'a> Fold for EnvReplacer<'a> {
 
               exprs.push(Box::new(Expr::Object(ObjectLit {
                 span: DUMMY_SP,
-                props: vec![],
+                props: Vec::new(),
               })));
 
               return Expr::Seq(SeqExpr {
@@ -173,7 +173,7 @@ impl<'a> Fold for EnvReplacer<'a> {
       return node.fold_children_with(self);
     }
 
-    let mut decls = vec![];
+    let mut decls = Vec::new();
     for decl in &node.decls {
       if let Some(init) = &decl.init {
         if let Expr::Member(member) = &**init {
@@ -270,7 +270,7 @@ impl<'a> EnvReplacer<'a> {
                   name: Pat::Ident(ident.clone()),
                   init: Some(Box::new(Expr::Object(ObjectLit {
                     span: DUMMY_SP,
-                    props: vec![],
+                    props: Vec::new(),
                   }))),
                   definite: false,
                 })
@@ -284,7 +284,7 @@ impl<'a> EnvReplacer<'a> {
         name: Pat::Ident(ident.clone()),
         init: Some(Box::new(Expr::Object(ObjectLit {
           span: DUMMY_SP,
-          props: vec![],
+          props: Vec::new(),
         }))),
         definite: false,
       }),
