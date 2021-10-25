@@ -279,7 +279,7 @@ export class TargetResolver {
       }
 
       let serve = this.options.serveOptions;
-      if (serve) {
+      if (serve && targets.length > 0) {
         // In serve mode, we only support a single browser target. If the user
         // provided more than one, or the matching target is not a browser, throw.
         if (targets.length > 1) {
