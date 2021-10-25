@@ -87,5 +87,24 @@ describe('webextension', function() {
       '/injected/single.js',
     ]);
   });
+  it('should support web extension manifest v3', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/webextension-mv3/manifest.json'),
+    );
+    assertBundles(b, [
+      {
+        name: 'manifest.json',
+        assets: ['manifest.json'],
+      },
+      {
+        name: 'background.js',
+        assets: ['background.js'],
+      },
+      {assets: ['popup.html']},
+      {assets: ['popup.css']},
+      {assets: ['popup.js', 'esmodule-helpers.js', 'bundle-url.js']},
+      {assets: ['content-script.js']},
+    ]);
+  });
   // TODO: Test error-checking
 });
