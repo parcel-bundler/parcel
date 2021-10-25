@@ -276,7 +276,8 @@ async function collectDependencies(
           pipeline: needRuntimeBG ? 'mv3-bg-sw' : '',
           env: {
             context: 'service-worker',
-            sourceType: 'module',
+            sourceType:
+              program.background.type == 'module' ? 'module' : 'script',
           },
         },
       );
