@@ -56,10 +56,12 @@ const browserAction = {
           dark: string,
           size: {type: 'number'},
         },
+        additionalProperties: false,
         required: ['light', 'dark', 'size'],
       },
     },
   },
+  additionalProperties: false,
 };
 
 const commonProps = {
@@ -95,10 +97,12 @@ const commonProps = {
           prepopulated_id: {type: 'number'},
           is_default: boolean,
         },
+        additionalProperties: false,
         required: ['name', 'search_url'],
       },
       startup_pages: arrStr,
     },
+    additionalProperties: false,
   },
   chrome_url_overrides: {
     type: 'object',
@@ -107,6 +111,7 @@ const commonProps = {
       history: string,
       newtab: string,
     },
+    additionalProperties: false,
   },
   commands: ({
     type: 'object',
@@ -125,9 +130,11 @@ const commonProps = {
             android: string,
             ios: string,
           },
+          additionalProperties: false,
         },
         description: string,
       },
+      additionalProperties: false,
     },
   }: SchemaEntity),
   content_scripts: {
@@ -148,6 +155,7 @@ const commonProps = {
         },
         all_frames: boolean,
       },
+      additionalProperties: false,
       required: ['matches'],
     },
   },
@@ -165,6 +173,7 @@ const commonProps = {
       matches: arrStr,
       accept_tls_channel_id: boolean,
     },
+    additionalProperties: false,
   },
   // These next two are where it gets a bit Chrome-y
   // (we don't include all because some have next to no actual use)
@@ -177,6 +186,7 @@ const commonProps = {
         default_title: string,
         file_filters: arrStr,
       },
+      additionalProperties: false,
       required: ['id', 'default_title', 'file_filters'],
     },
   },
@@ -191,6 +201,7 @@ const commonProps = {
         enum: ['file', 'device', 'network'],
       },
     },
+    additionalProperties: false,
     required: ['source'],
   },
   homepage_url: string,
@@ -218,6 +229,7 @@ const commonProps = {
       open_in_tab: boolean,
       page: string,
     },
+    additionalProperties: false,
     required: ['page'],
   },
   permissions: arrStr,
@@ -231,6 +243,7 @@ const commonProps = {
         name: string,
         uriTemplate: string,
       },
+      additionalProperties: false,
       required: ['protocol', 'name', 'uriTemplate'],
     },
   },
@@ -243,6 +256,7 @@ const commonProps = {
         properties: {
           features: arrStr,
         },
+        additionalProperties: false,
       },
     },
   },
@@ -258,6 +272,7 @@ const commonProps = {
       default_title: string,
       open_at_install: boolean,
     },
+    additionalProperties: false,
     required: ['default_panel'],
   },
   storage: {
@@ -265,6 +280,7 @@ const commonProps = {
     properties: {
       managed_schema: string,
     },
+    additionalProperties: false,
   },
   theme: {
     type: 'object',
@@ -275,6 +291,7 @@ const commonProps = {
           theme_frame: string,
           additional_backgrounds: arrStr,
         },
+        additionalProperties: false,
       },
       colors: {
         type: 'object',
@@ -319,6 +336,7 @@ const commonProps = {
           toolbar_top_separator: string,
           toolbar_vertical_separator: string,
         },
+        additionalProperties: false,
       },
       properties: {
         type: 'object',
@@ -332,8 +350,10 @@ const commonProps = {
             },
           },
         },
+        additionalProperties: false,
       },
     },
+    additionalProperties: false,
     required: ['colors'],
   },
   tts_engine: {
@@ -351,109 +371,125 @@ const commonProps = {
               enum: ['start', 'word', 'sentence', 'marker', 'end', 'error'],
             },
           },
+          additionalProperties: false,
           required: ['voice_name', 'event_type'],
         },
       },
     },
+    additionalProperties: false,
   },
   user_scripts: {
     type: 'object',
     properties: {
       api_script: string,
     },
+    additionalProperties: false,
   },
   version_name: string,
 };
 
-// This has *some* Chrome bias, but let's be real here...
-// It's mainly intended to be highly cross-browser compatible
-export default ({
-  oneOf: [
-    {
+export const MV3Schema = ({
+  type: 'object',
+  properties: {
+    ...commonProps,
+    manifest_version: {
+      type: 'number',
+      enum: [3],
+    },
+    action: browserAction,
+    background: {
       type: 'object',
       properties: {
-        ...commonProps,
-        manifest_version: {
-          type: 'number',
-          enum: [3],
+        service_worker: string,
+        type: {
+          type: 'string',
+          enum: ['classic', 'module'],
         },
-        action: browserAction,
-        background: {
-          type: 'object',
-          properties: {
-            service_worker: string,
-            type: {
-              type: 'string',
-              enum: ['classic', 'module'],
+      },
+      additionalProperties: false,
+      required: ['service_worker'],
+    },
+    content_security_policy: {
+      type: 'object',
+      properties: {
+        extension_pages: string,
+        sandbox: string,
+      },
+      additionalProperties: false,
+    },
+    host_permissions: arrStr,
+    web_accessible_resources: {
+      type: 'array',
+      items: {
+        oneOf: [
+          {
+            type: 'object',
+            properties: {
+              resources: arrStr,
+              matches: arrStr,
+              use_dynamic_url: boolean,
             },
+            additionalProperties: false,
+            required: ['resources', 'matches'],
           },
-          required: ['service_worker'],
-        },
-        content_security_policy: {
-          type: 'object',
-          properties: {
-            extension_pages: string,
-            sandbox: string,
+          {
+            type: 'object',
+            properties: {
+              resources: arrStr,
+              extension_ids: arrStr,
+              use_dynamic_url: boolean,
+            },
+            additionalProperties: false,
+            required: ['resources', 'extension_ids'],
           },
-        },
-        host_permissions: arrStr,
-        web_accessible_resources: {
-          type: 'array',
-          items: {
-            oneOf: [
-              {
-                type: 'object',
-                properties: {
-                  resources: arrStr,
-                  matches: arrStr,
-                  use_dynamic_url: boolean,
-                },
-                required: ['resources', 'matches'],
-              },
-              {
-                type: 'object',
-                properties: {
-                  resources: arrStr,
-                  extension_ids: arrStr,
-                  use_dynamic_url: boolean,
-                },
-                required: ['resources', 'extension_ids'],
-              },
-            ],
-          },
-        },
+        ],
       },
     },
-    {
+  },
+  additionalProperties: false,
+}: SchemaEntity);
+
+export const MV2Schema = ({
+  type: 'object',
+  properties: {
+    ...commonProps,
+    manifest_version: {
+      type: 'number',
+      enum: [2],
+    },
+    background: {
       type: 'object',
       properties: {
-        ...commonProps,
-        manifest_version: {
-          type: 'number',
-          enum: [2],
-        },
-        background: {
-          type: 'object',
-          properties: {
-            scripts: arrStr,
-            page: string,
-            persistent: boolean,
-          },
-        },
-        browser_action: browserAction,
-        page_action: {
-          type: 'object',
-          properties: {
-            ...actionProps,
-            // rest are FF only
-            hide_matches: arrStr,
-            show_matches: arrStr,
-            pinned: boolean,
-          },
-        },
-        content_security_policy: string,
-        web_accessible_resources: arrStr,
+        scripts: arrStr,
+        page: string,
+        persistent: boolean,
       },
+      additionalProperties: false,
     },
-  ],
+    browser_action: browserAction,
+    page_action: {
+      type: 'object',
+      properties: {
+        ...actionProps,
+        // rest are FF only
+        hide_matches: arrStr,
+        show_matches: arrStr,
+        pinned: boolean,
+      },
+      additionalProperties: false,
+    },
+    content_security_policy: string,
+    web_accessible_resources: arrStr,
+  },
+  additionalProperties: false,
+}: SchemaEntity);
+
+export const VersionSchema = ({
+  type: 'object',
+  properties: {
+    manifest_version: {
+      type: 'number',
+      enum: [2, 3],
+    },
+  },
 }: SchemaEntity);

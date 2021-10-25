@@ -1,5 +1,5 @@
 // @flow
-import type {MutableAsset, TransformerResult, ResolveFn} from '@parcel/types';
+import type {MutableAsset, TransformerResult} from '@parcel/types';
 
 import {Transformer} from '@parcel/plugin';
 import path from 'path';
@@ -12,7 +12,7 @@ import ThrowableDiagnostic, {
   md,
 } from '@parcel/diagnostic';
 import {glob} from '@parcel/utils';
-import WebExtensionSchema from './schema';
+import {MV3Schema, MV2Schema, VersionSchema} from './schema';
 
 const DEP_LOCS = [
   ['icons'],
@@ -45,7 +45,6 @@ async function collectDependencies(
   program: any,
   ptrs: {[key: string]: any, ...},
   hot: boolean,
-  resolve: ResolveFn,
 ) {
   // isEntry used whenever strictly necessary to preserve filename
   // also for globs because it's wasteful to write out every file name
@@ -319,7 +318,7 @@ function cspPatchHMR(policy: ?string) {
 }
 
 export default (new Transformer({
-  async transform({asset, options, resolve}) {
+  async transform({asset, options}) {
     const code = await asset.getCode();
     if (asset.pipeline == 'mv3-bg-sw') {
       asset.setCode(`
@@ -332,8 +331,17 @@ export default (new Transformer({
     } else {
       const parsed = jsm.parse(code);
       const data: any = parsed.data;
+
+      // Not using a unified schema dramatically improves error messages
+      let schema = VersionSchema;
+      if (data.manifest_version === 3) {
+        schema = MV3Schema;
+      } else if (data.manifest_version === 2) {
+        schema = MV2Schema;
+      }
+
       validateSchema.diagnostic(
-        WebExtensionSchema,
+        schema,
         {
           data: data,
           source: code,
@@ -347,7 +355,6 @@ export default (new Transformer({
         data,
         parsed.pointers,
         Boolean(options.hmrOptions),
-        resolve,
       );
       asset.setCode(JSON.stringify(data, null, 2));
       return [asset];
