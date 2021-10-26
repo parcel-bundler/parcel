@@ -74,7 +74,7 @@ export default async function resolveOptions(
   let cache =
     initialOptions.cache ??
     (outputFS instanceof NodeFS
-      ? new LMDBCache(cacheDir)
+      ? new LMDBCache(outputFS, cacheDir)
       : new FSCache(outputFS, cacheDir));
 
   let mode = initialOptions.mode ?? 'development';

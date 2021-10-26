@@ -77,6 +77,18 @@ export class FSCache implements Cache {
     }
   }
 
+  hasLargeBlob(key: string): Promise<boolean> {
+    return this.has(key);
+  }
+
+  getLargeBlob(key: string): Promise<Buffer> {
+    return this.getBlob(key);
+  }
+
+  setLargeBlob(key: string, contents: Buffer | string): Promise<void> {
+    return this.setBlob(key, contents);
+  }
+
   async get<T>(key: string): Promise<?T> {
     try {
       let data = await this.fs.readFile(this._getCachePath(key));
