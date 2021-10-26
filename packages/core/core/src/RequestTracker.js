@@ -24,6 +24,7 @@ import {
 } from '@parcel/utils';
 import {hashString} from '@parcel/hash';
 import {ContentGraph} from '@parcel/graph';
+import {deserialize, serialize} from './serializer';
 import {assertSignalNotAborted, hashFromOption} from './utils';
 import {
   type ProjectPath,
@@ -1039,7 +1040,9 @@ export default class RequestTracker {
       }
     }
 
-    promises.push(this.options.cache.set(requestGraphKey, this.graph));
+    promises.push(
+      this.options.cache.setLargeBlob(requestGraphKey, serialize(this.graph)),
+    );
 
     let opts = getWatcherOptions(this.options);
     let snapshotPath = path.join(this.options.cacheDir, snapshotKey + '.txt');
@@ -1083,9 +1086,10 @@ async function loadRequestGraph(options): Async<RequestGraph> {
 
   let cacheKey = getCacheKey(options);
   let requestGraphKey = hashString(`${cacheKey}:requestGraph`);
-  let requestGraph = await options.cache.get<RequestGraph>(requestGraphKey);
-
-  if (requestGraph) {
+  if (await options.cache.hasLargeBlob(requestGraphKey)) {
+    let requestGraph: RequestGraph = deserialize(
+      await options.cache.getLargeBlob(requestGraphKey),
+    );
     let opts = getWatcherOptions(options);
     let snapshotKey = hashString(`${cacheKey}:snapshot`);
     let snapshotPath = path.join(options.cacheDir, snapshotKey + '.txt');
