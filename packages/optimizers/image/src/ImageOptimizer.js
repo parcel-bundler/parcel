@@ -1,10 +1,13 @@
 // @flow
+import path from 'path';
+import process from 'process';
 import {Optimizer} from '@parcel/plugin';
-import {blobToBuffer, relativePath} from '@parcel/utils';
+import {blobToBuffer} from '@parcel/utils';
+import {md} from '@parcel/diagnostic';
 import {optimize} from '../native';
 
 export default (new Optimizer({
-  async optimize({bundle, contents, logger, options}) {
+  async optimize({bundle, contents, logger}) {
     if (!bundle.env.shouldOptimize) {
       return {contents};
     }
@@ -20,10 +23,10 @@ export default (new Optimizer({
     } catch (err) {
       const filepath = bundle.getMainEntry()?.filePath;
       const filename = filepath
-        ? relativePath(options.projectRoot, filepath)
+        ? path.relative(process.cwd(), filepath)
         : 'unknown';
       logger.warn({
-        message: `Could not optimize image ${filename}: ${err.message}`,
+        message: md`Could not optimize image ${filename}: ${err.message}`,
         stack: err.stack,
       });
     }
