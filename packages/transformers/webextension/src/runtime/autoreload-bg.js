@@ -1,4 +1,4 @@
-/* global window */
+/* global window, self */
 var global = typeof self == 'undefined' ? window : self;
 var env = global.chrome || global.browser;
 env.runtime.onMessage.addListener(function(msg) {

@@ -1,5 +1,5 @@
 // @flow
-import type {MutableAsset, TransformerResult} from '@parcel/types';
+import type {MutableAsset} from '@parcel/types';
 
 import {Transformer} from '@parcel/plugin';
 import path from 'path';
