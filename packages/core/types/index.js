@@ -336,6 +336,7 @@ export interface PluginOptions {
   +serveOptions: ServerOptions | false;
   +shouldBuildLazily: boolean;
   +shouldAutoInstall: boolean;
+  +global: string;
   +logLevel: LogLevel;
   +projectRoot: FilePath;
   +cacheDir: FilePath;

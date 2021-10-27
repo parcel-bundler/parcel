@@ -99,6 +99,7 @@ const ignoreOptions = new Set([
   'detailedReport',
   'shouldDisableCache',
   'cacheDir',
+  'global',
   'shouldAutoInstall',
   'logLevel',
   'shouldProfile',

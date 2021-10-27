@@ -113,6 +113,7 @@ export default class Parcel {
       dispose: disposeOptions,
       ref: optionsRef,
     } = await this.#farm.createSharedReference(resolvedOptions);
+    console.log('Options Ref (Parcel.js):', optionsRef);
     this.#optionsRef = optionsRef;
 
     this.#disposable = new Disposable();
@@ -263,7 +264,7 @@ export default class Parcel {
       });
 
       let request = createParcelBuildRequest({
-        optionsRef: this.#optionsRef,
+        optionsRef: this.#optionsRef, // Where to pass global
         requestedAssetIds: this.#requestedAssetIds,
         signal,
       });
@@ -274,6 +275,14 @@ export default class Parcel {
         changedAssets,
         assetRequests,
       } = await this.#requestTracker.runRequest(request, {force: true});
+
+      console.log(
+        'Bundle (Parcel.js):',
+        bundleGraph,
+        bundleInfo,
+        changedAssets,
+        assetRequests,
+      );
 
       this.#requestedAssetIds.clear();
 

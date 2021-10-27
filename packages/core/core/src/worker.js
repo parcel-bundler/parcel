@@ -132,6 +132,7 @@ export async function runPackage(
   let bundleGraph = workerApi.getSharedReference(bundleGraphReference);
   invariant(bundleGraph instanceof BundleGraph);
   let options = loadOptions(optionsRef, workerApi);
+  console.log('Options (worker.js):', options);
   let parcelConfig = await loadConfig(configCachePath, options);
 
   let runner = new PackagerRunner({

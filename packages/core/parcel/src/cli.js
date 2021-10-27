@@ -93,6 +93,7 @@ const commonOptions = {
   '--dist-dir <dir>':
     'output directory to write to when unspecified by targets',
   '--no-autoinstall': 'disable autoinstall',
+  '--global <global>': 'set global variable',
   '--profile': 'enable build profiling',
   '-V, --version': 'output the version number',
   '--detailed-report [count]': [
@@ -488,6 +489,7 @@ async function normalizeOptions(
     env: {
       NODE_ENV: nodeEnv,
     },
+    global: command.global,
     additionalReporters,
     defaultTargetOptions: {
       shouldOptimize:

@@ -146,6 +146,7 @@ export default async function resolveOptions(
       })) ?? [],
     instanceId: generateInstanceId(entries),
     detailedReport: initialOptions.detailedReport,
+    global: initialOptions.global,
     defaultTargetOptions: {
       shouldOptimize,
       shouldScopeHoist: initialOptions?.defaultTargetOptions?.shouldScopeHoist,

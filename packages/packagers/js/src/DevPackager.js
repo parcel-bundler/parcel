@@ -149,6 +149,8 @@ export class DevPackager {
       mainEntry = null;
     }
 
+    console.log('Options (DevPackager.js):', this.options);
+
     let contents =
       prefix +
       '({' +
@@ -163,6 +165,8 @@ export class DevPackager {
       ) +
       ', ' +
       JSON.stringify(this.parcelRequireName) +
+      ', ' +
+      JSON.stringify(this.options.globalVar) + // Global Tag
       ')' +
       '\n';
 
