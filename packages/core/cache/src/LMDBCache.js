@@ -5,7 +5,12 @@ import type {FileSystem} from '@parcel/fs';
 import type {Cache} from './types';
 
 import path from 'path';
-import {serialize, deserialize, registerSerializableClass} from '@parcel/core';
+import {
+  serialize,
+  deserialize,
+  prepareForSerialization,
+  registerSerializableClass,
+} from '@parcel/core';
 import {blobToStream, bufferStream} from '@parcel/utils';
 // flowlint-next-line untyped-import:off
 import packageJson from '../package.json';
@@ -35,7 +40,7 @@ export class LMDBCache implements Cache {
 
   serialize(): {|fs: FileSystem, dir: FilePath|} {
     return {
-      fs: this.fs,
+      fs: prepareForSerialization(this.fs),
       dir: this.dir,
     };
   }
