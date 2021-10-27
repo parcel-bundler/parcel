@@ -133,8 +133,6 @@ export default class PackagerRunner {
         this.invalidations.set(getInvalidationId(invalidation), invalidation);
       }),
     );
-    console.log('Options (PackagerRunner.js):', this.options);
-    console.log('Plugin Options (PackagerRunner.js):', this.pluginOptions);
   }
 
   async run(
