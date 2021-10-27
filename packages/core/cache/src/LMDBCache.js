@@ -33,8 +33,9 @@ export class LMDBCache implements Cache {
     return Promise.resolve();
   }
 
-  serialize(): {|dir: FilePath|} {
+  serialize(): {|fs: FileSystem, dir: FilePath|} {
     return {
+      fs: this.fs,
       dir: this.dir,
     };
   }
