@@ -34,6 +34,7 @@
   "dependencies": {
     "@parcel/plugin": "^2.0.0",
     "@parcel/utils": "^2.0.0",
+    "@parcel/diagnostic": "^2.0.0",
     "detect-libc": "^1.0.3"
   },
   "devDependencies": {
