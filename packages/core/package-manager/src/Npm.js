@@ -2,7 +2,6 @@
 
 import type {PackageInstaller, InstallerOptions} from './types';
 
-import fs from 'fs';
 import path from 'path';
 import spawn from 'cross-spawn';
 import logger from '@parcel/logger';
@@ -19,6 +18,7 @@ export class Npm implements PackageInstaller {
   async install({
     modules,
     cwd,
+    fs,
     packagePath,
     saveDev = true,
   }: InstallerOptions): Promise<void> {

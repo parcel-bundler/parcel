@@ -87,6 +87,13 @@ describe('transpilation', function() {
     assert(file.includes('fileName: "integration/jsx/index.jsx"'));
   });
 
+  it('should support compiling JSX correctly with member expression type', async function() {
+    await bundle(path.join(__dirname, '/integration/jsx-member/index.jsx'));
+
+    let file = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
+    assert(file.includes('React.createElement(S.Foo'));
+  });
+
   it('should support compiling JSX in JS files with React dependency', async function() {
     await bundle(path.join(__dirname, '/integration/jsx-react/index.js'));
 

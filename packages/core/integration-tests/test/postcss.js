@@ -251,6 +251,16 @@ describe('postcss', () => {
     assert.equal(run1(), run2());
   });
 
+  it('should support transforming declarations with missing source', async () => {
+    await bundle(
+      path.join(__dirname, '/integration/postcss-plugins-decl/index.css'),
+    );
+
+    let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
+
+    assert(css.includes('url("data:image/gif;base64,quotes")'));
+  });
+
   it('should support postcss composes imports', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/postcss-composes/index.js'),

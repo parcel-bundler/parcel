@@ -6,6 +6,8 @@ use swc_ecma_preset_env::{Feature, Versions};
 use swc_ecmascript::ast::*;
 use swc_ecmascript::visit::{Fold, FoldWith};
 
+use crate::fold_member_expr_skip_prop;
+
 type IdentId = (JsWord, SyntaxContext);
 macro_rules! id {
   ($ident: expr) => {
@@ -613,4 +615,6 @@ impl Fold for ESMFold {
       _ => node.fold_children_with(self),
     }
   }
+
+  fold_member_expr_skip_prop! {}
 }
