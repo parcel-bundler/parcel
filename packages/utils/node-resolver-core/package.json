@@ -61,6 +61,6 @@
     "vm-browserify": "^1.1.2"
   },
   "browser": {
-    "./native.js": "./native-wasm-browser.js"
+    "./src/builtins.js": "./src/builtins.browser.js"
   }
 }
