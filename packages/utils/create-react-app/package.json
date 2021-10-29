@@ -5,6 +5,11 @@
     "parcel-create-react-app": "src/bin.js"
   },
   "main": "lib/bin.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git",
+    "directory": "packages/utils/create-react-app"
+  },
   "source": "src/bin.js",
   "files": [
     "templates",
