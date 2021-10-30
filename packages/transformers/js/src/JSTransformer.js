@@ -367,6 +367,7 @@ export default (new Transformer({
       map,
       shebang,
       hoist_result,
+      symbol_result,
       needs_esm_helpers,
       diagnostics,
       used_env,
@@ -768,17 +769,60 @@ export default (new Transformer({
       asset.meta.hasCJSExports = hoist_result.has_cjs_exports;
       asset.meta.staticExports = hoist_result.static_cjs_exports;
       asset.meta.shouldWrap = hoist_result.should_wrap;
-    } else if (needs_esm_helpers) {
-      asset.addDependency({
-        specifier: '@parcel/transformer-js/src/esmodule-helpers.js',
-        specifierType: 'esm',
-        resolveFrom: __filename,
-        env: {
-          includeNodeModules: {
-            '@parcel/transformer-js': true,
+    } else {
+      if (symbol_result) {
+        let deps = new Map(
+          asset
+            .getDependencies()
+            .map(dep => [dep.meta.placeholder ?? dep.specifier, dep]),
+        );
+        for (let dep of deps.values()) {
+          dep.symbols.ensure();
+        }
+        asset.symbols.ensure();
+
+        for (let {exported, local, loc, source} of symbol_result.exports) {
+          let dep = source ? deps.get(source) : undefined;
+          asset.symbols.set(
+            exported,
+            `${dep?.id ?? ''}$${local}`,
+            convertLoc(loc),
+          );
+          if (dep != null) {
+            dep.symbols.set(
+              local,
+              `${dep?.id ?? ''}$${local}`,
+              convertLoc(loc),
+              true,
+            );
+          }
+        }
+
+        for (let {source, local, imported, loc} of symbol_result.imports) {
+          let dep = deps.get(source);
+          if (!dep) continue;
+          dep.symbols.set(imported, local, convertLoc(loc));
+        }
+
+        for (let {source, loc} of symbol_result.exports_all) {
+          let dep = deps.get(source);
+          if (!dep) continue;
+          dep.symbols.set('*', '*', convertLoc(loc), true);
+        }
+      }
+
+      if (needs_esm_helpers) {
+        asset.addDependency({
+          specifier: '@parcel/transformer-js/src/esmodule-helpers.js',
+          specifierType: 'esm',
+          resolveFrom: __filename,
+          env: {
+            includeNodeModules: {
+              '@parcel/transformer-js': true,
+            },
           },
-        },
-      });
+        });
+      }
     }
 
     asset.type = 'js';
