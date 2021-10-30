@@ -41,8 +41,12 @@ pub struct HoistCollect {
   pub has_cjs_exports: bool,
   pub is_esm: bool,
   pub should_wrap: bool,
+  // local name -> descriptor
   pub imports: HashMap<IdentId, Import>,
-  pub exports: HashMap<IdentId, Export>,
+  // exported name -> descriptor
+  pub exports: HashMap<JsWord, Export>,
+  // local name -> exported name
+  pub exports_locals: HashMap<JsWord, JsWord>,
   pub exports_all: HashMap<JsWord, SourceLocation>,
   pub non_static_access: HashMap<IdentId, Vec<Span>>,
   pub non_const_bindings: HashMap<IdentId, Vec<Span>>,
@@ -105,6 +109,7 @@ impl HoistCollect {
       should_wrap: false,
       imports: HashMap::new(),
       exports: HashMap::new(),
+      exports_locals: HashMap::new(),
       exports_all: HashMap::new(),
       non_static_access: HashMap::new(),
       non_const_bindings: HashMap::new(),
@@ -149,7 +154,7 @@ impl From<HoistCollect> for HoistCollectResult {
         .into_iter()
         .map(
           |(
-            local,
+            exported,
             Export {
               source,
               specifier,
@@ -157,8 +162,8 @@ impl From<HoistCollect> for HoistCollectResult {
             },
           )| ExportedSymbol {
             source,
-            local: local.0,
-            exported: specifier,
+            local: specifier,
+            exported,
             loc,
           },
         )
@@ -306,25 +311,44 @@ impl Visit for HoistCollect {
             Some(exported) => exported.clone(),
             None => named.orig.clone(),
           };
-          self.exports.entry(id!(named.orig)).or_insert(Export {
-            specifier: exported.sym,
-            loc: SourceLocation::from(&self.source_map, exported.span),
-            source,
-          });
+          self.exports.insert(
+            exported.sym.clone(),
+            Export {
+              specifier: named.orig.sym.clone(),
+              loc: SourceLocation::from(&self.source_map, exported.span),
+              source,
+            },
+          );
+          self
+            .exports_locals
+            .entry(named.orig.sym.clone())
+            .or_insert_with(|| exported.sym.clone());
         }
         ExportSpecifier::Default(default) => {
-          self.exports.entry(id!(default.exported)).or_insert(Export {
-            specifier: js_word!("default"),
-            loc: SourceLocation::from(&self.source_map, default.exported.span),
-            source,
-          });
+          self.exports.insert(
+            js_word!("default"),
+            Export {
+              specifier: default.exported.sym.clone(),
+              loc: SourceLocation::from(&self.source_map, default.exported.span),
+              source,
+            },
+          );
+          self
+            .exports_locals
+            .entry(default.exported.sym.clone())
+            .or_insert_with(|| js_word!("default"));
         }
         ExportSpecifier::Namespace(namespace) => {
-          self.exports.entry(id!(namespace.name)).or_insert(Export {
-            specifier: "*".into(),
-            loc: SourceLocation::from(&self.source_map, namespace.span),
-            source,
-          });
+          self.exports.insert(
+            namespace.name.sym.clone(),
+            Export {
+              specifier: "*".into(),
+              loc: SourceLocation::from(&self.source_map, namespace.span),
+              source,
+            },
+          );
+          // Populating exports_locals with * doesn't make any sense at all
+          // and hoist doesn't use this anyway.
         }
       }
     }
@@ -334,23 +358,31 @@ impl Visit for HoistCollect {
     match &node.decl {
       Decl::Class(class) => {
         self.exports.insert(
-          id!(class.ident),
+          class.ident.sym.clone(),
           Export {
             specifier: class.ident.sym.clone(),
             loc: SourceLocation::from(&self.source_map, class.ident.span),
             source: None,
           },
         );
+        self
+          .exports_locals
+          .entry(class.ident.sym.clone())
+          .or_insert_with(|| class.ident.sym.clone());
       }
       Decl::Fn(func) => {
         self.exports.insert(
-          id!(func.ident),
+          func.ident.sym.clone(),
           Export {
             specifier: func.ident.sym.clone(),
             loc: SourceLocation::from(&self.source_map, func.ident.span),
             source: None,
           },
         );
+        self
+          .exports_locals
+          .entry(func.ident.sym.clone())
+          .or_insert_with(|| func.ident.sym.clone());
       }
       Decl::Var(var) => {
         for decl in &var.decls {
@@ -372,25 +404,33 @@ impl Visit for HoistCollect {
       DefaultDecl::Class(class) => {
         if let Some(ident) = &class.ident {
           self.exports.insert(
-            id!(ident),
+            "default".into(),
             Export {
-              specifier: "default".into(),
+              specifier: ident.sym.clone(),
               loc: SourceLocation::from(&self.source_map, node.span),
               source: None,
             },
           );
+          self
+            .exports_locals
+            .entry(ident.sym.clone())
+            .or_insert_with(|| "default".into());
         }
       }
       DefaultDecl::Fn(func) => {
         if let Some(ident) = &func.ident {
           self.exports.insert(
-            id!(ident),
+            "default".into(),
             Export {
-              specifier: "default".into(),
+              specifier: ident.sym.clone(),
               loc: SourceLocation::from(&self.source_map, node.span),
               source: None,
             },
           );
+          self
+            .exports_locals
+            .entry(ident.sym.clone())
+            .or_insert_with(|| "default".into());
         }
       }
       _ => {
@@ -420,13 +460,17 @@ impl Visit for HoistCollect {
   fn visit_binding_ident(&mut self, node: &BindingIdent, _parent: &dyn Node) {
     if self.in_export_decl {
       self.exports.insert(
-        id!(node.id),
+        node.id.sym.clone(),
         Export {
           specifier: node.id.sym.clone(),
           loc: SourceLocation::from(&self.source_map, node.id.span),
           source: None,
         },
       );
+      self
+        .exports_locals
+        .entry(node.id.sym.clone())
+        .or_insert_with(|| node.id.sym.clone());
     }
 
     if self.in_assign && node.id.span.ctxt() == self.global_ctxt {
@@ -441,13 +485,17 @@ impl Visit for HoistCollect {
   fn visit_assign_pat_prop(&mut self, node: &AssignPatProp, _parent: &dyn Node) {
     if self.in_export_decl {
       self.exports.insert(
-        id!(node.key),
+        node.key.sym.clone(),
         Export {
           specifier: node.key.sym.clone(),
           loc: SourceLocation::from(&self.source_map, node.key.span),
           source: None,
         },
       );
+      self
+        .exports_locals
+        .entry(node.key.sym.clone())
+        .or_insert_with(|| node.key.sym.clone());
     }
 
     if self.in_assign && node.key.span.ctxt() == self.global_ctxt {

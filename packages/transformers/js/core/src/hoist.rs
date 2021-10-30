@@ -7,7 +7,7 @@ use swc_common::{sync::Lrc, Mark, Span, SyntaxContext, DUMMY_SP};
 use swc_ecmascript::ast::*;
 use swc_ecmascript::visit::{Fold, FoldWith, VisitWith};
 
-use crate::hoist_collect::{Export, HoistCollect, Import, ImportKind};
+use crate::hoist_collect::{HoistCollect, Import, ImportKind};
 use crate::id;
 use crate::utils::{
   match_import, match_member_expr, match_require, CodeHighlight, Diagnostic, DiagnosticSeverity,
@@ -274,7 +274,7 @@ impl<'a> Fold for Hoist<'a> {
                         self
                           .get_export_ident(
                             DUMMY_SP,
-                            &self.collect.exports.get(&id).unwrap().specifier,
+                            self.collect.exports_locals.get(&id.0).unwrap(),
                           )
                           .sym
                       };
@@ -821,11 +821,7 @@ impl<'a> Fold for Hoist<'a> {
       }
     }
 
-    if let Some(Export {
-      specifier: exported,
-      ..
-    }) = self.collect.exports.get(&id!(node))
-    {
+    if let Some(exported) = self.collect.exports_locals.get(&node.sym) {
       // If wrapped, mark the original symbol as exported.
       // Otherwise replace with an export identifier.
       if self.collect.should_wrap {
