@@ -327,3 +327,12 @@ macro_rules! fold_member_expr_skip_prop {
     }
   };
 }
+
+#[macro_export]
+macro_rules! id {
+  ($ident: expr) => {
+    ($ident.sym.clone(), $ident.span.ctxt)
+  };
+}
+
+pub type IdentId = (JsWord, SyntaxContext);
