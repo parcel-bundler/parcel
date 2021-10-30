@@ -1,3 +1,4 @@
+use serde::Serialize;
 use std::collections::{HashMap, HashSet};
 use swc_atoms::JsWord;
 use swc_common::{sync::Lrc, Mark, Span, SyntaxContext, DUMMY_SP};
@@ -9,7 +10,7 @@ use crate::utils::{
   match_import, match_member_expr, match_require, Bailout, BailoutReason, IdentId, SourceLocation,
 };
 
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq, Clone, Copy, Serialize)]
 pub enum ImportKind {
   Require,
   Import,
@@ -24,6 +25,13 @@ pub struct Import {
   pub loc: SourceLocation,
 }
 
+#[derive(Debug)]
+pub struct Export {
+  pub source: Option<JsWord>,
+  pub specifier: JsWord,
+  pub loc: SourceLocation,
+}
+
 pub struct HoistCollect {
   pub source_map: Lrc<swc_common::SourceMap>,
   pub decls: HashSet<IdentId>,
@@ -34,7 +42,8 @@ pub struct HoistCollect {
   pub is_esm: bool,
   pub should_wrap: bool,
   pub imports: HashMap<IdentId, Import>,
-  pub exports: HashMap<IdentId, JsWord>,
+  pub exports: HashMap<IdentId, Export>,
+  pub exports_all: HashMap<JsWord, SourceLocation>,
   pub non_static_access: HashMap<IdentId, Vec<Span>>,
   pub non_const_bindings: HashMap<IdentId, Vec<Span>>,
   pub non_static_requires: HashSet<JsWord>,
@@ -45,6 +54,36 @@ pub struct HoistCollect {
   in_export_decl: bool,
   in_function: bool,
   in_assign: bool,
+}
+
+#[derive(Debug, Serialize)]
+struct ImportedSymbol {
+  source: JsWord,
+  local: JsWord,
+  imported: JsWord,
+  loc: SourceLocation,
+  kind: ImportKind,
+}
+
+#[derive(Debug, Serialize)]
+struct ExportedSymbol {
+  source: Option<JsWord>,
+  local: JsWord,
+  exported: JsWord,
+  loc: SourceLocation,
+}
+
+#[derive(Debug, Serialize)]
+struct ExportedAll {
+  source: JsWord,
+  loc: SourceLocation,
+}
+
+#[derive(Serialize, Debug)]
+pub struct HoistCollectResult {
+  imports: Vec<ImportedSymbol>,
+  exports: Vec<ExportedSymbol>,
+  exports_all: Vec<ExportedAll>,
 }
 
 impl HoistCollect {
@@ -66,6 +105,7 @@ impl HoistCollect {
       should_wrap: false,
       imports: HashMap::new(),
       exports: HashMap::new(),
+      exports_all: HashMap::new(),
       non_static_access: HashMap::new(),
       non_const_bindings: HashMap::new(),
       non_static_requires: HashSet::new(),
@@ -76,6 +116,58 @@ impl HoistCollect {
       in_function: false,
       in_assign: false,
       bailouts: if trace_bailouts { Some(vec![]) } else { None },
+    }
+  }
+}
+
+impl From<HoistCollect> for HoistCollectResult {
+  fn from(collect: HoistCollect) -> HoistCollectResult {
+    HoistCollectResult {
+      imports: collect
+        .imports
+        .into_iter()
+        .map(
+          |(
+            local,
+            Import {
+              source,
+              specifier,
+              loc,
+              kind,
+            },
+          )| ImportedSymbol {
+            source,
+            local: local.0,
+            imported: specifier,
+            loc,
+            kind,
+          },
+        )
+        .collect(),
+      exports: collect
+        .exports
+        .into_iter()
+        .map(
+          |(
+            local,
+            Export {
+              source,
+              specifier,
+              loc,
+            },
+          )| ExportedSymbol {
+            source,
+            local: local.0,
+            exported: specifier,
+            loc,
+          },
+        )
+        .collect(),
+      exports_all: collect
+        .exports_all
+        .into_iter()
+        .map(|(source, loc)| ExportedAll { source, loc })
+        .collect(),
     }
   }
 }
@@ -206,30 +298,33 @@ impl Visit for HoistCollect {
   }
 
   fn visit_named_export(&mut self, node: &NamedExport, _parent: &dyn Node) {
-    if node.src.is_some() {
-      return;
-    }
-
     for specifier in &node.specifiers {
+      let source = node.src.as_ref().map(|s| s.value.clone());
       match specifier {
         ExportSpecifier::Named(named) => {
           let exported = match &named.exported {
-            Some(exported) => exported.sym.clone(),
-            None => named.orig.sym.clone(),
+            Some(exported) => exported.clone(),
+            None => named.orig.clone(),
           };
-          self.exports.entry(id!(named.orig)).or_insert(exported);
+          self.exports.entry(id!(named.orig)).or_insert(Export {
+            specifier: exported.sym,
+            loc: SourceLocation::from(&self.source_map, exported.span),
+            source,
+          });
         }
         ExportSpecifier::Default(default) => {
-          self
-            .exports
-            .entry(id!(default.exported))
-            .or_insert(js_word!("default"));
+          self.exports.entry(id!(default.exported)).or_insert(Export {
+            specifier: js_word!("default"),
+            loc: SourceLocation::from(&self.source_map, default.exported.span),
+            source,
+          });
         }
         ExportSpecifier::Namespace(namespace) => {
-          self
-            .exports
-            .entry(id!(namespace.name))
-            .or_insert_with(|| "*".into());
+          self.exports.entry(id!(namespace.name)).or_insert(Export {
+            specifier: "*".into(),
+            loc: SourceLocation::from(&self.source_map, namespace.span),
+            source,
+          });
         }
       }
     }
@@ -238,12 +333,24 @@ impl Visit for HoistCollect {
   fn visit_export_decl(&mut self, node: &ExportDecl, _parent: &dyn Node) {
     match &node.decl {
       Decl::Class(class) => {
-        self
-          .exports
-          .insert(id!(class.ident), class.ident.sym.clone());
+        self.exports.insert(
+          id!(class.ident),
+          Export {
+            specifier: class.ident.sym.clone(),
+            loc: SourceLocation::from(&self.source_map, class.ident.span),
+            source: None,
+          },
+        );
       }
       Decl::Fn(func) => {
-        self.exports.insert(id!(func.ident), func.ident.sym.clone());
+        self.exports.insert(
+          id!(func.ident),
+          Export {
+            specifier: func.ident.sym.clone(),
+            loc: SourceLocation::from(&self.source_map, func.ident.span),
+            source: None,
+          },
+        );
       }
       Decl::Var(var) => {
         for decl in &var.decls {
@@ -264,12 +371,26 @@ impl Visit for HoistCollect {
     match &node.decl {
       DefaultDecl::Class(class) => {
         if let Some(ident) = &class.ident {
-          self.exports.insert(id!(ident), "default".into());
+          self.exports.insert(
+            id!(ident),
+            Export {
+              specifier: "default".into(),
+              loc: SourceLocation::from(&self.source_map, node.span),
+              source: None,
+            },
+          );
         }
       }
       DefaultDecl::Fn(func) => {
         if let Some(ident) = &func.ident {
-          self.exports.insert(id!(ident), "default".into());
+          self.exports.insert(
+            id!(ident),
+            Export {
+              specifier: "default".into(),
+              loc: SourceLocation::from(&self.source_map, node.span),
+              source: None,
+            },
+          );
         }
       }
       _ => {
@@ -278,6 +399,13 @@ impl Visit for HoistCollect {
     };
 
     node.visit_children_with(self);
+  }
+
+  fn visit_export_all(&mut self, node: &ExportAll, _parent: &dyn Node) {
+    self.exports_all.insert(
+      node.src.value.clone(),
+      SourceLocation::from(&self.source_map, node.span),
+    );
   }
 
   fn visit_return_stmt(&mut self, node: &ReturnStmt, _parent: &dyn Node) {
@@ -291,7 +419,14 @@ impl Visit for HoistCollect {
 
   fn visit_binding_ident(&mut self, node: &BindingIdent, _parent: &dyn Node) {
     if self.in_export_decl {
-      self.exports.insert(id!(node.id), node.id.sym.clone());
+      self.exports.insert(
+        id!(node.id),
+        Export {
+          specifier: node.id.sym.clone(),
+          loc: SourceLocation::from(&self.source_map, node.id.span),
+          source: None,
+        },
+      );
     }
 
     if self.in_assign && node.id.span.ctxt() == self.global_ctxt {
@@ -305,7 +440,14 @@ impl Visit for HoistCollect {
 
   fn visit_assign_pat_prop(&mut self, node: &AssignPatProp, _parent: &dyn Node) {
     if self.in_export_decl {
-      self.exports.insert(id!(node.key), node.key.sym.clone());
+      self.exports.insert(
+        id!(node.key),
+        Export {
+          specifier: node.key.sym.clone(),
+          loc: SourceLocation::from(&self.source_map, node.key.span),
+          source: None,
+        },
+      );
     }
 
     if self.in_assign && node.key.span.ctxt() == self.global_ctxt {

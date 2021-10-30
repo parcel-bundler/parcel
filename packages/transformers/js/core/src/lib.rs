@@ -50,8 +50,8 @@ use dependency_collector::*;
 use env_replacer::*;
 use fs::inline_fs;
 use global_replacer::GlobalReplacer;
-use hoist::hoist;
-use hoist_collect::HoistCollect;
+use hoist::{hoist, HoistResult};
+use hoist_collect::{HoistCollect, HoistCollectResult};
 use modules::esm2cjs;
 use utils::{CodeHighlight, Diagnostic, DiagnosticSeverity, SourceLocation, SourceType};
 
@@ -89,14 +89,15 @@ pub struct Config {
   trace_bailouts: bool,
 }
 
-#[derive(Serialize, Debug, Deserialize, Default)]
+#[derive(Serialize, Debug, Default)]
 pub struct TransformResult {
   #[serde(with = "serde_bytes")]
   code: Vec<u8>,
   map: Option<String>,
   shebang: Option<String>,
   dependencies: Vec<DependencyDescriptor>,
-  hoist_result: Option<hoist::HoistResult>,
+  hoist_result: Option<HoistResult>,
+  symbol_result: Option<HoistCollectResult>,
   diagnostics: Option<Vec<Diagnostic>>,
   needs_esm_helpers: bool,
   used_env: HashSet<swc_atoms::JsWord>,
@@ -422,14 +423,14 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                 decls,
                 Mark::fresh(Mark::root()),
                 global_mark,
-                false,
+                config.trace_bailouts,
               );
               module.visit_with(&Invalid { span: DUMMY_SP } as _, &mut symbols_collect);
 
-              println!(
-                "{} {:?} {:?}\n\n",
-                config.filename, symbols_collect.imports, symbols_collect.exports
-              );
+              if let Some(bailouts) = &symbols_collect.bailouts {
+                diagnostics.extend(bailouts.iter().map(|bailout| bailout.to_diagnostic()));
+              }
+              result.symbol_result = Some(symbols_collect.into());
 
               let (module, needs_helpers) = esm2cjs(module, versions);
               result.needs_esm_helpers = needs_helpers;
