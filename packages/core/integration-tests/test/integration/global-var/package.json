@@ -1,14 +1,3 @@
 {
-  "main": "dist/index.js",
-  "targets": {
-    "modules": {
-      "context": "browser",
-      "includeNodeModules": true,
-      "outputFormat": "global",
-      "sourceMap": false,
-      "optimize": false,
-      "source": "./index.js",
-      "scopeHoist": false
-    }
-  }
+  "main": "dist/index.js"
 }

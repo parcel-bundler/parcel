@@ -163,9 +163,7 @@ export class DevPackager {
       ) +
       ', ' +
       JSON.stringify(this.parcelRequireName) +
-      (this.options.globalVar
-        ? ', ' + JSON.stringify(this.options.globalVar)
-        : '') +
+      (this.options.global ? ', ' + JSON.stringify(this.options.global) : '') +
       ')' +
       '\n';
 

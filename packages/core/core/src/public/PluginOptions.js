@@ -52,7 +52,7 @@ export default class PluginOptions implements IPluginOptions {
     return this.#options.serveOptions;
   }
 
-  get globalVar(): string {
+  get global(): string {
     return this.#options.global;
   }
 

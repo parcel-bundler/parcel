@@ -4,14 +4,14 @@ import {bundle} from '@parcel/test-utils';
 import {DevPackager} from '../../../packagers/js/src/DevPackager';
 
 describe('global-var', function() {
-  it('should product a global var', async function() {
+  it('should contain the global var', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/global-var/index.js'),
     );
     const packager = new DevPackager(
       {
         projectRoot: '',
-        globalVar: 'hello-world',
+        global: 'hello-world',
       },
       b,
       b.getBundles()[0],
@@ -24,5 +24,29 @@ describe('global-var', function() {
       ),
       true,
     );
+  });
+
+  it('should mount the global-var', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/global-var/index.js'),
+    );
+    const packager = new DevPackager(
+      {
+        projectRoot: '',
+        global: 'hello-world',
+      },
+      b,
+      b.getBundles()[0],
+      'aRequiredName',
+    );
+    let output = await packager.package();
+    function requireFromString(src) {
+      var Module = module.constructor;
+      var m = new Module();
+      m._compile(src, '');
+      return m.exports;
+    }
+    const helloWorld = requireFromString(output.contents);
+    assert.equal(helloWorld.default.mount(), 'Hello World');
   });
 });
