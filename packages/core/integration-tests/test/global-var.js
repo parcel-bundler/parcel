@@ -4,6 +4,7 @@ import {bundle} from '@parcel/test-utils';
 import {DevPackager} from '../../../packagers/js/src/DevPackager';
 import {ScopeHoistingPackager} from '../../../packagers/js/src/ScopeHoistingPackager';
 import PluginOptions from '@parcel/core/src/public/PluginOptions';
+import resolveOptions from '@parcel/core/src/resolveOptions';
 
 describe('global-var', function() {
   it('should pass the global var', async function() {
@@ -100,5 +101,12 @@ describe('global-var', function() {
       global: 'hello-world',
     });
     assert.equal(pluginOptions.global, 'hello-world');
+  });
+
+  it('resolveOptions should resolve global value', async function() {
+    const result = await resolveOptions({
+      global: 'hello-world',
+    });
+    assert.equal(result.global, 'hello-world');
   });
 });
