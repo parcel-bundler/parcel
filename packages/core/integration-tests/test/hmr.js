@@ -45,7 +45,7 @@ async function nextWSMessage(ws: WebSocket) {
   return json5.parse(await new Promise(resolve => ws.once('message', resolve)));
 }
 
-describe('hmr', function() {
+describe('hmr', function () {
   let subscription, ws;
 
   async function testHMRClient(
@@ -116,7 +116,7 @@ describe('hmr', function() {
   });
 
   describe('hmr server', () => {
-    beforeEach(async function() {
+    beforeEach(async function () {
       await outputFS.rimraf(path.join(__dirname, '/input'));
       await ncp(
         path.join(__dirname, '/integration/commonjs'),
@@ -124,7 +124,7 @@ describe('hmr', function() {
       );
     });
 
-    it('should emit an HMR update for the file that changed', async function() {
+    it('should emit an HMR update for the file that changed', async function () {
       let port = await getPort();
       let b = bundler(path.join(__dirname, '/input/index.js'), {
         hmrOptions: {port},
@@ -153,7 +153,7 @@ describe('hmr', function() {
       assert(!!localAsset);
     });
 
-    it('should emit an HMR update for all new dependencies along with the changed file', async function() {
+    it('should emit an HMR update for all new dependencies along with the changed file', async function () {
       let port = await getPort();
       let b = bundler(path.join(__dirname, '/input/index.js'), {
         hmrOptions: {port},
@@ -178,7 +178,7 @@ describe('hmr', function() {
       assert.equal(message.assets.length, 2);
     });
 
-    it('should emit an HMR error on bundle failure', async function() {
+    it('should emit an HMR error on bundle failure', async function () {
       let port = await getPort();
       let b = bundler(path.join(__dirname, '/input/index.js'), {
         hmrOptions: {port},
@@ -205,7 +205,7 @@ describe('hmr', function() {
       assert(!!message.diagnostics.ansi, 'Should contain an ansi diagnostic');
     });
 
-    it('should emit an HMR error to new connections after a bundle failure', async function() {
+    it('should emit an HMR error to new connections after a bundle failure', async function () {
       let port = await getPort();
       let b = bundler(path.join(__dirname, '/input/index.js'), {
         hmrOptions: {port},
@@ -227,7 +227,7 @@ describe('hmr', function() {
       assert.equal(message.type, 'error');
     });
 
-    it('should emit an HMR update after error has been resolved', async function() {
+    it('should emit an HMR update after error has been resolved', async function () {
       let port = await getPort();
       let b = bundler(path.join(__dirname, '/input/index.js'), {
         hmrOptions: {port},
@@ -259,7 +259,7 @@ describe('hmr', function() {
       assert.equal(message.type, 'update');
     });
 
-    it('should make a secure connection', async function() {
+    it('should make a secure connection', async function () {
       let port = await getPort();
       let b = bundler(path.join(__dirname, '/input/index.js'), {
         serveOptions: {
@@ -289,7 +289,7 @@ describe('hmr', function() {
       assert.equal(message.type, 'update');
     });
 
-    it('should make a secure connection with custom certificate', async function() {
+    it('should make a secure connection with custom certificate', async function () {
       let port = await getPort();
       let b = bundler(path.join(__dirname, '/input/index.js'), {
         serveOptions: {
@@ -329,7 +329,7 @@ describe('hmr', function() {
       await outputFS.rimraf(path.join(__dirname, '/input'));
     });
 
-    it('should support self accepting', async function() {
+    it('should support self accepting', async function () {
       let outputs = await testHMRClient('hmr-accept-self', outputs => {
         assert.deepStrictEqual(outputs, [
           ['other', 1],
@@ -351,7 +351,7 @@ describe('hmr', function() {
       ]);
     });
 
-    it('should bubble through parents', async function() {
+    it('should bubble through parents', async function () {
       let outputs = await testHMRClient('hmr-bubble', outputs => {
         assert.deepStrictEqual(outputs, [
           ['other', 1],
@@ -374,7 +374,7 @@ describe('hmr', function() {
       ]);
     });
 
-    it('should call dispose callbacks', async function() {
+    it('should call dispose callbacks', async function () {
       let outputs = await testHMRClient('hmr-dispose', outputs => {
         assert.deepStrictEqual(outputs, [
           ['eval:other', 1, null],
@@ -416,7 +416,7 @@ module.hot.dispose((data) => {
       ]);
     });
 
-    it('should work with circular dependencies', async function() {
+    it('should work with circular dependencies', async function () {
       let outputs = await testHMRClient('hmr-circular', outputs => {
         assert.deepEqual(outputs, [3]);
 

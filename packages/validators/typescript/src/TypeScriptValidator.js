@@ -20,7 +20,7 @@ let langServiceCache: {
     host: LanguageServiceHost,
     service: LanguageService,
   |},
-  ...,
+  ...
 } = {};
 
 type TSValidatorConfig = {|

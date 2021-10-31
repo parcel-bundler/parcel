@@ -7,7 +7,7 @@ var writeStream = require('../index.js');
 
 var target = path.resolve(__dirname, 'test-chown');
 
-test('slow close', function(t) {
+test('slow close', function (t) {
   t.plan(2);
   // The goal here is to simulate the "file close" step happening so slowly
   // that the whole close/rename process could finish before the file is
@@ -17,10 +17,10 @@ test('slow close', function(t) {
   // turn, could break other layers that tried to read the new file.
   var realEmit = fs.WriteStream.prototype.emit;
   var reallyClosed = false;
-  fs.WriteStream.prototype.emit = function(event) {
+  fs.WriteStream.prototype.emit = function (event) {
     if (event !== 'close') return realEmit.apply(this, arguments);
     setTimeout(
-      function() {
+      function () {
         reallyClosed = true;
         realEmit.call(this, 'close');
       }.bind(this),
@@ -28,16 +28,16 @@ test('slow close', function(t) {
     );
   };
   var stream = writeStream(target);
-  stream.on('finish', function() {
+  stream.on('finish', function () {
     t.is(reallyClosed, true, "didn't finish before target was closed");
   });
-  stream.on('close', function() {
+  stream.on('close', function () {
     t.is(reallyClosed, true, "didn't close before target was closed");
   });
   stream.end();
 });
 
-test('cleanup', function(t) {
+test('cleanup', function (t) {
   rimraf.sync(target);
   t.end();
 });
