@@ -6,7 +6,7 @@ import {ScopeHoistingPackager} from '../../../packagers/js/src/ScopeHoistingPack
 
 describe('global-var', function() {
   it('should pass the global var', async function() {
-    let b = await bundle(
+    const b = await bundle(
       path.join(__dirname, '/integration/global-var/index.js'),
     );
     const packager = new DevPackager(
@@ -18,7 +18,7 @@ describe('global-var', function() {
       b.getBundles()[0],
       'aRequiredName',
     );
-    let output = await packager.package();
+    const output = await packager.package();
     assert.equal(
       output.contents.substr(output.contents.length - 32),
       '"aRequiredName", "hello-world")\n',
@@ -26,7 +26,7 @@ describe('global-var', function() {
   });
 
   it('should mount as commonjs', async function() {
-    let b = await bundle(
+    const b = await bundle(
       path.join(__dirname, '/integration/global-var/index.js'),
     );
     const packager = new DevPackager(
@@ -38,7 +38,7 @@ describe('global-var', function() {
       b.getBundles()[0],
       'aRequiredName',
     );
-    let output = await packager.package();
+    const output = await packager.package();
     function requireFromString(src) {
       var Module = module.constructor;
       var m = new Module();
@@ -50,7 +50,7 @@ describe('global-var', function() {
   });
 
   it('should have the globalName', async function() {
-    let b = await bundle(
+    const b = await bundle(
       path.join(__dirname, '/integration/global-var/index.js'),
     );
     const packager = new DevPackager(
@@ -62,7 +62,7 @@ describe('global-var', function() {
       b.getBundles()[0],
       'aRequiredName',
     );
-    let output = await packager.package();
+    const output = await packager.package();
     const result = eval(
       output.contents.replace(
         'module.exports = mainExports',
@@ -72,8 +72,8 @@ describe('global-var', function() {
     assert.equal(result['hello-world'].default.mount(), 'Hello World');
   });
 
-  it('when hoisted should not use globalName', async function() {
-    let b = await bundle(
+  it('should not use globalName when hoisted', async function() {
+    const b = await bundle(
       path.join(__dirname, '/integration/global-var/index.js'),
       {
         defaultTargetOptions: {
@@ -90,7 +90,7 @@ describe('global-var', function() {
       b.getBundles()[0],
       'aRequiredName',
     );
-    let output = await packager.package();
+    const output = await packager.package();
     assert.equal(output.contents.substr(output.contents.length - 3), '();');
   });
 });
