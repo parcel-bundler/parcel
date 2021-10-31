@@ -26,7 +26,7 @@ describe('global-var', function() {
     );
   });
 
-  it('should mount the global-var', async function() {
+  it('should mount as commonjs', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/global-var/index.js'),
     );
@@ -48,5 +48,31 @@ describe('global-var', function() {
     }
     const helloWorld = requireFromString(output.contents);
     assert.equal(helloWorld.default.mount(), 'Hello World');
+  });
+
+  it('should have the globalName', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/global-var/index.js'),
+    );
+    const packager = new DevPackager(
+      {
+        projectRoot: '',
+        global: 'hello-world',
+      },
+      b,
+      b.getBundles()[0],
+      'aRequiredName',
+    );
+    let output = await packager.package();
+    const helloWorldModule = eval(
+      output.contents.replace(
+        'module.exports = mainExports',
+        'return {[globalName]:mainExports};',
+      ),
+    );
+    assert.equal(
+      helloWorldModule['hello-world'].default.mount(),
+      'Hello World',
+    );
   });
 });
