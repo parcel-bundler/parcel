@@ -67,7 +67,7 @@ describe('global-var', function() {
     const helloWorldModule = eval(
       output.contents.replace(
         'module.exports = mainExports',
-        'return {[globalName]:mainExports};',
+        'return {[globalName]:mainExports}',
       ),
     );
     assert.equal(
