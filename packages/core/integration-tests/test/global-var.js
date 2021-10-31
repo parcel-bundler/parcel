@@ -5,7 +5,7 @@ import {DevPackager} from '../../../packagers/js/src/DevPackager';
 import {ScopeHoistingPackager} from '../../../packagers/js/src/ScopeHoistingPackager';
 
 describe('global-var', function() {
-  it('should contain the global var', async function() {
+  it('should pass the global var', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/global-var/index.js'),
     );
@@ -20,10 +20,8 @@ describe('global-var', function() {
     );
     let output = await packager.package();
     assert.equal(
-      output.contents.includes(
-        '},{}]},["ePXF2"], "ePXF2", "aRequiredName", "hello-world")',
-      ),
-      true,
+      output.contents.substr(output.contents.length - 32),
+      '"aRequiredName", "hello-world")\n',
     );
   });
 
