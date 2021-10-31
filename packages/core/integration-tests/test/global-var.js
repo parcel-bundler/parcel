@@ -2,6 +2,7 @@ import assert from 'assert';
 import path from 'path';
 import {bundle} from '@parcel/test-utils';
 import {DevPackager} from '../../../packagers/js/src/DevPackager';
+import {ScopeHoistingPackager} from '../../../packagers/js/src/ScopeHoistingPackager';
 
 describe('global-var', function() {
   it('should contain the global var', async function() {
@@ -46,8 +47,8 @@ describe('global-var', function() {
       m._compile(src, '');
       return m.exports;
     }
-    const helloWorld = requireFromString(output.contents);
-    assert.equal(helloWorld.default.mount(), 'Hello World');
+    const result = requireFromString(output.contents);
+    assert.equal(result.default.mount(), 'Hello World');
   });
 
   it('should have the globalName', async function() {
@@ -64,15 +65,34 @@ describe('global-var', function() {
       'aRequiredName',
     );
     let output = await packager.package();
-    const helloWorldModule = eval(
+    const result = eval(
       output.contents.replace(
         'module.exports = mainExports',
         'return {[globalName]:mainExports}',
       ),
     );
-    assert.equal(
-      helloWorldModule['hello-world'].default.mount(),
-      'Hello World',
+    assert.equal(result['hello-world'].default.mount(), 'Hello World');
+  });
+
+  it('when hoisted should not use globalName', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/global-var/index.js'),
+      {
+        defaultTargetOptions: {
+          shouldScopeHoist: true,
+        },
+      },
     );
+    const packager = new ScopeHoistingPackager(
+      {
+        projectRoot: '',
+        global: 'hello-world',
+      },
+      b,
+      b.getBundles()[0],
+      'aRequiredName',
+    );
+    let output = await packager.package();
+    assert.equal(output.contents.substr(output.contents.length - 3), '();');
   });
 });
