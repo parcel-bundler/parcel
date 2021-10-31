@@ -3,6 +3,7 @@ import path from 'path';
 import {bundle} from '@parcel/test-utils';
 import {DevPackager} from '../../../packagers/js/src/DevPackager';
 import {ScopeHoistingPackager} from '../../../packagers/js/src/ScopeHoistingPackager';
+import PluginOptions from '@parcel/core/src/public/PluginOptions';
 
 describe('global-var', function() {
   it('should pass the global var', async function() {
@@ -92,5 +93,12 @@ describe('global-var', function() {
     );
     const output = await packager.package();
     assert.equal(output.contents.substr(output.contents.length - 3), '();');
+  });
+
+  it('PluginOptions should contain the global value', async function() {
+    const pluginOptions = new PluginOptions({
+      global: 'hello-world',
+    });
+    assert.equal(pluginOptions.global, 'hello-world');
   });
 });
