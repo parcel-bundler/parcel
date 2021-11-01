@@ -4982,6 +4982,14 @@ describe('javascript', function () {
     assert.deepEqual(res.default, 123);
   });
 
+  it('should replace imported values in member expressions', async function () {
+    let b = await bundle(
+      path.join(__dirname, 'integration/js-import-member/index.js'),
+    );
+    let res = await run(b);
+    assert.deepEqual(res.default, ['a', 'b', 'bar']);
+  });
+
   it('should not freeze live default imports', async function () {
     let b = await bundle(
       path.join(__dirname, 'integration/js-import-default-live/index.js'),
