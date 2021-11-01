@@ -443,16 +443,8 @@ export async function processConfigChain(
             : '/extends';
           let resolved = await resolveExtends(ext, filePath, key, options);
           extendedFiles.push(resolved);
-          let {
-            extendedFiles: moreExtendedFiles,
-            config: nextConfig,
-          } = await processExtendedConfig(
-            filePath,
-            key,
-            ext,
-            resolved,
-            options,
-          );
+          let {extendedFiles: moreExtendedFiles, config: nextConfig} =
+            await processExtendedConfig(filePath, key, ext, resolved, options);
           extendedFiles = extendedFiles.concat(moreExtendedFiles);
           extStartConfig = extStartConfig
             ? mergeConfigs(extStartConfig, nextConfig)

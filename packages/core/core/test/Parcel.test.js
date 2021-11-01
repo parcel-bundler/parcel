@@ -8,7 +8,7 @@ import assert from 'assert';
 import path from 'path';
 import Parcel, {createWorkerFarm} from '../src/Parcel';
 
-describe('Parcel', function() {
+describe('Parcel', function () {
   this.timeout(75000);
 
   let workerFarm;

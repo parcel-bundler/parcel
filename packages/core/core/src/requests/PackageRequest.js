@@ -54,20 +54,16 @@ async function run({input, api, farm}: RunInput) {
   let {cachePath} = nullthrows(
     await api.runRequest<null, ConfigAndCachePath>(createParcelConfigRequest()),
   );
-  let {
-    devDepRequests,
-    configRequests,
-    bundleInfo,
-    invalidations,
-  } = await runPackage({
-    bundle,
-    bundleGraphReference,
-    optionsRef,
-    configCachePath: cachePath,
-    previousDevDeps: devDeps,
-    invalidDevDeps,
-    previousInvalidations: api.getInvalidations(),
-  });
+  let {devDepRequests, configRequests, bundleInfo, invalidations} =
+    await runPackage({
+      bundle,
+      bundleGraphReference,
+      optionsRef,
+      configCachePath: cachePath,
+      previousDevDeps: devDeps,
+      invalidDevDeps,
+      previousInvalidations: api.getInvalidations(),
+    });
 
   for (let devDepRequest of devDepRequests) {
     await runDevDepRequest(api, devDepRequest);

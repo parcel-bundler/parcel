@@ -138,10 +138,7 @@ export class MemoryFS implements FileSystem {
     // get realpath by following symlinks
     if (realpath) {
       let {root, dir, base} = path.parse(filePath);
-      let parts = dir
-        .slice(root.length)
-        .split(path.sep)
-        .concat(base);
+      let parts = dir.slice(root.length).split(path.sep).concat(base);
       let res = root;
       for (let part of parts) {
         res = path.join(res, part);

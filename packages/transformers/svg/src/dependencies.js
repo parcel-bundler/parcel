@@ -55,7 +55,8 @@ const FUNC_IRI_ATTRS = new Set([
 ]);
 
 // https://www.w3.org/TR/css3-values/#urls
-const FUNC_IRI_RE = /^url\((?:((['"])(.*?)\2(\s+.*)?)|((?:\\[\s'"]|[^\s'"])+))\)$/;
+const FUNC_IRI_RE =
+  /^url\((?:((['"])(.*?)\2(\s+.*)?)|((?:\\[\s'"]|[^\s'"])+))\)$/;
 const ESCAPE_RE = /\\(.|\n|\r|\u2028|\u2029)/;
 export function parseFuncIRI(value: string): ?[string, string] {
   let m = value.match(FUNC_IRI_RE);
