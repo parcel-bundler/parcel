@@ -313,22 +313,22 @@ export function md(
   return result.join('') + strings[strings.length - 1];
 }
 
-md.bold = function(s: TemplateInput): TemplateInput {
+md.bold = function (s: TemplateInput): TemplateInput {
   // $FlowFixMe[invalid-computed-prop]
   return {[mdVerbatim]: '**' + escapeMarkdown(`${s}`) + '**'};
 };
 
-md.italic = function(s: TemplateInput): TemplateInput {
+md.italic = function (s: TemplateInput): TemplateInput {
   // $FlowFixMe[invalid-computed-prop]
   return {[mdVerbatim]: '_' + escapeMarkdown(`${s}`) + '_'};
 };
 
-md.underline = function(s: TemplateInput): TemplateInput {
+md.underline = function (s: TemplateInput): TemplateInput {
   // $FlowFixMe[invalid-computed-prop]
   return {[mdVerbatim]: '__' + escapeMarkdown(`${s}`) + '__'};
 };
 
-md.strikethrough = function(s: TemplateInput): TemplateInput {
+md.strikethrough = function (s: TemplateInput): TemplateInput {
   // $FlowFixMe[invalid-computed-prop]
   return {[mdVerbatim]: '~~' + escapeMarkdown(`${s}`) + '~~'};
 };

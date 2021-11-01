@@ -110,10 +110,9 @@ export async function load(
       // We need to invalidate on startup in case the config is non-static,
       // e.g. uses unknown environment variables, reads from the filesystem, etc.
       logger.warn({
-        message: `It looks like you're using a JavaScript Babel config file. This means the config cannot be watched for changes, and Babel transformations cannot be cached. You'll need to restart Parcel for changes to this config to take effect. Try using a ${path.basename(
-          file,
-          path.extname(file),
-        ) + '.json'} file instead.`,
+        message: `It looks like you're using a JavaScript Babel config file. This means the config cannot be watched for changes, and Babel transformations cannot be cached. You'll need to restart Parcel for changes to this config to take effect. Try using a ${
+          path.basename(file, path.extname(file)) + '.json'
+        } file instead.`,
       });
       config.invalidateOnStartup();
 

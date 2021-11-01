@@ -783,9 +783,10 @@ export default class RequestTracker {
     this.signal = signal;
   }
 
-  startRequest(
-    request: StoredRequest,
-  ): {|requestNodeId: NodeId, deferred: Deferred<boolean>|} {
+  startRequest(request: StoredRequest): {|
+    requestNodeId: NodeId,
+    deferred: Deferred<boolean>,
+  |} {
     let didPreviouslyExist = this.graph.hasContentKey(request.id);
     let requestNodeId;
     if (didPreviouslyExist) {
