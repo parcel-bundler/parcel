@@ -109,10 +109,8 @@ export default class Parcel {
 
     await resolvedOptions.cache.ensure();
 
-    let {
-      dispose: disposeOptions,
-      ref: optionsRef,
-    } = await this.#farm.createSharedReference(resolvedOptions);
+    let {dispose: disposeOptions, ref: optionsRef} =
+      await this.#farm.createSharedReference(resolvedOptions);
     this.#optionsRef = optionsRef;
 
     this.#disposable = new Disposable();
@@ -268,12 +266,8 @@ export default class Parcel {
         signal,
       });
 
-      let {
-        bundleGraph,
-        bundleInfo,
-        changedAssets,
-        assetRequests,
-      } = await this.#requestTracker.runRequest(request, {force: true});
+      let {bundleGraph, bundleInfo, changedAssets, assetRequests} =
+        await this.#requestTracker.runRequest(request, {force: true});
 
       this.#requestedAssetIds.clear();
 

@@ -4,13 +4,13 @@ var path = require('path');
 var writeStream = require('../index.js');
 
 var rename = fs.rename;
-fs.rename = function(from, to, cb) {
-  setTimeout(function() {
+fs.rename = function (from, to, cb) {
+  setTimeout(function () {
     rename(from, to, cb);
   }, 100);
 };
 
-test('basic', function(t) {
+test('basic', function (t) {
   // open 10 write streams to the same file.
   // then write to each of them, and to the target
   // and verify at the end that each of them does their thing
@@ -31,7 +31,7 @@ test('basic', function(t) {
   }
 
   function verifier(ev, num) {
-    return function() {
+    return function () {
       if (ev === 'close') {
         t.equal(this.__emittedFinish, true, num + '. closed only after finish');
       } else {
@@ -42,44 +42,45 @@ test('basic', function(t) {
       // make sure that one of the atomic streams won.
       var res = fs.readFileSync(target, 'utf8');
       var lines = res.trim().split(/\n/);
-      lines.forEach(function(line, lineno) {
+      lines.forEach(function (line, lineno) {
         var first = lines[0].match(/\d+$/)[0];
         var cur = line.match(/\d+$/)[0];
         t.equal(cur, first, num + '. line ' + lineno + ' matches');
       });
 
-      var resExpr = /^first write \d+\nsecond write \d+\nthird write \d+\nfinal write \d+\n$/;
+      var resExpr =
+        /^first write \d+\nsecond write \d+\nthird write \d+\nfinal write \d+\n$/;
       t.similar(res, resExpr, num + '. content matches');
     };
   }
 
   // now write something to each stream.
-  streams.forEach(function(stream, i) {
+  streams.forEach(function (stream, i) {
     stream.write('first write ' + i + '\n');
   });
 
   // wait a sec for those writes to go out.
-  setTimeout(function() {
+  setTimeout(function () {
     // write something else to the target.
     fs.writeFileSync(target, 'brutality!\n');
 
     // write some more stuff.
-    streams.forEach(function(stream, i) {
+    streams.forEach(function (stream, i) {
       stream.write('second write ' + i + '\n');
     });
 
-    setTimeout(function() {
+    setTimeout(function () {
       // Oops!  Deleted the file!
       fs.unlinkSync(target);
 
       // write some more stuff.
-      streams.forEach(function(stream, i) {
+      streams.forEach(function (stream, i) {
         stream.write('third write ' + i + '\n');
       });
 
-      setTimeout(function() {
+      setTimeout(function () {
         fs.writeFileSync(target, 'brutality TWO!\n');
-        streams.forEach(function(stream, i) {
+        streams.forEach(function (stream, i) {
           stream.end('final write ' + i + '\n');
         });
       }, 50);
@@ -87,12 +88,12 @@ test('basic', function(t) {
   }, 50);
 });
 
-test('cleanup', function(t) {
+test('cleanup', function (t) {
   fs.readdirSync(__dirname)
-    .filter(function(f) {
+    .filter(function (f) {
       return f.match(/^test.txt/);
     })
-    .forEach(function(file) {
+    .forEach(function (file) {
       fs.unlinkSync(path.resolve(__dirname, file));
     });
   t.end();

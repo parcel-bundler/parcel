@@ -8,8 +8,8 @@ const config = path.join(
   './integration/custom-configs/.parcelrc-eslint',
 );
 
-describe('eslint-validator', function() {
-  it('should throw validation error with eslint errors', async function() {
+describe('eslint-validator', function () {
+  it('should throw validation error with eslint errors', async function () {
     let didThrow = false;
     let entry = path.join(__dirname, '/integration/eslint-error/index.js');
     try {
@@ -47,7 +47,7 @@ describe('eslint-validator', function() {
     assert(didThrow);
   });
 
-  it('should throw a correct codeframe for a parse error', async function() {
+  it('should throw a correct codeframe for a parse error', async function () {
     let didThrow = false;
     let entry = path.join(
       __dirname,

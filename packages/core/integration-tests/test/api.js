@@ -3,8 +3,8 @@ import path from 'path';
 import assert from 'assert';
 import {distDir, bundle, assertBundles, outputFS} from '@parcel/test-utils';
 
-describe('JS API', function() {
-  it('should respect distEntry', async function() {
+describe('JS API', function () {
+  it('should respect distEntry', async function () {
     const NAME = 'custom-name.js';
 
     let b = await bundle(
@@ -27,7 +27,7 @@ describe('JS API', function() {
     assert(await outputFS.exists(path.join(distDir, NAME)));
   });
 
-  it('should run additional reports from the options', async function() {
+  it('should run additional reports from the options', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/js-comment/index.js'),
       {
