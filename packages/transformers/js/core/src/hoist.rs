@@ -7,7 +7,7 @@ use swc_common::{sync::Lrc, Mark, Span, SyntaxContext, DUMMY_SP};
 use swc_ecmascript::ast::*;
 use swc_ecmascript::visit::{Fold, FoldWith, VisitWith};
 
-use crate::hoist_collect::{HoistCollect, Import, ImportKind};
+use crate::collect::{Collect, Import, ImportKind};
 use crate::id;
 use crate::utils::{
   match_import, match_member_expr, match_require, CodeHighlight, Diagnostic, DiagnosticSeverity,
@@ -31,7 +31,7 @@ pub fn hoist(
   global_mark: Mark,
   trace_bailouts: bool,
 ) -> Result<(Module, HoistResult, Vec<Diagnostic>), Vec<Diagnostic>> {
-  let mut collect = HoistCollect::new(source_map, decls, ignore_mark, global_mark, trace_bailouts);
+  let mut collect = Collect::new(source_map, decls, ignore_mark, global_mark, trace_bailouts);
   module.visit_with(&Invalid { span: DUMMY_SP } as _, &mut collect);
 
   let mut hoist = Hoist::new(module_id, &collect);
@@ -67,7 +67,7 @@ struct ImportedSymbol {
 
 struct Hoist<'a> {
   module_id: &'a str,
-  collect: &'a HoistCollect,
+  collect: &'a Collect,
   module_items: Vec<ModuleItem>,
   export_decls: HashSet<JsWord>,
   hoisted_imports: Vec<ModuleItem>,
@@ -95,7 +95,7 @@ pub struct HoistResult {
 }
 
 impl<'a> Hoist<'a> {
-  fn new(module_id: &'a str, collect: &'a HoistCollect) -> Self {
+  fn new(module_id: &'a str, collect: &'a Collect) -> Self {
     Hoist {
       module_id,
       collect,
@@ -1124,7 +1124,7 @@ mod tests {
   extern crate indoc;
   use self::indoc::indoc;
 
-  fn parse(code: &str) -> (HoistCollect, String, HoistResult) {
+  fn parse(code: &str) -> (Collect, String, HoistResult) {
     let source_map = Lrc::new(SourceMap::default());
     let source_file = source_map.new_source_file(FileName::Anon, code.into());
 
@@ -1148,7 +1148,7 @@ mod tests {
             let global_mark = Mark::fresh(Mark::root());
             let module = module.fold_with(&mut resolver_with_mark(global_mark));
 
-            let mut collect = HoistCollect::new(
+            let mut collect = Collect::new(
               source_map.clone(),
               collect_decls(&module),
               Mark::fresh(Mark::root()),

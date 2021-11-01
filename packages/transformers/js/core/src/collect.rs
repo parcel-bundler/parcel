@@ -32,7 +32,7 @@ pub struct Export {
   pub loc: SourceLocation,
 }
 
-pub struct HoistCollect {
+pub struct Collect {
   pub source_map: Lrc<swc_common::SourceMap>,
   pub decls: HashSet<IdentId>,
   pub ignore_mark: Mark,
@@ -84,13 +84,13 @@ struct ExportedAll {
 }
 
 #[derive(Serialize, Debug)]
-pub struct HoistCollectResult {
+pub struct CollectResult {
   imports: Vec<ImportedSymbol>,
   exports: Vec<ExportedSymbol>,
   exports_all: Vec<ExportedAll>,
 }
 
-impl HoistCollect {
+impl Collect {
   pub fn new(
     source_map: Lrc<swc_common::SourceMap>,
     decls: HashSet<IdentId>,
@@ -98,7 +98,7 @@ impl HoistCollect {
     global_mark: Mark,
     trace_bailouts: bool,
   ) -> Self {
-    HoistCollect {
+    Collect {
       source_map,
       decls,
       ignore_mark,
@@ -125,9 +125,9 @@ impl HoistCollect {
   }
 }
 
-impl From<HoistCollect> for HoistCollectResult {
-  fn from(collect: HoistCollect) -> HoistCollectResult {
-    HoistCollectResult {
+impl From<Collect> for CollectResult {
+  fn from(collect: Collect) -> CollectResult {
+    CollectResult {
       imports: collect
         .imports
         .into_iter()
@@ -191,7 +191,7 @@ macro_rules! collect_visit_fn {
   };
 }
 
-impl Visit for HoistCollect {
+impl Visit for Collect {
   fn visit_module(&mut self, node: &Module, _parent: &dyn Node) {
     self.in_module_this = true;
     self.in_top_level = true;
@@ -822,7 +822,7 @@ impl Visit for HoistCollect {
   }
 }
 
-impl HoistCollect {
+impl Collect {
   pub fn match_require(&self, node: &Expr) -> Option<JsWord> {
     match_require(node, &self.decls, self.ignore_mark)
   }

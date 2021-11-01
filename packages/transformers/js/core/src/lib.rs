@@ -12,13 +12,13 @@ extern crate serde;
 extern crate serde_bytes;
 extern crate sha1;
 
+mod collect;
 mod decl_collector;
 mod dependency_collector;
 mod env_replacer;
 mod fs;
 mod global_replacer;
 mod hoist;
-mod hoist_collect;
 mod modules;
 mod utils;
 
@@ -45,13 +45,13 @@ use swc_ecmascript::transforms::{
 };
 use swc_ecmascript::visit::{FoldWith, VisitWith};
 
+use collect::{Collect, CollectResult};
 use decl_collector::*;
 use dependency_collector::*;
 use env_replacer::*;
 use fs::inline_fs;
 use global_replacer::GlobalReplacer;
 use hoist::{hoist, HoistResult};
-use hoist_collect::{HoistCollect, HoistCollectResult};
 use modules::esm2cjs;
 use utils::{CodeHighlight, Diagnostic, DiagnosticSeverity, SourceLocation, SourceType};
 
@@ -97,7 +97,7 @@ pub struct TransformResult {
   shebang: Option<String>,
   dependencies: Vec<DependencyDescriptor>,
   hoist_result: Option<HoistResult>,
-  symbol_result: Option<HoistCollectResult>,
+  symbol_result: Option<CollectResult>,
   diagnostics: Option<Vec<Diagnostic>>,
   needs_esm_helpers: bool,
   used_env: HashSet<swc_atoms::JsWord>,
@@ -418,7 +418,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                 }
               }
             } else {
-              let mut symbols_collect = HoistCollect::new(
+              let mut symbols_collect = Collect::new(
                 source_map.clone(),
                 decls,
                 Mark::fresh(Mark::root()),

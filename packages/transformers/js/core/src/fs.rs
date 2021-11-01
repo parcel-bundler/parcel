@@ -1,5 +1,5 @@
+use crate::collect::{Collect, Import};
 use crate::dependency_collector::{DependencyDescriptor, DependencyKind};
-use crate::hoist_collect::{HoistCollect, Import};
 use crate::utils::SourceLocation;
 use data_encoding::{BASE64, HEXLOWER};
 use std::collections::HashSet;
@@ -26,7 +26,7 @@ pub fn inline_fs<'a>(
 ) -> impl Fold + 'a {
   InlineFS {
     filename: Path::new(filename).to_path_buf(),
-    collect: HoistCollect::new(
+    collect: Collect::new(
       source_map,
       decls,
       Mark::fresh(Mark::root()),
@@ -41,7 +41,7 @@ pub fn inline_fs<'a>(
 
 struct InlineFS<'a> {
   filename: PathBuf,
-  collect: HoistCollect,
+  collect: Collect,
   global_mark: Mark,
   project_root: &'a str,
   deps: &'a mut Vec<DependencyDescriptor>,
