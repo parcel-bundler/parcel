@@ -33,6 +33,7 @@ export default (new Optimizer({
       sourcefile: relativeBundlePath,
       minify: true,
       treeShaking: true,
+      format: 'esm',
     });
 
     let sourcemap = null;
