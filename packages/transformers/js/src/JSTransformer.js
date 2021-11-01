@@ -776,9 +776,6 @@ export default (new Transformer({
             .getDependencies()
             .map(dep => [dep.meta.placeholder ?? dep.specifier, dep]),
         );
-        for (let dep of deps.values()) {
-          dep.symbols.ensure();
-        }
         asset.symbols.ensure();
 
         for (let {exported, local, loc, source} of symbol_result.exports) {
@@ -789,6 +786,7 @@ export default (new Transformer({
             convertLoc(loc),
           );
           if (dep != null) {
+            dep.symbols.ensure();
             dep.symbols.set(
               local,
               `${dep?.id ?? ''}$${local}`,
@@ -801,12 +799,14 @@ export default (new Transformer({
         for (let {source, local, imported, loc} of symbol_result.imports) {
           let dep = deps.get(source);
           if (!dep) continue;
+          dep.symbols.ensure();
           dep.symbols.set(imported, local, convertLoc(loc));
         }
 
         for (let {source, loc} of symbol_result.exports_all) {
           let dep = deps.get(source);
           if (!dep) continue;
+          dep.symbols.ensure();
           dep.symbols.set('*', '*', convertLoc(loc), true);
         }
       }
