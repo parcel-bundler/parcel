@@ -840,10 +840,11 @@ export default class RequestTracker {
       let result: T = (node.value.result: any);
       return result;
     } else if (node.value.resultCacheKey != null && ifMatch == null) {
-      let cachedResult: T = (nullthrows(
-        await this.options.cache.get(node.value.resultCacheKey),
-        // $FlowFixMe
-      ): any);
+      let key = node.value.resultCacheKey;
+      invariant(this.options.cache.hasLargeBlob(key));
+      let cachedResult: T = deserialize(
+        await this.options.cache.getLargeBlob(key),
+      );
       node.value.result = cachedResult;
       return cachedResult;
     }
@@ -1034,7 +1035,10 @@ export default class RequestTracker {
       let resultCacheKey = node.value.resultCacheKey;
       if (resultCacheKey != null && node.value.result != null) {
         promises.push(
-          this.options.cache.set(resultCacheKey, node.value.result),
+          this.options.cache.setLargeBlob(
+            resultCacheKey,
+            serialize(node.value.result),
+          ),
         );
         delete node.value.result;
       }
