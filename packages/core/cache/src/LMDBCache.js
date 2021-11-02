@@ -1,16 +1,11 @@
 // @flow strict-local
 import type {Readable} from 'stream';
 import type {FilePath} from '@parcel/types';
-import type {FileSystem} from '@parcel/fs';
 import type {Cache} from './types';
 
 import path from 'path';
-import {
-  serialize,
-  deserialize,
-  prepareForSerialization,
-  registerSerializableClass,
-} from '@parcel/core';
+import {serialize, deserialize, registerSerializableClass} from '@parcel/core';
+import {NodeFS} from '@parcel/fs';
 import {blobToStream, bufferStream} from '@parcel/utils';
 // flowlint-next-line untyped-import:off
 import packageJson from '../package.json';
@@ -18,13 +13,13 @@ import packageJson from '../package.json';
 import lmdb from 'lmdb-store';
 
 export class LMDBCache implements Cache {
-  fs: FileSystem;
+  fs: NodeFS;
   dir: FilePath;
   // $FlowFixMe
   store: any;
 
-  constructor(fs: FileSystem, cacheDir: FilePath) {
-    this.fs = fs;
+  constructor(cacheDir: FilePath) {
+    this.fs = new NodeFS();
     this.dir = cacheDir;
 
     this.store = lmdb.open(cacheDir, {
@@ -38,15 +33,14 @@ export class LMDBCache implements Cache {
     return Promise.resolve();
   }
 
-  serialize(): {|fs: FileSystem, dir: FilePath|} {
+  serialize(): {|dir: FilePath|} {
     return {
-      fs: prepareForSerialization(this.fs),
       dir: this.dir,
     };
   }
 
-  static deserialize(opts: {|fs: FileSystem, dir: FilePath|}): LMDBCache {
-    return new LMDBCache(opts.fs, opts.dir);
+  static deserialize(opts: {|dir: FilePath|}): LMDBCache {
+    return new LMDBCache(opts.dir);
   }
 
   has(key: string): Promise<boolean> {
