@@ -2,8 +2,8 @@ import assert from 'assert';
 import path from 'path';
 import {bundle, assertBundles, outputFS, distDir} from '@parcel/test-utils';
 
-describe('pug', function() {
-  it('should support bundling HTML', async function() {
+describe('pug', function () {
+  it('should support bundling HTML', async function () {
     const b = await bundle(path.join(__dirname, '/integration/pug/index.pug'));
 
     assertBundles(b, [
@@ -40,7 +40,7 @@ describe('pug', function() {
     }
   });
 
-  it('should support include and extends files, connect files', async function() {
+  it('should support include and extends files, connect files', async function () {
     const b = await bundle(
       path.join(__dirname, '/integration/pug-include-extends/index.pug'),
     );
@@ -60,7 +60,7 @@ describe('pug', function() {
     assert(html.includes('<p>And for nested.</p>'));
   });
 
-  it('should support variables', async function() {
+  it('should support variables', async function () {
     const b = await bundle(
       path.join(__dirname, '/integration/pug-var/index.pug'),
     );
@@ -81,7 +81,7 @@ describe('pug', function() {
     assert(/src="\/?100x100.*.png"/.test(html));
   });
 
-  it('should support mixins', async function() {
+  it('should support mixins', async function () {
     const b = await bundle(
       path.join(__dirname, '/integration/pug-mixins/index.pug'),
     );
@@ -98,7 +98,7 @@ describe('pug', function() {
     assert(html.includes('Greetings, Parcel'));
   });
 
-  it('should support filters', async function() {
+  it('should support filters', async function () {
     const b = await bundle(
       path.join(__dirname, '/integration/pug-filters/index.pug'),
     );
@@ -115,7 +115,7 @@ describe('pug', function() {
     assert(html.includes('FILTERED: Hello!'));
   });
 
-  it('should support locals with config file', async function() {
+  it('should support locals with config file', async function () {
     const b = await bundle(
       path.join(__dirname, '/integration/pug-locals/index.pug'),
     );
@@ -132,7 +132,7 @@ describe('pug', function() {
     assert(html.includes("It's a great!"));
   });
 
-  it('should minify HTML in production mode', async function() {
+  it('should minify HTML in production mode', async function () {
     const b = await bundle(
       path.join(__dirname, '/integration/pug-minify/index.pug'),
     );

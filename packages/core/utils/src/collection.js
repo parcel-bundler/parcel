@@ -6,14 +6,14 @@ export function unique<T>(array: Array<T>): Array<T> {
 
 export function objectSortedEntries(obj: {
   +[string]: mixed,
-  ...,
+  ...
 }): Array<[string, mixed]> {
   return Object.entries(obj).sort(([keyA], [keyB]) => keyA.localeCompare(keyB));
 }
 
 export function objectSortedEntriesDeep(object: {
   +[string]: mixed,
-  ...,
+  ...
 }): Array<[string, mixed]> {
   let sortedEntries = objectSortedEntries(object);
   for (let i = 0; i < sortedEntries.length; i++) {

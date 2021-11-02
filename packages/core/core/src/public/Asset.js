@@ -41,10 +41,8 @@ const inspect = Symbol.for('nodejs.util.inspect.custom');
 
 const uncommittedAssetValueToAsset: WeakMap<AssetValue, Asset> = new WeakMap();
 const committedAssetValueToAsset: WeakMap<AssetValue, Asset> = new WeakMap();
-const assetValueToMutableAsset: WeakMap<
-  AssetValue,
-  MutableAsset,
-> = new WeakMap();
+const assetValueToMutableAsset: WeakMap<AssetValue, MutableAsset> =
+  new WeakMap();
 
 const _assetToAssetValue: WeakMap<
   IAsset | IMutableAsset | BaseAsset,

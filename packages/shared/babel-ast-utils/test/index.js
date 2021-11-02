@@ -14,7 +14,7 @@ const options = {
 
 describe('astring babel generator', () => {
   files.forEach(filename => {
-    it(filename, function() {
+    it(filename, function () {
       const code = fs.readFileSync(
         path.join(FIXTURES_FOLDER, filename),
         'utf8',

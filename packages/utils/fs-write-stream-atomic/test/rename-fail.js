@@ -7,24 +7,24 @@ var writeStream = require('../index.js');
 
 var target = path.resolve(__dirname, 'test-rename');
 
-test('rename fails', function(t) {
+test('rename fails', function (t) {
   t.plan(1);
-  fs.rename = function(src, dest, cb) {
+  fs.rename = function (src, dest, cb) {
     cb(new Error('TEST BREAK'));
   };
   var stream = writeStream(target);
   var hadError = false;
-  stream.on('error', function(er) {
+  stream.on('error', function (er) {
     hadError = true;
     console.log('#', er);
   });
-  stream.on('close', function() {
+  stream.on('close', function () {
     t.is(hadError, true, 'error before close');
   });
   stream.end();
 });
 
-test('cleanup', function(t) {
+test('cleanup', function (t) {
   rimraf.sync(target);
   t.end();
 });
