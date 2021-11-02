@@ -232,9 +232,10 @@ class BundlerRunner {
 
     if (graph.safeToIncrementallyBundle && previousAssetGraphHash != null) {
       try {
-        previousBundleGraphResult = await this.api.getRequestResult<BundleGraphResult>(
-          'BundleGraph:' + previousAssetGraphHash,
-        );
+        previousBundleGraphResult =
+          await this.api.getRequestResult<BundleGraphResult>(
+            'BundleGraph:' + previousAssetGraphHash,
+          );
       } catch {
         // if the bundle graph had an error or was removed, don't fail the build
       }
@@ -372,9 +373,7 @@ class BundlerRunner {
     };
   }
 
-  async getHashes(
-    assetGraph: AssetGraph,
-  ): Promise<{|
+  async getHashes(assetGraph: AssetGraph): Promise<{|
     cacheKey: string,
     bundlerHash: string,
   |}> {

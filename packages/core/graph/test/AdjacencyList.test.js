@@ -231,7 +231,7 @@ describe('AdjacencyList', () => {
     AdjacencyList.prototype.hash = originalHash;
   });
 
-  describe('deserialize', function() {
+  describe('deserialize', function () {
     this.timeout(10000);
 
     it('should share the underlying data across worker threads', async () => {

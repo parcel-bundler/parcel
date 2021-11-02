@@ -2,6 +2,6 @@ import worker from './foo.worker';
 
 let instance = worker();
 
-(async function() {
+(async function () {
   console.log(await instance.foo());
 })();

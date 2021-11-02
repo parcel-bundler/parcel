@@ -24,7 +24,7 @@
  * ```
  */
 
-module.exports = function({template, types: t}) {
+module.exports = function ({template, types: t}) {
   const dummyTemplate = template`
     new Promise(() => {})
   `;
