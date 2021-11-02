@@ -14,10 +14,7 @@ export default function getExisting(
   return {
     source,
     minified: fs.existsSync(minifiedPath)
-      ? fs
-          .readFileSync(minifiedPath, 'utf8')
-          .trim()
-          .replace(/;$/, '')
+      ? fs.readFileSync(minifiedPath, 'utf8').trim().replace(/;$/, '')
       : source,
   };
 }

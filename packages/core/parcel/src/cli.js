@@ -26,13 +26,8 @@ const SIGINT_EXIT_CODE = 130;
 async function logUncaughtError(e: mixed) {
   if (e instanceof ThrowableDiagnostic) {
     for (let diagnostic of e.diagnostics) {
-      let {
-        message,
-        codeframe,
-        stack,
-        hints,
-        documentation,
-      } = await prettyDiagnostic(diagnostic);
+      let {message, codeframe, stack, hints, documentation} =
+        await prettyDiagnostic(diagnostic);
       INTERNAL_ORIGINAL_CONSOLE.error(chalk.red(message));
       if (codeframe || stack) {
         INTERNAL_ORIGINAL_CONSOLE.error('');
@@ -182,12 +177,12 @@ applyOptions(build, commonOptions);
 program
   .command('help [command]')
   .description('display help information for a command')
-  .action(function(command) {
+  .action(function (command) {
     let cmd = program.commands.find(c => c.name() === command) || program;
     cmd.help();
   });
 
-program.on('--help', function() {
+program.on('--help', function () {
   INTERNAL_ORIGINAL_CONSOLE.log('');
   INTERNAL_ORIGINAL_CONSOLE.log(
     '  Run `' +
@@ -198,7 +193,7 @@ program.on('--help', function() {
 });
 
 // Override to output option description if argument was missing
-commander.Command.prototype.optionMissingArgument = function(option) {
+commander.Command.prototype.optionMissingArgument = function (option) {
   INTERNAL_ORIGINAL_CONSOLE.error(
     "error: option `%s' argument missing",
     option.flags,
@@ -330,8 +325,9 @@ async function run(
 
     if (command.open && options.serveOptions) {
       await openInBrowser(
-        `${options.serveOptions.https ? 'https' : 'http'}://${options
-          .serveOptions.host || 'localhost'}:${options.serveOptions.port}`,
+        `${options.serveOptions.https ? 'https' : 'http'}://${
+          options.serveOptions.host || 'localhost'
+        }:${options.serveOptions.port}`,
         command.open,
       );
     }
@@ -509,9 +505,7 @@ async function normalizeOptions(
 async function exitWithFailure() {
   // Allow Sentry to flush sending any pending errors before exiting the process
   // https://docs.sentry.io/error-reporting/configuration/draining/?platform=node
-  const sentryClient = getSentry()
-    .getCurrentHub()
-    .getClient();
+  const sentryClient = getSentry().getCurrentHub().getClient();
 
   if (sentryClient != null) {
     await sentryClient.close();

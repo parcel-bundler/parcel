@@ -15,12 +15,12 @@ import {
   MockPackageInstaller,
 } from '@parcel/package-manager';
 
-describe('posthtml', function() {
+describe('posthtml', function () {
   afterEach(async () => {
     await removeDistDirectory();
   });
 
-  it('should support transforming HTML with posthtml', async function() {
+  it('should support transforming HTML with posthtml', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/posthtml/index.html'),
     );
@@ -36,7 +36,7 @@ describe('posthtml', function() {
     assert(html.includes('<h1>Other page</h1>'));
   });
 
-  it('should find assets inside posthtml', async function() {
+  it('should find assets inside posthtml', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/posthtml-assets/index.html'),
     );
@@ -53,7 +53,7 @@ describe('posthtml', function() {
     ]);
   });
 
-  it('Should be able to process an html file with plugins without any params for plugin', async function() {
+  it('Should be able to process an html file with plugins without any params for plugin', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/posthtml-plugins/index.html'),
     );

@@ -138,10 +138,8 @@ export default async function applyRuntimes({
     await runDevDepRequest(api, devDepRequest);
   }
 
-  let {
-    assetGraph: runtimesAssetGraph,
-    changedAssets,
-  } = await reconcileNewRuntimes(api, connections, optionsRef);
+  let {assetGraph: runtimesAssetGraph, changedAssets} =
+    await reconcileNewRuntimes(api, connections, optionsRef);
 
   let runtimesGraph = InternalBundleGraph.fromAssetGraph(
     runtimesAssetGraph,

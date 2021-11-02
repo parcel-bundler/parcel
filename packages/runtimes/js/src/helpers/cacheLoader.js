@@ -14,14 +14,14 @@ function getCache(type) {
 }
 
 module.exports = function cacheLoader(loader, type) {
-  return function(bundle) {
+  return function (bundle) {
     let cache = getCache(type);
 
     if (cache[bundle]) {
       return cache[bundle];
     }
 
-    return (cache[bundle] = loader.apply(null, arguments).catch(function(e) {
+    return (cache[bundle] = loader.apply(null, arguments).catch(function (e) {
       delete cache[bundle];
       throw e;
     }));

@@ -270,7 +270,7 @@ export const generator = {
 // TODO: contribute to astring.
 for (let key in generator) {
   let orig = generator[key];
-  generator[key] = function(node, state, skipComments) {
+  generator[key] = function (node, state, skipComments) {
     // These are printed by astring itself
     if (node.trailingComments) {
       for (let c of node.trailingComments) {

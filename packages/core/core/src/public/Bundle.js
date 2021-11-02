@@ -51,10 +51,8 @@ const _bundleToInternalBundle: WeakMap<IBundle, InternalBundle> = new WeakMap();
 export function bundleToInternalBundle(bundle: IBundle): InternalBundle {
   return nullthrows(_bundleToInternalBundle.get(bundle));
 }
-const _bundleToInternalBundleGraph: WeakMap<
-  IBundle,
-  BundleGraph,
-> = new WeakMap();
+const _bundleToInternalBundleGraph: WeakMap<IBundle, BundleGraph> =
+  new WeakMap();
 export function bundleToInternalBundleGraph(bundle: IBundle): BundleGraph {
   return nullthrows(_bundleToInternalBundleGraph.get(bundle));
 }
