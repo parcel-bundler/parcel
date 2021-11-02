@@ -2,8 +2,8 @@ import assert from 'assert';
 import path from 'path';
 import {bundle, run} from '@parcel/test-utils';
 
-describe('global alias', function() {
-  it('should support global alias syntax', async function() {
+describe('global alias', function () {
+  it('should support global alias syntax', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/global-alias/index.js'),
     );
@@ -11,7 +11,7 @@ describe('global alias', function() {
     assert.equal(
       await run(b, {
         React: {
-          createElement: function() {
+          createElement: function () {
             return 'ok';
           },
         },
