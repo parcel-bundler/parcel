@@ -74,8 +74,13 @@ export class LMDBCache implements Cache {
   }
 
   async setBlob(key: string, contents: Buffer | string): Promise<void> {
-    if (isLargeBlob(contents)) await this.setLargeBlob(key, contents);
-    else await this.store.put(key, contents);
+    if (isLargeBlob(contents)) {
+      // Remove the old blob if it has been 'upgraded' to large blob storage.
+      if (this.store.get(key) != null) await this.store.remove(key);
+      await this.setLargeBlob(key, contents);
+    } else {
+      await this.store.put(key, contents);
+    }
   }
 
   async getBuffer(key: string): Promise<?Buffer> {
