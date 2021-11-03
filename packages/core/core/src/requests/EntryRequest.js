@@ -314,7 +314,9 @@ export class EntryResolver {
     });
   }
 
-  async readPackage(entry: FilePath): Promise<?{
+  async readPackage(
+    entry: FilePath,
+  ): Promise<?{
     ...PackageJSON,
     filePath: FilePath,
     map: {|data: mixed, pointers: {|[string]: Mapping|}|},

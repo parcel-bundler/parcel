@@ -9,8 +9,8 @@ import {
   ncp,
 } from '@parcel/test-utils';
 
-describe('typescript types', function () {
-  it('should generate a typescript declaration file', async function () {
+describe('typescript types', function() {
+  it('should generate a typescript declaration file', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/ts-types/main/index.ts'),
     );
@@ -39,7 +39,7 @@ describe('typescript types', function () {
     assert.equal(dist, expected);
   });
 
-  it('should generate ts declarations with imports', async function () {
+  it('should generate ts declarations with imports', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/ts-types/importing/index.ts'),
     );
@@ -68,7 +68,7 @@ describe('typescript types', function () {
     assert.equal(dist, expected);
   });
 
-  it('should generate ts declarations with imports and naming collisions', async function () {
+  it('should generate ts declarations with imports and naming collisions', async function() {
     let b = await bundle(
       path.join(
         __dirname,
@@ -106,7 +106,7 @@ describe('typescript types', function () {
     assert.equal(dist, expected);
   });
 
-  it('should generate ts declarations with exports', async function () {
+  it('should generate ts declarations with exports', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/ts-types/exporting/index.ts'),
     );
@@ -135,7 +135,7 @@ describe('typescript types', function () {
     assert.equal(dist, expected);
   });
 
-  it('should generate ts declarations with export of an overloaded function signature', async function () {
+  it('should generate ts declarations with export of an overloaded function signature', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/ts-types/exporting-overload/index.ts'),
     );
@@ -170,7 +170,7 @@ describe('typescript types', function () {
     assert.equal(dist, expected);
   });
 
-  it('should generate ts declarations with externals', async function () {
+  it('should generate ts declarations with externals', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/ts-types/externals/index.tsx'),
     );
@@ -199,7 +199,7 @@ describe('typescript types', function () {
     assert.equal(dist, expected);
   });
 
-  it('should generate ts declarations with externals that conflict with exported names', async function () {
+  it('should generate ts declarations with externals that conflict with exported names', async function() {
     let b = await bundle(
       path.join(
         __dirname,
@@ -237,7 +237,7 @@ describe('typescript types', function () {
     assert.equal(dist, expected);
   });
 
-  it('should remove private properties', async function () {
+  it('should remove private properties', async function() {
     await bundle(
       path.join(__dirname, '/integration/ts-types/private/index.ts'),
     );
@@ -255,7 +255,7 @@ describe('typescript types', function () {
     assert.equal(dist, expected);
   });
 
-  it('should not throw errors on typing of a callback which returns a promise or value', async function () {
+  it('should not throw errors on typing of a callback which returns a promise or value', async function() {
     await bundle(
       path.join(__dirname, '/integration/ts-types/promise-or-value/index.ts'),
     );
@@ -280,7 +280,7 @@ describe('typescript types', function () {
     assert.equal(dist, expected);
   });
 
-  it('should correctly reference unbuilt monorepo packages', async function () {
+  it('should correctly reference unbuilt monorepo packages', async function() {
     let fixtureDir = path.join(__dirname, 'integration/ts-types/monorepo');
     await outputFS.mkdirp(path.join(fixtureDir, 'node_modules'));
     await ncp(fixtureDir, fixtureDir);
@@ -306,7 +306,7 @@ describe('typescript types', function () {
     assert(/import\s*{\s*B\s*}\s*from\s*"b";/.test(dist));
   });
 
-  it('should generate a typescript declaration file even when composite is true', async function () {
+  it('should generate a typescript declaration file even when composite is true', async function() {
     await bundle(
       path.join(__dirname, '/integration/ts-types/composite/index.ts'),
     );

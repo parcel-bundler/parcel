@@ -138,8 +138,9 @@ async function replaceInlineAssetContent(
 
     if (newContent != null) {
       let {contents, bundle} = newContent;
-      node.content = (
-        contents instanceof Readable ? await bufferStream(contents) : contents
+      node.content = (contents instanceof Readable
+        ? await bufferStream(contents)
+        : contents
       ).toString();
 
       if (

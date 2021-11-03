@@ -121,8 +121,9 @@ export default function codeFrame(
 
   // Split input into lines and highlight syntax
   let lines = code.split(NEWLINE);
-  let syntaxHighlightedLines = (
-    opts.syntaxHighlighting ? highlightSyntax(code, opts.language) : code
+  let syntaxHighlightedLines = (opts.syntaxHighlighting
+    ? highlightSyntax(code, opts.language)
+    : code
   )
     .replace(TAB_REPLACE_REGEX, TAB_REPLACEMENT)
     .split(NEWLINE);

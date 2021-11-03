@@ -6,7 +6,7 @@ export default function debounce<TArgs: Array<mixed>>(
 ): (...args: TArgs) => void {
   let timeout;
 
-  return function (...args: TArgs) {
+  return function(...args: TArgs) {
     if (timeout) {
       clearTimeout(timeout);
     }

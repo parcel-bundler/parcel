@@ -596,7 +596,12 @@ class AdjacencyList<TEdgeType> {
   }
 
   hasEdge(from: NodeId, to: NodeId, type: TEdgeType): boolean {
-    return Boolean(this._listMap.get(from)?.get(type)?.has(to));
+    return Boolean(
+      this._listMap
+        .get(from)
+        ?.get(type)
+        ?.has(to),
+    );
   }
 
   addEdge(from: NodeId, to: NodeId, type: TEdgeType): void {
@@ -615,6 +620,9 @@ class AdjacencyList<TEdgeType> {
   }
 
   removeEdge(from: NodeId, to: NodeId, type: TEdgeType): void {
-    this._listMap.get(from)?.get(type)?.delete(to);
+    this._listMap
+      .get(from)
+      ?.get(type)
+      ?.delete(to);
   }
 }

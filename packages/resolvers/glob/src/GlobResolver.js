@@ -141,11 +141,12 @@ function generate(matches, isAsync, indent = '', count = 0) {
       res += ',';
     }
 
-    let {
-      imports: i,
-      value,
-      count: c,
-    } = generate(matches[key], isAsync, indent + '  ', count);
+    let {imports: i, value, count: c} = generate(
+      matches[key],
+      isAsync,
+      indent + '  ',
+      count,
+    );
     imports += `${i}\n`;
     count = c;
 

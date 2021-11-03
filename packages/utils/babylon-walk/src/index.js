@@ -106,8 +106,9 @@ export function recursive<T>(
 ) {
   if (!node) return;
 
-  const visitors =
-    explode<(any, T, recurse: (Node) => void) => void>(_visitors);
+  const visitors = explode<(any, T, recurse: (Node) => void) => void>(
+    _visitors,
+  );
 
   (function c(node) {
     if (!node) return;

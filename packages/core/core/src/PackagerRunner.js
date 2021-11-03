@@ -589,7 +589,9 @@ export default class PackagerRunner {
     return devDepHashes;
   }
 
-  async readFromCache(cacheKey: string): Promise<?{|
+  async readFromCache(
+    cacheKey: string,
+  ): Promise<?{|
     contents: Readable,
     map: ?Readable,
   |}> {

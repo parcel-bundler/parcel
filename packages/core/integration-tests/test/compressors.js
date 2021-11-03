@@ -3,8 +3,8 @@ import path from 'path';
 import zlib from 'zlib';
 import {bundle, outputFS, distDir} from '@parcel/test-utils';
 
-describe('compressors', function () {
-  it('should compress output with gzip and brotli', async function () {
+describe('compressors', function() {
+  it('should compress output with gzip and brotli', async function() {
     await bundle(path.join(__dirname, 'integration/compressors/index.js'));
 
     let output = await outputFS.readdir(distDir);
@@ -25,7 +25,7 @@ describe('compressors', function () {
     assert(zlib.brotliDecompressSync(br).equals(raw));
   });
 
-  it('should be able to disable raw output', async function () {
+  it('should be able to disable raw output', async function() {
     await bundle(
       path.join(__dirname, 'integration/compressors-disable-default/index.js'),
     );

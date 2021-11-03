@@ -2,8 +2,8 @@ import assert from 'assert';
 import {bundle, outputFS} from '@parcel/test-utils';
 import path from 'path';
 
-describe('svg-react', function () {
-  it('should support transforming SVGs to react components', async function () {
+describe('svg-react', function() {
+  it('should support transforming SVGs to react components', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/svg-react/react.js'),
       {

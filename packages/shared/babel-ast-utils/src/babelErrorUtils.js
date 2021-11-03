@@ -20,7 +20,10 @@ export async function babelErrorEnhancer(
     let start = error.message.startsWith(asset.filePath)
       ? asset.filePath.length + 1
       : 0;
-    error.message = error.message.slice(start).split('\n')[0].trim();
+    error.message = error.message
+      .slice(start)
+      .split('\n')[0]
+      .trim();
   }
 
   error.source = await asset.getCode();

@@ -37,8 +37,10 @@ export default (new Transformer({
     let ast = nullthrows(await asset.getAST());
     let hasScripts = collectDependencies(asset, ast);
 
-    const {assets: inlineAssets, hasScripts: hasInlineScripts} =
-      extractInlineAssets(asset, ast);
+    const {
+      assets: inlineAssets,
+      hasScripts: hasInlineScripts,
+    } = extractInlineAssets(asset, ast);
 
     const result = [asset, ...inlineAssets];
 

@@ -53,7 +53,9 @@ export class FSHost {
     }
   }
 
-  getAccessibleFileSystemEntries(dirPath: FilePath): {|
+  getAccessibleFileSystemEntries(
+    dirPath: FilePath,
+  ): {|
     directories: Array<FilePath>,
     files: Array<FilePath>,
   |} {

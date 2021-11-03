@@ -3,8 +3,8 @@ import path from 'path';
 import {bundle, assertBundles, inputFS, outputFS} from '@parcel/test-utils';
 import {md} from '@parcel/diagnostic';
 
-describe('webmanifest', function () {
-  it('should support .webmanifest', async function () {
+describe('webmanifest', function() {
+  it('should support .webmanifest', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/webmanifest/index.html'),
     );
@@ -36,7 +36,7 @@ describe('webmanifest', function () {
     assert(/icon\.[0-9a-f]+\.png/.test(manifest));
   });
 
-  it('should support .json', async function () {
+  it('should support .json', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/webmanifest-json/index.html'),
     );
@@ -68,7 +68,7 @@ describe('webmanifest', function () {
     assert(/icon\.[0-9a-f]+\.png/.test(manifest));
   });
 
-  it('should throw on malformed icons and screenshots', async function () {
+  it('should throw on malformed icons and screenshots', async function() {
     let manifestPath = path.join(
       __dirname,
       '/integration/webmanifest-schema/manifest.webmanifest',
@@ -135,7 +135,7 @@ describe('webmanifest', function () {
     );
   });
 
-  it('should throw on missing dependency', async function () {
+  it('should throw on missing dependency', async function() {
     let manifestPathRelative =
       './integration/webmanifest-not-found/manifest.webmanifest';
     let manifestPath = path.join(__dirname, manifestPathRelative);
@@ -186,7 +186,7 @@ describe('webmanifest', function () {
     );
   });
 
-  it('should work when there is a target in package.json', async function () {
+  it('should work when there is a target in package.json', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/webmanifest-targets/index.html'),
     );

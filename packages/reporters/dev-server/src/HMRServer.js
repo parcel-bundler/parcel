@@ -132,8 +132,9 @@ export default class HMRServer {
           for (let dep of dependencies) {
             let resolved = event.bundleGraph.getResolvedAsset(dep, bundle);
             if (resolved) {
-              deps[getSpecifier(dep)] =
-                event.bundleGraph.getAssetPublicId(resolved);
+              deps[getSpecifier(dep)] = event.bundleGraph.getAssetPublicId(
+                resolved,
+              );
             }
           }
           depsByBundle[bundle.id] = deps;

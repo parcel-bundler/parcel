@@ -783,7 +783,9 @@ export default class RequestTracker {
     this.signal = signal;
   }
 
-  startRequest(request: StoredRequest): {|
+  startRequest(
+    request: StoredRequest,
+  ): {|
     requestNodeId: NodeId,
     deferred: Deferred<boolean>,
   |} {

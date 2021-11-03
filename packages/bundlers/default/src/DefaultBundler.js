@@ -246,8 +246,9 @@ export default (new Bundler({
       );
 
       for (let candidate of candidates) {
-        let bundleGroups =
-          bundleGraph.getBundleGroupsContainingBundle(candidate);
+        let bundleGroups = bundleGraph.getBundleGroupsContainingBundle(
+          candidate,
+        );
         if (
           Array.from(bundleGroups).every(
             group =>

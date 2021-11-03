@@ -3,7 +3,7 @@ import os from 'os';
 
 import getCores, {detectRealCores} from '../src/cpuCount';
 
-describe('cpuCount', function () {
+describe('cpuCount', function() {
   it('Should be able to detect real cpu count', () => {
     // Windows not supported as getting the cpu count takes a couple seconds...
     if (os.platform() === 'win32') return;

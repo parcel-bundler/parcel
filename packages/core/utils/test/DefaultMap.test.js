@@ -5,13 +5,10 @@ import {DefaultMap} from '../src/DefaultMap';
 
 describe('DefaultMap', () => {
   it('constructs with entries just like Map', () => {
-    let map = new DefaultMap(
-      k => k,
-      [
-        [1, 3],
-        [2, 27],
-      ],
-    );
+    let map = new DefaultMap(k => k, [
+      [1, 3],
+      [2, 27],
+    ]);
     assert.equal(map.get(1), 3);
     assert.deepEqual(Array.from(map.entries()), [
       [1, 3],

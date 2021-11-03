@@ -2,8 +2,8 @@ import assert from 'assert';
 import path from 'path';
 import {bundle, assertBundles, outputFS} from '@parcel/test-utils';
 
-describe('xml', function () {
-  it('should transform an atom feed', async function () {
+describe('xml', function() {
+  it('should transform an atom feed', async function() {
     let b = await bundle(path.join(__dirname, '/integration/xml/atom.xml'), {
       defaultTargetOptions: {
         publicUrl: 'http://example.org/',
@@ -40,7 +40,7 @@ describe('xml', function () {
     assert(contents.includes(`<link href="http://example.org/post.html"/>`));
   });
 
-  it('should transform an atom feed with namespaced elements', async function () {
+  it('should transform an atom feed with namespaced elements', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/xml/atom-namespace.xml'),
       {
@@ -82,7 +82,7 @@ describe('xml', function () {
     );
   });
 
-  it('should transform an rss feed', async function () {
+  it('should transform an rss feed', async function() {
     let b = await bundle(path.join(__dirname, '/integration/xml/rss.xml'), {
       defaultTargetOptions: {
         publicUrl: 'http://example.org/',

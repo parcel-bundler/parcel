@@ -47,11 +47,11 @@ function get(file, port, client = http) {
   });
 }
 
-describe('proxy', function () {
+describe('proxy', function() {
   let subscription;
   let cwd;
   let server;
-  beforeEach(function () {
+  beforeEach(function() {
     cwd = inputFS.cwd();
   });
 
@@ -67,7 +67,7 @@ describe('proxy', function () {
     server = null;
   });
 
-  it('should handle proxy table written in .proxyrc', async function () {
+  it('should handle proxy table written in .proxyrc', async function() {
     let dir = path.join(__dirname, 'integration/proxyrc');
     inputFS.chdir(dir);
 
@@ -93,7 +93,7 @@ describe('proxy', function () {
     assert.equal(data, 'Request URL: /api/get');
   });
 
-  it('should handle proxy table written in .proxyrc.json', async function () {
+  it('should handle proxy table written in .proxyrc.json', async function() {
     let dir = path.join(__dirname, 'integration/proxyrc-json');
     inputFS.chdir(dir);
 
@@ -119,7 +119,7 @@ describe('proxy', function () {
     assert.equal(data, 'Request URL: /api/get');
   });
 
-  it('should handle proxy table written in .proxyrc.js', async function () {
+  it('should handle proxy table written in .proxyrc.js', async function() {
     let dir = path.join(__dirname, 'integration/proxyrc-js');
     inputFS.chdir(dir);
 

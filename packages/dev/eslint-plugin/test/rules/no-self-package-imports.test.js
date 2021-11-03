@@ -20,7 +20,8 @@ new RuleTester({
   ],
   invalid: [
     {
-      code: "require('@parcel/eslint-plugin/lib/rules/no-self-package-imports');",
+      code:
+        "require('@parcel/eslint-plugin/lib/rules/no-self-package-imports');",
       errors: [{message}],
       filename,
       output: "require('../../lib/rules/no-self-package-imports');",
@@ -32,7 +33,8 @@ new RuleTester({
       output: "require('../../');",
     },
     {
-      code: "require.resolve('@parcel/eslint-plugin/lib/rules/no-self-package-imports');",
+      code:
+        "require.resolve('@parcel/eslint-plugin/lib/rules/no-self-package-imports');",
       filename,
       errors: [{message}],
       output: "require.resolve('../../lib/rules/no-self-package-imports');",
@@ -44,7 +46,8 @@ new RuleTester({
       output: "import rule from '../../';",
     },
     {
-      code: "import rule from '@parcel/eslint-plugin/lib/rules/no-self-package-imports';",
+      code:
+        "import rule from '@parcel/eslint-plugin/lib/rules/no-self-package-imports';",
       filename,
       errors: [{message}],
       output: "import rule from '../../lib/rules/no-self-package-imports';",

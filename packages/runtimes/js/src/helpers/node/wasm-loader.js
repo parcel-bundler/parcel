@@ -2,8 +2,8 @@ const fs = require('fs');
 const cacheLoader = require('../cacheLoader');
 
 module.exports = cacheLoader(function loadWASMBundle(bundle) {
-  return new Promise(function (resolve, reject) {
-    fs.readFile(__dirname + bundle, function (err, data) {
+  return new Promise(function(resolve, reject) {
+    fs.readFile(__dirname + bundle, function(err, data) {
       if (err) {
         reject(err);
       } else {
@@ -11,10 +11,10 @@ module.exports = cacheLoader(function loadWASMBundle(bundle) {
       }
     });
   })
-    .then(function (data) {
+    .then(function(data) {
       return WebAssembly.instantiate(data);
     })
-    .then(function (wasmModule) {
+    .then(function(wasmModule) {
       return wasmModule.instance.exports;
     });
 });

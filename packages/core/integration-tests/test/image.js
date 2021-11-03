@@ -4,7 +4,7 @@ import exifReader from 'exif-reader';
 import path from 'path';
 import sharp from 'sharp';
 
-describe('image', function () {
+describe('image', function() {
   this.timeout(10000);
 
   it('Should be able to resize images', async () => {
@@ -90,7 +90,7 @@ describe('image', function () {
     });
   });
 
-  it('should lossless optimise JPEGs', async function () {
+  it('should lossless optimise JPEGs', async function() {
     let img = path.join(__dirname, '/integration/image/image.jpg');
     let b = await bundle(img, {
       defaultTargetOptions: {
@@ -101,15 +101,19 @@ describe('image', function () {
     const imagePath = b.getBundles().find(b => b.type === 'jpg').filePath;
 
     let input = await inputFS.readFile(img);
-    let inputRaw = await sharp(input).toFormat('raw').toBuffer();
+    let inputRaw = await sharp(input)
+      .toFormat('raw')
+      .toBuffer();
     let output = await outputFS.readFile(imagePath);
-    let outputRaw = await sharp(output).toFormat('raw').toBuffer();
+    let outputRaw = await sharp(output)
+      .toFormat('raw')
+      .toBuffer();
 
     assert(outputRaw.equals(inputRaw));
     assert(output.length < input.length);
   });
 
-  it('should lossless optimise progressive JPEGs', async function () {
+  it('should lossless optimise progressive JPEGs', async function() {
     let img = path.join(__dirname, '/integration/image/banana.jpg');
     let b = await bundle(img, {
       defaultTargetOptions: {
@@ -126,13 +130,15 @@ describe('image', function () {
     //   .toBuffer();
     // Check validity of image
     let output = await outputFS.readFile(imagePath);
-    await sharp(output).toFormat('raw').toBuffer();
+    await sharp(output)
+      .toFormat('raw')
+      .toBuffer();
 
     // assert(outputRaw.equals(inputRaw));
     // assert(output.length < input.length);
   });
 
-  it('should lossless optimise PNGs', async function () {
+  it('should lossless optimise PNGs', async function() {
     let img = path.join(__dirname, '/integration/image/clock.png');
     let b = await bundle(img, {
       defaultTargetOptions: {
@@ -143,15 +149,19 @@ describe('image', function () {
     const imagePath = b.getBundles().find(b => b.type === 'png').filePath;
 
     let input = await inputFS.readFile(img);
-    let inputRaw = await sharp(input).toFormat('raw').toBuffer();
+    let inputRaw = await sharp(input)
+      .toFormat('raw')
+      .toBuffer();
     let output = await outputFS.readFile(imagePath);
-    let outputRaw = await sharp(output).toFormat('raw').toBuffer();
+    let outputRaw = await sharp(output)
+      .toFormat('raw')
+      .toBuffer();
 
     assert(outputRaw.equals(inputRaw));
     assert(output.length < input.length);
   });
 
-  it('support config files for jpeg files', async function () {
+  it('support config files for jpeg files', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/image-config/image.jpg'),
       {
@@ -173,7 +183,7 @@ describe('image', function () {
     assert(image.size < originalSize);
   });
 
-  it('support config files for png files', async function () {
+  it('support config files for png files', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/image-config/clock.png'),
       {

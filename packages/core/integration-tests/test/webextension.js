@@ -2,8 +2,8 @@ import assert from 'assert';
 import path from 'path';
 import {bundle, assertBundles, outputFS} from '@parcel/test-utils';
 
-describe('webextension', function () {
-  it('should resolve a full webextension bundle', async function () {
+describe('webextension', function() {
+  it('should resolve a full webextension bundle', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/webextension/manifest.json'),
     );
@@ -39,7 +39,7 @@ describe('webextension', function () {
     ]);
   });
 
-  it('should resolve the web_accessible_resources globs', async function () {
+  it('should resolve the web_accessible_resources globs', async function() {
     let b = await bundle(
       path.join(
         __dirname,

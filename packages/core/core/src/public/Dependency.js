@@ -26,8 +26,10 @@ const PriorityNames = Object.keys(Priority);
 
 const inspect = Symbol.for('nodejs.util.inspect.custom');
 
-const internalDependencyToDependency: WeakMap<InternalDependency, Dependency> =
-  new WeakMap();
+const internalDependencyToDependency: WeakMap<
+  InternalDependency,
+  Dependency,
+> = new WeakMap();
 const _dependencyToInternalDependency: WeakMap<
   IDependency,
   InternalDependency,

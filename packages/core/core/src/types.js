@@ -148,8 +148,9 @@ export const BundleBehavior = {
   isolated: 1,
 };
 
-export const BundleBehaviorNames: Array<$Keys<typeof BundleBehavior>> =
-  Object.keys(BundleBehavior);
+export const BundleBehaviorNames: Array<
+  $Keys<typeof BundleBehavior>,
+> = Object.keys(BundleBehavior);
 
 export type Asset = {|
   id: ContentKey,

@@ -47,8 +47,7 @@ type BundleFactory<TBundle: IBundle> = (
 ) => TBundle;
 
 export default class BundleGraph<TBundle: IBundle>
-  implements IBundleGraph<TBundle>
-{
+  implements IBundleGraph<TBundle> {
   #graph: InternalBundleGraph;
   #options: ParcelOptions;
   #createBundle: BundleFactory<TBundle>;
