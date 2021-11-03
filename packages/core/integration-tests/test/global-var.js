@@ -96,7 +96,7 @@ describe('global-var', function() {
     assert.equal(output.contents.substr(output.contents.length - 3), '();');
   });
 
-  it('PluginOptions should contain the global value', async function() {
+  it('PluginOptions should contain the global value', function() {
     const pluginOptions = new PluginOptions({
       global: 'hello-world',
     });
