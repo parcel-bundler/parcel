@@ -148,7 +148,7 @@ export class DevPackager {
       mainEntry = null;
     }
 
-    let globalVar = this.options.global === '' ? null : this.options.global;
+    let globalVar = this.options.global || '';
 
     let contents =
       prefix +
