@@ -5,7 +5,8 @@
   "private": true,
   "scripts": {
     "build": "PARCEL_WORKERS=0 yarn parcel src/index.js --no-cache --global ListChecker",
-    "clean-demo": "rm -rf .parcel-cache dist && yarn demo"
+    "clean-demo": "rm -rf .parcel-cache dist && yarn demo",
+    "serve": "yarn parcel serve src/index.html"
   },
   "devDependencies": {
     "@parcel/babel-register": "^2.0.0",

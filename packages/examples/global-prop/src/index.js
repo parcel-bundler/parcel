@@ -1,13 +1,10 @@
 import {isArray} from 'lodash';
 import {findIndex} from 'lodash';
 
-class ListChecker {
-  checkIsList(list) {
-    return isArray(list);
-  }
-  hasItem(list, item) {
-    return findIndex(list, x => x === item) !== -1;
-  }
+export function checkIsList(list) {
+  return isArray(list);
 }
 
-export default ListChecker;
+export function hasItem(list, item) {
+  return findIndex(list, x => x === item) !== -1;
+}
