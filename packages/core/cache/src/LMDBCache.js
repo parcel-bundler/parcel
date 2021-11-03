@@ -58,9 +58,9 @@ export class LMDBCache implements Cache {
   }
 
   getStream(key: string): Readable {
-    return blobToStream(
-      this.store.get(key) ?? this.fs.readFileSync(path.join(this.dir, key)),
-    );
+    let buf = this.store.get(key);
+    if (buf != null) return blobToStream(buf);
+    return this.fs.createReadStream(path.join(this.dir, key));
   }
 
   async setStream(key: string, stream: Readable): Promise<void> {
