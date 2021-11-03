@@ -14,7 +14,7 @@ const tscConfig = path.join(
   '/integration/typescript-config/.parcelrc',
 );
 
-describe('typescript', function() {
+describe('typescript', function () {
   // This tests both the SWC transformer implementation of typescript (which
   // powers typescript by default in Parcel) as well as through the Typescript
   // tsc transformer. Use a null config to indicate the default config, and the
@@ -25,7 +25,7 @@ describe('typescript', function() {
     null /* default config -- testing SWC typescript */,
     tscConfig,
   ]) {
-    it('should produce a ts bundle using ES6 imports', async function() {
+    it('should produce a ts bundle using ES6 imports', async function () {
       let b = await bundle(
         path.join(__dirname, '/integration/typescript/index.ts'),
         {config},
@@ -43,7 +43,7 @@ describe('typescript', function() {
       assert.equal(output.count(), 3);
     });
 
-    it('should produce a ts bundle using commonJS require', async function() {
+    it('should produce a ts bundle using commonJS require', async function () {
       let b = await bundle(
         path.join(__dirname, '/integration/typescript-require/index.ts'),
         {config},
@@ -61,7 +61,7 @@ describe('typescript', function() {
       assert.equal(output.count(), 3);
     });
 
-    it('should support json require', async function() {
+    it('should support json require', async function () {
       let b = await bundle(
         path.join(__dirname, '/integration/typescript-json/index.ts'),
       );
@@ -74,7 +74,7 @@ describe('typescript', function() {
       assert.equal(output.count(), 3);
     });
 
-    it('should support env variables', async function() {
+    it('should support env variables', async function () {
       let b = await bundle(
         path.join(__dirname, '/integration/typescript-env/index.ts'),
         {config},
@@ -92,7 +92,7 @@ describe('typescript', function() {
       assert.equal(output.env(), 'test');
     });
 
-    it('should support importing a URL to a raw asset', async function() {
+    it('should support importing a URL to a raw asset', async function () {
       let b = await bundle(
         path.join(__dirname, '/integration/typescript-raw/index.ts'),
         {config},
@@ -119,7 +119,7 @@ describe('typescript', function() {
       );
     });
 
-    it('should minify with minify enabled', async function() {
+    it('should minify with minify enabled', async function () {
       let b = await bundle(
         path.join(__dirname, '/integration/typescript-require/index.ts'),
         {
@@ -145,7 +145,7 @@ describe('typescript', function() {
       assert(!js.includes('local.a'));
     });
 
-    it('should support compiling JSX', async function() {
+    it('should support compiling JSX', async function () {
       await bundle(
         path.join(__dirname, '/integration/typescript-jsx/index.tsx'),
         {config},
@@ -158,7 +158,7 @@ describe('typescript', function() {
       assert(file.includes('React.createElement("div"'));
     });
 
-    it('should use esModuleInterop by default', async function() {
+    it('should use esModuleInterop by default', async function () {
       let b = await bundle(
         path.join(__dirname, '/integration/typescript-interop/index.ts'),
         {config},
@@ -176,7 +176,7 @@ describe('typescript', function() {
       assert.equal(output.test(), 'test passed');
     });
 
-    it('fs.readFileSync should inline a file as a string', async function() {
+    it('fs.readFileSync should inline a file as a string', async function () {
       if (config != null) {
         return;
       }
@@ -194,7 +194,7 @@ describe('typescript', function() {
       });
     });
 
-    it('should handle legacy cast in .ts file', async function() {
+    it('should handle legacy cast in .ts file', async function () {
       if (config != null) {
         return;
       }
@@ -204,7 +204,7 @@ describe('typescript', function() {
       );
     });
 
-    it('should handle compile enums correctly', async function() {
+    it('should handle compile enums correctly', async function () {
       if (config != null) {
         return;
       }

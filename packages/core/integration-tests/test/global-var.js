@@ -6,9 +6,9 @@ import {ScopeHoistingPackager} from '../../../packagers/js/src/ScopeHoistingPack
 import PluginOptions from '@parcel/core/src/public/PluginOptions';
 import resolveOptions from '@parcel/core/src/resolveOptions';
 
-describe('global-var', function() {
-  describe('bundle', function() {
-    it('should pass the global var', async function() {
+describe('global-var', function () {
+  describe('bundle', function () {
+    it('should pass the global var', async function () {
       const b = await bundle(
         path.join(__dirname, '/integration/global-var/index.js'),
       );
@@ -28,7 +28,7 @@ describe('global-var', function() {
       );
     });
 
-    it('should mount as commonjs', async function() {
+    it('should mount as commonjs', async function () {
       const b = await bundle(
         path.join(__dirname, '/integration/global-var/index.js'),
       );
@@ -52,7 +52,7 @@ describe('global-var', function() {
       assert.equal(result.default.mount(), 'Hello World');
     });
 
-    it('should have the globalName', async function() {
+    it('should have the globalName', async function () {
       const b = await bundle(
         path.join(__dirname, '/integration/global-var/index.js'),
       );
@@ -75,7 +75,7 @@ describe('global-var', function() {
       assert.equal(result['hello-world'].default.mount(), 'Hello World');
     });
 
-    it('should not use globalName when hoisted', async function() {
+    it('should not use globalName when hoisted', async function () {
       const b = await bundle(
         path.join(__dirname, '/integration/global-var/index.js'),
         {
@@ -98,8 +98,8 @@ describe('global-var', function() {
     });
   });
 
-  describe('plugin options', function() {
-    it('should contain the global value', function() {
+  describe('plugin options', function () {
+    it('should contain the global value', function () {
       const pluginOptions = new PluginOptions({
         global: 'hello-world',
       });
@@ -107,8 +107,8 @@ describe('global-var', function() {
     });
   });
 
-  describe('resolve options', function() {
-    it('resolveOptions should resolve global value', async function() {
+  describe('resolve options', function () {
+    it('resolveOptions should resolve global value', async function () {
       const result = await resolveOptions({
         global: 'hello-world',
       });

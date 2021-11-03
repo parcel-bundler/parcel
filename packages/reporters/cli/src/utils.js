@@ -9,7 +9,7 @@ import stripAnsi from 'strip-ansi';
 
 export type PadAlign = 'left' | 'right';
 let terminalSize = termSize();
-process.stdout.on('resize', function() {
+process.stdout.on('resize', function () {
   terminalSize = termSize();
 });
 
