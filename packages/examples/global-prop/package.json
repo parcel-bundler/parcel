@@ -1,18 +1,17 @@
 {
-  "name": "@parcel/global-prop",
+  "name": "@parcel/global-prop-example",
   "version": "2.0.0",
   "license": "MIT",
   "private": true,
   "scripts": {
-    "build": "PARCEL_WORKERS=0 yarn parcel src/index.js --no-cache --global ListChecker",
+    "build": "PARCEL_WORKERS=0 yarn parcel build ./ --no-cache --global ListChecker",
     "clean-demo": "rm -rf .parcel-cache dist && yarn demo",
     "serve": "yarn parcel serve src/index.html"
   },
   "devDependencies": {
-    "@parcel/babel-register": "^2.0.0",
     "@parcel/core": "^2.0.0"
   },
-  "modules": "dist/bundle.js",
+  "modules": "dist/index.js",
   "targets": {
     "modules": {
       "context": "browser",
