@@ -99,9 +99,8 @@ export class DevPackager {
         for (let dep of dependencies) {
           let resolved = this.bundleGraph.getResolvedAsset(dep, this.bundle);
           if (resolved) {
-            deps[getSpecifier(dep)] = this.bundleGraph.getAssetPublicId(
-              resolved,
-            );
+            deps[getSpecifier(dep)] =
+              this.bundleGraph.getAssetPublicId(resolved);
           }
         }
 

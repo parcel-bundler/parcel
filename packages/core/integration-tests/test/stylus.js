@@ -8,8 +8,8 @@ import {
   outputFS,
 } from '@parcel/test-utils';
 
-describe('stylus', function() {
-  it('should support requiring stylus files', async function() {
+describe('stylus', function () {
+  it('should support requiring stylus files', async function () {
     let b = await bundle(path.join(__dirname, '/integration/stylus/index.js'));
 
     assertBundles(b, [
@@ -31,7 +31,7 @@ describe('stylus', function() {
     assert(css.includes('.index'));
   });
 
-  it('should support requiring stylus files with dependencies', async function() {
+  it('should support requiring stylus files with dependencies', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/stylus-deps/index.js'),
     );
@@ -61,7 +61,7 @@ describe('stylus', function() {
     assert(css.includes('.foo'));
   });
 
-  it('should support linking to assets with url() from stylus', async function() {
+  it('should support linking to assets with url() from stylus', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/stylus-url/index.js'),
     );
@@ -97,7 +97,7 @@ describe('stylus', function() {
     );
   });
 
-  it('should ignore paths starting with "#" when resolving with stylus url()', async function() {
+  it('should ignore paths starting with "#" when resolving with stylus url()', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/stylus-id-url/index.js'),
     );
@@ -122,7 +122,7 @@ describe('stylus', function() {
     assert(css.includes('.svg-background'));
   });
 
-  it('should support transforming stylus with css modules', async function() {
+  it('should support transforming stylus with css modules', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/stylus-postcss/index.js'),
     );
@@ -146,7 +146,7 @@ describe('stylus', function() {
     assert(css.includes('._index_'));
   });
 
-  it('should support requiring stylus files with glob dependencies', async function() {
+  it('should support requiring stylus files with glob dependencies', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/stylus-glob-import/index.js'),
     );
