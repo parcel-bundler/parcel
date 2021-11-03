@@ -16,7 +16,7 @@ export function hashStream(stream: Readable): Promise<string> {
       .on('data', chunk => {
         hash.writeBuffer(chunk);
       })
-      .on('end', function() {
+      .on('end', function () {
         resolve(hash.finish());
       })
       .on('error', err => {
