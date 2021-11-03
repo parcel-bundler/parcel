@@ -318,8 +318,7 @@ export type InitialParcelOptions = {|
     resolveFrom: FilePath,
   |}>,
 
-  // throwErrors
-  // global?
+  global?: string,
 |};
 
 export type InitialServerOptions = {|
