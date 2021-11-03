@@ -4,7 +4,7 @@
   "license": "MIT",
   "private": true,
   "scripts": {
-    "build": "PARCEL_WORKERS=0 parcel src/index.js --no-cache",
+    "build": "PARCEL_WORKERS=0 yarn parcel src/index.js --no-cache --global ListChecker",
     "clean-demo": "rm -rf .parcel-cache dist && yarn demo"
   },
   "devDependencies": {
@@ -24,8 +24,6 @@
     }
   },
   "dependencies": {
-    "lodash": "^4.17.11",
-    "react": "^16.6.3",
-    "react-dom": "^16.6.3"
+    "lodash": "^4.17.11"
   }
 }

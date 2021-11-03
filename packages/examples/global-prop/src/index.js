@@ -1,9 +1,13 @@
 import {isArray} from 'lodash';
+import {findIndex} from 'lodash';
 
-const Module = {
-  name: 'Test Module',
-  mount: () => console.log('mount', isArray([])),
-  unmount: () => console.log('unmount', isArray([])),
-};
+class ListChecker {
+  checkIsList(list) {
+    return isArray(list);
+  }
+  hasItem(list, item) {
+    return findIndex(list, x => x === item) !== -1;
+  }
+}
 
-export default Module;
+export default ListChecker;
