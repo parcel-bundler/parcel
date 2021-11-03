@@ -271,6 +271,7 @@ export type ParcelOptions = {|
   |}>,
 
   instanceId: string,
+  global?: string,
 
   +defaultTargetOptions: {|
     +shouldOptimize: boolean,
