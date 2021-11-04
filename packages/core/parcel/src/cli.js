@@ -142,6 +142,7 @@ let serve = program
     '--lazy',
     'Build async bundles on demand, when requested in the browser',
   )
+  .option('--prod', 'TODO')
   .action(runCommand);
 
 applyOptions(serve, hmrOptions);
@@ -442,6 +443,10 @@ async function normalizeOptions(
     };
   }
 
+  if (command.prod === true) {
+    command.hmr == false;
+  }
+
   let hmrOptions = null;
   if (command.name() !== 'build' && command.hmr !== false) {
     let hmrport = command.hmrPort ? parsePort(command.hmrPort) : port;
@@ -461,7 +466,8 @@ async function normalizeOptions(
     })),
   ];
 
-  let mode = command.name() === 'build' ? 'production' : 'development';
+  let mode =
+    command.name() === 'build' || command.prod ? 'production' : 'development';
   return {
     shouldDisableCache: command.cache === false,
     cacheDir: command.cacheDir,
