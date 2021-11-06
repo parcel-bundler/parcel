@@ -396,16 +396,20 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
               return Ok(result);
             }
 
+            let mut collect = Collect::new(
+              source_map.clone(),
+              decls,
+              ignore_mark,
+              global_mark,
+              config.trace_bailouts,
+            );
+            module.visit_with(&Invalid { span: DUMMY_SP } as _, &mut collect);
+            if let Some(bailouts) = &collect.bailouts {
+              diagnostics.extend(bailouts.iter().map(|bailout| bailout.to_diagnostic()));
+            }
+
             let module = if config.scope_hoist {
-              let res = hoist(
-                module,
-                source_map.clone(),
-                config.module_id.as_str(),
-                decls,
-                ignore_mark,
-                global_mark,
-                config.trace_bailouts,
-              );
+              let res = hoist(module, config.module_id.as_str(), &collect);
               match res {
                 Ok((module, hoist_result, hoist_diagnostics)) => {
                   result.hoist_result = Some(hoist_result);
@@ -418,19 +422,7 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                 }
               }
             } else {
-              let mut symbols_collect = Collect::new(
-                source_map.clone(),
-                decls,
-                Mark::fresh(Mark::root()),
-                global_mark,
-                config.trace_bailouts,
-              );
-              module.visit_with(&Invalid { span: DUMMY_SP } as _, &mut symbols_collect);
-
-              if let Some(bailouts) = &symbols_collect.bailouts {
-                diagnostics.extend(bailouts.iter().map(|bailout| bailout.to_diagnostic()));
-              }
-              result.symbol_result = Some(symbols_collect.into());
+              result.symbol_result = Some(collect.into());
 
               let (module, needs_helpers) = esm2cjs(module, versions);
               result.needs_esm_helpers = needs_helpers;

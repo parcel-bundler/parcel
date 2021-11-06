@@ -3,15 +3,15 @@ use std::collections::hash_map::DefaultHasher;
 use std::collections::{HashMap, HashSet};
 use std::hash::Hasher;
 use swc_atoms::JsWord;
-use swc_common::{sync::Lrc, Mark, Span, SyntaxContext, DUMMY_SP};
+use swc_common::{Span, SyntaxContext, DUMMY_SP};
 use swc_ecmascript::ast::*;
-use swc_ecmascript::visit::{Fold, FoldWith, VisitWith};
+use swc_ecmascript::visit::{Fold, FoldWith};
 
 use crate::collect::{Collect, Import, ImportKind};
 use crate::id;
 use crate::utils::{
   match_import, match_member_expr, match_require, CodeHighlight, Diagnostic, DiagnosticSeverity,
-  IdentId, SourceLocation,
+  SourceLocation,
 };
 
 macro_rules! hash {
@@ -24,26 +24,14 @@ macro_rules! hash {
 
 pub fn hoist(
   module: Module,
-  source_map: Lrc<swc_common::SourceMap>,
   module_id: &str,
-  decls: HashSet<IdentId>,
-  ignore_mark: Mark,
-  global_mark: Mark,
-  trace_bailouts: bool,
+  collect: &Collect,
 ) -> Result<(Module, HoistResult, Vec<Diagnostic>), Vec<Diagnostic>> {
-  let mut collect = Collect::new(source_map, decls, ignore_mark, global_mark, trace_bailouts);
-  module.visit_with(&Invalid { span: DUMMY_SP } as _, &mut collect);
-
-  let mut hoist = Hoist::new(module_id, &collect);
+  let mut hoist = Hoist::new(module_id, collect);
   let module = module.fold_with(&mut hoist);
+
   if !hoist.diagnostics.is_empty() {
     return Err(hoist.diagnostics);
-  }
-
-  if let Some(bailouts) = &collect.bailouts {
-    hoist
-      .diagnostics
-      .extend(bailouts.iter().map(|bailout| bailout.to_diagnostic()));
   }
 
   let diagnostics = std::mem::take(&mut hoist.diagnostics);
@@ -1121,6 +1109,7 @@ mod tests {
   use swc_ecmascript::parser::lexer::Lexer;
   use swc_ecmascript::parser::{EsConfig, Parser, StringInput, Syntax};
   use swc_ecmascript::transforms::resolver_with_mark;
+  use swc_ecmascript::visit::VisitWith;
   extern crate indoc;
   use self::indoc::indoc;
 
