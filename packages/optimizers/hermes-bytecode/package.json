@@ -20,8 +20,10 @@
     "parcel": "^2.0.1"
   },
   "dependencies": {
+    "@parcel/diagnostic": "^2.0.1",
     "@parcel/plugin": "^2.0.1",
     "@parcel/utils": "^2.0.1",
-    "metro-hermes-compiler": "^0.66.2"
+    "cross-spawn": "^7.0.3",
+    "tempy": "^2.0.0"
   }
 }

@@ -9,5 +9,6 @@
     "react": "17.0.2",
     "react-native": "0.66.1"
   },
+  "_browserslist": "Firefox 44",
   "browserslist": "Safari 11"
 }
