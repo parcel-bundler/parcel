@@ -17,7 +17,6 @@ export default async function loadEnv(
   const NODE_ENV = env.NODE_ENV ?? 'development';
 
   const dotenvFiles = [
-    envFileName,
     '.env',
     // Don't include `.env.local` for `test` environment
     // since normally you expect tests to produce the same
@@ -25,6 +24,7 @@ export default async function loadEnv(
     NODE_ENV === 'test' ? null : '.env.local',
     `.env.${NODE_ENV}`,
     `.env.${NODE_ENV}.local`,
+    envFileName,
   ].filter(Boolean);
 
   let envs = await Promise.all(
