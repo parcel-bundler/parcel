@@ -1,6 +1,6 @@
 use crate::dependency_collector::{DependencyDescriptor, DependencyKind};
-use crate::hoist::{Collect, Import};
-use crate::utils::SourceLocation;
+use crate::hoist::Collect;
+use crate::utils::{match_module_reference, SourceLocation};
 use data_encoding::{BASE64, HEXLOWER};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
@@ -10,11 +10,6 @@ use swc_ecmascript::ast::*;
 use swc_ecmascript::visit::{Fold, FoldWith, VisitWith};
 
 type IdentId = (JsWord, SyntaxContext);
-macro_rules! id {
-  ($ident: expr) => {
-    ($ident.sym.clone(), $ident.span.ctxt)
-  };
-}
 
 pub fn inline_fs<'a>(
   filename: &str,
@@ -56,7 +51,7 @@ impl<'a> Fold for InlineFS<'a> {
   fn fold_expr(&mut self, node: Expr) -> Expr {
     if let Expr::Call(call) = &node {
       if let ExprOrSuper::Expr(expr) = &call.callee {
-        if let Some((source, specifier)) = self.match_module_reference(expr) {
+        if let Some((source, specifier)) = match_module_reference(&self.collect, expr) {
           if &source == "fs" && &specifier == "readFileSync" {
             if let Some(arg) = call.args.get(0) {
               if let Some(res) = self.evaluate_fs_arg(&*arg.expr, call.args.get(1), call.span) {
@@ -73,52 +68,6 @@ impl<'a> Fold for InlineFS<'a> {
 }
 
 impl<'a> InlineFS<'a> {
-  fn match_module_reference(&self, node: &Expr) -> Option<(JsWord, JsWord)> {
-    match node {
-      Expr::Ident(ident) => {
-        if let Some(Import {
-          source, specifier, ..
-        }) = self.collect.imports.get(&id!(ident))
-        {
-          return Some((source.clone(), specifier.clone()));
-        }
-      }
-      Expr::Member(member) => {
-        let prop = match &*member.prop {
-          Expr::Ident(ident) => {
-            if !member.computed {
-              ident.sym.clone()
-            } else {
-              return None;
-            }
-          }
-          Expr::Lit(Lit::Str(str_)) => str_.value.clone(),
-          _ => return None,
-        };
-
-        if let ExprOrSuper::Expr(expr) = &member.obj {
-          if let Some(source) = self.collect.match_require(expr) {
-            return Some((source, prop));
-          }
-
-          if let Expr::Ident(ident) = &**expr {
-            if let Some(Import {
-              source, specifier, ..
-            }) = self.collect.imports.get(&id!(ident))
-            {
-              if specifier == "default" || specifier == "*" {
-                return Some((source.clone(), prop));
-              }
-            }
-          }
-        }
-      }
-      _ => {}
-    }
-
-    None
-  }
-
   fn evaluate_fs_arg(
     &mut self,
     node: &Expr,
@@ -290,7 +239,7 @@ impl<'a> Fold for Evaluator<'a> {
           _ => return node,
         };
 
-        if let Some((source, specifier)) = self.inline.match_module_reference(callee) {
+        if let Some((source, specifier)) = match_module_reference(&self.inline.collect, callee) {
           match (source.to_string().as_str(), specifier.to_string().as_str()) {
             ("path", "join") => {
               let mut path = PathBuf::new();

@@ -19,6 +19,7 @@ mod fs;
 mod global_replacer;
 mod hoist;
 mod modules;
+mod react_native_replacer;
 mod utils;
 
 use std::collections::{HashMap, HashSet};
@@ -51,6 +52,9 @@ use global_replacer::GlobalReplacer;
 use hoist::hoist;
 use modules::esm2cjs;
 use utils::{CodeHighlight, Diagnostic, DiagnosticSeverity, SourceLocation, SourceType};
+
+use crate::hoist::Collect;
+use crate::react_native_replacer::ReactNativeReplacer;
 
 type SourceMapBuffer = Vec<(swc_common::BytePos, swc_common::LineCol)>;
 
@@ -323,6 +327,17 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                   },
                   config.source_type != SourceType::Script
                 ),
+                ReactNativeReplacer {
+                  platforms: &vec!["android", "native"],
+                  collect: &Collect::new(
+                    source_map.clone(),
+                    decls.clone(),
+                    Mark::fresh(Mark::root()),
+                    global_mark,
+                    false,
+                  ),
+                  is_development: config.is_development
+                },
                 // Simplify expressions and remove dead branches so that we
                 // don't include dependencies inside conditionals that are always false.
                 expr_simplifier(Default::default()),
@@ -357,13 +372,9 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                     decls: &mut decls,
                     global_mark,
                     scope_hoist: config.scope_hoist,
-                    is_development: config.is_development
                   },
                   config.insert_node_globals && config.source_type != SourceType::Script
                 ),
-                // TODO move __DEV__ replacement out of GlobalReplacer and before the simplifier calls above
-                expr_simplifier(Default::default()),
-                dead_branch_remover(),
                 // Transpile new syntax to older syntax if needed
                 Optional::new(
                   preset_env(global_mark, Some(&comments), preset_env_config),

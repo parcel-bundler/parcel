@@ -6,6 +6,8 @@ use swc_atoms::JsWord;
 use swc_common::{Mark, Span, SyntaxContext, DUMMY_SP};
 use swc_ecmascript::ast;
 
+use crate::hoist::{Collect, Import};
+
 pub fn match_member_expr(
   expr: &ast::MemberExpr,
   idents: Vec<&str>,
@@ -131,6 +133,57 @@ pub fn match_require(
     },
     _ => None,
   }
+}
+
+macro_rules! id {
+  ($ident: expr) => {
+    ($ident.sym.clone(), $ident.span.ctxt)
+  };
+}
+pub fn match_module_reference(collect: &Collect, node: &ast::Expr) -> Option<(JsWord, JsWord)> {
+  match node {
+    ast::Expr::Ident(ident) => {
+      if let Some(Import {
+        source, specifier, ..
+      }) = collect.imports.get(&id!(ident))
+      {
+        return Some((source.clone(), specifier.clone()));
+      }
+    }
+    ast::Expr::Member(member) => {
+      let prop = match &*member.prop {
+        ast::Expr::Ident(ident) => {
+          if !member.computed {
+            ident.sym.clone()
+          } else {
+            return None;
+          }
+        }
+        ast::Expr::Lit(ast::Lit::Str(str_)) => str_.value.clone(),
+        _ => return None,
+      };
+
+      if let ast::ExprOrSuper::Expr(expr) = &member.obj {
+        if let Some(source) = collect.match_require(expr) {
+          return Some((source, prop));
+        }
+
+        if let ast::Expr::Ident(ident) = &**expr {
+          if let Some(Import {
+            source, specifier, ..
+          }) = collect.imports.get(&id!(ident))
+          {
+            if specifier == "default" || specifier == "*" {
+              return Some((source.clone(), prop));
+            }
+          }
+        }
+      }
+    }
+    _ => {}
+  }
+
+  None
 }
 
 pub fn match_import(node: &ast::Expr, ignore_mark: Mark) -> Option<JsWord> {
