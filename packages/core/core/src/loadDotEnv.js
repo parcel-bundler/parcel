@@ -8,6 +8,7 @@ import dotenv from 'dotenv';
 import variableExpansion from 'dotenv-expand';
 
 export default async function loadEnv(
+  envFileName?: string,
   env: EnvMap,
   fs: FileSystem,
   filePath: FilePath,
@@ -16,6 +17,7 @@ export default async function loadEnv(
   const NODE_ENV = env.NODE_ENV ?? 'development';
 
   const dotenvFiles = [
+    envFileName,
     '.env',
     // Don't include `.env.local` for `test` environment
     // since normally you expect tests to produce the same
