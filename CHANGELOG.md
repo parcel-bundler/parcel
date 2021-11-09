@@ -5,6 +5,38 @@ All notable changes to Parcel will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and Parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [2.0.1] - 2021-11-08
+
+### Fixed
+
+- Don't load PostCSS and PostHTML config when inside node_modules - [Details](https://github.com/parcel-bundler/parcel/pull/7088)
+- Fix unknown language in Vue templates with external scripts/styles - [Details](https://github.com/parcel-bundler/parcel/pull/7056)
+- Fix "Callback must be a function" error when auto installing - [Details](https://github.com/parcel-bundler/parcel/pull/7103)
+- Fix issue with named imports and object properties of the same name - [Details](https://github.com/parcel-bundler/parcel/issues/7094) and [follow up](https://github.com/parcel-bundler/parcel/pull/7228)
+- Bump SWC - [Details](https://github.com/parcel-bundler/parcel/pull/7114)
+- Fix issue with `@tailwindcss/forms` and PostCSS nodes missing a `source` property - [Details](https://github.com/parcel-bundler/parcel/pull/7079)
+- Fix issue with ESM default interop and `new` expressions - [Details](https://github.com/parcel-bundler/parcel/pull/7113)
+- Support `.yml` for YAML files, in addition to `.yaml` - [Details](https://github.com/parcel-bundler/parcel/pull/7192)
+- Log warning instead of crash if image optimizer fails - [Details](https://github.com/parcel-bundler/parcel/pull/7119)
+- Add missing dependency to `@parcel/config-webextension` - [Details](https://github.com/parcel-bundler/parcel/pull/7193)
+- Update package.json to include the repository - [Details](https://github.com/parcel-bundler/parcel/pull/7184)
+- Fix serve mode with target override and target source fields [Details](https://github.com/parcel-bundler/parcel/pull/7187)
+- Improve performance of webpack loader detection, which affected large data urls - [Details](https://github.com/parcel-bundler/parcel/pull/7226)
+- Update SWC to properly retain `this` context - [Details](https://github.com/parcel-bundler/parcel/pull/7216)
+- Sync `engines.parcel` with core version when releasing nightlies - [Details](https://github.com/parcel-bundler/parcel/pull/7207)
+- Fix export in TypeScript type definitions for `@parcel/core` - [Details](https://github.com/parcel-bundler/parcel/pull/7250)
+- Add missing dependency on `@parcel/diagnostic` to `@parcel/transformer-typescript-types` - [Details](https://github.com/parcel-bundler/parcel/pull/7248)
+- Resolve GLSL relative to the importer, not the asset - [Details](https://github.com/parcel-bundler/parcel/pull/7263)
+
+### Experiments
+
+- Update esbuild dependency in `@parcel/optimizer-esbuild` plugin - [Details](https://github.com/parcel-bundler/parcel/pull/7233)
+- Add experimental `@parcel/optimizer-swc` plugin - [Details](https://github.com/parcel-bundler/parcel/pull/7212)
+
+## [2.0.0] - 2021-10-13
+
+See the [blog post](https://parceljs.org/blog/v2/).
+
 ## [1.12.3] - 2019-03-20
 
 - Downgrade all internal Babel packages to `<7.4.0` because of bugs in that release.
