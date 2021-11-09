@@ -86,6 +86,7 @@ type IdealGraph = {|
   bundleGraph: Graph<Bundle | 'root'>,
   bundleGroupBundleIds: Array<NodeId>,
   assetReference: DefaultMap<Asset, Array<[Dependency, Bundle]>>,
+  sharedToSourceBundleIds: Map<NodeId, Array<NodeId>>,
 |};
 
 export default (new Bundler({
@@ -109,6 +110,7 @@ function decorateLegacyGraph(
     bundleGraph: idealBundleGraph,
     dependencyBundleGraph,
     bundleGroupBundleIds,
+    sharedToSourceBundleIds,
   } = idealGraph;
   let entryBundleToBundleGroup: Map<NodeId, BundleGroup> = new Map();
 
@@ -218,6 +220,22 @@ function decorateLegacyGraph(
       bundleGraph.createAssetReference(dependency, asset, legacyBundle);
     }
   }
+
+  for (let [sharedBundleId, sourceBundleIds] of sharedToSourceBundleIds) {
+    let sharedBundle = nullthrows(idealBundleGraph.getNode(sharedBundleId));
+    if (sharedBundle === 'root') continue;
+    let legacySharedBundle = nullthrows(
+      idealBundleToLegacyBundle.get(sharedBundle),
+    );
+    for (let sourceBundleId of sourceBundleIds) {
+      let sourceBundle = nullthrows(idealBundleGraph.getNode(sourceBundleId));
+      if (sourceBundle === 'root') continue;
+      let legacySourceBundle = nullthrows(
+        idealBundleToLegacyBundle.get(sourceBundle),
+      );
+      bundleGraph.createBundleReference(legacySourceBundle, legacySharedBundle);
+    }
+  }
 }
 
 function createIdealGraph(
@@ -250,6 +268,8 @@ function createIdealGraph(
 
   // Step 1: Find and create bundles for entries from assetGraph
   let entries: Map<Asset, Dependency> = new Map();
+  let sharedToSourceBundleIds: Map<NodeId, Array<NodeId>> = new Map();
+
   assetGraph.traverse((node, context, actions) => {
     if (node.type !== 'asset') {
       return node;
@@ -726,6 +746,8 @@ function createIdealGraph(
           bundleGraph.addEdge(sourceBundleId, bundleId);
         }
       }
+      sharedToSourceBundleIds.set(bundleId, sourceBundles);
+
       dependencyBundleGraph.addNodeByContentKeyIfNeeded(String(bundleId), {
         value: bundle,
         type: 'bundle',
@@ -738,6 +760,7 @@ function createIdealGraph(
   for (let [bundleNodeId, bundle] of bundleGraph.nodes) {
     if (bundle === 'root') continue;
     if (bundle.sourceBundles.length > 0 && bundle.size < config.minBundleSize) {
+      sharedToSourceBundleIds.delete(bundleNodeId);
       removeBundle(bundleGraph, bundleNodeId);
     }
   }
@@ -783,6 +806,7 @@ function createIdealGraph(
     dependencyBundleGraph,
     bundleGroupBundleIds,
     assetReference,
+    sharedToSourceBundleIds,
   };
 }
 
