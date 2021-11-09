@@ -10,22 +10,24 @@ export default async function getFlowOptions(
   config: Config,
   options: PluginOptions,
 ): Promise<?BabelConfig> {
-  if (!config.isSource) {
+  if (!config.isSource && !config.env.isReactNative()) {
     return null;
   }
 
-  // Only add flow plugin if `flow-bin` is listed as a dependency in the root package.json
-  let conf = await config.getConfigFrom<PackageJSON>(
-    options.projectRoot + '/index',
-    ['package.json'],
-  );
-  let pkg = conf?.contents;
-  if (
-    !pkg ||
-    (!(pkg.dependencies && pkg.dependencies['flow-bin']) &&
-      !(pkg.devDependencies && pkg.devDependencies['flow-bin']))
-  ) {
-    return null;
+  if (!config.env.isReactNative()) {
+    // Only add flow plugin if `flow-bin` is listed as a dependency in the root package.json
+    let conf = await config.getConfigFrom<PackageJSON>(
+      options.projectRoot + '/index',
+      ['package.json'],
+    );
+    let pkg = conf?.contents;
+    if (
+      !pkg ||
+      (!(pkg.dependencies && pkg.dependencies['flow-bin']) &&
+        !(pkg.devDependencies && pkg.devDependencies['flow-bin']))
+    ) {
+      return null;
+    }
   }
 
   return {

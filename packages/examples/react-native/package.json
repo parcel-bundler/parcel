@@ -2,13 +2,23 @@
   "name": "@parcel/example-react-native",
   "version": "0.0.0",
   "scripts": {
-    "start": "parcel serve --config .parcelrc index.js --target default --host 10.6.10.149 --hmr-port 4444",
-    "build": "parcel build --config .parcelrc index.js"
+    "start:android": "parcel serve --config .parcelrc index.js --target android --host 10.6.10.149 --hmr-port 4444",
+    "start:ios": "parcel serve --config .parcelrc index.js --target ios --host 10.6.10.149 --hmr-port 4444",
+    "build:android": "parcel build --config .parcelrc index.js --target ios",
+    "build:ios": "parcel build --config .parcelrc index.js --target android"
   },
   "dependencies": {
     "react": "17.0.2",
     "react-native": "0.66.1"
   },
   "_browserslist": "Firefox 44",
-  "browserslist": "Safari 11"
+  "browserslist": "Safari 11",
+  "targets": {
+    "android": {
+      "context": "react-native-android"
+    },
+    "ios": {
+      "context": "react-native-ios"
+    }
+  }
 }

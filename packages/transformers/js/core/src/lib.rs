@@ -54,7 +54,7 @@ use modules::esm2cjs;
 use utils::{CodeHighlight, Diagnostic, DiagnosticSeverity, SourceLocation, SourceType};
 
 use crate::hoist::Collect;
-use crate::react_native_replacer::ReactNativeReplacer;
+use crate::react_native_replacer::react_native_replacer;
 
 type SourceMapBuffer = Vec<(swc_common::BytePos, swc_common::LineCol)>;
 
@@ -71,6 +71,7 @@ pub struct Config {
   insert_node_globals: bool,
   is_browser: bool,
   is_worker: bool,
+  is_react_native: Option<String>,
   is_type_script: bool,
   is_jsx: bool,
   jsx_pragma: Option<String>,
@@ -313,6 +314,13 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
 
             let mut diagnostics = vec![];
             let module = {
+              let collect = Collect::new(
+                source_map.clone(),
+                decls.clone(),
+                Mark::fresh(Mark::root()),
+                global_mark,
+                false,
+              );
               let mut passes = chain!(
                 // Inline process.env and process.browser
                 Optional::new(
@@ -327,17 +335,14 @@ pub fn transform(config: Config) -> Result<TransformResult, std::io::Error> {
                   },
                   config.source_type != SourceType::Script
                 ),
-                ReactNativeReplacer {
-                  platforms: &vec!["android", "native"],
-                  collect: &Collect::new(
-                    source_map.clone(),
-                    decls.clone(),
-                    Mark::fresh(Mark::root()),
-                    global_mark,
-                    false,
+                Optional::new(
+                  react_native_replacer(
+                    config.is_react_native.clone(),
+                    &collect,
+                    config.is_development
                   ),
-                  is_development: config.is_development
-                },
+                  config.is_react_native.is_some()
+                ),
                 // Simplify expressions and remove dead branches so that we
                 // don't include dependencies inside conditionals that are always false.
                 expr_simplifier(Default::default()),

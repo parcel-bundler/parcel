@@ -11,9 +11,12 @@ import {glob} from '@parcel/utils';
 import {hashString, Hash} from '@parcel/hash';
 
 const NODE_EXTENSIONS = ['ts', 'tsx', 'js', 'jsx', 'json'];
-function getReactNativeInfixes() {
-  // TODO various envs
-  return ['android', 'native', ''];
+function getReactNativeInfixes(dependency) {
+  return [
+    dependency.env.context === 'react-native-android' ? 'android' : 'ios',
+    'native',
+    '',
+  ];
 }
 
 function* crossProduct(a, b) {
@@ -38,7 +41,9 @@ export default (new Resolver({
     const resolver = new NodeResolver({
       fs: options.inputFS,
       projectRoot: options.projectRoot,
-      extensions: [...crossProduct(getReactNativeInfixes(), NODE_EXTENSIONS)],
+      extensions: [
+        ...crossProduct(getReactNativeInfixes(dependency), NODE_EXTENSIONS),
+      ],
       mainFields: ['source', 'browser', 'module', 'main'],
     });
 

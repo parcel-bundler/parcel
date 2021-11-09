@@ -8,10 +8,26 @@ use swc_ecmascript::visit::{Fold, FoldWith};
 
 use crate::{fold_member_expr_skip_prop, hoist::Collect, utils::match_module_reference};
 
-pub struct ReactNativeReplacer<'a> {
-  pub platforms: &'a Vec<&'a str>,
+struct ReactNativeReplacer<'a> {
+  pub platforms: Vec<String>,
   pub collect: &'a Collect,
   pub is_development: bool,
+}
+
+pub fn react_native_replacer(
+  platform: Option<String>,
+  collect: &'_ Collect,
+  is_development: bool,
+) -> impl Fold + '_ {
+  ReactNativeReplacer {
+    platforms: if let Some(plat) = platform {
+      vec![plat, "native".to_owned()]
+    } else {
+      vec![]
+    },
+    collect,
+    is_development,
+  }
 }
 
 impl<'a> Fold for ReactNativeReplacer<'a> {
@@ -30,7 +46,7 @@ impl<'a> Fold for ReactNativeReplacer<'a> {
                 has_escape: false,
                 kind: StrKind::Synthesized,
                 span: DUMMY_SP,
-                value: self.platforms[0].into(),
+                value: self.platforms[0].as_str().into(),
               }));
             }
           }
@@ -194,7 +210,7 @@ mod tests {
 
             let module = {
               let mut hoist = ReactNativeReplacer {
-                platforms: &vec!["android", "native"],
+                platforms: vec!["android".to_owned(), "native".to_owned()],
                 collect: &collect,
                 is_development: true,
               };

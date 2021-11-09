@@ -23,6 +23,8 @@ export const BROWSER_ENVS: Set<string> = new Set<string>([
   'service-worker',
   'worklet',
   'electron-renderer',
+  'react-native-android',
+  'react-native-ios',
 ]);
 const ELECTRON_ENVS = new Set(['electron-main', 'electron-renderer']);
 const NODE_ENVS = new Set(['node', ...ELECTRON_ENVS]);
@@ -213,6 +215,10 @@ export default class Environment implements IEnvironment {
 
   isWorklet(): boolean {
     return this.#environment.context === 'worklet';
+  }
+
+  isReactNative(): boolean {
+    return this.#environment.context.startsWith('react-native');
   }
 
   matchesEngines(

@@ -283,7 +283,7 @@ export default (new Transformer({
     ]);
 
     let targets;
-    if (true || asset.isSource) {
+    if (asset.isSource || asset.env.isReactNative()) {
       if (asset.env.isElectron() && asset.env.engines.electron) {
         targets = {
           electron: semver.minVersion(asset.env.engines.electron)?.toString(),
@@ -382,6 +382,11 @@ export default (new Transformer({
       insert_node_globals: !asset.env.isNode(),
       is_browser: asset.env.isBrowser(),
       is_worker: asset.env.isWorker(),
+      is_react_native: asset.env.isReactNative()
+        ? asset.env.context === 'react-native-android'
+          ? 'android'
+          : 'ios'
+        : null,
       env,
       is_type_script: asset.type === 'ts' || asset.type === 'tsx',
       is_jsx: isJSX,

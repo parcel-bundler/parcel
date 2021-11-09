@@ -47,6 +47,11 @@ const GLOBALS_BY_CONTEXT = {
     ...Object.keys(globals.node),
     ...Object.keys(globals.browser),
   ]),
+  'react-native-android': new Set([
+    ...BUILTINS,
+    ...Object.keys(globals.worker),
+  ]),
+  'react-native-ios': new Set([...BUILTINS, ...Object.keys(globals.worker)]),
 };
 
 const OUTPUT_FORMATS = {

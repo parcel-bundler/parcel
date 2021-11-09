@@ -15,7 +15,7 @@ export default async function isJSX(
   options: PluginOptions,
   config: Config,
 ): Promise<boolean> {
-  if (!config.isSource) {
+  if (!config.isSource && !config.env.isReactNative()) {
     return false;
   }
 

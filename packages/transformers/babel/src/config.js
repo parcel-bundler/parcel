@@ -46,7 +46,7 @@ export async function load(
   logger: PluginLogger,
 ): Promise<?BabelConfigResult> {
   // Don't transpile inside node_modules
-  if (!config.isSource) {
+  if (!config.isSource && !config.env.isReactNative()) {
     return;
   }
 

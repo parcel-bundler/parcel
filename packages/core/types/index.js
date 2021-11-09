@@ -113,7 +113,9 @@ export type EnvironmentContext =
   | 'worklet'
   | 'node'
   | 'electron-main'
-  | 'electron-renderer';
+  | 'electron-renderer'
+  | 'react-native-android'
+  | 'react-native-ios';
 
 /** The JS module format for the bundle output */
 export type OutputFormat = 'esmodule' | 'commonjs' | 'global';
@@ -186,7 +188,7 @@ export type EnvironmentOptions = {|
  */
 export type VersionMap = {
   [string]: string,
-  ...,
+  ...
 };
 
 export type EnvironmentFeature =
@@ -233,6 +235,8 @@ export interface Environment {
   isWorker(): boolean;
   /** Whether <code>context</code> specifies a worklet context. */
   isWorklet(): boolean;
+  /** Whether <code>context</code> specifies a React Native context. */
+  isReactNative(): boolean;
   /** Whether <code>context</code> specifies an isolated context (can't access other loaded ancestor bundles). */
   isIsolated(): boolean;
   matchesEngines(minVersions: VersionMap, defaultValue?: boolean): boolean;
@@ -398,9 +402,11 @@ export interface AssetSymbols // eslint-disable-next-line no-undef
    * This is the default state.
    */
   +isCleared: boolean;
-  get(
-    exportSymbol: Symbol,
-  ): ?{|local: Symbol, loc: ?SourceLocation, meta?: ?Meta|};
+  get(exportSymbol: Symbol): ?{|
+    local: Symbol,
+    loc: ?SourceLocation,
+    meta?: ?Meta,
+  |};
   hasExportSymbol(exportSymbol: Symbol): boolean;
   hasLocalSymbol(local: Symbol): boolean;
   exportSymbols(): Iterable<Symbol>;
@@ -439,9 +445,12 @@ export interface MutableDependencySymbols // eslint-disable-next-line no-undef
    * This is the default state.
    */
   +isCleared: boolean;
-  get(
-    exportSymbol: Symbol,
-  ): ?{|local: Symbol, loc: ?SourceLocation, isWeak: boolean, meta?: ?Meta|};
+  get(exportSymbol: Symbol): ?{|
+    local: Symbol,
+    loc: ?SourceLocation,
+    isWeak: boolean,
+    meta?: ?Meta,
+  |};
   hasExportSymbol(exportSymbol: Symbol): boolean;
   hasLocalSymbol(local: Symbol): boolean;
   exportSymbols(): Iterable<Symbol>;
