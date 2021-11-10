@@ -148,8 +148,6 @@ export class DevPackager {
       mainEntry = null;
     }
 
-    let globalVar = this.options.global || '';
-
     let contents =
       prefix +
       '({' +
@@ -164,7 +162,8 @@ export class DevPackager {
       ) +
       ', ' +
       JSON.stringify(this.parcelRequireName) +
-      (globalVar ? ', ' + JSON.stringify(globalVar) : '') +
+      ', ' +
+      JSON.stringify(this.options.global || '') +
       ')' +
       '\n';
 

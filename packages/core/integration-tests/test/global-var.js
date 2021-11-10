@@ -28,6 +28,23 @@ describe('global-var', function () {
       );
     });
 
+    it('should contain empty string if no global var is passed', async function () {
+      const b = await bundle(
+        path.join(__dirname, '/integration/global-var/index.js'),
+      );
+      const packager = new DevPackager(
+        {
+          projectRoot: '',
+          global: '',
+        },
+        b,
+        b.getBundles()[0],
+        'aRequiredName',
+      );
+      const output = await packager.package();
+      assert.equal(output.contents.includes('"aRequiredName", "")\n'), true);
+    });
+
     it('should mount as commonjs', async function () {
       const b = await bundle(
         path.join(__dirname, '/integration/global-var/index.js'),
