@@ -281,7 +281,7 @@ export type InitialParcelOptions = {|
   +config?: DependencySpecifier,
   +defaultConfig?: DependencySpecifier,
   +env?: EnvMap,
-  +envFile?: string,
+  +envFile?: FilePath,
   +targets?: ?(Array<string> | {+[string]: TargetDescriptor, ...}),
 
   +shouldDisableCache?: boolean,
