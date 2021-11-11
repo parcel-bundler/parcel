@@ -208,6 +208,7 @@ export default class Server {
   ): Promise<void> {
     let bundleGraph = this.bundleGraph;
     if (bundleGraph) {
+      // TODO
       if (req.url.startsWith('//')) {
         req.url = req.url.slice(1);
       }

@@ -23,7 +23,9 @@ export default (new Namer({
               path.dirname(asset.filePath),
               `${base}.${bundle.type}`,
             ),
-          ),
+          ) +
+            ':' +
+            bundle.env.context,
         )}${suffix ?? ''}.${bundle.type}`;
       }
     }

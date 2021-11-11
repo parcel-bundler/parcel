@@ -1,11 +1,11 @@
 {
   "extends": "@parcel/config-default",
   "transformers": {
-    "rn-asset:*": ["..."]
+    "rn-asset:*": ["..."],
+    "app.json": ["@parcel/transformer-react-native-app"]
   },
   "namers": ["@parcel/namer-react-native-assets", "..."],
   "resolvers": ["@parcel/resolver-react-native"],
   "reporters": ["@parcel/reporter-react-native", "..."],
-  "runtimes": ["...", "@parcel/runtime-react-native"],
   "optimizers": {"*.js": ["...", "@parcel/optimizer-hermes-bytecode"]}
 }

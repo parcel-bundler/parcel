@@ -15,6 +15,7 @@ import formatCodeFrame from '@parcel/codeframe';
 
 // $FlowFixMe[untyped-import]
 import {createDevServerMiddleware} from '@react-native-community/cli-server-api';
+import {URLSearchParams} from 'url';
 
 // GET "/status" -> "packager-status: running"
 // GET "/inspector" -> ws
@@ -35,10 +36,21 @@ import {createDevServerMiddleware} from '@react-native-community/cli-server-api'
 
 let server;
 let wss;
+let bundleGraph;
 
 export default (new Reporter({
   async report({event, options, logger}) {
     switch (event.type) {
+      case 'buildSuccess': {
+        // TODO "pending" like in the server reporter
+        bundleGraph = event.bundleGraph;
+        let bundles = bundleGraph.getBundles();
+        // TODO do this immediately?
+        if (bundles.length === 1) {
+          event.requestBundle(bundles[0]);
+        }
+        break;
+      }
       case 'watchStart': {
         let serveOptions = options.serveOptions;
         if (serveOptions === false) {
@@ -86,7 +98,32 @@ export default (new Reporter({
             } else {
               middleware(req, res, () => {
                 if (req.url.startsWith('/index.bundle')) {
-                  req.url = '/entry.js';
+                  // req.url = '/entry.js';
+                  let bundleGroup = nullthrows(
+                    bundleGraph
+                      .getBundles()
+                      .map(b =>
+                        bundleGraph
+                          .getBundleGroupsContainingBundle(b)
+                          .find(bg => bundleGraph.isEntryBundleGroup(bg)),
+                      ),
+                  ).filter(Boolean)[0];
+                  let params = new URLSearchParams(
+                    req.url.substr(req.url.indexOf('?')),
+                  );
+                  let platform = nullthrows(params.get('platform'));
+                  let bundle = nullthrows(
+                    bundleGraph
+                      .getBundlesInBundleGroup(bundleGroup)
+                      .find(b => b.env.context === `react-native-${platform}`),
+                  );
+                  req.url = `/${path.posix.relative(
+                    // $FlowFixMe
+                    options.serveOptions?.distDir,
+                    bundle.filePath,
+                  )}`;
+                  // $FlowFixMe
+                  req.originalUrl = req.url;
                 }
                 devServerProxyMiddleware(req, res);
               });
