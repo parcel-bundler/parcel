@@ -56,4 +56,19 @@ describe('typescript tsc', function () {
     let output = await run(b);
     assert.equal(new output.Foo().run(), 'bar');
   });
+
+  it('should support decorators when the target is es6', async () => {
+    const b = await bundle(
+      path.join(__dirname, '/integration/typescript-es6-decorators/index.ts'),
+      {
+        config: path.join(
+          __dirname,
+          '/integration/typescript-es6-decorators/.parcelrc',
+        ),
+      },
+    );
+
+    const output = await run(b);
+    assert.strictEqual(output, 'ClassOne');
+  });
 });

@@ -527,7 +527,7 @@ impl Fold for ESMFold {
 
     let mut node = node;
     items.splice(0..0, self.requires.clone());
-    items.splice(0..0, self.exports.clone());
+    items.extend_from_slice(&self.exports.clone());
 
     if self.needs_helpers {
       items.insert(
