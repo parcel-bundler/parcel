@@ -15,7 +15,7 @@ import formatCodeFrame from '@parcel/codeframe';
 
 // $FlowFixMe[untyped-import]
 import {createDevServerMiddleware} from '@react-native-community/cli-server-api';
-import {URLSearchParams} from 'url';
+import url, {URLSearchParams} from 'url';
 
 // GET "/status" -> "packager-status: running"
 // GET "/inspector" -> ws
@@ -35,7 +35,7 @@ import {URLSearchParams} from 'url';
 // ]
 
 let server;
-let wss;
+let metroHotWss;
 let bundleGraph;
 
 export default (new Reporter({
@@ -150,8 +150,21 @@ export default (new Reporter({
           message: 'React Native server running at port 8081',
         });
 
-        wss = new WebSocketServer({server: devServer.server, path: '/hot'});
-        wss.on('connection', function connection(ws) {
+        metroHotWss = new WebSocketServer({
+          noServer: true,
+        });
+        devServer.server.on('upgrade', (req, socket, head) => {
+          let pathname = url.parse(req.url).pathname;
+
+          if (pathname === '/hot') {
+            metroHotWss.handleUpgrade(req, socket, head, ws => {
+              metroHotWss.emit('connection', ws);
+            });
+          } else {
+            socket.destroy();
+          }
+        });
+        metroHotWss.on('connection', function connection(ws) {
           ws.on('message', function incoming(message) {
             let data:
               | {|

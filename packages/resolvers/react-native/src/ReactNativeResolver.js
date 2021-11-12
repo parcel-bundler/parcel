@@ -106,7 +106,9 @@ module.exports = require("react-native/Libraries/Image/AssetRegistry").registerA
   hash: ${JSON.stringify(hash.finish())},
   name: ${JSON.stringify(
     `${path.basename(basename)}.${hashString(
-      path.posix.relative(options.projectRoot, filePath),
+      path.posix.relative(options.projectRoot, filePath) +
+        ':' +
+        dependency.env.context,
     )}`,
   )},
   type: "png",

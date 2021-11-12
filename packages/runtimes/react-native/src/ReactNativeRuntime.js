@@ -12,7 +12,7 @@ import 'react-native/Libraries/Core/InitializeCore.js';
 
 export default (new Runtime({
   apply({bundle, options}) {
-    if (bundle.type !== 'js') {
+    if (bundle.type !== 'js' || !bundle.env.isReactNative()) {
       return;
     }
 
