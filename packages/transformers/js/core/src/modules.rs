@@ -22,6 +22,7 @@ pub fn esm2cjs(node: Module, versions: Option<Versions>) -> (Module, bool) {
     interops: HashSet::new(),
     requires: vec![],
     exports: vec![],
+    export_alls: vec![],
     needs_helpers: false,
     in_export_decl: false,
     in_function_scope: false,
@@ -44,6 +45,7 @@ struct ESMFold {
   requires: Vec<ModuleItem>,
   // List of exports to add.
   exports: Vec<ModuleItem>,
+  export_alls: Vec<ModuleItem>,
   needs_helpers: bool,
   in_export_decl: bool,
   in_function_scope: bool,
@@ -398,7 +400,7 @@ impl Fold for ESMFold {
                 ],
                 export.span,
               );
-              self.requires.push(export);
+              self.export_alls.push(export);
             }
             ModuleDecl::ExportDefaultExpr(export) => {
               needs_interop_flag = true;
@@ -528,6 +530,7 @@ impl Fold for ESMFold {
     let mut node = node;
     items.splice(0..0, self.requires.clone());
     items.extend_from_slice(&self.exports.clone());
+    items.extend_from_slice(&self.export_alls.clone());
 
     if self.needs_helpers {
       items.insert(
